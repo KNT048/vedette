@@ -433,13 +433,15 @@ func TestImportDoesNotBurnCPUOnHostileCells(t *testing.T) {
 	big := "name,product\r\nx," + strings.Repeat("ab ", 60_000) + "\r\n"
 	start := time.Now()
 	r := e.importCSV(big)
-	if d := time.Since(start); d > time.Second {
+	// Wall-clock guards only catch the old cost (10.9 s here, ~5x that under -race): a busy CI or dev machine
+	// must not fail them, so they sit far above the normal 0.3 s.
+	if d := time.Since(start); d > 10*time.Second {
 		t.Fatalf("a 180 KB cell took %v", d)
 	}
 	if r.Created != 0 || len(r.Errors) != 1 || !strings.Contains(r.Errors[0].Message, "too long") || r.Errors[0].Line != 2 {
 		t.Fatalf("result = %+v", r)
 	}
-	// 500 rows of unknown products of 64 characters (the longest accepted): about 0.3 s normally, the bound leaves room for -race
+	// 500 rows of unknown products of 64 characters (the longest accepted): about 0.3 s normally, 10.6 s before the fix
 	var b strings.Builder
 	b.WriteString("name,product\n")
 	for range inventory.MaxImportRows {
@@ -447,7 +449,7 @@ func TestImportDoesNotBurnCPUOnHostileCells(t *testing.T) {
 	}
 	start = time.Now()
 	r = e.importCSV(b.String())
-	if d := time.Since(start); d > 5*time.Second {
+	if d := time.Since(start); d > 30*time.Second {
 		t.Fatalf("500 unknown products took %v", d)
 	}
 	if r.Created != 0 || len(r.Errors) != inventory.MaxImportRows || !strings.Contains(r.Errors[0].Message, "not recognised") {

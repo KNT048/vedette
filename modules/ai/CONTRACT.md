@@ -1,6 +1,6 @@
 # AI Contract
 
-> Tier: tuỳ chọn (tắt mặc định) · Story: S-AI-1..8 (+ S-RESP-1 qua việc `response-plan`) · Quyết định: D-11, D-29, D-39, D-41, D-48, D-51 · Last verified: 2026-11-10
+> Tier: tuỳ chọn (tắt mặc định) · Story: S-AI-1..8 (+ S-RESP-1 qua việc `response-plan`) · Quyết định: D-11, D-29, D-39, D-41, D-48, D-51, D-93, D-97 · Last verified: 2026-11-10
 > Nguồn hành vi thực tế: `web/src/features/ai/{contract,types,mocks,harness,harness-mocks,activity}.ts`, `web/src/mocks/stores.ts` (`AI_JOBS`).
 
 ## Invariants (luôn đúng)
@@ -18,21 +18,21 @@
 - **INV-8** Memory: AI chỉ **đề xuất** (`MemorySuggestion`); một đề xuất chưa được admin chấp nhận (`accept`) thì không vào ngữ cảnh. Mục memory 3..300 ký tự, xem/sửa/xoá/tắt được; `suggest_enabled=false` → AI không đề xuất.
 - **INV-9** Skill là skill **của sản phẩm** (`skills/`, ký trong content pack); bật/tắt được; không phải skill Claude Code (D-13).
 - **INV-10** Kho tri thức: PDF/MD/TXT/DOCX ≤ 10 MB; trạng thái `uploading → indexing → ready`; chỉ mục nằm trên hộp; mỗi tài liệu chọn việc nào được dùng (`jobs`); xoá tài liệu xoá cả chỉ mục. Tài liệu của khách là dữ liệu nội bộ: áp dụng INV-3 cho hồ sơ dựng chỉ mục (`index_profile`).
-- **INV-11** Kết nối ngoài (`Connector`, chỉ kiểu chung D-58: http, ssh, netconf-restconf, automation, mcp-http, mcp-stdio; không có trường `vendor`, kiến thức theo thiết bị là mẫu hành động ở `response`): có `allow` (host/URL prefix/lệnh được dùng); bí mật mã hoá, chỉ `last4`; mỗi công cụ là `read` hoặc `write` và bật/tắt riêng; **công cụ `write` khi mới tạo kết nối luôn TẮT** (quản trị viên bật, D-41/D-51; tên mock: `run_approved_command` cho ssh, `send_request` cho http, `apply_config` cho netconf-restconf, `launch_job` cho automation, `run_action` cho MCP). Chỉ đi tới đích nằm trong `allow` (SYS-7). Lệnh SSH/process chỉ qua `core/exec` với allowlist (SYS-1). `mcp-stdio` chạy tiến trình theo allowlist argv, không shell.
+- **INV-11** ~~Kết nối ngoài do `ai` giữ (`ai_connectors`, `/ai/connections*`)~~ **Chuyển sang `core` (D-93, 2026-11-09)**: kết nối tới thiết bị và máy chủ MCP (kiểu chung D-58, công cụ `read`/`write` bật riêng, công cụ ghi luôn tắt khi tạo, bí mật chỉ `last4`) là bảng `core_connection*` của gói `core/conn`, quản lý ở Settings → Connections (`/core/connections*`, lát 13b-1/13b-4), dùng được khi `ai` tắt; hợp đồng của chúng ở `modules/core/CONTRACT.md` (thêm ở 13b-4) và D-93/D-94 (`mcp-stdio` bị từ chối). `ai` không có bảng, endpoint hay bí mật kết nối nào; về sau (WP-25) `ai` chỉ dùng **công cụ đọc** của kết nối qua một reader của `core`, và INV-14 vẫn đúng: công cụ ghi không bao giờ vào danh sách công cụ của mô hình.
 - **INV-12** Hook chặn có ba thời điểm (`before_ai`, `after_ai`, `before_tool`) và ba hành động (`block`, `mask`, `approve`). Hook dựng sẵn: `block-pii` (che email/số điện thoại/tên cạnh tài khoản, kể cả tiếng Việt, chữ số toàn chiều rộng/Unicode và ký tự không độ rộng — so khớp trên bản chuẩn hoá, che trên văn bản gốc; chặn số định danh 9 hoặc 12 chữ số, cả khi viết cách nhóm), `security-only`, và **`write-approval` khoá luôn bật** (`locked=true`, tắt → 400 `locked`). Hook tuỳ chỉnh theo từ khoá (phân tách bằng dấu phẩy) hoặc regex, mẫu 1..200 ký tự, tên 1..40, thông báo 3..200 ký tự, tối đa 50 hook tuỳ chỉnh. **Regex là RE2 (Go)**: cú pháp chỉ có trong JavaScript (lookahead/lookbehind, backreference, ``) bị từ chối với thông báo rõ; chương trình biên dịch tối đa 2.000 lệnh (sau khi bung lặp), quá thì từ chối khi lưu. **Văn bản vào hook tối đa 1 MiB, quá thì lỗi và người gọi phải coi là chặn (fail closed)**; quét có ngữ cảnh nên hạn chót được tôn trọng ngay trong một lần khớp. Kết quả công cụ trả về cho mô hình đi qua hook `block-pii` và được bọc cùng hàng rào dữ liệu không tin cậy. Test: `TestContract_INV12_*`.
 - **INV-13** Một câu hỏi bị chặn không được lưu nguyên văn (`[question hidden: contains personal data]`) và không tốn token. **Mọi** câu bị chặn đều lưu dạng ẩn, không riêng hook dữ liệu cá nhân; chỉ kết quả `pass` và `masked` được lưu (văn bản đã che); `held`, lỗi và giá trị rỗng đều ẩn. Test: `TestContract_INV13_*`.
 
 ### SYS-8: AI không có công cụ ghi
 - **INV-14** Bộ công cụ mà mô hình **nhìn thấy** chỉ gồm công cụ `access=read` (tra tài sản, phát hiện, feed, log, kết nối chỉ-đọc). Công cụ `write` của kết nối **không bao giờ** được đưa vào danh sách công cụ gửi cho mô hình, không phụ thuộc cấu hình hay hook tuỳ chỉnh. Test: `TestContract_INV14_NoWriteToolInModelToolList`.
 - **INV-15** Hook `write-approval` khoá: bất kỳ lời gọi công cụ ghi nào (kể cả nếu lọt tới `before_tool`) chỉ đi tiếp qua một hành động đã được người duyệt trong module `response`. Đây là **ngoại lệ duy nhất** của SYS-8 (D-41), thực thi và ràng buộc hoàn toàn trong `response` (xem `modules/response/CONTRACT.md`); module `ai` không tự thực thi ghi.
-- **INV-16** AI gửi yêu cầu phản ứng chỉ bằng `POST /response/ai/proposals` (tên hành động + tham số có kiểu + bằng chứng); không gửi lệnh. Mọi chốt chặn nằm ở `response`, không ở prompt.
+- **INV-16** AI gửi yêu cầu phản ứng chỉ bằng cổng Go `response.Service.Propose` với danh tính dịch vụ `ai:response` (D-97; `POST /response/ai/proposals` chỉ còn ở bản xem trước) gồm tên hành động + tham số có kiểu + bằng chứng; không gửi lệnh. Mọi chốt chặn nằm ở `response`, không ở prompt.
 
 ### Nhật ký AI, chống sửa (D-48)
 - **INV-17** Mọi lần gọi AI (kể cả bị hook chặn, dùng dự phòng, lỗi) tạo đúng một `ActivityEntry`: `job, profile, model, trigger, hooks[], tools[] (read|write, tham số đã tóm tắt, không bí mật), input_hash, output_hash, summary, tokens, result, links[]`. Nội dung gửi/nhận **không lưu**, chỉ hash.
 - **INV-18** Chuỗi hash dùng **một công thức chung** của `core/chain` (D-57 mục 14): `hash = SHA-256(prev_hash + "
 " + JSON chuẩn hoá của entry bỏ trường hash)`; `prev_hash` nằm trong entry; JSON chuẩn hoá: khoá sắp theo **điểm mã Unicode** (thứ tự byte UTF-8), không khoảng trắng, chuỗi thoát như `JSON.stringify`, chỉ số nguyên; **UTF-8 không hợp lệ bị từ chối**, không được thu về U+FFFD. Vector chung: `modules/core/testdata/chain_vectors.json`. Không có endpoint sửa/xoá entry. `GET /ai/activity/verify` trả `ok` hoặc `broken_at` (vị trí 1-based) và `entry_id`; `core` giữ **bản ghi đầu mối đuôi** (`hash` mục mới nhất + số mục) cùng giao dịch với mỗi lần ghi/prune để phát hiện xoá các mục mới nhất (broken_at = vị trí mục đầu tiên bị thiếu). Test: `TestContract_INV18_*`, `TestChainVectorsSharedWithCore`.
 - **INV-19** Giữ mặc định 365 ngày, tối thiểu 90 (`retention_days ≥ 90`); entry chỉ biến mất theo hết hạn lưu giữ, không theo yêu cầu sửa/xoá.
-- **INV-20** Mọi mutation cấu hình (hồ sơ, phân việc, rule, memory, skill, tri thức, kết nối, hook) ghi `core_audit` (SYS-3).
+- **INV-20** Mọi mutation cấu hình (hồ sơ, phân việc, rule, memory, skill, tri thức, hook) ghi `core_audit` (SYS-3). Kết nối do `core` ghi kiểm toán (D-93).
 - **INV-21** Dữ liệu từ log/feed/web/tài liệu đưa vào prompt là không tin cậy (SYS-6): được bọc rõ là dữ liệu, kèm luật `br-untrusted`; AI trả theo schema.
 
 ## Preconditions (trước khi gọi)
@@ -70,29 +70,29 @@
 | GET/POST, PUT/DELETE | `/ai/memory`, `/ai/memory/{id}`; PUT `/ai/memory/settings`; POST `/ai/memory/suggestions/{id}/accept\|reject` | admin |
 | GET, PUT | `/ai/skills`, `/ai/skills/{id}` | admin |
 | GET/POST, PUT/DELETE | `/ai/knowledge`, `/ai/knowledge/{id}`; PUT `/ai/knowledge/settings` | admin |
-| GET/POST, PUT/DELETE | `/ai/connections`, `/ai/connections/{id}`; POST `/ai/connections/{id}/test` | admin |
+| ~~GET/POST, PUT/DELETE~~ | ~~`/ai/connections`, `/ai/connections/{id}`; POST `/ai/connections/{id}/test`~~ chuyển thành `/core/connections*` của `core` ở lát 13b-1 (D-93); còn trong `contract.ts`/OpenAPI tới lát đó | admin |
 | GET, POST, PUT/DELETE | `/ai/hooks`, `/ai/hooks/{id}`; PUT `/ai/hooks/builtin/{id}`; POST `/ai/hooks/test` | admin |
 
 Việc `response-plan` (kế hoạch phản ứng) do `ai` chạy; endpoint `/response/plans` thuộc `response`.
 
 ## Tables owned
-`ai_config, ai_profiles, ai_assign, ai_runs, ai_sample_runs, ai_downgrades, ai_explains, ai_news, ai_asks, ai_log_digests` (S-AI-1..6); `ai_rules, ai_memory, ai_memory_suggestions, ai_memory_settings, ai_skills, ai_knowledge, ai_knowledge_settings, ai_hooks, ai_hooks_builtin, ai_connectors` (harness); `ai_activity, ai_activity_settings` (D-48). `ai_sample_runs` chỉ có trong bản xem trước.
+`ai_config, ai_profiles, ai_assign, ai_runs, ai_sample_runs, ai_downgrades, ai_explains, ai_news, ai_asks, ai_log_digests` (S-AI-1..6); `ai_rules, ai_memory, ai_memory_suggestions, ai_memory_settings, ai_skills, ai_knowledge, ai_knowledge_settings, ai_hooks, ai_hooks_builtin` (harness; `ai_connectors` chưa từng được tạo, thay bằng `core_connection*` theo D-93); `ai_activity, ai_activity_settings` (D-48). `ai_sample_runs` chỉ có trong bản xem trước.
 
 ## Events
 - **Phát**: `ai.activity` (mỗi entry; tên đề xuất) cho export log; `ai.downgrade` (cũng đi vào `core_audit`).
 - **Nhận**: yêu cầu việc từ `core` (UI), `reports` (`weekly-report`, `pdpl-assessment`), `response` (`response-plan`), `mitigation` (`mitigation-config`).
 
 ## Khi tắt module (SYS-5)
-Không route `/ai/*`, không gọi provider, không job. Nút "Giải thích", "Hỏi AI của tôi", digest AI, nhận xét AI trong báo cáo, kế hoạch AI của `response` biến mất hoặc báo "module `ai` đang tắt". Hồ sơ, rule, memory, tri thức, nhật ký giữ nguyên (chuỗi hash vẫn kiểm được). **Kết nối ngoài (`ai_connectors`) vẫn là dữ liệu mà `response` cần**: tắt `ai` thì `response` không thể chạy hành động lên thiết bị (xem `response/CONTRACT.md`).
+Không route `/ai/*`, không gọi provider, không job. Nút "Giải thích", "Hỏi AI của tôi", digest AI, nhận xét AI trong báo cáo, kế hoạch AI của `response` biến mất hoặc báo "module `ai` đang tắt". Hồ sơ, rule, memory, tri thức, nhật ký giữ nguyên (chuỗi hash vẫn kiểm được). Kết nối tới thiết bị thuộc `core` (D-93): tắt `ai` **không** làm `response` mất kết nối hay hành động lên thiết bị; chỉ mất đề xuất và kế hoạch của AI.
 
 ## Dependencies
 - **DEPENDS ON**: `core` (`core/secrets`, `core/exec`, audit, scheduler), `feeds`/`inventory`/`logs`/`scan`/`notify` (dữ liệu, mềm).
-- **DEPENDED ON BY**: `response` (kết nối, `response-plan`), `reports` (nhận xét AI), `mitigation` (hỏi AI khi chưa có khuyến nghị đã xác nhận), `logs` (digest AI), GUI `findings`/`cve` (panel `cve.panels`), `mcp-server` (không), `core/logs export` (`ai_activity`).
+- **DEPENDED ON BY**: `response` (`response-plan`, bằng chứng `ConfigRead`; kết nối không còn ở đây, D-93), `reports` (nhận xét AI), `mitigation` (hỏi AI khi chưa có khuyến nghị đã xác nhận), `logs` (digest AI), GUI `findings`/`cve` (panel `cve.panels`), `mcp-server` (không), `core/logs export` (`ai_activity`).
 
 ## Câu hỏi mở
 1. README của GUI nói "9 việc" còn `contract.ts` có 10 (`response-plan`): sửa README.
 2. ~~Hai chuỗi hash khác công thức~~ **Đã chốt (D-57 mục 14)**: một công thức cho `core_audit`, `ai_activity`, `resp_log`, cài ở `core/chain`.
-3. Danh tính của "AI agent" gọi `POST /response/ai/proposals` (vai `operator` trong contract): dùng chung tài khoản người dùng, hay principal dịch vụ riêng? Ảnh hưởng audit và hook.
+3. ~~Danh tính của "AI agent"~~ **Đã chốt (D-97)**: danh tính dịch vụ trong tiến trình `ai:response`, gọi cổng Go `response.Service.Propose`; không route HTTP trong bản thật.
 5. ~~Hook tuỳ chỉnh: cú pháp regex~~ **Đã chốt**: RE2 (Go); cú pháp riêng của JavaScript bị từ chối khi lưu với thông báo rõ (INV-12). `contract.ts` và UI cần ghi "RE2" thay vì "JavaScript regular expression" (WP-25).
 5. Hook tuỳ chỉnh: `contract.ts` ghi "JavaScript regular expression" còn backend Go dùng RE2 (không lookahead/backreference): chốt cú pháp và báo người dùng khi mẫu không hợp lệ.
-6. Kết nối ngoài (`ai_connectors`) là hạ tầng dùng chung với `response`: giữ trong `ai` hay chuyển lên `core`?
+6. ~~Giữ kết nối ngoài trong `ai` hay chuyển lên `core`~~ **Đã chốt (D-93)**: chuyển lên `core` (INV-11).

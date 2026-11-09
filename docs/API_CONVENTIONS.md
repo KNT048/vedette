@@ -71,7 +71,7 @@ Danh sách trả đối tượng, không phải mảng trần (cho phép thêm `
 
 - `code`: `snake_case`, ổn định, **dành cho máy** (client rẽ nhánh theo `code`, không theo `message`). `message`: tiếng Anh (D-28), nói **chuyện gì sai và sửa thế nào**, an toàn để hiện nguyên văn cho người dùng; không chứa bí mật, không rò thông tin nội bộ (đường dẫn, câu SQL, stack).
 - **Trường mở rộng** nằm cạnh `code`/`message` trong `error` (client đọc vào `ApiError.details`): `missing: string[]` (`missing_dependencies`, module cần bật trước); `method: 'app'|'email'`, `sent_to`, `resend_after` (`twofa_required`); `retry_after: number` (giây; `resend_too_soon`). **Chỉ thêm, không bỏ.** `preview_code` trong `twofa_required` của mock là **chỉ có ở mock**: backend không bao giờ trả mã trong lỗi.
-- Trường mở rộng đề xuất cho lỗi kiểm tra: `field: string` (tên trường sai) **[ĐX]**; thêm dần, không bắt buộc. Lỗi do bộ kiểm schema sinh tự động (`400 invalid`) luôn kèm `field` là đường dẫn đầy đủ (`active.days[0]`); ranh giới giữa `invalid` và mã riêng của module: D-73.
+- Trường mở rộng đề xuất cho lỗi kiểm tra: `field: string` (tên trường sai) **[ĐX]**; thêm dần, không bắt buộc. Lỗi do bộ kiểm schema sinh tự động (`400 invalid`) luôn kèm `field` là đường dẫn đầy đủ (`active.days[0]`); thân yêu cầu sai kiểu hoặc có khoá lạ (`400 invalid`) cũng kèm `field` (không kèm chỉ số phần tử mảng, vì bộ giải mã sinh tự động không báo; khoá lạ không hợp lệ thì không được lặp lại); ranh giới giữa `invalid` và mã riêng của module: D-73.
 - Tạo lỗi chỉ qua một hàm (`fail(status, code, message)` trong mock, tương đương trong Go); handler không tự dựng JSON lỗi.
 - Hợp đồng OpenAPI khai `default` → `Error` cho mọi thao tác (`components.schemas.Error`); **chưa** khai từng mã lỗi theo thao tác (mục 12, câu hỏi mở 2).
 
@@ -427,7 +427,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `discovery_failed` | 502 | Cannot read ${c.issuer}/.well-known/openid-configuration. Check the issuer and the network path from the box to the IdP. | `POST /core/oidc/test` |
-| `unreachable` | 502 | Could not connect to ${cur.target}. Check the address, the box's network and the firewall. | `POST /ai/connections/{id}/test`; `POST /ai/profiles/test` |
+| `unreachable` | 502 | Could not connect to ${cur.target}. Check the address, the box's network and the firewall. | `POST /ai/connections/{id}/test` (thành `POST /core/connections/{id}/test` ở lát 13b-1, D-93); `POST /ai/profiles/test` |
 | `wazuh_unreachable` | 502 | Could not reach ${u.origin}. Check the address and port (55000 by default) and that this box may connect to the Wazuh se | module inventory (validator dùng chung) |
 | `apt_failed` | 502 | The package manager failed. See the update output for the reason. Backend [ĐX]: host `apt_failed`, `stale_check`. | `POST /core/updates/os/check` |
 | `effect_not_verified` | 502 | The change was made but could not be confirmed on the box. Check the setting again. Backend [ĐX]: host `effect_not_verified`. | `PATCH /core/updates/os/settings` |

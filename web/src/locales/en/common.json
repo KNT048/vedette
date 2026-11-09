@@ -28,7 +28,8 @@
     "unauthenticated": "Your session has ended",
     "invalid": "Invalid request",
     "previewStale": "In this preview, the saved sample data may come from an older version of the app.",
-    "previewStaleLink": "Restore sample data"
+    "previewStaleLink": "Restore sample data",
+    "notImplemented": "This part is not available in this version yet."
   },
   "table": {
     "empty": "No rows.",

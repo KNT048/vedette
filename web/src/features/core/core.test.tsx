@@ -194,6 +194,18 @@ describe('core: cài đặt ban đầu', () => {
     expect(scan.scope.networks).toEqual(['192.168.18.0/24', '10.1.0.0/16'])
   })
 
+  it('setup writes the same audit rows as the backend, oldest first: the administrator, the sign-in, the setup', async () => {
+    orgStore.update((o) => ({ ...o, setup_complete: false }))
+    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.18.0/24'], bundle: 'smb', commitment: true }) })
+    expect(res.status).toBe(200)
+    const rows = [...auditStore.get()].reverse()
+    expect(rows.map((r) => [r.user, r.action, r.target])).toEqual([
+      ['lan@abc.vn', 'user.create', 'lan@abc.vn'],
+      ['lan@abc.vn', 'auth.login', 'lan@abc.vn'],
+      ['lan@abc.vn', 'core.setup', 'ABC Company'],
+    ])
+  })
+
   it('đã cài xong thì /setup chuyển về đăng nhập', async () => {
     renderApp('/setup', { role: null })
     expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument()

@@ -5,6 +5,7 @@ import { canonHash, GENESIS } from '@/lib/chain'
 import type { Role } from '@/lib/session'
 import type { ModuleId, ModuleState } from '@/lib/modules'
 import type { Asset, Finding } from '@/lib/types'
+import { realSessionOn, realUser } from './realSession'
 import { seedAssets } from './seed/assets'
 import { seedFindings } from './seed/findings'
 
@@ -56,8 +57,7 @@ export const auditStore = collection<AuditEntry[]>('core_audit', () => [])
 
 /** SYS-3: mọi mutation ghi kiểm toán. */
 export function audit(action: string, target: string, detail?: string) {
-  const s = sessionStore.get()
-  const u = usersStore.get().find((x) => x.id === s.userId)
+  const u = realSessionOn() ? realUser() : usersStore.get().find((x) => x.id === sessionStore.get().userId)
   auditStore.update((l) => {
     const core = { id: newId('au'), ts: nowIso(), user: u?.email ?? 'system', action, target, detail: detail ?? null, prev_hash: l[0]?.hash ?? GENESIS }
     return [{ ...core, hash: canonHash(core) }, ...l].slice(0, 1000)

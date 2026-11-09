@@ -1,27 +1,28 @@
 # Response — Change Impact Map
 
-> WP-13a đã có mã Go (package `modules/response`); chữ ký dưới đây còn là tên khái niệm: `Evaluate`/`fire` (engine.go), `approve`/`runItem` (requests.go; `runItem` là nơi duy nhất gửi bước tới thiết bị; `markRunning`/`failStuck` ghi trạng thái "đang chạy"), `Fill`/`CheckValue`/`ValidateTpl` (params.go), `appendLog`/`VerifyLog` (service.go, plans.go), `FetchBlocklist`/`renderBlocklist` (blocklist.go). Phần AI (`AIGate`) là 13b. Module **rủi ro cao**: mọi thay đổi ở cổng chặn (INV-1…16) cần test hợp đồng và ghi rõ trong commit.
+> WP-13a đã có mã Go (package `modules/response`); chữ ký dưới đây còn là tên khái niệm: `Evaluate`/`fire` (engine.go), `approve`/`runItem` (requests.go; `runItem` là nơi duy nhất gửi bước tới thiết bị; `markRunning`/`failStuck` ghi trạng thái "đang chạy"), `Fill`/`CheckValue`/`ValidateTpl` (params.go), `appendLog`/`VerifyLog` (service.go, plans.go), `FetchBlocklist`/`renderBlocklist` (blocklist.go). Phần AI (`AIGate`) là 13b. Phần 2 (WP-13b, D-93…D-98) viết trước mã ở 13b-0: mỗi mục dưới đây ghi lát sẽ cài nó; tên hàm theo kế hoạch, mã có thể đặt tên khác thì sửa ở đây cùng PR. Module **rủi ro cao**: mọi thay đổi ở cổng chặn (INV-1…16) cần test hợp đồng và ghi rõ trong commit.
 
 ## Modifying: `Engine.Evaluate(ctx, Event) error` (khớp quy tắc, dựng yêu cầu) — 6 nguồn sự kiện
 - **honeypot** (`Hits`/`honeypot.hit`), **logs** (`IocHits`), **findings** (`findings.finding.created|status_changed`, D-57 (6)), **inventory** (thiết bị chưa duyệt), **exposure** (cổng mới), **scheduler** (lịch): đổi tên/kiểu trường trigger → điều kiện và tham số `{{trigger.field}}` của quy tắc đang có không còn khớp, quy tắc im lặng. Danh mục trường (`/response/triggers`) là hợp đồng với GUI.
 
 ## Modifying: `Approve(ctx, reqID, Approver, items, code) (Request, error)` — 4 người gọi
-- **HTTP** `/response/actions/{id}/approve` (app); **kênh chat** (Slack Socket Mode, Telegram long polling, Zalo cá nhân) qua `notify`; **liên kết email/Zalo OA** `/response/approve/{token}`; **rule engine** (`via=auto`, chỉ INV-5). Đổi thứ tự cổng (INV-9) hoặc điều kiện hai người → thay đổi ai có thể gây thay đổi trên thiết bị; test `TestContract_INV2_*`, `INV16_*` bắt buộc.
+- **HTTP** `/response/actions/{id}/approve` (app; yêu cầu AI rủi ro cao cần `TwoStep`, 13b-9); **kênh chat** (Slack Socket Mode, Telegram long polling, Zalo cá nhân) qua cổng `notify.Config.Decisions` → `DecideFromChat` (13b-8); **liên kết email** `/response/approve/{token}` → `DecideByLink` (13b-7; Zalo OA để sau); **rule engine** (`via=auto`, chỉ INV-5). Mọi đường dùng chung một hàm duyệt; chính sách kênh × rủi ro (INV-3, D-96) kiểm ở đó, không ở `notify`. Đổi thứ tự cổng (INV-9) hoặc điều kiện hai người → thay đổi ai có thể gây thay đổi trên thiết bị; test `TestContract_INV2_*`, `INV16_*` bắt buộc.
 
 ## Modifying: `RequestProposal` và hình dạng của `resp_plans.steps[].proposal` (job kế hoạch AI, 13b)
 - Đề xuất chỉ chứa `action_id` + `params` có kiểu (+ `ttl_min`, `asset_id`, `asset_name`); mọi lệnh/đường dẫn/body do `planAction` dựng từ danh mục lúc xem và lúc yêu cầu. Job kế hoạch của 13b phải ghi đúng dạng này; dạng cũ (lệnh lưu sẵn) bị từ chối `tool_not_allowed`.
 
 ## Modifying: `Directory`, `ConnectionInfo` (cmd/vedette, 13b)
-- `Directory.DevicesOfKind` nuôi danh sách không đụng (router, firewall) và **phải đọc không giới hạn số dòng** (`cmd/vedette` gọi `inventory.DevicesOfKind`, không phải `Devices` bị cắt ở 2000 dòng mới nhất trước: thiết bị cũ nhất, thường là gateway, sẽ rơi khỏi danh sách); lỗi đọc = từ chối hành động. `Directory.Device` còn nuôi chủ thể của đề xuất AI (tài sản của finding): lỗi tra = từ chối. Thiết bị loại khác cũng không vào danh sách nên không được đổi `kind` router/firewall mà không báo. `ConnectionInfo.UpdatedAt` phải đổi mỗi khi kết nối bị sửa (địa chỉ, thông tin xác thực, công cụ): nó nằm trong dấu vân tay lưu theo item (INV-9 `connection_changed`).
+- `Directory.DevicesOfKind` nuôi danh sách không đụng (router, firewall) và **phải đọc không giới hạn số dòng** (`cmd/vedette` gọi `inventory.DevicesOfKind`, không phải `Devices` bị cắt ở 2000 dòng mới nhất trước: thiết bị cũ nhất, thường là gateway, sẽ rơi khỏi danh sách); lỗi đọc = từ chối hành động. `Directory.Device` còn nuôi chủ thể của đề xuất AI (tài sản của finding): lỗi tra = từ chối. Thiết bị loại khác cũng không vào danh sách nên không được đổi `kind` router/firewall mà không báo. `ConnectionInfo.UpdatedAt` phải đổi mỗi khi kết nối bị sửa (địa chỉ, thông tin xác thực, công cụ): nó nằm trong dấu vân tay lưu theo item (INV-9 `connection_changed`). **13b-4 (D-93)**: `Connections` do `core/conn` cung cấp (adapter ở `cmd/vedette`); `connFP` thay bằng `conn.Fingerprint` (vector dùng chung với `core`); `updated_at` của `core_connection` chỉ đổi theo trường bảo mật. Đổi danh sách trường bảo mật hay công thức dấu vân tay = mọi yêu cầu đang chờ bị từ chối `connection_changed` sau khi nâng cấp (chấp nhận, ghi trong PR).
 
 ## Modifying: `Execute(ctx, Item) (Result, error)` — 1 người gọi (chỉ `Approve`)
-- Gọi **công cụ ghi** của `ai.Connections`. Là điểm duy nhất của FORBID-1; không thêm người gọi thứ hai. **Phải tôn trọng `ctx`** (mang hạn của item): `execute` chạy nó trong goroutine và thôi chờ đúng hạn, ghi "State unknown" và nhả khoá bước thiết bị; một `Execute` bỏ qua `ctx` vẫn có thể gửi bước sau đó, kết quả của nó bị bỏ. Một `Execute` panic thành lỗi, không sập tiến trình. Đổi chữ ký → kiểm tra mọi nơi ghi log (`executed`/`failed`) và `verify`.
+- **13b-6 (D-94)**: `cmd/vedette` cài `Executor` bằng `responseExecutor{w}` bọc `core/conn/write` (không gói nào khác import gói này, FORBID-1); `DeviceStep` đổi thành `Step{ConnectionID, ConnFP, Phase, Tool, Lines, Method, URL, Body, Headers, Args}` và `DeviceResult{Detail, Output}`; `Output` chỉ để so `precheck_refuse`/`expect` rồi bỏ (INV-22). Trước đây ghi là "công cụ ghi của `ai.Connections`": không còn (D-93).
+- Gọi **công cụ ghi** của kết nối. Là điểm duy nhất của FORBID-1; không thêm người gọi thứ hai. **Phải tôn trọng `ctx`** (mang hạn của item): `execute` chạy nó trong goroutine và thôi chờ đúng hạn, ghi "State unknown" và nhả khoá bước thiết bị; một `Execute` bỏ qua `ctx` vẫn có thể gửi bước sau đó, kết quả của nó bị bỏ. Một `Execute` panic thành lỗi, không sập tiến trình. Đổi chữ ký → kiểm tra mọi nơi ghi log (`executed`/`failed`) và `verify`.
 
 ## Modifying: `Fill(tpl, values, transport) (string, error)` / `ValidateParam(type, v)` (D-47, INV-14)
 - **Rule engine**, **Catalog editor** (kiểm mẫu khi lưu), **Simulate**, **AI proposals**: đổi tập ký tự cho phép hoặc quy tắc escape → có thể mở đường tiêm lệnh từ dữ liệu của kẻ tấn công (tên máy, tên miền). Phải chạy lại fuzz với dữ liệu trigger độc hại.
 
 ## Modifying: `AIGate.Check(ctx, ProposeBody) (Outcome, error)` (INV-15)
-- **ai** (`POST /response/ai/proposals`): đổi ngưỡng (0.8, 7 ngày, 2/giờ 5/ngày, 50%/10) → đổi lượng yêu cầu người duyệt nhận; ngưỡng là hằng số hợp đồng (`AI_MIN_CONFIDENCE`, `AI_REPEAT_DAYS`).
+- **ai** (cổng Go `Service.Propose(ProposeBody{Trigger, ActionID, Params, Confidence, Evidence ≤ 10, Why ≤ 400})` với tác nhân `ai:response`, 13b-10, D-97; `POST /response/ai/proposals` chỉ ở bản xem trước): đổi ngưỡng (0.8, 7 ngày, 2/giờ 5/ngày, 50%/10) → đổi lượng yêu cầu người duyệt nhận; ngưỡng là hằng số hợp đồng (`AI_MIN_CONFIDENCE`, `AI_REPEAT_DAYS`).
 
 ## Modifying: `Log.Append(kind, actor, detail)` / `Log.Verify()` (INV-19)
 - **core/logs export** (`response`): công thức hash là hợp đồng với trình kiểm offline và GUI (`logic.ts`); đổi → chuỗi cũ không kiểm lại được. **ai** có chuỗi riêng (xem `ai` câu hỏi mở 2).
@@ -35,7 +36,7 @@
 ## Disabling this module
 - Trang Response, nút Respond (Findings, Incidents), kế hoạch AI trên Findings: "module đang tắt".
 - **Firewall khách kéo danh sách chặn nhận 404, giữ bản đã nạp** (không gỡ chặn nào). Hành động đã chạy có TTL **không** tự hoàn tác trong lúc tắt.
-- `notify`: không gửi yêu cầu duyệt. `ai`: yêu cầu `/response/ai/proposals` bị từ chối (module tắt), kế hoạch `response-plan` vẫn là việc AI nhưng không có nơi hiển thị.
+- `notify`: không gửi yêu cầu duyệt; `Decide` từ chat bị từ chối. `ai`: `Propose` bị từ chối (module tắt), kế hoạch `response-plan` vẫn là việc AI nhưng không có nơi hiển thị. `core/conn`: kết nối vẫn sửa/xoá được; `ChangesInForce` vẫn đọc `resp_*` để từ chối xoá kết nối còn thay đổi đang hiệu lực.
 - `resp_*`, `resp_log` giữ nguyên; export log vẫn có.
 
 ## Modifying: `claimItem`, `finishItem`, `failStuck` (requests.go: vòng đời một item)
@@ -43,3 +44,11 @@
 
 ## Modifying: `publishable` (bảng `notPublishable`) và `inventory.DevicesOfKind`
 - **blocklist** (danh sách công bố cho firewall khách), **admin view** (không liệt kê mục không công bố). `inventory.DevicesOfKind`/`KindDevice` là đọc trung lập của kho cho danh sách không-bao-giờ-đụng (xem IMPACT của inventory).
+
+## Cổng mới của phần 2 (WP-13b; kế hoạch, chưa có mã)
+- **`Notifier.Approvers(ctx, channel)` + `Notifier.RequestApproval(ctx, ApprovalMessage{RequestID, Title, What ≤ 4 KiB, Risk, InAppOnly, Channels, Expires}) (sentTo, err)`** (13b-7, D-96): gọi sau commit với hạn 60 s; `cmd/vedette` nối tới `notify.SendApprovalRequest` (thêm `Channels`, `InAppOnly`). Đổi `InAppOnly`/`Channels` = đổi ai nhận nút hay liên kết duyệt; test INV-4, INV-16, POST-5.
+- **`LinkTokens{ID, Verify}`, `RecordToken`, `LinkView`, `DecideByLink`** (13b-7): `Verify` = `notify.VerifyApprovalLink`; `RecordToken` là `notify.TokenRecorder` do `response` cài (bảng `resp_tokens` v2). Đổi thứ tự kiểm của `DecideByLink` (INV-4) = đổi ai duyệt được bằng thư.
+- **`DecideFromChat(ChatDecision{Channel, ExternalID, RequestID, Decision, Code}) (ChatOutcome{Status, Approvals, Required, Message}, error)` và `RecordReplyCode`** (13b-8): người gọi duy nhất là listener của `notify` qua `notify.Config.Decisions` (adapter ở `cmd/vedette`). Với Zalo cá nhân `RequestID` có thể rỗng: `response` so băm mã với các bản ghi mã còn mở của đúng `(channel, address)` (`approval-tokens.md` §7). Đổi = đổi ai duyệt được từ chat.
+- **`TwoStep.Verify(ctx, userID, code, purpose)`** (13b-9) = `core/auth.VerifyTwoStep` (D-98); nil = từ chối 403 `twofa_required`.
+- **`Evidence{IocHit, ConfigRead}`, `Planner{Available, Plan}`** (13b-10, 13b-11): `logs` (WP-24) cài `IocHit`, `ai` (WP-25) cài `ConfigRead` và `Planner`; nil = bằng chứng không hợp lệ (422 `evidence_invalid`) / không có kế hoạch.
+- **`ChangesInForce(ctx, connectionID) (bool, error)`** (13b-4): `core/conn` gọi trước khi xoá kết nối (409 `in_use`); lỗi đọc = từ chối xoá.

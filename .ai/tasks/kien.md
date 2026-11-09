@@ -10,27 +10,25 @@ File này là **file handoff duy nhất** của phiên AI làm việc cho Kiên:
 - Emily (Mlee) nhường mọi chỗ chồng lấn cho phía Kiên, mở issue `owner:kien` (D-65). Quyết định của Emily: phía Kiên chép vào DECISIONS.
 
 ## Đã merge
-WP-01 (#7), WP-02 ogen (#11), WP-03 store/secrets/audit/exec (#12), #14, #18 (hợp đồng core), #19 (make check, CI, D-62..D-65), #20, #22 (orphan reaper), #23, #24, WP-04a server/registry/jobs (#25), WP-06 (#26), D-67..D-70 (#27), #31, WP-05 (#32), #34 (nối module, issue #33), #35 (reaper báo issue), WP-04b phần 1 core/auth + events (#36, đóng #17), D-74..D-76 (#37), WP-10 inventory (#40), giới hạn thân theo thao tác (#41), #45 (đóng #43), `deps.Bus` + inventory dùng chung (#47), #48, giám sát WP-23 (#49), D-81/D-82 (#51, #53), WP-07a khung vedette-host (#52), #54 (gỡ binary lỡ commit), nối inventory/feeds/findings/mitigation qua cổng và bus + D-78 (#56, issue #38, #39). Của Emily: #42, #44, #46, #55, #59, notify WP-22 (#60).
+WP-01 (#7), WP-02 ogen (#11), WP-03 store/secrets/audit/exec (#12), #14, #18 (hợp đồng core), #19 (make check, CI, D-62..D-65), #20, #22 (orphan reaper), #23, #24, WP-04a server/registry/jobs (#25), WP-06 (#26), D-67..D-70 (#27), #31, WP-05 (#32), #34 (nối module, issue #33), #35 (reaper báo issue), WP-04b phần 1 core/auth + events (#36, đóng #17), D-74..D-76 (#37), WP-10 inventory (#40), giới hạn thân theo thao tác (#41), #45 (đóng #43), `deps.Bus` + inventory dùng chung (#47), #48, giám sát WP-23 (#49), D-81/D-82 (#51, #53), WP-07a khung vedette-host (#52), #54 (gỡ binary lỡ commit), nối inventory/feeds/findings/mitigation qua cổng và bus + D-78 (#56, issue #38, #39), WP-11 sensor-passive + D-80/D-83 (#57), WP-04b phần 2 = **xong đường găng** (#58), D-86 + bảng notify (#63), D-79/D-81 (#65), WP-12 sensor-active + D-84 (#66), WP-07b phần 1 lệnh OS/sao lưu/xuất log của vedette-host + D-85/D-87 (#67), auth + handler core dựng trong `buildServices` (#68), nối notify/sensor-active lần 2 (#69), #71 (đóng #70), WP-14 honeypot + D-89/D-90 (#72), WP-13a response phần 1 + D-88 (#74), D-91 KEV dự phòng (#75), `exectest.WriteScript` (#76), WP-07b phần 2 cập nhật OS + tải bản sao lưu (#77). Của Emily: #42, #44, #46, #55, #59, notify WP-22 (#60).
 
 ## Nối một module vào binary (issue #33)
 `cmd/vedette/modules.go`: một dòng trong `wiredModules()` (id, `Migrations`, `Jobs func(deps) []jobs.Job`, `BodyLimits`), theo thứ tự phụ thuộc (`TestWiredModulesFollowDependencies`); handler nhúng vào struct `handler` trong `handler.go`; dịch vụ module dựng **một lần** trong `buildServices` (`cmd/vedette/wiring.go`) và đặt vào `deps`; adapter giữa module nằm trong `cmd/vedette` (module không import nhau); sự kiện qua `deps.Bus`, handler chỉ chạy khi module bật. `TestNewHandlerSetsEveryModule` bắt handler nhúng bị nil.
 
-## Đang làm (2026-11-09 tối)
+## Đang làm (2026-11-09 khuya)
 | Việc | PR / worktree | Trạng thái |
 |---|---|---|
-| WP-04b phần 2: API core (đăng nhập, cài đặt lần đầu, tài khoản, 2FA, người dùng, kiểm toán, cài đặt chung), TLS + allowlist Host, D-75/76/77 | PR #58 nháp, `../vedette-wt/core-auth-api` | rà Opus (0 Critical/High, 3 Medium, 9 Low) đã sửa; đang kiểm lại lần cuối → sẵn sàng → merge = **xong đường găng** |
-| WP-11 sensor-passive + bảng OUI (D-80, D-83) | PR #57 nháp, `../vedette-wt/sensor-passive` | rà 2 vòng đã sửa; đang kiểm lại lần cuối |
-| WP-12 sensor-active (D-84) | `../vedette-wt/sensor-active` (chưa PR) | rà Opus (2 High, 6 Medium) đang sửa |
-| WP-07b phần 1: lệnh OS, sao lưu, xuất log của vedette-host (D-85) | `../vedette-wt/host-os` (chưa PR) | đang làm |
-| D-86 (quyết định notify của Emily) + DATA_MODEL/API_CONVENTIONS | `docs/notify-d86` | PR tài liệu |
+| Sửa CI đỏ trên main: honeypot dừng êm khi core tắt lúc khởi động; test FIFO không còn ghi đầy đĩa (issue #79) | PR #81, `../vedette-wt/fix-hp` | chờ CI rồi merge |
+| D-92 bỏ feed SSLBL, tiêu chí S-FEED-1 "chưa tải được KEV", DATA_MODEL `feeds_source.answered_by` (issue #79) | `docs/feeds-79` | PR tài liệu; Emily làm phần mã |
 
 ## Kế tiếp (thứ tự TEAM_PLAN §3)
-1. Sau #58: nối `Config.Users` (core/auth) + `Zone` (`core_org.timezone`) cho notify, và múi giờ tổ chức cho cửa sổ quét của sensor-active.
-2. WP-07b phần 2: endpoint `/core/updates/os*` của core + lệnh `container.*` (manifest ký); phần 3: `net.*` + `decoy_ip.*` (D-56).
-3. Giao thức sensor mTLS (đưa capture/nmap ra khỏi tiến trình core) → WP-13 response (rà Opus) → WP-14 honeypot → WP-08 đóng gói (Quadlet `Restart=always`, `KillMode=control-group`, `core_cgroup`, `core_data`, TZ + `time/tzdata`, GOMEMLIMIT) → WP-30 E2E backend thật → WP-31 rà SYS-1..8 + D-41 → WP-32 RUNBOOK.
+1. Issue #78 (QA của Emily trên core): `GET/PATCH /core/privacy` dùng chung khoá `core_privacy.update_check` với #77; GUI 501 không gợi ý "Restore sample data" trên hộp thật; `/setup` đăng nhập luôn admin; mật khẩu tạm từ `POST /core/users` bị từ chối lúc đăng nhập đầu (tái hiện bằng test trước); `dev-api` giữ mock cho module không có trong `REAL`.
+2. WP-13b (response phần 2), 12 lát, tài liệu trước (13b-0, D-93..D-98): kết nối thiết bị chuyển về core (`core/conn`, Cài đặt → Kết nối, chạy được khi `ai` tắt), HTTPS/SSH/MCP không mã riêng hãng, kiểm trước + đọc lại là dữ liệu, kênh duyệt (link, chat, mã trả lời), AI là định danh dịch vụ trong tiến trình, `VerifyTwoStep`. Đích công cộng được phép khi admin tự khai + PRIVACY luồng 12 "Connections you add" (tham khảo Tines, n8n, Cortex XSOAR, Home Assistant). Thứ tự: 13b-0 → 13b-1 → 13b-4 → 13b-5 → 13b-6; song song 13b-2, 13b-3 → 13b-9 → 13b-10, 13b-7, 13b-8; 13b-11 sau WP-25 của Emily.
+3. WP-07b phần 3: `net.*` + `decoy_ip.*` (D-56), `container.*` (manifest ký).
+4. Giao thức sensor mTLS (đưa capture/nmap ra khỏi tiến trình core) → WP-08 đóng gói (Quadlet `Restart=always`, `KillMode=control-group`, `core_cgroup`, `core_data`, TZ + `time/tzdata`, GOMEMLIMIT) → WP-30 E2E backend thật → WP-31 rà SYS-1..8 + D-41 → WP-32 RUNBOOK.
 
 ## Số quyết định
-… D-74 phân vân → top-tier · D-75 mã cài đặt một lần (sửa 2026-11-09: đếm theo địa chỉ client) · D-76 bật 2FA nhập lại mật khẩu · D-77 cookie thiết bị (PR #58) · D-78 đường cơ sở KEV · D-79 exposure: tự dò IP, kiểm lúc quét, danh sách bỏ qua (Emily, issue #61) · D-80 sensor-passive, D-83 bảng OUI (PR #57) · D-81 không máy chủ dự án ngoài GitHub · D-82 không gửi tín hiệu ẩn danh · D-84 sensor-active (nhánh WP-12) · D-85 lệnh OS của host (nhánh WP-07b) · D-86 notify (Emily). Tiếp theo: **D-87**.
+… D-74 phân vân → top-tier · D-75 mã cài đặt một lần (sửa 2026-11-09: đếm theo địa chỉ client) · D-76 bật 2FA nhập lại mật khẩu · D-77 cookie thiết bị · D-78 đường cơ sở KEV · D-79 exposure: tự dò IP, kiểm lúc quét, danh sách bỏ qua · D-80 sensor-passive · D-81 không máy chủ dự án ngoài GitHub · D-82 không gửi tín hiệu ẩn danh · D-83 bảng OUI · D-84 sensor-active · D-85 lệnh OS của host · D-86 notify (Emily) · D-87 host chỉ chép byte, không đọc dữ liệu core · D-88 response phần 1 · D-89 hit honeypot qua tệp JSON-lines · D-90 honeypot · D-91 KEV dự phòng từ GitHub của CISA · D-92 bỏ feed SSLBL. Tiếp theo: **D-93** (WP-13b dùng D-93..D-98).
 
 ## Giám sát WP-23: tự phát hiện IP công cộng (việc của Emily, phía Kiên chỉ giám sát)
 kien 2026-11-09 (đã chuyển cho Emily): "tôi muốn box có thêm chế độ tự detect ip public để bỏ vào kho. ví dụ KH có nhiều ip public và load balance, chỉ cần bật chế độ tự detect là được, trong 1 số trường hợp, khách hàng muốn chủ động detect thì manual cũng ok. tự detect lần đầu lúc mới cài, 60p 1 lần recheck, cho KH sửa nếu muốn. kho ip public cho phép sử dụng cũng expire time 30 ngày thay cho 90 ngày hiện tại. nhưng chỉ trong trường hợp không renew được mới phải chạy". Phía Kiên **không chủ động làm**; khi PR của Emily tới, kiểm:
@@ -51,6 +49,8 @@ kien 2026-11-09 (đã chuyển cho Emily): "tôi muốn box có thêm chế đ�
 - [ ] D-82: tín hiệu ẩn danh không được gửi (không có bộ gửi, không có nơi nhận). PRIVACY luồng 2 và mục "Anonymous signal" ở Cài đặt → Quyền riêng tư phải khớp thực tế lúc phát hành (dùng lại theo story mới, hoặc ẩn/ghi "không gửi").
 
 - [ ] D-81: ba dịch vụ dò IP công cộng (`checkip.amazonaws.com`, `icanhazip.com`, `ifconfig.me/ip`) vẫn thuộc ba nhà vận hành khác nhau: tra DNS/AS mỗi lần phát hành.
+
+- [ ] WP-08: bản build phát hành (`VITE_API_MOCK=off`) không mang lớp mock: bước build fail nếu chunk JS nào chứa `[MSW]` hoặc `mswjs`, và không ship `web/public/mockServiceWorker.js` (vite chép nguyên `public/`). Lần đo 2026-11-09: sau khi tách `logCategories.ts`, không chunk JS nào còn msw/kho mock; `DataSection` 336 KB → 5,6 KB.
 
 ## Câu hỏi đang chờ Kiên
 - Không có. Từ D-74: phân vân → tham khảo top-tier rồi tự quyết, chỉ hỏi khi rất đặc biệt. B2 đã quyết: có mã cài đặt một lần (D-75); bật 2FA đòi nhập lại mật khẩu (D-76); cả hai làm trong WP-04b phần 2.

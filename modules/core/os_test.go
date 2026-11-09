@@ -887,3 +887,17 @@ func TestOSEndpointsNeedASession(t *testing.T) {
 		t.Errorf("the host ran something for anonymous requests: %v", got)
 	}
 }
+
+// The Privacy page and the OS code share one stored setting: turning update checks off through
+// PATCH /core/privacy makes the OS check refuse, and turning them on again lets it run.
+func TestOSCheckFollowsPatchCorePrivacy(t *testing.T) {
+	t.Parallel()
+	e := newOSEnv(t, osOpts{})
+	wantOK(t, e.admin.patch("/core/privacy", map[string]any{"update_check": false}), 200)
+	wantStatus(t, e.oper.post("/core/updates/os/check", nil), 409, "check_off")
+	if got := e.m.Calls("apt-get"); len(got) != 0 {
+		t.Errorf("the box made a request although update checks are off: %q", got)
+	}
+	wantOK(t, e.admin.patch("/core/privacy", map[string]any{"update_check": true}), 200)
+	wantOK(t, e.oper.post("/core/updates/os/check", nil), 200)
+}

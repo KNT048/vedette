@@ -197,3 +197,23 @@ func TestNamesRefuseInvisibleFormatCharacters(t *testing.T) {
 		}
 	}
 }
+
+// Both ways to get a temporary password (create and reset) must give one that signs in, for every role.
+func TestUsers_TemporaryPasswordSignsInForEveryRole(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin := w.setupAdmin()
+	for _, role := range []string{"operator", "viewer", "admin"} {
+		email := "tmp-" + role + "@acme.example"
+		c := admin.post("/core/users", map[string]any{"name": "User " + role, "email": email, "role": role})
+		wantOK(t, c, 201)
+		temp := c.str("temp_password")
+		wantOK(t, w.client().post("/auth/login", map[string]any{"email": email, "password": temp}), 200)
+
+		r := admin.post("/core/users/"+c.JSON["user"].(map[string]any)["id"].(string)+"/reset-password", nil)
+		wantOK(t, r, 200)
+		temp2 := r.str("temp_password")
+		wantStatus(t, w.client().post("/auth/login", map[string]any{"email": email, "password": temp}), 400, "invalid_credentials")
+		wantOK(t, w.client().post("/auth/login", map[string]any{"email": email, "password": temp2}), 200)
+	}
+}

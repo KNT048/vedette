@@ -42,7 +42,7 @@ func TestScanningOffDuringDrainKeepsTheQueue(t *testing.T) {
 		return nil
 	})
 	svc, err := sensoractive.New(sensoractive.Config{DB: s.d.DB, Inventory: sensorInventory{s.d.Inventory}, Observe: s.d.Inventory, Software: s.d.Inventory,
-		Events: pub, NmapPath: nm.path, Clock: clock, Location: func() *time.Location { return time.Local }})
+		Events: pub, NmapPath: nm.path, Clock: clock, Location: func() *time.Location { return hcmZone }})
 	if err != nil {
 		t.Fatal(err)
 	}

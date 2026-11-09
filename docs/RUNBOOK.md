@@ -39,7 +39,7 @@ Cài đặt ban đầu làm hoàn toàn trong GUI (D-22): tạo admin, bật 2FA
 
 ## 5. Sao lưu và khôi phục
 - Có gì trong bản sao lưu: SQLite trên volume, khoá `core/secrets` (mã hoá, tách khỏi bản sao lưu dữ liệu hay không: sẽ điền ở M2), cấu hình sinh ra, content pack: sẽ điền ở M2.
-- Sao lưu hằng ngày + trước nâng cấp, nơi lưu, số bản giữ, mã hoá: sẽ điền ở M2. Lưu ý IP egress 90 ngày (D-25) khi khôi phục sang máy khác: phải xác nhận lại.
+- Sao lưu hằng ngày + trước nâng cấp, nơi lưu, số bản giữ, mã hoá: sẽ điền ở M2. Lưu ý IP egress hiệu lực 30 ngày kể từ lần thấy cuối (D-25): khôi phục sang máy khác thì hộp mới tự dò lại IP của nó (chế độ tự phát hiện), không cần xác nhận tay trừ khi tắt chế độ đó.
 - Xuất/xoá dữ liệu từ GUI (Settings → Data): sẽ điền ở M2.
 - Khôi phục: sẽ điền ở M2. Xác minh bằng tra cứu một bản ghi đã biết và chạy thử gửi cảnh báo.
 - **Diễn tập khôi phục** trên máy sạch mỗi quý: sẽ điền ở M2 (ghi kết quả vào `docs/project-map/completion-log.md`).

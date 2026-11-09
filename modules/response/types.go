@@ -86,6 +86,11 @@ type Change struct {
 	Rest     *RestCall      `json:"rest"`
 	Rollback RollbackChange `json:"rollback"`
 	Verify   string         `json:"verify"`
+	// What the approver also sees (review of 13b-2): the check that runs right before the change, with the texts that refuse it or
+	// that it must contain, and the text the read-back must (after the change) or must not (after the undo) contain.
+	Precheck      string `json:"precheck"`
+	PrecheckRules string `json:"precheck_rules"`
+	VerifyRule    string `json:"verify_rule"`
 }
 
 // Verified is the result of the read-back after an action ran.
@@ -539,6 +544,9 @@ type CatalogAction struct {
 	Run               Tpl         `json:"run"`
 	Rollback          Tpl         `json:"rollback"`
 	Verify            Tpl         `json:"verify"`
+	Precheck          Tpl         `json:"precheck"`
+	PrecheckRefuse    []string    `json:"precheck_refuse"`
+	PrecheckExpect    string      `json:"precheck_expect"`
 	Params            []ParamType `json:"params"`
 	Risk              Risk        `json:"risk"`
 	Enabled           bool        `json:"enabled"`
@@ -576,25 +584,33 @@ type CatalogInput struct {
 	Run          Tpl     `json:"run"`
 	Rollback     Tpl     `json:"rollback"`
 	Verify       Tpl     `json:"verify"`
-	Risk         Risk    `json:"risk"`
-	Enabled      bool    `json:"enabled"`
-	AIMayPropose bool    `json:"ai_may_propose"`
+	// Precheck and PrecheckRefuse (D-95) are optional: a read-only template that runs right before the action, and up to 5
+	// texts that make it refuse. Both or neither.
+	Precheck       Tpl      `json:"precheck"`
+	PrecheckRefuse []string `json:"precheck_refuse"`
+	PrecheckExpect string   `json:"precheck_expect"`
+	Risk           Risk     `json:"risk"`
+	Enabled        bool     `json:"enabled"`
+	AIMayPropose   bool     `json:"ai_may_propose"`
 }
 
 // CatalogUpdate is the body of PUT /response/catalog/{id}: every field optional (a built-in action takes only
 // enabled, ai_may_propose and connection_id).
 type CatalogUpdate struct {
-	Name         *string `json:"name"`
-	Description  *string `json:"description"`
-	ConnectionID *string `json:"connection_id"`
-	Tool         *string `json:"tool"`
-	RollbackTool *string `json:"rollback_tool"`
-	Run          *Tpl    `json:"run"`
-	Rollback     *Tpl    `json:"rollback"`
-	Verify       *Tpl    `json:"verify"`
-	Risk         *Risk   `json:"risk"`
-	Enabled      *bool   `json:"enabled"`
-	AIMayPropose *bool   `json:"ai_may_propose"`
+	Name           *string   `json:"name"`
+	Description    *string   `json:"description"`
+	ConnectionID   *string   `json:"connection_id"`
+	Tool           *string   `json:"tool"`
+	RollbackTool   *string   `json:"rollback_tool"`
+	Run            *Tpl      `json:"run"`
+	Rollback       *Tpl      `json:"rollback"`
+	Verify         *Tpl      `json:"verify"`
+	Precheck       *Tpl      `json:"precheck"`
+	PrecheckRefuse *[]string `json:"precheck_refuse"`
+	PrecheckExpect *string   `json:"precheck_expect"`
+	Risk           *Risk     `json:"risk"`
+	Enabled        *bool     `json:"enabled"`
+	AIMayPropose   *bool     `json:"ai_may_propose"`
 	// Present records which keys the body carried, so "connection_id": null differs from a missing key.
 	Present map[string]bool `json:"-"`
 }

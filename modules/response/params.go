@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -276,18 +277,21 @@ func Fill(text string, vals Values, t Transport) (string, error) {
 	return out, nil
 }
 
-// Tpl is a template of one step of an action: a command, or an API call with a path, a JSON body and headers.
+// Tpl is a template of one step of an action: a command, or an API call with a path, a JSON body and headers. Expect (D-95) only
+// means something on the read-back (verify): after the action its output must contain the text, after the undo it must not.
 type Tpl struct {
 	CLI     string `json:"cli"`
 	Method  string `json:"method"`
 	Path    string `json:"path"`
 	Body    string `json:"body"`
 	Headers string `json:"headers"`
+	Expect  string `json:"expect"`
 }
 
 // Empty reports whether the template has nothing to run.
+// Headers count: a step that holds only headers is not empty, so it is validated (and refused) like any other.
 func (t Tpl) Empty() bool {
-	return strings.TrimSpace(t.CLI) == "" && t.Method == "" && t.Path == "" && strings.TrimSpace(t.Body) == ""
+	return strings.TrimSpace(t.CLI) == "" && t.Method == "" && t.Path == "" && strings.TrimSpace(t.Body) == "" && strings.TrimSpace(t.Headers) == ""
 }
 
 // templateParams lists the typed placeholders the texts use, in the API order.
@@ -312,7 +316,7 @@ func templateParams(texts ...string) []ParamType {
 func tplParams(ts ...Tpl) []ParamType {
 	var texts []string
 	for _, t := range ts {
-		texts = append(texts, t.CLI, t.Path, t.Body, t.Headers)
+		texts = append(texts, t.CLI, t.Path, t.Body, t.Headers, t.Expect)
 	}
 	return templateParams(texts...)
 }
@@ -321,7 +325,30 @@ var (
 	safeTextRE   = regexp.MustCompile(`^[A-Za-z0-9 _.,:/"'{}=\n\t@#%+*?\[\]-]*$`)
 	headerLineRE = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]{0,40}: [A-Za-z0-9 _.,:/@#=+{}*-]{0,200}$`)
 	apiPathRE    = regexp.MustCompile(`^/[A-Za-z0-9/_.{}-]*$`)
+	expectRE     = regexp.MustCompile(`^[A-Za-z0-9 _.,:/"'{}=@#%+*?\[\]-]*$`) // one line of plain text, placeholders allowed
+	refuseRE     = regexp.MustCompile(`^[\x20-\x7e]{1,80}$`)                  // a refusal text: printable ASCII, no control character
 )
+
+// Limits of the check before and the read-back text (D-95).
+const (
+	maxExpect     = 200
+	maxRefuse     = 8
+	maxRefuseText = 80
+)
+
+// forbiddenHeader reports whether a template may not set the header: the connection sets the credentials and the address
+// (Authorization, Cookie, Host, Proxy-*), and hop-by-hop and forwarding headers belong to the connection too (D-94). Headers that
+// make a server act as another method (X-HTTP-Method-Override...) or as another client or path (X-Real-IP, X-Original-URL...) are
+// refused as well (review of 13b-2).
+func forbiddenHeader(name string) bool {
+	n := strings.ToLower(name)
+	switch n {
+	case "authorization", "cookie", "host", "connection", "keep-alive", "te", "trailer", "transfer-encoding", "upgrade", "forwarded", "via", "x-forwarded",
+		"x-http-method-override", "x-http-method", "x-method-override", "x-real-ip", "x-original-url", "x-rewrite-url":
+		return true
+	}
+	return strings.HasPrefix(n, "proxy-") || strings.HasPrefix(n, "x-forwarded-")
+}
 
 // ValidateTpl checks a template when it is saved (and again when it is loaded): only characters that cannot reach a
 // shell, only typed placeholders or runtime values, a path that cannot leave the connection, a body that is JSON.
@@ -330,7 +357,7 @@ func ValidateTpl(t Tpl, what string) string {
 	if strings.TrimSpace(t.CLI) == "" && (t.Method == "" || t.Path == "") {
 		return what + ": give a command or an API call."
 	}
-	if len(t.CLI) > 2000 || len(t.Body) > 2000 || len(t.Path) > 300 || len(t.Headers) > 600 {
+	if len(t.CLI) > 2000 || len(t.Body) > 2000 || len(t.Path) > 300 || len(t.Headers) > 600 || len(t.Expect) > maxExpect {
 		return what + ": too long."
 	}
 	for _, f := range []struct{ name, v string }{{"command", t.CLI}, {"API path", t.Path}, {"API body", t.Body}, {"headers", t.Headers}} {
@@ -354,6 +381,22 @@ func ValidateTpl(t Tpl, what string) string {
 			if !headerLineRE.MatchString(l) {
 				return what + `: each header must look like "Name: value".`
 			}
+			if name, _, _ := strings.Cut(l, ":"); forbiddenHeader(name) {
+				return what + ": the header " + name + " is set by the connection and cannot be part of a template."
+			}
+		}
+	}
+	if t.Expect != "" {
+		if !expectRE.MatchString(t.Expect) {
+			return what + ": the text to look for contains a character that is not allowed."
+		}
+		for _, m := range placeholderRE.FindAllStringSubmatch(t.Expect, -1) {
+			switch {
+			case m[1] == "text":
+				return what + ": {text} is only for message actions."
+			case !validType(ParamType(m[1])) && !isRuntime(m[1]):
+				return what + ": unknown placeholder {" + m[1] + "} in the text to look for."
+			}
 		}
 	}
 	if t.Method != "" && t.Path == "" {
@@ -369,6 +412,68 @@ func ValidateTpl(t Tpl, what string) string {
 		return what + ": the API body must be valid JSON."
 	}
 	return ""
+}
+
+// precheckProblem checks the check before with its refusal texts and its required text as a group (D-95): a read-only template (a
+// command, or a GET without a body), at least one refusal text or a required text, no read-back text, at most 8 refusal texts of up
+// to 80 plain characters, a required text of up to 80 plain characters. "" when acceptable.
+func precheckProblem(t Tpl, refuse []string, expect string) string {
+	const what = "Check before"
+	if t.Empty() && len(refuse) == 0 && expect == "" {
+		return ""
+	}
+	switch {
+	case t.Empty():
+		return what + ": give the read-only command or API call, or remove the texts that make it refuse."
+	case len(refuse) == 0 && expect == "":
+		return what + ": add at least one text that makes it refuse, or a text the output must contain."
+	case len(refuse) > maxRefuse:
+		return what + ": up to 8 texts that make it refuse."
+	case t.Expect != "":
+		return what + ": the text to look for belongs to the read-back, not here."
+	case (t.Method != "" && t.Method != "GET") || strings.TrimSpace(t.Body) != "":
+		return what + ": an API call can only be a GET without a body. It must not change anything."
+	}
+	for _, r := range refuse {
+		if !refuseRE.MatchString(r) || strings.TrimSpace(r) == "" {
+			return what + ": each text that makes it refuse is 1 to 80 plain characters."
+		}
+	}
+	if expect != "" && (!refuseRE.MatchString(expect) || strings.TrimSpace(expect) == "") {
+		return what + ": the text the output must contain is 1 to 80 plain characters."
+	}
+	return ValidateTpl(t, what)
+}
+
+// portLikeParams are the placeholders that can name a port: {interface} always; in a customer's action also {port}, {id} and {name}
+// when they sit in a command or an API path, because the type system has no "this is a port" type for them ({port} is a TCP or UDP
+// number, {id} a whole number and {name} a free name, and "interface GigabitEthernet1/0/{port}" or "interface {name}" names a port
+// all the same).
+var portLikeParams = []ParamType{PInterface, PPort, PID, PName}
+
+func usesPortLike(run, rollback, verify, pre Tpl, custom bool) bool {
+	if slices.Contains(tplParams(run, rollback, verify, pre), PInterface) {
+		return true
+	}
+	if !custom {
+		return false
+	}
+	var texts []string
+	for _, t := range []Tpl{run, rollback} {
+		texts = append(texts, t.CLI, t.Path)
+	}
+	for _, p := range templateParams(texts...) {
+		if slices.Contains(portLikeParams, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// needsPrecheck reports whether the templates can name a port without the check before and a refusal text that D-95 (3) requires, so
+// a trunk or uplink port is never touched. custom: the action is a customer's (see portLikeParams).
+func needsPrecheck(run, rollback, verify, pre Tpl, refuse []string, custom bool) bool {
+	return usesPortLike(run, rollback, verify, pre, custom) && (pre.Empty() || len(refuse) == 0)
 }
 
 func validMethod(m string) bool {

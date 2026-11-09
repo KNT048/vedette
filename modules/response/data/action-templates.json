@@ -45,7 +45,7 @@
       "name": "FortiGate: add an IP to the Vedette-Blocked address group",
       "description": "Adds the address to the Vedette-Blocked address group on the firewall. A deny policy on that group (you create it once, above your allow policies) then cuts the address off. Over SSH Vedette first creates the address object vedette-<ip> and removes it again on undo, after taking it out of the group. The group must always keep one anchor member (vedette-anchor, 192.0.2.1/32, created once during setup and never removed) because FortiOS does not accept an empty group. Over the API only the group membership call is sent.",
       "connection_id": "cn-fgt",
-      "tool": "block_address",
+      "tool": null,
       "rollback_tool": null,
       "run": {
         "cli": "config firewall address\n    edit \"vedette-{ip}\"\n        set subnet {ip} 255.255.255.255\n        set comment \"vedette\"\n    next\nend\nconfig firewall addrgrp\n    edit \"Vedette-Blocked\"\n        append member \"vedette-{ip}\"\n    next\nend",
@@ -66,10 +66,11 @@
         "method": "GET",
         "path": "/api/v2/cmdb/firewall/addrgrp/Vedette-Blocked",
         "body": "",
-        "headers": ""
+        "headers": "",
+        "expect": "\"vedette-{ip}\""
       },
       "risk": "medium",
-      "enabled": true,
+      "enabled": false,
       "ai_may_propose": true,
       "unverified": true
     },
@@ -101,10 +102,11 @@
         "method": "GET",
         "path": "/api/v2/monitor/user/banned/select",
         "body": "",
-        "headers": ""
+        "headers": "",
+        "expect": "{ip}"
       },
       "risk": "medium",
-      "enabled": true,
+      "enabled": false,
       "ai_may_propose": true,
       "unverified": true
     },
@@ -115,7 +117,7 @@
       "name": "FortiGate: disable a virtual IP (port forwarding)",
       "description": "Turns off the firewall virtual IP (NAT) that sends Internet traffic to a device. Traffic inside the office is not affected. Anyone using the published address loses access until it is turned back on. The status field on virtual IPs is not confirmed: if the firewall has none, use \"FortiGate: disable a firewall policy\" instead.",
       "connection_id": "cn-fgt",
-      "tool": "disable_virtual_ip",
+      "tool": null,
       "rollback_tool": null,
       "run": {
         "cli": "config firewall vip\n    edit \"{name}\"\n        set status disable\n    next\nend",
@@ -136,10 +138,11 @@
         "method": "GET",
         "path": "/api/v2/cmdb/firewall/vip/{name}",
         "body": "",
-        "headers": ""
+        "headers": "",
+        "expect": "\"status\":\"disable\""
       },
       "risk": "medium",
-      "enabled": true,
+      "enabled": false,
       "ai_may_propose": true,
       "unverified": true
     },
@@ -150,7 +153,7 @@
       "name": "FortiGate: disable a firewall policy",
       "description": "Turns off one firewall policy by its policy number; traffic that matched it falls through to the next policy. Vedette refuses to turn off a policy whose action is deny. The policy number is chosen by you when you build the rule; if an administrator deletes and recreates the policy the number can change, so the name is checked before undo. An alternative to disabling a virtual IP.",
       "connection_id": "cn-fgt",
-      "tool": "disable_firewall_policy",
+      "tool": null,
       "rollback_tool": null,
       "run": {
         "cli": "config firewall policy\n    edit {id}\n        set status disable\n    next\nend",
@@ -171,8 +174,20 @@
         "method": "GET",
         "path": "/api/v2/cmdb/firewall/policy/{id}",
         "body": "",
+        "headers": "",
+        "expect": "\"status\":\"disable\""
+      },
+      "precheck": {
+        "cli": "show full-configuration firewall policy {id}",
+        "method": "GET",
+        "path": "/api/v2/cmdb/firewall/policy/{id}",
+        "body": "",
         "headers": ""
       },
+      "precheck_refuse": [
+        "\"action\":\"deny\"",
+        "set action deny"
+      ],
       "risk": "high",
       "enabled": false,
       "ai_may_propose": false,
@@ -276,7 +291,8 @@
         "method": "GET",
         "path": "/api/firewall/alias_util/list/Vedette_Blocklist",
         "body": "",
-        "headers": ""
+        "headers": "",
+        "expect": "\"{ip}\""
       },
       "risk": "medium",
       "enabled": false,
@@ -293,25 +309,26 @@
       "tool": null,
       "rollback_tool": null,
       "run": {
-        "cli": "ip access-list extended VEDETTE-BLOCK\n    {seq} deny ip host {ip} any log",
+        "cli": "terminal length 0\nconfigure terminal\nip access-list extended VEDETTE-BLOCK\n{seq} deny ip host {ip} any log\nend",
         "method": "",
         "path": "",
         "body": "",
         "headers": ""
       },
       "rollback": {
-        "cli": "ip access-list extended VEDETTE-BLOCK\n    no {seq}",
+        "cli": "terminal length 0\nconfigure terminal\nip access-list extended VEDETTE-BLOCK\nno {seq}\nend",
         "method": "",
         "path": "",
         "body": "",
         "headers": ""
       },
       "verify": {
-        "cli": "show ip access-lists VEDETTE-BLOCK",
+        "cli": "terminal length 0\nshow ip access-lists VEDETTE-BLOCK",
         "method": "",
         "path": "",
         "body": "",
-        "headers": ""
+        "headers": "",
+        "expect": "deny ip host {ip} any"
       },
       "risk": "medium",
       "enabled": false,
@@ -328,26 +345,43 @@
       "tool": null,
       "rollback_tool": null,
       "run": {
-        "cli": "interface {interface}\n    shutdown",
+        "cli": "terminal length 0\nconfigure terminal\ninterface {interface}\nshutdown\nend",
         "method": "",
         "path": "",
         "body": "",
         "headers": ""
       },
       "rollback": {
-        "cli": "interface {interface}\n    no shutdown",
+        "cli": "terminal length 0\nconfigure terminal\ninterface {interface}\nno shutdown\nend",
         "method": "",
         "path": "",
         "body": "",
         "headers": ""
       },
       "verify": {
-        "cli": "show interfaces {interface} status",
+        "cli": "terminal length 0\nshow interfaces {interface} status",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": "",
+        "expect": "disabled"
+      },
+      "precheck": {
+        "cli": "terminal length 0\nshow interfaces {interface} switchport\nshow interfaces {interface}",
         "method": "",
         "path": "",
         "body": "",
         "headers": ""
       },
+      "precheck_refuse": [
+        "Mode: trunk",
+        "Mode: dynamic",
+        "Mode: private-vlan trunk",
+        "Mode: tunnel",
+        "Switchport: Disabled",
+        "administratively down"
+      ],
+      "precheck_expect": "Administrative Mode: static access",
       "risk": "medium",
       "enabled": false,
       "ai_may_propose": false,
@@ -363,26 +397,42 @@
       "tool": null,
       "rollback_tool": null,
       "run": {
-        "cli": "interface {interface}\n    switchport access vlan {vlan}",
+        "cli": "terminal length 0\nconfigure terminal\ninterface {interface}\nswitchport access vlan {vlan}\nend",
         "method": "",
         "path": "",
         "body": "",
         "headers": ""
       },
       "rollback": {
-        "cli": "interface {interface}\n    switchport access vlan {previous_vlan}",
+        "cli": "terminal length 0\nconfigure terminal\ninterface {interface}\nswitchport access vlan {previous_vlan}\nend",
         "method": "",
         "path": "",
         "body": "",
         "headers": ""
       },
       "verify": {
-        "cli": "show interfaces {interface} switchport",
+        "cli": "terminal length 0\nshow interfaces {interface} switchport",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": "",
+        "expect": "Access Mode VLAN: {vlan} "
+      },
+      "precheck": {
+        "cli": "terminal length 0\nshow interfaces {interface} switchport",
         "method": "",
         "path": "",
         "body": "",
         "headers": ""
       },
+      "precheck_refuse": [
+        "Mode: trunk",
+        "Mode: dynamic",
+        "Mode: private-vlan trunk",
+        "Mode: tunnel",
+        "Switchport: Disabled"
+      ],
+      "precheck_expect": "Administrative Mode: static access",
       "risk": "high",
       "enabled": false,
       "ai_may_propose": true,
@@ -398,7 +448,7 @@
       "tool": null,
       "rollback_tool": null,
       "run": {
-        "cli": "write memory",
+        "cli": "terminal length 0\nwrite memory",
         "method": "",
         "path": "",
         "body": "",
@@ -412,7 +462,7 @@
         "headers": ""
       },
       "verify": {
-        "cli": "show startup-config",
+        "cli": "terminal length 0\nshow startup-config",
         "method": "",
         "path": "",
         "body": "",
@@ -433,21 +483,21 @@
       "tool": null,
       "rollback_tool": null,
       "run": {
-        "cli": "access-list ip VEDETTE-BLOCK\n    {seq} deny any {ip}/32 any",
+        "cli": "no page\nconfigure terminal\naccess-list ip VEDETTE-BLOCK\n{seq} deny any {ip}/32 any\nend",
         "method": "",
         "path": "",
         "body": "",
         "headers": ""
       },
       "rollback": {
-        "cli": "access-list ip VEDETTE-BLOCK\n    no {seq}",
+        "cli": "no page\nconfigure terminal\naccess-list ip VEDETTE-BLOCK\nno {seq}\nend",
         "method": "",
         "path": "",
         "body": "",
         "headers": ""
       },
       "verify": {
-        "cli": "show access-list ip VEDETTE-BLOCK",
+        "cli": "no page\nshow access-list ip VEDETTE-BLOCK",
         "method": "",
         "path": "",
         "body": "",
@@ -468,26 +518,40 @@
       "tool": null,
       "rollback_tool": null,
       "run": {
-        "cli": "interface {interface}\n    shutdown",
+        "cli": "no page\nconfigure terminal\ninterface {interface}\nshutdown\nend",
         "method": "",
         "path": "",
         "body": "",
         "headers": ""
       },
       "rollback": {
-        "cli": "interface {interface}\n    no shutdown",
+        "cli": "no page\nconfigure terminal\ninterface {interface}\nno shutdown\nend",
         "method": "",
         "path": "",
         "body": "",
         "headers": ""
       },
       "verify": {
-        "cli": "show interface {interface}",
+        "cli": "no page\nshow interface {interface}",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": "",
+        "expect": "Admin state is down"
+      },
+      "precheck": {
+        "cli": "no page\nshow interface {interface}",
         "method": "",
         "path": "",
         "body": "",
         "headers": ""
       },
+      "precheck_refuse": [
+        "VLAN Mode: trunk",
+        "VLAN Mode: native-untagged",
+        "VLAN Mode: native-tagged",
+        "Admin state is down"
+      ],
       "risk": "medium",
       "enabled": false,
       "ai_may_propose": false,
@@ -503,131 +567,38 @@
       "tool": null,
       "rollback_tool": null,
       "run": {
-        "cli": "interface {interface}\n    vlan access {vlan}",
+        "cli": "no page\nconfigure terminal\ninterface {interface}\nvlan access {vlan}\nend",
         "method": "",
         "path": "",
         "body": "",
         "headers": ""
       },
       "rollback": {
-        "cli": "interface {interface}\n    vlan access {previous_vlan}",
+        "cli": "no page\nconfigure terminal\ninterface {interface}\nvlan access {previous_vlan}\nend",
         "method": "",
         "path": "",
         "body": "",
         "headers": ""
       },
       "verify": {
-        "cli": "show interface {interface}",
+        "cli": "no page\nshow interface {interface}",
         "method": "",
         "path": "",
         "body": "",
         "headers": ""
       },
-      "risk": "high",
-      "enabled": false,
-      "ai_may_propose": false,
-      "unverified": true
-    },
-    {
-      "id": "arubasw_acl_deny",
-      "pack": "ArubaOS-Switch (HPE ProVision)",
-      "kind": "device",
-      "name": "ArubaOS-Switch (SSH): deny an IP in the ACL",
-      "description": "Adds a deny line for the address to the VEDETTE-BLOCK access list at a sequence number below the final permit line; undo removes it by sequence number. Nothing about this template is confirmed yet, not even in the vendor documentation: build and test it in a lab before you rely on it.",
-      "connection_id": null,
-      "tool": null,
-      "rollback_tool": null,
-      "run": {
-        "cli": "ip access-list extended VEDETTE-BLOCK\n    {seq} deny ip {ip} 0.0.0.0 any",
+      "precheck": {
+        "cli": "no page\nshow interface {interface}",
         "method": "",
         "path": "",
         "body": "",
         "headers": ""
       },
-      "rollback": {
-        "cli": "ip access-list extended VEDETTE-BLOCK\n    no {seq}",
-        "method": "",
-        "path": "",
-        "body": "",
-        "headers": ""
-      },
-      "verify": {
-        "cli": "",
-        "method": "",
-        "path": "",
-        "body": "",
-        "headers": ""
-      },
-      "risk": "medium",
-      "enabled": false,
-      "ai_may_propose": false,
-      "unverified": true
-    },
-    {
-      "id": "arubasw_port_shut",
-      "pack": "ArubaOS-Switch (HPE ProVision)",
-      "kind": "device",
-      "name": "ArubaOS-Switch (SSH): shut a port",
-      "description": "Disables one switch port. Whatever is plugged in loses its network until the port is enabled again. Nothing about this template is confirmed yet, not even in the vendor documentation: build and test it in a lab before you rely on it.",
-      "connection_id": null,
-      "tool": null,
-      "rollback_tool": null,
-      "run": {
-        "cli": "interface {interface}\n    disable",
-        "method": "",
-        "path": "",
-        "body": "",
-        "headers": ""
-      },
-      "rollback": {
-        "cli": "interface {interface}\n    enable",
-        "method": "",
-        "path": "",
-        "body": "",
-        "headers": ""
-      },
-      "verify": {
-        "cli": "",
-        "method": "",
-        "path": "",
-        "body": "",
-        "headers": ""
-      },
-      "risk": "medium",
-      "enabled": false,
-      "ai_may_propose": false,
-      "unverified": true
-    },
-    {
-      "id": "arubasw_vlan_quarantine",
-      "pack": "ArubaOS-Switch (HPE ProVision)",
-      "kind": "device",
-      "name": "ArubaOS-Switch (SSH): move a port to the quarantine VLAN",
-      "description": "Makes the port an untagged member of the quarantine VLAN. The command also removes it from its old untagged VLAN, so Vedette reads that VLAN first and restores it on undo. Two people must approve. Nothing about this template is confirmed yet, not even in the vendor documentation: build and test it in a lab before you rely on it.",
-      "connection_id": null,
-      "tool": null,
-      "rollback_tool": null,
-      "run": {
-        "cli": "vlan {vlan}\n    untagged {interface}",
-        "method": "",
-        "path": "",
-        "body": "",
-        "headers": ""
-      },
-      "rollback": {
-        "cli": "vlan {previous_vlan}\n    untagged {interface}",
-        "method": "",
-        "path": "",
-        "body": "",
-        "headers": ""
-      },
-      "verify": {
-        "cli": "",
-        "method": "",
-        "path": "",
-        "body": "",
-        "headers": ""
-      },
+      "precheck_refuse": [
+        "VLAN Mode: trunk",
+        "VLAN Mode: native-untagged",
+        "VLAN Mode: native-tagged"
+      ],
       "risk": "high",
       "enabled": false,
       "ai_may_propose": false,
@@ -661,7 +632,8 @@
         "method": "GET",
         "path": "/api/domains/deny/exact/{domain}",
         "body": "",
-        "headers": ""
+        "headers": "",
+        "expect": "\"domain\":\"{domain}\""
       },
       "risk": "low",
       "enabled": false,

@@ -233,7 +233,7 @@ Thông điệp tiếng Anh, ngắn (D-28); lỗi `409` trả kèm `ActionRequest
 
 1. ~~Email quá yếu cho rủi ro cao?~~ **Cấm** (D-57 (20), D-96): liên kết chỉ cho rủi ro thấp/trung bình; yêu cầu rủi ro cao → thư không có liên kết duyệt, POST trên liên kết cũ → `403 in_app_required`. Không thêm bước nhập mã hai bước trên trang `/approve`.
 2. ~~Người tạo thủ công tự duyệt~~ **Theo D-57 (20) và INV-2 của `response`**: rủi ro cao cần hai `user_id` khác nhau, nên người khởi động lần chạy tay chỉ là tối đa một trong hai; rủi ro thấp/trung bình người đó được tự duyệt (một người là đủ). Không thêm quy tắc mới.
-3. ~~Đổi `TOKEN_RE` và route FE~~ **Lát 13b-2**: `TOKEN_RE` theo định dạng `v1.<22 base64url>.<22 base64url>`, token trong mock đổi thành token ký; route `/approve/:token` giữ nguyên.
+3. ~~Đổi `TOKEN_RE` và route FE~~ **Đã làm ở lát 13b-2**: `TOKEN_RE` theo định dạng `v1.<22 base64url>.<22 base64url>` (`web/src/features/response/logic.ts`), token trong mock đổi thành token ký (phần tag là ngẫu nhiên: mock không giữ khoá HMAC, kho của mock là nguồn chân lý); route `/approve/:token` giữ nguyên.
 4. ~~Zalo cá nhân có được duyệt rủi ro trung bình?~~ **Có** (D-96): thấp và trung bình; cao → `403 channel_not_allowed`; yêu cầu `in_app_only` → `403 in_app_required`.
 5. Link duyệt chỉ tới được trong LAN: **không đổi** (D-15: Vedette không cung cấp tunnel; khách tự dùng VPN/reverse proxy). Chưa có việc gì.
 6. ~~Hạn yêu cầu mặc định~~ **15 phút** (`resp_settings.expiry_min` mặc định 15, khoảng 15–30, INV-6 của `response`); token sống `min(30 phút, hạn yêu cầu)`.

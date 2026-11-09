@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -10,16 +10,18 @@ import { eachOption } from '@/test/formMatrix'
 import { collection } from '@/mocks/db'
 import { connectorsStore, type Connector } from '@/mocks/connectors'
 import { assetsStore, auditStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
-import { checkValues, evalCondition, resolveParam, validateTpl, verifyChain, EMPTY_TPL, PARAM_CHECK, PARAM_TYPES } from './logic'
+import { checkValues, evalCondition, resolveParam, validateTpl, verifyChain, EMPTY_TPL, PARAM_CHECK, PARAM_TYPES, TOKEN_RE } from './logic'
 import type { Role } from '@/lib/session'
 import type { ActionRequest, AiState, Blocklist, Catalog, LogEntry, PlanList, ProposeResult, Rule, RuleInput, RunSummary, SettingsView, Simulation } from './types'
 import ResponseSettings from './ResponseSettings'
 import { ActionDialog } from './CatalogEditor'
 import { RuleDialog } from './RuleEditor'
-import { catalogStore } from './state'
+import { buildChange, catalogStore } from './state'
 
 const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
 const PROPOSAL = 'pr-f-1-nas-photo-443'
+// The unverified FortiGate built-ins ship switched off for a new install (action-templates 12.1 item 6); these tests are about the gates, so the admin has switched them on.
+beforeEach(() => { catalogStore.update((l) => l.map((c) => (['fgt_addrgrp_add', 'fgt_ban_ip', 'fgt_vip_disable'].includes(c.id) ? { ...c, enabled: true } : c))) })
 const PHRASE = 'I ACCEPT THE RISK'
 
 async function call<T = Record<string, unknown>>(role: Role, method: string, path: string, body?: unknown) {
@@ -70,6 +72,8 @@ const SSH_W: Connector = { id: 'cn-sw', name: 'Core switch (SSH)', kind: 'ssh', 
 const withSwitch = () => connectorsStore.update((l) => [...l, SSH_W])
 async function enableSwitchActions() {
   withSwitch()
+  // The built-in reads {previous_vlan} from the device while it runs, which a later version does; until then it is "not available yet". These tests are about approvals, so they use a copy whose undo puts the port back on VLAN 1.
+  catalogStore.update((l) => l.map((c) => (c.id === 'cisco_port_vlan_quarantine' ? { ...c, rollback: { ...c.rollback, cli: c.rollback.cli.replace('{previous_vlan}', '1') } } : c)))
   expect((await call('admin', 'PUT', '/response/catalog/cisco_port_vlan_quarantine', { connection_id: 'cn-sw', enabled: true })).status).toBe(200)
 }
 const hpHits = (n: number, ip = '192.168.10.157') => collection<unknown>('hp_hits', () => []).set(Array.from({ length: n }, (_, i) => ({ id: `hit-t${i}`, ts: new Date(Date.now() - i * 60e3).toISOString(), kind: 'scan', src_ip: ip, trap_hostname: 'DECOY-1', is_test: false })))
@@ -356,6 +360,13 @@ describe('response: approval model (D-51)', () => {
     expect(links).toHaveLength(2)
     const token = links[0]!.url.split('/').pop()!
     const pub = async (m: string, p: string, b?: unknown) => { sessionStore.set({ userId: null }); const res = await fetch(`${location.origin}/api/v1${p}`, { method: m, headers: { 'Content-Type': 'application/json' }, body: b === undefined ? undefined : JSON.stringify(b) }); return { status: res.status, json: (await res.json()) as { state?: string; status?: string; error?: { code: string } } } }
+    // the signed form of approval-tokens.md 4.1: v1.<id>.<tag>, both base64url of 16 bytes; the old 32 hex form is not a token any more
+    expect(token).toMatch(TOKEN_RE)
+    expect(new Set(links.map((l) => l.url.split('/').pop())).size).toBe(2)
+    expect(TOKEN_RE.test('a'.repeat(32))).toBe(false)
+    expect(TOKEN_RE.test(token.replace('v1.', 'v2.'))).toBe(false)
+    expect(TOKEN_RE.test(`${token}x`)).toBe(false)
+    expect((await pub('GET', `/response/approve/${'a'.repeat(32)}`)).json.state).toBe('unknown')
     expect((await pub('GET', `/response/approve/${token}`)).json.state).toBe('ready')
     expect((await getAction(r.json.id)).status).toBe('pending')
     expect((await pub('POST', `/response/approve/${token}`, { decision: 'approve' })).json.status).toBe('executed')
@@ -725,6 +736,151 @@ describe('response: action catalog (S-RESP-4)', () => {
     expect(validateTpl({ ...EMPTY_TPL, method: 'POST', path: '/x', headers: 'X-Token: {name}' }, 'Action')).toBeNull()
   })
 
+  it('check before and read-back are typed and checked on the server (INV-14c, D-95)', async () => {
+    const post = (o: Record<string, unknown>) => call('admin', 'POST', '/response/catalog', { ...CUSTOM, ...o })
+    const get = { ...EMPTY_TPL, method: 'GET', path: '/api/v2/cmdb/webfilter/urlfilter/1/entries/{domain}' }
+    // read-back text: only on the read-back, 200 characters, typed placeholders only
+    expect((await post({ verify: { ...get, expect: '"{domain}"' } })).status).toBe(201)
+    expect((await post({ verify: { ...get, expect: 'x'.repeat(201) } })).status).toBe(400)
+    expect((await post({ verify: { ...get, expect: 'a; b' } })).status).toBe(400)
+    expect((await post({ verify: { ...get, expect: '{nope}' } })).status).toBe(400)
+    expect((await post({ run: { ...CUSTOM.run, expect: 'x' } })).status).toBe(400)
+    expect((await post({ rollback: { ...CUSTOM.rollback, expect: 'x' } })).status).toBe(400)
+    // check before: a GET and 1 to 5 texts of up to 80 characters; both or neither
+    const pre = { precheck: get, precheck_refuse: ['Administrative Mode: trunk'] }
+    expect((await post(pre)).status).toBe(201)
+    expect((await post({ precheck: get, precheck_refuse: [] })).status).toBe(400)
+    expect((await post({ precheck: EMPTY_TPL, precheck_refuse: ['x'] })).status).toBe(400)
+    expect((await post({ ...pre, precheck_refuse: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] })).status).toBe(400)
+    expect((await post({ ...pre, precheck_refuse: ['x'.repeat(81)] })).status).toBe(400)
+    expect((await post({ ...pre, precheck_refuse: ['a\nb'] })).status).toBe(400)
+    expect((await post({ ...pre, precheck_refuse: [' '] })).status).toBe(400)
+    expect((await post({ precheck: { ...get, method: 'POST' }, precheck_refuse: ['x'] })).status).toBe(400) // it must not change anything
+    expect((await post({ precheck: { ...get, body: '{"a":1}' }, precheck_refuse: ['x'] })).status).toBe(400)
+    expect((await post({ precheck: { ...get, expect: 'x' }, precheck_refuse: ['x'] })).status).toBe(400)
+    // a template that names a port needs a check before it, with a refusal (a trunk or uplink must never be touched)
+    connectorsStore.update((l) => [...l, SSH_W])
+    const port = { connection_id: 'cn-sw', run: { ...EMPTY_TPL, cli: 'interface {interface}\nshutdown' }, rollback: { ...EMPTY_TPL, cli: 'interface {interface}\nno shutdown' } }
+    const noCheck = await post(port)
+    expect(noCheck.status).toBe(400)
+    expect(JSON.stringify(noCheck.json)).toMatch(/check before/)
+    expect((await post({ ...port, precheck: { ...EMPTY_TPL, cli: 'show interfaces {interface} switchport' }, precheck_refuse: [] })).status).toBe(400)
+    const ok = await post({ ...port, precheck: { ...EMPTY_TPL, cli: 'show interfaces {interface} switchport' }, precheck_refuse: ['Administrative Mode: trunk'] })
+    expect(ok.status).toBe(201)
+    expect(ok.json).toMatchObject({ precheck: { cli: 'show interfaces {interface} switchport' }, precheck_refuse: ['Administrative Mode: trunk'] })
+    // the check cannot use a placeholder the action does not have
+    expect((await post({ ...pre, precheck: { ...get, path: '/x/{ip}' } })).status).toBe(400)
+    // an MCP server cannot run a check before
+    connectorsStore.update((l) => [...l, MCP])
+    const mcp = { connection_id: 'cn-mcp', tool: 'block_address', rollback_tool: 'unblock_address', run: { ...EMPTY_TPL, body: '{"address":"{ip}"}' }, rollback: { ...EMPTY_TPL, body: '{"address":"{ip}"}' } }
+    expect((await post({ ...mcp, precheck: { ...EMPTY_TPL, body: '{}' }, precheck_refuse: ['x'] })).status).toBe(400)
+    expect((await post(mcp)).status).toBe(201)
+    // editing the check is a template edit
+    const id = (ok.json as { id: string }).id
+    const edited = await call('admin', 'PUT', `/response/catalog/${id}`, { precheck_refuse: ['Administrative Mode: trunk', 'Operational Mode: trunk'] })
+    expect(edited.json).toMatchObject({ precheck_refuse: ['Administrative Mode: trunk', 'Operational Mode: trunk'] })
+    expect((await call('admin', 'PUT', `/response/catalog/${id}`, { precheck_refuse: [] })).status).toBe(400)
+    // a built-in takes no template edit
+    expect((await call('admin', 'PUT', '/response/catalog/cisco_port_shut', { precheck_refuse: [] })).status).toBe(200)
+    expect((await call<Catalog>('admin', 'GET', '/response/catalog')).json.items.find((a) => a.id === 'cisco_port_shut')!.precheck_refuse).toHaveLength(6)
+  })
+
+  it('no template can set a credential, address or hop-by-hop header, in a custom action or a built-in one (D-94)', async () => {
+    const bad = ['Authorization: Bearer {name}', 'authorization: x', 'Cookie: a=b', 'Host: evil.lan', 'Proxy-Authorization: x', 'Proxy-Foo: x', 'Connection: close', 'Keep-Alive: 5', 'TE: trailers', 'Transfer-Encoding: chunked', 'Upgrade: x', 'Proxy-Connection: x', 'Forwarded: for=1.2.3.4', 'X-Forwarded-For: 1.2.3.4', 'X-Forwarded-Host: x', 'X-Test: a\nAUTHORIZATION: b']
+    for (const h of bad) {
+      expect(validateTpl({ ...EMPTY_TPL, method: 'POST', path: '/x', headers: h }, 'Action'), h).toMatch(/set by the connection/)
+      expect((await call('admin', 'POST', '/response/catalog', { ...CUSTOM, run: { ...CUSTOM.run, headers: h } })).status, h).toBe(400)
+      expect((await call('admin', 'POST', '/response/catalog', { ...CUSTOM, verify: { ...EMPTY_TPL, method: 'GET', path: '/x/{domain}', headers: h } })).status, `verify ${h}`).toBe(400)
+      expect((await call('admin', 'POST', '/response/catalog', { ...CUSTOM, precheck: { ...EMPTY_TPL, method: 'GET', path: '/x/{domain}', headers: h }, precheck_refuse: ['x'] })).status, `precheck ${h}`).toBe(400)
+    }
+    expect(validateTpl({ ...EMPTY_TPL, method: 'POST', path: '/x', headers: 'Content-Type: application/json\nX-Request-Id: {name}' }, 'Action')).toBeNull()
+    // the shipped library obeys the same rule
+    for (const a of catalogStore.get()) for (const t of [a.run, a.rollback, a.verify, a.precheck]) expect(t.headers, a.id).not.toMatch(/authorization|cookie|^host|proxy-|forwarded/i)
+  })
+
+  it('built-in actions that need a value read from the device are not available yet; the others that name a port have a check before (action-templates 12.1)', async () => {
+    withSwitch()
+    for (const id of ['cisco_acl_deny', 'aoscx_acl_deny', 'cisco_port_vlan_quarantine', 'aoscx_vlan_quarantine', 'mt_addrlist_add', 'adguard_block']) {
+      catalogStore.update((l) => l.map((c) => (c.id === id ? { ...c, connection_id: c.run.cli ? 'cn-sw' : 'cn-fgt' } : c)))
+    }
+    const items = (await call<Catalog>('admin', 'GET', '/response/catalog')).json.items
+    for (const id of ['cisco_acl_deny', 'aoscx_acl_deny', 'cisco_port_vlan_quarantine', 'aoscx_vlan_quarantine', 'mt_addrlist_add', 'adguard_block']) {
+      const a = items.find((x) => x.id === id)!
+      expect(a.available, id).toBe(false)
+      expect(a.unavailable_reason, id).toMatch(/Not available yet: .*\{(seq|previous_vlan|found_id|rules_before|timeout)\}/)
+    }
+    // the port actions are available once the switch is chosen: their check before and refusal texts are in the library
+    for (const id of ['cisco_port_shut', 'aoscx_port_shut']) {
+      catalogStore.update((l) => l.map((c) => (c.id === id ? { ...c, connection_id: 'cn-sw' } : c)))
+    }
+    const now = (await call<Catalog>('admin', 'GET', '/response/catalog')).json.items
+    for (const id of ['cisco_port_shut', 'aoscx_port_shut']) expect(now.find((x) => x.id === id)!.available, id).toBe(true)
+    // the time to live is worked out without the device
+    expect(now.find((x) => x.id === 'fgt_ban_ip')!.unavailable_reason ?? '').not.toMatch(/Not available yet/)
+  })
+
+  it('the proposals route is documented as preview only (FORBID-5, D-97)', async () => {
+    const { endpoints } = await import('./contract')
+    const r = endpoints.find((x) => x.path === '/response/ai/proposals')!
+    expect(r.summary).toMatch(/^Preview build only/)
+  })
+
+  it('the mock follows the module: ports named through another placeholder, writing read-backs and header-only steps are refused (review of 13b-2)', async () => {
+    connectorsStore.update((l) => [...l, SSH_W])
+    const post = (o: Record<string, unknown>) => call('admin', 'POST', '/response/catalog', { ...CUSTOM, ...o })
+    const ssh = { connection_id: 'cn-sw', run: { ...EMPTY_TPL, cli: 'interface Port-channel{id}\nshutdown' }, rollback: { ...EMPTY_TPL, cli: 'interface Port-channel{id}\nno shutdown' } }
+    const dodge = await post(ssh)
+    expect(dodge.status).toBe(400)
+    expect(JSON.stringify(dodge.json)).toMatch(/can name a port/)
+    expect((await post({ ...ssh, precheck: { ...EMPTY_TPL, cli: 'show interfaces Port-channel{id}' }, precheck_refuse: ['Mode: trunk'] })).status).toBe(201)
+    // an SSH check cannot write
+    const port = { connection_id: 'cn-sw', run: { ...EMPTY_TPL, cli: 'interface {interface}\nshutdown' }, rollback: { ...EMPTY_TPL, cli: 'interface {interface}\nno shutdown' }, precheck_refuse: ['Mode: trunk'] }
+    expect((await post({ ...port, precheck: { ...EMPTY_TPL, cli: 'show interfaces {interface}\nshutdown' } })).status).toBe(400)
+    expect((await post({ ...port, precheck: { ...EMPTY_TPL, cli: 'configure terminal\nshow interfaces {interface}' } })).status).toBe(400)
+    expect((await post({ ...port, run: { ...EMPTY_TPL, cli: 'interface {interface}\nshutdown\nreload' }, precheck: { ...EMPTY_TPL, cli: 'show interfaces {interface}' } })).status).toBe(400)
+    expect((await post({ ...port, precheck: { ...EMPTY_TPL, cli: 'show interfaces {interface}' }, precheck_expect: 'Administrative Mode: static access' })).json).toMatchObject({ precheck_expect: 'Administrative Mode: static access' })
+    // a read-back only reads; a step with only headers is not empty
+    const get = { ...EMPTY_TPL, method: 'GET', path: '/d/{domain}' }
+    for (const method of ['DELETE', 'POST', 'PUT', 'PATCH']) expect((await post({ verify: { ...get, method, expect: 'x' } })).status, method).toBe(400)
+    expect((await post({ verify: { ...EMPTY_TPL, headers: 'Authorization: Bearer abc' } })).status).toBe(400)
+    expect((await post({ precheck: { ...EMPTY_TPL, headers: 'X-Api-Key: abc' }, precheck_refuse: ['x'] })).status).toBe(400)
+    expect((await post({ precheck: { ...get, headers: 'X-HTTP-Method-Override: DELETE' }, precheck_refuse: ['x'] })).status).toBe(400)
+    expect((await post({ precheck: get, precheck_refuse: [], precheck_expect: 'x'.repeat(81) })).status).toBe(400)
+    // the required text alone is a check
+    expect((await post({ precheck: get, precheck_refuse: [], precheck_expect: 'ok' })).status).toBe(201)
+  })
+
+  it('GET /response/catalog hides the header values of every step from non-admins, the check before included (D-88 (26))', async () => {
+    const secret = { ...EMPTY_TPL, method: 'GET', path: '/d/{domain}', headers: 'X-Api-Key: s3cretvalue' }
+    const made = await call('admin', 'POST', '/response/catalog', { ...CUSTOM, run: { ...CUSTOM.run, headers: 'X-Api-Key: s3cretrun' }, verify: secret, precheck: secret, precheck_refuse: ['x'] })
+    expect(made.status).toBe(201)
+    const headersOf = (items: Catalog['items']) => items.flatMap((a) => [a.run, a.rollback, a.verify, a.precheck].map((t) => t.headers)).join('\n')
+    for (const role of ['viewer', 'operator'] as const) {
+      const seen = headersOf((await call<Catalog>(role, 'GET', '/response/catalog')).json.items)
+      expect(seen, role).not.toContain('s3cret')
+      expect(seen, role).toContain('X-Api-Key: (hidden)')
+    }
+    expect(headersOf((await call<Catalog>('admin', 'GET', '/response/catalog')).json.items)).toContain('s3cretvalue')
+  })
+
+  it('the approval screen shows the check before and the read-back, with the exact call and when it refuses', () => {
+    const c = { ...catalogStore.get().find((x) => x.id === 'cisco_port_shut')!, connection_id: null }
+    const ch = buildChange(c, { interface: 'Gi1/0/12' }, undefined, 'r')
+    expect(ch.precheck).toBe('terminal length 0\nshow interfaces Gi1/0/12 switchport\nshow interfaces Gi1/0/12')
+    expect(ch.precheck_rules).toMatch(/administratively down/)
+    expect(ch.precheck_rules).toMatch(/unless its output contains "Administrative Mode: static access"/)
+    expect(ch.precheck_rules).toMatch(/prints nothing/)
+    expect(ch.verify).toBe('terminal length 0\nshow interfaces Gi1/0/12 status')
+    expect(ch.verify_rule).toMatch(/"disabled".*after the undo it must not/)
+    const api = { ...catalogStore.get().find((x) => x.id === 'fgt_policy_disable')! }
+    const conn = { kind: 'http', target: 'https://fw.lan' } as never
+    const ac = buildChange(api, { id: '7' }, conn, 'r')
+    expect(ac.precheck).toBe('GET https://fw.lan/api/v2/cmdb/firewall/policy/7')
+    expect(ac.precheck_rules).toMatch(/"action":"deny"/)
+    expect(ac.verify).toBe('GET https://fw.lan/api/v2/cmdb/firewall/policy/7')
+    expect(buildChange(catalogStore.get().find((x) => x.id === 'blocklist_add')!, { ip: '1.2.3.4' }, undefined, 'r').precheck).toBe('')
+  })
+
   it('custom actions: add, edit, delete; unsafe templates are refused; built-ins cannot be deleted; a rule in use blocks delete', async () => {
     expect((await call('admin', 'POST', '/response/catalog', { ...CUSTOM, run: { ...CUSTOM.run, body: '{"url":"{domain}; reboot"}' } })).status).toBe(400)
     expect((await call('admin', 'POST', '/response/catalog', { ...CUSTOM, run: { ...CUSTOM.run, body: '{"url":"{host}"}' } })).status).toBe(400)
@@ -999,12 +1155,65 @@ describe('response: custom action form follows the connection kind', () => {
     expect(within(conn).getByRole('option', { name: 'Core switch (SSH)' })).toBeEnabled()
   })
 
+  it('form matrix: the check before and the read-back text, on and off, for each kind (D-95)', async () => {
+    connectorsStore.update((l) => [...l, ...extra])
+    orgStore.update((o) => ({ ...o, setup_complete: true }))
+    const cat = (await call<Catalog>('admin', 'GET', '/response/catalog')).json
+    renderUi(<ActionDialog action={null} cat={cat} onClose={() => undefined} />)
+    const conn = await screen.findByLabelText('Connection')
+    const pick = async (name: string) => { await userEvent.selectOptions(conn, within(conn).getByRole('option', { name: new RegExp(name) })) }
+    const EXPECT = /^Text the read-back must contain$/, REFUSE = /^Refuse when the output contains$/, CHECK = /^Check before/, MUST = /^Output must contain \(optional\)$/
+    const pre = () => screen.getByRole('group', { name: CHECK })
+    const withCheck = [EXPECT, REFUSE, MUST]
+    await eachOption([
+      { option: 'Office FortiGate API', shown: withCheck }, { option: 'MikroTik API', shown: withCheck }, { option: 'Switch RESTCONF', shown: withCheck }, { option: 'Automation platform', shown: withCheck },
+      { option: 'Ticket API', shown: withCheck }, { option: 'Core switch', shown: withCheck },
+      { option: 'Firewall MCP server', hidden: withCheck, shown: [/An MCP server cannot run a check before yet/] }, // no read-back and no check before on an MCP server
+      { option: 'Local MCP', hidden: withCheck },
+      { option: 'Office FortiGate API', shown: withCheck }, // going back restores them
+    ], pick)
+    // the read-back text belongs to the read-back group only; the check before has the refusal texts and no body
+    await pick('Office FortiGate API')
+    expect(within(screen.getByRole('group', { name: /^Read-back/ })).getByLabelText(EXPECT)).toHaveValue('')
+    expect(within(screen.getByRole('group', { name: 'Action' })).queryByLabelText(EXPECT)).toBeNull()
+    expect(within(screen.getByRole('group', { name: 'Rollback (undo)' })).queryByLabelText(EXPECT)).toBeNull()
+    expect(within(pre()).queryByLabelText(EXPECT)).toBeNull()
+    expect(within(pre()).queryByLabelText(L.body)).toBeNull()
+    expect(within(pre()).getByLabelText(REFUSE)).toHaveValue('')
+    expect(within(pre()).getByLabelText(MUST)).toHaveValue('')
+    expect(within(screen.getByRole('group', { name: 'Action' })).queryByLabelText(MUST)).toBeNull()
+    const methods = within(within(pre()).getByLabelText(L.method)).getAllByRole('option').map((o) => o.textContent)
+    expect(methods).toEqual(['Choose a method', 'GET']) // a check before can only read
+    // on: type them, and they are kept per connection kind; switching the connection clears them
+    await userEvent.type(within(screen.getByRole('group', { name: /^Read-back/ })).getByLabelText(EXPECT), 'ok')
+    await userEvent.type(within(pre()).getByLabelText(REFUSE), 'a{enter}b')
+    expect(within(pre()).getByLabelText(REFUSE)).toHaveValue('a\nb')
+    await pick('Core switch')
+    expect(within(screen.getByRole('group', { name: /^Read-back/ })).getByLabelText(EXPECT)).toHaveValue('')
+    expect(within(pre()).getByLabelText(REFUSE)).toHaveValue('')
+    expect(within(pre()).getByLabelText(L.command)).toBeInTheDocument() // SSH: the check is a command
+    // the form refuses what the server refuses: a port without a check, a check without a refusal text
+    await userEvent.type(screen.getByLabelText('Name'), 'Shut a port')
+    await userEvent.type(within(screen.getByRole('group', { name: 'Action' })).getByLabelText(L.command), 'interface {{interface}{enter}shutdown')
+    await userEvent.type(within(screen.getByRole('group', { name: 'Rollback (undo)' })).getByLabelText(L.command), 'interface {{interface}{enter}no shutdown')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/needs a check before it/)
+    await userEvent.type(within(pre()).getByLabelText(L.command), 'show interfaces {{interface} switchport')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/at least one text that makes it refuse/)
+    await userEvent.type(within(pre()).getByLabelText(REFUSE), 'Administrative Mode: trunk')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
+    const saved = (await call<Catalog>('admin', 'GET', '/response/catalog')).json.items.find((a) => a.name === 'Shut a port')!
+    expect(saved).toMatchObject({ precheck: { cli: 'show interfaces {interface} switchport' }, precheck_refuse: ['Administrative Mode: trunk'] })
+  })
+
   it('a new SSH connection starts read-only (write tool off); the action form unlocks when an admin turns the write tool on, and the server refuses while it is off', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: true }))
     const made = await call<{ id: string; tools: { name: string; access: string; enabled: boolean }[] }>('admin', 'POST', '/core/connections', { name: 'New switch', kind: 'ssh', target: '192.168.10.40:22', auth_type: 'ssh-key', username: 'vedette', secret: 'a-long-enough-key', allow: ['show version'], enabled: true })
     expect(made.status).toBe(201)
     expect(made.json.tools.find((t) => t.access === 'write')).toMatchObject({ name: 'run_approved_command', enabled: false })
-    const ACTION = { name: 'Shut a port', description: 'x', connection_id: made.json.id, tool: null, rollback_tool: null, risk: 'medium', enabled: false, ai_may_propose: false, run: { ...EMPTY_TPL, cli: 'interface {interface}\n    shutdown' }, rollback: { ...EMPTY_TPL, cli: 'interface {interface}\n    no shutdown' }, verify: EMPTY_TPL }
+    const ACTION = { name: 'Shut a port', description: 'x', connection_id: made.json.id, tool: null, rollback_tool: null, precheck: { ...EMPTY_TPL, cli: 'show interfaces {interface} switchport' }, precheck_refuse: ['Administrative Mode: trunk'], risk: 'medium', enabled: false, ai_may_propose: false, run: { ...EMPTY_TPL, cli: 'interface {interface}\n    shutdown' }, rollback: { ...EMPTY_TPL, cli: 'interface {interface}\n    no shutdown' }, verify: EMPTY_TPL }
     expect((await call('admin', 'POST', '/response/catalog', ACTION)).json).toMatchObject({ error: { code: 'read_only' } })
     const open = async () => { const cat = (await call<Catalog>('admin', 'GET', '/response/catalog')).json; const v = renderUi(<ActionDialog action={null} cat={cat} onClose={() => undefined} />); const conn = await screen.findByLabelText('Connection'); const o = within(conn).getByRole('option', { name: /New switch/ }); const r = { text: o.textContent ?? '', disabled: (o as HTMLOptionElement).disabled }; v.unmount(); return r }
     const locked = await open()

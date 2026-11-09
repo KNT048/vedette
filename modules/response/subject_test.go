@@ -15,7 +15,8 @@ func TestContract_INV10_AddressPlusPortActionChecksTheSubject(t *testing.T) {
 	e.conns.list = append(e.conns.list, response.ConnectionInfo{Connection: response.Connection{ID: "cn-sw", Name: "Core switch", Enabled: true, Kind: "ssh", WriteTools: []string{"cli"}}, Target: "ssh://sw.lan"})
 	cust, err := e.svc.AddAction(e.ctx(), admin, response.CatalogInput{Name: "Shut port and tag", ConnectionID: "cn-sw",
 		Run:      response.Tpl{CLI: "interface {interface}\n    shutdown\n    description vedette-{ip}"},
-		Rollback: response.Tpl{CLI: "interface {interface}\n    no shutdown"}, Risk: response.RiskMedium, Enabled: true})
+		Rollback: response.Tpl{CLI: "interface {interface}\n    no shutdown"}, Risk: response.RiskMedium, Enabled: true,
+		Precheck: response.Tpl{CLI: "show interfaces {interface} switchport"}, PrecheckRefuse: []string{"Administrative Mode: trunk"}})
 	e.must(err)
 	cid, on := "cn-sw", true
 	_, err = e.svc.ChangeAction(e.ctx(), admin, "cisco_port_shut", response.CatalogUpdate{ConnectionID: &cid, Enabled: &on, Present: map[string]bool{"connection_id": true, "enabled": true}})

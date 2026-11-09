@@ -138,6 +138,7 @@ func (f *fakeWebhooks) Target(context.Context) (response.WebhookTarget, bool, er
 
 type env struct {
 	t     *testing.T
+	cfg   response.Config
 	db    *store.DB
 	svc   *response.Service
 	clock *fakeClock
@@ -216,6 +217,7 @@ func newEnv(t *testing.T, opts ...func(*response.Config)) *env {
 	for _, o := range opts {
 		o(&cfg)
 	}
+	e.cfg = cfg
 	e.svc, err = response.New(cfg)
 	if err != nil {
 		t.Fatal(err)

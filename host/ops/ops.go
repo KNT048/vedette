@@ -73,6 +73,9 @@ type Deps struct {
 	// (address on the card, chrony sources): default 1 s and 15 s (D-100, D-106).
 	NetPoll time.Duration
 	NetWait time.Duration
+	// NetRetryGap is the pause between the three tries of a revert's netplan apply (default 30 s, so
+	// about 60 s in all, D-100 (8)).
+	NetRetryGap time.Duration
 }
 
 // Ops holds the state of the system commands.
@@ -172,6 +175,9 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 	}
 	if d.NetWait <= 0 {
 		d.NetWait = 15 * time.Second
+	}
+	if d.NetRetryGap <= 0 {
+		d.NetRetryGap = 30 * time.Second
 	}
 	runner, err := newRunner(cfg.Logger, cfg.CoreUnit, d.BinPaths, min(d.ExportLimit, maxJournalStream))
 	if err != nil {

@@ -33,7 +33,24 @@ func validNTPServer(s string) bool {
 	if !dnsNameRE.MatchString(s) {
 		return false
 	}
-	return strings.Trim(s, "0123456789.") != ""
+	return !addressLike(s)
+}
+
+// addressLike reports whether every label is a decimal or 0x-hexadecimal number: glibc reads such a
+// name as an IPv4 address (inet_aton: "127.1", "0177.0.0.1", "0x7f.0.0.1", "0x7f000001"), so it
+// is not a name (review of 3-4, L-2).
+func addressLike(s string) bool {
+	labels := strings.Split(strings.TrimSuffix(s, "."), ".")
+	for _, l := range labels {
+		hex, isHex := strings.CutPrefix(strings.ToLower(l), "0x")
+		switch {
+		case isHex && strings.Trim(hex, "0123456789abcdef") == "":
+		case l != "" && strings.Trim(l, "0123456789") == "":
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // checkNTPList validates the NTP argument of net.apply: at most four distinct servers.

@@ -112,7 +112,7 @@ type netEnv struct {
 func netMut(box *netBox, probe *fakeProber) mut {
 	return func(_ *ops.Config, d *ops.Deps) {
 		d.Interfaces, d.Probe = box.interfaces, probe
-		d.NetPoll, d.NetWait = time.Millisecond, 30*time.Millisecond
+		d.NetPoll, d.NetWait, d.NetRetryGap = time.Millisecond, 30*time.Millisecond, time.Millisecond
 	}
 }
 
@@ -121,6 +121,7 @@ func startNet(t *testing.T) *netEnv {
 	box, probe := &netBox{}, &fakeProber{}
 	e := startSys(t, netMut(box, probe))
 	box.m = e.m
+	physicalCards(e.m)
 	e.m.RuleText("chronyc", "-N", "^,*,203.0.113.7,2,6,377,12,0.0,0.0,0.0\n^,+,ntp1.example.com,2,6,377,12,0.0,0.0,0.0\n", 0, "", "")
 	e.o.Start(context.Background(), e.h.Server)
 	t.Cleanup(e.o.Close)
@@ -1214,4 +1215,10 @@ func TestContract_NTP_ALinkAtTheSourcesNameIsNeverFollowed(t *testing.T) {
 	if got := n.m.Calls("chronyc"); len(got) != 0 {
 		t.Fatalf("chrony ran: %v", got)
 	}
+}
+
+// physicalCards gives eth0 and eth1 a hardware parent in the fake /sys, as a real card has.
+func physicalCards(m interface{ WriteRoot(string, string) }) {
+	m.WriteRoot("sys/class/net/eth0/device", "")
+	m.WriteRoot("sys/class/net/eth1/device", "")
 }

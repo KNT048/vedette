@@ -77,6 +77,9 @@ type NetRoute struct {
 type NetPending struct {
 	RunID    string    `json:"run_id"`
 	RevertAt time.Time `json:"revert_at"`
+	// RebootAt is set when a revert could not be applied: the host has scheduled a reboot at this
+	// time, because the saved configuration on disk is the old one (D-100 (8)). Not set otherwise.
+	RebootAt *time.Time `json:"reboot_at,omitempty"`
 }
 
 // NetDecoy is a secondary address the honeypot answers on (D-102). Empty until slice 3-5.
@@ -109,6 +112,8 @@ const (
 	CodeIfaceUnknown          = "iface_unknown"
 	CodeNetBackendUnsupported = "net_backend_unsupported"
 	CodeConnectivityCheckFail = "connectivity_check_failed"
+	CodeSPANHasAddress        = "span_has_address"
+	CodeSPANNotPhysical       = "span_not_physical"
 	CodeNotConfirmed          = "not_confirmed"
 	CodeCancelled             = "cancelled"
 	CodeRevertedByReboot      = "reverted_by_reboot"

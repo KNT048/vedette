@@ -34,16 +34,21 @@ const (
 	netplanEtcDir = "etc/netplan"
 	netplanRunDir = "run/netplan"
 
-	netStepTimeout   = 30 * time.Second // one tidy-up step after the run's own context is gone
-	netRevertTimeout = 90 * time.Second // a whole revert (apply, effect check)
+	netStepTimeout   = 30 * time.Second  // one tidy-up step after the run's own context is gone
+	netRevertTimeout = 180 * time.Second // a whole revert (three tries of apply about 30 s apart, effect check)
 )
 
 type netPending struct {
-	RunID    string    `json:"run_id"`
-	RevertAt time.Time `json:"revert_at"`
-	BootID   string    `json:"boot_id"`
-	OldSHA   string    `json:"old_sha"` // sha256 of /etc/netplan/90-vedette.yaml before the change; "" when there was none
-	NewSHA   string    `json:"new_sha"` // sha256 of the new file
+	RunID string `json:"run_id"`
+	// StartedAt is the wall time the run started: after a restart the monotonic clock is gone, and
+	// this is what the 660 s bound of a re-armed timer is measured from.
+	StartedAt time.Time `json:"started_at"`
+	RevertAt  time.Time `json:"revert_at"`
+	BootID    string    `json:"boot_id"`
+	OldSHA    string    `json:"old_sha"` // sha256 of /etc/netplan/90-vedette.yaml before the change; "" when there was none
+	NewSHA    string    `json:"new_sha"` // sha256 of the new file
+	// RebootAt is set when a revert could not be applied and the host scheduled a reboot (D-100 (8)).
+	RebootAt *time.Time `json:"reboot_at,omitempty"`
 }
 
 type pendState int
@@ -65,7 +70,7 @@ func shaHex(b []byte) string {
 }
 
 func (p netPending) valid() bool {
-	return runIDRE.MatchString(p.RunID) && !p.RevertAt.IsZero() && bootIDRE.MatchString(p.BootID) &&
+	return runIDRE.MatchString(p.RunID) && !p.StartedAt.IsZero() && !p.RevertAt.IsZero() && bootIDRE.MatchString(p.BootID) &&
 		(p.OldSHA == "" || shaRE.MatchString(p.OldSHA)) && shaRE.MatchString(p.NewSHA)
 }
 
@@ -232,18 +237,41 @@ func (o *Ops) recoverNet(ctx context.Context) {
 	_, overlay := o.readNoFollowIn(netplanRunDir, netplanName, maxNetplan)
 	switch {
 	case id != "":
-		o.recoverResumed(id, p, st) //nolint:contextcheck // start-up has no request: a revert has a context of its own
+		o.recoverResumed(id, p, st, overlay != fileAbsent) //nolint:contextcheck // start-up has no request: a revert has a context of its own
 	case st != pendNone || overlay != fileAbsent:
 		o.recoverOrphan(ctx, p, st, overlay != fileAbsent)
 	}
 }
 
-func (o *Ops) recoverResumed(id string, p netPending, st pendState) {
+func (o *Ops) recoverResumed(id string, p netPending, st pendState, overlay bool) {
+	boot := o.bootID()
+	if st == pendOK && p.RunID == id && o.confirmReachedEtc(p) {
+		// The host died inside net.confirm after /etc was written: the confirm is done (review of 3-4, L-1).
+		c, err := o.claim(id)
+		if err != nil {
+			return
+		}
+		_ = o.removeIn(netplanRunDir, netplanName)
+		_ = o.deletePending()
+		o.note(api.CmdNetApply, "confirm_completed_at_start", map[string]any{"run_id": id})
+		_ = c.Finish(api.StatusSucceeded, nil)
+		return
+	}
 	switch {
 	case st != pendOK || p.RunID != id:
 		o.log.Error("net/pending.json is not the note the host wrote; the change is reverted", "run_id", id)
 		o.revertWaiting(id, api.CodePendingInvalid, "The note about the unconfirmed change could not be trusted, so the previous network configuration was restored.")
-	case p.BootID != o.bootID():
+	case p.BootID != boot && (overlay || boot == ""):
+		// A different boot id does not prove a reboot: an overlay still in /run means the box has not
+		// restarted (tmpfs), and an unreadable boot id says nothing. Either way the box may still be
+		// running the unconfirmed configuration, so this is a full revert, never a silent clean-up.
+		code := api.CodeNotConfirmed
+		if boot != "" {
+			code = api.CodePendingInvalid
+		}
+		o.log.Error("the note's boot id differs but the box did not demonstrably reboot; the change is reverted", "run_id", id)
+		o.revertWaiting(id, code, "The box did not demonstrably restart, so the previous network configuration was restored.")
+	case p.BootID != boot:
 		// The box restarted inside the window: /run is empty, the old file on disk is what is running.
 		c, err := o.claim(id)
 		if err != nil {
@@ -253,7 +281,8 @@ func (o *Ops) recoverResumed(id string, p netPending, st pendState) {
 		_ = o.deletePending()
 		_ = c.Finish(api.StatusReverted, &api.RunError{Code: api.CodeRevertedByReboot, Message: "The box restarted before the change was confirmed, so it came back on the previous network configuration."})
 	default:
-		left := min(p.RevertAt.Sub(o.d.Now()), maxAwaitWindow)
+		// Monotonic time is gone after a restart: the 660 s bound is measured from the note's wall-clock start.
+		left := min(p.RevertAt.Sub(o.d.Now()), p.StartedAt.Add(maxAwaitWindow).Sub(o.d.Now()))
 		if left <= 0 {
 			o.revertWaiting(id, api.CodeNotConfirmed, "The change was not confirmed in time, so the previous network configuration was restored.")
 			return
@@ -277,7 +306,7 @@ func (o *Ops) recoverOrphan(ctx context.Context, p netPending, st pendState, ove
 		_ = o.removeIn(netplanRunDir, netplanName)
 		_ = o.deletePending()
 		o.note(api.CmdNetApply, "confirm_completed_at_start", map[string]any{"run_id": p.RunID})
-	case st == pendOK && !overlay && p.BootID != o.bootID():
+	case st == pendOK && !overlay && o.bootID() != "" && p.BootID != o.bootID():
 		_ = o.deletePending() // the box restarted: nothing of the change is left to undo
 		o.note(api.CmdNetApply, "pending_dropped_at_start", map[string]any{"run_id": p.RunID})
 	default:
@@ -288,4 +317,10 @@ func (o *Ops) recoverOrphan(ctx context.Context, p netPending, st pendState, ove
 			o.log.ErrorContext(ctx, "the revert at start failed; a reboot restores the saved configuration", "error", err.Error())
 		}
 	}
+}
+
+// confirmReachedEtc reports whether /etc/netplan/90-vedette.yaml is already the file of the note.
+func (o *Ops) confirmReachedEtc(p netPending) bool {
+	etc, es := o.readNoFollowIn(netplanEtcDir, netplanName, maxNetplan)
+	return es == fileOK && shaHex(etc) == p.NewSHA
 }

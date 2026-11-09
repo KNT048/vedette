@@ -131,3 +131,20 @@ func TestValidateChronycArgv(t *testing.T) {
 		}
 	}
 }
+
+// glibc reads a name whose labels are all decimal or 0x-hexadecimal numbers as an IPv4 address
+// (inet_aton), so such a name could be loopback, link-local or multicast behind a "name"
+// (review of slice 3-4, L-2). A label with a letter beyond the hex digits keeps a name a name.
+func TestNTPNamesThatTheResolverReadsAsAddressesAreRefused(t *testing.T) {
+	t.Parallel()
+	for _, s := range []string{"0x7f.0.0.1", "0x7f000001", "0x7f.1", "0xe0.0.0.1", "0xa9.0xfe.0.1", "0X7F.0.0.1", "0x7f.0x0.0x0.0x1", "0177.0.0.1", "127.1", "0x"} {
+		if validNTPServer(s) {
+			t.Errorf("%q accepted as an NTP name; the resolver reads it as an address", s)
+		}
+	}
+	for _, s := range []string{"0xg.example", "0x7f.example", "7f.0.0.1", "1x", "0x7f.0.0.1.example", "ntp0x7f.0.0.1", "a.1", "1.a"} {
+		if !validNTPServer(s) {
+			t.Errorf("%q refused although a label is not a number", s)
+		}
+	}
+}

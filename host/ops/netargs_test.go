@@ -63,7 +63,7 @@ func TestDesiredNetKeepsTheRefusalsForCheck(t *testing.T) {
 func TestPendingNoteMustBeExactlyWhatTheHostWrites(t *testing.T) {
 	t.Parallel()
 	ok := netPending{
-		RunID: "rn_0123456789abcdef", RevertAt: time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC),
+		RunID: "rn_0123456789abcdef", StartedAt: time.Date(2026, 11, 10, 11, 59, 0, 0, time.UTC), RevertAt: time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC),
 		BootID: "11111111-2222-4333-8444-555555555555", OldSHA: "", NewSHA: shaHex([]byte("x")),
 	}
 	if !ok.valid() {
@@ -77,6 +77,7 @@ func TestPendingNoteMustBeExactlyWhatTheHostWrites(t *testing.T) {
 		"run id":     func(p *netPending) { p.RunID = "rn_0123456789abcdeg" },
 		"empty run":  func(p *netPending) { p.RunID = "" },
 		"zero time":  func(p *netPending) { p.RevertAt = time.Time{} },
+		"no start":   func(p *netPending) { p.StartedAt = time.Time{} },
 		"boot id":    func(p *netPending) { p.BootID = "x" },
 		"new sha":    func(p *netPending) { p.NewSHA = "" },
 		"old sha":    func(p *netPending) { p.OldSHA = "ABC" },

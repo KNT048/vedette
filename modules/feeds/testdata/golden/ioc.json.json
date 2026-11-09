@@ -1,0 +1,59 @@
+{
+  "records": [
+    {
+      "confidence": 0.92,
+      "first_seen": "2026-09-12",
+      "indicator": "185.220.101.47",
+      "kind": "ip"
+    },
+    {
+      "confidence": 0.88,
+      "first_seen": "2026-10-29",
+      "indicator": "update-dsm-synology.com",
+      "kind": "domain"
+    },
+    {
+      "confidence": 0.7,
+      "first_seen": "2026-10-02",
+      "indicator": "https://cdn-telemetry-sync.net/payload.bin",
+      "kind": "url"
+    },
+    {
+      "confidence": 0.95,
+      "first_seen": "2026-10-21",
+      "indicator": "44d88612fea8a8f36de82e1278abb02f",
+      "kind": "hash"
+    }
+  ],
+  "accepted": 4,
+  "rejected": 3,
+  "reasons": [
+    {
+      "reason": "indicator: \"…\" is not a valid ip",
+      "count": 1
+    },
+    {
+      "reason": "kind: unknown value \"…\"",
+      "count": 1
+    },
+    {
+      "reason": "confidence: \"…\" is not a number from 0 to 100",
+      "count": 1
+    }
+  ],
+  "rejects": [
+    {
+      "row": 5,
+      "reason": "indicator: \"999.1.1.1\" is not a valid ip"
+    },
+    {
+      "row": 6,
+      "reason": "kind: unknown value \"mailbox\""
+    },
+    {
+      "row": 7,
+      "reason": "confidence: \"high\" is not a number from 0 to 100"
+    }
+  ],
+  "truncated": false
+}

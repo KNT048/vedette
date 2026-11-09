@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Reported phishing hosts</title>
+<entry><title>update-dsm-synology.com</title><link href="https://reports.example.com/e/1"/><published>2026-10-29T03:10:44Z</published><summary>Fake NAS update page</summary></entry>
+<entry><title>login-m365-secure.net</title><link href="https://reports.example.com/e/2"/><published>2026-10-31T11:00:00Z</published><summary>Credential harvesting</summary></entry>
+<entry><title>Weekly summary</title><link href="https://reports.example.com/e/3"/><published>2026-11-01T00:00:00Z</published><summary>Not an indicator</summary></entry>
+</feed>

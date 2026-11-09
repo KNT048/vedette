@@ -37887,15 +37887,16 @@ func (s *ExposurePostExposureTargetsReq) SetValue(val string) {
 type FeedsDeleteFeedsCustomIDNoContent struct{}
 
 type FeedsGetFeedsCveIDOK struct {
-	Cve            string                            `json:"cve"`
-	DateAdded      string                            `json:"date_added"`
-	Description    string                            `json:"description"`
-	Display        string                            `json:"display"`
-	DueDate        NilString                         `json:"due_date"`
-	Epss           NilFloat64                        `json:"epss"`
-	Epss7dAgo      NilFloat64                        `json:"epss_7d_ago"`
-	HasTemplate    bool                              `json:"has_template"`
-	Links          []url.URL                         `json:"links"`
+	Cve         string     `json:"cve"`
+	DateAdded   string     `json:"date_added"`
+	Description string     `json:"description"`
+	Display     string     `json:"display"`
+	DueDate     NilString  `json:"due_date"`
+	Epss        NilFloat64 `json:"epss"`
+	Epss7dAgo   NilFloat64 `json:"epss_7d_ago"`
+	HasTemplate bool       `json:"has_template"`
+	// Http(s) addresses only.
+	Links          []string                          `json:"links"`
 	Matched        []FeedsGetFeedsCveIDOKMatchedItem `json:"matched"`
 	Name           string                            `json:"name"`
 	Product        string                            `json:"product"`
@@ -37945,7 +37946,7 @@ func (s *FeedsGetFeedsCveIDOK) GetHasTemplate() bool {
 }
 
 // GetLinks returns the value of Links.
-func (s *FeedsGetFeedsCveIDOK) GetLinks() []url.URL {
+func (s *FeedsGetFeedsCveIDOK) GetLinks() []string {
 	return s.Links
 }
 
@@ -38020,7 +38021,7 @@ func (s *FeedsGetFeedsCveIDOK) SetHasTemplate(val bool) {
 }
 
 // SetLinks sets the value of Links.
-func (s *FeedsGetFeedsCveIDOK) SetLinks(val []url.URL) {
+func (s *FeedsGetFeedsCveIDOK) SetLinks(val []string) {
 	s.Links = val
 }
 
@@ -38883,20 +38884,21 @@ func (s *FeedsGetFeedsSearch1Text) SetVulns(val []FeedsGetFeedsSearch1TextVulnsI
 }
 
 type FeedsGetFeedsSearch1TextVulnsItem struct {
-	Cve            string     `json:"cve"`
-	DateAdded      string     `json:"date_added"`
-	Description    string     `json:"description"`
-	Display        string     `json:"display"`
-	DueDate        NilString  `json:"due_date"`
-	Epss           NilFloat64 `json:"epss"`
-	Epss7dAgo      NilFloat64 `json:"epss_7d_ago"`
-	HasTemplate    bool       `json:"has_template"`
-	Links          []url.URL  `json:"links"`
-	Name           string     `json:"name"`
-	Product        string     `json:"product"`
-	Ransomware     bool       `json:"ransomware"`
-	RequiredAction string     `json:"required_action"`
-	Vendor         string     `json:"vendor"`
+	Cve         string     `json:"cve"`
+	DateAdded   string     `json:"date_added"`
+	Description string     `json:"description"`
+	Display     string     `json:"display"`
+	DueDate     NilString  `json:"due_date"`
+	Epss        NilFloat64 `json:"epss"`
+	Epss7dAgo   NilFloat64 `json:"epss_7d_ago"`
+	HasTemplate bool       `json:"has_template"`
+	// Http(s) addresses only.
+	Links          []string `json:"links"`
+	Name           string   `json:"name"`
+	Product        string   `json:"product"`
+	Ransomware     bool     `json:"ransomware"`
+	RequiredAction string   `json:"required_action"`
+	Vendor         string   `json:"vendor"`
 }
 
 // GetCve returns the value of Cve.
@@ -38940,7 +38942,7 @@ func (s *FeedsGetFeedsSearch1TextVulnsItem) GetHasTemplate() bool {
 }
 
 // GetLinks returns the value of Links.
-func (s *FeedsGetFeedsSearch1TextVulnsItem) GetLinks() []url.URL {
+func (s *FeedsGetFeedsSearch1TextVulnsItem) GetLinks() []string {
 	return s.Links
 }
 
@@ -39010,7 +39012,7 @@ func (s *FeedsGetFeedsSearch1TextVulnsItem) SetHasTemplate(val bool) {
 }
 
 // SetLinks sets the value of Links.
-func (s *FeedsGetFeedsSearch1TextVulnsItem) SetLinks(val []url.URL) {
+func (s *FeedsGetFeedsSearch1TextVulnsItem) SetLinks(val []string) {
 	s.Links = val
 }
 

@@ -21,7 +21,7 @@ const DEFS: Def[] = [
   { id: 'abusech-feodo', name: 'abuse.ch Feodo Tracker', kind: 'ioc', format: 'lines', url: 'https://feodotracker.abuse.ch/downloads/ipblocklist.txt', license: 'CC0', records: 212 },
   { id: 'abusech-sslbl', name: 'abuse.ch SSLBL', kind: 'ioc', format: 'csv', url: 'https://sslbl.abuse.ch/blacklist/sslipblacklist.csv', license: 'CC0', records: 596 },
   { id: 'tor-exit', name: 'Tor exit list', kind: 'ioc', format: 'lines', url: 'https://check.torproject.org/torbulkexitlist', license: 'Attribution: torproject', records: 1190 },
-  { id: 'hagezi-tif', name: 'hagezi TIF', kind: 'ioc', format: 'lines', url: 'https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/tif.txt', license: 'GPL-3.0, unmodified', records: 438900 },
+  { id: 'hagezi-tif', name: 'hagezi TIF', kind: 'ioc', format: 'lines', url: 'https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.mini-onlydomains.txt', license: 'GPL-3.0, unmodified', records: 438900 },
 ]
 
 interface BuiltinState { enabled: boolean; interval_hours: number; url: string; last_fetch: string | null; records: number | null; status: 'ok' | 'error' | 'never'; error: string | null }

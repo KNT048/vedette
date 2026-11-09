@@ -6,6 +6,8 @@
   "home": {
     "titleLoading": "Today",
     "meta": "Data updated {{time}}. Sources: {{sources}}, each fetched directly from its source.",
+    "titleNone": "Today: no data yet",
+    "metaNone": "No data has been fetched yet. Fetch the feeds in Settings, Feeds.",
     "sampleInventory": "The device list in this build is sample data.",
     "toFindings": "See findings on your devices",
     "title_one": "Today: {{count}} vulnerability newly exploited in the last 7 days. Products you use among them: {{matched}}.",
@@ -100,7 +102,9 @@
     "matchedNone": "No matching devices found",
     "matchedNoneBody": "If you have this product but have not listed it, add it on the Devices page.",
     "toFindings": "See findings and what to do",
-    "tryLookup": "Look up this ID"
+    "tryLookup": "Look up this ID",
+    "notAnId": "“{{id}}” is not a CVE ID",
+    "notAnIdBody": "CVE IDs look like CVE-2021-44228: the letters CVE, a year, and a number."
   },
   "settings": {
     "nav": "Feeds",
@@ -149,7 +153,7 @@
     "nowOff": "{{name}} is off",
     "fetchNow": "Fetch now",
     "fetching": "Fetching...",
-    "fetchNamed": "Fetch {{name}} now",
+    "fetchNamed": "Fetch now: {{name}}",
     "turnOnFirst": "Turn the feed on first",
     "fetched": "Fetched {{name}}: {{count}} records",
     "failed": "fetch failed",

@@ -244,3 +244,31 @@ func FuzzValidate(f *testing.F) {
 		}
 	})
 }
+
+func TestParseInvertsBuild(t *testing.T) {
+	t.Parallel()
+	ts := addrs(t, "192.168.10.1", "10.0.0.7")
+	for _, c := range []struct {
+		kind Kind
+		rate int
+		want int
+	}{{Sweep, 50, 50}, {Normal, 1000, 1000}, {Gentle, 500, 1}} {
+		argv, err := Build(c.kind, c.rate, ts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		k, r, got, err := Parse(argv)
+		if err != nil || k != c.kind || r != c.want || !reflect.DeepEqual(got, ts) {
+			t.Errorf("%s: Parse = %v %d %v %v", c.kind.Name(), k, r, got, err)
+		}
+		if kk, ok := KindOf(c.kind.Name()); !ok || kk != c.kind {
+			t.Errorf("KindOf(%q) = %v %v", c.kind.Name(), kk, ok)
+		}
+	}
+	if _, _, _, err := Parse([]string{"-A", "-oX", "-", "10.0.0.1"}); err == nil {
+		t.Error("Parse accepted an argv Validate refuses")
+	}
+	if _, ok := KindOf("aggressive"); ok {
+		t.Error("KindOf accepted an unknown shape")
+	}
+}

@@ -230,6 +230,15 @@ Trên dây **không** có argv, cờ, đường dẫn, URL hay phạm vi (D-111 
 
 `core` **không tin** `status` của worker: `done` mà `exit_code ≠ 0` hoặc `truncated` → probe `failed`, cả lô bị bỏ (INV-7); XML phân tích bằng `parseNmapXML` (đã fuzz) và `onlyTargets` trong `core`, nên quan sát và phần mềm từ nmap không bao giờ đi trên dây (D-113 (5)). `refused` → probe `failed` và log ERROR (worker và `core` bất đồng về văn phạm là lỗi hoặc bị chiếm); `nmap_missing` → sức khoẻ `unavailable` (INV-6).
 
+**SP-3 (làm rõ, mã `modules/sensor-active/{dispatch.go,worker/}`).**
+- `timeout_s` được tính lúc **giao** job (`min(hạn của ngữ cảnh probe còn lại, 7200)`, làm tròn lên), không phải lúc xếp hàng, để job chờ lấy lâu không chạy quá hạn của probe.
+- `wait` của worker tối thiểu 1 s: dây chỉ mang số giây nguyên, `wait=0` là poll trả ngay và sẽ lặp.
+- Reply `jobs` mang `cancel:[id]` **mỗi lần** cho tới khi worker báo xong, nhưng chỉ lần đầu đánh thức long-poll đang mở. Một poll còn gọi tên job **vừa xong** được trả lời ngay một lần (để worker poll lại với `running` rỗng; job kế tiếp không phải chờ hết `wait`).
+- Thân kết quả bị máy chủ từ chối (`413` hoặc `400`) khi `{id}` đang chạy: `Backend` được báo qua giao diện tùy chọn `sensorlink.ResultRejector` và probe `failed` ngay (worker không gửi lại kết quả); `404` không báo gì (không có job nào bị ảnh hưởng).
+- `cancel` đến cùng reply với job: worker không chạy nmap, gửi `stopped`/`cancelled`. Job thứ hai đến khi đang chạy job khác: `refused`/`busy`, gửi ngay, job đang chạy không bị đụng. Cả `refused` cũng giữ `running=<id>` trong các poll tới khi kết quả đã gửi xong, để `core` không báo nhầm `worker_lost`.
+- Worker không gửi kết quả khi bị giết vì lease, `instance` đổi, `409 module_off` hay tắt tiến trình; gửi `stopped`/`deadline` khi hết `timeout_s`.
+- Hậu quả của kết quả trong `core`: mã thoát `> 0` → probe `failed` (nmap thoát mã đó); `< 0` hoặc `status ≠ done` → `failed`; `refused` → `failed`, log ERROR; `reason=nmap_missing` → `unavailable` tới heartbeat kế tiếp. Dòng `sa_probe.result` ghi mã: `worker_unavailable`, `worker_lost`, `nmap_missing`.
+
 ## 7. Bảng lỗi
 
 | HTTP | `code` | Khi nào | Sensor làm gì |

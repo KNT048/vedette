@@ -48,6 +48,7 @@ func writeFakeNmap(t *testing.T, o fakeOpts) *fakeNmap {
 	log := filepath.Join(dir, "argv.log")
 	body := fmt.Sprintf(`#!/bin/sh
 LOG=%q
+if [ "$1" = "--version" ]; then echo "Nmap version 7.94SVN ( https://nmap.org )"; exit 0; fi
 n=$(grep -c '^--$' "$LOG" 2>/dev/null)
 [ -z "$n" ] && n=0
 printf '%%s\n' "$@" >> "$LOG"
@@ -271,6 +272,7 @@ type env struct {
 	base time.Time
 	t0   time.Time
 	loc  func() *time.Location // the organization time zone; nil: the box's
+	rem  *remote               // the far end of the remote Prober, when the suite runs with it (remote_test.go)
 }
 
 // local builds a time in the box's local zone (the zone the window is read in). 9 Nov 2026 is a Monday.
@@ -310,7 +312,14 @@ func (e *env) clock() time.Time { return e.base.Add(time.Since(e.t0)) }
 
 func (e *env) build() {
 	e.t.Helper()
-	svc, err := sa.New(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Events: e.ev, NmapPath: e.nm.path, Clock: e.clock, Location: e.loc})
+	var prober sa.Prober // nil: the local one
+	if remoteMode() {
+		if e.rem == nil {
+			e.rem = startRemote(e)
+		}
+		prober = e.rem.d
+	}
+	svc, err := sa.New(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Events: e.ev, NmapPath: e.nm.path, Prober: prober, Clock: e.clock, Location: e.loc})
 	if err != nil {
 		e.t.Fatal(err)
 	}

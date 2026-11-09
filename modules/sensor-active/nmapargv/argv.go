@@ -152,3 +152,40 @@ func Validate(args []string) error {
 	}
 	return nil
 }
+
+// KindOf is the Kind whose Name is shape: the shape field of a job on the sensor link.
+func KindOf(shape string) (Kind, bool) {
+	for _, k := range []Kind{Sweep, Normal, Gentle} {
+		if k.Name() == shape {
+			return k, true
+		}
+	}
+	return 0, false
+}
+
+// Parse is the inverse of Build: it takes a whole argv that Validate accepts and returns the kind, the rate and the
+// targets it was built from (the rate of a gentle line is its fixed 1). It lets the dispatcher turn the argv core
+// has already checked into a job that carries no argv (D-111 (3)).
+func Parse(args []string) (Kind, int, []netip.Addr, error) {
+	if err := Validate(args); err != nil {
+		return 0, 0, nil, err
+	}
+	i := slices.Index(args, flagXML)
+	flags := args[:i]
+	rate := 1
+	if j := slices.Index(flags, flagMaxRate); j >= 0 && j+1 < len(flags) {
+		if n, ok := atoi(flags[j+1]); ok {
+			rate = n
+		}
+	}
+	targets := make([]netip.Addr, 0, len(args)-i-2)
+	for _, t := range args[i+2:] {
+		targets = append(targets, netip.MustParseAddr(t)) // Validate proved each is canonical
+	}
+	for _, k := range []Kind{Sweep, Normal, Gentle} {
+		if want, err := Flags(k, rate); err == nil && slices.Equal(flags, want) {
+			return k, rate, targets, nil
+		}
+	}
+	return 0, 0, nil, errors.New("nmapargv: argv matches no shape") // unreachable after Validate
+}

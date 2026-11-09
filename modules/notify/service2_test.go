@@ -435,7 +435,6 @@ func TestSubscribeTurnsEventsIntoNoticesAndIncidents(t *testing.T) {
 	pub(notify.EventHoneypotHit, map[string]any{"id": "hit-1", "ts": "2026-11-09T09:59:00Z", "kind": "service", "service": "smb", "src_ip": "192.168.10.107", "label": "FILESRV-OLD"})
 	pub(notify.EventLogBadAddress, map[string]any{"source": "192.168.10.105", "target": "185.220.101.47", "title": "PC-SALES-02 connected to 185.220.101.47", "what": "w", "action": "a", "severity": "high",
 		"devices": []map[string]string{{"id": "a-pc05", "name": "PC-SALES-02"}}})
-	e.clock.Add(4 * time.Minute) // finding notices settle first (D-78)
 	e.flush()
 	h, _ := e.svc.History(e.ctx())
 	kinds := map[string]int{}

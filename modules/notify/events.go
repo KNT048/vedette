@@ -21,7 +21,6 @@ const (
 	EventFindingStatusChanged = "findings.finding.status_changed"
 	EventAssetDiscovered      = "inventory.asset.discovered"
 	EventNewKEV               = "feeds.vuln.new_kev"
-	EventSyncBaseline         = "feeds.sync.baseline"
 	EventHoneypotHit          = "honeypot.hit.created"
 	EventLogAnomaly           = "logs.anomaly.detected"
 	EventLogBadAddress        = "logs.bad_address.detected"
@@ -56,7 +55,6 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	on(EventFindingCreated, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, false) })
 	on(EventFindingStatusChanged, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, true) })
 	on(EventNewKEV, s.kevEvent)
-	on(EventSyncBaseline, s.baselineEvent)
 	on(EventAssetDiscovered, s.assetEvent)
 	on(EventHoneypotHit, s.hitEvent)
 	on(EventLogAnomaly, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentLogAnomaly) })
@@ -66,31 +64,6 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 			u()
 		}
 	}
-}
-
-// baselineSettle is how long a vulnerability notice from findings.finding.created waits in the queue before it can go out
-// (reason "settle"), and how long after feeds.sync.baseline new such events are ignored. The first CISA pull into an
-// empty table publishes one feeds.sync.baseline instead of one feeds.vuln.new_kev per CVE (D-78); inventory then re-matches
-// everything, which creates findings in bulk, and notify must send nothing for them. The re-match is bounded by 2 minutes
-// (cmd/vedette rematchTimeout), so 3 minutes cover it. Cost: every vulnerability notice from a finding event is delayed by
-// this much (INV-6 allows 60 minutes for critical).
-const baselineSettle = 3 * time.Minute
-
-// baselineEvent makes the first CISA pull silent (D-78). It works whichever of the two handlers runs first. If the re-match has
-// already created findings (inventory subscribed before notify), their notices still wait in the queue and are removed now:
-// no vulnerability notice can legitimately exist before the first KEV list is in. If the re-match comes after, the findings
-// events of the next baselineSettle are ignored. The count of unmatched CVEs (suppressed) is not touched: a baseline is not
-// "new". Later pulls publish feeds.vuln.new_kev as usual, and a device that is added later is matched and alerted as usual.
-func (s *Service) baselineEvent(ctx context.Context, _ any) error {
-	s.mu.Lock()
-	s.baselineUntil = s.now().Add(baselineSettle)
-	s.mu.Unlock()
-	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM notify_pending WHERE state = 'pending' AND json_extract(notice, '$.Kind') = 'vuln'`); err != nil {
-			return fmt.Errorf("notify: drop baseline notices: %w", err)
-		}
-		return nil
-	})
 }
 
 // kevEvent remembers an exploited vulnerability the box has just heard of (feeds.vuln.new_kev). Until a finding
@@ -132,13 +105,9 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 	if statusChange && e.To != "confirmed" {
 		return nil
 	}
-	if !statusChange {
-		s.mu.Lock()
-		silent := s.now().Before(s.baselineUntil)
-		s.mu.Unlock()
-		if silent { // the re-match after the first CISA pull (D-78): nothing is sent for it
-			return nil
-		}
+	if !statusChange && IsBaseline(ctx) { // the re-match after the first CISA pull (D-78): nothing is queued, so nothing can leak later
+		s.cfg.Log.DebugContext(ctx, "finding event ignored: it belongs to the first CISA pull", "finding", e.FindingID)
+		return nil
 	}
 	if s.cfg.Findings == nil {
 		s.cfg.Log.WarnContext(ctx, "finding event skipped: no finding directory is wired")
@@ -160,9 +129,6 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 		Title: f.Title, What: f.What, Action: f.Action, Link: s.link("/findings/" + e.FindingID), At: s.now()}
 	if cve != "" {
 		n.CVEs = []string{cve}
-	}
-	if !statusChange {
-		n.HoldUntil = s.now().Add(baselineSettle) // wait out a baseline re-match that this event may belong to
 	}
 	if statusChange {
 		n.ID += "-confirmed"

@@ -187,9 +187,6 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 		case rules.Grouping.Enabled && rules.Grouping.Validate() == nil && n.Kind == KindVuln && n.Severity != Critical && strings.TrimSpace(n.Product) != "":
 			reason, due = "group", n.At.Add(time.Duration(rules.Grouping.WindowMin)*time.Minute)
 		}
-		if reason == "now" && n.HoldUntil.After(now) {
-			reason, due = "settle", n.HoldUntil
-		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO notify_pending (id, channel, notice_id, notice, reason, due_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT (channel, notice_id) DO NOTHING`, store.NewID("pq"), string(tg.t), n.ID, string(raw), reason, store.FormatTS(due), store.FormatTS(now)); err != nil {
 			return fmt.Errorf("notify: queue notice: %w", err)
@@ -361,7 +358,7 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 				continue
 			}
 			rowOf := map[string]string{}
-			var nowN, heldN, grpN, waitN []Notice
+			var nowN, heldN, grpN []Notice
 			for _, r := range list {
 				rowOf[r.notice.ID] = r.id
 				switch r.reason {
@@ -369,20 +366,11 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 					heldN = append(heldN, r.notice)
 				case "group":
 					grpN = append(grpN, r.notice)
-				case "settle":
-					if r.due <= store.FormatTS(now) && (!quiet || (r.notice.Severity == Critical && rules.Quiet.AllowCritical)) {
-						nowN = append(nowN, r.notice)
-					} else {
-						waitN = append(waitN, r.notice) // still settling: stays pending
-					}
 				default:
 					nowN = append(nowN, r.notice)
 				}
 			}
 			seen := map[string]bool{}
-			for _, n := range waitN {
-				seen[n.ID] = true
-			}
 			var release []Batch
 			take := func(bs []Batch, due func(Batch) bool) {
 				for _, b := range bs {

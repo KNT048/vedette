@@ -66,8 +66,8 @@ func TestIDNumberBoundaries(t *testing.T) {
 	for text, blocked := range map[string]bool{
 		"079123456789": true, "id: 079123456789!": true, "123456789": true, "x 123456789 y": true,
 		"12345678": false, "1234567890": false, "12345678901": false, "1234567890123": false, // not 9 or 12
-		"1.123456789": false, "v2.079123456789": false, // after a dot: a decimal or a version
-		"ab123456789": true, "123456789.5": true, "": false,
+		"1.123456789": false, "v2.079123456789": false, // joined to digits by a dot: a decimal or a version
+		"ab123456789": true, "123456789.": true, "123456789.5": false, "": false,
 	} {
 		if got := len(findIDNumbers(text)) > 0; got != blocked {
 			t.Errorf("%q: blocked=%v, want %v", text, got, blocked)
@@ -290,7 +290,7 @@ func TestKeywordMatching(t *testing.T) {
 		"":            "",
 	}
 	for in, want := range cases {
-		if got := maskSpans(in, findKeywords(in, words)); got != want {
+		if got := maskSpans(in, keywordSpans(in, words)); got != want {
 			t.Errorf("%q -> %q, want %q", in, got, want)
 		}
 	}
@@ -369,4 +369,9 @@ func FuzzHookRun(f *testing.F) {
 			}
 		}
 	})
+}
+
+func keywordSpans(s string, words []string) []span {
+	sp, _ := scanKeywords(bg, s, words)
+	return sp
 }

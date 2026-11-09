@@ -67,7 +67,7 @@ func TestContract_INV14_NoWriteToolInModelToolList(t *testing.T) {
 func TestToolFilterProperty(t *testing.T) {
 	t.Parallel()
 	rng := rand.New(rand.NewPCG(1, 2)) //nolint:gosec // fixed seed: reproducible test data, not security
-	names := []string{"a", "b", "c", "d", "bad name", ""}
+	names := []string{"a", "b", "A", "B ", "c", "bad name", ""}
 	accesses := []Access{AccessRead, AccessWrite, "", "Read", "x"}
 	for range 3000 {
 		var tools []Tool
@@ -93,7 +93,7 @@ func checkNoWrite(t *testing.T, job Job, tools []Tool) {
 		seen[d.Name] = true
 		ok := false
 		for _, tl := range tools {
-			if tl.Name != d.Name {
+			if nameKey(tl.Name) != nameKey(d.Name) {
 				continue
 			}
 			if tl.Access != AccessRead {
@@ -103,6 +103,9 @@ func checkNoWrite(t *testing.T, job Job, tools []Tool) {
 		}
 		if !ok {
 			t.Fatalf("offered %q but no enabled tool has it", d.Name)
+		}
+		if tl, found := Offered(job, tools, d.Name); !found || (!job.CarriesInternalData() && !tl.Public) {
+			t.Fatalf("offered %q to %s but Offered disagrees or a non-public tool reached a public job", d.Name, job)
 		}
 	}
 }

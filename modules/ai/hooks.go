@@ -62,6 +62,14 @@ const (
 // milliseconds; anything longer is refused rather than half-checked.
 const MaxHookInputBytes = 1 << 20
 
+// MaxRegexProgram is the largest compiled program (instructions, repeats expanded) a custom regex may have, and
+// MaxCustomHooks the most custom hooks a box may have. Together with the context-aware scan (see scanRegexp) they bound
+// the time one Run can take: the context deadline is honoured inside a match attempt, not only between hooks.
+const (
+	MaxRegexProgram = 2000
+	MaxCustomHooks  = 50
+)
+
 // Errors of the hook runner.
 var (
 	// ErrLocked: the hook is always on (write-approval) and cannot be turned off (API: 400 `locked`).
@@ -70,6 +78,8 @@ var (
 	ErrUnknownHook = errors.New("ai: unknown built-in hook")
 	// ErrHookInputTooLarge: the text is longer than MaxHookInputBytes. The caller must treat it as a block.
 	ErrHookInputTooLarge = errors.New("ai: the text is too long to check against the hooks")
+	// ErrTooManyHooks: more than MaxCustomHooks custom hooks.
+	ErrTooManyHooks = errors.New("ai: too many custom hooks")
 	// ErrInvalidHook is wrapped by every HookError.
 	ErrInvalidHook = errors.New("ai: invalid hook")
 )
@@ -106,17 +116,18 @@ func (r HookResult) Names() []string {
 // HiddenQuestion is stored in place of a question that a hook refused (INV-13).
 const HiddenQuestion = "[question hidden: contains personal data]"
 
-// QuestionForStorage returns what may be stored and shown in history for a question: the text that was
-// sent (masked if hooks masked it), or HiddenQuestion when a hook blocked it. A blocked question is never
-// kept verbatim, whatever hook blocked it, and costs no tokens because the caller does not send it.
+// QuestionForStorage returns what may be stored and shown in history for a question: the original text if no hook
+// acted, the masked text if hooks masked it, and HiddenQuestion in every other case: blocked, held, a failed run
+// (pass the zero HookResult) or an outcome it does not know. A refused question is never kept verbatim and costs
+// no tokens, because the caller does not send it.
 func QuestionForStorage(original string, r HookResult) string {
 	switch r.Outcome {
-	case OutcomeBlocked:
-		return HiddenQuestion
+	case OutcomePass:
+		return original
 	case OutcomeMasked:
 		return r.Text
 	}
-	return original
+	return HiddenQuestion // blocked, held, an error path (zero value) or anything unknown: never keep the text
 }
 
 // MatchType is how a custom hook matches.
@@ -194,8 +205,16 @@ func (h CustomHook) compile() (hookDef, error) {
 		if len(words) == 0 {
 			return hookDef{}, herr("invalid_pattern", "Enter at least one keyword; separate several with commas.")
 		}
-		d.find = func(s string) []span { return findKeywords(s, words) }
+		d.find = func(ctx context.Context, t *scanText) ([]span, error) { return scanKeywords(ctx, t.orig, words) }
 	case MatchRegex:
+		if tree, perr := syntax.Parse("(?i)"+h.Match.Pattern, syntax.Perl); perr == nil {
+			if estimateInsts(tree) > MaxRegexProgram {
+				return hookDef{}, herr("pattern_too_large", "The pattern is too complex (a program of more than %d steps once repeats are expanded). Use fewer or smaller repeats such as {0,10}.", MaxRegexProgram)
+			}
+			if prog, cerr := syntax.Compile(tree.Simplify()); cerr == nil && len(prog.Inst) > MaxRegexProgram {
+				return hookDef{}, herr("pattern_too_large", "The pattern is too complex (more than %d steps). Use fewer or smaller repeats.", MaxRegexProgram)
+			}
+		}
 		re, err := regexp.Compile("(?i)" + h.Match.Pattern)
 		if err != nil {
 			var se *syntax.Error
@@ -207,7 +226,7 @@ func (h CustomHook) compile() (hookDef, error) {
 		if re.MatchString("") {
 			return hookDef{}, herr("invalid_pattern", "The pattern matches empty text, so it would match everywhere. Make it require at least one character.")
 		}
-		d.find = func(s string) []span { return findRegexp(re, s, 0) }
+		d.find = func(ctx context.Context, t *scanText) ([]span, error) { return scanRegexp(ctx, re, t.orig) }
 	default:
 		return hookDef{}, herr("invalid_match_type", "Pick how the hook matches: keywords or a regular expression.")
 	}
@@ -249,6 +268,9 @@ type HookRunner struct {
 // Turning write-approval off is refused with ErrLocked; a custom hook that fails Validate is refused.
 // Disabled custom hooks are not compiled.
 func NewHookRunner(builtinEnabled map[string]bool, custom []CustomHook) (*HookRunner, error) {
+	if len(custom) > MaxCustomHooks {
+		return nil, fmt.Errorf("%w: at most %d", ErrTooManyHooks, MaxCustomHooks)
+	}
 	r := &HookRunner{builtin: map[string]bool{}}
 	for _, b := range builtinInfo {
 		on := true
@@ -300,18 +322,29 @@ func (r *HookRunner) Builtins() []BuiltinHook {
 //
 // Any error means the text must not go on: ErrHookInputTooLarge, or the context ending between hooks.
 func (r *HookRunner) Run(ctx context.Context, when HookWhen, text string) (HookResult, error) {
+	return r.run(ctx, text, func(d hookDef) bool { return d.when == when })
+}
+
+// RunPersonalData applies only the block-pii hook (if it is on) to text, whatever the moment. It is what
+// tool results go through before they are sent back to the model (INV-12, INV-21).
+func (r *HookRunner) RunPersonalData(ctx context.Context, text string) (HookResult, error) {
+	return r.run(ctx, text, func(d hookDef) bool { return d.id == HookBlockPII && d.kind == KindBuiltin })
+}
+
+func (r *HookRunner) run(ctx context.Context, text string, use func(hookDef) bool) (HookResult, error) {
 	if len(text) > MaxHookInputBytes {
 		return HookResult{}, ErrHookInputTooLarge
 	}
 	res := HookResult{Text: text, Outcome: OutcomePass, Hits: []HookHit{}}
+	scan := &scanText{orig: text}
 	for _, d := range r.defs {
-		if d.when != when {
+		if !use(d) {
 			continue
 		}
-		if err := ctx.Err(); err != nil {
+		spans, err := d.find(ctx, scan)
+		if err != nil {
 			return HookResult{}, err
 		}
-		spans := d.find(res.Text)
 		if len(spans) == 0 {
 			continue
 		}
@@ -324,6 +357,7 @@ func (r *HookRunner) Run(ctx context.Context, when HookWhen, text string) (HookR
 		}
 		res.Text = maskSpans(res.Text, spans)
 		res.Outcome = OutcomeMasked
+		scan = &scanText{orig: res.Text}
 	}
 	return res, nil
 }
@@ -351,210 +385,28 @@ func (r *HookResult) note(d hookDef) {
 	r.Hits = append(r.Hits, h)
 }
 
-// ---- matching
+// ---- definitions
 
 type hookDef struct {
 	id, name, message string
 	kind              HookKind
 	when              HookWhen
 	action            HookAction
-	find              func(string) []span
+	find              func(context.Context, *scanText) ([]span, error)
 }
 
-// span is a byte range of the text to mask.
-type span struct{ start, end int }
-
-func maskSpans(s string, spans []span) string {
-	var b strings.Builder
-	last := 0
-	for _, sp := range spans {
-		if sp.start < last { // overlapping spans from one matcher cannot happen; keep the guard cheap
-			continue
-		}
-		b.WriteString(s[last:sp.start])
-		b.WriteString("[masked]")
-		last = sp.end
-	}
-	b.WriteString(s[last:])
-	return b.String()
-}
-
-// findRegexp returns the non-empty matches of re; group > 0 returns that capture group instead.
-func findRegexp(re *regexp.Regexp, s string, group int) []span {
-	var out []span
-	for _, m := range re.FindAllStringSubmatchIndex(s, -1) {
-		a, b := m[2*group], m[2*group+1]
-		if a >= 0 && b > a {
-			out = append(out, span{a, b})
-		}
-	}
-	return out
-}
-
-func isWordByte(b byte) bool {
-	return b == '_' || (b >= '0' && b <= '9') || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
-}
-
-func isDigitByte(b byte) bool { return b >= '0' && b <= '9' }
-
-// findKeywords finds whole-word, case-insensitive occurrences: the byte before and after must not be a
-// word character. (The JavaScript original used lookarounds; RE2 has none, so this is done by hand, which
-// is also exact when one keyword is a prefix of another.)
-func findKeywords(s string, words []string) []span {
-	var out []span
-	for i := 0; i < len(s); {
-		hit := 0
-		for _, w := range words {
-			n := len(w)
-			if i+n > len(s) || !strings.EqualFold(s[i:i+n], w) {
-				continue
-			}
-			if (i > 0 && isWordByte(s[i-1])) || (i+n < len(s) && isWordByte(s[i+n])) {
-				continue
-			}
-			hit = max(hit, n)
-		}
-		if hit > 0 {
-			out = append(out, span{i, i + hit})
-			i += hit
-			continue
-		}
-		i++
-	}
-	return out
-}
-
-// ---- built-in patterns (ported from harness.ts; JavaScript lookarounds replaced by explicit checks)
-
-var (
-	emailRE   = regexp.MustCompile(`(?i)[\w.+-]+@[\w-]+(?:\.[\w-]+)+`)
-	accountRE = regexp.MustCompile(`\b(?:[Aa]ccount|[Uu]ser(?:name)?|[Ll]ogin|[Ee]mployee|[Oo]wner)(?:\s+(?:of|for|name))?\s*[:=]?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\b`)
-	offTopic  = regexp.MustCompile(`(?i)\b(?:poems?|poetry|songs?|lyrics|jokes?|haiku|limerick|horoscope|recipes?|essay|homework|movies?|novel|fairy ?tale|bedtime story|write (?:me )?a story)\b`)
-)
-
-func piiDef(action HookAction, message string, find func(string) []span) hookDef {
+func piiDef(action HookAction, message string, find func(context.Context, *scanText) ([]span, error)) hookDef {
 	return hookDef{id: HookBlockPII, name: builtinInfo[0].Name, kind: KindBuiltin, when: BeforeAI, action: action, message: message, find: find}
 }
 
 // Blocking first, then masking: an ID number stops the text at once instead of being masked piecemeal.
 var piiDefs = []hookDef{
-	piiDef(ActionBlock, "The text contains an ID number. It was not sent to the AI. Remove the number and ask again.", findIDNumbers),
-	piiDef(ActionMask, "An email address was masked before the text went to the AI.", func(s string) []span { return findRegexp(emailRE, s, 0) }),
-	piiDef(ActionMask, "A phone number was masked before the text went to the AI.", findPhones),
-	piiDef(ActionMask, "A person name next to an account was masked before the text went to the AI.", func(s string) []span { return findRegexp(accountRE, s, 1) }),
+	piiDef(ActionBlock, "The text contains an ID number. It was not sent to the AI. Remove the number and ask again.", plain(findIDNumbers)),
+	piiDef(ActionMask, "An email address was masked before the text went to the AI.", plain(findEmails)),
+	piiDef(ActionMask, "A phone number was masked before the text went to the AI.", plain(findPhones)),
+	piiDef(ActionMask, "A person name next to an account was masked before the text went to the AI.", plain(findAccountNames)),
 }
 
 var offTopicDef = hookDef{id: HookSecurityOnly, name: builtinInfo[1].Name, kind: KindBuiltin, when: BeforeAI, action: ActionBlock,
 	message: "This box's AI only helps with the security of this network, so it did not take this request. Ask about your devices, findings, logs or exposure.",
-	find:    func(s string) []span { return findRegexp(offTopic, s, 0) }}
-
-// findIDNumbers finds a run of exactly 9 or exactly 12 ASCII digits that is not part of a longer digit run
-// and does not follow a dot (so decimals and version numbers are left alone).
-func findIDNumbers(s string) []span {
-	var out []span
-	for i := 0; i < len(s); {
-		if !isDigitByte(s[i]) {
-			i++
-			continue
-		}
-		j := i
-		for j < len(s) && isDigitByte(s[j]) {
-			j++
-		}
-		if n := j - i; (n == 9 || n == 12) && (i == 0 || s[i-1] != '.') {
-			out = append(out, span{i, j})
-		}
-		i = j
-	}
-	return out
-}
-
-func isPhoneSep(b byte) bool {
-	return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\f' || b == '\v' || b == '.' || b == '-'
-}
-
-// phoneReps consumes repetitions of ([\s.-]?\d) from pos and returns the end offset after each count lo..hi,
-// largest last; ends[k-lo] is -1 when fewer than k repetitions exist.
-func phoneReps(s string, pos, lo, hi int) []int {
-	ends := make([]int, 0, hi-lo+1)
-	for k := 1; k <= hi; k++ {
-		switch {
-		case pos+1 < len(s) && isPhoneSep(s[pos]) && isDigitByte(s[pos+1]):
-			pos += 2
-		case pos < len(s) && isDigitByte(s[pos]):
-			pos++
-		default:
-			for len(ends) < hi-lo+1 {
-				ends = append(ends, -1)
-			}
-			return ends
-		}
-		if k >= lo {
-			ends = append(ends, pos)
-		}
-	}
-	return ends
-}
-
-// bestEnd picks the largest count whose next byte is not a digit: the (?!\d) after the repetition.
-func bestEnd(s string, ends []int) int {
-	for k := len(ends) - 1; k >= 0; k-- {
-		if e := ends[k]; e >= 0 && (e == len(s) || !isDigitByte(s[e])) {
-			return e
-		}
-	}
-	return -1
-}
-
-// phoneAt tries the two phone shapes at i:
-//
-//	A: (?<![\w.])(?:\+?84|0)(?:[\s.-]?\d){8,10}(?!\d)   Vietnamese numbers
-//	B: \+\d{1,3}(?:[\s.-]?\d){7,12}(?!\d)               other international numbers
-func phoneAt(s string, i int) int {
-	if i == 0 || (!isWordByte(s[i-1]) && s[i-1] != '.') {
-		for _, prefix := range []string{"+84", "84", "0"} {
-			if strings.HasPrefix(s[i:], prefix) {
-				if e := bestEnd(s, phoneReps(s, i+len(prefix), 8, 10)); e >= 0 {
-					return e
-				}
-			}
-		}
-	}
-	if s[i] == '+' {
-		for d := 3; d >= 1; d-- {
-			if i+d < len(s) && allDigits(s[i+1:i+1+d]) {
-				if e := bestEnd(s, phoneReps(s, i+1+d, 7, 12)); e >= 0 {
-					return e
-				}
-			}
-		}
-	}
-	return -1
-}
-
-func allDigits(s string) bool {
-	if len(s) == 0 {
-		return false
-	}
-	for i := range len(s) {
-		if !isDigitByte(s[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-func findPhones(s string) []span {
-	var out []span
-	for i := 0; i < len(s); {
-		if s[i] == '+' || isDigitByte(s[i]) {
-			if e := phoneAt(s, i); e > i {
-				out = append(out, span{i, e})
-				i = e
-				continue
-			}
-		}
-		i++
-	}
-	return out
-}
+	find:    plain(findOffTopic)}

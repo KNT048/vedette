@@ -1,0 +1,13 @@
+# feat/response-core (WP-13a) deferred
+
+- [ ] WP-13b: real device executors (HTTP API, SSH, NETCONF/RESTCONF, MCP) behind `response.Executor`, and the connections (`ai_connectors`, `response.Connections`); today both are nil in cmd/vedette, so every device action is unavailable and nothing is sent to a device. CONTRACT open question 1.
+- [ ] WP-13b: approval links `GET/POST /response/approve/{token}` (INV-4, `resp_tokens` exists, unused), chat approvals (Slack Socket Mode, Telegram, Zalo personal; INV-3), `sent_to` of requests, and the in-app two-step code for high-risk AI requests (needs `core.VerifyTwoStep`, open question 7): answered 501 now; a request with AI data is refused 501 at approval (fail closed).
+- [ ] WP-13b: AI proposals and gates `GET /response/ai`, `POST /response/ai/proposals`, `POST /response/ai/resume` (INV-15, 16, 18), the plan job that writes `resp_plans`, `resp_ai_notes`, `resp_hints`, the `remember` option of reject; all 501 now.
+- [ ] Port the two INV-14b fixes to the GUI mock data `web/src/features/response/templates/action-templates.sample.json` (`cisco_save_config.verify`, `adguard_block` run body and description; Go copy differs on purpose, see D-88 (1)); GUI change needs kien's approval (gui-first).
+- [ ] Block list `Content-Type: text/plain; charset=utf-8` needs a hook outside ogen in core/server (ogen fixes `application/octet-stream`; same limit as inventory CSV).
+- [ ] `resp_log` retention (default 1 year, DATA_MODEL 5.3): a prune with `core_chain_anchor` and a migration that lets the trigger allow only that delete.
+- [ ] `webhook_call` uses the notify webhook channel's URL and key through `notify.Service.WebhookTarget` (new neutral read, Emily's module, D-65): mention in the PR.
+- [ ] Triggers whose modules do not exist yet: `honeypot.hit.created`, `logs.ioc_hit.detected`, `logs.threshold.exceeded`, `exposure.port.opened` (names in CONTRACT, no subscription); `exposed_via_nat` and `vip` of the finding trigger stay empty until a firewall read exists (13b).
+- [ ] Inventory-derived never-touch entries (gateway, DNS servers, domain controllers, management addresses) are entries the admin lists; no automatic discovery yet. Consider seeding the gateway from inventory.
+- [ ] Merge with main: `core/chain` head functions move to `core/chain/chainhead` in PR #67 (`chain.LoadHead` -> `chainhead.Load`, `chain.AdvanceHead` -> `chainhead.Advance`); resp_log uses `chain.AdvanceHead` and `chain.LoadHead` in `modules/response/service.go` and `plans.go`.
+- [ ] Bus: `response.*` events have no subscriber yet (notify sends approval requests in 13b); `api/openapi.json` and `contract.ts` are unchanged.

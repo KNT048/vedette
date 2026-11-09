@@ -1,0 +1,227 @@
+package response
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"time"
+
+	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/jobs"
+)
+
+// Events this module publishes, after the transaction that caused them committed (payloads: CONTRACT "Events").
+const (
+	EventRequestCreated   = "response.request.created"
+	EventDecisionMade     = "response.decision.made"
+	EventActionExecuted   = "response.action.executed"
+	EventActionRolledBack = "response.action.rolled_back"
+	EventBreakerTripped   = "response.breaker.tripped"
+)
+
+// RequestEvent is the payload of response.request.created: an approval request exists (notify may send it to the approvers, part 13b).
+type RequestEvent struct {
+	RequestID string `json:"request_id"`
+	Source    string `json:"source"`
+	Title     string `json:"title"`
+	Risk      string `json:"risk"`
+	Items     int    `json:"items"`
+	ExpiresAt string `json:"expires_at"`
+	Approvals int    `json:"approvals"` // how many different approvers it needs
+}
+
+// DecisionEvent is the payload of response.decision.made. Decision is approved, rejected, expired or cancelled; Final is false for the first of two approvals.
+type DecisionEvent struct {
+	RequestID string `json:"request_id"`
+	Decision  string `json:"decision"`
+	By        string `json:"by"`
+	Final     bool   `json:"final"`
+}
+
+// ExecutedEvent is the payload of response.action.executed: one item ran and was recorded as executed.
+type ExecutedEvent struct {
+	RequestID string `json:"request_id"`
+	ItemID    string `json:"item_id"`
+	ActionID  string `json:"action_id"`
+	Device    bool   `json:"device"` // false for a box action (block list, message, webhook)
+}
+
+// RolledBackEvent is the payload of response.action.rolled_back. Auto is true when the undo time ended.
+type RolledBackEvent struct {
+	RequestID string `json:"request_id"`
+	ItemID    string `json:"item_id"`
+	ActionID  string `json:"action_id"`
+	Auto      bool   `json:"auto"`
+}
+
+// BreakerEvent is the payload of response.breaker.tripped.
+type BreakerEvent struct {
+	MaxPerHour int    `json:"max_per_hour"`
+	TrippedAt  string `json:"tripped_at"`
+}
+
+// Events this module listens to. The names of the later triggers are listed so the producers know what to publish; this
+// part subscribes to the modules that exist and to nothing else:
+//
+//	findings.finding.created, findings.finding.status_changed (to confirmed) -> trigger finding
+//	inventory.asset.discovered (a device that is not approved)               -> trigger unknown_device
+//	honeypot.hit.created                                                     -> trigger honeypot (module not built yet)
+//	logs.ioc_hit.detected                                                    -> trigger ioc_connection (module not built yet)
+//	logs.threshold.exceeded                                                  -> trigger log_threshold (module not built yet)
+//	exposure.port.opened                                                     -> trigger new_port (module not built yet)
+const (
+	EventFindingCreated       = "findings.finding.created"
+	EventFindingStatusChanged = "findings.finding.status_changed"
+	EventAssetDiscovered      = "inventory.asset.discovered"
+)
+
+// decode reads event data, whatever Go type the producer used, through its JSON form: this module does not import the
+// producing modules, only the field names they document.
+func decode(data any, into any) error {
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("response: read event data: %w", err)
+	}
+	if err := json.Unmarshal(raw, into); err != nil {
+		return fmt.Errorf("response: read event data: %w", err)
+	}
+	return nil
+}
+
+// Subscribe registers the event handlers on bus and returns a function that removes them. A handler only records the
+// event (a database write); the rules run in the evaluate job, so a handler never holds the publisher while it works.
+func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
+	var undo []func()
+	on := func(name string, fn func(ctx context.Context, data any) error) {
+		undo = append(undo, bus.Subscribe(name, func(ctx context.Context, e events.Event) error {
+			if !s.on() {
+				return nil
+			}
+			return fn(ctx, e.Data)
+		}))
+	}
+	on(EventFindingCreated, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, false) })
+	on(EventFindingStatusChanged, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, true) })
+	on(EventAssetDiscovered, s.assetEvent)
+	return func() {
+		for _, u := range undo {
+			u()
+		}
+	}
+}
+
+func openStatus(st string) bool { return st == "confirmed" || st == "suspected" }
+
+func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool) error {
+	var e struct {
+		FindingID string `json:"finding_id"`
+		To        string `json:"to"`
+	}
+	if err := decode(data, &e); err != nil {
+		return err
+	}
+	if e.FindingID == "" || (statusChange && e.To != "confirmed") {
+		return nil
+	}
+	if s.cfg.Directory == nil {
+		s.cfg.Log.WarnContext(ctx, "response: finding event skipped: no directory is wired")
+		return nil
+	}
+	f, ok, err := s.cfg.Directory.Finding(ctx, e.FindingID)
+	if err != nil || !ok || !openStatus(f.Status) {
+		return err
+	}
+	d, ok, err := s.cfg.Directory.Device(ctx, f.AssetID)
+	if err != nil || !ok {
+		return err
+	}
+	sev := f.Severity
+	switch sev {
+	case "critical", "high", "medium", "low":
+	default:
+		sev = "low"
+	}
+	id := "finding:" + f.ID
+	if statusChange {
+		id += ":confirmed"
+	}
+	return s.StoreEvent(ctx, Det{ID: id, Trigger: "finding", TS: s.ts(), DeviceKind: d.Kind, AssetID: d.ID, FindingID: f.ID, CVE: f.CVE,
+		Summary: oneLine(d.Name+": "+f.CVE+" ("+sev+")", 300),
+		Fields:  map[string]string{"device": oneLine(d.Name, 100), "ip": d.IP, "cve": f.CVE, "severity": sev, "kev": fmt.Sprint(f.KEV), "exposed_via_nat": "false", "vip": ""}})
+}
+
+func (s *Service) assetEvent(ctx context.Context, data any) error {
+	var e struct {
+		AssetID string `json:"asset_id"`
+	}
+	if err := decode(data, &e); err != nil {
+		return err
+	}
+	if e.AssetID == "" || s.cfg.Directory == nil {
+		return nil
+	}
+	d, ok, err := s.cfg.Directory.Device(ctx, e.AssetID)
+	if err != nil || !ok || d.Approved {
+		return err
+	}
+	vendor, kind := d.Vendor, d.Kind
+	if vendor == "" {
+		vendor = "Unknown vendor"
+	}
+	if !s.isDeviceKind(kind) {
+		kind = "unknown"
+	}
+	ts := d.Seen
+	if ts.IsZero() {
+		ts = s.now()
+	}
+	who := d.MAC
+	if who == "" {
+		who = d.IP
+	}
+	return s.StoreEvent(ctx, Det{ID: "device:" + d.ID, Trigger: "unknown_device", TS: store2(ts), DeviceKind: d.Kind, AssetID: d.ID,
+		Summary: oneLine("Unknown device "+who+" ("+vendor+") at "+d.IP, 300),
+		Fields:  map[string]string{"ip": d.IP, "mac": d.MAC, "vendor": oneLine(vendor, 80), "kind": kind}})
+}
+
+// message sends a notice to the alert channels, best effort: a failure is logged, never returned.
+func (s *Service) message(ctx context.Context, id, title, text string) {
+	if s.cfg.Notifier == nil {
+		return
+	}
+	if err := s.cfg.Notifier.Message(ctx, id, title, text); err != nil {
+		s.cfg.Log.WarnContext(ctx, "response: a notice could not be queued", "error", err)
+	}
+}
+
+// channelNames are the labels of the configured, enabled alert channels, or "the app".
+func (s *Service) channelNames(ctx context.Context) []string {
+	out := []string{}
+	if s.cfg.Notifier != nil {
+		if l, err := s.cfg.Notifier.Channels(ctx); err == nil {
+			for _, c := range l {
+				if c.Configured && c.Enabled {
+					out = append(out, c.Label)
+				}
+			}
+		}
+	}
+	if len(out) == 0 {
+		return []string{"the app"}
+	}
+	return out
+}
+
+// Jobs returns the jobs of the module: "evaluate" runs the rules on new events and the due schedules; "sweep" expires old
+// requests and undoes changes whose undo time ended. Both run only while the module is on (SYS-5).
+func (s *Service) Jobs() []jobs.Job {
+	return []jobs.Job{
+		{Module: ModuleID, Name: "evaluate", Every: 10 * time.Second, Run: func(ctx context.Context) error {
+			if _, err := s.Evaluate(ctx); err != nil {
+				return err
+			}
+			return s.RunSchedules(ctx)
+		}},
+		{Module: ModuleID, Name: "sweep", Every: 30 * time.Second, Run: s.Sweep},
+	}
+}

@@ -21,6 +21,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
+	"github.com/knt048/vedette/modules/response"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
 )
@@ -45,6 +46,7 @@ type deps struct {
 	FindingHandlers    *findings.FindingHandlers // also carries mitigation's guidance (SetGuidance) and is mitigation's Details
 	MitigationHandlers *mitigation.ActionHandlers
 	SensorPassive      *sensorpassive.Service // the capture job and the HTTP handler share it: the SPAN measurement lives in its memory
+	Response           *response.Service      // the only module that may change another device (D-41): handler, jobs and bus subscriptions share it
 }
 
 // moduleWiring is one module the binary carries. Adding a module = one entry in wiredModules and
@@ -68,6 +70,7 @@ func wiredModules() []moduleWiring {
 		{ID: "mitigation", Migrations: mitigation.Migrations},
 		{ID: "notify", Migrations: notify.Migrations, Jobs: notifyJobs},
 		{ID: "sensor-passive", Migrations: sensorpassive.Migrations, Jobs: sensorPassiveJobs},
+		{ID: "response", Migrations: response.Migrations, Jobs: responseJobs}, // after notify and inventory (manifest depends)
 	}
 }
 

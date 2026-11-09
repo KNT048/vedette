@@ -1,6 +1,6 @@
 # Response Contract
 
-> Tier: tuỳ chọn, **rủi ro cao**, tắt mặc định · Story: S-RESP-1..4, S-AI-8 · Quyết định: D-40, D-41, D-44, D-46, D-47, D-48, D-51 (**D-51 thắng khi mâu thuẫn**) · Last verified: 2026-11-09
+> Tier: tuỳ chọn, **rủi ro cao**, tắt mặc định · Story: S-RESP-1..4, S-AI-8 · Quyết định: D-40, D-41, D-44, D-46, D-47, D-48, D-51 (**D-51 thắng khi mâu thuẫn**) · Last verified: 2026-11-09 (WP-13a: phần 1 đã có mã, xem "Trạng thái WP-13a")
 > Nguồn hành vi thực tế: `web/src/features/response/{contract,state,engine,ai,logic,data,mocks}.ts` (mock đã có test cổng chặn).
 > Module này là **ngoại lệ duy nhất** của SYS-8 (D-41): nơi duy nhất mã của Vedette thực thi công cụ ghi lên thiết bị khác, và chỉ sau khi một yêu cầu được duyệt.
 > Mô hình: quy tắc của người dùng **KHI** (trigger có trường dữ liệu) **NẾU** (điều kiện) **THÌ** (chuỗi hành động có tham số kiểu) hoặc đề xuất của AI. Máy chủ giữ mẫu lệnh; client không bao giờ gửi lệnh.
@@ -63,6 +63,9 @@
 - **FORBID-7** Chặn mục thuộc danh sách không đụng; chặn khi đang trong cửa sổ bảo trì; chạy khi cầu dao mở.
 - **FORBID-8** Quét/gọi tới host ngoài scope kết nối đã khai (SYS-7).
 
+## Trạng thái WP-13a (phần 1) so với bảng dưới
+Đã cài: plans, actions, proposals/request, approve/reject/rollback (trong app), settings, execution, emergency-stop, breaker/reset, triggers, rules (+ simulate, manual), events, templates (+ clone), allowlist, blocklist (+ token, `{token}.txt`), catalog, metrics, log. **Trả 404 như đường lạ** (không có trong bản thật, FORBID-5): `POST /response/rules/run`, `POST /response/actions/{id}/chat-decision`. **Trả 501 `not_implemented` (phần 13b)**: `GET/POST /response/approve/{token}`, `GET /response/ai`, `POST /response/ai/proposals`, `POST /response/ai/resume`. Thiết bị chỉ qua giao diện `Executor` (fake trong test); chưa có kết nối nên hành động lên thiết bị đều "không khả dụng". Chi tiết quyết định: D-88.
+
 ## Endpoints owned (từ `contract.ts`)
 | Method | Path | Vai tối thiểu | Story |
 |---|---|---|---|
@@ -94,11 +97,12 @@
 | GET | `/response/log` | operator | S-RESP-2, 3, S-AI-8 |
 
 ## Tables owned
-`resp_settings, resp_plans, resp_actions` (yêu cầu gộp có `items`), `resp_catalog, resp_rules, resp_allowlist, resp_blocklist, resp_tokens` (token duyệt một lần), `resp_done` (khoá gộp trùng), `resp_ai_notes, resp_hints`, `resp_log`. Mock đã đặt `resp_*` (WP-06).
+`resp_settings, resp_plans, resp_actions` (yêu cầu gộp có `items`), `resp_catalog, resp_rules, resp_allowlist, resp_blocklist, resp_tokens` (token duyệt một lần), `resp_done` (khoá gộp trùng), `resp_ai_notes, resp_hints`, `resp_log`. Mock đã đặt `resp_*` (WP-06). WP-13a thêm `resp_block_entries` (mục danh sách chặn đang có hiệu lực, thêm lúc item chạy, xoá lúc hoàn tác/hết TTL) và `resp_events` (sự kiện trigger lấy từ bus); `resp_tokens`, `resp_ai_notes`, `resp_hints` đã tạo nhưng phần 1 không ghi. `resp_log` chống sửa/xoá bằng trigger SQLite (D-88).
 
 ## Events
 - **Nhận (nguồn trigger)**: `honeypot.hit` (honeypot); `logs.ioc_hit` (logs, trigger `ioc_connection`; `confidence` 0..1 ở cả logs và trigger field, D-57 (13)); finding mới/xác nhận (module `findings`: `findings.finding.created`, `findings.finding.status_changed`; D-57 (6)); thiết bị chưa duyệt (`inventory.observation`); ngưỡng log (`log_threshold`); cổng mới trên IP public (`exposure`); lịch; chạy tay. Đọc qua interface của từng module (modules.md), không đọc bảng trực tiếp.
-- **Phát**: `response.request`, `response.decision`, `response.executed`, `response.rolled_back`, `response.breaker` (tên đề xuất) cho `notify` (gửi duyệt/thông báo kết quả) và export log.
+- **Phát** (sau commit, WP-13a, payload là struct trong `modules/response/events.go`, không bí mật/token): `response.request.created {request_id, source, title, risk, items, expires_at, approvals}`, `response.decision.made {request_id, decision: approved|rejected|expired|cancelled, by, final}`, `response.action.executed {request_id, item_id, action_id, device}`, `response.action.rolled_back {request_id, item_id, action_id, auto}`, `response.breaker.tripped {max_per_hour, tripped_at}` cho `notify` (gửi duyệt/thông báo kết quả, 13b) và export log.
+- **Đã nối (WP-13a)**: `findings.finding.created`, `findings.finding.status_changed` (to=confirmed) → trigger `finding`; `inventory.asset.discovered` (thiết bị chưa duyệt) → `unknown_device`. Tên dành cho trigger về sau, chưa đăng ký: `honeypot.hit.created`, `logs.ioc_hit.detected`, `logs.threshold.exceeded`, `exposure.port.opened`.
 
 ## Khi tắt module (SYS-5)
 Không route `/response/*` (kể cả `approve/{token}` và `blocklist/{token}.txt`), không job quy tắc, **firewall của khách kéo danh sách chặn sẽ nhận 404 và đứng yên với bản chặn đã nạp** (không gỡ gì khỏi thiết bị). Yêu cầu `pending` không còn duyệt được. Dữ liệu `resp_*` và chuỗi `resp_log` giữ nguyên. Hành động đã thực thi nhưng có TTL **không** tự hoàn tác khi module tắt (không job): UI/thông báo phải nêu danh sách việc còn hiệu lực trước khi tắt. Nút Respond trên Incidents/Findings báo "module `response` đang tắt".
@@ -108,7 +112,7 @@ Không route `/response/*` (kể cả `approve/{token}` và `blocklist/{token}.t
 - **DEPENDED ON BY**: GUI `findings` (panel kế hoạch/Respond), `notify` (nhận yêu cầu duyệt), `ai` (`/response/ai/proposals`), `core/logs export` (`resp_log`).
 
 ## Câu hỏi mở
-1. MODULES.md ghi `response` phụ thuộc `ai` (đúng vì kết nối ở `ai_connectors`), dù quy tắc không cần AI (D-44). Đề xuất: giữ `depends: ai` hoặc chuyển kết nối lên `core` để `response` chạy khi `ai` tắt.
+1. **Đã chuyển `ai` sang `soft_depends` ở WP-13a (D-88 (12)); còn lại: nối kết nối ở 13b.** MODULES.md ghi `response` phụ thuộc `ai` (đúng vì kết nối ở `ai_connectors`), dù quy tắc không cần AI (D-44). Đề xuất: giữ `depends: ai` hoặc chuyển kết nối lên `core` để `response` chạy khi `ai` tắt.
 2. ~~Đổi tên bảng mock `response_*` thành `resp_*`~~ Đã đổi (WP-06; `db.ts` v4).
 3. Đọc chéo: GUI dùng `peek` vào `notify_channels`, `logs_ioc_hits`, `hp_hits`; modules.md cấm đọc bảng module khác → thay bằng interface (IMPACT).
 4. D-51 "AI rủi ro cao: bộ kiểm thứ hai + duyệt trong app bằng mã hai bước" và "rủi ro cao cần 2 người": hợp đồng đọc là **cả hai** (hai người, mỗi người trong app với mã hai bước), theo mock (`ai.ts`). Xác nhận.

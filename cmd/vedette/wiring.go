@@ -239,6 +239,9 @@ func buildServices(d *deps) error {
 	if d.MitigationHandlers, err = mitigation.NewActionHandlers(d.DB, d.Audit, d.Findings, d.FindingHandlers, aiOff{}, d.Clock); err != nil {
 		return err
 	}
+	if d.Response, err = newResponse(d); err != nil {
+		return fmt.Errorf("response: %w", err)
+	}
 	subscribe(*d)
 	return nil
 }

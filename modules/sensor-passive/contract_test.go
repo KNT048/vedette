@@ -302,11 +302,18 @@ func TestContract_INV6_NewMACUnapprovedBoxIsNotADevice(t *testing.T) {
 	e := newEnv(t, frames(), false)
 	e.setInterface("eth0", false)
 	stop := e.run()
-	waitFor(t, "devices", func() bool {
-		return e.device(pktgen.Printer.String()) != nil
+	want := []pktgen.MAC{pktgen.PC, pktgen.Printer, pktgen.Router, pktgen.Switch}
+	// Wait for every device, not the first one: a slow machine delivers the recording in several flushes.
+	waitFor(t, "every device", func() bool {
+		for _, m := range want {
+			if e.device(m.String()) == nil {
+				return false
+			}
+		}
+		return true
 	})
 	stop()
-	for _, m := range []pktgen.MAC{pktgen.PC, pktgen.Printer, pktgen.Router, pktgen.Switch} {
+	for _, m := range want {
 		if d := e.device(m.String()); d == nil || d.Approved || d.Origin != "discovered" {
 			t.Errorf("device %s: %+v, want one unapproved discovered device", m, d)
 		}

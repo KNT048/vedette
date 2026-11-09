@@ -130,7 +130,10 @@ func New(t testing.TB, modify ...func(*auth.Config)) *Env {
 	logs := &bytes.Buffer{}
 	mailer := &Mailer{available: true}
 	al := audit.New(clock.Now)
-	cfg := auth.Config{DB: db, Secrets: sec, Audit: al, Mailer: mailer, Clock: clock.Now, Log: slog.New(slog.NewTextHandler(logs, nil)), Argon2: Cheap}
+	// MaxHashing is fixed so a test does not depend on the CPUs of the machine running it: the default is half
+	// the CPUs, which is one slot on a 2-3 CPU laptop, where a test that hashes while another hash is running
+	// would wait HashWait and get 503 (issue #70). Tests of the gate itself set their own value.
+	cfg := auth.Config{DB: db, Secrets: sec, Audit: al, Mailer: mailer, Clock: clock.Now, Log: slog.New(slog.NewTextHandler(logs, nil)), Argon2: Cheap, MaxHashing: 4}
 	for _, m := range modify {
 		m(&cfg)
 	}

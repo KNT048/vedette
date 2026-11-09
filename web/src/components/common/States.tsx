@@ -22,16 +22,18 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
   const { t } = useTranslation()
   const msg = error instanceof ApiError ? error.message : error instanceof Error ? error.message : String(error)
   const status = error instanceof ApiError ? error.status : 0
-  // 4xx: thử lại không giúp gì → nói rõ loại lỗi, không có nút thử lại. 5xx/mất mạng: cho thử lại.
+  // 4xx và 501: thử lại không giúp gì → nói rõ loại lỗi, không có nút thử lại. 5xx khác/mất mạng: cho thử lại.
   const kind = status === 404 ? 'notFound' : status === 403 ? 'forbidden' : status === 401 ? 'unauthenticated' : status >= 400 && status < 500 ? 'invalid' : 'loadFailed'
-  const retry = kind === 'loadFailed' && onRetry
+  const retry = kind === 'loadFailed' && status !== 501 && onRetry
   return (
     <div role="alert" className={kind === 'loadFailed' ? 'rounded-md border border-danger/40 bg-danger-soft px-4 py-3 text-sm' : 'rounded-md border border-rule bg-surface px-4 py-3 text-sm'}>
       <p className={kind === 'loadFailed' ? 'font-medium text-danger' : 'font-medium'}>{t(`error.${kind}`)}</p>
       <p className="mt-1 text-ink">{msg}</p>
       {retry ? <Button className="mt-3" size="sm" onClick={onRetry}>{t('retry')}</Button> : null}
-      {/* Bản xem thử: lỗi 5xx thường do dữ liệu mẫu lưu từ phiên bản cũ của giao diện */}
-      {status >= 500 && import.meta.env.VITE_API_MOCK !== 'off' ? <p className="mt-3 text-[13px] text-muted">{t('error.previewStale')} <Link to="/settings/data" className="text-accent underline underline-offset-4">{t('error.previewStaleLink')}</Link></p> : null}
+      {/* 501: backend chưa có phần này; dữ liệu mẫu cũ không liên quan nên không mời khôi phục. */}
+      {status === 501 ? <p className="mt-3 text-[13px] text-muted">{t('error.notImplemented')}</p> : null}
+      {/* Bản xem thử: lỗi 5xx khác thường do dữ liệu mẫu lưu từ phiên bản cũ của giao diện */}
+      {status >= 500 && status !== 501 && import.meta.env.VITE_API_MOCK !== 'off' ? <p className="mt-3 text-[13px] text-muted">{t('error.previewStale')} <Link to="/settings/data" className="text-accent underline underline-offset-4">{t('error.previewStaleLink')}</Link></p> : null}
     </div>
   )
 }

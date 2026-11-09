@@ -210,7 +210,9 @@ const keyPrivacy = "core_privacy"
 
 type privacySetting struct {
 	// UpdateCheck is the switch of update checks (PRIVACY.md flow 6); nil, an absent row included, means on.
-	UpdateCheck *bool `json:"update_check"`
+	UpdateCheck *bool `json:"update_check,omitempty"`
+	// Telemetry is the switch of the anonymous signal (PRIVACY.md flow 2); nil means on. D-82: nothing is sent whatever it says.
+	Telemetry *bool `json:"telemetry,omitempty"`
 }
 
 // updateCheckOn reads the switch of update checks from the Privacy setting.

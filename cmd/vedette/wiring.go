@@ -209,7 +209,7 @@ func buildServices(d *deps) error {
 	if d.Auth, err = auth.New(auth.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Mailer: notifySvc.CodeMailer(), Clock: d.Clock, Log: d.Log}); err != nil {
 		return fmt.Errorf("auth: %w", err)
 	}
-	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock}); err != nil {
+	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock, Facts: privacyFacts{}}); err != nil {
 		return fmt.Errorf("core: %w", err)
 	}
 	if d.OS, err = newOSHandlers(*d); err != nil {
@@ -310,6 +310,15 @@ func subscribe(d deps) {
 		return err
 	}))
 }
+
+// privacyFacts answers what the Privacy page asks of modules that have no backend yet, with what is true today:
+// no AI provider (aiOff), the NTP servers are the default ones (the host module is not built), no OIDC issuer
+// (auth-oidc is not built). Each answer moves to its module's service when that module gets a backend.
+type privacyFacts struct{}
+
+func (privacyFacts) AIConfigured(context.Context) bool   { return false }
+func (privacyFacts) NTPPublic(context.Context) bool      { return true }
+func (privacyFacts) OIDCConfigured(context.Context) bool { return false }
 
 // newOSHandlers wires the OS update and backup handlers. The host client is built from the socket path and
 // connects on each call, so a box whose vedette-host starts later, or an install that has none, needs no

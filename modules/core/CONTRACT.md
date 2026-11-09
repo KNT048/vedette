@@ -14,7 +14,7 @@ Nguồn hành vi: `web/src/features/core/contract.ts` + `web/src/mocks/core.ts`.
 - **INV-2**: Mọi handler ghi (POST/PUT/PATCH/DELETE) của mọi module đi qua `core/audit.Append` (SYS-3); harness test quét bảng route, handler ghi không để lại hàng `core_audit` thì fail. `core_audit` chỉ thêm, không có API sửa/xoá; ngoại lệ duy nhất là `POST /core/data/purge`.
 - **INV-3**: Bật module thiếu phụ thuộc → 409 `missing_dependencies` kèm `missing[]`, không bật gì; chỉ khi `with_dependencies:true` mới bật kèm. Không bao giờ bật ngầm.
 - **INV-4**: Tắt module không xoá bảng, không tự tắt module phụ thuộc; phản hồi trả `affected[]` = module đang bật phụ thuộc vào nó. Module phụ thuộc chạy ở chế độ suy giảm (xem IMPACT của từng module).
-- **INV-5**: Vai `viewer < operator < admin` lấy từ bảng endpoint (`role`); endpoint không khai vai thì server từ chối khởi động. `role: public` chỉ gồm `/setup`, `/core/setup*`, `/core/auth-options`, `/auth/*`, `/install/*`, `/intake/*`.
+- **INV-5**: Vai `viewer < operator < admin` lấy từ bảng endpoint (`role`); endpoint không khai vai thì server từ chối khởi động. `role: public` chỉ gồm `/setup`, `/core/setup*`, `/core/auth-options`, `/auth/*`, `/install/*`, `/intake/*`, và các điểm có token một lần hoặc bước SSO trong chính yêu cầu: `POST /core/sso/login`, `GET|POST /response/approve/{token}`, `GET /response/blocklist/{token}.txt`. Kiểm bằng `core/api/routes_test.go` (sinh mã thất bại nếu thao tác thiếu vai).
 - **INV-6**: Bí mật (mật khẩu, khoá TOTP, secret kênh/feed/OIDC/token) chỉ qua `core/secrets` (AES-256-GCM, khoá file 0600); API chỉ trả 4 ký tự cuối; không vào log, `/core/data/export`, `/core/data/backup`, `/core/logs/export` (SYS-4).
 - **INV-7**: Người dùng: không vô hiệu hoá chính mình; không bỏ quản trị viên hoạt động cuối cùng; quản trị viên không đặt lại 2FA của chính mình (400); mật khẩu tạm trả đúng một lần; đặt lại mật khẩu kết thúc mọi phiên của người đó.
 - **INV-8**: Đã bật 2FA thì đăng nhập thiếu/sai mã không tạo phiên. Kiểu `email` mà kênh email không dùng được → 503 `twofa_email_unavailable`, không bao giờ lùi về chỉ mật khẩu (D-35). Mã email: 6 số, 10 phút, dùng 1 lần, 5 lần sai huỷ mã, gửi lại sau 60 s (429 `resend_too_soon`), tối đa 5 lần gửi/giờ (`too_many_codes`). TOTP: RFC 6238 SHA1, 6 số, 30 s. `preview_code` không bao giờ có trong phản hồi thật.
@@ -27,8 +27,8 @@ Nguồn hành vi: `web/src/features/core/contract.ts` + `web/src/mocks/core.ts`.
 - **INV-15**: `POST /core/setup` chỉ chạy khi `setup.complete=false` (⚠ mock chưa mô phỏng); `sample:true` chỉ hợp lệ ở bản `data_mode=sample`; cài sạch (`clean`) mọi bảng rỗng ngoài thiết bị "This box" (S-INV-5).
 
 ## Preconditions / Postconditions
-- **PRE-1** (`PATCH /modules/{id}` enable): người gọi `admin`. **POST-1**: `core_module.enabled=true`, `enabled_at` đặt, module `Init`+`Routes`+`Jobs` chạy, `core_audit` có `module.enable`.
-- **PRE-2** (disable): module không phải `tier:core`. **POST-2**: route/job/cổng của module biến mất trong cùng request; `core_audit` có `module.disable` (kèm `affected`).
+- **PRE-1** (`PATCH /modules/{id}` enable): người gọi `admin`. **POST-1**: `core_module.enabled=true`, `enabled_at` đặt, `core_audit` có `module.enable` (cùng giao dịch); sau commit route của module trả lời (cổng module trong `core/server`) và job của nó chạy (`core/jobs`), không cần khởi động lại.
+- **PRE-2** (disable): module không phải `tier:core`. **POST-2**: sau commit, route của module trả 404 như route không tồn tại, job bị huỷ, cổng đóng — không cần khởi động lại; `core_audit` có `module.disable` (kèm `affected`). `host` (`kind: component`) không có công tắc.
 - **PRE-3** (`audit.Append`): có `user`, `action`, `target`. **POST-3**: hàng thêm trong cùng transaction với thay đổi; lỗi ghi audit ⇒ rollback thay đổi.
 - **PRE-4** (`exec.Run`): binary ∈ allowlist, argv là mảng đã validate. **POST-4**: không qua shell; stdout/stderr bị giới hạn kích thước; timeout bắt buộc.
 - **PRE-5** (`updates/apply|rollback`): `admin`, component tồn tại. **POST-5**: phiên bản mới ghi `UpdateComponent` với `signature:valid`; lỗi giữa chừng ⇒ giữ slot cũ (A/B, D-12).
@@ -66,7 +66,7 @@ Nguồn hành vi: `web/src/features/core/contract.ts` + `web/src/mocks/core.ts`.
 Trong `core/contract.ts` nhưng thuộc module khác (nhóm B chốt, route chỉ đăng ký khi module chủ bật): `/core/oidc*`, `/core/sso/login` → `auth-oidc`; `/core/mcp*` → `mcp-server`.
 
 ## Tables owned (`core_`)
-`core_module`, `core_audit`, `core_user`, `core_session`, `core_totp`, `core_email_code`, `core_setting` (tổ chức, general, privacy, kênh cập nhật), `core_update_component`, `core_update_history`, `core_os_run`, `core_secret`, `core_job_run`.
+`core_module`, `core_job_run`, `core_audit`, `core_user`, `core_session`, `core_totp`, `core_email_code`, `core_setting` (tổ chức, general, privacy, kênh cập nhật), `core_update_component`, `core_update_history`, `core_os_run`, `core_secret`, `core_job_run`.
 
 ## Events
 - **Phát**: `core.module.enabled|disabled {id, affected[]}`, `core.update.applied|rolled_back {component, from, to}`, `core.os.install_finished {run_id, installed, reboot_required}`, `core.data.purged`.

@@ -1,19 +1,25 @@
 package core_test
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/knt048/vedette/core/api/routes"
+	"github.com/knt048/vedette/core/conn/conntest"
 )
 
 // The connection routes (D-93, D-94; INV-23): admin only, the same answers as the mock of the GUI, no secret anywhere.
-// Test is the one route still not built (slice 13b-5): a connection that is off answers 409 first, then 501.
+// Test reaches an in-process fake (conntest).
 
 var connRoutes = []struct{ method, path string }{
 	{"GET", "/core/connections"}, {"POST", "/core/connections"}, {"PUT", "/core/connections/cn-1"},
@@ -64,6 +70,12 @@ func TestConnections_RoutesAreAdminOnly(t *testing.T) {
 	}
 }
 
+// lanAt points the body of connBody at another LAN address: tests that Redirect an address to their own fake need an address of
+// their own, because the redirects are process-wide.
+func lanAt(ip string) map[string]any {
+	return map[string]any{"target": "https://" + ip, "allow": []string{"https://" + ip + "/api/"}}
+}
+
 func connBody(name string, over map[string]any) map[string]any {
 	b := map[string]any{"name": name, "kind": "http", "target": "https://192.168.10.60", "auth_type": "token", "secret": "par-0123456789-cdef", "allow": []string{"https://192.168.10.60/api/"}, "enabled": true}
 	for k, v := range over {
@@ -76,21 +88,56 @@ func connBody(name string, over map[string]any) map[string]any {
 	return b
 }
 
-// Test: a connection that is off is 409 connection_off and nothing is sent; one that is on is 501 until the transports exist;
-// an unknown id is 404.
-func TestConnections_TestIs501AfterConnectionOff(t *testing.T) {
+// Test (D-94): a connection that is off is 409 connection_off and nothing is sent; an unknown id is 404; one that is on is
+// reached for real (an in-process HTTPS fake), its certificate pinned, the result saved and audited, and the secret nowhere.
+func TestConnections_TestReachesTheDevice(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t)
 	admin, _ := w.signIn("admin@acme.example", "admin")
-	made := admin.post("/core/connections", connBody("Lab", nil))
+	f := conntest.NewHTTPS(t, http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		rw.Header().Set("X-Echo", r.Header.Get("Authorization")) // a careless device that echoes what it was sent
+		_, _ = io.WriteString(rw, "{}")
+	}))
+	f.Redirect(t, "192.168.10.61:443")
+	made := admin.post("/core/connections", connBody("Lab", lanAt("192.168.10.61")))
 	if made.Code != 201 {
 		t.Fatalf("create = %d %s", made.Code, made.Raw)
 	}
 	id := made.str("id")
-	if r := admin.post("/core/connections/"+id+"/test", nil); r.Code != 501 || r.code() != "not_implemented" {
-		t.Errorf("test of a connection that is on = %d %s, want 501 not_implemented", r.Code, r.Raw)
+
+	r := admin.post("/core/connections/"+id+"/test", nil)
+	if r.Code != 200 || r.JSON["ok"] != true || r.JSON["tools_found"] != float64(2) {
+		t.Fatalf("test of a connection that is on = %d %s", r.Code, r.Raw)
 	}
-	if r := admin.put("/core/connections/"+id, connBody("Lab", map[string]any{"secret": nil, "enabled": false})); r.Code != 200 {
+	if r.str("connector", "status") != "ok" || r.str("connector", "pin", "kind") != "tls_sha256" || r.str("connector", "pin", "value") != f.LeafSHA256() {
+		t.Errorf("the connector in the answer: %s", r.Raw)
+	}
+	if !regexp.MustCompile(`^Connected\. 2 tools found \(1 can change something\)\. The certificate is now pinned\.$`).MatchString(r.str("message")) {
+		t.Errorf("message %q", r.str("message"))
+	}
+	if reqs := f.Requests(); len(reqs) != 1 || reqs[0].Header.Get("Authorization") != "Bearer par-0123456789-cdef" {
+		t.Fatalf("the device saw %+v", reqs)
+	}
+	if n := w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'connection.test'"); n != 1 {
+		t.Errorf("%d connection.test audit rows, want 1", n)
+	}
+	if strings.Contains(r.Raw, "par-0123456789") || strings.Contains(w.logs.String(), "par-0123456789") {
+		t.Error("the secret is in the answer or in the logs")
+	}
+
+	// A device that now shows another certificate: 502 pin_mismatch, nothing sent, status error.
+	f.Rotate(t)
+	if r := admin.post("/core/connections/"+id+"/test", nil); r.Code != 502 || r.code() != "pin_mismatch" {
+		t.Errorf("a changed certificate = %d %s, want 502 pin_mismatch", r.Code, r.Raw)
+	}
+	if n := len(f.Requests()); n != 1 {
+		t.Errorf("%d requests reached the device, want only the first", n)
+	}
+	if got := admin.get("/core/connections"); !strings.Contains(got.Raw, `"status":"error"`) {
+		t.Errorf("the list after a failed test: %s", got.Raw)
+	}
+
+	if r := admin.put("/core/connections/"+id, connBody("Lab", map[string]any{"secret": nil, "enabled": false, "target": "https://192.168.10.61", "allow": []string{"https://192.168.10.61/api/"}})); r.Code != 200 {
 		t.Fatalf("turn off = %d %s", r.Code, r.Raw)
 	}
 	if r := admin.post("/core/connections/"+id+"/test", nil); r.Code != 409 || r.code() != "connection_off" {
@@ -98,6 +145,45 @@ func TestConnections_TestIs501AfterConnectionOff(t *testing.T) {
 	}
 	if r := admin.post("/core/connections/cn-nope/test", nil); r.Code != 404 || r.code() != "not_found" {
 		t.Errorf("test of an unknown connection = %d %s", r.Code, r.Raw)
+	}
+	if n := len(f.Requests()); n != 1 {
+		t.Errorf("%d requests in all, want 1: nothing goes to a connection that is off", n)
+	}
+}
+
+// INV-23: Test re-checks the administrator inside its own write transaction: an admin who was demoted after the request passed the
+// route check changes nothing.
+func TestConnections_TestRechecksAdminInsideTheTransaction(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin, _ := w.signIn("admin@acme.example", "admin")
+	second, _ := w.signIn("second@acme.example", "admin")
+	var demoted atomic.Bool
+	demote := func(ctx context.Context) error {
+		return w.env.DB.Write(ctx, func(tx *sql.Tx) error {
+			_, err := tx.ExecContext(ctx, "UPDATE core_user SET role = 'viewer' WHERE email = 'second@acme.example'")
+			return err
+		})
+	}
+	f := conntest.NewHTTPS(t, http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		if demoted.CompareAndSwap(false, true) { // while the device is being read, another admin demotes the caller
+			if err := demote(r.Context()); err != nil {
+				t.Error(err)
+			}
+		}
+		_, _ = io.WriteString(rw, "{}")
+	}))
+	f.Redirect(t, "192.168.10.62:443")
+	id := admin.post("/core/connections", connBody("Lab", lanAt("192.168.10.62"))).str("id")
+	r := second.post("/core/connections/"+id+"/test", nil)
+	if r.Code != 403 {
+		t.Fatalf("test by an admin demoted meanwhile = %d %s, want 403", r.Code, r.Raw)
+	}
+	if n := w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'connection.test'"); n != 0 {
+		t.Errorf("%d connection.test rows were written by a caller that was no longer an admin", n)
+	}
+	if got := admin.get("/core/connections"); !strings.Contains(got.Raw, `"status":"untested"`) || strings.Contains(got.Raw, `"pin":{`) {
+		t.Errorf("the connection changed: %s", got.Raw)
 	}
 }
 
@@ -230,6 +316,8 @@ func TestConnections_AnswerLikeTheMock(t *testing.T) {
 		}
 		keys[name] = string(b)
 	}
+	// The script's connections are saved with LAN addresses; the dial of the Test step goes to an in-process fake instead.
+	conntest.NewHTTPS(t, nil).Redirect(t, "192.168.10.64:443")
 	clients := map[string]*client{"": w.client()}
 	for _, role := range []string{"admin", "operator", "viewer"} {
 		clients[role], _ = w.signIn(role+"@acme.example", role)

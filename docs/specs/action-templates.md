@@ -590,7 +590,7 @@ Hành động tuỳ chỉnh do khách thêm cũng bắt buộc cùng quy tắc n
 
 ### 9.3 SSH tuỳ chỉnh
 
-> **D-94 (2026-11-09) thay**: hết giờ **20 giây mỗi dòng, 60 giây mỗi phiên** (thay 30 giây và 2 phút), cả item tối đa 90 giây; đầu ra thiết bị **không** ghi vào kiểm toán (chỉ một dòng đã làm sạch ≤ 200 ký tự trong kết quả item), không còn "ghi log đầu ra sau khi lọc bí mật"; khoá máy chủ đổi bị từ chối trước khi gửi thông tin xác thực; chỉ thuật toán mặc định của `x/crypto/ssh`.
+> **D-94 (2026-11-09) thay**: hết giờ **20 giây mỗi dòng, 60 giây mỗi phiên** (thay 30 giây và 2 phút), cả item tối đa 90 giây; đầu ra thiết bị **không** ghi vào kiểm toán (chỉ một dòng đã làm sạch ≤ 200 ký tự trong kết quả item), không còn "ghi log đầu ra sau khi lọc bí mật"; khoá máy chủ đổi bị từ chối trước khi gửi thông tin xác thực; chỉ danh sách thuật toán **an toàn** của `x/crypto/ssh` (`ssh.SupportedAlgorithms()`: không `ssh-rsa` SHA-1, không CBC/RC4, không DH group1 hay SHA-1; hẹp hơn danh sách "mặc định" của thư viện, còn nhận cả chúng để nói chuyện với thiết bị cũ; D-94 viết "mặc định" với ý này).
 
 - Dùng thư viện SSH của Go; không gọi `ssh` qua shell của hộp (`core/exec` allowlist, security.md). Khoá máy chủ ghim, đổi khoá thì dừng.
 - Thiết bị mạng dùng phiên tương tác có PTY; mỗi dòng lệnh gửi **riêng**, chờ dấu nhắc, có timeout mỗi dòng (30 giây) và tổng (2 phút). Mẫu lưu theo từng dòng; tham số thay vào một dòng không bao giờ làm tăng số dòng (kiểm sau thay thế).

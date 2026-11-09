@@ -11,6 +11,7 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/conn"
+	"github.com/knt048/vedette/core/conn/conntest"
 	"github.com/knt048/vedette/core/secrets"
 )
 
@@ -258,6 +259,29 @@ func TestWiringRefusesTheBoxItself(t *testing.T) {
 	})
 	if ae, ok := apierr.As(err); !ok || ae.Code != "invalid_target" || !strings.Contains(ae.Message, "the box itself") {
 		t.Fatalf("a connection to an address of -hosts = %v", err)
+	}
+}
+
+// INV-23: the same boxSources.BoxAddrs that refuses the box at save time is asked at dial time, about the address the name resolves to
+// then: a name that was fine when it was saved and now points at the box (a -hosts address here) is not dialled.
+func TestWiringTestRefusesTheBoxAtDialTime(t *testing.T) {
+	t.Parallel()
+	s := newStackWith(t, func(d *deps) { d.Hosts = []string{"192.168.77.9"} })
+	host := conntest.ResolveTo(t, "192.168.77.9")
+	in := connInput("Rebound", "tok-0123456789-abcdef")
+	in.Target, in.Allow = "https://"+host, []string{"https://" + host + "/"}
+	var id string
+	err := s.d.DB.Write(t.Context(), func(tx *sql.Tx) error {
+		c, err := s.d.Conn.Create(t.Context(), tx, "admin@acme.example", in)
+		id = c.ID
+		return err
+	})
+	if err != nil {
+		t.Fatalf("a public name is fine when it is saved: %v", err)
+	}
+	_, err = s.d.Conn.Test(t.Context(), "admin@acme.example", id, func(context.Context, *sql.Tx) error { return nil })
+	if ae, ok := apierr.As(err); !ok || ae.Code != "address_refused" || !strings.Contains(ae.Message, "the box itself") {
+		t.Fatalf("a name that points at the box = %v, want 502 address_refused", err)
 	}
 }
 

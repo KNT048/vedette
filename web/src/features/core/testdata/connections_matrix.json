@@ -2309,17 +2309,27 @@
    }
   },
   {
-   "name": "Test on a connection that is on (the transports come with slice 13b-5)",
+   "name": "Test on a connection that is on: reaches it, pins the certificate, finds the built-in tools",
    "role": "admin",
    "method": "POST",
    "path": "/core/connections/{http}/test",
    "status": 200,
-   "real": {
-    "status": 501,
-    "error": {
-     "code": "not_implemented"
+   "expect": {
+    "ok": true,
+    "tools_found": 2,
+    "connector": {
+     "status": "ok",
+     "pin": {
+      "kind": "tls_sha256"
+     }
     }
-   }
+   },
+   "matches": {
+    "message": "^Connected\\. 2 tools found \\(1 can change something\\)\\. The certificate is now pinned\\.$"
+   },
+   "absent": [
+    "par-9876543210"
+   ]
   },
   {
    "name": "delete",

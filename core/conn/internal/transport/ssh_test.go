@@ -1,0 +1,173 @@
+package transport_test
+
+import (
+	"context"
+	"encoding/pem"
+	"errors"
+	"strings"
+	"testing"
+
+	"golang.org/x/crypto/ssh"
+
+	"github.com/knt048/vedette/core/conn/conntest"
+	"github.com/knt048/vedette/core/conn/internal/transport"
+	"github.com/knt048/vedette/core/secrets"
+)
+
+func sshCfg() transport.SSHConfig {
+	return transport.SSHConfig{Dialer: dialer(), Username: "vedette", Password: secrets.NewValue("pw-0123456789"), TOFU: true}
+}
+
+// D-94 (2): PTY session, one line at a time, the prompt waited for, a device error stops the chain and closes the session.
+func TestSSHSessionOneLineAtATime(t *testing.T) {
+	t.Parallel()
+	f := conntest.NewSSH(t, conntest.SSHOpts{Respond: func(line string) string {
+		if line == "show version" {
+			return "Fake IOS 15.2\n  uptime 3 days"
+		}
+		if strings.HasPrefix(line, "bad") {
+			return "% Invalid input detected at '^' marker."
+		}
+		return ""
+	}})
+	s, err := transport.DialSSH(context.Background(), f.Addr, sshCfg())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if s.HostKey != f.HostKeyPin() {
+		t.Fatalf("host key %q, want %q", s.HostKey, f.HostKeyPin())
+	}
+	out, err := s.Run(context.Background(), "show version")
+	if err != nil || out != "Fake IOS 15.2\n  uptime 3 days" {
+		t.Fatalf("output %q, err %v", out, err)
+	}
+	for _, l := range []string{"configure terminal", "interface Gi1/0/5"} {
+		if _, err := s.Run(context.Background(), l); err != nil {
+			t.Fatalf("%s: %v", l, err)
+		}
+	}
+	var de *transport.DeviceError
+	_, err = s.Run(context.Background(), "bad command")
+	if !errors.As(err, &de) || !strings.Contains(de.Msg, "% Invalid input") {
+		t.Fatalf("err = %v, want the device's error line", err)
+	}
+	if _, err := s.Run(context.Background(), "shutdown"); err == nil {
+		t.Fatal("a line was accepted after the session closed on an error")
+	}
+	want := "show version,configure terminal,interface Gi1/0/5,bad command"
+	if got := strings.Join(f.Lines(), ","); got != want {
+		t.Fatalf("the device received %q, want %q (nothing after the error)", got, want)
+	}
+}
+
+func TestSSHKeyAuth(t *testing.T) {
+	t.Parallel()
+	signer, priv := conntest.NewSSHKey(t)
+	pem, err := ssh.MarshalPrivateKey(priv, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := conntest.NewSSH(t, conntest.SSHOpts{AuthorizedKeys: []ssh.PublicKey{signer.PublicKey()}})
+	cfg := transport.SSHConfig{Dialer: dialer(), Username: "vedette", Key: secrets.NewValue(string(encode(pem))), TOFU: true}
+	s, err := transport.DialSSH(context.Background(), f.Addr, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	if f.Logins() != 1 {
+		t.Fatalf("logins = %d", f.Logins())
+	}
+}
+
+// D-94 (2): a host key that is not the pinned one is refused before any credential is sent.
+func TestSSHChangedHostKeySendsNoCredential(t *testing.T) {
+	t.Parallel()
+	f := conntest.NewSSH(t, conntest.SSHOpts{})
+	cfg := sshCfg()
+	first, err := transport.DialSSH(context.Background(), f.Addr, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.HostKey, cfg.TOFU = first.HostKey, false
+	first.Close()
+
+	before := f.AuthCalls()
+	f.RotateHostKey(t)
+	if _, err := transport.DialSSH(context.Background(), f.Addr, cfg); !errors.Is(err, transport.ErrPinMismatch) {
+		t.Fatalf("err = %v, want ErrPinMismatch", err)
+	}
+	if f.AuthCalls() != before {
+		t.Fatalf("the server was asked to check %d credentials after the key changed", f.AuthCalls()-before)
+	}
+}
+
+func TestSSHUnpinnedWithoutTOFUSendsNoCredential(t *testing.T) {
+	t.Parallel()
+	f := conntest.NewSSH(t, conntest.SSHOpts{})
+	cfg := sshCfg()
+	cfg.TOFU = false
+	if _, err := transport.DialSSH(context.Background(), f.Addr, cfg); !errors.Is(err, transport.ErrUnverified) || f.AuthCalls() != 0 {
+		t.Fatalf("err = %v, auth calls %d", err, f.AuthCalls())
+	}
+}
+
+func TestSSHWrongPassword(t *testing.T) {
+	t.Parallel()
+	f := conntest.NewSSH(t, conntest.SSHOpts{})
+	cfg := sshCfg()
+	cfg.Password = secrets.NewValue("not-the-password-1")
+	var de *transport.DeviceError
+	_, err := transport.DialSSH(context.Background(), f.Addr, cfg)
+	if !errors.As(err, &de) || strings.Contains(err.Error(), "not-the-password-1") {
+		t.Fatalf("err = %v, want a DeviceError without the password", err)
+	}
+}
+
+// D-94 (2): only secure algorithms: a server that offers only CBC, SHA-1 key exchange or SHA-1 MACs is not talked to.
+func TestSSHRefusesWeakAlgorithms(t *testing.T) {
+	t.Parallel()
+	for name, o := range map[string]conntest.SSHOpts{
+		"cbc cipher":       {Ciphers: []string{ssh.InsecureCipherAES128CBC}},
+		"3des cipher":      {Ciphers: []string{ssh.InsecureCipherTripleDESCBC}},
+		"dh group1":        {KeyExchanges: []string{ssh.InsecureKeyExchangeDH1SHA1}},
+		"dh group14 sha1":  {KeyExchanges: []string{ssh.InsecureKeyExchangeDH14SHA1}},
+		"hmac-sha1-96 mac": {Ciphers: []string{ssh.CipherAES128CTR}, MACs: []string{ssh.InsecureHMACSHA196}}, // AEAD ciphers need no MAC, so CTR forces one
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			f := conntest.NewSSH(t, o)
+			_, err := transport.DialSSH(context.Background(), f.Addr, sshCfg())
+			if err == nil {
+				t.Fatal("connected with a weak algorithm")
+			}
+			if f.AuthCalls() != 0 {
+				t.Fatalf("credentials were sent after a weak negotiation (%d calls)", f.AuthCalls())
+			}
+		})
+	}
+	// control: the secure defaults of both sides talk to each other
+	f := conntest.NewSSH(t, conntest.SSHOpts{})
+	s, err := transport.DialSSH(context.Background(), f.Addr, sshCfg())
+	if err != nil {
+		t.Fatalf("control: %v", err)
+	}
+	s.Close()
+}
+
+func TestSSHCapsTheOutput(t *testing.T) {
+	t.Parallel()
+	f := conntest.NewSSH(t, conntest.SSHOpts{Respond: func(string) string { return strings.Repeat("0123456789abcdef\n", 2<<16) }})
+	s, err := transport.DialSSH(context.Background(), f.Addr, sshCfg())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	var de *transport.DeviceError
+	if _, err := s.Run(context.Background(), "show tech-support"); !errors.As(err, &de) {
+		t.Fatalf("err = %v, want a DeviceError for output over the cap", err)
+	}
+}
+
+// encode is the PEM text of a block returned by ssh.MarshalPrivateKey.
+func encode(b *pem.Block) []byte { return pem.EncodeToMemory(b) }

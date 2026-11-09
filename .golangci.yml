@@ -1,0 +1,65 @@
+# golangci-lint v2, pinned in tools/go.mod. Policy: docs/ENGINEERING.md §2.6.
+# Run: make lint-go  (go tool -modfile=tools/go.mod golangci-lint run)
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - bodyclose
+    - contextcheck
+    - depguard
+    - errorlint
+    - forbidigo
+    - gosec
+    - misspell
+    - noctx
+    - nolintlint
+    - revive
+    - sloglint
+    - unparam
+  settings:
+    depguard:
+      rules:
+        # SYS-1: external processes only through core/exec (allowlisted binary + argv, no shell).
+        sys1-exec:
+          files:
+            - "$all"
+            - "!**/core/exec/**"
+          deny:
+            - pkg: os/exec
+              desc: "SYS-1: run external processes only through core/exec"
+        # FORBID-2 of modules/core/CONTRACT.md: core never imports a module.
+        core-no-modules:
+          files:
+            - "**/core/**"
+          deny:
+            - pkg: github.com/kiennt048/vedette/modules
+              desc: "core must not import modules (dependency direction is module -> core)"
+    forbidigo:
+      forbid:
+        - pattern: ^http\.DefaultClient$
+          msg: "use an http.Client with timeouts (ENGINEERING §2.4)"
+        - pattern: ^http\.(Get|Head|Post|PostForm)$
+          msg: "use an http.Client with timeouts and a context (ENGINEERING §2.4)"
+        - pattern: ^time\.Sleep$
+          msg: "wait on a timer with a context; in tests use testing/synctest (ENGINEERING §2.4, §2.5)"
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    sloglint:
+      no-global: all # pass a logger; no slog.Info(...) on the global logger (ENGINEERING §2.3)
+      static-msg: true
+      key-naming-case: snake
+      context: scope
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/kiennt048/vedette

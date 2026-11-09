@@ -1,36 +1,68 @@
-# Vedette — lệnh chung. Node được ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
-.PHONY: help dev verify verify-fast test build lint e2e fixtures clean
+# Vedette — lệnh chung. CI chỉ gọi các đích ở đây (docs/ENGINEERING.md §7).
+# Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
+# Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
+.PHONY: help dev verify verify-web verify-go test test-go contract lint lint-go vuln openapi-check build e2e fixtures clean
+
+GO_TOOL := go tool -modfile=tools/go.mod
 
 help:
-	@echo "make dev        chạy giao diện với dữ liệu mẫu tại http://localhost:5173"
-	@echo "make verify     gõ kiểu + lint + test + build (rồi dọn build)"
-	@echo "make e2e        kiểm thử đầu-cuối bằng Playwright (Chromium)"
-	@echo "make fixtures   kéo dữ liệu KEV/EPSS thật cho bảng nóng"
-	@echo "make clean      xoá web/dist và báo cáo test"
+	@echo "make dev           chạy giao diện với dữ liệu mẫu tại http://localhost:5173"
+	@echo "make verify        web + Go: gõ kiểu, lint, test, kiểm lệch hợp đồng, build (rồi dọn)"
+	@echo "make verify-web    chỉ phần giao diện"
+	@echo "make verify-go     chỉ phần Go: build, vet, test -race, contract, golangci-lint, govulncheck"
+	@echo "make contract      go test ./modules/... -run Contract"
+	@echo "make e2e           kiểm thử đầu-cuối bằng Playwright (Chromium)"
+	@echo "make fixtures      kéo dữ liệu KEV/EPSS thật cho bảng nóng"
+	@echo "make clean         xoá build output và báo cáo test"
 
 dev:
 	pnpm --dir web install --frozen-lockfile
 	pnpm --dir web dev
 
-verify:
+verify: verify-web verify-go
+
+verify-web:
 	pnpm --dir web install --frozen-lockfile
 	pnpm --dir web exec tsc -b
 	pnpm --dir web lint
 	pnpm --dir web test
+	$(MAKE) openapi-check
 	pnpm --dir web build
 	$(MAKE) clean
 
-verify-fast:
-	@echo "chỉ docs: không có gì để chạy"
+verify-go:
+	go build ./...
+	go vet ./...
+	$(MAKE) test-go contract lint-go vuln
+	$(MAKE) clean
+
+# api/openapi.json phải đúng bằng bản sinh từ contract.ts (D-18).
+openapi-check:
+	pnpm --dir web openapi
+	git diff --exit-code -- api/openapi.json
 
 test:
 	pnpm --dir web test
+
+test-go:
+	go test -race ./...
+
+# Mỗi INV/POST trong modules/<id>/CONTRACT.md có một TestContract… (docs/MODULE_CONTRACTS.md).
+# Chưa có module Go nào thì bỏ qua thay vì lỗi "matched no packages".
+contract:
+	@if [ -n "$$(go list ./modules/... 2>/dev/null)" ]; then go test ./modules/... -run Contract; else echo "contract: no Go modules yet"; fi
 
 build:
 	pnpm --dir web build
 
 lint:
 	pnpm --dir web lint
+
+lint-go:
+	$(GO_TOOL) golangci-lint run
+
+vuln:
+	$(GO_TOOL) govulncheck ./...
 
 e2e:
 	pnpm --dir web e2e
@@ -39,4 +71,4 @@ fixtures:
 	pnpm --dir web fixtures
 
 clean:
-	rm -rf web/dist web/playwright-report web/test-results web/node_modules/.tmp web/node_modules/.vite
+	rm -rf bin coverage.out web/dist web/playwright-report web/test-results web/node_modules/.tmp web/node_modules/.vite

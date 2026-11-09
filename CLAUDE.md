@@ -23,7 +23,7 @@ Khởi tạo 2026-11-06. Có SPA `web/` chạy trên mock API (D-22); chưa có 
 
 ## Lệnh
 
-`make dev` (giao diện + dữ liệu mẫu, http://localhost:5173) · `make verify` (FE: tsc + lint + vitest + build rồi dọn) · `make e2e` (Playwright) · `make fixtures` (KEV/EPSS thật) · `make clean`. Node ghim bằng `devEngines.runtime` trong `web/package.json` (pnpm tự tải). Khi có Go: thêm `go test ./...` + `golangci-lint` vào `make verify`. Quy ước FE: `docs/plans/2026-11-06-fe-spec.md`.
+`make dev` (giao diện + dữ liệu mẫu, http://localhost:5173) · `make verify` (FE: tsc + lint + vitest + kiểm lệch `api/openapi.json` + build; Go: build + vet + test -race + contract + golangci-lint + govulncheck; rồi dọn) · `make verify-web` / `make verify-go` · `make e2e` (Playwright) · `make fixtures` (KEV/EPSS thật) · `make clean`. Node ghim bằng `devEngines.runtime` trong `web/package.json` (pnpm tự tải). Go ghim trong `go.mod`, công cụ Go trong `tools/go.mod` (`go tool -modfile=tools/go.mod …`). Quy ước FE: `docs/plans/2026-11-06-fe-spec.md`.
 
 ## Tooling
 

@@ -136,7 +136,9 @@ Spec FE là nguồn đầy đủ; dưới đây chỉ là tóm tắt. Khi khác 
 - Quy trình một bản phát hành: (1) `main` xanh; (2) cập nhật `CHANGELOG.md`, PR `docs/release-x.y.z`; (3) **kien tag tay** `vX.Y.Z`; (4) CI dựng image, quét trivy, ký, đẩy lên registry kênh beta; (5) theo dõi cohort; (6) nâng lên stable; (7) ghi `docs/project-map/completion-log.md`.
 - **Agent không tạo tag, không phát hành, không đẩy image.**
 
-## 7. Đặc tả CI (chưa có file workflow; dựng ở M2 theo đây)
+## 7. Đặc tả CI
+
+Đã có `.github/workflows/ci.yml` (WP-01, D-59): job `web`, `go`, quét lỗ hổng hằng ngày. Job `supply-chain` và mở issue tự động khi quét hằng ngày lỗi: chưa có (`.ai/deferred/feat-core-skeleton.md`).
 
 Chạy trên PR vào `main` và trên `main`; mọi job bắt buộc để merge. Hành động bên thứ ba ghim theo commit SHA; quyền `GITHUB_TOKEN` tối thiểu (`contents: read`).
 

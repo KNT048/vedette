@@ -6,6 +6,8 @@
   "home": {
     "titleLoading": "Today",
     "meta": "Data updated {{time}}. Sources: {{sources}}, each fetched directly from its source.",
+    "titleNone": "Today: no data yet",
+    "metaNone": "No data has been fetched yet. Fetch the feeds in Settings, Feeds.",
     "sampleInventory": "The device list in this build is sample data.",
     "toFindings": "See findings on your devices",
     "title_one": "Today: {{count}} vulnerability newly exploited in the last 7 days. Products you use among them: {{matched}}.",

@@ -1,0 +1,1 @@
+- [ ] Empty state for a box that never fetched: "This week" renders an empty list and the hot board says "No newly exploited..." with no hint that nothing was fetched. Needs a story (kien) before any design. Found by feeds-gui-real, 2026-11-09.

@@ -25,7 +25,7 @@ export default function LookupPage() {
     <>
       <PageHeader title={t('lookup.title')} meta={t('lookup.meta')} stories={['S-FEED-3']} />
       <form role="search" onSubmit={submit} className="mb-6 flex max-w-xl gap-2">
-        <Input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t('search.placeholder')} aria-label={t('search.placeholder')} />
+        <Input autoFocus value={draft} maxLength={200} onChange={(e) => setDraft(e.target.value)} placeholder={t('search.placeholder')} aria-label={t('search.placeholder')} />
         <Button type="submit" variant="primary"><Search />{t('search.submit')}</Button>
       </form>
       {!q ? <EmptyState title={t('lookup.emptyTitle')}>{t('lookup.emptyBody')}</EmptyState>

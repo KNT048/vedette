@@ -27,7 +27,7 @@ function SearchBox() {
   }
   return (
     <form role="search" onSubmit={submit} className="flex w-full max-w-md gap-2">
-      <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('search.placeholder')} aria-label={t('search.placeholder')} />
+      <Input value={q} maxLength={200} onChange={(e) => setQ(e.target.value)} placeholder={t('search.placeholder')} aria-label={t('search.placeholder')} />
       <Button type="submit"><Search />{t('search.submit')}</Button>
     </form>
   )
@@ -138,13 +138,15 @@ export default function HomePage() {
   const rows = hot.data?.rows ?? []
   const cves = rows.reduce((n, r) => n + r.cves.length, 0)
   const matched = rows.filter((r) => r.you_have === 'yes').length
-  const title = !hot.data ? t('home.titleLoading') : status.data?.inventory_on === false ? t('home.titleNoInv', { count: cves }) : t('home.title', { count: cves, matched })
+  // A box that has never fetched answers generated_at = 1970-01-01 (the contract has no null there): say so instead of showing that date.
+  const never = !!status.data && new Date(status.data.generated_at).getFullYear() < 2000
+  const title = !hot.data ? t('home.titleLoading') : never ? t('home.titleNone') : status.data?.inventory_on === false ? t('home.titleNoInv', { count: cves }) : t('home.title', { count: cves, matched })
   return (
     <>
       <PageHeader
         title={title}
         stories={['S-FEED-1', 'S-FEED-3']}
-        meta={status.data ? <>{t('home.meta', { time: fmtDateTime(status.data.generated_at), sources: status.data.sources.map((s) => s.name).join(', ') })}{setup.data?.data_mode === 'sample' ? ` ${t('home.sampleInventory')}` : ''}</> : null}
+        meta={never ? t('home.metaNone') : status.data ? <>{t('home.meta', { time: fmtDateTime(status.data.generated_at), sources: status.data.sources.map((s) => s.name).join(', ') })}{setup.data?.data_mode === 'sample' ? ` ${t('home.sampleInventory')}` : ''}</> : null}
         actions={<SearchBox />}
       />
       {matched > 0 ? (

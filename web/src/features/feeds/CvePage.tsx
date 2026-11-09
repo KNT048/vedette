@@ -11,7 +11,8 @@ import { YouHaveCell } from './YouHaveCell'
 
 export default function CvePage() {
   const { t } = useTranslation('feeds')
-  const { id = '' } = useParams()
+  const { id: raw = '' } = useParams()
+  const id = raw.trim().toUpperCase() // the API only knows CVE ids in capitals; the mock used to forgive a lower-case address
   const cve = useCve(id)
   return (
     <>
@@ -41,7 +42,7 @@ export default function CvePage() {
                 </Section>
                 <Section title={t('cve.links')}>
                   <ul className="grid gap-1 text-sm">
-                    {v.links.map((l) => <li key={l} className="break-all"><a href={l} target="_blank" rel="noopener noreferrer" className="text-accent underline-offset-4 hover:underline">{l}</a></li>)}
+                    {v.links.filter((l) => /^https?:\/\//i.test(l)).map((l) => <li key={l} className="break-all"><a href={l} target="_blank" rel="noopener noreferrer" className="text-accent underline-offset-4 hover:underline">{l}</a></li>)}
                   </ul>
                 </Section>
                 <Slot name="cve.panels" props={{ cve: v.cve }} />

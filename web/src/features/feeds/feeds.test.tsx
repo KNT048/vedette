@@ -133,3 +133,40 @@ describe('feeds: custom feed form matrix (docs/QA.md §2)', () => {
     expect(within(dlg).getByLabelText('Format')).toHaveValue('json')
   })
 })
+
+describe('feeds: what the real backend needs from the GUI (mock → real)', () => {
+  it('asks the API for a CVE in capitals even when the address bar has it in lower case', async () => {
+    const asked: string[] = []
+    server.use(http.get('*/api/v1/feeds/cve/:id', ({ params }) => { asked.push(String(params.id)); return HttpResponse.json({ error: { code: 'not_in_kev', message: 'This CVE is not on the exploited list (CISA KEV) in the current data.' } }, { status: 404 }) }))
+    renderApp('/cve/cve-2022-27593')
+    expect(await screen.findByText(/not on the exploited list/)).toBeInTheDocument()
+    expect(asked).toEqual(['CVE-2022-27593'])
+  })
+
+  it('a box that has never fetched (generated_at 1970) says so instead of showing the date', async () => {
+    server.use(http.get('*/api/v1/feeds/status', () => HttpResponse.json({ generated_at: '1970-01-01T00:00:00Z', kev_catalog_version: '', sources: [], inventory_on: false })))
+    server.use(http.get('*/api/v1/feeds/hot', () => HttpResponse.json({ window: '7d', rows: [], latest: null })))
+    renderApp('/')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today: no data yet' })).toBeInTheDocument()
+    expect(screen.getByText(/No data has been fetched yet/)).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/1970/)
+  })
+
+  it('the search boxes stop at 200 characters, the most the API accepts', async () => {
+    renderApp('/')
+    expect(await screen.findByRole('textbox', { name: 'CVE, product, IP or domain' })).toHaveAttribute('maxlength', '200')
+  })
+})
+
+describe('feeds: CVE links (contract.ts: http(s) only)', () => {
+  it('renders http(s) links, anchors included, and never a javascript: href', async () => {
+    server.use(http.get('*/api/v1/feeds/cve/:id', () => HttpResponse.json({
+      cve: 'CVE-2026-20001', vendor: 'Acme', product: 'Widget', name: 'n', description: 'd', required_action: 'a', display: 'Acme Widget',
+      links: ['https://example.com/CHANGELOG.md#563', 'javascript:alert(1)', 'data:text/html,x'], date_added: '2026-11-03', due_date: null, ransomware: false, epss: null, epss_7d_ago: null, has_template: false, matched: null,
+    })))
+    renderApp('/cve/CVE-2026-20001')
+    const ok = await screen.findByRole('link', { name: 'https://example.com/CHANGELOG.md#563' })
+    expect(ok).toHaveAttribute('href', 'https://example.com/CHANGELOG.md#563')
+    expect(document.querySelectorAll('a[href^="javascript:"], a[href^="data:"]')).toHaveLength(0)
+  })
+})

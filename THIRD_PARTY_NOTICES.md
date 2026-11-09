@@ -39,8 +39,9 @@ Pure Go, no cgo. Versions pinned in `go.mod`/`go.sum`; licenses read from each m
 | github.com/mfridman/interpolate | v0.0.2 | MIT | embedded: via goose |
 | github.com/sethvargo/go-retry | v0.5.0 | Apache-2.0 | embedded: via goose |
 | go.uber.org/multierr | v1.11.0 | MIT | embedded: via goose |
-| golang.org/x/sync, golang.org/x/sys | v0.24.0, v0.49.0 | BSD-3-Clause | embedded: via goose and modernc.org/sqlite; golang.org/x/sys/unix is also used directly by `modules/sensor-passive` (AF_PACKET promiscuous membership, Linux) and `host/peer` (Linux only, `vedette-host`: `SO_PEERPIDFD` and `SO_PEERCRED` of the socket peer) |
-| golang.org/x/crypto (packages `argon2` and `ssh`, with what they use) | v0.58.0 | BSD-3-Clause | embedded: argon2id password hashing in `core/auth` (WP-04b); `ssh` reads and fingerprints the private key of an SSH connection in `core/conn` (WP-13b slice 4: key must parse, no passphrase, SHA256 fingerprint of the public half), and opens the SSH session itself from slice 13b-5 (D-94). Already in the module graph through goose and x/net; a direct dependency, version unchanged |
+| golang.org/x/sync, golang.org/x/sys | v0.24.0, v0.49.0 | BSD-3-Clause | embedded: via goose and modernc.org/sqlite; golang.org/x/sys/unix is also used directly by `modules/sensor-passive` (AF_PACKET promiscuous membership, Linux), `host/peer` (Linux only, `vedette-host`: `SO_PEERPIDFD` and `SO_PEERCRED` of the socket peer) and, from WP-07b part 3, `host/ops` (Linux only: the `AF_PACKET` socket that sends and reads fixed 42-byte ARP frames, D-101) |
+| golang.org/x/crypto (packages `argon2` and `ssh`, with what they use) | v0.58.0 | BSD-3-Clause | embedded: argon2id password hashing in `core/auth` (WP-04b); `ssh` reads and fingerprints the private key of an SSH connection in `core/conn` (WP-13b slice 4: key must parse, no passphrase, SHA256 fingerprint of the public half), and opens the SSH session itself from slice 13b-5 (D-94). Already in the module graph through goose and x/net; a direct dependency, version unchanged. From WP-07b part 3, `blake2b` is also used directly by `internal/release` (minisign prehashed `ED` signatures, D-103), in `core` and `vedette-host` |
+| golang.org/x/mod (package `semver` only) | v0.42.0 | BSD-3-Clause | embedded from WP-07b part 3 (slice 3-2): SemVer precedence for downgrade and rollback rules in `internal/release` (D-104), in `core` and `vedette-host`. Already in the module graph as an indirect requirement; becomes direct with its first importer |
 | github.com/coder/websocket | v1.8.15 | ISC | embedded: outward WebSocket client for notify approvals: Slack Socket Mode (D-38) and the Zalo personal reply-code listener (D-46); no dependencies of its own. Added for issue #43; the first importer (WP-22) turns the `// indirect` mark into a direct requirement |
 
 ### Generated API server (`core/api/oas`, ogen, D-60)
@@ -79,6 +80,14 @@ Pinned in `go.mod` and `go.sum`; licenses checked from the `LICENSE` files of ea
 | Greenbone CE (optional) | GPL-2 / AGPL-3 | separate container, unmodified |
 | osquery (optional, on the user's Linux/Windows servers) | Apache-2.0 / GPL-2.0 (dual) | official release packages mirrored unmodified by the box for one-line install (D-34); license files shipped alongside |
 | NXLog Community Edition (optional, on the user's Windows machines) | NXLog Public License | installed by the user to forward Windows Event Log as syslog; Vedette only shows a config snippet |
+| Podman (with Quadlet) | Apache-2.0 | appliance only: installed from the OS repository by the installer; `vedette-host` runs `podman` (pull by digest, inspect, tag, rmi) with fixed argv and writes Quadlet unit files from constant templates (D-105) |
+| netplan (`netplan.io`) | GPL-3.0 | appliance only: OS package (installed by the installer on Debian 13); `vedette-host` writes its single YAML file and runs `netplan apply` (D-99) |
+| iproute2 (`ip`) | GPL-2.0 | appliance only: OS package; `vedette-host` runs `ip` with fixed argv to build the decoy namespace `vedette-hp` and its macvlan links (D-102) |
+| nftables (`nft`) | GPL-2.0 (some files GPL-2.0-or-later) | appliance only: OS package; `vedette-host` loads one constant ruleset inside `vedette-hp` and lists it to check the effect (D-102) |
+| procps (`sysctl`) | GPL-2.0-or-later (`sysctl`), LGPL-2.1-or-later (library) | appliance only: OS package; `vedette-host` runs `sysctl -w` with constant keys and values inside `vedette-hp` (D-102) |
+| chrony (`chronyd`, `chronyc`) | GPL-2.0 | appliance only: installed by the installer, which owns `chrony.conf`; `vedette-host` writes `/etc/chrony/sources.d/vedette.sources` and runs `chronyc` (D-106) |
+
+The GPL tools above are separate programs from the distribution, run through `core/exec` with fixed argv; nothing from them is linked into or redistributed with Vedette (rule `legal.md`: GPL/AGPL is never embedded). Licences checked from the Debian copyright files (`metadata.ftp-master.debian.org/changelogs/main/…/stable_copyright`) on 2026-11-10.
 
 ## Development and CI tools (not shipped in any image or binary)
 
@@ -89,6 +98,8 @@ Pinned in `tools/go.mod` (Go `tool` directives), run with `go tool -modfile=tool
 | golangci-lint | v2.15.0 | GPL-3.0 | linter run on the source tree on the developer's machine; separate process, never distributed |
 | govulncheck (golang.org/x/vuln) | v1.9.0 | BSD-3-Clause | vulnerability scan of Go dependencies (`make verify-go`, `make audit`) |
 | sqlc (github.com/sqlc-dev/sqlc) | v1.31.1 | MIT | generates the typed query code in `core/store/coredb` from SQL files (`make generate`); the generated code is committed, sqlc itself is never linked |
+
+Release signing tools (maintainer's machine only, not in `tools/go.mod`, never shipped): minisign (ISC) signs `index.json` and release manifests; cosign (Apache-2.0), pinned, signs images in the legacy format with `--new-bundle-format=false --use-signing-config=false` (D-103). Both were also run once to produce the committed signature test vectors of `internal/release` (D-107).
 
 ## Libraries planned for embedding (backend)
 

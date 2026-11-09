@@ -1,13 +1,13 @@
 # Runbook vận hành Vedette (khung)
 
-Lập 2026-11-09. Đây là **khung**: chỗ nào phụ thuộc backend ghi "sẽ điền ở M2". Kiến trúc hộp theo D-55 (appliance Debian 12 / Ubuntu 24.04, `vedette-host` + container Podman/Quadlet) và D-56 (mạng/SPAN). Mọi lệnh sau khi điền phải chạy được trên máy mới dựng từ repo và có bước xác minh bằng hiệu ứng (`rules/ships-as-code.md`).
+Lập 2026-11-09. Đây là **khung**: chỗ nào phụ thuộc backend ghi "sẽ điền ở M2". Kiến trúc hộp theo D-55 (appliance, `vedette-host` + container Podman/Quadlet; bản OS theo D-57 (1): Ubuntu 24.04, Ubuntu 26.04, Debian 13, mạng bằng netplan + networkd theo D-99) và D-56 (mạng/SPAN). Mọi lệnh sau khi điền phải chạy được trên máy mới dựng từ repo và có bước xác minh bằng hiệu ứng (`rules/ships-as-code.md`).
 
 Quy ước: **Triệu chứng → Kiểm tra → Sửa → Xác minh**. Không SSH sửa tay cấu hình rồi bỏ đó: cấu hình sinh từ DB/repo, sửa tay sẽ bị ghi đè.
 
 ## 1. Cài đặt
 
 ### 1.1 Appliance (đủ tính năng)
-- Yêu cầu: máy x86-64/arm64, Debian 12 hoặc Ubuntu 24.04 mới cài, 2 card mạng (quản trị + SPAN/TAP), đĩa và RAM tối thiểu: sẽ điền ở M2.
+- Yêu cầu: máy x86-64/arm64, Ubuntu 24.04, Ubuntu 26.04 hoặc Debian 13 mới cài (D-57 (1)), 2 card mạng (quản trị + SPAN/TAP), đĩa và RAM tối thiểu: sẽ điền ở M2.
 - Cài bằng script: sẽ điền ở M2 (lệnh, ghim phiên bản, idempotent; chạy lại không phá).
 - Xác minh cài xong: `vedette-host` chạy (systemd), các container `core`, `sensor`, `honeypot` lên, cổng HTTPS 8443 mở, image đúng chữ ký cosign: sẽ điền ở M2.
 - Hệ điều hành không hỗ trợ: script dừng và nói rõ lý do, không cài dở.
@@ -49,7 +49,7 @@ Cài đặt ban đầu làm hoàn toàn trong GUI (D-22): tạo admin, bật 2FA
 - `vedette-host` thực thi qua danh sách lệnh cố định; không cho giao diện chạy lệnh tuỳ ý: sẽ điền ở M2.
 - Cửa sổ bảo trì và lịch khởi động lại (Settings → Updates): sẽ điền ở M2.
 - Sau khởi động lại: container tự lên (Quadlet), SPAN nhận lại lưu lượng, bẫy lên lại trên IP phụ: sẽ điền ở M2.
-- Nâng bản phát hành OS (Debian 12 → 13…): sẽ điền ở M2.
+- Nâng bản phát hành OS (Ubuntu 24.04 → 26.04…): sẽ điền ở M2.
 
 ## 7. Đặt lại 2FA của admin từ console
 Dùng khi admin mất thiết bị 2FA. Phải có quyền vật lý hoặc SSH quản trị vào hộp (đã được chủ hộp cho phép); thao tác được ghi audit.

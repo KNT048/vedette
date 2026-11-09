@@ -1,6 +1,6 @@
 # Host (`vedette-host`) Contract
 
-> Loại: **thành phần** (component), không phải module bật/tắt · Story: S-CORE-7, S-INV-5 (+ D-56) · Quyết định: D-53, D-55, D-56, D-12, D-85, D-87 · Last verified: 2026-11-09 (WP-07b phần 1 sau rà soát bảo mật, D-87: lệnh OS, sao lưu, xuất log và đọc trạng thái có test hợp đồng trên máy giả; host không mở DB của `core`; net, IP phụ, container chờ các phần sau; chưa chạy trên Linux thật)
+> Loại: **thành phần** (component), không phải module bật/tắt · Story: S-CORE-7, S-INV-5 (+ D-56) · Quyết định: D-53, D-55, D-56, D-12, D-85, D-87, D-99…D-107 · Last verified: 2026-11-09 (WP-07b phần 1 sau rà soát bảo mật, D-87: lệnh OS, sao lưu, xuất log và đọc trạng thái có test hợp đồng trên máy giả; host không mở DB của `core`; chưa chạy trên Linux thật); 2026-11-10 (WP-07b phần 3, lát 3-0: `net.*`, `decoy_ip.*`, `container.*` chốt trên giấy, D-99…D-107, `host-api.md` §18; chưa có mã)
 > Thay thế `vedette-updater` của D-53 (D-55). `contract.ts`, `osMock.ts`, `locales/en/core.json` và `PRIVACY.md` luồng 6 đã đổi sang tên mới (WP-06).
 > Là phần duy nhất của hộp chạy **root**. Mọi thứ khác (core, sensor, honeypot, scan) chạy không root trong container.
 
@@ -11,28 +11,41 @@
 - **INV-4** **Chỉ `core` gọi được**: giao tiếp qua socket Unix nội bộ, quyền socket và kiểm danh tính tiến trình gọi; không cổng mạng. Người dùng/UI không bao giờ gọi trực tiếp; `core` kiểm vai (admin/operator) và ghi `core_audit` (SYS-3) **trước** khi gọi `host`.
 - **INV-5** **Cài bản vá OS (D-53)**: chỉ danh sách lệnh apt cố định (`security` hoặc `all`); **sao lưu DB trước**, **kiểm sức khoẻ sau** (`health[]`), tiến trình hiện trực tiếp (`lines`), kết quả `installed`, `security`, `backup`, `reboot_required`. **Không bao giờ tự nâng bản phát hành OS** (chỉ trả hướng dẫn `release_upgrade`).
 - **INV-6** Khởi động lại: `now`, `window`, hoặc `custom` với `at` (HH:MM) **nằm trong cửa sổ bảo trì**; huỷ lịch được; từ chối khi đang cài (INV-3). Tự cập nhật bảo mật = `unattended-upgrades` bật/tắt; cửa sổ bảo trì `always | window{days 1..7, from, to}` (`to < from` = qua nửa đêm).
-- **INV-7** **Image container (D-55)**: chỉ kéo và chạy image có **chữ ký cosign hợp lệ** từ danh sách registry cho phép; chữ ký sai/thiếu → từ chối, không khởi động; hoàn tác = chạy lại **tag cũ** đã có sẵn. Phát hành theo lô (cohort, D-12).
-- **INV-8** **Cấu hình mạng (D-56)**: card quản trị (DHCP hoặc tĩnh: IP, gateway, DNS), card SPAN/TAP (không IP, chế độ nghe), IP phụ cho bẫy (macvlan), NTP. IP/CIDR hợp lệ qua `netip`; IP phụ phải nằm trong dải mạng của hộp, khác IP hộp (validate lại ở `host` dù `core` đã kiểm). Trạng thái SPAN (gói/giây, số MAC khác hộp thấy được, lần nhận gói cuối) là **chỉ đọc** từ bộ đếm giao diện; không lưu nội dung gói.
+- **INV-7** **Image container (D-55, D-103, D-104)**: chỉ kéo và chạy image có digest nằm trong một release manifest ký minisign đúng (khoá nhúng, chưa thu hồi theo index đã lưu) và có **chữ ký cosign hợp lệ** (đi trong manifest, `images[].cosign`); tham chiếu kéo dựng từ hằng `ghcr.io/knt048/vedette-<service>@sha256:<digest>`, không bao giờ từ chuỗi của request; chữ ký sai/thiếu → từ chối, không khởi động; không hạ bản bằng `container.start`; hoàn tác = chạy lại `previous` đã xác minh. **Cohort và rollout là việc của `core`** (`update-manifest.md` §6): host không biết cohort, chỉ kiểm chữ ký, thu hồi và thứ tự phiên bản.
+- **INV-8** **Cấu hình mạng (D-56, D-99, D-102, D-106)**: card quản trị (DHCP hoặc tĩnh: IP, gateway, DNS), card SPAN/TAP (không IP, chế độ nghe), IP phụ cho bẫy (macvlan trong namespace `vedette-hp`), NTP (chrony). Host chỉ ghi **một** tệp netplan của mình (`90-vedette.yaml`, renderer `networkd`); tệp netplan khác → từ chối `net_backend_unsupported`, không phân tích. IP/CIDR hợp lệ qua `netip`; IP phụ phải nằm trong dải mạng của hộp, khác IP hộp (validate lại ở `host` dù `core` đã kiểm). Host chỉ báo **bộ đếm giao diện** của card SPAN; số MAC khác hộp và lần nhận gói cuối do container `sensor` đo (INV-18); không lưu nội dung gói.
 - **INV-9** `pkg.list` (dpkg) chỉ đọc, là nguồn danh sách gói của chính hộp ("This box", độ tin cậy 1.0, D-53, S-INV-5).
 - **INV-10** Sao lưu DB: tệp không chứa mật khẩu/khoá (như `/core/data/backup`); khoá/secret không bao giờ ra khỏi `host`/`core` dạng đọc được (SYS-4).
 - **INV-13** **Root không bao giờ phân tích dữ liệu của `core` (D-87)**: `core` tự chụp DB vào `<core_data>/snapshots/<id>/` (hợp đồng ở `host-api.md` §6.11), host chỉ chép byte của bản chụp. Không gói nào dưới `host/` hay `cmd/vedette-host` nhập `database/sql` hoặc driver SQL; `db_schema` và `includes_key` là lời khai của `core`; DB hỏng hay schema mới hơn do `core` phát hiện lúc khởi động (kiểm sức khoẻ hỏng → host thay lại bản trước).
 - **INV-14** **Chỉ truy cập cây của `core` theo descriptor (D-87)**: `core_data` được kiểm (thư mục thật, mọi thư mục cha thuộc root và không ai khác ghi được, kể cả sticky) rồi mở bằng `open(O_DIRECTORY|O_NONBLOCK)` + `os.Root` trên đường dẫn descriptor; mọi tệp mở với `O_NOFOLLOW|O_NONBLOCK` và kiểm trên descriptor (tệp thường, `nlink == 1`, chủ `core_uid`, trần cỡ); `chmod`/`chown` chỉ trên descriptor; chủ của tệp khôi phục là `core_uid:core_gid` từ `host.conf`. Không có lời gọi theo đường dẫn (`os.*`, `syscall.*`, `Root.Chmod|Chown|Lchown|Chtimes`) ở nơi xử lý cây của `core` ngoài `openCore`/`checkChain`, và `Config.CoreData` chỉ đọc ở `openCore`, `checkChain`, `checkCoreAtStart`, `NewWithDeps` (kiểm kiểu bằng `go/types`).
 - **INV-15** **Không lệnh ghi nào chạy khi box sắp reboot**: từ lúc host quyết định reboot tới khi `boot_id` đổi (tối đa 10 phút), mọi lệnh ghi bị `409 rebooting`.
-- **INV-11** Mạng ra của `host` chỉ gồm: kho gói apt của OS (host mirror liệt kê trong `OsInfo.mirrors`) và registry image đã khai báo (PRIVACY luồng 6); không có luồng khác (SYS-7).
-- **INV-12** Mọi lệnh ghi một dòng kết quả (lệnh chạy được còn có dòng `accepted` ghi lúc bắt đầu) có cấu trúc (lệnh, tham số đã che bí mật, thời điểm, mã, người gọi do `core` truyền); lịch sử hiển thị ở Settings → Updates qua `core` (`core_os_run`).
+- **INV-11** Mạng ra của `host` chỉ gồm: kho gói apt của OS (host mirror liệt kê trong `OsInfo.mirrors`), registry image cố định `ghcr.io` qua `podman pull` (PRIVACY luồng 6; cập nhật PRIVACY ở lát 3-7) và khung ARP trong LAN để kiểm địa chỉ/gateway (D-101); không có luồng khác (SYS-7). NTP do chrony làm (D-106), không phải host.
+- **INV-12** Mọi lệnh ghi một dòng kết quả (lệnh chạy được còn có dòng `accepted` ghi lúc bắt đầu; run chờ xác nhận mạng có thêm dòng `awaiting_confirm`) có cấu trúc (lệnh, tham số đã che bí mật, thời điểm, mã, người gọi do `core` truyền); lịch sử hiển thị ở Settings → Updates qua `core` (`core_os_run`).
+- **INV-16** **Cấu hình mạng mới chỉ ghi bền khi được xác nhận (D-100)**: đổi phần quản trị ghi bản mới vào `/run/netplan/90-vedette.yaml` (tmpfs, che `/etc`) và `net/pending.json`; `/etc/netplan/90-vedette.yaml` chỉ được ghi ở `net.confirm`. Hết giờ, `net.revert`, host sập quá `revert_at` hay reboot đều đưa về cấu hình cũ; run chờ giữ khoá ghi (lệnh ghi khác → `409 pending_confirm`), chỉ `net.confirm`/`net.revert` đúng `run_id` đi qua; `Settle` kết thúc run đúng một lần.
+- **INV-17** **Unit là mã (D-105)**: host dựng **toàn bộ** unit `vedette-<service>.container` từ mẫu hằng trong binary; chỗ điền chỉ là digest, dòng `[Install] WantedBy=` và `core_uid`/`core_gid` của `host.conf`; không drop-in, không chuỗi tự do từ request. Ghi qua `os.Root` với tệp tạm `O_EXCL|O_NOFOLLOW` sau khi kiểm mọi thư mục cha thuộc root và không ai khác ghi được; test hợp đồng trên unit đã dựng: không `--privileged`, capability theo bảng service, `Network=host` chỉ `sensor`/`scan`, honeypot chỉ `ns:/run/netns/vedette-hp`, `core` có `User=` cố định và không `UserNS=auto`.
+- **INV-18** **Root không bao giờ phân tích lưu lượng bắt được (D-101)**: socket `AF_PACKET` của host chỉ gửi và đọc khung ARP đúng 42 byte (probe địa chỉ, kiểm gateway), bộ đọc khung là hàm thuần có fuzz; host không đếm MAC, không đọc gói nào khác, không mở pcap. Số liệu lưu lượng SPAN (`other_macs`, `last_packet_at`) đến từ container `sensor` không đặc quyền qua `core`.
 
-## Lệnh (allowlist) — *bảng này là bản nháp cũ; danh sách chốt là `docs/specs/host-api.md` §6. Phần 1 của WP-07b đã cài: `os.check`, `os.install`, `os.auto_security.set`, `os.reboot`, `os.reboot.cancel`, `backup.create`, `backup.restore`, `logs.export` (xem mục "Lệnh hệ thống đã cài" bên dưới); `net.*`, `decoy_ip.*`, `container.*` chưa có (test hợp đồng liệt kê chúng là "chưa")*
-| Nhóm | Lệnh | Tham số có kiểu | Nguồn |
-|---|---|---|---|
-| OS | `os.status` | — | D-53 |
-| OS | `os.check` (tương đương `apt update`) | — | D-53 |
-| OS | `os.install` | `scope ∈ {security, all}` | D-53 |
-| OS | `os.settings` | `auto_security bool`, `window` | D-53 |
-| OS | `os.reboot`, `os.reboot.cancel` | `when ∈ {now, window, custom}`, `at HH:MM` | D-53 |
-| Gói | `pkg.list` | — | D-53 (4) |
-| Mạng | `net.list`, `net.admin.set`, `net.span.set`, `net.span.stats`, `net.decoy_ip.set`, `net.decoy_ip.remove`, `net.ntp.set` | `interface`, `ip`, `cidr`, `mode` | D-56 |
-| Container | `image.pull` (kèm kiểm cosign), `container.start`, `container.stop`, `container.restart`, `container.rollback` | tên container/tag đã allowlist | D-55 |
-| Sao lưu | `backup.create`, `backup.list` | — | D-55 |
+## Lệnh (allowlist)
+Nguồn chốt là `docs/specs/host-api.md` §6 (tham số, hiệu ứng, mã từ chối); bảng này là bản tóm tắt và thay bảng nháp cũ (`os.status`, `pkg.list`, `net.list`, `image.pull`…, không còn dùng). Phần 1 của WP-07b đã cài tám lệnh OS/sao lưu/xuất log; `net.*`, `decoy_ip.*`, `container.*` chốt trên giấy ở phần 3 (D-99…D-107) và chưa có mã (test hợp đồng liệt kê chúng là "chưa").
+
+| Nhóm | Lệnh | Tham số có kiểu | Trạng thái | Nguồn |
+|---|---|---|---|---|
+| OS | `os.check` | — | đã cài | D-53, §6.1 |
+| OS | `os.install` | `scope ∈ {security, all}`, `snapshot hex32` | đã cài | D-53, D-87, §6.2 |
+| OS | `os.auto_security.set` | `enabled bool` | đã cài | D-53, D-85, §6.3 |
+| OS | `os.reboot`, `os.reboot.cancel` | `when ∈ {now, at}`, `at RFC 3339 UTC` | đã cài | D-53, §6.4 |
+| Sao lưu | `backup.create`, `backup.restore` | `kind`, `include_secrets`, `label`, `backup_id hex32`, `snapshot hex32` | đã cài | D-85, D-87, §6.11–§6.12 |
+| Log | `logs.export` | `units ⊂ 6 unit cố định`, `since`, `until` | đã cài | D-48, D-85, §6.13 |
+| Mạng | `net.apply` | `mgmt {iface, mode, address cidr, gateway ip, dns ip[≤3]}`, `span.iface`, `ntp[≤4]`, `confirm_timeout_s 30..600` | phần 3 | D-56, D-99, D-100, D-106, §6.5 |
+| Mạng | `net.confirm`, `net.revert` | `run_id` | phần 3 | D-100, §6.5 |
+| Bẫy | `decoy_ip.add`, `decoy_ip.remove` | `ip`, `oui hex6?` (chỉ `add`) | phần 3 | D-50, D-101, D-102, §6.6 |
+| Container | `container.pull` | `service`, `version`, `source`, `index`/`manifest` + `.minisig` (base64) | phần 3 | D-103, D-104, §6.7 |
+| Container | `container.start` | `service`, `version?`, `restart?`, `snapshot hex32` (bắt buộc cho `core`) | phần 3 | D-104, D-105, §6.8 |
+| Container | `container.stop` | `service` (≠ `core`), `persist bool` | phần 3 | D-105, §6.9 |
+| Container | `container.rollback` | `service` | phần 3 | D-104, §6.10 |
+| Đọc | `GET /v1/info`, `/v1/state/os`, `/v1/state/backups`, `/v1/audit`, tải sao lưu/xuất log | — | đã cài | §5 |
+| Đọc | `GET /v1/state/net`, `/v1/state/containers` | — | phần 3 | D-101, §5 |
+
+Không có `pkg.list`: danh sách gói của "This box" (INV-9) chưa có lệnh hay endpoint của host; cần thêm thì sửa §6 của `host-api.md` cùng CONTRACT này.
 
 ## Preconditions (trước khi gọi)
 - **PRE-1** Cài kiểu **Appliance** (D-55). Kiểu "Chỉ container": không có `host`; `core` trả `unsupported` rõ ràng cho `/core/updates/os*` và cấu hình mạng sâu, **không giả vờ thành công**.
@@ -41,8 +54,8 @@
 
 ## Postconditions (sau khi xong)
 - **POST-1** `os.install` xong: số gói đã cài khớp `OsRunResult.installed`; sao lưu có thật; `health[]` phản ánh kiểm tra thật (không mặc định `ok`).
-- **POST-2** `container.rollback` xong: container chạy lại với tag trước và qua kiểm sức khoẻ; nếu sức khoẻ hỏng, trạng thái báo hỏng, không báo thành công.
-- **POST-3** `net.*` thay đổi xong: trạng thái đọc lại (`net.list`) khớp giá trị vừa đặt; không khớp → báo lỗi.
+- **POST-2** `container.rollback` xong: container chạy lại với `previous` đã xác minh (đúng `ImageDigest`) và qua kiểm sức khoẻ; với `core` và `rollback.safe=false`, DB là bản `pre_update` của lần cập nhật đó, khôi phục trong cùng run (D-104); nếu sức khoẻ hỏng, bản đang chạy được đặt lại và run báo `reverted`/`failed`, không báo thành công.
+- **POST-3** `net.*` thay đổi xong: trạng thái đọc lại (`GET /v1/state/net`) khớp giá trị vừa đặt và hiệu ứng đã kiểm (địa chỉ trên card, gateway trả lời ARP, `chronyc` thấy nguồn, decoy có trong `vedette-hp`); không khớp → hoàn tác hoặc báo lỗi. `net.apply` đổi phần quản trị kết thúc ở `awaiting_confirm` tới khi `net.confirm`/hoàn tác (INV-16).
 - **POST-4** Mọi lệnh thất bại để hệ thống ở trạng thái cũ hoặc báo rõ trạng thái dở dang; không để thao tác treo giữ khoá vô hạn (có timeout theo lệnh, agent-safety).
 
 ## Forbidden (không bao giờ)
@@ -51,11 +64,11 @@
 - **FORBID-3** Tự nâng bản phát hành OS; tự khởi động lại ngoài lệnh `os.reboot` / lịch đã đặt.
 - **FORBID-4** Chạy image không qua kiểm chữ ký cosign.
 - **FORBID-5** Chạm vào nội dung dữ liệu khách (DB, log, thiết bị) ngoài chép byte bản chụp theo lệnh `backup.create` (và `os.install`, `backup.restore` qua bản sao lưu nội bộ); không bao giờ mở hay phân tích DB.
-- **FORBID-6** Mở cổng, sửa luật tường lửa ngoài danh sách lệnh (không "tự mở cổng vượt UFW": lý do chọn Podman, D-55).
+- **FORBID-6** Mở cổng, sửa luật tường lửa ngoài danh sách lệnh (không "tự mở cổng vượt UFW": lý do chọn Podman, D-55). Ruleset nft hằng chặn đi ra trong namespace `vedette-hp` (D-102) là ngoại lệ duy nhất, không nhận tham số.
 
 ## Endpoints owned
 Không có HTTP. Giao diện = socket Unix nội bộ với các lệnh ở trên. Các endpoint của **core** dựa vào `host` (không thuộc `host`, liệt kê để biết ai gọi):
-`GET /core/updates/os`, `POST /core/updates/os/check`, `POST /core/updates/os/install`, `GET /core/updates/os/run`, `PATCH /core/updates/os/settings`, `POST|DELETE /core/updates/os/reboot`, và (D-56) Cài đặt → Box network (**chưa có trong `contract.ts`**).
+`GET /core/updates/os`, `POST /core/updates/os/check`, `POST /core/updates/os/install`, `GET /core/updates/os/run`, `PATCH /core/updates/os/settings`, `POST|DELETE /core/updates/os/reboot`; Box network (D-56, S-CORE-8): `/core/network`, `/core/network/interfaces`, `/core/network/management` (+ `/confirm`, `/revert`), `/core/network/span` (+ `/status`), `/core/network/ntp`; cập nhật phần mềm (S-CORE-2): `/core/updates`, `/core/updates/check`, `/core/updates/apply`, `/core/updates/rollback`, `/core/updates/bundle`. Các endpoint mạng và cập nhật phần mềm có trong `contract.ts` nhưng backend còn trả 501 tới khi phần 3 có mã.
 
 ## Tables owned
 Không. Lịch sử chạy và cài đặt cửa sổ bảo trì lưu ở `core` (`core_os`, `core_os_run`, `core_audit`).
@@ -102,16 +115,26 @@ Hàm thuần có fuzz (30 giây mỗi cái): `ParseSimulation`, `ParseUpdateHost
 
 Chưa kiểm được trên máy phát triển (macOS): hiệu ứng thật trên Ubuntu 24.04/Debian 13 (apt, dpkg, timer, `journalctl`, `systemctl` của unit `core`), khoá `fcntl` của apt thật, `os.OpenRoot` và `fs.protected_symlinks/hardlinks` thật, phần `core` tạo bản chụp (WP-07b phần 2); xem `.ai/deferred/feat-host-os-commands.md`.
 
+## Phần 3: `net.*`, `decoy_ip.*`, `container.*` (WP-07b, chốt trên giấy ở lát 3-0, chưa có mã)
+Thiết kế: `docs/specs/host-api.md` §6.5–§6.10 và §18; quyết định D-99…D-107. Lát 3-1 (khung chờ xác nhận), 3-2 (`internal/release`), 3-3…3-5 (mạng, decoy), 3-6…3-8 (Quadlet, kéo, khởi động, hoàn tác). Test hợp đồng dự kiến cho từng bất biến mới, chạy trên máy giả (D-107: `Deps.Root`, binary giả, giả reboot bằng xoá `Root/run` và đổi `boot_id`):
+
+| Điều | Test dự kiến |
+|---|---|
+| INV-16 | đổi phần quản trị → `awaiting_confirm`, `/etc` không đổi tới `net.confirm`; hẹn giờ → `reverted not_confirmed`; giả reboot → `reverted_by_reboot`; host sập trước/sau `revert_at`; lệnh ghi khác → `409 pending_confirm`; `confirm` đua với hẹn giờ kết thúc run đúng một lần; chỉ đổi DNS/NTP/SPAN → `succeeded` ngay |
+| INV-17 | golden unit theo service; quét unit đã dựng (capability, mạng, `--privileged`, `User=` của `core`); symlink ở tên unit hoặc thư mục, thư mục cha ghi được → từ chối; `persist` bật/tắt dòng `[Install]` |
+| INV-18 | không gói nào dưới `host/` mở pcap hay đọc gói ngoài bộ đọc khung ARP 42 byte (quét mã nguồn); fuzz bộ đọc khung |
+| INV-7 | `registry_not_allowed`, `sequence_regress`, `key_revoked`, `release_revoked`, `digest_not_in_manifest`, `platform_mismatch`, `downgrade_not_allowed`, `previous_revoked`, `rollback_not_allowed`; vector chữ ký sinh bằng `minisign` và `cosign` thật |
+
 ## Khi vắng mặt / lỗi
 Không có "tắt" (không phải module). Phía `core`, `host/client` trả `client.ErrUnreachable` khi socket vắng hoặc không nối được: đó là tín hiệu "không phải appliance / host không chạy", khác với lỗi của host (`*client.Error` có mã §11). Kiểu "Chỉ container": mọi tính năng cần `host` trả `unsupported` có lý do. Appliance mà `host` không phản hồi: Settings → Updates và Box network hiện "Không liên lạc được với vedette-host" kèm trạng thái cuối cùng biết được; các module khác chạy bình thường nhưng không thay đổi được OS/mạng/image.
 
 ## Dependencies
-- **DEPENDS ON**: systemd, apt, Podman, netlink của OS; `core` chỉ là **người gọi**.
-- **DEPENDED ON BY**: `core` (Updates, Box network, sao lưu), `honeypot` (IP phụ), `sensor-passive`/`logs` (card SPAN), `inventory` ("This box" qua `pkg.list`), `scan`/`scan-credentialed`/`honeypot`/`sensor` (vòng đời container).
+- **DEPENDS ON**: systemd, apt, Podman (Quadlet), netplan (renderer `networkd`, D-99), iproute2 (`ip`), nftables (`nft`), procps (`sysctl`), chrony (`chronyc`, D-106), socket `AF_PACKET` của kernel (D-101); installer (WP-08) cài và giao quyền (`THIRD_PARTY_NOTICES.md`); `core` chỉ là **người gọi**.
+- **DEPENDED ON BY**: `core` (Updates, Box network, sao lưu), `honeypot` (IP phụ), `sensor-passive`/`logs` (card SPAN), `inventory` ("This box", INV-9; lệnh chưa có), `scan`/`scan-credentialed`/`honeypot`/`sensor` (vòng đời container).
 
 ## Câu hỏi mở
-1. Cấu hình mạng/SPAN (D-56) chưa có story ID trong `USER_STORIES.md` và chưa có endpoint trong `contract.ts` (no-imagined-features: cần story trước khi code).
-2. Đổi card quản trị có thể cắt đứt chính kết nối quản trị: cần cơ chế tự hoàn tác sau N giây nếu `core` không xác nhận? (chưa nêu trong D-56).
+1. ~~Cấu hình mạng/SPAN (D-56) chưa có story ID và endpoint~~ **Đã có:** story S-CORE-8, endpoint `/core/network*` trong `contract.ts`.
+2. ~~Đổi card quản trị có thể cắt đứt chính kết nối quản trị~~ **Đã chốt (D-100):** cửa sổ xác nhận 30–600 s (mặc định 120 s) với lớp phủ `/run`, tự hoàn tác khi hết giờ hay reboot (INV-16).
 3. Tên lệnh ở bảng trên là đề xuất; chốt cùng lúc viết `host`. **Trả lời một phần (WP-07a, 07b phần 1):** dạng tên đã chốt ở khung (`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*){1,3}$`), bảng lệnh là một `Registry` đóng dựng một lần (không có hàm thêm/bớt), và nguồn chốt tên là `host-api.md` §6 (`os.check`, `os.install`, `os.auto_security.set`, `os.reboot`, `os.reboot.cancel`, `net.apply|confirm|revert`, `decoy_ip.add|remove`, `container.pull|start|stop|rollback`, `backup.create|restore`, `logs.export`; đọc trạng thái qua `GET /v1/state/*`), thay cho bảng nháp ở trên khi 07b đăng ký từng lệnh. `DefaultRegistry()` đã bỏ: registry dựng ở `cmd/vedette-host` từ `ops.Commands()`; test hợp đồng so danh sách đã cài và danh sách "chưa" với các tiêu đề §6 của tài liệu.
 4. ~~`vedette-updater` còn trong `contract.ts`, `osMock.ts`, `locales/en/core.json`, `PRIVACY.md` luồng 6~~ Đã đổi sang `vedette-host` (WP-06).
-5. Registry image cho phép (tên/host) và khoá cosign công khai đặt ở đâu (nhúng trong gói cài, D-12)?
+5. ~~Registry image cho phép và khoá cosign công khai đặt ở đâu?~~ **Đã chốt:** `ghcr.io/knt048/vedette-<service>` là hằng biên dịch (D-57 (3), D-104); khoá minisign (đang dùng + dự phòng ngoại tuyến) và khoá cosign nhúng trong binary (D-103). kien tạo khoá ngoại tuyến trước lát 3-2.

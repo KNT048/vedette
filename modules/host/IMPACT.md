@@ -1,6 +1,6 @@
 # Host (`vedette-host`) — Change Impact Map
 
-> Khung WP-07a và lệnh OS/sao lưu/xuất log của WP-07b phần 1 đã có mã Go (gói bên dưới); `net.*`, `decoy_ip.*`, `container.*` thêm ở các phần sau. Last verified: 2026-11-09 (sau rà soát bảo mật WP-07b phần 1, D-87). Thay đổi ở đây có thể làm hộp **mất liên lạc quản trị**: mọi đổi ở allowlist/tham số cần test hợp đồng và đọc lại CONTRACT.
+> Khung WP-07a và lệnh OS/sao lưu/xuất log của WP-07b phần 1 đã có mã Go (gói bên dưới); `net.*`, `decoy_ip.*`, `container.*` thêm ở phần 3 (thiết kế chốt ở lát 3-0, D-99…D-107, `host-api.md` §18; chưa có mã). Last verified: 2026-11-10 (lát 3-0, chỉ tài liệu). Thay đổi ở đây có thể làm hộp **mất liên lạc quản trị**: mọi đổi ở allowlist/tham số cần test hợp đồng và đọc lại CONTRACT.
 
 ## Gói và chữ ký chính
 - `host/api`: kiểu dây dùng chung (`Run`, `Event`, `Info`, `AuditRecord`, `ErrorBody`, hằng mã lỗi, `Proto`/`MinProto`, tên tiêu đề). Đổi trường = đổi hợp đồng với `core`.
@@ -54,8 +54,26 @@
 ## Modifying: `logs.export`, bộ lọc bí mật
 - **core/data** ("tải mọi log của hộp", D-48): thêm mẫu bí mật vào `redactRules` mà không thêm test làm lọt; bớt mẫu làm lộ. Dòng JSON phải còn hợp lệ sau lọc (fuzz).
 
-## Modifying: kiểm cosign / danh sách registry
-- **Mọi container** (`core`, `sensor`, `honeypot`, `scan`, `greenbone`): đổi → không khởi động được, hoặc (nguy hiểm hơn) chạy image chưa ký. (Thuộc 07b.)
+## Modifying: kiểm chữ ký (`internal/release`), khoá nhúng, registry (D-103, D-104)
+- **Mọi container** (`core`, `sensor`, `honeypot`, `scan`, `greenbone`): đổi → không khởi động được, hoặc (nguy hiểm hơn) chạy image chưa ký. `internal/release` dùng chung với **core/updates** (kiểm index/manifest để hiển thị): đổi định dạng index/manifest (`images[].cosign`, `update-manifest.md` §4.2) phải đổi cả CI phát hành (cosign `--new-bundle-format=false --use-signing-config=false`) và vector test cùng lúc. Thêm/thay khoá nhúng = bản binary mới; khoá dự phòng ngoại tuyến phải còn trong binary để xoay khoá. Hằng registry `ghcr.io/knt048/vedette-<service>` đổi → mọi manifest cũ thành `registry_not_allowed`.
+- Thứ tự phiên bản (SemVer qua `golang.org/x/mod/semver`), `min_upgrade_from`, `rollback.min_version`: đổi cách so → hạ bản lọt qua hoặc cập nhật bị chặn.
+
+## Modifying: `net.apply`/`net.confirm`/`net.revert`, lớp phủ `/run`, `net/pending.json` (D-99, D-100)
+- **core/network** (Box network, S-CORE-8): GUI giả định đổi phần quản trị → `awaiting_confirm` có `revert_at`, chỉ DNS/NTP/SPAN thì xong ngay; `core` nhớ `run_id` và dựng lại từ `ListRuns`. Đổi trạng thái/mã (`pending_confirm`, `not_awaiting_confirm`, `not_confirmed`, `reverted_by_reboot`, `address_conflict`, `gateway_outside_subnet`, `net_backend_unsupported`) → làm vỡ bảng ánh xạ mã của `core` và lời GUI.
+- **os.reboot** (`net_pending_confirm` qua `Deps.NetPending`) và **khoá ghi chung**: run chờ giữ khoá; bỏ điều đó cho phép lệnh ghi khác chen vào cửa sổ.
+- **Installer (WP-08)**: host phải là chủ duy nhất của netplan (cloud-init tắt mạng, tệp khác dời đi); thiếu → mọi `net.apply` bị `net_backend_unsupported`. Ghi `/etc` ngoài `net.confirm` phá INV-16 (reboot giữ cấu hình chưa xác nhận).
+
+## Modifying: `decoy_ip.*`, namespace `vedette-hp`, MAC (D-101, D-102)
+- **honeypot** (unit Quadlet `Network=ns:/run/netns/vedette-hp`, bộ chuyển `cmd/vedette/honeypot.go`): đổi tên/đường dẫn namespace → container không lên; đổi cách sinh MAC (`hp/mac.key`, HMAC) → MAC của mọi decoy đổi sau khi cập nhật (thiết bị LAN thấy "máy mới"). `vedette-host.service` phải tạo namespace trước khi báo `READY=1` (`Type=notify`). Ruleset nft chặn đi ra là INV-1 của honeypot ở tầng mạng: bỏ nó thì container bị chiếm mở được kết nối ra LAN.
+- **core/network**: `decoys [{ip, mac}]` trong `GET /v1/state/net` là nguồn để bộ chuyển honeypot so khác biệt; đổi dạng → bộ chuyển gửi lại mọi IP và chạm `rate_limited`.
+
+## Modifying: mẫu unit Quadlet, `container.start|stop|rollback` (D-104, D-105)
+- **core**: `User=<core_uid>:<core_gid>` (không `UserNS=auto`) là điều kiện của kiểm peer (`SO_PEERCRED`) và kiểm chủ sở hữu D-87; `PublishPort=8443:8443` không kèm IP để GUI còn tới được sau `net.apply`. Đổi một trong hai → mất GUI hoặc mọi lệnh bị `peer_not_allowed`.
+- **sensor/scan/honeypot/greenbone**: capability và mạng nằm trong mẫu; test hợp đồng trên unit đã dựng chặn `--privileged`, `Network=host` ngoài `sensor`/`scan`. `snapshot` bắt buộc cho `container.start(core)`: `core` phải chụp bản trước khi gọi (như `os.install`).
+- **core/updates**: `container.rollback` của `core` khi `rollback.safe=false` khôi phục DB trong cùng run: GUI phải xin xác nhận mất dữ liệu trước khi gọi.
+
+## Modifying: `GET /v1/state/net` (D-101)
+- **core** (`span_status`): host chỉ có bộ đếm giao diện; `other_macs`, `last_packet_at` lấy từ `sensor-passive` `SpanStats()`. Thêm đếm MAC vào host là đưa phân tích lưu lượng vào root (INV-18).
 
 ## Absence of this component
 - Kiểu "Chỉ container": Settings → Updates (OS) và Box network hiện "không hỗ trợ ở kiểu cài này"; honeypot không dựng được IP phụ (macvlan), SPAN không cấu hình được; cập nhật phần mềm Vedette làm tay. `client.ErrUnreachable` là tín hiệu.

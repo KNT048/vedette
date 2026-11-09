@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
@@ -32,6 +33,7 @@ type moduleWiring struct {
 	ID         string
 	Migrations fs.FS                   // nil when the module owns no tables
 	Jobs       func(d deps) []jobs.Job // nil when it has none; a job runs only while its module is on
+	BodyLimits map[string]int64        // operationId → request body cap in bytes, for operations over 1 MiB
 }
 
 // wiredModules lists the modules in migration order: a module comes after every module it depends on
@@ -72,4 +74,14 @@ func addJobs(sched *jobs.Scheduler, d deps, wired []moduleWiring) error {
 		}
 	}
 	return nil
+}
+
+// bodyLimits merges the modules' per-operation body caps for server.Config. server.New refuses an
+// operationId that does not exist, so a typo fails at start-up.
+func bodyLimits(wired []moduleWiring) map[string]int64 {
+	out := map[string]int64{}
+	for _, w := range wired {
+		maps.Copy(out, w.BodyLimits)
+	}
+	return out
 }

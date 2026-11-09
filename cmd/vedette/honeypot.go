@@ -29,7 +29,7 @@ func newHoneypot(d *deps) (*honeypot.Service, error) {
 	if d.Inventory == nil {
 		return nil, errors.New("honeypot needs the inventory service")
 	}
-	cfg := honeypot.Config{DB: d.DB, Audit: d.Audit, Secrets: d.Secrets, Inventory: honeypotInventory{d.Inventory}, Host: notAnAppliance{},
+	cfg := honeypot.Config{DB: d.DB, Audit: d.Audit, Secrets: d.Secrets, Inventory: honeypotInventory{inv: d.Inventory, hostNet: d.HostNet}, Host: notAnAppliance{},
 		Clock: d.Clock, Log: d.Log, Location: orgLocationAt(*d)}
 	if d.HoneypotDir != "" { // two folders (D-89, WP-14 review): core writes config/ (the container mounts it read-only), the container writes log/
 		cfg.ConfigDir, cfg.LogDir = filepath.Join(d.HoneypotDir, HoneypotConfigDir), filepath.Join(d.HoneypotDir, HoneypotLogDir)
@@ -85,7 +85,11 @@ func (notAnAppliance) StopContainer(context.Context) error             { return 
 
 // honeypotInventory implements honeypot.Inventory over inventory.Service, converting to the module's types so the
 // honeypot never imports the inventory (rules/modules.md).
-type honeypotInventory struct{ inv *inventory.Service }
+type honeypotInventory struct {
+	inv *inventory.Service
+	// hostNet is deps.HostNet: the appliance's own addresses from vedette-host (nil without a host).
+	hostNet func(context.Context) ([]netip.Prefix, error)
+}
 
 func (a honeypotInventory) Devices(ctx context.Context) ([]honeypot.Device, error) {
 	l, err := a.inv.Devices(ctx)
@@ -153,18 +157,21 @@ func (a honeypotInventory) Box(ctx context.Context) (honeypot.Box, error) {
 	if err != nil {
 		return b, err
 	}
+	// The appliance's own cards (vedette-host) come first: core's container only sees its bridge.
+	cand := hostIPv4s(ctx, a.hostNet)
 	addrs, err := net.InterfaceAddrs()
-	if err != nil {
+	if err != nil && len(cand) == 0 {
 		return b, fmt.Errorf("honeypot: read the box addresses: %w", err)
 	}
 	for _, x := range addrs {
-		p, err := netip.ParsePrefix(x.String())
-		if err != nil || !p.Addr().Is4() {
-			continue
+		if p, err := netip.ParsePrefix(x.String()); err == nil && p.Addr().Is4() {
+			cand = append(cand, p.Addr())
 		}
+	}
+	for _, ip := range cand {
 		for _, r := range ranges {
-			if r.Contains(p.Addr()) {
-				b.IP = p.Addr()
+			if r.Contains(ip) {
+				b.IP = ip
 				return b, nil
 			}
 		}

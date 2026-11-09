@@ -50,8 +50,8 @@ type deps struct {
 	// DataDir is core_data, the directory of the database file; KeyPath the master key file: both feed the snapshots of host-api 6.11.
 	HostSocket, DataDir, KeyPath string
 	// Hosts are the names and addresses the box answers to (-hosts or the certificate): the IP literals among them are the box itself
-	// for core/conn (D-94). HostNet asks vedette-host for the appliance's management and IPv6 addresses (host-api state/net); nil until the
-	// host client has that call (host module slice 3-3) or when this install has no host.
+	// for core/conn (D-94). HostNet asks vedette-host for every address of the appliance's cards and its decoys (host-api state/net,
+	// as single-address prefixes); nil when this install has no host. conn, sensor-active and the honeypot's box address share it.
 	Hosts   []string
 	HostNet func(ctx context.Context) ([]netip.Prefix, error)
 

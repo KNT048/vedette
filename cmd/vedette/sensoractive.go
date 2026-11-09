@@ -49,7 +49,7 @@ func newSensorActive(d deps, path string) (*sensoractive.Service, error) {
 	if d.Inventory == nil {
 		return nil, errors.New("sensor-active needs the inventory service")
 	}
-	cfg := sensoractive.Config{DB: d.DB, Inventory: sensorInventory{d.Inventory}, Observe: d.Inventory, Software: d.Inventory, NmapPath: path, Clock: d.Clock, Log: d.Log,
+	cfg := sensoractive.Config{DB: d.DB, Inventory: sensorInventory{inv: d.Inventory, hostNet: d.HostNet}, Observe: d.Inventory, Software: d.Inventory, NmapPath: path, Clock: d.Clock, Log: d.Log,
 		Location: orgLocation(d)}
 	if d.Bus != nil {
 		cfg.Events = sensoractive.PublisherFunc(func(ctx context.Context, e sensoractive.Event) error {
@@ -139,7 +139,11 @@ func sensorActiveJobs(d deps) []jobs.Job {
 
 // sensorInventory implements sensoractive.Inventory over inventory.Service: it converts the inventory's neutral
 // types to the module's port types so sensor-active never imports the inventory (rules/modules.md).
-type sensorInventory struct{ inv *inventory.Service }
+type sensorInventory struct {
+	inv *inventory.Service
+	// hostNet is deps.HostNet: the addresses of the appliance's cards, which core's container cannot see. nil without a host.
+	hostNet func(context.Context) ([]netip.Prefix, error)
+}
 
 func (a sensorInventory) Settings(ctx context.Context) (sensoractive.Settings, error) {
 	st, err := a.inv.Settings(ctx)
@@ -203,8 +207,9 @@ func (a sensorInventory) Addresses(ctx context.Context) (map[netip.Addr]string, 
 	return out, nil
 }
 
-// ProtectedIPs is the inventory's list plus the box's own interface addresses: the sweep must not probe the
-// machine it runs on either (M2).
+// ProtectedIPs is the inventory's list plus the box's own addresses: the sweep must not probe the machine it runs on
+// either (M2). The addresses come from the container's interfaces and from vedette-host (state/net), which is where the
+// LAN address of the appliance is.
 func (a sensorInventory) ProtectedIPs(ctx context.Context) ([]netip.Addr, error) {
 	out, err := a.inv.ProtectedIPs(ctx)
 	if err != nil {
@@ -219,5 +224,5 @@ func (a sensorInventory) ProtectedIPs(ctx context.Context) ([]netip.Addr, error)
 			out = append(out, p.Addr())
 		}
 	}
-	return out, nil
+	return append(out, hostIPv4s(ctx, a.hostNet)...), nil
 }

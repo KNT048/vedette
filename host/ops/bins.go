@@ -3,6 +3,7 @@ package ops
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -18,6 +19,7 @@ const (
 	binDpkg      = "dpkg"
 	binSystemctl = "systemctl"
 	binJournal   = "journalctl"
+	binNetplan   = "netplan"
 )
 
 var prodPaths = map[string]string{
@@ -26,6 +28,7 @@ var prodPaths = map[string]string{
 	binDpkg:      "/usr/bin/dpkg",
 	binSystemctl: "/usr/bin/systemctl",
 	binJournal:   "/usr/bin/journalctl",
+	binNetplan:   "/usr/sbin/netplan",
 }
 
 // The fixed timers of unattended security updates (spec 6.3).
@@ -113,6 +116,30 @@ func validateSystemctl(coreUnit string) func([]string) error {
 	}
 }
 
+// netplanRootDirRE is the directory netplan generate may be pointed at: absolute, clean, made of plain
+// characters, at least two levels deep and not under a system directory. "generate" without
+// --root-dir, or with "/", would regenerate the real network configuration, so those are refused.
+// Only a CI test runs it, on a temporary directory.
+var netplanRootDirRE = regexp.MustCompile(`^(/[A-Za-z0-9_.-]+){2,16}$`)
+
+var systemTopDirs = []string{"bin", "boot", "dev", "etc", "lib", "lib64", "proc", "root", "run", "sbin", "sys", "usr", "var"}
+
+// validateNetplan accepts exactly "generate --root-dir <dir>" (the netplan apply of net.apply
+// joins the grammar with slice 3-4).
+func validateNetplan(args []string) error {
+	if len(args) != 3 || args[0] != "generate" || args[1] != "--root-dir" {
+		return errors.New("not the fixed netplan command line")
+	}
+	d := args[2]
+	if len(d) > 255 || !netplanRootDirRE.MatchString(d) || filepath.Clean(d) != d { // Clean removes "." and ".." segments, so any that were there make it differ
+		return errors.New("the netplan root directory is not a plain absolute path")
+	}
+	if slices.Contains(systemTopDirs, strings.Split(d, "/")[1]) {
+		return errors.New("the netplan root directory is under a system directory")
+	}
+	return nil
+}
+
 // newRunner builds the runner of the OS commands: PATH, LANG=C and DEBIAN_FRONTEND=noninteractive,
 // no shell. paths overrides the constant paths (tests).
 func newRunner(log logger, coreUnit string, paths map[string]string, streamLimit int64) (*vexec.Runner, error) {
@@ -128,6 +155,7 @@ func newRunner(log logger, coreUnit string, paths map[string]string, streamLimit
 		vexec.Binary{Name: binDpkg, Path: p(binDpkg), Validate: exactly("--audit")},
 		vexec.Binary{Name: binSystemctl, Path: p(binSystemctl), Validate: validateSystemctl(coreUnit)},
 		vexec.Binary{Name: binJournal, Path: p(binJournal), Validate: validateJournal, MaxOutput: streamLimit + 1},
+		vexec.Binary{Name: binNetplan, Path: p(binNetplan), Validate: validateNetplan},
 	)
 }
 

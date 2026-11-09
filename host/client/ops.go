@@ -72,6 +72,15 @@ func (c *Client) StateBackups(ctx context.Context) (api.BackupList, error) {
 	return out, err
 }
 
+// StateNet returns GET /v1/state/net: the cards with their counters and addresses, the default
+// route and the configuration the host wrote. A host older than the network commands answers 404
+// unknown_command.
+func (c *Client) StateNet(ctx context.Context) (api.NetState, error) {
+	var out api.NetState
+	err := c.getJSON(ctx, "/v1/state/net", &out)
+	return out, err
+}
+
 // DownloadBackup opens GET /v1/backups/{id}/content. The caller closes the body. Backups that
 // hold secrets answer 403 contains_secrets.
 func (c *Client) DownloadBackup(ctx context.Context, backupID string) (io.ReadCloser, int64, error) {

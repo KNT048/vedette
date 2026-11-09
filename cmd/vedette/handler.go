@@ -6,6 +6,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/inventory"
+	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
 )
 
 // handler is the composite of oas.Handler: server.Fallback answers 501 for every operation and gives
@@ -17,6 +18,7 @@ type handler struct {
 	server.Fallback
 	*core.ModuleHandlers
 	*inventory.Handlers
+	*sensorpassive.SensorHandlers
 }
 
 // newHandler builds every module's handlers from the shared deps. Adding a module = one field above

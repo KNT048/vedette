@@ -120,3 +120,7 @@ VulnCheck Community, AbuseIPDB, VirusTotal, GreyNoise, Shodan, AlienVault OTX, u
 | Library | Version | License | How it is used |
 |---|---|---|---|
 | go.yaml.in/yaml/v3 | v3.0.5 | MIT and Apache-2.0 | embedded: parses each module's `MANIFEST.yaml` (embedded in the binary by `modules/manifests.go`) when the process starts; no input from the network |
+
+### Passive sensor (`modules/sensor-passive`, WP-11)
+
+No third-party library: the pcap/pcapng readers and the ARP, DHCP, DNS/mDNS, SSDP, LLDP, TLS ClientHello and HTTP Host parsers are written in Go on the standard library (`syscall` for the Linux AF_PACKET socket). The IEEE OUI registry is **not** shipped: its public page states no redistribution licence (D-80).

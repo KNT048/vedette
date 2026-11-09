@@ -15,6 +15,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/inventory"
+	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
 )
 
 // deps is what module constructors may take. serve builds one value and hands it to every module's
@@ -44,6 +45,7 @@ func wiredModules() []moduleWiring {
 		{ID: "core", Migrations: core.Migrations},
 		{ID: "feeds"}, // no tables or jobs yet (WP-20); listed because inventory depends on it
 		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},
+		{ID: "sensor-passive", Migrations: sensorpassive.Migrations, Jobs: sensorPassiveJobs},
 	}
 }
 

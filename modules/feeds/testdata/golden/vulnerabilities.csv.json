@@ -1,0 +1,51 @@
+{
+  "records": [
+    {
+      "cve": "CVE-2026-20311",
+      "date": "2026-11-03",
+      "description": "Authentication bypass, remote",
+      "link": "https://www.synology.com/en-global/security/advisory/Synology_SA_26_11",
+      "product": "DiskStation Manager",
+      "vendor": "Synology"
+    },
+    {
+      "cve": "CVE-2026-19844",
+      "date": "2026-11-02",
+      "description": "Heap overflow in SSL VPN",
+      "link": "https://fortiguard.example.com/psirt/FG-IR-26-402",
+      "product": "FortiOS",
+      "vendor": "Fortinet"
+    },
+    {
+      "cve": "CVE-2026-18002",
+      "date": "2026-10-30",
+      "description": "Path traversal",
+      "link": null,
+      "product": "UniFi Network Application",
+      "vendor": "Ubiquiti"
+    }
+  ],
+  "accepted": 3,
+  "rejected": 2,
+  "reasons": [
+    {
+      "reason": "cve: \"…\" is not a CVE ID",
+      "count": 1
+    },
+    {
+      "reason": "date: unrecognised date \"…\"",
+      "count": 1
+    }
+  ],
+  "rejects": [
+    {
+      "row": 4,
+      "reason": "cve: \"N/A\" is not a CVE ID"
+    },
+    {
+      "row": 5,
+      "reason": "date: unrecognised date \"not a date\""
+    }
+  ],
+  "truncated": false
+}

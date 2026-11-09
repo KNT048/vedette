@@ -1,0 +1,59 @@
+{
+  "records": [
+    {
+      "cve": "CVE-2026-20311",
+      "date": "2026-11-03",
+      "description": "Authentication bypass in the web interface allows remote access without credentials.",
+      "link": "https://www.synology.com/en-global/security/advisory/Synology_SA_26_11",
+      "product": "DiskStation Manager",
+      "vendor": "Synology"
+    },
+    {
+      "cve": "CVE-2026-19844",
+      "date": "2026-11-02",
+      "description": "Heap overflow in the SSL VPN daemon, exploited in the wild.",
+      "link": "https://fortiguard.example.com/psirt/FG-IR-26-402",
+      "product": "FortiOS",
+      "vendor": "Fortinet"
+    },
+    {
+      "cve": "CVE-2026-18002",
+      "date": "2026-10-30",
+      "description": "Path traversal lets an authenticated user read arbitrary files.",
+      "link": "https://community.example.com/ubnt-sa-26-009",
+      "product": "UniFi Network Application",
+      "vendor": "Ubiquiti"
+    }
+  ],
+  "accepted": 3,
+  "rejected": 3,
+  "reasons": [
+    {
+      "reason": "cve: \"…\" is not a CVE ID",
+      "count": 1
+    },
+    {
+      "reason": "date: unrecognised date \"…\"",
+      "count": 1
+    },
+    {
+      "reason": "link: not an http(s) address",
+      "count": 1
+    }
+  ],
+  "rejects": [
+    {
+      "row": 4,
+      "reason": "cve: \"TBD\" is not a CVE ID"
+    },
+    {
+      "row": 5,
+      "reason": "date: unrecognised date \"31/13/2026\""
+    },
+    {
+      "row": 6,
+      "reason": "link: not an http(s) address"
+    }
+  ],
+  "truncated": false
+}

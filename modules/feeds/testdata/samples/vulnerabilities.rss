@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><title>Security advisories</title><link>https://advisories.example.com</link>
+<item><title>CVE-2026-20311: Authentication bypass in DiskStation Manager</title><link>https://advisories.example.com/sa-26-11</link><description>Remote attackers can bypass login on the web interface.</description><category>DiskStation Manager</category><pubDate>Mon, 03 Nov 2026 09:00:00 GMT</pubDate></item>
+<item><title>CVE-2026-19844 - Heap overflow in FortiOS SSL VPN</title><link>https://advisories.example.com/fg-402</link><description>Exploited in the wild.</description><category>FortiOS</category><pubDate>Sun, 02 Nov 2026 14:30:00 GMT</pubDate></item>
+<item><title>Monthly security bulletin, October</title><link>https://advisories.example.com/bulletin-oct</link><description>Summary of fixes.</description><category>Bulletin</category><pubDate>Fri, 31 Oct 2026 08:00:00 GMT</pubDate></item>
+<item><title>CVE-2026-18002: Path traversal in UniFi Network Application</title><link>https://advisories.example.com/ubnt-009</link><description>Authenticated file read.</description><category>UniFi Network Application</category><pubDate>Fri, 30 Oct 2026 10:15:00 GMT</pubDate></item>
+</channel></rss>

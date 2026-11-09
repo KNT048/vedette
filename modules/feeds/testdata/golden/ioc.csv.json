@@ -1,0 +1,43 @@
+{
+  "records": [
+    {
+      "confidence": null,
+      "first_seen": "2026-10-02",
+      "indicator": "45.148.10.95",
+      "kind": "ip"
+    },
+    {
+      "confidence": null,
+      "first_seen": "2026-10-20",
+      "indicator": "103.75.190.12",
+      "kind": "ip"
+    },
+    {
+      "confidence": null,
+      "first_seen": "2026-10-29",
+      "indicator": "203.0.113.77",
+      "kind": "ip"
+    },
+    {
+      "confidence": null,
+      "first_seen": "2026-10-31",
+      "indicator": "198.51.100.23",
+      "kind": "ip"
+    }
+  ],
+  "accepted": 4,
+  "rejected": 1,
+  "reasons": [
+    {
+      "reason": "indicator: \"…\" is not a valid indicator",
+      "count": 1
+    }
+  ],
+  "rejects": [
+    {
+      "row": 4,
+      "reason": "indicator: \"not-an-ip\" is not a valid indicator"
+    }
+  ],
+  "truncated": false
+}

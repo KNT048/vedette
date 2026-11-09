@@ -1,0 +1,12 @@
+{
+  "more": false,
+  "objects": [
+    {"type": "indicator", "spec_version": "2.1", "id": "indicator--8e2e2d2b-17d4-4cbe-9bb8-c9ff4a2a0a01", "created": "2026-10-20T07:00:00.000Z", "valid_from": "2026-10-20T07:00:00Z", "confidence": 85, "pattern_type": "stix", "pattern": "[ipv4-addr:value = '185.220.101.47']"},
+    {"type": "indicator", "spec_version": "2.1", "id": "indicator--8e2e2d2b-17d4-4cbe-9bb8-c9ff4a2a0a02", "valid_from": "2026-10-29T03:10:44Z", "confidence": 90, "pattern_type": "stix", "pattern": "[domain-name:value = 'update-dsm-synology.com']"},
+    {"type": "indicator", "spec_version": "2.1", "id": "indicator--8e2e2d2b-17d4-4cbe-9bb8-c9ff4a2a0a03", "valid_from": "2026-10-21T07:00:00Z", "confidence": 60, "pattern_type": "stix", "pattern": "[ipv4-addr:value = '45.148.10.95'] OR [ipv4-addr:value = '103.75.190.12']"},
+    {"type": "indicator", "spec_version": "2.1", "id": "indicator--8e2e2d2b-17d4-4cbe-9bb8-c9ff4a2a0a04", "valid_from": "2026-10-22T07:00:00Z", "pattern_type": "stix", "pattern": "[file:hashes.'SHA-256' = 'a3f5c1d9e8b7a6f5e4d3c2b1a09f8e7d6c5b4a39281706f5e4d3c2b1a0918273']"},
+    {"type": "indicator", "spec_version": "2.1", "id": "indicator--8e2e2d2b-17d4-4cbe-9bb8-c9ff4a2a0a05", "valid_from": "2026-10-23T07:00:00Z", "pattern_type": "stix", "pattern": "[email-addr:value = 'phish@example.org']"},
+    {"type": "malware", "spec_version": "2.1", "id": "malware--1b2c3d4e-0000-4000-8000-000000000001", "name": "ExampleLoader", "is_family": true},
+    {"type": "indicator", "spec_version": "2.1", "id": "indicator--8e2e2d2b-17d4-4cbe-9bb8-c9ff4a2a0a06", "valid_from": "2026-10-24T07:00:00Z", "pattern_type": "stix", "pattern": "[process:name MATCHES \"evil\"]"}
+  ]
+}

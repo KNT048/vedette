@@ -1,0 +1,43 @@
+{
+  "records": [
+    {
+      "cve": "CVE-2026-20311",
+      "date": "2026-11-03",
+      "description": "Remote attackers can bypass login on the web interface.",
+      "link": "https://advisories.example.com/sa-26-11",
+      "product": "DiskStation Manager",
+      "vendor": null
+    },
+    {
+      "cve": "CVE-2026-19844",
+      "date": "2026-11-02",
+      "description": "Exploited in the wild.",
+      "link": "https://advisories.example.com/fg-402",
+      "product": "FortiOS",
+      "vendor": null
+    },
+    {
+      "cve": "CVE-2026-18002",
+      "date": "2026-10-30",
+      "description": "Authenticated file read.",
+      "link": "https://advisories.example.com/ubnt-009",
+      "product": "UniFi Network Application",
+      "vendor": null
+    }
+  ],
+  "accepted": 3,
+  "rejected": 1,
+  "reasons": [
+    {
+      "reason": "cve: regex did not match",
+      "count": 1
+    }
+  ],
+  "rejects": [
+    {
+      "row": 3,
+      "reason": "cve: regex did not match"
+    }
+  ],
+  "truncated": false
+}

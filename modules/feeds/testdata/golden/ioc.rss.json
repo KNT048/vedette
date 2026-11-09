@@ -1,0 +1,31 @@
+{
+  "records": [
+    {
+      "confidence": null,
+      "first_seen": "2026-10-29",
+      "indicator": "update-dsm-synology.com",
+      "kind": "domain"
+    },
+    {
+      "confidence": null,
+      "first_seen": "2026-10-31",
+      "indicator": "login-m365-secure.net",
+      "kind": "domain"
+    }
+  ],
+  "accepted": 2,
+  "rejected": 1,
+  "reasons": [
+    {
+      "reason": "indicator: \"…\" is not a valid indicator",
+      "count": 1
+    }
+  ],
+  "rejects": [
+    {
+      "row": 3,
+      "reason": "indicator: \"Weekly summary\" is not a valid indicator"
+    }
+  ],
+  "truncated": false
+}

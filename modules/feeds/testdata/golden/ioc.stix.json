@@ -1,0 +1,57 @@
+{
+  "records": [
+    {
+      "confidence": 0.85,
+      "first_seen": "2026-10-20",
+      "indicator": "185.220.101.47",
+      "kind": "ip"
+    },
+    {
+      "confidence": 0.9,
+      "first_seen": "2026-10-29",
+      "indicator": "update-dsm-synology.com",
+      "kind": "domain"
+    },
+    {
+      "confidence": 0.6,
+      "first_seen": "2026-10-21",
+      "indicator": "45.148.10.95",
+      "kind": "ip"
+    },
+    {
+      "confidence": 0.6,
+      "first_seen": "2026-10-21",
+      "indicator": "103.75.190.12",
+      "kind": "ip"
+    },
+    {
+      "confidence": null,
+      "first_seen": "2026-10-22",
+      "indicator": "a3f5c1d9e8b7a6f5e4d3c2b1a09f8e7d6c5b4a39281706f5e4d3c2b1a0918273",
+      "kind": "hash"
+    }
+  ],
+  "accepted": 5,
+  "rejected": 2,
+  "reasons": [
+    {
+      "reason": "unsupported pattern object \"…\"",
+      "count": 1
+    },
+    {
+      "reason": "pattern has no comparison this parser understands",
+      "count": 1
+    }
+  ],
+  "rejects": [
+    {
+      "row": 6,
+      "reason": "unsupported pattern object \"email-addr:value\""
+    },
+    {
+      "row": 7,
+      "reason": "pattern has no comparison this parser understands"
+    }
+  ],
+  "truncated": false
+}

@@ -1,0 +1,54 @@
+{
+  "title": "Example vendor security advisories",
+  "count": 6,
+  "vulnerabilities": [
+    {
+      "cveID": "CVE-2026-20311",
+      "vendorProject": "Synology",
+      "product": "DiskStation Manager",
+      "dateAdded": "2026-11-03",
+      "shortDescription": "Authentication bypass in the web interface allows remote access without credentials.",
+      "notes": "https://www.synology.com/en-global/security/advisory/Synology_SA_26_11"
+    },
+    {
+      "cveID": "CVE-2026-19844",
+      "vendorProject": "Fortinet",
+      "product": "FortiOS",
+      "dateAdded": "2026-11-02",
+      "shortDescription": "Heap overflow in the SSL VPN daemon, exploited in the wild.",
+      "notes": "https://fortiguard.example.com/psirt/FG-IR-26-402"
+    },
+    {
+      "cveID": "cve-2026-18002",
+      "vendorProject": "Ubiquiti",
+      "product": "UniFi Network Application",
+      "dateAdded": "2026-10-30",
+      "shortDescription": "Path traversal lets an authenticated user read arbitrary files.",
+      "notes": "https://community.example.com/ubnt-sa-26-009"
+    },
+    {
+      "cveID": "TBD",
+      "vendorProject": "MikroTik",
+      "product": "RouterOS",
+      "dateAdded": "2026-10-29",
+      "shortDescription": "CVE not assigned yet.",
+      "notes": ""
+    },
+    {
+      "cveID": "CVE-2026-17760",
+      "vendorProject": "QNAP",
+      "product": "QTS",
+      "dateAdded": "31/13/2026",
+      "shortDescription": "Command injection in a legacy service.",
+      "notes": "https://www.qnap.com/en/security-advisory/qsa-26-40"
+    },
+    {
+      "cveID": "CVE-2026-17511",
+      "vendorProject": "Veeam",
+      "product": "Backup & Replication",
+      "dateAdded": "2026-10-27",
+      "shortDescription": "Deserialization of untrusted data in the backup service.",
+      "notes": "javascript:alert(1)"
+    }
+  ]
+}

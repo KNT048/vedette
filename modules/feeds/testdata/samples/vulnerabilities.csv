@@ -1,0 +1,6 @@
+cve,vendor,product,published,summary,url
+CVE-2026-20311,Synology,DiskStation Manager,03/11/2026,"Authentication bypass, remote",https://www.synology.com/en-global/security/advisory/Synology_SA_26_11
+CVE-2026-19844,Fortinet,FortiOS,02/11/2026,Heap overflow in SSL VPN,https://fortiguard.example.com/psirt/FG-IR-26-402
+CVE-2026-18002,Ubiquiti,UniFi Network Application,30/10/2026,Path traversal,
+n/a,MikroTik,RouterOS,29/10/2026,No CVE yet,
+CVE-2026-17760,QNAP,QTS,not a date,Command injection,https://www.qnap.com/en/security-advisory/qsa-26-40

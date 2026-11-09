@@ -3,3 +3,4 @@
 - [ ] Decide whether a scan match on a patched/mitigated finding reopens it (implemented per DATA_MODEL 5.2 [ĐX]; open question 12) — maintainer
 - [ ] Confirm ConfVersion = 0.7 and the severity rule (still the mock's) — maintainer
 - [ ] Update DATA_MODEL 4.3/5.2 and notify/scan/inventory/feeds/ai/core contracts for the findings split (event names, "only mitigation writes fnd_*") — maintainer, owners of those docs
+- [ ] DATA_MODEL 5.2 row "(quet khop) false_positive/not_relevant: khong doi" is now "record scan evidence, history rescanned, notify once per template; status unchanged" — maintainer, owner of DATA_MODEL

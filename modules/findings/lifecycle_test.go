@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 func suspected() Finding {
@@ -125,8 +126,8 @@ func TestFinding_ConfirmFromScan(t *testing.T) {
 	}{
 		{"suspected", StatusSuspected, StatusConfirmed, "confirmed", true},
 		{"confirmed again", StatusConfirmed, StatusConfirmed, "rescanned", false},
-		{"false_positive stays", StatusFalsePositive, StatusFalsePositive, "", true},
-		{"not_relevant stays", StatusNotRelevant, StatusNotRelevant, "", true},
+		{"false_positive stays", StatusFalsePositive, StatusFalsePositive, "rescanned", true},
+		{"not_relevant stays", StatusNotRelevant, StatusNotRelevant, "rescanned", true},
 		{"patched is reopened", StatusPatched, StatusConfirmed, "reopened", true},
 		{"mitigated is reopened", StatusMitigated, StatusConfirmed, "reopened", true},
 	}
@@ -148,12 +149,6 @@ func TestFinding_ConfirmFromScan(t *testing.T) {
 			}
 			if out.Finding.Status != tt.want || out.Notify != tt.notify {
 				t.Fatalf("status %s notify %v", out.Finding.Status, out.Notify)
-			}
-			if tt.hist == "" {
-				if len(out.History) != 0 || out.Finding != f {
-					t.Fatalf("closed-by-person finding changed: %+v", out)
-				}
-				return
 			}
 			if len(out.History) != 1 || out.History[0].Action != tt.hist || out.History[0].User != SystemUser {
 				t.Fatalf("history = %+v", out.History)
@@ -183,8 +178,6 @@ func TestFinding_ConfirmFromScan_RejectsBadEvidence(t *testing.T) {
 	for name, ev := range map[string]Evidence{
 		"no template":   mk(func(e *Evidence) { e.Template = "" }),
 		"no time":       mk(func(e *Evidence) { e.CheckedAt = time.Time{} }),
-		"huge response": mk(func(e *Evidence) { e.Response = strings.Repeat("x", maxEvidenceField+1) }),
-		"huge request":  mk(func(e *Evidence) { e.Request = strings.Repeat("x", maxEvidenceField+1) }),
 		"huge template": mk(func(e *Evidence) { e.Template = strings.Repeat("x", maxTemplate+1) }),
 	} {
 		f := suspected()
@@ -271,4 +264,76 @@ func FuzzApply(f *testing.F) {
 			t.Fatalf("second apply: %v", err)
 		}
 	})
+}
+
+func TestFinding_ConfirmFromScan_ClosedByPersonNotifiesOncePerTemplate(t *testing.T) {
+	t.Parallel()
+	closed, _, _ := suspected().Apply(ActionFalsePositive, "lab box", "ann", t0)
+	first, err := closed.ConfirmFromScan(scanEvidence(), t0)
+	if err != nil || !first.Notify || first.Finding.Status != StatusFalsePositive || first.Finding.Validate() != nil {
+		t.Fatalf("first: %+v err=%v", first, err)
+	}
+	later := scanEvidence()
+	later.CheckedAt = later.CheckedAt.Add(24 * time.Hour)
+	again, err := first.Finding.ConfirmFromScan(later, t0)
+	if err != nil || again.Notify || len(again.History) != 0 || again.Finding != first.Finding {
+		t.Fatalf("same template must stay quiet: %+v err=%v", again, err)
+	}
+	other := later
+	other.Template = "another-template"
+	third, err := first.Finding.ConfirmFromScan(other, t0)
+	if err != nil || !third.Notify || third.Finding.Status != StatusFalsePositive {
+		t.Fatalf("new template must notify: %+v err=%v", third, err)
+	}
+	// a person can still reopen it, and it comes back confirmed with the scan evidence
+	re, _, err := first.Finding.Apply(ActionReopen, "", "ann", t0)
+	if err != nil || re.Status != StatusConfirmed || re.Validate() != nil {
+		t.Fatalf("reopen: %+v err=%v", re, err)
+	}
+}
+
+func TestFinding_ConfirmFromScan_TruncatesLargeEvidence(t *testing.T) {
+	t.Parallel()
+	ev := scanEvidence()
+	ev.Response = strings.Repeat("é", maxEvidenceField) // 2 bytes per rune, cut must not split one
+	ev.Request = strings.Repeat("x", maxEvidenceField+1)
+	ev.Summary = strings.Repeat("y", 10)
+	out, err := suspected().ConfirmFromScan(ev, t0)
+	if err != nil || out.Finding.Status != StatusConfirmed {
+		t.Fatalf("large evidence lost the confirmation: %+v err=%v", out, err)
+	}
+	e := out.Finding.Evidence
+	for name, s := range map[string]string{"response": e.Response, "request": e.Request} {
+		if len(s) > maxEvidenceField || !strings.HasSuffix(s, truncMarker) || !utf8.ValidString(s) {
+			t.Errorf("%s: len %d valid=%v", name, len(s), utf8.ValidString(s))
+		}
+	}
+	if e.Summary != ev.Summary {
+		t.Error("small field changed")
+	}
+}
+
+func TestFinding_Apply_NoteLengthIsUTF16LikeTheGUI(t *testing.T) {
+	t.Parallel()
+	// JS: "😀".length === 2, so 250 emoji are exactly 500 units and 251 are too long.
+	if _, _, err := suspected().Apply(ActionPatched, strings.Repeat("😀", 250), "u", t0); err != nil {
+		t.Fatalf("250 emoji: %v", err)
+	}
+	if _, _, err := suspected().Apply(ActionPatched, strings.Repeat("😀", 251), "u", t0); !errors.Is(err, ErrNoteTooLong) {
+		t.Fatalf("251 emoji: %v", err)
+	}
+	// one emoji is 2 units: below the 3-unit minimum, two are enough
+	if _, _, err := suspected().Apply(ActionFalsePositive, "😀", "u", t0); !errors.Is(err, ErrNoteRequired) {
+		t.Fatalf("1 emoji: %v", err)
+	}
+	if _, _, err := suspected().Apply(ActionFalsePositive, "😀😀", "u", t0); err != nil {
+		t.Fatalf("2 emoji: %v", err)
+	}
+	// JS trims U+FEFF and U+00A0 but not U+0085
+	if _, _, err := suspected().Apply(ActionFalsePositive, "\uFEFF\u00A0ab\u00A0", "u", t0); !errors.Is(err, ErrNoteRequired) {
+		t.Fatalf("padded 2-char note: %v", err)
+	}
+	if _, _, err := suspected().Apply(ActionFalsePositive, "\u0085ab", "u", t0); err != nil {
+		t.Fatalf("U+0085 counts as a character in JS: %v", err)
+	}
 }

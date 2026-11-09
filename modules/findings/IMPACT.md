@@ -4,7 +4,10 @@
 - `MatchAsset(Asset, []Vuln, have, now) MatchResult{New, Existing}` — bộ khớp. Gọi từ service khi nhận `inventory.match.changed`/`feeds.vuln.updated`. Đổi quy tắc ⇒ đổi số finding và tin `notify`; test `Contract_INV4/5/6`.
 - `NewFinding`, `Finding.ApplyMatch`, `Finding.Apply(action, note, user, now)`, `Finding.ConfirmFromScan(evidence, now)`, `ScanClear`, `Finding.Validate` — vòng đời. Lỗi `*APIError` (`ErrBadAction`, `ErrNoteTooLong`, `ErrNoteRequired`, `ErrAlreadyOpen`, `ErrNotFound`) ánh xạ 1:1 mã lỗi API; đổi mã = đổi `findings/contract.ts` và mock.
 - `ParseCPE`, `CPE.Matches|SameProduct`, `CompareVersions`, `VersionRange.Contains` — dùng bởi bộ khớp; `feeds` phải đưa khoảng phiên bản NVD vào `Vuln.Affected` (chuỗi CPE 2.3 + `VersionRange`), `inventory` đưa `Software.KevKeys` (khoá `vendorproject|product` chữ thường) và tuỳ chọn `Software.CPE`.
-- `KevKey`/`NormalizeKevKey` phải khớp cách `feeds` chuẩn hoá khoá.
+- `KevKey`/`NormalizeKevKey` phải khớp cách `feeds` chuẩn hoá khoá. Hãng/sản phẩm chứa `|` không bao giờ khớp.
+- Quy tắc "không đoán": phiên bản trống/không đọc được/toàn số 0, tail build ở ranh giới khoảng, cấu hình ghim `update`/`edition`/`target_sw`… mà phần mềm không mang, và mục `Affected` không đọc được đều cho `Unknown` ⇒ `basis=product`, không bao giờ làm mất khớp KEV. Chỉ `No` chắc chắn mới bỏ finding. `feeds` đưa CPE sai/thiếu ⇒ finding `product`, không mất.
+- `ConfirmFromScan` trên `false_positive`/`not_relevant`: lần đầu một `template` khớp thì ghi bằng chứng (basis scan, history `rescanned`) và `Notify=true`; cùng `template` lần sau không đổi gì, `Notify=false` (service không cần tự chống trùng). Trường bằng chứng quá 4096 byte bị cắt, có dấu `...[truncated]`.
+- Ghi chú trạng thái đo như GUI: `trim` của JavaScript và độ dài UTF-16 (ngưỡng 3 và 500).
 
 ## Modifying: `findings.Service.UpsertFromMatch(ctx, assetID, cve, basis)`
 - **inventory** (qua sự kiện `inventory.match.changed`), **core/jobs** (khớp lại sau `feeds.vuln.new_kev`). Đổi quy tắc khớp/tạo/độ nghiêm trọng đổi số finding và tin `notify`.

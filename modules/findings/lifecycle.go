@@ -5,6 +5,7 @@ import (
 	"math"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -45,7 +46,7 @@ const (
 )
 
 const (
-	// MaxNote is the longest note, counted in characters (runes).
+	// MaxNote is the longest note, counted in UTF-16 code units like the GUI.
 	MaxNote = 500
 	// MinReasonNote is the shortest note for false_positive and not_relevant.
 	MinReasonNote = 3
@@ -131,15 +132,16 @@ func (f Finding) ApplyMatch(m Match) Finding {
 
 // Apply performs a status action by a person (INV-3). Checks run in the order
 // the API reports them: action, note length, note required, already open. On
-// error the finding is unchanged. The note is trimmed and measured in characters.
+// error the finding is unchanged. The note is trimmed and measured like the GUI
+// does (JavaScript trim and UTF-16 length).
 func (f Finding) Apply(action Action, note, user string, now time.Time) (Finding, HistoryEntry, error) {
 	switch action {
 	case ActionPatched, ActionMitigated, ActionFalsePositive, ActionNotRelevant, ActionReopen:
 	default:
 		return f, HistoryEntry{}, fmt.Errorf("findings: applying action %q: %w", action, ErrBadAction)
 	}
-	note = strings.TrimSpace(note)
-	n := utf8.RuneCountInString(note)
+	note = jsTrim(note)
+	n := jsLen(note)
 	if n > MaxNote {
 		return f, HistoryEntry{}, fmt.Errorf("findings: applying action %q: %w", action, ErrNoteTooLong)
 	}
@@ -173,33 +175,75 @@ type ScanOutcome struct {
 }
 
 // ConfirmFromScan applies a positive scan result (PRE-2: evidence has a
-// template and time, fields are size-limited). Open findings become confirmed
-// with basis scan and confidence at least ConfScan. false_positive and
-// not_relevant are never reopened by a scan; patched and mitigated become
-// confirmed again with a "reopened" row because the flaw is still there
-// ([ĐX], DATA_MODEL 5.2). Nothing is ever closed here.
+// template and time). Oversized evidence fields are truncated with a marker, not
+// rejected, so a real confirmation is never lost. Open findings become
+// confirmed with basis scan and confidence at least ConfScan.
+//
+// false_positive and not_relevant are never reopened by a scan. The first time a
+// scan template matches such a finding, its evidence is recorded (basis scan, a
+// "rescanned" row) and Notify is true so a person can decide; the same template
+// again changes nothing and does not notify. patched and mitigated become
+// confirmed again with a "reopened" row because the flaw is still there ([ĐX],
+// DATA_MODEL 5.2). Nothing is ever closed here.
 func (f Finding) ConfirmFromScan(ev Evidence, now time.Time) (ScanOutcome, error) {
-	if ev.Template == "" || len(ev.Template) > maxTemplate || ev.CheckedAt.IsZero() ||
-		len(ev.Summary) > maxEvidenceField || len(ev.Request) > maxEvidenceField || len(ev.Response) > maxEvidenceField {
+	if ev.Template == "" || len(ev.Template) > maxTemplate || ev.CheckedAt.IsZero() {
 		return ScanOutcome{Finding: f}, fmt.Errorf("findings: confirming from scan: %w", ErrInvalidEvidence)
 	}
-	switch f.Status {
-	case StatusFalsePositive, StatusNotRelevant:
-		return ScanOutcome{Finding: f, Notify: true}, nil
-	}
+	ev.Summary, ev.Request, ev.Response = truncate(ev.Summary), truncate(ev.Request), truncate(ev.Response)
 	was := f.Status
-	f.Status, f.Basis = StatusConfirmed, BasisScan
+	closedByPerson := was == StatusFalsePositive || was == StatusNotRelevant
+	if closedByPerson && f.Basis == BasisScan && f.Evidence != nil && f.Evidence.Template == ev.Template {
+		return ScanOutcome{Finding: f}, nil // this match was already signalled
+	}
+	f.Basis = BasisScan
 	f.Confidence = math.Max(f.Confidence, ConfScan)
 	f.Evidence = &ev
-	f.ResolvedBy, f.ResolvedAt, f.ResolutionNote = "", time.Time{}, ""
 	h := HistoryEntry{TS: now, User: SystemUser, Action: "confirmed", Note: ev.Template}
 	switch was {
+	case StatusFalsePositive, StatusNotRelevant:
+		h.Action, h.Note = "rescanned", "scan: "+ev.Template+" (kept as "+string(was)+")"
+		return ScanOutcome{Finding: f, History: []HistoryEntry{h}, Notify: true}, nil
 	case StatusConfirmed:
 		h.Action = "rescanned"
 	case StatusPatched, StatusMitigated:
 		h.Action, h.Note = "reopened", "scan: "+ev.Template
 	}
+	f.Status = StatusConfirmed
+	f.ResolvedBy, f.ResolvedAt, f.ResolutionNote = "", time.Time{}, ""
 	return ScanOutcome{Finding: f, History: []HistoryEntry{h}, Notify: was != StatusConfirmed}, nil
+}
+
+const truncMarker = "...[truncated]"
+
+// truncate caps an evidence field at maxEvidenceField bytes (marker included),
+// cutting on a character boundary.
+func truncate(s string) string {
+	if len(s) <= maxEvidenceField {
+		return s
+	}
+	cut := maxEvidenceField - len(truncMarker)
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut] + truncMarker
+}
+
+// jsLen counts UTF-16 code units, like JavaScript's String.length, so the Go
+// service and the GUI agree on the note limits.
+func jsLen(s string) int {
+	n := 0
+	for _, r := range s {
+		n++
+		if r >= 0x10000 {
+			n++
+		}
+	}
+	return n
+}
+
+// jsTrim trims what JavaScript's String.trim trims.
+func jsTrim(s string) string {
+	return strings.TrimFunc(s, func(r rune) bool { return unicode.IsSpace(r) && r != 0x85 || r == 0xFEFF })
 }
 
 // ScanClear records that a rescan no longer matches. It never changes the

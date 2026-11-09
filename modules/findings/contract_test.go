@@ -195,7 +195,7 @@ func TestContract_POST2_ScanNeverReopensClosedByPerson(t *testing.T) {
 			t.Fatal(err)
 		}
 		out, err := closed.ConfirmFromScan(scanEvidence(), t0)
-		if err != nil || out.Finding != closed || !out.Notify || len(out.History) != 0 {
+		if err != nil || out.Finding.Status != closed.Status || !out.Notify || len(out.History) != 1 {
 			t.Fatalf("%s: %+v err=%v", a, out, err)
 		}
 	}

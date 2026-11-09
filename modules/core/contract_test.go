@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -364,13 +365,16 @@ func TestContract_Migrations(t *testing.T) {
 		for _, want := range []string{
 			"table|core_secret|", "table|core_audit|", "table|core_chain_anchor|", "index|core_audit_ts_idx|",
 			"trigger|core_audit_no_update|", "trigger|core_audit_no_delete|", "table|core_migration_core|",
+			"table|core_module|", "table|core_job_run|", "index|core_job_run_job_idx|",
 		} {
 			if !strings.Contains(after, want) {
 				t.Errorf("schema lacks %s", want)
 			}
 		}
-		if n := count(t, db, "SELECT count(*) FROM core_migration_core WHERE version_id = 1 AND is_applied = 1"); n != 1 {
-			t.Errorf("version rows for 0001 = %d, want 1", n)
+		for _, v := range []int{1, 2} {
+			if n := count(t, db, fmt.Sprintf("SELECT count(*) FROM core_migration_core WHERE version_id = %d AND is_applied = 1", v)); n != 1 {
+				t.Errorf("version rows for %04d = %d, want 1", v, n)
+			}
 		}
 		if err := db.Check(t.Context()); err != nil {
 			t.Fatal(err)

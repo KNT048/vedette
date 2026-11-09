@@ -23,6 +23,24 @@ type CoreChainAnchor struct {
 	PrunedAt       string
 }
 
+type CoreJobRun struct {
+	ID         string
+	Module     string
+	Job        string
+	StartedAt  string
+	FinishedAt string
+	Status     string
+	Error      *string
+}
+
+type CoreModule struct {
+	ID         string
+	Enabled    bool
+	EnabledAt  *string
+	DisabledAt *string
+	Version    string
+}
+
 type CoreSecret struct {
 	ID         string
 	Purpose    string

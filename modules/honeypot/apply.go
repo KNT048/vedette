@@ -176,6 +176,11 @@ func (s *Service) Apply(ctx context.Context) error {
 	filesOK := true
 	if s.cfg.ConfigDir != "" {
 		if err := s.writeFiles(ctx, w, services); err != nil {
+			// A write cut short because core is stopping is not a broken config folder: leave the host as it is
+			// (a restart of core must not take the traps down).
+			if ctx.Err() != nil {
+				return errors.Join(err, ctx.Err())
+			}
 			filesOK = false
 			errs = append(errs, err)
 		}
@@ -198,6 +203,9 @@ func (s *Service) Apply(ctx context.Context) error {
 		return errors.Join(errs...)
 	}
 	placed, refused, err := s.syncIPs(ctx, ips, filesOK)
+	if ctx.Err() != nil { // core is stopping: what the host did not answer is not a refusal; change nothing more
+		return errors.Join(append(errs, err, ctx.Err())...)
+	}
 	if err != nil {
 		errs = append(errs, err)
 	}

@@ -132,13 +132,22 @@ func randomCode() (string, error) {
 // If the mailer fails after the code was stored, the code and the send record are removed again: a failed
 // send does not use up one of the five.
 func (c *EmailCodes) Send(ctx context.Context, userID, email string, reuseFresh bool) (Sent, error) {
-	return c.send(ctx, userID, email, "", reuseFresh)
+	return c.send(ctx, userID, email, "", reuseFresh, nil)
 }
 
-// send is Send for a code bound to domain (see codeHash).
-func (c *EmailCodes) send(ctx context.Context, userID, email, domain string, reuseFresh bool) (Sent, error) {
+// send is Send for a code bound to domain (see codeHash). A code of a domain counts against its own hourly
+// budget of MaxSendsPerHour (core_email_code_send.kind), so step-up codes cannot use up the sign-in ones; the
+// 60 s spacing is per user across both. deliver mails the code; nil means CodeMailer.SendCode.
+func (c *EmailCodes) send(ctx context.Context, userID, email, domain string, reuseFresh bool, deliver func(ctx context.Context, to, code string) error) (Sent, error) {
+	kind := "signin"
+	if domain != "" {
+		kind = "stepup"
+	}
 	if !c.Available(ctx) {
 		return Sent{}, errEmailUnavailable()
+	}
+	if deliver == nil {
+		deliver = c.mailer.SendCode
 	}
 	key, err := c.hmacKey(ctx)
 	if err != nil {
@@ -168,12 +177,19 @@ func (c *EmailCodes) send(ctx context.Context, userID, email, domain string, reu
 				return issued{}, tooSoon(wait), nil
 			}
 		}
-		n, err := q.CountEmailCodeSendsSince(ctx, coredb.CountEmailCodeSendsSinceParams{UserID: userID, SentAt: store.FormatTS(now.Add(-time.Hour))})
+		since := store.FormatTS(now.Add(-time.Hour))
+		n, err := q.CountEmailCodeSendsSince(ctx, coredb.CountEmailCodeSendsSinceParams{UserID: userID, Kind: kind, SentAt: since})
 		if err != nil {
 			return issued{}, nil, fmt.Errorf("auth: count sends: %w", err)
 		}
 		if n >= MaxSendsPerHour {
-			return issued{}, apierr.New(429, CodeTooManyCodes, "Too many codes were sent in the last hour. Try again later."), nil
+			// The oldest send of the hour leaves the window one hour after it was made.
+			oldest, err := q.OldestEmailCodeSendSince(ctx, coredb.OldestEmailCodeSendSinceParams{UserID: userID, Kind: kind, SentAt: since})
+			if err != nil {
+				return issued{}, nil, fmt.Errorf("auth: oldest send: %w", err)
+			}
+			wait := int((parseTS(oldest).Add(time.Hour).Sub(now) + time.Second - 1) / time.Second)
+			return issued{}, apierr.New(429, CodeTooManyCodes, "Too many codes were sent in the last hour. Try again later.").With("retry_after", max(wait, 1)), nil
 		}
 		code, err := randomCode()
 		if err != nil {
@@ -183,7 +199,7 @@ func (c *EmailCodes) send(ctx context.Context, userID, email, domain string, reu
 		if err := q.UpsertEmailCode(ctx, coredb.UpsertEmailCodeParams{UserID: userID, CodeHash: hash, ExpiresAt: store.FormatTS(now.Add(CodeTTL)), SentAt: nowS}); err != nil {
 			return issued{}, nil, fmt.Errorf("auth: store email code: %w", err)
 		}
-		if err := q.InsertEmailCodeSend(ctx, coredb.InsertEmailCodeSendParams{UserID: userID, SentAt: nowS}); err != nil {
+		if err := q.InsertEmailCodeSend(ctx, coredb.InsertEmailCodeSendParams{UserID: userID, SentAt: nowS, Kind: kind}); err != nil {
 			return issued{}, nil, fmt.Errorf("auth: record email send: %w", err)
 		}
 		if err := q.PruneEmailCodeSends(ctx, coredb.PruneEmailCodeSendsParams{UserID: userID, SentAt: store.FormatTS(now.Add(-time.Hour))}); err != nil {
@@ -199,7 +215,7 @@ func (c *EmailCodes) send(ctx context.Context, userID, email, domain string, reu
 	}
 	mctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), mailSendDeadline)
 	defer cancel()
-	if err := c.mailer.SendCode(mctx, email, res.code); err != nil {
+	if err := deliver(mctx, email, res.code); err != nil {
 		// Never log the code or the address; the mailer's error text is its own business.
 		c.log.WarnContext(ctx, "two-step email code could not be sent", "user_id", userID, "error", err)
 		undo := c.db.Write(context.WithoutCancel(ctx), func(tx *sql.Tx) error {

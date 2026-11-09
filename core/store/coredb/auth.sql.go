@@ -81,16 +81,17 @@ func (q *Queries) ConfirmTotp(ctx context.Context, arg ConfirmTotpParams) (int64
 }
 
 const countEmailCodeSendsSince = `-- name: CountEmailCodeSendsSince :one
-SELECT count(*) FROM core_email_code_send WHERE user_id = ? AND sent_at > ?
+SELECT count(*) FROM core_email_code_send WHERE user_id = ? AND kind = ? AND sent_at > ?
 `
 
 type CountEmailCodeSendsSinceParams struct {
 	UserID string
+	Kind   string
 	SentAt string
 }
 
 func (q *Queries) CountEmailCodeSendsSince(ctx context.Context, arg CountEmailCodeSendsSinceParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countEmailCodeSendsSince, arg.UserID, arg.SentAt)
+	row := q.db.QueryRowContext(ctx, countEmailCodeSendsSince, arg.UserID, arg.Kind, arg.SentAt)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -352,16 +353,17 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (CoreUser, error) 
 }
 
 const insertEmailCodeSend = `-- name: InsertEmailCodeSend :exec
-INSERT INTO core_email_code_send (user_id, sent_at) VALUES (?, ?)
+INSERT INTO core_email_code_send (user_id, sent_at, kind) VALUES (?, ?, ?)
 `
 
 type InsertEmailCodeSendParams struct {
 	UserID string
 	SentAt string
+	Kind   string
 }
 
 func (q *Queries) InsertEmailCodeSend(ctx context.Context, arg InsertEmailCodeSendParams) error {
-	_, err := q.db.ExecContext(ctx, insertEmailCodeSend, arg.UserID, arg.SentAt)
+	_, err := q.db.ExecContext(ctx, insertEmailCodeSend, arg.UserID, arg.SentAt, arg.Kind)
 	return err
 }
 
@@ -475,6 +477,23 @@ func (q *Queries) ListSessions(ctx context.Context, arg ListSessionsParams) ([]L
 		return nil, err
 	}
 	return items, nil
+}
+
+const oldestEmailCodeSendSince = `-- name: OldestEmailCodeSendSince :one
+SELECT sent_at FROM core_email_code_send WHERE user_id = ? AND kind = ? AND sent_at > ? ORDER BY sent_at LIMIT 1
+`
+
+type OldestEmailCodeSendSinceParams struct {
+	UserID string
+	Kind   string
+	SentAt string
+}
+
+func (q *Queries) OldestEmailCodeSendSince(ctx context.Context, arg OldestEmailCodeSendSinceParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, oldestEmailCodeSendSince, arg.UserID, arg.Kind, arg.SentAt)
+	var sent_at string
+	err := row.Scan(&sent_at)
+	return sent_at, err
 }
 
 const pruneEmailCodeSends = `-- name: PruneEmailCodeSends :exec

@@ -75,13 +75,16 @@ DELETE FROM core_email_code WHERE user_id = ? AND code_hash = ?;
 UPDATE core_email_code SET tries = ? WHERE user_id = ?;
 
 -- name: InsertEmailCodeSend :exec
-INSERT INTO core_email_code_send (user_id, sent_at) VALUES (?, ?);
+INSERT INTO core_email_code_send (user_id, sent_at, kind) VALUES (?, ?, ?);
 
 -- name: DeleteEmailCodeSend :exec
 DELETE FROM core_email_code_send WHERE user_id = ? AND sent_at = ?;
 
 -- name: CountEmailCodeSendsSince :one
-SELECT count(*) FROM core_email_code_send WHERE user_id = ? AND sent_at > ?;
+SELECT count(*) FROM core_email_code_send WHERE user_id = ? AND kind = ? AND sent_at > ?;
+
+-- name: OldestEmailCodeSendSince :one
+SELECT sent_at FROM core_email_code_send WHERE user_id = ? AND kind = ? AND sent_at > ? ORDER BY sent_at LIMIT 1;
 
 -- name: PruneEmailCodeSends :exec
 DELETE FROM core_email_code_send WHERE user_id = ? AND sent_at <= ?;

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
@@ -25,11 +27,15 @@ type StepUp struct {
 	ResendAfter int
 }
 
-var purposeRE = regexp.MustCompile(`^[a-z][a-z0-9_.]{0,63}$`)
+var purposeRE = regexp.MustCompile(`^[a-z][a-z0-9_.-]{0,127}$`)
 
 // VerifyTwoStep asks a signed-in user for a fresh two-step code before one sensitive act (D-98, core INV-22):
-// purpose names the act (for example "response.approve"), is validated and goes into the audit. There is no
-// sudo window: every call needs its own code and nothing is remembered.
+// purpose names the act and, for a code that must belong to one request, carries its id (for example
+// "response.approve.req-7"); it is validated and goes into the audit, and an emailed code only passes for the
+// purpose it was mailed for. summary is one line built by the server that says what is being approved
+// ("Approve: Block 203.0.113.5 on Firewall A (high risk, AI request)"); the email shows it. It is 1 to 200
+// characters with no control or format character (a violation is a programming error: 400 invalid) and never
+// goes into the audit. There is no sudo window: every call needs its own code and nothing is remembered.
 //
 //   - app method: the code must be one step after the last accepted one, so the code that just signed the
 //     user in, and a code already used here, are refused (RFC 6238 5.2). The step is stored in the same
@@ -37,17 +43,23 @@ var purposeRE = regexp.MustCompile(`^[a-z][a-z0-9_.]{0,63}$`)
 //   - email method: an empty code mails one (same generator, HMAC storage, lifetime and resend spacing as
 //     sign-in) and fails with 400 code_required plus the StepUp; the code is bound to purpose, so a sign-in
 //     code never passes here and a step-up code never signs in. Mail that cannot be sent is 503
-//     twofa_email_unavailable.
-//   - a user without two-step is 403 twofa_required; a disabled or unknown user gets the same 400
-//     invalid_code as a wrong code.
+//     twofa_email_unavailable, and so is a mailer that does not implement StepUpMailer. Step-up sends have
+//     their own budget of five an hour (the owner's sign-in codes are not used up) and write
+//     auth.stepup_code_sent.
+//   - a user without two-step is 403 twofa_required; a disabled or unknown user gets 400 invalid_code (the
+//     userID comes from the caller's own session, so this reveals nothing the caller does not know).
 //   - wrong codes count on the account's two-step limiter shared with sign-in: a blocked account is 429
 //     rate_limited with retry_after.
 //
 // The error is the only way to tell "passed" from "not passed": only nil means the user proved the code.
 // auth.stepup and auth.stepup_failed carry the purpose and method, never the code.
-func (s *Service) VerifyTwoStep(ctx context.Context, userID, code, purpose string) (StepUp, error) {
+func (s *Service) VerifyTwoStep(ctx context.Context, userID, code, purpose, summary string) (StepUp, error) {
 	if !purposeRE.MatchString(purpose) {
 		return StepUp{}, apierr.Invalid("The purpose must be a short identifier such as response.approve.")
+	}
+	summary = strings.TrimSpace(summary)
+	if err := checkSummary(summary); err != nil {
+		return StepUp{}, err
 	}
 	row, err := coredb.New(s.db.Reader()).GetUserByID(ctx, userID)
 	switch {
@@ -65,11 +77,30 @@ func (s *Service) VerifyTwoStep(ctx context.Context, userID, code, purpose strin
 	code = strings.Join(strings.Fields(code), "")
 	switch method {
 	case "email":
-		return s.stepUpEmail(ctx, row, code, purpose)
+		return s.stepUpEmail(ctx, row, code, purpose, summary)
 	case "app":
 		return s.stepUpTOTP(ctx, row, code, purpose)
 	}
 	return StepUp{}, fmt.Errorf("auth: user %s has unknown twofa_method %q", row.ID, method)
+}
+
+// checkSummary refuses what could not be one honest line of text: empty, over 200 characters, or holding a
+// control character (line breaks included), a format character (bidi overrides) or a line/paragraph separator.
+func checkSummary(summary string) error {
+	if n := utf8.RuneCountInString(summary); n < 1 || n > 200 || !utf8.ValidString(summary) {
+		return apierr.Invalid("The summary must be 1 to 200 characters.")
+	}
+	for _, r := range summary {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) || r == '\u2028' || r == '\u2029' {
+			return apierr.Invalid("The summary must be one line of plain text.")
+		}
+	}
+	return nil
+}
+
+// stepUpLimited words a blocked two-step limiter for step-up (the sign-in wording would confuse).
+func stepUpLimited(e *apierr.Error) *apierr.Error {
+	return apierr.New(429, CodeRateLimited, "Too many tries. Wait a few minutes and try again.").With("retry_after", e.Extra["retry_after"])
 }
 
 // stepUpFailed writes auth.stepup_failed (a reason, never the code) and returns refusal.
@@ -93,7 +124,7 @@ func stepUpDetail(purpose, method, why string) string {
 	return d
 }
 
-func (s *Service) stepUpEmail(ctx context.Context, row coredb.CoreUser, code, purpose string) (StepUp, error) {
+func (s *Service) stepUpEmail(ctx context.Context, row coredb.CoreUser, code, purpose, summary string) (StepUp, error) {
 	domain := "stepup:" + purpose
 	fail := func(why string, refusal *apierr.Error) error {
 		return s.stepUpFailed(ctx, row.Email, row.Email, why, purpose, "email", refusal)
@@ -101,12 +132,26 @@ func (s *Service) stepUpEmail(ctx context.Context, row coredb.CoreUser, code, pu
 	if !s.Codes.Available(ctx) {
 		return StepUp{}, fail("email channel unavailable for two-step code", errEmailUnavailable())
 	}
+	sm, ok := s.mailer.(StepUpMailer)
+	if !ok { // a mailer that only knows sign-in codes would mail this one as a sign-in code
+		return StepUp{}, fail("mailer", errEmailUnavailable())
+	}
 	if code == "" {
 		if e := s.limit.check(twofaKey, row.Email); e != nil {
-			return StepUp{}, e
+			return StepUp{}, stepUpLimited(e)
 		}
-		sent, err := s.Codes.send(ctx, row.ID, row.Email, domain, false)
+		sent, err := s.Codes.send(ctx, row.ID, row.Email, domain, false, func(ctx context.Context, to, c string) error {
+			return sm.SendStepUpCode(ctx, to, c, summary)
+		})
 		if err != nil {
+			if e, isAPI := apierr.As(err); isAPI && e.Code == CodeEmailUnavailable {
+				return StepUp{}, fail("send", e)
+			}
+			return StepUp{}, err
+		}
+		if err := s.db.Write(ctx, func(tx *sql.Tx) error {
+			return s.audit.Append(ctx, tx, audit.Entry{User: row.Email, Action: "auth.stepup_code_sent", Target: row.Email, Detail: stepUpDetail(purpose, "email", "sent to "+sent.SentTo)})
+		}); err != nil {
 			return StepUp{}, err
 		}
 		su := StepUp{Method: "email", SentTo: sent.SentTo, ResendAfter: sent.ResendAfter}
@@ -115,7 +160,7 @@ func (s *Service) stepUpEmail(ctx context.Context, row coredb.CoreUser, code, pu
 	}
 	guess, e := s.limit.begin(twofaKey, row.Email) // counted before judging: parallel guesses cannot all pass
 	if e != nil {
-		return StepUp{}, e
+		return StepUp{}, stepUpLimited(e)
 	}
 	if err := s.Codes.verify(ctx, row.ID, domain, code); err != nil {
 		if !isCodeVerdict(err) {
@@ -125,9 +170,19 @@ func (s *Service) stepUpEmail(ctx context.Context, row coredb.CoreUser, code, pu
 		return StepUp{}, fail("wrong two-step code", asAPI(err))
 	}
 	guess.refund()
-	if err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		return s.audit.Append(ctx, tx, audit.Entry{User: row.Email, Action: "auth.stepup", Target: row.Email, Detail: stepUpDetail(purpose, "email", "")})
-	}); err != nil {
+	// The code is used up. The account is read again in the transaction that writes auth.stepup: a disable,
+	// password reset or two-step change that committed since the first read wins (fail closed).
+	_, err := write(ctx, s.db, func(tx *sql.Tx) (struct{}, *apierr.Error, error) {
+		cur, err := coredb.New(tx).GetUserByID(ctx, row.ID)
+		if err != nil {
+			return struct{}{}, nil, fmt.Errorf("auth: re-read user: %w", err)
+		}
+		if cur.Disabled != 0 || cur.CredVersion != row.CredVersion || !sameMethod(cur.TwofaMethod, row.TwofaMethod) {
+			return struct{}{}, wrongAppCode(), s.audit.Append(ctx, tx, audit.Entry{User: row.Email, Action: "auth.stepup_failed", Target: row.Email, Detail: stepUpDetail(purpose, "email", "account changed")})
+		}
+		return struct{}{}, nil, s.audit.Append(ctx, tx, audit.Entry{User: row.Email, Action: "auth.stepup", Target: row.Email, Detail: stepUpDetail(purpose, "email", "")})
+	})
+	if err != nil {
 		return StepUp{}, err
 	}
 	return StepUp{Method: "email"}, nil
@@ -144,13 +199,13 @@ func (s *Service) stepUpTOTP(ctx context.Context, row coredb.CoreUser, code, pur
 	}
 	if code == "" {
 		if e := s.limit.check(twofaKey, row.Email); e != nil {
-			return StepUp{}, e
+			return StepUp{}, stepUpLimited(e)
 		}
 		return StepUp{Method: "app"}, apierr.New(400, CodeRequired, "Enter the 6-digit code from your authenticator app to continue.").With("method", "app")
 	}
 	guess, e := s.limit.begin(twofaKey, row.Email)
 	if e != nil {
-		return StepUp{}, e
+		return StepUp{}, stepUpLimited(e)
 	}
 	step, ok, err := s.checkTOTP(ctx, row.ID, code)
 	if err != nil {

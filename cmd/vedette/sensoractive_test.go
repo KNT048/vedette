@@ -125,7 +125,7 @@ func TestSensorActiveScansADiscoveredDevice(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	nm := newFakeNmap(t)
-	s.d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, time.Local) } // Monday 02:00, inside 01:00-05:00
+	s.d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone) } // Monday 02:00, inside 01:00-05:00
 	svc, err := newSensorActive(*s.d, nm.path)
 	if err != nil {
 		t.Fatal(err)
@@ -197,7 +197,7 @@ func TestSensorActiveFragileDevicePolicy(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	nm := newFakeNmap(t)
-	s.d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, time.Local) }
+	s.d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone) }
 	svc, err := newSensorActive(*s.d, nm.path)
 	if err != nil {
 		t.Fatal(err)
@@ -251,7 +251,7 @@ func TestSensorActiveOffDoesNothing(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	nm := newFakeNmap(t)
-	s.d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, time.Local) }
+	s.d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone) }
 	svc, err := newSensorActive(*s.d, nm.path)
 	if err != nil {
 		t.Fatal(err)
@@ -312,7 +312,7 @@ func TestSensorActiveSweepSkipsProtectedAddresses(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	nm := newFakeNmap(t)
-	s.d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, time.Local) }
+	s.d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone) }
 	svc, err := newSensorActive(*s.d, nm.path)
 	if err != nil {
 		t.Fatal(err)
@@ -364,7 +364,7 @@ func TestSensorActiveFirstScanOfAnUnclassifiedDeviceIsGentle(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	nm := newFakeNmap(t)
-	s.d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, time.Local) }
+	s.d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone) }
 	svc, err := newSensorActive(*s.d, nm.path)
 	if err != nil {
 		t.Fatal(err)

@@ -20,7 +20,7 @@ func TestScanningOffDuringDrainKeepsTheQueue(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	nm := newFakeNmap(t)
-	clock := func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, time.Local) } // Monday 02:00, inside 01:00-05:00
+	clock := func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone) } // Monday 02:00, inside 01:00-05:00
 	s.saveScope(t)
 	var ids []string
 	for i, ip := range []string{"192.168.10.20", "192.168.10.21", "192.168.10.22"} {
@@ -42,7 +42,7 @@ func TestScanningOffDuringDrainKeepsTheQueue(t *testing.T) {
 		return nil
 	})
 	svc, err := sensoractive.New(sensoractive.Config{DB: s.d.DB, Inventory: sensorInventory{s.d.Inventory}, Observe: s.d.Inventory, Software: s.d.Inventory,
-		Events: pub, NmapPath: nm.path, Clock: clock, Location: func() *time.Location { return time.Local }})
+		Events: pub, NmapPath: nm.path, Clock: clock, Location: func() *time.Location { return hcmZone }})
 	if err != nil {
 		t.Fatal(err)
 	}

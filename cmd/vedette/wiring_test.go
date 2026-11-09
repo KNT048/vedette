@@ -36,7 +36,10 @@ type stack struct {
 	got map[string]int // events seen on the bus, by name
 }
 
-func newStack(t *testing.T) *stack {
+func newStack(t *testing.T) *stack { return newStackWith(t, nil) }
+
+// newStackWith is newStack with a hook that changes deps (the clock, BaseURL) before the services are built.
+func newStackWith(t *testing.T, tune func(*deps)) *stack {
 	t.Helper()
 	ctx := t.Context()
 	log := slog.New(slog.DiscardHandler)
@@ -59,6 +62,9 @@ func newStack(t *testing.T) *stack {
 		t.Fatal(err)
 	}
 	d := &deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log)}
+	if tune != nil {
+		tune(d)
+	}
 	if err := buildServices(d); err != nil {
 		t.Fatal(err)
 	}

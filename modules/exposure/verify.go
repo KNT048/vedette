@@ -41,6 +41,11 @@ func (s *Service) lookupTXT(ctx context.Context, t Target) (found bool, failure 
 	return false, ""
 }
 
+// retryWait is the minutes (1 or more, rounded up) until the oldest of the attempts of the last hour leaves the hour.
+func retryWait(recent []time.Time, now time.Time) int {
+	return max(1, int((recent[0].Add(time.Hour).Sub(now)+time.Minute-1)/time.Minute))
+}
+
 // attempt counts one verification attempt of a person (INV-5) and refuses the eleventh in an hour.
 func (s *Service) attempt(ctx context.Context) error {
 	return s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
@@ -50,8 +55,7 @@ func (s *Service) attempt(ctx context.Context) error {
 			return err
 		}
 		if len(recent) >= MaxAttemptsPerHour {
-			wait := int((recent[0].Add(time.Hour).Sub(now) + time.Minute - 1) / time.Minute)
-			return rateLimited(max(1, wait))
+			return rateLimited(retryWait(recent, now))
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO exp_attempt (ts) VALUES (?)`, store.FormatTS(now)); err != nil {
 			return fmt.Errorf("recording attempt: %w", err)
@@ -105,7 +109,7 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 		}
 		switch {
 		case ok && cur.Kind == KindIP:
-			message, verifiedAt = fmt.Sprintf("The box reaches the Internet via %s. Verified until %s.", cur.Value, ymd(now.Add(ValidDays*24*time.Hour))), now
+			message, verifiedAt = fmt.Sprintf("The box reaches the Internet via %s. Verified until %s.", cur.Value, s.dayText(now.Add(ValidDays*24*time.Hour))), now
 		case ok:
 			message = fmt.Sprintf("Found the TXT record %s on %s.", txtRecord(cur.Token), cur.Value)
 			if cur.VerifiedAt.IsZero() {

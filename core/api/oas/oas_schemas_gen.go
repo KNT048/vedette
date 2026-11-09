@@ -33779,7 +33779,9 @@ func (s *ExposureGetExposureTargetsIDDiffOKRemovedItemKind) UnmarshalText(data [
 }
 
 type ExposureGetExposureTargetsIDOK struct {
-	// Why it cannot be scanned yet; null = can be scanned.
+	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
+	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
+	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
 	BlockedReason NilExposureGetExposureTargetsIDOKBlockedReason `json:"blocked_reason"`
 	// Who ticked "my company owns it and I am authorized to scan it", and when.
 	Commitment NilExposureGetExposureTargetsIDOKCommitment `json:"commitment"`
@@ -33973,6 +33975,7 @@ const (
 	ExposureGetExposureTargetsIDOKBlockedReasonExpired      ExposureGetExposureTargetsIDOKBlockedReason = "expired"
 	ExposureGetExposureTargetsIDOKBlockedReasonTxtMissing   ExposureGetExposureTargetsIDOKBlockedReason = "txt_missing"
 	ExposureGetExposureTargetsIDOKBlockedReasonNoCommitment ExposureGetExposureTargetsIDOKBlockedReason = "no_commitment"
+	ExposureGetExposureTargetsIDOKBlockedReasonIPNotCurrent ExposureGetExposureTargetsIDOKBlockedReason = "ip_not_current"
 )
 
 // AllValues returns all ExposureGetExposureTargetsIDOKBlockedReason values.
@@ -33982,6 +33985,7 @@ func (ExposureGetExposureTargetsIDOKBlockedReason) AllValues() []ExposureGetExpo
 		ExposureGetExposureTargetsIDOKBlockedReasonExpired,
 		ExposureGetExposureTargetsIDOKBlockedReasonTxtMissing,
 		ExposureGetExposureTargetsIDOKBlockedReasonNoCommitment,
+		ExposureGetExposureTargetsIDOKBlockedReasonIPNotCurrent,
 	}
 }
 
@@ -33995,6 +33999,8 @@ func (s ExposureGetExposureTargetsIDOKBlockedReason) MarshalText() ([]byte, erro
 	case ExposureGetExposureTargetsIDOKBlockedReasonTxtMissing:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDOKBlockedReasonNoCommitment:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKBlockedReasonIPNotCurrent:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -34015,6 +34021,9 @@ func (s *ExposureGetExposureTargetsIDOKBlockedReason) UnmarshalText(data []byte)
 		return nil
 	case ExposureGetExposureTargetsIDOKBlockedReasonNoCommitment:
 		*s = ExposureGetExposureTargetsIDOKBlockedReasonNoCommitment
+		return nil
+	case ExposureGetExposureTargetsIDOKBlockedReasonIPNotCurrent:
+		*s = ExposureGetExposureTargetsIDOKBlockedReasonIPNotCurrent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -34839,6 +34848,9 @@ type ExposureGetExposureTargetsOKBoxIP struct {
 	IntervalMin int `json:"interval_min"`
 	// The last automatic or manual detection; null before the first one.
 	LastRun NilExposureGetExposureTargetsOKBoxIPLastRun `json:"last_run"`
+	// Null while attempts are left. When the 10 attempts an hour (shared by Detect now, Verify again and
+	// the DNS Check of a domain) are used up: minutes until the next one is possible, 1 or more.
+	RetryInMin NilInt `json:"retry_in_min"`
 }
 
 // GetAuto returns the value of Auto.
@@ -34856,6 +34868,11 @@ func (s *ExposureGetExposureTargetsOKBoxIP) GetLastRun() NilExposureGetExposureT
 	return s.LastRun
 }
 
+// GetRetryInMin returns the value of RetryInMin.
+func (s *ExposureGetExposureTargetsOKBoxIP) GetRetryInMin() NilInt {
+	return s.RetryInMin
+}
+
 // SetAuto sets the value of Auto.
 func (s *ExposureGetExposureTargetsOKBoxIP) SetAuto(val bool) {
 	s.Auto = val
@@ -34869,6 +34886,11 @@ func (s *ExposureGetExposureTargetsOKBoxIP) SetIntervalMin(val int) {
 // SetLastRun sets the value of LastRun.
 func (s *ExposureGetExposureTargetsOKBoxIP) SetLastRun(val NilExposureGetExposureTargetsOKBoxIPLastRun) {
 	s.LastRun = val
+}
+
+// SetRetryInMin sets the value of RetryInMin.
+func (s *ExposureGetExposureTargetsOKBoxIP) SetRetryInMin(val NilInt) {
+	s.RetryInMin = val
 }
 
 type ExposureGetExposureTargetsOKBoxIPLastRun struct {
@@ -34946,7 +34968,9 @@ func (s *ExposureGetExposureTargetsOKIgnoredItem) SetValue(val string) {
 }
 
 type ExposureGetExposureTargetsOKItemsItem struct {
-	// Why it cannot be scanned yet; null = can be scanned.
+	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
+	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
+	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
 	BlockedReason NilExposureGetExposureTargetsOKItemsItemBlockedReason `json:"blocked_reason"`
 	// Who ticked "my company owns it and I am authorized to scan it", and when.
 	Commitment NilExposureGetExposureTargetsOKItemsItemCommitment `json:"commitment"`
@@ -35140,6 +35164,7 @@ const (
 	ExposureGetExposureTargetsOKItemsItemBlockedReasonExpired      ExposureGetExposureTargetsOKItemsItemBlockedReason = "expired"
 	ExposureGetExposureTargetsOKItemsItemBlockedReasonTxtMissing   ExposureGetExposureTargetsOKItemsItemBlockedReason = "txt_missing"
 	ExposureGetExposureTargetsOKItemsItemBlockedReasonNoCommitment ExposureGetExposureTargetsOKItemsItemBlockedReason = "no_commitment"
+	ExposureGetExposureTargetsOKItemsItemBlockedReasonIPNotCurrent ExposureGetExposureTargetsOKItemsItemBlockedReason = "ip_not_current"
 )
 
 // AllValues returns all ExposureGetExposureTargetsOKItemsItemBlockedReason values.
@@ -35149,6 +35174,7 @@ func (ExposureGetExposureTargetsOKItemsItemBlockedReason) AllValues() []Exposure
 		ExposureGetExposureTargetsOKItemsItemBlockedReasonExpired,
 		ExposureGetExposureTargetsOKItemsItemBlockedReasonTxtMissing,
 		ExposureGetExposureTargetsOKItemsItemBlockedReasonNoCommitment,
+		ExposureGetExposureTargetsOKItemsItemBlockedReasonIPNotCurrent,
 	}
 }
 
@@ -35162,6 +35188,8 @@ func (s ExposureGetExposureTargetsOKItemsItemBlockedReason) MarshalText() ([]byt
 	case ExposureGetExposureTargetsOKItemsItemBlockedReasonTxtMissing:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsOKItemsItemBlockedReasonNoCommitment:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemBlockedReasonIPNotCurrent:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -35182,6 +35210,9 @@ func (s *ExposureGetExposureTargetsOKItemsItemBlockedReason) UnmarshalText(data 
 		return nil
 	case ExposureGetExposureTargetsOKItemsItemBlockedReasonNoCommitment:
 		*s = ExposureGetExposureTargetsOKItemsItemBlockedReasonNoCommitment
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemBlockedReasonIPNotCurrent:
+		*s = ExposureGetExposureTargetsOKItemsItemBlockedReasonIPNotCurrent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -35513,7 +35544,9 @@ func (s *ExposurePostExposureBoxIPVerifyOK) SetMessage(val string) {
 }
 
 type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
-	// Why it cannot be scanned yet; null = can be scanned.
+	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
+	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
+	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
 	BlockedReason NilExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason `json:"blocked_reason"`
 	// Who ticked "my company owns it and I am authorized to scan it", and when.
 	Commitment NilExposurePostExposureBoxIPVerifyOKItemsItemCommitment `json:"commitment"`
@@ -35707,6 +35740,7 @@ const (
 	ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonExpired      ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason = "expired"
 	ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonTxtMissing   ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason = "txt_missing"
 	ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonNoCommitment ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason = "no_commitment"
+	ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonIPNotCurrent ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason = "ip_not_current"
 )
 
 // AllValues returns all ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason values.
@@ -35716,6 +35750,7 @@ func (ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) AllValues() []Exp
 		ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonExpired,
 		ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonTxtMissing,
 		ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonNoCommitment,
+		ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonIPNotCurrent,
 	}
 }
 
@@ -35729,6 +35764,8 @@ func (s ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) MarshalText() (
 	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonTxtMissing:
 		return []byte(s), nil
 	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonNoCommitment:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonIPNotCurrent:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -35749,6 +35786,9 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) UnmarshalText(
 		return nil
 	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonNoCommitment:
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonNoCommitment
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonIPNotCurrent:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonIPNotCurrent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -36054,7 +36094,9 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemValidity) UnmarshalText(data 
 }
 
 type ExposurePostExposureTargetsCreated struct {
-	// Why it cannot be scanned yet; null = can be scanned.
+	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
+	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
+	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
 	BlockedReason NilExposurePostExposureTargetsCreatedBlockedReason `json:"blocked_reason"`
 	// Who ticked "my company owns it and I am authorized to scan it", and when.
 	Commitment NilExposurePostExposureTargetsCreatedCommitment `json:"commitment"`
@@ -36248,6 +36290,7 @@ const (
 	ExposurePostExposureTargetsCreatedBlockedReasonExpired      ExposurePostExposureTargetsCreatedBlockedReason = "expired"
 	ExposurePostExposureTargetsCreatedBlockedReasonTxtMissing   ExposurePostExposureTargetsCreatedBlockedReason = "txt_missing"
 	ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment ExposurePostExposureTargetsCreatedBlockedReason = "no_commitment"
+	ExposurePostExposureTargetsCreatedBlockedReasonIPNotCurrent ExposurePostExposureTargetsCreatedBlockedReason = "ip_not_current"
 )
 
 // AllValues returns all ExposurePostExposureTargetsCreatedBlockedReason values.
@@ -36257,6 +36300,7 @@ func (ExposurePostExposureTargetsCreatedBlockedReason) AllValues() []ExposurePos
 		ExposurePostExposureTargetsCreatedBlockedReasonExpired,
 		ExposurePostExposureTargetsCreatedBlockedReasonTxtMissing,
 		ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment,
+		ExposurePostExposureTargetsCreatedBlockedReasonIPNotCurrent,
 	}
 }
 
@@ -36270,6 +36314,8 @@ func (s ExposurePostExposureTargetsCreatedBlockedReason) MarshalText() ([]byte, 
 	case ExposurePostExposureTargetsCreatedBlockedReasonTxtMissing:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedBlockedReasonIPNotCurrent:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -36290,6 +36336,9 @@ func (s *ExposurePostExposureTargetsCreatedBlockedReason) UnmarshalText(data []b
 		return nil
 	case ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment:
 		*s = ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment
+		return nil
+	case ExposurePostExposureTargetsCreatedBlockedReasonIPNotCurrent:
+		*s = ExposurePostExposureTargetsCreatedBlockedReasonIPNotCurrent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -36595,7 +36644,9 @@ func (s *ExposurePostExposureTargetsCreatedValidity) UnmarshalText(data []byte) 
 }
 
 type ExposurePostExposureTargetsIDCommitmentOK struct {
-	// Why it cannot be scanned yet; null = can be scanned.
+	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
+	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
+	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
 	BlockedReason NilExposurePostExposureTargetsIDCommitmentOKBlockedReason `json:"blocked_reason"`
 	// Who ticked "my company owns it and I am authorized to scan it", and when.
 	Commitment NilExposurePostExposureTargetsIDCommitmentOKCommitment `json:"commitment"`
@@ -36789,6 +36840,7 @@ const (
 	ExposurePostExposureTargetsIDCommitmentOKBlockedReasonExpired      ExposurePostExposureTargetsIDCommitmentOKBlockedReason = "expired"
 	ExposurePostExposureTargetsIDCommitmentOKBlockedReasonTxtMissing   ExposurePostExposureTargetsIDCommitmentOKBlockedReason = "txt_missing"
 	ExposurePostExposureTargetsIDCommitmentOKBlockedReasonNoCommitment ExposurePostExposureTargetsIDCommitmentOKBlockedReason = "no_commitment"
+	ExposurePostExposureTargetsIDCommitmentOKBlockedReasonIPNotCurrent ExposurePostExposureTargetsIDCommitmentOKBlockedReason = "ip_not_current"
 )
 
 // AllValues returns all ExposurePostExposureTargetsIDCommitmentOKBlockedReason values.
@@ -36798,6 +36850,7 @@ func (ExposurePostExposureTargetsIDCommitmentOKBlockedReason) AllValues() []Expo
 		ExposurePostExposureTargetsIDCommitmentOKBlockedReasonExpired,
 		ExposurePostExposureTargetsIDCommitmentOKBlockedReasonTxtMissing,
 		ExposurePostExposureTargetsIDCommitmentOKBlockedReasonNoCommitment,
+		ExposurePostExposureTargetsIDCommitmentOKBlockedReasonIPNotCurrent,
 	}
 }
 
@@ -36811,6 +36864,8 @@ func (s ExposurePostExposureTargetsIDCommitmentOKBlockedReason) MarshalText() ([
 	case ExposurePostExposureTargetsIDCommitmentOKBlockedReasonTxtMissing:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsIDCommitmentOKBlockedReasonNoCommitment:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDCommitmentOKBlockedReasonIPNotCurrent:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -36831,6 +36886,9 @@ func (s *ExposurePostExposureTargetsIDCommitmentOKBlockedReason) UnmarshalText(d
 		return nil
 	case ExposurePostExposureTargetsIDCommitmentOKBlockedReasonNoCommitment:
 		*s = ExposurePostExposureTargetsIDCommitmentOKBlockedReasonNoCommitment
+		return nil
+	case ExposurePostExposureTargetsIDCommitmentOKBlockedReasonIPNotCurrent:
+		*s = ExposurePostExposureTargetsIDCommitmentOKBlockedReasonIPNotCurrent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -37542,7 +37600,9 @@ func (s *ExposurePostExposureTargetsIDVerifyOK) SetVerified(val bool) {
 }
 
 type ExposurePostExposureTargetsIDVerifyOKTarget struct {
-	// Why it cannot be scanned yet; null = can be scanned.
+	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
+	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
+	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
 	BlockedReason NilExposurePostExposureTargetsIDVerifyOKTargetBlockedReason `json:"blocked_reason"`
 	// Who ticked "my company owns it and I am authorized to scan it", and when.
 	Commitment NilExposurePostExposureTargetsIDVerifyOKTargetCommitment `json:"commitment"`
@@ -37736,6 +37796,7 @@ const (
 	ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonExpired      ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason = "expired"
 	ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonTxtMissing   ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason = "txt_missing"
 	ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonNoCommitment ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason = "no_commitment"
+	ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonIPNotCurrent ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason = "ip_not_current"
 )
 
 // AllValues returns all ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason values.
@@ -37745,6 +37806,7 @@ func (ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason) AllValues() []Ex
 		ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonExpired,
 		ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonTxtMissing,
 		ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonNoCommitment,
+		ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonIPNotCurrent,
 	}
 }
 
@@ -37758,6 +37820,8 @@ func (s ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason) MarshalText() 
 	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonTxtMissing:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonNoCommitment:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonIPNotCurrent:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -37778,6 +37842,9 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason) UnmarshalText
 		return nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonNoCommitment:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonNoCommitment
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonIPNotCurrent:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonIPNotCurrent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -38104,6 +38171,9 @@ type ExposurePutExposureBoxIPSettingsOK struct {
 	IntervalMin int `json:"interval_min"`
 	// The last automatic or manual detection; null before the first one.
 	LastRun NilExposurePutExposureBoxIPSettingsOKLastRun `json:"last_run"`
+	// Null while attempts are left. When the 10 attempts an hour (shared by Detect now, Verify again and
+	// the DNS Check of a domain) are used up: minutes until the next one is possible, 1 or more.
+	RetryInMin NilInt `json:"retry_in_min"`
 }
 
 // GetAuto returns the value of Auto.
@@ -38121,6 +38191,11 @@ func (s *ExposurePutExposureBoxIPSettingsOK) GetLastRun() NilExposurePutExposure
 	return s.LastRun
 }
 
+// GetRetryInMin returns the value of RetryInMin.
+func (s *ExposurePutExposureBoxIPSettingsOK) GetRetryInMin() NilInt {
+	return s.RetryInMin
+}
+
 // SetAuto sets the value of Auto.
 func (s *ExposurePutExposureBoxIPSettingsOK) SetAuto(val bool) {
 	s.Auto = val
@@ -38134,6 +38209,11 @@ func (s *ExposurePutExposureBoxIPSettingsOK) SetIntervalMin(val int) {
 // SetLastRun sets the value of LastRun.
 func (s *ExposurePutExposureBoxIPSettingsOK) SetLastRun(val NilExposurePutExposureBoxIPSettingsOKLastRun) {
 	s.LastRun = val
+}
+
+// SetRetryInMin sets the value of RetryInMin.
+func (s *ExposurePutExposureBoxIPSettingsOK) SetRetryInMin(val NilInt) {
+	s.RetryInMin = val
 }
 
 type ExposurePutExposureBoxIPSettingsOKLastRun struct {

@@ -16797,12 +16797,26 @@
                         }
                       ],
                       "description": "The last automatic or manual detection; null before the first one"
+                    },
+                    "retry_in_min": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null while attempts are left. When the 10 attempts an hour (shared by Detect now, Verify again and the DNS Check of a domain) are used up: minutes until the next one is possible, 1 or more"
                     }
                   },
                   "required": [
                     "auto",
                     "interval_min",
-                    "last_run"
+                    "last_run",
+                    "retry_in_min"
                   ],
                   "additionalProperties": false
                 }
@@ -16994,14 +17008,15 @@
                                   "unverified",
                                   "expired",
                                   "txt_missing",
-                                  "no_commitment"
+                                  "no_commitment",
+                                  "ip_not_current"
                                 ]
                               },
                               {
                                 "type": "null"
                               }
                             ],
-                            "description": "Why it cannot be scanned yet; null = can be scanned"
+                            "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
                           },
                           "created_at": {
                             "type": "string",
@@ -17286,14 +17301,15 @@
                                   "unverified",
                                   "expired",
                                   "txt_missing",
-                                  "no_commitment"
+                                  "no_commitment",
+                                  "ip_not_current"
                                 ]
                               },
                               {
                                 "type": "null"
                               }
                             ],
-                            "description": "Why it cannot be scanned yet; null = can be scanned"
+                            "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
                           },
                           "created_at": {
                             "type": "string",
@@ -17422,12 +17438,26 @@
                             }
                           ],
                           "description": "The last automatic or manual detection; null before the first one"
+                        },
+                        "retry_in_min": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "null while attempts are left. When the 10 attempts an hour (shared by Detect now, Verify again and the DNS Check of a domain) are used up: minutes until the next one is possible, 1 or more"
                         }
                       },
                       "required": [
                         "auto",
                         "interval_min",
-                        "last_run"
+                        "last_run",
+                        "retry_in_min"
                       ],
                       "additionalProperties": false
                     },
@@ -17666,14 +17696,15 @@
                             "unverified",
                             "expired",
                             "txt_missing",
-                            "no_commitment"
+                            "no_commitment",
+                            "ip_not_current"
                           ]
                         },
                         {
                           "type": "null"
                         }
                       ],
-                      "description": "Why it cannot be scanned yet; null = can be scanned"
+                      "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
                     },
                     "created_at": {
                       "type": "string",
@@ -17999,14 +18030,15 @@
                             "unverified",
                             "expired",
                             "txt_missing",
-                            "no_commitment"
+                            "no_commitment",
+                            "ip_not_current"
                           ]
                         },
                         {
                           "type": "null"
                         }
                       ],
-                      "description": "Why it cannot be scanned yet; null = can be scanned"
+                      "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
                     },
                     "created_at": {
                       "type": "string",
@@ -18304,14 +18336,15 @@
                             "unverified",
                             "expired",
                             "txt_missing",
-                            "no_commitment"
+                            "no_commitment",
+                            "ip_not_current"
                           ]
                         },
                         {
                           "type": "null"
                         }
                       ],
-                      "description": "Why it cannot be scanned yet; null = can be scanned"
+                      "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
                     },
                     "created_at": {
                       "type": "string",
@@ -19345,14 +19378,15 @@
                                 "unverified",
                                 "expired",
                                 "txt_missing",
-                                "no_commitment"
+                                "no_commitment",
+                                "ip_not_current"
                               ]
                             },
                             {
                               "type": "null"
                             }
                           ],
-                          "description": "Why it cannot be scanned yet; null = can be scanned"
+                          "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
                         },
                         "created_at": {
                           "type": "string",

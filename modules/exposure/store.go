@@ -308,7 +308,12 @@ func recentAttempts(ctx context.Context, tx *sql.Tx, now time.Time) ([]time.Time
 	if _, err := tx.ExecContext(ctx, `DELETE FROM exp_attempt WHERE ts < ?`, store.FormatTS(now.Add(-24*time.Hour))); err != nil {
 		return nil, fmt.Errorf("pruning attempts: %w", err)
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT ts FROM exp_attempt WHERE ts > ? ORDER BY ts`, store.FormatTS(now.Add(-time.Hour)))
+	return attemptsInLastHour(ctx, tx, now)
+}
+
+// attemptsInLastHour reads the times of the attempts of the last hour, oldest first, without writing.
+func attemptsInLastHour(ctx context.Context, q querier, now time.Time) ([]time.Time, error) {
+	rows, err := q.QueryContext(ctx, `SELECT ts FROM exp_attempt WHERE ts > ? ORDER BY ts`, store.FormatTS(now.Add(-time.Hour)))
 	if err != nil {
 		return nil, fmt.Errorf("attempts: %w", err)
 	}
@@ -358,23 +363,37 @@ func saveSettings(ctx context.Context, tx *sql.Tx, auto bool, interval int) erro
 }
 
 // saveRun records the last detection; deep marks a full check, which also moves last_deep_at (the light checks of a
-// short interval do not, so a full check still runs once an hour).
-func saveRun(ctx context.Context, tx *sql.Tx, at time.Time, ok bool, message string, deep bool) error {
+// short interval do not, so a full check still runs once an hour). answered says the services agreed on an address:
+// only a full check that was answered moves last_full_ok_at, the fact that makes an IP show as paused (INV-13).
+func saveRun(ctx context.Context, tx *sql.Tx, at time.Time, ok bool, message string, deep, answered bool) error {
 	if len(message) > 1000 {
 		message = message[:1000]
 	}
-	o, d := 0, 0
+	o, d, f := 0, 0, 0
 	if ok {
 		o = 1
 	}
 	if deep {
 		d = 1
+		if answered {
+			f = 1
+		}
 	}
 	ts := store.FormatTS(at)
-	if _, err := tx.ExecContext(ctx, `UPDATE exp_setting SET last_run_at = ?, last_run_ok = ?, last_run_message = ?, last_deep_at = CASE WHEN ? = 1 THEN ? ELSE last_deep_at END WHERE id = 1`, ts, o, message, d, ts); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE exp_setting SET last_run_at = ?, last_run_ok = ?, last_run_message = ?,
+		last_deep_at = CASE WHEN ? = 1 THEN ? ELSE last_deep_at END, last_full_ok_at = CASE WHEN ? = 1 THEN ? ELSE last_full_ok_at END WHERE id = 1`, ts, o, message, d, ts, f, ts); err != nil {
 		return fmt.Errorf("saving the last detection: %w", err)
 	}
 	return nil
+}
+
+// loadLastFullOK returns when the last full check that got an answer ran; the zero time when none did.
+func loadLastFullOK(ctx context.Context, q querier) (time.Time, error) {
+	var s sql.NullString
+	if err := q.QueryRowContext(ctx, `SELECT last_full_ok_at FROM exp_setting WHERE id = 1`).Scan(&s); err != nil {
+		return time.Time{}, fmt.Errorf("last answered full check: %w", err)
+	}
+	return optTS(s)
 }
 
 // loadLastDeep returns when the last full check ran; the zero time when none did.

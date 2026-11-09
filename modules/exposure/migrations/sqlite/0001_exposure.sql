@@ -46,6 +46,8 @@ CREATE INDEX exp_attempt_ts_idx ON exp_attempt (ts);
 -- The auto-detect settings of the box (INV-11): one row, with the defaults of kien's decision of 2026-11-09
 -- (on, every 60 minutes, 1 to 1440) and the follow-up of kien. last_run_* is the last detection, automatic or by a click;
 -- last_deep_at is the last full check (several rounds), so that a short interval only does a full check once an hour.
+-- last_full_ok_at is the last full check that got an answer (the services agreed): an IP not seen by it, and not seen since,
+-- is shown as paused (INV-13). A failed check moves last_deep_at but never this column.
 CREATE TABLE exp_setting (
     id               INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
     auto             INTEGER NOT NULL DEFAULT 1 CHECK (auto IN (0, 1)),
@@ -54,6 +56,7 @@ CREATE TABLE exp_setting (
     last_run_ok      INTEGER CHECK (last_run_ok IS NULL OR last_run_ok IN (0, 1)),
     last_run_message TEXT CHECK (last_run_message IS NULL OR length(last_run_message) <= 1000),
     last_deep_at     TEXT CHECK (last_deep_at IS NULL OR last_deep_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_full_ok_at  TEXT CHECK (last_full_ok_at IS NULL OR last_full_ok_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     CHECK ((last_run_at IS NULL) = (last_run_ok IS NULL) AND (last_run_at IS NULL) = (last_run_message IS NULL))
 );
 

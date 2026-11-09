@@ -39,7 +39,7 @@ const (
 	BlockedExpired      BlockedReason = "expired"
 	BlockedTxtMissing   BlockedReason = "txt_missing"
 	BlockedNoCommitment BlockedReason = "no_commitment"
-	// BlockedNotCurrent is answered by CheckScannable and Scan only (never a Target.blocked_reason): the box no longer
+	// BlockedNotCurrent: the latest full check did not see this IP, so the box no longer
 	// reaches the Internet through this IP (INV-13).
 	BlockedNotCurrent BlockedReason = "ip_not_current"
 )
@@ -127,6 +127,9 @@ type BoxIP struct {
 	Auto        bool     `json:"auto"`
 	IntervalMin int      `json:"interval_min"`
 	LastRun     *LastRun `json:"last_run"`
+	// RetryInMin is nil while attempts are left. When the MaxAttemptsPerHour attempts of the last hour are used up it is the
+	// minutes until the next one is possible (1 or more), so the page can say it on the button.
+	RetryInMin *int `json:"retry_in_min"`
 }
 
 // DetectResult is what a detection found: the IPs it added or renewed, and a sentence about it.

@@ -71161,6 +71161,8 @@ func (s *ExposureGetExposureTargetsIDOKBlockedReason) Decode(d *jx.Decoder) erro
 		*s = ExposureGetExposureTargetsIDOKBlockedReasonTxtMissing
 	case ExposureGetExposureTargetsIDOKBlockedReasonNoCommitment:
 		*s = ExposureGetExposureTargetsIDOKBlockedReasonNoCommitment
+	case ExposureGetExposureTargetsIDOKBlockedReasonIPNotCurrent:
+		*s = ExposureGetExposureTargetsIDOKBlockedReasonIPNotCurrent
 	default:
 		*s = ExposureGetExposureTargetsIDOKBlockedReason(v)
 	}
@@ -73345,12 +73347,17 @@ func (s *ExposureGetExposureTargetsOKBoxIP) encodeFields(e *jx.Encoder) {
 		e.FieldStart("last_run")
 		s.LastRun.Encode(e)
 	}
+	{
+		e.FieldStart("retry_in_min")
+		s.RetryInMin.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsOKBoxIP = [3]string{
+var jsonFieldsNameOfExposureGetExposureTargetsOKBoxIP = [4]string{
 	0: "auto",
 	1: "interval_min",
 	2: "last_run",
+	3: "retry_in_min",
 }
 
 // Decode decodes ExposureGetExposureTargetsOKBoxIP from json.
@@ -73396,6 +73403,16 @@ func (s *ExposureGetExposureTargetsOKBoxIP) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"last_run\"")
 			}
+		case "retry_in_min":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.RetryInMin.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"retry_in_min\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -73406,7 +73423,7 @@ func (s *ExposureGetExposureTargetsOKBoxIP) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -74066,6 +74083,8 @@ func (s *ExposureGetExposureTargetsOKItemsItemBlockedReason) Decode(d *jx.Decode
 		*s = ExposureGetExposureTargetsOKItemsItemBlockedReasonTxtMissing
 	case ExposureGetExposureTargetsOKItemsItemBlockedReasonNoCommitment:
 		*s = ExposureGetExposureTargetsOKItemsItemBlockedReasonNoCommitment
+	case ExposureGetExposureTargetsOKItemsItemBlockedReasonIPNotCurrent:
+		*s = ExposureGetExposureTargetsOKItemsItemBlockedReasonIPNotCurrent
 	default:
 		*s = ExposureGetExposureTargetsOKItemsItemBlockedReason(v)
 	}
@@ -75134,6 +75153,8 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) Decode(d *jx.D
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonTxtMissing
 	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonNoCommitment:
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonNoCommitment
+	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonIPNotCurrent:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonIPNotCurrent
 	default:
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason(v)
 	}
@@ -76079,6 +76100,8 @@ func (s *ExposurePostExposureTargetsCreatedBlockedReason) Decode(d *jx.Decoder) 
 		*s = ExposurePostExposureTargetsCreatedBlockedReasonTxtMissing
 	case ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment:
 		*s = ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment
+	case ExposurePostExposureTargetsCreatedBlockedReasonIPNotCurrent:
+		*s = ExposurePostExposureTargetsCreatedBlockedReasonIPNotCurrent
 	default:
 		*s = ExposurePostExposureTargetsCreatedBlockedReason(v)
 	}
@@ -77024,6 +77047,8 @@ func (s *ExposurePostExposureTargetsIDCommitmentOKBlockedReason) Decode(d *jx.De
 		*s = ExposurePostExposureTargetsIDCommitmentOKBlockedReasonTxtMissing
 	case ExposurePostExposureTargetsIDCommitmentOKBlockedReasonNoCommitment:
 		*s = ExposurePostExposureTargetsIDCommitmentOKBlockedReasonNoCommitment
+	case ExposurePostExposureTargetsIDCommitmentOKBlockedReasonIPNotCurrent:
+		*s = ExposurePostExposureTargetsIDCommitmentOKBlockedReasonIPNotCurrent
 	default:
 		*s = ExposurePostExposureTargetsIDCommitmentOKBlockedReason(v)
 	}
@@ -79202,6 +79227,8 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason) Decode(d *jx.
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonTxtMissing
 	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonNoCommitment:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonNoCommitment
+	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonIPNotCurrent:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonIPNotCurrent
 	default:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason(v)
 	}
@@ -79910,12 +79937,17 @@ func (s *ExposurePutExposureBoxIPSettingsOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("last_run")
 		s.LastRun.Encode(e)
 	}
+	{
+		e.FieldStart("retry_in_min")
+		s.RetryInMin.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfExposurePutExposureBoxIPSettingsOK = [3]string{
+var jsonFieldsNameOfExposurePutExposureBoxIPSettingsOK = [4]string{
 	0: "auto",
 	1: "interval_min",
 	2: "last_run",
+	3: "retry_in_min",
 }
 
 // Decode decodes ExposurePutExposureBoxIPSettingsOK from json.
@@ -79961,6 +79993,16 @@ func (s *ExposurePutExposureBoxIPSettingsOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"last_run\"")
 			}
+		case "retry_in_min":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.RetryInMin.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"retry_in_min\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -79971,7 +80013,7 @@ func (s *ExposurePutExposureBoxIPSettingsOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

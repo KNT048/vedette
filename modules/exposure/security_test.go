@@ -404,7 +404,7 @@ func TestContract_INV13_IPThatIsNoLongerUsedIsNotScanned(t *testing.T) {
 	_, err := e.svc.Scan(e.ctx(), "operator@acme.example", a.ID)
 	wantAPI(t, err, 409, "ip_not_current")
 	var ae *APIError
-	if !errors.As(err, &ae) || !strings.Contains(ae.Message, ipA) || !strings.Contains(ae.Message, "last seen 2026-11-09 10:00 UTC") || !strings.Contains(ae.Message, "paused") {
+	if !errors.As(err, &ae) || !strings.Contains(ae.Message, ipA) || !strings.Contains(ae.Message, "last seen 9 Nov 2026, 10:00.") || !strings.Contains(ae.Message, "paused") {
 		t.Fatalf("message = %v", err)
 	}
 	if run.calls != 1 {

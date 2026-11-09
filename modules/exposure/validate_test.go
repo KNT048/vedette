@@ -23,7 +23,7 @@ func TestContract_INV6_DomainOnly(t *testing.T) {
 		{"", ErrEmpty}, {"   ", ErrEmpty},
 		{"https://example.com", ErrBadValue}, {"example.com/admin", ErrBadValue}, {"example.com:8443", ErrBadValue}, {"user@example.com", ErrBadValue}, {"exa mple.com", ErrBadValue}, {"a\tb.example", ErrBadValue},
 		{"8.8.8.8", ErrIPNotAllowed}, {"192.168.1.1", ErrIPNotAllowed},
-		{"::1", ErrBadValue}, {"2001:db8::1", ErrBadValue},
+		{"::1", ErrIPNotAllowed}, {"2001:db8::1", ErrIPNotAllowed}, {"[::1]", ErrIPNotAllowed}, {"2001:4860:4860::8888", ErrIPNotAllowed},
 		{"example", ErrBadDomain}, {"-a.example", ErrBadDomain}, {"a-.example", ErrBadDomain}, {"a..example", ErrBadDomain}, {"example.123", ErrBadDomain}, {"exa_mple.com", ErrBadDomain},
 		{strings.Repeat("a", 64) + ".example", ErrBadDomain}, {strings.Repeat("a.", 130) + "example", ErrBadDomain}, {"1.2.3", ErrBadDomain}, {"bücher.example", ErrBadDomain},
 	}

@@ -62,9 +62,19 @@ func probeFailure(err error) string {
 
 // Settings returns the auto-detect state of the box (GET /exposure/targets, box_ip).
 func (s *Service) Settings(ctx context.Context) (BoxIP, error) {
-	b, err := loadBoxIP(ctx, s.cfg.DB.Reader())
+	db := s.cfg.DB.Reader()
+	b, err := loadBoxIP(ctx, db)
 	if err != nil {
 		return BoxIP{}, fmt.Errorf("exposure: reading auto-detect settings: %w", err)
+	}
+	now := s.clock()
+	recent, err := attemptsInLastHour(ctx, db, now)
+	if err != nil {
+		return BoxIP{}, fmt.Errorf("exposure: reading attempts: %w", err)
+	}
+	if len(recent) >= MaxAttemptsPerHour {
+		w := retryWait(recent, now)
+		b.RetryInMin = &w
 	}
 	return b, nil
 }
@@ -182,7 +192,7 @@ func (s *Service) detectLocked(ctx context.Context, user string, deep bool) (Det
 		}
 		// A run of the box is audited when it switches between working and failing; the first run counts as coming from "working".
 		switched := func(nowOK bool) bool { return prev.LastRun == nil || prev.LastRun.OK != nowOK }
-		run := func(ok bool, text string) error { return saveRun(ctx, tx, now, ok, text, deep) }
+		run := func(ok bool, text string) error { return saveRun(ctx, tx, now, ok, text, deep, perr == nil) }
 		fail := func(err *APIError, summary string) error {
 			outcome = err
 			if e := run(false, err.Message); e != nil {
@@ -219,7 +229,7 @@ func (s *Service) detectLocked(ctx context.Context, user string, deep bool) (Det
 				return err
 			}
 		}
-		until := ymd(now.Add(ValidDays * 24 * time.Hour))
+		until := s.dayText(now.Add(ValidDays * 24 * time.Hour))
 		n, err := countTargets(ctx, tx)
 		if err != nil {
 			return err

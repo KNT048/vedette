@@ -19075,6 +19075,8 @@ func (s ExposureGetExposureTargetsIDOKBlockedReason) Validate() error {
 		return nil
 	case "no_commitment":
 		return nil
+	case "ip_not_current":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -19866,6 +19868,34 @@ func (s *ExposureGetExposureTargetsOKBoxIP) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.RetryInMin.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "retry_in_min",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -19987,6 +20017,8 @@ func (s ExposureGetExposureTargetsOKItemsItemBlockedReason) Validate() error {
 	case "txt_missing":
 		return nil
 	case "no_commitment":
+		return nil
+	case "ip_not_current":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -20314,6 +20346,8 @@ func (s ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) Validate() erro
 		return nil
 	case "no_commitment":
 		return nil
+	case "ip_not_current":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -20600,6 +20634,8 @@ func (s ExposurePostExposureTargetsCreatedBlockedReason) Validate() error {
 		return nil
 	case "no_commitment":
 		return nil
+	case "ip_not_current":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -20885,6 +20921,8 @@ func (s ExposurePostExposureTargetsIDCommitmentOKBlockedReason) Validate() error
 	case "txt_missing":
 		return nil
 	case "no_commitment":
+		return nil
+	case "ip_not_current":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -21524,6 +21562,8 @@ func (s ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason) Validate() err
 		return nil
 	case "no_commitment":
 		return nil
+	case "ip_not_current":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -21718,6 +21758,34 @@ func (s *ExposurePutExposureBoxIPSettingsOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "interval_min",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.RetryInMin.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "retry_in_min",
 			Error: err,
 		})
 	}

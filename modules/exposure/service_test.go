@@ -191,7 +191,7 @@ func TestContract_INV2_MultiIPDetect(t *testing.T) {
 		t.Fatalf("IPs = %v", got)
 	}
 	b, _ := e.svc.Settings(e.ctx())
-	if b.LastRun == nil || !b.LastRun.OK || b.LastRun.Message != "The box reaches the Internet via 2 public IPs: "+ipA+", "+ipB+". Each is verified until 2026-12-09." {
+	if b.LastRun == nil || !b.LastRun.OK || b.LastRun.Message != "The box reaches the Internet via 2 public IPs: "+ipA+", "+ipB+". Each is verified until 9 Dec 2026." {
 		t.Fatalf("last run = %+v", b.LastRun)
 	}
 	// a failed probe among answered ones is ignored

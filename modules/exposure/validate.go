@@ -18,6 +18,8 @@ func normalizeDomain(raw string) (string, error) {
 	switch {
 	case v == "":
 		return "", ErrEmpty
+	case isIPv6(v): // an IP in any spelling is an IP: the same answer as IPv4, not "enter only a domain name"
+		return "", ErrIPNotAllowed
 	case strings.ContainsAny(v, "/:@") || strings.IndexFunc(v, unicode.IsSpace) >= 0:
 		return "", ErrBadValue
 	}
@@ -28,6 +30,15 @@ func normalizeDomain(raw string) (string, error) {
 		return "", ErrBadDomain
 	}
 	return v, nil
+}
+
+// isIPv6 reports whether v is an IPv6 address as people write it: "2001:db8::1", "::1", "[::1]", "::ffff:8.8.8.8" or with a zone.
+func isIPv6(v string) bool {
+	if len(v) > 2 && v[0] == '[' && v[len(v)-1] == ']' {
+		v = v[1 : len(v)-1]
+	}
+	a, err := netip.ParseAddr(v)
+	return err == nil && a.Is6()
 }
 
 // Address ranges the box never verifies (INV-3). IsPrivate, IsLoopback, IsLinkLocalUnicast and the

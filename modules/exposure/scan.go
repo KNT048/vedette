@@ -71,6 +71,57 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 	return t, t.blocked(s.clock()), nil
 }
 
+// checks is what the latest checks of the box's IPs say, read without probing anything (INV-13): the time of the latest
+// check of any kind and of the latest full check. The scan gate and the state shown on a target both ask it, so the page
+// says "paused" exactly when the gate would refuse without a new probe.
+type checks struct{ now, lastRun, lastDeep, lastFullOK time.Time }
+
+func (s *Service) loadChecks(ctx context.Context, q querier) (checks, error) {
+	box, err := loadBoxIP(ctx, q)
+	if err != nil {
+		return checks{}, fmt.Errorf("exposure: reading auto-detect settings: %w", err)
+	}
+	deep, err := loadLastDeep(ctx, q)
+	if err != nil {
+		return checks{}, err
+	}
+	fullOK, err := loadLastFullOK(ctx, q)
+	if err != nil {
+		return checks{}, err
+	}
+	c := checks{now: s.clock(), lastDeep: deep, lastFullOK: fullOK}
+	if box.LastRun != nil {
+		if c.lastRun, err = parseTS(box.LastRun.At); err != nil {
+			c.lastRun = time.Time{}
+		}
+	}
+	return c, nil
+}
+
+// fresh: a check that ran within CurrentFor (a time in the future beyond the slack is a clock that was ahead: not fresh).
+func (c checks) fresh(at time.Time) bool {
+	return !at.IsZero() && !at.After(c.now.Add(clockSlack)) && c.now.Sub(at) <= CurrentFor
+}
+
+// saw: a recent check renewed this IP (a renewal sets verified_at to the time of its run).
+func (c checks) saw(t Target) bool {
+	for _, at := range []time.Time{c.lastRun, c.lastDeep} {
+		if c.fresh(at) && !t.VerifiedAt.Before(at) {
+			return true
+		}
+	}
+	return false
+}
+
+// paused: the latest full check that got an answer did not see the IP, and no check since has (a sighting renews
+// verified_at to the time of its run, so it is at or after that full check). It rests on what is stored, not on a
+// window: it stays until a later check, light or full, sees the IP. A light check that does not see it, and a check
+// that failed, change nothing: only a full check sees every IP of a load balancer. With no answered full check yet,
+// nothing is known against the IP (a time in the future beyond the slack is a clock that was ahead: ignored).
+func (c checks) paused(t Target) bool {
+	return !c.lastFullOK.IsZero() && !c.lastFullOK.After(c.now.Add(clockSlack)) && t.VerifiedAt.Before(c.lastFullOK)
+}
+
 // stillCurrent says whether the box is going out through this IP now (INV-13), the counterpart of the TXT re-check of a
 // domain. The IP stays in the list for 30 days from the last sighting (INV-4); this only decides whether it may be
 // scanned now. It is true when the latest check, or the latest full check, ran within CurrentFor and saw the IP.
@@ -86,32 +137,14 @@ func (s *Service) stillCurrent(ctx context.Context, actor string, t Target) (boo
 	if err != nil {
 		return false, err
 	}
-	box, err := loadBoxIP(ctx, db)
-	if err != nil {
-		return false, fmt.Errorf("exposure: reading auto-detect settings: %w", err)
-	}
-	lastDeep, err := loadLastDeep(ctx, db)
+	c, err := s.loadChecks(ctx, db)
 	if err != nil {
 		return false, err
 	}
-	now := s.clock()
-	// sawIt: the run at time at was recent and renewed this IP (a renewal sets verified_at to the time of its run).
-	sawIt := func(at time.Time) bool {
-		return !at.IsZero() && !at.After(now.Add(clockSlack)) && now.Sub(at) <= CurrentFor && !cur.VerifiedAt.Before(at)
-	}
-	fresh := func(at time.Time) bool {
-		return !at.IsZero() && !at.After(now.Add(clockSlack)) && now.Sub(at) <= CurrentFor
-	}
-	var lastRun time.Time
-	if box.LastRun != nil {
-		if lastRun, err = parseTS(box.LastRun.At); err != nil {
-			lastRun = time.Time{}
-		}
-	}
-	if sawIt(lastRun) || sawIt(lastDeep) {
+	if c.saw(cur) {
 		return true, nil
 	}
-	if fresh(lastDeep) {
+	if c.fresh(c.lastDeep) {
 		return false, nil // a full check ran moments ago and did not see it: the answer stands, nothing is probed again
 	}
 	res, err := s.detectLocked(ctx, actor, true)
@@ -138,18 +171,18 @@ func (s *Service) CheckScannable(ctx context.Context, actor, id string) (ok bool
 }
 
 // refusal is the API error of a blocked scan (INV-1).
-func refusal(t Target, r BlockedReason, now time.Time) error {
+func (s *Service) refusal(t Target, r BlockedReason, now time.Time) error {
 	switch r {
 	case BlockedUnverified:
 		return apiErr(409, "not_verified", "%s has no ownership proof, so it cannot be scanned. Finish verification first.", t.Value)
 	case BlockedExpired:
-		return apiErr(409, "expired", "Verification of %s expired on %s, so it cannot be scanned. Verify it again first.", t.Value, ymd(t.expiresAt(now)))
+		return apiErr(409, "expired", "Verification of %s expired on %s, so it cannot be scanned. Verify it again first.", t.Value, s.dayText(t.expiresAt(now)))
 	case BlockedTxtMissing:
 		return apiErr(409, "txt_missing", "The DNS TXT record %s is no longer on %s, so it cannot be scanned. Add the record back, then check again.", txtRecord(t.Token), t.Value)
 	case BlockedNoCommitment:
 		return apiErr(400, "commitment_required", "You have not confirmed that your company owns %s and you are authorized to scan it. Confirm it first.", t.Value)
 	case BlockedNotCurrent:
-		return apiErr(409, "ip_not_current", "This box no longer reaches the Internet through %s; it was last seen %s. Scans of it are paused until the box uses it again.", t.Value, t.VerifiedAt.UTC().Format("2006-01-02 15:04 UTC"))
+		return apiErr(409, "ip_not_current", "This box no longer reaches the Internet through %s; it was last seen %s. Scans of it are paused until the box uses it again.", t.Value, s.momentText(t.VerifiedAt))
 	}
 	return nil
 }
@@ -162,7 +195,7 @@ func (s *Service) Scan(ctx context.Context, user, id string) (Snapshot, error) {
 		return Snapshot{}, fmt.Errorf("exposure: scanning: %w", err)
 	}
 	if reason != "" {
-		return Snapshot{}, fmt.Errorf("exposure: scanning %s: %w", t.Value, refusal(t, reason, s.clock()))
+		return Snapshot{}, fmt.Errorf("exposure: scanning %s: %w", t.Value, s.refusal(t, reason, s.clock()))
 	}
 	r := s.scanRunner()
 	if r == nil {

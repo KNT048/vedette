@@ -110,7 +110,12 @@ func (s *Service) audit(ctx context.Context, tx *sql.Tx, user, action, target, d
 
 // ---- how a target looks (INV-1, INV-4) ----
 
-func ymd(t time.Time) string { return t.UTC().Format(dayFormat) }
+// dayText and momentText are the one human date format of every message the API sends: "9 Nov 2026" and "9 Nov 2026, 17:00",
+// in the box time zone (never ISO, never "UTC").
+func (s *Service) dayText(t time.Time) string { return t.In(s.cfg.Location).Format("2 Jan 2006") }
+func (s *Service) momentText(t time.Time) string {
+	return t.In(s.cfg.Location).Format("2 Jan 2006, 15:04")
+}
 
 // clockSlack is how far into the future a stored time may lie before it is taken as written by a clock that was ahead.
 const clockSlack = 5 * time.Minute
@@ -180,7 +185,7 @@ func (t Target) blocked(now time.Time) BlockedReason {
 	return ""
 }
 
-func (s *Service) view(t Target, latest map[string]Counts, now time.Time) TargetView {
+func (s *Service) view(t Target, latest map[string]Counts, c checks, now time.Time) TargetView {
 	v := TargetView{
 		ID: t.ID, Kind: t.Kind, Value: t.Value, Status: t.status(now), Token: t.Token,
 		LastCheck: t.LastCheck, Commitment: t.Commitment, CreatedAt: store.FormatTS(t.CreatedAt),
@@ -200,7 +205,11 @@ func (s *Service) view(t Target, latest map[string]Counts, now time.Time) Target
 	if val := t.validity(now); val != "" {
 		v.Validity = &val
 	}
-	if b := t.blocked(now); b != "" {
+	b := t.blocked(now)
+	if b == "" && t.Kind == KindIP && c.paused(t) {
+		b = BlockedNotCurrent // the latest full check did not see this IP (INV-13): the same answer the scan gate gives
+	}
+	if b != "" {
 		v.BlockedReason = &b
 	} else {
 		v.Scannable = true
@@ -227,10 +236,13 @@ func (s *Service) Targets(ctx context.Context) ([]TargetView, error) {
 	if err != nil {
 		return nil, fmt.Errorf("exposure: listing targets: %w", err)
 	}
-	now := s.clock()
+	c, err := s.loadChecks(ctx, db)
+	if err != nil {
+		return nil, fmt.Errorf("exposure: listing targets: %w", err)
+	}
 	out := make([]TargetView, 0, len(ts))
 	for _, t := range ts {
-		out = append(out, s.view(t, latest, now))
+		out = append(out, s.view(t, latest, c, c.now))
 	}
 	return out, nil
 }
@@ -249,7 +261,11 @@ func (s *Service) targetView(ctx context.Context, q querier, id string) (TargetV
 	if err != nil {
 		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
 	}
-	return s.view(t, latest, s.clock()), nil
+	c, err := s.loadChecks(ctx, q)
+	if err != nil {
+		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
+	}
+	return s.view(t, latest, c, c.now), nil
 }
 
 // ---- adding, deleting, committing ----

@@ -5,10 +5,12 @@
 // Format: one "key = value" per line; blank lines and lines starting with # are ignored.
 //
 //	core_uid  = 10001                        # uid that runs core (never 0)
+//	core_gid  = 10001                        # gid of core: restored files get core_uid:core_gid
 //	core_unit = vedette-core.service         # systemd unit whose cgroup core's processes are in
 //	socket    = /run/vedette/host.sock       # absolute path, at most 100 bytes
 //	socket_gid = 990                         # gid of the group "vedette" (owns the socket, mode 0660)
 //	core_cgroup = /user.slice/user-990.slice/user@990.service/app.slice/vedette-core.service   # optional
+//	core_data = /var/lib/vedette             # optional: directory of core's database and key file (backups)
 package config
 
 import (
@@ -38,6 +40,7 @@ var ErrInvalid = errors.New("host config: invalid")
 // Config is the parsed file.
 type Config struct {
 	CoreUID   int
+	CoreGID   int // group that restored files in core_data get (never taken from a file in core's tree)
 	CoreUnit  string
 	Socket    string
 	SocketGID int
@@ -45,6 +48,10 @@ type Config struct {
 	// empty means /system.slice/<core_unit>. A rootless Quadlet core lives under its user manager,
 	// so the installer writes the real path (WP-08).
 	CoreCgroup string
+	// CoreData is the directory that holds core's database (vedette.db) and master key file
+	// (vedette.key). Optional: the installer (WP-08) writes it, the host never takes a path from a
+	// request. Empty means backups answer db_unreadable.
+	CoreData string
 }
 
 var (
@@ -89,7 +96,7 @@ func Parse(r io.Reader) (Config, error) {
 	if err := sc.Err(); err != nil {
 		return Config{}, fmt.Errorf("%w: %w", ErrInvalid, err)
 	}
-	for _, k := range []string{"core_uid", "core_unit", "socket", "socket_gid"} {
+	for _, k := range []string{"core_uid", "core_gid", "core_unit", "socket", "socket_gid"} {
 		if !seen[k] {
 			return Config{}, fmt.Errorf("%w: %s is required", ErrInvalid, k)
 		}
@@ -108,6 +115,12 @@ func (c *Config) set(k, v string) error {
 			return errors.New("core_uid must not be 0: core never runs as root")
 		}
 		c.CoreUID = n
+	case "core_gid":
+		n, err := id(v)
+		if err != nil {
+			return fmt.Errorf("core_gid: %w", err)
+		}
+		c.CoreGID = n
 	case "socket_gid":
 		n, err := id(v)
 		if err != nil {
@@ -124,6 +137,11 @@ func (c *Config) set(k, v string) error {
 			return fmt.Errorf("core_cgroup: %w", err)
 		}
 		c.CoreCgroup = v
+	case "core_data":
+		if err := ValidDataDir(v); err != nil {
+			return fmt.Errorf("core_data: %w", err)
+		}
+		c.CoreData = v
 	case "socket":
 		if err := ValidSocketPath(v); err != nil {
 			return err
@@ -154,6 +172,22 @@ func ValidSocketPath(p string) error {
 		return errors.New("socket path must be clean (no .., //, trailing /)")
 	case p == "/":
 		return errors.New("socket path must name a file")
+	}
+	return nil
+}
+
+// ValidDataDir accepts a clean absolute directory path of a sensible length (not "/", no control
+// characters, no "..", no "//", no trailing slash).
+func ValidDataDir(p string) error {
+	switch {
+	case p == "" || p[0] != '/':
+		return errors.New("path must be absolute")
+	case len(p) > 200:
+		return errors.New("path is longer than 200 bytes")
+	case strings.IndexFunc(p, func(r rune) bool { return r < 0x20 || r == 0x7f }) >= 0 || p != cleanPath(p):
+		return errors.New("path must be clean (no control characters, .., //, trailing /)")
+	case p == "/":
+		return errors.New("path must not be /")
 	}
 	return nil
 }

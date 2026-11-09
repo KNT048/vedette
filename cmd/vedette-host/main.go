@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/host/config"
+	"github.com/knt048/vedette/host/ops"
 	"github.com/knt048/vedette/host/peer"
 	"github.com/knt048/vedette/host/server"
 )
@@ -46,12 +47,11 @@ type environment struct {
 	euid        int
 	configOwner int // the uid that must own host.conf (0 in production)
 	newChecker  func(coreUID int, unit, cgroup string) (peer.Checker, error)
-	registry    *server.Registry
 	logger      *slog.Logger
 }
 
 func realEnvironment(logger *slog.Logger) environment {
-	return environment{goos: runtime.GOOS, euid: os.Geteuid(), configOwner: 0, newChecker: peer.New, registry: server.DefaultRegistry(), logger: logger}
+	return environment{goos: runtime.GOOS, euid: os.Geteuid(), configOwner: 0, newChecker: peer.New, logger: logger}
 }
 
 func run(ctx context.Context, args []string, stdout io.Writer, env environment) error {
@@ -92,9 +92,23 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 	if err != nil {
 		return err
 	}
+	// The system commands (docs/specs/host-api.md section 6) live in host/ops. This is the one
+	// place the registry is built: a closed list, frozen here.
+	sys, err := ops.New(ops.Config{
+		StateDir: *stateDir, CoreData: cfg.CoreData, CoreUnit: cfg.CoreUnit, Version: version,
+		CoreUID: cfg.CoreUID, CoreGID: cfg.CoreGID, OwnerUID: env.configOwner, Logger: env.logger,
+	})
+	if err != nil {
+		return err
+	}
+	defer sys.Close()
+	registry, err := server.NewRegistry(sys.Commands()...)
+	if err != nil {
+		return err
+	}
 	srv, err := server.New(server.Options{
 		SocketPath: cfg.Socket, SocketGID: cfg.SocketGID, StateDir: *stateDir, AuditPath: *auditLog, OwnerUID: env.configOwner,
-		Registry: env.registry, PeerCheck: check, Version: version, Logger: env.logger,
+		Registry: registry, Readers: sys.Readers(), WriteGate: sys.WriteGate, PeerCheck: check, Version: version, Logger: env.logger,
 	})
 	if err != nil {
 		return err
@@ -102,6 +116,9 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 	if aerr := srv.AuditError(); aerr != nil {
 		env.logger.ErrorContext(ctx, "the audit chain does not verify: write commands are refused until a person repairs it", "error", aerr.Error())
 	}
+	// Before listening: notice a reboot the host started, re-arm the scheduled reboot, recover an
+	// interrupted restore, sweep old exports. Lines the host writes on its own go to the audit chain.
+	sys.Start(ctx, srv)
 	ln, err := srv.Listen(ctx)
 	if err != nil {
 		sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownGrace)

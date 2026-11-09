@@ -30,6 +30,7 @@ import (
 	"github.com/knt048/vedette/core/chain"
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/client"
+	"github.com/knt048/vedette/host/ops/opstest"
 	"github.com/knt048/vedette/host/peer"
 	"github.com/knt048/vedette/host/server"
 	"github.com/knt048/vedette/host/server/servertest"
@@ -41,8 +42,11 @@ const (
 )
 
 // documentedCommands is the command list of docs/specs/host-api.md section 6 that is implemented.
-// WP-07a registers none (framework only); WP-07b fills this list and DefaultRegistry together.
-var documentedCommands = []string{}
+// WP-07b part 1 implements the OS, backup and log commands (contract_os_test.go checks the list
+// against the spec); the net, decoy IP and container commands follow in later parts. Sorted.
+var documentedCommands = []string{
+	"backup.create", "backup.restore", "logs.export", "os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel",
+}
 
 // netArgs mirrors how a real command validates: name regex, netip for IPs, enum, HH:MM.
 type netArgs struct {
@@ -255,8 +259,12 @@ func TestContract_INV1_CommandTableIsClosedAndMatchesTheSpec(t *testing.T) {
 	if !slices.Equal(methods, []string{"Lookup", "Names"}) {
 		t.Fatalf("Registry methods = %v", methods)
 	}
-	if got := server.DefaultRegistry().Names(); !slices.Equal(got, documentedCommands) {
-		t.Fatalf("DefaultRegistry commands = %v, the documented list is %v (change docs/specs/host-api.md, CONTRACT.md and this list together)", got, documentedCommands)
+	sysReg, err := server.NewRegistry(opstest.NewMachine(t).Ops(nil).Commands()...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := sysReg.Names(); !slices.Equal(got, documentedCommands) {
+		t.Fatalf("the system registry has %v, the documented list is %v (change docs/specs/host-api.md, CONTRACT.md and this list together)", got, documentedCommands)
 	}
 	// What the server advertises is exactly the table.
 	f := newFixture(t)

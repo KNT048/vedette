@@ -1,0 +1,10 @@
+Inst ../../etc/passwd [1.0] (2.0 Ubuntu:24.04/noble-security [amd64])
+Inst -oRoot=/x [1.0] (2.0 Ubuntu:24.04/noble-security [amd64])
+Inst evil;rm [1.0] (2.0 Ubuntu:24.04/noble-security [amd64])
+Inst good-pkg [1.0] (2.0 Ubuntu:24.04/noble-security [amd64])
+Inst nofrom (2.0 Ubuntu:24.04/noble-security [amd64])
+Inst badver [1;0] (2.0 Ubuntu:24.04/noble-security [amd64])
+Inst weird [1.0] (2.0 Evil Origin:x/y-security [amd64])
+Inst truncated [1.0] (2.0
+Inst
+Inst good-pkg [1.0] (2.0 Ubuntu:24.04/noble-security [amd64])

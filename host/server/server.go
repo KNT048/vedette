@@ -1,7 +1,7 @@
 // Package server is the vedette-host socket server: a unix-socket HTTP/1.1 JSON API with a closed
 // command table, durable runs, one global write lock, a hash-chained audit log and per-connection
 // peer authentication (docs/specs/host-api.md). It is the framework of WP-07a; the system
-// commands arrive in WP-07b through DefaultRegistry.
+// commands live in host/ops (WP-07b) and are handed in through Options.Registry and Options.Readers.
 //
 // OS assumption: the real peer check needs Linux (SO_PEERCRED, /proc). The server itself is
 // portable so its tests run anywhere with an injected peer.Checker.
@@ -34,8 +34,13 @@ type Options struct {
 	StateDir   string // runs, idempotency records; mode 0700
 	AuditPath  string // audit.jsonl; its directory is created 0700
 	Registry   *Registry
-	PeerCheck  peer.Checker // layers 2 and 3 of the peer check; required
-	Version    string
+	Readers    Readers // read-only state endpoints (spec section 5); zero value: none
+	// WriteGate, when set, is asked before a write command is accepted (after the idempotency
+	// lookup, so a retry of an accepted request still gets its run). A non-nil refusal ends the
+	// request like busy does: no run, one audit line. It must not block or take locks the server holds.
+	WriteGate func() *Refusal
+	PeerCheck peer.Checker // layers 2 and 3 of the peer check; required
+	Version   string
 
 	Logger        *slog.Logger
 	Now           func() time.Time

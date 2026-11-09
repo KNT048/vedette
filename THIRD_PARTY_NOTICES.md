@@ -59,7 +59,7 @@ Pinned in `go.mod` and `go.sum`; licenses checked from the `LICENSE` files of ea
 | gopkg.in/yaml.v2 | v2.4.0 | Apache-2.0 and MIT | YAML parsing used by `ghodss/yaml` |
 | github.com/fatih/color, github.com/mattn/go-colorable, github.com/mattn/go-isatty | v1.19.0, v0.1.14, v0.0.24 | MIT | terminal colour in ogen's logger (linked, not used at run time) |
 | go.uber.org/zap, go.uber.org/multierr | v1.28.0, v1.11.0 | MIT | logging inside ogen's spec packages (linked, not used at run time) |
-| golang.org/x/net, golang.org/x/text, golang.org/x/sys, golang.org/x/sync, golang.org/x/exp | v0.62.0, v0.43.0, v0.49.0, v0.24.0, 2023-07-25 | BSD-3-Clause | HTTP header and IDNA checks, Unicode tables, system calls, errgroup, generic helpers |
+| golang.org/x/net, golang.org/x/text, golang.org/x/sys, golang.org/x/sync, golang.org/x/exp | v0.62.0, v0.43.0, v0.49.0, v0.24.0, 2023-07-25 | BSD-3-Clause | HTTP header and IDNA checks, Unicode tables, system calls, errgroup, generic helpers; `golang.org/x/net/publicsuffix` (embedded Public Suffix List) refuses IOC domains that are public suffixes such as `com.vn` or `github.io` (`modules/feeds`, issue #29) |
 
 ## Tools run as separate processes (not embedded, not redistributed)
 

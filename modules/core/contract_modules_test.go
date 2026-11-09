@@ -172,7 +172,7 @@ func (s *stack) waitFor(ch <-chan struct{}, what string) {
 
 // The ids the SPA knows (web/src/features/core/contract.ts ModuleId); host is a component and is not one.
 var spaModuleIDs = []string{
-	"core", "feeds", "inventory", "notify", "sensor-passive", "sensor-active", "mitigation", "exposure", "scan",
+	"core", "feeds", "inventory", "notify", "sensor-passive", "sensor-active", "findings", "mitigation", "exposure", "scan",
 	"scan-credentialed", "honeypot", "logs", "agent-intake", "ai", "reports", "mcp-server", "auth-oidc", "response",
 }
 

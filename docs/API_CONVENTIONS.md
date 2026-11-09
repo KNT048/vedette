@@ -85,7 +85,7 @@ Danh sách trả đối tượng, không phải mảng trần (cho phép thêm `
 
 ### 3.3 Danh mục mọi mã lỗi đang dùng
 
-Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, code}` trong `web/src/features/*/mocks.ts`, `*/state.ts`, `*/osMock.ts`, `*/sourcesMock.ts`, `*/harness-mocks.ts`, `*/emailCode.ts`, `*/logExport.ts`, `*/activity.ts` và `web/src/mocks/*.ts` (2026-11-09): **278 mã** (từ mock), cộng 5 mã chỉ backend thêm ở WP-04b phần 2 (`invalid_setup_code`, `sample_unavailable`, `invalid_from`, `invalid_to`, `misdirected_request`): 283. Cột "Endpoint dùng" là handler gần nhất chứa lời gọi; với mã sinh từ hàm kiểm tra dùng chung, ghi `module <tên> (validator dùng chung)` (đó là hạn chế của cách trích tĩnh) (mục 12 đề xuất khai `errors` trong `contract.ts` để bảng này sinh tự động). Thông điệp là bản mẫu tiếng Anh trong mock.
+Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, code}` trong `web/src/features/*/mocks.ts`, `*/state.ts`, `*/osMock.ts`, `*/sourcesMock.ts`, `*/harness-mocks.ts`, `*/emailCode.ts`, `*/logExport.ts`, `*/activity.ts` và `web/src/mocks/*.ts` (2026-11-09): **278 mã** (từ mock), cộng 5 mã chỉ backend thêm ở WP-04b phần 2 (`invalid_setup_code`, `sample_unavailable`, `invalid_from`, `invalid_to`, `misdirected_request`) và 13 mã chỉ backend thêm ở WP-07b phần 2 (lỗi của `vedette-host`: `not_appliance`, `host_unreachable`, `host_error`, `no_check_yet`, `dpkg_locked`, `dpkg_inconsistent`, `low_disk`, `rebooting`, `reboot_limit_reached`, `snapshot_rejected`, `apt_failed`, `health_check_failed`, `effect_not_verified`; bảng ánh xạ mã host → mã API ở `modules/core/CONTRACT.md` INV-18): 301. Cột "Endpoint dùng" là handler gần nhất chứa lời gọi; với mã sinh từ hàm kiểm tra dùng chung, ghi `module <tên> (validator dùng chung)` (đó là hạn chế của cách trích tĩnh) (mục 12 đề xuất khai `errors` trong `contract.ts` để bảng này sinh tự động). Thông điệp là bản mẫu tiếng Anh trong mock.
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
@@ -334,7 +334,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (48 mã)
+#### HTTP 409 (55 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -386,6 +386,13 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `tool_unavailable` | 409 | The tool of the action is missing, disabled or its connection is off. | `POST /response/proposals/{id}/request` |
 | `trap_off` | 409 | The ${LABEL[service]} trap is off. Turn it on before testing. | `POST /honeypot/test-hit` |
 | `txt_missing` | 409 | The DNS TXT record vedette-verify=${t.token} is no longer on ${t.value}, so it cannot be scanned. Add the record back, t | `POST /exposure/targets/{id}/scan` |
+| `dpkg_locked` | 409 | Another package manager is running on the box (for example automatic updates). Try again in a minute. Backend [ĐX] (WP-07b phần 2): host `dpkg_locked`, kèm `retry_after`. | `POST /core/updates/os/check`; `POST /core/updates/os/install` |
+| `dpkg_inconsistent` | 409 | The package database on the box is in a broken state. Run dpkg --audit on the box and repair it before updating. Backend [ĐX]: host `dpkg_inconsistent`. | `POST /core/updates/os/install` |
+| `low_disk` | 409 | There is not enough free disk space for this. Free some space on the box and try again. Backend [ĐX]: host `low_disk`. | `POST /core/updates/os/install`; `GET /core/data/backup` |
+| `no_check_yet` | 409 | The box has not looked for operating system updates yet. Click Check now. Backend [ĐX]: host `no_check_yet`; chưa có trong mock (mock luôn có `last_check`). | `GET /core/updates/os`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot` |
+| `not_appliance` | 409 | This install has no operating system helper (container-only install), so Vedette cannot update or back up the operating system from here. Backend [ĐX] (D-55): không có socket `vedette-host`, hoặc bản phát hành OS ngoài bảng hỗ trợ của host; chưa có trong mock. | `GET /core/updates/os`; `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup` |
+| `reboot_limit_reached` | 409 | The box has already rebooted three times in 24 hours. Wait before rebooting again. Backend [ĐX]: host `reboot_limit_reached`. | `POST /core/updates/os/reboot` |
+| `rebooting` | 409 | The box is rebooting. Wait for it to come back, then try again. Backend [ĐX]: host `rebooting`. | `GET /core/updates/os`; `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup` |
 
 #### HTTP 421 (1 mã)
 
@@ -408,13 +415,18 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `resend_too_soon` | 429 | Wait ${wait} seconds before asking for a new code. | module core (validator dùng chung) |
 | `too_many_codes` | 429 | Too many codes were sent in the last hour. Try again later. | module core (validator dùng chung) |
 
-#### HTTP 502 (3 mã)
+#### HTTP 502 (8 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `discovery_failed` | 502 | Cannot read ${c.issuer}/.well-known/openid-configuration. Check the issuer and the network path from the box to the IdP. | `POST /core/oidc/test` |
 | `unreachable` | 502 | Could not connect to ${cur.target}. Check the address, the box's network and the firewall. | `POST /ai/connections/{id}/test`; `POST /ai/profiles/test` |
 | `wazuh_unreachable` | 502 | Could not reach ${u.origin}. Check the address and port (55000 by default) and that this box may connect to the Wazuh se | module inventory (validator dùng chung) |
+| `apt_failed` | 502 | The package manager failed. See the update output for the reason. Backend [ĐX]: host `apt_failed`, `stale_check`. | `POST /core/updates/os/check` |
+| `effect_not_verified` | 502 | The change was made but could not be confirmed on the box. Check the setting again. Backend [ĐX]: host `effect_not_verified`. | `PATCH /core/updates/os/settings` |
+| `health_check_failed` | 502 | The updates were installed but a health check failed afterwards. Check the services on the box. Backend [ĐX]: host `health_check_failed`; trong lần chạy cài đặt nó hiện ở dòng cuối của `OsRun.lines`. | `POST /core/updates/os/check` |
+| `host_error` | 502 | The operating system helper could not do this. The details are in the box log. Backend [ĐX]: mọi mã host còn lại (`internal`, `timeout`, `command_failed`, `backup_unknown`, ...) hoặc câu trả lời không dùng được; chi tiết chỉ ở log. | `GET /core/updates/os`; `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup` |
+| `snapshot_rejected` | 502 | The helper could not take over a copy of the box's data. Check the box clock and the permissions of the data folder, then try again. Backend [ĐX]: host `snapshot_required`, `snapshot_invalid`, `db_unreadable`, `key_unreadable` (lỗi triển khai hoặc lệch đồng hồ, không phải lỗi người dùng). | `POST /core/updates/os/install`; `GET /core/data/backup` |
 
 #### HTTP 500 (1 mã)
 
@@ -428,12 +440,13 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 |---|---|---|---|
 | `not_implemented` | 501 | This part of the box is not built yet. | thao tác có trong hợp đồng nhưng module chưa có backend (`oas.UnimplementedHandler`; giao diện dùng mock cho module đó, WP-05) |
 
-#### HTTP 503 (2 mã)
+#### HTTP 503 (3 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `server_busy` | 503 | The box is busy checking other sign-ins. Try again in a few seconds. | `POST /auth/login`; `POST /auth/login/resend-code`; mọi thao tác phải băm hoặc kiểm mật khẩu (`POST /core/users`, `/core/users/{id}/reset-password`, `/core/account/password`, `/core/account/2fa/disable`, `/core/setup`). Mã mới **[ĐX]** (WP-04b rà soát bảo mật): ít nhất một lần chờ quá 2 giây hoặc hàng đợi băm đầy. Kèm `retry_after` (giây) trong `error` và `Retry-After`. Không phải `busy` (409, cập nhật hệ điều hành). Lần thử bị từ chối vì bận **không** tính vào giới hạn đăng nhập sai |
 | `twofa_email_unavailable` | 503 | The email channel cannot send two-step codes now. | `POST /auth/login`; `POST /auth/login/resend-code` |
+| `host_unreachable` | 503 | The operating system helper (vedette-host) is not answering. Try again in a minute; if it keeps happening, check that the vedette-host service is running. Backend [ĐX]: socket có nhưng không trả lời, host từ chối tiến trình này, hoặc `host_shutting_down`. | `GET /core/updates/os`; `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup` |
 
 ## 4. Phân trang, lọc, sắp xếp
 

@@ -20,3 +20,6 @@ UPDATE core_user SET name = ? WHERE id = ?;
 SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login
 FROM core_user
 ORDER BY created_at, id;
+
+-- name: GetSetting :one
+SELECT value FROM core_setting WHERE key = ?;

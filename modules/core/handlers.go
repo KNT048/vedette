@@ -65,7 +65,10 @@ type caller struct {
 
 // caller returns the principal the server authenticated and the id of the session the request came in on.
 // Both exist for every non-public operation; their absence is a wiring bug, not a client error.
-func (h *APIHandlers) caller(ctx context.Context) (caller, error) {
+func (h *APIHandlers) caller(ctx context.Context) (caller, error) { return callerOf(ctx, h.auth) }
+
+// callerOf is caller for any handler set that holds the auth service.
+func callerOf(ctx context.Context, a *auth.Service) (caller, error) {
 	p, ok := server.PrincipalFrom(ctx)
 	if !ok {
 		return caller{}, apierr.Unauthenticated()
@@ -74,7 +77,7 @@ func (h *APIHandlers) caller(ctx context.Context) (caller, error) {
 	if !ok {
 		return caller{}, errors.New("core: no HTTP exchange in the request context")
 	}
-	sid, err := h.auth.Sessions.CurrentID(x.R)
+	sid, err := a.Sessions.CurrentID(x.R)
 	if errors.Is(err, server.ErrNoSession) {
 		return caller{}, apierr.Unauthenticated()
 	}

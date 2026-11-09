@@ -10,6 +10,7 @@ import (
 	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/server"
+	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
@@ -211,6 +212,9 @@ func buildServices(d *deps) error {
 	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock}); err != nil {
 		return fmt.Errorf("core: %w", err)
 	}
+	if d.OS, err = newOSHandlers(*d); err != nil {
+		return fmt.Errorf("os updates: %w", err)
+	}
 	sp, err := newSensorPassive(*d)
 	if err != nil {
 		return fmt.Errorf("sensor-passive: %w", err)
@@ -299,4 +303,18 @@ func subscribe(d deps) {
 		_, err := d.Inventory.RematchAll(ctx)
 		return err
 	}))
+}
+
+// newOSHandlers wires the OS update and backup handlers. The host client is built from the socket path and
+// connects on each call, so a box whose vedette-host starts later, or an install that has none, needs no
+// restart: a missing socket file answers 409 not_appliance at call time (core.hostErr).
+func newOSHandlers(d deps) (*core.OSHandlers, error) {
+	var h core.Host
+	if d.HostSocket != "" {
+		h = hostclient.New(d.HostSocket)
+	}
+	return core.NewOSHandlers(core.OSConfig{
+		DB: d.DB, Auth: d.Auth, Audit: d.Audit, Log: d.Log, Host: h, DataDir: d.DataDir, KeyPath: d.KeyPath,
+		Zone: d.Core.OrgTimeZone, Clock: d.Clock,
+	})
 }

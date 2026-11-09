@@ -39,6 +39,10 @@ type deps struct {
 	// BaseURL is the address people open Vedette at (links in notify messages); empty on loopback, see baseURL.
 	BaseURL string
 	Core    *core.APIHandlers // core's own operations (sign-in, account, users, setup, audit, general settings)
+	OS      *core.OSHandlers  // operating system updates and the backup download, on top of vedette-host
+	// HostSocket is the unix socket of vedette-host ("" = this install has none: every OS endpoint answers 409 not_appliance).
+	// DataDir is core_data, the directory of the database file; KeyPath the master key file: both feed the snapshots of host-api 6.11.
+	HostSocket, DataDir, KeyPath string
 
 	// Module services other modules use through their own ports (issue #38, #39). Built once in serve,
 	// after the fields above, so every handler, job and subscriber shares one instance.

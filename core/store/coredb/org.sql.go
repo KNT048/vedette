@@ -27,6 +27,17 @@ func (q *Queries) GetOrg(ctx context.Context) (CoreOrg, error) {
 	return i, err
 }
 
+const getSetting = `-- name: GetSetting :one
+SELECT value FROM core_setting WHERE key = ?
+`
+
+func (q *Queries) GetSetting(ctx context.Context, key string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getSetting, key)
+	var value string
+	err := row.Scan(&value)
+	return value, err
+}
+
 const insertOrg = `-- name: InsertOrg :exec
 INSERT INTO core_org (id, name, timezone, setup_complete, data_mode, install_id)
 VALUES (1, ?, ?, 1, ?, ?)

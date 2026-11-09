@@ -204,6 +204,65 @@ func (db *DB) Check(ctx context.Context) error {
 	return nil
 }
 
+// SnapshotTo writes a consistent, self-contained copy of the database to path with VACUUM INTO: one file, no
+// -wal or -shm (the copy is one read transaction, so the data is one moment). It runs on the writer connection,
+// the only one that may issue VACUUM (the reader pool is query_only), so writes made by others wait their turn
+// until the copy is done. path is created here with mode 0600 and must not exist; the caller owns the directory
+// around it and must not call this inside Write.
+func (db *DB) SnapshotTo(ctx context.Context, path string) error {
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600) //nolint:gosec // path is built by the caller from its own data directory
+	if err != nil {
+		return fmt.Errorf("store: snapshot: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("store: snapshot: %w", err)
+	}
+	if _, err := db.w.ExecContext(ctx, "VACUUM INTO ?", path); err != nil {
+		_ = os.Remove(path)
+		return fmt.Errorf("store: snapshot: %w", err)
+	}
+	return nil
+}
+
+var migrationTableRE = regexp.MustCompile(`^core_migration_[a-z][a-z0-9_]{0,40}$`)
+
+// SchemaVersions reports the highest applied migration of every module as "module=version,..." sorted by
+// module, in the grammar of the backup manifest (docs/specs/host-api.md 6.11): the module is the part of the
+// goose table name after core_migration_ (a module id has hyphens, the table has underscores).
+func (db *DB) SchemaVersions(ctx context.Context) (string, error) {
+	rows, err := db.r.QueryContext(ctx, "SELECT name FROM sqlite_master WHERE type = 'table' AND name GLOB 'core_migration_*' ORDER BY name")
+	if err != nil {
+		return "", fmt.Errorf("store: list migration tables: %w", err)
+	}
+	var tables []string
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			_ = rows.Close()
+			return "", fmt.Errorf("store: list migration tables: %w", err)
+		}
+		tables = append(tables, n)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return "", fmt.Errorf("store: list migration tables: %w", err)
+	}
+	var pairs []string
+	for _, t := range tables {
+		if !migrationTableRE.MatchString(t) {
+			continue // not a goose table of ours
+		}
+		var v sql.NullInt64
+		// t matched migrationTableRE: lower-case letters, digits and underscores, safe to quote as an identifier.
+		if err := db.r.QueryRowContext(ctx, `SELECT max(version_id) FROM "`+t+`" WHERE is_applied`).Scan(&v); err != nil {
+			return "", fmt.Errorf("store: read %s: %w", t, err)
+		}
+		if v.Valid && v.Int64 > 0 {
+			pairs = append(pairs, fmt.Sprintf("%s=%d", strings.TrimPrefix(t, "core_migration_"), v.Int64))
+		}
+	}
+	return strings.Join(pairs, ","), nil
+}
+
 var moduleRE = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
 
 // ErrMigration is wrapped by migration failures caused by bad input (module id, Down sections).

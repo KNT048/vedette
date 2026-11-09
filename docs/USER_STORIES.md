@@ -106,6 +106,7 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 **S-CORE-1** (P2) `[đạt]` — Bật/tắt từng module trong Cài đặt; tắt giữ dữ liệu; màn hình nói rõ module nào đang tắt và vì sao thiếu dữ liệu.
 **S-CORE-2** (P2) `[đạt]` — Trang Cập nhật: phiên bản phần mềm, dữ liệu, gói nội dung; cập nhật tự động hay tay; rollback 1 bấm; bundle offline.
 **S-CORE-7** (P2) `[đạt]` (D-53) — Trong Settings → Updates tôi thấy hệ điều hành của chính hộp có bao nhiêu bản vá bảo mật chờ, có cần khởi động lại không, bấm cài ngay hoặc đặt lịch trong cửa sổ bảo trì, bật tự cập nhật bảo mật; cùng trang có gói phụ thuộc và phần mềm Vedette.
+**S-CORE-8** (P2) `[đạt]` (D-56) — Trong Settings → Box network tôi chọn card quản trị (DHCP/tĩnh, đổi IP có xác nhận trong 2 phút hoặc tự quay lại) và card nhận SPAN, thấy lưu lượng nhân bản có tới thật không kèm lời khuyên, chọn trích xuất gì, đặt bộ lọc, xem hướng dẫn bật port mirroring theo loại switch, IP phụ cho bẫy và NTP.
 **S-CORE-4** (P1, P2) `[đạt]` — Trong Cài đặt → Chia sẻ tín hiệu, tôi thấy **nguyên văn** gói dữ liệu ẩn danh sắp gửi, lần gửi gần nhất, và một công tắc tắt; tắt xong không còn gì rời hộp ngoài kéo feed và gọi provider AI tôi cấu hình.
 **S-CORE-3** (P4) `[đạt]` — Đăng nhập OIDC, 3 vai (xem/vận hành/quản trị), audit log mọi thay đổi. Đăng nhập hai bước: ứng dụng xác thực (QR hoặc khoá tay) hoặc mã qua email (cần kênh email); quản trị viên đặt lại được (D-35).
 **S-FLEET-1** (P3) `[rớt]` (hoãn, D-24) — Bảng tổng nhiều khách/site: khách nào có KEV mới khớp, bao nhiêu chưa xử lý, hộp nào mất liên lạc.

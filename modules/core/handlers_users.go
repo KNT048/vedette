@@ -15,7 +15,7 @@ import (
 func methodOf(u auth.User) (string, bool) { return u.TwofaMethod, u.TwofaMethod != "" }
 
 // CoreGetCoreUsers implements GET /core/users (admin).
-func (h *Handlers) CoreGetCoreUsers(ctx context.Context) (*oas.CoreGetCoreUsersOK, error) {
+func (h *APIHandlers) CoreGetCoreUsers(ctx context.Context) (*oas.CoreGetCoreUsersOK, error) {
 	list, err := h.auth.ListUsers(ctx)
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func (h *Handlers) CoreGetCoreUsers(ctx context.Context) (*oas.CoreGetCoreUsersO
 
 // CorePostCoreUsers implements POST /core/users (admin): creates the account with a random temporary
 // password that is returned once, in this response, and stored only as a hash.
-func (h *Handlers) CorePostCoreUsers(ctx context.Context, req *oas.CorePostCoreUsersReq) (*oas.CorePostCoreUsersCreated, error) {
+func (h *APIHandlers) CorePostCoreUsers(ctx context.Context, req *oas.CorePostCoreUsersReq) (*oas.CorePostCoreUsersCreated, error) {
 	c, err := h.caller(ctx)
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func (h *Handlers) CorePostCoreUsers(ctx context.Context, req *oas.CorePostCoreU
 }
 
 // CorePatchCoreUsersID implements PATCH /core/users/{id} (admin): role and/or disabled (INV-7).
-func (h *Handlers) CorePatchCoreUsersID(ctx context.Context, req *oas.CorePatchCoreUsersIDReq, params oas.CorePatchCoreUsersIDParams) (*oas.CorePatchCoreUsersIDOK, error) {
+func (h *APIHandlers) CorePatchCoreUsersID(ctx context.Context, req *oas.CorePatchCoreUsersIDReq, params oas.CorePatchCoreUsersIDParams) (*oas.CorePatchCoreUsersIDOK, error) {
 	c, err := h.caller(ctx)
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func (h *Handlers) CorePatchCoreUsersID(ctx context.Context, req *oas.CorePatchC
 
 // CorePostCoreUsersIDResetPassword implements POST /core/users/{id}/reset-password (admin): a temporary
 // password, returned once; every session of that user ends.
-func (h *Handlers) CorePostCoreUsersIDResetPassword(ctx context.Context, params oas.CorePostCoreUsersIDResetPasswordParams) (*oas.CorePostCoreUsersIDResetPasswordOK, error) {
+func (h *APIHandlers) CorePostCoreUsersIDResetPassword(ctx context.Context, params oas.CorePostCoreUsersIDResetPasswordParams) (*oas.CorePostCoreUsersIDResetPasswordOK, error) {
 	c, err := h.caller(ctx)
 	if err != nil {
 		return nil, err
@@ -113,7 +113,7 @@ func (h *Handlers) CorePostCoreUsersIDResetPassword(ctx context.Context, params 
 }
 
 // CorePostCoreUsersID2FAReset implements POST /core/users/{id}/2fa/reset (admin): not for yourself.
-func (h *Handlers) CorePostCoreUsersID2FAReset(ctx context.Context, params oas.CorePostCoreUsersID2FAResetParams) (*oas.CorePostCoreUsersID2FAResetOK, error) {
+func (h *APIHandlers) CorePostCoreUsersID2FAReset(ctx context.Context, params oas.CorePostCoreUsersID2FAResetParams) (*oas.CorePostCoreUsersID2FAResetOK, error) {
 	c, err := h.caller(ctx)
 	if err != nil {
 		return nil, err

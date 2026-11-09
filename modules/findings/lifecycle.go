@@ -186,7 +186,7 @@ type ScanOutcome struct {
 // confirmed again with a "reopened" row because the flaw is still there ([ĐX],
 // DATA_MODEL 5.2). Nothing is ever closed here.
 func (f Finding) ConfirmFromScan(ev Evidence, now time.Time) (ScanOutcome, error) {
-	if ev.Template == "" || len(ev.Template) > maxTemplate || ev.CheckedAt.IsZero() {
+	if ev.Template == "" || len(ev.Template) > maxTemplate || ev.CheckedAt.IsZero() || !isText(ev.Template, ev.Summary, ev.Request, ev.Response) {
 		return ScanOutcome{Finding: f}, fmt.Errorf("findings: confirming from scan: %w", ErrInvalidEvidence)
 	}
 	ev.Summary, ev.Request, ev.Response = truncate(ev.Summary), truncate(ev.Request), truncate(ev.Response)
@@ -250,4 +250,15 @@ func jsTrim(s string) string {
 // status: nothing closes without a person (FORBID-2).
 func ScanClear(now time.Time) HistoryEntry {
 	return HistoryEntry{TS: now, User: SystemUser, Action: "rescan_clear"}
+}
+
+// isText reports whether every string is valid UTF-8 without NUL. Scan evidence comes from a probe's
+// reply, so it is untrusted; SQLite JSON and the audit log both refuse such bytes.
+func isText(ss ...string) bool {
+	for _, s := range ss {
+		if !utf8.ValidString(s) || strings.ContainsRune(s, 0) {
+			return false
+		}
+	}
+	return true
 }

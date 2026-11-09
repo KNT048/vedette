@@ -23,6 +23,7 @@ import (
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/auth"
+	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/secrets"
@@ -186,11 +187,14 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return err
 	}
-	coreHandlers, err := core.NewHandlers(core.HandlersConfig{DB: db, Auth: authSvc, Reg: reg, Audit: aud, Secrets: sec, Log: log, Clock: time.Now})
+	coreHandlers, err := core.NewAPIHandlers(core.HandlersConfig{DB: db, Auth: authSvc, Reg: reg, Audit: aud, Secrets: sec, Log: log, Clock: time.Now})
 	if err != nil {
 		return err
 	}
-	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Auth: authSvc, Core: coreHandlers}
+	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Auth: authSvc, Core: coreHandlers}
+	if err := buildServices(&d); err != nil {
+		return err
+	}
 	// D-75: while first-run setup is open the box prints its one-time setup code, at every start. This is the
 	// one place a secret is logged on purpose: the log is where the person who installed the box looks.
 	code, err := coreHandlers.EnsureSetupCode(ctx)
@@ -207,10 +211,11 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	}
 
 	api, err := server.New(server.Config{
-		API:     newHandler(d),
-		Auth:    authSvc.Sessions,
-		Modules: reg,
-		Log:     log,
+		API:        newHandler(d),
+		Auth:       authSvc.Sessions,
+		Modules:    reg,
+		Log:        log,
+		BodyLimits: bodyLimits(wired),
 	})
 	if err != nil {
 		return err

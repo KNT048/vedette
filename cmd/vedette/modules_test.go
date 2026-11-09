@@ -4,13 +4,18 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
+	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules"
+	"github.com/knt048/vedette/modules/inventory"
 )
 
 // Migrations run in wiredModules order, so a module whose tables reference another module's must
@@ -98,4 +103,40 @@ func ids(w []moduleWiring) []string {
 		out[i] = x.ID
 	}
 	return out
+}
+
+// deps.Inventory publishes on deps.Bus: one service instance, events reach other modules (issue #39).
+func TestInventoryEventsReachTheBus(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	log := slog.New(slog.DiscardHandler)
+	db, err := store.Open(ctx, filepath.Join(t.TempDir(), "v.db"), log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := migrateAll(ctx, db, wiredModules()); err != nil {
+		t.Fatal(err)
+	}
+	d := deps{Log: log, DB: db, Audit: audit.New(nil), Clock: time.Now, Bus: events.NewBus(log)}
+	d.Inventory = newInventory(&d)
+	got := make(chan events.Event, 1)
+	d.Bus.Subscribe(inventory.EventAssetUpdated, func(_ context.Context, e events.Event) error {
+		select {
+		case got <- e:
+		default:
+		}
+		return nil
+	})
+	if _, err := d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "box"}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case e := <-got:
+		if e.Name != inventory.EventAssetUpdated {
+			t.Fatalf("event %q", e.Name)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("no inventory.asset.updated on the bus")
+	}
 }

@@ -90,7 +90,7 @@ for (const v of kev.vulnerabilities) {
   if (v.knownRansomwareCampaignUse === 'Known') p.ransomware = true
   products.set(key, p)
 }
-writeFileSync(new URL('../src/mocks/fixtures/kev-products.json', import.meta.url), JSON.stringify([...products.values()].sort((a, b) => a.vendor.localeCompare(b.vendor) || a.product.localeCompare(b.product)), null, 1) + '\n')
+writeFileSync(new URL('../../content/catalog/kev-products.json', import.meta.url), JSON.stringify([...products.values()].sort((a, b) => a.vendor.localeCompare(b.vendor) || a.product.localeCompare(b.product)), null, 1) + '\n')
 
 const fetched_at = now.toISOString()
 writeFileSync(

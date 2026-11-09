@@ -9,13 +9,19 @@
 - `ConfirmFromScan` trên `false_positive`/`not_relevant`: lần đầu một `template` khớp thì ghi bằng chứng (basis scan, history `rescanned`) và `Notify=true`; cùng `template` lần sau không đổi gì, `Notify=false` (service không cần tự chống trùng). Trường bằng chứng quá 4096 byte bị cắt, có dấu `...[truncated]`.
 - Ghi chú trạng thái đo như GUI: `trim` của JavaScript và độ dài UTF-16 (ngưỡng 3 và 500).
 
-## Modifying: `findings.Service.UpsertFromMatch(ctx, assetID, cve, basis)`
-- **inventory** (qua sự kiện `inventory.match.changed`), **core/jobs** (khớp lại sau `feeds.vuln.new_kev`). Đổi quy tắc khớp/tạo/độ nghiêm trọng đổi số finding và tin `notify`.
+## Modifying: `findings.Service.UpsertFromMatch(ctx, Asset, []Vuln)` và `OnMatchChanged(ctx, assetID)`
+- **inventory** (sự kiện `inventory.match.changed`; phải cài `findings.Inventory{Assets, MatchInput}`), **feeds** (phải cài `findings.Feeds{KevInfo, Vulns}`; `cmd/vedette/wiring.go` cài từ `feeds.Store.KevVulns/KevVulnsByCVE`, chỉ hàng `cisa-kev`, chưa có khoảng bị ảnh hưởng nên chỉ `basis=product`; `findings.Inventory` từ `inventory.DeviceRefs/MatchInput`), **core/jobs** (khớp lại sau `feeds.vuln.new_kev`). Interface do `findings` định nghĩa, `cmd/vedette` nối cài đặt thật. Đổi quy tắc khớp/tạo/độ nghiêm trọng đổi số finding và tin `notify`.
 
 ## Modifying: `findings.Service.ConfirmFromScan(ctx, assetID, cve, Evidence)`
 - **scan** (kết quả `matched`), **scan-credentialed** (tương lai). Đổi `Evidence` hay điều kiện `confirmed` làm lệch bảng kết quả quét (`finding_id`) và trang finding.
 
-## Modifying: `findings.Service.SetStatus(ctx, id, action, note)`
+## Modifying: `findings.Service.OnAssetDeleted(ctx, assetID)`
+- **inventory** (sự kiện `inventory.asset.deleted`). Xoá `fnd_finding` của thiết bị; `fnd_finding_history`, `mit_applied`, `mit_ai_output` đi theo qua FK cascade (mitigation phụ thuộc điều này). Đổi thành xoá mềm = sửa cả `mitigation`.
+
+## Modifying: `findings.FindingHandlers.SetGuidance(Guidance)` và `Guide`/`Row`/`Detail`
+- **mitigation** (đăng ký nhà cung cấp, dựng `Guide`; gọi `Detail` để trả lời `applied|ai`). Đổi hình `Guide` = đổi `FindingDetail` trong `contract.ts`; `findings.Into` giải mã vào kiểu sinh của ogen nên lệch schema báo lỗi ngay trong test.
+
+## Modifying: `findings.Service.SetStatus(ctx, id, action, note, user)`
 - **SPA** (`POST /findings/{id}/status`, mã lỗi `note_required`, `already_open`, `bad_action`, `note_too_long`), **notify** (sự kiện `status_changed`), **response**/**reports** (đếm finding mở). Đổi bảng chuyển trạng thái = đổi hành vi nút trên trang finding.
 
 ## Modifying: `findings.Findings` (đọc: `List(filter)`, `Get(id)`, `ByAsset(id)`)

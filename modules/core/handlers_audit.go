@@ -46,7 +46,7 @@ type auditFilter struct {
 }
 
 // orgLocation is the time zone of the organization (a date in a filter is a day there).
-func (h *Handlers) orgLocation(ctx context.Context) (*time.Location, error) {
+func (h *APIHandlers) orgLocation(ctx context.Context) (*time.Location, error) {
 	org, err := coredb.New(h.db.Reader()).GetOrg(ctx)
 	if isNoRows(err) {
 		return time.UTC, nil
@@ -86,7 +86,7 @@ func parseAuditBound(s string, loc *time.Location, end bool) (string, bool) {
 	return store.FormatTS(t), true
 }
 
-func (h *Handlers) auditFilter(ctx context.Context, q, user, group, from, to oas.OptString) (auditFilter, error) {
+func (h *APIHandlers) auditFilter(ctx context.Context, q, user, group, from, to oas.OptString) (auditFilter, error) {
 	var f auditFilter
 	var parts []string
 	set := func(name string, v oas.OptString) string {
@@ -139,7 +139,7 @@ func (f auditFilter) list(ctx context.Context, q *coredb.Queries, before, limit 
 
 // CoreGetCoreAudit implements GET /core/audit (admin): the newest rows that match, at most 200, with the
 // total number of matches and the users and groups present in the log (for the filter lists).
-func (h *Handlers) CoreGetCoreAudit(ctx context.Context, params oas.CoreGetCoreAuditParams) (*oas.CoreGetCoreAuditOK, error) {
+func (h *APIHandlers) CoreGetCoreAudit(ctx context.Context, params oas.CoreGetCoreAuditParams) (*oas.CoreGetCoreAuditOK, error) {
 	f, err := h.auditFilter(ctx, params.Q, params.User, params.Group, params.From, params.To)
 	if err != nil {
 		return nil, err
@@ -190,7 +190,7 @@ func (h *Handlers) CoreGetCoreAudit(ctx context.Context, params oas.CoreGetCoreA
 // no 200-row limit. The download is itself a row of core_audit (INV-2, D-48), written before the file is
 // read, so the file is a snapshot that ends at that row. The rows are read page by page while the response
 // is written, so a large log is never held in memory.
-func (h *Handlers) CoreGetCoreAuditExport(ctx context.Context, params oas.CoreGetCoreAuditExportParams) (oas.CoreGetCoreAuditExportOK, error) {
+func (h *APIHandlers) CoreGetCoreAuditExport(ctx context.Context, params oas.CoreGetCoreAuditExportParams) (oas.CoreGetCoreAuditExportOK, error) {
 	c, err := h.caller(ctx)
 	if err != nil {
 		return oas.CoreGetCoreAuditExportOK{}, err
@@ -274,7 +274,7 @@ func csvCell(v string) string {
 }
 
 // CoreGetCoreGeneral implements GET /core/general (viewer).
-func (h *Handlers) CoreGetCoreGeneral(ctx context.Context) (*oas.CoreGetCoreGeneralOK, error) {
+func (h *APIHandlers) CoreGetCoreGeneral(ctx context.Context) (*oas.CoreGetCoreGeneralOK, error) {
 	org, err := coredb.New(h.db.Reader()).GetOrg(ctx)
 	if isNoRows(err) {
 		return &oas.CoreGetCoreGeneralOK{Name: "", Timezone: defaultTimezone}, nil
@@ -295,7 +295,7 @@ func validTimezone(s string) bool {
 }
 
 // CorePutCoreGeneral implements PUT /core/general (admin): organization name and time zone.
-func (h *Handlers) CorePutCoreGeneral(ctx context.Context, req *oas.CorePutCoreGeneralReq) (*oas.CorePutCoreGeneralOK, error) {
+func (h *APIHandlers) CorePutCoreGeneral(ctx context.Context, req *oas.CorePutCoreGeneralReq) (*oas.CorePutCoreGeneralOK, error) {
 	c, err := h.caller(ctx)
 	if err != nil {
 		return nil, err

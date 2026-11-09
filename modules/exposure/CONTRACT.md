@@ -6,14 +6,14 @@ Nguồn hành vi: `web/src/features/exposure/{contract,mocks,data}.ts`, D-25, D-
 
 ## Invariants
 - **INV-1**: Không quét mục tiêu chưa đủ cả bốn điều kiện: (a) `status=verified`, (b) IP: còn ≤ 90 ngày, (c) domain: bản ghi TXT `vedette-verify=<token>` còn đó, **kiểm lại ngay trước mỗi lần quét**, (d) đã ghi cam kết. Thiếu điều kiện → `POST …/scan` trả 409 với `blocked_reason ∈ {unverified, expired, txt_missing, no_commitment}`. `TestContract_INV1_NoScanWithoutProof`
-- **INV-2**: IP công cộng chỉ là IP mà chính hộp đang dùng để ra Internet: `POST /exposure/box-ip/verify` không nhận IP; hộp tự dò bằng HTTPS tới một endpoint cố định của dự án (không do người dùng nhập, không reverse DNS). Nhập IP vào `POST /exposure/targets` → 400 `ip_not_allowed`.
+- **INV-2**: IP công cộng chỉ là IP mà chính hộp đang dùng để ra Internet: `POST /exposure/box-ip/verify` không nhận IP; hộp tự dò bằng HTTPS tới các dịch vụ "IP của tôi" công khai cố định trong mã (`checkip.amazonaws.com`, `icanhazip.com`, `api.ipify.org`; không do người dùng nhập, không reverse DNS); chỉ nhận IP khi ít nhất hai dịch vụ độc lập trả trùng (D-81). Nhập IP vào `POST /exposure/targets` → 400 `ip_not_allowed`.
 - **INV-3**: Từ chối kết quả IP riêng/dành riêng/CGNAT `100.64.0.0/10` (400 `not_public`).
 - **INV-4**: IP hiệu lực 90 ngày: `expires_at = verified_at + 90d`; `validity ∈ {valid, expiring (≤14 ngày), expired}`; gia hạn chỉ khi hộp đang ra Internet bằng đúng IP đó. Domain không có `expires_at` (kiểm TXT trước mỗi quét).
 - **INV-5**: Giới hạn 10 lần xác nhận/giờ/hộp (429 `rate_limited`); mỗi lần ghi `exp_attempt` và `core_audit`. Tối đa 20 mục tiêu (400 `too_many`); domain trùng → 409 `duplicate`.
 - **INV-6**: Domain nhập vào chỉ là tên miền (không scheme, đường dẫn, cổng, khoảng trắng; regex tên miền); sai → 400 `bad_value`/`empty`.
 - **INV-7**: Cam kết (D-26): chỉ cho mục tiêu đã xác thực (409 `not_verified|expired`), body `confirm` đúng `true` (400 `not_confirmed`), ghi `{by, at}` và câu "as is / tác giả không chịu trách nhiệm"; ai tick, khi nào được audit. Xoá mục tiêu xoá ảnh chụp và cam kết, không xoá `core_audit`.
 - **INV-8**: Mỗi lần quét tạo một ảnh chụp theo ngày (`date` YYYY-MM-DD); so sánh cần hai ngày khác nhau (400 `same_date`) và cả hai tồn tại (404). `Counts.certs_expiring` đếm cert hết hạn trong 30 ngày (`CERT_WARN_DAYS`).
-- **INV-9**: Dữ liệu ra ngoài chỉ gồm tên miền đã xác thực (tìm subdomain trên log CT) và yêu cầu HTTPS tới endpoint cố định của dự án (PRIVACY luồng 9). Tắt module ⇒ cả hai dừng.
+- **INV-9**: Dữ liệu ra ngoài chỉ gồm tên miền đã xác thực (tìm subdomain trên log CT) và yêu cầu HTTPS tới các dịch vụ "IP của tôi" công khai của D-81 (PRIVACY luồng 9); không có máy chủ nào do dự án chạy. Tắt module ⇒ cả hai dừng.
 - **INV-10**: Dữ liệu phản hồi từ host ngoài (banner, tiêu đề trang) là không tin cậy (SYS-6): giới hạn kích thước, lưu như văn bản.
 
 ## Preconditions / Postconditions

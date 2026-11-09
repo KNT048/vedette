@@ -66,8 +66,6 @@ var (
 	ErrInvalidConfig = errors.New("notify: invalid channel configuration")
 	// ErrInvalidMessage means the Message itself is unusable (unknown severity, empty title, bad link).
 	ErrInvalidMessage = errors.New("notify: invalid message")
-	// ErrUnsupported means the channel cannot send in this build (Zalo personal, D-46).
-	ErrUnsupported = errors.New("notify: this channel cannot send messages yet")
 )
 
 // ConfigError is a configuration problem with a stable code (same codes as the
@@ -105,6 +103,8 @@ type ProviderError struct {
 	Channel Type
 	Code    int
 	Reason  string
+
+	requestRefused bool // Zalo refused the request as a whole (outer error_code), not the message
 }
 
 func (e *ProviderError) Error() string {

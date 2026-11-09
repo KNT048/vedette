@@ -21,11 +21,11 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Handlers implements the sign-in, account, user, first-run setup, audit and general-settings operations of
+// APIHandlers implements the sign-in, account, user, first-run setup, audit and general-settings operations of
 // the core module (S-CORE-1 and S-CORE-3). Embed it in the composite handler beside ModuleHandlers; the two
 // implement disjoint operations. The handlers are thin: the rules live in core/auth, the checks of the
 // contract (route table, roles, CSRF) in core/server.
-type Handlers struct {
+type APIHandlers struct {
 	db      *store.DB
 	auth    *auth.Service
 	reg     *modreg.Registry
@@ -35,7 +35,7 @@ type Handlers struct {
 	now     func() time.Time
 }
 
-// HandlersConfig wires Handlers; every field but Clock is required.
+// HandlersConfig wires APIHandlers; every field but Clock is required.
 type HandlersConfig struct {
 	DB      *store.DB
 	Auth    *auth.Service
@@ -46,15 +46,15 @@ type HandlersConfig struct {
 	Clock   func() time.Time // nil: time.Now
 }
 
-// NewHandlers returns the handlers.
-func NewHandlers(c HandlersConfig) (*Handlers, error) {
+// NewAPIHandlers returns the handlers.
+func NewAPIHandlers(c HandlersConfig) (*APIHandlers, error) {
 	if c.DB == nil || c.Auth == nil || c.Reg == nil || c.Audit == nil || c.Secrets == nil || c.Log == nil {
 		return nil, errors.New("core: HandlersConfig needs DB, Auth, Reg, Audit, Secrets and Log")
 	}
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	return &Handlers{db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock}, nil
+	return &APIHandlers{db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock}, nil
 }
 
 // caller is who a signed-in request acts as.
@@ -65,7 +65,7 @@ type caller struct {
 
 // caller returns the principal the server authenticated and the id of the session the request came in on.
 // Both exist for every non-public operation; their absence is a wiring bug, not a client error.
-func (h *Handlers) caller(ctx context.Context) (caller, error) {
+func (h *APIHandlers) caller(ctx context.Context) (caller, error) {
 	p, ok := server.PrincipalFrom(ctx)
 	if !ok {
 		return caller{}, apierr.Unauthenticated()

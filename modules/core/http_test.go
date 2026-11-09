@@ -22,11 +22,11 @@ import (
 )
 
 // fullAPI is the composite of the process for the operations of core: the module switch and everything
-// else of Handlers, on top of the 501 fallback.
+// else of APIHandlers, on top of the 501 fallback.
 type fullAPI struct {
 	server.Fallback
 	*core.ModuleHandlers
-	*core.Handlers
+	*core.APIHandlers
 }
 
 // world is the real stack of the process on a real SQLite database, behind server.New with the real session
@@ -35,7 +35,7 @@ type world struct {
 	t    *testing.T
 	env  *authtest.Env
 	reg  *modreg.Registry
-	h    *core.Handlers
+	h    *core.APIHandlers
 	api  http.Handler
 	logs *bytes.Buffer
 }
@@ -49,12 +49,12 @@ func newWorld(t *testing.T, modify ...func(*auth.Config)) *world {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, err := core.NewHandlers(core.HandlersConfig{DB: env.DB, Auth: env.Svc, Reg: reg, Audit: env.Audit, Secrets: env.Secrets, Log: log, Clock: env.Clock.Now})
+	h, err := core.NewAPIHandlers(core.HandlersConfig{DB: env.DB, Auth: env.Svc, Reg: reg, Audit: env.Audit, Secrets: env.Secrets, Log: log, Clock: env.Clock.Now})
 	if err != nil {
 		t.Fatal(err)
 	}
 	api, err := server.New(server.Config{
-		API:     fullAPI{Fallback: server.Fallback{Log: log}, ModuleHandlers: core.NewModuleHandlers(env.DB, reg), Handlers: h},
+		API:     fullAPI{Fallback: server.Fallback{Log: log}, ModuleHandlers: core.NewModuleHandlers(env.DB, reg), APIHandlers: h},
 		Auth:    env.Svc.Sessions,
 		Modules: reg,
 		Log:     log,

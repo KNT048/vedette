@@ -1,4 +1,4 @@
-- [ ] Zalo personal Send (unofficial API like the n8n Zalo community node, decided by D-46): NewZaloPersonal only validates today, Send returns ErrUnsupported — follow-up PR feat/notify-zalo-personal (Emily, phase 0)
+- [x] Zalo personal Send: done in feat/notify-zalo-personal (remaining items in .ai/deferred/feat-notify-zalo-personal.md)
 - [ ] Zalo OA token refresh: OA access tokens expire (about 25 h) and need refresh_token plus the app secret_key; contract.ts stores one secret, so WP-22 needs a contract.ts change (extra secrets, token store) and the refresh flow; the adapter sends with the one saved token and fails with a Zalo error once it expires — WP-22 / contract change
 - [ ] Slack Socket Mode (decided by D-38): needs a pinned WebSocket client library + THIRD_PARTY_NOTICES entry — follow-up PR with the approval transport (WP-22)
 - [ ] Telegram long-polling approval loop, Slack/Telegram button callbacks, Zalo personal reply codes — need core jobs and the response module — WP-22

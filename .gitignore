@@ -1,4 +1,7 @@
 /bin/
+# go build ./cmd/<name> from the repo root writes the binary here (rules/build-artifacts.md)
+/vedette
+/vedette-host
 /dist/
 /web/dist/
 /web/node_modules/

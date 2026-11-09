@@ -23,7 +23,7 @@ func deviceCookieValue(x server.Exchange) string {
 
 // CorePostAuthLogin implements POST /auth/login (public): core INV-8. On success it sets the session, CSRF
 // and device cookies; the body only says ok.
-func (h *Handlers) CorePostAuthLogin(ctx context.Context, req *oas.CorePostAuthLoginReq) (*oas.CorePostAuthLoginOK, error) {
+func (h *APIHandlers) CorePostAuthLogin(ctx context.Context, req *oas.CorePostAuthLoginReq) (*oas.CorePostAuthLoginOK, error) {
 	x, ip, err := exchange(ctx)
 	if err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func (h *Handlers) CorePostAuthLogin(ctx context.Context, req *oas.CorePostAuthL
 }
 
 // CorePostAuthLoginResendCode implements POST /auth/login/resend-code (public): the password is needed again.
-func (h *Handlers) CorePostAuthLoginResendCode(ctx context.Context, req *oas.CorePostAuthLoginResendCodeReq) (*oas.CorePostAuthLoginResendCodeOK, error) {
+func (h *APIHandlers) CorePostAuthLoginResendCode(ctx context.Context, req *oas.CorePostAuthLoginResendCodeReq) (*oas.CorePostAuthLoginResendCodeOK, error) {
 	x, ip, err := exchange(ctx)
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func (h *Handlers) CorePostAuthLoginResendCode(ctx context.Context, req *oas.Cor
 
 // CorePostAuthLogout implements POST /auth/logout (public): ends the session of the cookie, if any, and
 // clears both cookies. It is 204 whether or not there was a live session.
-func (h *Handlers) CorePostAuthLogout(ctx context.Context) error {
+func (h *APIHandlers) CorePostAuthLogout(ctx context.Context) error {
 	x, ok := server.ExchangeFrom(ctx)
 	if !ok {
 		return errors.New("core: no HTTP exchange in the request context")
@@ -72,12 +72,12 @@ func (h *Handlers) CorePostAuthLogout(ctx context.Context) error {
 
 // CoreGetCoreAuthOptions implements GET /core/auth-options (public): the SSO button exists only with the
 // auth-oidc module, which is not built yet.
-func (h *Handlers) CoreGetCoreAuthOptions(context.Context) (*oas.CoreGetCoreAuthOptionsOK, error) {
+func (h *APIHandlers) CoreGetCoreAuthOptions(context.Context) (*oas.CoreGetCoreAuthOptionsOK, error) {
 	return &oas.CoreGetCoreAuthOptionsOK{Oidc: false}, nil
 }
 
 // CoreGetMe implements GET /me (viewer).
-func (h *Handlers) CoreGetMe(ctx context.Context) (*oas.CoreGetMeOK, error) {
+func (h *APIHandlers) CoreGetMe(ctx context.Context) (*oas.CoreGetMeOK, error) {
 	p, ok := server.PrincipalFrom(ctx)
 	if !ok {
 		return nil, apierr.Unauthenticated()
@@ -108,7 +108,7 @@ func meError(err error) error {
 }
 
 // orgName is the organization name, "" before setup.
-func (h *Handlers) orgName(ctx context.Context) (string, error) {
+func (h *APIHandlers) orgName(ctx context.Context) (string, error) {
 	org, err := coredb.New(h.db.Reader()).GetOrg(ctx)
 	if err != nil {
 		if isNoRows(err) {

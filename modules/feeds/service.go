@@ -1,0 +1,259 @@
+package feeds
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"log/slog"
+	"slices"
+	"sync"
+	"time"
+
+	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/secrets"
+	"github.com/knt048/vedette/core/store"
+)
+
+// secretPurpose is the core/secrets purpose of a feed credential (DATA_MODEL 5.4).
+const secretPurpose = "feeds_source.secret"
+
+// ModuleGate says whether a module is on; modreg.Registry satisfies it.
+type ModuleGate interface {
+	Enabled(id string) bool
+}
+
+// Publisher puts a module event on the bus: *events.Bus satisfies it, so wiring passes the real bus; nil drops events.
+type Publisher interface {
+	Publish(ctx context.Context, e events.Event) error
+}
+
+// Event names and payloads (CONTRACT "Events"). Consumers: inventory, scan, notify.
+const (
+	EventNewKEV       = "feeds.vuln.new_kev"
+	EventVulnUpdated  = "feeds.vuln.updated"
+	EventIOCUpdated   = "feeds.ioc.updated"
+	EventFetchFailed  = "feeds.fetch.failed"
+	EventSyncBaseline = "feeds.sync.baseline"
+)
+
+// SyncBaselineEvent is published once, instead of one NewKEVEvent per CVE, when the first pull of the CISA list
+// fills an empty database (D-78). Subscribers recompute everything once; notify sends nothing for it.
+type SyncBaselineEvent struct {
+	Source string `json:"source"` // "cisa-kev"
+	Count  int    `json:"count"`  // CVEs the pull added
+}
+
+// NewKEVEvent is published once for each CVE the box has never seen before (POST-1).
+type NewKEVEvent struct {
+	CVE         string `json:"cve"`
+	Vendor      string `json:"vendor"`
+	Product     string `json:"product"`
+	HasTemplate bool   `json:"has_template"`
+	DateAdded   string `json:"date_added"`
+}
+
+// VulnUpdatedEvent lists CVEs whose stored data changed (vendor, product, dates, ransomware flag, template).
+type VulnUpdatedEvent struct {
+	CVEs []string `json:"cves"`
+}
+
+// IOCUpdatedEvent says how many listings of a feed were added and removed by a pull.
+type IOCUpdatedEvent struct {
+	FeedID  string `json:"feed_id"`
+	Added   int    `json:"added"`
+	Removed int    `json:"removed"`
+}
+
+// FetchFailedEvent is published when a pull fails; Error is the user-safe text stored on the feed.
+type FetchFailedEvent struct {
+	FeedID string `json:"feed_id"`
+	Error  string `json:"error"`
+}
+
+// Deps is what the module needs from the rest of the box.
+type Deps struct {
+	DB      *store.DB
+	Secrets *secrets.Store
+	Audit   *audit.Log
+	Modules ModuleGate
+	Log     *slog.Logger
+	// Inventory is optional: nil, or the inventory module being off, means INV-10 (you_have null).
+	Inventory Inventory
+	// Events is optional (nil drops events).
+	Events Publisher
+	// Fetcher does every pull; the zero value works (guarded client). Set Version for the User-Agent.
+	Fetcher Fetcher
+	// Clock is time.Now when nil; tests inject a fake.
+	Clock func() time.Time
+}
+
+// Service is the module: the pull logic, the jobs and the data the handlers read. Build it with NewService,
+// call Seed once after the migrations, then hand FeedHandlers(s) to the composite handler and Jobs() to the scheduler.
+type Service struct {
+	Deps
+	st *Store
+
+	mu    sync.Mutex
+	locks map[string]*feedGate // one pull at a time per feed; entries live while a pull holds or waits
+
+	seedMu sync.Mutex
+	seeded bool
+}
+
+// NewService checks the dependencies.
+func NewService(d Deps) (*Service, error) {
+	switch {
+	case d.DB == nil || d.Secrets == nil || d.Audit == nil || d.Modules == nil || d.Log == nil:
+		return nil, errors.New("feeds: DB, Secrets, Audit, Modules and Log are required")
+	}
+	if d.Clock == nil {
+		d.Clock = time.Now
+	}
+	return &Service{Deps: d, st: NewStore(d.DB), locks: map[string]*feedGate{}}, nil
+}
+
+// Store gives other modules the read methods (VulnByCVE, VulnsByProductKey, HasTemplate, IOCLookup, KevPairs).
+func (s *Service) Store() *Store { return s.st }
+
+// Seed merges the built-in feeds into the database. Call it after the migrations, every start.
+func (s *Service) Seed(ctx context.Context) error { return s.st.SeedBuiltins(ctx, s.Clock()) }
+
+func (s *Service) now() time.Time { return s.Clock().UTC() }
+
+// inventoryOn is INV-10: the inventory is used only when it exists and its module is on.
+func (s *Service) inventoryOn() bool { return s.Inventory != nil && s.Modules.Enabled("inventory") }
+
+func (s *Service) publish(ctx context.Context, name string, payload any) {
+	if s.Events == nil {
+		return
+	}
+	if err := s.Events.Publish(ctx, events.Event{Name: name, Data: payload}); err != nil {
+		s.Log.WarnContext(ctx, "publishing an event failed", "event", name, "error", err)
+	}
+}
+
+// feedGate serialises the pulls of one feed; refs counts the pulls holding or waiting for it, so the entry can
+// be dropped when the last one is done.
+type feedGate struct {
+	ch   chan struct{}
+	refs int
+}
+
+// lockFeed waits for the pull lock of a feed or for ctx, whichever comes first. The returned func releases it.
+func (s *Service) lockFeed(ctx context.Context, id string) (func(), error) {
+	s.mu.Lock()
+	g := s.locks[id]
+	if g == nil {
+		g = &feedGate{ch: make(chan struct{}, 1)}
+		s.locks[id] = g
+	}
+	g.refs++
+	s.mu.Unlock()
+	drop := func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if g.refs--; g.refs == 0 {
+			delete(s.locks, id)
+		}
+	}
+	select {
+	case g.ch <- struct{}{}:
+		return func() { <-g.ch; drop() }, nil
+	case <-ctx.Done():
+		drop()
+		return nil, ctx.Err()
+	}
+}
+
+// ready seeds the built-in feeds the first time a request or a pull needs them (once, with the caller context), so
+// start-up needs no context of its own. Seed stays callable directly (tests, tools).
+func (s *Service) ready(ctx context.Context) error {
+	s.seedMu.Lock()
+	defer s.seedMu.Unlock()
+	if s.seeded {
+		return nil
+	}
+	if err := s.Seed(ctx); err != nil {
+		return err
+	}
+	s.seeded = true
+	return nil
+}
+
+func (s *Service) sources(ctx context.Context) ([]sourceRow, error) {
+	if err := s.ready(ctx); err != nil {
+		return nil, err
+	}
+	return s.st.sources(ctx)
+}
+
+// TxSettler is optional on Inventory: AddManualDevice may leave work for after the caller's transaction (the
+// inventory events), and Settle(ctx, tx, committed) tells it whether that transaction committed or rolled back.
+type TxSettler interface {
+	Settle(ctx context.Context, tx *sql.Tx, committed bool)
+}
+
+// writeDeclaring is DB.Write for a transaction that may call declareDevice: whatever the inventory kept for it is
+// settled once the transaction is over, whether it committed or not.
+func (s *Service) writeDeclaring(ctx context.Context, fn func(tx *sql.Tx) error) error {
+	var declared *sql.Tx
+	err := s.DB.Write(ctx, func(tx *sql.Tx) error {
+		declared = tx
+		return fn(tx)
+	})
+	if st, ok := s.Inventory.(TxSettler); ok && declared != nil {
+		st.Settle(context.WithoutCancel(ctx), declared, err == nil)
+	}
+	return err
+}
+
+// declareDevice asks the inventory for the manual device of "I have it" (S-FEED-2, INV-14) inside tx.
+func (s *Service) declareDevice(ctx context.Context, tx *sql.Tx, actor, key string, v VulnRow) error {
+	d := ManualDevice{Kind: KindOf(key), Vendor: v.Vendor, Product: v.Product, Display: DisplayOf(v.Vendor, v.Product), Key: key}
+	if err := s.Inventory.AddManualDevice(ctx, tx, actor, d); err != nil {
+		return fmt.Errorf("feeds: add manual device: %w", err)
+	}
+	return nil
+}
+
+// reconcileDevices adds the "I have it" devices that were answered while the inventory was off, once it is on
+// (INV-14). Called by every pull tick. A product no longer in the CISA list waits.
+func (s *Service) reconcileDevices(ctx context.Context) error {
+	if !s.inventoryOn() {
+		return nil
+	}
+	keys, err := s.st.pendingDevices(ctx)
+	if err != nil {
+		return err
+	}
+	for _, k := range keys {
+		vs, err := s.st.VulnsByProductKey(ctx, k)
+		if err != nil {
+			return err
+		}
+		i := slices.IndexFunc(vs, func(v VulnRow) bool { return v.SourceID == "cisa-kev" })
+		if i < 0 {
+			continue
+		}
+		v := vs[i]
+		err = s.writeDeclaring(ctx, func(tx *sql.Tx) error {
+			var added int
+			if err := tx.QueryRowContext(ctx, `SELECT device_added FROM feeds_weekly_answer WHERE key = ? AND answer = 'have'`, k).Scan(&added); err != nil || added != 0 {
+				return nil // changed meanwhile
+			}
+			if err := s.declareDevice(ctx, tx, "system", k, v); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE feeds_weekly_answer SET device_added = 1 WHERE key = ?`, k); err != nil {
+				return fmt.Errorf("feeds: mark device added: %w", err)
+			}
+			return s.Audit.Append(ctx, tx, audit.Entry{User: "system", Action: "feeds.weekly_device", Target: DisplayOf(v.Vendor, v.Product), Detail: "added after the inventory became available"})
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

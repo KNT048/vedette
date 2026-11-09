@@ -47,7 +47,7 @@ func alreadySetup() *apierr.Error {
 }
 
 // CoreGetSetup implements GET /setup (public): whether first-run setup is done. Before setup there is no org row.
-func (h *Handlers) CoreGetSetup(ctx context.Context) (*oas.CoreGetSetupOK, error) {
+func (h *APIHandlers) CoreGetSetup(ctx context.Context) (*oas.CoreGetSetupOK, error) {
 	org, err := coredb.New(h.db.Reader()).GetOrg(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		return &oas.CoreGetSetupOK{Complete: false, Org: "", DataMode: oas.CoreGetSetupOKDataModeClean}, nil
@@ -60,7 +60,7 @@ func (h *Handlers) CoreGetSetup(ctx context.Context) (*oas.CoreGetSetupOK, error
 
 // CoreGetCoreSetupModules implements GET /core/setup/modules (public): module ids, tiers and dependencies
 // for the bundle step. It does not say which modules are on.
-func (h *Handlers) CoreGetCoreSetupModules(context.Context) (*oas.CoreGetCoreSetupModulesOK, error) {
+func (h *APIHandlers) CoreGetCoreSetupModules(context.Context) (*oas.CoreGetCoreSetupModulesOK, error) {
 	states := h.reg.List()
 	out := &oas.CoreGetCoreSetupModulesOK{Modules: make([]oas.CoreGetCoreSetupModulesOKModulesItem, 0, len(states))}
 	for _, s := range states {
@@ -121,7 +121,7 @@ func validOrgName(s string) bool {
 }
 
 // wantedModules turns the bundle choice of the setup form into the set of modules that must be on.
-func (h *Handlers) wantedModules(req *oas.CorePostCoreSetupReq) (map[string]bool, *apierr.Error) {
+func (h *APIHandlers) wantedModules(req *oas.CorePostCoreSetupReq) (map[string]bool, *apierr.Error) {
 	states := h.reg.List()
 	known := make(map[string]modreg.State, len(states))
 	for _, s := range states {
@@ -168,7 +168,7 @@ func (h *Handlers) wantedModules(req *oas.CorePostCoreSetupReq) (map[string]bool
 // transaction, and only while setup is not done (INV-15). Creating the administrator needs the one-time
 // setup code from the box's log (D-75). Order of refusals: already set up, setup code, then the fields in
 // the order of the form.
-func (h *Handlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCoreSetupReq) (*oas.CorePostCoreSetupOK, error) {
+func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCoreSetupReq) (*oas.CorePostCoreSetupOK, error) {
 	if req.Sample.Or(false) {
 		// INV-15: sample data exists only in builds with data_mode=sample; this build has none.
 		return nil, apierr.New(400, CodeSampleUnavailable, "This build has no sample data. Fill in the setup form instead.")
@@ -289,7 +289,7 @@ func (h *Handlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCoreS
 	return &oas.CorePostCoreSetupOK{Ok: true}, nil
 }
 
-func (h *Handlers) setupDone(ctx context.Context) (bool, error) {
+func (h *APIHandlers) setupDone(ctx context.Context) (bool, error) {
 	org, err := coredb.New(h.db.Reader()).GetOrg(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil

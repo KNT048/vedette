@@ -1,0 +1,137 @@
+package inventory
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"log/slog"
+	"sync"
+	"time"
+
+	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/store"
+)
+
+// systemActor is the audit user of changes nobody asked for in the interface (sensors, agents).
+const systemActor = "system"
+
+// Config is what New needs. DB and Audit are required; everything else is optional and degrades:
+// no Events means nothing is announced, no KEV means the catalog has only curated products and no CVE
+// matching, no Findings means findings_count is 0.
+type Config struct {
+	DB       *store.DB
+	Audit    *audit.Log
+	Events   Publisher
+	KEV      KEV
+	Box      BoxPackages
+	Findings FindingCounter
+	Modules  ModuleGate // to tell whether notify is on (notify_available)
+	Clock    func() time.Time
+	Log      *slog.Logger
+}
+
+// Service is the only writer of the inv_* tables (INV-2). Create it with New.
+type Service struct {
+	db       *store.DB
+	audit    *audit.Log
+	events   Publisher
+	kev      KEV
+	box      BoxPackages
+	findings FindingCounter
+	modules  ModuleGate
+	clock    func() time.Time
+	log      *slog.Logger
+	cat      catalogCache
+
+	pendMu  sync.Mutex
+	pending map[*sql.Tx]*outbox // events of AddManualDevice calls whose caller transaction is still open
+}
+
+// New returns the service.
+func New(cfg Config) (*Service, error) {
+	if cfg.DB == nil || cfg.Audit == nil {
+		return nil, errors.New("inventory: New needs DB and Audit")
+	}
+	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, findings: cfg.Findings, modules: cfg.Modules, clock: cfg.Clock, log: cfg.Log}
+	if s.clock == nil {
+		s.clock = time.Now
+	}
+	if s.log == nil {
+		s.log = slog.New(slog.DiscardHandler)
+	}
+	return s, nil
+}
+
+func (s *Service) now() string { return store.FormatTS(s.clock()) }
+
+// outbox collects the events of one transaction; they go out only after it commits.
+type outbox struct {
+	events []Event
+	// after run once the transaction has committed, to compute events that need data from other modules
+	// (the CVEs feeds knows) which must not be read while the write transaction holds the database.
+	after []func(ctx context.Context) []Event
+}
+
+func (o *outbox) add(name string, data any) {
+	o.events = append(o.events, Event{Name: name, Data: data})
+}
+
+// write runs fn in one write transaction and announces its events after the commit.
+func (s *Service) write(ctx context.Context, fn func(tx *sql.Tx, o *outbox) error) error {
+	var o outbox
+	if err := s.db.Write(ctx, func(tx *sql.Tx) error { return fn(tx, &o) }); err != nil {
+		return err
+	}
+	events := o.events
+	for _, f := range o.after {
+		events = append(events, f(ctx)...)
+	}
+	s.publish(ctx, events)
+	return nil
+}
+
+func (s *Service) publish(ctx context.Context, events []Event) {
+	if s.events == nil {
+		return
+	}
+	for _, e := range events {
+		if err := s.events.Publish(ctx, e); err != nil {
+			s.log.WarnContext(ctx, "inventory: publishing an event failed", "event", e.Name, "error", err)
+		}
+	}
+}
+
+func (s *Service) auditTx(ctx context.Context, tx *sql.Tx, actor, action, target, detail string) error {
+	if actor == "" {
+		actor = systemActor
+	}
+	if target == "" {
+		target = "-"
+	}
+	if err := s.audit.Append(ctx, tx, audit.Entry{User: actor, Action: action, Target: target, Detail: detail}); err != nil {
+		return fmt.Errorf("inventory: audit: %w", err)
+	}
+	return nil
+}
+
+// querier is *sql.DB and *sql.Tx.
+type querier interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+func nullStr(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
+func ptr(ns sql.NullString) *string {
+	if !ns.Valid {
+		return nil
+	}
+	v := ns.String
+	return &v
+}

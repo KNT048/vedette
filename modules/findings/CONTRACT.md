@@ -1,6 +1,6 @@
 # Findings Contract
 
-> Tier: standard · Story: S-MIT-1 (danh sách, vòng đời), S-INV-2, S-SCAN-3, S-ALERT-1 · Last verified: 2026-11-09 (hợp đồng + thư viện thuần `modules/findings` có test; chưa có service, DB, route)
+> Tier: standard · Story: S-MIT-1 (danh sách, vòng đời), S-INV-2, S-SCAN-3, S-ALERT-1 · Last verified: 2026-11-09 (WP-21 + nối vào `cmd/vedette`: `Inventory`, `Feeds`, `Publisher` thật, nghe `inventory.match.changed`/`inventory.asset.deleted`; chưa nghe `scan.finding.confirmed`, `feeds.vuln.updated`; xem `.ai/deferred/feat-module-wiring-2.md`)
 
 Tách từ `mitigation` theo D-57(6): phát hiện (finding) là module riêng, tắt `mitigation` không làm mất phát hiện hay cảnh báo (S-ALERT-1). GUI là `web/src/features/findings/` (danh sách, trang finding, panel Devices). Nguồn hành vi: `findings/{contract,mocks,basis}.ts` (phần `Finding`, `FindingRow`, `/findings`, `/findings/{id}/status`), `web/src/mocks/match.ts`. Phần "What to do" (gói, đã áp dụng, AI) thuộc `mitigation`.
 
@@ -15,9 +15,9 @@ Tách từ `mitigation` theo D-57(6): phát hiện (finding) là module riêng, 
 - **INV-8**: `FindingRow.kev` đọc từ `feeds`, không từ gói khuyến nghị của `mitigation`.
 
 ## Preconditions / Postconditions
-- **PRE-1** (`UpsertFromMatch(assetID, cve, basis)`): `cve` khớp `^CVE-\d{4}-\d{4,}$`, tài sản tồn tại. **POST-1**: finding tạo, hoặc cập nhật `last_seen`; chỉ phát `findings.finding.created` khi mới.
+- **PRE-1** (`UpsertFromMatch(ctx, Asset, []Vuln)`, gọi từ `OnMatchChanged(ctx, assetID)` khi nhận `inventory.match.changed`): tài sản tồn tại (`ErrUnknownAsset`); `cve` không hợp lệ bị bộ khớp bỏ qua (`^CVE-\d{4}-\d{4,}$`). **POST-1**: mỗi cặp mới thành finding `suspected` kèm history `created`, `core_audit` và event; cặp đã có chỉ làm tươi `last_seen` (và nâng `basis` nếu đang mở); chỉ phát `findings.finding.created` khi mới. Mọi thứ trong một giao dịch; event phát sau commit.
 - **PRE-2** (`ConfirmFromScan(assetID, cve, evidence)`): `evidence` đã rút gọn và gồm `template`. **POST-2**: finding đang mở → `status=confirmed`, `basis=scan`; finding đã `false_positive|not_relevant` không tự mở lại: lần đầu một `template` khớp thì ghi bằng chứng (`basis=scan`, history `rescanned`) và phát `findings.finding.status_changed` để người dùng quyết, cùng `template` lần sau không phát lại; finding đã `patched|mitigated` → `confirmed` kèm history `reopened` (ghi chú scan) và `status_changed` (**[ĐX]** DATA_MODEL §5.2, chưa chốt). Quét không còn khớp chỉ ghi history `rescan_clear`, không đổi trạng thái.
-- **PRE-3** (`GET /findings/{id}`): id 1…64 ký tự. **POST-3**: trả `FindingDetail`; id lạ → 404. Các trường "What to do" (`pack`, `compromise`, `recheck`, `ai`, `ai_available`, `applied`) do `mitigation` cấp theo cơ chế: `findings` hỏi một nhà cung cấp "What to do" tuỳ chọn (interface trong `core`, `mitigation` đăng ký qua module registry của `core`; `findings` không phụ thuộc `mitigation`). Khi `mitigation` tắt, nhà cung cấp vắng: các trường là `null`/rỗng (xem câu hỏi mở về cờ GUI).
+- **PRE-3** (`GET /findings/{id}`): id 1…64 ký tự. **POST-3**: trả `FindingDetail`; id lạ → 404. Các trường "What to do" (`pack`, `compromise`, `recheck`, `ai`, `ai_available`, `applied`) do `mitigation` cấp theo cơ chế: `findings` hỏi một nhà cung cấp "What to do" tuỳ chọn (`findings.Guidance`, interface của chính `findings`; `mitigation` đăng ký bằng `FindingHandlers.SetGuidance` lúc khởi động và `findings` bỏ qua nó khi cổng module báo `mitigation` tắt; `findings` không import `mitigation`). Khi `mitigation` tắt, nhà cung cấp vắng: các trường là `null`/rỗng (xem câu hỏi mở về cờ GUI).
 - **PRE-4** (`POST …/status`): `operator`. **POST-4**: trả `FindingDetail` mới; thất bại không đổi gì.
 
 ## Forbidden
@@ -44,7 +44,8 @@ Tách từ `mitigation` theo D-57(6): phát hiện (finding) là module riêng, 
 
 ## Events
 - **Phát**: `findings.finding.created {finding_id, asset_id, cve, severity, basis}`, `findings.finding.status_changed {finding_id, from, to}`.
-- **Nhận**: `inventory.match.changed`, `inventory.asset.deleted`, `scan.finding.confirmed`, `feeds.vuln.updated` (làm tươi KevInfo, khớp lại).
+- **Nhận**: `inventory.match.changed` → `OnMatchChanged` (tính lại cả thiết bị; thiết bị đã bị xoá thì bỏ qua), `inventory.asset.deleted` → `OnAssetDeleted` (INV-7), đều đăng ký ở `cmd/vedette/wiring.go` và chỉ chạy khi `findings` bật (tắt lúc đó thì bỏ lỡ, finding mồ côi chờ việc đối chiếu, deferred); `scan.finding.confirmed` → `ConfirmFromScan` **chưa nối** (chưa có module scan); `feeds.vuln.updated` (làm tươi KevInfo) chưa nghe: KevInfo đọc trực tiếp lúc hiển thị nên không cần.
+- **Từ đường cơ sở D-78**: lần kéo CISA đầu làm `inventory` khớp lại mọi thiết bị, nên `findings.finding.created` có thể phát hàng loạt. **`notify` (WP-22) không được gửi tin cho các finding sinh ra từ đường cơ sở.**
 
 ## Behaviour khi tắt
 Không route `/findings*`; không finding mới/cập nhật; `notify` không có gì để gửi cho S-ALERT-1; kết quả `scan` có `finding_id=null`; Devices mất panel finding; `reports` thiếu mục lỗ hổng; `mitigation` mất đầu vào (phụ thuộc, báo `affected`). Bảng giữ nguyên.
@@ -53,6 +54,10 @@ Không route `/findings*`; không finding mới/cập nhật; `notify` không c�
 S-MIT-1 (danh sách, trạng thái), S-INV-2, S-SCAN-3, S-ALERT-1. D-3 không chặn; D-52 Findings ≠ Incidents; D-57(6) tách module; D-57(13) `confidence` thang 0–1.
 
 ## Không khớp / câu hỏi mở
+- `fnd_finding_history` chỉ chặn UPDATE bằng trigger (chỉ thêm, không sửa); DELETE không bị chặn vì xoá finding (INV-7) cần cascade xoá history. Chỉ có `findings.Service` xoá finding.
+- `GET /findings/{id}` thêm mỗi mục "Đã áp dụng" của `mitigation` vào `history` dưới dạng dòng `applied:<item>` (như mock, sắp theo `ts`, ổn định); `GET /findings` thì không (chỉ history đã lưu).
+- `fnd_finding.asset_id` **không** có FK tới `inv_asset` (quy tắc `modules.md`: không ràng buộc chéo module, FK buộc migration và trạng thái bật/tắt của hai module): INV-7 do `Service.OnAssetDeleted` (sự kiện) đảm nhiệm. Sự kiện không bền: cần đối chiếu định kỳ (hỏi `Inventory` id nào còn, xoá mồ côi) cho trường hợp lỡ sự kiện hoặc `findings` tắt lúc xoá (deferred).
+- `bad_action` và `note_too_long` (khi vượt 500 ký tự ngay trong thân) bị schema OpenAPI chặn trước handler (400 `invalid` chung của ogen): mã riêng chỉ còn tới được qua service, và `note_too_long` qua HTTP chỉ khi ghi chú ≤ 500 ký tự Unicode nhưng > 500 đơn vị UTF-16.
 - ARCHITECTURE §4 đặt bảng `inv_finding`; hợp đồng này dùng `fnd_finding` (khớp DATA_MODEL). DATA_MODEL §4.3 và §5.2 còn ghi "chỉ `mitigation` ghi bảng" và `mitigation.finding.*`: cần sửa theo hợp đồng này.
 - `GET /findings/{id}` gộp dữ liệu của `mitigation` (shape `FindingDetail` giữ nguyên, GUI-first). Khi `mitigation` tắt, `pack:null` giống hệt "chưa có khuyến nghị đã xác nhận": GUI chưa phân biệt được (S-CORE-1 yêu cầu nói rõ vì module tắt). Cần quyết: thêm cờ vào `FindingDetail` (đổi GUI = story mới) hay ẩn panel.
 - `basis=version` chưa có trong mock (`feeds_vuln` chưa có khoảng phiên bản); `confidence` cho `version` là **[ĐX]** 0.7 (DATA_MODEL §5.2 ghi "≥ 0.7").

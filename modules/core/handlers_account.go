@@ -10,7 +10,7 @@ import (
 
 // CoreGetCoreAccount implements GET /core/account (viewer): my profile, whether the email method of
 // two-step sign-in can be chosen, and my live sessions with the current one marked.
-func (h *Handlers) CoreGetCoreAccount(ctx context.Context) (*oas.CoreGetCoreAccountOK, error) {
+func (h *APIHandlers) CoreGetCoreAccount(ctx context.Context) (*oas.CoreGetCoreAccountOK, error) {
 	c, err := h.caller(ctx)
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func (h *Handlers) CoreGetCoreAccount(ctx context.Context) (*oas.CoreGetCoreAcco
 }
 
 // CorePatchCoreAccount implements PATCH /core/account (viewer): the display name.
-func (h *Handlers) CorePatchCoreAccount(ctx context.Context, req *oas.CorePatchCoreAccountReq) (*oas.CorePatchCoreAccountOK, error) {
+func (h *APIHandlers) CorePatchCoreAccount(ctx context.Context, req *oas.CorePatchCoreAccountReq) (*oas.CorePatchCoreAccountOK, error) {
 	c, err := h.caller(ctx)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func (h *Handlers) CorePatchCoreAccount(ctx context.Context, req *oas.CorePatchC
 }
 
 // CorePostCoreAccountPassword implements POST /core/account/password (viewer): the other sessions end.
-func (h *Handlers) CorePostCoreAccountPassword(ctx context.Context, req *oas.CorePostCoreAccountPasswordReq) (*oas.CorePostCoreAccountPasswordOK, error) {
+func (h *APIHandlers) CorePostCoreAccountPassword(ctx context.Context, req *oas.CorePostCoreAccountPasswordReq) (*oas.CorePostCoreAccountPasswordOK, error) {
 	c, err := h.caller(ctx)
 	if err != nil {
 		return nil, err
@@ -75,7 +75,7 @@ func (h *Handlers) CorePostCoreAccountPassword(ctx context.Context, req *oas.Cor
 }
 
 // CorePostCoreAccount2FAStart implements POST /core/account/2fa/start (viewer): needs the current password (D-76).
-func (h *Handlers) CorePostCoreAccount2FAStart(ctx context.Context, req *oas.CorePostCoreAccount2FAStartReq) (*oas.CorePostCoreAccount2FAStartOK, error) {
+func (h *APIHandlers) CorePostCoreAccount2FAStart(ctx context.Context, req *oas.CorePostCoreAccount2FAStartReq) (*oas.CorePostCoreAccount2FAStartOK, error) {
 	c, err := h.caller(ctx)
 	if err != nil {
 		return nil, err
@@ -88,7 +88,7 @@ func (h *Handlers) CorePostCoreAccount2FAStart(ctx context.Context, req *oas.Cor
 }
 
 // CorePostCoreAccount2FAConfirm implements POST /core/account/2fa/confirm (viewer).
-func (h *Handlers) CorePostCoreAccount2FAConfirm(ctx context.Context, req *oas.CorePostCoreAccount2FAConfirmReq) (*oas.CorePostCoreAccount2FAConfirmOK, error) {
+func (h *APIHandlers) CorePostCoreAccount2FAConfirm(ctx context.Context, req *oas.CorePostCoreAccount2FAConfirmReq) (*oas.CorePostCoreAccount2FAConfirmOK, error) {
 	c, err := h.caller(ctx)
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func (h *Handlers) CorePostCoreAccount2FAConfirm(ctx context.Context, req *oas.C
 }
 
 // CorePostCoreAccount2FAEmailStart implements POST /core/account/2fa/email/start (viewer): needs the current password (D-76).
-func (h *Handlers) CorePostCoreAccount2FAEmailStart(ctx context.Context, req *oas.CorePostCoreAccount2FAEmailStartReq) (*oas.CorePostCoreAccount2FAEmailStartOK, error) {
+func (h *APIHandlers) CorePostCoreAccount2FAEmailStart(ctx context.Context, req *oas.CorePostCoreAccount2FAEmailStartReq) (*oas.CorePostCoreAccount2FAEmailStartOK, error) {
 	c, err := h.caller(ctx)
 	if err != nil {
 		return nil, err
@@ -113,7 +113,7 @@ func (h *Handlers) CorePostCoreAccount2FAEmailStart(ctx context.Context, req *oa
 }
 
 // CorePostCoreAccount2FAEmailConfirm implements POST /core/account/2fa/email/confirm (viewer).
-func (h *Handlers) CorePostCoreAccount2FAEmailConfirm(ctx context.Context, req *oas.CorePostCoreAccount2FAEmailConfirmReq) (*oas.CorePostCoreAccount2FAEmailConfirmOK, error) {
+func (h *APIHandlers) CorePostCoreAccount2FAEmailConfirm(ctx context.Context, req *oas.CorePostCoreAccount2FAEmailConfirmReq) (*oas.CorePostCoreAccount2FAEmailConfirmOK, error) {
 	c, err := h.caller(ctx)
 	if err != nil {
 		return nil, err
@@ -125,7 +125,7 @@ func (h *Handlers) CorePostCoreAccount2FAEmailConfirm(ctx context.Context, req *
 }
 
 // CorePostCoreAccount2FADisable implements POST /core/account/2fa/disable (viewer): needs the password.
-func (h *Handlers) CorePostCoreAccount2FADisable(ctx context.Context, req *oas.CorePostCoreAccount2FADisableReq) (*oas.CorePostCoreAccount2FADisableOK, error) {
+func (h *APIHandlers) CorePostCoreAccount2FADisable(ctx context.Context, req *oas.CorePostCoreAccount2FADisableReq) (*oas.CorePostCoreAccount2FADisableOK, error) {
 	c, err := h.caller(ctx)
 	if err != nil {
 		return nil, err
@@ -138,7 +138,7 @@ func (h *Handlers) CorePostCoreAccount2FADisable(ctx context.Context, req *oas.C
 
 // CoreDeleteCoreAccountSessionsID implements DELETE /core/account/sessions/{id} (viewer): one of my other
 // sessions; the one I am using is 400 current_session (sign out instead).
-func (h *Handlers) CoreDeleteCoreAccountSessionsID(ctx context.Context, params oas.CoreDeleteCoreAccountSessionsIDParams) error {
+func (h *APIHandlers) CoreDeleteCoreAccountSessionsID(ctx context.Context, params oas.CoreDeleteCoreAccountSessionsIDParams) error {
 	c, err := h.caller(ctx)
 	if err != nil {
 		return err
@@ -150,7 +150,7 @@ func (h *Handlers) CoreDeleteCoreAccountSessionsID(ctx context.Context, params o
 }
 
 // CorePostCoreAccountSessionsRevokeOthers implements POST /core/account/sessions/revoke-others (viewer).
-func (h *Handlers) CorePostCoreAccountSessionsRevokeOthers(ctx context.Context) (*oas.CorePostCoreAccountSessionsRevokeOthersOK, error) {
+func (h *APIHandlers) CorePostCoreAccountSessionsRevokeOthers(ctx context.Context) (*oas.CorePostCoreAccountSessionsRevokeOthersOK, error) {
 	c, err := h.caller(ctx)
 	if err != nil {
 		return nil, err

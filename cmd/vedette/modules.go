@@ -5,15 +5,21 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/auth"
+	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/core"
+	"github.com/knt048/vedette/modules/feeds"
+	"github.com/knt048/vedette/modules/findings"
+	"github.com/knt048/vedette/modules/inventory"
+	"github.com/knt048/vedette/modules/mitigation"
 )
 
 // deps is what module constructors may take. serve builds one value and hands it to every module's
@@ -25,8 +31,16 @@ type deps struct {
 	Secrets *secrets.Store
 	Audit   *audit.Log
 	Clock   func() time.Time
-	Auth    *auth.Service
-	Core    *core.Handlers
+	Bus     *events.Bus       // in-process event bus (core/events); modules publish after commit and subscribe here
+	Auth    *auth.Service     // sessions, sign-in and two-step (core/auth)
+	Core    *core.APIHandlers // core's own operations (sign-in, account, users, setup, audit, general settings)
+
+	// Module services other modules use through their own ports (issue #38, #39). Built once in serve,
+	// after the fields above, so every handler, job and subscriber shares one instance.
+	Inventory          *inventory.Service
+	Findings           *findings.Service
+	FindingHandlers    *findings.FindingHandlers // also carries mitigation's guidance (SetGuidance) and is mitigation's Details
+	MitigationHandlers *mitigation.ActionHandlers
 }
 
 // moduleWiring is one module the binary carries. Adding a module = one entry in wiredModules and
@@ -35,6 +49,7 @@ type moduleWiring struct {
 	ID         string
 	Migrations fs.FS                   // nil when the module owns no tables
 	Jobs       func(d deps) []jobs.Job // nil when it has none; a job runs only while its module is on
+	BodyLimits map[string]int64        // operationId → request body cap in bytes, for operations over 1 MiB
 }
 
 // wiredModules lists the modules in migration order: a module comes after every module it depends on
@@ -42,6 +57,10 @@ type moduleWiring struct {
 func wiredModules() []moduleWiring {
 	return []moduleWiring{
 		{ID: "core", Migrations: core.Migrations},
+		{ID: "feeds", Migrations: feeds.Migrations, Jobs: feedsJobs},
+		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},
+		{ID: "findings", Migrations: findings.Migrations},
+		{ID: "mitigation", Migrations: mitigation.Migrations},
 	}
 }
 
@@ -75,4 +94,14 @@ func addJobs(sched *jobs.Scheduler, d deps, wired []moduleWiring) error {
 		}
 	}
 	return nil
+}
+
+// bodyLimits merges the modules' per-operation body caps for server.Config. server.New refuses an
+// operationId that does not exist, so a typo fails at start-up.
+func bodyLimits(wired []moduleWiring) map[string]int64 {
+	out := map[string]int64{}
+	for _, w := range wired {
+		maps.Copy(out, w.BodyLimits)
+	}
+	return out
 }

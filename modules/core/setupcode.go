@@ -69,7 +69,7 @@ func setupCodesEqual(given, want string) bool {
 }
 
 // storedSetupCode reads the code, ok=false when none is stored (setup is done, or EnsureSetupCode has not run).
-func (h *Handlers) storedSetupCode(ctx context.Context) (code string, ok bool, err error) {
+func (h *APIHandlers) storedSetupCode(ctx context.Context) (code string, ok bool, err error) {
 	id, err := coredb.New(h.db.Reader()).GetSecretIDByPurpose(ctx, setupCodePurpose)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", false, nil
@@ -88,7 +88,7 @@ func (h *Handlers) storedSetupCode(ctx context.Context) (code string, ok bool, e
 // it the first time); once setup is done it removes any code that is left and returns "". The caller prints
 // a non-empty code in the log: that is the one place the code is meant to be read, the same way the first
 // admin password of other self-hosted tools is.
-func (h *Handlers) EnsureSetupCode(ctx context.Context) (string, error) {
+func (h *APIHandlers) EnsureSetupCode(ctx context.Context) (string, error) {
 	var code string
 	err := h.db.Write(ctx, func(tx *sql.Tx) error {
 		q := coredb.New(tx)
@@ -126,7 +126,7 @@ func (h *Handlers) EnsureSetupCode(ctx context.Context) (string, error) {
 }
 
 // dropSetupCode removes the stored code inside the transaction that completes setup.
-func (h *Handlers) dropSetupCode(ctx context.Context, tx *sql.Tx) error {
+func (h *APIHandlers) dropSetupCode(ctx context.Context, tx *sql.Tx) error {
 	id, err := coredb.New(tx).GetSecretIDByPurpose(ctx, setupCodePurpose)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil

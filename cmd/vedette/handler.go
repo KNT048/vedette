@@ -3,6 +3,10 @@ package main
 import (
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/modules/core"
+	"github.com/knt048/vedette/modules/feeds"
+	"github.com/knt048/vedette/modules/findings"
+	"github.com/knt048/vedette/modules/inventory"
+	"github.com/knt048/vedette/modules/mitigation"
 )
 
 // handler is the composite of oas.Handler: server.Fallback answers 501 for every operation and gives
@@ -13,7 +17,11 @@ import (
 type handler struct {
 	server.Fallback
 	*core.ModuleHandlers
-	*core.Handlers
+	*core.APIHandlers
+	*inventory.Handlers
+	*feeds.FeedHandlers
+	*findings.FindingHandlers
+	*mitigation.ActionHandlers
 }
 
 // newHandler builds every module's handlers from the shared deps. Adding a module = one field above
@@ -22,6 +30,11 @@ func newHandler(d deps) handler {
 	return handler{
 		Fallback:       server.Fallback{Log: d.Log},
 		ModuleHandlers: core.NewModuleHandlers(d.DB, d.Reg),
-		Handlers:       d.Core,
+		APIHandlers:    d.Core,
+		Handlers:       inventory.NewHandlers(d.Inventory),
+		FeedHandlers:   feedsHandlers(d),
+
+		FindingHandlers: d.FindingHandlers,
+		ActionHandlers:  d.MitigationHandlers,
 	}
 }

@@ -36,6 +36,18 @@
 ## Modifying: `GET /feeds/hot` trường `you_have`, `matched_assets`
 - **SPA** `HomePage`, `YouHaveCell`; **notify** không đọc trực tiếp.
 
+## Modifying: `feeds.Inventory` (`MatchProducts`, `AddManualDevice`), `feeds.Deps`, `feeds.Service` (`Seed`, `Jobs`, `Fetch`, `Store`), `feeds.Handlers`
+- **inventory** (Kiên) implements `Inventory`: `MatchProducts` keyed by `Product.Key()` (= `ProductKey`) gives `you_have`/`matched_assets` of the hot board and the CVE page, `how` ∈ yes|maybe; `AddManualDevice` runs inside feeds' write transaction (it must not open its own `Write`). Change a signature = the "Do you have it?" column and "I have it" stop compiling in `cmd/vedette`.
+- **cmd/vedette** (`feeds.go`, `wiring.go`, `modules.go`, `handler.go`): builds `Service` once per database; `Deps.Events` is `deps.Bus` and `Deps.Inventory` is `feedsInventory{deps.Inventory}` (so `deps.Inventory` must be built before the first `feedsService` call: `buildServices` does it). `Inventory` may also implement `TxSettler`; the real one does, so its events follow the commit of feeds' transaction. `Seed` must run after the migrations, on every start.
+- `Store` read methods are the API of other modules: `VulnByCVE`, `VulnsByProductKey`, `HasTemplate`, `IOCLookup`, `KevPairs` (see the first sections) and, for the wiring, `KevProducts`, `KevCVEsByKeys`, `KevVulns`, `KevVulnsByCVE` (`store_kev.go`; cisa-kev rows only). They feed `inventory.KEV` (catalog + CVE match) and `findings.Feeds` through adapters in `cmd/vedette/wiring.go`: changing what they return changes the catalog, the match events and the findings.
+
+## Modifying: events `feeds.vuln.new_kev`, `feeds.vuln.updated`, `feeds.ioc.updated`, `feeds.fetch.failed` (`NewKEVEvent`, `VulnUpdatedEvent`, `IOCUpdatedEvent`, `FetchFailedEvent`)
+- **inventory** and **scan** listen to `new_kev`/`updated`; **notify** via findings. D-78: the first pull of the CISA list into an empty table publishes one `feeds.sync.baseline {source, count}` instead of one `new_kev` per entry (about 1,200). `cmd/vedette/wiring.go` subscribes `inventory.RematchCVE` to `new_kev` and `inventory.RematchAll` to the baseline; a listener of `new_kev` that must also react to the first sync (scan) has to subscribe to the baseline too. **notify (WP-22) must send nothing for a baseline** nor for findings created by its re-match.
+
+## Modifying: tables `feeds_*` (migration `0001_feeds_base.sql`)
+- Migration `0002_feeds_review.sql` adds `feeds_source.rev` (pull vs edit race) and `feeds_weekly_answer.device_added` (one "I have it" device per product).
+- `feeds_source` carries the pull state and `secret_id` (core_secret) + `secret_last4`; deleting a custom feed deletes its secret, its `feeds_vuln` rows and its `feeds_ioc_source` rows (indicators nobody else lists go too). `feeds_ioc` has no score, category or verdict column: derive them (`Judge`).
+
 ## Disabling this module
 - Trang chủ Hot/Weekly/Lookup/CVE trống ("off"); Settings → Feeds mất.
 - `inventory`: danh mục chỉ còn bản đã giữ; không khớp mới. `findings`: không finding mới. `scan`: không tự quét lại. `notify`: không tin lỗ hổng mới (qua `findings`).

@@ -49,6 +49,7 @@ Nguồn hành vi: `web/src/features/notify/{contract,mocks}.ts`. Luồng dữ li
 
 ## Events
 - **Phát**: `notify.incident.created {id, kind, severity}`, `notify.message.sent|failed {id, channel}`, `notify.approval.requested`, `notify.approval.decided`, `notify.channel.changed {type}`.
+- **Yêu cầu cho WP-22 (D-78, đường cơ sở)**: khi `feeds` kéo danh sách CISA lần đầu vào bảng rỗng, nó phát `feeds.sync.baseline` (không phát từng `feeds.vuln.new_kev`); `inventory` khớp lại tất cả và `findings` tạo hàng loạt `findings.finding.created` từ đó. **notify không gửi tin nào cho đường cơ sở**: không cho sự kiện đó, cũng không cho các `findings.finding.created` do lượt khớp lại sinh ra (ví dụ: khi nhận `feeds.sync.baseline` thì im lặng tới khi lượt khớp lại xong, hoặc bỏ finding có `first_seen` trước mốc đó). Các lần kéo sau, và thiết bị mới, báo bình thường.
 - **Nhận**: `findings.finding.created|status_changed` (tin lỗ hổng), `inventory.asset.discovered` (khi `notify_new`), `honeypot.hit`, `logs.anomaly`, `logs.bad_address` (incident; tên tạm, nhóm B chốt), `response.approval.requested`, `reports.report.ready` (S-REP-1 gửi tự động).
 
 ## Behaviour khi tắt

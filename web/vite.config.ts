@@ -8,7 +8,9 @@ export default defineConfig({
   resolve: { alias: { '@': path.resolve(import.meta.dirname, './src') } },
   build: { chunkSizeWarningLimit: 900 },
   // Ảnh chụp/kết quả Playwright ghi trong web/ không được kích hoạt HMR (gây tải lại CSS liên tục khi đang chạy E2E).
-  server: { watch: { ignored: ['**/qa-shots/**', '**/test-results/**', '**/playwright-report/**'] } },
+  // `make dev-api`: /api goes to the Go backend for the modules in VITE_API_REAL (the others are answered by MSW in the browser, so never reach here).
+  // changeOrigin false keeps Host = localhost:5173 = the browser's Origin, which the backend's Origin check (core/server checkOrigin) compares to Host.
+  server: { proxy: { '/api': { target: 'http://127.0.0.1:8080', changeOrigin: false } }, watch: { ignored: ['**/qa-shots/**', '**/test-results/**', '**/playwright-report/**'] } },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],

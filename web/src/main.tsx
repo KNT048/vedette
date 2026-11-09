@@ -19,7 +19,8 @@ window.addEventListener('vite:preloadError', (e) => {
 installClientErrors()
 
 async function start() {
-  // M1: mọi /api/v1 do MSW trả lời trong trình duyệt (D-18, D-22). M2: build với VITE_API_MOCK=off để nối backend Go.
+  // /api/v1 do MSW trả lời (D-18, D-22), trừ module nằm trong VITE_API_REAL (đi tới backend Go qua proxy Vite).
+  // VITE_API_MOCK=off = mọi module thật: không chạy MSW.
   if (import.meta.env.VITE_API_MOCK !== 'off') {
     try {
       const { worker } = await import('./mocks/browser')

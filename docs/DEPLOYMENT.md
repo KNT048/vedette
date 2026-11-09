@@ -535,8 +535,11 @@ Không có endpoint metrics kiểu Prometheus: chưa có story, không làm (`ru
 | Backend (từ M2) | `go test ./...`, `golangci-lint`; `go test ./modules/<id>/... -run Contract` | thêm vào `make verify` khi có Go |
 | Cả bộ container | `docker compose --profile dev up` (hoặc `podman compose`) | cùng image với appliance; host giả thay `vedette-host` |
 | Tích hợp mạng thật | profile `lab` trên VM Linux có card thật | **không quét/probe IP ngoài lab** (`agent-safety.md`); dùng fixture pcap/syslog |
-| Nối GUI vào backend | build SPA với `VITE_API_MOCK=off` | hợp đồng `api/openapi.json` |
+| Nối GUI vào backend (từng module) | `make dev-api` (mặc định `REAL=core`; `make dev-api REAL=core,inventory`) | Go chạy ở `127.0.0.1:8080` (`.dev/vedette.db`, `.dev/vedette.key`, tạo khi chạy lần đầu), Vite `localhost:5173` proxy `/api` → backend; module trong `REAL` đi tới backend, module khác vẫn do MSW trả lời. Ctrl-C dừng cả hai |
+| Nối GUI vào backend (toàn bộ) | build SPA với `VITE_API_MOCK=off` (hoặc `VITE_API_REAL=all`) | hợp đồng `api/openapi.json` |
 | Dọn | `make clean` (gồm image `vedette-*:dev` build tại chỗ, đề xuất) | không xoá `node_modules`, module cache |
+
+**`make dev-api` chi tiết.** `VITE_API_REAL` (danh sách id module hoặc `all`) quyết định handler MSW nào được đăng ký: `web/src/lib/apiModules.ts` ánh xạ đường dẫn → module đúng như `core/server/modules.go`, và `api/route-modules.json` (Go test `core/server/routemodules_test.go` giữ bằng bảng Go, vitest đối chiếu với `apiModules.ts`) ngăn lệch. Origin: Vite proxy với `changeOrigin: false` nên `Host` giữ `localhost:5173` đúng bằng `Origin` của trình duyệt, và `checkOrigin` của backend so `Origin` với `Host` của chính request đó nên chấp nhận; POST/PUT/PATCH/DELETE gửi thêm `X-CSRF-Token` lấy từ cookie `vedette_csrf`. Chưa có đăng nhập ở backend (WP-04b phần 2) thì `GET /api/v1/modules` trả 401: đúng như mong đợi. Docker Compose cả bộ container chờ image (WP-08).
 
 Quy ước: dev trên macOS dùng Docker Desktop/Podman machine: không có mạng host, macvlan, bắt gói thật, nên sensor chạy chế độ phát lại fixture. CI (GitHub Actions): test từng module, contract test, build đa kiến trúc, `trivy` + SBOM, **ký cosign** ở job phát hành, bài restore drill, thử "kéo image không ký bị từ chối". AI không tạo git tag; kien tag tay (`CLAUDE.md` #12).
 

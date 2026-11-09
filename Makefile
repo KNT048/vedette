@@ -1,7 +1,7 @@
 # Vedette — lệnh chung. Máy: `make check` trước khi push (D-62); CI gọi đúng các đích ở đây (D-63, docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: help dev check verify node-version-check verify-web verify-go test test-go contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build e2e fixtures clean
+.PHONY: help dev dev-api check verify node-version-check verify-web verify-go test test-go contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build e2e fixtures clean
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -12,6 +12,7 @@ endif
 
 help:
 	@echo "make dev           chạy giao diện với dữ liệu mẫu tại http://localhost:5173"
+	@echo "make dev-api      backend Go thật + giao diện; REAL=core,inventory chọn module thật, còn lại là mock"
 	@echo "make check         kiểm nhanh phần đã đổi so với origin/main (cổng PR); đổi file dùng chung thì chạy verify"
 	@echo "make verify        web + Go: gõ kiểu, lint, test, kiểm lệch hợp đồng, build (rồi dọn)"
 	@echo "make verify-web    chỉ phần giao diện"
@@ -27,6 +28,10 @@ help:
 dev:
 	pnpm --dir web install --frozen-lockfile
 	pnpm --dir web dev
+
+# Backend Go thật cho các module trong REAL (mặc định core), mock cho phần còn lại; Ctrl-C dừng cả hai.
+dev-api:
+	scripts/dev/dev-api.sh
 
 # Cổng PR (D-62): chỉ phần đã đổi; file dùng chung đổi thì tự chuyển sang verify đầy đủ.
 check:
@@ -107,7 +112,7 @@ fixtures:
 	pnpm --dir web fixtures
 
 clean:
-	rm -rf bin coverage.out web/dist web/playwright-report web/test-results web/node_modules/.tmp web/node_modules/.vite
+	rm -rf bin .dev/bin coverage.out web/dist web/playwright-report web/test-results web/node_modules/.tmp web/node_modules/.vite
 
 # Mã Go server sinh từ api/openapi.json (D-60): chuẩn hoá vào thư mục tạm, chạy ogen, ghi bảng vai.
 # Bản chuẩn hoá không commit. Không sửa tay core/api/oas và core/api/routes/routes_gen.go.

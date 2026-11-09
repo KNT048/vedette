@@ -82,10 +82,19 @@ func (c *EmailCodes) hmacKey(ctx context.Context) ([]byte, error) {
 // codeHash is the stored form of a code: HMAC-SHA-256 over the user id and the 6 digits, lowercase hex.
 // A 6-digit code has only a million values, so a plain hash would fall to a table lookup if the database
 // leaked; with the key (which is sealed under the master key, never in the database in the clear) it does not.
-func codeHash(key []byte, userID, code string) string {
+//
+// domain binds the code to what it was issued for: "" for sign-in, "stepup:<purpose>" for VerifyTwoStep (D-98).
+// The row of a user holds one code, and a code checked under another domain hashes differently, so a sign-in
+// code never passes step-up and a step-up code never signs anyone in. The code is 6 digits and a domain
+// never is, so the two byte strings cannot collide.
+func codeHash(key []byte, userID, domain, code string) string {
 	m := hmac.New(sha256.New, key)
 	m.Write([]byte(userID))
 	m.Write([]byte{0})
+	if domain != "" {
+		m.Write([]byte(domain))
+		m.Write([]byte{0})
+	}
 	m.Write([]byte(code))
 	return hex.EncodeToString(m.Sum(nil))
 }
@@ -123,6 +132,11 @@ func randomCode() (string, error) {
 // If the mailer fails after the code was stored, the code and the send record are removed again: a failed
 // send does not use up one of the five.
 func (c *EmailCodes) Send(ctx context.Context, userID, email string, reuseFresh bool) (Sent, error) {
+	return c.send(ctx, userID, email, "", reuseFresh)
+}
+
+// send is Send for a code bound to domain (see codeHash).
+func (c *EmailCodes) send(ctx context.Context, userID, email, domain string, reuseFresh bool) (Sent, error) {
 	if !c.Available(ctx) {
 		return Sent{}, errEmailUnavailable()
 	}
@@ -165,7 +179,7 @@ func (c *EmailCodes) Send(ctx context.Context, userID, email string, reuseFresh 
 		if err != nil {
 			return issued{}, nil, err
 		}
-		hash := codeHash(key, userID, code)
+		hash := codeHash(key, userID, domain, code)
 		if err := q.UpsertEmailCode(ctx, coredb.UpsertEmailCodeParams{UserID: userID, CodeHash: hash, ExpiresAt: store.FormatTS(now.Add(CodeTTL)), SentAt: nowS}); err != nil {
 			return issued{}, nil, fmt.Errorf("auth: store email code: %w", err)
 		}
@@ -208,6 +222,11 @@ func (c *EmailCodes) Send(ctx context.Context, userID, email string, reuseFresh 
 // wrong_code (counted; the message says how many tries are left), too_many_tries (the code is deleted).
 // A wrong try is saved even though the caller gets an error.
 func (c *EmailCodes) Verify(ctx context.Context, userID, input string) error {
+	return c.verify(ctx, userID, "", input)
+}
+
+// verify is Verify for a code bound to domain (see codeHash).
+func (c *EmailCodes) verify(ctx context.Context, userID, domain, input string) error {
 	input = strings.Join(strings.Fields(input), "")
 	key, err := c.hmacKey(ctx)
 	if err != nil {
@@ -232,7 +251,7 @@ func (c *EmailCodes) Verify(ctx context.Context, userID, input string) error {
 		if !isSixDigits(input) {
 			return struct{}{}, apierr.New(400, CodeInvalidCode, "The code is 6 digits."), nil
 		}
-		if subtle.ConstantTimeCompare([]byte(codeHash(key, userID, input)), []byte(cur.CodeHash)) == 1 {
+		if subtle.ConstantTimeCompare([]byte(codeHash(key, userID, domain, input)), []byte(cur.CodeHash)) == 1 {
 			if err := q.DeleteEmailCode(ctx, userID); err != nil {
 				return struct{}{}, nil, fmt.Errorf("auth: delete email code: %w", err)
 			}

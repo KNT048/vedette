@@ -4,7 +4,6 @@
 - [x] nuclei `cves.json` format — done: JSON Lines only, matched exactly against the verified format
 - [x] Web `parsers.ts` differences — documented in IMPACT (rejects 20 vs 10, stricter IPs and domains in Go); still open on the SPA side — web owner
 - [ ] Verify the real nuclei, IPsum `levels/3.txt` and hagezi `tif.mini` sizes and line formats against the live files (no network allowed in this WP) — WP-20
-- [ ] Full Public Suffix List for the IOC domain check (today a short built-in list in `normalize.go`) — needs Kiên (go.mod: golang.org/x/net/publicsuffix plus a THIRD_PARTY_NOTICES entry)
-- [ ] INV-4/6/7/8/10/11/13/14, POST-1..5, PRE-2..5 need HTTP endpoints, DB, events, inventory or the Privacy listing — WP-20
+- [x] INV-4/6/7/8/10/11/14, POST-1..5, PRE-2..5 — done in feat/feeds-module; INV-13 (Settings -> Privacy host list) moved to feat-feeds-module.md
 - [ ] Redirects: only same-host redirects are followed; relax per source only if a real mirror needs it — WP-20
 - [ ] Dial guard: `http` to a name that resolves to a public address is refused; confirm this matches how internal mirrors are named — WP-20

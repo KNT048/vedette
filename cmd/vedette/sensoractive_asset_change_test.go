@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/exec/exectest"
 	"github.com/knt048/vedette/modules/inventory"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
@@ -32,9 +33,7 @@ func TestSensorActiveDeviceChangeStopsTheRunningScan(t *testing.T) {
 			dir := t.TempDir()
 			started := filepath.Join(dir, "started")
 			nmap := filepath.Join(dir, "nmap")
-			if err := os.WriteFile(nmap, []byte(fmt.Sprintf("#!/bin/sh\ntouch %q\nexec sleep 30\n", started)), 0o700); err != nil { //nolint:gosec // the fake nmap must be executable
-				t.Fatal(err)
-			}
+			exectest.WriteScript(t, nmap, fmt.Sprintf("#!/bin/sh\ntouch %q\nexec sleep 30\n", started))
 			d := *s.d
 			d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone) } // Monday 02:00, inside 01:00-05:00
 			svc, err := newSensorActive(d, nmap)

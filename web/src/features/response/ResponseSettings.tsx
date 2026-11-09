@@ -146,7 +146,7 @@ export default function ResponseSettings() {
     <>
       <PageHeader title={t('settings.title')} meta={t('settings.description')} stories={['S-RESP-2', 'S-RESP-4']} />
       <section>
-        <div className="grid gap-4">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <p className="rounded-md border border-danger/50 bg-danger-soft px-4 py-3 text-sm font-medium">{t('risk.statement')}</p>
           <Panel className="flex flex-wrap items-center justify-between gap-3 p-4">
             <div className="flex items-center gap-3">

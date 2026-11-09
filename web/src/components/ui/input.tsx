@@ -23,7 +23,7 @@ export function Label({ className, ...props }: ComponentProps<'label'>) {
 /** Ô nhập kèm nhãn, gợi ý và lỗi — dùng cho mọi form. */
 export function Field({ label, hint, error, htmlFor, children, className }: { label: string; hint?: string; error?: string; htmlFor: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn('grid gap-1.5', className)}>
+    <div className={cn('grid content-start gap-1.5', className)}>
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
       {error ? <p className="text-[13px] text-danger" id={`${htmlFor}-error`}>{error}</p> : hint ? <p className="text-[13px] text-muted" id={`${htmlFor}-hint`}>{hint}</p> : null}

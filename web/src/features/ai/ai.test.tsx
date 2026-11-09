@@ -8,6 +8,7 @@ import { Toaster } from 'sonner'
 import { makeQueryClient } from '@/app/App'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
+import { eachOption } from '@/test/formMatrix'
 import { aiAssignStore, aiAvailable, aiConfigStore, aiProfilesStore, aiRunsStore, assetsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import type { Role } from '@/lib/session'
 import AiSettings from './AiSettings'
@@ -569,5 +570,63 @@ describe('ai: log digest panel (S-AI-4)', () => {
     renderUi(<LogsPanel />)
     expect(await screen.findByText('Could not read the aggregated logs.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+})
+
+describe('ai: Add AI profile form matrix (docs/QA.md §2)', () => {
+  it('each provider type shows only its own fields, keeps no default or key from another, and locks "Inside your network" for cloud providers', async () => {
+    clearProfiles()
+    const v = renderUi(<AiSettings />)
+    await v.ready
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add AI profile' }))[0]!)
+    const dlg = await screen.findByRole('dialog', { name: 'Add AI profile' })
+    const kind = within(dlg).getByLabelText('Provider type')
+    const style = 'API style'
+    await eachOption([
+      { option: 'Anthropic', shown: ['Server address', 'Model', 'API key'], hidden: [style], locked: ['Inside your network', 'Cloud'] },
+      { option: 'OpenAI', hidden: [style], locked: ['Inside your network'] },
+      { option: 'Google Gemini', hidden: [style], locked: ['Inside your network'] },
+      { option: 'OpenAI-compatible (Ollama, vLLM, LM Studio)', hidden: [style] },
+      { option: 'Custom', shown: [style, 'Server address'], hidden: [] },
+      { option: 'Anthropic', hidden: [style], locked: ['Inside your network'] }, // going back restores the same fields
+    ], async (o) => { await userEvent.selectOptions(kind, within(kind).getByRole('option', { name: o })) }, dlg)
+
+    // defaults follow the option, none leaks from the previous one
+    const url = within(dlg).getByLabelText('Server address')
+    expect(url).toHaveValue('https://api.anthropic.com')
+    await userEvent.selectOptions(kind, 'openai-compatible')
+    expect(url).toHaveValue('http://localhost:11434/v1')
+    expect(within(dlg).getByLabelText('Model')).toHaveValue('qwen3:8b')
+    expect(within(dlg).getByRole('radio', { name: 'Inside your network' })).toBeChecked()
+    expect(within(dlg).getByRole('radio', { name: 'Cloud' })).toBeEnabled()
+    await userEvent.selectOptions(kind, 'custom')
+    expect(url).toHaveValue('')
+    expect(within(dlg).getByLabelText('Model')).toHaveValue('')
+
+    // an API key typed for one provider is dropped when the provider changes, and so is the data-flow tick
+    await userEvent.selectOptions(kind, 'anthropic')
+    await userEvent.type(within(dlg).getByLabelText('API key'), 'sk-ant-secret-for-claude')
+    await userEvent.click(within(dlg).getByRole('checkbox', { name: /I understand/ }))
+    await userEvent.selectOptions(kind, 'openai-compatible')
+    expect(within(dlg).getByLabelText('API key')).toHaveValue('')
+    await userEvent.selectOptions(kind, 'openai')
+    expect(within(dlg).getByLabelText('API key')).toHaveValue('')
+    expect(within(dlg).getByRole('checkbox', { name: /I understand/ })).not.toBeChecked()
+  })
+
+  it('a local Ollama profile saves without a key and can then be picked for the log jobs', async () => {
+    clearProfiles()
+    const v = renderUi(<AiSettings />)
+    await v.ready
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add AI profile' }))[0]!)
+    const dlg = await screen.findByRole('dialog', { name: 'Add AI profile' })
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider type'), 'openai-compatible')
+    expect(within(dlg).queryByRole('checkbox', { name: /I understand/ })).toBeNull() // nothing leaves the network
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Add profile' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    const p = aiProfilesStore.get().find((x) => x.kind === 'openai-compatible')!
+    expect(p).toMatchObject({ location: 'internal', model: 'qwen3:8b' })
+    const sel = await screen.findByLabelText('Primary profile for Log summaries')
+    expect(within(sel).getByRole('option', { name: 'Local model' })).toBeEnabled()
   })
 })

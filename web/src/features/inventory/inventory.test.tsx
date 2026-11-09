@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
+import { eachOption } from '@/test/formMatrix'
 import { assetsStore, auditStore, findingsStore, modulesStore, sessionStore, usersStore } from '@/mocks/stores'
 import kevProducts from '@/mocks/fixtures/kev-products.json'
 import { linuxOneLiner, OSQUERY_SCHEDULE, osquerySteps, wazuhReaderSteps, windowsOneLiner } from './agentConfig'
@@ -1474,5 +1475,60 @@ describe('inventory: the box is the first device (S-INV-5, D-53)', () => {
     expect(await screen.findByText(/Only the Vedette box is on the list so far/, undefined, T)).toBeInTheDocument()
     expect(within(await deviceTable()).getByText('This box')).toBeInTheDocument()
     setDataMode('sample')
+  })
+})
+
+describe('inventory: form matrix (docs/QA.md §2)', () => {
+  it('Add a device: the list and the hand-typed maker each show only their own fields; going back to the list drops what was typed', async () => {
+    const user = userEvent.setup()
+    asAdmin()
+    renderApp('/devices')
+    await deviceTable()
+    await user.click(screen.getByRole('button', { name: 'Add a device' }))
+    const dlg = await screen.findByRole('dialog')
+    const NOT_LISTED = "Can't find it? Enter the maker and product yourself"
+    await eachOption([
+      { option: 'list', shown: [NOT_LISTED], hidden: ['Maker', 'Back to the list'] },
+      { option: 'hand', shown: ['Maker', 'Back to the list'], hidden: [NOT_LISTED] },
+      { option: 'list', shown: [NOT_LISTED], hidden: ['Maker'] },
+    ], async (o) => {
+      if (o === 'hand' && within(dlg).queryByRole('button', { name: NOT_LISTED })) await user.click(within(dlg).getByRole('button', { name: NOT_LISTED }))
+      if (o === 'list' && within(dlg).queryByRole('button', { name: 'Back to the list' })) await user.click(within(dlg).getByRole('button', { name: 'Back to the list' }))
+    }, dlg)
+    await user.click(within(dlg).getByRole('button', { name: NOT_LISTED }))
+    await user.type(within(dlg).getByLabelText('Maker'), 'Acme')
+    await user.type(within(dlg).getByLabelText('Product'), 'Door lock')
+    expect(within(dlg).getByRole('button', { name: 'Add' })).toBeEnabled()
+    await user.click(within(dlg).getByRole('button', { name: 'Back to the list' }))
+    await user.click(within(dlg).getByRole('button', { name: NOT_LISTED }))
+    // the fields do not look filled while the form holds nothing: they start empty, and Add stays locked until both are typed
+    expect(within(dlg).getByLabelText('Maker')).toHaveValue('')
+    expect(within(dlg).getByLabelText('Product')).toHaveValue('')
+    expect(within(dlg).getByRole('button', { name: 'Add' })).toBeDisabled()
+  })
+
+  it('Scope and sensors: with active scanning off its window is locked; fragile types offer "scan once a week" only when ticked; the server refuses scanning without the scope confirmation', async () => {
+    const user = userEvent.setup()
+    asAdmin()
+    renderApp('/devices/setup')
+    const on = await screen.findByRole('switch', { name: 'Turn on active scanning' }, T)
+    if (on.getAttribute('aria-checked') === 'true') await user.click(on)
+    for (const l of ['From', 'To', 'Scan speed']) expect(screen.getByLabelText(l)).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: 'Monday' })).toBeDisabled()
+    await user.click(on)
+    for (const l of ['From', 'To', 'Scan speed']) expect(screen.getByLabelText(l)).toBeEnabled()
+    expect(screen.getByRole('checkbox', { name: 'Monday' })).toBeEnabled()
+    const cam = screen.getByRole('checkbox', { name: 'Camera' })
+    const switchFor = () => screen.queryByRole('switch', { name: 'Allow regular scans, Camera' })
+    if (cam.getAttribute('aria-checked') === 'true') await user.click(cam)
+    expect(switchFor()).toBeNull()
+    await user.click(cam)
+    expect(switchFor()).not.toBeNull()
+    await user.click(cam)
+    expect(switchFor()).toBeNull()
+    const cur = (await call('GET', '/settings')).json as Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
+    const r = await call('PUT', '/settings', { ...cur, active: { ...cur.active, enabled: true }, scope_confirmed: false })
+    expect(r.status).toBe(400)
+    expect(r.json?.error?.code).toBe('scope_not_confirmed')
   })
 })

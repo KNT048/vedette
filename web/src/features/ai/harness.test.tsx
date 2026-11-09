@@ -1,12 +1,13 @@
 // Harness AI (S-AI-7): bộ máy hook, "Ask your data" áp hook, và vài thao tác trên giao diện.
 import { describe, expect, it } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router'
 import { Toaster } from 'sonner'
 import { makeQueryClient } from '@/app/App'
 import { server } from '@/test/server'
+import { eachOption } from '@/test/formMatrix'
 import { sessionStore } from '@/mocks/stores'
 import AiSettings from './AiSettings'
 import { activeDefs, builtinHookState, customHooksStore, runHooks } from './harness'
@@ -115,5 +116,88 @@ describe('Settings, AI assistant tabs', () => {
     const sel = await screen.findByLabelText('AI profile that builds the index')
     await userEvent.selectOptions(sel, 'p-haiku')
     expect(await screen.findByText(/leaves your network and goes to api\.anthropic\.com/)).toBeInTheDocument()
+  })
+})
+
+describe('Connections and Hooks forms: form matrix (docs/QA.md §2)', () => {
+  function renderTab(tab: string) {
+    asAdmin()
+    return render(<QueryClientProvider client={makeQueryClient()}><MemoryRouter initialEntries={[`/settings/ai?tab=${tab}`]}><AiSettings /></MemoryRouter><Toaster /></QueryClientProvider>)
+  }
+  const TARGETS = ['Device address (URL)', 'SSH server (host or host:port)', 'Base address (URL)', 'MCP server address (URL)', 'Command that starts the MCP server']
+  const others = (keep: string) => TARGETS.filter((x) => x !== keep)
+  const usable = (sign: HTMLElement) => within(sign).getAllByRole('option').filter((o) => !(o as HTMLOptionElement).disabled).map((o) => o.textContent)
+
+  it('every connection kind shows its own address, offers only the sign-ins it can use, and carries nothing over from the last kind', async () => {
+    renderTab('connections')
+    await userEvent.click(await screen.findByRole('button', { name: 'Add connection' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Add connection' })
+    const kind = within(dlg).getByLabelText('Kind')
+    const sign = within(dlg).getByLabelText('Sign-in')
+    const pick = async (o: string) => { await userEvent.selectOptions(kind, within(kind).getByRole('option', { name: o })) }
+    await eachOption([
+      { option: 'Device API', shown: [TARGETS[0]!, 'Which device API', 'Secret'], hidden: [...others(TARGETS[0]!)] },
+      { option: 'SSH', shown: [TARGETS[1]!, 'Secret'], hidden: [...others(TARGETS[1]!), 'Which device API'] },
+      { option: 'HTTP', shown: [TARGETS[2]!], hidden: [...others(TARGETS[2]!), 'Which device API', 'Secret'] }, // HTTP starts with no sign-in, so no secret field
+      { option: 'MCP server (URL)', shown: [TARGETS[3]!], hidden: [...others(TARGETS[3]!), 'Which device API'] },
+      { option: 'MCP server (command)', shown: [TARGETS[4]!], hidden: [...others(TARGETS[4]!), 'Which device API', 'Secret'] },
+      { option: 'Device API', shown: [TARGETS[0]!, 'Which device API'], hidden: [...others(TARGETS[0]!)] },
+    ], pick, dlg)
+
+    // sign-ins the kind cannot use are locked and the server refuses them too
+    await pick('SSH'); expect(usable(sign)).toEqual(['User and password', 'SSH key'])
+    await pick('Device API'); expect(usable(sign)).toEqual(['API token', 'User and password'])
+    await pick('MCP server (command)'); expect(usable(sign)).toEqual(['No sign-in', 'API token'])
+    await pick('HTTP'); expect(usable(sign)).toEqual(['No sign-in', 'API token', 'User and password'])
+    const base = { name: 'Srv', kind: 'ssh', vendor: null, target: '192.168.10.30:22', auth_type: 'token', secret: 'supersecret-1234', allow: ['uname -a'], enabled: true }
+    expect((await post('/ai/connections', base)).status).toBe(400)
+    expect((await post('/ai/connections', { ...base, kind: 'device-api', vendor: 'fortinet', target: 'https://192.168.10.1', auth_type: 'ssh-key', allow: ['https://192.168.10.1/'] })).status).toBe(400)
+    expect((await post('/ai/connections', { ...base, auth_type: 'ssh-key' })).status).toBe(200)
+
+    // nothing typed for a kind survives a change of kind: address, allow-list and secret restart
+    await pick('Device API')
+    await userEvent.type(within(dlg).getByLabelText('Allow-list (one per line)'), 'https://192.168.10.1/api/v2/')
+    await userEvent.type(within(dlg).getByLabelText('Secret'), 'token-for-the-api')
+    await userEvent.clear(within(dlg).getByLabelText(TARGETS[0]!)); await userEvent.type(within(dlg).getByLabelText(TARGETS[0]!), 'https://10.0.0.1')
+    await pick('SSH')
+    expect(within(dlg).getByLabelText(TARGETS[1]!)).toHaveValue('192.168.10.30:22')
+    expect(within(dlg).getByLabelText('Allow-list (one per line)')).toHaveValue('')
+    expect(within(dlg).getByLabelText('Secret')).toHaveValue('')
+    expect(within(dlg).getByLabelText('Sign-in')).toHaveValue('ssh-key')
+  })
+
+  it('editing a connection and returning to its saved kind restores its saved values; another kind starts clean and needs a new secret', async () => {
+    renderTab('connections')
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit Core switch' }).catch(() => screen.findAllByRole('button', { name: /^Edit / }).then((l) => l[0]!)))
+    const dlg = await screen.findByRole('dialog')
+    const kind = within(dlg).getByLabelText('Kind')
+    const saved = (within(dlg).getByLabelText(/^(Device address|SSH server|Base address)/) as HTMLInputElement).value
+    const savedKind = (kind as HTMLSelectElement).value
+    await userEvent.selectOptions(kind, savedKind === 'http' ? 'mcp-stdio' : 'http')
+    expect((within(dlg).getByLabelText(/^(Device address|SSH server|Base address|MCP|Command)/) as HTMLInputElement).value).not.toBe(saved)
+    expect(within(dlg).queryByText(/Saved, ending/)).toBeNull() // the saved secret belongs to the old kind
+    await userEvent.selectOptions(kind, savedKind)
+    expect((within(dlg).getByLabelText(/^(Device address|SSH server|Base address)/) as HTMLInputElement).value).toBe(saved)
+  })
+
+  it('a hook: keywords and regex have their own hint and an empty pattern; the pattern does not carry over; each action explains itself', async () => {
+    renderTab('hooks')
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add hook' }))[0]!)
+    const dlg = await screen.findByRole('dialog', { name: 'Add hook' })
+    const type = within(dlg).getByLabelText('Match by')
+    await userEvent.type(within(dlg).getByLabelText('Keywords'), 'project falcon, salary')
+    await eachOption([
+      { option: 'Regex', shown: ['Regular expression', /For example: password/], hidden: [/Separate words with commas/] },
+      { option: 'Keywords', shown: ['Keywords', /Separate words with commas/], hidden: ['Regular expression'] },
+    ], async (o) => { await userEvent.selectOptions(type, within(type).getByRole('option', { name: o })) }, dlg)
+    expect(within(dlg).getByLabelText('Keywords')).toHaveValue('')
+    expect(within(dlg).queryByLabelText('Regular expression')).toBeNull()
+    const action = within(dlg).getByLabelText('What it does')
+    for (const [o, hint] of [['Block', /not sent or the answer/], ['Mask', /replaced with \[masked\]/], ['Require approval', /waits until a person approves/]] as const) {
+      await userEvent.selectOptions(action, within(action).getByRole('option', { name: o }))
+      expect(within(dlg).getByText(hint)).toBeInTheDocument()
+    }
+    // the server refuses a regex that does not compile, and keywords that are only separators
+    expect((await post('/ai/hooks', { name: 'x', when: 'before_ai', match: { type: 'keywords', pattern: ' , ' }, action: 'block', message: 'No.', enabled: true })).status).toBe(400)
   })
 })

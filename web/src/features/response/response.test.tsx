@@ -998,3 +998,52 @@ describe('response: custom action form follows the connection kind', () => {
     expect(opt).toBeDisabled()
   })
 })
+
+describe('response: rule editor form matrix (docs/QA.md §2)', () => {
+  const pickIn = async (label: string, name: string | RegExp, root: HTMLElement) => { const s = within(root).getByLabelText(label); await userEvent.selectOptions(s, within(s).getByRole('option', { name })) }
+
+  it('the trigger decides the fields: only "On a schedule" has a run interval, and a change of trigger drops conditions and trigger data', async () => {
+    renderUi(<RuleDialog rule={null} onClose={() => undefined} />)
+    const dlg = await screen.findByRole('dialog')
+    await screen.findByRole('heading', { name: 'WHEN' })
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Add a condition' }))
+    expect(within(dlg).getAllByLabelText('Field')).toHaveLength(1)
+    await eachOption([
+      { option: 'A device connects to a known-bad address', hidden: ['Run every (minutes)'] },
+      { option: 'On a schedule', shown: ['Run every (minutes)'] },
+      { option: 'An unknown device appears', hidden: ['Run every (minutes)'] },
+      { option: 'On a schedule', shown: ['Run every (minutes)'] },
+    ], async (o) => { await pickIn('When this happens', o, dlg) }, dlg)
+    expect(within(dlg).queryAllByLabelText('Field')).toHaveLength(0) // conditions of the other trigger are gone
+    expect(within(dlg).getByLabelText('Run every (minutes)')).toHaveValue(10080)
+    await pickIn('When this happens', 'An unknown device appears', dlg)
+    expect(within(dlg).queryByLabelText('Run every (minutes)')).toBeNull()
+  })
+
+  it('each condition test shows its own inputs and clears the value typed for the previous test', async () => {
+    renderUi(<RuleDialog rule={null} onClose={() => undefined} />)
+    const dlg = await screen.findByRole('dialog')
+    await screen.findByRole('heading', { name: 'IF' })
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Add a condition' }))
+    await userEvent.type(within(dlg).getByLabelText('Value'), '192.168.10.0/24')
+    const VALUE = 'Value'
+    await eachOption([
+      { option: 'count within a window', shown: ['At least', 'Minutes', /times within/], hidden: [VALUE, 'Hours', 'Device type is one of'] },
+      { option: 'first time seen', shown: ['Hours'], hidden: [VALUE, 'At least', 'Minutes'] },
+      { option: 'device type', shown: [VALUE, 'Device type is one of'], hidden: ['Field', 'At least', 'Hours'] },
+      { option: 'is inside range', shown: [VALUE, 'Field'], hidden: ['At least', 'Hours', 'Device type is one of'] },
+      { option: 'equals', shown: [VALUE, 'Field'], hidden: ['At least', 'Hours'] },
+    ], async (o) => { await pickIn('Test', o, dlg) }, dlg)
+    expect(within(dlg).getByLabelText('Value')).toHaveValue('') // the CIDR typed first did not follow the test around
+    await pickIn('Test', 'device type', dlg)
+    await pickIn('Test', 'equals', dlg)
+    expect((within(dlg).getByLabelText('Field') as HTMLSelectElement).value).not.toBe('') // the field is picked again, not left empty
+  })
+
+  it('the server refuses what the form locks: pre-approved with a risky action, an action on a read-only connection', async () => {
+    const cat = (await call<Catalog>('admin', 'GET', '/response/catalog')).json
+    const risky = cat.items.find((c) => c.risk !== 'low')!
+    const input = { name: 'Risky', enabled: false, live: false, trigger: 'ioc_connection', match: 'all', conditions: [], actions: [{ action_id: risky.id, params: {}, ttl_min: null }], pre_approved: true, max_per_hour: 5, schedule_min: null }
+    expect((await call('admin', 'POST', '/response/rules', input)).status).toBe(400)
+  })
+})

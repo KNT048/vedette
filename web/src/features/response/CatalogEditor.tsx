@@ -110,6 +110,7 @@ export function ActionDialog({ action, cat, onClose, onSaved }: { action: Catalo
             </Field>
             <Field htmlFor="ca-risk" label={t('catalog.risk')}><Select id="ca-risk" value={f.risk} onChange={(e) => set({ risk: e.target.value as Risk })}>{(['low', 'medium', 'high'] as Risk[]).map((r) => <option key={r} value={r}>{t(`catalog.risks.${r}`)}</option>)}</Select></Field>
           </div>
+          <p className="-mt-2 text-[13px] text-muted">{t('catalog.needConnection')} <Link className="text-accent underline underline-offset-4" to="/settings/ai?tab=connections">{t('catalog.toConnections')}</Link></p>
           {kind ? (
             <>
               <p className="text-[13px] text-muted">{t('catalog.placeholders')}</p>
@@ -146,7 +147,7 @@ export function CatalogEditor() {
   const cat = q.data
   const fail = (e: unknown) => toast.error(errText(e))
   return (
-    <div className="grid gap-3">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div><h3 className="text-sm font-medium">{t('catalog.title')}</h3><p className="text-[13px] text-muted">{t('catalog.hint')}</p></div>
         <Button onClick={() => setEdit('new')}><Plus className="size-4" aria-hidden />{t('catalog.add')}</Button>
@@ -155,10 +156,10 @@ export function CatalogEditor() {
         const items = cat.items.filter((a) => a.pack === pack)
         if (!items.length) return null
         return (
-          <section key={pack} className="grid gap-2" aria-label={t(`catalog.packs.${pack}`)}>
+          <section key={pack} className="grid grid-cols-[minmax(0,1fr)] gap-2" aria-label={t(`catalog.packs.${pack}`)}>
             <h4 className="mt-2 text-[13px] font-medium text-muted">{t(`catalog.packs.${pack}`)}</h4>
             {items.map((a) => (
-              <Panel key={a.id} className="grid gap-2 p-4">
+              <Panel key={a.id} className="grid grid-cols-[minmax(0,1fr)] gap-2 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-3">
                     <Switch aria-label={t('catalog.allow', { name: a.name })} checked={a.enabled} disabled={save.isPending} onCheckedChange={(v) => save.mutate({ id: a.id, input: { enabled: v } }, { onError: fail })} />
@@ -183,7 +184,7 @@ export function CatalogEditor() {
                   {a.device ? (
                     <div className="flex flex-wrap items-center gap-2">
                       <label htmlFor={`cc-${a.id}`} className="text-muted">{t('catalog.connection')}:</label>
-                      {a.builtin ? <Select id={`cc-${a.id}`} className="h-8 w-auto" value={a.connection_id ?? ''} onChange={(e) => save.mutate({ id: a.id, input: { connection_id: e.target.value } }, { onError: fail })}>{a.connection_id ? null : <option value="">{t('catalog.chooseConnection')}</option>}<ConnectionOptions connections={cat.connections} /></Select> : <span>{a.connection}</span>}
+                      {a.builtin ? <Select id={`cc-${a.id}`} className="h-8 w-auto max-w-[14rem] sm:max-w-none" value={a.connection_id ?? ''} onChange={(e) => save.mutate({ id: a.id, input: { connection_id: e.target.value } }, { onError: fail })}>{a.connection_id ? null : <option value="">{t('catalog.chooseConnection')}</option>}<ConnectionOptions connections={cat.connections} /></Select> : <span>{a.connection}</span>}
                       {!a.available ? <span className="text-warn">{a.unavailable_reason} <Link className="text-accent underline underline-offset-4" to="/settings/ai">{t('plans.toAi')}</Link></span> : null}
                     </div>
                   ) : <span className="text-muted">{t('catalog.boxOnly')}</span>}

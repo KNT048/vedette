@@ -104,6 +104,8 @@ export const KnowledgeSettings = z.object({ index_profile: z.string().nullable()
 export const KnowledgePatch = z.object({ jobs: z.array(AiJob) })
 
 export const ConnectorKind = z.enum(['device-api', 'ssh', 'http', 'mcp-http', 'mcp-stdio'])
+/** Which sign-in each kind of connection can use (the dialog locks the others; the server refuses them). */
+export const CONNECTOR_AUTH: Record<z.infer<typeof ConnectorKind>, ('none' | 'token' | 'basic' | 'ssh-key')[]> = { 'device-api': ['token', 'basic'], ssh: ['ssh-key', 'basic'], http: ['none', 'token', 'basic'], 'mcp-http': ['none', 'token', 'basic'], 'mcp-stdio': ['none', 'token'] }
 export const Vendor = z.enum(['fortinet', 'mikrotik', 'pfsense', 'other'])
 export const ConnectorTool = z.object({ name: z.string(), access: z.enum(['read', 'write']), description: z.string(), enabled: z.boolean() })
 export const Connector = z.object({

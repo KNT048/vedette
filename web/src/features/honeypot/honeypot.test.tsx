@@ -6,6 +6,7 @@ import { MemoryRouter } from 'react-router'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
+import { eachOption } from '@/test/formMatrix'
 import { makeQueryClient } from '@/app/App'
 import { assetsStore, auditStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { seedAssets } from '@/mocks/seed/assets'
@@ -241,5 +242,47 @@ describe('honeypot: S-HP-2 decoys, tokens, scan, respond, coverage', () => {
     expect(await screen.findByText('Token created')).toBeInTheDocument()
     await userEvent.click(await screen.findByRole('button', { name: 'Test token Wiki admin link' }))
     expect(await screen.findByText('Recorded a test trigger for Wiki admin link')).toBeInTheDocument()
+  })
+})
+
+describe('honeypot: decoy and honey token form matrix (docs/QA.md §2)', () => {
+  const pick = (label: string) => async (o: string) => { const s = screen.getByLabelText(label); await userEvent.selectOptions(s, within(s).getByRole('option', { name: o })) }
+  const formOf = (label: string) => screen.getByLabelText(label).closest('form')!
+
+  it('honey token: each type has its own name label, hints and file type; switching drops the name and place typed for the previous type', async () => {
+    renderApp('/honeypot')
+    await screen.findByRole('list', { name: 'Honey tokens' })
+    const FILE = 'File type'
+    const form = formOf('Token type')
+    await eachOption([
+      { option: 'Decoy file', shown: ['File name', FILE, /Looks tempting/], hidden: ['User name', 'Label'] },
+      { option: 'Fake credentials', shown: ['User name', /Looks like an old service account/], hidden: ['File name', FILE, 'Label'] },
+      { option: 'URL token', shown: ['Label', /intranet wiki page/], hidden: ['File name', FILE, 'User name'] },
+      { option: 'DNS token', shown: ['Label', /backup script config/], hidden: ['File name', FILE, 'User name'] },
+      { option: 'Decoy file', shown: ['File name', FILE], hidden: ['Label'] },
+    ], pick('Token type'), form)
+    await pick('Token type')('Decoy file')
+    await userEvent.type(within(form).getByLabelText('File name'), 'Payroll-2026-Q4')
+    await userEvent.type(within(form).getByLabelText('Where will you plant it?'), 'SRV-FILE-HR')
+    await pick('Token type')('Fake credentials')
+    expect(within(form).getByLabelText('User name')).toHaveValue('')
+    expect(within(form).getByLabelText('Where will you plant it?')).toHaveValue('')
+  })
+
+  it('decoy: each look shows the services it opens; a refused spare IP is cleared when the look changes', async () => {
+    renderApp('/honeypot')
+    await screen.findByLabelText('Looks like')
+    await eachOption([
+      { option: 'Windows file server', shown: [/Opens: .*445/] },
+      { option: 'Office printer', shown: [/Opens: .*9100/], hidden: [/Opens: .*445/] },
+      { option: 'IP camera', shown: [/Opens: .*554/], hidden: [/Opens: .*9100/] },
+      { option: 'Windows file server', shown: [/Opens: .*445/], hidden: [/Opens: .*554/] },
+    ], pick('Looks like'), formOf('Looks like'))
+    await userEvent.type(screen.getByLabelText('Decoy name'), 'FILESRV2')
+    await userEvent.type(screen.getByLabelText('Spare IP'), '192.168.10.1') // taken by the firewall
+    await userEvent.click(screen.getByRole('button', { name: 'Add decoy' }))
+    await waitFor(() => expect(screen.getByLabelText('Spare IP')).toBeInvalid())
+    await pick('Looks like')('IP camera')
+    expect(screen.getByLabelText('Spare IP')).toBeValid()
   })
 })

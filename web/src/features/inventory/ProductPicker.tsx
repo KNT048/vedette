@@ -66,7 +66,7 @@ export function ProductPicker({ value, onChange, label, listOpenRef }: { value: 
           <Input id={`${uid}-product`} value={product} maxLength={64} placeholder={t('picker.productPlaceholder')} autoComplete="off" onChange={(e) => setCustomValue(vendor, e.target.value)} />
         </div>
         <p className="text-[13px] text-muted" role="status">{t('picker.customNote')}</p>
-        <div><Button size="sm" onClick={() => { setCustom(false); onChange(null) }}>{t('picker.backToList')}</Button></div>
+        <div><Button size="sm" onClick={() => { setCustom(false); setVendor(''); setProduct(''); onChange(null) }}>{t('picker.backToList')}</Button></div>
       </div>
     )
   }

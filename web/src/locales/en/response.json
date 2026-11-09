@@ -386,6 +386,8 @@
     "pathHint": "Under the connection address. Starts with /.",
     "body": "API body (JSON, optional)",
     "readOnly": "Read-only: this connection has no write tools",
+    "needConnection": "The connection you need is not listed? Add one first; typed text here is not kept.",
+    "toConnections": "Open Settings, AI assistant, Connections",
     "noWritable": "No connection has write tools yet. Turn on a write tool in Settings, AI assistant.",
     "chooseConnection": "Choose a connection",
     "chooseMethod": "Choose a method",

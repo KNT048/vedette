@@ -196,7 +196,8 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
     const d = DEFAULTS[k]
     // đổi loại thì điền lại mặc định; tên chỉ đổi khi người dùng chưa tự đặt
     if (!profile && (name === '' || Object.values(DEFAULTS).some((x) => x.name === name))) setName(d.name && !existing.some((p) => p.name === d.name) ? d.name : '')
-    setKind(k); setStyle(d.api_style); setBaseUrl(d.base_url); setModel(d.model); setLocation(d.location)
+    // A key belongs to one provider: never carry it to another one.
+    setKind(k); setStyle(d.api_style); setBaseUrl(d.base_url); setModel(d.model); setLocation(d.location); setKey(''); setAck(false)
   }
   const input = (): ProfileInput => ({ id: profile?.id, name: name.trim(), kind, api_style: style, base_url: baseUrl.trim(), model: model.trim(), api_key: key || undefined, location, daily_cap: Number(cap) })
 

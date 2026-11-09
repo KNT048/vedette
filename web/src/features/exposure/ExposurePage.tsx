@@ -141,6 +141,7 @@ function AddTarget() {
             <Input id="ex-new" value={value} onChange={(e) => setValue(e.target.value)} autoFocus autoComplete="off" spellCheck={false} aria-invalid={error ? true : undefined} aria-describedby={error ? 'ex-new-error' : 'ex-new-hint'} />
           </Field>
           <DialogFooter>
+            <Button onClick={() => setOpen(false)}>{t('common:cancel')}</Button>
             <Button type="submit" variant="primary" disabled={add.isPending}>{t('add.submit')}</Button>
           </DialogFooter>
         </form>

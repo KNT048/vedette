@@ -73,7 +73,7 @@ function Inner({ data, hits }: { data: DecoysResponse; hits: Hit[] }) {
       <Panel className="p-4">
         <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_auto] lg:items-start" noValidate>
           <Field label={t('personality.form.type')} htmlFor="dc-type" hint={t('personality.form.typeHint', { services: def.services.map((s) => `${s.name} ${s.port}`).join(', ') })}>
-            <Select id="dc-type" value={personality} disabled={!admin} onChange={(e) => setPersonality(e.target.value as Personality)}>
+            <Select id="dc-type" value={personality} disabled={!admin} onChange={(e) => { setPersonality(e.target.value as Personality); setError(null) }}>
               {PERSONALITIES.map((p) => <option key={p.id} value={p.id}>{t(`personality.type.${p.id}`)}</option>)}
             </Select>
           </Field>

@@ -36,6 +36,17 @@
 ## Modifying: `GET /feeds/hot` trường `you_have`, `matched_assets`
 - **SPA** `HomePage`, `YouHaveCell`; **notify** không đọc trực tiếp.
 
+## Modifying: `feeds.Inventory` (`MatchProducts`, `AddManualDevice`), `feeds.Deps`, `feeds.Service` (`Seed`, `Jobs`, `Fetch`, `Store`), `feeds.Handlers`
+- **inventory** (Kiên) implements `Inventory`: `MatchProducts` keyed by `Product.Key()` (= `ProductKey`) gives `you_have`/`matched_assets` of the hot board and the CVE page, `how` ∈ yes|maybe; `AddManualDevice` runs inside feeds' write transaction (it must not open its own `Write`). Change a signature = the "Do you have it?" column and "I have it" stop compiling in `cmd/vedette`.
+- **cmd/vedette** (`feeds.go`, `modules.go`, `handler.go`): builds `Service` once per database; `Deps.Events` and `Deps.Inventory` stay nil until `core/events` and `inventory` are on main. `Seed` must run after the migrations, on every start.
+- `Store` read methods are the API of other modules: `VulnByCVE`, `VulnsByProductKey`, `HasTemplate`, `IOCLookup`, `KevPairs` (see the first sections).
+
+## Modifying: events `feeds.vuln.new_kev`, `feeds.vuln.updated`, `feeds.ioc.updated`, `feeds.fetch.failed` (`NewKEVEvent`, `VulnUpdatedEvent`, `IOCUpdatedEvent`, `FetchFailedEvent`)
+- **inventory** and **scan** listen to `new_kev`/`updated`; **notify** via findings. The first pull publishes one `new_kev` per catalog entry (about 1,200): the bus or the listener must cope with that burst.
+
+## Modifying: tables `feeds_*` (migration `0001_feeds_base.sql`)
+- `feeds_source` carries the pull state and `secret_id` (core_secret) + `secret_last4`; deleting a custom feed deletes its secret, its `feeds_vuln` rows and its `feeds_ioc_source` rows (indicators nobody else lists go too). `feeds_ioc` has no score, category or verdict column: derive them (`Judge`).
+
 ## Disabling this module
 - Trang chủ Hot/Weekly/Lookup/CVE trống ("off"); Settings → Feeds mất.
 - `inventory`: danh mục chỉ còn bản đã giữ; không khớp mới. `findings`: không finding mới. `scan`: không tự quét lại. `notify`: không tin lỗ hổng mới (qua `findings`).

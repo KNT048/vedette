@@ -1,6 +1,6 @@
 # Feeds Contract
 
-> Tier: standard · Story: S-FEED-1…5 · Last verified: 2026-11-09 (docs-first, chưa có code)
+> Tier: standard · Story: S-FEED-1…5 · Last verified: 2026-11-09 (WP-20: migration, store, 12 handler, job kéo; `inventory` và bus sự kiện chưa nối)
 
 Nguồn hành vi: `web/src/features/feeds/{contract,defaults,parsers,sourcesMock}.ts`. Nguồn dữ liệu: `PRIVACY.md` luồng 1, `docs/DATA_PIPELINE.md` §0, §3.
 
@@ -45,7 +45,16 @@ Nguồn hành vi: `web/src/features/feeds/{contract,defaults,parsers,sourcesMock
 | `PUT /feeds/sources/{id}`, `POST /feeds/sources/{id}/fetch`, `POST /feeds/custom`, `PUT,DELETE /feeds/custom/{id}`, `POST /feeds/parse-test` | admin |
 
 ## Tables owned (`feeds_`)
-`feeds_source` (cấu hình feed có sẵn + feed riêng, parser JSON), `feeds_vuln`, `feeds_ioc`, `feeds_fetch_log`, `feeds_weekly_answer`.
+`feeds_source` (cấu hình feed có sẵn + feed riêng, parser JSON, `secret_id` + `secret_last4`, trạng thái kéo: `last_fetch`, `last_success`, `failures`, `records`, `status`, `error`, `etag`, `last_modified`, `catalog_version`), `feeds_vuln`, `feeds_template` (CVE có mẫu nuclei), `feeds_ioc`, `feeds_ioc_source` (feed nào đang liệt kê chỉ báo nào, kèm `confidence`), `feeds_fetch_log`, `feeds_weekly_answer`.
+
+## Triển khai (WP-20)
+- **Một chủ cho mỗi CVE**: `feeds_vuln.cve` là PK; `cisa-kev` thắng feed riêng (feed riêng không đè hàng của feed khác); CVE rời KEV vẫn giữ. Feed riêng loại `vulnerabilities` thay hàng của mình ở mỗi lần kéo (CVE không còn trong danh sách thì xoá); thiếu hãng/sản phẩm thì ghi `Unknown`, thiếu ngày thì lấy ngày thấy lần đầu.
+- **IOC**: `verdict`, `score` (= độ tin cậy cao nhất mà một feed đưa ra; feed không đưa thì 0,5) và `category` (theo nguồn, tối đa 2, "Custom feed" cho feed riêng) tính khi đọc từ `feeds_ioc_source` qua `Judge`; không lưu. Chỉ báo không còn feed nào liệt kê bị xoá sau 30 ngày. Mỗi lần kéo feed IOC là bản chụp đầy đủ: mục biến mất khỏi feed thì mất khỏi `feeds_ioc_source`; bản kéo không có dòng nào hợp lệ là lỗi và không xoá gì. Whitelist domain chưa có nguồn cấu hình (không có thao tác, không có story): `Judge` nhận danh sách rỗng.
+- **Kéo**: job `pull` chạy mỗi 5 phút, mỗi feed bật và đến hạn theo `State.Due` (khoảng riêng + lùi sau lỗi) được kéo lần lượt, KEV trước, EPSS sau. KEV có CVE mới thì EPSS được kéo ngay trong lượt đó. Kết quả mỗi lần kéo ghi trong **một** giao dịch (dữ liệu + trạng thái + `feeds_fetch_log`); lỗi hoặc dữ liệu hỏng chỉ ghi trạng thái, dữ liệu cũ giữ nguyên. EPSS: hai lượt theo lô 100 CVE (hôm nay và 7 ngày trước), một lô lỗi là cả lần kéo lỗi. Kéo có điều kiện (`If-None-Match`/`If-Modified-Since`) chỉ sau một lần kéo thành công và chỉ cho địa chỉ hiện tại. Chỉ lần kéo tay (`POST …/fetch`) ghi `core_audit` (`feeds.fetch`).
+- **Sự kiện** (qua `feeds.Publisher`, nil = bỏ): `feeds.vuln.new_kev` cho mỗi CVE chưa từng có (lần kéo đầu phát cả danh mục), `feeds.vuln.updated` khi trường KEV đổi hoặc `has_template` đổi, `feeds.ioc.updated`, `feeds.fetch.failed`. Kiểu payload: `NewKEVEvent`, `VulnUpdatedEvent`, `IOCUpdatedEvent`, `FetchFailedEvent`.
+- **Inventory**: `feeds.Inventory` (`MatchProducts`, `AddManualDevice(ctx, tx, …)`) do `inventory` cài; `nil` hoặc module tắt ⇒ INV-10. `answer=have` gọi `AddManualDevice` trong giao dịch của feeds, đúng một lần cho mỗi sản phẩm (bấm lần hai không tạo thêm).
+- **Khác `contract.ts`/mock** (có chủ đích): secret rỗng khi sửa = giữ secret cũ (mock báo lỗi); `window`, `answer`, thân sai dạng và CVE id viết thường bị máy chủ sinh từ OpenAPI chặn trước handler nên trả `400 invalid` thay vì `bad_window`/`bad_answer`/`invalid_body` (handler vẫn giữ kiểm tra riêng); "This week" không loại riêng `CVE-2022-27593` (đó là chi tiết của mock); ngày trong câu dùng `2 Jan` (mock dùng `toLocaleDateString('en-GB')`, có thể ra `Sept`).
+- **Giới hạn**: thân yêu cầu tối đa 1 MiB (`core/server`), nên `parse-test` thực tế nhận mẫu < 1 MiB dù contract cho 5 MB (handler vẫn trả 413 `too_large` quá 5 MB). Danh sách `GET /feeds/sources` và `/feeds/status` trả nguyên `url` cho vai viewer: feed riêng không nên đặt token trong chuỗi truy vấn (dùng `auth`).
 
 ## Events
 - **Phát**: `feeds.vuln.new_kev {cve, vendor, product, has_template, date_added}`, `feeds.vuln.updated {cves[]}`, `feeds.ioc.updated {feed_id, added, removed}`, `feeds.fetch.failed {feed_id, error}`.

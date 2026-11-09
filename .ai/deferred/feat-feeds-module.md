@@ -1,0 +1,7 @@
+- [ ] Verify the real nuclei cves.json, IPsum levels/3.txt and hagezi tif.mini sizes and line formats against the live files (no network allowed in WP-20) — whoever has network access (moved from feat-feeds-lib.md)
+- [ ] Wire `Deps.Inventory` (needs `modules/inventory` implementing `feeds.Inventory`) and `Deps.Events` (needs core/events, WP-04b) in cmd/vedette/feeds.go — Kiên
+- [ ] Per-route body cap for `POST /feeds/parse-test` (contract allows a 5 MB sample, core/server caps every body at 1 MiB) — Kiên (core/server)
+- [ ] INV-13: list every feed host (built-in and custom) in Settings -> Privacy (GUI) — GUI follow-up after WP-05
+- [ ] `findings.Feeds{KevInfo, Vulns}` adapter: types are findings' own and `Vuln` needs NVD affected ranges that feeds_vuln does not hold — decide with findings (WP-21) where it lives
+- [ ] IOC whitelist (INV-12) has no source of configuration (no operation, no story): `Judge` gets an empty list — needs a story
+- [ ] Decide whether a turned-off feed's indicators still count for verdicts (today they do: data is kept, DATA_MODEL "kept") — kien

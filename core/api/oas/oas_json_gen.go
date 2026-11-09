@@ -4,7 +4,6 @@ package oas
 
 import (
 	"math/bits"
-	"net/url"
 	"strconv"
 	"time"
 
@@ -79382,7 +79381,7 @@ func (s *FeedsGetFeedsCveIDOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("links")
 		e.ArrStart()
 		for _, elem := range s.Links {
-			json.EncodeURI(e, elem)
+			e.Str(elem)
 		}
 		e.ArrEnd()
 	}
@@ -79540,11 +79539,11 @@ func (s *FeedsGetFeedsCveIDOK) Decode(d *jx.Decoder) error {
 		case "links":
 			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
-				s.Links = make([]url.URL, 0)
+				s.Links = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem url.URL
-					v, err := json.DecodeURI(d)
-					elem = v
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
 					if err != nil {
 						return err
 					}
@@ -81495,7 +81494,7 @@ func (s *FeedsGetFeedsSearch1TextVulnsItem) encodeFields(e *jx.Encoder) {
 		e.FieldStart("links")
 		e.ArrStart()
 		for _, elem := range s.Links {
-			json.EncodeURI(e, elem)
+			e.Str(elem)
 		}
 		e.ArrEnd()
 	}
@@ -81640,11 +81639,11 @@ func (s *FeedsGetFeedsSearch1TextVulnsItem) Decode(d *jx.Decoder) error {
 		case "links":
 			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
-				s.Links = make([]url.URL, 0)
+				s.Links = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem url.URL
-					v, err := json.DecodeURI(d)
-					elem = v
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
 					if err != nil {
 						return err
 					}

@@ -12,7 +12,7 @@ export const Vuln = z.object({
   name: z.string(),
   description: z.string(),
   required_action: z.string(),
-  links: z.array(z.url()),
+  links: z.array(z.string().regex(/^https?:\/\//)).describe('http(s) addresses only'),
   date_added: isoDate,
   due_date: isoDate.nullable(),
   ransomware: z.boolean(),

@@ -27,8 +27,8 @@ import (
 
 // Cookie and header names (API_CONVENTIONS 7.1, 7.2). These are the only cookies Vedette sets (INV-9).
 const (
-	CookieSession = "vedette_session"
-	CookieCSRF    = "vedette_csrf"
+	CookieSession = "__Host-vedette_session"
+	CookieCSRF    = "__Host-vedette_csrf"
 	HeaderCSRF    = "X-CSRF-Token"
 )
 
@@ -83,7 +83,7 @@ type Issued struct {
 	ExpiresAt time.Time
 }
 
-// Cookies returns the vedette_session (HttpOnly) and vedette_csrf (readable by the SPA) cookies:
+// Cookies returns the __Host-vedette_session (HttpOnly) and __Host-vedette_csrf (readable by the SPA) cookies:
 // Secure, SameSite=Strict, Path=/, no Domain, living as long as the absolute timeout.
 func (i Issued) Cookies() []*http.Cookie {
 	maxAge := int(AbsoluteTimeout.Seconds()) // Issued is returned the moment the session is created
@@ -328,6 +328,38 @@ func (s *Sessions) RevokeAllForUser(ctx context.Context, tx *sql.Tx, userID stri
 		return 0, fmt.Errorf("auth: revoke sessions: %w", err)
 	}
 	return int(n), nil
+}
+
+// Replace ends every live session of userID inside the caller's transaction and, when currentID is the
+// session the caller acts from, starts a new one for the same browser (same device text and address) and
+// returns its tokens; with an empty currentID nothing new is made and Issued is zero. It is how a password
+// change or a change of two-step sign-in ends the user's other sessions (INV-7) while the user stays signed
+// in: the current session's token is renewed too, so a copy of the old cookie (malware, an extension, a
+// shared machine) does not survive the remediation (OWASP Session Management Cheat Sheet: renew the
+// session ID after a change of privilege or re-authentication). The caller sets the new cookies.
+func (s *Sessions) Replace(ctx context.Context, tx *sql.Tx, userID, currentID string) (Issued, error) {
+	var device string
+	var ip netip.Addr
+	if currentID != "" {
+		r, err := coredb.New(tx).GetSessionClient(ctx, coredb.GetSessionClientParams{ID: currentID, UserID: userID})
+		if errors.Is(err, sql.ErrNoRows) {
+			return Issued{}, apierr.Unauthenticated()
+		}
+		if err != nil {
+			return Issued{}, fmt.Errorf("auth: read session: %w", err)
+		}
+		device = r.Device
+		if ip, err = netip.ParseAddr(r.Ip); err != nil {
+			return Issued{}, fmt.Errorf("auth: stored session address: %w", err)
+		}
+	}
+	if _, err := s.RevokeAllForUser(ctx, tx, userID); err != nil {
+		return Issued{}, err
+	}
+	if currentID == "" {
+		return Issued{}, nil
+	}
+	return s.Create(ctx, tx, userID, device, ip)
 }
 
 // Logout ends the session of a cookie value and writes auth.logout. A missing, unknown or already ended

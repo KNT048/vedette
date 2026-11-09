@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -112,8 +113,11 @@ func TestRunServesAndStops(t *testing.T) {
 	if code, body := in.get(t, "/api/v1/modules"); code != 401 || !strings.Contains(body, `"code":"unauthenticated"`) {
 		t.Fatalf("GET /modules without a session = %d %s", code, body)
 	}
-	if code, body := in.get(t, "/api/v1/setup"); code != 501 || !strings.Contains(body, `"code":"not_implemented"`) {
-		t.Fatalf("GET /setup (public, not built yet) = %d %s", code, body)
+	if code, body := in.get(t, "/api/v1/setup"); code != 200 || !strings.Contains(body, `"complete":false`) {
+		t.Fatalf("GET /setup (public, before first-run setup) = %d %s", code, body)
+	}
+	if code, body := in.get(t, "/api/v1/core/updates"); code != 401 || !strings.Contains(body, `"code":"unauthenticated"`) {
+		t.Fatalf("GET /core/updates (not built, needs a session) = %d %s", code, body)
 	}
 	if code, body := in.get(t, "/api/v1/nowhere"); code != 404 || !strings.Contains(body, `"code":"not_found"`) {
 		t.Fatalf("unknown route = %d %s", code, body)
@@ -215,27 +219,42 @@ func TestRunRefusesBadSetup(t *testing.T) {
 	})
 }
 
-func TestListenMustBeLoopback(t *testing.T) {
+func TestIsLoopback(t *testing.T) {
 	t.Parallel()
-	for addr, ok := range map[string]bool{
+	for addr, want := range map[string]bool{
 		"127.0.0.1:8080": true, "127.1.2.3:0": true, "[::1]:8080": true, "localhost:8080": true, "LOCALHOST:1": true,
 		"[::ffff:127.0.0.1]:80": true,
 		"0.0.0.0:8080":          false, "[::]:8080": false, ":8080": false, "192.168.1.10:8080": false,
-		"10.0.0.1:80": false, "example.com:80": false, "127.0.0.1.example.com:80": false, "8080": false, "": false,
+		"10.0.0.1:80": false, "example.com:80": false, "127.0.0.1.example.com:80": false,
 	} {
-		err := checkLoopback(addr)
-		if (err == nil) != ok {
-			t.Errorf("checkLoopback(%q) = %v, want ok=%v", addr, err, ok)
+		got, err := isLoopback(addr)
+		if err != nil || got != want {
+			t.Errorf("isLoopback(%q) = %v, %v; want %v", addr, got, err, want)
 		}
 	}
-	// run refuses before it opens any file.
+	for _, bad := range []string{"8080", ""} {
+		if _, err := isLoopback(bad); err == nil {
+			t.Errorf("isLoopback(%q) accepted an address with no port", bad)
+		}
+	}
+}
+
+func TestRunRefusesHalfATLSPairAndBadHosts(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
-	err := run(t.Context(), []string{"-db", filepath.Join(dir, "v.db"), "-key", filepath.Join(dir, "v.key"), "-listen", "0.0.0.0:0"}, io.Discard, io.Discard)
-	if err == nil || !strings.Contains(err.Error(), "loopback") {
-		t.Fatalf("run with a public address: %v", err)
+	base := []string{"-db", filepath.Join(dir, "v.db"), "-key", filepath.Join(dir, "v.key"), "-listen", "127.0.0.1:0"}
+	for name, extra := range map[string][]string{
+		"cert only":    {"-tls-cert", "x.crt"},
+		"key only":     {"-tls-key", "x.key"},
+		"bad hosts":    {"-hosts", "ok.example,bad host!"},
+		"hosts scheme": {"-hosts", "https://box.example"},
+	} {
+		if err := run(t.Context(), append(slices.Clone(base), extra...), io.Discard, io.Discard); err == nil {
+			t.Errorf("%s: run succeeded", name)
+		}
 	}
 	if _, err := os.Stat(filepath.Join(dir, "v.key")); err == nil {
-		t.Fatal("the key file was created before the address was refused")
+		t.Error("the key file was created before the flags were refused")
 	}
 }
 

@@ -132,7 +132,7 @@ func TestCodesAreCatalogued(t *testing.T) {
 	proposed := map[string]bool{} // codes used here but not yet in §3.3; empty since #18 catalogued csrf_invalid, internal, not_implemented
 	for _, code := range []string{
 		apierr.CodeUnauthenticated, apierr.CodeForbidden, apierr.CodeNotFound, apierr.CodeInvalid, apierr.CodeTooLarge,
-		apierr.CodeCoreModule, apierr.CodeMissingDeps, apierr.CodeCSRFInvalid, apierr.CodeNotImplemented, apierr.CodeInternal,
+		apierr.CodeCoreModule, apierr.CodeMissingDeps, apierr.CodeCSRFInvalid, apierr.CodeNotImplemented, apierr.CodeInternal, apierr.CodeMisdirected,
 	} {
 		listed := regexp.MustCompile("(?m)^\\| `" + regexp.QuoteMeta(code) + "` \\|").Match(doc)
 		if proposed[code] == listed {

@@ -426,7 +426,7 @@ func TestWiringInventoryUsesTheFeedsKEV(t *testing.T) {
 }
 
 // The module order in wiredModules is the dependency order the manifests declare (checked for all modules by
-// TestWiredModulesFollowDependencies); this pins the four the wiring added together.
+// TestWiredModulesFollowDependencies); this pins the four the wiring added together. Later modules follow them.
 func TestWiredModulesIncludeFindingsAndMitigationInOrder(t *testing.T) {
 	t.Parallel()
 	var pinned []string // other modules wired between them (sensors) do not change this order

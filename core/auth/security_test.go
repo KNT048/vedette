@@ -165,8 +165,8 @@ func TestH1BusyIs503WithRetryAfterAndDoesNotCountAsAGuess(t *testing.T) {
 	}
 	// The same applies to the other callers of argon2.
 	wantAPI(t, func() error { _, err := env.Svc.HashPassword(t.Context(), "a long enough password", ""); return err }(), 503, "server_busy")
-	wantAPI(t, env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", authtest.Password, "another long password"), 503, "server_busy")
-	_, err := env.Svc.ResendCode(t.Context(), u.Email, authtest.Password, ip("192.0.2.6"))
+	wantAPI(t, only(env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", authtest.Password, "another long password")), 503, "server_busy")
+	_, err := env.Svc.ResendCode(t.Context(), u.Email, authtest.Password, ip("192.0.2.6"), "")
 	wantAPI(t, err, 503, "server_busy")
 
 	blocking.Store(false)
@@ -231,7 +231,7 @@ func TestM1ParallelGuessesAtTheOwnPasswordAreCappedToo(t *testing.T) {
 	u := env.User(t, "ann@acme.example", routes.Viewer)
 	var wrong, limited atomic.Int32
 	parallel(24, func(int) {
-		switch e, _ := apierr.As(env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", "wrong password here", "a brand new password")); {
+		switch e, _ := apierr.As(only(env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", "wrong password here", "a brand new password"))); {
 		case e != nil && e.Code == "wrong_password":
 			wrong.Add(1)
 		case e != nil && e.Code == "rate_limited":
@@ -258,7 +258,7 @@ func TestM2ZeroAddressIsRefusedNotPooled(t *testing.T) {
 	if _, ok := apierr.As(err); ok {
 		t.Fatalf("a missing address is a programming error, not a client error: %v", err)
 	}
-	if _, err := env.Svc.ResendCode(t.Context(), u.Email, authtest.Password, netip.Addr{}); err == nil {
+	if _, err := env.Svc.ResendCode(t.Context(), u.Email, authtest.Password, netip.Addr{}, ""); err == nil {
 		t.Fatal("resend-code without an address succeeded")
 	}
 }
@@ -424,41 +424,47 @@ func TestM4EnablingDisablingAndResettingTwoStepEndSessions(t *testing.T) {
 	s1, _ := env.Login(t, u.Email, "")
 	s2, _ := env.Login(t, u.Email, "")
 
-	// Turning two-step on by email: the current session stays, the other ends.
-	if _, err := env.Svc.StartEmail2FA(ctx, u.ID); err != nil {
+	// Turning two-step on by email: every session ends, the current one is replaced by a new one.
+	if _, err := env.Svc.StartEmail2FA(ctx, u.ID, "", authtest.Password); err != nil {
 		t.Fatal(err)
 	}
-	if err := env.Svc.ConfirmEmail2FA(ctx, u.ID, s1.Session.SessionID, env.Mailer.LastCode()); err != nil {
+	fresh, err := env.Svc.ConfirmEmail2FA(ctx, u.ID, s1.Session.SessionID, env.Mailer.LastCode())
+	if err != nil {
 		t.Fatal(err)
 	}
-	if !sessionAlive(env, s1) || sessionAlive(env, s2) {
-		t.Fatalf("after enabling: s1=%v s2=%v, want true false", sessionAlive(env, s1), sessionAlive(env, s2))
+	old, s1 := s1, auth.LoginResult{Session: fresh}
+	if sessionAlive(env, old) || !sessionAlive(env, s1) || sessionAlive(env, s2) {
+		t.Fatalf("after enabling: old=%v renewed=%v s2=%v, want false true false", sessionAlive(env, old), sessionAlive(env, s1), sessionAlive(env, s2))
 	}
 
-	// Turning it off by the user: the other sessions end, the current one stays.
+	// Turning it off by the user: every session ends, the current one is replaced by a new one.
 	env.Clock.Advance(2 * time.Minute)
 	_, _ = env.Login(t, u.Email, "")
 	s3, err := env.Login(t, u.Email, env.Mailer.LastCode())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := env.Svc.DisableTwoFA(ctx, u.ID, s1.Session.SessionID, authtest.Password); err != nil {
+	fresh, err = env.Svc.DisableTwoFA(ctx, u.ID, s1.Session.SessionID, authtest.Password)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if !sessionAlive(env, s1) || sessionAlive(env, s3) {
-		t.Fatalf("after disabling: s1=%v s3=%v, want true false", sessionAlive(env, s1), sessionAlive(env, s3))
+	old, s1 = s1, auth.LoginResult{Session: fresh}
+	if sessionAlive(env, old) || !sessionAlive(env, s1) || sessionAlive(env, s3) {
+		t.Fatalf("after disabling: old=%v renewed=%v s3=%v, want false true false", sessionAlive(env, old), sessionAlive(env, s1), sessionAlive(env, s3))
 	}
 
 	// Reset by an administrator ends every session of that user, the current one of the user included.
 	secret := func() []byte { // app method this time
-		setup, err := env.Svc.StartTOTP(ctx, u.ID)
+		setup, err := env.Svc.StartTOTP(ctx, u.ID, "", authtest.Password)
 		if err != nil {
 			t.Fatal(err)
 		}
 		k := decodeBase32(t, setup.Secret)
-		if err := env.Svc.ConfirmTOTP(ctx, u.ID, s1.Session.SessionID, auth.TOTPCode(k, auth.TOTPStep(env.Clock.Now()))); err != nil {
+		fresh, err := env.Svc.ConfirmTOTP(ctx, u.ID, s1.Session.SessionID, auth.TOTPCode(k, auth.TOTPStep(env.Clock.Now())))
+		if err != nil {
 			t.Fatal(err)
 		}
+		s1 = auth.LoginResult{Session: fresh}
 		return k
 	}()
 	s4, err := env.Login(t, u.Email, auth.TOTPCode(secret, auth.TOTPStep(env.Clock.Now())+1))
@@ -468,7 +474,7 @@ func TestM4EnablingDisablingAndResettingTwoStepEndSessions(t *testing.T) {
 	if !sessionAlive(env, s1) || !sessionAlive(env, s4) {
 		t.Fatal("setup of the reset case failed")
 	}
-	if err := env.Svc.ResetTwoFA(ctx, admin.ID, admin.Email, u.ID); err != nil {
+	if err := env.Svc.ResetTwoFA(ctx, admin.ID, admin.Email, "", u.ID); err != nil {
 		t.Fatal(err)
 	}
 	if sessionAlive(env, s1) || sessionAlive(env, s4) {
@@ -512,7 +518,7 @@ func TestM5LoginRacingAPasswordResetNeitherSignsInNorOverwritesTheNewHash(t *tes
 		// the password (this runs on the login's goroutine; the reset's own hashing is not intercepted).
 		if d < 0 && armed.Load() && fired.CompareAndSwap(false, true) {
 			var err error
-			if temp, err = env.Svc.ResetPassword(t.Context(), admin.Email, u.ID); err != nil {
+			if temp, err = env.Svc.ResetPassword(t.Context(), admin.ID, admin.Email, "", u.ID); err != nil {
 				t.Error(err)
 			}
 		}
@@ -542,7 +548,7 @@ func TestM5LoginRacingADisableDoesNotSignIn(t *testing.T) {
 	auth.SetHashProbe(env.Svc, func(d int) {
 		if d < 0 && armed.Load() && fired.CompareAndSwap(false, true) {
 			yes := true
-			if _, err := env.Svc.UpdateUser(t.Context(), admin.ID, admin.Email, u.ID, auth.UserPatch{Disabled: &yes}); err != nil {
+			if _, err := env.Svc.UpdateUser(t.Context(), admin.ID, admin.Email, "", u.ID, auth.UserPatch{Disabled: &yes}); err != nil {
 				t.Error(err)
 			}
 		}
@@ -626,21 +632,21 @@ func TestL3ConfirmingBothMethodsAtOnceTurnsOneOn(t *testing.T) {
 	ctx := t.Context()
 	for i := range 15 {
 		u := env.User(t, fmt.Sprintf("user%d@acme.example", i), routes.Viewer)
-		setup, err := env.Svc.StartTOTP(ctx, u.ID)
+		setup, err := env.Svc.StartTOTP(ctx, u.ID, "", authtest.Password)
 		if err != nil {
 			t.Fatal(err)
 		}
 		secret := decodeBase32(t, setup.Secret)
-		if _, err := env.Svc.StartEmail2FA(ctx, u.ID); err != nil {
+		if _, err := env.Svc.StartEmail2FA(ctx, u.ID, "", authtest.Password); err != nil {
 			t.Fatal(err)
 		}
 		mailed, totp := env.Mailer.LastCode(), auth.TOTPCode(secret, auth.TOTPStep(env.Clock.Now()))
 		errs := make([]error, 2)
 		parallel(2, func(k int) {
 			if k == 0 {
-				errs[0] = env.Svc.ConfirmTOTP(ctx, u.ID, "", totp)
+				errs[0] = only(env.Svc.ConfirmTOTP(ctx, u.ID, "", totp))
 			} else {
-				errs[1] = env.Svc.ConfirmEmail2FA(ctx, u.ID, "", mailed)
+				errs[1] = only(env.Svc.ConfirmEmail2FA(ctx, u.ID, "", mailed))
 			}
 		})
 		ok := 0
@@ -667,7 +673,7 @@ func TestL3StartingWhileAnotherMethodIsAlreadyOnIsRefused(t *testing.T) {
 	env := authtest.New(t)
 	appUser(t, env)
 	u := userByEmail(t, env, "ann@acme.example")
-	wantAPI(t, func() error { _, err := env.Svc.StartTOTP(t.Context(), u.ID); return err }(), 409, "already_on")
+	wantAPI(t, func() error { _, err := env.Svc.StartTOTP(t.Context(), u.ID, "", authtest.Password); return err }(), 409, "already_on")
 	if n := env.Count(t, "SELECT count(*) FROM core_user_totp WHERE user_id = ? AND confirmed = 1", u.ID); n != 1 {
 		t.Fatalf("confirmed key lost: %d", n)
 	}
@@ -822,7 +828,7 @@ func TestChangeOwnPasswordInFlightDoesNotOverwriteAnAdminReset(t *testing.T) {
 	pauseAtFirstHash(env)
 	done := make(chan error, 1)
 	go func() {
-		done <- env.Svc.ChangeOwnPassword(context.Background(), u.ID, "", authtest.Password, "attacker chosen password")
+		done <- only(env.Svc.ChangeOwnPassword(context.Background(), u.ID, "", authtest.Password, "attacker chosen password"))
 	}()
 	temp := resetWhilePaused(t, env, admin.Email, u.ID)
 	wantAPI(t, <-done, 400, "wrong_password")
@@ -840,7 +846,7 @@ func TestDisableTwoFAInFlightDoesNotActAfterAPasswordReset(t *testing.T) {
 	u := userByEmail(t, env, "ann@acme.example")
 	pauseAtFirstHash(env)
 	done := make(chan error, 1)
-	go func() { done <- env.Svc.DisableTwoFA(context.Background(), u.ID, "", authtest.Password) }()
+	go func() { done <- only(env.Svc.DisableTwoFA(context.Background(), u.ID, "", authtest.Password)) }()
 	resetWhilePaused(t, env, admin.Email, u.ID)
 	wantAPI(t, <-done, 400, "wrong_password")
 	if got, _ := env.Svc.GetUser(t.Context(), u.ID); got.TwofaMethod != "app" {
@@ -869,7 +875,11 @@ func resetWhilePaused(t *testing.T, env *authtest.Env, adminEmail, userID string
 	ch, _ := pauseState.Load(env)
 	c := ch.([2]chan struct{})
 	<-c[0]
-	temp, err := env.Svc.ResetPassword(t.Context(), adminEmail, userID)
+	var adminID string
+	if err := env.DB.Reader().QueryRowContext(t.Context(), "SELECT id FROM core_user WHERE email = ?", adminEmail).Scan(&adminID); err != nil {
+		t.Fatal(err)
+	}
+	temp, err := env.Svc.ResetPassword(t.Context(), adminID, adminEmail, "", userID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -891,38 +901,45 @@ func TestOperationsOfARevokedSessionOrDisabledAccountAreRefused(t *testing.T) {
 	if err := env.Svc.Sessions.Revoke(ctx, u.Email, u.ID, sid); err != nil {
 		t.Fatal(err)
 	}
-	wantAPI(t, env.Svc.ChangeOwnPassword(ctx, u.ID, sid, authtest.Password, "another long password"), 401, "unauthenticated")
+	wantAPI(t, only(env.Svc.ChangeOwnPassword(ctx, u.ID, sid, authtest.Password, "another long password")), 401, "unauthenticated")
 	if err := loginAs(env, u.Email, authtest.Password, "", ip("192.0.2.9")); err != nil {
 		t.Fatalf("password changed by a revoked session: %v", err)
 	}
-	setup, err := env.Svc.StartTOTP(ctx, u.ID)
+	setup, err := env.Svc.StartTOTP(ctx, u.ID, "", authtest.Password)
 	if err != nil {
 		t.Fatal(err)
 	}
 	key := decodeBase32(t, setup.Secret)
-	wantAPI(t, env.Svc.ConfirmTOTP(ctx, u.ID, sid, auth.TOTPCode(key, auth.TOTPStep(env.Clock.Now()))), 401, "unauthenticated")
-	if _, err := env.Svc.StartEmail2FA(ctx, u.ID); err != nil {
+	wantAPI(t, only(env.Svc.ConfirmTOTP(ctx, u.ID, sid, auth.TOTPCode(key, auth.TOTPStep(env.Clock.Now())))), 401, "unauthenticated")
+	if _, err := env.Svc.StartEmail2FA(ctx, u.ID, "", authtest.Password); err != nil {
 		t.Fatal(err)
 	}
-	wantAPI(t, env.Svc.ConfirmEmail2FA(ctx, u.ID, sid, env.Mailer.LastCode()), 401, "unauthenticated")
+	wantAPI(t, only(env.Svc.ConfirmEmail2FA(ctx, u.ID, sid, env.Mailer.LastCode())), 401, "unauthenticated")
 	if got, _ := env.Svc.GetUser(ctx, u.ID); got.TwofaMethod != "" {
 		t.Fatalf("two-step turned on from a revoked session: %q", got.TwofaMethod)
 	}
 	// An expired session is refused the same way.
 	live, _ := env.Login(t, u.Email, "")
 	env.Clock.Advance(auth.IdleTimeout + time.Minute)
-	wantAPI(t, env.Svc.ChangeOwnPassword(ctx, u.ID, live.Session.SessionID, authtest.Password, "another long password"), 401, "unauthenticated")
+	wantAPI(t, only(env.Svc.ChangeOwnPassword(ctx, u.ID, live.Session.SessionID, authtest.Password, "another long password")), 401, "unauthenticated")
 
-	// A disabled account finishes nothing it started.
+	// A disabled account finishes nothing it started and starts nothing (no code is mailed to it).
+	if _, err := env.Svc.StartEmail2FA(ctx, u.ID, "", authtest.Password); err != nil {
+		t.Fatal(err)
+	}
+	pending := env.Mailer.LastCode()
+	mails := len(env.Mailer.Sent())
 	yes := true
-	if _, err := env.Svc.UpdateUser(ctx, admin.ID, admin.Email, u.ID, auth.UserPatch{Disabled: &yes}); err != nil {
+	if _, err := env.Svc.UpdateUser(ctx, admin.ID, admin.Email, "", u.ID, auth.UserPatch{Disabled: &yes}); err != nil {
 		t.Fatal(err)
 	}
-	wantAPI(t, env.Svc.ChangeOwnPassword(ctx, u.ID, "", authtest.Password, "another long password"), 403, "disabled")
-	if _, err := env.Svc.StartEmail2FA(ctx, u.ID); err != nil {
-		t.Fatal(err)
+	wantAPI(t, only(env.Svc.ChangeOwnPassword(ctx, u.ID, "", authtest.Password, "another long password")), 403, "disabled")
+	_, err = env.Svc.StartEmail2FA(ctx, u.ID, "", authtest.Password)
+	wantAPI(t, err, 403, "disabled")
+	if len(env.Mailer.Sent()) != mails {
+		t.Fatal("a disabled account was mailed a code")
 	}
-	wantAPI(t, env.Svc.ConfirmEmail2FA(ctx, u.ID, "", env.Mailer.LastCode()), 403, "disabled")
+	wantAPI(t, only(env.Svc.ConfirmEmail2FA(ctx, u.ID, "", pending)), 403, "disabled")
 }
 
 // #5: after a wait ran out, a right password must not start a new wait.

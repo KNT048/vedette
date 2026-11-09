@@ -196,6 +196,11 @@ func (aiOff) Run(context.Context, mitigation.AIRequest) (mitigation.AIOutput, er
 // subscribers all share these instances.
 func buildServices(d *deps) error {
 	d.Inventory = newInventory(d) // before feeds: feeds takes the inventory (feeds.Inventory)
+	sp, err := newSensorPassive(*d)
+	if err != nil {
+		return fmt.Errorf("sensor-passive: %w", err)
+	}
+	d.SensorPassive = sp
 	fs, err := feedsService(*d)
 	if err != nil {
 		return fmt.Errorf("feeds: %w", err)

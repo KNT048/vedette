@@ -1,6 +1,8 @@
 package observe_test
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/knt048/vedette/core/observe"
@@ -24,5 +26,27 @@ func TestValidSourceAndField(t *testing.T) {
 	}
 	if observe.ValidField("ip") || observe.ValidField("") {
 		t.Error("ip is a hint, not a field")
+	}
+}
+
+// ErrRejected carries the index of the refused item and still lets errors.Is see the reason.
+func TestErrRejectedCarriesTheIndexAndTheReason(t *testing.T) {
+	t.Parallel()
+	reason := errors.New("value must be printable")
+	err := fmt.Errorf("record: %w", &observe.ErrRejected{Index: 7, Err: reason})
+	var rej *observe.ErrRejected
+	if !errors.As(err, &rej) || rej.Index != 7 || !errors.Is(err, reason) {
+		t.Errorf("err = %v", err)
+	}
+	if rej.Error() != reason.Error() {
+		t.Errorf("message %q", rej.Error())
+	}
+}
+
+// An ErrRejected without a reason prints (sensor-passive logs every refusal it gets from a Sink).
+func TestErrRejectedWithoutReasonPrints(t *testing.T) {
+	t.Parallel()
+	if got := (&observe.ErrRejected{Index: 1}).Error(); got == "" {
+		t.Error("empty message")
 	}
 }

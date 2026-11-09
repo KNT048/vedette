@@ -51,7 +51,7 @@ func TestAuthenticate(t *testing.T) {
 	}
 	// The role comes from the database on every request, not from the cookie.
 	op := routes.Operator
-	if _, err := env.Svc.UpdateUser(t.Context(), admin.ID, admin.Email, u.ID, auth.UserPatch{Role: &op}); err != nil {
+	if _, err := env.Svc.UpdateUser(t.Context(), admin.ID, admin.Email, "", u.ID, auth.UserPatch{Role: &op}); err != nil {
 		t.Fatal(err)
 	}
 	if p, _ := env.Svc.Sessions.Authenticate(reqWith(res, "GET", "")); p.Role != routes.Operator {

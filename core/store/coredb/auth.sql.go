@@ -265,6 +265,27 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash string) (
 	return i, err
 }
 
+const getSessionClient = `-- name: GetSessionClient :one
+SELECT device, ip FROM core_session WHERE id = ? AND user_id = ?
+`
+
+type GetSessionClientParams struct {
+	ID     string
+	UserID string
+}
+
+type GetSessionClientRow struct {
+	Device string
+	Ip     string
+}
+
+func (q *Queries) GetSessionClient(ctx context.Context, arg GetSessionClientParams) (GetSessionClientRow, error) {
+	row := q.db.QueryRowContext(ctx, getSessionClient, arg.ID, arg.UserID)
+	var i GetSessionClientRow
+	err := row.Scan(&i.Device, &i.Ip)
+	return i, err
+}
+
 const getTotp = `-- name: GetTotp :one
 SELECT user_id, secret_id, confirmed, last_step, created_at
 FROM core_user_totp

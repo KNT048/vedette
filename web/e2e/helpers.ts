@@ -58,6 +58,7 @@ export async function expectAccessible(page: Page, label: string) {
 export async function startClean(page: Page, org = 'Acme Test Ltd') {
   await resetStorage(page)
   await page.goto('/setup')
+  await page.getByLabel('Setup code').fill('setup-code-demo') // D-75: the code the mock accepts
   await page.getByLabel('Organization name').fill(org)
   await page.getByLabel('Administrator name').fill('Alex Admin')
   await page.getByLabel('Sign-in email').fill('admin@acme.example')

@@ -95,6 +95,12 @@ var (
 	rn110AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
+	rn112AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn113AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
 	rn114AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
@@ -1917,8 +1923,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: nil,
-													acceptPost:     "",
+													allowedHeaders: rn112AllowedHeaders,
+													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
 											}
@@ -1944,8 +1950,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: nil,
-												acceptPost:     "",
+												allowedHeaders: rn113AllowedHeaders,
+												acceptPost:     "application/json",
 												acceptPatch:    "",
 											})
 										}
@@ -9508,7 +9514,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											switch method {
 											case "POST":
 												r.name = CorePostCoreAccount2FAEmailStartOperation
-												r.summary = "Email code: send a 6-digit code to my own sign-in email (409 when the email channel is not ready or two-step is already on; same limits as sign-in codes)"
+												r.summary = "Email code: send a 6-digit code to my own sign-in email (409 when the email channel is not ready or two-step is already on; same limits as sign-in codes; needs the current password, D-76)"
 												r.operationID = "core_post_core_account_2fa_email_start"
 												r.operationGroup = ""
 												r.pathPattern = "/core/account/2fa/email/start"
@@ -9535,7 +9541,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										switch method {
 										case "POST":
 											r.name = CorePostCoreAccount2FAStartOperation
-											r.summary = "Authenticator app: create a TOTP key waiting for confirmation"
+											r.summary = "Authenticator app: create a TOTP key waiting for confirmation (needs the current password, D-76; wrong password 400 wrong_password, counted like a failed sign-in)"
 											r.operationID = "core_post_core_account_2fa_start"
 											r.operationGroup = ""
 											r.pathPattern = "/core/account/2fa/start"

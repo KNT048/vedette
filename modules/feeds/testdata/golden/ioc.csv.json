@@ -11,23 +11,15 @@
       "first_seen": "2026-10-20",
       "indicator": "103.75.190.12",
       "kind": "ip"
-    },
-    {
-      "confidence": null,
-      "first_seen": "2026-10-29",
-      "indicator": "203.0.113.77",
-      "kind": "ip"
-    },
-    {
-      "confidence": null,
-      "first_seen": "2026-10-31",
-      "indicator": "198.51.100.23",
-      "kind": "ip"
     }
   ],
-  "accepted": 4,
-  "rejected": 1,
+  "accepted": 2,
+  "rejected": 3,
   "reasons": [
+    {
+      "reason": "indicator: \"…\" is a private, reserved or special-purpose address",
+      "count": 2
+    },
     {
       "reason": "indicator: \"…\" is not a valid indicator",
       "count": 1
@@ -35,8 +27,16 @@
   ],
   "rejects": [
     {
+      "row": 3,
+      "reason": "indicator: \"203.0.113.77\" is a private, reserved or special-purpose address"
+    },
+    {
       "row": 4,
       "reason": "indicator: \"not-an-ip\" is not a valid indicator"
+    },
+    {
+      "row": 5,
+      "reason": "indicator: \"198.51.100.23\" is a private, reserved or special-purpose address"
     }
   ],
   "truncated": false

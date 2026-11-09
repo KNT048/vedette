@@ -1,6 +1,7 @@
 package feeds
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -29,9 +30,9 @@ func sample(t testing.TB, kind Kind, format Format) []byte {
 
 func run(t testing.TB, kind Kind, format Format) Result {
 	t.Helper()
-	r, err := ParseFeed(sample(t, kind, format), kind, DefaultParser(kind, format))
+	r, err := ParseFeed(context.Background(), sample(t, kind, format), kind, DefaultParser(kind, format))
 	if err != nil {
-		t.Fatalf("ParseFeed(%s,%s): %v", kind, format, err)
+		t.Fatalf("ParseFeed(context.Background(), %s,%s): %v", kind, format, err)
 	}
 	return r
 }
@@ -122,7 +123,7 @@ func TestCross_JSONVulnerabilities(t *testing.T) {
 
 func TestCross_CSV(t *testing.T) {
 	t.Parallel()
-	got := parseCSV("# c\na,\"b,c\"\n1,\"x \"\"y\"\"\"\n", ',')
+	got := csvCells("# c\na,\"b,c\"\n1,\"x \"\"y\"\"\"\n", ',')
 	if want := [][]string{{"a", "b,c"}, {"1", `x "y"`}}; !reflect.DeepEqual(got, want) {
 		t.Errorf("parseCSV = %q", got)
 	}
@@ -194,7 +195,8 @@ func TestCross_STIX(t *testing.T) {
 func TestCross_Lines(t *testing.T) {
 	t.Parallel()
 	r := run(t, KindIOC, FormatLines)
-	if r.Accepted != 4 || r.Rejected != 1 {
+	// The TS sample lists 198.51.100.23 (a documentation address): the Go side refuses it (INV-12), so 3 of 4.
+	if r.Accepted != 3 || r.Rejected != 2 {
 		t.Fatalf("lines: %+v", r.Stats)
 	}
 	for _, rec := range r.Records {
@@ -228,7 +230,8 @@ func TestCross_JSONIOC(t *testing.T) {
 func TestCross_SampleCSVIOC(t *testing.T) {
 	t.Parallel()
 	r := run(t, KindIOC, FormatCSV)
-	if r.Accepted != 4 || r.Rejected != 1 || r.Records[0]["indicator"] != "45.148.10.95" || r.Records[0]["first_seen"] != "2026-10-02" {
+	// 203.0.113.77 and 198.51.100.23 are documentation addresses: refused here, accepted by the TS sample run.
+	if r.Accepted != 2 || r.Rejected != 3 || r.Records[0]["indicator"] != "45.148.10.95" || r.Records[0]["first_seen"] != "2026-10-02" {
 		t.Errorf("csv ioc: %+v %v", r.Stats, r.Records[0])
 	}
 }
@@ -236,17 +239,17 @@ func TestCross_SampleCSVIOC(t *testing.T) {
 func TestContract_INV3_FailsClosedOnBadInput(t *testing.T) {
 	t.Parallel()
 	p := DefaultParser(KindIOC, FormatLines)
-	if _, err := ParseFeed([]byte(strings.Repeat("x", MaxBodyBytes+1)), KindIOC, p); !errors.Is(err, ErrTooLarge) || !strings.Contains(err.Error(), "larger than 5 MB") {
+	if _, err := ParseFeed(context.Background(), []byte(strings.Repeat("x", MaxBodyBytes+1)), KindIOC, p); !errors.Is(err, ErrTooLarge) || !strings.Contains(err.Error(), "larger than 5 MB") {
 		t.Errorf("too large: %v", err)
 	}
-	if _, err := ParseFeed(make([]byte, MaxBodyBytes), KindIOC, p); errors.Is(err, ErrTooLarge) {
+	if _, err := ParseFeed(context.Background(), make([]byte, MaxBodyBytes), KindIOC, p); errors.Is(err, ErrTooLarge) {
 		t.Errorf("exactly the limit must be accepted: %v", err)
 	}
-	if _, err := ParseFeed([]byte("{nope"), KindIOC, DefaultParser(KindIOC, FormatJSON)); !errors.Is(err, ErrBadSample) || !strings.Contains(err.Error(), "not valid JSON") {
+	if _, err := ParseFeed(context.Background(), []byte("{nope"), KindIOC, DefaultParser(KindIOC, FormatJSON)); !errors.Is(err, ErrBadSample) || !strings.Contains(err.Error(), "not valid JSON") {
 		t.Errorf("bad json: %v", err)
 	}
 	p.Fields["indicator"] = FieldMap{Regex: "([", Trim: true, DateFormat: DateAuto}
-	if _, err := ParseFeed([]byte("1.2.3.4"), KindIOC, p); !errors.Is(err, ErrBadConfig) || !strings.Contains(err.Error(), "Invalid regular expression") {
+	if _, err := ParseFeed(context.Background(), []byte("1.2.3.4"), KindIOC, p); !errors.Is(err, ErrBadConfig) || !strings.Contains(err.Error(), "Invalid regular expression") {
 		t.Errorf("bad regex: %v", err)
 	}
 }
@@ -255,7 +258,7 @@ func TestContract_INV2_RowLimitTruncates(t *testing.T) {
 	t.Parallel()
 	var b strings.Builder
 	for i := 0; i < MaxRows+10; i++ {
-		fmt.Fprintf(&b, "10.%d.%d.%d\n", (i>>16)&255, (i>>8)&255, i&255)
+		fmt.Fprintf(&b, "45.%d.%d.%d\n", (i>>16)&255, (i>>8)&255, i&255)
 	}
 	for _, f := range []Format{FormatLines, FormatCSV} {
 		p := DefaultParser(KindIOC, f)
@@ -265,7 +268,7 @@ func TestContract_INV2_RowLimitTruncates(t *testing.T) {
 		if f == FormatLines {
 			p.Fields["indicator"] = fm("")
 		}
-		r, err := ParseFeed([]byte(text), KindIOC, p)
+		r, err := ParseFeed(context.Background(), []byte(text), KindIOC, p)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -275,7 +278,7 @@ func TestContract_INV2_RowLimitTruncates(t *testing.T) {
 	}
 	// Exactly MaxRows is not truncated.
 	exact := strings.Join(strings.Fields(strings.Repeat("1.2.3.4 ", MaxRows)), "\n")
-	r, err := ParseFeed([]byte(exact), KindIOC, DefaultParser(KindIOC, FormatLines))
+	r, err := ParseFeed(context.Background(), []byte(exact), KindIOC, DefaultParser(KindIOC, FormatLines))
 	if err != nil || r.Truncated || r.Accepted != MaxRows {
 		t.Errorf("exact: %v truncated=%v accepted=%d", err, r.Truncated, r.Accepted)
 	}
@@ -285,7 +288,7 @@ func TestContract_INV3_NoHalfAcceptedRow(t *testing.T) {
 	t.Parallel()
 	// The second row has a good CVE and a bad date: the whole row must go, not just the date.
 	csv := "cve,vendor,product,published,summary,url\nCVE-2026-1111,A,B,01/02/2026,ok,\nCVE-2026-2222,A,B,garbage,half,https://x.example\n"
-	r, err := ParseFeed([]byte(csv), KindVulnerabilities, DefaultParser(KindVulnerabilities, FormatCSV))
+	r, err := ParseFeed(context.Background(), []byte(csv), KindVulnerabilities, DefaultParser(KindVulnerabilities, FormatCSV))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -300,7 +303,7 @@ func TestContract_INV3_NoHalfAcceptedRow(t *testing.T) {
 func TestContract_INV3_RejectListIsBounded(t *testing.T) {
 	t.Parallel()
 	text := strings.Repeat("not-an-ioc\n", 30) + "1.2.3.4\n"
-	r, _ := ParseFeed([]byte(text), KindIOC, DefaultParser(KindIOC, FormatLines))
+	r, _ := ParseFeed(context.Background(), []byte(text), KindIOC, DefaultParser(KindIOC, FormatLines))
 	if r.Rejected != 30 || len(r.Rejects) != MaxRejects || r.Rejects[19].Row != 20 || r.Accepted != 1 {
 		t.Errorf("%+v", r.Stats)
 	}
@@ -315,7 +318,7 @@ func TestContract_INV3_RejectListIsBounded(t *testing.T) {
 func TestPreviewKeepsFirstTwentyRecords(t *testing.T) {
 	t.Parallel()
 	text := strings.Repeat("1.2.3.4\n", 25)
-	r, _ := ParseFeed([]byte(text), KindIOC, DefaultParser(KindIOC, FormatLines))
+	r, _ := ParseFeed(context.Background(), []byte(text), KindIOC, DefaultParser(KindIOC, FormatLines))
 	if r.Accepted != 25 || len(r.Records) != 25 || len(r.Preview().Records) != PreviewRows {
 		t.Errorf("%d %d %d", r.Accepted, len(r.Records), len(r.Preview().Records))
 	}
@@ -376,7 +379,7 @@ func TestOutputShapeMatchesApiResult(t *testing.T) {
 			t.Errorf("missing key %q in %s", k, b)
 		}
 	}
-	empty, _ := ParseFeed([]byte(""), KindIOC, DefaultParser(KindIOC, FormatLines))
+	empty, _ := ParseFeed(context.Background(), []byte(""), KindIOC, DefaultParser(KindIOC, FormatLines))
 	eb, _ := json.Marshal(empty)
 	if !strings.Contains(string(eb), `"records":[]`) || !strings.Contains(string(eb), `"reasons":[]`) || !strings.Contains(string(eb), `"rejects":[]`) {
 		t.Errorf("empty slices must encode as []: %s", eb)
@@ -437,7 +440,7 @@ func TestParseRejectsMismatchedFormatAndConfig(t *testing.T) {
 			if err := CheckParser(KindVulnerabilities, p); !errors.Is(err, ErrBadConfig) {
 				t.Fatalf("CheckParser = %v", err)
 			}
-			if _, err := ParseFeed([]byte(`{}`), KindVulnerabilities, p); !errors.Is(err, ErrBadConfig) {
+			if _, err := ParseFeed(context.Background(), []byte(`{}`), KindVulnerabilities, p); !errors.Is(err, ErrBadConfig) {
 				t.Fatalf("ParseFeed = %v", err)
 			}
 		})
@@ -472,7 +475,7 @@ func TestParseEmptyRecordsPathDefaultsToRootArray(t *testing.T) {
 	p := DefaultParser(KindIOC, FormatJSON)
 	p.RecordsPath = ""
 	p.Fields["indicator"] = fm("$.ioc")
-	r, err := ParseFeed([]byte(`[{"ioc":"1.2.3.4"},{"ioc":"example.com"},{"nope":1}]`), KindIOC, p)
+	r, err := ParseFeed(context.Background(), []byte(`[{"ioc":"1.2.3.4"},{"ioc":"example.com"},{"nope":1}]`), KindIOC, p)
 	if err != nil || r.Accepted != 2 || r.Rejected != 1 || r.Reasons[0].Reason != "indicator: missing" {
 		t.Fatalf("%v %+v", err, r.Stats)
 	}
@@ -502,7 +505,7 @@ func TestJSONValueConversion(t *testing.T) {
 	 {"i":"1.1.1.12","c":0.005},
 	 {"i":"1.1.1.13","c":1e999}
 	]}`
-	r, err := ParseFeed([]byte(text), KindIOC, p)
+	r, err := ParseFeed(context.Background(), []byte(text), KindIOC, p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -559,15 +562,15 @@ func TestJSONRejectsMalformedAndDeep(t *testing.T) {
 	t.Parallel()
 	p := DefaultParser(KindIOC, FormatJSON)
 	for _, s := range []string{"", "{", `{"data":[1,]}`, `{"a" 1}`, `[1] x`, `{"a":1}{"b":2}`, "nul", `{'a':1}`} {
-		if _, err := ParseFeed([]byte(s), KindIOC, p); !errors.Is(err, ErrBadSample) {
+		if _, err := ParseFeed(context.Background(), []byte(s), KindIOC, p); !errors.Is(err, ErrBadSample) {
 			t.Errorf("%q: %v", s, err)
 		}
 	}
 	deep := strings.Repeat("[", 5000) + strings.Repeat("]", 5000)
-	if _, err := ParseFeed([]byte(deep), KindIOC, p); !errors.Is(err, ErrBadSample) || !strings.Contains(err.Error(), "too deeply") {
+	if _, err := ParseFeed(context.Background(), []byte(deep), KindIOC, p); !errors.Is(err, ErrBadSample) || !strings.Contains(err.Error(), "too deeply") {
 		t.Errorf("deep nesting: %v", err)
 	}
-	if _, err := ParseFeed([]byte(strings.Repeat(`{"a":`, maxJSONDepth+2)+"1"+strings.Repeat("}", maxJSONDepth+2)), KindIOC, p); !errors.Is(err, ErrBadSample) {
+	if _, err := ParseFeed(context.Background(), []byte(strings.Repeat(`{"a":`, maxJSONDepth+2)+"1"+strings.Repeat("}", maxJSONDepth+2)), KindIOC, p); !errors.Is(err, ErrBadSample) {
 		t.Errorf("just over the depth limit accepted: %v", err)
 	}
 }
@@ -575,7 +578,7 @@ func TestJSONRejectsMalformedAndDeep(t *testing.T) {
 func TestEncodingAndControlCharacters(t *testing.T) {
 	t.Parallel()
 	p := DefaultParser(KindIOC, FormatLines)
-	r, err := ParseFeed([]byte("\xef\xbb\xbf1.2.3.4\n\xff\xfe9.9.9.9\nbad\x00.example.com\nexample\xc3.com\nok.example.com\n"), KindIOC, p)
+	r, err := ParseFeed(context.Background(), []byte("\xef\xbb\xbf1.2.3.4\n\xff\xfe9.9.9.9\nbad\x00.example.com\nexample\xc3.com\nok.example.com\n"), KindIOC, p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -595,7 +598,7 @@ func TestEncodingAndControlCharacters(t *testing.T) {
 	}
 	// A control character inside a free-text field rejects the row.
 	vp := DefaultParser(KindVulnerabilities, FormatCSV)
-	vr, _ := ParseFeed([]byte("cve,vendor,product,published,summary,url\nCVE-2026-1,A,B,01/02/2026,ok,\nCVE-2026-1234,A\x07,B,01/02/2026,ok,\n"), KindVulnerabilities, vp)
+	vr, _ := ParseFeed(context.Background(), []byte("cve,vendor,product,published,summary,url\nCVE-2026-1,A,B,01/02/2026,ok,\nCVE-2026-1234,A\x07,B,01/02/2026,ok,\n"), KindVulnerabilities, vp)
 	if vr.Accepted != 0 || vr.Rejected != 2 {
 		t.Errorf("vuln: %+v", vr.Stats)
 	}
@@ -610,7 +613,7 @@ func TestIndicatorNormalisation(t *testing.T) {
 		{"1.2.3.4", "", "ip:1.2.3.4"},
 		{"1.2.3.4:8080", "ip", "ip:1.2.3.4"},
 		{"1.2.3.4:8080", "", ""},
-		{"2001:DB8:0:0:0:0:0:1", "", "ip:2001:db8::1"},
+		{"2606:4700:0:0:0:0:0:1111", "", "ip:2606:4700::1111"},
 		{"::ffff:1.2.3.4", "", "ip:1.2.3.4"},
 		{"fe80::1%eth0", "ip", ""},
 		{"01.2.3.4", "", ""},
@@ -623,7 +626,7 @@ func TestIndicatorNormalisation(t *testing.T) {
 		{"examKple.com", "", ""}, // Kelvin sign must not fold into ASCII k
 		{"a.b", "", ""},
 		{strings.Repeat("a", 64) + ".com", "", ""},
-		{"HTTPS://Evil.example/Path?x=1", "", "url:HTTPS://Evil.example/Path?x=1"},
+		{"HTTPS://Evil.example.com/Path?x=1", "", "url:HTTPS://Evil.example.com/Path?x=1"},
 		{"http://", "url", ""},
 		{"http:///x", "url", ""},
 		{"http://a b.example/", "url", ""},
@@ -639,7 +642,7 @@ func TestIndicatorNormalisation(t *testing.T) {
 	p.Fields["kind"] = fm("$.k")
 	for _, c := range cases {
 		in, _ := json.Marshal(map[string]string{"i": c.in, "k": c.kindField})
-		r, err := ParseFeed([]byte("["+string(in)+"]"), KindIOC, p)
+		r, err := ParseFeed(context.Background(), []byte("["+string(in)+"]"), KindIOC, p)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -663,7 +666,7 @@ func TestVulnerabilityFieldRules(t *testing.T) {
 		"CVE-2026-0002,A,B,01/02/2026,x,http://has space.example\n" +
 		"CVE-2026-0003,A,B,01/02/2026,x,http://\n" +
 		"CVE-2026-0004,A,B,,x,\n"
-	r, err := ParseFeed([]byte(text), KindVulnerabilities, p)
+	r, err := ParseFeed(context.Background(), []byte(text), KindVulnerabilities, p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -685,7 +688,7 @@ func TestFieldRulesTrimLowercaseRegex(t *testing.T) {
 	f.Regex = `host=([A-Za-z.]+)`
 	f.Lowercase = true
 	p.Fields["indicator"] = f
-	r, _ := ParseFeed([]byte("host=Example.com extra\nhost=\nnothing\n"), KindIOC, p)
+	r, _ := ParseFeed(context.Background(), []byte("host=Example.com extra\nhost=\nnothing\n"), KindIOC, p)
 	if r.Accepted != 1 || r.Rejected != 2 || r.Records[0]["indicator"] != "example.com" {
 		t.Errorf("regex+lowercase: %+v %v", r.Stats, r.Records)
 	}
@@ -693,7 +696,7 @@ func TestFieldRulesTrimLowercaseRegex(t *testing.T) {
 	g := fm("")
 	g.Regex = `^(\d+\.\d+\.\d+\.\d+)`
 	p2.Fields["indicator"] = g
-	r2, _ := ParseFeed([]byte("1.2.3.4|x\nnope\n"), KindIOC, p2)
+	r2, _ := ParseFeed(context.Background(), []byte("1.2.3.4|x\nnope\n"), KindIOC, p2)
 	if r2.Accepted != 1 || r2.Records[0]["indicator"] != "1.2.3.4" || r2.Reasons[0].Reason != "indicator: regex did not match" {
 		t.Errorf("%+v %v", r2.Stats, r2.Records)
 	}
@@ -702,14 +705,14 @@ func TestFieldRulesTrimLowercaseRegex(t *testing.T) {
 	h := fm("")
 	h.Regex = `(x)?1\.2\.3\.4`
 	p3.Fields["indicator"] = h
-	r3, _ := ParseFeed([]byte("1.2.3.4\n"), KindIOC, p3)
+	r3, _ := ParseFeed(context.Background(), []byte("1.2.3.4\n"), KindIOC, p3)
 	if r3.Accepted != 1 {
 		t.Errorf("optional group: %+v", r3.Stats)
 	}
 	// trim=false keeps whitespace, which then fails validation.
 	p4 := DefaultParser(KindIOC, FormatCSV)
 	p4.Fields["indicator"] = FieldMap{Source: "ip", Trim: false, DateFormat: DateAuto}
-	r4, _ := ParseFeed([]byte("ip\n 1.2.3.4\n"), KindIOC, p4)
+	r4, _ := ParseFeed(context.Background(), []byte("ip\n 1.2.3.4\n"), KindIOC, p4)
 	if r4.Accepted != 0 || r4.Rejected != 1 {
 		t.Errorf("trim=false: %+v", r4.Stats)
 	}

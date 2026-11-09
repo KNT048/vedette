@@ -1,8 +1,12 @@
 package feeds
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"net/netip"
+	"net/url"
+	"strings"
 	"testing"
 	"unicode/utf8"
 )
@@ -30,7 +34,7 @@ func checkInvariants(t *testing.T, kind Kind, r Result) {
 			}
 		}
 		for k, v := range rec {
-			if s, ok := v.(string); ok && (!utf8.ValidString(s) || hasControl(s)) {
+			if s, ok := v.(string); ok && (!utf8.ValidString(s) || hasControl(s) || (k != "description" && hasControlStrict(s))) {
 				t.Fatalf("field %s holds unsafe text %q", k, s)
 			}
 		}
@@ -48,19 +52,19 @@ func checkInvariants(t *testing.T, kind Kind, r Result) {
 			ind, _ := rec["indicator"].(string)
 			switch rec["kind"] {
 			case "ip":
-				if c, ok := canonicalIP(ind); !ok || c != ind {
+				if a, err := netip.ParseAddr(ind); err != nil || a.String() != ind || isSpecialAddr(a) {
 					t.Fatalf("bad ip accepted: %q", ind)
 				}
 			case "domain":
-				if !validDomain(ind) {
+				if !validDomain(ind) || localName(ind) || ind != strings.ToLower(ind) {
 					t.Fatalf("bad domain accepted: %q", ind)
 				}
 			case "url":
-				if !validIndicatorURL(ind) {
+				if u, err := url.Parse(ind); !validIndicatorURL(ind) || err != nil || !publicHost(u.Hostname()) {
 					t.Fatalf("bad url accepted: %q", ind)
 				}
 			case "hash":
-				if !hashRE.MatchString(ind) {
+				if !hashRE.MatchString(ind) || emptyFileHashes[ind] || ind != strings.ToLower(ind) {
 					t.Fatalf("bad hash accepted: %q", ind)
 				}
 			default:
@@ -96,7 +100,7 @@ func fuzzFormat(f *testing.F, kind Kind, format Format, extraSeeds ...string) {
 			fmap.Regex = regex
 			p.Fields[id] = fmap
 		}
-		r, err := ParseFeed(data, kind, p)
+		r, err := ParseFeed(context.Background(), data, kind, p)
 		if err != nil {
 			if !errors.Is(err, ErrBadConfig) && !errors.Is(err, ErrBadSample) && !errors.Is(err, ErrTooLarge) {
 				t.Fatalf("unclassified error: %v", err)
@@ -172,30 +176,6 @@ func FuzzParseKEV(f *testing.F) {
 	})
 }
 
-func FuzzParseEPSS(f *testing.F) {
-	plain := fixture(f, "epss.csv")
-	f.Add(plain)
-	f.Add(gz(f, plain))
-	f.Add(append([]byte{0x1f, 0x8b}, plain...))
-	f.Fuzz(func(t *testing.T, data []byte) {
-		d, err := ParseEPSS(data, nil)
-		if err != nil {
-			if !errors.Is(err, ErrBadSample) && !errors.Is(err, ErrTooLarge) {
-				t.Fatalf("unclassified error: %v", err)
-			}
-			return
-		}
-		if d.Accepted != len(d.Scores) || len(d.Rejects) > MaxRejects {
-			t.Fatalf("accounting: %+v", d.Stats)
-		}
-		for _, s := range d.Scores {
-			if !cveRE.MatchString(s.CVE) || s.Score < 0 || s.Score > 1 || s.Percentile < 0 || s.Percentile > 1 {
-				t.Fatalf("bad score accepted: %+v", s)
-			}
-		}
-	})
-}
-
 func FuzzParseNucleiCVEs(f *testing.F) {
 	f.Add(fixture(f, "nuclei-cves.jsonl"))
 	f.Add([]byte(`[{"ID":"CVE-2026-1234"}]`))
@@ -213,6 +193,51 @@ func FuzzParseNucleiCVEs(f *testing.F) {
 		for _, c := range r.CVEs {
 			if !cveRE.MatchString(c) {
 				t.Fatalf("bad CVE %q", c)
+			}
+		}
+	})
+}
+
+func FuzzParseEPSS(f *testing.F) {
+	f.Add(fixture(f, "epss.json"))
+	f.Add([]byte(`{"total":9,"data":[{"cve":"CVE-2026-1234","epss":"1e-5","percentile":0.5,"date":"2026-01-01"}]}`))
+	f.Add([]byte(`{"data":[{"cve":1,"epss":[],"percentile":{}}]}`))
+	f.Fuzz(func(t *testing.T, data []byte) {
+		d, err := ParseEPSS(data)
+		if err != nil {
+			if !errors.Is(err, ErrBadSample) && !errors.Is(err, ErrTooLarge) {
+				t.Fatalf("unclassified error: %v", err)
+			}
+			return
+		}
+		if d.Accepted != len(d.Scores) || len(d.Rejects) > MaxRejects || len(d.Reasons) > maxReasons+1 {
+			t.Fatalf("accounting: %+v", d.Stats)
+		}
+		for _, s := range d.Scores {
+			if !cveRE.MatchString(s.CVE) || s.Score < 0 || s.Score > 1 || s.Percentile < 0 || s.Percentile > 1 || (s.Date != "" && !strictDateRE.MatchString(s.Date)) {
+				t.Fatalf("bad score accepted: %+v", s)
+			}
+		}
+		for _, x := range d.Rejects {
+			if !printable(x.Reason) {
+				t.Fatalf("unsafe reject text %q", x.Reason)
+			}
+		}
+	})
+}
+
+func FuzzEPSSBatchURLs(f *testing.F) {
+	f.Add("CVE-2026-1234", "2026-01-01")
+	f.Add("CVE-2026-1&x=1", "2026-1-1")
+	f.Fuzz(func(t *testing.T, id, date string) {
+		urls, err := EPSSBatchURLs("https://api.first.org/data/v1/epss", []string{id}, date)
+		if err != nil {
+			return
+		}
+		for _, raw := range urls {
+			u, perr := url.Parse(raw)
+			if perr != nil || u.Host != "api.first.org" || u.Path != "/data/v1/epss" || len(u.Query()) > 2 || !cveRE.MatchString(u.Query().Get("cve")) {
+				t.Fatalf("bad batch URL %q", raw)
 			}
 		}
 	})

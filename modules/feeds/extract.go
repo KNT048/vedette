@@ -5,25 +5,54 @@ import (
 	"encoding/xml"
 	"errors"
 	"io"
+	"net/netip"
 	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 )
 
+// rej is a rejection: a message template whose %s placeholders take
+// feed-supplied values. The template is the grouping key of reasons[]; the
+// values are quoted and truncated only when the message is shown.
+type rej struct {
+	tmpl string
+	vals []string
+}
+
+func rj(tmpl string, vals ...string) rej { return rej{tmpl, vals} }
+
+func (r rej) none() bool { return r.tmpl == "" }
+
 // cell is one raw value before field rules: unset is null; reject marks a row
 // that cannot be read at all (the reason is shown to the user).
 type cell struct {
 	s      string
 	set    bool
-	reject string
+	reject *rej
 }
 
 // rawRow is one extracted record, keyed by record field id. A row-level reject
 // stops the row before any field is built.
 type rawRow struct {
-	reject string
-	cells  map[string]cell
+	reject *rej
+	cells  []idCell
+}
+
+type idCell struct {
+	id string
+	c  cell
+}
+
+func (r *rawRow) put(id string, c cell) { r.cells = append(r.cells, idCell{id, c}) }
+
+func (r rawRow) get(id string) cell {
+	for _, x := range r.cells {
+		if x.id == id {
+			return x.c
+		}
+	}
+	return cell{}
 }
 
 // ---------- JSON
@@ -31,8 +60,11 @@ type rawRow struct {
 func extractJSON(text string, p Parser, ids []string) ([]rawRow, error) {
 	root, err := decodeJSON(text)
 	if err != nil {
-		if errors.Is(err, errJSONDepth) {
+		switch {
+		case errors.Is(err, errJSONDepth):
 			return nil, fail(ErrBadSample, "The sample is nested too deeply.")
+		case errors.Is(err, errJSONNodes):
+			return nil, fail(ErrBadSample, "The sample has too many values.")
 		}
 		return nil, fail(ErrBadSample, "The sample is not valid JSON.")
 	}
@@ -64,13 +96,13 @@ func extractJSON(text string, p Parser, ids []string) ([]rawRow, error) {
 	}
 	rows := make([]rawRow, 0, len(nodes))
 	for _, n := range nodes {
-		r := rawRow{cells: map[string]cell{}}
+		r := rawRow{}
 		for _, fp := range paths {
 			var first *jnode
 			if m := evalPath(n, fp.toks); len(m) > 0 {
 				first = m[0]
 			}
-			r.cells[fp.id] = scalar(first)
+			r.put(fp.id, scalar(first))
 		}
 		rows = append(rows, r)
 	}
@@ -79,15 +111,48 @@ func extractJSON(text string, p Parser, ids []string) ([]rawRow, error) {
 
 // ---------- CSV (RFC 4180 quotes, CRLF, # comment lines)
 
-// parseCSV mirrors parsers.ts parseCsv. It stops once MaxRows+2 rows exist.
-func parseCSV(text string, delim rune) [][]string {
-	var rows [][]string
-	var row []string
+// maxCSVFields bounds the fields kept per row; a row with more is rejected.
+const maxCSVFields = 1000
+
+// csvRow is one record; bad is a reason when the row cannot be used.
+type csvRow struct {
+	cells []string
+	bad   string
+}
+
+const (
+	csvTooWide    = "row has more than 1000 fields"
+	csvOpenQuote  = "a quote is opened on this row and never closed"
+	csvHeaderNote = "The header row is not usable: "
+)
+
+// parseCSV mirrors parsers.ts parseCsv and stops once MaxRows+2 rows exist.
+// A quote still open at the end of the text does not swallow the rows after
+// it: that row is flagged and the text from its start is read again with
+// quotes taken literally, so every physical row is accounted for.
+func parseCSV(text string, delim rune, quotes bool) []csvRow {
+	var rows []csvRow
+	var cells []string
 	var cur strings.Builder
+	fields, rowStart := 0, 0
 	inQuote := false
-	push := func() {
-		row = append(row, cur.String())
+	endField := func() {
+		fields++
+		if fields <= maxCSVFields {
+			cells = append(cells, cur.String())
+		}
 		cur.Reset()
+	}
+	endRow := func() {
+		endField()
+		r := csvRow{cells: cells}
+		if fields > maxCSVFields {
+			r.bad = csvTooWide
+		}
+		if (fields != 1 || cells[0] != "") && !strings.HasPrefix(cells[0], "#") {
+			rows = append(rows, r)
+		}
+		cells, fields = nil, 0
 	}
 	for i := 0; i < len(text); {
 		c, w := utf8.DecodeRuneInString(text[i:])
@@ -101,43 +166,49 @@ func parseCSV(text string, delim rune) [][]string {
 				} else {
 					inQuote = false
 				}
-			} else {
+			} else if fields < maxCSVFields {
 				cur.WriteRune(c)
 			}
-		case c == '"' && cur.Len() == 0:
+		case quotes && c == '"' && cur.Len() == 0:
 			inQuote = true
 		case c == delim:
-			push()
+			endField()
 		case c == '\n' || c == '\r':
 			if c == '\r' && i < len(text) && text[i] == '\n' {
 				i++
 			}
-			push()
-			if (len(row) != 1 || row[0] != "") && !strings.HasPrefix(row[0], "#") {
-				rows = append(rows, row)
-			}
-			row = nil
+			endRow()
+			rowStart = i
 		default:
-			cur.WriteRune(c)
+			if fields < maxCSVFields {
+				cur.WriteRune(c)
+			}
 		}
 		if len(rows) > MaxRows+1 {
-			break
+			return rows
 		}
 	}
-	if cur.Len() > 0 || len(row) > 0 {
-		push()
-		if !strings.HasPrefix(row[0], "#") {
-			rows = append(rows, row)
+	if inQuote {
+		rest := parseCSV(text[rowStart:], delim, false)
+		if len(rest) > 0 {
+			rest[0].bad = csvOpenQuote
 		}
+		return append(rows, rest...)
+	}
+	if cur.Len() > 0 || fields > 0 || len(cells) > 0 {
+		endRow()
 	}
 	return rows
 }
 
-func extractCSV(text string, p Parser, ids []string, delim rune) []rawRow {
-	rows := parseCSV(text, delim)
+func extractCSV(text string, p Parser, ids []string, delim rune) ([]rawRow, error) {
+	rows := parseCSV(text, delim, true)
 	var header []string
 	if p.HasHeader && len(rows) > 0 {
-		for _, h := range rows[0] {
+		if rows[0].bad != "" {
+			return nil, fail(ErrBadSample, "%s%s.", csvHeaderNote, rows[0].bad)
+		}
+		for _, h := range rows[0].cells {
 			header = append(header, strings.ToLower(jsTrim(h)))
 		}
 		rows = rows[1:]
@@ -170,18 +241,24 @@ func extractCSV(text string, p Parser, ids []string, delim rune) []rawRow {
 		cols = append(cols, col{id, idx})
 	}
 	out := make([]rawRow, 0, len(rows))
-	for _, cells := range rows {
-		r := rawRow{cells: map[string]cell{}}
+	for _, row := range rows {
+		r := rawRow{}
+		if row.bad != "" {
+			bad := rj(row.bad)
+			r.reject = &bad
+			out = append(out, r)
+			continue
+		}
 		for _, c := range cols {
-			if c.idx >= 0 && c.idx < len(cells) {
-				r.cells[c.id] = cell{s: cells[c.idx], set: true}
+			if c.idx >= 0 && c.idx < len(row.cells) {
+				r.put(c.id, cell{s: row.cells[c.idx], set: true})
 			} else {
-				r.cells[c.id] = cell{}
+				r.put(c.id, cell{})
 			}
 		}
 		out = append(out, r)
 	}
-	return out
+	return out, nil
 }
 
 func isDigits(s string) bool {
@@ -198,20 +275,54 @@ func isDigits(s string) bool {
 
 // ---------- lines
 
-func extractLines(text string) []rawRow {
+// nextLine splits at the first line ending: CRLF, CR or LF.
+func nextLine(s string) (line, rest string) {
+	i := strings.IndexAny(s, "\r\n")
+	if i < 0 {
+		return s, ""
+	}
+	if s[i] == '\r' && i+1 < len(s) && s[i+1] == '\n' {
+		return s[:i], s[i+2:]
+	}
+	return s[:i], s[i+1:]
+}
+
+// isHostsSink reports the addresses a hosts-file blocklist maps names to.
+func isHostsSink(tok string) bool {
+	a, err := netip.ParseAddr(tok)
+	if err != nil {
+		return false
+	}
+	a = a.Unmap()
+	return a.IsUnspecified() || a.IsLoopback()
+}
+
+// extractLines reads a list of indicators, one token per line (the first),
+// comments with #. A hosts-file line ("0.0.0.0 evil.example.com [more names]")
+// yields its names, never the sink address.
+func extractLines(text string, maxRows int) []rawRow {
 	var out []rawRow
-	for rest := text; rest != "" && len(out) <= MaxRows; {
+	add := func(v string) {
+		out = append(out, rawRow{cells: []idCell{{"indicator", cell{s: v, set: true}}}})
+	}
+	for rest := text; rest != "" && len(out) <= maxRows; {
 		var line string
-		line, rest, _ = strings.Cut(rest, "\n")
+		line, rest = nextLine(rest)
 		line = jsTrim(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		first := line
-		if i := strings.IndexFunc(line, jsIsSpace); i >= 0 {
-			first = line[:i]
+		fields := strings.FieldsFunc(line, jsIsSpace)
+		if len(fields) > 1 && isHostsSink(fields[0]) && !isDigits(fields[1]) && !strings.HasPrefix(fields[1], "#") {
+			for _, name := range fields[1:] {
+				if strings.HasPrefix(name, "#") {
+					break
+				}
+				add(name)
+			}
+			continue
 		}
-		out = append(out, rawRow{cells: map[string]cell{"indicator": {s: first, set: true}}})
+		add(fields[0])
 	}
 	return out
 }
@@ -230,6 +341,9 @@ var (
 func extractSTIX(text string) ([]rawRow, error) {
 	root, err := decodeJSON(text)
 	if err != nil {
+		if errors.Is(err, errJSONNodes) {
+			return nil, fail(ErrBadSample, "The sample has too many values.")
+		}
 		return nil, fail(ErrBadSample, "The sample is not valid JSON.")
 	}
 	objs, _ := root.get("objects")
@@ -237,50 +351,43 @@ func extractSTIX(text string) ([]rawRow, error) {
 		return nil, fail(ErrBadSample, `No "objects" array: expected a STIX 2.1 bundle or a TAXII 2.1 envelope.`)
 	}
 	var out []rawRow
-	for _, o := range objs.arr {
+	for _, o := range objs.children() {
 		if len(out) > MaxRows {
 			break
 		}
 		if t, _ := o.get("type"); o.k != jObj || t == nil || t.k != jStr || t.s != "indicator" {
 			continue
 		}
-		base := map[string]cell{"confidence": {}, "first_seen": {}}
+		base := []idCell{{"confidence", cell{}}, {"first_seen", cell{}}}
 		if c, ok := o.get("confidence"); ok {
-			base["confidence"] = cell{s: jsString(c), set: true}
+			base[0].c = cell{s: jsString(c), set: true}
 		}
 		if v, ok := o.get("valid_from"); ok && v.k == jStr {
-			base["first_seen"] = cell{s: v.s, set: true}
+			base[1].c = cell{s: v.s, set: true}
 		}
-		withBase := func(extra map[string]cell) map[string]cell {
-			m := map[string]cell{}
-			for k, v := range base {
-				m[k] = v
-			}
-			for k, v := range extra {
-				m[k] = v
-			}
-			return m
+		withBase := func(extra ...idCell) []idCell {
+			return append(append(make([]idCell, 0, len(base)+len(extra)), base...), extra...)
 		}
-		rejectRow := func(why string) {
-			out = append(out, rawRow{reject: why, cells: withBase(nil)})
+		rejectRow := func(r rej) {
+			out = append(out, rawRow{reject: &r, cells: withBase()})
 		}
 		pat, _ := o.get("pattern")
 		if pat == nil || pat.k != jStr || jsLen(pat.s) > 2000 {
-			rejectRow("indicator has no usable pattern")
+			rejectRow(rj("indicator has no usable pattern"))
 			continue
 		}
 		matches := stixCompareRE.FindAllStringSubmatch(pat.s, -1)
 		for _, m := range matches {
 			kind, known := stixObj[m[1]]
 			if !known || (m[1] == "file" && !hashesRE.MatchString(m[2])) {
-				rejectRow("unsupported pattern object \"" + m[1] + ":" + m[2] + "\"")
+				rejectRow(rj("unsupported pattern object %s", m[1]+":"+m[2]))
 				continue
 			}
 			val := stixUnescape.ReplaceAllString(m[3], "$1")
-			out = append(out, rawRow{cells: withBase(map[string]cell{"indicator": {s: val, set: true}, "kind": {s: kind, set: true}})})
+			out = append(out, rawRow{cells: withBase(idCell{"indicator", cell{s: val, set: true}}, idCell{"kind", cell{s: kind, set: true}})})
 		}
 		if len(matches) == 0 {
-			rejectRow("pattern has no comparison this parser understands")
+			rejectRow(rj("pattern has no comparison this parser understands"))
 		}
 	}
 	if len(out) > MaxRows+1 {
@@ -292,15 +399,21 @@ func extractSTIX(text string) ([]rawRow, error) {
 // ---------- RSS 2.0 / Atom
 
 const (
-	maxXMLDepth    = 100
-	maxXMLElements = 500_000
+	maxXMLDepth = 100
+	// maxXMLNodes bounds elements and text pieces together; maxXMLAttrs the attributes
+	// (including xmlns declarations), which cost more each.
+	maxXMLNodes = 500_000
+	maxXMLAttrs = 100_000
+	// maxXMLNamespaces bounds xmlns declarations: the decoder keeps a stack entry for each.
+	maxXMLNamespaces = 200
 )
 
+// xnode is an element inside an item/entry, or a text node (local == "").
 type xnode struct {
 	local    string
 	attrs    []xml.Attr
-	children []*xnode // elements, and text nodes (local == "")
-	text     string   // text nodes only
+	children []*xnode
+	tb       []byte // text nodes only; adjacent text pieces are merged
 }
 
 // maxTextContent caps what one field can read; a legitimate value is far smaller.
@@ -316,7 +429,7 @@ func (n *xnode) textContent() string {
 				return
 			}
 			if c.local == "" {
-				b.WriteString(c.text)
+				b.Write(c.tb)
 			} else {
 				walk(c)
 			}
@@ -365,15 +478,22 @@ func charsetReader(label string, in io.Reader) (io.Reader, error) {
 	return nil, errors.New("unsupported encoding " + strconv.Quote(jsSlice(label, 20)))
 }
 
-// parseXML builds a bounded element tree. Go's decoder never expands DTD
-// entities (an undefined entity is an error), and a DTD that declares any is
-// refused outright.
-func parseXML(text string) (*xnode, error) {
+var errXMLBudget = errors.New("xml too large or too deeply nested")
+
+// parseXML returns the outermost item/entry elements with their subtrees.
+// Nothing outside an item is kept, and the whole document is bounded in depth
+// and in the number of elements, attributes and text pieces. Go's decoder
+// never expands DTD entities (an undefined entity is an error), and a DTD that
+// declares any is refused outright. Parsing stops once more than MaxRows items
+// were seen: the caller only needs to know the limit was crossed.
+func parseXML(text string) ([]*xnode, error) {
+	if tagTooLong(text) {
+		return nil, errXMLBudget
+	}
 	dec := xml.NewDecoder(strings.NewReader(text))
 	dec.CharsetReader = charsetReader
-	var root *xnode
-	var stack []*xnode
-	count := 0
+	var stack, items []*xnode
+	outside, roots, budget, attrs, namespaces := 0, 0, 0, 0, 0
 	for {
 		t, err := dec.Token()
 		if errors.Is(err, io.EOF) {
@@ -384,27 +504,60 @@ func parseXML(text string) (*xnode, error) {
 		}
 		switch e := t.(type) {
 		case xml.StartElement:
-			count++
-			if count > maxXMLElements || len(stack) >= maxXMLDepth {
-				return nil, errors.New("xml too large or too deeply nested")
+			for _, a := range e.Attr {
+				if a.Name.Space == "xmlns" || a.Name.Local == "xmlns" {
+					namespaces++
+				}
+			}
+			budget++
+			if namespaces > maxXMLNamespaces {
+				return nil, errXMLBudget
+			}
+			if attrs += len(e.Attr); budget > maxXMLNodes || attrs > maxXMLAttrs || len(stack)+outside >= maxXMLDepth {
+				return nil, errXMLBudget
+			}
+			if len(stack) == 0 {
+				if outside == 0 {
+					if roots++; roots > 1 {
+						return nil, errors.New("more than one root element")
+					}
+				}
+				if e.Name.Local != "item" && e.Name.Local != "entry" {
+					outside++
+					continue
+				}
 			}
 			n := &xnode{local: e.Name.Local, attrs: e.Attr}
-			if len(stack) == 0 {
-				if root != nil {
-					return nil, errors.New("more than one root element")
-				}
-				root = n
-			} else {
+			if len(stack) > 0 {
 				p := stack[len(stack)-1]
 				p.children = append(p.children, n)
 			}
 			stack = append(stack, n)
 		case xml.EndElement:
+			if len(stack) == 0 {
+				outside--
+				continue
+			}
+			n := stack[len(stack)-1]
 			stack = stack[:len(stack)-1]
+			if len(stack) == 0 {
+				items = append(items, n)
+				if len(items) > MaxRows {
+					return items, nil
+				}
+			}
 		case xml.CharData:
-			if len(stack) > 0 && len(e) > 0 {
-				p := stack[len(stack)-1]
-				p.children = append(p.children, &xnode{text: string(e)})
+			if budget++; budget > maxXMLNodes {
+				return nil, errXMLBudget
+			}
+			if len(stack) == 0 || len(e) == 0 {
+				continue
+			}
+			p := stack[len(stack)-1]
+			if k := len(p.children); k > 0 && p.children[k-1].local == "" {
+				p.children[k-1].tb = append(p.children[k-1].tb, e...)
+			} else {
+				p.children = append(p.children, &xnode{tb: append([]byte(nil), e...)})
 			}
 		case xml.Directive:
 			if bytes.Contains(bytes.ToUpper(e), []byte("<!ENTITY")) {
@@ -412,10 +565,10 @@ func parseXML(text string) (*xnode, error) {
 			}
 		}
 	}
-	if root == nil {
+	if roots == 0 {
 		return nil, errors.New("no root element")
 	}
-	return root, nil
+	return items, nil
 }
 
 func collectItems(n *xnode, out *[]*xnode) {
@@ -423,7 +576,9 @@ func collectItems(n *xnode, out *[]*xnode) {
 		*out = append(*out, n)
 	}
 	for _, c := range n.children {
-		collectItems(c, out)
+		if c.local != "" {
+			collectItems(c, out)
+		}
 	}
 }
 
@@ -468,24 +623,46 @@ func rssGet(el *xnode, name string) cell {
 }
 
 func extractRSS(text string, p Parser, ids []string) ([]rawRow, error) {
-	root, err := parseXML(text)
+	tops, err := parseXML(text)
 	if err != nil {
 		return nil, fail(ErrBadSample, "The sample is not valid XML.")
 	}
 	var items []*xnode
-	collectItems(root, &items)
+	for _, t := range tops {
+		collectItems(t, &items)
+	}
 	if len(items) > MaxRows+1 {
 		items = items[:MaxRows+1]
 	}
 	out := make([]rawRow, 0, len(items))
 	for _, it := range items {
-		r := rawRow{cells: map[string]cell{}}
+		r := rawRow{}
 		for _, id := range ids {
 			if src := jsTrim(p.Fields[id].Source); src != "" {
-				r.cells[id] = rssGet(it, src)
+				r.put(id, rssGet(it, src))
 			}
 		}
 		out = append(out, r)
 	}
 	return out, nil
+}
+
+// maxXMLRun is the longest stretch of text without a closing angle bracket. The
+// decoder reads every attribute of a start tag before it returns the tag, so a
+// 5 MB tag full of attributes would be built in memory before any budget
+// applies; this keeps any one tag small.
+const maxXMLRun = 1 << 20
+
+func tagTooLong(text string) bool {
+	for len(text) > 0 {
+		j := strings.IndexByte(text, '>')
+		if j < 0 {
+			return len(text) > maxXMLRun
+		}
+		if j > maxXMLRun {
+			return true
+		}
+		text = text[j+1:]
+	}
+	return false
 }

@@ -1,6 +1,7 @@
 package feeds
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -61,7 +62,7 @@ func TestHostileInputsAreBounded(t *testing.T) {
 					in = in[:MaxBodyBytes]
 				}
 				start := time.Now()
-				r, err := ParseFeed([]byte(in), KindIOC, DefaultParser(KindIOC, format))
+				r, err := ParseFeed(context.Background(), []byte(in), KindIOC, DefaultParser(KindIOC, format))
 				if d := time.Since(start); d > 15*time.Second {
 					t.Fatalf("took %v", d)
 				}
@@ -81,24 +82,24 @@ func TestXMLEntitiesAndEncodings(t *testing.T) {
 	t.Parallel()
 	p := DefaultParser(KindIOC, FormatRSS)
 	laughs := `<?xml version="1.0"?><!DOCTYPE l [<!ENTITY a "aaaa"><!ENTITY b "&a;&a;&a;&a;">]><rss><item><title>&b;</title></item></rss>`
-	if _, err := ParseFeed([]byte(laughs), KindIOC, p); !errors.Is(err, ErrBadSample) {
+	if _, err := ParseFeed(context.Background(), []byte(laughs), KindIOC, p); !errors.Is(err, ErrBadSample) {
 		t.Errorf("entity declarations must be refused: %v", err)
 	}
-	if _, err := ParseFeed([]byte(`<rss><item><title>&nbsp;x</title></item></rss>`), KindIOC, p); !errors.Is(err, ErrBadSample) {
+	if _, err := ParseFeed(context.Background(), []byte(`<rss><item><title>&nbsp;x</title></item></rss>`), KindIOC, p); !errors.Is(err, ErrBadSample) {
 		t.Errorf("undefined entity must be an error: %v", err)
 	}
-	if _, err := ParseFeed([]byte(`<?xml version="1.0" encoding="x-unknown"?><rss/>`), KindIOC, p); !errors.Is(err, ErrBadSample) {
+	if _, err := ParseFeed(context.Background(), []byte(`<?xml version="1.0" encoding="x-unknown"?><rss/>`), KindIOC, p); !errors.Is(err, ErrBadSample) {
 		t.Errorf("unsupported encoding: %v", err)
 	}
-	if _, err := ParseFeed([]byte(strings.Repeat("<a>", maxXMLDepth+5)), KindIOC, p); !errors.Is(err, ErrBadSample) {
+	if _, err := ParseFeed(context.Background(), []byte(strings.Repeat("<a>", maxXMLDepth+5)), KindIOC, p); !errors.Is(err, ErrBadSample) {
 		t.Errorf("deep xml: %v", err)
 	}
-	if _, err := ParseFeed([]byte(`<a/><b/>`), KindIOC, p); !errors.Is(err, ErrBadSample) {
+	if _, err := ParseFeed(context.Background(), []byte(`<a/><b/>`), KindIOC, p); !errors.Is(err, ErrBadSample) {
 		t.Errorf("two roots: %v", err)
 	}
 	// ISO-8859-1 is decoded; predefined and numeric entities and CDATA work.
 	latin := "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?><rss><item><title>caf\xe9.example.com</title></item><item><title>&#x31;.2.3.4</title></item><item><title><![CDATA[5.6.7.8]]></title></item><item><title>a&amp;b.example.com</title></item></rss>"
-	r, err := ParseFeed([]byte(latin), KindIOC, p)
+	r, err := ParseFeed(context.Background(), []byte(latin), KindIOC, p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +120,7 @@ func TestRSSFieldLookup(t *testing.T) {
 	xmlText := `<feed xmlns="http://www.w3.org/2005/Atom" xmlns:x="urn:x"><entry>
 	<id>CVE-2026-5555</id><x:author>Vendor <b>Inc</b></x:author><category term="Router"/>
 	<summary>Short <![CDATA[text]]></summary><link href="https://a.example/x"/><updated>2026-11-03T01:02:03Z</updated></entry></feed>`
-	r, err := ParseFeed([]byte(xmlText), KindVulnerabilities, p)
+	r, err := ParseFeed(context.Background(), []byte(xmlText), KindVulnerabilities, p)
 	if err != nil || r.Accepted != 1 {
 		t.Fatalf("%v %+v", err, r.Stats)
 	}
@@ -129,7 +130,7 @@ func TestRSSFieldLookup(t *testing.T) {
 	}
 	// parsers.ts compares the tag name exactly for the term attribute: "Category" reads the text instead.
 	p.Fields["product"] = fm("Category")
-	r, _ = ParseFeed([]byte(`<rss><item><guid>CVE-2026-5555</guid><category term="T">text</category></item></rss>`), KindVulnerabilities, withField(p, "cve", fm("guid"), "link", fm("")))
+	r, _ = ParseFeed(context.Background(), []byte(`<rss><item><guid>CVE-2026-5555</guid><category term="T">text</category></item></rss>`), KindVulnerabilities, withField(p, "cve", fm("guid"), "link", fm("")))
 	if r.Accepted != 1 || r.Records[0]["product"] != "text" {
 		t.Errorf("category quirk: %v", r.Records)
 	}
@@ -149,7 +150,7 @@ func withField(p Parser, kv ...any) Parser {
 
 func TestCSVQuirks(t *testing.T) {
 	t.Parallel()
-	got := parseCSV("a;b\r\n\r\n#skip;me\r\n\"x;y\";z\n\"multi\nline\";q\nlast;row", ';')
+	got := csvCells("a;b\r\n\r\n#skip;me\r\n\"x;y\";z\n\"multi\nline\";q\nlast;row", ';')
 	want := [][]string{{"a", "b"}, {"x;y", "z"}, {"multi\nline", "q"}, {"last", "row"}}
 	if len(got) != len(want) {
 		t.Fatalf("rows = %q", got)
@@ -163,8 +164,17 @@ func TestCSVQuirks(t *testing.T) {
 	p := DefaultParser(KindIOC, FormatCSV)
 	p.Fields["indicator"] = fm(" DST_IP ")
 	p.Fields["first_seen"] = fm("9")
-	r, _ := ParseFeed([]byte("dst_ip,x\n1.2.3.4\n5.6.7.8,y\n"), KindIOC, p)
+	r, _ := ParseFeed(context.Background(), []byte("dst_ip,x\n1.2.3.4\n5.6.7.8,y\n"), KindIOC, p)
 	if r.Accepted != 2 || r.Records[0]["first_seen"] != nil {
 		t.Errorf("%+v %v", r.Stats, r.Records)
 	}
+}
+
+// csvCells is parseCSV reduced to the cells, for tests that do not care about flags.
+func csvCells(text string, delim rune) [][]string {
+	var out [][]string
+	for _, r := range parseCSV(text, delim, true) {
+		out = append(out, r.cells)
+	}
+	return out
 }

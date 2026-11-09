@@ -1,9 +1,12 @@
 package feeds
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"math"
 	"regexp"
+	"regexp/syntax"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -48,38 +51,61 @@ func (r Result) Preview() Result {
 	return r
 }
 
-var quotedRE = regexp.MustCompile(`"[^"]*"`)
+// maxReasons bounds the distinct reasons kept; the rest are counted as "other".
+const maxReasons = 50
 
 // tally accumulates accepted/rejected counts the same way for every parser.
+// Reasons are grouped by message template (the static text, with the echoed
+// values left out), so a hostile value can neither split nor flood the groups.
 type tally struct {
 	Stats
 	counts map[string]int
 	order  []string
+	other  int
 }
 
 func newTally() *tally {
 	return &tally{Stats: Stats{Reasons: []Reason{}, Rejects: []Reject{}}, counts: map[string]int{}}
 }
 
-func (t *tally) reject(row int, reason string) {
-	t.Rejected++
-	key := quotedRE.ReplaceAllString(reason, `"…"`)
-	if _, seen := t.counts[key]; !seen {
-		t.order = append(t.order, key)
+func fill(tmpl string, vals []string, show func(string) string) string {
+	args := make([]any, len(vals))
+	for i, v := range vals {
+		args[i] = show(v)
 	}
-	t.counts[key]++
+	return fmt.Sprintf(tmpl, args...)
+}
+
+// reject records a rejected row. tmpl is a static message with one %s per
+// value in vals; values are shown quoted (Go escapes) and truncated.
+func (t *tally) reject(row int, tmpl string, vals ...string) {
+	t.Rejected++
+	key := fill(tmpl, vals, func(string) string { return "\"…\"" })
+	if _, seen := t.counts[key]; seen {
+		t.counts[key]++
+	} else if len(t.order) < maxReasons {
+		t.order = append(t.order, key)
+		t.counts[key] = 1
+	} else {
+		t.other++
+	}
 	if len(t.Rejects) < MaxRejects {
-		t.Rejects = append(t.Rejects, Reject{Row: row, Reason: reason})
+		t.Rejects = append(t.Rejects, Reject{Row: row, Reason: fill(tmpl, vals, quoteVal)})
 	}
 }
 
+func (t *tally) rejectR(row int, r rej) { t.reject(row, r.tmpl, r.vals...) }
+
 func (t *tally) stats() Stats {
 	s := t.Stats
-	s.Reasons = make([]Reason, 0, len(t.order))
+	s.Reasons = make([]Reason, 0, len(t.order)+1)
 	for _, k := range t.order {
 		s.Reasons = append(s.Reasons, Reason{k, t.counts[k]})
 	}
 	sort.SliceStable(s.Reasons, func(i, j int) bool { return s.Reasons[i].Count > s.Reasons[j].Count })
+	if t.other > 0 {
+		s.Reasons = append(s.Reasons, Reason{"other", t.other})
+	}
 	return s
 }
 
@@ -137,7 +163,7 @@ func compilePlan(kind Kind, p Parser) (*plan, error) {
 	}
 	for id := range p.Fields {
 		if !known[id] {
-			return nil, fail(ErrBadConfig, "Unknown field %q.", jsSlice(id, 40))
+			return nil, fail(ErrBadConfig, "Unknown field %s.", quoteVal(id))
 		}
 	}
 	for _, spec := range fieldSpecs(kind) {
@@ -161,9 +187,9 @@ func compilePlan(kind Kind, p Parser) (*plan, error) {
 			}
 		}
 		if f.Regex != "" {
-			re, err := regexp.Compile(f.Regex)
-			if err != nil || len(f.Regex) > MaxRegexLen {
-				return nil, fail(ErrBadConfig, "Invalid regular expression for %s.", spec.id)
+			re, why := compileRegex(f.Regex)
+			if why != "" {
+				return nil, fail(ErrBadConfig, "%s for %s.", why, spec.id)
 			}
 			pl.res[spec.id] = re
 		}
@@ -177,11 +203,35 @@ func compilePlan(kind Kind, p Parser) (*plan, error) {
 	return pl, nil
 }
 
+// ctxCheckEvery is how many rows are built between context checks.
+const ctxCheckEvery = 8
+
+// maxRegexCell is the longest cell a customer regex is run on; a longer one
+// rejects the row. RE2 is linear, but cell size times program size times rows
+// must stay small.
+const maxRegexCell = 4096
+
 // ParseFeed parses untrusted feed data with a custom parser, fail-closed (INV-2, INV-3):
 // input over MaxBodyBytes is ErrTooLarge; rows over MaxRows set Truncated; an
 // invalid row is rejected and counted, never half-accepted. Configuration
-// problems are ErrBadConfig, undecodable data is ErrBadSample.
-func ParseFeed(data []byte, kind Kind, p Parser) (Result, error) {
+// problems are ErrBadConfig, undecodable data is ErrBadSample. ctx is checked
+// every few rows; on cancellation nothing is returned (ctx.Err()).
+func ParseFeed(ctx context.Context, data []byte, kind Kind, p Parser) (Result, error) {
+	return parseWith(ctx, data, kind, p, MaxRows)
+}
+
+// ParseSource parses the data of a built-in source with the source's own row limit.
+func ParseSource(ctx context.Context, src Source, data []byte) (Result, error) {
+	if src.Decoder != DecoderParser || src.Parser == nil {
+		return Result{}, fail(ErrBadConfig, "%s has a dedicated parser.", src.Name)
+	}
+	return parseWith(ctx, data, src.Kind, *src.Parser, src.rowLimit())
+}
+
+func parseWith(ctx context.Context, data []byte, kind Kind, p Parser, maxRows int) (Result, error) {
+	if err := ctx.Err(); err != nil {
+		return Result{}, err
+	}
 	if len(data) > MaxBodyBytes {
 		return Result{}, fail(ErrTooLarge, "The sample is larger than %d MB; Vedette would skip it.", MaxBodyBytes/1_000_000)
 	}
@@ -195,27 +245,32 @@ func ParseFeed(data []byte, kind Kind, p Parser) (Result, error) {
 	case FormatJSON:
 		raws, err = extractJSON(text, p, pl.active)
 	case FormatCSV:
-		raws = extractCSV(text, p, pl.active, pl.delim)
+		raws, err = extractCSV(text, p, pl.active, pl.delim)
 	case FormatRSS:
 		raws, err = extractRSS(text, p, pl.active)
 	case FormatSTIX:
 		raws, err = extractSTIX(text)
 	default:
-		raws = extractLines(text)
+		raws = extractLines(text, maxRows)
 	}
 	if err != nil {
 		return Result{}, err
 	}
 	res := Result{Records: []Record{}}
 	t := newTally()
-	t.Truncated = len(raws) > MaxRows
-	if len(raws) > MaxRows {
-		raws = raws[:MaxRows]
+	t.Truncated = len(raws) > maxRows
+	if len(raws) > maxRows {
+		raws = raws[:maxRows]
 	}
 	for i, raw := range raws {
+		if i%ctxCheckEvery == 0 {
+			if err := ctx.Err(); err != nil {
+				return Result{}, err
+			}
+		}
 		rec, why := pl.build(raw)
-		if why != "" {
-			t.reject(i+1, why)
+		if !why.none() {
+			t.rejectR(i+1, why)
 			continue
 		}
 		t.Accepted++
@@ -225,21 +280,29 @@ func ParseFeed(data []byte, kind Kind, p Parser) (Result, error) {
 	return res, nil
 }
 
+func prefixed(id string, r rej) rej { return rej{id + ": " + r.tmpl, r.vals} }
+
 // applyField runs one field's rules: regex, trim, lowercase, date. A nil value
-// is "no value"; reject is non-empty when the row must be refused.
-func (pl *plan) applyField(id string, c cell, isDate bool) (val any, reject string) {
-	if c.reject != "" {
-		return nil, id + ": " + c.reject
+// is "no value"; the rejection is set when the row must be refused. Identifiers
+// refuse control and format characters; free-text fields (spec.free) have the
+// format characters and C1 controls stripped instead.
+func (pl *plan) applyField(spec fieldSpec, c cell) (val any, why rej) {
+	id := spec.id
+	if c.reject != nil {
+		return nil, prefixed(id, *c.reject)
 	}
 	if !c.set {
-		return nil, ""
+		return nil, rej{}
 	}
 	f, has := pl.field(id)
 	v := c.s
 	if re := pl.res[id]; re != nil {
+		if len(v) > maxRegexCell {
+			return nil, rj(id + ": value is longer than 4096 bytes")
+		}
 		loc := re.FindStringSubmatchIndex(v)
 		if loc == nil {
-			return nil, id + ": regex did not match"
+			return nil, rj(id + ": regex did not match")
 		}
 		if len(loc) >= 4 && loc[2] >= 0 {
 			v = v[loc[2]:loc[3]]
@@ -253,38 +316,41 @@ func (pl *plan) applyField(id string, c cell, isDate bool) (val any, reject stri
 	if has && f.Lowercase {
 		v = strings.ToLower(v)
 	}
+	if spec.free {
+		v = stripFormat(v)
+	}
 	if v == "" {
-		return nil, ""
+		return nil, rej{}
 	}
-	if hasControl(v) {
-		return nil, id + ": contains control characters"
+	if (spec.free && hasControl(v)) || (!spec.free && hasControlStrict(v)) {
+		return nil, rj(id + ": contains control or invisible characters")
 	}
-	if isDate {
+	if spec.date {
 		df := DateAuto
 		if has && f.DateFormat != "" {
 			df = f.DateFormat
 		}
 		d, ok := normDate(v, df)
 		if !ok {
-			return nil, id + `: unrecognised date "` + jsSlice(v, 30) + `"`
+			return nil, rj(id+": unrecognised date %s", v)
 		}
-		return d, ""
+		return d, rej{}
 	}
-	return v, ""
+	return v, rej{}
 }
 
-func (pl *plan) build(raw rawRow) (Record, string) {
-	if raw.reject != "" {
-		return nil, raw.reject
+func (pl *plan) build(raw rawRow) (Record, rej) {
+	if raw.reject != nil {
+		return nil, *raw.reject
 	}
 	out := Record{}
 	for _, spec := range fieldSpecs(pl.kind) {
-		v, why := pl.applyField(spec.id, raw.cells[spec.id], spec.date)
-		if why != "" {
+		v, why := pl.applyField(spec, raw.get(spec.id))
+		if !why.none() {
 			return nil, why
 		}
 		if v == nil && spec.required {
-			return nil, spec.id + ": missing"
+			return nil, rj(spec.id + ": missing")
 		}
 		out[spec.id] = v
 	}
@@ -294,29 +360,29 @@ func (pl *plan) build(raw rawRow) (Record, string) {
 	return buildIOC(out)
 }
 
-func buildVuln(out Record) (Record, string) {
+func buildVuln(out Record) (Record, rej) {
 	cve := strings.ToUpper(out["cve"].(string))
 	if !cveRE.MatchString(cve) {
-		return nil, `cve: "` + jsSlice(cve, 30) + `" is not a CVE ID`
+		return nil, rj("cve: %s is not a CVE ID", cve)
 	}
 	out["cve"] = cve
 	if l, ok := out["link"].(string); ok && !validLink(l) {
-		return nil, "link: not an http(s) address"
+		return nil, rj("link: not an http(s) address")
 	}
 	if d, ok := out["description"].(string); ok {
 		out["description"] = jsSlice(d, 500)
 	}
-	return out, ""
+	return out, rej{}
 }
 
-func buildIOC(out Record) (Record, string) {
+func buildIOC(out Record) (Record, rej) {
 	ind := out["indicator"].(string)
 	var given string
 	hasKind := false
 	if k, ok := out["kind"].(string); ok {
 		a, known := kindAlias[strings.ToLower(k)]
 		if !known {
-			return nil, `kind: unknown value "` + jsSlice(k, 20) + `"`
+			return nil, rj("kind: unknown value %s", k)
 		}
 		given, hasKind = a, true
 	}
@@ -328,36 +394,45 @@ func buildIOC(out Record) (Record, string) {
 	if !hasKind {
 		kind = detectKind(value)
 	}
-	ok := false
-	switch kind {
-	case "ip":
-		value, ok = canonicalIP(value)
-	case "domain":
-		ok = validDomain(value)
-		value = strings.ToLower(value)
-	case "url":
-		ok = validIndicatorURL(value)
-	case "hash":
-		ok = hashRE.MatchString(value)
-		value = strings.ToLower(value)
+	if kind == "" {
+		return nil, rj("indicator: %s is not a valid indicator", ind)
 	}
-	if kind == "" || !ok {
-		what := kind
-		if what == "" {
-			what = "indicator"
-		}
-		return nil, `indicator: "` + jsSlice(ind, 40) + `" is not a valid ` + what
+	value, why := normaliseIOC(kind, value)
+	if !why.none() {
+		return nil, rej{"indicator: " + why.tmpl, append([]string{ind}, why.vals...)}
 	}
 	out["indicator"], out["kind"] = value, kind
 	if cs, ok := out["confidence"].(string); ok {
 		c, ok := jsNumber(cs)
 		if !ok || c < 0 || c > 100 {
-			return nil, `confidence: "` + jsSlice(cs, 20) + `" is not a number from 0 to 100`
+			return nil, rj("confidence: %s is not a number from 0 to 100", cs)
 		}
 		if c > 1 {
 			c /= 100
 		}
 		out["confidence"] = math.Floor(c*100+0.5) / 100
 	}
-	return out, ""
+	return out, rej{}
+}
+
+// maxRegexProg bounds the compiled RE2 program of a customer regex.
+const maxRegexProg = 1000
+
+func compileRegex(expr string) (*regexp.Regexp, string) {
+	if len(expr) > MaxRegexLen {
+		return nil, "Invalid regular expression (longer than 200 characters)"
+	}
+	tree, err := syntax.Parse(expr, syntax.Perl)
+	if err != nil {
+		return nil, "Invalid regular expression"
+	}
+	prog, err := syntax.Compile(tree.Simplify())
+	if err != nil || len(prog.Inst) > maxRegexProg {
+		return nil, "Invalid regular expression (too complex)"
+	}
+	re, err := regexp.Compile(expr)
+	if err != nil {
+		return nil, "Invalid regular expression"
+	}
+	return re, ""
 }

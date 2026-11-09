@@ -178,7 +178,7 @@ func (r responseConnections) List(ctx context.Context) ([]response.ConnectionInf
 	for i, c := range list {
 		out[i] = response.ConnectionInfo{
 			Connection: response.Connection{ID: c.ID, Name: c.Name, Enabled: c.Enabled, Kind: c.Kind, WriteTools: conn.WriteTools(c)},
-			Target:     c.Target, UpdatedAt: c.UpdatedAt,
+			Target:     c.Target, UpdatedAt: c.UpdatedAt, NotReady: conn.NotReady(c), Allow: c.Allow,
 		}
 	}
 	return out, nil

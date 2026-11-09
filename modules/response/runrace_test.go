@@ -218,7 +218,7 @@ func (h *hangExec) Execute(_ context.Context, _ response.DeviceStep) (response.D
 	default:
 	}
 	<-h.release
-	return response.DeviceResult{Detail: "late"}, nil
+	return response.DeviceResult{Status: response.StepOK, Detail: "late"}, nil
 }
 
 // INV-19 (L6): runItem stops waiting at the item's deadline even when the executor does not: the item is recorded "State unknown",

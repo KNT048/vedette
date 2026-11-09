@@ -152,6 +152,17 @@ func Fingerprint(id, kind, target, updatedAt string) string {
 	return hex.EncodeToString(h[:16])
 }
 
+// Identity is what an undo needs to reach the same device: id, kind and address. It does not move when the secret, the pin, the
+// allow-list or the tool switches change, so a rotated token or a renewed certificate does not strand the undo of a change still in
+// force (response D-88 (4): removing a change is the safe direction). A run keeps the full Fingerprint.
+func Identity(id, kind, target string) string {
+	h := sha256.Sum256([]byte("identity\x00" + id + "\x00" + kind + "\x00" + target))
+	return hex.EncodeToString(h[:16])
+}
+
+// Identity of this connection.
+func (c Connection) Identity() string { return Identity(c.ID, c.Kind, c.Target) }
+
 // Fingerprint of this connection.
 func (c Connection) Fingerprint() string { return Fingerprint(c.ID, c.Kind, c.Target, c.UpdatedAt) }
 

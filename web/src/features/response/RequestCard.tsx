@@ -12,6 +12,7 @@ import { Field, Input, Select, Textarea } from '@/components/ui/input'
 import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { errText, useApprove, useReject, useRollback } from './api'
+import { undoable } from './state'
 import { ChangeView, ItemTag, RiskChip, StatusTag } from './parts'
 import type { ActionRequest, RequestItem } from './types'
 
@@ -62,6 +63,7 @@ function Item({ i, pick, onPick }: { i: RequestItem; pick?: boolean; onPick?: (v
       </p>
       {i.status === 'executed' && i.remove_at ? <p className="text-[13px]">{t('action.removeAt')}: {fmtDateTime(i.remove_at)}</p> : null}
       {i.result ? <p className="text-[13px]"><span className="font-medium">{t('action.result')}:</span> {i.result}</p> : null}
+      {i.state_unknown ? <p className="text-[13px] text-danger" role="note">{t('request.unknown')}</p> : null}
       {i.verified ? <p className="text-[13px]"><Chip tone={i.verified.ok ? 'ok' : 'danger'}>{i.verified.ok ? t('request.verifiedOk') : t('request.verifiedBad')}</Chip> {i.verified.detail}</p> : null}
       <details>
         <summary className="cursor-pointer text-[13px] text-accent">{t('proposal.exact')}</summary>
@@ -151,7 +153,7 @@ export function RequestCard({ a }: { a: ActionRequest }) {
             <Button disabled={!can} title={role} onClick={() => setRejecting(true)}>{t('action.reject')}</Button>
           </div>
         </div>
-      ) : a.items.some((i) => i.status === 'executed') ? (
+      ) : a.items.some(undoable) ? (
         <div><Button disabled={!can || rollback.isPending} title={role} onClick={() => rollback.mutate(a.id, { onSuccess: () => toast.success(t('action.rolledBackToast')), onError: (e) => toast.error(errText(e)) })}>{t('action.rollback')}</Button></div>
       ) : null}
       {rejecting ? <RejectDialog a={a} onClose={() => setRejecting(false)} /> : null}

@@ -37,7 +37,10 @@ export const Tpl = z.object({
 export const PrecheckRefuse = z.array(z.string().min(1).max(80)).max(8).describe('Texts that make the check before refuse: when its output contains one, nothing is written. Needed (at least one) for any device action that can name a port: {interface}, and in a custom action {port}, {id} or {name} in a command or path')
 export const PrecheckExpect = z.string().max(80).describe('Text the output of the check before must contain, or nothing is written (printable ASCII, case-sensitive). Empty = none. An empty output always refuses')
 
-export const RestCall = z.object({ method: z.enum(['GET', 'PUT', 'PATCH', 'POST', 'DELETE']), url: z.string(), body: z.string().nullable() })
+export const RestCall = z.object({
+  method: z.enum(['GET', 'PUT', 'PATCH', 'POST', 'DELETE']), url: z.string(), body: z.string().nullable(),
+  headers: z.record(z.string(), z.string()).describe('The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection\'s and never listed'),
+})
 const rest = RestCall.nullable().describe('The exact API call, or null when the action is a command only')
 export const Change = z.object({
   before: z.string().describe('State of the target before the change, in plain words'),
@@ -79,6 +82,7 @@ export const RequestItem = z.object({
   ttl_min: z.number().int().nullable().describe('Minutes after execution until the change is undone automatically'),
   status: ItemStatus, executed_at: iso.nullable(), remove_at: iso.nullable(), rolled_back_at: iso.nullable(),
   result: z.string().nullable(), verified: z.object({ ok: z.boolean(), detail: z.string() }).nullable().describe('Result of the read-back after the action ran'),
+  state_unknown: z.boolean().describe('A failed item whose step was sent and whose outcome is not known: it may be in force, so it can be undone to be sure'),
 })
 export const Approval = z.object({ user_id: z.string(), name: z.string(), email: z.string(), via: ApprovedVia, at: iso, items: z.array(z.string()).describe('Item ids this person approved') })
 export const Evidence = z.object({ kind: z.enum(['finding', 'ioc_hit', 'config_read']), id: z.string(), summary: z.string() })

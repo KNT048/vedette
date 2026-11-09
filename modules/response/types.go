@@ -69,6 +69,9 @@ type RestCall struct {
 	Method string  `json:"method"`
 	URL    string  `json:"url"`
 	Body   *string `json:"body"`
+	// Headers are the headers of the template with the typed values filled in, exactly as they are sent (the sign-in is the connection's and
+	// never appears here; a name that INV-14b forbids never reaches this point). Always an object.
+	Headers map[string]string `json:"headers"`
 }
 
 // RollbackChange is how a change is undone.
@@ -118,6 +121,10 @@ type RequestItem struct {
 	RolledBackAt *string    `json:"rolled_back_at"`
 	Result       *string    `json:"result"`
 	Verified     *Verified  `json:"verified"`
+	// StateUnknown marks a failed item whose step was sent and whose outcome is not known (a time-out after it left, an answer that does not
+	// say "refused", a crash): the change may be in force on the device, so the connection cannot be deleted (ChangesInForce) and a person
+	// can undo it to be sure. The sweep reads the device back when the action has a read-back text and settles it either way.
+	StateUnknown bool `json:"state_unknown"`
 }
 
 // itemRec is the stored form of an item: the wire item plus the checked values it was planned with, which the
@@ -134,13 +141,21 @@ type itemRec struct {
 	ConnFP       string `json:"conn_fp"`
 	ActionFP     string `json:"action_fp"` // actionFP of the catalog entry when the request was made: its templates and its risk
 
+	// Exec is what is sent to the device: the check before, the run, the rollback and the read-back, rendered when the request was
+	// made, so what runs is what the approver saw (INV-22). nil on a device item made by an older version: it cannot run.
+	Exec *execRec `json:"exec,omitempty"`
+
 	// RunningAt is set, in its own transaction with a log line, before a step is sent to a device or a webhook (INV-19). An item that
 	// stays so after a restart or a timeout is failed by the sweep with "state unknown": a step may have been applied.
 	RunningAt string `json:"running_at,omitempty"`
 
-	// StateUnknown marks a failed item whose step was sent and never answered in time: its change may be in force on the device, so the
-	// connection cannot be deleted (ChangesInForce). A late result of the step clears it. Not the text of Result: the text is for people.
-	StateUnknown bool `json:"state_unknown,omitempty"`
+	// ConnIdent is conn.Identity of the connection (id, kind, address) when the request was made: an undo is held to it instead of to ConnFP,
+	// so a rotated token or a renewed pin does not strand a change that is in force (D-88 (4)).
+	ConnIdent string `json:"conn_ident,omitempty"`
+
+	// UndoUnclear is set when an undo was sent and its outcome is not known (no answer, or a read-back that could not tell): the next try
+	// reads the device first and sends the rollback again only when the change is still there.
+	UndoUnclear bool `json:"undo_unclear,omitempty"`
 }
 
 // Approval is one person's (or a pre-approved rule's) approval.
@@ -264,9 +279,12 @@ type Settings struct {
 	BreakerMaxPerHour int      `json:"breaker_max_per_hour"`
 	BreakerTrippedAt  *string  `json:"breaker_tripped_at"`
 	BreakerNotified   []string `json:"breaker_notified"`
-	MultiTargetMax    int      `json:"multi_target_max"`
-	Maintenance       []Window `json:"maintenance"`
-	AI                AiGates  `json:"ai"`
+	// StoppedAt is when the emergency stop was pressed, until an admin resumes (ResetBreaker). It blocks every step that touches a device, an undo
+	// included; the execution switch and the breaker do not block an undo.
+	StoppedAt      *string  `json:"stopped_at,omitempty"`
+	MultiTargetMax int      `json:"multi_target_max"`
+	Maintenance    []Window `json:"maintenance"`
+	AI             AiGates  `json:"ai"`
 }
 
 // ChannelView is an approval channel as the settings show it.

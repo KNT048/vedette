@@ -188,7 +188,7 @@ func (s *Service) ResetBreaker(ctx context.Context, who Actor) (SettingsView, er
 		if err != nil {
 			return err
 		}
-		st.BreakerTrippedAt, st.BreakerNotified = nil, []string{}
+		st.BreakerTrippedAt, st.BreakerNotified, st.StoppedAt = nil, []string{}, nil
 		if err := s.saveSettings(ctx, tx, st); err != nil {
 			return err
 		}

@@ -96,7 +96,10 @@ func (s *Service) planAction(a RuleAction, ev Det, why string, cats map[string]c
 	if c, ok := cs.get(cat.ConnectionID); ok && cat.device() {
 		conn = &c
 	}
-	ch, err := s.buildChange(cat, vals, conn, why)
+	if cat.device() && cat.usesRuntime("expiry_s") && a.TTLMin == nil { // D-94 (4): {expiry_s} is the undo time in seconds
+		return planned{}, &planFail{"tool_unavailable", "Not available: this action needs an undo time, and none is set.", title}
+	}
+	ch, err := s.buildChange(cat, vals, conn, why, a.TTLMin)
 	if err != nil {
 		return planned{}, &planFail{"invalid_target", "The action could not be rendered from its template. Nothing was changed.", title}
 	}
@@ -115,7 +118,13 @@ func (s *Service) planAction(a RuleAction, ev Det, why string, cats map[string]c
 	}
 	rec := itemRec{RequestItem: it, Values: map[ParamType]string(vals), Acted: acted, RunTool: cat.Tool, RollbackTool: cat.RollbackTool, ActionFP: actionFP(cat)}
 	if cat.device() {
-		rec.ConnectorID, rec.Connection, rec.ConnFP = strp(cat.ConnectionID), strp(conn.Name), connFP(*conn)
+		rec.ConnectorID, rec.Connection, rec.ConnFP, rec.ConnIdent = strp(cat.ConnectionID), strp(conn.Name), connFP(*conn), connIdent(*conn)
+		if rec.Exec, err = s.buildExec(cat, vals, conn, a.TTLMin); err != nil {
+			return planned{}, &planFail{"invalid_target", "The action could not be rendered from its template. Nothing was changed.", title}
+		}
+		if why := rec.Exec.addressProblem(*conn); why != "" { // an action that could never be sent is not available, with the reason (L6)
+			return planned{}, &planFail{"tool_unavailable", why, title}
+		}
 	}
 	return planned{rec: rec, key: planKey(rec.RequestItem)}, nil
 }

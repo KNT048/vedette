@@ -56,6 +56,8 @@ type SSH struct {
 	// HostKey is what the server presented: "<type> SHA256:<fingerprint>".
 	HostKey string
 
+	raw      net.Conn // the socket under the SSH connection: closing it ends a read or a write that is stuck
+	stopCtx  func() bool
 	client   *ssh.Client
 	session  *ssh.Session
 	stdin    io.WriteCloser
@@ -88,7 +90,7 @@ func DialSSH(ctx context.Context, hostport string, cfg SSHConfig) (*SSH, error) 
 	if err != nil {
 		return nil, err
 	}
-	s := &SSH{deadline: time.Now().Add(SessionTimeout), redact: []string{cfg.Password.Reveal(), cfg.Username}}
+	s := &SSH{raw: raw, deadline: time.Now().Add(SessionTimeout), redact: []string{cfg.Password.Reveal(), cfg.Username}}
 	s.cond = sync.NewCond(&s.mu)
 	fail := func(err error) (*SSH, error) {
 		_ = raw.Close()
@@ -186,6 +188,9 @@ func DialSSH(ctx context.Context, hostport string, cfg SSHConfig) (*SSH, error) 
 	if !setupTimer.Stop() { // it fired: the connection is already closed
 		return closeOnErr(errors.New("timed out"))
 	}
+	// For the rest of the session the end of ctx closes the socket: a write that waits for window the device never grants (the channel
+	// blocks inside the library, where no deadline reaches it) must not outlive the step.
+	s.stopCtx = context.AfterFunc(ctx, func() { _ = raw.Close() })
 	go s.read(out)
 	if _, err := s.waitPrompt(ctx, LineTimeout); err != nil {
 		return closeOnErr(err)
@@ -322,9 +327,16 @@ func (s *SSH) Run(ctx context.Context, line string) (string, error) {
 	if closed {
 		return "", deviceErr("the device closed the session")
 	}
+	// A line has LineTimeout to be written, whatever the window of the channel says: the timer closes the socket under the write.
+	limit := LineTimeout
+	if left := time.Until(s.deadline); left < limit {
+		limit = left
+	}
+	stuck := time.AfterFunc(limit, func() { _ = s.raw.Close() })
 	s.wmu.Lock()
 	_, err := io.WriteString(s.stdin, line+"\r")
 	s.wmu.Unlock()
+	stuck.Stop()
 	if err != nil {
 		s.Close()
 		return "", deviceErr("the device closed the session")
@@ -361,6 +373,12 @@ func (s *SSH) Close() {
 	}
 	s.closed = true
 	s.mu.Unlock()
+	if s.stopCtx != nil {
+		s.stopCtx()
+	}
+	if s.raw != nil {
+		_ = s.raw.Close() // first: it frees a write that is stuck, which holds wmu
+	}
 	if s.stdin != nil {
 		s.wmu.Lock()
 		_ = s.stdin.Close()

@@ -195,25 +195,26 @@ type SnapshotMeta struct {
 	Counts    Counts `json:"counts"`
 }
 
-// DiffItem is one thing that appeared or disappeared between two days; DiffChange also has what it changed from and to.
-type (
-	DiffItem struct {
-		Kind   string `json:"kind"`
-		Key    string `json:"key"`
-		Label  string `json:"label"`
-		Detail string `json:"detail"`
-	}
-	DiffChange struct {
-		DiffItem
-		From string `json:"from"`
-		To   string `json:"to"`
-	}
-	// Diff compares two scan days (contract.ts Diff).
-	Diff struct {
-		From    string       `json:"from"`
-		To      string       `json:"to"`
-		Added   []DiffItem   `json:"added"`
-		Removed []DiffItem   `json:"removed"`
-		Changed []DiffChange `json:"changed"`
-	}
-)
+// DiffItem is one thing that appeared or disappeared between two days.
+type DiffItem struct {
+	Kind   string `json:"kind"`
+	Key    string `json:"key"`
+	Label  string `json:"label"`
+	Detail string `json:"detail"`
+}
+
+// DiffChange is a thing that changed between two days, with what it changed from and to.
+type DiffChange struct {
+	DiffItem
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+// Diff compares two scan days (contract.ts Diff).
+type Diff struct {
+	From    string       `json:"from"`
+	To      string       `json:"to"`
+	Added   []DiffItem   `json:"added"`
+	Removed []DiffItem   `json:"removed"`
+	Changed []DiffChange `json:"changed"`
+}

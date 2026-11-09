@@ -12,6 +12,8 @@ import (
 
 // ExposureHandlers implements the 12 exposure operations (modules/exposure/CONTRACT.md). Embed it in the
 // composite handler. Roles are enforced by the server pipeline before a handler runs, never here.
+//
+//nolint:revive // the name is distinct on purpose: it is embedded in cmd/vedette next to inventory.Handlers
 type ExposureHandlers struct {
 	svc *Service
 }

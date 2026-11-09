@@ -3,7 +3,7 @@
 ## Modifying: `exposure.Service.CheckScannable(ctx, targetID) (bool, BlockedReason)`
 - **scan** (gọi ngay trước mỗi lần quét mục tiêu ngoài). Đây là rào chắn SYS-7 phía Internet: nới điều kiện phải sửa CONTRACT + test INV-1 của cả `exposure` và `scan`.
 
-## Modifying: `exposure.Service.Targets()` / `ScannableTargets()` (`ext:<id>`, `verified_at`, `expires_at`)
+## Modifying: `exposure.Service.Targets(ctx)` (the scan module keeps the `scannable` ones; ids `ext:<id>` are accepted by `CheckScannable`; `verified_at`, `expires_at`)
 - **scan** (`GET /scans/targets` `reason ∈ {unverified, expired}`), **reports**. Đổi định dạng id `ext:<id>` làm hỏng lịch quét đã lưu.
 
 ## Modifying: kiểm xác thực (`Verify`, `Detect`), chu kỳ tự phát hiện (`exp_setting.interval_min`, job `auto-detect`) và danh sách ba dịch vụ "IP của tôi" (D-81)

@@ -26,9 +26,9 @@ func sampleContent() Content {
 }
 
 // committedDomain is a verified domain with its commitment, ready to scan.
-func (e *env) committedDomain(value string) TargetView {
+func (e *env) committedDomain() TargetView {
 	e.t.Helper()
-	v := e.addVerifiedDomain(value)
+	v := e.addVerifiedDomain()
 	v, err := e.svc.Commit(e.ctx(), "admin@acme.example", v.ID, true)
 	if err != nil {
 		e.t.Fatal(err)
@@ -123,7 +123,7 @@ func TestContract_INV1_NoScanWithoutProof(t *testing.T) {
 func TestContract_INV12_ScanGate(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	v := e.committedDomain("acme.example")
+	v := e.committedDomain()
 	// no runner yet: the gate passes and the answer is 501 (the scan module has not registered one)
 	_, err := e.svc.Scan(e.ctx(), "operator@acme.example", v.ID)
 	wantAPI(t, err, 501, "not_implemented")
@@ -297,7 +297,7 @@ func TestContract_INV4_RenewAndExpire(t *testing.T) {
 	}
 
 	// a domain has no expiry (its TXT record is checked before every scan)
-	d := e.addVerifiedDomain("acme.example")
+	d := e.addVerifiedDomain()
 	if d.ExpiresAt != nil || d.Validity != nil {
 		t.Fatalf("domain = %+v", d)
 	}
@@ -448,7 +448,7 @@ func TestContract_INV8_SnapshotsAndDiff(t *testing.T) {
 	e := newEnv(t)
 	run := &fakeRunner{content: sampleContent()}
 	e.svc.SetRunner(run)
-	d := e.committedDomain("acme.example")
+	d := e.committedDomain()
 	s1, err := e.svc.Scan(e.ctx(), "operator@acme.example", d.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -553,7 +553,7 @@ func TestContract_INV10_ScanContentIsLimited(t *testing.T) {
 	}
 	// and what is stored is the limited content
 	e.svc.SetRunner(&fakeRunner{content: big})
-	d := e.committedDomain("acme.example")
+	d := e.committedDomain()
 	s, err := e.svc.Scan(e.ctx(), "operator@acme.example", d.ID)
 	if err != nil || len(s.Hosts) != maxContentRows {
 		t.Fatalf("stored %d hosts, %v", len(s.Hosts), err)
@@ -613,7 +613,7 @@ func TestSYS3_EveryMutationIsAudited(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.svc.SetRunner(&fakeRunner{content: sampleContent()})
-	d := e.committedDomain("acme.example")
+	d := e.committedDomain()
 	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", d.ID); err != nil {
 		t.Fatal(err)
 	}
@@ -640,7 +640,7 @@ func TestSYS3_EveryMutationIsAudited(t *testing.T) {
 func TestContract_INV9_OnlyDetectionsAskTheServices(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	d := e.addVerifiedDomain("acme.example")
+	d := e.addVerifiedDomain()
 	if _, err := e.svc.Targets(e.ctx()); err != nil {
 		t.Fatal(err)
 	}

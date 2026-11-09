@@ -190,10 +190,10 @@ func (e *env) count(query string, args ...any) int {
 	return n
 }
 
-// addVerifiedDomain adds a domain, publishes its TXT record and verifies it.
-func (e *env) addVerifiedDomain(value string) TargetView {
+// addVerifiedDomain adds acme.example, publishes its TXT record and verifies it.
+func (e *env) addVerifiedDomain() TargetView {
 	e.t.Helper()
-	v, err := e.svc.AddDomain(e.ctx(), "admin@acme.example", value)
+	v, err := e.svc.AddDomain(e.ctx(), "admin@acme.example", "acme.example")
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -247,8 +247,6 @@ func wantAPI(t *testing.T, err error, status int, code string) {
 		t.Fatalf("want API error %d %s, got %v", status, code, err)
 	}
 }
-
-func ptr[T any](v T) *T { return &v }
 
 func str(p *string) string {
 	if p == nil {

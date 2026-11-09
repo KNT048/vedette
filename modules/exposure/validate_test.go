@@ -1,6 +1,7 @@
 package exposure
 
 import (
+	"errors"
 	"net/netip"
 	"strings"
 	"testing"
@@ -27,7 +28,7 @@ func TestContract_INV6_DomainOnly(t *testing.T) {
 		{strings.Repeat("a", 64) + ".example", ErrBadDomain}, {strings.Repeat("a.", 130) + "example", ErrBadDomain}, {"1.2.3", ErrBadDomain}, {"bücher.example", ErrBadDomain},
 	}
 	for _, c := range bad {
-		if _, err := normalizeDomain(c.in); err != c.want {
+		if _, err := normalizeDomain(c.in); !errors.Is(err, c.want) {
 			t.Errorf("normalizeDomain(%q) error = %v; want %v", c.in, err, c.want)
 		}
 	}

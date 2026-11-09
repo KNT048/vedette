@@ -1,3 +1,6 @@
+// Package exposure is the external-exposure module (S-EXP-1, modules/exposure/CONTRACT.md): it proves ownership of
+// a domain (DNS TXT) or of the box's public IPs (found by the box itself through three public services, D-81),
+// takes the commitment, and keeps the daily snapshots of what the Internet sees. The scan itself is the scan module's.
 package exposure
 
 import (

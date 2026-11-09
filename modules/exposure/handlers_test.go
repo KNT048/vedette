@@ -79,7 +79,7 @@ func list(b map[string]any, key string) []any {
 func TestContract_PRE4_Roles(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
-	d := e.addVerifiedDomain("acme.example")
+	d := e.addVerifiedDomain()
 	cases := []struct {
 		method, path, body string
 		min                string // the lowest role that gets through
@@ -235,7 +235,7 @@ func TestHandlers_FlowAndShapes(t *testing.T) {
 func TestHandlers_ScanWithoutRunnerIs501(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
-	d := e.committedDomain("acme.example")
+	d := e.committedDomain()
 	if code, b := e.call("POST", "/exposure/targets/"+d.ID+"/scan", "operator", ""); code != 501 || errCode(b) != "not_implemented" {
 		t.Fatalf("%d %v", code, b)
 	}

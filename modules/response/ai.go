@@ -17,7 +17,7 @@ import (
 // WP-13b slice 13b-9 (D-97, D-98, INV-15 (8), INV-16, INV-18): approving a high-risk AI request with the two-step code, the hints a
 // rejection can leave, the quality breaker and the AI state.
 
-// AI thresholds of the contract (INV-15). 13b-10 reads them for the proposal gates.
+// AI thresholds of the contract (INV-15). Propose reads them for the proposal gates.
 const (
 	AIMinConfidence = 0.8 // AI_MIN_CONFIDENCE
 	AIRepeatDays    = 7   // AI_REPEAT_DAYS
@@ -51,7 +51,7 @@ type Hint struct {
 	FromRequest string `json:"from_request"`
 }
 
-// AiNote is a suggestion or digest line the AI left instead of a request (13b-10 writes them).
+// AiNote is a suggestion or digest line the AI left instead of a request (Propose writes them, propose.go).
 type AiNote struct {
 	ID         string     `json:"id"`
 	TS         string     `json:"ts"`
@@ -280,7 +280,7 @@ func (s *Service) checkAIQuality(ctx context.Context, tx *sql.Tx, fx *effects) e
 	return nil
 }
 
-// checkAIPaused is the pause gate of a new AI proposal: 13b-10 calls it, with the settings it already read, among its gates (after the
+// checkAIPaused is the pause gate of a new AI proposal: Propose calls it, with the settings it already read, among its gates (after the
 // circuit breaker, before the trigger check, in the order of the mock).
 func checkAIPaused(st Settings) error {
 	if st.AI.PausedAt == nil {

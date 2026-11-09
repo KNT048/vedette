@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"errors"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/conn"
 	"github.com/knt048/vedette/core/conn/write"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/modules/findings"
@@ -167,6 +170,39 @@ func (e responseExecutor) Execute(ctx context.Context, s response.DeviceStep) (r
 	return response.DeviceResult{Status: response.StepStatus(r.Status), Detail: r.Detail, Output: r.Output}, nil
 }
 
+// ---- core/conn -> response.EvidencePorts.ConfigRead ----
+
+// evidencePart is one half of a connection-read id: the id of a connection or the name of a tool.
+var evidencePart = regexp.MustCompile(`^[\w.-]{1,96}$`)
+
+// responseEvidence answers "did the AI really read this?" for an AI proposal (D-97): a read exists when its id is
+// "<connection-id>/<tool>", read strictly (exactly one slash, both parts plain), the connection exists and is on, and the tool is
+// one of its read tools and is on. Anything else is "not found", and the proposal is refused (422 evidence_invalid).
+type responseEvidence struct{ c *conn.Service }
+
+func (r responseEvidence) ConfigRead(ctx context.Context, id string) (response.EvidenceRef, bool, error) {
+	cid, tool, ok := strings.Cut(id, "/")
+	if !ok || !evidencePart.MatchString(cid) || !evidencePart.MatchString(tool) {
+		return response.EvidenceRef{}, false, nil
+	}
+	c, err := r.c.Get(ctx, cid)
+	if e, is := apierr.As(err); is && e.Status == 404 {
+		return response.EvidenceRef{}, false, nil
+	}
+	if err != nil {
+		return response.EvidenceRef{}, false, err
+	}
+	if !c.Enabled {
+		return response.EvidenceRef{}, false, nil
+	}
+	for _, t := range c.Tools {
+		if t.Name == tool && t.Access == "read" && t.Enabled {
+			return response.EvidenceRef{Summary: "Read " + t.Name + " on " + c.Name}, true, nil
+		}
+	}
+	return response.EvidenceRef{}, false, nil
+}
+
 // newResponse builds the response service. serve calls it once, in buildServices, after the services it reads (core/auth, notify,
 // inventory, findings, core/conn). Device actions run through core/conn/write: an approved item reaches its device over the
 // connection, with a check before and a read-back (D-94, D-95).
@@ -192,6 +228,7 @@ func responseConfig(d *deps) (response.Config, error) {
 		Notifier: responseNotifier{n: n, now: d.Clock}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings}}
 	if d.Conn != nil { // a nil *conn.Service inside the interface would not compare equal to nil
 		cfg.Connections = responseConnections{d.Conn}
+		cfg.Evidence.ConfigRead = responseEvidence{d.Conn}.ConfigRead // IocHit stays nil until logs (WP-24) offers a lookup: an ioc_hit is refused
 		w, err := write.New(write.Config{Conns: d.Conn})
 		if err != nil {
 			return cfg, err

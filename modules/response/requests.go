@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"slices"
 	"sort"
@@ -1317,6 +1318,11 @@ func (s *Service) Metrics(ctx context.Context) (Metrics, error) {
 		rejected = rejected[:20]
 	}
 	m := Metrics{AI: stat(ai), Rules: stat(rules), Rejected: []RejectedRow{}}
+	for kind, n := range map[string]*int{"suggestion": &m.Suggestions, "digest": &m.Digested} {
+		if err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT count(*) FROM resp_ai_notes WHERE kind = ?`, kind).Scan(n); err != nil {
+			return Metrics{}, fmt.Errorf("response: count the AI notes: %w", err)
+		}
+	}
 	for _, r := range rejected {
 		reason := "No reason given"
 		if r.Note != nil {

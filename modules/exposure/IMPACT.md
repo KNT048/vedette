@@ -6,7 +6,7 @@
 ## Modifying: `exposure.Service.Targets()` / `ScannableTargets()` (`ext:<id>`, `verified_at`, `expires_at`)
 - **scan** (`GET /scans/targets` `reason ∈ {unverified, expired}`), **reports**. Đổi định dạng id `ext:<id>` làm hỏng lịch quét đã lưu.
 
-## Modifying: kiểm xác thực (`verify`, `boxip.Detect`) và endpoint cố định của dự án
+## Modifying: kiểm xác thực (`verify`, `boxip.Detect`) và danh sách dịch vụ "IP của tôi" (D-81)
 - **PRIVACY.md luồng 9** và SPA Settings → Privacy: đổi đích là đổi luồng dữ liệu ra, phải sửa PRIVACY + UI cùng commit (legal.md).
 
 ## Modifying: trường `Snapshot`/`Diff`

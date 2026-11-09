@@ -117,34 +117,39 @@ func isLoopback(addr string) (bool, error) {
 // certificate in use; loopback is always allowed by core/server.HostAllowlist. hsts is true only for a
 // certificate the owner supplied: the box then tells browsers to insist on HTTPS. A self-signed pair gets
 // no HSTS, or a browser would refuse to let the owner click through its warning for a year.
-func transport(o options) (cfg *tls.Config, hosts []string, hsts bool, err error) {
+func transport(o options) (cfg *tls.Config, hosts []string, hsts bool, renew *selfSignedRenewer, err error) {
 	hosts, err = parseHosts(o.hosts)
+	flagHosts := hosts
 	if err != nil {
-		return nil, nil, false, err
+		return nil, nil, false, nil, err
 	}
 	loop, err := isLoopback(o.listen)
 	if err != nil {
-		return nil, nil, false, err
+		return nil, nil, false, nil, err
 	}
 	certPath, keyPath := o.tlsCert, o.tlsKey
 	if certPath == "" && loop {
-		return nil, hosts, false, nil // plain HTTP on loopback
+		return nil, hosts, false, nil, nil // plain HTTP on loopback
 	}
 	if certPath == "" {
 		dir := filepath.Dir(o.db)
 		certPath, keyPath = filepath.Join(dir, "vedette-selfsigned.crt"), filepath.Join(dir, "vedette-selfsigned.key")
 		if err := ensureCert(certPath, keyPath, hosts); err != nil {
-			return nil, nil, false, err
+			return nil, nil, false, nil, err
 		}
 	}
 	cfg, names, err := loadTLS(certPath, keyPath)
 	if err != nil {
-		return nil, nil, false, err
+		return nil, nil, false, nil, err
+	}
+	if o.tlsCert == "" { // the box's own pair: serve it through GetCertificate so a renewal needs no restart
+		renew = &selfSignedRenewer{certPath: certPath, keyPath: keyPath, hosts: flagHosts, now: time.Now, cert: &cfg.Certificates[0]}
+		cfg.Certificates, cfg.GetCertificate = nil, renew.GetCertificate
 	}
 	if len(hosts) == 0 {
 		hosts = names
 	}
-	return cfg, hosts, o.tlsCert != "", nil
+	return cfg, hosts, o.tlsCert != "", renew, nil
 }
 
 // serve opens everything, serves until ctx is cancelled, then shuts down in order: HTTP server,
@@ -161,7 +166,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return err
 	}
-	tlsCfg, hosts, hsts, err := transport(o)
+	tlsCfg, hosts, hsts, renew, err := transport(o)
 	if err != nil {
 		return err
 	}
@@ -236,6 +241,11 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	}
 	if tlsCfg != nil {
 		ln = tls.NewListener(ln, tlsCfg)
+	}
+	if renew != nil {
+		tick := time.NewTicker(selfSignedCheckEvery)
+		defer tick.Stop()
+		go renew.Run(ctx, log, tick.C)
 	}
 	return serveUntilDone(ctx, log, srv, ln, sched, schedulerStopTimeout)
 }

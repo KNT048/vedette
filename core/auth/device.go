@@ -152,6 +152,30 @@ func (s *Service) limitKeys(ctx context.Context, email string, ip netip.Addr, co
 	return ipLimitKeys(ip), nil
 }
 
+// ValidDevice reports whether cookie is, right now, a valid device cookie of the user userID: signed by this
+// box, not expired, for the user's current password. A caller that is about to change the password asks
+// before the change, then asks NewDevice for the cookie of the new password (D-77: the browser the owner
+// already trusted keeps its exemption after a password change they just proved).
+func (s *Service) ValidDevice(ctx context.Context, userID, cookie string) bool {
+	c, ok := s.parseDevice(ctx, cookie)
+	if !ok || c.userID != userID {
+		return false
+	}
+	row, err := coredb.New(s.db.Reader()).GetUserByID(ctx, userID)
+	return err == nil && row.CredVersion == c.cred
+}
+
+// NewDevice returns a fresh device cookie value for the user's current password, "" when none could be made
+// (logged, never an error: the password change itself must not fail for it).
+func (s *Service) NewDevice(ctx context.Context, userID string) string {
+	row, err := coredb.New(s.db.Reader()).GetUserByID(ctx, userID)
+	if err != nil {
+		s.log.WarnContext(ctx, "could not issue a device cookie", "error", err)
+		return ""
+	}
+	return s.deviceFor(ctx, userID, row.CredVersion)
+}
+
 // deviceFor returns the cookie value to hand out after a successful sign-in: always a new cookie with a
 // fresh nonce, never the presented one re-signed (OWASP's scheme issues a new device cookie on every
 // successful authentication). A copy stolen earlier then keeps the counter of its old nonce, which the

@@ -410,7 +410,7 @@ func TestWildcardCertificateDefaultAllowlist(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	crt, key, _ := writeTestPair(t, dir, &x509.Certificate{Subject: pkix.Name{CommonName: "corp"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), DNSNames: []string{"*.corp.example"}})
-	_, hosts, _, err := transport(options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443", tlsCert: crt, tlsKey: key})
+	_, hosts, _, _, err := transport(options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443", tlsCert: crt, tlsKey: key})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -448,7 +448,7 @@ func TestParseHostsAcceptsOneLabelWildcards(t *testing.T) {
 	if err != nil || strings.Join(got, ",") != "*.corp.example,box.lan" {
 		t.Fatalf("parseHosts = %v, %v", got, err)
 	}
-	for _, bad := range []string{"*", "*.", "a.*.example", "*.*.example", "x*.example", "**.example"} {
+	for _, bad := range []string{"*", "*.", "a.*.example", "*.*.example", "x*.example", "**.example", "*.com", "*.com.", "*.168.1.10", "*.10", "*.1.2.3.4", "*.example.123"} {
 		if _, err := parseHosts(bad); err == nil {
 			t.Errorf("parseHosts(%q) accepted", bad)
 		}
@@ -527,7 +527,7 @@ func TestStrictTransportSecurityOnlyWithAnOwnerCertificate(t *testing.T) {
 		"self-signed":          {options{db: db, listen: "0.0.0.0:8443"}, false},
 		"plain http, loopback": {options{db: db, listen: "127.0.0.1:8080"}, false},
 	} {
-		_, hosts, hsts, err := transport(tc.o)
+		_, hosts, hsts, _, err := transport(tc.o)
 		if err != nil || hsts != tc.want {
 			t.Fatalf("%s: hsts = %v, err %v, want %v", name, hsts, err, tc.want)
 		}
@@ -542,5 +542,140 @@ func TestStrictTransportSecurityOnlyWithAnOwnerCertificate(t *testing.T) {
 				t.Errorf("%s, Host %s: Strict-Transport-Security = %q", name, host, got)
 			}
 		}
+	}
+}
+
+// Review 2 (L3): wildcard edge cases through the real flag parser and the allowlist.
+func TestWildcardHostsEdgeCases(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		flag, host string
+		want       int
+		why        string
+	}{
+		{"*.corp.example.", "box.corp.example.", 204, "trailing dots on both sides"},
+		{"*.corp.example", "BOX.Corp.Example:8443", 204, "case and port"},
+		{"*.corp.example", "corp.example", 421, "the bare parent"},
+		{"*.corp.example", ".corp.example", 421, "an empty label"},
+		{"*.xn--bcher-kva.example", "box.xn--bcher-kva.example", 204, "punycode A-labels"},
+		{"*.xn--bcher-kva.example", "box.bücher.example", 421, "a U-label Host never matches"},
+		{"*.co.uk", "attacker.co.uk", 204, "documented residual: no public-suffix list, *.co.uk is accepted"},
+		{"*.corp.example,192.168.1.10", "192.168.1.10", 204, "an IP entry still works beside a wildcard"},
+	}
+	for _, c := range cases {
+		hosts, err := parseHosts(c.flag)
+		if err != nil {
+			t.Errorf("%s: -hosts %q refused: %v", c.why, c.flag, err)
+			continue
+		}
+		if got := hostStatus(t, server.HostAllowlist(hosts, okHandler()), c.host); got != c.want {
+			t.Errorf("%s: -hosts %q, Host %q = %d, want %d", c.why, c.flag, c.host, got, c.want)
+		}
+	}
+	for _, flag := range []string{"*.com", "*.168.1.10"} {
+		_, err := parseHosts(flag)
+		if err == nil || !strings.Contains(err.Error(), "wildcard") {
+			t.Errorf("-hosts %q: %v, want a clear refusal about the wildcard", flag, err)
+		}
+	}
+}
+
+// A wildcard never matches an IP literal, even when an entry like *.168.1.10 gets past the parser (the
+// allowlist is also used with entries that did not come from -hosts).
+func TestWildcardNeverMatchesAnIPLiteral(t *testing.T) {
+	t.Parallel()
+	h := server.HostAllowlist([]string{"*.168.1.10", "*.com", "*.corp.example"}, okHandler())
+	for _, host := range []string{"192.168.1.10", "192.168.1.10:8443", "attacker.com", "com"} {
+		if got := hostStatus(t, h, host); got != 421 {
+			t.Errorf("Host %q = %d, want 421", host, got)
+		}
+	}
+	if hostStatus(t, h, "box.corp.example") != 204 {
+		t.Error("the valid wildcard stopped working")
+	}
+}
+
+// Review 2 (L2): a symlink to a world-readable key is refused (os.Stat checks the target), and so is a
+// dangling symlink.
+func TestLoadTLSRefusesASymlinkToAWorldReadableKey(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	crt, key := filepath.Join(dir, "c.crt"), filepath.Join(dir, "c.key")
+	if err := ensureCert(crt, key, []string{"box.acme.example"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(key, 0o644); err != nil { //nolint:gosec // the point of the test
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "link.key")
+	if err := os.Symlink(key, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := loadTLS(crt, link); err == nil {
+		t.Fatal("a symlink to a 0644 key was accepted")
+	}
+	dangling := filepath.Join(dir, "dangling.key")
+	if err := os.Symlink(filepath.Join(dir, "nope"), dangling); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := loadTLS(crt, dangling); err == nil {
+		t.Fatal("a dangling symlink was accepted")
+	}
+}
+
+// A running box renews its own certificate (a day-by-day check, injected clock) and hands the new one to
+// the next handshake through GetCertificate, without a restart; the key stays the same. A pair the owner
+// supplied is never given a renewer.
+func TestSelfSignedRenewerSwapsInTheRenewedCertificate(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	o := options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443", hosts: "box.acme.example"}
+	cfg, _, _, renew, err := transport(o)
+	if err != nil || renew == nil {
+		t.Fatalf("transport: renew=%v err=%v", renew, err)
+	}
+	if len(cfg.Certificates) != 0 || cfg.GetCertificate == nil {
+		t.Fatal("the self-signed pair is not served through GetCertificate")
+	}
+	now := time.Now()
+	renew.now = func() time.Time { return now }
+	first, _ := cfg.GetCertificate(nil)
+	if err := renew.Check(); err != nil {
+		t.Fatal(err)
+	}
+	if again, _ := cfg.GetCertificate(nil); again != first {
+		t.Fatal("a certificate with 825 days left was replaced")
+	}
+	now = now.Add(800 * 24 * time.Hour) // 25 days left of 825
+	tick := make(chan time.Time)
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() { renew.Run(ctx, slog.New(slog.DiscardHandler), tick); close(done) }()
+	tick <- now
+	tick <- now // the second send returns only after the first Check finished
+	cancel()
+	<-done
+	second, _ := cfg.GetCertificate(nil)
+	if second == first {
+		t.Fatal("the certificate was not swapped after 800 days")
+	}
+	leaf, err := x509.ParseCertificate(second.Certificate[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if left := leaf.NotAfter.Sub(now); left < 824*24*time.Hour {
+		t.Errorf("the renewed certificate has %v left at the injected time", left)
+	}
+	if !strings.Contains(strings.Join(leaf.DNSNames, ","), "box.acme.example") {
+		t.Errorf("renewed names %v lack the -hosts name", leaf.DNSNames)
+	}
+	old, _ := x509.ParseCertificate(first.Certificate[0])
+	if !leaf.PublicKey.(*ecdsa.PublicKey).Equal(old.PublicKey) {
+		t.Error("the renewed certificate is for another key")
+	}
+
+	crt, key, _ := writeTestPair(t, t.TempDir(), &x509.Certificate{Subject: pkix.Name{CommonName: "box"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), DNSNames: []string{"box.corp.example"}})
+	if _, _, _, renew, err := transport(options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443", tlsCert: crt, tlsKey: key}); err != nil || renew != nil {
+		t.Fatalf("an owner's pair got a renewer: %v %v", renew, err)
 	}
 }

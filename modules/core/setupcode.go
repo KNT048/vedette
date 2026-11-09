@@ -78,6 +78,9 @@ func (h *APIHandlers) storedSetupCode(ctx context.Context) (code string, ok bool
 		return "", false, fmt.Errorf("core: find setup code: %w", err)
 	}
 	b, err := h.secrets.Open(ctx, h.db.Reader(), id, setupCodePurpose)
+	if errors.Is(err, secrets.ErrNotFound) { // the winning setup deleted it between our two reads
+		return "", false, nil
+	}
 	if err != nil {
 		return "", false, fmt.Errorf("core: open setup code: %w", err)
 	}

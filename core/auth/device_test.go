@@ -219,37 +219,46 @@ func TestSetupAttemptsOfOneIPv6PrefixShareABudget(t *testing.T) {
 	}
 }
 
-// D-75: the whole box takes at most 1000 setup guesses an hour (a safety net far above anything an owner
-// types), the hour passes, and a right code gives its count back.
-func TestSetupAttemptsHaveAHighCeilingForTheWholeBox(t *testing.T) {
+// D-75 (amended after review 2): there is no box-wide ceiling on setup guesses, because it is itself the
+// lever that locks the owner out. One stranger with ten IPv6 /64s (a hundred fresh addresses in each: no
+// address reaches its own limit of 10, each /64 reaches exactly 100) and 1000 IPv4 addresses never stops
+// the owner, from an address never seen before, at any time.
+func TestSetupAttemptsHaveNoBoxWideCeiling(t *testing.T) {
 	t.Parallel()
 	env := authtest.New(t)
-	addr := func(i int) netip.Addr { return ip(fmt.Sprintf("10.%d.%d.%d", i/65536, i/256%256, i%256)) }
-	var last func()
-	for i := range 1000 {
-		r, err := env.Svc.BeginSetupAttempt(addr(i))
-		if err != nil {
-			t.Fatalf("guess %d: %v", i, err)
+	for n := range 10 {
+		for host := range 100 {
+			a := ip(fmt.Sprintf("2001:db8:0:%x::%x", 0x100+n, host+1))
+			if _, err := env.Svc.BeginSetupAttempt(a); err != nil {
+				t.Fatalf("stranger guess %d from %s: %v", n*100+host, a, err)
+			}
 		}
-		last = r
 	}
-	_, err := env.Svc.BeginSetupAttempt(addr(1000))
-	wantAPI(t, err, 429, "rate_limited")
-	last() // the 1000th was right
-	r, err := env.Svc.BeginSetupAttempt(addr(1001))
-	if err != nil {
-		t.Fatalf("a refunded guess still counted against the ceiling: %v", err)
+	for i := range 1100 {
+		a := ip(fmt.Sprintf("10.%d.%d.%d", i/65536, i/256%256, i%256))
+		if _, err := env.Svc.BeginSetupAttempt(a); err != nil {
+			t.Fatalf("IPv4 stranger guess %d: %v", i, err)
+		}
 	}
-	_ = r
-	_, err = env.Svc.BeginSetupAttempt(addr(1002))
-	wantAPI(t, err, 429, "rate_limited")
-	env.Clock.Advance(time.Hour)
-	if _, err := env.Svc.BeginSetupAttempt(addr(1003)); err != nil {
-		t.Fatalf("the ceiling did not lift after an hour: %v", err)
+	if _, err := env.Svc.BeginSetupAttempt(ip("192.0.2.50")); err != nil { // the owner, never seen before
+		t.Fatalf("the owner after 2100 stranger guesses: %v", err)
 	}
 	if _, err := env.Svc.BeginSetupAttempt(netip.Addr{}); err == nil {
 		t.Fatal("an invalid address was accepted")
 	}
+}
+
+// An IPv4-mapped IPv6 peer shares the bucket of its IPv4 address.
+func TestSetupMappedAddressSharesTheIPv4Bucket(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	for range 10 {
+		if _, err := env.Svc.BeginSetupAttempt(ip("::ffff:192.0.2.9")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err := env.Svc.BeginSetupAttempt(ip("192.0.2.9"))
+	wantAPI(t, err, 429, "rate_limited")
 }
 
 // OWASP's device-cookie scheme issues a new cookie on every successful sign-in. Re-signing the presented

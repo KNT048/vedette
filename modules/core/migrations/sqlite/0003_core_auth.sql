@@ -46,8 +46,8 @@ CREATE INDEX core_email_code_send_user_idx ON core_email_code_send (user_id, sen
 CREATE TABLE core_session (
     id         TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
     user_id    TEXT NOT NULL REFERENCES core_user (id) ON DELETE CASCADE,
-    token_hash TEXT NOT NULL UNIQUE CHECK (length(token_hash) = 64), -- SHA-256 of the vedette_session cookie
-    csrf_hash  TEXT NOT NULL CHECK (length(csrf_hash) = 64),         -- SHA-256 of the vedette_csrf cookie
+    token_hash TEXT NOT NULL UNIQUE CHECK (length(token_hash) = 64), -- SHA-256 of the __Host-vedette_session cookie
+    csrf_hash  TEXT NOT NULL CHECK (length(csrf_hash) = 64),         -- SHA-256 of the __Host-vedette_csrf cookie
     device     TEXT NOT NULL CHECK (length(device) <= 200),
     ip         TEXT NOT NULL CHECK (length(ip) BETWEEN 1 AND 64),
     started_at TEXT NOT NULL CHECK (started_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),

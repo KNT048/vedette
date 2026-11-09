@@ -69,11 +69,15 @@ func (h *APIHandlers) CorePostCoreAccountPassword(ctx context.Context, req *oas.
 	if err != nil {
 		return nil, err
 	}
+	// A password change kills every device cookie of the account (cred_version). The owner has just proved the
+	// current password in this browser, which is what a sign-in proves, so this browser gets a device cookie for
+	// the new password as a sign-in would give it (D-77). The old cookie cannot be checked here: its path is
+	// /api/v1/auth/, so the browser does not send it to this endpoint.
 	fresh, err := h.auth.ChangeOwnPassword(ctx, c.ID, c.SessionID, req.Current, req.Next)
 	if err != nil {
 		return nil, err
 	}
-	if err := renewSession(ctx, fresh); err != nil {
+	if err := renewSession(ctx, fresh, h.auth.NewDevice(ctx, c.ID)); err != nil {
 		return nil, err
 	}
 	return &oas.CorePostCoreAccountPasswordOK{Ok: true}, nil
@@ -102,7 +106,7 @@ func (h *APIHandlers) CorePostCoreAccount2FAConfirm(ctx context.Context, req *oa
 	if err != nil {
 		return nil, err
 	}
-	if err := renewSession(ctx, fresh); err != nil {
+	if err := renewSession(ctx, fresh, ""); err != nil {
 		return nil, err
 	}
 	return &oas.CorePostCoreAccount2FAConfirmOK{Ok: true}, nil
@@ -131,7 +135,7 @@ func (h *APIHandlers) CorePostCoreAccount2FAEmailConfirm(ctx context.Context, re
 	if err != nil {
 		return nil, err
 	}
-	if err := renewSession(ctx, fresh); err != nil {
+	if err := renewSession(ctx, fresh, ""); err != nil {
 		return nil, err
 	}
 	return &oas.CorePostCoreAccount2FAEmailConfirmOK{Ok: true}, nil
@@ -147,7 +151,7 @@ func (h *APIHandlers) CorePostCoreAccount2FADisable(ctx context.Context, req *oa
 	if err != nil {
 		return nil, err
 	}
-	if err := renewSession(ctx, fresh); err != nil {
+	if err := renewSession(ctx, fresh, ""); err != nil {
 		return nil, err
 	}
 	return &oas.CorePostCoreAccount2FADisableOK{Ok: true}, nil

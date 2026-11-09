@@ -148,23 +148,36 @@ func (s *Service) ConfirmTOTP(ctx context.Context, userID, currentSessionID, cod
 	if e != nil {
 		return Issued{}, e
 	}
+	// The key's own count is reserved before the code is judged (atomically per secret id), so parallel
+	// guesses cannot get more than maxPendingTOTPTries codes judged against one key.
+	tooMany := apierr.New(400, CodeTooManyTries, "Too many wrong codes. Turn on two-factor authentication again to get a new key.")
+	n := s.pendingTries.reserve(p.SecretID)
+	if n > maxPendingTOTPTries { // the key has had its tries; whoever used the last one drops it
+		s.pendingTries.refund(p.SecretID)
+		guess.refund() // never judged
+		return Issued{}, tooMany
+	}
 	secret, err := s.secrets.Open(ctx, s.db.Reader(), p.SecretID, totpPurpose)
 	if err != nil {
-		guess.refund() // not a wrong guess
+		s.pendingTries.refund(p.SecretID)
+		guess.refund()                           // not a wrong guess
+		if errors.Is(err, secrets.ErrNotFound) { // the key was dropped, replaced or confirmed while we ran
+			return Issued{}, noPending()
+		}
 		return Issued{}, fmt.Errorf("auth: open totp secret: %w", err)
 	}
 	step, ok := VerifyTOTP(secret, code, s.now(), NoStep)
 	if !ok {
-		if s.pendingTries.wrong(p.SecretID) >= maxPendingTOTPTries {
+		if n == maxPendingTOTPTries {
 			if err := s.dropPendingTOTP(ctx, t.ID, p.SecretID); err != nil {
 				return Issued{}, err
 			}
-			return Issued{}, apierr.New(400, CodeTooManyTries, "Too many wrong codes. Turn on two-factor authentication again to get a new key.")
+			return Issued{}, tooMany
 		}
 		return Issued{}, apierr.New(400, CodeWrongCode, "Wrong code. Check the time on your phone and enter a new code.")
 	}
 	guess.refund()
-	s.pendingTries.forget(p.SecretID)
+	s.pendingTries.refund(p.SecretID) // a right code is not a wrong try; the count goes when the key row does
 	return write(ctx, s.db, func(tx *sql.Tx) (Issued, *apierr.Error, error) {
 		q := coredb.New(tx)
 		// Checked again here, before anything is written: the single writer serialises us with a racing
@@ -194,8 +207,7 @@ func (s *Service) ConfirmTOTP(ctx context.Context, userID, currentSessionID, cod
 // dropPendingTOTP deletes the unconfirmed key secretID of a user (too many wrong codes), unless it was
 // replaced or confirmed meanwhile.
 func (s *Service) dropPendingTOTP(ctx context.Context, userID, secretID string) error {
-	s.pendingTries.forget(secretID)
-	return s.db.Write(ctx, func(tx *sql.Tx) error {
+	err := s.db.Write(ctx, func(tx *sql.Tx) error {
 		q := coredb.New(tx)
 		p, err := q.GetTotp(ctx, userID)
 		if errors.Is(err, sql.ErrNoRows) || (err == nil && (p.SecretID != secretID || p.Confirmed == 1)) {
@@ -212,9 +224,13 @@ func (s *Service) dropPendingTOTP(ctx context.Context, userID, secretID string) 
 		}
 		return nil
 	})
+	if err == nil {
+		s.pendingTries.forget(secretID) // only now that the key row (and its secret) is gone
+	}
+	return err
 }
 
-// pendingTries counts the wrong codes of each pending authenticator key (by its secret id), in memory.
+// pendingTries counts the codes judged against each pending authenticator key (by its secret id), in memory.
 // ponytail: counts reset on restart (the account's two-step limiter does too); upgrade path: a tries column
 // on core_user_totp like core_email_code.tries.
 type pendingTries struct {
@@ -222,8 +238,9 @@ type pendingTries struct {
 	m  map[string]int
 }
 
-// wrong counts one wrong code for the key and returns how many it has had.
-func (p *pendingTries) wrong(secretID string) int {
+// reserve counts one code about to be judged against the key and returns how many the key has had,
+// this one included.
+func (p *pendingTries) reserve(secretID string) int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.m == nil {
@@ -231,6 +248,15 @@ func (p *pendingTries) wrong(secretID string) int {
 	}
 	p.m[secretID]++
 	return p.m[secretID]
+}
+
+// refund gives one reservation back (right code, never judged, or an error that was not a wrong code).
+func (p *pendingTries) refund(secretID string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.m[secretID] > 0 {
+		p.m[secretID]--
+	}
 }
 
 func (p *pendingTries) forget(secretID string) {

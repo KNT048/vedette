@@ -305,3 +305,57 @@ func TestNamesRefuseInvisibleFormatCharacters(t *testing.T) {
 		}
 	}
 }
+
+// Review 2 (L7): the Default_Ignorable_Code_Point characters outside Cf (hangul fillers, combining grapheme
+// joiner, variation selectors, ...) and the braille blank are refused too, at both ends of every range of
+// the table; ZWNJ and ZWJ are allowed only between two letters.
+func TestNamesRefuseDefaultIgnorableCharacters(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	for _, r := range []rune{
+		0x3164, 0x115F, 0x1160, 0xFFA0, 0x034F, 0x2800, 0x180B, 0x180C, 0x180D, 0x180E, 0x180F, 0x061C, 0x17B4, 0x17B5,
+		0xFE00, 0xFE0F, 0xE0000, 0xE0100, 0xE0FFF, 0x1BCA0, 0x1BCA3, 0x1D173, 0x1D17A, 0xFFF0, 0xFFF8, 0x2060, 0x206F,
+	} {
+		for _, name := range []string{"Kien" + string(r), string(r) + "Kien", "Ki" + string(r) + "en"} {
+			if !auth.HasInvisible(name) {
+				t.Errorf("U+%04X in %q: HasInvisible = false", r, name)
+			}
+			if _, e := auth.ValidateUserFields(name, "x@acme.example", routes.Viewer); e == nil || e.Code != "invalid_name" {
+				t.Errorf("U+%04X in %q: name accepted (%v)", r, name, e)
+			}
+		}
+	}
+	// The character just outside a range is an ordinary one.
+	for _, r := range []rune{0x00AC, 0x00AE, 0x034E, 0x0350, 0x1161, 0x3165, 0xFFA1, 0x2801, 0xFE10, 0xE1000} {
+		if auth.HasInvisible("Ki" + string(r) + "en") {
+			t.Errorf("U+%04X refused", r)
+		}
+	}
+	u := env.User(t, "ann@acme.example", routes.Viewer)
+	wantAPI(t, env.Svc.UpdateOwnName(t.Context(), u.ID, "", "Kien\u3164"), 400, "invalid_name")
+}
+
+func TestNamesAllowZWNJAndZWJOnlyBetweenLetters(t *testing.T) {
+	t.Parallel()
+	alireza := "\u0639\u0644\u06cc\u200c\u0631\u0636\u0627" // Persian, written with ZWNJ
+	for name, want := range map[string]bool{
+		alireza:                                false,
+		"\u0645\u06cc\u200c\u062e\u0648":       false,
+		"a\u200db":                             false,
+		"\u0d95\u0dca\u200d\u0dbb\u0dd2":       true, // ZWJ after a virama (not a letter): the rule is letter + joiner + letter
+		"\u200c\u0639\u0644\u06cc":             true, // at the start
+		"\u0639\u0644\u06cc\u200c":             true, // at the end
+		"\u0639\u0644\u06cc\u200c\u200c\u0631": true, // two in a row
+		"Ann \u200cbob":                        true, // after a space
+		"Ann\u200c bob":                        true, // before a space
+		"Ann\u200c1":                           true, // before a digit
+		"Ann\u200bbob":                         true, // zero width space is never allowed
+	} {
+		if got := auth.HasInvisible(name); got != want {
+			t.Errorf("HasInvisible(%+q) = %v, want %v", name, got, want)
+		}
+	}
+	if _, e := auth.ValidateUserFields(alireza, "x@acme.example", routes.Viewer); e != nil {
+		t.Errorf("a correctly written Persian name is refused: %v", e)
+	}
+}

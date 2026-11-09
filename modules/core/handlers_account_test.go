@@ -384,8 +384,12 @@ func TestAccount_PasswordChangeRenewsTheCurrentSession(t *testing.T) {
 	if set[auth.CookieSession].Value == oldSession || set[auth.CookieCSRF].Value == oldCSRF || set[auth.CookieSession].HttpOnly != true || set[auth.CookieCSRF].HttpOnly {
 		t.Fatal("the cookies were not renewed, or lost an attribute")
 	}
+	if set[auth.CookieDevice] == nil { // the owner signed in here, so the browser sends its device cookie (D-77)
+		t.Fatal("no new device cookie after the change")
+	}
+	delete(set, auth.CookieDevice)
 	if len(set) != 2 {
-		t.Fatalf("the change set %d cookies, want the session and CSRF ones", len(set))
+		t.Fatalf("the change set %d other cookies, want the session and CSRF ones", len(set))
 	}
 	if g := thief.get("/me"); g.Code != 401 {
 		t.Fatalf("a copy of the old session cookie = %d after the owner changed the password from that session", g.Code)

@@ -34,10 +34,6 @@ const (
 	// password a signed-in user types for a sensitive change.
 	twofaKey   = "twofa"
 	accountKey = "account"
-	// setupCeiling is the most guesses of the first-run setup code the whole box accepts in setupCeilingWindow
-	// (D-75): a safety net far above what an owner types, not the per-client limit.
-	setupCeiling       = 1000
-	setupCeilingWindow = time.Hour
 	// deviceKeyPrefix starts the "IP" part of a limiter key that belongs to one device cookie (D-77).
 	deviceKeyPrefix = "dev:"
 	// netKeySuffix marks a per-/64 key (made by ipLimitKeys); it gets the higher limit.
@@ -60,9 +56,6 @@ type limiter struct {
 	now  func() time.Time
 	m    map[string]*failures // clients: evictable
 	acct map[string]*failures // accounts: never evicted
-
-	ceilingFrom time.Time // start of the current hour of setup guesses (beginCeiling)
-	ceilingN    int
 }
 
 func newLimiter(now func() time.Time) *limiter {
@@ -282,48 +275,18 @@ func humanWait(secs int) string {
 }
 
 // BeginSetupAttempt counts one guess of the first-run setup code (D-75) before it is judged: per client
-// address like a sign-in (the address, and for IPv6 its /64, with the same limits and growing wait), and
-// against a high ceiling for the whole box (setupCeiling guesses an hour) as a safety net. One shared
-// counter at the sign-in limit would let any stranger who reaches the port keep setup closed for the
-// owner; a 100-bit code needs no global cap to resist guessing. It returns a refund to call when the guess
-// was right (or never judged), or 429 rate_limited.
+// address like a sign-in (the address, and for IPv6 its /64, with the same limits and growing wait). There
+// is deliberately no counter for the whole box: any shared ceiling is a lever a stranger with a few dozen
+// addresses (ten IPv6 /64s, a hundred IPv4 addresses) pulls to keep setup closed for the owner, and a 100-bit
+// code needs none to resist guessing. It returns a refund to call when the guess was right (or never
+// judged), or 429 rate_limited.
 func (s *Service) BeginSetupAttempt(ip netip.Addr) (refund func(), err error) {
 	if !ip.IsValid() {
 		return nil, errNoIP()
 	}
-	if e := s.limit.beginCeiling(); e != nil {
-		return nil, e
-	}
 	as, e := s.limit.beginAll("code", ipLimitKeys(ip))
 	if e != nil {
-		s.limit.refundCeiling()
 		return nil, e
 	}
-	return func() {
-		refundAll(as)
-		s.limit.refundCeiling()
-	}, nil
-}
-
-// beginCeiling counts one setup guess against the box-wide ceiling of an hour.
-func (l *limiter) beginCeiling() *apierr.Error {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	now := l.now()
-	if l.ceilingFrom.IsZero() || now.Sub(l.ceilingFrom) >= setupCeilingWindow {
-		l.ceilingFrom, l.ceilingN = now, 0
-	}
-	if l.ceilingN >= setupCeiling {
-		return rateLimited(l.ceilingFrom.Add(setupCeilingWindow).Sub(now))
-	}
-	l.ceilingN++
-	return nil
-}
-
-func (l *limiter) refundCeiling() {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if l.ceilingN > 0 {
-		l.ceilingN--
-	}
+	return func() { refundAll(as) }, nil
 }

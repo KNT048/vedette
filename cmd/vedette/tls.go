@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -12,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"math/big"
 	"net"
 	"net/netip"
@@ -21,17 +23,22 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/knt048/vedette/core/server"
 )
 
 // Self-signed certificate lifetime (WP-04b part 2): 825 days, the longest Apple platforms accept for a
 // certificate (support.apple.com/en-us/103769, HT210176), the same as mkcert. The box makes a new one at
-// start-up when its own pair expires within selfSignedRenewBefore, so a box that restarts now and then does
-// not run out; browsers still warn about a self-signed certificate, and the owner who wants a clean padlock
+// start-up, and once a day while running, when its own pair expires within selfSignedRenewBefore (a new
+// certificate for the same key, served without a restart); browsers still warn about a self-signed certificate, and the owner who wants a clean padlock
 // passes -tls-cert and -tls-key (a certificate the owner supplies is never replaced).
 const (
 	selfSignedLifetime    = 825 * 24 * time.Hour
 	selfSignedRenewBefore = 30 * 24 * time.Hour
+	// selfSignedCheckEvery is how often a running box looks at its own certificate.
+	selfSignedCheckEvery = 24 * time.Hour
 	// selfSignedOrg marks the certificates this file makes: only those are renewed.
 	selfSignedOrg = "Vedette (self-signed)"
 )
@@ -41,7 +48,8 @@ var hostRE = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$
 // parseHosts splits the -hosts flag (comma separated names and IP addresses, ports allowed and dropped) into
 // canonical entries. A name that cannot be a host name is refused: it would end up in a certificate. A name
 // may start with "*." to cover one label, like a wildcard certificate (*.corp.example is box.corp.example,
-// not a.b.corp.example nor corp.example).
+// not a.b.corp.example nor corp.example) and needs at least two labels after "*." (*.com is refused;
+// *.co.uk is accepted, there is no public-suffix list here).
 func parseHosts(flag string) ([]string, error) {
 	var out []string
 	for _, h := range strings.Split(flag, ",") {
@@ -63,6 +71,9 @@ func parseHosts(flag string) ([]string, error) {
 		h = strings.ToLower(strings.TrimSuffix(h, "."))
 		if !hostRE.MatchString(strings.TrimPrefix(h, "*.")) {
 			return nil, fmt.Errorf("-hosts: %q is not a host name or an IP address", h)
+		}
+		if strings.HasPrefix(h, "*.") && !server.ValidWildcard(h) {
+			return nil, fmt.Errorf("-hosts: %q is too broad or IP-shaped: a wildcard needs at least two labels after \"*.\" (*.corp.example) and never stands for an IP address", h)
 		}
 		out = append(out, h)
 	}
@@ -96,11 +107,17 @@ func localNames() []string {
 // A key without its certificate is an error; a certificate without its key is a leftover of an interrupted
 // first start and is replaced.
 func ensureCert(certPath, keyPath string, hosts []string) error {
+	return ensureCertAt(certPath, keyPath, hosts, time.Now)
+}
+
+// ensureCertAt is ensureCert with the clock injected.
+func ensureCertAt(certPath, keyPath string, hosts []string, now func() time.Time) error {
 	if _, err := os.Lstat(keyPath); err == nil {
 		if _, err := os.Lstat(certPath); err != nil {
 			return fmt.Errorf("tls: %s exists but %s does not: restore the certificate or delete the key to make a new pair", keyPath, certPath)
 		}
-		return renewSelfSigned(certPath, keyPath, hosts)
+		_, err := renewSelfSigned(certPath, keyPath, hosts, now)
+		return err
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("tls key file: %w", err)
 	}
@@ -108,7 +125,7 @@ func ensureCert(certPath, keyPath string, hosts []string) error {
 	if err != nil {
 		return fmt.Errorf("tls: generate key: %w", err)
 	}
-	certPEM, err := selfSignedPEM(key, hosts)
+	certPEM, err := selfSignedPEM(key, hosts, now())
 	if err != nil {
 		return err
 	}
@@ -123,37 +140,86 @@ func ensureCert(certPath, keyPath string, hosts []string) error {
 }
 
 // renewSelfSigned replaces the certificate of a pair this program made when it expires within
-// selfSignedRenewBefore, signing with the key already there (one atomic file write: a crash cannot leave a
-// certificate that does not match the key). A pair it cannot read, or one that is not its own, is left for
-// loadTLS to judge.
-func renewSelfSigned(certPath, keyPath string, hosts []string) error {
+// selfSignedRenewBefore of now(), signing with the key already there (one atomic file write: a crash cannot
+// leave a certificate that does not match the key). It reports whether it replaced it. A pair it cannot
+// read, or one that is not its own, is left for loadTLS to judge.
+func renewSelfSigned(certPath, keyPath string, hosts []string, now func() time.Time) (bool, error) {
 	pair, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
-		return nil //nolint:nilerr // loadTLS reports a pair that cannot be loaded, with the file names
+		return false, nil //nolint:nilerr // loadTLS reports a pair that cannot be loaded, with the file names
 	}
 	leaf, err := x509.ParseCertificate(pair.Certificate[0])
-	if err != nil || !slices.Contains(leaf.Subject.Organization, selfSignedOrg) || time.Until(leaf.NotAfter) > selfSignedRenewBefore {
-		return nil //nolint:nilerr // see above
+	if err != nil || !slices.Contains(leaf.Subject.Organization, selfSignedOrg) || leaf.NotAfter.Sub(now()) > selfSignedRenewBefore {
+		return false, nil //nolint:nilerr // see above
 	}
 	signer, ok := pair.PrivateKey.(crypto.Signer)
 	if !ok {
-		return nil
+		return false, nil
 	}
-	certPEM, err := selfSignedPEM(signer, hosts)
+	certPEM, err := selfSignedPEM(signer, hosts, now())
 	if err != nil {
+		return false, err
+	}
+	return true, writeAtomic(certPath, certPEM)
+}
+
+// selfSignedRenewer serves the box's own self-signed pair through tls.Config.GetCertificate and swaps in
+// the renewed certificate while the process runs (a box that is never restarted would otherwise let it
+// expire after 825 days). It only ever touches the pair the box made, never an owner's -tls-cert.
+type selfSignedRenewer struct {
+	certPath, keyPath string
+	hosts             []string
+	now               func() time.Time
+
+	mu   sync.RWMutex
+	cert *tls.Certificate
+}
+
+// GetCertificate is tls.Config.GetCertificate.
+func (r *selfSignedRenewer) GetCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.cert, nil
+}
+
+// Check renews the pair when it is near expiry and loads the new certificate for new handshakes.
+func (r *selfSignedRenewer) Check() error {
+	replaced, err := renewSelfSigned(r.certPath, r.keyPath, r.hosts, r.now)
+	if err != nil || !replaced {
 		return err
 	}
-	return writeAtomic(certPath, certPEM)
+	pair, err := tls.LoadX509KeyPair(r.certPath, r.keyPath)
+	if err != nil {
+		return fmt.Errorf("tls: load renewed certificate: %w", err)
+	}
+	r.mu.Lock()
+	r.cert = &pair
+	r.mu.Unlock()
+	return nil
+}
+
+// Run calls Check on every tick (the box passes a daily one) until ctx is done; a failure is logged and
+// tried again at the next tick.
+func (r *selfSignedRenewer) Run(ctx context.Context, log *slog.Logger, tick <-chan time.Time) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tick:
+			if err := r.Check(); err != nil {
+				log.ErrorContext(ctx, "renewing the self-signed certificate failed", "error", err)
+			}
+		}
+	}
 }
 
 // selfSignedPEM makes a self-signed server certificate for key, valid selfSignedLifetime, for hosts and
 // localNames.
-func selfSignedPEM(key crypto.Signer, hosts []string) ([]byte, error) {
+func selfSignedPEM(key crypto.Signer, hosts []string, now time.Time) ([]byte, error) {
 	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 127))
 	if err != nil {
 		return nil, fmt.Errorf("tls: serial: %w", err)
 	}
-	now := time.Now()
 	tmpl := &x509.Certificate{
 		SerialNumber: serial, Subject: pkix.Name{CommonName: "Vedette", Organization: []string{selfSignedOrg}},
 		NotBefore: now.Add(-time.Hour), NotAfter: now.Add(selfSignedLifetime),

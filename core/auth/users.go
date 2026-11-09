@@ -81,18 +81,53 @@ func ValidateUserFields(name, rawEmail string, role routes.Role) (string, *apier
 	return email, nil
 }
 
-// HasInvisible reports whether s has a control character (category Cc: C0, DEL, C1) or an invisible format
+// HasInvisible reports whether s has a control character (category Cc: C0, DEL, C1), an invisible format
 // character (category Cf: bidirectional overrides and isolates, zero-width space and joiners, soft hyphen,
-// byte order mark, tag characters). None belongs in a name or an email: they let a name read as another
-// (an administrator-looking one) or make a name that cannot be typed back exactly. Used for the names of
-// accounts and the organization.
+// byte order mark, tag characters), a Unicode Default_Ignorable_Code_Point (hangul fillers, combining
+// grapheme joiner, variation selectors and others, many of them letters or marks, not Cf) or the braille
+// blank U+2800. None belongs in a name or an email: they let a name read as another (an
+// administrator-looking one) or make a name that cannot be typed back exactly. Used for the names of
+// accounts and the organization. One exception: ZERO WIDTH NON-JOINER (U+200C) and ZERO WIDTH JOINER
+// (U+200D) between two letters, which Persian, Indic and other scripts need to spell a name correctly.
 func HasInvisible(s string) bool {
-	for _, r := range s {
-		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+	rs := []rune(s)
+	for i, r := range rs {
+		if (r == 0x200C || r == 0x200D) && i > 0 && i+1 < len(rs) && unicode.IsLetter(rs[i-1]) && unicode.IsLetter(rs[i+1]) {
+			continue
+		}
+		if r == 0x2800 || unicode.IsControl(r) || unicode.Is(unicode.Cf, r) || unicode.Is(defaultIgnorable, r) {
 			return true
 		}
 	}
 	return false
+}
+
+// defaultIgnorable is the Unicode property Default_Ignorable_Code_Point (Unicode 16.0, DerivedCoreProperties.txt,
+// https://www.unicode.org/Public/UCD/latest/ucd/DerivedCoreProperties.txt). Go's unicode package has no
+// table for it. ponytail: written out by hand, so a later Unicode version that adds a code point is not
+// covered until the table is updated; upgrade path: generate it from DerivedCoreProperties.txt.
+var defaultIgnorable = &unicode.RangeTable{
+	R16: []unicode.Range16{
+		{Lo: 0x00AD, Hi: 0x00AD, Stride: 1},
+		{Lo: 0x034F, Hi: 0x034F, Stride: 1},
+		{Lo: 0x061C, Hi: 0x061C, Stride: 1},
+		{Lo: 0x115F, Hi: 0x1160, Stride: 1},
+		{Lo: 0x17B4, Hi: 0x17B5, Stride: 1},
+		{Lo: 0x180B, Hi: 0x180F, Stride: 1},
+		{Lo: 0x200B, Hi: 0x200F, Stride: 1},
+		{Lo: 0x202A, Hi: 0x202E, Stride: 1},
+		{Lo: 0x2060, Hi: 0x206F, Stride: 1},
+		{Lo: 0x3164, Hi: 0x3164, Stride: 1},
+		{Lo: 0xFE00, Hi: 0xFE0F, Stride: 1},
+		{Lo: 0xFEFF, Hi: 0xFEFF, Stride: 1},
+		{Lo: 0xFFA0, Hi: 0xFFA0, Stride: 1},
+		{Lo: 0xFFF0, Hi: 0xFFF8, Stride: 1},
+	},
+	R32: []unicode.Range32{
+		{Lo: 0x1BCA0, Hi: 0x1BCA3, Stride: 1},
+		{Lo: 0x1D173, Hi: 0x1D17A, Stride: 1},
+		{Lo: 0xE0000, Hi: 0xE0FFF, Stride: 1},
+	},
 }
 
 // UserPatch is PATCH /core/users/{id}: nil fields stay as they are.

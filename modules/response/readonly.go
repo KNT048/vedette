@@ -3,85 +3,25 @@ package response
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"regexp"
 	"strings"
-	"sync"
 	"unicode"
+
+	"github.com/knt048/vedette/core/conn/cliban"
 )
 
 // The steps that must not change anything (D-95): the check before and the read-back. The rules here are generic: no command of a
-// vendor is named in code (D-58); the lists of commands a template may not contain are data (data/cli-ban.json).
+// vendor is named in code (D-58); the lists of commands a template may not contain are data (core/conn/cliban/cli-ban.json).
 
-// cliBan is data/cli-ban.json: patterns of command lines a template may not contain.
-type cliBan struct {
-	Everywhere    []string `json:"everywhere"`
-	ReadOnlySteps []string `json:"read_only_steps"`
-}
+// The lists of refused commands are data and live in one place, core/conn/cliban (data: cli-ban.json), which the writer reads too.
+type banRules = cliban.Rules
 
-type banRules struct{ everywhere, readOnly []*regexp.Regexp }
-
-var banData = sync.OnceValues(func() (banRules, error) {
-	b, err := dataFiles.ReadFile("data/cli-ban.json")
-	if err != nil {
-		return banRules{}, fmt.Errorf("response: read cli-ban.json: %w", err)
-	}
-	var f cliBan
-	if err := json.Unmarshal(b, &f); err != nil {
-		return banRules{}, fmt.Errorf("response: parse cli-ban.json: %w", err)
-	}
-	var r banRules
-	if r.everywhere, err = compileBan(f.Everywhere); err != nil {
-		return banRules{}, err
-	}
-	if r.readOnly, err = compileBan(f.ReadOnlySteps); err != nil {
-		return banRules{}, err
-	}
-	if len(r.everywhere) == 0 || len(r.readOnly) == 0 {
-		return banRules{}, fmt.Errorf("response: cli-ban.json has an empty list")
-	}
-	return r, nil
-})
-
-// compileBan turns the patterns into anchored expressions: a line (lowercased, spaces collapsed) is refused when it starts with the
-// pattern, at a word end; * matches any text.
-func compileBan(patterns []string) ([]*regexp.Regexp, error) {
-	out := make([]*regexp.Regexp, 0, len(patterns))
-	for _, p := range patterns {
-		p = strings.Join(strings.Fields(strings.ToLower(p)), " ")
-		if p == "" {
-			return nil, fmt.Errorf("response: cli-ban.json has an empty pattern")
-		}
-		re, err := regexp.Compile(`^` + strings.ReplaceAll(regexp.QuoteMeta(p), `\*`, `.*`) + `(\s|$)`)
-		if err != nil {
-			return nil, fmt.Errorf("response: cli-ban.json pattern %q: %w", p, err)
-		}
-		out = append(out, re)
-	}
-	return out, nil
-}
+func banData() (banRules, error) { return cliban.Load() }
 
 // cliLines splits a command template into its lines: trimmed, spaces collapsed, lowercased, empty lines dropped.
-func cliLines(s string) []string {
-	var out []string
-	for l := range strings.SplitSeq(s, "\n") {
-		if l = strings.Join(strings.Fields(strings.ToLower(l)), " "); l != "" {
-			out = append(out, l)
-		}
-	}
-	return out
-}
+func cliLines(s string) []string { return cliban.Lines(s) }
 
-func banHit(lines []string, res []*regexp.Regexp) string {
-	for _, l := range lines {
-		for _, re := range res {
-			if re.MatchString(l) {
-				return l
-			}
-		}
-	}
-	return ""
-}
+func banHit(lines []string, res []*regexp.Regexp) string { return cliban.Hit(lines, res) }
 
 // stepSet is the four templates of one action.
 type stepSet struct{ run, rollback, verify, pre Tpl }
@@ -105,11 +45,11 @@ func cliProblem(s stepSet, custom bool) string {
 		if len(lines) == 0 || (st.write && !custom) {
 			continue
 		}
-		if l := banHit(lines, ban.everywhere); l != "" {
+		if l := banHit(lines, ban.Everywhere); l != "" {
 			return st.what + `: the command "` + oneLine(l, 60) + `" is not allowed in a template.`
 		}
 		if st.readOnly {
-			if l := banHit(lines, ban.readOnly); l != "" {
+			if l := banHit(lines, ban.ReadOnly); l != "" {
 				return st.what + `: the command "` + oneLine(l, 60) + `" can change the device. This step may only read.`
 			}
 		}
@@ -194,7 +134,50 @@ func normalizeOutput(s string) string {
 // containsText reports whether the normalised output holds the text: the text is normalised like the output (spaces collapsed),
 // the comparison is a case-sensitive substring.
 func containsText(normalized, text string) bool {
-	return strings.Contains(normalized, collapseSpaces(text))
+	if strings.Contains(normalized, collapseSpaces(text)) {
+		return true
+	}
+	// JSON output was compacted (no whitespace outside strings), so a text written the way a device pretty-prints ("mode": "trunk") is
+	// compacted the same way before it is looked for, or a refusal text could never match and an expect would always fail (D-95 (1c)).
+	return looksJSON(normalized) && strings.Contains(normalized, normalizePattern(text, true))
+}
+
+// looksJSON reports whether normalised output is a JSON document (normalizeOutput compacted it).
+func looksJSON(normalized string) bool {
+	t := strings.TrimSpace(normalized)
+	return t != "" && (t[0] == '{' || t[0] == '[') && json.Valid([]byte(t))
+}
+
+// normalizePattern puts a refusal or expect text in the form of the output it is compared with. For JSON output it drops the whitespace
+// outside double-quoted strings, as json.Compact does to the output; otherwise it collapses runs of spaces. A custom action for an HTTP or
+// MCP connection is saved in this form (checkCatalog), so what an admin reads is what is compared.
+func normalizePattern(text string, jsonOutput bool) string {
+	if !jsonOutput {
+		return collapseSpaces(text)
+	}
+	var b strings.Builder
+	inStr, esc := false, false
+	for _, r := range text {
+		switch {
+		case inStr:
+			b.WriteRune(r)
+			switch {
+			case esc:
+				esc = false
+			case r == '\\':
+				esc = true
+			case r == '"':
+				inStr = false
+			}
+		case r == '"':
+			inStr = true
+			b.WriteRune(r)
+		case r == ' ' || r == '\t' || r == '\n' || r == '\r':
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func collapseSpaces(s string) string {

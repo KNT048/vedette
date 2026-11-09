@@ -39603,12 +39603,23 @@
                                                 "string",
                                                 "null"
                                               ]
+                                            },
+                                            "headers": {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string"
+                                              },
+                                              "additionalProperties": {
+                                                "type": "string"
+                                              },
+                                              "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                             }
                                           },
                                           "required": [
                                             "method",
                                             "url",
-                                            "body"
+                                            "body",
+                                            "headers"
                                           ],
                                           "additionalProperties": false
                                         },
@@ -39650,12 +39661,23 @@
                                                     "string",
                                                     "null"
                                                   ]
+                                                },
+                                                "headers": {
+                                                  "type": "object",
+                                                  "propertyNames": {
+                                                    "type": "string"
+                                                  },
+                                                  "additionalProperties": {
+                                                    "type": "string"
+                                                  },
+                                                  "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                                 }
                                               },
                                               "required": [
                                                 "method",
                                                 "url",
-                                                "body"
+                                                "body",
+                                                "headers"
                                               ],
                                               "additionalProperties": false
                                             },
@@ -39791,6 +39813,10 @@
                                     }
                                   ],
                                   "description": "Result of the read-back after the action ran"
+                                },
+                                "state_unknown": {
+                                  "type": "boolean",
+                                  "description": "A failed item whose step was sent and whose outcome is not known: it may be in force, so it can be undone to be sure"
                                 }
                               },
                               "required": [
@@ -39810,7 +39836,8 @@
                                 "remove_at",
                                 "rolled_back_at",
                                 "result",
-                                "verified"
+                                "verified",
+                                "state_unknown"
                               ],
                               "additionalProperties": false
                             }
@@ -40323,12 +40350,23 @@
                                           "string",
                                           "null"
                                         ]
+                                      },
+                                      "headers": {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {
+                                          "type": "string"
+                                        },
+                                        "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                       }
                                     },
                                     "required": [
                                       "method",
                                       "url",
-                                      "body"
+                                      "body",
+                                      "headers"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -40370,12 +40408,23 @@
                                               "string",
                                               "null"
                                             ]
+                                          },
+                                          "headers": {
+                                            "type": "object",
+                                            "propertyNames": {
+                                              "type": "string"
+                                            },
+                                            "additionalProperties": {
+                                              "type": "string"
+                                            },
+                                            "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                           }
                                         },
                                         "required": [
                                           "method",
                                           "url",
-                                          "body"
+                                          "body",
+                                          "headers"
                                         ],
                                         "additionalProperties": false
                                       },
@@ -40511,6 +40560,10 @@
                               }
                             ],
                             "description": "Result of the read-back after the action ran"
+                          },
+                          "state_unknown": {
+                            "type": "boolean",
+                            "description": "A failed item whose step was sent and whose outcome is not known: it may be in force, so it can be undone to be sure"
                           }
                         },
                         "required": [
@@ -40530,7 +40583,8 @@
                           "remove_at",
                           "rolled_back_at",
                           "result",
-                          "verified"
+                          "verified",
+                          "state_unknown"
                         ],
                         "additionalProperties": false
                       }
@@ -41051,12 +41105,23 @@
                                           "string",
                                           "null"
                                         ]
+                                      },
+                                      "headers": {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {
+                                          "type": "string"
+                                        },
+                                        "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                       }
                                     },
                                     "required": [
                                       "method",
                                       "url",
-                                      "body"
+                                      "body",
+                                      "headers"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -41098,12 +41163,23 @@
                                               "string",
                                               "null"
                                             ]
+                                          },
+                                          "headers": {
+                                            "type": "object",
+                                            "propertyNames": {
+                                              "type": "string"
+                                            },
+                                            "additionalProperties": {
+                                              "type": "string"
+                                            },
+                                            "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                           }
                                         },
                                         "required": [
                                           "method",
                                           "url",
-                                          "body"
+                                          "body",
+                                          "headers"
                                         ],
                                         "additionalProperties": false
                                       },
@@ -41239,6 +41315,10 @@
                               }
                             ],
                             "description": "Result of the read-back after the action ran"
+                          },
+                          "state_unknown": {
+                            "type": "boolean",
+                            "description": "A failed item whose step was sent and whose outcome is not known: it may be in force, so it can be undone to be sure"
                           }
                         },
                         "required": [
@@ -41258,7 +41338,8 @@
                           "remove_at",
                           "rolled_back_at",
                           "result",
-                          "verified"
+                          "verified",
+                          "state_unknown"
                         ],
                         "additionalProperties": false
                       }
@@ -41767,12 +41848,23 @@
                                           "string",
                                           "null"
                                         ]
+                                      },
+                                      "headers": {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {
+                                          "type": "string"
+                                        },
+                                        "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                       }
                                     },
                                     "required": [
                                       "method",
                                       "url",
-                                      "body"
+                                      "body",
+                                      "headers"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -41814,12 +41906,23 @@
                                               "string",
                                               "null"
                                             ]
+                                          },
+                                          "headers": {
+                                            "type": "object",
+                                            "propertyNames": {
+                                              "type": "string"
+                                            },
+                                            "additionalProperties": {
+                                              "type": "string"
+                                            },
+                                            "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                           }
                                         },
                                         "required": [
                                           "method",
                                           "url",
-                                          "body"
+                                          "body",
+                                          "headers"
                                         ],
                                         "additionalProperties": false
                                       },
@@ -41955,6 +42058,10 @@
                               }
                             ],
                             "description": "Result of the read-back after the action ran"
+                          },
+                          "state_unknown": {
+                            "type": "boolean",
+                            "description": "A failed item whose step was sent and whose outcome is not known: it may be in force, so it can be undone to be sure"
                           }
                         },
                         "required": [
@@ -41974,7 +42081,8 @@
                           "remove_at",
                           "rolled_back_at",
                           "result",
-                          "verified"
+                          "verified",
+                          "state_unknown"
                         ],
                         "additionalProperties": false
                       }
@@ -42458,12 +42566,23 @@
                                           "string",
                                           "null"
                                         ]
+                                      },
+                                      "headers": {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {
+                                          "type": "string"
+                                        },
+                                        "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                       }
                                     },
                                     "required": [
                                       "method",
                                       "url",
-                                      "body"
+                                      "body",
+                                      "headers"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -42505,12 +42624,23 @@
                                               "string",
                                               "null"
                                             ]
+                                          },
+                                          "headers": {
+                                            "type": "object",
+                                            "propertyNames": {
+                                              "type": "string"
+                                            },
+                                            "additionalProperties": {
+                                              "type": "string"
+                                            },
+                                            "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                           }
                                         },
                                         "required": [
                                           "method",
                                           "url",
-                                          "body"
+                                          "body",
+                                          "headers"
                                         ],
                                         "additionalProperties": false
                                       },
@@ -42646,6 +42776,10 @@
                               }
                             ],
                             "description": "Result of the read-back after the action ran"
+                          },
+                          "state_unknown": {
+                            "type": "boolean",
+                            "description": "A failed item whose step was sent and whose outcome is not known: it may be in force, so it can be undone to be sure"
                           }
                         },
                         "required": [
@@ -42665,7 +42799,8 @@
                           "remove_at",
                           "rolled_back_at",
                           "result",
-                          "verified"
+                          "verified",
+                          "state_unknown"
                         ],
                         "additionalProperties": false
                       }
@@ -43512,12 +43647,23 @@
                                                   "string",
                                                   "null"
                                                 ]
+                                              },
+                                              "headers": {
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string"
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "string"
+                                                },
+                                                "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                               }
                                             },
                                             "required": [
                                               "method",
                                               "url",
-                                              "body"
+                                              "body",
+                                              "headers"
                                             ],
                                             "additionalProperties": false
                                           },
@@ -43559,12 +43705,23 @@
                                                       "string",
                                                       "null"
                                                     ]
+                                                  },
+                                                  "headers": {
+                                                    "type": "object",
+                                                    "propertyNames": {
+                                                      "type": "string"
+                                                    },
+                                                    "additionalProperties": {
+                                                      "type": "string"
+                                                    },
+                                                    "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                                   }
                                                 },
                                                 "required": [
                                                   "method",
                                                   "url",
-                                                  "body"
+                                                  "body",
+                                                  "headers"
                                                 ],
                                                 "additionalProperties": false
                                               },
@@ -43700,6 +43857,10 @@
                                       }
                                     ],
                                     "description": "Result of the read-back after the action ran"
+                                  },
+                                  "state_unknown": {
+                                    "type": "boolean",
+                                    "description": "A failed item whose step was sent and whose outcome is not known: it may be in force, so it can be undone to be sure"
                                   }
                                 },
                                 "required": [
@@ -43719,7 +43880,8 @@
                                   "remove_at",
                                   "rolled_back_at",
                                   "result",
-                                  "verified"
+                                  "verified",
+                                  "state_unknown"
                                 ],
                                 "additionalProperties": false
                               }
@@ -44559,12 +44721,23 @@
                                           "string",
                                           "null"
                                         ]
+                                      },
+                                      "headers": {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {
+                                          "type": "string"
+                                        },
+                                        "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                       }
                                     },
                                     "required": [
                                       "method",
                                       "url",
-                                      "body"
+                                      "body",
+                                      "headers"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -44606,12 +44779,23 @@
                                               "string",
                                               "null"
                                             ]
+                                          },
+                                          "headers": {
+                                            "type": "object",
+                                            "propertyNames": {
+                                              "type": "string"
+                                            },
+                                            "additionalProperties": {
+                                              "type": "string"
+                                            },
+                                            "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                           }
                                         },
                                         "required": [
                                           "method",
                                           "url",
-                                          "body"
+                                          "body",
+                                          "headers"
                                         ],
                                         "additionalProperties": false
                                       },
@@ -44971,12 +45155,23 @@
                                           "string",
                                           "null"
                                         ]
+                                      },
+                                      "headers": {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {
+                                          "type": "string"
+                                        },
+                                        "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                       }
                                     },
                                     "required": [
                                       "method",
                                       "url",
-                                      "body"
+                                      "body",
+                                      "headers"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -45018,12 +45213,23 @@
                                               "string",
                                               "null"
                                             ]
+                                          },
+                                          "headers": {
+                                            "type": "object",
+                                            "propertyNames": {
+                                              "type": "string"
+                                            },
+                                            "additionalProperties": {
+                                              "type": "string"
+                                            },
+                                            "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                           }
                                         },
                                         "required": [
                                           "method",
                                           "url",
-                                          "body"
+                                          "body",
+                                          "headers"
                                         ],
                                         "additionalProperties": false
                                       },
@@ -45159,6 +45365,10 @@
                               }
                             ],
                             "description": "Result of the read-back after the action ran"
+                          },
+                          "state_unknown": {
+                            "type": "boolean",
+                            "description": "A failed item whose step was sent and whose outcome is not known: it may be in force, so it can be undone to be sure"
                           }
                         },
                         "required": [
@@ -45178,7 +45388,8 @@
                           "remove_at",
                           "rolled_back_at",
                           "result",
-                          "verified"
+                          "verified",
+                          "state_unknown"
                         ],
                         "additionalProperties": false
                       }
@@ -48727,12 +48938,23 @@
                                                         "string",
                                                         "null"
                                                       ]
+                                                    },
+                                                    "headers": {
+                                                      "type": "object",
+                                                      "propertyNames": {
+                                                        "type": "string"
+                                                      },
+                                                      "additionalProperties": {
+                                                        "type": "string"
+                                                      },
+                                                      "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                                     }
                                                   },
                                                   "required": [
                                                     "method",
                                                     "url",
-                                                    "body"
+                                                    "body",
+                                                    "headers"
                                                   ],
                                                   "additionalProperties": false
                                                 },
@@ -48774,12 +48996,23 @@
                                                             "string",
                                                             "null"
                                                           ]
+                                                        },
+                                                        "headers": {
+                                                          "type": "object",
+                                                          "propertyNames": {
+                                                            "type": "string"
+                                                          },
+                                                          "additionalProperties": {
+                                                            "type": "string"
+                                                          },
+                                                          "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                                         }
                                                       },
                                                       "required": [
                                                         "method",
                                                         "url",
-                                                        "body"
+                                                        "body",
+                                                        "headers"
                                                       ],
                                                       "additionalProperties": false
                                                     },
@@ -49122,12 +49355,23 @@
                                           "string",
                                           "null"
                                         ]
+                                      },
+                                      "headers": {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {
+                                          "type": "string"
+                                        },
+                                        "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                       }
                                     },
                                     "required": [
                                       "method",
                                       "url",
-                                      "body"
+                                      "body",
+                                      "headers"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -49169,12 +49413,23 @@
                                               "string",
                                               "null"
                                             ]
+                                          },
+                                          "headers": {
+                                            "type": "object",
+                                            "propertyNames": {
+                                              "type": "string"
+                                            },
+                                            "additionalProperties": {
+                                              "type": "string"
+                                            },
+                                            "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                           }
                                         },
                                         "required": [
                                           "method",
                                           "url",
-                                          "body"
+                                          "body",
+                                          "headers"
                                         ],
                                         "additionalProperties": false
                                       },
@@ -49310,6 +49565,10 @@
                               }
                             ],
                             "description": "Result of the read-back after the action ran"
+                          },
+                          "state_unknown": {
+                            "type": "boolean",
+                            "description": "A failed item whose step was sent and whose outcome is not known: it may be in force, so it can be undone to be sure"
                           }
                         },
                         "required": [
@@ -49329,7 +49588,8 @@
                           "remove_at",
                           "rolled_back_at",
                           "result",
-                          "verified"
+                          "verified",
+                          "state_unknown"
                         ],
                         "additionalProperties": false
                       }
@@ -51315,12 +51575,23 @@
                                               "string",
                                               "null"
                                             ]
+                                          },
+                                          "headers": {
+                                            "type": "object",
+                                            "propertyNames": {
+                                              "type": "string"
+                                            },
+                                            "additionalProperties": {
+                                              "type": "string"
+                                            },
+                                            "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                           }
                                         },
                                         "required": [
                                           "method",
                                           "url",
-                                          "body"
+                                          "body",
+                                          "headers"
                                         ],
                                         "additionalProperties": false
                                       },
@@ -51362,12 +51633,23 @@
                                                   "string",
                                                   "null"
                                                 ]
+                                              },
+                                              "headers": {
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string"
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "string"
+                                                },
+                                                "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
                                               }
                                             },
                                             "required": [
                                               "method",
                                               "url",
-                                              "body"
+                                              "body",
+                                              "headers"
                                             ],
                                             "additionalProperties": false
                                           },

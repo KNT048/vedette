@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 	"unicode"
 
 	"golang.org/x/crypto/ssh"
@@ -209,5 +210,30 @@ func TestSSHRunRefusesControlCharacters(t *testing.T) {
 		if strings.ContainsFunc(l, unicode.IsControl) {
 			t.Errorf("the device received a control character in %q", l)
 		}
+	}
+}
+
+// M5 (review of 13b-6): a write that waits for window the device never grants blocks inside the library, where no deadline reaches it. The end
+// of the context closes the socket under it, so the line returns within the step's time instead of waiting for ever.
+func TestSSHWriteThatNeverGetsWindowEndsWithTheContext(t *testing.T) {
+	t.Parallel()
+	f := conntest.NewSSH(t, conntest.SSHOpts{StallInput: true})
+	ctx, cancel := context.WithTimeout(t.Context(), 600*time.Millisecond)
+	defer cancel()
+	s, err := transport.DialSSH(ctx, f.Addr, sshCfg())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	start := time.Now()
+	done := make(chan error, 1)
+	go func() { _, err := s.Run(ctx, strings.Repeat("a", 6<<20)); done <- err }() // more than the 2 MB window
+	select {
+	case err := <-done:
+		if err == nil || time.Since(start) > 5*time.Second {
+			t.Fatalf("the stuck write returned %v after %v", err, time.Since(start))
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("a write that never gets window did not end with the context")
 	}
 }

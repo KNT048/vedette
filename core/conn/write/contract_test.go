@@ -25,30 +25,42 @@ func TestContract_FORBID1_OnlyTheBinaryImportsTheWriter(t *testing.T) {
 	fset := gotoken.NewFileSet()
 	var importers []string
 	scanned := 0
-	for _, top := range []string{"core", "modules", "cmd", "host", "internal"} {
-		err := filepath.WalkDir(filepath.Join(root, top), func(p string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if d.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			f, err := parser.ParseFile(fset, p, nil, parser.ImportsOnly)
-			if err != nil {
-				return err
-			}
-			scanned++
-			rel, _ := filepath.Rel(root, p)
-			rel = filepath.ToSlash(rel)
-			for _, imp := range f.Imports {
-				if strings.Trim(imp.Path.Value, `"`) == writerPath {
-					importers = append(importers, rel)
-				}
+	tops := map[string]bool{}
+	// Every directory of the repository that holds Go files, not a list that a new top-level directory would escape (L4).
+	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if n := d.Name(); p != root && (strings.HasPrefix(n, ".") || n == "node_modules" || n == "testdata") {
+				return filepath.SkipDir
 			}
 			return nil
-		})
+		}
+		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
+			return nil
+		}
+		f, err := parser.ParseFile(fset, p, nil, parser.ImportsOnly)
 		if err != nil {
-			t.Fatal(err)
+			return err
+		}
+		scanned++
+		rel, _ := filepath.Rel(root, p)
+		rel = filepath.ToSlash(rel)
+		tops[strings.SplitN(rel, "/", 2)[0]] = true
+		for _, imp := range f.Imports {
+			if strings.Trim(imp.Path.Value, `"`) == writerPath {
+				importers = append(importers, rel)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"core", "modules", "cmd", "host", "internal", "content", "scripts"} {
+		if !tops[want] {
+			t.Fatalf("the scan did not reach %s: %v", want, tops)
 		}
 	}
 	if scanned < 200 {

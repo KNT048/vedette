@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/knt048/vedette/core/conn"
 )
 
 // What is sent to a device (INV-22, D-94, D-95). buildExec renders the four steps of an action once, when the request is made, from
@@ -65,7 +67,7 @@ func expanded(text string, ttlMin *int) (string, error) {
 	return text, nil
 }
 
-func (s *Service) fillExec(text string, vals Values, t Transport, ttlMin *int) (string, error) {
+func fillExec(text string, vals Values, t Transport, ttlMin *int) (string, error) {
 	out, err := Fill(text, vals, t)
 	if err != nil {
 		return "", err
@@ -82,7 +84,7 @@ func (s *Service) stepOf(t Tpl, conn *ConnectionInfo, tool string, vals Values, 
 	case isMCP(conn.Kind):
 		body := "{}"
 		if t.Body != "" {
-			b, err := s.fillExec(t.Body, vals, TJSON, ttlMin)
+			b, err := fillExec(t.Body, vals, TJSON, ttlMin)
 			if err != nil {
 				return nil, err
 			}
@@ -96,7 +98,7 @@ func (s *Service) stepOf(t Tpl, conn *ConnectionInfo, tool string, vals Values, 
 		}
 		return &execStep{Tool: tool, Args: json.RawMessage(body)}, nil
 	case conn.Kind == "ssh":
-		text, err := s.fillExec(t.CLI, vals, TCLI, ttlMin)
+		text, err := fillExec(t.CLI, vals, TCLI, ttlMin)
 		if err != nil {
 			return nil, err
 		}
@@ -111,13 +113,13 @@ func (s *Service) stepOf(t Tpl, conn *ConnectionInfo, tool string, vals Values, 
 		}
 		return &execStep{Lines: lines}, nil
 	case isHTTPKind(conn.Kind) && t.Method != "" && t.Path != "":
-		path, err := s.fillExec(t.Path, vals, TURL, ttlMin)
+		path, err := fillExec(t.Path, vals, TURL, ttlMin)
 		if err != nil {
 			return nil, err
 		}
 		st := &execStep{Method: t.Method, URL: conn.Target + path}
 		if t.Body != "" {
-			b, err := s.fillExec(t.Body, vals, TJSON, ttlMin)
+			b, err := fillExec(t.Body, vals, TJSON, ttlMin)
 			if err != nil {
 				return nil, err
 			}
@@ -134,7 +136,7 @@ func (s *Service) stepOf(t Tpl, conn *ConnectionInfo, tool string, vals Values, 
 			if !ok {
 				return nil, errors.New("response: a header has no name")
 			}
-			v, err := s.fillExec(strings.TrimSpace(v), vals, THeader, ttlMin)
+			v, err := fillExec(strings.TrimSpace(v), vals, THeader, ttlMin)
 			if err != nil {
 				return nil, err
 			}
@@ -174,17 +176,22 @@ func (s *Service) buildExec(c catRow, vals Values, conn *ConnectionInfo, ttlMin 
 		return nil, err
 	}
 	if c.Verify.Expect != "" {
-		if ex.Expect, err = s.fillExec(c.Verify.Expect, vals, TCLI, ttlMin); err != nil {
+		if ex.Expect, err = fillExec(c.Verify.Expect, vals, TCLI, ttlMin); err != nil {
 			return nil, err
 		}
 	}
 	return ex, nil
 }
 
-// deviceStep is the step as the executor gets it.
-func deviceStep(reqID string, it itemRec, conn ConnectionInfo, phase string, st *execStep) DeviceStep {
-	return DeviceStep{ConnectionID: conn.ID, ConnFP: it.ConnFP, Phase: phase, Tool: st.Tool, Lines: st.Lines, Method: st.Method, URL: st.URL, Body: st.Body,
+// deviceStep is the step as the executor gets it. safe marks a step held to the identity of the connection instead of its fingerprint: an
+// undo and the read-backs that settle an unclear outcome (the safe direction, D-88 (4)).
+func deviceStep(reqID string, it itemRec, conn ConnectionInfo, phase string, st *execStep, safe bool) DeviceStep {
+	d := DeviceStep{ConnectionID: conn.ID, ConnFP: it.ConnFP, Phase: phase, Tool: st.Tool, Lines: st.Lines, Method: st.Method, URL: st.URL, Body: st.Body,
 		Headers: st.Headers, Args: st.Args, RequestID: reqID, ItemID: it.ID}
+	if safe && it.ConnIdent != "" {
+		d.ByIdentity, d.ConnIdentity = true, it.ConnIdent
+	}
+	return d
 }
 
 // readOnlyProblem is the refused-command check, made again right before a check or a read-back goes out: its command lines may
@@ -207,11 +214,26 @@ func readOnlyProblem(st *execStep) string {
 	for _, l := range st.Lines {
 		lines = append(lines, strings.Join(strings.Fields(strings.ToLower(l)), " "))
 	}
-	if l := banHit(lines, ban.everywhere); l != "" {
+	if l := banHit(lines, ban.Everywhere); l != "" {
 		return `the command "` + oneLine(l, 60) + `" is not allowed`
 	}
-	if l := banHit(lines, ban.readOnly); l != "" {
+	if l := banHit(lines, ban.ReadOnly); l != "" {
 		return `the command "` + oneLine(l, 60) + `" can change the device`
+	}
+	return ""
+}
+
+// addressProblem is "" when every API call of the steps is under the target and under an entry of the allow-list of the connection (the
+// rule of the writer, conn.AllowsURL), otherwise why the action could never be sent. A connection whose allow-list is not known skips it.
+func (ex *execRec) addressProblem(c ConnectionInfo) string {
+	if c.Allow == nil || ex == nil {
+		return ""
+	}
+	cc := conn.Connection{Target: c.Target, Allow: c.Allow}
+	for _, st := range []*execStep{ex.Precheck, ex.Run, ex.Rollback, ex.Verify} {
+		if st != nil && st.URL != "" && !conn.AllowsURL(cc, st.URL) {
+			return "Not available: the address " + oneLine(st.URL, 120) + " is outside the allow-list of " + oneLine(c.Name, 80) + ", so it could never be sent. Add it to the allow-list of the connection (Settings, Connections)."
+		}
 	}
 	return ""
 }

@@ -119,6 +119,8 @@ type ConnectionInfo struct {
 	// UpdatedAt changes whenever the connection is edited (address, credentials, tools). With the id, kind and Target it makes the
 	// fingerprint stored in every request item (INV-9).
 	UpdatedAt string
+	// Allow is the allow-list of the connection (conn.Connection.Allow). nil = not known (a test double): the address check is skipped.
+	Allow []string
 	// NotReady is why a request cannot use the connection yet (core/conn NotReady: off, never tested, last test failed, SSH host key
 	// not pinned), or "" when it can. An action on a connection that is not ready is not available.
 	NotReady string
@@ -127,6 +129,9 @@ type ConnectionInfo struct {
 // connFP is the fingerprint of a connection as a request saw it: the same connection is the same fingerprint (conn.Fingerprint,
 // D-93: id, kind, address and the moment a security field of the connection last changed).
 func connFP(c ConnectionInfo) string { return conn.Fingerprint(c.ID, c.Kind, c.Target, c.UpdatedAt) }
+
+// connIdent is conn.Identity of a connection: id, kind and address. An undo is held to it, not to the fingerprint.
+func connIdent(c ConnectionInfo) string { return conn.Identity(c.ID, c.Kind, c.Target) }
 
 // ChangesInForce says whether a change made through the connection may still be in force on a device: an item that was carried
 // out and not rolled back, one that was sent and whose outcome is not known yet (running), and one the sweep or the step deadline
@@ -155,6 +160,10 @@ type Connections interface {
 type DeviceStep struct {
 	ConnectionID string
 	ConnFP       string // conn.Fingerprint of the connection when the request was made: the executor refuses a connection that is not that version
+	// ByIdentity holds the step to ConnIdentity (conn.Identity: id, kind, address) instead of ConnFP: an undo and the read-backs that settle an
+	// unclear outcome must survive a rotated token or a renewed pin (D-88 (4)).
+	ByIdentity   bool
+	ConnIdentity string
 	Phase        string
 	Tool         string   // MCP: the write tool to call
 	Lines        []string // SSH: the command lines, one at a time

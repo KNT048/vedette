@@ -414,13 +414,27 @@ func rollbackGate(i itemRec, cats map[string]catRow, cs conns) *apierr.Error {
 	if !ok {
 		return fail(http.StatusConflict, "tool_unavailable", "The action of this change no longer exists in the catalog, so it cannot be undone from here.")
 	}
-	if e := connectionGate(i, cat, cs); e != nil {
-		return e
+	// An undo is held to the identity of the connection (id, kind, address), not to its fingerprint: a rotated token, a renewed pin, a changed
+	// allow-list or a switched tool must not strand a change that is in force. The catalog may point the action elsewhere since: the item
+	// remembers the device it ran on.
+	if conn, known := cs.get(*i.ConnectorID); known {
+		same := connFP(conn) == i.ConnFP
+		if i.ConnIdent != "" {
+			same = connIdent(conn) == i.ConnIdent
+		}
+		if !same {
+			return fail(http.StatusConflict, "connection_changed", "The connection \""+oneLine(deref2(i.Connection), 80)+"\" is not the device this change was made on (its address or kind changed), so the change was not undone from here. Undo it on the device.")
+		}
 	}
 	if cat.RollbackTool != i.RollbackTool {
 		return fail(http.StatusConflict, "tool_unavailable", "The undo tool of \""+cat.Name+"\" was changed after the request was made, so the change was not undone.")
 	}
 	return nil
+}
+
+// undoable reports whether an item can be undone: one that is in force, or one whose outcome is not known (undo it to be sure it is not in force).
+func undoable(i RequestItem) bool {
+	return i.Status == ItemExecuted || (i.Status == ItemFailed && i.StateUnknown)
 }
 
 // runGate is the fresh state the run-time gates read.
@@ -632,91 +646,11 @@ func (s *Service) carryOut(ctx context.Context, r request, it itemRec, cat catRo
 	case s.cfg.Executor == nil:
 		return itemOutcome{err: "No device executor is available in this build. Nothing was changed."}
 	}
-	return s.carryOutDevice(ctx, r, it, cs.by[*it.ConnectorID])
+	return s.carryOutDevice(ctx, r, it, cat, cs.by[*it.ConnectorID])
 }
 
-// carryOutDevice is the order of a step on a device (INV-22, D-95): the check before, which only reads and may refuse (nothing is
-// written); the run; the read-back against the expected text. What the device printed is compared and dropped here: it is never
-// stored, logged or returned.
-func (s *Service) carryOutDevice(ctx context.Context, r request, it itemRec, conn ConnectionInfo) itemOutcome {
-	ex := it.Exec
-	if ex == nil || ex.Run == nil {
-		return itemOutcome{err: "This request was made by an older version of Vedette, so it cannot run. Nothing was changed. Ask again."}
-	}
-	send := func(phase string, st *execStep) (DeviceResult, error) {
-		res, err := s.execute(ctx, deviceStep(r.ID, it, conn, phase, st))
-		return res, err
-	}
-	if ex.Precheck != nil {
-		if why := readOnlyProblem(ex.Precheck); why != "" {
-			return itemOutcome{err: "The check before was not sent: " + why + ". Nothing was changed."}
-		}
-		res, err := send("precheck", ex.Precheck)
-		out := res.Output
-		res.Output = ""
-		if o, failed := s.stepProblem(ctx, conn, "The check before", res, err, false); failed {
-			return o
-		}
-		if why := precheckVerdict(out, ex.Refuse, ex.PrecheckExpect); why != "" {
-			return itemOutcome{refusal: fail(http.StatusConflict, "precheck_refused", "Refused by the check before: "+oneLine(why, 120)+". Nothing was changed.")}
-		}
-	}
-	res, err := send("run", ex.Run)
-	if o, failed := s.stepProblem(ctx, conn, "The step", res, err, true); failed {
-		return o
-	}
-	out := itemOutcome{result: oneLine(res.Detail, 300)}
-	if ex.Verify != nil && ex.Expect != "" { // without a text to look for there is nothing to check: "not checked", never "ok" (D-95 (2))
-		if why := readOnlyProblem(ex.Verify); why != "" {
-			out.verified = &Verified{OK: false, Detail: "The read-back was not sent: " + why + "."}
-			return out
-		}
-		vr, verr := send("verify", ex.Verify)
-		got := vr.Output
-		switch {
-		case verr != nil || vr.Status != StepOK:
-			out.verified = &Verified{OK: false, Detail: "The read-back did not answer."}
-		case readBackHolds(got, ex.Expect, false):
-			out.verified = &Verified{OK: true, Detail: "Read back from the device: the expected text is there."}
-		default:
-			out.verified = &Verified{OK: false, Detail: "Read back from the device: the expected text is not there."}
-		}
-	}
-	return out
-}
-
-// stepProblem is nil-and-false when the step completed; otherwise the outcome to record. writes says the step changes the device: a
-// step that may have been applied (a time-out, an answer that is not understood) leaves "state unknown" (INV-13); a read changed nothing.
-func (s *Service) stepProblem(ctx context.Context, conn ConnectionInfo, what string, res DeviceResult, err error, writes bool) (itemOutcome, bool) {
-	name := oneLine(conn.Name, 80)
-	detail := strings.TrimRight(oneLine(res.Detail, 200), ". ")
-	if detail != "" {
-		detail = " (" + detail + ")"
-	}
-	switch {
-	case err != nil && ctx.Err() != nil:
-		if writes {
-			return itemOutcome{err: "The connection " + name + " did not answer in time. " + stateUnknown, unknown: true}, true
-		}
-		return itemOutcome{err: "The connection " + name + " did not answer in time. Nothing was changed."}, true
-	case err != nil:
-		return itemOutcome{err: "The connection " + name + " did not answer. Nothing was changed."}, true
-	}
-	switch res.Status {
-	case StepOK:
-		return itemOutcome{}, false
-	case StepConnectionChange:
-		return itemOutcome{refusal: fail(http.StatusConflict, "connection_changed", "The connection \""+name+"\" was changed after the request was made. Nothing was changed. Ask again.")}, true
-	case StepNotSent:
-		return itemOutcome{err: what + " was not sent to " + name + detail + ". Nothing was changed."}, true
-	case StepFailed:
-		return itemOutcome{err: what + " was refused by " + name + detail + ". Nothing was changed."}, true
-	}
-	if !writes {
-		return itemOutcome{err: what + " did not complete on " + name + detail + ". Nothing was changed."}, true
-	}
-	return itemOutcome{err: what + " may or may not have been applied on " + name + detail + ". " + stateUnknown, unknown: true}, true
-}
+// errExecutorPanic is what execute answers when the executor crashed: a crash in the middle of a write is the least known outcome there is.
+var errExecutorPanic = errors.New("the executor failed")
 
 // execute runs one device step but stops waiting when ctx ends: an Executor must respect its context (the interface says so), and
 // one that does not must not hold the device-step lock or the approver past the item's deadline. The caller then records "state
@@ -730,7 +664,7 @@ func (s *Service) execute(ctx context.Context, step DeviceStep) (DeviceResult, e
 	go func() {
 		defer func() {
 			if recover() != nil {
-				done <- outcome{err: errors.New("the executor failed")}
+				done <- outcome{err: errExecutorPanic}
 			}
 		}()
 		res, err := s.cfg.Executor.Execute(ctx, step)
@@ -971,6 +905,9 @@ func (s *Service) Sweep(ctx context.Context) error {
 	if err := s.failStuck(ctx); err != nil {
 		return err
 	}
+	if err := s.resolveUnknown(ctx); err != nil {
+		return err
+	}
 	return s.sweepTTL(ctx)
 }
 
@@ -1043,7 +980,7 @@ func (s *Service) Rollback(ctx context.Context, who Actor, id string) (ActionReq
 	}
 	var run []itemRec
 	for _, i := range r.recs {
-		if i.Status == ItemExecuted {
+		if undoable(i.RequestItem) {
 			run = append(run, i)
 		}
 	}
@@ -1083,7 +1020,7 @@ func (s *Service) Rollback(ctx context.Context, who Actor, id string) (ActionReq
 		return got, err
 	}
 	for _, i := range got.Items {
-		if slices.ContainsFunc(run, func(x itemRec) bool { return x.ID == i.ID }) && i.Status == ItemExecuted {
+		if slices.ContainsFunc(run, func(x itemRec) bool { return x.ID == i.ID }) && undoable(i) {
 			return got, s.refuse(ctx, fail(http.StatusConflict, "tool_unavailable", "The rollback could not be completed: "+deref2(i.Result)), id, who.Email)
 		}
 	}
@@ -1105,11 +1042,13 @@ func (s *Service) undoItem(ctx context.Context, reqID, itemID string, auto bool,
 		return err
 	}
 	k := slices.IndexFunc(r.recs, func(i itemRec) bool { return i.ID == itemID })
-	if k < 0 || r.recs[k].Status != ItemExecuted {
+	if k < 0 || !undoable(r.recs[k].RequestItem) {
 		return nil
 	}
 	it := r.recs[k]
-	failure, readNote, gone := "", "", false
+	wasUnknown := it.StateUnknown
+	var out undoOutcome
+	gone := false
 	if it.ConnectorID != nil {
 		cs, err := s.loadConns(ctx)
 		if err != nil {
@@ -1121,18 +1060,22 @@ func (s *Service) undoItem(ctx context.Context, reqID, itemID string, auto bool,
 		}
 		switch conn, known := cs.get(*it.ConnectorID); {
 		case s.cfg.Executor == nil:
-			failure = "No device executor is available in this build. The change was not undone."
+			out.failure = "No device executor is available in this build. The change was not undone."
 		case !known:
 			// The connection was deleted or restored away since the step ran: nothing can reach the device from here, so the undo is
 			// not tried again (the item leaves the sweep) and the person is told once.
-			failure, gone = "The connection of this action no longer exists. The change was not undone: undo it on the device.", true
+			out.failure, gone = "The connection of this action no longer exists. The change was not undone: undo it on the device.", true
 		default:
 			if e := rollbackGate(it, cats, cs); e != nil {
-				failure = e.Message
+				out.failure = e.Message
+				break
+			}
+			if cat, ok := cats[it.ActionID]; ok && it.Exec != nil && actionFP(cat) == it.ActionFP && !s.execMatches(cat, it, conn) {
+				out.failure = "The steps stored with this change are not what its action renders (the stored request was altered), so the undo was not sent. Undo it on the device."
 				break
 			}
 			xctx, cancel := context.WithTimeout(ctx, s.stepLimit)
-			failure, readNote = s.undoOnDevice(xctx, r.ID, it, conn)
+			out = s.undoOnDevice(xctx, r.ID, it, conn)
 			cancel()
 		}
 	}
@@ -1144,45 +1087,54 @@ func (s *Service) undoItem(ctx context.Context, reqID, itemID string, auto bool,
 			return err
 		}
 		j := slices.IndexFunc(cur.recs, func(i itemRec) bool { return i.ID == itemID })
-		if j < 0 || cur.recs[j].Status != ItemExecuted {
+		if j < 0 || !undoable(cur.recs[j].RequestItem) {
 			return nil
 		}
 		x := &cur.recs[j]
-		if failure != "" {
-			if deref2(x.Result) == failure {
+		if out.failure != "" {
+			flagMoved := x.UndoUnclear != out.unclear
+			x.UndoUnclear = out.unclear
+			if deref2(x.Result) == out.failure {
+				if flagMoved {
+					return updateReq(ctx, tx, cur)
+				}
 				return nil // the same failure is logged once
 			}
-			x.Result = strp(failure)
+			x.Result = strp(out.failure)
 			if gone {
 				x.RemoveAt = nil // the sweep must not try an undo that cannot be sent
 			}
-			if err := s.step(ctx, tx, "response.fail", cur.ID, LogFailed, x.Change.Rollback.Title+": "+failure, "system"); err != nil {
+			if err := s.step(ctx, tx, "response.fail", cur.ID, LogFailed, x.Change.Rollback.Title+": "+out.failure, "system"); err != nil {
 				return err
 			}
 			return updateReq(ctx, tx, cur)
 		}
-		x.Status, x.RolledBackAt = ItemRolledBack, strp(s.ts())
+		x.Status, x.RolledBackAt, x.StateUnknown, x.UndoUnclear, x.RemoveAt = ItemRolledBack, strp(s.ts()), false, false, nil
+		earlier := ""
+		if wasUnknown {
+			earlier = " Its earlier outcome was not known."
+		}
 		if auto {
-			x.Result = strp("Undone automatically (undo time ended)." + readNote)
+			x.Result = strp("Undone automatically (undo time ended)." + out.note)
 		} else {
 			x.Result = strp("Removed.")
 			if x.ConnectorID != nil {
-				x.Result = strp("Undone through " + oneLine(deref2(x.Connection), 80) + "." + readNote)
+				x.Result = strp("Undone through " + oneLine(deref2(x.Connection), 80) + "." + earlier + out.note)
 			}
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM resp_block_entries WHERE request_id = ? AND item_id = ?`, cur.ID, x.ID); err != nil {
 			return err
 		}
 		if auto {
-			err = s.step(ctx, tx, "response.ttl_remove", cur.ID, LogTTLRemoved, x.Change.Rollback.Title+": undo time of "+itoa(intOr(x.TTLMin, 0))+" minutes ended; "+callText(x.Change.Rollback.Rest, x.Change.Rollback.CLI), "system")
+			err = s.step(ctx, tx, "response.ttl_remove", cur.ID, LogTTLRemoved, x.Change.Rollback.Title+": undo time of "+itoa(intOr(x.TTLMin, 0))+" minutes ended; "+callText(x.Change.Rollback.Rest, x.Change.Rollback.CLI)+out.note, "system")
 		} else {
-			err = s.step(ctx, tx, "response.rollback", cur.ID, LogRolledBack, x.Change.Rollback.Title+"; "+callText(x.Change.Rollback.Rest, x.Change.Rollback.CLI), actor)
+			err = s.step(ctx, tx, "response.rollback", cur.ID, LogRolledBack, x.Change.Rollback.Title+"; "+callText(x.Change.Rollback.Rest, x.Change.Rollback.CLI)+earlier+out.note, actor)
 		}
 		if err != nil {
 			return err
 		}
 		fx.ob.Add(events.Event{Name: EventActionRolledBack, Data: RolledBackEvent{RequestID: cur.ID, ItemID: x.ID, ActionID: x.ActionID, Auto: auto}})
-		if !slices.ContainsFunc(cur.recs, func(i itemRec) bool { return i.Status == ItemExecuted }) {
+		if !slices.ContainsFunc(cur.recs, func(i itemRec) bool { return undoable(i.RequestItem) }) {
 			cur.Status = StatusRolledBack
 			if auto {
 				cur.Note = strp("Undone automatically when the undo time ended")
@@ -1195,43 +1147,6 @@ func (s *Service) undoItem(ctx context.Context, reqID, itemID string, auto bool,
 	}
 	s.run(ctx, &fx)
 	return nil
-}
-
-// undoOnDevice sends the rollback of an executed item and reads the device back: after the undo the read-back must not hold the text it
-// held after the change (D-95 (2)). It returns why the change was not undone ("" when it was) and a note for the result. A read-back that
-// still shows the change leaves the item executed: the sweep sends the undo again, and the same failure is logged once.
-func (s *Service) undoOnDevice(ctx context.Context, reqID string, it itemRec, conn ConnectionInfo) (failure, note string) {
-	ex := it.Exec
-	if ex == nil || ex.Rollback == nil {
-		return "This change was made by an older version of Vedette, so it cannot be undone from here. Undo it on the device.", ""
-	}
-	name := oneLine(conn.Name, 80)
-	res, err := s.execute(ctx, deviceStep(reqID, it, conn, "rollback", ex.Rollback))
-	switch {
-	case err != nil:
-		return "The connection " + name + " did not answer. The change was not undone.", ""
-	case res.Status != StepOK:
-		detail := strings.TrimRight(oneLine(res.Detail, 200), ". ")
-		if detail != "" {
-			detail = " (" + detail + ")"
-		}
-		return "The undo did not complete on " + name + detail + ". The change may still be in force.", ""
-	}
-	if ex.Verify == nil || ex.Expect == "" {
-		return "", ""
-	}
-	if readOnlyProblem(ex.Verify) != "" {
-		return "", " The read-back was not sent."
-	}
-	vr, verr := s.execute(ctx, deviceStep(reqID, it, conn, "verify", ex.Verify))
-	got := vr.Output
-	switch {
-	case verr != nil || vr.Status != StepOK:
-		return "", " The read-back did not answer."
-	case readBackHolds(got, ex.Expect, true):
-		return "", " Read back from the device: the change is gone."
-	}
-	return "The undo was sent to " + name + ", but the read-back still shows the change. Check the device.", ""
 }
 
 // ---- emergency stop (INV-8) ----
@@ -1252,6 +1167,9 @@ func (s *Service) EmergencyStop(ctx context.Context, who Actor) (int, error) {
 		st.Execution = false
 		if st.BreakerTrippedAt == nil {
 			st.BreakerTrippedAt = strp(s.ts())
+		}
+		if st.StoppedAt == nil {
+			st.StoppedAt = strp(s.ts()) // blocks every step that touches a device, an undo included, until an admin resumes
 		}
 		if err := s.saveSettings(ctx, tx, st); err != nil {
 			return err

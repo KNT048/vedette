@@ -15,10 +15,13 @@ import (
 
 const purpose = "core_connection"
 
-// Key is the proof of being inside core/conn: a value of it can only be made by a package under core/conn (Go's internal rule), and
+// Key is the proof of being inside core/conn: it has an unexported field of an unexported type, so no other package can make a value of it (a
+// struct{}{} literal is not assignable to it either), and
 // the methods of conn.Service that hand out a credential or the dialer of the writer ask for one. Anything that merely holds a
 // *conn.Service cannot call them.
-type Key struct{}
+type Key struct{ _ key }
+
+type key struct{}
 
 // Vault seals, replaces and decrypts the credentials of connections.
 type Vault struct {

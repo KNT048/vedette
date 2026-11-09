@@ -152,7 +152,7 @@ func (r responseDirectory) Finding(ctx context.Context, id string) (response.Fin
 type responseExecutor struct{ w *write.Writer }
 
 func (e responseExecutor) Execute(ctx context.Context, s response.DeviceStep) (response.DeviceResult, error) {
-	r := e.w.Do(ctx, write.Step{ConnectionID: s.ConnectionID, ConnFP: s.ConnFP, Phase: s.Phase, Tool: s.Tool, Lines: s.Lines, Method: s.Method, URL: s.URL,
+	r := e.w.Do(ctx, write.Step{ConnectionID: s.ConnectionID, ConnFP: s.ConnFP, ByIdentity: s.ByIdentity, ConnIdentity: s.ConnIdentity, Phase: s.Phase, Tool: s.Tool, Lines: s.Lines, Method: s.Method, URL: s.URL,
 		Body: s.Body, Headers: s.Headers, Args: s.Args})
 	return response.DeviceResult{Status: response.StepStatus(r.Status), Detail: r.Detail, Output: r.Output}, nil
 }

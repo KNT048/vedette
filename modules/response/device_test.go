@@ -372,8 +372,14 @@ func TestDevice_StepStatusesAreRecordedForWhatTheyMean(t *testing.T) {
 		if in, err := e.svc.ChangesInForce(e.ctx(), "cn-fw"); err != nil || in != c.inForce {
 			t.Errorf("%s: in force = %v %v, want %v", c.status, in, err, c.inForce)
 		}
-		if strings.Join(e.exec.phases(), ",") != "run" {
-			t.Errorf("%s: steps %v", c.status, e.exec.phases())
+		// An outcome that is not clear is read back once at once (fgt_ban_ip has a read-back text); the read-back prints nothing here, which
+		// settles nothing, so the item stays unknown.
+		want := "run"
+		if c.inForce {
+			want = "run,verify"
+		}
+		if strings.Join(e.exec.phases(), ",") != want {
+			t.Errorf("%s: steps %v, want %s", c.status, e.exec.phases(), want)
 		}
 	}
 }

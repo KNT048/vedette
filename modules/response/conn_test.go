@@ -146,7 +146,7 @@ func TestChangesInForceCountsAnItemWhoseOutcomeIsUnknown(t *testing.T) {
 		t.Error("while the step was in flight and recorded as state unknown, ChangesInForce was false: the connection could be deleted under it")
 	}
 	// The late result cleared the flag; the item is executed now, which counts by itself.
-	if n := e.count(`SELECT COUNT(*) FROM resp_actions WHERE items LIKE '%state_unknown%'`); n != 0 {
+	if n := e.count(`SELECT COUNT(*) FROM resp_actions WHERE items LIKE '%"state_unknown":true%'`); n != 0 {
 		t.Errorf("%d requests still carry the state-unknown flag after the late result", n)
 	}
 	if v, err := e.svc.ChangesInForce(e.ctx(), "cn-fw"); err != nil || !v {

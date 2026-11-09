@@ -314,7 +314,7 @@ func TestWriterStatusFollowsTheAnswer(t *testing.T) {
 		phase string
 		want  write.Status
 	}{{200, write.PhaseRun, write.StatusOK}, {204, write.PhaseRun, write.StatusOK}, {404, write.PhaseRun, write.StatusFailed}, {401, write.PhaseRun, write.StatusFailed},
-		{302, write.PhaseRun, write.StatusFailed}, {500, write.PhaseRun, write.StatusUnknown}, {503, write.PhaseRollback, write.StatusUnknown},
+		{302, write.PhaseRun, write.StatusUnknown}, {303, write.PhaseRollback, write.StatusUnknown}, {302, write.PhaseVerify, write.StatusFailed}, {500, write.PhaseRun, write.StatusUnknown}, {503, write.PhaseRollback, write.StatusUnknown},
 		{500, write.PhaseVerify, write.StatusFailed}, {404, write.PhasePrecheck, write.StatusFailed}} {
 		code.Store(tc.code)
 		s := post(c, f, "/api/v2/block", `{}`)
@@ -416,7 +416,7 @@ func TestWriterSendsSSHLinesAndStopsAfterAnError(t *testing.T) {
 		switch {
 		case line == "show interfaces Gi1/0/5":
 			return "GigabitEthernet1/0/5 is up"
-		case strings.HasPrefix(line, "interface bad"):
+		case strings.HasPrefix(line, "interface bad"), line == "show bad3":
 			return "% Invalid input detected at '^' marker."
 		}
 		return ""
@@ -436,11 +436,11 @@ func TestWriterSendsSSHLinesAndStopsAfterAnError(t *testing.T) {
 		t.Errorf("read output %q", rd.Output)
 	}
 
-	// The first line is refused: nothing was applied. A later line: the device is half way, so the outcome is unknown. The lines after
-	// the error are never sent.
+	// A refused line of a write is an unknown outcome, whichever line it is: the wording of the device never decides "nothing changed". The
+	// lines after the error are never sent.
 	n := len(f.Lines())
 	bad := r.do(sshStep(c, write.PhaseRun, "interface bad1", "shutdown"))
-	wantStatus(t, bad, write.StatusFailed)
+	wantStatus(t, bad, write.StatusUnknown)
 	half := r.do(sshStep(c, write.PhaseRun, "terminal length 0", "interface bad2", "shutdown", "end"))
 	wantStatus(t, half, write.StatusUnknown)
 	if got := f.Lines()[n:]; strings.Join(got, "|") != "interface bad1|terminal length 0|interface bad2" {
@@ -450,7 +450,7 @@ func TestWriterSendsSSHLinesAndStopsAfterAnError(t *testing.T) {
 		t.Errorf("detail %q", half.Detail)
 	}
 	// A read that fails just failed.
-	wantStatus(t, r.do(sshStep(c, write.PhaseVerify, "interface bad3")), write.StatusFailed)
+	wantStatus(t, r.do(sshStep(c, write.PhaseVerify, "show bad3")), write.StatusFailed)
 }
 
 // A control character in a line is refused before any session is opened: one approved line stays one line.
@@ -556,7 +556,7 @@ func TestWriterCallsAnMCPToolWithTypedArguments(t *testing.T) {
 	if fl, _ := call.Args["flags"].([]any); len(fl) != 2 || fl[0] != "a" {
 		t.Errorf("flags %v", call.Args["flags"])
 	}
-	wantStatus(t, r.do(step("broken", `{}`)), write.StatusFailed)
+	wantStatus(t, r.do(step("broken", `{}`)), write.StatusUnknown) // a write tool that reports an error may have done part of the work
 	// A tool that is off (unblock_ip), a tool that is not named, arguments that are not an object, an address of the step.
 	before := len(f.Calls())
 	wantStatus(t, r.do(step("unblock_ip", `{}`)), write.StatusNotSent)

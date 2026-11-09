@@ -3,8 +3,6 @@ package response
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
-	"errors"
 	"net/http"
 	"regexp"
 	"slices"
@@ -285,7 +283,25 @@ func checkCatalog(in CatalogInput, cs conns) (catRow, error) {
 		}
 		return bad("Action: a command or API path that uses {interface}, {port}, {id} or {name} can name a port, so it needs a check before it, with at least one text that makes it refuse (a trunk or uplink port must never be touched). {interface} is the placeholder for a port name; {port} is a TCP or UDP number, {id} a whole number and {name} a free name, and they cannot be told apart from a port in a command.")
 	}
+	if conn.Kind != "ssh" {
+		// The output of an API or MCP call is JSON, compacted before it is compared (D-95 (1c)): a text that is a piece of JSON (it holds a
+		// double quote) is saved in the same form, so what an admin reads is what is compared. A plain word or phrase keeps its spaces.
+		c.PrecheckRefuse = slices.Clone(c.PrecheckRefuse)
+		for i := range c.PrecheckRefuse {
+			c.PrecheckRefuse[i] = savedPattern(c.PrecheckRefuse[i])
+		}
+		c.PrecheckExpect = savedPattern(c.PrecheckExpect)
+		c.Verify.Expect = savedPattern(c.Verify.Expect)
+	}
 	return c, nil
+}
+
+// savedPattern is the form in which a refusal or expect text of an API or MCP action is stored.
+func savedPattern(text string) string {
+	if strings.Contains(text, `"`) {
+		return normalizePattern(text, true)
+	}
+	return collapseSpaces(text)
 }
 
 func deref2(p *string) string {
@@ -602,38 +618,32 @@ func (s *Service) DeleteAction(ctx context.Context, who Actor, id string) error 
 
 // ---- the exact change of one action ----
 
-func (s *Service) callOf(conn *ConnectionInfo, t Tpl, vals Values) (*RestCall, error) {
+// callOf is the API call of a step as the approver sees it and as it is sent: it is the rendering of the step itself (stepOf), so the two
+// cannot differ. ttlMin gives {expiry_s} its number.
+func (s *Service) callOf(conn *ConnectionInfo, t Tpl, vals Values, ttlMin *int) (*RestCall, error) {
 	if conn == nil || !isHTTPKind(conn.Kind) || t.Method == "" || t.Path == "" {
 		return nil, nil
 	}
-	path, err := Fill(t.Path, vals, TURL)
+	st, err := s.stepOf(t, conn, "", vals, ttlMin)
 	if err != nil {
 		return nil, err
 	}
-	rc := &RestCall{Method: t.Method, URL: conn.Target + path}
-	if t.Body != "" {
-		b, err := Fill(t.Body, vals, TJSON)
-		if err != nil {
-			return nil, err
-		}
-		chk := b
-		for _, r := range RuntimeValues {
-			chk = strings.ReplaceAll(chk, "<"+r+">", "0") // the display form of a value read at run time
-		}
-		if !json.Valid([]byte(chk)) { // a value in a bare position, or a template that is not JSON once filled
-			return nil, errors.New("response: the filled body is not JSON")
-		}
-		rc.Body = &b
+	rc := &RestCall{Method: st.Method, URL: st.URL, Headers: st.Headers}
+	if rc.Headers == nil {
+		rc.Headers = map[string]string{}
+	}
+	if st.Body != "" {
+		rc.Body = &st.Body
 	}
 	return rc, nil
 }
 
-func (s *Service) cliOf(conn *ConnectionInfo, t Tpl, tool string, vals Values) (string, error) {
+func (s *Service) cliOf(conn *ConnectionInfo, t Tpl, tool string, vals Values, ttlMin *int) (string, error) {
 	switch {
 	case conn != nil && isMCP(conn.Kind):
 		body := ""
 		if t.Body != "" {
-			b, err := Fill(t.Body, vals, TJSON)
+			b, err := fillExec(t.Body, vals, TJSON, ttlMin)
 			if err != nil {
 				return "", err
 			}
@@ -641,39 +651,39 @@ func (s *Service) cliOf(conn *ConnectionInfo, t Tpl, tool string, vals Values) (
 		}
 		return tool + "(" + body + ")", nil
 	case conn == nil || conn.Kind == "ssh":
-		return Fill(t.CLI, vals, TCLI)
+		return fillExec(t.CLI, vals, TCLI, ttlMin)
 	case isHTTPKind(conn.Kind) && t.Method != "" && t.Path != "":
 		return "", nil
 	}
-	return Fill(t.CLI, vals, TCLI)
+	return fillExec(t.CLI, vals, TCLI, ttlMin)
 }
 
 // buildChange renders the exact change of one catalog action from its stored templates and checked values. Each value
 // is escaped for the place it lands in (INV-14b). why is shown as the reason of a block list entry.
-func (s *Service) buildChange(c catRow, vals Values, conn *ConnectionInfo, why string) (Change, error) {
+func (s *Service) buildChange(c catRow, vals Values, conn *ConnectionInfo, why string, ttlMin *int) (Change, error) {
 	var what []string
 	for _, p := range c.params() {
 		what = append(what, string(p)+" "+vals[p])
 	}
 	w := strings.Join(what, ", ")
-	cli, err := s.cliOf(conn, c.Run, c.Tool, vals)
+	cli, err := s.cliOf(conn, c.Run, c.Tool, vals, ttlMin)
 	if err != nil {
 		return Change{}, err
 	}
-	rest, err := s.callOf(conn, c.Run, vals)
+	rest, err := s.callOf(conn, c.Run, vals, ttlMin)
 	if err != nil {
 		return Change{}, err
 	}
 	ch := Change{CLI: cli, Rest: rest}
-	if ch.Verify, err = readStepText(c.Verify, conn, vals); err != nil {
+	if ch.Verify, err = readStepText(c.Verify, conn, vals, ttlMin); err != nil {
 		return Change{}, err
 	}
-	if ch.Precheck, err = readStepText(c.Precheck, conn, vals); err != nil {
+	if ch.Precheck, err = readStepText(c.Precheck, conn, vals, ttlMin); err != nil {
 		return Change{}, err
 	}
 	ch.PrecheckRules = precheckRules(c)
 	if c.Verify.Expect != "" {
-		e, err := Fill(c.Verify.Expect, vals, TCLI)
+		e, err := Fill(c.Verify.Expect, vals, TCLI) // the placeholders of expect are typed values; {expiry_s} does not occur in it
 		if err != nil {
 			return Change{}, err
 		}
@@ -690,11 +700,11 @@ func (s *Service) buildChange(c catRow, vals Values, conn *ConnectionInfo, why s
 	}
 	ch.Rollback = RollbackChange{Title: "This action cannot be undone"}
 	if c.reversible() {
-		rb, err := s.cliOf(conn, c.Rollback, c.RollbackTool, vals)
+		rb, err := s.cliOf(conn, c.Rollback, c.RollbackTool, vals, ttlMin)
 		if err != nil {
 			return Change{}, err
 		}
-		rr, err := s.callOf(conn, c.Rollback, vals)
+		rr, err := s.callOf(conn, c.Rollback, vals, ttlMin)
 		if err != nil {
 			return Change{}, err
 		}
@@ -705,12 +715,12 @@ func (s *Service) buildChange(c catRow, vals Values, conn *ConnectionInfo, why s
 
 // readStepText is the exact read-only step as the approver sees it: the stored method and URL of an API call, or the command lines.
 // Empty when the action has no such step.
-func readStepText(t Tpl, conn *ConnectionInfo, vals Values) (string, error) {
+func readStepText(t Tpl, conn *ConnectionInfo, vals Values, ttlMin *int) (string, error) {
 	if t.Empty() {
 		return "", nil
 	}
 	if t.Method != "" && t.Path != "" && conn != nil && isHTTPKind(conn.Kind) {
-		p, err := Fill(t.Path, vals, TURL)
+		p, err := fillExec(t.Path, vals, TURL, ttlMin)
 		if err != nil {
 			return "", err
 		}
@@ -719,7 +729,7 @@ func readStepText(t Tpl, conn *ConnectionInfo, vals Values) (string, error) {
 	if strings.TrimSpace(t.CLI) == "" {
 		return "", nil
 	}
-	return Fill(t.CLI, vals, TCLI)
+	return fillExec(t.CLI, vals, TCLI, ttlMin)
 }
 
 // precheckRules says in plain words when the check before refuses the action.

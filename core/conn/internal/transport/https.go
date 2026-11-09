@@ -182,7 +182,8 @@ func ForbiddenHeader(name string) bool {
 	n := strings.ToLower(strings.TrimSpace(name))
 	switch n {
 	case "authorization", "cookie", "set-cookie", "host", "connection", "keep-alive", "te", "trailer", "transfer-encoding", "upgrade",
-		"proxy-connection", "forwarded", "content-length":
+		"proxy-connection", "forwarded", "content-length", "via", "x-forwarded", "x-real-ip", "x-original-url", "x-rewrite-url",
+		"x-http-method-override", "x-http-method", "x-method-override": // the same list response refuses when a template is saved (INV-14b)
 		return true
 	}
 	return strings.HasPrefix(n, "proxy-") || strings.HasPrefix(n, "x-forwarded-")

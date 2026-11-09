@@ -26,6 +26,7 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/conn"
+	"github.com/knt048/vedette/core/conn/cliban"
 	"github.com/knt048/vedette/core/conn/internal/cred"
 	"github.com/knt048/vedette/core/conn/internal/transport"
 	"github.com/knt048/vedette/core/secrets"
@@ -51,10 +52,11 @@ const (
 	StatusNotSent Status = "not_sent"
 	// StatusConnectionChanged: the connection is not the version the request was made against; nothing was sent.
 	StatusConnectionChanged Status = "connection_changed"
-	// StatusFailed: the device answered with an error and, as far as the answer shows, did not apply the step.
+	// StatusFailed: the device refused the step by its status (an HTTP 4xx), or a step that only reads did not work: nothing was applied. The
+	// wording of an error never makes a step "failed" (D-117).
 	StatusFailed Status = "failed"
-	// StatusUnknown: the step was sent and the outcome is not known (a time-out or a closed session after it left, an HTTP 5xx, an
-	// error after an earlier command of the same step was accepted). The caller marks the state unknown and the device is read, not asked again.
+	// StatusUnknown: the step was sent and the outcome is not known (a time-out or a closed session after it left, an HTTP 3xx or 5xx, an MCP
+	// tool that reported an error, a refused SSH line). The caller marks the state unknown and the device is read, not asked again.
 	StatusUnknown Status = "unknown"
 )
 
@@ -77,7 +79,12 @@ const (
 // Step is one step of one item, rendered by response from a stored template and checked values.
 type Step struct {
 	ConnectionID string
-	ConnFP       string // conn.Fingerprint of the connection when the request was made
+	ConnFP       string // conn.Fingerprint of the connection when the request was made: a run is held to it
+	// ByIdentity marks a step of an undo (the rollback and the read-back after it) or a read-back that settles an unclear outcome. It is held to the connection's identity (conn.Identity: id,
+	// kind, address), not to its fingerprint, and it ignores the write-tool switch: removing a change is the safe direction and a rotated
+	// token or a renewed pin must not strand it. The connection must still be on and its certificate or host key must still pass.
+	ByIdentity   bool
+	ConnIdentity string
 	Phase        string
 	Tool         string // MCP only: the write tool to call
 	Lines        []string
@@ -209,7 +216,14 @@ func (w *Writer) check(c conn.Connection, s Step) (Result, bool) {
 	if !c.Enabled {
 		return refuse("the connection is turned off")
 	}
-	if c.Fingerprint() != s.ConnFP {
+	if s.ByIdentity {
+		if s.Phase != PhaseRollback && s.Phase != PhaseVerify {
+			return refuse("only a rollback and its read-back are steps of an undo")
+		}
+		if c.Identity() != s.ConnIdentity {
+			return res(StatusConnectionChanged, "the connection is not the device that the change was made on"), true
+		}
+	} else if c.Fingerprint() != s.ConnFP {
 		return res(StatusConnectionChanged, "the connection was changed after the request was made"), true
 	}
 	reads := s.Phase == PhasePrecheck || s.Phase == PhaseVerify
@@ -225,7 +239,7 @@ func (w *Writer) check(c conn.Connection, s Step) (Result, bool) {
 		return refuse("the certificate or host key of the device is not pinned yet; test the connection first")
 	}
 	mcp := c.Kind == conn.KindMCP
-	if !reads {
+	if !reads && !s.ByIdentity {
 		tool := writeTool(c.Kind)
 		if mcp {
 			tool = s.Tool
@@ -238,8 +252,14 @@ func (w *Writer) check(c conn.Connection, s Step) (Result, bool) {
 		if !contains(conn.WriteTools(c), tool) {
 			return refuse("the write tool %s is not turned on", tool)
 		}
-	} else if s.Tool != "" || mcp {
+	} else if reads && (s.Tool != "" || mcp) {
 		return refuse("a check or a read-back is not available on this connection")
+	}
+	if s.ByIdentity && !mcp && s.Tool != "" {
+		return refuse("a tool is named only for an MCP server")
+	}
+	if s.ByIdentity && mcp && s.Phase == PhaseRollback && s.Tool == "" {
+		return refuse("the step names no write tool")
 	}
 	if leftover(s) {
 		return refuse("the step still holds a value that is not filled in")
@@ -279,6 +299,12 @@ func checkLines(s Step) (Result, bool) {
 	if len(s.Lines) == 0 || len(s.Lines) > maxLines {
 		return refuse("an SSH step holds 1 to %d command lines", maxLines)
 	}
+	if s.Phase == PhasePrecheck || s.Phase == PhaseVerify {
+		// A read step is the last gate's to judge, whoever rendered it: the commands that change a device are the shared list (core/conn/cliban).
+		if bad, err := cliban.ReadOnlyProblem(s.Lines); err != nil || bad != "" {
+			return refuse("a check or a read-back may not type a command that can change the device")
+		}
+	}
 	for _, l := range s.Lines {
 		switch {
 		case strings.TrimSpace(l) == "":
@@ -315,6 +341,9 @@ func checkHTTP(c conn.Connection, s Step, reads bool) (Result, bool) {
 		return refuse("a check or a read-back is a GET without a body")
 	case !reads && s.Method != http.MethodGet && s.Method != http.MethodPost && s.Method != http.MethodPut && s.Method != http.MethodPatch && s.Method != http.MethodDelete:
 		return refuse("the method is not one that is allowed")
+	}
+	if strings.Contains(s.URL, "#") {
+		return refuse("the address holds a fragment") // a ?query stays: it is part of the approved stored step, and the allow-list judges the path
 	}
 	if !conn.AllowsURL(c, s.URL) {
 		return refuse("the address is outside the connection's address and its allow-list")
@@ -414,7 +443,8 @@ func (w *Writer) https(ctx context.Context, c conn.Connection, secret secrets.Va
 			r.Output = string(resp.Body)
 		}
 		return r
-	case resp.Status >= 500 && !reads:
+	case (resp.Status >= 500 || resp.Status >= 300 && resp.Status < 400) && !reads:
+		// A redirect after a POST is often "done, look over there", and a 5xx may come after the work: neither says "refused".
 		return res(StatusUnknown, "the device answered HTTP %d, so the step may or may not have been applied", resp.Status)
 	}
 	return res(StatusFailed, "the device answered HTTP %d", resp.Status)
@@ -435,7 +465,8 @@ func (w *Writer) mcp(ctx context.Context, cl *transport.Client, auth transport.A
 		return failure(err, true, false, c, redact)
 	}
 	if out.IsError {
-		return res(StatusFailed, "the server reported an error for the tool %s: %s", s.Tool, transport.CleanLine(out.Text, redact...))
+		// The tool ran and reported an error: the MCP specification puts business-logic failures here, which can come after part of the work.
+		return res(StatusUnknown, "the server reported an error for the tool %s (%s), so the step may or may not have been applied", s.Tool, transport.CleanLine(out.Text, redact...))
 	}
 	return Result{Status: StatusOK, Detail: "the tool " + s.Tool + " answered"}
 }
@@ -521,8 +552,6 @@ func failure(err error, sent, reads bool, c conn.Connection, redact []string) Re
 	case !sent:
 		return res(StatusNotSent, "%s could not be reached: %s", c.Target, msg)
 	case reads:
-		return res(StatusFailed, "%s", msg)
-	case de != nil && strings.Contains(de.Msg, "refused"):
 		return res(StatusFailed, "%s", msg)
 	}
 	return res(StatusUnknown, "%s: %s; the step may or may not have been applied", c.Target, msg)

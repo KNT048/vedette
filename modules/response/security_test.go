@@ -320,8 +320,10 @@ func TestContract_INV19_SweepFailsStuckItems(t *testing.T) {
 	if got.Items[0].Status != response.ItemFailed || !strings.Contains(*got.Items[0].Result, "did not start") || !e.logHas("failed", "did not start") {
 		t.Fatalf("an item that never started: %+v", got.Items[0])
 	}
-	if e.exec.count() != steps {
-		t.Fatal("the sweep sent a step to a device")
+	for _, st := range e.exec.steps[steps:] { // the sweep may read a device back to settle an unclear outcome; it never writes
+		if st.Phase == "run" || st.Phase == "rollback" {
+			t.Fatalf("the sweep sent a %s step to a device", st.Phase)
+		}
 	}
 }
 

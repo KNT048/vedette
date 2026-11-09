@@ -460,21 +460,24 @@ func TestDeviceSSHExactLinesRefusalAndStop(t *testing.T) {
 		}
 	})
 
-	t.Run("a line that errors stops the rest", func(t *testing.T) {
+	t.Run("a line that errors stops the rest and the device is read back", func(t *testing.T) {
 		e, f, _ := setup(t, "interface "+port)
 		got := e.approve()
 		it := got.Items[0]
-		if it.Status != response.ItemFailed || !strings.Contains(*it.Result, "State unknown") {
+		// The refused line is an unclear outcome (the wording of a device never decides "nothing changed"); the read-back that follows, in a
+		// new session, shows the port is not shut, so the item is settled: not in force.
+		if it.Status != response.ItemFailed || it.StateUnknown || !strings.Contains(*it.Result, "not in force") {
 			t.Fatalf("item %+v", it)
 		}
-		want := "terminal length 0|show interfaces " + port + " switchport|show interfaces " + port + "|terminal length 0|configure terminal|interface " + port
+		want := "terminal length 0|show interfaces " + port + " switchport|show interfaces " + port + "|terminal length 0|configure terminal|interface " + port +
+			"|terminal length 0|show interfaces " + port + " status"
 		if join(f.Lines()) != want {
 			t.Fatalf("lines\n got %s\nwant %s", join(f.Lines()), want)
 		}
 		l, err := e.s.d.Conn.List(e.ctx())
 		e.must(err)
-		if in, err := e.svc.ChangesInForce(e.ctx(), l[0].ID); err != nil || !in {
-			t.Fatalf("a half-applied step is not in force: %v %v", in, err)
+		if in, err := e.svc.ChangesInForce(e.ctx(), l[0].ID); err != nil || in {
+			t.Fatalf("a step that the read-back shows was not applied counts as in force: %v %v", in, err)
 		}
 	})
 }

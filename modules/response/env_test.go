@@ -117,6 +117,9 @@ func (f *fakeExecutor) Execute(_ context.Context, s response.DeviceStep) (respon
 		return response.DeviceResult{}, f.err
 	}
 	r := response.DeviceResult{Status: response.StepOK, Detail: s.Phase + " done"}
+	if s.Phase == "run" || s.Phase == "rollback" {
+		f.last = s.Phase
+	}
 	if st, ok := f.status[s.Phase]; ok {
 		r.Status = st
 		return r, nil
@@ -133,7 +136,10 @@ func (f *fakeExecutor) Execute(_ context.Context, s response.DeviceStep) (respon
 		if f.last == "run" {
 			r.Output = f.present
 		} else {
-			r.Output = f.after
+			r.Output = "nothing of the kind is listed" // a device that answers, and the text is not in it
+			if f.after != "" {
+				r.Output = f.after
+			}
 		}
 	}
 	return r, nil

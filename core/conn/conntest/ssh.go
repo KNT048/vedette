@@ -27,6 +27,9 @@ type SSHOpts struct {
 	// Respond is the output of one command line, without the echo and the prompt; nil answers like an IOS switch: "% Invalid
 	// input detected" for a line that starts with "bad", nothing for the rest.
 	Respond func(line string) string
+	// StallInput makes the shell stop reading what it is sent after the first prompt: the window of the channel closes once about 2 MB
+	// are in flight, and a write of more than that blocks for as long as the device wishes (a device that never grants window).
+	StallInput bool
 }
 
 // SSH is an SSH server on loopback that records what it is sent.
@@ -42,6 +45,7 @@ type SSH struct {
 	kiCalls int
 	keyCall int
 	logins  int
+	done    chan struct{}
 }
 
 // NewSSHKey makes an Ed25519 key pair; the private key is also given as PEM through ssh.MarshalPrivateKey by the caller if needed.
@@ -70,7 +74,7 @@ func NewSSH(t testing.TB, o SSHOpts) *SSH {
 	if o.Prompt == "" {
 		o.Prompt = "Switch"
 	}
-	s := &SSH{opts: o, hostKey: o.HostKey}
+	s := &SSH{opts: o, hostKey: o.HostKey, done: make(chan struct{})}
 	if s.hostKey == nil {
 		s.hostKey, _ = NewSSHKey(t)
 	}
@@ -81,7 +85,7 @@ func NewSSH(t testing.TB, o SSHOpts) *SSH {
 	s.Host = AllowLoopback(t, ln)
 	_, port, _ := net.SplitHostPort(ln.Addr().String())
 	s.Addr = s.Host + ":" + port
-	t.Cleanup(func() { _ = ln.Close() })
+	t.Cleanup(func() { _ = ln.Close(); close(s.done) })
 	go func() {
 		for {
 			c, err := ln.Accept()
@@ -224,6 +228,10 @@ func (s *SSH) shell(ch ssh.Channel) {
 	prompt := func() { _, _ = ch.Write([]byte(s.opts.Prompt + suffix + " ")) }
 	_, _ = ch.Write([]byte("Fake switch, ready.\r\n"))
 	prompt()
+	if s.opts.StallInput {
+		<-s.done
+		return
+	}
 	rd := bufio.NewReader(ch)
 	for {
 		line, err := rd.ReadString('\r')

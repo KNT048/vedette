@@ -138,7 +138,7 @@ Spec FE là nguồn đầy đủ; dưới đây chỉ là tóm tắt. Khi khác 
 
 ## 7. Kiểm tra: `make check` trên máy, bộ đầy đủ trên CI (D-62, D-63)
 
-Repo `KNT048/vedette` là public nên GitHub Actions miễn phí (D-63; D-61 "không Actions" chỉ đúng khi repo còn riêng tư). `.github/workflows/ci.yml` chạy trên PR, trên `main` và hằng ngày: job `go` (`make verify-go`), `web` (`make verify-web`), `e2e` (`make e2e`, tạm chưa chặn tới khi bộ e2e gốc được sửa); quét hằng ngày `make vuln` + `pnpm audit`. Workflow chỉ gọi `make`; action ghim SHA; token chỉ đọc. Merge khi CI xanh.
+Repo `KNT048/vedette` là public nên GitHub Actions miễn phí (D-63; D-61 "không Actions" chỉ đúng khi repo còn riêng tư). `.github/workflows/ci.yml` chạy trên PR, trên `main` và hằng ngày: job `go` (`make verify-go`), `web` (`make verify-web`); quét hằng ngày `make vuln` + `pnpm audit`. Workflow chỉ gọi `make`; action ghim SHA; token chỉ đọc. Merge khi CI xanh.
 
 **Cổng PR** (trước khi mở và trước khi merge, trên nhánh đã rebase lên `origin/main` mới nhất): `make check` (D-62, `scripts/check.sh`) — chỉ kiểm phần đã đổi so với `origin/main`:
 - Go đổi: `go build`, `go vet`, `go test -race ./...` (cache của Go chỉ chạy lại gói có mã, dependency hoặc file test đổi), contract, golangci-lint; `make generate-check` khi `api/openapi.json`, migration hoặc query đổi.
@@ -146,7 +146,7 @@ Repo `KNT048/vedette` là public nên GitHub Actions miễn phí (D-63; D-61 "kh
 - Chỉ docs: không chạy gì.
 - File dùng chung đổi (`go.mod`, `tools/`, Makefile, `scripts/`, lint/sqlc config, `web/package.json`, lockfile, cấu hình Vite/Vitest/Playwright/TS, `web/src/lib`, `web/src/mocks`, `web/src/test`) → tự chạy `make verify` đầy đủ (`verify-web` + `verify-go`, gồm govulncheck).
 
-Dán phần cuối kết quả + SHA commit vào mục **Local checks** của PR. CI chạy bộ đầy đủ (`make verify` + `make e2e`) trên mỗi PR. Máy dev: Linux hoặc macOS; Windows chạy trong WSL2 (Makefile từ chối Windows gốc). Không chạy quá 2 việc nặng song song trên một máy: máy quá tải làm test timeout giả.
+Dán phần cuối kết quả + SHA commit vào mục **Local checks** của PR. CI chạy `make verify` đầy đủ trên mỗi PR. **E2E (Playwright)**: chỉ spec của tính năng vừa làm (`make check`, kiểm độc lập QA.md); bộ e2e đầy đủ chỉ khi sản phẩm gần sẵn sàng production (D-64). Máy dev: Linux hoặc macOS; Windows chạy trong WSL2 (Makefile từ chối Windows gốc). Không chạy quá 2 việc nặng song song trên một máy: máy quá tải làm test timeout giả.
 
 **Quét định kỳ**: CI hằng ngày trên `main`, và `make audit` (govulncheck + `pnpm audit --prod`) đầu mỗi phiên làm việc và trước mỗi bản phát hành; phát hiện có đường gọi tới → sửa trước khi merge tiếp.
 

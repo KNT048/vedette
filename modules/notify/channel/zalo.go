@@ -111,3 +111,5 @@ func (z *zaloSender) Send(ctx context.Context, m Message) (Receipt, error) {
 	}
 	return Receipt{To: "OA " + z.oa, Detail: fmt.Sprintf("Zalo OA %s sent the message to recipient %s.", z.oa, z.user)}, nil
 }
+
+func (z *zaloSender) Dest() string { return "OA " + z.oa }

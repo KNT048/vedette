@@ -39,3 +39,5 @@ func (*zaloPersonalSender) Type() Type { return ZaloPersonal }
 func (z *zaloPersonalSender) Send(context.Context, Message) (Receipt, error) {
 	return Receipt{}, fmt.Errorf("notify: zalo-personal: %w: the unofficial Zalo personal protocol is not implemented (D-46); use Zalo OA, Telegram or email", ErrUnsupported)
 }
+
+func (z *zaloPersonalSender) Dest() string { return "Zalo " + z.user }

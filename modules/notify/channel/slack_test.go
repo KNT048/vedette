@@ -97,7 +97,7 @@ func TestSlackSendEscapesAndPosts(t *testing.T) {
 	}
 }
 
-func TestSlackErrorsAreTypedAndSecretFree(t *testing.T) {
+func TestContract_FORBID2_SlackErrorsNeverContainSecret(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
@@ -117,7 +117,7 @@ func TestSlackErrorsAreTypedAndSecretFree(t *testing.T) {
 	mustNot(t, err.Error(), "XyzSecretPathToken123", "T0EXAMPLE1")
 }
 
-func TestSlackTransportErrorHasNoURL(t *testing.T) {
+func TestContract_FORBID2_SlackTransportErrorHasNoURL(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.NotFoundHandler())
 	dead := srv.URL

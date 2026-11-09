@@ -95,3 +95,10 @@ func (s *slackSender) Send(ctx context.Context, m Message) (Receipt, error) {
 	}
 	return Receipt{To: to, Detail: detail}, nil
 }
+
+func (s *slackSender) Dest() string {
+	if s.label == "" {
+		return "Slack webhook"
+	}
+	return s.label
+}

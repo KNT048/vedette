@@ -129,3 +129,5 @@ func (w *webhookSender) Send(ctx context.Context, m Message) (Receipt, error) {
 	}
 	return Receipt{To: w.to, Detail: fmt.Sprintf("The webhook returned HTTP %d.", code)}, nil
 }
+
+func (w *webhookSender) Dest() string { return w.to }

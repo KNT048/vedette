@@ -53,6 +53,8 @@ type Receipt struct {
 // Sender sends one Message through one configured channel.
 type Sender interface {
 	Type() Type
+	// Dest is the destination label of SendRecord.to (never a secret), known even when a send fails.
+	Dest() string
 	Send(ctx context.Context, m Message) (Receipt, error)
 }
 

@@ -126,3 +126,5 @@ func telegramDescription(body []byte) []byte {
 	}
 	return body
 }
+
+func (t *telegramSender) Dest() string { return "chat " + t.chat }

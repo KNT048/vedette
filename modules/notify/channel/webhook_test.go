@@ -134,7 +134,7 @@ func TestWebhookDoesNotFollowRedirects(t *testing.T) {
 	}
 }
 
-func TestWebhookErrorHasNoKey(t *testing.T) {
+func TestContract_FORBID2_WebhookErrorHasNoKey(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)

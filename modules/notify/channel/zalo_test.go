@@ -81,7 +81,7 @@ func TestZaloSend(t *testing.T) {
 	mustNot(t, rec.Detail, zaloToken)
 }
 
-func TestZaloErrors(t *testing.T) {
+func TestContract_FORBID2_ZaloErrorsNeverContainToken(t *testing.T) {
 	t.Parallel()
 	var answer string
 	var status int

@@ -206,7 +206,7 @@ func TestSMTPNeverAuthenticatesInTheClear(t *testing.T) {
 	})
 }
 
-func TestSMTPBadLoginIsTypedAndSecretFree(t *testing.T) {
+func TestContract_FORBID2_SMTPBadLoginErrorHasNoPassword(t *testing.T) {
 	t.Parallel()
 	f := startFakeSMTP(t, &fakeSMTP{implicit: true})
 	cfg := emailCfg(f, SecuritySSL)

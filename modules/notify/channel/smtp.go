@@ -302,3 +302,5 @@ func (e *emailSender) deliver(ctx context.Context, raw []byte) error {
 	_ = c.Quit()
 	return nil
 }
+
+func (e *emailSender) Dest() string { return strings.Join(e.cfg.To, ", ") }

@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestSecretNeverPrints(t *testing.T) {
+func TestContract_INV1_SecretNeverPrints(t *testing.T) {
 	t.Parallel()
 	const v = "super-secret-value-123"
 	type holder struct {

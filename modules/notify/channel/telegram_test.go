@@ -103,7 +103,7 @@ func TestTelegramLongTextKeepsLink(t *testing.T) {
 	}
 }
 
-func TestTelegramErrorsNeverContainToken(t *testing.T) {
+func TestContract_FORBID2_TelegramErrorsNeverContainToken(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)

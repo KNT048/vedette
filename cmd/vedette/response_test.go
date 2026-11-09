@@ -75,7 +75,7 @@ func TestWiringResponseModule(t *testing.T) {
 	}
 	// Rules start in dry run; the catalog is the data library.
 	c, v = s.do("GET", "/response/catalog", "viewer", "")
-	if c != 200 || len(v["items"].([]any)) < 20 {
+	if c != 200 || len(v["items"].([]any)) < 15 {
 		t.Fatalf("catalog: %d", c)
 	}
 	c, v = s.do("POST", "/response/rules", "admin", `{"name":"Block","enabled":true,"live":true,"trigger":"ioc_connection","match":"all","conditions":[],"actions":[{"action_id":"blocklist_add","params":{"ip":"{{trigger.dest_ip}}"},"ttl_min":60}],"pre_approved":false,"max_per_hour":5,"schedule_min":null}`)

@@ -18,7 +18,7 @@ Một thay đổi chỉ "xong" khi **tất cả** mục dưới đây đúng. PR
 6. **Build output đã dọn.** Chạy `make clean` sau build; không commit `bin/`, `web/dist/`, báo cáo test (`rules/build-artifacts.md`).
 7. **Ships-as-code.** Máy mới dựng từ repo đạt cùng trạng thái: dependency cài bởi code, ghim phiên bản, idempotent, xác minh bằng hiệu ứng (dịch vụ chạy, cổng mở, cấu hình đúng) chứ không bằng exit code (`rules/ships-as-code.md`).
 8. **Bảo mật.** Không gọi shell bằng chuỗi lệnh, không eval; validate ở biên; secret không vào log (`rules/security.md`).
-9. **CI xanh** và có ít nhất một review của người (xem §4).
+9. **Kiểm tra trên máy xanh** (`make verify`, + `make e2e` khi chạm `web/`), kết quả dán trong PR (§7, D-61), và có ít nhất một review của người (xem §4).
 
 Với tài liệu thuần: mục 1, 4, 5, 6 vẫn áp dụng; mục 2–3 "không áp dụng".
 
@@ -88,7 +88,7 @@ formatters:
 ```
 
 - `gosec` bật; `//nolint` phải có tên linter và lý do (`//nolint:gosec // argv từ allowlist`). Không `//nolint` trần.
-- `govulncheck ./...` chạy trong CI và hằng ngày theo lịch; phát hiện mức có đường gọi tới → chặn merge. Dependency ghim phiên bản (`go.sum` commit). Không GPL/AGPL vào lõi.
+- `govulncheck ./...` chạy trong `make verify` và `make audit` (đầu mỗi phiên, §7); phát hiện mức có đường gọi tới → chặn merge. Dependency ghim phiên bản (`go.sum` commit). Không GPL/AGPL vào lõi.
 - Khi có Go: thêm `go test ./...` + `golangci-lint run` vào `make verify` (`CLAUDE.md`).
 
 ## 3. Chuẩn TypeScript (tóm từ `docs/plans/2026-11-06-fe-spec.md`, `docs/FRONTEND.md`)
@@ -108,11 +108,11 @@ Spec FE là nguồn đầy đủ; dưới đây chỉ là tóm tắt. Khi khác 
 ## 4. Nhánh, commit, PR
 
 - Nhánh: `feat/<chủ-đề>`, `fix/<chủ-đề>`, `docs/<chủ-đề>`. Chữ thường, gạch ngang. Một nhánh một việc.
-- **Không push thẳng vào `main`**; `main` được bảo vệ (D-54; lần tạo repo là ngoại lệ một lần). Thiết lập branch protection: PR bắt buộc, status check CI bắt buộc, 1 approval, review của code owner bắt buộc, cấm force-push, nhánh phải cập nhật với `main`.
+- **Không push thẳng vào `main`**; `main` được bảo vệ (D-54; lần tạo repo là ngoại lệ một lần). GitHub Free không bật được branch protection cho repo riêng tư, nên đây là quy ước: PR bắt buộc, kết quả kiểm tra trên máy dán trong PR (§7), review của code owner khi chạm module người khác, không force-push `main`, nhánh rebase lên `main` mới nhất trước khi merge.
 - Commit: `scope: imperative summary` (ví dụ `feeds: add EPSS delta`), dòng đầu ≤ 72 ký tự; phần thân nói **vì sao**, ghi story ID/quyết định. Commit do agent viết kết thúc bằng dòng `Co-Authored-By` của agent.
 - Merge: squash; tiêu đề squash theo định dạng commit.
 - **Cỡ PR**: mục tiêu ≤ 400 dòng thay đổi (không tính file sinh/lockfile/fixture), một module một PR. PR lớn hơn phải tách, hoặc nêu lý do trong mô tả.
-- **Review**: ít nhất 1 người duyệt, không tự duyệt PR của chính mình. Sửa module phải có code owner của module (§5). Người duyệt đọc diff, không chỉ tin CI; PR UI phải có ảnh/bước QA.
+- **Review**: ít nhất 1 người duyệt, không tự duyệt PR của chính mình. Sửa module phải có code owner của module (§5). Người duyệt đọc diff, không chỉ tin kết quả kiểm tra được dán; PR UI phải có ảnh/bước QA.
 - **PR do AI viết** phải được **một người** đọc và duyệt trước khi merge; ghi rõ trong mô tả PR là AI viết. Người duyệt chịu trách nhiệm như với code tự viết. Agent không tự merge, không tự duyệt PR của mình.
 - **AI không tạo git tag** (rule 12). kien tag tay.
 - Giữ nhánh ngắn hạn; rebase lên `main` thay vì merge `main` vào nhánh.
@@ -131,44 +131,25 @@ Spec FE là nguồn đầy đủ; dưới đây chỉ là tóm tắt. Khi khác 
 - **Changelog**: `CHANGELOG.md` theo Keep a Changelog; mục Added/Changed/Fixed/Security/Breaking. Mỗi PR người dùng thấy được thêm một dòng vào "Unreleased". Sửa lỗi bảo mật ghi advisory ID (`SECURITY.md`).
 - **Kênh** (D-12): `beta` → `stable`, cộng kênh product-advisory cho vá bảo mật khẩn. Beta chạy ít nhất 7 ngày trên máy của người duy trì và nhóm thử trước khi lên stable (ngoại lệ: vá bảo mật khẩn, rút ngắn nhưng vẫn qua cohort đầu).
 - **Cohort** (D-12, D-55): phát hành theo lô, 10% → 50% → 100% (D-12, D-57). Mỗi lô chờ kiểm tín hiệu (hộp tự báo cập nhật thất bại, hoàn tác) trước khi mở lô sau; có thể dừng lô và thu hồi (revocation).
-- **Image** (D-55): OCI image cho `core`, `sensor`, `honeypot`, `scan`; **ký bằng cosign** (keyless qua OIDC của CI, hoặc khoá do người duy trì giữ; không để khoá trong repo). Hộp từ chối image không có chữ ký hợp lệ. Hoàn tác bằng tag cũ. Phát hành kèm SBOM CycloneDX (`SECURITY.md`) gắn vào image bằng `cosign attest`, và provenance của build.
+- **Image** (D-55): OCI image cho `core`, `sensor`, `honeypot`, `scan`; **ký bằng cosign** bằng khoá do người duy trì giữ trên máy (D-57 (3), D-61; không để khoá trong repo). Hộp từ chối image không có chữ ký hợp lệ. Hoàn tác bằng tag cũ. Phát hành kèm SBOM CycloneDX (`SECURITY.md`) gắn vào image bằng `cosign attest`, và provenance của build.
 - Content pack và cập nhật ký (minisign, D-12): không ký → từ chối.
-- Quy trình một bản phát hành: (1) `main` xanh; (2) cập nhật `CHANGELOG.md`, PR `docs/release-x.y.z`; (3) **kien tag tay** `vX.Y.Z`; (4) CI dựng image, quét trivy, ký, đẩy lên registry kênh beta; (5) theo dõi cohort; (6) nâng lên stable; (7) ghi `docs/project-map/completion-log.md`.
+- Quy trình một bản phát hành: (1) `main` xanh; (2) cập nhật `CHANGELOG.md`, PR `docs/release-x.y.z`; (3) **kien tag tay** `vX.Y.Z`; (4) người duy trì chạy `make` phát hành trên máy: dựng image, quét trivy, ký, đẩy lên registry kênh beta (D-61); (5) theo dõi cohort; (6) nâng lên stable; (7) ghi `docs/project-map/completion-log.md`.
 - **Agent không tạo tag, không phát hành, không đẩy image.**
 
-## 7. Đặc tả CI
+## 7. Kiểm tra trên máy (không dùng GitHub Actions, D-61)
 
-Đã có `.github/workflows/ci.yml` (WP-01, D-59): job `web`, `go`, quét lỗ hổng hằng ngày. Job `supply-chain` và mở issue tự động khi quét hằng ngày lỗi: chưa có (`.ai/deferred/feat-core-skeleton.md`).
+GitHub Actions tốn tiền ngoài dự kiến (kien, 2026-11-09): repo **không có workflow nào** và không được thêm (`rules/local-checks.md`). Mọi kiểm tra là đích `make` chạy trên máy người làm; PR ghi lại kết quả.
 
-Chạy trên PR vào `main` và trên `main`; mọi job bắt buộc để merge. Hành động bên thứ ba ghim theo commit SHA; quyền `GITHUB_TOKEN` tối thiểu (`contents: read`).
+**Cổng PR** (trước khi mở và trước khi merge, trên nhánh đã rebase lên `origin/main` mới nhất):
+1. `make verify` = `verify-web` + `verify-go`:
+   - `verify-web`: `pnpm install --frozen-lockfile` (Node từ `devEngines`), `tsc -b`, oxlint, vitest (gồm a11y và ma trận form), **kiểm lệch** `api/openapi.json` (`make openapi-check`, D-18), build rồi dọn.
+   - `verify-go`: `go build`, `go vet`, kiểm mã sinh (`make generate-check`), `go test -race ./...`, contract (`make contract`), golangci-lint (§2.6), govulncheck; rồi dọn.
+2. PR chạm `web/`: `make e2e` (Playwright trên bản build, `vite preview`); khi bộ e2e gốc còn đỏ thì chạy các spec bị ảnh hưởng và ghi rõ.
+3. Dán phần cuối kết quả + SHA commit vào mục **Local checks** của PR. Đẩy commit mới = kiểm lại.
 
-**Job `web`** (có từ M1)
-1. `pnpm --dir web install --frozen-lockfile` (Node từ `devEngines`).
-2. `pnpm --dir web exec tsc -b`
-3. `pnpm --dir web lint` (oxlint)
-4. `pnpm --dir web test` (vitest, gồm a11y và ma trận form)
-5. **Openapi drift**: `pnpm --dir web openapi` rồi `git diff --exit-code api/openapi.json`; lệch = đỏ (D-18).
-6. `pnpm --dir web build`, rồi **e2e trên bản build**: `pnpm --dir web e2e:install` + `pnpm --dir web e2e` chạy với `vite preview` (không phải dev server). Lưu báo cáo/ảnh khi lỗi làm artifact.
+**Quét định kỳ** (thay lịch CI): `make audit` (govulncheck + `pnpm audit --prod`) đầu mỗi phiên làm việc và trước mỗi bản phát hành; phát hiện có đường gọi tới → sửa trước khi merge tiếp.
 
-**Job `go`** (từ M2)
-1. `go build ./...`, `go vet ./...`
-2. `go test -race ./...`
-3. Contract test: `go test ./modules/... -run Contract`
-4. `golangci-lint run` (cấu hình §2.6)
-5. `govulncheck ./...`
-6. Kiểm tính sinh code: sinh lại từ `api/openapi.json`, `git diff --exit-code`.
-
-**Job `supply-chain`**
-1. Dựng image OCI (không đẩy trên PR).
-2. `trivy image` và `trivy fs` (dependency + secret + misconfig): HIGH/CRITICAL có bản vá → đỏ; ngoại lệ đi qua `.trivyignore` có lý do và hạn.
-3. Sinh SBOM CycloneDX (`trivy`/`syft`), lưu artifact; ở release thì ký và đính vào image.
-4. Kiểm `THIRD_PARTY_NOTICES.md` có đủ mọi dependency mới và không có GPL/AGPL trong lõi (script so với lockfile).
-
-**Lịch hằng ngày**: `govulncheck`, `trivy`, `pnpm audit` trên `main` (`SECURITY.md`: quét hằng ngày); lỗi mở issue tự động.
-
-**Job `release`** (chỉ chạy khi kien đẩy tag): dựng, quét, ký cosign, SBOM, đẩy registry beta. Không có bước nào tạo tag.
-
-Sau khi workflow có thật, `make verify` phải chạy được cùng các bước đó ở máy cục bộ (CI chỉ gọi `make`, không có logic riêng).
+**Chuỗi cung ứng và phát hành** (WP-08, trên máy người duy trì, bằng `make`): dựng image OCI; `trivy image` + `trivy fs` (HIGH/CRITICAL có bản vá → dừng; ngoại lệ qua `.trivyignore` có lý do và hạn); SBOM CycloneDX; so `THIRD_PARTY_NOTICES.md` với lockfile/`go.sum` (không GPL/AGPL trong lõi); ký cosign bằng khoá người duy trì giữ (D-57 (3)), đẩy registry kênh beta. Không có bước nào tạo tag.
 
 ## 8. Chiến lược test
 

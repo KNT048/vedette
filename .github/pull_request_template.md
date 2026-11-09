@@ -19,7 +19,11 @@
 - [ ] Every feature, screen and button traces to a story ID above (no imagined features).
 - [ ] `CONTRACT.md` and `IMPACT.md` read before, and updated after, any module change (or: no module touched).
 - [ ] Unit tests added or updated. For module changes: `go test ./modules/<id>/... -run Contract` is green.
-- [ ] `make verify` is green locally. `make e2e` run if UI changed.
+- [ ] Rebased on the latest `origin/main`, then `make verify` green on my machine; `make e2e` (or the affected specs) if `web/` changed. There is no CI (D-61): paste the results below.
+
+## Local checks
+
+<!-- Commit SHA checked, then the tail of `make verify` (and `make e2e`) output. New commits after this = run again. -->
 - [ ] Deferred work recorded in `.ai/deferred/<session>.md` (or: none).
 - [ ] Build output cleaned (`make clean`); no `bin/`, `web/dist/`, or reports committed.
 - [ ] Nothing new in logs or UI exposes secrets; external input validated at the boundary.

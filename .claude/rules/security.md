@@ -7,4 +7,4 @@
 - Cập nhật và content pack phải ký; không ký → từ chối.
 - AI: không tool ghi — ngoại lệ duy nhất là module `response` (D-41): tắt mặc định, từng hành động phải được người có quyền duyệt, hết hạn, có hoàn tác, ghi kiểm toán; output theo schema; nhãn "AI tạo".
 - Dữ liệu rời hộp chỉ gồm: kéo feed, gọi provider AI/feed BYOK khách cấu hình, và tín hiệu ẩn danh theo `PRIVACY.md` (tắt được). Thêm luồng ra khác = cập nhật PRIVACY.md + UI trước.
-- Dependency: ghim phiên bản; không GPL/AGPL vào lõi; `govulncheck`/`trivy` trong CI.
+- Dependency: ghim phiên bản; không GPL/AGPL vào lõi; `govulncheck`/`trivy` chạy trên máy (`make verify`, `make audit`, phát hành), không GitHub Actions (D-61).

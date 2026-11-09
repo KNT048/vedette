@@ -1,7 +1,7 @@
-# Vedette — lệnh chung. CI chỉ gọi các đích ở đây (docs/ENGINEERING.md §7).
+# Vedette — lệnh chung. Không có CI (D-61): mọi kiểm tra chạy trên máy bằng các đích ở đây (docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: help dev verify verify-web verify-go test test-go contract lint lint-go vuln openapi-check build e2e fixtures clean
+.PHONY: help dev verify verify-web verify-go test test-go contract lint lint-go vuln audit openapi-check build e2e fixtures clean
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -12,6 +12,7 @@ help:
 	@echo "make verify-go     chỉ phần Go: build, vet, test -race, contract, golangci-lint, govulncheck"
 	@echo "make contract      go test ./modules/... -run Contract"
 	@echo "make e2e           kiểm thử đầu-cuối bằng Playwright (Chromium)"
+	@echo "make audit         quét lỗ hổng dependency: govulncheck + pnpm audit (đầu mỗi phiên)"
 	@echo "make fixtures      kéo dữ liệu KEV/EPSS thật cho bảng nóng"
 	@echo "make clean         xoá build output và báo cáo test"
 
@@ -63,6 +64,10 @@ lint-go:
 
 vuln:
 	$(GO_TOOL) govulncheck ./...
+
+# Quét định kỳ thay lịch CI (rules/local-checks.md): đầu mỗi phiên làm việc và trước phát hành.
+audit: vuln
+	pnpm --dir web audit --prod
 
 e2e:
 	pnpm --dir web e2e

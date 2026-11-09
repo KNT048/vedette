@@ -20,6 +20,7 @@ Khởi tạo 2026-11-06. Có SPA `web/` chạy trên mock API (D-22); chưa có 
 10. **Ponytail — viết đúng cái cần.** Không abstraction không ai hỏi; xếp dưới mọi rule khác. → `rules/ponytail.md`
 11. **Pháp lý minh bạch.** Dependency/feed mới → `THIRD_PARTY_NOTICES.md`; luồng dữ liệu ra mới → `PRIVACY.md` + UI, cùng commit. → `rules/legal.md`
 12. **AI không tạo git tag.** kien tag tay. Nhánh `feat/…`, `fix/…`, `docs/…`; không push `main`.
+13. **Kiểm tra chạy trên máy, không GitHub Actions** (tốn tiền). `make verify` (+ `make e2e` khi chạm `web/`) trên máy trước khi mở và trước khi merge PR, dán kết quả vào PR. → `rules/local-checks.md`
 
 ## Lệnh
 

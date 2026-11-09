@@ -52,9 +52,10 @@ func MeetsMin(sev, floor Severity) bool {
 
 // Quiet is the quiet-hours rule (contract.ts Quiet). From and To are "HH:MM" in the box's local time.
 type Quiet struct {
-	Enabled       bool
-	From, To      string
-	AllowCritical bool
+	Enabled       bool   `json:"enabled"`
+	From          string `json:"from"`
+	To            string `json:"to"`
+	AllowCritical bool   `json:"allow_critical"`
 }
 
 // ErrBadQuiet means the quiet-hours rule is malformed.

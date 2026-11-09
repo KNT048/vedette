@@ -14,6 +14,7 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -23,7 +24,7 @@ import (
 const whKey = "0123456789abcdef0123"
 
 func wh(u string) WebhookConfig {
-	return WebhookConfig{URL: secrets.NewValue(u), SigningKey: secrets.NewValue(whKey)}
+	return WebhookConfig{URL: secrets.NewValue(u), SigningKey: secrets.NewValue(whKey), allowLoopback: strings.HasPrefix(u, "http://127.0.0.1:")}
 }
 
 func TestContract_INV8_WebhookSchemeRules(t *testing.T) {
@@ -38,12 +39,12 @@ func TestContract_INV8_WebhookSchemeRules(t *testing.T) {
 		"http://192.168.1.10:8080/hook":          "",
 		"http://10.0.0.5/hook":                   "",
 		"http://172.20.0.5/hook":                 "",
-		"http://127.0.0.1:9000/h":                "", // loopback: http only, because 127/8 is on the internal list
-		"http://localhost/h":                     "",
+		"http://127.0.0.1:9000/h":                "", // package tests only (allowLoopback is set for the httptest servers)
+		"http://localhost/h":                     "blocked_host",
 		"http://wiki.internal/h":                 "",
 		"http://printer.lan/h":                   "",
 		"http://nas.local/h":                     "",
-		"http://x.localhost/h":                   "",
+		"http://x.localhost/h":                   "blocked_host",
 		"http://hooks.company.com/vedette":       "insecure_url",
 		"http://8.8.8.8/x":                       "insecure_url",
 		"http://172.32.0.1/x":                    "insecure_url",
@@ -105,6 +106,39 @@ func TestContract_INV8_WebhookSchemeRules(t *testing.T) {
 	}
 }
 
+func TestWebhookRefusesLoopbackOnHttpToo(t *testing.T) {
+	t.Parallel()
+	for _, u := range []string{"http://127.0.0.1:8443/api/v1/x", "http://localhost:11434/api/generate", "http://svc.localhost/x"} {
+		_, err := NewWebhook(WebhookConfig{URL: secrets.NewValue(u), SigningKey: secrets.NewValue(whKey)})
+		var ce *ConfigError
+		if !errors.As(err, &ce) || ce.Code != "blocked_host" {
+			t.Errorf("NewWebhook(%q) = %v, want blocked_host", u, err)
+		}
+	}
+}
+
+func TestWebhookBoxAddrsFuncIsAskedAgain(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var box []netip.Addr
+	get := func() []netip.Addr { mu.Lock(); defer mu.Unlock(); return box }
+	ctl := dialControl(false, get)
+	if err := ctl("tcp", "192.168.10.77:443", nil); err != nil {
+		t.Fatalf("before: %v", err)
+	}
+	mu.Lock()
+	box = []netip.Addr{netip.MustParseAddr("192.168.10.77")}
+	mu.Unlock()
+	if err := ctl("tcp", "192.168.10.77:443", nil); err == nil {
+		t.Error("an address the box got later was not refused")
+	}
+	_, err := NewWebhook(WebhookConfig{URL: secrets.NewValue("https://192.168.10.77/x"), SigningKey: secrets.NewValue(whKey), BoxAddrsFunc: get})
+	var ce *ConfigError
+	if !errors.As(err, &ce) || ce.Code != "blocked_host" {
+		t.Errorf("BoxAddrsFunc at config time: %v", err)
+	}
+}
+
 func TestForbiddenAddrClasses(t *testing.T) {
 	t.Parallel()
 	for in, want := range map[string]bool{
@@ -128,11 +162,11 @@ func TestWebhookDialGuardRefusesResolvedAddresses(t *testing.T) {
 		"127.0.0.1:443": true, "169.254.169.254:80": true, "0.0.0.0:80": true, "[::1]:443": true, "224.0.0.1:80": true,
 		"192.168.10.2:443": true, "192.168.10.9:443": false, "8.8.8.8:443": false, "not-an-address": true, "example.com:443": true,
 	} {
-		if err := dialControl(false, box)("tcp", addr, nil); (err != nil) != wantErr {
+		if err := dialControl(false, func() []netip.Addr { return box })("tcp", addr, nil); (err != nil) != wantErr {
 			t.Errorf("https %s: err = %v", addr, err)
 		}
 	}
-	if err := dialControl(true, nil)("tcp", "127.0.0.1:80", nil); err != nil {
+	if err := dialControl(true, func() []netip.Addr { return nil })("tcp", "127.0.0.1:80", nil); err != nil {
 		t.Errorf("http loopback: %v", err)
 	}
 	// The default client really dials through the guard: a loopback server is
@@ -147,7 +181,7 @@ func TestWebhookDialGuardRefusesResolvedAddresses(t *testing.T) {
 		t.Errorf("default client, http loopback: %v", err)
 	}
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, srv.URL, nil)
-	if resp, err := webhookClient(false, nil).Do(req); err == nil {
+	if resp, err := webhookClient(false, func() []netip.Addr { return nil }).Do(req); err == nil {
 		_ = resp.Body.Close()
 		t.Error("https-mode client dialled loopback")
 	}
@@ -195,7 +229,7 @@ func TestWebhookSignsAndPosts(t *testing.T) {
 	if err := json.Unmarshal(raw, &p); err != nil {
 		t.Fatal(err)
 	}
-	if p["event"] != "incident" || p["id"] != "al-4" || p["severity"] != "critical" || p["url"] != m.Link || p["title"] != m.Title {
+	if p["event"] != "incident.created" || p["id"] != "al-4" || p["severity"] != "critical" || p["url"] != m.Link || p["title"] != m.Title {
 		t.Errorf("payload %v", p)
 	}
 	if hdr.Get("Content-Type") != "application/json" {

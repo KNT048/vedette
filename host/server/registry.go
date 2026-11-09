@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/host/api"
+	"github.com/knt048/vedette/internal/jsonstrict"
 )
 
 // Limits on a command definition: a timeout is mandatory (agent-safety, POST-4).
@@ -258,56 +259,7 @@ func jsonReason(err error) string {
 // ambiguousKeys returns a non-empty description when some JSON object in raw has two keys that are
 // equal ignoring case (encoding/json matches field names case-insensitively, so such an object
 // means different things to a reader and to the decoder) or repeat exactly. Malformed JSON gives "".
-func ambiguousKeys(raw []byte) string {
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	type frame struct {
-		object bool
-		seen   map[string]bool
-		key    bool // next string token in an object is a key
-	}
-	var stack []*frame
-	for {
-		tok, err := dec.Token()
-		if err != nil {
-			return ""
-		}
-		top := (*frame)(nil)
-		if len(stack) > 0 {
-			top = stack[len(stack)-1]
-		}
-		switch t := tok.(type) {
-		case json.Delim:
-			switch t {
-			case '{':
-				stack = append(stack, &frame{object: true, seen: map[string]bool{}, key: true})
-			case '[':
-				stack = append(stack, &frame{})
-			default:
-				stack = stack[:len(stack)-1]
-				if n := len(stack); n > 0 && stack[n-1].object {
-					stack[n-1].key = true // the value just ended; the next token is a key
-				}
-			}
-			continue
-		case string:
-			if top != nil && top.object && top.key {
-				low := foldKey(t)
-				if top.seen[low] {
-					return "repeated key"
-				}
-				top.seen[low] = true
-				top.key = false
-				continue
-			}
-		}
-		if top != nil && top.object && !top.key {
-			top.key = true // a scalar value ended
-		}
-		if len(stack) == 0 {
-			return ""
-		}
-	}
-}
+func ambiguousKeys(raw []byte) string { return jsonstrict.Ambiguous(raw) }
 
 func mustMarshal(v any) []byte {
 	b, err := json.Marshal(v)
@@ -316,8 +268,3 @@ func mustMarshal(v any) []byte {
 	}
 	return b
 }
-
-// foldKey maps keys that encoding/json treats as the same field to the same string. json matches
-// with strings.EqualFold (Unicode simple folding), under which "s" and U+017F (long s), or "k" and
-// U+212A (Kelvin sign), are equal; lower-casing alone does not see that, upper-then-lower does.
-func foldKey(k string) string { return strings.ToLower(strings.ToUpper(k)) }

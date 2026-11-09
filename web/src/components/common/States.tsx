@@ -30,8 +30,10 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
       <p className={kind === 'loadFailed' ? 'font-medium text-danger' : 'font-medium'}>{t(`error.${kind}`)}</p>
       <p className="mt-1 text-ink">{msg}</p>
       {retry ? <Button className="mt-3" size="sm" onClick={onRetry}>{t('retry')}</Button> : null}
-      {/* Bản xem thử: lỗi 5xx thường do dữ liệu mẫu lưu từ phiên bản cũ của giao diện */}
-      {status >= 500 && import.meta.env.VITE_API_MOCK !== 'off' ? <p className="mt-3 text-[13px] text-muted">{t('error.previewStale')} <Link to="/settings/data" className="text-accent underline underline-offset-4">{t('error.previewStaleLink')}</Link></p> : null}
+      {/* 501: backend chưa có phần này; dữ liệu mẫu cũ không liên quan nên không mời khôi phục. */}
+      {status === 501 ? <p className="mt-3 text-[13px] text-muted">{t('error.notImplemented')}</p> : null}
+      {/* Bản xem thử: lỗi 5xx khác thường do dữ liệu mẫu lưu từ phiên bản cũ của giao diện */}
+      {status >= 500 && status !== 501 && import.meta.env.VITE_API_MOCK !== 'off' ? <p className="mt-3 text-[13px] text-muted">{t('error.previewStale')} <Link to="/settings/data" className="text-accent underline underline-offset-4">{t('error.previewStaleLink')}</Link></p> : null}
     </div>
   )
 }

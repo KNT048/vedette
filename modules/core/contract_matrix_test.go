@@ -214,6 +214,7 @@ func TestContract_INV2_EveryCoreMutationIsAudited(t *testing.T) {
 		{"core_patch_core_users_id", nil, func() reply { return admin.patch("/core/users/"+bobID, map[string]any{"role": "operator"}) }},
 		{"core_post_core_users_id_reset_password", nil, func() reply { return admin.post("/core/users/"+bobID+"/reset-password", nil) }},
 		{"core_post_core_users_id_2fa_reset", nil, func() reply { return admin.post("/core/users/"+cy.ID+"/2fa/reset", nil) }},
+		{"core_patch_core_privacy", nil, func() reply { return admin.patch("/core/privacy", map[string]any{"telemetry": false}) }},
 		{"core_put_core_general", nil, func() reply { return admin.putGeneral(map[string]any{"name": "Acme 2", "timezone": "UTC"}) }},
 		{"core_patch_core_account", nil, func() reply { return admin.patch("/core/account", map[string]any{"name": "Ann 2"}) }},
 		{"core_post_core_account_password", nil, func() reply {

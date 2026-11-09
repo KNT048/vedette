@@ -6,3 +6,4 @@ Modules `scan` và `scan-credentialed`. Story: S-SCAN-1 (quét xác nhận, ch�
 - Mock tính tiến độ theo đồng hồ (`timing.stepMs` mỗi thiết bị, `timing.stopMs` cho "Dừng ngay"); UI poll 1 giây khi có lần quét đang chạy. `a-cam03` là thiết bị mẫu không phản hồi để minh hoạ tự dừng.
 - Khoá SSH không được lưu hay trả lại; chỉ giữ 4 ký tự cuối.
 - Slot cung cấp/tiêu thụ: không. Đường dẫn: `/scans?tab=runs|safety|auto|probes|credentialed&target=<assetId>`.
+- Mục tiêu ngoài là IP: `POST /scans/runs` hỏi cùng cổng kiểm lúc quét như exposure (`exposureIpPaused`, INV-13 của exposure): hộp không còn ra bằng IP đó thì 409 `ip_not_current` (cửa sổ 5 phút dùng lại kết quả lượt dò đầy đủ).

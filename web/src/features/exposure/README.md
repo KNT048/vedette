@@ -8,3 +8,4 @@ Mock tables: `exp_targets`, `exp_snapshots`, `exp_commitments`, `exp_attempts`, 
 For the scan module: `exposureTargetsStore` (kind, value, verified_at, expires_at), `exposureSnapshotsStore`, `exposureCommitmentsStore`; or `GET /api/v1/exposure/targets` and use only `scannable` targets.
 Roles: add/delete target, auto-detect settings, Detect now, commitment = admin; re-check ownership, scan now = operator; view = viewer.
 Slots: none provided, none consumed.
+Scan-time check (INV-13): `exposureIpPaused` (used by `POST …/scan` and by the `scan` mock's `POST /scans/runs`) answers 409 `ip_not_current` unless a check of the last 5 minutes saw the IP; otherwise one full check runs, and its answer (a "not seen" included) is reused for 5 minutes. Tests move the clock (`vi.setSystemTime`, Playwright `page.clock`). Audit of the box's own runs: only on change (INV-11), a person's click always.

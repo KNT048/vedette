@@ -8,7 +8,7 @@
 // every interval_min minutes (default 60, 1 to 1440), and adds or renews (30 days from the sighting) every distinct public IP that passed, except those on the Ignored list. The mock runs
 // the check when GET /exposure/targets finds it due. Removing an IP is DELETE; the person decides whether it goes on the Ignored list (D-79, ?ignore=true: never added again, never scanned;
 // Restore lets detection add it again); otherwise, while auto-detect is on, an IP the box still uses comes back. Scan-time check (D-79, INV-13): an IP is scanned only while the box still goes out through it (the mock reads the same
-// localStorage egress as a fresh full check would see); else 409 ip_not_current, and the IP stays in the list.
+// localStorage egress as a fresh full check would see; a check or full check of the last 5 minutes is reused, a "not seen" included); else 409 ip_not_current, and the IP stays in the list.
 // DNS simulation: the first TXT check of a new domain says "not found" (DNS not updated yet), from the second check it is found.
 // Box egress simulation: localStorage key "vedette-mock-egress" holds the public IPs the box currently egresses through, comma separated
 // (default: the two sample IPs, i.e. a load balancer), "offline" when no public IP service answers, or "disagree" when they never agree.
@@ -38,6 +38,9 @@ const boxIp = collection<BoxIpSettings>('exp_settings', seedBoxIp, () => ({ auto
 
 /** The Ignored list (D-79): IPs removed with "Don't add it again if detected". It only blocks: detection never adds them, and restoring one only lets detection add it again. */
 const ignored = collection<IgnoredIp[]>('exp_ignored', seedIgnored, () => [])
+
+/** When the last full check ran. INV-13 reuses the answer of a full check for 5 minutes, a "not seen" included. */
+const probe = collection<{ deep_at: string | null }>('exp_probe', () => ({ deep_at: null }), () => ({ deep_at: null }))
 
 const MAX_TARGETS = 20
 const MAX_IGNORED = 200
@@ -147,29 +150,39 @@ type Detected = { kind: 'offline' } | { kind: 'disagree' } | { kind: 'not_public
  */
 function detect(who: 'user' | 'system'): Detected {
   const at = nowIso()
-  const log = (action: string, target: string, detail: string) => (who === 'system' ? auditSystem(action, target, detail) : audit(action, target, detail))
-  const record = (ok: boolean, message: string) => boxIp.update((s) => ({ ...s, last_run: { at, ok, message } }))
+  const auto = who === 'system'
+  const log = (action: string, target: string, detail: string) => (auto ? auditSystem(action, target, detail) : audit(action, target, detail))
+  const prev = boxIp.get().last_run
+  // Every check is a full check in the mock (INV-13 reuses its answer for 5 minutes).
+  const record = (ok: boolean, message: string) => { boxIp.update((s) => ({ ...s, last_run: { at, ok, message } })); probe.set({ deep_at: at }) }
+  // INV-11: a person's click is always audited. A run of the box only when something changed (an IP added, an expired IP seen again, a switch between working and failing,
+  // a refused address that is new), because last_run already says what the routine runs did. The first run counts as coming from "working".
+  const switched = (nowOk: boolean) => !prev || prev.ok !== nowOk
   const observed = egressIps()
   if (observed === 'offline' || observed === 'disagree') {
     const down = observed === 'offline'
+    const summary = down ? 'failed: the public IP services are not reachable' : 'failed: the public IP services did not agree'
     record(false, down ? OFFLINE : DISAGREE)
-    if (who === 'system') auditSystem('exposure.auto_detect', 'box', down ? 'failed: the public IP services are not reachable' : 'failed: the public IP services did not agree')
+    if (!auto) audit('exposure.verify_fail', 'box', `box_egress: ${summary}`)
+    else if (switched(false)) auditSystem('exposure.auto_detect', 'box', summary)
     return { kind: down ? 'offline' : 'disagree' }
   }
   const isPublic = (ip: string) => IPV4_RE.test(ip) && isPublicIp(ip)
   const pub = observed.filter(isPublic)
   const refused = observed.filter((ip) => !isPublic(ip))
-  for (const ip of refused) log('exposure.verify_fail', ip, 'box_egress: not a public address')
+  // A run of the box says nothing new when the last run already told about this address.
+  for (const ip of refused) if (!(auto && prev?.message.includes(ip))) log('exposure.verify_fail', ip, 'box_egress: not a public address')
   if (pub.length === 0) {
     const message = notPublicMessage(refused)
     record(false, message)
-    if (who === 'system') auditSystem('exposure.auto_detect', 'box', `refused: ${list(refused)} (not public)`)
+    if (auto && switched(false)) auditSystem('exposure.auto_detect', 'box', `refused: ${list(refused)} (not public)`)
     return { kind: 'not_public', ips: refused }
   }
   const until = fmt(plus(at, VERIFY_DAYS))
   const seen: StoredTarget[] = []
   const skipped: string[] = []
   const added: string[] = []
+  let changed = false
   const blockedIps = ignored.get().map((x) => x.value)
   const onIgnored = pub.filter((ip) => blockedIps.includes(ip))
   for (const ip of pub.filter((x) => !blockedIps.includes(x))) {
@@ -179,15 +192,17 @@ function detect(who: 'user' | 'system'): Detected {
       const was = view(existing).validity
       const next: StoredTarget = { ...existing, verified_at: at, expires_at: plus(at, VERIFY_DAYS), last_check: { at, ok: true, message: msg } }
       targets.update((l) => l.map((x) => (x.id === next.id ? next : x)))
-      if (who === 'user' || was !== 'valid') log('exposure.verify_renew', ip, 'box_egress')
+      if (!auto || was === 'expired') log('exposure.verify_renew', ip, 'box_egress')
+      if (was === 'expired') changed = true
       seen.push(next)
     } else if (targets.get().length >= MAX_TARGETS) {
       skipped.push(ip)
     } else {
       const next: StoredTarget = { id: newId('xt'), kind: 'ip', value: ip, token: '', method: 'box_egress', verified_at: at, expires_at: plus(at, VERIFY_DAYS), txt_ok: false, checks: 1, last_check: { at, ok: true, message: msg }, created_at: at, last_scan_at: null }
       targets.update((l) => [...l, next])
-      log('exposure.verify_ok', ip, who === 'system' ? 'box_egress, auto-detect' : 'box_egress')
+      log('exposure.verify_ok', ip, auto ? 'box_egress, auto-detect' : 'box_egress')
       added.push(ip)
+      changed = true
       seen.push(next)
     }
   }
@@ -195,11 +210,12 @@ function detect(who: 'user' | 'system'): Detected {
     // Every address the box uses is on the Ignored list: nothing to add, and that is a normal result.
     const message = `The box reaches the Internet via ${list(onIgnored)}, which ${onIgnored.length === 1 ? 'is' : 'are'} on your Ignored list, so nothing was added.`
     record(true, message)
+    if (auto && switched(true)) auditSystem('exposure.auto_detect', 'box', `seen: ${list(onIgnored)}; not added (Ignored list)`)
     return { kind: 'ok', seen, message }
   }
   if (seen.length === 0) {
     record(false, tooMany())
-    if (who === 'system') auditSystem('exposure.auto_detect', 'box', `not added: ${list(skipped)} (limit of ${MAX_TARGETS} targets)`)
+    if (auto && switched(false)) auditSystem('exposure.auto_detect', 'box', `not added: ${list(skipped)} (limit of ${MAX_TARGETS} targets)`)
     return { kind: 'too_many' }
   }
   const via = seen.length === 1 ? seen[0]!.value : `${seen.length} public IPs: ${list(seen.map((x) => x.value))}`
@@ -207,8 +223,32 @@ function detect(who: 'user' | 'system'): Detected {
     + (refused.length ? ` Ignored, not public: ${list(refused)}.` : '') + (skipped.length ? ` Not added, the list holds at most ${MAX_TARGETS} targets: ${list(skipped)}.` : '')
     + (onIgnored.length ? ` Not added, on your Ignored list: ${list(onIgnored)}.` : '')
   record(skipped.length === 0, message)
-  if (who === 'system') auditSystem('exposure.auto_detect', 'box', `seen: ${list(seen.map((x) => x.value))}${added.length ? `; added: ${list(added)}` : ''}${skipped.length ? `; not added: ${list(skipped)}` : ''}`)
+  if (auto && (changed || switched(skipped.length === 0))) auditSystem('exposure.auto_detect', 'box', `seen: ${list(seen.map((x) => x.value))}${added.length ? `; added: ${list(added)}` : ''}${skipped.length ? `; not added: ${list(skipped)}` : ''}`)
   return { kind: 'ok', seen, message }
+}
+
+const CURRENT_MS = 5 * 60_000
+/**
+ * Scan-time check of an IP (INV-13, D-79 (2)): may it be scanned now, i.e. does the box go out through it now? Yes when the latest check, or the latest full check, ran in the
+ * last 5 minutes and saw it. Otherwise one full check runs now, by the caller, and at most once in 5 minutes: inside that window the answer of the last full check is reused,
+ * a "not seen" included. A check that cannot tell (services down, no agreement) means "no": fail closed. The scan module calls this too (the mock's CheckScannable).
+ */
+function exposureIpCurrent(id: string): boolean {
+  const now = Date.now()
+  const fresh = (iso: string | null | undefined): iso is string => !!iso && Date.parse(iso) <= now + CURRENT_MS && now - Date.parse(iso) <= CURRENT_MS
+  const sawIt = (iso: string | null | undefined) => fresh(iso) && Date.parse(find(id)?.verified_at ?? '') >= Date.parse(iso)
+  const lastRun = boxIp.get().last_run?.at, deep = probe.get().deep_at
+  if (sawIt(lastRun) || sawIt(deep)) return true
+  if (fresh(deep)) return false
+  const r = detect('user')
+  return r.kind === 'ok' && r.seen.some((x) => x.id === id)
+}
+
+/** The 409 ip_not_current answer when the box is not going out through the IP now (INV-13); null when it is. Shared by exposure's scan and the scan module. */
+export function ipPaused(t: { id: string; value: string }) {
+  if (exposureIpCurrent(t.id)) return null
+  const seenAt = find(t.id)?.verified_at
+  return fail(409, 'ip_not_current', `This box no longer reaches the Internet through ${t.value}; it was last seen ${seenAt ? new Date(seenAt).toISOString().slice(0, 16).replace('T', ' ') : 'never'} UTC. Scans of it are paused until the box uses it again.`)
 }
 
 /** The check the box runs by itself: due when auto-detect is on and the last check is older than the interval (or there was none: first start). */
@@ -368,9 +408,8 @@ export const handlers = [
     if (!v.commitment) return fail(400, 'commitment_required', `You have not confirmed that your company owns ${t.value} and you are authorized to scan it. Confirm it first.`)
     // An IP is scanned only while the box still goes out through it (a fresh full check just before the scan sees it). Not seen, or no answer = paused, fail closed; the IP stays in the list.
     if (t.kind === 'ip') {
-      const observed = egressIps()
-      if (!Array.isArray(observed) || !observed.includes(t.value)) return fail(409, 'ip_not_current', `This box no longer reaches the Internet through ${t.value}; it was last seen ${new Date(t.verified_at!).toISOString().slice(0, 16).replace('T', ' ')} UTC. Scans of it are paused until the box uses it again.`)
-      targets.update((l) => l.map((x) => (x.id === t.id ? { ...x, verified_at: nowIso(), expires_at: plus(nowIso(), VERIFY_DAYS) } : x)))
+      const paused = ipPaused(t)
+      if (paused) return paused
     }
     const at = nowIso()
     const content = scanContent(t)
@@ -409,3 +448,5 @@ export const handlers = [
 // Reading the targets also runs the automatic check when it is due, as the box's job would have by now, so the scan page of a clean install lists the IPs the box found.
 export const exposureTargetsStore: Collection<StoredTarget[]> = { get: () => { autoDetectIfDue(); return targets.get() }, set: (v) => targets.set(v), update: (fn) => targets.update(fn) }
 export { snapshots as exposureSnapshotsStore, commitments as exposureCommitmentsStore }
+// The scan module asks the same question before it scans an external IP (CheckScannable, INV-13).
+export { ipPaused as exposureIpPaused }

@@ -216,6 +216,7 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   // entries out at the end, and leave every other error (including a surprise 502 elsewhere) fatal.
   let detect502 = 0
   page.on('response', (r) => { if (r.status() === 502 && r.request().method() === 'POST' && r.url().endsWith('/api/v1/exposure/box-ip/verify')) detect502++ })
+  await page.clock.install() // time flows; the test jumps past the 5-minute window of the scan-time check (INV-13) below
   await finishClean(page)
   await page.goto('/exposure')
   const box = page.locator('#box-ip')
@@ -252,11 +253,13 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   // Scan-time check (D-79): the box no longer goes out through this IP, so the scan is paused, the IP stays, and it works again when the box is back.
   await expect(page.getByRole('button', { name: 'Scan now' })).toBeEnabled()
   await setEgress(page, '198.51.100.8')
+  await page.clock.fastForward('06:00') // the check of the last 5 minutes saw the IP; after 5 minutes the box is asked again
   await page.getByRole('button', { name: 'Scan now' }).click()
   await expect(page.getByText(/no longer reaches the Internet through 198.51.100.7/).first()).toBeVisible()
   await expect(page.getByText(/Scans of it are paused until the box uses it again/).first()).toBeVisible()
   await shot(page, 'exposure', `scan-paused-${isMobile ? 'mobile' : 'desktop'}`)
   await setEgress(page, '198.51.100.7')
+  await page.clock.fastForward('06:00') // the answer of the full check (not seen) is reused for 5 minutes, then the box is asked again
   await page.getByRole('button', { name: 'Scan now' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/198\.51\.100\.7: \d+ open port\(s\)/)
   await expect(page.getByRole('heading', { name: 'Subdomains' })).toHaveCount(0)

@@ -7,7 +7,7 @@ import { collection, daysAgo, dataMode, newId, nowIso } from '@/mocks/db'
 import { assetsStore, findingsStore, isOn } from '@/mocks/stores'
 import type { Asset, Finding } from '@/lib/types'
 import { inventorySettingsStore } from '@/features/inventory/mocks'
-import { exposureSnapshotsStore, exposureTargetsStore } from '@/features/exposure/mocks'
+import { exposureIpPaused, exposureSnapshotsStore, exposureTargetsStore } from '@/features/exposure/mocks'
 import type { CredTarget, ProbeEntry, RescanEvent, RunResultRow, ScanConfig, ScanConfigResponse, ScanRun, ScanScope, ScanTarget } from './types'
 
 
@@ -343,6 +343,12 @@ export const handlers = [
       const t = all.find((x) => x.id === id)
       if (!t) return fail(400, 'unknown_target', `There is no target "${id.slice(0, 40)}" in the scan list.`)
       if (!t.selectable) return fail(400, 'out_of_scope', `${t.label} (${t.ip}) ${reasonOf(t.reason)}, so it cannot be scanned.`)
+    }
+    // CheckScannable of exposure (INV-13): right before a scan, an external IP must still be one the box goes out through (a check or full check of the last 5 minutes is reused). Not seen = paused, 409 ip_not_current.
+    for (const id of ids) {
+      const ip = id.startsWith('ext:') ? exposureTargetsStore.get().find((x) => `ext:${x.id}` === id && x.kind === 'ip') : undefined
+      const paused = ip ? exposureIpPaused(ip) : null
+      if (paused) return paused
     }
     const r = startRun(ids, 'manual', null, who())
     audit('scan.start', r.id, `${ids.length} targets`)

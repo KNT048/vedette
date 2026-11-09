@@ -266,6 +266,36 @@ describe('exposure: auto-detect of the box public IPs (kien 2026-11-09)', () => 
     expect(auditStore.get().filter((a) => a.action === 'exposure.verify_ok' && a.user === 'system')).toHaveLength(2)
   })
 
+  it('INV-11: a routine run that finds nothing new writes no audit row; a change writes one, once', async () => {
+    await clean()
+    setEgress('198.51.100.7,198.51.100.8')
+    await state() // first start: both IPs added, audited
+    const system = () => auditStore.get().filter((a) => a.user === 'system').map((a) => `${a.action} ${a.target}`)
+    const first = system()
+    expect(first.filter((a) => a.startsWith('exposure.auto_detect'))).toHaveLength(1)
+    let clock = Date.now()
+    const hour = () => { if (!vi.isFakeTimers()) vi.useFakeTimers({ toFake: ['Date'] }); clock += 61 * 60_000; vi.setSystemTime(clock) }
+    const lastRun = async () => (await state()).box_ip.last_run!.at
+    const at = await lastRun()
+    hour()
+    expect(await lastRun()).not.toBe(at) // it did run ...
+    expect(system()).toEqual(first) // ... and said nothing: same IPs, still working
+    hour(); setEgress('offline'); await state()
+    expect(system()).toHaveLength(first.length + 1) // switched from working to failing: one row
+    hour(); await state()
+    expect(system()).toHaveLength(first.length + 1) // still failing: nothing new
+    hour(); setEgress('198.51.100.7,198.51.100.8,198.51.100.9'); await state()
+    expect(system()).toHaveLength(first.length + 1 + 2) // working again with a new IP: its verify_ok and one auto_detect
+    expect(system().slice(0, 2).sort()).toEqual(['exposure.auto_detect box', 'exposure.verify_ok 198.51.100.9'])
+  })
+
+  it('INV-11: a person\'s click is always audited, even when nothing changed', async () => {
+    const count = () => auditStore.get().filter((a) => a.action === 'exposure.verify_renew' && a.target === '203.0.113.10').length
+    await call('POST', '/exposure/box-ip/verify')
+    await call('POST', '/exposure/box-ip/verify')
+    expect(count()).toBe(2)
+  })
+
   it('checks again only when the interval has passed; each sighting renews the IP', async () => {
     const before = (await call('GET', '/exposure/targets/xt-2')).json.verified_at as string
     later(30)
@@ -591,20 +621,41 @@ describe('exposure: the Ignored list (D-79 (3))', () => {
 })
 
 describe('exposure: scan-time check of an IP (D-79 (2), INV-13)', () => {
+  const advance = (min: number) => { if (!vi.isFakeTimers()) vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(Date.now() + min * 60_000) }
+  const scanXt2 = () => call('POST', '/exposure/targets/xt-2/scan')
+
   it('an IP is scanned while the box still goes out through it; otherwise the scan is paused, the IP stays in the list, and it works again when the box is back', async () => {
-    expect((await call('POST', '/exposure/targets/xt-2/scan')).status).toBe(200) // the sample box goes out through 203.0.113.10
+    expect((await scanXt2()).status).toBe(200) // the sample box goes out through 203.0.113.10: a full check just ran and saw it
     setEgress('198.51.100.50') // the modem rebooted and the address went elsewhere
-    const paused = await call('POST', '/exposure/targets/xt-2/scan')
+    expect((await scanXt2()).status).toBe(200) // the check of the last 5 minutes saw it, so no new probe yet
+    advance(6)
+    const paused = await scanXt2()
     expect(paused.status).toBe(409)
     expect(paused.json.error.code).toBe('ip_not_current')
     expect(paused.json.error.message).toMatch(/^This box no longer reaches the Internet through 203\.0\.113\.10; it was last seen \d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC\. Scans of it are paused until the box uses it again\.$/)
     expect((await call('GET', '/exposure/targets/xt-2')).json).toMatchObject({ value: '203.0.113.10', status: 'verified' }) // still in the list
     for (const down of ['offline', 'disagree']) {
+      advance(6)
       setEgress(down)
-      expect((await call('POST', '/exposure/targets/xt-2/scan')).json.error.code).toBe('ip_not_current') // fail closed
+      expect((await scanXt2()).json.error.code).toBe('ip_not_current') // fail closed
     }
+    advance(6)
     setEgress('203.0.113.10,203.0.113.11') // a load balancer: every IP is seen, so every IP is scannable
-    expect((await call('POST', '/exposure/targets/xt-2/scan')).status).toBe(200)
+    expect((await scanXt2()).status).toBe(200)
+  })
+
+  it('a full check is reused for 5 minutes, a "not seen" included; after that the box is asked again', async () => {
+    advance(10) // the sample's last check is old
+    setEgress('198.51.100.50')
+    expect((await scanXt2()).json.error.code).toBe('ip_not_current') // one full check, not seen
+    const first = (await call('GET', '/exposure/targets')).json.box_ip.last_run.at
+    setEgress('203.0.113.10') // the box is back, but the answer of the last full check still stands for 5 minutes
+    advance(2)
+    expect((await scanXt2()).json.error.code).toBe('ip_not_current')
+    expect((await call('GET', '/exposure/targets')).json.box_ip.last_run.at).toBe(first) // nothing was probed again
+    advance(4)
+    expect((await scanXt2()).status).toBe(200)
+    expect((await call('GET', '/exposure/targets')).json.box_ip.last_run.at).not.toBe(first)
   })
 
   it('the commitment is asked first, without a check of the network', async () => {
@@ -612,6 +663,7 @@ describe('exposure: scan-time check of an IP (D-79 (2), INV-13)', () => {
     await call('POST', '/exposure/box-ip/verify') // adds 198.51.100.50 as a new target, no commitment yet
     const id = (await call('GET', '/exposure/targets')).json.items.find((t: { value: string }) => t.value === '198.51.100.50').id
     setEgress('198.51.100.51')
+    advance(6)
     expect((await call('POST', `/exposure/targets/${id}/scan`)).json.error.code).toBe('commitment_required')
   })
 })

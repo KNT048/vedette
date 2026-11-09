@@ -42,7 +42,7 @@ func TestWiringBaselinePullQueuesNoNotice(t *testing.T) {
 	if n := s.nf("", ""); n != 2 {
 		t.Fatalf("the re-match created %d findings, want 2", n)
 	}
-	if n := s.count(`SELECT COUNT(*) FROM notify_pending`); n != 0 {
+	if n := pendingNotices(s); n != 0 {
 		t.Fatalf("the baseline queued %d notices", n)
 	}
 
@@ -50,7 +50,16 @@ func TestWiringBaselinePullQueuesNoNotice(t *testing.T) {
 	if err := s.d.Bus.Publish(t.Context(), events.Event{Name: feeds.EventNewKEV, Data: feeds.NewKEVEvent{CVE: "CVE-2026-3003", Vendor: "Fortinet", Product: "FortiOS"}}); err != nil {
 		t.Fatal(err)
 	}
-	if n := s.count(`SELECT COUNT(*) FROM notify_pending`); n != 1 {
+	if n := pendingNotices(s); n != 1 {
 		t.Fatalf("a finding of a later pull queued %d notices, want 1", n)
 	}
+}
+
+func pendingNotices(s *stack) int {
+	s.t.Helper()
+	var n int
+	if err := s.d.DB.Reader().QueryRowContext(s.t.Context(), `SELECT COUNT(*) FROM notify_pending`).Scan(&n); err != nil {
+		s.t.Fatal(err)
+	}
+	return n
 }

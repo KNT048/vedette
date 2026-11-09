@@ -37,6 +37,10 @@ type Notice struct {
 	// fields of the webhook payload (kind, devices[]); the text channels do not use them.
 	IncidentKind string
 	DeviceIDs    []string
+
+	// HoldUntil, when set, keeps the notice in the queue until then even though no rule holds it (reason "settle"): the
+	// findings events wait out a baseline re-match (D-78), see baselineSettle.
+	HoldUntil time.Time
 }
 
 // Sendable implements INV-2: a vulnerability notice needs at least one matched

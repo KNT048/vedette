@@ -38,7 +38,7 @@ func newHandler(d deps) handler {
 
 		FindingHandlers: d.FindingHandlers,
 		ActionHandlers:  d.MitigationHandlers,
-		NotifyHandlers: notify.NewNotifyHandlers(newNotify(d)),
+		NotifyHandlers:  notify.NewNotifyHandlers(newNotify(d)),
 	}
 }
 

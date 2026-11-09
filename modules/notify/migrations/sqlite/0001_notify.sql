@@ -130,7 +130,7 @@ CREATE TABLE notify_pending (
     channel    TEXT NOT NULL CHECK (channel IN ('telegram', 'slack', 'zalo', 'zalo-personal', 'email', 'webhook')),
     notice_id  TEXT NOT NULL CHECK (length(notice_id) BETWEEN 1 AND 128),
     notice     TEXT NOT NULL CHECK (json_valid(notice) AND length(notice) <= 65536),
-    reason     TEXT NOT NULL CHECK (reason IN ('now', 'group', 'quiet')),
+    reason     TEXT NOT NULL CHECK (reason IN ('now', 'group', 'quiet', 'settle')),
     due_at     TEXT NOT NULL CHECK (due_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     state      TEXT NOT NULL DEFAULT 'pending' CHECK (state IN ('pending', 'claimed', 'sending')),
     claimed_at TEXT CHECK (claimed_at IS NULL OR claimed_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),

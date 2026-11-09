@@ -187,6 +187,9 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 		case rules.Grouping.Enabled && rules.Grouping.Validate() == nil && n.Kind == KindVuln && n.Severity != Critical && strings.TrimSpace(n.Product) != "":
 			reason, due = "group", n.At.Add(time.Duration(rules.Grouping.WindowMin)*time.Minute)
 		}
+		if reason == "now" && n.HoldUntil.After(now) {
+			reason, due = "settle", n.HoldUntil
+		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO notify_pending (id, channel, notice_id, notice, reason, due_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT (channel, notice_id) DO NOTHING`, store.NewID("pq"), string(tg.t), n.ID, string(raw), reason, store.FormatTS(due), store.FormatTS(now)); err != nil {
 			return fmt.Errorf("notify: queue notice: %w", err)
@@ -206,6 +209,7 @@ type pendingRow struct {
 	id     string
 	notice Notice
 	reason string
+	due    string
 }
 
 // Flush delivers what is due: held notices when quiet hours have ended, grouped batches at their
@@ -316,7 +320,7 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 			return err
 		}
 		quiet := rules.Quiet.Active(now.In(s.loc(ctx)))
-		rows, err := tx.QueryContext(ctx, `SELECT id, channel, notice, reason FROM notify_pending WHERE state = 'pending' ORDER BY channel, created_at, rowid`)
+		rows, err := tx.QueryContext(ctx, `SELECT id, channel, notice, reason, due_at FROM notify_pending WHERE state = 'pending' ORDER BY channel, created_at, rowid`)
 		if err != nil {
 			return fmt.Errorf("notify: read queue: %w", err)
 		}
@@ -324,8 +328,8 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 		var order []channel.Type
 		var broken []string
 		for rows.Next() {
-			var id, ch, raw, reason string
-			if err := rows.Scan(&id, &ch, &raw, &reason); err != nil {
+			var id, ch, raw, reason, due string
+			if err := rows.Scan(&id, &ch, &raw, &reason, &due); err != nil {
 				_ = rows.Close()
 				return fmt.Errorf("notify: read queue: %w", err)
 			}
@@ -338,7 +342,7 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 			if _, ok := byChannel[t]; !ok {
 				order = append(order, t)
 			}
-			byChannel[t] = append(byChannel[t], pendingRow{id, n, reason})
+			byChannel[t] = append(byChannel[t], pendingRow{id, n, reason, due})
 		}
 		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 			return fmt.Errorf("notify: read queue: %w", err)
@@ -357,7 +361,7 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 				continue
 			}
 			rowOf := map[string]string{}
-			var nowN, heldN, grpN []Notice
+			var nowN, heldN, grpN, waitN []Notice
 			for _, r := range list {
 				rowOf[r.notice.ID] = r.id
 				switch r.reason {
@@ -365,11 +369,20 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 					heldN = append(heldN, r.notice)
 				case "group":
 					grpN = append(grpN, r.notice)
+				case "settle":
+					if r.due <= store.FormatTS(now) && (!quiet || (r.notice.Severity == Critical && rules.Quiet.AllowCritical)) {
+						nowN = append(nowN, r.notice)
+					} else {
+						waitN = append(waitN, r.notice) // still settling: stays pending
+					}
 				default:
 					nowN = append(nowN, r.notice)
 				}
 			}
 			seen := map[string]bool{}
+			for _, n := range waitN {
+				seen[n.ID] = true
+			}
 			var release []Batch
 			take := func(bs []Batch, due func(Batch) bool) {
 				for _, b := range bs {

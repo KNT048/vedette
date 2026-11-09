@@ -66,6 +66,8 @@ type Service struct {
 	mu        sync.Mutex
 	senders   map[channel.Type]cachedSender
 	lastPrune time.Time
+	// baselineUntil is the end of the window in which findings events are ignored after feeds.sync.baseline (D-78).
+	baselineUntil time.Time
 }
 
 type cachedSender struct {

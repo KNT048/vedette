@@ -66,6 +66,13 @@ func ParseBundle(data []byte) (*Bundle, error) {
 	}
 	pool := x509.NewCertPool()
 	pool.AddCert(ca)
+	// The leaf must chain to this CA, with this CA as the only root, for client auth. The clock is not the question here (a
+	// bundle is read long after it was made, and expiry is the TLS handshake's business), so the check is made at the middle of
+	// the leaf's own life.
+	mid := leaf.NotBefore.Add(leaf.NotAfter.Sub(leaf.NotBefore) / 2)
+	if _, err := leaf.Verify(x509.VerifyOptions{Roots: pool, CurrentTime: mid, KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}}); err != nil {
+		return nil, fmt.Errorf("sensorlink: bundle leaf does not chain to the bundle CA: %w", err)
+	}
 	cert.Leaf = leaf
 	return &Bundle{Cert: cert, Leaf: leaf, CA: ca, Pool: pool}, nil
 }

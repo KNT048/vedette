@@ -35,6 +35,7 @@ Mô hình tin cậy: sensor là **máy bị tấn công được** (nằm trên 
 - `ReadHeaderTimeout` 5 s, `WriteTimeout` 35 s (long-poll giữ tối đa 30 s).
 - Thân: `http.MaxBytesReader` theo trần của route (§9) **trước** khi giải mã; giải mã bằng `internal/jsonstrict` (trường lạ, khoá trùng, khoá trùng sau gập chữ, độ sâu > 32 → `400 invalid_request`). Query lạ → `400 invalid_request`.
 - SP-1 (làm rõ): thân POST phải có `Content-Type: application/json` (thiếu hoặc khác → `400 invalid_request`); thân đọc tối đa **10 s** (đồng hồ ổ cắm, không phải seam) và kết nối bị đóng khi thân dừng giữa chừng hoặc vượt trần (net/http không có hạn đọc thân nào mà không làm hỏng long-poll); `IdleTimeout` 2 phút; `MaxHeaderBytes` 16 KiB. `If-None-Match` phải có dạng `"<1…64 ký tự [A-Za-z0-9._:-]>"`, không thì `400`. `wait` là một số nguyên 0…30 (một giá trị, không lặp); `running` là 32 hex hoặc rỗng.
+- Listener nhận tối đa **64 kết nối** cùng lúc (`LimitListener`, thư viện chuẩn); `ErrorLog` của `http.Server` đi qua slog như server 8443 (lỗi handshake bị từ chối vào log, không ra stderr). Client **không theo redirect**: một 3xx là lỗi của request, `Location` không được gọi (không đưa chứng chỉ client cho máy khác).
 - Sensor đọc phản hồi của `core` cũng có trần (config ≤ 64 KiB, jobs ≤ 64 KiB, phản hồi khác ≤ 16 KiB) và giải mã chặt như `core`.
 
 ## 4. Chứng chỉ và danh tính (D-110)
@@ -54,6 +55,14 @@ Mô hình tin cậy: sensor là **máy bị tấn công được** (nằm trên 
 **Kiểm của `core`** (thứ tự):
 1. Handshake: chuỗi tới CA sensor (hạn, chữ ký), EKU `clientAuth`, đúng một URI SAN thuộc hai vai, serial là serial **hiện hành hoặc ngay trước** của vai đó. Sai bất kỳ → handshake hỏng (không có phản hồi HTTP). `VerifyConnection` chạy cả trên kết nối nối lại (TLS 1.3 resumption).
 2. **Mỗi request**: kiểm lại serial (một kết nối keep-alive sống lâu hơn lần về hưu của serial) → `403 cert_retired`.
+
+**CA không dùng được thì thay (M2 của rà soát SP-1).** Hàng CA không giải mã được với `master.key` hiện tại (mất khoá, hoặc khôi phục bản sao lưu không kèm khoá lên khoá của hộp: `host-api.md` §16), hỏng, hết hạn hoặc chưa tới `NotBefore` → `pki.Open` tạo CA mới **trong cùng giao dịch ghi** đã phát hiện ra nó (ghi đè hàng `core_secret`), thu hồi mọi serial còn sống của CA cũ, ghi audit `sensor-ca.replace` (lý do: `cannot_decrypt`, `damaged`, `expired`, `not_yet_valid`) và log cảnh báo `sensor_ca_replaced`; `Start` cấp lại và ghi lại mọi bó. Lỗi của DB không phải lý do để bỏ CA.
+
+**Audit (M3).** Mọi thay đổi PKI là một hàng `core_audit` (người làm `system`) trong cùng giao dịch: `sensor-ca.create`, `sensor-ca.replace`, `sensor-cert.issue` (vai, serial, `not_after`), `sensor-cert.retire` (vai, serial). Tên nhóm dùng gạch nối vì `audit` không nhận dấu gạch dưới ở nhóm. Không bao giờ có khoá hay PEM trong audit hay log.
+
+**Dọn và ghi bó (L3, L6).** `Start` xoá các tệp tạm `.sensor.pem.*` (tệp thường; thư mục, symlink và tên khác để nguyên) còn lại sau một lần sập giữa lúc ghi. Thư mục gốc và thư mục vai được kiểm không phải symlink **và**, sau khi mở, phải đúng là thư mục đã kiểm (`os.SameFile`): bị tráo ở giữa thì từ chối (`ErrCredsPath`). `ParseBundle` kiểm lá chuỗi tới chính CA trong bó (CA là gốc duy nhất, EKU `clientAuth`).
+
+**Long-poll mở trước một lần xoay vòng.** Request đang giữ khi serial bị về hưu vẫn chạy tới hết (serial được kiểm lúc nó bắt đầu); request kế tiếp trên kết nối đó bị từ chối `403 cert_retired` (máy chủ đóng kết nối), client đọc lại bó và nối lại với chứng chỉ mới. Chừng đó là đủ: không có thao tác nào bị mất, vì sensor gửi lại cùng lô và long-poll tự lặp.
 
 Thu hồi chủ động không có giao diện (D-115); thu hồi = xoay vòng (serial cũ về hưu) cộng hạn 7 ngày (thu hồi thụ động).
 
@@ -243,7 +252,9 @@ Trên dây **không** có argv, cờ, đường dẫn, URL hay phạm vi (D-111 
 
 SP-1 (làm rõ): chỉ request qua được bước 1 đến 3 (kể cả `module_off`) mới tiêu một token của nhịp; `Retry-After` của `429` là số giây tới token kế (làm tròn lên, ít nhất 1). Mọi mã trong bảng do `core/sensorlink/errors.go` (`codes`) định nghĩa; thân lỗi có thông điệp cố định theo mã. Bảng này **không** vào `API_CONVENTIONS` §3.3 (đó là API công khai của GUI; dây sensor là nội bộ).
 
-Thứ tự kiểm ở `core` cho mỗi request: serial (`cert_retired`) → `X-Vedette-Proto` (`426`) → route theo vai (`403`) → module (`409 module_off`) → nhịp (`429`) → long-poll duy nhất (`409 poll_in_progress`) → trần thân (`413`) → giải mã chặt (`400`) → handler.
+Thứ tự kiểm ở `core` cho mỗi request: serial (`cert_retired`) → `X-Vedette-Proto` (`426`) → route theo vai (`403`) → module (`409 module_off`) → nhịp (`429`) → long-poll duy nhất (`409 poll_in_progress`) → (chỉ kết quả job) id đúng dạng (`400`) rồi là job đang chạy (`404 unknown_job`), **không đọc thân** → chỗ chứa thân của vai (`503 store_busy`, **không đọc thân**) → trần thân (`413`) → giải mã chặt (`400`) → handler.
+
+**Thân trong bộ nhớ có trần theo vai (M1 của rà soát SP-1; SYS-6).** Tốc độ 10/s không giới hạn số thân `core` đang giữ cùng lúc: một chứng chỉ bị chiếm sẽ giữ hàng chục thân 11 MiB mở trong 10 s. Nên trước khi đọc **bất kỳ** thân nào, request lấy một chỗ: tối đa **2 thân đang đọc cùng lúc mỗi vai** (`MaxBodiesPerRole`), và **1** cho `POST /jobs/{id}/result` (`MaxResultBodies`; worker chạy một job một lần). Không có chỗ → `503 store_busy` với `Retry-After: 1`, thân không được đọc, kết nối bị đóng; chỗ trả lại khi request kết thúc (kể cả khi kết nối đứt hay thân quá hạn). Kết quả job: trước khi đọc thân, `core` hỏi `Backend.JobRunning(id)`; id sai dạng → `400`, job không đang chạy → `404 unknown_job`, cả hai không đọc thân và đóng kết nối. Sensor xử lý `503` như cũ: chờ `Retry-After`, gửi lại cùng lô.
 
 ## 8. Sequence
 
@@ -288,6 +299,8 @@ sequenceDiagram
 | `wait` | 0 … 30 s (mặc định 25) |
 | Nhịp request | 10/giây, burst 20, mỗi vai (long-poll cũng tính) |
 | Long-poll mở | 1 mỗi vai |
+| Thân đang đọc cùng lúc | 2 mỗi vai, 1 cho kết quả job (M1); không có chỗ → `503 store_busy`, `Retry-After: 1` |
+| Kết nối cùng lúc | 64 cho cả listener (`LimitListener`; kết nối thứ 65 chờ trong hàng đợi accept) |
 | Hạn mức chống ngập (`core`) | MAC mới 60/phút và 200/giờ; giá trị mới 4 mỗi (MAC, trường) mỗi giờ |
 | Heartbeat | mỗi 30 s; `online` khi ≤ 90 s |
 | Lease của worker | 60 s không poll thành công |

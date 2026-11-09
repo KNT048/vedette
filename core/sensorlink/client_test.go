@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -602,5 +603,57 @@ func TestNewClientCredentials(t *testing.T) {
 		if _, err := sensorlink.NewClient(sensorlink.ClientOptions{BaseURL: u, CredsPath: filepath.Join(dir, "ok.pem")}); err == nil {
 			t.Errorf("base URL %q accepted", u)
 		}
+	}
+}
+
+// L1 of the SP-1 review: ParseBundle keeps its godoc promise that the leaf chains to the CA in the bundle. A bundle whose CA
+// did not sign its leaf is refused, and so is a leaf that chains to the bundled CA but not for client auth.
+func TestParseBundleChecksTheChain(t *testing.T) {
+	t.Parallel()
+	ours, other := newTestCA(t), newTestCA(t)
+	signedByOther := ours.leaf(t, leafOpts{serial: 100, other: other}) // signed by other ...
+	if _, err := sensorlink.ParseBundle(ours.bundle(t, signedByOther)); err == nil {
+		t.Error("ParseBundle accepted a leaf that the bundle's CA did not sign") // ... but bundled with our CA
+	}
+	if _, err := sensorlink.ParseBundle(ours.bundle(t, ours.leaf(t, leafOpts{serial: 100}))); err != nil {
+		t.Errorf("a good bundle: %v", err)
+	}
+	// the bundle of one CA with the CA certificate of another and a leaf of the first
+	good := ours.bundle(t, ours.leaf(t, leafOpts{serial: 100}))
+	foreign := other.bundle(t, other.leaf(t, leafOpts{serial: 100}))
+	swapped := append(append([]byte(nil), good[:strings.LastIndex(string(good), "-----BEGIN CERTIFICATE")]...), foreign[strings.LastIndex(string(foreign), "-----BEGIN CERTIFICATE"):]...)
+	if _, err := sensorlink.ParseBundle(swapped); err == nil {
+		t.Error("ParseBundle accepted the CA of another bundle")
+	}
+}
+
+// Info of the SP-1 review: the client never follows a redirect. A 3xx from core (or from whatever answers on the port) is an
+// error of the request, and the Location is not requested, so the client certificate is not offered to another host.
+func TestClientRefusesRedirects(t *testing.T) {
+	t.Parallel()
+	ca := newTestCA(t)
+	var elsewhereHits atomic.Int32
+	elsewhere := httptest.NewUnstartedServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { elsewhereHits.Add(1) }))
+	elsewhere.TLS = &tls.Config{Certificates: []tls.Certificate{ca.serverLeaf(t)}}
+	elsewhere.StartTLS()
+	t.Cleanup(elsewhere.Close)
+	core := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", elsewhere.URL+r.URL.Path)
+		w.WriteHeader(http.StatusTemporaryRedirect) // 307 keeps the method and the body
+	}))
+	core.TLS = &tls.Config{Certificates: []tls.Certificate{ca.serverLeaf(t)}}
+	core.StartTLS()
+	t.Cleanup(core.Close)
+	cr := newClientRig(t, ca, core.URL)
+	_, err := cr.c.PassiveHeartbeat(t.Context(), &sensorlink.PassiveHeartbeat{Version: "1.0.0"})
+	var e *sensorlink.Error
+	if !errors.As(err, &e) || e.Status != http.StatusTemporaryRedirect {
+		t.Errorf("err = %v, want the 307 itself as an error", err)
+	}
+	if _, err := cr.c.SendObservations(t.Context(), batch(1), nil); !errors.Is(err, sensorlink.ErrDropped) {
+		t.Errorf("an observations batch answered by a redirect: %v, want it dropped", err)
+	}
+	if n := elsewhereHits.Load(); n != 0 {
+		t.Errorf("the client followed the redirect (%d requests elsewhere)", n)
 	}
 }

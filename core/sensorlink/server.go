@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"math/big"
 	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"slices"
@@ -43,6 +44,9 @@ type Backend interface {
 	ActiveHeartbeat(ctx context.Context, hb *ActiveHeartbeat) (instance string, err error)
 	// Jobs holds the request open up to wait until there is a job or a cancel; running is the job the worker says it runs.
 	Jobs(ctx context.Context, wait time.Duration, running string) (JobsReply, error)
+	// JobRunning says whether id is the job this core handed to the active role and has not finished. It is asked before the
+	// body of a result is read, so a result for any other job costs nothing (404 unknown_job without reading).
+	JobRunning(id string) bool
 	// JobResult returns CodeUnknownJob for a job that is not running or was not handed out.
 	JobResult(ctx context.Context, id string, res *JobResult) error
 }
@@ -72,6 +76,8 @@ type Server struct {
 	bodyTimeout time.Duration
 	buckets     map[Role]*bucket
 	polls       map[Role]*gate
+	bodies      map[Role]chan struct{} // in-flight request bodies per role: MaxBodiesPerRole slots
+	results     chan struct{}          // in-flight result bodies (the large ones): MaxResultBodies slots
 }
 
 // NewServer builds a Server.
@@ -81,7 +87,7 @@ func NewServer(o Options) (*Server, error) {
 	}
 	s := &Server{
 		id: o.Identity, be: o.Backend, moduleOn: o.ModuleOn, now: o.Now, log: o.Log, bodyTimeout: o.BodyTimeout,
-		buckets: map[Role]*bucket{}, polls: map[Role]*gate{},
+		buckets: map[Role]*bucket{}, polls: map[Role]*gate{}, bodies: map[Role]chan struct{}{}, results: make(chan struct{}, MaxResultBodies),
 	}
 	if s.now == nil {
 		s.now = time.Now
@@ -95,6 +101,7 @@ func NewServer(o Options) (*Server, error) {
 	for _, r := range Roles {
 		s.buckets[r] = &bucket{}
 		s.polls[r] = &gate{}
+		s.bodies[r] = make(chan struct{}, MaxBodiesPerRole)
 	}
 	return s, nil
 }
@@ -134,7 +141,38 @@ func (s *Server) HTTPServer(addr string) *http.Server {
 	return &http.Server{
 		Addr: addr, Handler: s.Handler(), TLSConfig: s.TLSConfig(),
 		ReadHeaderTimeout: ReadHeaderTimeout, WriteTimeout: WriteTimeout, IdleTimeout: IdleTimeout, MaxHeaderBytes: 16 << 10,
+		ErrorLog: slog.NewLogLogger(s.log.Handler(), slog.LevelWarn), // like the 8443 server: handshake refusals go to the log, not stderr
 	}
+}
+
+// Serve serves the protocol on l until it is closed: at most MaxConns connections at once (a connection that is refused its
+// slot waits in the kernel's accept queue; nothing is read from it), then the TLS and HTTP of HTTPServer.
+func (s *Server) Serve(l net.Listener) error {
+	return s.HTTPServer("").ServeTLS(LimitListener(l, MaxConns), "", "")
+}
+
+// takeBody takes the slot a request needs before its body is read: one of MaxBodiesPerRole for the role, and for a result also
+// the single result slot. ok is false when there is none; release gives the slots back.
+func (s *Server) takeBody(role Role, id routeID) (release func(), ok bool) {
+	select {
+	case s.bodies[role] <- struct{}{}:
+	default:
+		return nil, false
+	}
+	if id == rResult {
+		select {
+		case s.results <- struct{}{}:
+		default:
+			<-s.bodies[role]
+			return nil, false
+		}
+	}
+	return func() {
+		if id == rResult {
+			<-s.results
+		}
+		<-s.bodies[role]
+	}, true
 }
 
 // Handler is the protocol, without TLS: it reads the role from the verified client certificate of each request.
@@ -250,6 +288,27 @@ func (s *Server) dispatch(ctx context.Context, w http.ResponseWriter, r *http.Re
 	}
 	var raw []byte
 	if rt.max > 0 {
+		// What costs nothing is decided before any memory is spent on a body, and every refusal here closes the connection: its
+		// body is not read, so the connection cannot be reused.
+		if rt.id == rResult {
+			if !jobIDRE.MatchString(jobID) {
+				w.Header().Set("Connection", "close")
+				s.writeError(w, NewError(CodeInvalidRequest))
+				return
+			}
+			if !s.be.JobRunning(jobID) {
+				w.Header().Set("Connection", "close")
+				s.writeError(w, NewError(CodeUnknownJob))
+				return
+			}
+		}
+		release, ok := s.takeBody(role, rt.id)
+		if !ok {
+			w.Header().Set("Connection", "close")
+			s.writeError(w, StoreBusy(time.Second))
+			return
+		}
+		defer release()
 		if raw, err = s.readBody(w, r, rt.max); err != nil {
 			s.fail(ctx, w, err)
 			return
@@ -320,10 +379,6 @@ func (s *Server) dispatch(ctx context.Context, w http.ResponseWriter, r *http.Re
 		}
 		s.writeJSON(ctx, w, rep, MaxJobsReply)
 	case rResult:
-		if !jobIDRE.MatchString(jobID) {
-			s.writeError(w, NewError(CodeInvalidRequest))
-			return
-		}
 		res, err := decodeJobResult(raw)
 		if err == nil {
 			err = s.be.JobResult(ctx, jobID, res)

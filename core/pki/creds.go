@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/knt048/vedette/core/sensorlink"
@@ -28,33 +29,13 @@ var ErrCredsPath = errors.New("pki: credentials path is not a plain directory an
 // shared with a container that is being attacked, and a rename over a planted link would be a write through it. Ownership
 // (core's uid, the sensor group) comes from the volume (a setgid directory made by the host unit, SP-6), not from a chown here.
 func WriteBundle(dir string, role sensorlink.Role, data []byte) error {
-	if !role.Valid() {
-		return fmt.Errorf("pki: unknown role %q", role)
-	}
-	if err := plainDir(dir); err != nil {
+	root, sub, err := openRole(dir, role, true)
+	if err != nil {
 		return err
 	}
-	root, err := os.OpenRoot(dir)
-	if err != nil {
-		return fmt.Errorf("pki: open creds dir: %w", err)
-	}
 	defer func() { _ = root.Close() }()
-	name := string(role)
-	switch fi, err := root.Lstat(name); {
-	case errors.Is(err, fs.ErrNotExist):
-		if err := root.Mkdir(name, 0o750); err != nil {
-			return fmt.Errorf("pki: make %s directory: %w", name, err)
-		}
-	case err != nil:
-		return fmt.Errorf("pki: look at %s directory: %w", name, err)
-	case !fi.IsDir(): // Lstat: a symlink is not a directory here
-		return fmt.Errorf("%w: %s is not a directory", ErrCredsPath, name)
-	}
-	sub, err := root.OpenRoot(name)
-	if err != nil {
-		return fmt.Errorf("pki: open %s directory: %w", name, err)
-	}
 	defer func() { _ = sub.Close() }()
+	name := string(role)
 	switch fi, err := sub.Lstat(BundleName); {
 	case errors.Is(err, fs.ErrNotExist):
 	case err != nil:
@@ -66,7 +47,7 @@ func WriteBundle(dir string, role sensorlink.Role, data []byte) error {
 	if _, err := rand.Read(rnd[:]); err != nil {
 		return fmt.Errorf("pki: random: %w", err)
 	}
-	tmp := "." + BundleName + "." + hex.EncodeToString(rnd[:])
+	tmp := tempPrefix + hex.EncodeToString(rnd[:])
 	f, err := sub.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0o640)
 	if err != nil {
 		return fmt.Errorf("pki: write %s: %w", BundleName, err)
@@ -97,22 +78,119 @@ func WriteBundle(dir string, role sensorlink.Role, data []byte) error {
 	return nil
 }
 
+// tempPrefix starts the name of the temporary file of a write; cleanTemps removes what a crash left.
+const tempPrefix = "." + BundleName + "."
+
+// testHookAfterDirCheck, set by an internal test, runs between a directory having been checked and it being opened: the moment
+// a racing process could swap the directory for a link.
+var testHookAfterDirCheck func()
+
+// openRole returns the root of the creds directory and the root of the role's directory below it. Both directories are checked
+// to be plain (not symlinks) and, after they are opened, to be the very directory that was checked (os.SameFile on the opened
+// handle against the Lstat that came first): a swap in between is refused rather than followed. create makes a missing role
+// directory.
+func openRole(dir string, role sensorlink.Role, create bool) (*os.Root, *os.Root, error) {
+	if !role.Valid() {
+		return nil, nil, fmt.Errorf("pki: unknown role %q", role)
+	}
+	dirInfo, err := plainDir(dir)
+	if err != nil {
+		return nil, nil, err
+	}
+	if testHookAfterDirCheck != nil {
+		testHookAfterDirCheck()
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil, nil, fmt.Errorf("pki: open creds dir: %w", err)
+	}
+	ok := false
+	defer func() {
+		if !ok {
+			_ = root.Close()
+		}
+	}()
+	if st, err := root.Stat("."); err != nil || !os.SameFile(st, dirInfo) {
+		return nil, nil, fmt.Errorf("%w: the creds directory changed while it was being opened", ErrCredsPath)
+	}
+	name := string(role)
+	fi, err := root.Lstat(name)
+	switch {
+	case errors.Is(err, fs.ErrNotExist) && create:
+		if err := root.Mkdir(name, 0o750); err != nil {
+			return nil, nil, fmt.Errorf("pki: make %s directory: %w", name, err)
+		}
+		if fi, err = root.Lstat(name); err != nil {
+			return nil, nil, fmt.Errorf("pki: look at %s directory: %w", name, err)
+		}
+	case err != nil:
+		return nil, nil, err
+	case !fi.IsDir(): // Lstat: a symlink is not a directory here
+		return nil, nil, fmt.Errorf("%w: %s is not a directory", ErrCredsPath, name)
+	}
+	if testHookAfterDirCheck != nil {
+		testHookAfterDirCheck()
+	}
+	sub, err := root.OpenRoot(name)
+	if err != nil {
+		return nil, nil, fmt.Errorf("pki: open %s directory: %w", name, err)
+	}
+	if st, err := sub.Stat("."); err != nil || !os.SameFile(st, fi) {
+		_ = sub.Close()
+		return nil, nil, fmt.Errorf("%w: the %s directory changed while it was being opened", ErrCredsPath, name)
+	}
+	ok = true
+	return root, sub, nil
+}
+
+// cleanTemps removes the temporary files a crash left in the role's directory (".sensor.pem.<hex>", regular files only). A
+// directory that does not exist yet is not an error.
+func cleanTemps(dir string, role sensorlink.Role) error {
+	root, sub, err := openRole(dir, role, false)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	defer func() { _ = root.Close() }()
+	defer func() { _ = sub.Close() }()
+	d, err := sub.Open(".")
+	if err != nil {
+		return err
+	}
+	names, err := d.Readdirnames(-1)
+	_ = d.Close()
+	if err != nil {
+		return err
+	}
+	for _, n := range names {
+		if !strings.HasPrefix(n, tempPrefix) {
+			continue
+		}
+		if fi, err := sub.Lstat(n); err == nil && fi.Mode().IsRegular() {
+			_ = sub.Remove(n)
+		}
+	}
+	return nil
+}
+
 // plainDir makes dir if it is missing and refuses it when it is a symlink or not a directory. (os.OpenRoot follows a link at
 // dir itself, so the check is made first; the tree below it cannot escape the root.)
-func plainDir(dir string) error {
+func plainDir(dir string) (os.FileInfo, error) {
 	dir = filepath.Clean(dir)
 	fi, err := os.Lstat(dir)
 	if errors.Is(err, fs.ErrNotExist) {
 		if err := os.MkdirAll(dir, 0o750); err != nil {
-			return fmt.Errorf("pki: make creds dir: %w", err)
+			return nil, fmt.Errorf("pki: make creds dir: %w", err)
 		}
-		return nil
+		fi, err = os.Lstat(dir)
 	}
 	if err != nil {
-		return fmt.Errorf("pki: look at creds dir: %w", err)
+		return nil, fmt.Errorf("pki: look at creds dir: %w", err)
 	}
 	if !fi.IsDir() {
-		return fmt.Errorf("%w: %s", ErrCredsPath, dir)
+		return nil, fmt.Errorf("%w: %s", ErrCredsPath, dir)
 	}
-	return nil
+	return fi, nil
 }

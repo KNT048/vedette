@@ -141,7 +141,7 @@ func (c *Client) newState(b *Bundle, fi os.FileInfo, old *clientState) *clientSt
 		IdleConnTimeout:     30 * time.Second,
 		TLSHandshakeTimeout: 10 * time.Second,
 	}
-	return &clientState{bundle: b, fi: fi, tr: tr, hc: &http.Client{Transport: tr}}
+	return &clientState{bundle: b, fi: fi, tr: tr, hc: &http.Client{Transport: tr, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 }
 
 // clientCert is tls.Config.GetClientCertificate: it picks up a rotated bundle before every handshake (D-110 (4)).

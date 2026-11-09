@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"syscall"
 	"testing"
@@ -263,5 +264,97 @@ func TestAHalfWrittenBundleIsNeverVisible(t *testing.T) {
 	}
 	if ents, _ := os.ReadDir(filepath.Dir(p)); len(ents) != 1 {
 		t.Errorf("left over: %v", ents)
+	}
+}
+
+// L6 of the SP-1 review: a crash mid-write leaves ".sensor.pem.<hex>" behind (it can hold a private key); Start removes those
+// regular files from each role's directory, and only those: other names, directories and links are left alone, and so is what
+// a link points to.
+func TestStartRemovesTemporaryFilesALeftByACrash(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	a := e.open(t)
+	victim := filepath.Join(t.TempDir(), "victim")
+	if err := os.WriteFile(victim, []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, role := range sensorlink.Roles {
+		d := filepath.Join(e.dir, string(role))
+		if err := os.MkdirAll(d, 0o750); err != nil {
+			t.Fatal(err)
+		}
+		for _, f := range []string{".sensor.pem.0011223344556677", ".sensor.pem.deadbeef", "notes.txt"} {
+			if err := os.WriteFile(filepath.Join(d, f), []byte("-----BEGIN PRIVATE KEY-----"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := os.Mkdir(filepath.Join(d, ".sensor.pem.adir"), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(victim, filepath.Join(d, ".sensor.pem.alink")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := a.Start(t.Context(), e.dir); err != nil {
+		t.Fatal(err)
+	}
+	for _, role := range sensorlink.Roles {
+		ents, _ := os.ReadDir(filepath.Join(e.dir, string(role)))
+		var names []string
+		for _, en := range ents {
+			names = append(names, en.Name())
+		}
+		want := []string{".sensor.pem.adir", ".sensor.pem.alink", "notes.txt", "sensor.pem"}
+		if !slices.Equal(names, want) {
+			t.Errorf("%s directory after Start = %v, want %v", role, names, want)
+		}
+	}
+	if b, _ := readFile(victim); string(b) != "keep" {
+		t.Error("the file behind a leftover link was touched")
+	}
+}
+
+// L2 of the SP-1 review: Start and Renew take one lock for the whole of an issue (the database transaction and the update of the
+// serials in memory), so concurrent callers cannot leave memory and table disagreeing; and the file on disk is the newest issue.
+func TestConcurrentStartsAndRenewalsLeaveMemoryAndTableAgreeing(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	a := e.open(t)
+	var wg sync.WaitGroup
+	for i := range 12 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var err error
+			if i%3 == 0 {
+				err = a.Renew(t.Context(), e.dir)
+			} else {
+				err = a.Start(t.Context(), e.dir)
+			}
+			if err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+	for _, role := range sensorlink.Roles {
+		var live []string
+		rows := e.rows(t, role)
+		for _, r := range rows {
+			if r.retired == nil {
+				live = append(live, r.serial)
+			}
+		}
+		if len(live) != 2 {
+			t.Errorf("%s: %d live rows, want the current and the previous", role, len(live))
+		}
+		for _, r := range rows {
+			if got, want := a.SerialValid(role, bigFromHex(t, r.serial)), r.retired == nil; got != want {
+				t.Errorf("%s: serial %s valid in memory = %v, live in the table = %v", role, r.serial, got, want)
+			}
+		}
+		if on := e.bundle(t, role).Leaf.SerialNumber.Text(16); on != rows[len(rows)-1].serial {
+			t.Errorf("%s: the bundle on disk has serial %s, the newest issue is %s", role, on, rows[len(rows)-1].serial)
+		}
 	}
 }

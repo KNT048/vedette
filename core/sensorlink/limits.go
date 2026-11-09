@@ -1,6 +1,7 @@
 package sensorlink
 
 import (
+	"net"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -25,6 +26,13 @@ const (
 
 	MaxWait     = 30 * time.Second
 	DefaultWait = 25 * time.Second
+
+	// MaxBodiesPerRole is how many request bodies core holds in memory at once for one role, MaxResultBodies how many of them
+	// may be a job result (up to 11 MiB; a worker runs one job at a time). A request that cannot get a slot is 503 store_busy
+	// with Retry-After: 1, before its body is read. MaxConns caps the connections of the whole listener.
+	MaxBodiesPerRole = 2
+	MaxResultBodies  = 1
+	MaxConns         = 64
 
 	RatePerSecond = 10
 	RateBurst     = 20
@@ -70,3 +78,46 @@ type gate struct{ busy atomic.Bool }
 
 func (g *gate) enter() bool { return g.busy.CompareAndSwap(false, true) }
 func (g *gate) leave()      { g.busy.Store(false) }
+
+// LimitListener returns a listener that accepts at most n connections at a time: Accept waits until a connection that was
+// accepted has been closed. A small stdlib version of the usual limit listener, so that no dependency is added.
+func LimitListener(l net.Listener, n int) net.Listener {
+	return &limitListener{Listener: l, sem: make(chan struct{}, n), done: make(chan struct{})}
+}
+
+type limitListener struct {
+	net.Listener
+	sem  chan struct{}
+	done chan struct{}
+	once sync.Once
+}
+
+func (l *limitListener) Accept() (net.Conn, error) {
+	select {
+	case l.sem <- struct{}{}:
+	case <-l.done:
+		return nil, net.ErrClosed
+	}
+	c, err := l.Listener.Accept()
+	if err != nil {
+		<-l.sem
+		return nil, err
+	}
+	return &limitConn{Conn: c, release: sync.OnceFunc(func() { <-l.sem })}, nil
+}
+
+func (l *limitListener) Close() error {
+	l.once.Do(func() { close(l.done) })
+	return l.Listener.Close()
+}
+
+type limitConn struct {
+	net.Conn
+	release func()
+}
+
+func (c *limitConn) Close() error {
+	err := c.Conn.Close()
+	c.release()
+	return err
+}

@@ -125,6 +125,21 @@ type Store struct {
 	restricted map[string]bool // purposes only their Opener may decrypt
 }
 
+// reserved holds the purposes that no Store.Open may read in this process, whichever Store it is called on and whether or not
+// the holder has called Restrict yet. A holder package reserves its purpose in an init function, so the purpose is closed from the
+// start of the process and not only after the holder's own start-up code has run (core/pki, D-110).
+var reserved sync.Map
+
+// Reserve closes purpose to Store.Open in this process (ErrRestricted for every caller), for every Store. It does not give
+// anyone a way to read it: the holder still calls Restrict on its Store to get the Opener. It panics on a malformed purpose
+// (a programming error in an init function) and is idempotent.
+func Reserve(purpose string) {
+	if err := checkPurpose(purpose); err != nil {
+		panic(err)
+	}
+	reserved.Store(purpose, struct{}{})
+}
+
 // Opener decrypts one restricted purpose. Whoever holds it is the only reader of that purpose.
 type Opener struct {
 	s       *Store
@@ -232,6 +247,9 @@ func (s *Store) Open(ctx context.Context, q coredb.DBTX, id, purpose string) ([]
 	s.mu.RLock()
 	locked := s.restricted[purpose]
 	s.mu.RUnlock()
+	if _, ok := reserved.Load(purpose); ok {
+		locked = true
+	}
 	if locked {
 		return nil, fmt.Errorf("%w: %s", ErrRestricted, purpose)
 	}

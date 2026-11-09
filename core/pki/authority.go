@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/core/store"
@@ -31,6 +32,9 @@ const (
 type Options struct {
 	DB      *store.DB
 	Secrets *secrets.Store
+	// Audit receives the audit rows of every change (actor system): sensor-ca.create, sensor-ca.replace, sensor-cert.issue,
+	// sensor-cert.retire (SYS-3). Required.
+	Audit *audit.Log
 	// Now is the clock for the validity of certificates and for the renewal test. nil means time.Now.
 	Now func() time.Time
 	Log *slog.Logger
@@ -38,11 +42,16 @@ type Options struct {
 
 // Authority is the CA, the server leaf and the table of live serials of the sensor link.
 type Authority struct {
-	db  *store.DB
-	sec *secrets.Store
-	now func() time.Time
-	log *slog.Logger
-	ca  *ca
+	db    *store.DB
+	sec   *secrets.Store
+	audit *audit.Log
+	now   func() time.Time
+	log   *slog.Logger
+	ca    *ca
+
+	// run serializes Start and Renew: the database transaction of an issue and the update of the serials in memory happen under
+	// it together, so two callers cannot leave memory saying something the table does not.
+	run sync.Mutex
 
 	mu       sync.RWMutex
 	srv      *tls.Certificate
@@ -56,11 +65,11 @@ var _ sensorlink.Identity = (*Authority)(nil)
 // Open restricts the CA purpose in the secrets store, loads the CA (making it the first time) and reads the live serials.
 // It can be called once per secrets.Store: that is what makes this package the only reader of the CA key.
 func Open(ctx context.Context, o Options) (*Authority, error) {
-	if o.DB == nil || o.Secrets == nil {
-		return nil, errors.New("pki: Open needs a database and a secrets store")
+	if o.DB == nil || o.Secrets == nil || o.Audit == nil {
+		return nil, errors.New("pki: Open needs a database, a secrets store and an audit log")
 	}
 	a := &Authority{
-		db: o.DB, sec: o.Secrets, now: o.Now, log: o.Log,
+		db: o.DB, sec: o.Secrets, audit: o.Audit, now: o.Now, log: o.Log,
 		liveSN: map[sensorlink.Role][]string{}, notAfter: map[sensorlink.Role]time.Time{}, pending: map[sensorlink.Role][]byte{},
 	}
 	if a.now == nil {
@@ -142,6 +151,9 @@ func (a *Authority) issueClient(ctx context.Context, role sensorlink.Role) ([]by
 		if err := q.InsertSensorCert(ctx, coredb.InsertSensorCertParams{Serial: hex, Role: string(role), NotAfter: store.FormatTS(cert.NotAfter)}); err != nil {
 			return fmt.Errorf("pki: record the serial: %w", err)
 		}
+		if err := a.record(ctx, tx, "sensor-cert.issue", string(role), "serial="+hex+" not_after="+store.FormatTS(cert.NotAfter)); err != nil {
+			return err
+		}
 		rows, err := q.ListLiveSensorCerts(ctx, string(role))
 		if err != nil {
 			return fmt.Errorf("pki: list live serials: %w", err)
@@ -155,6 +167,9 @@ func (a *Authority) issueClient(ctx context.Context, role sensorlink.Role) ([]by
 			}
 			if err := q.RetireSensorCert(ctx, coredb.RetireSensorCertParams{RetiredAt: &now, Serial: row.Serial}); err != nil {
 				return fmt.Errorf("pki: retire a serial: %w", err)
+			}
+			if err := a.record(ctx, tx, "sensor-cert.retire", string(role), "serial="+row.Serial); err != nil {
+				return err
 			}
 		}
 		return nil
@@ -189,11 +204,19 @@ const serverKey sensorlink.Role = "server"
 // before the listener opens (D-110 (4)). A start always issues: core never reads a bundle back, so it cannot know the key of
 // the leaf it issued last time. The serial before stays valid, so a sensor that has not read the new file yet keeps working.
 func (a *Authority) Start(ctx context.Context, dir string) error {
+	a.run.Lock()
+	defer a.run.Unlock()
 	if err := a.issueServer(); err != nil {
 		return err
 	}
 	var errs []error
 	for _, r := range sensorlink.Roles {
+		if err := cleanTemps(dir, r); err != nil { // leftovers of a crash mid-write; the write below reports a path it cannot use
+			a.log.WarnContext(ctx, "sensor_creds_temp_not_cleaned", "role", string(r), "error", err)
+		}
+		a.mu.Lock()
+		delete(a.pending, r) // Start issues again: a bundle that was waiting to be written is superseded
+		a.mu.Unlock()
 		errs = append(errs, a.renewRole(ctx, dir, r))
 	}
 	return errors.Join(errs...)
@@ -203,6 +226,8 @@ func (a *Authority) Start(ctx context.Context, dir string) error {
 // lifetime or less is left, and writes again a bundle that could not be written before. Nothing happens when nothing is due.
 // ponytail: called from a job once core wires the listener (SP-5); until then nothing calls it.
 func (a *Authority) Renew(ctx context.Context, dir string) error {
+	a.run.Lock()
+	defer a.run.Unlock()
 	var errs []error
 	if a.due(serverKey) {
 		errs = append(errs, a.issueServer())

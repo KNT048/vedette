@@ -194,11 +194,21 @@ func (i *fakeIdentity) SerialValid(role sensorlink.Role, s *big.Int) bool {
 type fakeBackend struct {
 	mu    sync.Mutex
 	calls []string
+	asked []string // the ids JobRunning was asked about
 
 	config func(ctx context.Context, wait time.Duration, inm string) (sensorlink.ConfigReply, error)
 	obs    func(ctx context.Context, r *sensorlink.ObservationsRequest) (sensorlink.ObservationsReply, error)
 	jobs   func(ctx context.Context, wait time.Duration, running string) (sensorlink.JobsReply, error)
 	result func(ctx context.Context, id string, r *sensorlink.JobResult) error
+	// running says which jobs are running; nil means every job is.
+	running func(id string) bool
+}
+
+func (b *fakeBackend) JobRunning(id string) bool {
+	b.mu.Lock()
+	b.asked = append(b.asked, id)
+	b.mu.Unlock()
+	return b.running == nil || b.running(id)
 }
 
 func (b *fakeBackend) called(name string) {

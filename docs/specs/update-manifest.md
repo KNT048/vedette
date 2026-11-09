@@ -1,7 +1,7 @@
 # Update manifest: phát hành, ký, rollout, thu hồi, hoàn tác
 
 Trạng thái: bản nháp M2-0 (docs-first), 2026-11-09. Văn xuôi tiếng Việt; tên trường, định dạng, đường dẫn bằng tiếng Anh.
-Truy vết: D-12 (ký, cohort, A/B, thu hồi, SBOM; **cập nhật bởi D-55**), D-36 (GitHub chỉ phát hành bản cập nhật phần mềm ký số; gói nội dung đi kèm), D-53 (cập nhật OS, hộp là thiết bị đầu tiên), D-55 (appliance container, cosign, lô, hoàn tác bằng tag cũ, hai kiểu cài), D-54 (repo `kiennt048/vedette` riêng tư), D-16, D-57 (3) (ghcr, cosign bằng khoá, kiểm ngoại tuyến), D-103 (kiểm chữ ký trong mã, cosign trong manifest), D-104 (kéo, khởi động, hoàn tác, thu hồi); `docs/UPDATES.md`; story S-CORE-2, S-CORE-7; GUI mock `web/src/features/core` (`UpdatesSection.tsx`, `OsUpdates.tsx`, `bundles.ts`, `contract.ts`).
+Truy vết: D-12 (ký, cohort, A/B, thu hồi, SBOM; **cập nhật bởi D-55**), D-36 (GitHub chỉ phát hành bản cập nhật phần mềm ký số; gói nội dung đi kèm), D-53 (cập nhật OS, hộp là thiết bị đầu tiên), D-55 (appliance container, cosign, lô, hoàn tác bằng tag cũ, hai kiểu cài), D-54 (repo `kiennt048/vedette` riêng tư), D-16, D-57 (3) (ghcr, cosign bằng khoá, kiểm ngoại tuyến), D-103 (kiểm chữ ký trong mã, cosign trong manifest), D-113 (image `scan` là image nền, nmap cài khi dựng trên hộp), D-104 (kéo, khởi động, hoàn tác, thu hồi); `docs/UPDATES.md`; story S-CORE-2, S-CORE-7; GUI mock `web/src/features/core` (`UpdatesSection.tsx`, `OsUpdates.tsx`, `bundles.ts`, `contract.ts`).
 
 ## 1. Mục đích
 
@@ -62,7 +62,7 @@ Hai tài liệu JSON, cả hai có chữ ký detached minisign (`<file>.minisig`
   ],
   "host": { "version": "1.4.0", "files": [ { "name": "vedette-host_1.4.0_amd64.deb", "sha256": "…", "size": 0 } ] },
   "content": [ { "name": "mitigation-packs", "version": "2026-12-02.1", "in_image": "core", "path": "/opt/vedette/content/…", "sha256": "…" } ],
-  "bundled": [ { "service": "scan", "name": "nmap", "version": "7.95" }, { "service": "honeypot", "name": "opencanary", "version": "0.9.4" } ],
+  "bundled": [ { "service": "honeypot", "name": "opencanary", "version": "0.9.4" } ],
   "sbom": { "format": "CycloneDX", "url": "…", "sha256": "…" },
   "notes": "Short English text shown in the Updates page"
 }
@@ -79,7 +79,7 @@ Hai tài liệu JSON, cả hai có chữ ký detached minisign (`<file>.minisig`
 | `db_schema`, `rollback` | hoàn tác an toàn hay cần khôi phục DB (§10) |
 | `host` | bản mới của `vedette-host` (nếu có); xem cuối §9 và câu hỏi mở |
 | `content[]` | gói nội dung **đóng chung** với bản cập nhật (D-36); chỉ là chỉ mục và băm để hiển thị/xác minh, tệp nằm trong image `core` |
-| `bundled[]` | phiên bản các phụ thuộc ghim (nmap, OpenCanary…) hiển thị ở "Managed packages" (D-53 mục 2); trong appliance chúng nằm trong image `scan`/`honeypot`, không cài bằng apt |
+| `bundled[]` | phiên bản các phụ thuộc ghim **nằm trong image đã ký** (OpenCanary trong `honeypot`…) hiển thị ở "Managed packages" (D-53 mục 2), không cài bằng apt. **nmap không bao giờ có ở đây** (D-4, D-57 (2), `LEGAL.md`): image `scan` của `images[]` chỉ là image nền (Debian slim + `vedette-sensor`), và `vedette-host` dựng `localhost/vedette-scan-nmap:<version>` **trên hộp** với nmap từ kho gói Debian (D-113 (7), `host-api.md` §18); phiên bản nmap đang chạy lấy từ heartbeat của `scan` (`sensor-protocol.md` §6.3), không từ manifest |
 | `sbom` | CycloneDX mỗi phát hành (D-12) |
 
 Quan hệ với `UpdatesState` trong mock: `components` ↔ `images[]`/`content[]`; `signature: valid|invalid|unsigned` ↔ kết quả xác minh §5.
@@ -275,4 +275,4 @@ Mối đe doạ và biện pháp: (a) chiếm kho GitHub/registry → không ký
 5. Khoá `K_cohort`/`install_id`: giữ chung với tín hiệu ẩn danh hay riêng để tắt tín hiệu không đổi cohort.
 6. `rollback_if_possible` tự động: bật mặc định hay luôn cần admin?
 7. Thời gian health check, tần suất kiểm tra, trần bundle là điểm xuất phát chưa đo.
-8. Chữ ký của phụ thuộc bên thứ ba trong image (nmap, nuclei, OpenCanary): Vedette đóng gói và ký **toàn image**; cần ghi vào `THIRD_PARTY_NOTICES` cách dùng (tiến trình riêng trong container) khi xây (rule `legal.md`).
+8. Chữ ký của phụ thuộc bên thứ ba trong image (nuclei, OpenCanary; nmap không nằm trong image ký nào, nó được cài lúc dựng `scan` trên hộp, D-113 (7)): Vedette đóng gói và ký **toàn image**; cần ghi vào `THIRD_PARTY_NOTICES` cách dùng (tiến trình riêng trong container) khi xây (rule `legal.md`).

@@ -59,6 +59,7 @@ const (
 	CodeInvalidName        = "invalid_name"
 	CodeInvalidEmail       = "invalid_email"
 	CodeInvalidRole        = "invalid_role"
+	CodeBusy               = "server_busy" // 503: too many password checks at once (the 409 `busy` of the update module is another thing)
 )
 
 const emailUnavailableMsg = "Two-step email codes cannot be sent right now. Ask an administrator to turn the email channel back on, or to reset your two-step sign-in."
@@ -82,6 +83,10 @@ type Config struct {
 	Log     *slog.Logger
 	// Argon2 overrides DefaultParams. Tests lower it; production leaves it zero.
 	Argon2 Params
+	// MaxHashing caps the argon2 runs at once (each takes Argon2.Memory); 0 means max(1, NumCPU/2).
+	MaxHashing int
+	// HashWait is how long a request waits for a free slot before 503 server_busy; 0 means 2 s.
+	HashWait time.Duration
 }
 
 // Service is the auth library. Create it once with New.
@@ -97,7 +102,10 @@ type Service struct {
 	log     *slog.Logger
 	params  Params
 	limit   *limiter
+	gate    *gate
 	dummy   string // a valid hash no password matches, verified against for unknown emails
+
+	probe func(delta int) // tests only (export_test.go): +1 when an argon2 run starts, -1 when it ends
 }
 
 // New builds a Service. DB, Secrets, Audit and Log are required.
@@ -117,20 +125,20 @@ func New(c Config) (*Service, error) {
 	}
 	s := &Service{
 		db: c.DB, secrets: c.Secrets, audit: c.Audit, mailer: c.Mailer, now: c.Clock, log: c.Log,
-		params: c.Argon2, limit: newLimiter(c.Clock), dummy: dummy,
+		params: c.Argon2, limit: newLimiter(c.Clock), gate: newGate(c.MaxHashing, c.HashWait), dummy: dummy,
 	}
 	s.Sessions = &Sessions{db: c.DB, audit: c.Audit, now: c.Clock, log: c.Log}
-	s.Codes = &EmailCodes{db: c.DB, mailer: c.Mailer, now: c.Clock, log: c.Log}
+	s.Codes = &EmailCodes{db: c.DB, secrets: c.Secrets, mailer: c.Mailer, now: c.Clock, log: c.Log}
 	return s, nil
 }
 
-// HashPassword applies the password policy for email and hashes with the configured parameters.
-// A policy failure is a 400 weak_password *apierr.Error.
-func (s *Service) HashPassword(password, email string) (string, error) {
+// HashPassword applies the password policy for email and hashes with the configured parameters, under the
+// argon2 concurrency cap. A policy failure is a 400 weak_password *apierr.Error; a full queue is 503 server_busy.
+func (s *Service) HashPassword(ctx context.Context, password, email string) (string, error) {
 	if e := ValidatePassword(password, email); e != nil {
 		return "", e
 	}
-	return s.params.Hash(password)
+	return s.hashPassword(ctx, password)
 }
 
 // User is an account as the API shows it (never the password hash).
@@ -182,14 +190,22 @@ func parseTS(s string) time.Time {
 // normalizeEmail trims and lowercases (emails are stored lowercase).
 func normalizeEmail(e string) string { return strings.ToLower(strings.TrimSpace(e)) }
 
-// normalizeIP returns the canonical text of an IP address, or "unknown" when ip is not one.
-func normalizeIP(ip string) string {
-	a, err := netip.ParseAddr(strings.TrimSpace(ip))
-	if err != nil {
-		return "unknown"
+// ipText is the canonical text of a client address (IPv4-mapped IPv6 as IPv4, no zone); it is what a
+// session row stores. The address must be valid: callers parse r.RemoteAddr with netip.ParseAddrPort and
+// refuse to go on when that fails, because there is no address to fall back to that would not be shared.
+func ipText(a netip.Addr) string { return a.Unmap().WithZone("").String() }
+
+// ipLimitKey is the address part of the (IP, email) rate-limit key. A whole IPv6 /64 is one client (a
+// host rotates through the addresses of its /64 for free), so it shares one key; IPv4 is per address.
+func ipLimitKey(a netip.Addr) string {
+	a = a.Unmap().WithZone("")
+	if a.Is6() {
+		return netip.PrefixFrom(a, 64).Masked().String()
 	}
-	return a.Unmap().WithZone("").String()
+	return a.String()
 }
+
+func errNoIP() error { return errors.New("auth: the client address is missing or not an IP address") }
 
 // cleanDevice makes a User-Agent safe to store and show: control characters dropped, at most 200 characters.
 func cleanDevice(ua string) string {

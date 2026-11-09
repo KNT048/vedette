@@ -249,3 +249,42 @@ func (s *Store) Delete(ctx context.Context, tx *sql.Tx, id string) error {
 	}
 	return nil
 }
+
+// OpenOrCreate returns the one random key of a purpose (size 16 to 64 bytes), making and sealing it the
+// first time it is asked for. It is for keys the box makes for itself (an HMAC key), not for secrets a user
+// supplies: there is exactly one row per purpose, and callers racing on first use all get the same bytes
+// (the check and the insert run in one write transaction).
+func (s *Store) OpenOrCreate(ctx context.Context, db *store.DB, purpose string, size int) ([]byte, error) {
+	if err := checkPurpose(purpose); err != nil {
+		return nil, err
+	}
+	if size < 16 || size > 64 {
+		return nil, fmt.Errorf("%w: key size %d, want 16 to 64", ErrInvalid, size)
+	}
+	if id, err := coredb.New(db.Reader()).GetSecretIDByPurpose(ctx, purpose); err == nil {
+		return s.Open(ctx, db.Reader(), id, purpose)
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("secrets: find %s: %w", purpose, err)
+	}
+	var key []byte
+	err := db.Write(ctx, func(tx *sql.Tx) error {
+		id, err := coredb.New(tx).GetSecretIDByPurpose(ctx, purpose)
+		if err == nil { // another caller made it between our read and this transaction
+			key, err = s.Open(ctx, tx, id, purpose)
+			return err
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("secrets: find %s: %w", purpose, err)
+		}
+		k := make([]byte, size)
+		if _, err := io.ReadFull(rand.Reader, k); err != nil {
+			return fmt.Errorf("secrets: random key: %w", err)
+		}
+		if _, _, err := s.Seal(ctx, tx, purpose, k, false); err != nil {
+			return err
+		}
+		key = k
+		return nil
+	})
+	return key, err
+}

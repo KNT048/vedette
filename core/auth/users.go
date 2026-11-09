@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/api/routes"
@@ -41,7 +42,7 @@ func (s *Service) CreateUser(ctx context.Context, tx *sql.Tx, actor string, in N
 		return User{}, apierr.New(400, CodeInvalidName, "Enter the user's name (at most 80 characters).")
 	}
 	email := normalizeEmail(in.Email)
-	if !emailRE.MatchString(email) || len(email) > 320 {
+	if !emailRE.MatchString(email) || len(email) > 320 || hasControl(email) {
 		return User{}, apierr.New(400, CodeInvalidEmail, "The email is not valid, for example name@company.com.")
 	}
 	if !validRole(in.Role) {
@@ -56,6 +57,9 @@ func (s *Service) CreateUser(ctx context.Context, tx *sql.Tx, actor string, in N
 	id := store.NewID("u")
 	now := s.now()
 	err := q.InsertUser(ctx, coredb.InsertUserParams{ID: id, Name: name, Email: email, Role: string(in.Role), PasswordHash: in.PasswordHash, CreatedAt: store.FormatTS(now)})
+	if store.IsUniqueViolation(err) { // two creates of one email raced past the check above
+		return User{}, apierr.New(409, CodeDuplicate, "This email already has an account.")
+	}
 	if err != nil {
 		return User{}, fmt.Errorf("auth: insert user: %w", err)
 	}
@@ -65,9 +69,10 @@ func (s *Service) CreateUser(ctx context.Context, tx *sql.Tx, actor string, in N
 	return User{ID: id, Name: name, Email: email, Role: in.Role, CreatedAt: now}, nil
 }
 
+// hasControl reports whether s has a control character (C0, DEL, C1): none belongs in a name or an email.
 func hasControl(s string) bool {
 	for _, r := range s {
-		if r < 0x20 || r == 0x7f {
+		if unicode.IsControl(r) {
 			return true
 		}
 	}
@@ -168,7 +173,7 @@ func (s *Service) ResetPassword(ctx context.Context, actorEmail, targetID string
 	if err != nil {
 		return "", err
 	}
-	hash, err := s.params.Hash(temp)
+	hash, err := s.hashPassword(ctx, temp)
 	if err != nil {
 		return "", err
 	}
@@ -211,7 +216,7 @@ func (s *Service) ChangeOwnPassword(ctx context.Context, userID, keepSessionID, 
 	if next == current {
 		return apierr.New(400, CodeSamePassword, "The new password must differ from the current one.")
 	}
-	hash, err := s.params.Hash(next)
+	hash, err := s.hashPassword(ctx, next)
 	if err != nil {
 		return err
 	}
@@ -229,17 +234,21 @@ func (s *Service) ChangeOwnPassword(ctx context.Context, userID, keepSessionID, 
 }
 
 // checkOwnPassword verifies the password of a signed-in user for a sensitive change. Wrong guesses share the
-// sign-in rate limit (keyed by account, since a signed-in caller's IP is not the point).
-func (s *Service) checkOwnPassword(_ context.Context, t coredb.CoreUser, password, wrongMsg string) error {
-	if e := s.limit.check("account", t.Email); e != nil {
+// sign-in rate limit (keyed by account, since a signed-in caller's IP is not the point); a guess is counted
+// before it is checked so parallel guesses cannot all pass, and the count goes away on the right password.
+func (s *Service) checkOwnPassword(ctx context.Context, t coredb.CoreUser, password, wrongMsg string) error {
+	if e := s.limit.begin("account", t.Email); e != nil {
 		return e
 	}
-	ok, _, err := s.params.Verify(t.PasswordHash, password[:min(len(password), maxPasswordBytes)])
+	ok, _, err := s.verifyPassword(ctx, t.PasswordHash, password[:min(len(password), maxPasswordBytes)])
 	if err != nil {
-		return fmt.Errorf("auth: stored password hash: %w", err)
+		s.limit.refund("account", t.Email) // busy, cancelled or a broken stored hash: not a wrong guess
+		if errors.Is(err, ErrBadHash) {
+			return fmt.Errorf("auth: stored password hash: %w", err)
+		}
+		return err
 	}
 	if !ok || len(password) > maxPasswordBytes {
-		s.limit.fail("account", t.Email)
 		return apierr.New(400, CodeWrongPassword, wrongMsg)
 	}
 	s.limit.reset("account", t.Email)

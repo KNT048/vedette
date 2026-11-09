@@ -14,3 +14,6 @@ WHERE id = ? AND purpose = ?;
 
 -- name: DeleteSecret :execrows
 DELETE FROM core_secret WHERE id = ?;
+
+-- name: GetSecretIDByPurpose :one
+SELECT id FROM core_secret WHERE purpose = ? ORDER BY created_at, id LIMIT 1;

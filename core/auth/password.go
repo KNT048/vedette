@@ -145,10 +145,11 @@ func ValidatePassword(password, email string) *apierr.Error {
 	return nil
 }
 
-// tempAlphabet leaves out look-alike characters (0/O, 1/l/I).
+// tempAlphabet is 55 characters: it leaves out the look-alikes 0, 1, O, I, l, o and i (23 lowercase, 24
+// uppercase, 8 digits).
 const tempAlphabet = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
-// NewTempPassword returns a random 20-character password (about 114 bits) for an account an administrator
+// NewTempPassword returns a random 20-character password (20 x log2 55, about 115 bits) for an account an administrator
 // created or reset. The caller shows it once; only its hash is stored.
 func NewTempPassword() (string, error) {
 	b := make([]byte, 20)
@@ -156,7 +157,7 @@ func NewTempPassword() (string, error) {
 		return "", fmt.Errorf("auth: temp password: %w", err)
 	}
 	for i, c := range b {
-		b[i] = tempAlphabet[int(c)%len(tempAlphabet)] // 256 % 54 bias is negligible for a 114-bit password
+		b[i] = tempAlphabet[int(c)%len(tempAlphabet)] // 256 % 55 = 36: the first 36 characters are slightly likelier, which costs well under a bit
 	}
 	return string(b), nil
 }

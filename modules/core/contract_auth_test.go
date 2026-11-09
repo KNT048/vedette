@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -71,6 +72,36 @@ func TestContract_INV7_UserRules(t *testing.T) {
 	if liveSessions(t, env, v.Email) != 0 {
 		t.Fatal("a password reset left sessions alive")
 	}
+	// A 2FA reset also ends every session of the user; turning two-step on or off ends the other ones (INV-7).
+	home := netip.MustParseAddr("192.0.2.4")
+	if _, err := env.Svc.StartEmail2FA(ctx, v.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := env.Svc.ConfirmEmail2FA(ctx, v.ID, "", env.Mailer.LastCode()); err != nil {
+		t.Fatal(err)
+	}
+	env.Clock.Advance(2 * time.Minute)
+	req := auth.LoginRequest{Email: v.Email, Password: temp, IP: home}
+	_, err = env.Svc.Login(ctx, req)
+	apiCode(t, err, 401, "twofa_required")
+	req.Code = env.Mailer.LastCode()
+	if _, err := env.Svc.Login(ctx, req); err != nil {
+		t.Fatal(err)
+	}
+	if liveSessions(t, env, v.Email) != 1 {
+		t.Fatal("setup: expected one session")
+	}
+	if err := env.Svc.ResetTwoFA(ctx, a1.ID, a1.Email, v.ID); err != nil {
+		t.Fatal(err)
+	}
+	if liveSessions(t, env, v.Email) != 0 {
+		t.Fatal("a two-step reset left sessions alive")
+	}
+	if res, err := env.Svc.Login(ctx, auth.LoginRequest{Email: v.Email, Password: temp, IP: home}); err != nil {
+		t.Fatal(err)
+	} else if err := env.Svc.DisableTwoFA(ctx, v.ID, res.Session.SessionID, temp); err == nil {
+		t.Fatal("DisableTwoFA must refuse while two-step is off")
+	}
 	var hash string
 	if err := env.DB.Reader().QueryRowContext(ctx, "SELECT password_hash FROM core_user WHERE id = ?", v.ID).Scan(&hash); err != nil {
 		t.Fatal(err)
@@ -100,7 +131,7 @@ func TestContract_INV8_TwoStep(t *testing.T) {
 		t.Fatal(err)
 	}
 	key := mustBase32(t, setup.Secret)
-	if err := env.Svc.ConfirmTOTP(ctx, app.ID, auth.TOTPCode(key, auth.TOTPStep(env.Clock.Now()))); err != nil {
+	if err := env.Svc.ConfirmTOTP(ctx, app.ID, "", auth.TOTPCode(key, auth.TOTPStep(env.Clock.Now()))); err != nil {
 		t.Fatal(err)
 	}
 	for _, code := range []string{"", "000000", "12345"} {
@@ -117,7 +148,7 @@ func TestContract_INV8_TwoStep(t *testing.T) {
 	if _, err := env.Svc.StartEmail2FA(ctx, em.ID); err != nil {
 		t.Fatal(err)
 	}
-	if err := env.Svc.ConfirmEmail2FA(ctx, em.ID, env.Mailer.LastCode()); err != nil {
+	if err := env.Svc.ConfirmEmail2FA(ctx, em.ID, "", env.Mailer.LastCode()); err != nil {
 		t.Fatal(err)
 	}
 	env.Clock.Advance(2 * time.Minute)
@@ -152,10 +183,10 @@ func TestContract_INV8_TwoStep(t *testing.T) {
 
 	// Resend limits.
 	env.Clock.Advance(2 * time.Minute)
-	if _, err := env.Svc.ResendCode(ctx, em.Email, authtest.Password, "192.0.2.1"); err != nil {
+	if _, err := env.Svc.ResendCode(ctx, em.Email, authtest.Password, netip.MustParseAddr("192.0.2.1")); err != nil {
 		t.Fatal(err)
 	}
-	_, err = env.Svc.ResendCode(ctx, em.Email, authtest.Password, "192.0.2.1")
+	_, err = env.Svc.ResendCode(ctx, em.Email, authtest.Password, netip.MustParseAddr("192.0.2.1"))
 	apiCode(t, err, 429, "resend_too_soon")
 
 	// Dead email channel: 503 for every call, and still no session.

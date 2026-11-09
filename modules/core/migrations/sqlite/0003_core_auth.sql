@@ -29,7 +29,7 @@ CREATE TABLE core_user_totp (
 
 CREATE TABLE core_email_code (
     user_id    TEXT    NOT NULL PRIMARY KEY REFERENCES core_user (id) ON DELETE CASCADE,
-    code_hash  TEXT    NOT NULL CHECK (length(code_hash) = 64), -- SHA-256 of the 6 digits
+    code_hash  TEXT    NOT NULL CHECK (length(code_hash) = 64), -- hex HMAC-SHA-256 of user id and the 6 digits
     expires_at TEXT    NOT NULL CHECK (expires_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     tries      INTEGER NOT NULL DEFAULT 0 CHECK (tries BETWEEN 0 AND 5),
     sent_at    TEXT    NOT NULL CHECK (sent_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')

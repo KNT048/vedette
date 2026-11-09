@@ -135,6 +135,23 @@ func (q *Queries) DeleteTotp(ctx context.Context, userID string) error {
 	return err
 }
 
+const enableUserTwofaMethod = `-- name: EnableUserTwofaMethod :execrows
+UPDATE core_user SET twofa_method = ? WHERE id = ? AND twofa_method IS NULL
+`
+
+type EnableUserTwofaMethodParams struct {
+	TwofaMethod *string
+	ID          string
+}
+
+func (q *Queries) EnableUserTwofaMethod(ctx context.Context, arg EnableUserTwofaMethodParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, enableUserTwofaMethod, arg.TwofaMethod, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getChainHead = `-- name: GetChainHead :one
 SELECT chain, last_hash, count, updated_at FROM core_chain_head WHERE chain = ?
 `
@@ -407,6 +424,24 @@ type PruneEmailCodeSendsParams struct {
 func (q *Queries) PruneEmailCodeSends(ctx context.Context, arg PruneEmailCodeSendsParams) error {
 	_, err := q.db.ExecContext(ctx, pruneEmailCodeSends, arg.UserID, arg.SentAt)
 	return err
+}
+
+const rehashUserPassword = `-- name: RehashUserPassword :execrows
+UPDATE core_user SET password_hash = ? WHERE id = ? AND password_hash = ?
+`
+
+type RehashUserPasswordParams struct {
+	PasswordHash   string
+	ID             string
+	PasswordHash_2 string
+}
+
+func (q *Queries) RehashUserPassword(ctx context.Context, arg RehashUserPasswordParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, rehashUserPassword, arg.PasswordHash, arg.ID, arg.PasswordHash_2)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const revokeAllSessions = `-- name: RevokeAllSessions :execrows

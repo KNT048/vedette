@@ -13,6 +13,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/netip"
+	"sync/atomic"
 	"time"
 
 	"github.com/knt048/vedette/core/api/routes"
@@ -36,6 +38,12 @@ const (
 	IdleTimeout     = 4 * time.Hour
 	AbsoluteTimeout = 7 * 24 * time.Hour
 	touchEvery      = time.Minute
+	// touchWait is how long a request waits for last_seen to be refreshed. The refresh is a courtesy: when
+	// the single writer is busy (a backup, a long import) the request goes on without it and the refresh
+	// finishes in the background, at the price of idle accuracy shortened by about a minute.
+	touchWait = 50 * time.Millisecond
+	// touchDeadline bounds the background refresh itself.
+	touchDeadline = 5 * time.Second
 )
 
 // tokenBytes is the size of the session and CSRF tokens (256 bits); encoded as unpadded base64url = 43 characters.
@@ -101,13 +109,18 @@ type Sessions struct {
 	audit *audit.Log
 	now   func() time.Time
 	log   *slog.Logger
+
+	touching atomic.Bool // a last_seen refresh is running
 }
 
 var _ server.Authenticator = (*Sessions)(nil)
 
 // Create inserts a session for userID inside tx and returns its tokens. device is the User-Agent (cleaned
-// and cut to 200 characters), ip the client address.
-func (s *Sessions) Create(ctx context.Context, tx *sql.Tx, userID, device, ip string) (Issued, error) {
+// and cut to 200 characters), ip the client address (the real one, not the rate-limit key).
+func (s *Sessions) Create(ctx context.Context, tx *sql.Tx, userID, device string, ip netip.Addr) (Issued, error) {
+	if !ip.IsValid() {
+		return Issued{}, errNoIP()
+	}
 	tok, err := newToken()
 	if err != nil {
 		return Issued{}, err
@@ -120,7 +133,7 @@ func (s *Sessions) Create(ctx context.Context, tx *sql.Tx, userID, device, ip st
 	in := Issued{SessionID: store.NewID("ses"), Token: tok, CSRFToken: csrf, ExpiresAt: now.Add(AbsoluteTimeout)}
 	err = coredb.New(tx).InsertSession(ctx, coredb.InsertSessionParams{
 		ID: in.SessionID, UserID: userID, TokenHash: hashToken(tok), CsrfHash: hashToken(csrf),
-		Device: cleanDevice(device), Ip: normalizeIP(ip),
+		Device: cleanDevice(device), Ip: ipText(ip),
 		StartedAt: store.FormatTS(now), LastSeen: store.FormatTS(now), ExpiresAt: store.FormatTS(in.ExpiresAt),
 	})
 	if err != nil {
@@ -177,18 +190,40 @@ func (s *Sessions) Lookup(ctx context.Context, token string) (Found, error) {
 		return Found{}, fmt.Errorf("auth: user %s has unknown role %q", r.UserID, r.Role)
 	}
 	if r.LastSeen <= store.FormatTS(now.Add(-touchEvery)) {
-		// Best effort: failing to refresh last_seen must not sign the user out.
-		err := s.db.Write(ctx, func(tx *sql.Tx) error {
-			return coredb.New(tx).TouchSession(ctx, coredb.TouchSessionParams{LastSeen: store.FormatTS(now), ID: r.ID})
-		})
-		if err != nil {
-			s.log.WarnContext(ctx, "could not refresh session last_seen", "error", err)
-		}
+		s.touch(ctx, r.ID, now)
 	}
 	return Found{
 		ID: r.ID, UserID: r.UserID, Email: r.Email, Role: role,
 		StartedAt: parseTS(r.StartedAt), LastSeen: parseTS(r.LastSeen), ExpiresAt: parseTS(r.ExpiresAt), csrfHash: r.CsrfHash,
 	}, nil
+}
+
+// touch refreshes last_seen without letting requests queue behind the single writer: one refresh runs at a
+// time (a request that finds one running skips its own), and the request waits for it at most touchWait.
+// Failing to refresh never signs the user out.
+func (s *Sessions) touch(ctx context.Context, id string, now time.Time) {
+	if !s.touching.CompareAndSwap(false, true) {
+		return
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		defer s.touching.Store(false)
+		bctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), touchDeadline)
+		defer cancel()
+		err := s.db.Write(bctx, func(tx *sql.Tx) error {
+			return coredb.New(tx).TouchSession(bctx, coredb.TouchSessionParams{LastSeen: store.FormatTS(now), ID: id})
+		})
+		if err != nil {
+			s.log.WarnContext(bctx, "could not refresh session last_seen", "error", err)
+		}
+	}()
+	timer := time.NewTimer(touchWait)
+	defer timer.Stop()
+	select {
+	case <-done:
+	case <-timer.C:
+	}
 }
 
 func tokenFrom(r *http.Request) (string, error) {

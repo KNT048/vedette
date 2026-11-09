@@ -28,6 +28,12 @@ UPDATE core_user SET last_login = ? WHERE id = ?;
 -- name: UpdateUserTwofaMethod :execrows
 UPDATE core_user SET twofa_method = ? WHERE id = ?;
 
+-- name: EnableUserTwofaMethod :execrows
+UPDATE core_user SET twofa_method = ? WHERE id = ? AND twofa_method IS NULL;
+
+-- name: RehashUserPassword :execrows
+UPDATE core_user SET password_hash = ? WHERE id = ? AND password_hash = ?;
+
 -- name: UpsertTotp :exec
 INSERT INTO core_user_totp (user_id, secret_id, confirmed, last_step, created_at)
 VALUES (?, ?, 0, NULL, ?)

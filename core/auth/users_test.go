@@ -14,7 +14,7 @@ import (
 func TestCreateUser(t *testing.T) {
 	t.Parallel()
 	env := authtest.New(t)
-	hash, _ := env.Svc.HashPassword(authtest.Password, "")
+	hash, _ := env.Svc.HashPassword(t.Context(), authtest.Password, "")
 	create := func(in auth.NewUser) error {
 		in.PasswordHash = hash
 		return env.DB.Write(t.Context(), func(tx *sql.Tx) error {
@@ -148,7 +148,7 @@ func TestResetPassword(t *testing.T) {
 	// The old password is dead; the temporary one works.
 	_, err = env.Login(t, u.Email, "")
 	wantAPI(t, err, 400, "invalid_credentials")
-	if _, err := env.Svc.Login(t.Context(), auth.LoginRequest{Email: u.Email, Password: temp, IP: "192.0.2.9"}); err != nil {
+	if _, err := env.Svc.Login(t.Context(), auth.LoginRequest{Email: u.Email, Password: temp, IP: ip("192.0.2.9")}); err != nil {
 		t.Fatalf("sign-in with the temporary password: %v", err)
 	}
 	if env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'user.password_reset' AND target = ? AND user = ? AND detail LIKE '%'||?||'%'", u.Email, admin.Email, temp) != 0 {
@@ -193,7 +193,7 @@ func TestChangeOwnPassword(t *testing.T) {
 	}
 	_, err := env.Login(t, u.Email, "")
 	wantAPI(t, err, 400, "invalid_credentials")
-	if _, err := env.Svc.Login(t.Context(), auth.LoginRequest{Email: u.Email, Password: "a brand new password", IP: "192.0.2.1"}); err != nil {
+	if _, err := env.Svc.Login(t.Context(), auth.LoginRequest{Email: u.Email, Password: "a brand new password", IP: ip("192.0.2.1")}); err != nil {
 		t.Fatal(err)
 	}
 	if env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'account.password' AND detail IS NULL") != 1 {
@@ -209,7 +209,7 @@ func TestOwnPasswordGuessesAreRateLimited(t *testing.T) {
 		wantAPI(t, env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", "guess guess guess", "a brand new password"), 400, "wrong_password")
 	}
 	wantAPI(t, env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", authtest.Password, "a brand new password"), 429, "rate_limited")
-	wantAPI(t, env.Svc.DisableTwoFA(t.Context(), u.ID, authtest.Password), 429, "rate_limited")
+	wantAPI(t, env.Svc.DisableTwoFA(t.Context(), u.ID, "", authtest.Password), 429, "rate_limited")
 	env.Clock.Advance(31 * time.Second)
 	if err := env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", authtest.Password, "a brand new password"); err != nil {
 		t.Fatal(err)

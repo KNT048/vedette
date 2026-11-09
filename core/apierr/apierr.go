@@ -140,8 +140,8 @@ func Write(w http.ResponseWriter, e *Error) {
 		e = Internal()
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if n, ok := e.Extra["retry_after"].(int); ok && e.Status == http.StatusTooManyRequests && n > 0 {
-		w.Header().Set("Retry-After", strconv.Itoa(n)) // API_CONVENTIONS section 8: every 429 carries it
+	if n, ok := e.Extra["retry_after"].(int); ok && (e.Status == http.StatusTooManyRequests || e.Status == http.StatusServiceUnavailable) && n > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(n)) // API_CONVENTIONS section 8: every 429 carries it; a 503 "try again shortly" too
 	}
 	w.WriteHeader(e.Status)
 	_, _ = w.Write(append(body, '\n'))

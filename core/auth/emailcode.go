@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -12,9 +13,11 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/coredb"
 )
@@ -48,10 +51,43 @@ func MaskEmail(email string) string {
 
 // EmailCodes issues and checks the one pending email code of a user (core_email_code).
 type EmailCodes struct {
-	db     *store.DB
-	mailer CodeMailer
-	now    func() time.Time
-	log    *slog.Logger
+	db      *store.DB
+	secrets *secrets.Store
+	mailer  CodeMailer
+	now     func() time.Time
+	log     *slog.Logger
+
+	keyMu sync.Mutex
+	key   []byte // the HMAC key, read from core_secret on first use
+}
+
+// codeKeyPurpose is the core_secret purpose of the key that protects stored code hashes (DATA_MODEL 5.4).
+const codeKeyPurpose = "core_email_code.hmac_key"
+
+// hmacKey returns the key of codeHash, making it on first use. It must be called outside a write
+// transaction (making it writes).
+func (c *EmailCodes) hmacKey(ctx context.Context) ([]byte, error) {
+	c.keyMu.Lock()
+	defer c.keyMu.Unlock()
+	if c.key == nil {
+		k, err := c.secrets.OpenOrCreate(ctx, c.db, codeKeyPurpose, 32)
+		if err != nil {
+			return nil, fmt.Errorf("auth: email code key: %w", err)
+		}
+		c.key = k
+	}
+	return c.key, nil
+}
+
+// codeHash is the stored form of a code: HMAC-SHA-256 over the user id and the 6 digits, lowercase hex.
+// A 6-digit code has only a million values, so a plain hash would fall to a table lookup if the database
+// leaked; with the key (which is sealed under the master key, never in the database in the clear) it does not.
+func codeHash(key []byte, userID, code string) string {
+	m := hmac.New(sha256.New, key)
+	m.Write([]byte(userID))
+	m.Write([]byte{0})
+	m.Write([]byte(code))
+	return hex.EncodeToString(m.Sum(nil))
 }
 
 // Available reports whether codes can be mailed now (a mailer exists and says so).
@@ -80,11 +116,6 @@ func randomCode() (string, error) {
 	}
 }
 
-func hashCode(code string) string {
-	h := sha256.Sum256([]byte(code))
-	return hex.EncodeToString(h[:])
-}
-
 // Send mails a new code to the user. When mail cannot be sent it fails with 503 twofa_email_unavailable
 // before changing anything. With reuseFresh (the sign-in page, which may be reloaded), a code sent less than
 // 60 s ago is kept and nothing is sent. Otherwise a code asked for within 60 s of the last is 429
@@ -94,6 +125,10 @@ func hashCode(code string) string {
 func (c *EmailCodes) Send(ctx context.Context, userID, email string, reuseFresh bool) (Sent, error) {
 	if !c.Available(ctx) {
 		return Sent{}, errEmailUnavailable()
+	}
+	key, err := c.hmacKey(ctx)
+	if err != nil {
+		return Sent{}, err
 	}
 	now := c.now()
 	nowS := store.FormatTS(now)
@@ -130,7 +165,7 @@ func (c *EmailCodes) Send(ctx context.Context, userID, email string, reuseFresh 
 		if err != nil {
 			return issued{}, nil, err
 		}
-		hash := hashCode(code)
+		hash := codeHash(key, userID, code)
 		if err := q.UpsertEmailCode(ctx, coredb.UpsertEmailCodeParams{UserID: userID, CodeHash: hash, ExpiresAt: store.FormatTS(now.Add(CodeTTL)), SentAt: nowS}); err != nil {
 			return issued{}, nil, fmt.Errorf("auth: store email code: %w", err)
 		}
@@ -174,8 +209,12 @@ func (c *EmailCodes) Send(ctx context.Context, userID, email string, reuseFresh 
 // A wrong try is saved even though the caller gets an error.
 func (c *EmailCodes) Verify(ctx context.Context, userID, input string) error {
 	input = strings.Join(strings.Fields(input), "")
+	key, err := c.hmacKey(ctx)
+	if err != nil {
+		return err
+	}
 	now := c.now()
-	_, err := write(ctx, c.db, func(tx *sql.Tx) (struct{}, *apierr.Error, error) {
+	_, err = write(ctx, c.db, func(tx *sql.Tx) (struct{}, *apierr.Error, error) {
 		q := coredb.New(tx)
 		cur, err := q.GetEmailCode(ctx, userID)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -193,7 +232,7 @@ func (c *EmailCodes) Verify(ctx context.Context, userID, input string) error {
 		if !isSixDigits(input) {
 			return struct{}{}, apierr.New(400, CodeInvalidCode, "The code is 6 digits."), nil
 		}
-		if subtle.ConstantTimeCompare([]byte(hashCode(input)), []byte(cur.CodeHash)) == 1 {
+		if subtle.ConstantTimeCompare([]byte(codeHash(key, userID, input)), []byte(cur.CodeHash)) == 1 {
 			if err := q.DeleteEmailCode(ctx, userID); err != nil {
 				return struct{}{}, nil, fmt.Errorf("auth: delete email code: %w", err)
 			}

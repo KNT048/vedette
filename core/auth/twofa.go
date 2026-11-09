@@ -65,6 +65,11 @@ func (s *Service) StartTOTP(ctx context.Context, userID string) (TOTPSetup, erro
 	}
 	_, err = write(ctx, s.db, func(tx *sql.Tx) (struct{}, *apierr.Error, error) {
 		q := coredb.New(tx)
+		if cur, err := q.GetUserByID(ctx, t.ID); err != nil {
+			return struct{}{}, nil, fmt.Errorf("auth: read user: %w", err)
+		} else if cur.TwofaMethod != nil { // turned on by another request since the check above
+			return struct{}{}, alreadyOn(), nil
+		}
 		old, err := q.GetTotp(ctx, t.ID)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return struct{}{}, nil, fmt.Errorf("auth: read totp: %w", err)
@@ -91,8 +96,9 @@ func (s *Service) StartTOTP(ctx context.Context, userID string) (TOTPSetup, erro
 
 // ConfirmTOTP turns two-step sign-in on with the authenticator app once the user proves they hold the key:
 // 409 no_pending (no key, or it is over 10 minutes old), 400 invalid_code (not 6 digits), 400 wrong_code,
-// 409 already_on. The confirming code's step is recorded, so it cannot sign in a second time.
-func (s *Service) ConfirmTOTP(ctx context.Context, userID, code string) error {
+// 409 already_on. The confirming code's step is recorded, so it cannot sign in a second time. Turning
+// two-step on ends the user's other sessions (keepSessionID, the current one, stays): INV-7.
+func (s *Service) ConfirmTOTP(ctx context.Context, userID, keepSessionID, code string) error {
 	t, err := s.user(ctx, userID)
 	if err != nil {
 		return err
@@ -124,12 +130,19 @@ func (s *Service) ConfirmTOTP(ctx context.Context, userID, code string) error {
 	}
 	_, err = write(ctx, s.db, func(tx *sql.Tx) (struct{}, *apierr.Error, error) {
 		q := coredb.New(tx)
+		// Checked again here, before anything is written: the single writer serialises us with a racing
+		// confirm of the other method (a refusal after a write would commit that write).
+		if cur, err := q.GetUserByID(ctx, t.ID); err != nil {
+			return struct{}{}, nil, fmt.Errorf("auth: read user: %w", err)
+		} else if cur.TwofaMethod != nil {
+			return struct{}{}, alreadyOn(), nil
+		}
 		if n, err := q.ConfirmTotp(ctx, coredb.ConfirmTotpParams{LastStep: &step, UserID: t.ID}); err != nil {
 			return struct{}{}, nil, fmt.Errorf("auth: confirm totp: %w", err)
 		} else if n == 0 {
 			return struct{}{}, noPending(), nil
 		}
-		if err := s.setMethod(ctx, tx, t.ID, "app"); err != nil {
+		if err := s.enableMethod(ctx, tx, t.ID, "app", keepSessionID); err != nil {
 			return struct{}{}, nil, err
 		}
 		return struct{}{}, nil, s.audit.Append(ctx, tx, audit.Entry{User: t.Email, Action: "account.2fa_on", Target: t.Email, Detail: "authenticator app"})
@@ -161,8 +174,9 @@ func (s *Service) StartEmail2FA(ctx context.Context, userID string) (Sent, error
 }
 
 // ConfirmEmail2FA turns on email-code sign-in once the mailed code is right (the code errors of
-// EmailCodes.Verify; 409 already_on; 409 email_channel_not_ready).
-func (s *Service) ConfirmEmail2FA(ctx context.Context, userID, code string) error {
+// EmailCodes.Verify; 409 already_on; 409 email_channel_not_ready). Like ConfirmTOTP it ends the user's
+// other sessions.
+func (s *Service) ConfirmEmail2FA(ctx context.Context, userID, keepSessionID, code string) error {
 	t, err := s.user(ctx, userID)
 	if err != nil {
 		return err
@@ -176,17 +190,24 @@ func (s *Service) ConfirmEmail2FA(ctx context.Context, userID, code string) erro
 	if err := s.Codes.Verify(ctx, t.ID, code); err != nil {
 		return err
 	}
-	return s.db.Write(ctx, func(tx *sql.Tx) error {
-		if err := s.setMethod(ctx, tx, t.ID, "email"); err != nil {
-			return err
+	_, err = write(ctx, s.db, func(tx *sql.Tx) (struct{}, *apierr.Error, error) {
+		if cur, err := coredb.New(tx).GetUserByID(ctx, t.ID); err != nil {
+			return struct{}{}, nil, fmt.Errorf("auth: read user: %w", err)
+		} else if cur.TwofaMethod != nil {
+			return struct{}{}, alreadyOn(), nil
 		}
-		return s.audit.Append(ctx, tx, audit.Entry{User: t.Email, Action: "account.2fa_on", Target: t.Email, Detail: "email code"})
+		if err := s.enableMethod(ctx, tx, t.ID, "email", keepSessionID); err != nil {
+			return struct{}{}, nil, err
+		}
+		return struct{}{}, nil, s.audit.Append(ctx, tx, audit.Entry{User: t.Email, Action: "account.2fa_on", Target: t.Email, Detail: "email code"})
 	})
+	return err
 }
 
 // DisableTwoFA turns two-step sign-in off for the signed-in user (POST /core/account/2fa/disable): the
-// password must be right (400 wrong_password); 409 not_on. The key or pending code is deleted.
-func (s *Service) DisableTwoFA(ctx context.Context, userID, password string) error {
+// password must be right (400 wrong_password); 409 not_on. The key or pending code is deleted and the
+// user's other sessions end (keepSessionID, the current one, stays): INV-7.
+func (s *Service) DisableTwoFA(ctx context.Context, userID, keepSessionID, password string) error {
 	t, err := s.user(ctx, userID)
 	if err != nil {
 		return err
@@ -205,6 +226,9 @@ func (s *Service) DisableTwoFA(ctx context.Context, userID, password string) err
 		if err := s.clearTwoFA(ctx, tx, t.ID); err != nil {
 			return struct{}{}, nil, err
 		}
+		if err := s.revokeOthers(ctx, tx, t.ID, keepSessionID); err != nil {
+			return struct{}{}, nil, err
+		}
 		return struct{}{}, nil, s.audit.Append(ctx, tx, audit.Entry{User: t.Email, Action: "account.2fa_off", Target: t.Email})
 	})
 	return err
@@ -212,7 +236,8 @@ func (s *Service) DisableTwoFA(ctx context.Context, userID, password string) err
 
 // ResetTwoFA is POST /core/users/{id}/2fa/reset (admin): it turns another user's two-step sign-in off, for
 // someone who lost their phone. An administrator cannot reset their own (400 self_reset: use DisableTwoFA,
-// which asks for the password); 404 not_found; 409 not_on.
+// which asks for the password); 404 not_found; 409 not_on. Every session of that user ends in the same
+// transaction (INV-7): whoever held the lost phone, or the stolen password, is signed out with it.
 func (s *Service) ResetTwoFA(ctx context.Context, actorID, actorEmail, targetID string) error {
 	if targetID == actorID {
 		return apierr.New(400, CodeSelfReset, "You cannot reset your own two-step sign-in here. Use My account instead.")
@@ -235,9 +260,33 @@ func (s *Service) ResetTwoFA(ctx context.Context, actorID, actorEmail, targetID 
 		if err := s.clearTwoFA(ctx, tx, t.ID); err != nil {
 			return struct{}{}, nil, err
 		}
-		return struct{}{}, nil, s.audit.Append(ctx, tx, audit.Entry{User: actorEmail, Action: "user.2fa_reset", Target: t.Email, Detail: "was " + was})
+		n, err := s.Sessions.RevokeAllForUser(ctx, tx, t.ID)
+		if err != nil {
+			return struct{}{}, nil, err
+		}
+		return struct{}{}, nil, s.audit.Append(ctx, tx, audit.Entry{User: actorEmail, Action: "user.2fa_reset", Target: t.Email, Detail: fmt.Sprintf("was %s; %d sessions ended", was, n)})
 	})
 	return err
+}
+
+// enableMethod turns a method on for a user who has none, and ends their other sessions. The update is
+// conditional; the callers read the user in the same transaction first, so zero rows is a bug, not a race.
+func (s *Service) enableMethod(ctx context.Context, tx *sql.Tx, userID, method, keepSessionID string) error {
+	n, err := coredb.New(tx).EnableUserTwofaMethod(ctx, coredb.EnableUserTwofaMethodParams{TwofaMethod: &method, ID: userID})
+	if err != nil {
+		return fmt.Errorf("auth: set twofa_method: %w", err)
+	}
+	if n == 0 {
+		return fmt.Errorf("auth: user %s already had a two-step method inside the transaction", userID)
+	}
+	return s.revokeOthers(ctx, tx, userID, keepSessionID)
+}
+
+func (s *Service) revokeOthers(ctx context.Context, tx *sql.Tx, userID, keepSessionID string) error {
+	if _, err := coredb.New(tx).RevokeOtherSessions(ctx, coredb.RevokeOtherSessionsParams{RevokedAt: ptr(store.FormatTS(s.now())), UserID: userID, ID: keepSessionID}); err != nil {
+		return fmt.Errorf("auth: revoke other sessions: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) setMethod(ctx context.Context, tx *sql.Tx, userID, method string) error {

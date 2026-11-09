@@ -159,9 +159,13 @@ func (o *Outbox) Len() int { return len(o.pending) }
 
 // Flush publishes the queued events in order and empties the outbox. Call it after store.DB.Write
 // returned nil; when Write failed, drop the outbox. A malformed event is logged and skipped.
+// The change is already committed, so a request that was cancelled since (client hung up) must not stop
+// the handlers: they run under the context stripped of that cancellation, still bounded by the
+// per-handler timeout.
 func (b *Bus) Flush(ctx context.Context, o *Outbox) {
 	pending := o.pending
 	o.pending = nil
+	ctx = context.WithoutCancel(ctx)
 	for _, e := range pending {
 		if err := b.Publish(ctx, e); err != nil {
 			b.log.ErrorContext(ctx, "event dropped", "error", err)

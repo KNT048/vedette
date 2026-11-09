@@ -3,6 +3,7 @@ package auth_test
 import (
 	"encoding/base32"
 	"encoding/json"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +13,9 @@ import (
 	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/auth/authtest"
 )
+
+// ip parses a test address.
+func ip(s string) netip.Addr { return netip.MustParseAddr(s) }
 
 // wantAPI fails unless err is an *apierr.Error with the status and code.
 func wantAPI(t *testing.T, err error, status int, code string) {
@@ -44,7 +48,7 @@ func appUser(t *testing.T, env *authtest.Env) []byte {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := env.Svc.ConfirmTOTP(t.Context(), u.ID, auth.TOTPCode(secret, auth.TOTPStep(env.Clock.Now()))); err != nil {
+	if err := env.Svc.ConfirmTOTP(t.Context(), u.ID, "", auth.TOTPCode(secret, auth.TOTPStep(env.Clock.Now()))); err != nil {
 		t.Fatal(err)
 	}
 	return secret
@@ -57,7 +61,7 @@ func emailUser(t *testing.T, env *authtest.Env, email string) auth.User {
 	if _, err := env.Svc.StartEmail2FA(t.Context(), u.ID); err != nil {
 		t.Fatal(err)
 	}
-	if err := env.Svc.ConfirmEmail2FA(t.Context(), u.ID, env.Mailer.LastCode()); err != nil {
+	if err := env.Svc.ConfirmEmail2FA(t.Context(), u.ID, "", env.Mailer.LastCode()); err != nil {
 		t.Fatal(err)
 	}
 	env.Clock.Advance(2 * time.Minute) // clear the 60 s resend gap and use no sends of the login tests

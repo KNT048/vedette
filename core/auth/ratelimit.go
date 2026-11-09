@@ -12,6 +12,11 @@ import (
 // Login rate limit (API_CONVENTIONS section 8): 10 failures with less than 15 quiet minutes between them for
 // one (IP, email) pair, then a wait that doubles with every further failure (30 s, 1 min, 2 min, ... at most 10 min). Blocked attempts
 // are refused before any password work and do not count, so hammering cannot extend the wait.
+//
+// A guess is counted when it starts (begin) and given back when the password turns out right (refund), not
+// counted after the check: otherwise parallel guesses would all pass the check before any is recorded.
+// The second-step code has its own per-account counter (twofaKey, no IP): rotating the source address does
+// not reset it.
 const (
 	loginMaxFailures = 10
 	loginWindow      = 15 * time.Minute
@@ -62,10 +67,48 @@ func (l *limiter) check(ip, email string) *apierr.Error {
 	return nil
 }
 
+// twofaKey is the "IP" part of the per-account limiter of two-step codes.
+const twofaKey = "twofa"
+
+// begin is check plus counting the attempt as a failure right away, under one lock, so that a burst of
+// parallel guesses cannot all pass the check. Call refund when the guess was right.
+func (l *limiter) begin(ip, email string) *apierr.Error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if f := l.m[limiterKey(ip, email)]; f != nil {
+		if now := l.now(); now.Before(f.blockedUntil) {
+			return rateLimited(f.blockedUntil.Sub(now))
+		}
+	}
+	l.failLocked(ip, email)
+	return nil
+}
+
+// refund takes back the count of one begin whose guess was right (or was not judged at all). The wait that
+// begin may have set goes with it when the count is back under the limit.
+func (l *limiter) refund(ip, email string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	f := l.m[limiterKey(ip, email)]
+	if f == nil {
+		return
+	}
+	if f.count > 0 {
+		f.count--
+	}
+	if f.count < loginMaxFailures {
+		f.blockedUntil = time.Time{}
+	}
+}
+
 // fail records a failed attempt.
 func (l *limiter) fail(ip, email string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.failLocked(ip, email)
+}
+
+func (l *limiter) failLocked(ip, email string) {
 	now := l.now()
 	key := limiterKey(ip, email)
 	f := l.m[key]

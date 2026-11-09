@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/pressly/goose/v3"
-	_ "modernc.org/sqlite" // registers the "sqlite" database/sql driver
+	"modernc.org/sqlite" // registers the "sqlite" database/sql driver
 )
 
 // DB is the application database: one writer connection and a pool of read-only connections.
@@ -274,4 +274,20 @@ func NewID(prefix string) string {
 // FormatTS formats t as UTC ISO-8601 with milliseconds and a Z suffix (DATA_MODEL section 1).
 func FormatTS(t time.Time) string {
 	return t.UTC().Format("2006-01-02T15:04:05.000Z")
+}
+
+// Extended SQLite result codes for a violated UNIQUE constraint and PRIMARY KEY.
+const (
+	sqliteConstraintPrimaryKey = 1555
+	sqliteConstraintUnique     = 2067
+)
+
+// IsUniqueViolation reports whether err is the driver's error for a UNIQUE or PRIMARY KEY constraint
+// (two writers inserting the same key), so callers can answer 409 instead of 500.
+func IsUniqueViolation(err error) bool {
+	var se *sqlite.Error
+	if !errors.As(err, &se) {
+		return false
+	}
+	return se.Code() == sqliteConstraintUnique || se.Code() == sqliteConstraintPrimaryKey
 }

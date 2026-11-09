@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -113,8 +114,9 @@ type Env struct {
 	Logs    *bytes.Buffer
 }
 
-// New builds an Env with the email channel available.
-func New(t testing.TB) *Env {
+// New builds an Env with the email channel available. modify, when given, may change the Config before
+// the Service is built (for example MaxHashing).
+func New(t testing.TB, modify ...func(*auth.Config)) *Env {
 	t.Helper()
 	db := storetest.New(t)
 	if err := store.Migrate(t.Context(), db, "core", os.DirFS(migrationsDir(t))); err != nil {
@@ -128,7 +130,11 @@ func New(t testing.TB) *Env {
 	logs := &bytes.Buffer{}
 	mailer := &Mailer{available: true}
 	al := audit.New(clock.Now)
-	svc, err := auth.New(auth.Config{DB: db, Secrets: sec, Audit: al, Mailer: mailer, Clock: clock.Now, Log: slog.New(slog.NewTextHandler(logs, nil)), Argon2: Cheap})
+	cfg := auth.Config{DB: db, Secrets: sec, Audit: al, Mailer: mailer, Clock: clock.Now, Log: slog.New(slog.NewTextHandler(logs, nil)), Argon2: Cheap}
+	for _, m := range modify {
+		m(&cfg)
+	}
+	svc, err := auth.New(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +144,7 @@ func New(t testing.TB) *Env {
 // User creates an account with Password and returns it.
 func (e *Env) User(t testing.TB, email string, role routes.Role) auth.User {
 	t.Helper()
-	hash, err := e.Svc.HashPassword(Password, email)
+	hash, err := e.Svc.HashPassword(t.Context(), Password, email)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +162,7 @@ func (e *Env) User(t testing.TB, email string, role routes.Role) auth.User {
 // Login signs in with Password from 192.0.2.1 and returns the result.
 func (e *Env) Login(t testing.TB, email, code string) (auth.LoginResult, error) {
 	t.Helper()
-	return e.Svc.Login(t.Context(), auth.LoginRequest{Email: email, Password: Password, Code: code, IP: "192.0.2.1", UserAgent: "authtest"})
+	return e.Svc.Login(t.Context(), auth.LoginRequest{Email: email, Password: Password, Code: code, IP: netip.MustParseAddr("192.0.2.1"), UserAgent: "authtest"})
 }
 
 // Count runs a SELECT count(*) query.

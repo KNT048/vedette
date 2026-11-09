@@ -177,6 +177,27 @@ func TestOutboxFlushesInOrderAndEmpties(t *testing.T) {
 	}
 }
 
+// The change was already committed when Flush runs, so a client that hung up must not stop the handlers
+// that react to it (a dropped event is never replayed).
+func TestFlushDeliversEvenWhenTheRequestWasCancelled(t *testing.T) {
+	t.Parallel()
+	b, _ := newBus(t, events.WithTimeout(time.Second))
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	var cancelled, hasDeadline bool
+	b.Subscribe("a.b.c", func(ctx context.Context, _ events.Event) error {
+		cancelled = ctx.Err() != nil
+		_, hasDeadline = ctx.Deadline()
+		return nil
+	})
+	var o events.Outbox
+	o.Add(events.Event{Name: "a.b.c"})
+	b.Flush(ctx, &o)
+	if cancelled || !hasDeadline {
+		t.Fatalf("handler context cancelled=%v hasDeadline=%v, want false and true", cancelled, hasDeadline)
+	}
+}
+
 func TestConcurrentSubscribeAndPublish(t *testing.T) {
 	t.Parallel()
 	b, _ := newBus(t)

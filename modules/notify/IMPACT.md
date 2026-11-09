@@ -1,7 +1,7 @@
 # Notify — Change Impact Map
 
 ## Modifying: `notify.Service.Publish(ctx, Notice)`
-- **mitigation** (tin lỗ hổng), **reports** (báo cáo tuần), **honeypot/logs** (qua `OpenIncident`), **inventory** (thiết bị mới). Đổi `Notice` hay quy tắc `min_severity`/gộp thay đổi thứ người dùng nhận; test `INV2`, `INV4` phải xanh.
+- **findings** (tin lỗ hổng), **reports** (báo cáo tuần), **honeypot/logs** (qua `OpenIncident`), **inventory** (thiết bị mới). Đổi `Notice` hay quy tắc `min_severity`/gộp thay đổi thứ người dùng nhận; test `INV2`, `INV4` phải xanh.
 
 ## Modifying: `notify.Service.OpenIncident(ctx, IncidentInput)`
 - **honeypot**, **logs**, **inventory**, **response** (nút Respond ở `/response?incident=<id>`). Đổi khoá gộp = đổi số incident người dùng thấy.
@@ -16,7 +16,7 @@
 - **SPA** `ChannelsSettings`; module khác đọc cấu hình duyệt qua interface `ApprovalChannels()`, không đọc bảng `notify_*`.
 
 ## Modifying: lịch sử `HistoryItem.kind` (`incident|vuln|approval`) và `GET /notify/findings/{id}/notices`
-- **mitigation** (panel `finding.panels` ở trang finding), **core** (`/core/logs/export` danh mục `alerts`).
+- **findings** (panel `finding.panels` ở trang finding), **core** (`/core/logs/export` danh mục `alerts`).
 
 ## Disabling this module
 - Không tin nào gửi; Incidents và Settings → Alert channels mất; panel thông báo ở finding mất.

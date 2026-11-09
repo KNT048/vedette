@@ -16,6 +16,6 @@
 
 ## Disabling this module
 - Trang chủ Hot/Weekly/Lookup/CVE trống ("off"); Settings → Feeds mất.
-- `inventory`: danh mục chỉ còn bản đã giữ; không khớp mới. `mitigation`: không finding mới. `scan`: không tự quét lại. `notify`: không tin lỗ hổng mới (qua `mitigation`).
+- `inventory`: danh mục chỉ còn bản đã giữ; không khớp mới. `findings`: không finding mới. `scan`: không tự quét lại. `notify`: không tin lỗ hổng mới (qua `findings`).
 - `honeypot`, `logs`, `response`: không IOC mới, IOC cũ giữ.
 - Dữ liệu `feeds_*` và cấu hình feed riêng giữ nguyên.

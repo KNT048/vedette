@@ -9,7 +9,7 @@ Tên bảng và cột, kiểu, đường dẫn giữ tiếng Anh; văn xuôi ti�
 | Mục | Quy tắc (kiểm thử được) |
 |---|---|
 | Tiền tố bảng | Mỗi bảng bắt đầu bằng `tables_prefix` trong `MANIFEST.yaml` của module sở hữu (`rules/modules.md`). Test: mọi bảng trong migration của module `m` khớp `^<prefix>_`. |
-| Bảng theo tiền tố | Lấy từ `modules/*/MANIFEST.yaml`: `core_` (`core`; `host` không sở hữu bảng) · `feeds_` · `inv_` (`inventory`) · `intake_` (`agent-intake`) · `sp_` (`sensor-passive`) · `sa_` (`sensor-active`) · `notify_` · `mit_` (`mitigation`, **gồm bảng finding**) · `exp_` · `scan_` · `scancred_` (`scan-credentialed`) · `hp_` · `logs_` · `ai_` · `rep_` · `resp_` · `mcp_` (`mcp-server`) · `oidc_` (`auth-oidc`). MODULES.md còn ghi `inv_*` cho sensor/agent và `scan_*` cho scan-credentialed: MANIFEST thắng (câu hỏi mở 19). |
+| Bảng theo tiền tố | Lấy từ `modules/*/MANIFEST.yaml`: `core_` (`core`; `host` không sở hữu bảng) · `feeds_` · `inv_` (`inventory`) · `intake_` (`agent-intake`) · `sp_` (`sensor-passive`) · `sa_` (`sensor-active`) · `notify_` · `fnd_` (`findings`, D-57(6)) · `mit_` (`mitigation`) · `exp_` · `scan_` · `scancred_` (`scan-credentialed`) · `hp_` · `logs_` · `ai_` · `rep_` · `resp_` · `mcp_` (`mcp-server`) · `oidc_` (`auth-oidc`). MODULES.md còn ghi `inv_*` cho sensor/agent và `scan_*` cho scan-credentialed: MANIFEST thắng (câu hỏi mở 19). |
 | Đọc chéo module | Không module nào `SELECT` bảng của module khác; đi qua interface trong `core/` (SYS, `rules/modules.md`). Mock dùng `peek('notify_channels')` ở nhiều chỗ: backend thay bằng interface. |
 | Khoá ngoại chéo module | Chỉ hướng tới `core_*` hoặc module nằm trong `depends` của mình. Các tham chiếu còn lại (ví dụ `resp_action.finding_id`) là **tham chiếu mềm**: TEXT không FK, kèm nhãn phi chuẩn hoá (tên thiết bị, CVE) để dòng vẫn đọc được sau khi đối tượng bị xoá. |
 | Tên | `<prefix>_<danh từ số ít>`; riêng log dùng tên đã có trong hợp đồng: `core_audit`, `ai_activity`, `resp_log`. Bảng ánh xạ `collection('…')` của mock → bảng nằm ở mỗi mục (dòng "Mock"). |
@@ -68,7 +68,7 @@ erDiagram
   resp_log }o--|| core_chain_anchor : "pruned head"
 ```
 
-Luồng ghi chính: sensor/agent/nhập tay → `inv_observation` → gộp thành cột hiện hành của `inv_asset` → khớp `inv_software_kev` với `feeds_vuln` → sự kiện `inventory.match.changed` → `fnd_finding` (do `mitigation` ghi) → `notify_*` / `resp_*`. Mọi mutation ghi `core_audit` trong cùng giao dịch (SYS-3).
+Luồng ghi chính: sensor/agent/nhập tay → `inv_observation` → gộp thành cột hiện hành của `inv_asset` → khớp `inv_software_kev` với `feeds_vuln` → sự kiện `inventory.match.changed` → `fnd_finding` (do `findings` ghi, D-57(6)) → `notify_*` / `resp_*`. Mọi mutation ghi `core_audit` trong cùng giao dịch (SYS-3).
 
 ## 3. `core` (tiền tố `core_`)
 
@@ -200,16 +200,16 @@ UQ `(asset_id, field, source, value)`; IX `(asset_id, field)`. Giữ: mãi (cỡ
 
 Không phải bảng: **catalog thiết bị/sản phẩm** (`GET /inventory/catalog`, 733 cặp KEV + danh sách SMB, D-30) là dữ liệu chỉ đọc trong content pack, nạp vào bộ nhớ; tập tin cài osquery (`/install/osquery.sh\|.ps1`) sinh từ mẫu trong mã + CA của hộp.
 
-### 4.3 `mitigation` (`mit_`) — D-21, D-31, D-36, D-52
+### 4.3 `findings` (`fnd_`) và `mitigation` (`mit_`) — D-21, D-31, D-36, D-52, D-57(6)
 
-Module `mitigation` sở hữu cả **phát hiện** (finding). Nội dung khuyến nghị đã xác nhận do người duy trì ký, đi kèm bản cập nhật (không tự kéo từ GitHub riêng, D-36). Gói rule vá ảo đã bỏ (D-31): **không có** cột `rules{suricata,crs,crowdsec,nft}` của ARCH.
+Phát hiện (finding) thuộc module `findings` (D-57(6), bảng `fnd_*`); `mitigation` chỉ giữ gói "What to do" (`mit_*`) và phụ thuộc `findings`. Nội dung khuyến nghị đã xác nhận do người duy trì ký, đi kèm bản cập nhật (không tự kéo từ GitHub riêng, D-36). Gói rule vá ảo đã bỏ (D-31): **không có** cột `rules{suricata,crs,crowdsec,nft}` của ARCH.
 
-**`fnd_finding`** (`fnd_findings`; ARCH ghi `fnd_finding`, nhưng `modules/mitigation/MANIFEST.yaml` giao bảng này cho `mitigation`) — **Phát hiện = CVE × tài sản**. Bộ khớp của `inventory` phát `inventory.match.changed`, `scan` phát `scan.finding.confirmed`; **chỉ `mitigation` ghi bảng**. Module khác đọc qua interface. Quy tắc trạng thái ở mục 5.2.
+**`fnd_finding`** (`fnd_findings`; sở hữu: `findings`, xem `modules/findings/CONTRACT.md`) — **Phát hiện = CVE × tài sản**. Bộ khớp của `inventory` phát `inventory.match.changed`, `scan` phát `scan.finding.confirmed`; **chỉ `findings` ghi bảng**. Module khác đọc qua interface. Quy tắc trạng thái ở mục 5.2.
 
 | Cột | Kiểu | Null | Mặc định / ghi chú |
 |---|---|---|---|
 | `id` | id | không | PK (`f-…`) |
-| `asset_id` | id | không | FK→inv_asset ON DELETE CASCADE (`mitigation` phụ thuộc `inventory`) |
+| `asset_id` | id | không | FK→inv_asset ON DELETE CASCADE (`findings` phụ thuộc `inventory`) |
 | `cve` | text | không | khớp `^CVE-\d{4}-\d{4,}$`; tham chiếu mềm tới `feeds_vuln` (CVE rời KEV vẫn giữ) |
 | `status` | enum(confirmed\|suspected\|mitigated\|patched\|false_positive\|not_relevant) | không | |
 | `severity` | enum(critical\|high\|medium\|low\|info) | không | lúc tạo: `critical` nếu `ransomware` hoặc `epss ≥ 0.5`, còn lại `high` (bộ khớp của mock) |
@@ -221,7 +221,7 @@ Module `mitigation` sở hữu cả **phát hiện** (finding). Nội dung khuy�
 | `resolved_at` | ts | có | |
 | `resolution_note` | text | có | ≤ 500 ký tự (`note_too_long`); bắt buộc ≥ 3 ký tự với `false_positive`/`not_relevant` (`note_required`) |
 
-UQ `(asset_id, cve)`. IX `(status)`, `(cve)`, `(asset_id, status)`. CHECK nhất quán: `status <> 'confirmed' OR (basis = 'scan' AND evidence IS NOT NULL)` (INV-2 của `mitigation`). Giữ: mãi (cùng thiết bị). R `GET /findings`, `/findings/{id}`, `/inventory/devices/{id}`, báo cáo, notify; W `POST /findings/{id}/status\|applied`, bộ khớp và `scan` (qua sự kiện).
+UQ `(asset_id, cve)`. IX `(status)`, `(cve)`, `(asset_id, status)`. CHECK nhất quán: `status <> 'confirmed' OR (basis = 'scan' AND evidence IS NOT NULL)` (INV-2 của `findings`). Giữ: mãi (cùng thiết bị). R `GET /findings`, `/findings/{id}`, `/inventory/devices/{id}`, báo cáo, notify; W `POST /findings/{id}/status\|applied`, bộ khớp và `scan` (qua sự kiện).
 **`fnd_finding_history`** (`Finding.history[]`): `id:id` · `finding_id:id` FK→fnd_finding CASCADE · `ts:ts` · `user:text` (email hoặc `system`) · `action:text` (`created`, `confirmed`, `rescanned`, `rescan_clear`, `reopened`, `patched`, `mitigated`, `false_positive`, `not_relevant`) · `note:text?`; IX(finding_id, ts). Chỉ thêm, không sửa. Giữ: cùng finding.
 **`mit_applied`** (`AppliedEntry`; mục "Đã áp dụng", INV-4): `finding_id:id` FK→fnd_finding CASCADE · `item:enum(patch\|workaround\|fortigate\|mikrotik\|generic)` · `ts:ts` · `user:text`; PK(finding_id, item) (mỗi item một lần). Không đổi `status`. R `GET /findings/{id}`; W `POST /findings/{id}/applied`.
 
@@ -395,11 +395,11 @@ Trạng thái: **mở** = `confirmed`, `suspected` (tính vào `findings_count`/
 | `false_positive`, `not_relevant` | mọi trạng thái | cùng tên | như trên; `note` ≥ 3 ký tự bắt buộc |
 | `reopen` | đã đóng (mở rồi → 409 `already_open`) | `confirmed` nếu `basis='scan'`, ngược lại `suspected` | xoá `resolved_*` |
 | (quét khớp) | `suspected`, `confirmed` | `confirmed`, `basis='scan'`, có `evidence.template` + `checked_at` | event `confirmed` hoặc `rescanned` |
-| (quét khớp) | `false_positive`, `not_relevant` | **không đổi** | không tự mở lại (POST-2 của `mitigation`); phát `mitigation.finding.status_changed` để người dùng quyết |
+| (quét khớp) | `false_positive`, `not_relevant` | **không đổi** (lưu bằng chứng quét, `basis='scan'`) | không tự mở lại (POST-2 của `findings`); event `rescanned`; phát `findings.finding.status_changed` **một lần mỗi template** để người dùng quyết |
 | (quét khớp) | `patched`, `mitigated` | `confirmed` **[ĐX]** (lỗ hổng vẫn còn: bản vá/giảm thiểu không hiệu quả) | event `reopened` (ghi chú: scan); câu hỏi mở 12 |
 | (quét hết khớp) | mọi | không đổi | event `rescan_clear` (không tự đóng) |
 
-`POST /findings/{id}/applied` (item ∈ patch, workaround, fortigate, mikrotik, generic) chỉ thêm một dòng `mit_applied` (mỗi item một lần), chỉ cho CVE có gói đã xác nhận (`no_pack`), **không đổi `status`**. Mỗi chuyển trạng thái = một `fnd_finding_history` + một `core_audit` (SYS-3). Phát hiện mới (`created`) phát `mitigation.finding.created`; `notify` gửi theo `min_severity` của kênh (D-52).
+`POST /findings/{id}/applied` (item ∈ patch, workaround, fortigate, mikrotik, generic) chỉ thêm một dòng `mit_applied` (mỗi item một lần), chỉ cho CVE có gói đã xác nhận (`no_pack`), **không đổi `status`**. Mỗi chuyển trạng thái = một `fnd_finding_history` + một `core_audit` (SYS-3). Phát hiện mới (`created`) phát `findings.finding.created`; `notify` gửi theo `min_severity` của kênh (D-52).
 
 ### 5.3 Log chuỗi hash: `core_audit`, `ai_activity`, `resp_log`
 
@@ -561,7 +561,8 @@ Chỉ liệt kê chỗ **khác tên** hoặc **thừa/thiếu bảng**; còn l�
 | Module | CONTRACT ghi | File này | Ghi chú |
 |---|---|---|---|
 | `core` | `core_totp`, `core_job_run`, `core_setting`, `core_secret` | `core_user_totp`, (chưa có), `core_setting`, `core_secret` | `core_job_run` (lịch sử job lập lịch) chưa có trong mock/GUI: thêm khi có story; `core_idempotency` là đề xuất mới |
-| `mitigation` | `fnd_finding`, `fnd_finding_history`, `mit_applied`, `mit_ai_output`, `mit_pack` | cùng tên | khớp (đã sửa theo CONTRACT) |
+| `findings` | `fnd_finding`, `fnd_finding_history` | cùng tên | khớp (D-57(6)) |
+| `mitigation` | `mit_applied`, `mit_ai_output`, `mit_pack` | cùng tên | khớp (đã sửa theo CONTRACT) |
 | `notify` | `notify_rule`, `notify_message`, `notify_suppressed` | `notify_setting`, `notify_send` (+ `notify_notice*`), `notify_suppressed_day` | `notify_message` ≈ `notify_send` (một dòng mỗi lần gửi); `notify_rule` ≈ khoá `quiet`/`grouping` của `notify_setting` |
 | `exposure` | `exp_commitment` (bảng riêng) | cột `commitment_by/at` trên `exp_target` | quan hệ 1–1; gộp cột cho gọn (`ponytail`) |
 | `scan` | `scan_config`, `scan_result` | `scan_setting`, `results` JSON trong `scan_run` | tách `scan_result` thành bảng nếu cần lọc theo finding |

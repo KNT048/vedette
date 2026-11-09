@@ -78,6 +78,9 @@ Interface Go (`core/…`). Mọi module gọi `core`; đổi chữ ký ở đây
 - **`Data`**: struct do module phát khai trong CONTRACT của mình; không để bí mật trong đó. Bên nhận ép kiểu; đổi kiểu `Data` hay tên sự kiện làm bên nhận im lặng hoặc panic trong `recover`, không lỗi biên dịch: mỗi sự kiện có test hợp đồng ở bên phát.
 - **feeds→(inventory, scan, notify)**, **inventory→(findings, notify, sensor-active)**, **scan→findings** (`scan.finding.confirmed`), **findings→(notify, response)** (`findings.finding.created|status_changed`; D-57 (6)).
 
+## Modifying: `observe` (WP-10, `core/observe`) — `Source` (manual, agent, snmp, nmap, scan, passive), `Field` (hostname, mac, vendor, model, os, kind), `AssetHint{IP netip.Addr, MAC string}`, `Observation{AssetHint, Field, Value, Source, Confidence, SeenAt}`, `Sink{Record(ctx, []Observation) error}`, `Software`, `SoftwareSink{ReplaceSoftware(ctx, hint, source, items) error}`, `ValidSource`, `ValidField`
+- **sensor-passive, sensor-active, agent-intake, scan** (người ghi) và **inventory** (cài `Sink` và `SoftwareSink`: `*inventory.Service`). Chỉ stdlib; không gói nào trong `core/observe` import module. Người nhận **validate lại hết** (dữ liệu không tin cậy, SYS-6): một lô là một giao dịch, nguồn `manual` bị từ chối, `confidence ∈ [0,1]`, MAC/IP/giá trị kiểm ở biên. Thêm nguồn hoặc trường = sửa hằng ở đây, CHECK trong migration `inv_observation`, `inventory.Service` và mọi cảm biến.
+
 ## Modifying: `logexport.Register(category, Source)`
 - **notify** (`alerts`), **scan** (`scan_probes`), **inventory** (`device_logs` nếu có), **ai/response/honeypot/logs** (nhóm B).
 

@@ -304,7 +304,8 @@ func TestContract_INV14c_Catalog(t *testing.T) {
 		{Connection: response.Connection{ID: "cn-mcp", Name: "MCP", Enabled: true, Kind: "mcp-http", WriteTools: []string{"block", "unblock"}}, Target: "https://mcp.lan"},
 	}
 	in := response.CatalogInput{Name: "Shut a port", Description: "d", ConnectionID: "cn-ssh", Risk: response.RiskMedium, Enabled: true,
-		Run: response.Tpl{CLI: "interface {interface}\nshutdown"}, Rollback: response.Tpl{CLI: "interface {interface}\nno shutdown"}}
+		Run: response.Tpl{CLI: "interface {interface}\nshutdown"}, Rollback: response.Tpl{CLI: "interface {interface}\nno shutdown"},
+		Precheck: response.Tpl{CLI: "show interfaces {interface} switchport"}, PrecheckRefuse: []string{"Administrative Mode: trunk"}}
 	_, err := e.svc.AddAction(e.ctx(), admin, func() response.CatalogInput { x := in; x.ConnectionID = "cn-ro"; return x }())
 	wantCode(t, err, 409, "read_only")
 	for name, mod := range map[string]func(x *response.CatalogInput){
@@ -339,6 +340,7 @@ func TestContract_INV14c_Catalog(t *testing.T) {
 	mcp := in
 	mcp.ConnectionID, mcp.Tool, mcp.RollbackTool = "cn-mcp", strp("block"), strp("unblock")
 	mcp.Run, mcp.Rollback = response.Tpl{Body: `{"ip":"{ip}"}`}, response.Tpl{Body: `{"ip":"{ip}"}`}
+	mcp.Precheck, mcp.PrecheckRefuse = response.Tpl{}, nil // an MCP server has no check before
 	if _, err := e.svc.AddAction(e.ctx(), admin, mcp); err != nil {
 		t.Fatal(err)
 	}

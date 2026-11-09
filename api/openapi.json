@@ -43158,7 +43158,7 @@
     "/response/ai/proposals": {
       "post": {
         "operationId": "response_post_response_ai_proposals",
-        "summary": "The AI agent sends a request. Server-side gates: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an approval request was created, 200 for a suggestion note or a digest (the generated file documents 200)",
+        "summary": "Preview build only (D-97): on a real box the AI sends its requests inside the process and this route answers 404. The gates it applies: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an approval request was created, 200 for a suggestion note or a digest (the generated file documents 200)",
         "tags": [
           "response"
         ],
@@ -45998,7 +45998,12 @@
                               "headers": {
                                 "type": "string",
                                 "maxLength": 600,
-                                "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                                "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                              },
+                              "expect": {
+                                "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                                "type": "string",
+                                "maxLength": 200
                               }
                             },
                             "required": [
@@ -46042,7 +46047,12 @@
                               "headers": {
                                 "type": "string",
                                 "maxLength": 600,
-                                "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                                "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                              },
+                              "expect": {
+                                "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                                "type": "string",
+                                "maxLength": 200
                               }
                             },
                             "required": [
@@ -46086,7 +46096,12 @@
                               "headers": {
                                 "type": "string",
                                 "maxLength": 600,
-                                "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                                "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                              },
+                              "expect": {
+                                "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                                "type": "string",
+                                "maxLength": 200
                               }
                             },
                             "required": [
@@ -46097,6 +46112,66 @@
                               "headers"
                             ],
                             "additionalProperties": false
+                          },
+                          "precheck": {
+                            "type": "object",
+                            "properties": {
+                              "cli": {
+                                "type": "string",
+                                "maxLength": 2000,
+                                "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
+                              },
+                              "method": {
+                                "type": "string",
+                                "enum": [
+                                  "",
+                                  "GET",
+                                  "PUT",
+                                  "PATCH",
+                                  "POST",
+                                  "DELETE"
+                                ]
+                              },
+                              "path": {
+                                "type": "string",
+                                "maxLength": 300,
+                                "description": "API path under the connection address, starts with /"
+                              },
+                              "body": {
+                                "type": "string",
+                                "maxLength": 2000,
+                                "description": "JSON body (for an MCP server: the tool arguments as JSON), may be empty"
+                              },
+                              "headers": {
+                                "type": "string",
+                                "maxLength": 600,
+                                "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                              },
+                              "expect": {
+                                "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                                "type": "string",
+                                "maxLength": 200
+                              }
+                            },
+                            "required": [
+                              "cli",
+                              "method",
+                              "path",
+                              "body",
+                              "headers"
+                            ],
+                            "additionalProperties": false,
+                            "description": "Check before: a read-only command or GET that runs right before the action; empty when there is none"
+                          },
+                          "precheck_refuse": {
+                            "maxItems": 5,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "description": "Texts that make the check before refuse: when its output contains one, nothing is written. Needed (at least one) for any device action that uses {interface}"
                           },
                           "params": {
                             "type": "array",
@@ -46165,6 +46240,8 @@
                           "run",
                           "rollback",
                           "verify",
+                          "precheck",
+                          "precheck_refuse",
                           "params",
                           "risk",
                           "enabled",
@@ -46320,7 +46397,12 @@
                       "headers": {
                         "type": "string",
                         "maxLength": 600,
-                        "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                        "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                      },
+                      "expect": {
+                        "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                        "type": "string",
+                        "maxLength": 200
                       }
                     },
                     "required": [
@@ -46364,7 +46446,12 @@
                       "headers": {
                         "type": "string",
                         "maxLength": 600,
-                        "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                        "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                      },
+                      "expect": {
+                        "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                        "type": "string",
+                        "maxLength": 200
                       }
                     },
                     "required": [
@@ -46408,7 +46495,12 @@
                       "headers": {
                         "type": "string",
                         "maxLength": 600,
-                        "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                        "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                      },
+                      "expect": {
+                        "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                        "type": "string",
+                        "maxLength": 200
                       }
                     },
                     "required": [
@@ -46419,6 +46511,65 @@
                       "headers"
                     ],
                     "additionalProperties": false
+                  },
+                  "precheck": {
+                    "type": "object",
+                    "properties": {
+                      "cli": {
+                        "type": "string",
+                        "maxLength": 2000,
+                        "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
+                      },
+                      "method": {
+                        "type": "string",
+                        "enum": [
+                          "",
+                          "GET",
+                          "PUT",
+                          "PATCH",
+                          "POST",
+                          "DELETE"
+                        ]
+                      },
+                      "path": {
+                        "type": "string",
+                        "maxLength": 300,
+                        "description": "API path under the connection address, starts with /"
+                      },
+                      "body": {
+                        "type": "string",
+                        "maxLength": 2000,
+                        "description": "JSON body (for an MCP server: the tool arguments as JSON), may be empty"
+                      },
+                      "headers": {
+                        "type": "string",
+                        "maxLength": 600,
+                        "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                      },
+                      "expect": {
+                        "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                        "type": "string",
+                        "maxLength": 200
+                      }
+                    },
+                    "required": [
+                      "cli",
+                      "method",
+                      "path",
+                      "body",
+                      "headers"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "precheck_refuse": {
+                    "maxItems": 5,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    "description": "Texts that make the check before refuse: when its output contains one, nothing is written. Needed (at least one) for any device action that uses {interface}"
                   },
                   "risk": {
                     "type": "string",
@@ -46554,7 +46705,12 @@
                         "headers": {
                           "type": "string",
                           "maxLength": 600,
-                          "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                          "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                        },
+                        "expect": {
+                          "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                          "type": "string",
+                          "maxLength": 200
                         }
                       },
                       "required": [
@@ -46598,7 +46754,12 @@
                         "headers": {
                           "type": "string",
                           "maxLength": 600,
-                          "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                          "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                        },
+                        "expect": {
+                          "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                          "type": "string",
+                          "maxLength": 200
                         }
                       },
                       "required": [
@@ -46642,7 +46803,12 @@
                         "headers": {
                           "type": "string",
                           "maxLength": 600,
-                          "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                          "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                        },
+                        "expect": {
+                          "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                          "type": "string",
+                          "maxLength": 200
                         }
                       },
                       "required": [
@@ -46653,6 +46819,66 @@
                         "headers"
                       ],
                       "additionalProperties": false
+                    },
+                    "precheck": {
+                      "type": "object",
+                      "properties": {
+                        "cli": {
+                          "type": "string",
+                          "maxLength": 2000,
+                          "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
+                        },
+                        "method": {
+                          "type": "string",
+                          "enum": [
+                            "",
+                            "GET",
+                            "PUT",
+                            "PATCH",
+                            "POST",
+                            "DELETE"
+                          ]
+                        },
+                        "path": {
+                          "type": "string",
+                          "maxLength": 300,
+                          "description": "API path under the connection address, starts with /"
+                        },
+                        "body": {
+                          "type": "string",
+                          "maxLength": 2000,
+                          "description": "JSON body (for an MCP server: the tool arguments as JSON), may be empty"
+                        },
+                        "headers": {
+                          "type": "string",
+                          "maxLength": 600,
+                          "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                        },
+                        "expect": {
+                          "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "cli",
+                        "method",
+                        "path",
+                        "body",
+                        "headers"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Check before: a read-only command or GET that runs right before the action; empty when there is none"
+                    },
+                    "precheck_refuse": {
+                      "maxItems": 5,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      "description": "Texts that make the check before refuse: when its output contains one, nothing is written. Needed (at least one) for any device action that uses {interface}"
                     },
                     "params": {
                       "type": "array",
@@ -46721,6 +46947,8 @@
                     "run",
                     "rollback",
                     "verify",
+                    "precheck",
+                    "precheck_refuse",
                     "params",
                     "risk",
                     "enabled",
@@ -46870,7 +47098,12 @@
                       "headers": {
                         "type": "string",
                         "maxLength": 600,
-                        "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                        "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                      },
+                      "expect": {
+                        "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                        "type": "string",
+                        "maxLength": 200
                       }
                     },
                     "required": [
@@ -46914,7 +47147,12 @@
                       "headers": {
                         "type": "string",
                         "maxLength": 600,
-                        "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                        "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                      },
+                      "expect": {
+                        "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                        "type": "string",
+                        "maxLength": 200
                       }
                     },
                     "required": [
@@ -46958,7 +47196,12 @@
                       "headers": {
                         "type": "string",
                         "maxLength": 600,
-                        "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                        "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                      },
+                      "expect": {
+                        "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                        "type": "string",
+                        "maxLength": 200
                       }
                     },
                     "required": [
@@ -46969,6 +47212,65 @@
                       "headers"
                     ],
                     "additionalProperties": false
+                  },
+                  "precheck": {
+                    "type": "object",
+                    "properties": {
+                      "cli": {
+                        "type": "string",
+                        "maxLength": 2000,
+                        "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
+                      },
+                      "method": {
+                        "type": "string",
+                        "enum": [
+                          "",
+                          "GET",
+                          "PUT",
+                          "PATCH",
+                          "POST",
+                          "DELETE"
+                        ]
+                      },
+                      "path": {
+                        "type": "string",
+                        "maxLength": 300,
+                        "description": "API path under the connection address, starts with /"
+                      },
+                      "body": {
+                        "type": "string",
+                        "maxLength": 2000,
+                        "description": "JSON body (for an MCP server: the tool arguments as JSON), may be empty"
+                      },
+                      "headers": {
+                        "type": "string",
+                        "maxLength": 600,
+                        "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                      },
+                      "expect": {
+                        "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                        "type": "string",
+                        "maxLength": 200
+                      }
+                    },
+                    "required": [
+                      "cli",
+                      "method",
+                      "path",
+                      "body",
+                      "headers"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "precheck_refuse": {
+                    "maxItems": 5,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    "description": "Texts that make the check before refuse: when its output contains one, nothing is written. Needed (at least one) for any device action that uses {interface}"
                   },
                   "risk": {
                     "type": "string",
@@ -47092,7 +47394,12 @@
                         "headers": {
                           "type": "string",
                           "maxLength": 600,
-                          "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                          "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                        },
+                        "expect": {
+                          "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                          "type": "string",
+                          "maxLength": 200
                         }
                       },
                       "required": [
@@ -47136,7 +47443,12 @@
                         "headers": {
                           "type": "string",
                           "maxLength": 600,
-                          "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                          "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                        },
+                        "expect": {
+                          "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                          "type": "string",
+                          "maxLength": 200
                         }
                       },
                       "required": [
@@ -47180,7 +47492,12 @@
                         "headers": {
                           "type": "string",
                           "maxLength": 600,
-                          "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                          "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                        },
+                        "expect": {
+                          "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                          "type": "string",
+                          "maxLength": 200
                         }
                       },
                       "required": [
@@ -47191,6 +47508,66 @@
                         "headers"
                       ],
                       "additionalProperties": false
+                    },
+                    "precheck": {
+                      "type": "object",
+                      "properties": {
+                        "cli": {
+                          "type": "string",
+                          "maxLength": 2000,
+                          "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
+                        },
+                        "method": {
+                          "type": "string",
+                          "enum": [
+                            "",
+                            "GET",
+                            "PUT",
+                            "PATCH",
+                            "POST",
+                            "DELETE"
+                          ]
+                        },
+                        "path": {
+                          "type": "string",
+                          "maxLength": 300,
+                          "description": "API path under the connection address, starts with /"
+                        },
+                        "body": {
+                          "type": "string",
+                          "maxLength": 2000,
+                          "description": "JSON body (for an MCP server: the tool arguments as JSON), may be empty"
+                        },
+                        "headers": {
+                          "type": "string",
+                          "maxLength": 600,
+                          "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them"
+                        },
+                        "expect": {
+                          "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "cli",
+                        "method",
+                        "path",
+                        "body",
+                        "headers"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Check before: a read-only command or GET that runs right before the action; empty when there is none"
+                    },
+                    "precheck_refuse": {
+                      "maxItems": 5,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      "description": "Texts that make the check before refuse: when its output contains one, nothing is written. Needed (at least one) for any device action that uses {interface}"
                     },
                     "params": {
                       "type": "array",
@@ -47259,6 +47636,8 @@
                     "run",
                     "rollback",
                     "verify",
+                    "precheck",
+                    "precheck_refuse",
                     "params",
                     "risk",
                     "enabled",

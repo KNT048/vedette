@@ -55,8 +55,12 @@ export const PARAM_CHECK: Record<ParamType, (v: string) => boolean> = {
 }
 export const PARAM_LABEL: Record<ParamType, string> = { ip: 'an IP address', cidr: 'an address range', domain: 'a domain', port: 'a port number', mac: 'a MAC address', vlan: 'a VLAN number', interface: 'a port or interface name', id: 'a whole number (for example a policy number)', name: 'a name of letters, numbers, . _ and - (up to 64)', text: 'a short plain-text value' }
 
-export interface Tpl { cli: string; method: '' | 'GET' | 'PUT' | 'PATCH' | 'POST' | 'DELETE'; path: string; body: string; headers: string }
-export const EMPTY_TPL: Tpl = { cli: '', method: '', path: '', body: '', headers: '' }
+/** `expect` (D-95) only means something on the read-back: after the action its output must contain it, after the undo it must not. */
+export interface Tpl { cli: string; method: '' | 'GET' | 'PUT' | 'PATCH' | 'POST' | 'DELETE'; path: string; body: string; headers: string; expect?: string }
+export const EMPTY_TPL: Tpl = { cli: '', method: '', path: '', body: '', headers: '', expect: '' }
+export const MAX_REFUSE = 5
+export const MAX_REFUSE_LEN = 80
+export const MAX_EXPECT = 200
 export const tplEmpty = (t: Tpl) => !t.cli.trim() && !t.method && !t.path && !t.body.trim()
 
 /** Characters a template may contain. Shell metacharacters (; | & $ ` < > ( ) \ ! ~ ^) are never allowed, even in the fixed text. */
@@ -70,7 +74,12 @@ export function templateParams(...texts: string[]): ParamType[] {
   for (const t of texts) for (const m of t.matchAll(PLACEHOLDER)) if ((PARAM_TYPES as string[]).includes(m[1]!)) found.add(m[1] as ParamType)
   return PARAM_TYPES.filter((p) => found.has(p))
 }
-export const tplParams = (...t: Tpl[]) => templateParams(...t.flatMap((x) => [x.cli, x.path, x.body, x.headers]))
+export const tplParams = (...t: Tpl[]) => templateParams(...t.flatMap((x) => [x.cli, x.path, x.body, x.headers, x.expect ?? '']))
+/** Header names a template may never set (D-94): the connection sets the credentials and the address, and hop-by-hop headers belong to the connection. */
+const FORBIDDEN_HEADERS = ['authorization', 'cookie', 'host', 'connection', 'keep-alive', 'te', 'trailer', 'transfer-encoding', 'upgrade', 'forwarded']
+export const forbiddenHeader = (name: string) => { const n = name.toLowerCase(); return FORBIDDEN_HEADERS.includes(n) || n.startsWith('proxy-') || n.startsWith('x-forwarded-') }
+/** A single line of plain text, placeholders allowed: what a read-back must contain. */
+const EXPECT_TEXT = /^[A-Za-z0-9 _.,:/"'{}=@#%+*?[\]-]*$/
 
 /** null = acceptable. Otherwise a one-line reason in plain words. */
 export function validateTpl(t: Tpl, what: string): string | null {
@@ -84,6 +93,15 @@ export function validateTpl(t: Tpl, what: string): string | null {
     }
   }
   if (t.headers && !t.headers.split('\n').every((l) => HEADER_LINE.test(l))) return `${what}: each header must look like "Name: value".`
+  const banned = t.headers.split('\n').map((l) => l.split(':')[0]!).find((n) => n && forbiddenHeader(n))
+  if (banned) return `${what}: the header ${banned} is set by the connection and cannot be part of a template.`
+  const ex = t.expect ?? ''
+  if (ex.length > MAX_EXPECT) return `${what}: the text to look for is too long (up to ${MAX_EXPECT} characters).`
+  if (ex) {
+    if (!EXPECT_TEXT.test(ex)) return `${what}: the text to look for contains a character that is not allowed.`
+    for (const m of ex.matchAll(PLACEHOLDER)) if (!(PARAM_TYPES as string[]).includes(m[1]!) && !isRuntime(m[1]!)) return `${what}: unknown placeholder {${m[1]}} in the text to look for.`
+    if (/\{text\}/.test(ex)) return `${what}: {text} is only for message actions.`
+  }
   if (t.method && !t.path) return `${what}: an API call needs a path.`
   if (t.path && !t.method) return `${what}: choose the API method.`
   if (t.path && (!/^\/[A-Za-z0-9/_.{}-]*$/.test(t.path) || t.path.includes('..'))) return `${what}: the API path must start with / and cannot contain .. or a query.`
@@ -106,6 +124,23 @@ export function kindProblem(kind: ConnKind, t: Tpl, what: string): string | null
   if (extra.length) return `${what}: ${extra.join(', ')} does not apply to this kind of connection and must be empty.`
   return null
 }
+const REFUSE_TEXT = /^[\x20-\x7e]{1,80}$/
+/** The check before the action (D-95): a read-only template plus up to 5 texts; when the output holds one of them nothing is written. null = acceptable (or none given). */
+export function validatePrecheck(pre: Tpl, refuse: string[], kind: ConnKind): string | null {
+  const what = 'Check before'
+  if (tplEmpty(pre) && refuse.length === 0) return null
+  if (isMcp(kind)) return `${what}: not available for MCP servers.`
+  if (tplEmpty(pre)) return `${what}: give the read-only command or API call, or remove the texts that make it refuse.`
+  if (refuse.length === 0) return `${what}: add at least one text that makes it refuse.`
+  if (refuse.length > MAX_REFUSE) return `${what}: up to ${MAX_REFUSE} texts that make it refuse.`
+  if (refuse.some((r) => !REFUSE_TEXT.test(r) || !r.trim())) return `${what}: each text that makes it refuse is 1 to ${MAX_REFUSE_LEN} plain characters.`
+  if ((pre.method && pre.method !== 'GET') || pre.body.trim()) return `${what}: an API call can only be a GET without a body. It must not change anything.`
+  if (pre.expect) return `${what}: the text to look for belongs to the read-back, not here.`
+  return kindProblem(kind, pre, what) ?? validateTpl(pre, what)
+}
+/** A command that names a port can hit a trunk or uplink: it needs the check before with at least one refusal (D-95). */
+export const needsPrecheck = (run: Tpl, rollback: Tpl, verify: Tpl, pre: Tpl, refuse: string[]) => tplParams(run, rollback, verify, pre).includes('interface') && (tplEmpty(pre) || refuse.length === 0)
+
 /** Reason a connection cannot carry out actions, or null. */
 export const READ_ONLY = 'Read-only: this connection has no write tools'
 /** Starting hint for a new action by kind. Generic only (D-58): device examples live in the template library, not here. */
@@ -204,10 +239,14 @@ export function allowMatches(entry: string, value: string): boolean {
 export const touches = (entry: string, value: string) => allowMatches(entry, value) || (isCidr(value) && isIpv4(entry.toLowerCase()) && allowMatches(value, entry))
 
 // ---- Tokens ----
-export function randomToken(bytes = 16): string {
-  const a = new Uint8Array(bytes)
+function randomBytes(n: number): Uint8Array {
+  const a = new Uint8Array(n)
   if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(a)
-  else for (let i = 0; i < bytes; i++) a[i] = Math.floor(Math.random() * 256) // ponytail: test environments without WebCrypto only
-  return [...a].map((x) => x.toString(16).padStart(2, '0')).join('')
+  else for (let i = 0; i < n; i++) a[i] = Math.floor(Math.random() * 256) // ponytail: test environments without WebCrypto only
+  return a
 }
-export const TOKEN_RE = /^[a-f0-9]{32}$/
+export const randomToken = (bytes = 16): string => [...randomBytes(bytes)].map((x) => x.toString(16).padStart(2, '0')).join('')
+const b64url = (a: Uint8Array) => btoa(String.fromCharCode(...a)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+/** An approval link token in the signed form of approval-tokens.md 4.1: "v1." + 16 random bytes + "." + a 16 byte tag, both base64url. The mock cannot hold the HMAC key, so the tag is random and the mock store is the source of truth. */
+export const approvalToken = (): string => `v1.${b64url(randomBytes(16))}.${b64url(randomBytes(16))}`
+export const TOKEN_RE = /^v1\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{22}$/

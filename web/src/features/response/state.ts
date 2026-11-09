@@ -10,7 +10,7 @@ import { RISK_PHRASE } from './contract'
 import type { StoredCat } from './data'
 import { seedCatalog } from './templates'
 import {
-  fill, GENESIS, isMcp, KIND_FIELDS, kindProblem, logHashSync, oneLine, randomToken, READ_ONLY, tplEmpty, tplParams, TOKEN_RE, validateTpl, verifyChain,
+  approvalToken, EMPTY_TPL, fill, GENESIS, isMcp, KIND_FIELDS, kindProblem, logHashSync, needsPrecheck, oneLine, randomToken, READ_ONLY, RUNTIME_VALUES, tplEmpty, tplParams, TOKEN_RE, validatePrecheck, validateTpl, verifyChain,
   type ConnKind, type ParamType, type Tpl,
 } from './logic'
 import type { ActionRequest, CatalogAction, Change, Connection, LogEntry, RequestItem, Risk, Settings, SettingsView, Trigger } from './types'
@@ -97,7 +97,10 @@ export const catById = (id: string | null | undefined) => (id ? catalogStore.get
 export const connById = (id: string | null | undefined) => (id ? connectorsStore.get().find((c) => c.id === id) : undefined)
 export const writeToolsOf = (c: Connector) => c.tools.filter((t) => t.enabled && t.access === 'write').map((t) => t.name)
 export const connView = (c: Connector): Connection => ({ id: c.id, name: c.name, enabled: c.enabled, kind: c.kind, write_tools: writeToolsOf(c), read_only: writeToolsOf(c).length === 0 })
-export const paramsOf = (c: Pick<StoredCat, 'run' | 'rollback' | 'verify'>) => tplParams(c.run, c.rollback, c.verify)
+// A browser that kept the sample data of an earlier build has catalog rows without a check before: read them as none.
+const preOf = (c: Pick<StoredCat, 'precheck'>): Tpl => c.precheck ?? EMPTY_TPL
+const refuseOf = (c: Pick<StoredCat, 'precheck_refuse'>): string[] => c.precheck_refuse ?? []
+export const paramsOf = (c: Pick<StoredCat, 'run' | 'rollback' | 'verify' | 'precheck'>) => tplParams(c.run, c.rollback, c.verify, preOf(c))
 export const reversible = (c: Pick<StoredCat, 'rollback'>) => !tplEmpty(c.rollback)
 
 /** The action sends an API call, a command, or an MCP tool call; the connection kind must be able to carry it. */
@@ -107,6 +110,9 @@ function fits(c: StoredCat, conn: Connector): string | null {
   if (conn.kind === 'ssh') return cli ? null : 'This action is an API call. Choose an API connection, not an SSH one.'
   return api ? null : 'This action is an SSH command. Choose an SSH connection.'
 }
+/** Values read from the device while an action runs: Vedette cannot read them yet (a later version, action-templates 12.1). Only {expiry_s}, the time to live, is worked out without the device. */
+const NEEDS_DEVICE_READ = RUNTIME_VALUES.filter((r) => r !== 'expiry_s')
+export const runtimeNeeded = (c: Pick<StoredCat, 'run' | 'rollback' | 'verify' | 'precheck'>) => NEEDS_DEVICE_READ.find((r) => [c.run, c.rollback, c.verify, preOf(c)].some((t) => [t.cli, t.path, t.body, t.headers, t.expect ?? ''].some((x) => x.includes(`{${r}}`))))
 /** null = the action can run now; otherwise why not (plain words). */
 export function unavailable(c: StoredCat): string | null {
   if (c.kind === 'box') return null
@@ -115,21 +121,26 @@ export function unavailable(c: StoredCat): string | null {
   if (!conn.enabled) return `The connection ${conn.name} is turned off in Settings → Connections.`
   if (!writeToolsOf(conn).length) return `${conn.name}: ${READ_ONLY}.`
   if (c.tool && !writeToolsOf(conn).includes(c.tool)) return `The write tool ${c.tool} on ${conn.name} is turned off or missing.`
-  return fits(c, conn)
+  const wrong = fits(c, conn)
+  if (wrong) return wrong
+  const rv = runtimeNeeded(c)
+  if (rv) return `Not available yet: this action needs a value that is read from the device while it runs ({${rv}}), and Vedette cannot read that yet.`
+  if (needsPrecheck(c.run, c.rollback, c.verify, preOf(c), refuseOf(c))) return 'Not available: an action that names a port needs a check before it, with at least one text that makes it refuse (so a trunk or uplink port is never touched).'
+  return null
 }
 export const catView = (c: StoredCat): CatalogAction => {
   const conn = connById(c.connection_id)
-  return { ...c, connection: conn?.name ?? null, connection_kind: conn?.kind ?? null, params: paramsOf(c), reversible: reversible(c), device: c.kind === 'device', available: unavailable(c) === null, unavailable_reason: unavailable(c) }
+  return { ...c, precheck: preOf(c), precheck_refuse: refuseOf(c), connection: conn?.name ?? null, connection_kind: conn?.kind ?? null, params: paramsOf(c), reversible: reversible(c), device: c.kind === 'device', available: unavailable(c) === null, unavailable_reason: unavailable(c) }
 }
 
 const TEXT_RE = /^[A-Za-z0-9 _.,:'()/-]{1,80}$/
 export { TEXT_RE }
 export interface CatErr { error: string; code: string }
-export type CatClean = { name: string; description: string; connection_id: string; tool: string | null; rollback_tool: string | null; run: Tpl; rollback: Tpl; verify: Tpl; risk: Risk; enabled: boolean; ai_may_propose: boolean }
+export type CatClean = { name: string; description: string; connection_id: string; tool: string | null; rollback_tool: string | null; run: Tpl; rollback: Tpl; verify: Tpl; precheck: Tpl; precheck_refuse: string[]; risk: Risk; enabled: boolean; ai_may_propose: boolean }
 /** Validate custom catalog fields (everything the client may set). The fields must fit the kind of the chosen connection. */
 export function checkCatalog(b: Record<string, unknown>): CatErr | CatClean {
   const bad = (error: string, code = 'invalid'): CatErr => ({ error, code })
-  const tpl = (v: unknown): Tpl => { const o = (v ?? {}) as Partial<Tpl>; const s = (x: unknown) => (typeof x === 'string' ? x : ''); return { cli: s(o.cli), method: (['', 'GET', 'PUT', 'PATCH', 'POST', 'DELETE'] as const).find((m) => m === o.method) ?? '', path: s(o.path), body: s(o.body), headers: s(o.headers) } }
+  const tpl = (v: unknown): Tpl => { const o = (v ?? {}) as Partial<Tpl>; const s = (x: unknown) => (typeof x === 'string' ? x : ''); return { cli: s(o.cli), method: (['', 'GET', 'PUT', 'PATCH', 'POST', 'DELETE'] as const).find((m) => m === o.method) ?? '', path: s(o.path), body: s(o.body), headers: s(o.headers), expect: s(o.expect) } }
   if (typeof b.name !== 'string' || !TEXT_RE.test(b.name)) return bad('Name: 1 to 80 letters, numbers, spaces and . , : \' ( ) / -')
   if (typeof b.description !== 'string' || b.description.length > 300) return bad('Description: up to 300 characters.')
   if (b.risk !== 'low' && b.risk !== 'medium' && b.risk !== 'high') return bad('Risk must be low, medium or high.')
@@ -139,7 +150,10 @@ export function checkCatalog(b: Record<string, unknown>): CatErr | CatClean {
   if (!conn) return bad('Choose one of your connections (Settings → Connections).')
   if (!writeToolsOf(conn).length) return bad(`${conn.name}: ${READ_ONLY}.`, 'read_only')
   const kind = conn.kind as ConnKind
-  const run = tpl(b.run), rollback = tpl(b.rollback), verify = tpl(b.verify)
+  const run = tpl(b.run), rollback = tpl(b.rollback), verify = tpl(b.verify), precheck = tpl(b.precheck)
+  const refuse = Array.isArray(b.precheck_refuse) && b.precheck_refuse.every((x) => typeof x === 'string') ? (b.precheck_refuse as string[]) : b.precheck_refuse == null ? [] : null
+  if (refuse === null) return bad('Check before: the texts that make it refuse must be a list of up to 5 texts.')
+  for (const [what, t] of [['Action', run], ['Rollback', rollback], ['Check before', precheck]] as const) if (t.expect) return bad(`${what}: the text to look for belongs to the read-back only.`)
   let tool: string | null = null, rollback_tool: string | null = null
   for (const [what, t] of [['Action', run], ['Rollback', rollback], ['Read-back', verify]] as const) {
     if (what === 'Read-back' && tplEmpty(t)) continue
@@ -152,16 +166,18 @@ export function checkCatalog(b: Record<string, unknown>): CatErr | CatClean {
     const mcp = (t: Tpl, what: string) => validateTpl({ ...t, method: 'POST', path: '/mcp' }, what)
     const e = mcp(run, 'Action') ?? mcp(rollback, 'Rollback'); if (e) return bad(e)
     if (!tplEmpty(verify)) return bad('Read-back: not available for MCP servers.')
+    const pe = validatePrecheck(precheck, refuse, kind); if (pe) return bad(pe)
   } else {
     if (b.tool != null && b.tool !== '') return bad('A tool is only chosen for an MCP server.')
-    const e = validateTpl(run, 'Action') ?? validateTpl(rollback, 'Rollback') ?? (tplEmpty(verify) ? null : validateTpl(verify, 'Read-back')); if (e) return bad(e)
+    const e = validateTpl(run, 'Action') ?? validateTpl(rollback, 'Rollback') ?? (tplEmpty(verify) ? null : validateTpl(verify, 'Read-back')) ?? validatePrecheck(precheck, refuse, kind); if (e) return bad(e)
   }
+  if (needsPrecheck(run, rollback, verify, precheck, refuse)) return bad(isMcp(kind) ? 'Action: {interface} needs a check before it, and an MCP server cannot run one yet.' : 'Action: a command that names a port ({interface}) needs a check before it, with at least one text that makes it refuse, so a trunk or uplink port is never touched.')
   const used = tplParams(run)
   if (!used.length) return bad('Action: use at least one placeholder, for example {ip}, {domain} or {interface}.')
-  const extra = tplParams(rollback, verify).filter((p) => !used.includes(p))
+  const extra = tplParams(rollback, verify, precheck).filter((p) => !used.includes(p))
   if (extra.length) return bad(`Rollback or read-back uses {${extra[0]}}, which the action does not have, so it could not be filled in.`)
   if (!KIND_FIELDS[kind]) return bad('Unknown connection kind.')
-  return { name: b.name, description: b.description, connection_id: conn.id, tool, rollback_tool, run, rollback, verify, risk: b.risk, enabled: b.enabled, ai_may_propose: b.ai_may_propose }
+  return { name: b.name, description: b.description, connection_id: conn.id, tool, rollback_tool, run, rollback, verify, precheck, precheck_refuse: refuse, risk: b.risk, enabled: b.enabled, ai_may_propose: b.ai_may_propose }
 }
 
 /** Exact change for one catalog action and validated values. Each value is escaped for the place it lands in. */
@@ -278,7 +294,7 @@ export function newRequest(o: ReqInit, notify: boolean): ActionRequest {
   const sending = notify ? rawChans().filter((c) => c.configured && c.enabled && s.approval_channels.includes(c.type) && chanReady(c)) : []
   for (const c of sending.filter((x) => LINK_TYPES.includes(x.type))) {
     for (const ap of approversOf(c).filter((x) => userCanApprove(x.user_id))) {
-      tokensStore.update((l) => [...l, { token: randomToken(), action_id: id, user_id: ap.user_id, address: ap.address, channel: c.type, expires_at: new Date(now + TOKEN_MIN * 60e3).toISOString(), used_at: null }])
+      tokensStore.update((l) => [...l, { token: approvalToken(), action_id: id, user_id: ap.user_id, address: ap.address, channel: c.type, expires_at: new Date(now + TOKEN_MIN * 60e3).toISOString(), used_at: null }])
     }
   }
   const req = requiredApprovals(o.items)
@@ -317,7 +333,10 @@ function gate(a: ActionRequest, i: RequestItem): Response | null {
   if (device && !settings().execution) return refuse(409, 'execution_off', OFF_MSG, a.id)
   const cat = catById(i.action_id)
   if (!cat || !cat.enabled) return refuse(403, 'tool_not_allowed', `The action "${cat?.name ?? i.tool}" is not enabled in the action catalog (Settings, AI response).`, a.id)
+  // A request made from a sample plan names the write tool of the sample connection (a built-in HTTP action has no tool of its own, D-94): that tool must still be on.
+  const conn = connById(i.connector_id), planTool = device && i.tool !== cat.id && i.tool !== cat.tool ? i.tool : null
   const why = unavailable(cat) ?? (device && cat.connection_id !== i.connector_id ? 'The connection for this action was changed after the request was made.' : null)
+    ?? (planTool && conn && !writeToolsOf(conn).includes(planTool) ? `The write tool ${planTool} on ${conn.name} is turned off or missing.` : null)
   if (why) return refuse(409, 'tool_unavailable', why, a.id)
   return null
 }

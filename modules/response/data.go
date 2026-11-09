@@ -47,10 +47,13 @@ type builtinDef struct {
 	Run          Tpl    `json:"run"`
 	Rollback     Tpl    `json:"rollback"`
 	Verify       Tpl    `json:"verify"`
-	Risk         Risk   `json:"risk"`
-	Enabled      bool   `json:"enabled"`
-	AIMayPropose bool   `json:"ai_may_propose"`
-	Unverified   bool   `json:"unverified"`
+	// Precheck and PrecheckRefuse are the check before the action (D-95): a read-only template and the texts that make it refuse.
+	Precheck       Tpl      `json:"precheck"`
+	PrecheckRefuse []string `json:"precheck_refuse"`
+	Risk           Risk     `json:"risk"`
+	Enabled        bool     `json:"enabled"`
+	AIMayPropose   bool     `json:"ai_may_propose"`
+	Unverified     bool     `json:"unverified"`
 }
 
 type triggerDef struct {
@@ -131,11 +134,18 @@ func (s *Service) loadData() error {
 }
 
 // checkBuiltinTpls validates the templates of a library action the way a customer's would be. A box action may use {text}
-// (a message), and its commands are display text for the log: they are never sent to a shell.
+// (a message), and its commands are display text for the log: they are never sent to a shell. The read-back text belongs to the
+// read-back only, the check before and its refusal texts go together, and a device action that names a port has them (D-95).
 func checkBuiltinTpls(a builtinDef) error {
 	for what, t := range map[string]Tpl{"run": a.Run, "rollback": a.Rollback, "verify": a.Verify} {
 		if what != "run" && t.Empty() {
+			if t.Expect != "" {
+				return fmt.Errorf("response: action-templates.json: %s %s has a text to look for and no read-back", a.ID, what)
+			}
 			continue
+		}
+		if what != "verify" && t.Expect != "" {
+			return fmt.Errorf("response: action-templates.json: %s %s: the text to look for belongs to the read-back only", a.ID, what)
 		}
 		if a.Kind == "box" {
 			t.CLI = strings.ReplaceAll(t.CLI, "{text}", "{name}")
@@ -143,6 +153,15 @@ func checkBuiltinTpls(a builtinDef) error {
 		if why := ValidateTpl(t, a.ID+" "+what); why != "" {
 			return fmt.Errorf("response: action-templates.json: %s", why)
 		}
+	}
+	if why := precheckProblem(a.Precheck, a.PrecheckRefuse); why != "" {
+		return fmt.Errorf("response: action-templates.json: %s: %s", a.ID, why)
+	}
+	if a.Kind == "box" && !a.Precheck.Empty() {
+		return fmt.Errorf("response: action-templates.json: %s: a box action has no check before", a.ID)
+	}
+	if a.Kind == "device" && needsPrecheck(a.Run, a.Rollback, a.Verify, a.Precheck, a.PrecheckRefuse) {
+		return fmt.Errorf("response: action-templates.json: %s names a port and has no check before with a refusal text", a.ID)
 	}
 	return nil
 }
@@ -175,13 +194,14 @@ func (s *Service) seedCatalog(ctx context.Context, tx *sql.Tx) error {
 		if a.Unverified {
 			desc += " " + s.catNote + "."
 		}
-		run, rollback, verify := mustJSON(a.Run), mustJSON(a.Rollback), mustJSON(a.Verify)
-		_, err := tx.ExecContext(ctx, `INSERT INTO resp_catalog (id, builtin, pack, kind, name, description, connection_id, tool, rollback_tool, run, rollback, verify, risk, enabled, ai_may_propose, position)
-VALUES (?, 1, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		run, rollback, verify, pre, refuse := mustJSON(a.Run), mustJSON(a.Rollback), mustJSON(a.Verify), mustJSON(a.Precheck), mustJSON(nonNilStrings(a.PrecheckRefuse))
+		_, err := tx.ExecContext(ctx, `INSERT INTO resp_catalog (id, builtin, pack, kind, name, description, connection_id, tool, rollback_tool, run, rollback, verify, precheck, precheck_refuse, risk, enabled, ai_may_propose, position)
+VALUES (?, 1, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (id) DO UPDATE SET pack = excluded.pack, kind = excluded.kind, name = excluded.name, description = excluded.description,
-  tool = excluded.tool, rollback_tool = excluded.rollback_tool, run = excluded.run, rollback = excluded.rollback, verify = excluded.verify, risk = excluded.risk, position = excluded.position
+  tool = excluded.tool, rollback_tool = excluded.rollback_tool, run = excluded.run, rollback = excluded.rollback, verify = excluded.verify,
+  precheck = excluded.precheck, precheck_refuse = excluded.precheck_refuse, risk = excluded.risk, position = excluded.position
 WHERE resp_catalog.builtin = 1`,
-			a.ID, a.Pack, a.Kind, a.Name, desc, nullable(a.Tool), nullable(a.RollbackTool), run, rollback, verify, string(a.Risk), boolInt(a.Enabled), boolInt(a.AIMayPropose), i)
+			a.ID, a.Pack, a.Kind, a.Name, desc, nullable(a.Tool), nullable(a.RollbackTool), run, rollback, verify, pre, refuse, string(a.Risk), boolInt(a.Enabled), boolInt(a.AIMayPropose), i)
 		if err != nil {
 			return fmt.Errorf("response: seed action %s: %w", a.ID, err)
 		}

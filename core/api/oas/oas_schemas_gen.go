@@ -84352,6 +84352,98 @@ func (o OptResponsePostResponseActionsIDRejectReqRemember) Or(d ResponsePostResp
 	return d
 }
 
+// NewOptResponsePostResponseCatalogReqPrecheck returns new OptResponsePostResponseCatalogReqPrecheck with value set to v.
+func NewOptResponsePostResponseCatalogReqPrecheck(v ResponsePostResponseCatalogReqPrecheck) OptResponsePostResponseCatalogReqPrecheck {
+	return OptResponsePostResponseCatalogReqPrecheck{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptResponsePostResponseCatalogReqPrecheck is optional ResponsePostResponseCatalogReqPrecheck.
+type OptResponsePostResponseCatalogReqPrecheck struct {
+	Value ResponsePostResponseCatalogReqPrecheck
+	Set   bool
+}
+
+// IsSet returns true if OptResponsePostResponseCatalogReqPrecheck was set.
+func (o OptResponsePostResponseCatalogReqPrecheck) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptResponsePostResponseCatalogReqPrecheck) Reset() {
+	var v ResponsePostResponseCatalogReqPrecheck
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptResponsePostResponseCatalogReqPrecheck) SetTo(v ResponsePostResponseCatalogReqPrecheck) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptResponsePostResponseCatalogReqPrecheck) Get() (v ResponsePostResponseCatalogReqPrecheck, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptResponsePostResponseCatalogReqPrecheck) Or(d ResponsePostResponseCatalogReqPrecheck) ResponsePostResponseCatalogReqPrecheck {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptResponsePutResponseCatalogIDReqPrecheck returns new OptResponsePutResponseCatalogIDReqPrecheck with value set to v.
+func NewOptResponsePutResponseCatalogIDReqPrecheck(v ResponsePutResponseCatalogIDReqPrecheck) OptResponsePutResponseCatalogIDReqPrecheck {
+	return OptResponsePutResponseCatalogIDReqPrecheck{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptResponsePutResponseCatalogIDReqPrecheck is optional ResponsePutResponseCatalogIDReqPrecheck.
+type OptResponsePutResponseCatalogIDReqPrecheck struct {
+	Value ResponsePutResponseCatalogIDReqPrecheck
+	Set   bool
+}
+
+// IsSet returns true if OptResponsePutResponseCatalogIDReqPrecheck was set.
+func (o OptResponsePutResponseCatalogIDReqPrecheck) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptResponsePutResponseCatalogIDReqPrecheck) Reset() {
+	var v ResponsePutResponseCatalogIDReqPrecheck
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptResponsePutResponseCatalogIDReqPrecheck) SetTo(v ResponsePutResponseCatalogIDReqPrecheck) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptResponsePutResponseCatalogIDReqPrecheck) Get() (v ResponsePutResponseCatalogIDReqPrecheck, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptResponsePutResponseCatalogIDReqPrecheck) Or(d ResponsePutResponseCatalogIDReqPrecheck) ResponsePutResponseCatalogIDReqPrecheck {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptResponsePutResponseCatalogIDReqRisk returns new OptResponsePutResponseCatalogIDReqRisk with value set to v.
 func NewOptResponsePutResponseCatalogIDReqRisk(v ResponsePutResponseCatalogIDReqRisk) OptResponsePutResponseCatalogIDReqRisk {
 	return OptResponsePutResponseCatalogIDReqRisk{
@@ -95222,6 +95314,11 @@ type ResponseGetResponseCatalogOKItemsItem struct {
 	Pack    string `json:"pack"`
 	// Placeholders the templates use.
 	Params []ResponseGetResponseCatalogOKItemsItemParamsItem `json:"params"`
+	// Check before: a read-only command or GET that runs right before the action; empty when there is none.
+	Precheck ResponseGetResponseCatalogOKItemsItemPrecheck `json:"precheck"`
+	// Texts that make the check before refuse: when its output contains one, nothing is written. Needed
+	// (at least one) for any device action that uses {interface}.
+	PrecheckRefuse []string `json:"precheck_refuse"`
 	// Has a rollback step.
 	Reversible   bool                                          `json:"reversible"`
 	Risk         ResponseGetResponseCatalogOKItemsItemRisk     `json:"risk"`
@@ -95297,6 +95394,16 @@ func (s *ResponseGetResponseCatalogOKItemsItem) GetPack() string {
 // GetParams returns the value of Params.
 func (s *ResponseGetResponseCatalogOKItemsItem) GetParams() []ResponseGetResponseCatalogOKItemsItemParamsItem {
 	return s.Params
+}
+
+// GetPrecheck returns the value of Precheck.
+func (s *ResponseGetResponseCatalogOKItemsItem) GetPrecheck() ResponseGetResponseCatalogOKItemsItemPrecheck {
+	return s.Precheck
+}
+
+// GetPrecheckRefuse returns the value of PrecheckRefuse.
+func (s *ResponseGetResponseCatalogOKItemsItem) GetPrecheckRefuse() []string {
+	return s.PrecheckRefuse
 }
 
 // GetReversible returns the value of Reversible.
@@ -95402,6 +95509,16 @@ func (s *ResponseGetResponseCatalogOKItemsItem) SetPack(val string) {
 // SetParams sets the value of Params.
 func (s *ResponseGetResponseCatalogOKItemsItem) SetParams(val []ResponseGetResponseCatalogOKItemsItemParamsItem) {
 	s.Params = val
+}
+
+// SetPrecheck sets the value of Precheck.
+func (s *ResponseGetResponseCatalogOKItemsItem) SetPrecheck(val ResponseGetResponseCatalogOKItemsItemPrecheck) {
+	s.Precheck = val
+}
+
+// SetPrecheckRefuse sets the value of PrecheckRefuse.
+func (s *ResponseGetResponseCatalogOKItemsItem) SetPrecheckRefuse(val []string) {
+	s.PrecheckRefuse = val
 }
 
 // SetReversible sets the value of Reversible.
@@ -95610,6 +95727,156 @@ func (s *ResponseGetResponseCatalogOKItemsItemParamsItem) UnmarshalText(data []b
 	}
 }
 
+// Check before: a read-only command or GET that runs right before the action; empty when there is none.
+type ResponseGetResponseCatalogOKItemsItemPrecheck struct {
+	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
+	Body string `json:"body"`
+	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
+	Cli string `json:"cli"`
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
+	Headers string                                              `json:"headers"`
+	Method  ResponseGetResponseCatalogOKItemsItemPrecheckMethod `json:"method"`
+	// API path under the connection address, starts with /.
+	Path string `json:"path"`
+}
+
+// GetBody returns the value of Body.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheck) GetBody() string {
+	return s.Body
+}
+
+// GetCli returns the value of Cli.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheck) GetCli() string {
+	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheck) GetExpect() OptString {
+	return s.Expect
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheck) GetHeaders() string {
+	return s.Headers
+}
+
+// GetMethod returns the value of Method.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheck) GetMethod() ResponseGetResponseCatalogOKItemsItemPrecheckMethod {
+	return s.Method
+}
+
+// GetPath returns the value of Path.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheck) GetPath() string {
+	return s.Path
+}
+
+// SetBody sets the value of Body.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheck) SetBody(val string) {
+	s.Body = val
+}
+
+// SetCli sets the value of Cli.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheck) SetCli(val string) {
+	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheck) SetExpect(val OptString) {
+	s.Expect = val
+}
+
+// SetHeaders sets the value of Headers.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheck) SetHeaders(val string) {
+	s.Headers = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheck) SetMethod(val ResponseGetResponseCatalogOKItemsItemPrecheckMethod) {
+	s.Method = val
+}
+
+// SetPath sets the value of Path.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheck) SetPath(val string) {
+	s.Path = val
+}
+
+type ResponseGetResponseCatalogOKItemsItemPrecheckMethod string
+
+const (
+	ResponseGetResponseCatalogOKItemsItemPrecheckMethodEmpty  ResponseGetResponseCatalogOKItemsItemPrecheckMethod = ""
+	ResponseGetResponseCatalogOKItemsItemPrecheckMethodGET    ResponseGetResponseCatalogOKItemsItemPrecheckMethod = "GET"
+	ResponseGetResponseCatalogOKItemsItemPrecheckMethodPUT    ResponseGetResponseCatalogOKItemsItemPrecheckMethod = "PUT"
+	ResponseGetResponseCatalogOKItemsItemPrecheckMethodPATCH  ResponseGetResponseCatalogOKItemsItemPrecheckMethod = "PATCH"
+	ResponseGetResponseCatalogOKItemsItemPrecheckMethodPOST   ResponseGetResponseCatalogOKItemsItemPrecheckMethod = "POST"
+	ResponseGetResponseCatalogOKItemsItemPrecheckMethodDELETE ResponseGetResponseCatalogOKItemsItemPrecheckMethod = "DELETE"
+)
+
+// AllValues returns all ResponseGetResponseCatalogOKItemsItemPrecheckMethod values.
+func (ResponseGetResponseCatalogOKItemsItemPrecheckMethod) AllValues() []ResponseGetResponseCatalogOKItemsItemPrecheckMethod {
+	return []ResponseGetResponseCatalogOKItemsItemPrecheckMethod{
+		ResponseGetResponseCatalogOKItemsItemPrecheckMethodEmpty,
+		ResponseGetResponseCatalogOKItemsItemPrecheckMethodGET,
+		ResponseGetResponseCatalogOKItemsItemPrecheckMethodPUT,
+		ResponseGetResponseCatalogOKItemsItemPrecheckMethodPATCH,
+		ResponseGetResponseCatalogOKItemsItemPrecheckMethodPOST,
+		ResponseGetResponseCatalogOKItemsItemPrecheckMethodDELETE,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponseGetResponseCatalogOKItemsItemPrecheckMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponseGetResponseCatalogOKItemsItemPrecheckMethodEmpty:
+		return []byte(s), nil
+	case ResponseGetResponseCatalogOKItemsItemPrecheckMethodGET:
+		return []byte(s), nil
+	case ResponseGetResponseCatalogOKItemsItemPrecheckMethodPUT:
+		return []byte(s), nil
+	case ResponseGetResponseCatalogOKItemsItemPrecheckMethodPATCH:
+		return []byte(s), nil
+	case ResponseGetResponseCatalogOKItemsItemPrecheckMethodPOST:
+		return []byte(s), nil
+	case ResponseGetResponseCatalogOKItemsItemPrecheckMethodDELETE:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheckMethod) UnmarshalText(data []byte) error {
+	switch ResponseGetResponseCatalogOKItemsItemPrecheckMethod(data) {
+	case ResponseGetResponseCatalogOKItemsItemPrecheckMethodEmpty:
+		*s = ResponseGetResponseCatalogOKItemsItemPrecheckMethodEmpty
+		return nil
+	case ResponseGetResponseCatalogOKItemsItemPrecheckMethodGET:
+		*s = ResponseGetResponseCatalogOKItemsItemPrecheckMethodGET
+		return nil
+	case ResponseGetResponseCatalogOKItemsItemPrecheckMethodPUT:
+		*s = ResponseGetResponseCatalogOKItemsItemPrecheckMethodPUT
+		return nil
+	case ResponseGetResponseCatalogOKItemsItemPrecheckMethodPATCH:
+		*s = ResponseGetResponseCatalogOKItemsItemPrecheckMethodPATCH
+		return nil
+	case ResponseGetResponseCatalogOKItemsItemPrecheckMethodPOST:
+		*s = ResponseGetResponseCatalogOKItemsItemPrecheckMethodPOST
+		return nil
+	case ResponseGetResponseCatalogOKItemsItemPrecheckMethodDELETE:
+		*s = ResponseGetResponseCatalogOKItemsItemPrecheckMethodDELETE
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ResponseGetResponseCatalogOKItemsItemRisk string
 
 const (
@@ -95666,7 +95933,12 @@ type ResponseGetResponseCatalogOKItemsItemRollback struct {
 	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
 	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
-	// HTTP headers, one "Name: value" per line, may be empty.
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
 	Headers string                                              `json:"headers"`
 	Method  ResponseGetResponseCatalogOKItemsItemRollbackMethod `json:"method"`
 	// API path under the connection address, starts with /.
@@ -95681,6 +95953,11 @@ func (s *ResponseGetResponseCatalogOKItemsItemRollback) GetBody() string {
 // GetCli returns the value of Cli.
 func (s *ResponseGetResponseCatalogOKItemsItemRollback) GetCli() string {
 	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponseGetResponseCatalogOKItemsItemRollback) GetExpect() OptString {
+	return s.Expect
 }
 
 // GetHeaders returns the value of Headers.
@@ -95706,6 +95983,11 @@ func (s *ResponseGetResponseCatalogOKItemsItemRollback) SetBody(val string) {
 // SetCli sets the value of Cli.
 func (s *ResponseGetResponseCatalogOKItemsItemRollback) SetCli(val string) {
 	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponseGetResponseCatalogOKItemsItemRollback) SetExpect(val OptString) {
+	s.Expect = val
 }
 
 // SetHeaders sets the value of Headers.
@@ -95800,7 +96082,12 @@ type ResponseGetResponseCatalogOKItemsItemRun struct {
 	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
 	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
-	// HTTP headers, one "Name: value" per line, may be empty.
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
 	Headers string                                         `json:"headers"`
 	Method  ResponseGetResponseCatalogOKItemsItemRunMethod `json:"method"`
 	// API path under the connection address, starts with /.
@@ -95815,6 +96102,11 @@ func (s *ResponseGetResponseCatalogOKItemsItemRun) GetBody() string {
 // GetCli returns the value of Cli.
 func (s *ResponseGetResponseCatalogOKItemsItemRun) GetCli() string {
 	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponseGetResponseCatalogOKItemsItemRun) GetExpect() OptString {
+	return s.Expect
 }
 
 // GetHeaders returns the value of Headers.
@@ -95840,6 +96132,11 @@ func (s *ResponseGetResponseCatalogOKItemsItemRun) SetBody(val string) {
 // SetCli sets the value of Cli.
 func (s *ResponseGetResponseCatalogOKItemsItemRun) SetCli(val string) {
 	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponseGetResponseCatalogOKItemsItemRun) SetExpect(val OptString) {
+	s.Expect = val
 }
 
 // SetHeaders sets the value of Headers.
@@ -95934,7 +96231,12 @@ type ResponseGetResponseCatalogOKItemsItemVerify struct {
 	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
 	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
-	// HTTP headers, one "Name: value" per line, may be empty.
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
 	Headers string                                            `json:"headers"`
 	Method  ResponseGetResponseCatalogOKItemsItemVerifyMethod `json:"method"`
 	// API path under the connection address, starts with /.
@@ -95949,6 +96251,11 @@ func (s *ResponseGetResponseCatalogOKItemsItemVerify) GetBody() string {
 // GetCli returns the value of Cli.
 func (s *ResponseGetResponseCatalogOKItemsItemVerify) GetCli() string {
 	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponseGetResponseCatalogOKItemsItemVerify) GetExpect() OptString {
+	return s.Expect
 }
 
 // GetHeaders returns the value of Headers.
@@ -95974,6 +96281,11 @@ func (s *ResponseGetResponseCatalogOKItemsItemVerify) SetBody(val string) {
 // SetCli sets the value of Cli.
 func (s *ResponseGetResponseCatalogOKItemsItemVerify) SetCli(val string) {
 	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponseGetResponseCatalogOKItemsItemVerify) SetExpect(val OptString) {
+	s.Expect = val
 }
 
 // SetHeaders sets the value of Headers.
@@ -110577,6 +110889,11 @@ type ResponsePostResponseCatalogCreated struct {
 	Pack    string `json:"pack"`
 	// Placeholders the templates use.
 	Params []ResponsePostResponseCatalogCreatedParamsItem `json:"params"`
+	// Check before: a read-only command or GET that runs right before the action; empty when there is none.
+	Precheck ResponsePostResponseCatalogCreatedPrecheck `json:"precheck"`
+	// Texts that make the check before refuse: when its output contains one, nothing is written. Needed
+	// (at least one) for any device action that uses {interface}.
+	PrecheckRefuse []string `json:"precheck_refuse"`
 	// Has a rollback step.
 	Reversible   bool                                       `json:"reversible"`
 	Risk         ResponsePostResponseCatalogCreatedRisk     `json:"risk"`
@@ -110652,6 +110969,16 @@ func (s *ResponsePostResponseCatalogCreated) GetPack() string {
 // GetParams returns the value of Params.
 func (s *ResponsePostResponseCatalogCreated) GetParams() []ResponsePostResponseCatalogCreatedParamsItem {
 	return s.Params
+}
+
+// GetPrecheck returns the value of Precheck.
+func (s *ResponsePostResponseCatalogCreated) GetPrecheck() ResponsePostResponseCatalogCreatedPrecheck {
+	return s.Precheck
+}
+
+// GetPrecheckRefuse returns the value of PrecheckRefuse.
+func (s *ResponsePostResponseCatalogCreated) GetPrecheckRefuse() []string {
+	return s.PrecheckRefuse
 }
 
 // GetReversible returns the value of Reversible.
@@ -110757,6 +111084,16 @@ func (s *ResponsePostResponseCatalogCreated) SetPack(val string) {
 // SetParams sets the value of Params.
 func (s *ResponsePostResponseCatalogCreated) SetParams(val []ResponsePostResponseCatalogCreatedParamsItem) {
 	s.Params = val
+}
+
+// SetPrecheck sets the value of Precheck.
+func (s *ResponsePostResponseCatalogCreated) SetPrecheck(val ResponsePostResponseCatalogCreatedPrecheck) {
+	s.Precheck = val
+}
+
+// SetPrecheckRefuse sets the value of PrecheckRefuse.
+func (s *ResponsePostResponseCatalogCreated) SetPrecheckRefuse(val []string) {
+	s.PrecheckRefuse = val
 }
 
 // SetReversible sets the value of Reversible.
@@ -110965,6 +111302,156 @@ func (s *ResponsePostResponseCatalogCreatedParamsItem) UnmarshalText(data []byte
 	}
 }
 
+// Check before: a read-only command or GET that runs right before the action; empty when there is none.
+type ResponsePostResponseCatalogCreatedPrecheck struct {
+	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
+	Body string `json:"body"`
+	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
+	Cli string `json:"cli"`
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
+	Headers string                                           `json:"headers"`
+	Method  ResponsePostResponseCatalogCreatedPrecheckMethod `json:"method"`
+	// API path under the connection address, starts with /.
+	Path string `json:"path"`
+}
+
+// GetBody returns the value of Body.
+func (s *ResponsePostResponseCatalogCreatedPrecheck) GetBody() string {
+	return s.Body
+}
+
+// GetCli returns the value of Cli.
+func (s *ResponsePostResponseCatalogCreatedPrecheck) GetCli() string {
+	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponsePostResponseCatalogCreatedPrecheck) GetExpect() OptString {
+	return s.Expect
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseCatalogCreatedPrecheck) GetHeaders() string {
+	return s.Headers
+}
+
+// GetMethod returns the value of Method.
+func (s *ResponsePostResponseCatalogCreatedPrecheck) GetMethod() ResponsePostResponseCatalogCreatedPrecheckMethod {
+	return s.Method
+}
+
+// GetPath returns the value of Path.
+func (s *ResponsePostResponseCatalogCreatedPrecheck) GetPath() string {
+	return s.Path
+}
+
+// SetBody sets the value of Body.
+func (s *ResponsePostResponseCatalogCreatedPrecheck) SetBody(val string) {
+	s.Body = val
+}
+
+// SetCli sets the value of Cli.
+func (s *ResponsePostResponseCatalogCreatedPrecheck) SetCli(val string) {
+	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponsePostResponseCatalogCreatedPrecheck) SetExpect(val OptString) {
+	s.Expect = val
+}
+
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseCatalogCreatedPrecheck) SetHeaders(val string) {
+	s.Headers = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ResponsePostResponseCatalogCreatedPrecheck) SetMethod(val ResponsePostResponseCatalogCreatedPrecheckMethod) {
+	s.Method = val
+}
+
+// SetPath sets the value of Path.
+func (s *ResponsePostResponseCatalogCreatedPrecheck) SetPath(val string) {
+	s.Path = val
+}
+
+type ResponsePostResponseCatalogCreatedPrecheckMethod string
+
+const (
+	ResponsePostResponseCatalogCreatedPrecheckMethodEmpty  ResponsePostResponseCatalogCreatedPrecheckMethod = ""
+	ResponsePostResponseCatalogCreatedPrecheckMethodGET    ResponsePostResponseCatalogCreatedPrecheckMethod = "GET"
+	ResponsePostResponseCatalogCreatedPrecheckMethodPUT    ResponsePostResponseCatalogCreatedPrecheckMethod = "PUT"
+	ResponsePostResponseCatalogCreatedPrecheckMethodPATCH  ResponsePostResponseCatalogCreatedPrecheckMethod = "PATCH"
+	ResponsePostResponseCatalogCreatedPrecheckMethodPOST   ResponsePostResponseCatalogCreatedPrecheckMethod = "POST"
+	ResponsePostResponseCatalogCreatedPrecheckMethodDELETE ResponsePostResponseCatalogCreatedPrecheckMethod = "DELETE"
+)
+
+// AllValues returns all ResponsePostResponseCatalogCreatedPrecheckMethod values.
+func (ResponsePostResponseCatalogCreatedPrecheckMethod) AllValues() []ResponsePostResponseCatalogCreatedPrecheckMethod {
+	return []ResponsePostResponseCatalogCreatedPrecheckMethod{
+		ResponsePostResponseCatalogCreatedPrecheckMethodEmpty,
+		ResponsePostResponseCatalogCreatedPrecheckMethodGET,
+		ResponsePostResponseCatalogCreatedPrecheckMethodPUT,
+		ResponsePostResponseCatalogCreatedPrecheckMethodPATCH,
+		ResponsePostResponseCatalogCreatedPrecheckMethodPOST,
+		ResponsePostResponseCatalogCreatedPrecheckMethodDELETE,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponsePostResponseCatalogCreatedPrecheckMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponsePostResponseCatalogCreatedPrecheckMethodEmpty:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogCreatedPrecheckMethodGET:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogCreatedPrecheckMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogCreatedPrecheckMethodPATCH:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogCreatedPrecheckMethodPOST:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogCreatedPrecheckMethodDELETE:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponsePostResponseCatalogCreatedPrecheckMethod) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseCatalogCreatedPrecheckMethod(data) {
+	case ResponsePostResponseCatalogCreatedPrecheckMethodEmpty:
+		*s = ResponsePostResponseCatalogCreatedPrecheckMethodEmpty
+		return nil
+	case ResponsePostResponseCatalogCreatedPrecheckMethodGET:
+		*s = ResponsePostResponseCatalogCreatedPrecheckMethodGET
+		return nil
+	case ResponsePostResponseCatalogCreatedPrecheckMethodPUT:
+		*s = ResponsePostResponseCatalogCreatedPrecheckMethodPUT
+		return nil
+	case ResponsePostResponseCatalogCreatedPrecheckMethodPATCH:
+		*s = ResponsePostResponseCatalogCreatedPrecheckMethodPATCH
+		return nil
+	case ResponsePostResponseCatalogCreatedPrecheckMethodPOST:
+		*s = ResponsePostResponseCatalogCreatedPrecheckMethodPOST
+		return nil
+	case ResponsePostResponseCatalogCreatedPrecheckMethodDELETE:
+		*s = ResponsePostResponseCatalogCreatedPrecheckMethodDELETE
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ResponsePostResponseCatalogCreatedRisk string
 
 const (
@@ -111021,7 +111508,12 @@ type ResponsePostResponseCatalogCreatedRollback struct {
 	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
 	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
-	// HTTP headers, one "Name: value" per line, may be empty.
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
 	Headers string                                           `json:"headers"`
 	Method  ResponsePostResponseCatalogCreatedRollbackMethod `json:"method"`
 	// API path under the connection address, starts with /.
@@ -111036,6 +111528,11 @@ func (s *ResponsePostResponseCatalogCreatedRollback) GetBody() string {
 // GetCli returns the value of Cli.
 func (s *ResponsePostResponseCatalogCreatedRollback) GetCli() string {
 	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponsePostResponseCatalogCreatedRollback) GetExpect() OptString {
+	return s.Expect
 }
 
 // GetHeaders returns the value of Headers.
@@ -111061,6 +111558,11 @@ func (s *ResponsePostResponseCatalogCreatedRollback) SetBody(val string) {
 // SetCli sets the value of Cli.
 func (s *ResponsePostResponseCatalogCreatedRollback) SetCli(val string) {
 	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponsePostResponseCatalogCreatedRollback) SetExpect(val OptString) {
+	s.Expect = val
 }
 
 // SetHeaders sets the value of Headers.
@@ -111155,7 +111657,12 @@ type ResponsePostResponseCatalogCreatedRun struct {
 	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
 	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
-	// HTTP headers, one "Name: value" per line, may be empty.
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
 	Headers string                                      `json:"headers"`
 	Method  ResponsePostResponseCatalogCreatedRunMethod `json:"method"`
 	// API path under the connection address, starts with /.
@@ -111170,6 +111677,11 @@ func (s *ResponsePostResponseCatalogCreatedRun) GetBody() string {
 // GetCli returns the value of Cli.
 func (s *ResponsePostResponseCatalogCreatedRun) GetCli() string {
 	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponsePostResponseCatalogCreatedRun) GetExpect() OptString {
+	return s.Expect
 }
 
 // GetHeaders returns the value of Headers.
@@ -111195,6 +111707,11 @@ func (s *ResponsePostResponseCatalogCreatedRun) SetBody(val string) {
 // SetCli sets the value of Cli.
 func (s *ResponsePostResponseCatalogCreatedRun) SetCli(val string) {
 	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponsePostResponseCatalogCreatedRun) SetExpect(val OptString) {
+	s.Expect = val
 }
 
 // SetHeaders sets the value of Headers.
@@ -111289,7 +111806,12 @@ type ResponsePostResponseCatalogCreatedVerify struct {
 	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
 	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
-	// HTTP headers, one "Name: value" per line, may be empty.
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
 	Headers string                                         `json:"headers"`
 	Method  ResponsePostResponseCatalogCreatedVerifyMethod `json:"method"`
 	// API path under the connection address, starts with /.
@@ -111304,6 +111826,11 @@ func (s *ResponsePostResponseCatalogCreatedVerify) GetBody() string {
 // GetCli returns the value of Cli.
 func (s *ResponsePostResponseCatalogCreatedVerify) GetCli() string {
 	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponsePostResponseCatalogCreatedVerify) GetExpect() OptString {
+	return s.Expect
 }
 
 // GetHeaders returns the value of Headers.
@@ -111329,6 +111856,11 @@ func (s *ResponsePostResponseCatalogCreatedVerify) SetBody(val string) {
 // SetCli sets the value of Cli.
 func (s *ResponsePostResponseCatalogCreatedVerify) SetCli(val string) {
 	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponsePostResponseCatalogCreatedVerify) SetExpect(val OptString) {
+	s.Expect = val
 }
 
 // SetHeaders sets the value of Headers.
@@ -111416,15 +111948,19 @@ func (s *ResponsePostResponseCatalogCreatedVerifyMethod) UnmarshalText(data []by
 }
 
 type ResponsePostResponseCatalogReq struct {
-	AiMayPropose bool                                   `json:"ai_may_propose"`
-	ConnectionID string                                 `json:"connection_id"`
-	Description  string                                 `json:"description"`
-	Enabled      bool                                   `json:"enabled"`
-	Name         string                                 `json:"name"`
-	Risk         ResponsePostResponseCatalogReqRisk     `json:"risk"`
-	Rollback     ResponsePostResponseCatalogReqRollback `json:"rollback"`
-	RollbackTool NilString                              `json:"rollback_tool"`
-	Run          ResponsePostResponseCatalogReqRun      `json:"run"`
+	AiMayPropose bool                                      `json:"ai_may_propose"`
+	ConnectionID string                                    `json:"connection_id"`
+	Description  string                                    `json:"description"`
+	Enabled      bool                                      `json:"enabled"`
+	Name         string                                    `json:"name"`
+	Precheck     OptResponsePostResponseCatalogReqPrecheck `json:"precheck"`
+	// Texts that make the check before refuse: when its output contains one, nothing is written. Needed
+	// (at least one) for any device action that uses {interface}.
+	PrecheckRefuse []string                               `json:"precheck_refuse"`
+	Risk           ResponsePostResponseCatalogReqRisk     `json:"risk"`
+	Rollback       ResponsePostResponseCatalogReqRollback `json:"rollback"`
+	RollbackTool   NilString                              `json:"rollback_tool"`
+	Run            ResponsePostResponseCatalogReqRun      `json:"run"`
 	// MCP server: the write tool to call; other kinds: null.
 	Tool   NilString                            `json:"tool"`
 	Verify ResponsePostResponseCatalogReqVerify `json:"verify"`
@@ -111453,6 +111989,16 @@ func (s *ResponsePostResponseCatalogReq) GetEnabled() bool {
 // GetName returns the value of Name.
 func (s *ResponsePostResponseCatalogReq) GetName() string {
 	return s.Name
+}
+
+// GetPrecheck returns the value of Precheck.
+func (s *ResponsePostResponseCatalogReq) GetPrecheck() OptResponsePostResponseCatalogReqPrecheck {
+	return s.Precheck
+}
+
+// GetPrecheckRefuse returns the value of PrecheckRefuse.
+func (s *ResponsePostResponseCatalogReq) GetPrecheckRefuse() []string {
+	return s.PrecheckRefuse
 }
 
 // GetRisk returns the value of Risk.
@@ -111510,6 +112056,16 @@ func (s *ResponsePostResponseCatalogReq) SetName(val string) {
 	s.Name = val
 }
 
+// SetPrecheck sets the value of Precheck.
+func (s *ResponsePostResponseCatalogReq) SetPrecheck(val OptResponsePostResponseCatalogReqPrecheck) {
+	s.Precheck = val
+}
+
+// SetPrecheckRefuse sets the value of PrecheckRefuse.
+func (s *ResponsePostResponseCatalogReq) SetPrecheckRefuse(val []string) {
+	s.PrecheckRefuse = val
+}
+
 // SetRisk sets the value of Risk.
 func (s *ResponsePostResponseCatalogReq) SetRisk(val ResponsePostResponseCatalogReqRisk) {
 	s.Risk = val
@@ -111538,6 +112094,155 @@ func (s *ResponsePostResponseCatalogReq) SetTool(val NilString) {
 // SetVerify sets the value of Verify.
 func (s *ResponsePostResponseCatalogReq) SetVerify(val ResponsePostResponseCatalogReqVerify) {
 	s.Verify = val
+}
+
+type ResponsePostResponseCatalogReqPrecheck struct {
+	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
+	Body string `json:"body"`
+	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
+	Cli string `json:"cli"`
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
+	Headers string                                       `json:"headers"`
+	Method  ResponsePostResponseCatalogReqPrecheckMethod `json:"method"`
+	// API path under the connection address, starts with /.
+	Path string `json:"path"`
+}
+
+// GetBody returns the value of Body.
+func (s *ResponsePostResponseCatalogReqPrecheck) GetBody() string {
+	return s.Body
+}
+
+// GetCli returns the value of Cli.
+func (s *ResponsePostResponseCatalogReqPrecheck) GetCli() string {
+	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponsePostResponseCatalogReqPrecheck) GetExpect() OptString {
+	return s.Expect
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseCatalogReqPrecheck) GetHeaders() string {
+	return s.Headers
+}
+
+// GetMethod returns the value of Method.
+func (s *ResponsePostResponseCatalogReqPrecheck) GetMethod() ResponsePostResponseCatalogReqPrecheckMethod {
+	return s.Method
+}
+
+// GetPath returns the value of Path.
+func (s *ResponsePostResponseCatalogReqPrecheck) GetPath() string {
+	return s.Path
+}
+
+// SetBody sets the value of Body.
+func (s *ResponsePostResponseCatalogReqPrecheck) SetBody(val string) {
+	s.Body = val
+}
+
+// SetCli sets the value of Cli.
+func (s *ResponsePostResponseCatalogReqPrecheck) SetCli(val string) {
+	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponsePostResponseCatalogReqPrecheck) SetExpect(val OptString) {
+	s.Expect = val
+}
+
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseCatalogReqPrecheck) SetHeaders(val string) {
+	s.Headers = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ResponsePostResponseCatalogReqPrecheck) SetMethod(val ResponsePostResponseCatalogReqPrecheckMethod) {
+	s.Method = val
+}
+
+// SetPath sets the value of Path.
+func (s *ResponsePostResponseCatalogReqPrecheck) SetPath(val string) {
+	s.Path = val
+}
+
+type ResponsePostResponseCatalogReqPrecheckMethod string
+
+const (
+	ResponsePostResponseCatalogReqPrecheckMethodEmpty  ResponsePostResponseCatalogReqPrecheckMethod = ""
+	ResponsePostResponseCatalogReqPrecheckMethodGET    ResponsePostResponseCatalogReqPrecheckMethod = "GET"
+	ResponsePostResponseCatalogReqPrecheckMethodPUT    ResponsePostResponseCatalogReqPrecheckMethod = "PUT"
+	ResponsePostResponseCatalogReqPrecheckMethodPATCH  ResponsePostResponseCatalogReqPrecheckMethod = "PATCH"
+	ResponsePostResponseCatalogReqPrecheckMethodPOST   ResponsePostResponseCatalogReqPrecheckMethod = "POST"
+	ResponsePostResponseCatalogReqPrecheckMethodDELETE ResponsePostResponseCatalogReqPrecheckMethod = "DELETE"
+)
+
+// AllValues returns all ResponsePostResponseCatalogReqPrecheckMethod values.
+func (ResponsePostResponseCatalogReqPrecheckMethod) AllValues() []ResponsePostResponseCatalogReqPrecheckMethod {
+	return []ResponsePostResponseCatalogReqPrecheckMethod{
+		ResponsePostResponseCatalogReqPrecheckMethodEmpty,
+		ResponsePostResponseCatalogReqPrecheckMethodGET,
+		ResponsePostResponseCatalogReqPrecheckMethodPUT,
+		ResponsePostResponseCatalogReqPrecheckMethodPATCH,
+		ResponsePostResponseCatalogReqPrecheckMethodPOST,
+		ResponsePostResponseCatalogReqPrecheckMethodDELETE,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponsePostResponseCatalogReqPrecheckMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponsePostResponseCatalogReqPrecheckMethodEmpty:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogReqPrecheckMethodGET:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogReqPrecheckMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogReqPrecheckMethodPATCH:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogReqPrecheckMethodPOST:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogReqPrecheckMethodDELETE:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponsePostResponseCatalogReqPrecheckMethod) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseCatalogReqPrecheckMethod(data) {
+	case ResponsePostResponseCatalogReqPrecheckMethodEmpty:
+		*s = ResponsePostResponseCatalogReqPrecheckMethodEmpty
+		return nil
+	case ResponsePostResponseCatalogReqPrecheckMethodGET:
+		*s = ResponsePostResponseCatalogReqPrecheckMethodGET
+		return nil
+	case ResponsePostResponseCatalogReqPrecheckMethodPUT:
+		*s = ResponsePostResponseCatalogReqPrecheckMethodPUT
+		return nil
+	case ResponsePostResponseCatalogReqPrecheckMethodPATCH:
+		*s = ResponsePostResponseCatalogReqPrecheckMethodPATCH
+		return nil
+	case ResponsePostResponseCatalogReqPrecheckMethodPOST:
+		*s = ResponsePostResponseCatalogReqPrecheckMethodPOST
+		return nil
+	case ResponsePostResponseCatalogReqPrecheckMethodDELETE:
+		*s = ResponsePostResponseCatalogReqPrecheckMethodDELETE
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ResponsePostResponseCatalogReqRisk string
@@ -111596,7 +112301,12 @@ type ResponsePostResponseCatalogReqRollback struct {
 	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
 	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
-	// HTTP headers, one "Name: value" per line, may be empty.
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
 	Headers string                                       `json:"headers"`
 	Method  ResponsePostResponseCatalogReqRollbackMethod `json:"method"`
 	// API path under the connection address, starts with /.
@@ -111611,6 +112321,11 @@ func (s *ResponsePostResponseCatalogReqRollback) GetBody() string {
 // GetCli returns the value of Cli.
 func (s *ResponsePostResponseCatalogReqRollback) GetCli() string {
 	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponsePostResponseCatalogReqRollback) GetExpect() OptString {
+	return s.Expect
 }
 
 // GetHeaders returns the value of Headers.
@@ -111636,6 +112351,11 @@ func (s *ResponsePostResponseCatalogReqRollback) SetBody(val string) {
 // SetCli sets the value of Cli.
 func (s *ResponsePostResponseCatalogReqRollback) SetCli(val string) {
 	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponsePostResponseCatalogReqRollback) SetExpect(val OptString) {
+	s.Expect = val
 }
 
 // SetHeaders sets the value of Headers.
@@ -111730,7 +112450,12 @@ type ResponsePostResponseCatalogReqRun struct {
 	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
 	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
-	// HTTP headers, one "Name: value" per line, may be empty.
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
 	Headers string                                  `json:"headers"`
 	Method  ResponsePostResponseCatalogReqRunMethod `json:"method"`
 	// API path under the connection address, starts with /.
@@ -111745,6 +112470,11 @@ func (s *ResponsePostResponseCatalogReqRun) GetBody() string {
 // GetCli returns the value of Cli.
 func (s *ResponsePostResponseCatalogReqRun) GetCli() string {
 	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponsePostResponseCatalogReqRun) GetExpect() OptString {
+	return s.Expect
 }
 
 // GetHeaders returns the value of Headers.
@@ -111770,6 +112500,11 @@ func (s *ResponsePostResponseCatalogReqRun) SetBody(val string) {
 // SetCli sets the value of Cli.
 func (s *ResponsePostResponseCatalogReqRun) SetCli(val string) {
 	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponsePostResponseCatalogReqRun) SetExpect(val OptString) {
+	s.Expect = val
 }
 
 // SetHeaders sets the value of Headers.
@@ -111864,7 +112599,12 @@ type ResponsePostResponseCatalogReqVerify struct {
 	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
 	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
-	// HTTP headers, one "Name: value" per line, may be empty.
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
 	Headers string                                     `json:"headers"`
 	Method  ResponsePostResponseCatalogReqVerifyMethod `json:"method"`
 	// API path under the connection address, starts with /.
@@ -111879,6 +112619,11 @@ func (s *ResponsePostResponseCatalogReqVerify) GetBody() string {
 // GetCli returns the value of Cli.
 func (s *ResponsePostResponseCatalogReqVerify) GetCli() string {
 	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponsePostResponseCatalogReqVerify) GetExpect() OptString {
+	return s.Expect
 }
 
 // GetHeaders returns the value of Headers.
@@ -111904,6 +112649,11 @@ func (s *ResponsePostResponseCatalogReqVerify) SetBody(val string) {
 // SetCli sets the value of Cli.
 func (s *ResponsePostResponseCatalogReqVerify) SetCli(val string) {
 	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponsePostResponseCatalogReqVerify) SetExpect(val OptString) {
+	s.Expect = val
 }
 
 // SetHeaders sets the value of Headers.
@@ -116762,6 +117512,11 @@ type ResponsePutResponseCatalogIDOK struct {
 	Pack    string `json:"pack"`
 	// Placeholders the templates use.
 	Params []ResponsePutResponseCatalogIDOKParamsItem `json:"params"`
+	// Check before: a read-only command or GET that runs right before the action; empty when there is none.
+	Precheck ResponsePutResponseCatalogIDOKPrecheck `json:"precheck"`
+	// Texts that make the check before refuse: when its output contains one, nothing is written. Needed
+	// (at least one) for any device action that uses {interface}.
+	PrecheckRefuse []string `json:"precheck_refuse"`
 	// Has a rollback step.
 	Reversible   bool                                   `json:"reversible"`
 	Risk         ResponsePutResponseCatalogIDOKRisk     `json:"risk"`
@@ -116837,6 +117592,16 @@ func (s *ResponsePutResponseCatalogIDOK) GetPack() string {
 // GetParams returns the value of Params.
 func (s *ResponsePutResponseCatalogIDOK) GetParams() []ResponsePutResponseCatalogIDOKParamsItem {
 	return s.Params
+}
+
+// GetPrecheck returns the value of Precheck.
+func (s *ResponsePutResponseCatalogIDOK) GetPrecheck() ResponsePutResponseCatalogIDOKPrecheck {
+	return s.Precheck
+}
+
+// GetPrecheckRefuse returns the value of PrecheckRefuse.
+func (s *ResponsePutResponseCatalogIDOK) GetPrecheckRefuse() []string {
+	return s.PrecheckRefuse
 }
 
 // GetReversible returns the value of Reversible.
@@ -116942,6 +117707,16 @@ func (s *ResponsePutResponseCatalogIDOK) SetPack(val string) {
 // SetParams sets the value of Params.
 func (s *ResponsePutResponseCatalogIDOK) SetParams(val []ResponsePutResponseCatalogIDOKParamsItem) {
 	s.Params = val
+}
+
+// SetPrecheck sets the value of Precheck.
+func (s *ResponsePutResponseCatalogIDOK) SetPrecheck(val ResponsePutResponseCatalogIDOKPrecheck) {
+	s.Precheck = val
+}
+
+// SetPrecheckRefuse sets the value of PrecheckRefuse.
+func (s *ResponsePutResponseCatalogIDOK) SetPrecheckRefuse(val []string) {
+	s.PrecheckRefuse = val
 }
 
 // SetReversible sets the value of Reversible.
@@ -117150,6 +117925,156 @@ func (s *ResponsePutResponseCatalogIDOKParamsItem) UnmarshalText(data []byte) er
 	}
 }
 
+// Check before: a read-only command or GET that runs right before the action; empty when there is none.
+type ResponsePutResponseCatalogIDOKPrecheck struct {
+	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
+	Body string `json:"body"`
+	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
+	Cli string `json:"cli"`
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
+	Headers string                                       `json:"headers"`
+	Method  ResponsePutResponseCatalogIDOKPrecheckMethod `json:"method"`
+	// API path under the connection address, starts with /.
+	Path string `json:"path"`
+}
+
+// GetBody returns the value of Body.
+func (s *ResponsePutResponseCatalogIDOKPrecheck) GetBody() string {
+	return s.Body
+}
+
+// GetCli returns the value of Cli.
+func (s *ResponsePutResponseCatalogIDOKPrecheck) GetCli() string {
+	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponsePutResponseCatalogIDOKPrecheck) GetExpect() OptString {
+	return s.Expect
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePutResponseCatalogIDOKPrecheck) GetHeaders() string {
+	return s.Headers
+}
+
+// GetMethod returns the value of Method.
+func (s *ResponsePutResponseCatalogIDOKPrecheck) GetMethod() ResponsePutResponseCatalogIDOKPrecheckMethod {
+	return s.Method
+}
+
+// GetPath returns the value of Path.
+func (s *ResponsePutResponseCatalogIDOKPrecheck) GetPath() string {
+	return s.Path
+}
+
+// SetBody sets the value of Body.
+func (s *ResponsePutResponseCatalogIDOKPrecheck) SetBody(val string) {
+	s.Body = val
+}
+
+// SetCli sets the value of Cli.
+func (s *ResponsePutResponseCatalogIDOKPrecheck) SetCli(val string) {
+	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponsePutResponseCatalogIDOKPrecheck) SetExpect(val OptString) {
+	s.Expect = val
+}
+
+// SetHeaders sets the value of Headers.
+func (s *ResponsePutResponseCatalogIDOKPrecheck) SetHeaders(val string) {
+	s.Headers = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ResponsePutResponseCatalogIDOKPrecheck) SetMethod(val ResponsePutResponseCatalogIDOKPrecheckMethod) {
+	s.Method = val
+}
+
+// SetPath sets the value of Path.
+func (s *ResponsePutResponseCatalogIDOKPrecheck) SetPath(val string) {
+	s.Path = val
+}
+
+type ResponsePutResponseCatalogIDOKPrecheckMethod string
+
+const (
+	ResponsePutResponseCatalogIDOKPrecheckMethodEmpty  ResponsePutResponseCatalogIDOKPrecheckMethod = ""
+	ResponsePutResponseCatalogIDOKPrecheckMethodGET    ResponsePutResponseCatalogIDOKPrecheckMethod = "GET"
+	ResponsePutResponseCatalogIDOKPrecheckMethodPUT    ResponsePutResponseCatalogIDOKPrecheckMethod = "PUT"
+	ResponsePutResponseCatalogIDOKPrecheckMethodPATCH  ResponsePutResponseCatalogIDOKPrecheckMethod = "PATCH"
+	ResponsePutResponseCatalogIDOKPrecheckMethodPOST   ResponsePutResponseCatalogIDOKPrecheckMethod = "POST"
+	ResponsePutResponseCatalogIDOKPrecheckMethodDELETE ResponsePutResponseCatalogIDOKPrecheckMethod = "DELETE"
+)
+
+// AllValues returns all ResponsePutResponseCatalogIDOKPrecheckMethod values.
+func (ResponsePutResponseCatalogIDOKPrecheckMethod) AllValues() []ResponsePutResponseCatalogIDOKPrecheckMethod {
+	return []ResponsePutResponseCatalogIDOKPrecheckMethod{
+		ResponsePutResponseCatalogIDOKPrecheckMethodEmpty,
+		ResponsePutResponseCatalogIDOKPrecheckMethodGET,
+		ResponsePutResponseCatalogIDOKPrecheckMethodPUT,
+		ResponsePutResponseCatalogIDOKPrecheckMethodPATCH,
+		ResponsePutResponseCatalogIDOKPrecheckMethodPOST,
+		ResponsePutResponseCatalogIDOKPrecheckMethodDELETE,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponsePutResponseCatalogIDOKPrecheckMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponsePutResponseCatalogIDOKPrecheckMethodEmpty:
+		return []byte(s), nil
+	case ResponsePutResponseCatalogIDOKPrecheckMethodGET:
+		return []byte(s), nil
+	case ResponsePutResponseCatalogIDOKPrecheckMethodPUT:
+		return []byte(s), nil
+	case ResponsePutResponseCatalogIDOKPrecheckMethodPATCH:
+		return []byte(s), nil
+	case ResponsePutResponseCatalogIDOKPrecheckMethodPOST:
+		return []byte(s), nil
+	case ResponsePutResponseCatalogIDOKPrecheckMethodDELETE:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponsePutResponseCatalogIDOKPrecheckMethod) UnmarshalText(data []byte) error {
+	switch ResponsePutResponseCatalogIDOKPrecheckMethod(data) {
+	case ResponsePutResponseCatalogIDOKPrecheckMethodEmpty:
+		*s = ResponsePutResponseCatalogIDOKPrecheckMethodEmpty
+		return nil
+	case ResponsePutResponseCatalogIDOKPrecheckMethodGET:
+		*s = ResponsePutResponseCatalogIDOKPrecheckMethodGET
+		return nil
+	case ResponsePutResponseCatalogIDOKPrecheckMethodPUT:
+		*s = ResponsePutResponseCatalogIDOKPrecheckMethodPUT
+		return nil
+	case ResponsePutResponseCatalogIDOKPrecheckMethodPATCH:
+		*s = ResponsePutResponseCatalogIDOKPrecheckMethodPATCH
+		return nil
+	case ResponsePutResponseCatalogIDOKPrecheckMethodPOST:
+		*s = ResponsePutResponseCatalogIDOKPrecheckMethodPOST
+		return nil
+	case ResponsePutResponseCatalogIDOKPrecheckMethodDELETE:
+		*s = ResponsePutResponseCatalogIDOKPrecheckMethodDELETE
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ResponsePutResponseCatalogIDOKRisk string
 
 const (
@@ -117206,7 +118131,12 @@ type ResponsePutResponseCatalogIDOKRollback struct {
 	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
 	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
-	// HTTP headers, one "Name: value" per line, may be empty.
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
 	Headers string                                       `json:"headers"`
 	Method  ResponsePutResponseCatalogIDOKRollbackMethod `json:"method"`
 	// API path under the connection address, starts with /.
@@ -117221,6 +118151,11 @@ func (s *ResponsePutResponseCatalogIDOKRollback) GetBody() string {
 // GetCli returns the value of Cli.
 func (s *ResponsePutResponseCatalogIDOKRollback) GetCli() string {
 	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponsePutResponseCatalogIDOKRollback) GetExpect() OptString {
+	return s.Expect
 }
 
 // GetHeaders returns the value of Headers.
@@ -117246,6 +118181,11 @@ func (s *ResponsePutResponseCatalogIDOKRollback) SetBody(val string) {
 // SetCli sets the value of Cli.
 func (s *ResponsePutResponseCatalogIDOKRollback) SetCli(val string) {
 	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponsePutResponseCatalogIDOKRollback) SetExpect(val OptString) {
+	s.Expect = val
 }
 
 // SetHeaders sets the value of Headers.
@@ -117340,7 +118280,12 @@ type ResponsePutResponseCatalogIDOKRun struct {
 	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
 	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
-	// HTTP headers, one "Name: value" per line, may be empty.
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
 	Headers string                                  `json:"headers"`
 	Method  ResponsePutResponseCatalogIDOKRunMethod `json:"method"`
 	// API path under the connection address, starts with /.
@@ -117355,6 +118300,11 @@ func (s *ResponsePutResponseCatalogIDOKRun) GetBody() string {
 // GetCli returns the value of Cli.
 func (s *ResponsePutResponseCatalogIDOKRun) GetCli() string {
 	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponsePutResponseCatalogIDOKRun) GetExpect() OptString {
+	return s.Expect
 }
 
 // GetHeaders returns the value of Headers.
@@ -117380,6 +118330,11 @@ func (s *ResponsePutResponseCatalogIDOKRun) SetBody(val string) {
 // SetCli sets the value of Cli.
 func (s *ResponsePutResponseCatalogIDOKRun) SetCli(val string) {
 	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponsePutResponseCatalogIDOKRun) SetExpect(val OptString) {
+	s.Expect = val
 }
 
 // SetHeaders sets the value of Headers.
@@ -117474,7 +118429,12 @@ type ResponsePutResponseCatalogIDOKVerify struct {
 	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
 	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
-	// HTTP headers, one "Name: value" per line, may be empty.
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
 	Headers string                                     `json:"headers"`
 	Method  ResponsePutResponseCatalogIDOKVerifyMethod `json:"method"`
 	// API path under the connection address, starts with /.
@@ -117489,6 +118449,11 @@ func (s *ResponsePutResponseCatalogIDOKVerify) GetBody() string {
 // GetCli returns the value of Cli.
 func (s *ResponsePutResponseCatalogIDOKVerify) GetCli() string {
 	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponsePutResponseCatalogIDOKVerify) GetExpect() OptString {
+	return s.Expect
 }
 
 // GetHeaders returns the value of Headers.
@@ -117514,6 +118479,11 @@ func (s *ResponsePutResponseCatalogIDOKVerify) SetBody(val string) {
 // SetCli sets the value of Cli.
 func (s *ResponsePutResponseCatalogIDOKVerify) SetCli(val string) {
 	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponsePutResponseCatalogIDOKVerify) SetExpect(val OptString) {
+	s.Expect = val
 }
 
 // SetHeaders sets the value of Headers.
@@ -117608,12 +118578,16 @@ type ResponsePutResponseCatalogIDReq struct {
 	Description  OptString                                  `json:"description"`
 	Enabled      OptBool                                    `json:"enabled"`
 	Name         OptString                                  `json:"name"`
-	Risk         OptResponsePutResponseCatalogIDReqRisk     `json:"risk"`
-	Rollback     OptResponsePutResponseCatalogIDReqRollback `json:"rollback"`
-	RollbackTool OptNilString                               `json:"rollback_tool"`
-	Run          OptResponsePutResponseCatalogIDReqRun      `json:"run"`
-	Tool         OptNilString                               `json:"tool"`
-	Verify       OptResponsePutResponseCatalogIDReqVerify   `json:"verify"`
+	Precheck     OptResponsePutResponseCatalogIDReqPrecheck `json:"precheck"`
+	// Texts that make the check before refuse: when its output contains one, nothing is written. Needed
+	// (at least one) for any device action that uses {interface}.
+	PrecheckRefuse []string                                   `json:"precheck_refuse"`
+	Risk           OptResponsePutResponseCatalogIDReqRisk     `json:"risk"`
+	Rollback       OptResponsePutResponseCatalogIDReqRollback `json:"rollback"`
+	RollbackTool   OptNilString                               `json:"rollback_tool"`
+	Run            OptResponsePutResponseCatalogIDReqRun      `json:"run"`
+	Tool           OptNilString                               `json:"tool"`
+	Verify         OptResponsePutResponseCatalogIDReqVerify   `json:"verify"`
 }
 
 // GetAiMayPropose returns the value of AiMayPropose.
@@ -117639,6 +118613,16 @@ func (s *ResponsePutResponseCatalogIDReq) GetEnabled() OptBool {
 // GetName returns the value of Name.
 func (s *ResponsePutResponseCatalogIDReq) GetName() OptString {
 	return s.Name
+}
+
+// GetPrecheck returns the value of Precheck.
+func (s *ResponsePutResponseCatalogIDReq) GetPrecheck() OptResponsePutResponseCatalogIDReqPrecheck {
+	return s.Precheck
+}
+
+// GetPrecheckRefuse returns the value of PrecheckRefuse.
+func (s *ResponsePutResponseCatalogIDReq) GetPrecheckRefuse() []string {
+	return s.PrecheckRefuse
 }
 
 // GetRisk returns the value of Risk.
@@ -117696,6 +118680,16 @@ func (s *ResponsePutResponseCatalogIDReq) SetName(val OptString) {
 	s.Name = val
 }
 
+// SetPrecheck sets the value of Precheck.
+func (s *ResponsePutResponseCatalogIDReq) SetPrecheck(val OptResponsePutResponseCatalogIDReqPrecheck) {
+	s.Precheck = val
+}
+
+// SetPrecheckRefuse sets the value of PrecheckRefuse.
+func (s *ResponsePutResponseCatalogIDReq) SetPrecheckRefuse(val []string) {
+	s.PrecheckRefuse = val
+}
+
 // SetRisk sets the value of Risk.
 func (s *ResponsePutResponseCatalogIDReq) SetRisk(val OptResponsePutResponseCatalogIDReqRisk) {
 	s.Risk = val
@@ -117724,6 +118718,155 @@ func (s *ResponsePutResponseCatalogIDReq) SetTool(val OptNilString) {
 // SetVerify sets the value of Verify.
 func (s *ResponsePutResponseCatalogIDReq) SetVerify(val OptResponsePutResponseCatalogIDReqVerify) {
 	s.Verify = val
+}
+
+type ResponsePutResponseCatalogIDReqPrecheck struct {
+	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
+	Body string `json:"body"`
+	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
+	Cli string `json:"cli"`
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
+	Headers string                                        `json:"headers"`
+	Method  ResponsePutResponseCatalogIDReqPrecheckMethod `json:"method"`
+	// API path under the connection address, starts with /.
+	Path string `json:"path"`
+}
+
+// GetBody returns the value of Body.
+func (s *ResponsePutResponseCatalogIDReqPrecheck) GetBody() string {
+	return s.Body
+}
+
+// GetCli returns the value of Cli.
+func (s *ResponsePutResponseCatalogIDReqPrecheck) GetCli() string {
+	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponsePutResponseCatalogIDReqPrecheck) GetExpect() OptString {
+	return s.Expect
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePutResponseCatalogIDReqPrecheck) GetHeaders() string {
+	return s.Headers
+}
+
+// GetMethod returns the value of Method.
+func (s *ResponsePutResponseCatalogIDReqPrecheck) GetMethod() ResponsePutResponseCatalogIDReqPrecheckMethod {
+	return s.Method
+}
+
+// GetPath returns the value of Path.
+func (s *ResponsePutResponseCatalogIDReqPrecheck) GetPath() string {
+	return s.Path
+}
+
+// SetBody sets the value of Body.
+func (s *ResponsePutResponseCatalogIDReqPrecheck) SetBody(val string) {
+	s.Body = val
+}
+
+// SetCli sets the value of Cli.
+func (s *ResponsePutResponseCatalogIDReqPrecheck) SetCli(val string) {
+	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponsePutResponseCatalogIDReqPrecheck) SetExpect(val OptString) {
+	s.Expect = val
+}
+
+// SetHeaders sets the value of Headers.
+func (s *ResponsePutResponseCatalogIDReqPrecheck) SetHeaders(val string) {
+	s.Headers = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ResponsePutResponseCatalogIDReqPrecheck) SetMethod(val ResponsePutResponseCatalogIDReqPrecheckMethod) {
+	s.Method = val
+}
+
+// SetPath sets the value of Path.
+func (s *ResponsePutResponseCatalogIDReqPrecheck) SetPath(val string) {
+	s.Path = val
+}
+
+type ResponsePutResponseCatalogIDReqPrecheckMethod string
+
+const (
+	ResponsePutResponseCatalogIDReqPrecheckMethodEmpty  ResponsePutResponseCatalogIDReqPrecheckMethod = ""
+	ResponsePutResponseCatalogIDReqPrecheckMethodGET    ResponsePutResponseCatalogIDReqPrecheckMethod = "GET"
+	ResponsePutResponseCatalogIDReqPrecheckMethodPUT    ResponsePutResponseCatalogIDReqPrecheckMethod = "PUT"
+	ResponsePutResponseCatalogIDReqPrecheckMethodPATCH  ResponsePutResponseCatalogIDReqPrecheckMethod = "PATCH"
+	ResponsePutResponseCatalogIDReqPrecheckMethodPOST   ResponsePutResponseCatalogIDReqPrecheckMethod = "POST"
+	ResponsePutResponseCatalogIDReqPrecheckMethodDELETE ResponsePutResponseCatalogIDReqPrecheckMethod = "DELETE"
+)
+
+// AllValues returns all ResponsePutResponseCatalogIDReqPrecheckMethod values.
+func (ResponsePutResponseCatalogIDReqPrecheckMethod) AllValues() []ResponsePutResponseCatalogIDReqPrecheckMethod {
+	return []ResponsePutResponseCatalogIDReqPrecheckMethod{
+		ResponsePutResponseCatalogIDReqPrecheckMethodEmpty,
+		ResponsePutResponseCatalogIDReqPrecheckMethodGET,
+		ResponsePutResponseCatalogIDReqPrecheckMethodPUT,
+		ResponsePutResponseCatalogIDReqPrecheckMethodPATCH,
+		ResponsePutResponseCatalogIDReqPrecheckMethodPOST,
+		ResponsePutResponseCatalogIDReqPrecheckMethodDELETE,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponsePutResponseCatalogIDReqPrecheckMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponsePutResponseCatalogIDReqPrecheckMethodEmpty:
+		return []byte(s), nil
+	case ResponsePutResponseCatalogIDReqPrecheckMethodGET:
+		return []byte(s), nil
+	case ResponsePutResponseCatalogIDReqPrecheckMethodPUT:
+		return []byte(s), nil
+	case ResponsePutResponseCatalogIDReqPrecheckMethodPATCH:
+		return []byte(s), nil
+	case ResponsePutResponseCatalogIDReqPrecheckMethodPOST:
+		return []byte(s), nil
+	case ResponsePutResponseCatalogIDReqPrecheckMethodDELETE:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponsePutResponseCatalogIDReqPrecheckMethod) UnmarshalText(data []byte) error {
+	switch ResponsePutResponseCatalogIDReqPrecheckMethod(data) {
+	case ResponsePutResponseCatalogIDReqPrecheckMethodEmpty:
+		*s = ResponsePutResponseCatalogIDReqPrecheckMethodEmpty
+		return nil
+	case ResponsePutResponseCatalogIDReqPrecheckMethodGET:
+		*s = ResponsePutResponseCatalogIDReqPrecheckMethodGET
+		return nil
+	case ResponsePutResponseCatalogIDReqPrecheckMethodPUT:
+		*s = ResponsePutResponseCatalogIDReqPrecheckMethodPUT
+		return nil
+	case ResponsePutResponseCatalogIDReqPrecheckMethodPATCH:
+		*s = ResponsePutResponseCatalogIDReqPrecheckMethodPATCH
+		return nil
+	case ResponsePutResponseCatalogIDReqPrecheckMethodPOST:
+		*s = ResponsePutResponseCatalogIDReqPrecheckMethodPOST
+		return nil
+	case ResponsePutResponseCatalogIDReqPrecheckMethodDELETE:
+		*s = ResponsePutResponseCatalogIDReqPrecheckMethodDELETE
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ResponsePutResponseCatalogIDReqRisk string
@@ -117782,7 +118925,12 @@ type ResponsePutResponseCatalogIDReqRollback struct {
 	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
 	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
-	// HTTP headers, one "Name: value" per line, may be empty.
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
 	Headers string                                        `json:"headers"`
 	Method  ResponsePutResponseCatalogIDReqRollbackMethod `json:"method"`
 	// API path under the connection address, starts with /.
@@ -117797,6 +118945,11 @@ func (s *ResponsePutResponseCatalogIDReqRollback) GetBody() string {
 // GetCli returns the value of Cli.
 func (s *ResponsePutResponseCatalogIDReqRollback) GetCli() string {
 	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponsePutResponseCatalogIDReqRollback) GetExpect() OptString {
+	return s.Expect
 }
 
 // GetHeaders returns the value of Headers.
@@ -117822,6 +118975,11 @@ func (s *ResponsePutResponseCatalogIDReqRollback) SetBody(val string) {
 // SetCli sets the value of Cli.
 func (s *ResponsePutResponseCatalogIDReqRollback) SetCli(val string) {
 	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponsePutResponseCatalogIDReqRollback) SetExpect(val OptString) {
+	s.Expect = val
 }
 
 // SetHeaders sets the value of Headers.
@@ -117916,7 +119074,12 @@ type ResponsePutResponseCatalogIDReqRun struct {
 	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
 	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
-	// HTTP headers, one "Name: value" per line, may be empty.
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
 	Headers string                                   `json:"headers"`
 	Method  ResponsePutResponseCatalogIDReqRunMethod `json:"method"`
 	// API path under the connection address, starts with /.
@@ -117931,6 +119094,11 @@ func (s *ResponsePutResponseCatalogIDReqRun) GetBody() string {
 // GetCli returns the value of Cli.
 func (s *ResponsePutResponseCatalogIDReqRun) GetCli() string {
 	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponsePutResponseCatalogIDReqRun) GetExpect() OptString {
+	return s.Expect
 }
 
 // GetHeaders returns the value of Headers.
@@ -117956,6 +119124,11 @@ func (s *ResponsePutResponseCatalogIDReqRun) SetBody(val string) {
 // SetCli sets the value of Cli.
 func (s *ResponsePutResponseCatalogIDReqRun) SetCli(val string) {
 	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponsePutResponseCatalogIDReqRun) SetExpect(val OptString) {
+	s.Expect = val
 }
 
 // SetHeaders sets the value of Headers.
@@ -118050,7 +119223,12 @@ type ResponsePutResponseCatalogIDReqVerify struct {
 	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
 	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
-	// HTTP headers, one "Name: value" per line, may be empty.
+	// Read-back only (empty elsewhere): text the read-back output must contain after the action and must
+	// not contain after the undo. Typed placeholders allowed. Without it the action is "not checked"
+	// (verified is null).
+	Expect OptString `json:"expect"`
+	// HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-,
+	// hop-by-hop, Forwarded and X-Forwarded- are refused: the connection sets them.
 	Headers string                                      `json:"headers"`
 	Method  ResponsePutResponseCatalogIDReqVerifyMethod `json:"method"`
 	// API path under the connection address, starts with /.
@@ -118065,6 +119243,11 @@ func (s *ResponsePutResponseCatalogIDReqVerify) GetBody() string {
 // GetCli returns the value of Cli.
 func (s *ResponsePutResponseCatalogIDReqVerify) GetCli() string {
 	return s.Cli
+}
+
+// GetExpect returns the value of Expect.
+func (s *ResponsePutResponseCatalogIDReqVerify) GetExpect() OptString {
+	return s.Expect
 }
 
 // GetHeaders returns the value of Headers.
@@ -118090,6 +119273,11 @@ func (s *ResponsePutResponseCatalogIDReqVerify) SetBody(val string) {
 // SetCli sets the value of Cli.
 func (s *ResponsePutResponseCatalogIDReqVerify) SetCli(val string) {
 	s.Cli = val
+}
+
+// SetExpect sets the value of Expect.
+func (s *ResponsePutResponseCatalogIDReqVerify) SetExpect(val OptString) {
+	s.Expect = val
 }
 
 // SetHeaders sets the value of Headers.

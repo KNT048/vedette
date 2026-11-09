@@ -14357,7 +14357,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										switch method {
 										case "POST":
 											r.name = ResponsePostResponseAiProposalsOperation
-											r.summary = "The AI agent sends a request. Server-side gates: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an approval request was created, 200 for a suggestion note or a digest (the generated file documents 200)"
+											r.summary = "Preview build only (D-97): on a real box the AI sends its requests inside the process and this route answers 404. The gates it applies: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an approval request was created, 200 for a suggestion note or a digest (the generated file documents 200)"
 											r.operationID = "response_post_response_ai_proposals"
 											r.operationGroup = ""
 											r.pathPattern = "/response/ai/proposals"

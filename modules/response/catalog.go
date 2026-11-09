@@ -105,11 +105,37 @@ func unavailable(c catRow, cs conns) string {
 	case c.Tool != "" && !slices.Contains(conn.WriteTools, c.Tool):
 		return "The write tool " + c.Tool + " on " + conn.Name + " is turned off or missing."
 	}
-	return fits(c, conn)
+	if why := fits(c, conn); why != "" {
+		return why
+	}
+	if r := c.needsDeviceRead(); r != "" {
+		return "Not available yet: this action needs a value that is read from the device while it runs ({" + r + "}), and Vedette cannot read that yet."
+	}
+	if needsPrecheck(c.Run, c.Rollback, c.Verify, c.Precheck, c.PrecheckRefuse) {
+		return "Not available: an action that names a port needs a check before it, with at least one text that makes it refuse (so a trunk or uplink port is never touched)."
+	}
+	return ""
+}
+
+// needsDeviceRead is the first value a template uses that only the device can give while the action runs ({seq}, {previous_vlan},
+// {found_id}, {rules_before}, {timeout}), or "". Reading it from the output is a later version (13c, action-templates 12.1); until then
+// the action is not available. {expiry_s}, the time to live, is worked out without the device.
+func (c catRow) needsDeviceRead() string {
+	for _, r := range RuntimeValues {
+		if r == "expiry_s" {
+			continue
+		}
+		for _, t := range []Tpl{c.Run, c.Rollback, c.Verify, c.Precheck} {
+			if slices.ContainsFunc([]string{t.CLI, t.Path, t.Body, t.Headers, t.Expect}, func(x string) bool { return strings.Contains(x, "{"+r+"}") }) {
+				return r
+			}
+		}
+	}
+	return ""
 }
 
 func (c catRow) view(cs conns) CatalogAction {
-	v := CatalogAction{ID: c.ID, Builtin: c.Builtin, Pack: c.Pack, Name: c.Name, Description: c.Description, Run: c.Run, Rollback: c.Rollback, Verify: c.Verify,
+	v := CatalogAction{ID: c.ID, Builtin: c.Builtin, Pack: c.Pack, Name: c.Name, Description: c.Description, Run: c.Run, Rollback: c.Rollback, Verify: c.Verify, Precheck: c.Precheck, PrecheckRefuse: nonNilStrings(c.PrecheckRefuse),
 		Params: c.params(), Risk: c.Risk, Enabled: c.Enabled, Reversible: c.reversible(), AIMayPropose: c.AIMayPropose, Device: c.device(),
 		ConnectionID: ptrOrNil(c.ConnectionID), Tool: ptrOrNil(c.Tool), RollbackTool: ptrOrNil(c.RollbackTool)}
 	if conn, ok := cs.get(c.ConnectionID); ok {
@@ -147,11 +173,23 @@ func checkCatalog(in CatalogInput, cs conns) (catRow, error) {
 	if _, known := kindFields[conn.Kind]; !known {
 		return bad("Unknown connection kind.")
 	}
+	refuse := nonNilStrings(in.PrecheckRefuse)
+	for _, t := range []struct {
+		what string
+		t    Tpl
+	}{{"Action", in.Run}, {"Rollback", in.Rollback}, {"Check before", in.Precheck}} {
+		if t.t.Expect != "" {
+			return bad(t.what + ": the text to look for belongs to the read-back only.")
+		}
+	}
+	if in.Verify.Empty() && in.Verify.Expect != "" {
+		return bad("Read-back: give the read-back command or API call before the text to look for.")
+	}
 	for _, t := range []struct {
 		what string
 		t    Tpl
 		opt  bool
-	}{{"Action", in.Run, false}, {"Rollback", in.Rollback, false}, {"Read-back", in.Verify, true}} {
+	}{{"Action", in.Run, false}, {"Rollback", in.Rollback, false}, {"Read-back", in.Verify, true}, {"Check before", in.Precheck, true}} {
 		if t.opt && t.t.Empty() {
 			continue
 		}
@@ -159,8 +197,8 @@ func checkCatalog(in CatalogInput, cs conns) (catRow, error) {
 			return bad(p)
 		}
 	}
-	c := catRow{Name: in.Name, Description: in.Description, ConnectionID: conn.ID, Run: in.Run, Rollback: in.Rollback, Verify: in.Verify, Risk: in.Risk, Enabled: in.Enabled,
-		AIMayPropose: in.AIMayPropose, Pack: "generic", Kind: "device"}
+	c := catRow{Name: in.Name, Description: in.Description, ConnectionID: conn.ID, Run: in.Run, Rollback: in.Rollback, Verify: in.Verify, Precheck: in.Precheck, PrecheckRefuse: refuse,
+		Risk: in.Risk, Enabled: in.Enabled, AIMayPropose: in.AIMayPropose, Pack: "generic", Kind: "device"}
 	if isMCP(conn.Kind) {
 		c.Tool, c.RollbackTool = deref2(in.Tool), deref2(in.RollbackTool)
 		if c.Tool == "" || !slices.Contains(conn.WriteTools, c.Tool) {
@@ -178,6 +216,9 @@ func checkCatalog(in CatalogInput, cs conns) (catRow, error) {
 		if !in.Verify.Empty() {
 			return bad("Read-back: not available for MCP servers.")
 		}
+		if !in.Precheck.Empty() || len(refuse) > 0 {
+			return bad("Check before: not available for MCP servers.")
+		}
 	} else {
 		if in.Tool != nil && *in.Tool != "" {
 			return bad("A tool is only chosen for an MCP server.")
@@ -194,15 +235,24 @@ func checkCatalog(in CatalogInput, cs conns) (catRow, error) {
 				return bad(why)
 			}
 		}
+		if why := precheckProblem(in.Precheck, refuse); why != "" {
+			return bad(why)
+		}
 	}
 	used := tplParams(in.Run)
 	if len(used) == 0 {
 		return bad("Action: use at least one placeholder, for example {ip}, {domain} or {interface}.")
 	}
-	for _, p := range tplParams(in.Rollback, in.Verify) {
+	for _, p := range tplParams(in.Rollback, in.Verify, in.Precheck) {
 		if !slices.Contains(used, p) {
-			return bad("Rollback or read-back uses {" + string(p) + "}, which the action does not have, so it could not be filled in.")
+			return bad("Rollback, read-back or check before uses {" + string(p) + "}, which the action does not have, so it could not be filled in.")
 		}
+	}
+	if needsPrecheck(in.Run, in.Rollback, in.Verify, in.Precheck, refuse) {
+		if isMCP(conn.Kind) {
+			return bad("Action: {interface} needs a check before it, and an MCP server cannot run one yet.")
+		}
+		return bad("Action: a command that names a port ({interface}) needs a check before it, with at least one text that makes it refuse, so a trunk or uplink port is never touched.")
 	}
 	return c, nil
 }
@@ -217,7 +267,7 @@ func deref2(p *string) string {
 // inputOf turns a stored custom action back into the input shape, so an update is validated like a create.
 func inputOf(c catRow) CatalogInput {
 	return CatalogInput{Name: c.Name, Description: c.Description, ConnectionID: c.ConnectionID, Tool: ptrOrNil(c.Tool), RollbackTool: ptrOrNil(c.RollbackTool),
-		Run: c.Run, Rollback: c.Rollback, Verify: c.Verify, Risk: c.Risk, Enabled: c.Enabled, AIMayPropose: c.AIMayPropose}
+		Run: c.Run, Rollback: c.Rollback, Verify: c.Verify, Precheck: c.Precheck, PrecheckRefuse: c.PrecheckRefuse, Risk: c.Risk, Enabled: c.Enabled, AIMayPropose: c.AIMayPropose}
 }
 
 // ---- reads and writes of the catalog (admin) ----
@@ -386,6 +436,12 @@ func (s *Service) ChangeAction(ctx context.Context, who Actor, id string, u Cata
 			if u.Verify != nil {
 				in.Verify = *u.Verify
 			}
+			if u.Precheck != nil {
+				in.Precheck = *u.Precheck
+			}
+			if u.PrecheckRefuse != nil {
+				in.PrecheckRefuse = *u.PrecheckRefuse
+			}
 			if u.Risk != nil {
 				in.Risk = *u.Risk
 			}
@@ -405,7 +461,7 @@ func (s *Service) ChangeAction(ctx context.Context, who Actor, id string, u Cata
 		if err := saveCat(ctx, tx, n, 0); err != nil {
 			return err
 		}
-		if !old.Builtin && (old.Run != n.Run || old.Rollback != n.Rollback || old.Verify != n.Verify || old.Risk != n.Risk || old.Tool != n.Tool || old.RollbackTool != n.RollbackTool) {
+		if !old.Builtin && (old.Run != n.Run || old.Rollback != n.Rollback || old.Verify != n.Verify || old.Precheck != n.Precheck || !slices.Equal(old.PrecheckRefuse, n.PrecheckRefuse) || old.Risk != n.Risk || old.Tool != n.Tool || old.RollbackTool != n.RollbackTool) {
 			if err := s.revokePreApprovals(ctx, tx, n, who.Email); err != nil {
 				return err
 			}

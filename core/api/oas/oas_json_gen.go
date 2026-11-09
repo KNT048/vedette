@@ -158744,6 +158744,72 @@ func (s *OptResponsePostResponseActionsIDRejectReqRemember) UnmarshalJSON(data [
 	return s.Decode(d)
 }
 
+// Encode encodes ResponsePostResponseCatalogReqPrecheck as json.
+func (o OptResponsePostResponseCatalogReqPrecheck) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes ResponsePostResponseCatalogReqPrecheck from json.
+func (o *OptResponsePostResponseCatalogReqPrecheck) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptResponsePostResponseCatalogReqPrecheck to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptResponsePostResponseCatalogReqPrecheck) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptResponsePostResponseCatalogReqPrecheck) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ResponsePutResponseCatalogIDReqPrecheck as json.
+func (o OptResponsePutResponseCatalogIDReqPrecheck) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes ResponsePutResponseCatalogIDReqPrecheck from json.
+func (o *OptResponsePutResponseCatalogIDReqPrecheck) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptResponsePutResponseCatalogIDReqPrecheck to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptResponsePutResponseCatalogIDReqPrecheck) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptResponsePutResponseCatalogIDReqPrecheck) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes ResponsePutResponseCatalogIDReqRisk as json.
 func (o OptResponsePutResponseCatalogIDReqRisk) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -179577,6 +179643,18 @@ func (s *ResponseGetResponseCatalogOKItemsItem) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		e.FieldStart("precheck")
+		s.Precheck.Encode(e)
+	}
+	{
+		e.FieldStart("precheck_refuse")
+		e.ArrStart()
+		for _, elem := range s.PrecheckRefuse {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("reversible")
 		e.Bool(s.Reversible)
 	}
@@ -179610,7 +179688,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponseGetResponseCatalogOKItemsItem = [21]string{
+var jsonFieldsNameOfResponseGetResponseCatalogOKItemsItem = [23]string{
 	0:  "ai_may_propose",
 	1:  "available",
 	2:  "builtin",
@@ -179624,14 +179702,16 @@ var jsonFieldsNameOfResponseGetResponseCatalogOKItemsItem = [21]string{
 	10: "name",
 	11: "pack",
 	12: "params",
-	13: "reversible",
-	14: "risk",
-	15: "rollback",
-	16: "rollback_tool",
-	17: "run",
-	18: "tool",
-	19: "unavailable_reason",
-	20: "verify",
+	13: "precheck",
+	14: "precheck_refuse",
+	15: "reversible",
+	16: "risk",
+	17: "rollback",
+	18: "rollback_tool",
+	19: "run",
+	20: "tool",
+	21: "unavailable_reason",
+	22: "verify",
 }
 
 // Decode decodes ResponseGetResponseCatalogOKItemsItem from json.
@@ -179799,8 +179879,38 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"params\"")
 			}
-		case "reversible":
+		case "precheck":
 			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				if err := s.Precheck.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck\"")
+			}
+		case "precheck_refuse":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				s.PrecheckRefuse = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.PrecheckRefuse = append(s.PrecheckRefuse, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_refuse\"")
+			}
+		case "reversible":
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				v, err := d.Bool()
 				s.Reversible = bool(v)
@@ -179812,7 +179922,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"reversible\"")
 			}
 		case "risk":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				if err := s.Risk.Decode(d); err != nil {
 					return err
@@ -179822,7 +179932,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"risk\"")
 			}
 		case "rollback":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.Rollback.Decode(d); err != nil {
 					return err
@@ -179832,7 +179942,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"rollback\"")
 			}
 		case "rollback_tool":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				if err := s.RollbackTool.Decode(d); err != nil {
 					return err
@@ -179842,7 +179952,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"rollback_tool\"")
 			}
 		case "run":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				if err := s.Run.Decode(d); err != nil {
 					return err
@@ -179852,7 +179962,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
 		case "tool":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				if err := s.Tool.Decode(d); err != nil {
 					return err
@@ -179862,7 +179972,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tool\"")
 			}
 		case "unavailable_reason":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.UnavailableReason.Decode(d); err != nil {
 					return err
@@ -179872,7 +179982,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"unavailable_reason\"")
 			}
 		case "verify":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[2] |= 1 << 6
 			if err := func() error {
 				if err := s.Verify.Decode(d); err != nil {
 					return err
@@ -179893,7 +180003,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00011111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -180043,6 +180153,233 @@ func (s *ResponseGetResponseCatalogOKItemsItemParamsItem) UnmarshalJSON(data []b
 	return s.Decode(d)
 }
 
+// Encode implements json.Marshaler.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheck) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheck) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("body")
+		e.Str(s.Body)
+	}
+	{
+		e.FieldStart("cli")
+		e.Str(s.Cli)
+	}
+	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("headers")
+		e.Str(s.Headers)
+	}
+	{
+		e.FieldStart("method")
+		s.Method.Encode(e)
+	}
+	{
+		e.FieldStart("path")
+		e.Str(s.Path)
+	}
+}
+
+var jsonFieldsNameOfResponseGetResponseCatalogOKItemsItemPrecheck = [6]string{
+	0: "body",
+	1: "cli",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
+}
+
+// Decode decodes ResponseGetResponseCatalogOKItemsItemPrecheck from json.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheck) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponseGetResponseCatalogOKItemsItemPrecheck to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "body":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Body = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"body\"")
+			}
+		case "cli":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Cli = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cli\"")
+			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
+		case "headers":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Headers = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Method.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"method\"")
+			}
+		case "path":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Path = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"path\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponseGetResponseCatalogOKItemsItemPrecheck")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00111011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfResponseGetResponseCatalogOKItemsItemPrecheck) {
+					name = jsonFieldsNameOfResponseGetResponseCatalogOKItemsItemPrecheck[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheck) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheck) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ResponseGetResponseCatalogOKItemsItemPrecheckMethod as json.
+func (s ResponseGetResponseCatalogOKItemsItemPrecheckMethod) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ResponseGetResponseCatalogOKItemsItemPrecheckMethod from json.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheckMethod) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponseGetResponseCatalogOKItemsItemPrecheckMethod to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ResponseGetResponseCatalogOKItemsItemPrecheckMethod(v) {
+	case ResponseGetResponseCatalogOKItemsItemPrecheckMethodEmpty:
+		*s = ResponseGetResponseCatalogOKItemsItemPrecheckMethodEmpty
+	case ResponseGetResponseCatalogOKItemsItemPrecheckMethodGET:
+		*s = ResponseGetResponseCatalogOKItemsItemPrecheckMethodGET
+	case ResponseGetResponseCatalogOKItemsItemPrecheckMethodPUT:
+		*s = ResponseGetResponseCatalogOKItemsItemPrecheckMethodPUT
+	case ResponseGetResponseCatalogOKItemsItemPrecheckMethodPATCH:
+		*s = ResponseGetResponseCatalogOKItemsItemPrecheckMethodPATCH
+	case ResponseGetResponseCatalogOKItemsItemPrecheckMethodPOST:
+		*s = ResponseGetResponseCatalogOKItemsItemPrecheckMethodPOST
+	case ResponseGetResponseCatalogOKItemsItemPrecheckMethodDELETE:
+		*s = ResponseGetResponseCatalogOKItemsItemPrecheckMethodDELETE
+	default:
+		*s = ResponseGetResponseCatalogOKItemsItemPrecheckMethod(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponseGetResponseCatalogOKItemsItemPrecheckMethod) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponseGetResponseCatalogOKItemsItemPrecheckMethod) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes ResponseGetResponseCatalogOKItemsItemRisk as json.
 func (s ResponseGetResponseCatalogOKItemsItemRisk) Encode(e *jx.Encoder) {
 	e.Str(string(s))
@@ -180103,6 +180440,12 @@ func (s *ResponseGetResponseCatalogOKItemsItemRollback) encodeFields(e *jx.Encod
 		e.Str(s.Cli)
 	}
 	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("headers")
 		e.Str(s.Headers)
 	}
@@ -180116,12 +180459,13 @@ func (s *ResponseGetResponseCatalogOKItemsItemRollback) encodeFields(e *jx.Encod
 	}
 }
 
-var jsonFieldsNameOfResponseGetResponseCatalogOKItemsItemRollback = [5]string{
+var jsonFieldsNameOfResponseGetResponseCatalogOKItemsItemRollback = [6]string{
 	0: "body",
 	1: "cli",
-	2: "headers",
-	3: "method",
-	4: "path",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
 }
 
 // Decode decodes ResponseGetResponseCatalogOKItemsItemRollback from json.
@@ -180157,8 +180501,18 @@ func (s *ResponseGetResponseCatalogOKItemsItemRollback) Decode(d *jx.Decoder) er
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
 		case "headers":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Headers = string(v)
@@ -180170,7 +180524,7 @@ func (s *ResponseGetResponseCatalogOKItemsItemRollback) Decode(d *jx.Decoder) er
 				return errors.Wrap(err, "decode field \"headers\"")
 			}
 		case "method":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -180180,7 +180534,7 @@ func (s *ResponseGetResponseCatalogOKItemsItemRollback) Decode(d *jx.Decoder) er
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "path":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Path = string(v)
@@ -180201,7 +180555,7 @@ func (s *ResponseGetResponseCatalogOKItemsItemRollback) Decode(d *jx.Decoder) er
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -180313,6 +180667,12 @@ func (s *ResponseGetResponseCatalogOKItemsItemRun) encodeFields(e *jx.Encoder) {
 		e.Str(s.Cli)
 	}
 	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("headers")
 		e.Str(s.Headers)
 	}
@@ -180326,12 +180686,13 @@ func (s *ResponseGetResponseCatalogOKItemsItemRun) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponseGetResponseCatalogOKItemsItemRun = [5]string{
+var jsonFieldsNameOfResponseGetResponseCatalogOKItemsItemRun = [6]string{
 	0: "body",
 	1: "cli",
-	2: "headers",
-	3: "method",
-	4: "path",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
 }
 
 // Decode decodes ResponseGetResponseCatalogOKItemsItemRun from json.
@@ -180367,8 +180728,18 @@ func (s *ResponseGetResponseCatalogOKItemsItemRun) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
 		case "headers":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Headers = string(v)
@@ -180380,7 +180751,7 @@ func (s *ResponseGetResponseCatalogOKItemsItemRun) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"headers\"")
 			}
 		case "method":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -180390,7 +180761,7 @@ func (s *ResponseGetResponseCatalogOKItemsItemRun) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "path":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Path = string(v)
@@ -180411,7 +180782,7 @@ func (s *ResponseGetResponseCatalogOKItemsItemRun) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -180523,6 +180894,12 @@ func (s *ResponseGetResponseCatalogOKItemsItemVerify) encodeFields(e *jx.Encoder
 		e.Str(s.Cli)
 	}
 	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("headers")
 		e.Str(s.Headers)
 	}
@@ -180536,12 +180913,13 @@ func (s *ResponseGetResponseCatalogOKItemsItemVerify) encodeFields(e *jx.Encoder
 	}
 }
 
-var jsonFieldsNameOfResponseGetResponseCatalogOKItemsItemVerify = [5]string{
+var jsonFieldsNameOfResponseGetResponseCatalogOKItemsItemVerify = [6]string{
 	0: "body",
 	1: "cli",
-	2: "headers",
-	3: "method",
-	4: "path",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
 }
 
 // Decode decodes ResponseGetResponseCatalogOKItemsItemVerify from json.
@@ -180577,8 +180955,18 @@ func (s *ResponseGetResponseCatalogOKItemsItemVerify) Decode(d *jx.Decoder) erro
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
 		case "headers":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Headers = string(v)
@@ -180590,7 +180978,7 @@ func (s *ResponseGetResponseCatalogOKItemsItemVerify) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"headers\"")
 			}
 		case "method":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -180600,7 +180988,7 @@ func (s *ResponseGetResponseCatalogOKItemsItemVerify) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "path":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Path = string(v)
@@ -180621,7 +181009,7 @@ func (s *ResponseGetResponseCatalogOKItemsItemVerify) Decode(d *jx.Decoder) erro
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -208020,6 +208408,18 @@ func (s *ResponsePostResponseCatalogCreated) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		e.FieldStart("precheck")
+		s.Precheck.Encode(e)
+	}
+	{
+		e.FieldStart("precheck_refuse")
+		e.ArrStart()
+		for _, elem := range s.PrecheckRefuse {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("reversible")
 		e.Bool(s.Reversible)
 	}
@@ -208053,7 +208453,7 @@ func (s *ResponsePostResponseCatalogCreated) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseCatalogCreated = [21]string{
+var jsonFieldsNameOfResponsePostResponseCatalogCreated = [23]string{
 	0:  "ai_may_propose",
 	1:  "available",
 	2:  "builtin",
@@ -208067,14 +208467,16 @@ var jsonFieldsNameOfResponsePostResponseCatalogCreated = [21]string{
 	10: "name",
 	11: "pack",
 	12: "params",
-	13: "reversible",
-	14: "risk",
-	15: "rollback",
-	16: "rollback_tool",
-	17: "run",
-	18: "tool",
-	19: "unavailable_reason",
-	20: "verify",
+	13: "precheck",
+	14: "precheck_refuse",
+	15: "reversible",
+	16: "risk",
+	17: "rollback",
+	18: "rollback_tool",
+	19: "run",
+	20: "tool",
+	21: "unavailable_reason",
+	22: "verify",
 }
 
 // Decode decodes ResponsePostResponseCatalogCreated from json.
@@ -208242,8 +208644,38 @@ func (s *ResponsePostResponseCatalogCreated) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"params\"")
 			}
-		case "reversible":
+		case "precheck":
 			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				if err := s.Precheck.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck\"")
+			}
+		case "precheck_refuse":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				s.PrecheckRefuse = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.PrecheckRefuse = append(s.PrecheckRefuse, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_refuse\"")
+			}
+		case "reversible":
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				v, err := d.Bool()
 				s.Reversible = bool(v)
@@ -208255,7 +208687,7 @@ func (s *ResponsePostResponseCatalogCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"reversible\"")
 			}
 		case "risk":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				if err := s.Risk.Decode(d); err != nil {
 					return err
@@ -208265,7 +208697,7 @@ func (s *ResponsePostResponseCatalogCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"risk\"")
 			}
 		case "rollback":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.Rollback.Decode(d); err != nil {
 					return err
@@ -208275,7 +208707,7 @@ func (s *ResponsePostResponseCatalogCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"rollback\"")
 			}
 		case "rollback_tool":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				if err := s.RollbackTool.Decode(d); err != nil {
 					return err
@@ -208285,7 +208717,7 @@ func (s *ResponsePostResponseCatalogCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"rollback_tool\"")
 			}
 		case "run":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				if err := s.Run.Decode(d); err != nil {
 					return err
@@ -208295,7 +208727,7 @@ func (s *ResponsePostResponseCatalogCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
 		case "tool":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				if err := s.Tool.Decode(d); err != nil {
 					return err
@@ -208305,7 +208737,7 @@ func (s *ResponsePostResponseCatalogCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tool\"")
 			}
 		case "unavailable_reason":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.UnavailableReason.Decode(d); err != nil {
 					return err
@@ -208315,7 +208747,7 @@ func (s *ResponsePostResponseCatalogCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"unavailable_reason\"")
 			}
 		case "verify":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[2] |= 1 << 6
 			if err := func() error {
 				if err := s.Verify.Decode(d); err != nil {
 					return err
@@ -208336,7 +208768,7 @@ func (s *ResponsePostResponseCatalogCreated) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00011111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -208486,6 +208918,233 @@ func (s *ResponsePostResponseCatalogCreatedParamsItem) UnmarshalJSON(data []byte
 	return s.Decode(d)
 }
 
+// Encode implements json.Marshaler.
+func (s *ResponsePostResponseCatalogCreatedPrecheck) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ResponsePostResponseCatalogCreatedPrecheck) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("body")
+		e.Str(s.Body)
+	}
+	{
+		e.FieldStart("cli")
+		e.Str(s.Cli)
+	}
+	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("headers")
+		e.Str(s.Headers)
+	}
+	{
+		e.FieldStart("method")
+		s.Method.Encode(e)
+	}
+	{
+		e.FieldStart("path")
+		e.Str(s.Path)
+	}
+}
+
+var jsonFieldsNameOfResponsePostResponseCatalogCreatedPrecheck = [6]string{
+	0: "body",
+	1: "cli",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
+}
+
+// Decode decodes ResponsePostResponseCatalogCreatedPrecheck from json.
+func (s *ResponsePostResponseCatalogCreatedPrecheck) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseCatalogCreatedPrecheck to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "body":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Body = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"body\"")
+			}
+		case "cli":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Cli = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cli\"")
+			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
+		case "headers":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Headers = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Method.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"method\"")
+			}
+		case "path":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Path = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"path\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseCatalogCreatedPrecheck")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00111011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfResponsePostResponseCatalogCreatedPrecheck) {
+					name = jsonFieldsNameOfResponsePostResponseCatalogCreatedPrecheck[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ResponsePostResponseCatalogCreatedPrecheck) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseCatalogCreatedPrecheck) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ResponsePostResponseCatalogCreatedPrecheckMethod as json.
+func (s ResponsePostResponseCatalogCreatedPrecheckMethod) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ResponsePostResponseCatalogCreatedPrecheckMethod from json.
+func (s *ResponsePostResponseCatalogCreatedPrecheckMethod) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseCatalogCreatedPrecheckMethod to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ResponsePostResponseCatalogCreatedPrecheckMethod(v) {
+	case ResponsePostResponseCatalogCreatedPrecheckMethodEmpty:
+		*s = ResponsePostResponseCatalogCreatedPrecheckMethodEmpty
+	case ResponsePostResponseCatalogCreatedPrecheckMethodGET:
+		*s = ResponsePostResponseCatalogCreatedPrecheckMethodGET
+	case ResponsePostResponseCatalogCreatedPrecheckMethodPUT:
+		*s = ResponsePostResponseCatalogCreatedPrecheckMethodPUT
+	case ResponsePostResponseCatalogCreatedPrecheckMethodPATCH:
+		*s = ResponsePostResponseCatalogCreatedPrecheckMethodPATCH
+	case ResponsePostResponseCatalogCreatedPrecheckMethodPOST:
+		*s = ResponsePostResponseCatalogCreatedPrecheckMethodPOST
+	case ResponsePostResponseCatalogCreatedPrecheckMethodDELETE:
+		*s = ResponsePostResponseCatalogCreatedPrecheckMethodDELETE
+	default:
+		*s = ResponsePostResponseCatalogCreatedPrecheckMethod(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePostResponseCatalogCreatedPrecheckMethod) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseCatalogCreatedPrecheckMethod) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes ResponsePostResponseCatalogCreatedRisk as json.
 func (s ResponsePostResponseCatalogCreatedRisk) Encode(e *jx.Encoder) {
 	e.Str(string(s))
@@ -208546,6 +209205,12 @@ func (s *ResponsePostResponseCatalogCreatedRollback) encodeFields(e *jx.Encoder)
 		e.Str(s.Cli)
 	}
 	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("headers")
 		e.Str(s.Headers)
 	}
@@ -208559,12 +209224,13 @@ func (s *ResponsePostResponseCatalogCreatedRollback) encodeFields(e *jx.Encoder)
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseCatalogCreatedRollback = [5]string{
+var jsonFieldsNameOfResponsePostResponseCatalogCreatedRollback = [6]string{
 	0: "body",
 	1: "cli",
-	2: "headers",
-	3: "method",
-	4: "path",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
 }
 
 // Decode decodes ResponsePostResponseCatalogCreatedRollback from json.
@@ -208600,8 +209266,18 @@ func (s *ResponsePostResponseCatalogCreatedRollback) Decode(d *jx.Decoder) error
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
 		case "headers":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Headers = string(v)
@@ -208613,7 +209289,7 @@ func (s *ResponsePostResponseCatalogCreatedRollback) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"headers\"")
 			}
 		case "method":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -208623,7 +209299,7 @@ func (s *ResponsePostResponseCatalogCreatedRollback) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "path":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Path = string(v)
@@ -208644,7 +209320,7 @@ func (s *ResponsePostResponseCatalogCreatedRollback) Decode(d *jx.Decoder) error
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -208756,6 +209432,12 @@ func (s *ResponsePostResponseCatalogCreatedRun) encodeFields(e *jx.Encoder) {
 		e.Str(s.Cli)
 	}
 	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("headers")
 		e.Str(s.Headers)
 	}
@@ -208769,12 +209451,13 @@ func (s *ResponsePostResponseCatalogCreatedRun) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseCatalogCreatedRun = [5]string{
+var jsonFieldsNameOfResponsePostResponseCatalogCreatedRun = [6]string{
 	0: "body",
 	1: "cli",
-	2: "headers",
-	3: "method",
-	4: "path",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
 }
 
 // Decode decodes ResponsePostResponseCatalogCreatedRun from json.
@@ -208810,8 +209493,18 @@ func (s *ResponsePostResponseCatalogCreatedRun) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
 		case "headers":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Headers = string(v)
@@ -208823,7 +209516,7 @@ func (s *ResponsePostResponseCatalogCreatedRun) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"headers\"")
 			}
 		case "method":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -208833,7 +209526,7 @@ func (s *ResponsePostResponseCatalogCreatedRun) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "path":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Path = string(v)
@@ -208854,7 +209547,7 @@ func (s *ResponsePostResponseCatalogCreatedRun) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -208966,6 +209659,12 @@ func (s *ResponsePostResponseCatalogCreatedVerify) encodeFields(e *jx.Encoder) {
 		e.Str(s.Cli)
 	}
 	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("headers")
 		e.Str(s.Headers)
 	}
@@ -208979,12 +209678,13 @@ func (s *ResponsePostResponseCatalogCreatedVerify) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseCatalogCreatedVerify = [5]string{
+var jsonFieldsNameOfResponsePostResponseCatalogCreatedVerify = [6]string{
 	0: "body",
 	1: "cli",
-	2: "headers",
-	3: "method",
-	4: "path",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
 }
 
 // Decode decodes ResponsePostResponseCatalogCreatedVerify from json.
@@ -209020,8 +209720,18 @@ func (s *ResponsePostResponseCatalogCreatedVerify) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
 		case "headers":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Headers = string(v)
@@ -209033,7 +209743,7 @@ func (s *ResponsePostResponseCatalogCreatedVerify) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"headers\"")
 			}
 		case "method":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -209043,7 +209753,7 @@ func (s *ResponsePostResponseCatalogCreatedVerify) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "path":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Path = string(v)
@@ -209064,7 +209774,7 @@ func (s *ResponsePostResponseCatalogCreatedVerify) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -209188,6 +209898,22 @@ func (s *ResponsePostResponseCatalogReq) encodeFields(e *jx.Encoder) {
 		e.Str(s.Name)
 	}
 	{
+		if s.Precheck.Set {
+			e.FieldStart("precheck")
+			s.Precheck.Encode(e)
+		}
+	}
+	{
+		if s.PrecheckRefuse != nil {
+			e.FieldStart("precheck_refuse")
+			e.ArrStart()
+			for _, elem := range s.PrecheckRefuse {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("risk")
 		s.Risk.Encode(e)
 	}
@@ -209213,18 +209939,20 @@ func (s *ResponsePostResponseCatalogReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseCatalogReq = [11]string{
+var jsonFieldsNameOfResponsePostResponseCatalogReq = [13]string{
 	0:  "ai_may_propose",
 	1:  "connection_id",
 	2:  "description",
 	3:  "enabled",
 	4:  "name",
-	5:  "risk",
-	6:  "rollback",
-	7:  "rollback_tool",
-	8:  "run",
-	9:  "tool",
-	10: "verify",
+	5:  "precheck",
+	6:  "precheck_refuse",
+	7:  "risk",
+	8:  "rollback",
+	9:  "rollback_tool",
+	10: "run",
+	11: "tool",
+	12: "verify",
 }
 
 // Decode decodes ResponsePostResponseCatalogReq from json.
@@ -209296,8 +210024,37 @@ func (s *ResponsePostResponseCatalogReq) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
+		case "precheck":
+			if err := func() error {
+				s.Precheck.Reset()
+				if err := s.Precheck.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck\"")
+			}
+		case "precheck_refuse":
+			if err := func() error {
+				s.PrecheckRefuse = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.PrecheckRefuse = append(s.PrecheckRefuse, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_refuse\"")
+			}
 		case "risk":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Risk.Decode(d); err != nil {
 					return err
@@ -209307,7 +210064,7 @@ func (s *ResponsePostResponseCatalogReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"risk\"")
 			}
 		case "rollback":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Rollback.Decode(d); err != nil {
 					return err
@@ -209317,7 +210074,7 @@ func (s *ResponsePostResponseCatalogReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"rollback\"")
 			}
 		case "rollback_tool":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.RollbackTool.Decode(d); err != nil {
 					return err
@@ -209327,7 +210084,7 @@ func (s *ResponsePostResponseCatalogReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"rollback_tool\"")
 			}
 		case "run":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.Run.Decode(d); err != nil {
 					return err
@@ -209337,7 +210094,7 @@ func (s *ResponsePostResponseCatalogReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
 		case "tool":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.Tool.Decode(d); err != nil {
 					return err
@@ -209347,7 +210104,7 @@ func (s *ResponsePostResponseCatalogReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tool\"")
 			}
 		case "verify":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Verify.Decode(d); err != nil {
 					return err
@@ -209366,8 +210123,8 @@ func (s *ResponsePostResponseCatalogReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11111111,
-		0b00000111,
+		0b10011111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -209409,6 +210166,233 @@ func (s *ResponsePostResponseCatalogReq) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponsePostResponseCatalogReq) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ResponsePostResponseCatalogReqPrecheck) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ResponsePostResponseCatalogReqPrecheck) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("body")
+		e.Str(s.Body)
+	}
+	{
+		e.FieldStart("cli")
+		e.Str(s.Cli)
+	}
+	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("headers")
+		e.Str(s.Headers)
+	}
+	{
+		e.FieldStart("method")
+		s.Method.Encode(e)
+	}
+	{
+		e.FieldStart("path")
+		e.Str(s.Path)
+	}
+}
+
+var jsonFieldsNameOfResponsePostResponseCatalogReqPrecheck = [6]string{
+	0: "body",
+	1: "cli",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
+}
+
+// Decode decodes ResponsePostResponseCatalogReqPrecheck from json.
+func (s *ResponsePostResponseCatalogReqPrecheck) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseCatalogReqPrecheck to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "body":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Body = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"body\"")
+			}
+		case "cli":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Cli = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cli\"")
+			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
+		case "headers":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Headers = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Method.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"method\"")
+			}
+		case "path":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Path = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"path\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseCatalogReqPrecheck")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00111011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfResponsePostResponseCatalogReqPrecheck) {
+					name = jsonFieldsNameOfResponsePostResponseCatalogReqPrecheck[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ResponsePostResponseCatalogReqPrecheck) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseCatalogReqPrecheck) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ResponsePostResponseCatalogReqPrecheckMethod as json.
+func (s ResponsePostResponseCatalogReqPrecheckMethod) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ResponsePostResponseCatalogReqPrecheckMethod from json.
+func (s *ResponsePostResponseCatalogReqPrecheckMethod) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseCatalogReqPrecheckMethod to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ResponsePostResponseCatalogReqPrecheckMethod(v) {
+	case ResponsePostResponseCatalogReqPrecheckMethodEmpty:
+		*s = ResponsePostResponseCatalogReqPrecheckMethodEmpty
+	case ResponsePostResponseCatalogReqPrecheckMethodGET:
+		*s = ResponsePostResponseCatalogReqPrecheckMethodGET
+	case ResponsePostResponseCatalogReqPrecheckMethodPUT:
+		*s = ResponsePostResponseCatalogReqPrecheckMethodPUT
+	case ResponsePostResponseCatalogReqPrecheckMethodPATCH:
+		*s = ResponsePostResponseCatalogReqPrecheckMethodPATCH
+	case ResponsePostResponseCatalogReqPrecheckMethodPOST:
+		*s = ResponsePostResponseCatalogReqPrecheckMethodPOST
+	case ResponsePostResponseCatalogReqPrecheckMethodDELETE:
+		*s = ResponsePostResponseCatalogReqPrecheckMethodDELETE
+	default:
+		*s = ResponsePostResponseCatalogReqPrecheckMethod(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePostResponseCatalogReqPrecheckMethod) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseCatalogReqPrecheckMethod) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -209473,6 +210457,12 @@ func (s *ResponsePostResponseCatalogReqRollback) encodeFields(e *jx.Encoder) {
 		e.Str(s.Cli)
 	}
 	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("headers")
 		e.Str(s.Headers)
 	}
@@ -209486,12 +210476,13 @@ func (s *ResponsePostResponseCatalogReqRollback) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseCatalogReqRollback = [5]string{
+var jsonFieldsNameOfResponsePostResponseCatalogReqRollback = [6]string{
 	0: "body",
 	1: "cli",
-	2: "headers",
-	3: "method",
-	4: "path",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
 }
 
 // Decode decodes ResponsePostResponseCatalogReqRollback from json.
@@ -209527,8 +210518,18 @@ func (s *ResponsePostResponseCatalogReqRollback) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
 		case "headers":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Headers = string(v)
@@ -209540,7 +210541,7 @@ func (s *ResponsePostResponseCatalogReqRollback) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"headers\"")
 			}
 		case "method":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -209550,7 +210551,7 @@ func (s *ResponsePostResponseCatalogReqRollback) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "path":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Path = string(v)
@@ -209571,7 +210572,7 @@ func (s *ResponsePostResponseCatalogReqRollback) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -209683,6 +210684,12 @@ func (s *ResponsePostResponseCatalogReqRun) encodeFields(e *jx.Encoder) {
 		e.Str(s.Cli)
 	}
 	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("headers")
 		e.Str(s.Headers)
 	}
@@ -209696,12 +210703,13 @@ func (s *ResponsePostResponseCatalogReqRun) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseCatalogReqRun = [5]string{
+var jsonFieldsNameOfResponsePostResponseCatalogReqRun = [6]string{
 	0: "body",
 	1: "cli",
-	2: "headers",
-	3: "method",
-	4: "path",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
 }
 
 // Decode decodes ResponsePostResponseCatalogReqRun from json.
@@ -209737,8 +210745,18 @@ func (s *ResponsePostResponseCatalogReqRun) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
 		case "headers":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Headers = string(v)
@@ -209750,7 +210768,7 @@ func (s *ResponsePostResponseCatalogReqRun) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"headers\"")
 			}
 		case "method":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -209760,7 +210778,7 @@ func (s *ResponsePostResponseCatalogReqRun) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "path":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Path = string(v)
@@ -209781,7 +210799,7 @@ func (s *ResponsePostResponseCatalogReqRun) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -209893,6 +210911,12 @@ func (s *ResponsePostResponseCatalogReqVerify) encodeFields(e *jx.Encoder) {
 		e.Str(s.Cli)
 	}
 	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("headers")
 		e.Str(s.Headers)
 	}
@@ -209906,12 +210930,13 @@ func (s *ResponsePostResponseCatalogReqVerify) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseCatalogReqVerify = [5]string{
+var jsonFieldsNameOfResponsePostResponseCatalogReqVerify = [6]string{
 	0: "body",
 	1: "cli",
-	2: "headers",
-	3: "method",
-	4: "path",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
 }
 
 // Decode decodes ResponsePostResponseCatalogReqVerify from json.
@@ -209947,8 +210972,18 @@ func (s *ResponsePostResponseCatalogReqVerify) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
 		case "headers":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Headers = string(v)
@@ -209960,7 +210995,7 @@ func (s *ResponsePostResponseCatalogReqVerify) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"headers\"")
 			}
 		case "method":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -209970,7 +211005,7 @@ func (s *ResponsePostResponseCatalogReqVerify) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "path":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Path = string(v)
@@ -209991,7 +211026,7 @@ func (s *ResponsePostResponseCatalogReqVerify) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -219605,6 +220640,18 @@ func (s *ResponsePutResponseCatalogIDOK) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		e.FieldStart("precheck")
+		s.Precheck.Encode(e)
+	}
+	{
+		e.FieldStart("precheck_refuse")
+		e.ArrStart()
+		for _, elem := range s.PrecheckRefuse {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("reversible")
 		e.Bool(s.Reversible)
 	}
@@ -219638,7 +220685,7 @@ func (s *ResponsePutResponseCatalogIDOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponsePutResponseCatalogIDOK = [21]string{
+var jsonFieldsNameOfResponsePutResponseCatalogIDOK = [23]string{
 	0:  "ai_may_propose",
 	1:  "available",
 	2:  "builtin",
@@ -219652,14 +220699,16 @@ var jsonFieldsNameOfResponsePutResponseCatalogIDOK = [21]string{
 	10: "name",
 	11: "pack",
 	12: "params",
-	13: "reversible",
-	14: "risk",
-	15: "rollback",
-	16: "rollback_tool",
-	17: "run",
-	18: "tool",
-	19: "unavailable_reason",
-	20: "verify",
+	13: "precheck",
+	14: "precheck_refuse",
+	15: "reversible",
+	16: "risk",
+	17: "rollback",
+	18: "rollback_tool",
+	19: "run",
+	20: "tool",
+	21: "unavailable_reason",
+	22: "verify",
 }
 
 // Decode decodes ResponsePutResponseCatalogIDOK from json.
@@ -219827,8 +220876,38 @@ func (s *ResponsePutResponseCatalogIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"params\"")
 			}
-		case "reversible":
+		case "precheck":
 			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				if err := s.Precheck.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck\"")
+			}
+		case "precheck_refuse":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				s.PrecheckRefuse = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.PrecheckRefuse = append(s.PrecheckRefuse, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_refuse\"")
+			}
+		case "reversible":
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				v, err := d.Bool()
 				s.Reversible = bool(v)
@@ -219840,7 +220919,7 @@ func (s *ResponsePutResponseCatalogIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"reversible\"")
 			}
 		case "risk":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				if err := s.Risk.Decode(d); err != nil {
 					return err
@@ -219850,7 +220929,7 @@ func (s *ResponsePutResponseCatalogIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"risk\"")
 			}
 		case "rollback":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.Rollback.Decode(d); err != nil {
 					return err
@@ -219860,7 +220939,7 @@ func (s *ResponsePutResponseCatalogIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"rollback\"")
 			}
 		case "rollback_tool":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				if err := s.RollbackTool.Decode(d); err != nil {
 					return err
@@ -219870,7 +220949,7 @@ func (s *ResponsePutResponseCatalogIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"rollback_tool\"")
 			}
 		case "run":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				if err := s.Run.Decode(d); err != nil {
 					return err
@@ -219880,7 +220959,7 @@ func (s *ResponsePutResponseCatalogIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
 		case "tool":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				if err := s.Tool.Decode(d); err != nil {
 					return err
@@ -219890,7 +220969,7 @@ func (s *ResponsePutResponseCatalogIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tool\"")
 			}
 		case "unavailable_reason":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.UnavailableReason.Decode(d); err != nil {
 					return err
@@ -219900,7 +220979,7 @@ func (s *ResponsePutResponseCatalogIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"unavailable_reason\"")
 			}
 		case "verify":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[2] |= 1 << 6
 			if err := func() error {
 				if err := s.Verify.Decode(d); err != nil {
 					return err
@@ -219921,7 +221000,7 @@ func (s *ResponsePutResponseCatalogIDOK) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00011111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -220071,6 +221150,233 @@ func (s *ResponsePutResponseCatalogIDOKParamsItem) UnmarshalJSON(data []byte) er
 	return s.Decode(d)
 }
 
+// Encode implements json.Marshaler.
+func (s *ResponsePutResponseCatalogIDOKPrecheck) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ResponsePutResponseCatalogIDOKPrecheck) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("body")
+		e.Str(s.Body)
+	}
+	{
+		e.FieldStart("cli")
+		e.Str(s.Cli)
+	}
+	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("headers")
+		e.Str(s.Headers)
+	}
+	{
+		e.FieldStart("method")
+		s.Method.Encode(e)
+	}
+	{
+		e.FieldStart("path")
+		e.Str(s.Path)
+	}
+}
+
+var jsonFieldsNameOfResponsePutResponseCatalogIDOKPrecheck = [6]string{
+	0: "body",
+	1: "cli",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
+}
+
+// Decode decodes ResponsePutResponseCatalogIDOKPrecheck from json.
+func (s *ResponsePutResponseCatalogIDOKPrecheck) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePutResponseCatalogIDOKPrecheck to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "body":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Body = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"body\"")
+			}
+		case "cli":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Cli = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cli\"")
+			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
+		case "headers":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Headers = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Method.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"method\"")
+			}
+		case "path":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Path = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"path\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePutResponseCatalogIDOKPrecheck")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00111011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfResponsePutResponseCatalogIDOKPrecheck) {
+					name = jsonFieldsNameOfResponsePutResponseCatalogIDOKPrecheck[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ResponsePutResponseCatalogIDOKPrecheck) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePutResponseCatalogIDOKPrecheck) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ResponsePutResponseCatalogIDOKPrecheckMethod as json.
+func (s ResponsePutResponseCatalogIDOKPrecheckMethod) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ResponsePutResponseCatalogIDOKPrecheckMethod from json.
+func (s *ResponsePutResponseCatalogIDOKPrecheckMethod) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePutResponseCatalogIDOKPrecheckMethod to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ResponsePutResponseCatalogIDOKPrecheckMethod(v) {
+	case ResponsePutResponseCatalogIDOKPrecheckMethodEmpty:
+		*s = ResponsePutResponseCatalogIDOKPrecheckMethodEmpty
+	case ResponsePutResponseCatalogIDOKPrecheckMethodGET:
+		*s = ResponsePutResponseCatalogIDOKPrecheckMethodGET
+	case ResponsePutResponseCatalogIDOKPrecheckMethodPUT:
+		*s = ResponsePutResponseCatalogIDOKPrecheckMethodPUT
+	case ResponsePutResponseCatalogIDOKPrecheckMethodPATCH:
+		*s = ResponsePutResponseCatalogIDOKPrecheckMethodPATCH
+	case ResponsePutResponseCatalogIDOKPrecheckMethodPOST:
+		*s = ResponsePutResponseCatalogIDOKPrecheckMethodPOST
+	case ResponsePutResponseCatalogIDOKPrecheckMethodDELETE:
+		*s = ResponsePutResponseCatalogIDOKPrecheckMethodDELETE
+	default:
+		*s = ResponsePutResponseCatalogIDOKPrecheckMethod(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePutResponseCatalogIDOKPrecheckMethod) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePutResponseCatalogIDOKPrecheckMethod) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes ResponsePutResponseCatalogIDOKRisk as json.
 func (s ResponsePutResponseCatalogIDOKRisk) Encode(e *jx.Encoder) {
 	e.Str(string(s))
@@ -220131,6 +221437,12 @@ func (s *ResponsePutResponseCatalogIDOKRollback) encodeFields(e *jx.Encoder) {
 		e.Str(s.Cli)
 	}
 	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("headers")
 		e.Str(s.Headers)
 	}
@@ -220144,12 +221456,13 @@ func (s *ResponsePutResponseCatalogIDOKRollback) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponsePutResponseCatalogIDOKRollback = [5]string{
+var jsonFieldsNameOfResponsePutResponseCatalogIDOKRollback = [6]string{
 	0: "body",
 	1: "cli",
-	2: "headers",
-	3: "method",
-	4: "path",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
 }
 
 // Decode decodes ResponsePutResponseCatalogIDOKRollback from json.
@@ -220185,8 +221498,18 @@ func (s *ResponsePutResponseCatalogIDOKRollback) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
 		case "headers":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Headers = string(v)
@@ -220198,7 +221521,7 @@ func (s *ResponsePutResponseCatalogIDOKRollback) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"headers\"")
 			}
 		case "method":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -220208,7 +221531,7 @@ func (s *ResponsePutResponseCatalogIDOKRollback) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "path":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Path = string(v)
@@ -220229,7 +221552,7 @@ func (s *ResponsePutResponseCatalogIDOKRollback) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -220341,6 +221664,12 @@ func (s *ResponsePutResponseCatalogIDOKRun) encodeFields(e *jx.Encoder) {
 		e.Str(s.Cli)
 	}
 	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("headers")
 		e.Str(s.Headers)
 	}
@@ -220354,12 +221683,13 @@ func (s *ResponsePutResponseCatalogIDOKRun) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponsePutResponseCatalogIDOKRun = [5]string{
+var jsonFieldsNameOfResponsePutResponseCatalogIDOKRun = [6]string{
 	0: "body",
 	1: "cli",
-	2: "headers",
-	3: "method",
-	4: "path",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
 }
 
 // Decode decodes ResponsePutResponseCatalogIDOKRun from json.
@@ -220395,8 +221725,18 @@ func (s *ResponsePutResponseCatalogIDOKRun) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
 		case "headers":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Headers = string(v)
@@ -220408,7 +221748,7 @@ func (s *ResponsePutResponseCatalogIDOKRun) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"headers\"")
 			}
 		case "method":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -220418,7 +221758,7 @@ func (s *ResponsePutResponseCatalogIDOKRun) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "path":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Path = string(v)
@@ -220439,7 +221779,7 @@ func (s *ResponsePutResponseCatalogIDOKRun) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -220551,6 +221891,12 @@ func (s *ResponsePutResponseCatalogIDOKVerify) encodeFields(e *jx.Encoder) {
 		e.Str(s.Cli)
 	}
 	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("headers")
 		e.Str(s.Headers)
 	}
@@ -220564,12 +221910,13 @@ func (s *ResponsePutResponseCatalogIDOKVerify) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponsePutResponseCatalogIDOKVerify = [5]string{
+var jsonFieldsNameOfResponsePutResponseCatalogIDOKVerify = [6]string{
 	0: "body",
 	1: "cli",
-	2: "headers",
-	3: "method",
-	4: "path",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
 }
 
 // Decode decodes ResponsePutResponseCatalogIDOKVerify from json.
@@ -220605,8 +221952,18 @@ func (s *ResponsePutResponseCatalogIDOKVerify) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
 		case "headers":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Headers = string(v)
@@ -220618,7 +221975,7 @@ func (s *ResponsePutResponseCatalogIDOKVerify) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"headers\"")
 			}
 		case "method":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -220628,7 +221985,7 @@ func (s *ResponsePutResponseCatalogIDOKVerify) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "path":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Path = string(v)
@@ -220649,7 +222006,7 @@ func (s *ResponsePutResponseCatalogIDOKVerify) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -220783,6 +222140,22 @@ func (s *ResponsePutResponseCatalogIDReq) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.Precheck.Set {
+			e.FieldStart("precheck")
+			s.Precheck.Encode(e)
+		}
+	}
+	{
+		if s.PrecheckRefuse != nil {
+			e.FieldStart("precheck_refuse")
+			e.ArrStart()
+			for _, elem := range s.PrecheckRefuse {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		if s.Risk.Set {
 			e.FieldStart("risk")
 			s.Risk.Encode(e)
@@ -220820,18 +222193,20 @@ func (s *ResponsePutResponseCatalogIDReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponsePutResponseCatalogIDReq = [11]string{
+var jsonFieldsNameOfResponsePutResponseCatalogIDReq = [13]string{
 	0:  "ai_may_propose",
 	1:  "connection_id",
 	2:  "description",
 	3:  "enabled",
 	4:  "name",
-	5:  "risk",
-	6:  "rollback",
-	7:  "rollback_tool",
-	8:  "run",
-	9:  "tool",
-	10: "verify",
+	5:  "precheck",
+	6:  "precheck_refuse",
+	7:  "risk",
+	8:  "rollback",
+	9:  "rollback_tool",
+	10: "run",
+	11: "tool",
+	12: "verify",
 }
 
 // Decode decodes ResponsePutResponseCatalogIDReq from json.
@@ -220891,6 +222266,35 @@ func (s *ResponsePutResponseCatalogIDReq) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "precheck":
+			if err := func() error {
+				s.Precheck.Reset()
+				if err := s.Precheck.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck\"")
+			}
+		case "precheck_refuse":
+			if err := func() error {
+				s.PrecheckRefuse = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.PrecheckRefuse = append(s.PrecheckRefuse, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_refuse\"")
 			}
 		case "risk":
 			if err := func() error {
@@ -220976,6 +222380,233 @@ func (s *ResponsePutResponseCatalogIDReq) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode implements json.Marshaler.
+func (s *ResponsePutResponseCatalogIDReqPrecheck) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ResponsePutResponseCatalogIDReqPrecheck) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("body")
+		e.Str(s.Body)
+	}
+	{
+		e.FieldStart("cli")
+		e.Str(s.Cli)
+	}
+	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("headers")
+		e.Str(s.Headers)
+	}
+	{
+		e.FieldStart("method")
+		s.Method.Encode(e)
+	}
+	{
+		e.FieldStart("path")
+		e.Str(s.Path)
+	}
+}
+
+var jsonFieldsNameOfResponsePutResponseCatalogIDReqPrecheck = [6]string{
+	0: "body",
+	1: "cli",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
+}
+
+// Decode decodes ResponsePutResponseCatalogIDReqPrecheck from json.
+func (s *ResponsePutResponseCatalogIDReqPrecheck) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePutResponseCatalogIDReqPrecheck to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "body":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Body = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"body\"")
+			}
+		case "cli":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Cli = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cli\"")
+			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
+		case "headers":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Headers = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Method.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"method\"")
+			}
+		case "path":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Path = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"path\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePutResponseCatalogIDReqPrecheck")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00111011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfResponsePutResponseCatalogIDReqPrecheck) {
+					name = jsonFieldsNameOfResponsePutResponseCatalogIDReqPrecheck[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ResponsePutResponseCatalogIDReqPrecheck) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePutResponseCatalogIDReqPrecheck) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ResponsePutResponseCatalogIDReqPrecheckMethod as json.
+func (s ResponsePutResponseCatalogIDReqPrecheckMethod) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ResponsePutResponseCatalogIDReqPrecheckMethod from json.
+func (s *ResponsePutResponseCatalogIDReqPrecheckMethod) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePutResponseCatalogIDReqPrecheckMethod to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ResponsePutResponseCatalogIDReqPrecheckMethod(v) {
+	case ResponsePutResponseCatalogIDReqPrecheckMethodEmpty:
+		*s = ResponsePutResponseCatalogIDReqPrecheckMethodEmpty
+	case ResponsePutResponseCatalogIDReqPrecheckMethodGET:
+		*s = ResponsePutResponseCatalogIDReqPrecheckMethodGET
+	case ResponsePutResponseCatalogIDReqPrecheckMethodPUT:
+		*s = ResponsePutResponseCatalogIDReqPrecheckMethodPUT
+	case ResponsePutResponseCatalogIDReqPrecheckMethodPATCH:
+		*s = ResponsePutResponseCatalogIDReqPrecheckMethodPATCH
+	case ResponsePutResponseCatalogIDReqPrecheckMethodPOST:
+		*s = ResponsePutResponseCatalogIDReqPrecheckMethodPOST
+	case ResponsePutResponseCatalogIDReqPrecheckMethodDELETE:
+		*s = ResponsePutResponseCatalogIDReqPrecheckMethodDELETE
+	default:
+		*s = ResponsePutResponseCatalogIDReqPrecheckMethod(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePutResponseCatalogIDReqPrecheckMethod) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePutResponseCatalogIDReqPrecheckMethod) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes ResponsePutResponseCatalogIDReqRisk as json.
 func (s ResponsePutResponseCatalogIDReqRisk) Encode(e *jx.Encoder) {
 	e.Str(string(s))
@@ -221036,6 +222667,12 @@ func (s *ResponsePutResponseCatalogIDReqRollback) encodeFields(e *jx.Encoder) {
 		e.Str(s.Cli)
 	}
 	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("headers")
 		e.Str(s.Headers)
 	}
@@ -221049,12 +222686,13 @@ func (s *ResponsePutResponseCatalogIDReqRollback) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponsePutResponseCatalogIDReqRollback = [5]string{
+var jsonFieldsNameOfResponsePutResponseCatalogIDReqRollback = [6]string{
 	0: "body",
 	1: "cli",
-	2: "headers",
-	3: "method",
-	4: "path",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
 }
 
 // Decode decodes ResponsePutResponseCatalogIDReqRollback from json.
@@ -221090,8 +222728,18 @@ func (s *ResponsePutResponseCatalogIDReqRollback) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
 		case "headers":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Headers = string(v)
@@ -221103,7 +222751,7 @@ func (s *ResponsePutResponseCatalogIDReqRollback) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"headers\"")
 			}
 		case "method":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -221113,7 +222761,7 @@ func (s *ResponsePutResponseCatalogIDReqRollback) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "path":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Path = string(v)
@@ -221134,7 +222782,7 @@ func (s *ResponsePutResponseCatalogIDReqRollback) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -221246,6 +222894,12 @@ func (s *ResponsePutResponseCatalogIDReqRun) encodeFields(e *jx.Encoder) {
 		e.Str(s.Cli)
 	}
 	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("headers")
 		e.Str(s.Headers)
 	}
@@ -221259,12 +222913,13 @@ func (s *ResponsePutResponseCatalogIDReqRun) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponsePutResponseCatalogIDReqRun = [5]string{
+var jsonFieldsNameOfResponsePutResponseCatalogIDReqRun = [6]string{
 	0: "body",
 	1: "cli",
-	2: "headers",
-	3: "method",
-	4: "path",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
 }
 
 // Decode decodes ResponsePutResponseCatalogIDReqRun from json.
@@ -221300,8 +222955,18 @@ func (s *ResponsePutResponseCatalogIDReqRun) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
 		case "headers":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Headers = string(v)
@@ -221313,7 +222978,7 @@ func (s *ResponsePutResponseCatalogIDReqRun) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"headers\"")
 			}
 		case "method":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -221323,7 +222988,7 @@ func (s *ResponsePutResponseCatalogIDReqRun) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "path":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Path = string(v)
@@ -221344,7 +223009,7 @@ func (s *ResponsePutResponseCatalogIDReqRun) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -221456,6 +223121,12 @@ func (s *ResponsePutResponseCatalogIDReqVerify) encodeFields(e *jx.Encoder) {
 		e.Str(s.Cli)
 	}
 	{
+		if s.Expect.Set {
+			e.FieldStart("expect")
+			s.Expect.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("headers")
 		e.Str(s.Headers)
 	}
@@ -221469,12 +223140,13 @@ func (s *ResponsePutResponseCatalogIDReqVerify) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponsePutResponseCatalogIDReqVerify = [5]string{
+var jsonFieldsNameOfResponsePutResponseCatalogIDReqVerify = [6]string{
 	0: "body",
 	1: "cli",
-	2: "headers",
-	3: "method",
-	4: "path",
+	2: "expect",
+	3: "headers",
+	4: "method",
+	5: "path",
 }
 
 // Decode decodes ResponsePutResponseCatalogIDReqVerify from json.
@@ -221510,8 +223182,18 @@ func (s *ResponsePutResponseCatalogIDReqVerify) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
+		case "expect":
+			if err := func() error {
+				s.Expect.Reset()
+				if err := s.Expect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expect\"")
+			}
 		case "headers":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Headers = string(v)
@@ -221523,7 +223205,7 @@ func (s *ResponsePutResponseCatalogIDReqVerify) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"headers\"")
 			}
 		case "method":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -221533,7 +223215,7 @@ func (s *ResponsePutResponseCatalogIDReqVerify) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "path":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Path = string(v)
@@ -221554,7 +223236,7 @@ func (s *ResponsePutResponseCatalogIDReqVerify) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

@@ -377,10 +377,11 @@ func gateItem(i itemRec, st Settings, cats map[string]catRow, cs conns, run *run
 	return nil
 }
 
-// actionFP is the fingerprint of what a request item was rendered from: the templates and the risk of the catalog entry. An edit of
+// actionFP is the fingerprint of what a request item was rendered from: the templates (with the read-back text), the check before and
+// its refusal texts, and the risk of the catalog entry. An edit of
 // either changes it, so a request made before the edit refuses at approval and at run instead of sending the old rendering at the old risk.
 func actionFP(c catRow) string {
-	b, _ := json.Marshal([]any{c.Run, c.Rollback, c.Verify, c.Risk})
+	b, _ := json.Marshal([]any{c.Run, c.Rollback, c.Verify, c.Precheck, nonNilStrings(c.PrecheckRefuse), c.Risk})
 	h := sha256.Sum256(b)
 	return hex.EncodeToString(h[:16])
 }

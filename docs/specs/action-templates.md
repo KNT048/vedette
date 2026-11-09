@@ -658,7 +658,9 @@ Danh mục hiện tại ở `web/src/features/response/data.ts`:
 10. Kiểu tham số: thiếu `id` (policyid) và `name`; `{text}` đang lẫn vào mẫu thiết bị.
 11. Thiếu hành động `cisco_save_config` (5.5) và `fgt_ebl_setup`/`opn_urltable_setup`/`adguard_add_url` (thiết lập một lần, kéo) dưới dạng hướng dẫn.
 
-### 12.1 Sửa dữ liệu ở lát 13b-2 (D-94, D-95; 13b-0 chốt)
+### 12.1 Sửa dữ liệu ở lát 13b-2 (D-94, D-95; 13b-0 chốt) — **đã làm ở 13b-2**
+
+**Trạng thái (13b-2):** cả sáu mục dưới đây đã nằm trong dữ liệu và có test (Go: `TestContract_INV14c_LibraryDataFixes`, `TestBuiltinActionsNeedingADeviceReadAreNotAvailableYet`; GUI: `templates.test.ts` §12.1). Mục 5 được cài ở `unavailable()` (tính từ mẫu, không có cờ trong dữ liệu). Các dòng lệnh, chuỗi từ chối và `expect` vẫn mang nhãn chưa thử trên máy; chưa có mã nào chạy chúng (13b-6).
 
 Áp dụng cho cả `modules/response/data/action-templates.json` và bản mock `web/src/features/response/templates/action-templates.sample.json` (test lệch thư viện phải xanh). Nhãn "chưa xác minh" giữ nguyên như các mục trên.
 

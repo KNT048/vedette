@@ -12,7 +12,7 @@ import { Field, Input, Select, Textarea } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { errText, useCatalog, useDeleteAction, useSaveAction } from './api'
 import { RiskChip } from './parts'
-import { EMPTY_TPL, isMcp, KIND_FIELDS, kindHint, kindProblem, tplEmpty, validateTpl, type ConnKind, type Tpl, type TplField } from './logic'
+import { EMPTY_TPL, isMcp, KIND_FIELDS, kindHint, kindProblem, MAX_EXPECT, MAX_REFUSE, MAX_REFUSE_LEN, needsPrecheck, tplEmpty, validatePrecheck, validateTpl, type ConnKind, type Tpl, type TplField } from './logic'
 import type { Catalog, CatalogAction, CatalogInput, Connection, Risk } from './types'
 
 const METHODS: Tpl['method'][] = ['', 'GET', 'PUT', 'PATCH', 'POST', 'DELETE']
@@ -44,8 +44,14 @@ function ArgRows({ id, body, onChange }: { id: string; body: string; onChange: (
   )
 }
 
+/** The refusal texts, one per line. The text box keeps what is typed (a new empty line while typing); the form gets the non-empty lines. */
+function RefuseText({ id, value, onChange }: { id: string; value: string[]; onChange: (v: string[]) => void }) {
+  const [text, setText] = useState(value.join('\n'))
+  return <Textarea id={id} className="min-h-16" spellCheck={false} value={text} onChange={(e) => { setText(e.target.value); onChange(e.target.value.split('\n').filter((x) => x !== '')) }} />
+}
+
 /** Only the fields of the connection kind. Nothing else is rendered, so nothing from another kind can leak in. */
-function TplFields({ id, legend, kind, value, onChange, tools, tool, onTool, hint }: { id: string; legend: string; kind: ConnKind; value: Tpl; onChange: (t: Tpl) => void; tools: string[]; tool: string | null; onTool: (v: string | null) => void; hint?: string }) {
+function TplFields({ id, legend, kind, value, onChange, tools, tool, onTool, hint, readOnly, expect, children }: { id: string; legend: string; kind: ConnKind; value: Tpl; onChange: (t: Tpl) => void; tools: string[]; tool: string | null; onTool: (v: string | null) => void; hint?: string; readOnly?: boolean; expect?: boolean; children?: React.ReactNode }) {
   const { t } = useTranslation('response')
   const has = (f: TplField) => KIND_FIELDS[kind].includes(f)
   return (
@@ -62,12 +68,14 @@ function TplFields({ id, legend, kind, value, onChange, tools, tool, onTool, hin
       {has('cli') ? <Field htmlFor={`${id}-cli`} label={t('catalog.command')} hint={hint}><Textarea id={`${id}-cli`} className="min-h-20" spellCheck={false} value={value.cli} onChange={(e) => onChange({ ...value, cli: e.target.value })} /></Field> : null}
       {has('method') ? (
         <div className="grid gap-3 sm:grid-cols-[8rem_1fr]">
-          <Field htmlFor={`${id}-method`} label={t('catalog.method')}><Select id={`${id}-method`} value={value.method} onChange={(e) => onChange({ ...value, method: e.target.value as Tpl['method'] })}>{METHODS.map((m) => <option key={m} value={m}>{m || t('catalog.chooseMethod')}</option>)}</Select></Field>
+          <Field htmlFor={`${id}-method`} label={t('catalog.method')}><Select id={`${id}-method`} value={value.method} onChange={(e) => onChange({ ...value, method: e.target.value as Tpl['method'] })}>{METHODS.filter((m) => !readOnly || m === '' || m === 'GET').map((m) => <option key={m} value={m}>{m || t('catalog.chooseMethod')}</option>)}</Select></Field>
           <Field htmlFor={`${id}-path`} label={t('catalog.path')} hint={t('catalog.pathHint')}><Input id={`${id}-path`} spellCheck={false} value={value.path} placeholder="/api/..." onChange={(e) => onChange({ ...value, path: e.target.value })} /></Field>
         </div>
       ) : null}
       {has('headers') ? <Field htmlFor={`${id}-headers`} label={t('catalog.headers')} hint={t('catalog.headersHint')}><Textarea id={`${id}-headers`} className="min-h-16" spellCheck={false} value={value.headers} onChange={(e) => onChange({ ...value, headers: e.target.value })} /></Field> : null}
-      {has('body') && !isMcp(kind) ? <Field htmlFor={`${id}-body`} label={t('catalog.body')}><Input id={`${id}-body`} spellCheck={false} value={value.body} placeholder='{"name":"{text}"}' onChange={(e) => onChange({ ...value, body: e.target.value })} /></Field> : null}
+      {has('body') && !isMcp(kind) && !readOnly ? <Field htmlFor={`${id}-body`} label={t('catalog.body')}><Input id={`${id}-body`} spellCheck={false} value={value.body} placeholder='{"name":"{text}"}' onChange={(e) => onChange({ ...value, body: e.target.value })} /></Field> : null}
+      {expect ? <Field htmlFor={`${id}-expect`} label={t('catalog.expect')} hint={t('catalog.expectHint')}><Input id={`${id}-expect`} spellCheck={false} maxLength={MAX_EXPECT} value={value.expect ?? ''} onChange={(e) => onChange({ ...value, expect: e.target.value })} /></Field> : null}
+      {children}
     </fieldset>
   )
 }
@@ -77,12 +85,12 @@ export function ActionDialog({ action, cat, onClose, onSaved }: { action: Catalo
   const { t } = useTranslation('response')
   const save = useSaveAction()
   const usable = cat.connections.filter((c) => !c.read_only)
-  const start = (c: Connection | undefined): Pick<CatalogInput, 'connection_id' | 'tool' | 'rollback_tool' | 'run' | 'rollback' | 'verify'> => {
+  const start = (c: Connection | undefined): Pick<CatalogInput, 'connection_id' | 'tool' | 'rollback_tool' | 'run' | 'rollback' | 'verify' | 'precheck' | 'precheck_refuse'> => {
     const ex = kindHint(c?.kind ?? null)
-    return { connection_id: c?.id ?? '', tool: null, rollback_tool: null, run: { ...EMPTY_TPL, ...ex.run }, rollback: { ...EMPTY_TPL, ...ex.rollback }, verify: EMPTY_TPL }
+    return { connection_id: c?.id ?? '', tool: null, rollback_tool: null, run: { ...EMPTY_TPL, ...ex.run }, rollback: { ...EMPTY_TPL, ...ex.rollback }, verify: EMPTY_TPL, precheck: EMPTY_TPL, precheck_refuse: [] }
   }
   const [f, setF] = useState<CatalogInput>(action
-    ? { name: action.name, description: action.description, connection_id: action.connection_id ?? '', tool: action.tool, rollback_tool: action.rollback_tool, run: action.run, rollback: action.rollback, verify: action.verify, risk: action.risk, enabled: action.enabled, ai_may_propose: action.ai_may_propose }
+    ? { name: action.name, description: action.description, connection_id: action.connection_id ?? '', tool: action.tool, rollback_tool: action.rollback_tool, run: action.run, rollback: action.rollback, verify: action.verify, precheck: action.precheck, precheck_refuse: action.precheck_refuse, risk: action.risk, enabled: action.enabled, ai_may_propose: action.ai_may_propose }
     : { name: '', description: '', risk: 'medium', enabled: false, ai_may_propose: false, ...start(usable.find((c) => c.enabled) ?? usable[0]) })
   const [error, setError] = useState<string | undefined>()
   const conn = cat.connections.find((c) => c.id === f.connection_id)
@@ -93,8 +101,11 @@ export function ActionDialog({ action, cat, onClose, onSaved }: { action: Catalo
     if (!conn || !kind) { setError(t('catalog.noWritable')); return }
     const bad = (['run', 'rollback'] as const).map((k) => kindProblem(kind, f[k], t(k === 'run' ? 'catalog.runLegend' : 'catalog.rollbackLegend')) ?? (isMcp(kind) ? null : validateTpl(f[k], t(k === 'run' ? 'catalog.runLegend' : 'catalog.rollbackLegend')))).find(Boolean)
       ?? (!isMcp(kind) && !tplEmpty(f.verify) ? validateTpl(f.verify, t('catalog.verifyLegend')) : null)
-    if (bad) { setError(bad); return }
-    save.mutate({ id: action?.id, input: { ...f, tool: isMcp(kind) ? f.tool : null, rollback_tool: isMcp(kind) ? f.rollback_tool : null, verify: isMcp(kind) ? EMPTY_TPL : f.verify } }, { onSuccess: (a) => { toast.success(t('common:saved')); onSaved?.(a); onClose() }, onError: (er) => setError(errText(er)) })
+    const pre = f.precheck ?? EMPTY_TPL, refuse = f.precheck_refuse ?? []
+    const wrong = bad ?? (f.run.expect || f.rollback.expect || pre.expect ? t('catalog.expectOnlyReadBack') : null) ?? validatePrecheck(pre, refuse, kind)
+      ?? (needsPrecheck(f.run, f.rollback, f.verify, pre, refuse) ? t('catalog.needsPrecheck') : null)
+    if (wrong) { setError(wrong); return }
+    save.mutate({ id: action?.id, input: { ...f, tool: isMcp(kind) ? f.tool : null, rollback_tool: isMcp(kind) ? f.rollback_tool : null, verify: isMcp(kind) ? EMPTY_TPL : f.verify, precheck: isMcp(kind) ? EMPTY_TPL : pre, precheck_refuse: isMcp(kind) ? [] : refuse } }, { onSuccess: (a) => { toast.success(t('common:saved')); onSaved?.(a); onClose() }, onError: (er) => setError(errText(er)) })
   }
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose() }}>
@@ -118,7 +129,14 @@ export function ActionDialog({ action, cat, onClose, onSaved }: { action: Catalo
               {ex.hint ? <p className="rounded-md border border-dashed border-rule px-3 py-2 text-[13px] text-muted">{ex.hint}</p> : null}
               <TplFields key={`run-${f.connection_id}`} id="ca-run" legend={t('catalog.runLegend')} kind={kind} value={f.run} onChange={(run) => set({ run })} tools={conn?.write_tools ?? []} tool={f.tool} onTool={(tool) => set({ tool })} />
               <TplFields key={`rb-${f.connection_id}`} id="ca-rb" legend={t('catalog.rollbackLegend')} kind={kind} value={f.rollback} onChange={(rollback) => set({ rollback })} tools={conn?.write_tools ?? []} tool={f.rollback_tool} onTool={(rollback_tool) => set({ rollback_tool })} />
-              {!isMcp(kind) ? <TplFields key={`vf-${f.connection_id}`} id="ca-vf" legend={t('catalog.verifyLegend')} kind={kind} value={f.verify} onChange={(verify) => set({ verify })} tools={[]} tool={null} onTool={() => undefined} hint={t('catalog.verifyHint')} /> : null}
+              {!isMcp(kind) ? <TplFields key={`vf-${f.connection_id}`} id="ca-vf" legend={t('catalog.verifyLegend')} kind={kind} value={f.verify} onChange={(verify) => set({ verify })} tools={[]} tool={null} onTool={() => undefined} hint={t('catalog.verifyHint')} expect /> : null}
+              {isMcp(kind) ? <p className="text-[13px] text-muted">{t('catalog.precheckNoMcp')}</p> : (
+                <TplFields key={`pc-${f.connection_id}`} id="ca-pc" legend={t('catalog.precheckLegend')} kind={kind} value={f.precheck ?? EMPTY_TPL} onChange={(precheck) => set({ precheck })} tools={[]} tool={null} onTool={() => undefined} hint={t('catalog.precheckHint')} readOnly>
+                  <Field htmlFor="ca-pc-refuse" label={t('catalog.refuse')} hint={t('catalog.refuseHint', { max: MAX_REFUSE, len: MAX_REFUSE_LEN })}>
+                    <RefuseText id="ca-pc-refuse" value={f.precheck_refuse ?? []} onChange={(precheck_refuse) => set({ precheck_refuse })} />
+                  </Field>
+                </TplFields>
+              )}
             </>
           ) : null}
           <div className="flex items-center gap-2.5">
@@ -177,6 +195,8 @@ export function CatalogEditor() {
                   ) : null}
                 </div>
                 <p className="text-[13px] text-muted">{a.description}</p>
+                {a.device && a.precheck_refuse.length ? <p className="text-[13px] text-muted">{t('catalog.checkedBefore', { texts: a.precheck_refuse.join(' · ') })}</p> : null}
+                {a.device && a.verify.expect ? <p className="text-[13px] text-muted">{t('catalog.readBackChecks', { text: a.verify.expect })}</p> : null}
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px]">
                   <div className="flex items-center gap-2">
                     <Switch id={`ai-${a.id}`} aria-label={t('catalog.aiMayFor', { name: a.name })} checked={a.ai_may_propose} disabled={save.isPending} onCheckedChange={(v) => save.mutate({ id: a.id, input: { ai_may_propose: v } }, { onError: fail })} />

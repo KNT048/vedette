@@ -56,8 +56,14 @@ func TestWiringResponseModule(t *testing.T) {
 	if c, v := s.do("POST", "/response/actions/act-1/chat-decision", "admin", `{"channel":"slack","external_id":"U1","decision":"approve"}`); c != 404 || at(v, "error", "code") != "not_found" {
 		t.Errorf("chat-decision: %d %v", c, v)
 	}
+	// FORBID-5 (D-97): the AI proposals route is preview-only too. The AI calls the Go port in the process, never this route.
+	for _, role := range []string{"admin", "operator"} {
+		if c, v := s.do("POST", "/response/ai/proposals", role, `{"trigger":"finding","action_id":"blocklist_add","params":{},"confidence":0.9,"evidence":[],"why":"x"}`); c != 404 || at(v, "error", "code") != "not_found" {
+			t.Errorf("POST /response/ai/proposals as %s: %d %v", role, c, v)
+		}
+	}
 	// Part 13b: 501 not_implemented.
-	for _, r := range [][3]string{{"GET", "/response/ai", ""}, {"POST", "/response/ai/resume", ""}, {"POST", "/response/ai/proposals", `{"trigger":"finding","action_id":"blocklist_add","params":{},"confidence":0.9,"evidence":[],"why":"x"}`},
+	for _, r := range [][3]string{{"GET", "/response/ai", ""}, {"POST", "/response/ai/resume", ""},
 		{"GET", "/response/approve/" + strings.Repeat("a", 32), ""}, {"POST", "/response/approve/" + strings.Repeat("a", 32), `{"decision":"approve"}`}} {
 		if c, v := s.do(r[0], r[1], "admin", r[2]); c != 501 || at(v, "error", "code") != "not_implemented" {
 			t.Errorf("%s %s: %d %v", r[0], r[1], c, v)

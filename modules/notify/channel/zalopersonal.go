@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/knt048/vedette/core/secrets"
@@ -21,8 +20,9 @@ import (
 // session, see parseZaloSession.
 //
 // The protocol is reverse-engineered, not published by Zalo, and may change or be
-// blocked at any time. Zalo may lock an account that uses it: use a separate
-// account (IMPACT.md, "Zalo personal").
+// blocked at any time. Zalo may lock an account that uses it, and repeated
+// sign-ins make that more likely: use a separate account (IMPACT.md, "Zalo
+// personal").
 type ZaloPersonalConfig struct {
 	UserID  string
 	Group   bool // UserID is a group ID, not a person
@@ -34,9 +34,24 @@ var zaloPersonalUserRE = regexp.MustCompile(`^\d{6,25}$`)
 
 const (
 	zaloPersonalLoginBase = "https://wpa.chat.zalo.me"
-	zaloLoginTTL          = 12 * time.Hour // ponytail: fixed lifetime, a refused send signs in once more; upgrade: honour the keep-alive settings
+	zaloLoginTTL          = 12 * time.Hour // ponytail: fixed lifetime; upgrade: honour the keep-alive settings of getServerInfo
 	zaloMaxCookies        = 64
+	zaloBackoffFloor      = time.Minute
+	zaloBackoffCeiling    = time.Hour
+	zaloInfoTimeout       = 3 * time.Second
 )
+
+// BackoffError is returned while sign-ins are paused after a failed or refused
+// one (D-46: repeated sign-ins can get the account locked). Nothing was sent to
+// Zalo. Until is when the next sign-in is allowed.
+type BackoffError struct {
+	Channel Type
+	Until   time.Time
+}
+
+func (e *BackoffError) Error() string {
+	return fmt.Sprintf("notify: %s: signing in is paused after a failure, next try after %s", e.Channel, e.Until.UTC().Format(time.RFC3339))
+}
 
 type zaloPersonalSender struct {
 	noPrint
@@ -48,9 +63,12 @@ type zaloPersonalSender struct {
 	loginBase string
 	now       func() time.Time
 
-	mu  sync.Mutex // serialises Send: one sign-in at a time, cookies and key are shared
+	sem chan struct{} // capacity 1: one Send at a time; waiting honours the context. Guards everything below.
 	jar []zaloCookie
 	li  *zaloLogin
+
+	failures  int       // sign-ins or sessions refused in a row
+	notBefore time.Time // no sign-in before this
 }
 
 // zaloLogin is the signed-in state: the secret key of the session (zpw_enk) and
@@ -78,6 +96,7 @@ func NewZaloPersonal(cfg ZaloPersonalConfig) (Sender, error) {
 	return &zaloPersonalSender{
 		user: user, group: cfg.Group, raw: cfg.Session, sess: sess, jar: append([]zaloCookie(nil), sess.cookies...),
 		client: clientOrDefault(cfg.Client), loginBase: zaloPersonalLoginBase, now: time.Now,
+		sem: make(chan struct{}, 1),
 	}, nil
 }
 
@@ -86,8 +105,14 @@ func (*zaloPersonalSender) Type() Type { return ZaloPersonal }
 func (z *zaloPersonalSender) Dest() string { return "Zalo " + z.user }
 
 // Send signs in (or reuses the session of an earlier send) and sends plain text.
-// A refusal on a reused session may mean it expired, so Send signs in once more
-// and tries once more; a refusal on a fresh session is final.
+//
+// Sign-ins are rationed. A failed or refused sign-in, or a session Zalo refuses
+// (HTTP 401/403, or an error_code on the request as a whole), pauses sign-ins
+// for 1 minute, doubling per consecutive failure up to 1 hour; during the pause
+// Send returns *BackoffError without calling Zalo. The one exception is the
+// first refusal of a reused session by error_code: Send signs in once and tries
+// once more. A message is never posted twice: an answer that cannot be read
+// (the message may be delivered) or a refusal of the message itself is final.
 func (z *zaloPersonalSender) Send(ctx context.Context, m Message) (Receipt, error) {
 	if err := m.check(); err != nil {
 		return Receipt{}, err
@@ -95,30 +120,66 @@ func (z *zaloPersonalSender) Send(ctx context.Context, m Message) (Receipt, erro
 	link, _ := safeLink(m.Link)
 	text := fit(m.norm().mapText(defang).lines(link), zaloTextMax)
 
-	z.mu.Lock()
-	defer z.mu.Unlock()
+	select {
+	case z.sem <- struct{}{}:
+	case <-ctx.Done():
+		return Receipt{}, fmt.Errorf("notify: zalo-personal: waiting for an earlier send: %s", transportReason(ctx.Err(), nil))
+	}
+	defer func() { <-z.sem }()
+
+	retried := false
 	for {
 		fresh := z.li == nil || z.now().Sub(z.li.at) > zaloLoginTTL
 		if fresh {
+			if now := z.now(); now.Before(z.notBefore) {
+				return Receipt{}, &BackoffError{Channel: ZaloPersonal, Until: z.notBefore}
+			}
 			if err := z.signIn(ctx); err != nil {
+				z.fail()
 				return Receipt{}, err
 			}
 		}
 		err := z.post(ctx, text)
 		if err == nil {
+			z.failures = 0
 			return Receipt{To: z.Dest(), Detail: "Zalo (personal account) sent the message to " + z.user + "."}, nil
 		}
 		var pe *ProviderError
-		if fresh || !errors.As(err, &pe) {
+		var se *StatusError
+		switch {
+		case errors.As(err, &se) && (se.Code == http.StatusUnauthorized || se.Code == http.StatusForbidden):
+			z.li = nil // the session is refused: no retry, and the next sign-in waits
+			z.fail()
+			return Receipt{}, err
+		case errors.As(err, &pe) && pe.requestRefused:
+			z.li = nil
+			if fresh || retried {
+				z.fail()
+				return Receipt{}, err
+			}
+			retried = true // first refusal of a reused session: sign in once and try once more
+		default:
 			return Receipt{}, err
 		}
-		z.li = nil
 	}
+}
+
+// fail records a failed sign-in or a refused session and arms the pause.
+func (z *zaloPersonalSender) fail() {
+	z.failures++
+	d := zaloBackoffFloor
+	for i := 1; i < z.failures && d < zaloBackoffCeiling; i++ {
+		d *= 2
+	}
+	z.notBefore = z.now().Add(min(d, zaloBackoffCeiling))
 }
 
 // signIn runs the sign-in of the Zalo web client with the saved session: one
 // signed GET that returns the session key and the service map, then the server
-// info request the web client makes next (its answer is not used).
+// info request the web client makes next. Upstream treats the server info as part
+// of signing in but a text message uses nothing from it, so it is best effort
+// under a short deadline: its answer is ignored and its failure does not stop
+// the alert.
 func (z *zaloPersonalSender) signIn(ctx context.Context) error {
 	q, enk, err := zaloLoginQuery(z.sess.imei, z.sess.language, z.now(), zaloRandHex())
 	if err != nil {
@@ -138,9 +199,9 @@ func (z *zaloPersonalSender) signIn(ctx context.Context) error {
 		return err
 	}
 	z.li = &zaloLogin{key: key, keyB64: encodeB64(key), base: base, at: z.now()}
-	// Best effort: the web client asks for the server info after the sign-in; a
-	// failure here does not stop the alert.
-	_, _ = z.call(ctx, http.MethodGet, z.loginBase+"/api/login/getServerInfo?"+zaloServerInfoQuery(z.sess.imei).Encode(), nil)
+	infoCtx, cancel := context.WithTimeout(ctx, zaloInfoTimeout)
+	defer cancel()
+	_, _ = z.call(infoCtx, http.MethodGet, z.loginBase+"/api/login/getServerInfo?"+zaloServerInfoQuery(z.sess.imei).Encode(), nil)
 	return nil
 }
 
@@ -164,17 +225,22 @@ func (z *zaloPersonalSender) post(ctx context.Context, text string) error {
 
 // call sends one request as the Zalo web client would: the saved cookies that
 // belong to the host, the saved user agent, Origin and Referer of chat.zalo.me.
-// It reads at most maxResponseBody bytes under its own deadline, keeps the
-// cookies Zalo sets, and returns errors with no URL and no secret.
+// The host is checked again here, whatever built the URL: cookies only ever go to
+// wpa.chat.zalo.me and *.chat.zalo.me. It reads at most maxResponseBody bytes
+// under its own deadline, keeps the cookies Zalo sets, and returns errors with no
+// URL and no secret (the secrets are listed after the cookies of the answer have
+// been kept).
 func (z *zaloPersonalSender) call(ctx context.Context, method, rawURL string, body io.Reader, more ...secrets.Value) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
 	defer cancel()
-	hide := append(z.hide(), more...)
 	req, err := http.NewRequestWithContext(ctx, method, rawURL, body)
 	if err != nil {
-		return nil, fmt.Errorf("notify: zalo-personal: build request: %s", transportReason(err, hide))
+		return nil, fmt.Errorf("notify: zalo-personal: build request: %s", transportReason(err, append(z.hide(), more...)))
 	}
 	host := req.URL.Hostname()
+	if req.URL.Scheme != "https" || !zaloServiceHostOK(host) || req.URL.User != nil {
+		return nil, errors.New("notify: zalo-personal: refused to send to an address that is not a Zalo chat host")
+	}
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 	req.Header.Set("Origin", "https://chat.zalo.me")
 	req.Header.Set("Referer", "https://chat.zalo.me/")
@@ -187,10 +253,11 @@ func (z *zaloPersonalSender) call(ctx context.Context, method, rawURL string, bo
 	}
 	resp, err := z.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("notify: zalo-personal: send failed: %s", transportReason(err, hide))
+		return nil, fmt.Errorf("notify: zalo-personal: send failed: %s", transportReason(err, append(z.hide(), more...)))
 	}
 	defer func() { _ = resp.Body.Close() }()
-	z.absorb(host, resp.Cookies())
+	z.absorb(host, resp.Cookies(), z.now())
+	hide := append(z.hide(), more...) // after absorb: a rotated cookie echoed in the body is scrubbed too
 	ans, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBody))
 	if err != nil {
 		return nil, fmt.Errorf("notify: zalo-personal: read answer: %s", transportReason(err, hide))
@@ -215,11 +282,13 @@ func (z *zaloPersonalSender) hide() []secrets.Value {
 	return h
 }
 
-// cookieHeader returns the cookies that belong to host, in the order saved.
+// cookieHeader returns the cookies that belong to host, in the order saved. A
+// host-only cookie goes to exactly its host, any other to its domain and the
+// hosts below it.
 func (z *zaloPersonalSender) cookieHeader(host string) string {
 	var parts []string
 	for _, c := range z.jar {
-		if c.domain == "" || host == c.domain || strings.HasSuffix(host, "."+c.domain) {
+		if host == c.domain || (!c.hostOnly && strings.HasSuffix(host, "."+c.domain)) {
 			parts = append(parts, c.name+"="+c.value)
 		}
 	}
@@ -228,33 +297,39 @@ func (z *zaloPersonalSender) cookieHeader(host string) string {
 
 // absorb keeps the cookies Zalo sets, as the web client does (the session
 // cookies can rotate during sign-in). Only valid cookies for a zalo.me host are
-// kept, at most zaloMaxCookies, in memory: the saved session is not rewritten.
-func (z *zaloPersonalSender) absorb(host string, set []*http.Cookie) {
+// kept, at most zaloMaxCookies, in memory: the saved session is not rewritten. A
+// cookie without a Domain attribute is host-only. Max-Age of 0 or less, or an
+// Expires in the past when there is no Max-Age, deletes the cookie.
+func (z *zaloPersonalSender) absorb(host string, set []*http.Cookie, now time.Time) {
 	for _, c := range set {
-		if !zaloCookieNameRE.MatchString(c.Name) || !zaloCookieValueOK(c.Value) {
+		if !zaloCookieNameRE.MatchString(c.Name) {
 			continue
 		}
-		d := strings.TrimPrefix(strings.ToLower(c.Domain), ".")
+		d, hostOnly := strings.TrimPrefix(strings.ToLower(c.Domain), "."), false
 		if d == "" {
-			d = host
+			d, hostOnly = host, true
 		}
 		if !zaloHostOK(d) || (host != d && !strings.HasSuffix(host, "."+d)) {
 			continue
 		}
+		del := c.MaxAge < 0 || (c.MaxAge == 0 && !c.Expires.IsZero() && !c.Expires.After(now))
+		if !del && !zaloCookieValueOK(c.Value) {
+			continue
+		}
 		i := -1
 		for j, o := range z.jar {
-			if o.name == c.Name && o.domain == d {
+			if o.name == c.Name && o.domain == d && o.hostOnly == hostOnly {
 				i = j
 			}
 		}
 		switch {
-		case c.MaxAge < 0 && i >= 0:
+		case del && i >= 0:
 			z.jar = append(z.jar[:i], z.jar[i+1:]...)
-		case c.MaxAge < 0:
+		case del:
 		case i >= 0:
 			z.jar[i].value = c.Value
 		case len(z.jar) < zaloMaxCookies:
-			z.jar = append(z.jar, zaloCookie{c.Name, c.Value, d})
+			z.jar = append(z.jar, zaloCookie{c.Name, c.Value, d, hostOnly})
 		}
 	}
 }

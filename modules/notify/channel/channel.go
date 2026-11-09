@@ -103,6 +103,8 @@ type ProviderError struct {
 	Channel Type
 	Code    int
 	Reason  string
+
+	requestRefused bool // Zalo refused the request as a whole (outer error_code), not the message
 }
 
 func (e *ProviderError) Error() string {

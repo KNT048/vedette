@@ -110,6 +110,8 @@ func TestZaloPersonalConfig(t *testing.T) {
 		"empty cookie":  {func(c *ZaloPersonalConfig) { c.Session = sess(`[]`, "ua") }, "bad_session"},
 		"cookie header": {func(c *ZaloPersonalConfig) { c.Session = sess(`[{"name":"a","value":"x\r\nHost: evil"}]`, "ua") }, "bad_session"},
 		"cookie name":   {func(c *ZaloPersonalConfig) { c.Session = sess(`[{"name":"a b","value":"x"}]`, "ua") }, "bad_session"},
+		"cookie short":  {func(c *ZaloPersonalConfig) { c.Session = sess(`[{"name":"zpsid","value":"Q7z"}]`, "ua") }, "bad_session"},
+		"cookie 7":      {func(c *ZaloPersonalConfig) { c.Session = sess(`"zpsid=1234567"`, "ua") }, "bad_session"},
 		"cookie semi":   {func(c *ZaloPersonalConfig) { c.Session = sess(`[{"name":"a","value":"x;y=z"}]`, "ua") }, "bad_session"},
 		"agent control": {func(c *ZaloPersonalConfig) { c.Session = sess(`"a=b"`, `ua\nX: y`) }, "bad_session"},
 		"no agent":      {func(c *ZaloPersonalConfig) { c.Session = sess(`"a=b"`, ``) }, "bad_session"},
@@ -124,11 +126,11 @@ func TestZaloPersonalConfig(t *testing.T) {
 	}
 	// The accepted shapes of "cookie".
 	for name, cookie := range map[string]string{
-		"array":          `[{"name":"zpsid","value":"abc","domain":".zalo.me","extra":1}]`,
-		"wrapped":        `{"url":"https://chat.zalo.me","cookies":[{"name":"zpsid","value":"abc"}]}`,
-		"header":         `"zpsid=abc; zpw_sek=def"`,
-		"array as text":  `"[{\"name\":\"zpsid\",\"value\":\"abc\"}]"`,
-		"wrapped as txt": `"{\"cookies\":[{\"name\":\"zpsid\",\"value\":\"abc\"}]}"`,
+		"array":          `[{"name":"zpsid","value":"abcdefgh1","domain":".zalo.me","extra":1}]`,
+		"wrapped":        `{"url":"https://chat.zalo.me","cookies":[{"name":"zpsid","value":"abcdefgh1"}]}`,
+		"header":         `"zpsid=abcdefgh1; zpw_sek=defdefdef2"`,
+		"array as text":  `"[{\"name\":\"zpsid\",\"value\":\"abcdefgh1\"}]"`,
+		"wrapped as txt": `"{\"cookies\":[{\"name\":\"zpsid\",\"value\":\"abcdefgh1\"}]}"`,
 	} {
 		if err := mk(func(c *ZaloPersonalConfig) { c.Session = sess(cookie, "ua") }); err != nil {
 			t.Errorf("%s: %v", name, err)
@@ -156,6 +158,9 @@ type zaloFake struct {
 	sendErr     func(n int) int // outer error_code of the nth send (0 = success)
 	echo        string          // appended to every error message
 	loginCookie bool            // set the rotated cookie at sign-in
+	sendStatus  int             // HTTP status of every send (0 = 200)
+	garbage     bool            // answer every send with an unreadable 2xx, after recording the post
+	innerCode   int             // error_code inside the encrypted answer of every send (0 = success)
 }
 
 func newZaloFake(t *testing.T) *zaloFake {
@@ -271,6 +276,20 @@ func (f *zaloFake) send(w http.ResponseWriter, r *http.Request) {
 	f.hosts = append(f.hosts, r.Host)
 	f.paths = append(f.paths, r.URL.Path)
 	f.cookies = append(f.cookies, r.Header.Get("Cookie"))
+	if f.sendStatus != 0 {
+		w.WriteHeader(f.sendStatus)
+		_, _ = w.Write([]byte("denied" + f.echo))
+		return
+	}
+	if f.garbage {
+		_, _ = w.Write([]byte("<html>queued</html>"))
+		return
+	}
+	if f.innerCode != 0 {
+		enc, _ := zaloEncrypt([]byte(zpKey), f.envelope(f.innerCode, "message refused"+f.echo, nil))
+		_, _ = w.Write(f.envelope(0, "Success", enc))
+		return
+	}
 	if f.sendErr != nil {
 		if code := f.sendErr(f.sends); code != 0 {
 			_, _ = w.Write(f.envelope(code, "refused"+f.echo, nil))
@@ -450,7 +469,7 @@ func TestZaloPersonalRefusesServiceAddressesOutsideZalo(t *testing.T) {
 			t.Errorf("%q: err %v sends %d", addr, err, f.sends)
 		}
 	}
-	if base, err := zaloServiceBase("https://tt-chat1-wpa.chat.zalo.me:443/"); err != nil || base != "https://tt-chat1-wpa.chat.zalo.me:443" {
+	if base, err := zaloServiceBase("https://tt-chat1-wpa.chat.zalo.me:443/"); err != nil || base != "https://tt-chat1-wpa.chat.zalo.me" {
 		t.Errorf("good address: %q %v", base, err)
 	}
 }
@@ -523,7 +542,9 @@ func TestZaloPersonalDoesNotFollowRedirectsAndCapsAnswers(t *testing.T) {
 		}
 	}))
 	t.Cleanup(srv.Close)
-	s, _ := NewZaloPersonal(ZaloPersonalConfig{UserID: zpUser, Session: secrets.NewValue(zpSession), Client: clientTo(t, srv.URL)})
+	c := clientTo(t, srv.URL)
+	c.CheckRedirect = nil // a client that follows redirects: the adapter must still refuse them
+	s, _ := NewZaloPersonal(ZaloPersonalConfig{UserID: zpUser, Session: secrets.NewValue(zpSession), Client: c})
 	_, err := s.Send(context.Background(), sample)
 	var se *StatusError
 	if !errors.As(err, &se) || se.Code != http.StatusFound || hits != 1 {
@@ -648,14 +669,14 @@ func FuzzZaloLoginInfo(f *testing.F) {
 			return
 		}
 		u, perr := url.Parse(base)
-		if len(key) != 16 && len(key) != 24 && len(key) != 32 || perr != nil || u.Scheme != "https" || !zaloHostOK(u.Hostname()) || u.Path != "" || u.User != nil {
+		if len(key) != 16 && len(key) != 24 && len(key) != 32 || perr != nil || u.Scheme != "https" || !zaloServiceHostRE.MatchString(u.Hostname()) || u.Path != "" || u.User != nil {
 			t.Fatalf("accepted key %d bytes, base %q", len(key), base)
 		}
 	})
 }
 
 func FuzzZaloServiceBase(f *testing.F) {
-	for _, s := range []string{"https://tt-chat1-wpa.chat.zalo.me", "https://evil.example", "https://a.zalo.me:443/", "https://a.zalo.me@evil.example", "https://evil.example\\@a.zalo.me", "https://a.zalo.me#@evil.example"} {
+	for _, s := range []string{"https://tt-chat1-wpa.chat.zalo.me", "https://evil.example", "https://a.zalo.me:443/", "https://a.zalo.me@evil.example", "https://evil.example\\@a.zalo.me", "https://a.zalo.me#@evil.example", "https://[::ffff:c0a8:101%2525.zalo.me]", "https://[::1%25.zalo.me]", "https://x.chat.zalo.me.", "https://X.CHAT.ZALO.ME", "https://a%40evil.com.chat.zalo.me", "https://evil.com%2e.chat.zalo.me", "https://1.2.3.4", "https://[fe80::1%25chat.zalo.me]"} {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, raw string) {
@@ -664,8 +685,11 @@ func FuzzZaloServiceBase(f *testing.F) {
 			return
 		}
 		u, perr := url.Parse(base)
-		if perr != nil || u.Scheme != "https" || !zaloHostOK(u.Hostname()) || u.User != nil || strings.ContainsAny(base, "@\\ #?") {
+		if perr != nil || u.Scheme != "https" || u.Hostname() != strings.TrimPrefix(base, "https://") || !zaloServiceHostRE.MatchString(u.Hostname()) || u.User != nil || strings.ContainsAny(base, "@\\ #?[]%") {
 			t.Fatalf("accepted %q as %q", raw, base)
+		}
+		if u2, err := url.Parse(raw); err != nil || !strings.EqualFold(u2.Hostname(), u.Hostname()) {
+			t.Fatalf("%q was taken for host %q", raw, u.Hostname())
 		}
 	})
 }
@@ -683,7 +707,7 @@ func FuzzZaloSetCookie(f *testing.F) {
 		z := &zaloPersonalSender{sess: sess, jar: append([]zaloCookie(nil), sess.cookies...)}
 		resp := http.Response{Header: http.Header{"Set-Cookie": {header}}}
 		const host = "tt-chat1-wpa.chat.zalo.me"
-		z.absorb(host, resp.Cookies())
+		z.absorb(host, resp.Cookies(), time.Now())
 		if len(z.jar) > zaloMaxCookies {
 			t.Fatalf("jar has %d cookies", len(z.jar))
 		}

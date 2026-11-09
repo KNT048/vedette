@@ -52,7 +52,12 @@ func badAnswer(reason string) error {
 	return &ProviderError{Channel: ZaloPersonal, Reason: reason}
 }
 
-type zaloCookie struct{ name, value, domain string }
+// zaloCookie is a saved or received cookie. hostOnly cookies go to exactly their
+// domain, the others also to the hosts below it.
+type zaloCookie struct {
+	name, value, domain string
+	hostOnly            bool
+}
 
 // zaloSession is the parsed Session secret.
 type zaloSession struct {
@@ -60,8 +65,10 @@ type zaloSession struct {
 	cookies                   []zaloCookie
 }
 
+// zaloCookieValueOK accepts printable cookie values of 8 to 4096 characters: a
+// shorter value could not be scrubbed from error text without mangling it.
 func zaloCookieValueOK(v string) bool {
-	if v == "" || len(v) > zaloMaxCookieLen {
+	if len(v) < 8 || len(v) > zaloMaxCookieLen {
 		return false
 	}
 	for _, r := range v {
@@ -116,7 +123,12 @@ func parseZaloSession(raw string) (zaloSession, error) {
 		if !zaloCookieNameRE.MatchString(c.Name) || !zaloCookieValueOK(c.Value) || (d != "" && !zaloDomainRE.MatchString(d)) {
 			return s, errors.New("bad cookie")
 		}
-		s.cookies = append(s.cookies, zaloCookie{c.Name, c.Value, strings.TrimPrefix(d, ".")})
+		// A cookie without a domain belongs to the default host, chat.zalo.me
+		// (and the hosts below it), never to another Zalo host.
+		if d = strings.TrimPrefix(d, "."); d == "" {
+			d = "chat.zalo.me"
+		}
+		s.cookies = append(s.cookies, zaloCookie{name: c.Name, value: c.Value, domain: d})
 	}
 	return s, nil
 }
@@ -155,15 +167,34 @@ func zaloHostOK(h string) bool {
 	return h == "zalo.me" || strings.HasSuffix(h, ".zalo.me")
 }
 
+// zaloServiceHostRE is the only kind of host the session cookies and the signed
+// message are sent to: a name below chat.zalo.me, which includes the fixed
+// sign-in host wpa.chat.zalo.me. It matches no IP literal, no zone, no trailing
+// dot and nothing percent-encoded.
+var zaloServiceHostRE = regexp.MustCompile(`^([a-z0-9-]+\.)+chat\.zalo\.me$`)
+
+func zaloServiceHostOK(h string) bool { return zaloServiceHostRE.MatchString(h) }
+
 // zaloServiceBase checks a service URL taken from an answer before any cookie is
-// sent to it: https, a Zalo host, no credentials, port 443 or none, no path.
+// sent to it: https, a host matching zaloServiceHostRE once lower-cased, no
+// credentials, port 443 or none, no path. Anything bracketed, percent-encoded or
+// with a backslash is refused outright. The base is built from the validated
+// host name, not from the text of the URL.
 func zaloServiceBase(raw string) (string, error) {
-	u, err := url.Parse(raw)
-	if err != nil || u.Scheme != "https" || u.User != nil || !zaloHostOK(u.Hostname()) ||
-		(u.Port() != "" && u.Port() != "443") || (u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.Fragment != "" || u.Opaque != "" {
-		return "", badAnswer("the answer named a service address that is not a Zalo host")
+	bad := badAnswer("the answer named a service address that is not a Zalo chat host")
+	if strings.ContainsAny(raw, `[]%\?#`) {
+		return "", bad
 	}
-	return "https://" + u.Host, nil
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "https" || u.User != nil || u.Opaque != "" || u.ForceQuery || (u.Port() == "" && strings.Contains(u.Host, ":")) ||
+		(u.Port() != "" && u.Port() != "443") || (u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.Fragment != "" {
+		return "", bad
+	}
+	host := strings.ToLower(u.Hostname())
+	if !zaloServiceHostOK(host) {
+		return "", bad
+	}
+	return "https://" + host, nil
 }
 
 // ---- crypto: AES-CBC, zero IV, PKCS#7 (the web client's scheme) ----
@@ -220,18 +251,50 @@ func encodeB64(b []byte) string { return base64.StdEncoding.EncodeToString(b) }
 
 // ---- answers ----
 
+// zaloEnvelope is {error_code, error_message, data}. Keys are matched exactly, as
+// upstream's JSON.parse reads them (Go's own struct decoder would also take
+// "ERROR_CODE").
 type zaloEnvelope struct {
-	ErrorCode    *int            `json:"error_code"`
-	ErrorMessage string          `json:"error_message"`
-	Data         json.RawMessage `json:"data"`
+	ErrorCode    *int
+	ErrorMessage string
+	Data         json.RawMessage
 }
 
-func (e zaloEnvelope) check(hide []secrets.Value) error {
+// jsonObject decodes a JSON object into its members, keyed by exact name.
+func jsonObject(raw []byte) (map[string]json.RawMessage, bool) {
+	var m map[string]json.RawMessage
+	if json.Unmarshal(raw, &m) != nil || m == nil {
+		return nil, false
+	}
+	return m, true
+}
+
+func parseZaloEnvelope(raw []byte) (zaloEnvelope, bool) {
+	var e zaloEnvelope
+	m, ok := jsonObject(raw)
+	if !ok {
+		return e, false
+	}
+	if c, ok := m["error_code"]; ok {
+		var n int
+		if json.Unmarshal(c, &n) != nil {
+			return e, false
+		}
+		e.ErrorCode = &n
+	}
+	_ = json.Unmarshal(m["error_message"], &e.ErrorMessage) // absent or not a string: no message
+	e.Data = m["data"]
+	return e, true
+}
+
+// check says whether the envelope reports success. outer marks the envelope of
+// the HTTP answer: a refusal there is a refusal of the request as a whole.
+func (e zaloEnvelope) check(outer bool, hide []secrets.Value) error {
 	switch {
 	case e.ErrorCode == nil:
 		return badAnswer("the answer did not confirm success")
 	case *e.ErrorCode != 0:
-		return &ProviderError{Channel: ZaloPersonal, Code: *e.ErrorCode, Reason: reasonFrom([]byte(e.ErrorMessage), hide...)}
+		return &ProviderError{Channel: ZaloPersonal, Code: *e.ErrorCode, Reason: reasonFrom([]byte(e.ErrorMessage), hide...), requestRefused: outer}
 	}
 	return nil
 }
@@ -241,11 +304,11 @@ func (e zaloEnvelope) check(hide []secrets.Value) error {
 // decrypts to is again {error_code, error_message, data}. It returns the inner
 // data. Any other shape is an error. hide is scrubbed from the provider's text.
 func openZaloAnswer(body, key []byte, hide ...secrets.Value) (json.RawMessage, error) {
-	var outer zaloEnvelope
-	if json.Unmarshal(body, &outer) != nil {
+	outer, ok := parseZaloEnvelope(body)
+	if !ok {
 		return nil, badAnswer("the answer was not understood")
 	}
-	if err := outer.check(hide); err != nil {
+	if err := outer.check(true, hide); err != nil {
 		return nil, err
 	}
 	var enc string
@@ -256,11 +319,11 @@ func openZaloAnswer(body, key []byte, hide ...secrets.Value) (json.RawMessage, e
 	if err != nil {
 		return nil, badAnswer(err.Error())
 	}
-	var inner zaloEnvelope
-	if json.Unmarshal(plain, &inner) != nil {
+	inner, ok := parseZaloEnvelope(plain)
+	if !ok {
 		return nil, badAnswer("the answer was not understood")
 	}
-	if err := inner.check(hide); err != nil {
+	if err := inner.check(false, hide); err != nil {
 		return nil, err
 	}
 	return inner.Data, nil
@@ -303,13 +366,23 @@ func confirmZaloSend(body, key []byte, hide ...secrets.Value) error {
 	if err != nil {
 		return err
 	}
-	var out struct {
-		MsgID json.RawMessage `json:"msgId"`
-	}
-	if json.Unmarshal(data, &out) != nil || len(out.MsgID) == 0 || string(out.MsgID) == "null" {
+	m, ok := jsonObject(data)
+	if !ok || !zaloMsgIDOK(m["msgId"]) {
 		return badAnswer("the answer did not confirm delivery")
 	}
 	return nil
+}
+
+var zaloMsgIDRE = regexp.MustCompile(`^[0-9]{1,30}$`)
+
+// zaloMsgIDOK accepts a message id the way Zalo gives it: a non-zero integer (it
+// can exceed 2^53, so it is read as text) or a string of digits that is not zero.
+func zaloMsgIDOK(raw json.RawMessage) bool {
+	t := string(raw)
+	if len(t) >= 2 && t[0] == '"' && t[len(t)-1] == '"' {
+		t = t[1 : len(t)-1]
+	}
+	return zaloMsgIDRE.MatchString(t) && strings.Trim(t, "0") != ""
 }
 
 // ---- requests ----

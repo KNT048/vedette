@@ -128,7 +128,7 @@ func hostForURL(h string) string {
 // sign-in pause in memory). Events go to and come from deps.Bus. buildServices calls it first with the real
 // *deps: Users, Zone and Devices read d.Auth, d.Core and d.Inventory when asked, so notify can exist before
 // auth, which takes notify's code mailer.
-// ponytail: no finding directory (Emily's, Config.Findings) and no token recorder (response module, WP-13), no BoxAddrs (WP-08): the
+// ponytail: no token recorder (response module, WP-13), no BoxAddrs (WP-08): the
 // service degrades without them.
 func newNotify(d *deps) *notify.Service {
 	notifyMu.Lock()
@@ -136,10 +136,14 @@ func newNotify(d *deps) *notify.Service {
 	if s := notifyServices[d.DB]; s != nil {
 		return s
 	}
-	c := notify.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: notifyUsers{d}, Log: d.Log, Modules: d.Reg, Clock: d.Clock,
+	c := notify.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: notifyUsers{d}, Log: d.Log, Clock: d.Clock,
 		Zone: orgZone(d), BaseURL: d.BaseURL}
 	if d.Inventory != nil {
 		c.Devices = notifyDevices{d.Inventory}
+	}
+	c.Findings = notifyFindings{d} // d.Findings and the feeds store are built after notify: read when asked
+	if d.Reg != nil {              // a nil *modreg.Registry inside the interface would not compare equal to nil, and OnChange would panic
+		c.Modules = d.Reg
 	}
 	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
 		c.Bus = d.Bus

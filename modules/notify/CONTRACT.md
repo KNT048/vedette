@@ -34,8 +34,8 @@ Nguồn hành vi: `web/src/features/notify/{contract,mocks}.ts`. Luồng dữ li
 - **FORBID-6**: Gửi dữ liệu ra ngoài các kênh khách đã cấu hình (PRIVACY luồng 5).
 
 ## Dependencies
-- **DEPENDS ON**: `core`. Tuỳ chọn: `inventory` (tên thiết bị), `mitigation` (finding).
-- **DEPENDED ON BY**: `core` (mã 2FA email), `mitigation`/`honeypot`/`logs`/`response`/`reports` (gửi tin), `inventory` (báo thiết bị mới).
+- **DEPENDS ON**: `core`. Tuỳ chọn: `inventory` (tên thiết bị), `findings` (finding).
+- **DEPENDED ON BY**: `core` (mã 2FA email), `findings`/`honeypot`/`logs`/`response`/`reports` (gửi tin), `inventory` (báo thiết bị mới).
 
 ## Endpoints owned (role tối thiểu)
 | Route | Vai |
@@ -49,7 +49,7 @@ Nguồn hành vi: `web/src/features/notify/{contract,mocks}.ts`. Luồng dữ li
 
 ## Events
 - **Phát**: `notify.incident.created {id, kind, severity}`, `notify.message.sent|failed {id, channel}`, `notify.approval.requested`, `notify.approval.decided`, `notify.channel.changed {type}`.
-- **Nhận**: `mitigation.finding.created|status_changed` (tin lỗ hổng), `inventory.asset.discovered` (khi `notify_new`), `honeypot.hit`, `logs.anomaly`, `logs.bad_address` (incident; tên tạm, nhóm B chốt), `response.approval.requested`, `reports.report.ready` (S-REP-1 gửi tự động).
+- **Nhận**: `findings.finding.created|status_changed` (tin lỗ hổng), `inventory.asset.discovered` (khi `notify_new`), `honeypot.hit`, `logs.anomaly`, `logs.bad_address` (incident; tên tạm, nhóm B chốt), `response.approval.requested`, `reports.report.ready` (S-REP-1 gửi tự động).
 
 ## Behaviour khi tắt
 Không route, không job; không tin nào đi. Trang Incidents mất; panel "ai được báo" ở trang finding mất; `core` báo 2FA email `module_off`; `response` không có kênh duyệt (nó phụ thuộc `notify`). Cấu hình kênh và lịch sử giữ.
@@ -60,4 +60,4 @@ S-NOT-1, S-NOT-2, S-ALERT-1, S-ALERT-3, S-RESP-2. D-35 mã email; D-38 Slack; D-
 ## Không khớp / câu hỏi mở
 - Giờ im lặng: tin không phải `critical` bị hoãn tới hết giờ hay bỏ? `contract.ts` chỉ lưu quy tắc.
 - Khoá khớp để gộp incident (kind + nguồn + đích?) chưa được ghi ở đâu.
-- Nếu `mitigation` tắt thì không có finding ⇒ không tin lỗ hổng (S-ALERT-1); xem `mitigation/CONTRACT.md`.
+- ~~Nếu `mitigation` tắt thì không có finding~~: đã giải quyết bởi D-57(6) — finding thuộc module `findings`; tắt `mitigation` không làm mất tin lỗ hổng (S-ALERT-1). Tắt `findings` thì không có tin lỗ hổng.

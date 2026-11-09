@@ -12,7 +12,7 @@ Nguồn hành vi: `web/src/features/scan/CredentialedTab.tsx`, `/scans/credentia
 - **INV-5**: `POST …/test`: timeout 5 giây; kết quả `{ok, ts, message}` lưu vào `last_test`, thông điệp không chứa khoá hay phần riêng của khoá.
 - **INV-6**: Greenbone chạy trong container riêng, không sửa, không nhúng vào binary (GPL/AGPL, legal.md); chỉ tắt/bật khi module bật, image ký cosign do `vedette-host` kéo.
 - **INV-7**: Tôn trọng cửa sổ giờ, tốc độ và loại trừ của `scan`/`inventory`; dùng chung nút "Stop now" của lượt quét.
-- **INV-8**: Kết quả Greenbone là dữ liệu không tin cậy (SYS-6): parser fail-closed, giới hạn kích thước; chỉ đi vào hệ thống qua `mitigation` với `basis` hợp lệ.
+- **INV-8**: Kết quả Greenbone là dữ liệu không tin cậy (SYS-6): parser fail-closed, giới hạn kích thước; chỉ đi vào hệ thống qua `findings` với `basis` hợp lệ.
 - **INV-9**: Mọi lần thêm/xoá/thử/quét ghi `core_audit` (`scan.credentialed.add|remove|test`), không có bí mật.
 
 ## Preconditions / Postconditions
@@ -30,7 +30,7 @@ Nguồn hành vi: `web/src/features/scan/CredentialedTab.tsx`, `/scans/credentia
 
 ## Dependencies
 - **DEPENDS ON**: `core` (secrets, audit, hostclient), `inventory`, `scan`.
-- **DEPENDED ON BY**: không (tiêu thụ bởi `mitigation` qua sự kiện).
+- **DEPENDED ON BY**: không (tiêu thụ bởi `findings` qua sự kiện).
 
 ## Endpoints owned (role tối thiểu)
 | Route | Vai |

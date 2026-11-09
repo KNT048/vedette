@@ -1,13 +1,13 @@
 id: mitigation
-name: { en: "Findings and mitigation" }
-summary: { en: "Keeps the list of findings (CVE x device) with their status and evidence, and shows what to do: patch, workaround, vendor config, and how to check you were not hit." }
+name: { en: "Mitigation" }
+summary: { en: "Shows what to do about a finding: patch, workaround, vendor config, and how to check you were not hit." }
 tier: standard
 default: true
-depends: [core, feeds, inventory]
+depends: [core, findings, inventory]
 permissions: []
 ports: []
 container: core        # gói khuyến nghị đã ký đi cùng bản cập nhật phần mềm (D-36)
-tables_prefix: mit_    # sở hữu cả bảng finding (ARCHITECTURE §4 ghi `inv_finding`)
-stories: [S-MIT-1, S-MIT-3, S-MIT-4, S-SCAN-3, S-AI-2, S-ALERT-1]   # S-MIT-2 [rớt] (D-31)
-decisions: [D-3, D-21, D-29, D-31, D-52]
+tables_prefix: mit_    # bảng finding (`fnd_*`) thuộc module findings (D-57(6))
+stories: [S-MIT-1, S-MIT-3, S-MIT-4, S-AI-2]   # S-MIT-2 [rớt] (D-31)
+decisions: [D-3, D-21, D-29, D-31, D-57]
 milestone: M3

@@ -6,8 +6,8 @@
 ## Modifying: gọi `inventory.InScope/ScanPolicy` và `exposure.CheckScannable`
 - **inventory**, **exposure**: đây là hai rào SYS-7. Nới ở một phía mà không sửa phía kia ⇒ lỗ hổng phạm vi.
 
-## Modifying: `mitigation.ConfirmFromScan(…)` và sự kiện `scan.finding.confirmed`
-- **mitigation** (tạo/xác nhận finding), **notify** (qua finding). Đổi `Evidence` làm hỏng bằng chứng hiển thị (S-SCAN-3).
+## Modifying: `findings.ConfirmFromScan(…)` và sự kiện `scan.finding.confirmed`
+- **findings** (tạo/xác nhận finding), **notify** (qua finding). Đổi `Evidence` làm hỏng bằng chứng hiển thị (S-SCAN-3).
 
 ## Modifying: `feeds.vuln.new_kev` (trường `has_template`)
 - Nguồn kích hoạt quét lại. Đổi tên/trường ⇒ mất S-SCAN-2 mà không có lỗi.
@@ -17,5 +17,5 @@
 
 ## Disabling this module
 - Mất trang Scans và nút quét; không xác nhận mới; không tự quét lại sau KEV mới.
-- `scan-credentialed` không chạy được (phụ thuộc); `mitigation` chỉ còn `suspected`; `reports` bỏ mục quét.
+- `scan-credentialed` không chạy được (phụ thuộc); `findings` chỉ còn `suspected`; `reports` bỏ mục quét.
 - Cấu hình, lịch sử, probe log, sự kiện quét lại giữ.

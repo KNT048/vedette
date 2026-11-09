@@ -307,12 +307,13 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `twofa_required` | 401/409 | Turn on two-step sign-in for your account first (My account), then try again. | `POST /auth/login`; `POST /response/execution` |
 | `unauthenticated` | 401 | Not signed in. | `GET /me` |
 
-#### HTTP 403 (8 mã)
+#### HTTP 403 (9 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `approver_not_listed` | 403 | Not counted: this ${b.channel} address is not on the approver list of that channel, or its user is not an operator or ad | `POST /response/actions/{id}/chat-decision`; `POST /response/approve/{token}` |
 | `channel_not_allowed` | 403 | Approvals from ${b.channel} are not turned on for response. | `POST /response/actions/{id}/chat-decision` |
+| `csrf_invalid` | 403 | The request could not be verified. Reload the page and try again. | mọi POST/PUT/PATCH/DELETE đã xác thực (`core/server`, §7.2; WP-04a) |
 | `disabled` | 403 | This account has been disabled. | `POST /core/sso/login` |
 | `forbidden` | 403 | Your account is not allowed to do this. | module core (validator dùng chung) |
 | `in_app_required` | 403 | A high-risk AI request can only be approved in the app with your two-step code, not from chat or email. | module response (validator dùng chung) |
@@ -405,6 +406,18 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `discovery_failed` | 502 | Cannot read ${c.issuer}/.well-known/openid-configuration. Check the issuer and the network path from the box to the IdP. | `POST /core/oidc/test` |
 | `unreachable` | 502 | Could not connect to ${cur.target}. Check the address, the box's network and the firewall. | `POST /ai/connections/{id}/test`; `POST /ai/profiles/test` |
 | `wazuh_unreachable` | 502 | Could not reach ${u.origin}. Check the address and port (55000 by default) and that this box may connect to the Wazuh se | module inventory (validator dùng chung) |
+
+#### HTTP 500 (1 mã)
+
+| Code | HTTP | Thông điệp mẫu (EN) | Endpoint dùng |
+|---|---|---|---|
+| `internal` | 500 | Something went wrong on the box. Try again; if it keeps happening, send a bug report. | mọi endpoint, lỗi không dự kiến (`core/server`; chi tiết chỉ vào log kèm `X-Request-Id`, không vào phản hồi; WP-04a) |
+
+#### HTTP 501 (1 mã)
+
+| Code | HTTP | Thông điệp mẫu (EN) | Endpoint dùng |
+|---|---|---|---|
+| `not_implemented` | 501 | This part of the box is not built yet. | thao tác có trong hợp đồng nhưng module chưa có backend (`oas.UnimplementedHandler`; giao diện dùng mock cho module đó, WP-05) |
 
 #### HTTP 503 (1 mã)
 
@@ -509,7 +522,7 @@ Mock không có CSRF. Quy ước **[ĐX]** (ARCH §5: cookie phiên + CSRF):
 
 Ba vai, theo thứ tự `viewer < operator < admin` (`rank` trong `mocks/http.ts` và `lib/session.ts`). Mỗi endpoint khai **vai tối thiểu** ở `contract.ts` trường `role: 'viewer' | 'operator' | 'admin' | 'public'`:
 
-- `openapi.json` ghi thành `x-min-role` trên mỗi thao tác; `public` thêm `security: []` (không cần phiên). Đếm hiện tại: **admin 128 · viewer 78 · operator 47 · public 14**.
+- `openapi.json` ghi thành `x-min-role` trên mỗi thao tác; `public` thêm `security: []` (không cần phiên). Đếm hiện tại (đo từ `core/api/routes` sinh từ `openapi.json`, 2026-11-09): **admin 133 · viewer 80 · operator 47 · public 14** (274 thao tác).
 - Mock thực thi bằng `guard(min)` ở đầu handler; backend thực thi bằng **middleware sinh từ `x-min-role`**, không đặt kiểm tra tay trong từng handler. Không có `x-min-role` thì không có route: test đối chiếu hai chiều (mục 12.1).
 - `viewer`: chỉ xem; thấy `*_last4` ở vài endpoint đọc (ví dụ `GET /ai/profiles`), **không bao giờ** thấy bí mật; endpoint cấu hình có bí mật đều đòi admin. `operator`: thao tác vận hành (đổi trạng thái phát hiện, quét, duyệt hành động, thêm/sửa thiết bị, gửi thử). `admin`: cấu hình hệ thống, người dùng, kênh, AI, feed, module, cập nhật.
 - **401 trước 403:** không phiên → 401; đủ phiên, thiếu vai → 403 `forbidden`; tài khoản bị khoá → 403 `disabled`.

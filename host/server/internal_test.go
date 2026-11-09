@@ -12,6 +12,7 @@ import (
 
 	"github.com/knt048/vedette/core/chain"
 	"github.com/knt048/vedette/host/api"
+	"github.com/knt048/vedette/host/peer"
 )
 
 func TestRedactArgs(t *testing.T) {
@@ -425,6 +426,8 @@ func TestAmbiguousKeys(t *testing.T) {
 		`{"a":"A","b":"B"}`:         false, // values are not keys
 		`{"a":{"x":1},"A":{"y":2}}`: true,
 		`{"k":[],"K":[]}`:           true,
+		`{"scope":"a","ſcope":"b"}`: true, // U+017F long s folds to s in encoding/json
+		"{\"k\":1,\"\u212a\":2}":    true, // U+212A Kelvin sign folds to k
 		`{"a":{"x":1},"b":{"x":1}}`: false,
 	} {
 		if got := ambiguousKeys([]byte(in)) != ""; got != want {
@@ -433,16 +436,52 @@ func TestAmbiguousKeys(t *testing.T) {
 	}
 }
 
-func TestThrottleBoundedKeys(t *testing.T) {
+func denial(uid, pid int) auditEntry {
+	return auditEntry{Actor: "-", Peer: peer.Info{UID: uid, PID: pid}, Command: "-", Result: resultRefused, Code: api.CodePeerNotAllowed}
+}
+
+func TestThrottleSummariesAndBoundedTable(t *testing.T) {
 	t.Parallel()
-	th := newAuditThrottle(time.Minute)
-	now := time.Now()
-	for i := range 5000 {
-		th.allow(fmt.Sprint("uid:", i), now, i)
+	th := newAuditThrottle(10 * time.Second)
+	now := time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC)
+	// uid 1000 knocks four times in a window: one line now, three skipped.
+	for i := range 4 {
+		if got := th.allow("uid:1000", now.Add(time.Duration(i)*time.Second), denial(1000, 100+i)); got != (i == 0) {
+			t.Fatalf("knock %d: allow = %v", i, got)
+		}
+	}
+	if len(th.expire(now.Add(5*time.Second))) != 0 {
+		t.Fatal("a summary before the window ended")
+	}
+	sums := th.expire(now.Add(20 * time.Second)) // nobody knocked again; the summary is still produced
+	if len(sums) != 1 || sums[0].Peer.UID != 1000 {
+		t.Fatalf("summaries = %+v", sums)
+	}
+	d := sums[0].ArgsRedacted.(map[string]any)
+	if d["skipped"] != 3 || len(d["pids"].([]any)) != 3 {
+		t.Fatalf("detail = %v", d)
+	}
+	if len(th.state) != 0 {
+		t.Fatalf("expired entries were not evicted: %d left", len(th.state))
+	}
+	// Table exhaustion: 300 uids in one window. The ones past the limit are listed in the overflow summary.
+	for uid := 1; uid <= 300; uid++ {
+		th.allow(fmt.Sprint("uid:", uid), now.Add(30*time.Second), denial(uid, uid))
 	}
 	if len(th.state) > throttleMaxKeys+1 {
 		t.Fatalf("%d keys", len(th.state))
 	}
-	ok, _, _ := th.allow("brand-new", now, 1)
-	_ = ok // lands in the shared overflow key, still throttled, never unbounded
+	var overflow *auditEntry
+	for _, e := range th.expire(now.Add(60 * time.Second)) {
+		if _, ok := e.ArgsRedacted.(map[string]any)["uids"]; ok {
+			overflow = &e
+		}
+	}
+	if overflow == nil {
+		t.Fatal("no overflow summary")
+	}
+	uids := overflow.ArgsRedacted.(map[string]any)["uids"].([]any)
+	if len(uids) == 0 || len(uids) > throttleMaxUIDs {
+		t.Fatalf("overflow uid list size %d", len(uids))
+	}
 }

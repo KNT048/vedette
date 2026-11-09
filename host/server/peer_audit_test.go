@@ -65,15 +65,17 @@ func TestDeniedPeerIsClosedAndAudited(t *testing.T) {
 	if n != 1 { // ten denied connections inside the throttle interval: one line
 		t.Fatalf("%d peer_not_allowed lines, want 1 (throttled)", n)
 	}
-	// After the interval the next denial is written, carrying the skipped count.
+	// After the interval the summary of the skipped denials is written, then the new window starts.
 	h.Peer.Deny(peer.Info{UID: 1000, PID: 778}, errors.New("not core"))
 	h.Clock.Advance(11 * time.Second)
 	_, _ = h.NewClient(t).Info(context.Background())
 	h.Peer.Allow(servertest.CoreInfo)
-	recs := auditLines(t, h)
-	last := recs[len(recs)-1]
-	if last.Code == nil || *last.Code != api.CodePeerNotAllowed || !strings.Contains(string(last.ArgsRedacted), `"skipped":9`) {
-		t.Fatalf("last = %+v %s", last, last.ArgsRedacted)
+	var summary bool // the window's summary line carries the skipped count
+	for _, r := range auditLines(t, h) {
+		summary = summary || (r.Code != nil && *r.Code == api.CodePeerNotAllowed && strings.Contains(string(r.ArgsRedacted), `"skipped":9`))
+	}
+	if !summary {
+		t.Fatal("no summary line with the skipped count")
 	}
 }
 

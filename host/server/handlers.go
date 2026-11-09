@@ -98,6 +98,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	kind, arg := route(r.Method, r.URL.Path)
+	// The server has no ReadTimeout (it would cut event streams), so every request gets a body
+	// deadline here; a stream's connection is instead closed after the response when it carries a body.
+	if kind == routeEvents {
+		if r.ContentLength != 0 {
+			h.Set("Connection", "close")
+		}
+	} else {
+		_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(s.o.BodyDeadline))
+	}
 	if ok, wait := s.reqLim.allow(s.now()); !ok { // unknown paths count too: probing is not free
 		s.rateLimited(w, p, kind, arg, wait)
 		return
@@ -151,18 +160,50 @@ func (s *Server) rateLimited(w http.ResponseWriter, p peer.Info, kind routeKind,
 
 // auditThrottled writes a line for traffic anyone can generate, at most one per interval per key.
 func (s *Server) auditThrottled(key string, e auditEntry) {
-	ok, skipped, pids := s.throttle.allow(key, s.now(), 0)
-	if !ok {
+	s.flushThrottle()
+	if !s.throttle.allow(key, s.now(), e) {
 		return
 	}
+	s.writeThrottled(e, nil)
+}
+
+// writeThrottled appends e as a throttled line (a fresh id, args_redacted from detail or empty).
+func (s *Server) writeThrottled(e auditEntry, detail map[string]any) {
 	id, err := newID("au_")
 	if err != nil {
 		return
 	}
 	e.ID = id
-	e.ArgsRedacted = throttleDetail(skipped, pids)
+	if detail == nil {
+		detail = throttleDetail(0, nil, nil)
+	}
+	e.ArgsRedacted = detail
 	if err := s.audit.append(e); err != nil {
 		s.log.Error("could not write an audit line", "code", e.Code)
+	}
+}
+
+// flushThrottle writes the summary lines of throttle windows that ended: how many events were
+// skipped and from which pids (and, for the overflow entry, which uids). Called on every throttled
+// event and by the sweeper, so a summary never waits for the same uid to knock again.
+func (s *Server) flushThrottle() {
+	for _, e := range s.throttle.expire(s.now()) {
+		detail, _ := e.ArgsRedacted.(map[string]any)
+		s.writeThrottled(e, detail)
+	}
+}
+
+// sweepThrottle flushes summaries periodically until the server stops.
+func (s *Server) sweepThrottle() {
+	t := time.NewTicker(s.o.AuditThrottle)
+	defer t.Stop()
+	for {
+		select {
+		case <-t.C:
+			s.flushThrottle()
+		case <-s.baseCtx.Done():
+			return
+		}
 	}
 }
 
@@ -255,7 +296,6 @@ func (s *Server) handleCommand(w http.ResponseWriter, r *http.Request, p peer.In
 		}
 	}
 
-	_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(30 * time.Second)) // the server has no ReadTimeout (it would cut event streams)
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxBodyBytes))
 	if err != nil {
 		var tooBig *http.MaxBytesError
@@ -370,8 +410,8 @@ func (s *Server) submit(w http.ResponseWriter, sub submission, cmd Command, args
 	s.mu.Unlock()
 
 	if cmd.check != nil {
-		if cerr := s.runCheck(cmd, args); cerr != nil {
-			s.finishCheck(w, lr, cerr)
+		if stuck, cerr := s.runCheck(cmd, args); cerr != nil {
+			s.finishCheck(w, lr, cerr, stuck)
 			return
 		}
 	}
@@ -409,7 +449,7 @@ func (s *Server) submit(w http.ResponseWriter, sub submission, cmd Command, args
 }
 
 // finishCheck ends a run whose synchronous precondition check refused or errored.
-func (s *Server) finishCheck(w http.ResponseWriter, lr *liveRun, cerr error) {
+func (s *Server) finishCheck(w http.ResponseWriter, lr *liveRun, cerr error, stuck <-chan struct{}) {
 	var ref *Refusal
 	if errors.As(cerr, &ref) {
 		if lr.sr.Write {
@@ -420,7 +460,15 @@ func (s *Server) finishCheck(w http.ResponseWriter, lr *liveRun, cerr error) {
 		return
 	}
 	s.log.Error("command precondition check failed", "command", lr.sub.command, "error", cerr.Error())
-	lr.finish(s, api.StatusFailed, nil, &api.RunError{Code: api.CodeCommandFailed, Message: "The command precondition check failed."}, false)
+	hold := stuck != nil
+	lr.finish(s, api.StatusFailed, nil, &api.RunError{Code: api.CodeCommandFailed, Message: "The command precondition check failed."}, hold)
+	if hold {
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			s.awaitAbandoned(lr, stuck)
+		}()
+	}
 	writeError(w, http.StatusInternalServerError, simpleError(api.CodeInternal, "The host could not check the command preconditions."))
 }
 
@@ -545,12 +593,17 @@ func (s *Server) releaseWrite(runID string) {
 }
 
 // runCheck runs the synchronous precondition check bounded by CheckTimeout (plus KillGrace for a
-// Check that ignores its context). A panic or a hang becomes an error, never a held lock.
-func (s *Server) runCheck(cmd Command, args any) error {
+// Check that ignores its context). A panic or a hang becomes an error, never a held lock by
+// accident. If the Check goroutine has still not returned, stuck is non-nil and closes when it
+// does: the caller keeps the write lock until then (a Check must not change the system, but a
+// Run must not start while something of the command is still executing).
+func (s *Server) runCheck(cmd Command, args any) (stuck <-chan struct{}, err error) {
 	ctx, cancel := context.WithTimeout(s.baseCtx, s.o.CheckTimeout)
 	defer cancel()
 	done := make(chan error, 1)
+	returned := make(chan struct{})
 	go func() {
+		defer close(returned)
 		defer func() {
 			if rec := recover(); rec != nil {
 				s.log.Error("command check panicked", "command", cmd.name, "panic", fmt.Sprint(rec))
@@ -561,7 +614,7 @@ func (s *Server) runCheck(cmd Command, args any) error {
 	}()
 	select {
 	case err := <-done:
-		return err
+		return nil, err
 	case <-ctx.Done():
 	}
 	grace := time.NewTimer(s.o.KillGrace)
@@ -571,10 +624,24 @@ func (s *Server) runCheck(cmd Command, args any) error {
 		if err == nil {
 			err = ctx.Err() // finished only after its deadline: do not trust it
 		}
-		return err
+		return nil, err
 	case <-grace.C:
-		s.log.Error("command check ignored its deadline", "command", cmd.name)
-		return errors.New("check timed out")
+		s.log.Error("command check ignored its deadline; the write lock stays held until it returns", "command", cmd.name)
+		return returned, errors.New("check timed out")
+	}
+}
+
+// awaitAbandoned holds the write lock of lr until returned closes, then frees it; past
+// AbandonCeiling it gives up and the host exits (see wedged).
+func (s *Server) awaitAbandoned(lr *liveRun, returned <-chan struct{}) {
+	ceiling := time.NewTimer(s.o.AbandonCeiling)
+	defer ceiling.Stop()
+	select {
+	case <-returned:
+		s.releaseWrite(lr.sr.Run.RunID)
+		s.log.Warn("the abandoned command returned; the write lock is free", "run_id", lr.sr.Run.RunID)
+	case <-ceiling.C:
+		s.wedged(lr)
 	}
 }
 
@@ -599,7 +666,9 @@ func (s *Server) execute(lr *liveRun, cmd Command, args any) {
 		err error
 	}
 	done := make(chan outcome, 1)
+	returned := make(chan struct{})
 	go func() {
+		defer close(returned)
 		defer func() {
 			if rec := recover(); rec != nil {
 				s.log.Error("command panicked", "command", lr.sub.command, "panic", fmt.Sprint(rec))
@@ -630,19 +699,12 @@ func (s *Server) execute(lr *liveRun, cmd Command, args any) {
 	s.log.ErrorContext(ctx, "command ignored cancellation; the write lock stays held until it returns", "command", lr.sub.command, "run_id", lr.sr.Run.RunID)
 	status, result, rerr := s.outcome(ctx, nil, context.Cause(ctx), true)
 	lr.finish(s, status, result, rerr, true)
-	ceiling := time.NewTimer(s.o.AbandonCeiling)
-	defer ceiling.Stop()
-	select {
-	case <-done:
-		s.releaseWrite(lr.sr.Run.RunID)
-		s.log.WarnContext(ctx, "the abandoned command returned; the write lock is free", "run_id", lr.sr.Run.RunID)
-	case <-ceiling.C:
-		s.wedged(lr)
-	}
+	s.awaitAbandoned(lr, returned)
 }
 
 // wedged records that a command never returned and ends the process: the lock cannot be released
-// safely, so the host restarts (systemd, KillMode=control-group) and recovery marks the run host_restarted.
+// safely, so the host restarts (systemd, KillMode=control-group kills the stray child). The run is already
+// recorded as failed/timeout, so recovery leaves it alone: the host_wedged line is the record of what happened.
 func (s *Server) wedged(lr *liveRun) {
 	s.log.Error("a command did not return after the hard ceiling; exiting so systemd restarts the host", "command", lr.sub.command, "run_id", lr.sr.Run.RunID)
 	id, err := newID("au_")

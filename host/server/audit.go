@@ -312,9 +312,11 @@ func (a *auditLog) page(since int64, limit int) (api.AuditPage, error) {
 }
 
 // auditThrottle keeps floods that need no authentication (a stranger on the socket, a rate-limited
-// caller) from filling the disk: at most one line per key per interval; the rest are counted and
-// reported, with the distinct pids seen, in the next line. Callers key by uid so one noisy uid
-// cannot hide another. The key table is bounded; past it, new keys share one "overflow" key.
+// caller) from filling the disk: at most one line per key per interval. Events inside the window are
+// counted; when the window ends, expire returns one summary line per key that skipped events (with
+// the distinct pids seen) and drops the entry, so the table only ever holds keys of the current
+// window. Callers key by uid so one noisy uid cannot hide another. If the table is full, further
+// keys share an "overflow" entry whose summary lists the uids it could not track (bounded).
 type auditThrottle struct {
 	mu       sync.Mutex
 	interval time.Duration
@@ -325,57 +327,96 @@ type throttleState struct {
 	last    time.Time
 	skipped int
 	pids    []int
+	uids    []int // overflow entry only: uids that had no entry of their own
+	tmpl    auditEntry
 }
 
 const (
 	throttleMaxKeys = 256
 	throttleMaxPIDs = 8
+	throttleMaxUIDs = 32
+	overflowKey     = "overflow"
 )
 
 func newAuditThrottle(interval time.Duration) *auditThrottle {
 	return &auditThrottle{interval: interval, state: map[string]*throttleState{}}
 }
 
-// allow reports whether to write now, how many lines were skipped since the last one, and the
-// pids (at most 8) those skipped events came from.
-func (t *auditThrottle) allow(key string, now time.Time, pid int) (bool, int, []int) {
+// allow reports whether to write a line for this event now (the first of the window). tmpl is the
+// line to write (also remembered for the summary). Events inside the window are counted and
+// reported by expire.
+func (t *auditThrottle) allow(key string, now time.Time, tmpl auditEntry) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	t.dropIdleLocked(now)
 	st, ok := t.state[key]
+	overflowed := false
 	if !ok && len(t.state) >= throttleMaxKeys {
-		for k, v := range t.state { // drop idle keys first
-			if v.skipped == 0 && now.Sub(v.last) >= t.interval {
-				delete(t.state, k)
-			}
-		}
-		if len(t.state) >= throttleMaxKeys {
-			key = "overflow"
-			st, ok = t.state[key]
-		}
+		key, overflowed = overflowKey, true
+		st, ok = t.state[key]
 	}
 	if !ok {
 		st = &throttleState{}
 		t.state[key] = st
 	}
+	st.tmpl = tmpl
+	if overflowed && !slices.Contains(st.uids, tmpl.Peer.UID) && len(st.uids) < throttleMaxUIDs {
+		st.uids = append(st.uids, tmpl.Peer.UID)
+	}
 	if !st.last.IsZero() && now.Sub(st.last) < t.interval {
 		st.skipped++
-		if pid > 0 && len(st.pids) < throttleMaxPIDs && !slices.Contains(st.pids, pid) {
-			st.pids = append(st.pids, pid)
+		if p := tmpl.Peer.PID; p > 0 && len(st.pids) < throttleMaxPIDs && !slices.Contains(st.pids, p) {
+			st.pids = append(st.pids, p)
 		}
-		return false, 0, nil
+		return false
 	}
-	skipped, pids := st.skipped, st.pids
-	st.last, st.skipped, st.pids = now, 0, nil
-	return true, skipped, pids
+	st.last = now
+	return true
+}
+
+// dropIdleLocked evicts entries whose window ended with nothing to report.
+func (t *auditThrottle) dropIdleLocked(now time.Time) {
+	for k, v := range t.state {
+		if v.skipped == 0 && now.Sub(v.last) >= t.interval && k != overflowKey {
+			delete(t.state, k)
+		}
+	}
+}
+
+// expire returns the summary lines of every entry whose window ended with skipped events, and
+// evicts all entries whose window ended.
+func (t *auditThrottle) expire(now time.Time) []auditEntry {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	var out []auditEntry
+	for k, v := range t.state {
+		if now.Sub(v.last) < t.interval {
+			continue
+		}
+		if v.skipped > 0 || (k == overflowKey && len(v.uids) > 0) {
+			e := v.tmpl
+			e.ArgsRedacted = throttleDetail(v.skipped, v.pids, v.uids)
+			out = append(out, e)
+		}
+		delete(t.state, k)
+	}
+	return out
 }
 
 // throttleDetail is the args_redacted of a throttled line.
-func throttleDetail(skipped int, pids []int) map[string]any {
-	list := make([]any, 0, len(pids))
-	for _, p := range pids {
-		list = append(list, p)
+func throttleDetail(skipped int, pids, uids []int) map[string]any {
+	toAny := func(in []int) []any {
+		out := make([]any, 0, len(in))
+		for _, v := range in {
+			out = append(out, v)
+		}
+		return out
 	}
-	return map[string]any{"skipped": skipped, "pids": list}
+	d := map[string]any{"skipped": skipped, "pids": toAny(pids)}
+	if len(uids) > 0 {
+		d["uids"] = toAny(uids)
+	}
+	return d
 }
 
 // digestRaw is the args digest when the args could not be decoded into the command's type.

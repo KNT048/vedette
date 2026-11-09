@@ -95,6 +95,8 @@ func readCgroupPinned(pid, pidfd int, accepted time.Time) ([]byte, error) {
 		if err := pidfdNames(pidfd, pid); err != nil {
 			return nil, err
 		}
+	} else if err := notStartedAfter(pid, accepted); err != nil { // the fallback is checked on both sides of the read too
+		return nil, err
 	}
 	return data, nil
 }

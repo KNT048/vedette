@@ -46,6 +46,7 @@ type Options struct {
 	KillGrace         time.Duration // how long a command may ignore its cancelled context before the run is reported failed (the write lock stays held)
 	AbandonCeiling    time.Duration // how long past KillGrace a command may keep running before the host exits for systemd to restart it (default 5 min)
 	CheckTimeout      time.Duration // bound of a command's synchronous Check (default 5 s)
+	BodyDeadline      time.Duration // how long a request body may take to arrive (default 30 s)
 	AuditThrottle     time.Duration // minimum spacing of unauthenticated-flood audit lines per uid (default 10 s)
 	// OwnerUID is the uid that must own the state, audit and socket directories and the audit
 	// file: 0 in production (the host runs as root). Tests set their own uid.
@@ -120,6 +121,9 @@ func New(o Options) (*Server, error) {
 	if o.CheckTimeout <= 0 {
 		o.CheckTimeout = checkTimeout
 	}
+	if o.BodyDeadline <= 0 {
+		o.BodyDeadline = 30 * time.Second
+	}
 	if o.Exit == nil {
 		o.Exit = os.Exit
 	}
@@ -190,9 +194,9 @@ func (s *Server) recover() {
 
 // Listen prepares the directory and returns the unix listener. The directory must be a real
 // directory owned by OwnerUID and group SocketGID, mode 0750 or stricter (created so when absent);
-// a stale socket file is replaced, a live one refused. The socket is then set to 0660 and group
-// SocketGID through the listener's file descriptor (fchmod/fchown: no path, so a symlink swapped
-// in after bind is never followed), and the path is checked to still be that very socket.
+// a stale socket file is replaced, a live one refused. The socket is then given to group SocketGID
+// (Lchown, which never follows a symlink) and set to 0660 by path, and the path is checked, before
+// and after, to still be that very socket (same inode); see secureSocket for why this is safe.
 // There is no other listener anywhere in the program (FORBID-2).
 func (s *Server) Listen(ctx context.Context) (net.Listener, error) {
 	path := s.o.SocketPath
@@ -301,8 +305,8 @@ func (l authListener) Accept() (net.Conn, error) {
 		}
 		info, err := l.s.o.PeerCheck(c)
 		if err != nil {
+			l.s.deniedPeer(info, err) // audited before the close, so a denied caller that gets EOF knows the line exists
 			_ = c.Close()
-			l.s.deniedPeer(info, err)
 			continue
 		}
 		return &authConn{Conn: c, info: info}, nil
@@ -313,20 +317,11 @@ func (l authListener) Accept() (net.Conn, error) {
 // but a noisy uid must not hide another one.
 func (s *Server) deniedPeer(info peer.Info, cause error) {
 	s.log.Warn("peer not allowed", "uid", info.UID, "pid", info.PID, "cause", cause.Error())
-	ok, skipped, pids := s.throttle.allow("peer_not_allowed:"+strconv.Itoa(info.UID), s.now(), info.PID)
-	if !ok {
-		return
-	}
-	id, err := newID("au_")
-	if err != nil {
-		return
-	}
+	s.flushThrottle()
 	info.Unit = ""
-	if err := s.audit.append(auditEntry{
-		ID: id, Actor: "-", Peer: info, Command: "-", Result: resultRefused, Code: api.CodePeerNotAllowed,
-		ArgsRedacted: throttleDetail(skipped, pids),
-	}); err != nil {
-		s.log.Error("could not audit a denied peer")
+	e := auditEntry{Actor: "-", Peer: info, Command: "-", Result: resultRefused, Code: api.CodePeerNotAllowed}
+	if s.throttle.allow("peer_not_allowed:"+strconv.Itoa(info.UID), s.now(), e) {
+		s.writeThrottled(e, nil)
 	}
 }
 
@@ -351,6 +346,7 @@ func (s *Server) newHTTPServer() *http.Server {
 
 // Serve accepts connections on ln until Shutdown. It returns nil after a Shutdown.
 func (s *Server) Serve(ln net.Listener) error {
+	go s.sweepThrottle()
 	err := s.srv.Serve(authListener{Listener: ln, s: s})
 	if errors.Is(err, http.ErrServerClosed) {
 		return nil

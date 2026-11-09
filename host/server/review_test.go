@@ -155,7 +155,7 @@ func TestReviewL1_CheckPanicOrHangDoesNotHoldTheLock(t *testing.T) {
 			Run:   func(context.Context, *server.RunContext, struct{}) (any, error) { return nil, nil }}),
 	}
 	h := servertest.Start(t, cmds, func(o *server.Options) { o.CheckTimeout = 50 * time.Millisecond })
-	for i, name := range []string{"rv.checkpanic", "rv.checkhang"} {
+	for i, name := range []string{"rv.checkpanic"} {
 		_, err := h.Client.Run(context.Background(), name, nil, uuid(i), "a")
 		var e *client.Error
 		if !errors.As(err, &e) || e.Status != http.StatusInternalServerError {
@@ -193,7 +193,7 @@ func TestReviewL2_DeniedPeersAreThrottledPerUID(t *testing.T) {
 	if seen[2000] != 1 {
 		t.Fatalf("uid 2000 was hidden by uid 1000's flood: %v", seen)
 	}
-	if seen[1000] < 2 || seen[1000] > 4 { // one per 10 s window over 30 s
+	if seen[1000] < 2 || seen[1000] > 8 { // a first line and a summary per 10 s window over 30 s
 		t.Fatalf("uid 1000 lines = %d", seen[1000])
 	}
 	if !skippedPIDs {
@@ -368,3 +368,134 @@ func TestReviewInfo_DeniedPeerIsATypedClientError(t *testing.T) {
 }
 
 func denyAll(net.Conn) (peer.Info, error) { return peer.Info{}, errors.New("no") }
+
+func TestReviewL1b_AHungCheckKeepsTheWriteLockUntilItReturns(t *testing.T) {
+	t.Parallel()
+	release := make(chan struct{})
+	returned := make(chan struct{})
+	t.Cleanup(func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+	})
+	var ranDuringCheck atomic.Int64
+	var checking atomic.Bool
+	cmds := []server.Command{
+		server.Define(server.Spec[struct{}]{Name: "rv.checkhang", Write: true, Timeout: time.Second,
+			Check: func(context.Context, struct{}) error {
+				checking.Store(true)
+				defer close(returned)
+				defer checking.Store(false)
+				<-release // ignores ctx
+				return nil
+			},
+			Run: func(context.Context, *server.RunContext, struct{}) (any, error) { return nil, nil }}),
+		server.Define(server.Spec[struct{}]{Name: "rv.ok", Write: true, Timeout: time.Second,
+			Run: func(context.Context, *server.RunContext, struct{}) (any, error) {
+				if checking.Load() {
+					ranDuringCheck.Add(1)
+				}
+				return nil, nil
+			}}),
+	}
+	h := servertest.Start(t, cmds, func(o *server.Options) { o.CheckTimeout = 50 * time.Millisecond })
+	_, err := h.Client.Run(context.Background(), "rv.checkhang", nil, rid1, "a")
+	var e *client.Error
+	if !errors.As(err, &e) || e.Status != http.StatusInternalServerError {
+		t.Fatalf("hung check: %v", err)
+	}
+	_, err = h.Client.Run(context.Background(), "rv.ok", nil, rid2, "a")
+	if !client.IsCode(err, api.CodeBusy) {
+		t.Fatalf("a write started while the Check goroutine still runs: %v", err)
+	}
+	close(release)
+	<-returned
+	deadline := time.After(5 * time.Second)
+	for {
+		_, err = h.Client.Run(context.Background(), "rv.ok", nil, rid3, "a")
+		if err == nil {
+			break
+		}
+		if !client.IsCode(err, api.CodeBusy) {
+			t.Fatal(err)
+		}
+		select {
+		case <-deadline:
+			t.Fatal("lock never freed")
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+	if ranDuringCheck.Load() != 0 {
+		t.Fatal("a Run executed during a Check")
+	}
+}
+
+func TestReviewL2b_SummaryIsWrittenWithoutTheSameUIDKnockingAgain(t *testing.T) {
+	t.Parallel()
+	h, _ := start(t)
+	for i := range 3 {
+		h.Peer.Deny(peer.Info{UID: 1000, PID: 100 + i}, errors.New("no"))
+		_, _ = h.NewClient(t).Info(context.Background())
+	}
+	h.Clock.Advance(11 * time.Second)
+	h.Peer.Deny(peer.Info{UID: 3, PID: 9}, errors.New("no")) // a different uid triggers the flush
+	_, _ = h.NewClient(t).Info(context.Background())
+	h.Peer.Allow(servertest.CoreInfo)
+	var found bool
+	for _, r := range auditLines(t, h) {
+		found = found || (r.Peer.UID == 1000 && strings.Contains(string(r.ArgsRedacted), `"skipped":2`))
+	}
+	if !found {
+		t.Fatal("the skipped count of uid 1000 was never written")
+	}
+}
+
+func TestReviewL2b_ManyUIDsCannotHideATarget(t *testing.T) {
+	t.Parallel()
+	h, _ := start(t)
+	deny := func(uid int) {
+		h.Peer.Deny(peer.Info{UID: uid, PID: uid}, errors.New("no"))
+		_, _ = h.NewClient(t).Info(context.Background())
+	}
+	for uid := 1; uid <= 258; uid++ { // fills the 256-entry table inside one window
+		deny(uid)
+	}
+	deny(9998) // overflow: first event of the shared entry
+	deny(9999) // the target: skipped inside the overflow window
+	h.Clock.Advance(11 * time.Second)
+	deny(5) // flush
+	h.Peer.Allow(servertest.CoreInfo)
+	var found bool
+	for _, r := range auditLines(t, h) {
+		found = found || strings.Contains(string(r.ArgsRedacted), "9999")
+	}
+	if !found {
+		recs := auditLines(t, h)
+		t.Logf("%d lines; last: %+v %s", len(recs), recs[len(recs)-1].Peer, recs[len(recs)-1].ArgsRedacted)
+		t.Fatal("uid 9999 does not appear in any audit line")
+	}
+}
+
+func TestReviewInfo_ABodyThatNeverArrivesIsCutOff(t *testing.T) {
+	t.Parallel()
+	h, _ := start(t, func(o *server.Options) { o.BodyDeadline = 150 * time.Millisecond })
+	c, err := (&net.Dialer{}).DialContext(context.Background(), "unix", h.Socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = c.Close() }()
+	// A GET that announces a body and sends only part of it.
+	_, _ = c.Write([]byte("GET /v1/info HTTP/1.1\r\nHost: h\r\nX-Vedette-Host-Proto: 1\r\nContent-Length: 10\r\n\r\nab"))
+	_ = c.SetReadDeadline(time.Now().Add(5 * time.Second))
+	buf := make([]byte, 4096)
+	for { // read the response, then the server must close the connection by itself
+		if _, err := c.Read(buf); err != nil {
+			if ne, ok := err.(net.Error); ok && ne.Timeout() { //nolint:errorlint // a read deadline error is a net.Error directly
+				t.Fatal("the connection stayed open for a body that never completes")
+			}
+			return
+		}
+	}
+}

@@ -49,6 +49,8 @@ type Spec[A any] struct {
 	// Validate checks the decoded args; return Invalid(...) for field errors. May be nil for no args.
 	Validate func(*A) error
 	// Check runs the cheap preconditions synchronously (five seconds at most) before the run starts.
+	// It must only read: it must not change the system, because if it ignores its deadline the run
+	// is failed but the write lock stays held until it returns.
 	// Return a *Refusal to refuse; the run is recorded as refused with the matching HTTP status.
 	Check func(ctx context.Context, args A) error
 	// Run does the work. It must obey ctx. Return nil error with a JSON-encodable result, a *Refusal,
@@ -265,7 +267,7 @@ func ambiguousKeys(raw []byte) string {
 			continue
 		case string:
 			if top != nil && top.object && top.key {
-				low := strings.ToLower(t)
+				low := foldKey(t)
 				if top.seen[low] {
 					return "repeated key"
 				}
@@ -290,3 +292,8 @@ func mustMarshal(v any) []byte {
 	}
 	return b
 }
+
+// foldKey maps keys that encoding/json treats as the same field to the same string. json matches
+// with strings.EqualFold (Unicode simple folding), under which "s" and U+017F (long s), or "k" and
+// U+212A (Kelvin sign), are equal; lower-casing alone does not see that, upper-then-lower does.
+func foldKey(k string) string { return strings.ToLower(strings.ToUpper(k)) }

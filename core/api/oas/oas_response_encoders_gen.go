@@ -11,12 +11,6 @@ import (
 	ht "github.com/ogen-go/ogen/http"
 )
 
-func encodeAiDeleteAiConnectionsIDResponse(response *AiDeleteAiConnectionsIDNoContent, w http.ResponseWriter) error {
-	w.WriteHeader(204)
-
-	return nil
-}
-
 func encodeAiDeleteAiHooksIDResponse(response *AiDeleteAiHooksIDNoContent, w http.ResponseWriter) error {
 	w.WriteHeader(204)
 
@@ -133,19 +127,6 @@ func encodeAiGetAiAssignmentsSuggestionResponse(response *AiGetAiAssignmentsSugg
 }
 
 func encodeAiGetAiConfigResponse(response *AiGetAiConfigOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-
-	e := new(jx.Encoder)
-	response.Encode(e)
-	if _, err := e.WriteTo(w); err != nil {
-		return errors.Wrap(err, "write")
-	}
-
-	return nil
-}
-
-func encodeAiGetAiConnectionsResponse(response *AiGetAiConnectionsOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 
@@ -289,32 +270,6 @@ func encodeAiGetAiUsageResponse(response *AiGetAiUsageOK, w http.ResponseWriter)
 }
 
 func encodeAiPostAiAskResponse(response *AiPostAiAskOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-
-	e := new(jx.Encoder)
-	response.Encode(e)
-	if _, err := e.WriteTo(w); err != nil {
-		return errors.Wrap(err, "write")
-	}
-
-	return nil
-}
-
-func encodeAiPostAiConnectionsResponse(response *AiPostAiConnectionsOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-
-	e := new(jx.Encoder)
-	response.Encode(e)
-	if _, err := e.WriteTo(w); err != nil {
-		return errors.Wrap(err, "write")
-	}
-
-	return nil
-}
-
-func encodeAiPostAiConnectionsIDTestResponse(response *AiPostAiConnectionsIDTestOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 
@@ -515,19 +470,6 @@ func encodeAiPutAiConfigResponse(response *AiPutAiConfigOK, w http.ResponseWrite
 	return nil
 }
 
-func encodeAiPutAiConnectionsIDResponse(response *AiPutAiConnectionsIDOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-
-	e := new(jx.Encoder)
-	response.Encode(e)
-	if _, err := e.WriteTo(w); err != nil {
-		return errors.Wrap(err, "write")
-	}
-
-	return nil
-}
-
 func encodeAiPutAiHooksBuiltinIDResponse(response *AiPutAiHooksBuiltinIDOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -651,6 +593,12 @@ func encodeCoreDeleteCoreAccountSessionsIDResponse(response *CoreDeleteCoreAccou
 	return nil
 }
 
+func encodeCoreDeleteCoreConnectionsIDResponse(response *CoreDeleteCoreConnectionsIDNoContent, w http.ResponseWriter) error {
+	w.WriteHeader(204)
+
+	return nil
+}
+
 func encodeCoreDeleteCoreMcpTokensIDResponse(response *CoreDeleteCoreMcpTokensIDNoContent, w http.ResponseWriter) error {
 	w.WriteHeader(204)
 
@@ -712,6 +660,19 @@ func encodeCoreGetCoreAuditExportResponse(response CoreGetCoreAuditExportOK, w h
 }
 
 func encodeCoreGetCoreAuthOptionsResponse(response *CoreGetCoreAuthOptionsOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeCoreGetCoreConnectionsResponse(response *CoreGetCoreConnectionsOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 
@@ -1180,6 +1141,32 @@ func encodeCorePostCoreAccountSessionsRevokeOthersResponse(response *CorePostCor
 	return nil
 }
 
+func encodeCorePostCoreConnectionsResponse(response *CorePostCoreConnectionsCreated, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(201)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeCorePostCoreConnectionsIDTestResponse(response *CorePostCoreConnectionsIDTestOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeCorePostCoreDataPurgeResponse(response *CorePostCoreDataPurgeOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -1389,6 +1376,19 @@ func encodeCorePostCoreUsersID2FAResetResponse(response *CorePostCoreUsersID2FAR
 }
 
 func encodeCorePostCoreUsersIDResetPasswordResponse(response *CorePostCoreUsersIDResetPasswordOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeCorePutCoreConnectionsIDResponse(response *CorePutCoreConnectionsIDOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

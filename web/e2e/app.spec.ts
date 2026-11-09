@@ -5,7 +5,7 @@ import { axeViolations, collectErrors, expectAccessible, startWithSample } from 
 const PAGES = [
   '/', '/lookup?q=185.220.101.47', '/cve/CVE-2022-27593', '/findings', '/findings/f-1', '/findings/f-2', '/incidents',
   '/devices', '/devices/a-nas02', '/devices/setup', '/exposure', '/scans', '/honeypot', '/logs', '/assistant', '/reports',
-  '/settings/general', '/settings/modules', '/settings/channels', '/settings/ai', '/settings/siem', '/settings/users',
+  '/settings/general', '/settings/modules', '/settings/channels', '/settings/ai', '/settings/connections', '/settings/siem', '/settings/users',
   '/settings/audit', '/settings/updates', '/settings/privacy', '/settings/mcp', '/settings/data', '/account', '/honeypot/hits/hit-seed-1', '/incidents/al-4',
 ]
 

@@ -10,6 +10,8 @@ import { BUNDLES } from './bundles'
 import { inventorySettingsStore } from '@/features/inventory/mocks'
 import { osHandlers } from './osMock'
 import { networkHandlers } from './networkMock'
+import { connectionsHandlers } from './connectionsMock'
+import { connectorsStore } from '@/mocks/connectors'
 import { networkStore } from '@/mocks/network'
 import { newSecret, verifyTotp } from './totp'
 import { checkCode, clearCode, issueCode, maskEmail, sentBody } from './emailCode'
@@ -633,6 +635,7 @@ function privacyView() {
     { id: 9, state: isOn('exposure') ? 'on' : 'off', control: 'reason' },
     { id: 10, state: ntpPublic() ? 'on' : 'off', control: 'reason' },
     { id: 11, state: isOn('auth-oidc') && !!oidcStore.get().issuer ? 'conditional' : 'off', control: 'reason' },
+    { id: 12, state: connectorsStore.get().some((c) => c.enabled && c.kind !== 'mcp-stdio') ? 'on' : 'off', control: 'reason' },
   ]
   return { flows, telemetry: { enabled: p.telemetry, last_sent: p.last_sent, payload: telemetryPayload() }, update_check: p.update_check }
 }
@@ -738,4 +741,4 @@ const dataHandlers = [
   }),
 ]
 
-export const handlers = [...logExportHandlers, ...setupHandlers, ...generalHandlers, ...accountHandlers, ...usersHandlers, ...auditHandlers, ...updatesHandlers, ...privacyHandlers, ...networkHandlers, ...mcpHandlers, ...dataHandlers]
+export const handlers = [...logExportHandlers, ...setupHandlers, ...generalHandlers, ...accountHandlers, ...usersHandlers, ...auditHandlers, ...updatesHandlers, ...privacyHandlers, ...networkHandlers, ...connectionsHandlers, ...mcpHandlers, ...dataHandlers]

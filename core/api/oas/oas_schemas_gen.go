@@ -16,9 +16,6 @@ func (s *ErrorStatusCode) Error() string {
 	return fmt.Sprintf("code %d: %+v", s.StatusCode, s.Response)
 }
 
-// AiDeleteAiConnectionsIDNoContent is response for AiDeleteAiConnectionsID operation.
-type AiDeleteAiConnectionsIDNoContent struct{}
-
 // AiDeleteAiHooksIDNoContent is response for AiDeleteAiHooksID operation.
 type AiDeleteAiHooksIDNoContent struct{}
 
@@ -1618,432 +1615,6 @@ func (s *AiGetAiConfigOKTierEstimates) init() AiGetAiConfigOKTierEstimates {
 		*s = m
 	}
 	return m
-}
-
-type AiGetAiConnectionsOK struct {
-	Items []AiGetAiConnectionsOKItemsItem `json:"items"`
-}
-
-// GetItems returns the value of Items.
-func (s *AiGetAiConnectionsOK) GetItems() []AiGetAiConnectionsOKItemsItem {
-	return s.Items
-}
-
-// SetItems sets the value of Items.
-func (s *AiGetAiConnectionsOK) SetItems(val []AiGetAiConnectionsOKItemsItem) {
-	s.Items = val
-}
-
-type AiGetAiConnectionsOKItemsItem struct {
-	// Hosts, URL prefixes or commands the AI may use through this connection.
-	Allow    []string                            `json:"allow"`
-	AssetID  NilString                           `json:"asset_id"`
-	Auth     AiGetAiConnectionsOKItemsItemAuth   `json:"auth"`
-	Enabled  bool                                `json:"enabled"`
-	ID       string                              `json:"id"`
-	Kind     AiGetAiConnectionsOKItemsItemKind   `json:"kind"`
-	LastTest NilDateTime                         `json:"last_test"`
-	Name     string                              `json:"name"`
-	Status   AiGetAiConnectionsOKItemsItemStatus `json:"status"`
-	// Base URL, host:port, or the MCP command.
-	Target string                                   `json:"target"`
-	Tools  []AiGetAiConnectionsOKItemsItemToolsItem `json:"tools"`
-}
-
-// GetAllow returns the value of Allow.
-func (s *AiGetAiConnectionsOKItemsItem) GetAllow() []string {
-	return s.Allow
-}
-
-// GetAssetID returns the value of AssetID.
-func (s *AiGetAiConnectionsOKItemsItem) GetAssetID() NilString {
-	return s.AssetID
-}
-
-// GetAuth returns the value of Auth.
-func (s *AiGetAiConnectionsOKItemsItem) GetAuth() AiGetAiConnectionsOKItemsItemAuth {
-	return s.Auth
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *AiGetAiConnectionsOKItemsItem) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetID returns the value of ID.
-func (s *AiGetAiConnectionsOKItemsItem) GetID() string {
-	return s.ID
-}
-
-// GetKind returns the value of Kind.
-func (s *AiGetAiConnectionsOKItemsItem) GetKind() AiGetAiConnectionsOKItemsItemKind {
-	return s.Kind
-}
-
-// GetLastTest returns the value of LastTest.
-func (s *AiGetAiConnectionsOKItemsItem) GetLastTest() NilDateTime {
-	return s.LastTest
-}
-
-// GetName returns the value of Name.
-func (s *AiGetAiConnectionsOKItemsItem) GetName() string {
-	return s.Name
-}
-
-// GetStatus returns the value of Status.
-func (s *AiGetAiConnectionsOKItemsItem) GetStatus() AiGetAiConnectionsOKItemsItemStatus {
-	return s.Status
-}
-
-// GetTarget returns the value of Target.
-func (s *AiGetAiConnectionsOKItemsItem) GetTarget() string {
-	return s.Target
-}
-
-// GetTools returns the value of Tools.
-func (s *AiGetAiConnectionsOKItemsItem) GetTools() []AiGetAiConnectionsOKItemsItemToolsItem {
-	return s.Tools
-}
-
-// SetAllow sets the value of Allow.
-func (s *AiGetAiConnectionsOKItemsItem) SetAllow(val []string) {
-	s.Allow = val
-}
-
-// SetAssetID sets the value of AssetID.
-func (s *AiGetAiConnectionsOKItemsItem) SetAssetID(val NilString) {
-	s.AssetID = val
-}
-
-// SetAuth sets the value of Auth.
-func (s *AiGetAiConnectionsOKItemsItem) SetAuth(val AiGetAiConnectionsOKItemsItemAuth) {
-	s.Auth = val
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *AiGetAiConnectionsOKItemsItem) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetID sets the value of ID.
-func (s *AiGetAiConnectionsOKItemsItem) SetID(val string) {
-	s.ID = val
-}
-
-// SetKind sets the value of Kind.
-func (s *AiGetAiConnectionsOKItemsItem) SetKind(val AiGetAiConnectionsOKItemsItemKind) {
-	s.Kind = val
-}
-
-// SetLastTest sets the value of LastTest.
-func (s *AiGetAiConnectionsOKItemsItem) SetLastTest(val NilDateTime) {
-	s.LastTest = val
-}
-
-// SetName sets the value of Name.
-func (s *AiGetAiConnectionsOKItemsItem) SetName(val string) {
-	s.Name = val
-}
-
-// SetStatus sets the value of Status.
-func (s *AiGetAiConnectionsOKItemsItem) SetStatus(val AiGetAiConnectionsOKItemsItemStatus) {
-	s.Status = val
-}
-
-// SetTarget sets the value of Target.
-func (s *AiGetAiConnectionsOKItemsItem) SetTarget(val string) {
-	s.Target = val
-}
-
-// SetTools sets the value of Tools.
-func (s *AiGetAiConnectionsOKItemsItem) SetTools(val []AiGetAiConnectionsOKItemsItemToolsItem) {
-	s.Tools = val
-}
-
-type AiGetAiConnectionsOKItemsItemAuth struct {
-	// Last 4 characters of the secret; the full secret is never returned (SYS-4).
-	Last4 NilString                             `json:"last4"`
-	Type  AiGetAiConnectionsOKItemsItemAuthType `json:"type"`
-}
-
-// GetLast4 returns the value of Last4.
-func (s *AiGetAiConnectionsOKItemsItemAuth) GetLast4() NilString {
-	return s.Last4
-}
-
-// GetType returns the value of Type.
-func (s *AiGetAiConnectionsOKItemsItemAuth) GetType() AiGetAiConnectionsOKItemsItemAuthType {
-	return s.Type
-}
-
-// SetLast4 sets the value of Last4.
-func (s *AiGetAiConnectionsOKItemsItemAuth) SetLast4(val NilString) {
-	s.Last4 = val
-}
-
-// SetType sets the value of Type.
-func (s *AiGetAiConnectionsOKItemsItemAuth) SetType(val AiGetAiConnectionsOKItemsItemAuthType) {
-	s.Type = val
-}
-
-type AiGetAiConnectionsOKItemsItemAuthType string
-
-const (
-	AiGetAiConnectionsOKItemsItemAuthTypeNone   AiGetAiConnectionsOKItemsItemAuthType = "none"
-	AiGetAiConnectionsOKItemsItemAuthTypeToken  AiGetAiConnectionsOKItemsItemAuthType = "token"
-	AiGetAiConnectionsOKItemsItemAuthTypeBasic  AiGetAiConnectionsOKItemsItemAuthType = "basic"
-	AiGetAiConnectionsOKItemsItemAuthTypeSSHKey AiGetAiConnectionsOKItemsItemAuthType = "ssh-key"
-)
-
-// AllValues returns all AiGetAiConnectionsOKItemsItemAuthType values.
-func (AiGetAiConnectionsOKItemsItemAuthType) AllValues() []AiGetAiConnectionsOKItemsItemAuthType {
-	return []AiGetAiConnectionsOKItemsItemAuthType{
-		AiGetAiConnectionsOKItemsItemAuthTypeNone,
-		AiGetAiConnectionsOKItemsItemAuthTypeToken,
-		AiGetAiConnectionsOKItemsItemAuthTypeBasic,
-		AiGetAiConnectionsOKItemsItemAuthTypeSSHKey,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiGetAiConnectionsOKItemsItemAuthType) MarshalText() ([]byte, error) {
-	switch s {
-	case AiGetAiConnectionsOKItemsItemAuthTypeNone:
-		return []byte(s), nil
-	case AiGetAiConnectionsOKItemsItemAuthTypeToken:
-		return []byte(s), nil
-	case AiGetAiConnectionsOKItemsItemAuthTypeBasic:
-		return []byte(s), nil
-	case AiGetAiConnectionsOKItemsItemAuthTypeSSHKey:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiGetAiConnectionsOKItemsItemAuthType) UnmarshalText(data []byte) error {
-	switch AiGetAiConnectionsOKItemsItemAuthType(data) {
-	case AiGetAiConnectionsOKItemsItemAuthTypeNone:
-		*s = AiGetAiConnectionsOKItemsItemAuthTypeNone
-		return nil
-	case AiGetAiConnectionsOKItemsItemAuthTypeToken:
-		*s = AiGetAiConnectionsOKItemsItemAuthTypeToken
-		return nil
-	case AiGetAiConnectionsOKItemsItemAuthTypeBasic:
-		*s = AiGetAiConnectionsOKItemsItemAuthTypeBasic
-		return nil
-	case AiGetAiConnectionsOKItemsItemAuthTypeSSHKey:
-		*s = AiGetAiConnectionsOKItemsItemAuthTypeSSHKey
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiGetAiConnectionsOKItemsItemKind string
-
-const (
-	AiGetAiConnectionsOKItemsItemKindHTTP            AiGetAiConnectionsOKItemsItemKind = "http"
-	AiGetAiConnectionsOKItemsItemKindSSH             AiGetAiConnectionsOKItemsItemKind = "ssh"
-	AiGetAiConnectionsOKItemsItemKindNetconfRestconf AiGetAiConnectionsOKItemsItemKind = "netconf-restconf"
-	AiGetAiConnectionsOKItemsItemKindAutomation      AiGetAiConnectionsOKItemsItemKind = "automation"
-	AiGetAiConnectionsOKItemsItemKindMcpHTTP         AiGetAiConnectionsOKItemsItemKind = "mcp-http"
-	AiGetAiConnectionsOKItemsItemKindMcpStdio        AiGetAiConnectionsOKItemsItemKind = "mcp-stdio"
-)
-
-// AllValues returns all AiGetAiConnectionsOKItemsItemKind values.
-func (AiGetAiConnectionsOKItemsItemKind) AllValues() []AiGetAiConnectionsOKItemsItemKind {
-	return []AiGetAiConnectionsOKItemsItemKind{
-		AiGetAiConnectionsOKItemsItemKindHTTP,
-		AiGetAiConnectionsOKItemsItemKindSSH,
-		AiGetAiConnectionsOKItemsItemKindNetconfRestconf,
-		AiGetAiConnectionsOKItemsItemKindAutomation,
-		AiGetAiConnectionsOKItemsItemKindMcpHTTP,
-		AiGetAiConnectionsOKItemsItemKindMcpStdio,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiGetAiConnectionsOKItemsItemKind) MarshalText() ([]byte, error) {
-	switch s {
-	case AiGetAiConnectionsOKItemsItemKindHTTP:
-		return []byte(s), nil
-	case AiGetAiConnectionsOKItemsItemKindSSH:
-		return []byte(s), nil
-	case AiGetAiConnectionsOKItemsItemKindNetconfRestconf:
-		return []byte(s), nil
-	case AiGetAiConnectionsOKItemsItemKindAutomation:
-		return []byte(s), nil
-	case AiGetAiConnectionsOKItemsItemKindMcpHTTP:
-		return []byte(s), nil
-	case AiGetAiConnectionsOKItemsItemKindMcpStdio:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiGetAiConnectionsOKItemsItemKind) UnmarshalText(data []byte) error {
-	switch AiGetAiConnectionsOKItemsItemKind(data) {
-	case AiGetAiConnectionsOKItemsItemKindHTTP:
-		*s = AiGetAiConnectionsOKItemsItemKindHTTP
-		return nil
-	case AiGetAiConnectionsOKItemsItemKindSSH:
-		*s = AiGetAiConnectionsOKItemsItemKindSSH
-		return nil
-	case AiGetAiConnectionsOKItemsItemKindNetconfRestconf:
-		*s = AiGetAiConnectionsOKItemsItemKindNetconfRestconf
-		return nil
-	case AiGetAiConnectionsOKItemsItemKindAutomation:
-		*s = AiGetAiConnectionsOKItemsItemKindAutomation
-		return nil
-	case AiGetAiConnectionsOKItemsItemKindMcpHTTP:
-		*s = AiGetAiConnectionsOKItemsItemKindMcpHTTP
-		return nil
-	case AiGetAiConnectionsOKItemsItemKindMcpStdio:
-		*s = AiGetAiConnectionsOKItemsItemKindMcpStdio
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiGetAiConnectionsOKItemsItemStatus string
-
-const (
-	AiGetAiConnectionsOKItemsItemStatusOk       AiGetAiConnectionsOKItemsItemStatus = "ok"
-	AiGetAiConnectionsOKItemsItemStatusError    AiGetAiConnectionsOKItemsItemStatus = "error"
-	AiGetAiConnectionsOKItemsItemStatusUntested AiGetAiConnectionsOKItemsItemStatus = "untested"
-)
-
-// AllValues returns all AiGetAiConnectionsOKItemsItemStatus values.
-func (AiGetAiConnectionsOKItemsItemStatus) AllValues() []AiGetAiConnectionsOKItemsItemStatus {
-	return []AiGetAiConnectionsOKItemsItemStatus{
-		AiGetAiConnectionsOKItemsItemStatusOk,
-		AiGetAiConnectionsOKItemsItemStatusError,
-		AiGetAiConnectionsOKItemsItemStatusUntested,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiGetAiConnectionsOKItemsItemStatus) MarshalText() ([]byte, error) {
-	switch s {
-	case AiGetAiConnectionsOKItemsItemStatusOk:
-		return []byte(s), nil
-	case AiGetAiConnectionsOKItemsItemStatusError:
-		return []byte(s), nil
-	case AiGetAiConnectionsOKItemsItemStatusUntested:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiGetAiConnectionsOKItemsItemStatus) UnmarshalText(data []byte) error {
-	switch AiGetAiConnectionsOKItemsItemStatus(data) {
-	case AiGetAiConnectionsOKItemsItemStatusOk:
-		*s = AiGetAiConnectionsOKItemsItemStatusOk
-		return nil
-	case AiGetAiConnectionsOKItemsItemStatusError:
-		*s = AiGetAiConnectionsOKItemsItemStatusError
-		return nil
-	case AiGetAiConnectionsOKItemsItemStatusUntested:
-		*s = AiGetAiConnectionsOKItemsItemStatusUntested
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiGetAiConnectionsOKItemsItemToolsItem struct {
-	Access      AiGetAiConnectionsOKItemsItemToolsItemAccess `json:"access"`
-	Description string                                       `json:"description"`
-	Enabled     bool                                         `json:"enabled"`
-	Name        string                                       `json:"name"`
-}
-
-// GetAccess returns the value of Access.
-func (s *AiGetAiConnectionsOKItemsItemToolsItem) GetAccess() AiGetAiConnectionsOKItemsItemToolsItemAccess {
-	return s.Access
-}
-
-// GetDescription returns the value of Description.
-func (s *AiGetAiConnectionsOKItemsItemToolsItem) GetDescription() string {
-	return s.Description
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *AiGetAiConnectionsOKItemsItemToolsItem) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetName returns the value of Name.
-func (s *AiGetAiConnectionsOKItemsItemToolsItem) GetName() string {
-	return s.Name
-}
-
-// SetAccess sets the value of Access.
-func (s *AiGetAiConnectionsOKItemsItemToolsItem) SetAccess(val AiGetAiConnectionsOKItemsItemToolsItemAccess) {
-	s.Access = val
-}
-
-// SetDescription sets the value of Description.
-func (s *AiGetAiConnectionsOKItemsItemToolsItem) SetDescription(val string) {
-	s.Description = val
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *AiGetAiConnectionsOKItemsItemToolsItem) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetName sets the value of Name.
-func (s *AiGetAiConnectionsOKItemsItemToolsItem) SetName(val string) {
-	s.Name = val
-}
-
-type AiGetAiConnectionsOKItemsItemToolsItemAccess string
-
-const (
-	AiGetAiConnectionsOKItemsItemToolsItemAccessRead  AiGetAiConnectionsOKItemsItemToolsItemAccess = "read"
-	AiGetAiConnectionsOKItemsItemToolsItemAccessWrite AiGetAiConnectionsOKItemsItemToolsItemAccess = "write"
-)
-
-// AllValues returns all AiGetAiConnectionsOKItemsItemToolsItemAccess values.
-func (AiGetAiConnectionsOKItemsItemToolsItemAccess) AllValues() []AiGetAiConnectionsOKItemsItemToolsItemAccess {
-	return []AiGetAiConnectionsOKItemsItemToolsItemAccess{
-		AiGetAiConnectionsOKItemsItemToolsItemAccessRead,
-		AiGetAiConnectionsOKItemsItemToolsItemAccessWrite,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiGetAiConnectionsOKItemsItemToolsItemAccess) MarshalText() ([]byte, error) {
-	switch s {
-	case AiGetAiConnectionsOKItemsItemToolsItemAccessRead:
-		return []byte(s), nil
-	case AiGetAiConnectionsOKItemsItemToolsItemAccessWrite:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiGetAiConnectionsOKItemsItemToolsItemAccess) UnmarshalText(data []byte) error {
-	switch AiGetAiConnectionsOKItemsItemToolsItemAccess(data) {
-	case AiGetAiConnectionsOKItemsItemToolsItemAccessRead:
-		*s = AiGetAiConnectionsOKItemsItemToolsItemAccessRead
-		return nil
-	case AiGetAiConnectionsOKItemsItemToolsItemAccessWrite:
-		*s = AiGetAiConnectionsOKItemsItemToolsItemAccessWrite
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }
 
 type AiGetAiCveIDCachedOK struct {
@@ -5548,1141 +5119,6 @@ func (s *AiPostAiAskReq) GetQuestion() string {
 // SetQuestion sets the value of Question.
 func (s *AiPostAiAskReq) SetQuestion(val string) {
 	s.Question = val
-}
-
-type AiPostAiConnectionsIDTestOK struct {
-	Connector  AiPostAiConnectionsIDTestOKConnector `json:"connector"`
-	LatencyMs  float64                              `json:"latency_ms"`
-	Message    string                               `json:"message"`
-	Ok         bool                                 `json:"ok"`
-	ToolsFound int                                  `json:"tools_found"`
-}
-
-// GetConnector returns the value of Connector.
-func (s *AiPostAiConnectionsIDTestOK) GetConnector() AiPostAiConnectionsIDTestOKConnector {
-	return s.Connector
-}
-
-// GetLatencyMs returns the value of LatencyMs.
-func (s *AiPostAiConnectionsIDTestOK) GetLatencyMs() float64 {
-	return s.LatencyMs
-}
-
-// GetMessage returns the value of Message.
-func (s *AiPostAiConnectionsIDTestOK) GetMessage() string {
-	return s.Message
-}
-
-// GetOk returns the value of Ok.
-func (s *AiPostAiConnectionsIDTestOK) GetOk() bool {
-	return s.Ok
-}
-
-// GetToolsFound returns the value of ToolsFound.
-func (s *AiPostAiConnectionsIDTestOK) GetToolsFound() int {
-	return s.ToolsFound
-}
-
-// SetConnector sets the value of Connector.
-func (s *AiPostAiConnectionsIDTestOK) SetConnector(val AiPostAiConnectionsIDTestOKConnector) {
-	s.Connector = val
-}
-
-// SetLatencyMs sets the value of LatencyMs.
-func (s *AiPostAiConnectionsIDTestOK) SetLatencyMs(val float64) {
-	s.LatencyMs = val
-}
-
-// SetMessage sets the value of Message.
-func (s *AiPostAiConnectionsIDTestOK) SetMessage(val string) {
-	s.Message = val
-}
-
-// SetOk sets the value of Ok.
-func (s *AiPostAiConnectionsIDTestOK) SetOk(val bool) {
-	s.Ok = val
-}
-
-// SetToolsFound sets the value of ToolsFound.
-func (s *AiPostAiConnectionsIDTestOK) SetToolsFound(val int) {
-	s.ToolsFound = val
-}
-
-type AiPostAiConnectionsIDTestOKConnector struct {
-	// Hosts, URL prefixes or commands the AI may use through this connection.
-	Allow    []string                                   `json:"allow"`
-	AssetID  NilString                                  `json:"asset_id"`
-	Auth     AiPostAiConnectionsIDTestOKConnectorAuth   `json:"auth"`
-	Enabled  bool                                       `json:"enabled"`
-	ID       string                                     `json:"id"`
-	Kind     AiPostAiConnectionsIDTestOKConnectorKind   `json:"kind"`
-	LastTest NilDateTime                                `json:"last_test"`
-	Name     string                                     `json:"name"`
-	Status   AiPostAiConnectionsIDTestOKConnectorStatus `json:"status"`
-	// Base URL, host:port, or the MCP command.
-	Target string                                          `json:"target"`
-	Tools  []AiPostAiConnectionsIDTestOKConnectorToolsItem `json:"tools"`
-}
-
-// GetAllow returns the value of Allow.
-func (s *AiPostAiConnectionsIDTestOKConnector) GetAllow() []string {
-	return s.Allow
-}
-
-// GetAssetID returns the value of AssetID.
-func (s *AiPostAiConnectionsIDTestOKConnector) GetAssetID() NilString {
-	return s.AssetID
-}
-
-// GetAuth returns the value of Auth.
-func (s *AiPostAiConnectionsIDTestOKConnector) GetAuth() AiPostAiConnectionsIDTestOKConnectorAuth {
-	return s.Auth
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *AiPostAiConnectionsIDTestOKConnector) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetID returns the value of ID.
-func (s *AiPostAiConnectionsIDTestOKConnector) GetID() string {
-	return s.ID
-}
-
-// GetKind returns the value of Kind.
-func (s *AiPostAiConnectionsIDTestOKConnector) GetKind() AiPostAiConnectionsIDTestOKConnectorKind {
-	return s.Kind
-}
-
-// GetLastTest returns the value of LastTest.
-func (s *AiPostAiConnectionsIDTestOKConnector) GetLastTest() NilDateTime {
-	return s.LastTest
-}
-
-// GetName returns the value of Name.
-func (s *AiPostAiConnectionsIDTestOKConnector) GetName() string {
-	return s.Name
-}
-
-// GetStatus returns the value of Status.
-func (s *AiPostAiConnectionsIDTestOKConnector) GetStatus() AiPostAiConnectionsIDTestOKConnectorStatus {
-	return s.Status
-}
-
-// GetTarget returns the value of Target.
-func (s *AiPostAiConnectionsIDTestOKConnector) GetTarget() string {
-	return s.Target
-}
-
-// GetTools returns the value of Tools.
-func (s *AiPostAiConnectionsIDTestOKConnector) GetTools() []AiPostAiConnectionsIDTestOKConnectorToolsItem {
-	return s.Tools
-}
-
-// SetAllow sets the value of Allow.
-func (s *AiPostAiConnectionsIDTestOKConnector) SetAllow(val []string) {
-	s.Allow = val
-}
-
-// SetAssetID sets the value of AssetID.
-func (s *AiPostAiConnectionsIDTestOKConnector) SetAssetID(val NilString) {
-	s.AssetID = val
-}
-
-// SetAuth sets the value of Auth.
-func (s *AiPostAiConnectionsIDTestOKConnector) SetAuth(val AiPostAiConnectionsIDTestOKConnectorAuth) {
-	s.Auth = val
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *AiPostAiConnectionsIDTestOKConnector) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetID sets the value of ID.
-func (s *AiPostAiConnectionsIDTestOKConnector) SetID(val string) {
-	s.ID = val
-}
-
-// SetKind sets the value of Kind.
-func (s *AiPostAiConnectionsIDTestOKConnector) SetKind(val AiPostAiConnectionsIDTestOKConnectorKind) {
-	s.Kind = val
-}
-
-// SetLastTest sets the value of LastTest.
-func (s *AiPostAiConnectionsIDTestOKConnector) SetLastTest(val NilDateTime) {
-	s.LastTest = val
-}
-
-// SetName sets the value of Name.
-func (s *AiPostAiConnectionsIDTestOKConnector) SetName(val string) {
-	s.Name = val
-}
-
-// SetStatus sets the value of Status.
-func (s *AiPostAiConnectionsIDTestOKConnector) SetStatus(val AiPostAiConnectionsIDTestOKConnectorStatus) {
-	s.Status = val
-}
-
-// SetTarget sets the value of Target.
-func (s *AiPostAiConnectionsIDTestOKConnector) SetTarget(val string) {
-	s.Target = val
-}
-
-// SetTools sets the value of Tools.
-func (s *AiPostAiConnectionsIDTestOKConnector) SetTools(val []AiPostAiConnectionsIDTestOKConnectorToolsItem) {
-	s.Tools = val
-}
-
-type AiPostAiConnectionsIDTestOKConnectorAuth struct {
-	// Last 4 characters of the secret; the full secret is never returned (SYS-4).
-	Last4 NilString                                    `json:"last4"`
-	Type  AiPostAiConnectionsIDTestOKConnectorAuthType `json:"type"`
-}
-
-// GetLast4 returns the value of Last4.
-func (s *AiPostAiConnectionsIDTestOKConnectorAuth) GetLast4() NilString {
-	return s.Last4
-}
-
-// GetType returns the value of Type.
-func (s *AiPostAiConnectionsIDTestOKConnectorAuth) GetType() AiPostAiConnectionsIDTestOKConnectorAuthType {
-	return s.Type
-}
-
-// SetLast4 sets the value of Last4.
-func (s *AiPostAiConnectionsIDTestOKConnectorAuth) SetLast4(val NilString) {
-	s.Last4 = val
-}
-
-// SetType sets the value of Type.
-func (s *AiPostAiConnectionsIDTestOKConnectorAuth) SetType(val AiPostAiConnectionsIDTestOKConnectorAuthType) {
-	s.Type = val
-}
-
-type AiPostAiConnectionsIDTestOKConnectorAuthType string
-
-const (
-	AiPostAiConnectionsIDTestOKConnectorAuthTypeNone   AiPostAiConnectionsIDTestOKConnectorAuthType = "none"
-	AiPostAiConnectionsIDTestOKConnectorAuthTypeToken  AiPostAiConnectionsIDTestOKConnectorAuthType = "token"
-	AiPostAiConnectionsIDTestOKConnectorAuthTypeBasic  AiPostAiConnectionsIDTestOKConnectorAuthType = "basic"
-	AiPostAiConnectionsIDTestOKConnectorAuthTypeSSHKey AiPostAiConnectionsIDTestOKConnectorAuthType = "ssh-key"
-)
-
-// AllValues returns all AiPostAiConnectionsIDTestOKConnectorAuthType values.
-func (AiPostAiConnectionsIDTestOKConnectorAuthType) AllValues() []AiPostAiConnectionsIDTestOKConnectorAuthType {
-	return []AiPostAiConnectionsIDTestOKConnectorAuthType{
-		AiPostAiConnectionsIDTestOKConnectorAuthTypeNone,
-		AiPostAiConnectionsIDTestOKConnectorAuthTypeToken,
-		AiPostAiConnectionsIDTestOKConnectorAuthTypeBasic,
-		AiPostAiConnectionsIDTestOKConnectorAuthTypeSSHKey,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPostAiConnectionsIDTestOKConnectorAuthType) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPostAiConnectionsIDTestOKConnectorAuthTypeNone:
-		return []byte(s), nil
-	case AiPostAiConnectionsIDTestOKConnectorAuthTypeToken:
-		return []byte(s), nil
-	case AiPostAiConnectionsIDTestOKConnectorAuthTypeBasic:
-		return []byte(s), nil
-	case AiPostAiConnectionsIDTestOKConnectorAuthTypeSSHKey:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPostAiConnectionsIDTestOKConnectorAuthType) UnmarshalText(data []byte) error {
-	switch AiPostAiConnectionsIDTestOKConnectorAuthType(data) {
-	case AiPostAiConnectionsIDTestOKConnectorAuthTypeNone:
-		*s = AiPostAiConnectionsIDTestOKConnectorAuthTypeNone
-		return nil
-	case AiPostAiConnectionsIDTestOKConnectorAuthTypeToken:
-		*s = AiPostAiConnectionsIDTestOKConnectorAuthTypeToken
-		return nil
-	case AiPostAiConnectionsIDTestOKConnectorAuthTypeBasic:
-		*s = AiPostAiConnectionsIDTestOKConnectorAuthTypeBasic
-		return nil
-	case AiPostAiConnectionsIDTestOKConnectorAuthTypeSSHKey:
-		*s = AiPostAiConnectionsIDTestOKConnectorAuthTypeSSHKey
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiPostAiConnectionsIDTestOKConnectorKind string
-
-const (
-	AiPostAiConnectionsIDTestOKConnectorKindHTTP            AiPostAiConnectionsIDTestOKConnectorKind = "http"
-	AiPostAiConnectionsIDTestOKConnectorKindSSH             AiPostAiConnectionsIDTestOKConnectorKind = "ssh"
-	AiPostAiConnectionsIDTestOKConnectorKindNetconfRestconf AiPostAiConnectionsIDTestOKConnectorKind = "netconf-restconf"
-	AiPostAiConnectionsIDTestOKConnectorKindAutomation      AiPostAiConnectionsIDTestOKConnectorKind = "automation"
-	AiPostAiConnectionsIDTestOKConnectorKindMcpHTTP         AiPostAiConnectionsIDTestOKConnectorKind = "mcp-http"
-	AiPostAiConnectionsIDTestOKConnectorKindMcpStdio        AiPostAiConnectionsIDTestOKConnectorKind = "mcp-stdio"
-)
-
-// AllValues returns all AiPostAiConnectionsIDTestOKConnectorKind values.
-func (AiPostAiConnectionsIDTestOKConnectorKind) AllValues() []AiPostAiConnectionsIDTestOKConnectorKind {
-	return []AiPostAiConnectionsIDTestOKConnectorKind{
-		AiPostAiConnectionsIDTestOKConnectorKindHTTP,
-		AiPostAiConnectionsIDTestOKConnectorKindSSH,
-		AiPostAiConnectionsIDTestOKConnectorKindNetconfRestconf,
-		AiPostAiConnectionsIDTestOKConnectorKindAutomation,
-		AiPostAiConnectionsIDTestOKConnectorKindMcpHTTP,
-		AiPostAiConnectionsIDTestOKConnectorKindMcpStdio,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPostAiConnectionsIDTestOKConnectorKind) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPostAiConnectionsIDTestOKConnectorKindHTTP:
-		return []byte(s), nil
-	case AiPostAiConnectionsIDTestOKConnectorKindSSH:
-		return []byte(s), nil
-	case AiPostAiConnectionsIDTestOKConnectorKindNetconfRestconf:
-		return []byte(s), nil
-	case AiPostAiConnectionsIDTestOKConnectorKindAutomation:
-		return []byte(s), nil
-	case AiPostAiConnectionsIDTestOKConnectorKindMcpHTTP:
-		return []byte(s), nil
-	case AiPostAiConnectionsIDTestOKConnectorKindMcpStdio:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPostAiConnectionsIDTestOKConnectorKind) UnmarshalText(data []byte) error {
-	switch AiPostAiConnectionsIDTestOKConnectorKind(data) {
-	case AiPostAiConnectionsIDTestOKConnectorKindHTTP:
-		*s = AiPostAiConnectionsIDTestOKConnectorKindHTTP
-		return nil
-	case AiPostAiConnectionsIDTestOKConnectorKindSSH:
-		*s = AiPostAiConnectionsIDTestOKConnectorKindSSH
-		return nil
-	case AiPostAiConnectionsIDTestOKConnectorKindNetconfRestconf:
-		*s = AiPostAiConnectionsIDTestOKConnectorKindNetconfRestconf
-		return nil
-	case AiPostAiConnectionsIDTestOKConnectorKindAutomation:
-		*s = AiPostAiConnectionsIDTestOKConnectorKindAutomation
-		return nil
-	case AiPostAiConnectionsIDTestOKConnectorKindMcpHTTP:
-		*s = AiPostAiConnectionsIDTestOKConnectorKindMcpHTTP
-		return nil
-	case AiPostAiConnectionsIDTestOKConnectorKindMcpStdio:
-		*s = AiPostAiConnectionsIDTestOKConnectorKindMcpStdio
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiPostAiConnectionsIDTestOKConnectorStatus string
-
-const (
-	AiPostAiConnectionsIDTestOKConnectorStatusOk       AiPostAiConnectionsIDTestOKConnectorStatus = "ok"
-	AiPostAiConnectionsIDTestOKConnectorStatusError    AiPostAiConnectionsIDTestOKConnectorStatus = "error"
-	AiPostAiConnectionsIDTestOKConnectorStatusUntested AiPostAiConnectionsIDTestOKConnectorStatus = "untested"
-)
-
-// AllValues returns all AiPostAiConnectionsIDTestOKConnectorStatus values.
-func (AiPostAiConnectionsIDTestOKConnectorStatus) AllValues() []AiPostAiConnectionsIDTestOKConnectorStatus {
-	return []AiPostAiConnectionsIDTestOKConnectorStatus{
-		AiPostAiConnectionsIDTestOKConnectorStatusOk,
-		AiPostAiConnectionsIDTestOKConnectorStatusError,
-		AiPostAiConnectionsIDTestOKConnectorStatusUntested,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPostAiConnectionsIDTestOKConnectorStatus) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPostAiConnectionsIDTestOKConnectorStatusOk:
-		return []byte(s), nil
-	case AiPostAiConnectionsIDTestOKConnectorStatusError:
-		return []byte(s), nil
-	case AiPostAiConnectionsIDTestOKConnectorStatusUntested:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPostAiConnectionsIDTestOKConnectorStatus) UnmarshalText(data []byte) error {
-	switch AiPostAiConnectionsIDTestOKConnectorStatus(data) {
-	case AiPostAiConnectionsIDTestOKConnectorStatusOk:
-		*s = AiPostAiConnectionsIDTestOKConnectorStatusOk
-		return nil
-	case AiPostAiConnectionsIDTestOKConnectorStatusError:
-		*s = AiPostAiConnectionsIDTestOKConnectorStatusError
-		return nil
-	case AiPostAiConnectionsIDTestOKConnectorStatusUntested:
-		*s = AiPostAiConnectionsIDTestOKConnectorStatusUntested
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiPostAiConnectionsIDTestOKConnectorToolsItem struct {
-	Access      AiPostAiConnectionsIDTestOKConnectorToolsItemAccess `json:"access"`
-	Description string                                              `json:"description"`
-	Enabled     bool                                                `json:"enabled"`
-	Name        string                                              `json:"name"`
-}
-
-// GetAccess returns the value of Access.
-func (s *AiPostAiConnectionsIDTestOKConnectorToolsItem) GetAccess() AiPostAiConnectionsIDTestOKConnectorToolsItemAccess {
-	return s.Access
-}
-
-// GetDescription returns the value of Description.
-func (s *AiPostAiConnectionsIDTestOKConnectorToolsItem) GetDescription() string {
-	return s.Description
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *AiPostAiConnectionsIDTestOKConnectorToolsItem) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetName returns the value of Name.
-func (s *AiPostAiConnectionsIDTestOKConnectorToolsItem) GetName() string {
-	return s.Name
-}
-
-// SetAccess sets the value of Access.
-func (s *AiPostAiConnectionsIDTestOKConnectorToolsItem) SetAccess(val AiPostAiConnectionsIDTestOKConnectorToolsItemAccess) {
-	s.Access = val
-}
-
-// SetDescription sets the value of Description.
-func (s *AiPostAiConnectionsIDTestOKConnectorToolsItem) SetDescription(val string) {
-	s.Description = val
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *AiPostAiConnectionsIDTestOKConnectorToolsItem) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetName sets the value of Name.
-func (s *AiPostAiConnectionsIDTestOKConnectorToolsItem) SetName(val string) {
-	s.Name = val
-}
-
-type AiPostAiConnectionsIDTestOKConnectorToolsItemAccess string
-
-const (
-	AiPostAiConnectionsIDTestOKConnectorToolsItemAccessRead  AiPostAiConnectionsIDTestOKConnectorToolsItemAccess = "read"
-	AiPostAiConnectionsIDTestOKConnectorToolsItemAccessWrite AiPostAiConnectionsIDTestOKConnectorToolsItemAccess = "write"
-)
-
-// AllValues returns all AiPostAiConnectionsIDTestOKConnectorToolsItemAccess values.
-func (AiPostAiConnectionsIDTestOKConnectorToolsItemAccess) AllValues() []AiPostAiConnectionsIDTestOKConnectorToolsItemAccess {
-	return []AiPostAiConnectionsIDTestOKConnectorToolsItemAccess{
-		AiPostAiConnectionsIDTestOKConnectorToolsItemAccessRead,
-		AiPostAiConnectionsIDTestOKConnectorToolsItemAccessWrite,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPostAiConnectionsIDTestOKConnectorToolsItemAccess) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPostAiConnectionsIDTestOKConnectorToolsItemAccessRead:
-		return []byte(s), nil
-	case AiPostAiConnectionsIDTestOKConnectorToolsItemAccessWrite:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPostAiConnectionsIDTestOKConnectorToolsItemAccess) UnmarshalText(data []byte) error {
-	switch AiPostAiConnectionsIDTestOKConnectorToolsItemAccess(data) {
-	case AiPostAiConnectionsIDTestOKConnectorToolsItemAccessRead:
-		*s = AiPostAiConnectionsIDTestOKConnectorToolsItemAccessRead
-		return nil
-	case AiPostAiConnectionsIDTestOKConnectorToolsItemAccessWrite:
-		*s = AiPostAiConnectionsIDTestOKConnectorToolsItemAccessWrite
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiPostAiConnectionsOK struct {
-	// Hosts, URL prefixes or commands the AI may use through this connection.
-	Allow    []string                    `json:"allow"`
-	AssetID  NilString                   `json:"asset_id"`
-	Auth     AiPostAiConnectionsOKAuth   `json:"auth"`
-	Enabled  bool                        `json:"enabled"`
-	ID       string                      `json:"id"`
-	Kind     AiPostAiConnectionsOKKind   `json:"kind"`
-	LastTest NilDateTime                 `json:"last_test"`
-	Name     string                      `json:"name"`
-	Status   AiPostAiConnectionsOKStatus `json:"status"`
-	// Base URL, host:port, or the MCP command.
-	Target string                           `json:"target"`
-	Tools  []AiPostAiConnectionsOKToolsItem `json:"tools"`
-}
-
-// GetAllow returns the value of Allow.
-func (s *AiPostAiConnectionsOK) GetAllow() []string {
-	return s.Allow
-}
-
-// GetAssetID returns the value of AssetID.
-func (s *AiPostAiConnectionsOK) GetAssetID() NilString {
-	return s.AssetID
-}
-
-// GetAuth returns the value of Auth.
-func (s *AiPostAiConnectionsOK) GetAuth() AiPostAiConnectionsOKAuth {
-	return s.Auth
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *AiPostAiConnectionsOK) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetID returns the value of ID.
-func (s *AiPostAiConnectionsOK) GetID() string {
-	return s.ID
-}
-
-// GetKind returns the value of Kind.
-func (s *AiPostAiConnectionsOK) GetKind() AiPostAiConnectionsOKKind {
-	return s.Kind
-}
-
-// GetLastTest returns the value of LastTest.
-func (s *AiPostAiConnectionsOK) GetLastTest() NilDateTime {
-	return s.LastTest
-}
-
-// GetName returns the value of Name.
-func (s *AiPostAiConnectionsOK) GetName() string {
-	return s.Name
-}
-
-// GetStatus returns the value of Status.
-func (s *AiPostAiConnectionsOK) GetStatus() AiPostAiConnectionsOKStatus {
-	return s.Status
-}
-
-// GetTarget returns the value of Target.
-func (s *AiPostAiConnectionsOK) GetTarget() string {
-	return s.Target
-}
-
-// GetTools returns the value of Tools.
-func (s *AiPostAiConnectionsOK) GetTools() []AiPostAiConnectionsOKToolsItem {
-	return s.Tools
-}
-
-// SetAllow sets the value of Allow.
-func (s *AiPostAiConnectionsOK) SetAllow(val []string) {
-	s.Allow = val
-}
-
-// SetAssetID sets the value of AssetID.
-func (s *AiPostAiConnectionsOK) SetAssetID(val NilString) {
-	s.AssetID = val
-}
-
-// SetAuth sets the value of Auth.
-func (s *AiPostAiConnectionsOK) SetAuth(val AiPostAiConnectionsOKAuth) {
-	s.Auth = val
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *AiPostAiConnectionsOK) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetID sets the value of ID.
-func (s *AiPostAiConnectionsOK) SetID(val string) {
-	s.ID = val
-}
-
-// SetKind sets the value of Kind.
-func (s *AiPostAiConnectionsOK) SetKind(val AiPostAiConnectionsOKKind) {
-	s.Kind = val
-}
-
-// SetLastTest sets the value of LastTest.
-func (s *AiPostAiConnectionsOK) SetLastTest(val NilDateTime) {
-	s.LastTest = val
-}
-
-// SetName sets the value of Name.
-func (s *AiPostAiConnectionsOK) SetName(val string) {
-	s.Name = val
-}
-
-// SetStatus sets the value of Status.
-func (s *AiPostAiConnectionsOK) SetStatus(val AiPostAiConnectionsOKStatus) {
-	s.Status = val
-}
-
-// SetTarget sets the value of Target.
-func (s *AiPostAiConnectionsOK) SetTarget(val string) {
-	s.Target = val
-}
-
-// SetTools sets the value of Tools.
-func (s *AiPostAiConnectionsOK) SetTools(val []AiPostAiConnectionsOKToolsItem) {
-	s.Tools = val
-}
-
-type AiPostAiConnectionsOKAuth struct {
-	// Last 4 characters of the secret; the full secret is never returned (SYS-4).
-	Last4 NilString                     `json:"last4"`
-	Type  AiPostAiConnectionsOKAuthType `json:"type"`
-}
-
-// GetLast4 returns the value of Last4.
-func (s *AiPostAiConnectionsOKAuth) GetLast4() NilString {
-	return s.Last4
-}
-
-// GetType returns the value of Type.
-func (s *AiPostAiConnectionsOKAuth) GetType() AiPostAiConnectionsOKAuthType {
-	return s.Type
-}
-
-// SetLast4 sets the value of Last4.
-func (s *AiPostAiConnectionsOKAuth) SetLast4(val NilString) {
-	s.Last4 = val
-}
-
-// SetType sets the value of Type.
-func (s *AiPostAiConnectionsOKAuth) SetType(val AiPostAiConnectionsOKAuthType) {
-	s.Type = val
-}
-
-type AiPostAiConnectionsOKAuthType string
-
-const (
-	AiPostAiConnectionsOKAuthTypeNone   AiPostAiConnectionsOKAuthType = "none"
-	AiPostAiConnectionsOKAuthTypeToken  AiPostAiConnectionsOKAuthType = "token"
-	AiPostAiConnectionsOKAuthTypeBasic  AiPostAiConnectionsOKAuthType = "basic"
-	AiPostAiConnectionsOKAuthTypeSSHKey AiPostAiConnectionsOKAuthType = "ssh-key"
-)
-
-// AllValues returns all AiPostAiConnectionsOKAuthType values.
-func (AiPostAiConnectionsOKAuthType) AllValues() []AiPostAiConnectionsOKAuthType {
-	return []AiPostAiConnectionsOKAuthType{
-		AiPostAiConnectionsOKAuthTypeNone,
-		AiPostAiConnectionsOKAuthTypeToken,
-		AiPostAiConnectionsOKAuthTypeBasic,
-		AiPostAiConnectionsOKAuthTypeSSHKey,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPostAiConnectionsOKAuthType) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPostAiConnectionsOKAuthTypeNone:
-		return []byte(s), nil
-	case AiPostAiConnectionsOKAuthTypeToken:
-		return []byte(s), nil
-	case AiPostAiConnectionsOKAuthTypeBasic:
-		return []byte(s), nil
-	case AiPostAiConnectionsOKAuthTypeSSHKey:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPostAiConnectionsOKAuthType) UnmarshalText(data []byte) error {
-	switch AiPostAiConnectionsOKAuthType(data) {
-	case AiPostAiConnectionsOKAuthTypeNone:
-		*s = AiPostAiConnectionsOKAuthTypeNone
-		return nil
-	case AiPostAiConnectionsOKAuthTypeToken:
-		*s = AiPostAiConnectionsOKAuthTypeToken
-		return nil
-	case AiPostAiConnectionsOKAuthTypeBasic:
-		*s = AiPostAiConnectionsOKAuthTypeBasic
-		return nil
-	case AiPostAiConnectionsOKAuthTypeSSHKey:
-		*s = AiPostAiConnectionsOKAuthTypeSSHKey
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiPostAiConnectionsOKKind string
-
-const (
-	AiPostAiConnectionsOKKindHTTP            AiPostAiConnectionsOKKind = "http"
-	AiPostAiConnectionsOKKindSSH             AiPostAiConnectionsOKKind = "ssh"
-	AiPostAiConnectionsOKKindNetconfRestconf AiPostAiConnectionsOKKind = "netconf-restconf"
-	AiPostAiConnectionsOKKindAutomation      AiPostAiConnectionsOKKind = "automation"
-	AiPostAiConnectionsOKKindMcpHTTP         AiPostAiConnectionsOKKind = "mcp-http"
-	AiPostAiConnectionsOKKindMcpStdio        AiPostAiConnectionsOKKind = "mcp-stdio"
-)
-
-// AllValues returns all AiPostAiConnectionsOKKind values.
-func (AiPostAiConnectionsOKKind) AllValues() []AiPostAiConnectionsOKKind {
-	return []AiPostAiConnectionsOKKind{
-		AiPostAiConnectionsOKKindHTTP,
-		AiPostAiConnectionsOKKindSSH,
-		AiPostAiConnectionsOKKindNetconfRestconf,
-		AiPostAiConnectionsOKKindAutomation,
-		AiPostAiConnectionsOKKindMcpHTTP,
-		AiPostAiConnectionsOKKindMcpStdio,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPostAiConnectionsOKKind) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPostAiConnectionsOKKindHTTP:
-		return []byte(s), nil
-	case AiPostAiConnectionsOKKindSSH:
-		return []byte(s), nil
-	case AiPostAiConnectionsOKKindNetconfRestconf:
-		return []byte(s), nil
-	case AiPostAiConnectionsOKKindAutomation:
-		return []byte(s), nil
-	case AiPostAiConnectionsOKKindMcpHTTP:
-		return []byte(s), nil
-	case AiPostAiConnectionsOKKindMcpStdio:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPostAiConnectionsOKKind) UnmarshalText(data []byte) error {
-	switch AiPostAiConnectionsOKKind(data) {
-	case AiPostAiConnectionsOKKindHTTP:
-		*s = AiPostAiConnectionsOKKindHTTP
-		return nil
-	case AiPostAiConnectionsOKKindSSH:
-		*s = AiPostAiConnectionsOKKindSSH
-		return nil
-	case AiPostAiConnectionsOKKindNetconfRestconf:
-		*s = AiPostAiConnectionsOKKindNetconfRestconf
-		return nil
-	case AiPostAiConnectionsOKKindAutomation:
-		*s = AiPostAiConnectionsOKKindAutomation
-		return nil
-	case AiPostAiConnectionsOKKindMcpHTTP:
-		*s = AiPostAiConnectionsOKKindMcpHTTP
-		return nil
-	case AiPostAiConnectionsOKKindMcpStdio:
-		*s = AiPostAiConnectionsOKKindMcpStdio
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiPostAiConnectionsOKStatus string
-
-const (
-	AiPostAiConnectionsOKStatusOk       AiPostAiConnectionsOKStatus = "ok"
-	AiPostAiConnectionsOKStatusError    AiPostAiConnectionsOKStatus = "error"
-	AiPostAiConnectionsOKStatusUntested AiPostAiConnectionsOKStatus = "untested"
-)
-
-// AllValues returns all AiPostAiConnectionsOKStatus values.
-func (AiPostAiConnectionsOKStatus) AllValues() []AiPostAiConnectionsOKStatus {
-	return []AiPostAiConnectionsOKStatus{
-		AiPostAiConnectionsOKStatusOk,
-		AiPostAiConnectionsOKStatusError,
-		AiPostAiConnectionsOKStatusUntested,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPostAiConnectionsOKStatus) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPostAiConnectionsOKStatusOk:
-		return []byte(s), nil
-	case AiPostAiConnectionsOKStatusError:
-		return []byte(s), nil
-	case AiPostAiConnectionsOKStatusUntested:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPostAiConnectionsOKStatus) UnmarshalText(data []byte) error {
-	switch AiPostAiConnectionsOKStatus(data) {
-	case AiPostAiConnectionsOKStatusOk:
-		*s = AiPostAiConnectionsOKStatusOk
-		return nil
-	case AiPostAiConnectionsOKStatusError:
-		*s = AiPostAiConnectionsOKStatusError
-		return nil
-	case AiPostAiConnectionsOKStatusUntested:
-		*s = AiPostAiConnectionsOKStatusUntested
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiPostAiConnectionsOKToolsItem struct {
-	Access      AiPostAiConnectionsOKToolsItemAccess `json:"access"`
-	Description string                               `json:"description"`
-	Enabled     bool                                 `json:"enabled"`
-	Name        string                               `json:"name"`
-}
-
-// GetAccess returns the value of Access.
-func (s *AiPostAiConnectionsOKToolsItem) GetAccess() AiPostAiConnectionsOKToolsItemAccess {
-	return s.Access
-}
-
-// GetDescription returns the value of Description.
-func (s *AiPostAiConnectionsOKToolsItem) GetDescription() string {
-	return s.Description
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *AiPostAiConnectionsOKToolsItem) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetName returns the value of Name.
-func (s *AiPostAiConnectionsOKToolsItem) GetName() string {
-	return s.Name
-}
-
-// SetAccess sets the value of Access.
-func (s *AiPostAiConnectionsOKToolsItem) SetAccess(val AiPostAiConnectionsOKToolsItemAccess) {
-	s.Access = val
-}
-
-// SetDescription sets the value of Description.
-func (s *AiPostAiConnectionsOKToolsItem) SetDescription(val string) {
-	s.Description = val
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *AiPostAiConnectionsOKToolsItem) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetName sets the value of Name.
-func (s *AiPostAiConnectionsOKToolsItem) SetName(val string) {
-	s.Name = val
-}
-
-type AiPostAiConnectionsOKToolsItemAccess string
-
-const (
-	AiPostAiConnectionsOKToolsItemAccessRead  AiPostAiConnectionsOKToolsItemAccess = "read"
-	AiPostAiConnectionsOKToolsItemAccessWrite AiPostAiConnectionsOKToolsItemAccess = "write"
-)
-
-// AllValues returns all AiPostAiConnectionsOKToolsItemAccess values.
-func (AiPostAiConnectionsOKToolsItemAccess) AllValues() []AiPostAiConnectionsOKToolsItemAccess {
-	return []AiPostAiConnectionsOKToolsItemAccess{
-		AiPostAiConnectionsOKToolsItemAccessRead,
-		AiPostAiConnectionsOKToolsItemAccessWrite,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPostAiConnectionsOKToolsItemAccess) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPostAiConnectionsOKToolsItemAccessRead:
-		return []byte(s), nil
-	case AiPostAiConnectionsOKToolsItemAccessWrite:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPostAiConnectionsOKToolsItemAccess) UnmarshalText(data []byte) error {
-	switch AiPostAiConnectionsOKToolsItemAccess(data) {
-	case AiPostAiConnectionsOKToolsItemAccessRead:
-		*s = AiPostAiConnectionsOKToolsItemAccessRead
-		return nil
-	case AiPostAiConnectionsOKToolsItemAccessWrite:
-		*s = AiPostAiConnectionsOKToolsItemAccessWrite
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiPostAiConnectionsReq struct {
-	Allow    []string                       `json:"allow"`
-	AssetID  OptNilString                   `json:"asset_id"`
-	AuthType AiPostAiConnectionsReqAuthType `json:"auth_type"`
-	Enabled  bool                           `json:"enabled"`
-	Kind     AiPostAiConnectionsReqKind     `json:"kind"`
-	Name     string                         `json:"name"`
-	// Leave blank when editing to keep the old secret.
-	Secret OptString `json:"secret"`
-	Target string    `json:"target"`
-	// Per-tool enable; tools not listed keep their state.
-	Tools []AiPostAiConnectionsReqToolsItem `json:"tools"`
-}
-
-// GetAllow returns the value of Allow.
-func (s *AiPostAiConnectionsReq) GetAllow() []string {
-	return s.Allow
-}
-
-// GetAssetID returns the value of AssetID.
-func (s *AiPostAiConnectionsReq) GetAssetID() OptNilString {
-	return s.AssetID
-}
-
-// GetAuthType returns the value of AuthType.
-func (s *AiPostAiConnectionsReq) GetAuthType() AiPostAiConnectionsReqAuthType {
-	return s.AuthType
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *AiPostAiConnectionsReq) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetKind returns the value of Kind.
-func (s *AiPostAiConnectionsReq) GetKind() AiPostAiConnectionsReqKind {
-	return s.Kind
-}
-
-// GetName returns the value of Name.
-func (s *AiPostAiConnectionsReq) GetName() string {
-	return s.Name
-}
-
-// GetSecret returns the value of Secret.
-func (s *AiPostAiConnectionsReq) GetSecret() OptString {
-	return s.Secret
-}
-
-// GetTarget returns the value of Target.
-func (s *AiPostAiConnectionsReq) GetTarget() string {
-	return s.Target
-}
-
-// GetTools returns the value of Tools.
-func (s *AiPostAiConnectionsReq) GetTools() []AiPostAiConnectionsReqToolsItem {
-	return s.Tools
-}
-
-// SetAllow sets the value of Allow.
-func (s *AiPostAiConnectionsReq) SetAllow(val []string) {
-	s.Allow = val
-}
-
-// SetAssetID sets the value of AssetID.
-func (s *AiPostAiConnectionsReq) SetAssetID(val OptNilString) {
-	s.AssetID = val
-}
-
-// SetAuthType sets the value of AuthType.
-func (s *AiPostAiConnectionsReq) SetAuthType(val AiPostAiConnectionsReqAuthType) {
-	s.AuthType = val
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *AiPostAiConnectionsReq) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetKind sets the value of Kind.
-func (s *AiPostAiConnectionsReq) SetKind(val AiPostAiConnectionsReqKind) {
-	s.Kind = val
-}
-
-// SetName sets the value of Name.
-func (s *AiPostAiConnectionsReq) SetName(val string) {
-	s.Name = val
-}
-
-// SetSecret sets the value of Secret.
-func (s *AiPostAiConnectionsReq) SetSecret(val OptString) {
-	s.Secret = val
-}
-
-// SetTarget sets the value of Target.
-func (s *AiPostAiConnectionsReq) SetTarget(val string) {
-	s.Target = val
-}
-
-// SetTools sets the value of Tools.
-func (s *AiPostAiConnectionsReq) SetTools(val []AiPostAiConnectionsReqToolsItem) {
-	s.Tools = val
-}
-
-type AiPostAiConnectionsReqAuthType string
-
-const (
-	AiPostAiConnectionsReqAuthTypeNone   AiPostAiConnectionsReqAuthType = "none"
-	AiPostAiConnectionsReqAuthTypeToken  AiPostAiConnectionsReqAuthType = "token"
-	AiPostAiConnectionsReqAuthTypeBasic  AiPostAiConnectionsReqAuthType = "basic"
-	AiPostAiConnectionsReqAuthTypeSSHKey AiPostAiConnectionsReqAuthType = "ssh-key"
-)
-
-// AllValues returns all AiPostAiConnectionsReqAuthType values.
-func (AiPostAiConnectionsReqAuthType) AllValues() []AiPostAiConnectionsReqAuthType {
-	return []AiPostAiConnectionsReqAuthType{
-		AiPostAiConnectionsReqAuthTypeNone,
-		AiPostAiConnectionsReqAuthTypeToken,
-		AiPostAiConnectionsReqAuthTypeBasic,
-		AiPostAiConnectionsReqAuthTypeSSHKey,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPostAiConnectionsReqAuthType) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPostAiConnectionsReqAuthTypeNone:
-		return []byte(s), nil
-	case AiPostAiConnectionsReqAuthTypeToken:
-		return []byte(s), nil
-	case AiPostAiConnectionsReqAuthTypeBasic:
-		return []byte(s), nil
-	case AiPostAiConnectionsReqAuthTypeSSHKey:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPostAiConnectionsReqAuthType) UnmarshalText(data []byte) error {
-	switch AiPostAiConnectionsReqAuthType(data) {
-	case AiPostAiConnectionsReqAuthTypeNone:
-		*s = AiPostAiConnectionsReqAuthTypeNone
-		return nil
-	case AiPostAiConnectionsReqAuthTypeToken:
-		*s = AiPostAiConnectionsReqAuthTypeToken
-		return nil
-	case AiPostAiConnectionsReqAuthTypeBasic:
-		*s = AiPostAiConnectionsReqAuthTypeBasic
-		return nil
-	case AiPostAiConnectionsReqAuthTypeSSHKey:
-		*s = AiPostAiConnectionsReqAuthTypeSSHKey
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiPostAiConnectionsReqKind string
-
-const (
-	AiPostAiConnectionsReqKindHTTP            AiPostAiConnectionsReqKind = "http"
-	AiPostAiConnectionsReqKindSSH             AiPostAiConnectionsReqKind = "ssh"
-	AiPostAiConnectionsReqKindNetconfRestconf AiPostAiConnectionsReqKind = "netconf-restconf"
-	AiPostAiConnectionsReqKindAutomation      AiPostAiConnectionsReqKind = "automation"
-	AiPostAiConnectionsReqKindMcpHTTP         AiPostAiConnectionsReqKind = "mcp-http"
-	AiPostAiConnectionsReqKindMcpStdio        AiPostAiConnectionsReqKind = "mcp-stdio"
-)
-
-// AllValues returns all AiPostAiConnectionsReqKind values.
-func (AiPostAiConnectionsReqKind) AllValues() []AiPostAiConnectionsReqKind {
-	return []AiPostAiConnectionsReqKind{
-		AiPostAiConnectionsReqKindHTTP,
-		AiPostAiConnectionsReqKindSSH,
-		AiPostAiConnectionsReqKindNetconfRestconf,
-		AiPostAiConnectionsReqKindAutomation,
-		AiPostAiConnectionsReqKindMcpHTTP,
-		AiPostAiConnectionsReqKindMcpStdio,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPostAiConnectionsReqKind) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPostAiConnectionsReqKindHTTP:
-		return []byte(s), nil
-	case AiPostAiConnectionsReqKindSSH:
-		return []byte(s), nil
-	case AiPostAiConnectionsReqKindNetconfRestconf:
-		return []byte(s), nil
-	case AiPostAiConnectionsReqKindAutomation:
-		return []byte(s), nil
-	case AiPostAiConnectionsReqKindMcpHTTP:
-		return []byte(s), nil
-	case AiPostAiConnectionsReqKindMcpStdio:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPostAiConnectionsReqKind) UnmarshalText(data []byte) error {
-	switch AiPostAiConnectionsReqKind(data) {
-	case AiPostAiConnectionsReqKindHTTP:
-		*s = AiPostAiConnectionsReqKindHTTP
-		return nil
-	case AiPostAiConnectionsReqKindSSH:
-		*s = AiPostAiConnectionsReqKindSSH
-		return nil
-	case AiPostAiConnectionsReqKindNetconfRestconf:
-		*s = AiPostAiConnectionsReqKindNetconfRestconf
-		return nil
-	case AiPostAiConnectionsReqKindAutomation:
-		*s = AiPostAiConnectionsReqKindAutomation
-		return nil
-	case AiPostAiConnectionsReqKindMcpHTTP:
-		*s = AiPostAiConnectionsReqKindMcpHTTP
-		return nil
-	case AiPostAiConnectionsReqKindMcpStdio:
-		*s = AiPostAiConnectionsReqKindMcpStdio
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiPostAiConnectionsReqToolsItem struct {
-	Enabled bool   `json:"enabled"`
-	Name    string `json:"name"`
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *AiPostAiConnectionsReqToolsItem) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetName returns the value of Name.
-func (s *AiPostAiConnectionsReqToolsItem) GetName() string {
-	return s.Name
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *AiPostAiConnectionsReqToolsItem) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetName sets the value of Name.
-func (s *AiPostAiConnectionsReqToolsItem) SetName(val string) {
-	s.Name = val
 }
 
 type AiPostAiCveIDExplainOK struct {
@@ -10807,671 +9243,6 @@ func (s *AiPutAiConfigReqTier) UnmarshalText(data []byte) error {
 	}
 }
 
-type AiPutAiConnectionsIDOK struct {
-	// Hosts, URL prefixes or commands the AI may use through this connection.
-	Allow    []string                     `json:"allow"`
-	AssetID  NilString                    `json:"asset_id"`
-	Auth     AiPutAiConnectionsIDOKAuth   `json:"auth"`
-	Enabled  bool                         `json:"enabled"`
-	ID       string                       `json:"id"`
-	Kind     AiPutAiConnectionsIDOKKind   `json:"kind"`
-	LastTest NilDateTime                  `json:"last_test"`
-	Name     string                       `json:"name"`
-	Status   AiPutAiConnectionsIDOKStatus `json:"status"`
-	// Base URL, host:port, or the MCP command.
-	Target string                            `json:"target"`
-	Tools  []AiPutAiConnectionsIDOKToolsItem `json:"tools"`
-}
-
-// GetAllow returns the value of Allow.
-func (s *AiPutAiConnectionsIDOK) GetAllow() []string {
-	return s.Allow
-}
-
-// GetAssetID returns the value of AssetID.
-func (s *AiPutAiConnectionsIDOK) GetAssetID() NilString {
-	return s.AssetID
-}
-
-// GetAuth returns the value of Auth.
-func (s *AiPutAiConnectionsIDOK) GetAuth() AiPutAiConnectionsIDOKAuth {
-	return s.Auth
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *AiPutAiConnectionsIDOK) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetID returns the value of ID.
-func (s *AiPutAiConnectionsIDOK) GetID() string {
-	return s.ID
-}
-
-// GetKind returns the value of Kind.
-func (s *AiPutAiConnectionsIDOK) GetKind() AiPutAiConnectionsIDOKKind {
-	return s.Kind
-}
-
-// GetLastTest returns the value of LastTest.
-func (s *AiPutAiConnectionsIDOK) GetLastTest() NilDateTime {
-	return s.LastTest
-}
-
-// GetName returns the value of Name.
-func (s *AiPutAiConnectionsIDOK) GetName() string {
-	return s.Name
-}
-
-// GetStatus returns the value of Status.
-func (s *AiPutAiConnectionsIDOK) GetStatus() AiPutAiConnectionsIDOKStatus {
-	return s.Status
-}
-
-// GetTarget returns the value of Target.
-func (s *AiPutAiConnectionsIDOK) GetTarget() string {
-	return s.Target
-}
-
-// GetTools returns the value of Tools.
-func (s *AiPutAiConnectionsIDOK) GetTools() []AiPutAiConnectionsIDOKToolsItem {
-	return s.Tools
-}
-
-// SetAllow sets the value of Allow.
-func (s *AiPutAiConnectionsIDOK) SetAllow(val []string) {
-	s.Allow = val
-}
-
-// SetAssetID sets the value of AssetID.
-func (s *AiPutAiConnectionsIDOK) SetAssetID(val NilString) {
-	s.AssetID = val
-}
-
-// SetAuth sets the value of Auth.
-func (s *AiPutAiConnectionsIDOK) SetAuth(val AiPutAiConnectionsIDOKAuth) {
-	s.Auth = val
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *AiPutAiConnectionsIDOK) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetID sets the value of ID.
-func (s *AiPutAiConnectionsIDOK) SetID(val string) {
-	s.ID = val
-}
-
-// SetKind sets the value of Kind.
-func (s *AiPutAiConnectionsIDOK) SetKind(val AiPutAiConnectionsIDOKKind) {
-	s.Kind = val
-}
-
-// SetLastTest sets the value of LastTest.
-func (s *AiPutAiConnectionsIDOK) SetLastTest(val NilDateTime) {
-	s.LastTest = val
-}
-
-// SetName sets the value of Name.
-func (s *AiPutAiConnectionsIDOK) SetName(val string) {
-	s.Name = val
-}
-
-// SetStatus sets the value of Status.
-func (s *AiPutAiConnectionsIDOK) SetStatus(val AiPutAiConnectionsIDOKStatus) {
-	s.Status = val
-}
-
-// SetTarget sets the value of Target.
-func (s *AiPutAiConnectionsIDOK) SetTarget(val string) {
-	s.Target = val
-}
-
-// SetTools sets the value of Tools.
-func (s *AiPutAiConnectionsIDOK) SetTools(val []AiPutAiConnectionsIDOKToolsItem) {
-	s.Tools = val
-}
-
-type AiPutAiConnectionsIDOKAuth struct {
-	// Last 4 characters of the secret; the full secret is never returned (SYS-4).
-	Last4 NilString                      `json:"last4"`
-	Type  AiPutAiConnectionsIDOKAuthType `json:"type"`
-}
-
-// GetLast4 returns the value of Last4.
-func (s *AiPutAiConnectionsIDOKAuth) GetLast4() NilString {
-	return s.Last4
-}
-
-// GetType returns the value of Type.
-func (s *AiPutAiConnectionsIDOKAuth) GetType() AiPutAiConnectionsIDOKAuthType {
-	return s.Type
-}
-
-// SetLast4 sets the value of Last4.
-func (s *AiPutAiConnectionsIDOKAuth) SetLast4(val NilString) {
-	s.Last4 = val
-}
-
-// SetType sets the value of Type.
-func (s *AiPutAiConnectionsIDOKAuth) SetType(val AiPutAiConnectionsIDOKAuthType) {
-	s.Type = val
-}
-
-type AiPutAiConnectionsIDOKAuthType string
-
-const (
-	AiPutAiConnectionsIDOKAuthTypeNone   AiPutAiConnectionsIDOKAuthType = "none"
-	AiPutAiConnectionsIDOKAuthTypeToken  AiPutAiConnectionsIDOKAuthType = "token"
-	AiPutAiConnectionsIDOKAuthTypeBasic  AiPutAiConnectionsIDOKAuthType = "basic"
-	AiPutAiConnectionsIDOKAuthTypeSSHKey AiPutAiConnectionsIDOKAuthType = "ssh-key"
-)
-
-// AllValues returns all AiPutAiConnectionsIDOKAuthType values.
-func (AiPutAiConnectionsIDOKAuthType) AllValues() []AiPutAiConnectionsIDOKAuthType {
-	return []AiPutAiConnectionsIDOKAuthType{
-		AiPutAiConnectionsIDOKAuthTypeNone,
-		AiPutAiConnectionsIDOKAuthTypeToken,
-		AiPutAiConnectionsIDOKAuthTypeBasic,
-		AiPutAiConnectionsIDOKAuthTypeSSHKey,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPutAiConnectionsIDOKAuthType) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPutAiConnectionsIDOKAuthTypeNone:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDOKAuthTypeToken:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDOKAuthTypeBasic:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDOKAuthTypeSSHKey:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPutAiConnectionsIDOKAuthType) UnmarshalText(data []byte) error {
-	switch AiPutAiConnectionsIDOKAuthType(data) {
-	case AiPutAiConnectionsIDOKAuthTypeNone:
-		*s = AiPutAiConnectionsIDOKAuthTypeNone
-		return nil
-	case AiPutAiConnectionsIDOKAuthTypeToken:
-		*s = AiPutAiConnectionsIDOKAuthTypeToken
-		return nil
-	case AiPutAiConnectionsIDOKAuthTypeBasic:
-		*s = AiPutAiConnectionsIDOKAuthTypeBasic
-		return nil
-	case AiPutAiConnectionsIDOKAuthTypeSSHKey:
-		*s = AiPutAiConnectionsIDOKAuthTypeSSHKey
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiPutAiConnectionsIDOKKind string
-
-const (
-	AiPutAiConnectionsIDOKKindHTTP            AiPutAiConnectionsIDOKKind = "http"
-	AiPutAiConnectionsIDOKKindSSH             AiPutAiConnectionsIDOKKind = "ssh"
-	AiPutAiConnectionsIDOKKindNetconfRestconf AiPutAiConnectionsIDOKKind = "netconf-restconf"
-	AiPutAiConnectionsIDOKKindAutomation      AiPutAiConnectionsIDOKKind = "automation"
-	AiPutAiConnectionsIDOKKindMcpHTTP         AiPutAiConnectionsIDOKKind = "mcp-http"
-	AiPutAiConnectionsIDOKKindMcpStdio        AiPutAiConnectionsIDOKKind = "mcp-stdio"
-)
-
-// AllValues returns all AiPutAiConnectionsIDOKKind values.
-func (AiPutAiConnectionsIDOKKind) AllValues() []AiPutAiConnectionsIDOKKind {
-	return []AiPutAiConnectionsIDOKKind{
-		AiPutAiConnectionsIDOKKindHTTP,
-		AiPutAiConnectionsIDOKKindSSH,
-		AiPutAiConnectionsIDOKKindNetconfRestconf,
-		AiPutAiConnectionsIDOKKindAutomation,
-		AiPutAiConnectionsIDOKKindMcpHTTP,
-		AiPutAiConnectionsIDOKKindMcpStdio,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPutAiConnectionsIDOKKind) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPutAiConnectionsIDOKKindHTTP:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDOKKindSSH:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDOKKindNetconfRestconf:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDOKKindAutomation:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDOKKindMcpHTTP:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDOKKindMcpStdio:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPutAiConnectionsIDOKKind) UnmarshalText(data []byte) error {
-	switch AiPutAiConnectionsIDOKKind(data) {
-	case AiPutAiConnectionsIDOKKindHTTP:
-		*s = AiPutAiConnectionsIDOKKindHTTP
-		return nil
-	case AiPutAiConnectionsIDOKKindSSH:
-		*s = AiPutAiConnectionsIDOKKindSSH
-		return nil
-	case AiPutAiConnectionsIDOKKindNetconfRestconf:
-		*s = AiPutAiConnectionsIDOKKindNetconfRestconf
-		return nil
-	case AiPutAiConnectionsIDOKKindAutomation:
-		*s = AiPutAiConnectionsIDOKKindAutomation
-		return nil
-	case AiPutAiConnectionsIDOKKindMcpHTTP:
-		*s = AiPutAiConnectionsIDOKKindMcpHTTP
-		return nil
-	case AiPutAiConnectionsIDOKKindMcpStdio:
-		*s = AiPutAiConnectionsIDOKKindMcpStdio
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiPutAiConnectionsIDOKStatus string
-
-const (
-	AiPutAiConnectionsIDOKStatusOk       AiPutAiConnectionsIDOKStatus = "ok"
-	AiPutAiConnectionsIDOKStatusError    AiPutAiConnectionsIDOKStatus = "error"
-	AiPutAiConnectionsIDOKStatusUntested AiPutAiConnectionsIDOKStatus = "untested"
-)
-
-// AllValues returns all AiPutAiConnectionsIDOKStatus values.
-func (AiPutAiConnectionsIDOKStatus) AllValues() []AiPutAiConnectionsIDOKStatus {
-	return []AiPutAiConnectionsIDOKStatus{
-		AiPutAiConnectionsIDOKStatusOk,
-		AiPutAiConnectionsIDOKStatusError,
-		AiPutAiConnectionsIDOKStatusUntested,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPutAiConnectionsIDOKStatus) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPutAiConnectionsIDOKStatusOk:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDOKStatusError:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDOKStatusUntested:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPutAiConnectionsIDOKStatus) UnmarshalText(data []byte) error {
-	switch AiPutAiConnectionsIDOKStatus(data) {
-	case AiPutAiConnectionsIDOKStatusOk:
-		*s = AiPutAiConnectionsIDOKStatusOk
-		return nil
-	case AiPutAiConnectionsIDOKStatusError:
-		*s = AiPutAiConnectionsIDOKStatusError
-		return nil
-	case AiPutAiConnectionsIDOKStatusUntested:
-		*s = AiPutAiConnectionsIDOKStatusUntested
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiPutAiConnectionsIDOKToolsItem struct {
-	Access      AiPutAiConnectionsIDOKToolsItemAccess `json:"access"`
-	Description string                                `json:"description"`
-	Enabled     bool                                  `json:"enabled"`
-	Name        string                                `json:"name"`
-}
-
-// GetAccess returns the value of Access.
-func (s *AiPutAiConnectionsIDOKToolsItem) GetAccess() AiPutAiConnectionsIDOKToolsItemAccess {
-	return s.Access
-}
-
-// GetDescription returns the value of Description.
-func (s *AiPutAiConnectionsIDOKToolsItem) GetDescription() string {
-	return s.Description
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *AiPutAiConnectionsIDOKToolsItem) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetName returns the value of Name.
-func (s *AiPutAiConnectionsIDOKToolsItem) GetName() string {
-	return s.Name
-}
-
-// SetAccess sets the value of Access.
-func (s *AiPutAiConnectionsIDOKToolsItem) SetAccess(val AiPutAiConnectionsIDOKToolsItemAccess) {
-	s.Access = val
-}
-
-// SetDescription sets the value of Description.
-func (s *AiPutAiConnectionsIDOKToolsItem) SetDescription(val string) {
-	s.Description = val
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *AiPutAiConnectionsIDOKToolsItem) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetName sets the value of Name.
-func (s *AiPutAiConnectionsIDOKToolsItem) SetName(val string) {
-	s.Name = val
-}
-
-type AiPutAiConnectionsIDOKToolsItemAccess string
-
-const (
-	AiPutAiConnectionsIDOKToolsItemAccessRead  AiPutAiConnectionsIDOKToolsItemAccess = "read"
-	AiPutAiConnectionsIDOKToolsItemAccessWrite AiPutAiConnectionsIDOKToolsItemAccess = "write"
-)
-
-// AllValues returns all AiPutAiConnectionsIDOKToolsItemAccess values.
-func (AiPutAiConnectionsIDOKToolsItemAccess) AllValues() []AiPutAiConnectionsIDOKToolsItemAccess {
-	return []AiPutAiConnectionsIDOKToolsItemAccess{
-		AiPutAiConnectionsIDOKToolsItemAccessRead,
-		AiPutAiConnectionsIDOKToolsItemAccessWrite,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPutAiConnectionsIDOKToolsItemAccess) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPutAiConnectionsIDOKToolsItemAccessRead:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDOKToolsItemAccessWrite:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPutAiConnectionsIDOKToolsItemAccess) UnmarshalText(data []byte) error {
-	switch AiPutAiConnectionsIDOKToolsItemAccess(data) {
-	case AiPutAiConnectionsIDOKToolsItemAccessRead:
-		*s = AiPutAiConnectionsIDOKToolsItemAccessRead
-		return nil
-	case AiPutAiConnectionsIDOKToolsItemAccessWrite:
-		*s = AiPutAiConnectionsIDOKToolsItemAccessWrite
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiPutAiConnectionsIDReq struct {
-	Allow    []string                        `json:"allow"`
-	AssetID  OptNilString                    `json:"asset_id"`
-	AuthType AiPutAiConnectionsIDReqAuthType `json:"auth_type"`
-	Enabled  bool                            `json:"enabled"`
-	Kind     AiPutAiConnectionsIDReqKind     `json:"kind"`
-	Name     string                          `json:"name"`
-	// Leave blank when editing to keep the old secret.
-	Secret OptString `json:"secret"`
-	Target string    `json:"target"`
-	// Per-tool enable; tools not listed keep their state.
-	Tools []AiPutAiConnectionsIDReqToolsItem `json:"tools"`
-}
-
-// GetAllow returns the value of Allow.
-func (s *AiPutAiConnectionsIDReq) GetAllow() []string {
-	return s.Allow
-}
-
-// GetAssetID returns the value of AssetID.
-func (s *AiPutAiConnectionsIDReq) GetAssetID() OptNilString {
-	return s.AssetID
-}
-
-// GetAuthType returns the value of AuthType.
-func (s *AiPutAiConnectionsIDReq) GetAuthType() AiPutAiConnectionsIDReqAuthType {
-	return s.AuthType
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *AiPutAiConnectionsIDReq) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetKind returns the value of Kind.
-func (s *AiPutAiConnectionsIDReq) GetKind() AiPutAiConnectionsIDReqKind {
-	return s.Kind
-}
-
-// GetName returns the value of Name.
-func (s *AiPutAiConnectionsIDReq) GetName() string {
-	return s.Name
-}
-
-// GetSecret returns the value of Secret.
-func (s *AiPutAiConnectionsIDReq) GetSecret() OptString {
-	return s.Secret
-}
-
-// GetTarget returns the value of Target.
-func (s *AiPutAiConnectionsIDReq) GetTarget() string {
-	return s.Target
-}
-
-// GetTools returns the value of Tools.
-func (s *AiPutAiConnectionsIDReq) GetTools() []AiPutAiConnectionsIDReqToolsItem {
-	return s.Tools
-}
-
-// SetAllow sets the value of Allow.
-func (s *AiPutAiConnectionsIDReq) SetAllow(val []string) {
-	s.Allow = val
-}
-
-// SetAssetID sets the value of AssetID.
-func (s *AiPutAiConnectionsIDReq) SetAssetID(val OptNilString) {
-	s.AssetID = val
-}
-
-// SetAuthType sets the value of AuthType.
-func (s *AiPutAiConnectionsIDReq) SetAuthType(val AiPutAiConnectionsIDReqAuthType) {
-	s.AuthType = val
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *AiPutAiConnectionsIDReq) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetKind sets the value of Kind.
-func (s *AiPutAiConnectionsIDReq) SetKind(val AiPutAiConnectionsIDReqKind) {
-	s.Kind = val
-}
-
-// SetName sets the value of Name.
-func (s *AiPutAiConnectionsIDReq) SetName(val string) {
-	s.Name = val
-}
-
-// SetSecret sets the value of Secret.
-func (s *AiPutAiConnectionsIDReq) SetSecret(val OptString) {
-	s.Secret = val
-}
-
-// SetTarget sets the value of Target.
-func (s *AiPutAiConnectionsIDReq) SetTarget(val string) {
-	s.Target = val
-}
-
-// SetTools sets the value of Tools.
-func (s *AiPutAiConnectionsIDReq) SetTools(val []AiPutAiConnectionsIDReqToolsItem) {
-	s.Tools = val
-}
-
-type AiPutAiConnectionsIDReqAuthType string
-
-const (
-	AiPutAiConnectionsIDReqAuthTypeNone   AiPutAiConnectionsIDReqAuthType = "none"
-	AiPutAiConnectionsIDReqAuthTypeToken  AiPutAiConnectionsIDReqAuthType = "token"
-	AiPutAiConnectionsIDReqAuthTypeBasic  AiPutAiConnectionsIDReqAuthType = "basic"
-	AiPutAiConnectionsIDReqAuthTypeSSHKey AiPutAiConnectionsIDReqAuthType = "ssh-key"
-)
-
-// AllValues returns all AiPutAiConnectionsIDReqAuthType values.
-func (AiPutAiConnectionsIDReqAuthType) AllValues() []AiPutAiConnectionsIDReqAuthType {
-	return []AiPutAiConnectionsIDReqAuthType{
-		AiPutAiConnectionsIDReqAuthTypeNone,
-		AiPutAiConnectionsIDReqAuthTypeToken,
-		AiPutAiConnectionsIDReqAuthTypeBasic,
-		AiPutAiConnectionsIDReqAuthTypeSSHKey,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPutAiConnectionsIDReqAuthType) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPutAiConnectionsIDReqAuthTypeNone:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDReqAuthTypeToken:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDReqAuthTypeBasic:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDReqAuthTypeSSHKey:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPutAiConnectionsIDReqAuthType) UnmarshalText(data []byte) error {
-	switch AiPutAiConnectionsIDReqAuthType(data) {
-	case AiPutAiConnectionsIDReqAuthTypeNone:
-		*s = AiPutAiConnectionsIDReqAuthTypeNone
-		return nil
-	case AiPutAiConnectionsIDReqAuthTypeToken:
-		*s = AiPutAiConnectionsIDReqAuthTypeToken
-		return nil
-	case AiPutAiConnectionsIDReqAuthTypeBasic:
-		*s = AiPutAiConnectionsIDReqAuthTypeBasic
-		return nil
-	case AiPutAiConnectionsIDReqAuthTypeSSHKey:
-		*s = AiPutAiConnectionsIDReqAuthTypeSSHKey
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiPutAiConnectionsIDReqKind string
-
-const (
-	AiPutAiConnectionsIDReqKindHTTP            AiPutAiConnectionsIDReqKind = "http"
-	AiPutAiConnectionsIDReqKindSSH             AiPutAiConnectionsIDReqKind = "ssh"
-	AiPutAiConnectionsIDReqKindNetconfRestconf AiPutAiConnectionsIDReqKind = "netconf-restconf"
-	AiPutAiConnectionsIDReqKindAutomation      AiPutAiConnectionsIDReqKind = "automation"
-	AiPutAiConnectionsIDReqKindMcpHTTP         AiPutAiConnectionsIDReqKind = "mcp-http"
-	AiPutAiConnectionsIDReqKindMcpStdio        AiPutAiConnectionsIDReqKind = "mcp-stdio"
-)
-
-// AllValues returns all AiPutAiConnectionsIDReqKind values.
-func (AiPutAiConnectionsIDReqKind) AllValues() []AiPutAiConnectionsIDReqKind {
-	return []AiPutAiConnectionsIDReqKind{
-		AiPutAiConnectionsIDReqKindHTTP,
-		AiPutAiConnectionsIDReqKindSSH,
-		AiPutAiConnectionsIDReqKindNetconfRestconf,
-		AiPutAiConnectionsIDReqKindAutomation,
-		AiPutAiConnectionsIDReqKindMcpHTTP,
-		AiPutAiConnectionsIDReqKindMcpStdio,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPutAiConnectionsIDReqKind) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPutAiConnectionsIDReqKindHTTP:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDReqKindSSH:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDReqKindNetconfRestconf:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDReqKindAutomation:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDReqKindMcpHTTP:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDReqKindMcpStdio:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPutAiConnectionsIDReqKind) UnmarshalText(data []byte) error {
-	switch AiPutAiConnectionsIDReqKind(data) {
-	case AiPutAiConnectionsIDReqKindHTTP:
-		*s = AiPutAiConnectionsIDReqKindHTTP
-		return nil
-	case AiPutAiConnectionsIDReqKindSSH:
-		*s = AiPutAiConnectionsIDReqKindSSH
-		return nil
-	case AiPutAiConnectionsIDReqKindNetconfRestconf:
-		*s = AiPutAiConnectionsIDReqKindNetconfRestconf
-		return nil
-	case AiPutAiConnectionsIDReqKindAutomation:
-		*s = AiPutAiConnectionsIDReqKindAutomation
-		return nil
-	case AiPutAiConnectionsIDReqKindMcpHTTP:
-		*s = AiPutAiConnectionsIDReqKindMcpHTTP
-		return nil
-	case AiPutAiConnectionsIDReqKindMcpStdio:
-		*s = AiPutAiConnectionsIDReqKindMcpStdio
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiPutAiConnectionsIDReqToolsItem struct {
-	Enabled bool   `json:"enabled"`
-	Name    string `json:"name"`
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *AiPutAiConnectionsIDReqToolsItem) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetName returns the value of Name.
-func (s *AiPutAiConnectionsIDReqToolsItem) GetName() string {
-	return s.Name
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *AiPutAiConnectionsIDReqToolsItem) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetName sets the value of Name.
-func (s *AiPutAiConnectionsIDReqToolsItem) SetName(val string) {
-	s.Name = val
-}
-
 type AiPutAiHooksBuiltinIDOK struct {
 	Description string `json:"description"`
 	Enabled     bool   `json:"enabled"`
@@ -13969,6 +11740,9 @@ func (s *AiPutAiSkillsIDReq) SetEnabled(val bool) {
 // CoreDeleteCoreAccountSessionsIDNoContent is response for CoreDeleteCoreAccountSessionsID operation.
 type CoreDeleteCoreAccountSessionsIDNoContent struct{}
 
+// CoreDeleteCoreConnectionsIDNoContent is response for CoreDeleteCoreConnectionsID operation.
+type CoreDeleteCoreConnectionsIDNoContent struct{}
+
 // CoreDeleteCoreMcpTokensIDNoContent is response for CoreDeleteCoreMcpTokensID operation.
 type CoreDeleteCoreMcpTokensIDNoContent struct{}
 
@@ -14909,6 +12683,554 @@ func (s *CoreGetCoreAuthOptionsOK) GetOidc() bool {
 // SetOidc sets the value of Oidc.
 func (s *CoreGetCoreAuthOptionsOK) SetOidc(val bool) {
 	s.Oidc = val
+}
+
+type CoreGetCoreConnectionsOK struct {
+	Items []CoreGetCoreConnectionsOKItemsItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *CoreGetCoreConnectionsOK) GetItems() []CoreGetCoreConnectionsOKItemsItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *CoreGetCoreConnectionsOK) SetItems(val []CoreGetCoreConnectionsOKItemsItem) {
+	s.Items = val
+}
+
+type CoreGetCoreConnectionsOKItemsItem struct {
+	// Hosts, URL prefixes or commands that may be used through this connection.
+	Allow    []string                              `json:"allow"`
+	AssetID  NilString                             `json:"asset_id"`
+	Auth     CoreGetCoreConnectionsOKItemsItemAuth `json:"auth"`
+	Enabled  bool                                  `json:"enabled"`
+	ID       string                                `json:"id"`
+	Kind     CoreGetCoreConnectionsOKItemsItemKind `json:"kind"`
+	LastTest NilDateTime                           `json:"last_test"`
+	Name     string                                `json:"name"`
+	// Read-only. null until the first Test, or after the pin was forgotten.
+	Pin    NilCoreGetCoreConnectionsOKItemsItemPin `json:"pin"`
+	Status CoreGetCoreConnectionsOKItemsItemStatus `json:"status"`
+	// Base URL or host:port. "mcp-stdio" rows are not supported (D-94).
+	Target string                                       `json:"target"`
+	Tools  []CoreGetCoreConnectionsOKItemsItemToolsItem `json:"tools"`
+	// User name for SSH and for Basic sign-in; null for the other sign-ins.
+	Username NilString `json:"username"`
+}
+
+// GetAllow returns the value of Allow.
+func (s *CoreGetCoreConnectionsOKItemsItem) GetAllow() []string {
+	return s.Allow
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *CoreGetCoreConnectionsOKItemsItem) GetAssetID() NilString {
+	return s.AssetID
+}
+
+// GetAuth returns the value of Auth.
+func (s *CoreGetCoreConnectionsOKItemsItem) GetAuth() CoreGetCoreConnectionsOKItemsItemAuth {
+	return s.Auth
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *CoreGetCoreConnectionsOKItemsItem) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetID returns the value of ID.
+func (s *CoreGetCoreConnectionsOKItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *CoreGetCoreConnectionsOKItemsItem) GetKind() CoreGetCoreConnectionsOKItemsItemKind {
+	return s.Kind
+}
+
+// GetLastTest returns the value of LastTest.
+func (s *CoreGetCoreConnectionsOKItemsItem) GetLastTest() NilDateTime {
+	return s.LastTest
+}
+
+// GetName returns the value of Name.
+func (s *CoreGetCoreConnectionsOKItemsItem) GetName() string {
+	return s.Name
+}
+
+// GetPin returns the value of Pin.
+func (s *CoreGetCoreConnectionsOKItemsItem) GetPin() NilCoreGetCoreConnectionsOKItemsItemPin {
+	return s.Pin
+}
+
+// GetStatus returns the value of Status.
+func (s *CoreGetCoreConnectionsOKItemsItem) GetStatus() CoreGetCoreConnectionsOKItemsItemStatus {
+	return s.Status
+}
+
+// GetTarget returns the value of Target.
+func (s *CoreGetCoreConnectionsOKItemsItem) GetTarget() string {
+	return s.Target
+}
+
+// GetTools returns the value of Tools.
+func (s *CoreGetCoreConnectionsOKItemsItem) GetTools() []CoreGetCoreConnectionsOKItemsItemToolsItem {
+	return s.Tools
+}
+
+// GetUsername returns the value of Username.
+func (s *CoreGetCoreConnectionsOKItemsItem) GetUsername() NilString {
+	return s.Username
+}
+
+// SetAllow sets the value of Allow.
+func (s *CoreGetCoreConnectionsOKItemsItem) SetAllow(val []string) {
+	s.Allow = val
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *CoreGetCoreConnectionsOKItemsItem) SetAssetID(val NilString) {
+	s.AssetID = val
+}
+
+// SetAuth sets the value of Auth.
+func (s *CoreGetCoreConnectionsOKItemsItem) SetAuth(val CoreGetCoreConnectionsOKItemsItemAuth) {
+	s.Auth = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *CoreGetCoreConnectionsOKItemsItem) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetID sets the value of ID.
+func (s *CoreGetCoreConnectionsOKItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *CoreGetCoreConnectionsOKItemsItem) SetKind(val CoreGetCoreConnectionsOKItemsItemKind) {
+	s.Kind = val
+}
+
+// SetLastTest sets the value of LastTest.
+func (s *CoreGetCoreConnectionsOKItemsItem) SetLastTest(val NilDateTime) {
+	s.LastTest = val
+}
+
+// SetName sets the value of Name.
+func (s *CoreGetCoreConnectionsOKItemsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetPin sets the value of Pin.
+func (s *CoreGetCoreConnectionsOKItemsItem) SetPin(val NilCoreGetCoreConnectionsOKItemsItemPin) {
+	s.Pin = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CoreGetCoreConnectionsOKItemsItem) SetStatus(val CoreGetCoreConnectionsOKItemsItemStatus) {
+	s.Status = val
+}
+
+// SetTarget sets the value of Target.
+func (s *CoreGetCoreConnectionsOKItemsItem) SetTarget(val string) {
+	s.Target = val
+}
+
+// SetTools sets the value of Tools.
+func (s *CoreGetCoreConnectionsOKItemsItem) SetTools(val []CoreGetCoreConnectionsOKItemsItemToolsItem) {
+	s.Tools = val
+}
+
+// SetUsername sets the value of Username.
+func (s *CoreGetCoreConnectionsOKItemsItem) SetUsername(val NilString) {
+	s.Username = val
+}
+
+type CoreGetCoreConnectionsOKItemsItemAuth struct {
+	// SSH key only: SHA256: fingerprint of the saved private key, like GitHub shows for a key. The mock
+	// uses a hash of the key body; the backend computes the public-key fingerprint.
+	KeyFingerprint NilString `json:"key_fingerprint"`
+	// Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is
+	// never returned (SYS-4).
+	Last4 NilString                                 `json:"last4"`
+	Type  CoreGetCoreConnectionsOKItemsItemAuthType `json:"type"`
+}
+
+// GetKeyFingerprint returns the value of KeyFingerprint.
+func (s *CoreGetCoreConnectionsOKItemsItemAuth) GetKeyFingerprint() NilString {
+	return s.KeyFingerprint
+}
+
+// GetLast4 returns the value of Last4.
+func (s *CoreGetCoreConnectionsOKItemsItemAuth) GetLast4() NilString {
+	return s.Last4
+}
+
+// GetType returns the value of Type.
+func (s *CoreGetCoreConnectionsOKItemsItemAuth) GetType() CoreGetCoreConnectionsOKItemsItemAuthType {
+	return s.Type
+}
+
+// SetKeyFingerprint sets the value of KeyFingerprint.
+func (s *CoreGetCoreConnectionsOKItemsItemAuth) SetKeyFingerprint(val NilString) {
+	s.KeyFingerprint = val
+}
+
+// SetLast4 sets the value of Last4.
+func (s *CoreGetCoreConnectionsOKItemsItemAuth) SetLast4(val NilString) {
+	s.Last4 = val
+}
+
+// SetType sets the value of Type.
+func (s *CoreGetCoreConnectionsOKItemsItemAuth) SetType(val CoreGetCoreConnectionsOKItemsItemAuthType) {
+	s.Type = val
+}
+
+type CoreGetCoreConnectionsOKItemsItemAuthType string
+
+const (
+	CoreGetCoreConnectionsOKItemsItemAuthTypeNone   CoreGetCoreConnectionsOKItemsItemAuthType = "none"
+	CoreGetCoreConnectionsOKItemsItemAuthTypeToken  CoreGetCoreConnectionsOKItemsItemAuthType = "token"
+	CoreGetCoreConnectionsOKItemsItemAuthTypeBasic  CoreGetCoreConnectionsOKItemsItemAuthType = "basic"
+	CoreGetCoreConnectionsOKItemsItemAuthTypeSSHKey CoreGetCoreConnectionsOKItemsItemAuthType = "ssh-key"
+)
+
+// AllValues returns all CoreGetCoreConnectionsOKItemsItemAuthType values.
+func (CoreGetCoreConnectionsOKItemsItemAuthType) AllValues() []CoreGetCoreConnectionsOKItemsItemAuthType {
+	return []CoreGetCoreConnectionsOKItemsItemAuthType{
+		CoreGetCoreConnectionsOKItemsItemAuthTypeNone,
+		CoreGetCoreConnectionsOKItemsItemAuthTypeToken,
+		CoreGetCoreConnectionsOKItemsItemAuthTypeBasic,
+		CoreGetCoreConnectionsOKItemsItemAuthTypeSSHKey,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreConnectionsOKItemsItemAuthType) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreConnectionsOKItemsItemAuthTypeNone:
+		return []byte(s), nil
+	case CoreGetCoreConnectionsOKItemsItemAuthTypeToken:
+		return []byte(s), nil
+	case CoreGetCoreConnectionsOKItemsItemAuthTypeBasic:
+		return []byte(s), nil
+	case CoreGetCoreConnectionsOKItemsItemAuthTypeSSHKey:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreConnectionsOKItemsItemAuthType) UnmarshalText(data []byte) error {
+	switch CoreGetCoreConnectionsOKItemsItemAuthType(data) {
+	case CoreGetCoreConnectionsOKItemsItemAuthTypeNone:
+		*s = CoreGetCoreConnectionsOKItemsItemAuthTypeNone
+		return nil
+	case CoreGetCoreConnectionsOKItemsItemAuthTypeToken:
+		*s = CoreGetCoreConnectionsOKItemsItemAuthTypeToken
+		return nil
+	case CoreGetCoreConnectionsOKItemsItemAuthTypeBasic:
+		*s = CoreGetCoreConnectionsOKItemsItemAuthTypeBasic
+		return nil
+	case CoreGetCoreConnectionsOKItemsItemAuthTypeSSHKey:
+		*s = CoreGetCoreConnectionsOKItemsItemAuthTypeSSHKey
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CoreGetCoreConnectionsOKItemsItemKind string
+
+const (
+	CoreGetCoreConnectionsOKItemsItemKindHTTP            CoreGetCoreConnectionsOKItemsItemKind = "http"
+	CoreGetCoreConnectionsOKItemsItemKindSSH             CoreGetCoreConnectionsOKItemsItemKind = "ssh"
+	CoreGetCoreConnectionsOKItemsItemKindNetconfRestconf CoreGetCoreConnectionsOKItemsItemKind = "netconf-restconf"
+	CoreGetCoreConnectionsOKItemsItemKindAutomation      CoreGetCoreConnectionsOKItemsItemKind = "automation"
+	CoreGetCoreConnectionsOKItemsItemKindMcpHTTP         CoreGetCoreConnectionsOKItemsItemKind = "mcp-http"
+	CoreGetCoreConnectionsOKItemsItemKindMcpStdio        CoreGetCoreConnectionsOKItemsItemKind = "mcp-stdio"
+)
+
+// AllValues returns all CoreGetCoreConnectionsOKItemsItemKind values.
+func (CoreGetCoreConnectionsOKItemsItemKind) AllValues() []CoreGetCoreConnectionsOKItemsItemKind {
+	return []CoreGetCoreConnectionsOKItemsItemKind{
+		CoreGetCoreConnectionsOKItemsItemKindHTTP,
+		CoreGetCoreConnectionsOKItemsItemKindSSH,
+		CoreGetCoreConnectionsOKItemsItemKindNetconfRestconf,
+		CoreGetCoreConnectionsOKItemsItemKindAutomation,
+		CoreGetCoreConnectionsOKItemsItemKindMcpHTTP,
+		CoreGetCoreConnectionsOKItemsItemKindMcpStdio,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreConnectionsOKItemsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreConnectionsOKItemsItemKindHTTP:
+		return []byte(s), nil
+	case CoreGetCoreConnectionsOKItemsItemKindSSH:
+		return []byte(s), nil
+	case CoreGetCoreConnectionsOKItemsItemKindNetconfRestconf:
+		return []byte(s), nil
+	case CoreGetCoreConnectionsOKItemsItemKindAutomation:
+		return []byte(s), nil
+	case CoreGetCoreConnectionsOKItemsItemKindMcpHTTP:
+		return []byte(s), nil
+	case CoreGetCoreConnectionsOKItemsItemKindMcpStdio:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreConnectionsOKItemsItemKind) UnmarshalText(data []byte) error {
+	switch CoreGetCoreConnectionsOKItemsItemKind(data) {
+	case CoreGetCoreConnectionsOKItemsItemKindHTTP:
+		*s = CoreGetCoreConnectionsOKItemsItemKindHTTP
+		return nil
+	case CoreGetCoreConnectionsOKItemsItemKindSSH:
+		*s = CoreGetCoreConnectionsOKItemsItemKindSSH
+		return nil
+	case CoreGetCoreConnectionsOKItemsItemKindNetconfRestconf:
+		*s = CoreGetCoreConnectionsOKItemsItemKindNetconfRestconf
+		return nil
+	case CoreGetCoreConnectionsOKItemsItemKindAutomation:
+		*s = CoreGetCoreConnectionsOKItemsItemKindAutomation
+		return nil
+	case CoreGetCoreConnectionsOKItemsItemKindMcpHTTP:
+		*s = CoreGetCoreConnectionsOKItemsItemKindMcpHTTP
+		return nil
+	case CoreGetCoreConnectionsOKItemsItemKindMcpStdio:
+		*s = CoreGetCoreConnectionsOKItemsItemKindMcpStdio
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Pinned at the first successful Test (trust on first use, D-94). A changed certificate or host key is
+// refused until an administrator forgets the pin.
+type CoreGetCoreConnectionsOKItemsItemPin struct {
+	FirstSeen time.Time `json:"first_seen"`
+	// Tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system
+	// roots); ssh_hostkey = the SSH server host key.
+	Kind CoreGetCoreConnectionsOKItemsItemPinKind `json:"kind"`
+	// Tls_sha256: 64 hex characters; ssh_hostkey: key type and SHA256 fingerprint.
+	Value string `json:"value"`
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *CoreGetCoreConnectionsOKItemsItemPin) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetKind returns the value of Kind.
+func (s *CoreGetCoreConnectionsOKItemsItemPin) GetKind() CoreGetCoreConnectionsOKItemsItemPinKind {
+	return s.Kind
+}
+
+// GetValue returns the value of Value.
+func (s *CoreGetCoreConnectionsOKItemsItemPin) GetValue() string {
+	return s.Value
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *CoreGetCoreConnectionsOKItemsItemPin) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetKind sets the value of Kind.
+func (s *CoreGetCoreConnectionsOKItemsItemPin) SetKind(val CoreGetCoreConnectionsOKItemsItemPinKind) {
+	s.Kind = val
+}
+
+// SetValue sets the value of Value.
+func (s *CoreGetCoreConnectionsOKItemsItemPin) SetValue(val string) {
+	s.Value = val
+}
+
+// Tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system
+// roots); ssh_hostkey = the SSH server host key.
+type CoreGetCoreConnectionsOKItemsItemPinKind string
+
+const (
+	CoreGetCoreConnectionsOKItemsItemPinKindTLSSHA256  CoreGetCoreConnectionsOKItemsItemPinKind = "tls_sha256"
+	CoreGetCoreConnectionsOKItemsItemPinKindSSHHostkey CoreGetCoreConnectionsOKItemsItemPinKind = "ssh_hostkey"
+)
+
+// AllValues returns all CoreGetCoreConnectionsOKItemsItemPinKind values.
+func (CoreGetCoreConnectionsOKItemsItemPinKind) AllValues() []CoreGetCoreConnectionsOKItemsItemPinKind {
+	return []CoreGetCoreConnectionsOKItemsItemPinKind{
+		CoreGetCoreConnectionsOKItemsItemPinKindTLSSHA256,
+		CoreGetCoreConnectionsOKItemsItemPinKindSSHHostkey,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreConnectionsOKItemsItemPinKind) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreConnectionsOKItemsItemPinKindTLSSHA256:
+		return []byte(s), nil
+	case CoreGetCoreConnectionsOKItemsItemPinKindSSHHostkey:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreConnectionsOKItemsItemPinKind) UnmarshalText(data []byte) error {
+	switch CoreGetCoreConnectionsOKItemsItemPinKind(data) {
+	case CoreGetCoreConnectionsOKItemsItemPinKindTLSSHA256:
+		*s = CoreGetCoreConnectionsOKItemsItemPinKindTLSSHA256
+		return nil
+	case CoreGetCoreConnectionsOKItemsItemPinKindSSHHostkey:
+		*s = CoreGetCoreConnectionsOKItemsItemPinKindSSHHostkey
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CoreGetCoreConnectionsOKItemsItemStatus string
+
+const (
+	CoreGetCoreConnectionsOKItemsItemStatusOk       CoreGetCoreConnectionsOKItemsItemStatus = "ok"
+	CoreGetCoreConnectionsOKItemsItemStatusError    CoreGetCoreConnectionsOKItemsItemStatus = "error"
+	CoreGetCoreConnectionsOKItemsItemStatusUntested CoreGetCoreConnectionsOKItemsItemStatus = "untested"
+)
+
+// AllValues returns all CoreGetCoreConnectionsOKItemsItemStatus values.
+func (CoreGetCoreConnectionsOKItemsItemStatus) AllValues() []CoreGetCoreConnectionsOKItemsItemStatus {
+	return []CoreGetCoreConnectionsOKItemsItemStatus{
+		CoreGetCoreConnectionsOKItemsItemStatusOk,
+		CoreGetCoreConnectionsOKItemsItemStatusError,
+		CoreGetCoreConnectionsOKItemsItemStatusUntested,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreConnectionsOKItemsItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreConnectionsOKItemsItemStatusOk:
+		return []byte(s), nil
+	case CoreGetCoreConnectionsOKItemsItemStatusError:
+		return []byte(s), nil
+	case CoreGetCoreConnectionsOKItemsItemStatusUntested:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreConnectionsOKItemsItemStatus) UnmarshalText(data []byte) error {
+	switch CoreGetCoreConnectionsOKItemsItemStatus(data) {
+	case CoreGetCoreConnectionsOKItemsItemStatusOk:
+		*s = CoreGetCoreConnectionsOKItemsItemStatusOk
+		return nil
+	case CoreGetCoreConnectionsOKItemsItemStatusError:
+		*s = CoreGetCoreConnectionsOKItemsItemStatusError
+		return nil
+	case CoreGetCoreConnectionsOKItemsItemStatusUntested:
+		*s = CoreGetCoreConnectionsOKItemsItemStatusUntested
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CoreGetCoreConnectionsOKItemsItemToolsItem struct {
+	Access      CoreGetCoreConnectionsOKItemsItemToolsItemAccess `json:"access"`
+	Description string                                           `json:"description"`
+	Enabled     bool                                             `json:"enabled"`
+	Name        string                                           `json:"name"`
+}
+
+// GetAccess returns the value of Access.
+func (s *CoreGetCoreConnectionsOKItemsItemToolsItem) GetAccess() CoreGetCoreConnectionsOKItemsItemToolsItemAccess {
+	return s.Access
+}
+
+// GetDescription returns the value of Description.
+func (s *CoreGetCoreConnectionsOKItemsItemToolsItem) GetDescription() string {
+	return s.Description
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *CoreGetCoreConnectionsOKItemsItemToolsItem) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetName returns the value of Name.
+func (s *CoreGetCoreConnectionsOKItemsItemToolsItem) GetName() string {
+	return s.Name
+}
+
+// SetAccess sets the value of Access.
+func (s *CoreGetCoreConnectionsOKItemsItemToolsItem) SetAccess(val CoreGetCoreConnectionsOKItemsItemToolsItemAccess) {
+	s.Access = val
+}
+
+// SetDescription sets the value of Description.
+func (s *CoreGetCoreConnectionsOKItemsItemToolsItem) SetDescription(val string) {
+	s.Description = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *CoreGetCoreConnectionsOKItemsItemToolsItem) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetName sets the value of Name.
+func (s *CoreGetCoreConnectionsOKItemsItemToolsItem) SetName(val string) {
+	s.Name = val
+}
+
+type CoreGetCoreConnectionsOKItemsItemToolsItemAccess string
+
+const (
+	CoreGetCoreConnectionsOKItemsItemToolsItemAccessRead  CoreGetCoreConnectionsOKItemsItemToolsItemAccess = "read"
+	CoreGetCoreConnectionsOKItemsItemToolsItemAccessWrite CoreGetCoreConnectionsOKItemsItemToolsItemAccess = "write"
+)
+
+// AllValues returns all CoreGetCoreConnectionsOKItemsItemToolsItemAccess values.
+func (CoreGetCoreConnectionsOKItemsItemToolsItemAccess) AllValues() []CoreGetCoreConnectionsOKItemsItemToolsItemAccess {
+	return []CoreGetCoreConnectionsOKItemsItemToolsItemAccess{
+		CoreGetCoreConnectionsOKItemsItemToolsItemAccessRead,
+		CoreGetCoreConnectionsOKItemsItemToolsItemAccessWrite,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreConnectionsOKItemsItemToolsItemAccess) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreConnectionsOKItemsItemToolsItemAccessRead:
+		return []byte(s), nil
+	case CoreGetCoreConnectionsOKItemsItemToolsItemAccessWrite:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreConnectionsOKItemsItemToolsItemAccess) UnmarshalText(data []byte) error {
+	switch CoreGetCoreConnectionsOKItemsItemToolsItemAccess(data) {
+	case CoreGetCoreConnectionsOKItemsItemToolsItemAccessRead:
+		*s = CoreGetCoreConnectionsOKItemsItemToolsItemAccessRead
+		return nil
+	case CoreGetCoreConnectionsOKItemsItemToolsItemAccessWrite:
+		*s = CoreGetCoreConnectionsOKItemsItemToolsItemAccessWrite
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type CoreGetCoreDataBackupOK struct {
@@ -16216,7 +14538,7 @@ func (s *CoreGetCoreOidcOKRoleMapItemRole) UnmarshalText(data []byte) error {
 }
 
 type CoreGetCorePrivacyOK struct {
-	// Exactly the 11 flows listed in PRIVACY.md.
+	// Exactly the 12 flows listed in PRIVACY.md.
 	Flows       []CoreGetCorePrivacyOKFlowsItem `json:"flows"`
 	Telemetry   CoreGetCorePrivacyOKTelemetry   `json:"telemetry"`
 	UpdateCheck bool                            `json:"update_check"`
@@ -19504,7 +17826,7 @@ func (s *CorePatchCoreMcpReq) SetEnabled(val bool) {
 }
 
 type CorePatchCorePrivacyOK struct {
-	// Exactly the 11 flows listed in PRIVACY.md.
+	// Exactly the 12 flows listed in PRIVACY.md.
 	Flows       []CorePatchCorePrivacyOKFlowsItem `json:"flows"`
 	Telemetry   CorePatchCorePrivacyOKTelemetry   `json:"telemetry"`
 	UpdateCheck bool                              `json:"update_check"`
@@ -22491,6 +20813,1468 @@ func (s *CorePostCoreAccountSessionsRevokeOthersOK) SetOk(val bool) {
 // SetRevoked sets the value of Revoked.
 func (s *CorePostCoreAccountSessionsRevokeOthersOK) SetRevoked(val float64) {
 	s.Revoked = val
+}
+
+type CorePostCoreConnectionsCreated struct {
+	// Hosts, URL prefixes or commands that may be used through this connection.
+	Allow    []string                           `json:"allow"`
+	AssetID  NilString                          `json:"asset_id"`
+	Auth     CorePostCoreConnectionsCreatedAuth `json:"auth"`
+	Enabled  bool                               `json:"enabled"`
+	ID       string                             `json:"id"`
+	Kind     CorePostCoreConnectionsCreatedKind `json:"kind"`
+	LastTest NilDateTime                        `json:"last_test"`
+	Name     string                             `json:"name"`
+	// Read-only. null until the first Test, or after the pin was forgotten.
+	Pin    NilCorePostCoreConnectionsCreatedPin `json:"pin"`
+	Status CorePostCoreConnectionsCreatedStatus `json:"status"`
+	// Base URL or host:port. "mcp-stdio" rows are not supported (D-94).
+	Target string                                    `json:"target"`
+	Tools  []CorePostCoreConnectionsCreatedToolsItem `json:"tools"`
+	// User name for SSH and for Basic sign-in; null for the other sign-ins.
+	Username NilString `json:"username"`
+}
+
+// GetAllow returns the value of Allow.
+func (s *CorePostCoreConnectionsCreated) GetAllow() []string {
+	return s.Allow
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *CorePostCoreConnectionsCreated) GetAssetID() NilString {
+	return s.AssetID
+}
+
+// GetAuth returns the value of Auth.
+func (s *CorePostCoreConnectionsCreated) GetAuth() CorePostCoreConnectionsCreatedAuth {
+	return s.Auth
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *CorePostCoreConnectionsCreated) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetID returns the value of ID.
+func (s *CorePostCoreConnectionsCreated) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *CorePostCoreConnectionsCreated) GetKind() CorePostCoreConnectionsCreatedKind {
+	return s.Kind
+}
+
+// GetLastTest returns the value of LastTest.
+func (s *CorePostCoreConnectionsCreated) GetLastTest() NilDateTime {
+	return s.LastTest
+}
+
+// GetName returns the value of Name.
+func (s *CorePostCoreConnectionsCreated) GetName() string {
+	return s.Name
+}
+
+// GetPin returns the value of Pin.
+func (s *CorePostCoreConnectionsCreated) GetPin() NilCorePostCoreConnectionsCreatedPin {
+	return s.Pin
+}
+
+// GetStatus returns the value of Status.
+func (s *CorePostCoreConnectionsCreated) GetStatus() CorePostCoreConnectionsCreatedStatus {
+	return s.Status
+}
+
+// GetTarget returns the value of Target.
+func (s *CorePostCoreConnectionsCreated) GetTarget() string {
+	return s.Target
+}
+
+// GetTools returns the value of Tools.
+func (s *CorePostCoreConnectionsCreated) GetTools() []CorePostCoreConnectionsCreatedToolsItem {
+	return s.Tools
+}
+
+// GetUsername returns the value of Username.
+func (s *CorePostCoreConnectionsCreated) GetUsername() NilString {
+	return s.Username
+}
+
+// SetAllow sets the value of Allow.
+func (s *CorePostCoreConnectionsCreated) SetAllow(val []string) {
+	s.Allow = val
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *CorePostCoreConnectionsCreated) SetAssetID(val NilString) {
+	s.AssetID = val
+}
+
+// SetAuth sets the value of Auth.
+func (s *CorePostCoreConnectionsCreated) SetAuth(val CorePostCoreConnectionsCreatedAuth) {
+	s.Auth = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *CorePostCoreConnectionsCreated) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetID sets the value of ID.
+func (s *CorePostCoreConnectionsCreated) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *CorePostCoreConnectionsCreated) SetKind(val CorePostCoreConnectionsCreatedKind) {
+	s.Kind = val
+}
+
+// SetLastTest sets the value of LastTest.
+func (s *CorePostCoreConnectionsCreated) SetLastTest(val NilDateTime) {
+	s.LastTest = val
+}
+
+// SetName sets the value of Name.
+func (s *CorePostCoreConnectionsCreated) SetName(val string) {
+	s.Name = val
+}
+
+// SetPin sets the value of Pin.
+func (s *CorePostCoreConnectionsCreated) SetPin(val NilCorePostCoreConnectionsCreatedPin) {
+	s.Pin = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CorePostCoreConnectionsCreated) SetStatus(val CorePostCoreConnectionsCreatedStatus) {
+	s.Status = val
+}
+
+// SetTarget sets the value of Target.
+func (s *CorePostCoreConnectionsCreated) SetTarget(val string) {
+	s.Target = val
+}
+
+// SetTools sets the value of Tools.
+func (s *CorePostCoreConnectionsCreated) SetTools(val []CorePostCoreConnectionsCreatedToolsItem) {
+	s.Tools = val
+}
+
+// SetUsername sets the value of Username.
+func (s *CorePostCoreConnectionsCreated) SetUsername(val NilString) {
+	s.Username = val
+}
+
+type CorePostCoreConnectionsCreatedAuth struct {
+	// SSH key only: SHA256: fingerprint of the saved private key, like GitHub shows for a key. The mock
+	// uses a hash of the key body; the backend computes the public-key fingerprint.
+	KeyFingerprint NilString `json:"key_fingerprint"`
+	// Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is
+	// never returned (SYS-4).
+	Last4 NilString                              `json:"last4"`
+	Type  CorePostCoreConnectionsCreatedAuthType `json:"type"`
+}
+
+// GetKeyFingerprint returns the value of KeyFingerprint.
+func (s *CorePostCoreConnectionsCreatedAuth) GetKeyFingerprint() NilString {
+	return s.KeyFingerprint
+}
+
+// GetLast4 returns the value of Last4.
+func (s *CorePostCoreConnectionsCreatedAuth) GetLast4() NilString {
+	return s.Last4
+}
+
+// GetType returns the value of Type.
+func (s *CorePostCoreConnectionsCreatedAuth) GetType() CorePostCoreConnectionsCreatedAuthType {
+	return s.Type
+}
+
+// SetKeyFingerprint sets the value of KeyFingerprint.
+func (s *CorePostCoreConnectionsCreatedAuth) SetKeyFingerprint(val NilString) {
+	s.KeyFingerprint = val
+}
+
+// SetLast4 sets the value of Last4.
+func (s *CorePostCoreConnectionsCreatedAuth) SetLast4(val NilString) {
+	s.Last4 = val
+}
+
+// SetType sets the value of Type.
+func (s *CorePostCoreConnectionsCreatedAuth) SetType(val CorePostCoreConnectionsCreatedAuthType) {
+	s.Type = val
+}
+
+type CorePostCoreConnectionsCreatedAuthType string
+
+const (
+	CorePostCoreConnectionsCreatedAuthTypeNone   CorePostCoreConnectionsCreatedAuthType = "none"
+	CorePostCoreConnectionsCreatedAuthTypeToken  CorePostCoreConnectionsCreatedAuthType = "token"
+	CorePostCoreConnectionsCreatedAuthTypeBasic  CorePostCoreConnectionsCreatedAuthType = "basic"
+	CorePostCoreConnectionsCreatedAuthTypeSSHKey CorePostCoreConnectionsCreatedAuthType = "ssh-key"
+)
+
+// AllValues returns all CorePostCoreConnectionsCreatedAuthType values.
+func (CorePostCoreConnectionsCreatedAuthType) AllValues() []CorePostCoreConnectionsCreatedAuthType {
+	return []CorePostCoreConnectionsCreatedAuthType{
+		CorePostCoreConnectionsCreatedAuthTypeNone,
+		CorePostCoreConnectionsCreatedAuthTypeToken,
+		CorePostCoreConnectionsCreatedAuthTypeBasic,
+		CorePostCoreConnectionsCreatedAuthTypeSSHKey,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreConnectionsCreatedAuthType) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreConnectionsCreatedAuthTypeNone:
+		return []byte(s), nil
+	case CorePostCoreConnectionsCreatedAuthTypeToken:
+		return []byte(s), nil
+	case CorePostCoreConnectionsCreatedAuthTypeBasic:
+		return []byte(s), nil
+	case CorePostCoreConnectionsCreatedAuthTypeSSHKey:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreConnectionsCreatedAuthType) UnmarshalText(data []byte) error {
+	switch CorePostCoreConnectionsCreatedAuthType(data) {
+	case CorePostCoreConnectionsCreatedAuthTypeNone:
+		*s = CorePostCoreConnectionsCreatedAuthTypeNone
+		return nil
+	case CorePostCoreConnectionsCreatedAuthTypeToken:
+		*s = CorePostCoreConnectionsCreatedAuthTypeToken
+		return nil
+	case CorePostCoreConnectionsCreatedAuthTypeBasic:
+		*s = CorePostCoreConnectionsCreatedAuthTypeBasic
+		return nil
+	case CorePostCoreConnectionsCreatedAuthTypeSSHKey:
+		*s = CorePostCoreConnectionsCreatedAuthTypeSSHKey
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreConnectionsCreatedKind string
+
+const (
+	CorePostCoreConnectionsCreatedKindHTTP            CorePostCoreConnectionsCreatedKind = "http"
+	CorePostCoreConnectionsCreatedKindSSH             CorePostCoreConnectionsCreatedKind = "ssh"
+	CorePostCoreConnectionsCreatedKindNetconfRestconf CorePostCoreConnectionsCreatedKind = "netconf-restconf"
+	CorePostCoreConnectionsCreatedKindAutomation      CorePostCoreConnectionsCreatedKind = "automation"
+	CorePostCoreConnectionsCreatedKindMcpHTTP         CorePostCoreConnectionsCreatedKind = "mcp-http"
+	CorePostCoreConnectionsCreatedKindMcpStdio        CorePostCoreConnectionsCreatedKind = "mcp-stdio"
+)
+
+// AllValues returns all CorePostCoreConnectionsCreatedKind values.
+func (CorePostCoreConnectionsCreatedKind) AllValues() []CorePostCoreConnectionsCreatedKind {
+	return []CorePostCoreConnectionsCreatedKind{
+		CorePostCoreConnectionsCreatedKindHTTP,
+		CorePostCoreConnectionsCreatedKindSSH,
+		CorePostCoreConnectionsCreatedKindNetconfRestconf,
+		CorePostCoreConnectionsCreatedKindAutomation,
+		CorePostCoreConnectionsCreatedKindMcpHTTP,
+		CorePostCoreConnectionsCreatedKindMcpStdio,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreConnectionsCreatedKind) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreConnectionsCreatedKindHTTP:
+		return []byte(s), nil
+	case CorePostCoreConnectionsCreatedKindSSH:
+		return []byte(s), nil
+	case CorePostCoreConnectionsCreatedKindNetconfRestconf:
+		return []byte(s), nil
+	case CorePostCoreConnectionsCreatedKindAutomation:
+		return []byte(s), nil
+	case CorePostCoreConnectionsCreatedKindMcpHTTP:
+		return []byte(s), nil
+	case CorePostCoreConnectionsCreatedKindMcpStdio:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreConnectionsCreatedKind) UnmarshalText(data []byte) error {
+	switch CorePostCoreConnectionsCreatedKind(data) {
+	case CorePostCoreConnectionsCreatedKindHTTP:
+		*s = CorePostCoreConnectionsCreatedKindHTTP
+		return nil
+	case CorePostCoreConnectionsCreatedKindSSH:
+		*s = CorePostCoreConnectionsCreatedKindSSH
+		return nil
+	case CorePostCoreConnectionsCreatedKindNetconfRestconf:
+		*s = CorePostCoreConnectionsCreatedKindNetconfRestconf
+		return nil
+	case CorePostCoreConnectionsCreatedKindAutomation:
+		*s = CorePostCoreConnectionsCreatedKindAutomation
+		return nil
+	case CorePostCoreConnectionsCreatedKindMcpHTTP:
+		*s = CorePostCoreConnectionsCreatedKindMcpHTTP
+		return nil
+	case CorePostCoreConnectionsCreatedKindMcpStdio:
+		*s = CorePostCoreConnectionsCreatedKindMcpStdio
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Pinned at the first successful Test (trust on first use, D-94). A changed certificate or host key is
+// refused until an administrator forgets the pin.
+type CorePostCoreConnectionsCreatedPin struct {
+	FirstSeen time.Time `json:"first_seen"`
+	// Tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system
+	// roots); ssh_hostkey = the SSH server host key.
+	Kind CorePostCoreConnectionsCreatedPinKind `json:"kind"`
+	// Tls_sha256: 64 hex characters; ssh_hostkey: key type and SHA256 fingerprint.
+	Value string `json:"value"`
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *CorePostCoreConnectionsCreatedPin) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetKind returns the value of Kind.
+func (s *CorePostCoreConnectionsCreatedPin) GetKind() CorePostCoreConnectionsCreatedPinKind {
+	return s.Kind
+}
+
+// GetValue returns the value of Value.
+func (s *CorePostCoreConnectionsCreatedPin) GetValue() string {
+	return s.Value
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *CorePostCoreConnectionsCreatedPin) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetKind sets the value of Kind.
+func (s *CorePostCoreConnectionsCreatedPin) SetKind(val CorePostCoreConnectionsCreatedPinKind) {
+	s.Kind = val
+}
+
+// SetValue sets the value of Value.
+func (s *CorePostCoreConnectionsCreatedPin) SetValue(val string) {
+	s.Value = val
+}
+
+// Tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system
+// roots); ssh_hostkey = the SSH server host key.
+type CorePostCoreConnectionsCreatedPinKind string
+
+const (
+	CorePostCoreConnectionsCreatedPinKindTLSSHA256  CorePostCoreConnectionsCreatedPinKind = "tls_sha256"
+	CorePostCoreConnectionsCreatedPinKindSSHHostkey CorePostCoreConnectionsCreatedPinKind = "ssh_hostkey"
+)
+
+// AllValues returns all CorePostCoreConnectionsCreatedPinKind values.
+func (CorePostCoreConnectionsCreatedPinKind) AllValues() []CorePostCoreConnectionsCreatedPinKind {
+	return []CorePostCoreConnectionsCreatedPinKind{
+		CorePostCoreConnectionsCreatedPinKindTLSSHA256,
+		CorePostCoreConnectionsCreatedPinKindSSHHostkey,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreConnectionsCreatedPinKind) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreConnectionsCreatedPinKindTLSSHA256:
+		return []byte(s), nil
+	case CorePostCoreConnectionsCreatedPinKindSSHHostkey:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreConnectionsCreatedPinKind) UnmarshalText(data []byte) error {
+	switch CorePostCoreConnectionsCreatedPinKind(data) {
+	case CorePostCoreConnectionsCreatedPinKindTLSSHA256:
+		*s = CorePostCoreConnectionsCreatedPinKindTLSSHA256
+		return nil
+	case CorePostCoreConnectionsCreatedPinKindSSHHostkey:
+		*s = CorePostCoreConnectionsCreatedPinKindSSHHostkey
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreConnectionsCreatedStatus string
+
+const (
+	CorePostCoreConnectionsCreatedStatusOk       CorePostCoreConnectionsCreatedStatus = "ok"
+	CorePostCoreConnectionsCreatedStatusError    CorePostCoreConnectionsCreatedStatus = "error"
+	CorePostCoreConnectionsCreatedStatusUntested CorePostCoreConnectionsCreatedStatus = "untested"
+)
+
+// AllValues returns all CorePostCoreConnectionsCreatedStatus values.
+func (CorePostCoreConnectionsCreatedStatus) AllValues() []CorePostCoreConnectionsCreatedStatus {
+	return []CorePostCoreConnectionsCreatedStatus{
+		CorePostCoreConnectionsCreatedStatusOk,
+		CorePostCoreConnectionsCreatedStatusError,
+		CorePostCoreConnectionsCreatedStatusUntested,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreConnectionsCreatedStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreConnectionsCreatedStatusOk:
+		return []byte(s), nil
+	case CorePostCoreConnectionsCreatedStatusError:
+		return []byte(s), nil
+	case CorePostCoreConnectionsCreatedStatusUntested:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreConnectionsCreatedStatus) UnmarshalText(data []byte) error {
+	switch CorePostCoreConnectionsCreatedStatus(data) {
+	case CorePostCoreConnectionsCreatedStatusOk:
+		*s = CorePostCoreConnectionsCreatedStatusOk
+		return nil
+	case CorePostCoreConnectionsCreatedStatusError:
+		*s = CorePostCoreConnectionsCreatedStatusError
+		return nil
+	case CorePostCoreConnectionsCreatedStatusUntested:
+		*s = CorePostCoreConnectionsCreatedStatusUntested
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreConnectionsCreatedToolsItem struct {
+	Access      CorePostCoreConnectionsCreatedToolsItemAccess `json:"access"`
+	Description string                                        `json:"description"`
+	Enabled     bool                                          `json:"enabled"`
+	Name        string                                        `json:"name"`
+}
+
+// GetAccess returns the value of Access.
+func (s *CorePostCoreConnectionsCreatedToolsItem) GetAccess() CorePostCoreConnectionsCreatedToolsItemAccess {
+	return s.Access
+}
+
+// GetDescription returns the value of Description.
+func (s *CorePostCoreConnectionsCreatedToolsItem) GetDescription() string {
+	return s.Description
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *CorePostCoreConnectionsCreatedToolsItem) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetName returns the value of Name.
+func (s *CorePostCoreConnectionsCreatedToolsItem) GetName() string {
+	return s.Name
+}
+
+// SetAccess sets the value of Access.
+func (s *CorePostCoreConnectionsCreatedToolsItem) SetAccess(val CorePostCoreConnectionsCreatedToolsItemAccess) {
+	s.Access = val
+}
+
+// SetDescription sets the value of Description.
+func (s *CorePostCoreConnectionsCreatedToolsItem) SetDescription(val string) {
+	s.Description = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *CorePostCoreConnectionsCreatedToolsItem) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetName sets the value of Name.
+func (s *CorePostCoreConnectionsCreatedToolsItem) SetName(val string) {
+	s.Name = val
+}
+
+type CorePostCoreConnectionsCreatedToolsItemAccess string
+
+const (
+	CorePostCoreConnectionsCreatedToolsItemAccessRead  CorePostCoreConnectionsCreatedToolsItemAccess = "read"
+	CorePostCoreConnectionsCreatedToolsItemAccessWrite CorePostCoreConnectionsCreatedToolsItemAccess = "write"
+)
+
+// AllValues returns all CorePostCoreConnectionsCreatedToolsItemAccess values.
+func (CorePostCoreConnectionsCreatedToolsItemAccess) AllValues() []CorePostCoreConnectionsCreatedToolsItemAccess {
+	return []CorePostCoreConnectionsCreatedToolsItemAccess{
+		CorePostCoreConnectionsCreatedToolsItemAccessRead,
+		CorePostCoreConnectionsCreatedToolsItemAccessWrite,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreConnectionsCreatedToolsItemAccess) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreConnectionsCreatedToolsItemAccessRead:
+		return []byte(s), nil
+	case CorePostCoreConnectionsCreatedToolsItemAccessWrite:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreConnectionsCreatedToolsItemAccess) UnmarshalText(data []byte) error {
+	switch CorePostCoreConnectionsCreatedToolsItemAccess(data) {
+	case CorePostCoreConnectionsCreatedToolsItemAccessRead:
+		*s = CorePostCoreConnectionsCreatedToolsItemAccessRead
+		return nil
+	case CorePostCoreConnectionsCreatedToolsItemAccessWrite:
+		*s = CorePostCoreConnectionsCreatedToolsItemAccessWrite
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreConnectionsIDTestOK struct {
+	Connector  CorePostCoreConnectionsIDTestOKConnector `json:"connector"`
+	LatencyMs  float64                                  `json:"latency_ms"`
+	Message    string                                   `json:"message"`
+	Ok         bool                                     `json:"ok"`
+	ToolsFound int                                      `json:"tools_found"`
+}
+
+// GetConnector returns the value of Connector.
+func (s *CorePostCoreConnectionsIDTestOK) GetConnector() CorePostCoreConnectionsIDTestOKConnector {
+	return s.Connector
+}
+
+// GetLatencyMs returns the value of LatencyMs.
+func (s *CorePostCoreConnectionsIDTestOK) GetLatencyMs() float64 {
+	return s.LatencyMs
+}
+
+// GetMessage returns the value of Message.
+func (s *CorePostCoreConnectionsIDTestOK) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *CorePostCoreConnectionsIDTestOK) GetOk() bool {
+	return s.Ok
+}
+
+// GetToolsFound returns the value of ToolsFound.
+func (s *CorePostCoreConnectionsIDTestOK) GetToolsFound() int {
+	return s.ToolsFound
+}
+
+// SetConnector sets the value of Connector.
+func (s *CorePostCoreConnectionsIDTestOK) SetConnector(val CorePostCoreConnectionsIDTestOKConnector) {
+	s.Connector = val
+}
+
+// SetLatencyMs sets the value of LatencyMs.
+func (s *CorePostCoreConnectionsIDTestOK) SetLatencyMs(val float64) {
+	s.LatencyMs = val
+}
+
+// SetMessage sets the value of Message.
+func (s *CorePostCoreConnectionsIDTestOK) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *CorePostCoreConnectionsIDTestOK) SetOk(val bool) {
+	s.Ok = val
+}
+
+// SetToolsFound sets the value of ToolsFound.
+func (s *CorePostCoreConnectionsIDTestOK) SetToolsFound(val int) {
+	s.ToolsFound = val
+}
+
+type CorePostCoreConnectionsIDTestOKConnector struct {
+	// Hosts, URL prefixes or commands that may be used through this connection.
+	Allow    []string                                     `json:"allow"`
+	AssetID  NilString                                    `json:"asset_id"`
+	Auth     CorePostCoreConnectionsIDTestOKConnectorAuth `json:"auth"`
+	Enabled  bool                                         `json:"enabled"`
+	ID       string                                       `json:"id"`
+	Kind     CorePostCoreConnectionsIDTestOKConnectorKind `json:"kind"`
+	LastTest NilDateTime                                  `json:"last_test"`
+	Name     string                                       `json:"name"`
+	// Read-only. null until the first Test, or after the pin was forgotten.
+	Pin    NilCorePostCoreConnectionsIDTestOKConnectorPin `json:"pin"`
+	Status CorePostCoreConnectionsIDTestOKConnectorStatus `json:"status"`
+	// Base URL or host:port. "mcp-stdio" rows are not supported (D-94).
+	Target string                                              `json:"target"`
+	Tools  []CorePostCoreConnectionsIDTestOKConnectorToolsItem `json:"tools"`
+	// User name for SSH and for Basic sign-in; null for the other sign-ins.
+	Username NilString `json:"username"`
+}
+
+// GetAllow returns the value of Allow.
+func (s *CorePostCoreConnectionsIDTestOKConnector) GetAllow() []string {
+	return s.Allow
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *CorePostCoreConnectionsIDTestOKConnector) GetAssetID() NilString {
+	return s.AssetID
+}
+
+// GetAuth returns the value of Auth.
+func (s *CorePostCoreConnectionsIDTestOKConnector) GetAuth() CorePostCoreConnectionsIDTestOKConnectorAuth {
+	return s.Auth
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *CorePostCoreConnectionsIDTestOKConnector) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetID returns the value of ID.
+func (s *CorePostCoreConnectionsIDTestOKConnector) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *CorePostCoreConnectionsIDTestOKConnector) GetKind() CorePostCoreConnectionsIDTestOKConnectorKind {
+	return s.Kind
+}
+
+// GetLastTest returns the value of LastTest.
+func (s *CorePostCoreConnectionsIDTestOKConnector) GetLastTest() NilDateTime {
+	return s.LastTest
+}
+
+// GetName returns the value of Name.
+func (s *CorePostCoreConnectionsIDTestOKConnector) GetName() string {
+	return s.Name
+}
+
+// GetPin returns the value of Pin.
+func (s *CorePostCoreConnectionsIDTestOKConnector) GetPin() NilCorePostCoreConnectionsIDTestOKConnectorPin {
+	return s.Pin
+}
+
+// GetStatus returns the value of Status.
+func (s *CorePostCoreConnectionsIDTestOKConnector) GetStatus() CorePostCoreConnectionsIDTestOKConnectorStatus {
+	return s.Status
+}
+
+// GetTarget returns the value of Target.
+func (s *CorePostCoreConnectionsIDTestOKConnector) GetTarget() string {
+	return s.Target
+}
+
+// GetTools returns the value of Tools.
+func (s *CorePostCoreConnectionsIDTestOKConnector) GetTools() []CorePostCoreConnectionsIDTestOKConnectorToolsItem {
+	return s.Tools
+}
+
+// GetUsername returns the value of Username.
+func (s *CorePostCoreConnectionsIDTestOKConnector) GetUsername() NilString {
+	return s.Username
+}
+
+// SetAllow sets the value of Allow.
+func (s *CorePostCoreConnectionsIDTestOKConnector) SetAllow(val []string) {
+	s.Allow = val
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *CorePostCoreConnectionsIDTestOKConnector) SetAssetID(val NilString) {
+	s.AssetID = val
+}
+
+// SetAuth sets the value of Auth.
+func (s *CorePostCoreConnectionsIDTestOKConnector) SetAuth(val CorePostCoreConnectionsIDTestOKConnectorAuth) {
+	s.Auth = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *CorePostCoreConnectionsIDTestOKConnector) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetID sets the value of ID.
+func (s *CorePostCoreConnectionsIDTestOKConnector) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *CorePostCoreConnectionsIDTestOKConnector) SetKind(val CorePostCoreConnectionsIDTestOKConnectorKind) {
+	s.Kind = val
+}
+
+// SetLastTest sets the value of LastTest.
+func (s *CorePostCoreConnectionsIDTestOKConnector) SetLastTest(val NilDateTime) {
+	s.LastTest = val
+}
+
+// SetName sets the value of Name.
+func (s *CorePostCoreConnectionsIDTestOKConnector) SetName(val string) {
+	s.Name = val
+}
+
+// SetPin sets the value of Pin.
+func (s *CorePostCoreConnectionsIDTestOKConnector) SetPin(val NilCorePostCoreConnectionsIDTestOKConnectorPin) {
+	s.Pin = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CorePostCoreConnectionsIDTestOKConnector) SetStatus(val CorePostCoreConnectionsIDTestOKConnectorStatus) {
+	s.Status = val
+}
+
+// SetTarget sets the value of Target.
+func (s *CorePostCoreConnectionsIDTestOKConnector) SetTarget(val string) {
+	s.Target = val
+}
+
+// SetTools sets the value of Tools.
+func (s *CorePostCoreConnectionsIDTestOKConnector) SetTools(val []CorePostCoreConnectionsIDTestOKConnectorToolsItem) {
+	s.Tools = val
+}
+
+// SetUsername sets the value of Username.
+func (s *CorePostCoreConnectionsIDTestOKConnector) SetUsername(val NilString) {
+	s.Username = val
+}
+
+type CorePostCoreConnectionsIDTestOKConnectorAuth struct {
+	// SSH key only: SHA256: fingerprint of the saved private key, like GitHub shows for a key. The mock
+	// uses a hash of the key body; the backend computes the public-key fingerprint.
+	KeyFingerprint NilString `json:"key_fingerprint"`
+	// Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is
+	// never returned (SYS-4).
+	Last4 NilString                                        `json:"last4"`
+	Type  CorePostCoreConnectionsIDTestOKConnectorAuthType `json:"type"`
+}
+
+// GetKeyFingerprint returns the value of KeyFingerprint.
+func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) GetKeyFingerprint() NilString {
+	return s.KeyFingerprint
+}
+
+// GetLast4 returns the value of Last4.
+func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) GetLast4() NilString {
+	return s.Last4
+}
+
+// GetType returns the value of Type.
+func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) GetType() CorePostCoreConnectionsIDTestOKConnectorAuthType {
+	return s.Type
+}
+
+// SetKeyFingerprint sets the value of KeyFingerprint.
+func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) SetKeyFingerprint(val NilString) {
+	s.KeyFingerprint = val
+}
+
+// SetLast4 sets the value of Last4.
+func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) SetLast4(val NilString) {
+	s.Last4 = val
+}
+
+// SetType sets the value of Type.
+func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) SetType(val CorePostCoreConnectionsIDTestOKConnectorAuthType) {
+	s.Type = val
+}
+
+type CorePostCoreConnectionsIDTestOKConnectorAuthType string
+
+const (
+	CorePostCoreConnectionsIDTestOKConnectorAuthTypeNone   CorePostCoreConnectionsIDTestOKConnectorAuthType = "none"
+	CorePostCoreConnectionsIDTestOKConnectorAuthTypeToken  CorePostCoreConnectionsIDTestOKConnectorAuthType = "token"
+	CorePostCoreConnectionsIDTestOKConnectorAuthTypeBasic  CorePostCoreConnectionsIDTestOKConnectorAuthType = "basic"
+	CorePostCoreConnectionsIDTestOKConnectorAuthTypeSSHKey CorePostCoreConnectionsIDTestOKConnectorAuthType = "ssh-key"
+)
+
+// AllValues returns all CorePostCoreConnectionsIDTestOKConnectorAuthType values.
+func (CorePostCoreConnectionsIDTestOKConnectorAuthType) AllValues() []CorePostCoreConnectionsIDTestOKConnectorAuthType {
+	return []CorePostCoreConnectionsIDTestOKConnectorAuthType{
+		CorePostCoreConnectionsIDTestOKConnectorAuthTypeNone,
+		CorePostCoreConnectionsIDTestOKConnectorAuthTypeToken,
+		CorePostCoreConnectionsIDTestOKConnectorAuthTypeBasic,
+		CorePostCoreConnectionsIDTestOKConnectorAuthTypeSSHKey,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreConnectionsIDTestOKConnectorAuthType) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreConnectionsIDTestOKConnectorAuthTypeNone:
+		return []byte(s), nil
+	case CorePostCoreConnectionsIDTestOKConnectorAuthTypeToken:
+		return []byte(s), nil
+	case CorePostCoreConnectionsIDTestOKConnectorAuthTypeBasic:
+		return []byte(s), nil
+	case CorePostCoreConnectionsIDTestOKConnectorAuthTypeSSHKey:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreConnectionsIDTestOKConnectorAuthType) UnmarshalText(data []byte) error {
+	switch CorePostCoreConnectionsIDTestOKConnectorAuthType(data) {
+	case CorePostCoreConnectionsIDTestOKConnectorAuthTypeNone:
+		*s = CorePostCoreConnectionsIDTestOKConnectorAuthTypeNone
+		return nil
+	case CorePostCoreConnectionsIDTestOKConnectorAuthTypeToken:
+		*s = CorePostCoreConnectionsIDTestOKConnectorAuthTypeToken
+		return nil
+	case CorePostCoreConnectionsIDTestOKConnectorAuthTypeBasic:
+		*s = CorePostCoreConnectionsIDTestOKConnectorAuthTypeBasic
+		return nil
+	case CorePostCoreConnectionsIDTestOKConnectorAuthTypeSSHKey:
+		*s = CorePostCoreConnectionsIDTestOKConnectorAuthTypeSSHKey
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreConnectionsIDTestOKConnectorKind string
+
+const (
+	CorePostCoreConnectionsIDTestOKConnectorKindHTTP            CorePostCoreConnectionsIDTestOKConnectorKind = "http"
+	CorePostCoreConnectionsIDTestOKConnectorKindSSH             CorePostCoreConnectionsIDTestOKConnectorKind = "ssh"
+	CorePostCoreConnectionsIDTestOKConnectorKindNetconfRestconf CorePostCoreConnectionsIDTestOKConnectorKind = "netconf-restconf"
+	CorePostCoreConnectionsIDTestOKConnectorKindAutomation      CorePostCoreConnectionsIDTestOKConnectorKind = "automation"
+	CorePostCoreConnectionsIDTestOKConnectorKindMcpHTTP         CorePostCoreConnectionsIDTestOKConnectorKind = "mcp-http"
+	CorePostCoreConnectionsIDTestOKConnectorKindMcpStdio        CorePostCoreConnectionsIDTestOKConnectorKind = "mcp-stdio"
+)
+
+// AllValues returns all CorePostCoreConnectionsIDTestOKConnectorKind values.
+func (CorePostCoreConnectionsIDTestOKConnectorKind) AllValues() []CorePostCoreConnectionsIDTestOKConnectorKind {
+	return []CorePostCoreConnectionsIDTestOKConnectorKind{
+		CorePostCoreConnectionsIDTestOKConnectorKindHTTP,
+		CorePostCoreConnectionsIDTestOKConnectorKindSSH,
+		CorePostCoreConnectionsIDTestOKConnectorKindNetconfRestconf,
+		CorePostCoreConnectionsIDTestOKConnectorKindAutomation,
+		CorePostCoreConnectionsIDTestOKConnectorKindMcpHTTP,
+		CorePostCoreConnectionsIDTestOKConnectorKindMcpStdio,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreConnectionsIDTestOKConnectorKind) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreConnectionsIDTestOKConnectorKindHTTP:
+		return []byte(s), nil
+	case CorePostCoreConnectionsIDTestOKConnectorKindSSH:
+		return []byte(s), nil
+	case CorePostCoreConnectionsIDTestOKConnectorKindNetconfRestconf:
+		return []byte(s), nil
+	case CorePostCoreConnectionsIDTestOKConnectorKindAutomation:
+		return []byte(s), nil
+	case CorePostCoreConnectionsIDTestOKConnectorKindMcpHTTP:
+		return []byte(s), nil
+	case CorePostCoreConnectionsIDTestOKConnectorKindMcpStdio:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreConnectionsIDTestOKConnectorKind) UnmarshalText(data []byte) error {
+	switch CorePostCoreConnectionsIDTestOKConnectorKind(data) {
+	case CorePostCoreConnectionsIDTestOKConnectorKindHTTP:
+		*s = CorePostCoreConnectionsIDTestOKConnectorKindHTTP
+		return nil
+	case CorePostCoreConnectionsIDTestOKConnectorKindSSH:
+		*s = CorePostCoreConnectionsIDTestOKConnectorKindSSH
+		return nil
+	case CorePostCoreConnectionsIDTestOKConnectorKindNetconfRestconf:
+		*s = CorePostCoreConnectionsIDTestOKConnectorKindNetconfRestconf
+		return nil
+	case CorePostCoreConnectionsIDTestOKConnectorKindAutomation:
+		*s = CorePostCoreConnectionsIDTestOKConnectorKindAutomation
+		return nil
+	case CorePostCoreConnectionsIDTestOKConnectorKindMcpHTTP:
+		*s = CorePostCoreConnectionsIDTestOKConnectorKindMcpHTTP
+		return nil
+	case CorePostCoreConnectionsIDTestOKConnectorKindMcpStdio:
+		*s = CorePostCoreConnectionsIDTestOKConnectorKindMcpStdio
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Pinned at the first successful Test (trust on first use, D-94). A changed certificate or host key is
+// refused until an administrator forgets the pin.
+type CorePostCoreConnectionsIDTestOKConnectorPin struct {
+	FirstSeen time.Time `json:"first_seen"`
+	// Tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system
+	// roots); ssh_hostkey = the SSH server host key.
+	Kind CorePostCoreConnectionsIDTestOKConnectorPinKind `json:"kind"`
+	// Tls_sha256: 64 hex characters; ssh_hostkey: key type and SHA256 fingerprint.
+	Value string `json:"value"`
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *CorePostCoreConnectionsIDTestOKConnectorPin) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetKind returns the value of Kind.
+func (s *CorePostCoreConnectionsIDTestOKConnectorPin) GetKind() CorePostCoreConnectionsIDTestOKConnectorPinKind {
+	return s.Kind
+}
+
+// GetValue returns the value of Value.
+func (s *CorePostCoreConnectionsIDTestOKConnectorPin) GetValue() string {
+	return s.Value
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *CorePostCoreConnectionsIDTestOKConnectorPin) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetKind sets the value of Kind.
+func (s *CorePostCoreConnectionsIDTestOKConnectorPin) SetKind(val CorePostCoreConnectionsIDTestOKConnectorPinKind) {
+	s.Kind = val
+}
+
+// SetValue sets the value of Value.
+func (s *CorePostCoreConnectionsIDTestOKConnectorPin) SetValue(val string) {
+	s.Value = val
+}
+
+// Tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system
+// roots); ssh_hostkey = the SSH server host key.
+type CorePostCoreConnectionsIDTestOKConnectorPinKind string
+
+const (
+	CorePostCoreConnectionsIDTestOKConnectorPinKindTLSSHA256  CorePostCoreConnectionsIDTestOKConnectorPinKind = "tls_sha256"
+	CorePostCoreConnectionsIDTestOKConnectorPinKindSSHHostkey CorePostCoreConnectionsIDTestOKConnectorPinKind = "ssh_hostkey"
+)
+
+// AllValues returns all CorePostCoreConnectionsIDTestOKConnectorPinKind values.
+func (CorePostCoreConnectionsIDTestOKConnectorPinKind) AllValues() []CorePostCoreConnectionsIDTestOKConnectorPinKind {
+	return []CorePostCoreConnectionsIDTestOKConnectorPinKind{
+		CorePostCoreConnectionsIDTestOKConnectorPinKindTLSSHA256,
+		CorePostCoreConnectionsIDTestOKConnectorPinKindSSHHostkey,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreConnectionsIDTestOKConnectorPinKind) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreConnectionsIDTestOKConnectorPinKindTLSSHA256:
+		return []byte(s), nil
+	case CorePostCoreConnectionsIDTestOKConnectorPinKindSSHHostkey:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreConnectionsIDTestOKConnectorPinKind) UnmarshalText(data []byte) error {
+	switch CorePostCoreConnectionsIDTestOKConnectorPinKind(data) {
+	case CorePostCoreConnectionsIDTestOKConnectorPinKindTLSSHA256:
+		*s = CorePostCoreConnectionsIDTestOKConnectorPinKindTLSSHA256
+		return nil
+	case CorePostCoreConnectionsIDTestOKConnectorPinKindSSHHostkey:
+		*s = CorePostCoreConnectionsIDTestOKConnectorPinKindSSHHostkey
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreConnectionsIDTestOKConnectorStatus string
+
+const (
+	CorePostCoreConnectionsIDTestOKConnectorStatusOk       CorePostCoreConnectionsIDTestOKConnectorStatus = "ok"
+	CorePostCoreConnectionsIDTestOKConnectorStatusError    CorePostCoreConnectionsIDTestOKConnectorStatus = "error"
+	CorePostCoreConnectionsIDTestOKConnectorStatusUntested CorePostCoreConnectionsIDTestOKConnectorStatus = "untested"
+)
+
+// AllValues returns all CorePostCoreConnectionsIDTestOKConnectorStatus values.
+func (CorePostCoreConnectionsIDTestOKConnectorStatus) AllValues() []CorePostCoreConnectionsIDTestOKConnectorStatus {
+	return []CorePostCoreConnectionsIDTestOKConnectorStatus{
+		CorePostCoreConnectionsIDTestOKConnectorStatusOk,
+		CorePostCoreConnectionsIDTestOKConnectorStatusError,
+		CorePostCoreConnectionsIDTestOKConnectorStatusUntested,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreConnectionsIDTestOKConnectorStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreConnectionsIDTestOKConnectorStatusOk:
+		return []byte(s), nil
+	case CorePostCoreConnectionsIDTestOKConnectorStatusError:
+		return []byte(s), nil
+	case CorePostCoreConnectionsIDTestOKConnectorStatusUntested:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreConnectionsIDTestOKConnectorStatus) UnmarshalText(data []byte) error {
+	switch CorePostCoreConnectionsIDTestOKConnectorStatus(data) {
+	case CorePostCoreConnectionsIDTestOKConnectorStatusOk:
+		*s = CorePostCoreConnectionsIDTestOKConnectorStatusOk
+		return nil
+	case CorePostCoreConnectionsIDTestOKConnectorStatusError:
+		*s = CorePostCoreConnectionsIDTestOKConnectorStatusError
+		return nil
+	case CorePostCoreConnectionsIDTestOKConnectorStatusUntested:
+		*s = CorePostCoreConnectionsIDTestOKConnectorStatusUntested
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreConnectionsIDTestOKConnectorToolsItem struct {
+	Access      CorePostCoreConnectionsIDTestOKConnectorToolsItemAccess `json:"access"`
+	Description string                                                  `json:"description"`
+	Enabled     bool                                                    `json:"enabled"`
+	Name        string                                                  `json:"name"`
+}
+
+// GetAccess returns the value of Access.
+func (s *CorePostCoreConnectionsIDTestOKConnectorToolsItem) GetAccess() CorePostCoreConnectionsIDTestOKConnectorToolsItemAccess {
+	return s.Access
+}
+
+// GetDescription returns the value of Description.
+func (s *CorePostCoreConnectionsIDTestOKConnectorToolsItem) GetDescription() string {
+	return s.Description
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *CorePostCoreConnectionsIDTestOKConnectorToolsItem) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetName returns the value of Name.
+func (s *CorePostCoreConnectionsIDTestOKConnectorToolsItem) GetName() string {
+	return s.Name
+}
+
+// SetAccess sets the value of Access.
+func (s *CorePostCoreConnectionsIDTestOKConnectorToolsItem) SetAccess(val CorePostCoreConnectionsIDTestOKConnectorToolsItemAccess) {
+	s.Access = val
+}
+
+// SetDescription sets the value of Description.
+func (s *CorePostCoreConnectionsIDTestOKConnectorToolsItem) SetDescription(val string) {
+	s.Description = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *CorePostCoreConnectionsIDTestOKConnectorToolsItem) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetName sets the value of Name.
+func (s *CorePostCoreConnectionsIDTestOKConnectorToolsItem) SetName(val string) {
+	s.Name = val
+}
+
+type CorePostCoreConnectionsIDTestOKConnectorToolsItemAccess string
+
+const (
+	CorePostCoreConnectionsIDTestOKConnectorToolsItemAccessRead  CorePostCoreConnectionsIDTestOKConnectorToolsItemAccess = "read"
+	CorePostCoreConnectionsIDTestOKConnectorToolsItemAccessWrite CorePostCoreConnectionsIDTestOKConnectorToolsItemAccess = "write"
+)
+
+// AllValues returns all CorePostCoreConnectionsIDTestOKConnectorToolsItemAccess values.
+func (CorePostCoreConnectionsIDTestOKConnectorToolsItemAccess) AllValues() []CorePostCoreConnectionsIDTestOKConnectorToolsItemAccess {
+	return []CorePostCoreConnectionsIDTestOKConnectorToolsItemAccess{
+		CorePostCoreConnectionsIDTestOKConnectorToolsItemAccessRead,
+		CorePostCoreConnectionsIDTestOKConnectorToolsItemAccessWrite,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreConnectionsIDTestOKConnectorToolsItemAccess) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreConnectionsIDTestOKConnectorToolsItemAccessRead:
+		return []byte(s), nil
+	case CorePostCoreConnectionsIDTestOKConnectorToolsItemAccessWrite:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreConnectionsIDTestOKConnectorToolsItemAccess) UnmarshalText(data []byte) error {
+	switch CorePostCoreConnectionsIDTestOKConnectorToolsItemAccess(data) {
+	case CorePostCoreConnectionsIDTestOKConnectorToolsItemAccessRead:
+		*s = CorePostCoreConnectionsIDTestOKConnectorToolsItemAccessRead
+		return nil
+	case CorePostCoreConnectionsIDTestOKConnectorToolsItemAccessWrite:
+		*s = CorePostCoreConnectionsIDTestOKConnectorToolsItemAccessWrite
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreConnectionsReq struct {
+	Allow    []string                           `json:"allow"`
+	AssetID  OptNilString                       `json:"asset_id"`
+	AuthType CorePostCoreConnectionsReqAuthType `json:"auth_type"`
+	// True = forget the pinned certificate or host key; the next Test pins again. It is also forgotten
+	// when the kind changes or the host or port changes (a trailing slash or path does not count); a
+	// change of sign-in keeps it.
+	ClearPin OptBool                        `json:"clear_pin"`
+	Enabled  bool                           `json:"enabled"`
+	Kind     CorePostCoreConnectionsReqKind `json:"kind"`
+	Name     string                         `json:"name"`
+	// Leave blank when editing to keep the old secret.
+	Secret OptString `json:"secret"`
+	Target string    `json:"target"`
+	// Per-tool enable; tools not listed keep their state.
+	Tools []CorePostCoreConnectionsReqToolsItem `json:"tools"`
+	// Required for SSH and for Basic sign-in (400 username_required); 1 to 64 characters without spaces,
+	// colons or control characters; ignored for the other sign-ins.
+	Username OptNilString `json:"username"`
+}
+
+// GetAllow returns the value of Allow.
+func (s *CorePostCoreConnectionsReq) GetAllow() []string {
+	return s.Allow
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *CorePostCoreConnectionsReq) GetAssetID() OptNilString {
+	return s.AssetID
+}
+
+// GetAuthType returns the value of AuthType.
+func (s *CorePostCoreConnectionsReq) GetAuthType() CorePostCoreConnectionsReqAuthType {
+	return s.AuthType
+}
+
+// GetClearPin returns the value of ClearPin.
+func (s *CorePostCoreConnectionsReq) GetClearPin() OptBool {
+	return s.ClearPin
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *CorePostCoreConnectionsReq) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetKind returns the value of Kind.
+func (s *CorePostCoreConnectionsReq) GetKind() CorePostCoreConnectionsReqKind {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *CorePostCoreConnectionsReq) GetName() string {
+	return s.Name
+}
+
+// GetSecret returns the value of Secret.
+func (s *CorePostCoreConnectionsReq) GetSecret() OptString {
+	return s.Secret
+}
+
+// GetTarget returns the value of Target.
+func (s *CorePostCoreConnectionsReq) GetTarget() string {
+	return s.Target
+}
+
+// GetTools returns the value of Tools.
+func (s *CorePostCoreConnectionsReq) GetTools() []CorePostCoreConnectionsReqToolsItem {
+	return s.Tools
+}
+
+// GetUsername returns the value of Username.
+func (s *CorePostCoreConnectionsReq) GetUsername() OptNilString {
+	return s.Username
+}
+
+// SetAllow sets the value of Allow.
+func (s *CorePostCoreConnectionsReq) SetAllow(val []string) {
+	s.Allow = val
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *CorePostCoreConnectionsReq) SetAssetID(val OptNilString) {
+	s.AssetID = val
+}
+
+// SetAuthType sets the value of AuthType.
+func (s *CorePostCoreConnectionsReq) SetAuthType(val CorePostCoreConnectionsReqAuthType) {
+	s.AuthType = val
+}
+
+// SetClearPin sets the value of ClearPin.
+func (s *CorePostCoreConnectionsReq) SetClearPin(val OptBool) {
+	s.ClearPin = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *CorePostCoreConnectionsReq) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetKind sets the value of Kind.
+func (s *CorePostCoreConnectionsReq) SetKind(val CorePostCoreConnectionsReqKind) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *CorePostCoreConnectionsReq) SetName(val string) {
+	s.Name = val
+}
+
+// SetSecret sets the value of Secret.
+func (s *CorePostCoreConnectionsReq) SetSecret(val OptString) {
+	s.Secret = val
+}
+
+// SetTarget sets the value of Target.
+func (s *CorePostCoreConnectionsReq) SetTarget(val string) {
+	s.Target = val
+}
+
+// SetTools sets the value of Tools.
+func (s *CorePostCoreConnectionsReq) SetTools(val []CorePostCoreConnectionsReqToolsItem) {
+	s.Tools = val
+}
+
+// SetUsername sets the value of Username.
+func (s *CorePostCoreConnectionsReq) SetUsername(val OptNilString) {
+	s.Username = val
+}
+
+type CorePostCoreConnectionsReqAuthType string
+
+const (
+	CorePostCoreConnectionsReqAuthTypeNone   CorePostCoreConnectionsReqAuthType = "none"
+	CorePostCoreConnectionsReqAuthTypeToken  CorePostCoreConnectionsReqAuthType = "token"
+	CorePostCoreConnectionsReqAuthTypeBasic  CorePostCoreConnectionsReqAuthType = "basic"
+	CorePostCoreConnectionsReqAuthTypeSSHKey CorePostCoreConnectionsReqAuthType = "ssh-key"
+)
+
+// AllValues returns all CorePostCoreConnectionsReqAuthType values.
+func (CorePostCoreConnectionsReqAuthType) AllValues() []CorePostCoreConnectionsReqAuthType {
+	return []CorePostCoreConnectionsReqAuthType{
+		CorePostCoreConnectionsReqAuthTypeNone,
+		CorePostCoreConnectionsReqAuthTypeToken,
+		CorePostCoreConnectionsReqAuthTypeBasic,
+		CorePostCoreConnectionsReqAuthTypeSSHKey,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreConnectionsReqAuthType) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreConnectionsReqAuthTypeNone:
+		return []byte(s), nil
+	case CorePostCoreConnectionsReqAuthTypeToken:
+		return []byte(s), nil
+	case CorePostCoreConnectionsReqAuthTypeBasic:
+		return []byte(s), nil
+	case CorePostCoreConnectionsReqAuthTypeSSHKey:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreConnectionsReqAuthType) UnmarshalText(data []byte) error {
+	switch CorePostCoreConnectionsReqAuthType(data) {
+	case CorePostCoreConnectionsReqAuthTypeNone:
+		*s = CorePostCoreConnectionsReqAuthTypeNone
+		return nil
+	case CorePostCoreConnectionsReqAuthTypeToken:
+		*s = CorePostCoreConnectionsReqAuthTypeToken
+		return nil
+	case CorePostCoreConnectionsReqAuthTypeBasic:
+		*s = CorePostCoreConnectionsReqAuthTypeBasic
+		return nil
+	case CorePostCoreConnectionsReqAuthTypeSSHKey:
+		*s = CorePostCoreConnectionsReqAuthTypeSSHKey
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreConnectionsReqKind string
+
+const (
+	CorePostCoreConnectionsReqKindHTTP            CorePostCoreConnectionsReqKind = "http"
+	CorePostCoreConnectionsReqKindSSH             CorePostCoreConnectionsReqKind = "ssh"
+	CorePostCoreConnectionsReqKindNetconfRestconf CorePostCoreConnectionsReqKind = "netconf-restconf"
+	CorePostCoreConnectionsReqKindAutomation      CorePostCoreConnectionsReqKind = "automation"
+	CorePostCoreConnectionsReqKindMcpHTTP         CorePostCoreConnectionsReqKind = "mcp-http"
+	CorePostCoreConnectionsReqKindMcpStdio        CorePostCoreConnectionsReqKind = "mcp-stdio"
+)
+
+// AllValues returns all CorePostCoreConnectionsReqKind values.
+func (CorePostCoreConnectionsReqKind) AllValues() []CorePostCoreConnectionsReqKind {
+	return []CorePostCoreConnectionsReqKind{
+		CorePostCoreConnectionsReqKindHTTP,
+		CorePostCoreConnectionsReqKindSSH,
+		CorePostCoreConnectionsReqKindNetconfRestconf,
+		CorePostCoreConnectionsReqKindAutomation,
+		CorePostCoreConnectionsReqKindMcpHTTP,
+		CorePostCoreConnectionsReqKindMcpStdio,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreConnectionsReqKind) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreConnectionsReqKindHTTP:
+		return []byte(s), nil
+	case CorePostCoreConnectionsReqKindSSH:
+		return []byte(s), nil
+	case CorePostCoreConnectionsReqKindNetconfRestconf:
+		return []byte(s), nil
+	case CorePostCoreConnectionsReqKindAutomation:
+		return []byte(s), nil
+	case CorePostCoreConnectionsReqKindMcpHTTP:
+		return []byte(s), nil
+	case CorePostCoreConnectionsReqKindMcpStdio:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreConnectionsReqKind) UnmarshalText(data []byte) error {
+	switch CorePostCoreConnectionsReqKind(data) {
+	case CorePostCoreConnectionsReqKindHTTP:
+		*s = CorePostCoreConnectionsReqKindHTTP
+		return nil
+	case CorePostCoreConnectionsReqKindSSH:
+		*s = CorePostCoreConnectionsReqKindSSH
+		return nil
+	case CorePostCoreConnectionsReqKindNetconfRestconf:
+		*s = CorePostCoreConnectionsReqKindNetconfRestconf
+		return nil
+	case CorePostCoreConnectionsReqKindAutomation:
+		*s = CorePostCoreConnectionsReqKindAutomation
+		return nil
+	case CorePostCoreConnectionsReqKindMcpHTTP:
+		*s = CorePostCoreConnectionsReqKindMcpHTTP
+		return nil
+	case CorePostCoreConnectionsReqKindMcpStdio:
+		*s = CorePostCoreConnectionsReqKindMcpStdio
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreConnectionsReqToolsItem struct {
+	// Only for an MCP server (mcp-http): other kinds answer 400 invalid_tool_access, their tools are
+	// fixed. A tool found on an MCP server starts as write and off.
+	Access  OptCorePostCoreConnectionsReqToolsItemAccess `json:"access"`
+	Enabled bool                                         `json:"enabled"`
+	Name    string                                       `json:"name"`
+}
+
+// GetAccess returns the value of Access.
+func (s *CorePostCoreConnectionsReqToolsItem) GetAccess() OptCorePostCoreConnectionsReqToolsItemAccess {
+	return s.Access
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *CorePostCoreConnectionsReqToolsItem) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetName returns the value of Name.
+func (s *CorePostCoreConnectionsReqToolsItem) GetName() string {
+	return s.Name
+}
+
+// SetAccess sets the value of Access.
+func (s *CorePostCoreConnectionsReqToolsItem) SetAccess(val OptCorePostCoreConnectionsReqToolsItemAccess) {
+	s.Access = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *CorePostCoreConnectionsReqToolsItem) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetName sets the value of Name.
+func (s *CorePostCoreConnectionsReqToolsItem) SetName(val string) {
+	s.Name = val
+}
+
+// Only for an MCP server (mcp-http): other kinds answer 400 invalid_tool_access, their tools are
+// fixed. A tool found on an MCP server starts as write and off.
+type CorePostCoreConnectionsReqToolsItemAccess string
+
+const (
+	CorePostCoreConnectionsReqToolsItemAccessRead  CorePostCoreConnectionsReqToolsItemAccess = "read"
+	CorePostCoreConnectionsReqToolsItemAccessWrite CorePostCoreConnectionsReqToolsItemAccess = "write"
+)
+
+// AllValues returns all CorePostCoreConnectionsReqToolsItemAccess values.
+func (CorePostCoreConnectionsReqToolsItemAccess) AllValues() []CorePostCoreConnectionsReqToolsItemAccess {
+	return []CorePostCoreConnectionsReqToolsItemAccess{
+		CorePostCoreConnectionsReqToolsItemAccessRead,
+		CorePostCoreConnectionsReqToolsItemAccessWrite,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreConnectionsReqToolsItemAccess) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreConnectionsReqToolsItemAccessRead:
+		return []byte(s), nil
+	case CorePostCoreConnectionsReqToolsItemAccessWrite:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreConnectionsReqToolsItemAccess) UnmarshalText(data []byte) error {
+	switch CorePostCoreConnectionsReqToolsItemAccess(data) {
+	case CorePostCoreConnectionsReqToolsItemAccessRead:
+		*s = CorePostCoreConnectionsReqToolsItemAccessRead
+		return nil
+	case CorePostCoreConnectionsReqToolsItemAccessWrite:
+		*s = CorePostCoreConnectionsReqToolsItemAccessWrite
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type CorePostCoreDataPurgeOK struct {
@@ -29526,6 +29310,876 @@ func (s *CorePostCoreUsersReqRole) UnmarshalText(data []byte) error {
 		return nil
 	case CorePostCoreUsersReqRoleAdmin:
 		*s = CorePostCoreUsersReqRoleAdmin
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePutCoreConnectionsIDOK struct {
+	// Hosts, URL prefixes or commands that may be used through this connection.
+	Allow    []string                       `json:"allow"`
+	AssetID  NilString                      `json:"asset_id"`
+	Auth     CorePutCoreConnectionsIDOKAuth `json:"auth"`
+	Enabled  bool                           `json:"enabled"`
+	ID       string                         `json:"id"`
+	Kind     CorePutCoreConnectionsIDOKKind `json:"kind"`
+	LastTest NilDateTime                    `json:"last_test"`
+	Name     string                         `json:"name"`
+	// Read-only. null until the first Test, or after the pin was forgotten.
+	Pin    NilCorePutCoreConnectionsIDOKPin `json:"pin"`
+	Status CorePutCoreConnectionsIDOKStatus `json:"status"`
+	// Base URL or host:port. "mcp-stdio" rows are not supported (D-94).
+	Target string                                `json:"target"`
+	Tools  []CorePutCoreConnectionsIDOKToolsItem `json:"tools"`
+	// User name for SSH and for Basic sign-in; null for the other sign-ins.
+	Username NilString `json:"username"`
+}
+
+// GetAllow returns the value of Allow.
+func (s *CorePutCoreConnectionsIDOK) GetAllow() []string {
+	return s.Allow
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *CorePutCoreConnectionsIDOK) GetAssetID() NilString {
+	return s.AssetID
+}
+
+// GetAuth returns the value of Auth.
+func (s *CorePutCoreConnectionsIDOK) GetAuth() CorePutCoreConnectionsIDOKAuth {
+	return s.Auth
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *CorePutCoreConnectionsIDOK) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetID returns the value of ID.
+func (s *CorePutCoreConnectionsIDOK) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *CorePutCoreConnectionsIDOK) GetKind() CorePutCoreConnectionsIDOKKind {
+	return s.Kind
+}
+
+// GetLastTest returns the value of LastTest.
+func (s *CorePutCoreConnectionsIDOK) GetLastTest() NilDateTime {
+	return s.LastTest
+}
+
+// GetName returns the value of Name.
+func (s *CorePutCoreConnectionsIDOK) GetName() string {
+	return s.Name
+}
+
+// GetPin returns the value of Pin.
+func (s *CorePutCoreConnectionsIDOK) GetPin() NilCorePutCoreConnectionsIDOKPin {
+	return s.Pin
+}
+
+// GetStatus returns the value of Status.
+func (s *CorePutCoreConnectionsIDOK) GetStatus() CorePutCoreConnectionsIDOKStatus {
+	return s.Status
+}
+
+// GetTarget returns the value of Target.
+func (s *CorePutCoreConnectionsIDOK) GetTarget() string {
+	return s.Target
+}
+
+// GetTools returns the value of Tools.
+func (s *CorePutCoreConnectionsIDOK) GetTools() []CorePutCoreConnectionsIDOKToolsItem {
+	return s.Tools
+}
+
+// GetUsername returns the value of Username.
+func (s *CorePutCoreConnectionsIDOK) GetUsername() NilString {
+	return s.Username
+}
+
+// SetAllow sets the value of Allow.
+func (s *CorePutCoreConnectionsIDOK) SetAllow(val []string) {
+	s.Allow = val
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *CorePutCoreConnectionsIDOK) SetAssetID(val NilString) {
+	s.AssetID = val
+}
+
+// SetAuth sets the value of Auth.
+func (s *CorePutCoreConnectionsIDOK) SetAuth(val CorePutCoreConnectionsIDOKAuth) {
+	s.Auth = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *CorePutCoreConnectionsIDOK) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetID sets the value of ID.
+func (s *CorePutCoreConnectionsIDOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *CorePutCoreConnectionsIDOK) SetKind(val CorePutCoreConnectionsIDOKKind) {
+	s.Kind = val
+}
+
+// SetLastTest sets the value of LastTest.
+func (s *CorePutCoreConnectionsIDOK) SetLastTest(val NilDateTime) {
+	s.LastTest = val
+}
+
+// SetName sets the value of Name.
+func (s *CorePutCoreConnectionsIDOK) SetName(val string) {
+	s.Name = val
+}
+
+// SetPin sets the value of Pin.
+func (s *CorePutCoreConnectionsIDOK) SetPin(val NilCorePutCoreConnectionsIDOKPin) {
+	s.Pin = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CorePutCoreConnectionsIDOK) SetStatus(val CorePutCoreConnectionsIDOKStatus) {
+	s.Status = val
+}
+
+// SetTarget sets the value of Target.
+func (s *CorePutCoreConnectionsIDOK) SetTarget(val string) {
+	s.Target = val
+}
+
+// SetTools sets the value of Tools.
+func (s *CorePutCoreConnectionsIDOK) SetTools(val []CorePutCoreConnectionsIDOKToolsItem) {
+	s.Tools = val
+}
+
+// SetUsername sets the value of Username.
+func (s *CorePutCoreConnectionsIDOK) SetUsername(val NilString) {
+	s.Username = val
+}
+
+type CorePutCoreConnectionsIDOKAuth struct {
+	// SSH key only: SHA256: fingerprint of the saved private key, like GitHub shows for a key. The mock
+	// uses a hash of the key body; the backend computes the public-key fingerprint.
+	KeyFingerprint NilString `json:"key_fingerprint"`
+	// Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is
+	// never returned (SYS-4).
+	Last4 NilString                          `json:"last4"`
+	Type  CorePutCoreConnectionsIDOKAuthType `json:"type"`
+}
+
+// GetKeyFingerprint returns the value of KeyFingerprint.
+func (s *CorePutCoreConnectionsIDOKAuth) GetKeyFingerprint() NilString {
+	return s.KeyFingerprint
+}
+
+// GetLast4 returns the value of Last4.
+func (s *CorePutCoreConnectionsIDOKAuth) GetLast4() NilString {
+	return s.Last4
+}
+
+// GetType returns the value of Type.
+func (s *CorePutCoreConnectionsIDOKAuth) GetType() CorePutCoreConnectionsIDOKAuthType {
+	return s.Type
+}
+
+// SetKeyFingerprint sets the value of KeyFingerprint.
+func (s *CorePutCoreConnectionsIDOKAuth) SetKeyFingerprint(val NilString) {
+	s.KeyFingerprint = val
+}
+
+// SetLast4 sets the value of Last4.
+func (s *CorePutCoreConnectionsIDOKAuth) SetLast4(val NilString) {
+	s.Last4 = val
+}
+
+// SetType sets the value of Type.
+func (s *CorePutCoreConnectionsIDOKAuth) SetType(val CorePutCoreConnectionsIDOKAuthType) {
+	s.Type = val
+}
+
+type CorePutCoreConnectionsIDOKAuthType string
+
+const (
+	CorePutCoreConnectionsIDOKAuthTypeNone   CorePutCoreConnectionsIDOKAuthType = "none"
+	CorePutCoreConnectionsIDOKAuthTypeToken  CorePutCoreConnectionsIDOKAuthType = "token"
+	CorePutCoreConnectionsIDOKAuthTypeBasic  CorePutCoreConnectionsIDOKAuthType = "basic"
+	CorePutCoreConnectionsIDOKAuthTypeSSHKey CorePutCoreConnectionsIDOKAuthType = "ssh-key"
+)
+
+// AllValues returns all CorePutCoreConnectionsIDOKAuthType values.
+func (CorePutCoreConnectionsIDOKAuthType) AllValues() []CorePutCoreConnectionsIDOKAuthType {
+	return []CorePutCoreConnectionsIDOKAuthType{
+		CorePutCoreConnectionsIDOKAuthTypeNone,
+		CorePutCoreConnectionsIDOKAuthTypeToken,
+		CorePutCoreConnectionsIDOKAuthTypeBasic,
+		CorePutCoreConnectionsIDOKAuthTypeSSHKey,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutCoreConnectionsIDOKAuthType) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutCoreConnectionsIDOKAuthTypeNone:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDOKAuthTypeToken:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDOKAuthTypeBasic:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDOKAuthTypeSSHKey:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutCoreConnectionsIDOKAuthType) UnmarshalText(data []byte) error {
+	switch CorePutCoreConnectionsIDOKAuthType(data) {
+	case CorePutCoreConnectionsIDOKAuthTypeNone:
+		*s = CorePutCoreConnectionsIDOKAuthTypeNone
+		return nil
+	case CorePutCoreConnectionsIDOKAuthTypeToken:
+		*s = CorePutCoreConnectionsIDOKAuthTypeToken
+		return nil
+	case CorePutCoreConnectionsIDOKAuthTypeBasic:
+		*s = CorePutCoreConnectionsIDOKAuthTypeBasic
+		return nil
+	case CorePutCoreConnectionsIDOKAuthTypeSSHKey:
+		*s = CorePutCoreConnectionsIDOKAuthTypeSSHKey
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePutCoreConnectionsIDOKKind string
+
+const (
+	CorePutCoreConnectionsIDOKKindHTTP            CorePutCoreConnectionsIDOKKind = "http"
+	CorePutCoreConnectionsIDOKKindSSH             CorePutCoreConnectionsIDOKKind = "ssh"
+	CorePutCoreConnectionsIDOKKindNetconfRestconf CorePutCoreConnectionsIDOKKind = "netconf-restconf"
+	CorePutCoreConnectionsIDOKKindAutomation      CorePutCoreConnectionsIDOKKind = "automation"
+	CorePutCoreConnectionsIDOKKindMcpHTTP         CorePutCoreConnectionsIDOKKind = "mcp-http"
+	CorePutCoreConnectionsIDOKKindMcpStdio        CorePutCoreConnectionsIDOKKind = "mcp-stdio"
+)
+
+// AllValues returns all CorePutCoreConnectionsIDOKKind values.
+func (CorePutCoreConnectionsIDOKKind) AllValues() []CorePutCoreConnectionsIDOKKind {
+	return []CorePutCoreConnectionsIDOKKind{
+		CorePutCoreConnectionsIDOKKindHTTP,
+		CorePutCoreConnectionsIDOKKindSSH,
+		CorePutCoreConnectionsIDOKKindNetconfRestconf,
+		CorePutCoreConnectionsIDOKKindAutomation,
+		CorePutCoreConnectionsIDOKKindMcpHTTP,
+		CorePutCoreConnectionsIDOKKindMcpStdio,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutCoreConnectionsIDOKKind) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutCoreConnectionsIDOKKindHTTP:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDOKKindSSH:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDOKKindNetconfRestconf:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDOKKindAutomation:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDOKKindMcpHTTP:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDOKKindMcpStdio:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutCoreConnectionsIDOKKind) UnmarshalText(data []byte) error {
+	switch CorePutCoreConnectionsIDOKKind(data) {
+	case CorePutCoreConnectionsIDOKKindHTTP:
+		*s = CorePutCoreConnectionsIDOKKindHTTP
+		return nil
+	case CorePutCoreConnectionsIDOKKindSSH:
+		*s = CorePutCoreConnectionsIDOKKindSSH
+		return nil
+	case CorePutCoreConnectionsIDOKKindNetconfRestconf:
+		*s = CorePutCoreConnectionsIDOKKindNetconfRestconf
+		return nil
+	case CorePutCoreConnectionsIDOKKindAutomation:
+		*s = CorePutCoreConnectionsIDOKKindAutomation
+		return nil
+	case CorePutCoreConnectionsIDOKKindMcpHTTP:
+		*s = CorePutCoreConnectionsIDOKKindMcpHTTP
+		return nil
+	case CorePutCoreConnectionsIDOKKindMcpStdio:
+		*s = CorePutCoreConnectionsIDOKKindMcpStdio
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Pinned at the first successful Test (trust on first use, D-94). A changed certificate or host key is
+// refused until an administrator forgets the pin.
+type CorePutCoreConnectionsIDOKPin struct {
+	FirstSeen time.Time `json:"first_seen"`
+	// Tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system
+	// roots); ssh_hostkey = the SSH server host key.
+	Kind CorePutCoreConnectionsIDOKPinKind `json:"kind"`
+	// Tls_sha256: 64 hex characters; ssh_hostkey: key type and SHA256 fingerprint.
+	Value string `json:"value"`
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *CorePutCoreConnectionsIDOKPin) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetKind returns the value of Kind.
+func (s *CorePutCoreConnectionsIDOKPin) GetKind() CorePutCoreConnectionsIDOKPinKind {
+	return s.Kind
+}
+
+// GetValue returns the value of Value.
+func (s *CorePutCoreConnectionsIDOKPin) GetValue() string {
+	return s.Value
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *CorePutCoreConnectionsIDOKPin) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetKind sets the value of Kind.
+func (s *CorePutCoreConnectionsIDOKPin) SetKind(val CorePutCoreConnectionsIDOKPinKind) {
+	s.Kind = val
+}
+
+// SetValue sets the value of Value.
+func (s *CorePutCoreConnectionsIDOKPin) SetValue(val string) {
+	s.Value = val
+}
+
+// Tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system
+// roots); ssh_hostkey = the SSH server host key.
+type CorePutCoreConnectionsIDOKPinKind string
+
+const (
+	CorePutCoreConnectionsIDOKPinKindTLSSHA256  CorePutCoreConnectionsIDOKPinKind = "tls_sha256"
+	CorePutCoreConnectionsIDOKPinKindSSHHostkey CorePutCoreConnectionsIDOKPinKind = "ssh_hostkey"
+)
+
+// AllValues returns all CorePutCoreConnectionsIDOKPinKind values.
+func (CorePutCoreConnectionsIDOKPinKind) AllValues() []CorePutCoreConnectionsIDOKPinKind {
+	return []CorePutCoreConnectionsIDOKPinKind{
+		CorePutCoreConnectionsIDOKPinKindTLSSHA256,
+		CorePutCoreConnectionsIDOKPinKindSSHHostkey,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutCoreConnectionsIDOKPinKind) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutCoreConnectionsIDOKPinKindTLSSHA256:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDOKPinKindSSHHostkey:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutCoreConnectionsIDOKPinKind) UnmarshalText(data []byte) error {
+	switch CorePutCoreConnectionsIDOKPinKind(data) {
+	case CorePutCoreConnectionsIDOKPinKindTLSSHA256:
+		*s = CorePutCoreConnectionsIDOKPinKindTLSSHA256
+		return nil
+	case CorePutCoreConnectionsIDOKPinKindSSHHostkey:
+		*s = CorePutCoreConnectionsIDOKPinKindSSHHostkey
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePutCoreConnectionsIDOKStatus string
+
+const (
+	CorePutCoreConnectionsIDOKStatusOk       CorePutCoreConnectionsIDOKStatus = "ok"
+	CorePutCoreConnectionsIDOKStatusError    CorePutCoreConnectionsIDOKStatus = "error"
+	CorePutCoreConnectionsIDOKStatusUntested CorePutCoreConnectionsIDOKStatus = "untested"
+)
+
+// AllValues returns all CorePutCoreConnectionsIDOKStatus values.
+func (CorePutCoreConnectionsIDOKStatus) AllValues() []CorePutCoreConnectionsIDOKStatus {
+	return []CorePutCoreConnectionsIDOKStatus{
+		CorePutCoreConnectionsIDOKStatusOk,
+		CorePutCoreConnectionsIDOKStatusError,
+		CorePutCoreConnectionsIDOKStatusUntested,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutCoreConnectionsIDOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutCoreConnectionsIDOKStatusOk:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDOKStatusError:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDOKStatusUntested:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutCoreConnectionsIDOKStatus) UnmarshalText(data []byte) error {
+	switch CorePutCoreConnectionsIDOKStatus(data) {
+	case CorePutCoreConnectionsIDOKStatusOk:
+		*s = CorePutCoreConnectionsIDOKStatusOk
+		return nil
+	case CorePutCoreConnectionsIDOKStatusError:
+		*s = CorePutCoreConnectionsIDOKStatusError
+		return nil
+	case CorePutCoreConnectionsIDOKStatusUntested:
+		*s = CorePutCoreConnectionsIDOKStatusUntested
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePutCoreConnectionsIDOKToolsItem struct {
+	Access      CorePutCoreConnectionsIDOKToolsItemAccess `json:"access"`
+	Description string                                    `json:"description"`
+	Enabled     bool                                      `json:"enabled"`
+	Name        string                                    `json:"name"`
+}
+
+// GetAccess returns the value of Access.
+func (s *CorePutCoreConnectionsIDOKToolsItem) GetAccess() CorePutCoreConnectionsIDOKToolsItemAccess {
+	return s.Access
+}
+
+// GetDescription returns the value of Description.
+func (s *CorePutCoreConnectionsIDOKToolsItem) GetDescription() string {
+	return s.Description
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *CorePutCoreConnectionsIDOKToolsItem) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetName returns the value of Name.
+func (s *CorePutCoreConnectionsIDOKToolsItem) GetName() string {
+	return s.Name
+}
+
+// SetAccess sets the value of Access.
+func (s *CorePutCoreConnectionsIDOKToolsItem) SetAccess(val CorePutCoreConnectionsIDOKToolsItemAccess) {
+	s.Access = val
+}
+
+// SetDescription sets the value of Description.
+func (s *CorePutCoreConnectionsIDOKToolsItem) SetDescription(val string) {
+	s.Description = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *CorePutCoreConnectionsIDOKToolsItem) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetName sets the value of Name.
+func (s *CorePutCoreConnectionsIDOKToolsItem) SetName(val string) {
+	s.Name = val
+}
+
+type CorePutCoreConnectionsIDOKToolsItemAccess string
+
+const (
+	CorePutCoreConnectionsIDOKToolsItemAccessRead  CorePutCoreConnectionsIDOKToolsItemAccess = "read"
+	CorePutCoreConnectionsIDOKToolsItemAccessWrite CorePutCoreConnectionsIDOKToolsItemAccess = "write"
+)
+
+// AllValues returns all CorePutCoreConnectionsIDOKToolsItemAccess values.
+func (CorePutCoreConnectionsIDOKToolsItemAccess) AllValues() []CorePutCoreConnectionsIDOKToolsItemAccess {
+	return []CorePutCoreConnectionsIDOKToolsItemAccess{
+		CorePutCoreConnectionsIDOKToolsItemAccessRead,
+		CorePutCoreConnectionsIDOKToolsItemAccessWrite,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutCoreConnectionsIDOKToolsItemAccess) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutCoreConnectionsIDOKToolsItemAccessRead:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDOKToolsItemAccessWrite:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutCoreConnectionsIDOKToolsItemAccess) UnmarshalText(data []byte) error {
+	switch CorePutCoreConnectionsIDOKToolsItemAccess(data) {
+	case CorePutCoreConnectionsIDOKToolsItemAccessRead:
+		*s = CorePutCoreConnectionsIDOKToolsItemAccessRead
+		return nil
+	case CorePutCoreConnectionsIDOKToolsItemAccessWrite:
+		*s = CorePutCoreConnectionsIDOKToolsItemAccessWrite
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePutCoreConnectionsIDReq struct {
+	Allow    []string                            `json:"allow"`
+	AssetID  OptNilString                        `json:"asset_id"`
+	AuthType CorePutCoreConnectionsIDReqAuthType `json:"auth_type"`
+	// True = forget the pinned certificate or host key; the next Test pins again. It is also forgotten
+	// when the kind changes or the host or port changes (a trailing slash or path does not count); a
+	// change of sign-in keeps it.
+	ClearPin OptBool                         `json:"clear_pin"`
+	Enabled  bool                            `json:"enabled"`
+	Kind     CorePutCoreConnectionsIDReqKind `json:"kind"`
+	Name     string                          `json:"name"`
+	// Leave blank when editing to keep the old secret.
+	Secret OptString `json:"secret"`
+	Target string    `json:"target"`
+	// Per-tool enable; tools not listed keep their state.
+	Tools []CorePutCoreConnectionsIDReqToolsItem `json:"tools"`
+	// Required for SSH and for Basic sign-in (400 username_required); 1 to 64 characters without spaces,
+	// colons or control characters; ignored for the other sign-ins.
+	Username OptNilString `json:"username"`
+}
+
+// GetAllow returns the value of Allow.
+func (s *CorePutCoreConnectionsIDReq) GetAllow() []string {
+	return s.Allow
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *CorePutCoreConnectionsIDReq) GetAssetID() OptNilString {
+	return s.AssetID
+}
+
+// GetAuthType returns the value of AuthType.
+func (s *CorePutCoreConnectionsIDReq) GetAuthType() CorePutCoreConnectionsIDReqAuthType {
+	return s.AuthType
+}
+
+// GetClearPin returns the value of ClearPin.
+func (s *CorePutCoreConnectionsIDReq) GetClearPin() OptBool {
+	return s.ClearPin
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *CorePutCoreConnectionsIDReq) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetKind returns the value of Kind.
+func (s *CorePutCoreConnectionsIDReq) GetKind() CorePutCoreConnectionsIDReqKind {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *CorePutCoreConnectionsIDReq) GetName() string {
+	return s.Name
+}
+
+// GetSecret returns the value of Secret.
+func (s *CorePutCoreConnectionsIDReq) GetSecret() OptString {
+	return s.Secret
+}
+
+// GetTarget returns the value of Target.
+func (s *CorePutCoreConnectionsIDReq) GetTarget() string {
+	return s.Target
+}
+
+// GetTools returns the value of Tools.
+func (s *CorePutCoreConnectionsIDReq) GetTools() []CorePutCoreConnectionsIDReqToolsItem {
+	return s.Tools
+}
+
+// GetUsername returns the value of Username.
+func (s *CorePutCoreConnectionsIDReq) GetUsername() OptNilString {
+	return s.Username
+}
+
+// SetAllow sets the value of Allow.
+func (s *CorePutCoreConnectionsIDReq) SetAllow(val []string) {
+	s.Allow = val
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *CorePutCoreConnectionsIDReq) SetAssetID(val OptNilString) {
+	s.AssetID = val
+}
+
+// SetAuthType sets the value of AuthType.
+func (s *CorePutCoreConnectionsIDReq) SetAuthType(val CorePutCoreConnectionsIDReqAuthType) {
+	s.AuthType = val
+}
+
+// SetClearPin sets the value of ClearPin.
+func (s *CorePutCoreConnectionsIDReq) SetClearPin(val OptBool) {
+	s.ClearPin = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *CorePutCoreConnectionsIDReq) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetKind sets the value of Kind.
+func (s *CorePutCoreConnectionsIDReq) SetKind(val CorePutCoreConnectionsIDReqKind) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *CorePutCoreConnectionsIDReq) SetName(val string) {
+	s.Name = val
+}
+
+// SetSecret sets the value of Secret.
+func (s *CorePutCoreConnectionsIDReq) SetSecret(val OptString) {
+	s.Secret = val
+}
+
+// SetTarget sets the value of Target.
+func (s *CorePutCoreConnectionsIDReq) SetTarget(val string) {
+	s.Target = val
+}
+
+// SetTools sets the value of Tools.
+func (s *CorePutCoreConnectionsIDReq) SetTools(val []CorePutCoreConnectionsIDReqToolsItem) {
+	s.Tools = val
+}
+
+// SetUsername sets the value of Username.
+func (s *CorePutCoreConnectionsIDReq) SetUsername(val OptNilString) {
+	s.Username = val
+}
+
+type CorePutCoreConnectionsIDReqAuthType string
+
+const (
+	CorePutCoreConnectionsIDReqAuthTypeNone   CorePutCoreConnectionsIDReqAuthType = "none"
+	CorePutCoreConnectionsIDReqAuthTypeToken  CorePutCoreConnectionsIDReqAuthType = "token"
+	CorePutCoreConnectionsIDReqAuthTypeBasic  CorePutCoreConnectionsIDReqAuthType = "basic"
+	CorePutCoreConnectionsIDReqAuthTypeSSHKey CorePutCoreConnectionsIDReqAuthType = "ssh-key"
+)
+
+// AllValues returns all CorePutCoreConnectionsIDReqAuthType values.
+func (CorePutCoreConnectionsIDReqAuthType) AllValues() []CorePutCoreConnectionsIDReqAuthType {
+	return []CorePutCoreConnectionsIDReqAuthType{
+		CorePutCoreConnectionsIDReqAuthTypeNone,
+		CorePutCoreConnectionsIDReqAuthTypeToken,
+		CorePutCoreConnectionsIDReqAuthTypeBasic,
+		CorePutCoreConnectionsIDReqAuthTypeSSHKey,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutCoreConnectionsIDReqAuthType) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutCoreConnectionsIDReqAuthTypeNone:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDReqAuthTypeToken:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDReqAuthTypeBasic:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDReqAuthTypeSSHKey:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutCoreConnectionsIDReqAuthType) UnmarshalText(data []byte) error {
+	switch CorePutCoreConnectionsIDReqAuthType(data) {
+	case CorePutCoreConnectionsIDReqAuthTypeNone:
+		*s = CorePutCoreConnectionsIDReqAuthTypeNone
+		return nil
+	case CorePutCoreConnectionsIDReqAuthTypeToken:
+		*s = CorePutCoreConnectionsIDReqAuthTypeToken
+		return nil
+	case CorePutCoreConnectionsIDReqAuthTypeBasic:
+		*s = CorePutCoreConnectionsIDReqAuthTypeBasic
+		return nil
+	case CorePutCoreConnectionsIDReqAuthTypeSSHKey:
+		*s = CorePutCoreConnectionsIDReqAuthTypeSSHKey
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePutCoreConnectionsIDReqKind string
+
+const (
+	CorePutCoreConnectionsIDReqKindHTTP            CorePutCoreConnectionsIDReqKind = "http"
+	CorePutCoreConnectionsIDReqKindSSH             CorePutCoreConnectionsIDReqKind = "ssh"
+	CorePutCoreConnectionsIDReqKindNetconfRestconf CorePutCoreConnectionsIDReqKind = "netconf-restconf"
+	CorePutCoreConnectionsIDReqKindAutomation      CorePutCoreConnectionsIDReqKind = "automation"
+	CorePutCoreConnectionsIDReqKindMcpHTTP         CorePutCoreConnectionsIDReqKind = "mcp-http"
+	CorePutCoreConnectionsIDReqKindMcpStdio        CorePutCoreConnectionsIDReqKind = "mcp-stdio"
+)
+
+// AllValues returns all CorePutCoreConnectionsIDReqKind values.
+func (CorePutCoreConnectionsIDReqKind) AllValues() []CorePutCoreConnectionsIDReqKind {
+	return []CorePutCoreConnectionsIDReqKind{
+		CorePutCoreConnectionsIDReqKindHTTP,
+		CorePutCoreConnectionsIDReqKindSSH,
+		CorePutCoreConnectionsIDReqKindNetconfRestconf,
+		CorePutCoreConnectionsIDReqKindAutomation,
+		CorePutCoreConnectionsIDReqKindMcpHTTP,
+		CorePutCoreConnectionsIDReqKindMcpStdio,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutCoreConnectionsIDReqKind) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutCoreConnectionsIDReqKindHTTP:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDReqKindSSH:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDReqKindNetconfRestconf:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDReqKindAutomation:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDReqKindMcpHTTP:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDReqKindMcpStdio:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutCoreConnectionsIDReqKind) UnmarshalText(data []byte) error {
+	switch CorePutCoreConnectionsIDReqKind(data) {
+	case CorePutCoreConnectionsIDReqKindHTTP:
+		*s = CorePutCoreConnectionsIDReqKindHTTP
+		return nil
+	case CorePutCoreConnectionsIDReqKindSSH:
+		*s = CorePutCoreConnectionsIDReqKindSSH
+		return nil
+	case CorePutCoreConnectionsIDReqKindNetconfRestconf:
+		*s = CorePutCoreConnectionsIDReqKindNetconfRestconf
+		return nil
+	case CorePutCoreConnectionsIDReqKindAutomation:
+		*s = CorePutCoreConnectionsIDReqKindAutomation
+		return nil
+	case CorePutCoreConnectionsIDReqKindMcpHTTP:
+		*s = CorePutCoreConnectionsIDReqKindMcpHTTP
+		return nil
+	case CorePutCoreConnectionsIDReqKindMcpStdio:
+		*s = CorePutCoreConnectionsIDReqKindMcpStdio
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePutCoreConnectionsIDReqToolsItem struct {
+	// Only for an MCP server (mcp-http): other kinds answer 400 invalid_tool_access, their tools are
+	// fixed. A tool found on an MCP server starts as write and off.
+	Access  OptCorePutCoreConnectionsIDReqToolsItemAccess `json:"access"`
+	Enabled bool                                          `json:"enabled"`
+	Name    string                                        `json:"name"`
+}
+
+// GetAccess returns the value of Access.
+func (s *CorePutCoreConnectionsIDReqToolsItem) GetAccess() OptCorePutCoreConnectionsIDReqToolsItemAccess {
+	return s.Access
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *CorePutCoreConnectionsIDReqToolsItem) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetName returns the value of Name.
+func (s *CorePutCoreConnectionsIDReqToolsItem) GetName() string {
+	return s.Name
+}
+
+// SetAccess sets the value of Access.
+func (s *CorePutCoreConnectionsIDReqToolsItem) SetAccess(val OptCorePutCoreConnectionsIDReqToolsItemAccess) {
+	s.Access = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *CorePutCoreConnectionsIDReqToolsItem) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetName sets the value of Name.
+func (s *CorePutCoreConnectionsIDReqToolsItem) SetName(val string) {
+	s.Name = val
+}
+
+// Only for an MCP server (mcp-http): other kinds answer 400 invalid_tool_access, their tools are
+// fixed. A tool found on an MCP server starts as write and off.
+type CorePutCoreConnectionsIDReqToolsItemAccess string
+
+const (
+	CorePutCoreConnectionsIDReqToolsItemAccessRead  CorePutCoreConnectionsIDReqToolsItemAccess = "read"
+	CorePutCoreConnectionsIDReqToolsItemAccessWrite CorePutCoreConnectionsIDReqToolsItemAccess = "write"
+)
+
+// AllValues returns all CorePutCoreConnectionsIDReqToolsItemAccess values.
+func (CorePutCoreConnectionsIDReqToolsItemAccess) AllValues() []CorePutCoreConnectionsIDReqToolsItemAccess {
+	return []CorePutCoreConnectionsIDReqToolsItemAccess{
+		CorePutCoreConnectionsIDReqToolsItemAccessRead,
+		CorePutCoreConnectionsIDReqToolsItemAccessWrite,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutCoreConnectionsIDReqToolsItemAccess) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutCoreConnectionsIDReqToolsItemAccessRead:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDReqToolsItemAccessWrite:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutCoreConnectionsIDReqToolsItemAccess) UnmarshalText(data []byte) error {
+	switch CorePutCoreConnectionsIDReqToolsItemAccess(data) {
+	case CorePutCoreConnectionsIDReqToolsItemAccessRead:
+		*s = CorePutCoreConnectionsIDReqToolsItemAccessRead
+		return nil
+	case CorePutCoreConnectionsIDReqToolsItemAccessWrite:
+		*s = CorePutCoreConnectionsIDReqToolsItemAccessWrite
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -69245,6 +69899,51 @@ func (o NilCoreGetCoreAccountOKUserTwofaMethod) Or(d CoreGetCoreAccountOKUserTwo
 	return d
 }
 
+// NewNilCoreGetCoreConnectionsOKItemsItemPin returns new NilCoreGetCoreConnectionsOKItemsItemPin with value set to v.
+func NewNilCoreGetCoreConnectionsOKItemsItemPin(v CoreGetCoreConnectionsOKItemsItemPin) NilCoreGetCoreConnectionsOKItemsItemPin {
+	return NilCoreGetCoreConnectionsOKItemsItemPin{
+		Value: v,
+	}
+}
+
+// NilCoreGetCoreConnectionsOKItemsItemPin is nullable CoreGetCoreConnectionsOKItemsItemPin.
+type NilCoreGetCoreConnectionsOKItemsItemPin struct {
+	Value CoreGetCoreConnectionsOKItemsItemPin
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCoreGetCoreConnectionsOKItemsItemPin) SetTo(v CoreGetCoreConnectionsOKItemsItemPin) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCoreGetCoreConnectionsOKItemsItemPin) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCoreGetCoreConnectionsOKItemsItemPin) SetToNull() {
+	o.Null = true
+	var v CoreGetCoreConnectionsOKItemsItemPin
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCoreGetCoreConnectionsOKItemsItemPin) Get() (v CoreGetCoreConnectionsOKItemsItemPin, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCoreGetCoreConnectionsOKItemsItemPin) Or(d CoreGetCoreConnectionsOKItemsItemPin) CoreGetCoreConnectionsOKItemsItemPin {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilCoreGetCoreNetworkOKPending returns new NilCoreGetCoreNetworkOKPending with value set to v.
 func NewNilCoreGetCoreNetworkOKPending(v CoreGetCoreNetworkOKPending) NilCoreGetCoreNetworkOKPending {
 	return NilCoreGetCoreNetworkOKPending{
@@ -69605,6 +70304,96 @@ func (o NilCorePatchCoreUsersIDOKUserTwofaMethod) Or(d CorePatchCoreUsersIDOKUse
 	return d
 }
 
+// NewNilCorePostCoreConnectionsCreatedPin returns new NilCorePostCoreConnectionsCreatedPin with value set to v.
+func NewNilCorePostCoreConnectionsCreatedPin(v CorePostCoreConnectionsCreatedPin) NilCorePostCoreConnectionsCreatedPin {
+	return NilCorePostCoreConnectionsCreatedPin{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreConnectionsCreatedPin is nullable CorePostCoreConnectionsCreatedPin.
+type NilCorePostCoreConnectionsCreatedPin struct {
+	Value CorePostCoreConnectionsCreatedPin
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreConnectionsCreatedPin) SetTo(v CorePostCoreConnectionsCreatedPin) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreConnectionsCreatedPin) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreConnectionsCreatedPin) SetToNull() {
+	o.Null = true
+	var v CorePostCoreConnectionsCreatedPin
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreConnectionsCreatedPin) Get() (v CorePostCoreConnectionsCreatedPin, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreConnectionsCreatedPin) Or(d CorePostCoreConnectionsCreatedPin) CorePostCoreConnectionsCreatedPin {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePostCoreConnectionsIDTestOKConnectorPin returns new NilCorePostCoreConnectionsIDTestOKConnectorPin with value set to v.
+func NewNilCorePostCoreConnectionsIDTestOKConnectorPin(v CorePostCoreConnectionsIDTestOKConnectorPin) NilCorePostCoreConnectionsIDTestOKConnectorPin {
+	return NilCorePostCoreConnectionsIDTestOKConnectorPin{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreConnectionsIDTestOKConnectorPin is nullable CorePostCoreConnectionsIDTestOKConnectorPin.
+type NilCorePostCoreConnectionsIDTestOKConnectorPin struct {
+	Value CorePostCoreConnectionsIDTestOKConnectorPin
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreConnectionsIDTestOKConnectorPin) SetTo(v CorePostCoreConnectionsIDTestOKConnectorPin) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreConnectionsIDTestOKConnectorPin) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreConnectionsIDTestOKConnectorPin) SetToNull() {
+	o.Null = true
+	var v CorePostCoreConnectionsIDTestOKConnectorPin
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreConnectionsIDTestOKConnectorPin) Get() (v CorePostCoreConnectionsIDTestOKConnectorPin, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreConnectionsIDTestOKConnectorPin) Or(d CorePostCoreConnectionsIDTestOKConnectorPin) CorePostCoreConnectionsIDTestOKConnectorPin {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilCorePostCoreNetworkManagementConfirmOKPending returns new NilCorePostCoreNetworkManagementConfirmOKPending with value set to v.
 func NewNilCorePostCoreNetworkManagementConfirmOKPending(v CorePostCoreNetworkManagementConfirmOKPending) NilCorePostCoreNetworkManagementConfirmOKPending {
 	return NilCorePostCoreNetworkManagementConfirmOKPending{
@@ -69869,6 +70658,51 @@ func (o NilCorePostCoreUsersCreatedUserTwofaMethod) Get() (v CorePostCoreUsersCr
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCorePostCoreUsersCreatedUserTwofaMethod) Or(d CorePostCoreUsersCreatedUserTwofaMethod) CorePostCoreUsersCreatedUserTwofaMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePutCoreConnectionsIDOKPin returns new NilCorePutCoreConnectionsIDOKPin with value set to v.
+func NewNilCorePutCoreConnectionsIDOKPin(v CorePutCoreConnectionsIDOKPin) NilCorePutCoreConnectionsIDOKPin {
+	return NilCorePutCoreConnectionsIDOKPin{
+		Value: v,
+	}
+}
+
+// NilCorePutCoreConnectionsIDOKPin is nullable CorePutCoreConnectionsIDOKPin.
+type NilCorePutCoreConnectionsIDOKPin struct {
+	Value CorePutCoreConnectionsIDOKPin
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePutCoreConnectionsIDOKPin) SetTo(v CorePutCoreConnectionsIDOKPin) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePutCoreConnectionsIDOKPin) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePutCoreConnectionsIDOKPin) SetToNull() {
+	o.Null = true
+	var v CorePutCoreConnectionsIDOKPin
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePutCoreConnectionsIDOKPin) Get() (v CorePutCoreConnectionsIDOKPin, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePutCoreConnectionsIDOKPin) Or(d CorePutCoreConnectionsIDOKPin) CorePutCoreConnectionsIDOKPin {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -82714,6 +83548,52 @@ func (o OptCorePatchCoreUsersIDReqRole) Or(d CorePatchCoreUsersIDReqRole) CorePa
 	return d
 }
 
+// NewOptCorePostCoreConnectionsReqToolsItemAccess returns new OptCorePostCoreConnectionsReqToolsItemAccess with value set to v.
+func NewOptCorePostCoreConnectionsReqToolsItemAccess(v CorePostCoreConnectionsReqToolsItemAccess) OptCorePostCoreConnectionsReqToolsItemAccess {
+	return OptCorePostCoreConnectionsReqToolsItemAccess{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCorePostCoreConnectionsReqToolsItemAccess is optional CorePostCoreConnectionsReqToolsItemAccess.
+type OptCorePostCoreConnectionsReqToolsItemAccess struct {
+	Value CorePostCoreConnectionsReqToolsItemAccess
+	Set   bool
+}
+
+// IsSet returns true if OptCorePostCoreConnectionsReqToolsItemAccess was set.
+func (o OptCorePostCoreConnectionsReqToolsItemAccess) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCorePostCoreConnectionsReqToolsItemAccess) Reset() {
+	var v CorePostCoreConnectionsReqToolsItemAccess
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCorePostCoreConnectionsReqToolsItemAccess) SetTo(v CorePostCoreConnectionsReqToolsItemAccess) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCorePostCoreConnectionsReqToolsItemAccess) Get() (v CorePostCoreConnectionsReqToolsItemAccess, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCorePostCoreConnectionsReqToolsItemAccess) Or(d CorePostCoreConnectionsReqToolsItemAccess) CorePostCoreConnectionsReqToolsItemAccess {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptCorePostCoreSetupReqAdmin returns new OptCorePostCoreSetupReqAdmin with value set to v.
 func NewOptCorePostCoreSetupReqAdmin(v CorePostCoreSetupReqAdmin) OptCorePostCoreSetupReqAdmin {
 	return OptCorePostCoreSetupReqAdmin{
@@ -82800,6 +83680,52 @@ func (o OptCorePostCoreSetupReqBundle) Get() (v CorePostCoreSetupReqBundle, ok b
 
 // Or returns value if set, or given parameter if does not.
 func (o OptCorePostCoreSetupReqBundle) Or(d CorePostCoreSetupReqBundle) CorePostCoreSetupReqBundle {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCorePutCoreConnectionsIDReqToolsItemAccess returns new OptCorePutCoreConnectionsIDReqToolsItemAccess with value set to v.
+func NewOptCorePutCoreConnectionsIDReqToolsItemAccess(v CorePutCoreConnectionsIDReqToolsItemAccess) OptCorePutCoreConnectionsIDReqToolsItemAccess {
+	return OptCorePutCoreConnectionsIDReqToolsItemAccess{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCorePutCoreConnectionsIDReqToolsItemAccess is optional CorePutCoreConnectionsIDReqToolsItemAccess.
+type OptCorePutCoreConnectionsIDReqToolsItemAccess struct {
+	Value CorePutCoreConnectionsIDReqToolsItemAccess
+	Set   bool
+}
+
+// IsSet returns true if OptCorePutCoreConnectionsIDReqToolsItemAccess was set.
+func (o OptCorePutCoreConnectionsIDReqToolsItemAccess) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCorePutCoreConnectionsIDReqToolsItemAccess) Reset() {
+	var v CorePutCoreConnectionsIDReqToolsItemAccess
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCorePutCoreConnectionsIDReqToolsItemAccess) SetTo(v CorePutCoreConnectionsIDReqToolsItemAccess) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCorePutCoreConnectionsIDReqToolsItemAccess) Get() (v CorePutCoreConnectionsIDReqToolsItemAccess, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCorePutCoreConnectionsIDReqToolsItemAccess) Or(d CorePutCoreConnectionsIDReqToolsItemAccess) CorePutCoreConnectionsIDReqToolsItemAccess {
 	if v, ok := o.Get(); ok {
 		return v
 	}

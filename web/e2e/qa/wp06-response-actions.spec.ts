@@ -3,7 +3,7 @@ import { collectErrors, expectAccessible } from '../helpers'
 import { begin, noHScroll, stepper, THEMES } from './wp06-shared'
 
 // WP-06 independent check, area 2: "As the admin I add my own response action for each kind of connection, and I use the template gallery."
-// Settings -> AI response -> Action catalog -> Add a custom action; Response -> Rules -> Template gallery; rule editor parameter types.
+// Connections: Settings -> Connections (a command-started MCP server is not supported, D-94, so it is not in this list). Settings -> AI response -> Action catalog -> Add a custom action; Response -> Rules -> Template gallery; rule editor parameter types.
 
 const KINDS = [
   { value: 'http', fields: { method: true, path: true, headers: true, body: true, cli: false, tool: false } },
@@ -11,18 +11,19 @@ const KINDS = [
   { value: 'netconf-restconf', fields: { method: true, path: true, headers: true, body: true, cli: false, tool: false } },
   { value: 'automation', fields: { method: true, path: true, headers: true, body: true, cli: false, tool: false } },
   { value: 'mcp-http', fields: { method: false, path: false, headers: false, body: false, cli: false, tool: true } },
-  { value: 'mcp-stdio', fields: { method: false, path: false, headers: false, body: false, cli: false, tool: true } },
 ]
 
 async function addConnection(page: Page, kind: string) {
-  await page.goto('/settings/ai?tab=connections')
+  await page.goto('/settings/connections')
   await page.getByRole('button', { name: /Add (a )?connection/i }).first().click()
   const d = page.getByRole('dialog')
   await d.locator('#cn-name').fill(`QA ${kind}`)
   await d.locator('#cn-kind').selectOption(kind)
-  const t = await d.locator('#cn-target').inputValue()
+  const t = { http: 'https://192.168.10.1', ssh: '192.168.10.30:22', 'netconf-restconf': 'https://192.168.10.2', automation: 'https://automation.example.local', 'mcp-http': 'https://mcp.example.local/mcp' }[kind]!
+  await d.locator('#cn-target').fill(t)
   if ((await d.locator('#cn-auth').inputValue()) !== 'none') await d.locator('#cn-secret').fill('secret-value-9z9z')
-  await d.locator('#cn-allow').fill(kind === 'ssh' ? 'uname -a' : kind === 'mcp-stdio' ? 'api.example.com' : t)
+  if (await d.locator('#cn-username').count()) await d.locator('#cn-username').fill('ops')
+  await d.locator('#cn-allow').fill(kind === 'ssh' ? 'uname -a' : t)
   await d.getByRole('button', { name: /^(Add|Save)/ }).last().click()
   await expect(page.getByRole('heading', { name: new RegExp(`QA ${kind}`) })).toBeVisible()
   // Write tools start OFF (D-41, D-51): the administrator turns the write tool on, then the connection can carry an action.

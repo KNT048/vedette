@@ -14,13 +14,17 @@ import (
 	"github.com/knt048/vedette/core/store/coredb"
 )
 
-// PrivacyFacts answers the three "is it set up" questions of the Privacy page that belong to other modules.
-// Core must not read their tables, so the binary supplies this port (cmd/vedette). A nil port, or a module
-// without a backend yet, gives the truth of today: no AI provider, default NTP servers, no OIDC issuer.
+// PrivacyFacts answers the "is it set up" questions of the Privacy page that belong to other modules or are not
+// stored by core yet. Core must not read their tables, so the binary supplies this port (cmd/vedette). A nil port,
+// or a module without a backend yet, gives the truth of today: no AI provider, default NTP servers, no OIDC issuer,
+// no connections.
 type PrivacyFacts interface {
 	AIConfigured(ctx context.Context) bool   // flow 3: a provider is configured
 	NTPPublic(ctx context.Context) bool      // flow 10: time requests leave the LAN
 	OIDCConfigured(ctx context.Context) bool // flow 11: an issuer is configured
+	// ConnectionsConfigured: flow 12 (D-93), at least one enabled connection exists, so requests may go to the
+	// address an administrator typed. Core stores the connections itself from slice 13b-4; until then the binary says false.
+	ConnectionsConfigured(ctx context.Context) bool
 }
 
 // The two switches are on when absent from the stored setting.
@@ -43,9 +47,9 @@ func (h *APIHandlers) privacySetting(ctx context.Context, q *coredb.Queries) (pr
 }
 
 func (h *APIHandlers) privacyFlows(ctx context.Context, p privacySetting) []oas.CoreGetCorePrivacyOKFlowsItem {
-	aiConf, ntpPub, oidcConf := false, true, false
+	aiConf, ntpPub, oidcConf, connConf := false, true, false, false
 	if h.facts != nil {
-		aiConf, ntpPub, oidcConf = h.facts.AIConfigured(ctx), h.facts.NTPPublic(ctx), h.facts.OIDCConfigured(ctx)
+		aiConf, ntpPub, oidcConf, connConf = h.facts.AIConfigured(ctx), h.facts.NTPPublic(ctx), h.facts.OIDCConfigured(ctx), h.facts.ConnectionsConfigured(ctx)
 	}
 	state := func(on bool) oas.CoreGetCorePrivacyOKFlowsItemState {
 		if on {
@@ -77,6 +81,7 @@ func (h *APIHandlers) privacyFlows(ctx context.Context, p privacySetting) []oas.
 		{ID: 9, State: state(h.reg.Enabled("exposure")), Control: rs},
 		{ID: 10, State: state(ntpPub), Control: rs},
 		{ID: 11, State: cond(h.reg.Enabled("auth-oidc") && oidcConf), Control: rs},
+		{ID: 12, State: state(connConf), Control: rs}, // core cannot be turned off, so there is no module condition
 	}
 }
 

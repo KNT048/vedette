@@ -33,7 +33,7 @@
   "blocked": {
     "execution_off": "Execution is off. Turn it on in Settings, AI response (high risk).",
     "tool_not_allowed": "This action is not enabled. Enable it in Settings, AI response (high risk).",
-    "tool_unavailable": "The connection or its write tool is turned off in Settings, AI assistant.",
+    "tool_unavailable": "The connection or its write tool is turned off in Settings → Connections.",
     "toSettings": "Open settings"
   },
   "requests": {
@@ -311,7 +311,7 @@
     "setupTitle": "Set up your firewall",
     "setupDescription": "Pick your firewall and follow the steps. The address above is already filled in.",
     "pushTitle": "Push instead of pull",
-    "pushBody": "When the firewall cannot fetch a list, Vedette can change it through an API or SSH connection (Settings, AI assistant, Connections) with the action Block an IP address on the office firewall. Push needs a write credential on the firewall, so it needs your approval each time unless you set the rule to automatic.",
+    "pushBody": "When the firewall cannot fetch a list, Vedette can change it through an API or SSH connection (Settings → Connections) with the action Block an IP address on the office firewall. Push needs a write credential on the firewall, so it needs your approval each time unless you set the rule to automatic.",
     "regenerateTitle": "Regenerate the token?",
     "regenerateBody": "The current address stops working at once. Update the address on your firewall afterwards, or it will keep an old list.",
     "regenerated": "New token created"
@@ -387,8 +387,8 @@
     "body": "API body (JSON, optional)",
     "readOnly": "Read-only: this connection has no write tools",
     "needConnection": "The connection you need is not listed? Add one first; typed text here is not kept.",
-    "toConnections": "Open Settings, AI assistant, Connections",
-    "noWritable": "No connection has write tools yet. Turn on a write tool in Settings, AI assistant.",
+    "toConnections": "Open Settings → Connections",
+    "noWritable": "No connection has write tools yet. Turn on a write tool in Settings → Connections.",
     "chooseConnection": "Choose a connection",
     "chooseMethod": "Choose a method",
     "tool": "Write tool",

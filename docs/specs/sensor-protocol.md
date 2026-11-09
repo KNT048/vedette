@@ -1,270 +1,358 @@
-# Sensor protocol: sensor ↔ core
+# Sensor protocol: `sensor`/`scan` ↔ `core` (hồ sơ appliance)
 
-Trạng thái: bản nháp M2-0 (docs-first), 2026-11-09. Văn xuôi tiếng Việt (D-28 cho tài liệu nội bộ); tên trường, thông điệp, đường dẫn bằng tiếng Anh.
-Truy vết: D-8, D-24, D-43, D-44, D-50, D-55, D-56; `ARCHITECTURE.md` §3 và §4; story S-INV-1, S-INV-3, S-HP-1, S-HP-2, S-LOG-1, S-LOG-2, S-LOG-4, S-RESP-3.
+Trạng thái: **chốt trên giấy ở lát SP-0** (2026-11-10, D-109…D-116), chưa có mã; thay bản nháp M2-0 (2026-11-09). Văn xuôi tiếng Việt (D-28 cho tài liệu nội bộ); tên trường, mã lỗi, đường dẫn bằng tiếng Anh.
+Truy vết: D-24, D-26, D-43, D-55, D-56, D-57 (2)(5)(18), D-80, D-84, D-89, D-105, D-109…D-116; `ARCHITECTURE.md` §2, §6, TB-9; `DEPLOYMENT.md` §2.2, §2.4, §6.1; story S-INV-1, S-INV-3, S-SCAN-4.
 
-## 1. Mục đích
+## 1. Mục đích và phạm vi
 
-Định nghĩa giao thức giữa `sensor` và `core` để hai bên **tách được từ ngày đầu** (ARCHITECTURE §3) mà không đổi mã:
+Hồ sơ **appliance**: hai container trên cùng một hộp nói với `core` qua `127.0.0.1:8444`:
 
-- trong appliance, `sensor` và `core` là hai container trên cùng một máy (D-55), nói đúng giao thức này qua loopback;
-- khi tách (sensor ở máy khác trong cùng một site), cùng giao thức đó đi qua LAN.
+- `sensor`: bắt gói thụ động (nửa `capture` của module `sensor-passive`), mạng host, `NET_RAW`;
+- `scan`: worker nmap của module `sensor-active`, mạng host, `NET_RAW`.
 
-Giao thức chỉ có **một chiều khởi tạo**: sensor gọi ra, core không bao giờ gọi vào sensor. Lệnh từ core tới sensor là một hàng đợi mà sensor tự hỏi (poll).
+Cả hai chạy cùng binary `vedette-sensor` (lệnh con `passive`, `active`, `healthcheck`; D-114). Chiều khởi tạo **chỉ một**: sensor gọi ra, `core` không bao giờ gọi vào sensor; lệnh từ `core` tới bằng long-poll (D-109).
 
-Ngoài phạm vi: nhiều site / nhiều sensor ở site khác (D-24: chưa hỗ trợ, không lộ ra GUI); osquery và Wazuh (xem `osquery-intake.md`); log syslog của thiết bị khác tới sensor (xem §5.3 chỉ nói phần chuyển tiếp).
+Ngoài phạm vi hồ sơ này:
+- sensor đặt ở máy khác, enroll, gia hạn qua mạng, thu hồi bằng tay (D-115; thiết kế cũ ở phụ lục A);
+- syslog và metadata SPAN (`logs` chưa xây), honeypot (đi qua tệp, D-89), osquery (`osquery-intake.md`), SNMP (D-84 (3)), job nuclei của module `scan` (để sau; sẽ là một loại job mới trên cùng kênh `jobs`).
 
-## 2. Actors
+## 2. Actors và vai
 
-| Actor | Vai trò | Ghi chú |
+| Actor | Vai | Ghi chú |
 |---|---|---|
-| `core` | máy chủ giao thức; giữ CA nội bộ, DB, tập IOC, cấu hình | container `core` |
-| `sensor` | thu: thụ động (ARP/DHCP/mDNS/SSDP/LLDP), SPAN metadata (D-43), syslog nhận vào, quét chủ động theo lệnh | container `sensor`, mạng host, `CAP_NET_RAW` (D-55) |
-| `honeypot` | OpenCanary trên IP phụ (macvlan) và honey token (D-50) | container riêng; xem §5.4 về việc nó đi qua đâu |
-| Quản trị viên | tạo token enroll của sensor tách rời | **chưa có story/GUI** (D-24); xem §12 |
+| `core` | máy chủ giao thức; CA của sensor (D-110); giữ DB, chính sách, sự đồng ý quét | container `core`, listener thứ hai `:8444`, publish `127.0.0.1:8444` |
+| `sensor` | vai **`passive`**: nhận `config`, gửi quan sát và heartbeat | `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, chỉ `NET_RAW` (D-114) |
+| `scan` | vai **`active`**: nhận job nmap, gửi kết quả và heartbeat | như `sensor`; image dựng trên hộp (D-113 (7)) |
+| `vedette-host` | dựng unit hằng gắn volume khoá theo vai | không bao giờ thấy khoá (D-87, D-110 (6)) |
 
-Mô hình tin cậy: sensor là **máy bị tấn công được** (đứng trên LAN, nhận dữ liệu từ kẻ tấn công). Core coi mọi thứ sensor gửi là dữ liệu không tin cậy về nội dung (SYS-6), nhưng tin danh tính sensor sau mTLS.
+Mô hình tin cậy: sensor là **máy bị tấn công được** (nằm trên LAN, đọc gói và phản hồi do kẻ tấn công điều khiển). `core` tin **danh tính vai** sau mTLS, không tin **nội dung** (SYS-6): mọi thứ sensor gửi bị kiểm kích thước, kiểu, hạn mức và kẹp độ tin cậy ở `core`.
 
-## 3. Transport và xác thực
+## 3. Transport (D-109)
 
-- HTTPS/1.1 JSON (`Content-Type: application/json`, tuỳ chọn `Content-Encoding: gzip` cho request). TLS 1.3 tối thiểu.
-- Tiền tố đường dẫn: `/sensor/v1/…`. Cổng: **chưa chốt** (§12); mặc định đề xuất là một listener riêng với cổng UI `8443` vì listener này **bắt buộc** chứng chỉ client còn listener UI thì không.
-- Chứng chỉ máy chủ: do CA nội bộ của hộp cấp (cùng CA mà `/api/v1/intake/ca.pem` công bố cho osquery, `osquery-intake.md` §4). Sensor **ghim CA** bằng vân tay SHA-256 truyền lúc enroll (`--ca-sha256`); không có vân tay thì từ chối enroll (không TOFU âm thầm).
-- Chứng chỉ client: ECDSA P-256, `CN=sensor:<sensor_id>`, SAN URI `vedette:sensor:<sensor_id>`, thời hạn mặc định 90 ngày (tham số), core cấp khi enroll.
-- Phân quyền: chứng chỉ chỉ mở các endpoint dưới `/sensor/v1/`. Mọi request mang `X-Vedette-Proto: 1` và `X-Vedette-Sensor-Version: <semver>`.
-- Thu hồi: core giữ `sensor_id → status` (`active | revoked`) và kiểm ở **mỗi** request (không dựa vào CRL phân phối). Thu hồi → `403 sensor_revoked`.
+- HTTPS, JSON (`Content-Type: application/json`), không nén (`Content-Encoding` bất kỳ → `400 invalid_request`). TLS **1.3** tối thiểu; HTTP/2 khi ALPN đề nghị, không bắt buộc.
+- Listener riêng của `core` (`:8444` trong container), tách khỏi listener UI 8443; trên appliance chỉ publish `127.0.0.1:8444` (`DEPLOYMENT.md` §6.1). `ClientAuth = RequireAndVerifyClientCert`, pool chỉ chứa CA sensor.
+- Tiền tố `/sensor/v1/`. Mọi request mang `X-Vedette-Proto: 1`.
+- `ReadHeaderTimeout` 5 s, `WriteTimeout` 35 s (long-poll giữ tối đa 30 s).
+- Thân: `http.MaxBytesReader` theo trần của route (§9) **trước** khi giải mã; giải mã bằng `internal/jsonstrict` (trường lạ, khoá trùng, khoá trùng sau gập chữ, độ sâu > 32 → `400 invalid_request`). Query lạ → `400 invalid_request`.
+- Sensor đọc phản hồi của `core` cũng có trần (config ≤ 64 KiB, jobs ≤ 64 KiB, phản hồi khác ≤ 16 KiB) và giải mã chặt như `core`.
 
-### 3.1 Enroll
+## 4. Chứng chỉ và danh tính (D-110)
 
-Token enroll của sensor: một lần dùng, hết hạn mặc định 1 giờ, thu hồi được, **chỉ trong header `Authorization: Bearer`**, không bao giờ trong URL (cùng nguyên tắc D-34). Trên appliance, installer sinh token cục bộ vào volume dùng chung; người dùng không thấy.
+| Mục | Quy tắc |
+|---|---|
+| CA | ECDSA P-256, 10 năm, do `core` tạo lần đầu; khoá lưu qua `core/secrets` (AES-256-GCM, `master.key`). **Chỉ** ký lá cho listener 8444 và cho sensor; tách khỏi chứng chỉ 8443 và CA osquery tương lai (`osquery-intake.md` §4). Khôi phục không có `master.key` → CA mới, lá mới |
+| Lá máy chủ | EKU **chỉ** `serverAuth`; SAN `IP:127.0.0.1` và `DNS:core` (profile compose); 7 ngày |
+| Lá sensor | EKU **chỉ** `clientAuth`; **đúng một** URI SAN: `vedette:sensor:passive` hoặc `vedette:sensor:active`; không dùng CN để quyết định gì; 7 ngày; serial ghi ở `core_sensor_cert(role, serial, not_after, retired_at)` |
+| Xoay vòng | `core` kiểm lúc khởi động và mỗi ngày; lá còn ≤ 1/3 thời hạn thì cấp mới; serial cũ hơn "ngay trước" được đặt `retired_at` |
+| Giao khoá | lúc khởi động, **trước khi nghe**, và mỗi lần xoay: `core` sinh khoá, ghi **một** bó PEM (khoá, lá, CA) vào `<creds>/<role>/sensor.pem` qua `os.OpenRoot`, tệp tạm `O_EXCL\|O_NOFOLLOW`, fsync, `Rename`; mode `0640`, chủ `core_uid:sensor_gid`. `core` **không bao giờ đọc lại** tệp (mẫu D-89) |
+| Phía sensor | gắn volume khoá của đúng vai **chỉ đọc** (D-114 (4)); đọc lại bó trong `GetClientCertificate` khi mtime đổi; sau khi đổi, đóng kết nối rảnh. Bó hỏng hoặc đang ghi dở → giữ bó cũ trong bộ nhớ, thử lại sau 5 s |
+| Phía sensor kiểm máy chủ | chuỗi tới CA trong bó, EKU `serverAuth`, tên `127.0.0.1` (hoặc `core` ở compose) |
 
-`POST /sensor/v1/enroll` (TLS một chiều, chưa có chứng chỉ client)
+**Kiểm của `core`** (thứ tự):
+1. Handshake: chuỗi tới CA sensor (hạn, chữ ký), EKU `clientAuth`, đúng một URI SAN thuộc hai vai, serial là serial **hiện hành hoặc ngay trước** của vai đó. Sai bất kỳ → handshake hỏng (không có phản hồi HTTP). `VerifyConnection` chạy cả trên kết nối nối lại (TLS 1.3 resumption).
+2. **Mỗi request**: kiểm lại serial (một kết nối keep-alive sống lâu hơn lần về hưu của serial) → `403 cert_retired`.
 
-| Trường (request) | Kiểu | Bắt buộc | Quy tắc |
+Thu hồi chủ động không có giao diện (D-115); thu hồi = xoay vòng (serial cũ về hưu) cộng hạn 7 ngày (thu hồi thụ động).
+
+## 5. Quy ước chung
+
+- Thời điểm: RFC 3339 UTC. Id job: 32 hex chữ thường (128 bit ngẫu nhiên). `epoch`: 32 hex chữ thường.
+- Lỗi: `{ "error": { "code": "snake_case", "message": "English text" } }`; `code` là hợp đồng, `message` chỉ để đọc. 429 và 503 có tiêu đề `Retry-After` (giây).
+- `version`: SemVer 2.0, ≤ 64 byte.
+- Tên card: `^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,14}$`; MAC: `^([0-9a-f]{2}:){5}[0-9a-f]{2}$`; IP qua `netip` (IPv4/IPv6 unicast); địa chỉ của card dạng tiền tố (`192.168.10.5/24`) qua `netip.ParsePrefix`.
+- Chuỗi văn bản tự do: UTF-8 hợp lệ, không ký tự điều khiển C0/C1, bidi, phân cách dòng/đoạn, Unicode Cf (như sensor-passive INV-3); sai → mục bị từ chối, không cắt ở `core`.
+
+## 6. Route theo vai (D-111)
+
+| Vai | Route | Thân request (trần) | Trả |
 |---|---|---|---|
-| `csr` | string (PEM PKCS#10) | có | khoá ECDSA P-256; core bỏ mọi subject/SAN do sensor đặt và tự ghi |
-| `name` | string | có | regex `^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$` |
-| `version` | string | có | semver |
-| `interfaces` | string[] | không | tên card (`^[a-z0-9._-]{1,15}$`), tối đa 16 |
-| `capabilities` | string[] | không | tập con của `passive`, `span`, `active_scan`, `syslog` |
+| `passive` | `GET /sensor/v1/config?wait=<0..30>` | — | `200` cấu hình + `ETag`, hoặc `304` |
+| `passive` | `POST /sensor/v1/observations` | ≤ 1 MiB | `200 {ack_seq, rejected[]}` |
+| `passive`, `active` | `POST /sensor/v1/heartbeat` | ≤ 64 KiB | `200 {instance}` |
+| `active` | `GET /sensor/v1/jobs?wait=<0..30>&running=<id\|>` | — | `200 {instance, jobs[], cancel[]}` |
+| `active` | `POST /sensor/v1/jobs/{id}/result` | ≤ 11 MiB | `204` |
 
-Response `201`: `{ "sensor_id": "sn_…", "certificate": "<PEM>", "ca": "<PEM>", "not_after": "<RFC3339>", "poll": { "commands_wait_s": 25 } }`.
+Mọi cặp (method, đường dẫn) khác, kể cả route của vai kia → `403 forbidden_route`, kiểm **trước khi đọc thân**. Mỗi vai tối đa **một** long-poll đang mở; cái thứ hai → `409 poll_in_progress`. Module của vai tắt (`sensor-passive` cho `passive`, `sensor-active` cho `active`) → mọi route của vai `409 module_off`.
 
-Lỗi: `401 invalid_token`, `403 token_expired | token_used`, `400 invalid_csr`, `409 name_taken`.
+### 6.1 `GET /sensor/v1/config` (passive)
 
-Gia hạn: `POST /sensor/v1/renew` (mTLS, body `{ "csr": "…" }`) khi còn ≤ 1/3 thời hạn; trả chứng chỉ mới cùng `sensor_id`. Chứng chỉ hết hạn → phải enroll lại bằng token mới.
+Long-poll có điều kiện: sensor gửi `If-None-Match: "<etag>"` của bản đang dùng (lần đầu không có). `core` trả ngay `200` khi ETag khác; còn lại giữ tới `wait` giây (mặc định 25) rồi trả `304` không thân. `SetInterface` (đổi card/SPAN ở Box network) và đổi bộ lọc đánh thức long-poll đang mở (thay kênh `reload` trong tiến trình; D-114 (1)).
 
-## 4. Quy ước chung
+```json
+{ "interface": "enp2s0", "span": true,
+  "extract": { "dns": true, "sni": true, "http": false, "flows": true },
+  "filters": [ { "type": "cidr", "value": "10.0.5.0/24" }, { "type": "port", "value": "443" } ] }
+```
 
-- Mọi thời điểm: RFC 3339 UTC. Mọi id: chuỗi ASCII ≤ 64 ký tự.
-- Mọi response lỗi: `{ "error": { "code": "snake_case", "message": "English text", "retry_after_s": 30? } }`. `code` là hợp đồng; `message` chỉ để người đọc.
-- Trường lạ trong request: **bỏ qua** (tương thích tiến); trường bắt buộc thiếu hoặc sai kiểu: từ chối sự kiện đó (§5.5).
+| Trường | Quy tắc |
+|---|---|
+| `interface` | tên card hoặc `""` = **không bắt gói** (module chưa cấu hình, hoặc fail-closed) |
+| `span` | card là cổng SPAN/TAP (không IP; D-56) |
+| `extract` | bốn công tắc trích metadata SPAN (D-43). Metadata **không** đi trên dây ở hồ sơ này (D-112 (7)): sensor trích theo công tắc cho bộ đếm và hạn mức, rồi bỏ |
+| `filters[]` | luật loại trừ `{type: cidr\|host\|port, value}` (sensor-passive INV-7) |
 
-## 5. Lô sự kiện
+Fail-closed (D-80 (3)): `core` không đọc được bộ lọc → `interface: ""`. Sensor nhận `interface` khác bản đang chạy → đóng card cũ, mở card mới; `""` → dừng bắt gói ngay, không xả lô cuối.
 
-### 5.1 Phong bì
+### 6.2 `POST /sensor/v1/observations` (passive)
 
-`POST /sensor/v1/events`
+```json
+{ "epoch": "3f9c…(32 hex)", "seq": 41,
+  "items": [ { "mac": "aa:bb:cc:dd:ee:01", "ip": "192.168.10.23", "field": "hostname", "value": "printer-3f",
+               "confidence": 0.6, "seen_at": "2026-11-10T08:00:01Z" } ] }
+```
 
-| Trường | Kiểu | Quy tắc |
-|---|---|---|
-| `epoch` | string | đổi khi sensor mất kho cục bộ hoặc cài lại; mỗi epoch có dãy `seq` riêng |
-| `batch_id` | string (uuid) | chỉ để theo dõi/log; **không** là khoá idempotency |
-| `sent_at` | datetime | |
-| `events` | object[] | 1 … 500 phần tử, tăng dần theo `seq` |
+| Trường | Quy tắc |
+|---|---|
+| `epoch` | 32 hex ngẫu nhiên, sinh mỗi lần tiến trình sensor khởi động |
+| `seq` | số nguyên 1 … 2^53−1, tăng dần trong một epoch |
+| `items` | 1 … 500 mục |
+| `items[].mac`, `.ip` | tuỳ chọn, ít nhất một trong hai; IP phải unicast |
+| `items[].field` | ∈ `observe.Field`: `hostname`, `mac`, `vendor`, `model`, `os`, `kind` |
+| `items[].value` | 1 … 200 byte, văn bản sạch (§5) |
+| `items[].confidence` | 0 … 1; `core` kẹp theo trần của thang thụ động cho từng trường (sensor-passive CONTRACT, "Thang tin cậy") |
+| `items[].seen_at` | trong khoảng 24 giờ trước tới 5 phút sau giờ `core` |
+| (không có) `source` | `core` đặt `passive` theo vai; trường `source` trong thân → `400 invalid_request` (trường lạ) |
 
-Mỗi phần tử trong `events`: `{ "seq": uint64, "type": "<type>", "observed_at": datetime, "payload": { … } }`.
+**Epoch và seq** (D-112 (2)). `core` giữ `sp_seq(sensor_id, epoch, last_seq)` với `sensor_id = sn-local` (sensor của chính hộp) và chỉ **2 epoch mới nhất** (epoch thứ ba xoá cái cũ nhất). Lô có `seq ≤ last_seq` của epoch đó → `200`, `ack_seq = seq`, `rejected: []`, không ghi lại (POST-3). Không có `seq_gap`: seq chỉ chống phát lại, khoảng trống là bình thường (lô bị bỏ).
 
-Response `200`: `{ "ack_seq": uint64, "rejected": [ { "seq": n, "code": "invalid_payload", "field": "payload.dest" } ] }`.
+**Xử lý** (một lô): (1) kiểm từng mục (§5, bảng trên) → mục sai vào `rejected[]`; (2) hạn mức chống ngập ở `core` (D-111 (2)): MAC chưa từng thấy ≤ 60 mỗi phút và ≤ 200 mỗi giờ, giá trị mới ≤ 4 mỗi (MAC, trường) mỗi giờ, map trong bộ nhớ theo MAC (lặp lại giá trị đã cho qua không tính là mới); vượt → `budget_exhausted`; (3) `SubmitBatch` với các mục còn lại; `observe.ErrRejected{Index}` của inventory → mục đó vào `rejected[]` với `refused`, gửi lại phần còn lại trong cùng request; (4) lưu `seq`.
 
-### 5.2 `seq` và idempotency
+Trả `200 { "ack_seq": 41, "rejected": [ { "index": 3, "code": "budget_exhausted" } ] }`: **thành công một phần, không bao giờ thử lại** (D-112 (3)). Mã của mục (tập đóng):
 
-- `seq` là bộ đếm tăng đơn điệu **mỗi (sensor_id, epoch)**, bắt đầu từ 1, ghi bền xuống WAL cục bộ **trước khi** gửi.
-- Core giữ `last_seq` cho mỗi (sensor_id, epoch) và dùng khoá duy nhất `(sensor_id, epoch, seq)`.
-- Sự kiện có `seq ≤ last_seq` → **bỏ qua, vẫn tính là đã ack** (gửi lại sau mất kết nối là an toàn).
-- Có khoảng trống (`seq > last_seq + 1`) → `409 seq_gap` với `{ "expected": last_seq + 1 }`; sensor gửi lại từ `expected` (nó giữ WAL tới khi nhận `ack_seq`).
-- `ack_seq` = `seq` cao nhất đã xử lý liên tục (kể cả sự kiện bị `rejected`; sự kiện hỏng không được chặn dãy).
-- Epoch mới: core thấy `epoch` lạ → mở dãy mới, ghi `core_audit` (`sensor.epoch_reset`).
-- Sensor ngắt kết nối: lùi theo cấp số nhân 1 s → 60 s, có jitter. WAL cục bộ có trần (§9); đầy → bỏ sự kiện **cũ nhất loại `logs.*`** trước, ghi bộ đếm `dropped` trong heartbeat; `honeypot.hit` và `inventory.observation` bỏ sau cùng.
+| `code` | Nghĩa |
+|---|---|
+| `invalid_item` | sai kiểu/regex/trần, `field` lạ, thiếu cả `mac` lẫn `ip`, văn bản bẩn |
+| `out_of_window` | `seen_at` ngoài cửa sổ thời gian |
+| `budget_exhausted` | vượt hạn mức chống ngập của `core` |
+| `refused` | inventory từ chối ở biên (`observe.ErrRejected`) |
 
-### 5.3 Các loại sự kiện
+Kho bận (SQLite busy, `Write` hết hạn) → `503 store_busy` cho cả lô, không mục nào được ghi hay tính hạn mức.
 
-Tất cả `payload` có giới hạn kích thước ở §9; chuỗi tự do bị cắt, không bị từ chối.
+### 6.3 `POST /sensor/v1/heartbeat` (cả hai vai)
 
-**`inventory.observation`** (map 1–1 vào `inv_observation`, ARCHITECTURE §4, không ghi đè)
+Mỗi 30 s. Thân theo vai (giải mã chặt: trường của vai kia là trường lạ):
 
-| Trường | Kiểu | Ghi chú |
-|---|---|---|
-| `mac` | string? | `^([0-9a-f]{2}:){5}[0-9a-f]{2}$` |
-| `ip` | string? | IPv4/IPv6 qua `netip`; ít nhất một trong `mac`, `ip` |
-| `source` | enum | `passive` \| `nmap` \| `snmp` (hai nguồn còn lại của ARCH §4 là `agent`, `manual` không đi qua sensor) |
-| `field` | string | `hostname`, `vendor`, `model`, `os`, `kind`, `service`, `lldp_neighbor`… theo từ điển của `inv_observation` |
-| `value` | string | ≤ 512 ký tự |
-| `confidence` | number 0–1 | |
-| `evidence` | string? | ≤ 1 KiB (ví dụ trích banner) |
+```json
+{ "version": "1.4.0",
+  "interfaces": [ { "name": "enp1s0", "mac": "aa:bb:cc:00:00:01", "link": true, "ipv4": ["192.168.10.5/24"] },
+                  { "name": "enp2s0", "mac": "aa:bb:cc:00:00:02", "link": true, "ipv4": [] } ],
+  "span": { "pps": 1200, "other_macs": 37, "last_packet_at": "2026-11-10T08:00:29Z" },
+  "drops": { "malformed_dhcp": 2, "new_macs_dropped": 0 },
+  "devices_seen": 214 }
+```
 
-**`logs.batch`** (syslog sensor nhận từ firewall/DNS/proxy, S-LOG-1)
+```json
+{ "version": "1.4.0", "nmap": { "present": true, "version": "7.94SVN" } }
+```
 
-| Trường | Kiểu | Ghi chú |
-|---|---|---|
-| `source_ip` | string | địa chỉ gửi syslog |
-| `transport` | enum | `udp` \| `tcp` \| `tls` |
-| `lines` | string[] | dòng thô, ≤ 200 dòng, mỗi dòng ≤ 8 KiB (dư bị cắt, `truncated: true`) |
-| `received_from` | datetime | thời điểm nhận dòng đầu |
+| Trường | Quy tắc |
+|---|---|
+| `interfaces` (passive) | ≤ 32 card; `ipv4` ≤ 8 tiền tố mỗi card |
+| `span` (passive) | `pps` ≥ 0; `other_macs` = số MAC khác hộp thấy trong 5 phút (chỉ khung unicast giữa hai máy không phải hộp, sensor-passive INV-9); `last_packet_at` hoặc `null` |
+| `drops` (passive) | ≤ 64 khoá thuộc **tập đóng** của bộ đếm bỏ trong `capture` (`malformed_*`, `excluded`, `value_empty`, `fragment_skipped`, `new_macs_unconfirmed`, `new_macs_dropped`, `values_dropped`, `observation_failed`…; danh sách chốt trong mã ở SP-4); giá trị ≥ 0 |
+| `devices_seen` (passive) | ≥ 0 |
+| `nmap` (active) | `present` = `/usr/bin/nmap` có và chạy được `--version`; `version` ≤ 32 byte |
 
-Sensor **không phân tích** dòng syslog; parser theo hãng nằm trong gói nội dung ký của core (UPDATES kênh 2) nên sensor không cần cập nhật khi thêm nguồn. Core gộp, tính baseline (S-LOG-1).
+Trả `200 { "instance": "<32 hex>" }`: nonce sinh mỗi lần tiến trình `core` khởi động (lease của §6.4).
 
-**`logs.ioc_hit`** (S-LOG-2, S-LOG-4, D-43; chỉ từ **metadata SPAN**, không lưu payload)
+`core` dùng heartbeat cho (D-112 (5)):
+- `Sensor.status`: `online` khi có heartbeat trong **90 s**; `last_seen`, `version`, `devices_seen`, `interfaces` (tên card) của `GET /inventory/sensors` lấy từ heartbeat thụ động mới nhất;
+- `SpanStats()` / `span_status`: `off` (cấu hình `span=false`), `no_link` (card SPAN `link=false`), `no_traffic` (`last_packet_at` cũ hơn 30 s, `null`, hoặc sensor `offline`), `own_only` (`other_macs = 0`), `ok`;
+- `SetInterface`: `interface` phải là một card trong heartbeat thụ động mới nhất (`400 bad_interface`, sensor-passive INV-9); chưa có heartbeat → `bad_interface`;
+- địa chỉ của hộp (`ProtectedIPs` của sensor-active, kiểm IP bẫy của honeypot, `conn`) **tới khi** lát host 3-3 có `GET /v1/state/net` (D-114 (5));
+- sức khoẻ `sensor-active`: `unavailable` khi 90 s không có heartbeat `active` hoặc `nmap.present=false` (INV-6).
 
-| Trường | Kiểu | Ghi chú |
-|---|---|---|
-| `src_ip` | string | thiết bị trong LAN |
-| `src_mac` | string? | |
-| `dest` | string | IP hoặc domain/SNI/Host |
-| `dest_kind` | enum | `ip` \| `domain` |
-| `seen_via` | enum | `span_dns` \| `span_sni` \| `span_http` \| `span_flow` (đúng bộ giá trị của `IocHit.seen_via` trong mock; hit từ syslog được **core** tạo, không phải sensor) |
-| `ioc_set_version` | string | phiên bản tập IOC sensor đã khớp |
-| `count` | int | số lần gộp trong cửa sổ ≤ 60 s cùng `(src_ip, dest)` |
+Heartbeat không có trong 90 s không xoá dữ liệu nào; chỉ đổi trạng thái hiển thị.
 
-`feeds[]` và `confidence` do **core** điền khi tra lại `dest` trong `feeds_ioc` (sensor không quyết định độ tin cậy; tránh sensor bị chiếm tự gán độ tin cậy cao để kích hoạt phản ứng, D-44/D-51). Sensor khớp cục bộ bằng tập IOC kéo về ở §6.2.
+### 6.4 `GET /sensor/v1/jobs` (active): job, huỷ, lease
 
-**`honeypot.hit`** (S-HP-1, S-HP-2, D-50; khớp `Hit` trong mock honeypot)
+`core` giữ request tới `wait` giây (mặc định 25) và trả **ngay** khi có job mới hoặc lệnh huỷ; hết giờ trả mảng rỗng (luôn `200`, để worker luôn nhận `instance`).
 
-| Trường | Kiểu | Ghi chú |
-|---|---|---|
-| `kind` | enum | `service` \| `token` \| `scan` |
-| `service` | string? | `smb`, `rdp`, `ssh`, `mssql`, `http`… khi `kind=service` |
-| `label` | string | ≤ 200 ký tự |
-| `port` | int? | |
-| `src_ip` | string | |
-| `decoy_ip` | string? | IP bẫy bị chạm |
-| `excerpt` | string | ≤ 2 KiB, **không tin cậy**, core hiển thị như văn bản thuần |
-| `token_id` | string? | khi `kind=token` |
+```json
+{ "instance": "9b1d…(32 hex)",
+  "jobs": [ { "id": "c0ffee…(32 hex)", "shape": "normal", "rate": 100,
+              "targets": ["192.168.10.20", "192.168.10.21"], "timeout_s": 5400 } ],
+  "cancel": [] }
+```
 
-Chạm bẫy không cần chờ gộp: sensor flush lô ngay (§9, độ trễ mục tiêu ≤ 2 s) vì S-HP-1 đòi cảnh báo tức thì.
+| Trường | Quy tắc |
+|---|---|
+| query `running` | id job worker đang chạy, rỗng khi rảnh |
+| `jobs` | 0 hoặc 1 phần tử |
+| `jobs[].shape` | `sweep` \| `normal` \| `gentle` (ba mẫu của D-84 (7)) |
+| `jobs[].rate` | 1 … 1000; `gentle` luôn `1` |
+| `jobs[].targets` | 1 … 64 IPv4 riêng (RFC 1918), chính tắc, không trùng (văn phạm `ValidateNmapArgs`) |
+| `jobs[].timeout_s` | 1 … 7200 = min(hết cửa sổ, 2 giờ), do `core` tính |
+| `cancel` | ≤ 8 id job phải dừng |
 
-### 5.4 Honeypot đi qua đường nào
+Trên dây **không** có argv, cờ, đường dẫn, URL hay phạm vi (D-111 (3)): worker dựng argv bằng chính `buildNmapArgs` + `ValidateNmapArgs` (gói lá `modules/sensor-active/nmapargv`, D-113 (3)).
 
-D-55 để honeypot là container riêng. Hai cách tuân theo cùng giao thức; spec chọn **honeypot gửi qua sensor** (sensor tail log JSON của OpenCanary trên volume chia sẻ chỉ-đọc rồi phát `honeypot.hit`), để chỉ có **một** danh tính mTLS và một dãy `seq`. Phương án honeypot có chứng chỉ riêng ghi ở §12.
+**Bộ điều phối** (`core`, trong bộ nhớ; D-113 (4)):
+- `sensoractive` gọi `Prober` **sau khi** ghi dòng `sa_probe` (INV-9 giữ nguyên thứ tự); không có heartbeat `active` trong 90 s → `ErrUnavailable` ngay, không tạo job.
+- Một job đang chạy = một nmap trên hộp. Job mới chỉ được giao khi poll báo `running` rỗng; poll còn báo `running` của job cũ thì job mới chờ (vẫn chịu hạn của nó).
+- Job chưa được lấy trong 60 s → probe `failed` (`worker_unavailable`). Job đã giao mà poll sau đó báo `running` khác id đó và chưa có kết quả → probe `failed` (`worker_lost`: sensor khởi động lại giữa chừng hoặc phản hồi bị mất).
+- Ngữ cảnh probe kết thúc (hết cửa sổ, `SettingsChanged`, hạ `rate`, thiết bị đổi, tắt module; INV-3) → job chưa giao thì bỏ; đã giao thì `cancel:[id]` ở long-poll kế tiếp (long-poll đang mở được đánh thức). `core` coi probe là `stopped` sau tối đa 30 s dù worker chưa xác nhận; job mới vẫn chờ `running` rỗng.
 
-### 5.5 Sự kiện hỏng (fail-closed, SYS-6)
+**Worker** (`vedette-sensor active`):
+- Kiểm lại job (văn phạm bảng trên, `ValidateNmapArgs` trên argv đã dựng, hạn ≤ 2 giờ); sai → kết quả `refused` (`invalid_job`), không chạy gì. Nhận job khi đang chạy job khác → `refused` (`busy`).
+- Chạy `/usr/bin/nmap` qua `core/exec` (allowlist binary + argv, không shell), nhóm tiến trình riêng, hạn `timeout_s`, stdout trần 8 MiB (`Truncated`).
+- **Huỷ**: id có trong `cancel` → giết nhóm tiến trình, kết quả `stopped` (`cancelled`).
+- **Lease**: 60 s không có lần poll `200` nào, hoặc `instance` khác `instance` lúc nhận job → giết nhóm tiến trình và **bỏ** kết quả (bên giao job đã không còn). `core` sập không để lại nmap mồ côi.
+- Trong lúc chạy vẫn long-poll liên tục với `running=<id>`.
 
-Core kiểm từng `payload` theo schema; sự kiện sai schema hoặc vượt giới hạn được đưa vào `rejected[]`, **không** lưu, **không** làm hỏng cả lô, và tăng bộ đếm `sensor_rejected{type,code}` hiện ở trang Sensors. `type` lạ: `rejected` với `code=unknown_type` (không lưu).
+### 6.5 `POST /sensor/v1/jobs/{id}/result` (active)
 
-## 6. Hàng đợi lệnh (sensor poll, core không gọi vào)
+```json
+{ "status": "done", "reason": "", "exit_code": 0, "truncated": false, "xml_b64": "PD94bWwg…" }
+```
 
-### 6.1 Long-poll
+| Trường | Quy tắc |
+|---|---|
+| `status` | `done` \| `failed` \| `stopped` \| `refused` |
+| `reason` | `""` hoặc một trong `invalid_job`, `busy`, `nmap_missing`, `exec_failed`, `deadline`, `cancelled` |
+| `exit_code` | −1 … 255 (−1 = không chạy hoặc bị giết) |
+| `truncated` | stdout chạm trần 8 MiB |
+| `xml_b64` | base64 chuẩn của stdout nmap; sau giải mã ≤ 8 MiB; rỗng khi không phải `done` |
 
-`GET /sensor/v1/commands?after=<cmd_seq>&wait=25`
+`{id}` phải là job **đang chạy** do chính `core` này giao cho vai `active`; còn lại (id lạ, job đã xong, gửi lại lần hai) → `404 unknown_job`. Thân > 11 MiB hoặc XML giải mã > 8 MiB → `413 payload_too_large` và probe `failed`. Trả `204`.
 
-- Core giữ request tới `wait` giây (tối đa 30); có lệnh mới trả ngay.
-- Response `200`: `{ "commands": [ { "id": "cm_…", "seq": 17, "type": "…", "args": { … }, "issued_at": …, "expires_at": … } ] }` hoặc `204` khi hết giờ.
-- Giao **ít nhất một lần**; sensor loại trùng theo `id`. Lệnh quá `expires_at` (mặc định 10 phút) bị core bỏ, sensor bỏ lệnh đã hết hạn nếu lỡ nhận.
-- Sensor trả kết quả: `POST /sensor/v1/commands/{id}/result` với `{ "status": "done"|"failed"|"refused", "detail": string≤1KiB, "finished_at": … }`. `refused` = sensor tự từ chối vì lệnh vi phạm bất biến cục bộ (§6.3).
+`core` **không tin** `status` của worker: `done` mà `exit_code ≠ 0` hoặc `truncated` → probe `failed`, cả lô bị bỏ (INV-7); XML phân tích bằng `parseNmapXML` (đã fuzz) và `onlyTargets` trong `core`, nên quan sát và phần mềm từ nmap không bao giờ đi trên dây (D-113 (5)). `refused` → probe `failed` và log ERROR (worker và `core` bất đồng về văn phạm là lỗi hoặc bị chiếm); `nmap_missing` → sức khoẻ `unavailable` (INV-6).
 
-### 6.2 Loại lệnh (hết danh sách; không có lệnh tổng quát)
+## 7. Bảng lỗi
 
-| `type` | `args` | Tác dụng |
-|---|---|---|
-| `scan.now` | `{ "targets": [CIDR…≤64], "profile": "light"\|"standard", "scan_id": string }` | quét ngay (S-INV-1); dùng cho cả quét thiết bị mong manh lần đầu ở tốc độ thấp nhất (D-45) |
-| `config.refresh` | `{ "version": string }` | báo có cấu hình mới; sensor kéo `GET /sensor/v1/config` (ETag) |
-| `ioc.refresh` | `{ "version": string }` | báo có tập IOC mới; sensor kéo `GET /sensor/v1/ioc-set` |
-| `scan.cancel` | `{ "scan_id": string }` | |
+| HTTP | `code` | Khi nào | Sensor làm gì |
+|---|---|---|---|
+| — | (handshake hỏng) | sai CA, hết hạn/chưa hiệu lực, sai EKU, sai/thiếu URI SAN, serial về hưu, TLS < 1.3 | đọc lại bó khoá; lùi 1 → 60 s có jitter, thử lại |
+| 200 | `rejected[].code` | thành công một phần (§6.2) | **không thử lại** |
+| 304 | — | `config` không đổi | poll lại ngay |
+| 400 | `invalid_request` | không phải JSON, trường lạ, khoá trùng, quá sâu, thiếu/sai kiểu, query lạ, có `Content-Encoding` | bỏ lô, đếm, không thử lại |
+| 403 | `forbidden_route` | route không thuộc vai (trước khi đọc thân) | lỗi lập trình: log ERROR, không thử lại route đó |
+| 403 | `cert_retired` | serial của lá không còn là hiện hành/ngay trước (kiểm mỗi request) | đọc lại bó, đóng kết nối rảnh, lùi rồi thử lại |
+| 404 | `unknown_job` | kết quả cho job không đang chạy hoặc không do `core` này giao | bỏ kết quả |
+| 409 | `module_off` | module của vai tắt | **dừng ngay**, bỏ hàng đợi, không xả lô cuối (SYS-5, D-80 (4)); hỏi lại `config`/`jobs` mỗi 60 s (thường thì host đã dừng hẳn container) |
+| 409 | `poll_in_progress` | long-poll thứ hai của cùng vai | lỗi lập trình: đợi poll đang mở xong |
+| 413 | `payload_too_large` | thân vượt trần route; XML > 8 MiB | quan sát: chia đôi lô (lô một mục vẫn 413 → bỏ, đếm); kết quả job: không gửi lại (probe đã `failed`) |
+| 426 | `proto_unsupported` | thiếu hoặc khác `X-Vedette-Proto` | giữ hàng đợi, lùi tới 60 s, thử lại (cửa sổ cập nhật, §10) |
+| 429 | `rate_limited` | quá 10 request/giây, burst 20, mỗi vai | chờ `Retry-After` |
+| 503 | `store_busy` | kho của `core` bận | chờ `Retry-After`, gửi lại **cùng** lô |
+| 500 | `internal` | lỗi khác của `core` | bỏ lô, đếm (OTLP: không thử lại) |
+| — | (không có phản hồi) | lỗi kết nối, `core` đang khởi động lại | gửi lại cùng lô sau quãng lùi 1 → 60 s có jitter (`holdOff`); quá trần hàng đợi trong bộ nhớ thì bỏ cũ nhất và đếm |
 
-Nội dung dài (cấu hình, tập IOC) **không** nằm trong lệnh: lệnh chỉ là cái huých, sensor kéo bản có phiên bản + ETag. Nhờ vậy lệnh nhỏ, kiểm được, và cấu hình sinh từ DB (ships-as-code).
-
-`GET /sensor/v1/config` trả: `interface`, `span: bool`, bộ lọc loại trừ (dải, máy, cổng; D-56), trần tài nguyên, cửa sổ quét hoạt động, `scan_scope[]` (CIDR đã xác thực), danh sách thiết bị mong manh/loại chỉ quét một lần (D-45), cấu hình honeypot sinh từ DB (IP phụ, vai giả, token). `GET /sensor/v1/ioc-set`: tập `{ ip/cidr, domain }` cho khớp cục bộ, `ETag` + `Content-Encoding: gzip`, ≤ 8 MiB nén.
-
-### 6.3 Bất biến phía sensor
-
-Sensor **tự kiểm lại**, không chỉ tin core: `scan.now` có `targets` nằm ngoài `scan_scope` đang giữ → `refused` (SYS-7). Không có lệnh nào mang chuỗi shell, đường dẫn tệp, hoặc URL.
-
-## 7. Heartbeat
-
-`POST /sensor/v1/heartbeat` mỗi 30 s (tham số): `{ "version", "uptime_s", "queue_depth", "dropped": {"logs": n, "other": n}, "interfaces": [ { "name", "mode": "mgmt"|"span", "pps", "other_macs_seen", "last_packet_at" } ] }`.
-Core dùng cho `Sensor.status` (`online` nếu thấy trong 3 chu kỳ) và trạng thái SPAN của D-56 (cảnh báo khi không có lưu lượng hoặc chỉ thấy MAC của chính hộp). Response `200 { "server_time", "min_sensor_version", "commands_pending": bool }`.
+Thứ tự kiểm ở `core` cho mỗi request: serial (`cert_retired`) → `X-Vedette-Proto` (`426`) → route theo vai (`403`) → module (`409 module_off`) → nhịp (`429`) → long-poll duy nhất (`409 poll_in_progress`) → trần thân (`413`) → giải mã chặt (`400`) → handler.
 
 ## 8. Sequence
 
 ```mermaid
 sequenceDiagram
-    participant S as sensor
+    participant H as vedette-host
     participant C as core
-    Note over S,C: Enroll (một lần)
-    S->>C: POST /sensor/v1/enroll (Bearer token, CSR)
-    C-->>S: 201 certificate + CA
+    participant S as sensor (passive)
+    participant W as scan (active)
+    H->>H: dựng unit hằng (volume khoá theo vai)
+    C->>C: CA + lá; ghi creds/passive/sensor.pem, creds/active/sensor.pem; rồi mới nghe 127.0.0.1:8444
+    S->>C: GET /config?wait=25 (mTLS vai passive)
+    C-->>S: 200 {interface, span, extract, filters} ETag "e1"
     loop mỗi 30 s
-        S->>C: POST /heartbeat (mTLS)
+        S->>C: POST /heartbeat {interfaces, span, drops}
+        W->>C: POST /heartbeat {nmap}
     end
-    S->>C: POST /events {epoch, events[seq 41..60]}
-    C-->>S: 200 {ack_seq: 60}
-    Note over S: mất mạng: giữ WAL, lùi dần
-    S->>C: POST /events {seq 61..80}
-    C-->>S: 409 seq_gap {expected: 61}  (nếu core mất trạng thái)
-    S->>C: POST /events {seq 61..80}
-    C-->>S: 200 {ack_seq: 80}
-    par lệnh
-        S->>C: GET /commands?after=16&wait=25
-        C-->>S: 200 [scan.now]
-        S->>C: POST /commands/cm_x/result {done}
-    end
+    S->>C: POST /observations {epoch, seq 41, items}
+    C-->>S: 200 {ack_seq 41, rejected [{3, budget_exhausted}]}
+    W->>C: GET /jobs?wait=25&running=
+    Note over C: sensoractive ghi sa_probe, Prober giao job
+    C-->>W: 200 {instance, jobs [j1], cancel []}
+    W->>C: GET /jobs?wait=25&running=j1
+    Note over C: cửa sổ đóng (INV-3)
+    C-->>W: 200 {instance, jobs [], cancel [j1]}
+    W->>W: giết nhóm tiến trình nmap
+    W->>C: POST /jobs/j1/result {stopped, cancelled}
+    C-->>W: 204
 ```
 
-## 9. Giới hạn và trần kích thước (mặc định, chỉnh được trong cấu hình core)
+## 9. Giới hạn
 
 | Mục | Giới hạn |
 |---|---|
-| Sự kiện mỗi lô | 500 |
-| Thân request (sau giải nén) | 1 MiB; vượt → `413 payload_too_large`, sensor chia nhỏ |
-| Dòng syslog | 8 KiB, 200 dòng mỗi `logs.batch` |
-| `excerpt` honeypot | 2 KiB |
-| Tần suất `POST /events` | 10 request/giây/sensor; vượt → `429` + `retry_after_s` |
-| Tuổi sự kiện chấp nhận | `observed_at` không quá 24 giờ trước và 5 phút sau giờ core; ngoài khoảng → `rejected: out_of_window` (đồng hồ lệch: heartbeat trả `server_time` để sensor báo lỗi) |
-| WAL sensor | 256 MiB hoặc 24 giờ, đến trước thì thôi |
-| Lệnh chờ trong hàng | 100 mỗi sensor |
-| Tập IOC | 8 MiB nén (đủ 50k IOC, ARCH §8) |
+| Thân `observations` | 1 MiB; 1 … 500 mục; `value` ≤ 200 byte |
+| Cửa sổ `seen_at` | 24 giờ trước … 5 phút sau giờ `core` |
+| Thân `heartbeat` | 64 KiB; ≤ 32 card, ≤ 8 tiền tố IPv4 mỗi card, ≤ 64 khoá `drops` |
+| Thân kết quả job | 11 MiB; XML ≤ 8 MiB sau base64 |
+| Job | 1 … 64 đích, `rate` 1 … 1000, `timeout_s` 1 … 7200; một job đang chạy |
+| `cancel` mỗi phản hồi | 8 |
+| Phản hồi `core` (sensor đọc) | `config`, `jobs` 64 KiB; khác 16 KiB |
+| `wait` | 0 … 30 s (mặc định 25) |
+| Nhịp request | 10/giây, burst 20, mỗi vai (long-poll cũng tính) |
+| Long-poll mở | 1 mỗi vai |
+| Hạn mức chống ngập (`core`) | MAC mới 60/phút và 200/giờ; giá trị mới 4 mỗi (MAC, trường) mỗi giờ |
+| Heartbeat | mỗi 30 s; `online` khi ≤ 90 s |
+| Lease của worker | 60 s không poll thành công |
+| Job chờ lấy | 60 s |
+| Chứng chỉ | 7 ngày; cấp mới khi còn ≤ 1/3 |
+| Epoch giữ lại | 2 mỗi sensor |
+| Timeout máy chủ | `ReadHeaderTimeout` 5 s, `WriteTimeout` 35 s |
 
-Các số trên là điểm xuất phát để đo lại khi có code (ARCH §8), không phải kết quả đo.
+Các số là điểm xuất phát để đo lại khi có mã (ARCHITECTURE §11), không phải kết quả đo.
 
-## 10. Xử lý lỗi
+## 10. Versioning
 
-| HTTP | `code` | Sensor làm gì |
-|---|---|---|
-| 400 | `invalid_envelope` | lỗi lập trình; ghi log, không thử lại cùng lô |
-| 401 | `invalid_token`, `no_client_cert` | dừng; cần enroll lại |
-| 403 | `sensor_revoked`, `cert_expired` | dừng, giữ WAL, báo trên giao diện sensor |
-| 409 | `seq_gap`, `epoch_conflict` | gửi lại từ `expected` |
-| 413 | `payload_too_large` | chia đôi lô |
-| 426 | `proto_unsupported` | sensor quá cũ/mới: dừng và đợi cập nhật (§11) |
-| 429 | `rate_limited` | chờ `retry_after_s` |
-| 5xx | `internal`, `unavailable` | lùi theo cấp số nhân, giữ WAL |
+- Đường dẫn `/sensor/v1`; `X-Vedette-Proto` là số nguyên, hiện `1`. `core` chỉ nhận **đúng** proto của mình. Vì giải mã chặt, mọi đổi dây (kể cả thêm trường hay thêm `shape`) tăng proto.
+- Cập nhật appliance khởi động lại `sensor`/`scan` **trước** `core` (`host-api.md` §6.8): trong cửa sổ đó sensor mới nhận `426`, giữ hàng đợi và đợi; `core` mới lên thì nối lại. Hoàn tác riêng `core` (giữ `sensor`/`scan` mới) để sensor ở `426` và `offline` tới khi chúng cũng được `container.rollback`; đường hoàn tác của `core` phải hoàn tác cả `sensor`/`scan` khi proto khác nhau (chưa có, `.ai/deferred/feat-sensor-protocol.md`).
+- Sensor gặp `shape` hay trường không biết: `refused` (`invalid_job`) / `400` khi giải mã, không crash.
 
-## 11. Versioning
-
-- Đường dẫn `/sensor/v1`; `X-Vedette-Proto` là số nguyên. Core hỗ trợ **N và N−1**; bản mới chỉ thêm trường (tương thích tiến) hoặc thêm `type`/lệnh mới. Đổi nghĩa trường hoặc bỏ trường = `v2`.
-- `min_sensor_version` trong heartbeat cho phép core ép nâng cấp; appliance cập nhật cả hai container cùng lô (`update-manifest.md`), nên lệch phiên bản chủ yếu xảy ra khi sensor tách.
-- Sensor gặp lệnh/`type` không biết: trả `refused` / bỏ qua, không crash.
-
-## 12. Cân nhắc bảo mật (ánh xạ SYS)
+## 11. Cân nhắc bảo mật (ánh xạ SYS)
 
 | SYS | Áp dụng ở đây |
 |---|---|
-| SYS-1 | Không có lệnh nào chạy shell; `scan.now` gọi nmap qua `core/exec` với argv cố định phía sensor |
-| SYS-2 | Mọi payload validate theo schema ở core trước khi vào service; IP qua `netip`, tên theo regex chuẩn |
-| SYS-3 | Enroll, thu hồi, đổi epoch, tạo lệnh đều ghi `core_audit` |
-| SYS-4 | Token enroll hiển thị một lần, lưu băm; khoá riêng của sensor chỉ ở sensor (0600); không log |
-| SYS-5 | Module tắt → listener `/sensor/v1` không route cho các loại tương ứng (ví dụ honeypot tắt → `honeypot.hit` bị `rejected: module_off`); dữ liệu giữ nguyên |
-| SYS-6 | Sensor, syslog, SPAN, banner = không tin cậy: giới hạn kích thước, `rejected` thay vì lỗi lô; `excerpt` chỉ hiển thị như văn bản; độ tin cậy IOC do core quyết |
-| SYS-7 | Sensor tự kiểm `scan_scope`; core chỉ phát `scan.now` cho dải đã xác thực (D-25) |
-| SYS-8 | Không liên quan trực tiếp (AI không nằm trong giao thức này) |
+| SYS-1 | Không lệnh tổng quát; worker chỉ chạy `/usr/bin/nmap` qua `core/exec` với argv dựng từ job đã kiểm và `ValidateNmapArgs` |
+| SYS-2 | Trần thân trước giải mã, `jsonstrict`, `netip`, regex ở biên của `core`; worker kiểm lại job |
+| SYS-3 | Cấp, xoay, cho về hưu chứng chỉ sensor ghi `core_audit` (actor `system`); mỗi lần chạy nmap có dòng `sa_probe` **trước** khi job được giao (INV-9) |
+| SYS-4 | Khoá CA qua `core/secrets`; khoá sensor chỉ ở volume của vai (0640, chỉ đọc trong container), không log, không xuất, GUI không hiện |
+| SYS-5 | Module tắt → `409 module_off` và host dừng container; dữ liệu giữ nguyên |
+| SYS-6 | Mọi thứ từ sensor là không tin cậy: trần, giải mã chặt, hạn mức, kẹp độ tin cậy, XML phân tích ở `core` |
+| SYS-7 | `core` là bên đồng ý duy nhất (D-26, D-84); worker chỉ nhận IPv4 riêng trong văn phạm ba mẫu |
+| SYS-8 | Không liên quan (AI không nằm trong giao thức) |
 
-Rủi ro riêng: (a) sensor bị chiếm gửi `honeypot.hit`/`ioc_hit` giả để kích hoạt phản ứng: giảm bằng việc core tính độ tin cậy, mọi hành động cần duyệt (D-51), quy tắc giới hạn theo giờ, cầu dao; (b) lặp gói tin cũ: `seq` + `observed_at` cửa sổ; (c) token enroll lộ: một lần dùng, hết hạn 1 giờ; (d) đồng hồ lệch làm hỏng cửa sổ thời gian: heartbeat trả `server_time`.
+Rủi ro còn lại:
+- `sensor` bị chiếm vẫn giả được quan sát **hợp lý** (cố hữu): bị chặn bởi hạn mức của `core`, trần 32 dòng mỗi (thiết bị, trường, nguồn) của inventory, thiết bị mới `approved=false` (S-INV-3) và mọi hành động đều cần duyệt (D-51).
+- `scan`/`sensor` bị chiếm giữ `NET_RAW` trên namespace mạng của host: gửi và đọc được khung trên LAN (cố hữu với quyền đó); không có `NET_ADMIN`, không root, rootfs chỉ đọc, không DB, không khoá của vai kia.
+- Chứng chỉ bị lấy cắp: chỉ mở route của vai đó, hết hạn trong ≤ 7 ngày, về hưu ở lần xoay kế tiếp.
+- `core` khởi động lại giữa lúc quét: lô dở bị bỏ (lease giết nmap), lô đã xong giữ (như INV-3).
 
-## 13. Câu hỏi mở
+## 12. Câu hỏi của bản nháp (đã đóng)
 
-1. **Không có story cho enroll sensor tách rời** (D-24 gỡ nhiều-site khỏi GUI; S-INV-1 chỉ nói sensor của chính hộp). Theo `no-imagined-features`, phần §3.1 (token enroll thủ công, `renew`) nên chỉ xây khi có story mới; trên appliance dùng enroll tự động. kien chốt: giữ spec cho tương lai hay cắt.
-2. Cổng listener `/sensor/v1` (đề xuất: riêng, bắt buộc client cert) và việc dùng cùng CA cho server và client hay tách CA ký sensor.
-3. Honeypot có danh tính mTLS riêng hay đi qua sensor (§5.4).
-4. Khớp IOC ở sensor (spec này) hay gửi toàn bộ metadata DNS/SNI về core để core khớp và lập baseline: đổi lại là lưu lượng và dung lượng, được lợi là một nơi khớp duy nhất. Cần đo ở M2.
-5. Phân tích syslog ở core (spec này) hay ở sensor khi tách; ảnh hưởng đến băng thông khi sensor ở xa.
-6. Thời hạn chứng chỉ client (90 ngày) và trần/WAL là điểm xuất phát chưa đo.
+1. ~~Không có story cho enroll sensor tách rời~~ **Đã đóng (D-115):** không xây; §3.1 cũ chuyển sang phụ lục A; trên appliance không enroll qua mạng, `core` giao khoá bằng tệp (D-110 (4)).
+2. ~~Cổng listener và CA chung hay tách~~ **Đã đóng (D-109, D-110):** listener riêng `:8444`, chỉ `127.0.0.1:8444` trên appliance; một CA **riêng cho sensor** ký cả lá máy chủ 8444 và lá sensor, EKU tách vai; tách khỏi chứng chỉ 8443 và CA osquery.
+3. ~~Honeypot có danh tính mTLS riêng hay đi qua sensor~~ **Đã đóng (D-89, D-112 (7)):** không cách nào; hit đi qua tệp JSON-lines một chiều, honeypot không có đường mạng tới `core`.
+4. ~~Khớp IOC ở sensor hay ở `core`~~ **Đã đóng cho hồ sơ này (D-112 (7)):** không có metadata SPAN hay IOC trên dây tới khi module `logs` được xây; chọn nơi khớp cùng `logs` (deferred).
+5. ~~Phân tích syslog ở `core` hay sensor~~ **Đã đóng cho hồ sơ này (D-112 (7), D-114 (3)):** không nhận syslog, không `NET_BIND_SERVICE` tới khi `logs` được xây.
+6. ~~Thời hạn chứng chỉ 90 ngày, trần/WAL chưa đo~~ **Đã đóng (D-110 (3), D-112 (6)):** 7 ngày, cấp mới ở 1/3 cuối; không WAL; trần ở §9 là điểm xuất phát để đo.
+
+## 13. Lát
+
+Mỗi lát một PR, sau SP-0 (tài liệu này): SP-1 `core/pki` + `core/sensorlink` (máy chủ, client, chưa nối module); SP-2 seam `Prober` và gói `nmapargv` (refactor thuần, song song SP-1); SP-3 bộ điều phối + `vedette-sensor active` (cần SP-1, SP-2); SP-4 tách sensor-passive + `vedette-sensor passive` (cần SP-1); SP-5 đóng gói, profile compose `dev`, nguồn địa chỉ của hộp (cần SP-3, SP-4); SP-6 unit `sensor`/`scan` và dựng `scan` tại chỗ trong `vedette-host` (cần lát host 3-6, 3-7). Bản đồ lát, rủi ro lab và việc để sau: `.ai/deferred/feat-sensor-protocol.md`.
+
+## Phụ lục A. Để sau: sensor đặt ở máy khác (D-115)
+
+Không xây. Không có story (D-24, D-57 (18)); test GUI `inventory.test.tsx` khẳng định không có endpoint sensor từ xa. Khi có story, đường đi xa giữ dây, URI vai và CA sensor của tài liệu này, và thêm: bootstrap kiểu kubelet (token bootstrap → CSR do sensor tạo, khoá ở lại sensor, gia hạn gần hết hạn), bind trên LAN, hành động thu hồi có giao diện, hàng đợi đĩa có trần (thay "không WAL" của D-112 (6)), và danh tính theo từng sensor thay cho hai URI theo vai.
+
+Văn bản §3.1 của bản nháp M2-0 (2026-11-09), giữ để tham khảo; chỗ khác với quyết định hiện tại ghi trong ngoặc vuông:
+
+> **Enroll.** Token enroll của sensor: một lần dùng, hết hạn mặc định 1 giờ, thu hồi được, **chỉ trong header `Authorization: Bearer`**, không bao giờ trong URL (cùng nguyên tắc D-34). Trên appliance, installer sinh token cục bộ vào volume dùng chung; người dùng không thấy. [Appliance không còn enroll: D-110 (4).]
+>
+> `POST /sensor/v1/enroll` (TLS một chiều, chưa có chứng chỉ client)
+>
+> | Trường (request) | Kiểu | Bắt buộc | Quy tắc |
+> |---|---|---|---|
+> | `csr` | string (PEM PKCS#10) | có | khoá ECDSA P-256; core bỏ mọi subject/SAN do sensor đặt và tự ghi |
+> | `name` | string | có | regex `^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$` |
+> | `version` | string | có | semver |
+> | `interfaces` | string[] | không | tên card (`^[a-z0-9._-]{1,15}$`), tối đa 16 |
+> | `capabilities` | string[] | không | tập con của `passive`, `span`, `active_scan`, `syslog` |
+>
+> Response `201`: `{ "sensor_id": "sn_…", "certificate": "<PEM>", "ca": "<PEM>", "not_after": "<RFC3339>", "poll": { "commands_wait_s": 25 } }`.
+>
+> Lỗi: `401 invalid_token`, `403 token_expired | token_used`, `400 invalid_csr`, `409 name_taken`.
+>
+> Gia hạn: `POST /sensor/v1/renew` (mTLS, body `{ "csr": "…" }`) khi còn ≤ 1/3 thời hạn; trả chứng chỉ mới cùng `sensor_id`. Chứng chỉ hết hạn → phải enroll lại bằng token mới.
+>
+> **Chứng chỉ (bản nháp §3).** Sensor ghim CA bằng vân tay SHA-256 truyền lúc enroll (`--ca-sha256`), không có vân tay thì từ chối enroll (không TOFU âm thầm). Chứng chỉ client `CN=sensor:<sensor_id>`, SAN URI `vedette:sensor:<sensor_id>`, 90 ngày. Thu hồi: core giữ `sensor_id → active|revoked`, kiểm mỗi request, `403 sensor_revoked`. [CA là CA sensor của D-110, không phải CA osquery; thời hạn 7 ngày; trên appliance danh tính theo vai.]

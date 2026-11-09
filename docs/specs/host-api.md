@@ -34,7 +34,7 @@ Mô hình đe doạ: **`core` bị coi là có thể bị chiếm.** Mọi lện
 
 ## 4. Mô hình lệnh
 
-- Lệnh ghi: `POST /v1/commands/<name>`, body `{ "args": { … } }`. Tham số lạ → `400 invalid_args` (không bỏ qua, khác sensor protocol: ở đây fail-closed).
+- Lệnh ghi: `POST /v1/commands/<name>`, body `{ "args": { … } }`. Tham số lạ → `400 invalid_args` (không bỏ qua, fail-closed; giao thức sensor cũng vậy từ D-109).
 - Response `202`: `Run`.
 
 | Trường `Run` | Kiểu | Ghi chú |
@@ -349,6 +349,8 @@ Mã: `host/{api,config,peer,server,client}`, `cmd/vedette-host`; hợp đồng t
 | `socket_gid` | gid của nhóm `vedette`: chủ nhóm của socket (0660) và thư mục chứa (0750) |
 | `core_data` | tuỳ chọn: thư mục dữ liệu của `core` (tuyệt đối, sạch, ≤ 200 byte, không `..`, không `//`, không phải `/`), chứa `vedette.db`, `vedette.key` và `snapshots/`; installer ghi (WP-08). Host mở **một lần mỗi lệnh** bằng `os.OpenRoot` sau khi kiểm (lúc khởi động và mỗi lệnh) rằng nó là thư mục thật (không symlink), thuộc `core_uid` hoặc root, và **mọi thư mục cha thuộc root, nhóm/người khác không ghi được** (như sshd `StrictModes`, không có ngoại lệ cho bit sticky: trong thư mục sticky chủ của một mục vẫn đổi tên được nó, mà `core` là chủ của `core_data`; `/tmp` không được làm cha. Installer (WP-08) đặt `core_data` dưới `/var/lib/vedette` hoặc tương đương, root sở hữu, 0755). Thiếu hoặc không an toàn → sao lưu trả `db_unreadable`. Host không bao giờ nhận đường dẫn từ request (D-85, D-87) |
 | `core_cgroup` | tuỳ chọn: đường dẫn cgroup (tuyệt đối, sạch, không `..`, không ký tự điều khiển) mà tiến trình `core` phải nằm **tại hoặc dưới**; mặc định `/system.slice/<core_unit>`. Core chạy rootless (Quadlet của người dùng) nằm dưới user manager, nên installer ghi đường dẫn thật (WP-08). *D-105 chốt `core` là unit Quadlet **hệ thống**, rootful, `User=<core_uid>:<core_gid>` cố định, nên mặc định là đúng; khoá giữ lại cho cài đặt khác* |
+| `sensor_uid` | uid chạy container `sensor` và `scan` (số thập phân, **không** được là 0, khác `core_uid`); điền vào `User=<sensor_uid>:<sensor_gid>` của hai unit, không `UserNS` (D-114 (3)). Installer tạo người dùng hệ thống riêng (WP-08) |
+| `sensor_gid` | gid của `sensor`/`scan` (số thập phân, không 0, khác `core_gid` và `socket_gid`): nhóm của volume khoá `vedette-creds-{passive,active}` (`Group=`), của tệp khoá `0640 core_uid:sensor_gid`, và `PodmanArgs=--group-add=<sensor_gid>` của `core` (D-114 (4)) |
 
 Cờ khác: `-state-dir` (mặc định `/var/lib/vedette-host`), `-audit-log` (mặc định `/var/log/vedette-host/audit.jsonl`), `-version`. Tiến trình từ chối khởi động nếu không phải root hoặc không phải Linux.
 
@@ -473,3 +475,16 @@ Chốt trên giấy ở lát 3-0 (2026-11-10, D-99…D-107) trước khi viết 
 - Phía `core` (`cmd/vedette`): `host/client.StateNet`; `deps.HostNet` nay có thật (mọi địa chỉ card và decoy dưới dạng `/32` hoặc `/128`) cho `boxSources` (D-94, INV-23), `ProtectedIPs` của `sensor-active` và địa chỉ hộp của honeypot.
 
 **Còn để sau** (`.ai/deferred/feat-host-net-containers.md`): bundle, `host.self_update`, IPv6 quản trị, `core` chọn `oui`, phát hiện quét cổng trên decoy bằng `log` của nft trong `vedette-hp`, `firewall.*` (§14.1), logind inhibitor, `Notify=healthy`, và toàn bộ kiểm lab trên Ubuntu 24.04, Ubuntu 26.04, Debian 13.
+
+**Unit `sensor`/`scan`, volume khoá và dựng `scan` tại chỗ (giao thức sensor, D-110, D-113, D-114; chốt ở lát SP-0, mã ở lát SP-6 sau lát 3-6 và 3-7).** Thay phần `sensor`/`scan` của đoạn "Unit Quadlet (D-105)" ở trên (`NET_RAW` + `NET_BIND_SERVICE`) và thêm vào `core`; phần còn lại của đoạn đó giữ nguyên. Chỗ điền thêm vào mẫu: `sensor_uid`, `sensor_gid` (§15). Host không bao giờ đọc, ghi hay thấy khoá của sensor: `core` tự ghi vào volume (D-110 (4), D-87).
+
+| Unit | Mẫu (test hợp đồng trên unit đã dựng) |
+|---|---|
+| `vedette-core.container` | thêm `Volume=vedette-creds-passive.volume:/var/lib/vedette-creds/passive` và `Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active` (đọc-ghi); `PodmanArgs` thêm `--group-add=<sensor_gid>` hằng (Quadlet 4.9 không có `GroupAdd=`); vẫn `PublishPort=127.0.0.1:8444:8444` |
+| `vedette-sensor.container` | `Network=host`; `User=<sensor_uid>:<sensor_gid>`; **không** `UserNS`; `DropCapability=ALL`, **chỉ** `AddCapability=NET_RAW` (bỏ `NET_BIND_SERVICE` tới khi có syslog; không bao giờ `NET_ADMIN`); `NoNewPrivileges=true`; `ReadOnly=true`; `Tmpfs=/tmp`; `Volume=vedette-creds-passive.volume:/var/lib/vedette-creds:ro`; `Exec=passive …` |
+| `vedette-scan.container` | như `sensor`, nhưng `Volume=vedette-creds-active.volume:/var/lib/vedette-creds:ro`, `Exec=active …`, và `Image=` là image dựng tại chỗ (dưới) |
+| `vedette-creds-passive.volume`, `vedette-creds-active.volume` | `[Volume]` `VolumeName=` hằng, `User=<core_uid>`, `Group=<sensor_gid>`; ghi bằng cùng mã ghi an toàn của D-105 (2) |
+
+Không unit nào khác gắn hai volume khoá; mỗi volume chỉ gắn đọc-ghi ở `core` và chỉ đọc ở container của đúng vai. Thêm vào danh sách "Tệp hệ thống host ghi" ở trên: `/etc/containers/systemd/vedette-creds-{passive,active}.volume` (0644); thêm vào bảng tiến trình con: `podman build` (và `podman run` cho bước kiểm `nmap --version`), văn phạm chốt ở SP-6. Đường lùi nếu lab thấy ambient `NET_RAW` không chạy với uid không root trên Podman 4.9 hoặc 5.x: `User=0`, vẫn không `UserNS`, vẫn chỉ `NET_RAW` (D-114 (3)).
+
+**Dựng `scan` tại chỗ (D-57 (2), D-113 (7)).** Dự án không phân phối nmap (D-4, `LEGAL.md`): image `ghcr.io/knt048/vedette-scan` chỉ là **image nền** (Debian slim + `vedette-sensor`), được ký và kéo như mọi service (§6.7). Với `service=scan`, sau bước 5 của §6.7, `container.pull` chạy `podman build` với argv cố định từ Containerfile **hằng** trong binary của host: `FROM` đúng digest vừa kiểm, `apt-get install --no-install-recommends nmap` từ kho gói Debian; tag `localhost/vedette-scan-nmap:<version>` (khác `localhost/vedette-scan:<version>` của image nền); kiểm hiệu ứng `nmap --version` trong image vừa dựng. Dựng hỏng → image trước giữ nguyên, run `failed`. Văn phạm argv của `podman build`/`podman run` cho bước kiểm, cách unit `scan` ghim image dựng tại chỗ (không có digest của registry) và cách `container.start`/`rollback` của `scan` kiểm image đó chốt ở lát SP-6. Rà soát của SP-6 phải tấn công: root chạy `podman build` (bước `RUN` chạy bằng root của container, có mạng, tin khoá apt của image nền), `--group-add` mở rộng quyền của `core`, chèn unit qua giá trị `host.conf`.

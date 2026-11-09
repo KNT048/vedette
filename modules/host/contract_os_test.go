@@ -27,6 +27,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -128,9 +129,15 @@ func startSys(t *testing.T, muts ...mut) *sysEnv {
 	}}, muts...)
 	e.o = m.Ops(e.clock.Now, all...)
 	e.h = servertest.Start(t, e.o.Commands(), func(o *server.Options) {
-		o.StateDir, o.Readers, o.Now = m.State, e.o.Readers(), e.clock.Now
+		o.StateDir, o.Readers, o.Now, o.WriteGate = m.State, e.o.Readers(), e.clock.Now, e.o.WriteGate
 	})
 	return e
+}
+
+// snap writes a snapshot of core's state as it is now, the way core does before every call that
+// needs one, and returns its id.
+func (e *sysEnv) snap(mutate ...func(*opstest.SnapOpts)) string {
+	return e.m.Snapshot(e.clock.Now(), mutate...)
 }
 
 func (e *sysEnv) id() string { return fmt.Sprintf("%08x-5555-4555-8555-555555555555", e.n.Add(1)) }
@@ -334,23 +341,26 @@ func TestContract_INV2_SystemCommandsRefuseBadArgsBeforeAnythingRuns(t *testing.
 			cases = append(cases, bad{cmd, strings.ReplaceAll(body, "%V", string(j))})
 		}
 	}
-	add("os.install", `{"args":{"scope":%V}}`, append(meta, "", "ALL", "security ", "release", "dist-upgrade")...)
+	add("os.install", `{"args":{"scope":%V,"snapshot":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`, append(meta, "", "ALL", "security ", "release", "dist-upgrade")...)
 	add("os.reboot", `{"args":{"when":%V}}`, append(meta, "", "NOW", "window", "custom")...)
 	add("os.reboot", `{"args":{"when":"at","at":%V}}`, append(meta, "", "tomorrow", "10:30", "2026-11-10")...)
-	add("backup.create", `{"args":{"kind":%V,"include_secrets":false}}`, append(meta, "", "auto", "pre_", "PRE_UPDATE", "manual ")...)
-	add("backup.create", `{"args":{"kind":"manual","label":%V}}`, "; id", "$(id)", "a|b", "<script>", "`id`", "../x", strings.Repeat("a", 65))
-	add("backup.restore", `{"args":{"backup_id":%V}}`, append(meta, "", "abc", strings.Repeat("g", 32), strings.Repeat("A", 32), strings.Repeat("a", 31), strings.Repeat("a", 33), "../"+strings.Repeat("a", 29))...)
+	add("backup.create", `{"args":{"kind":%V,"include_secrets":false,"snapshot":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`, append(meta, "", "auto", "pre_", "PRE_UPDATE", "manual ")...)
+	add("backup.create", `{"args":{"kind":"manual","label":%V,"snapshot":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`, "; id", "$(id)", "a|b", "<script>", "`id`", "../x", strings.Repeat("a", 65))
+	add("backup.restore", `{"args":{"backup_id":%V,"snapshot":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`, append(meta, "", "abc", strings.Repeat("g", 32), strings.Repeat("A", 32), strings.Repeat("a", 31), strings.Repeat("a", 33), "../"+strings.Repeat("a", 29))...)
 	add("logs.export", `{"args":{"units":[%V],"since":"2026-11-09T00:00:00Z","until":"2026-11-09T01:00:00Z"}}`, append(meta, "", "Vedette-Core")...)
 	add("logs.export", `{"args":{"units":["vedette-core"],"since":%V,"until":"2026-11-09T01:00:00Z"}}`, "yesterday", "2026-11-09", "", "1999-01-01T00:00:00Z")
 	cases = append(cases,
-		bad{"os.install", `{"args":{}}`}, bad{"os.install", `{"args":{"scope":"all","packages":["x"]}}`},
-		bad{"os.install", `{"args":{"scope":["all"]}}`}, bad{"os.install", `{"args":{"scope":"all","argv":["x"]}}`},
+		bad{"os.install", `{"args":{}}`}, bad{"os.install", `{"args":{"scope":"all","packages":["x"],"snapshot":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`},
+		bad{"os.install", `{"args":{"scope":"all"}}`}, bad{"os.install", `{"args":{"scope":"all","snapshot":"../../etc"}}`}, bad{"os.install", `{"args":{"scope":"all","snapshot":"` + strings.Repeat("A", 32) + `"}}`},
+		bad{"backup.create", `{"args":{"kind":"manual"}}`}, bad{"backup.create", `{"args":{"kind":"manual","snapshot":"x/../y"}}`}, bad{"backup.create", `{"args":{"kind":"manual","snapshot":"` + strings.Repeat("a", 33) + `"}}`},
+		bad{"backup.restore", `{"args":{"backup_id":"` + strings.Repeat("a", 32) + `"}}`}, bad{"backup.restore", `{"args":{"backup_id":"` + strings.Repeat("a", 32) + `","snapshot":"/etc/shadow"}}`},
+		bad{"os.install", `{"args":{"scope":["all"],"snapshot":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`}, bad{"os.install", `{"args":{"scope":"all","argv":["x"],"snapshot":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`},
 		bad{"os.reboot", `{"args":{}}`}, bad{"os.reboot", `{"args":{"when":"now","at":"2026-11-10T00:00:00Z"}}`},
 		bad{"os.reboot", `{"args":{"when":"at"}}`}, bad{"os.auto_security.set", `{"args":{"enabled":"yes"}}`},
 		bad{"os.auto_security.set", `{"args":{"enabled":true,"origins":["x"]}}`}, bad{"os.check", `{"args":{"force":true}}`},
 		bad{"os.reboot.cancel", `{"args":{"x":1}}`}, bad{"backup.restore", `{"args":{"path":"/etc/passwd"}}`},
-		bad{"backup.restore", `{"args":{"backup_id":"` + strings.Repeat("a", 32) + `","path":"/x"}}`},
-		bad{"backup.create", `{"args":{"kind":"manual","path":"/x"}}`}, bad{"backup.create", `{"args":{}}`},
+		bad{"backup.restore", `{"args":{"backup_id":"` + strings.Repeat("a", 32) + `","path":"/x","snapshot":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`},
+		bad{"backup.create", `{"args":{"kind":"manual","path":"/x","snapshot":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`}, bad{"backup.create", `{"args":{}}`},
 		bad{"logs.export", `{"args":{"units":[],"since":"2026-11-09T00:00:00Z","until":"2026-11-09T01:00:00Z"}}`},
 		bad{"logs.export", `{"args":{"units":["vedette-core","vedette-sensor","vedette-honeypot","vedette-scan","vedette-greenbone","vedette-host","vedette-core"],"since":"2026-11-09T00:00:00Z","until":"2026-11-09T01:00:00Z"}}`},
 		bad{"logs.export", `{"args":{"units":["vedette-core"],"since":"2026-11-09T01:00:00Z","until":"2026-11-09T01:00:00Z"}}`},
@@ -494,7 +504,7 @@ func TestContract_OSCheck_Refusals(t *testing.T) {
 			e := startSys(t)
 			e.m.OSRelease(rel[0], rel[1], "x")
 			e.refused(t, "os.check", nil, http.StatusPreconditionFailed, "not_appliance")
-			e.refused(t, "os.install", map[string]string{"scope": "all"}, http.StatusPreconditionFailed, "not_appliance")
+			e.refused(t, "os.install", map[string]string{"scope": "all", "snapshot": e.snap()}, http.StatusPreconditionFailed, "not_appliance")
 			e.refused(t, "os.auto_security.set", map[string]bool{"enabled": true}, http.StatusPreconditionFailed, "not_appliance")
 			if len(e.m.AllCalls()) != 0 {
 				t.Errorf("%v: a process ran: %v", rel, e.m.AllCalls())
@@ -532,7 +542,7 @@ func TestContract_OSInstall_HostRecomputesThePackageListAndRunsTheFixedArgv(t *t
 	t.Parallel()
 	e := startSys(t)
 	e.installRules()
-	r := e.ok(t, "os.install", api.OSInstallArgs{Scope: "all"})
+	r := e.ok(t, "os.install", api.OSInstallArgs{Snapshot: e.snap(), Scope: "all"})
 	res := result[api.OSRunResult](t, r)
 	if res.Installed != 2 || res.Security != 1 || res.Backup == "" || res.RebootRequired || len(res.Health) != 1 || res.Health[0] != (api.Health{Name: "vedette-core", OK: true}) {
 		t.Fatalf("result = %+v", res)
@@ -576,7 +586,7 @@ func TestContract_OSInstall_ScopeSecurityInstallsSecurityPackagesOnly(t *testing
 	e := startSys(t)
 	e.installRules()
 	e.ok(t, "os.check", nil)
-	r := e.ok(t, "os.install", api.OSInstallArgs{Scope: "security"})
+	r := e.ok(t, "os.install", api.OSInstallArgs{Snapshot: e.snap(), Scope: "security"})
 	res := result[api.OSRunResult](t, r)
 	if res.Installed != 1 || res.Security != 1 {
 		t.Fatalf("%+v", res)
@@ -604,7 +614,7 @@ func TestContract_OSInstall_AStaleCheckIsRepeated(t *testing.T) {
 	e.ok(t, "os.check", nil)
 	e.clock.Advance(25 * time.Hour)
 	e.m.Mark("installed", false)
-	e.ok(t, "os.install", api.OSInstallArgs{Scope: "all"})
+	e.ok(t, "os.install", api.OSInstallArgs{Snapshot: e.snap(), Scope: "all"})
 	updates := 0
 	for _, c := range aptCalls(e) {
 		if slices.Equal(c, argvUpdate) {
@@ -623,7 +633,7 @@ func TestContract_OSInstall_RefusalsAndFailures(t *testing.T) {
 		e := startSys(t)
 		e.installRules()
 		e.m.Rule("dpkg", "--audit", "dpkg_audit_bad.txt", 0, "", "")
-		e.refused(t, "os.install", api.OSInstallArgs{Scope: "all"}, http.StatusPreconditionFailed, "dpkg_inconsistent")
+		e.refused(t, "os.install", api.OSInstallArgs{Snapshot: e.snap(), Scope: "all"}, http.StatusPreconditionFailed, "dpkg_inconsistent")
 		if slices.ContainsFunc(aptCalls(e), func(c []string) bool { return slices.Contains(c, "install") }) {
 			t.Error("apt install ran")
 		}
@@ -633,13 +643,13 @@ func TestContract_OSInstall_RefusalsAndFailures(t *testing.T) {
 		e := startSys(t)
 		e.installRules()
 		e.m.Rule("dpkg", "--audit", "", 1, "", "")
-		e.refused(t, "os.install", api.OSInstallArgs{Scope: "all"}, http.StatusPreconditionFailed, "dpkg_inconsistent")
+		e.refused(t, "os.install", api.OSInstallArgs{Snapshot: e.snap(), Scope: "all"}, http.StatusPreconditionFailed, "dpkg_inconsistent")
 	})
 	t.Run("less than 1 GiB free on /var", func(t *testing.T) {
 		t.Parallel()
 		e := startSys(t, func(_ *ops.Config, d *ops.Deps) { d.FreeBytes = func(string) (uint64, error) { return 1<<30 - 1, nil } })
 		e.installRules()
-		e.refused(t, "os.install", api.OSInstallArgs{Scope: "all"}, http.StatusPreconditionFailed, "low_disk")
+		e.refused(t, "os.install", api.OSInstallArgs{Snapshot: e.snap(), Scope: "all"}, http.StatusPreconditionFailed, "low_disk")
 		if len(aptCalls(e)) != 0 {
 			t.Error("apt ran")
 		}
@@ -648,13 +658,13 @@ func TestContract_OSInstall_RefusalsAndFailures(t *testing.T) {
 		t.Parallel()
 		e := startSys(t, func(_ *ops.Config, d *ops.Deps) { d.LockHeld = func(string) (bool, error) { return true, nil } })
 		e.installRules()
-		e.refused(t, "os.install", api.OSInstallArgs{Scope: "all"}, http.StatusConflict, "dpkg_locked")
+		e.refused(t, "os.install", api.OSInstallArgs{Snapshot: e.snap(), Scope: "all"}, http.StatusConflict, "dpkg_locked")
 	})
 	t.Run("no backup possible: nothing is installed", func(t *testing.T) {
 		t.Parallel()
 		e := startSys(t, func(c *ops.Config, _ *ops.Deps) { c.CoreData = "" })
 		e.installRules()
-		e.final(t, "os.install", api.OSInstallArgs{Scope: "all"}, api.StatusRefused, "db_unreadable")
+		e.refused(t, "os.install", api.OSInstallArgs{Snapshot: e.snap(), Scope: "all"}, http.StatusPreconditionFailed, "db_unreadable")
 		if slices.ContainsFunc(aptCalls(e), func(c []string) bool { return slices.Contains(c, "install") }) {
 			t.Error("apt install ran without a backup")
 		}
@@ -667,7 +677,7 @@ func TestContract_OSInstall_RefusalsAndFailures(t *testing.T) {
 		e.m.Rule("apt-get", "update", "apt_update.txt", 0, "", "")
 		e.m.Rule("apt-get", "install", "", 100, "", "")
 		e.m.Rule("apt-get", "dist-upgrade", "sim_ubuntu.txt", 0, "", "")
-		r := e.final(t, "os.install", api.OSInstallArgs{Scope: "all"}, api.StatusFailed, "apt_failed")
+		r := e.final(t, "os.install", api.OSInstallArgs{Snapshot: e.snap(), Scope: "all"}, api.StatusFailed, "apt_failed")
 		res := result[api.OSRunResult](t, r)
 		if res.Installed != 0 || res.Backup == "" {
 			t.Errorf("%+v", res)
@@ -684,7 +694,7 @@ func TestContract_OSInstall_RefusalsAndFailures(t *testing.T) {
 		e.installRules()
 		e.m.ClearRules("systemctl")
 		e.m.Rule("systemctl", "is-active", "inactive.txt", 3, "", "")
-		r := e.final(t, "os.install", api.OSInstallArgs{Scope: "all"}, api.StatusFailed, "health_check_failed")
+		r := e.final(t, "os.install", api.OSInstallArgs{Snapshot: e.snap(), Scope: "all"}, api.StatusFailed, "health_check_failed")
 		res := result[api.OSRunResult](t, r)
 		if res.Installed != 2 || len(res.Health) != 1 || res.Health[0].OK || res.Backup == "" {
 			t.Errorf("%+v", res)
@@ -702,7 +712,7 @@ func TestContract_OSInstall_RefusalsAndFailures(t *testing.T) {
 		e.m.ClearRules("apt-get")
 		e.m.Rule("apt-get", "update", "apt_update.txt", 0, "", "")
 		e.m.Rule("apt-get", "dist-upgrade", "sim_after.txt", 0, "", "")
-		res := result[api.OSRunResult](t, e.ok(t, "os.install", api.OSInstallArgs{Scope: "all"}))
+		res := result[api.OSRunResult](t, e.ok(t, "os.install", api.OSInstallArgs{Snapshot: e.snap(), Scope: "all"}))
 		if res.Installed != 0 || res.Backup != "" {
 			t.Errorf("%+v", res)
 		}
@@ -843,6 +853,9 @@ func rebootCalls(e *sysEnv) int {
 	return n
 }
 
+// rebootGateTTLForTests is longer than the time the host waits for a started reboot to happen.
+const rebootGateTTLForTests = 11 * time.Minute
+
 func TestContract_Reboot_NowRecordsTheRunBeforeRebooting(t *testing.T) {
 	t.Parallel()
 	e := startSys(t)
@@ -875,6 +888,7 @@ func TestContract_Reboot_NowIsLimitedTo3In24Hours(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		e.ok(t, "os.reboot", api.OSRebootArgs{When: "now"})
 		eventually(t, "systemctl reboot", func() bool { return rebootCalls(e) == i+1 })
+		e.m.SetBootID(fmt.Sprintf("11111111-2222-4333-8444-55555555000%d", i)) // the box came back: a new boot
 	}
 	e.refused(t, "os.reboot", api.OSRebootArgs{When: "now"}, http.StatusConflict, "reboot_limit_reached")
 	if rebootCalls(e) != 3 {
@@ -1053,7 +1067,8 @@ func TestContract_Reboot_CompletionIsAuditedAfterANewBoot(t *testing.T) {
 	e.ok(t, "os.reboot", api.OSRebootArgs{When: "now"})
 	eventually(t, "reboot", func() bool { return rebootCalls(e) == 1 })
 
-	// Same boot after a host restart: the reboot never happened, nothing is claimed.
+	// Same boot after a host restart, long after the reboot was started: it never happened, nothing is claimed.
+	e.clock.Advance(rebootGateTTLForTests)
 	same := e.m.Ops(e.clock.Now)
 	h2 := servertest.Start(t, same.Commands(), func(o *server.Options) {
 		o.StateDir, o.AuditPath, o.Readers, o.Now = e.m.State, e.h.AuditPath, same.Readers(), e.clock.Now
@@ -1140,19 +1155,13 @@ func readBackupFiles(t *testing.T, e *sysEnv, id string) map[string][]byte {
 	return files
 }
 
-func writeTemp(t *testing.T, data []byte) string {
-	t.Helper()
-	p := filepath.Join(t.TempDir(), "x.db")
-	if err := os.WriteFile(p, data, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	return p
-}
-
 func TestContract_Backup_ManualWithoutSecretsHoldsNoKeyAndIsDownloadable(t *testing.T) {
 	t.Parallel()
 	e := startSys(t)
-	r := e.ok(t, "backup.create", api.BackupCreateArgs{Kind: "manual", Label: "before the audit (nov)"})
+	rec := &noteRecorder{}
+	e.o.Start(context.Background(), rec)
+	snap := e.snap()
+	r := e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: snap, Kind: "manual", Label: "before the audit (nov)"})
 	res := result[api.BackupResult](t, r)
 	files := readBackupFiles(t, e, res.BackupID)
 	names := make([]string, 0, len(files))
@@ -1164,14 +1173,14 @@ func TestContract_Backup_ManualWithoutSecretsHoldsNoKeyAndIsDownloadable(t *test
 		t.Fatalf("members = %v (no key file, no config)", names)
 	}
 	man, err := ops.ParseManifest(files["manifest.json"])
-	if err != nil || man.IncludesSecrets || man.Version != 1 || man.DBSchema != "core=3,findings=2" || man.CreatedAt != "2026-11-09T12:00:00Z" {
+	if err != nil || man.IncludesSecrets || man.Version != 1 || man.DBSchema != opstest.Schema || man.CreatedAt != "2026-11-09T12:00:00Z" {
 		t.Fatalf("manifest = %+v %v", man, err)
 	}
-	if bytes.Contains(files["vedette.db"], []byte("0123456789abcdef0123456789abcdef")) {
-		t.Error("the master key is inside the database copy")
+	if string(files["vedette.db"]) != "db: first" {
+		t.Fatalf("the database member is %q, want the snapshot's bytes", files["vedette.db"])
 	}
-	if got := e.m.Notes(writeTemp(t, files["vedette.db"])); !slices.Equal(got, []string{"first"}) {
-		t.Fatalf("notes in the copy = %v", got)
+	if bytes.Contains(files["vedette.db"], []byte(opstest.Key)) {
+		t.Error("the master key is inside the database copy")
 	}
 	st, err := os.Stat(filepath.Join(e.m.State, "backups", res.BackupID+".tar.gz"))
 	if err != nil || st.Mode().Perm() != 0o600 || st.Size() != res.Size {
@@ -1184,7 +1193,7 @@ func TestContract_Backup_ManualWithoutSecretsHoldsNoKeyAndIsDownloadable(t *test
 	}
 	b := bl.Backups[0]
 	if b.BackupID != res.BackupID || b.Kind != "manual" || b.Label != "before the audit (nov)" || b.Size != res.Size || b.SHA256 != res.SHA256 || b.Version != 1 ||
-		b.DBSchema != "core=3,findings=2" || b.IncludesSecrets || !b.Downloadable || !b.CreatedAt.Equal(e.clock.Now()) {
+		b.DBSchema != opstest.Schema || b.IncludesSecrets || !b.Downloadable || !b.CreatedAt.Equal(e.clock.Now()) {
 		t.Fatalf("listing = %+v", b)
 	}
 	body, size, err := e.h.Client.DownloadBackup(context.Background(), res.BackupID)
@@ -1196,13 +1205,19 @@ func TestContract_Backup_ManualWithoutSecretsHoldsNoKeyAndIsDownloadable(t *test
 	if sha(data) != res.SHA256 || int64(len(data)) != size || size != res.Size {
 		t.Fatalf("download differs from the archive")
 	}
-	// Nothing was left over.
+	// Every download is one audit line (who can see it is the chain; the host writes it as "system").
+	if got := rec.text(); strings.Count(got, "backup.download backup_downloaded") != 1 || !strings.Contains(got, res.BackupID) {
+		t.Errorf("download audit lines: %q", got)
+	}
+	// Nothing was left over, and core's tree is as it was: the live database was never touched.
 	if ents, _ := os.ReadDir(filepath.Join(e.m.State, "tmp")); len(ents) != 0 {
 		t.Errorf("temp files left: %v", ents)
 	}
-	// core's directory is as it was: no -wal/-shm files owned by anyone else, mode of the db unchanged.
-	if st, _ := os.Stat(e.m.CoreDBPath()); st.Mode().Perm() != 0o600 {
-		t.Errorf("db mode = %o", st.Mode().Perm())
+	if st, _ := os.Stat(e.m.CoreDBPath()); st.Mode().Perm() != 0o600 || e.m.DB() != "db: first" {
+		t.Errorf("the live database changed: %o %q", st.Mode().Perm(), e.m.DB())
+	}
+	if ents, _ := os.ReadDir(e.m.CoreData); len(ents) != 3 { // vedette.db, vedette.key, snapshots
+		t.Errorf("core's directory has %d entries: %v", len(ents), ents)
 	}
 }
 
@@ -1210,8 +1225,8 @@ func TestContract_Backup_SecretsAndPreKinds(t *testing.T) {
 	t.Parallel()
 	e := startSys(t)
 	// manual + include_secrets: carries the key, is not downloadable.
-	withKey := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Kind: "manual", IncludeSecrets: true}))
-	if f := readBackupFiles(t, e, withKey.BackupID); string(f["vedette.key"]) != "0123456789abcdef0123456789abcdef" {
+	withKey := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: e.snap(), Kind: "manual", IncludeSecrets: true}))
+	if f := readBackupFiles(t, e, withKey.BackupID); string(f["vedette.key"]) != opstest.Key {
 		t.Errorf("key member = %q", f["vedette.key"])
 	}
 	if _, _, err := e.h.Client.DownloadBackup(context.Background(), withKey.BackupID); !client.IsCode(err, api.CodeContainsSecrets) {
@@ -1219,7 +1234,7 @@ func TestContract_Backup_SecretsAndPreKinds(t *testing.T) {
 	}
 	// pre_* kinds force secrets even when the client says false, and never download.
 	for _, kind := range []string{"pre_update", "pre_os_update", "pre_restore"} {
-		res := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Kind: kind, IncludeSecrets: false}))
+		res := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: e.snap(), Kind: kind, IncludeSecrets: false}))
 		if f := readBackupFiles(t, e, res.BackupID); len(f["vedette.key"]) == 0 {
 			t.Errorf("%s has no key", kind)
 		}
@@ -1229,15 +1244,31 @@ func TestContract_Backup_SecretsAndPreKinds(t *testing.T) {
 		}
 	}
 	// What is recorded in the audit line for the forced kinds is what ran.
-	last := audit(t, e.h)
 	var forced bool
-	for _, a := range last {
+	for _, a := range audit(t, e.h) {
 		if a.Command == "backup.create" && bytes.Contains(a.ArgsRedacted, []byte(`"kind":"pre_restore"`)) && bytes.Contains(a.ArgsRedacted, []byte(`"include_secrets":true`)) {
 			forced = true
 		}
 	}
 	if !forced {
 		t.Error("the audit line does not show include_secrets=true for pre_restore")
+	}
+	// The key is only read when secrets are wanted: a snapshot without one still gives a manual
+	// backup without secrets and a pre_* backup that says it has none; a manual backup that asks
+	// for secrets is refused.
+	noKey := func(o *opstest.SnapOpts) { o.NoKey = true }
+	e.clock.Advance(time.Minute) // retention orders by time: the newest pre_* backup must not tie with the older ones
+	e.refused(t, "backup.create", api.BackupCreateArgs{Snapshot: e.snap(noKey), Kind: "manual", IncludeSecrets: true}, http.StatusPreconditionFailed, "key_unreadable")
+	e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: e.snap(noKey), Kind: "manual"})
+	pre := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: e.snap(noKey), Kind: "pre_update"}))
+	if f := readBackupFiles(t, e, pre.BackupID); len(f["vedette.key"]) != 0 {
+		t.Error("a pre_* backup of a box with no key holds a key")
+	}
+	bl, _ := e.h.Client.StateBackups(context.Background())
+	for _, b := range bl.Backups {
+		if b.BackupID == pre.BackupID && b.IncludesSecrets {
+			t.Error("the listing says the key-less pre_* backup has secrets")
+		}
 	}
 	// Unknown ids and hostile paths.
 	for _, p := range []string{
@@ -1269,14 +1300,14 @@ func TestContract_Backup_Retention(t *testing.T) {
 	var firstPre string
 	for i := 0; i < 5; i++ {
 		e.clock.Advance(time.Minute)
-		res := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Kind: "pre_os_update"}))
+		res := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: e.snap(), Kind: "pre_os_update"}))
 		if i == 0 {
 			firstPre = res.BackupID
 		}
 	}
 	for i := 0; i < 12; i++ {
 		e.clock.Advance(time.Minute)
-		e.ok(t, "backup.create", api.BackupCreateArgs{Kind: "manual"})
+		e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: e.snap(), Kind: "manual"})
 	}
 	bl, _ := e.h.Client.StateBackups(context.Background())
 	pre, manual := 0, 0
@@ -1302,24 +1333,299 @@ func TestContract_Backup_Retention(t *testing.T) {
 	}
 }
 
-func TestContract_Backup_ConsistentWhileCoreWrites(t *testing.T) {
+// D-87: the host copies the bytes of the snapshot core wrote. It does not open the live database
+// (core keeps writing to it), it does not interpret the snapshot, and a large one is streamed.
+func TestContract_Backup_CopiesTheSnapshotBytesAndNeverTheLiveDatabase(t *testing.T) {
 	t.Parallel()
 	e := startSys(t)
-	db := e.m.OpenCoreDB()
-	defer func() { _ = db.Close() }()
-	// Enough data that the copy takes several steps, and the database really is in WAL mode.
-	pad := strings.Repeat("x", 400)
-	if _, err := db.Exec(`WITH RECURSIVE c(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM c WHERE i < 30000) INSERT INTO note(body) SELECT 'bulk ' || i || ?1 FROM c`, pad); err != nil {
+	big := strings.Repeat("0123456789abcdef", 1<<18) // 4 MiB
+	snap := e.snap(func(o *opstest.SnapOpts) { o.DB = &big })
+	// Core moves on after writing the snapshot: the backup is of the snapshot.
+	e.m.WriteDB("db: changed after the snapshot")
+	res := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: snap, Kind: "manual"}))
+	if got := string(readBackupFiles(t, e, res.BackupID)["vedette.db"]); got != big {
+		t.Fatalf("the database member differs from the snapshot (%d bytes, want %d)", len(got), len(big))
+	}
+	// The live database can be anything at all: a FIFO would block any open, a symlink would be
+	// followed by a path-based copy. The host never opens it.
+	if err := os.Remove(e.m.CoreDBPath()); err != nil {
 		t.Fatal(err)
 	}
-	var mode string
-	if err := db.QueryRow(`PRAGMA journal_mode`).Scan(&mode); err != nil || mode != "wal" {
-		t.Fatalf("journal_mode = %q %v", mode, err)
+	if err := syscall.Mkfifo(e.m.CoreDBPath(), 0o600); err != nil {
+		t.Skip(err)
 	}
-	before := len(e.m.Notes(""))
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: snap, Kind: "manual"})
+	}()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("backup.create blocked: the host opened the live database, which is a FIFO")
+	}
+	_ = os.Remove(e.m.CoreDBPath())
+	if err := os.Symlink("/etc/hosts", e.m.CoreDBPath()); err != nil {
+		t.Fatal(err)
+	}
+	e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: snap, Kind: "manual"})
+}
+
+// D-87: root never takes its schema or its secrets-or-not decision from the database. db_schema is
+// what core wrote in snapshot.json, and the database member is the snapshot's bytes whatever they
+// say: SQL that core defined (a generated column, a virtual table) is never evaluated by the host.
+func TestContract_Backup_NeverEvaluatesWhatCoreDefined(t *testing.T) {
+	t.Parallel()
+	e := startSys(t)
+	evil := `CREATE TABLE core_migration_evil (id INTEGER PRIMARY KEY, version_id INTEGER GENERATED ALWAYS AS (length(hex(zeroblob(5000000000)))) VIRTUAL, is_applied INTEGER NOT NULL DEFAULT 1);` +
+		`CREATE VIRTUAL TABLE core_migration_fts USING fts5(a); INSERT INTO core_migration_evil(id) VALUES (1);`
+	snap := e.snap(func(o *opstest.SnapOpts) { o.DB = &evil; o.Schema = "core=1" })
+	res := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: snap, Kind: "manual"}))
+	files := readBackupFiles(t, e, res.BackupID)
+	man, err := ops.ParseManifest(files["manifest.json"])
+	if err != nil || man.DBSchema != "core=1" || string(files["vedette.db"]) != evil {
+		t.Fatalf("manifest %+v (%v), database %q", man, err, files["vedette.db"])
+	}
+	bl, _ := e.h.Client.StateBackups(context.Background())
+	if len(bl.Backups) != 1 || bl.Backups[0].DBSchema != "core=1" {
+		t.Fatalf("listing %+v", bl)
+	}
+}
+
+// snapshotFiles are the three files of a snapshot.
+var snapshotFiles = []string{"snapshot.json", "vedette.db", "vedette.key"}
+
+func TestContract_Backup_RefusalsAndHostileCore(t *testing.T) {
+	t.Parallel()
+	bk := func(snap string) api.BackupCreateArgs {
+		return api.BackupCreateArgs{Snapshot: snap, Kind: "manual", IncludeSecrets: true}
+	}
+	t.Run("core_data not configured", func(t *testing.T) {
+		t.Parallel()
+		e := startSys(t, func(c *ops.Config, _ *ops.Deps) { c.CoreData = "" })
+		e.refused(t, "backup.create", bk(e.snap()), http.StatusPreconditionFailed, "db_unreadable")
+	})
+	t.Run("a snapshot that does not exist", func(t *testing.T) {
+		t.Parallel()
+		e := startSys(t)
+		e.refused(t, "backup.create", bk(strings.Repeat("c", 32)), http.StatusPreconditionFailed, "snapshot_required")
+		bl, _ := e.h.Client.StateBackups(context.Background())
+		if len(bl.Backups) != 0 {
+			t.Errorf("a backup was kept: %+v", bl)
+		}
+	})
+	t.Run("a snapshot older than 10 minutes", func(t *testing.T) {
+		t.Parallel()
+		e := startSys(t)
+		e.refused(t, "backup.create", bk(e.m.Snapshot(e.clock.Now().Add(-10*time.Minute-time.Second))), http.StatusPreconditionFailed, "snapshot_required")
+		e.ok(t, "backup.create", bk(e.m.Snapshot(e.clock.Now().Add(-9*time.Minute))))
+	})
+	t.Run("a snapshot dated in the future", func(t *testing.T) {
+		t.Parallel()
+		e := startSys(t)
+		e.refused(t, "backup.create", bk(e.m.Snapshot(e.clock.Now().Add(5*time.Minute))), http.StatusPreconditionFailed, "snapshot_invalid")
+	})
+	t.Run("snapshot.json that is not the contract", func(t *testing.T) {
+		t.Parallel()
+		e := startSys(t)
+		for name, body := range map[string]string{
+			"not json": "x", "empty": "", "unknown field": `{"created_at":"2026-11-09T12:00:00Z","db_schema":"core=1","includes_key":true,"path":"/etc"}`,
+			"bad schema": `{"created_at":"2026-11-09T12:00:00Z","db_schema":"core=1; DROP","includes_key":true}`, "bad time": `{"created_at":"yesterday","db_schema":"core=1","includes_key":true}`,
+			"trailing data": `{"created_at":"2026-11-09T12:00:00Z","db_schema":"core=1","includes_key":true} {}`, "too large": strings.Repeat(" ", 5000) + `{}`,
+		} {
+			snap := e.snap()
+			if err := os.WriteFile(e.m.SnapshotPath(snap, "snapshot.json"), []byte(body), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := e.call(t, "backup.create", bk(snap)); !client.IsCode(err, "snapshot_invalid") {
+				t.Errorf("%s: %v", name, err)
+			}
+		}
+	})
+	t.Run("a snapshot with a missing or empty file", func(t *testing.T) {
+		t.Parallel()
+		e := startSys(t)
+		for _, name := range []string{"vedette.db", "vedette.key"} {
+			snap := e.snap()
+			_ = os.Remove(e.m.SnapshotPath(snap, name))
+			if _, err := e.call(t, "backup.create", bk(snap)); !client.IsCode(err, "snapshot_invalid") {
+				t.Errorf("missing %s: %v", name, err)
+			}
+			snap = e.snap()
+			if err := os.WriteFile(e.m.SnapshotPath(snap, name), nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := e.call(t, "backup.create", bk(snap)); !client.IsCode(err, "snapshot_invalid") {
+				t.Errorf("empty %s: %v", name, err)
+			}
+		}
+		snap := e.snap()
+		_ = os.Remove(e.m.SnapshotPath(snap, "snapshot.json"))
+		e.refused(t, "backup.create", bk(snap), http.StatusPreconditionFailed, "snapshot_required")
+	})
+	t.Run("a file of the snapshot is a symlink: it is not followed", func(t *testing.T) {
+		t.Parallel()
+		e := startSys(t)
+		victim := filepath.Join(t.TempDir(), "shadow")
+		if err := os.WriteFile(victim, []byte("root:x:0:0\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		for _, name := range snapshotFiles {
+			snap := e.snap()
+			p := e.m.SnapshotPath(snap, name)
+			_ = os.Remove(p)
+			if err := os.Symlink(victim, p); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := e.call(t, "backup.create", bk(snap)); !client.IsCode(err, "snapshot_invalid") {
+				t.Errorf("symlink as %s: %v", name, err)
+			}
+			// A relative link that stays inside core_data is a link too.
+			_ = os.Remove(p)
+			if err := os.Symlink("../../vedette.db", p); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := e.call(t, "backup.create", bk(snap)); !client.IsCode(err, "snapshot_invalid") {
+				t.Errorf("inner symlink as %s: %v", name, err)
+			}
+		}
+		bl, _ := e.h.Client.StateBackups(context.Background())
+		if len(bl.Backups) != 0 {
+			t.Errorf("a backup was kept: %+v", bl)
+		}
+	})
+	t.Run("the snapshot directory points outside core_data", func(t *testing.T) {
+		t.Parallel()
+		e := startSys(t)
+		outside := t.TempDir()
+		snap := e.snap()
+		dir := filepath.Join(e.m.CoreData, "snapshots", snap)
+		moved := filepath.Join(outside, "s")
+		if err := os.Rename(dir, moved); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(moved, dir); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := e.call(t, "backup.create", bk(snap)); !client.IsCode(err, "snapshot_invalid") {
+			t.Errorf("snapshot directory symlinked outside core_data: %v", err)
+		}
+	})
+	t.Run("a FIFO in the snapshot fails at once and never blocks", func(t *testing.T) {
+		t.Parallel()
+		e := startSys(t)
+		for _, name := range snapshotFiles {
+			snap := e.snap()
+			p := e.m.SnapshotPath(snap, name)
+			_ = os.Remove(p)
+			if err := syscall.Mkfifo(p, 0o600); err != nil {
+				t.Skip(err)
+			}
+			done := make(chan error, 1)
+			go func() { _, err := e.call(t, "backup.create", bk(snap)); done <- err }()
+			select {
+			case err := <-done:
+				if !client.IsCode(err, "snapshot_invalid") {
+					t.Errorf("FIFO as %s: %v", name, err)
+				}
+			case <-time.After(10 * time.Second):
+				t.Fatalf("backup.create blocked on a FIFO named %s", name)
+			}
+		}
+	})
+	t.Run("a hardlink in the snapshot is refused", func(t *testing.T) {
+		t.Parallel()
+		e := startSys(t)
+		snap := e.snap()
+		p := e.m.SnapshotPath(snap, "vedette.db")
+		_ = os.Remove(p)
+		if err := os.Link(e.m.CoreDBPath(), p); err != nil {
+			t.Skip(err)
+		}
+		if _, err := e.call(t, "backup.create", bk(snap)); !client.IsCode(err, "snapshot_invalid") {
+			t.Errorf("hard-linked database: %v", err)
+		}
+		snap = e.snap()
+		other := filepath.Join(t.TempDir(), "other")
+		if err := os.Link(e.m.SnapshotPath(snap, "vedette.key"), other); err != nil {
+			t.Skip(err)
+		}
+		if _, err := e.call(t, "backup.create", bk(snap)); !client.IsCode(err, "snapshot_invalid") {
+			t.Errorf("a key with a second link: %v", err)
+		}
+	})
+	t.Run("files that core does not own are refused", func(t *testing.T) {
+		t.Parallel()
+		e := startSys(t, func(c *ops.Config, _ *ops.Deps) { c.CoreUID = os.Getuid() + 1 })
+		e.refused(t, "backup.create", bk(e.snap()), http.StatusPreconditionFailed, "snapshot_invalid")
+	})
+	t.Run("files over the size caps are refused", func(t *testing.T) {
+		t.Parallel()
+		e := startSys(t)
+		snap := e.snap()
+		if err := os.WriteFile(e.m.SnapshotPath(snap, "vedette.key"), make([]byte, 4097), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := e.call(t, "backup.create", bk(snap)); !client.IsCode(err, "snapshot_invalid") {
+			t.Errorf("a 4 KiB + 1 key: %v", err)
+		}
+		snap = e.snap()
+		if err := os.Truncate(e.m.SnapshotPath(snap, "vedette.db"), 64<<30+1); err != nil { // sparse
+			t.Skip(err)
+		}
+		if _, err := e.call(t, "backup.create", bk(snap)); !client.IsCode(err, "snapshot_invalid") {
+			t.Errorf("a database over 64 GiB: %v", err)
+		}
+	})
+	t.Run("core_data is a symlink", func(t *testing.T) {
+		t.Parallel()
+		e := startSys(t, func(c *ops.Config, _ *ops.Deps) {
+			link := filepath.Join(filepath.Dir(c.CoreData), "core-link")
+			if err := os.Symlink(c.CoreData, link); err != nil {
+				t.Fatal(err)
+			}
+			c.CoreData = link
+		})
+		e.refused(t, "backup.create", bk(e.snap()), http.StatusPreconditionFailed, "db_unreadable")
+	})
+	t.Run("a parent of core_data that others can write", func(t *testing.T) {
+		t.Parallel()
+		e := startSys(t)
+		snap := e.snap()
+		parent := filepath.Dir(e.m.CoreData)
+		if err := os.Chmod(parent, 0o777); err != nil { //nolint:gosec // the test makes the parent unsafe on purpose
+			t.Fatal(err)
+		}
+		e.refused(t, "backup.create", bk(snap), http.StatusPreconditionFailed, "db_unreadable")
+		if err := os.Chmod(parent, 0o700); err != nil { //nolint:gosec // the test puts the parent back to the mode the machine made it
+			t.Fatal(err)
+		}
+		e.ok(t, "backup.create", bk(snap))
+	})
+	t.Run("less than twice the database free", func(t *testing.T) {
+		t.Parallel()
+		e := startSys(t, func(_ *ops.Config, d *ops.Deps) { d.FreeBytes = func(string) (uint64, error) { return 1, nil } })
+		e.refused(t, "backup.create", bk(e.snap()), http.StatusPreconditionFailed, "low_disk")
+	})
+}
+
+// A core that swaps the snapshot's database between a regular file and a FIFO while backups run
+// gets, each time, either a backup of the regular file or a refusal; never a hang, never a backup
+// of anything else.
+func TestContract_Backup_ASwapRaceWithAFIFONeverBlocks(t *testing.T) {
+	t.Parallel()
+	e := startSys(t)
+	snap := e.snap()
+	p := e.m.SnapshotPath(snap, "vedette.db")
+	reg, fifo := p+".reg", p+".fifo"
+	if err := os.Rename(p, reg); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
+		t.Skip(err)
+	}
 	stop := make(chan struct{})
 	var wg sync.WaitGroup
-	var written atomic.Int64
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -1329,88 +1635,41 @@ func TestContract_Backup_ConsistentWhileCoreWrites(t *testing.T) {
 				return
 			default:
 			}
-			if _, err := db.Exec(`INSERT INTO note(body) VALUES ('concurrent')`); err == nil {
-				written.Add(1)
-			}
+			_ = os.Link(fifo, p+".l")
+			_ = os.Rename(p+".l", p)
+			_ = os.Link(reg, p+".l")
+			_ = os.Rename(p+".l", p)
 		}
 	}()
-	res := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Kind: "manual"}))
-	close(stop)
-	wg.Wait()
-	files := readBackupFiles(t, e, res.BackupID)
-	notes := e.m.Notes(writeTemp(t, files["vedette.db"]))
-	if len(notes) < before {
-		t.Fatalf("the copy has %d rows, core had %d before the backup started", len(notes), before)
-	}
-	if written.Load() == 0 {
-		t.Log("the writer made no progress during the backup (machine busy); the consistency check still ran")
-	}
-	// The copy is one self-contained, sound file.
-	if len(files["vedette.db"]) < 1<<20 {
-		t.Errorf("database copy is only %d bytes", len(files["vedette.db"]))
-	}
-	// core's live files are untouched: no root-owned sidecars, same owner as the database.
-	liveInfo, _ := os.Stat(e.m.CoreDBPath())
-	for _, suffix := range []string{"-wal", "-shm"} {
-		if st, err := os.Stat(e.m.CoreDBPath() + suffix); err == nil && st.Mode().Perm() != liveInfo.Mode().Perm() {
-			t.Errorf("%s has mode %o, the database %o", suffix, st.Mode().Perm(), liveInfo.Mode().Perm())
+	defer func() { close(stop); wg.Wait() }()
+	deadline := time.Now().Add(20 * time.Second)
+	okRuns, refusedRuns := 0, 0
+	for i := 0; i < 15 && time.Now().Before(deadline); i++ {
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			r, err := e.call(t, "backup.create", api.BackupCreateArgs{Snapshot: snap, Kind: "manual"})
+			switch {
+			case err != nil && client.IsCode(err, "snapshot_invalid"):
+				refusedRuns++
+			case err == nil && r.Status == api.StatusSucceeded:
+				okRuns++
+				if got := string(readBackupFiles(t, e, result[api.BackupResult](t, r).BackupID)["vedette.db"]); got != "db: first" {
+					t.Errorf("a backup holds %q", got)
+				}
+			case err == nil && r.Error != nil && r.Error.Code == "snapshot_invalid":
+				refusedRuns++
+			default:
+				t.Errorf("unexpected end: %v %+v", err, r)
+			}
+		}()
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+			t.Fatal("backup.create blocked while core swapped a FIFO in")
 		}
 	}
-}
-
-func TestContract_Backup_RefusalsAndHostileCore(t *testing.T) {
-	t.Parallel()
-	t.Run("core_data not configured", func(t *testing.T) {
-		t.Parallel()
-		e := startSys(t, func(c *ops.Config, _ *ops.Deps) { c.CoreData = "" })
-		e.refused(t, "backup.create", api.BackupCreateArgs{Kind: "manual"}, http.StatusPreconditionFailed, "db_unreadable")
-	})
-	t.Run("database missing", func(t *testing.T) {
-		t.Parallel()
-		e := startSys(t)
-		_ = os.Remove(e.m.CoreDBPath())
-		e.refused(t, "backup.create", api.BackupCreateArgs{Kind: "manual"}, http.StatusPreconditionFailed, "db_unreadable")
-	})
-	t.Run("the database is a symlink: it is not followed", func(t *testing.T) {
-		t.Parallel()
-		e := startSys(t)
-		secret := filepath.Join(t.TempDir(), "shadow")
-		if err := os.WriteFile(secret, []byte("root:x:0:0\n"), 0o600); err != nil {
-			t.Fatal(err)
-		}
-		_ = os.Remove(e.m.CoreDBPath())
-		if err := os.Symlink(secret, e.m.CoreDBPath()); err != nil {
-			t.Fatal(err)
-		}
-		e.refused(t, "backup.create", api.BackupCreateArgs{Kind: "manual"}, http.StatusPreconditionFailed, "db_unreadable")
-	})
-	t.Run("the key is a symlink: a backup with secrets is refused", func(t *testing.T) {
-		t.Parallel()
-		e := startSys(t)
-		_ = os.Remove(filepath.Join(e.m.CoreData, "vedette.key"))
-		if err := os.Symlink("/etc/hosts", filepath.Join(e.m.CoreData, "vedette.key")); err != nil {
-			t.Fatal(err)
-		}
-		e.refused(t, "backup.create", api.BackupCreateArgs{Kind: "pre_update"}, http.StatusPreconditionFailed, "key_unreadable")
-		e.ok(t, "backup.create", api.BackupCreateArgs{Kind: "manual"}) // without secrets the key is not needed
-	})
-	t.Run("the database is not a database", func(t *testing.T) {
-		t.Parallel()
-		e := startSys(t)
-		if err := os.WriteFile(e.m.CoreDBPath(), []byte(strings.Repeat("not sqlite ", 1000)), 0o600); err != nil {
-			t.Fatal(err)
-		}
-		e.final(t, "backup.create", api.BackupCreateArgs{Kind: "manual"}, api.StatusRefused, "db_unreadable")
-		bl, _ := e.h.Client.StateBackups(context.Background())
-		if len(bl.Backups) != 0 {
-			t.Errorf("a backup of a broken database was kept: %+v", bl)
-		}
-	})
-	t.Run("less than twice the database free", func(t *testing.T) {
-		t.Parallel()
-		e := startSys(t, func(_ *ops.Config, d *ops.Deps) { d.FreeBytes = func(string) (uint64, error) { return 1, nil } })
-		e.refused(t, "backup.create", api.BackupCreateArgs{Kind: "manual"}, http.StatusPreconditionFailed, "low_disk")
-	})
+	t.Logf("%d backups, %d refusals", okRuns, refusedRuns)
 }
 
 // restoreRules makes the fake systemctl behave like a unit that stops, then starts healthy.
@@ -1430,28 +1689,58 @@ func systemctlVerbs(e *sysEnv) []string {
 	return v
 }
 
-func TestContract_Restore_RoundTripOnARealDatabase(t *testing.T) {
+// ownerOf is the uid and gid of a file.
+func ownerOf(t *testing.T, p string) (uid, gid int) {
+	t.Helper()
+	st, err := os.Lstat(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sys := st.Sys().(*syscall.Stat_t) //nolint:forcetypeassert // Unix only, like the host
+	return int(sys.Uid), int(sys.Gid)
+}
+
+// otherGroup is a group the test user belongs to that is not its primary one (it may chown to it
+// without being root), or -1.
+func otherGroup() int {
+	gs, _ := os.Getgroups()
+	for _, g := range gs {
+		if g != os.Getgid() {
+			return g
+		}
+	}
+	return -1
+}
+
+func TestContract_Restore_RoundTrip(t *testing.T) {
 	t.Parallel()
 	e := startSys(t)
 	e.restoreRules()
 	keyPath := filepath.Join(e.m.CoreData, "vedette.key")
-	b1 := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Kind: "manual", IncludeSecrets: true}))
-	// Core moves on: more data, a new key, a stale WAL left next to the database.
-	db := e.m.OpenCoreDB()
-	for _, b := range []string{"second", "third"} {
-		if _, err := db.Exec(`INSERT INTO note(body) VALUES (?1)`, b); err != nil {
-			t.Fatal(err)
-		}
-	}
+	b1 := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: e.snap(), Kind: "manual", IncludeSecrets: true}))
+	// Core moves on: more data, a new key, and stale files of the old database next to it, one of
+	// them a symlink to a file that is not core's.
+	e.m.WriteDB("db: first, second, third")
 	if err := os.WriteFile(keyPath, []byte("ffffffffffffffffffffffffffffffff"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	_ = db.Close()
-	if err := os.WriteFile(e.m.CoreDBPath()+"-wal", []byte("stale wal that must not survive"), 0o600); err != nil {
+	victim := filepath.Join(t.TempDir(), "victim")
+	if err := os.WriteFile(victim, []byte("not core's"), 0o640); err != nil { //nolint:gosec // a victim file with a mode that must stay as it is
+		t.Fatal(err)
+	}
+	if err := os.Chmod(victim, 0o640); err != nil { //nolint:gosec // a victim file with a mode that must stay as it is
+		t.Fatal(err)
+	}
+	for _, s := range []string{"-shm", "-journal"} {
+		if err := os.WriteFile(e.m.CoreDBPath()+s, []byte("stale"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink(victim, e.m.CoreDBPath()+"-wal"); err != nil {
 		t.Fatal(err)
 	}
 
-	r := e.ok(t, "backup.restore", api.BackupRestoreArgs{BackupID: b1.BackupID})
+	r := e.ok(t, "backup.restore", api.BackupRestoreArgs{Snapshot: e.snap(), BackupID: b1.BackupID})
 	res := result[api.BackupRestoreResult](t, r)
 	if res.RestoredBackupID != b1.BackupID || res.PreRestoreBackupID == "" || res.Version != 1 || len(res.Health) != 1 || !res.Health[0].OK {
 		t.Fatalf("result = %+v", res)
@@ -1467,30 +1756,37 @@ func TestContract_Restore_RoundTripOnARealDatabase(t *testing.T) {
 			t.Errorf("systemctl touched %q", c)
 		}
 	}
-	// The database is the backup's, the key is the backup's, the stale WAL is gone, owner and mode are right.
-	if got := e.m.Notes(""); !slices.Equal(got, []string{"first"}) {
-		t.Fatalf("notes after restore = %v", got)
+	// The database is the backup's, the key is the backup's, the stale files are gone, owner and mode are right.
+	if got := e.m.DB(); got != "db: first" {
+		t.Fatalf("database after restore = %q", got)
 	}
-	if k, _ := os.ReadFile(keyPath); string(k) != "0123456789abcdef0123456789abcdef" { //nolint:gosec // the test reads the fake core key
+	if k, _ := os.ReadFile(keyPath); string(k) != opstest.Key { //nolint:gosec // the test reads the fake core key
 		t.Errorf("key after restore = %q", k)
 	}
 	for _, suffix := range []string{"-wal", "-shm", "-journal"} {
-		if _, err := os.Stat(e.m.CoreDBPath() + suffix); err == nil {
+		if _, err := os.Lstat(e.m.CoreDBPath() + suffix); err == nil {
 			t.Errorf("a stale %s file survived the restore", suffix)
 		}
+	}
+	// The symlinked -wal was removed, not followed: what it pointed at is as it was (mode and content).
+	if st, err := os.Stat(victim); err != nil || st.Mode().Perm() != 0o640 {
+		t.Errorf("the file behind the stale -wal symlink changed: %v %v", st, err)
+	}
+	if b, _ := os.ReadFile(victim); string(b) != "not core's" { //nolint:gosec // the test reads its own file
+		t.Errorf("the file behind the stale -wal symlink was written: %q", b)
 	}
 	for _, p := range []string{e.m.CoreDBPath(), keyPath} {
 		if st, _ := os.Stat(p); st.Mode().Perm() != 0o600 {
 			t.Errorf("%s mode = %o", p, st.Mode().Perm())
 		}
 	}
-	if ents, _ := os.ReadDir(e.m.CoreData); len(ents) != 2 {
+	if ents, _ := os.ReadDir(e.m.CoreData); len(ents) != 3 { // vedette.db, vedette.key, snapshots
 		t.Errorf("core data has %d entries: %v", len(ents), ents)
 	}
 	// The pre_restore backup holds the state from just before: the way back.
 	pre := readBackupFiles(t, e, res.PreRestoreBackupID)
-	if got := e.m.Notes(writeTemp(t, pre["vedette.db"])); !slices.Equal(got, []string{"first", "second", "third"}) {
-		t.Errorf("pre_restore notes = %v", got)
+	if string(pre["vedette.db"]) != "db: first, second, third" {
+		t.Errorf("pre_restore database = %q", pre["vedette.db"])
 	}
 	if string(pre["vedette.key"]) != "ffffffffffffffffffffffffffffffff" {
 		t.Errorf("pre_restore key = %q", pre["vedette.key"])
@@ -1510,10 +1806,88 @@ func TestContract_Restore_RoundTripOnARealDatabase(t *testing.T) {
 	}
 }
 
+// Ownership of what a restore writes comes from host.conf (core_uid, core_gid), never from an
+// entry in core's tree, which core controls (a planted entry would otherwise decide who owns the
+// restored database).
+func TestContract_Restore_FilesGetCoreUIDAndGIDFromTheConfig(t *testing.T) {
+	t.Parallel()
+	g := otherGroup()
+	if g < 0 {
+		t.Skip("the test user has no second group to chown to")
+	}
+	e := startSys(t, func(c *ops.Config, _ *ops.Deps) { c.CoreGID = g })
+	e.restoreRules()
+	b := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: e.snap(), Kind: "manual", IncludeSecrets: true}))
+	// Entries core owns: its database in the primary group, and the directory too. (The snapshot
+	// files core writes are in the primary group as well; that is not what the host trusts.)
+	if _, gid := ownerOf(t, e.m.CoreDBPath()); gid == g {
+		t.Skip("the planted entry already has the configured group")
+	}
+	e.ok(t, "backup.restore", api.BackupRestoreArgs{Snapshot: e.snap(), BackupID: b.BackupID})
+	for _, p := range []string{e.m.CoreDBPath(), filepath.Join(e.m.CoreData, "vedette.key")} {
+		if uid, gid := ownerOf(t, p); uid != os.Getuid() || gid != g {
+			t.Errorf("%s is owned by %d:%d, want %d:%d from host.conf", p, uid, gid, os.Getuid(), g)
+		}
+	}
+}
+
+// Whatever sits at the live names when the restore swaps (a FIFO, a directory, a symlink) is
+// replaced by a plain file; nothing is opened, followed or blocked on.
+func TestContract_Restore_ReplacesWhateverCoreLeftAtTheLiveNames(t *testing.T) {
+	t.Parallel()
+	for name, plant := range map[string]func(t *testing.T, p string){
+		"fifo": func(t *testing.T, p string) {
+			if err := syscall.Mkfifo(p, 0o600); err != nil {
+				t.Skip(err)
+			}
+		},
+		"directory with content": func(t *testing.T, p string) {
+			if err := os.MkdirAll(filepath.Join(p, "sub"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(p, "sub", "f"), []byte("x"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"symlink to a file elsewhere": func(t *testing.T, p string) {
+			if err := os.Symlink("/etc/hosts", p); err != nil {
+				t.Fatal(err)
+			}
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			e := startSys(t)
+			e.restoreRules()
+			b := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: e.snap(), Kind: "manual"}))
+			snap := e.snap()
+			_ = os.Remove(e.m.CoreDBPath())
+			plant(t, e.m.CoreDBPath())
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				e.ok(t, "backup.restore", api.BackupRestoreArgs{Snapshot: snap, BackupID: b.BackupID})
+			}()
+			select {
+			case <-done:
+			case <-time.After(15 * time.Second):
+				t.Fatal("the restore blocked on what core left at vedette.db")
+			}
+			if st, err := os.Lstat(e.m.CoreDBPath()); err != nil || !st.Mode().IsRegular() || st.Mode().Perm() != 0o600 {
+				t.Fatalf("vedette.db after the restore: %v %v", st, err)
+			}
+			if e.m.DB() != "db: first" {
+				t.Errorf("database = %q", e.m.DB())
+			}
+		})
+	}
+}
+
 func TestContract_Restore_UnhealthyCoreIsRevertedToTheStateBefore(t *testing.T) {
 	t.Parallel()
 	e := startSys(t, func(_ *ops.Config, d *ops.Deps) { d.CoreWait = 300 * time.Millisecond })
-	// First start: core never becomes active. Second start (the put-back): healthy.
+	// First start: core never becomes active (it refuses the database: the check that is core's to
+	// make, D-87). Second start (the put-back): healthy.
 	e.m.Rule("systemctl", "stop", "", 0, "", "stopped")
 	e.m.Rule("systemctl", "start", "", 0, "!firststart", "firststart")
 	e.m.Rule("systemctl", "start", "", 0, "firststart", "secondstart")
@@ -1521,23 +1895,19 @@ func TestContract_Restore_UnhealthyCoreIsRevertedToTheStateBefore(t *testing.T) 
 	e.m.Rule("systemctl", "is-active", "inactive.txt", 3, "firststart", "")
 	e.m.Rule("systemctl", "is-active", "inactive.txt", 3, "stopped", "")
 	e.m.Rule("systemctl", "is-active", "active.txt", 0, "", "")
-	b1 := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Kind: "manual", IncludeSecrets: true}))
-	db := e.m.OpenCoreDB()
-	if _, err := db.Exec(`INSERT INTO note(body) VALUES ('later')`); err != nil {
-		t.Fatal(err)
-	}
-	_ = db.Close()
+	b1 := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: e.snap(), Kind: "manual", IncludeSecrets: true}))
+	e.m.WriteDB("db: first, later")
 	if err := os.WriteFile(filepath.Join(e.m.CoreData, "vedette.key"), []byte("ffffffffffffffffffffffffffffffff"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	r := e.final(t, "backup.restore", api.BackupRestoreArgs{BackupID: b1.BackupID}, api.StatusReverted, "restore_health_failed")
+	r := e.final(t, "backup.restore", api.BackupRestoreArgs{Snapshot: e.snap(), BackupID: b1.BackupID}, api.StatusReverted, "restore_health_failed")
 	res := result[api.BackupRestoreResult](t, r)
 	if res.PreRestoreBackupID == "" || len(res.Health) != 1 || res.Health[0].OK {
 		t.Fatalf("result = %+v", res)
 	}
-	if got := e.m.Notes(""); !slices.Equal(got, []string{"first", "later"}) {
-		t.Fatalf("after the revert the database has %v, want the state from before the restore", got)
+	if got := e.m.DB(); got != "db: first, later" {
+		t.Fatalf("after the revert the database is %q, want the state from before the restore", got)
 	}
 	if k, _ := os.ReadFile(filepath.Join(e.m.CoreData, "vedette.key")); string(k) != "ffffffffffffffffffffffffffffffff" {
 		t.Errorf("key after revert = %q", k)
@@ -1555,13 +1925,22 @@ func TestContract_Restore_RefusalsLeaveCoreAlone(t *testing.T) {
 	mk := func(t *testing.T) (*sysEnv, api.BackupResult) {
 		e := startSys(t)
 		e.restoreRules()
-		return e, result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Kind: "manual"}))
+		return e, result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: e.snap(), Kind: "manual"}))
 	}
 	stopped := func(e *sysEnv) bool { return slices.Contains(systemctlVerbs(e), "stop") }
 	t.Run("unknown backup", func(t *testing.T) {
 		t.Parallel()
 		e, _ := mk(t)
-		e.refused(t, "backup.restore", api.BackupRestoreArgs{BackupID: strings.Repeat("a", 32)}, http.StatusNotFound, "backup_unknown")
+		e.refused(t, "backup.restore", api.BackupRestoreArgs{Snapshot: e.snap(), BackupID: strings.Repeat("a", 32)}, http.StatusNotFound, "backup_unknown")
+		if stopped(e) {
+			t.Error("core was stopped")
+		}
+	})
+	t.Run("no snapshot of the current state: no pre_restore backup, so no restore", func(t *testing.T) {
+		t.Parallel()
+		e, b := mk(t)
+		e.refused(t, "backup.restore", api.BackupRestoreArgs{Snapshot: strings.Repeat("d", 32), BackupID: b.BackupID}, http.StatusPreconditionFailed, "snapshot_required")
+		e.refused(t, "backup.restore", api.BackupRestoreArgs{Snapshot: e.m.Snapshot(e.clock.Now().Add(-time.Hour)), BackupID: b.BackupID}, http.StatusPreconditionFailed, "snapshot_required")
 		if stopped(e) {
 			t.Error("core was stopped")
 		}
@@ -1573,7 +1952,7 @@ func TestContract_Restore_RefusalsLeaveCoreAlone(t *testing.T) {
 		f, _ := os.OpenFile(p, os.O_APPEND|os.O_WRONLY, 0) //nolint:gosec // the test corrupts an archive it created
 		_, _ = f.Write([]byte("x"))
 		_ = f.Close()
-		e.final(t, "backup.restore", api.BackupRestoreArgs{BackupID: b.BackupID}, api.StatusRefused, "checksum_mismatch")
+		e.final(t, "backup.restore", api.BackupRestoreArgs{Snapshot: e.snap(), BackupID: b.BackupID}, api.StatusRefused, "checksum_mismatch")
 		if stopped(e) {
 			t.Error("core was stopped")
 		}
@@ -1594,7 +1973,7 @@ func TestContract_Restore_RefusalsLeaveCoreAlone(t *testing.T) {
 		rec["sha256"], rec["size"] = sha(evil), len(evil)
 		raw, _ = json.Marshal(ix)
 		_ = os.WriteFile(idx, raw, 0o600)
-		e.final(t, "backup.restore", api.BackupRestoreArgs{BackupID: b.BackupID}, api.StatusFailed, "restore_failed")
+		e.final(t, "backup.restore", api.BackupRestoreArgs{Snapshot: e.snap(), BackupID: b.BackupID}, api.StatusFailed, "restore_failed")
 		if stopped(e) {
 			t.Error("core was stopped for a hostile archive")
 		}
@@ -1605,17 +1984,16 @@ func TestContract_Restore_RefusalsLeaveCoreAlone(t *testing.T) {
 	t.Run("a backup from a newer schema", func(t *testing.T) {
 		t.Parallel()
 		e, b := mk(t)
-		e.m.NewCoreDB(map[string]int{"core": 1, "findings": 1}, 2) // the running core is older than the backup
-		e.final(t, "backup.restore", api.BackupRestoreArgs{BackupID: b.BackupID}, api.StatusRefused, "schema_newer")
+		older := e.snap(func(o *opstest.SnapOpts) { o.Schema = "core=1,findings=1" }) // the running core is older than the backup
+		e.final(t, "backup.restore", api.BackupRestoreArgs{Snapshot: older, BackupID: b.BackupID}, api.StatusRefused, "schema_newer")
 		if stopped(e) {
 			t.Error("core was stopped")
 		}
 	})
-	t.Run("secrets in the database but no key anywhere", func(t *testing.T) {
+	t.Run("a backup without a key and a box without one", func(t *testing.T) {
 		t.Parallel()
 		e, b := mk(t)
-		_ = os.Remove(filepath.Join(e.m.CoreData, "vedette.key"))
-		e.final(t, "backup.restore", api.BackupRestoreArgs{BackupID: b.BackupID}, api.StatusRefused, "secrets_missing")
+		e.final(t, "backup.restore", api.BackupRestoreArgs{Snapshot: e.snap(func(o *opstest.SnapOpts) { o.NoKey = true }), BackupID: b.BackupID}, api.StatusRefused, "secrets_missing")
 		if stopped(e) {
 			t.Error("core was stopped")
 		}
@@ -1626,7 +2004,7 @@ func TestContract_Restore_RefusalsLeaveCoreAlone(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(e.m.CoreData, "vedette.key"), []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		e.ok(t, "backup.restore", api.BackupRestoreArgs{BackupID: b.BackupID})
+		e.ok(t, "backup.restore", api.BackupRestoreArgs{Snapshot: e.snap(), BackupID: b.BackupID})
 		if k, _ := os.ReadFile(filepath.Join(e.m.CoreData, "vedette.key")); string(k) != "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
 			t.Errorf("the box's key was replaced: %q", k)
 		}
@@ -1643,9 +2021,32 @@ func TestContract_Restore_RefusalsLeaveCoreAlone(t *testing.T) {
 			}
 		})
 		e.restoreRules()
-		b := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Kind: "manual"}))
+		b := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: e.snap(), Kind: "manual"}))
 		low.Store(true)
-		e.refused(t, "backup.restore", api.BackupRestoreArgs{BackupID: b.BackupID}, http.StatusPreconditionFailed, "low_disk")
+		e.refused(t, "backup.restore", api.BackupRestoreArgs{Snapshot: e.snap(), BackupID: b.BackupID}, http.StatusPreconditionFailed, "low_disk")
+	})
+	t.Run("not enough room to unpack what the archive declares: nothing is written", func(t *testing.T) {
+		t.Parallel()
+		// Enough for the pre_restore backup's check (twice the 9-byte database), too little for the
+		// archive's members (manifest, database and key together, times 1.1).
+		var free atomic.Uint64
+		free.Store(100 << 30)
+		e := startSys(t, func(_ *ops.Config, d *ops.Deps) {
+			d.FreeBytes = func(string) (uint64, error) { return free.Load(), nil }
+		})
+		e.restoreRules()
+		b := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: e.snap(), Kind: "manual", IncludeSecrets: true}))
+		free.Store(60)
+		e.final(t, "backup.restore", api.BackupRestoreArgs{Snapshot: e.snap(), BackupID: b.BackupID}, api.StatusRefused, "low_disk")
+		if stopped(e) {
+			t.Error("core was stopped")
+		}
+		if ents, _ := os.ReadDir(filepath.Join(e.m.State, "tmp")); len(ents) != 0 {
+			t.Errorf("temp files left: %v", ents)
+		}
+		if bl, _ := e.h.Client.StateBackups(context.Background()); len(bl.Backups) != 1 {
+			t.Errorf("a pre_restore backup was made before the budget check: %+v", bl)
+		}
 	})
 }
 
@@ -1816,8 +2217,8 @@ func TestContract_INV12_SystemCommandsAreAuditedWithoutSecrets(t *testing.T) {
 	e := startSys(t)
 	e.rules()
 	e.ok(t, "os.check", nil)
-	e.refused(t, "os.install", map[string]string{"scope": "; id"}, http.StatusBadRequest, "invalid_args")
-	e.ok(t, "backup.create", api.BackupCreateArgs{Kind: "manual", Label: "vdt_osquery_0123456789abcdef"})
+	e.refused(t, "os.install", map[string]string{"scope": "; id", "snapshot": e.snap()}, http.StatusBadRequest, "invalid_args")
+	e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: e.snap(), Kind: "manual", Label: "vdt_osquery_0123456789abcdef"})
 	recs := audit(t, e.h)
 	var checkLines, createLines int
 	for _, a := range recs {

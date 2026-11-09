@@ -34,9 +34,13 @@ type Options struct {
 	StateDir   string // runs, idempotency records; mode 0700
 	AuditPath  string // audit.jsonl; its directory is created 0700
 	Registry   *Registry
-	Readers    Readers      // read-only state endpoints (spec section 5); zero value: none
-	PeerCheck  peer.Checker // layers 2 and 3 of the peer check; required
-	Version    string
+	Readers    Readers // read-only state endpoints (spec section 5); zero value: none
+	// WriteGate, when set, is asked before a write command is accepted (after the idempotency
+	// lookup, so a retry of an accepted request still gets its run). A non-nil refusal ends the
+	// request like busy does: no run, one audit line. It must not block or take locks the server holds.
+	WriteGate func() *Refusal
+	PeerCheck peer.Checker // layers 2 and 3 of the peer check; required
+	Version   string
 
 	Logger        *slog.Logger
 	Now           func() time.Time

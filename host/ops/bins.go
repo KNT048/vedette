@@ -31,9 +31,11 @@ var prodPaths = map[string]string{
 // The fixed timers of unattended security updates (spec 6.3).
 var aptTimers = []string{"apt-daily.timer", "apt-daily-upgrade.timer"}
 
-// pkgNameRE is the Debian package-name rule (first character alphanumeric, so a name can never
-// look like an option), with an optional architecture qualifier as apt prints it on multiarch.
-var pkgNameRE = regexp.MustCompile(`^[a-z0-9][a-z0-9+.-]{1,127}(:[a-z0-9-]{2,20})?$`)
+// pkgNameRE is the Debian package-name rule with an optional architecture qualifier as apt prints
+// it on multiarch. The first character is alphanumeric, so a name can never look like an option,
+// and so is the last: apt reads a trailing "-" as "remove this package" and a trailing "+" as
+// "install it".
+var pkgNameRE = regexp.MustCompile(`^[a-z0-9][a-z0-9+.-]{0,126}[a-z0-9](:[a-z0-9][a-z0-9-]{0,18}[a-z0-9])?$`)
 
 // maxInstallNames bounds the argv of one apt install.
 const maxInstallNames = 3000
@@ -113,7 +115,7 @@ func validateSystemctl(coreUnit string) func([]string) error {
 
 // newRunner builds the runner of the OS commands: PATH, LANG=C and DEBIAN_FRONTEND=noninteractive,
 // no shell. paths overrides the constant paths (tests).
-func newRunner(log logger, coreUnit string, paths map[string]string, exportLimit int64) (*vexec.Runner, error) {
+func newRunner(log logger, coreUnit string, paths map[string]string, streamLimit int64) (*vexec.Runner, error) {
 	p := func(name string) string {
 		if v, ok := paths[name]; ok {
 			return v
@@ -125,7 +127,7 @@ func newRunner(log logger, coreUnit string, paths map[string]string, exportLimit
 		vexec.Binary{Name: binAptConfig, Path: p(binAptConfig), Validate: exactly("dump")},
 		vexec.Binary{Name: binDpkg, Path: p(binDpkg), Validate: exactly("--audit")},
 		vexec.Binary{Name: binSystemctl, Path: p(binSystemctl), Validate: validateSystemctl(coreUnit)},
-		vexec.Binary{Name: binJournal, Path: p(binJournal), Validate: validateJournal, MaxOutput: exportLimit + 1},
+		vexec.Binary{Name: binJournal, Path: p(binJournal), Validate: validateJournal, MaxOutput: streamLimit + 1},
 	)
 }
 

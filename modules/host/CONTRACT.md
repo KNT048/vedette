@@ -1,6 +1,6 @@
 # Host (`vedette-host`) Contract
 
-> Loại: **thành phần** (component), không phải module bật/tắt · Story: S-CORE-7, S-INV-5 (+ D-56) · Quyết định: D-53, D-55, D-56, D-12 · Last verified: 2026-11-09 (WP-07b phần 1: lệnh OS, sao lưu, xuất log và đọc trạng thái có test hợp đồng trên máy giả; net, IP phụ, container chờ các phần sau; chưa chạy trên Linux thật)
+> Loại: **thành phần** (component), không phải module bật/tắt · Story: S-CORE-7, S-INV-5 (+ D-56) · Quyết định: D-53, D-55, D-56, D-12, D-85, D-87 · Last verified: 2026-11-09 (WP-07b phần 1 sau rà soát bảo mật, D-87: lệnh OS, sao lưu, xuất log và đọc trạng thái có test hợp đồng trên máy giả; host không mở DB của `core`; net, IP phụ, container chờ các phần sau; chưa chạy trên Linux thật)
 > Thay thế `vedette-updater` của D-53 (D-55). `contract.ts`, `osMock.ts`, `locales/en/core.json` và `PRIVACY.md` luồng 6 đã đổi sang tên mới (WP-06).
 > Là phần duy nhất của hộp chạy **root**. Mọi thứ khác (core, sensor, honeypot, scan) chạy không root trong container.
 
@@ -15,6 +15,9 @@
 - **INV-8** **Cấu hình mạng (D-56)**: card quản trị (DHCP hoặc tĩnh: IP, gateway, DNS), card SPAN/TAP (không IP, chế độ nghe), IP phụ cho bẫy (macvlan), NTP. IP/CIDR hợp lệ qua `netip`; IP phụ phải nằm trong dải mạng của hộp, khác IP hộp (validate lại ở `host` dù `core` đã kiểm). Trạng thái SPAN (gói/giây, số MAC khác hộp thấy được, lần nhận gói cuối) là **chỉ đọc** từ bộ đếm giao diện; không lưu nội dung gói.
 - **INV-9** `pkg.list` (dpkg) chỉ đọc, là nguồn danh sách gói của chính hộp ("This box", độ tin cậy 1.0, D-53, S-INV-5).
 - **INV-10** Sao lưu DB: tệp không chứa mật khẩu/khoá (như `/core/data/backup`); khoá/secret không bao giờ ra khỏi `host`/`core` dạng đọc được (SYS-4).
+- **INV-13** **Root không bao giờ phân tích dữ liệu của `core` (D-87)**: `core` tự chụp DB vào `<core_data>/snapshots/<id>/` (hợp đồng ở `host-api.md` §6.11), host chỉ chép byte của bản chụp. Không gói nào dưới `host/` hay `cmd/vedette-host` nhập `database/sql` hoặc driver SQL; `db_schema` và `includes_key` là lời khai của `core`; DB hỏng hay schema mới hơn do `core` phát hiện lúc khởi động (kiểm sức khoẻ hỏng → host thay lại bản trước).
+- **INV-14** **Chỉ truy cập cây của `core` theo descriptor (D-87)**: `core_data` được kiểm (thư mục thật, mọi thư mục cha thuộc root và không ai khác ghi được) rồi mở bằng `os.Root`; mọi tệp mở với `O_NOFOLLOW|O_NONBLOCK` và kiểm trên descriptor (tệp thường, `nlink == 1`, chủ `core_uid`, trần cỡ); `chmod`/`chown` chỉ trên descriptor; chủ của tệp khôi phục là `core_uid:core_gid` từ `host.conf`. Không có `os.Lstat|Chmod|Chown|Lchown|…` theo đường dẫn trong `host/ops` ngoài `checkChain`.
+- **INV-15** **Không lệnh ghi nào chạy khi box sắp reboot**: từ lúc host quyết định reboot tới khi `boot_id` đổi (tối đa 10 phút), mọi lệnh ghi bị `409 rebooting`.
 - **INV-11** Mạng ra của `host` chỉ gồm: kho gói apt của OS (host mirror liệt kê trong `OsInfo.mirrors`) và registry image đã khai báo (PRIVACY luồng 6); không có luồng khác (SYS-7).
 - **INV-12** Mọi lệnh ghi một dòng kết quả (lệnh chạy được còn có dòng `accepted` ghi lúc bắt đầu) có cấu trúc (lệnh, tham số đã che bí mật, thời điểm, mã, người gọi do `core` truyền); lịch sử hiển thị ở Settings → Updates qua `core` (`core_os_run`).
 
@@ -47,7 +50,7 @@
 - **FORBID-2** Cổng mạng nghe; nhận lệnh từ tiến trình không phải `core`.
 - **FORBID-3** Tự nâng bản phát hành OS; tự khởi động lại ngoài lệnh `os.reboot` / lịch đã đặt.
 - **FORBID-4** Chạy image không qua kiểm chữ ký cosign.
-- **FORBID-5** Chạm vào nội dung dữ liệu khách (DB, log, thiết bị) ngoài sao lưu theo lệnh `backup.create`.
+- **FORBID-5** Chạm vào nội dung dữ liệu khách (DB, log, thiết bị) ngoài chép byte bản chụp theo lệnh `backup.create` (và `os.install`, `backup.restore` qua bản sao lưu nội bộ); không bao giờ mở hay phân tích DB.
 - **FORBID-6** Mở cổng, sửa luật tường lửa ngoài danh sách lệnh (không "tự mở cổng vượt UFW": lý do chọn Podman, D-55).
 
 ## Endpoints owned
@@ -78,23 +81,26 @@ Các lỗi tìm thấy khi review bảo mật có test riêng trong `host/server
 Chưa kiểm được trên máy phát triển (macOS): hiệu ứng thật trên Linux (quyền socket do root, `SO_PEERCRED`, cgroup của unit thật, unit systemd); xem `.ai/deferred/feat-host-framework.md`.
 
 ## Lệnh hệ thống đã cài (WP-07b phần 1)
-Mã: `host/ops`. `GET /v1/info.commands` liệt kê **đúng** tám lệnh: `backup.create`, `backup.restore`, `logs.export`, `os.auto_security.set`, `os.check`, `os.install`, `os.reboot`, `os.reboot.cancel`. Test so danh sách này và các lệnh "chưa" (`net.apply|confirm|revert`, `decoy_ip.add|remove`, `container.pull|start|stop|rollback`) với các tiêu đề §6 của `host-api.md`. Test chạy trên máy giả (`host/ops/opstest`): thư mục gốc tạm, binary giả ghi argv và môi trường, SQLite thật; không bao giờ chạy apt/dpkg/systemctl thật.
+Mã: `host/ops`. `GET /v1/info.commands` liệt kê **đúng** tám lệnh: `backup.create`, `backup.restore`, `logs.export`, `os.auto_security.set`, `os.check`, `os.install`, `os.reboot`, `os.reboot.cancel`. Test so danh sách này và các lệnh "chưa" (`net.apply|confirm|revert`, `decoy_ip.add|remove`, `container.pull|start|stop|rollback`) với các tiêu đề §6 của `host-api.md`. Test chạy trên máy giả (`host/ops/opstest`): thư mục gốc tạm, binary giả ghi argv và môi trường, DB là tệp byte và bản chụp do `opstest` ghi như `core` sẽ ghi (không SQL, INV-13); không bao giờ chạy apt/dpkg/systemctl thật.
 
 | Điều | Hiện thực | Test |
 |---|---|---|
 | INV-2 (argv chặt) | một `exec.Runner`; bộ kiểm argv theo binary: `apt-get` ba dạng cố định, `apt-config dump`, `dpkg --audit`, `systemctl` vài động từ trên unit cố định, `journalctl` một dạng; tên gói qua regex gói Debian; môi trường đúng `PATH`, `LANG=C`, `DEBIAN_FRONTEND=noninteractive` | `TestContract_INV2_SystemCommandsRefuseBadArgsBeforeAnythingRuns`, `…_FORBID_ReleaseUpgradesAndSourcesAreOutOfReach`, `…OSCheck_ArgvEnvResult…`, `…OSInstall_HostRecomputes…` |
 | INV-5, POST-1 | `os.install`: danh sách gói do host tính lại, sao lưu `pre_os_update` trước, `installed` đo bằng mô phỏng lại, `health[]` thật, run `failed` mang kết quả khi apt hoặc sức khoẻ hỏng; không bao giờ gỡ gói | `TestContract_OSInstall_*` |
 | INV-6 | `os.reboot`/`os.reboot.cancel`: `now` chỉ sau khi run đã `succeeded`; lịch bền, duy nhất, sống qua restart; trần 3/24 giờ; `reboot_completed` sau boot mới | `TestContract_Reboot_*` |
-| INV-10, FORBID-5 | sao lưu: bản không có khoá không chứa khoá; `pre_*` ép có khoá và không tải được (`403 contains_secrets`); host chỉ đọc `core_data` qua `O_NOFOLLOW`; chỉ tệp trong chỉ mục được phục vụ | `TestContract_Backup_*`, `TestContract_Restore_*` |
-| POST-4 (lệnh dài) | khôi phục: run bền qua việc `core` dừng; hỏng → thay lại `pre_restore`, `reverted`; host chết giữa chừng → khôi phục lúc khởi động | `…Restore_RunIsDurableAcrossAClientRestart`, `…UnhealthyCoreIsReverted…`, `…ACutShortRestoreIsPutBackAtStart` |
+| INV-10, FORBID-5 | sao lưu: bản không có khoá không chứa khoá; `pre_*` ép có khoá và không tải được (`403 contains_secrets`); chỉ tệp trong chỉ mục được phục vụ; mỗi lần tải có một dòng kiểm toán | `TestContract_Backup_*`, `TestContract_Restore_*`, `TestContract_LogsExport_KeepsAtMostThree…`, `TestContract_Downloads_AreRefused…` |
+| INV-13 | bản chụp do `core` tạo, host chép byte; không SQL; `db_schema` là lời khai của `core`; bản chụp thiếu/cũ/sai hợp đồng bị từ chối | `TestContract_INV13_RootNeverImportsASQLDriver`, `TestContract_Backup_CopiesTheSnapshotBytes…`, `…NeverEvaluatesWhatCoreDefined`, `…RefusalsAndHostileCore`, `host/ops` `TestParseSnapshotMeta`, `FuzzParseSnapshotMeta` |
+| INV-14 | symlink/FIFO/hardlink/chủ sai/quá cỡ ở bản chụp, `core_data` là symlink hoặc cha ghi được, FIFO đổi giữa chừng, tệp lạ tại tên đích khi khôi phục, chủ từ `host.conf`, không thao tác theo đường dẫn | `TestContract_INV14_NoPathBasedMetadataOperationsInHostOps`, `TestContract_Backup_ASwapRaceWithAFIFONeverBlocks`, `TestContract_Restore_ReplacesWhateverCoreLeftAtTheLiveNames`, `…FilesGetCoreUIDAndGIDFromTheConfig`, `…RoundTrip`, `TestContract_Startup_*` |
+| INV-15 | cổng `rebooting`: mọi lệnh ghi bị từ chối từ lúc bắt đầu reboot tới khi `boot_id` đổi; tự hạ sau 10 phút; sống qua restart của host; trần reboot không bị đồng hồ lùi đặt lại | `TestContract_Reboot_NoWriteStartsOnce…`, `…TheGateEndsWhen…`, `…TheGateSurvivesAHostRestart…`, `…ClockSetBackDoesNotResetTheLimit`, `TestContract_FORBID_ProductionWiringHasTheRebootGate` |
+| POST-4 (lệnh dài) | khôi phục: run bền qua việc `core` dừng; hỏng → thay lại `pre_restore`, `reverted`; host chết giữa chừng → khôi phục lúc khởi động; chỗ trống kiểm theo cỡ thành viên khai báo trước khi giải nén | `…Restore_RunIsDurableAcrossAClientRestart`, `…UnhealthyCoreIsReverted…`, `…ACutShortRestoreIsPutBackAtStart` |
 | INV-3 | mọi lệnh phần 1 là lệnh ghi dưới khoá chung | `TestContract_INV3_SystemWritesAreOneAtATime` |
 | INV-12 | mỗi lệnh `accepted` + kết quả; dòng của chính host (`actor: system`); không bí mật trong tệp kiểm toán | `TestContract_INV12_SystemCommandsAreAuditedWithoutSecrets`, `…Reboot_…` |
 | FORBID-3 | không có lệnh nâng bản phát hành; chỉ reboot do `os.reboot` hoặc lịch đã đặt | `…FORBID_ReleaseUpgradesAndSourcesAreOutOfReach` |
 | Cấm seam test ở sản xuất | `cmd/vedette-host` và `host/server` không tham chiếu `ops.NewWithDeps`, không nhập `opstest` | `TestContract_FORBID_ProductionWiringNeverUsesTheTestSeams` |
 
-Hàm thuần có fuzz (30 giây mỗi cái): `ParseSimulation`, `ParseUpdateHosts`, `ParseAptConfig`, `RedactJournalLine` (JSON hợp lệ ra JSON hợp lệ, lũy đẳng), `FilterJournal`, `ParseManifest`, `ReadArchive` (chỉ ba tên, mỗi tên một lần, không đường dẫn).
+Hàm thuần có fuzz (30 giây mỗi cái): `ParseSimulation`, `ParseUpdateHosts`, `ParseAptConfig`, `RedactJournalLine` (JSON hợp lệ ra JSON hợp lệ, lũy đẳng), `FilterJournal`, `ParseManifest`, `ReadArchive` (chỉ ba tên, mỗi tên một lần, không đường dẫn), `ParseSnapshotMeta` (`snapshot.json` của `core`), và `config.Parse` (có `core_gid`).
 
-Chưa kiểm được trên máy phát triển (macOS): hiệu ứng thật trên Ubuntu 24.04/Debian 13 (apt, dpkg, timer, `journalctl`, `systemctl` của unit `core`), khoá `fcntl` của apt thật; xem `.ai/deferred/feat-host-os-commands.md`.
+Chưa kiểm được trên máy phát triển (macOS): hiệu ứng thật trên Ubuntu 24.04/Debian 13 (apt, dpkg, timer, `journalctl`, `systemctl` của unit `core`), khoá `fcntl` của apt thật, `os.OpenRoot` và `fs.protected_symlinks/hardlinks` thật, phần `core` tạo bản chụp (WP-07b phần 2); xem `.ai/deferred/feat-host-os-commands.md`.
 
 ## Khi vắng mặt / lỗi
 Không có "tắt" (không phải module). Phía `core`, `host/client` trả `client.ErrUnreachable` khi socket vắng hoặc không nối được: đó là tín hiệu "không phải appliance / host không chạy", khác với lỗi của host (`*client.Error` có mã §11). Kiểu "Chỉ container": mọi tính năng cần `host` trả `unsupported` có lý do. Appliance mà `host` không phản hồi: Settings → Updates và Box network hiện "Không liên lạc được với vedette-host" kèm trạng thái cuối cùng biết được; các module khác chạy bình thường nhưng không thay đổi được OS/mạng/image.

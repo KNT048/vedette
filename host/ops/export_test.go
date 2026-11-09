@@ -15,6 +15,7 @@ var (
 	AutoSecurityTemplate = autoSecurityTemplate
 	FreeBytes            = freeBytes
 	PkgNameRE            = pkgNameRE
+	RedactLine           = redactLine
 )
 
 // WriteArchive writes members (name, data) as a backup archive.
@@ -34,6 +35,20 @@ func Retain(kinds []string, minutes []int) (kept []int) {
 	}
 	retain(&ix)
 	for _, r := range ix.Backups {
+		kept = append(kept, int(r.ID[0]-'a'))
+	}
+	return kept
+}
+
+// RetainExports applies the export retention rule to exports (sizes in bytes, oldest first, one
+// minute apart) and returns the kept indexes, oldest first.
+func RetainExports(sizes []int64) (kept []int) {
+	ix := exportIndex{}
+	for i, sz := range sizes {
+		ix.Exports = append(ix.Exports, exportRecord{ID: string(rune('a' + i)), CreatedAt: time.Unix(1_700_000_000, 0).Add(time.Duration(i) * time.Minute), Size: sz})
+	}
+	retainExports(&ix)
+	for _, r := range ix.Exports {
 		kept = append(kept, int(r.ID[0]-'a'))
 	}
 	return kept

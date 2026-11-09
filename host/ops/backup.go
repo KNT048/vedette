@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -13,13 +14,6 @@ import (
 
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/server"
-)
-
-// Names inside core's data directory (fixed: cmd/vedette's defaults are vedette.db and vedette.key
-// in /var/lib/vedette). The host never takes a path from a request.
-const (
-	coreDBFile  = "vedette.db"
-	coreKeyFile = "vedette.key"
 )
 
 // Retention (spec 6.11).
@@ -100,19 +94,22 @@ func (o *Ops) cmdBackupCreate() server.Command {
 			if !labelRE.MatchString(a.Label) {
 				return server.Invalid("label", "must be at most 64 letters, digits, spaces or . _ : ( ) + @ -")
 			}
+			if !hexIDRE.MatchString(a.Snapshot) {
+				return server.Invalid("snapshot", "must be the 32 lowercase hex characters of a snapshot core wrote")
+			}
 			if isPreKind(a.Kind) {
 				a.IncludeSecrets = true // a pre_* backup must be restorable, so it carries the key (and is never downloadable)
 			}
 			return nil
 		},
 		Check: func(_ context.Context, a api.BackupCreateArgs) error {
-			return o.backupPreflight(a.IncludeSecrets, isPreKind(a.Kind))
+			return o.backupPreflight(a.Snapshot, a.IncludeSecrets, isPreKind(a.Kind))
 		},
 		Run: func(ctx context.Context, rc *server.RunContext, a api.BackupCreateArgs) (any, error) {
 			if a.Label != "" {
 				rc.Log("Backup: " + a.Label)
 			}
-			res, err := o.createBackup(ctx, rc, a.Kind, a.IncludeSecrets, a.Label)
+			res, err := o.createBackup(ctx, rc, a.Kind, a.IncludeSecrets, a.Label, a.Snapshot)
 			if err != nil {
 				return nil, err
 			}
@@ -121,50 +118,68 @@ func (o *Ops) cmdBackupCreate() server.Command {
 	})
 }
 
-// backupPreflight checks that core's database (and key, when wanted) can be read and that there
-// is room for a copy and its archive. It only reads.
-func (o *Ops) backupPreflight(withKey, keyMayBeAbsent bool) error {
-	if o.cfg.CoreData == "" {
-		return refuse412(api.CodeDBUnreadable, "The host does not know where core's data is (core_data is not set in host.conf).")
-	}
-	f, st, err := openRegularNoFollow(filepath.Join(o.cfg.CoreData, coreDBFile))
+// backupPreflight checks that core's snapshot can be read and that there is room for the archive
+// (twice the database copy). It only reads.
+func (o *Ops) backupPreflight(snapshot string, withKey, keyMayBeAbsent bool) error {
+	t, err := o.openCore()
 	if err != nil {
-		return refuse412(api.CodeDBUnreadable, "Core's database cannot be read.")
+		return err
 	}
-	_ = f.Close()
-	size := st.Size()
-	if wal, werr := os.Lstat(filepath.Join(o.cfg.CoreData, coreDBFile+"-wal")); werr == nil && wal.Mode().IsRegular() {
-		size += wal.Size()
+	defer t.close()
+	snap, err := o.openSnapshot(t, snapshot, withKey)
+	if err != nil {
+		return err
 	}
-	if withKey {
-		kf, kst, kerr := openRegularNoFollow(filepath.Join(o.cfg.CoreData, coreKeyFile))
-		switch {
-		case kerr != nil && keyMayBeAbsent && errors.Is(kerr, os.ErrNotExist):
-			// a box whose core never ran has no key yet: a pre_* backup then holds none, and says so
-		case kerr != nil || kst.Size() == 0 || kst.Size() > maxKeyBytes:
-			return refuse412("key_unreadable", "Core's secrets key file cannot be read, so a backup with secrets cannot be made.")
-		default:
-			_ = kf.Close()
-		}
+	defer snap.close()
+	if withKey && !keyMayBeAbsent && snap.key == nil {
+		return refuse412("key_unreadable", "Core's snapshot has no secrets key, so a backup with secrets cannot be made.")
 	}
 	free, err := o.d.FreeBytes(o.backupDir())
 	if err != nil {
 		return err
 	}
-	if free < 2*uint64(size) { //nolint:gosec // size is a file size, never negative
+	if free < 2*uint64(snap.dbSize) { //nolint:gosec // a file size, never negative
 		return refuse412(api.CodeLowDisk, "There is less free space than twice the size of the database.")
 	}
 	return nil
 }
 
 // createBackup is the work of backup.create, also called by os.install and backup.restore inside
-// their own run (the write lock is already held by that run).
-func (o *Ops) createBackup(ctx context.Context, rc *server.RunContext, kind string, withSecrets bool, label string) (api.BackupResult, error) {
+// their own run (the write lock is already held by that run). It reads the snapshot core wrote
+// through descriptors and streams it into the archive: no SQLite, no path of core's tree walked.
+func (o *Ops) createBackup(ctx context.Context, rc *server.RunContext, kind string, withSecrets bool, label, snapshot string) (api.BackupResult, error) {
 	if isPreKind(kind) {
 		withSecrets = true
 	}
-	if err := o.backupPreflight(withSecrets, isPreKind(kind)); err != nil {
+	t, err := o.openCore()
+	if err != nil {
 		return api.BackupResult{}, err
+	}
+	defer t.close()
+	snap, err := o.openSnapshot(t, snapshot, withSecrets)
+	if err != nil {
+		return api.BackupResult{}, err
+	}
+	defer snap.close()
+	var key []byte
+	if withSecrets {
+		switch {
+		case snap.key != nil:
+			if key, err = io.ReadAll(io.LimitReader(snap.key, snap.keySize)); err != nil || int64(len(key)) != snap.keySize {
+				return api.BackupResult{}, refuse412("key_unreadable", "Core's secrets key cannot be read, so a backup with secrets cannot be made.")
+			}
+		case isPreKind(kind):
+			withSecrets = false // no key on this box yet (core never ran); the manifest records that
+		default:
+			return api.BackupResult{}, refuse412("key_unreadable", "Core's snapshot has no secrets key, so a backup with secrets cannot be made.")
+		}
+	}
+	free, err := o.d.FreeBytes(o.backupDir())
+	if err != nil {
+		return api.BackupResult{}, err
+	}
+	if free < 2*uint64(snap.dbSize) { //nolint:gosec // a file size, never negative
+		return api.BackupResult{}, refuse412(api.CodeLowDisk, "There is less free space than twice the size of the database.")
 	}
 	id, err := randomHex(16)
 	if err != nil {
@@ -176,44 +191,15 @@ func (o *Ops) createBackup(ctx context.Context, rc *server.RunContext, kind stri
 	}
 	defer func() { _ = os.RemoveAll(tmp) }()
 
-	rc.Log("Copying the database")
-	dbCopy := filepath.Join(tmp, memberDB)
-	liveDB := filepath.Join(o.cfg.CoreData, coreDBFile)
-	err = backupSQLite(ctx, liveDB, dbCopy)
-	matchSidecars(liveDB) // opening a WAL database can leave root-owned -shm/-wal behind
-	if err != nil {
-		if ctx.Err() != nil {
-			return api.BackupResult{}, ctx.Err()
-		}
-		o.log.WarnContext(ctx, "database backup failed", "error", err.Error())
-		return api.BackupResult{}, refuse412(api.CodeDBUnreadable, "Core's database could not be copied.")
-	}
-	_ = os.Chmod(dbCopy, 0o600)
-	rc.Progress(40)
-	schema, err := inspectDB(ctx, dbCopy, false, true, true)
-	if err != nil {
-		if ctx.Err() != nil {
-			return api.BackupResult{}, ctx.Err()
-		}
-		o.log.WarnContext(ctx, "backup copy failed its check", "error", err.Error())
-		return api.BackupResult{}, fail("backup_corrupt", "The copy of the database failed its integrity check, so no backup was kept.")
-	}
 	now := o.d.Now().UTC().Truncate(time.Second)
-	files := []archiveFile{{Name: memberManifest}, {Name: memberDB, Path: dbCopy}}
-	if withSecrets {
-		key, err := readKey(filepath.Join(o.cfg.CoreData, coreKeyFile))
-		switch {
-		case err != nil && isPreKind(kind) && errors.Is(err, os.ErrNotExist):
-			withSecrets = false // no key on this box yet; the manifest records that
-		case err != nil:
-			return api.BackupResult{}, refuse412("key_unreadable", "Core's secrets key file cannot be read, so a backup with secrets cannot be made.")
-		default:
-			files = append(files, archiveFile{Name: memberKey, Data: key})
-		}
+	man := Manifest{Version: manifestVersion, DBSchema: snap.meta.DBSchema, CreatedAt: now.Format(time.RFC3339), IncludesSecrets: withSecrets}
+	files := []archiveFile{
+		{Name: memberManifest, Data: mustJSON(man)},
+		{Name: memberDB, Src: ctxReader{ctx: ctx, r: snap.db}, Size: snap.dbSize},
 	}
-	man := Manifest{Version: manifestVersion, DBSchema: schema, CreatedAt: now.Format(time.RFC3339), IncludesSecrets: withSecrets}
-	files[0].Data = mustJSON(man)
-
+	if withSecrets {
+		files = append(files, archiveFile{Name: memberKey, Data: key})
+	}
 	rc.Log("Writing the archive")
 	archive := filepath.Join(tmp, "archive.tar.gz")
 	out, err := os.OpenFile(archive, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) //nolint:gosec // inside a fresh private temp dir
@@ -225,15 +211,19 @@ func (o *Ops) createBackup(ctx context.Context, rc *server.RunContext, kind stri
 		werr = cerr
 	}
 	if werr != nil {
+		if ctx.Err() != nil {
+			return api.BackupResult{}, ctx.Err()
+		}
 		o.log.WarnContext(ctx, "could not write the backup archive", "error", werr.Error())
 		return api.BackupResult{}, fail("backup_failed", "The archive could not be written.")
 	}
+	rc.Progress(80)
 	if err := ctx.Err(); err != nil {
 		return api.BackupResult{}, err
 	}
 	rec := backupRecord{
 		ID: id, Kind: kind, Label: label, CreatedAt: now, Size: size, SHA256: sum,
-		Version: manifestVersion, DBSchema: schema, IncludesSecrets: withSecrets,
+		Version: manifestVersion, DBSchema: snap.meta.DBSchema, IncludesSecrets: withSecrets,
 	}
 	if err := o.commitBackup(archive, rec); err != nil {
 		o.log.WarnContext(ctx, "could not store the backup", "error", err.Error())
@@ -241,23 +231,6 @@ func (o *Ops) createBackup(ctx context.Context, rc *server.RunContext, kind stri
 	}
 	rc.Progress(100)
 	return api.BackupResult{BackupID: id, Size: size, SHA256: sum}, nil
-}
-
-func readKey(path string) ([]byte, error) {
-	f, st, err := openRegularNoFollow(path)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = f.Close() }()
-	if st.Size() == 0 || st.Size() > maxKeyBytes {
-		return nil, errors.New("key file has an unexpected size")
-	}
-	buf := make([]byte, st.Size())
-	n, err := f.ReadAt(buf, 0)
-	if n != len(buf) {
-		return nil, fmt.Errorf("read key: %w", err)
-	}
-	return buf, nil
 }
 
 // commitBackup moves the finished archive into place, adds it to the index and applies retention.
@@ -358,6 +331,10 @@ func (o *Ops) backupContent(id string) (server.File, error) {
 	if st.Size() != r.Size {
 		_ = f.Close()
 		return server.File{}, errors.New("backup file does not match its index entry")
+	}
+	if err := o.noteDownload("backup.download", "backup_downloaded", map[string]any{"backup_id": id, "size": r.Size}); err != nil {
+		_ = f.Close()
+		return server.File{}, err
 	}
 	return server.File{Body: f, Size: r.Size, Name: "vedette-backup-" + r.CreatedAt.Format("20060102T150405Z") + ".tar.gz", Type: "application/gzip"}, nil
 }

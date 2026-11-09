@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/host/ops"
 	"github.com/knt048/vedette/host/ops/opstest"
@@ -260,7 +261,74 @@ func TestFilterJournal(t *testing.T) {
 	}
 }
 
+// journalctl prints a field with a control character (TAB, the ESC of a colour code, CR) or invalid
+// UTF-8 as an array of byte values, so the text rules cannot see inside it: such fields are decoded,
+// redacted in their text form and encoded as arrays again.
+func TestFilterJournalRedactsArrayEncodedFields(t *testing.T) {
+	t.Parallel()
+	enc := func(b []byte) []int {
+		nums := make([]int, len(b))
+		for i, c := range b {
+			nums[i] = int(c)
+		}
+		return nums
+	}
+	dec := func(raw json.RawMessage) []byte {
+		var arr []int
+		if err := json.Unmarshal(raw, &arr); err != nil {
+			return raw
+		}
+		out := make([]byte, len(arr))
+		for i, n := range arr {
+			out[i] = byte(n) //nolint:gosec // the test encodes values 0..255
+		}
+		return out
+	}
+	msgs := map[string]string{
+		"tab":             "login failed password=hunter2\tAuthorization: Bearer abcdefghijklmnop123",
+		"escape":          "\x1b[31merror\x1b[0m token=Zk3Jh8Pq9Rt2Vw5Xy7 and more",
+		"carriage return": "progress\rpassword: hunter2",
+		"invalid utf-8":   "bad bytes \xff\xfe then password=hunter2 \xc3(",
+		"pem":             "key\n-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASC\n-----END PRIVATE KEY-----\tend",
+	}
+	secrets := []string{"hunter2", "abcdefghijklmnop123", "Zk3Jh8Pq9Rt2Vw5Xy7", "MIIEvQ"}
+	for name, msg := range msgs {
+		line, _ := json.Marshal(map[string]any{
+			"MESSAGE": enc([]byte(msg)), "_SYSTEMD_UNIT": "vedette-core.service",
+			"TWICE": []any{enc([]byte(msg)), "plain password=hunter2"}, "N": 7,
+		})
+		var out bytes.Buffer
+		if _, _, err := ops.FilterJournal(bytes.NewReader(append(line, '\n')), &out, 1<<20); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		var got map[string]json.RawMessage
+		if err := json.Unmarshal(bytes.TrimSpace(out.Bytes()), &got); err != nil {
+			t.Fatalf("%s: output %q: %v", name, out.String(), err)
+		}
+		text := string(dec(got["MESSAGE"])) + string(got["TWICE"])
+		for _, s := range secrets {
+			if strings.Contains(text, s) || strings.Contains(out.String(), s) {
+				t.Errorf("%s: secret %q left the box: %s", name, s, out.String())
+			}
+		}
+		if !strings.Contains(string(dec(got["MESSAGE"])), "[redacted]") {
+			t.Errorf("%s: the array field was not redacted: %q", name, dec(got["MESSAGE"]))
+		}
+		// The rest of the text survives and the field is still an array of numbers.
+		if !strings.HasPrefix(string(got["MESSAGE"]), "[") || string(got["N"]) != "7" || !strings.Contains(string(got["_SYSTEMD_UNIT"]), "vedette-core") {
+			t.Errorf("%s: the entry was changed beyond the redaction: %s", name, out.String())
+		}
+	}
+	// A line with a numeric array that is not text, and one without secrets, come out equivalent.
+	clean := `{"MESSAGE":[104,105],"COUNTS":[1,2,3,300]}`
+	var out bytes.Buffer
+	if _, _, err := ops.FilterJournal(strings.NewReader(clean+"\n"), &out, 1<<20); err != nil || strings.TrimSpace(out.String()) != clean {
+		t.Errorf("a clean line changed: %q %v", out.String(), err)
+	}
+}
+
 func FuzzFilterJournal(f *testing.F) {
+	f.Add([]byte(`{"MESSAGE":[112,97,115,115,119,111,114,100,61,120,9,1],"X":[[1,2],"a"]}`))
 	f.Add(fixture(f, "journal_core.jsonl"))
 	f.Add([]byte("{\"a\":1}\r\n\r\n{"))
 	f.Fuzz(func(t *testing.T, in []byte) {
@@ -376,5 +444,80 @@ func TestFreeBytes(t *testing.T) {
 	}
 	if _, err := ops.FreeBytes("/definitely/not/here"); err == nil {
 		t.Error("a missing path was accepted")
+	}
+}
+
+// A package name that apt would read as a modifier ("-" removes, "+" installs) is not a package name.
+func TestPackageNamesApartFromModifiers(t *testing.T) {
+	t.Parallel()
+	pre := []string{"-y", "-q", "-o", "Dpkg::Options::=--force-confdef", "-o", "Dpkg::Options::=--force-confold", "--no-remove", "install", "--only-upgrade"}
+	for _, name := range []string{"openssh-server-", "libc6-", "linux-image-generic+", "g++", "a-", "ab+", "x.", "libc6:amd64-"} {
+		if err := ops.ValidateApt(append(append([]string{}, pre...), name)); err == nil {
+			t.Errorf("the validator accepts %q, which apt reads as a remove or install modifier or a bad name", name)
+		}
+	}
+	for _, name := range []string{"openssh-server", "libc6", "libstdc++6", "linux-image-6.8.0-45-generic", "ab", "libc6:amd64", "python3.12"} {
+		if err := ops.ValidateApt(append(append([]string{}, pre...), name)); err != nil {
+			t.Errorf("the validator refuses %q: %v", name, err)
+		}
+	}
+	if err := ops.ValidateApt(append(append([]string{}, pre...), "a")); err == nil {
+		t.Error("a one-character name is accepted")
+	}
+}
+
+func TestParseSnapshotMeta(t *testing.T) {
+	t.Parallel()
+	good := `{"created_at":"2026-11-09T12:00:00Z","db_schema":"core=3,findings=2","includes_key":true}`
+	created, schema, key, err := ops.ParseSnapshotMeta([]byte(good))
+	if err != nil || created.Format(time.RFC3339) != "2026-11-09T12:00:00Z" || schema != "core=3,findings=2" || !key {
+		t.Fatalf("%v %q %v %v", created, schema, key, err)
+	}
+	if _, _, k, err := ops.ParseSnapshotMeta([]byte(`{"created_at":"2026-11-09T12:00:00Z","db_schema":"","includes_key":false}`)); err != nil || k {
+		t.Errorf("an empty schema and no key are valid: %v %v", k, err)
+	}
+	for name, in := range map[string]string{
+		"empty": "", "not json": "x", "array": "[]", "unknown field": `{"created_at":"2026-11-09T12:00:00Z","db_schema":"","includes_key":true,"path":"/etc"}`,
+		"the unexported field": `{"created_at":"2026-11-09T12:00:00Z","db_schema":"","includes_key":true,"created":"2000-01-01T00:00:00Z"}`,
+		"bad time":             `{"created_at":"2026-11-09","db_schema":"","includes_key":true}`, "bad schema": `{"created_at":"2026-11-09T12:00:00Z","db_schema":"a=1;b","includes_key":true}`,
+		"wrong type": `{"created_at":"2026-11-09T12:00:00Z","db_schema":"","includes_key":"yes"}`, "trailing": good + " x",
+		"too large": strings.Repeat(" ", 4097) + good,
+	} {
+		if _, _, _, err := ops.ParseSnapshotMeta([]byte(in)); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
+
+func FuzzParseSnapshotMeta(f *testing.F) {
+	f.Add(`{"created_at":"2026-11-09T12:00:00Z","db_schema":"core=3,findings=2","includes_key":true}`)
+	f.Add(`{"created_at":"","db_schema":"\u0000"}`)
+	f.Fuzz(func(t *testing.T, in string) {
+		created, schema, _, err := ops.ParseSnapshotMeta([]byte(in))
+		if err != nil {
+			return
+		}
+		if created.IsZero() || len(in) > 4096 || len(schema) > 64*43 {
+			t.Fatalf("accepted %q", in)
+		}
+	})
+}
+
+func TestRetainExports(t *testing.T) {
+	t.Parallel()
+	const mib = 1 << 20
+	for name, tc := range map[string]struct {
+		sizes []int64
+		want  []int
+	}{
+		"fewer than three":                                     {[]int64{mib, mib}, []int{0, 1}},
+		"three kept, the oldest of four goes":                  {[]int64{mib, mib, mib, mib}, []int{1, 2, 3}},
+		"the total cap drops the older ones":                   {[]int64{200 * mib, 200 * mib, 200 * mib}, []int{1, 2}},
+		"the newest is kept even when it alone passes the cap": {[]int64{mib, 600 * mib}, []int{1}},
+		"cap by sum": {[]int64{100 * mib, 250 * mib, 250 * mib}, []int{1, 2}},
+	} {
+		if got := ops.RetainExports(tc.sizes); !slices.Equal(got, tc.want) {
+			t.Errorf("%s: kept %v, want %v", name, got, tc.want)
+		}
 	}
 }

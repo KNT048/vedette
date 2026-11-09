@@ -19,7 +19,36 @@ const (
 	rebootWindow    = 24 * time.Hour
 	rebootStaleAt   = 5 * time.Minute // a schedule found this late after a host restart is dropped, not run
 	rebootRetryBusy = time.Minute
+	rebootGateTTL   = 10 * time.Minute // a started reboot that has not happened this long after is assumed not to be coming
 )
+
+// rebootGate is set from the moment the host decides to reboot until the boot id changes: every
+// write command is refused with 409 rebooting meanwhile, so core cannot interrupt dpkg (or a
+// restore) by queueing work that the shutdown would kill halfway.
+type rebootGate struct {
+	BootID string
+	At     time.Time
+}
+
+// WriteGate is the server's Options.WriteGate: a refusal while a reboot is under way, nil otherwise.
+// It reads an atomic and the boot id, takes no lock, and never blocks.
+func (o *Ops) WriteGate() *server.Refusal {
+	g := o.gate.Load()
+	if g == nil {
+		return nil
+	}
+	if cur := o.bootID(); cur != "" && g.BootID != "" && cur != g.BootID {
+		o.gate.CompareAndSwap(g, nil) // the box rebooted: this is the new boot
+		return nil
+	}
+	if el := o.d.Now().Sub(g.At); el >= rebootGateTTL || el <= -rebootGateTTL {
+		o.gate.CompareAndSwap(g, nil) // the reboot did not happen
+		return nil
+	}
+	return refuse409(api.CodeRebooting, "The box is about to reboot; commands that change it are refused until it is back.")
+}
+
+func (o *Ops) raiseGate(at time.Time) { o.gate.Store(&rebootGate{BootID: o.bootID(), At: at}) }
 
 type rebootSchedule struct {
 	At     time.Time `json:"at"`
@@ -64,7 +93,9 @@ func (o *Ops) saveRebootLocked(st rebootState) error {
 func recentStarts(st rebootState, now time.Time) int {
 	n := 0
 	for _, t := range st.Started {
-		if now.Sub(t) < rebootWindow && !t.After(now.Add(time.Minute)) {
+		// A start dated in the future (the clock went back) still counts: setting the clock back
+		// must not reset the limit.
+		if now.Sub(t) < rebootWindow {
 			n++
 		}
 	}
@@ -225,7 +256,11 @@ func (o *Ops) markStartedLocked(st rebootState, kind string) error {
 	pruneStarts(&st, now)
 	st.Started = append(st.Started, now)
 	st.Pending = &rebootPending{BootID: o.bootID(), StartedAt: now, Kind: kind}
-	return o.saveRebootLocked(st)
+	if err := o.saveRebootLocked(st); err != nil {
+		return err
+	}
+	o.raiseGate(now) // durable first (reboot.json), then refuse writes
+	return nil
 }
 
 func (o *Ops) clearPending() {
@@ -233,6 +268,7 @@ func (o *Ops) clearPending() {
 	defer o.rbMu.Unlock()
 	st := o.loadRebootLocked()
 	st.Pending = nil
+	o.gate.Store(nil)
 	if err := o.saveRebootLocked(st); err != nil {
 		o.log.Error("could not clear the pending reboot")
 	}
@@ -311,7 +347,12 @@ func (o *Ops) startReboot() {
 				o.note("os.reboot", "reboot_completed", map[string]any{"kind": kind, "started_at": started})
 			})
 		}
-		st.Pending = nil // same boot: the reboot never happened
+		if cur != "" && p.BootID == cur && o.d.Now().Sub(p.StartedAt) < rebootGateTTL && o.d.Now().Sub(p.StartedAt) > -rebootGateTTL {
+			// The host restarted while the box was shutting down: keep refusing writes.
+			o.gate.Store(&rebootGate{BootID: p.BootID, At: p.StartedAt})
+		} else {
+			st.Pending = nil // same boot, long ago: the reboot never happened
+		}
 	}
 	if sch := st.Schedule; sch != nil {
 		now := o.d.Now()

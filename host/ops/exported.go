@@ -1,6 +1,9 @@
 package ops
 
-import "io"
+import (
+	"io"
+	"time"
+)
 
 // Pure functions that the contract tests (modules/host) and the fuzz targets exercise from
 // outside the package. They have no side effects and take no paths.
@@ -28,3 +31,12 @@ func ValidateSystemctl(coreUnit string) func([]string) error { return validateSy
 
 // ValidateJournal is the validator of the journalctl binary.
 func ValidateJournal(args []string) error { return validateJournal(args) }
+
+// RandomID is a fresh 32-hex id (what a snapshot id looks like). Test support.
+func RandomID() (string, error) { return randomHex(16) }
+
+// ParseSnapshotMeta validates the text of a snapshot's snapshot.json.
+func ParseSnapshotMeta(b []byte) (created time.Time, schema string, includesKey bool, err error) {
+	m, err := parseSnapshotMeta(b)
+	return m.created, m.DBSchema, m.IncludesKey, err
+}

@@ -167,9 +167,12 @@ func (o *Ops) cmdOSInstall() server.Command {
 			if a.Scope != "security" && a.Scope != "all" {
 				return server.Invalid("scope", "must be security or all")
 			}
+			if !hexIDRE.MatchString(a.Snapshot) {
+				return server.Invalid("snapshot", "must be the 32 lowercase hex characters of a snapshot core wrote")
+			}
 			return nil
 		},
-		Check: func(ctx context.Context, _ api.OSInstallArgs) error {
+		Check: func(ctx context.Context, a api.OSInstallArgs) error {
 			if _, err := o.platform(); err != nil {
 				return err
 			}
@@ -190,15 +193,17 @@ func (o *Ops) cmdOSInstall() server.Command {
 			if free < minDiskFree {
 				return refuse412(api.CodeLowDisk, "Less than 1 GiB is free on /var.")
 			}
-			return nil
+			// The backup before the install needs a snapshot from core; refuse now rather than
+			// after the package index was refreshed.
+			return o.backupPreflight(a.Snapshot, true, true)
 		},
 		Run: func(ctx context.Context, rc *server.RunContext, a api.OSInstallArgs) (any, error) {
-			return o.installOS(ctx, rc, a.Scope)
+			return o.installOS(ctx, rc, a.Scope, a.Snapshot)
 		},
 	})
 }
 
-func (o *Ops) installOS(ctx context.Context, rc *server.RunContext, scope string) (any, error) {
+func (o *Ops) installOS(ctx context.Context, rc *server.RunContext, scope, snapshot string) (any, error) {
 	plat, err := o.platform()
 	if err != nil {
 		return nil, err
@@ -244,7 +249,7 @@ func (o *Ops) installOS(ctx context.Context, rc *server.RunContext, scope string
 	}
 
 	rc.Log(fmt.Sprintf("Backing up the database before installing %d packages", len(todo)))
-	bk, err := o.createBackup(ctx, rc, "pre_os_update", true, "")
+	bk, err := o.createBackup(ctx, rc, "pre_os_update", true, "", snapshot)
 	if err != nil {
 		return nil, err
 	}

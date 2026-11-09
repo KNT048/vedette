@@ -25,17 +25,26 @@ func randomHex(n int) (string, error) {
 }
 
 // privDir makes sure path is a real directory (not a symlink) owned by owner and closed to group
-// and others, creating it 0700 when absent.
+// and others, creating it 0700 when absent. It looks at the directory through a descriptor opened
+// with O_NOFOLLOW (and chmods through it), not at the path.
 func privDir(path string, owner int) error {
-	if _, err := os.Lstat(path); errors.Is(err, os.ErrNotExist) {
+	f, err := openDirNoFollow(path)
+	if errors.Is(err, os.ErrNotExist) {
 		if err := os.MkdirAll(path, 0o700); err != nil {
 			return fmt.Errorf("ops: create %s: %w", path, err)
 		}
-		if err := os.Chmod(path, 0o700); err != nil { //nolint:gosec // a directory: 0700 is the mode the state directories must have
-			return fmt.Errorf("ops: chmod %s: %w", path, err)
+		if f, err = openDirNoFollow(path); err == nil {
+			if err = f.Chmod(0o700); err != nil {
+				_ = f.Close()
+				return fmt.Errorf("ops: chmod %s: %w", path, err)
+			}
 		}
 	}
-	st, err := os.Lstat(path)
+	if err != nil {
+		return fmt.Errorf("ops: open %s: %w", path, err)
+	}
+	defer func() { _ = f.Close() }()
+	st, err := f.Stat()
 	if err != nil {
 		return fmt.Errorf("ops: stat %s: %w", path, err)
 	}
@@ -49,6 +58,11 @@ func privDir(path string, owner int) error {
 		return fmt.Errorf("ops: %s has mode %o, group and others must have no access", path, st.Mode().Perm())
 	}
 	return nil
+}
+
+// openDirNoFollow opens a directory refusing a symlink as the last component.
+func openDirNoFollow(path string) (*os.File, error) {
+	return os.OpenFile(path, os.O_RDONLY|syscall.O_DIRECTORY|syscall.O_NOFOLLOW, 0) //nolint:gosec // a directory under the host's own state directory
 }
 
 // writeFileAtomic writes data to path through a temp file in the same directory (fsync, rename).
@@ -147,7 +161,8 @@ func nonNegative[T ~int32 | ~int64 | ~uint32 | ~uint64](v T) uint64 {
 }
 
 // openRegularNoFollow opens path for reading, refusing a symlink and anything but a regular file.
-// It returns the file and its size. Used for files in core's data directory, which core controls.
+// It returns the file and its size. Used for the host's own files (archives, exports); core's tree
+// is only ever opened through a coreTree.
 func openRegularNoFollow(path string) (*os.File, os.FileInfo, error) {
 	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0) //nolint:gosec // path = fixed core data dir + fixed file name
 	if err != nil {

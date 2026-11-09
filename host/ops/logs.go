@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,7 +26,10 @@ import (
 // Limits of logs.export (spec 6.13, section 10).
 const (
 	maxExportRange   = 31 * 24 * time.Hour
-	maxExportBytes   = 256 << 20 // of journal text, before compression
+	maxExportBytes   = 256 << 20 // of journal text, before compression, over all units of one export
+	maxJournalStream = 64 << 20  // what one journalctl call may print: core/exec holds it in memory (see spec 16)
+	exportKeepCount  = 3         // exports kept at once, oldest deleted first
+	exportTotalCap   = 512 << 20 // bytes of all kept exports together
 	exportKeep       = 24 * time.Hour
 	maxJournalLine   = 1 << 20
 	exportSweepEvery = time.Hour
@@ -62,6 +66,15 @@ func (o *Ops) cmdLogsExport() server.Command {
 			since, until, _ := parseRange(a)
 			if until.Sub(since) > maxExportRange {
 				return refuse412(api.CodeRangeTooLarge, "The time range is longer than 31 days.")
+			}
+			// Like backups: no export starts without room for it (an export can hold the whole cap
+			// compressed badly, and the host's own audit log lives on the same disk).
+			free, err := o.d.FreeBytes(o.exportDir())
+			if err != nil {
+				return err
+			}
+			if free < 2*uint64(o.d.ExportLimit) { //nolint:gosec // ExportLimit is positive
+				return refuse412(api.CodeLowDisk, "There is less free space than twice the largest export.")
 			}
 			return nil
 		},
@@ -170,7 +183,7 @@ func (o *Ops) exportLogs(ctx context.Context, rc *server.RunContext, units []str
 			return api.LogsExportResult{}, err
 		}
 		if res.Truncated {
-			return api.LogsExportResult{}, refuse412(api.CodeOutputTooLarge, "The logs are larger than 256 MiB for this range; choose a shorter range or fewer units.")
+			return api.LogsExportResult{}, refuse412(api.CodeOutputTooLarge, tooLargeText)
 		}
 		if code != 0 {
 			return api.LogsExportResult{}, fail("journal_failed", fmt.Sprintf("journalctl failed for %s (exit %d).", u, code))
@@ -179,7 +192,7 @@ func (o *Ops) exportLogs(ctx context.Context, rc *server.RunContext, units []str
 		total += w
 		lines += n
 		if errors.Is(err, errTooLarge) {
-			return api.LogsExportResult{}, refuse412(api.CodeOutputTooLarge, "The logs are larger than 256 MiB for this range; choose a shorter range or fewer units.")
+			return api.LogsExportResult{}, refuse412(api.CodeOutputTooLarge, tooLargeText)
 		}
 		if err != nil {
 			return api.LogsExportResult{}, fail("export_failed", "The export could not be written.")
@@ -204,15 +217,21 @@ func (o *Ops) exportLogs(ctx context.Context, rc *server.RunContext, units []str
 	done = true
 	ix := o.loadExportsLocked()
 	ix.Exports = append(ix.Exports, rec)
+	dropped := retainExports(&ix)
 	if err := o.saveExportsLocked(ix); err != nil {
 		_ = os.Remove(o.exportPath(id))
 		return api.LogsExportResult{}, fail("export_failed", "The export could not be stored.")
+	}
+	for _, old := range dropped {
+		_ = os.Remove(o.exportPath(old))
 	}
 	rc.Progress(100)
 	return api.LogsExportResult{ExportID: id, Size: rec.Size, SHA256: rec.SHA256, Lines: lines}, nil
 }
 
 var errTooLarge = errors.New("ops: export is too large")
+
+const tooLargeText = "The logs are larger than the limit for this range (64 MiB for one unit, 256 MiB together); choose a shorter range or fewer units."
 
 // filterJournal copies journal JSON lines from r to w, one per line, with secrets redacted. A line
 // that is not a JSON object, or longer than 1 MiB, is replaced by a note line saying so (the
@@ -235,7 +254,7 @@ func filterJournal(r io.Reader, w io.Writer, budget int64) (lines int, written i
 		case len(bytes.TrimSpace(line)) == 0:
 			out = nil
 		default:
-			red := RedactJournalLine(line)
+			red := redactLine(line)
 			if !json.Valid(red) || !bytes.HasPrefix(bytes.TrimSpace(red), []byte("{")) {
 				out = []byte(`{"vedette_note":"a journal line that is not a JSON object was dropped"}`)
 			} else {
@@ -259,6 +278,115 @@ func filterJournal(r io.Reader, w io.Writer, budget int64) (lines int, written i
 			return lines, written, rerr
 		}
 	}
+}
+
+// retainExports keeps the newest exportKeepCount exports and at most exportTotalCap bytes (the
+// newest is always kept) and returns the ids to delete. The index stays oldest first.
+func retainExports(ix *exportIndex) (dropped []string) {
+	slices.Reverse(ix.Exports) // newest appended first, so a tie in created_at keeps the right order
+	slices.SortStableFunc(ix.Exports, func(a, b exportRecord) int { return b.CreatedAt.Compare(a.CreatedAt) })
+	var kept []exportRecord
+	var total int64
+	for i, r := range ix.Exports {
+		if i >= exportKeepCount || (i > 0 && total+r.Size > exportTotalCap) {
+			dropped = append(dropped, r.ID)
+			continue
+		}
+		kept = append(kept, r)
+		total += r.Size
+	}
+	slices.Reverse(kept)
+	ix.Exports = kept
+	return dropped
+}
+
+// arrayFieldRE finds a JSON field whose value is an array of numbers.
+var arrayFieldRE = regexp.MustCompile(`":\s*\[\s*[0-9]`)
+
+// redactLine removes secrets from one journal line. journalctl prints a field that holds a control
+// character (TAB, the ESC of a colour code, CR) or invalid UTF-8 as an array of byte values, not as
+// a string, so the text rules cannot see inside it: such fields are decoded to bytes, redacted in
+// their text form and encoded as arrays again; the rules then run on the whole line.
+func redactLine(line []byte) []byte {
+	if arrayFieldRE.Match(line) {
+		line = redactByteArrays(line)
+	}
+	return RedactJournalLine(line)
+}
+
+func redactByteArrays(line []byte) []byte {
+	dec := json.NewDecoder(bytes.NewReader(line))
+	dec.UseNumber()
+	var v any
+	if err := dec.Decode(&v); err != nil {
+		return line
+	}
+	obj, ok := v.(map[string]any)
+	if !ok {
+		return line
+	}
+	changed := false
+	for k, val := range obj {
+		if nv, c := redactByteField(val); c {
+			obj[k], changed = nv, true
+		}
+	}
+	if !changed {
+		return line
+	}
+	var out bytes.Buffer
+	enc := json.NewEncoder(&out)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(obj); err != nil {
+		return line
+	}
+	return bytes.TrimRight(out.Bytes(), "\n")
+}
+
+// redactByteField redacts v when it is an array of byte values (or an array holding such arrays,
+// as a field that occurs twice in an entry) and reports whether it changed.
+func redactByteField(v any) (any, bool) {
+	arr, ok := v.([]any)
+	if !ok {
+		return v, false
+	}
+	if b, ok := asBytes(arr); ok {
+		red := RedactJournalLine(b)
+		if bytes.Equal(red, b) {
+			return v, false
+		}
+		nums := make([]any, len(red))
+		for i, c := range red {
+			nums[i] = int(c)
+		}
+		return nums, true
+	}
+	changed := false
+	for i, e := range arr {
+		if nv, c := redactByteField(e); c {
+			arr[i], changed = nv, true
+		}
+	}
+	return arr, changed
+}
+
+func asBytes(arr []any) ([]byte, bool) {
+	if len(arr) == 0 {
+		return nil, false
+	}
+	b := make([]byte, len(arr))
+	for i, e := range arr {
+		n, ok := e.(json.Number)
+		if !ok {
+			return nil, false
+		}
+		x, err := strconv.Atoi(n.String())
+		if err != nil || x < 0 || x > 255 {
+			return nil, false
+		}
+		b[i] = byte(x)
+	}
+	return b, true
 }
 
 // readJournalLine reads one line without its newline; a line over maxJournalLine is skipped to its
@@ -344,6 +472,10 @@ func (o *Ops) exportContent(id string) (server.File, error) {
 				_ = f.Close()
 			}
 			return server.File{}, server.NewReadError(404, api.CodeExportUnknown, "There is no such export.")
+		}
+		if err := o.noteDownload("logs.download", "export_downloaded", map[string]any{"export_id": id, "size": r.Size}); err != nil {
+			_ = f.Close()
+			return server.File{}, err
 		}
 		return server.File{Body: f, Size: r.Size, Name: "vedette-logs-" + r.CreatedAt.Format("20060102T150405Z") + ".jsonl.gz", Type: "application/gzip"}, nil
 	}

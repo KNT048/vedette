@@ -154,13 +154,8 @@ func TestContract_Restore_ACutShortRestoreIsPutBackAtStart(t *testing.T) {
 			e := startSys(t)
 			e.restoreRules()
 			// The state the host was in before it died: pre_restore holds "first", the live database is half replaced.
-			pre := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Kind: "pre_restore", IncludeSecrets: true}))
-			e.m.NewCoreDB(map[string]int{"core": 3, "findings": 2}, 2)
-			db := e.m.OpenCoreDB()
-			if _, err := db.Exec(`INSERT INTO note(body) VALUES ('half-restored')`); err != nil {
-				t.Fatal(err)
-			}
-			_ = db.Close()
+			pre := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: e.snap(), Kind: "pre_restore", IncludeSecrets: true}))
+			e.m.WriteDB("db: half-restored")
 			marker, _ := json.Marshal(map[string]any{"pre_restore_backup_id": pre.BackupID, "backup_id": strings.Repeat("a", 32), "started_at": e.clock.Now()})
 			if err := os.WriteFile(filepath.Join(e.m.State, "restore.json"), marker, 0o600); err != nil {
 				t.Fatal(err)
@@ -175,15 +170,15 @@ func TestContract_Restore_ACutShortRestoreIsPutBackAtStart(t *testing.T) {
 			if _, err := os.Stat(filepath.Join(e.m.State, "restore.json")); err == nil {
 				t.Error("the marker is still there")
 			}
-			notes := e.m.Notes("")
+			notes := e.m.DB()
 			if coreRunning {
-				if !slices.Equal(notes, []string{"first", "half-restored"}) || !strings.Contains(rec.text(), `"action":"none"`) {
-					t.Fatalf("notes %v, audit %s", notes, rec.text())
+				if notes != "db: half-restored" || !strings.Contains(rec.text(), `"action":"none"`) {
+					t.Fatalf("database %q, audit %s", notes, rec.text())
 				}
 				return
 			}
-			if !slices.Equal(notes, []string{"first"}) || !strings.Contains(rec.text(), "restore_interrupted") || !strings.Contains(rec.text(), `"action":"reverted"`) {
-				t.Fatalf("notes %v, audit %s", notes, rec.text())
+			if notes != "db: first" || !strings.Contains(rec.text(), "restore_interrupted") || !strings.Contains(rec.text(), `"action":"reverted"`) {
+				t.Fatalf("database %q, audit %s", notes, rec.text())
 			}
 			if !slices.Contains(systemctlVerbs(e), "start") {
 				t.Error("core was not started again")
@@ -195,7 +190,7 @@ func TestContract_Restore_ACutShortRestoreIsPutBackAtStart(t *testing.T) {
 func TestContract_Backup_StartupRemovesOrphansAndTempFiles(t *testing.T) {
 	t.Parallel()
 	e := startSys(t)
-	keep := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Kind: "manual"}))
+	keep := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: e.snap(), Kind: "manual"}))
 	orphan := filepath.Join(e.m.State, "backups", strings.Repeat("e", 32)+".tar.gz")
 	if err := os.WriteFile(orphan, []byte("a crash left this"), 0o600); err != nil {
 		t.Fatal(err)
@@ -222,8 +217,9 @@ func TestContract_Restore_RunIsDurableAcrossAClientRestart(t *testing.T) {
 	t.Parallel()
 	e := startSys(t)
 	e.restoreRules()
-	b1 := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Kind: "manual", IncludeSecrets: true}))
-	run, err := e.h.Client.Run(context.Background(), "backup.restore", api.BackupRestoreArgs{BackupID: b1.BackupID}, e.id(), "admin")
+	b1 := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: e.snap(), Kind: "manual", IncludeSecrets: true}))
+	snapID := e.snap()
+	run, err := e.h.Client.Run(context.Background(), "backup.restore", api.BackupRestoreArgs{Snapshot: snapID, BackupID: b1.BackupID}, e.id(), "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,7 +236,7 @@ func TestContract_Restore_RunIsDurableAcrossAClientRestart(t *testing.T) {
 		t.Fatalf("%+v", res)
 	}
 	// The same request id after the restart is the same run, not a second restore.
-	again, err := c2.Run(context.Background(), "backup.restore", api.BackupRestoreArgs{BackupID: b1.BackupID}, run.RequestID, "admin")
+	again, err := c2.Run(context.Background(), "backup.restore", api.BackupRestoreArgs{Snapshot: snapID, BackupID: b1.BackupID}, run.RequestID, "admin")
 	if err != nil || again.RunID != run.RunID {
 		t.Fatalf("replay: %+v %v", again, err)
 	}
@@ -253,12 +249,12 @@ func TestContract_Restore_RunIsDurableAcrossAClientRestart(t *testing.T) {
 func TestContract_INV3_SystemWritesAreOneAtATime(t *testing.T) {
 	t.Parallel()
 	e := startSys(t, func(_ *ops.Config, d *ops.Deps) { d.CoreWait = 600 * time.Millisecond })
-	b := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Kind: "manual"}))
+	b := result[api.BackupResult](t, e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: e.snap(), Kind: "manual"}))
 	// Core never comes back, so the restore waits for it (then reverts): long enough to try a second write.
 	e.m.Rule("systemctl", "stop", "", 0, "", "stopped")
 	e.m.Rule("systemctl", "is-active", "inactive.txt", 3, "stopped", "")
 	e.m.Rule("systemctl", "is-active", "active.txt", 0, "", "")
-	run, err := e.h.Client.Run(context.Background(), "backup.restore", api.BackupRestoreArgs{BackupID: b.BackupID}, e.id(), "admin")
+	run, err := e.h.Client.Run(context.Background(), "backup.restore", api.BackupRestoreArgs{Snapshot: e.snap(), BackupID: b.BackupID}, e.id(), "admin")
 	if err != nil {
 		t.Fatal(err)
 	}

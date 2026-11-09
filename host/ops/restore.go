@@ -31,6 +31,9 @@ func (o *Ops) cmdBackupRestore() server.Command {
 			if !hexIDRE.MatchString(a.BackupID) {
 				return server.Invalid("backup_id", "must be 32 lowercase hex characters")
 			}
+			if !hexIDRE.MatchString(a.Snapshot) {
+				return server.Invalid("snapshot", "must be the 32 lowercase hex characters of a snapshot core wrote")
+			}
 			return nil
 		},
 		Check: func(_ context.Context, a api.BackupRestoreArgs) error {
@@ -40,10 +43,10 @@ func (o *Ops) cmdBackupRestore() server.Command {
 			if o.cfg.CoreUnit == "" {
 				return refuse412(api.CodeRestoreFailed, "The host does not know core's unit.")
 			}
-			return o.backupPreflight(true, true)
+			return o.backupPreflight(a.Snapshot, true, true)
 		},
 		Run: func(ctx context.Context, rc *server.RunContext, a api.BackupRestoreArgs) (any, error) {
-			return o.restore(ctx, rc, a.BackupID)
+			return o.restore(ctx, rc, a.BackupID, a.Snapshot)
 		},
 	})
 }
@@ -75,6 +78,16 @@ func (o *Ops) extract(rec backupRecord, dir string) (extracted, error) {
 		return extracted{}, refuse412(api.CodeChecksumMismatch, "The backup file cannot be read.")
 	}
 	defer func() { _ = f.Close() }()
+	// The space the members will take is what their headers declare; read those first (the stream
+	// is discarded), so a disk too small for the archive is refused before a byte is written.
+	if need, err := o.declaredSize(f); err != nil {
+		return extracted{}, fail(api.CodeRestoreFailed, "The backup archive is not a valid Vedette backup.")
+	} else if err := o.checkRestoreSpace(dir, need); err != nil {
+		return extracted{}, err
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return extracted{}, fail(api.CodeRestoreFailed, "The backup file cannot be read.")
+	}
 	var ex extracted
 	ex.Dir = dir
 	var manifestSeen, dbSeen bool
@@ -142,9 +155,37 @@ type restoreMarker struct {
 
 func (o *Ops) markerPath() string { return o.stateFile("restore.json") }
 
+// declaredSize is the sum of the member sizes the archive headers declare (already capped per
+// member by readArchive). The members are read and thrown away.
+func (o *Ops) declaredSize(r io.Reader) (int64, error) {
+	var sum int64
+	err := readArchive(r, func(_ string, mr io.Reader, n int64) error {
+		sum += n
+		if _, err := io.Copy(io.Discard, mr); err != nil {
+			return fmt.Errorf("%w: cut short", ErrArchive)
+		}
+		return nil
+	})
+	return sum, err
+}
+
+// checkRestoreSpace refuses (low_disk) when the filesystem of dir has less free than the declared
+// sizes times restoreSpaceFactor.
+func (o *Ops) checkRestoreSpace(dir string, declared int64) error {
+	free, err := o.d.FreeBytes(dir)
+	if err != nil {
+		return err
+	}
+	if float64(free) < float64(declared)*restoreSpaceFactor {
+		return refuse412(api.CodeLowDisk, "There is not enough free space to unpack this backup.")
+	}
+	return nil
+}
+
 // restore is backup.restore: check, take pre_restore, stop core, swap, start, health; on failure
-// put the pre_restore copy back (status reverted).
-func (o *Ops) restore(ctx context.Context, rc *server.RunContext, id string) (any, error) {
+// put the pre_restore copy back (status reverted). snapshot is core's snapshot of its state right
+// now, which becomes the pre_restore backup.
+func (o *Ops) restore(ctx context.Context, rc *server.RunContext, id, snapshot string) (any, error) {
 	rec, ok := o.lookupBackup(id)
 	if !ok {
 		return nil, server.Refuse(404, api.CodeBackupUnknown, "There is no such backup.")
@@ -160,42 +201,26 @@ func (o *Ops) restore(ctx context.Context, rc *server.RunContext, id string) (an
 	if err != nil {
 		return nil, err
 	}
-	// The backup's database must be sound, not from a newer schema than the running one, and
-	// usable with the key the box will have afterwards.
-	schema, err := inspectDB(ctx, ex.db(), true, true, false)
+	// The host never opens the database inside the archive or core's live one: it only compares
+	// the schema strings (the manifest the host wrote, and what core reported in its snapshot) as an
+	// early warning. Core validates the database when it starts; a refusal there fails the health
+	// check below and the previous state is put back.
+	cur, err := o.snapshotMeta(snapshot)
 	if err != nil {
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
-		return nil, fail(api.CodeRestoreFailed, "The database inside the backup failed its integrity check.")
+		return nil, err
 	}
-	live, err := inspectDB(ctx, filepath.Join(o.cfg.CoreData, coreDBFile), true, false, false)
-	matchSidecars(filepath.Join(o.cfg.CoreData, coreDBFile))
-	if err != nil {
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
-		return nil, refuse412(api.CodeDBUnreadable, "Core's current database cannot be read.")
-	}
-	if schemaNewer(schema, live) {
+	if schemaNewer(ex.Manifest.DBSchema, cur.DBSchema) {
 		return nil, refuse409(api.CodeSchemaNewer, "The backup comes from a newer version of Vedette than the one running.")
 	}
-	if !ex.HasKey {
-		_, kerr := os.Lstat(filepath.Join(o.cfg.CoreData, coreKeyFile))
-		if errors.Is(kerr, os.ErrNotExist) {
-			n, err := countSecrets(ctx, ex.db())
-			if err != nil {
-				return nil, fail(api.CodeRestoreFailed, "The backup could not be inspected.")
-			}
-			if n > 0 {
-				return nil, refuse412(api.CodeSecretsMissing, "The backup holds secrets but has no key and this box has none either.")
-			}
-		}
+	if !ex.HasKey && !cur.IncludesKey {
+		// The host cannot tell whether the database holds secrets, so it refuses when neither the
+		// archive nor this box has the key that would open them.
+		return nil, refuse412(api.CodeSecretsMissing, "The backup has no key and this box has none either.")
 	}
 	rc.Progress(15)
 
 	rc.Log("Backing up the current state first")
-	pre, err := o.createBackup(ctx, rc, "pre_restore", true, "before restore")
+	pre, err := o.createBackup(ctx, rc, "pre_restore", true, "before restore", snapshot)
 	if err != nil {
 		return nil, err
 	}
@@ -237,90 +262,57 @@ func (o *Ops) restore(ctx context.Context, rc *server.RunContext, id string) (an
 	return api.BackupRestoreResult{RestoredBackupID: id, PreRestoreBackupID: pre.BackupID, Version: ex.Manifest.Version, Health: health}, nil
 }
 
-// swap puts the extracted database (and key, when the backup has one) in core's data directory.
+// snapshotMeta opens core's tree and the snapshot just long enough to read its metadata.
+func (o *Ops) snapshotMeta(snapshot string) (snapshotMeta, error) {
+	t, err := o.openCore()
+	if err != nil {
+		return snapshotMeta{}, err
+	}
+	defer t.close()
+	snap, err := o.openSnapshot(t, snapshot, false)
+	if err != nil {
+		return snapshotMeta{}, err
+	}
+	defer snap.close()
+	return snap.meta, nil
+}
+
+// swap puts the extracted database (and key, when the backup has one) in core's data directory,
+// through the root handle: files go in as core_uid:core_gid mode 0600, stale sidecars go out.
+// Core is stopped while this runs.
 func (o *Ops) swap(ex extracted) error {
-	liveDB := filepath.Join(o.cfg.CoreData, coreDBFile)
-	if err := removeSidecars(liveDB); err != nil {
+	t, err := o.openCore()
+	if err != nil {
+		return fmt.Errorf("ops: %w", err)
+	}
+	defer t.close()
+	if err := o.checkRestoreSpace(o.cfg.CoreData, dirSize(ex)); err != nil {
 		return err
 	}
-	if err := o.installFile(ex.db(), coreDBFile); err != nil {
+	if err := t.removeSidecars(); err != nil {
+		return err
+	}
+	if err := t.install(ex.db(), coreDBFile); err != nil {
 		return err
 	}
 	if ex.HasKey {
-		return o.installFile(ex.key(), coreKeyFile)
+		return t.install(ex.key(), coreKeyFile)
 	}
 	return nil
 }
 
-// installFile replaces core_data/name with the content of src: written under a random name made
-// with O_EXCL|O_NOFOLLOW (core owns the directory and could plant a symlink), given the owner of the
-// file it replaces (else of the directory) and mode 0600, fsynced, then renamed over the target.
-// rename replaces a symlink at the target instead of following it.
-func (o *Ops) installFile(src, name string) error {
-	target := filepath.Join(o.cfg.CoreData, name)
-	uid, gid, err := o.ownerFor(target)
-	if err != nil {
-		return err
-	}
-	in, err := os.Open(src) //nolint:gosec // a file this run just extracted
-	if err != nil {
-		return fmt.Errorf("ops: open %s: %w", name, err)
-	}
-	defer func() { _ = in.Close() }()
-	suffix, err := randomHex(8)
-	if err != nil {
-		return err
-	}
-	tmp := filepath.Join(o.cfg.CoreData, ".vedette-restore-"+suffix)
-	out, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0o600) //nolint:gosec // random name, O_EXCL
-	if err != nil {
-		return fmt.Errorf("ops: create %s: %w", name, err)
-	}
-	ok := false
-	defer func() {
-		if !ok {
-			_ = out.Close()
-			_ = os.Remove(tmp)
+// dirSize is the size of the extracted members (the space the install needs next to the old files).
+func dirSize(ex extracted) int64 {
+	var n int64
+	for _, p := range []string{ex.db(), ex.key()} {
+		if f, err := os.Open(p); err == nil { //nolint:gosec // files this run extracted
+			if st, err := f.Stat(); err == nil {
+				n += st.Size()
+			}
+			_ = f.Close()
 		}
-	}()
-	if _, err := io.Copy(out, in); err != nil {
-		return fmt.Errorf("ops: copy %s: %w", name, err)
 	}
-	if err := out.Chown(uid, gid); err != nil {
-		return fmt.Errorf("ops: chown %s: %w", name, err)
-	}
-	if err := out.Chmod(0o600); err != nil {
-		return fmt.Errorf("ops: chmod %s: %w", name, err)
-	}
-	if err := out.Sync(); err != nil {
-		return fmt.Errorf("ops: sync %s: %w", name, err)
-	}
-	if err := out.Close(); err != nil {
-		return fmt.Errorf("ops: close %s: %w", name, err)
-	}
-	if err := os.Rename(tmp, target); err != nil {
-		return fmt.Errorf("ops: replace %s: %w", name, err)
-	}
-	ok = true
-	syncDir(o.cfg.CoreData)
-	return nil
-}
-
-// ownerFor is the uid and gid a restored file gets: those of the file it replaces, else of the
-// data directory (the installer made it for core).
-func (o *Ops) ownerFor(target string) (uid, gid int, err error) {
-	st, err := os.Lstat(target)
-	if err != nil {
-		st, err = os.Lstat(o.cfg.CoreData)
-	}
-	if err != nil {
-		return 0, 0, fmt.Errorf("ops: stat core data: %w", err)
-	}
-	sys, ok := st.Sys().(*syscall.Stat_t)
-	if !ok {
-		return 0, 0, errors.New("ops: no owner information")
-	}
-	return int(sys.Uid), int(sys.Gid), nil
+	return n
 }
 
 // putBack restores the pre_restore backup over core's data and starts core. It uses its own

@@ -5,6 +5,7 @@
 // Format: one "key = value" per line; blank lines and lines starting with # are ignored.
 //
 //	core_uid  = 10001                        # uid that runs core (never 0)
+//	core_gid  = 10001                        # gid of core: restored files get core_uid:core_gid
 //	core_unit = vedette-core.service         # systemd unit whose cgroup core's processes are in
 //	socket    = /run/vedette/host.sock       # absolute path, at most 100 bytes
 //	socket_gid = 990                         # gid of the group "vedette" (owns the socket, mode 0660)
@@ -39,6 +40,7 @@ var ErrInvalid = errors.New("host config: invalid")
 // Config is the parsed file.
 type Config struct {
 	CoreUID   int
+	CoreGID   int // group that restored files in core_data get (never taken from a file in core's tree)
 	CoreUnit  string
 	Socket    string
 	SocketGID int
@@ -94,7 +96,7 @@ func Parse(r io.Reader) (Config, error) {
 	if err := sc.Err(); err != nil {
 		return Config{}, fmt.Errorf("%w: %w", ErrInvalid, err)
 	}
-	for _, k := range []string{"core_uid", "core_unit", "socket", "socket_gid"} {
+	for _, k := range []string{"core_uid", "core_gid", "core_unit", "socket", "socket_gid"} {
 		if !seen[k] {
 			return Config{}, fmt.Errorf("%w: %s is required", ErrInvalid, k)
 		}
@@ -113,6 +115,12 @@ func (c *Config) set(k, v string) error {
 			return errors.New("core_uid must not be 0: core never runs as root")
 		}
 		c.CoreUID = n
+	case "core_gid":
+		n, err := id(v)
+		if err != nil {
+			return fmt.Errorf("core_gid: %w", err)
+		}
+		c.CoreGID = n
 	case "socket_gid":
 		n, err := id(v)
 		if err != nil {

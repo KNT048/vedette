@@ -45,11 +45,17 @@ const (
 	CodeNoCheckYet          = "no_check_yet"
 	CodeExportUnknown       = "export_unknown"
 	CodeEffectNotVerified   = "effect_not_verified"
+	CodeSnapshotRequired    = "snapshot_required"
+	CodeSnapshotInvalid     = "snapshot_invalid"
+	CodeRebooting           = "rebooting"
 )
 
 // OSInstallArgs are the args of os.install.
 type OSInstallArgs struct {
 	Scope string `json:"scope"` // "security" | "all"
+	// Snapshot is the id (32 hex) of the snapshot core wrote to <core_data>/snapshots/<id>/ just
+	// before the call; the host copies it into the pre_os_update backup (spec 6.11, D-87).
+	Snapshot string `json:"snapshot"`
 }
 
 // OSAutoSecurityArgs are the args of os.auto_security.set.
@@ -68,11 +74,17 @@ type BackupCreateArgs struct {
 	Kind           string `json:"kind"` // manual | pre_update | pre_os_update | pre_restore
 	IncludeSecrets bool   `json:"include_secrets"`
 	Label          string `json:"label,omitempty"`
+	// Snapshot is the id (32 hex) of the snapshot core wrote to <core_data>/snapshots/<id>/ just
+	// before the call (spec 6.11, D-87): the host never opens core's database, it copies this one.
+	Snapshot string `json:"snapshot"`
 }
 
 // BackupRestoreArgs are the args of backup.restore.
 type BackupRestoreArgs struct {
 	BackupID string `json:"backup_id"`
+	// Snapshot is a snapshot of the state core has right now (spec 6.11): the host keeps it as the
+	// pre_restore backup, the way back if the restore does not work.
+	Snapshot string `json:"snapshot"`
 }
 
 // LogsExportArgs are the args of logs.export. Since and Until are RFC 3339.

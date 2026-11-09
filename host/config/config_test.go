@@ -12,6 +12,7 @@ import (
 
 const good = `# written by the installer
 core_uid = 10001
+core_gid = 10002
 core_unit = vedette-core.service
 socket = /run/vedette/host.sock
 socket_gid=990
@@ -23,7 +24,7 @@ func TestParse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := config.Config{CoreUID: 10001, CoreUnit: "vedette-core.service", Socket: "/run/vedette/host.sock", SocketGID: 990}
+	want := config.Config{CoreUID: 10001, CoreGID: 10002, CoreUnit: "vedette-core.service", Socket: "/run/vedette/host.sock", SocketGID: 990}
 	if c != want {
 		t.Fatalf("got %+v, want %+v", c, want)
 	}
@@ -52,7 +53,12 @@ func TestParseRejects(t *testing.T) {
 	t.Parallel()
 	tests := map[string]string{
 		"empty":              "",
-		"missing key":        "core_uid=1\ncore_unit=a.service\nsocket=/x/y\n",
+		"missing key":        "core_uid=1\ncore_gid=1\ncore_unit=a.service\nsocket=/x/y\n",
+		"missing core_gid":   strings.Replace(good, "core_gid = 10002\n", "", 1),
+		"core_gid repeated":  good + "core_gid = 5\n",
+		"negative core_gid":  strings.Replace(good, "10002", "-1", 1),
+		"hex core_gid":       strings.Replace(good, "10002", "0x10", 1),
+		"empty core_gid":     strings.Replace(good, "10002", "", 1),
 		"unknown key":        good + "extra = 1\n",
 		"duplicate":          good + "core_uid = 5\n",
 		"root uid":           strings.Replace(good, "10001", "0", 1),
@@ -134,14 +140,14 @@ func TestLoadChecksFile(t *testing.T) {
 
 func FuzzParse(f *testing.F) {
 	f.Add(good)
-	f.Add("core_uid = 1\n")
+	f.Add("core_uid = 1\ncore_gid = 1\n")
 	f.Add("\x00\n=\n===")
 	f.Fuzz(func(t *testing.T, s string) {
 		c, err := config.Parse(strings.NewReader(s))
 		if err != nil {
 			return
 		}
-		if c.CoreUID <= 0 || c.SocketGID < 0 || c.CoreUnit == "" || config.ValidSocketPath(c.Socket) != nil {
+		if c.CoreUID <= 0 || c.CoreGID < 0 || c.SocketGID < 0 || c.CoreUnit == "" || config.ValidSocketPath(c.Socket) != nil {
 			t.Fatalf("accepted an unsafe config: %+v", c)
 		}
 	})

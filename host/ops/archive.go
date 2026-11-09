@@ -19,7 +19,7 @@ import (
 // A backup is one tar.gz (Go standard library) with fixed member names:
 //
 //	manifest.json   small JSON, see Manifest
-//	vedette.db      core's SQLite database (consistent copy from the SQLite backup API)
+//	vedette.db      core's SQLite database, the snapshot core wrote (the host copies bytes, D-87)
 //	vedette.key     core's secrets master key, only when include_secrets
 //
 // The archive is untrusted when read back, even though the host wrote it: a restore must never
@@ -89,10 +89,12 @@ func parseManifest(b []byte) (Manifest, error) {
 	return m, nil
 }
 
-// archiveFile is one member to write.
+// archiveFile is one member to write: Data, or exactly Size bytes read from Src (a descriptor the
+// host already checked).
 type archiveFile struct {
 	Name string
-	Path string // file to copy; empty when Data is used
+	Src  io.Reader
+	Size int64
 	Data []byte
 }
 
@@ -119,7 +121,7 @@ func writeArchive(w io.Writer, files []archiveFile, mtime time.Time) (sum string
 
 func addMember(tw *tar.Writer, f archiveFile, mtime time.Time) error {
 	hdr := &tar.Header{Name: f.Name, Typeflag: tar.TypeReg, Mode: 0o600, ModTime: mtime, Format: tar.FormatUSTAR}
-	if f.Path == "" {
+	if f.Src == nil {
 		hdr.Size = int64(len(f.Data))
 		if err := tw.WriteHeader(hdr); err != nil {
 			return fmt.Errorf("ops: write %s: %w", f.Name, err)
@@ -129,21 +131,17 @@ func addMember(tw *tar.Writer, f archiveFile, mtime time.Time) error {
 		}
 		return nil
 	}
-	in, err := os.Open(f.Path)
-	if err != nil {
-		return fmt.Errorf("ops: open %s: %w", f.Name, err)
-	}
-	defer func() { _ = in.Close() }()
-	st, err := in.Stat()
-	if err != nil {
-		return fmt.Errorf("ops: stat %s: %w", f.Name, err)
-	}
-	hdr.Size = st.Size()
+	hdr.Size = f.Size
 	if err := tw.WriteHeader(hdr); err != nil {
 		return fmt.Errorf("ops: write %s: %w", f.Name, err)
 	}
-	if n, err := io.Copy(tw, io.LimitReader(in, hdr.Size)); err != nil || n != hdr.Size {
-		return fmt.Errorf("ops: copy %s: %w", f.Name, errors.Join(err, io.ErrUnexpectedEOF))
+	// Exactly Size bytes: a file that grew after the check is cut at the checked size, one that
+	// shrank is an error (the member would not match its header).
+	if n, err := io.Copy(tw, io.LimitReader(f.Src, f.Size)); err != nil || n != f.Size {
+		if err == nil {
+			err = io.ErrUnexpectedEOF
+		}
+		return fmt.Errorf("ops: copy %s: %w", f.Name, err)
 	}
 	return nil
 }

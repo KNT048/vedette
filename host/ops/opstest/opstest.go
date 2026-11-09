@@ -1,14 +1,17 @@
 // Package opstest builds a fake machine for tests of host/ops, host/client and the host contract:
 // a temporary root directory with the files the commands read (os-release, dpkg lock files, boot
-// id, apt.conf.d, core's data directory with a real SQLite database and key), and fake binaries,
+// id, apt.conf.d, core's data directory with a database file and a key), and fake binaries,
 // small shell scripts that record their argv and environment and print fixture files. Nothing here
 // touches the real /etc, /var or /run, and nothing starts apt, dpkg or systemctl. It is test
 // support: the binary never imports it (a contract test asserts that).
+//
+// Core's database here is plain bytes, and so is a snapshot: the host never opens, parses or runs
+// SQL on core's data (D-87), and no package under host/ imports a SQL driver (a contract test
+// asserts that too), so the fake machine does not either.
 package opstest
 
 import (
-	"context"
-	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -19,8 +22,6 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/host/ops"
-
-	_ "modernc.org/sqlite" // the driver of core's database
 )
 
 // Bins are the binary names of the command runner.
@@ -48,8 +49,8 @@ func Fixture(name string) string {
 }
 
 // NewMachine creates the machine: Ubuntu 24.04, no lock held, apt.conf.d present, core's database
-// (WAL mode, a migration table and a core_secret table) and key file, and fake binaries that
-// succeed with empty output until a rule says otherwise.
+// file (bytes) and key file, and fake binaries that succeed with empty output until a rule says
+// otherwise.
 func NewMachine(t testing.TB) *Machine {
 	t.Helper()
 	base, err := os.MkdirTemp("", "om")
@@ -78,8 +79,8 @@ func NewMachine(t testing.TB) *Machine {
 	for _, name := range Bins {
 		m.writeFake(name)
 	}
-	m.NewCoreDB(map[string]int{"core": 3, "findings": 2}, 2)
-	m.must(os.WriteFile(filepath.Join(m.CoreData, "vedette.key"), []byte("0123456789abcdef0123456789abcdef"), 0o600))
+	m.WriteDB("db: first")
+	m.must(os.WriteFile(filepath.Join(m.CoreData, "vedette.key"), []byte(Key), 0o600))
 	return m
 }
 
@@ -118,72 +119,64 @@ func (m *Machine) SetBootID(id string) { m.WriteRoot("proc/sys/kernel/random/boo
 // CoreDBPath is core's database file.
 func (m *Machine) CoreDBPath() string { return filepath.Join(m.CoreData, "vedette.db") }
 
-// NewCoreDB creates core's database in WAL mode with goose-style version tables (module -> highest
-// version) and a core_secret table with the given number of rows, plus one data table. It leaves
-// the connection closed (no -wal file stays behind unless a test opens it).
-func (m *Machine) NewCoreDB(versions map[string]int, secrets int) {
+// Key is the content of the key file of a fresh machine.
+const Key = "0123456789abcdef0123456789abcdef"
+
+// Schema is the db_schema a snapshot reports unless a test says otherwise.
+const Schema = "core=3,findings=2"
+
+// WriteDB replaces core's database file by content (mode 0600, like core's own).
+func (m *Machine) WriteDB(content string) {
 	m.t.Helper()
-	_ = os.Remove(m.CoreDBPath())
-	db := m.OpenCoreDB()
-	defer func() { _ = db.Close() }()
-	stmts := []string{
-		`CREATE TABLE core_secret (id TEXT PRIMARY KEY, purpose TEXT NOT NULL, ciphertext BLOB NOT NULL)`,
-		`CREATE TABLE note (id INTEGER PRIMARY KEY, body TEXT NOT NULL)`,
-		`INSERT INTO note(body) VALUES ('first')`,
-	}
-	for mod, v := range versions {
-		stmts = append(stmts,
-			fmt.Sprintf(`CREATE TABLE core_migration_%s (id INTEGER PRIMARY KEY, version_id INTEGER NOT NULL, is_applied INTEGER NOT NULL, tstamp TEXT)`, mod),
-			fmt.Sprintf(`INSERT INTO core_migration_%s(version_id, is_applied) VALUES (0, 1)`, mod))
-		for i := 1; i <= v; i++ {
-			stmts = append(stmts, fmt.Sprintf(`INSERT INTO core_migration_%s(version_id, is_applied) VALUES (%d, 1)`, mod, i))
-		}
-	}
-	for i := 0; i < secrets; i++ {
-		stmts = append(stmts, fmt.Sprintf(`INSERT INTO core_secret VALUES ('sec-%d', 'test', x'00ff')`, i))
-	}
-	for _, s := range stmts {
-		if _, err := db.ExecContext(context.Background(), s); err != nil {
-			m.t.Fatal(err)
-		}
-	}
-	m.must(os.Chmod(m.CoreDBPath(), 0o600))
+	m.must(os.WriteFile(m.CoreDBPath(), []byte(content), 0o600))
 }
 
-// OpenCoreDB opens core's database the way core does (WAL, one connection); the caller closes it.
-func (m *Machine) OpenCoreDB() *sql.DB {
-	m.t.Helper()
-	db, err := sql.Open("sqlite", "file:"+m.CoreDBPath()+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
-	if err != nil {
-		m.t.Fatal(err)
-	}
-	db.SetMaxOpenConns(1)
-	return db
+// DB is the content of core's live database file.
+func (m *Machine) DB() string {
+	b, _ := os.ReadFile(m.CoreDBPath())
+	return string(b)
 }
 
-// Notes reads the body of every row of the note table of the database at path (core's by default).
-func (m *Machine) Notes(path string) []string {
+// SnapOpts shapes a snapshot core writes.
+type SnapOpts struct {
+	At     time.Time // created_at (default: now of the machine's clock, see Snapshot)
+	Schema string    // db_schema (default Schema)
+	NoKey  bool      // includes_key false and no key file
+	DB     *string   // database bytes (default: a copy of the live database)
+}
+
+// Snapshot writes what core writes before it calls the host (spec 6.11): snapshots/<id>/ in core's
+// data directory with vedette.db (a copy of the live database), snapshot.json and, unless NoKey,
+// vedette.key (a copy of the live key). at is the created_at. It returns the id.
+func (m *Machine) Snapshot(at time.Time, mutate ...func(*SnapOpts)) string {
 	m.t.Helper()
-	if path == "" {
-		path = m.CoreDBPath()
+	o := SnapOpts{At: at, Schema: Schema}
+	for _, f := range mutate {
+		f(&o)
 	}
-	db, err := sql.Open("sqlite", "file:"+path+"?mode=ro")
-	if err != nil {
-		m.t.Fatal(err)
+	id, err := ops.RandomID()
+	m.must(err)
+	dir := filepath.Join(m.CoreData, "snapshots", id)
+	m.must(os.MkdirAll(dir, 0o700))
+	db := m.DB()
+	if o.DB != nil {
+		db = *o.DB
 	}
-	defer func() { _ = db.Close() }()
-	rows, err := db.QueryContext(context.Background(), `SELECT body FROM note ORDER BY id`)
-	if err != nil {
-		m.t.Fatal(err)
+	m.must(os.WriteFile(filepath.Join(dir, "vedette.db"), []byte(db), 0o600))
+	if !o.NoKey {
+		key, err := os.ReadFile(filepath.Join(m.CoreData, "vedette.key"))
+		m.must(err)
+		m.must(os.WriteFile(filepath.Join(dir, "vedette.key"), key, 0o600)) //nolint:gosec // test support: a path under the fake core directory
 	}
-	defer func() { _ = rows.Close() }()
-	var out []string
-	for rows.Next() {
-		var b string
-		m.must(rows.Scan(&b))
-		out = append(out, b)
-	}
-	return out
+	meta, err := json.Marshal(map[string]any{"created_at": o.At.UTC().Format(time.RFC3339), "db_schema": o.Schema, "includes_key": !o.NoKey})
+	m.must(err)
+	m.must(os.WriteFile(filepath.Join(dir, "snapshot.json"), meta, 0o600))
+	return id
+}
+
+// SnapshotPath is the path of a file of a snapshot.
+func (m *Machine) SnapshotPath(id, name string) string {
+	return filepath.Join(m.CoreData, "snapshots", id, name)
 }
 
 // Rule makes a fake binary answer: when the joined argv contains pattern (first matching rule
@@ -352,7 +345,10 @@ func (m *Machine) RunsAtReboot() string {
 
 // Config is the ops.Config of this machine.
 func (m *Machine) Config() ops.Config {
-	return ops.Config{StateDir: m.State, CoreData: m.CoreData, CoreUnit: "vedette-core.service", Version: "test", OwnerUID: os.Getuid(), Logger: slog.New(slog.DiscardHandler)}
+	return ops.Config{
+		StateDir: m.State, CoreData: m.CoreData, CoreUnit: "vedette-core.service", Version: "test",
+		CoreUID: os.Getuid(), CoreGID: os.Getgid(), OwnerUID: os.Getuid(), Logger: slog.New(slog.DiscardHandler),
+	}
 }
 
 // Deps is the ops.Deps of this machine: the temp root, the fake binaries, and quick polling. now may be nil.

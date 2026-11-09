@@ -39,6 +39,8 @@ type Config struct {
 	CoreData string // "" when host.conf has no core_data: backups then refuse with db_unreadable
 	CoreUnit string
 	Version  string
+	CoreUID  int // host.conf core_uid: the owner every file read from core's tree must have
+	CoreGID  int // host.conf core_gid: the group restored files get (with core_uid, mode 0600)
 	OwnerUID int
 	Logger   *slog.Logger
 }
@@ -75,6 +77,7 @@ type Ops struct {
 
 	rbMu     sync.Mutex // guards reboot.json and the scheduled-reboot timer
 	stopTick func() bool
+	gate     atomic.Pointer[rebootGate] // set while a reboot the host started has not completed (WriteGate); never taken under rbMu
 
 	bkMu sync.Mutex // guards backups/index.json
 	exMu sync.Mutex // guards exports/index.json
@@ -100,6 +103,9 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 	}
 	if cfg.CoreData != "" && !filepath.IsAbs(cfg.CoreData) {
 		return nil, errors.New("ops: CoreData must be an absolute path")
+	}
+	if cfg.CoreData != "" && cfg.CoreUID <= 0 {
+		return nil, errors.New("ops: CoreUID (core_uid) must be set when CoreData is")
 	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.New(slog.DiscardHandler)
@@ -137,7 +143,7 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 	if d.HealthSettle <= 0 {
 		d.HealthSettle = 5 * time.Second
 	}
-	runner, err := newRunner(cfg.Logger, cfg.CoreUnit, d.BinPaths, d.ExportLimit)
+	runner, err := newRunner(cfg.Logger, cfg.CoreUnit, d.BinPaths, min(d.ExportLimit, maxJournalStream))
 	if err != nil {
 		return nil, fmt.Errorf("ops: %w", err)
 	}
@@ -233,6 +239,7 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.notifier = n
 	o.mu.Unlock()
 	o.sweepBackups()
+	o.checkCoreAtStart()
 	o.recoverRestore(ctx)
 	o.startReboot()
 	o.sweepExports()
@@ -265,6 +272,22 @@ func (o *Ops) note(command, code string, detail map[string]any) {
 	if err := n.Note(command, code, detail); err != nil {
 		o.log.Error("could not write an audit note", "command", command, "code", code)
 	}
+}
+
+// noteDownload audits one download of a backup or export. It fails closed: a download the audit
+// chain cannot record is not served. Before Start there is no notifier and nothing is recorded.
+func (o *Ops) noteDownload(command, code string, detail map[string]any) error {
+	o.mu.Lock()
+	n := o.notifier
+	o.mu.Unlock()
+	if n == nil {
+		return nil
+	}
+	if err := n.Note(command, code, detail); err != nil {
+		o.log.Error("could not write an audit note; the download is refused", "command", command, "code", code)
+		return errors.New("ops: the audit log is unavailable")
+	}
+	return nil
 }
 
 func (o *Ops) writeActive() bool {

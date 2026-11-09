@@ -413,6 +413,13 @@ func (s *Server) submit(w http.ResponseWriter, sub submission, cmd Command, args
 		return
 	}
 	if cmd.write {
+		if gate := s.o.WriteGate; gate != nil {
+			if ref := gate(); ref != nil {
+				s.mu.Unlock()
+				s.refuse(w, sub, ref.Status, api.ErrorInfo{Code: ref.Code, Message: ref.Message, RetryAfterS: ref.RetryAfterS})
+				return
+			}
+		}
 		if s.active != "" {
 			busy := s.active
 			s.mu.Unlock()

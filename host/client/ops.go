@@ -21,9 +21,10 @@ func (c *Client) OSCheck(ctx context.Context, requestID, actor string) (api.Run,
 	return c.Run(ctx, api.CmdOSCheck, nil, requestID, actor)
 }
 
-// OSInstall runs os.install with scope "security" or "all".
-func (c *Client) OSInstall(ctx context.Context, scope, requestID, actor string) (api.Run, error) {
-	return c.Run(ctx, api.CmdOSInstall, api.OSInstallArgs{Scope: scope}, requestID, actor)
+// OSInstall runs os.install with scope "security" or "all"; snapshot is the id of the snapshot
+// core wrote for the pre_os_update backup.
+func (c *Client) OSInstall(ctx context.Context, scope, snapshot, requestID, actor string) (api.Run, error) {
+	return c.Run(ctx, api.CmdOSInstall, api.OSInstallArgs{Scope: scope, Snapshot: snapshot}, requestID, actor)
 }
 
 // OSAutoSecuritySet runs os.auto_security.set.
@@ -46,9 +47,10 @@ func (c *Client) BackupCreate(ctx context.Context, args api.BackupCreateArgs, re
 	return c.Run(ctx, api.CmdBackupCreate, args, requestID, actor)
 }
 
-// BackupRestore runs backup.restore.
-func (c *Client) BackupRestore(ctx context.Context, backupID, requestID, actor string) (api.Run, error) {
-	return c.Run(ctx, api.CmdBackupRestore, api.BackupRestoreArgs{BackupID: backupID}, requestID, actor)
+// BackupRestore runs backup.restore; snapshot is the id of a snapshot of core's current state
+// (kept as the pre_restore backup).
+func (c *Client) BackupRestore(ctx context.Context, backupID, snapshot, requestID, actor string) (api.Run, error) {
+	return c.Run(ctx, api.CmdBackupRestore, api.BackupRestoreArgs{BackupID: backupID, Snapshot: snapshot}, requestID, actor)
 }
 
 // LogsExport runs logs.export.

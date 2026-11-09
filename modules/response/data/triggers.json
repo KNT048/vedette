@@ -1,0 +1,387 @@
+{
+ "triggers": [
+  {
+   "id": "honeypot",
+   "name": "A device touches a honeypot trap",
+   "description": "Something on your network connected to a decoy, used a planted credential or scanned the decoys.",
+   "fields": [
+    {
+     "key": "source_ip",
+     "label": "Source IP address",
+     "type": "ip",
+     "example": "192.168.10.157",
+     "choices": []
+    },
+    {
+     "key": "source_device",
+     "label": "Source device",
+     "type": "text",
+     "example": "PC-HR-01",
+     "choices": []
+    },
+    {
+     "key": "decoy",
+     "label": "Decoy touched",
+     "type": "text",
+     "example": "FILESRV-OLD",
+     "choices": []
+    },
+    {
+     "key": "kind",
+     "label": "Kind of touch",
+     "type": "choice",
+     "example": "scan",
+     "choices": [
+      "service",
+      "token",
+      "scan"
+     ]
+    },
+    {
+     "key": "switch_port",
+     "label": "Switch port of the source",
+     "type": "interface",
+     "example": "Gi1/0/12",
+     "choices": []
+    }
+   ]
+  },
+  {
+   "id": "ioc_connection",
+   "name": "A device connects to a known-bad address",
+   "description": "A LAN device talked to an IP address or domain on a threat feed. Read from the known-bad connection list of the Logs module.",
+   "fields": [
+    {
+     "key": "src_ip",
+     "label": "Device IP address",
+     "type": "ip",
+     "example": "192.168.10.105",
+     "choices": []
+    },
+    {
+     "key": "device",
+     "label": "Device",
+     "type": "text",
+     "example": "PC-SALES-02",
+     "choices": []
+    },
+    {
+     "key": "dest",
+     "label": "Destination",
+     "type": "text",
+     "example": "185.220.101.47",
+     "choices": []
+    },
+    {
+     "key": "dest_kind",
+     "label": "Destination kind",
+     "type": "choice",
+     "example": "ip",
+     "choices": [
+      "ip",
+      "domain"
+     ]
+    },
+    {
+     "key": "dest_ip",
+     "label": "Destination IP (empty for a domain)",
+     "type": "ip",
+     "example": "185.220.101.47",
+     "choices": []
+    },
+    {
+     "key": "dest_domain",
+     "label": "Destination domain (empty for an IP)",
+     "type": "domain",
+     "example": "cdn-update.badhost.example",
+     "choices": []
+    },
+    {
+     "key": "feeds",
+     "label": "Feeds that list it",
+     "type": "text",
+     "example": "Tor exit list, IPsum",
+     "choices": []
+    },
+    {
+     "key": "confidence",
+     "label": "Confidence (0 to 1)",
+     "type": "number",
+     "example": "0.92",
+     "choices": []
+    },
+    {
+     "key": "switch_port",
+     "label": "Switch port of the device",
+     "type": "interface",
+     "example": "Gi1/0/5",
+     "choices": []
+    }
+   ]
+  },
+  {
+   "id": "finding",
+   "name": "A finding appears or is confirmed",
+   "description": "A new vulnerability finding on one of your devices, or a suspected one that was confirmed.",
+   "fields": [
+    {
+     "key": "device",
+     "label": "Device",
+     "type": "text",
+     "example": "NAS-PHOTOS",
+     "choices": []
+    },
+    {
+     "key": "ip",
+     "label": "Device IP address",
+     "type": "ip",
+     "example": "192.168.10.21",
+     "choices": []
+    },
+    {
+     "key": "cve",
+     "label": "CVE",
+     "type": "text",
+     "example": "CVE-2024-3400",
+     "choices": []
+    },
+    {
+     "key": "severity",
+     "label": "Severity",
+     "type": "choice",
+     "example": "critical",
+     "choices": [
+      "critical",
+      "high",
+      "medium",
+      "low"
+     ]
+    },
+    {
+     "key": "kev",
+     "label": "Exploited in the wild (KEV)",
+     "type": "flag",
+     "example": "true",
+     "choices": [
+      "true",
+      "false"
+     ]
+    },
+    {
+     "key": "exposed_via_nat",
+     "label": "Reachable through port forwarding",
+     "type": "flag",
+     "example": "true",
+     "choices": [
+      "true",
+      "false"
+     ]
+    },
+    {
+     "key": "vip",
+     "label": "Firewall virtual IP name",
+     "type": "name",
+     "example": "NAS-PHOTO-443",
+     "choices": []
+    }
+   ]
+  },
+  {
+   "id": "unknown_device",
+   "name": "An unknown device appears",
+   "description": "A device that is not in your approved inventory joined the network.",
+   "fields": [
+    {
+     "key": "ip",
+     "label": "IP address",
+     "type": "ip",
+     "example": "192.168.10.157",
+     "choices": []
+    },
+    {
+     "key": "mac",
+     "label": "MAC address",
+     "type": "mac",
+     "example": "3c:22:fb:10:aa:01",
+     "choices": []
+    },
+    {
+     "key": "vendor",
+     "label": "Vendor",
+     "type": "text",
+     "example": "Unknown vendor",
+     "choices": []
+    },
+    {
+     "key": "kind",
+     "label": "Device type guess",
+     "type": "choice",
+     "example": "unknown",
+     "choices": [
+      "firewall",
+      "router",
+      "switch",
+      "ap",
+      "nas",
+      "server",
+      "pc",
+      "printer",
+      "camera",
+      "nvr",
+      "iot",
+      "web",
+      "unknown"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "log_threshold",
+   "name": "A log rule matched or a threshold was exceeded",
+   "description": "For example 10 failed VPN logins from one address in 5 minutes.",
+   "fields": [
+    {
+     "key": "source_device",
+     "label": "Source device",
+     "type": "text",
+     "example": "vpn-client-203",
+     "choices": []
+    },
+    {
+     "key": "source_ip",
+     "label": "Source IP address",
+     "type": "ip",
+     "example": "203.0.113.99",
+     "choices": []
+    },
+    {
+     "key": "signature",
+     "label": "Log signature",
+     "type": "text",
+     "example": "vpn_login_failed",
+     "choices": []
+    },
+    {
+     "key": "count",
+     "label": "Number of matches",
+     "type": "number",
+     "example": "12",
+     "choices": []
+    },
+    {
+     "key": "window",
+     "label": "Window (minutes)",
+     "type": "number",
+     "example": "5",
+     "choices": []
+    }
+   ]
+  },
+  {
+   "id": "new_port",
+   "name": "A new port opens on a public IP",
+   "description": "The exposure check saw a port open on one of your public addresses that was closed before.",
+   "fields": [
+    {
+     "key": "ip",
+     "label": "Public IP address",
+     "type": "ip",
+     "example": "203.0.113.10",
+     "choices": []
+    },
+    {
+     "key": "port",
+     "label": "Port",
+     "type": "port",
+     "example": "8080",
+     "choices": []
+    },
+    {
+     "key": "service",
+     "label": "Service guess",
+     "type": "text",
+     "example": "http-alt",
+     "choices": []
+    },
+    {
+     "key": "device",
+     "label": "Device behind it",
+     "type": "text",
+     "example": "WEB-01",
+     "choices": []
+    }
+   ]
+  },
+  {
+   "id": "schedule",
+   "name": "On a schedule",
+   "description": "Runs every chosen number of minutes, for example a weekly digest or a nightly check.",
+   "fields": [
+    {
+     "key": "run_at",
+     "label": "Run time",
+     "type": "text",
+     "example": "2026-11-09 03:00",
+     "choices": []
+    },
+    {
+     "key": "scope",
+     "label": "Scope",
+     "type": "text",
+     "example": "whole network",
+     "choices": []
+    }
+   ]
+  },
+  {
+   "id": "manual",
+   "name": "Manual: run on a chosen device",
+   "description": "Nothing starts it but you. Press Run on a device and pick the device.",
+   "fields": [
+    {
+     "key": "device",
+     "label": "Device",
+     "type": "text",
+     "example": "PC-HR-01",
+     "choices": []
+    },
+    {
+     "key": "ip",
+     "label": "Device IP address",
+     "type": "ip",
+     "example": "192.168.10.107",
+     "choices": []
+    },
+    {
+     "key": "mac",
+     "label": "MAC address",
+     "type": "mac",
+     "example": "3c:22:fb:10:aa:01",
+     "choices": []
+    },
+    {
+     "key": "switch_port",
+     "label": "Switch port of the device",
+     "type": "interface",
+     "example": "Gi1/0/7",
+     "choices": []
+    }
+   ]
+  }
+ ],
+ "device_kinds": [
+  "firewall",
+  "router",
+  "switch",
+  "ap",
+  "nas",
+  "server",
+  "pc",
+  "printer",
+  "camera",
+  "nvr",
+  "iot",
+  "web",
+  "unknown"
+ ]
+}

@@ -130,6 +130,50 @@ func (s *Service) HasDevice(ctx context.Context, kinds []string, vendor string) 
 	return n > 0, nil
 }
 
+// KindDevice is a device of one of the kinds asked for in DevicesOfKind: who it is and the addresses it answers on.
+type KindDevice struct {
+	ID       string
+	Hostname *string
+	IP       string  // "—" when unknown, like the API
+	MAC      *string // lower case aa:bb:cc:dd:ee:ff
+	Kind     string
+}
+
+// DevicesOfKind returns every device of the given kinds, with no row cap (Devices stops at MaxListed, newest first, which is the
+// wrong read for a safety list: the oldest device, usually the gateway, would be the one cut). Read-only, ordered by id. An empty
+// kinds is an empty answer. Any read error is returned and the caller must fail closed: a short list is never a valid answer.
+func (s *Service) DevicesOfKind(ctx context.Context, kinds []string) ([]KindDevice, error) {
+	if len(kinds) == 0 {
+		return nil, nil
+	}
+	args := make([]any, len(kinds))
+	for i, k := range kinds {
+		args[i] = k
+	}
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id, hostname, ip, mac, kind FROM inv_asset WHERE kind IN (?`+strings.Repeat(`, ?`, len(kinds)-1)+`) ORDER BY id`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read devices of a kind: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []KindDevice
+	for rows.Next() {
+		var d KindDevice
+		var host, ip, mac sql.NullString
+		if err := rows.Scan(&d.ID, &host, &ip, &mac, &d.Kind); err != nil {
+			return nil, fmt.Errorf("inventory: read devices of a kind: %w", err)
+		}
+		d.Hostname, d.MAC, d.IP = ptr(host), ptr(mac), noIP
+		if ip.Valid {
+			d.IP = ip.String
+		}
+		out = append(out, d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("inventory: read devices of a kind: %w", err)
+	}
+	return out, nil
+}
+
 // ProductQuery is a vendor and product pair of KEV.
 type ProductQuery struct{ Vendor, Product string }
 

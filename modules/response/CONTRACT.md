@@ -97,7 +97,7 @@
 `resp_settings, resp_plans, resp_actions` (yêu cầu gộp có `items`), `resp_catalog, resp_rules, resp_allowlist, resp_blocklist, resp_tokens` (token duyệt một lần), `resp_done` (khoá gộp trùng), `resp_ai_notes, resp_hints`, `resp_log`. Mock đặt `response_*`; tiền tố chuẩn theo MODULES là `resp_` (câu hỏi mở 2).
 
 ## Events
-- **Nhận (nguồn trigger)**: `honeypot.hit` (honeypot); `logs.ioc_hit` (logs, trigger `ioc_connection`; `confidence` 0..1 ở logs, 0..100 ở trigger field — cần chuyển đổi); finding mới/xác nhận (core/findings); thiết bị chưa duyệt (`inventory.observation`); ngưỡng log (`log_threshold`); cổng mới trên IP public (`exposure`); lịch; chạy tay. Đọc qua interface của từng module (modules.md), không đọc bảng trực tiếp.
+- **Nhận (nguồn trigger)**: `honeypot.hit` (honeypot); `logs.ioc_hit` (logs, trigger `ioc_connection`; `confidence` 0..1 ở logs, 0..100 ở trigger field — cần chuyển đổi); finding mới/xác nhận (module `findings`: `findings.finding.created`, `findings.finding.status_changed`; D-57 (6)); thiết bị chưa duyệt (`inventory.observation`); ngưỡng log (`log_threshold`); cổng mới trên IP public (`exposure`); lịch; chạy tay. Đọc qua interface của từng module (modules.md), không đọc bảng trực tiếp.
 - **Phát**: `response.request`, `response.decision`, `response.executed`, `response.rolled_back`, `response.breaker` (tên đề xuất) cho `notify` (gửi duyệt/thông báo kết quả) và export log.
 
 ## Khi tắt module (SYS-5)

@@ -3,7 +3,7 @@
 Interface Go (`core/…`). Mọi module gọi `core`; đổi chữ ký ở đây ảnh hưởng toàn bộ. Đã có code (WP-03): `core/store`, `core/secrets`, `core/chain`, `core/audit`, `core/exec`; các mục còn lại là dự kiến.
 
 ## Modifying: `module.Registry` — `Enabled(id) bool`, `Enable(ctx,id,withDeps)`, `Disable(ctx,id) (affected []string)`
-- **Mọi module có phụ thuộc tuỳ chọn** (`feeds→inventory`, `inventory→notify`, `mitigation→ai/notify`, `scan→exposure`…): gọi `Enabled` trước khi dùng. Đổi ngữ nghĩa ⇒ sai chế độ suy giảm.
+- **Mọi module có phụ thuộc tuỳ chọn** (`feeds→inventory`, `inventory→notify`, `findings→notify`, `mitigation→ai`, `scan→exposure`…): gọi `Enabled` trước khi dùng. Đổi ngữ nghĩa ⇒ sai chế độ suy giảm.
 - **SPA** (`web/src/lib/modules.ts`, `ModulesSection`): đọc `GET /modules`, nút tắt hiện `affected`.
 
 ## Modifying: `module.Module` — `ID, Init, Routes, Jobs, Migrations, Enable, Disable, Health`
@@ -37,7 +37,7 @@ Interface Go (`core/…`). Mọi module gọi `core`; đổi chữ ký ở đây
 - **feeds** (kéo theo lịch từng feed), **scan** (lịch, quét lại), **sensor-active** (cửa sổ khám phá), **exposure** (hết hạn IP), **notify** (gộp tin, im lặng). Job của module tắt bị gỡ ngay.
 
 ## Modifying: `events.Publish/Subscribe` và tên sự kiện
-- **feeds→(inventory, scan, notify)**, **inventory→(mitigation, notify, sensor-active)**, **scan→mitigation**, **mitigation→notify**. Đổi tên sự kiện làm người nhận im lặng, không lỗi biên dịch: mỗi sự kiện có test hợp đồng ở bên phát.
+- **feeds→(inventory, scan, notify)**, **inventory→(findings, notify, sensor-active)**, **scan→findings** (`scan.finding.confirmed`), **findings→(notify, response)** (`findings.finding.created|status_changed`; D-57 (6)). Đổi tên sự kiện làm người nhận im lặng, không lỗi biên dịch: mỗi sự kiện có test hợp đồng ở bên phát.
 
 ## Modifying: `logexport.Register(category, Source)`
 - **notify** (`alerts`), **scan** (`scan_probes`), **inventory** (`device_logs` nếu có), **ai/response/honeypot/logs** (nhóm B).

@@ -13,12 +13,12 @@
 - **sensor-active**, **scan** (`scope.commitment`, `can_scan`), **SPA** (`NetworkForm`, Scan → Safety). Đổi định dạng ngày (1..7) phải đồng bộ với `scan` (0..6).
 
 ## Modifying: `inventory.Service.GetAsset/ListAssets/Names`
-- **mitigation** (`FindingAsset`), **notify** (`devices[]` của incident), **honeypot/logs/response** (thiết bị nguồn), **reports**, **ai**, **mcp-server** (`search_assets`).
+- **findings** (`FindingAsset`; D-57 (6)), **notify** (`devices[]` của incident), **honeypot/logs/response** (thiết bị nguồn), **reports**, **ai**, **mcp-server** (`search_assets`).
 
 ## Modifying: sự kiện `inventory.asset.deleted`, `inventory.match.changed`, `inventory.asset.discovered`
-- **mitigation** (xoá/tạo finding), **notify** (incident `unknown_device`), **sensor-active** (quét lần đầu thiết bị mong manh).
+- **findings** (xoá/tạo finding qua `inventory.asset.deleted`, `inventory.match.changed`), **notify** (incident `unknown_device`), **sensor-active** (quét lần đầu thiết bị mong manh).
 
 ## Disabling this module
 - Devices, Scope and sensors, màn hình agent trống; cột "Do you have it?" của feeds thành `null`.
-- `sensor-passive`, `sensor-active`, `agent-intake`, `mitigation`, `exposure`, `scan`, `honeypot`, `logs`, `response`, `reports` chạy suy giảm hoặc báo thiếu phụ thuộc.
+- `sensor-passive`, `sensor-active`, `agent-intake`, `findings` (kéo theo `mitigation`), `exposure`, `scan`, `honeypot`, `logs`, `response`, `reports` chạy suy giảm hoặc báo thiếu phụ thuộc.
 - Không finding mới; không quét nội bộ. Bảng `inv_*` giữ nguyên.

@@ -5,7 +5,7 @@ tier: optional
 default: off           # công tắc thực thi lên thiết bị là công tắc riêng, cũng TẮT mặc định (D-41)
 risk: high             # chức năng nguy hiểm, khách tự chịu trách nhiệm (D-41)
 depends: [core, ai, notify, inventory]   # ai: kết nối ngoài (ai_connectors) + việc response-plan; notify: kênh duyệt; inventory: thiết bị, ngữ cảnh
-soft_depends: [honeypot, logs, exposure, scan, sensor-passive]   # nguồn trigger; thiếu thì trigger tương ứng không có sự kiện
+soft_depends: [findings, honeypot, logs, exposure, scan, sensor-passive]   # nguồn trigger; thiếu thì trigger tương ứng không có sự kiện
 permissions: ["outbound:lan"]          # SSH/HTTP API tới thiết bị trong scope khách khai (SYS-7); không root, không docker
 ports: []              # route công khai nằm trên cổng 8443 của core: /response/approve/{token}, /response/blocklist/{token}.txt
 container: core        # D-55

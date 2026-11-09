@@ -15,7 +15,7 @@ Nguồn hành vi: `web/src/features/inventory/{contract,mocks,validate}.ts`. Ph�
 - **INV-8**: Thiết bị mong manh (D-45): loại thuộc `fragile_kinds` hoặc `fragile=true` được quét nhẹ **đúng một lần** khi thấy lần đầu (`first_scan_at` đặt), sau đó chỉ thụ động trừ khi `regular_scan=allow` hoặc loại ∈ `regular_scan_kinds`; `regular_scan=never` thắng cài đặt theo loại. `regular_scan_kinds ⊂ fragile_kinds`.
 - **INV-9**: Thiết bị mới do cảm biến thấy: `approved=false`, vào hàng "pending" (S-INV-3); `notify_new` bật ⇒ phát `inventory.asset.discovered`.
 - **INV-10**: Thêm sản phẩm khớp ngay với `feeds` (`kev_cves`); khớp chỉ theo sản phẩm/phiên bản cho `basis ∈ {product, version}`, không bao giờ cho "confirmed" (chỉ `scan` xác nhận).
-- **INV-11**: Xoá tài sản xoá luôn finding của nó (`findings_count` hiện trước khi xoá); `mitigation` nhận `inventory.asset.deleted`.
+- **INV-11**: Xoá tài sản xoá luôn finding của nó (`findings_count` hiện trước khi xoá); `findings` nhận `inventory.asset.deleted` (D-57 (6)).
 - **INV-12**: Danh mục `GET /inventory/catalog`: trả tối đa 30 mục kèm `total`; id mục tuyển chọn cố định, mục từ KEV là `kev:<vendor>:<product>`; chứa mọi cặp hãng/sản phẩm từng có trong KEV + sản phẩm SMB phổ biến; nhập tự do vẫn được (D-30).
 - **INV-13**: Nhập CSV ≤ 200 KB và ≤ 500 dòng; dòng lỗi báo theo số dòng, dòng hợp lệ vẫn thêm; tiêu đề cần cột `name` hoặc `product`. Xuất CSV UTF-8 có BOM.
 
@@ -35,7 +35,7 @@ Nguồn hành vi: `web/src/features/inventory/{contract,mocks,validate}.ts`. Ph�
 
 ## Dependencies
 - **DEPENDS ON**: `core`, `feeds` (khớp KEV, danh mục).
-- **DEPENDED ON BY**: `sensor-passive`, `sensor-active`, `agent-intake`, `mitigation`, `exposure`, `scan`, `scan-credentialed`, `honeypot`, `logs`, `response`, `reports`, `ai`, `mcp-server`; tuỳ chọn `notify` (tên thiết bị trong tin).
+- **DEPENDED ON BY**: `sensor-passive`, `sensor-active`, `agent-intake`, `findings` (khớp KEV, finding), `mitigation` (hãng thiết bị cho `firewall[].detected`), `exposure`, `scan`, `scan-credentialed`, `honeypot`, `logs`, `response`, `reports`, `ai`, `mcp-server`; tuỳ chọn `notify` (tên thiết bị trong tin).
 
 ## Endpoints owned (role tối thiểu)
 | Route | Vai |
@@ -52,7 +52,7 @@ Nguồn hành vi: `web/src/features/inventory/{contract,mocks,validate}.ts`. Ph�
 - **Nhận**: `feeds.vuln.new_kev`, `feeds.vuln.updated` (khớp lại).
 
 ## Behaviour khi tắt
-Không route; Devices trống; `sensor-*`/`agent-intake` mất nơi ghi (chúng phụ thuộc, `affected`); `mitigation` không finding mới; `scan` không mục tiêu nội bộ; "Do you have it?" thành `null`; honeypot/logs không tra tên thiết bị. Dữ liệu giữ.
+Không route; Devices trống; `sensor-*`/`agent-intake` mất nơi ghi (chúng phụ thuộc, `affected`); `findings` không có finding mới; `scan` không mục tiêu nội bộ; "Do you have it?" thành `null`; honeypot/logs không tra tên thiết bị. Dữ liệu giữ.
 
 ## Story và quyết định
 S-INV-1, 2, 3, 5; D-30 danh mục, D-32 tiền tố, D-45 mong manh, D-53 hộp là thiết bị đầu tiên.

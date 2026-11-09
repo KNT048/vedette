@@ -1,0 +1,13 @@
+# sqlc: typed queries from the module migrations (docs/DATA_MODEL.md 6). Run: make generate
+# Generated code is committed; `make generate-check` fails when it is stale.
+version: "2"
+sql:
+  - engine: sqlite
+    schema: modules/core/migrations/sqlite
+    queries: core/store/queries
+    gen:
+      go:
+        package: coredb
+        out: core/store/coredb
+        sql_package: database/sql
+        emit_pointers_for_null_types: true

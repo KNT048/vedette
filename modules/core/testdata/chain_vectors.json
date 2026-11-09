@@ -1,0 +1,664 @@
+{
+  "version": 2,
+  "notes": [
+    "genesis: prev_hash of the first entry of a chain.",
+    "ONE formula for core_audit, ai_activity and resp_log (D-57 (14)): hash = lowercase hex SHA-256( prev_hash + \"\\n\" + canon(entry) ) over UTF-8 bytes, where entry = every field of the row except `hash` (prev_hash stays inside the entry; the DB-only `seq` is never part of it).",
+    "canon: JSON, object keys sorted ascending by Unicode code point (same as UTF-8 byte order, NOT UTF-16 order: U+1F600 sorts after U+FF5E) at every depth, no whitespace, strings escaped like JS JSON.stringify (so \\u0000-\\u001f as \\u00XX or short form, `\"` and `\\` escaped, U+007F, U+2028, U+2029, <, >, & and non-ASCII written raw: Go must disable HTML escaping and keep U+2028/2029 raw), null kept, absent keys omitted, integers without a decimal point.",
+    "vectors: entries of one chain are in order; each `prev` equals the previous entry hash (genesis for the first) and also appears inside `entry.prev_hash`.",
+    "tampered cases: broken_at is the 1-based index of the first entry whose prev_hash does not equal the previous hash, or whose hash does not match its recomputation; the first entry is only checked against its own hash (it may follow pruned entries)."
+  ],
+  "genesis": "0000000000000000000000000000000000000000000000000000000000000000",
+  "sha256": [
+    {
+      "input": "",
+      "hex": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "input": "abc",
+      "hex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    },
+    {
+      "input": "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+      "hex": "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"
+    },
+    {
+      "input": "tiếng Việt",
+      "hex": "579bc7fd9f6473a93bf6f6076a5d7f1db73e3dbbd5a8a8b9b6a43ccc5f10b0a0"
+    },
+    {
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "hex": "41edece42d63e8d9bf515a9ba6932e1c20cbc9f5a5d134645adb5db1b9737ea3"
+    }
+  ],
+  "canon": [
+    {
+      "value": {
+        "b": 1,
+        "a": {
+          "d": 1,
+          "c": [
+            2,
+            {
+              "z": null,
+              "y": "x"
+            }
+          ]
+        }
+      },
+      "canon": "{\"a\":{\"c\":[2,{\"y\":\"x\",\"z\":null}],\"d\":1},\"b\":1}"
+    },
+    {
+      "value": [],
+      "canon": "[]"
+    },
+    {
+      "value": {},
+      "canon": "{}"
+    },
+    {
+      "value": null,
+      "canon": "null"
+    },
+    {
+      "value": "é\"\\\n",
+      "canon": "\"é\\\"\\\\\\n\""
+    },
+    {
+      "value": 0,
+      "canon": "0"
+    },
+    {
+      "value": 2147483647,
+      "canon": "2147483647"
+    },
+    {
+      "value": true,
+      "canon": "true"
+    },
+    {
+      "value": {
+        "k": ""
+      },
+      "canon": "{\"k\":\"\"}"
+    },
+    {
+      "value": {
+        "😀": 1,
+        "～": 2,
+        "a": 3,
+        "é": 4,
+        "B": 5
+      },
+      "canon": "{\"B\":5,\"a\":3,\"é\":4,\"～\":2,\"😀\":1}"
+    },
+    {
+      "value": "a b c <>&",
+      "canon": "\"a b c <>&\""
+    },
+    {
+      "value": "ctrl \u0001 \u001f  \u0000 \"q\" \\",
+      "canon": "\"ctrl \\u0001 \\u001f  \\u0000 \\\"q\\\" \\\\\""
+    }
+  ],
+  "vectors": [
+    {
+      "chain": "core_audit",
+      "prev": "0000000000000000000000000000000000000000000000000000000000000000",
+      "entry": {
+        "id": "au-1",
+        "ts": "2026-11-09T01:00:00.000Z",
+        "user": "admin@acme.example",
+        "action": "module.enable",
+        "target": "scan",
+        "detail": null,
+        "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "hash": "bd06fd74027c986bb7338ad390ab4b29f3597afb126465b9424bf2875f54eecc"
+    },
+    {
+      "chain": "core_audit",
+      "prev": "bd06fd74027c986bb7338ad390ab4b29f3597afb126465b9424bf2875f54eecc",
+      "entry": {
+        "id": "au-2",
+        "ts": "2026-11-09T01:00:05.250Z",
+        "user": "system",
+        "action": "feeds.fetch",
+        "target": "cisa-kev",
+        "detail": "added 3, changed 0",
+        "prev_hash": "bd06fd74027c986bb7338ad390ab4b29f3597afb126465b9424bf2875f54eecc"
+      },
+      "hash": "e7ad00cb1540b576a2bdc88d1a50d6f8acec9800ffd661e4ce0e1d4835ead08d"
+    },
+    {
+      "chain": "core_audit",
+      "prev": "e7ad00cb1540b576a2bdc88d1a50d6f8acec9800ffd661e4ce0e1d4835ead08d",
+      "entry": {
+        "id": "au-3",
+        "ts": "2026-11-09T01:02:00.000Z",
+        "user": "it@acme.example",
+        "action": "inventory.add_manual",
+        "target": "Máy in \"Tầng 2\" <b>&</b>",
+        "detail": "quote \" backslash \\ ctrl \u0001\u001f tab\t nl\n cr\r <script>&amp;</script> ls  ps  Tiếng Việt: đường, Ơ ơ ư 😀  \u0000 end",
+        "prev_hash": "e7ad00cb1540b576a2bdc88d1a50d6f8acec9800ffd661e4ce0e1d4835ead08d"
+      },
+      "hash": "b49f8d829bcda6016e20bbdc2175faf684d267667ed530520dc350b866ad1905"
+    },
+    {
+      "chain": "ai_activity",
+      "prev": "0000000000000000000000000000000000000000000000000000000000000000",
+      "entry": {
+        "id": "act-1",
+        "ts": "2026-11-03T08:00:00.000Z",
+        "job": "ask-my-data",
+        "profile": "Claude Sonnet",
+        "model": "claude-sonnet-5-5",
+        "trigger": "user:it@acme.example",
+        "hooks": [],
+        "tools": [
+          {
+            "name": "list_assets",
+            "access": "read",
+            "args": "filter=service:rdp"
+          }
+        ],
+        "input_hash": "6538d4fb3a4ddb6928aacd55faac33e70320b45b896312e1097bec58320e6671",
+        "output_hash": "76e6c2c42e01bd76ec63d6a65f106ac436548d6c10b1f1719fdbc31054bc6366",
+        "summary": "Listed machines that expose RDP: 3 found",
+        "tokens_in": 1180,
+        "tokens_out": 310,
+        "result": "ok",
+        "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "hash": "c9dbf249e5c0fa67115aa252e2c6b45b8b929ab43f46f8d70d88581bb402fb98"
+    },
+    {
+      "chain": "ai_activity",
+      "prev": "c9dbf249e5c0fa67115aa252e2c6b45b8b929ab43f46f8d70d88581bb402fb98",
+      "entry": {
+        "id": "act-2",
+        "ts": "2026-11-06T09:30:00.000Z",
+        "job": "ask-my-data",
+        "profile": "",
+        "model": "",
+        "trigger": "user:it@acme.example",
+        "hooks": [
+          "Block personal data"
+        ],
+        "tools": [],
+        "input_hash": "6973dddd3ef9cb6a2932702f31777faad9c9bf3124d147a84f31aadb6d139546",
+        "output_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "summary": "Question refused before sending",
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "result": "blocked_by_hook",
+        "links": [
+          {
+            "kind": "proposal",
+            "id": "rp-9"
+          }
+        ],
+        "prev_hash": "c9dbf249e5c0fa67115aa252e2c6b45b8b929ab43f46f8d70d88581bb402fb98"
+      },
+      "hash": "9c9a8458f4e5f2f77f94b38e3fe3de8967ff6a62b69ff33215cb35edb6f08b29"
+    },
+    {
+      "chain": "ai_activity",
+      "prev": "9c9a8458f4e5f2f77f94b38e3fe3de8967ff6a62b69ff33215cb35edb6f08b29",
+      "entry": {
+        "id": "act-3",
+        "ts": "2026-11-08T23:59:59.999Z",
+        "job": "weekly-report",
+        "profile": "Claude Haiku",
+        "model": "claude-haiku-5-5",
+        "trigger": "system:schedule",
+        "hooks": [],
+        "tools": [
+          {
+            "name": "query_logs",
+            "access": "read",
+            "args": "since=24h"
+          },
+          {
+            "name": "http_get",
+            "access": "read",
+            "args": "host=cisa.gov"
+          }
+        ],
+        "input_hash": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+        "output_hash": "a1fce4363854ff888cff4b8e7875d600c2682390412a8cf79b37d0b11148b0fa",
+        "summary": "quote \" backslash \\ ctrl \u0001\u001f tab\t nl\n cr\r <script>&amp;</script> ls  ps  Tiếng Việt: đường, Ơ ơ ư 😀  \u0000 end",
+        "tokens_in": 4100,
+        "tokens_out": 700,
+        "result": "fallback_used",
+        "prev_hash": "9c9a8458f4e5f2f77f94b38e3fe3de8967ff6a62b69ff33215cb35edb6f08b29"
+      },
+      "hash": "3010852b6c26325a040601443197c0fbae34107176b44f3c78648f1f868fb7a8"
+    },
+    {
+      "chain": "ai_activity",
+      "prev": "3010852b6c26325a040601443197c0fbae34107176b44f3c78648f1f868fb7a8",
+      "entry": {
+        "id": "act-4",
+        "ts": "2026-11-09T00:00:00.000Z",
+        "job": "x",
+        "profile": "p",
+        "model": "m",
+        "trigger": "system",
+        "hooks": [],
+        "tools": [],
+        "input_hash": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+        "output_hash": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+        "summary": "s",
+        "tokens_in": 1,
+        "tokens_out": 2,
+        "result": "ok",
+        "links": [
+          {
+            "kind": "action",
+            "id": "a-1",
+            "😀": 1,
+            "～": {
+              "z": null,
+              "a": [
+                1,
+                {
+                  "b": null,
+                  "B": "upper"
+                }
+              ]
+            },
+            "é": 2,
+            "e": 3
+          }
+        ],
+        "prev_hash": "3010852b6c26325a040601443197c0fbae34107176b44f3c78648f1f868fb7a8"
+      },
+      "hash": "770695462d0fad04bc41b7ef6d96a04876c6f14a62cb500c31fc22ffd9923404"
+    },
+    {
+      "chain": "resp_log",
+      "prev": "0000000000000000000000000000000000000000000000000000000000000000",
+      "entry": {
+        "id": "rl-1",
+        "ts": "2026-11-09T02:00:00.000Z",
+        "kind": "rule_fired",
+        "actor": "rule:Block known-bad destinations",
+        "detail": "PC-SALES-02 connected to 185.220.101.47 (Tor exit list, confidence 0.92)",
+        "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "hash": "2490d731032ba52b4600affe1ea0715189b06dcec1d83aac30705f1547e776fd"
+    },
+    {
+      "chain": "resp_log",
+      "prev": "2490d731032ba52b4600affe1ea0715189b06dcec1d83aac30705f1547e776fd",
+      "entry": {
+        "id": "rl-2",
+        "ts": "2026-11-09T02:00:01.000Z",
+        "kind": "request",
+        "actor": "system",
+        "detail": "Add 185.220.101.47 to the block list; needs approval",
+        "prev_hash": "2490d731032ba52b4600affe1ea0715189b06dcec1d83aac30705f1547e776fd"
+      },
+      "hash": "1eed408d8d28e1495f027593b20bd6f9cbdc0b659df8e643876be2a837d02c3c"
+    },
+    {
+      "chain": "resp_log",
+      "prev": "1eed408d8d28e1495f027593b20bd6f9cbdc0b659df8e643876be2a837d02c3c",
+      "entry": {
+        "id": "rl-3",
+        "ts": "2026-11-09T02:05:00.000Z",
+        "kind": "approved",
+        "actor": "admin@acme.example (app)",
+        "detail": "quote \" backslash \\ ctrl \u0001\u001f tab\t nl\n cr\r <script>&amp;</script> ls  ps  Tiếng Việt: đường, Ơ ơ ư 😀  \u0000 end",
+        "prev_hash": "1eed408d8d28e1495f027593b20bd6f9cbdc0b659df8e643876be2a837d02c3c"
+      },
+      "hash": "c0b7365fbf88868385760a716be23948bacbdc9cf233879feee73c4bb37e2bb0"
+    }
+  ],
+  "tampered": [
+    {
+      "chain": "core_audit",
+      "description": "detail edited in entry 2",
+      "entries": [
+        {
+          "id": "au-1",
+          "ts": "2026-11-09T01:00:00.000Z",
+          "user": "admin@acme.example",
+          "action": "module.enable",
+          "target": "scan",
+          "detail": null,
+          "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "hash": "bd06fd74027c986bb7338ad390ab4b29f3597afb126465b9424bf2875f54eecc"
+        },
+        {
+          "id": "au-2",
+          "ts": "2026-11-09T01:00:05.250Z",
+          "user": "system",
+          "action": "feeds.fetch",
+          "target": "cisa-kev",
+          "detail": "added 4, changed 0",
+          "prev_hash": "bd06fd74027c986bb7338ad390ab4b29f3597afb126465b9424bf2875f54eecc",
+          "hash": "e7ad00cb1540b576a2bdc88d1a50d6f8acec9800ffd661e4ce0e1d4835ead08d"
+        },
+        {
+          "id": "au-3",
+          "ts": "2026-11-09T01:02:00.000Z",
+          "user": "it@acme.example",
+          "action": "inventory.add_manual",
+          "target": "Máy in \"Tầng 2\" <b>&</b>",
+          "detail": "quote \" backslash \\ ctrl \u0001\u001f tab\t nl\n cr\r <script>&amp;</script> ls  ps  Tiếng Việt: đường, Ơ ơ ư 😀  \u0000 end",
+          "prev_hash": "e7ad00cb1540b576a2bdc88d1a50d6f8acec9800ffd661e4ce0e1d4835ead08d",
+          "hash": "b49f8d829bcda6016e20bbdc2175faf684d267667ed530520dc350b866ad1905"
+        }
+      ],
+      "broken_at": 2
+    },
+    {
+      "chain": "core_audit",
+      "description": "entry 2 removed (entry 3 no longer links)",
+      "entries": [
+        {
+          "id": "au-1",
+          "ts": "2026-11-09T01:00:00.000Z",
+          "user": "admin@acme.example",
+          "action": "module.enable",
+          "target": "scan",
+          "detail": null,
+          "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "hash": "bd06fd74027c986bb7338ad390ab4b29f3597afb126465b9424bf2875f54eecc"
+        },
+        {
+          "id": "au-3",
+          "ts": "2026-11-09T01:02:00.000Z",
+          "user": "it@acme.example",
+          "action": "inventory.add_manual",
+          "target": "Máy in \"Tầng 2\" <b>&</b>",
+          "detail": "quote \" backslash \\ ctrl \u0001\u001f tab\t nl\n cr\r <script>&amp;</script> ls  ps  Tiếng Việt: đường, Ơ ơ ư 😀  \u0000 end",
+          "prev_hash": "e7ad00cb1540b576a2bdc88d1a50d6f8acec9800ffd661e4ce0e1d4835ead08d",
+          "hash": "b49f8d829bcda6016e20bbdc2175faf684d267667ed530520dc350b866ad1905"
+        }
+      ],
+      "broken_at": 2
+    },
+    {
+      "chain": "ai_activity",
+      "description": "tokens edited in entry 1",
+      "entries": [
+        {
+          "id": "act-1",
+          "ts": "2026-11-03T08:00:00.000Z",
+          "job": "ask-my-data",
+          "profile": "Claude Sonnet",
+          "model": "claude-sonnet-5-5",
+          "trigger": "user:it@acme.example",
+          "hooks": [],
+          "tools": [
+            {
+              "name": "list_assets",
+              "access": "read",
+              "args": "filter=service:rdp"
+            }
+          ],
+          "input_hash": "6538d4fb3a4ddb6928aacd55faac33e70320b45b896312e1097bec58320e6671",
+          "output_hash": "76e6c2c42e01bd76ec63d6a65f106ac436548d6c10b1f1719fdbc31054bc6366",
+          "summary": "Listed machines that expose RDP: 3 found",
+          "tokens_in": 1,
+          "tokens_out": 310,
+          "result": "ok",
+          "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "hash": "c9dbf249e5c0fa67115aa252e2c6b45b8b929ab43f46f8d70d88581bb402fb98"
+        },
+        {
+          "id": "act-2",
+          "ts": "2026-11-06T09:30:00.000Z",
+          "job": "ask-my-data",
+          "profile": "",
+          "model": "",
+          "trigger": "user:it@acme.example",
+          "hooks": [
+            "Block personal data"
+          ],
+          "tools": [],
+          "input_hash": "6973dddd3ef9cb6a2932702f31777faad9c9bf3124d147a84f31aadb6d139546",
+          "output_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "summary": "Question refused before sending",
+          "tokens_in": 0,
+          "tokens_out": 0,
+          "result": "blocked_by_hook",
+          "links": [
+            {
+              "kind": "proposal",
+              "id": "rp-9"
+            }
+          ],
+          "prev_hash": "c9dbf249e5c0fa67115aa252e2c6b45b8b929ab43f46f8d70d88581bb402fb98",
+          "hash": "9c9a8458f4e5f2f77f94b38e3fe3de8967ff6a62b69ff33215cb35edb6f08b29"
+        },
+        {
+          "id": "act-3",
+          "ts": "2026-11-08T23:59:59.999Z",
+          "job": "weekly-report",
+          "profile": "Claude Haiku",
+          "model": "claude-haiku-5-5",
+          "trigger": "system:schedule",
+          "hooks": [],
+          "tools": [
+            {
+              "name": "query_logs",
+              "access": "read",
+              "args": "since=24h"
+            },
+            {
+              "name": "http_get",
+              "access": "read",
+              "args": "host=cisa.gov"
+            }
+          ],
+          "input_hash": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+          "output_hash": "a1fce4363854ff888cff4b8e7875d600c2682390412a8cf79b37d0b11148b0fa",
+          "summary": "quote \" backslash \\ ctrl \u0001\u001f tab\t nl\n cr\r <script>&amp;</script> ls  ps  Tiếng Việt: đường, Ơ ơ ư 😀  \u0000 end",
+          "tokens_in": 4100,
+          "tokens_out": 700,
+          "result": "fallback_used",
+          "prev_hash": "9c9a8458f4e5f2f77f94b38e3fe3de8967ff6a62b69ff33215cb35edb6f08b29",
+          "hash": "3010852b6c26325a040601443197c0fbae34107176b44f3c78648f1f868fb7a8"
+        },
+        {
+          "id": "act-4",
+          "ts": "2026-11-09T00:00:00.000Z",
+          "job": "x",
+          "profile": "p",
+          "model": "m",
+          "trigger": "system",
+          "hooks": [],
+          "tools": [],
+          "input_hash": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+          "output_hash": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+          "summary": "s",
+          "tokens_in": 1,
+          "tokens_out": 2,
+          "result": "ok",
+          "links": [
+            {
+              "kind": "action",
+              "id": "a-1",
+              "😀": 1,
+              "～": {
+                "z": null,
+                "a": [
+                  1,
+                  {
+                    "b": null,
+                    "B": "upper"
+                  }
+                ]
+              },
+              "é": 2,
+              "e": 3
+            }
+          ],
+          "prev_hash": "3010852b6c26325a040601443197c0fbae34107176b44f3c78648f1f868fb7a8",
+          "hash": "770695462d0fad04bc41b7ef6d96a04876c6f14a62cb500c31fc22ffd9923404"
+        }
+      ],
+      "broken_at": 1
+    },
+    {
+      "chain": "ai_activity",
+      "description": "prev_hash of entry 3 replaced with a valid-looking value and re-hashed",
+      "entries": [
+        {
+          "id": "act-1",
+          "ts": "2026-11-03T08:00:00.000Z",
+          "job": "ask-my-data",
+          "profile": "Claude Sonnet",
+          "model": "claude-sonnet-5-5",
+          "trigger": "user:it@acme.example",
+          "hooks": [],
+          "tools": [
+            {
+              "name": "list_assets",
+              "access": "read",
+              "args": "filter=service:rdp"
+            }
+          ],
+          "input_hash": "6538d4fb3a4ddb6928aacd55faac33e70320b45b896312e1097bec58320e6671",
+          "output_hash": "76e6c2c42e01bd76ec63d6a65f106ac436548d6c10b1f1719fdbc31054bc6366",
+          "summary": "Listed machines that expose RDP: 3 found",
+          "tokens_in": 1180,
+          "tokens_out": 310,
+          "result": "ok",
+          "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "hash": "c9dbf249e5c0fa67115aa252e2c6b45b8b929ab43f46f8d70d88581bb402fb98"
+        },
+        {
+          "id": "act-2",
+          "ts": "2026-11-06T09:30:00.000Z",
+          "job": "ask-my-data",
+          "profile": "",
+          "model": "",
+          "trigger": "user:it@acme.example",
+          "hooks": [
+            "Block personal data"
+          ],
+          "tools": [],
+          "input_hash": "6973dddd3ef9cb6a2932702f31777faad9c9bf3124d147a84f31aadb6d139546",
+          "output_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "summary": "Question refused before sending",
+          "tokens_in": 0,
+          "tokens_out": 0,
+          "result": "blocked_by_hook",
+          "links": [
+            {
+              "kind": "proposal",
+              "id": "rp-9"
+            }
+          ],
+          "prev_hash": "c9dbf249e5c0fa67115aa252e2c6b45b8b929ab43f46f8d70d88581bb402fb98",
+          "hash": "9c9a8458f4e5f2f77f94b38e3fe3de8967ff6a62b69ff33215cb35edb6f08b29"
+        },
+        {
+          "id": "act-3",
+          "ts": "2026-11-08T23:59:59.999Z",
+          "job": "weekly-report",
+          "profile": "Claude Haiku",
+          "model": "claude-haiku-5-5",
+          "trigger": "system:schedule",
+          "hooks": [],
+          "tools": [
+            {
+              "name": "query_logs",
+              "access": "read",
+              "args": "since=24h"
+            },
+            {
+              "name": "http_get",
+              "access": "read",
+              "args": "host=cisa.gov"
+            }
+          ],
+          "input_hash": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+          "output_hash": "a1fce4363854ff888cff4b8e7875d600c2682390412a8cf79b37d0b11148b0fa",
+          "summary": "quote \" backslash \\ ctrl \u0001\u001f tab\t nl\n cr\r <script>&amp;</script> ls  ps  Tiếng Việt: đường, Ơ ơ ư 😀  \u0000 end",
+          "tokens_in": 4100,
+          "tokens_out": 700,
+          "result": "fallback_used",
+          "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "hash": "e949d222c13fc301bec5fcd27f6783e7a7eedf3505dc13faf750a10d0da3c636"
+        },
+        {
+          "id": "act-4",
+          "ts": "2026-11-09T00:00:00.000Z",
+          "job": "x",
+          "profile": "p",
+          "model": "m",
+          "trigger": "system",
+          "hooks": [],
+          "tools": [],
+          "input_hash": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+          "output_hash": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+          "summary": "s",
+          "tokens_in": 1,
+          "tokens_out": 2,
+          "result": "ok",
+          "links": [
+            {
+              "kind": "action",
+              "id": "a-1",
+              "😀": 1,
+              "～": {
+                "z": null,
+                "a": [
+                  1,
+                  {
+                    "b": null,
+                    "B": "upper"
+                  }
+                ]
+              },
+              "é": 2,
+              "e": 3
+            }
+          ],
+          "prev_hash": "3010852b6c26325a040601443197c0fbae34107176b44f3c78648f1f868fb7a8",
+          "hash": "770695462d0fad04bc41b7ef6d96a04876c6f14a62cb500c31fc22ffd9923404"
+        }
+      ],
+      "broken_at": 3
+    },
+    {
+      "chain": "resp_log",
+      "description": "detail edited in entry 2",
+      "entries": [
+        {
+          "id": "rl-1",
+          "ts": "2026-11-09T02:00:00.000Z",
+          "kind": "rule_fired",
+          "actor": "rule:Block known-bad destinations",
+          "detail": "PC-SALES-02 connected to 185.220.101.47 (Tor exit list, confidence 0.92)",
+          "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "hash": "2490d731032ba52b4600affe1ea0715189b06dcec1d83aac30705f1547e776fd"
+        },
+        {
+          "id": "rl-2",
+          "ts": "2026-11-09T02:00:01.000Z",
+          "kind": "request",
+          "actor": "system",
+          "detail": "edited",
+          "prev_hash": "2490d731032ba52b4600affe1ea0715189b06dcec1d83aac30705f1547e776fd",
+          "hash": "1eed408d8d28e1495f027593b20bd6f9cbdc0b659df8e643876be2a837d02c3c"
+        },
+        {
+          "id": "rl-3",
+          "ts": "2026-11-09T02:05:00.000Z",
+          "kind": "approved",
+          "actor": "admin@acme.example (app)",
+          "detail": "quote \" backslash \\ ctrl \u0001\u001f tab\t nl\n cr\r <script>&amp;</script> ls  ps  Tiếng Việt: đường, Ơ ơ ư 😀  \u0000 end",
+          "prev_hash": "1eed408d8d28e1495f027593b20bd6f9cbdc0b659df8e643876be2a837d02c3c",
+          "hash": "c0b7365fbf88868385760a716be23948bacbdc9cf233879feee73c4bb37e2bb0"
+        }
+      ],
+      "broken_at": 2
+    }
+  ]
+}

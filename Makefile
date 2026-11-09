@@ -1,7 +1,7 @@
 # Vedette — lệnh chung. Không có CI (D-61): mọi kiểm tra chạy trên máy bằng các đích ở đây (docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: help dev verify verify-web verify-go test test-go contract lint lint-go vuln audit openapi-check build e2e fixtures clean
+.PHONY: help dev verify verify-web verify-go test test-go contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build e2e fixtures clean
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -9,7 +9,8 @@ help:
 	@echo "make dev           chạy giao diện với dữ liệu mẫu tại http://localhost:5173"
 	@echo "make verify        web + Go: gõ kiểu, lint, test, kiểm lệch hợp đồng, build (rồi dọn)"
 	@echo "make verify-web    chỉ phần giao diện"
-	@echo "make verify-go     chỉ phần Go: build, vet, test -race, contract, golangci-lint, govulncheck"
+	@echo "make verify-go     chỉ phần Go: build, vet, generate-check, test -race, contract, golangci-lint, govulncheck"
+	@echo "make generate      sinh lại mã Go: sqlc (core/store/coredb) + ogen (core/api), commit kết quả"
 	@echo "make contract      go test ./modules/... -run Contract"
 	@echo "make e2e           kiểm thử đầu-cuối bằng Playwright (Chromium)"
 	@echo "make audit         quét lỗ hổng dependency: govulncheck + pnpm audit (đầu mỗi phiên)"
@@ -34,8 +35,20 @@ verify-web:
 verify-go:
 	go build ./...
 	go vet ./...
-	$(MAKE) generate-api-check test-go contract lint-go vuln
+	$(MAKE) generate-check test-go contract lint-go vuln
 	$(MAKE) clean
+
+# Mọi mã sinh được commit: truy vấn sqlc (DATA_MODEL §6) + server ogen (D-60). Không sửa tay.
+generate: generate-sql generate-api
+
+generate-sql:
+	$(GO_TOOL) sqlc generate
+
+# Sinh lại rồi so với bản đã commit: lệch (hoặc file sinh chưa được git theo dõi) = đỏ.
+GENERATED := core/store/coredb core/api
+generate-check: generate
+	git diff --exit-code -- $(GENERATED)
+	@test -z "$$(git status --porcelain -- $(GENERATED))" || { git status --porcelain -- $(GENERATED); echo "generate-check: untracked generated files"; exit 1; }
 
 # api/openapi.json phải đúng bằng bản sinh từ contract.ts (D-18).
 openapi-check:
@@ -80,12 +93,7 @@ clean:
 
 # Mã Go server sinh từ api/openapi.json (D-60): chuẩn hoá vào thư mục tạm, chạy ogen, ghi bảng vai.
 # Bản chuẩn hoá không commit. Không sửa tay core/api/oas và core/api/routes/routes_gen.go.
-.PHONY: generate-api generate-api-check
 generate-api:
 	@tmp=$$(mktemp -d) && trap 'rm -rf "$$tmp"' EXIT && \
 	go run ./core/api/apigen -in api/openapi.json -spec "$$tmp/openapi.json" -routes core/api/routes/routes_gen.go && \
 	go tool ogen --config core/api/ogen.yml --target core/api/oas --package oas --clean "$$tmp/openapi.json"
-
-generate-api-check: generate-api
-	git diff --exit-code -- core/api
-	@test -z "$$(git status --porcelain -- core/api)" || { git status --porcelain -- core/api; echo "generate-api-check: untracked generated files"; exit 1; }

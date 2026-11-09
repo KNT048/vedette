@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -493,4 +494,101 @@ func TestContract_INV1_DatabaseRefusesWhatTheLibraryNeverBuilds(t *testing.T) {
 func TestMigrationsUsePrefix(t *testing.T) {
 	t.Parallel()
 	storetest.AssertMigrationsUsePrefix(t, "findings", Migrations, "fnd_", storetest.Migration{Module: "core", FS: core.Migrations})
+}
+
+// ctxPub cancels the caller's context when the first event goes out, like a client that hangs up
+// right after the commit, and records the state of the context each event arrived with.
+type ctxPub struct {
+	cancel context.CancelFunc
+	names  []string
+	errs   []error
+}
+
+func (p *ctxPub) Publish(ctx context.Context, name string, _ any) error {
+	p.names = append(p.names, name)
+	p.errs = append(p.errs, ctx.Err())
+	if len(p.names) == 1 {
+		p.cancel()
+	}
+	return nil
+}
+
+func TestContract_POST1_EventsSurviveACancelledContextAfterCommit(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	pub := &ctxPub{cancel: cancel}
+	e.svc.cfg.Publisher = pub
+	vulns := []Vuln{qnapVuln(), {CVE: "CVE-2021-0001", Vendor: "QNAP", Product: "Photo Station"}}
+	res, err := e.svc.UpsertFromMatch(ctx, nas(""), vulns)
+	if err != nil || len(res.Created) != 2 {
+		t.Fatalf("result = %+v err=%v", res, err)
+	}
+	if len(pub.names) != 2 {
+		t.Fatalf("published %v: an event was lost after the commit", pub.names)
+	}
+	for i, err := range pub.errs {
+		if err != nil {
+			t.Errorf("event %d got a cancelled context: %v", i, err)
+		}
+	}
+}
+
+func TestAuditFailureRollsBackTheRowAndTheEvent(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	id := e.seed()
+	auditBefore := e.count(`SELECT count(*) FROM core_audit`)
+	// NUL passes the library but not the audit log, which runs after the update and the history insert
+	if _, err := e.svc.SetStatus(t.Context(), id, ActionPatched, "a\x00b", "it@acme.example"); err == nil {
+		t.Fatal("expected the audit failure to surface")
+	}
+	r, _ := e.svc.Get(t.Context(), id)
+	if r.Status != StatusSuspected || len(r.History) != 1 || e.count(`SELECT count(*) FROM core_audit`) != auditBefore || len(e.pub.take()) != 0 {
+		t.Fatalf("a failed audit left something behind: %+v", r)
+	}
+}
+
+func TestContract_INV3_SetStatusRefusesAnInvalidUser(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	id := e.seed()
+	for _, u := range []string{"", strings.Repeat("a", 321), "a\x00b", "\xff\xfe"} {
+		_, err := e.svc.SetStatus(t.Context(), id, ActionPatched, "", u)
+		if !errors.Is(err, ErrInvalidUser) {
+			t.Errorf("user %q: err = %v", u, err)
+		}
+		if got := ToAPIError(err); got == err {
+			t.Errorf("user %q: not mapped to an API error", u)
+		}
+	}
+	if r, _ := e.svc.Get(t.Context(), id); r.Status != StatusSuspected || len(r.History) != 1 {
+		t.Fatalf("finding changed: %+v", r)
+	}
+}
+
+func TestContract_INV6_ConcurrentMatchesMakeOneFinding(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	var wg sync.WaitGroup
+	created := make(chan int, 16)
+	for range 16 {
+		wg.Go(func() {
+			res, err := e.svc.OnMatchChanged(t.Context(), "a-1")
+			if err != nil {
+				t.Error(err)
+			}
+			created <- len(res.Created)
+		})
+	}
+	wg.Wait()
+	close(created)
+	total := 0
+	for n := range created {
+		total += n
+	}
+	if total != 1 || e.count(`SELECT count(*) FROM fnd_finding`) != 1 || len(e.pub.take()) != 1 {
+		t.Fatalf("created %d findings, want 1", total)
+	}
 }

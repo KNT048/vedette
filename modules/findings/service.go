@@ -41,6 +41,9 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 	return &Service{cfg: cfg, now: now}, nil
 }
 
+// publishTimeout bounds the delivery of the events of one committed change.
+const publishTimeout = 5 * time.Second
+
 type event struct {
 	name    string
 	payload any
@@ -59,9 +62,12 @@ func (s *Service) write(ctx context.Context, fn func(tx *sql.Tx, now time.Time, 
 	if s.cfg.Publisher == nil {
 		return nil
 	}
+	// The change is committed: the events go out even if the caller has hung up, within a short deadline.
+	pctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), publishTimeout)
+	defer cancel()
 	for _, e := range events {
-		if err := s.cfg.Publisher.Publish(ctx, e.name, e.payload); err != nil {
-			s.cfg.Log.ErrorContext(ctx, "publishing a findings event failed", "event", e.name, "error", err)
+		if err := s.cfg.Publisher.Publish(pctx, e.name, e.payload); err != nil {
+			s.cfg.Log.ErrorContext(pctx, "publishing a findings event failed", "event", e.name, "error", err)
 		}
 	}
 	return nil
@@ -235,6 +241,9 @@ func (s *Service) RescanClear(ctx context.Context, assetID, cve string) error {
 // SetStatus applies a person's action (INV-3). user is the actor's email. On any error nothing is
 // written. The checks run in the order the API reports them (library Finding.Apply).
 func (s *Service) SetStatus(ctx context.Context, id string, action Action, note, user string) (Record, error) {
+	if err := ValidUser(user); err != nil {
+		return Record{}, err
+	}
 	var out Record
 	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 		r, err := loadByID(ctx, tx, id)

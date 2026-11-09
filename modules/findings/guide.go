@@ -3,6 +3,7 @@ package findings
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 )
 
@@ -286,4 +287,14 @@ func Into[T any, P interface {
 		return nil, fmt.Errorf("findings: response does not fit the API schema: %w", err)
 	}
 	return &out, nil
+}
+
+// addAppliedToHistory shows each "Applied" entry as a history row "applied:<item>", as the finding page
+// of the GUI expects, ordered by time. The sort is stable, so on a tie the stored rows stay first.
+// findings only copies what the Guide holds; it does not know where the entries come from.
+func (d *Detail) addAppliedToHistory() {
+	for _, a := range d.Applied {
+		d.History = append(d.History, historyDoc{TS: a.TS.UTC(), User: a.User, Act: "applied:" + a.Item})
+	}
+	sort.SliceStable(d.History, func(i, j int) bool { return d.History[i].TS.Before(d.History[j].TS) })
 }

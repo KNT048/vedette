@@ -54,6 +54,9 @@ func (h *FindingHandlers) guidance() Guidance {
 // through (the server answers them as 500 internal without detail).
 func ToAPIError(err error) error {
 	var ae *APIError
+	if errors.Is(err, ErrInvalidUser) {
+		return apierr.Invalid("The acting user is not valid.")
+	}
 	if errors.As(err, &ae) {
 		return apierr.New(ae.HTTP, ae.Code, ae.Message)
 	}
@@ -115,6 +118,7 @@ func (h *FindingHandlers) Detail(ctx context.Context, rec Record) (Detail, error
 		}
 	}
 	d.Normalize()
+	d.addAppliedToHistory()
 	return d, nil
 }
 

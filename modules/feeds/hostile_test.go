@@ -63,7 +63,9 @@ func TestHostileInputsAreBounded(t *testing.T) {
 				}
 				start := time.Now()
 				r, err := ParseFeed(context.Background(), []byte(in), KindIOC, DefaultParser(KindIOC, format))
-				if d := time.Since(start); d > 15*time.Second {
+				// The bound catches a blow-up (minutes), not speed: CI runs this with -race on 2 CPUs next to the whole
+				// suite, where many_indicators takes ~15 s against ~2.4 s alone (issue #89).
+				if d := time.Since(start); d > 60*time.Second {
 					t.Fatalf("took %v", d)
 				}
 				if err != nil {

@@ -57,14 +57,23 @@ func (m Message) norm() Message {
 	one := func(s string, n int) string { return truncRunes(strings.TrimSpace(clean(s, false)), n) }
 	multi := func(s string, n int) string { return truncRunes(strings.TrimSpace(clean(s, true)), n) }
 	out := Message{
-		ID:       one(m.ID, 100),
-		Kind:     one(m.Kind, 30),
-		Severity: m.Severity,
-		Title:    one(m.Title, maxTitle),
-		Device:   one(m.Device, maxDevice),
-		What:     multi(m.What, maxLine),
-		Action:   multi(m.Action, maxLine),
-		Link:     m.Link,
+		ID:           one(m.ID, 100),
+		Kind:         one(m.Kind, 30),
+		Severity:     m.Severity,
+		Title:        one(m.Title, maxTitle),
+		Device:       one(m.Device, maxDevice),
+		What:         multi(m.What, maxLine),
+		Action:       multi(m.Action, maxLine),
+		Link:         m.Link,
+		IncidentKind: one(m.IncidentKind, 30),
+	}
+	for i, d := range m.Devices {
+		if i == maxItems {
+			break
+		}
+		if d.Name = one(d.Name, maxDevice); d.Name != "" {
+			out.Devices = append(out.Devices, DeviceRef{ID: one(d.ID, 96), Name: d.Name})
+		}
 	}
 	for i, it := range m.Items {
 		if i == maxItems {
@@ -98,8 +107,14 @@ func (m Message) lines(link string) []string {
 	for _, it := range m.Items {
 		l = append(l, "- "+it)
 	}
+	if link == "" {
+		return append(l, openVedetteLine)
+	}
 	return append(l, "Details: "+link)
 }
+
+// openVedetteLine replaces the link line when the message has no link (the box address is not configured).
+const openVedetteLine = "Open Vedette to see details."
 
 // mapText applies f to every feed-sourced field (title, device, what, action,
 // items). ID, Kind, Severity and Link are not feed text: the link is the box's

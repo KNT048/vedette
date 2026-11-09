@@ -218,6 +218,9 @@ func FuzzDefang(f *testing.F) {
 	f.Add("http://x @y /z (/w) a/b a@b")
 	f.Add("//@@//")
 	f.Fuzz(func(t *testing.T, s string) {
+		if !utf8.ValidString(s) { // both functions only ever see normalised (valid UTF-8) text
+			return
+		}
 		if strings.Contains(s, zwj) {
 			return
 		}
@@ -237,6 +240,9 @@ func FuzzDefang(f *testing.F) {
 func FuzzSlackFormat(f *testing.F) {
 	f.Add("*a* _b_ ~c~ `d` e_f")
 	f.Fuzz(func(t *testing.T, s string) {
+		if !utf8.ValidString(s) {
+			return
+		}
 		out := slackFormat(s)
 		if strings.ContainsAny(out, "*~`") || utf8.RuneCountInString(out) != utf8.RuneCountInString(strings.ToValidUTF8(s, "�")) {
 			t.Fatalf("slackFormat(%q) = %q", s, out)

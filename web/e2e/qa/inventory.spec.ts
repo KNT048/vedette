@@ -23,7 +23,7 @@ async function patchDb(page: Page, table: string, patch: Record<string, unknown>
 }
 /** Đổi người dùng đăng nhập. */
 const loginAs = (page: Page, userId: UserId) => patchDb(page, 'core_session', { userId })
-const SETTINGS_FALLBACK = { active: { enabled: false, days: [1, 2, 3, 4, 5, 6, 7], from: '23:00', to: '05:00', rate: 50, exclusions: [] }, fragile_kinds: ['printer'] }
+const SETTINGS_FALLBACK = { active: { enabled: false, days: [1, 2, 3, 4, 5, 6, 7], from: '23:00', to: '05:00', rate: 50, exclusions: [] }, fragile_kinds: ['printer'], regular_scan_kinds: [] as string[] }
 async function setTheme(page: Page, theme: 'light' | 'dark') {
   await page.evaluate((t) => localStorage.setItem('vedette-theme', t), theme)
   await page.reload()
@@ -102,13 +102,18 @@ test.describe('P2 IT person, day to day: list, add by hand, CSV, detail', () => 
     await page.getByRole('button', { name: 'Add a device' }).click()
     const dialog = page.getByRole('dialog')
     const picker = dialog.getByRole('combobox')
+    // no list until the user types: a fixed list on open reads as "only these products are supported"
     await picker.focus()
+    await expect(dialog.getByRole('listbox')).toHaveCount(0)
+    await expect(dialog.getByText(/Type a product, maker or model/)).toBeVisible()
+    await picker.fill('forti')
     await expect(dialog.getByRole('listbox')).toBeVisible()
     await shot(page, 'inventory', 'add-dialog-picker')
     await page.keyboard.press('Escape')
     await expect(dialog.getByRole('listbox')).toBeHidden()
     await expect(dialog).toBeVisible() // first Escape only closes the suggestion list
-    await picker.fill('forti')
+    await picker.fill('')
+    await picker.fill('forti') // typing again reopens the list
     await dialog.getByRole('option').first().click()
     await dialog.getByLabel('Name (optional)').fill('Test firewall')
     await dialog.getByLabel('IP address (optional)').fill('192.168.10.1')
@@ -116,20 +121,21 @@ test.describe('P2 IT person, day to day: list, add by hand, CSV, detail', () => 
     await expect(dialog.getByRole('alert')).toContainText('192.168.10.1')
     await expect(dialog.getByLabel('Name (optional)')).toHaveValue('Test firewall')
     await shot(page, 'inventory', 'add-dialog-error')
-    await dialog.getByLabel('IP address (optional)').fill('192.168.10.250')
+    await dialog.getByLabel('IP address (optional)').fill('192.168.10.220') // a free address (.250 is the box itself)
     await dialog.getByRole('button', { name: 'Add', exact: true }).click()
     await expect(dialog).toBeHidden()
     await expect(h1(page)).toContainText(String(before + 1))
-    // opening the dialog shows suggestions at once; Escape twice closes everything
+    // typing shows suggestions; Escape twice closes everything
     await page.getByRole('button', { name: 'Add a device' }).click()
+    await page.getByRole('dialog').getByRole('combobox').fill('forti')
     await expect(page.getByRole('dialog').getByRole('listbox')).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(page.getByRole('dialog').getByRole('listbox')).toBeHidden()
     await page.keyboard.press('Escape')
     await expect(page.getByRole('dialog')).toBeHidden()
-    // exactly 3 clicks: open, pick the first suggestion, Add
+    // open, type a few letters, pick the first suggestion, Add
     await page.getByRole('button', { name: 'Add a device' }).click()
-    await page.getByRole('dialog').getByRole('combobox').focus()
+    await page.getByRole('dialog').getByRole('combobox').fill('forti')
     await page.getByRole('dialog').getByRole('option').first().click()
     await page.getByRole('dialog').getByRole('button', { name: 'Add', exact: true }).click()
     await expect(page.getByRole('dialog')).toBeHidden()
@@ -153,7 +159,7 @@ test.describe('P2 IT person, day to day: list, add by hand, CSV, detail', () => 
     }
     await picker.fill('microsoft')
     expect(await dialog.getByRole('option').count()).toBeLessThanOrEqual(30)
-    await expect(dialog.getByText(/Showing 30 of \d+/)).toBeVisible()
+    await expect(dialog.getByText(/\d+ more match\. Keep typing to narrow the list\./)).toBeVisible()
     await shot(page, 'inventory', 'picker-many')
     await expectAccessible(page, 'picker open')
     await picker.fill('zzzzqqq')
@@ -410,24 +416,35 @@ test.describe('Admin: scan scope, sensor, agents', () => {
     await expect(page.getByText('You have unsaved changes.')).toBeHidden()
   })
 
-  test('the sensor on this box: choose interface and SPAN; no multi-site controls', async ({ page }) => {
+  test('the sensor on this box: the dialog shows what it hears and links to Box network; SPAN is changed there and the row follows; no multi-site controls', async ({ page }) => {
     const errors = collectErrors(page)
     await page.goto('/devices/setup')
     await expect(page.getByRole('heading', { name: 'Sensor on this box' })).toBeVisible()
     await expect(page.getByRole('button', { name: /another site/ })).toHaveCount(0)
     await expect(page.getByText(/enrol|enroll/i)).toHaveCount(0)
+    const sensors = page.getByRole('table', { name: 'Sensors on this box' })
+    await expect(sensors.getByRole('row').nth(1)).toContainText('eth1')
+    await expect(sensors.getByRole('row').nth(1)).toContainText('SPAN')
+    // SPAN moved to Settings → Box network (D-56): the dialog is read-only and links there
     await page.getByRole('button', { name: 'Configure sensor vedette-hq' }).click()
     const dlg = page.getByRole('dialog')
-    await dlg.getByLabel('Network interface').selectOption('eth1')
-    await dlg.getByLabel(/receives a copy of traffic/).check()
+    await expect(dlg.getByText('Receiving')).toBeVisible()
+    await expect(dlg.getByRole('switch')).toHaveCount(0)
+    await expect(dlg.getByRole('checkbox')).toHaveCount(0)
+    await expect(dlg.getByRole('combobox')).toHaveCount(0)
     await shot(page, 'inventory', 'sensor-config')
-    await dlg.getByRole('button', { name: 'Save', exact: true }).click()
-    await expect(dlg).toBeHidden()
+    await dlg.getByRole('link', { name: 'Configure SPAN in Settings → Box network' }).click()
+    await expect(page).toHaveURL(/\/settings\/network$/)
+    await page.getByRole('switch', { name: 'Capture mirrored traffic' }).click()
+    await page.getByRole('button', { name: 'Save SPAN settings' }).click()
+    await expect(page.getByText('SPAN settings saved.').first()).toBeVisible()
+    // the sensor row follows: SPAN off means the sensor listens on the management port
+    await page.goto('/devices/setup')
     const row = page.getByRole('table', { name: 'Sensors on this box' }).getByRole('row').nth(1)
-    await expect(row).toContainText('eth1')
-    await expect(row).toContainText('SPAN')
+    await expect(row).toContainText('eth0')
+    await expect(row).not.toContainText('SPAN')
     await page.reload()
-    await expect(page.getByRole('table', { name: 'Sensors on this box' })).toContainText('eth1')
+    await expect(page.getByRole('table', { name: 'Sensors on this box' }).getByRole('row').nth(1)).toContainText('eth0')
     expect(errors).toEqual([])
   })
 
@@ -519,7 +536,7 @@ test.describe('Admin: scan scope, sensor, agents', () => {
 })
 
 test.describe('Clean install: first-time user', () => {
-  test('first-run wizard: a bare address is refused (no guessing), then a /24 range works; list starts empty with a clear first step; subnets can be added, edited, deleted', async ({ page }) => {
+  test('first-run wizard: a bare address is refused (no guessing), then a /24 range works; list starts with only the box and a clear first step; subnets can be added, edited, deleted', async ({ page }) => {
     const errors = collectErrors(page)
     await cleanInstall(page, '192.168.18.0')
     await expect(page.getByText(/no prefix length/i).first()).toBeVisible() // the wizard keeps the owner on this step with a message
@@ -527,10 +544,13 @@ test.describe('Clean install: first-time user', () => {
     await page.getByRole('button', { name: 'Continue' }).click()
     await finishWizard(page)
     await page.goto('/devices')
-    await expect(h1(page)).toHaveText('No devices yet')
-    await expect(page.getByText(/Plug the box into your LAN/)).toBeVisible()
+    // The box is the first device even on a clean install (S-INV-5, D-53): the list is never empty, and says so
+    await expect(h1(page)).toHaveText('1 device, approved')
+    await expect(page.getByText(/Only the Vedette box is on the list so far/)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Add a device' }).last()).toBeEnabled()
-    await expect(page.getByRole('table')).toHaveCount(0)
+    const list = page.getByRole('table', { name: 'Device list' })
+    await expect(list.getByRole('row')).toHaveCount(2) // header + the box
+    await expect(list.getByRole('row').nth(1)).toContainText('This box')
     await shot(page, 'inventory', 'clean-empty')
     await expectAccessible(page, 'clean list')
     await expectEnglishOnly(page, 'clean list')
@@ -550,10 +570,10 @@ test.describe('Clean install: first-time user', () => {
     await expect(rows).toHaveText([/^10\.5\.0\.0\/16/])
     await page.goto('/devices')
     await page.getByRole('button', { name: 'Add a device' }).last().click()
-    await page.getByRole('dialog').getByRole('combobox').focus()
+    await page.getByRole('dialog').getByRole('combobox').fill('forti')
     await page.getByRole('dialog').getByRole('option').first().click()
     await page.getByRole('dialog').getByRole('button', { name: 'Add', exact: true }).click()
-    await expect(h1(page)).toContainText('1 device')
+    await expect(h1(page)).toContainText('2 devices') // the box + the one just added
     expect(errors).toEqual([])
   })
 

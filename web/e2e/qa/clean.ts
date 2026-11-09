@@ -26,6 +26,8 @@ export async function finishClean(page: Page) {
   await page.getByRole('radio', { name: /Mid-size business/ }).click()
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('button', { name: 'Skip and finish' }).click()
+  // The setup page has its own h1: wait until the app is on Home, i.e. after the scope is saved, or the next goto races the save
+  await expect(page).toHaveURL(/\/$/)
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
 }
 

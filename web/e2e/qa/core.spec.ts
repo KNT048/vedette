@@ -6,6 +6,7 @@ import { axeViolations, collectErrors, expectAccessible, shot } from '../helpers
 
 test.use({ actionTimeout: 10_000 })
 
+const BOX_ID = 'a-box' // the Vedette box itself, always the first device (D-53)
 const PW = 'a-very-long-password-123'
 const LOGIN = { email: 'admin@example.test', password: PW }
 const SAMPLE = { admin: 'admin@acme.example', operator: 'it@acme.example', viewer: 'director@acme.example', password: 'vedette-demo' }
@@ -178,7 +179,7 @@ test.describe('first-run setup', () => {
 
     // scope reached the inventory module
     const inv = await page.evaluate(async () => (await (await fetch('/api/v1/inventory/settings')).json()) as { lan_ranges: string[]; active: { enabled: boolean } })
-    expect(inv.lan_ranges).toEqual(['192.168.18.0/24', '10.1.0.0/16'])
+    expect(inv.lan_ranges).toEqual(['192.168.18.0/25', '10.1.0.0/16'])
     expect(inv.active.enabled).toBe(true)
 
     // every sidebar page is empty: no trace of sample data
@@ -226,7 +227,7 @@ test.describe('sign-in and two-step', () => {
     test.setTimeout(120_000)
     await startSample(page)
     await page.goto('/account')
-    await page.getByRole('button', { name: 'Turn on two-step sign-in' }).click()
+    await page.getByRole('button', { name: 'Set up authenticator app' }).click()
     const key = (await page.getByLabel('Manual key').innerText()).trim()
     const uri = (await page.getByLabel('otpauth address').innerText()).trim()
     expect(key).toMatch(/^[A-Z2-7]{32}$/)
@@ -273,7 +274,7 @@ test.describe('sign-in and two-step', () => {
     await page.getByRole('dialog').getByLabel('Current password').fill(SAMPLE.password)
     await page.getByRole('button', { name: 'Turn off', exact: true }).click()
     await expect(page.getByText('Two-step sign-in is off.').first()).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Turn on two-step sign-in' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Set up authenticator app' })).toBeVisible()
   })
 })
 
@@ -387,27 +388,29 @@ test.describe('modules', () => {
 })
 
 test.describe('updates', () => {
+  // The page title is now the box's own OS status (D-53); the Vedette software version lives in the "Versions in use" table.
+  const softwareRow = (page: Page) => page.getByRole('table', { name: 'Versions in use' }).or(page.getByRole('list', { name: 'Versions in use' })).getByRole('row', { name: /^Vedette software/ }).or(page.getByRole('list', { name: 'Versions in use' }).getByRole('listitem').filter({ hasText: 'Vedette software' }))
   test('check, update, roll back, bad and good bundles', async ({ page }) => {
     test.setTimeout(120_000)
     const errors = collectErrors(page)
     await cleanInstall(page)
     await page.goto('/settings/updates')
-    await expect(h1(page)).toContainText('Software 0.9.3')
+    await expect(softwareRow(page)).toContainText('0.9.3')
     await shot(page, 'core', 'updates')
     await expect(page.getByText('No updates yet.')).toBeVisible()
     await expect(page.getByRole('button', { name: /^Back to / })).toHaveCount(0)
     await expect(page.getByRole('alert').filter({ hasText: 'known vulnerabilities' })).toBeVisible()
-    await page.getByRole('button', { name: 'Check now' }).click()
+    await page.getByRole('button', { name: 'Check for Vedette releases' }).click()
     await toastText(page, /new items/)
     await page.getByRole('button', { name: /^Update Vedette software$/ }).click()
     await toastText(page, /installed in the spare slot/)
-    await expect(h1(page)).toContainText('Software 0.9.4')
+    await expect(softwareRow(page)).toContainText('0.9.4')
     await expect(page.getByRole('alert').filter({ hasText: 'known vulnerabilities' })).toHaveCount(0)
     await page.getByRole('button', { name: /Back to 0\.9\.3/ }).click()
     await page.getByRole('button', { name: 'Cancel' }).click()
     await page.getByRole('button', { name: /Back to 0\.9\.3/ }).click()
     await page.getByRole('button', { name: 'Roll back', exact: true }).click()
-    await expect(h1(page)).toContainText('Software 0.9.3')
+    await expect(softwareRow(page)).toContainText('0.9.3')
     const dl = page.waitForEvent('download')
     await page.getByRole('button', { name: 'Export bundle' }).click()
     const fs = await import('node:fs')
@@ -419,7 +422,7 @@ test.describe('updates', () => {
     await toastText(page, /not a Vedette bundle/)
     await page.getByLabel('Bundle file').setInputFiles({ name: 'good.json', mimeType: 'application/json', buffer: Buffer.from(good) })
     await toastText(page, /Bundle imported/)
-    await expect(h1(page)).toContainText('Software 0.9.4')
+    await expect(softwareRow(page)).toContainText('0.9.4')
     await page.getByRole('button', { name: 'Beta' }).click()
     await expect(page.getByText(/Get new builds early/)).toBeVisible()
     await page.getByRole('button', { name: 'Stable' }).click()
@@ -427,7 +430,7 @@ test.describe('updates', () => {
     await page.getByRole('switch', { name: 'Automatic update check' }).click()
     await page.goto('/settings/updates')
     await expect(page.getByText(/Update checks are off/)).toBeVisible()
-    await page.getByRole('button', { name: 'Check now' }).click()
+    await page.getByRole('button', { name: 'Check for Vedette releases' }).click()
     await toastText(page, /off under Privacy/)
     await noVietnamese(page, 'updates')
     noErrors(errors)
@@ -449,7 +452,15 @@ test.describe('privacy', () => {
     expect(Object.keys(p)).toEqual(['schema', 'install_id', 'country', 'version', 'hour', 'honeypot_touches', 'ioc_connections', 'ids_matches', 'device_counts'])
     expect(p.ioc_connections).toBe(0)
     expect(p.ids_matches).toEqual({})
-    expect(p.device_counts).toEqual({})
+    // A clean install is not empty of devices: the box itself is the first one (S-INV-5, D-53), so the signal counts exactly its own packages, once each.
+    const box = await page.evaluate(async () => {
+      const r = (await (await fetch('/api/v1/inventory/devices')).json()) as { items: { is_box: boolean; software: { vendor: string; product: string; version?: string }[] }[] }
+      return r.items
+    })
+    expect(box.map((d) => d.is_box)).toEqual([true])
+    const boxKeys = box[0].software.map((x) => `${x.vendor}:${x.product}:${x.version ?? 'unknown'}`.toLowerCase().replace(/\s+/g, '-')).sort()
+    expect(boxKeys.length).toBeGreaterThan(0)
+    expect(p.device_counts).toEqual(Object.fromEntries(boxKeys.map((k) => [k, 1])))
     expect(JSON.stringify(p)).not.toMatch(/Company|admin@|192\.168/)
     await expect(page.getByText('Never sent')).toBeVisible()
     await page.getByRole('switch', { name: 'Send anonymous signal' }).click()
@@ -507,7 +518,8 @@ test.describe('data', () => {
       const body = JSON.parse(fs.readFileSync((await (await dl).path())!, 'utf8')) as Record<string, unknown>
       expect(body.format).toBe(fmt)
       expect(JSON.stringify(body)).not.toContain(PW)
-      expect((body.assets as unknown[]).length).toBe(0)
+      // only the box itself (S-INV-5, D-53); no device was added on a clean install
+      expect((body.assets as { id: string }[]).map((a) => a.id)).toEqual([BOX_ID])
     }
     await page.getByRole('button', { name: 'Delete all data', exact: true }).click()
     const dlg = page.getByRole('dialog', { name: 'Delete all data on the box?' })
@@ -530,7 +542,7 @@ test.describe('data', () => {
     await page.getByRole('button', { name: 'Use sample data' }).click()
     await expect(h1(page)).toContainText('Today')
     await page.goto('/devices')
-    await expect(h1(page)).toContainText('31 devices')
+    await expect(h1(page)).toContainText('32 devices')
     await page.goto('/settings/data')
     await page.getByRole('button', { name: 'Restore sample data', exact: true }).click()
     await page.getByRole('button', { name: 'Restore and reload' }).click()

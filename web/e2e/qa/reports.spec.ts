@@ -34,14 +34,22 @@ async function fillOrg(page: Page, o: { tax?: string; size?: string } = {}) {
 }
 
 test.describe('reports: clean install', () => {
-  test('no data yet: the weekly report points to Devices; empty schedule that is off; empty history; no sample data', async ({ page }) => {
+  test('only the box so far: the weekly report counts the box and its finding; empty schedule that is off; empty history; no sample data', async ({ page }) => {
     const errors = collectErrors(page)
     await finishClean(page)
     await page.goto('/reports')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('No data to build a report yet')
-    await expect(page.getByText('No data for the weekly report yet')).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Open Devices' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Send now' })).toHaveCount(0)
+    // The box is the first device even on a clean install (S-INV-5, D-53), so the report is never "no data":
+    // it counts the box and its one suspected finding, and nothing from the sample data.
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('This week 1 findings are unresolved and 0 devices await approval.')
+    await expect(page.getByText('No data for the weekly report yet')).toHaveCount(0)
+    await expect(page.getByText('1 (0 awaiting approval)')).toBeVisible()
+    await expect(page.getByRole('cell', { name: 'CVE-2026-46300' }).first()).toBeVisible()
+    // nothing can be sent while there is no recipient
+    await page.getByRole('button', { name: 'Send now' }).click()
+    const send = page.getByRole('dialog', { name: 'Send the weekly report now?' })
+    await expect(send.getByText('No recipients yet. Add emails under Schedule and recipients.')).toBeVisible()
+    await expect(send.getByRole('button', { name: 'Send', exact: true })).toBeDisabled()
+    await send.getByRole('button', { name: 'Cancel' }).click()
     await expect(page.getByText('No recipients yet.')).toBeVisible()
     await expect(page.getByText('Automatic sending is off.')).toBeVisible()
     await expect(page.getByRole('switch', { name: 'Send automatically every week' })).not.toBeChecked()
@@ -51,8 +59,6 @@ test.describe('reports: clean install', () => {
     await expectAccessible(page, 'reports, clean')
     await noHorizontalScroll(page)
     await noVietnamese(page)
-    await page.getByRole('link', { name: 'Open Devices' }).click()
-    await expect(page).toHaveURL(/\/devices/)
     await page.goto('/reports?tab=pdpl')
     const gen = page.getByRole('button', { name: 'Generate report' })
     await expect(gen).toBeDisabled()

@@ -75,9 +75,10 @@ test('sample: IP clash, hostname clash, hit timeline, device page panel, missing
   const errors = collectErrors(page)
   await sampleStart(page)
   await page.goto('/honeypot')
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Traps were hit 2 times in 7 days/)
-  const devs = (await call(page, '/inventory/devices')).items as { ip: string; hostname: string | null }[]
-  const named = devs.find((d) => d.hostname && d.ip.startsWith('192.168.10.'))!
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Traps were hit 4 times in 7 days/) // 2 service hits + the credential-token hit and the port-scan hit in the sample data
+  const devs = (await call(page, '/inventory/devices')).items as { ip: string; hostname: string | null; is_box: boolean }[]
+  // a device that is not the box: the box is the first device (D-53) and has its own "box's own IP" message, tested in the clean-install scenario
+  const named = devs.find((d) => !d.is_box && d.hostname && d.ip.startsWith('192.168.10.'))!
   const ip = page.getByLabel('Trap secondary IP')
   const host = page.getByLabel('Fake hostname')
   const save = page.getByRole('button', { name: 'Save', exact: true })

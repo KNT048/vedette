@@ -267,7 +267,9 @@ test.describe('scan: clean install', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cannot scan yet: confirm the scan scope first')
     await expect(page.getByText('What to set up before scanning')).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open Scope and sensors' })).toHaveAttribute('href', '/devices/setup')
-    await expect(page.getByRole('link', { name: 'Open Devices' })).toHaveAttribute('href', '/devices')
+    // Step 2 is already done on a clean install: the box is an approved device inside the scope (S-INV-5, D-53), so there is no "Open Devices" step
+    await expect(page.getByRole('listitem').filter({ hasText: '2. At least one approved device inside the scope' })).toContainText('Done')
+    await expect(page.getByRole('link', { name: 'Open Devices' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: /Scan now/ })).toBeDisabled()
     await expect(page.getByText('No scans yet.').first()).toBeVisible()
     for (const tab of ['runs', 'safety', 'auto', 'probes']) {
@@ -282,13 +284,15 @@ test.describe('scan: clean install', () => {
     expect(errors).toEqual([])
   })
 
-  test('with the commitment ticked but no devices yet: only the devices step is left', async ({ page }) => {
+  test('with the commitment ticked and only the box in the inventory: nothing is left to set up; the box is the one target', async ({ page }) => {
     await clean(page, true)
     await page.goto('/scans')
-    await expect(page.getByText('What to set up before scanning')).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Open Scope and sensors' })).toHaveCount(0)
-    await expect(page.getByText(/There are no devices yet/)).toBeVisible()
-    await expect(page.getByRole('button', { name: /Scan now/ })).toBeDisabled()
+    // Both steps are done (scope confirmed, and the box is an approved device inside it, S-INV-5, D-53), so the setup list is gone
+    await expect(page.getByText('Confirmed scope: 10.20.0.0/24.', { exact: false }).first()).toBeVisible()
+    await expect(page.getByText('What to set up before scanning')).toHaveCount(0)
+    await expect(page.getByText(/There are no devices yet/)).toHaveCount(0)
+    await expect(page.getByRole('checkbox', { name: /vedette 10\.20\.0\.250/ })).toBeEnabled()
+    await expect(page.getByRole('button', { name: /Scan now/ })).toBeEnabled()
   })
 })
 

@@ -43,7 +43,7 @@ test.describe('ai: clean install', () => {
     expect(errors).toEqual([])
   })
 
-  test('add the first profile from scratch: empty, wrong key shape, rejected key, unreachable server, success; assigned to every task at once; ask with no devices', async ({ page }) => {
+  test('add the first profile from scratch: empty, wrong key shape, rejected key, unreachable server, success; assigned to every task at once; ask with only the box in the inventory', async ({ page }) => {
     const errors = collectErrors(page)
     await finishClean(page)
     await page.goto('/settings/ai')
@@ -88,7 +88,9 @@ test.describe('ai: clean install', () => {
     await page.goto('/assistant')
     await expect(page.getByRole('heading', { level: 1 })).toContainText('tokens used today')
     await page.getByRole('button', { name: 'Which machines still expose RDP?' }).click()
-    await expect(page.getByText(/The inventory has no devices yet/)).toBeVisible()
+    // A clean install is not an empty inventory: the box itself is the first device (S-INV-5, D-53) and has no RDP port open.
+    // (The "no devices yet" answer needs an empty inventory; it is covered by the unit test in ai.test.tsx.)
+    await expect(page.getByText('No device in the inventory has RDP (port 3389) open.')).toBeVisible()
     await expect(page.getByText('AI-generated, needs human review').first()).toBeVisible()
     await shot(page, 'ai', `assistant-clean-asked-${device(page)}`)
     // trang Log chưa có nguồn log: không dựng khung AI (không có gì để tóm tắt)
@@ -256,7 +258,8 @@ test.describe('ai: sample data', () => {
     await page.goto('/settings/ai')
     await page.getByLabel('Daily token cap for all profiles together').fill('1000')
     await page.getByRole('radio', { name: /Maximum/ }).check()
-    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    // the AI page has two forms with a Save button (token level, activity log retention): press the one of this form
+    await page.getByRole('form', { name: 'Token level' }).getByRole('button', { name: 'Save', exact: true }).click()
     await expect(page.getByText('Token level saved').first()).toBeVisible()
     await page.goto('/assistant')
     await page.getByRole('button', { name: 'Which machines still expose RDP?' }).click()

@@ -85,7 +85,7 @@ test('add devices from the catalog', async ({ page }) => {
   await add('qnap', /QNAP/, { name: 'File server' })
   await expect(page.getByRole('heading', { level: 1 })).not.toHaveText('No devices yet')
   await shot(page, '11-devices-two')
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('2 devices, all approved')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('3 devices, all approved')
   await page.goto('/findings')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await shot(page, '12-findings')

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base32"
+	"sync"
 	"testing"
 	"time"
 
@@ -145,5 +146,79 @@ func TestWiringApproveHighRiskAIRequestWithTwoStepCodes(t *testing.T) {
 	}
 	if c, v := s.do("POST", "/response/ai/resume", "admin", ""); c != 200 || at(v, "gates", "paused_at") != nil {
 		t.Errorf("resume as admin: %d %v", c, v)
+	}
+}
+
+// TOTP has no purpose, only replay protection. One code sent at the same moment to approve
+// two different requests must pass for at most one of them (core/auth AdvanceTotpStep is a compare-and-set on last_step).
+func TestWiringOneTOTPCodeRacingTwoRequestsPassesOnce(t *testing.T) {
+	t.Parallel()
+	clock := newManualClock(time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC))
+	s := newStackWith(t, func(d *deps) { d.Clock = clock.now })
+	for _, m := range []string{"notify", "inventory", "response"} {
+		s.setModule(m, true)
+	}
+	ctx := t.Context()
+	svc := s.d.Response
+	ann := s.totpUser("ann@acme.example", clock.now)
+	boss := response.Actor{ID: "u-admin", Name: "Admin", Email: "admin@acme.example", Via: response.ViaApp}
+	st, err := svc.Settings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := response.SettingsInput{MaxPerHour: st.MaxPerHour, ExpiryMin: 30, ApprovalChannels: st.ApprovalChannels, BreakerMaxPerHour: 100, MultiTargetMax: 1, Maintenance: st.Maintenance}
+	in.AI.Triggers, in.AI.BudgetHour, in.AI.BudgetDay = st.AI.Triggers, st.AI.BudgetHour, st.AI.BudgetDay
+	if _, err := svc.SaveSettings(ctx, boss, in); err != nil {
+		t.Fatal(err)
+	}
+	ri := response.RuleInput{Name: "Block both", Enabled: true, Live: true, Trigger: "ioc_connection", Match: "all", Conditions: []response.Condition{}, MaxPerHour: 10,
+		Actions: []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.dest_ip}}"}}, {ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.src_ip}}"}}}}
+	rule, err := svc.AddRule(ctx, boss, ri)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.ChangeRule(ctx, boss, rule.ID, ri); err != nil {
+		t.Fatal(err)
+	}
+	for _, ev := range []struct{ id, dest, src string }{{"e1", "198.51.100.7", "192.168.10.105"}, {"e2", "198.51.100.8", "192.168.10.106"}} {
+		d := response.Det{ID: ev.id, Trigger: "ioc_connection", TS: store.FormatTS(clock.now()), Summary: "PC connected to " + ev.dest,
+			Fields: map[string]string{"src_ip": ev.src, "device": "PC-SALES-02", "dest": ev.dest, "dest_kind": "ip", "dest_ip": ev.dest, "dest_domain": "", "feeds": "IPsum", "confidence": "0.92", "switch_port": ""}}
+		if err := svc.StoreEvent(ctx, d); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := svc.Evaluate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	reqs, err := svc.Actions(ctx)
+	if err != nil || len(reqs) != 2 {
+		t.Fatalf("requests: %v %+v", err, reqs)
+	}
+	for _, r := range reqs {
+		s.exec(`UPDATE resp_actions SET source = 'ai', ai = '{"confidence":0.95,"evidence":[],"why":"test","second_check":null,"in_app_only":true}' WHERE id = ?`, r.ID)
+	}
+	clock.advance(time.Minute)
+	code := ann.code(clock.now())
+	var wg sync.WaitGroup
+	errs := make([]error, 2)
+	for i, r := range reqs {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, errs[i] = svc.Approve(ctx, ann.actor, r.ID, nil, code)
+		}()
+	}
+	wg.Wait()
+	passed := 0
+	for _, err := range errs {
+		if err == nil {
+			passed++
+		}
+	}
+	if passed != 1 {
+		t.Fatalf("one TOTP code approved %d requests (errors %v)", passed, errs)
+	}
+	if n := s.count(`SELECT count(*) FROM core_audit WHERE action = 'auth.stepup'`); n != 1 {
+		t.Fatalf("%d auth.stepup rows for one code, want 1", n)
 	}
 }

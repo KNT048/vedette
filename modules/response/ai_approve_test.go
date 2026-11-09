@@ -3,10 +3,13 @@ package response_test
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
+	"unicode"
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/modules/response"
@@ -229,7 +232,7 @@ func TestContract_INV16_SummaryIsServerBuilt(t *testing.T) {
 	got := f.calls[0].summary
 	want, err := e.svc.ApproveSummaryForTest(e.ctx(), a.ID)
 	e.must(err)
-	if got != want || !strings.HasPrefix(got, "AI request: ") || !strings.HasSuffix(got, ", risk high") || !strings.Contains(got, a.Items[0].Title) || !strings.Contains(got, a.AssetName) {
+	if got != want || !strings.HasPrefix(got, "High-risk AI request: ") || !strings.Contains(got, `"`+a.Items[0].Title+`"`) || !strings.HasSuffix(got, ` on "`+a.AssetName+`"`) {
 		t.Fatalf("summary %q, want the one built from the request %q", got, want)
 	}
 	if n := len([]rune(got)); n > 200 || strings.ContainsAny(got, "\r\n\t") {
@@ -462,5 +465,213 @@ func TestAIStateShape(t *testing.T) {
 	e.must(err)
 	if s.Usage.Hour != 2 || s.Usage.Day != 2 {
 		t.Fatalf("usage %+v", s.Usage)
+	}
+}
+
+// inStepUp reports whether the clock is being read by aiStepUp (the check before the approval transaction).
+func inStepUp() bool {
+	pc := make([]uintptr, 64)
+	fr := runtime.CallersFrames(pc[:runtime.Callers(2, pc)])
+	for {
+		f, more := fr.Next()
+		if strings.HasSuffix(f.Function, ".aiStepUp") {
+			return true
+		}
+		if !more {
+			return false
+		}
+	}
+}
+
+// L1: aiStepUp skips the code when it sees the request past its expiry ("the transaction answers"), but the
+// transaction reads the clock again and does not know the code was skipped. When the wall clock steps back between the
+// two reads (NTP step, manual change, VM resume), the transaction finds the request still pending and records an
+// approval of a high-risk AI request without any two-step code (fail open). The transaction should refuse an
+// in_app_only request that did not pass the step-up, whatever the clock says.
+func TestContract_INV16_ClockStepBackCannotSkipTheCode(t *testing.T) {
+	f := &fakeTwoStep{off: map[string]bool{}}
+	var late atomic.Pointer[time.Time]
+	e := newEnv(t, func(c *response.Config) {
+		base := c.Clock
+		c.TwoStep = f
+		c.Clock = func() time.Time {
+			if l := late.Load(); l != nil && inStepUp() {
+				return *l // aiStepUp reads the clock just after the expiry...
+			}
+			return base() // ...and the transaction reads it after a step back
+		}
+	})
+	a := e.highRiskAI()
+	exp, err := time.Parse(time.RFC3339Nano, a.ExpiresAt)
+	e.must(err)
+	l := exp.Add(time.Second)
+	late.Store(&l)
+	_, err = e.svc.Approve(e.ctx(), oper, a.ID, nil, "") // no code at all
+	late.Store(nil)
+	got := e.only()
+	if err == nil || len(got.Approvals) != 0 {
+		t.Fatalf("a high-risk AI request took an approval without a two-step code (err=%v, approvals=%d, code checks=%d)", err, len(got.Approvals), f.count())
+	}
+}
+
+type acceptAll struct{ n atomic.Int32 }
+
+func (a *acceptAll) Verify(context.Context, string, string, string, string) error {
+	a.n.Add(1)
+	return nil
+}
+
+// The same person clicking approve many times at once, each with a code that passes (e.g. the codes of two adjacent TOTP
+// steps): the transaction re-checks same_approver, so one person never counts twice.
+func TestContract_INV16_SamePersonRaceCountsOnce(t *testing.T) {
+	ok := &acceptAll{}
+	e := newEnv(t, func(c *response.Config) { c.TwoStep = ok })
+	a := e.highRiskAI()
+	var wg sync.WaitGroup
+	var wins atomic.Int32
+	errs := make(chan error, 8)
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := e.svc.Approve(context.Background(), oper, a.ID, nil, "123456"); err == nil {
+				wins.Add(1)
+			} else if ae, isAPI := apierr.As(err); !isAPI || ae.Code != "same_approver" {
+				errs <- err
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Errorf("unexpected refusal: %v", err)
+	}
+	got := e.only()
+	if wins.Load() != 1 || len(got.Approvals) != 1 || got.Status != response.StatusPending {
+		t.Fatalf("one person counted %d times (approvals %d, status %s)", wins.Load(), len(got.Approvals), got.Status)
+	}
+}
+
+// Two different people racing each other: both count once, the bundle runs once.
+func TestContract_INV16_TwoPeopleRaceEachCountsOnce(t *testing.T) {
+	for range 3 {
+		ok := &acceptAll{}
+		e := newEnv(t, func(c *response.Config) { c.TwoStep = ok })
+		a := e.highRiskAI()
+		var wg sync.WaitGroup
+		errs := make([]error, 2)
+		for i, w := range []response.Actor{oper, admin} {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				_, errs[i] = e.svc.Approve(context.Background(), w, a.ID, nil, "123456")
+			}()
+		}
+		wg.Wait()
+		got := e.only()
+		if errs[0] != nil || errs[1] != nil || len(got.Approvals) != 2 || got.Approvals[0].UserID == got.Approvals[1].UserID || got.Status != response.StatusExecuted || ok.n.Load() != 2 {
+			t.Fatalf("race: errs=%v approvals=%+v status=%s checks=%d", errs, got.Approvals, got.Status, ok.n.Load())
+		}
+	}
+}
+
+// L2: the line sent with the code puts the asset name (a device name from an event, an inventory hostname, or the
+// name the AI planner wrote, plans.go) inside the sentence without quoting it, so a hostile name can state a risk the
+// request does not have: "AI request: ... on FW-01, risk low, risk high".
+func TestContract_INV16_SummaryRiskCannotBeSpoofedByTheAssetName(t *testing.T) {
+	e, _ := newAIEnv(t)
+	a := e.highRiskAI()
+	e.exec1(`UPDATE resp_actions SET asset_name = ? WHERE id = ?`, "FW-01, risk low", a.ID)
+	got, err := e.svc.ApproveSummaryForTest(e.ctx(), a.ID)
+	e.must(err)
+	if !strings.HasPrefix(got, "High-risk AI request: ") || !strings.HasSuffix(got, ` on "FW-01, risk low"`) || strings.Count(got, "-risk") != 1 {
+		t.Fatalf("the summary of a high-risk request says %q", got)
+	}
+}
+
+// L3: a rejection reason kept as a hint keeps invisible format characters (bidi overrides, Unicode tag
+// characters that a person cannot see but a model reads), unlike the summary, which strips them. Hints are shown as
+// advice and "memory" hints are meant for the AI later (13b-10, WP-25).
+func TestContract_INV18_HintAndRejectNoteHaveNoInvisibleCharacters(t *testing.T) {
+	e, _ := newAIEnv(t)
+	l := e.aiBlocks(1)
+	smuggled := "Our scanner \u202eRENNACS\u202c" + "\U000E0049\U000E0067\U000E006E\U000E006F\U000E0072\U000E0065" + " uses this address"
+	e.reject(l[0], smuggled, "memory")
+	h := e.hints()
+	if len(h) != 1 {
+		t.Fatalf("%d hints", len(h))
+	}
+	note := e.only().Note
+	for _, text := range []string{h[0].Text, *note} {
+		for _, c := range text {
+			if unicode.Is(unicode.Cf, c) || unicode.IsControl(c) || (c >= 0xE0000 && c <= 0xE007F) {
+				t.Fatalf("the invisible character %U was kept: %q", c, text)
+			}
+		}
+	}
+	if h[0].Text != "Our scanner RENNACS uses this address" {
+		t.Fatalf("hint %q", h[0].Text)
+	}
+}
+
+// A demoted or disabled approver does not count: the account is read again inside the approval, for every in-app approval.
+func TestContract_Approve_DemotedOrDisabledApproverDoesNotCount(t *testing.T) {
+	e, _ := newAIEnv(t)
+	e.rule("Block", "ioc_connection", blockAction(60), nil)
+	e.fire(e.iocEvent("e1", "198.51.100.7"))
+	a := e.only()
+	e.users.m["u-op"] = response.User{ID: "u-op", Name: "IT Operator", Email: "it@acme.example", Role: "viewer", TwoStep: true}
+	_, err := e.svc.Approve(e.ctx(), oper, a.ID, nil, "")
+	wantCode(t, err, 403, "forbidden")
+	e.users.m["u-op"] = response.User{ID: "u-op", Name: "IT Operator", Email: "it@acme.example", Role: "operator", Disabled: true}
+	_, err = e.svc.Approve(e.ctx(), oper, a.ID, nil, "")
+	wantCode(t, err, 403, "forbidden")
+	delete(e.users.m, "u-op")
+	_, err = e.svc.Approve(e.ctx(), oper, a.ID, nil, "")
+	wantCode(t, err, 403, "forbidden")
+	if got := e.only(); len(got.Approvals) != 0 || got.Status != response.StatusPending {
+		t.Fatalf("a refused approver counted: %+v", got)
+	}
+	e.users.m["u-op"] = response.User{ID: "u-op", Name: "IT Operator", Email: "it@acme.example", Role: "operator", TwoStep: true}
+	if _, err := e.svc.Approve(e.ctx(), oper, a.ID, nil, ""); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// The line shows only the actions this approver picked.
+func TestContract_INV16_SummaryListsOnlyThePickedActions(t *testing.T) {
+	e, f := newAIEnv(t)
+	a := e.highRiskAI()
+	dev := a.Items[0]
+	f.give(oper.ID, purposeOf(a.ID), "111111")
+	if _, err := e.svc.Approve(e.ctx(), oper, a.ID, []string{dev.ID}, "111111"); err != nil {
+		t.Fatal(err)
+	}
+	got := f.calls[0].summary
+	if !strings.Contains(got, `"`+dev.Title+`"`) || strings.Contains(got, a.Items[1].Title) {
+		t.Fatalf("summary %q", got)
+	}
+}
+
+// A resume clears the pause and nothing else: the window of the last 10 decisions stays (the mock's `resume` does the same), so the
+// next decision on an AI request looks at it again. Contract note in INV-15 (8).
+func TestContract_INV15_ResumeKeepsTheWindowAndTheNextDecisionLooksAgain(t *testing.T) {
+	e, _ := newAIEnv(t)
+	l := e.aiBlocks(6)
+	for _, a := range l[:5] {
+		e.clock.Advance(time.Second)
+		e.reject(a, "no", "none")
+	}
+	_, err := e.svc.ResumeAI(e.ctx(), admin)
+	e.must(err)
+	if e.paused() {
+		t.Fatal("still paused after resume")
+	}
+	e.clock.Advance(time.Second)
+	if _, err := e.svc.Approve(e.ctx(), oper, l[5].ID, nil, ""); err != nil { // 5 of 6 rejected: still more than half
+		t.Fatal(err)
+	}
+	if !e.paused() {
+		t.Fatal("the next decision did not look at the window again")
 	}
 }

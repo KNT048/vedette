@@ -92,19 +92,21 @@ type AiState struct {
 
 // aiStepUp is the part of an approval that comes before its transaction, for a high-risk AI request: in the app only, not already
 // approved by this person, then the two-step code for this request. The code is checked outside the transaction because checking it
-// writes (the limiter, the replay guard, the audit line). Anything that is not such a request returns nil here and the transaction
-// answers (not found, expired, not pending). A code is spent only when the cheap refusals have passed, so a wrong pick or a second
-// click by the same person does not cost one.
-func (s *Service) aiStepUp(ctx context.Context, who Actor, id string, pick []string, code string) error {
+// writes (the limiter, the replay guard, the audit line). Anything that is not such a request returns (false, nil) here and the
+// transaction answers (not found, expired, not pending). A code is spent only when the cheap refusals have passed, so a wrong pick or
+// a second click by the same person does not cost one. stepped is true only when the code of this person for this request passed: the
+// transaction refuses an in_app_only request that did not get it (L1), so a path that reaches the approval without this check, or a
+// clock that moved back between the two reads, fails closed.
+func (s *Service) aiStepUp(ctx context.Context, who Actor, id string, pick []string, code string) (stepped bool, err error) {
 	r, ok, err := loadReq(ctx, s.cfg.DB.Reader(), id)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if !ok || r.AI == nil || !r.AI.InAppOnly || r.Status != StatusPending || !parseTS(r.ExpiresAt).After(s.now()) {
-		return nil
+		return false, nil
 	}
 	if who.Via != ViaApp {
-		return fail(http.StatusForbidden, "in_app_required", "A high-risk AI request can only be approved in the app with your two-step code, not from chat or email.")
+		return false, fail(http.StatusForbidden, "in_app_required", "A high-risk AI request can only be approved in the app with your two-step code, not from chat or email.")
 	}
 	var first *Approval
 	if len(r.Approvals) > 0 {
@@ -113,45 +115,92 @@ func (s *Service) aiStepUp(ctx context.Context, who Actor, id string, pick []str
 	have := func(x string) bool { return slices.ContainsFunc(r.recs, func(i itemRec) bool { return i.ID == x }) }
 	switch {
 	case slices.ContainsFunc(r.Approvals, func(x Approval) bool { return x.UserID == who.ID }):
-		return fail(http.StatusConflict, "same_approver", "You already approved this request. A second, different person must approve it.")
+		return false, fail(http.StatusConflict, "same_approver", "You already approved this request. A second, different person must approve it.")
 	case slices.ContainsFunc(pick, func(x string) bool { return !have(x) }):
-		return fail(http.StatusBadRequest, "invalid_items", "Pick at least one action of this request.")
+		return false, fail(http.StatusBadRequest, "invalid_items", "Pick at least one action of this request.")
 	case first != nil && len(pick) > 0 && !sameSet(pick, first.Items):
-		return fail(http.StatusConflict, "selection_differs", "The second approver must approve the same actions as the first.")
+		return false, fail(http.StatusConflict, "selection_differs", "The second approver must approve the same actions as the first.")
 	}
 	if s.cfg.TwoStep == nil {
-		return fail(http.StatusForbidden, "twofa_required", "Turn on two-step sign-in for your account first (My account), then try again.")
+		return false, errTwofaRequired()
 	}
-	return s.cfg.TwoStep.Verify(ctx, who.ID, code, "response.approve."+r.ID, approveSummary(r))
+	ids := pick
+	switch {
+	case len(ids) > 0:
+	case first != nil:
+		ids = first.Items
+	}
+	if err := s.cfg.TwoStep.Verify(ctx, who.ID, code, "response.approve."+r.ID, approveSummary(r, ids)); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func errTwofaRequired() error {
+	return fail(http.StatusForbidden, "twofa_required", "Turn on two-step sign-in for your account first (My account), then try again.")
 }
 
 // approveSummary is the line the approver sees with the code, built here from the stored request and from nothing the caller sent
-// (OWASP Transaction Authorization): what is approved, on what, how risky, and that an AI asked for it. One line, at most 200
-// characters, no control or format character (core/auth checks the same).
-func approveSummary(r request) string {
-	var what []string
+// (OWASP Transaction Authorization): the risk first, then what is approved (only the picked actions, or all of them when none are
+// picked), on what, in quotes so a name cannot pass for part of the sentence. A list that does not fit says "and N more". One line, at
+// most 200 characters, no control, format or filler character (core/auth checks the same).
+func approveSummary(r request, ids []string) string {
+	var titles []string
 	for _, i := range r.recs {
-		what = append(what, cleanLine(i.Title))
+		if len(ids) == 0 || slices.Contains(ids, i.ID) {
+			titles = append(titles, quoted(i.Title, 80))
+		}
 	}
+	head := strings.ToUpper(string(r.Risk)[:1]) + string(r.Risk)[1:] + "-risk AI request: "
 	tail := ""
-	if t := cleanLine(r.AssetName); t != "" {
-		tail = " on " + truncRunes(t, 60)
+	if t := quoted(r.AssetName, 60); t != `""` {
+		tail = " on " + t
 	}
-	tail += ", risk " + string(r.Risk)
-	const head = "AI request: "
 	room := maxSummary - len([]rune(head)) - len([]rune(tail))
-	return head + truncRunes(strings.Join(what, "; "), room) + tail
+	for n := len(titles); n >= 0; n-- {
+		more := ""
+		if n < len(titles) {
+			more = " and " + itoa(len(titles)-n) + " more"
+		}
+		list := strings.Join(titles[:n], ", ")
+		if len([]rune(list))+len([]rune(more)) <= room {
+			return head + list + more + tail
+		}
+	}
+	return head + tail
 }
 
-// cleanLine makes s plain one-line text: control, format and separator characters become spaces, runs of space become one.
+// quoted is s as one clean line in double quotes, cut to n characters; a quote inside becomes an apostrophe.
+func quoted(s string, n int) string {
+	return `"` + truncRunes(strings.ReplaceAll(cleanLine(s), `"`, "'"), n) + `"`
+}
+
+// cleanLine makes s plain one-line text: control, format (bidi marks, zero-width characters), Unicode tag, variation-selector and
+// filler characters (Hangul fillers, braille blank, combining grapheme joiner) are dropped, other separators become spaces, and runs of
+// space become one. What a person cannot see must not reach a summary, a hint or a note a model may read later.
 func cleanLine(s string) string {
 	s = strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) || r == ' ' || r == ' ' {
+		switch {
+		case isInvisible(r):
+			return -1
+		case unicode.IsControl(r) || r == '\u2028' || r == '\u2029':
 			return ' '
 		}
 		return r
 	}, strings.ToValidUTF8(s, "?"))
 	return strings.Join(strings.Fields(s), " ")
+}
+
+func isInvisible(r rune) bool {
+	switch {
+	case unicode.Is(unicode.Cf, r), r >= 0xE0000 && r <= 0xE007F, r >= 0xFE00 && r <= 0xFE0F, r >= 0xE0100 && r <= 0xE01EF:
+		return true
+	}
+	switch r {
+	case 0x115F, 0x1160, 0x3164, 0xFFA0, 0x2800, 0x034F, 0x17B4, 0x17B5, 0x180E:
+		return true
+	}
+	return false
 }
 
 func truncRunes(s string, n int) string {
@@ -168,7 +217,7 @@ func truncRunes(s string, n int) string {
 
 // keepHint stores the reason of a rejected AI request as a hint, inside tx, and drops all but the newest 50.
 func (s *Service) keepHint(ctx context.Context, tx *sql.Tx, r request, kind, reason string) error {
-	text := oneLine(strings.TrimSpace(reason), 300)
+	text := truncRunes(cleanLine(reason), 300)
 	if text == "" {
 		return nil
 	}
@@ -182,7 +231,7 @@ func (s *Service) keepHint(ctx context.Context, tx *sql.Tx, r request, kind, rea
 	if kind == RememberRule {
 		label = "a rule hint"
 	}
-	return s.step(ctx, tx, "response.ai_hint", r.ID, LogAINote, "Rejection reason saved as "+label+": "+oneLine(text, 200), "system")
+	return s.step(ctx, tx, "response.ai_hint", r.ID, LogAINote, "Rejection reason saved as "+label+": "+truncRunes(text, 200), "system")
 }
 
 // decidedStatuses are the statuses of a request somebody decided (not pending, not expired).

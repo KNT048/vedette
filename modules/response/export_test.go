@@ -60,10 +60,10 @@ func (s *Service) ApproveViaForTest(ctx context.Context, who Actor, id string, p
 func CheckAIPausedForTest(st Settings) error { return checkAIPaused(st) }
 
 // ApproveSummaryForTest returns the line sent with a two-step code for the request.
-func (s *Service) ApproveSummaryForTest(ctx context.Context, id string) (string, error) {
+func (s *Service) ApproveSummaryForTest(ctx context.Context, id string, pick ...string) (string, error) {
 	r, ok, err := loadReq(ctx, s.cfg.DB.Reader(), id)
 	if err != nil || !ok {
 		return "", err
 	}
-	return approveSummary(r), nil
+	return approveSummary(r, pick), nil
 }

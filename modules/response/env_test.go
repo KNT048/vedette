@@ -229,6 +229,7 @@ func newEnv(t *testing.T, opts ...func(*response.Config)) *env {
 			"u-admin2": {ID: "u-admin2", Name: "Admin Two", Email: "admin2@acme.example", Role: "admin", TwoStep: true},
 			"u-nofa":   {ID: "u-nofa", Name: "No 2FA", Email: "nofa@acme.example", Role: "admin"},
 			"u-op":     {ID: "u-op", Name: "IT Operator", Email: "it@acme.example", Role: "operator", TwoStep: true},
+			"u-op2":    {ID: "u-op2", Name: "IT Operator Two", Email: "it2@acme.example", Role: "operator", TwoStep: true},
 		}}}
 	log := slog.New(slog.DiscardHandler)
 	e.bus = events.NewBus(log)

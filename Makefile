@@ -21,6 +21,7 @@ help:
 	@echo "make e2e           kiểm thử đầu-cuối bằng Playwright (Chromium)"
 	@echo "make audit         quét lỗ hổng dependency: govulncheck + pnpm audit (đầu mỗi phiên)"
 	@echo "make fixtures      kéo dữ liệu KEV/EPSS thật cho bảng nóng"
+	@echo "make reaper-install  cài bộ dọn tiến trình test/dev mồ côi (10 phút một lần)"
 	@echo "make clean         xoá build output và báo cáo test"
 
 dev:
@@ -107,3 +108,11 @@ generate-api:
 	@tmp=$$(mktemp -d) && trap 'rm -rf "$$tmp"' EXIT && \
 	go run ./core/api/apigen -in api/openapi.json -spec "$$tmp/openapi.json" -routes core/api/routes/routes_gen.go && \
 	go tool ogen --config core/api/ogen.yml --target core/api/oas --package oas --clean "$$tmp/openapi.json"
+
+.PHONY: reaper-install reaper-uninstall
+# Dừng tiến trình test/dev mồ côi làm quá tải máy, chạy 10 phút một lần (launchd/systemd user).
+reaper-install:
+	scripts/dev/reaper-install.sh
+
+reaper-uninstall:
+	scripts/dev/reaper-install.sh --uninstall

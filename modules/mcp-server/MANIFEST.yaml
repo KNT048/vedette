@@ -1,0 +1,14 @@
+id: mcp-server         # trùng tên thư mục
+name: { vi: "Máy chủ MCP (chỉ đọc)", en: "MCP server (read-only)" }
+summary: { vi: "MCP chỉ-đọc cho agent/SIEM ngoài tra tài sản, phát hiện, feed bằng token theo phạm vi.", en: "A read-only MCP endpoint for external agents and SIEMs to query assets, findings and feeds with scoped tokens." }
+tier: optional
+default: off
+depends: [core]
+soft_depends: [inventory, feeds]    # phạm vi `assets`/`findings`/`feeds` rỗng khi module nguồn tắt
+permissions: []
+ports: ["tcp/8765"]                 # bind 127.0.0.1, endpoint http://127.0.0.1:8765/mcp (theo mock); xem câu hỏi mở 1
+container: core        # D-55
+tables_prefix: mcp_
+tables: [mcp_tokens]                # tên mock: core_mcp_tokens
+stories: [S-MCP-1]
+milestone: M6

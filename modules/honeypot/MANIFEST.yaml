@@ -1,0 +1,14 @@
+id: honeypot           # trùng tên thư mục
+name: { vi: "Bẫy nội bộ", en: "Honeypot" }
+summary: { vi: "Bẫy giả (SMB/RDP/SSH/MSSQL/HTTP, vai thiết bị, honey token) trên IP phụ của hộp: ai chạm vào là biết ngay.", en: "Decoy services, device personalities and honey tokens on a secondary IP of the box: any touch is an alert." }
+tier: optional
+default: off
+depends: [core, inventory]
+soft_depends: [notify, response]   # notify: gửi cảnh báo; response: trigger "honeypot" (không có response thì hit vẫn lưu và báo)
+permissions: [net_bind_low, "host:net.decoy_ip"]   # cổng 22/80/445/1433/3389 trong container honeypot; IP phụ do vedette-host dựng (D-56)
+ports: ["tcp/445", "tcp/3389", "tcp/22", "tcp/1433", "tcp/80"]   # chỉ trên IP phụ/IP bẫy, không trên IP quản trị của hộp
+container: honeypot    # D-55: OpenCanary (BSD-3) trong container riêng, macvlan trên IP phụ; API + bảng nằm trong `core`
+tables_prefix: hp_
+tables: [hp_config, hp_hits, hp_decoys, hp_tokens]
+stories: [S-HP-1, S-HP-2]
+milestone: M5

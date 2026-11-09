@@ -1,0 +1,14 @@
+id: reports            # trùng tên thư mục
+name: { vi: "Báo cáo", en: "Reports" }
+summary: { vi: "Báo cáo tuần 1 trang (gửi theo lịch) và báo cáo tự đánh giá bảo vệ dữ liệu cá nhân theo Luật 91/2025/QH15 + NĐ 356/2025/NĐ-CP, in/lưu PDF.", en: "One-page weekly report (scheduled) and a personal-data-protection self-assessment under Law 91/2025/QH15 and Decree 356/2025/NĐ-CP, printable to PDF." }
+tier: optional
+default: off
+depends: [core, inventory, feeds]
+soft_depends: [notify, ai, scan, logs, honeypot]   # notify: gửi email theo lịch (MODULES.md chưa liệt kê, xem câu hỏi mở 1); ai: nhận xét; scan/logs/honeypot: nguồn số liệu nếu có
+permissions: []
+ports: []
+container: core        # D-55; PDF do trình duyệt in (CSS @media print), không thư viện PDF phía máy chủ
+tables_prefix: rep_
+tables: [rep_schedule, rep_history, rep_weekly_ai, rep_pdpl]
+stories: [S-REP-1, S-REP-2]
+milestone: M7

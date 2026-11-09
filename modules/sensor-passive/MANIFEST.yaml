@@ -1,0 +1,13 @@
+id: sensor-passive
+name: { en: "Passive discovery" }
+summary: { en: "Listens on the network (DHCP, mDNS, SSDP, ARP, LLDP and optional SPAN/TAP metadata) and feeds what it sees to the inventory without sending a packet." }
+tier: standard
+default: true
+depends: [core, inventory]
+permissions: [net_raw, pcap]    # CAP_NET_RAW, không root (D-55); card SPAN không có IP (D-56)
+ports: []                       # chỉ bắt gói, không mở cổng nghe
+container: sensor               # D-55: mạng host, CAP_NET_RAW
+tables_prefix: sp_              # ⚠ MODULES.md ghi `inv_*`; xem câu hỏi mở
+stories: [S-INV-1, S-INV-3, S-LOG-4]
+decisions: [D-43, D-45, D-55, D-56]
+milestone: M3

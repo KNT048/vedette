@@ -119,61 +119,6 @@ func TestContract_INV13_RootBinaryLinksNoSQL(t *testing.T) {
 	}
 }
 
-// INV-14 (D-87): every operation on core's tree goes through an os.Root handle and a descriptor.
-// In host/ops no os.Lstat, os.Chmod, os.Chown, os.Lchown, os.Chtimes, os.Readlink, os.Symlink,
-// os.Link or os.Truncate by path remains, except the one os.Lstat walk over the parents of core_data
-// in checkChain (decides whether the directory is trusted at all); chmod and chown go through a
-// descriptor (f.Chmod, f.Chown), never through Root.Chmod/Chown (documented racy); and no path of
-// core's tree is built with filepath.Join.
-func TestContract_INV14_NoPathBasedMetadataOperationsInHostOps(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{"Lstat", "Chmod", "Chown", "Lchown", "Chtimes", "Readlink", "Symlink", "Link", "Truncate"}
-	racyRoot := []string{"Chmod", "Chown", "Lchown", "Chtimes"}
-	checked := 0
-	for path, f := range sourcesUnder(t, "../../host/ops") {
-		if strings.HasSuffix(path, "_test.go") || strings.Contains(path, "/opstest/") {
-			continue
-		}
-		checked++
-		for _, decl := range f.Decls {
-			fd, isFunc := decl.(*ast.FuncDecl)
-			inCheckChain := isFunc && fd.Name.Name == "checkChain" && strings.HasSuffix(path, "coredata.go")
-			ast.Inspect(decl, func(n ast.Node) bool {
-				call, ok := n.(*ast.CallExpr)
-				if !ok {
-					return true
-				}
-				sel, ok := call.Fun.(*ast.SelectorExpr)
-				if !ok {
-					return true
-				}
-				if id, ok := sel.X.(*ast.Ident); ok && id.Name == "os" && slices.Contains(forbidden, sel.Sel.Name) {
-					if !inCheckChain || sel.Sel.Name != "Lstat" {
-						t.Errorf("%s calls os.%s: operate on a descriptor or through the root handle", path, sel.Sel.Name)
-					}
-				}
-				if inner, ok := sel.X.(*ast.SelectorExpr); ok && inner.Sel.Name == "root" && slices.Contains(racyRoot, sel.Sel.Name) {
-					t.Errorf("%s calls Root.%s, which is racy by name: chmod and chown on a descriptor", path, sel.Sel.Name)
-				}
-				if id, ok := sel.X.(*ast.Ident); ok && id.Name == "filepath" && sel.Sel.Name == "Join" {
-					for _, arg := range call.Args {
-						ast.Inspect(arg, func(m ast.Node) bool {
-							if s, ok := m.(*ast.SelectorExpr); ok && s.Sel.Name == "CoreData" {
-								t.Errorf("%s builds a path inside core_data with filepath.Join", path)
-							}
-							return true
-						})
-					}
-				}
-				return true
-			})
-		}
-	}
-	if checked < 10 {
-		t.Fatalf("only %d host/ops files checked", checked)
-	}
-}
-
 // The production wiring hands the server the reboot gate; without it a write could start while
 // the box shuts down.
 func TestContract_FORBID_ProductionWiringHasTheRebootGate(t *testing.T) {

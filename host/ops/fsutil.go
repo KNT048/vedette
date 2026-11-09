@@ -179,3 +179,20 @@ func openRegularNoFollow(path string) (*os.File, os.FileInfo, error) {
 	}
 	return f, st, nil
 }
+
+// privateTempDir makes a temp directory under parent (the host's own state) and returns it with
+// the function that removes it. It exists so that functions that hold a handle on core's tree
+// never call a path-based function themselves (INV-14).
+func privateTempDir(parent, prefix string) (string, func(), error) {
+	d, err := os.MkdirTemp(parent, prefix)
+	if err != nil {
+		return "", func() {}, err
+	}
+	return d, func() { _ = os.RemoveAll(d) }, nil
+}
+
+// createNew creates path for writing, failing when it exists; the caller owns a fresh private temp
+// directory, so there is nobody to race with.
+func createNew(path string) (*os.File, error) {
+	return os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) //nolint:gosec // inside a fresh private temp dir
+}

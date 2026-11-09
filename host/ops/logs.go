@@ -300,15 +300,16 @@ func retainExports(ix *exportIndex) (dropped []string) {
 	return dropped
 }
 
-// arrayFieldRE finds a JSON field whose value is an array of numbers.
-var arrayFieldRE = regexp.MustCompile(`":\s*\[\s*[0-9]`)
+// arrayFieldRE finds an array that starts with a number anywhere in the line: a byte array as the
+// whole value, or inside the array of a field that occurs twice ("F":["text",[1,2]] or "F":[[1],[2]]).
+var arrayFieldRE = regexp.MustCompile(`\[\s*[0-9]`)
 
 // redactLine removes secrets from one journal line. journalctl prints a field that holds a control
 // character (TAB, the ESC of a colour code, CR) or invalid UTF-8 as an array of byte values, not as
 // a string, so the text rules cannot see inside it: such fields are decoded to bytes, redacted in
 // their text form and encoded as arrays again; the rules then run on the whole line.
 func redactLine(line []byte) []byte {
-	if arrayFieldRE.Match(line) {
+	if arrayFieldRE.Match(line) || bytes.Contains(line, []byte("COREDUMP")) {
 		line = redactByteArrays(line)
 	}
 	return RedactJournalLine(line)
@@ -327,6 +328,13 @@ func redactByteArrays(line []byte) []byte {
 	}
 	changed := false
 	for k, val := range obj {
+		// systemd-coredump puts a crash's stack and environment in these fields; an export is not
+		// the place for them.
+		if strings.HasPrefix(k, "COREDUMP_") || strings.HasPrefix(k, "_COREDUMP") {
+			delete(obj, k)
+			changed = true
+			continue
+		}
 		if nv, c := redactByteField(val); c {
 			obj[k], changed = nv, true
 		}

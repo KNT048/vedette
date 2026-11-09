@@ -185,11 +185,11 @@ func (o *Ops) createBackup(ctx context.Context, rc *server.RunContext, kind stri
 	if err != nil {
 		return api.BackupResult{}, err
 	}
-	tmp, err := os.MkdirTemp(o.stateFile("tmp"), "bk-")
+	tmp, cleanup, err := privateTempDir(o.stateFile("tmp"), "bk-")
 	if err != nil {
 		return api.BackupResult{}, fail("backup_failed", "The backup could not be started.")
 	}
-	defer func() { _ = os.RemoveAll(tmp) }()
+	defer cleanup()
 
 	now := o.d.Now().UTC().Truncate(time.Second)
 	man := Manifest{Version: manifestVersion, DBSchema: snap.meta.DBSchema, CreatedAt: now.Format(time.RFC3339), IncludesSecrets: withSecrets}
@@ -202,7 +202,7 @@ func (o *Ops) createBackup(ctx context.Context, rc *server.RunContext, kind stri
 	}
 	rc.Log("Writing the archive")
 	archive := filepath.Join(tmp, "archive.tar.gz")
-	out, err := os.OpenFile(archive, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) //nolint:gosec // inside a fresh private temp dir
+	out, err := createNew(archive)
 	if err != nil {
 		return api.BackupResult{}, fail("backup_failed", "The archive could not be created.")
 	}

@@ -287,6 +287,20 @@ func (o *Ops) doReboot(ctx context.Context, kind string) {
 	}
 }
 
+// gateThenBusy raises the write gate and only then asks whether a command is running. The server
+// checks the gate and claims its write lock in one locked section, so a write is either already
+// running here (the gate is lifted and the caller postpones) or refused by the gate; none can be
+// accepted between the check and the gate. When it returns false the gate stays raised and the
+// caller must lower it again if it then decides not to reboot.
+func (o *Ops) gateThenBusy() bool {
+	o.raiseGate(o.d.Now().UTC())
+	if o.writeActive() || o.installing.Load() {
+		o.gate.Store(nil)
+		return true
+	}
+	return false
+}
+
 // fireScheduled runs when the timer of the scheduled reboot goes off.
 func (o *Ops) fireScheduled() {
 	o.rbMu.Lock()
@@ -308,7 +322,7 @@ func (o *Ops) fireScheduled() {
 		o.rbMu.Unlock()
 		o.note("os.reboot", "reboot_schedule_expired", map[string]any{"at": sch.At.Format(time.RFC3339)})
 		return
-	case o.writeActive() || o.installing.Load():
+	case o.gateThenBusy():
 		if o.stopTick != nil {
 			o.stopTick()
 		}
@@ -316,6 +330,7 @@ func (o *Ops) fireScheduled() {
 		o.rbMu.Unlock()
 		return
 	case recentStarts(st, now) >= rebootNowLimit:
+		o.gate.Store(nil)
 		st.Schedule = nil
 		_ = o.saveRebootLocked(st)
 		o.rbMu.Unlock()
@@ -327,6 +342,7 @@ func (o *Ops) fireScheduled() {
 	err := o.markStartedLocked(st, "scheduled")
 	o.rbMu.Unlock()
 	if err != nil {
+		o.gate.Store(nil)
 		o.log.Error("could not record the scheduled reboot; not rebooting")
 		return
 	}

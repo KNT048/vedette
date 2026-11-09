@@ -176,6 +176,10 @@ func (o *Ops) checkRestoreSpace(dir string, declared int64) error {
 	if err != nil {
 		return err
 	}
+	return lowSpace(free, declared)
+}
+
+func lowSpace(free uint64, declared int64) error {
 	if float64(free) < float64(declared)*restoreSpaceFactor {
 		return refuse412(api.CodeLowDisk, "There is not enough free space to unpack this backup.")
 	}
@@ -286,19 +290,33 @@ func (o *Ops) swap(ex extracted) error {
 		return fmt.Errorf("ops: %w", err)
 	}
 	defer t.close()
-	if err := o.checkRestoreSpace(o.cfg.CoreData, dirSize(ex)); err != nil {
+	free, err := t.freeBytes() // on the handle's descriptor, never on core_data by path
+	if err != nil {
+		return err
+	}
+	if err := lowSpace(free, dirSize(ex)); err != nil {
 		return err
 	}
 	if err := t.removeSidecars(); err != nil {
 		return err
 	}
-	if err := t.install(ex.db(), coreDBFile); err != nil {
+	if err := installMember(t, ex.db(), coreDBFile); err != nil {
 		return err
 	}
 	if ex.HasKey {
-		return t.install(ex.key(), coreKeyFile)
+		return installMember(t, ex.key(), coreKeyFile)
 	}
 	return nil
+}
+
+// installMember puts one extracted file of the host's private temp directory into core's tree.
+func installMember(t *coreTree, src, name string) error {
+	in, _, err := openRegularNoFollow(src)
+	if err != nil {
+		return fmt.Errorf("ops: open %s: %w", name, err)
+	}
+	defer func() { _ = in.Close() }()
+	return t.install(in, name)
 }
 
 // dirSize is the size of the extracted members (the space the install needs next to the old files).

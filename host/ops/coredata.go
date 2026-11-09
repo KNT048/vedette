@@ -9,10 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
+	"regexp"
+	"runtime"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -61,13 +62,42 @@ type coreTree struct {
 	gid  int // group restored files get: core_gid
 }
 
+// fdPath is the path through which a process opens one of its own descriptors.
+func fdPath(fd int) string {
+	if runtime.GOOS == "linux" {
+		return "/proc/self/fd/" + strconv.Itoa(fd)
+	}
+	return "/dev/fd/" + strconv.Itoa(fd)
+}
+
+// sameInode reports whether st (from Lstat) and the descriptor's stat are one directory.
+func sameInode(st os.FileInfo, fd *syscall.Stat_t) bool {
+	s, ok := st.Sys().(*syscall.Stat_t)
+	return ok && s.Dev == fd.Dev && s.Ino == fd.Ino
+}
+
+// freeBytes is the space a non-root writer could still use on the filesystem of core's tree,
+// asked of the root handle's descriptor.
+func (t *coreTree) freeBytes() (uint64, error) {
+	d, err := t.root.Open(".")
+	if err != nil {
+		return 0, fmt.Errorf("ops: open core_data: %w", err)
+	}
+	defer func() { _ = d.Close() }()
+	var st syscall.Statfs_t
+	if err := syscall.Fstatfs(int(d.Fd()), &st); err != nil {
+		return 0, fmt.Errorf("ops: fstatfs core_data: %w", err)
+	}
+	return nonNegative(st.Bavail) * nonNegative(st.Bsize), nil
+}
+
 func (t *coreTree) close() { _ = t.root.Close() }
 
 // openCore checks and opens core_data. The directory must be a real directory (not a symlink)
 // owned by core or by root, and every directory above it must belong to root (or the host's own
-// uid in tests) and be closed to group and others (like sshd StrictModes): otherwise a user who can
-// rename a parent could point the host somewhere else. Called at start-up and at the start of
-// every run that touches core's data.
+// uid in tests) and be closed to group and others, sticky or not (like sshd StrictModes): otherwise
+// a user who can rename a parent could point the host somewhere else. Called at start-up and at
+// the start of every run that touches core's data.
 func (o *Ops) openCore() (*coreTree, error) {
 	if o.cfg.CoreData == "" {
 		return nil, refuse412(api.CodeDBUnreadable, "The host does not know where core's data is (core_data is not set in host.conf).")
@@ -77,7 +107,20 @@ func (o *Ops) openCore() (*coreTree, error) {
 		o.log.Warn("core's data directory is not safe to use", "error", err.Error())
 		return nil, refuse412(api.CodeDBUnreadable, "Core's data directory is not safe to read: it must be a real directory under root-owned directories that nobody else can write.")
 	}
-	root, err := os.OpenRoot(resolved)
+	// os.OpenRoot is open(2) without O_DIRECTORY or O_NONBLOCK: a FIFO in the place of the
+	// directory would block the root host in the kernel. So open the directory first with flags
+	// that cannot block and require a directory, check it is the one that was checked, and give
+	// OpenRoot the descriptor's own path (/proc/self/fd/N, /dev/fd/N), which cannot be swapped.
+	pfd, err := syscall.Open(resolved, syscall.O_RDONLY|syscall.O_DIRECTORY|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
+	if err != nil {
+		return nil, refuse412(api.CodeDBUnreadable, "Core's data directory cannot be opened.")
+	}
+	defer func() { _ = syscall.Close(pfd) }()
+	var pst syscall.Stat_t
+	if syscall.Fstat(pfd, &pst) != nil || !sameInode(st, &pst) {
+		return nil, refuse412(api.CodeDBUnreadable, "Core's data directory changed while it was being opened.")
+	}
+	root, err := os.OpenRoot(fdPath(pfd))
 	if err != nil {
 		return nil, refuse412(api.CodeDBUnreadable, "Core's data directory cannot be opened.")
 	}
@@ -120,8 +163,9 @@ func (o *Ops) checkChain(path string) (string, os.FileInfo, error) {
 			return "", nil, fmt.Errorf("%s is not a directory", d)
 		case !ok || !trusted(psys.Uid):
 			return "", nil, fmt.Errorf("%s is not owned by root", d)
-		case pst.Mode().Perm()&0o022 != 0 && pst.Mode()&os.ModeSticky == 0:
-			// A sticky directory (like /tmp) lets nobody rename or remove an entry they do not own.
+		case pst.Mode().Perm()&0o022 != 0:
+			// No sticky exception (sshd StrictModes has none): in a sticky directory the owner of
+			// an entry may still rename it, and core owns core_data.
 			return "", nil, fmt.Errorf("%s can be written by group or others", d)
 		}
 		if d == filepath.Dir(d) {
@@ -132,8 +176,9 @@ func (o *Ops) checkChain(path string) (string, os.FileInfo, error) {
 }
 
 // openFile opens name in core's tree for reading and checks the descriptor: a regular file with
-// one link, owned by core, at most limit bytes. O_NOFOLLOW refuses a symlink as the last
-// component; O_NONBLOCK means a FIFO swapped in cannot block the open (and then fails the regular
+// one link, owned by core, at most limit bytes. Root.OpenFile ignores O_NOFOLLOW and follows a
+// final symlink that stays inside the tree, so the Lstat/SameFile check below is what refuses a
+// symlink; O_NONBLOCK means a FIFO swapped in cannot block the open (and then fails the regular
 // file check). The returned size is the size at the time of the check.
 func (t *coreTree) openFile(name string, limit int64) (*os.File, int64, error) {
 	f, err := t.root.OpenFile(name, os.O_RDONLY|nonBlockNoFollow, 0)
@@ -302,16 +347,11 @@ func (c ctxReader) Read(p []byte) (int, error) {
 	return c.r.Read(p)
 }
 
-// install replaces name in core's tree with the content of src (a file of the host's private temp
-// directory): written to a random name made with O_EXCL|O_NOFOLLOW through the root handle, given
+// install replaces name in core's tree with the content of in (a file of the host's private temp
+// directory, opened by the caller so no path of the host's own is mixed with core's here): written to a random name made with O_EXCL|O_NOFOLLOW through the root handle, given
 // core_uid:core_gid and 0600 on the descriptor, fsynced, then renamed over the target inside the
 // handle. A directory that core planted at the target is removed first (rename cannot replace it).
-func (t *coreTree) install(src, name string) error {
-	in, err := os.Open(src) //nolint:gosec // a file this run just extracted into its private temp directory
-	if err != nil {
-		return fmt.Errorf("ops: open %s: %w", name, err)
-	}
-	defer func() { _ = in.Close() }()
+func (t *coreTree) install(in io.Reader, name string) error {
 	var rnd [8]byte
 	if _, err := rand.Read(rnd[:]); err != nil {
 		return fmt.Errorf("ops: random name: %w", err)
@@ -374,15 +414,27 @@ func (t *coreTree) syncDir() {
 	}
 }
 
-// sweepRestoreTemps removes temp files a restore that died left in core's tree.
+// restoreTempRE is the name of a temp file putFile makes: the prefix and 16 hex digits.
+var restoreTempRE = regexp.MustCompile(`^\.vedette-restore-[0-9a-f]{16}$`)
+
+// maxSweepEntries bounds how much of core's directory one sweep reads: core can fill it as fast as
+// the host reads it, so the work must not depend on how many names core makes.
+const maxSweepEntries = 4096
+
+// sweepRestoreTemps removes temp files a restore that died left in core's tree. It deletes only
+// regular files with the exact temp name, one by one with Root.Remove (never RemoveAll, which
+// rereads a directory until it is empty and so can be held forever), among at most
+// maxSweepEntries names.
 func (t *coreTree) sweepRestoreTemps() {
-	ents, err := fs.ReadDir(t.root.FS(), ".")
+	d, err := t.root.Open(".")
 	if err != nil {
 		return
 	}
+	defer func() { _ = d.Close() }()
+	ents, _ := d.ReadDir(maxSweepEntries)
 	for _, e := range ents {
-		if strings.HasPrefix(e.Name(), restoreTempPrefix) {
-			_ = t.root.RemoveAll(e.Name())
+		if restoreTempRE.MatchString(e.Name()) && e.Type().IsRegular() {
+			_ = t.root.Remove(e.Name())
 		}
 	}
 }

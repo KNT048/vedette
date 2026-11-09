@@ -19,6 +19,7 @@ import (
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/mitigation"
+	"github.com/knt048/vedette/modules/notify"
 	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
 )
 
@@ -60,6 +61,7 @@ func wiredModules() []moduleWiring {
 		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},
 		{ID: "findings", Migrations: findings.Migrations},
 		{ID: "mitigation", Migrations: mitigation.Migrations},
+		{ID: "notify", Migrations: notify.Migrations, Jobs: notifyJobs},
 		{ID: "sensor-passive", Migrations: sensorpassive.Migrations, Jobs: sensorPassiveJobs},
 	}
 }

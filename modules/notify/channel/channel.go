@@ -35,15 +35,23 @@ var severityLabel = map[string]string{"critical": "Critical", "high": "High", "m
 
 // Message is one notification, as plain text. Adapters render it per channel.
 type Message struct {
-	ID       string   // stable id, used in the webhook payload and the Message-ID header
-	Kind     string   // "incident", "vuln", "approval" or "test"
-	Severity string   // critical|high|medium|low|info
-	Title    string   // one plain sentence
-	Device   string   // optional, e.g. "PC-HR-01 (192.168.10.107)"
-	What     string   // what happened and how urgent
-	Action   string   // what to do first
-	Items    []string // optional detail lines, e.g. the CVEs of a grouped notice
-	Link     string   // absolute http(s) URL that opens the item in Vedette
+	ID           string      // stable id, used in the webhook payload and the Message-ID header
+	Kind         string      // "incident", "vuln", "approval" or "test"
+	IncidentKind string      // incidents only: trap, bad_address, log_anomaly or unknown_device (webhook "kind")
+	Devices      []DeviceRef // the devices as a list (webhook "devices"); Device is the same for people to read
+	Severity     string      // critical|high|medium|low|info
+	Title        string      // one plain sentence
+	Device       string      // optional, e.g. "PC-HR-01 (192.168.10.107)"
+	What         string      // what happened and how urgent
+	Action       string      // what to do first
+	Items        []string    // optional detail lines, e.g. the CVEs of a grouped notice
+	Link         string      // absolute http(s) URL that opens the item in Vedette
+}
+
+// DeviceRef names a device in a Message. ID is empty when only the name is known.
+type DeviceRef struct {
+	ID   string `json:"id,omitempty"`
+	Name string `json:"name"`
 }
 
 // Receipt says where a message went and what the provider answered.
@@ -171,8 +179,11 @@ func (m Message) check() error {
 // the characters that break Slack, Telegram or email link syntax. It returns the
 // normalised URL string.
 func safeLink(link string) (string, error) {
-	if link == "" || len(link) > maxLink {
-		return "", fmt.Errorf("%w: link must be 1 to 1024 characters", ErrInvalidMessage)
+	if link == "" {
+		return "", nil // the box address is not known: the message says to open Vedette instead
+	}
+	if len(link) > maxLink {
+		return "", fmt.Errorf("%w: link must be at most 1024 characters", ErrInvalidMessage)
 	}
 	for _, r := range link {
 		if r <= ' ' || r > '~' || strings.ContainsRune("<>|\"\\^`{}", r) {

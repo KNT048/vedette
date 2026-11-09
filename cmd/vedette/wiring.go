@@ -13,6 +13,7 @@ import (
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/mitigation"
+	"github.com/knt048/vedette/modules/notify"
 )
 
 // Modules do not import each other. Each module declares the port it needs; the adapters below convert
@@ -279,6 +280,7 @@ func subscribe(d deps) {
 	d.Bus.Subscribe(feeds.EventSyncBaseline, on("inventory", func(ctx context.Context, _ any) error {
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
 		defer cancel()
+		ctx = notify.WithBaseline(ctx)
 		_, err := d.Inventory.RematchAll(ctx)
 		return err
 	}))

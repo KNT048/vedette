@@ -52,7 +52,7 @@ func TestSafeLink(t *testing.T) {
 	for in, ok := range map[string]bool{
 		"https://192.168.10.2/incidents/al-4":  true,
 		"http://box.lan/x?a=1&b=2":             true,
-		"":                                     false,
+		"":                                     true, // no link: the message says to open Vedette
 		"/incidents/al-4":                      false,
 		"javascript:alert(1)":                  false,
 		"https://h/x|evil":                     false,

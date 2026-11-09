@@ -1,6 +1,6 @@
 # Findings Contract
 
-> Tier: standard · Story: S-MIT-1 (danh sách, vòng đời), S-INV-2, S-SCAN-3, S-ALERT-1 · Last verified: 2026-11-09 (WP-21: thư viện thuần + service + migration `fnd_*` + 3 handler, có test; chưa nối vào `cmd/vedette`: thiếu cài đặt `Inventory`/`Feeds` thật, xem `.ai/deferred/feat-findings-module.md`)
+> Tier: standard · Story: S-MIT-1 (danh sách, vòng đời), S-INV-2, S-SCAN-3, S-ALERT-1 · Last verified: 2026-11-09 (WP-21 + nối vào `cmd/vedette`: `Inventory`, `Feeds`, `Publisher` thật, nghe `inventory.match.changed`/`inventory.asset.deleted`; chưa nghe `scan.finding.confirmed`, `feeds.vuln.updated`; xem `.ai/deferred/feat-module-wiring-2.md`)
 
 Tách từ `mitigation` theo D-57(6): phát hiện (finding) là module riêng, tắt `mitigation` không làm mất phát hiện hay cảnh báo (S-ALERT-1). GUI là `web/src/features/findings/` (danh sách, trang finding, panel Devices). Nguồn hành vi: `findings/{contract,mocks,basis}.ts` (phần `Finding`, `FindingRow`, `/findings`, `/findings/{id}/status`), `web/src/mocks/match.ts`. Phần "What to do" (gói, đã áp dụng, AI) thuộc `mitigation`.
 
@@ -44,7 +44,8 @@ Tách từ `mitigation` theo D-57(6): phát hiện (finding) là module riêng, 
 
 ## Events
 - **Phát**: `findings.finding.created {finding_id, asset_id, cve, severity, basis}`, `findings.finding.status_changed {finding_id, from, to}`.
-- **Nhận**: `inventory.match.changed`, `inventory.asset.deleted`, `scan.finding.confirmed`, `feeds.vuln.updated` (làm tươi KevInfo, khớp lại).
+- **Nhận**: `inventory.match.changed` → `OnMatchChanged` (tính lại cả thiết bị; thiết bị đã bị xoá thì bỏ qua), `inventory.asset.deleted` → `OnAssetDeleted` (INV-7), đều đăng ký ở `cmd/vedette/wiring.go` và chỉ chạy khi `findings` bật (tắt lúc đó thì bỏ lỡ, finding mồ côi chờ việc đối chiếu, deferred); `scan.finding.confirmed` → `ConfirmFromScan` **chưa nối** (chưa có module scan); `feeds.vuln.updated` (làm tươi KevInfo) chưa nghe: KevInfo đọc trực tiếp lúc hiển thị nên không cần.
+- **Từ đường cơ sở D-78**: lần kéo CISA đầu làm `inventory` khớp lại mọi thiết bị, nên `findings.finding.created` có thể phát hàng loạt. **`notify` (WP-22) không được gửi tin cho các finding sinh ra từ đường cơ sở.**
 
 ## Behaviour khi tắt
 Không route `/findings*`; không finding mới/cập nhật; `notify` không có gì để gửi cho S-ALERT-1; kết quả `scan` có `finding_id=null`; Devices mất panel finding; `reports` thiếu mục lỗ hổng; `mitigation` mất đầu vào (phụ thuộc, báo `affected`). Bảng giữ nguyên.
@@ -55,7 +56,7 @@ S-MIT-1 (danh sách, trạng thái), S-INV-2, S-SCAN-3, S-ALERT-1. D-3 không ch
 ## Không khớp / câu hỏi mở
 - `fnd_finding_history` chỉ chặn UPDATE bằng trigger (chỉ thêm, không sửa); DELETE không bị chặn vì xoá finding (INV-7) cần cascade xoá history. Chỉ có `findings.Service` xoá finding.
 - `GET /findings/{id}` thêm mỗi mục "Đã áp dụng" của `mitigation` vào `history` dưới dạng dòng `applied:<item>` (như mock, sắp theo `ts`, ổn định); `GET /findings` thì không (chỉ history đã lưu).
-- `fnd_finding.asset_id` chưa có FK tới `inv_asset` (inventory chưa có): INV-7 do `Service.OnAssetDeleted` đảm nhiệm. Khi `inventory` có bảng thì thêm FK bằng migration mới.
+- `fnd_finding.asset_id` **không** có FK tới `inv_asset` (quy tắc `modules.md`: không ràng buộc chéo module, FK buộc migration và trạng thái bật/tắt của hai module): INV-7 do `Service.OnAssetDeleted` (sự kiện) đảm nhiệm. Sự kiện không bền: cần đối chiếu định kỳ (hỏi `Inventory` id nào còn, xoá mồ côi) cho trường hợp lỡ sự kiện hoặc `findings` tắt lúc xoá (deferred).
 - `bad_action` và `note_too_long` (khi vượt 500 ký tự ngay trong thân) bị schema OpenAPI chặn trước handler (400 `invalid` chung của ogen): mã riêng chỉ còn tới được qua service, và `note_too_long` qua HTTP chỉ khi ghi chú ≤ 500 ký tự Unicode nhưng > 500 đơn vị UTF-16.
 - ARCHITECTURE §4 đặt bảng `inv_finding`; hợp đồng này dùng `fnd_finding` (khớp DATA_MODEL). DATA_MODEL §4.3 và §5.2 còn ghi "chỉ `mitigation` ghi bảng" và `mitigation.finding.*`: cần sửa theo hợp đồng này.
 - `GET /findings/{id}` gộp dữ liệu của `mitigation` (shape `FindingDetail` giữ nguyên, GUI-first). Khi `mitigation` tắt, `pack:null` giống hệt "chưa có khuyến nghị đã xác nhận": GUI chưa phân biệt được (S-CORE-1 yêu cầu nói rõ vì module tắt). Cần quyết: thêm cờ vào `FindingDetail` (đổi GUI = story mới) hay ẩn panel.

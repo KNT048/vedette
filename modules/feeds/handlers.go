@@ -286,7 +286,7 @@ func (h *FeedHandlers) FeedsPostFeedsWeeklyID(ctx context.Context, req *oas.Feed
 		return nil, apierr.New(http.StatusNotFound, apierr.CodeNotFound, "No such item.")
 	}
 	item, v := items[i], vulns[i]
-	err = h.s.DB.Write(ctx, func(tx *sql.Tx) error {
+	err = h.s.writeDeclaring(ctx, func(tx *sql.Tx) error {
 		var prev string
 		var added int
 		switch err := tx.QueryRowContext(ctx, `SELECT answer, device_added FROM feeds_weekly_answer WHERE key = ?`, item.Key).Scan(&prev, &added); err {

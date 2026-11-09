@@ -119,7 +119,7 @@ func TestInventoryEventsReachTheBus(t *testing.T) {
 		t.Fatal(err)
 	}
 	d := deps{Log: log, DB: db, Audit: audit.New(nil), Clock: time.Now, Bus: events.NewBus(log)}
-	d.Inventory = newInventory(d)
+	d.Inventory = newInventory(&d)
 	got := make(chan events.Event, 1)
 	d.Bus.Subscribe(inventory.EventAssetUpdated, func(_ context.Context, e events.Event) error {
 		select {

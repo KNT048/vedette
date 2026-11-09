@@ -130,7 +130,9 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		return err
 	}
 	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log)}
-	d.Inventory = newInventory(d)
+	if err := buildServices(&d); err != nil {
+		return err
+	}
 	sched := jobs.New(log, reg, nil, jobs.WithRecorder(jobs.NewHistory(db)))
 	reg.OnChange(sched.ModuleChanged)
 	if err := addJobs(sched, d, wired); err != nil {

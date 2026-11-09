@@ -1,6 +1,6 @@
 # Mitigation Contract
 
-> Tier: standard · Story: S-MIT-1 (phần "What to do"), S-MIT-3, S-MIT-4, S-AI-2 · Last verified: 2026-11-09 (WP-21: bộ nạp gói, nhà cung cấp "What to do", `applied|ai`, migration `mit_*`, có test; chưa nối vào `cmd/vedette`: thiếu `Verifier` chữ ký (core/updates), `AI`, `Vendors` (inventory))
+> Tier: standard · Story: S-MIT-1 (phần "What to do"), S-MIT-3, S-MIT-4, S-AI-2 · Last verified: 2026-11-09 (WP-21: bộ nạp gói, nhà cung cấp "What to do", `applied|ai`, migration `mit_*`, có test; đã nối vào `cmd/vedette`: `Vendors` từ inventory, `Provider` đăng ký vào findings, `ActionHandlers`; `AI` là bản giả luôn "không có" (409 `ai_unavailable`) tới khi nối `ai` (WP-25); `Loader` chưa dựng vì thiếu `Verifier` chữ ký (core/updates): chưa nạp được gói nào)
 
 Mitigation là phần **"What to do"** của một finding: gói giảm thiểu đã xác nhận, "Đã áp dụng", dấu hiệu "Tôi đã bị chưa?", giải thích AI. Finding (khớp, trạng thái, vòng đời) thuộc module `findings` (D-57(6)); `mitigation` phụ thuộc `findings`, tắt `mitigation` không mất phát hiện hay cảnh báo. GUI: `web/src/features/findings/{Recommendation.tsx,packs.ts}` và phần `pack`/`ai`/`applied` của trang finding. Nguồn hành vi: `findings/{contract,mocks,packs}.ts`.
 

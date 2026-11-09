@@ -31,11 +31,19 @@ type Publisher interface {
 
 // Event names and payloads (CONTRACT "Events"). Consumers: inventory, scan, notify.
 const (
-	EventNewKEV      = "feeds.vuln.new_kev"
-	EventVulnUpdated = "feeds.vuln.updated"
-	EventIOCUpdated  = "feeds.ioc.updated"
-	EventFetchFailed = "feeds.fetch.failed"
+	EventNewKEV       = "feeds.vuln.new_kev"
+	EventVulnUpdated  = "feeds.vuln.updated"
+	EventIOCUpdated   = "feeds.ioc.updated"
+	EventFetchFailed  = "feeds.fetch.failed"
+	EventSyncBaseline = "feeds.sync.baseline"
 )
+
+// SyncBaselineEvent is published once, instead of one NewKEVEvent per CVE, when the first pull of the CISA list
+// fills an empty database (D-78). Subscribers recompute everything once; notify sends nothing for it.
+type SyncBaselineEvent struct {
+	Source string `json:"source"` // "cisa-kev"
+	Count  int    `json:"count"`  // CVEs the pull added
+}
 
 // NewKEVEvent is published once for each CVE the box has never seen before (POST-1).
 type NewKEVEvent struct {
@@ -181,6 +189,26 @@ func (s *Service) sources(ctx context.Context) ([]sourceRow, error) {
 	return s.st.sources(ctx)
 }
 
+// TxSettler is optional on Inventory: AddManualDevice may leave work for after the caller's transaction (the
+// inventory events), and Settle(ctx, tx, committed) tells it whether that transaction committed or rolled back.
+type TxSettler interface {
+	Settle(ctx context.Context, tx *sql.Tx, committed bool)
+}
+
+// writeDeclaring is DB.Write for a transaction that may call declareDevice: whatever the inventory kept for it is
+// settled once the transaction is over, whether it committed or not.
+func (s *Service) writeDeclaring(ctx context.Context, fn func(tx *sql.Tx) error) error {
+	var declared *sql.Tx
+	err := s.DB.Write(ctx, func(tx *sql.Tx) error {
+		declared = tx
+		return fn(tx)
+	})
+	if st, ok := s.Inventory.(TxSettler); ok && declared != nil {
+		st.Settle(context.WithoutCancel(ctx), declared, err == nil)
+	}
+	return err
+}
+
 // declareDevice asks the inventory for the manual device of "I have it" (S-FEED-2, INV-14) inside tx.
 func (s *Service) declareDevice(ctx context.Context, tx *sql.Tx, actor, key string, v VulnRow) error {
 	d := ManualDevice{Kind: KindOf(key), Vendor: v.Vendor, Product: v.Product, Display: DisplayOf(v.Vendor, v.Product), Key: key}
@@ -210,7 +238,7 @@ func (s *Service) reconcileDevices(ctx context.Context) error {
 			continue
 		}
 		v := vs[i]
-		err = s.DB.Write(ctx, func(tx *sql.Tx) error {
+		err = s.writeDeclaring(ctx, func(tx *sql.Tx) error {
 			var added int
 			if err := tx.QueryRowContext(ctx, `SELECT device_added FROM feeds_weekly_answer WHERE key = ? AND answer = 'have'`, k).Scan(&added); err != nil || added != 0 {
 				return nil // changed meanwhile

@@ -1,0 +1,7 @@
+Hit:1 http://archive.ubuntu.com/ubuntu noble InRelease
+Get:2 http://archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+Get:3 http://security.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+Ign:4 https://ppa.example.net/ubuntu noble InRelease
+Err:5 http://evil host/x noble InRelease
+Fetched 252 kB in 1s (260 kB/s)
+Reading package lists...

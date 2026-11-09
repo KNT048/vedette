@@ -15,6 +15,7 @@ import (
 	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/auth/authtest"
 	"github.com/knt048/vedette/core/chain"
+	"github.com/knt048/vedette/core/chain/chainhead"
 	"github.com/knt048/vedette/core/secrets"
 )
 
@@ -294,11 +295,11 @@ func TestContract_ChainHead(t *testing.T) {
 			}
 			hashes = append(hashes, h)
 			rows = append(rows, h)
-			if err := db.Write(t.Context(), func(tx *sql.Tx) error { return chain.AdvanceHead(t.Context(), tx, "resp_log", h, now) }); err != nil {
+			if err := db.Write(t.Context(), func(tx *sql.Tx) error { return chainhead.Advance(t.Context(), tx, "resp_log", h, now) }); err != nil {
 				t.Fatal(err)
 			}
 		}
-		head, err := chain.LoadHead(t.Context(), db.Reader(), "resp_log")
+		head, err := chainhead.Load(t.Context(), db.Reader(), "resp_log")
 		if err != nil || head == nil || head.Count != 3 || head.Hash != rows[2] {
 			t.Fatalf("head = %+v, %v", head, err)
 		}

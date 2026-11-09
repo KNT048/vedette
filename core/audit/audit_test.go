@@ -12,6 +12,7 @@ import (
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/chain"
+	"github.com/knt048/vedette/core/chain/chainhead"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
 )
@@ -346,7 +347,7 @@ func TestVerifyDetectsDeletedTail(t *testing.T) {
 	if res, err := audit.Verify(t.Context(), db.Reader()); err != nil || !res.OK || res.Count != 5 {
 		t.Fatalf("healthy: %+v, %v", res, err)
 	}
-	head, err := chain.LoadHead(t.Context(), db.Reader(), "core_audit")
+	head, err := chainhead.Load(t.Context(), db.Reader(), "core_audit")
 	if err != nil || head == nil || head.Count != 5 {
 		t.Fatalf("head = %+v, %v", head, err)
 	}
@@ -410,7 +411,7 @@ func TestMigrationBackfillsTheHead(t *testing.T) {
 	if err := store.Migrate(ctx, db, "core", os.DirFS(coreMigrations)); err != nil {
 		t.Fatal(err)
 	}
-	head, err := chain.LoadHead(ctx, db.Reader(), "core_audit")
+	head, err := chainhead.Load(ctx, db.Reader(), "core_audit")
 	if err != nil || head == nil || head.Count != 2 {
 		t.Fatalf("backfilled head = %+v, %v", head, err)
 	}

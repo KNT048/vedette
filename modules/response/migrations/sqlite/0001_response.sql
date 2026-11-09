@@ -213,3 +213,13 @@ BEGIN
     SELECT RAISE(ABORT, 'resp_log is append-only');
 END;
 -- +goose StatementEnd
+
+-- INSERT OR REPLACE deletes the row it conflicts with without firing the delete trigger (recursive_triggers is off), so a
+-- row that would replace another one is refused here as well: the log is append-only in every SQL form.
+-- +goose StatementBegin
+CREATE TRIGGER resp_log_no_replace BEFORE INSERT ON resp_log
+WHEN EXISTS (SELECT 1 FROM resp_log WHERE id = NEW.id OR seq = NEW.seq)
+BEGIN
+    SELECT RAISE(ABORT, 'resp_log is append-only');
+END;
+-- +goose StatementEnd

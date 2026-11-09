@@ -78,10 +78,14 @@ func (s *Service) planAction(a RuleAction, ev Det, why string, cats map[string]c
 	if bad != "" {
 		return planned{}, &planFail{"invalid_target", bad, title}
 	}
-	// Never touch the gateway, DNS servers, domain controllers, this box or management addresses. The subject of the event
-	// (the device it is about) counts too, for every trigger: the device itself must stay reachable, whatever the action
-	// names (a switch port, a VLAN, an address).
-	acted := dedupe(append(actedOf(vals), subjectOf(ev.Fields)...))
+	// Never touch the gateway, DNS servers, domain controllers, this box or management addresses. An action that names an
+	// address (ip, cidr, domain) acts on that address only: blocking a bad destination must not be refused because the
+	// device that talked to it is a router. An action that names no address (a switch port, a MAC, a VLAN) acts on the
+	// device the event is about, so the event's subject counts for it.
+	acted := actedOf(vals)
+	if !namesAnAddress(vals) {
+		acted = dedupe(append(acted, subjectOf(ev.Fields)...))
+	}
 	if e, hit := firstTouched(never, acted); hit {
 		return planned{}, &planFail{"never_touch", strings.Join(acted, " / ") + " matches the never-touch list (" + e.Label + ", " + e.Value + "). Nothing was changed.", title}
 	}
@@ -147,6 +151,16 @@ func orStr(a, b string) string {
 		return a
 	}
 	return b
+}
+
+// namesAnAddress says whether an action's checked values hold an address it acts on (ip, cidr or domain).
+func namesAnAddress(v Values) bool {
+	for _, p := range []ParamType{PIP, PCIDR, PDomain} {
+		if _, ok := v[p]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func actedOf(v Values) []string {

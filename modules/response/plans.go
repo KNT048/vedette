@@ -11,6 +11,7 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/chain"
+	"github.com/knt048/vedette/core/chain/chainhead"
 )
 
 // AI plans (S-RESP-1). The plans are written by the AI job of part 13b into resp_plans; this part reads them and turns one
@@ -337,7 +338,7 @@ func (s *Service) VerifyLog(ctx context.Context) (chain.Result, error) {
 		return chain.Result{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	head, err := chain.LoadHead(ctx, tx, "resp_log")
+	head, err := chainhead.Load(ctx, tx, "resp_log")
 	if err != nil {
 		return chain.Result{}, err
 	}

@@ -493,6 +493,28 @@ func TestContract_INV10_NeverTouchCoversTheEventSubjectOfPortActions(t *testing.
 	}
 }
 
+// INV-10: an action that names an address acts on that address only. Blocking the bad destination of a connection is not
+// refused because the device that made it is a never-touch router; the router itself still cannot be blocked.
+func TestContract_INV10_AddressActionsAreNotRefusedForTheirSubject(t *testing.T) {
+	e := newEnv(t)
+	_, err := e.svc.SetAllowlist(e.ctx(), admin, []response.AllowEntry{{Value: "192.168.10.1", Label: "Gateway"}})
+	e.must(err)
+	e.rule("Block the destination", "ioc_connection", []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.dest_ip}}"}, TTLMin: intp(60)}}, nil)
+	ev := e.iocEvent("e1", "198.51.100.7")
+	ev.Fields["src_ip"], ev.Fields["device"] = "192.168.10.1", "gateway"
+	e.fire(ev)
+	if l := e.actions(); len(l) != 1 {
+		t.Fatalf("blocking the destination was refused because the source is the gateway: %+v", l)
+	}
+	e.rule("Block the source", "ioc_connection", []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.src_ip}}"}, TTLMin: intp(60)}}, nil)
+	ev2 := e.iocEvent("e2", "198.51.100.8")
+	ev2.Fields["src_ip"], ev2.Fields["device"] = "192.168.10.1", "gateway"
+	e.fire(ev2)
+	if !e.logHas("refused", "never_touch") {
+		t.Fatal("blocking the never-touch gateway itself was not refused")
+	}
+}
+
 // INV-10: the list takes MAC addresses and interface names. A listed port is protected whatever device the event is about; a
 // listed MAC is protected as the subject of an event. A typo that is not an address, a MAC or a port name is refused when saved.
 func TestContract_INV10_NeverTouchMACAndInterfaceEntries(t *testing.T) {

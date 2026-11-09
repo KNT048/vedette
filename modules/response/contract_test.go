@@ -695,8 +695,10 @@ func TestContract_INV19_LogChain(t *testing.T) {
 	if r, err := e.svc.VerifyLog(e.ctx()); err != nil || !r.OK || r.Count != len(l) {
 		t.Fatalf("verify = %+v, %v", r, err)
 	}
-	// No update, no delete: the database refuses.
-	for _, q := range []string{`UPDATE resp_log SET detail = 'x'`, `DELETE FROM resp_log`} {
+	// No update, no delete, no replace (INSERT OR REPLACE deletes the old row without the delete trigger): the database refuses.
+	for _, q := range []string{`UPDATE resp_log SET detail = 'x'`, `DELETE FROM resp_log`,
+		`INSERT OR REPLACE INTO resp_log (seq, id, ts, kind, actor, detail, prev_hash, hash) SELECT seq, id, ts, kind, actor, 'rewritten', prev_hash, hash FROM resp_log WHERE seq = 1`,
+		`INSERT OR REPLACE INTO resp_log (id, ts, kind, actor, detail, prev_hash, hash) SELECT id, ts, kind, actor, 'rewritten', prev_hash, hash FROM resp_log WHERE seq = 1`} {
 		if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error { _, err := tx.ExecContext(e.ctx(), q); return err }); err == nil {
 			t.Fatalf("%s was accepted", q)
 		}

@@ -16,6 +16,7 @@ import (
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/chain"
+	"github.com/knt048/vedette/core/chain/chainhead"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
@@ -384,7 +385,7 @@ func (s *Service) appendLog(ctx context.Context, tx *sql.Tx, kind LogKind, actor
 		id, ts, string(kind), actor, detail, prev, hash); err != nil {
 		return fmt.Errorf("response: write log line: %w", err)
 	}
-	return chain.AdvanceHead(ctx, tx, "resp_log", hash, s.now())
+	return chainhead.Advance(ctx, tx, "resp_log", hash, s.now())
 }
 
 func logFields(id, ts, kind, actor, detail string) map[string]any {

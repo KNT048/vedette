@@ -16,10 +16,11 @@ File này là **file handoff duy nhất** của phiên AI làm việc cho Kiên:
 | WP-05 môi trường dev | — | sau WP-02 |
 
 ## Số quyết định đã cấp (tránh trùng giữa các nhánh song song)
-D-59 = WP-01 (khung Go, công cụ ghim). D-60 = WP-02 (ogen). D-61 = không GitHub Actions (trong #7). Số tiếp theo cấp từ D-62.
+D-59 = WP-01 (khung Go, công cụ ghim). D-60 = WP-02 (ogen). D-61 = không GitHub Actions (đã thay bởi D-63). D-62 = `make check`. D-63 = repo KNT048 public + CI lại. Số tiếp theo cấp từ D-64.
 
 ## Bẫy kỹ thuật đã gặp
-- **Không GitHub Actions** (kien, tốn tiền, D-61): không thêm `.github/workflows/`; nhánh cũ còn `ci.yml` (core-codegen, core-store, core-server cắt trước khi gỡ) phải rebase lên main sau khi #7 merge **trước khi mở PR**, nếu không PR sẽ kích hoạt runner trả phí.
+- Repo chuyển sang **`KNT048/vedette`, public** (D-63): CI GitHub Actions miễn phí chạy bộ đầy đủ; trên máy chỉ `make check` (D-62). Remote local đã đổi sang `https://github.com/KNT048/vedette.git`.
+- Máy quá tải (load 100–200) do agent để lại Playwright mồ côi (shell hết giờ, runner vẫn chạy): trước khi giao việc nặng kiểm `pgrep -f playwright/test/cli.js`; tối đa 2 việc nặng song song.
 - Chuỗi hash: một công thức D-57 (14) cho cả ba chuỗi, khoá sắp theo code point, NULL giữ `null`; vector chung `modules/core/testdata/chain_vectors.json`.
 - Go cục bộ 1.26.2 có lỗ hổng stdlib → `go.mod` ghim `go 1.26.10` (go tự tải toolchain).
 - golangci-lint mặc định chỉ báo **một lỗi mỗi dòng**: canary lint phải mỗi vi phạm một dòng.

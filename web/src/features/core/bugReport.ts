@@ -2,7 +2,7 @@
 import { getClientErrors, redact, type ClientError } from '@/lib/clientErrors'
 import type { ModuleState } from '@/lib/modules'
 
-export const ISSUE_URL = 'https://github.com/kiennt048/vedette/issues/new'
+export const ISSUE_URL = 'https://github.com/KNT048/vedette/issues/new'
 
 export interface BugText { what: string; steps: string; expected: string }
 export interface DiagnosticBundle {

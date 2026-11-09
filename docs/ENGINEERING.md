@@ -18,7 +18,7 @@ Một thay đổi chỉ "xong" khi **tất cả** mục dưới đây đúng. PR
 6. **Build output đã dọn.** Chạy `make clean` sau build; không commit `bin/`, `web/dist/`, báo cáo test (`rules/build-artifacts.md`).
 7. **Ships-as-code.** Máy mới dựng từ repo đạt cùng trạng thái: dependency cài bởi code, ghim phiên bản, idempotent, xác minh bằng hiệu ứng (dịch vụ chạy, cổng mở, cấu hình đúng) chứ không bằng exit code (`rules/ships-as-code.md`).
 8. **Bảo mật.** Không gọi shell bằng chuỗi lệnh, không eval; validate ở biên; secret không vào log (`rules/security.md`).
-9. **Kiểm tra trên máy xanh** (`make verify`, + `make e2e` khi chạm `web/`), kết quả dán trong PR (§7, D-61), và có ít nhất một review của người (xem §4).
+9. **`make check` trên máy xanh** (kết quả dán trong PR) **và CI xanh** (§7, D-62, D-63), và có ít nhất một review của người (xem §4).
 
 Với tài liệu thuần: mục 1, 4, 5, 6 vẫn áp dụng; mục 2–3 "không áp dụng".
 
@@ -108,7 +108,7 @@ Spec FE là nguồn đầy đủ; dưới đây chỉ là tóm tắt. Khi khác 
 ## 4. Nhánh, commit, PR
 
 - Nhánh: `feat/<chủ-đề>`, `fix/<chủ-đề>`, `docs/<chủ-đề>`. Chữ thường, gạch ngang. Một nhánh một việc.
-- **Không push thẳng vào `main`**; `main` được bảo vệ (D-54; lần tạo repo là ngoại lệ một lần). GitHub Free không bật được branch protection cho repo riêng tư, nên đây là quy ước: PR bắt buộc, kết quả kiểm tra trên máy dán trong PR (§7), review của code owner khi chạm module người khác, không force-push `main`, nhánh rebase lên `main` mới nhất trước khi merge.
+- **Không push thẳng vào `main`**; `main` được bảo vệ (D-54; lần tạo repo là ngoại lệ một lần). Quy ước (repo public từ D-63 nên bật được branch protection; tới khi bật): PR bắt buộc, kết quả kiểm tra trên máy dán trong PR (§7), review của code owner khi chạm module người khác, không force-push `main`, nhánh rebase lên `main` mới nhất trước khi merge.
 - Commit: `scope: imperative summary` (ví dụ `feeds: add EPSS delta`), dòng đầu ≤ 72 ký tự; phần thân nói **vì sao**, ghi story ID/quyết định. Commit do agent viết kết thúc bằng dòng `Co-Authored-By` của agent.
 - Merge: squash; tiêu đề squash theo định dạng commit.
 - **Cỡ PR**: mục tiêu ≤ 400 dòng thay đổi (không tính file sinh/lockfile/fixture), một module một PR. PR lớn hơn phải tách, hoặc nêu lý do trong mô tả.
@@ -131,23 +131,24 @@ Spec FE là nguồn đầy đủ; dưới đây chỉ là tóm tắt. Khi khác 
 - **Changelog**: `CHANGELOG.md` theo Keep a Changelog; mục Added/Changed/Fixed/Security/Breaking. Mỗi PR người dùng thấy được thêm một dòng vào "Unreleased". Sửa lỗi bảo mật ghi advisory ID (`SECURITY.md`).
 - **Kênh** (D-12): `beta` → `stable`, cộng kênh product-advisory cho vá bảo mật khẩn. Beta chạy ít nhất 7 ngày trên máy của người duy trì và nhóm thử trước khi lên stable (ngoại lệ: vá bảo mật khẩn, rút ngắn nhưng vẫn qua cohort đầu).
 - **Cohort** (D-12, D-55): phát hành theo lô, 10% → 50% → 100% (D-12, D-57). Mỗi lô chờ kiểm tín hiệu (hộp tự báo cập nhật thất bại, hoàn tác) trước khi mở lô sau; có thể dừng lô và thu hồi (revocation).
-- **Image** (D-55): OCI image cho `core`, `sensor`, `honeypot`, `scan`; **ký bằng cosign** bằng khoá do người duy trì giữ trên máy (D-57 (3), D-61; không để khoá trong repo). Hộp từ chối image không có chữ ký hợp lệ. Hoàn tác bằng tag cũ. Phát hành kèm SBOM CycloneDX (`SECURITY.md`) gắn vào image bằng `cosign attest`, và provenance của build.
+- **Image** (D-55): OCI image cho `core`, `sensor`, `honeypot`, `scan`; **ký bằng cosign** bằng khoá do người duy trì giữ trên máy (D-57 (3); không để khoá trong repo). Hộp từ chối image không có chữ ký hợp lệ. Hoàn tác bằng tag cũ. Phát hành kèm SBOM CycloneDX (`SECURITY.md`) gắn vào image bằng `cosign attest`, và provenance của build.
 - Content pack và cập nhật ký (minisign, D-12): không ký → từ chối.
-- Quy trình một bản phát hành: (1) `main` xanh; (2) cập nhật `CHANGELOG.md`, PR `docs/release-x.y.z`; (3) **kien tag tay** `vX.Y.Z`; (4) người duy trì chạy `make` phát hành trên máy: dựng image, quét trivy, ký, đẩy lên registry kênh beta (D-61); (5) theo dõi cohort; (6) nâng lên stable; (7) ghi `docs/project-map/completion-log.md`.
+- Quy trình một bản phát hành: (1) `main` xanh; (2) cập nhật `CHANGELOG.md`, PR `docs/release-x.y.z`; (3) **kien tag tay** `vX.Y.Z`; (4) người duy trì chạy `make` phát hành trên máy: dựng image, quét trivy, ký, đẩy lên registry kênh beta `ghcr.io/knt048` (khoá ký không lên CI); (5) theo dõi cohort; (6) nâng lên stable; (7) ghi `docs/project-map/completion-log.md`.
 - **Agent không tạo tag, không phát hành, không đẩy image.**
 
-## 7. Kiểm tra trên máy (không dùng GitHub Actions, D-61)
+## 7. Kiểm tra: `make check` trên máy, bộ đầy đủ trên CI (D-62, D-63)
 
-GitHub Actions tốn tiền ngoài dự kiến (kien, 2026-11-09): repo **không có workflow nào** và không được thêm (`rules/local-checks.md`). Mọi kiểm tra là đích `make` chạy trên máy người làm; PR ghi lại kết quả.
+Repo `KNT048/vedette` là public nên GitHub Actions miễn phí (D-63; D-61 "không Actions" chỉ đúng khi repo còn riêng tư). `.github/workflows/ci.yml` chạy trên PR, trên `main` và hằng ngày: job `go` (`make verify-go`), `web` (`make verify-web`), `e2e` (`make e2e`, tạm chưa chặn tới khi bộ e2e gốc được sửa); quét hằng ngày `make vuln` + `pnpm audit`. Workflow chỉ gọi `make`; action ghim SHA; token chỉ đọc. Merge khi CI xanh.
 
-**Cổng PR** (trước khi mở và trước khi merge, trên nhánh đã rebase lên `origin/main` mới nhất):
-1. `make verify` = `verify-web` + `verify-go`:
-   - `verify-web`: `pnpm install --frozen-lockfile` (Node từ `devEngines`), `tsc -b`, oxlint, vitest (gồm a11y và ma trận form), **kiểm lệch** `api/openapi.json` (`make openapi-check`, D-18), build rồi dọn.
-   - `verify-go`: `go build`, `go vet`, kiểm mã sinh (`make generate-check`), `go test -race ./...`, contract (`make contract`), golangci-lint (§2.6), govulncheck; rồi dọn.
-2. PR chạm `web/`: `make e2e` (Playwright trên bản build, `vite preview`); khi bộ e2e gốc còn đỏ thì chạy các spec bị ảnh hưởng và ghi rõ.
-3. Dán phần cuối kết quả + SHA commit vào mục **Local checks** của PR. Đẩy commit mới = kiểm lại.
+**Cổng PR** (trước khi mở và trước khi merge, trên nhánh đã rebase lên `origin/main` mới nhất): `make check` (D-62, `scripts/check.sh`) — chỉ kiểm phần đã đổi so với `origin/main`:
+- Go đổi: `go build`, `go vet`, `go test -race ./...` (cache của Go chỉ chạy lại gói có mã, dependency hoặc file test đổi), contract, golangci-lint; `make generate-check` khi `api/openapi.json`, migration hoặc query đổi.
+- Giao diện đổi: `tsc -b`, oxlint, `vitest run --changed` (chỉ test import file đã đổi), `make openapi-check` khi `contract.ts` đổi, spec e2e của module bị chạm (Playwright, desktop).
+- Chỉ docs: không chạy gì.
+- File dùng chung đổi (`go.mod`, `tools/`, Makefile, `scripts/`, lint/sqlc config, `web/package.json`, lockfile, cấu hình Vite/Vitest/Playwright/TS, `web/src/lib`, `web/src/mocks`, `web/src/test`) → tự chạy `make verify` đầy đủ (`verify-web` + `verify-go`, gồm govulncheck).
 
-**Quét định kỳ** (thay lịch CI): `make audit` (govulncheck + `pnpm audit --prod`) đầu mỗi phiên làm việc và trước mỗi bản phát hành; phát hiện có đường gọi tới → sửa trước khi merge tiếp.
+Dán phần cuối kết quả + SHA commit vào mục **Local checks** của PR. CI chạy bộ đầy đủ (`make verify` + `make e2e`) trên mỗi PR. Máy dev: Linux hoặc macOS; Windows chạy trong WSL2 (Makefile từ chối Windows gốc). Không chạy quá 2 việc nặng song song trên một máy: máy quá tải làm test timeout giả.
+
+**Quét định kỳ**: CI hằng ngày trên `main`, và `make audit` (govulncheck + `pnpm audit --prod`) đầu mỗi phiên làm việc và trước mỗi bản phát hành; phát hiện có đường gọi tới → sửa trước khi merge tiếp.
 
 **Chuỗi cung ứng và phát hành** (WP-08, trên máy người duy trì, bằng `make`): dựng image OCI; `trivy image` + `trivy fs` (HIGH/CRITICAL có bản vá → dừng; ngoại lệ qua `.trivyignore` có lý do và hạn); SBOM CycloneDX; so `THIRD_PARTY_NOTICES.md` với lockfile/`go.sum` (không GPL/AGPL trong lõi); ký cosign bằng khoá người duy trì giữ (D-57 (3)), đẩy registry kênh beta. Không có bước nào tạo tag.
 

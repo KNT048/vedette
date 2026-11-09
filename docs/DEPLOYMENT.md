@@ -39,10 +39,10 @@ Tóm tắt (chi tiết từng container ở §2.1–§2.4, giới hạn tài ngu
 
 | Container | Image (đề xuất) | Mạng | Capability | Mặc định bật |
 |---|---|---|---|---|
-| `core` | `ghcr.io/kiennt048/vedette-core` | bridge `vedette-int`, publish 8443 | không (drop ALL) | luôn |
-| `sensor` | `ghcr.io/kiennt048/vedette-sensor` | host | `NET_RAW`, `NET_BIND_SERVICE` | khi `sensor-*` hoặc `logs` bật |
-| `honeypot` | `ghcr.io/kiennt048/vedette-honeypot` | macvlan + `vedette-int` | `NET_BIND_SERVICE` | khi `honeypot` bật |
-| `scan` | `ghcr.io/kiennt048/vedette-scan` | host | `NET_RAW` | khi `scan`/`exposure`/`sensor-active` bật |
+| `core` | `ghcr.io/knt048/vedette-core` | bridge `vedette-int`, publish 8443 | không (drop ALL) | luôn |
+| `sensor` | `ghcr.io/knt048/vedette-sensor` | host | `NET_RAW`, `NET_BIND_SERVICE` | khi `sensor-*` hoặc `logs` bật |
+| `honeypot` | `ghcr.io/knt048/vedette-honeypot` | macvlan + `vedette-int` | `NET_BIND_SERVICE` | khi `honeypot` bật |
+| `scan` | `ghcr.io/knt048/vedette-scan` | host | `NET_RAW` | khi `scan`/`exposure`/`sensor-active` bật |
 | `greenbone` | upstream Greenbone Community Containers, ghim digest | bridge `vedette-int` | theo upstream | khi `scan-credentialed` bật |
 
 Registry và quyền sở hữu namespace là **câu hỏi mở A3** (luồng dữ liệu ra mới → `PRIVACY.md`).
@@ -207,7 +207,7 @@ Wants=network-online.target
 
 [Container]
 ContainerName=vedette-core
-Image=ghcr.io/kiennt048/vedette-core@sha256:<digest>
+Image=ghcr.io/knt048/vedette-core@sha256:<digest>
 Network=vedette-int.network
 PublishPort=192.168.10.5:8443:8443
 PublishPort=127.0.0.1:8444:8444
@@ -246,7 +246,7 @@ Requires=vedette-core.service
 
 [Container]
 ContainerName=vedette-sensor
-Image=ghcr.io/kiennt048/vedette-sensor@sha256:<digest>
+Image=ghcr.io/knt048/vedette-sensor@sha256:<digest>
 Network=host
 DropCapability=ALL
 AddCapability=NET_RAW NET_BIND_SERVICE
@@ -293,7 +293,7 @@ Requires=vedette-core.service
 
 [Container]
 ContainerName=vedette-honeypot-1
-Image=ghcr.io/kiennt048/vedette-honeypot@sha256:<digest>
+Image=ghcr.io/knt048/vedette-honeypot@sha256:<digest>
 Network=vedette-lan.network:ip=192.168.10.241
 Network=vedette-int.network
 DropCapability=ALL
@@ -344,7 +344,7 @@ Dùng **cùng image**. Khác biệt: mạng host/macvlan chỉ có ý nghĩa tr�
 # deploy/compose/compose.yaml (minh hoạ)
 services:
   core:
-    image: ghcr.io/kiennt048/vedette-core@sha256:<digest>   # dev: tag dev build tại chỗ
+    image: ghcr.io/knt048/vedette-core@sha256:<digest>   # dev: tag dev build tại chỗ
     command: ["serve"]
     ports: ["127.0.0.1:8443:8443", "127.0.0.1:8444:8444"]   # chỉ localhost
     volumes: ["vedette-data:/var/lib/vedette", "./dev/master.key:/run/secrets/master.key:ro"]
@@ -358,7 +358,7 @@ services:
     healthcheck: {test: ["CMD", "/vedette", "healthcheck"], interval: 30s, start_period: 60s, retries: 3}
   sensor:
     profiles: ["lab"]            # cần Linux + card thật
-    image: ghcr.io/kiennt048/vedette-sensor@sha256:<digest>
+    image: ghcr.io/knt048/vedette-sensor@sha256:<digest>
     network_mode: host
     cap_drop: [ALL]
     cap_add: [NET_RAW, NET_BIND_SERVICE]
@@ -366,23 +366,23 @@ services:
     command: ["sensor", "--core", "https://127.0.0.1:8444"]
   sensor-replay:
     profiles: ["dev"]            # phát lại pcap/syslog mẫu, không đụng mạng thật
-    image: ghcr.io/kiennt048/vedette-sensor@sha256:<digest>
+    image: ghcr.io/knt048/vedette-sensor@sha256:<digest>
     command: ["sensor", "--core", "https://core:8444", "--replay", "/fixtures"]
     volumes: ["./fixtures:/fixtures:ro"]
   honeypot:
     profiles: ["dev"]
-    image: ghcr.io/kiennt048/vedette-honeypot@sha256:<digest>
+    image: ghcr.io/knt048/vedette-honeypot@sha256:<digest>
     ports: ["127.0.0.1:2222:22", "127.0.0.1:8080:80"]       # cổng cao, không macvlan
     cap_drop: [ALL]
   honeypot-lab:
     profiles: ["lab"]
-    image: ghcr.io/kiennt048/vedette-honeypot@sha256:<digest>
+    image: ghcr.io/knt048/vedette-honeypot@sha256:<digest>
     networks: {lan: {ipv4_address: 192.168.10.241}, default: {}}
     cap_drop: [ALL]
     cap_add: [NET_BIND_SERVICE]
   scan:
     profiles: ["lab"]
-    image: ghcr.io/kiennt048/vedette-scan@sha256:<digest>
+    image: ghcr.io/knt048/vedette-scan@sha256:<digest>
     network_mode: host
     cap_drop: [ALL]
     cap_add: [NET_RAW]

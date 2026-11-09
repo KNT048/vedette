@@ -1,6 +1,6 @@
 # Trạng thái hiện tại — đọc file này trước
 
-Cập nhật: 2026-11-09. Repo: `kiennt048/vedette` (riêng tư). Nhóm: Kiên (`@kiennt048`) và Emily / Mlee (`@kiennt049`).
+Cập nhật: 2026-11-09. Repo: `KNT048/vedette` (public từ 2026-11-09, D-63; CI GitHub Actions miễn phí). Nhóm: Kiên (`@kiennt048`) và Emily / Mlee (`@kiennt049`).
 
 ## Đọc theo thứ tự
 1. `CLAUDE.md` — luật làm việc.

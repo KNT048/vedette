@@ -82,7 +82,7 @@ Kích cỡ: S ≈ 1–2 phiên-ngày, M ≈ 3–5, L ≈ 6–10 (ước lượng
 
 ## 5. Nhịp phối hợp
 
-- **PR nhỏ** (≤ ~400 dòng), một WP có thể nhiều PR. Người kia duyệt PR chạm hợp đồng; PR trong module của mình: tự merge khi `make verify` trên máy xanh (dán kết quả vào PR). **Không dùng GitHub Actions** (D-61, `rules/local-checks.md`): mọi kiểm tra chạy trên máy của người làm.
+- **PR nhỏ** (≤ ~400 dòng), một WP có thể nhiều PR. Người kia duyệt PR chạm hợp đồng; PR trong module của mình: tự merge khi CI xanh, sau `make check` trên máy (dán kết quả vào PR; `rules/local-checks.md`, D-62, D-63).
 - **Mỗi ngày 15 phút** (hoặc ghi chú trong GitHub Discussions): đang làm WP nào, bị chặn gì, hợp đồng nào sắp đổi.
 - **Thứ tự merge** theo phụ thuộc ở mục 3; `main` luôn xanh. GitHub Free không khoá được nhánh riêng tư → quy ước, không phải cơ chế.
 - **Issue** mỗi WP, nhãn `module:<id>`, `owner:kien` / `owner:emily`, `wp:<số>`; GitHub Projects một bảng Kanban.

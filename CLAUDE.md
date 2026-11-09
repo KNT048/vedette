@@ -20,11 +20,11 @@ Khởi tạo 2026-11-06. Có SPA `web/` chạy trên mock API (D-22); chưa có 
 10. **Ponytail — viết đúng cái cần.** Không abstraction không ai hỏi; xếp dưới mọi rule khác. → `rules/ponytail.md`
 11. **Pháp lý minh bạch.** Dependency/feed mới → `THIRD_PARTY_NOTICES.md`; luồng dữ liệu ra mới → `PRIVACY.md` + UI, cùng commit. → `rules/legal.md`
 12. **AI không tạo git tag.** kien tag tay. Nhánh `feat/…`, `fix/…`, `docs/…`; không push `main`.
-13. **Kiểm tra chạy trên máy, không GitHub Actions** (tốn tiền). `make verify` (+ `make e2e` khi chạm `web/`) trên máy trước khi mở và trước khi merge PR, dán kết quả vào PR. → `rules/local-checks.md`
+13. **`make check` trên máy, bộ đầy đủ trên CI.** Repo `KNT048/vedette` public, CI miễn phí (D-63). Trước khi push: `make check` (chỉ phần đã đổi; file dùng chung đổi thì tự chạy `make verify`); merge khi CI xanh. Linux/macOS; Windows dùng WSL2. Tối đa 2 việc nặng song song. → `rules/local-checks.md`
 
 ## Lệnh
 
-`make dev` (giao diện + dữ liệu mẫu, http://localhost:5173) · `make verify` (FE: tsc + lint + vitest + kiểm lệch `api/openapi.json` + build; Go: build + vet + test -race + contract + golangci-lint + govulncheck; rồi dọn) · `make verify-web` / `make verify-go` · `make e2e` (Playwright) · `make fixtures` (KEV/EPSS thật) · `make clean`. Node ghim bằng `devEngines.runtime` trong `web/package.json` (pnpm tự tải). Go ghim trong `go.mod`, công cụ Go trong `tools/go.mod` (`go tool -modfile=tools/go.mod …`). Quy ước FE: `docs/plans/2026-11-06-fe-spec.md`.
+`make dev` (giao diện + dữ liệu mẫu, http://localhost:5173) · `make check` (cổng PR, chỉ phần đã đổi) · `make verify` (FE: tsc + lint + vitest + kiểm lệch `api/openapi.json` + build; Go: build + vet + test -race + contract + golangci-lint + govulncheck; rồi dọn) · `make verify-web` / `make verify-go` · `make e2e` (Playwright) · `make fixtures` (KEV/EPSS thật) · `make clean`. Node ghim bằng `devEngines.runtime` trong `web/package.json` (pnpm tự tải). Go ghim trong `go.mod`, công cụ Go trong `tools/go.mod` (`go tool -modfile=tools/go.mod …`). Quy ước FE: `docs/plans/2026-11-06-fe-spec.md`.
 
 ## Tooling
 

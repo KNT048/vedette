@@ -152,6 +152,12 @@ func (o *Ops) checkChain(path string) (string, os.FileInfo, error) {
 	if err != nil {
 		return "", nil, err
 	}
+	top := ""
+	if o.d.ChainTop != "" {
+		if top, err = filepath.EvalSymlinks(o.d.ChainTop); err != nil {
+			return "", nil, err
+		}
+	}
 	for d := parent; ; d = filepath.Dir(d) {
 		pst, err := os.Lstat(d)
 		if err != nil {
@@ -168,7 +174,7 @@ func (o *Ops) checkChain(path string) (string, os.FileInfo, error) {
 			// an entry may still rename it, and core owns core_data.
 			return "", nil, fmt.Errorf("%s can be written by group or others", d)
 		}
-		if d == filepath.Dir(d) {
+		if d == filepath.Dir(d) || (top != "" && d == top) {
 			break
 		}
 	}

@@ -60,6 +60,10 @@ type Deps struct {
 	CoreWait     time.Duration                                      // how long core may take to stop or start (default 2 min)
 	CorePoll     time.Duration                                      // how often to look (default 1 s)
 	HealthSettle time.Duration                                      // core must stay active this long after a start (default 5 s)
+	// ChainTop ends the walk over the parents of core_data after this directory (tests: the test's temp dir,
+	// whose own parent may be a sticky, world-writable /tmp on Linux). Unset in production: the walk goes up
+	// to "/" and every parent must be root-owned and closed to group and others.
+	ChainTop string
 }
 
 // Ops holds the state of the system commands.

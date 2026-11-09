@@ -354,7 +354,7 @@ func (m *Machine) Config() ops.Config {
 // Deps is the ops.Deps of this machine: the temp root, the fake binaries, and quick polling. now may be nil.
 func (m *Machine) Deps(now func() time.Time) ops.Deps {
 	return ops.Deps{
-		Root: m.Root, BinPaths: m.BinPaths(), Now: now,
+		Root: m.Root, BinPaths: m.BinPaths(), Now: now, ChainTop: filepath.Dir(m.CoreData),
 		CoreWait: 3 * time.Second, CorePoll: 5 * time.Millisecond, HealthSettle: 10 * time.Millisecond,
 		LockHeld: func(string) (bool, error) { return false, nil },
 	}

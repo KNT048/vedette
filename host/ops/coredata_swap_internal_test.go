@@ -30,7 +30,7 @@ func TestOpenCoreRefusesAStickyWorldWritableParent(t *testing.T) {
 	if err := os.Mkdir(state, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	o, err := NewWithDeps(Config{StateDir: state, CoreData: core, CoreUnit: "vedette-core.service", CoreUID: os.Getuid(), CoreGID: os.Getgid(), OwnerUID: os.Getuid()}, Deps{Root: base})
+	o, err := NewWithDeps(Config{StateDir: state, CoreData: core, CoreUnit: "vedette-core.service", CoreUID: os.Getuid(), CoreGID: os.Getgid(), OwnerUID: os.Getuid()}, Deps{Root: base, ChainTop: base})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestOpenCoreNeverBlocksOnAFIFOSwappedIntoPlace(t *testing.T) {
 	if err := os.Mkdir(state, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	o, err := NewWithDeps(Config{StateDir: state, CoreData: core, CoreUnit: "vedette-core.service", CoreUID: os.Getuid(), CoreGID: os.Getgid(), OwnerUID: os.Getuid()}, Deps{Root: base})
+	o, err := NewWithDeps(Config{StateDir: state, CoreData: core, CoreUnit: "vedette-core.service", CoreUID: os.Getuid(), CoreGID: os.Getgid(), OwnerUID: os.Getuid()}, Deps{Root: base, ChainTop: base})
 	if err != nil {
 		t.Fatal(err)
 	}

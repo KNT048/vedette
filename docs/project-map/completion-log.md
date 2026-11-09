@@ -1,5 +1,14 @@
 # Completion log — Vedette (mới nhất trước)
 
+## 2026-11-06 → 2026-11-09 — M1 hoàn tất, M2-0 tài liệu, repo GitHub cho 2 người
+
+- **Giao diện (M1)**: đủ mọi story trên mock API, chỉ tiếng Anh (D-28). Thêm trong đợt: feed tuỳ chỉnh + parser (D-36/37), Slack + duyệt trong chat (D-38/46), harness AI (D-39), phản ứng KHI/NẾU/THÌ có duyệt + chốt chặn AI (D-40/41/44/51), Incidents (D-52), hộp tự cập nhật OS và là thiết bị đầu tiên (D-53), Box network + SPAN (D-56), honey token (D-50), nhật ký AI chống sửa + tải toàn bộ log (D-48), đăng nhập hai bước app/email (D-35).
+- **Chất lượng**: quy trình kiểm mới `docs/QA.md` (người làm ≠ người kiểm, ma trận form, kịch bản) sau lỗi kien bắt được; đợt kiểm độc lập 13 form sửa 14 lỗi.
+- **Tài liệu M2-0**: ARCHITECTURE (viết lại), DEPLOYMENT (appliance chạy container, D-55), DATA_MODEL, API_CONVENTIONS, hợp đồng 18 module + `host`, 7 đặc tả (`docs/specs/`), ENGINEERING, RUNBOOK khung, CHANGELOG, TEAM_PLAN; quyết định D-43…D-58 (lõi không gắn hãng thiết bị, D-58).
+- **Repo**: `kiennt048/vedette` riêng tư, lịch sử gộp thành 1 commit sạch (D-54); Emily (`@kiennt049`) có quyền ghi; PR #1–#4 đã merge.
+- **Đo** (2026-11-09, trên `main`): `tsc -b` sạch; lint 0 lỗi; vitest 624/624 (21 file); `api/openapi.json` 222 đường dẫn / 274 thao tác, không lệch. E2E toàn bộ chưa chạy lại sau đợt cuối.
+- **Chưa làm**: backend (M2) — bắt đầu theo `docs/TEAM_PLAN.md`; WP-06 chỉnh giao diện khớp hợp đồng; câu hỏi mở cuối mỗi tài liệu; phát hiện F-01…F-15 trong `docs/review/2026-11-09-architecture.html`.
+
 ## 2026-11-06 — GUI FE hoàn chỉnh trên mock API (D-18…D-22)
 
 - kien duyệt kế hoạch M0 (`docs/plans/2026-11-06-m0-m1.md`) và quyết D-18 (OpenAPI spec-first), D-19 (không pilot concierge; Telegram dùng bình thường), D-20 (phân loại story, H11–H16, điều kiện dừng), D-21 (khuyến nghị dự án soạn bằng AI + người duy trì xác nhận qua PR; hộp hiện "chưa có" + AI của khách; story S-MIT-4), D-22 (/goal: GUI hoàn chỉnh trên mock cho mọi story, AI làm supervisor).

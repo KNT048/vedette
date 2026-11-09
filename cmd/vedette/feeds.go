@@ -17,16 +17,20 @@ var (
 )
 
 // feedsService builds the feeds service once per database, so the handlers and the pull job share it (and its
-// per-feed pull locks). The built-in feeds are seeded on first use (Service.ready). Inventory and the event bus are not wired yet
-// (core/events and the inventory module are not on main): feeds answers you_have null and publishes nothing.
+// per-feed pull locks). The built-in feeds are seeded on first use (Service.ready). Events go to deps.Bus (issue #39);
+// inventory (feeds.Inventory) is not wired yet, so feeds answers you_have null (wiring PR for #38/#39).
 func feedsService(d deps) (*feeds.Service, error) {
 	feedsMu.Lock()
 	defer feedsMu.Unlock()
 	if s := feedsServices[d.DB]; s != nil {
 		return s, nil
 	}
-	s, err := feeds.NewService(feeds.Deps{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Modules: d.Reg, Log: d.Log,
-		Fetcher: feeds.Fetcher{Client: feedsClient, Version: version}, Clock: d.Clock})
+	fd := feeds.Deps{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Modules: d.Reg, Log: d.Log,
+		Fetcher: feeds.Fetcher{Client: feedsClient, Version: version}, Clock: d.Clock}
+	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
+		fd.Events = d.Bus
+	}
+	s, err := feeds.NewService(fd)
 	if err != nil {
 		return nil, err
 	}

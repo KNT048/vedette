@@ -170,7 +170,7 @@ test('clean install, two public IPs behind a load balancer: auto-detect finds bo
   expect(audit).toContain('exposure.target_delete')
   // Typing an IP is still refused by the server.
   expect((await api(page, 'POST', '/exposure/targets', { value: '198.51.100.9' })).body.error.code).toBe('ip_not_allowed')
-  expect((await api(page, 'PUT', '/exposure/box-ip/settings', { auto: true, interval_min: 5 })).body.error.code).toBe('bad_interval')
+  expect((await api(page, 'PUT', '/exposure/box-ip/settings', { auto: true, interval_min: 0 })).body.error.code).toBe('bad_interval')
 
   // Dark: same page, same answer, readable.
   await page.emulateMedia({ colorScheme: 'dark' })
@@ -196,7 +196,7 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   await shot(page, 'exposure', `box-ip-refused-${isMobile ? 'mobile' : 'desktop'}`)
   await setEgress(page, 'offline')
   await box.getByRole('button', { name: 'Detect now' }).click()
-  await expect(box.getByRole('status')).toContainText('could not reach the Vedette endpoint')
+  await expect(box.getByRole('status')).toContainText('could not reach the public IP services')
   await setEgress(page, '198.51.100.7')
   await box.getByRole('button', { name: 'Detect now' }).click()
   await expect(box.getByRole('status')).toContainText('The box reaches the Internet via 198.51.100.7. Verified until')

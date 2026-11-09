@@ -3,12 +3,13 @@
 // the domain's DNS TXT record is still present (re-checked right before each scan) and the commitment is recorded.
 // Domain ownership = a DNS TXT record, as other providers do (Google Workspace: host @, up to 72 hours, keep the record).
 // IP ownership = only the public IPs the box itself uses to reach the Internet. No endpoint takes an IP as input.
-// Auto-detect (kien 2026-11-09): on by default; the box probes the fixed project endpoint three times (separate connections) at first start and then
-// every interval_min minutes (default 60, 15 to 1440), and adds or renews (30 days from the sighting) every distinct public IP it sees. The mock runs
+// Auto-detect (kien 2026-11-09, D-81): on by default; the box asks three public "what is my IP" services (checkip.amazonaws.com, icanhazip.com, api.ipify.org),
+// accepts an IP only when at least two agree in a round, over several rounds of new connections, at first start and then
+// every interval_min minutes (default 60, 1 to 1440), and adds or renews (30 days from the sighting) every distinct public IP that passed. The mock runs
 // the check when GET /exposure/targets finds it due. Removing an IP is DELETE; while auto-detect is on, an IP the box still uses comes back.
 // DNS simulation: the first TXT check of a new domain says "not found" (DNS not updated yet), from the second check it is found.
 // Box egress simulation: localStorage key "vedette-mock-egress" holds the public IPs the box currently egresses through, comma separated
-// (default: the two sample IPs, i.e. a load balancer), or "offline" when the box cannot reach the project endpoint.
+// (default: the two sample IPs, i.e. a load balancer), "offline" when no public IP service answers, or "disagree" when they never agree.
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, currentUser, DOMAIN_RE, fail, guard, IPV4_RE } from '@/mocks/http'
 import { auditStore } from '@/mocks/stores'
@@ -35,15 +36,14 @@ const boxIp = collection<BoxIpSettings>('exp_settings', seedBoxIp, () => ({ auto
 
 const MAX_TARGETS = 20
 const MAX_ATTEMPTS_PER_HOUR = 10
-/** Turning auto-detect on checks straight away, unless it checked within the last MIN_INTERVAL minutes (no probe spam by toggling). */
-const MIN_GAP_MS = MIN_INTERVAL * 60_000
-
-/** The public IPs the box leaves through now, or null when the project endpoint cannot be reached. Three probes, so a load balancer shows every IP. */
-function egressIps(): string[] | null {
+/** Turning auto-detect on checks straight away, unless it checked within the last 5 minutes (no probe spam by toggling). */
+const MIN_GAP_MS = 5 * 60_000
+/** The public IPs the box leaves through now (each one that at least two of the three public services return in a round), "offline" when no service answers, or "disagree" when they answer but never agree. Several rounds, so a load balancer shows every IP. */
+function egressIps(): string[] | 'offline' | 'disagree' {
   let raw: string | null = null
   try { raw = localStorage.getItem('vedette-mock-egress')?.trim() || null } catch { raw = null }
   if (raw === null) return [BOX_EGRESS_IP, BOX_EGRESS_IP_2]
-  if (raw === 'offline') return null
+  if (raw === 'offline' || raw === 'disagree') return raw
   return [...new Set(raw.split(',').map((x) => x.trim()).filter(Boolean))]
 }
 
@@ -124,7 +124,8 @@ function diff(a: Snapshot, b: Snapshot): Diff {
 }
 
 // ---------- detecting the box's public IPs ----------
-const OFFLINE = 'The box could not reach the Vedette endpoint to read its public IP. Check that this box can make outgoing HTTPS connections, then try again.'
+const OFFLINE = 'The box could not reach the public IP services (checkip.amazonaws.com, icanhazip.com, api.ipify.org). Check that this box can make outgoing HTTPS connections, then try again.'
+const DISAGREE = "The public IP services did not agree on the box's IP (at least two of the three must return the same address), so nothing was added. Try again in a few minutes."
 const list = (ips: string[]) => ips.join(', ')
 function notPublicMessage(ips: string[]) {
   const one = ips.length === 1
@@ -132,7 +133,7 @@ function notPublicMessage(ips: string[]) {
 }
 const tooMany = () => `At most ${MAX_TARGETS} targets. Delete ones you no longer use.`
 
-type Detected = { kind: 'offline' } | { kind: 'not_public'; ips: string[] } | { kind: 'too_many' } | { kind: 'ok'; seen: StoredTarget[]; message: string }
+type Detected = { kind: 'offline' } | { kind: 'disagree' } | { kind: 'not_public'; ips: string[] } | { kind: 'too_many' } | { kind: 'ok'; seen: StoredTarget[]; message: string }
 
 /**
  * One detection: three probes show every public IP the box leaves through; each is added (new) or renewed (seen again, 30 days from now).
@@ -143,10 +144,11 @@ function detect(who: 'user' | 'system'): Detected {
   const log = (action: string, target: string, detail: string) => (who === 'system' ? auditSystem(action, target, detail) : audit(action, target, detail))
   const record = (ok: boolean, message: string) => boxIp.update((s) => ({ ...s, last_run: { at, ok, message } }))
   const observed = egressIps()
-  if (observed === null) {
-    record(false, OFFLINE)
-    if (who === 'system') auditSystem('exposure.auto_detect', 'box', 'failed: the project endpoint is not reachable')
-    return { kind: 'offline' }
+  if (observed === 'offline' || observed === 'disagree') {
+    const down = observed === 'offline'
+    record(false, down ? OFFLINE : DISAGREE)
+    if (who === 'system') auditSystem('exposure.auto_detect', 'box', down ? 'failed: the public IP services are not reachable' : 'failed: the public IP services did not agree')
+    return { kind: down ? 'offline' : 'disagree' }
   }
   const isPublic = (ip: string) => IPV4_RE.test(ip) && isPublicIp(ip)
   const pub = observed.filter(isPublic)
@@ -207,13 +209,13 @@ export const handlers = [
     return HttpResponse.json({ items: targets.get().map(view), box_ip: boxIp.get() })
   }),
 
-  // Auto-detect on or off and the interval. Turning it on checks at once (not when it checked in the last 15 minutes). Never takes an IP.
+  // Auto-detect on or off and the interval. Turning it on checks at once (not when it checked in the last 5 minutes). Never takes an IP.
   http.put(`${API}/exposure/box-ip/settings`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
     const b = await body<{ auto: boolean; interval_min: number }>(request)
     if (typeof b.auto !== 'boolean') return fail(400, 'invalid_setting', 'Say whether auto-detect is on or off.')
     const n = b.interval_min
-    if (typeof n !== 'number' || !Number.isInteger(n) || n < MIN_INTERVAL || n > MAX_INTERVAL) return fail(400, 'bad_interval', `Choose how often to check: every ${MIN_INTERVAL} minutes up to every 24 hours (${MAX_INTERVAL} minutes).`)
+    if (typeof n !== 'number' || !Number.isInteger(n) || n < MIN_INTERVAL || n > MAX_INTERVAL) return fail(400, 'bad_interval', `Choose how often to check: every minute up to every 24 hours (${MAX_INTERVAL} minutes).`)
     const before = boxIp.get()
     boxIp.set({ ...before, auto: b.auto, interval_min: n })
     audit('exposure.box_ip_settings', 'box', `auto-detect ${b.auto ? 'on' : 'off'}, every ${n} minutes`)
@@ -238,13 +240,14 @@ export const handlers = [
     return HttpResponse.json(view(t), { status: 201 })
   }),
 
-  // "Detect now": the same check the box runs by itself (three probes of the fixed project endpoint, e.g. Cloudflare /cdn-cgi/trace).
+  // "Detect now": the same check the box runs by itself (several rounds over the three public IP services, an IP counts when two agree).
   // No IP input. Refuses private/reserved/CGNAT. Adds every public IP it sees as verified for 30 days, or renews it. Counts as one attempt.
   http.post(`${API}/exposure/box-ip/verify`, () => {
     const denied = guard('admin'); if (denied) return denied
     const limited = rateLimit(); if (limited) return limited
     const r = detect('user')
     if (r.kind === 'offline') return fail(502, 'unreachable', OFFLINE)
+    if (r.kind === 'disagree') return fail(502, 'unreachable', DISAGREE)
     if (r.kind === 'not_public') return fail(400, 'not_public', notPublicMessage(r.ips))
     if (r.kind === 'too_many') return fail(400, 'too_many', tooMany())
     return HttpResponse.json({ items: r.seen.map(view), message: r.message })
@@ -287,11 +290,11 @@ export const handlers = [
     } else {
       // One check = three probes: the IP is verified when the box leaves through it now (any of several IPs behind a load balancer). It renews for 30 days.
       const observed = egressIps()
-      ok = !!observed && observed.includes(t.value) && isPublicIp(t.value)
+      ok = Array.isArray(observed) && observed.includes(t.value) && isPublicIp(t.value)
       message = ok
         ? `The box reaches the Internet via ${t.value}. Verified until ${fmt(plus(at, VERIFY_DAYS))}.`
-        : !observed
-          ? OFFLINE
+        : !Array.isArray(observed)
+          ? (observed === 'offline' ? OFFLINE : DISAGREE)
           : `This box currently reaches the Internet via ${list(observed)}, not ${t.value}. Ask your admin to route the box through ${t.value} (for example switch WAN), then verify again.`
       next = { ...t, checks, last_check: { at, ok, message }, verified_at: ok ? at : t.verified_at, expires_at: ok ? plus(at, VERIFY_DAYS) : t.expires_at }
     }

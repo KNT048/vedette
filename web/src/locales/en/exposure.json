@@ -239,6 +239,9 @@
       "off": "Auto-detect is off: the box checks only when you select Detect now."
     },
     "every": {
+      "1": "every minute",
+      "5": "every 5 minutes",
+      "10": "every 10 minutes",
       "15": "every 15 minutes",
       "30": "every 30 minutes",
       "60": "every hour",
@@ -249,6 +252,9 @@
       "other": "every {{count}} minutes"
     },
     "option": {
+      "1": "1 minute",
+      "5": "5 minutes",
+      "10": "10 minutes",
       "15": "15 minutes",
       "30": "30 minutes",
       "60": "1 hour",
@@ -297,11 +303,11 @@
     },
     "help": {
       "summary": "How the box finds its IPs",
-      "how": "The box connects three times, each over its own HTTPS connection, to a fixed Vedette endpoint (Cloudflare /cdn-cgi/trace) and reads the address it goes out with. Several IPs behind a load balancer all show up.",
+      "how": "The box asks three public \"what is my IP\" services over HTTPS: checkip.amazonaws.com (Amazon), icanhazip.com (Cloudflare) and api.ipify.org (ipify). It accepts an IP only when at least two of them return the same one, so one wrong answer is not enough. A full check repeats this several times on new connections, so several IPs behind a load balancer all show up.",
       "result": "Each IP the box sees is added or renewed for 30 days from that moment. An IP expires only when the box has not seen it for 30 days.",
       "why": "You cannot type an IP. Only an address the box really uses proves it belongs to your network, so nobody can verify someone else's address.",
       "refuse": "Private, reserved and shared carrier (CGNAT, 100.64.0.0/10) addresses are refused, because scanning them could hit other people.",
-      "limit": "Detect now is limited to 10 attempts per hour. Automatic checks run at most every 15 minutes. Every change is written to the audit log."
+      "limit": "Detect now is limited to 10 attempts per hour. Automatic checks can run as often as every minute: a short interval asks each service once per check, and a full check runs at most once an hour. Every change is written to the audit log."
     }
   },
   "commit": {

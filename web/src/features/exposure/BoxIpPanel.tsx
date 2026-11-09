@@ -17,7 +17,7 @@ import { OwnerChip } from './OwnerChip'
 import { useDeleteTarget, useDetectBoxIp, useSaveBoxIpSettings } from './api'
 import type { BoxIpSettings, Target } from './types'
 
-const PRESETS = [15, 30, 60, 120, 360, 720, 1440]
+const PRESETS = [1, 5, 10, 15, 30, 60, 120, 360, 720, 1440]
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 /**

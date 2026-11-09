@@ -766,11 +766,12 @@ type Handler interface {
 	ExposureGetExposureTargetsIDSnapshotsDate(ctx context.Context, params ExposureGetExposureTargetsIDSnapshotsDateParams) (*ExposureGetExposureTargetsIDSnapshotsDateOK, error)
 	// ExposurePostExposureBoxIPVerify implements exposure_post_exposure_box_ip_verify operation.
 	//
-	// "Detect now": the box probes the fixed project endpoint three times over separate HTTPS connections
-	// and adds or renews (30 days from now) every distinct public IP it sees, so several egress IPs behind
-	// a load balancer are all found. Takes no IP input; refuses private, reserved and CGNAT results (400
-	// not_public when none is public); 502 unreachable when no probe answered; rate limited to 10 attempts
-	// per hour.
+	// "Detect now": the box asks three public "what is my IP" services (checkip.amazonaws.com,
+	// icanhazip.com, api.ipify.org) over several rounds of new connections, accepts an IP only when at
+	// least two of the three agree in a round, and adds or renews (30 days from now) every IP that passed,
+	// so several egress IPs behind a load balancer are all found. Takes no IP input; refuses private,
+	// reserved and CGNAT results (400 not_public when none is public); 502 unreachable when no round gave
+	// an IP (no service answered, or they did not agree); rate limited to 10 attempts per hour.
 	//
 	// POST /exposure/box-ip/verify
 	ExposurePostExposureBoxIPVerify(ctx context.Context) (*ExposurePostExposureBoxIPVerifyOK, error)
@@ -803,7 +804,7 @@ type Handler interface {
 	ExposurePostExposureTargetsIDVerify(ctx context.Context, params ExposurePostExposureTargetsIDVerifyParams) (*ExposurePostExposureTargetsIDVerifyOK, error)
 	// ExposurePutExposureBoxIPSettings implements exposure_put_exposure_box_ip_settings operation.
 	//
-	// Turn auto-detect on or off and set the check interval (15 to 1440 minutes, else 400 bad_interval).
+	// Turn auto-detect on or off and set the check interval (1 to 1440 minutes, else 400 bad_interval).
 	// Turning it on checks at once. The IP list is kept when it is turned off. Typing an IP is not
 	// possible here either.
 	//

@@ -34779,7 +34779,7 @@ type ExposureGetExposureTargetsOKBoxIP struct {
 	// On: the box detects its public IPs at first start and then every interval_min minutes. Off: only
 	// "Detect now". Default on.
 	Auto bool `json:"auto"`
-	// Minutes between automatic checks, 15 to 1440. Default 60.
+	// Minutes between automatic checks, 1 to 1440. Default 60.
 	IntervalMin int `json:"interval_min"`
 	// The last automatic or manual detection; null before the first one.
 	LastRun NilExposureGetExposureTargetsOKBoxIPLastRun `json:"last_run"`
@@ -38007,7 +38007,7 @@ type ExposurePutExposureBoxIPSettingsOK struct {
 	// On: the box detects its public IPs at first start and then every interval_min minutes. Off: only
 	// "Detect now". Default on.
 	Auto bool `json:"auto"`
-	// Minutes between automatic checks, 15 to 1440. Default 60.
+	// Minutes between automatic checks, 1 to 1440. Default 60.
 	IntervalMin int `json:"interval_min"`
 	// The last automatic or manual detection; null before the first one.
 	LastRun NilExposurePutExposureBoxIPSettingsOKLastRun `json:"last_run"`

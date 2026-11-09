@@ -12,7 +12,7 @@ export interface StoredTarget { id: string; kind: TargetKind; value: string; tok
 export const VERIFY_DAYS = 30
 export const EXPIRING_DAYS = 5
 /** Auto-detect (kien 2026-11-09): check interval bounds and default, in minutes. */
-export const MIN_INTERVAL = 15
+export const MIN_INTERVAL = 1
 export const MAX_INTERVAL = 1440
 export const DEFAULT_INTERVAL = 60
 

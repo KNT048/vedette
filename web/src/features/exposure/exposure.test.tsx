@@ -296,7 +296,7 @@ describe('exposure: auto-detect of the box public IPs (kien 2026-11-09)', () => 
     expect(await ipsOf()).not.toContain('198.51.100.9')
   })
 
-  it('turning auto-detect on checks at once, but not when it checked in the last 15 minutes', async () => {
+  it('turning auto-detect on checks at once, but not when it checked in the last 5 minutes', async () => {
     await call('PUT', '/exposure/box-ip/settings', { auto: false, interval_min: 60 })
     setEgress('198.51.100.9')
     await call('PUT', '/exposure/box-ip/settings', { auto: true, interval_min: 60 }) // the last check was 40 minutes ago: runs now
@@ -328,7 +328,7 @@ describe('exposure: auto-detect of the box public IPs (kien 2026-11-09)', () => 
     expect((await call('GET', '/exposure/targets/xt-2')).json).toMatchObject({ status: 'verified', validity: 'valid', scannable: true }) // the old commitment is kept
   })
 
-  it('when the project endpoint cannot be reached the check fails visibly and nothing is added or lost', async () => {
+  it('when the public IP services cannot be reached the check fails visibly and nothing is added or lost', async () => {
     setEgress('offline')
     const r = await call('POST', '/exposure/box-ip/verify')
     expect(r.status).toBe(502)
@@ -337,6 +337,19 @@ describe('exposure: auto-detect of the box public IPs (kien 2026-11-09)', () => 
     expect(await ipsOf()).toEqual(SAMPLE_IPS)
   })
 
+
+  it('when the three services answer but never agree, nothing is added and the check says why', async () => {
+    setEgress('disagree')
+    const r = await call('POST', '/exposure/box-ip/verify')
+    expect(r.status).toBe(502)
+    expect(r.json.error.code).toBe('unreachable')
+    expect(r.json.error.message).toMatch(/did not agree on the box's IP \(at least two of the three/)
+    expect((await state()).box_ip.last_run).toMatchObject({ ok: false })
+    expect(await ipsOf()).toEqual(SAMPLE_IPS)
+    const v = await call('POST', '/exposure/targets/xt-2/verify')
+    expect(v.json.verified).toBe(false)
+    expect(v.json.message).toMatch(/did not agree/)
+  })
   it('refuses a result with no public address and ignores non-public ones next to public ones', async () => {
     setEgress('10.0.0.1,100.64.0.9')
     const bad = await call('POST', '/exposure/box-ip/verify')
@@ -361,7 +374,8 @@ describe('exposure: auto-detect of the box public IPs (kien 2026-11-09)', () => 
   })
 
   it.each([
-    [{ auto: true, interval_min: 14 }, 'bad_interval'],
+    [{ auto: true, interval_min: 0 }, 'bad_interval'],
+    [{ auto: true, interval_min: -5 }, 'bad_interval'],
     [{ auto: true, interval_min: 1441 }, 'bad_interval'],
     [{ auto: true, interval_min: 60.5 }, 'bad_interval'],
     [{ auto: true, interval_min: '60' }, 'bad_interval'],
@@ -375,7 +389,7 @@ describe('exposure: auto-detect of the box public IPs (kien 2026-11-09)', () => 
     expect((await state()).box_ip).toMatchObject({ auto: true, interval_min: 60 })
   })
 
-  it.each([15, 60, 1440])('accepts an interval of %i minutes and audits the change', async (n) => {
+  it.each([1, 15, 60, 1440])('accepts an interval of %i minutes and audits the change', async (n) => {
     const r = await call('PUT', '/exposure/box-ip/settings', { auto: true, interval_min: n })
     expect(r.status).toBe(200)
     expect(r.json).toMatchObject({ auto: true, interval_min: n })

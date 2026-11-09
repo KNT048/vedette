@@ -49,7 +49,11 @@ func newSensorActive(d deps, path string) (*sensoractive.Service, error) {
 	if d.Inventory == nil {
 		return nil, errors.New("sensor-active needs the inventory service")
 	}
-	cfg := sensoractive.Config{DB: d.DB, Inventory: sensorInventory{inv: d.Inventory, hostNet: d.HostNet}, Observe: d.Inventory, Software: d.Inventory, NmapPath: path, Clock: d.Clock, Log: d.Log,
+	prober, err := sensoractive.NewLocalProber(d.Log, path)
+	if err != nil {
+		return nil, err
+	}
+	cfg := sensoractive.Config{Prober: prober, DB: d.DB, Inventory: sensorInventory{inv: d.Inventory, hostNet: d.HostNet}, Observe: d.Inventory, Software: d.Inventory, NmapPath: path, Clock: d.Clock, Log: d.Log,
 		Location: orgLocation(d)}
 	if d.Bus != nil {
 		cfg.Events = sensoractive.PublisherFunc(func(ctx context.Context, e sensoractive.Event) error {

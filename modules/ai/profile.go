@@ -3,6 +3,7 @@ package ai
 import (
 	"errors"
 	"fmt"
+	"net/netip"
 	"net/url"
 	"regexp"
 	"strings"
@@ -32,9 +33,12 @@ type Profile struct {
 	APIKey   provider.Secret
 	Location Location
 	DailyCap int
+	// AnthropicVersion overrides the anthropic-version header (YYYY-MM-DD); empty = the provider package default.
+	AnthropicVersion string
 }
 
 var modelNameRE = regexp.MustCompile(`^[\w.:/-]{1,80}$`)
+var versionRE = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}$`)
 
 // ProfileError is a validation failure with a stable code (the API layer maps it to 400).
 type ProfileError struct{ Code, Msg string }
@@ -72,8 +76,16 @@ func (p Profile) Validate() error {
 	if u.Scheme != "https" && (u.Scheme != "http" || p.Location != LocationInternal) {
 		return perr("invalid_base_url", "The address must start with https://. Only a server inside your own network may use http://.")
 	}
+	// "internal" is only true if it is enforced: a literal IP address must be private. A name is allowed (an Ollama box
+	// on the LAN DNS is normal); where it resolves is checked on every connection by the provider's dialer.
+	if ip, err := netip.ParseAddr(u.Hostname()); err == nil && p.Location == LocationInternal && !provider.IsInternalAddr(ip) {
+		return perr("invalid_base_url", "A profile marked as running inside your network must use a private address (10.x, 172.16-31.x, 192.168.x, 100.64-127.x, link-local or loopback) or a host name. Mark it as cloud, or fix the address.")
+	}
 	if !modelNameRE.MatchString(p.Model) {
 		return perr("invalid_model", "The model name may only contain letters, digits, dots, dashes, colons and slashes (80 characters at most).")
+	}
+	if p.AnthropicVersion != "" && !versionRE.MatchString(p.AnthropicVersion) {
+		return perr("invalid_version", "The API version must look like 2026-10-21.")
 	}
 	if k := p.APIKey.Reveal(); k != "" && (len(k) < 8 || strings.IndexFunc(k, unicode.IsSpace) >= 0) {
 		return perr("invalid_key", "The API key is too short or contains spaces. Copy the whole key again from the provider's console.")
@@ -100,7 +112,7 @@ func (p Profile) Provider() (provider.Provider, error) {
 	}
 	pr, err := provider.New(provider.Config{
 		Style: style, BaseURL: p.BaseURL, Model: p.Model, APIKey: p.APIKey,
-		CompatMode: style == provider.StyleOpenAI && p.Kind != "openai",
+		CompatMode: style == provider.StyleOpenAI && p.Kind != "openai", InternalOnly: p.Location == LocationInternal, AnthropicVersion: p.AnthropicVersion,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("ai: profile %q: %w", p.Name, err)
@@ -117,13 +129,19 @@ type Assignments struct {
 	Jobs         map[Job]Slot
 }
 
-// Allowed reports whether profile p may be used for job under the privacy rule. This is the single place
-// that decides INV-3; both assignment validation and the call path use it.
+// Allowed reports whether profile p may be used for job under the privacy rule. Together with AllowedFor this
+// is the single place that decides INV-3; assignment validation and the call path both use it.
 func (a Assignments) Allowed(job Job, p Profile) bool {
+	return a.AllowedFor(job.CarriesInternalData(), p)
+}
+
+// AllowedFor is Allowed for a request whose data class is already known: carriesInternal is true when the
+// request holds the customer's data (an internal job, or any request with tools or tool results).
+func (a Assignments) AllowedFor(carriesInternal bool, p Profile) bool {
 	if !p.Usable() {
 		return false
 	}
-	return !a.InternalOnly || !job.CarriesInternalData() || p.Location == LocationInternal
+	return !a.InternalOnly || !carriesInternal || p.Location == LocationInternal
 }
 
 // ErrInvalidAssignment is wrapped by every AssignmentError.

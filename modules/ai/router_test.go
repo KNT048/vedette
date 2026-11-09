@@ -207,7 +207,7 @@ func TestContract_INV3_InternalOnlyNeverReachesCloud(t *testing.T) {
 			continue
 		}
 		f := &fakes{reply: map[string]func(context.Context) (provider.Response, error){"i1": boom}}
-		r := &Router{profiles: ps, assign: Assignments{InternalOnly: true, Jobs: map[Job]Slot{job: {"i1", "c1"}}}, meter: newMeter(t, startClock(), TierMed, 5000), factory: f.factory, timeout: time.Second}
+		r := rawRouter(f, Assignments{InternalOnly: true, Jobs: map[Job]Slot{job: {"i1", "c1"}}}, ps)
 		_, err := r.Call(context.Background(), job, req)
 		if !errors.Is(err, ErrUnavailable) || f.called("c1") != 0 {
 			t.Errorf("%s: internal primary failed, cloud fallback must not be tried: err=%v calls=%v", job, err, f.calls)
@@ -217,13 +217,13 @@ func TestContract_INV3_InternalOnlyNeverReachesCloud(t *testing.T) {
 		}
 		// Cloud primary, internal fallback under the rule: the cloud profile is skipped, never called.
 		f = &fakes{}
-		r.assign.Jobs[job] = Slot{"c1", "i2"}
+		r.st.Load().assign.Jobs[job] = Slot{"c1", "i2"}
 		res, err := r.Call(context.Background(), job, req)
 		if err != nil || res.ProfileID != "i2" || f.called("c1") != 0 {
 			t.Errorf("%s: %+v %v %v", job, res, err, f.calls)
 		}
 		// Only a cloud profile assigned: refuse, never fall silently to cloud.
-		r.assign.Jobs[job] = Slot{"c1", ""}
+		r.st.Load().assign.Jobs[job] = Slot{"c1", ""}
 		f.calls = nil
 		if _, err := r.Call(context.Background(), job, req); !errors.Is(err, ErrUnavailable) || len(f.calls) != 0 {
 			t.Errorf("%s: want ErrUnavailable and no call, got %v %v", job, err, f.calls)
@@ -263,7 +263,7 @@ func TestRouterUsesTheMeter(t *testing.T) {
 		t.Fatal(err)
 	}
 	var downs []Tier
-	for range 20 { // each call is 150 tokens: the cap of 1000 is passed on the 7th, then the level drops
+	for range 40 { // each call is 150 tokens: 1000 is passed on the 7th call (one level down), 2000 on the 14th (min)
 		res, err := r.Call(context.Background(), JobLogDigest, req)
 		if errors.Is(err, ErrCapped) {
 			break
@@ -281,7 +281,7 @@ func TestRouterUsesTheMeter(t *testing.T) {
 	if _, err := r.Call(context.Background(), JobLogDigest, req); !errors.Is(err, ErrCapped) {
 		t.Fatalf("after the cap at min level: %v", err)
 	}
-	if f.called("i1") != 8 { // 7th call passes the cap (max->med), 8th is still allowed at med (->min), 9th is refused
+	if f.called("i1") != 14 { // the 14th call takes the total past 2 x cap (max->med->min); the 15th is refused
 		t.Fatalf("provider calls: %d", f.called("i1"))
 	}
 }
@@ -300,15 +300,31 @@ func TestNewRouterNeedsMeterAndValidAssignments(t *testing.T) {
 		"fallback no primary": {map[Job]Slot{JobLogDigest: {"", "i1"}}, "fallback_without_primary"},
 		"same profile":        {map[Job]Slot{JobLogDigest: {"i1", "i1"}}, "same_profile"},
 		"unknown job":         {map[Job]Slot{"nope": {"i1", ""}}, "unknown_job"},
-		"profile without key": {map[Job]Slot{JobLogDigest: {"nokey", ""}}, "profile_unusable"},
 	}
-	nokey := cloud("nokey")
-	nokey.APIKey = provider.Secret{}
 	for name, c := range cases {
-		_, err := NewRouter(RouterConfig{Profiles: []Profile{internal("i1"), nokey}, Assignments: Assignments{Jobs: c.slots}, Meter: m})
+		_, err := NewRouter(RouterConfig{Profiles: []Profile{internal("i1")}, Assignments: Assignments{Jobs: c.slots}, Meter: m})
 		var ae *AssignmentError
 		if !errors.As(err, &ae) || ae.Code != c.code {
 			t.Errorf("%s: %v", name, err)
 		}
+	}
+}
+
+// rawRouter builds a Router without validation, to prove the call path holds even when a state the rules forbid exists.
+func rawRouter(f *fakes, a Assignments, ps map[string]Profile) *Router {
+	m, _ := NewMeter(MeterConfig{Clock: startClock().now, Location: time.UTC, GlobalCap: 5000, Tier: TierMed})
+	r := &Router{meter: m, factory: f.factory, timeout: time.Second}
+	r.st.Store(&routerState{profiles: ps, assign: a})
+	return r
+}
+
+func TestAssignmentsRejectProfileWithoutKey(t *testing.T) {
+	t.Parallel()
+	nokey := cloud("nokey")
+	nokey.APIKey = provider.Secret{}
+	err := Assignments{Jobs: map[Job]Slot{JobLogDigest: {"nokey", ""}}}.Validate(map[string]Profile{"nokey": nokey})
+	var ae *AssignmentError
+	if !errors.As(err, &ae) || ae.Code != "profile_unusable" {
+		t.Fatalf("%v", err)
 	}
 }

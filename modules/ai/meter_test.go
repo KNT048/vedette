@@ -39,7 +39,10 @@ func TestContract_INV4_TokenMeterCapsAndDowngrade(t *testing.T) {
 	if d == nil || d.From != TierMax || d.To != TierMed || !strings.Contains(d.Reason, "1000") || !d.At.Equal(c.t) {
 		t.Fatalf("first downgrade: %+v", d)
 	}
-	if d := m.Record("b", 1, 0); d == nil || d.From != TierMed || d.To != TierMin {
+	if d := m.Record("b", 1, 0); d != nil || m.Tier() != TierMed { // still within 2 x cap: one level down is enough
+		t.Fatalf("no second record inside the second cap: %+v %v", d, m.Tier())
+	}
+	if d := m.Record("b", 999, 0); d == nil || d.From != TierMed || d.To != TierMin { // total 2001
 		t.Fatalf("second downgrade: %+v", d)
 	}
 	if d := m.Record("b", 1, 0); d != nil || m.Tier() != TierMin {
@@ -48,7 +51,7 @@ func TestContract_INV4_TokenMeterCapsAndDowngrade(t *testing.T) {
 	if !m.Exhausted() {
 		t.Fatal("at min and over the cap, no more calls")
 	}
-	if m.ProfileUsed("a") != 1000 || m.ProfileUsed("b") != 3 || m.ProfileUsed("none") != 0 {
+	if m.ProfileUsed("a") != 1000 || m.ProfileUsed("b") != 1002 || m.ProfileUsed("none") != 0 {
 		t.Fatalf("per profile: a=%d b=%d", m.ProfileUsed("a"), m.ProfileUsed("b"))
 	}
 	// Levels only move down by themselves.

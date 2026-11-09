@@ -35,7 +35,11 @@ kien 2026-11-09 (đã chuyển cho Emily): "tôi muốn box có thêm chế đ�
 - [ ] Nhiều IP sau load balancer/nhiều WAN được phát hiện (một lần dò mở nhiều kết nối mới, ghi mọi IP thấy được).
 - [ ] Vẫn không cho gõ IP tay (D-25, FORBID-2); vẫn từ chối IP riêng/dành riêng/CGNAT (INV-3).
 - [ ] Hiệu lực 30 ngày tính từ lần thấy cuối; mỗi lần thấy lại tự gia hạn; chỉ hết hạn khi 30 ngày không gia hạn được; IP hết hạn không quét được (INV-1).
-- [ ] Khách sửa được danh sách (ví dụ tắt "dùng để quét" từng IP, xoá), có audit, và lần dò sau không phá lựa chọn đó một cách bất ngờ.
+- [ ] Khách sửa được danh sách, có audit, và lần dò sau không phá lựa chọn đó một cách bất ngờ. kien bổ sung 2026-11-09: "khách sửa được thời gian check, ví dụ 1p, 5p, 10p tối đa 24h 1 lần. khách xoá được public ip đã lấy":
+  - [ ] Chu kỳ kiểm lại do khách chọn, từ 1 phút tới tối đa 24 giờ (ví dụ 1, 5, 10, 15, 30 phút, 1, 6, 12, 24 giờ; mặc định 60 phút), chỉ admin, có audit; ngoài khoảng → 400.
+  - [ ] Xoá được từng IP đã lấy (admin, có audit).
+  - [ ] Giới hạn 10 lần/giờ của INV-5 không chặn lịch tự động ngắn (tách lần chạy theo lịch khỏi lần bấm tay).
+  - [ ] Chi phí endpoint của dự án (lead đề xuất, D-74): ở chu kỳ ngắn mỗi lần chỉ mở 1–2 kết nối; lần quét đủ nhiều kết nối (tìm mọi IP sau load balancer) tối đa mỗi giờ một lần. Lý do: 16 kết nối mỗi phút ≈ 23.000 request/ngày cho một hộp, trong khi gói miễn phí Cloudflare Workers chỉ 100.000/ngày cho cả dự án.
 - [ ] Đi đúng thứ tự GUI trước: story S-EXP-1 cập nhật, `contract.ts` + mock + màn hình trước backend; CONTRACT/IMPACT/DATA_MODEL cập nhật; e2e cho tính năng mới (D-64).
 - [ ] Pháp lý: PRIVACY luồng 9 + chữ ở Settings → Privacy ghi tần suất mới (60 phút, nhiều kết nối mỗi lần) cùng commit (rules/legal.md).
 - [ ] Quyết định ghi vào DECISIONS (số **D-79** để dành cho việc này).

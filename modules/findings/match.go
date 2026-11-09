@@ -186,6 +186,9 @@ func matchOne(a Asset, s Software, v Vuln, now time.Time) (Match, bool) {
 	multi := isMultiProduct(v.Product)
 	vendorPrefix := strings.ToLower(strings.TrimSpace(v.Vendor)) + "|"
 	key := KevKey(v.Vendor, v.Product)
+	if strings.Contains(v.Vendor, "|") || strings.Contains(v.Product, "|") {
+		return Match{}, false // the key separator cannot be part of a KEV vendor or product
+	}
 	keyed := false
 	for _, k := range s.KevKeys {
 		k = NormalizeKevKey(k)
@@ -228,8 +231,10 @@ func matchOne(a Asset, s Software, v Vuln, now time.Time) (Match, bool) {
 }
 
 // decide evaluates the NVD configurations for one software. Yes carries the
-// range that matched; No means every applicable configuration rules it out;
-// Unknown covers "no applicable configuration" and anything not comparable.
+// range that matched; No means every applicable configuration rules it out and
+// nothing was undecidable; Unknown covers "no applicable configuration", an
+// unparseable or unidentifiable entry, and anything not comparable. Only a
+// definite No drops a KEV match.
 func decide(s Software, v Vuln, multi bool) (Tri, VersionRange) {
 	var swCPE CPE
 	hasCPE := false
@@ -252,13 +257,16 @@ func decide(s Software, v Vuln, multi bool) (Tri, VersionRange) {
 		}
 	}
 	result := No
-	applicable := false
+	applicable, undecidable := false, false
 	for _, af := range v.Affected {
 		c, err := ParseCPE(af.CPE)
 		if err != nil || c.Part.Kind == NA {
+			undecidable = true // cannot tell which product this entry is about
 			continue
 		}
-		if (!hasCPE || !c.SameProduct(swCPE)) && !identityMatches(c, ids) {
+		match, known := appliesTo(c, swCPE, hasCPE, ids)
+		if !match {
+			undecidable = undecidable || !known
 			continue
 		}
 		applicable = true
@@ -271,7 +279,7 @@ func decide(s Software, v Vuln, multi bool) (Tri, VersionRange) {
 		case No:
 		}
 	}
-	if !applicable {
+	if !applicable || undecidable && result == No {
 		return Unknown, VersionRange{}
 	}
 	return result, VersionRange{}
@@ -292,24 +300,39 @@ func norm(s string) string {
 	return sb.String()
 }
 
-func identityMatches(c CPE, ids []identity) bool {
+// appliesTo says whether configuration c is about this software. known is false
+// when c names its vendor or product with ANY, NA or a wildcard and the software
+// has no CPE to settle it: such an entry may be about this software.
+func appliesTo(c, sw CPE, hasSW bool, ids []identity) (match, known bool) {
+	if hasSW && c.SameProduct(sw) {
+		return true, true
+	}
 	cv, okV := c.Vendor.Literal()
 	cp, okP := c.Product.Literal()
 	if !okV || !okP {
-		return false
+		return false, false
 	}
 	cv, cp = norm(cv), norm(cp)
 	for _, i := range ids {
 		if i.vendor == cv && i.product == cp {
-			return true
+			return true, true
 		}
 	}
-	return false
+	return false, true
+}
+
+// versionKnown reports whether ver is a real, comparable version.
+func versionKnown(ver string) bool {
+	_, ok := parseVersion(ver)
+	return ok && !isPlaceholder(ver)
 }
 
 // evalAffected evaluates one configuration CPE (with its NVD range) against the
-// software version.
+// software. Everything the software side cannot confirm (an unknown version, a
+// pinned update, edition, language or target the software does not carry) can
+// only lower Yes to Unknown, never produce No.
 func evalAffected(c CPE, r VersionRange, ver string, sw CPE, hasSW bool) (Tri, VersionRange) {
+	exact := false
 	if r.IsZero() {
 		switch c.Version.Kind {
 		case Any: // every version
@@ -319,27 +342,103 @@ func evalAffected(c CPE, r VersionRange, ver string, sw CPE, hasSW bool) (Tri, V
 				return Unknown, r
 			}
 			r = VersionRange{StartIncl: lit, EndIncl: lit}
+			exact = true
 		default:
 			return Unknown, r
 		}
 	} else if c.Version.Kind != Any {
 		return Unknown, r // a range next to a concrete version: contradictory data
 	}
-	t := r.Contains(ver)
-	if t == No || c.Update.Kind == Any {
-		return t, r
-	}
-	// The configuration is also pinned to an update (beta1, sp2...).
-	if c.Update.Kind == Value && hasSW && sw.Update.Kind == Value {
-		if c.Update.Value != sw.Update.Value {
-			return No, r
+	var t Tri
+	if c.Update.Kind == Any {
+		t = r.Contains(ver)
+		if t == No && exact {
+			t = looseExact(r, ver)
 		}
-		return t, r
+	} else {
+		t = evalUpdate(c, r, ver, sw, hasSW)
 	}
-	if t == Yes {
-		t = Unknown
+	if t == Yes && !versionKnown(ver) {
+		t = Unknown // "all versions" does not make an unknown version a version match
+	}
+	if t = pinnedAttrs(c, sw, hasSW, t); t == No {
+		return No, r
 	}
 	return t, r
+}
+
+// looseExact softens a No for an exact-version configuration whose update is ANY:
+// ANY covers every update, so the software "8.9p1" may be configuration "8.9".
+func looseExact(r VersionRange, ver string) Tri {
+	pv, ok := parseVersion(ver)
+	if !ok || pv.q.class == 0 {
+		return No
+	}
+	if r.Contains(relString(pv)) == Yes {
+		return Unknown
+	}
+	return No
+}
+
+// evalUpdate handles a configuration pinned to an update ("8.9:p1", "2.0:beta1").
+// The software side must carry the update, either as the CPE update attribute or
+// as a qualifier of its version string ("8.9p1", "2.0-beta1"); otherwise Unknown.
+func evalUpdate(c CPE, r VersionRange, ver string, sw CPE, hasSW bool) Tri {
+	pv, ok := parseVersion(ver)
+	if !ok || pv.tail != "" || isPlaceholder(ver) {
+		return Unknown
+	}
+	if hasSW && sw.Update.Kind == Value && pv.q.class == 0 {
+		if !attrMatch(c.Update, sw.Update) {
+			return No
+		}
+		return r.Contains(ver)
+	}
+	cu, ok := c.Update.Literal()
+	if !ok || pv.q.class == 0 {
+		return Unknown
+	}
+	cq, ctail, ok := parseQual(strings.ToLower(cu))
+	if !ok || ctail != "" {
+		return Unknown
+	}
+	if cq != pv.q {
+		if cq.class == pv.q.class && cq.sub == pv.q.sub {
+			return Unknown // same kind of update, numbers differ: "beta" may be "beta1"
+		}
+		return No
+	}
+	return r.Contains(relString(pv))
+}
+
+// pinnedAttrs checks the attributes the software side rarely carries (edition,
+// language, software edition, target software/hardware, other). A pinned value
+// the software contradicts gives No; one it does not carry lowers Yes to Unknown.
+func pinnedAttrs(c, sw CPE, hasSW bool, t Tri) Tri {
+	cfa := c.fields()
+	cf := cfa[5:]
+	var sf []*Attr
+	if hasSW {
+		sfa := sw.fields()
+		sf = sfa[5:]
+	}
+	for i, a := range cf {
+		if a.Kind == Any {
+			continue
+		}
+		if hasSW {
+			if attrMatch(*a, *sf[i]) {
+				continue
+			}
+			if sf[i].Kind == Value {
+				return No
+			}
+		}
+		if t == Yes {
+			t = Unknown
+		}
+	}
+	return t
 }
 
 // clean removes control characters and caps the length: names, versions and

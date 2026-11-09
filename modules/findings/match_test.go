@@ -238,8 +238,12 @@ func FuzzMatchAsset(f *testing.F) {
 	f.Add("QNAP", "Photo Station", "6.1.1", "qnap|photo station", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*`, "6.0", "6.1.2", "CVE-2022-27593")
 	f.Add("x", "Multiple Products", "", "x|y", "", "", "", "CVE-2020-0001")
 	f.Add("", "", "weird", "|", "cpe:2.3:a:::::::::::", "a", "b", "CVE-1-1")
+	f.Add("QNAP", "Photo Station", "weird", "x", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*`, "6.0", "6.1.2", "CVE-2022-27593")
+	f.Add("QNAP", "Photo Station", "0.0.0", "x", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*`, "6.0", "6.1.2", "CVE-2022-27593")
+	f.Add("QNAP", "Photo Station", "9.9", "x", "garbage", "6.0", "6.1.2", "CVE-2022-27593")
+	f.Add("QNAP", "Photo Station", "", "x", "", "6.0", "6.1.2", "CVE-2022-27593")
 	f.Fuzz(func(t *testing.T, vendor, product, version, key, cpe, lo, hi, cve string) {
-		a := Asset{ID: "a", Name: vendor, Software: []Software{{ID: "s", Display: product, Vendor: vendor, Product: product, Version: version, KevKeys: []string{key}, CPE: cpe}}}
+		a := Asset{ID: "a", Name: vendor, Software: []Software{{ID: "s", Display: product, Vendor: vendor, Product: product, Version: version, KevKeys: []string{key, KevKey(vendor, product)}, CPE: cpe}}}
 		v := Vuln{CVE: cve, Vendor: vendor, Product: product, Affected: []Affected{
 			{CPE: cpe, Range: VersionRange{StartIncl: lo, EndExcl: hi}},
 			{CPE: qnapCPE},
@@ -248,6 +252,16 @@ func FuzzMatchAsset(f *testing.F) {
 		all := append(append([]Match{}, res.New...), res.Existing...)
 		if len(all) > 1 {
 			t.Fatalf("more than one match for one CVE: %+v", all)
+		}
+		// Oracle (review): a KEV-key match is never dropped when the version is empty,
+		// unreadable or a placeholder, or when an Affected entry cannot be read.
+		eff := version
+		sc, scErr := ParseCPE(cpe)
+		if eff == "" && scErr == nil {
+			eff, _ = sc.Version.Literal()
+		}
+		if ValidCVE(cve) && !strings.Contains(vendor+product, "|") && (!versionKnown(eff) || scErr != nil) && len(all) != 1 {
+			t.Fatalf("undecidable input dropped a KEV match: version=%q cpe=%q -> %+v", version, cpe, res)
 		}
 		for _, m := range all {
 			if !ValidCVE(m.CVE) || m.Confidence <= 0 || m.Confidence > 1 || rank(m.Basis) == 0 || m.Basis == BasisScan {
@@ -261,4 +275,170 @@ func FuzzMatchAsset(f *testing.F) {
 			}
 		}
 	})
+}
+
+func sshHost(version, cpe string) Asset {
+	return Asset{ID: "a", Name: "gw", Software: []Software{
+		{ID: "s", Display: "OpenSSH", Vendor: "OpenSSH", Product: "OpenSSH", Version: version, KevKeys: []string{"openbsd|openssh"}, CPE: cpe},
+	}}
+}
+
+func sshVuln(cfg ...string) Vuln {
+	v := Vuln{CVE: "CVE-2024-6387", Vendor: "OpenBSD", Product: "OpenSSH"}
+	for _, c := range cfg {
+		v.Affected = append(v.Affected, Affected{CPE: c})
+	}
+	return v
+}
+
+func basisOf(t *testing.T, res MatchResult) Basis {
+	t.Helper()
+	all := append(append([]Match{}, res.New...), res.Existing...)
+	if len(all) == 0 {
+		return ""
+	}
+	return all[0].Basis
+}
+
+// Regression: a configuration pinned to an update must not drop a software whose
+// version string carries that update (review bug 2).
+func TestMatchAsset_UpdatePinnedConfig(t *testing.T) {
+	t.Parallel()
+	const pinned = `cpe:2.3:a:openssh:openssh:8.9:p1:*:*:*:*:*:*`
+	tests := []struct {
+		name, version, swCPE string
+		cfg                  string
+		want                 Basis // "" = dropped
+	}{
+		{"8.9p1 against 8.9:p1", "8.9p1", "", pinned, BasisVersion},
+		{"8.9p2 against 8.9:p1 is undecided", "8.9p2", "", pinned, BasisProduct},
+		{"8.8p1 is outside", "8.8p1", "", pinned, ""},
+		{"plain 8.9 does not say which update", "8.9", "", pinned, BasisProduct},
+		{"update from the software CPE", "8.9", `cpe:2.3:a:openssh:openssh:8.9:p1:*:*:*:*:*:*`, pinned, BasisVersion},
+		{"other update in the software CPE", "8.9", `cpe:2.3:a:openssh:openssh:8.9:p2:*:*:*:*:*:*`, pinned, ""},
+		{"beta1 against 2.0:beta1", "2.0-beta1", "", `cpe:2.3:a:openssh:openssh:2.0:beta1:*:*:*:*:*:*`, BasisVersion},
+		{"plain 2.0 against 2.0:beta1", "2.0", "", `cpe:2.3:a:openssh:openssh:2.0:beta1:*:*:*:*:*:*`, BasisProduct},
+		{"beta2 against 2.0:beta1 is undecided", "2.0-beta2", "", `cpe:2.3:a:openssh:openssh:2.0:beta1:*:*:*:*:*:*`, BasisProduct},
+		{"rc against 2.0:beta1 differs", "2.0-rc1", "", `cpe:2.3:a:openssh:openssh:2.0:beta1:*:*:*:*:*:*`, ""},
+		{"wildcard update (bug 7)", "2.0", `cpe:2.3:a:openssh:openssh:2.0:beta2:*:*:*:*:*:*`, `cpe:2.3:a:openssh:openssh:2.0:beta*:*:*:*:*:*:*`, BasisVersion},
+		{"wildcard update other prefix", "2.0", `cpe:2.3:a:openssh:openssh:2.0:rc2:*:*:*:*:*:*`, `cpe:2.3:a:openssh:openssh:2.0:beta*:*:*:*:*:*:*`, ""},
+		{"update ANY covers 8.9p1 (not dropped)", "8.9p1", "", `cpe:2.3:a:openssh:openssh:8.9:*:*:*:*:*:*:*`, BasisProduct},
+		{"update ANY, really other version", "9.0p1", "", `cpe:2.3:a:openssh:openssh:8.9:*:*:*:*:*:*:*`, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			res := MatchAsset(sshHost(tt.version, tt.swCPE), []Vuln{sshVuln(tt.cfg)}, nil, t0)
+			if got := basisOf(t, res); got != tt.want {
+				t.Fatalf("basis = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// Regression: an Affected entry that cannot be read must cap the result at
+// "unknown" so a sibling entry cannot drop the finding (review risk 4).
+func TestMatchAsset_UnparseableSiblingNeverDrops(t *testing.T) {
+	t.Parallel()
+	outside := Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "1.0"}}
+	for name, bad := range map[string]string{
+		"garbage":          "garbage",
+		"non-ascii":        "cpe:2.3:a:qnap:photo_statión:*:*:*:*:*:*:*:*",
+		"too long":         "cpe:2.3:a:qnap:" + strings.Repeat("a", 2000) + ":*:*:*:*:*:*:*:*",
+		"part NA":          `cpe:2.3:-:qnap:photo_station:*:*:*:*:*:*:*:*`,
+		"vendor ANY":       `cpe:2.3:a:*:*:*:*:*:*:*:*:*:*`,
+		"product wildcard": `cpe:2.3:a:qnap:photo_*:*:*:*:*:*:*:*:*`,
+		"empty":            "",
+	} {
+		res := MatchAsset(nas("9.9"), []Vuln{qnapVuln(outside, Affected{CPE: bad})}, nil, t0)
+		if got := basisOf(t, res); got != BasisProduct {
+			t.Errorf("%s: basis = %q, want product", name, got)
+		}
+	}
+	// without the bad sibling the same data is a definite No
+	if res := MatchAsset(nas("9.9"), []Vuln{qnapVuln(outside)}, nil, t0); len(res.New) != 0 {
+		t.Fatalf("control case matched: %+v", res)
+	}
+	// a readable Yes still wins over a bad sibling
+	yes := Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "10"}}
+	if got := basisOf(t, MatchAsset(nas("9.9"), []Vuln{qnapVuln(Affected{CPE: "garbage"}, yes)}, nil, t0)); got != BasisVersion {
+		t.Fatalf("basis = %q", got)
+	}
+}
+
+// Regression: all-zero versions are "unknown" placeholders (review risk 5).
+func TestMatchAsset_PlaceholderVersionIsNotEvidence(t *testing.T) {
+	t.Parallel()
+	for _, v := range []string{"0", "0.0.0", "0.0.0.0"} {
+		for _, r := range []VersionRange{{StartIncl: "6.0", EndExcl: "6.1.2"}, {EndExcl: "6.1.2"}} {
+			res := MatchAsset(nas(v), []Vuln{qnapVuln(Affected{CPE: qnapCPE, Range: r})}, nil, t0)
+			if got := basisOf(t, res); got != BasisProduct {
+				t.Errorf("version %q range %+v: basis = %q, want product", v, r, got)
+			}
+		}
+	}
+}
+
+// Regression: a configuration that pins attributes the software does not carry
+// must not give basis=version (review risk 6).
+func TestMatchAsset_PinnedAttributesNeedSoftwareSupport(t *testing.T) {
+	t.Parallel()
+	r := VersionRange{EndExcl: "10"}
+	tests := []struct {
+		name, cfg, swCPE string
+		want             Basis
+	}{
+		{"target_sw pinned, software silent", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:wordpress:*:*`, "", BasisProduct},
+		{"edition pinned, software silent", `cpe:2.3:a:qnap:photo_station:*:*:pro:*:*:*:*:*`, "", BasisProduct},
+		{"language pinned", `cpe:2.3:a:qnap:photo_station:*:*:*:fr:*:*:*:*`, "", BasisProduct},
+		{"sw_edition pinned", `cpe:2.3:a:qnap:photo_station:*:*:*:*:enterprise:*:*:*`, "", BasisProduct},
+		{"target_hw pinned", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:x64:*`, "", BasisProduct},
+		{"other pinned", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:special`, "", BasisProduct},
+		{"target_sw pinned and software agrees", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:wordpress:*:*`, `cpe:2.3:a:qnap:photo_station:1.0:*:*:*:*:wordpress:*:*`, BasisVersion},
+		{"target_sw pinned and software disagrees", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:wordpress:*:*`, `cpe:2.3:a:qnap:photo_station:1.0:*:*:*:*:drupal:*:*`, ""},
+		{"target_sw pinned and software ANY", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:wordpress:*:*`, `cpe:2.3:a:qnap:photo_station:1.0:*:*:*:*:*:*:*`, BasisProduct},
+		{"nothing pinned", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*`, "", BasisVersion},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			a := nas("1.0")
+			a.Software[0].CPE = tt.swCPE
+			res := MatchAsset(a, []Vuln{qnapVuln(Affected{CPE: tt.cfg, Range: r})}, nil, t0)
+			if got := basisOf(t, res); got != tt.want {
+				t.Fatalf("basis = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// Regression: an unknown version is not a version match even when every version
+// is affected (review nit).
+func TestMatchAsset_AllVersionsWithUnknownVersionIsProduct(t *testing.T) {
+	t.Parallel()
+	for _, v := range []string{"", "latest"} {
+		res := MatchAsset(nas(v), []Vuln{qnapVuln(Affected{CPE: qnapCPE})}, nil, t0)
+		if got := basisOf(t, res); got != BasisProduct {
+			t.Errorf("version %q: basis = %q, want product", v, got)
+		}
+	}
+	if got := basisOf(t, MatchAsset(nas("2.1"), []Vuln{qnapVuln(Affected{CPE: qnapCPE})}, nil, t0)); got != BasisVersion {
+		t.Errorf("known version, all affected: %q", got)
+	}
+}
+
+// Regression: tails at the boundary go through the matcher too.
+func TestMatchAsset_BuildTailAtBoundaryIsNotDropped(t *testing.T) {
+	t.Parallel()
+	a := Asset{ID: "a", Name: "adc", Software: []Software{{ID: "s", Display: "NetScaler", Vendor: "Citrix", Product: "NetScaler", Version: "13.1-48.47", KevKeys: []string{"citrix|netscaler"}}}}
+	v := Vuln{CVE: "CVE-2023-4966", Vendor: "Citrix", Product: "NetScaler", Affected: []Affected{
+		{CPE: `cpe:2.3:a:citrix:netscaler:*:*:*:*:*:*:*:*`, Range: VersionRange{StartIncl: "13.1", EndExcl: "13.1-49.15"}},
+	}}
+	if got := basisOf(t, MatchAsset(a, []Vuln{v}, nil, t0)); got == "" {
+		t.Fatal("13.1-48.47 is before the fixed 13.1-49.15 and must not be dropped")
+	}
+	a.Software[0].Version = "13.1-49.15"
+	if got := basisOf(t, MatchAsset(a, []Vuln{v}, nil, t0)); got != "" {
+		t.Fatalf("the fixed build matched: %q", got)
+	}
 }

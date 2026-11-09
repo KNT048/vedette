@@ -35,7 +35,7 @@ Nguồn hành vi: `web/src/features/inventory/{contract,mocks,validate}.ts`. Ph�
 
 ## Dependencies
 - **DEPENDS ON**: `core`, `feeds` (khớp KEV, danh mục).
-- **DEPENDED ON BY**: `sensor-passive`, `sensor-active`, `agent-intake`, `findings` (khớp KEV, finding; `mitigation` đọc qua `findings`), `exposure`, `scan`, `scan-credentialed`, `honeypot`, `logs`, `response`, `reports`, `ai`, `mcp-server`; tuỳ chọn `notify` (tên thiết bị trong tin).
+- **DEPENDED ON BY**: `sensor-passive`, `sensor-active`, `agent-intake`, `findings` (khớp KEV, finding), `mitigation` (hãng thiết bị cho `firewall[].detected`), `exposure`, `scan`, `scan-credentialed`, `honeypot`, `logs`, `response`, `reports`, `ai`, `mcp-server`; tuỳ chọn `notify` (tên thiết bị trong tin).
 
 ## Endpoints owned (role tối thiểu)
 | Route | Vai |

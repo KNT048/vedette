@@ -31,16 +31,19 @@ func TestApplyNeverReadsWhatIsInTheConfigFolder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The writer opens the FIFO before Apply starts (keep is a reader, so the open returns at once): opened later, on a slow
+	// machine, it could open the regular file Apply renamed into place and fill the disk. It writes at most 16 MiB and stops
+	// with EPIPE once keep is closed.
+	w, err := os.OpenFile(e.confPath(), os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
 	wdone := make(chan struct{})
 	go func() {
 		defer close(wdone)
-		w, err := os.OpenFile(e.confPath(), os.O_WRONLY, 0)
-		if err != nil {
-			return
-		}
 		defer func() { _ = w.Close() }()
 		chunk := make([]byte, 1<<20)
-		for {
+		for range 16 {
 			if _, err := w.Write(chunk); err != nil {
 				return
 			}

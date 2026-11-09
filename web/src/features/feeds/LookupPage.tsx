@@ -7,7 +7,8 @@ import { EmptyState, ErrorState, Loading } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { fmtDate, fmtPercent } from '@/lib/format'
+import { fmtPercent } from '@/lib/format'
+import { fmtDay } from './dates'
 import { useSearch } from './api'
 
 export default function LookupPage() {
@@ -24,10 +25,11 @@ export default function LookupPage() {
   return (
     <>
       <PageHeader title={t('lookup.title')} meta={t('lookup.meta')} stories={['S-FEED-3']} />
-      <form role="search" onSubmit={submit} className="mb-6 flex max-w-xl gap-2">
-        <Input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t('search.placeholder')} aria-label={t('search.placeholder')} />
+      <form role="search" onSubmit={submit} className="mb-6 flex max-w-xl flex-wrap gap-2">
+        <Input autoFocus value={draft} maxLength={200} className="min-w-[17rem] flex-1" onChange={(e) => setDraft(e.target.value)} placeholder={t('search.placeholder')} aria-label={t('search.placeholder')} />
         <Button type="submit" variant="primary"><Search />{t('search.submit')}</Button>
       </form>
+      <div className="[overflow-wrap:anywhere]"> {/* what was typed can be 200 characters without a space: break it, never widen the page */}
       {!q ? <EmptyState title={t('lookup.emptyTitle')}>{t('lookup.emptyBody')}</EmptyState>
         : res.isPending ? <Loading />
         : res.error ? <ErrorState error={res.error} onRetry={() => void res.refetch()} />
@@ -45,7 +47,7 @@ export default function LookupPage() {
                 { label: t('lookup.category'), value: res.data.hit.category },
                 { label: t('lookup.sources'), value: res.data.hit.sources.join(', ') },
                 { label: t('lookup.score'), value: fmtPercent(res.data.hit.score, 0) },
-                { label: t('lookup.seen'), value: t('lookup.seenRange', { first: fmtDate(res.data.hit.first_seen), last: fmtDate(res.data.hit.last_seen) }) },
+                { label: t('lookup.seen'), value: t('lookup.seenRange', { first: fmtDay(res.data.hit.first_seen), last: fmtDay(res.data.hit.last_seen) }) },
               ]} />
               <p className="text-[13px] text-muted">{t('lookup.iocNote')}</p>
             </Panel>
@@ -55,11 +57,12 @@ export default function LookupPage() {
             {res.data.vulns.map((v) => (
               <li key={v.cve} className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-3">
                 <span><Link to={`/cve/${v.cve}`} className="font-medium text-accent underline-offset-4 hover:underline">{v.cve}</Link> <span className="text-muted">{v.display}</span></span>
-                <span className="text-[13px] text-muted">{t('lookup.addedOn', { date: fmtDate(v.date_added) })}</span>
+                <span className="text-[13px] text-muted">{t('lookup.addedOn', { date: fmtDay(v.date_added) })}</span>
               </li>
             ))}
           </ul>
         ) : <EmptyState title={t('lookup.textNone', { q })}>{t('lookup.textNoneBody')}</EmptyState>}
+      </div>
     </>
   )
 }

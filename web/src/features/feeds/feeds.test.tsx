@@ -133,3 +133,118 @@ describe('feeds: custom feed form matrix (docs/QA.md §2)', () => {
     expect(within(dlg).getByLabelText('Format')).toHaveValue('json')
   })
 })
+
+describe('feeds: what the real backend needs from the GUI (mock → real)', () => {
+  it('asks the API for a CVE in capitals even when the address bar has it in lower case', async () => {
+    const asked: string[] = []
+    server.use(http.get('*/api/v1/feeds/cve/:id', ({ params }) => { asked.push(String(params.id)); return HttpResponse.json({ error: { code: 'not_in_kev', message: 'This CVE is not on the exploited list (CISA KEV) in the current data.' } }, { status: 404 }) }))
+    renderApp('/cve/cve-2022-27593')
+    expect(await screen.findByText(/not on the exploited list/)).toBeInTheDocument()
+    expect(asked).toEqual(['CVE-2022-27593'])
+  })
+
+  it('a box that has never fetched (generated_at 1970) says so instead of showing the date', async () => {
+    server.use(http.get('*/api/v1/feeds/status', () => HttpResponse.json({ generated_at: '1970-01-01T00:00:00Z', kev_catalog_version: '', sources: [], inventory_on: false })))
+    server.use(http.get('*/api/v1/feeds/hot', () => HttpResponse.json({ window: '7d', rows: [], latest: null })))
+    renderApp('/')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today: no data yet' })).toBeInTheDocument()
+    expect(screen.getByText(/No data has been fetched yet/)).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/1970/)
+  })
+
+  it('the search boxes stop at 200 characters, the most the API accepts', async () => {
+    renderApp('/')
+    expect(await screen.findByRole('textbox', { name: 'CVE, product, IP or domain' })).toHaveAttribute('maxlength', '200')
+  })
+})
+
+describe('feeds: CVE links (contract.ts: http(s) only)', () => {
+  it('renders http(s) links, anchors included, and never a javascript: href', async () => {
+    server.use(http.get('*/api/v1/feeds/cve/:id', () => HttpResponse.json({
+      cve: 'CVE-2026-20001', vendor: 'Acme', product: 'Widget', name: 'n', description: 'd', required_action: 'a', display: 'Acme Widget',
+      links: ['https://example.com/CHANGELOG.md#563', 'javascript:alert(1)', 'data:text/html,x'], date_added: '2026-11-03', due_date: null, ransomware: false, epss: null, epss_7d_ago: null, has_template: false, matched: null,
+    })))
+    renderApp('/cve/CVE-2026-20001')
+    const ok = await screen.findByRole('link', { name: 'https://example.com/CHANGELOG.md#563' })
+    expect(ok).toHaveAttribute('href', 'https://example.com/CHANGELOG.md#563')
+    expect(document.querySelectorAll('a[href^="javascript:"], a[href^="data:"]')).toHaveLength(0)
+  })
+})
+
+describe('feeds: after a refused submit the first wrong field takes focus (phone: the message is off-screen)', () => {
+  async function openAdd() {
+    renderApp('/settings/feeds')
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add a feed' }))[0]!)
+    return screen.findByRole('dialog', { name: 'Add a feed' })
+  }
+  const add = (dlg: HTMLElement) => userEvent.click(within(dlg).getByRole('button', { name: /^Add feed$|^Add$/ }))
+
+  it('the browser-side checks: name, then address, then the secret', async () => {
+    const dlg = await openAdd()
+    await add(dlg)
+    expect(within(dlg).getByLabelText('Name')).toHaveFocus()
+    await userEvent.type(within(dlg).getByLabelText('Name'), 'Partner IOC')
+    await add(dlg)
+    expect(within(dlg).getByLabelText('Address')).toHaveFocus()
+    await userEvent.type(within(dlg).getByLabelText('Address'), 'https://feeds.partner.example/ioc.json')
+    await userEvent.selectOptions(within(dlg).getByLabelText('Authentication'), 'bearer')
+    await add(dlg)
+    expect(within(dlg).getByLabelText('Secret')).toHaveFocus()
+  })
+
+  it('an answer from the server: a name that exists takes focus; an unknown error takes the message', async () => {
+    const dlg = await openAdd()
+    await userEvent.type(within(dlg).getByLabelText('Name'), 'CISA KEV')
+    await userEvent.type(within(dlg).getByLabelText('Address'), 'https://feeds.partner.example/ioc.json')
+    await userEvent.click(within(dlg).getByLabelText('Address')) // focus away from the name
+    await add(dlg)
+    await waitFor(() => expect(within(dlg).getByLabelText('Name')).toHaveFocus())
+    server.use(http.post('*/api/v1/feeds/custom', () => HttpResponse.json({ error: { code: 'x', message: 'The box is busy.' } }, { status: 503 })))
+    await userEvent.clear(within(dlg).getByLabelText('Name')); await userEvent.type(within(dlg).getByLabelText('Name'), 'Another one')
+    await userEvent.click(within(dlg).getByLabelText('Address'))
+    await add(dlg)
+    await waitFor(() => expect(within(dlg).getByRole('alert')).toHaveFocus())
+  })
+})
+
+describe('feeds: Lookup keeps a long query inside the page', () => {
+  it('a 200-character string without spaces is allowed to break anywhere', async () => {
+    const q = 'a'.repeat(200)
+    renderApp(`/lookup?q=${q}`)
+    const title = await screen.findByText(`No exploited vulnerability matches "${q}"`)
+    // jsdom has no layout: the rule is inherited from the wrapper that holds the result
+    expect(title.closest('[class*="overflow-wrap:anywhere"]')).not.toBeNull()
+  })
+})
+
+describe('feeds: a button\'s accessible name contains its visible text (WCAG 2.5.3)', () => {
+  it('Settings -> Feeds: no label-content-name-mismatch on any button', async () => {
+    renderApp('/settings/feeds')
+    await screen.findByRole('button', { name: /^Fetch now: CISA KEV$|^Fetch CISA KEV now$/ })
+    // axe's own rule needs a real layout engine; this is the same rule: the label must contain what is written on the button
+    const bad = [...document.querySelectorAll('button[aria-label]')].filter((b) => {
+      const visible = (b.textContent ?? '').trim().toLowerCase()
+      return visible && !(b.getAttribute('aria-label') ?? '').toLowerCase().includes(visible)
+    }).map((b) => `${b.getAttribute('aria-label')} (shows "${b.textContent}")`)
+    expect(bad).toEqual([])
+  })
+})
+
+describe('feeds: plain words for what is not a CVE, and dates that mean one thing', () => {
+  it('/cve/hello says it is not a CVE ID, with an example, and never asks the API', async () => {
+    let asked = 0
+    server.use(http.get('*/api/v1/feeds/cve/:id', () => { asked++; return HttpResponse.json({ error: { code: 'invalid', message: 'Invalid request. The parameter "id" is not valid.' } }, { status: 400 }) }))
+    renderApp('/cve/hello')
+    expect(await screen.findByText('“hello” is not a CVE ID')).toBeInTheDocument()
+    expect(screen.getByText(/CVE IDs look like CVE-2021-44228/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Look up this ID' })).toHaveAttribute('href', '/lookup?q=hello')
+    expect(document.body.textContent).not.toMatch(/Invalid request|parameter "id"/)
+    expect(asked).toBe(0)
+  })
+
+  it('dates are written with the month in letters', async () => {
+    renderApp('/cve/CVE-2024-27834')
+    expect(await screen.findByText(/Added to exploited list 4 Nov 2026/)).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/\b\d{2}\/\d{2}\/20\d\d\b/)
+  })
+})

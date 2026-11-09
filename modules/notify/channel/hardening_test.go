@@ -122,7 +122,7 @@ func TestContract_FORBID2_SendersNeverPrintSecrets(t *testing.T) {
 		pw   = "PrintLeakSmtpPassword" //nolint:gosec // fake test value
 		wk   = "PrintLeakSigningKey-0123456789"
 		wu   = "https://hooks.example.com/PrintLeakWebhookPath?k=PrintLeakQueryKey"
-		sess = "PrintLeakZaloSession"
+		sess = `{"imei":"PrintLeakImeiValue","userAgent":"ua","cookie":"zpsid=PrintLeakCookieValue"}`
 	)
 	mk := map[string]func() (Sender, error){
 		"slack": func() (Sender, error) { return NewSlack(SlackConfig{Webhook: secrets.NewValue(hook)}) },

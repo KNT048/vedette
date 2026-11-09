@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/kiennt048/vedette/modules/ai/provider"
+	"github.com/knt048/vedette/modules/ai/provider"
 )
 
 // Access says whether a tool only reads or can change something.

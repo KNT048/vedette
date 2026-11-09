@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/kiennt048/vedette/core/chain"
+	"github.com/knt048/vedette/core/chain"
 )
 
 // The hash chain itself (canonical JSON and the formula of D-57 item 14) lives in core/chain and is shared with

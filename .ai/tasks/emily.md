@@ -3,7 +3,7 @@
 Cập nhật: 2026-11-09. Sở hữu: feeds, mitigation + phát hiện, notify, exposure, scan, scan-credentialed, logs, agent-intake, ai, reports, mcp-server, auth-oidc.
 
 ## Bắt đầu
-1. Clone `kiennt048/vedette`, đọc `CLAUDE.md`, `CONTRIBUTING.md`, `docs/TEAM_PLAN.md`, `docs/ENGINEERING.md`, `docs/QA.md`.
+1. Clone `KNT048/vedette`, đọc `CLAUDE.md`, `CONTRIBUTING.md`, `docs/TEAM_PLAN.md`, `docs/ENGINEERING.md`, `docs/QA.md`.
 2. Chạy giao diện: `make dev` → http://localhost:5173 ("Use sample data").
 3. Đọc `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/API_CONVENTIONS.md`, `modules/{feeds,mitigation,notify,ai}/CONTRACT.md`.
 

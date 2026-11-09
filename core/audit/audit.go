@@ -12,9 +12,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/kiennt048/vedette/core/chain"
-	"github.com/kiennt048/vedette/core/store"
-	"github.com/kiennt048/vedette/core/store/coredb"
+	"github.com/knt048/vedette/core/chain"
+	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/store/coredb"
 )
 
 // chainName is the core_chain_anchor key for this log.

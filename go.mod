@@ -1,4 +1,4 @@
-module github.com/kiennt048/vedette
+module github.com/knt048/vedette
 
 go 1.26.10
 

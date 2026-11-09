@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/kiennt048/vedette/core/secrets"
+	"github.com/knt048/vedette/core/secrets"
 )
 
 // ZaloPersonalConfig is the stored configuration of the unofficial Zalo personal

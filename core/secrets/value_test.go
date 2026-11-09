@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kiennt048/vedette/core/secrets"
+	"github.com/knt048/vedette/core/secrets"
 )
 
 const plain = "hunter2-very-secret"

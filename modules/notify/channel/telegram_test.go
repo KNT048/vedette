@@ -11,7 +11,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/kiennt048/vedette/core/secrets"
+	"github.com/knt048/vedette/core/secrets"
 )
 
 const tgToken = "123456789:AAHexampleExampleExampleExample_0123456789"

@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/kiennt048/vedette/core/secrets"
+	"github.com/knt048/vedette/core/secrets"
 )
 
 const redacted = "[redacted]"

@@ -20,8 +20,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/kiennt048/vedette/core/store"
-	"github.com/kiennt048/vedette/core/store/coredb"
+	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/store/coredb"
 )
 
 // KeySize is the master key length in bytes (AES-256).

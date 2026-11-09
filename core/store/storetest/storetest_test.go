@@ -7,7 +7,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/kiennt048/vedette/core/store/storetest"
+	"github.com/knt048/vedette/core/store/storetest"
 )
 
 // fakeTB records failures instead of failing the real test. Everything else (TempDir, Context,

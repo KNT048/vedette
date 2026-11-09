@@ -11,7 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/kiennt048/vedette/core/secrets"
+	"github.com/knt048/vedette/core/secrets"
 )
 
 // SlackConfig configures an Incoming Webhook channel (D-38).

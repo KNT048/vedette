@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kiennt048/vedette/core/store"
+	"github.com/knt048/vedette/core/store"
 )
 
 // New opens a database in t.TempDir(), closed when the test ends.

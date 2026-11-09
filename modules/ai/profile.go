@@ -10,7 +10,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/kiennt048/vedette/modules/ai/provider"
+	"github.com/knt048/vedette/modules/ai/provider"
 )
 
 // Location says where a model runs (D-29): internal = inside the company network, cloud = a provider's servers.

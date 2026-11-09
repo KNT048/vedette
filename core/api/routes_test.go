@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kiennt048/vedette/core/api/oas"
-	"github.com/kiennt048/vedette/core/api/routes"
+	"github.com/knt048/vedette/core/api/oas"
+	"github.com/knt048/vedette/core/api/routes"
 )
 
 type specOp struct {

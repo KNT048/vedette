@@ -5,7 +5,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/kiennt048/vedette/modules/notify/channel"
+	"github.com/knt048/vedette/modules/notify/channel"
 )
 
 // SendRecord is one delivery attempt (contract.ts SendRecord, table notify_send).

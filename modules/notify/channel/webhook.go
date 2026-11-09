@@ -19,7 +19,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/kiennt048/vedette/core/secrets"
+	"github.com/knt048/vedette/core/secrets"
 )
 
 // WebhookConfig configures the generic webhook channel.

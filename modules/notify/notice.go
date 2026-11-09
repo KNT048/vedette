@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kiennt048/vedette/modules/notify/channel"
+	"github.com/knt048/vedette/modules/notify/channel"
 )
 
 // Notice kinds that travel through Publish.

@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/kiennt048/vedette/core/secrets"
+	"github.com/knt048/vedette/core/secrets"
 )
 
 // ZaloConfig configures an official Zalo OA channel (customer-service message to a follower).

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kiennt048/vedette/core/chain"
+	"github.com/knt048/vedette/core/chain"
 )
 
 // ActivityResult is how a call ended.

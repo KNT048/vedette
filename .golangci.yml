@@ -37,7 +37,7 @@ linters:
             - "**/core/**"
             - "!**/modules/**" # modules/core is the core *module* and may import itself
           deny:
-            - pkg: github.com/kiennt048/vedette/modules
+            - pkg: github.com/knt048/vedette/modules
               desc: "core must not import modules (dependency direction is module -> core)"
     forbidigo:
       forbid:
@@ -63,4 +63,4 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/kiennt048/vedette
+        - github.com/knt048/vedette

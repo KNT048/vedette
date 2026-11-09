@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kiennt048/vedette/core/chain"
+	"github.com/knt048/vedette/core/chain"
 )
 
 func TestCanon(t *testing.T) {

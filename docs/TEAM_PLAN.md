@@ -52,7 +52,7 @@ Kích cỡ: S ≈ 1–2 phiên-ngày, M ≈ 3–5, L ≈ 6–10 (ước lượng
 | WP-20 | `feeds` module: endpoint, feed tuỳ chỉnh, trạng thái | Emily | S |
 | WP-21 | Module `findings` (D-57: tách hợp đồng khỏi `mitigation`, bảng `fnd_*`) + `mitigation`: endpoint, gói khuyến nghị đã xác nhận, "What to do" | Emily | M |
 | WP-22 | `notify`: kênh, giờ im lặng, gộp, Incidents, lịch sử gửi, token duyệt email | Emily | M |
-| WP-23 | `exposure` (TXT, IP ra của hộp, CT, httpx) + `scan` (nuclei lib, nhật ký probe) | Emily | M |
+| WP-23 | `exposure` (TXT, IP ra của hộp, CT, httpx) + `scan` (nuclei lib, nhật ký probe). **Thêm (kien 2026-11-09):** tự phát hiện IP công cộng của hộp (chế độ tự động/thủ công, chạy lần đầu khi cài, kiểm lại 60 phút, khách sửa được danh sách, hiệu lực 30 ngày gia hạn mỗi lần thấy lại); yêu cầu và danh mục kiểm ở `.ai/tasks/kien.md` §"Giám sát WP-23" | Emily | M |
 
 ### Giai đoạn 2 — module phụ thuộc
 | WP | Việc | Chủ | Cỡ |

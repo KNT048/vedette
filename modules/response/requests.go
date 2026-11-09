@@ -548,6 +548,26 @@ func (s *Service) claimItem(ctx context.Context, reqID, itemID string, leaves bo
 			refusal = fail(http.StatusConflict, "maintenance", "Held: maintenance window \""+oneLine(w.Name, 80)+"\" is active. Nothing was changed.")
 			return nil
 		}
+		if it.ConnectorID != nil {
+			// The connection and the catalog are read again here, in the transaction that lets the step go: an edit or a delete that
+			// committed after runItem read them still stops the step (INV-9). Nothing is sent for a connection that is no longer the one approved.
+			cats, err := s.cats(ctx, tx)
+			if err != nil {
+				return err
+			}
+			cs, err := s.loadConns(ctx)
+			if err != nil {
+				return err
+			}
+			if _, known := cs.get(*it.ConnectorID); !known {
+				refusal = fail(http.StatusConflict, "connection_changed", "The connection \""+oneLine(deref2(it.Connection), 80)+"\" no longer exists. Nothing was changed. Ask again.")
+				return nil
+			}
+			if e := gateItem(it, st, cats, cs, nil); e != nil { // includes connectionGate
+				refusal = e
+				return nil
+			}
+		}
 		claimed = true
 		if !leaves {
 			return nil
@@ -612,23 +632,90 @@ func (s *Service) carryOut(ctx context.Context, r request, it itemRec, cat catRo
 	case s.cfg.Executor == nil:
 		return itemOutcome{err: "No device executor is available in this build. Nothing was changed."}
 	}
-	conn := cs.by[*it.ConnectorID]
-	res, err := s.execute(ctx, DeviceStep{ConnectionID: conn.ID, Tool: it.RunTool, Phase: "run", CLI: it.Change.CLI, Rest: it.Change.Rest, RequestID: r.ID, ItemID: it.ID})
-	if err != nil {
-		if ctx.Err() != nil { // the step ran out of time: it may have been applied
-			return itemOutcome{err: "The connection " + oneLine(conn.Name, 80) + " did not answer in time. " + stateUnknown, unknown: true}
-		}
-		return itemOutcome{err: "The connection " + oneLine(conn.Name, 80) + " did not answer. Nothing was changed."}
+	return s.carryOutDevice(ctx, r, it, cs.by[*it.ConnectorID])
+}
+
+// carryOutDevice is the order of a step on a device (INV-22, D-95): the check before, which only reads and may refuse (nothing is
+// written); the run; the read-back against the expected text. What the device printed is compared and dropped here: it is never
+// stored, logged or returned.
+func (s *Service) carryOutDevice(ctx context.Context, r request, it itemRec, conn ConnectionInfo) itemOutcome {
+	ex := it.Exec
+	if ex == nil || ex.Run == nil {
+		return itemOutcome{err: "This request was made by an older version of Vedette, so it cannot run. Nothing was changed. Ask again."}
 	}
-	out := itemOutcome{result: oneLine(res.Detail, 300), verified: res.Verified}
-	if it.Change.Verify != "" && res.Verified == nil {
-		if vr, err := s.execute(ctx, DeviceStep{ConnectionID: conn.ID, Tool: it.RunTool, Phase: "verify", CLI: it.Change.Verify, RequestID: r.ID, ItemID: it.ID}); err == nil {
-			out.verified = vr.Verified
-		} else {
+	send := func(phase string, st *execStep) (DeviceResult, error) {
+		res, err := s.execute(ctx, deviceStep(r.ID, it, conn, phase, st))
+		return res, err
+	}
+	if ex.Precheck != nil {
+		if why := readOnlyProblem(ex.Precheck); why != "" {
+			return itemOutcome{err: "The check before was not sent: " + why + ". Nothing was changed."}
+		}
+		res, err := send("precheck", ex.Precheck)
+		out := res.Output
+		res.Output = ""
+		if o, failed := s.stepProblem(ctx, conn, "The check before", res, err, false); failed {
+			return o
+		}
+		if why := precheckVerdict(out, ex.Refuse, ex.PrecheckExpect); why != "" {
+			return itemOutcome{refusal: fail(http.StatusConflict, "precheck_refused", "Refused by the check before: "+oneLine(why, 120)+". Nothing was changed.")}
+		}
+	}
+	res, err := send("run", ex.Run)
+	if o, failed := s.stepProblem(ctx, conn, "The step", res, err, true); failed {
+		return o
+	}
+	out := itemOutcome{result: oneLine(res.Detail, 300)}
+	if ex.Verify != nil && ex.Expect != "" { // without a text to look for there is nothing to check: "not checked", never "ok" (D-95 (2))
+		if why := readOnlyProblem(ex.Verify); why != "" {
+			out.verified = &Verified{OK: false, Detail: "The read-back was not sent: " + why + "."}
+			return out
+		}
+		vr, verr := send("verify", ex.Verify)
+		got := vr.Output
+		switch {
+		case verr != nil || vr.Status != StepOK:
 			out.verified = &Verified{OK: false, Detail: "The read-back did not answer."}
+		case readBackHolds(got, ex.Expect, false):
+			out.verified = &Verified{OK: true, Detail: "Read back from the device: the expected text is there."}
+		default:
+			out.verified = &Verified{OK: false, Detail: "Read back from the device: the expected text is not there."}
 		}
 	}
 	return out
+}
+
+// stepProblem is nil-and-false when the step completed; otherwise the outcome to record. writes says the step changes the device: a
+// step that may have been applied (a time-out, an answer that is not understood) leaves "state unknown" (INV-13); a read changed nothing.
+func (s *Service) stepProblem(ctx context.Context, conn ConnectionInfo, what string, res DeviceResult, err error, writes bool) (itemOutcome, bool) {
+	name := oneLine(conn.Name, 80)
+	detail := strings.TrimRight(oneLine(res.Detail, 200), ". ")
+	if detail != "" {
+		detail = " (" + detail + ")"
+	}
+	switch {
+	case err != nil && ctx.Err() != nil:
+		if writes {
+			return itemOutcome{err: "The connection " + name + " did not answer in time. " + stateUnknown, unknown: true}, true
+		}
+		return itemOutcome{err: "The connection " + name + " did not answer in time. Nothing was changed."}, true
+	case err != nil:
+		return itemOutcome{err: "The connection " + name + " did not answer. Nothing was changed."}, true
+	}
+	switch res.Status {
+	case StepOK:
+		return itemOutcome{}, false
+	case StepConnectionChange:
+		return itemOutcome{refusal: fail(http.StatusConflict, "connection_changed", "The connection \""+name+"\" was changed after the request was made. Nothing was changed. Ask again.")}, true
+	case StepNotSent:
+		return itemOutcome{err: what + " was not sent to " + name + detail + ". Nothing was changed."}, true
+	case StepFailed:
+		return itemOutcome{err: what + " was refused by " + name + detail + ". Nothing was changed."}, true
+	}
+	if !writes {
+		return itemOutcome{err: what + " did not complete on " + name + detail + ". Nothing was changed."}, true
+	}
+	return itemOutcome{err: what + " may or may not have been applied on " + name + detail + ". " + stateUnknown, unknown: true}, true
 }
 
 // execute runs one device step but stops waiting when ctx ends: an Executor must respect its context (the interface says so), and
@@ -661,6 +748,15 @@ func (s *Service) execute(ctx context.Context, step DeviceStep) (DeviceResult, e
 // The write and every query in it use one context that the caller's cancellation cannot reach.
 func (s *Service) finishItem(ctx context.Context, reqID, itemID string, o itemOutcome) error {
 	ctx = context.WithoutCancel(ctx)
+	// A device step that returns after its connection is gone (deleted or restored away while it ran: core/conn refuses a delete while
+	// a step is in flight, but other ways exist): the result is still recorded, the item leaves the sweep, and one line says so.
+	var cs conns
+	haveConns := false
+	if o.fromRun {
+		if c, err := s.loadConns(ctx); err == nil {
+			cs, haveConns = c, true
+		}
+	}
 	var fx effects
 	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		fx = effects{}
@@ -698,6 +794,11 @@ func (s *Service) finishItem(ctx context.Context, reqID, itemID string, o itemOu
 			if err := s.step(ctx, tx, "response.fail", r.ID, LogFailed, note+it.Title+": "+o.err, "system"); err != nil {
 				return err
 			}
+			if o.unknown && goneConn(haveConns, cs, *it) {
+				if err := s.goneNote(ctx, tx, r.ID, *it); err != nil {
+					return err
+				}
+			}
 		default:
 			it.Status, it.ExecutedAt, it.Result, it.Verified = ItemExecuted, strp(store2(now)), strp(o.result), o.verified
 			if it.Reversible && it.TTLMin != nil {
@@ -718,6 +819,12 @@ func (s *Service) finishItem(ctx context.Context, reqID, itemID string, o itemOu
 			if err := s.step(ctx, tx, "response.execute", r.ID, LogExecuted, note+detail, "system"); err != nil {
 				return err
 			}
+			if goneConn(haveConns, cs, *it) {
+				it.RemoveAt = nil // nothing can send the undo, so the sweep must not keep trying
+				if err := s.goneNote(ctx, tx, r.ID, *it); err != nil {
+					return err
+				}
+			}
 			fx.ob.Add(events.Event{Name: EventActionExecuted, Data: ExecutedEvent{RequestID: r.ID, ItemID: it.ID, ActionID: it.ActionID, Device: it.ConnectorID != nil}})
 		}
 		if (r.Status == StatusApproved || corrects) && !slices.ContainsFunc(r.recs, func(i itemRec) bool { return i.Status == ItemPending }) {
@@ -733,6 +840,21 @@ func (s *Service) finishItem(ctx context.Context, reqID, itemID string, o itemOu
 	}
 	s.run(ctx, &fx)
 	return nil
+}
+
+// goneConn reports whether the connection of a device item is known not to exist any more (conns could be read: have).
+func goneConn(have bool, cs conns, it itemRec) bool {
+	if !have || it.ConnectorID == nil {
+		return false
+	}
+	_, ok := cs.get(*it.ConnectorID)
+	return !ok
+}
+
+// goneNote is the one line that says a step ended on a connection that no longer exists: the change may be in force and only the
+// device can undo it.
+func (s *Service) goneNote(ctx context.Context, tx *sql.Tx, reqID string, it itemRec) error {
+	return s.step(ctx, tx, "response.fail", reqID, LogFailed, it.Title+": the connection \""+oneLine(deref2(it.Connection), 80)+"\" no longer exists (it was deleted while the step ran). The change may be in force on the device and cannot be undone from Vedette: undo it there.", "system")
 }
 
 // failStuck fails the items an approved request left behind: an item "running" for longer than stuckAfter (the box restarted
@@ -987,7 +1109,7 @@ func (s *Service) undoItem(ctx context.Context, reqID, itemID string, auto bool,
 		return nil
 	}
 	it := r.recs[k]
-	failure := ""
+	failure, readNote, gone := "", "", false
 	if it.ConnectorID != nil {
 		cs, err := s.loadConns(ctx)
 		if err != nil {
@@ -1001,18 +1123,17 @@ func (s *Service) undoItem(ctx context.Context, reqID, itemID string, auto bool,
 		case s.cfg.Executor == nil:
 			failure = "No device executor is available in this build. The change was not undone."
 		case !known:
-			failure = "The connection of this action no longer exists. The change was not undone."
+			// The connection was deleted or restored away since the step ran: nothing can reach the device from here, so the undo is
+			// not tried again (the item leaves the sweep) and the person is told once.
+			failure, gone = "The connection of this action no longer exists. The change was not undone: undo it on the device.", true
 		default:
 			if e := rollbackGate(it, cats, cs); e != nil {
 				failure = e.Message
 				break
 			}
 			xctx, cancel := context.WithTimeout(ctx, s.stepLimit)
-			_, err := s.execute(xctx, DeviceStep{ConnectionID: conn.ID, Tool: it.RollbackTool, Phase: "rollback", CLI: it.Change.Rollback.CLI, Rest: it.Change.Rollback.Rest, RequestID: r.ID, ItemID: it.ID})
+			failure, readNote = s.undoOnDevice(xctx, r.ID, it, conn)
 			cancel()
-			if err != nil {
-				failure = "The connection " + oneLine(conn.Name, 80) + " did not answer. The change was not undone."
-			}
 		}
 	}
 	var fx effects
@@ -1032,6 +1153,9 @@ func (s *Service) undoItem(ctx context.Context, reqID, itemID string, auto bool,
 				return nil // the same failure is logged once
 			}
 			x.Result = strp(failure)
+			if gone {
+				x.RemoveAt = nil // the sweep must not try an undo that cannot be sent
+			}
 			if err := s.step(ctx, tx, "response.fail", cur.ID, LogFailed, x.Change.Rollback.Title+": "+failure, "system"); err != nil {
 				return err
 			}
@@ -1039,11 +1163,11 @@ func (s *Service) undoItem(ctx context.Context, reqID, itemID string, auto bool,
 		}
 		x.Status, x.RolledBackAt = ItemRolledBack, strp(s.ts())
 		if auto {
-			x.Result = strp("Undone automatically (undo time ended).")
+			x.Result = strp("Undone automatically (undo time ended)." + readNote)
 		} else {
 			x.Result = strp("Removed.")
 			if x.ConnectorID != nil {
-				x.Result = strp("Undone through " + oneLine(deref2(x.Connection), 80) + ".")
+				x.Result = strp("Undone through " + oneLine(deref2(x.Connection), 80) + "." + readNote)
 			}
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM resp_block_entries WHERE request_id = ? AND item_id = ?`, cur.ID, x.ID); err != nil {
@@ -1071,6 +1195,43 @@ func (s *Service) undoItem(ctx context.Context, reqID, itemID string, auto bool,
 	}
 	s.run(ctx, &fx)
 	return nil
+}
+
+// undoOnDevice sends the rollback of an executed item and reads the device back: after the undo the read-back must not hold the text it
+// held after the change (D-95 (2)). It returns why the change was not undone ("" when it was) and a note for the result. A read-back that
+// still shows the change leaves the item executed: the sweep sends the undo again, and the same failure is logged once.
+func (s *Service) undoOnDevice(ctx context.Context, reqID string, it itemRec, conn ConnectionInfo) (failure, note string) {
+	ex := it.Exec
+	if ex == nil || ex.Rollback == nil {
+		return "This change was made by an older version of Vedette, so it cannot be undone from here. Undo it on the device.", ""
+	}
+	name := oneLine(conn.Name, 80)
+	res, err := s.execute(ctx, deviceStep(reqID, it, conn, "rollback", ex.Rollback))
+	switch {
+	case err != nil:
+		return "The connection " + name + " did not answer. The change was not undone.", ""
+	case res.Status != StepOK:
+		detail := strings.TrimRight(oneLine(res.Detail, 200), ". ")
+		if detail != "" {
+			detail = " (" + detail + ")"
+		}
+		return "The undo did not complete on " + name + detail + ". The change may still be in force.", ""
+	}
+	if ex.Verify == nil || ex.Expect == "" {
+		return "", ""
+	}
+	if readOnlyProblem(ex.Verify) != "" {
+		return "", " The read-back was not sent."
+	}
+	vr, verr := s.execute(ctx, deviceStep(reqID, it, conn, "verify", ex.Verify))
+	got := vr.Output
+	switch {
+	case verr != nil || vr.Status != StepOK:
+		return "", " The read-back did not answer."
+	case readBackHolds(got, ex.Expect, true):
+		return "", " Read back from the device: the change is gone."
+	}
+	return "The undo was sent to " + name + ", but the read-back still shows the change. Check the device.", ""
 }
 
 // ---- emergency stop (INV-8) ----

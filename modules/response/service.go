@@ -3,6 +3,7 @@ package response
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -118,6 +119,9 @@ type ConnectionInfo struct {
 	// UpdatedAt changes whenever the connection is edited (address, credentials, tools). With the id, kind and Target it makes the
 	// fingerprint stored in every request item (INV-9).
 	UpdatedAt string
+	// NotReady is why a request cannot use the connection yet (core/conn NotReady: off, never tested, last test failed, SSH host key
+	// not pinned), or "" when it can. An action on a connection that is not ready is not available.
+	NotReady string
 }
 
 // connFP is the fingerprint of a connection as a request saw it: the same connection is the same fingerprint (conn.Fingerprint,
@@ -145,28 +149,49 @@ type Connections interface {
 	List(ctx context.Context) ([]ConnectionInfo, error)
 }
 
-// DeviceStep is what an Executor is asked to do: one step of one item, already rendered by this module from a stored
-// template and checked values. An Executor never sees text that came from a client.
+// DeviceStep is what an Executor is asked to do: one step of one item, exactly as it was rendered when the request was made
+// (itemRec.Exec) and approved. An Executor never sees text that came from a client. Phase is "precheck", "run", "rollback" or
+// "verify"; precheck and verify only read.
 type DeviceStep struct {
 	ConnectionID string
-	Tool         string // write tool, MCP only
-	Phase        string // "run", "rollback" or "verify"
-	CLI          string
-	Rest         *RestCall
+	ConnFP       string // conn.Fingerprint of the connection when the request was made: the executor refuses a connection that is not that version
+	Phase        string
+	Tool         string   // MCP: the write tool to call
+	Lines        []string // SSH: the command lines, one at a time
+	Method       string   // API kinds
+	URL          string
+	Body         string
+	Headers      map[string]string
+	Args         json.RawMessage // MCP: the typed arguments, a JSON object
 	RequestID    string
 	ItemID       string
 }
 
-// DeviceResult is what a step did.
+// StepStatus says how a step ended.
+type StepStatus string
+
+// The ways a step ends. Anything else an Executor answers counts as StepUnknown: a step whose outcome is not understood is
+// treated as one that may have been applied.
+const (
+	StepOK               StepStatus = "ok"
+	StepNotSent          StepStatus = "not_sent"           // nothing reached the device
+	StepConnectionChange StepStatus = "connection_changed" // the connection is not the version the request was made against; nothing was sent
+	StepFailed           StepStatus = "failed"             // the device refused the step; as far as the answer shows nothing changed
+	StepUnknown          StepStatus = "unknown"            // sent, outcome not known
+)
+
+// DeviceResult is what a step did. Output is what a read step (precheck, verify) printed: it lives in memory only, to be compared
+// with the check texts and dropped (INV-22); it is never stored, logged or returned by the API. Detail is one cleaned line.
 type DeviceResult struct {
-	Detail   string
-	Verified *Verified
+	Status StepStatus
+	Detail string
+	Output string
 }
 
-// Executor carries a step out on a device. The real executors (HTTP API, SSH, NETCONF/RESTCONF, MCP) are part 13b; this
-// part has the interface and a fake in the tests. A nil Executor means no device can be changed: such items fail and
-// nothing is sent. Execute must respect ctx (it carries the item's deadline): when ctx ends the service stops waiting, records
-// "state unknown" and lets go of the device-step lock, but it cannot stop an Execute that ignores ctx from finishing later.
+// Executor carries a step out on a device (cmd/vedette wires core/conn/write, FORBID-1). A nil Executor means no device can be
+// changed: such items fail and nothing is sent. Execute must respect ctx (it carries the item's deadline): when ctx ends the
+// service stops waiting, records "state unknown" and lets go of the device-step lock, but it cannot stop an Execute that
+// ignores ctx from finishing later. A returned error means the step could not be tried at all.
 type Executor interface {
 	Execute(ctx context.Context, s DeviceStep) (DeviceResult, error)
 }

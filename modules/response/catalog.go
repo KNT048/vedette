@@ -102,8 +102,12 @@ func unavailable(c catRow, cs conns) string {
 		return "The connection " + conn.Name + " is turned off in Settings, AI assistant."
 	case conn.ReadOnly:
 		return conn.Name + ": " + readOnlyText + "."
+	case c.Tool != "" && !isMCP(conn.Kind):
+		return "Not available: this action names a write tool, which only an MCP server has, and " + conn.Name + " is not one."
 	case c.Tool != "" && !slices.Contains(conn.WriteTools, c.Tool):
 		return "The write tool " + c.Tool + " on " + conn.Name + " is turned off or missing."
+	case conn.NotReady != "":
+		return conn.Name + ": " + strings.TrimRight(conn.NotReady, ".") + "."
 	}
 	if why := fits(c, conn); why != "" {
 		return why

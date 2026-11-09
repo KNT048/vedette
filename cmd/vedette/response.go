@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/conn/write"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
@@ -144,21 +145,25 @@ func (r responseDirectory) Finding(ctx context.Context, id string) (response.Fin
 	return response.FindingInfo{ID: rec.ID, AssetID: rec.AssetID, CVE: rec.CVE, Severity: string(rec.Severity), Status: string(rec.Status), KEV: true}, true, nil
 }
 
+// ---- core/conn/write -> response.Executor ----
+
+// responseExecutor is the only holder of the writer (FORBID-1): it turns a step of an approved item into core/conn/write's Step and
+// the writer's answer into response's. Nothing else in the binary names the writer package.
+type responseExecutor struct{ w *write.Writer }
+
+func (e responseExecutor) Execute(ctx context.Context, s response.DeviceStep) (response.DeviceResult, error) {
+	r := e.w.Do(ctx, write.Step{ConnectionID: s.ConnectionID, ConnFP: s.ConnFP, Phase: s.Phase, Tool: s.Tool, Lines: s.Lines, Method: s.Method, URL: s.URL,
+		Body: s.Body, Headers: s.Headers, Args: s.Args})
+	return response.DeviceResult{Status: response.StepStatus(r.Status), Detail: r.Detail, Output: r.Output}, nil
+}
+
 // newResponse builds the response service. serve calls it once, in buildServices, after the services it reads (core/auth, notify,
-// inventory, findings). Devices cannot be changed yet: the connections are wired (core/conn) but no device executor is (13b-5/6), so every
-// device action is unavailable and the box actions (block list, message, webhook) are all that runs.
+// inventory, findings, core/conn). Device actions run through core/conn/write: an approved item reaches its device over the
+// connection, with a check before and a read-back (D-94, D-95).
 func newResponse(d *deps) (*response.Service, error) {
-	n := newNotify(d)
-	cfg := response.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: responseUsers{d}, Log: d.Log, Clock: d.Clock,
-		Notifier: responseNotifier{n: n, now: d.Clock}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings}}
-	if d.Conn != nil { // a nil *conn.Service inside the interface would not compare equal to nil
-		cfg.Connections = responseConnections{d.Conn}
-	}
-	if d.Reg != nil {
-		cfg.Modules = d.Reg
-	}
-	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
-		cfg.Bus = d.Bus
+	cfg, err := responseConfig(d)
+	if err != nil {
+		return nil, err
 	}
 	svc, err := response.New(cfg)
 	if err != nil {
@@ -168,6 +173,28 @@ func newResponse(d *deps) (*response.Service, error) {
 		svc.Subscribe(d.Bus) // handlers ignore events while the module is off
 	}
 	return svc, nil
+}
+
+// responseConfig is the configuration of the response service: every port wired to the module that provides it.
+func responseConfig(d *deps) (response.Config, error) {
+	n := newNotify(d)
+	cfg := response.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: responseUsers{d}, Log: d.Log, Clock: d.Clock,
+		Notifier: responseNotifier{n: n, now: d.Clock}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings}}
+	if d.Conn != nil { // a nil *conn.Service inside the interface would not compare equal to nil
+		cfg.Connections = responseConnections{d.Conn}
+		w, err := write.New(write.Config{Conns: d.Conn})
+		if err != nil {
+			return cfg, err
+		}
+		cfg.Executor = responseExecutor{w}
+	}
+	if d.Reg != nil {
+		cfg.Modules = d.Reg
+	}
+	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
+		cfg.Bus = d.Bus
+	}
+	return cfg, nil
 }
 
 // responseJobs is the Jobs func of the response entry in wiredModules: the "evaluate" and "sweep" jobs.

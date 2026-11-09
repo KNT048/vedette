@@ -134,6 +134,10 @@ type itemRec struct {
 	ConnFP       string `json:"conn_fp"`
 	ActionFP     string `json:"action_fp"` // actionFP of the catalog entry when the request was made: its templates and its risk
 
+	// Exec is what is sent to the device: the check before, the run, the rollback and the read-back, rendered when the request was
+	// made, so what runs is what the approver saw (INV-22). nil on a device item made by an older version: it cannot run.
+	Exec *execRec `json:"exec,omitempty"`
+
 	// RunningAt is set, in its own transaction with a log line, before a step is sent to a device or a webhook (INV-19). An item that
 	// stays so after a restart or a timeout is failed by the sweep with "state unknown": a step may have been applied.
 	RunningAt string `json:"running_at,omitempty"`

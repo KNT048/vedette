@@ -24,6 +24,7 @@ type handler struct {
 	*core.ModuleHandlers
 	*core.APIHandlers
 	*core.OSHandlers
+	*core.NetworkHandlers
 	*inventory.Handlers
 	*feeds.FeedHandlers
 	*findings.FindingHandlers
@@ -39,12 +40,13 @@ type handler struct {
 // and one line here (issue #33).
 func newHandler(d deps) handler {
 	return handler{
-		Fallback:       server.Fallback{Log: d.Log},
-		ModuleHandlers: core.NewModuleHandlers(d.DB, d.Reg),
-		APIHandlers:    d.Core,
-		OSHandlers:     d.OS,
-		Handlers:       inventory.NewHandlers(d.Inventory),
-		FeedHandlers:   feedsHandlers(d),
+		Fallback:        server.Fallback{Log: d.Log},
+		ModuleHandlers:  core.NewModuleHandlers(d.DB, d.Reg),
+		APIHandlers:     d.Core,
+		OSHandlers:      d.OS,
+		NetworkHandlers: d.Network,
+		Handlers:        inventory.NewHandlers(d.Inventory),
+		FeedHandlers:    feedsHandlers(d),
 
 		FindingHandlers:  d.FindingHandlers,
 		ActionHandlers:   d.MitigationHandlers,

@@ -89,6 +89,15 @@ function Pending({ d }: { d: NetworkState }) {
   }, [d.pending, t])
   if (!d.pending) return null
   const ip = d.management.address ?? '?'
+  // The box could not go back by itself: it restarts, and the old settings on disk bring it back (D-100). Nothing to confirm or cancel any more.
+  if (d.pending.reboot_at) {
+    return (
+      <div role="alert" className="mb-4 grid gap-2 rounded-md border border-danger/40 bg-danger-soft px-4 py-3">
+        <p className="text-sm font-medium">{t('network.pending.stuckTitle')}</p>
+        <p className="text-sm">{t('network.pending.stuckBody', { time: new Date(d.pending.reboot_at).toLocaleTimeString(), old: d.pending.previous_address ?? 'DHCP' })}</p>
+      </div>
+    )
+  }
   return (
     <div role="status" className="mb-4 grid gap-3 rounded-md border border-warn/50 bg-warn-soft px-4 py-3">
       <p className="text-sm font-medium">{t('network.pending.title', { ip })}</p>
@@ -114,7 +123,8 @@ function ManagementForm({ d }: { d: NetworkState }) {
   const [gateway, setGateway] = useState(m.mode === 'static' ? (m.gateway ?? '') : '')
   const [dns, setDns] = useState(m.mode === 'static' ? m.dns.join(', ') : '')
   const [error, setError] = useState<string | null>(null)
-  const [ask, setAsk] = useState<string | null>(null)
+  // The address the box will have; null with DHCP (it is not known until the server answers). `ask` is set while the confirm dialog is open.
+  const [ask, setAsk] = useState<{ ip: string | null } | null>(null)
   const locked = gate.disabled || !!d.pending
   const pick = (v: Management['mode']) => {
     setMode(v); setError(null)
@@ -127,7 +137,7 @@ function ManagementForm({ d }: { d: NetworkState }) {
     management.mutate(body, {
       onSuccess: () => { setAsk(null); toast.success(t('network.management.saved')) },
       onError: (e) => {
-        if (e instanceof ApiError && e.code === 'confirm_required') { setAsk(String(e.details.new_ip ?? address)); return }
+        if (e instanceof ApiError && e.code === 'confirm_required') { setAsk({ ip: typeof e.details.new_ip === 'string' && e.details.new_ip ? e.details.new_ip : null }); return }
         setAsk(null); setError(errMsg(e, t))
       },
     })
@@ -155,11 +165,12 @@ function ManagementForm({ d }: { d: NetworkState }) {
         )}
         {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
         <div><Button type="submit" variant="primary" disabled={locked || management.isPending} title={gate.title}>{t('network.management.save')}</Button></div>
+        <p className="max-w-lg text-[13px] text-muted">{t('network.management.restartNote')}</p>
       </form>
       {ask ? (
         <Dialog open onOpenChange={(o) => { if (!o) setAsk(null) }}>
-          <DialogContent title={t('network.confirm.title')} description={t('network.confirm.body', { ip: ask })}>
-            <p className="text-sm">{t('network.confirm.lose', { ip: ask })}</p>
+          <DialogContent title={t('network.confirm.title')} description={ask.ip ? t('network.confirm.body', { ip: ask.ip }) : t('network.confirm.bodyDhcp')}>
+            <p className="text-sm">{t(ask.ip ? 'network.confirm.lose' : 'network.confirm.loseDhcp')}</p>
             <DialogFooter>
               <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
               <Button variant="primary" disabled={management.isPending} onClick={() => send(true)}>{t('network.confirm.go')}</Button>

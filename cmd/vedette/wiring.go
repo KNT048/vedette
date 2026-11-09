@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/netip"
 	"time"
 
 	"github.com/knt048/vedette/core/auth"
@@ -219,6 +220,10 @@ func buildServices(d *deps) error {
 	if d.OS, err = newOSHandlers(*d); err != nil {
 		return fmt.Errorf("os updates: %w", err)
 	}
+	sensor := &spanSensor{reg: d.Reg} // its service comes below: the Box network page needs the sensor and the sensor needs the page's settings
+	if d.Network, err = newNetworkHandlers(*d, sensor); err != nil {
+		return fmt.Errorf("box network: %w", err)
+	}
 	if d.Honeypot, err = newHoneypot(d); err != nil {
 		return fmt.Errorf("honeypot: %w", err)
 	}
@@ -227,6 +232,7 @@ func buildServices(d *deps) error {
 		return fmt.Errorf("sensor-passive: %w", err)
 	}
 	d.SensorPassive = sp
+	sensor.svc = sp
 	fs, err := feedsService(*d)
 	if err != nil {
 		return fmt.Errorf("feeds: %w", err)
@@ -346,4 +352,39 @@ func newOSHandlers(d deps) (*core.OSHandlers, error) {
 		DB: d.DB, Auth: d.Auth, Audit: d.Audit, Log: d.Log, Host: h, DataDir: d.DataDir, KeyPath: d.KeyPath,
 		Zone: d.Core.OrgTimeZone, Clock: d.Clock,
 	})
+}
+
+// newNetworkHandlers wires the Box network handlers (S-CORE-8) on the host client of the socket path (nil without
+// a host: every route answers 409 not_appliance). After a change of the box's addresses the shared cache of
+// them (conn, sensor-active, honeypot) is dropped.
+func newNetworkHandlers(d deps, sensor core.SpanSensor) (*core.NetworkHandlers, error) {
+	var h core.NetHost
+	if d.HostSocket != "" {
+		h = hostclient.New(d.HostSocket)
+	}
+	return core.NewNetworkHandlers(core.NetworkConfig{
+		DB: d.DB, Auth: d.Auth, Audit: d.Audit, Log: d.Log, Host: h, Sensor: sensor, Clock: d.Clock,
+		AddressInUse: func(ctx context.Context, ip netip.Addr) (bool, error) {
+			return inventoryHasAddress(ctx, d.Inventory, ip)
+		},
+		AddressesChanged: d.HostNet.Invalidate,
+	})
+}
+
+// inventoryHasAddress says whether a device of the inventory has the address (the box itself excluded: it is the
+// page's own address).
+func inventoryHasAddress(ctx context.Context, inv *inventory.Service, ip netip.Addr) (bool, error) {
+	if inv == nil {
+		return false, nil
+	}
+	list, err := inv.Devices(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, dev := range list.Items {
+		if !dev.IsBox && dev.IP == ip.String() {
+			return true, nil
+		}
+	}
+	return false, nil
 }

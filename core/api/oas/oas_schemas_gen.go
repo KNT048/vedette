@@ -13907,6 +13907,9 @@ func (s *CoreGetCoreNetworkOKNtpMode) UnmarshalText(data []byte) error {
 type CoreGetCoreNetworkOKPending struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 	PreviousAddress NilString `json:"previous_address"`
+	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
+	// saved settings on disk are the old ones (D-100).
+	RebootAt NilDateTime `json:"reboot_at"`
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -13919,6 +13922,11 @@ func (s *CoreGetCoreNetworkOKPending) GetPreviousAddress() NilString {
 	return s.PreviousAddress
 }
 
+// GetRebootAt returns the value of RebootAt.
+func (s *CoreGetCoreNetworkOKPending) GetRebootAt() NilDateTime {
+	return s.RebootAt
+}
+
 // SetExpiresAt sets the value of ExpiresAt.
 func (s *CoreGetCoreNetworkOKPending) SetExpiresAt(val time.Time) {
 	s.ExpiresAt = val
@@ -13927,6 +13935,11 @@ func (s *CoreGetCoreNetworkOKPending) SetExpiresAt(val time.Time) {
 // SetPreviousAddress sets the value of PreviousAddress.
 func (s *CoreGetCoreNetworkOKPending) SetPreviousAddress(val NilString) {
 	s.PreviousAddress = val
+}
+
+// SetRebootAt sets the value of RebootAt.
+func (s *CoreGetCoreNetworkOKPending) SetRebootAt(val NilDateTime) {
+	s.RebootAt = val
 }
 
 type CoreGetCoreNetworkOKSpan struct {
@@ -22863,6 +22876,9 @@ func (s *CorePostCoreNetworkManagementConfirmOKNtpMode) UnmarshalText(data []byt
 type CorePostCoreNetworkManagementConfirmOKPending struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 	PreviousAddress NilString `json:"previous_address"`
+	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
+	// saved settings on disk are the old ones (D-100).
+	RebootAt NilDateTime `json:"reboot_at"`
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -22875,6 +22891,11 @@ func (s *CorePostCoreNetworkManagementConfirmOKPending) GetPreviousAddress() Nil
 	return s.PreviousAddress
 }
 
+// GetRebootAt returns the value of RebootAt.
+func (s *CorePostCoreNetworkManagementConfirmOKPending) GetRebootAt() NilDateTime {
+	return s.RebootAt
+}
+
 // SetExpiresAt sets the value of ExpiresAt.
 func (s *CorePostCoreNetworkManagementConfirmOKPending) SetExpiresAt(val time.Time) {
 	s.ExpiresAt = val
@@ -22883,6 +22904,11 @@ func (s *CorePostCoreNetworkManagementConfirmOKPending) SetExpiresAt(val time.Ti
 // SetPreviousAddress sets the value of PreviousAddress.
 func (s *CorePostCoreNetworkManagementConfirmOKPending) SetPreviousAddress(val NilString) {
 	s.PreviousAddress = val
+}
+
+// SetRebootAt sets the value of RebootAt.
+func (s *CorePostCoreNetworkManagementConfirmOKPending) SetRebootAt(val NilDateTime) {
+	s.RebootAt = val
 }
 
 type CorePostCoreNetworkManagementConfirmOKSpan struct {
@@ -23581,6 +23607,9 @@ func (s *CorePostCoreNetworkManagementRevertOKNtpMode) UnmarshalText(data []byte
 type CorePostCoreNetworkManagementRevertOKPending struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 	PreviousAddress NilString `json:"previous_address"`
+	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
+	// saved settings on disk are the old ones (D-100).
+	RebootAt NilDateTime `json:"reboot_at"`
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -23593,6 +23622,11 @@ func (s *CorePostCoreNetworkManagementRevertOKPending) GetPreviousAddress() NilS
 	return s.PreviousAddress
 }
 
+// GetRebootAt returns the value of RebootAt.
+func (s *CorePostCoreNetworkManagementRevertOKPending) GetRebootAt() NilDateTime {
+	return s.RebootAt
+}
+
 // SetExpiresAt sets the value of ExpiresAt.
 func (s *CorePostCoreNetworkManagementRevertOKPending) SetExpiresAt(val time.Time) {
 	s.ExpiresAt = val
@@ -23601,6 +23635,11 @@ func (s *CorePostCoreNetworkManagementRevertOKPending) SetExpiresAt(val time.Tim
 // SetPreviousAddress sets the value of PreviousAddress.
 func (s *CorePostCoreNetworkManagementRevertOKPending) SetPreviousAddress(val NilString) {
 	s.PreviousAddress = val
+}
+
+// SetRebootAt sets the value of RebootAt.
+func (s *CorePostCoreNetworkManagementRevertOKPending) SetRebootAt(val NilDateTime) {
+	s.RebootAt = val
 }
 
 type CorePostCoreNetworkManagementRevertOKSpan struct {
@@ -30664,6 +30703,9 @@ func (s *CorePutCoreNetworkInterfacesOKNtpMode) UnmarshalText(data []byte) error
 type CorePutCoreNetworkInterfacesOKPending struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 	PreviousAddress NilString `json:"previous_address"`
+	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
+	// saved settings on disk are the old ones (D-100).
+	RebootAt NilDateTime `json:"reboot_at"`
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -30676,6 +30718,11 @@ func (s *CorePutCoreNetworkInterfacesOKPending) GetPreviousAddress() NilString {
 	return s.PreviousAddress
 }
 
+// GetRebootAt returns the value of RebootAt.
+func (s *CorePutCoreNetworkInterfacesOKPending) GetRebootAt() NilDateTime {
+	return s.RebootAt
+}
+
 // SetExpiresAt sets the value of ExpiresAt.
 func (s *CorePutCoreNetworkInterfacesOKPending) SetExpiresAt(val time.Time) {
 	s.ExpiresAt = val
@@ -30684,6 +30731,11 @@ func (s *CorePutCoreNetworkInterfacesOKPending) SetExpiresAt(val time.Time) {
 // SetPreviousAddress sets the value of PreviousAddress.
 func (s *CorePutCoreNetworkInterfacesOKPending) SetPreviousAddress(val NilString) {
 	s.PreviousAddress = val
+}
+
+// SetRebootAt sets the value of RebootAt.
+func (s *CorePutCoreNetworkInterfacesOKPending) SetRebootAt(val NilDateTime) {
+	s.RebootAt = val
 }
 
 type CorePutCoreNetworkInterfacesOKSpan struct {
@@ -31455,6 +31507,9 @@ func (s *CorePutCoreNetworkManagementOKNtpMode) UnmarshalText(data []byte) error
 type CorePutCoreNetworkManagementOKPending struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 	PreviousAddress NilString `json:"previous_address"`
+	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
+	// saved settings on disk are the old ones (D-100).
+	RebootAt NilDateTime `json:"reboot_at"`
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -31467,6 +31522,11 @@ func (s *CorePutCoreNetworkManagementOKPending) GetPreviousAddress() NilString {
 	return s.PreviousAddress
 }
 
+// GetRebootAt returns the value of RebootAt.
+func (s *CorePutCoreNetworkManagementOKPending) GetRebootAt() NilDateTime {
+	return s.RebootAt
+}
+
 // SetExpiresAt sets the value of ExpiresAt.
 func (s *CorePutCoreNetworkManagementOKPending) SetExpiresAt(val time.Time) {
 	s.ExpiresAt = val
@@ -31475,6 +31535,11 @@ func (s *CorePutCoreNetworkManagementOKPending) SetExpiresAt(val time.Time) {
 // SetPreviousAddress sets the value of PreviousAddress.
 func (s *CorePutCoreNetworkManagementOKPending) SetPreviousAddress(val NilString) {
 	s.PreviousAddress = val
+}
+
+// SetRebootAt sets the value of RebootAt.
+func (s *CorePutCoreNetworkManagementOKPending) SetRebootAt(val NilDateTime) {
+	s.RebootAt = val
 }
 
 type CorePutCoreNetworkManagementOKSpan struct {
@@ -31795,8 +31860,9 @@ func (s *CorePutCoreNetworkManagementOKSpanStatusVerdict) UnmarshalText(data []b
 
 type CorePutCoreNetworkManagementReq struct {
 	Address OptString `json:"address"`
-	// Required when the address, prefix, gateway or mode changes: 409 confirm_required (with new_ip)
-	// otherwise. DNS-only changes apply at once. dhcp with any static field: 400 dhcp_no_static.
+	// Required when the address, prefix, gateway or mode changes: 409 confirm_required (with new_ip; null
+	// with DHCP, where the server picks the address) otherwise. DNS-only changes apply at once. dhcp with
+	// any static field: 400 dhcp_no_static.
 	Confirm OptBool                             `json:"confirm"`
 	DNS     []string                            `json:"dns"`
 	Gateway OptString                           `json:"gateway"`
@@ -32285,6 +32351,9 @@ func (s *CorePutCoreNetworkNtpOKNtpMode) UnmarshalText(data []byte) error {
 type CorePutCoreNetworkNtpOKPending struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 	PreviousAddress NilString `json:"previous_address"`
+	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
+	// saved settings on disk are the old ones (D-100).
+	RebootAt NilDateTime `json:"reboot_at"`
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -32297,6 +32366,11 @@ func (s *CorePutCoreNetworkNtpOKPending) GetPreviousAddress() NilString {
 	return s.PreviousAddress
 }
 
+// GetRebootAt returns the value of RebootAt.
+func (s *CorePutCoreNetworkNtpOKPending) GetRebootAt() NilDateTime {
+	return s.RebootAt
+}
+
 // SetExpiresAt sets the value of ExpiresAt.
 func (s *CorePutCoreNetworkNtpOKPending) SetExpiresAt(val time.Time) {
 	s.ExpiresAt = val
@@ -32305,6 +32379,11 @@ func (s *CorePutCoreNetworkNtpOKPending) SetExpiresAt(val time.Time) {
 // SetPreviousAddress sets the value of PreviousAddress.
 func (s *CorePutCoreNetworkNtpOKPending) SetPreviousAddress(val NilString) {
 	s.PreviousAddress = val
+}
+
+// SetRebootAt sets the value of RebootAt.
+func (s *CorePutCoreNetworkNtpOKPending) SetRebootAt(val NilDateTime) {
+	s.RebootAt = val
 }
 
 type CorePutCoreNetworkNtpOKSpan struct {
@@ -33070,6 +33149,9 @@ func (s *CorePutCoreNetworkSpanOKNtpMode) UnmarshalText(data []byte) error {
 type CorePutCoreNetworkSpanOKPending struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 	PreviousAddress NilString `json:"previous_address"`
+	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
+	// saved settings on disk are the old ones (D-100).
+	RebootAt NilDateTime `json:"reboot_at"`
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -33082,6 +33164,11 @@ func (s *CorePutCoreNetworkSpanOKPending) GetPreviousAddress() NilString {
 	return s.PreviousAddress
 }
 
+// GetRebootAt returns the value of RebootAt.
+func (s *CorePutCoreNetworkSpanOKPending) GetRebootAt() NilDateTime {
+	return s.RebootAt
+}
+
 // SetExpiresAt sets the value of ExpiresAt.
 func (s *CorePutCoreNetworkSpanOKPending) SetExpiresAt(val time.Time) {
 	s.ExpiresAt = val
@@ -33090,6 +33177,11 @@ func (s *CorePutCoreNetworkSpanOKPending) SetExpiresAt(val time.Time) {
 // SetPreviousAddress sets the value of PreviousAddress.
 func (s *CorePutCoreNetworkSpanOKPending) SetPreviousAddress(val NilString) {
 	s.PreviousAddress = val
+}
+
+// SetRebootAt sets the value of RebootAt.
+func (s *CorePutCoreNetworkSpanOKPending) SetRebootAt(val NilDateTime) {
+	s.RebootAt = val
 }
 
 type CorePutCoreNetworkSpanOKSpan struct {

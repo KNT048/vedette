@@ -25,7 +25,7 @@ func TestWiringOSEndpointsWithoutAHostAreNotAppliance(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			s := newStackWith(t, func(d *deps) { tune(t, d) })
-			for _, path := range []string{"/core/updates/os", "/core/updates/os/run"} {
+			for _, path := range []string{"/core/updates/os", "/core/updates/os/run", "/core/network", "/core/network/span/status"} { // the Box network page is wired the same way (S-CORE-8)
 				code, body := s.do("GET", path, "viewer", "")
 				e, _ := body["error"].(map[string]any)
 				if code != 409 || e["code"] != "not_appliance" {

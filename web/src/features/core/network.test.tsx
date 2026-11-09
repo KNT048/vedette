@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { eachOption } from '@/test/formMatrix'
 import { sessionStore } from '@/mocks/stores'
-import { networkStore } from '@/mocks/network'
+import { networkStore, SILENT_DEVICES } from '@/mocks/network'
 import { GUIDES } from './guideData'
 
 vi.setConfig({ testTimeout: 30_000 })
@@ -102,9 +102,12 @@ describe('box network: the API (S-CORE-8, D-56)', () => {
     asAdmin()
     expect(code(await call('PUT', '/management', { mode: 'dhcp', address: '192.168.10.9' }))).toBe('dhcp_no_static')
     expect(code(await call('PUT', '/management', { mode: 'dhcp', dns: ['1.1.1.1'] }))).toBe('dhcp_no_static')
-    for (const bad of [{ address: '300.1.1.1' }, { address: '192.168.10.0' }, { address: '192.168.10.255' }, { prefix: 31 }, { gateway: '10.9.9.9' }, { gateway: '192.168.10.200' }, { dns: [] }, { dns: ['a.b'] }, { dns: ['1.1.1.1', '1.1.1.1'] }, { gateway: undefined }]) {
+    for (const bad of [{ address: '300.1.1.1' }, { address: '192.168.10.0' }, { address: '192.168.10.255' }, { prefix: 31 }, { gateway: '192.168.10.200' }, { dns: [] }, { dns: ['a.b'] }, { dns: ['1.1.1.1', '1.1.1.1'] }, { gateway: undefined }]) {
       expect(code(await call('PUT', '/management', { ...goodStatic, ...bad })), JSON.stringify(bad)).toBe('invalid_static')
     }
+    const outside = await call('PUT', '/management', { ...goodStatic, gateway: '10.9.9.9' })
+    expect(outside.status).toBe(400)
+    expect(outside.json!.error).toMatchObject({ code: 'gateway_outside_subnet', message: 'The gateway must be inside the address range you entered.' })
     expect(code(await call('PUT', '/management', { ...goodStatic, address: '192.168.10.241' }))).toBe('ip_in_use') // a decoy
     expect(code(await call('PUT', '/management', { ...goodStatic, address: '192.168.10.10' }))).toBe('ip_in_use') // an inventory device
     const first = await call('PUT', '/management', goodStatic)
@@ -425,5 +428,64 @@ describe('box network: the page', () => {
     expect(sec.getByText('RouterOS 7.15 and newer')).toBeInTheDocument()
     expect(document.body.textContent).toMatch(/set switch1 mirror-target=ether8/)
     await expectNoA11yViolations()
+  })
+})
+
+describe('box network: what the host can refuse (D-99, D-100, D-101)', () => {
+  it('another device already answers for the address: said after the confirm, nothing waits', async () => {
+    asAdmin()
+    const r = await call('PUT', '/management', { ...goodStatic, address: SILENT_DEVICES[0], confirm: true })
+    expect(r.status).toBe(409)
+    expect(r.json!.error).toMatchObject({ code: 'address_conflict', message: 'Another device already uses this address.' })
+    expect((await get()).pending).toBeNull()
+    expect((await get()).management.address).toBe('192.168.10.250')
+  })
+
+  it('a box the installer did not set up refuses every change with one sentence', async () => {
+    asAdmin()
+    networkStore.update((s) => ({ ...s, unsupported: true }))
+    const sentence = "This box's network files were not set up by the Vedette installer, so Vedette cannot change them. Reinstall with the installer or change the network on the box itself."
+    for (const [path, body] of [['/management', { ...goodStatic, confirm: true }], ['/management', { ...goodStatic, address: '192.168.10.250', dns: ['9.9.9.9'] }], ['/ntp', { mode: 'custom', servers: ['ntp.example.com'] }], ['/span', { ...(await spanBody()), interface: 'eth2' }], ['/interfaces', { roles: { eth0: 'management', eth1: 'unused', eth2: 'unused' } }]] as const) {
+      const r = await call('PUT', path, body)
+      expect(r.status, path).toBe(409)
+      expect(r.json!.error, path).toMatchObject({ code: 'net_backend_unsupported', message: sentence })
+    }
+    expect((await get()).management.address).toBe('192.168.10.250')
+  })
+
+  it('DHCP does not know the new address: the question has new_ip null and says where to look', async () => {
+    asAdmin()
+    const r = await call('PUT', '/management', { mode: 'dhcp' })
+    expect(r.status).toBe(409)
+    expect(r.json!.error.code).toBe('confirm_required')
+    expect(r.json!.error.new_ip).toBeNull()
+    expect(r.json!.error.message).toContain('Find the new address your DHCP server gives the box')
+  })
+
+  it('persona: "I switch to DHCP": the dialog sends me to the DHCP server, not to an address made up here', async () => {
+    const u = user()
+    await open()
+    const form = within(document.getElementById('management')!)
+    await u.selectOptions(form.getByLabelText('How the box gets its address'), 'dhcp')
+    await u.click(form.getByRole('button', { name: 'Save management settings' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Change the management address?' }, T)
+    expect(dlg).toHaveTextContent('Your DHCP server picks the new address')
+    expect(dlg).not.toHaveTextContent('https://')
+    expect(dlg).toHaveTextContent('do nothing: after 2 minutes the box goes back to the old address by itself')
+  })
+
+  it('says next to the save button that a restart before the confirmation brings the old address back', async () => {
+    await open()
+    expect(within(document.getElementById('management')!).getByText('If the box restarts before you confirm, it comes back on the old address.')).toBeInTheDocument()
+  })
+
+  it('a revert that could not be applied shows the restart and takes the buttons away', async () => {
+    asAdmin()
+    networkStore.update((s) => ({ ...s, pending: { previous: s.mgmt, expires_at: new Date(Date.now() + 60_000).toISOString(), reboot_at: new Date(Date.now() + 50_000).toISOString() } }))
+    await open()
+    const alert = await screen.findByText('The box could not go back to the old network settings by itself', undefined, T)
+    expect(alert.closest('[role="alert"]')).toHaveTextContent('The settings saved on the box are the old ones, so it comes back on 192.168.10.250.')
+    expect(screen.queryByRole('button', { name: 'Cancel and go back now' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Confirm: I opened the new address' })).not.toBeInTheDocument()
   })
 })

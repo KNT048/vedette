@@ -176,14 +176,14 @@ export const SpanStatus = z.object({
   interface: z.string().nullable(), packets_per_s: z.number().int(), other_macs: z.number().int().describe('Distinct source MAC addresses other than the box\'s own'), last_packet_at: ts.nullable(),
 })
 export const NtpConfig = z.object({ mode: z.enum(['default', 'custom']), servers: z.array(z.string()).describe('Only for mode custom; empty for the default pool') })
-export const PendingManagement = z.object({ expires_at: ts, previous_address: z.string().nullable() })
+export const PendingManagement = z.object({ expires_at: ts, previous_address: z.string().nullable(), reboot_at: ts.nullable().describe('Set when the box could not go back to the old settings by itself: it restarts at this time, and the saved settings on disk are the old ones (D-100)') })
 export const NetworkState = z.object({
   interfaces: z.array(NetInterface), management: Management, span: SpanConfig, span_status: SpanStatus, ntp: NtpConfig,
   default_ntp: z.string(), decoy_ips: z.array(z.string()), pending: PendingManagement.nullable().describe('A management address change waiting for confirmation from the new address; the box reverts at expires_at'),
 })
 export const ManagementBody = z.object({
   mode: z.enum(['dhcp', 'static']), address: z.string().optional(), prefix: z.number().int().optional(), gateway: z.string().optional(), dns: z.array(z.string()).optional(),
-  confirm: z.boolean().optional().describe('Required when the address, prefix, gateway or mode changes: 409 confirm_required (with new_ip) otherwise. DNS-only changes apply at once. dhcp with any static field: 400 dhcp_no_static'),
+  confirm: z.boolean().optional().describe('Required when the address, prefix, gateway or mode changes: 409 confirm_required (with new_ip; null with DHCP, where the server picks the address) otherwise. DNS-only changes apply at once. dhcp with any static field: 400 dhcp_no_static'),
 })
 
 export const endpoints = defineEndpoints([

@@ -402,3 +402,53 @@ func TestHostNetSourceCapsWhatCoreAccepts(t *testing.T) {
 		t.Fatalf("a normal answer warned or was empty: %q", buf.String())
 	}
 }
+
+// After a change of the box's addresses (Box network: apply, confirm, revert) the next Get asks the host again at
+// once, and an answer that was already on its way when the change was made does not stand for the new state.
+func TestHostNetCacheInvalidateAsksAgainAndDiscardsAnAnswerInFlight(t *testing.T) {
+	t.Parallel()
+	f := lanBox()
+	now := time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC)
+	c := newHostNetCache(hostNetSource(f, nil), func() time.Time { return now })
+	c.Get(t.Context())
+	c.Get(t.Context())
+	if f.calls != 1 {
+		t.Fatalf("a fresh answer is served from memory: %d calls", f.calls)
+	}
+	c.Invalidate()
+	f.st.Interfaces[0].Addresses = []string{"192.168.10.60/24"}
+	if got := c.Get(t.Context()); !contains(got, "192.168.10.60") || contains(got, "192.168.10.250") || f.calls != 2 {
+		t.Fatalf("after Invalidate: %v, %d calls", got, f.calls)
+	}
+	// Invalidate while a fetch is in flight: that answer is used by its caller but never marked fresh.
+	gate := make(chan struct{})
+	started := make(chan struct{})
+	slow := &gatedNet{fakeNet: lanBox(), gate: gate, started: started}
+	d := newHostNetCache(hostNetSource(slow, nil), func() time.Time { return now })
+	done := make(chan []netip.Prefix)
+	go func() { done <- d.Get(t.Context()) }()
+	<-started
+	d.Invalidate()
+	close(gate)
+	<-done
+	d.Get(t.Context())
+	if slow.calls != 2 {
+		t.Fatalf("the answer that was in flight during Invalidate must not stand: %d calls", slow.calls)
+	}
+	var nilCache *hostNetCache
+	nilCache.Invalidate() // safe without a host
+}
+
+// gatedNet answers state/net only when the gate opens.
+type gatedNet struct {
+	*fakeNet
+	gate    chan struct{}
+	started chan struct{}
+	once    sync.Once
+}
+
+func (g *gatedNet) StateNet(ctx context.Context) (api.NetState, error) {
+	g.once.Do(func() { close(g.started) })
+	<-g.gate
+	return g.fakeNet.StateNet(ctx)
+}

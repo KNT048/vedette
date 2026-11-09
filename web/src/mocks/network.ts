@@ -17,12 +17,16 @@ export interface SpanConfig {
 export interface NetStore {
   ifaces: NetIface[]; mgmt: Management; span: SpanConfig
   ntp: { mode: 'default' | 'custom'; servers: string[] }
-  pending: { previous: Management; expires_at: string } | null
+  pending: { previous: Management; expires_at: string; reboot_at?: string } | null
+  /** Set by a test to play a box whose network files the installer did not set up (host code net_backend_unsupported). */
+  unsupported?: boolean
 }
 export type SpanVerdict = 'off' | 'ok' | 'own_only' | 'no_traffic' | 'no_link'
 export interface SpanStatus { verdict: SpanVerdict; interface: string | null; packets_per_s: number; other_macs: number; last_packet_at: string | null }
 
 export const DEFAULT_NTP = 'pool.ntp.org'
+/** A device that is switched on but not in the inventory (a printer nobody scanned yet): the box finds it with an ARP probe before it takes an address (D-101). */
+export const SILENT_DEVICES = ['192.168.10.77']
 export const CONFIRM_SECONDS = 120
 const EXTRACT = { dns: true, tls_sni: true, http_host: true, flows: true }
 const LIMITS = { cpu_percent: 25, memory_mb: 512 }

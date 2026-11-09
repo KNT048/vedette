@@ -29086,11 +29086,16 @@ func (s *CoreGetCoreNetworkOKPending) encodeFields(e *jx.Encoder) {
 		e.FieldStart("previous_address")
 		s.PreviousAddress.Encode(e)
 	}
+	{
+		e.FieldStart("reboot_at")
+		s.RebootAt.Encode(e, json.EncodeDateTime)
+	}
 }
 
-var jsonFieldsNameOfCoreGetCoreNetworkOKPending = [2]string{
+var jsonFieldsNameOfCoreGetCoreNetworkOKPending = [3]string{
 	0: "expires_at",
 	1: "previous_address",
+	2: "reboot_at",
 }
 
 // Decode decodes CoreGetCoreNetworkOKPending from json.
@@ -29124,6 +29129,16 @@ func (s *CoreGetCoreNetworkOKPending) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"previous_address\"")
 			}
+		case "reboot_at":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.RebootAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reboot_at\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -29134,7 +29149,7 @@ func (s *CoreGetCoreNetworkOKPending) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -47347,11 +47362,16 @@ func (s *CorePostCoreNetworkManagementConfirmOKPending) encodeFields(e *jx.Encod
 		e.FieldStart("previous_address")
 		s.PreviousAddress.Encode(e)
 	}
+	{
+		e.FieldStart("reboot_at")
+		s.RebootAt.Encode(e, json.EncodeDateTime)
+	}
 }
 
-var jsonFieldsNameOfCorePostCoreNetworkManagementConfirmOKPending = [2]string{
+var jsonFieldsNameOfCorePostCoreNetworkManagementConfirmOKPending = [3]string{
 	0: "expires_at",
 	1: "previous_address",
+	2: "reboot_at",
 }
 
 // Decode decodes CorePostCoreNetworkManagementConfirmOKPending from json.
@@ -47385,6 +47405,16 @@ func (s *CorePostCoreNetworkManagementConfirmOKPending) Decode(d *jx.Decoder) er
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"previous_address\"")
 			}
+		case "reboot_at":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.RebootAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reboot_at\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -47395,7 +47425,7 @@ func (s *CorePostCoreNetworkManagementConfirmOKPending) Decode(d *jx.Decoder) er
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -48964,11 +48994,16 @@ func (s *CorePostCoreNetworkManagementRevertOKPending) encodeFields(e *jx.Encode
 		e.FieldStart("previous_address")
 		s.PreviousAddress.Encode(e)
 	}
+	{
+		e.FieldStart("reboot_at")
+		s.RebootAt.Encode(e, json.EncodeDateTime)
+	}
 }
 
-var jsonFieldsNameOfCorePostCoreNetworkManagementRevertOKPending = [2]string{
+var jsonFieldsNameOfCorePostCoreNetworkManagementRevertOKPending = [3]string{
 	0: "expires_at",
 	1: "previous_address",
+	2: "reboot_at",
 }
 
 // Decode decodes CorePostCoreNetworkManagementRevertOKPending from json.
@@ -49002,6 +49037,16 @@ func (s *CorePostCoreNetworkManagementRevertOKPending) Decode(d *jx.Decoder) err
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"previous_address\"")
 			}
+		case "reboot_at":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.RebootAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reboot_at\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -49012,7 +49057,7 @@ func (s *CorePostCoreNetworkManagementRevertOKPending) Decode(d *jx.Decoder) err
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -63330,11 +63375,16 @@ func (s *CorePutCoreNetworkInterfacesOKPending) encodeFields(e *jx.Encoder) {
 		e.FieldStart("previous_address")
 		s.PreviousAddress.Encode(e)
 	}
+	{
+		e.FieldStart("reboot_at")
+		s.RebootAt.Encode(e, json.EncodeDateTime)
+	}
 }
 
-var jsonFieldsNameOfCorePutCoreNetworkInterfacesOKPending = [2]string{
+var jsonFieldsNameOfCorePutCoreNetworkInterfacesOKPending = [3]string{
 	0: "expires_at",
 	1: "previous_address",
+	2: "reboot_at",
 }
 
 // Decode decodes CorePutCoreNetworkInterfacesOKPending from json.
@@ -63368,6 +63418,16 @@ func (s *CorePutCoreNetworkInterfacesOKPending) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"previous_address\"")
 			}
+		case "reboot_at":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.RebootAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reboot_at\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -63378,7 +63438,7 @@ func (s *CorePutCoreNetworkInterfacesOKPending) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -65137,11 +65197,16 @@ func (s *CorePutCoreNetworkManagementOKPending) encodeFields(e *jx.Encoder) {
 		e.FieldStart("previous_address")
 		s.PreviousAddress.Encode(e)
 	}
+	{
+		e.FieldStart("reboot_at")
+		s.RebootAt.Encode(e, json.EncodeDateTime)
+	}
 }
 
-var jsonFieldsNameOfCorePutCoreNetworkManagementOKPending = [2]string{
+var jsonFieldsNameOfCorePutCoreNetworkManagementOKPending = [3]string{
 	0: "expires_at",
 	1: "previous_address",
+	2: "reboot_at",
 }
 
 // Decode decodes CorePutCoreNetworkManagementOKPending from json.
@@ -65175,6 +65240,16 @@ func (s *CorePutCoreNetworkManagementOKPending) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"previous_address\"")
 			}
+		case "reboot_at":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.RebootAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reboot_at\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -65185,7 +65260,7 @@ func (s *CorePutCoreNetworkManagementOKPending) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -66986,11 +67061,16 @@ func (s *CorePutCoreNetworkNtpOKPending) encodeFields(e *jx.Encoder) {
 		e.FieldStart("previous_address")
 		s.PreviousAddress.Encode(e)
 	}
+	{
+		e.FieldStart("reboot_at")
+		s.RebootAt.Encode(e, json.EncodeDateTime)
+	}
 }
 
-var jsonFieldsNameOfCorePutCoreNetworkNtpOKPending = [2]string{
+var jsonFieldsNameOfCorePutCoreNetworkNtpOKPending = [3]string{
 	0: "expires_at",
 	1: "previous_address",
+	2: "reboot_at",
 }
 
 // Decode decodes CorePutCoreNetworkNtpOKPending from json.
@@ -67024,6 +67104,16 @@ func (s *CorePutCoreNetworkNtpOKPending) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"previous_address\"")
 			}
+		case "reboot_at":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.RebootAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reboot_at\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -67034,7 +67124,7 @@ func (s *CorePutCoreNetworkNtpOKPending) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -68766,11 +68856,16 @@ func (s *CorePutCoreNetworkSpanOKPending) encodeFields(e *jx.Encoder) {
 		e.FieldStart("previous_address")
 		s.PreviousAddress.Encode(e)
 	}
+	{
+		e.FieldStart("reboot_at")
+		s.RebootAt.Encode(e, json.EncodeDateTime)
+	}
 }
 
-var jsonFieldsNameOfCorePutCoreNetworkSpanOKPending = [2]string{
+var jsonFieldsNameOfCorePutCoreNetworkSpanOKPending = [3]string{
 	0: "expires_at",
 	1: "previous_address",
+	2: "reboot_at",
 }
 
 // Decode decodes CorePutCoreNetworkSpanOKPending from json.
@@ -68804,6 +68899,16 @@ func (s *CorePutCoreNetworkSpanOKPending) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"previous_address\"")
 			}
+		case "reboot_at":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.RebootAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reboot_at\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -68814,7 +68919,7 @@ func (s *CorePutCoreNetworkSpanOKPending) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

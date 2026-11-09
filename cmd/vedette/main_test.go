@@ -65,12 +65,14 @@ func start(t *testing.T) *instance {
 	in := &instance{db: filepath.Join(dir, "v.db"), key: filepath.Join(dir, "v.key"), done: make(chan error, 1)}
 	var ctx context.Context
 	ctx, in.cancel = context.WithCancel(t.Context())
-	t.Cleanup(in.cancel)
 	pr, pw := io.Pipe()
+	stopped := make(chan struct{})
 	go func() {
+		defer close(stopped)
 		in.done <- run(ctx, []string{"-db", in.db, "-key", in.key, "-listen", "127.0.0.1:0"}, io.Discard, pw)
 		_ = pw.Close()
 	}()
+	waitStopped(t, in.cancel, stopped)
 	sc := bufio.NewScanner(pr)
 	for sc.Scan() {
 		var line struct {
@@ -88,6 +90,21 @@ func start(t *testing.T) *instance {
 	}
 	t.Fatalf("run ended before listening: %v", <-in.done)
 	return nil
+}
+
+// waitStopped registers a cleanup that cancels the process and waits until run has returned. It must be
+// registered after t.TempDir: cleanups run last-in first-out, so the temp dir is removed only once nothing
+// writes into it any more (CI saw "TempDir RemoveAll cleanup: directory not empty" while run was shutting down).
+func waitStopped(t *testing.T, cancel context.CancelFunc, stopped <-chan struct{}) {
+	t.Helper()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-stopped:
+		case <-time.After(30 * time.Second):
+			t.Error("run did not return within 30 s of cancel")
+		}
+	})
 }
 
 func (in *instance) get(t *testing.T, path string) (int, string) {

@@ -1,11 +1,11 @@
 # Core Contract
 
-> Tier: core · Story: S-CORE-1…7 (S-CORE-3 một phần: OIDC thuộc `auth-oidc`) · Last verified: 2026-11-09 (docs-first, chưa có code)
+> Tier: core · Story: S-CORE-1…7 (S-CORE-3 một phần: OIDC thuộc `auth-oidc`) · Last verified: 2026-11-09 (WP-04b phần 1: `core/auth`, `core/events`, chain head có code; handler HTTP còn lại)
 
 Nguồn hành vi: `web/src/features/core/contract.ts` + `web/src/mocks/core.ts`. Đường dẫn dưới đây không có tiền tố `/api/v1`.
 
 ## Quy ước chung (mọi module dùng)
-- **Sự kiện** (đề xuất, chốt khi viết `core/events`): tên `<module>.<đối tượng>.<động từ>`, phát trong process qua `core/events`; chỉ một tập con được đẩy ra SSE `/api/v1/events`. Sensor→server dùng lô sự kiện idempotent theo `seq` (ARCHITECTURE §3). Tên sự kiện của module nhóm B trong các CONTRACT nhóm A là tên tạm.
+- **Sự kiện** (chốt trong `core/events`, WP-04b): tên `<module>.<đối tượng>.<động từ>` (regex trong `events.ValidName`), phát trong process qua `core/events` **sau khi giao dịch commit** (Outbox → Flush); chỉ một tập con được đẩy ra SSE `/api/v1/events`. Sensor→server dùng lô sự kiện idempotent theo `seq` (ARCHITECTURE §3). Tên sự kiện của module nhóm B trong các CONTRACT nhóm A là tên tạm.
 - **Module tắt** = `Registry.Enabled(id)==false`: route không đăng ký, job không chạy, cổng đóng, bảng giữ nguyên (SYS-5). Module khác gọi module tuỳ chọn chỉ sau khi kiểm `Enabled`; tắt = coi như vắng mặt.
 - **Lỗi**: JSON `{error:{code,message}}`; 401 chưa đăng nhập, 403 thiếu vai, 409 xung đột trạng thái.
 
@@ -17,14 +17,15 @@ Nguồn hành vi: `web/src/features/core/contract.ts` + `web/src/mocks/core.ts`.
 - **INV-5**: Vai `viewer < operator < admin` lấy từ bảng endpoint (`role`); endpoint không khai vai thì server từ chối khởi động. `role: public` chỉ gồm `/setup`, `/core/setup*`, `/core/auth-options`, `/auth/*`, `/install/*`, `/intake/*`, và các điểm có token một lần hoặc bước SSO trong chính yêu cầu: `POST /core/sso/login`, `GET|POST /response/approve/{token}`, `GET /response/blocklist/{token}.txt`. Kiểm bằng `core/api/routes_test.go` (sinh mã thất bại nếu thao tác thiếu vai).
 - **INV-6**: Bí mật (mật khẩu, khoá TOTP, secret kênh/feed/OIDC/token) chỉ qua `core/secrets` (AES-256-GCM, khoá file 0600); API chỉ trả 4 ký tự cuối; không vào log, `/core/data/export`, `/core/data/backup`, `/core/logs/export` (SYS-4).
 - **INV-7**: Người dùng: không vô hiệu hoá chính mình; không bỏ quản trị viên hoạt động cuối cùng; quản trị viên không đặt lại 2FA của chính mình (400); mật khẩu tạm trả đúng một lần; đặt lại mật khẩu kết thúc mọi phiên của người đó.
-- **INV-8**: Đã bật 2FA thì đăng nhập thiếu/sai mã không tạo phiên. Kiểu `email` mà kênh email không dùng được → 503 `twofa_email_unavailable`, không bao giờ lùi về chỉ mật khẩu (D-35). Mã email: 6 số, 10 phút, dùng 1 lần, 5 lần sai huỷ mã, gửi lại sau 60 s (429 `resend_too_soon`), tối đa 5 lần gửi/giờ (`too_many_codes`). TOTP: RFC 6238 SHA1, 6 số, 30 s. `preview_code` không bao giờ có trong phản hồi thật.
-- **INV-9**: Chỉ cookie phiên `vedette_session` (HttpOnly, Secure, SameSite) + CSRF cho SPA; không cookie khác, không analytics, không tài nguyên CDN ngoài (legal.md).
+- **INV-8**: Đã bật 2FA thì đăng nhập thiếu/sai mã không tạo phiên. Kiểu `email` mà kênh email không dùng được → 503 `twofa_email_unavailable`, không bao giờ lùi về chỉ mật khẩu (D-35). Mã email: 6 số, 10 phút, dùng 1 lần, 5 lần sai huỷ mã, gửi lại sau 60 s (429 `resend_too_soon`), tối đa 5 lần gửi/giờ (`too_many_codes`). TOTP: RFC 6238 SHA1, 6 số, 30 s, ±1 bước, mã của một bước dùng được một lần (`core_user_totp.last_step`). Đăng nhập sai quá 10 lần trong 15 phút theo cặp (IP, email) → 429 `rate_limited` với thời gian chờ tăng dần; email lạ và mật khẩu sai trả cùng một `invalid_credentials`. `preview_code` không bao giờ có trong phản hồi thật.
+- **INV-9**: Phiên hết hạn sau **4 giờ không hoạt động hoặc 7 ngày kể từ lúc đăng nhập** (D-71). Chỉ cookie phiên `vedette_session` (HttpOnly, Secure, SameSite) + CSRF cho SPA; không cookie khác, không analytics, không tài nguyên CDN ngoài (legal.md).
 - **INV-10**: `GET /core/privacy` trả đúng 9 luồng của `PRIVACY.md`; `telemetry.payload` là chính byte sẽ gửi giờ tới (một lần serialize, dùng cho cả hiển thị và gửi). Tắt `telemetry` ⇒ không có request nào tới máy chủ dự án; tắt `update_check` ⇒ `/core/updates/check` và `/core/updates/os/check` trả 409.
 - **INV-11**: Cập nhật phần mềm/gói nội dung/bundle chỉ áp khi chữ ký `valid`; bundle sai chữ ký bị từ chối; mỗi apply/rollback ghi `core_audit` và `UpdateHistory` (trả 20 dòng mới nhất); rollback về đúng phiên bản `previous`.
 - **INV-12**: Cập nhật OS (D-53, D-55): chỉ chạy danh sách lệnh apt cố định qua socket `vedette-host` (SYS-1); một lần chạy tại một thời điểm (409 khi bận); sao lưu DB trước, kiểm sức khoẻ sau, ghi `OsRunResult.backup/health`; không bao giờ tự nâng bản phát hành OS (`release_upgrade` chỉ là hướng dẫn); đặt lịch khởi động lại phải nằm trong cửa sổ bảo trì; khởi động lại khi đang cài → 409.
 - **INV-13**: `/core/logs/export` chỉ nhận 8 danh mục (`audit, ai_activity, response, scan_probes, alerts, device_logs, known_bad, honeypot`), bỏ bí mật, giữ hash của log có chuỗi hash để kiểm ngoại tuyến, và bản thân lần tải được ghi `core_audit` (D-48). Mỗi module đăng ký nguồn qua `logexport.Register`.
 - **INV-14**: `POST /core/data/purge` chỉ chạy khi `confirm` bằng đúng tên tổ chức; sau đó phiên kết thúc và `/setup` báo `complete:false`.
 - **INV-15**: `POST /core/setup` chỉ chạy khi `setup.complete=false` (⚠ mock chưa mô phỏng); `sample:true` chỉ hợp lệ ở bản `data_mode=sample`; cài sạch (`clean`) mọi bảng rỗng ngoài thiết bị "This box" (S-INV-5).
+- **INV-16** (issue #17): mỗi dòng nối vào `core_audit`/`ai_activity`/`resp_log` cập nhật `core_chain_head` trong cùng giao dịch; verify đòi dòng mới nhất và số dòng khớp head, nên xoá các dòng mới nhất bị phát hiện. `TestContract_ChainHead`
 
 ## Preconditions / Postconditions
 - **PRE-1** (`PATCH /modules/{id}` enable): người gọi `admin`. **POST-1**: `core_module.enabled=true`, `enabled_at` đặt, `core_audit` có `module.enable` (cùng giao dịch); sau commit route của module trả lời (cổng module trong `core/server`) và job của nó chạy (`core/jobs`), không cần khởi động lại.
@@ -66,10 +67,10 @@ Nguồn hành vi: `web/src/features/core/contract.ts` + `web/src/mocks/core.ts`.
 Trong `core/contract.ts` nhưng thuộc module khác (nhóm B chốt, route chỉ đăng ký khi module chủ bật): `/core/oidc*`, `/core/sso/login` → `auth-oidc`; `/core/mcp*` → `mcp-server`.
 
 ## Tables owned (`core_`)
-`core_module`, `core_job_run`, `core_audit`, `core_user`, `core_session`, `core_totp`, `core_email_code`, `core_setting` (tổ chức, general, privacy, kênh cập nhật), `core_update_component`, `core_update_history`, `core_os_run`, `core_secret`, `core_job_run`.
+`core_module`, `core_audit`, `core_chain_anchor`, `core_chain_head`, `core_user`, `core_session`, `core_user_totp` (CONTRACT cũ ghi `core_totp`), `core_email_code`, `core_email_code_send`, `core_org`, `core_setting` (tổ chức, general, privacy, kênh cập nhật), `core_update_component`, `core_update_history`, `core_os_run`, `core_secret`, `core_job_run`.
 
 ## Events
-- **Phát**: `core.module.enabled|disabled {id, affected[]}`, `core.update.applied|rolled_back {component, from, to}`, `core.os.install_finished {run_id, installed, reboot_required}`, `core.data.purged`.
+- **Phát** (tên theo `core/events`, mẫu `<module>.<đối tượng>.<động từ>`): `core.module.enabled|disabled {id, affected[]}`, `core.update.applied|rolled_back {component, from, to}`, `core.os.install_finished {run_id, installed, reboot_required}`, `core.data.purged`.
 - **Nhận**: không (lịch qua `core/jobs`).
 
 ## Behaviour khi tắt

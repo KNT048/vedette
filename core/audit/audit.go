@@ -137,12 +137,13 @@ func (l *Log) Append(ctx context.Context, tx *sql.Tx, e Entry) error {
 	if err != nil {
 		return fmt.Errorf("audit: insert: %w", err)
 	}
-	return nil
+	// The head moves in the same transaction, so deleting the newest rows later is detectable (issue #17).
+	return chain.AdvanceHead(ctx, tx, chainName, hash, l.now())
 }
 
 // Verify walks core_audit in seq order, a page at a time, and returns the chain verdict.
 // The first row must link to the core_chain_anchor hash when the log was pruned, else to Genesis.
-// The anchor and every page are read in one read transaction, so appends that commit meanwhile
+// The anchor, the head and every page are read in one read transaction, so appends that commit meanwhile
 // cannot make a healthy chain look broken (nor hide a break).
 func Verify(ctx context.Context, db *sql.DB) (chain.Result, error) {
 	return verify(ctx, db, verifyPage, nil)
@@ -165,7 +166,11 @@ func verify(ctx context.Context, db *sql.DB, page int64, afterPage func()) (chai
 	default:
 		anchor = a.LastPrunedHash
 	}
-	v := chain.NewVerifier(anchor)
+	head, err := chain.LoadHead(ctx, tx, chainName)
+	if err != nil {
+		return chain.Result{}, err
+	}
+	v := chain.NewVerifierWithHead(anchor, head)
 	var after int64
 	for {
 		rows, err := cq.ListAuditAfter(ctx, coredb.ListAuditAfterParams{Seq: after, Limit: page})

@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/knt048/vedette/core/conn/cliban"
 )
 
 func libraryActions(t *testing.T) map[string]builtinDef {
@@ -214,17 +216,17 @@ func TestLibraryReadBackAndCheckAreReadOnly(t *testing.T) {
 func TestReadStepTextShowsTheStoredMethod(t *testing.T) {
 	conn := &ConnectionInfo{Connection: Connection{Kind: "http"}, Target: "https://api.lan"}
 	vals := Values{PIP: "198.51.100.7"}
-	got, err := readStepText(Tpl{Method: "PUT", Path: "/x/{ip}"}, conn, vals)
+	got, err := readStepText(Tpl{Method: "PUT", Path: "/x/{ip}"}, conn, vals, nil)
 	if err != nil || got != "PUT https://api.lan/x/198.51.100.7" {
 		t.Errorf("%q, %v", got, err)
 	}
-	if got, _ := readStepText(Tpl{Method: "GET", Path: "/x/{ip}"}, conn, vals); got != "GET https://api.lan/x/198.51.100.7" {
+	if got, _ := readStepText(Tpl{Method: "GET", Path: "/x/{ip}"}, conn, vals, nil); got != "GET https://api.lan/x/198.51.100.7" {
 		t.Errorf("%q", got)
 	}
-	if got, _ := readStepText(Tpl{CLI: "terminal length 0\nshow x {ip}"}, &ConnectionInfo{Connection: Connection{Kind: "ssh"}}, vals); got != "terminal length 0\nshow x 198.51.100.7" {
+	if got, _ := readStepText(Tpl{CLI: "terminal length 0\nshow x {ip}"}, &ConnectionInfo{Connection: Connection{Kind: "ssh"}}, vals, nil); got != "terminal length 0\nshow x 198.51.100.7" {
 		t.Errorf("%q", got)
 	}
-	if got, _ := readStepText(Tpl{}, conn, vals); got != "" {
+	if got, _ := readStepText(Tpl{}, conn, vals, nil); got != "" {
 		t.Errorf("an empty step shows %q", got)
 	}
 }
@@ -232,29 +234,26 @@ func TestReadStepTextShowsTheStoredMethod(t *testing.T) {
 // D-58: the commands a template may not contain are data, not Go literals, and the GUI mock carries the same file.
 func TestRefusedCommandListIsDataAndTheMockCopyMatches(t *testing.T) {
 	ban, err := banData()
-	if err != nil || len(ban.everywhere) < 10 || len(ban.readOnly) < 5 {
+	if err != nil || len(ban.Everywhere) < 10 || len(ban.ReadOnly) < 5 {
 		t.Fatalf("the list: %+v, %v", ban, err)
 	}
 	mock, err := os.ReadFile("../../web/src/features/response/templates/cli-ban.sample.json")
 	if err != nil {
 		t.Skip("the web tree is not here")
 	}
-	ours, err := dataFiles.ReadFile("data/cli-ban.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ours := cliban.JSON()
 	if string(mock) != string(ours) {
 		t.Error("cli-ban.json differs from the GUI mock copy")
 	}
 	for l, want := range map[string]bool{"reload": true, "reload in 5": true, "write erase": true, "copy running-config tftp://1.2.3.4/x": true, "copy flash: scp://h/x": true,
 		"factory-reset": true, "show reload cause": false, "show running-config": false, "reloading": false, "terminal length 0": false, "no page": false} {
-		if got := banHit(cliLines(l), ban.everywhere) != ""; got != want {
+		if got := banHit(cliLines(l), ban.Everywhere) != ""; got != want {
 			t.Errorf("everywhere: %q refused = %v", l, got)
 		}
 	}
 	for l, want := range map[string]bool{"configure terminal": true, "conf t": true, "copy running-config startup-config": true, "write memory": true, "shutdown": true, "no shutdown": true,
 		"show interfaces x": false, "terminal length 0": false, "no page": false, "show configuration": false} {
-		if got := banHit(cliLines(l), ban.readOnly) != ""; got != want {
+		if got := banHit(cliLines(l), ban.ReadOnly) != ""; got != want {
 			t.Errorf("read-only steps: %q refused = %v", l, got)
 		}
 	}
@@ -262,13 +261,15 @@ func TestRefusedCommandListIsDataAndTheMockCopyMatches(t *testing.T) {
 
 // The Go library and the mock library carry the same data for the actions this slice touches (the drift test lists the exceptions).
 func TestNoCommandBanLiteralsInGoSource(t *testing.T) {
-	src, err := os.ReadFile("readonly.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, w := range []string{`"reload"`, `"write erase"`, `"configure`, `"conf t"`, `"startup`} {
-		if strings.Contains(string(src), w) {
-			t.Errorf("readonly.go names %s: the lists belong in data/cli-ban.json (D-58)", w)
+	for _, f := range []string{"readonly.go", "../../core/conn/cliban/cliban.go", "../../core/conn/write/write.go"} {
+		src, err := os.ReadFile(f) //nolint:gosec // our own source files
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, w := range []string{`"reload"`, `"write erase"`, `"configure`, `"conf t"`, `"startup`} {
+			if strings.Contains(string(src), w) {
+				t.Errorf("%s names %s: the lists belong in core/conn/cliban/cli-ban.json (D-58)", f, w)
+			}
 		}
 	}
 }

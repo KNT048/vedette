@@ -35,8 +35,8 @@ export function sampleContainment(f: Finding, asset: Asset, name: string): { rea
       before: `Virtual IP ${vip.name}: ${vip.extip}:${vip.extport} to ${vip.mappedip}:${vip.mappedport}, status enable`,
       after: `Virtual IP ${vip.name}: status disable. Internet traffic to ${vip.extip}:${vip.extport} is no longer forwarded to ${name}.`,
       cli: `config firewall vip\n    edit "${vip.name}"\n        set status disable\n    next\nend`,
-      rest: { method: 'PUT', url, body: '{"status":"disable"}' },
-      rollback: { title: `Turn virtual IP ${vip.name} back on`, cli: `config firewall vip\n    edit "${vip.name}"\n        set status enable\n    next\nend`, rest: { method: 'PUT', url, body: '{"status":"enable"}' } },
+      rest: { method: 'PUT', url, body: '{"status":"disable"}', headers: {} },
+      rollback: { title: `Turn virtual IP ${vip.name} back on`, cli: `config firewall vip\n    edit "${vip.name}"\n        set status enable\n    next\nend`, rest: { method: 'PUT', url, body: '{"status":"enable"}', headers: {} } },
       verify: `GET ${url}`, precheck: '', precheck_rules: '', verify_rule: '',
     }
     return { reads, path, contain: { kind: 'contain', title: `Turn off virtual IP ${vip.name} on ${fw}`, detail: `Stops the Internet from reaching ${name} while you patch. Existing LAN access is not affected. Side effect: anyone using the published address ${vip.extip}:${vip.extport} loses access until you turn it back on.`,

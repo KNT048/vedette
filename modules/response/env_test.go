@@ -96,11 +96,17 @@ type fakeConns struct{ list []response.ConnectionInfo }
 
 func (f *fakeConns) List(context.Context) ([]response.ConnectionInfo, error) { return f.list, nil }
 
-// fakeExecutor records every step it is asked to carry out; it never talks to a network.
+// fakeExecutor records every step it is asked to carry out; it never talks to a network. A check before answers "all clear" (pre), the
+// read-back after a run holds present and after an undo does not; status[phase] and err make a phase fail.
 type fakeExecutor struct {
-	mu    sync.Mutex
-	steps []response.DeviceStep
-	err   error
+	mu      sync.Mutex
+	steps   []response.DeviceStep
+	err     error
+	status  map[string]response.StepStatus // by phase; unset = ok
+	pre     string                         // output of the check before; "" = "all clear"
+	present string                         // output of the read-back after a run (what the read-back is looked at for)
+	after   string                         // output of the read-back after an undo (a device that still shows the change holds the text here)
+	last    string                         // the last write phase seen
 }
 
 func (f *fakeExecutor) Execute(_ context.Context, s response.DeviceStep) (response.DeviceResult, error) {
@@ -110,9 +116,31 @@ func (f *fakeExecutor) Execute(_ context.Context, s response.DeviceStep) (respon
 	if f.err != nil {
 		return response.DeviceResult{}, f.err
 	}
-	r := response.DeviceResult{Detail: s.Phase + " done"}
+	r := response.DeviceResult{Status: response.StepOK, Detail: s.Phase + " done"}
 	if s.Phase == "run" || s.Phase == "rollback" {
-		r.Verified = &response.Verified{OK: true, Detail: "read back"}
+		f.last = s.Phase
+	}
+	if st, ok := f.status[s.Phase]; ok {
+		r.Status = st
+		return r, nil
+	}
+	switch s.Phase {
+	case "precheck":
+		r.Output = "all clear"
+		if f.pre != "" {
+			r.Output = f.pre
+		}
+	case "run", "rollback":
+		f.last = s.Phase
+	case "verify":
+		if f.last == "run" {
+			r.Output = f.present
+		} else {
+			r.Output = "nothing of the kind is listed" // a device that answers, and the text is not in it
+			if f.after != "" {
+				r.Output = f.after
+			}
+		}
 	}
 	return r, nil
 }

@@ -460,6 +460,7 @@
     "undoAfter": "Undone after {{time}}",
     "undoManual": "Undone by hand",
     "noUndo": "Cannot be undone",
+    "unknown": "The result of this change is unknown. Undo it to be sure it is not in force.",
     "targets_one": "touches {{count}} target",
     "targets_other": "touches {{count}} targets",
     "verifiedOk": "Read back: ok",

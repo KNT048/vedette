@@ -174782,6 +174782,10 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItem) encodeFields(e *jx.Enco
 		s.RolledBackAt.Encode(e, json.EncodeDateTime)
 	}
 	{
+		e.FieldStart("state_unknown")
+		e.Bool(s.StateUnknown)
+	}
+	{
 		e.FieldStart("status")
 		s.Status.Encode(e)
 	}
@@ -174807,7 +174811,7 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItem) encodeFields(e *jx.Enco
 	}
 }
 
-var jsonFieldsNameOfResponseGetResponseActionsOKItemsItemItemsItem = [17]string{
+var jsonFieldsNameOfResponseGetResponseActionsOKItemsItemItemsItem = [18]string{
 	0:  "action_id",
 	1:  "change",
 	2:  "connection",
@@ -174819,12 +174823,13 @@ var jsonFieldsNameOfResponseGetResponseActionsOKItemsItemItemsItem = [17]string{
 	8:  "reversible",
 	9:  "risk",
 	10: "rolled_back_at",
-	11: "status",
-	12: "targets",
-	13: "title",
-	14: "tool",
-	15: "ttl_min",
-	16: "verified",
+	11: "state_unknown",
+	12: "status",
+	13: "targets",
+	14: "title",
+	15: "tool",
+	16: "ttl_min",
+	17: "verified",
 }
 
 // Decode decodes ResponseGetResponseActionsOKItemsItemItemsItem from json.
@@ -174952,8 +174957,20 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItem) Decode(d *jx.Decoder) e
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"rolled_back_at\"")
 			}
-		case "status":
+		case "state_unknown":
 			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.StateUnknown = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state_unknown\"")
+			}
+		case "status":
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -174963,7 +174980,7 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItem) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "targets":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Targets = int(v)
@@ -174975,7 +174992,7 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItem) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"targets\"")
 			}
 		case "title":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -174987,7 +175004,7 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItem) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"title\"")
 			}
 		case "tool":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Tool = string(v)
@@ -174999,7 +175016,7 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItem) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"tool\"")
 			}
 		case "ttl_min":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				if err := s.TTLMin.Decode(d); err != nil {
 					return err
@@ -175009,7 +175026,7 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItem) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"ttl_min\"")
 			}
 		case "verified":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.Verified.Decode(d); err != nil {
 					return err
@@ -175030,7 +175047,7 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItem) Decode(d *jx.Decoder) e
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -175319,6 +175336,10 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRest) encodeFields(
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -175328,10 +175349,11 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRest) encodeFields(
 	}
 }
 
-var jsonFieldsNameOfResponseGetResponseActionsOKItemsItemItemsItemChangeRest = [3]string{
+var jsonFieldsNameOfResponseGetResponseActionsOKItemsItemItemsItemChangeRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponseGetResponseActionsOKItemsItemItemsItemChangeRest from json.
@@ -175353,8 +175375,18 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRest) Decode(d *jx.
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -175364,7 +175396,7 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRest) Decode(d *jx.
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -175385,7 +175417,7 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRest) Decode(d *jx.
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -175427,6 +175459,62 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRest) MarshalJSON()
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponseGetResponseActionsOKItemsItemItemsItemChangeRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponseGetResponseActionsOKItemsItemItemsItemChangeRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponseGetResponseActionsOKItemsItemItemsItemChangeRestHeaders from json.
+func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponseGetResponseActionsOKItemsItemItemsItemChangeRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponseGetResponseActionsOKItemsItemItemsItemChangeRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponseGetResponseActionsOKItemsItemItemsItemChangeRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -175619,6 +175707,10 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRest) encod
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -175628,10 +175720,11 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRest) encod
 	}
 }
 
-var jsonFieldsNameOfResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRest = [3]string{
+var jsonFieldsNameOfResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRest from json.
@@ -175653,8 +175746,18 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRest) Decod
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -175664,7 +175767,7 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRest) Decod
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -175685,7 +175788,7 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRest) Decod
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -175727,6 +175830,62 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRest) Marsh
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestHeaders from json.
+func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -178291,6 +178450,10 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRest) encodeFields(e *j
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -178300,10 +178463,11 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRest) encodeFields(e *j
 	}
 }
 
-var jsonFieldsNameOfResponseGetResponseApproveTokenOKItemsItemChangeRest = [3]string{
+var jsonFieldsNameOfResponseGetResponseApproveTokenOKItemsItemChangeRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponseGetResponseApproveTokenOKItemsItemChangeRest from json.
@@ -178325,8 +178489,18 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRest) Decode(d *jx.Deco
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -178336,7 +178510,7 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRest) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -178357,7 +178531,7 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRest) Decode(d *jx.Deco
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -178399,6 +178573,62 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRest) MarshalJSON() ([]
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponseGetResponseApproveTokenOKItemsItemChangeRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponseGetResponseApproveTokenOKItemsItemChangeRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponseGetResponseApproveTokenOKItemsItemChangeRestHeaders from json.
+func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponseGetResponseApproveTokenOKItemsItemChangeRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponseGetResponseApproveTokenOKItemsItemChangeRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponseGetResponseApproveTokenOKItemsItemChangeRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -178591,6 +178821,10 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRest) encodeFie
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -178600,10 +178834,11 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRest) encodeFie
 	}
 }
 
-var jsonFieldsNameOfResponseGetResponseApproveTokenOKItemsItemChangeRollbackRest = [3]string{
+var jsonFieldsNameOfResponseGetResponseApproveTokenOKItemsItemChangeRollbackRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRest from json.
@@ -178625,8 +178860,18 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRest) Decode(d 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -178636,7 +178881,7 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRest) Decode(d 
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -178657,7 +178902,7 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRest) Decode(d 
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -178699,6 +178944,62 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRest) MarshalJS
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestHeaders from json.
+func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -184061,6 +184362,10 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRest) encodeF
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -184070,10 +184375,11 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRest) encodeF
 	}
 }
 
-var jsonFieldsNameOfResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRest = [3]string{
+var jsonFieldsNameOfResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRest from json.
@@ -184095,8 +184401,18 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRest) Decode(
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -184106,7 +184422,7 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRest) Decode(
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -184127,7 +184443,7 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRest) Decode(
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -184169,6 +184485,62 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRest) Marshal
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestHeaders from json.
+func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -184361,6 +184733,10 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRest)
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -184370,10 +184746,11 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRest)
 	}
 }
 
-var jsonFieldsNameOfResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRest = [3]string{
+var jsonFieldsNameOfResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRest from json.
@@ -184395,8 +184772,18 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRest)
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -184406,7 +184793,7 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRest)
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -184427,7 +184814,7 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRest)
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -184469,6 +184856,62 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRest)
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestHeaders from json.
+func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -189492,6 +189935,10 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItem) encodeFields(e *jx.Enc
 		s.RolledBackAt.Encode(e, json.EncodeDateTime)
 	}
 	{
+		e.FieldStart("state_unknown")
+		e.Bool(s.StateUnknown)
+	}
+	{
 		e.FieldStart("status")
 		s.Status.Encode(e)
 	}
@@ -189517,7 +189964,7 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItem) encodeFields(e *jx.Enc
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseActionsIDApproveOKItemsItem = [17]string{
+var jsonFieldsNameOfResponsePostResponseActionsIDApproveOKItemsItem = [18]string{
 	0:  "action_id",
 	1:  "change",
 	2:  "connection",
@@ -189529,12 +189976,13 @@ var jsonFieldsNameOfResponsePostResponseActionsIDApproveOKItemsItem = [17]string
 	8:  "reversible",
 	9:  "risk",
 	10: "rolled_back_at",
-	11: "status",
-	12: "targets",
-	13: "title",
-	14: "tool",
-	15: "ttl_min",
-	16: "verified",
+	11: "state_unknown",
+	12: "status",
+	13: "targets",
+	14: "title",
+	15: "tool",
+	16: "ttl_min",
+	17: "verified",
 }
 
 // Decode decodes ResponsePostResponseActionsIDApproveOKItemsItem from json.
@@ -189662,8 +190110,20 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItem) Decode(d *jx.Decoder) 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"rolled_back_at\"")
 			}
-		case "status":
+		case "state_unknown":
 			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.StateUnknown = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state_unknown\"")
+			}
+		case "status":
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -189673,7 +190133,7 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItem) Decode(d *jx.Decoder) 
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "targets":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Targets = int(v)
@@ -189685,7 +190145,7 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItem) Decode(d *jx.Decoder) 
 				return errors.Wrap(err, "decode field \"targets\"")
 			}
 		case "title":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -189697,7 +190157,7 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItem) Decode(d *jx.Decoder) 
 				return errors.Wrap(err, "decode field \"title\"")
 			}
 		case "tool":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Tool = string(v)
@@ -189709,7 +190169,7 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItem) Decode(d *jx.Decoder) 
 				return errors.Wrap(err, "decode field \"tool\"")
 			}
 		case "ttl_min":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				if err := s.TTLMin.Decode(d); err != nil {
 					return err
@@ -189719,7 +190179,7 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItem) Decode(d *jx.Decoder) 
 				return errors.Wrap(err, "decode field \"ttl_min\"")
 			}
 		case "verified":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.Verified.Decode(d); err != nil {
 					return err
@@ -189740,7 +190200,7 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItem) Decode(d *jx.Decoder) 
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -190029,6 +190489,10 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRest) encodeFields
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -190038,10 +190502,11 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRest) encodeFields
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseActionsIDApproveOKItemsItemChangeRest = [3]string{
+var jsonFieldsNameOfResponsePostResponseActionsIDApproveOKItemsItemChangeRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponsePostResponseActionsIDApproveOKItemsItemChangeRest from json.
@@ -190063,8 +190528,18 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRest) Decode(d *jx
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -190074,7 +190549,7 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRest) Decode(d *jx
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -190095,7 +190570,7 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRest) Decode(d *jx
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -190137,6 +190612,62 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRest) MarshalJSON(
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponsePostResponseActionsIDApproveOKItemsItemChangeRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponsePostResponseActionsIDApproveOKItemsItemChangeRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponsePostResponseActionsIDApproveOKItemsItemChangeRestHeaders from json.
+func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseActionsIDApproveOKItemsItemChangeRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseActionsIDApproveOKItemsItemChangeRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePostResponseActionsIDApproveOKItemsItemChangeRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -190329,6 +190860,10 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRest) enco
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -190338,10 +190873,11 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRest) enco
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRest = [3]string{
+var jsonFieldsNameOfResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRest from json.
@@ -190363,8 +190899,18 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRest) Deco
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -190374,7 +190920,7 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRest) Deco
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -190395,7 +190941,7 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRest) Deco
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -190437,6 +190983,62 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRest) Mars
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestHeaders from json.
+func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -192417,6 +193019,10 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItem) encodeFields(e *j
 		s.RolledBackAt.Encode(e, json.EncodeDateTime)
 	}
 	{
+		e.FieldStart("state_unknown")
+		e.Bool(s.StateUnknown)
+	}
+	{
 		e.FieldStart("status")
 		s.Status.Encode(e)
 	}
@@ -192442,7 +193048,7 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItem) encodeFields(e *j
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseActionsIDChatDecisionOKItemsItem = [17]string{
+var jsonFieldsNameOfResponsePostResponseActionsIDChatDecisionOKItemsItem = [18]string{
 	0:  "action_id",
 	1:  "change",
 	2:  "connection",
@@ -192454,12 +193060,13 @@ var jsonFieldsNameOfResponsePostResponseActionsIDChatDecisionOKItemsItem = [17]s
 	8:  "reversible",
 	9:  "risk",
 	10: "rolled_back_at",
-	11: "status",
-	12: "targets",
-	13: "title",
-	14: "tool",
-	15: "ttl_min",
-	16: "verified",
+	11: "state_unknown",
+	12: "status",
+	13: "targets",
+	14: "title",
+	15: "tool",
+	16: "ttl_min",
+	17: "verified",
 }
 
 // Decode decodes ResponsePostResponseActionsIDChatDecisionOKItemsItem from json.
@@ -192587,8 +193194,20 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItem) Decode(d *jx.Deco
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"rolled_back_at\"")
 			}
-		case "status":
+		case "state_unknown":
 			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.StateUnknown = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state_unknown\"")
+			}
+		case "status":
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -192598,7 +193217,7 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "targets":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Targets = int(v)
@@ -192610,7 +193229,7 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"targets\"")
 			}
 		case "title":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -192622,7 +193241,7 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"title\"")
 			}
 		case "tool":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Tool = string(v)
@@ -192634,7 +193253,7 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"tool\"")
 			}
 		case "ttl_min":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				if err := s.TTLMin.Decode(d); err != nil {
 					return err
@@ -192644,7 +193263,7 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"ttl_min\"")
 			}
 		case "verified":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.Verified.Decode(d); err != nil {
 					return err
@@ -192665,7 +193284,7 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItem) Decode(d *jx.Deco
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -192954,6 +193573,10 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRest) encodeF
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -192963,10 +193586,11 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRest) encodeF
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRest = [3]string{
+var jsonFieldsNameOfResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRest from json.
@@ -192988,8 +193612,18 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRest) Decode(
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -192999,7 +193633,7 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRest) Decode(
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -193020,7 +193654,7 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRest) Decode(
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -193062,6 +193696,62 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRest) Marshal
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestHeaders from json.
+func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -193254,6 +193944,10 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRest)
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -193263,10 +193957,11 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRest)
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRest = [3]string{
+var jsonFieldsNameOfResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRest from json.
@@ -193288,8 +193983,18 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRest)
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -193299,7 +194004,7 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRest)
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -193320,7 +194025,7 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRest)
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -193362,6 +194067,62 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRest)
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestHeaders from json.
+func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -195457,6 +196218,10 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItem) encodeFields(e *jx.Enco
 		s.RolledBackAt.Encode(e, json.EncodeDateTime)
 	}
 	{
+		e.FieldStart("state_unknown")
+		e.Bool(s.StateUnknown)
+	}
+	{
 		e.FieldStart("status")
 		s.Status.Encode(e)
 	}
@@ -195482,7 +196247,7 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItem) encodeFields(e *jx.Enco
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseActionsIDRejectOKItemsItem = [17]string{
+var jsonFieldsNameOfResponsePostResponseActionsIDRejectOKItemsItem = [18]string{
 	0:  "action_id",
 	1:  "change",
 	2:  "connection",
@@ -195494,12 +196259,13 @@ var jsonFieldsNameOfResponsePostResponseActionsIDRejectOKItemsItem = [17]string{
 	8:  "reversible",
 	9:  "risk",
 	10: "rolled_back_at",
-	11: "status",
-	12: "targets",
-	13: "title",
-	14: "tool",
-	15: "ttl_min",
-	16: "verified",
+	11: "state_unknown",
+	12: "status",
+	13: "targets",
+	14: "title",
+	15: "tool",
+	16: "ttl_min",
+	17: "verified",
 }
 
 // Decode decodes ResponsePostResponseActionsIDRejectOKItemsItem from json.
@@ -195627,8 +196393,20 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItem) Decode(d *jx.Decoder) e
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"rolled_back_at\"")
 			}
-		case "status":
+		case "state_unknown":
 			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.StateUnknown = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state_unknown\"")
+			}
+		case "status":
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -195638,7 +196416,7 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItem) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "targets":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Targets = int(v)
@@ -195650,7 +196428,7 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItem) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"targets\"")
 			}
 		case "title":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -195662,7 +196440,7 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItem) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"title\"")
 			}
 		case "tool":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Tool = string(v)
@@ -195674,7 +196452,7 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItem) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"tool\"")
 			}
 		case "ttl_min":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				if err := s.TTLMin.Decode(d); err != nil {
 					return err
@@ -195684,7 +196462,7 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItem) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"ttl_min\"")
 			}
 		case "verified":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.Verified.Decode(d); err != nil {
 					return err
@@ -195705,7 +196483,7 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItem) Decode(d *jx.Decoder) e
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -195994,6 +196772,10 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRest) encodeFields(
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -196003,10 +196785,11 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRest) encodeFields(
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseActionsIDRejectOKItemsItemChangeRest = [3]string{
+var jsonFieldsNameOfResponsePostResponseActionsIDRejectOKItemsItemChangeRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponsePostResponseActionsIDRejectOKItemsItemChangeRest from json.
@@ -196028,8 +196811,18 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRest) Decode(d *jx.
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -196039,7 +196832,7 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRest) Decode(d *jx.
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -196060,7 +196853,7 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRest) Decode(d *jx.
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -196102,6 +196895,62 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRest) MarshalJSON()
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponsePostResponseActionsIDRejectOKItemsItemChangeRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponsePostResponseActionsIDRejectOKItemsItemChangeRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponsePostResponseActionsIDRejectOKItemsItemChangeRestHeaders from json.
+func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseActionsIDRejectOKItemsItemChangeRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseActionsIDRejectOKItemsItemChangeRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePostResponseActionsIDRejectOKItemsItemChangeRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -196294,6 +197143,10 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRest) encod
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -196303,10 +197156,11 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRest) encod
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRest = [3]string{
+var jsonFieldsNameOfResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRest from json.
@@ -196328,8 +197182,18 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRest) Decod
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -196339,7 +197203,7 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRest) Decod
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -196360,7 +197224,7 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRest) Decod
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -196402,6 +197266,62 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRest) Marsh
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestHeaders from json.
+func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -198411,6 +199331,10 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItem) encodeFields(e *jx.En
 		s.RolledBackAt.Encode(e, json.EncodeDateTime)
 	}
 	{
+		e.FieldStart("state_unknown")
+		e.Bool(s.StateUnknown)
+	}
+	{
 		e.FieldStart("status")
 		s.Status.Encode(e)
 	}
@@ -198436,7 +199360,7 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItem) encodeFields(e *jx.En
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseActionsIDRollbackOKItemsItem = [17]string{
+var jsonFieldsNameOfResponsePostResponseActionsIDRollbackOKItemsItem = [18]string{
 	0:  "action_id",
 	1:  "change",
 	2:  "connection",
@@ -198448,12 +199372,13 @@ var jsonFieldsNameOfResponsePostResponseActionsIDRollbackOKItemsItem = [17]strin
 	8:  "reversible",
 	9:  "risk",
 	10: "rolled_back_at",
-	11: "status",
-	12: "targets",
-	13: "title",
-	14: "tool",
-	15: "ttl_min",
-	16: "verified",
+	11: "state_unknown",
+	12: "status",
+	13: "targets",
+	14: "title",
+	15: "tool",
+	16: "ttl_min",
+	17: "verified",
 }
 
 // Decode decodes ResponsePostResponseActionsIDRollbackOKItemsItem from json.
@@ -198581,8 +199506,20 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItem) Decode(d *jx.Decoder)
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"rolled_back_at\"")
 			}
-		case "status":
+		case "state_unknown":
 			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.StateUnknown = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state_unknown\"")
+			}
+		case "status":
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -198592,7 +199529,7 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "targets":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Targets = int(v)
@@ -198604,7 +199541,7 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"targets\"")
 			}
 		case "title":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -198616,7 +199553,7 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"title\"")
 			}
 		case "tool":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Tool = string(v)
@@ -198628,7 +199565,7 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"tool\"")
 			}
 		case "ttl_min":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				if err := s.TTLMin.Decode(d); err != nil {
 					return err
@@ -198638,7 +199575,7 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"ttl_min\"")
 			}
 		case "verified":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.Verified.Decode(d); err != nil {
 					return err
@@ -198659,7 +199596,7 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItem) Decode(d *jx.Decoder)
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -198948,6 +199885,10 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRest) encodeField
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -198957,10 +199898,11 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRest) encodeField
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseActionsIDRollbackOKItemsItemChangeRest = [3]string{
+var jsonFieldsNameOfResponsePostResponseActionsIDRollbackOKItemsItemChangeRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponsePostResponseActionsIDRollbackOKItemsItemChangeRest from json.
@@ -198982,8 +199924,18 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRest) Decode(d *j
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -198993,7 +199945,7 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRest) Decode(d *j
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -199014,7 +199966,7 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRest) Decode(d *j
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -199056,6 +200008,62 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRest) MarshalJSON
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestHeaders from json.
+func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -199248,6 +200256,10 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRest) enc
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -199257,10 +200269,11 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRest) enc
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRest = [3]string{
+var jsonFieldsNameOfResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRest from json.
@@ -199282,8 +200295,18 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRest) Dec
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -199293,7 +200316,7 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRest) Dec
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -199314,7 +200337,7 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRest) Dec
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -199356,6 +200379,62 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRest) Mar
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestHeaders from json.
+func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -201411,6 +202490,10 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItem) encodeFields(e *jx.E
 		s.RolledBackAt.Encode(e, json.EncodeDateTime)
 	}
 	{
+		e.FieldStart("state_unknown")
+		e.Bool(s.StateUnknown)
+	}
+	{
 		e.FieldStart("status")
 		s.Status.Encode(e)
 	}
@@ -201436,7 +202519,7 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItem) encodeFields(e *jx.E
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseAiProposalsOKRequestItemsItem = [17]string{
+var jsonFieldsNameOfResponsePostResponseAiProposalsOKRequestItemsItem = [18]string{
 	0:  "action_id",
 	1:  "change",
 	2:  "connection",
@@ -201448,12 +202531,13 @@ var jsonFieldsNameOfResponsePostResponseAiProposalsOKRequestItemsItem = [17]stri
 	8:  "reversible",
 	9:  "risk",
 	10: "rolled_back_at",
-	11: "status",
-	12: "targets",
-	13: "title",
-	14: "tool",
-	15: "ttl_min",
-	16: "verified",
+	11: "state_unknown",
+	12: "status",
+	13: "targets",
+	14: "title",
+	15: "tool",
+	16: "ttl_min",
+	17: "verified",
 }
 
 // Decode decodes ResponsePostResponseAiProposalsOKRequestItemsItem from json.
@@ -201581,8 +202665,20 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItem) Decode(d *jx.Decoder
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"rolled_back_at\"")
 			}
-		case "status":
+		case "state_unknown":
 			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.StateUnknown = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state_unknown\"")
+			}
+		case "status":
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -201592,7 +202688,7 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItem) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "targets":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Targets = int(v)
@@ -201604,7 +202700,7 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItem) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"targets\"")
 			}
 		case "title":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -201616,7 +202712,7 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItem) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"title\"")
 			}
 		case "tool":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Tool = string(v)
@@ -201628,7 +202724,7 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItem) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"tool\"")
 			}
 		case "ttl_min":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				if err := s.TTLMin.Decode(d); err != nil {
 					return err
@@ -201638,7 +202734,7 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItem) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"ttl_min\"")
 			}
 		case "verified":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.Verified.Decode(d); err != nil {
 					return err
@@ -201659,7 +202755,7 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItem) Decode(d *jx.Decoder
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -201948,6 +203044,10 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRest) encodeFiel
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -201957,10 +203057,11 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRest) encodeFiel
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseAiProposalsOKRequestItemsItemChangeRest = [3]string{
+var jsonFieldsNameOfResponsePostResponseAiProposalsOKRequestItemsItemChangeRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponsePostResponseAiProposalsOKRequestItemsItemChangeRest from json.
@@ -201982,8 +203083,18 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRest) Decode(d *
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -201993,7 +203104,7 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRest) Decode(d *
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -202014,7 +203125,7 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRest) Decode(d *
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -202056,6 +203167,62 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRest) MarshalJSO
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestHeaders from json.
+func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -202248,6 +203415,10 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRest) en
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -202257,10 +203428,11 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRest) en
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRest = [3]string{
+var jsonFieldsNameOfResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRest from json.
@@ -202282,8 +203454,18 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRest) De
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -202293,7 +203475,7 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRest) De
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -202314,7 +203496,7 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRest) De
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -202356,6 +203538,62 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRest) Ma
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestHeaders from json.
+func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -206021,6 +207259,10 @@ func (s *ResponsePostResponseApproveTokenOKItemsItem) encodeFields(e *jx.Encoder
 		s.RolledBackAt.Encode(e, json.EncodeDateTime)
 	}
 	{
+		e.FieldStart("state_unknown")
+		e.Bool(s.StateUnknown)
+	}
+	{
 		e.FieldStart("status")
 		s.Status.Encode(e)
 	}
@@ -206046,7 +207288,7 @@ func (s *ResponsePostResponseApproveTokenOKItemsItem) encodeFields(e *jx.Encoder
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseApproveTokenOKItemsItem = [17]string{
+var jsonFieldsNameOfResponsePostResponseApproveTokenOKItemsItem = [18]string{
 	0:  "action_id",
 	1:  "change",
 	2:  "connection",
@@ -206058,12 +207300,13 @@ var jsonFieldsNameOfResponsePostResponseApproveTokenOKItemsItem = [17]string{
 	8:  "reversible",
 	9:  "risk",
 	10: "rolled_back_at",
-	11: "status",
-	12: "targets",
-	13: "title",
-	14: "tool",
-	15: "ttl_min",
-	16: "verified",
+	11: "state_unknown",
+	12: "status",
+	13: "targets",
+	14: "title",
+	15: "tool",
+	16: "ttl_min",
+	17: "verified",
 }
 
 // Decode decodes ResponsePostResponseApproveTokenOKItemsItem from json.
@@ -206191,8 +207434,20 @@ func (s *ResponsePostResponseApproveTokenOKItemsItem) Decode(d *jx.Decoder) erro
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"rolled_back_at\"")
 			}
-		case "status":
+		case "state_unknown":
 			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.StateUnknown = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state_unknown\"")
+			}
+		case "status":
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -206202,7 +207457,7 @@ func (s *ResponsePostResponseApproveTokenOKItemsItem) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "targets":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Targets = int(v)
@@ -206214,7 +207469,7 @@ func (s *ResponsePostResponseApproveTokenOKItemsItem) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"targets\"")
 			}
 		case "title":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -206226,7 +207481,7 @@ func (s *ResponsePostResponseApproveTokenOKItemsItem) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"title\"")
 			}
 		case "tool":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Tool = string(v)
@@ -206238,7 +207493,7 @@ func (s *ResponsePostResponseApproveTokenOKItemsItem) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"tool\"")
 			}
 		case "ttl_min":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				if err := s.TTLMin.Decode(d); err != nil {
 					return err
@@ -206248,7 +207503,7 @@ func (s *ResponsePostResponseApproveTokenOKItemsItem) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"ttl_min\"")
 			}
 		case "verified":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.Verified.Decode(d); err != nil {
 					return err
@@ -206269,7 +207524,7 @@ func (s *ResponsePostResponseApproveTokenOKItemsItem) Decode(d *jx.Decoder) erro
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -206558,6 +207813,10 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRest) encodeFields(e *
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -206567,10 +207826,11 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRest) encodeFields(e *
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseApproveTokenOKItemsItemChangeRest = [3]string{
+var jsonFieldsNameOfResponsePostResponseApproveTokenOKItemsItemChangeRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponsePostResponseApproveTokenOKItemsItemChangeRest from json.
@@ -206592,8 +207852,18 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRest) Decode(d *jx.Dec
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -206603,7 +207873,7 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRest) Decode(d *jx.Dec
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -206624,7 +207894,7 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRest) Decode(d *jx.Dec
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -206666,6 +207936,62 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRest) MarshalJSON() ([
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponsePostResponseApproveTokenOKItemsItemChangeRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponsePostResponseApproveTokenOKItemsItemChangeRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponsePostResponseApproveTokenOKItemsItemChangeRestHeaders from json.
+func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseApproveTokenOKItemsItemChangeRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseApproveTokenOKItemsItemChangeRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePostResponseApproveTokenOKItemsItemChangeRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -206858,6 +208184,10 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRest) encodeFi
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -206867,10 +208197,11 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRest) encodeFi
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseApproveTokenOKItemsItemChangeRollbackRest = [3]string{
+var jsonFieldsNameOfResponsePostResponseApproveTokenOKItemsItemChangeRollbackRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRest from json.
@@ -206892,8 +208223,18 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRest) Decode(d
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -206903,7 +208244,7 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRest) Decode(d
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -206924,7 +208265,7 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRest) Decode(d
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -206966,6 +208307,62 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRest) MarshalJ
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestHeaders from json.
+func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -214178,6 +215575,10 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) encodeFields(e 
 		s.RolledBackAt.Encode(e, json.EncodeDateTime)
 	}
 	{
+		e.FieldStart("state_unknown")
+		e.Bool(s.StateUnknown)
+	}
+	{
 		e.FieldStart("status")
 		s.Status.Encode(e)
 	}
@@ -214203,7 +215604,7 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) encodeFields(e 
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseProposalsIDRequestCreatedItemsItem = [17]string{
+var jsonFieldsNameOfResponsePostResponseProposalsIDRequestCreatedItemsItem = [18]string{
 	0:  "action_id",
 	1:  "change",
 	2:  "connection",
@@ -214215,12 +215616,13 @@ var jsonFieldsNameOfResponsePostResponseProposalsIDRequestCreatedItemsItem = [17
 	8:  "reversible",
 	9:  "risk",
 	10: "rolled_back_at",
-	11: "status",
-	12: "targets",
-	13: "title",
-	14: "tool",
-	15: "ttl_min",
-	16: "verified",
+	11: "state_unknown",
+	12: "status",
+	13: "targets",
+	14: "title",
+	15: "tool",
+	16: "ttl_min",
+	17: "verified",
 }
 
 // Decode decodes ResponsePostResponseProposalsIDRequestCreatedItemsItem from json.
@@ -214348,8 +215750,20 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) Decode(d *jx.De
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"rolled_back_at\"")
 			}
-		case "status":
+		case "state_unknown":
 			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.StateUnknown = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state_unknown\"")
+			}
+		case "status":
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -214359,7 +215773,7 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) Decode(d *jx.De
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "targets":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Targets = int(v)
@@ -214371,7 +215785,7 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) Decode(d *jx.De
 				return errors.Wrap(err, "decode field \"targets\"")
 			}
 		case "title":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -214383,7 +215797,7 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) Decode(d *jx.De
 				return errors.Wrap(err, "decode field \"title\"")
 			}
 		case "tool":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Tool = string(v)
@@ -214395,7 +215809,7 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) Decode(d *jx.De
 				return errors.Wrap(err, "decode field \"tool\"")
 			}
 		case "ttl_min":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				if err := s.TTLMin.Decode(d); err != nil {
 					return err
@@ -214405,7 +215819,7 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) Decode(d *jx.De
 				return errors.Wrap(err, "decode field \"ttl_min\"")
 			}
 		case "verified":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.Verified.Decode(d); err != nil {
 					return err
@@ -214426,7 +215840,7 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) Decode(d *jx.De
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -214715,6 +216129,10 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) encod
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -214724,10 +216142,11 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) encod
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest = [3]string{
+var jsonFieldsNameOfResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest from json.
@@ -214749,8 +216168,18 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) Decod
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -214760,7 +216189,7 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) Decod
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -214781,7 +216210,7 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) Decod
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -214823,6 +216252,62 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) Marsh
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestHeaders from json.
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -215015,6 +216500,10 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRes
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -215024,10 +216513,11 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRes
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest = [3]string{
+var jsonFieldsNameOfResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest from json.
@@ -215049,8 +216539,18 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRes
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -215060,7 +216560,7 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRes
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -215081,7 +216581,7 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRes
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -215123,6 +216623,62 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRes
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestHeaders from json.
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -218613,6 +220169,10 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRest) encodeFields(e 
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -218622,10 +220182,11 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRest) encodeFields(e 
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseRulesSimulateOKStepsItemChangeRest = [3]string{
+var jsonFieldsNameOfResponsePostResponseRulesSimulateOKStepsItemChangeRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponsePostResponseRulesSimulateOKStepsItemChangeRest from json.
@@ -218647,8 +220208,18 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRest) Decode(d *jx.De
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -218658,7 +220229,7 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRest) Decode(d *jx.De
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -218679,7 +220250,7 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRest) Decode(d *jx.De
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -218721,6 +220292,62 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRest) MarshalJSON() (
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponsePostResponseRulesSimulateOKStepsItemChangeRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponsePostResponseRulesSimulateOKStepsItemChangeRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponsePostResponseRulesSimulateOKStepsItemChangeRestHeaders from json.
+func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseRulesSimulateOKStepsItemChangeRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseRulesSimulateOKStepsItemChangeRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePostResponseRulesSimulateOKStepsItemChangeRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -218913,6 +220540,10 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRest) encodeF
 		s.Body.Encode(e)
 	}
 	{
+		e.FieldStart("headers")
+		s.Headers.Encode(e)
+	}
+	{
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
@@ -218922,10 +220553,11 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRest) encodeF
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRest = [3]string{
+var jsonFieldsNameOfResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRest = [4]string{
 	0: "body",
-	1: "method",
-	2: "url",
+	1: "headers",
+	2: "method",
+	3: "url",
 }
 
 // Decode decodes ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRest from json.
@@ -218947,8 +220579,18 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRest) Decode(
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"body\"")
 			}
-		case "method":
+		case "headers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Headers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"headers\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -218958,7 +220600,7 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRest) Decode(
 				return errors.Wrap(err, "decode field \"method\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -218979,7 +220621,7 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRest) Decode(
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -219021,6 +220663,62 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRest) Marshal
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestHeaders) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestHeaders) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestHeaders from json.
+func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestHeaders) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestHeaders to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestHeaders")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestHeaders) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestHeaders) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

@@ -6,7 +6,7 @@ import { newId, nowIso } from '@/mocks/db'
 import { assetsStore, aiProfilesStore } from '@/mocks/stores'
 import { connectorsStore, type Connector, type ConnectorKind, type ConnectorTool } from '@/mocks/connectors'
 import { activeDefs, BUILTIN_HOOKS, BUILTIN_RULES, builtinHookState, builtinHooksView, buildMatch, chunksOf, customHooksStore, docView, draftDef, knowledgeSettings, knowledgeStore, memorySettings, memoryStore, newHookId, newRuleId, rulesStore, runHooks, skillsStore, skillsView, suggestionsStore } from './harness'
-import { AiJob } from './contract'
+import { AiJob, CONNECTOR_AUTH } from './contract'
 import type { ConnectorInput, CustomHook, HookInput, KnowledgeInput, MemoryEntry, MemoryView, Rule, RuleInput } from './types'
 
 const ok204 = () => new HttpResponse(null, { status: 204 })
@@ -65,9 +65,10 @@ function checkConnector(b: Partial<ConnectorInput>, existing?: Connector): Respo
   }
   const auth = b.auth_type ?? 'none'
   if (!AUTHS.includes(auth)) return fail(400, 'invalid_auth', 'Pick how the box signs in: none, token, user and password, or SSH key.')
+  if (!CONNECTOR_AUTH[b.kind].includes(auth)) return fail(400, 'invalid_auth', `${b.kind === 'ssh' ? 'An SSH server' : b.kind === 'device-api' ? 'A device API' : b.kind === 'mcp-stdio' ? 'A local MCP command' : 'This kind of connection'} cannot sign in that way. Pick one of the options the form offers.`)
   const secret = b.secret === undefined || b.secret === '' ? null : String(b.secret)
   if (secret !== null && secret.length < 8) return fail(400, 'invalid_secret', 'The secret is too short. Copy the whole token, password or key again.')
-  const keep = !!existing && existing.auth.last4 !== null && existing.auth.type === auth
+  const keep = !!existing && existing.auth.last4 !== null && existing.auth.type === auth && existing.kind === b.kind
   if (auth !== 'none' && secret === null && !keep) return fail(400, 'secret_required', 'Enter the secret. It stays on this box and is encrypted; only the last 4 characters are shown afterwards.')
   const allow = [...new Set((b.allow ?? []).map((a) => a.trim()).filter(Boolean))]
   if (allow.length === 0) return fail(400, 'allow_required', 'Add at least one entry to the allow-list. The AI may only use hosts, addresses or commands on this list.')

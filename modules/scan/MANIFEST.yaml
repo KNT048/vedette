@@ -1,0 +1,13 @@
+id: scan
+name: { en: "Vulnerability scans" }
+summary: { en: "Confirms exploited vulnerabilities with safe Nuclei templates on approved internal devices and verified external targets, inside your time window, speed and exclusions, with a Stop now button." }
+tier: optional
+default: false
+depends: [core, inventory, feeds]    # exposure là phụ thuộc tuỳ chọn (mục tiêu ngoài)
+permissions: [outbound:https]        # quét Internet chỉ tới mục tiêu exposure đã xác thực; LAN qua mạng của hộp
+ports: []
+container: scan                      # D-55: nuclei chạy theo việc
+tables_prefix: scan_
+stories: [S-SCAN-1, S-SCAN-2, S-SCAN-3, S-SCAN-4]
+decisions: [D-4, D-26, D-45, D-55]
+milestone: M4

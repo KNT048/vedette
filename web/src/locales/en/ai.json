@@ -525,6 +525,7 @@
         "basic": "User and password",
         "ssh-key": "SSH key"
       },
+      "authNo": "not for this kind",
       "noAuth": "No sign-in",
       "authEnds": "{{type}} ending {{last4}}",
       "tested": "tested {{when}}",

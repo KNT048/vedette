@@ -19,21 +19,23 @@ Mỗi story có ít nhất một kịch bản viết theo việc người dùng 
 ## 4. Danh mục form phải đi qua
 Danh sách mọi hộp thoại và form có bộ chọn, ghi kết quả lần kiểm gần nhất (ngày, người kiểm, kết quả). Form mới thêm vào danh sách trong cùng commit.
 
+Lần kiểm độc lập 2026-11-09 còn thêm ba lỗi chung: hộp thoại đóng (X) chỉ cao 24 px trên điện thoại (nay 40 px); `Field` kéo giãn hàng lưới làm ô chọn lệch so với ô bên cạnh (nay `content-start`); trang Response và Settings → AI response tràn ngang trên điện thoại do lưới `grid` một cột không có `minmax(0,1fr)`.
+
 | Form | Bộ chọn | Lần kiểm gần nhất |
 |---|---|---|
-| Response → Add a custom action | loại kết nối (API thiết bị, HTTP, SSH, MCP, danh sách chặn, tin nhắn, webhook) | lỗi 2026-11-09 (kien) |
-| Response → quy tắc (KHI/NẾU/THÌ) | loại tác nhân, loại hành động | chưa |
-| Settings → Alert channels → kênh | loại kênh (Slack, Telegram, email, Zalo OA, Zalo cá nhân, webhook) | chưa |
-| Settings → AI assistant → Add AI profile | loại nhà cung cấp, nơi chạy | chưa |
-| Settings → AI assistant → Connections | loại kết nối, kiểu xác thực | chưa |
-| Settings → AI assistant → Hooks | thời điểm, kiểu khớp, hành động | chưa |
-| Settings → Feeds → feed tuỳ chỉnh | loại feed, định dạng, xác thực | chưa |
-| Devices → Add a device | danh mục / nhập tay | chưa |
-| Devices → Scope and sensors | quét chủ động bật/tắt, loại thiết bị | chưa |
-| External exposure → thêm mục tiêu | domain / IP | chưa |
-| Logs → thêm nguồn log | loại nguồn (48 loại) | chưa |
-| Internal traps → vai giả, honey token | loại vai, loại token | chưa |
-| My account → hai bước | ứng dụng / email | chưa |
+| Response → Add a custom action | loại kết nối (API thiết bị, HTTP, SSH, MCP, danh sách chặn, tin nhắn, webhook) | 2026-11-09, người kiểm độc lập: ma trận 7 loại kết nối + khoá chỉ đọc đã có; thêm đường dẫn "Open Settings, AI assistant, Connections" khi chưa có kết nối cần dùng (trước đó là ngõ cụt); Playwright 4 biến thể |
+| Response → quy tắc (KHI/NẾU/THÌ) | loại tác nhân, loại hành động | 2026-11-09, người kiểm độc lập: ma trận loại kích hoạt (chỉ "On a schedule" có chu kỳ) và kiểu điều kiện; lỗi: đổi kiểu điều kiện giữ nguyên giá trị cũ (CIDR còn lại trong ô); đã sửa; trên điện thoại cả trang Response tràn ngang (474 > 412 px) làm hộp thoại lệch, đã sửa |
+| Settings → Alert channels → kênh | loại kênh (Slack, Telegram, email, Zalo OA, Zalo cá nhân, webhook) | 2026-11-09, người kiểm độc lập: ma trận 6 loại kênh (ô, người duyệt, kênh chỉ-liên-kết), Slack tắt duyệt thì không gửi channel_id, Zalo cá nhân hai người duyệt; ô "Add approver" trống khi hết người nay có chữ; Playwright 4 biến thể |
+| Settings → AI assistant → Add AI profile | loại nhà cung cấp, nơi chạy | 2026-11-09, người kiểm độc lập: ma trận 5 loại nhà cung cấp (mặc định, khoá "Inside your network" cho nhà cung cấp cloud); lỗi: khoá API gõ cho nhà cung cấp này vẫn đi theo sang nhà cung cấp khác, tick "I understand" cũng giữ; đã sửa |
+| Settings → AI assistant → Connections | loại kết nối, kiểu xác thực | 2026-11-09, người kiểm độc lập: ma trận 5 loại kết nối; lỗi: kiểu xác thực không hợp loại (SSH với API token, Device API với SSH key…) vẫn chọn được và máy chủ nhận; đổi loại giữ nguyên địa chỉ, danh sách cho phép, khoá; đã sửa (khoá lựa chọn + lý do, máy chủ từ chối 400, đổi loại thì xoá) |
+| Settings → AI assistant → Hooks | thời điểm, kiểu khớp, hành động | 2026-11-09, người kiểm độc lập: ma trận keywords/regex; lỗi: mẫu từ khoá còn lại khi đổi sang regex; đã sửa. Còn lại: "Require approval" cho hook trước/sau AI chưa bị khoá (động cơ hook chạy được cả hai) |
+| Settings → Feeds → feed tuỳ chỉnh | loại feed, định dạng, xác thực | 2026-11-09, người kiểm độc lập: ma trận kiểu xác thực và định dạng; lỗi: gợi ý regex "CVE-…" hiện trong feed IOC, lỗi tên header/tên người dùng hiện dưới ô khoá bí mật; đã sửa |
+| Devices → Add a device | danh mục / nhập tay | 2026-11-09, người kiểm độc lập: ma trận danh mục / nhập tay; lỗi: bấm "Back to the list" rồi vào lại "nhập tay" thì ô Maker/Product trông còn chữ cũ nhưng Add bị khoá; đã sửa |
+| Devices → Scope and sensors | quét chủ động bật/tắt, loại thiết bị | 2026-11-09, người kiểm độc lập: ma trận quét chủ động tắt/bật (khoá cửa sổ quét), loại mỏng manh, máy chủ từ chối quét khi chưa xác nhận phạm vi; không lỗi mới |
+| External exposure → thêm mục tiêu | domain / IP | 2026-11-09, người kiểm độc lập: hộp thoại chỉ có ô Domain, IP đi qua nút riêng không có ô nhập; thêm nút Cancel (trước đó chỉ có Add) |
+| Logs → thêm nguồn log | loại nguồn (48 loại) | 2026-11-09, người kiểm độc lập: ma trận cả 48 loại thiết bị: giao thức đúng của loại đó, cổng theo giao thức, máy chủ từ chối giao thức sai; không lỗi mới |
+| Internal traps → vai giả, honey token | loại vai, loại token | 2026-11-09, người kiểm độc lập: ma trận 5 vai giả và 4 loại token; lỗi: tên và nơi đặt gõ cho loại này vẫn còn khi đổi loại, lỗi cũ còn hiện sau khi đổi; đã sửa |
+| My account → hai bước | ứng dụng / email | 2026-11-09, người kiểm độc lập: ma trận ứng dụng / email (QR, gửi lại mã, Cancel quay về lựa chọn); không lỗi mới |
 | Settings → Updates → cửa sổ bảo trì | chế độ (mọi lúc / chỉ trong cửa sổ) | 2026-11-09, agent làm + ma trận tự động + Playwright 4 biến thể (kien chưa xem) |
 | Settings → Updates → Schedule reboot | lịch (đầu cửa sổ tiếp / giờ tự chọn), khoá khi không có cửa sổ | 2026-11-09, như trên |
 | Devices → hộp (This box) → xoá | nút bị khoá, máy chủ từ chối 409 | 2026-11-09, như trên |

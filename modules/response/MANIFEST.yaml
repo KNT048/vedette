@@ -1,0 +1,15 @@
+id: response           # trùng tên thư mục
+name: { vi: "Phản ứng", en: "Response" }
+summary: { vi: "Quy tắc KHI-NẾU-THÌ và đề xuất của AI dẫn tới hành động lên firewall/switch/DNS của khách, mặc định cần người duyệt; danh sách chặn để firewall tự kéo.", en: "WHEN-IF-THEN rules and AI proposals that lead to actions on the customer's firewall, switch or DNS; approval by default; a block list the firewall pulls." }
+tier: optional
+default: off           # công tắc thực thi lên thiết bị là công tắc riêng, cũng TẮT mặc định (D-41)
+risk: high             # chức năng nguy hiểm, khách tự chịu trách nhiệm (D-41)
+depends: [core, ai, notify, inventory]   # ai: kết nối ngoài (ai_connectors) + việc response-plan; notify: kênh duyệt; inventory: thiết bị, ngữ cảnh
+soft_depends: [honeypot, logs, exposure, scan, sensor-passive]   # nguồn trigger; thiếu thì trigger tương ứng không có sự kiện
+permissions: ["outbound:lan"]          # SSH/HTTP API tới thiết bị trong scope khách khai (SYS-7); không root, không docker
+ports: []              # route công khai nằm trên cổng 8443 của core: /response/approve/{token}, /response/blocklist/{token}.txt
+container: core        # D-55
+tables_prefix: resp_
+tables: [resp_settings, resp_plans, resp_actions, resp_catalog, resp_rules, resp_allowlist, resp_blocklist, resp_tokens, resp_done, resp_ai_notes, resp_hints, resp_log]   # mock dùng response_* (+ resp_log)
+stories: [S-RESP-1, S-RESP-2, S-RESP-3, S-RESP-4, S-AI-8]
+milestone: M1 (GUI)

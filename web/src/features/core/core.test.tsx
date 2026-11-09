@@ -1100,3 +1100,27 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
     for (const h of ['archive.ubuntu.com', 'security.ubuntu.com', 'deb.debian.org', 'security.debian.org', 'local mirror']) expect(row).toHaveTextContent(h)
   })
 })
+
+describe('core: two-step setup form matrix (docs/QA.md §2)', () => {
+  it('app and email each show only their own setup steps, and Cancel returns to the choice from either', async () => {
+    const u = user()
+    renderApp('/account')
+    const APP = 'Set up authenticator app', EMAIL = 'Set up email code'
+    const QR = 'QR code for your authenticator app', RESEND = /^Send a new code/
+    await eachOption([
+      { option: 'choice', shown: [APP, EMAIL], hidden: [QR, RESEND, '6-digit code'] },
+      { option: 'app', shown: [QR, '6-digit code', 'Confirm and turn on'], hidden: [RESEND, APP, EMAIL, /We sent a 6-digit code/] },
+      { option: 'choice', shown: [APP, EMAIL], hidden: [QR, '6-digit code'] },
+      { option: 'email', shown: [/We sent a 6-digit code/, RESEND, '6-digit code'], hidden: [QR, 'Manual key', APP, EMAIL] },
+      { option: 'choice', shown: [APP, EMAIL], hidden: [RESEND, /We sent a 6-digit code/] },
+    ], async (o) => {
+      if (o === 'choice') {
+        const cancel = screen.queryByRole('button', { name: 'Cancel' })
+        if (cancel) await u.click(cancel)
+        await screen.findByRole('button', { name: APP })
+      } else await u.click(await screen.findByRole('button', { name: o === 'app' ? APP : EMAIL }))
+      if (o === 'email') await screen.findByText(/We sent a 6-digit code/)
+      if (o === 'app') await screen.findByRole('img', { name: QR })
+    })
+  })
+})

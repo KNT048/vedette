@@ -1,0 +1,13 @@
+id: feeds
+name: { en: "Feeds" }
+summary: { en: "Pulls exploited-vulnerability and bad-IOC feeds straight from their sources, parses them on the box, and answers the hot board and lookups." }
+tier: standard
+default: true
+depends: [core]
+permissions: [outbound:https]   # D-36: mỗi nguồn kéo trực tiếp; không qua GitHub/trung tâm
+ports: []
+container: core
+tables_prefix: feeds_
+stories: [S-FEED-1, S-FEED-2, S-FEED-3, S-FEED-4, S-FEED-5]   # MODULES.md mới ghi S-FEED-1..3
+decisions: [D-2, D-28, D-30, D-36, D-37]
+milestone: M2

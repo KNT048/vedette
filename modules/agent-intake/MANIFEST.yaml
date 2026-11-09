@@ -1,0 +1,14 @@
+id: agent-intake       # trùng tên thư mục
+name: { vi: "Nhận dữ liệu agent", en: "Agent intake" }
+summary: { vi: "Nhận danh sách gói từ osquery (Vedette là máy chủ TLS) hoặc kéo từ Wazuh API; không ship agent (D-33).", en: "Receives package lists from osquery (Vedette is the TLS server) or pulls them from the Wazuh API; ships no agent (D-33)." }
+tier: optional
+default: off
+depends: [core, inventory]
+permissions: ["outbound:https"]       # kéo Wazuh API tới địa chỉ khách khai
+ports: ["tcp/8443"]                   # cùng cổng HTTPS của core; osquery TLS + trang script cài
+container: core        # D-55
+tables_prefix: intake_
+tables: [intake_agent_tokens, intake_wazuh]   # tên mock: inv_agent_tokens, inv_wazuh; xem CONTRACT "Câu hỏi mở" 1
+stories: [S-INV-4]
+milestone: M7
+gui_under: inventory   # màn hình ở Inventory → Agents (web/features/inventory)

@@ -70,7 +70,7 @@ export function ParserEditor({ kind, parser, onChange, onFormat }: { kind: FeedK
                   </Field>
                 ) : null}
                 <Field label={t('parser.regex')} htmlFor={`pe-${id}-re`} hint={t('parser.regexHint')}>
-                  <Input id={`pe-${id}-re`} value={f.regex} onChange={(e) => setField(id, { regex: e.target.value })} autoComplete="off" spellCheck={false} className="font-mono text-[13px]" placeholder="(CVE-\d{4}-\d{4,})" />
+                  <Input id={`pe-${id}-re`} value={f.regex} onChange={(e) => setField(id, { regex: e.target.value })} autoComplete="off" spellCheck={false} className="font-mono text-[13px]" placeholder={id === 'cve' ? '(CVE-\\d{4}-\\d{4,})' : id === 'indicator' ? '^(\\S+)' : ''} />
                 </Field>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:col-span-2">
                   <span className="flex items-center gap-2"><Checkbox id={`pe-${id}-trim`} checked={f.trim} onCheckedChange={(v) => setField(id, { trim: v === true })} /><Label htmlFor={`pe-${id}-trim`} className="font-normal">{t('parser.trim')}</Label></span>

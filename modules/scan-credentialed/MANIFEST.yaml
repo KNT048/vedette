@@ -1,0 +1,13 @@
+id: scan-credentialed
+name: { en: "Credentialed scans" }
+summary: { en: "Scans important servers with an SSH account through a separate Greenbone container, for the packages and versions a network scan cannot see." }
+tier: optional
+default: false
+depends: [core, inventory, scan]
+permissions: ["container:greenbone", outbound:https]   # container qua vedette-host (Podman/Quadlet, D-55); outbound:https = kéo feed NVT của Greenbone
+ports: []
+container: greenbone                                    # D-55: container riêng, không sửa, giấy phép GPL/AGPL
+tables_prefix: scancred_                                # ⚠ MODULES.md ghi `scan_*` (trùng tiền tố với `scan`)
+stories: [S-SCAN-5]
+decisions: [D-17, D-55]
+milestone: M7

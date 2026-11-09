@@ -43,7 +43,7 @@ Làm theo `docs/END_OF_SESSION.md`. Đọc file, không làm từ trí nhớ.
 | Người dùng cụ thể làm gì | `docs/USER_STORIES.md` |
 | Module nào, bật tắt sao | `docs/MODULES.md` |
 | Kỹ thuật | `docs/ARCHITECTURE.md`, `docs/DATA_PIPELINE.md`, `docs/AI_ASSISTANT.md`, `docs/UPDATES.md` |
-| Làm gì tiếp | `docs/ROADMAP.md`, `.ai/tasks/current.md` |
+| Làm gì tiếp | `docs/TEAM_PLAN.md` (chia việc Kiên/Emily), `.ai/tasks/kien.md`, `.ai/tasks/emily.md`, `docs/ROADMAP.md` |
 | Pháp lý, dữ liệu rời máy | `docs/LEGAL.md`, `PRIVACY.md`, `THIRD_PARTY_NOTICES.md` |
 | Vì sao quyết định thế | `docs/DECISIONS.md` |
 | Đã làm gì | `docs/project-map/completion-log.md` |

@@ -1,0 +1,85 @@
+# Core Contract
+
+> Tier: core · Story: S-CORE-1…7 (S-CORE-3 một phần: OIDC thuộc `auth-oidc`) · Last verified: 2026-11-09 (docs-first, chưa có code)
+
+Nguồn hành vi: `web/src/features/core/contract.ts` + `web/src/mocks/core.ts`. Đường dẫn dưới đây không có tiền tố `/api/v1`.
+
+## Quy ước chung (mọi module dùng)
+- **Sự kiện** (đề xuất, chốt khi viết `core/events`): tên `<module>.<đối tượng>.<động từ>`, phát trong process qua `core/events`; chỉ một tập con được đẩy ra SSE `/api/v1/events`. Sensor→server dùng lô sự kiện idempotent theo `seq` (ARCHITECTURE §3). Tên sự kiện của module nhóm B trong các CONTRACT nhóm A là tên tạm.
+- **Module tắt** = `Registry.Enabled(id)==false`: route không đăng ký, job không chạy, cổng đóng, bảng giữ nguyên (SYS-5). Module khác gọi module tuỳ chọn chỉ sau khi kiểm `Enabled`; tắt = coi như vắng mặt.
+- **Lỗi**: JSON `{error:{code,message}}`; 401 chưa đăng nhập, 403 thiếu vai, 409 xung đột trạng thái.
+
+## Invariants
+- **INV-1**: Module `tier: core` không tắt được (`PATCH /modules/core` → 400 `core_module`). `TestContract_INV1_CoreAlwaysOn`
+- **INV-2**: Mọi handler ghi (POST/PUT/PATCH/DELETE) của mọi module đi qua `core/audit.Append` (SYS-3); harness test quét bảng route, handler ghi không để lại hàng `core_audit` thì fail. `core_audit` chỉ thêm, không có API sửa/xoá; ngoại lệ duy nhất là `POST /core/data/purge`.
+- **INV-3**: Bật module thiếu phụ thuộc → 409 `missing_dependencies` kèm `missing[]`, không bật gì; chỉ khi `with_dependencies:true` mới bật kèm. Không bao giờ bật ngầm.
+- **INV-4**: Tắt module không xoá bảng, không tự tắt module phụ thuộc; phản hồi trả `affected[]` = module đang bật phụ thuộc vào nó. Module phụ thuộc chạy ở chế độ suy giảm (xem IMPACT của từng module).
+- **INV-5**: Vai `viewer < operator < admin` lấy từ bảng endpoint (`role`); endpoint không khai vai thì server từ chối khởi động. `role: public` chỉ gồm `/setup`, `/core/setup*`, `/core/auth-options`, `/auth/*`, `/install/*`, `/intake/*`.
+- **INV-6**: Bí mật (mật khẩu, khoá TOTP, secret kênh/feed/OIDC/token) chỉ qua `core/secrets` (AES-256-GCM, khoá file 0600); API chỉ trả 4 ký tự cuối; không vào log, `/core/data/export`, `/core/data/backup`, `/core/logs/export` (SYS-4).
+- **INV-7**: Người dùng: không vô hiệu hoá chính mình; không bỏ quản trị viên hoạt động cuối cùng; quản trị viên không đặt lại 2FA của chính mình (400); mật khẩu tạm trả đúng một lần; đặt lại mật khẩu kết thúc mọi phiên của người đó.
+- **INV-8**: Đã bật 2FA thì đăng nhập thiếu/sai mã không tạo phiên. Kiểu `email` mà kênh email không dùng được → 503 `twofa_email_unavailable`, không bao giờ lùi về chỉ mật khẩu (D-35). Mã email: 6 số, 10 phút, dùng 1 lần, 5 lần sai huỷ mã, gửi lại sau 60 s (429 `resend_too_soon`), tối đa 5 lần gửi/giờ (`too_many_codes`). TOTP: RFC 6238 SHA1, 6 số, 30 s. `preview_code` không bao giờ có trong phản hồi thật.
+- **INV-9**: Chỉ cookie phiên `vedette_session` (HttpOnly, Secure, SameSite) + CSRF cho SPA; không cookie khác, không analytics, không tài nguyên CDN ngoài (legal.md).
+- **INV-10**: `GET /core/privacy` trả đúng 9 luồng của `PRIVACY.md`; `telemetry.payload` là chính byte sẽ gửi giờ tới (một lần serialize, dùng cho cả hiển thị và gửi). Tắt `telemetry` ⇒ không có request nào tới máy chủ dự án; tắt `update_check` ⇒ `/core/updates/check` và `/core/updates/os/check` trả 409.
+- **INV-11**: Cập nhật phần mềm/gói nội dung/bundle chỉ áp khi chữ ký `valid`; bundle sai chữ ký bị từ chối; mỗi apply/rollback ghi `core_audit` và `UpdateHistory` (trả 20 dòng mới nhất); rollback về đúng phiên bản `previous`.
+- **INV-12**: Cập nhật OS (D-53, D-55): chỉ chạy danh sách lệnh apt cố định qua socket `vedette-host` (SYS-1); một lần chạy tại một thời điểm (409 khi bận); sao lưu DB trước, kiểm sức khoẻ sau, ghi `OsRunResult.backup/health`; không bao giờ tự nâng bản phát hành OS (`release_upgrade` chỉ là hướng dẫn); đặt lịch khởi động lại phải nằm trong cửa sổ bảo trì; khởi động lại khi đang cài → 409.
+- **INV-13**: `/core/logs/export` chỉ nhận 8 danh mục (`audit, ai_activity, response, scan_probes, alerts, device_logs, known_bad, honeypot`), bỏ bí mật, giữ hash của log có chuỗi hash để kiểm ngoại tuyến, và bản thân lần tải được ghi `core_audit` (D-48). Mỗi module đăng ký nguồn qua `logexport.Register`.
+- **INV-14**: `POST /core/data/purge` chỉ chạy khi `confirm` bằng đúng tên tổ chức; sau đó phiên kết thúc và `/setup` báo `complete:false`.
+- **INV-15**: `POST /core/setup` chỉ chạy khi `setup.complete=false` (⚠ mock chưa mô phỏng); `sample:true` chỉ hợp lệ ở bản `data_mode=sample`; cài sạch (`clean`) mọi bảng rỗng ngoài thiết bị "This box" (S-INV-5).
+
+## Preconditions / Postconditions
+- **PRE-1** (`PATCH /modules/{id}` enable): người gọi `admin`. **POST-1**: `core_module.enabled=true`, `enabled_at` đặt, module `Init`+`Routes`+`Jobs` chạy, `core_audit` có `module.enable`.
+- **PRE-2** (disable): module không phải `tier:core`. **POST-2**: route/job/cổng của module biến mất trong cùng request; `core_audit` có `module.disable` (kèm `affected`).
+- **PRE-3** (`audit.Append`): có `user`, `action`, `target`. **POST-3**: hàng thêm trong cùng transaction với thay đổi; lỗi ghi audit ⇒ rollback thay đổi.
+- **PRE-4** (`exec.Run`): binary ∈ allowlist, argv là mảng đã validate. **POST-4**: không qua shell; stdout/stderr bị giới hạn kích thước; timeout bắt buộc.
+- **PRE-5** (`updates/apply|rollback`): `admin`, component tồn tại. **POST-5**: phiên bản mới ghi `UpdateComponent` với `signature:valid`; lỗi giữa chừng ⇒ giữ slot cũ (A/B, D-12).
+- **PRE-6** (`updates/os/install`): `admin`, không có run đang chạy, `scope ∈ {security, all}`. **POST-6**: `OsRun` tạo, dòng apt hiện dần ở `GET /core/updates/os/run`, kết thúc có `result`.
+
+## Forbidden
+- **FORBID-1**: Chuỗi lệnh shell ở bất kỳ đâu (SYS-1); `eval`.
+- **FORBID-2**: `core` import package của module khác (hướng phụ thuộc: module → core). Tương tác ngược (gửi mã email 2FA, kiểm kênh email) qua interface mà `notify` cài đặt.
+- **FORBID-3**: Log hoặc trả về bí mật; trả `preview_code`.
+- **FORBID-4**: Gửi dữ liệu ra ngoài ngoài 9 luồng của PRIVACY.md; "Báo lỗi" (S-CORE-5) không gửi gì: gói chẩn đoán dựng và tải ở trình duyệt (D-42).
+- **FORBID-5**: Module khác ghi vào bảng `core_*` (qua interface của `core/*`).
+
+## Dependencies
+- **DEPENDS ON**: không (ngoài `vedette-host` ở ngoài process).
+- **DEPENDED ON BY**: tất cả module. Tuỳ chọn: `notify` (mã 2FA email, `twofa_email.available` chỉ true khi `notify` bật và kênh email cấu hình + bật).
+
+## Endpoints owned (role tối thiểu)
+| Nhóm | Route | Vai |
+|---|---|---|
+| nền | `GET /me`; `GET /modules` | viewer |
+| nền | `GET /setup`; `POST /auth/login`, `/auth/login/resend-code`, `/auth/logout` | public |
+| nền | `PATCH /modules/{id}` | admin |
+| cài đặt | `GET /core/setup/modules`, `POST /core/setup`, `GET /core/auth-options` | public |
+| chung | `GET /core/general` (viewer); `PUT /core/general` | admin |
+| tài khoản | `GET,PATCH /core/account`; `POST /core/account/password`, `/2fa/start`, `/2fa/confirm`, `/2fa/email/start`, `/2fa/email/confirm`, `/2fa/disable`; `DELETE /core/account/sessions/{id}`; `POST /core/account/sessions/revoke-others` | viewer |
+| người dùng | `GET,POST /core/users`; `PATCH /core/users/{id}`; `POST /core/users/{id}/reset-password`, `/2fa/reset` | admin |
+| audit | `GET /core/audit`, `/core/audit/export` | admin |
+| cập nhật | `GET /core/updates`, `/core/updates/os`, `/core/updates/os/run` | viewer |
+| cập nhật | `POST /core/updates/check`, `/core/updates/os/check`; `GET /core/updates/bundle` | operator |
+| cập nhật | `PATCH /core/updates`; `POST /core/updates/apply`, `/rollback`, `/os/install`, `/os/reboot`, `/bundle`; `PATCH /core/updates/os/settings`; `DELETE /core/updates/os/reboot` | admin |
+| riêng tư | `GET /core/privacy` (viewer); `PATCH /core/privacy` | admin |
+| dữ liệu | `GET /core/data/backup`, `/core/data/export`, `/core/logs/export`; `POST /core/data/purge` | admin |
+| chưa có trong `contract.ts` | `GET /api/v1/events` (SSE, ARCHITECTURE §5) | viewer |
+
+Trong `core/contract.ts` nhưng thuộc module khác (nhóm B chốt, route chỉ đăng ký khi module chủ bật): `/core/oidc*`, `/core/sso/login` → `auth-oidc`; `/core/mcp*` → `mcp-server`.
+
+## Tables owned (`core_`)
+`core_module`, `core_audit`, `core_user`, `core_session`, `core_totp`, `core_email_code`, `core_setting` (tổ chức, general, privacy, kênh cập nhật), `core_update_component`, `core_update_history`, `core_os_run`, `core_secret`, `core_job_run`.
+
+## Events
+- **Phát**: `core.module.enabled|disabled {id, affected[]}`, `core.update.applied|rolled_back {component, from, to}`, `core.os.install_finished {run_id, installed, reboot_required}`, `core.data.purged`.
+- **Nhận**: không (lịch qua `core/jobs`).
+
+## Behaviour khi tắt
+Không áp dụng (tier core). Riêng `notify` tắt: 2FA email báo `reason:module_off`, người dùng kiểu email không đăng nhập được cho tới khi quản trị đặt lại.
+
+## Story và quyết định
+S-CORE-1, 2, 3, 4, 5, 6, 7. D-8 một binary; D-10 module; D-12 cập nhật ký, A/B; D-16/17 tín hiệu ẩn danh + pháp lý; D-18 OpenAPI từ Zod; D-24 không nhiều site; D-35 2FA; D-42 báo lỗi; D-48 xuất log; D-53/55 OS và `vedette-host`.
+
+## Không khớp / câu hỏi mở
+- `contract.ts` ghi `vedette-updater`; D-55 đã thay bằng `vedette-host` (hợp đồng này dùng `vedette-host`).
+- Box network (D-56) chưa có endpoint trong `contract.ts` và mock; thuộc module `host` (nhóm B), `core` chỉ cung cấp client socket.
+- `core/types.ts` còn `ChannelType = telegram|zalo|email` (cũ, notify có 6 loại).
+- Tắt module không tự tắt phụ thuộc (mock đúng vậy); cần chốt có muốn cascade không.

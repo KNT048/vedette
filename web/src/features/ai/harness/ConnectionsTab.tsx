@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch'
 import { fmtRelative } from '@/lib/format'
 import { useConnections, useRemoveConnection, useSaveConnection, useTestConnection } from '../harness-api'
 import { ActionError } from '../parts'
+import { CONNECTOR_AUTH } from '../contract'
 import type { Connector, ConnectorInput, ConnectorKind } from '../types'
 import { ConfirmDelete } from './shared'
 
@@ -107,11 +108,14 @@ function ConnDialog({ conn, onClose }: { conn: Connector | null; onClose: () => 
   const [allow, setAllow] = useState((conn?.allow ?? []).join('\n'))
   const [enabled, setEnabled] = useState(conn?.enabled ?? true)
   const [errs, setErrs] = useState<Partial<Record<'name' | 'target' | 'secret' | 'allow', string>>>({})
-  const keep = !!conn?.auth.last4 && conn.auth.type === auth
+  const keep = !!conn?.auth.last4 && conn.auth.type === auth && conn.kind === kind
   const clear = (k: keyof typeof errs) => setErrs((e) => ({ ...e, [k]: undefined }))
+  // A kind changes what the address, the sign-in and the allow-list mean, so nothing typed for the old kind is carried over.
+  // Going back to the saved kind of an existing connection restores its saved values.
   function pickKind(k: ConnectorKind) {
-    setKind(k)
-    if (!conn) { setTarget(TARGET_EXAMPLE[k]); setAuth(k === 'ssh' ? 'ssh-key' : k === 'http' ? 'none' : k === 'mcp-stdio' ? 'none' : 'token') }
+    setKind(k); setErrs({}); setSecret('')
+    if (conn && k === conn.kind) { setTarget(conn.target); setAuth(conn.auth.type); setAllow(conn.allow.join('\n')); setVendor(conn.vendor ?? 'fortinet'); return }
+    setTarget(TARGET_EXAMPLE[k]); setAllow(''); setAuth(k === 'ssh' ? 'ssh-key' : k === 'http' || k === 'mcp-stdio' ? 'none' : 'token'); setVendor('fortinet')
   }
   function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -135,7 +139,7 @@ function ConnDialog({ conn, onClose }: { conn: Connector | null; onClose: () => 
             <Field label={t('harness.conn.f.kind')} htmlFor="cn-kind"><Select id="cn-kind" value={kind} onChange={(e) => pickKind(e.target.value as ConnectorKind)}>{KINDS.map((k) => <option key={k} value={k}>{t(`harness.conn.kind.${k}`)}</option>)}</Select></Field>
             {kind === 'device-api' ? <Field label={t('harness.conn.f.vendor')} htmlFor="cn-vendor" className="sm:col-span-2"><Select id="cn-vendor" value={vendor} onChange={(e) => setVendor(e.target.value as (typeof VENDORS)[number])}>{VENDORS.map((v) => <option key={v} value={v}>{t(`harness.conn.vendor.${v}`)}</option>)}</Select></Field> : null}
             <Field label={t(`harness.conn.f.target_${kind}`)} htmlFor="cn-target" hint={t('harness.conn.f.targetExample', { example: TARGET_EXAMPLE[kind] })} error={srv('target')} className="sm:col-span-2"><Input id="cn-target" value={target} autoComplete="off" onChange={(e) => { setTarget(e.target.value); clear('target') }} aria-invalid={srv('target') ? true : undefined} aria-describedby={srv('target') ? 'cn-target-error' : 'cn-target-hint'} /></Field>
-            <Field label={t('harness.conn.f.auth')} htmlFor="cn-auth"><Select id="cn-auth" value={auth} onChange={(e) => { setAuth(e.target.value as (typeof AUTHS)[number]); clear('secret') }}>{AUTHS.map((a) => <option key={a} value={a}>{t(`harness.conn.auth.${a}`)}</option>)}</Select></Field>
+            <Field label={t('harness.conn.f.auth')} htmlFor="cn-auth"><Select id="cn-auth" value={auth} onChange={(e) => { setAuth(e.target.value as (typeof AUTHS)[number]); clear('secret') }}>{AUTHS.map((a) => { const no = !CONNECTOR_AUTH[kind].includes(a); return <option key={a} value={a} disabled={no}>{t(`harness.conn.auth.${a}`)}{no ? ` (${t('harness.conn.authNo')})` : ''}</option> })}</Select></Field>
             {auth !== 'none' ? <Field label={t('harness.conn.f.secret')} htmlFor="cn-secret" error={srv('secret')} hint={keep ? t('harness.conn.f.secretSaved', { last4: conn!.auth.last4 }) : t('harness.conn.f.secretHint')}><Input id="cn-secret" type="password" autoComplete="off" value={secret} placeholder={keep ? `••••${conn!.auth.last4}` : ''} onChange={(e) => { setSecret(e.target.value); clear('secret') }} aria-invalid={srv('secret') ? true : undefined} aria-describedby={srv('secret') ? 'cn-secret-error' : 'cn-secret-hint'} /></Field> : <span />}
             <Field label={t('harness.conn.f.allow')} htmlFor="cn-allow" hint={t(`harness.conn.f.allowHint_${kind}`, { example: ALLOW_EXAMPLE[kind] })} error={srv('allow')} className="sm:col-span-2"><Textarea id="cn-allow" className="font-mono text-[13px]" value={allow} onChange={(e) => { setAllow(e.target.value); clear('allow') }} aria-invalid={srv('allow') ? true : undefined} aria-describedby={srv('allow') ? 'cn-allow-error' : 'cn-allow-hint'} /></Field>
           </div>

@@ -1,0 +1,13 @@
+id: sensor-active
+name: { en: "Active discovery" }
+summary: { en: "Identifies devices and their services with nmap and SNMP, only inside the confirmed LAN scope, the time window and the speed limit you set." }
+tier: standard
+default: true
+depends: [core, inventory]
+permissions: [net_raw, "exec:nmap"]   # nmap cài từ repo OS vào image `scan`, không ship (D-4); -O cần raw socket
+ports: []
+container: scan                       # D-55: nmap chạy theo việc trong container `scan`
+tables_prefix: sa_                    # ⚠ MODULES.md ghi `inv_*`
+stories: [S-INV-1, S-SCAN-4]          # S-SCAN-4 phần cửa sổ giờ/tốc độ của khám phá
+decisions: [D-4, D-26, D-32, D-45, D-55]
+milestone: M3

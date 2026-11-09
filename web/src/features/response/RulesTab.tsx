@@ -177,7 +177,7 @@ export function RulesTab() {
   if (rules.isPending) return <Loading />
   if (rules.error) return <ErrorState error={rules.error} onRetry={() => void rules.refetch()} />
   return (
-    <div className="grid gap-2">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
       <Section title={t('rules.title')} description={t('rules.description')} stories={['S-RESP-3']}
         actions={admin ? <Button variant="primary" onClick={() => setEdit('new')}><Plus className="size-4" aria-hidden />{t('rules.add')}</Button> : undefined}>
         <div className="grid gap-4">

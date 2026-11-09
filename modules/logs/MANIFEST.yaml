@@ -1,0 +1,14 @@
+id: logs               # trùng tên thư mục
+name: { vi: "Log và bất thường", en: "Logs and anomalies" }
+summary: { vi: "Thu syslog và metadata SPAN, gộp so với baseline 7 ngày, đối chiếu IOC, chuyển tiếp SIEM.", en: "Receives syslog and SPAN metadata, aggregates against a 7-day baseline, matches IOCs, forwards to a SIEM." }
+tier: optional
+default: off
+depends: [core, feeds, inventory]
+soft_depends: [notify, ai, response, sensor-passive]   # sensor-passive: cùng container sensor, nguồn metadata SPAN
+permissions: [net_bind_low, "outbound:siem"]   # cổng 514; SIEM do khách khai địa chỉ
+ports: ["udp/514", "tcp/514", "tcp/6514"]       # 6514 = syslog TLS (defaultPort của GUI)
+container: sensor      # D-55: nghe syslog + phân tích SPAN trong `sensor` (mạng host); lưu/gộp/API trong `core`. Giả định, xem câu hỏi mở 1
+tables_prefix: logs_
+tables: [logs_sources, logs_events, logs_retention, logs_siem, logs_ioc_hits]
+stories: [S-LOG-1, S-LOG-2, S-LOG-3, S-LOG-4]
+milestone: M5

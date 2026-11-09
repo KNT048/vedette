@@ -1,0 +1,14 @@
+id: core
+name: { en: "Core" }
+summary: { en: "Sign-in, users, module on/off, settings, audit, updates (software and the box's own OS), privacy and the job scheduler. Always on." }
+tier: core
+default: true          # luôn bật; PATCH /modules/core bị từ chối (INV-1)
+depends: []
+permissions: [outbound:https]   # kiểm tra cập nhật; apt/OS đi qua vedette-host, không qua core
+helpers: [vedette-host]         # D-55: cập nhật OS, sao lưu, mạng; gọi qua socket nội bộ, danh sách lệnh cố định
+ports: ["tcp/8443"]
+container: core        # D-55: Go + SPA, SQLite trên volume
+tables_prefix: core_
+stories: [S-CORE-1, S-CORE-2, S-CORE-3, S-CORE-4, S-CORE-5, S-CORE-6, S-CORE-7]
+decisions: [D-8, D-10, D-12, D-16, D-17, D-18, D-24, D-35, D-42, D-48, D-53, D-55]
+milestone: M2

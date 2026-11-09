@@ -1,0 +1,73 @@
+# Code owners. The last matching pattern wins, so keep general rules on top.
+# Branch protection on main must have "Require review from Code Owners" enabled.
+# Policy: docs/ENGINEERING.md section 5.
+
+# Everything, for now.
+*                                   @kiennt048
+
+# Always the maintainer, even after modules are handed out.
+/.github/                           @kiennt048
+/.claude/                           @kiennt048
+/CLAUDE.md                          @kiennt048
+/SECURITY.md                        @kiennt048
+/PRIVACY.md                         @kiennt048
+/THIRD_PARTY_NOTICES.md             @kiennt048
+/docs/DECISIONS.md                  @kiennt048
+/docs/MODULE_CONTRACTS.md           @kiennt048
+/web/package.json                   @kiennt048
+/web/pnpm-lock.yaml                 @kiennt048
+
+# Per-module owners (docs/TEAM_PLAN.md §2). Kiên = @kiennt048, Emily = @kiennt049.
+# Module = modules/<id>/ (Go) + web/src/features/<id>/ (UI) + web/e2e/qa/<id>.spec.ts.
+/modules/core/                      @kiennt048
+/web/src/features/core/             @kiennt048
+/modules/host/                      @kiennt048
+/web/src/features/host/             @kiennt048
+/modules/inventory/                 @kiennt048
+/web/src/features/inventory/        @kiennt048
+/modules/sensor-passive/            @kiennt048
+/web/src/features/sensor-passive/   @kiennt048
+/modules/sensor-active/             @kiennt048
+/web/src/features/sensor-active/    @kiennt048
+/modules/response/                  @kiennt048
+/web/src/features/response/         @kiennt048
+/modules/honeypot/                  @kiennt048
+/web/src/features/honeypot/         @kiennt048
+/modules/feeds/                     @kiennt049
+/web/src/features/feeds/            @kiennt049
+/modules/mitigation/                @kiennt049
+/web/src/features/mitigation/       @kiennt049
+/modules/findings/                  @kiennt049
+/web/src/features/findings/         @kiennt049
+/modules/notify/                    @kiennt049
+/web/src/features/notify/           @kiennt049
+/modules/exposure/                  @kiennt049
+/web/src/features/exposure/         @kiennt049
+/modules/scan/                      @kiennt049
+/web/src/features/scan/             @kiennt049
+/modules/scan-credentialed/         @kiennt049
+/web/src/features/scan-credentialed/@kiennt049
+/modules/logs/                      @kiennt049
+/web/src/features/logs/             @kiennt049
+/modules/agent-intake/              @kiennt049
+/web/src/features/agent-intake/     @kiennt049
+/modules/ai/                        @kiennt049
+/web/src/features/ai/               @kiennt049
+/modules/reports/                   @kiennt049
+/web/src/features/reports/          @kiennt049
+/modules/mcp-server/                @kiennt049
+/web/src/features/mcp-server/       @kiennt049
+/modules/auth-oidc/                 @kiennt049
+/web/src/features/auth-oidc/        @kiennt049
+# Contract files need the other person's review: see docs/TEAM_PLAN.md §1.
+/docs/DATA_MODEL.md                 @kiennt048 @kiennt049
+/docs/API_CONVENTIONS.md            @kiennt048 @kiennt049
+/api/                               @kiennt048 @kiennt049
+
+# Security-critical Go code: keep with the maintainer.
+/cmd/vedette-host/                  @kiennt048
+/core/secrets/                      @kiennt048
+/core/exec/                         @kiennt048
+
+# Mitigation content (D-21): maintainers confirm AI-drafted advice through PRs.
+# /content/                         @kiennt048

@@ -60,8 +60,13 @@ type Mailer struct {
 	sent      []Mail
 }
 
-// Mail is one message the fake mailer was given.
-type Mail struct{ To, Code string }
+// Mail is one message the fake mailer was given. StepUp is true for a step-up code, with the Summary it was
+// given (empty for a sign-in or enrolment code).
+type Mail struct {
+	To, Code string
+	StepUp   bool
+	Summary  string
+}
 
 // SetAvailable sets what Available reports.
 func (m *Mailer) SetAvailable(v bool) { m.mu.Lock(); m.available = v; m.mu.Unlock() }
@@ -84,6 +89,17 @@ func (m *Mailer) SendCode(_ context.Context, to, code string) error {
 		return errors.New("smtp: connection refused")
 	}
 	m.sent = append(m.sent, Mail{To: to, Code: code})
+	return nil
+}
+
+// SendStepUpCode implements auth.StepUpMailer.
+func (m *Mailer) SendStepUpCode(_ context.Context, to, code, summary string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.failSend {
+		return errors.New("smtp: connection refused")
+	}
+	m.sent = append(m.sent, Mail{To: to, Code: code, StepUp: true, Summary: summary})
 	return nil
 }
 

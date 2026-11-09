@@ -310,7 +310,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `key_rejected` | 401 | The provider rejected the key (HTTP 401). Check the key has not expired and belongs to this provider. | `POST /ai/profiles/test` |
-| `twofa_required` | 401/409 | Turn on two-step sign-in for your account first (My account), then try again. | `POST /auth/login`; `POST /response/execution` |
+| `twofa_required` | 401/403/409 | Turn on two-step sign-in for your account first (My account), then try again. | `POST /auth/login`; `POST /response/execution`; 403 từ `core/auth.VerifyTwoStep` khi người duyệt chưa bật hai bước (D-98) |
 | `unauthenticated` | 401 | Not signed in. | `GET /me`; mọi endpoint không công khai khi không có phiên, phiên hết hạn hoặc bị thu hồi; ở các thao tác ghi, phiên bị thu hồi **giữa chừng** cũng là 401 và không ghi gì: `/core/account/password`, `/core/account/2fa/{start,confirm,email/start,email/confirm,disable}`, `PATCH /core/account`, `POST /core/users`, `PATCH /core/users/{id}`, `/core/users/{id}/reset-password`, `/core/users/{id}/2fa/reset`, `PUT /core/general`, `GET /core/audit/export` |
 
 #### HTTP 403 (10 mã)
@@ -573,7 +573,7 @@ Mock chỉ có giới hạn **nghiệp vụ** (bảng dưới); chưa có giới
 
 | Giới hạn | Giá trị | Nguồn | Phản hồi khi vượt |
 |---|---|---|---|
-| Gửi lại mã 2 bước qua email | 60 s giữa hai lần; tối đa 5 mã/giờ; mã sống 10 phút; tối đa 5 lần nhập sai (D-35) | `core/emailCode.ts` | 429 `resend_too_soon` (kèm `retry_after`), 429 `too_many_codes`; 400 `too_many_tries`, `code_expired` |
+| Gửi lại mã 2 bước qua email | 60 s giữa hai lần; tối đa 5 mã/giờ cho đăng nhập và **5 mã/giờ riêng cho mã duyệt** (`core_email_code_send.kind`, D-98; giãn 60 s tính chung theo người); mã sống 10 phút; tối đa 5 lần nhập sai (D-35) | `core/emailCode.ts` | 429 `resend_too_soon` (kèm `retry_after`), 429 `too_many_codes` (kèm `retry_after` và `Retry-After`: giây tới khi lượt gửi cũ nhất ra khỏi cửa sổ 1 giờ); 400 `too_many_tries`, `code_expired` |
 | Xác thực đích ngoài | 10 lần/giờ (`MAX_ATTEMPTS_PER_HOUR`), tối đa 20 đích (D-25) | `exposure/mocks.ts` | 429 `rate_limited`; 400 `too_many` |
 | Token AI mỗi ngày | `daily_cap` theo hồ sơ và theo cấu hình chung | `ai/mocks.ts` | 429 `daily_cap` |
 | Phản hồi: hành động thiết bị | `max_per_hour` (mặc định 3); cầu dao `breaker_max_per_hour` (20); `multi_target_max` (5); `max_per_hour` mỗi quy tắc (≤ 100); ngân sách AI `budget_hour` 2 / `budget_day` 5 | `response/state.ts` | 409/403 qua `refuse()` (ghi `resp_log` loại `refused`/`breaker`) |

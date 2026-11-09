@@ -343,24 +343,9 @@ func (s *Service) loginTOTP(ctx context.Context, row coredb.CoreUser, code strin
 	if code == "" {
 		return 0, apierr.New(401, CodeTwofaRequired, "This account has two-step sign-in on. Enter the 6-digit code from your authenticator app.").With("method", "app")
 	}
-	t, err := coredb.New(s.db.Reader()).GetTotp(ctx, row.ID)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return 0, fmt.Errorf("auth: read totp: %w", err)
-	}
-	var step int64
-	ok := false
-	if err == nil && t.Confirmed == 1 {
-		secret, oerr := s.secrets.Open(ctx, s.db.Reader(), t.SecretID, totpPurpose)
-		if oerr != nil {
-			return 0, fmt.Errorf("auth: open totp secret: %w", oerr)
-		}
-		last := NoStep
-		if t.LastStep != nil {
-			last = *t.LastStep
-		}
-		step, ok = VerifyTOTP(secret, code, s.now(), last)
-	} else {
-		s.log.ErrorContext(ctx, "user has two-step app method but no confirmed key", "user_id", row.ID)
+	step, ok, err := s.checkTOTP(ctx, row.ID, code)
+	if err != nil {
+		return 0, err
 	}
 	if !ok {
 		s.limit.failAll(row.Email, lims)
@@ -370,6 +355,30 @@ func (s *Service) loginTOTP(ctx context.Context, row coredb.CoreUser, code strin
 		return 0, wrongAppCode()
 	}
 	return step, nil
+}
+
+// checkTOTP judges an authenticator code of a user against the stored key and the last accepted step, the
+// one check of sign-in and of VerifyTwoStep. ok is false for a wrong code and for a user without a confirmed
+// key; the caller stores the returned step atomically with accepting the code (AdvanceTotpStep).
+func (s *Service) checkTOTP(ctx context.Context, userID, code string) (step int64, ok bool, err error) {
+	t, err := coredb.New(s.db.Reader()).GetTotp(ctx, userID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return 0, false, fmt.Errorf("auth: read totp: %w", err)
+	}
+	if err != nil || t.Confirmed != 1 {
+		s.log.ErrorContext(ctx, "user has two-step app method but no confirmed key", "user_id", userID)
+		return 0, false, nil
+	}
+	secret, err := s.secrets.Open(ctx, s.db.Reader(), t.SecretID, totpPurpose)
+	if err != nil {
+		return 0, false, fmt.Errorf("auth: open totp secret: %w", err)
+	}
+	last := NoStep
+	if t.LastStep != nil {
+		last = *t.LastStep
+	}
+	step, ok = VerifyTOTP(secret, code, s.now(), last)
+	return step, ok, nil
 }
 
 // totpPurpose is the core_secret purpose of TOTP keys (DATA_MODEL 5.4).

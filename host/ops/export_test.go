@@ -53,3 +53,6 @@ func RetainExports(sizes []int64) (kept []int) {
 	}
 	return kept
 }
+
+// NetPending exposes the network-change-pending check of os.reboot.
+func (o *Ops) NetPending() bool { return o.netPending() }

@@ -50,6 +50,9 @@ func TestListenRefusesUnsafeDirectoryAndPath(t *testing.T) {
 			if err := os.MkdirAll(dir, 0o700); err != nil {
 				t.Fatal(err)
 			}
+			if err := os.Chown(dir, -1, os.Getgid()); err != nil { // a directory made under a sticky /tmp can inherit another group (macOS)
+				t.Fatal(err)
+			}
 			if err := os.Chmod(dir, mode); err != nil {
 				t.Fatal(err)
 			}
@@ -65,6 +68,9 @@ func TestListenRefusesUnsafeDirectoryAndPath(t *testing.T) {
 			h := servertest.Prepare(t, f.cmds)
 			dir := filepath.Dir(h.Socket)
 			if err := os.MkdirAll(dir, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chown(dir, -1, os.Getgid()); err != nil { // a directory made under a sticky /tmp can inherit another group (macOS)
 				t.Fatal(err)
 			}
 			if err := os.Chmod(dir, mode); err != nil {
@@ -86,6 +92,9 @@ func TestListenRefusesUnsafeDirectoryAndPath(t *testing.T) {
 		if err := os.MkdirAll(filepath.Dir(h.Socket), 0o750); err != nil {
 			t.Fatal(err)
 		}
+		if err := os.Chown(filepath.Dir(h.Socket), -1, os.Getgid()); err != nil { // a directory made under a sticky /tmp can inherit another group (macOS)
+			t.Fatal(err)
+		}
 		if err := os.WriteFile(h.Socket, []byte("precious"), 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -101,6 +110,9 @@ func TestListenRefusesUnsafeDirectoryAndPath(t *testing.T) {
 		t.Parallel()
 		h := servertest.Prepare(t, f.cmds)
 		if err := os.MkdirAll(filepath.Dir(h.Socket), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chown(filepath.Dir(h.Socket), -1, os.Getgid()); err != nil { // a directory made under a sticky /tmp can inherit another group (macOS)
 			t.Fatal(err)
 		}
 		stale, err := (&net.ListenConfig{}).Listen(context.Background(), "unix", h.Socket)

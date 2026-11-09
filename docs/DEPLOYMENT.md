@@ -1,6 +1,6 @@
 # Triển khai
 
-Trạng thái: **mới, 2026-11-09**, theo D-55 (appliance + container) và D-56 (cấu hình mạng của hộp); mạng, decoy, unit Quadlet và xác minh image cập nhật theo D-99…D-107 (WP-07b phần 3, 2026-11-10). Chưa có mã; các giá trị đánh dấu **(đề xuất)** là mặc định thiết kế để người cài đặt/test dựa vào, **chốt sau khi đo ở M2** (xem §14). Mọi thứ ship như code (`rules/ships-as-code.md`): máy mới dựng từ repo phải đạt cùng trạng thái, xác minh bằng **hiệu ứng** (dịch vụ chạy, cổng mở, cấu hình đúng), không bằng exit code.
+Trạng thái: **mới, 2026-11-09**, theo D-55 (appliance + container) và D-56 (cấu hình mạng của hộp); mạng, decoy, unit Quadlet và xác minh image cập nhật theo D-99…D-107 (WP-07b phần 3, 2026-11-10); container `sensor`/`scan`, volume khoá và giao thức sensor theo D-109…D-116 (lát SP-0, 2026-11-10). Chưa có mã; các giá trị đánh dấu **(đề xuất)** là mặc định thiết kế để người cài đặt/test dựa vào, **chốt sau khi đo ở M2** (xem §14). Mọi thứ ship như code (`rules/ships-as-code.md`): máy mới dựng từ repo phải đạt cùng trạng thái, xác minh bằng **hiệu ứng** (dịch vụ chạy, cổng mở, cấu hình đúng), không bằng exit code.
 
 Liên quan: [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`specs/host-api.md`](specs/host-api.md) (lệnh của `vedette-host`) · `specs/*.md` · [`UPDATES.md`](UPDATES.md) · [`DATA_MODEL.md`](DATA_MODEL.md) · `../PRIVACY.md`.
 
@@ -45,9 +45,9 @@ Tóm tắt (chi tiết từng container ở §2.1–§2.4, giới hạn tài ngu
 | Container | Image (đề xuất) | Mạng | Capability | Mặc định bật |
 |---|---|---|---|---|
 | `core` | `ghcr.io/knt048/vedette-core` | bridge `vedette-int`, publish `8443:8443` (D-105) | không (drop ALL) | luôn |
-| `sensor` | `ghcr.io/knt048/vedette-sensor` | host | `NET_RAW`, `NET_BIND_SERVICE` | khi `sensor-*` hoặc `logs` bật |
+| `sensor` | `ghcr.io/knt048/vedette-sensor` | host | chỉ `NET_RAW` (ambient, `User=<sensor_uid>`, D-114) | khi `sensor-passive` bật |
 | `honeypot` | `ghcr.io/knt048/vedette-honeypot` | namespace `vedette-hp` của host (`Network=ns:`), macvlan một MAC mỗi IP (D-102) | không (drop ALL; `ip_unprivileged_port_start=0` trong namespace) | khi `honeypot` bật |
-| `scan` | `ghcr.io/knt048/vedette-scan` | host | `NET_RAW` | khi `scan`/`exposure`/`sensor-active` bật |
+| `scan` | `localhost/vedette-scan-nmap:<version>` dựng trên hộp từ image nền `ghcr.io/knt048/vedette-scan` đã ký (D-113 (7)) | host | chỉ `NET_RAW` (ambient, `User=<sensor_uid>`, D-114) | khi `sensor-active` bật (sau: `scan`/`exposure`) |
 | `greenbone` | upstream Greenbone Community Containers, ghim digest | bridge `vedette-int` | theo upstream | khi `scan-credentialed` bật |
 
 Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 (3), D-104; câu hỏi A3 đã đóng); thêm `ghcr.io` vào `PRIVACY.md` luồng 6 ở lát 3-7.
@@ -58,8 +58,8 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 |---|---|
 | Nội dung | Go binary tĩnh + SPA nhúng + skill/gói khuyến nghị đã xác nhận (đi cùng bản phát hành, D-36); chạy `vedette serve` |
 | Người dùng | không root, `User=<core_uid>:<core_gid>` **cố định** từ `host.conf`, không `UserNS=auto` (uid của peer phải ổn định cho kiểm `SO_PEERCRED` và kiểm chủ sở hữu của D-87; D-105); `cap_drop=ALL`; `no-new-privileges`; rootfs chỉ đọc + tmpfs `/tmp` |
-| Mạng | bridge `vedette-int`; publish `8443:8443` **không kèm IP** (D-105): địa chỉ LAN duy nhất của hộp là địa chỉ quản trị (SPAN không IP, decoy nằm trong `vedette-hp`), nên đổi địa chỉ bằng `net.apply` không phải khởi động lại `core` và GUI tới được ở địa chỉ mới để xác nhận; `8444` (sensor-intake mTLS) không publish ra LAN, chỉ `127.0.0.1:8444` cho container mạng host |
-| Volume | `vedette-data` → `/var/lib/vedette` (SQLite WAL, chỉ mục RAG, tài liệu tải lên); `/etc/vedette/master.key` → `/run/secrets/master.key` (ro, 0600); `/run/vedette/host.sock` (socket `vedette-host`); mẫu cấu hình ro |
+| Mạng | bridge `vedette-int`; publish `8443:8443` **không kèm IP** (D-105): địa chỉ LAN duy nhất của hộp là địa chỉ quản trị (SPAN không IP, decoy nằm trong `vedette-hp`), nên đổi địa chỉ bằng `net.apply` không phải khởi động lại `core` và GUI tới được ở địa chỉ mới để xác nhận; `8444` (giao thức sensor, mTLS, D-109) không publish ra LAN, chỉ `127.0.0.1:8444` cho container mạng host |
+| Volume | `vedette-data` → `/var/lib/vedette` (SQLite WAL, chỉ mục RAG, tài liệu tải lên); `/etc/vedette/master.key` → `/run/secrets/master.key` (ro, 0600); `/run/vedette/host.sock` (socket `vedette-host`); `vedette-creds-passive`, `vedette-creds-active` → `/var/lib/vedette-creds/{passive,active}` (**đọc-ghi chỉ ở `core`**: bó khoá của sensor, D-110 (4), D-114 (4)); mẫu cấu hình ro. `PodmanArgs=--group-add=<sensor_gid>` hằng để `core` ghi tệp khoá `0640 core_uid:sensor_gid` |
 | Cổng | 8443/tcp (UI, API, SSE, intake osquery, script cài osquery, trang duyệt email, URL danh sách chặn) |
 | Health check | `vedette healthcheck`: mở được DB, scheduler còn tick, HTTP nội bộ trả 200 (endpoint health chưa có trong `api/openapi.json`, cần thêm: câu hỏi mở B1). Chu kỳ 30 s, start-period 60 s, 3 lần hỏng thì unhealthy |
 | Phụ thuộc | không (khởi động đầu tiên) |
@@ -68,13 +68,14 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 
 | Mục | Giá trị |
 |---|---|
-| Nội dung | `vedette sensor`: listener thụ động (DHCP/ARP/mDNS/SSDP/LLDP), bộ phân tích SPAN metadata (D-43), nhận syslog (`logs`), `sensor-active` gọi nmap qua `core/exec` |
+| Nội dung | `vedette-sensor passive` (D-114): nửa `capture` của `sensor-passive` (DHCP/ARP/mDNS/SSDP/LLDP, bộ phân tích SPAN metadata, D-43); nhận `config` bằng long-poll, gửi quan sát và heartbeat (`specs/sensor-protocol.md`). Không nmap (D-113), không syslog (để sau, `logs` chưa xây), không DB (binary không liên kết `database/sql`/SQLite) |
+| Người dùng | `User=<sensor_uid>:<sensor_gid>` từ `host.conf`, **không `UserNS`** (capability của user namespace con không phủ namespace mạng của host, D-114 (3)); `NoNewPrivileges`; rootfs chỉ đọc + tmpfs `/tmp` |
 | Mạng | **host** (cần thấy LAN thật và card SPAN) |
-| Capability | `NET_RAW` (bắt gói), `NET_BIND_SERVICE` (syslog 514). Card SPAN được đặt promisc, không IP bởi `vedette-host` (D-56), nên không cần `NET_ADMIN` |
-| Volume | `vedette-sensor` → `/var/lib/vedette-sensor` (cert mTLS, hàng đợi sự kiện chịu khởi động lại); không chạm DB |
-| Cổng | UDP/TCP 514 (khi `logs` bật); không cổng khác |
-| Health check | `vedette sensor healthcheck`: poll `core` thành công trong 60 s; nếu SPAN bật: có gói trong 60 s (nếu không có chỉ cảnh báo, không unhealthy, D-56) |
-| Kênh | mTLS, **sensor gọi ra `core`** (`127.0.0.1:8444`), không có cổng vào ngoài syslog |
+| Capability | `DropCapability=ALL`, **chỉ** `AddCapability=NET_RAW` (bắt gói AF_PACKET; Podman đặt vào tập ambient cho uid không root: **cổng lab**, đường lùi UID 0 + `NET_RAW`). Không `NET_BIND_SERVICE` tới khi có syslog; không bao giờ `NET_ADMIN` (card SPAN được `vedette-host` đặt promisc, không IP, D-56) |
+| Volume | `vedette-creds-passive` → `/var/lib/vedette-creds` **chỉ đọc** (bó khoá vai `passive`, `0640 core_uid:sensor_gid`); không volume ghi được, hàng đợi trong bộ nhớ (D-112 (6)) |
+| Cổng | không cổng nghe nào |
+| Health check | `vedette-sensor healthcheck`: lần gọi `core` thành công gần nhất trong 60 s; nếu SPAN bật: có gói trong 60 s (nếu không có chỉ cảnh báo, không unhealthy, D-56) |
+| Kênh | mTLS, **sensor gọi ra `core`** (`https://127.0.0.1:8444`), vai `passive` |
 
 ### 2.3 honeypot
 
@@ -96,12 +97,13 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 
 | Mục | Giá trị |
 |---|---|
-| Nội dung | `vedette scan-worker`: nmap + nuclei (template tag an toàn `kev,vkev`) trong image; poll hàng đợi việc của `core` |
-| Mạng | host; capability `NET_RAW` (nmap SYN/OS) |
-| Ràng buộc | chỉ quét trong `inv_scope` / mục tiêu đã xác thực (SYS-7, D-25, D-32); egress kiểm theo bảng phạm vi; mỗi probe ghi log |
-| Volume | tmpfs cho kết quả tạm; không volume bền |
-| Health check | heartbeat poll `core` trong 60 s |
-| Ghi chú | nmap trong image: xem câu hỏi mở A2 (giấy phép) |
+| Nội dung | `vedette-sensor active` (D-113): worker nmap của `sensor-active`; long-poll job `{shape, rate, targets, timeout_s}`, dựng argv bằng `nmapargv` + `ValidateNmapArgs`, chạy `/usr/bin/nmap` qua `core/exec`, trả XML; một job một lúc; lease 60 s. Job nuclei của `scan`/`exposure` để sau (loại job mới trên cùng kênh) |
+| Image | **dựng trên hộp** bởi `vedette-host` (D-57 (2), D-113 (7), lát SP-6): Containerfile hằng `FROM` digest image nền `ghcr.io/knt048/vedette-scan` đã ký (Debian slim + `vedette-sensor`) + `apt-get install --no-install-recommends nmap` (kho gói OS, PRIVACY luồng 6); tag `localhost/vedette-scan-nmap:<version>`; `container.pull scan` kéo image nền theo digest (kiểm minisign, cosign như mọi service) rồi chạy `podman build` với argv cố định; kiểm hiệu ứng `nmap --version` trong image; dựng hỏng thì giữ image trước. Dự án không phân phối nmap (D-4, `LEGAL.md`) |
+| Người dùng, capability | như `sensor` (§2.2): `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, `DropCapability=ALL` + `AddCapability=NET_RAW` (nmap `--privileged`, D-84 (8)), `NoNewPrivileges`, rootfs chỉ đọc + tmpfs |
+| Mạng | host |
+| Ràng buộc | worker không giữ phạm vi: `core` là bên đồng ý duy nhất (D-26, D-84) và chỉ giao IPv4 riêng trong ba mẫu; mỗi probe ghi `sa_probe` trước khi giao job (INV-9) |
+| Volume | `vedette-creds-active` → `/var/lib/vedette-creds` **chỉ đọc**; tmpfs cho đầu ra tạm; không volume bền |
+| Health check | `vedette-sensor healthcheck`: lần poll `core` thành công gần nhất trong 60 s |
 
 `greenbone` (tuỳ chọn, M7, S-SCAN-5): nhóm container upstream, ghim digest theo `release.json` đã ký; giao diện web Greenbone **không** publish ra LAN; `core` nói chuyện với `gvmd` qua socket GMP trên volume dùng chung (**đề xuất**); chạy `vedette-int`; SSH key quét có đăng nhập lưu bằng `core/secrets`. GPL/AGPL: container riêng, không sửa (D-55).
 
@@ -185,7 +187,7 @@ Hạn chế của kiểu Chỉ container phải hiện rõ ở GUI (Cài đặt 
 
 ## 6. Unit mẫu
 
-Các file dưới đây là **ví dụ minh hoạ**; cờ dòng lệnh, tên biến, đường dẫn chốt ở M2. Unit `vedette-<service>.container` thật do `vedette-host` dựng **toàn bộ** từ mẫu hằng trong binary (D-105): chỗ điền duy nhất là digest, dòng `[Install] WantedBy=` (bật/tắt bền, vì unit sinh ra không `systemctl enable`/`disable` được) và `core_uid`/`core_gid` của `host.conf`; không drop-in (Podman 4.9 trên Ubuntu 24.04 không tài liệu hoá), không sửa tay. Test hợp đồng trên unit đã dựng: không `--privileged`, capability theo bảng §2, `Network=host` chỉ `sensor`/`scan`, honeypot chỉ `ns:/run/netns/vedette-hp`.
+Các file dưới đây là **ví dụ minh hoạ**; cờ dòng lệnh, tên biến, đường dẫn chốt ở M2. Unit `vedette-<service>.container` thật do `vedette-host` dựng **toàn bộ** từ mẫu hằng trong binary (D-105): chỗ điền duy nhất là digest, dòng `[Install] WantedBy=` (bật/tắt bền, vì unit sinh ra không `systemctl enable`/`disable` được), `core_uid`/`core_gid` và `sensor_uid`/`sensor_gid` của `host.conf` (D-114); không drop-in (Podman 4.9 trên Ubuntu 24.04 không tài liệu hoá), không sửa tay. Test hợp đồng trên unit đã dựng: không `--privileged`, capability theo bảng §2, `Network=host` chỉ `sensor`/`scan`, honeypot chỉ `ns:/run/netns/vedette-hp`; `sensor`/`scan` có `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, chỉ `NET_RAW`, mỗi cái chỉ gắn volume khoá của vai mình và chỉ đọc (D-114).
 
 ### 6.1 Quadlet (appliance)
 
@@ -206,6 +208,16 @@ Gateway=172.30.77.1
 VolumeName=vedette-data
 ```
 
+`/etc/containers/systemd/vedette-creds-passive.volume` (và `vedette-creds-active.volume` như vậy; D-114 (4))
+
+```ini
+[Volume]
+VolumeName=vedette-creds-passive
+# chủ phía host: core ghi, nhóm của sensor đọc (Quadlet 4.9 có User=/Group= cho .volume)
+User=<core_uid>
+Group=<sensor_gid>
+```
+
 `/etc/containers/systemd/vedette-core.container`
 
 ```ini
@@ -224,6 +236,9 @@ PublishPort=127.0.0.1:8444:8444
 Volume=vedette-data.volume:/var/lib/vedette
 Volume=/etc/vedette/master.key:/run/secrets/master.key:ro
 Volume=/run/vedette/host.sock:/run/vedette/host.sock
+# bó khoá của sensor (D-110 (4)): đọc-ghi chỉ ở core
+Volume=vedette-creds-passive.volume:/var/lib/vedette-creds/passive
+Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active
 ReadOnly=true
 Tmpfs=/tmp
 NoNewPrivileges=true
@@ -231,7 +246,8 @@ DropCapability=ALL
 # core_uid:core_gid của /etc/vedette/host.conf; KHÔNG UserNS=auto (uid của peer phải cố định, D-105)
 User=<core_uid>:<core_gid>
 LogDriver=journald
-PodmanArgs=--memory=2g --memory-swap=2g --cpus=2 --pids-limit=512
+# --group-add hằng: Quadlet 4.9 không có GroupAdd=; để core ghi tệp khoá 0640 core_uid:sensor_gid (D-114 (4))
+PodmanArgs=--memory=2g --memory-swap=2g --cpus=2 --pids-limit=512 --group-add=<sensor_gid>
 HealthCmd=/vedette healthcheck
 HealthInterval=30s
 HealthStartPeriod=60s
@@ -250,7 +266,7 @@ WantedBy=multi-user.target
 
 ```ini
 [Unit]
-Description=Vedette sensor (passive/active, syslog, SPAN metadata)
+Description=Vedette sensor (passive capture)
 After=vedette-core.service
 Requires=vedette-core.service
 
@@ -258,19 +274,22 @@ Requires=vedette-core.service
 ContainerName=vedette-sensor
 Image=ghcr.io/knt048/vedette-sensor@sha256:<digest>
 Network=host
+# sensor_uid:sensor_gid của /etc/vedette/host.conf; KHÔNG UserNS (raw socket trên mạng host, D-114 (3))
+User=<sensor_uid>:<sensor_gid>
 DropCapability=ALL
-AddCapability=NET_RAW NET_BIND_SERVICE
+# Podman đặt capability thêm vào tập ambient cho uid không root (kiểm ở lab; đường lùi UID 0 + NET_RAW)
+AddCapability=NET_RAW
 NoNewPrivileges=true
 ReadOnly=true
 Tmpfs=/tmp
-Volume=vedette-sensor.volume:/var/lib/vedette-sensor
+Volume=vedette-creds-passive.volume:/var/lib/vedette-creds:ro
 LogDriver=journald
 PodmanArgs=--memory=512m --memory-swap=512m --cpus=1 --pids-limit=256
-HealthCmd=/vedette sensor healthcheck
+HealthCmd=/vedette-sensor healthcheck
 HealthInterval=30s
 HealthStartPeriod=30s
 HealthRetries=3
-Exec=sensor --core https://127.0.0.1:8444
+Exec=passive --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem
 
 [Service]
 Restart=always
@@ -279,7 +298,7 @@ Restart=always
 WantedBy=multi-user.target
 ```
 
-Sensor chạy UID 0 trong container nhưng chỉ còn hai capability; nếu thử nghiệm cho thấy non-root nhận được capability hiệu lực thì đổi sang non-root (câu hỏi mở A4 ở ARCHITECTURE).
+Sensor chạy uid không root, không `UserNS`, chỉ `NET_RAW` (D-114; câu hỏi A4 ở ARCHITECTURE đã đóng). Không `NET_BIND_SERVICE` tới khi `logs` (syslog 514) được xây. Lab kiểm: AF_PACKET mở được và `nmap -sS`/`-O` chạy được với ambient `NET_RAW` cùng `NoNewPrivileges` trên Podman 4.9 và 5.x; không được thì đổi sang UID 0 + `NET_RAW` (vẫn không `UserNS`).
 
 Không có `vedette-lan.network` (network macvlan của Podman) và không có một container mỗi IP: decoy là link macvlan do `vedette-host` đặt trong namespace `vedette-hp` (D-102), một container dùng chung.
 
@@ -320,7 +339,7 @@ WantedBy=multi-user.target
 
 `<honeypot-dir>` là thư mục cha `-honeypot-dir` của `core` (D-89) nhìn từ host; `config/` và `log/` gắn ở **cùng đường dẫn tuyệt đối** trong container vì `opencanary.conf` ghi đường dẫn log. Đường dẫn thật và quyền của `log/` khi dùng `UserNS=auto` chốt ở WP-08.
 
-`/etc/containers/systemd/vedette-scan.container`: như `sensor`, nhưng `Image=…vedette-scan@sha256:…`, `AddCapability=NET_RAW`, `PodmanArgs=--memory=1g --memory-swap=1g --cpus=2 --pids-limit=512 --cpu-shares=128`, `Exec=scan-worker --core https://127.0.0.1:8444`.
+`/etc/containers/systemd/vedette-scan.container`: như `sensor` (cùng `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, `DropCapability=ALL`, `AddCapability=NET_RAW`, `NoNewPrivileges`, `ReadOnly`, tmpfs), nhưng `Image=` là image dựng trên hộp `localhost/vedette-scan-nmap:<version>` (D-113 (7); cách ghim image dựng tại chỗ trong unit chốt ở lát SP-6), `Volume=vedette-creds-active.volume:/var/lib/vedette-creds:ro`, `PodmanArgs=--memory=1g --memory-swap=1g --cpus=2 --pids-limit=512 --cpu-shares=128`, `Exec=active --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem`.
 
 `/etc/systemd/system/vedette-host.service` (khung; thông số hardening ở §12)
 
@@ -367,15 +386,17 @@ services:
     profiles: ["lab"]            # cần Linux + card thật
     image: ghcr.io/knt048/vedette-sensor@sha256:<digest>
     network_mode: host
+    user: "<sensor_uid>:<sensor_gid>"   # không userns (D-114)
     cap_drop: [ALL]
-    cap_add: [NET_RAW, NET_BIND_SERVICE]
+    cap_add: [NET_RAW]
     read_only: true
-    command: ["sensor", "--core", "https://127.0.0.1:8444"]
+    volumes: ["vedette-creds-passive:/var/lib/vedette-creds:ro"]
+    command: ["passive", "--core", "https://127.0.0.1:8444", "--creds", "/var/lib/vedette-creds/sensor.pem"]
   sensor-replay:
-    profiles: ["dev"]            # phát lại pcap/syslog mẫu, không đụng mạng thật
+    profiles: ["dev"]            # phát lại pcap mẫu, không đụng mạng thật
     image: ghcr.io/knt048/vedette-sensor@sha256:<digest>
-    command: ["sensor", "--core", "https://core:8444", "--replay", "/fixtures"]
-    volumes: ["./fixtures:/fixtures:ro"]
+    volumes: ["./fixtures:/fixtures:ro", "vedette-creds-passive:/var/lib/vedette-creds:ro"]
+    command: ["passive", "--core", "https://core:8444", "--creds", "/var/lib/vedette-creds/sensor.pem", "--replay", "/fixtures"]
   honeypot:
     profiles: ["dev"]
     image: ghcr.io/knt048/vedette-honeypot@sha256:<digest>
@@ -388,11 +409,15 @@ services:
     cap_drop: [ALL]
     cap_add: [NET_BIND_SERVICE]
   scan:
-    profiles: ["lab"]
-    image: ghcr.io/knt048/vedette-scan@sha256:<digest>
+    profiles: ["lab"]            # image dựng tại chỗ từ image nền + nmap của kho gói OS (D-113 (7))
+    image: localhost/vedette-scan-nmap:<version>
     network_mode: host
+    user: "<sensor_uid>:<sensor_gid>"
     cap_drop: [ALL]
     cap_add: [NET_RAW]
+    volumes: ["vedette-creds-active:/var/lib/vedette-creds:ro"]
+    command: ["active", "--core", "https://127.0.0.1:8444", "--creds", "/var/lib/vedette-creds/sensor.pem"]
+  # dev: thêm "scan" với nmap giả (exectest) để CI chạy core + sensor-replay + scan (lát SP-5)
   # greenbone: profile "greenbone", dùng compose upstream ghim digest (M7)
 networks:
   lan:
@@ -401,9 +426,11 @@ networks:
     ipam: {config: [{subnet: 192.168.10.0/24, gateway: 192.168.10.1, ip_range: 192.168.10.240/29}]}
 volumes:
   vedette-data:
+  vedette-creds-passive:
+  vedette-creds-active:
 ```
 
-Không có `vedette-host` trong compose: dev/CI dùng **host giả** (`vedette-host --fake`, trả fixture qua socket cùng giao thức) để test các màn hình Updates và Box network (đề xuất). CI chạy test hợp đồng sensor↔core qua compose.
+Không có `vedette-host` trong compose: dev/CI dùng **host giả** (`vedette-host --fake`, trả fixture qua socket cùng giao thức) để test các màn hình Updates và Box network (đề xuất). CI chạy test hợp đồng sensor↔core qua compose (profile `dev`: `core` + `sensor-replay` + `scan` với nmap giả, kiểm một thiết bị xuất hiện; lát SP-5). Volume khoá trong compose: `core` gắn đọc-ghi ở `/var/lib/vedette-creds/{passive,active}`.
 
 ## 7. Cổng và mạng
 
@@ -412,8 +439,8 @@ Không có `vedette-host` trong compose: dev/CI dùng **host giả** (`vedette-h
 | Cổng | Từ | Vào | Mục đích | Khi nào mở |
 |---|---|---|---|---|
 | 8443/tcp | LAN | `core`, trên IP quản trị (địa chỉ LAN duy nhất của hộp; publish không kèm IP, D-105) | UI, API, SSE, intake osquery, script cài osquery (`/install/*`), trang duyệt email, URL danh sách chặn cho firewall kéo (D-44, D-46, D-34) | luôn |
-| 8444/tcp | nội bộ | `core`, `127.0.0.1` + `vedette-int` | sensor-intake mTLS (đề xuất) | luôn; **không ra LAN** |
-| 514 UDP/TCP (TLS tuỳ cấu hình) | LAN | `sensor` | nhận syslog | `logs` bật |
+| 8444/tcp | nội bộ | `core` (`:8444` trong container), publish **chỉ** `127.0.0.1:8444` | giao thức sensor mTLS cho `sensor`/`scan` (D-109) | luôn; **không ra LAN** |
+| 514 UDP/TCP (TLS tuỳ cấu hình) | LAN | `sensor` | nhận syslog | **để sau**: `logs` chưa xây; unit `sensor` chưa có `NET_BIND_SERVICE` (D-114) |
 | 22, 80, 445, 1433, 3389 | LAN | `honeypot` trên **IP phụ/decoy** (namespace `vedette-hp`, D-102) | bẫy | `honeypot` bật |
 | — | Internet | — | **không có cổng vào** | — |
 
@@ -433,7 +460,7 @@ Không có `vedette-host` trong compose: dev/CI dùng **host giả** (`vedette-h
 ### 7.3 Mạng container
 
 - `vedette-int`: bridge nội bộ, subnet do `vedette-host` chọn không trùng LAN/VPN đã khai báo.
-- `sensor`, `scan`: host network, tới `core` qua `127.0.0.1:8444`.
+- `sensor`, `scan`: host network, tới `core` qua `127.0.0.1:8444` (cổng publish của `core`; netavark chuyển tiếp tới `127.0.0.1` cho tiến trình ở namespace của host có thể cần `route_localnet`: kiểm ở lab).
 - `honeypot`: chỉ namespace `vedette-hp` do host giữ (D-102): mỗi IP phụ/decoy (ngoài dải DHCP) một link macvlan và MAC riêng; không chân `vedette-int`; nft trong namespace chặn kết nối mới đi ra. Lưu lượng macvlan không qua netfilter của host, nên luật nằm trong chính namespace.
 - Card SPAN: không IP, promisc, bật bởi `vedette-host`; sensor đọc bằng AF_PACKET; kiểm bằng hiệu ứng: gói/giây > 0 và thấy ≥1 MAC khác MAC của hộp (D-56).
 - Kiểm bằng hiệu ứng sau cài: `ss -ltnup` trên host không có cổng nghe ngoài bảng §7.1; từ máy lab (không phải mạng thật) cổng ngoài bảng không mở.
@@ -522,7 +549,7 @@ Không có endpoint metrics kiểu Prometheus: chưa có story, không làm (`ru
 **Container.**
 - `cap_drop=ALL` + capability tối thiểu (§2); `no-new-privileges`; rootfs chỉ đọc + tmpfs; seccomp/AppArmor mặc định của Podman; giới hạn tài nguyên (§2.5).
 - Secret qua file mount ro, không qua biến môi trường.
-- Non-root ở mọi container trừ chỗ capability bắt buộc; `core` chạy `User=<core_uid>:<core_gid>` cố định, **không** `UserNS=auto` (kiểm peer của socket host và kiểm chủ sở hữu của D-87 cần uid ổn định); các container khác `UserNS=auto` (D-105). Unit là unit hệ thống, Podman rootful (đóng câu hỏi hệ thống/người dùng).
+- Non-root ở mọi container; `core` chạy `User=<core_uid>:<core_gid>` cố định, **không** `UserNS=auto` (kiểm peer của socket host và kiểm chủ sở hữu của D-87 cần uid ổn định); `sensor`/`scan` chạy `User=<sensor_uid>:<sensor_gid>` cố định, **không** `UserNS` (capability của user namespace con không phủ namespace mạng của host; D-114 sửa D-105 (5)); các container khác `UserNS=auto` (D-105). Unit là unit hệ thống, Podman rootful (đóng câu hỏi hệ thống/người dùng).
 - Image: ghim digest, SBOM CycloneDX, quét `trivy`/`govulncheck` trong CI, cosign.
 
 **Rootless.** Appliance dùng Podman **rootful** có hardening trên, vì: macvlan, mạng host + raw socket và mạng nội bộ chung giữa các container đều cần quyền thật; thử rootless sẽ buộc thêm lớp shim làm tăng bề mặt. Rootless dùng được ở dev/CI (profile `dev`) và ở kiểu Chỉ container cho phần `core`/`scan` không cần raw. Xác nhận bằng PoC ở M2 (B4).

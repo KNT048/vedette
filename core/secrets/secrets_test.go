@@ -612,3 +612,44 @@ func TestRestrictLeavesOneReader(t *testing.T) {
 		t.Fatalf("Opener.Open after Replace = %q, %v", got, err)
 	}
 }
+
+// A reserved purpose is closed to Store.Open on every Store from the moment Reserve ran, before any holder has called
+// Restrict; the holder still gets its Opener (core/pki reserves the CA purpose in an init function, D-110).
+func TestReserveClosesAPurposeBeforeAnyHolderRestrictsIt(t *testing.T) {
+	t.Parallel()
+	s, db := newStore(t)
+	other, _ := newStore(t)
+	ctx := t.Context()
+	purpose := fmt.Sprintf("reserved.t%d", time.Now().UnixNano()) // Reserve is for the life of the process: a new purpose for every run
+	var id string
+	err := db.Write(ctx, func(tx *sql.Tx) (err error) {
+		id, _, err = s.Seal(ctx, tx, purpose, []byte("the-secret-0123456789"), false)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := s.Open(ctx, db.Reader(), id, purpose); err != nil || len(got) == 0 {
+		t.Fatalf("before Reserve: %q %v", got, err)
+	}
+	secrets.Reserve(purpose)
+	secrets.Reserve(purpose) // idempotent
+	for name, st := range map[string]*secrets.Store{"the store that sealed it": s, "another store": other} {
+		if _, err := st.Open(ctx, db.Reader(), id, purpose); !errors.Is(err, secrets.ErrRestricted) {
+			t.Errorf("%s: Open of a reserved purpose = %v, want ErrRestricted", name, err)
+		}
+	}
+	op, err := s.Restrict(purpose)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := op.Open(ctx, db.Reader(), id); err != nil || string(got) != "the-secret-0123456789" {
+		t.Errorf("the holder's Opener = %q %v", got, err)
+	}
+	defer func() {
+		if recover() == nil {
+			t.Error("Reserve of a malformed purpose did not panic")
+		}
+	}()
+	secrets.Reserve("Bad Purpose")
+}

@@ -126,7 +126,7 @@ func TestSnapshotFollowsTheHostContractUnderAConcurrentWriter(t *testing.T) {
 		if err != nil {
 			t.Fatalf("the host refuses snapshot.json %s: %v", raw, err)
 		}
-		if !created.Equal(now) || schema != "core=6" || inc != withKey {
+		if !created.Equal(now) || schema != "core=7" || inc != withKey {
 			t.Errorf("meta = %v %q %v (%s)", created, schema, inc, raw)
 		}
 		k, kerr := os.ReadFile(filepath.Join(d, snapshotKeyFile)) //nolint:gosec // the test reads what it just wrote

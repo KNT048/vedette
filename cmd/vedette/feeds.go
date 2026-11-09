@@ -11,6 +11,9 @@ import (
 var (
 	feedsMu       sync.Mutex
 	feedsServices = map[*store.DB]*feeds.Service{}
+
+	// feedsClient is the one guarded client of every pull (connection reuse, the address guard of feeds.NewClient).
+	feedsClient = feeds.NewClient(feeds.DefaultFetchTimeout)
 )
 
 // feedsService builds the feeds service once per database, so the handlers and the pull job share it (and its
@@ -23,7 +26,7 @@ func feedsService(d deps) (*feeds.Service, error) {
 		return s, nil
 	}
 	s, err := feeds.NewService(feeds.Deps{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Modules: d.Reg, Log: d.Log,
-		Fetcher: feeds.Fetcher{Version: version}, Clock: d.Clock})
+		Fetcher: feeds.Fetcher{Client: feedsClient, Version: version}, Clock: d.Clock})
 	if err != nil {
 		return nil, err
 	}

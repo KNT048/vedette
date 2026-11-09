@@ -19,6 +19,7 @@ import (
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/server/servertest"
@@ -26,14 +27,18 @@ import (
 )
 
 type fakeInv struct {
-	mu      sync.Mutex
-	matches map[string][]MatchedAsset
-	added   []ManualDevice
+	mu       sync.Mutex
+	matches  map[string][]MatchedAsset
+	added    []ManualDevice
+	matchErr error
 }
 
 func (f *fakeInv) MatchProducts(_ context.Context, ps []Product) (map[string][]MatchedAsset, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.matchErr != nil {
+		return nil, f.matchErr
+	}
 	out := map[string][]MatchedAsset{}
 	for _, p := range ps {
 		if m, ok := f.matches[p.Key()]; ok {
@@ -63,10 +68,10 @@ type fakePub struct {
 	events []published
 }
 
-func (f *fakePub) Publish(_ context.Context, name string, payload any) error {
+func (f *fakePub) Publish(_ context.Context, e events.Event) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.events = append(f.events, published{name, payload})
+	f.events = append(f.events, published{e.Name, e.Data})
 	return nil
 }
 

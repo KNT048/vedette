@@ -53,12 +53,11 @@ func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFe
 		KevCatalogVersion string    `json:"kev_catalog_version"`
 		Sources           []src     `json:"sources"`
 		InventoryOn       bool      `json:"inventory_on"`
-	}{GeneratedAt: h.s.now(), Sources: []src{}, InventoryOn: h.s.inventoryOn()}
+	}{GeneratedAt: time.Unix(0, 0).UTC(), Sources: []src{}, InventoryOn: h.s.inventoryOn()} // never pulled: the epoch, not "now"
+	var kevAt, oldest *time.Time
 	for _, r := range rows {
 		if r.ID == "cisa-kev" {
-			if r.LastSuccess != nil {
-				out.GeneratedAt = *r.LastSuccess
-			}
+			kevAt = r.LastSuccess
 			if r.CatalogVersion != nil {
 				out.KevCatalogVersion = *r.CatalogVersion
 			}
@@ -71,6 +70,16 @@ func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFe
 			license = *r.License
 		}
 		out.Sources = append(out.Sources, src{r.Name, r.URL, license, *r.LastSuccess})
+		if oldest == nil || r.LastSuccess.Before(*oldest) {
+			oldest = r.LastSuccess
+		}
+	}
+	// generated_at is the age of the CISA list; without it, the oldest vulnerability source that was pulled
+	switch {
+	case kevAt != nil:
+		out.GeneratedAt = *kevAt
+	case oldest != nil:
+		out.GeneratedAt = *oldest
 	}
 	return convert[oas.FeedsGetFeedsStatusOK](out)
 }
@@ -98,15 +107,16 @@ type hotRow struct {
 }
 
 // matchOf asks the inventory about products; with the inventory off it returns nil (INV-10).
-func (s *Service) matchOf(ctx context.Context, products []Product) (map[string][]MatchedAsset, bool, error) {
+func (s *Service) matchOf(ctx context.Context, products []Product) (map[string][]MatchedAsset, bool) {
 	if !s.inventoryOn() {
-		return nil, false, nil
+		return nil, false
 	}
 	m, err := s.Inventory.MatchProducts(ctx, products)
-	if err != nil {
-		return nil, true, fmt.Errorf("feeds: inventory match: %w", err)
+	if err != nil { // INV-10: a broken inventory degrades the answer, it does not fail it
+		s.Log.WarnContext(ctx, "the inventory could not match products; answering without it", "error", err)
+		return nil, false
 	}
-	return m, true, nil
+	return m, true
 }
 
 // FeedsGetFeedsHot implements GET /feeds/hot (S-FEED-1, PRE-2, POST-2): the vulnerabilities added in the
@@ -155,10 +165,7 @@ func (h *FeedHandlers) FeedsGetFeedsHot(ctx context.Context, params oas.FeedsGet
 			}
 		}
 	}
-	match, on, err := h.s.matchOf(ctx, products)
-	if err != nil {
-		return nil, err
-	}
+	match, on := h.s.matchOf(ctx, products)
 	if on {
 		for _, g := range groups {
 			m := match[g.Key]
@@ -222,35 +229,31 @@ type weeklyItem struct {
 
 const weeklyMax = 8
 
-// weekly builds the sentences from a template on the box (INV-14, no AI): the newest exploited CVE of each of
-// the latest products, with the answer already given.
+// weekly builds the sentences from a template on the box (INV-14, no AI): the newest CISA-list CVE of each of
+// the latest products, with the answer already given. Read from SQL: only the rows shown are loaded.
 func (s *Service) weekly(ctx context.Context) ([]weeklyItem, []VulnRow, error) {
-	rows, err := s.st.vulnsNewestFirst(ctx, "")
+	rows, err := s.st.weeklyVulns(ctx, weeklyMax)
 	if err != nil {
 		return nil, nil, err
 	}
-	answers, err := s.st.weeklyAnswers(ctx)
+	keys := make([]string, len(rows))
+	for i, v := range rows {
+		keys[i] = v.Key()
+	}
+	answers, err := s.st.weeklyAnswers(ctx, keys)
 	if err != nil {
 		return nil, nil, err
 	}
-	items, vulns := []weeklyItem{}, []VulnRow{}
-	seen := map[string]bool{}
-	for _, v := range rows {
-		k := v.Key()
-		if seen[k] {
-			continue
+	items := make([]weeklyItem, 0, len(rows))
+	for i, v := range rows {
+		it := weeklyItem{ID: keys[i], Key: keys[i], Text: weeklyText(v.Vuln), DateAdded: v.DateAdded, CVE: v.CVE}
+		if a, ok := answers[keys[i]]; ok {
+			ans := a.Answer
+			it.Answer = &ans
 		}
-		seen[k] = true
-		it := weeklyItem{ID: k, Key: k, Text: weeklyText(v.Vuln), DateAdded: v.DateAdded, CVE: v.CVE}
-		if a, ok := answers[k]; ok {
-			it.Answer = &a
-		}
-		items, vulns = append(items, it), append(vulns, v)
-		if len(items) >= weeklyMax {
-			break
-		}
+		items = append(items, it)
 	}
-	return items, vulns, nil
+	return items, rows, nil
 }
 
 // FeedsGetFeedsWeekly implements GET /feeds/weekly.
@@ -285,20 +288,23 @@ func (h *FeedHandlers) FeedsPostFeedsWeeklyID(ctx context.Context, req *oas.Feed
 	item, v := items[i], vulns[i]
 	err = h.s.DB.Write(ctx, func(tx *sql.Tx) error {
 		var prev string
-		switch err := tx.QueryRowContext(ctx, `SELECT answer FROM feeds_weekly_answer WHERE key = ?`, item.Key).Scan(&prev); err {
+		var added int
+		switch err := tx.QueryRowContext(ctx, `SELECT answer, device_added FROM feeds_weekly_answer WHERE key = ?`, item.Key).Scan(&prev, &added); err {
 		case nil, sql.ErrNoRows:
 		default:
 			return fmt.Errorf("feeds: read answer: %w", err)
 		}
-		if answer == "have" && prev != "have" && h.s.inventoryOn() {
-			err := h.s.Inventory.AddManualDevice(ctx, tx, p.Email, ManualDevice{Kind: KindOf(item.Key), Vendor: v.Vendor, Product: v.Product, Display: DisplayOf(v.Vendor, v.Product), Key: item.Key})
-			if err != nil {
-				return fmt.Errorf("feeds: add manual device: %w", err)
+		// The device is created once per product, whatever is answered later (have, not relevant, have again).
+		// With the inventory off the answer is stored and the pull job adds the device when it is back.
+		if answer == "have" && added == 0 && h.s.inventoryOn() {
+			if err := h.s.declareDevice(ctx, tx, p.Email, item.Key, v); err != nil {
+				return err
 			}
+			added = 1
 		}
-		_, err := tx.ExecContext(ctx, `INSERT INTO feeds_weekly_answer (key, answer, user_id, answered_at) VALUES (?, ?, ?, ?)
-ON CONFLICT(key) DO UPDATE SET answer = excluded.answer, user_id = excluded.user_id, answered_at = excluded.answered_at`,
-			item.Key, answer, p.ID, h.s.now().Format(tsLayout))
+		_, err := tx.ExecContext(ctx, `INSERT INTO feeds_weekly_answer (key, answer, user_id, answered_at, device_added) VALUES (?, ?, ?, ?, ?)
+ON CONFLICT(key) DO UPDATE SET answer = excluded.answer, user_id = excluded.user_id, answered_at = excluded.answered_at, device_added = excluded.device_added`,
+			item.Key, answer, p.ID, h.s.now().Format(tsLayout), added)
 		if err != nil {
 			return fmt.Errorf("feeds: store answer: %w", err)
 		}
@@ -325,10 +331,7 @@ func (h *FeedHandlers) FeedsGetFeedsCveID(ctx context.Context, params oas.FeedsG
 	if !found {
 		return nil, apierr.New(http.StatusNotFound, "not_in_kev", "This CVE is not on the exploited list (CISA KEV) in the current data.")
 	}
-	match, on, err := h.s.matchOf(ctx, []Product{{v.Vendor, v.Product}})
-	if err != nil {
-		return nil, err
-	}
+	match, on := h.s.matchOf(ctx, []Product{{v.Vendor, v.Product}})
 	out := struct {
 		vulnDTO
 		Matched *[]MatchedAsset `json:"matched"`
@@ -444,17 +447,13 @@ func (h *FeedHandlers) FeedsGetFeedsSearch(ctx context.Context, params oas.Feeds
 		}
 		out = map[string]any{"kind": "ioc", "value": value, "type": kind, "hit": hit}
 	default:
-		t := strings.ToLower(q)
-		rows, err := h.s.st.vulnsNewestFirst(ctx, "")
+		rows, err := h.s.st.searchVulns(ctx, strings.ToLower(q))
 		if err != nil {
 			return zero, err
 		}
-		vulns := []vulnDTO{}
+		vulns := make([]vulnDTO, 0, len(rows))
 		for _, v := range rows {
-			hay := strings.ToLower(v.Vendor + " " + v.Product + " " + v.Name + " " + DisplayOf(v.Vendor, v.Product))
-			if strings.Contains(hay, t) {
-				vulns = append(vulns, toVulnDTO(v))
-			}
+			vulns = append(vulns, toVulnDTO(v))
 		}
 		out = map[string]any{"kind": "text", "q": q, "vulns": vulns}
 	}

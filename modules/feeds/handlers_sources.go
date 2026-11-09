@@ -309,20 +309,26 @@ func (h *FeedHandlers) FeedsPostFeedsParseTest(ctx context.Context, req *oas.Fee
 	if err := CheckParser(in.Kind, in.Parser); err != nil {
 		return nil, apiError(err)
 	}
-	text, label := "", "Your sample"
-	if in.Sample != nil && *in.Sample != "" {
+	// A sample that was sent counts, even an empty one (0 records, like the GUI mock); only an absent sample
+	// means the built-in one.
+	text, label, _ := SampleFor(in.Kind, in.Parser.Format)
+	if label == "" {
+		label = "Sample"
+	}
+	if in.Sample != nil {
 		text = *in.Sample
-	} else {
-		var ok bool
-		if text, label, ok = SampleFor(in.Kind, in.Parser.Format); !ok {
-			label = "Sample"
+		if text != "" {
+			label = "Your sample"
 		}
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	res, err := ParseFeed(ctx, []byte(text), in.Kind, in.Parser)
-	if err != nil {
-		return nil, apiError(err)
+	res := Result{Records: []Record{}, Stats: Stats{Reasons: []Reason{}, Rejects: []Reject{}}}
+	if text != "" {
+		var err error
+		if res, err = ParseFeed(ctx, []byte(text), in.Kind, in.Parser); err != nil {
+			return nil, apiError(err)
+		}
 	}
 	pre := res.Preview()
 	return convert[oas.FeedsPostFeedsParseTestOK](map[string]any{

@@ -2,12 +2,16 @@ package feeds
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"fmt"
 	"log/slog"
+	"slices"
 	"sync"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 )
@@ -20,10 +24,9 @@ type ModuleGate interface {
 	Enabled(id string) bool
 }
 
-// Publisher puts a module event on the bus. core/events is not on main yet (WP-04b): wiring passes the real bus
-// when it lands; nil drops events.
+// Publisher puts a module event on the bus: *events.Bus satisfies it, so wiring passes the real bus; nil drops events.
 type Publisher interface {
-	Publish(ctx context.Context, name string, payload any) error
+	Publish(ctx context.Context, e events.Event) error
 }
 
 // Event names and payloads (CONTRACT "Events"). Consumers: inventory, scan, notify.
@@ -85,7 +88,7 @@ type Service struct {
 	st *Store
 
 	mu    sync.Mutex
-	locks map[string]*sync.Mutex // one pull at a time per feed
+	locks map[string]*feedGate // one pull at a time per feed; entries live while a pull holds or waits
 
 	seedMu sync.Mutex
 	seeded bool
@@ -100,7 +103,7 @@ func NewService(d Deps) (*Service, error) {
 	if d.Clock == nil {
 		d.Clock = time.Now
 	}
-	return &Service{Deps: d, st: NewStore(d.DB), locks: map[string]*sync.Mutex{}}, nil
+	return &Service{Deps: d, st: NewStore(d.DB), locks: map[string]*feedGate{}}, nil
 }
 
 // Store gives other modules the read methods (VulnByCVE, VulnsByProductKey, HasTemplate, IOCLookup, KevPairs).
@@ -118,20 +121,42 @@ func (s *Service) publish(ctx context.Context, name string, payload any) {
 	if s.Events == nil {
 		return
 	}
-	if err := s.Events.Publish(ctx, name, payload); err != nil {
+	if err := s.Events.Publish(ctx, events.Event{Name: name, Data: payload}); err != nil {
 		s.Log.WarnContext(ctx, "publishing an event failed", "event", name, "error", err)
 	}
 }
 
-func (s *Service) feedLock(id string) *sync.Mutex {
+// feedGate serialises the pulls of one feed; refs counts the pulls holding or waiting for it, so the entry can
+// be dropped when the last one is done.
+type feedGate struct {
+	ch   chan struct{}
+	refs int
+}
+
+// lockFeed waits for the pull lock of a feed or for ctx, whichever comes first. The returned func releases it.
+func (s *Service) lockFeed(ctx context.Context, id string) (func(), error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	m := s.locks[id]
-	if m == nil {
-		m = &sync.Mutex{}
-		s.locks[id] = m
+	g := s.locks[id]
+	if g == nil {
+		g = &feedGate{ch: make(chan struct{}, 1)}
+		s.locks[id] = g
 	}
-	return m
+	g.refs++
+	s.mu.Unlock()
+	drop := func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if g.refs--; g.refs == 0 {
+			delete(s.locks, id)
+		}
+	}
+	select {
+	case g.ch <- struct{}{}:
+		return func() { <-g.ch; drop() }, nil
+	case <-ctx.Done():
+		drop()
+		return nil, ctx.Err()
+	}
 }
 
 // ready seeds the built-in feeds the first time a request or a pull needs them (once, with the caller context), so
@@ -154,4 +179,53 @@ func (s *Service) sources(ctx context.Context) ([]sourceRow, error) {
 		return nil, err
 	}
 	return s.st.sources(ctx)
+}
+
+// declareDevice asks the inventory for the manual device of "I have it" (S-FEED-2, INV-14) inside tx.
+func (s *Service) declareDevice(ctx context.Context, tx *sql.Tx, actor, key string, v VulnRow) error {
+	d := ManualDevice{Kind: KindOf(key), Vendor: v.Vendor, Product: v.Product, Display: DisplayOf(v.Vendor, v.Product), Key: key}
+	if err := s.Inventory.AddManualDevice(ctx, tx, actor, d); err != nil {
+		return fmt.Errorf("feeds: add manual device: %w", err)
+	}
+	return nil
+}
+
+// reconcileDevices adds the "I have it" devices that were answered while the inventory was off, once it is on
+// (INV-14). Called by every pull tick. A product no longer in the CISA list waits.
+func (s *Service) reconcileDevices(ctx context.Context) error {
+	if !s.inventoryOn() {
+		return nil
+	}
+	keys, err := s.st.pendingDevices(ctx)
+	if err != nil {
+		return err
+	}
+	for _, k := range keys {
+		vs, err := s.st.VulnsByProductKey(ctx, k)
+		if err != nil {
+			return err
+		}
+		i := slices.IndexFunc(vs, func(v VulnRow) bool { return v.SourceID == "cisa-kev" })
+		if i < 0 {
+			continue
+		}
+		v := vs[i]
+		err = s.DB.Write(ctx, func(tx *sql.Tx) error {
+			var added int
+			if err := tx.QueryRowContext(ctx, `SELECT device_added FROM feeds_weekly_answer WHERE key = ? AND answer = 'have'`, k).Scan(&added); err != nil || added != 0 {
+				return nil // changed meanwhile
+			}
+			if err := s.declareDevice(ctx, tx, "system", k, v); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE feeds_weekly_answer SET device_added = 1 WHERE key = ?`, k); err != nil {
+				return fmt.Errorf("feeds: mark device added: %w", err)
+			}
+			return s.Audit.Append(ctx, tx, audit.Entry{User: "system", Action: "feeds.weekly_device", Target: DisplayOf(v.Vendor, v.Product), Detail: "added after the inventory became available"})
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

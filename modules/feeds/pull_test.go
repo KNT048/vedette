@@ -537,7 +537,7 @@ func TestCustomFeedPullsWithItsSecretAndTheEditorsRules(t *testing.T) {
 	vid := at(b, "id").(string)
 	e.fetch(vid)
 	v, found, _ := e.svc.st.VulnByCVE(t.Context(), "CVE-2026-20002")
-	if !found || v.Vendor != "Unknown" || v.DateAdded != "2026-11-05" || len(e.pub.named(EventNewKEV)) != 2 {
+	if !found || v.Vendor != "Unknown" || v.DateAdded != "2026-11-05" || len(e.pub.named(EventNewKEV)) != 0 {
 		t.Errorf("custom vuln: %+v", v)
 	}
 	o.serve("/v.csv", func(w http.ResponseWriter, _ *http.Request) {

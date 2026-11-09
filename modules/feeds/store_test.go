@@ -166,10 +166,10 @@ func TestApplyVulnsNewUpdatedAndOwner(t *testing.T) {
 	applyV(t, db, epoch0, "cf-v", []Vuln{own}, true)
 	kev := own
 	kev.Vendor, kev.Product, kev.DateAdded = "Acme", "Box", "2026-11-05"
-	_, upd = applyV(t, db, epoch0, "cisa-kev", []Vuln{kev}, false)
+	fresh, upd = applyV(t, db, epoch0, "cisa-kev", []Vuln{kev}, false) // its first sighting as KEV: new, not updated
 	got, _, _ = s.VulnByCVE(t.Context(), "CVE-2026-0900")
-	if len(upd) != 1 || got.SourceID != "cisa-kev" || got.Key() != "acme|box" {
-		t.Errorf("KEV did not take the CVE: %v %+v", upd, got)
+	if len(fresh) != 1 || len(upd) != 0 || got.SourceID != "cisa-kev" || got.Key() != "acme|box" {
+		t.Errorf("KEV did not take the CVE: %v %v %+v", fresh, upd, got)
 	}
 	keys, _ := s.VulnsByProductKey(t.Context(), "synology|diskstation manager")
 	pairs, _ := s.KevPairs(t.Context())

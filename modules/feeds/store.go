@@ -65,6 +65,7 @@ type sourceRow struct {
 	Parser        *Parser
 	License       *string
 	CreatedAt     time.Time
+	Rev           int // edits so far (see migration 0002): a pull writes only if it is unchanged
 
 	LastFetch      *time.Time
 	LastSuccess    *time.Time
@@ -91,7 +92,7 @@ func (r sourceRow) state() State {
 
 const sourceCols = `id, builtin, name, kind, format, url, default_url, enabled, interval_hours, auth_type, auth_header_name,
 auth_username, secret_id, secret_last4, parser, license, created_at, last_fetch, last_success, failures, records, status,
-error, etag, last_modified, catalog_version`
+error, etag, last_modified, catalog_version, rev`
 
 type scanner interface{ Scan(dest ...any) error }
 
@@ -104,7 +105,7 @@ func scanSource(r scanner) (sourceRow, error) {
 	)
 	err := r.Scan(&s.ID, &builtin, &s.Name, &kind, &format, &s.URL, &s.DefaultURL, &enabled, &s.IntervalHours, &auth,
 		&s.HeaderName, &s.Username, &s.SecretID, &s.SecretLast4, &parser, &s.License, &created, &lastFetch, &lastSuccess,
-		&s.Failures, &s.Records, &s.Status, &s.Error, &s.ETag, &s.LastModified, &s.CatalogVersion)
+		&s.Failures, &s.Records, &s.Status, &s.Error, &s.ETag, &s.LastModified, &s.CatalogVersion, &s.Rev)
 	if err != nil {
 		return sourceRow{}, err
 	}
@@ -245,10 +246,11 @@ func updateCustom(ctx context.Context, tx *sql.Tx, r sourceRow) error {
 		return err
 	}
 	_, err = tx.ExecContext(ctx, `UPDATE feeds_source SET name = ?, kind = ?, format = ?, url = ?, enabled = ?, interval_hours = ?,
-auth_type = ?, auth_header_name = ?, auth_username = ?, secret_id = ?, secret_last4 = ?, parser = ?, etag = NULL, last_modified = NULL
+auth_type = ?, auth_header_name = ?, auth_username = ?, secret_id = ?, secret_last4 = ?, parser = ?, etag = NULL, last_modified = NULL,
+rev = rev + 1, failures = CASE WHEN ? = 1 AND enabled = 0 THEN 0 ELSE failures END
 WHERE id = ? AND builtin = 0`,
 		r.Name, string(r.Kind), string(r.Format), r.URL, boolInt(r.Enabled), r.IntervalHours, string(r.Auth),
-		r.HeaderName, r.Username, r.SecretID, r.SecretLast4, parser, r.ID)
+		r.HeaderName, r.Username, r.SecretID, r.SecretLast4, parser, boolInt(r.Enabled), r.ID)
 	if err != nil {
 		return fmt.Errorf("feeds: update feed: %w", err)
 	}
@@ -257,11 +259,12 @@ WHERE id = ? AND builtin = 0`,
 
 // updateSettings is PUT /feeds/sources/{id}: the three things both kinds of feed allow to change.
 func updateSettings(ctx context.Context, tx *sql.Tx, id string, enabled bool, hours int, url string, urlChanged bool) error {
-	q := `UPDATE feeds_source SET enabled = ?, interval_hours = ? WHERE id = ?`
-	args := []any{boolInt(enabled), hours, id}
+	// turning a feed back on forgets its back-off: the admin fixed what failed
+	q := `UPDATE feeds_source SET rev = rev + 1, failures = CASE WHEN ? = 1 AND enabled = 0 THEN 0 ELSE failures END, enabled = ?, interval_hours = ? WHERE id = ?`
+	args := []any{boolInt(enabled), boolInt(enabled), hours, id}
 	if urlChanged {
-		q = `UPDATE feeds_source SET enabled = ?, interval_hours = ?, url = ?, etag = NULL, last_modified = NULL WHERE id = ?`
-		args = []any{boolInt(enabled), hours, url, id}
+		q = `UPDATE feeds_source SET rev = rev + 1, failures = CASE WHEN ? = 1 AND enabled = 0 THEN 0 ELSE failures END, enabled = ?, interval_hours = ?, url = ?, etag = NULL, last_modified = NULL WHERE id = ?`
+		args = []any{boolInt(enabled), boolInt(enabled), hours, url, id}
 	}
 	if _, err := tx.ExecContext(ctx, q, args...); err != nil {
 		return fmt.Errorf("feeds: update feed settings: %w", err)
@@ -403,9 +406,10 @@ type Product struct{ Vendor, Product string }
 // Key is ProductKey of the pair.
 func (p Product) Key() string { return ProductKey(p.Vendor, p.Product) }
 
-// KevPairs lists every vendor and product pair in the vulnerability data, for the inventory catalog.
+// KevPairs lists every vendor and product pair of the CISA list (cisa-kev rows only), for the inventory
+// catalog. A custom feed's products are not KEV entries.
 func (s *Store) KevPairs(ctx context.Context) ([]Product, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT DISTINCT vendor, product FROM feeds_vuln ORDER BY product_key`)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT DISTINCT vendor, product FROM feeds_vuln WHERE source_id = 'cisa-kev' ORDER BY product_key`)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: read products: %w", err)
 	}
@@ -432,32 +436,58 @@ func sameVuln(a, b Vuln, aSource, bSource string) bool {
 		a.DueDate == b.DueDate && a.Ransomware == b.Ransomware && aSource == bSource
 }
 
-// applyVulns writes the vulnerabilities of one pull inside tx and returns the CVEs seen for the first time and
-// the CVEs that changed. A vulnerability with an empty DateAdded takes today's date when new and keeps its date
-// when it exists. A CVE has one owner: cisa-kev takes over a custom feed's row, a custom feed never touches
-// another feed's row. With replace (custom feeds) rows of the feed that are no longer listed are deleted.
+// Bounds of one pull transaction (ponytail: one transaction per fetch result keeps "all or nothing", so the
+// write lock is held for the whole apply; at the limits of INV-2 that is 50,000 rows for a vulnerability feed
+// and 100,000 for hagezi, about a second or two on the target hardware). The context is checked every
+// ctxEvery rows, and what is read is read once, before the loop.
+const ctxEvery = 256
+
+// Bounds of a stored vulnerability's vendor and product (characters): the matching key vendor|product must
+// stay inside the CHECK of feeds_weekly_answer.key whatever a custom feed sends.
+const (
+	maxVendorProduct = 200
+	maxProductKey    = 500
+)
+
+// clampDate turns a date a feed gives in the future into today, like the IOC path does for first_seen.
+func clampDate(day, today string) string {
+	if day > today { // YYYY-MM-DD compares as text
+		return today
+	}
+	return day
+}
+
+// applyVulns writes the vulnerabilities of one pull inside tx. It returns the CVEs that are new to the box, or
+// that cisa-kev lists for the first time because a custom feed had them first, and the CVEs that changed. A
+// vulnerability with an empty DateAdded takes today's date when new and keeps its date when it exists; dates in
+// the future become today. A CVE has one owner: cisa-kev takes over a custom feed's row, a custom feed never
+// touches another feed's row. With replace (custom feeds) rows of the feed that are no longer listed are deleted.
 func applyVulns(ctx context.Context, tx *sql.Tx, now time.Time, source string, vulns []Vuln, replace bool) (fresh []VulnRow, updated []string, err error) {
-	rows, err := tx.QueryContext(ctx, `SELECT cve FROM feeds_template`)
+	tmpl, err := stringSet(ctx, tx, `SELECT cve FROM feeds_template`)
 	if err != nil {
-		return nil, nil, fmt.Errorf("feeds: read templates: %w", err)
+		return nil, nil, err
 	}
-	tmpl := map[string]bool{}
-	for rows.Next() {
-		var c string
-		if err := rows.Scan(&c); err != nil {
-			_ = rows.Close()
-			return nil, nil, fmt.Errorf("feeds: read templates: %w", err)
-		}
-		tmpl[c] = true
+	existing := map[string]VulnRow{}
+	all, err := queryVulns(ctx, tx, ``)
+	if err != nil {
+		return nil, nil, err
 	}
-	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
-		return nil, nil, fmt.Errorf("feeds: read templates: %w", err)
+	for _, v := range all {
+		existing[v.CVE] = v
 	}
 
 	stamp, today := store.FormatTS(now), now.UTC().Format("2006-01-02")
 	listed := map[string]bool{}
-	for _, v := range vulns {
+	for i, v := range vulns {
+		if i%ctxEvery == 0 {
+			if err := ctx.Err(); err != nil {
+				return nil, nil, err
+			}
+		}
 		listed[v.CVE] = true
+		if v.DateAdded != "" {
+			v.DateAdded = clampDate(v.DateAdded, today)
+		}
 		links, err := json.Marshal(append([]string{}, v.Links...))
 		if err != nil {
 			return nil, nil, fmt.Errorf("feeds: encode links: %w", err)
@@ -466,11 +496,8 @@ func applyVulns(ctx context.Context, tx *sql.Tx, now time.Time, source string, v
 		if v.DueDate != "" {
 			due = &v.DueDate
 		}
-		cur, err := queryVulns(ctx, tx, `WHERE cve = ?`, v.CVE)
-		if err != nil {
-			return nil, nil, err
-		}
-		if len(cur) == 0 {
+		old, found := existing[v.CVE]
+		if !found {
 			added := v.DateAdded
 			if added == "" {
 				added = today
@@ -484,10 +511,11 @@ date_added, due_date, ransomware, has_template, source_id, updated_at) VALUES (?
 			}
 			nv := v
 			nv.DateAdded = added
-			fresh = append(fresh, VulnRow{Vuln: nv, HasTemplate: tmpl[v.CVE], SourceID: source})
+			row := VulnRow{Vuln: nv, HasTemplate: tmpl[v.CVE], SourceID: source}
+			existing[v.CVE] = row
+			fresh = append(fresh, row)
 			continue
 		}
-		old := cur[0]
 		if old.SourceID != source && source != "cisa-kev" {
 			continue // another feed owns this CVE
 		}
@@ -505,48 +533,63 @@ links = ?, date_added = ?, due_date = ?, ransomware = ?, source_id = ?, updated_
 		if err != nil {
 			return nil, nil, fmt.Errorf("feeds: update vulnerability: %w", err)
 		}
-		updated = append(updated, v.CVE)
+		row := VulnRow{Vuln: next, EPSS: old.EPSS, EPSS7dAgo: old.EPSS7dAgo, HasTemplate: old.HasTemplate, SourceID: source}
+		existing[v.CVE] = row
+		if old.SourceID != source { // cisa-kev lists a CVE a custom feed had first: its first sighting as KEV
+			fresh = append(fresh, row)
+		} else {
+			updated = append(updated, v.CVE)
+		}
 	}
 	if replace {
-		own, err := tx.QueryContext(ctx, `SELECT cve FROM feeds_vuln WHERE source_id = ?`, source)
-		if err != nil {
-			return nil, nil, fmt.Errorf("feeds: read own vulnerabilities: %w", err)
-		}
-		var gone []string
-		for own.Next() {
-			var c string
-			if err := own.Scan(&c); err != nil {
-				_ = own.Close()
-				return nil, nil, fmt.Errorf("feeds: read own vulnerabilities: %w", err)
-			}
-			if !listed[c] {
-				gone = append(gone, c)
-			}
-		}
-		if err := errors.Join(own.Err(), own.Close()); err != nil {
-			return nil, nil, fmt.Errorf("feeds: read own vulnerabilities: %w", err)
-		}
-		for _, c := range gone {
-			if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_vuln WHERE cve = ?`, c); err != nil {
-				return nil, nil, fmt.Errorf("feeds: delete vulnerability: %w", err)
+		for c, row := range existing {
+			if row.SourceID == source && !listed[c] {
+				if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_vuln WHERE cve = ?`, c); err != nil {
+					return nil, nil, fmt.Errorf("feeds: delete vulnerability: %w", err)
+				}
 			}
 		}
 	}
 	return fresh, updated, nil
 }
 
+func stringSet(ctx context.Context, q queryer, query string) (map[string]bool, error) {
+	rows, err := q.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: read set: %w", err)
+	}
+	out := map[string]bool{}
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("feeds: read set: %w", err)
+		}
+		out[s] = true
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return nil, fmt.Errorf("feeds: read set: %w", err)
+	}
+	return out, nil
+}
+
 // applyTemplates replaces the set of CVEs that have a nuclei template and refreshes has_template; it returns
-// the CVEs whose flag changed.
+// the CISA-list CVEs whose flag changed (a custom feed's CVE changing is no event).
 func applyTemplates(ctx context.Context, tx *sql.Tx, cves []string) ([]string, error) {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_template`); err != nil {
 		return nil, fmt.Errorf("feeds: clear templates: %w", err)
 	}
-	for _, c := range cves {
+	for i, c := range cves {
+		if i%ctxEvery == 0 {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_template (cve) VALUES (?) ON CONFLICT(cve) DO NOTHING`, c); err != nil {
 			return nil, fmt.Errorf("feeds: insert template: %w", err)
 		}
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT cve FROM feeds_vuln WHERE has_template <> (cve IN (SELECT cve FROM feeds_template)) ORDER BY cve`)
+	rows, err := tx.QueryContext(ctx, `SELECT cve FROM feeds_vuln WHERE source_id = 'cisa-kev' AND has_template <> (cve IN (SELECT cve FROM feeds_template)) ORDER BY cve`)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: read changed templates: %w", err)
 	}
@@ -569,9 +612,10 @@ WHERE has_template <> (cve IN (SELECT cve FROM feeds_template))`); err != nil {
 	return changed, nil
 }
 
-// kevCVEs lists the CVEs whose EPSS the box keeps (every vulnerability stored).
+// kevCVEs lists the CVEs whose EPSS the box asks for: the CISA list only. A CVE that only a custom feed lists
+// is the company's own data and never goes to api.first.org.
 func (s *Store) kevCVEs(ctx context.Context) ([]string, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT cve FROM feeds_vuln ORDER BY cve`)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT cve FROM feeds_vuln WHERE source_id = 'cisa-kev' ORDER BY cve`)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: read cves: %w", err)
 	}
@@ -822,25 +866,6 @@ SELECT 1 FROM feeds_ioc_source s WHERE s.ioc_id = feeds_ioc.id)`, store.FormatTS
 		}
 		return nil
 	})
-}
-
-// ---------- weekly answers
-
-func (s *Store) weeklyAnswers(ctx context.Context) (map[string]string, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT key, answer FROM feeds_weekly_answer`)
-	if err != nil {
-		return nil, fmt.Errorf("feeds: read answers: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-	out := map[string]string{}
-	for rows.Next() {
-		var k, a string
-		if err := rows.Scan(&k, &a); err != nil {
-			return nil, fmt.Errorf("feeds: read answers: %w", err)
-		}
-		out[k] = a
-	}
-	return out, rows.Err()
 }
 
 // latest returns the newest vulnerability added, nil when there is none.

@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"slices"
 	"time"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/jobs"
@@ -61,6 +63,9 @@ func (s *Service) RunPull(ctx context.Context) error {
 		if fresh > 0 {
 			force["first-epss"] = true // new CVEs get their EPSS score now, not in a day
 		}
+	}
+	if err := s.reconcileDevices(ctx); err != nil && ctx.Err() == nil {
+		s.Log.ErrorContext(ctx, "adding the devices of \"I have it\" failed", "error", err)
 	}
 	if err := s.st.maintain(ctx, now); err != nil {
 		s.Log.ErrorContext(ctx, "pruning feed data failed", "error", err)
@@ -243,12 +248,22 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		if err != nil {
 			return p, err
 		}
-		if err := accepted(res.Stats); err != nil {
+		st := res.Stats
+		var vulns []Vuln
+		if src.Kind == KindVulnerabilities {
+			var long int
+			if vulns, long = vulnsOf(res.Records); long > 0 { // fail-closed: such a row is rejected with its reason
+				st.Accepted -= long
+				st.Rejected += long
+				st.Reasons = append(slices.Clone(st.Reasons), Reason{"vendor or product: longer than 200 characters", long})
+			}
+		}
+		if err := accepted(st); err != nil {
 			return p, err
 		}
-		p.out.fill(res.Stats, res.Accepted)
+		p.out.fill(st, st.Accepted)
 		if src.Kind == KindVulnerabilities {
-			p.vulns, p.hasVulns, p.replaceVulns = vulnsOf(res.Records), true, true
+			p.vulns, p.hasVulns, p.replaceVulns = vulns, true, true
 		} else {
 			p.iocs, p.hasIOCs = iocsOf(res.Records), true
 		}
@@ -261,11 +276,16 @@ func (o *outcome) fill(st Stats, records int) {
 }
 
 // vulnsOf maps the records of a custom vulnerability feed (fields cve, vendor, product, date, description, link).
-// A feed that gives no vendor or product is filed under "Unknown".
-func vulnsOf(recs []Record) []Vuln {
-	out := make([]Vuln, 0, len(recs))
+// A feed that gives no vendor or product is filed under "Unknown"; a vendor or product over 200 characters (or a
+// key over 500) is not stored and is counted in tooLong, so the key CHECKs can never fail.
+func vulnsOf(recs []Record) (out []Vuln, tooLong int) {
+	out = make([]Vuln, 0, len(recs))
 	for _, r := range recs {
 		v := Vuln{CVE: str(r["cve"]), Vendor: str(r["vendor"]), Product: str(r["product"]), Description: str(r["description"]), DateAdded: str(r["date"]), Links: []string{}}
+		if utf8.RuneCountInString(v.Vendor) > maxVendorProduct || utf8.RuneCountInString(v.Product) > maxVendorProduct || utf8.RuneCountInString(v.Key()) > maxProductKey {
+			tooLong++
+			continue
+		}
 		if v.Vendor == "" {
 			v.Vendor = "Unknown"
 		}
@@ -278,7 +298,7 @@ func vulnsOf(recs []Record) []Vuln {
 		}
 		out = append(out, v)
 	}
-	return out
+	return out, tooLong
 }
 
 func iocsOf(recs []Record) []iocInput {
@@ -345,16 +365,24 @@ func (s *Service) buildEPSS(ctx context.Context, src sourceRow, p pullPlan) (pul
 	return p, nil
 }
 
+// errStoreFailed is the sentence stored on a feed when its result could not be written (a database problem).
+const errStoreFailed = "The result could not be stored. Check the disk space and the box logs."
+
 // pull runs one pull of one feed under the feed's lock and writes its result in one transaction (with a core_audit
 // row when a person started it: actor is their email). It returns the feed as stored afterwards and how many CVEs
-// were new. Only a database failure (or ErrNotFound, ErrFeedDisabled) is an error; a failed pull is recorded.
+// of the CISA list were new. A pull whose feed was edited, turned off or deleted while it ran writes nothing (the
+// row is re-read inside the transaction and its rev compared): deleted is ErrNotFound, the others return the feed
+// as it is. A failed pull is recorded on the feed; if even that fails to store, a second short transaction records
+// the failure. Only a context error, ErrNotFound, ErrFeedDisabled or a database that cannot record anything is an error.
 func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, int, error) {
 	if err := s.ready(ctx); err != nil {
 		return sourceRow{}, 0, err
 	}
-	lock := s.feedLock(id)
-	lock.Lock()
-	defer lock.Unlock()
+	release, err := s.lockFeed(ctx, id)
+	if err != nil {
+		return sourceRow{}, 0, err
+	}
+	defer release()
 	src, err := s.st.source(ctx, id)
 	if err != nil {
 		return sourceRow{}, 0, err
@@ -375,51 +403,84 @@ func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, int, e
 	}
 	p.out.Started, p.out.Finished = started, s.now()
 
-	var fresh []VulnRow
-	var changed []string
-	var added, removed int
-	err = s.DB.Write(ctx, func(tx *sql.Tx) error {
-		var err error
-		switch {
-		case p.hasVulns:
-			var updated []string
-			if fresh, updated, err = applyVulns(ctx, tx, p.out.Finished, src.ID, p.vulns, p.replaceVulns); err != nil {
+	var (
+		fresh          []VulnRow
+		changed        []string
+		added, removed int
+		stale          bool
+	)
+	write := func(p pullPlan) error {
+		fresh, changed, added, removed, stale = nil, nil, 0, 0, false
+		return s.DB.Write(ctx, func(tx *sql.Tx) error {
+			cur, err := sourceTx(ctx, tx, src.ID)
+			if err != nil {
+				return err // ErrNotFound: deleted meanwhile
+			}
+			if cur.Rev != src.Rev || !cur.Enabled { // edited or switched off meanwhile: this result is about old settings
+				stale = true
+				return nil
+			}
+			switch {
+			case p.hasVulns:
+				var updated []string
+				if fresh, updated, err = applyVulns(ctx, tx, p.out.Finished, src.ID, p.vulns, p.replaceVulns); err != nil {
+					return err
+				}
+				changed = append(changed, updated...)
+			case p.hasTemplates:
+				if changed, err = applyTemplates(ctx, tx, p.templates); err != nil {
+					return err
+				}
+			case p.hasEPSS:
+				if _, err = applyEPSS(ctx, tx, p.epssLatest, p.epssAgo); err != nil {
+					return err
+				}
+			case p.hasIOCs:
+				if added, removed, err = applyIOCs(ctx, tx, p.out.Finished, src.ID, p.iocs); err != nil {
+					return err
+				}
+			}
+			if err := recordOutcome(ctx, tx, src.ID, p.out); err != nil {
 				return err
 			}
-			changed = append(changed, updated...)
-		case p.hasTemplates:
-			if changed, err = applyTemplates(ctx, tx, p.templates); err != nil {
-				return err
+			if actor == "" {
+				return nil
 			}
-		case p.hasEPSS:
-			if _, err = applyEPSS(ctx, tx, p.epssLatest, p.epssAgo); err != nil {
-				return err
+			detail := fmt.Sprintf("%d records", p.out.Records)
+			if !p.out.OK {
+				detail = p.out.Err
 			}
-		case p.hasIOCs:
-			if added, removed, err = applyIOCs(ctx, tx, p.out.Finished, src.ID, p.iocs); err != nil {
-				return err
-			}
+			return s.Audit.Append(ctx, tx, audit.Entry{User: actor, Action: "feeds.fetch", Target: src.Name, Detail: detail})
+		})
+	}
+	err = write(p)
+	switch {
+	case errors.Is(err, ErrNotFound):
+		return sourceRow{}, 0, ErrNotFound
+	case err != nil && ctx.Err() != nil:
+		return sourceRow{}, 0, ctx.Err()
+	case err != nil:
+		// The data could not be stored: leave a trace on the feed (error text, back-off) in a small transaction
+		// that touches nothing else, so Settings shows it and the job does not hit the source on every tick.
+		s.Log.ErrorContext(ctx, "storing a pull failed", "feed", src.ID, "error", err)
+		p = pullPlan{out: outcome{Err: errStoreFailed, Started: started, Finished: s.now()}}
+		if err2 := write(p); err2 != nil {
+			return sourceRow{}, 0, fmt.Errorf("feeds: recording the failure of a pull: %w", errors.Join(err, err2))
 		}
-		if err := recordOutcome(ctx, tx, src.ID, p.out); err != nil {
-			return err
-		}
-		if actor == "" {
-			return nil
-		}
-		detail := fmt.Sprintf("%d records", p.out.Records)
-		if !p.out.OK {
-			detail = p.out.Err
-		}
-		return s.Audit.Append(ctx, tx, audit.Entry{User: actor, Action: "feeds.fetch", Target: src.Name, Detail: detail})
-	})
-	if err != nil {
-		return sourceRow{}, 0, err
+	}
+	row, rerr := s.st.source(ctx, id)
+	if stale || rerr != nil {
+		return row, 0, rerr
 	}
 
-	for _, v := range fresh {
-		s.publish(ctx, EventNewKEV, NewKEVEvent{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, HasTemplate: v.HasTemplate, DateAdded: v.DateAdded})
+	kev := 0
+	if src.ID == "cisa-kev" { // only the CISA list makes KEV events; a custom feed's CVEs are not KEV entries
+		kev = len(fresh)
+		for _, v := range fresh {
+			s.publish(ctx, EventNewKEV, NewKEVEvent{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, HasTemplate: v.HasTemplate, DateAdded: v.DateAdded})
+		}
 	}
-	if len(changed) > 0 {
+	if len(changed) > 0 && (src.ID == "cisa-kev" || p.hasTemplates) {
 		s.publish(ctx, EventVulnUpdated, VulnUpdatedEvent{CVEs: changed})
 	}
 	if added > 0 || removed > 0 {
@@ -428,6 +489,5 @@ func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, int, e
 	if !p.out.OK {
 		s.publish(ctx, EventFetchFailed, FetchFailedEvent{FeedID: src.ID, Error: p.out.Err})
 	}
-	row, err := s.st.source(ctx, id)
-	return row, len(fresh), err
+	return row, kev, nil
 }

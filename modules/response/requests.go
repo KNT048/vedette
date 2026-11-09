@@ -2,7 +2,11 @@ package response
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"slices"
 	"sort"
@@ -355,6 +359,9 @@ func gateItem(i itemRec, st Settings, cats map[string]catRow, cs conns, run *run
 	if device && cat.Tool != i.RunTool {
 		return fail(http.StatusConflict, "tool_unavailable", "The write tool of \""+cat.Name+"\" was changed after the request was made. Nothing was changed. Ask again.")
 	}
+	if actionFP(cat) != i.ActionFP { // the stored call is the old rendering, approved at the old risk (INV-9)
+		return fail(http.StatusConflict, "tool_unavailable", "The action \""+oneLine(cat.Name, 80)+"\" was edited after the request was made. Nothing was changed. Ask again.")
+	}
 	if run == nil {
 		return nil
 	}
@@ -368,6 +375,14 @@ func gateItem(i itemRec, st Settings, cats map[string]catRow, cs conns, run *run
 		return fail(http.StatusConflict, "never_touch", strings.Join(i.Acted, " / ")+" matches the never-touch list ("+e.Label+", "+e.Value+"). Nothing was changed.")
 	}
 	return nil
+}
+
+// actionFP is the fingerprint of what a request item was rendered from: the templates and the risk of the catalog entry. An edit of
+// either changes it, so a request made before the edit refuses at approval and at run instead of sending the old rendering at the old risk.
+func actionFP(c catRow) string {
+	b, _ := json.Marshal([]any{c.Run, c.Rollback, c.Verify, c.Risk})
+	h := sha256.Sum256(b)
+	return hex.EncodeToString(h[:16])
 }
 
 // connectionGate is 409 connection_changed when the connection of a device item is not the one the request was made against:
@@ -477,35 +492,69 @@ func (s *Service) runItem(ctx context.Context, reqID, itemID string) error {
 		}
 	}
 	cat := cats[it.ActionID]
-	if it.ConnectorID != nil || cat.ID == "webhook_call" { // a step that leaves the box
-		if err := s.markRunning(ctx, reqID, itemID); err != nil {
-			return err
-		}
+	// The claim re-reads the switch, the breaker and the maintenance window inside the transaction that marks the item running,
+	// so an emergency stop that committed after the reads above still stops this step (INV-9); it also fails when the sweep
+	// or a cancel got to the item first, so a step is never sent for an item the record says did not start (INV-19).
+	leaves := it.ConnectorID != nil || cat.ID == "webhook_call" // a step that leaves the box
+	claimed, refusal2, err := s.claimItem(ctx, reqID, itemID, leaves)
+	if err != nil {
+		return err
+	}
+	if refusal2 != nil {
+		return s.finishItem(ctx, reqID, itemID, itemOutcome{refusal: refusal2})
+	}
+	if !claimed {
+		return nil
 	}
 	xctx, cancel := context.WithTimeout(ctx, s.stepLimit)
 	out := s.carryOut(xctx, r, it, cat, cs)
 	cancel()
+	out.fromRun = true
 	return s.finishItem(ctx, reqID, itemID, out)
 }
 
-// markRunning records, before anything is sent, that the item is running: the item state and a log line, in one transaction.
-func (s *Service) markRunning(ctx context.Context, reqID, itemID string) error {
-	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+// claimItem is the compare-and-set that lets a step go: in one transaction it checks that the request is still approved and
+// the item still pending and not running, re-reads the settings and closes on a gate that shut since runItem read it (the
+// execution switch for a device, the breaker, the maintenance window), and, when the step leaves the box, marks the item
+// running with a log line. It returns whether the caller may send; a closed gate comes back as a refusal.
+func (s *Service) claimItem(ctx context.Context, reqID, itemID string, leaves bool) (claimed bool, refusal *apierr.Error, err error) {
+	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		claimed, refusal = false, nil
 		r, ok, err := loadReq(ctx, tx, reqID)
 		if err != nil || !ok {
 			return err
 		}
 		k := slices.IndexFunc(r.recs, func(i itemRec) bool { return i.ID == itemID })
-		if k < 0 || r.recs[k].Status != ItemPending {
+		if k < 0 || r.Status != StatusApproved || r.recs[k].Status != ItemPending || r.recs[k].RunningAt != "" {
+			return nil
+		}
+		st, err := loadSettings(ctx, tx)
+		if err != nil {
+			return err
+		}
+		it := r.recs[k]
+		switch w := maintenanceNow(st, s.now()); {
+		case it.ConnectorID != nil && !st.Execution:
+			refusal = fail(http.StatusConflict, "execution_off", offMsg)
+			return nil
+		case st.BreakerTrippedAt != nil:
+			refusal = fail(http.StatusConflict, "circuit_open", breakerMsg)
+			return nil
+		case w != nil:
+			refusal = fail(http.StatusConflict, "maintenance", "Held: maintenance window \""+oneLine(w.Name, 80)+"\" is active. Nothing was changed.")
+			return nil
+		}
+		claimed = true
+		if !leaves {
 			return nil
 		}
 		r.recs[k].RunningAt = s.ts()
-		it := r.recs[k]
 		if err := s.step(ctx, tx, "response.run", r.ID, LogApproved, "Running: "+it.Title+": "+callText(it.Change.Rest, it.Change.CLI)+"; the step is being sent now and the result follows", "system"); err != nil {
 			return err
 		}
 		return updateReq(ctx, tx, r)
 	})
+	return claimed && err == nil, refusal, err
 }
 
 // itemOutcome is what happened to an item.
@@ -515,6 +564,13 @@ type itemOutcome struct {
 	result   string
 	verified *Verified
 	block    bool // add the value to the block list in the same transaction
+
+	// sweep makes the write a compare-and-set on the running mark the sweep read (ifRunning): an item that was claimed or
+	// finished since is left alone. fromRun marks the result of a step runItem sent: it may replace the "State unknown" the
+	// sweep wrote while the step was still in flight.
+	sweep     bool
+	ifRunning string
+	fromRun   bool
 }
 
 func (s *Service) carryOut(ctx context.Context, r request, it itemRec, cat catRow, cs conns) itemOutcome {
@@ -550,7 +606,7 @@ func (s *Service) carryOut(ctx context.Context, r request, it itemRec, cat catRo
 		return itemOutcome{err: "No device executor is available in this build. Nothing was changed."}
 	}
 	conn := cs.by[*it.ConnectorID]
-	res, err := s.cfg.Executor.Execute(ctx, DeviceStep{ConnectionID: conn.ID, Tool: it.RunTool, Phase: "run", CLI: it.Change.CLI, Rest: it.Change.Rest, RequestID: r.ID, ItemID: it.ID})
+	res, err := s.execute(ctx, DeviceStep{ConnectionID: conn.ID, Tool: it.RunTool, Phase: "run", CLI: it.Change.CLI, Rest: it.Change.Rest, RequestID: r.ID, ItemID: it.ID})
 	if err != nil {
 		if ctx.Err() != nil { // the step ran out of time: it may have been applied
 			return itemOutcome{err: "The connection " + oneLine(conn.Name, 80) + " did not answer in time. " + stateUnknown}
@@ -559,13 +615,39 @@ func (s *Service) carryOut(ctx context.Context, r request, it itemRec, cat catRo
 	}
 	out := itemOutcome{result: oneLine(res.Detail, 300), verified: res.Verified}
 	if it.Change.Verify != "" && res.Verified == nil {
-		if vr, err := s.cfg.Executor.Execute(ctx, DeviceStep{ConnectionID: conn.ID, Tool: it.RunTool, Phase: "verify", CLI: it.Change.Verify, RequestID: r.ID, ItemID: it.ID}); err == nil {
+		if vr, err := s.execute(ctx, DeviceStep{ConnectionID: conn.ID, Tool: it.RunTool, Phase: "verify", CLI: it.Change.Verify, RequestID: r.ID, ItemID: it.ID}); err == nil {
 			out.verified = vr.Verified
 		} else {
 			out.verified = &Verified{OK: false, Detail: "The read-back did not answer."}
 		}
 	}
 	return out
+}
+
+// execute runs one device step but stops waiting when ctx ends: an Executor must respect its context (the interface says so), and
+// one that does not must not hold the device-step lock or the approver past the item's deadline. The caller then records "state
+// unknown" (the step may have been applied). A panic in the executor is an error, not a crash.
+func (s *Service) execute(ctx context.Context, step DeviceStep) (DeviceResult, error) {
+	type outcome struct {
+		res DeviceResult
+		err error
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		defer func() {
+			if recover() != nil {
+				done <- outcome{err: errors.New("the executor failed")}
+			}
+		}()
+		res, err := s.cfg.Executor.Execute(ctx, step)
+		done <- outcome{res, err}
+	}()
+	select {
+	case o := <-done:
+		return o.res, o.err
+	case <-ctx.Done():
+		return DeviceResult{}, ctx.Err()
+	}
 }
 
 // finishItem records what happened to an item in one transaction: the item, the block list entry, the request status, the log.
@@ -580,10 +662,21 @@ func (s *Service) finishItem(ctx context.Context, reqID, itemID string, o itemOu
 			return err
 		}
 		k := slices.IndexFunc(r.recs, func(i itemRec) bool { return i.ID == itemID })
-		if k < 0 || r.recs[k].Status != ItemPending {
+		if k < 0 {
 			return nil
 		}
 		it := &r.recs[k]
+		corrects := false // a real result replaces the sweep's "State unknown"
+		switch {
+		case it.Status == ItemFailed && o.fromRun && deref2(it.Result) == stateUnknown:
+			corrects = true
+		case it.Status != ItemPending, o.sweep && it.RunningAt != o.ifRunning:
+			return nil
+		}
+		note := ""
+		if corrects {
+			note = "Correction of the earlier \"State unknown\": "
+		}
 		it.RunningAt = ""
 		now := s.now()
 		switch {
@@ -594,7 +687,7 @@ func (s *Service) finishItem(ctx context.Context, reqID, itemID string, o itemOu
 			}
 		case o.err != "":
 			it.Status, it.Result = ItemFailed, strp(o.err)
-			if err := s.step(ctx, tx, "response.fail", r.ID, LogFailed, it.Title+": "+o.err, "system"); err != nil {
+			if err := s.step(ctx, tx, "response.fail", r.ID, LogFailed, note+it.Title+": "+o.err, "system"); err != nil {
 				return err
 			}
 		default:
@@ -614,12 +707,12 @@ func (s *Service) finishItem(ctx context.Context, reqID, itemID string, o itemOu
 			if it.Verified != nil {
 				detail += "; read back: " + onOff(it.Verified.OK, "ok", "NOT confirmed")
 			}
-			if err := s.step(ctx, tx, "response.execute", r.ID, LogExecuted, detail, "system"); err != nil {
+			if err := s.step(ctx, tx, "response.execute", r.ID, LogExecuted, note+detail, "system"); err != nil {
 				return err
 			}
 			fx.ob.Add(events.Event{Name: EventActionExecuted, Data: ExecutedEvent{RequestID: r.ID, ItemID: it.ID, ActionID: it.ActionID, Device: it.ConnectorID != nil}})
 		}
-		if r.Status == StatusApproved && !slices.ContainsFunc(r.recs, func(i itemRec) bool { return i.Status == ItemPending }) {
+		if (r.Status == StatusApproved || corrects) && !slices.ContainsFunc(r.recs, func(i itemRec) bool { return i.Status == ItemPending }) {
 			r.Status = StatusFailed
 			if slices.ContainsFunc(r.recs, func(i itemRec) bool { return i.Status == ItemExecuted }) {
 				r.Status = StatusExecuted
@@ -650,9 +743,9 @@ func (s *Service) failStuck(ctx context.Context) error {
 			}
 			switch {
 			case it.RunningAt != "" && now.Sub(parseTS(it.RunningAt)) > s.stepLimit+stuckGrace:
-				err = s.finishItem(ctx, r.ID, it.ID, itemOutcome{err: stateUnknown})
+				err = s.finishItem(ctx, r.ID, it.ID, itemOutcome{err: stateUnknown, sweep: true, ifRunning: it.RunningAt})
 			case it.RunningAt == "" && r.DecidedAt != nil && now.Sub(parseTS(*r.DecidedAt)) > notStartedAfter:
-				err = s.finishItem(ctx, r.ID, it.ID, itemOutcome{err: "This action did not start (the box restarted or was busy after the approval). Nothing was changed. Ask again."})
+				err = s.finishItem(ctx, r.ID, it.ID, itemOutcome{err: "This action did not start (the box restarted or was busy after the approval). Nothing was changed. Ask again.", sweep: true})
 			}
 			if err != nil {
 				return err
@@ -907,7 +1000,7 @@ func (s *Service) undoItem(ctx context.Context, reqID, itemID string, auto bool,
 				break
 			}
 			xctx, cancel := context.WithTimeout(ctx, s.stepLimit)
-			_, err := s.cfg.Executor.Execute(xctx, DeviceStep{ConnectionID: conn.ID, Tool: it.RollbackTool, Phase: "rollback", CLI: it.Change.Rollback.CLI, Rest: it.Change.Rollback.Rest, RequestID: r.ID, ItemID: it.ID})
+			_, err := s.execute(xctx, DeviceStep{ConnectionID: conn.ID, Tool: it.RollbackTool, Phase: "rollback", CLI: it.Change.Rollback.CLI, Rest: it.Change.Rollback.Rest, RequestID: r.ID, ItemID: it.ID})
 			cancel()
 			if err != nil {
 				failure = "The connection " + oneLine(conn.Name, 80) + " did not answer. The change was not undone."

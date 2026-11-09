@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/netip"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 )
@@ -90,15 +91,38 @@ func (s *Service) blockURL(token string) string {
 	return strings.TrimRight(s.cfg.BaseURL, "/") + apiPrefix + "/response/blocklist/" + token + ".txt"
 }
 
-// publishable reports whether an address may be on the published list: a public address. RFC 1918 and unique-local ranges,
-// 100.64.0.0/10 (carrier-grade NAT), 0.0.0.0/8, loopback, link-local, multicast and the reserved 240.0.0.0/4 never are
-// (blocklist-format section 5): a poisoned feed must not be able to lock the customer's own network out.
+// notPublishable are the blocks no public list may carry: every block of the IANA IPv4 and IPv6 Special-Purpose Address
+// Registries that is not globally reachable (https://www.iana.org/assignments/iana-ipv4-special-registry and
+// https://www.iana.org/assignments/iana-ipv6-special-registry), plus multicast and the deprecated site-local block. A poisoned
+// feed must not be able to lock the customer's own network out (blocklist-format section 5). The documentation blocks of IPv4
+// (192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24) are left out on purpose: they are not routed on the internet, the examples, the
+// fixtures and the tests use them as public addresses, and none of them is a network a customer runs; their IPv6 block
+// (2001:db8::/32) is listed because the registry says so and no fixture needs it.
+var notPublishable = mustPrefixes(
+	// IPv4
+	"0.0.0.0/8", "10.0.0.0/8", "100.64.0.0/10", "127.0.0.0/8", "169.254.0.0/16", "172.16.0.0/12", "192.0.0.0/24", "192.88.99.0/24",
+	"192.168.0.0/16", "198.18.0.0/15", "224.0.0.0/4", "240.0.0.0/4",
+	// IPv6
+	"::/128", "::1/128", "64:ff9b::/96", "64:ff9b:1::/48", "100::/64", "2001::/32", "2001:2::/48", "2001:10::/28", "2001:db8::/32",
+	"2002::/16", "3fff::/20", "5f00::/16", "fc00::/7", "fe80::/10", "fec0::/10", "ff00::/8",
+)
+
+func mustPrefixes(l ...string) []netip.Prefix {
+	out := make([]netip.Prefix, len(l))
+	for i, s := range l {
+		out[i] = netip.MustParsePrefix(s)
+	}
+	return out
+}
+
+// publishable reports whether an address may be on the published list: a public address, one that is in none of notPublishable
+// (an IPv4-mapped IPv6 address counts as its IPv4 address).
 func publishable(a netip.Addr) bool {
 	a = a.Unmap()
-	if !a.IsValid() || a.IsUnspecified() || a.IsPrivate() || a.IsLoopback() || a.IsLinkLocalUnicast() || a.IsLinkLocalMulticast() || a.IsMulticast() || reservedV4(a) {
+	if !a.IsValid() || a.IsUnspecified() {
 		return false
 	}
-	return !a.Is4() || !netip.MustParsePrefix("100.64.0.0/10").Contains(a)
+	return !slices.ContainsFunc(notPublishable, func(p netip.Prefix) bool { return p.Contains(a) })
 }
 
 // blockListFull is true when value would be a new entry and the list already holds maxBlockEntries entries in force.

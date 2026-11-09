@@ -108,7 +108,7 @@ func TestPublishableAddresses(t *testing.T) {
 	for v, want := range map[string]bool{
 		"10.0.0.1": false, "172.16.5.5": false, "172.31.255.255": false, "172.32.0.1": true, "192.168.0.1": false, "100.64.0.1": false, "100.127.0.1": false, "100.128.0.1": true,
 		"0.0.0.1": false, "127.0.0.1": false, "169.254.0.1": false, "224.0.0.1": false, "240.0.0.1": false, "255.255.255.255": false,
-		"198.51.100.7": true, "203.0.113.5": true, "8.8.8.8": true, "fc00::1": false, "fe80::1": false, "ff02::1": false, "::": false, "2001:db8::1": true,
+		"198.51.100.7": true, "203.0.113.5": true, "8.8.8.8": true, "fc00::1": false, "fe80::1": false, "ff02::1": false, "::": false, "2001:db8::1": false, "2606:4700::1111": true,
 	} {
 		if got := publishable(netip.MustParseAddr(v)); got != want {
 			t.Errorf("publishable(%s) = %v, want %v", v, got, want)

@@ -127,6 +127,7 @@ type itemRec struct {
 	RunTool      string `json:"run_tool"`
 	RollbackTool string `json:"rollback_tool"`
 	ConnFP       string `json:"conn_fp"`
+	ActionFP     string `json:"action_fp"` // actionFP of the catalog entry when the request was made: its templates and its risk
 
 	// RunningAt is set, in its own transaction with a log line, before a step is sent to a device or a webhook (INV-19). An item that
 	// stays so after a restart or a timeout is failed by the sweep with "state unknown": a step may have been applied.

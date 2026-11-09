@@ -407,7 +407,8 @@ func TestEventBacklogOverflowIsCountedAndLogged(t *testing.T) {
 	for i := range 8 {
 		e.must(e.svc.StoreEvent(e.ctx(), e.iocEvent("e"+strconv.Itoa(i+1), "198.51.100."+strconv.Itoa(10+i))))
 	}
-	if e.svc.DroppedEvents() != 3 || !e.logHas("refused", "event_backlog: 1 unprocessed") || e.count(`SELECT COUNT(*) FROM resp_log WHERE kind = 'refused' AND detail LIKE 'event_backlog:%'`) != 3 {
+	// the metric counts every drop; the log gets one coalesced line per minute (the first drop writes it)
+	if e.svc.DroppedEvents() != 3 || !e.logHas("refused", "event_backlog: 1 unprocessed") || e.count(`SELECT COUNT(*) FROM resp_log WHERE kind = 'refused' AND detail LIKE 'event_backlog:%'`) != 1 {
 		t.Fatalf("dropped %d", e.svc.DroppedEvents())
 	}
 	if n := e.count(`SELECT COUNT(*) FROM resp_events WHERE processed = 0`); n != 5 {
@@ -631,7 +632,7 @@ func TestContract_INV17_BlocklistPublishesPublicAddressesOnly(t *testing.T) {
 	e.fire(e.iocEvent("e1", "192.168.10.1"))
 	_, err := e.svc.Approve(e.ctx(), oper, e.only().ID, nil, "")
 	e.must(err)
-	for i, v := range []string{"10.1.1.1", "172.16.0.1", "100.64.0.1", "100.127.255.254", "0.1.2.3", "127.0.0.1", "169.254.1.1", "224.0.0.1", "240.0.0.1", "255.255.255.255", "fc00::1", "fe80::1", "::1", "198.51.100.9", "2001:db8::7", "100.128.0.1"} {
+	for i, v := range []string{"10.1.1.1", "172.16.0.1", "100.64.0.1", "100.127.255.254", "0.1.2.3", "127.0.0.1", "169.254.1.1", "224.0.0.1", "240.0.0.1", "255.255.255.255", "fc00::1", "fe80::1", "::1", "198.51.100.9", "2606:4700::7", "100.128.0.1"} {
 		e.exec1(`INSERT INTO resp_block_entries (value, request_id, item_id, source, reason, added_at) VALUES (?, 'x', ?, 's', 'r', '2026-11-09T10:00:00.000Z')`, v, "i"+strconv.Itoa(i))
 	}
 	v, err := e.svc.Blocklist(e.ctx())
@@ -644,7 +645,7 @@ func TestContract_INV17_BlocklistPublishesPublicAddressesOnly(t *testing.T) {
 			got = append(got, l)
 		}
 	}
-	want := []string{"100.128.0.1", "2001:db8::7", "198.51.100.9"}
+	want := []string{"100.128.0.1", "2606:4700::7", "198.51.100.9"}
 	if len(got) != len(want) {
 		t.Fatalf("published %v, want %v", got, want)
 	}
@@ -698,7 +699,7 @@ func TestContract_INV17_BlocklistUnreadableStoreIs503(t *testing.T) {
 func TestContract_INV17_BlocklistEntryLimit(t *testing.T) {
 	e := newEnv(t)
 	e.exec1(`WITH RECURSIVE c(n) AS (SELECT 0 UNION ALL SELECT n + 1 FROM c WHERE n < 9999)
-INSERT INTO resp_block_entries (value, request_id, item_id, source, reason, added_at) SELECT '198.18.' || (n / 256) || '.' || (n % 256), 'x', 'y' || n, 's', 'r', '2026-11-09T10:00:00.000Z' FROM c`)
+INSERT INTO resp_block_entries (value, request_id, item_id, source, reason, added_at) SELECT '45.0.' || (n / 256) || '.' || (n % 256), 'x', 'y' || n, 's', 'r', '2026-11-09T10:00:00.000Z' FROM c`)
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
 	e.fire(e.iocEvent("e1", "198.51.100.7"))
 	got, err := e.svc.Approve(e.ctx(), oper, e.only().ID, nil, "")
@@ -710,7 +711,7 @@ INSERT INTO resp_block_entries (value, request_id, item_id, source, reason, adde
 	e.must(err)
 	b, err := e.svc.FetchBlocklist(e.ctx(), tokenOf(v.URL), "192.168.10.50")
 	e.must(err)
-	if n := strings.Count(string(b), "\n198."); n != 10000 {
+	if n := strings.Count(string(b), "\n45."); n != 10000 {
 		t.Fatalf("published %d entries", n)
 	}
 }
@@ -757,17 +758,16 @@ func mcpEnv(t *testing.T) (*env, response.CatalogAction) {
 func TestContract_INV9_ToolChangedAfterTheRequestIsRefused(t *testing.T) {
 	e, act := mcpEnv(t)
 	a := e.only()
-	_, err := e.svc.ChangeAction(e.ctx(), admin, act.ID, response.CatalogUpdate{Tool: strp("delete_all_rules"), Present: map[string]bool{"tool": true}})
-	e.must(err)
+	// Behind the API (a restore, another writer): ChangeAction would cancel the request (D-88 29), the gate must hold without it.
+	e.exec1(`UPDATE resp_catalog SET tool = 'delete_all_rules' WHERE id = ?`, act.ID)
 	e.turnOn()
-	_, err = e.svc.Approve(e.ctx(), oper, a.ID, nil, "")
+	_, err := e.svc.Approve(e.ctx(), oper, a.ID, nil, "")
 	wantCode(t, err, 409, "tool_unavailable")
 	if e.exec.count() != 0 {
 		t.Fatal("a step reached the device")
 	}
 	// the same request with the tool put back runs the tool it was made for
-	_, err = e.svc.ChangeAction(e.ctx(), admin, act.ID, response.CatalogUpdate{Tool: strp("block_ip"), Present: map[string]bool{"tool": true}})
-	e.must(err)
+	e.exec1(`UPDATE resp_catalog SET tool = 'block_ip' WHERE id = ?`, act.ID)
 	_, err = e.svc.Approve(e.ctx(), oper, a.ID, nil, "")
 	e.must(err)
 	if len(e.exec.steps) == 0 || e.exec.steps[0].Tool != "block_ip" {

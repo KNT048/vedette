@@ -1,6 +1,7 @@
 package inventory_test
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"slices"
@@ -201,5 +202,51 @@ func TestRematch(t *testing.T) {
 	}
 	if n, _ = e.svc.RematchCVE(e.ctx(), "CVE-2024-0011", "Nobody", "Nothing"); n != 0 {
 		t.Errorf("unknown product: %d", n)
+	}
+}
+
+// DevicesOfKind is the uncapped read the never-touch list needs: devices of the kinds asked, the id, the addresses and the host name,
+// beyond the MaxListed rows that Devices stops at; an empty kinds is an empty answer; a read that fails is an error, never a short list.
+func TestDevicesOfKindIsUncapped(t *testing.T) {
+	e := newEnv(t)
+	if l, err := e.svc.DevicesOfKind(e.ctx(), []string{"firewall", "router"}); len(l) != 0 || err != nil {
+		t.Fatalf("empty inventory: %v %v", l, err)
+	}
+	fw := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "192.168.10.1"})
+	e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.10.21"}) // a NAS
+	e.exec(`UPDATE inv_asset SET mac = 'aa:bb:cc:dd:ee:ff' WHERE id = ?`, fw)
+	l, err := e.svc.DevicesOfKind(e.ctx(), []string{"firewall", "router"})
+	if err != nil || len(l) != 1 || l[0].ID != fw || l[0].IP != "192.168.10.1" || l[0].MAC == nil || *l[0].MAC != "aa:bb:cc:dd:ee:ff" || l[0].Kind != "firewall" {
+		t.Fatalf("firewall: %+v, %v", l, err)
+	}
+	if l, err := e.svc.DevicesOfKind(e.ctx(), nil); len(l) != 0 || err != nil {
+		t.Fatalf("no kinds: %v %v", l, err)
+	}
+	e.exec(`WITH RECURSIVE c(n) AS (SELECT 0 UNION ALL SELECT n + 1 FROM c WHERE n < ?)
+INSERT INTO inv_asset (id, kind, origin, first_seen, last_seen) SELECT 'bulk-' || n, 'router', 'manual', '2026-11-09T10:00:00.000Z', '2026-11-09T10:00:00.000Z' FROM c`, inventory.MaxListed+99)
+	l, err = e.svc.DevicesOfKind(e.ctx(), []string{"router", "firewall"})
+	if err != nil || len(l) != inventory.MaxListed+100+1 {
+		t.Fatalf("%d devices, want %d (no cap): %v", len(l), inventory.MaxListed+101, err)
+	}
+	if !slices.ContainsFunc(l, func(d inventory.KindDevice) bool { return d.ID == fw }) {
+		t.Fatal("the oldest firewall dropped out of the answer")
+	}
+	for _, d := range l {
+		if d.ID != fw && (d.IP != "—" || d.MAC != nil) {
+			t.Fatalf("a device without addresses: %+v", d)
+		}
+	}
+	ctx, cancel := context.WithCancel(e.ctx())
+	cancel()
+	if l, err := e.svc.DevicesOfKind(ctx, []string{"router"}); err == nil || l != nil {
+		t.Fatalf("a failed read answered %d devices without an error", len(l))
+	}
+}
+
+// exec runs a write statement behind the service, for fixtures.
+func (e *env) exec(query string, args ...any) {
+	e.t.Helper()
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error { _, err := tx.ExecContext(e.ctx(), query, args...); return err }); err != nil {
+		e.t.Fatalf("%s: %v", query, err)
 	}
 }

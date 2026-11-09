@@ -224,7 +224,7 @@ func (s *Service) RequestProposal(ctx context.Context, who Actor, pid string) (A
 			refusal = fail(http.StatusNotFound, "not_found", "No such proposal.")
 			return nil
 		}
-		subject := ""
+		subject, assetID := "", prop.AssetID
 		if s.cfg.Directory != nil {
 			f, ok, err := s.cfg.Directory.Finding(ctx, plan.FindingID)
 			if err != nil {
@@ -234,7 +234,15 @@ func (s *Service) RequestProposal(ctx context.Context, who Actor, pid string) (A
 				refusal = fail(http.StatusConflict, "finding_closed", "The finding is no longer an open critical finding.")
 				return nil
 			}
-			if d, ok, err := s.cfg.Directory.Device(ctx, prop.AssetID); err == nil && ok {
+			// The subject is the finding's asset (the directory's word), never the asset_id the AI wrote into the proposal; a lookup
+			// that fails refuses: without the subject the never-touch check would be incomplete.
+			assetID = f.AssetID
+			d, ok, err := s.cfg.Directory.Device(ctx, f.AssetID)
+			if err != nil {
+				refusal = fail(http.StatusConflict, "never_touch", "The device this finding is about could not be read from the inventory, so nothing was requested.")
+				return nil
+			}
+			if ok {
 				subject = d.IP
 			}
 		}
@@ -261,6 +269,10 @@ func (s *Service) RequestProposal(ctx context.Context, who Actor, pid string) (A
 		cs, err := s.loadConns(ctx)
 		if err != nil {
 			return err
+		}
+		if c, ok := cats[prop.ActionID]; !ok || !c.AIMayPropose { // INV-15 (2): the AI proposes only what the admin allowed it to
+			refusal = fail(http.StatusForbidden, "tool_not_allowed", "The AI may not propose this action (Settings, AI response, action catalog).")
+			return nil
 		}
 		never, nt, err := s.neverTouchOrRefusal(ctx, tx)
 		if err != nil {
@@ -298,7 +310,7 @@ func (s *Service) RequestProposal(ctx context.Context, who Actor, pid string) (A
 		item.ID = newID("it")
 		meta := &AiMeta{Evidence: []Evidence{}, Why: oneLine(why, 300), InAppOnly: item.Risk == RiskHigh}
 		out, err = s.createRequest(ctx, tx, st, reqInit{Source: "ai", ProposalID: pid, Trigger: "finding", TriggerSummary: oneLine(why, 300), FindingID: plan.FindingID, CVE: plan.CVE,
-			AssetID: prop.AssetID, AssetName: oneLine(plan.AssetName, 120), Title: item.Title, Recs: []itemRec{item}, AI: meta}, &fx)
+			AssetID: assetID, AssetName: oneLine(plan.AssetName, 120), Title: item.Title, Recs: []itemRec{item}, AI: meta}, &fx)
 		return err
 	})
 	if err != nil {

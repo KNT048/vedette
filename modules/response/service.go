@@ -152,7 +152,8 @@ type DeviceResult struct {
 
 // Executor carries a step out on a device. The real executors (HTTP API, SSH, NETCONF/RESTCONF, MCP) are part 13b; this
 // part has the interface and a fake in the tests. A nil Executor means no device can be changed: such items fail and
-// nothing is sent.
+// nothing is sent. Execute must respect ctx (it carries the item's deadline): when ctx ends the service stops waiting, records
+// "state unknown" and lets go of the device-step lock, but it cannot stop an Execute that ignores ctx from finishing later.
 type Executor interface {
 	Execute(ctx context.Context, s DeviceStep) (DeviceResult, error)
 }
@@ -209,10 +210,13 @@ type Service struct {
 	limitMu    sync.Mutex
 	fetchTimes map[string][]time.Time // block list pulls per source address (per /64 for IPv6), for the rate limit
 
-	interfaceFn func() ([]netip.Addr, error) // reads the box interfaces; only export_test.go replaces it
-	maxBacklog  int                          // unprocessed events kept; only export_test.go replaces it
-	stepLimit   time.Duration                // bound of one item; only export_test.go replaces it
-	dropped     atomic.Int64                 // unprocessed events dropped because the backlog was full (M2), the metric
+	interfaceFn  func() ([]netip.Addr, error) // reads the box interfaces; only export_test.go replaces it
+	maxBacklog   int                          // unprocessed events kept; only export_test.go replaces it
+	stepLimit    time.Duration                // bound of one item; only export_test.go replaces it
+	dropMu       sync.Mutex                   // guards dropUnlogged and dropLoggedAt (coalesced drop lines)
+	dropUnlogged int
+	dropLoggedAt time.Time
+	dropped      atomic.Int64 // unprocessed events dropped because the backlog was full (M2), the metric
 }
 
 // interfaces reads the addresses of the box's network interfaces.
@@ -223,8 +227,8 @@ func (s *Service) interfaces() ([]netip.Addr, error) {
 	return interfaceAddrs()
 }
 
-// DroppedEvents counts the unprocessed trigger events dropped because the backlog was full since the box started. Each drop is
-// also a warning in the log and a refused line in the response log.
+// DroppedEvents counts the unprocessed trigger events dropped because the backlog was full since the box started. Every drop is
+// counted here; the warning and the refused line in the response log are coalesced (one per minute, with the count).
 func (s *Service) DroppedEvents() int64 { return s.dropped.Load() }
 
 // New builds a Service and loads the data files (action templates, rule templates, triggers). The built-in catalog rows are

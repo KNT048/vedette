@@ -409,6 +409,9 @@ func (s *Service) ChangeAction(ctx context.Context, who Actor, id string, u Cata
 			if err := s.revokePreApprovals(ctx, tx, n, who.Email); err != nil {
 				return err
 			}
+			if err := s.cancelOpenRequests(ctx, tx, n, who.Email); err != nil {
+				return err
+			}
 		}
 		out = n
 		return s.step(ctx, tx, "response.catalog.change", n.ID, LogSettings, "Action "+onOff(n.Enabled, "enabled", "disabled")+": "+n.Name+" ("+string(n.Risk)+" risk"+flagIf(n.AIMayPropose, ", AI may propose")+")", who.Email)
@@ -435,6 +438,32 @@ func (s *Service) revokePreApprovals(ctx context.Context, tx *sql.Tx, c catRow, 
 			return err
 		}
 		if err := s.step(ctx, tx, "response.rule.change", r.ID, LogSettings, "Pre-approval switched off for rule \""+oneLine(r.Name, 80)+"\": its action \""+oneLine(c.Name, 80)+"\" was edited. An admin must confirm it again.", actor); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// cancelOpenRequests cancels the pending requests that hold an item of the edited custom action: they were made, and are shown to the
+// approvers, with the old template and the old risk. Each is logged. (A request already approved is stopped at its run by the
+// fingerprint of the action, actionFP.)
+func (s *Service) cancelOpenRequests(ctx context.Context, tx *sql.Tx, c catRow, actor string) error {
+	pending, err := loadReqs(ctx, tx, `WHERE status = 'pending'`)
+	if err != nil {
+		return err
+	}
+	for _, r := range pending {
+		if !slices.ContainsFunc(r.recs, func(i itemRec) bool { return i.ActionID == c.ID }) {
+			continue
+		}
+		r.Status, r.DecidedAt, r.Note = StatusRejected, strp(s.ts()), strp("Cancelled: the action \""+oneLine(c.Name, 80)+"\" was edited after the request was made. Ask again.")
+		for i := range r.recs {
+			r.recs[i].Status = ItemSkipped
+		}
+		if err := s.step(ctx, tx, "response.reject", r.ID, LogRejected, r.Title+": cancelled because its action \""+oneLine(c.Name, 80)+"\" was edited by "+actor, actor+" (app)"); err != nil {
+			return err
+		}
+		if err := updateReq(ctx, tx, r); err != nil {
 			return err
 		}
 	}

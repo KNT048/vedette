@@ -44,8 +44,8 @@ func parseEntry(v string) (entry, bool) {
 	if p, err := netip.ParsePrefix(v); err == nil && p.Addr().Zone() == "" {
 		return entry{prefix: netip.PrefixFrom(p.Addr().Unmap(), unmapBits(p)).Masked()}, true
 	}
-	if macRE.MatchString(v) {
-		return entry{mac: strings.ReplaceAll(v, "-", ":")}, true
+	if mac, ok := canonEntryMAC(v); ok {
+		return entry{mac: mac}, true
 	}
 	if len(v) <= 253 && domainRE.MatchString(v) {
 		return entry{domain: v}, true
@@ -54,6 +54,33 @@ func parseEntry(v string) (entry, bool) {
 		return entry{iface: v}, true
 	}
 	return entry{}, false
+}
+
+var (
+	ciscoMACRE = regexp.MustCompile(`^[0-9a-f]{4}\.[0-9a-f]{4}\.[0-9a-f]{4}$`)
+	bareMACRE  = regexp.MustCompile(`^[0-9a-f]{12}$`)
+)
+
+// canonEntryMAC reads a MAC in any form an admin pastes from a device or a label: aa:bb:cc:dd:ee:ff, aa-bb-cc-dd-ee-ff, the Cisco
+// dotted form aabb.ccdd.eeff or twelve bare hex digits. It returns the canonical lower-case colon form, the one events and
+// parameters use, so an entry in one form still matches a target in another. v is lower case.
+func canonEntryMAC(v string) (string, bool) {
+	switch {
+	case macRE.MatchString(v):
+		return strings.ReplaceAll(v, "-", ":"), true
+	case ciscoMACRE.MatchString(v):
+		v = strings.ReplaceAll(v, ".", "")
+	case !bareMACRE.MatchString(v):
+		return "", false
+	}
+	var b strings.Builder
+	for i := 0; i < 12; i += 2 {
+		if i > 0 {
+			b.WriteByte(':')
+		}
+		b.WriteString(v[i : i+2])
+	}
+	return b.String(), true
 }
 
 // ValidAllowValue reports whether v can be an entry of the list; it returns the canonical (lower case) text.

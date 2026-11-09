@@ -79,11 +79,11 @@ func (s *Service) planAction(a RuleAction, ev Det, why string, cats map[string]c
 		return planned{}, &planFail{"invalid_target", bad, title}
 	}
 	// Never touch the gateway, DNS servers, domain controllers, this box or management addresses. An action that names an
-	// address (ip, cidr, domain) acts on that address only: blocking a bad destination must not be refused because the
-	// device that talked to it is a router. An action that names no address (a switch port, a MAC, a VLAN) acts on the
-	// device the event is about, so the event's subject counts for it.
+	// address (ip, cidr, domain) and nothing of a device (interface, MAC, VLAN, port) acts on that address only: blocking a bad
+	// destination must not be refused because the device that talked to it is a router. An action that names a switch port,
+	// a MAC, a VLAN or a port acts on the device the event is about, with or without an address, so the event's subject counts.
 	acted := actedOf(vals)
-	if !namesAnAddress(vals) {
+	if !namesAnAddress(vals) || namesADevicePart(vals) {
 		acted = dedupe(append(acted, subjectOf(ev.Fields)...))
 	}
 	if e, hit := firstTouched(never, acted); hit {
@@ -113,7 +113,7 @@ func (s *Service) planAction(a RuleAction, ev Det, why string, cats map[string]c
 	default:
 		it.Title = cat.Name + ": " + first
 	}
-	rec := itemRec{RequestItem: it, Values: map[ParamType]string(vals), Acted: acted, RunTool: cat.Tool, RollbackTool: cat.RollbackTool}
+	rec := itemRec{RequestItem: it, Values: map[ParamType]string(vals), Acted: acted, RunTool: cat.Tool, RollbackTool: cat.RollbackTool, ActionFP: actionFP(cat)}
 	if cat.device() {
 		rec.ConnectorID, rec.Connection, rec.ConnFP = strp(cat.ConnectionID), strp(conn.Name), connFP(*conn)
 	}
@@ -156,6 +156,16 @@ func orStr(a, b string) string {
 // namesAnAddress says whether an action's checked values hold an address it acts on (ip, cidr or domain).
 func namesAnAddress(v Values) bool {
 	for _, p := range []ParamType{PIP, PCIDR, PDomain} {
+		if _, ok := v[p]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// namesADevicePart says whether the values hold an interface, a MAC, a VLAN or a port: what a device owns, not an address.
+func namesADevicePart(v Values) bool {
+	for _, p := range []ParamType{PInterface, PMAC, PVLAN, PPort} {
 		if _, ok := v[p]; ok {
 			return true
 		}
@@ -579,17 +589,45 @@ func (s *Service) StoreEvent(ctx context.Context, d Det) error {
 	if d.Fields == nil {
 		d.Fields = map[string]string{}
 	}
-	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		_, dropped, err := insertEvent(ctx, tx, d, s.maxBacklog)
-		if err != nil || dropped == 0 {
+	var dropped, unlogged int
+	var logged bool
+	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		var err error
+		logged, unlogged = false, 0
+		if _, dropped, err = insertEvent(ctx, tx, d, s.maxBacklog); err != nil || dropped == 0 {
 			return err
 		}
-		// never a silent loss: a metric, a warning and a line in the response log
-		s.dropped.Add(int64(dropped))
-		s.cfg.Log.WarnContext(ctx, "response: the event backlog is full, the oldest unprocessed events were dropped", "dropped", dropped, "backlog", s.maxBacklog)
-		return s.step(ctx, tx, "response.events_dropped", "response", LogRefused, "event_backlog: "+itoa(dropped)+" unprocessed trigger event(s) were dropped, oldest first, because more than "+itoa(s.maxBacklog)+" were waiting. Rules did not see them.", "system")
+		// Never a silent loss: the metric counts every drop; the response log (append-only, never pruned) and the warning get one
+		// line per dropDropLogEvery with the count since the last line, so a flood of trigger events cannot grow the log by one
+		// row per event. ponytail: drops after the last line of a burst are in the metric and in the next line, not in a line of their own.
+		s.dropMu.Lock()
+		unlogged = s.dropUnlogged + dropped
+		due := s.dropLoggedAt.IsZero() || s.now().Sub(s.dropLoggedAt) >= dropLogEvery
+		s.dropMu.Unlock()
+		if !due {
+			return nil
+		}
+		logged = true
+		return s.step(ctx, tx, "response.events_dropped", "response", LogRefused, "event_backlog: "+itoa(unlogged)+" unprocessed trigger event(s) were dropped, oldest first, because more than "+itoa(s.maxBacklog)+" were waiting. Rules did not see them.", "system")
 	})
+	if err != nil || dropped == 0 {
+		return err
+	}
+	s.dropped.Add(int64(dropped))
+	s.dropMu.Lock()
+	s.dropUnlogged = unlogged
+	if logged {
+		s.dropUnlogged, s.dropLoggedAt = 0, s.now()
+	}
+	s.dropMu.Unlock()
+	if logged {
+		s.cfg.Log.WarnContext(ctx, "response: the event backlog is full, the oldest unprocessed events were dropped", "dropped", unlogged, "backlog", s.maxBacklog)
+	}
+	return nil
 }
+
+// dropLogEvery is the most often a backlog overflow adds a line to the response log.
+const dropLogEvery = time.Minute
 
 // RunManual is POST /response/rules/{id}/manual: run a manual-trigger rule on a chosen device. It still goes through every gate.
 func (s *Service) RunManual(ctx context.Context, who Actor, ruleID, assetID string) (RunSummary, error) {

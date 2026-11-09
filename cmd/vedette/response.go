@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"slices"
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
@@ -87,18 +86,27 @@ func (r responseDirectory) Device(ctx context.Context, id string) (response.Devi
 	return deviceInfo(d), true, nil
 }
 
-// DevicesOfKind lists the inventory devices of the kinds (the gateways: router, firewall). An unreadable inventory is an error:
-// response refuses the action rather than go on without them.
+// DevicesOfKind lists every inventory device of the kinds (the gateways: router, firewall), uncapped (inventory.DevicesOfKind, not
+// Devices: that one stops at 2000 rows, newest first, and would drop the oldest device, the gateway). An unreadable inventory is an
+// error: response refuses the action rather than go on without them.
 func (r responseDirectory) DevicesOfKind(ctx context.Context, kinds ...string) ([]response.DeviceInfo, error) {
-	l, err := r.inv.Devices(ctx)
+	l, err := r.inv.DevicesOfKind(ctx, kinds)
 	if err != nil {
 		return nil, err
 	}
-	var out []response.DeviceInfo
-	for _, d := range l.Items {
-		if slices.Contains(kinds, d.Kind) {
-			out = append(out, deviceInfo(d))
+	out := make([]response.DeviceInfo, 0, len(l))
+	for _, d := range l {
+		i := response.DeviceInfo{ID: d.ID, IP: d.IP, Kind: d.Kind}
+		if d.IP == "—" { // unknown address
+			i.IP = ""
 		}
+		if i.Name = i.IP; d.Hostname != nil && *d.Hostname != "" {
+			i.Name = *d.Hostname
+		}
+		if d.MAC != nil {
+			i.MAC = *d.MAC
+		}
+		out = append(out, i)
 	}
 	return out, nil
 }

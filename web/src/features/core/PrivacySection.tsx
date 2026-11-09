@@ -12,7 +12,7 @@ import { usePrivacy, useSavePrivacy } from './api'
 import { errMsg, ReadOnlyNote, useGate } from './parts'
 import type { PrivacyFlow, PrivacyState } from './types'
 
-// Chín luồng dữ liệu rời hộp, đúng như PRIVACY.md. Thêm luồng mới = sửa PRIVACY.md + bảng này cùng commit (rule legal.md).
+// Mười luồng dữ liệu rời hộp, đúng như PRIVACY.md. Thêm luồng mới = sửa PRIVACY.md + bảng này cùng commit (rule legal.md).
 function Body({ d }: { d: PrivacyState }) {
   const { t } = useTranslation('core')
   const gate = useGate('admin')
@@ -42,6 +42,7 @@ function Body({ d }: { d: PrivacyState }) {
           {f.id === 5 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/channels">{t('privacy.flow.5.link')}</Link> : null}
           {f.id === 7 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/siem">{t('privacy.flow.7.link')}</Link> : null}
           {f.id === 8 || f.id === 9 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/modules">{t(`privacy.flow.${f.id}.link`)}</Link> : null}
+          {f.id === 10 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/network">{t('privacy.flow.10.link')}</Link> : null}
           {f.id === 1 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/feeds">{t('privacy.flow.1.link')}</Link> : null}
         </span>
       )

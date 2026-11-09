@@ -221,12 +221,12 @@ describe('core: module (S-CORE-1)', () => {
 })
 
 describe('core: quyền riêng tư (S-CORE-4)', () => {
-  it('hiện đủ 9 luồng, payload nguyên văn và tắt được tín hiệu ẩn danh', async () => {
+  it('hiện đủ 10 luồng, payload nguyên văn và tắt được tín hiệu ẩn danh', async () => {
     const u = user()
     renderApp('/settings/privacy')
-    const table = await screen.findByRole('table', { name: 'Nine data flows that leave the box' })
-    expect(within(table).getAllByRole('row')).toHaveLength(10)
-    for (const n of ['Pull feeds directly from their sources', 'Anonymous signal', 'AI assistant', 'Data sources that need a key', 'Notifications', 'Update check', 'Forwarding to a SIEM', 'News about a CVE', 'External surface']) expect(within(table).getAllByText(new RegExp(n)).length).toBeGreaterThan(0)
+    const table = await screen.findByRole('table', { name: 'Data flows that leave the box' })
+    expect(within(table).getAllByRole('row')).toHaveLength(11)
+    for (const n of ['Pull feeds directly from their sources', 'Anonymous signal', 'AI assistant', 'Data sources that need a key', 'Notifications', 'Update check', 'Forwarding to a SIEM', 'News about a CVE', 'External surface', 'Time sync']) expect(within(table).getAllByText(new RegExp(n)).length).toBeGreaterThan(0)
     const code = document.querySelector('pre code')!.textContent!
     const payload = JSON.parse(code) as { country: string; install_id: string; device_counts: Record<string, number> }
     expect(payload.country).toBe('VN')
@@ -242,7 +242,7 @@ describe('core: quyền riêng tư (S-CORE-4)', () => {
   it('luồng 8 và 9 theo trạng thái module', async () => {
     setModule('exposure', false)
     renderApp('/settings/privacy')
-    const table = await screen.findByRole('table', { name: 'Nine data flows that leave the box' })
+    const table = await screen.findByRole('table', { name: 'Data flows that leave the box' })
     const row = within(table).getByText(/9\. External surface/).closest('tr')!
     expect(within(row).getByText('Off')).toBeInTheDocument()
   })

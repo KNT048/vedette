@@ -19,7 +19,8 @@
     "needRole": {
       "title": "{{name}} needs a higher role",
       "body": "Only the {{role}} role can open this section. Ask an administrator if you need access."
-    }
+    },
+    "network": "Box network"
   },
   "general": {
     "title": "{{name}} box: name and time zone",
@@ -508,7 +509,7 @@
     "titleOn": "The box sends an anonymous signal every hour, with none of your private data",
     "titleOff": "The anonymous signal is off; the box only connects out for the flows listed",
     "meta": "Assets, logs, findings and AI keys never leave the machine. Below is every data flow that goes out to the Internet.",
-    "flows": "Nine data flows that leave the box",
+    "flows": "Data flows that leave the box",
     "flowsDesc": "A flow that only runs when you configure it says so. There is no other flow. Reporting a problem is not a flow: the box sends nothing, and your own browser opens GitHub.",
     "col": {
       "flow": "Flow",
@@ -583,6 +584,13 @@
         "to": "A Certificate Transparency lookup service, and a public-IP lookup service",
         "control": "Turn off the External surface module to stop.",
         "link": "Open modules"
+      },
+      "10": {
+        "name": "Time sync (NTP)",
+        "what": "A time request (UDP port 123) so the box clock stays right. No Vedette data is in it; the server only sees the box's IP address.",
+        "to": "pool.ntp.org by default, or the NTP servers you enter (they can be inside your network)",
+        "control": "Enter your own NTP server in Box network to keep time requests inside your network.",
+        "link": "Open Box network"
       }
     },
     "telemetry": {
@@ -960,5 +968,190 @@
     "attach": "The GitHub issue holds your text and a short summary only. Attach the downloaded file to it so the maintainer can see the full bundle.",
     "download": "Download report",
     "open": "Open GitHub issue"
+  },
+  "network": {
+    "meta": "Where the box sits on your network and how it listens to a switch mirror.",
+    "helper": "Changes here are applied by vedette-host, a small helper on the box that runs a fixed list of commands. The web app never runs shell commands.",
+    "role": {
+      "management": "Management",
+      "span": "SPAN capture",
+      "unused": "Unused"
+    },
+    "interfaces": {
+      "title": "Interfaces",
+      "desc": "The network ports of the box and what each one is used for.",
+      "caption": "Network interfaces of the box",
+      "col": {
+        "name": "Interface",
+        "role": "Role",
+        "link": "Link",
+        "speed": "Speed",
+        "mac": "MAC address",
+        "address": "Address"
+      },
+      "up": "Link up",
+      "down": "No link",
+      "noIp": "No IP address (listen only)",
+      "roleOf": "Role of {{name}}",
+      "mgmtLocked": "This is the port you reach this page through. Change its address under Management interface.",
+      "saved": "Interface roles saved."
+    },
+    "management": {
+      "title": "Management interface",
+      "desc": "The address you use to open Vedette and the box's route to the rest of the network.",
+      "mode": "How the box gets its address",
+      "static": "Fixed address (static)",
+      "dhcp": "From a DHCP server",
+      "dhcpNote": "The address, gateway and DNS come from your DHCP server. Reserve the address on the server so it does not change.",
+      "dhcpNow": "Current address: {{ip}}.",
+      "address": "IP address",
+      "prefix": "Prefix length",
+      "gateway": "Gateway",
+      "dns": "DNS servers",
+      "dnsHint": "One to three addresses, separated by commas.",
+      "save": "Save management settings",
+      "saved": "Management settings saved.",
+      "reverted": "The change was not confirmed in time, so the box went back to the old settings."
+    },
+    "confirm": {
+      "title": "Change the management address?",
+      "body": "You will lose this page. Open https://{{ip}}:8443 within 2 minutes and confirm, or the box returns to the old settings.",
+      "lose": "If the new address is wrong or unreachable from your computer, do nothing: after 2 minutes the box goes back to the old address by itself.",
+      "go": "Apply and start the 2-minute timer"
+    },
+    "pending": {
+      "title": "Waiting for you to confirm at {{ip}}",
+      "body": "Open https://{{ip}}:8443 and press Confirm there. If you do not, the box returns to {{old}}.",
+      "left": "Time left",
+      "confirm": "Confirm: I opened the new address",
+      "revert": "Cancel and go back now",
+      "confirmed": "New address confirmed."
+    },
+    "span": {
+      "title": "SPAN capture",
+      "desc": "Your switch sends a copy of the traffic of other ports to one port of the box. Vedette only listens: it never sends on that port and never blocks traffic.",
+      "enabled": "Capture mirrored traffic",
+      "port": "Capture port",
+      "portHint": "The port the switch's mirror (SPAN) port is plugged into. It has no IP address and only listens. The management port cannot be used.",
+      "choose": "Choose a port",
+      "isManagement": "(management)",
+      "noLink": "(no link)",
+      "extractTitle": "What Vedette reads",
+      "extract": {
+        "dns": "DNS queries",
+        "tls_sni": "TLS server names",
+        "http_host": "HTTP hosts",
+        "flows": "Connection metadata"
+      },
+      "extractHint": {
+        "dns": "The names devices look up, to spot lookups of known-bad domains.",
+        "tls_sni": "The server name a device asks for when it starts an encrypted connection (the name only, not the content).",
+        "http_host": "The Host header of plain HTTP requests.",
+        "flows": "Who talked to whom: addresses, ports, byte counts and times."
+      },
+      "neverStored": "Packet contents are never stored.",
+      "reading": "Reading: {{list}}.",
+      "readingNone": "Nothing selected. SPAN cannot be turned on until you choose at least one.",
+      "filtersTitle": "Exclusions",
+      "filtersDesc": "Traffic matching these is dropped before anything is read, for example a backup server or a port you do not want looked at.",
+      "filtersNone": "No exclusions.",
+      "ftypeLabel": "Exclude by",
+      "ftype": {
+        "cidr": {
+          "option": "Network range",
+          "short": "Range",
+          "label": "Network range",
+          "hint": "With the prefix length, for example 10.0.5.0/24.",
+          "example": "10.0.5.0/24"
+        },
+        "host": {
+          "option": "Host",
+          "short": "Host",
+          "label": "Host",
+          "hint": "An IPv4 address or a name, for example backup.lan.",
+          "example": "backup.lan"
+        },
+        "port": {
+          "option": "Port",
+          "short": "Port",
+          "label": "Port number",
+          "hint": "A number from 1 to 65535, for example 5353.",
+          "example": "5353"
+        }
+      },
+      "filterAdd": "Add exclusion",
+      "filterRemove": "Remove exclusion {{value}}",
+      "filterDup": "{{value}} is already excluded.",
+      "limitsTitle": "Resource limits",
+      "cpu": "CPU cap (percent)",
+      "cpuHint": "5 to 50. Capture slows down instead of using more.",
+      "mem": "Memory cap (MB)",
+      "memHint": "128 to 2048.",
+      "save": "Save SPAN settings",
+      "saved": "SPAN settings saved.",
+      "unsaved": "You have unsaved changes.",
+      "statusTitle": "Mirrored traffic now",
+      "pps": "Packets per second",
+      "macs": "Other devices seen (MAC addresses)",
+      "last": "Last packet",
+      "never": "None yet",
+      "statusNote": "The status shows the saved settings and refreshes every 5 seconds.",
+      "verdict": {
+        "off": {
+          "title": "SPAN is off",
+          "advice": "Turn on Capture mirrored traffic and choose the port to start listening."
+        },
+        "ok": {
+          "title": "Receiving mirrored traffic",
+          "advice": "Packets from other devices are arriving on {{iface}}. The mirror works."
+        },
+        "own_only": {
+          "title": "Only the box's own traffic",
+          "advice": "Packets arrive on {{iface}} but none come from other devices. The switch is not mirroring other ports: check that the mirror session lists the ports you want to watch and that its destination is the port plugged into {{iface}}."
+        },
+        "no_traffic": {
+          "title": "Nothing is arriving",
+          "advice": "The link is up on {{iface}} but no packets arrive. Check the mirror session on the switch: is it enabled, is the destination the right port, and is the cable in that port?"
+        },
+        "no_link": {
+          "title": "No cable signal",
+          "advice": "{{iface}} has no link. Check the cable and that the switch port is on. A port set as a mirror destination must be enabled."
+        }
+      }
+    },
+    "guides": {
+      "title": "Set up the mirror on your switch",
+      "desc": "Pick your switch to see the steps. Plug the switch's mirror destination port into {{port}} on the box.",
+      "pick": "Switch or device",
+      "choose": "Choose your switch",
+      "prompt": "Choose a switch above to see the exact steps and commands.",
+      "replace": "Port names and numbers are examples. Replace them: the destination is the port plugged into {{port}}, the sources are the ports whose traffic you want to see.",
+      "check": {
+        "vendor": "Checked against vendor documentation",
+        "partial": "Partly verified, test on your model",
+        "general": "General guidance, no single source"
+      },
+      "source": "Source page",
+      "after": "After the switch is set up, open SPAN capture above and check that {{port}} shows traffic from other devices."
+    },
+    "decoys": {
+      "title": "Decoy addresses",
+      "desc": "Extra IP addresses the box answers on for the traps, besides its own. Read only here.",
+      "none": "No decoy addresses yet.",
+      "link": "Change them in Internal traps"
+    },
+    "ntp": {
+      "title": "Time (NTP)",
+      "desc": "Where the box gets the time. Correct time matters for logs and certificates.",
+      "mode": "Time source",
+      "default": "Default pool ({{pool}})",
+      "custom": "Your own servers",
+      "defaultNote": "The box asks the public pool for the time.",
+      "servers": "NTP servers",
+      "serversHint": "One to four names or addresses, separated by commas. Use a server inside your network to send nothing outside.",
+      "saved": "Time servers saved.",
+      "privacy": "Asking a public pool for the time is a data flow that leaves the box (it sees the box's IP address).",
+      "privacyLink": "See Privacy, flow 10"
+    }
   }
 }

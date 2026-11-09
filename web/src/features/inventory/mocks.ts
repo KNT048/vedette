@@ -6,6 +6,7 @@ import { API, audit, body, CIDR_RE, currentUser, fail, guard, IPV4_RE } from '@/
 import { assetsStore, boxInfo, isOn, findingsStore } from '@/mocks/stores'
 import { matchAssetToKev } from '@/mocks/match'
 import { collection, dataMode, daysAgo, newId, nowIso } from '@/mocks/db'
+import { networkStore, spanStatusOf } from '@/mocks/network'
 import type { Asset, AssetKind, ObsSource, Software } from '@/lib/types'
 import { linuxInstallScript, OSQUERY_VERSION, windowsInstallScript } from './installScripts'
 import { sha256Hex } from './kinds'
@@ -43,11 +44,12 @@ const settingsStore = collection<InventorySettings>('inv_settings', () => ({
   scope_confirmed_at: null, scope_confirmed_by: null,
 }))
 // Chỉ cảm biến của chính hộp này (đa site chưa hỗ trợ — chủ dự án, D-28).
-const sensorsStore = collection<Sensor[]>('inv_sensors', () => [
-  { id: 'sn-local', name: 'vedette-hq', interface: 'eth0', interfaces: ['eth0', 'eth1'], span: false, status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 30 },
+type StoredSensor = Omit<Sensor, 'interface' | 'interfaces' | 'span' | 'span_status'>
+const sensorsStore = collection<StoredSensor[]>('inv_sensors', () => [
+  { id: 'sn-local', name: 'vedette-hq', status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 30 },
 ], () => [
   // Cài sạch: cảm biến của chính hộp, chưa thấy thiết bị nào.
-  { id: 'sn-local', name: boxInfo().hostname, interface: 'eth0', interfaces: ['eth0'], span: false, status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 0 },
+  { id: 'sn-local', name: boxInfo().hostname, status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 0 },
 ])
 const agentsStore = collection<AgentToken[]>('inv_agent_tokens', () => [
   { id: 'tk-osquery', name: 'osquery on SRV-AD and SRV-FILE', kind: 'osquery', last4: 'k3Pq', created_at: daysAgo(12), last_received: daysAgo(0, 3), hosts: 2, expires_at: new Date(Date.now() + 5 * 864e5).toISOString() },
@@ -579,20 +581,14 @@ export const handlers = [
 
   http.get(`${API}/inventory/sensors`, () => {
     const denied = guard('admin'); if (denied) return denied
-    return HttpResponse.json({ sensors: sensorsStore.get() })
+    // SPAN and the listening port are owned by Settings → Box network (D-56); the sensor row only reflects them.
+    const net = networkStore.get()
+    const st = spanStatusOf(net)
+    const spanOn = net.span.enabled && !!net.span.interface
+    const mgmt = net.ifaces.find((i) => i.role === 'management')?.name ?? null
+    return HttpResponse.json({ sensors: sensorsStore.get().map((s) => ({ ...s, interface: spanOn ? net.span.interface : mgmt, interfaces: net.ifaces.map((i) => i.name), span: spanOn, span_status: { verdict: st.verdict, packets_per_s: st.packets_per_s, other_macs: st.other_macs } })) })
   }),
 
-  http.patch(`${API}/inventory/sensors/:id`, async ({ params, request }) => {
-    const denied = guard('admin'); if (denied) return denied
-    const s = sensorsStore.get().find((x) => x.id === params.id)
-    if (!s) return fail(404, 'not_found', 'No such sensor.')
-    const b = await body<{ interface: string; span: boolean }>(request)
-    if (b.interface !== undefined && !s.interfaces.includes(b.interface)) return fail(400, 'bad_interface', `Network interface must be one of: ${s.interfaces.join(', ')}.`)
-    if (b.span !== undefined && typeof b.span !== 'boolean') return fail(400, 'bad_span', 'span must be true or false.')
-    sensorsStore.update((l) => l.map((x) => (x.id === s.id ? { ...x, interface: b.interface ?? x.interface, span: b.span ?? x.span } : x)))
-    audit('inventory.sensor_update', s.name, `${b.interface ?? s.interface}, SPAN ${(b.span ?? s.span) ? 'on' : 'off'}`)
-    return HttpResponse.json({ ok: true })
-  }),
 
   // ---- Agent (S-INV-4) ----
   http.get(`${API}/inventory/agents`, async () => {

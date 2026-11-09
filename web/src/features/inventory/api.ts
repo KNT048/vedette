@@ -57,12 +57,6 @@ export function useSaveSettings() {
     },
   })
 }
-export function useSensorActions() {
-  const inv = useInvalidate()
-  return {
-    update: useMutation({ mutationFn: ({ id, ...b }: { id: string; interface?: string; span?: boolean }) => api.patch(`/inventory/sensors/${encodeURIComponent(id)}`, b), onSuccess: inv }),
-  }
-}
 export function useAgentActions() {
   const inv = useInvalidate()
   return {

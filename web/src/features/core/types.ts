@@ -49,3 +49,12 @@ export type McpState = z.infer<typeof C.McpState>
 export type McpTokenCreated = z.infer<typeof C.McpTokenCreated>
 
 export type { ModuleId, ModuleState, Role }
+
+export type NetworkState = z.infer<typeof C.NetworkState>
+export type NetInterface = z.infer<typeof C.NetInterface>
+export type IfaceRole = z.infer<typeof C.IfaceRole>
+export type Management = z.infer<typeof C.Management>
+export type ManagementBody = z.infer<typeof C.ManagementBody>
+export type SpanConfig = z.infer<typeof C.SpanConfig>
+export type SpanStatus = z.infer<typeof C.SpanStatus>
+export type NtpConfig = z.infer<typeof C.NtpConfig>

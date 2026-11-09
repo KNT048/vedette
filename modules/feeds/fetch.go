@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -64,16 +63,22 @@ func (f Fetcher) UserAgent() string {
 	return "Vedette/dev"
 }
 
-// NewClient returns an http.Client with explicit timeouts (never DefaultClient).
-func NewClient(timeout time.Duration) *http.Client {
+// NewClient returns an http.Client with explicit timeouts (never DefaultClient)
+// whose connections go through the address guard: link-local and metadata
+// addresses are refused for every feed, plain http only reaches private or
+// loopback addresses, and the host is resolved once per connection (no DNS
+// rebinding). Environment proxies are not used. A Client supplied to Fetcher
+// instead of this one is the caller's responsibility (tests only).
+func NewClient(timeout time.Duration) *http.Client { return newClient(timeout, systemResolver) }
+
+func newClient(timeout time.Duration, res resolver) *http.Client {
 	if timeout <= 0 {
 		timeout = DefaultFetchTimeout
 	}
 	return &http.Client{
 		Timeout: timeout,
 		Transport: &http.Transport{
-			Proxy:                 http.ProxyFromEnvironment,
-			DialContext:           (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
+			DialContext:           guardedDial(res),
 			TLSHandshakeTimeout:   10 * time.Second,
 			ResponseHeaderTimeout: 30 * time.Second,
 			MaxIdleConns:          4,
@@ -81,6 +86,30 @@ func NewClient(timeout time.Duration) *http.Client {
 			ForceAttemptHTTP2:     true,
 		},
 	}
+}
+
+// capReader fails with ErrTooLarge once more than the limit was read, so an
+// endless or decompressed-bomb body stops at a hard ceiling.
+type capReader struct {
+	r    io.Reader
+	left int64
+}
+
+func newCapReader(r io.Reader, limit int64) *capReader { return &capReader{r: r, left: limit} }
+
+func (c *capReader) Read(p []byte) (int, error) {
+	if c.left < 0 {
+		return 0, ErrTooLarge
+	}
+	if int64(len(p)) > c.left+1 {
+		p = p[:c.left+1]
+	}
+	n, err := c.r.Read(p)
+	c.left -= int64(n)
+	if c.left < 0 {
+		return 0, ErrTooLarge
+	}
+	return n, err
 }
 
 // checkRedirect is the policy for every hop. Mirrors and CDNs do redirect, but
@@ -93,9 +122,10 @@ func checkRedirect(req *http.Request, via []*http.Request) error {
 	if len(via) > maxRedirects {
 		return fail(ErrRedirect, "The feed redirected more than %d times.", maxRedirects)
 	}
-	if err := CheckURL(req.URL.String()); err != nil {
+	if err := checkURL(req.URL.String(), EPSSURLMaxLen); err != nil {
 		return fail(ErrRedirect, "The feed redirected to an address that is not allowed.")
 	}
+	req.Header.Del("Referer") // the previous address may carry a token in its query
 	prev := via[len(via)-1]
 	if prev.URL.Scheme == "https" && req.URL.Scheme != "https" {
 		return fail(ErrRedirect, "The feed redirected from https to http.")
@@ -115,7 +145,7 @@ func validValidator(s string) bool {
 // 304 reported as NotModified. Without a context deadline it applies
 // DefaultFetchTimeout.
 func (f Fetcher) Fetch(ctx context.Context, req Request) (*Response, error) {
-	if err := CheckURL(req.URL); err != nil {
+	if err := checkURL(req.URL, EPSSURLMaxLen); err != nil {
 		return nil, err
 	}
 	if req.Auth.Type != "" && req.Auth.Type != AuthNone {
@@ -133,7 +163,11 @@ func (f Fetcher) Fetch(ctx context.Context, req Request) (*Response, error) {
 		defer cancel()
 	}
 	target := strings.TrimSpace(req.URL)
-	hreq, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	scheme := "https"
+	if strings.HasPrefix(strings.ToLower(target), "http://") {
+		scheme = "http"
+	}
+	hreq, err := http.NewRequestWithContext(context.WithValue(ctx, schemeKey{}, scheme), http.MethodGet, target, nil)
 	if err != nil {
 		return nil, fail(ErrInvalidURL, "Enter a full address such as https://example.com/feed.json.")
 	}

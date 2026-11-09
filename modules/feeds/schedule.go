@@ -77,8 +77,12 @@ func (s State) NextAttempt(intervalHours int) time.Time {
 	return s.LastSuccess.Add(iv)
 }
 
-// Due reports whether a pull should start at now.
+// Due reports whether a pull should start at now. A success or attempt time in the
+// future (a clock that was wrong) counts as due, so pulls never wait for the clock.
 func (s State) Due(now time.Time, intervalHours int) bool {
+	if s.LastSuccess.After(now) || s.LastAttempt.After(now) { // recorded while the clock was wrong
+		return true
+	}
 	return !now.Before(s.NextAttempt(intervalHours))
 }
 
@@ -86,7 +90,7 @@ func (s State) Due(now time.Time, intervalHours int) bool {
 // than its interval plus MaxDataAge (the pull is overdue by more than an hour).
 // A feed that never succeeded is stale.
 func IsStale(now, lastSuccess time.Time, intervalHours int) bool {
-	if lastSuccess.IsZero() {
+	if lastSuccess.IsZero() || lastSuccess.After(now) { // never, or recorded while the clock was wrong
 		return true
 	}
 	return now.Sub(lastSuccess) > interval(intervalHours)+MaxDataAge

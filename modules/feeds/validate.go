@@ -31,9 +31,11 @@ func IsInternalHost(host string) bool {
 
 // CheckURL is the INV-2 address rule: https, or http for internal hosts only.
 // Credentials in the address are refused (they belong in the auth settings).
-func CheckURL(raw string) error {
+func CheckURL(raw string) error { return checkURL(raw, MaxURLLen) }
+
+func checkURL(raw string, maxLen int) error {
 	s := strings.TrimSpace(raw)
-	if s == "" || len(s) > MaxURLLen || hasControl(s) || strings.ContainsFunc(s, jsIsSpace) {
+	if s == "" || len(s) > maxLen || hasControl(s) || strings.ContainsFunc(s, jsIsSpace) {
 		return fail(ErrInvalidURL, "Enter a full address such as https://example.com/feed.json.")
 	}
 	u, err := url.Parse(s)
@@ -83,7 +85,7 @@ func CheckKindFormat(k Kind, f Format) error {
 // the other custom feeds; leave out the feed being edited).
 func CheckName(name string, others []string) error {
 	n := strings.TrimSpace(name)
-	if n == "" || utf8.RuneCountInString(n) > MaxNameLen || strings.ContainsFunc(n, unicode.IsControl) {
+	if n == "" || utf8.RuneCountInString(n) > MaxNameLen || strings.ContainsFunc(n, unicode.IsControl) || hasControl(n) {
 		return fail(ErrInvalidName, "Enter a name of up to 60 characters.")
 	}
 	taken := func(x string) bool { return strings.EqualFold(strings.TrimSpace(x), n) }

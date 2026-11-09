@@ -217,7 +217,7 @@ describe('core: khung Cài đặt và vai', () => {
     renderApp('/settings')
     expect(await screen.findByRole('heading', { level: 1, name: /Sample Company box/ })).toBeInTheDocument()
     const nav = screen.getByRole('navigation', { name: 'Settings sections' })
-    for (const n of ['General', 'Modules', 'Users', 'Audit log', 'Updates', 'Privacy', 'MCP server', 'Data']) expect(within(nav).getByRole('link', { name: n })).toBeInTheDocument()
+    for (const n of ['General', 'Modules', 'Users', 'Connections', 'Audit log', 'Updates', 'Privacy', 'MCP server', 'Data']) expect(within(nav).getByRole('link', { name: n })).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 
@@ -296,12 +296,12 @@ describe('core: module (S-CORE-1)', () => {
 })
 
 describe('core: quyền riêng tư (S-CORE-4)', () => {
-  it('hiện đủ 11 luồng, payload nguyên văn và tắt được tín hiệu ẩn danh', async () => {
+  it('hiện đủ 12 luồng, payload nguyên văn và tắt được tín hiệu ẩn danh', async () => {
     const u = user()
     renderApp('/settings/privacy')
     const table = await screen.findByRole('table', { name: 'Data flows that leave the box' })
-    expect(within(table).getAllByRole('row')).toHaveLength(12)
-    for (const n of ['Pull feeds directly from their sources', 'Anonymous signal', 'AI assistant', 'Data sources that need a key', 'Notifications', 'Update check', 'Forwarding to a SIEM', 'News about a CVE', 'External exposure', 'Time sync', 'Single sign-on']) expect(within(table).getAllByText(new RegExp(n)).length).toBeGreaterThan(0)
+    expect(within(table).getAllByRole('row')).toHaveLength(13)
+    for (const n of ['Pull feeds directly from their sources', 'Anonymous signal', 'AI assistant', 'Data sources that need a key', 'Notifications', 'Update check', 'Forwarding to a SIEM', 'News about a CVE', 'External exposure', 'Time sync', 'Single sign-on', 'Connections you add']) expect(within(table).getAllByText(new RegExp(n)).length).toBeGreaterThan(0)
     const code = document.querySelector('pre code')!.textContent!
     const payload = JSON.parse(code) as { country: string; install_id: string; device_counts: Record<string, number> }
     expect(payload.country).toBe('VN')

@@ -8,12 +8,6 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
-	// AiDeleteAiConnectionsID implements ai_delete_ai_connections_id operation.
-	//
-	// Delete a connection.
-	//
-	// DELETE /ai/connections/{id}
-	AiDeleteAiConnectionsID(ctx context.Context, params AiDeleteAiConnectionsIDParams) error
 	// AiDeleteAiHooksID implements ai_delete_ai_hooks_id operation.
 	//
 	// Delete a custom hook.
@@ -87,12 +81,6 @@ type Handler interface {
 	//
 	// GET /ai/config
 	AiGetAiConfig(ctx context.Context) (*AiGetAiConfigOK, error)
-	// AiGetAiConnections implements ai_get_ai_connections operation.
-	//
-	// Outside connections the AI may use: device API, SSH, HTTP, MCP server.
-	//
-	// GET /ai/connections
-	AiGetAiConnections(ctx context.Context) (*AiGetAiConnectionsOK, error)
 	// AiGetAiCveIDCached implements ai_get_ai_cve_id_cached operation.
 	//
 	// Previously generated explanation and news for a CVE.
@@ -159,18 +147,6 @@ type Handler interface {
 	//
 	// POST /ai/ask
 	AiPostAiAsk(ctx context.Context, req *AiPostAiAskReq) (*AiPostAiAskOK, error)
-	// AiPostAiConnections implements ai_post_ai_connections operation.
-	//
-	// Add a connection with its allow-list; write tools are only used through approved response actions.
-	//
-	// POST /ai/connections
-	AiPostAiConnections(ctx context.Context, req *AiPostAiConnectionsReq) (*AiPostAiConnectionsOK, error)
-	// AiPostAiConnectionsIDTest implements ai_post_ai_connections_id_test operation.
-	//
-	// Test a connection and refresh its tool list.
-	//
-	// POST /ai/connections/{id}/test
-	AiPostAiConnectionsIDTest(ctx context.Context, params AiPostAiConnectionsIDTestParams) (*AiPostAiConnectionsIDTestOK, error)
 	// AiPostAiCveIDExplain implements ai_post_ai_cve_id_explain operation.
 	//
 	// AI explains a CVE in terms of my devices.
@@ -261,12 +237,6 @@ type Handler interface {
 	//
 	// PUT /ai/config
 	AiPutAiConfig(ctx context.Context, req *AiPutAiConfigReq) (*AiPutAiConfigOK, error)
-	// AiPutAiConnectionsID implements ai_put_ai_connections_id operation.
-	//
-	// Edit a connection, its allow-list and per-tool enable (blank secret = keep the old one).
-	//
-	// PUT /ai/connections/{id}
-	AiPutAiConnectionsID(ctx context.Context, req *AiPutAiConnectionsIDReq, params AiPutAiConnectionsIDParams) (*AiPutAiConnectionsIDOK, error)
 	// AiPutAiHooksBuiltinID implements ai_put_ai_hooks_builtin_id operation.
 	//
 	// Turn a built-in hook on or off; "write tools need approval" is locked on.
@@ -327,6 +297,12 @@ type Handler interface {
 	//
 	// DELETE /core/account/sessions/{id}
 	CoreDeleteCoreAccountSessionsID(ctx context.Context, params CoreDeleteCoreAccountSessionsIDParams) error
+	// CoreDeleteCoreConnectionsID implements core_delete_core_connections_id operation.
+	//
+	// Delete a connection; 409 in_use while a response change made through it is still in force.
+	//
+	// DELETE /core/connections/{id}
+	CoreDeleteCoreConnectionsID(ctx context.Context, params CoreDeleteCoreConnectionsIDParams) error
 	// CoreDeleteCoreMcpTokensID implements core_delete_core_mcp_tokens_id operation.
 	//
 	// Revoke an MCP token.
@@ -363,6 +339,13 @@ type Handler interface {
 	//
 	// GET /core/auth-options
 	CoreGetCoreAuthOptions(ctx context.Context) (*CoreGetCoreAuthOptionsOK, error)
+	// CoreGetCoreConnections implements core_get_core_connections operation.
+	//
+	// Connections to devices and services that response actions and the AI use: HTTP API, SSH, RESTCONF,
+	// automation platform, MCP server.
+	//
+	// GET /core/connections
+	CoreGetCoreConnections(ctx context.Context) (*CoreGetCoreConnectionsOK, error)
 	// CoreGetCoreDataBackup implements core_get_core_data_backup operation.
 	//
 	// Download a backup (no passwords or keys).
@@ -415,7 +398,7 @@ type Handler interface {
 	CoreGetCoreOidc(ctx context.Context) (*CoreGetCoreOidcOK, error)
 	// CoreGetCorePrivacy implements core_get_core_privacy operation.
 	//
-	// The 11 data flows leaving the box and the verbatim anonymous-signal payload.
+	// The 12 data flows leaving the box and the verbatim anonymous-signal payload.
 	//
 	// GET /core/privacy
 	CoreGetCorePrivacy(ctx context.Context) (*CoreGetCorePrivacyOK, error)
@@ -581,6 +564,20 @@ type Handler interface {
 	//
 	// POST /core/account/sessions/revoke-others
 	CorePostCoreAccountSessionsRevokeOthers(ctx context.Context) (*CorePostCoreAccountSessionsRevokeOthersOK, error)
+	// CorePostCoreConnections implements core_post_core_connections operation.
+	//
+	// Add a connection with its allow-list. Write tools start off and run only through approved response
+	// actions. "mcp-stdio" is refused: 400 kind_unsupported. The address may be public when the
+	// administrator declares it (privacy flow 12).
+	//
+	// POST /core/connections
+	CorePostCoreConnections(ctx context.Context, req *CorePostCoreConnectionsReq) (*CorePostCoreConnectionsCreated, error)
+	// CorePostCoreConnectionsIDTest implements core_post_core_connections_id_test operation.
+	//
+	// Test a connection, pin its certificate or host key on first use, and refresh its tool list.
+	//
+	// POST /core/connections/{id}/test
+	CorePostCoreConnectionsIDTest(ctx context.Context, params CorePostCoreConnectionsIDTestParams) (*CorePostCoreConnectionsIDTestOK, error)
 	// CorePostCoreDataPurge implements core_post_core_data_purge operation.
 	//
 	// Delete all data back to a fresh install (type the exact organization name to confirm).
@@ -687,6 +684,13 @@ type Handler interface {
 	//
 	// POST /core/users/{id}/reset-password
 	CorePostCoreUsersIDResetPassword(ctx context.Context, params CorePostCoreUsersIDResetPasswordParams) (*CorePostCoreUsersIDResetPasswordOK, error)
+	// CorePutCoreConnectionsID implements core_put_core_connections_id operation.
+	//
+	// Edit a connection, its allow-list and per-tool enable (blank secret = keep the old one; clear_pin =
+	// forget the pin).
+	//
+	// PUT /core/connections/{id}
+	CorePutCoreConnectionsID(ctx context.Context, req *CorePutCoreConnectionsIDReq, params CorePutCoreConnectionsIDParams) (*CorePutCoreConnectionsIDOK, error)
 	// CorePutCoreGeneral implements core_put_core_general operation.
 	//
 	// Save organization name and time zone.

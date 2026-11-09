@@ -3,13 +3,13 @@ import { collectErrors, expectAccessible } from '../helpers'
 import { begin, noHScroll, stepper, THEMES } from './wp06-shared'
 
 // WP-06 independent check, area 5: "As the owner of a company I want to see exactly what leaves the box, the anonymous signal included."
-// Settings -> Privacy must match PRIVACY.md: 11 flows, payload verbatim, the word IDS nowhere, single sign-on (OIDC) listed.
+// Settings -> Privacy must match PRIVACY.md: 12 flows, payload verbatim, the word IDS nowhere, single sign-on (OIDC) listed.
 const FLOWS = [
-  /feeds/i, /anonymous signal/i, /AI/, /lookups?|need a key/i, /notifications?/i, /update/i, /SIEM/, /CVE/, /external (exposure|surface)/i, /time sync|NTP/i, /single sign-on|OIDC/i,
+  /feeds/i, /anonymous signal/i, /AI/, /lookups?|need a key/i, /notifications?/i, /update/i, /SIEM/, /CVE/, /external (exposure|surface)/i, /time sync|NTP/i, /single sign-on|OIDC/i, /connections you add/i,
 ]
 
 for (const theme of THEMES) {
-  test(`privacy [${theme}]: eleven flows as in PRIVACY.md, payload verbatim, no "IDS", SSO flow listed`, async ({ page }, info) => {
+  test(`privacy [${theme}]: twelve flows as in PRIVACY.md, payload verbatim, no "IDS", SSO flow listed`, async ({ page }, info) => {
     const errors = collectErrors(page)
     const shot = stepper(page, info, 'privacy', theme)
     await begin(page, theme)
@@ -23,7 +23,7 @@ for (const theme of THEMES) {
     const n = await rows.count()
     const names = phone ? await rows.locator('> div > div:first-child > span:first-child').allTextContents() : await rows.locator('td:first-child').allTextContents()
     console.log('FLOWS', JSON.stringify(names))
-    expect(n, 'every flow of PRIVACY.md is on one page (no hidden second page)').toBe(11)
+    expect(n, 'every flow of PRIVACY.md is on one page (no hidden second page)').toBe(12)
     FLOWS.forEach((re, i) => expect(names[i], `flow ${i + 1}`).toMatch(re))
     // flow texts
     const all = await flows.innerText()
@@ -32,6 +32,7 @@ for (const theme of THEMES) {
     expect(all).not.toMatch(/vedette-updater/)
     expect.soft(all, 'PRIVACY.md flow 9 names the destination (the Vedette project endpoint on Cloudflare); the screen only says "a public-IP lookup service"').toMatch(/Cloudflare/)
     expect(all).toMatch(/PKCE|authorization code|issuer/i) // flow 11
+    expect(all).toMatch(/Only the address you typed/) // flow 12
     // the word IDS, anywhere on the page, whole word
     const body = await page.locator('body').innerText()
     expect(body, 'the word "IDS"').not.toMatch(/\bIDS\b/)

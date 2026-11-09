@@ -23,11 +23,11 @@ const RulesTab = lazy(() => import('./harness/RulesTab'))
 const MemoryTab = lazy(() => import('./harness/MemoryTab'))
 const SkillsTab = lazy(() => import('./harness/SkillsTab'))
 const KnowledgeTab = lazy(() => import('./harness/KnowledgeTab'))
-const ConnectionsTab = lazy(() => import('./harness/ConnectionsTab'))
+const ConnectionsMoved = lazy(() => import('./harness/ConnectionsMoved'))
 const HooksTab = lazy(() => import('./harness/HooksTab'))
 const TABS = ['profiles', 'rules', 'memory', 'skills', 'knowledge', 'connections', 'hooks'] as const
 type Tab = (typeof TABS)[number]
-const HARNESS: Record<Exclude<Tab, 'profiles'>, React.LazyExoticComponent<() => React.JSX.Element>> = { rules: RulesTab, memory: MemoryTab, skills: SkillsTab, knowledge: KnowledgeTab, connections: ConnectionsTab, hooks: HooksTab }
+const HARNESS: Record<Exclude<Tab, 'profiles'>, React.LazyExoticComponent<() => React.JSX.Element>> = { rules: RulesTab, memory: MemoryTab, skills: SkillsTab, knowledge: KnowledgeTab, connections: ConnectionsMoved, hooks: HooksTab }
 
 // Địa chỉ và model gợi ý, đối chiếu tài liệu chính thức ngày 2026-11-06. Tên model đổi theo thời gian nên người dùng sửa được.
 //  Anthropic: platform.claude.com/docs/en/about-claude/models/overview (claude-haiku-5-5, API https://api.anthropic.com)

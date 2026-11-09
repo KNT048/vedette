@@ -320,6 +320,9 @@ func (privacyFacts) AIConfigured(context.Context) bool   { return false }
 func (privacyFacts) NTPPublic(context.Context) bool      { return true }
 func (privacyFacts) OIDCConfigured(context.Context) bool { return false }
 
+// ConnectionsConfigured: no connection can be saved yet (slice 13b-4 adds the store), so flow 12 is off.
+func (privacyFacts) ConnectionsConfigured(context.Context) bool { return false }
+
 // newOSHandlers wires the OS update and backup handlers. The host client is built from the socket path and
 // connects on each call, so a box whose vedette-host starts later, or an install that has none, needs no
 // restart: a missing socket file answers 409 not_appliance at call time (core.hostErr).

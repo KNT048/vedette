@@ -25,3 +25,5 @@ export const KIND_AUTH: Record<ConnectionKindId, Auth[]> = {
 export const HTTP_KINDS: ConnectionKindId[] = ['http', 'netconf-restconf', 'automation']
 export const isHttpKind = (k: string | null | undefined): boolean => HTTP_KINDS.includes(k as ConnectionKindId)
 export const isMcpKind = (k: string | null | undefined): boolean => k === 'mcp-http' || k === 'mcp-stdio'
+/** Sign-in that carries a user name: SSH always, and Basic on any kind (D-94). */
+export const usesUsername = (kind: string, auth: string): boolean => kind === 'ssh' || auth === 'basic'

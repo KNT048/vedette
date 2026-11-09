@@ -66,7 +66,7 @@ async function onlyRule(id: string) {
 }
 const run = () => call<RunSummary>('operator', 'POST', '/response/rules/run').then((r) => r.json)
 const pendingOf = async () => (await list<ActionRequest>('operator', '/response/actions')).filter((a) => a.status === 'pending')
-const SSH_W: Connector = { id: 'cn-sw', name: 'Core switch (SSH)', kind: 'ssh', target: '192.168.10.2:22', asset_id: null, auth: { type: 'ssh-key', last4: 'c3Pq' }, allow: [], tools: [{ name: 'run_config', access: 'write', description: 'Run a configuration command', enabled: true }], enabled: true, status: 'ok', last_test: null }
+const SSH_W: Connector = { id: 'cn-sw', name: 'Core switch (SSH)', kind: 'ssh', target: '192.168.10.2:22', asset_id: null, auth: { type: 'ssh-key', last4: 'c3Pq' }, username: null, pin: null, allow: [], tools: [{ name: 'run_config', access: 'write', description: 'Run a configuration command', enabled: true }], enabled: true, status: 'ok', last_test: null }
 const withSwitch = () => connectorsStore.update((l) => [...l, SSH_W])
 async function enableSwitchActions() {
   withSwitch()
@@ -712,7 +712,7 @@ describe('response: AI requests, server-side gates (D-51)', () => {
 describe('response: action catalog (S-RESP-4)', () => {
   const CUSTOM = { name: 'Block a domain on the DNS filter', description: 'Adds a domain to the filter.', connection_id: 'cn-fgt', tool: null, rollback_tool: null, risk: 'low', enabled: true, ai_may_propose: false,
     run: { ...EMPTY_TPL, method: 'POST', path: '/api/v2/cmdb/webfilter/urlfilter/1/entries', body: '{"url":"{domain}"}' }, rollback: { ...EMPTY_TPL, method: 'DELETE', path: '/api/v2/cmdb/webfilter/urlfilter/1/entries/{domain}' }, verify: EMPTY_TPL }
-  const MCP: Connector = { id: 'cn-mcp', name: 'Firewall MCP server', kind: 'mcp-http', target: 'https://mcp.lan/mcp', asset_id: null, auth: { type: 'token', last4: 'z9Zz' }, allow: [], enabled: true, status: 'ok', last_test: null,
+  const MCP: Connector = { id: 'cn-mcp', name: 'Firewall MCP server', kind: 'mcp-http', target: 'https://mcp.lan/mcp', asset_id: null, auth: { type: 'token', last4: 'z9Zz' }, username: null, pin: null, allow: [], enabled: true, status: 'ok', last_test: null,
     tools: [{ name: 'list_rules', access: 'read', description: '', enabled: true }, { name: 'block_address', access: 'write', description: '', enabled: true }, { name: 'unblock_address', access: 'write', description: '', enabled: true }] }
 
   it('template placeholders are typed and shell metacharacters are refused', () => {
@@ -934,13 +934,13 @@ describe('response: screens', () => {
 describe('response: custom action form follows the connection kind', () => {
   const extra: Connector[] = [
     SSH_W,
-    { id: 'cn-web', name: 'Ticket API (HTTP)', kind: 'http', target: 'https://tickets.lan', asset_id: null, auth: { type: 'token', last4: 'a1Bc' }, allow: [], tools: [{ name: 'post_ticket', access: 'write', description: '', enabled: true }], enabled: true, status: 'ok', last_test: null },
-    { id: 'cn-mt', name: 'MikroTik API', kind: 'http', target: 'https://192.168.10.2', asset_id: null, auth: { type: 'token', last4: 'm1Kr' }, allow: [], tools: [{ name: 'add_address', access: 'write', description: '', enabled: true }], enabled: true, status: 'ok', last_test: null },
-    { id: 'cn-nc', name: 'Switch RESTCONF', kind: 'netconf-restconf', target: 'https://192.168.10.3', asset_id: null, auth: { type: 'basic', last4: 'n3Tc' }, allow: [], tools: [{ name: 'apply_config', access: 'write', description: '', enabled: true }], enabled: true, status: 'ok', last_test: null },
-    { id: 'cn-awx', name: 'Automation platform', kind: 'automation', target: 'https://automation.lan', asset_id: null, auth: { type: 'token', last4: 'a7Wx' }, allow: [], tools: [{ name: 'launch_job', access: 'write', description: '', enabled: true }], enabled: true, status: 'ok', last_test: null },
-    { id: 'cn-mcp', name: 'Firewall MCP server', kind: 'mcp-http', target: 'https://mcp.lan/mcp', asset_id: null, auth: { type: 'token', last4: 'z9Zz' }, allow: [], enabled: true, status: 'ok', last_test: null,
+    { id: 'cn-web', name: 'Ticket API (HTTP)', kind: 'http', target: 'https://tickets.lan', asset_id: null, auth: { type: 'token', last4: 'a1Bc' }, username: null, pin: null, allow: [], tools: [{ name: 'post_ticket', access: 'write', description: '', enabled: true }], enabled: true, status: 'ok', last_test: null },
+    { id: 'cn-mt', name: 'MikroTik API', kind: 'http', target: 'https://192.168.10.2', asset_id: null, auth: { type: 'token', last4: 'm1Kr' }, username: null, pin: null, allow: [], tools: [{ name: 'add_address', access: 'write', description: '', enabled: true }], enabled: true, status: 'ok', last_test: null },
+    { id: 'cn-nc', name: 'Switch RESTCONF', kind: 'netconf-restconf', target: 'https://192.168.10.3', asset_id: null, auth: { type: 'basic', last4: 'n3Tc' }, username: null, pin: null, allow: [], tools: [{ name: 'apply_config', access: 'write', description: '', enabled: true }], enabled: true, status: 'ok', last_test: null },
+    { id: 'cn-awx', name: 'Automation platform', kind: 'automation', target: 'https://automation.lan', asset_id: null, auth: { type: 'token', last4: 'a7Wx' }, username: null, pin: null, allow: [], tools: [{ name: 'launch_job', access: 'write', description: '', enabled: true }], enabled: true, status: 'ok', last_test: null },
+    { id: 'cn-mcp', name: 'Firewall MCP server', kind: 'mcp-http', target: 'https://mcp.lan/mcp', asset_id: null, auth: { type: 'token', last4: 'z9Zz' }, username: null, pin: null, allow: [], enabled: true, status: 'ok', last_test: null,
       tools: [{ name: 'list_rules', access: 'read', description: '', enabled: true }, { name: 'block_address', access: 'write', description: '', enabled: true }, { name: 'unblock_address', access: 'write', description: '', enabled: true }] },
-    { id: 'cn-mcps', name: 'Local MCP (stdio)', kind: 'mcp-stdio', target: 'fw-mcp', asset_id: null, auth: { type: 'none', last4: null }, allow: [], enabled: true, status: 'ok', last_test: null, tools: [{ name: 'quarantine', access: 'write', description: '', enabled: true }] },
+    { id: 'cn-mcps', name: 'Local MCP (stdio)', kind: 'mcp-stdio', target: 'fw-mcp', asset_id: null, auth: { type: 'none', last4: null }, username: null, pin: null, allow: [], enabled: true, status: 'ok', last_test: null, tools: [{ name: 'quarantine', access: 'write', description: '', enabled: true }] },
   ]
   const FORTI = /cmdb\/firewall\/vip/
   const L = { method: /^API method$/, path: /^API path$/, body: /^API body/, command: /^Command$/, headers: /^Headers$/, tool: /^Write tool$/, args: /^Tool arguments$/ }
@@ -1001,8 +1001,8 @@ describe('response: custom action form follows the connection kind', () => {
 
   it('a new SSH connection starts read-only (write tool off); the action form unlocks when an admin turns the write tool on, and the server refuses while it is off', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: true }))
-    const made = await call<{ id: string; tools: { name: string; access: string; enabled: boolean }[] }>('admin', 'POST', '/ai/connections', { name: 'New switch', kind: 'ssh', target: '192.168.10.40:22', auth_type: 'ssh-key', secret: 'a-long-enough-key', allow: ['show version'], enabled: true })
-    expect(made.status).toBe(200)
+    const made = await call<{ id: string; tools: { name: string; access: string; enabled: boolean }[] }>('admin', 'POST', '/core/connections', { name: 'New switch', kind: 'ssh', target: '192.168.10.40:22', auth_type: 'ssh-key', username: 'vedette', secret: 'a-long-enough-key', allow: ['show version'], enabled: true })
+    expect(made.status).toBe(201)
     expect(made.json.tools.find((t) => t.access === 'write')).toMatchObject({ name: 'run_approved_command', enabled: false })
     const ACTION = { name: 'Shut a port', description: 'x', connection_id: made.json.id, tool: null, rollback_tool: null, risk: 'medium', enabled: false, ai_may_propose: false, run: { ...EMPTY_TPL, cli: 'interface {interface}\n    shutdown' }, rollback: { ...EMPTY_TPL, cli: 'interface {interface}\n    no shutdown' }, verify: EMPTY_TPL }
     expect((await call('admin', 'POST', '/response/catalog', ACTION)).json).toMatchObject({ error: { code: 'read_only' } })
@@ -1011,7 +1011,7 @@ describe('response: custom action form follows the connection kind', () => {
     expect(locked.disabled).toBe(true)
     expect(locked.text).toMatch(/Read-only: this connection has no write tools/)
     const tools = made.json.tools.map((t) => ({ name: t.name, enabled: t.access === 'write' ? true : t.enabled }))
-    expect((await call('admin', 'PUT', `/ai/connections/${made.json.id}`, { name: 'New switch', kind: 'ssh', target: '192.168.10.40:22', auth_type: 'ssh-key', allow: ['show version'], enabled: true, tools })).status).toBe(200)
+    expect((await call('admin', 'PUT', `/core/connections/${made.json.id}`, { name: 'New switch', kind: 'ssh', target: '192.168.10.40:22', auth_type: 'ssh-key', username: 'vedette', allow: ['show version'], enabled: true, tools })).status).toBe(200)
     expect((await open()).disabled).toBe(false)
     expect((await call('admin', 'POST', '/response/catalog', ACTION)).status).toBe(201)
   })

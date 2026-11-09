@@ -25,7 +25,7 @@ export function sampleContainment(f: Finding, asset: Asset, name: string): { rea
   const vip = vips[0]
   const write = conn?.tools.find((t) => t.name === 'disable_virtual_ip' && t.access === 'write')
   const reads = conn ? [{ connection: conn.name, tool: 'get_virtual_ips', summary: `${VIPS.length} virtual IPs, ${vips.length} point${vips.length === 1 ? 's' : ''} to ${name} (${asset.ip})` }] : []
-  const path = !conn ? `Vedette has no read access to a firewall, so it could not check how ${name} is exposed. Connect your firewall in Settings, AI assistant to get a plan that fits your network.`
+  const path = !conn ? `Vedette has no read access to a firewall, so it could not check how ${name} is exposed. Connect your firewall in Settings → Connections to get a plan that fits your network.`
     : vip ? `${name} is reachable from the Internet through FortiGate virtual IP ${vip.name} (${vip.extip}:${vip.extport} to ${vip.mappedip}:${vip.mappedport}).`
     : `No virtual IP on ${conn.name} points to ${name}, so it is not forwarded from the Internet. It is reachable from the internal network only.`
   if (vip && conn && write) {

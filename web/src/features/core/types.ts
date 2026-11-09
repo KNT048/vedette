@@ -58,3 +58,10 @@ export type ManagementBody = z.infer<typeof C.ManagementBody>
 export type SpanConfig = z.infer<typeof C.SpanConfig>
 export type SpanStatus = z.infer<typeof C.SpanStatus>
 export type NtpConfig = z.infer<typeof C.NtpConfig>
+
+export type ConnectorKind = z.infer<typeof C.ConnectorKind>
+export type ConnectorTool = z.infer<typeof C.ConnectorTool>
+export type ConnectorPin = z.infer<typeof C.ConnectorPin>
+export type Connector = z.infer<typeof C.Connector>
+export type ConnectorInput = z.infer<typeof C.ConnectorInput>
+export type ConnectorTestResult = z.infer<typeof C.ConnectorTestResult>

@@ -1742,936 +1742,6 @@
         }
       }
     },
-    "/ai/connections": {
-      "get": {
-        "operationId": "ai_get_ai_connections",
-        "summary": "Outside connections the AI may use: device API, SSH, HTTP, MCP server",
-        "tags": [
-          "ai"
-        ],
-        "x-stories": [
-          "S-AI-7"
-        ],
-        "x-min-role": "admin",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "name": {
-                            "type": "string"
-                          },
-                          "kind": {
-                            "type": "string",
-                            "enum": [
-                              "http",
-                              "ssh",
-                              "netconf-restconf",
-                              "automation",
-                              "mcp-http",
-                              "mcp-stdio"
-                            ]
-                          },
-                          "target": {
-                            "type": "string",
-                            "description": "Base URL, host:port, or the MCP command"
-                          },
-                          "asset_id": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "auth": {
-                            "type": "object",
-                            "properties": {
-                              "type": {
-                                "type": "string",
-                                "enum": [
-                                  "none",
-                                  "token",
-                                  "basic",
-                                  "ssh-key"
-                                ]
-                              },
-                              "last4": {
-                                "description": "Last 4 characters of the secret; the full secret is never returned (SYS-4)",
-                                "type": [
-                                  "string",
-                                  "null"
-                                ]
-                              }
-                            },
-                            "required": [
-                              "type",
-                              "last4"
-                            ],
-                            "additionalProperties": false
-                          },
-                          "allow": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            },
-                            "description": "Hosts, URL prefixes or commands the AI may use through this connection"
-                          },
-                          "tools": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "name": {
-                                  "type": "string"
-                                },
-                                "access": {
-                                  "type": "string",
-                                  "enum": [
-                                    "read",
-                                    "write"
-                                  ]
-                                },
-                                "description": {
-                                  "type": "string"
-                                },
-                                "enabled": {
-                                  "type": "boolean"
-                                }
-                              },
-                              "required": [
-                                "name",
-                                "access",
-                                "description",
-                                "enabled"
-                              ],
-                              "additionalProperties": false
-                            }
-                          },
-                          "enabled": {
-                            "type": "boolean"
-                          },
-                          "status": {
-                            "type": "string",
-                            "enum": [
-                              "ok",
-                              "error",
-                              "untested"
-                            ]
-                          },
-                          "last_test": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "format": "date-time",
-                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "name",
-                          "kind",
-                          "target",
-                          "asset_id",
-                          "auth",
-                          "allow",
-                          "tools",
-                          "enabled",
-                          "status",
-                          "last_test"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "items"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "operationId": "ai_post_ai_connections",
-        "summary": "Add a connection with its allow-list; write tools are only used through approved response actions",
-        "tags": [
-          "ai"
-        ],
-        "x-stories": [
-          "S-AI-7"
-        ],
-        "x-min-role": "admin",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 40
-                  },
-                  "kind": {
-                    "type": "string",
-                    "enum": [
-                      "http",
-                      "ssh",
-                      "netconf-restconf",
-                      "automation",
-                      "mcp-http",
-                      "mcp-stdio"
-                    ]
-                  },
-                  "target": {
-                    "type": "string"
-                  },
-                  "asset_id": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
-                  "auth_type": {
-                    "type": "string",
-                    "enum": [
-                      "none",
-                      "token",
-                      "basic",
-                      "ssh-key"
-                    ]
-                  },
-                  "secret": {
-                    "description": "Leave blank when editing to keep the old secret",
-                    "type": "string"
-                  },
-                  "allow": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "enabled": {
-                    "type": "boolean"
-                  },
-                  "tools": {
-                    "description": "Per-tool enable; tools not listed keep their state",
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "name": {
-                          "type": "string"
-                        },
-                        "enabled": {
-                          "type": "boolean"
-                        }
-                      },
-                      "required": [
-                        "name",
-                        "enabled"
-                      ],
-                      "additionalProperties": false
-                    }
-                  }
-                },
-                "required": [
-                  "name",
-                  "kind",
-                  "target",
-                  "auth_type",
-                  "allow",
-                  "enabled"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "name": {
-                      "type": "string"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "enum": [
-                        "http",
-                        "ssh",
-                        "netconf-restconf",
-                        "automation",
-                        "mcp-http",
-                        "mcp-stdio"
-                      ]
-                    },
-                    "target": {
-                      "type": "string",
-                      "description": "Base URL, host:port, or the MCP command"
-                    },
-                    "asset_id": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "auth": {
-                      "type": "object",
-                      "properties": {
-                        "type": {
-                          "type": "string",
-                          "enum": [
-                            "none",
-                            "token",
-                            "basic",
-                            "ssh-key"
-                          ]
-                        },
-                        "last4": {
-                          "description": "Last 4 characters of the secret; the full secret is never returned (SYS-4)",
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        }
-                      },
-                      "required": [
-                        "type",
-                        "last4"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "allow": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "description": "Hosts, URL prefixes or commands the AI may use through this connection"
-                    },
-                    "tools": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "name": {
-                            "type": "string"
-                          },
-                          "access": {
-                            "type": "string",
-                            "enum": [
-                              "read",
-                              "write"
-                            ]
-                          },
-                          "description": {
-                            "type": "string"
-                          },
-                          "enabled": {
-                            "type": "boolean"
-                          }
-                        },
-                        "required": [
-                          "name",
-                          "access",
-                          "description",
-                          "enabled"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "enabled": {
-                      "type": "boolean"
-                    },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "ok",
-                        "error",
-                        "untested"
-                      ]
-                    },
-                    "last_test": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "name",
-                    "kind",
-                    "target",
-                    "asset_id",
-                    "auth",
-                    "allow",
-                    "tools",
-                    "enabled",
-                    "status",
-                    "last_test"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/ai/connections/{id}": {
-      "delete": {
-        "operationId": "ai_delete_ai_connections_id",
-        "summary": "Delete a connection",
-        "tags": [
-          "ai"
-        ],
-        "x-stories": [
-          "S-AI-7"
-        ],
-        "x-min-role": "admin",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Done, no content"
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "operationId": "ai_put_ai_connections_id",
-        "summary": "Edit a connection, its allow-list and per-tool enable (blank secret = keep the old one)",
-        "tags": [
-          "ai"
-        ],
-        "x-stories": [
-          "S-AI-7"
-        ],
-        "x-min-role": "admin",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 40
-                  },
-                  "kind": {
-                    "type": "string",
-                    "enum": [
-                      "http",
-                      "ssh",
-                      "netconf-restconf",
-                      "automation",
-                      "mcp-http",
-                      "mcp-stdio"
-                    ]
-                  },
-                  "target": {
-                    "type": "string"
-                  },
-                  "asset_id": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
-                  "auth_type": {
-                    "type": "string",
-                    "enum": [
-                      "none",
-                      "token",
-                      "basic",
-                      "ssh-key"
-                    ]
-                  },
-                  "secret": {
-                    "description": "Leave blank when editing to keep the old secret",
-                    "type": "string"
-                  },
-                  "allow": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "enabled": {
-                    "type": "boolean"
-                  },
-                  "tools": {
-                    "description": "Per-tool enable; tools not listed keep their state",
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "name": {
-                          "type": "string"
-                        },
-                        "enabled": {
-                          "type": "boolean"
-                        }
-                      },
-                      "required": [
-                        "name",
-                        "enabled"
-                      ],
-                      "additionalProperties": false
-                    }
-                  }
-                },
-                "required": [
-                  "name",
-                  "kind",
-                  "target",
-                  "auth_type",
-                  "allow",
-                  "enabled"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "name": {
-                      "type": "string"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "enum": [
-                        "http",
-                        "ssh",
-                        "netconf-restconf",
-                        "automation",
-                        "mcp-http",
-                        "mcp-stdio"
-                      ]
-                    },
-                    "target": {
-                      "type": "string",
-                      "description": "Base URL, host:port, or the MCP command"
-                    },
-                    "asset_id": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "auth": {
-                      "type": "object",
-                      "properties": {
-                        "type": {
-                          "type": "string",
-                          "enum": [
-                            "none",
-                            "token",
-                            "basic",
-                            "ssh-key"
-                          ]
-                        },
-                        "last4": {
-                          "description": "Last 4 characters of the secret; the full secret is never returned (SYS-4)",
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        }
-                      },
-                      "required": [
-                        "type",
-                        "last4"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "allow": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "description": "Hosts, URL prefixes or commands the AI may use through this connection"
-                    },
-                    "tools": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "name": {
-                            "type": "string"
-                          },
-                          "access": {
-                            "type": "string",
-                            "enum": [
-                              "read",
-                              "write"
-                            ]
-                          },
-                          "description": {
-                            "type": "string"
-                          },
-                          "enabled": {
-                            "type": "boolean"
-                          }
-                        },
-                        "required": [
-                          "name",
-                          "access",
-                          "description",
-                          "enabled"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "enabled": {
-                      "type": "boolean"
-                    },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "ok",
-                        "error",
-                        "untested"
-                      ]
-                    },
-                    "last_test": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "name",
-                    "kind",
-                    "target",
-                    "asset_id",
-                    "auth",
-                    "allow",
-                    "tools",
-                    "enabled",
-                    "status",
-                    "last_test"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/ai/connections/{id}/test": {
-      "post": {
-        "operationId": "ai_post_ai_connections_id_test",
-        "summary": "Test a connection and refresh its tool list",
-        "tags": [
-          "ai"
-        ],
-        "x-stories": [
-          "S-AI-7"
-        ],
-        "x-min-role": "admin",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "const": true
-                    },
-                    "latency_ms": {
-                      "type": "number"
-                    },
-                    "tools_found": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "connector": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "kind": {
-                          "type": "string",
-                          "enum": [
-                            "http",
-                            "ssh",
-                            "netconf-restconf",
-                            "automation",
-                            "mcp-http",
-                            "mcp-stdio"
-                          ]
-                        },
-                        "target": {
-                          "type": "string",
-                          "description": "Base URL, host:port, or the MCP command"
-                        },
-                        "asset_id": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "auth": {
-                          "type": "object",
-                          "properties": {
-                            "type": {
-                              "type": "string",
-                              "enum": [
-                                "none",
-                                "token",
-                                "basic",
-                                "ssh-key"
-                              ]
-                            },
-                            "last4": {
-                              "description": "Last 4 characters of the secret; the full secret is never returned (SYS-4)",
-                              "type": [
-                                "string",
-                                "null"
-                              ]
-                            }
-                          },
-                          "required": [
-                            "type",
-                            "last4"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "allow": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          },
-                          "description": "Hosts, URL prefixes or commands the AI may use through this connection"
-                        },
-                        "tools": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "name": {
-                                "type": "string"
-                              },
-                              "access": {
-                                "type": "string",
-                                "enum": [
-                                  "read",
-                                  "write"
-                                ]
-                              },
-                              "description": {
-                                "type": "string"
-                              },
-                              "enabled": {
-                                "type": "boolean"
-                              }
-                            },
-                            "required": [
-                              "name",
-                              "access",
-                              "description",
-                              "enabled"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "enabled": {
-                          "type": "boolean"
-                        },
-                        "status": {
-                          "type": "string",
-                          "enum": [
-                            "ok",
-                            "error",
-                            "untested"
-                          ]
-                        },
-                        "last_test": {
-                          "anyOf": [
-                            {
-                              "type": "string",
-                              "format": "date-time",
-                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "name",
-                        "kind",
-                        "target",
-                        "asset_id",
-                        "auth",
-                        "allow",
-                        "tools",
-                        "enabled",
-                        "status",
-                        "last_test"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "ok",
-                    "latency_ms",
-                    "tools_found",
-                    "message",
-                    "connector"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/ai/cve/{id}/cached": {
       "get": {
         "operationId": "ai_get_ai_cve_id_cached",
@@ -8381,6 +7451,1157 @@
         }
       }
     },
+    "/core/connections": {
+      "get": {
+        "operationId": "core_get_core_connections",
+        "summary": "Connections to devices and services that response actions and the AI use: HTTP API, SSH, RESTCONF, automation platform, MCP server",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-AI-7",
+          "S-RESP-4"
+        ],
+        "x-min-role": "admin",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "http",
+                              "ssh",
+                              "netconf-restconf",
+                              "automation",
+                              "mcp-http",
+                              "mcp-stdio"
+                            ]
+                          },
+                          "target": {
+                            "type": "string",
+                            "description": "Base URL or host:port. \"mcp-stdio\" rows are not supported (D-94)"
+                          },
+                          "asset_id": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "auth": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "none",
+                                  "token",
+                                  "basic",
+                                  "ssh-key"
+                                ]
+                              },
+                              "last4": {
+                                "description": "Last 4 characters of the secret; the full secret is never returned (SYS-4)",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "last4"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "username": {
+                            "description": "User name for SSH and for Basic sign-in; null for the other sign-ins",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "pin": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "tls_sha256",
+                                      "ssh_hostkey"
+                                    ],
+                                    "description": "tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system roots); ssh_hostkey = the SSH server host key"
+                                  },
+                                  "value": {
+                                    "type": "string",
+                                    "description": "tls_sha256: 64 hex characters; ssh_hostkey: key type and SHA256 fingerprint"
+                                  },
+                                  "first_seen": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "value",
+                                  "first_seen"
+                                ],
+                                "additionalProperties": false,
+                                "description": "Pinned at the first successful Test (trust on first use, D-94). A changed certificate or host key is refused until an administrator forgets the pin"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Read-only. null until the first Test, or after the pin was forgotten"
+                          },
+                          "allow": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Hosts, URL prefixes or commands that may be used through this connection"
+                          },
+                          "tools": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "access": {
+                                  "type": "string",
+                                  "enum": [
+                                    "read",
+                                    "write"
+                                  ]
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "enabled": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "access",
+                                "description",
+                                "enabled"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "ok",
+                              "error",
+                              "untested"
+                            ]
+                          },
+                          "last_test": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "kind",
+                          "target",
+                          "asset_id",
+                          "auth",
+                          "username",
+                          "pin",
+                          "allow",
+                          "tools",
+                          "enabled",
+                          "status",
+                          "last_test"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "core_post_core_connections",
+        "summary": "Add a connection with its allow-list. Write tools start off and run only through approved response actions. \"mcp-stdio\" is refused: 400 kind_unsupported. The address may be public when the administrator declares it (privacy flow 12)",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-AI-7",
+          "S-RESP-4"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "http",
+                      "ssh",
+                      "netconf-restconf",
+                      "automation",
+                      "mcp-http",
+                      "mcp-stdio"
+                    ]
+                  },
+                  "target": {
+                    "type": "string"
+                  },
+                  "asset_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "auth_type": {
+                    "type": "string",
+                    "enum": [
+                      "none",
+                      "token",
+                      "basic",
+                      "ssh-key"
+                    ]
+                  },
+                  "secret": {
+                    "description": "Leave blank when editing to keep the old secret",
+                    "type": "string"
+                  },
+                  "username": {
+                    "description": "Required for SSH and for Basic sign-in; ignored for the other sign-ins",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "clear_pin": {
+                    "description": "true = forget the pinned certificate or host key; the next Test pins again. A changed target, kind or sign-in forgets it too",
+                    "type": "boolean"
+                  },
+                  "allow": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "tools": {
+                    "description": "Per-tool enable; tools not listed keep their state",
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "enabled": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "enabled"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "kind",
+                  "target",
+                  "auth_type",
+                  "allow",
+                  "enabled"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "http",
+                        "ssh",
+                        "netconf-restconf",
+                        "automation",
+                        "mcp-http",
+                        "mcp-stdio"
+                      ]
+                    },
+                    "target": {
+                      "type": "string",
+                      "description": "Base URL or host:port. \"mcp-stdio\" rows are not supported (D-94)"
+                    },
+                    "asset_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "auth": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "token",
+                            "basic",
+                            "ssh-key"
+                          ]
+                        },
+                        "last4": {
+                          "description": "Last 4 characters of the secret; the full secret is never returned (SYS-4)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "last4"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "username": {
+                      "description": "User name for SSH and for Basic sign-in; null for the other sign-ins",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "pin": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "tls_sha256",
+                                "ssh_hostkey"
+                              ],
+                              "description": "tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system roots); ssh_hostkey = the SSH server host key"
+                            },
+                            "value": {
+                              "type": "string",
+                              "description": "tls_sha256: 64 hex characters; ssh_hostkey: key type and SHA256 fingerprint"
+                            },
+                            "first_seen": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "value",
+                            "first_seen"
+                          ],
+                          "additionalProperties": false,
+                          "description": "Pinned at the first successful Test (trust on first use, D-94). A changed certificate or host key is refused until an administrator forgets the pin"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Read-only. null until the first Test, or after the pin was forgotten"
+                    },
+                    "allow": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Hosts, URL prefixes or commands that may be used through this connection"
+                    },
+                    "tools": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "access": {
+                            "type": "string",
+                            "enum": [
+                              "read",
+                              "write"
+                            ]
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "access",
+                          "description",
+                          "enabled"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "error",
+                        "untested"
+                      ]
+                    },
+                    "last_test": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "kind",
+                    "target",
+                    "asset_id",
+                    "auth",
+                    "username",
+                    "pin",
+                    "allow",
+                    "tools",
+                    "enabled",
+                    "status",
+                    "last_test"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/connections/{id}": {
+      "delete": {
+        "operationId": "core_delete_core_connections_id",
+        "summary": "Delete a connection; 409 in_use while a response change made through it is still in force",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-AI-7",
+          "S-RESP-4"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done, no content"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "core_put_core_connections_id",
+        "summary": "Edit a connection, its allow-list and per-tool enable (blank secret = keep the old one; clear_pin = forget the pin)",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-AI-7",
+          "S-RESP-4"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "http",
+                      "ssh",
+                      "netconf-restconf",
+                      "automation",
+                      "mcp-http",
+                      "mcp-stdio"
+                    ]
+                  },
+                  "target": {
+                    "type": "string"
+                  },
+                  "asset_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "auth_type": {
+                    "type": "string",
+                    "enum": [
+                      "none",
+                      "token",
+                      "basic",
+                      "ssh-key"
+                    ]
+                  },
+                  "secret": {
+                    "description": "Leave blank when editing to keep the old secret",
+                    "type": "string"
+                  },
+                  "username": {
+                    "description": "Required for SSH and for Basic sign-in; ignored for the other sign-ins",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "clear_pin": {
+                    "description": "true = forget the pinned certificate or host key; the next Test pins again. A changed target, kind or sign-in forgets it too",
+                    "type": "boolean"
+                  },
+                  "allow": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "tools": {
+                    "description": "Per-tool enable; tools not listed keep their state",
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "enabled": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "enabled"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "kind",
+                  "target",
+                  "auth_type",
+                  "allow",
+                  "enabled"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "http",
+                        "ssh",
+                        "netconf-restconf",
+                        "automation",
+                        "mcp-http",
+                        "mcp-stdio"
+                      ]
+                    },
+                    "target": {
+                      "type": "string",
+                      "description": "Base URL or host:port. \"mcp-stdio\" rows are not supported (D-94)"
+                    },
+                    "asset_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "auth": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "token",
+                            "basic",
+                            "ssh-key"
+                          ]
+                        },
+                        "last4": {
+                          "description": "Last 4 characters of the secret; the full secret is never returned (SYS-4)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "last4"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "username": {
+                      "description": "User name for SSH and for Basic sign-in; null for the other sign-ins",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "pin": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "tls_sha256",
+                                "ssh_hostkey"
+                              ],
+                              "description": "tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system roots); ssh_hostkey = the SSH server host key"
+                            },
+                            "value": {
+                              "type": "string",
+                              "description": "tls_sha256: 64 hex characters; ssh_hostkey: key type and SHA256 fingerprint"
+                            },
+                            "first_seen": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "value",
+                            "first_seen"
+                          ],
+                          "additionalProperties": false,
+                          "description": "Pinned at the first successful Test (trust on first use, D-94). A changed certificate or host key is refused until an administrator forgets the pin"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Read-only. null until the first Test, or after the pin was forgotten"
+                    },
+                    "allow": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Hosts, URL prefixes or commands that may be used through this connection"
+                    },
+                    "tools": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "access": {
+                            "type": "string",
+                            "enum": [
+                              "read",
+                              "write"
+                            ]
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "access",
+                          "description",
+                          "enabled"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "error",
+                        "untested"
+                      ]
+                    },
+                    "last_test": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "kind",
+                    "target",
+                    "asset_id",
+                    "auth",
+                    "username",
+                    "pin",
+                    "allow",
+                    "tools",
+                    "enabled",
+                    "status",
+                    "last_test"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/connections/{id}/test": {
+      "post": {
+        "operationId": "core_post_core_connections_id_test",
+        "summary": "Test a connection, pin its certificate or host key on first use, and refresh its tool list",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-AI-7",
+          "S-RESP-4"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "latency_ms": {
+                      "type": "number"
+                    },
+                    "tools_found": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "connector": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "http",
+                            "ssh",
+                            "netconf-restconf",
+                            "automation",
+                            "mcp-http",
+                            "mcp-stdio"
+                          ]
+                        },
+                        "target": {
+                          "type": "string",
+                          "description": "Base URL or host:port. \"mcp-stdio\" rows are not supported (D-94)"
+                        },
+                        "asset_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "auth": {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "none",
+                                "token",
+                                "basic",
+                                "ssh-key"
+                              ]
+                            },
+                            "last4": {
+                              "description": "Last 4 characters of the secret; the full secret is never returned (SYS-4)",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "last4"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "username": {
+                          "description": "User name for SSH and for Basic sign-in; null for the other sign-ins",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "pin": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "tls_sha256",
+                                    "ssh_hostkey"
+                                  ],
+                                  "description": "tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system roots); ssh_hostkey = the SSH server host key"
+                                },
+                                "value": {
+                                  "type": "string",
+                                  "description": "tls_sha256: 64 hex characters; ssh_hostkey: key type and SHA256 fingerprint"
+                                },
+                                "first_seen": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "value",
+                                "first_seen"
+                              ],
+                              "additionalProperties": false,
+                              "description": "Pinned at the first successful Test (trust on first use, D-94). A changed certificate or host key is refused until an administrator forgets the pin"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Read-only. null until the first Test, or after the pin was forgotten"
+                        },
+                        "allow": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Hosts, URL prefixes or commands that may be used through this connection"
+                        },
+                        "tools": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "access": {
+                                "type": "string",
+                                "enum": [
+                                  "read",
+                                  "write"
+                                ]
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "access",
+                              "description",
+                              "enabled"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ok",
+                            "error",
+                            "untested"
+                          ]
+                        },
+                        "last_test": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "kind",
+                        "target",
+                        "asset_id",
+                        "auth",
+                        "username",
+                        "pin",
+                        "allow",
+                        "tools",
+                        "enabled",
+                        "status",
+                        "last_test"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "latency_ms",
+                    "tools_found",
+                    "message",
+                    "connector"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/core/data/backup": {
       "get": {
         "operationId": "core_get_core_data_backup",
@@ -12133,7 +12354,7 @@
     "/core/privacy": {
       "get": {
         "operationId": "core_get_core_privacy",
-        "summary": "The 11 data flows leaving the box and the verbatim anonymous-signal payload",
+        "summary": "The 12 data flows leaving the box and the verbatim anonymous-signal payload",
         "tags": [
           "core"
         ],
@@ -12157,7 +12378,7 @@
                           "id": {
                             "type": "integer",
                             "minimum": 1,
-                            "maximum": 11
+                            "maximum": 12
                           },
                           "state": {
                             "type": "string",
@@ -12185,7 +12406,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Exactly the 11 flows listed in PRIVACY.md"
+                      "description": "Exactly the 12 flows listed in PRIVACY.md"
                     },
                     "telemetry": {
                       "type": "object",
@@ -12292,7 +12513,7 @@
                           "id": {
                             "type": "integer",
                             "minimum": 1,
-                            "maximum": 11
+                            "maximum": 12
                           },
                           "state": {
                             "type": "string",
@@ -12320,7 +12541,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Exactly the 11 flows listed in PRIVACY.md"
+                      "description": "Exactly the 12 flows listed in PRIVACY.md"
                     },
                     "telemetry": {
                       "type": "object",

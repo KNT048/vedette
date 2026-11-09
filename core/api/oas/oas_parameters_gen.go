@@ -15,71 +15,6 @@ import (
 	"github.com/ogen-go/ogen/validate"
 )
 
-// AiDeleteAiConnectionsIDParams is parameters of ai_delete_ai_connections_id operation.
-type AiDeleteAiConnectionsIDParams struct {
-	ID string
-}
-
-func unpackAiDeleteAiConnectionsIDParams(packed middleware.Parameters) (params AiDeleteAiConnectionsIDParams) {
-	{
-		key := middleware.ParameterKey{
-			Name: "id",
-			In:   "path",
-		}
-		params.ID = packed[key].(string)
-	}
-	return params
-}
-
-func decodeAiDeleteAiConnectionsIDParams(args [1]string, argsEscaped bool, r *http.Request) (params AiDeleteAiConnectionsIDParams, _ error) {
-	// Decode path: id.
-	if err := func() error {
-		param := args[0]
-		if argsEscaped {
-			unescaped, err := url.PathUnescape(args[0])
-			if err != nil {
-				return errors.Wrap(err, "unescape path")
-			}
-			param = unescaped
-		}
-		if len(param) > 0 {
-			d := uri.NewPathDecoder(uri.PathDecoderConfig{
-				Param:   "id",
-				Value:   param,
-				Style:   uri.PathStyleSimple,
-				Explode: false,
-			})
-
-			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
-					return err
-				}
-
-				c, err := conv.ToString(val)
-				if err != nil {
-					return err
-				}
-
-				params.ID = c
-				return nil
-			}(); err != nil {
-				return err
-			}
-		} else {
-			return validate.ErrFieldRequired
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "id",
-			In:   "path",
-			Err:  err,
-		}
-	}
-	return params, nil
-}
-
 // AiDeleteAiHooksIDParams is parameters of ai_delete_ai_hooks_id operation.
 type AiDeleteAiHooksIDParams struct {
 	ID string
@@ -787,71 +722,6 @@ func decodeAiGetAiCveIDCachedParams(args [1]string, argsEscaped bool, r *http.Re
 	return params, nil
 }
 
-// AiPostAiConnectionsIDTestParams is parameters of ai_post_ai_connections_id_test operation.
-type AiPostAiConnectionsIDTestParams struct {
-	ID string
-}
-
-func unpackAiPostAiConnectionsIDTestParams(packed middleware.Parameters) (params AiPostAiConnectionsIDTestParams) {
-	{
-		key := middleware.ParameterKey{
-			Name: "id",
-			In:   "path",
-		}
-		params.ID = packed[key].(string)
-	}
-	return params
-}
-
-func decodeAiPostAiConnectionsIDTestParams(args [1]string, argsEscaped bool, r *http.Request) (params AiPostAiConnectionsIDTestParams, _ error) {
-	// Decode path: id.
-	if err := func() error {
-		param := args[0]
-		if argsEscaped {
-			unescaped, err := url.PathUnescape(args[0])
-			if err != nil {
-				return errors.Wrap(err, "unescape path")
-			}
-			param = unescaped
-		}
-		if len(param) > 0 {
-			d := uri.NewPathDecoder(uri.PathDecoderConfig{
-				Param:   "id",
-				Value:   param,
-				Style:   uri.PathStyleSimple,
-				Explode: false,
-			})
-
-			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
-					return err
-				}
-
-				c, err := conv.ToString(val)
-				if err != nil {
-					return err
-				}
-
-				params.ID = c
-				return nil
-			}(); err != nil {
-				return err
-			}
-		} else {
-			return validate.ErrFieldRequired
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "id",
-			In:   "path",
-			Err:  err,
-		}
-	}
-	return params, nil
-}
-
 // AiPostAiCveIDExplainParams is parameters of ai_post_ai_cve_id_explain operation.
 type AiPostAiCveIDExplainParams struct {
 	ID string
@@ -1104,71 +974,6 @@ func unpackAiPostAiMemorySuggestionsIDRejectParams(packed middleware.Parameters)
 }
 
 func decodeAiPostAiMemorySuggestionsIDRejectParams(args [1]string, argsEscaped bool, r *http.Request) (params AiPostAiMemorySuggestionsIDRejectParams, _ error) {
-	// Decode path: id.
-	if err := func() error {
-		param := args[0]
-		if argsEscaped {
-			unescaped, err := url.PathUnescape(args[0])
-			if err != nil {
-				return errors.Wrap(err, "unescape path")
-			}
-			param = unescaped
-		}
-		if len(param) > 0 {
-			d := uri.NewPathDecoder(uri.PathDecoderConfig{
-				Param:   "id",
-				Value:   param,
-				Style:   uri.PathStyleSimple,
-				Explode: false,
-			})
-
-			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
-					return err
-				}
-
-				c, err := conv.ToString(val)
-				if err != nil {
-					return err
-				}
-
-				params.ID = c
-				return nil
-			}(); err != nil {
-				return err
-			}
-		} else {
-			return validate.ErrFieldRequired
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "id",
-			In:   "path",
-			Err:  err,
-		}
-	}
-	return params, nil
-}
-
-// AiPutAiConnectionsIDParams is parameters of ai_put_ai_connections_id operation.
-type AiPutAiConnectionsIDParams struct {
-	ID string
-}
-
-func unpackAiPutAiConnectionsIDParams(packed middleware.Parameters) (params AiPutAiConnectionsIDParams) {
-	{
-		key := middleware.ParameterKey{
-			Name: "id",
-			In:   "path",
-		}
-		params.ID = packed[key].(string)
-	}
-	return params
-}
-
-func decodeAiPutAiConnectionsIDParams(args [1]string, argsEscaped bool, r *http.Request) (params AiPutAiConnectionsIDParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]
@@ -1689,6 +1494,71 @@ func unpackCoreDeleteCoreAccountSessionsIDParams(packed middleware.Parameters) (
 }
 
 func decodeCoreDeleteCoreAccountSessionsIDParams(args [1]string, argsEscaped bool, r *http.Request) (params CoreDeleteCoreAccountSessionsIDParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// CoreDeleteCoreConnectionsIDParams is parameters of core_delete_core_connections_id operation.
+type CoreDeleteCoreConnectionsIDParams struct {
+	ID string
+}
+
+func unpackCoreDeleteCoreConnectionsIDParams(packed middleware.Parameters) (params CoreDeleteCoreConnectionsIDParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeCoreDeleteCoreConnectionsIDParams(args [1]string, argsEscaped bool, r *http.Request) (params CoreDeleteCoreConnectionsIDParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]
@@ -2679,6 +2549,71 @@ func decodeCorePatchModulesIDParams(args [1]string, argsEscaped bool, r *http.Re
 	return params, nil
 }
 
+// CorePostCoreConnectionsIDTestParams is parameters of core_post_core_connections_id_test operation.
+type CorePostCoreConnectionsIDTestParams struct {
+	ID string
+}
+
+func unpackCorePostCoreConnectionsIDTestParams(packed middleware.Parameters) (params CorePostCoreConnectionsIDTestParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeCorePostCoreConnectionsIDTestParams(args [1]string, argsEscaped bool, r *http.Request) (params CorePostCoreConnectionsIDTestParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // CorePostCoreUsersID2FAResetParams is parameters of core_post_core_users_id_2fa_reset operation.
 type CorePostCoreUsersID2FAResetParams struct {
 	ID string
@@ -2761,6 +2696,71 @@ func unpackCorePostCoreUsersIDResetPasswordParams(packed middleware.Parameters) 
 }
 
 func decodeCorePostCoreUsersIDResetPasswordParams(args [1]string, argsEscaped bool, r *http.Request) (params CorePostCoreUsersIDResetPasswordParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// CorePutCoreConnectionsIDParams is parameters of core_put_core_connections_id operation.
+type CorePutCoreConnectionsIDParams struct {
+	ID string
+}
+
+func unpackCorePutCoreConnectionsIDParams(packed middleware.Parameters) (params CorePutCoreConnectionsIDParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeCorePutCoreConnectionsIDParams(args [1]string, argsEscaped bool, r *http.Request) (params CorePutCoreConnectionsIDParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]

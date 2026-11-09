@@ -453,6 +453,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 |---|---|---|
 | `GET /logs/events` | 100 / 500 | khoá `events` (giữ); thêm `next_cursor` |
 | `GET /core/audit`, `/ai/activity`, `/response/log`, `/honeypot/hits`, `/notify/history`, `/scans/probes`, `/scans/events`, `/ai/runs`, `/ai/asks` | 100 / 500 | |
+| `GET /notify/incidents` | 500 / 500 | chưa có `cursor`: trả 500 sự cố mới nhất (mock không giới hạn) |
 | `GET /findings`, `/inventory/devices`, `/inventory/catalog` | 2.000 / 2.000 | SPA hiện tải một lần và lọc ở client; giữ cho tới khi GUI chuyển phân trang (câu hỏi mở 3) |
 | Bảng cấu hình nhỏ (kênh, hồ sơ AI, quy tắc, nguồn log, hook, bẫy…) | không phân trang | ≤ 30–200 dòng theo giới hạn trong hợp đồng |
 

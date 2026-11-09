@@ -1,1 +1,3 @@
 * text=auto eol=lf
+core/api/oas/** linguist-generated=true
+core/api/routes/routes_gen.go linguist-generated=true

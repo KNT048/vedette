@@ -44,6 +44,26 @@ Pinned in `tools/go.mod` (Go `tool` directives), run with `go tool -modfile=tool
 | golangci-lint | v2.15.0 | GPL-3.0 | linter run on the source tree in dev and CI; separate process, never distributed |
 | govulncheck (golang.org/x/vuln) | v1.9.0 | BSD-3-Clause | vulnerability scan of Go dependencies in dev and CI (daily on `main`) |
 
+## Go libraries linked into the binary
+
+Pinned in `go.mod` and `go.sum`; licenses checked from the `LICENSE` files of each module (2026-11-09). Direct use is the generated API server (`core/api/oas`). Versions in the table are what `go list -deps ./core/api/...` resolved; `make verify-go` runs `govulncheck` on them.
+
+| Library | Version | License | How it is used |
+|---|---|---|---|
+| github.com/ogen-go/ogen | v1.24.0 | Apache-2.0 | generates `core/api/oas` (`go tool ogen`, D-60); its runtime packages (router, request validation, JSON decode) are linked into the binary |
+| github.com/go-faster/jx | v1.2.0 | MIT | JSON encode/decode in the generated server |
+| github.com/go-faster/errors | v0.8.0 | BSD-3-Clause | error wrapping in ogen runtime |
+| github.com/go-faster/yaml | v0.4.6 | Apache-2.0 and MIT | spec parser inside ogen's `jsonschema` package (linked, not used at run time) |
+| github.com/dlclark/regexp2 | v1.12.0 | MIT | string `pattern` validation (ECMA-262 regexes from the contract) |
+| github.com/google/uuid | v1.6.0 | BSD-3-Clause | UUID parameters in generated code |
+| github.com/shopspring/decimal | v1.4.0 | MIT | number handling in ogen runtime |
+| github.com/segmentio/asm | v1.2.1 | MIT-0 | base64 in ogen runtime |
+| github.com/ghodss/yaml | v1.0.0 | MIT and BSD-3-Clause | YAML to JSON in ogen's spec package (linked, not used at run time) |
+| gopkg.in/yaml.v2 | v2.4.0 | Apache-2.0 and MIT | YAML parsing used by `ghodss/yaml` |
+| github.com/fatih/color, github.com/mattn/go-colorable, github.com/mattn/go-isatty | v1.19.0, v0.1.14, v0.0.24 | MIT | terminal colour in ogen's logger (linked, not used at run time) |
+| go.uber.org/zap, go.uber.org/multierr | v1.28.0, v1.11.0 | MIT | logging inside ogen's spec packages (linked, not used at run time) |
+| golang.org/x/net, golang.org/x/text, golang.org/x/sys, golang.org/x/sync, golang.org/x/exp | v0.62.0, v0.43.0, v0.49.0, v0.24.0, 2023-07-25 | BSD-3-Clause | HTTP header and IDNA checks, Unicode tables, system calls, errgroup, generic helpers |
+
 ## Libraries planned for embedding (backend)
 
 | Component | License |

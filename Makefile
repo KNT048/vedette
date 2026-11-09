@@ -34,7 +34,7 @@ verify-web:
 verify-go:
 	go build ./...
 	go vet ./...
-	$(MAKE) test-go contract lint-go vuln
+	$(MAKE) generate-api-check test-go contract lint-go vuln
 	$(MAKE) clean
 
 # api/openapi.json phải đúng bằng bản sinh từ contract.ts (D-18).
@@ -77,3 +77,15 @@ fixtures:
 
 clean:
 	rm -rf bin coverage.out web/dist web/playwright-report web/test-results web/node_modules/.tmp web/node_modules/.vite
+
+# Mã Go server sinh từ api/openapi.json (D-60): chuẩn hoá vào thư mục tạm, chạy ogen, ghi bảng vai.
+# Bản chuẩn hoá không commit. Không sửa tay core/api/oas và core/api/routes/routes_gen.go.
+.PHONY: generate-api generate-api-check
+generate-api:
+	@tmp=$$(mktemp -d) && trap 'rm -rf "$$tmp"' EXIT && \
+	go run ./core/api/apigen -in api/openapi.json -spec "$$tmp/openapi.json" -routes core/api/routes/routes_gen.go && \
+	go tool ogen --config core/api/ogen.yml --target core/api/oas --package oas --clean "$$tmp/openapi.json"
+
+generate-api-check: generate-api
+	git diff --exit-code -- core/api
+	@test -z "$$(git status --porcelain -- core/api)" || { git status --porcelain -- core/api; echo "generate-api-check: untracked generated files"; exit 1; }

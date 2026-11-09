@@ -1,0 +1,8 @@
+# ogen v1.24.0 config for core/api/oas (D-60). Server only: no client, no webhooks, no OpenTelemetry.
+# Keep ogen/unimplemented: modules implement the Handler interface one operation at a time.
+generator:
+  features:
+    disable:
+      - paths/client
+      - webhooks/client
+      - ogen/otel

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"github.com/go-faster/jx"
 	ht "github.com/ogen-go/ogen/http"
@@ -48,8 +49,8 @@ func mapError(err error) (*apierr.Error, bool) {
 	case errors.As(err, &ctErr):
 		return apierr.Invalid("Send the request body as application/json."), false
 	case errors.As(err, &valErr):
-		if len(valErr.Fields) > 0 && safeField.MatchString(valErr.Fields[0].Name) {
-			return apierr.Invalid(fmt.Sprintf("The field %q is missing or has a value that is not allowed. Fix it and try again.", valErr.Fields[0].Name)), false
+		if path := fieldPath(valErr); safeField.MatchString(path) {
+			return apierr.Invalid(fmt.Sprintf("The field %q is missing or has a value that is not allowed. Fix it and try again.", path)).With("field", path), false
 		}
 		return apierr.Invalid("The request has a value that is not allowed. Fix it and try again."), false
 	case errors.As(err, &paramEr):
@@ -63,6 +64,26 @@ func mapError(err error) (*apierr.Error, bool) {
 		return apierr.Invalid("The request body is not valid JSON of the expected shape."), false
 	}
 	return apierr.Internal(), true
+}
+
+// fieldPath is the full path of the first failing field of a validation error, for example
+// "active.days[0]" or "lan_ranges": ogen nests one validate.Error per object level and names array
+// elements "[i]". It is "" when there is no field. The path is made of contract names only (D-73).
+func fieldPath(e *validate.Error) string {
+	path := ""
+	for e != nil && len(e.Fields) > 0 {
+		f := e.Fields[0]
+		if path != "" && !strings.HasPrefix(f.Name, "[") {
+			path += "."
+		}
+		path += f.Name
+		var next *validate.Error
+		if !errors.As(f.Error, &next) {
+			break
+		}
+		e = next
+	}
+	return path
 }
 
 // toOAS converts an API error to the generated response type, extras included.

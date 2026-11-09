@@ -10,8 +10,11 @@ import type {
 
 export const useDevices = () => useQuery({ queryKey: ['inventory', 'devices'], queryFn: () => api.get<DevicesResponse>('/inventory/devices') })
 export const useDevice = (id: string) => useQuery({ queryKey: ['inventory', 'device', id], queryFn: () => api.get<DeviceDetail>(`/inventory/devices/${encodeURIComponent(id)}`), retry: false })
+/** The contract allows at most 80 characters in `q` (the backend answers 400 above that; the mock clips). A pasted long text is clipped here so suggestions keep working. */
+export const CATALOG_Q_MAX = 80
+export const catalogPath = (q: string) => `/inventory/catalog?q=${encodeURIComponent(q.trim().slice(0, CATALOG_Q_MAX).trim())}`
 export const useCatalog = (q: string) =>
-  useQuery({ queryKey: ['inventory', 'catalog', q], queryFn: () => api.get<CatalogResponse>(`/inventory/catalog?q=${encodeURIComponent(q)}`), placeholderData: (prev) => prev, enabled: q !== '' })
+  useQuery({ queryKey: ['inventory', 'catalog', q.trim().slice(0, CATALOG_Q_MAX)], queryFn: () => api.get<CatalogResponse>(catalogPath(q)), placeholderData: (prev) => prev, enabled: q.trim() !== '' })
 export const useSettings = () => useQuery({ queryKey: ['inventory', 'settings'], queryFn: () => api.get<InventorySettings>('/inventory/settings'), retry: false })
 export const useSensors = () => useQuery({ queryKey: ['inventory', 'sensors'], queryFn: () => api.get<SensorsResponse>('/inventory/sensors'), retry: false })
 export const useAgents = () => useQuery({ queryKey: ['inventory', 'agents'], queryFn: () => api.get<AgentsResponse>('/inventory/agents'), retry: false })

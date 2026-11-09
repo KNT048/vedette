@@ -5,6 +5,7 @@ import (
 
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/modules/core"
+	"github.com/knt048/vedette/modules/inventory"
 )
 
 // handler is the composite of oas.Handler: server.Fallback answers 501 for every operation and gives
@@ -15,6 +16,7 @@ import (
 type handler struct {
 	server.Fallback
 	*core.ModuleHandlers
+	*inventory.Handlers
 }
 
 // newHandler builds every module's handlers from the shared deps. Adding a module = one field above
@@ -23,6 +25,7 @@ func newHandler(d deps) handler {
 	return handler{
 		Fallback:       server.Fallback{Log: d.Log},
 		ModuleHandlers: core.NewModuleHandlers(d.DB, d.Reg),
+		Handlers:       inventory.NewHandlers(newInventory(d)),
 	}
 }
 

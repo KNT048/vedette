@@ -1,0 +1,2216 @@
+{
+ "search": [
+  {
+   "q": "",
+   "total": 883,
+   "items": [
+    {
+     "id": "fortigate",
+     "kev_count": 22,
+     "kev": [
+      "fortinet|fortios",
+      "fortinet|fortios and fortiadc",
+      "fortinet|fortios and fortiproxy",
+      "fortinet|fortios and fortiproxy ssl-vpn",
+      "fortinet|multiple products"
+     ]
+    },
+    {
+     "id": "mikrotik-routeros",
+     "kev_count": 5,
+     "kev": [
+      "mikrotik|routeros"
+     ]
+    },
+    {
+     "id": "cisco-asa-firepower-ftd",
+     "kev_count": 18,
+     "kev": [
+      "cisco|adaptive security appliance (asa)",
+      "cisco|adaptive security appliance (asa) and firepower threat defense (ftd)",
+      "cisco|adaptive security appliance and firepower threat defense",
+      "cisco|secure firewall adaptive security appliance (asa) and secure firewall threat defense (ftd)",
+      "cisco|secure firewall adaptive security appliance and secure firewall threat defense",
+      "cisco|secure firewall asa software and cisco secure ftd software",
+      "cisco|secure firewall management center (fmc)",
+      "cisco|secure firewall management center (fmc) and security cloud control (scc) firewall management"
+     ]
+    },
+    {
+     "id": "cisco-ios-ios-xe-router-or-switch",
+     "kev_count": 46,
+     "kev": [
+      "cisco|cisco ios xe web ui",
+      "cisco|ios",
+      "cisco|ios and ios xe",
+      "cisco|ios and ios xe software",
+      "cisco|ios software",
+      "cisco|ios software and cisco ios xe software",
+      "cisco|ios xe software",
+      "cisco|ios xe web ui",
+      "cisco|ios xr",
+      "cisco|ios, ios xr, and ios xe",
+      "cisco|ios, xr, and xe software"
+     ]
+    },
+    {
+     "id": "cisco-rv-series-router-small-business",
+     "kev_count": 12,
+     "kev": [
+      "cisco|identity services engine",
+      "cisco|rv series routers",
+      "cisco|small business rv series routers",
+      "cisco|small business rv160, rv260, rv340, and rv345 series routers",
+      "cisco|small business rv320 and rv325 dual gigabit wan vpn routers",
+      "cisco|small business rv320 and rv325 routers"
+     ]
+    },
+    {
+     "id": "cisco-meraki",
+     "kev_count": 0,
+     "kev": [
+      "cisco|meraki"
+     ]
+    },
+    {
+     "id": "palo-alto-pan-os-firewall",
+     "kev_count": 13,
+     "kev": [
+      "palo alto networks|pan-os"
+     ]
+    },
+    {
+     "id": "sophos-xg-xgs-firewall",
+     "kev_count": 5,
+     "kev": [
+      "sophos|sfos",
+      "sophos|xg firewall",
+      "sophos|firewall",
+      "sophos|cyberoamos"
+     ]
+    },
+    {
+     "id": "sonicwall-firewall-sonicos",
+     "kev_count": 3,
+     "kev": [
+      "sonicwall|sonicos"
+     ]
+    },
+    {
+     "id": "sonicwall-sma-remote-access",
+     "kev_count": 13,
+     "kev": [
+      "sonicwall|sma 100 appliances",
+      "sonicwall|sma100",
+      "sonicwall|sma100 appliances",
+      "sonicwall|sma1000 appliance",
+      "sonicwall|sma1000 appliances",
+      "sonicwall|sslvpn sma100",
+      "sonicwall|secure remote access (sra)"
+     ]
+    },
+    {
+     "id": "watchguard-firebox",
+     "kev_count": 4,
+     "kev": [
+      "watchguard|firebox",
+      "watchguard|firebox and xtm",
+      "watchguard|firebox and xtm appliances"
+     ]
+    },
+    {
+     "id": "check-point-security-gateway",
+     "kev_count": 5,
+     "kev": [
+      "check point|multiple products",
+      "check point|quantum security gateways",
+      "check point|security gateway",
+      "check point|smartconsole"
+     ]
+    },
+    {
+     "id": "juniper-srx-junos",
+     "kev_count": 7,
+     "kev": [
+      "juniper|junos os"
+     ]
+    },
+    {
+     "id": "pfsense",
+     "kev_count": 0,
+     "kev": [
+      "netgate|pfsense"
+     ]
+    },
+    {
+     "id": "opnsense",
+     "kev_count": 0,
+     "kev": [
+      "deciso|opnsense"
+     ]
+    },
+    {
+     "id": "draytek-vigor-router",
+     "kev_count": 5,
+     "kev": [
+      "draytek|multiple vigor routers",
+      "draytek|vigor routers",
+      "draytek|vigorconnect"
+     ]
+    },
+    {
+     "id": "tp-link-router-archer-er",
+     "kev_count": 6,
+     "kev": [
+      "tp-link|archer ax21",
+      "tp-link|multiple archer devices",
+      "tp-link|multiple routers",
+      "tp-link|tl-wa855re",
+      "tp-link|tl-wr841n"
+     ]
+    },
+    {
+     "id": "tp-link-omada",
+     "kev_count": 0,
+     "kev": [
+      "tp-link|omada"
+     ]
+    },
+    {
+     "id": "ubiquiti-unifi",
+     "kev_count": 3,
+     "kev": [
+      "ubiquiti|unifi os"
+     ]
+    },
+    {
+     "id": "ubiquiti-edgerouter-airos",
+     "kev_count": 1,
+     "kev": [
+      "ubiquiti|airos"
+     ]
+    },
+    {
+     "id": "zyxel-firewall-usg-atp-usg-flex",
+     "kev_count": 5,
+     "kev": [
+      "zyxel|multiple firewalls"
+     ]
+    },
+    {
+     "id": "zyxel-router-dsl-modem",
+     "kev_count": 4,
+     "kev": [
+      "zyxel|dsl cpe devices",
+      "zyxel|emg2926 routers",
+      "zyxel|p660hn-t1a routers"
+     ]
+    },
+    {
+     "id": "huawei-usg-ar-router",
+     "kev_count": 0,
+     "kev": [
+      "huawei|usg"
+     ]
+    },
+    {
+     "id": "ruijie-reyee-device",
+     "kev_count": 0,
+     "kev": [
+      "ruijie|reyee"
+     ]
+    },
+    {
+     "id": "netgear-router-or-access-point",
+     "kev_count": 8,
+     "kev": [
+      "netgear|dgn2200 devices",
+      "netgear|jgs516pe devices",
+      "netgear|multiple devices",
+      "netgear|multiple routers",
+      "netgear|wireless access point (wap) devices",
+      "netgear|wireless router dgn2200",
+      "netgear|wnr2000v5 router"
+     ]
+    },
+    {
+     "id": "d-link-router-nas-or-camera",
+     "kev_count": 27,
+     "kev": [
+      "d-link|dcs-2530l and dcs-2670l devices",
+      "d-link|dcs-930l devices",
+      "d-link|dir-300 router",
+      "d-link|dir-600 router",
+      "d-link|dir-605 router",
+      "d-link|dir-610 devices",
+      "d-link|dir-645 router",
+      "d-link|dir-820 router",
+      "d-link|dir-820l",
+      "d-link|dir-823x",
+      "d-link|dir-825 r1 devices",
+      "d-link|dir-859 router",
+      "d-link|dnr-322l",
+      "d-link|dns-320 device",
+      "d-link|dns-320 storage device",
+      "d-link|dsl-2750b devices",
+      "d-link|dsl-2760u",
+      "d-link|dwl-2600ap access point",
+      "d-link|multiple nas devices",
+      "d-link|multiple routers",
+      "d-link|routers",
+      "d-link and trendnet|multiple devices"
+     ]
+    },
+    {
+     "id": "tenda-router",
+     "kev_count": 3,
+     "kev": [
+      "tenda|ac11 router",
+      "tenda|ac1900 router ac15 model",
+      "tenda|ac7, ac9, and ac10 routers"
+     ]
+    },
+    {
+     "id": "home-or-isp-modem-viettel-vnpt-fpt",
+     "kev_count": 0,
+     "kev": [
+      "isp|modem"
+     ]
+    },
+    {
+     "id": "linksys-router",
+     "kev_count": 0,
+     "kev": [
+      "linksys|routers"
+     ]
+    },
+    {
+     "id": "juniper-aruba-hpe-switch",
+     "kev_count": 1,
+     "kev": [
+      "hewlett packard (hp)|procurve manager (pcm), pcm+, identity driven manager (idm), and application lifecycle management"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "forti",
+   "total": 13,
+   "items": [
+    {
+     "id": "fortigate",
+     "kev_count": 22,
+     "kev": [
+      "fortinet|fortios",
+      "fortinet|fortios and fortiadc",
+      "fortinet|fortios and fortiproxy",
+      "fortinet|fortios and fortiproxy ssl-vpn",
+      "fortinet|multiple products"
+     ]
+    },
+    {
+     "id": "fortinet-forticlient-ssl-vpn",
+     "kev_count": 4,
+     "kev": [
+      "fortinet|forticlient ems",
+      "fortinet|fortios and fortiproxy ssl-vpn"
+     ]
+    },
+    {
+     "id": "fortinet-fortimail-fortiweb-fortimanager",
+     "kev_count": 10,
+     "kev": [
+      "fortinet|fortimail",
+      "fortinet|fortiweb",
+      "fortinet|fortimanager",
+      "fortinet|fortisandbox",
+      "fortinet|forticlient ems"
+     ]
+    },
+    {
+     "id": "kev:fortinet:fortios",
+     "kev_count": 9,
+     "kev": [
+      "fortinet|fortios"
+     ]
+    },
+    {
+     "id": "kev:fortinet:multiple-products",
+     "kev_count": 7,
+     "kev": [
+      "fortinet|multiple products"
+     ]
+    },
+    {
+     "id": "kev:fortinet:fortios-and-fortiproxy",
+     "kev_count": 4,
+     "kev": [
+      "fortinet|fortios and fortiproxy"
+     ]
+    },
+    {
+     "id": "kev:fortinet:forticlient-ems",
+     "kev_count": 3,
+     "kev": [
+      "fortinet|forticlient ems"
+     ]
+    },
+    {
+     "id": "kev:fortinet:fortiweb",
+     "kev_count": 3,
+     "kev": [
+      "fortinet|fortiweb"
+     ]
+    },
+    {
+     "id": "kev:fortinet:fortisandbox",
+     "kev_count": 2,
+     "kev": [
+      "fortinet|fortisandbox"
+     ]
+    },
+    {
+     "id": "kev:fortinet:fortimail",
+     "kev_count": 1,
+     "kev": [
+      "fortinet|fortimail"
+     ]
+    },
+    {
+     "id": "kev:fortinet:fortimanager",
+     "kev_count": 1,
+     "kev": [
+      "fortinet|fortimanager"
+     ]
+    },
+    {
+     "id": "kev:fortinet:fortios-and-fortiadc",
+     "kev_count": 1,
+     "kev": [
+      "fortinet|fortios and fortiadc"
+     ]
+    },
+    {
+     "id": "kev:fortinet:fortios-and-fortiproxy-ssl-vpn",
+     "kev_count": 1,
+     "kev": [
+      "fortinet|fortios and fortiproxy ssl-vpn"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "fortigate 60f",
+   "total": 1,
+   "items": [
+    {
+     "id": "fortigate",
+     "kev_count": 22,
+     "kev": [
+      "fortinet|fortios",
+      "fortinet|fortios and fortiadc",
+      "fortinet|fortios and fortiproxy",
+      "fortinet|fortios and fortiproxy ssl-vpn",
+      "fortinet|multiple products"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "synology",
+   "total": 2,
+   "items": [
+    {
+     "id": "synology-nas-dsm",
+     "kev_count": 0,
+     "kev": [
+      "synology|diskstation manager"
+     ]
+    },
+    {
+     "id": "synology-active-backup",
+     "kev_count": 0,
+     "kev": [
+      "synology|active backup"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "windows server 2019",
+   "total": 6,
+   "items": [
+    {
+     "id": "windows-server-2019",
+     "kev_count": 178,
+     "kev": [
+      "microsoft|windows",
+      "microsoft|windows ancillary function driver for winsock",
+      "microsoft|windows cng key isolation service",
+      "microsoft|windows com+ event system service"
+     ]
+    },
+    {
+     "id": "windows-server-2025",
+     "kev_count": 178,
+     "kev": [
+      "microsoft|windows",
+      "microsoft|windows ancillary function driver for winsock",
+      "microsoft|windows cng key isolation service",
+      "microsoft|windows com+ event system service"
+     ]
+    },
+    {
+     "id": "windows-server-2022",
+     "kev_count": 178,
+     "kev": [
+      "microsoft|windows",
+      "microsoft|windows ancillary function driver for winsock",
+      "microsoft|windows cng key isolation service",
+      "microsoft|windows com+ event system service"
+     ]
+    },
+    {
+     "id": "windows-server-2016",
+     "kev_count": 178,
+     "kev": [
+      "microsoft|windows",
+      "microsoft|windows ancillary function driver for winsock",
+      "microsoft|windows cng key isolation service",
+      "microsoft|windows com+ event system service"
+     ]
+    },
+    {
+     "id": "windows-server-2012-2012-r2",
+     "kev_count": 178,
+     "kev": [
+      "microsoft|windows",
+      "microsoft|windows ancillary function driver for winsock",
+      "microsoft|windows cng key isolation service",
+      "microsoft|windows com+ event system service"
+     ]
+    },
+    {
+     "id": "windows-7-server-2008-unsupported",
+     "kev_count": 178,
+     "kev": [
+      "microsoft|windows",
+      "microsoft|windows ancillary function driver for winsock",
+      "microsoft|windows cng key isolation service",
+      "microsoft|windows com+ event system service"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "tuong lua",
+   "total": 5,
+   "items": [
+    {
+     "id": "fortigate",
+     "kev_count": 22,
+     "kev": [
+      "fortinet|fortios",
+      "fortinet|fortios and fortiadc",
+      "fortinet|fortios and fortiproxy",
+      "fortinet|fortios and fortiproxy ssl-vpn",
+      "fortinet|multiple products"
+     ]
+    },
+    {
+     "id": "cisco-asa-firepower-ftd",
+     "kev_count": 18,
+     "kev": [
+      "cisco|adaptive security appliance (asa)",
+      "cisco|adaptive security appliance (asa) and firepower threat defense (ftd)",
+      "cisco|adaptive security appliance and firepower threat defense",
+      "cisco|secure firewall adaptive security appliance (asa) and secure firewall threat defense (ftd)",
+      "cisco|secure firewall adaptive security appliance and secure firewall threat defense",
+      "cisco|secure firewall asa software and cisco secure ftd software",
+      "cisco|secure firewall management center (fmc)",
+      "cisco|secure firewall management center (fmc) and security cloud control (scc) firewall management"
+     ]
+    },
+    {
+     "id": "palo-alto-pan-os-firewall",
+     "kev_count": 13,
+     "kev": [
+      "palo alto networks|pan-os"
+     ]
+    },
+    {
+     "id": "sophos-xg-xgs-firewall",
+     "kev_count": 5,
+     "kev": [
+      "sophos|sfos",
+      "sophos|xg firewall",
+      "sophos|firewall",
+      "sophos|cyberoamos"
+     ]
+    },
+    {
+     "id": "zyxel-firewall-usg-atp-usg-flex",
+     "kev_count": 5,
+     "kev": [
+      "zyxel|multiple firewalls"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "cisco asa",
+   "total": 5,
+   "items": [
+    {
+     "id": "cisco-asa-firepower-ftd",
+     "kev_count": 18,
+     "kev": [
+      "cisco|adaptive security appliance (asa)",
+      "cisco|adaptive security appliance (asa) and firepower threat defense (ftd)",
+      "cisco|adaptive security appliance and firepower threat defense",
+      "cisco|secure firewall adaptive security appliance (asa) and secure firewall threat defense (ftd)",
+      "cisco|secure firewall adaptive security appliance and secure firewall threat defense",
+      "cisco|secure firewall asa software and cisco secure ftd software",
+      "cisco|secure firewall management center (fmc)",
+      "cisco|secure firewall management center (fmc) and security cloud control (scc) firewall management"
+     ]
+    },
+    {
+     "id": "kev:cisco:adaptive-security-appliance-asa-and-firepower-threat-defense-ftd",
+     "kev_count": 6,
+     "kev": [
+      "cisco|adaptive security appliance (asa) and firepower threat defense (ftd)"
+     ]
+    },
+    {
+     "id": "kev:cisco:adaptive-security-appliance-asa",
+     "kev_count": 4,
+     "kev": [
+      "cisco|adaptive security appliance (asa)"
+     ]
+    },
+    {
+     "id": "kev:cisco:secure-firewall-adaptive-security-appliance-asa-and-secure-firewall-threat-defense-ftd",
+     "kev_count": 1,
+     "kev": [
+      "cisco|secure firewall adaptive security appliance (asa) and secure firewall threat defense (ftd)"
+     ]
+    },
+    {
+     "id": "kev:cisco:secure-firewall-asa-software-and-cisco-secure-ftd-software",
+     "kev_count": 1,
+     "kev": [
+      "cisco|secure firewall asa software and cisco secure ftd software"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "wordpress",
+   "total": 8,
+   "items": [
+    {
+     "id": "wordpress",
+     "kev_count": 7,
+     "kev": [
+      "wordpress|core",
+      "wordpress|file manager plugin",
+      "wordpress|snap creek duplicator plugin",
+      "wordpress|social warfare plugin",
+      "wordpress|wordpress core"
+     ]
+    },
+    {
+     "id": "kev:wordpress:core",
+     "kev_count": 3,
+     "kev": [
+      "wordpress|core"
+     ]
+    },
+    {
+     "id": "kev:wordpress:file-manager-plugin",
+     "kev_count": 1,
+     "kev": [
+      "wordpress|file manager plugin"
+     ]
+    },
+    {
+     "id": "kev:wordpress:snap-creek-duplicator-plugin",
+     "kev_count": 1,
+     "kev": [
+      "wordpress|snap creek duplicator plugin"
+     ]
+    },
+    {
+     "id": "kev:wordpress:social-warfare-plugin",
+     "kev_count": 1,
+     "kev": [
+      "wordpress|social warfare plugin"
+     ]
+    },
+    {
+     "id": "kev:wordpress:wordpress-core",
+     "kev_count": 1,
+     "kev": [
+      "wordpress|wordpress core"
+     ]
+    },
+    {
+     "id": "kev:webpros:cpanel-whm-and-wp2-wordpress-squared",
+     "kev_count": 1,
+     "kev": [
+      "webpros|cpanel & whm and wp2 (wordpress squared)"
+     ]
+    },
+    {
+     "id": "woocommerce",
+     "kev_count": 0,
+     "kev": [
+      "automattic|woocommerce"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "office",
+   "total": 11,
+   "items": [
+    {
+     "id": "microsoft-office-desktop",
+     "kev_count": 34,
+     "kev": [
+      "microsoft|office",
+      "microsoft|office and wordpad",
+      "microsoft|office outlook",
+      "microsoft|excel"
+     ]
+    },
+    {
+     "id": "kev:microsoft:office",
+     "kev_count": 29,
+     "kev": [
+      "microsoft|office"
+     ]
+    },
+    {
+     "id": "kev:kingsoft:wps-office",
+     "kev_count": 1,
+     "kev": [
+      "kingsoft|wps office"
+     ]
+    },
+    {
+     "id": "kev:microsoft:office-and-wordpad",
+     "kev_count": 1,
+     "kev": [
+      "microsoft|office and wordpad"
+     ]
+    },
+    {
+     "id": "kev:microsoft:office-outlook",
+     "kev_count": 1,
+     "kev": [
+      "microsoft|office outlook"
+     ]
+    },
+    {
+     "id": "hp-printer-laserjet-officejet",
+     "kev_count": 0,
+     "kev": [
+      "hp|printer"
+     ]
+    },
+    {
+     "id": "kev:trend-micro:apex-one-and-officescan",
+     "kev_count": 2,
+     "kev": [
+      "trend micro|apex one and officescan"
+     ]
+    },
+    {
+     "id": "kev:trend-micro:apex-one-officescan-and-worry-free-business-security-agents",
+     "kev_count": 1,
+     "kev": [
+      "trend micro|apex one, officescan and worry-free business security agents"
+     ]
+    },
+    {
+     "id": "kev:trend-micro:apex-one-officescan-and-worry-free-business-security",
+     "kev_count": 1,
+     "kev": [
+      "trend micro|apex one, officescan, and worry-free business security"
+     ]
+    },
+    {
+     "id": "kev:trend-micro:officescan",
+     "kev_count": 1,
+     "kev": [
+      "trend micro|officescan"
+     ]
+    },
+    {
+     "id": "kev:onlyoffice:docs",
+     "kev_count": 1,
+     "kev": [
+      "onlyoffice|docs"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "qnap",
+   "total": 9,
+   "items": [
+    {
+     "id": "qnap-nas-qts-quts-hero",
+     "kev_count": 6,
+     "kev": [
+      "qnap|qts",
+      "qnap|network attached storage (nas)",
+      "qnap|qnap network-attached storage (nas)"
+     ]
+    },
+    {
+     "id": "qnap-photo-station",
+     "kev_count": 4,
+     "kev": [
+      "qnap|photo station"
+     ]
+    },
+    {
+     "id": "qnap-viostor-nvr",
+     "kev_count": 1,
+     "kev": [
+      "qnap|viostor nvr"
+     ]
+    },
+    {
+     "id": "kev:qnap:network-attached-storage-nas",
+     "kev_count": 4,
+     "kev": [
+      "qnap|network attached storage (nas)"
+     ]
+    },
+    {
+     "id": "kev:qnap:photo-station",
+     "kev_count": 4,
+     "kev": [
+      "qnap|photo station"
+     ]
+    },
+    {
+     "id": "kev:qnap:qnap-network-attached-storage-nas",
+     "kev_count": 1,
+     "kev": [
+      "qnap|qnap network-attached storage (nas)"
+     ]
+    },
+    {
+     "id": "kev:qnap:qts",
+     "kev_count": 1,
+     "kev": [
+      "qnap|qts"
+     ]
+    },
+    {
+     "id": "kev:qnap:viostor-nvr",
+     "kev_count": 1,
+     "kev": [
+      "qnap|viostor nvr"
+     ]
+    },
+    {
+     "id": "kev:qnap-systems:helpdesk",
+     "kev_count": 1,
+     "kev": [
+      "qnap systems|helpdesk"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "zzzzqq",
+   "total": 0,
+   "items": []
+  },
+  {
+   "q": "microsoft",
+   "total": 89,
+   "items": [
+    {
+     "id": "kev:microsoft:microsoft",
+     "kev_count": 1,
+     "kev": [
+      "microsoft|microsoft"
+     ]
+    },
+    {
+     "id": "microsoft-edge-internet-explorer",
+     "kev_count": 42,
+     "kev": [
+      "microsoft|edge",
+      "microsoft|edge and internet explorer",
+      "microsoft|internet explorer and edge",
+      "microsoft|internet explorer",
+      "microsoft|internet explorer scripting engine"
+     ]
+    },
+    {
+     "id": "microsoft-office-desktop",
+     "kev_count": 34,
+     "kev": [
+      "microsoft|office",
+      "microsoft|office and wordpad",
+      "microsoft|office outlook",
+      "microsoft|excel"
+     ]
+    },
+    {
+     "id": "microsoft-exchange-server",
+     "kev_count": 19,
+     "kev": [
+      "microsoft|exchange",
+      "microsoft|exchange server",
+      "microsoft|internet key exchange (ike) service extensions"
+     ]
+    },
+    {
+     "id": "microsoft-sharepoint-server",
+     "kev_count": 16,
+     "kev": [
+      "microsoft|.net framework, sharepoint, visual studio",
+      "microsoft|sharepoint",
+      "microsoft|sharepoint server"
+     ]
+    },
+    {
+     "id": "microsoft-hyper-v",
+     "kev_count": 1,
+     "kev": [
+      "microsoft|hyper-v remotefx"
+     ]
+    },
+    {
+     "id": "microsoft-iis-web-server",
+     "kev_count": 3,
+     "kev": [
+      "microsoft|internet information services (iis)",
+      "microsoft|http.sys",
+      "microsoft|http protocol stack"
+     ]
+    },
+    {
+     "id": "microsoft-sql-server",
+     "kev_count": 2,
+     "kev": [
+      "microsoft|sql server"
+     ]
+    },
+    {
+     "id": "kev:microsoft:windows",
+     "kev_count": 175,
+     "kev": [
+      "microsoft|windows"
+     ]
+    },
+    {
+     "id": "kev:microsoft:internet-explorer",
+     "kev_count": 36,
+     "kev": [
+      "microsoft|internet explorer"
+     ]
+    },
+    {
+     "id": "kev:microsoft:office",
+     "kev_count": 29,
+     "kev": [
+      "microsoft|office"
+     ]
+    },
+    {
+     "id": "kev:microsoft:win32k",
+     "kev_count": 25,
+     "kev": [
+      "microsoft|win32k"
+     ]
+    },
+    {
+     "id": "microsoft-defender-antivirus",
+     "kev_count": 6,
+     "kev": [
+      "microsoft|defender",
+      "microsoft|malware protection engine"
+     ]
+    },
+    {
+     "id": "kev:microsoft:exchange-server",
+     "kev_count": 17,
+     "kev": [
+      "microsoft|exchange server"
+     ]
+    },
+    {
+     "id": "kev:microsoft:sharepoint",
+     "kev_count": 10,
+     "kev": [
+      "microsoft|sharepoint"
+     ]
+    },
+    {
+     "id": "kev:microsoft:defender",
+     "kev_count": 5,
+     "kev": [
+      "microsoft|defender"
+     ]
+    },
+    {
+     "id": "kev:microsoft:sharepoint-server",
+     "kev_count": 5,
+     "kev": [
+      "microsoft|sharepoint server"
+     ]
+    },
+    {
+     "id": "kev:microsoft:open-management-infrastructure-omi",
+     "kev_count": 4,
+     "kev": [
+      "microsoft|open management infrastructure (omi)"
+     ]
+    },
+    {
+     "id": "kev:microsoft:word",
+     "kev_count": 4,
+     "kev": [
+      "microsoft|word"
+     ]
+    },
+    {
+     "id": "kev:microsoft:net-framework",
+     "kev_count": 3,
+     "kev": [
+      "microsoft|.net framework"
+     ]
+    },
+    {
+     "id": "kev:microsoft:active-directory",
+     "kev_count": 3,
+     "kev": [
+      "microsoft|active directory"
+     ]
+    },
+    {
+     "id": "kev:microsoft:excel",
+     "kev_count": 3,
+     "kev": [
+      "microsoft|excel"
+     ]
+    },
+    {
+     "id": "kev:microsoft:silverlight",
+     "kev_count": 3,
+     "kev": [
+      "microsoft|silverlight"
+     ]
+    },
+    {
+     "id": "kev:microsoft:directx-graphics-kernel-dxgkrnl",
+     "kev_count": 2,
+     "kev": [
+      "microsoft|directx graphics kernel (dxgkrnl)"
+     ]
+    },
+    {
+     "id": "kev:microsoft:edge",
+     "kev_count": 2,
+     "kev": [
+      "microsoft|edge"
+     ]
+    },
+    {
+     "id": "kev:microsoft:edge-and-internet-explorer",
+     "kev_count": 2,
+     "kev": [
+      "microsoft|edge and internet explorer"
+     ]
+    },
+    {
+     "id": "kev:microsoft:enhanced-cryptographic-provider",
+     "kev_count": 2,
+     "kev": [
+      "microsoft|enhanced cryptographic provider"
+     ]
+    },
+    {
+     "id": "kev:microsoft:graphics-device-interface-gdi",
+     "kev_count": 2,
+     "kev": [
+      "microsoft|graphics device interface (gdi)"
+     ]
+    },
+    {
+     "id": "kev:microsoft:mshtml",
+     "kev_count": 2,
+     "kev": [
+      "microsoft|mshtml"
+     ]
+    },
+    {
+     "id": "kev:microsoft:powerpoint",
+     "kev_count": 2,
+     "kev": [
+      "microsoft|powerpoint"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "apache",
+   "total": 24,
+   "items": [
+    {
+     "id": "kev:apache:apache",
+     "kev_count": 1,
+     "kev": [
+      "apache|apache"
+     ]
+    },
+    {
+     "id": "apache-struts",
+     "kev_count": 9,
+     "kev": [
+      "apache|struts",
+      "apache|struts 1",
+      "apache|struts 2"
+     ]
+    },
+    {
+     "id": "apache-http-server",
+     "kev_count": 4,
+     "kev": [
+      "apache|http server"
+     ]
+    },
+    {
+     "id": "apache-tomcat",
+     "kev_count": 6,
+     "kev": [
+      "apache|tomcat"
+     ]
+    },
+    {
+     "id": "kev:apache:struts",
+     "kev_count": 6,
+     "kev": [
+      "apache|struts"
+     ]
+    },
+    {
+     "id": "kev:apache:tomcat",
+     "kev_count": 6,
+     "kev": [
+      "apache|tomcat"
+     ]
+    },
+    {
+     "id": "kev:apache:http-server",
+     "kev_count": 4,
+     "kev": [
+      "apache|http server"
+     ]
+    },
+    {
+     "id": "kev:apache:activemq",
+     "kev_count": 3,
+     "kev": [
+      "apache|activemq"
+     ]
+    },
+    {
+     "id": "kev:apache:ofbiz",
+     "kev_count": 3,
+     "kev": [
+      "apache|ofbiz"
+     ]
+    },
+    {
+     "id": "kev:apache:log4j2",
+     "kev_count": 2,
+     "kev": [
+      "apache|log4j2"
+     ]
+    },
+    {
+     "id": "kev:apache:solr",
+     "kev_count": 2,
+     "kev": [
+      "apache|solr"
+     ]
+    },
+    {
+     "id": "kev:apache:struts-1",
+     "kev_count": 2,
+     "kev": [
+      "apache|struts 1"
+     ]
+    },
+    {
+     "id": "kev:apache:airflow",
+     "kev_count": 1,
+     "kev": [
+      "apache|airflow"
+     ]
+    },
+    {
+     "id": "kev:apache:airflow-s-experimental-api",
+     "kev_count": 1,
+     "kev": [
+      "apache|airflow's experimental api"
+     ]
+    },
+    {
+     "id": "kev:apache:apisix",
+     "kev_count": 1,
+     "kev": [
+      "apache|apisix"
+     ]
+    },
+    {
+     "id": "kev:apache:couchdb",
+     "kev_count": 1,
+     "kev": [
+      "apache|couchdb"
+     ]
+    },
+    {
+     "id": "kev:apache:flink",
+     "kev_count": 1,
+     "kev": [
+      "apache|flink"
+     ]
+    },
+    {
+     "id": "kev:apache:hugegraph-server",
+     "kev_count": 1,
+     "kev": [
+      "apache|hugegraph-server"
+     ]
+    },
+    {
+     "id": "kev:apache:kylin",
+     "kev_count": 1,
+     "kev": [
+      "apache|kylin"
+     ]
+    },
+    {
+     "id": "kev:apache:rocketmq",
+     "kev_count": 1,
+     "kev": [
+      "apache|rocketmq"
+     ]
+    },
+    {
+     "id": "kev:apache:shiro",
+     "kev_count": 1,
+     "kev": [
+      "apache|shiro"
+     ]
+    },
+    {
+     "id": "kev:apache:spark",
+     "kev_count": 1,
+     "kev": [
+      "apache|spark"
+     ]
+    },
+    {
+     "id": "kev:apache:struts-2",
+     "kev_count": 1,
+     "kev": [
+      "apache|struts 2"
+     ]
+    },
+    {
+     "id": "kev:apache:superset",
+     "kev_count": 1,
+     "kev": [
+      "apache|superset"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "hikvision",
+   "total": 3,
+   "items": [
+    {
+     "id": "hikvision-camera-nvr",
+     "kev_count": 2,
+     "kev": [
+      "hikvision|multiple products",
+      "hikvision|security cameras web server"
+     ]
+    },
+    {
+     "id": "kev:hikvision:multiple-products",
+     "kev_count": 1,
+     "kev": [
+      "hikvision|multiple products"
+     ]
+    },
+    {
+     "id": "kev:hikvision:security-cameras-web-server",
+     "kev_count": 1,
+     "kev": [
+      "hikvision|security cameras web server"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "camera",
+   "total": 17,
+   "items": [
+    {
+     "id": "d-link-router-nas-or-camera",
+     "kev_count": 27,
+     "kev": [
+      "d-link|dcs-2530l and dcs-2670l devices",
+      "d-link|dcs-930l devices",
+      "d-link|dir-300 router",
+      "d-link|dir-600 router",
+      "d-link|dir-605 router",
+      "d-link|dir-610 devices",
+      "d-link|dir-645 router",
+      "d-link|dir-820 router",
+      "d-link|dir-820l",
+      "d-link|dir-823x",
+      "d-link|dir-825 r1 devices",
+      "d-link|dir-859 router",
+      "d-link|dnr-322l",
+      "d-link|dns-320 device",
+      "d-link|dns-320 storage device",
+      "d-link|dsl-2750b devices",
+      "d-link|dsl-2760u",
+      "d-link|dwl-2600ap access point",
+      "d-link|multiple nas devices",
+      "d-link|multiple routers",
+      "d-link|routers",
+      "d-link and trendnet|multiple devices"
+     ]
+    },
+    {
+     "id": "hikvision-camera-nvr",
+     "kev_count": 2,
+     "kev": [
+      "hikvision|multiple products",
+      "hikvision|security cameras web server"
+     ]
+    },
+    {
+     "id": "dahua-camera-nvr",
+     "kev_count": 2,
+     "kev": [
+      "dahua|ip camera firmware"
+     ]
+    },
+    {
+     "id": "kbvision-camera",
+     "kev_count": 0,
+     "kev": [
+      "kbvision|ip camera"
+     ]
+    },
+    {
+     "id": "ezviz-camera",
+     "kev_count": 0,
+     "kev": [
+      "ezviz|camera"
+     ]
+    },
+    {
+     "id": "imou-camera",
+     "kev_count": 0,
+     "kev": [
+      "imou|camera"
+     ]
+    },
+    {
+     "id": "axis-camera",
+     "kev_count": 0,
+     "kev": [
+      "axis|network camera"
+     ]
+    },
+    {
+     "id": "uniview-unv-camera",
+     "kev_count": 0,
+     "kev": [
+      "uniview|ip camera"
+     ]
+    },
+    {
+     "id": "qnap-viostor-nvr",
+     "kev_count": 1,
+     "kev": [
+      "qnap|viostor nvr"
+     ]
+    },
+    {
+     "id": "kev:dahua:ip-camera-firmware",
+     "kev_count": 2,
+     "kev": [
+      "dahua|ip camera firmware"
+     ]
+    },
+    {
+     "id": "kev:edimax:ic-7100-ip-camera",
+     "kev_count": 1,
+     "kev": [
+      "edimax|ic-7100 ip camera"
+     ]
+    },
+    {
+     "id": "kev:reolink:rlc-410w-ip-camera",
+     "kev_count": 1,
+     "kev": [
+      "reolink|rlc-410w ip camera"
+     ]
+    },
+    {
+     "id": "kev:ptzoptics:pt30x-sdi-ndi-cameras",
+     "kev_count": 2,
+     "kev": [
+      "ptzoptics|pt30x-sdi/ndi cameras"
+     ]
+    },
+    {
+     "id": "kev:amcrest:cameras-and-network-video-recorder-nvr",
+     "kev_count": 1,
+     "kev": [
+      "amcrest|cameras and network video recorder (nvr)"
+     ]
+    },
+    {
+     "id": "kev:hikvision:security-cameras-web-server",
+     "kev_count": 1,
+     "kev": [
+      "hikvision|security cameras web server"
+     ]
+    },
+    {
+     "id": "kev:reolink:multiple-ip-cameras",
+     "kev_count": 1,
+     "kev": [
+      "reolink|multiple ip cameras"
+     ]
+    },
+    {
+     "id": "samsung-magicinfo",
+     "kev_count": 2,
+     "kev": [
+      "samsung|magicinfo 9 server"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "nas",
+   "total": 14,
+   "items": [
+    {
+     "id": "d-link-router-nas-or-camera",
+     "kev_count": 27,
+     "kev": [
+      "d-link|dcs-2530l and dcs-2670l devices",
+      "d-link|dcs-930l devices",
+      "d-link|dir-300 router",
+      "d-link|dir-600 router",
+      "d-link|dir-605 router",
+      "d-link|dir-610 devices",
+      "d-link|dir-645 router",
+      "d-link|dir-820 router",
+      "d-link|dir-820l",
+      "d-link|dir-823x",
+      "d-link|dir-825 r1 devices",
+      "d-link|dir-859 router",
+      "d-link|dnr-322l",
+      "d-link|dns-320 device",
+      "d-link|dns-320 storage device",
+      "d-link|dsl-2750b devices",
+      "d-link|dsl-2760u",
+      "d-link|dwl-2600ap access point",
+      "d-link|multiple nas devices",
+      "d-link|multiple routers",
+      "d-link|routers",
+      "d-link and trendnet|multiple devices"
+     ]
+    },
+    {
+     "id": "qnap-nas-qts-quts-hero",
+     "kev_count": 6,
+     "kev": [
+      "qnap|qts",
+      "qnap|network attached storage (nas)",
+      "qnap|qnap network-attached storage (nas)"
+     ]
+    },
+    {
+     "id": "synology-nas-dsm",
+     "kev_count": 0,
+     "kev": [
+      "synology|diskstation manager"
+     ]
+    },
+    {
+     "id": "asustor-nas-adm",
+     "kev_count": 0,
+     "kev": [
+      "asustor|adm"
+     ]
+    },
+    {
+     "id": "terramaster-nas-tos",
+     "kev_count": 1,
+     "kev": [
+      "terramaster|terramaster os"
+     ]
+    },
+    {
+     "id": "zyxel-nas",
+     "kev_count": 2,
+     "kev": [
+      "zyxel|multiple network-attached storage (nas) devices"
+     ]
+    },
+    {
+     "id": "truenas",
+     "kev_count": 0,
+     "kev": [
+      "ixsystems|truenas"
+     ]
+    },
+    {
+     "id": "western-digital-my-cloud",
+     "kev_count": 0,
+     "kev": [
+      "western digital|my cloud"
+     ]
+    },
+    {
+     "id": "kev:qnap:network-attached-storage-nas",
+     "kev_count": 4,
+     "kev": [
+      "qnap|network attached storage (nas)"
+     ]
+    },
+    {
+     "id": "kev:d-link:multiple-nas-devices",
+     "kev_count": 2,
+     "kev": [
+      "d-link|multiple nas devices"
+     ]
+    },
+    {
+     "id": "kev:zyxel:multiple-network-attached-storage-nas-devices",
+     "kev_count": 2,
+     "kev": [
+      "zyxel|multiple network-attached storage (nas) devices"
+     ]
+    },
+    {
+     "id": "kev:lg:n1a1-nas",
+     "kev_count": 1,
+     "kev": [
+      "lg|n1a1 nas"
+     ]
+    },
+    {
+     "id": "kev:qnap:qnap-network-attached-storage-nas",
+     "kev_count": 1,
+     "kev": [
+      "qnap|qnap network-attached storage (nas)"
+     ]
+    },
+    {
+     "id": "qnap-photo-station",
+     "kev_count": 4,
+     "kev": [
+      "qnap|photo station"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "vpn",
+   "total": 16,
+   "items": [
+    {
+     "id": "ivanti-connect-secure-pulse-secure-vpn",
+     "kev_count": 17,
+     "kev": [
+      "ivanti|connect secure",
+      "ivanti|connect secure and policy secure",
+      "ivanti|connect secure, policy secure, and neurons",
+      "ivanti|connect secure, policy secure, and zta gateways",
+      "ivanti|pulse connect secure",
+      "ivanti|pulse connect secure and pulse policy secure",
+      "pulse secure|pulse connect secure"
+     ]
+    },
+    {
+     "id": "fortinet-forticlient-ssl-vpn",
+     "kev_count": 4,
+     "kev": [
+      "fortinet|forticlient ems",
+      "fortinet|fortios and fortiproxy ssl-vpn"
+     ]
+    },
+    {
+     "id": "fortigate",
+     "kev_count": 22,
+     "kev": [
+      "fortinet|fortios",
+      "fortinet|fortios and fortiadc",
+      "fortinet|fortios and fortiproxy",
+      "fortinet|fortios and fortiproxy ssl-vpn",
+      "fortinet|multiple products"
+     ]
+    },
+    {
+     "id": "sonicwall-sma-remote-access",
+     "kev_count": 13,
+     "kev": [
+      "sonicwall|sma 100 appliances",
+      "sonicwall|sma100",
+      "sonicwall|sma100 appliances",
+      "sonicwall|sma1000 appliance",
+      "sonicwall|sma1000 appliances",
+      "sonicwall|sslvpn sma100",
+      "sonicwall|secure remote access (sra)"
+     ]
+    },
+    {
+     "id": "citrix-netscaler-adc-gateway",
+     "kev_count": 21,
+     "kev": [
+      "citrix|netscaler",
+      "citrix|netscaler adc and gateway",
+      "citrix|netscaler adc and netscaler gateway",
+      "citrix|netscaler sd-wan enterprise, cloudbridge virtual wan, and xenmobile server",
+      "citrix|sd-wan and netscaler",
+      "citrix|application delivery controller (adc) and gateway",
+      "citrix|application delivery controller (adc), gateway, and sd-wan wanop appliance"
+     ]
+    },
+    {
+     "id": "cisco-anyconnect-secure-client",
+     "kev_count": 2,
+     "kev": [
+      "cisco|anyconnect secure"
+     ]
+    },
+    {
+     "id": "openvpn-access-server",
+     "kev_count": 0,
+     "kev": [
+      "openvpn|access server"
+     ]
+    },
+    {
+     "id": "wireguard",
+     "kev_count": 0,
+     "kev": [
+      "wireguard|wireguard"
+     ]
+    },
+    {
+     "id": "kev:cisco:small-business-rv320-and-rv325-dual-gigabit-wan-vpn-routers",
+     "kev_count": 1,
+     "kev": [
+      "cisco|small business rv320 and rv325 dual gigabit wan vpn routers"
+     ]
+    },
+    {
+     "id": "kev:cisco:vpn-routers",
+     "kev_count": 1,
+     "kev": [
+      "cisco|vpn routers"
+     ]
+    },
+    {
+     "id": "kev:fortinet:fortios-and-fortiproxy-ssl-vpn",
+     "kev_count": 1,
+     "kev": [
+      "fortinet|fortios and fortiproxy ssl-vpn"
+     ]
+    },
+    {
+     "id": "f5-big-ip",
+     "kev_count": 8,
+     "kev": [
+      "f5|big-ip",
+      "f5|big-ip and big-iq centralized management",
+      "f5|big-ip apm",
+      "f5|big-ip configuration utility",
+      "f5|big-ip traffic management microkernel"
+     ]
+    },
+    {
+     "id": "kemp-loadmaster",
+     "kev_count": 2,
+     "kev": [
+      "progress|kemp loadmaster",
+      "progress|loadmaster"
+     ]
+    },
+    {
+     "id": "citrix-virtual-apps-storefront",
+     "kev_count": 1,
+     "kev": [
+      "citrix|storefront server"
+     ]
+    },
+    {
+     "id": "kev:fatpipe:warp-ipvpn-and-mpvpn-software",
+     "kev_count": 1,
+     "kev": [
+      "fatpipe|warp, ipvpn, and mpvpn software"
+     ]
+    },
+    {
+     "id": "kev:sonicwall:sslvpn-sma100",
+     "kev_count": 1,
+     "kev": [
+      "sonicwall|sslvpn sma100"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "ivanti",
+   "total": 16,
+   "items": [
+    {
+     "id": "ivanti-connect-secure-pulse-secure-vpn",
+     "kev_count": 17,
+     "kev": [
+      "ivanti|connect secure",
+      "ivanti|connect secure and policy secure",
+      "ivanti|connect secure, policy secure, and neurons",
+      "ivanti|connect secure, policy secure, and zta gateways",
+      "ivanti|pulse connect secure",
+      "ivanti|pulse connect secure and pulse policy secure",
+      "pulse secure|pulse connect secure"
+     ]
+    },
+    {
+     "id": "kev:ivanti:endpoint-manager-mobile-epmm",
+     "kev_count": 7,
+     "kev": [
+      "ivanti|endpoint manager mobile (epmm)"
+     ]
+    },
+    {
+     "id": "kev:ivanti:pulse-connect-secure",
+     "kev_count": 7,
+     "kev": [
+      "ivanti|pulse connect secure"
+     ]
+    },
+    {
+     "id": "kev:ivanti:endpoint-manager-epm",
+     "kev_count": 5,
+     "kev": [
+      "ivanti|endpoint manager (epm)"
+     ]
+    },
+    {
+     "id": "kev:ivanti:cloud-services-appliance-csa",
+     "kev_count": 3,
+     "kev": [
+      "ivanti|cloud services appliance (csa)"
+     ]
+    },
+    {
+     "id": "kev:ivanti:connect-secure",
+     "kev_count": 3,
+     "kev": [
+      "ivanti|connect secure"
+     ]
+    },
+    {
+     "id": "kev:ivanti:connect-secure-and-policy-secure",
+     "kev_count": 2,
+     "kev": [
+      "ivanti|connect secure and policy secure"
+     ]
+    },
+    {
+     "id": "kev:ivanti:connect-secure-policy-secure-and-zta-gateways",
+     "kev_count": 2,
+     "kev": [
+      "ivanti|connect secure, policy secure, and zta gateways"
+     ]
+    },
+    {
+     "id": "kev:ivanti:sentry",
+     "kev_count": 2,
+     "kev": [
+      "ivanti|sentry"
+     ]
+    },
+    {
+     "id": "kev:ivanti:cloud-services-appliance",
+     "kev_count": 1,
+     "kev": [
+      "ivanti|cloud services appliance"
+     ]
+    },
+    {
+     "id": "kev:ivanti:connect-secure-policy-secure-and-neurons",
+     "kev_count": 1,
+     "kev": [
+      "ivanti|connect secure, policy secure, and neurons"
+     ]
+    },
+    {
+     "id": "kev:ivanti:endpoint-manager-cloud-service-appliance-epm-csa",
+     "kev_count": 1,
+     "kev": [
+      "ivanti|endpoint manager cloud service appliance (epm csa)"
+     ]
+    },
+    {
+     "id": "kev:ivanti:endpoint-manager-mobile-epmm-and-mobileiron-core",
+     "kev_count": 1,
+     "kev": [
+      "ivanti|endpoint manager mobile (epmm) and mobileiron core"
+     ]
+    },
+    {
+     "id": "kev:ivanti:mobileiron-multiple-products",
+     "kev_count": 1,
+     "kev": [
+      "ivanti|mobileiron multiple products"
+     ]
+    },
+    {
+     "id": "kev:ivanti:pulse-connect-secure-and-pulse-policy-secure",
+     "kev_count": 1,
+     "kev": [
+      "ivanti|pulse connect secure and pulse policy secure"
+     ]
+    },
+    {
+     "id": "kev:ivanti:virtual-traffic-manager",
+     "kev_count": 1,
+     "kev": [
+      "ivanti|virtual traffic manager"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "sophos",
+   "total": 7,
+   "items": [
+    {
+     "id": "sophos-xg-xgs-firewall",
+     "kev_count": 5,
+     "kev": [
+      "sophos|sfos",
+      "sophos|xg firewall",
+      "sophos|firewall",
+      "sophos|cyberoamos"
+     ]
+    },
+    {
+     "id": "kev:sophos:firewall",
+     "kev_count": 2,
+     "kev": [
+      "sophos|firewall"
+     ]
+    },
+    {
+     "id": "kev:sophos:cyberoamos",
+     "kev_count": 1,
+     "kev": [
+      "sophos|cyberoamos"
+     ]
+    },
+    {
+     "id": "kev:sophos:sfos",
+     "kev_count": 1,
+     "kev": [
+      "sophos|sfos"
+     ]
+    },
+    {
+     "id": "kev:sophos:sg-utm",
+     "kev_count": 1,
+     "kev": [
+      "sophos|sg utm"
+     ]
+    },
+    {
+     "id": "kev:sophos:web-appliance",
+     "kev_count": 1,
+     "kev": [
+      "sophos|web appliance"
+     ]
+    },
+    {
+     "id": "kev:sophos:xg-firewall",
+     "kev_count": 1,
+     "kev": [
+      "sophos|xg firewall"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "tường lửa",
+   "total": 5,
+   "items": [
+    {
+     "id": "fortigate",
+     "kev_count": 22,
+     "kev": [
+      "fortinet|fortios",
+      "fortinet|fortios and fortiadc",
+      "fortinet|fortios and fortiproxy",
+      "fortinet|fortios and fortiproxy ssl-vpn",
+      "fortinet|multiple products"
+     ]
+    },
+    {
+     "id": "cisco-asa-firepower-ftd",
+     "kev_count": 18,
+     "kev": [
+      "cisco|adaptive security appliance (asa)",
+      "cisco|adaptive security appliance (asa) and firepower threat defense (ftd)",
+      "cisco|adaptive security appliance and firepower threat defense",
+      "cisco|secure firewall adaptive security appliance (asa) and secure firewall threat defense (ftd)",
+      "cisco|secure firewall adaptive security appliance and secure firewall threat defense",
+      "cisco|secure firewall asa software and cisco secure ftd software",
+      "cisco|secure firewall management center (fmc)",
+      "cisco|secure firewall management center (fmc) and security cloud control (scc) firewall management"
+     ]
+    },
+    {
+     "id": "palo-alto-pan-os-firewall",
+     "kev_count": 13,
+     "kev": [
+      "palo alto networks|pan-os"
+     ]
+    },
+    {
+     "id": "sophos-xg-xgs-firewall",
+     "kev_count": 5,
+     "kev": [
+      "sophos|sfos",
+      "sophos|xg firewall",
+      "sophos|firewall",
+      "sophos|cyberoamos"
+     ]
+    },
+    {
+     "id": "zyxel-firewall-usg-atp-usg-flex",
+     "kev_count": 5,
+     "kev": [
+      "zyxel|multiple firewalls"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "ms exchange",
+   "total": 0,
+   "items": []
+  },
+  {
+   "q": "  FortiGate  ",
+   "total": 1,
+   "items": [
+    {
+     "id": "fortigate",
+     "kev_count": 22,
+     "kev": [
+      "fortinet|fortios",
+      "fortinet|fortios and fortiadc",
+      "fortinet|fortios and fortiproxy",
+      "fortinet|fortios and fortiproxy ssl-vpn",
+      "fortinet|multiple products"
+     ]
+    }
+   ]
+  },
+  {
+   "q": "a",
+   "total": 358,
+   "items": [
+    {
+     "id": "asustor-nas-adm",
+     "kev_count": 0,
+     "kev": [
+      "asustor|adm"
+     ]
+    },
+    {
+     "id": "active-directory-domain-controller",
+     "kev_count": 6,
+     "kev": [
+      "microsoft|active directory",
+      "microsoft|active directory federation services",
+      "microsoft|netlogon",
+      "microsoft|kerberos key distribution center (kdc)"
+     ]
+    },
+    {
+     "id": "apache-struts",
+     "kev_count": 9,
+     "kev": [
+      "apache|struts",
+      "apache|struts 1",
+      "apache|struts 2"
+     ]
+    },
+    {
+     "id": "apache-http-server",
+     "kev_count": 4,
+     "kev": [
+      "apache|http server"
+     ]
+    },
+    {
+     "id": "apache-tomcat",
+     "kev_count": 6,
+     "kev": [
+      "apache|tomcat"
+     ]
+    },
+    {
+     "id": "atlassian-confluence",
+     "kev_count": 9,
+     "kev": [
+      "atlassian|confluence",
+      "atlassian|confluence data center and server",
+      "atlassian|confluence server",
+      "atlassian|confluence server and data center",
+      "atlassian|confluence server and data server",
+      "atlassian|confluence server/data center"
+     ]
+    },
+    {
+     "id": "atlassian-jira",
+     "kev_count": 2,
+     "kev": [
+      "atlassian|jira server and data center"
+     ]
+    },
+    {
+     "id": "atlassian-bitbucket-server",
+     "kev_count": 1,
+     "kev": [
+      "atlassian|bitbucket server and data center"
+     ]
+    },
+    {
+     "id": "acronis-cyber-protect-backup",
+     "kev_count": 2,
+     "kev": [
+      "acronis|backup",
+      "acronis|cyber infrastructure (aci)"
+     ]
+    },
+    {
+     "id": "kev:apple:multiple-products",
+     "kev_count": 55,
+     "kev": [
+      "apple|multiple products"
+     ]
+    },
+    {
+     "id": "anydesk",
+     "kev_count": 0,
+     "kev": [
+      "anydesk|anydesk"
+     ]
+    },
+    {
+     "id": "axis-camera",
+     "kev_count": 0,
+     "kev": [
+      "axis|network camera"
+     ]
+    },
+    {
+     "id": "kev:adobe:flash-player",
+     "kev_count": 33,
+     "kev": [
+      "adobe|flash player"
+     ]
+    },
+    {
+     "id": "adobe-acrobat-reader",
+     "kev_count": 24,
+     "kev": [
+      "adobe|acrobat",
+      "adobe|acrobat and reader",
+      "adobe|acrobat and reader, flash player",
+      "adobe|reader and acrobat",
+      "adobe|reader"
+     ]
+    },
+    {
+     "id": "adobe-coldfusion",
+     "kev_count": 16,
+     "kev": [
+      "adobe|coldfusion"
+     ]
+    },
+    {
+     "id": "android-phones-tablets",
+     "kev_count": 0,
+     "kev": [
+      "google|android"
+     ]
+    },
+    {
+     "id": "kev:adobe:coldfusion",
+     "kev_count": 16,
+     "kev": [
+      "adobe|coldfusion"
+     ]
+    },
+    {
+     "id": "kev:adobe:acrobat-and-reader",
+     "kev_count": 13,
+     "kev": [
+      "adobe|acrobat and reader"
+     ]
+    },
+    {
+     "id": "kev:apple:ios-ipados-and-macos",
+     "kev_count": 11,
+     "kev": [
+      "apple|ios, ipados, and macos"
+     ]
+    },
+    {
+     "id": "kev:adobe:reader-and-acrobat",
+     "kev_count": 8,
+     "kev": [
+      "adobe|reader and acrobat"
+     ]
+    },
+    {
+     "id": "kev:apple:ios",
+     "kev_count": 8,
+     "kev": [
+      "apple|ios"
+     ]
+    },
+    {
+     "id": "kev:android:framework",
+     "kev_count": 6,
+     "kev": [
+      "android|framework"
+     ]
+    },
+    {
+     "id": "kev:apache:struts",
+     "kev_count": 6,
+     "kev": [
+      "apache|struts"
+     ]
+    },
+    {
+     "id": "kev:apache:tomcat",
+     "kev_count": 6,
+     "kev": [
+      "apache|tomcat"
+     ]
+    },
+    {
+     "id": "kev:apple:macos",
+     "kev_count": 6,
+     "kev": [
+      "apple|macos"
+     ]
+    },
+    {
+     "id": "kev:arm:mali-graphics-processing-unit-gpu",
+     "kev_count": 6,
+     "kev": [
+      "arm|mali graphics processing unit (gpu)"
+     ]
+    },
+    {
+     "id": "kev:apple:ios-and-ipados",
+     "kev_count": 5,
+     "kev": [
+      "apple|ios and ipados"
+     ]
+    },
+    {
+     "id": "kev:accellion:fta",
+     "kev_count": 4,
+     "kev": [
+      "accellion|fta"
+     ]
+    },
+    {
+     "id": "kev:adobe:commerce-and-magento",
+     "kev_count": 4,
+     "kev": [
+      "adobe|commerce and magento",
+      "adobe|commerce and magento"
+     ]
+    },
+    {
+     "id": "kev:android:pixel",
+     "kev_count": 4,
+     "kev": [
+      "android|pixel"
+     ]
+    }
+   ]
+  }
+ ],
+ "find": [
+  {
+   "text": "FortiGate",
+   "id": "fortigate"
+  },
+  {
+   "text": "Synology NAS (DSM)",
+   "id": "synology-nas-dsm"
+  },
+  {
+   "text": "wordpress",
+   "id": "wordpress"
+  },
+  {
+   "text": "Microsoft Office",
+   "id": "microsoft-office-desktop"
+  },
+  {
+   "text": "kev:fortinet:fortios",
+   "id": "kev:fortinet:fortios"
+  },
+  {
+   "text": "nothing like this",
+   "id": null
+  },
+  {
+   "text": "",
+   "id": null
+  },
+  {
+   "text": "apache http server",
+   "id": "apache-http-server"
+  }
+ ]
+}

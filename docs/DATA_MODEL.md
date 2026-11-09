@@ -154,9 +154,9 @@ UQ `(type, value)`. IX `(type, value)` phục vụ khớp log, `(expires_at)`. G
 | Cột | Kiểu | Null | Mặc định / ghi chú |
 |---|---|---|---|
 | `id` | id | không | PK (`a-…`) |
-| `ip` | ip | có | địa chỉ hiện biết; mock dùng `'—'` cho "chưa có IP": backend lưu NULL, API trả `""` (xem câu hỏi mở); UQ một phần `WHERE ip IS NOT NULL` (mã `ip_in_use`, `duplicate_ip`) |
-| `mac` | text | có | chữ thường `aa:bb:…`, hiện hành từ observation `mac` |
-| `hostname` | text | có | hiện hành; UQ không phân biệt hoa thường `WHERE hostname IS NOT NULL` (mã `hostname_in_use`) |
+| `ip` | ip | có | địa chỉ hiện biết; mock dùng `'—'` cho "chưa có IP": backend lưu NULL, API trả `"—"` như mock/contract (WP-10 chốt câu hỏi mở 10 theo contract); UQ một phần `WHERE ip IS NOT NULL` (mã `ip_in_use`, `duplicate_ip`) |
+| `mac` | text | có | chữ thường `aa:bb:…`, hiện hành từ observation `mac`; UQ một phần `WHERE mac IS NOT NULL` (WP-10: khoá tìm thiết bị của cảm biến; một MAC đã thuộc thiết bị khác không thành MAC của thiết bị này, `RecomputeAsset` lấy giá trị tốt nhất còn trống) |
+| `hostname` | text | có | hiện hành; **index thường** không phân biệt hoa thường (WP-10: không UQ vì cảm biến thấy cùng tên DHCP trên nhiều thiết bị và UQ làm `RecomputeAsset` thất bại; nhập CSV tự chặn trùng tên với thiết bị chưa có IP) |
 | `kind` | enum(firewall\|router\|switch\|ap\|nas\|server\|pc\|printer\|camera\|nvr\|iot\|web\|unknown) | không | `unknown` |
 | `vendor`, `model`, `os` | text | có | hiện hành từ observation cùng tên |
 | `vendor_obs_id`, `model_obs_id`, `os_obs_id`, `kind_obs_id`, `hostname_obs_id`, `mac_obs_id` | id | có | observation đang thắng; để API trả `{value, source, confidence, seen_at}` (`Observed`) mà không tính lại |
@@ -186,11 +186,11 @@ IX `(kind)`, `(approved)`, `(last_seen)`. Trường `site` của `Asset` (mock h
 | `seen_at` | ts | không | lần thấy cuối của đúng giá trị này từ nguồn này |
 | `evidence` | text | có | ARCH `evidence`; trống ở M2 |
 
-UQ `(asset_id, field, source, value)`; IX `(asset_id, field)`. Giữ: mãi (cỡ ~25 dòng/thiết bị, mục 8). R: `GET /inventory/devices/{id}` (`observations[]` kèm `current`); W: `POST /inventory/devices`, `PATCH …/{id}`, sensor, agent, quét.
+UQ `(asset_id, field, source, value)`; IX `(asset_id, field)`; trigger `inv_observation_append_only` chặn `UPDATE` mọi cột trừ `seen_at`/`confidence` (WP-10). Giữ: mãi (cỡ ~25 dòng/thiết bị, mục 8). R: `GET /inventory/devices/{id}` (`observations[]` kèm `current`); W: `POST /inventory/devices`, `PATCH …/{id}`, sensor, agent, quét.
 
 **`inv_service`** (`Asset.services`): `id:id` · `asset_id:id` FK CASCADE · `port:int` · `proto:enum(tcp\|udp)` · `name:text` · `product:text?` · `version:text?` · `source:enum(manual\|agent\|snmp\|nmap\|passive\|scan)` · `confidence:real` · `seen_at:ts`; UQ(asset_id, port, proto, source); IX(asset_id). Giữ: xoá dòng `seen_at` > 90 ngày không còn thấy **[ĐX]**. R `GET /inventory/devices/{id}`; W sensor/quét.
 
-**`inv_software`** (`Asset.software`): `id:id` · `asset_id:id` FK CASCADE · `display:text` · `vendor:text` · `product:text` · `version:text?` · `cpe:text?` (ARCH; trống ở M2) · `source:enum(manual\|agent\|snmp\|nmap\|passive\|scan)` · `confidence:real` · `seen_at:ts`; UQ(asset_id, vendor, product, version, source) (mã `duplicate_software`); IX(asset_id). Chỉ dòng `source='manual'` xoá được từ API (mã `not_manual`). Giữ: dòng agent không còn thấy sau 30 ngày thì đánh dấu và xoá **[ĐX]**. R `GET /inventory/devices/{id}`, `/inventory/export.csv`; W `POST/DELETE /inventory/devices/{id}/software*`, agent osquery/Wazuh (`POST /intake/osquery/*`, đồng bộ Wazuh).
+**`inv_software`** (`Asset.software`): `id:id` · `asset_id:id` FK CASCADE · `display:text` · `vendor:text` · `product:text` · `version:text?` · `cpe:text?` (ARCH; trống ở M2) · `source:enum(manual\|agent\|snmp\|nmap\|passive\|scan)` · `confidence:real` · `seen_at:ts`; UQ `(asset_id, lower(vendor), lower(product), ifnull(version,''), source)` (WP-10: chỉ mục biểu thức để version NULL cũng bị chặn trùng; mã `duplicate_software` còn chặn cùng vendor+product khác version khi khai tay); IX(asset_id). Chỉ dòng `source='manual'` xoá được từ API (mã `not_manual`). Giữ: dòng agent không còn thấy sau 30 ngày thì đánh dấu và xoá **[ĐX]**. R `GET /inventory/devices/{id}`, `/inventory/export.csv`; W `POST/DELETE /inventory/devices/{id}/software*`, agent osquery/Wazuh (`POST /intake/osquery/*`, đồng bộ Wazuh).
 **`inv_software_kev`** (`Software.kev[]`): `software_id:id` FK→inv_software CASCADE · `kev_key:text` (`vendor\|product` chữ thường) ; PK(software_id, kev_key); IX(kev_key) — bảng nối của bộ khớp KEV (S-INV-2).
 
 | Bảng (mock) | Cột | Khoá / index | Giữ | R / W |

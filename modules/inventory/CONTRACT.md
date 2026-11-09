@@ -1,28 +1,28 @@
 # Inventory Contract
 
-> Tier: standard · Story: S-INV-1, 2, 3, 5 (+ cột "Do you have it?" của S-FEED-1) · Last verified: 2026-11-09 (docs-first, chưa có code)
+> Tier: standard · Story: S-INV-1, 2, 3, 5 (+ cột "Do you have it?" của S-FEED-1) · Last verified: 2026-11-09 (WP-10: backend Go + contract test)
 
-Nguồn hành vi: `web/src/features/inventory/{contract,mocks,validate}.ts`. Phần agent (osquery, Wazuh, `/install/*`, `/intake/*`) trong cùng `contract.ts` thuộc `agent-intake`; phần cảm biến (`/inventory/sensors*`) thuộc `sensor-passive`.
+Nguồn hành vi: `web/src/features/inventory/{contract,mocks,validate}.ts`. Code: `modules/inventory` (`Service` là nơi ghi duy nhất, `Handlers` cho 16 thao tác của module). Cảm biến/agent ghi qua `core/observe` (`Sink`, `SoftwareSink`), không import gói này. Phần agent (osquery, Wazuh, `/install/*`, `/intake/*`) trong cùng `contract.ts` thuộc `agent-intake`; phần cảm biến (`/inventory/sensors*`) thuộc `sensor-passive`.
 
 ## Invariants
-- **INV-1**: Quan sát chỉ thêm, không ghi đè (`inv_observation`). Giá trị "đang dùng" của một trường chọn theo: khai tay > độ tin cậy cao > mới hơn. `confidence ∈ [0,1]`; `summary.source` = nguồn của giá trị đáng tin nhất, `summary.confidence` = của giá trị yếu nhất. `TestContract_INV1_ObservationsAppendOnly`
+- **INV-1**: Quan sát chỉ thêm, không ghi đè (`inv_observation`; trigger chặn đổi giá trị tại chỗ). Giá trị "đang dùng" của một trường chọn theo DATA_MODEL §5.1: **manual > agent > snmp > nmap = scan > passive**, rồi `confidence` cao hơn, rồi `seen_at` mới hơn, rồi `id` nhỏ hơn. Ngoại lệ duy nhất: quan sát trùng đúng (thiết bị, trường, nguồn, giá trị) dời `seen_at` và giữ `confidence` cao hơn. `confidence ∈ [0,1]`; `summary.source` = nguồn của giá trị đáng tin nhất, `summary.confidence` = của giá trị yếu nhất. Nguồn không tin cậy (`core/observe`) không bao giờ được là `manual`. `TestContract_INV1_ObservationsAppendOnly`
 - **INV-2**: Mọi ghi vào `inv_*` đi qua `inventory.Service` (cảm biến, agent, feeds không ghi trực tiếp).
-- **INV-3**: Có đúng một tài sản `is_box=true` ("This box"), tạo lúc cài (cả dữ liệu mẫu và cài sạch), gói lấy từ dpkg với confidence 1.0; `DELETE` nó → 409 `box_device` (D-53, S-INV-5).
+- **INV-3**: Có đúng một tài sản `is_box=true` ("This box"), tạo lúc cài (cả dữ liệu mẫu và cài sạch), gói lấy từ dpkg với confidence 1.0; `DELETE` nó → 409 `box_device` (D-53, S-INV-5). `EnsureBox` tạo/cập nhật nó (job `box` của module chạy ngay khi module bật); gói lấy qua `BoxPackages` (WP-07), nguồn `agent`, tin cậy 1.0.
 - **INV-4**: Khai tay: `ip` IPv4 duy nhất (409 nếu trùng), `name` ≤ 64 ký tự không có `<` `>`, `vendor/product` ≤ 64, `version` ≤ 40 ký tự chỉ gồm chữ, số, `. - + ( )` và khoảng trắng; trùng phần mềm trên cùng thiết bị → 409 `duplicate_software`. Chỉ phần mềm `source=manual` xoá được (400 `not_manual`).
 - **INV-5**: Thiết bị khai tay (`origin=manual`) không bao giờ bị quét (`first_scan_at=null`).
 - **INV-6**: Dải mạng (`lan_ranges`): tối đa 16; mỗi dải **phải có tiền tố** (400 `no_prefix`, không đoán /24, D-32), không bit máy (`host_bits`), chỉ dải riêng RFC 1918 (`public_range`, chỉ đường tới `exposure`), không chồng nhau (`overlap_range`); giữ đúng tiền tố người gõ.
 - **INV-7**: Bật quét chủ động (`active.enabled=true`) cần ≥1 dải, ≥1 ngày và `scope_confirmed=true`; lưu `scope_confirmed_at/by` (D-26). `days ∈ 1..7` (1=Thứ Hai), `from≠to` (có thể qua nửa đêm), `rate ∈ 1..1000` gói/giây, `exclusions` là IPv4 hoặc CIDR không bit máy.
 - **INV-8**: Thiết bị mong manh (D-45): loại thuộc `fragile_kinds` hoặc `fragile=true` được quét nhẹ **đúng một lần** khi thấy lần đầu (`first_scan_at` đặt), sau đó chỉ thụ động trừ khi `regular_scan=allow` hoặc loại ∈ `regular_scan_kinds`; `regular_scan=never` thắng cài đặt theo loại. `regular_scan_kinds ⊂ fragile_kinds`.
-- **INV-9**: Thiết bị mới do cảm biến thấy: `approved=false`, vào hàng "pending" (S-INV-3); `notify_new` bật ⇒ phát `inventory.asset.discovered`.
-- **INV-10**: Thêm sản phẩm khớp ngay với `feeds` (`kev_cves`); khớp chỉ theo sản phẩm/phiên bản cho `basis ∈ {product, version}`, không bao giờ cho "confirmed" (chỉ `scan` xác nhận).
+- **INV-9**: Thiết bị mới do cảm biến thấy: `approved=false`, vào hàng "pending" (S-INV-3); luôn phát `inventory.asset.discovered {asset_id, notify}` với `notify` = `notify_new` lúc đó (bật ⇒ `notify=true`; `sensor-active` vẫn cần sự kiện để quét lần đầu thiết bị mong manh nên không im lặng khi tắt).
+- **INV-10**: Thêm sản phẩm khớp ngay với `feeds` qua interface `KEV` (`kev_cves`); `inv_software_kev` lưu khoá khớp. Sự kiện `inventory.match.changed {asset_id, cve, basis}` chỉ cho CVE mới khớp (không phát khi gỡ); `basis="product"` (KEV chưa có khoảng bị ảnh hưởng nên chưa có `version`), không bao giờ "confirmed" (chỉ `scan` xác nhận). Số `kev_cves` trả khi thêm lấy từ danh mục (mọi CVE từng bị khai thác), danh sách CVE lấy từ `feeds`.
 - **INV-11**: Xoá tài sản xoá luôn finding của nó (`findings_count` hiện trước khi xoá); `findings` nhận `inventory.asset.deleted` (D-57 (6)).
-- **INV-12**: Danh mục `GET /inventory/catalog`: trả tối đa 30 mục kèm `total`; id mục tuyển chọn cố định, mục từ KEV là `kev:<vendor>:<product>`; chứa mọi cặp hãng/sản phẩm từng có trong KEV + sản phẩm SMB phổ biến; nhập tự do vẫn được (D-30).
+- **INV-12**: Danh mục `GET /inventory/catalog`: trả tối đa 30 mục kèm `total`; id mục tuyển chọn cố định, mục từ KEV là `kev:<vendor>:<product>`; chứa mọi cặp hãng/sản phẩm từng có trong KEV + sản phẩm SMB phổ biến; nhập tự do vẫn được (D-30). **Một nguồn dữ liệu cho cả web và Go**: `content/catalog/curated.json` (danh sách tuyển chọn) và `kev-products.json` (cặp KEV, thay bằng `feeds` qua `KEV.Products` khi WP-20 xong); thuật toán tìm kiếm có hai bản (`catalog.ts`, `catalog.go`) giữ đồng bộ bằng `content/catalog/search-golden.json` (`TestContract_INV12_CatalogMatchesTheWebGolden` + `catalog.golden.test.ts`).
 - **INV-13**: Nhập CSV ≤ 200 KB và ≤ 500 dòng; dòng lỗi báo theo số dòng, dòng hợp lệ vẫn thêm; tiêu đề cần cột `name` hoặc `product`. Xuất CSV UTF-8 có BOM.
 
 ## Preconditions / Postconditions
-- **PRE-1** (`RecordObservation(obs)`): `source ∈ {manual,agent,snmp,nmap,passive,scan}`, `field ∈ {hostname,mac,vendor,model,os,kind}`, `confidence ∈ [0,1]`. **POST-1**: quan sát thêm; tài sản tạo nếu MAC/IP mới (`approved=false`); `last_seen` cập nhật.
-- **PRE-2** (`UpsertSoftware(assetID, items, source)`): tài sản tồn tại. **POST-2**: `inv_software` thay theo nguồn; phát `inventory.match.changed` khi tập khớp KEV đổi.
-- **PRE-3** (`ScanPolicy(assetID)`): tài sản tồn tại. **POST-3**: trả `{allowed, rate, reason}` theo INV-5, 7, 8 và `exclusions`; `InScope(ip)` đúng khi ip ∈ `lan_ranges` ∖ `exclusions`.
+- **PRE-1** (`Record(ctx, []observe.Observation)` / `RecordObservation`): `source ∈ {agent,snmp,nmap,passive,scan}` (không `manual`), `field ∈ {hostname,mac,vendor,model,os,kind}`, `confidence ∈ [0,1]`, giá trị 1–200 ký tự in được (MAC chuẩn hoá `aa:bb:..`, kind thuộc 13 loại), gợi ý thiết bị có MAC hoặc IPv4; tối đa 5000 quan sát một lô; cả lô một giao dịch (hỏng một dòng = không lưu gì, lỗi bọc `ErrInvalid`). **POST-1**: quan sát thêm; tài sản tạo nếu MAC/IP mới (`approved=false`); `last_seen` cập nhật. Tìm theo MAC trước, rồi IP; thiết bị đã có MAC khác thì mất IP (DHCP đổi chủ) nếu là thiết bị phát hiện, còn thiết bị khai tay giữ IP. `TestContract_POST1_…`
+- **PRE-2** (`UpsertSoftware(assetID, items, source)`, `ReplaceSoftware(hint, source, items)`): tài sản tồn tại (hoặc tạo theo gợi ý), `source ≠ manual`. **POST-2**: `inv_software` của nguồn đó thay đúng bằng danh sách (dòng nguồn khác, kể cả `manual`, không đụng); danh sách y hệt không phát gì; đổi thì phát `inventory.software.changed` và `inventory.match.changed` cho CVE mới khớp.
+- **PRE-3** (`ScanPolicy(assetID)`): tài sản tồn tại. **POST-3**: trả `{allowed, rate, reason}` theo INV-5, 7, 8 và `exclusions` (lý do: `ok`, `first_gentle_scan` (tốc độ 1), `declared_by_hand`, `no_ip`, `scanning_off`, `scope_not_confirmed`, `out_of_scope`, `fragile_passive_only`); `InScope(ip)` đúng khi ip ∈ `lan_ranges` ∖ `exclusions`. Cửa sổ giờ do bộ lập lịch của `sensor-active` xét (cần múi giờ tổ chức). `MarkFirstScan` đặt `first_scan_at` sau lần quét nhẹ đầu.
 - **PRE-4** (`PATCH /inventory/devices/{id}`): `operator`. **POST-4**: sửa `kind/fragile` thêm observation `manual`, không xoá giá trị cũ.
 - **PRE-5** (`PUT /inventory/settings`): `admin`, qua INV-6/7. **POST-5**: `scope_confirmed_at` giữ nếu không đổi dải; phát `inventory.settings.changed`.
 
@@ -34,7 +34,7 @@ Nguồn hành vi: `web/src/features/inventory/{contract,mocks,validate}.ts`. Ph�
 - **FORBID-5**: Gửi dữ liệu tài sản ra ngoài hộp (trừ khi `ai`/`notify` được cấu hình, qua module đó).
 
 ## Dependencies
-- **DEPENDS ON**: `core`, `feeds` (khớp KEV, danh mục).
+- **DEPENDS ON**: `core`, `feeds` (khớp KEV, danh mục; qua interface `KEV`, tuỳ chọn: thiếu thì danh mục dùng `kev-products.json` nhúng và không có CVE).
 - **DEPENDED ON BY**: `sensor-passive`, `sensor-active`, `agent-intake`, `findings` (khớp KEV, finding), `mitigation` (hãng thiết bị cho `firewall[].detected`), `exposure`, `scan`, `scan-credentialed`, `honeypot`, `logs`, `response`, `reports`, `ai`, `mcp-server`; tuỳ chọn `notify` (tên thiết bị trong tin).
 
 ## Endpoints owned (role tối thiểu)
@@ -45,11 +45,11 @@ Nguồn hành vi: `web/src/features/inventory/{contract,mocks,validate}.ts`. Ph�
 | `GET,PUT /inventory/settings` | admin |
 
 ## Tables owned (`inv_`)
-`inv_asset`, `inv_observation`, `inv_service`, `inv_software`, `inv_setting` (dải, cửa sổ, xác nhận phạm vi, loại mong manh), `inv_meta` (suspicious, regular_scan, notify_new).
+`inv_asset` (kèm `suspicious`, `regular_scan`, `fragile_manual`, `is_box`), `inv_observation`, `inv_service`, `inv_software`, `inv_software_kev`, `inv_setting` (khoá: `lan_ranges`, `active`, `fragile_kinds`, `regular_scan_kinds`, `scope`, `notify_new`). Không có `inv_meta`.
 
 ## Events
-- **Phát**: `inventory.asset.discovered {asset_id}`, `inventory.asset.updated`, `inventory.asset.deleted {asset_id}`, `inventory.software.changed {asset_id}`, `inventory.match.changed {asset_id, cve, basis}`, `inventory.settings.changed {scope}`.
-- **Nhận**: `feeds.vuln.new_kev`, `feeds.vuln.updated` (khớp lại).
+- **Phát** (sau khi giao dịch commit): `inventory.asset.discovered {asset_id, notify}`, `inventory.asset.updated {asset_id}` (sửa tay, duyệt, đánh dấu, tạo khai tay, giá trị hiện hành đổi), `inventory.asset.deleted {asset_id}`, `inventory.software.changed {asset_id}`, `inventory.match.changed {asset_id, cve, basis}`, `inventory.settings.changed {scope: scan|notify_new}`. Kiểu dữ liệu: `AssetEvent`, `MatchEvent`, `SettingsEvent` trong `modules/inventory/types.go`.
+- **Nhận**: chưa. `feeds.vuln.new_kev`/`feeds.vuln.updated` (khớp lại) để sau: `findings` tự khớp lại từ phần mềm + khoá KEV của inventory, inventory chỉ báo lúc thêm (xem `.ai/deferred/feat-inventory.md`).
 
 ## Behaviour khi tắt
 Không route; Devices trống; `sensor-*`/`agent-intake` mất nơi ghi (chúng phụ thuộc, `affected`); `findings` không có finding mới; `scan` không mục tiêu nội bộ; "Do you have it?" thành `null`; honeypot/logs không tra tên thiết bị. Dữ liệu giữ.
@@ -58,7 +58,13 @@ Không route; Devices trống; `sensor-*`/`agent-intake` mất nơi ghi (chúng 
 S-INV-1, 2, 3, 5; D-30 danh mục, D-32 tiền tố, D-45 mong manh, D-53 hộp là thiết bị đầu tiên.
 
 ## Không khớp / câu hỏi mở
-- `SettingsSaved.adjusted` ("192.168.18.0 → /24") mâu thuẫn D-32 và mock (từ chối `no_prefix`). Hợp đồng theo D-32; bỏ `adjusted`.
+- `PUT /inventory/settings` theo mock: dải có bit máy ("192.168.18.5/24") được đưa về địa chỉ mạng (`Masked()`) và báo trong `adjusted: [{from, to}]`; trùng/chồng lấn xét trên giá trị đã đưa về, nên `host_bits` không bao giờ xảy ra với dải (giữ nguyên độ dài tiền tố người gõ, D-32). `exclusions` vẫn chặt: bit máy bị từ chối `bad_exclusion`.
+- `SettingsInput` có `scope_confirmed_at/by` (kế thừa `InventorySettings`): máy chủ bỏ qua giá trị khách gửi (có test), tự đặt theo POST-5.
+- `ip` rỗng: API trả `"—"` như mock/contract (DATA_MODEL câu hỏi 10 chốt theo contract); DB lưu NULL.
+- IP có số 0 đứng đầu (`192.168.01.5`) bị từ chối `bad_ip`: backend dùng `netip` nghiêm ngặt vì `01` có thể hiểu là bát phân (nhập nhằng), mock thì nhận. Cùng lý do cho dải mạng (`bad_cidr`).
+- Ràng buộc schema (độ dài, enum, số dải ≤ 16, `days` 1..7…) trả `400 invalid` kèm `field` đầy đủ theo D-73, không phải `bad_*` như mock.
+- Xuất CSV ghi một dòng `core_audit` (`inventory.export`, không chứa dữ liệu) theo D-72.
+- ogen cố định `Content-Type: application/octet-stream` và không đặt `Content-Disposition` cho hai tệp CSV: cần lớp HTTP ngoài ogen (core/server) nếu muốn `text/csv` + tên tệp (API_CONVENTIONS §11).
 - ~~ARCHITECTURE §4 xếp ưu tiên nguồn; GUI dùng "khai tay > tin cậy cao > mới hơn"~~ Đã thống nhất theo DATA_MODEL §5.1: manual > agent > snmp > nmap = scan > passive, rồi `confidence`, `seen_at`, `id` (mock `markCurrent` đã sửa, WP-06).
 - Danh mục ~880 mục là fixture biên dịch sẵn hay dựng từ `feeds`? Khi `feeds` tắt dùng gì?
 - Cửa sổ quét ở `inventory` (gói/giây) và `scan` (request/giây): hai cấu hình riêng, chưa gộp; ngày đã thống nhất 1..7 (D-57 (9)).

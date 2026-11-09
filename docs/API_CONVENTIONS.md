@@ -40,7 +40,7 @@ Tên endpoint, mã lỗi, tên trường giữ tiếng Anh; văn xuôi tiếng V
 | 429 | Giới hạn tần suất / trần (`rate_limited`, `resend_too_soon`, `too_many_codes`, `daily_cap`) | Kèm `Retry-After` (mục 8) |
 | 502 / 503 | Hệ thống ngoài không tới được / kênh cần thiết đang hỏng (`unreachable`, `discovery_failed`, `wazuh_unreachable`, `twofa_email_unavailable`, `server_busy`) | `server_busy` kèm `Retry-After` (mục 8) |
 
-**Bất biến:** (1) mọi mutation ghi `core_audit` (SYS-3); (2) thân phản hồi của PUT/PATCH/POST-hành-động là **tài nguyên sau khi đổi**, để client không phải gọi lại GET (ngoại lệ có sẵn: `PATCH /core/account` và vài POST trả `{ok:true}`; giữ nguyên); (3) `GET` không bao giờ ghi, trừ `last_fetch` của danh sách chặn (mục 11.3).
+**Bất biến:** (1) mọi mutation ghi `core_audit` (SYS-3); (2) thân phản hồi của PUT/PATCH/POST-hành-động là **tài nguyên sau khi đổi**, để client không phải gọi lại GET (ngoại lệ có sẵn: `PATCH /core/account` và vài POST trả `{ok:true}`; giữ nguyên); (3) `GET` không bao giờ ghi, trừ `last_fetch` của danh sách chặn (mục 11.3) và các GET xuất dữ liệu (`…/export*`) ghi một dòng `core_audit` không chứa dữ liệu (D-72).
 
 ### Danh sách bọc trong thân
 
@@ -71,7 +71,7 @@ Danh sách trả đối tượng, không phải mảng trần (cho phép thêm `
 
 - `code`: `snake_case`, ổn định, **dành cho máy** (client rẽ nhánh theo `code`, không theo `message`). `message`: tiếng Anh (D-28), nói **chuyện gì sai và sửa thế nào**, an toàn để hiện nguyên văn cho người dùng; không chứa bí mật, không rò thông tin nội bộ (đường dẫn, câu SQL, stack).
 - **Trường mở rộng** nằm cạnh `code`/`message` trong `error` (client đọc vào `ApiError.details`): `missing: string[]` (`missing_dependencies`, module cần bật trước); `method: 'app'|'email'`, `sent_to`, `resend_after` (`twofa_required`); `retry_after: number` (giây; `resend_too_soon`). **Chỉ thêm, không bỏ.** `preview_code` trong `twofa_required` của mock là **chỉ có ở mock**: backend không bao giờ trả mã trong lỗi.
-- Trường mở rộng đề xuất cho lỗi kiểm tra: `field: string` (tên trường sai) **[ĐX]**; thêm dần, không bắt buộc.
+- Trường mở rộng đề xuất cho lỗi kiểm tra: `field: string` (tên trường sai) **[ĐX]**; thêm dần, không bắt buộc. Lỗi do bộ kiểm schema sinh tự động (`400 invalid`) luôn kèm `field` là đường dẫn đầy đủ (`active.days[0]`); ranh giới giữa `invalid` và mã riêng của module: D-73.
 - Tạo lỗi chỉ qua một hàm (`fail(status, code, message)` trong mock, tương đương trong Go); handler không tự dựng JSON lỗi.
 - Hợp đồng OpenAPI khai `default` → `Error` cho mọi thao tác (`components.schemas.Error`); **chưa** khai từng mã lỗi theo thao tác (mục 12, câu hỏi mở 2).
 

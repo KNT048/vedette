@@ -14,6 +14,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/core"
+	"github.com/knt048/vedette/modules/inventory"
 )
 
 // deps is what module constructors may take. serve builds one value and hands it to every module's
@@ -41,6 +42,8 @@ type moduleWiring struct {
 func wiredModules() []moduleWiring {
 	return []moduleWiring{
 		{ID: "core", Migrations: core.Migrations},
+		{ID: "feeds"}, // no tables or jobs yet (WP-20); listed because inventory depends on it
+		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},
 	}
 }
 

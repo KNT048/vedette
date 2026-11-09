@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kiennt048/vedette/modules/ai/provider"
+	"github.com/knt048/vedette/modules/ai/provider"
 )
 
 func TestContract_INV4_TokenMeterCapsAndDowngrade(t *testing.T) {

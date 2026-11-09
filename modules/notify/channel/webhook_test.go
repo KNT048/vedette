@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kiennt048/vedette/core/secrets"
+	"github.com/knt048/vedette/core/secrets"
 )
 
 const whKey = "0123456789abcdef0123"

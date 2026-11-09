@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kiennt048/vedette/core/secrets"
-	"github.com/kiennt048/vedette/core/store"
-	"github.com/kiennt048/vedette/core/store/storetest"
+	"github.com/knt048/vedette/core/secrets"
+	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/store/storetest"
 )
 
 const coreMigrations = "../../modules/core/migrations/sqlite"

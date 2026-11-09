@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kiennt048/vedette/modules/ai/provider"
+	"github.com/knt048/vedette/modules/ai/provider"
 )
 
 // F1 / item 2: "internal" is not just a label. A literal public IP is refused when the profile is saved, http is

@@ -17,8 +17,8 @@ import (
 	"testing/fstest"
 	"time"
 
-	"github.com/kiennt048/vedette/core/store"
-	"github.com/kiennt048/vedette/core/store/storetest"
+	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/store/storetest"
 )
 
 func pragma(t *testing.T, q interface {

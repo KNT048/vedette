@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kiennt048/vedette/core/secrets"
+	"github.com/knt048/vedette/core/secrets"
 )
 
 func emailCfg(f *fakeSMTP, security string) EmailConfig {

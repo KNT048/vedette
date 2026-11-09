@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	vexec "github.com/kiennt048/vedette/core/exec"
+	vexec "github.com/knt048/vedette/core/exec"
 )
 
 // The test binary doubles as the helper process: `<test-binary> __helper__ <mode> [args...]`.

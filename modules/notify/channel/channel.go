@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kiennt048/vedette/core/secrets"
+	"github.com/knt048/vedette/core/secrets"
 )
 
 // Type is a channel type, spelled as in contract.ts.

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kiennt048/vedette/core/secrets"
+	"github.com/knt048/vedette/core/secrets"
 )
 
 const slackHook = "https://hooks.slack.com/services/T0EXAMPLE1/B0EXAMPLE2/XyzSecretPathToken123"

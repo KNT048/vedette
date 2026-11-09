@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kiennt048/vedette/modules/ai/provider"
+	"github.com/knt048/vedette/modules/ai/provider"
 )
 
 const key = "sk-test-0123456789"

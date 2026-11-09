@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kiennt048/vedette/core/secrets"
+	"github.com/knt048/vedette/core/secrets"
 )
 
 // SMTP security modes, spelled as in contract.ts.

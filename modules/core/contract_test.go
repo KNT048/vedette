@@ -15,13 +15,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kiennt048/vedette/core/audit"
-	"github.com/kiennt048/vedette/core/chain"
-	vexec "github.com/kiennt048/vedette/core/exec"
-	"github.com/kiennt048/vedette/core/secrets"
-	"github.com/kiennt048/vedette/core/store"
-	"github.com/kiennt048/vedette/core/store/storetest"
-	"github.com/kiennt048/vedette/modules/core"
+	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/chain"
+	vexec "github.com/knt048/vedette/core/exec"
+	"github.com/knt048/vedette/core/secrets"
+	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/store/storetest"
+	"github.com/knt048/vedette/modules/core"
 )
 
 // The test binary doubles as the helper process for the exec contract (the Runner clears the environment).

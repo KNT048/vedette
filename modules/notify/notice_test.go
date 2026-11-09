@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kiennt048/vedette/core/secrets"
-	"github.com/kiennt048/vedette/modules/notify/channel"
+	"github.com/knt048/vedette/core/secrets"
+	"github.com/knt048/vedette/modules/notify/channel"
 )
 
 func vuln(id, product, cve string, devices []string, sev Severity, t time.Time) Notice {

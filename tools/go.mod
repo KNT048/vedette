@@ -1,6 +1,6 @@
 // Dev and CI tools, pinned and isolated from the product's dependency graph.
 // Run with: go tool -modfile=tools/go.mod <tool>
-module github.com/kiennt048/vedette/tools
+module github.com/knt048/vedette/tools
 
 go 1.26.10
 

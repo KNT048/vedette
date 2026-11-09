@@ -8,6 +8,7 @@
 //	core_unit = vedette-core.service         # systemd unit whose cgroup core's processes are in
 //	socket    = /run/vedette/host.sock       # absolute path, at most 100 bytes
 //	socket_gid = 990                         # gid of the group "vedette" (owns the socket, mode 0660)
+//	core_cgroup = /user.slice/user-990.slice/user@990.service/app.slice/vedette-core.service   # optional
 package config
 
 import (
@@ -21,6 +22,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/knt048/vedette/host/peer"
 )
 
 // MaxSize is the largest accepted file.
@@ -38,6 +41,10 @@ type Config struct {
 	CoreUnit  string
 	Socket    string
 	SocketGID int
+	// CoreCgroup is the unified-hierarchy path core's processes must be at or below. Optional;
+	// empty means /system.slice/<core_unit>. A rootless Quadlet core lives under its user manager,
+	// so the installer writes the real path (WP-08).
+	CoreCgroup string
 }
 
 var (
@@ -112,6 +119,11 @@ func (c *Config) set(k, v string) error {
 			return errors.New("core_unit must be a systemd service unit name")
 		}
 		c.CoreUnit = v
+	case "core_cgroup":
+		if err := peer.ValidAnchor(v); err != nil {
+			return fmt.Errorf("core_cgroup: %w", err)
+		}
+		c.CoreCgroup = v
 	case "socket":
 		if err := ValidSocketPath(v); err != nil {
 			return err

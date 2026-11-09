@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
 	"regexp"
 	"strings"
@@ -145,6 +146,9 @@ func redactValue(v any, depth int) any {
 			ck := k
 			if !utf8.ValidString(ck) || len(ck) > 64 {
 				ck = "[key]"
+			}
+			if looksSecret(k) { // a key can carry the secret too
+				ck = fmt.Sprintf("[redacted-key-%d]", i)
 			}
 			if sensitiveKeyRE.MatchString(k) && !isEmpty(x[k]) {
 				out[ck] = redactedMarker

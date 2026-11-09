@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/knt048/vedette/core/chain"
@@ -64,9 +65,9 @@ type auditLog struct {
 // openAudit opens (creating it 0600) and verifies the file. A chain that does not verify is not an
 // error here: the log is returned in the broken state, appends are refused, and Broken says why.
 // An error means the file itself cannot be used.
-func openAudit(path string, now func() time.Time) (*auditLog, error) {
+func openAudit(path string, owner int, now func() time.Time) (*auditLog, error) {
 	a := &auditLog{path: path, last: chain.Genesis, now: now}
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o600) //nolint:gosec // path is the -audit-log flag chosen by the operator
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_APPEND|syscall.O_NOFOLLOW, 0o600) //nolint:gosec // path is the -audit-log flag chosen by the operator
 	if err != nil {
 		return nil, fmt.Errorf("host: open audit log: %w", err)
 	}
@@ -75,9 +76,9 @@ func openAudit(path string, now func() time.Time) (*auditLog, error) {
 		_ = f.Close()
 		return nil, fmt.Errorf("host: stat audit log: %w", err)
 	}
-	if st.Mode().Perm()&0o077 != 0 || !st.Mode().IsRegular() {
+	if sys, ok := st.Sys().(*syscall.Stat_t); st.Mode().Perm()&0o077 != 0 || !st.Mode().IsRegular() || !ok || int(sys.Uid) != owner {
 		_ = f.Close()
-		return nil, fmt.Errorf("host: audit log %s must be a regular file with mode 0600", path)
+		return nil, fmt.Errorf("host: audit log %s must be a regular file with mode 0600 owned by uid %d", path, owner)
 	}
 	a.f = f
 	a.seq, a.last, a.broken = verifyAuditFile(f)
@@ -311,31 +312,70 @@ func (a *auditLog) page(since int64, limit int) (api.AuditPage, error) {
 }
 
 // auditThrottle keeps floods that need no authentication (a stranger on the socket, a rate-limited
-// caller) from filling the disk: at most one line per key per interval, the rest are counted and
-// reported in the next line.
+// caller) from filling the disk: at most one line per key per interval; the rest are counted and
+// reported, with the distinct pids seen, in the next line. Callers key by uid so one noisy uid
+// cannot hide another. The key table is bounded; past it, new keys share one "overflow" key.
 type auditThrottle struct {
 	mu       sync.Mutex
 	interval time.Duration
-	last     map[string]time.Time
-	skipped  map[string]int
+	state    map[string]*throttleState
 }
+
+type throttleState struct {
+	last    time.Time
+	skipped int
+	pids    []int
+}
+
+const (
+	throttleMaxKeys = 256
+	throttleMaxPIDs = 8
+)
 
 func newAuditThrottle(interval time.Duration) *auditThrottle {
-	return &auditThrottle{interval: interval, last: map[string]time.Time{}, skipped: map[string]int{}}
+	return &auditThrottle{interval: interval, state: map[string]*throttleState{}}
 }
 
-// allow reports whether to write now, and how many lines were skipped since the last one.
-func (t *auditThrottle) allow(key string, now time.Time) (bool, int) {
+// allow reports whether to write now, how many lines were skipped since the last one, and the
+// pids (at most 8) those skipped events came from.
+func (t *auditThrottle) allow(key string, now time.Time, pid int) (bool, int, []int) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if last, ok := t.last[key]; ok && now.Sub(last) < t.interval {
-		t.skipped[key]++
-		return false, 0
+	st, ok := t.state[key]
+	if !ok && len(t.state) >= throttleMaxKeys {
+		for k, v := range t.state { // drop idle keys first
+			if v.skipped == 0 && now.Sub(v.last) >= t.interval {
+				delete(t.state, k)
+			}
+		}
+		if len(t.state) >= throttleMaxKeys {
+			key = "overflow"
+			st, ok = t.state[key]
+		}
 	}
-	t.last[key] = now
-	n := t.skipped[key]
-	delete(t.skipped, key)
-	return true, n
+	if !ok {
+		st = &throttleState{}
+		t.state[key] = st
+	}
+	if !st.last.IsZero() && now.Sub(st.last) < t.interval {
+		st.skipped++
+		if pid > 0 && len(st.pids) < throttleMaxPIDs && !slices.Contains(st.pids, pid) {
+			st.pids = append(st.pids, pid)
+		}
+		return false, 0, nil
+	}
+	skipped, pids := st.skipped, st.pids
+	st.last, st.skipped, st.pids = now, 0, nil
+	return true, skipped, pids
+}
+
+// throttleDetail is the args_redacted of a throttled line.
+func throttleDetail(skipped int, pids []int) map[string]any {
+	list := make([]any, 0, len(pids))
+	for _, p := range pids {
+		list = append(list, p)
+	}
+	return map[string]any{"skipped": skipped, "pids": list}
 }
 
 // digestRaw is the args digest when the args could not be decoded into the command's type.

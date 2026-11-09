@@ -16,8 +16,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/knt048/vedette/host/api"
@@ -41,8 +43,15 @@ type Options struct {
 
 	RequestsPerMinute int
 	WritesPerMinute   int
-	KillGrace         time.Duration // how long a command may ignore its cancelled context before the run is failed anyway
-	AuditThrottle     time.Duration // minimum spacing of unauthenticated-flood audit lines (default 10 s)
+	KillGrace         time.Duration // how long a command may ignore its cancelled context before the run is reported failed (the write lock stays held)
+	AbandonCeiling    time.Duration // how long past KillGrace a command may keep running before the host exits for systemd to restart it (default 5 min)
+	CheckTimeout      time.Duration // bound of a command's synchronous Check (default 5 s)
+	AuditThrottle     time.Duration // minimum spacing of unauthenticated-flood audit lines per uid (default 10 s)
+	// OwnerUID is the uid that must own the state, audit and socket directories and the audit
+	// file: 0 in production (the host runs as root). Tests set their own uid.
+	OwnerUID int
+	// Exit ends the process when a command cannot be stopped (default os.Exit). Tests replace it.
+	Exit func(code int)
 }
 
 // Server serves the host API.
@@ -105,10 +114,19 @@ func New(o Options) (*Server, error) {
 	if o.AuditThrottle <= 0 {
 		o.AuditThrottle = 10 * time.Second
 	}
-	if err := ensureDir(o.StateDir, 0o700); err != nil {
+	if o.AbandonCeiling <= 0 {
+		o.AbandonCeiling = 5 * time.Minute
+	}
+	if o.CheckTimeout <= 0 {
+		o.CheckTimeout = checkTimeout
+	}
+	if o.Exit == nil {
+		o.Exit = os.Exit
+	}
+	if err := ensureDir(o.StateDir, 0o700, o.OwnerUID); err != nil {
 		return nil, err
 	}
-	if err := ensureDir(filepath.Dir(o.AuditPath), 0o700); err != nil {
+	if err := ensureDir(filepath.Dir(o.AuditPath), 0o700, o.OwnerUID); err != nil {
 		return nil, err
 	}
 	s := &Server{
@@ -121,11 +139,11 @@ func New(o Options) (*Server, error) {
 	s.baseCtx, s.cancel = context.WithCancel(context.Background())
 	s.srv = s.newHTTPServer()
 	var err error
-	if s.audit, err = openAudit(o.AuditPath, o.Now); err != nil {
+	if s.audit, err = openAudit(o.AuditPath, o.OwnerUID, o.Now); err != nil {
 		s.cancel()
 		return nil, err
 	}
-	if s.runs, err = openRunStore(o.StateDir, o.Logger); err != nil {
+	if s.runs, err = openRunStore(o.StateDir, o.OwnerUID, o.Logger); err != nil {
 		_ = s.audit.close()
 		s.cancel()
 		return nil, err
@@ -152,7 +170,8 @@ func (s *Server) recover() {
 		}
 		if err := s.audit.append(auditEntry{
 			ID: sr.Run.AuditID, RequestID: sr.Run.RequestID, Actor: sr.Run.Actor, Command: sr.Run.Command,
-			ArgsDigest: sr.ArgsDigest, ArgsRedacted: nil, Result: resultFailed, Code: api.CodeHostRestarted, RunID: sr.Run.RunID,
+			ArgsDigest: sr.ArgsDigest, Result: resultFailed, Code: api.CodeHostRestarted, RunID: sr.Run.RunID,
+			ArgsRedacted: map[string]any{"accepted_audit_id": sr.AcceptedAuditID},
 		}); err != nil {
 			s.log.Error("could not audit a recovered run", "run_id", sr.Run.RunID)
 		}
@@ -169,28 +188,33 @@ func (s *Server) recover() {
 	}
 }
 
-// Listen prepares the directory and returns the unix listener: directory 0750 (an existing one
-// must not be more open), a stale socket file replaced, a live one refused, socket 0660 owned by
-// group SocketGID. There is no other listener anywhere in the program (FORBID-2).
+// Listen prepares the directory and returns the unix listener. The directory must be a real
+// directory owned by OwnerUID and group SocketGID, mode 0750 or stricter (created so when absent);
+// a stale socket file is replaced, a live one refused. The socket is then set to 0660 and group
+// SocketGID through the listener's file descriptor (fchmod/fchown: no path, so a symlink swapped
+// in after bind is never followed), and the path is checked to still be that very socket.
+// There is no other listener anywhere in the program (FORBID-2).
 func (s *Server) Listen(ctx context.Context) (net.Listener, error) {
 	path := s.o.SocketPath
 	dir := filepath.Dir(path)
-	st, err := os.Lstat(dir)
-	switch {
-	case errors.Is(err, os.ErrNotExist):
+	if _, err := os.Lstat(dir); errors.Is(err, os.ErrNotExist) {
 		if err := os.MkdirAll(dir, 0o750); err != nil {
 			return nil, fmt.Errorf("host: create %s: %w", dir, err)
 		}
 		if err := os.Chmod(dir, 0o750); err != nil { //nolint:gosec // 0750 is the specified directory mode
 			return nil, fmt.Errorf("host: chmod %s: %w", dir, err)
 		}
-		if err := os.Chown(dir, -1, s.o.SocketGID); err != nil {
+		if err := os.Lchown(dir, s.o.OwnerUID, s.o.SocketGID); err != nil {
 			return nil, fmt.Errorf("host: chown %s: %w", dir, err)
 		}
-	case err != nil:
+	}
+	st, err := os.Lstat(dir)
+	if err != nil {
 		return nil, fmt.Errorf("host: stat %s: %w", dir, err)
-	case !st.IsDir() || st.Mode().Perm()&0o027 != 0:
-		return nil, fmt.Errorf("host: %s must be a directory with mode 0750 or stricter", dir)
+	}
+	sys, ok := st.Sys().(*syscall.Stat_t)
+	if !st.IsDir() || !ok || int(sys.Uid) != s.o.OwnerUID || int(sys.Gid) != s.o.SocketGID || st.Mode().Perm()&0o027 != 0 {
+		return nil, fmt.Errorf("host: %s must be a directory owned by uid %d and gid %d with mode 0750 or stricter", dir, s.o.OwnerUID, s.o.SocketGID)
 	}
 	if err := removeStaleSocket(ctx, path); err != nil {
 		return nil, err
@@ -199,17 +223,38 @@ func (s *Server) Listen(ctx context.Context) (net.Listener, error) {
 	if err != nil {
 		return nil, fmt.Errorf("host: listen: %w", err)
 	}
-	fail := func(err error) (net.Listener, error) {
+	if err := secureSocket(path, s.o.SocketGID); err != nil {
 		_ = ln.Close()
 		return nil, err
 	}
-	if err := os.Chmod(path, 0o660); err != nil { //nolint:gosec // 0660 is the specified socket mode
-		return fail(fmt.Errorf("host: chmod socket: %w", err))
-	}
-	if err := os.Chown(path, -1, s.o.SocketGID); err != nil {
-		return fail(fmt.Errorf("host: chown socket: %w", err))
-	}
 	return ln, nil
+}
+
+// secureSocket sets mode 0660 and group gid and verifies the path is still the socket that was just
+// bound. Lchown never follows a symlink; chmod has no no-follow form, so it is bracketed by two
+// Lstat checks of the same inode. The directory is owned by root with no write for anyone else
+// (checked in Listen), so nobody can swap the path in between. A bind under umask 0117 would give
+// the socket its mode at birth, but umask is process-wide and breaks concurrent mkdir calls.
+func secureSocket(path string, gid int) error {
+	before, err := os.Lstat(path)
+	if err != nil || before.Mode().Type() != os.ModeSocket {
+		return fmt.Errorf("host: %s is not the socket that was just bound", path)
+	}
+	if err := os.Lchown(path, -1, gid); err != nil {
+		return fmt.Errorf("host: chown socket: %w", err)
+	}
+	mid, err := os.Lstat(path)
+	if err != nil || mid.Mode().Type() != os.ModeSocket || !os.SameFile(before, mid) {
+		return fmt.Errorf("host: %s changed while it was being secured", path)
+	}
+	if err := os.Chmod(path, 0o660); err != nil { //nolint:gosec // 0660 is the specified socket mode
+		return fmt.Errorf("host: chmod socket: %w", err)
+	}
+	after, err := os.Lstat(path)
+	if err != nil || after.Mode().Type() != os.ModeSocket || !os.SameFile(before, after) || after.Mode().Perm() != 0o660 {
+		return fmt.Errorf("host: %s changed while it was being secured", path)
+	}
+	return nil
 }
 
 func removeStaleSocket(ctx context.Context, path string) error {
@@ -264,10 +309,11 @@ func (l authListener) Accept() (net.Conn, error) {
 	}
 }
 
-// deniedPeer audits peer_not_allowed, throttled: strangers need no credentials to knock.
+// deniedPeer audits peer_not_allowed, throttled per uid: strangers need no credentials to knock,
+// but a noisy uid must not hide another one.
 func (s *Server) deniedPeer(info peer.Info, cause error) {
 	s.log.Warn("peer not allowed", "uid", info.UID, "pid", info.PID, "cause", cause.Error())
-	ok, skipped := s.throttle.allow("peer_not_allowed", s.now())
+	ok, skipped, pids := s.throttle.allow("peer_not_allowed:"+strconv.Itoa(info.UID), s.now(), info.PID)
 	if !ok {
 		return
 	}
@@ -278,7 +324,7 @@ func (s *Server) deniedPeer(info peer.Info, cause error) {
 	info.Unit = ""
 	if err := s.audit.append(auditEntry{
 		ID: id, Actor: "-", Peer: info, Command: "-", Result: resultRefused, Code: api.CodePeerNotAllowed,
-		ArgsRedacted: map[string]any{"skipped": skipped},
+		ArgsRedacted: throttleDetail(skipped, pids),
 	}); err != nil {
 		s.log.Error("could not audit a denied peer")
 	}
@@ -289,11 +335,11 @@ func (s *Server) newHTTPServer() *http.Server {
 	return &http.Server{
 		Handler:           s,
 		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       30 * time.Second,
-		IdleTimeout:       60 * time.Second,
-		MaxHeaderBytes:    16 << 10,
-		ErrorLog:          slog.NewLogLogger(s.log.Handler(), slog.LevelWarn),
-		BaseContext:       func(net.Listener) context.Context { return s.baseCtx },
+		// No ReadTimeout: it would also cut event streams. Bodies get their own deadline in handleCommand.
+		IdleTimeout:    60 * time.Second,
+		MaxHeaderBytes: 16 << 10,
+		ErrorLog:       slog.NewLogLogger(s.log.Handler(), slog.LevelWarn),
+		BaseContext:    func(net.Listener) context.Context { return s.baseCtx },
 		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
 			if ac, ok := c.(*authConn); ok {
 				return context.WithValue(ctx, ctxKey{}, ac.info)

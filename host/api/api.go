@@ -63,6 +63,7 @@ const (
 	CodeTimeout          = "timeout"
 	CodeCommandFailed    = "command_failed"
 	CodeInternal         = "internal"
+	CodeHostWedged       = "host_wedged"
 )
 
 // Detail points at one bad field.

@@ -338,7 +338,7 @@ func TestAuditPaging(t *testing.T) {
 		finish(t, h.Client, r.RunID)
 	}
 	var seen []int64
-	since := int64(0)
+	since := int64(0) // 5 runs, each with an accepted line and a result line: 10 lines
 	for pages := 0; pages < 10; pages++ {
 		page, err := h.Client.Audit(context.Background(), since, 2)
 		if err != nil {
@@ -356,7 +356,7 @@ func TestAuditPaging(t *testing.T) {
 		}
 		since = n
 	}
-	if len(seen) != 5 {
+	if len(seen) != 10 {
 		t.Fatalf("seen %v", seen)
 	}
 	for i, s := range seen {

@@ -5,10 +5,11 @@
 ## Gói và chữ ký chính
 - `host/api`: kiểu dây dùng chung (`Run`, `Event`, `Info`, `AuditRecord`, `ErrorBody`, hằng mã lỗi, `Proto`/`MinProto`, tên tiêu đề). Đổi trường = đổi hợp đồng với `core`.
 - `host/config`: `Parse(io.Reader) (Config, error)`, `Load(path, ownerUID) (Config, error)`, `ValidSocketPath(string) error`.
-- `host/peer`: `type Checker func(net.Conn) (Info, error)`, `New(coreUID, unit) (Checker, error)` (Linux; nơi khác `ErrUnsupportedOS`), `Decide(Cred, coreUID, unit, readCgroup)`, `InUnit(cgroupText, unit) bool` (thuần, fuzz).
-- `host/server`: `New(Options) (*Server, error)`, `(*Server).Listen(ctx)`, `Serve(net.Listener)`, `Shutdown(ctx)`, `AuditError()`; bảng lệnh `Define[A](Spec[A]) Command`, `NewRegistry(...Command)`, `DefaultRegistry()` (nơi duy nhất 07b thêm lệnh), `Invalid`, `Refuse`, `Failure`, `RunContext.Log/Progress`; `NewCommandRunner(log, ...exec.Binary)` (môi trường sạch SYS-1 trên `core/exec`); `ParseOSRelease`. `host/server/servertest` chỉ cho test.
-- `host/client`: `New(socket)`, `Info`, `Run(ctx, command, args, requestID, actor)`, `GetRun`, `ListRuns`, `Audit`, `Events(ctx, runID, after)` (`Stream.Next` nối lại bằng `Last-Event-ID`), `ErrUnreachable`, `ErrStreamLost`, `*Error`, `IsCode`.
-- `core/exec`: thêm `Binary.Env` (KEY=value bổ sung sau `PATH`/`LANG`; không thừa hưởng môi trường cha, không ghi đè `PATH`/`LANG`).
+- `host/peer`: `type Checker func(net.Conn) (Info, error)`, `New(coreUID, unit, anchor) (Checker, error)` (Linux, dùng `SO_PEERPIDFD`; nơi khác `ErrUnsupportedOS`), `Decide(Cred, coreUID, unit, anchor, readCgroup)`, `InUnit(cgroupText, anchor) bool`, `ValidAnchor`, `PidFromFdinfo`, `StartTicks` (thuần, fuzz).
+- `host/server`: `New(Options) (*Server, error)` (thêm `OwnerUID`, `AbandonCeiling`, `CheckTimeout`, `Exit`), `(*Server).Listen(ctx)`, `Serve(net.Listener)`, `Shutdown(ctx)`, `AuditError()`; bảng lệnh `Define[A](Spec[A]) Command`, `NewRegistry(...Command)`, `DefaultRegistry()` (nơi duy nhất 07b thêm lệnh), `Invalid`, `Refuse`, `Failure`, `RunContext.Log/Progress`; `NewCommandRunner(log, ...exec.Binary)` (môi trường sạch SYS-1 trên `core/exec`); `ParseOSRelease`. `host/server/servertest` chỉ cho test.
+- `host/client`: `New(socket)`, `Info`, `Run(ctx, command, args, requestID, actor)`, `GetRun`, `ListRuns`, `Audit`, `Events(ctx, runID, after)` (`Stream.Next` nối lại bằng `Last-Event-ID`), `ErrUnreachable`, `ErrDenied`, `ErrStreamLost`, `ErrEventTooLarge`, `*Error`, `IsCode`.
+- `core/exec`: thêm `Binary.Env` (KEY=value bổ sung sau `PATH`/`LANG`; chỉ khoá `DEBIAN_FRONTEND` được phép; không thừa hưởng môi trường cha).
+- `host/config`: thêm khoá tuỳ chọn `core_cgroup`; `golang.org/x/sys` thành phụ thuộc trực tiếp (Linux).
 - `cmd/vedette-host`: cờ `-config -socket -state-dir -audit-log -version`.
 
 ## Modifying: `Client.Run(ctx, command, args, requestID, actor) (api.Run, error)` (phía `core`) — 5 nhóm người gọi

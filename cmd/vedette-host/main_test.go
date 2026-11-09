@@ -24,7 +24,7 @@ func testEnv(t *testing.T) (environment, *[2]any) {
 	seen := new([2]any)
 	return environment{
 		goos: "linux", euid: 0, configOwner: os.Getuid(),
-		newChecker: func(uid int, unit string) (peer.Checker, error) {
+		newChecker: func(uid int, unit, _ string) (peer.Checker, error) {
 			seen[0], seen[1] = uid, unit
 			return func(net.Conn) (peer.Info, error) { return peer.Info{UID: uid, PID: 1, Unit: unit}, nil }, nil
 		},
@@ -75,7 +75,7 @@ func TestRefusesToStart(t *testing.T) {
 		{"stray argument", []string{"-config", conf, "extra"}, nil, "unexpected argument"},
 		{"bad socket flag", []string{"-config", conf, "-socket", "relative.sock"}, nil, "absolute"},
 		{"checker unavailable", []string{"-config", conf}, func(e *environment) {
-			e.newChecker = func(int, string) (peer.Checker, error) { return nil, peer.ErrUnsupportedOS }
+			e.newChecker = func(int, string, string) (peer.Checker, error) { return nil, peer.ErrUnsupportedOS }
 		}, "unsupported operating system"},
 		{"config writable by others", []string{"-config", writeOpen(t, dir)}, nil, "writable by group or others"},
 	}

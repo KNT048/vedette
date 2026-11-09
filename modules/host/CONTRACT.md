@@ -7,7 +7,7 @@
 ## Invariants (luôn đúng)
 - **INV-1** **Danh sách lệnh cố định (allowlist)**: chỉ các lệnh ở mục "Lệnh" dưới đây; lệnh lạ → từ chối `unknown_command`, không có đường "chạy chuỗi bất kỳ". Thêm lệnh = sửa CONTRACT này + test + `THIRD_PARTY_NOTICES.md` nếu thêm công cụ ngoài.
 - **INV-2** **Không shell** (SYS-1): mọi tiến trình con chạy bằng `argv` cố định với tham số đã kiểm theo kiểu (`netip` cho IP/CIDR, regex `^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$` cho tên card/container, enum cho `scope`/`when`, `HH:MM` cho giờ). Tham số sai kiểu → từ chối trước khi chạm hệ thống.
-- **INV-3** **Một thao tác thay đổi tại một thời điểm** (khoá toàn cục): lệnh thứ hai khi đang chạy → 409 `busy`; reboot trong lúc cài đặt → 409.
+- **INV-3** **Một thao tác thay đổi tại một thời điểm** (khoá toàn cục): lệnh thứ hai khi đang chạy → 409 `busy` (kể cả khi lệnh trước đã báo `timeout` nhưng tiến trình của nó chưa trả về: khoá giữ tới khi trả về, quá trần thì host thoát để systemd khởi động lại); reboot trong lúc cài đặt → 409.
 - **INV-4** **Chỉ `core` gọi được**: giao tiếp qua socket Unix nội bộ, quyền socket và kiểm danh tính tiến trình gọi; không cổng mạng. Người dùng/UI không bao giờ gọi trực tiếp; `core` kiểm vai (admin/operator) và ghi `core_audit` (SYS-3) **trước** khi gọi `host`.
 - **INV-5** **Cài bản vá OS (D-53)**: chỉ danh sách lệnh apt cố định (`security` hoặc `all`); **sao lưu DB trước**, **kiểm sức khoẻ sau** (`health[]`), tiến trình hiện trực tiếp (`lines`), kết quả `installed`, `security`, `backup`, `reboot_required`. **Không bao giờ tự nâng bản phát hành OS** (chỉ trả hướng dẫn `release_upgrade`).
 - **INV-6** Khởi động lại: `now`, `window`, hoặc `custom` với `at` (HH:MM) **nằm trong cửa sổ bảo trì**; huỷ lịch được; từ chối khi đang cài (INV-3). Tự cập nhật bảo mật = `unattended-upgrades` bật/tắt; cửa sổ bảo trì `always | window{days 1..7, from, to}` (`to < from` = qua nửa đêm).
@@ -16,7 +16,7 @@
 - **INV-9** `pkg.list` (dpkg) chỉ đọc, là nguồn danh sách gói của chính hộp ("This box", độ tin cậy 1.0, D-53, S-INV-5).
 - **INV-10** Sao lưu DB: tệp không chứa mật khẩu/khoá (như `/core/data/backup`); khoá/secret không bao giờ ra khỏi `host`/`core` dạng đọc được (SYS-4).
 - **INV-11** Mạng ra của `host` chỉ gồm: kho gói apt của OS (host mirror liệt kê trong `OsInfo.mirrors`) và registry image đã khai báo (PRIVACY luồng 6); không có luồng khác (SYS-7).
-- **INV-12** Mọi lệnh ghi một dòng kết quả có cấu trúc (lệnh, tham số đã che bí mật, thời điểm, mã, người gọi do `core` truyền); lịch sử hiển thị ở Settings → Updates qua `core` (`core_os_run`).
+- **INV-12** Mọi lệnh ghi một dòng kết quả (lệnh chạy được còn có dòng `accepted` ghi lúc bắt đầu) có cấu trúc (lệnh, tham số đã che bí mật, thời điểm, mã, người gọi do `core` truyền); lịch sử hiển thị ở Settings → Updates qua `core` (`core_os_run`).
 
 ## Lệnh (allowlist) — *bảng này là bản nháp; danh sách chốt là `docs/specs/host-api.md` §6, hiện thực ở WP-07b*
 | Nhóm | Lệnh | Tham số có kiểu | Nguồn |
@@ -67,11 +67,13 @@ Mã: `host/api` (kiểu dây), `host/config` (`/etc/vedette/host.conf`), `host/p
 |---|---|
 | INV-1, FORBID-1 | `TestContract_INV1_UnknownCommandIsRefusedAndRecorded`, `…_CommandTableIsClosedAndMatchesTheSpec`, `…_NothingTakesABinaryArgvOrPathFromTheRequest`, `TestContract_FORBID1_NoShellNoGenericExec` |
 | INV-2 | `TestContract_INV2_BadArgsAreRefusedBeforeAnythingRuns` |
-| INV-3 | `TestContract_INV3_OneWriteAtATime` |
+| INV-3 | `TestContract_INV3_OneWriteAtATime`, `…_ACommandThatIgnoresItsDeadlineStillHoldsTheLock` |
 | INV-4 | `TestContract_INV4_EachPeerLayerDeniesAndIsAudited`, `…_NoRealCheckOffLinux`; `host/peer` (Linux) |
 | INV-12 | `TestContract_INV12_EveryCommandLeavesOneChainedAuditLine` |
 | POST-4 | `TestContract_POST4_TimeoutReleasesTheLock` |
 | FORBID-2 | `TestContract_FORBID2_NoNetworkListener`, `…_TheListenerIsAUnixSocket` |
+
+Các lỗi tìm thấy khi review bảo mật có test riêng trong `host/server/review_test.go`, `host/peer/peer_test.go`, `host/client/client_test.go`.
 
 Chưa kiểm được trên máy phát triển (macOS): hiệu ứng thật trên Linux (quyền socket do root, `SO_PEERCRED`, cgroup của unit thật, unit systemd); xem `.ai/deferred/feat-host-framework.md`.
 

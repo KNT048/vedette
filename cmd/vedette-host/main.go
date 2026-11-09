@@ -45,7 +45,7 @@ type environment struct {
 	goos        string
 	euid        int
 	configOwner int // the uid that must own host.conf (0 in production)
-	newChecker  func(coreUID int, unit string) (peer.Checker, error)
+	newChecker  func(coreUID int, unit, cgroup string) (peer.Checker, error)
 	registry    *server.Registry
 	logger      *slog.Logger
 }
@@ -88,12 +88,12 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 		}
 		cfg.Socket = *socket
 	}
-	check, err := env.newChecker(cfg.CoreUID, cfg.CoreUnit)
+	check, err := env.newChecker(cfg.CoreUID, cfg.CoreUnit, cfg.CoreCgroup)
 	if err != nil {
 		return err
 	}
 	srv, err := server.New(server.Options{
-		SocketPath: cfg.Socket, SocketGID: cfg.SocketGID, StateDir: *stateDir, AuditPath: *auditLog,
+		SocketPath: cfg.Socket, SocketGID: cfg.SocketGID, StateDir: *stateDir, AuditPath: *auditLog, OwnerUID: env.configOwner,
 		Registry: env.registry, PeerCheck: check, Version: version, Logger: env.logger,
 	})
 	if err != nil {

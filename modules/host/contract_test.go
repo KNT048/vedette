@@ -109,8 +109,16 @@ func newFixture(t *testing.T) *fixture {
 		}),
 		server.Define(server.Spec[struct{}]{
 			Name: "test.stuck", Write: true, Timeout: 50 * time.Millisecond,
+			Run: func(ctx context.Context, _ *server.RunContext, _ struct{}) (any, error) {
+				<-ctx.Done() // a command that honours its deadline
+				return nil, ctx.Err()
+			},
+		}),
+		server.Define(server.Spec[struct{}]{
+			Name: "test.deaf", Write: true, Timeout: 50 * time.Millisecond,
 			Run: func(context.Context, *server.RunContext, struct{}) (any, error) {
-				<-f.release // ignores cancellation: only the framework can free the lock
+				f.ran.Add(1)
+				<-f.release // ignores cancellation: the lock must stay held
 				return nil, nil
 			},
 		}),
@@ -382,6 +390,43 @@ func TestContract_INV3_OneWriteAtATime(t *testing.T) {
 	}
 }
 
+func TestContract_INV3_ACommandThatIgnoresItsDeadlineStillHoldsTheLock(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	h := servertest.Start(t, f.cmds)
+	deaf, err := h.Client.Run(context.Background(), "test.deaf", nil, rid1, "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if done := waitDone(t, h.Client, deaf.RunID); done.Error.Code != api.CodeTimeout {
+		t.Fatalf("done = %+v", done)
+	}
+	_, err = h.Client.Run(context.Background(), "test.ok", nil, rid2, "admin")
+	var e *client.Error
+	if !errors.As(err, &e) || e.Code != api.CodeBusy || e.RunID != deaf.RunID {
+		t.Fatalf("a second write started while the first still runs: %v", err)
+	}
+	close(f.release) // let the command return so Shutdown does not wait for it
+	waitIdleLock(t, h)
+}
+
+// waitIdleLock retries a write until the lock is free.
+func waitIdleLock(t *testing.T, h *servertest.Harness) {
+	t.Helper()
+	deadline := time.After(5 * time.Second)
+	for i := 0; ; i++ {
+		_, err := h.Client.Run(context.Background(), "test.ok", nil, fmt.Sprintf("%08d-4444-4444-8444-444444444444", i), "admin")
+		if err == nil || !client.IsCode(err, api.CodeBusy) {
+			return
+		}
+		select {
+		case <-deadline:
+			t.Fatal("the lock never freed")
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+}
+
 func TestContract_POST4_TimeoutReleasesTheLock(t *testing.T) {
 	t.Parallel()
 	f := newFixture(t)
@@ -411,7 +456,7 @@ type fakeProc struct {
 func (p *fakeProc) check(net.Conn) (peer.Info, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return peer.Decide(peer.Cred{UID: p.uid, PID: 4242}, 10001, "vedette-core.service", func(int) ([]byte, error) {
+	return peer.Decide(peer.Cred{UID: p.uid, PID: 4242}, 10001, "vedette-core.service", "", func(int) ([]byte, error) {
 		return []byte(p.cgroup), p.err
 	})
 }
@@ -498,7 +543,7 @@ func waitIdle(t *testing.T, h *servertest.Harness) {
 
 func TestContract_INV4_NoRealCheckOffLinux(t *testing.T) {
 	t.Parallel()
-	_, err := peer.New(10001, "vedette-core.service")
+	_, err := peer.New(10001, "vedette-core.service", "")
 	if err == nil {
 		return // Linux: the real checker exists
 	}
@@ -532,9 +577,19 @@ func TestContract_INV12_EveryCommandLeavesOneChainedAuditLine(t *testing.T) {
 	if len(runs) != 8 {
 		t.Fatalf("%d runs", len(runs))
 	}
-	recs := audit(t, h)
-	if len(recs) != 8 {
-		t.Fatalf("%d audit lines for 8 commands", len(recs))
+	all := audit(t, h)
+	var recs []api.AuditRecord
+	accepted := 0
+	for _, a := range all {
+		if a.Result == "accepted" { // written when a run starts, before the result line
+			accepted++
+			continue
+		}
+		recs = append(recs, a)
+	}
+	// 5 commands ran (ok, fail, set, stuck, set): each has an accepted line and a result line; the 3 refusals only a result line.
+	if len(recs) != 8 || accepted != 5 {
+		t.Fatalf("%d result lines and %d accepted lines for 8 commands (5 ran)", len(recs), accepted)
 	}
 	byRun := map[string]api.AuditRecord{}
 	for _, a := range recs {
@@ -570,7 +625,7 @@ func TestContract_INV12_EveryCommandLeavesOneChainedAuditLine(t *testing.T) {
 		}
 		v.Add(m["id"].(string), prev, hash, again)
 	}
-	if res := v.Result(); !res.OK || res.Count != 8 {
+	if res := v.Result(); !res.OK || res.Count != 13 {
 		t.Fatalf("chain: %+v", res)
 	}
 	// Secrets in args never reach the file.

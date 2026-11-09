@@ -98,12 +98,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	kind, arg := route(r.Method, r.URL.Path)
-	if kind == routeNone {
-		writeError(w, http.StatusNotFound, simpleError(api.CodeUnknownCommand, "There is no such endpoint or command."))
+	if ok, wait := s.reqLim.allow(s.now()); !ok { // unknown paths count too: probing is not free
+		s.rateLimited(w, p, kind, arg, wait)
 		return
 	}
-	if ok, wait := s.reqLim.allow(s.now()); !ok {
-		s.rateLimited(w, p, kind, arg, wait)
+	if kind == routeNone {
+		writeError(w, http.StatusNotFound, simpleError(api.CodeUnknownCommand, "There is no such endpoint or command."))
 		return
 	}
 	if kind == routeCommand {
@@ -140,16 +140,18 @@ func (s *Server) rateLimited(w http.ResponseWriter, p peer.Info, kind routeKind,
 	if kind == routeCommand {
 		command = safeCommandName(arg)
 	}
-	s.auditThrottled("rate_limited", auditEntry{
-		Peer: p, Actor: "-", Command: command, Result: resultRefused, Code: api.CodeRateLimited,
-	})
+	if kind != routeNone { // no audit line for probing of unknown paths
+		s.auditThrottled("rate_limited", auditEntry{
+			Peer: p, Actor: "-", Command: command, Result: resultRefused, Code: api.CodeRateLimited,
+		})
+	}
 	w.Header().Set("Retry-After", strconv.Itoa(secs))
 	writeError(w, http.StatusTooManyRequests, api.ErrorInfo{Code: api.CodeRateLimited, Message: "Too many requests; slow down.", RetryAfterS: secs})
 }
 
 // auditThrottled writes a line for traffic anyone can generate, at most one per interval per key.
 func (s *Server) auditThrottled(key string, e auditEntry) {
-	ok, skipped := s.throttle.allow(key, s.now())
+	ok, skipped, pids := s.throttle.allow(key, s.now(), 0)
 	if !ok {
 		return
 	}
@@ -158,7 +160,7 @@ func (s *Server) auditThrottled(key string, e auditEntry) {
 		return
 	}
 	e.ID = id
-	e.ArgsRedacted = map[string]any{"skipped": skipped}
+	e.ArgsRedacted = throttleDetail(skipped, pids)
 	if err := s.audit.append(e); err != nil {
 		s.log.Error("could not write an audit line", "code", e.Code)
 	}
@@ -253,6 +255,7 @@ func (s *Server) handleCommand(w http.ResponseWriter, r *http.Request, p peer.In
 		}
 	}
 
+	_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(30 * time.Second)) // the server has no ReadTimeout (it would cut event streams)
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxBodyBytes))
 	if err != nil {
 		var tooBig *http.MaxBytesError
@@ -265,6 +268,11 @@ func (s *Server) handleCommand(w http.ResponseWriter, r *http.Request, p peer.In
 		return
 	}
 	var req api.CommandRequest
+	if len(bytes.TrimSpace(body)) > 0 && ambiguousKeys(body) != "" {
+		sub.digest = digestRaw(body)
+		s.refuse(w, sub, http.StatusBadRequest, api.ErrorInfo{Code: api.CodeInvalidArgs, Message: "The request body is not valid.", Details: []api.Detail{{Field: "body", Reason: "an object has keys that differ only by case or repeat"}}})
+		return
+	}
 	if len(bytes.TrimSpace(body)) > 0 {
 		dec := json.NewDecoder(bytes.NewReader(body))
 		dec.DisallowUnknownFields()
@@ -296,7 +304,8 @@ func (s *Server) handleCommand(w http.ResponseWriter, r *http.Request, p peer.In
 		writeError(w, http.StatusInternalServerError, simpleError(api.CodeInternal, "The host could not process the request."))
 		return
 	}
-	s.submit(w, sub, cmd, args) //nolint:contextcheck // the run outlives the request: it runs under the server context, cancelled by Shutdown
+	sub.redacted = redactArgs(mustMarshal(args)) // what is recorded is what will run, not what was sent
+	s.submit(w, sub, cmd, args)                  //nolint:contextcheck // the run outlives the request: it runs under the server context, cancelled by Shutdown
 }
 
 // submit takes the write lock (or answers busy / a replay) and starts the run.
@@ -361,18 +370,34 @@ func (s *Server) submit(w http.ResponseWriter, sub submission, cmd Command, args
 	s.mu.Unlock()
 
 	if cmd.check != nil {
-		ctx, cancel := context.WithTimeout(s.baseCtx, checkTimeout)
-		cerr := cmd.check(ctx, args)
-		cancel()
-		if cerr != nil {
+		if cerr := s.runCheck(cmd, args); cerr != nil {
 			s.finishCheck(w, lr, cerr)
 			return
 		}
 	}
+	// The accepted line records who asked for what before anything runs, so a crash or reboot
+	// mid-run still leaves the peer and the redacted args in the audit log.
+	acceptedID, aerr := newID("au_")
+	if aerr == nil {
+		aerr = s.audit.append(auditEntry{
+			ID: acceptedID, RequestID: sub.requestID, Actor: sub.actor, Peer: sub.p, Command: sub.command,
+			ArgsDigest: sub.digest, ArgsRedacted: sub.redacted, Result: resultAccepted, RunID: runID,
+		})
+	}
+	if aerr != nil {
+		s.log.Error("could not audit the start of a run", "run_id", runID)
+		if lr.sr.Write {
+			s.runs.idemDelete(sub.requestID)
+		}
+		lr.finish(s, api.StatusFailed, nil, &api.RunError{Code: api.CodeAuditUnavailable, Message: "The audit log is unavailable."}, false)
+		writeError(w, http.StatusServiceUnavailable, simpleError(api.CodeAuditUnavailable, "The audit log is unavailable, so the host refuses to run commands."))
+		return
+	}
+	lr.sr.AcceptedAuditID = acceptedID
 	lr.sr.Run.Status = api.StatusRunning
 	if err := s.runs.put(lr.sr); err != nil {
 		s.log.Error("could not record a run start", "run_id", runID)
-		lr.finish(s, api.StatusFailed, nil, &api.RunError{Code: api.CodeInternal, Message: "The host could not record the run."})
+		lr.finish(s, api.StatusFailed, nil, &api.RunError{Code: api.CodeInternal, Message: "The host could not record the run."}, false)
 		writeError(w, http.StatusInternalServerError, simpleError(api.CodeInternal, "The host could not record the request."))
 		return
 	}
@@ -390,12 +415,12 @@ func (s *Server) finishCheck(w http.ResponseWriter, lr *liveRun, cerr error) {
 		if lr.sr.Write {
 			s.runs.idemDelete(lr.sub.requestID) // a refused request may be retried with the same id
 		}
-		lr.finish(s, api.StatusRefused, nil, &api.RunError{Code: ref.Code, Message: ref.Message})
+		lr.finish(s, api.StatusRefused, nil, &api.RunError{Code: ref.Code, Message: ref.Message}, false)
 		writeError(w, ref.Status, simpleError(ref.Code, ref.Message))
 		return
 	}
 	s.log.Error("command precondition check failed", "command", lr.sub.command, "error", cerr.Error())
-	lr.finish(s, api.StatusFailed, nil, &api.RunError{Code: api.CodeCommandFailed, Message: "The command precondition check failed."})
+	lr.finish(s, api.StatusFailed, nil, &api.RunError{Code: api.CodeCommandFailed, Message: "The command precondition check failed."}, false)
 	writeError(w, http.StatusInternalServerError, simpleError(api.CodeInternal, "The host could not check the command preconditions."))
 }
 
@@ -451,16 +476,15 @@ type liveRun struct {
 // finish records the end of the run in the required order: audit line, run file, then the write
 // lock is released, and only then the final state event ends the stream. A client that sees the
 // final event therefore also sees the lock free and the final run.
-func (lr *liveRun) finish(s *Server, status api.Status, result json.RawMessage, rerr *api.RunError) {
+//
+// holdLock keeps the write lock after the run is recorded: used when the command goroutine could
+// not be stopped, so no second write can start while the first may still be touching the system.
+func (lr *liveRun) finish(s *Server, status api.Status, result json.RawMessage, rerr *api.RunError, holdLock bool) {
 	var once sync.Once
 	release := func() {
 		once.Do(func() {
-			if lr.sr.Write {
-				s.mu.Lock()
-				if s.active == lr.sr.Run.RunID {
-					s.active = ""
-				}
-				s.mu.Unlock()
+			if lr.sr.Write && !holdLock {
+				s.releaseWrite(lr.sr.Run.RunID)
 			}
 		})
 	}
@@ -511,8 +535,56 @@ func auditResult(st api.Status) string {
 	return resultFailed
 }
 
-// execute runs the command with its timeout (POST-4). A handler that ignores cancellation does
-// not hold the lock for ever: after KillGrace the run is failed and the lock released.
+// releaseWrite frees the write lock if runID holds it.
+func (s *Server) releaseWrite(runID string) {
+	s.mu.Lock()
+	if s.active == runID {
+		s.active = ""
+	}
+	s.mu.Unlock()
+}
+
+// runCheck runs the synchronous precondition check bounded by CheckTimeout (plus KillGrace for a
+// Check that ignores its context). A panic or a hang becomes an error, never a held lock.
+func (s *Server) runCheck(cmd Command, args any) error {
+	ctx, cancel := context.WithTimeout(s.baseCtx, s.o.CheckTimeout)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		defer func() {
+			if rec := recover(); rec != nil {
+				s.log.Error("command check panicked", "command", cmd.name, "panic", fmt.Sprint(rec))
+				done <- errors.New("check panicked")
+			}
+		}()
+		done <- cmd.check(ctx, args)
+	}()
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+	}
+	grace := time.NewTimer(s.o.KillGrace)
+	defer grace.Stop()
+	select {
+	case err := <-done:
+		if err == nil {
+			err = ctx.Err() // finished only after its deadline: do not trust it
+		}
+		return err
+	case <-grace.C:
+		s.log.Error("command check ignored its deadline", "command", cmd.name)
+		return errors.New("check timed out")
+	}
+}
+
+// resultAccepted is the audit result of the line written when a run starts.
+const resultAccepted = "accepted"
+
+// execute runs the command with its timeout (POST-4). A handler that ignores cancellation is
+// reported as timed out after KillGrace, but its run keeps the write lock until the goroutine
+// really returns (INV-3: never two writes at once). If it is still running AbandonCeiling later,
+// the host audits that and exits non-zero so systemd restarts it and kills the children.
 func (s *Server) execute(lr *liveRun, cmd Command, args any) {
 	defer s.wg.Done()
 	ctx, cancel := context.WithTimeout(s.baseCtx, cmd.timeout)
@@ -550,12 +622,41 @@ func (s *Server) execute(lr *liveRun, cmd Command, args any) {
 			abandoned = true
 		}
 	}
-	if abandoned {
-		s.log.Error("command ignored cancellation; releasing the write lock", "command", lr.sub.command, "run_id", lr.sr.Run.RunID)
-		out.err = context.Cause(ctx)
+	if !abandoned {
+		status, result, rerr := s.outcome(ctx, out.res, out.err, false)
+		lr.finish(s, status, result, rerr, false)
+		return
 	}
-	status, result, rerr := s.outcome(ctx, out.res, out.err, abandoned)
-	lr.finish(s, status, result, rerr)
+	s.log.ErrorContext(ctx, "command ignored cancellation; the write lock stays held until it returns", "command", lr.sub.command, "run_id", lr.sr.Run.RunID)
+	status, result, rerr := s.outcome(ctx, nil, context.Cause(ctx), true)
+	lr.finish(s, status, result, rerr, true)
+	ceiling := time.NewTimer(s.o.AbandonCeiling)
+	defer ceiling.Stop()
+	select {
+	case <-done:
+		s.releaseWrite(lr.sr.Run.RunID)
+		s.log.WarnContext(ctx, "the abandoned command returned; the write lock is free", "run_id", lr.sr.Run.RunID)
+	case <-ceiling.C:
+		s.wedged(lr)
+	}
+}
+
+// wedged records that a command never returned and ends the process: the lock cannot be released
+// safely, so the host restarts (systemd, KillMode=control-group) and recovery marks the run host_restarted.
+func (s *Server) wedged(lr *liveRun) {
+	s.log.Error("a command did not return after the hard ceiling; exiting so systemd restarts the host", "command", lr.sub.command, "run_id", lr.sr.Run.RunID)
+	id, err := newID("au_")
+	if err == nil {
+		err = s.audit.append(auditEntry{
+			ID: id, RequestID: lr.sub.requestID, Actor: lr.sub.actor, Peer: lr.sub.p, Command: lr.sub.command,
+			ArgsDigest: lr.sub.digest, Result: resultFailed, Code: api.CodeHostWedged, RunID: lr.sr.Run.RunID,
+			ArgsRedacted: map[string]any{"accepted_audit_id": lr.sr.AcceptedAuditID},
+		})
+	}
+	if err != nil {
+		s.log.Error("could not audit a wedged command")
+	}
+	s.o.Exit(70)
 }
 
 // outcome maps what a command returned to the final status. Error text never reaches the run.

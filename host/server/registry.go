@@ -196,6 +196,9 @@ func decodeStrict(raw []byte, v any) error {
 	if bytes.Equal(raw, []byte("null")) {
 		return Invalid("", "args must be an object")
 	}
+	if why := ambiguousKeys(raw); why != "" {
+		return Invalid("", "an object has keys that differ only by case or repeat")
+	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
@@ -224,4 +227,66 @@ func jsonReason(err error) string {
 		return "unknown field " + clip(name, 64)
 	}
 	return "does not match the expected shape"
+}
+
+// ambiguousKeys returns a non-empty description when some JSON object in raw has two keys that are
+// equal ignoring case (encoding/json matches field names case-insensitively, so such an object
+// means different things to a reader and to the decoder) or repeat exactly. Malformed JSON gives "".
+func ambiguousKeys(raw []byte) string {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	type frame struct {
+		object bool
+		seen   map[string]bool
+		key    bool // next string token in an object is a key
+	}
+	var stack []*frame
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return ""
+		}
+		top := (*frame)(nil)
+		if len(stack) > 0 {
+			top = stack[len(stack)-1]
+		}
+		switch t := tok.(type) {
+		case json.Delim:
+			switch t {
+			case '{':
+				stack = append(stack, &frame{object: true, seen: map[string]bool{}, key: true})
+			case '[':
+				stack = append(stack, &frame{})
+			default:
+				stack = stack[:len(stack)-1]
+				if n := len(stack); n > 0 && stack[n-1].object {
+					stack[n-1].key = true // the value just ended; the next token is a key
+				}
+			}
+			continue
+		case string:
+			if top != nil && top.object && top.key {
+				low := strings.ToLower(t)
+				if top.seen[low] {
+					return "repeated key"
+				}
+				top.seen[low] = true
+				top.key = false
+				continue
+			}
+		}
+		if top != nil && top.object && !top.key {
+			top.key = true // a scalar value ended
+		}
+		if len(stack) == 0 {
+			return ""
+		}
+	}
+}
+
+func mustMarshal(v any) []byte {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return []byte("null")
+	}
+	return b
 }

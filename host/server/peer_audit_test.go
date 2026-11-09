@@ -85,7 +85,7 @@ func TestAuditChainIsValidAndOnlyGrows(t *testing.T) {
 		finish(t, h.Client, r.RunID)
 	}
 	_, _ = post(t, h, "nope", goodHeaders(rid1), `{}`)
-	checkChainFile(t, h.AuditPath, 5)
+	checkChainFile(t, h.AuditPath, 9) // 4 runs x (accepted + result) + 1 refusal
 	st, err := os.Stat(h.AuditPath)
 	if err != nil || st.Mode().Perm() != 0o600 {
 		t.Fatalf("audit file mode: %v %v", st, err)

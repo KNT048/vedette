@@ -43,7 +43,7 @@ func TestRealChecker(t *testing.T) {
 	defer func() { _ = server.Close() }()
 
 	// Layer 2 fails: a different uid is configured. The credentials read are still reported.
-	other, err := peer.New(os.Getuid()+1, "vedette-core.service")
+	other, err := peer.New(os.Getuid()+1, "vedette-core.service", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +52,7 @@ func TestRealChecker(t *testing.T) {
 		t.Fatalf("wrong uid: info %+v err %v", info, err)
 	}
 	// Layer 3 fails: right uid, but this test process is not inside the core unit's cgroup.
-	same, err := peer.New(os.Getuid(), "vedette-core.service")
+	same, err := peer.New(os.Getuid(), "vedette-core.service", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,11 +66,14 @@ func TestRealChecker(t *testing.T) {
 	if _, err := same(a); !errors.Is(err, peer.ErrNotAllowed) {
 		t.Fatalf("pipe: %v", err)
 	}
+	if _, err := peer.New(1000, "vedette-core.service", "relative/cgroup"); err == nil {
+		t.Fatal("bad anchor accepted")
+	}
 	// A misconfigured checker is refused at construction.
-	if _, err := peer.New(0, "vedette-core.service"); err == nil {
+	if _, err := peer.New(0, "vedette-core.service", ""); err == nil {
 		t.Fatal("uid 0 accepted")
 	}
-	if _, err := peer.New(1000, "not-a-unit"); err == nil {
+	if _, err := peer.New(1000, "not-a-unit", ""); err == nil {
 		t.Fatal("bad unit accepted")
 	}
 }

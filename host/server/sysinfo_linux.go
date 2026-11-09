@@ -17,7 +17,7 @@ func systemInfo(now time.Time) (kernel string, booted time.Time) {
 			if c == 0 {
 				break
 			}
-			b = append(b, byte(c))
+			b = append(b, byte(c)) //nolint:gosec // Utsname is char data: int8 on amd64, uint8 elsewhere
 		}
 		if s := string(b); osTokenRE.MatchString(s) {
 			kernel = s

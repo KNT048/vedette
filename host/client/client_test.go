@@ -205,3 +205,27 @@ func listenUnix(t *testing.T, path string) net.Listener {
 	}
 	return ln
 }
+
+func TestEventLargerThan64KiBIsRefused(t *testing.T) {
+	t.Parallel()
+	sock := filepath.Join(shortDir(t), "f.sock")
+	ln := listenUnix(t, sock)
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		chunk := "data: " + string(make([]byte, 0)) + "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+		for range 1000 { // 1000 data lines of ~100 bytes and no blank line: one event of 100 KB
+			if _, err := w.Write([]byte(chunk)); err != nil {
+				return
+			}
+		}
+	}), ReadHeaderTimeout: time.Second}
+	go func() { _ = srv.Serve(ln) }()
+	t.Cleanup(func() { _ = srv.Close() })
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	s := client.New(sock).Events(ctx, "rn_0000000000000000", 0)
+	defer s.Close()
+	if _, err := s.Next(); !errors.Is(err, client.ErrEventTooLarge) {
+		t.Fatalf("err = %v", err)
+	}
+}

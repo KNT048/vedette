@@ -83,7 +83,9 @@ type Harness struct {
 	AuditPath string
 	Dir       string
 	Options   server.Options
-	serveErr  chan error
+	// Exited receives the code when the server decides to exit the process (a wedged command).
+	Exited   chan int
+	serveErr chan error
 }
 
 // CoreInfo is the peer the harness allows by default.
@@ -116,6 +118,7 @@ func Prepare(t testing.TB, cmds []server.Command, mutate ...func(*server.Options
 		Clock: &Clock{t: time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC)},
 		Dir:   dir, Socket: filepath.Join(dir, "run", "h.sock"),
 		StateDir: filepath.Join(dir, "state"), AuditPath: filepath.Join(dir, "log", "audit.jsonl"),
+		Exited: make(chan int, 4),
 	}
 	h.Peer.Allow(CoreInfo)
 	osrel := filepath.Join(dir, "os-release")
@@ -128,6 +131,7 @@ func Prepare(t testing.TB, cmds []server.Command, mutate ...func(*server.Options
 		Logger: slog.New(slog.DiscardHandler), KillGrace: 100 * time.Millisecond,
 		// Tests poll and stream; the limits of spec section 10 are tested by setting these to 0 (= defaults).
 		RequestsPerMinute: 100_000, WritesPerMinute: 100_000,
+		OwnerUID: os.Getuid(), Exit: func(code int) { h.Exited <- code },
 	}
 	for _, m := range mutate {
 		m(&h.Options)

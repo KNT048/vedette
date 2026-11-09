@@ -29,6 +29,14 @@ func TestParse(t *testing.T) {
 	}
 }
 
+func TestParseCoreCgroup(t *testing.T) {
+	t.Parallel()
+	c, err := config.Parse(strings.NewReader(good + "core_cgroup = /user.slice/user-990.slice/user@990.service/app.slice/vedette-core.service\n"))
+	if err != nil || c.CoreCgroup != "/user.slice/user-990.slice/user@990.service/app.slice/vedette-core.service" {
+		t.Fatalf("%+v %v", c, err)
+	}
+}
+
 func TestParseRejects(t *testing.T) {
 	t.Parallel()
 	tests := map[string]string{
@@ -54,6 +62,9 @@ func TestParseRejects(t *testing.T) {
 		"nul in value":      strings.Replace(good, "10001", "1\x0000", 1),
 		"socket is root":    strings.Replace(good, "/run/vedette/host.sock", "/", 1),
 		"empty value":       strings.Replace(good, "10001", "", 1),
+		"cgroup relative":   good + "core_cgroup = system.slice/x\n",
+		"cgroup dotdot":     good + "core_cgroup = /a/../b\n",
+		"cgroup repeated":   good + "core_cgroup = /a\ncore_cgroup = /b\n",
 		"inline comment":    strings.Replace(good, "10001", "10001 # core", 1),
 		"yaml-ish":          "core_uid: 1\n",
 		"newline in socket": strings.Replace(good, "/run/vedette/host.sock", "/run/a\rb", 1),

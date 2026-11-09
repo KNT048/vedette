@@ -169,7 +169,7 @@ func TestCleanLine(t *testing.T) {
 func TestPruneRetention(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	s, err := openRunStore(filepath.Join(dir, "state"), slog.New(slog.DiscardHandler))
+	s, err := openRunStore(filepath.Join(dir, "state"), os.Getuid(), slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -236,7 +236,7 @@ func TestPruneRetention(t *testing.T) {
 		t.Error("an idempotency record of a pruned run survived")
 	}
 	// Files and memory agree after a reload.
-	s2, err := openRunStore(filepath.Join(dir, "state"), slog.New(slog.DiscardHandler))
+	s2, err := openRunStore(filepath.Join(dir, "state"), os.Getuid(), slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +248,7 @@ func TestPruneRetention(t *testing.T) {
 func TestRunFilesAre0600(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	s, err := openRunStore(filepath.Join(dir, "state"), slog.New(slog.DiscardHandler))
+	s, err := openRunStore(filepath.Join(dir, "state"), os.Getuid(), slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -320,4 +320,129 @@ func FuzzParseOSRelease(f *testing.F) {
 			}
 		}
 	})
+}
+
+func shortTemp(t *testing.T) string {
+	t.Helper()
+	d, err := os.MkdirTemp("", "vi")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(d) })
+	return d
+}
+
+// Review M3: the socket directory must be owned by the host user and the socket group, not just have a safe mode.
+func TestListenChecksDirectoryOwnerAndGroup(t *testing.T) {
+	t.Parallel()
+	dir := shortTemp(t)
+	sockDir := filepath.Join(dir, "run")
+	if err := os.Mkdir(sockDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(sockDir, 0o750); err != nil { //nolint:gosec // the directory must have the exact mode 0750 under test
+		t.Fatal(err)
+	}
+	if err := os.Lchown(sockDir, -1, os.Getgid()); err != nil {
+		t.Fatal(err)
+	}
+	listen := func(owner, gid int, path string) error {
+		s := &Server{o: Options{SocketPath: path, OwnerUID: owner, SocketGID: gid}}
+		ln, err := s.Listen(t.Context())
+		if err == nil {
+			_ = ln.Close()
+		}
+		return err
+	}
+	if err := listen(os.Getuid()+1, os.Getgid(), filepath.Join(sockDir, "a.sock")); err == nil {
+		t.Error("a directory owned by another uid was accepted")
+	}
+	if err := listen(os.Getuid(), os.Getgid()+1, filepath.Join(sockDir, "a.sock")); err == nil {
+		t.Error("a directory of another group was accepted")
+	}
+	link := filepath.Join(dir, "link")
+	if err := os.Symlink(sockDir, link); err != nil {
+		t.Fatal(err)
+	}
+	if err := listen(os.Getuid(), os.Getgid(), filepath.Join(link, "a.sock")); err == nil {
+		t.Error("a symlinked socket directory was accepted")
+	}
+	if err := listen(os.Getuid(), os.Getgid(), filepath.Join(sockDir, "ok.sock")); err != nil {
+		t.Errorf("the right owner and group: %v", err)
+	}
+}
+
+// Review M3: if the socket path was swapped for a symlink between bind and chown/chmod, nothing behind it is touched.
+func TestSecureSocketNeverFollowsASymlink(t *testing.T) {
+	t.Parallel()
+	dir := shortTemp(t)
+	victim := filepath.Join(dir, "victim")
+	if err := os.WriteFile(victim, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "h.sock")
+	if err := os.Symlink(victim, path); err != nil {
+		t.Fatal(err)
+	}
+	if err := secureSocket(path, os.Getgid()); err == nil {
+		t.Fatal("a symlink was accepted as the socket")
+	}
+	if st, err := os.Stat(victim); err != nil || st.Mode().Perm() != 0o600 {
+		t.Fatalf("the symlink target was modified: %v %v", st, err)
+	}
+}
+
+// The server must not set ReadTimeout: it would cut live event streams (found in review).
+func TestHTTPServerHasNoReadTimeout(t *testing.T) {
+	t.Parallel()
+	s := &Server{log: slog.New(slog.DiscardHandler)}
+	if hs := s.newHTTPServer(); hs.ReadTimeout != 0 || hs.WriteTimeout != 0 || hs.ReadHeaderTimeout == 0 {
+		t.Fatalf("ReadTimeout %v WriteTimeout %v ReadHeaderTimeout %v", hs.ReadTimeout, hs.WriteTimeout, hs.ReadHeaderTimeout)
+	}
+}
+
+func TestRedactKeys(t *testing.T) {
+	t.Parallel()
+	got, _ := json.Marshal(redactArgs([]byte(`{"vdt_live_9fQ2xLm7Rt8Kp3Zw":1,"name":"x","ghp_abcdefghijklmnopqrstuvwxyz0123456789":2}`)))
+	if strings.Contains(string(got), "vdt_live") || strings.Contains(string(got), "ghp_") || !strings.Contains(string(got), `"name":"x"`) {
+		t.Fatalf("%s", got)
+	}
+}
+
+func TestAmbiguousKeys(t *testing.T) {
+	t.Parallel()
+	for in, want := range map[string]bool{
+		`{"a":1,"A":2}`:             true,
+		`{"a":1,"a":2}`:             true,
+		`{"a":{"b":1,"B":2}}`:       true,
+		`{"a":[{"b":1},{"B":2}]}`:   false, // different objects
+		`{"a":{"b":1},"b":2}`:       false, // different levels
+		`{"a":1,"b":{"a":2}}`:       false,
+		`{"a":[1,2,{"x":1,"X":1}]}`: true,
+		`{"a":1}`:                   false,
+		`[]`:                        false,
+		`{`:                         false,
+		`{"a":"A","b":"B"}`:         false, // values are not keys
+		`{"a":{"x":1},"A":{"y":2}}`: true,
+		`{"k":[],"K":[]}`:           true,
+		`{"a":{"x":1},"b":{"x":1}}`: false,
+	} {
+		if got := ambiguousKeys([]byte(in)) != ""; got != want {
+			t.Errorf("ambiguousKeys(%s) = %v, want %v", in, got, want)
+		}
+	}
+}
+
+func TestThrottleBoundedKeys(t *testing.T) {
+	t.Parallel()
+	th := newAuditThrottle(time.Minute)
+	now := time.Now()
+	for i := range 5000 {
+		th.allow(fmt.Sprint("uid:", i), now, i)
+	}
+	if len(th.state) > throttleMaxKeys+1 {
+		t.Fatalf("%d keys", len(th.state))
+	}
+	ok, _, _ := th.allow("brand-new", now, 1)
+	_ = ok // lands in the shared overflow key, still throttled, never unbounded
 }

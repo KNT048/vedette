@@ -476,7 +476,8 @@ func TestRunExtraEnv(t *testing.T) {
 func TestNewRunnerRejectsBadEnv(t *testing.T) {
 	t.Parallel()
 	for _, env := range [][]string{
-		{"PATH=/evil"}, {"LANG=en_US"}, {"lower=x"}, {"NOEQUALS"}, {"A=b\x00c"}, {"A=1", "A=2"}, {"=x"},
+		{"PATH=/evil"}, {"LANG=en_US"}, {"lower=x"}, {"NOEQUALS"}, {"DEBIAN_FRONTEND=a\x00b"}, {"DEBIAN_FRONTEND=a", "DEBIAN_FRONTEND=b"}, {"=x"},
+		{"LD_PRELOAD=/tmp/evil.so"}, {"LD_LIBRARY_PATH=/tmp"}, {"LC_ALL=C"}, {"LC_MESSAGES=C"}, {"PYTHONPATH=/tmp"}, {"FOO=bar"}, {"BASH_ENV=/tmp/x"},
 	} {
 		b := testBinary(t, nil, 0)
 		b.Env = env

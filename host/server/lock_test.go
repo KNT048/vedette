@@ -157,21 +157,6 @@ func TestTimeoutFailsRunAndReleasesLock(t *testing.T) {
 	_ = f
 }
 
-func TestHandlerThatIgnoresItsContextStillReleasesTheLock(t *testing.T) {
-	t.Parallel()
-	h, f := start(t)
-	r := run(t, h.Client, "test.hang", nil, rid1)
-	done := finish(t, h.Client, r.RunID) // timeout 50 ms + kill grace 100 ms
-	if done.Status != api.StatusFailed || done.Error.Code != api.CodeTimeout {
-		t.Fatalf("done = %+v", done)
-	}
-	next := run(t, h.Client, "test.echo", echoArgs{Name: "after"}, rid2)
-	if finish(t, h.Client, next.RunID).Status != api.StatusSucceeded {
-		t.Fatal("lock was not released")
-	}
-	close(f.release) // let the abandoned goroutine go
-}
-
 func TestRateLimits(t *testing.T) {
 	t.Parallel()
 	zero := func(o *server.Options) { o.RequestsPerMinute, o.WritesPerMinute = 0, 0 }
@@ -268,7 +253,7 @@ func TestShutdownRefusesNewAndCancelsRunning(t *testing.T) {
 	}
 	var found bool
 	for _, a := range auditLines(t, h2) {
-		found = found || (a.RunID != nil && *a.RunID == r.RunID && *a.Code == api.CodeShuttingDown)
+		found = found || (a.RunID != nil && *a.RunID == r.RunID && a.Code != nil && *a.Code == api.CodeShuttingDown)
 	}
 	if !found {
 		t.Fatal("no audit line for the cancelled run")

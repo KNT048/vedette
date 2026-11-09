@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 	"unicode/utf8"
 
@@ -54,6 +55,9 @@ type storedRun struct {
 	Run        api.Run `json:"run"`
 	ArgsDigest string  `json:"args_digest"`
 	Write      bool    `json:"write"`
+	// AcceptedAuditID is the audit line written when the run started (peer and redacted args);
+	// recovery after a crash points at it.
+	AcceptedAuditID string `json:"accepted_audit_id,omitempty"`
 }
 
 // idemRecord remembers one write request for 30 days (spec section 4).
@@ -76,13 +80,13 @@ type runStore struct {
 	log   *slog.Logger
 }
 
-func openRunStore(stateDir string, log *slog.Logger) (*runStore, error) {
+func openRunStore(stateDir string, owner int, log *slog.Logger) (*runStore, error) {
 	s := &runStore{
 		dir: filepath.Join(stateDir, "runs"), idem: filepath.Join(stateDir, "idem"),
 		runs: map[string]*storedRun{}, idems: map[string]idemRecord{}, log: log,
 	}
 	for _, d := range []string{s.dir, s.idem} {
-		if err := ensureDir(d, 0o700); err != nil {
+		if err := ensureDir(d, 0o700, owner); err != nil {
 			return nil, err
 		}
 	}
@@ -256,18 +260,27 @@ func (s *runStore) removeRunLocked(id string) {
 // eventsPath is where a finished run's events are kept.
 func (s *runStore) eventsPath(id string) string { return filepath.Join(s.dir, id+".events.json") }
 
-func ensureDir(path string, mode os.FileMode) error {
-	st, err := os.Lstat(path)
-	switch {
-	case errors.Is(err, os.ErrNotExist):
+// ensureDir creates path with mode if absent and insists that it is a real directory (not a
+// symlink) owned by uid owner and no more open than mode.
+func ensureDir(path string, mode os.FileMode, owner int) error {
+	if _, err := os.Lstat(path); errors.Is(err, os.ErrNotExist) {
 		if err := os.MkdirAll(path, mode); err != nil {
 			return fmt.Errorf("host: create %s: %w", path, err)
 		}
-		return os.Chmod(path, mode)
-	case err != nil:
+		if err := os.Chmod(path, mode); err != nil {
+			return fmt.Errorf("host: chmod %s: %w", path, err)
+		}
+	}
+	st, err := os.Lstat(path)
+	if err != nil {
 		return fmt.Errorf("host: stat %s: %w", path, err)
+	}
+	sys, ok := st.Sys().(*syscall.Stat_t)
+	switch {
 	case !st.IsDir():
 		return fmt.Errorf("host: %s is not a directory", path)
+	case !ok || int(sys.Uid) != owner:
+		return fmt.Errorf("host: %s must be owned by uid %d", path, owner)
 	case st.Mode().Perm()&^mode != 0:
 		return fmt.Errorf("host: %s has mode %o, more open than %o", path, st.Mode().Perm(), mode)
 	}

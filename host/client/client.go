@@ -17,13 +17,20 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/knt048/vedette/host/api"
 )
 
-// ErrUnreachable is wrapped by every failure to reach the socket (missing, refused, not allowed).
+// ErrUnreachable is wrapped by every failure to connect to the socket (path missing, nothing
+// listening, no permission to open it). A peer the host refuses still connects: see ErrDenied.
 var ErrUnreachable = errors.New("host: vedette-host is unreachable (not an appliance, or the host is not running)")
+
+// ErrDenied is wrapped when the host closes the connection before answering. The usual cause is
+// that the peer check rejected this process (wrong uid or cgroup: a deployment error to report
+// as "not allowed"); a host that died mid-request looks the same.
+var ErrDenied = errors.New("host: vedette-host closed the connection without answering (peer not allowed, or the host died)")
 
 // ErrStreamLost is returned by Stream.Next when the connection was lost and could not be resumed.
 // It is not io.EOF: a lost stream says nothing about whether the run finished (ask GetRun).
@@ -92,6 +99,10 @@ func (c *Client) do(hc *http.Client, req *http.Request) (*http.Response, error) 
 		var ne *net.OpError
 		if errors.Is(err, ErrUnreachable) || (errors.As(err, &ne) && ne.Op == "dial") {
 			return nil, fmt.Errorf("%w: %w", ErrUnreachable, err)
+		}
+		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.EPIPE) ||
+			strings.Contains(err.Error(), "server closed idle connection") { // net/http reports a close before any response this way too
+			return nil, fmt.Errorf("%w: %w", ErrDenied, err)
 		}
 		return nil, fmt.Errorf("host: %w", err)
 	}
@@ -213,7 +224,12 @@ type Stream struct {
 const (
 	maxReconnects = 5
 	maxSSELine    = 16 << 10
+	maxSSEEvent   = 64 << 10
 )
+
+// ErrEventTooLarge is returned when one event exceeds 64 KiB (a hostile or broken host). It is
+// not retried.
+var ErrEventTooLarge = errors.New("host: event is larger than 64 KiB")
 
 // Events starts reading the events of runID after event number after (0 for all).
 func (c *Client) Events(ctx context.Context, runID string, after uint64) *Stream {
@@ -257,6 +273,9 @@ func (s *Stream) Next() (api.Event, error) {
 			return ev, nil
 		}
 		s.Close()
+		if errors.Is(err, ErrEventTooLarge) {
+			return api.Event{}, err
+		}
 		if s.ctx.Err() != nil {
 			return api.Event{}, fmt.Errorf("host: events: %w", s.ctx.Err())
 		}
@@ -312,6 +331,9 @@ func (s *Stream) read() (api.Event, error) {
 			return ev, nil
 		case strings.HasPrefix(line, ":"):
 		case strings.HasPrefix(line, "data:"):
+			if len(data)+len(line) > maxSSEEvent {
+				return api.Event{}, ErrEventTooLarge
+			}
 			data = append(data, strings.TrimPrefix(strings.TrimPrefix(line, "data:"), " ")...)
 		}
 	}

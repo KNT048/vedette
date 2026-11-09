@@ -42,9 +42,8 @@ type Binary struct {
 	Path      string                    // absolute path; PATH is never searched
 	Validate  func(args []string) error // must accept the whole argv before the process starts
 	MaxOutput int64                     // per-stream capture limit in bytes; 0 = DefaultMaxOutput
-	// Env adds KEY=value entries after the fixed PATH and LANG (for example
-	// DEBIAN_FRONTEND=noninteractive). It never inherits the parent environment and cannot
-	// override PATH or LANG.
+	// Env adds KEY=value entries after the fixed PATH and LANG. Only keys on the allowlist
+	// (DEBIAN_FRONTEND) are accepted; the parent environment is never inherited.
 	Env []string
 }
 
@@ -106,18 +105,19 @@ func NewRunner(log *slog.Logger, bins ...Binary) (*Runner, error) {
 	return r, nil
 }
 
-var envKeyRE = regexp.MustCompile(`^[A-Z][A-Z0-9_]{0,63}$`)
+// allowedEnv is the whole list of keys a binary may add to the fixed environment: only what
+// vedette-host needs. Everything else (LD_*, LC_*, PATH, LANG, PYTHON*, ...) is refused by name,
+// so a typo or a hostile caller cannot reshape how the child loads code or localises output.
+var allowedEnv = map[string]bool{"DEBIAN_FRONTEND": true}
 
-// checkEnv accepts KEY=value entries with an upper-case key, no NUL, and never PATH or LANG.
+// checkEnv accepts KEY=value entries whose key is on allowedEnv, once each, without NUL.
 func checkEnv(env []string) error {
 	seen := make(map[string]bool, len(env))
 	for _, e := range env {
 		k, v, ok := strings.Cut(e, "=")
 		switch {
-		case !ok || !envKeyRE.MatchString(k):
-			return fmt.Errorf("env entry %q must be KEY=value with an upper-case key", k)
-		case k == "PATH" || k == "LANG":
-			return fmt.Errorf("env key %s is fixed", k)
+		case !ok || !allowedEnv[k]:
+			return fmt.Errorf("env key %q is not allowed", k)
 		case strings.ContainsRune(v, 0):
 			return fmt.Errorf("env value of %s contains NUL", k)
 		case seen[k]:

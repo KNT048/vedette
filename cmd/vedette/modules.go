@@ -19,6 +19,7 @@ import (
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/mitigation"
+	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
 
 // deps is what module constructors may take. serve builds one value and hands it to every module's
@@ -56,6 +57,7 @@ func wiredModules() []moduleWiring {
 		{ID: "core", Migrations: core.Migrations},
 		{ID: "feeds", Migrations: feeds.Migrations, Jobs: feedsJobs},
 		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},
+		{ID: "sensor-active", Migrations: sensoractive.Migrations, Jobs: sensorActiveJobs},
 		{ID: "findings", Migrations: findings.Migrations},
 		{ID: "mitigation", Migrations: mitigation.Migrations},
 	}

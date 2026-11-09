@@ -16850,6 +16850,7 @@ const (
 	CoreGetCoreSetupModulesOKModulesItemDependsItemNotify           CoreGetCoreSetupModulesOKModulesItemDependsItem = "notify"
 	CoreGetCoreSetupModulesOKModulesItemDependsItemSensorPassive    CoreGetCoreSetupModulesOKModulesItemDependsItem = "sensor-passive"
 	CoreGetCoreSetupModulesOKModulesItemDependsItemSensorActive     CoreGetCoreSetupModulesOKModulesItemDependsItem = "sensor-active"
+	CoreGetCoreSetupModulesOKModulesItemDependsItemFindings         CoreGetCoreSetupModulesOKModulesItemDependsItem = "findings"
 	CoreGetCoreSetupModulesOKModulesItemDependsItemMitigation       CoreGetCoreSetupModulesOKModulesItemDependsItem = "mitigation"
 	CoreGetCoreSetupModulesOKModulesItemDependsItemExposure         CoreGetCoreSetupModulesOKModulesItemDependsItem = "exposure"
 	CoreGetCoreSetupModulesOKModulesItemDependsItemScan             CoreGetCoreSetupModulesOKModulesItemDependsItem = "scan"
@@ -16873,6 +16874,7 @@ func (CoreGetCoreSetupModulesOKModulesItemDependsItem) AllValues() []CoreGetCore
 		CoreGetCoreSetupModulesOKModulesItemDependsItemNotify,
 		CoreGetCoreSetupModulesOKModulesItemDependsItemSensorPassive,
 		CoreGetCoreSetupModulesOKModulesItemDependsItemSensorActive,
+		CoreGetCoreSetupModulesOKModulesItemDependsItemFindings,
 		CoreGetCoreSetupModulesOKModulesItemDependsItemMitigation,
 		CoreGetCoreSetupModulesOKModulesItemDependsItemExposure,
 		CoreGetCoreSetupModulesOKModulesItemDependsItemScan,
@@ -16902,6 +16904,8 @@ func (s CoreGetCoreSetupModulesOKModulesItemDependsItem) MarshalText() ([]byte, 
 	case CoreGetCoreSetupModulesOKModulesItemDependsItemSensorPassive:
 		return []byte(s), nil
 	case CoreGetCoreSetupModulesOKModulesItemDependsItemSensorActive:
+		return []byte(s), nil
+	case CoreGetCoreSetupModulesOKModulesItemDependsItemFindings:
 		return []byte(s), nil
 	case CoreGetCoreSetupModulesOKModulesItemDependsItemMitigation:
 		return []byte(s), nil
@@ -16953,6 +16957,9 @@ func (s *CoreGetCoreSetupModulesOKModulesItemDependsItem) UnmarshalText(data []b
 	case CoreGetCoreSetupModulesOKModulesItemDependsItemSensorActive:
 		*s = CoreGetCoreSetupModulesOKModulesItemDependsItemSensorActive
 		return nil
+	case CoreGetCoreSetupModulesOKModulesItemDependsItemFindings:
+		*s = CoreGetCoreSetupModulesOKModulesItemDependsItemFindings
+		return nil
 	case CoreGetCoreSetupModulesOKModulesItemDependsItemMitigation:
 		*s = CoreGetCoreSetupModulesOKModulesItemDependsItemMitigation
 		return nil
@@ -17003,6 +17010,7 @@ const (
 	CoreGetCoreSetupModulesOKModulesItemIDNotify           CoreGetCoreSetupModulesOKModulesItemID = "notify"
 	CoreGetCoreSetupModulesOKModulesItemIDSensorPassive    CoreGetCoreSetupModulesOKModulesItemID = "sensor-passive"
 	CoreGetCoreSetupModulesOKModulesItemIDSensorActive     CoreGetCoreSetupModulesOKModulesItemID = "sensor-active"
+	CoreGetCoreSetupModulesOKModulesItemIDFindings         CoreGetCoreSetupModulesOKModulesItemID = "findings"
 	CoreGetCoreSetupModulesOKModulesItemIDMitigation       CoreGetCoreSetupModulesOKModulesItemID = "mitigation"
 	CoreGetCoreSetupModulesOKModulesItemIDExposure         CoreGetCoreSetupModulesOKModulesItemID = "exposure"
 	CoreGetCoreSetupModulesOKModulesItemIDScan             CoreGetCoreSetupModulesOKModulesItemID = "scan"
@@ -17026,6 +17034,7 @@ func (CoreGetCoreSetupModulesOKModulesItemID) AllValues() []CoreGetCoreSetupModu
 		CoreGetCoreSetupModulesOKModulesItemIDNotify,
 		CoreGetCoreSetupModulesOKModulesItemIDSensorPassive,
 		CoreGetCoreSetupModulesOKModulesItemIDSensorActive,
+		CoreGetCoreSetupModulesOKModulesItemIDFindings,
 		CoreGetCoreSetupModulesOKModulesItemIDMitigation,
 		CoreGetCoreSetupModulesOKModulesItemIDExposure,
 		CoreGetCoreSetupModulesOKModulesItemIDScan,
@@ -17055,6 +17064,8 @@ func (s CoreGetCoreSetupModulesOKModulesItemID) MarshalText() ([]byte, error) {
 	case CoreGetCoreSetupModulesOKModulesItemIDSensorPassive:
 		return []byte(s), nil
 	case CoreGetCoreSetupModulesOKModulesItemIDSensorActive:
+		return []byte(s), nil
+	case CoreGetCoreSetupModulesOKModulesItemIDFindings:
 		return []byte(s), nil
 	case CoreGetCoreSetupModulesOKModulesItemIDMitigation:
 		return []byte(s), nil
@@ -17105,6 +17116,9 @@ func (s *CoreGetCoreSetupModulesOKModulesItemID) UnmarshalText(data []byte) erro
 		return nil
 	case CoreGetCoreSetupModulesOKModulesItemIDSensorActive:
 		*s = CoreGetCoreSetupModulesOKModulesItemIDSensorActive
+		return nil
+	case CoreGetCoreSetupModulesOKModulesItemIDFindings:
+		*s = CoreGetCoreSetupModulesOKModulesItemIDFindings
 		return nil
 	case CoreGetCoreSetupModulesOKModulesItemIDMitigation:
 		*s = CoreGetCoreSetupModulesOKModulesItemIDMitigation
@@ -19189,6 +19203,7 @@ const (
 	CoreGetModulesOKModulesItemDependsItemNotify           CoreGetModulesOKModulesItemDependsItem = "notify"
 	CoreGetModulesOKModulesItemDependsItemSensorPassive    CoreGetModulesOKModulesItemDependsItem = "sensor-passive"
 	CoreGetModulesOKModulesItemDependsItemSensorActive     CoreGetModulesOKModulesItemDependsItem = "sensor-active"
+	CoreGetModulesOKModulesItemDependsItemFindings         CoreGetModulesOKModulesItemDependsItem = "findings"
 	CoreGetModulesOKModulesItemDependsItemMitigation       CoreGetModulesOKModulesItemDependsItem = "mitigation"
 	CoreGetModulesOKModulesItemDependsItemExposure         CoreGetModulesOKModulesItemDependsItem = "exposure"
 	CoreGetModulesOKModulesItemDependsItemScan             CoreGetModulesOKModulesItemDependsItem = "scan"
@@ -19212,6 +19227,7 @@ func (CoreGetModulesOKModulesItemDependsItem) AllValues() []CoreGetModulesOKModu
 		CoreGetModulesOKModulesItemDependsItemNotify,
 		CoreGetModulesOKModulesItemDependsItemSensorPassive,
 		CoreGetModulesOKModulesItemDependsItemSensorActive,
+		CoreGetModulesOKModulesItemDependsItemFindings,
 		CoreGetModulesOKModulesItemDependsItemMitigation,
 		CoreGetModulesOKModulesItemDependsItemExposure,
 		CoreGetModulesOKModulesItemDependsItemScan,
@@ -19241,6 +19257,8 @@ func (s CoreGetModulesOKModulesItemDependsItem) MarshalText() ([]byte, error) {
 	case CoreGetModulesOKModulesItemDependsItemSensorPassive:
 		return []byte(s), nil
 	case CoreGetModulesOKModulesItemDependsItemSensorActive:
+		return []byte(s), nil
+	case CoreGetModulesOKModulesItemDependsItemFindings:
 		return []byte(s), nil
 	case CoreGetModulesOKModulesItemDependsItemMitigation:
 		return []byte(s), nil
@@ -19292,6 +19310,9 @@ func (s *CoreGetModulesOKModulesItemDependsItem) UnmarshalText(data []byte) erro
 	case CoreGetModulesOKModulesItemDependsItemSensorActive:
 		*s = CoreGetModulesOKModulesItemDependsItemSensorActive
 		return nil
+	case CoreGetModulesOKModulesItemDependsItemFindings:
+		*s = CoreGetModulesOKModulesItemDependsItemFindings
+		return nil
 	case CoreGetModulesOKModulesItemDependsItemMitigation:
 		*s = CoreGetModulesOKModulesItemDependsItemMitigation
 		return nil
@@ -19342,6 +19363,7 @@ const (
 	CoreGetModulesOKModulesItemIDNotify           CoreGetModulesOKModulesItemID = "notify"
 	CoreGetModulesOKModulesItemIDSensorPassive    CoreGetModulesOKModulesItemID = "sensor-passive"
 	CoreGetModulesOKModulesItemIDSensorActive     CoreGetModulesOKModulesItemID = "sensor-active"
+	CoreGetModulesOKModulesItemIDFindings         CoreGetModulesOKModulesItemID = "findings"
 	CoreGetModulesOKModulesItemIDMitigation       CoreGetModulesOKModulesItemID = "mitigation"
 	CoreGetModulesOKModulesItemIDExposure         CoreGetModulesOKModulesItemID = "exposure"
 	CoreGetModulesOKModulesItemIDScan             CoreGetModulesOKModulesItemID = "scan"
@@ -19365,6 +19387,7 @@ func (CoreGetModulesOKModulesItemID) AllValues() []CoreGetModulesOKModulesItemID
 		CoreGetModulesOKModulesItemIDNotify,
 		CoreGetModulesOKModulesItemIDSensorPassive,
 		CoreGetModulesOKModulesItemIDSensorActive,
+		CoreGetModulesOKModulesItemIDFindings,
 		CoreGetModulesOKModulesItemIDMitigation,
 		CoreGetModulesOKModulesItemIDExposure,
 		CoreGetModulesOKModulesItemIDScan,
@@ -19394,6 +19417,8 @@ func (s CoreGetModulesOKModulesItemID) MarshalText() ([]byte, error) {
 	case CoreGetModulesOKModulesItemIDSensorPassive:
 		return []byte(s), nil
 	case CoreGetModulesOKModulesItemIDSensorActive:
+		return []byte(s), nil
+	case CoreGetModulesOKModulesItemIDFindings:
 		return []byte(s), nil
 	case CoreGetModulesOKModulesItemIDMitigation:
 		return []byte(s), nil
@@ -19444,6 +19469,9 @@ func (s *CoreGetModulesOKModulesItemID) UnmarshalText(data []byte) error {
 		return nil
 	case CoreGetModulesOKModulesItemIDSensorActive:
 		*s = CoreGetModulesOKModulesItemIDSensorActive
+		return nil
+	case CoreGetModulesOKModulesItemIDFindings:
+		*s = CoreGetModulesOKModulesItemIDFindings
 		return nil
 	case CoreGetModulesOKModulesItemIDMitigation:
 		*s = CoreGetModulesOKModulesItemIDMitigation
@@ -21878,6 +21906,7 @@ const (
 	CorePatchModulesIDOKAffectedItemNotify           CorePatchModulesIDOKAffectedItem = "notify"
 	CorePatchModulesIDOKAffectedItemSensorPassive    CorePatchModulesIDOKAffectedItem = "sensor-passive"
 	CorePatchModulesIDOKAffectedItemSensorActive     CorePatchModulesIDOKAffectedItem = "sensor-active"
+	CorePatchModulesIDOKAffectedItemFindings         CorePatchModulesIDOKAffectedItem = "findings"
 	CorePatchModulesIDOKAffectedItemMitigation       CorePatchModulesIDOKAffectedItem = "mitigation"
 	CorePatchModulesIDOKAffectedItemExposure         CorePatchModulesIDOKAffectedItem = "exposure"
 	CorePatchModulesIDOKAffectedItemScan             CorePatchModulesIDOKAffectedItem = "scan"
@@ -21901,6 +21930,7 @@ func (CorePatchModulesIDOKAffectedItem) AllValues() []CorePatchModulesIDOKAffect
 		CorePatchModulesIDOKAffectedItemNotify,
 		CorePatchModulesIDOKAffectedItemSensorPassive,
 		CorePatchModulesIDOKAffectedItemSensorActive,
+		CorePatchModulesIDOKAffectedItemFindings,
 		CorePatchModulesIDOKAffectedItemMitigation,
 		CorePatchModulesIDOKAffectedItemExposure,
 		CorePatchModulesIDOKAffectedItemScan,
@@ -21930,6 +21960,8 @@ func (s CorePatchModulesIDOKAffectedItem) MarshalText() ([]byte, error) {
 	case CorePatchModulesIDOKAffectedItemSensorPassive:
 		return []byte(s), nil
 	case CorePatchModulesIDOKAffectedItemSensorActive:
+		return []byte(s), nil
+	case CorePatchModulesIDOKAffectedItemFindings:
 		return []byte(s), nil
 	case CorePatchModulesIDOKAffectedItemMitigation:
 		return []byte(s), nil
@@ -21980,6 +22012,9 @@ func (s *CorePatchModulesIDOKAffectedItem) UnmarshalText(data []byte) error {
 		return nil
 	case CorePatchModulesIDOKAffectedItemSensorActive:
 		*s = CorePatchModulesIDOKAffectedItemSensorActive
+		return nil
+	case CorePatchModulesIDOKAffectedItemFindings:
+		*s = CorePatchModulesIDOKAffectedItemFindings
 		return nil
 	case CorePatchModulesIDOKAffectedItemMitigation:
 		*s = CorePatchModulesIDOKAffectedItemMitigation
@@ -22089,6 +22124,7 @@ const (
 	CorePatchModulesIDOKModulesItemDependsItemNotify           CorePatchModulesIDOKModulesItemDependsItem = "notify"
 	CorePatchModulesIDOKModulesItemDependsItemSensorPassive    CorePatchModulesIDOKModulesItemDependsItem = "sensor-passive"
 	CorePatchModulesIDOKModulesItemDependsItemSensorActive     CorePatchModulesIDOKModulesItemDependsItem = "sensor-active"
+	CorePatchModulesIDOKModulesItemDependsItemFindings         CorePatchModulesIDOKModulesItemDependsItem = "findings"
 	CorePatchModulesIDOKModulesItemDependsItemMitigation       CorePatchModulesIDOKModulesItemDependsItem = "mitigation"
 	CorePatchModulesIDOKModulesItemDependsItemExposure         CorePatchModulesIDOKModulesItemDependsItem = "exposure"
 	CorePatchModulesIDOKModulesItemDependsItemScan             CorePatchModulesIDOKModulesItemDependsItem = "scan"
@@ -22112,6 +22148,7 @@ func (CorePatchModulesIDOKModulesItemDependsItem) AllValues() []CorePatchModules
 		CorePatchModulesIDOKModulesItemDependsItemNotify,
 		CorePatchModulesIDOKModulesItemDependsItemSensorPassive,
 		CorePatchModulesIDOKModulesItemDependsItemSensorActive,
+		CorePatchModulesIDOKModulesItemDependsItemFindings,
 		CorePatchModulesIDOKModulesItemDependsItemMitigation,
 		CorePatchModulesIDOKModulesItemDependsItemExposure,
 		CorePatchModulesIDOKModulesItemDependsItemScan,
@@ -22141,6 +22178,8 @@ func (s CorePatchModulesIDOKModulesItemDependsItem) MarshalText() ([]byte, error
 	case CorePatchModulesIDOKModulesItemDependsItemSensorPassive:
 		return []byte(s), nil
 	case CorePatchModulesIDOKModulesItemDependsItemSensorActive:
+		return []byte(s), nil
+	case CorePatchModulesIDOKModulesItemDependsItemFindings:
 		return []byte(s), nil
 	case CorePatchModulesIDOKModulesItemDependsItemMitigation:
 		return []byte(s), nil
@@ -22192,6 +22231,9 @@ func (s *CorePatchModulesIDOKModulesItemDependsItem) UnmarshalText(data []byte) 
 	case CorePatchModulesIDOKModulesItemDependsItemSensorActive:
 		*s = CorePatchModulesIDOKModulesItemDependsItemSensorActive
 		return nil
+	case CorePatchModulesIDOKModulesItemDependsItemFindings:
+		*s = CorePatchModulesIDOKModulesItemDependsItemFindings
+		return nil
 	case CorePatchModulesIDOKModulesItemDependsItemMitigation:
 		*s = CorePatchModulesIDOKModulesItemDependsItemMitigation
 		return nil
@@ -22242,6 +22284,7 @@ const (
 	CorePatchModulesIDOKModulesItemIDNotify           CorePatchModulesIDOKModulesItemID = "notify"
 	CorePatchModulesIDOKModulesItemIDSensorPassive    CorePatchModulesIDOKModulesItemID = "sensor-passive"
 	CorePatchModulesIDOKModulesItemIDSensorActive     CorePatchModulesIDOKModulesItemID = "sensor-active"
+	CorePatchModulesIDOKModulesItemIDFindings         CorePatchModulesIDOKModulesItemID = "findings"
 	CorePatchModulesIDOKModulesItemIDMitigation       CorePatchModulesIDOKModulesItemID = "mitigation"
 	CorePatchModulesIDOKModulesItemIDExposure         CorePatchModulesIDOKModulesItemID = "exposure"
 	CorePatchModulesIDOKModulesItemIDScan             CorePatchModulesIDOKModulesItemID = "scan"
@@ -22265,6 +22308,7 @@ func (CorePatchModulesIDOKModulesItemID) AllValues() []CorePatchModulesIDOKModul
 		CorePatchModulesIDOKModulesItemIDNotify,
 		CorePatchModulesIDOKModulesItemIDSensorPassive,
 		CorePatchModulesIDOKModulesItemIDSensorActive,
+		CorePatchModulesIDOKModulesItemIDFindings,
 		CorePatchModulesIDOKModulesItemIDMitigation,
 		CorePatchModulesIDOKModulesItemIDExposure,
 		CorePatchModulesIDOKModulesItemIDScan,
@@ -22294,6 +22338,8 @@ func (s CorePatchModulesIDOKModulesItemID) MarshalText() ([]byte, error) {
 	case CorePatchModulesIDOKModulesItemIDSensorPassive:
 		return []byte(s), nil
 	case CorePatchModulesIDOKModulesItemIDSensorActive:
+		return []byte(s), nil
+	case CorePatchModulesIDOKModulesItemIDFindings:
 		return []byte(s), nil
 	case CorePatchModulesIDOKModulesItemIDMitigation:
 		return []byte(s), nil
@@ -22344,6 +22390,9 @@ func (s *CorePatchModulesIDOKModulesItemID) UnmarshalText(data []byte) error {
 		return nil
 	case CorePatchModulesIDOKModulesItemIDSensorActive:
 		*s = CorePatchModulesIDOKModulesItemIDSensorActive
+		return nil
+	case CorePatchModulesIDOKModulesItemIDFindings:
+		*s = CorePatchModulesIDOKModulesItemIDFindings
 		return nil
 	case CorePatchModulesIDOKModulesItemIDMitigation:
 		*s = CorePatchModulesIDOKModulesItemIDMitigation
@@ -24615,6 +24664,7 @@ const (
 	CorePostCoreSetupReqModulesItemNotify           CorePostCoreSetupReqModulesItem = "notify"
 	CorePostCoreSetupReqModulesItemSensorPassive    CorePostCoreSetupReqModulesItem = "sensor-passive"
 	CorePostCoreSetupReqModulesItemSensorActive     CorePostCoreSetupReqModulesItem = "sensor-active"
+	CorePostCoreSetupReqModulesItemFindings         CorePostCoreSetupReqModulesItem = "findings"
 	CorePostCoreSetupReqModulesItemMitigation       CorePostCoreSetupReqModulesItem = "mitigation"
 	CorePostCoreSetupReqModulesItemExposure         CorePostCoreSetupReqModulesItem = "exposure"
 	CorePostCoreSetupReqModulesItemScan             CorePostCoreSetupReqModulesItem = "scan"
@@ -24638,6 +24688,7 @@ func (CorePostCoreSetupReqModulesItem) AllValues() []CorePostCoreSetupReqModules
 		CorePostCoreSetupReqModulesItemNotify,
 		CorePostCoreSetupReqModulesItemSensorPassive,
 		CorePostCoreSetupReqModulesItemSensorActive,
+		CorePostCoreSetupReqModulesItemFindings,
 		CorePostCoreSetupReqModulesItemMitigation,
 		CorePostCoreSetupReqModulesItemExposure,
 		CorePostCoreSetupReqModulesItemScan,
@@ -24667,6 +24718,8 @@ func (s CorePostCoreSetupReqModulesItem) MarshalText() ([]byte, error) {
 	case CorePostCoreSetupReqModulesItemSensorPassive:
 		return []byte(s), nil
 	case CorePostCoreSetupReqModulesItemSensorActive:
+		return []byte(s), nil
+	case CorePostCoreSetupReqModulesItemFindings:
 		return []byte(s), nil
 	case CorePostCoreSetupReqModulesItemMitigation:
 		return []byte(s), nil
@@ -24717,6 +24770,9 @@ func (s *CorePostCoreSetupReqModulesItem) UnmarshalText(data []byte) error {
 		return nil
 	case CorePostCoreSetupReqModulesItemSensorActive:
 		*s = CorePostCoreSetupReqModulesItemSensorActive
+		return nil
+	case CorePostCoreSetupReqModulesItemFindings:
+		*s = CorePostCoreSetupReqModulesItemFindings
 		return nil
 	case CorePostCoreSetupReqModulesItemMitigation:
 		*s = CorePostCoreSetupReqModulesItemMitigation

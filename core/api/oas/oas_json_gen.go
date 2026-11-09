@@ -34582,6 +34582,8 @@ func (s *CoreGetCoreSetupModulesOKModulesItemDependsItem) Decode(d *jx.Decoder) 
 		*s = CoreGetCoreSetupModulesOKModulesItemDependsItemSensorPassive
 	case CoreGetCoreSetupModulesOKModulesItemDependsItemSensorActive:
 		*s = CoreGetCoreSetupModulesOKModulesItemDependsItemSensorActive
+	case CoreGetCoreSetupModulesOKModulesItemDependsItemFindings:
+		*s = CoreGetCoreSetupModulesOKModulesItemDependsItemFindings
 	case CoreGetCoreSetupModulesOKModulesItemDependsItemMitigation:
 		*s = CoreGetCoreSetupModulesOKModulesItemDependsItemMitigation
 	case CoreGetCoreSetupModulesOKModulesItemDependsItemExposure:
@@ -34654,6 +34656,8 @@ func (s *CoreGetCoreSetupModulesOKModulesItemID) Decode(d *jx.Decoder) error {
 		*s = CoreGetCoreSetupModulesOKModulesItemIDSensorPassive
 	case CoreGetCoreSetupModulesOKModulesItemIDSensorActive:
 		*s = CoreGetCoreSetupModulesOKModulesItemIDSensorActive
+	case CoreGetCoreSetupModulesOKModulesItemIDFindings:
+		*s = CoreGetCoreSetupModulesOKModulesItemIDFindings
 	case CoreGetCoreSetupModulesOKModulesItemIDMitigation:
 		*s = CoreGetCoreSetupModulesOKModulesItemIDMitigation
 	case CoreGetCoreSetupModulesOKModulesItemIDExposure:
@@ -38862,6 +38866,8 @@ func (s *CoreGetModulesOKModulesItemDependsItem) Decode(d *jx.Decoder) error {
 		*s = CoreGetModulesOKModulesItemDependsItemSensorPassive
 	case CoreGetModulesOKModulesItemDependsItemSensorActive:
 		*s = CoreGetModulesOKModulesItemDependsItemSensorActive
+	case CoreGetModulesOKModulesItemDependsItemFindings:
+		*s = CoreGetModulesOKModulesItemDependsItemFindings
 	case CoreGetModulesOKModulesItemDependsItemMitigation:
 		*s = CoreGetModulesOKModulesItemDependsItemMitigation
 	case CoreGetModulesOKModulesItemDependsItemExposure:
@@ -38934,6 +38940,8 @@ func (s *CoreGetModulesOKModulesItemID) Decode(d *jx.Decoder) error {
 		*s = CoreGetModulesOKModulesItemIDSensorPassive
 	case CoreGetModulesOKModulesItemIDSensorActive:
 		*s = CoreGetModulesOKModulesItemIDSensorActive
+	case CoreGetModulesOKModulesItemIDFindings:
+		*s = CoreGetModulesOKModulesItemIDFindings
 	case CoreGetModulesOKModulesItemIDMitigation:
 		*s = CoreGetModulesOKModulesItemIDMitigation
 	case CoreGetModulesOKModulesItemIDExposure:
@@ -44303,6 +44311,8 @@ func (s *CorePatchModulesIDOKAffectedItem) Decode(d *jx.Decoder) error {
 		*s = CorePatchModulesIDOKAffectedItemSensorPassive
 	case CorePatchModulesIDOKAffectedItemSensorActive:
 		*s = CorePatchModulesIDOKAffectedItemSensorActive
+	case CorePatchModulesIDOKAffectedItemFindings:
+		*s = CorePatchModulesIDOKAffectedItemFindings
 	case CorePatchModulesIDOKAffectedItemMitigation:
 		*s = CorePatchModulesIDOKAffectedItemMitigation
 	case CorePatchModulesIDOKAffectedItemExposure:
@@ -44543,6 +44553,8 @@ func (s *CorePatchModulesIDOKModulesItemDependsItem) Decode(d *jx.Decoder) error
 		*s = CorePatchModulesIDOKModulesItemDependsItemSensorPassive
 	case CorePatchModulesIDOKModulesItemDependsItemSensorActive:
 		*s = CorePatchModulesIDOKModulesItemDependsItemSensorActive
+	case CorePatchModulesIDOKModulesItemDependsItemFindings:
+		*s = CorePatchModulesIDOKModulesItemDependsItemFindings
 	case CorePatchModulesIDOKModulesItemDependsItemMitigation:
 		*s = CorePatchModulesIDOKModulesItemDependsItemMitigation
 	case CorePatchModulesIDOKModulesItemDependsItemExposure:
@@ -44615,6 +44627,8 @@ func (s *CorePatchModulesIDOKModulesItemID) Decode(d *jx.Decoder) error {
 		*s = CorePatchModulesIDOKModulesItemIDSensorPassive
 	case CorePatchModulesIDOKModulesItemIDSensorActive:
 		*s = CorePatchModulesIDOKModulesItemIDSensorActive
+	case CorePatchModulesIDOKModulesItemIDFindings:
+		*s = CorePatchModulesIDOKModulesItemIDFindings
 	case CorePatchModulesIDOKModulesItemIDMitigation:
 		*s = CorePatchModulesIDOKModulesItemIDMitigation
 	case CorePatchModulesIDOKModulesItemIDExposure:
@@ -51062,6 +51076,8 @@ func (s *CorePostCoreSetupReqModulesItem) Decode(d *jx.Decoder) error {
 		*s = CorePostCoreSetupReqModulesItemSensorPassive
 	case CorePostCoreSetupReqModulesItemSensorActive:
 		*s = CorePostCoreSetupReqModulesItemSensorActive
+	case CorePostCoreSetupReqModulesItemFindings:
+		*s = CorePostCoreSetupReqModulesItemFindings
 	case CorePostCoreSetupReqModulesItemMitigation:
 		*s = CorePostCoreSetupReqModulesItemMitigation
 	case CorePostCoreSetupReqModulesItemExposure:

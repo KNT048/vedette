@@ -6,7 +6,7 @@ import { defineEndpoints } from '@/lib/contract'
 const ts = z.iso.datetime()
 const Role = z.enum(['viewer', 'operator', 'admin'])
 const ModuleId = z.enum([
-  'core', 'feeds', 'inventory', 'notify', 'sensor-passive', 'sensor-active', 'mitigation', 'exposure', 'scan',
+  'core', 'feeds', 'inventory', 'notify', 'sensor-passive', 'sensor-active', 'findings', 'mitigation', 'exposure', 'scan',
   'scan-credentialed', 'honeypot', 'logs', 'agent-intake', 'ai', 'reports', 'mcp-server', 'auth-oidc', 'response',
 ])
 const Ok = z.object({ ok: z.literal(true) })

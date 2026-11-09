@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from './api'
 
 export type ModuleId =
-  | 'core' | 'feeds' | 'inventory' | 'notify' | 'sensor-passive' | 'sensor-active' | 'mitigation' | 'exposure' | 'scan'
+  | 'core' | 'feeds' | 'inventory' | 'notify' | 'sensor-passive' | 'sensor-active' | 'findings' | 'mitigation' | 'exposure' | 'scan'
   | 'scan-credentialed' | 'honeypot' | 'logs' | 'agent-intake' | 'ai' | 'reports' | 'mcp-server' | 'auth-oidc' | 'response'
 
 export interface ModuleState {

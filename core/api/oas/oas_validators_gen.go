@@ -9709,6 +9709,8 @@ func (s CoreGetCoreSetupModulesOKModulesItemDependsItem) Validate() error {
 		return nil
 	case "sensor-active":
 		return nil
+	case "findings":
+		return nil
 	case "mitigation":
 		return nil
 	case "exposure":
@@ -9751,6 +9753,8 @@ func (s CoreGetCoreSetupModulesOKModulesItemID) Validate() error {
 	case "sensor-passive":
 		return nil
 	case "sensor-active":
+		return nil
+	case "findings":
 		return nil
 	case "mitigation":
 		return nil
@@ -10959,6 +10963,8 @@ func (s CoreGetModulesOKModulesItemDependsItem) Validate() error {
 		return nil
 	case "sensor-active":
 		return nil
+	case "findings":
+		return nil
 	case "mitigation":
 		return nil
 	case "exposure":
@@ -11001,6 +11007,8 @@ func (s CoreGetModulesOKModulesItemID) Validate() error {
 	case "sensor-passive":
 		return nil
 	case "sensor-active":
+		return nil
+	case "findings":
 		return nil
 	case "mitigation":
 		return nil
@@ -12453,6 +12461,8 @@ func (s CorePatchModulesIDOKAffectedItem) Validate() error {
 		return nil
 	case "sensor-active":
 		return nil
+	case "findings":
+		return nil
 	case "mitigation":
 		return nil
 	case "exposure":
@@ -12558,6 +12568,8 @@ func (s CorePatchModulesIDOKModulesItemDependsItem) Validate() error {
 		return nil
 	case "sensor-active":
 		return nil
+	case "findings":
+		return nil
 	case "mitigation":
 		return nil
 	case "exposure":
@@ -12600,6 +12612,8 @@ func (s CorePatchModulesIDOKModulesItemID) Validate() error {
 	case "sensor-passive":
 		return nil
 	case "sensor-active":
+		return nil
+	case "findings":
 		return nil
 	case "mitigation":
 		return nil
@@ -13825,6 +13839,8 @@ func (s CorePostCoreSetupReqModulesItem) Validate() error {
 	case "sensor-passive":
 		return nil
 	case "sensor-active":
+		return nil
+	case "findings":
 		return nil
 	case "mitigation":
 		return nil

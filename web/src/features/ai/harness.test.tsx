@@ -78,7 +78,7 @@ describe('ask your data applies hooks', () => {
     asAdmin()
     const bad = await post('/ai/hooks', { name: 'x', when: 'before_ai', match: { type: 'regex', pattern: '(' }, action: 'block', message: 'No.', enabled: true })
     expect(bad.status).toBe(400)
-    const base = { name: 'Srv', kind: 'mcp-stdio', vendor: null, target: 'npx tool', auth_type: 'none', allow: ['api.example.com'], enabled: true }
+    const base = { name: 'Srv', kind: 'mcp-stdio', target: 'npx tool', auth_type: 'none', allow: ['api.example.com'], enabled: true }
     expect((await post('/ai/connections', { ...base, allow: [] })).status).toBe(400)
     expect((await post('/ai/connections', { ...base, target: 'npx tool; rm -rf /' })).status).toBe(400)
     const ok = await post('/ai/connections', { ...base, auth_type: 'token', secret: 'supersecret-1234' })
@@ -124,7 +124,7 @@ describe('Connections and Hooks forms: form matrix (docs/QA.md §2)', () => {
     asAdmin()
     return render(<QueryClientProvider client={makeQueryClient()}><MemoryRouter initialEntries={[`/settings/ai?tab=${tab}`]}><AiSettings /></MemoryRouter><Toaster /></QueryClientProvider>)
   }
-  const TARGETS = ['Device address (URL)', 'SSH server (host or host:port)', 'Base address (URL)', 'MCP server address (URL)', 'Command that starts the MCP server']
+  const TARGETS = ['Base address (URL)', 'SSH server (host or host:port)', 'Device address (URL, or host:port for NETCONF)', 'Platform address (URL)', 'MCP server address (URL)', 'Command that starts the MCP server']
   const others = (keep: string) => TARGETS.filter((x) => x !== keep)
   const usable = (sign: HTMLElement) => within(sign).getAllByRole('option').filter((o) => !(o as HTMLOptionElement).disabled).map((o) => o.textContent)
 
@@ -135,35 +135,62 @@ describe('Connections and Hooks forms: form matrix (docs/QA.md §2)', () => {
     const kind = within(dlg).getByLabelText('Kind')
     const sign = within(dlg).getByLabelText('Sign-in')
     const pick = async (o: string) => { await userEvent.selectOptions(kind, within(kind).getByRole('option', { name: o })) }
+    // Generic kinds only (D-58): no field asks which brand a device is.
     await eachOption([
-      { option: 'Device API', shown: [TARGETS[0]!, 'Which device API', 'Secret'], hidden: [...others(TARGETS[0]!)] },
-      { option: 'SSH', shown: [TARGETS[1]!, 'Secret'], hidden: [...others(TARGETS[1]!), 'Which device API'] },
-      { option: 'HTTP', shown: [TARGETS[2]!], hidden: [...others(TARGETS[2]!), 'Which device API', 'Secret'] }, // HTTP starts with no sign-in, so no secret field
-      { option: 'MCP server (URL)', shown: [TARGETS[3]!], hidden: [...others(TARGETS[3]!), 'Which device API'] },
-      { option: 'MCP server (command)', shown: [TARGETS[4]!], hidden: [...others(TARGETS[4]!), 'Which device API', 'Secret'] },
-      { option: 'Device API', shown: [TARGETS[0]!, 'Which device API'], hidden: [...others(TARGETS[0]!)] },
+      { option: 'HTTP API', shown: [TARGETS[0]!], hidden: [...others(TARGETS[0]!), 'Secret'] }, // starts with no sign-in, so no secret field
+      { option: 'SSH / CLI', shown: [TARGETS[1]!, 'Secret'], hidden: [...others(TARGETS[1]!)] },
+      { option: 'NETCONF / RESTCONF', shown: [TARGETS[2]!, 'Secret'], hidden: [...others(TARGETS[2]!)] },
+      { option: 'Automation platform (Ansible AWX/Tower, n8n...)', shown: [TARGETS[3]!, 'Secret'], hidden: [...others(TARGETS[3]!)] },
+      { option: 'MCP server (URL)', shown: [TARGETS[4]!], hidden: [...others(TARGETS[4]!)] },
+      { option: 'MCP server (command)', shown: [TARGETS[5]!], hidden: [...others(TARGETS[5]!), 'Secret'] },
+      { option: 'HTTP API', shown: [TARGETS[0]!], hidden: [...others(TARGETS[0]!), 'Secret'] },
     ], pick, dlg)
+    expect(within(dlg).queryByLabelText(/Which device API/)).toBeNull()
+    expect(within(kind).getAllByRole('option').map((o) => o.textContent)).toEqual(['HTTP API', 'SSH / CLI', 'NETCONF / RESTCONF', 'Automation platform (Ansible AWX/Tower, n8n...)', 'MCP server (URL)', 'MCP server (command)'])
 
     // sign-ins the kind cannot use are locked and the server refuses them too
-    await pick('SSH'); expect(usable(sign)).toEqual(['User and password', 'SSH key'])
-    await pick('Device API'); expect(usable(sign)).toEqual(['API token', 'User and password'])
+    await pick('SSH / CLI'); expect(usable(sign)).toEqual(['User and password', 'SSH key'])
+    await pick('NETCONF / RESTCONF'); expect(usable(sign)).toEqual(['API token', 'User and password'])
+    await pick('Automation platform (Ansible AWX/Tower, n8n...)'); expect(usable(sign)).toEqual(['API token', 'User and password'])
     await pick('MCP server (command)'); expect(usable(sign)).toEqual(['No sign-in', 'API token'])
-    await pick('HTTP'); expect(usable(sign)).toEqual(['No sign-in', 'API token', 'User and password'])
-    const base = { name: 'Srv', kind: 'ssh', vendor: null, target: '192.168.10.30:22', auth_type: 'token', secret: 'supersecret-1234', allow: ['uname -a'], enabled: true }
+    await pick('HTTP API'); expect(usable(sign)).toEqual(['No sign-in', 'API token', 'User and password'])
+    const base = { name: 'Srv', kind: 'ssh', target: '192.168.10.30:22', auth_type: 'token', secret: 'supersecret-1234', allow: ['uname -a'], enabled: true }
     expect((await post('/ai/connections', base)).status).toBe(400)
-    expect((await post('/ai/connections', { ...base, kind: 'device-api', vendor: 'fortinet', target: 'https://192.168.10.1', auth_type: 'ssh-key', allow: ['https://192.168.10.1/'] })).status).toBe(400)
+    expect((await post('/ai/connections', { ...base, kind: 'netconf-restconf', target: 'https://192.168.10.1', auth_type: 'ssh-key', allow: ['https://192.168.10.1/'] })).status).toBe(400)
+    expect((await post('/ai/connections', { ...base, kind: 'device-api', target: 'https://192.168.10.1', auth_type: 'token', allow: ['https://192.168.10.1/'] })).status).toBe(400) // no brand-specific kind exists any more
     expect((await post('/ai/connections', { ...base, auth_type: 'ssh-key' })).status).toBe(200)
 
     // nothing typed for a kind survives a change of kind: address, allow-list and secret restart
-    await pick('Device API')
-    await userEvent.type(within(dlg).getByLabelText('Allow-list (one per line)'), 'https://192.168.10.1/api/v2/')
+    await pick('NETCONF / RESTCONF')
+    await userEvent.type(within(dlg).getByLabelText('Allow-list (one per line)'), 'https://192.168.10.1/restconf/')
     await userEvent.type(within(dlg).getByLabelText('Secret'), 'token-for-the-api')
-    await userEvent.clear(within(dlg).getByLabelText(TARGETS[0]!)); await userEvent.type(within(dlg).getByLabelText(TARGETS[0]!), 'https://10.0.0.1')
-    await pick('SSH')
+    await userEvent.clear(within(dlg).getByLabelText(TARGETS[2]!)); await userEvent.type(within(dlg).getByLabelText(TARGETS[2]!), 'https://10.0.0.1')
+    await pick('SSH / CLI')
     expect(within(dlg).getByLabelText(TARGETS[1]!)).toHaveValue('192.168.10.30:22')
     expect(within(dlg).getByLabelText('Allow-list (one per line)')).toHaveValue('')
     expect(within(dlg).getByLabelText('Secret')).toHaveValue('')
     expect(within(dlg).getByLabelText('Sign-in')).toHaveValue('ssh-key')
+  })
+
+  it('each generic kind offers generic tools, a way to write only through an approved action, and no brand', async () => {
+    asAdmin()
+    const mk = (kind: string, target: string, auth_type: string, allow: string[]) => post('/ai/connections', { name: `k-${kind}`, kind, target, auth_type, secret: auth_type === 'none' ? undefined : 'a-long-enough-secret', allow, enabled: true })
+    const made = await Promise.all([
+      mk('http', 'https://192.168.10.1', 'token', ['https://192.168.10.1/api/']),
+      mk('ssh', '192.168.10.2:22', 'ssh-key', ['uname -a']),
+      mk('netconf-restconf', 'https://192.168.10.3', 'basic', ['https://192.168.10.3/restconf/']),
+      mk('automation', 'https://automation.example.local', 'token', ['https://automation.example.local/api/']),
+      mk('mcp-http', 'https://mcp.example.local/mcp', 'none', ['mcp.example.local']),
+    ].map(async (p) => { const r = await p; return { status: r.status, json: (await r.json()) as { tools: { name: string; access: string; enabled: boolean }[] } } }))
+    for (const r of made) expect(r.status, JSON.stringify(r.json)).toBe(200)
+    const tools = made.map((r) => r.json.tools.map((t) => `${t.name}:${t.access}`))
+    expect(tools[0]).toEqual(['fetch_url:read', 'send_request:write'])
+    expect(tools[1]).toEqual(['run_allowed_command:read', 'run_approved_command:write'])
+    expect(tools[2]).toEqual(['get_config:read', 'apply_config:write'])
+    expect(tools[3]).toEqual(['list_jobs:read', 'launch_job:write'])
+    // every write tool starts off: an administrator turns it on (D-41, D-51)
+    for (const r of made) for (const t of r.json.tools) if (t.access === 'write') expect((t as { enabled: boolean }).enabled, t.name).toBe(false)
+    expect(JSON.stringify(made.map((r) => r.json))).not.toMatch(/vendor|fortinet|mikrotik|pfsense/i)
   })
 
   it('editing a connection and returning to its saved kind restores its saved values; another kind starts clean and needs a new secret', async () => {

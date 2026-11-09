@@ -500,7 +500,7 @@
     },
     "conn": {
       "title": "Connections",
-      "body": "Systems the AI may reach: device APIs, SSH servers, web addresses and MCP servers. It only uses what is on each allow-list.",
+      "body": "Systems the AI may reach: HTTP APIs, SSH/CLI, NETCONF/RESTCONF, automation platforms and MCP servers. It only uses what is on each allow-list.",
       "add": "Add connection",
       "writeNoteLead": "Write tools never run from a chat answer.",
       "writeNote": "Tools that change something are used only through actions you approve in the AI response module.",
@@ -508,9 +508,10 @@
       "empty": "No connections yet",
       "emptyBody": "Add a connection so the AI can read a firewall or check a vendor page instead of guessing.",
       "kind": {
-        "device-api": "Device API",
-        "ssh": "SSH",
-        "http": "HTTP",
+        "http": "HTTP API",
+        "ssh": "SSH / CLI",
+        "netconf-restconf": "NETCONF / RESTCONF",
+        "automation": "Automation platform (Ansible AWX/Tower, n8n...)",
         "mcp-http": "MCP server (URL)",
         "mcp-stdio": "MCP server (command)"
       },
@@ -553,12 +554,6 @@
       "addConfirm": "Add connection",
       "saved": "Connection saved",
       "added": "Connection added",
-      "vendor": {
-        "fortinet": "FortiOS (Fortinet)",
-        "mikrotik": "RouterOS (MikroTik)",
-        "pfsense": "pfSense",
-        "other": "Other device"
-      },
       "errName": "Give the connection a name.",
       "errTarget": "Enter where to connect.",
       "errSecret": "Enter the secret.",
@@ -566,10 +561,10 @@
       "f": {
         "name": "Name",
         "kind": "Kind",
-        "vendor": "Which device API",
-        "target_device-api": "Device address (URL)",
         "target_ssh": "SSH server (host or host:port)",
         "target_http": "Base address (URL)",
+        "target_netconf-restconf": "Device address (URL, or host:port for NETCONF)",
+        "target_automation": "Platform address (URL)",
         "target_mcp-http": "MCP server address (URL)",
         "target_mcp-stdio": "Command that starts the MCP server",
         "targetExample": "For example {{example}}",
@@ -578,11 +573,12 @@
         "secretHint": "Token, password or key. Stored encrypted; only the last 4 characters are shown afterwards.",
         "secretSaved": "Saved, ending {{last4}}. Leave blank to keep it.",
         "allow": "Allow-list (one per line)",
-        "allowHint_device-api": "URL prefixes the AI may call, for example {{example}}",
         "allowHint_ssh": "Exact commands the AI may run, one per line, for example {{example}}",
-        "allowHint_http": "Addresses the AI may fetch, for example {{example}}",
+        "allowHint_http": "URL prefixes the AI may call, for example {{example}}",
         "allowHint_mcp-http": "Hosts the server may reach, for example {{example}}",
-        "allowHint_mcp-stdio": "Hosts the server may reach, for example {{example}}"
+        "allowHint_mcp-stdio": "Hosts the server may reach, for example {{example}}",
+        "allowHint_netconf-restconf": "URL prefixes or hosts the AI may use, for example {{example}}",
+        "allowHint_automation": "URL prefixes the AI may call on the platform, for example {{example}}"
       }
     },
     "hooks": {

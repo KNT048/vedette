@@ -51,10 +51,25 @@ describe('findings: danh sách (S-MIT-1)', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 
-  it('module giảm thiểu tắt thì hiện ModuleOff', async () => {
-    modulesStore.update((l) => l.map((m) => (m.id === 'mitigation' ? { ...m, enabled: false } : m)))
+  it('module findings tắt thì hiện ModuleOff', async () => {
+    modulesStore.update((l) => l.map((m) => (m.id === 'findings' ? { ...m, enabled: false } : m)))
     renderApp('/findings')
+    expect(await screen.findByText('Findings module is off')).toBeInTheDocument()
+  })
+
+  it('module mitigation tắt: phát hiện vẫn còn, chỉ phần "What to do" báo module tắt (D-57 (6))', async () => {
+    modulesStore.update((l) => l.map((m) => (m.id === 'mitigation' ? { ...m, enabled: false } : m)))
+    renderApp('/findings/f-1')
+    expect(await screen.findByRole('heading', { level: 1, name: /NAS-PHOTOS has a confirmed vulnerability/ })).toBeInTheDocument()
     expect(await screen.findByText('Mitigation module is off')).toBeInTheDocument()
+    expect(screen.queryByText('Confirmed by Vedette maintainers')).not.toBeInTheDocument()
+  })
+
+  it('mô đun: findings phụ thuộc inventory và feeds; mitigation phụ thuộc findings; reports phụ thuộc notify', () => {
+    const dep = (id: string) => modulesStore.get().find((m) => m.id === id)?.depends
+    expect(dep('findings')).toEqual(expect.arrayContaining(['inventory', 'feeds']))
+    expect(dep('mitigation')).toEqual(['findings'])
+    expect(dep('reports')).toContain('notify')
   })
 })
 

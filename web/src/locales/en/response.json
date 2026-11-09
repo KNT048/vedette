@@ -195,7 +195,7 @@
       "schedule": "schedule",
       "manual": "manual"
     },
-    "minConfidence": "Minimum IOC confidence (0 to 100)",
+    "minConfidence": "Minimum IOC confidence (0 to 1)",
     "minConfidenceHint": "Only matches at least this sure. Automatic mode needs 80 or more.",
     "feeds": "Only these feeds",
     "feedsHint": "Comma-separated feed names. Empty means any feed.",
@@ -222,7 +222,7 @@
       "approval": "Ask for approval",
       "auto": "Automatic"
     },
-    "autoRefused": "Automatic is only offered for IOC rules with a minimum confidence of 80 or more and an action that is not high risk.",
+    "autoRefused": "Automatic is only offered for IOC rules with a minimum confidence of 0.8 or more and an action that is not high risk.",
     "autoWarning": "Automatic: Vedette acts without asking anyone. A wrong match can cut off something you need. The never-block list and the limits below still apply.",
     "ttl": "Time to live (minutes)",
     "ttlHint": "The change is removed automatically after this time.",
@@ -353,7 +353,7 @@
   },
   "catalog": {
     "title": "Action catalog",
-    "hint": "Vendor packs and generic actions in plain words. An action is allowed when it is switched on. Rules can only use switched-on actions, and the AI only those you also flag \"AI may propose\".",
+    "hint": "Template packs (action templates are data you can edit) and generic actions in plain words. An action is allowed when it is switched on. Rules can only use switched-on actions, and the AI only those you also flag \"AI may propose\".",
     "add": "Add a custom action",
     "builtin": "Built in",
     "custom": "Custom",
@@ -375,7 +375,7 @@
       "medium": "Medium risk",
       "high": "High risk"
     },
-    "placeholders": "Use only these placeholders, filled in by Vedette and checked first: {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {text} (short plain text). Shell characters such as ; | & $ ` < > ( ) are refused.",
+    "placeholders": "Use only these placeholders, filled in by Vedette and checked first: {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id} (whole number), {name} (letters, numbers, . _ -). Shell characters such as ; | & $ ` < > ( ) are refused.",
     "runLegend": "Action",
     "rollbackLegend": "Rollback (undo)",
     "command": "Command",
@@ -407,8 +407,9 @@
     "aiMayHint": "The AI can send a request for this action. It never writes the command.",
     "noUndo": "No undo",
     "kinds": {
-      "device-api": "API connection: method, path and body.",
-      "http": "HTTP connection: method, path, headers and body.",
+      "http": "HTTP API connection: method, path, headers and body.",
+      "netconf-restconf": "NETCONF / RESTCONF connection: method, path, headers and body.",
+      "automation": "Automation platform connection: the job to start and its variables, as method, path, headers and body.",
       "ssh": "SSH connection: a command template.",
       "mcp-http": "MCP server: pick one of its write tools and map its arguments.",
       "mcp-stdio": "MCP server: pick one of its write tools and map its arguments.",
@@ -416,14 +417,9 @@
     },
     "packs": {
       "box": "This box",
-      "fortigate": "FortiGate",
-      "mikrotik": "MikroTik",
-      "pfsense": "pfSense",
-      "opnsense": "OPNsense",
-      "switch": "Switches over SSH (Cisco, Aruba, HPE)",
-      "dns": "DNS filters (Pi-hole, AdGuard Home)",
-      "generic": "Generic: messages, webhooks and your own HTTP, SSH and MCP actions"
-    }
+      "generic": "Generic: messages, webhooks and your own actions"
+    },
+    "placeholdersMessage": "Use {text} (short plain text) for the message. Shell characters such as ; | & $ ` < > ( ) are refused."
   },
   "approve": {
     "title": "Approve a response action",
@@ -550,6 +546,8 @@
       "mac": "MAC address",
       "vlan": "VLAN",
       "interface": "port or interface",
+      "id": "whole number (for example a policy number)",
+      "name": "name",
       "text": "safe text"
     },
     "ops": {

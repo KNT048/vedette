@@ -10282,7 +10282,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "GET":
 							r.name = CoreGetCorePrivacyOperation
-							r.summary = "The 10 data flows leaving the box and the verbatim anonymous-signal payload"
+							r.summary = "The 11 data flows leaving the box and the verbatim anonymous-signal payload"
 							r.operationID = "core_get_core_privacy"
 							r.operationGroup = ""
 							r.pathPattern = "/core/privacy"
@@ -10608,7 +10608,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											switch method {
 											case "POST":
 												r.name = CorePostCoreUpdatesOsInstallOperation
-												r.summary = "Install security updates or all updates through vedette-updater; one run at a time (409 when busy), database backup first"
+												r.summary = "Install security updates or all updates through vedette-host; one run at a time (409 when busy), database backup first"
 												r.operationID = "core_post_core_updates_os_install"
 												r.operationGroup = ""
 												r.pathPattern = "/core/updates/os/install"
@@ -10914,7 +10914,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "POST":
 							r.name = ExposurePostExposureBoxIPVerifyOperation
-							r.summary = "The box detects the public IP it uses to reach the Internet (TLS to a fixed endpoint) and verifies it for 90 days. Takes no IP input; refuses private, reserved and CGNAT results; rate limited to 10 attempts per hour"
+							r.summary = "The box detects the public IP it uses to reach the Internet (TLS to a fixed endpoint) and verifies it for 90 days. Takes no IP input; refuses private, reserved and CGNAT results; rate limited to 10 attempts per hour. 201 when the IP is new in the list, 200 when it was already there (the generated file documents 200)"
 							r.operationID = "exposure_post_exposure_box_ip_verify"
 							r.operationGroup = ""
 							r.pathPattern = "/exposure/box-ip/verify"
@@ -11088,7 +11088,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										switch method {
 										case "POST":
 											r.name = ExposurePostExposureTargetsIDScanOperation
-											r.summary = "Scan now. 409 when not verified, verification expired, the DNS TXT record is gone (re-checked right before the scan) or the commitment is missing"
+											r.summary = "Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 400 commitment_required when the commitment is missing"
 											r.operationID = "exposure_post_exposure_targets_id_scan"
 											r.operationGroup = ""
 											r.pathPattern = "/exposure/targets/{id}/scan"
@@ -14228,7 +14228,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										switch method {
 										case "POST":
 											r.name = ResponsePostResponseAiProposalsOperation
-											r.summary = "The AI agent sends a request. Server-side gates: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk"
+											r.summary = "The AI agent sends a request. Server-side gates: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an approval request was created, 200 for a suggestion note or a digest (the generated file documents 200)"
 											r.operationID = "response_post_response_ai_proposals"
 											r.operationGroup = ""
 											r.pathPattern = "/response/ai/proposals"
@@ -14504,7 +14504,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "GET":
 								r.name = ResponseGetResponseCatalogOperation
-								r.summary = "Action catalog in plain words: vendor packs, generic actions and custom ones; connections with their kind and whether they can write"
+								r.summary = "Action catalog in plain words: template packs from the library (data, D-58), generic actions and custom ones; connections with their kind and whether they can write"
 								r.operationID = "response_get_response_catalog"
 								r.operationGroup = ""
 								r.pathPattern = "/response/catalog"
@@ -15199,7 +15199,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									return r, true
 								case "POST":
 									r.name = ScanPostScansCredentialedOperation
-									r.summary = "Add a server for account-based scanning with an SSH private key (only the last 4 characters are kept)"
+									r.summary = "Add a server for account-based scanning with an SSH private key (stored encrypted on the box, never shown again; only the last 4 characters are displayed)"
 									r.operationID = "scan_post_scans_credentialed"
 									r.operationGroup = ""
 									r.pathPattern = "/scans/credentialed"

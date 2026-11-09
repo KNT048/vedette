@@ -45,7 +45,7 @@
 Bản thật cần thêm cặp điểm vào/gọi lại (redirect + callback) của luồng code; **chưa có trong `contract.ts`** (câu hỏi mở 1).
 
 ## Tables owned
-`oidc_config` (issuer, client_id, bí mật mã hoá, default_role, role_map). Mock: `core_oidc`. Người dùng và phiên thuộc `core` (`core_users`, `core_session`).
+`oidc_config` (issuer, client_id, bí mật mã hoá, default_role, role_map). Mock: `oidc_config` (đã đổi tên, WP-06). Người dùng và phiên thuộc `core` (`core_users`, `core_session`).
 
 ## Events
 - **Phát**: không (audit qua `core`). **Nhận**: không.

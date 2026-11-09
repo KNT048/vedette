@@ -3,7 +3,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
 
-const DB = 'vedette-mock-db-v3'
+const DB = 'vedette-mock-db-v4'
 const DIACRITICS = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i
 
 async function sample(page: Page) {

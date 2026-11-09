@@ -2,7 +2,7 @@
 import type { ModuleId } from '@/lib/modules'
 import type { BundleId } from './types'
 
-const SMB: ModuleId[] = ['core', 'feeds', 'inventory', 'notify', 'sensor-passive', 'mitigation', 'honeypot', 'reports']
+const SMB: ModuleId[] = ['core', 'feeds', 'inventory', 'notify', 'sensor-passive', 'findings', 'mitigation', 'honeypot', 'reports']
 const MID: ModuleId[] = [...SMB, 'sensor-active', 'scan', 'exposure', 'logs', 'ai']
 
 export const BUNDLES: Record<Exclude<BundleId, 'custom'>, ModuleId[]> = { smb: SMB, mid: MID }

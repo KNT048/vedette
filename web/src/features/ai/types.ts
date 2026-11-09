@@ -51,7 +51,6 @@ export type KnowledgeInput = z.infer<typeof C.KnowledgeInput>
 export type KnowledgeSettings = z.infer<typeof C.KnowledgeSettings>
 export type KnowledgePatch = z.infer<typeof C.KnowledgePatch>
 export type ConnectorKind = z.infer<typeof C.ConnectorKind>
-export type Vendor = z.infer<typeof C.Vendor>
 export type ConnectorTool = z.infer<typeof C.ConnectorTool>
 export type Connector = z.infer<typeof C.Connector>
 export type ConnectorInput = z.infer<typeof C.ConnectorInput>

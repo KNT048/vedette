@@ -80,7 +80,7 @@ export const UpdatesState = z.object({
   managed: z.array(ManagedPackage).describe('Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)'),
 })
 
-// ---- hệ điều hành của hộp (D-53). Chạy qua trình trợ giúp đặc quyền `vedette-updater`: danh sách lệnh apt cố định, web không bao giờ chạy shell (SYS-1). ----
+// ---- hệ điều hành của hộp (D-53). Chạy qua trình trợ giúp đặc quyền `vedette-host`: danh sách lệnh apt cố định, web không bao giờ chạy shell (SYS-1). ----
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)
 export const MaintenanceWindow = z.object({
   mode: z.enum(['always', 'window']).describe('"always" = no restriction; "window" = only on the days and hours below'),
@@ -113,9 +113,9 @@ export const UpdateCheck = UpdatesState.extend({ applied: z.number().describe('I
 export const BundleUpload = z.object({ name: z.string(), size: z.number(), sha256: z.string(), content: z.string().describe('Bundle file content, base64 (UTF-8)') })
 
 // ---- quyền riêng tư ----
-export const PrivacyFlow = z.object({ id: z.number().int().min(1).max(10), state: z.enum(['on', 'off', 'conditional']), control: z.enum(['switch', 'reason']), configured: z.boolean().optional() })
+export const PrivacyFlow = z.object({ id: z.number().int().min(1).max(11), state: z.enum(['on', 'off', 'conditional']), control: z.enum(['switch', 'reason']), configured: z.boolean().optional() })
 export const PrivacyState = z.object({
-  flows: z.array(PrivacyFlow).describe('Exactly the 10 flows listed in PRIVACY.md'),
+  flows: z.array(PrivacyFlow).describe('Exactly the 11 flows listed in PRIVACY.md'),
   telemetry: z.object({ enabled: z.boolean(), last_sent: ts.nullable(), payload: z.record(z.string(), z.unknown()).describe('Anonymous-signal payload verbatim, exactly what will be sent next hour') }),
   update_check: z.boolean(),
 })
@@ -184,7 +184,7 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/core/account/sessions/revoke-others', summary: 'End all my other sessions', stories: ['S-CORE-3'], role: 'viewer', response: z.object({ ok: z.literal(true), revoked: z.number() }) },
   // người dùng, OIDC
   { method: 'get', path: '/core/users', summary: 'List users', stories: ['S-CORE-3'], role: 'admin', response: z.object({ items: z.array(AdminUser) }) },
-  { method: 'post', path: '/core/users', summary: 'Create a user with a role; returns a temporary password once', stories: ['S-CORE-3'], role: 'admin', body: z.object({ name: z.string(), email: z.string(), role: Role }), response: UserCreated },
+  { method: 'post', path: '/core/users', status: 201, summary: 'Create a user with a role; returns a temporary password once', stories: ['S-CORE-3'], role: 'admin', body: z.object({ name: z.string(), email: z.string(), role: Role }), response: UserCreated },
   { method: 'patch', path: '/core/users/{id}', summary: 'Change role or disable/re-enable; blocks disabling yourself and removing the last administrator', stories: ['S-CORE-3'], role: 'admin',
     params: id, body: z.object({ role: Role.optional(), disabled: z.boolean().optional() }), response: z.object({ user: AdminUser }) },
   { method: 'post', path: '/core/users/{id}/reset-password', summary: 'Reset password: temporary password once, ends all of that user\'s sessions', stories: ['S-CORE-3'], role: 'admin', params: id, response: z.object({ temp_password: z.string() }) },
@@ -203,7 +203,7 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/core/updates/rollback', summary: 'Go back to the previous version of one component', stories: ['S-CORE-2'], role: 'admin', body: z.object({ component: z.string() }), response: UpdatesState },
   { method: 'get', path: '/core/updates/os', summary: 'Operating system of the box: release, kernel, end of support, pending packages, reboot state, maintenance window', stories: ['S-CORE-7'], role: 'viewer', response: OsState },
   { method: 'post', path: '/core/updates/os/check', summary: 'Run the equivalent of apt update now (409 when update checks are off under Privacy)', stories: ['S-CORE-7'], role: 'operator', response: OsState },
-  { method: 'post', path: '/core/updates/os/install', summary: 'Install security updates or all updates through vedette-updater; one run at a time (409 when busy), database backup first', stories: ['S-CORE-7'], role: 'admin', body: z.object({ scope: z.enum(['security', 'all']) }), response: OsRun },
+  { method: 'post', path: '/core/updates/os/install', status: 202, summary: 'Install security updates or all updates through vedette-host; one run at a time (409 when busy), database backup first', stories: ['S-CORE-7'], role: 'admin', body: z.object({ scope: z.enum(['security', 'all']) }), response: OsRun },
   { method: 'get', path: '/core/updates/os/run', summary: 'The current or latest install run with its live apt output; null before the first run', stories: ['S-CORE-7'], role: 'viewer', response: OsRun.nullable() },
   { method: 'patch', path: '/core/updates/os/settings', summary: 'Turn automatic security updates (unattended-upgrades) on/off and set the maintenance window', stories: ['S-CORE-7'], role: 'admin', body: z.object({ auto_security: z.boolean().optional(), window: MaintenanceWindow.optional() }), response: OsState },
   { method: 'post', path: '/core/updates/os/reboot', summary: 'Reboot now, at the next maintenance window, or at a chosen time inside the window; 409 while an install runs', stories: ['S-CORE-7'], role: 'admin', body: OsRebootBody, response: OsState },
@@ -211,12 +211,12 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/core/updates/bundle', summary: 'Export a signed offline bundle for an air-gapped box', stories: ['S-CORE-2'], role: 'operator', response: 'file' },
   { method: 'post', path: '/core/updates/bundle', summary: 'Import an offline bundle; a bad signature is rejected', stories: ['S-CORE-2'], role: 'admin', body: BundleUpload, response: z.object({ applied: z.number(), state: UpdatesState }) },
   // quyền riêng tư
-  { method: 'get', path: '/core/privacy', summary: 'The 10 data flows leaving the box and the verbatim anonymous-signal payload', stories: ['S-CORE-4'], role: 'viewer', response: PrivacyState },
+  { method: 'get', path: '/core/privacy', summary: 'The 11 data flows leaving the box and the verbatim anonymous-signal payload', stories: ['S-CORE-4'], role: 'viewer', response: PrivacyState },
   { method: 'patch', path: '/core/privacy', summary: 'Turn the anonymous signal and update checks on/off', stories: ['S-CORE-4'], role: 'admin', body: z.object({ telemetry: z.boolean().optional(), update_check: z.boolean().optional() }), response: PrivacyState },
   // MCP
   { method: 'get', path: '/core/mcp', summary: 'MCP server state, tokens (last 4 characters only) and the read-only tool list', stories: ['S-MCP-1'], role: 'admin', response: McpState },
   { method: 'patch', path: '/core/mcp', summary: 'Turn the MCP server on/off (binds to localhost)', stories: ['S-MCP-1'], role: 'admin', body: z.object({ enabled: z.boolean() }), response: McpState },
-  { method: 'post', path: '/core/mcp/tokens', summary: 'Create a read-only token by scope; returns the full token once', stories: ['S-MCP-1'], role: 'admin', body: z.object({ name: z.string(), scopes: z.array(z.string()) }), response: McpTokenCreated },
+  { method: 'post', path: '/core/mcp/tokens', status: 201, summary: 'Create a read-only token by scope; returns the full token once', stories: ['S-MCP-1'], role: 'admin', body: z.object({ name: z.string(), scopes: z.array(z.string()) }), response: McpTokenCreated },
   { method: 'delete', path: '/core/mcp/tokens/{id}', summary: 'Revoke an MCP token', stories: ['S-MCP-1'], role: 'admin', params: id, response: null },
   // dữ liệu
   { method: 'get', path: '/core/data/backup', summary: 'Download a backup (no passwords or keys)', stories: ['S-CORE-1'], role: 'admin', response: 'file' },

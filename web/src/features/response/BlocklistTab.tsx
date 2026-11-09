@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { fmtDateTime } from '@/lib/format'
 import { errText, useBlocklist, useNewToken } from './api'
-import { guides } from './guides'
+import { guides } from './templates/guides'
 
 export function BlocklistTab() {
   const { t } = useTranslation('response')

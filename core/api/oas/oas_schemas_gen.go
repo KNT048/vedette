@@ -1648,7 +1648,6 @@ type AiGetAiConnectionsOKItemsItem struct {
 	// Base URL, host:port, or the MCP command.
 	Target string                                   `json:"target"`
 	Tools  []AiGetAiConnectionsOKItemsItemToolsItem `json:"tools"`
-	Vendor NilAiGetAiConnectionsOKItemsItemVendor   `json:"vendor"`
 }
 
 // GetAllow returns the value of Allow.
@@ -1706,11 +1705,6 @@ func (s *AiGetAiConnectionsOKItemsItem) GetTools() []AiGetAiConnectionsOKItemsIt
 	return s.Tools
 }
 
-// GetVendor returns the value of Vendor.
-func (s *AiGetAiConnectionsOKItemsItem) GetVendor() NilAiGetAiConnectionsOKItemsItemVendor {
-	return s.Vendor
-}
-
 // SetAllow sets the value of Allow.
 func (s *AiGetAiConnectionsOKItemsItem) SetAllow(val []string) {
 	s.Allow = val
@@ -1764,11 +1758,6 @@ func (s *AiGetAiConnectionsOKItemsItem) SetTarget(val string) {
 // SetTools sets the value of Tools.
 func (s *AiGetAiConnectionsOKItemsItem) SetTools(val []AiGetAiConnectionsOKItemsItemToolsItem) {
 	s.Tools = val
-}
-
-// SetVendor sets the value of Vendor.
-func (s *AiGetAiConnectionsOKItemsItem) SetVendor(val NilAiGetAiConnectionsOKItemsItemVendor) {
-	s.Vendor = val
 }
 
 type AiGetAiConnectionsOKItemsItemAuth struct {
@@ -1855,19 +1844,21 @@ func (s *AiGetAiConnectionsOKItemsItemAuthType) UnmarshalText(data []byte) error
 type AiGetAiConnectionsOKItemsItemKind string
 
 const (
-	AiGetAiConnectionsOKItemsItemKindDeviceAPI AiGetAiConnectionsOKItemsItemKind = "device-api"
-	AiGetAiConnectionsOKItemsItemKindSSH       AiGetAiConnectionsOKItemsItemKind = "ssh"
-	AiGetAiConnectionsOKItemsItemKindHTTP      AiGetAiConnectionsOKItemsItemKind = "http"
-	AiGetAiConnectionsOKItemsItemKindMcpHTTP   AiGetAiConnectionsOKItemsItemKind = "mcp-http"
-	AiGetAiConnectionsOKItemsItemKindMcpStdio  AiGetAiConnectionsOKItemsItemKind = "mcp-stdio"
+	AiGetAiConnectionsOKItemsItemKindHTTP            AiGetAiConnectionsOKItemsItemKind = "http"
+	AiGetAiConnectionsOKItemsItemKindSSH             AiGetAiConnectionsOKItemsItemKind = "ssh"
+	AiGetAiConnectionsOKItemsItemKindNetconfRestconf AiGetAiConnectionsOKItemsItemKind = "netconf-restconf"
+	AiGetAiConnectionsOKItemsItemKindAutomation      AiGetAiConnectionsOKItemsItemKind = "automation"
+	AiGetAiConnectionsOKItemsItemKindMcpHTTP         AiGetAiConnectionsOKItemsItemKind = "mcp-http"
+	AiGetAiConnectionsOKItemsItemKindMcpStdio        AiGetAiConnectionsOKItemsItemKind = "mcp-stdio"
 )
 
 // AllValues returns all AiGetAiConnectionsOKItemsItemKind values.
 func (AiGetAiConnectionsOKItemsItemKind) AllValues() []AiGetAiConnectionsOKItemsItemKind {
 	return []AiGetAiConnectionsOKItemsItemKind{
-		AiGetAiConnectionsOKItemsItemKindDeviceAPI,
-		AiGetAiConnectionsOKItemsItemKindSSH,
 		AiGetAiConnectionsOKItemsItemKindHTTP,
+		AiGetAiConnectionsOKItemsItemKindSSH,
+		AiGetAiConnectionsOKItemsItemKindNetconfRestconf,
+		AiGetAiConnectionsOKItemsItemKindAutomation,
 		AiGetAiConnectionsOKItemsItemKindMcpHTTP,
 		AiGetAiConnectionsOKItemsItemKindMcpStdio,
 	}
@@ -1876,11 +1867,13 @@ func (AiGetAiConnectionsOKItemsItemKind) AllValues() []AiGetAiConnectionsOKItems
 // MarshalText implements encoding.TextMarshaler.
 func (s AiGetAiConnectionsOKItemsItemKind) MarshalText() ([]byte, error) {
 	switch s {
-	case AiGetAiConnectionsOKItemsItemKindDeviceAPI:
+	case AiGetAiConnectionsOKItemsItemKindHTTP:
 		return []byte(s), nil
 	case AiGetAiConnectionsOKItemsItemKindSSH:
 		return []byte(s), nil
-	case AiGetAiConnectionsOKItemsItemKindHTTP:
+	case AiGetAiConnectionsOKItemsItemKindNetconfRestconf:
+		return []byte(s), nil
+	case AiGetAiConnectionsOKItemsItemKindAutomation:
 		return []byte(s), nil
 	case AiGetAiConnectionsOKItemsItemKindMcpHTTP:
 		return []byte(s), nil
@@ -1894,14 +1887,17 @@ func (s AiGetAiConnectionsOKItemsItemKind) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *AiGetAiConnectionsOKItemsItemKind) UnmarshalText(data []byte) error {
 	switch AiGetAiConnectionsOKItemsItemKind(data) {
-	case AiGetAiConnectionsOKItemsItemKindDeviceAPI:
-		*s = AiGetAiConnectionsOKItemsItemKindDeviceAPI
+	case AiGetAiConnectionsOKItemsItemKindHTTP:
+		*s = AiGetAiConnectionsOKItemsItemKindHTTP
 		return nil
 	case AiGetAiConnectionsOKItemsItemKindSSH:
 		*s = AiGetAiConnectionsOKItemsItemKindSSH
 		return nil
-	case AiGetAiConnectionsOKItemsItemKindHTTP:
-		*s = AiGetAiConnectionsOKItemsItemKindHTTP
+	case AiGetAiConnectionsOKItemsItemKindNetconfRestconf:
+		*s = AiGetAiConnectionsOKItemsItemKindNetconfRestconf
+		return nil
+	case AiGetAiConnectionsOKItemsItemKindAutomation:
+		*s = AiGetAiConnectionsOKItemsItemKindAutomation
 		return nil
 	case AiGetAiConnectionsOKItemsItemKindMcpHTTP:
 		*s = AiGetAiConnectionsOKItemsItemKindMcpHTTP
@@ -2044,61 +2040,6 @@ func (s *AiGetAiConnectionsOKItemsItemToolsItemAccess) UnmarshalText(data []byte
 		return nil
 	case AiGetAiConnectionsOKItemsItemToolsItemAccessWrite:
 		*s = AiGetAiConnectionsOKItemsItemToolsItemAccessWrite
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiGetAiConnectionsOKItemsItemVendor string
-
-const (
-	AiGetAiConnectionsOKItemsItemVendorFortinet AiGetAiConnectionsOKItemsItemVendor = "fortinet"
-	AiGetAiConnectionsOKItemsItemVendorMikrotik AiGetAiConnectionsOKItemsItemVendor = "mikrotik"
-	AiGetAiConnectionsOKItemsItemVendorPfsense  AiGetAiConnectionsOKItemsItemVendor = "pfsense"
-	AiGetAiConnectionsOKItemsItemVendorOther    AiGetAiConnectionsOKItemsItemVendor = "other"
-)
-
-// AllValues returns all AiGetAiConnectionsOKItemsItemVendor values.
-func (AiGetAiConnectionsOKItemsItemVendor) AllValues() []AiGetAiConnectionsOKItemsItemVendor {
-	return []AiGetAiConnectionsOKItemsItemVendor{
-		AiGetAiConnectionsOKItemsItemVendorFortinet,
-		AiGetAiConnectionsOKItemsItemVendorMikrotik,
-		AiGetAiConnectionsOKItemsItemVendorPfsense,
-		AiGetAiConnectionsOKItemsItemVendorOther,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiGetAiConnectionsOKItemsItemVendor) MarshalText() ([]byte, error) {
-	switch s {
-	case AiGetAiConnectionsOKItemsItemVendorFortinet:
-		return []byte(s), nil
-	case AiGetAiConnectionsOKItemsItemVendorMikrotik:
-		return []byte(s), nil
-	case AiGetAiConnectionsOKItemsItemVendorPfsense:
-		return []byte(s), nil
-	case AiGetAiConnectionsOKItemsItemVendorOther:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiGetAiConnectionsOKItemsItemVendor) UnmarshalText(data []byte) error {
-	switch AiGetAiConnectionsOKItemsItemVendor(data) {
-	case AiGetAiConnectionsOKItemsItemVendorFortinet:
-		*s = AiGetAiConnectionsOKItemsItemVendorFortinet
-		return nil
-	case AiGetAiConnectionsOKItemsItemVendorMikrotik:
-		*s = AiGetAiConnectionsOKItemsItemVendorMikrotik
-		return nil
-	case AiGetAiConnectionsOKItemsItemVendorPfsense:
-		*s = AiGetAiConnectionsOKItemsItemVendorPfsense
-		return nil
-	case AiGetAiConnectionsOKItemsItemVendorOther:
-		*s = AiGetAiConnectionsOKItemsItemVendorOther
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -5681,7 +5622,6 @@ type AiPostAiConnectionsIDTestOKConnector struct {
 	// Base URL, host:port, or the MCP command.
 	Target string                                          `json:"target"`
 	Tools  []AiPostAiConnectionsIDTestOKConnectorToolsItem `json:"tools"`
-	Vendor NilAiPostAiConnectionsIDTestOKConnectorVendor   `json:"vendor"`
 }
 
 // GetAllow returns the value of Allow.
@@ -5739,11 +5679,6 @@ func (s *AiPostAiConnectionsIDTestOKConnector) GetTools() []AiPostAiConnectionsI
 	return s.Tools
 }
 
-// GetVendor returns the value of Vendor.
-func (s *AiPostAiConnectionsIDTestOKConnector) GetVendor() NilAiPostAiConnectionsIDTestOKConnectorVendor {
-	return s.Vendor
-}
-
 // SetAllow sets the value of Allow.
 func (s *AiPostAiConnectionsIDTestOKConnector) SetAllow(val []string) {
 	s.Allow = val
@@ -5797,11 +5732,6 @@ func (s *AiPostAiConnectionsIDTestOKConnector) SetTarget(val string) {
 // SetTools sets the value of Tools.
 func (s *AiPostAiConnectionsIDTestOKConnector) SetTools(val []AiPostAiConnectionsIDTestOKConnectorToolsItem) {
 	s.Tools = val
-}
-
-// SetVendor sets the value of Vendor.
-func (s *AiPostAiConnectionsIDTestOKConnector) SetVendor(val NilAiPostAiConnectionsIDTestOKConnectorVendor) {
-	s.Vendor = val
 }
 
 type AiPostAiConnectionsIDTestOKConnectorAuth struct {
@@ -5888,19 +5818,21 @@ func (s *AiPostAiConnectionsIDTestOKConnectorAuthType) UnmarshalText(data []byte
 type AiPostAiConnectionsIDTestOKConnectorKind string
 
 const (
-	AiPostAiConnectionsIDTestOKConnectorKindDeviceAPI AiPostAiConnectionsIDTestOKConnectorKind = "device-api"
-	AiPostAiConnectionsIDTestOKConnectorKindSSH       AiPostAiConnectionsIDTestOKConnectorKind = "ssh"
-	AiPostAiConnectionsIDTestOKConnectorKindHTTP      AiPostAiConnectionsIDTestOKConnectorKind = "http"
-	AiPostAiConnectionsIDTestOKConnectorKindMcpHTTP   AiPostAiConnectionsIDTestOKConnectorKind = "mcp-http"
-	AiPostAiConnectionsIDTestOKConnectorKindMcpStdio  AiPostAiConnectionsIDTestOKConnectorKind = "mcp-stdio"
+	AiPostAiConnectionsIDTestOKConnectorKindHTTP            AiPostAiConnectionsIDTestOKConnectorKind = "http"
+	AiPostAiConnectionsIDTestOKConnectorKindSSH             AiPostAiConnectionsIDTestOKConnectorKind = "ssh"
+	AiPostAiConnectionsIDTestOKConnectorKindNetconfRestconf AiPostAiConnectionsIDTestOKConnectorKind = "netconf-restconf"
+	AiPostAiConnectionsIDTestOKConnectorKindAutomation      AiPostAiConnectionsIDTestOKConnectorKind = "automation"
+	AiPostAiConnectionsIDTestOKConnectorKindMcpHTTP         AiPostAiConnectionsIDTestOKConnectorKind = "mcp-http"
+	AiPostAiConnectionsIDTestOKConnectorKindMcpStdio        AiPostAiConnectionsIDTestOKConnectorKind = "mcp-stdio"
 )
 
 // AllValues returns all AiPostAiConnectionsIDTestOKConnectorKind values.
 func (AiPostAiConnectionsIDTestOKConnectorKind) AllValues() []AiPostAiConnectionsIDTestOKConnectorKind {
 	return []AiPostAiConnectionsIDTestOKConnectorKind{
-		AiPostAiConnectionsIDTestOKConnectorKindDeviceAPI,
-		AiPostAiConnectionsIDTestOKConnectorKindSSH,
 		AiPostAiConnectionsIDTestOKConnectorKindHTTP,
+		AiPostAiConnectionsIDTestOKConnectorKindSSH,
+		AiPostAiConnectionsIDTestOKConnectorKindNetconfRestconf,
+		AiPostAiConnectionsIDTestOKConnectorKindAutomation,
 		AiPostAiConnectionsIDTestOKConnectorKindMcpHTTP,
 		AiPostAiConnectionsIDTestOKConnectorKindMcpStdio,
 	}
@@ -5909,11 +5841,13 @@ func (AiPostAiConnectionsIDTestOKConnectorKind) AllValues() []AiPostAiConnection
 // MarshalText implements encoding.TextMarshaler.
 func (s AiPostAiConnectionsIDTestOKConnectorKind) MarshalText() ([]byte, error) {
 	switch s {
-	case AiPostAiConnectionsIDTestOKConnectorKindDeviceAPI:
+	case AiPostAiConnectionsIDTestOKConnectorKindHTTP:
 		return []byte(s), nil
 	case AiPostAiConnectionsIDTestOKConnectorKindSSH:
 		return []byte(s), nil
-	case AiPostAiConnectionsIDTestOKConnectorKindHTTP:
+	case AiPostAiConnectionsIDTestOKConnectorKindNetconfRestconf:
+		return []byte(s), nil
+	case AiPostAiConnectionsIDTestOKConnectorKindAutomation:
 		return []byte(s), nil
 	case AiPostAiConnectionsIDTestOKConnectorKindMcpHTTP:
 		return []byte(s), nil
@@ -5927,14 +5861,17 @@ func (s AiPostAiConnectionsIDTestOKConnectorKind) MarshalText() ([]byte, error) 
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *AiPostAiConnectionsIDTestOKConnectorKind) UnmarshalText(data []byte) error {
 	switch AiPostAiConnectionsIDTestOKConnectorKind(data) {
-	case AiPostAiConnectionsIDTestOKConnectorKindDeviceAPI:
-		*s = AiPostAiConnectionsIDTestOKConnectorKindDeviceAPI
+	case AiPostAiConnectionsIDTestOKConnectorKindHTTP:
+		*s = AiPostAiConnectionsIDTestOKConnectorKindHTTP
 		return nil
 	case AiPostAiConnectionsIDTestOKConnectorKindSSH:
 		*s = AiPostAiConnectionsIDTestOKConnectorKindSSH
 		return nil
-	case AiPostAiConnectionsIDTestOKConnectorKindHTTP:
-		*s = AiPostAiConnectionsIDTestOKConnectorKindHTTP
+	case AiPostAiConnectionsIDTestOKConnectorKindNetconfRestconf:
+		*s = AiPostAiConnectionsIDTestOKConnectorKindNetconfRestconf
+		return nil
+	case AiPostAiConnectionsIDTestOKConnectorKindAutomation:
+		*s = AiPostAiConnectionsIDTestOKConnectorKindAutomation
 		return nil
 	case AiPostAiConnectionsIDTestOKConnectorKindMcpHTTP:
 		*s = AiPostAiConnectionsIDTestOKConnectorKindMcpHTTP
@@ -6083,61 +6020,6 @@ func (s *AiPostAiConnectionsIDTestOKConnectorToolsItemAccess) UnmarshalText(data
 	}
 }
 
-type AiPostAiConnectionsIDTestOKConnectorVendor string
-
-const (
-	AiPostAiConnectionsIDTestOKConnectorVendorFortinet AiPostAiConnectionsIDTestOKConnectorVendor = "fortinet"
-	AiPostAiConnectionsIDTestOKConnectorVendorMikrotik AiPostAiConnectionsIDTestOKConnectorVendor = "mikrotik"
-	AiPostAiConnectionsIDTestOKConnectorVendorPfsense  AiPostAiConnectionsIDTestOKConnectorVendor = "pfsense"
-	AiPostAiConnectionsIDTestOKConnectorVendorOther    AiPostAiConnectionsIDTestOKConnectorVendor = "other"
-)
-
-// AllValues returns all AiPostAiConnectionsIDTestOKConnectorVendor values.
-func (AiPostAiConnectionsIDTestOKConnectorVendor) AllValues() []AiPostAiConnectionsIDTestOKConnectorVendor {
-	return []AiPostAiConnectionsIDTestOKConnectorVendor{
-		AiPostAiConnectionsIDTestOKConnectorVendorFortinet,
-		AiPostAiConnectionsIDTestOKConnectorVendorMikrotik,
-		AiPostAiConnectionsIDTestOKConnectorVendorPfsense,
-		AiPostAiConnectionsIDTestOKConnectorVendorOther,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPostAiConnectionsIDTestOKConnectorVendor) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPostAiConnectionsIDTestOKConnectorVendorFortinet:
-		return []byte(s), nil
-	case AiPostAiConnectionsIDTestOKConnectorVendorMikrotik:
-		return []byte(s), nil
-	case AiPostAiConnectionsIDTestOKConnectorVendorPfsense:
-		return []byte(s), nil
-	case AiPostAiConnectionsIDTestOKConnectorVendorOther:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPostAiConnectionsIDTestOKConnectorVendor) UnmarshalText(data []byte) error {
-	switch AiPostAiConnectionsIDTestOKConnectorVendor(data) {
-	case AiPostAiConnectionsIDTestOKConnectorVendorFortinet:
-		*s = AiPostAiConnectionsIDTestOKConnectorVendorFortinet
-		return nil
-	case AiPostAiConnectionsIDTestOKConnectorVendorMikrotik:
-		*s = AiPostAiConnectionsIDTestOKConnectorVendorMikrotik
-		return nil
-	case AiPostAiConnectionsIDTestOKConnectorVendorPfsense:
-		*s = AiPostAiConnectionsIDTestOKConnectorVendorPfsense
-		return nil
-	case AiPostAiConnectionsIDTestOKConnectorVendorOther:
-		*s = AiPostAiConnectionsIDTestOKConnectorVendorOther
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
 type AiPostAiConnectionsOK struct {
 	// Hosts, URL prefixes or commands the AI may use through this connection.
 	Allow    []string                    `json:"allow"`
@@ -6152,7 +6034,6 @@ type AiPostAiConnectionsOK struct {
 	// Base URL, host:port, or the MCP command.
 	Target string                           `json:"target"`
 	Tools  []AiPostAiConnectionsOKToolsItem `json:"tools"`
-	Vendor NilAiPostAiConnectionsOKVendor   `json:"vendor"`
 }
 
 // GetAllow returns the value of Allow.
@@ -6210,11 +6091,6 @@ func (s *AiPostAiConnectionsOK) GetTools() []AiPostAiConnectionsOKToolsItem {
 	return s.Tools
 }
 
-// GetVendor returns the value of Vendor.
-func (s *AiPostAiConnectionsOK) GetVendor() NilAiPostAiConnectionsOKVendor {
-	return s.Vendor
-}
-
 // SetAllow sets the value of Allow.
 func (s *AiPostAiConnectionsOK) SetAllow(val []string) {
 	s.Allow = val
@@ -6268,11 +6144,6 @@ func (s *AiPostAiConnectionsOK) SetTarget(val string) {
 // SetTools sets the value of Tools.
 func (s *AiPostAiConnectionsOK) SetTools(val []AiPostAiConnectionsOKToolsItem) {
 	s.Tools = val
-}
-
-// SetVendor sets the value of Vendor.
-func (s *AiPostAiConnectionsOK) SetVendor(val NilAiPostAiConnectionsOKVendor) {
-	s.Vendor = val
 }
 
 type AiPostAiConnectionsOKAuth struct {
@@ -6359,19 +6230,21 @@ func (s *AiPostAiConnectionsOKAuthType) UnmarshalText(data []byte) error {
 type AiPostAiConnectionsOKKind string
 
 const (
-	AiPostAiConnectionsOKKindDeviceAPI AiPostAiConnectionsOKKind = "device-api"
-	AiPostAiConnectionsOKKindSSH       AiPostAiConnectionsOKKind = "ssh"
-	AiPostAiConnectionsOKKindHTTP      AiPostAiConnectionsOKKind = "http"
-	AiPostAiConnectionsOKKindMcpHTTP   AiPostAiConnectionsOKKind = "mcp-http"
-	AiPostAiConnectionsOKKindMcpStdio  AiPostAiConnectionsOKKind = "mcp-stdio"
+	AiPostAiConnectionsOKKindHTTP            AiPostAiConnectionsOKKind = "http"
+	AiPostAiConnectionsOKKindSSH             AiPostAiConnectionsOKKind = "ssh"
+	AiPostAiConnectionsOKKindNetconfRestconf AiPostAiConnectionsOKKind = "netconf-restconf"
+	AiPostAiConnectionsOKKindAutomation      AiPostAiConnectionsOKKind = "automation"
+	AiPostAiConnectionsOKKindMcpHTTP         AiPostAiConnectionsOKKind = "mcp-http"
+	AiPostAiConnectionsOKKindMcpStdio        AiPostAiConnectionsOKKind = "mcp-stdio"
 )
 
 // AllValues returns all AiPostAiConnectionsOKKind values.
 func (AiPostAiConnectionsOKKind) AllValues() []AiPostAiConnectionsOKKind {
 	return []AiPostAiConnectionsOKKind{
-		AiPostAiConnectionsOKKindDeviceAPI,
-		AiPostAiConnectionsOKKindSSH,
 		AiPostAiConnectionsOKKindHTTP,
+		AiPostAiConnectionsOKKindSSH,
+		AiPostAiConnectionsOKKindNetconfRestconf,
+		AiPostAiConnectionsOKKindAutomation,
 		AiPostAiConnectionsOKKindMcpHTTP,
 		AiPostAiConnectionsOKKindMcpStdio,
 	}
@@ -6380,11 +6253,13 @@ func (AiPostAiConnectionsOKKind) AllValues() []AiPostAiConnectionsOKKind {
 // MarshalText implements encoding.TextMarshaler.
 func (s AiPostAiConnectionsOKKind) MarshalText() ([]byte, error) {
 	switch s {
-	case AiPostAiConnectionsOKKindDeviceAPI:
+	case AiPostAiConnectionsOKKindHTTP:
 		return []byte(s), nil
 	case AiPostAiConnectionsOKKindSSH:
 		return []byte(s), nil
-	case AiPostAiConnectionsOKKindHTTP:
+	case AiPostAiConnectionsOKKindNetconfRestconf:
+		return []byte(s), nil
+	case AiPostAiConnectionsOKKindAutomation:
 		return []byte(s), nil
 	case AiPostAiConnectionsOKKindMcpHTTP:
 		return []byte(s), nil
@@ -6398,14 +6273,17 @@ func (s AiPostAiConnectionsOKKind) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *AiPostAiConnectionsOKKind) UnmarshalText(data []byte) error {
 	switch AiPostAiConnectionsOKKind(data) {
-	case AiPostAiConnectionsOKKindDeviceAPI:
-		*s = AiPostAiConnectionsOKKindDeviceAPI
+	case AiPostAiConnectionsOKKindHTTP:
+		*s = AiPostAiConnectionsOKKindHTTP
 		return nil
 	case AiPostAiConnectionsOKKindSSH:
 		*s = AiPostAiConnectionsOKKindSSH
 		return nil
-	case AiPostAiConnectionsOKKindHTTP:
-		*s = AiPostAiConnectionsOKKindHTTP
+	case AiPostAiConnectionsOKKindNetconfRestconf:
+		*s = AiPostAiConnectionsOKKindNetconfRestconf
+		return nil
+	case AiPostAiConnectionsOKKindAutomation:
+		*s = AiPostAiConnectionsOKKindAutomation
 		return nil
 	case AiPostAiConnectionsOKKindMcpHTTP:
 		*s = AiPostAiConnectionsOKKindMcpHTTP
@@ -6554,61 +6432,6 @@ func (s *AiPostAiConnectionsOKToolsItemAccess) UnmarshalText(data []byte) error 
 	}
 }
 
-type AiPostAiConnectionsOKVendor string
-
-const (
-	AiPostAiConnectionsOKVendorFortinet AiPostAiConnectionsOKVendor = "fortinet"
-	AiPostAiConnectionsOKVendorMikrotik AiPostAiConnectionsOKVendor = "mikrotik"
-	AiPostAiConnectionsOKVendorPfsense  AiPostAiConnectionsOKVendor = "pfsense"
-	AiPostAiConnectionsOKVendorOther    AiPostAiConnectionsOKVendor = "other"
-)
-
-// AllValues returns all AiPostAiConnectionsOKVendor values.
-func (AiPostAiConnectionsOKVendor) AllValues() []AiPostAiConnectionsOKVendor {
-	return []AiPostAiConnectionsOKVendor{
-		AiPostAiConnectionsOKVendorFortinet,
-		AiPostAiConnectionsOKVendorMikrotik,
-		AiPostAiConnectionsOKVendorPfsense,
-		AiPostAiConnectionsOKVendorOther,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPostAiConnectionsOKVendor) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPostAiConnectionsOKVendorFortinet:
-		return []byte(s), nil
-	case AiPostAiConnectionsOKVendorMikrotik:
-		return []byte(s), nil
-	case AiPostAiConnectionsOKVendorPfsense:
-		return []byte(s), nil
-	case AiPostAiConnectionsOKVendorOther:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPostAiConnectionsOKVendor) UnmarshalText(data []byte) error {
-	switch AiPostAiConnectionsOKVendor(data) {
-	case AiPostAiConnectionsOKVendorFortinet:
-		*s = AiPostAiConnectionsOKVendorFortinet
-		return nil
-	case AiPostAiConnectionsOKVendorMikrotik:
-		*s = AiPostAiConnectionsOKVendorMikrotik
-		return nil
-	case AiPostAiConnectionsOKVendorPfsense:
-		*s = AiPostAiConnectionsOKVendorPfsense
-		return nil
-	case AiPostAiConnectionsOKVendorOther:
-		*s = AiPostAiConnectionsOKVendorOther
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
 type AiPostAiConnectionsReq struct {
 	Allow    []string                       `json:"allow"`
 	AssetID  OptNilString                   `json:"asset_id"`
@@ -6620,8 +6443,7 @@ type AiPostAiConnectionsReq struct {
 	Secret OptString `json:"secret"`
 	Target string    `json:"target"`
 	// Per-tool enable; tools not listed keep their state.
-	Tools  []AiPostAiConnectionsReqToolsItem `json:"tools"`
-	Vendor NilAiPostAiConnectionsReqVendor   `json:"vendor"`
+	Tools []AiPostAiConnectionsReqToolsItem `json:"tools"`
 }
 
 // GetAllow returns the value of Allow.
@@ -6669,11 +6491,6 @@ func (s *AiPostAiConnectionsReq) GetTools() []AiPostAiConnectionsReqToolsItem {
 	return s.Tools
 }
 
-// GetVendor returns the value of Vendor.
-func (s *AiPostAiConnectionsReq) GetVendor() NilAiPostAiConnectionsReqVendor {
-	return s.Vendor
-}
-
 // SetAllow sets the value of Allow.
 func (s *AiPostAiConnectionsReq) SetAllow(val []string) {
 	s.Allow = val
@@ -6717,11 +6534,6 @@ func (s *AiPostAiConnectionsReq) SetTarget(val string) {
 // SetTools sets the value of Tools.
 func (s *AiPostAiConnectionsReq) SetTools(val []AiPostAiConnectionsReqToolsItem) {
 	s.Tools = val
-}
-
-// SetVendor sets the value of Vendor.
-func (s *AiPostAiConnectionsReq) SetVendor(val NilAiPostAiConnectionsReqVendor) {
-	s.Vendor = val
 }
 
 type AiPostAiConnectionsReqAuthType string
@@ -6782,19 +6594,21 @@ func (s *AiPostAiConnectionsReqAuthType) UnmarshalText(data []byte) error {
 type AiPostAiConnectionsReqKind string
 
 const (
-	AiPostAiConnectionsReqKindDeviceAPI AiPostAiConnectionsReqKind = "device-api"
-	AiPostAiConnectionsReqKindSSH       AiPostAiConnectionsReqKind = "ssh"
-	AiPostAiConnectionsReqKindHTTP      AiPostAiConnectionsReqKind = "http"
-	AiPostAiConnectionsReqKindMcpHTTP   AiPostAiConnectionsReqKind = "mcp-http"
-	AiPostAiConnectionsReqKindMcpStdio  AiPostAiConnectionsReqKind = "mcp-stdio"
+	AiPostAiConnectionsReqKindHTTP            AiPostAiConnectionsReqKind = "http"
+	AiPostAiConnectionsReqKindSSH             AiPostAiConnectionsReqKind = "ssh"
+	AiPostAiConnectionsReqKindNetconfRestconf AiPostAiConnectionsReqKind = "netconf-restconf"
+	AiPostAiConnectionsReqKindAutomation      AiPostAiConnectionsReqKind = "automation"
+	AiPostAiConnectionsReqKindMcpHTTP         AiPostAiConnectionsReqKind = "mcp-http"
+	AiPostAiConnectionsReqKindMcpStdio        AiPostAiConnectionsReqKind = "mcp-stdio"
 )
 
 // AllValues returns all AiPostAiConnectionsReqKind values.
 func (AiPostAiConnectionsReqKind) AllValues() []AiPostAiConnectionsReqKind {
 	return []AiPostAiConnectionsReqKind{
-		AiPostAiConnectionsReqKindDeviceAPI,
-		AiPostAiConnectionsReqKindSSH,
 		AiPostAiConnectionsReqKindHTTP,
+		AiPostAiConnectionsReqKindSSH,
+		AiPostAiConnectionsReqKindNetconfRestconf,
+		AiPostAiConnectionsReqKindAutomation,
 		AiPostAiConnectionsReqKindMcpHTTP,
 		AiPostAiConnectionsReqKindMcpStdio,
 	}
@@ -6803,11 +6617,13 @@ func (AiPostAiConnectionsReqKind) AllValues() []AiPostAiConnectionsReqKind {
 // MarshalText implements encoding.TextMarshaler.
 func (s AiPostAiConnectionsReqKind) MarshalText() ([]byte, error) {
 	switch s {
-	case AiPostAiConnectionsReqKindDeviceAPI:
+	case AiPostAiConnectionsReqKindHTTP:
 		return []byte(s), nil
 	case AiPostAiConnectionsReqKindSSH:
 		return []byte(s), nil
-	case AiPostAiConnectionsReqKindHTTP:
+	case AiPostAiConnectionsReqKindNetconfRestconf:
+		return []byte(s), nil
+	case AiPostAiConnectionsReqKindAutomation:
 		return []byte(s), nil
 	case AiPostAiConnectionsReqKindMcpHTTP:
 		return []byte(s), nil
@@ -6821,14 +6637,17 @@ func (s AiPostAiConnectionsReqKind) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *AiPostAiConnectionsReqKind) UnmarshalText(data []byte) error {
 	switch AiPostAiConnectionsReqKind(data) {
-	case AiPostAiConnectionsReqKindDeviceAPI:
-		*s = AiPostAiConnectionsReqKindDeviceAPI
+	case AiPostAiConnectionsReqKindHTTP:
+		*s = AiPostAiConnectionsReqKindHTTP
 		return nil
 	case AiPostAiConnectionsReqKindSSH:
 		*s = AiPostAiConnectionsReqKindSSH
 		return nil
-	case AiPostAiConnectionsReqKindHTTP:
-		*s = AiPostAiConnectionsReqKindHTTP
+	case AiPostAiConnectionsReqKindNetconfRestconf:
+		*s = AiPostAiConnectionsReqKindNetconfRestconf
+		return nil
+	case AiPostAiConnectionsReqKindAutomation:
+		*s = AiPostAiConnectionsReqKindAutomation
 		return nil
 	case AiPostAiConnectionsReqKindMcpHTTP:
 		*s = AiPostAiConnectionsReqKindMcpHTTP
@@ -6864,61 +6683,6 @@ func (s *AiPostAiConnectionsReqToolsItem) SetEnabled(val bool) {
 // SetName sets the value of Name.
 func (s *AiPostAiConnectionsReqToolsItem) SetName(val string) {
 	s.Name = val
-}
-
-type AiPostAiConnectionsReqVendor string
-
-const (
-	AiPostAiConnectionsReqVendorFortinet AiPostAiConnectionsReqVendor = "fortinet"
-	AiPostAiConnectionsReqVendorMikrotik AiPostAiConnectionsReqVendor = "mikrotik"
-	AiPostAiConnectionsReqVendorPfsense  AiPostAiConnectionsReqVendor = "pfsense"
-	AiPostAiConnectionsReqVendorOther    AiPostAiConnectionsReqVendor = "other"
-)
-
-// AllValues returns all AiPostAiConnectionsReqVendor values.
-func (AiPostAiConnectionsReqVendor) AllValues() []AiPostAiConnectionsReqVendor {
-	return []AiPostAiConnectionsReqVendor{
-		AiPostAiConnectionsReqVendorFortinet,
-		AiPostAiConnectionsReqVendorMikrotik,
-		AiPostAiConnectionsReqVendorPfsense,
-		AiPostAiConnectionsReqVendorOther,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPostAiConnectionsReqVendor) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPostAiConnectionsReqVendorFortinet:
-		return []byte(s), nil
-	case AiPostAiConnectionsReqVendorMikrotik:
-		return []byte(s), nil
-	case AiPostAiConnectionsReqVendorPfsense:
-		return []byte(s), nil
-	case AiPostAiConnectionsReqVendorOther:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPostAiConnectionsReqVendor) UnmarshalText(data []byte) error {
-	switch AiPostAiConnectionsReqVendor(data) {
-	case AiPostAiConnectionsReqVendorFortinet:
-		*s = AiPostAiConnectionsReqVendorFortinet
-		return nil
-	case AiPostAiConnectionsReqVendorMikrotik:
-		*s = AiPostAiConnectionsReqVendorMikrotik
-		return nil
-	case AiPostAiConnectionsReqVendorPfsense:
-		*s = AiPostAiConnectionsReqVendorPfsense
-		return nil
-	case AiPostAiConnectionsReqVendorOther:
-		*s = AiPostAiConnectionsReqVendorOther
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }
 
 type AiPostAiCveIDExplainOK struct {
@@ -11057,7 +10821,6 @@ type AiPutAiConnectionsIDOK struct {
 	// Base URL, host:port, or the MCP command.
 	Target string                            `json:"target"`
 	Tools  []AiPutAiConnectionsIDOKToolsItem `json:"tools"`
-	Vendor NilAiPutAiConnectionsIDOKVendor   `json:"vendor"`
 }
 
 // GetAllow returns the value of Allow.
@@ -11115,11 +10878,6 @@ func (s *AiPutAiConnectionsIDOK) GetTools() []AiPutAiConnectionsIDOKToolsItem {
 	return s.Tools
 }
 
-// GetVendor returns the value of Vendor.
-func (s *AiPutAiConnectionsIDOK) GetVendor() NilAiPutAiConnectionsIDOKVendor {
-	return s.Vendor
-}
-
 // SetAllow sets the value of Allow.
 func (s *AiPutAiConnectionsIDOK) SetAllow(val []string) {
 	s.Allow = val
@@ -11173,11 +10931,6 @@ func (s *AiPutAiConnectionsIDOK) SetTarget(val string) {
 // SetTools sets the value of Tools.
 func (s *AiPutAiConnectionsIDOK) SetTools(val []AiPutAiConnectionsIDOKToolsItem) {
 	s.Tools = val
-}
-
-// SetVendor sets the value of Vendor.
-func (s *AiPutAiConnectionsIDOK) SetVendor(val NilAiPutAiConnectionsIDOKVendor) {
-	s.Vendor = val
 }
 
 type AiPutAiConnectionsIDOKAuth struct {
@@ -11264,19 +11017,21 @@ func (s *AiPutAiConnectionsIDOKAuthType) UnmarshalText(data []byte) error {
 type AiPutAiConnectionsIDOKKind string
 
 const (
-	AiPutAiConnectionsIDOKKindDeviceAPI AiPutAiConnectionsIDOKKind = "device-api"
-	AiPutAiConnectionsIDOKKindSSH       AiPutAiConnectionsIDOKKind = "ssh"
-	AiPutAiConnectionsIDOKKindHTTP      AiPutAiConnectionsIDOKKind = "http"
-	AiPutAiConnectionsIDOKKindMcpHTTP   AiPutAiConnectionsIDOKKind = "mcp-http"
-	AiPutAiConnectionsIDOKKindMcpStdio  AiPutAiConnectionsIDOKKind = "mcp-stdio"
+	AiPutAiConnectionsIDOKKindHTTP            AiPutAiConnectionsIDOKKind = "http"
+	AiPutAiConnectionsIDOKKindSSH             AiPutAiConnectionsIDOKKind = "ssh"
+	AiPutAiConnectionsIDOKKindNetconfRestconf AiPutAiConnectionsIDOKKind = "netconf-restconf"
+	AiPutAiConnectionsIDOKKindAutomation      AiPutAiConnectionsIDOKKind = "automation"
+	AiPutAiConnectionsIDOKKindMcpHTTP         AiPutAiConnectionsIDOKKind = "mcp-http"
+	AiPutAiConnectionsIDOKKindMcpStdio        AiPutAiConnectionsIDOKKind = "mcp-stdio"
 )
 
 // AllValues returns all AiPutAiConnectionsIDOKKind values.
 func (AiPutAiConnectionsIDOKKind) AllValues() []AiPutAiConnectionsIDOKKind {
 	return []AiPutAiConnectionsIDOKKind{
-		AiPutAiConnectionsIDOKKindDeviceAPI,
-		AiPutAiConnectionsIDOKKindSSH,
 		AiPutAiConnectionsIDOKKindHTTP,
+		AiPutAiConnectionsIDOKKindSSH,
+		AiPutAiConnectionsIDOKKindNetconfRestconf,
+		AiPutAiConnectionsIDOKKindAutomation,
 		AiPutAiConnectionsIDOKKindMcpHTTP,
 		AiPutAiConnectionsIDOKKindMcpStdio,
 	}
@@ -11285,11 +11040,13 @@ func (AiPutAiConnectionsIDOKKind) AllValues() []AiPutAiConnectionsIDOKKind {
 // MarshalText implements encoding.TextMarshaler.
 func (s AiPutAiConnectionsIDOKKind) MarshalText() ([]byte, error) {
 	switch s {
-	case AiPutAiConnectionsIDOKKindDeviceAPI:
+	case AiPutAiConnectionsIDOKKindHTTP:
 		return []byte(s), nil
 	case AiPutAiConnectionsIDOKKindSSH:
 		return []byte(s), nil
-	case AiPutAiConnectionsIDOKKindHTTP:
+	case AiPutAiConnectionsIDOKKindNetconfRestconf:
+		return []byte(s), nil
+	case AiPutAiConnectionsIDOKKindAutomation:
 		return []byte(s), nil
 	case AiPutAiConnectionsIDOKKindMcpHTTP:
 		return []byte(s), nil
@@ -11303,14 +11060,17 @@ func (s AiPutAiConnectionsIDOKKind) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *AiPutAiConnectionsIDOKKind) UnmarshalText(data []byte) error {
 	switch AiPutAiConnectionsIDOKKind(data) {
-	case AiPutAiConnectionsIDOKKindDeviceAPI:
-		*s = AiPutAiConnectionsIDOKKindDeviceAPI
+	case AiPutAiConnectionsIDOKKindHTTP:
+		*s = AiPutAiConnectionsIDOKKindHTTP
 		return nil
 	case AiPutAiConnectionsIDOKKindSSH:
 		*s = AiPutAiConnectionsIDOKKindSSH
 		return nil
-	case AiPutAiConnectionsIDOKKindHTTP:
-		*s = AiPutAiConnectionsIDOKKindHTTP
+	case AiPutAiConnectionsIDOKKindNetconfRestconf:
+		*s = AiPutAiConnectionsIDOKKindNetconfRestconf
+		return nil
+	case AiPutAiConnectionsIDOKKindAutomation:
+		*s = AiPutAiConnectionsIDOKKindAutomation
 		return nil
 	case AiPutAiConnectionsIDOKKindMcpHTTP:
 		*s = AiPutAiConnectionsIDOKKindMcpHTTP
@@ -11459,61 +11219,6 @@ func (s *AiPutAiConnectionsIDOKToolsItemAccess) UnmarshalText(data []byte) error
 	}
 }
 
-type AiPutAiConnectionsIDOKVendor string
-
-const (
-	AiPutAiConnectionsIDOKVendorFortinet AiPutAiConnectionsIDOKVendor = "fortinet"
-	AiPutAiConnectionsIDOKVendorMikrotik AiPutAiConnectionsIDOKVendor = "mikrotik"
-	AiPutAiConnectionsIDOKVendorPfsense  AiPutAiConnectionsIDOKVendor = "pfsense"
-	AiPutAiConnectionsIDOKVendorOther    AiPutAiConnectionsIDOKVendor = "other"
-)
-
-// AllValues returns all AiPutAiConnectionsIDOKVendor values.
-func (AiPutAiConnectionsIDOKVendor) AllValues() []AiPutAiConnectionsIDOKVendor {
-	return []AiPutAiConnectionsIDOKVendor{
-		AiPutAiConnectionsIDOKVendorFortinet,
-		AiPutAiConnectionsIDOKVendorMikrotik,
-		AiPutAiConnectionsIDOKVendorPfsense,
-		AiPutAiConnectionsIDOKVendorOther,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPutAiConnectionsIDOKVendor) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPutAiConnectionsIDOKVendorFortinet:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDOKVendorMikrotik:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDOKVendorPfsense:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDOKVendorOther:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPutAiConnectionsIDOKVendor) UnmarshalText(data []byte) error {
-	switch AiPutAiConnectionsIDOKVendor(data) {
-	case AiPutAiConnectionsIDOKVendorFortinet:
-		*s = AiPutAiConnectionsIDOKVendorFortinet
-		return nil
-	case AiPutAiConnectionsIDOKVendorMikrotik:
-		*s = AiPutAiConnectionsIDOKVendorMikrotik
-		return nil
-	case AiPutAiConnectionsIDOKVendorPfsense:
-		*s = AiPutAiConnectionsIDOKVendorPfsense
-		return nil
-	case AiPutAiConnectionsIDOKVendorOther:
-		*s = AiPutAiConnectionsIDOKVendorOther
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
 type AiPutAiConnectionsIDReq struct {
 	Allow    []string                        `json:"allow"`
 	AssetID  OptNilString                    `json:"asset_id"`
@@ -11525,8 +11230,7 @@ type AiPutAiConnectionsIDReq struct {
 	Secret OptString `json:"secret"`
 	Target string    `json:"target"`
 	// Per-tool enable; tools not listed keep their state.
-	Tools  []AiPutAiConnectionsIDReqToolsItem `json:"tools"`
-	Vendor NilAiPutAiConnectionsIDReqVendor   `json:"vendor"`
+	Tools []AiPutAiConnectionsIDReqToolsItem `json:"tools"`
 }
 
 // GetAllow returns the value of Allow.
@@ -11574,11 +11278,6 @@ func (s *AiPutAiConnectionsIDReq) GetTools() []AiPutAiConnectionsIDReqToolsItem 
 	return s.Tools
 }
 
-// GetVendor returns the value of Vendor.
-func (s *AiPutAiConnectionsIDReq) GetVendor() NilAiPutAiConnectionsIDReqVendor {
-	return s.Vendor
-}
-
 // SetAllow sets the value of Allow.
 func (s *AiPutAiConnectionsIDReq) SetAllow(val []string) {
 	s.Allow = val
@@ -11622,11 +11321,6 @@ func (s *AiPutAiConnectionsIDReq) SetTarget(val string) {
 // SetTools sets the value of Tools.
 func (s *AiPutAiConnectionsIDReq) SetTools(val []AiPutAiConnectionsIDReqToolsItem) {
 	s.Tools = val
-}
-
-// SetVendor sets the value of Vendor.
-func (s *AiPutAiConnectionsIDReq) SetVendor(val NilAiPutAiConnectionsIDReqVendor) {
-	s.Vendor = val
 }
 
 type AiPutAiConnectionsIDReqAuthType string
@@ -11687,19 +11381,21 @@ func (s *AiPutAiConnectionsIDReqAuthType) UnmarshalText(data []byte) error {
 type AiPutAiConnectionsIDReqKind string
 
 const (
-	AiPutAiConnectionsIDReqKindDeviceAPI AiPutAiConnectionsIDReqKind = "device-api"
-	AiPutAiConnectionsIDReqKindSSH       AiPutAiConnectionsIDReqKind = "ssh"
-	AiPutAiConnectionsIDReqKindHTTP      AiPutAiConnectionsIDReqKind = "http"
-	AiPutAiConnectionsIDReqKindMcpHTTP   AiPutAiConnectionsIDReqKind = "mcp-http"
-	AiPutAiConnectionsIDReqKindMcpStdio  AiPutAiConnectionsIDReqKind = "mcp-stdio"
+	AiPutAiConnectionsIDReqKindHTTP            AiPutAiConnectionsIDReqKind = "http"
+	AiPutAiConnectionsIDReqKindSSH             AiPutAiConnectionsIDReqKind = "ssh"
+	AiPutAiConnectionsIDReqKindNetconfRestconf AiPutAiConnectionsIDReqKind = "netconf-restconf"
+	AiPutAiConnectionsIDReqKindAutomation      AiPutAiConnectionsIDReqKind = "automation"
+	AiPutAiConnectionsIDReqKindMcpHTTP         AiPutAiConnectionsIDReqKind = "mcp-http"
+	AiPutAiConnectionsIDReqKindMcpStdio        AiPutAiConnectionsIDReqKind = "mcp-stdio"
 )
 
 // AllValues returns all AiPutAiConnectionsIDReqKind values.
 func (AiPutAiConnectionsIDReqKind) AllValues() []AiPutAiConnectionsIDReqKind {
 	return []AiPutAiConnectionsIDReqKind{
-		AiPutAiConnectionsIDReqKindDeviceAPI,
-		AiPutAiConnectionsIDReqKindSSH,
 		AiPutAiConnectionsIDReqKindHTTP,
+		AiPutAiConnectionsIDReqKindSSH,
+		AiPutAiConnectionsIDReqKindNetconfRestconf,
+		AiPutAiConnectionsIDReqKindAutomation,
 		AiPutAiConnectionsIDReqKindMcpHTTP,
 		AiPutAiConnectionsIDReqKindMcpStdio,
 	}
@@ -11708,11 +11404,13 @@ func (AiPutAiConnectionsIDReqKind) AllValues() []AiPutAiConnectionsIDReqKind {
 // MarshalText implements encoding.TextMarshaler.
 func (s AiPutAiConnectionsIDReqKind) MarshalText() ([]byte, error) {
 	switch s {
-	case AiPutAiConnectionsIDReqKindDeviceAPI:
+	case AiPutAiConnectionsIDReqKindHTTP:
 		return []byte(s), nil
 	case AiPutAiConnectionsIDReqKindSSH:
 		return []byte(s), nil
-	case AiPutAiConnectionsIDReqKindHTTP:
+	case AiPutAiConnectionsIDReqKindNetconfRestconf:
+		return []byte(s), nil
+	case AiPutAiConnectionsIDReqKindAutomation:
 		return []byte(s), nil
 	case AiPutAiConnectionsIDReqKindMcpHTTP:
 		return []byte(s), nil
@@ -11726,14 +11424,17 @@ func (s AiPutAiConnectionsIDReqKind) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *AiPutAiConnectionsIDReqKind) UnmarshalText(data []byte) error {
 	switch AiPutAiConnectionsIDReqKind(data) {
-	case AiPutAiConnectionsIDReqKindDeviceAPI:
-		*s = AiPutAiConnectionsIDReqKindDeviceAPI
+	case AiPutAiConnectionsIDReqKindHTTP:
+		*s = AiPutAiConnectionsIDReqKindHTTP
 		return nil
 	case AiPutAiConnectionsIDReqKindSSH:
 		*s = AiPutAiConnectionsIDReqKindSSH
 		return nil
-	case AiPutAiConnectionsIDReqKindHTTP:
-		*s = AiPutAiConnectionsIDReqKindHTTP
+	case AiPutAiConnectionsIDReqKindNetconfRestconf:
+		*s = AiPutAiConnectionsIDReqKindNetconfRestconf
+		return nil
+	case AiPutAiConnectionsIDReqKindAutomation:
+		*s = AiPutAiConnectionsIDReqKindAutomation
 		return nil
 	case AiPutAiConnectionsIDReqKindMcpHTTP:
 		*s = AiPutAiConnectionsIDReqKindMcpHTTP
@@ -11769,61 +11470,6 @@ func (s *AiPutAiConnectionsIDReqToolsItem) SetEnabled(val bool) {
 // SetName sets the value of Name.
 func (s *AiPutAiConnectionsIDReqToolsItem) SetName(val string) {
 	s.Name = val
-}
-
-type AiPutAiConnectionsIDReqVendor string
-
-const (
-	AiPutAiConnectionsIDReqVendorFortinet AiPutAiConnectionsIDReqVendor = "fortinet"
-	AiPutAiConnectionsIDReqVendorMikrotik AiPutAiConnectionsIDReqVendor = "mikrotik"
-	AiPutAiConnectionsIDReqVendorPfsense  AiPutAiConnectionsIDReqVendor = "pfsense"
-	AiPutAiConnectionsIDReqVendorOther    AiPutAiConnectionsIDReqVendor = "other"
-)
-
-// AllValues returns all AiPutAiConnectionsIDReqVendor values.
-func (AiPutAiConnectionsIDReqVendor) AllValues() []AiPutAiConnectionsIDReqVendor {
-	return []AiPutAiConnectionsIDReqVendor{
-		AiPutAiConnectionsIDReqVendorFortinet,
-		AiPutAiConnectionsIDReqVendorMikrotik,
-		AiPutAiConnectionsIDReqVendorPfsense,
-		AiPutAiConnectionsIDReqVendorOther,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPutAiConnectionsIDReqVendor) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPutAiConnectionsIDReqVendorFortinet:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDReqVendorMikrotik:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDReqVendorPfsense:
-		return []byte(s), nil
-	case AiPutAiConnectionsIDReqVendorOther:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPutAiConnectionsIDReqVendor) UnmarshalText(data []byte) error {
-	switch AiPutAiConnectionsIDReqVendor(data) {
-	case AiPutAiConnectionsIDReqVendorFortinet:
-		*s = AiPutAiConnectionsIDReqVendorFortinet
-		return nil
-	case AiPutAiConnectionsIDReqVendorMikrotik:
-		*s = AiPutAiConnectionsIDReqVendorMikrotik
-		return nil
-	case AiPutAiConnectionsIDReqVendorPfsense:
-		*s = AiPutAiConnectionsIDReqVendorPfsense
-		return nil
-	case AiPutAiConnectionsIDReqVendorOther:
-		*s = AiPutAiConnectionsIDReqVendorOther
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }
 
 type AiPutAiHooksBuiltinIDOK struct {
@@ -16570,7 +16216,7 @@ func (s *CoreGetCoreOidcOKRoleMapItemRole) UnmarshalText(data []byte) error {
 }
 
 type CoreGetCorePrivacyOK struct {
-	// Exactly the 10 flows listed in PRIVACY.md.
+	// Exactly the 11 flows listed in PRIVACY.md.
 	Flows       []CoreGetCorePrivacyOKFlowsItem `json:"flows"`
 	Telemetry   CoreGetCorePrivacyOKTelemetry   `json:"telemetry"`
 	UpdateCheck bool                            `json:"update_check"`
@@ -19858,7 +19504,7 @@ func (s *CorePatchCoreMcpReq) SetEnabled(val bool) {
 }
 
 type CorePatchCorePrivacyOK struct {
-	// Exactly the 10 flows listed in PRIVACY.md.
+	// Exactly the 11 flows listed in PRIVACY.md.
 	Flows       []CorePatchCorePrivacyOKFlowsItem `json:"flows"`
 	Telemetry   CorePatchCorePrivacyOKTelemetry   `json:"telemetry"`
 	UpdateCheck bool                              `json:"update_check"`
@@ -22869,33 +22515,33 @@ func (s *CorePostCoreDataPurgeReq) SetConfirm(val string) {
 	s.Confirm = val
 }
 
-type CorePostCoreMcpTokensOK struct {
-	Item CorePostCoreMcpTokensOKItem `json:"item"`
+type CorePostCoreMcpTokensCreated struct {
+	Item CorePostCoreMcpTokensCreatedItem `json:"item"`
 	// Returned once, at creation.
 	Token string `json:"token"`
 }
 
 // GetItem returns the value of Item.
-func (s *CorePostCoreMcpTokensOK) GetItem() CorePostCoreMcpTokensOKItem {
+func (s *CorePostCoreMcpTokensCreated) GetItem() CorePostCoreMcpTokensCreatedItem {
 	return s.Item
 }
 
 // GetToken returns the value of Token.
-func (s *CorePostCoreMcpTokensOK) GetToken() string {
+func (s *CorePostCoreMcpTokensCreated) GetToken() string {
 	return s.Token
 }
 
 // SetItem sets the value of Item.
-func (s *CorePostCoreMcpTokensOK) SetItem(val CorePostCoreMcpTokensOKItem) {
+func (s *CorePostCoreMcpTokensCreated) SetItem(val CorePostCoreMcpTokensCreatedItem) {
 	s.Item = val
 }
 
 // SetToken sets the value of Token.
-func (s *CorePostCoreMcpTokensOK) SetToken(val string) {
+func (s *CorePostCoreMcpTokensCreated) SetToken(val string) {
 	s.Token = val
 }
 
-type CorePostCoreMcpTokensOKItem struct {
+type CorePostCoreMcpTokensCreatedItem struct {
 	CreatedAt time.Time   `json:"created_at"`
 	ID        string      `json:"id"`
 	Last4     string      `json:"last4"`
@@ -22905,62 +22551,62 @@ type CorePostCoreMcpTokensOKItem struct {
 }
 
 // GetCreatedAt returns the value of CreatedAt.
-func (s *CorePostCoreMcpTokensOKItem) GetCreatedAt() time.Time {
+func (s *CorePostCoreMcpTokensCreatedItem) GetCreatedAt() time.Time {
 	return s.CreatedAt
 }
 
 // GetID returns the value of ID.
-func (s *CorePostCoreMcpTokensOKItem) GetID() string {
+func (s *CorePostCoreMcpTokensCreatedItem) GetID() string {
 	return s.ID
 }
 
 // GetLast4 returns the value of Last4.
-func (s *CorePostCoreMcpTokensOKItem) GetLast4() string {
+func (s *CorePostCoreMcpTokensCreatedItem) GetLast4() string {
 	return s.Last4
 }
 
 // GetLastUsed returns the value of LastUsed.
-func (s *CorePostCoreMcpTokensOKItem) GetLastUsed() NilDateTime {
+func (s *CorePostCoreMcpTokensCreatedItem) GetLastUsed() NilDateTime {
 	return s.LastUsed
 }
 
 // GetName returns the value of Name.
-func (s *CorePostCoreMcpTokensOKItem) GetName() string {
+func (s *CorePostCoreMcpTokensCreatedItem) GetName() string {
 	return s.Name
 }
 
 // GetScopes returns the value of Scopes.
-func (s *CorePostCoreMcpTokensOKItem) GetScopes() []string {
+func (s *CorePostCoreMcpTokensCreatedItem) GetScopes() []string {
 	return s.Scopes
 }
 
 // SetCreatedAt sets the value of CreatedAt.
-func (s *CorePostCoreMcpTokensOKItem) SetCreatedAt(val time.Time) {
+func (s *CorePostCoreMcpTokensCreatedItem) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
 }
 
 // SetID sets the value of ID.
-func (s *CorePostCoreMcpTokensOKItem) SetID(val string) {
+func (s *CorePostCoreMcpTokensCreatedItem) SetID(val string) {
 	s.ID = val
 }
 
 // SetLast4 sets the value of Last4.
-func (s *CorePostCoreMcpTokensOKItem) SetLast4(val string) {
+func (s *CorePostCoreMcpTokensCreatedItem) SetLast4(val string) {
 	s.Last4 = val
 }
 
 // SetLastUsed sets the value of LastUsed.
-func (s *CorePostCoreMcpTokensOKItem) SetLastUsed(val NilDateTime) {
+func (s *CorePostCoreMcpTokensCreatedItem) SetLastUsed(val NilDateTime) {
 	s.LastUsed = val
 }
 
 // SetName sets the value of Name.
-func (s *CorePostCoreMcpTokensOKItem) SetName(val string) {
+func (s *CorePostCoreMcpTokensCreatedItem) SetName(val string) {
 	s.Name = val
 }
 
 // SetScopes sets the value of Scopes.
-func (s *CorePostCoreMcpTokensOKItem) SetScopes(val []string) {
+func (s *CorePostCoreMcpTokensCreatedItem) SetScopes(val []string) {
 	s.Scopes = val
 }
 
@@ -27848,204 +27494,204 @@ func (s *CorePostCoreUpdatesOsCheckOKWindowMode) UnmarshalText(data []byte) erro
 	}
 }
 
-type CorePostCoreUpdatesOsInstallOK struct {
+type CorePostCoreUpdatesOsInstallAccepted struct {
 	FinishedAt NilDateTime `json:"finished_at"`
 	ID         string      `json:"id"`
 	// Apt output so far.
-	Lines     []string                                `json:"lines"`
-	Result    NilCorePostCoreUpdatesOsInstallOKResult `json:"result"`
-	Scope     CorePostCoreUpdatesOsInstallOKScope     `json:"scope"`
-	StartedAt time.Time                               `json:"started_at"`
-	Status    CorePostCoreUpdatesOsInstallOKStatus    `json:"status"`
-	User      string                                  `json:"user"`
+	Lines     []string                                      `json:"lines"`
+	Result    NilCorePostCoreUpdatesOsInstallAcceptedResult `json:"result"`
+	Scope     CorePostCoreUpdatesOsInstallAcceptedScope     `json:"scope"`
+	StartedAt time.Time                                     `json:"started_at"`
+	Status    CorePostCoreUpdatesOsInstallAcceptedStatus    `json:"status"`
+	User      string                                        `json:"user"`
 }
 
 // GetFinishedAt returns the value of FinishedAt.
-func (s *CorePostCoreUpdatesOsInstallOK) GetFinishedAt() NilDateTime {
+func (s *CorePostCoreUpdatesOsInstallAccepted) GetFinishedAt() NilDateTime {
 	return s.FinishedAt
 }
 
 // GetID returns the value of ID.
-func (s *CorePostCoreUpdatesOsInstallOK) GetID() string {
+func (s *CorePostCoreUpdatesOsInstallAccepted) GetID() string {
 	return s.ID
 }
 
 // GetLines returns the value of Lines.
-func (s *CorePostCoreUpdatesOsInstallOK) GetLines() []string {
+func (s *CorePostCoreUpdatesOsInstallAccepted) GetLines() []string {
 	return s.Lines
 }
 
 // GetResult returns the value of Result.
-func (s *CorePostCoreUpdatesOsInstallOK) GetResult() NilCorePostCoreUpdatesOsInstallOKResult {
+func (s *CorePostCoreUpdatesOsInstallAccepted) GetResult() NilCorePostCoreUpdatesOsInstallAcceptedResult {
 	return s.Result
 }
 
 // GetScope returns the value of Scope.
-func (s *CorePostCoreUpdatesOsInstallOK) GetScope() CorePostCoreUpdatesOsInstallOKScope {
+func (s *CorePostCoreUpdatesOsInstallAccepted) GetScope() CorePostCoreUpdatesOsInstallAcceptedScope {
 	return s.Scope
 }
 
 // GetStartedAt returns the value of StartedAt.
-func (s *CorePostCoreUpdatesOsInstallOK) GetStartedAt() time.Time {
+func (s *CorePostCoreUpdatesOsInstallAccepted) GetStartedAt() time.Time {
 	return s.StartedAt
 }
 
 // GetStatus returns the value of Status.
-func (s *CorePostCoreUpdatesOsInstallOK) GetStatus() CorePostCoreUpdatesOsInstallOKStatus {
+func (s *CorePostCoreUpdatesOsInstallAccepted) GetStatus() CorePostCoreUpdatesOsInstallAcceptedStatus {
 	return s.Status
 }
 
 // GetUser returns the value of User.
-func (s *CorePostCoreUpdatesOsInstallOK) GetUser() string {
+func (s *CorePostCoreUpdatesOsInstallAccepted) GetUser() string {
 	return s.User
 }
 
 // SetFinishedAt sets the value of FinishedAt.
-func (s *CorePostCoreUpdatesOsInstallOK) SetFinishedAt(val NilDateTime) {
+func (s *CorePostCoreUpdatesOsInstallAccepted) SetFinishedAt(val NilDateTime) {
 	s.FinishedAt = val
 }
 
 // SetID sets the value of ID.
-func (s *CorePostCoreUpdatesOsInstallOK) SetID(val string) {
+func (s *CorePostCoreUpdatesOsInstallAccepted) SetID(val string) {
 	s.ID = val
 }
 
 // SetLines sets the value of Lines.
-func (s *CorePostCoreUpdatesOsInstallOK) SetLines(val []string) {
+func (s *CorePostCoreUpdatesOsInstallAccepted) SetLines(val []string) {
 	s.Lines = val
 }
 
 // SetResult sets the value of Result.
-func (s *CorePostCoreUpdatesOsInstallOK) SetResult(val NilCorePostCoreUpdatesOsInstallOKResult) {
+func (s *CorePostCoreUpdatesOsInstallAccepted) SetResult(val NilCorePostCoreUpdatesOsInstallAcceptedResult) {
 	s.Result = val
 }
 
 // SetScope sets the value of Scope.
-func (s *CorePostCoreUpdatesOsInstallOK) SetScope(val CorePostCoreUpdatesOsInstallOKScope) {
+func (s *CorePostCoreUpdatesOsInstallAccepted) SetScope(val CorePostCoreUpdatesOsInstallAcceptedScope) {
 	s.Scope = val
 }
 
 // SetStartedAt sets the value of StartedAt.
-func (s *CorePostCoreUpdatesOsInstallOK) SetStartedAt(val time.Time) {
+func (s *CorePostCoreUpdatesOsInstallAccepted) SetStartedAt(val time.Time) {
 	s.StartedAt = val
 }
 
 // SetStatus sets the value of Status.
-func (s *CorePostCoreUpdatesOsInstallOK) SetStatus(val CorePostCoreUpdatesOsInstallOKStatus) {
+func (s *CorePostCoreUpdatesOsInstallAccepted) SetStatus(val CorePostCoreUpdatesOsInstallAcceptedStatus) {
 	s.Status = val
 }
 
 // SetUser sets the value of User.
-func (s *CorePostCoreUpdatesOsInstallOK) SetUser(val string) {
+func (s *CorePostCoreUpdatesOsInstallAccepted) SetUser(val string) {
 	s.User = val
 }
 
-type CorePostCoreUpdatesOsInstallOKResult struct {
+type CorePostCoreUpdatesOsInstallAcceptedResult struct {
 	// Database backup taken before the run.
 	Backup string `json:"backup"`
 	// Checks after the run.
-	Health         []CorePostCoreUpdatesOsInstallOKResultHealthItem `json:"health"`
-	Installed      int                                              `json:"installed"`
-	RebootRequired bool                                             `json:"reboot_required"`
-	Security       int                                              `json:"security"`
+	Health         []CorePostCoreUpdatesOsInstallAcceptedResultHealthItem `json:"health"`
+	Installed      int                                                    `json:"installed"`
+	RebootRequired bool                                                   `json:"reboot_required"`
+	Security       int                                                    `json:"security"`
 }
 
 // GetBackup returns the value of Backup.
-func (s *CorePostCoreUpdatesOsInstallOKResult) GetBackup() string {
+func (s *CorePostCoreUpdatesOsInstallAcceptedResult) GetBackup() string {
 	return s.Backup
 }
 
 // GetHealth returns the value of Health.
-func (s *CorePostCoreUpdatesOsInstallOKResult) GetHealth() []CorePostCoreUpdatesOsInstallOKResultHealthItem {
+func (s *CorePostCoreUpdatesOsInstallAcceptedResult) GetHealth() []CorePostCoreUpdatesOsInstallAcceptedResultHealthItem {
 	return s.Health
 }
 
 // GetInstalled returns the value of Installed.
-func (s *CorePostCoreUpdatesOsInstallOKResult) GetInstalled() int {
+func (s *CorePostCoreUpdatesOsInstallAcceptedResult) GetInstalled() int {
 	return s.Installed
 }
 
 // GetRebootRequired returns the value of RebootRequired.
-func (s *CorePostCoreUpdatesOsInstallOKResult) GetRebootRequired() bool {
+func (s *CorePostCoreUpdatesOsInstallAcceptedResult) GetRebootRequired() bool {
 	return s.RebootRequired
 }
 
 // GetSecurity returns the value of Security.
-func (s *CorePostCoreUpdatesOsInstallOKResult) GetSecurity() int {
+func (s *CorePostCoreUpdatesOsInstallAcceptedResult) GetSecurity() int {
 	return s.Security
 }
 
 // SetBackup sets the value of Backup.
-func (s *CorePostCoreUpdatesOsInstallOKResult) SetBackup(val string) {
+func (s *CorePostCoreUpdatesOsInstallAcceptedResult) SetBackup(val string) {
 	s.Backup = val
 }
 
 // SetHealth sets the value of Health.
-func (s *CorePostCoreUpdatesOsInstallOKResult) SetHealth(val []CorePostCoreUpdatesOsInstallOKResultHealthItem) {
+func (s *CorePostCoreUpdatesOsInstallAcceptedResult) SetHealth(val []CorePostCoreUpdatesOsInstallAcceptedResultHealthItem) {
 	s.Health = val
 }
 
 // SetInstalled sets the value of Installed.
-func (s *CorePostCoreUpdatesOsInstallOKResult) SetInstalled(val int) {
+func (s *CorePostCoreUpdatesOsInstallAcceptedResult) SetInstalled(val int) {
 	s.Installed = val
 }
 
 // SetRebootRequired sets the value of RebootRequired.
-func (s *CorePostCoreUpdatesOsInstallOKResult) SetRebootRequired(val bool) {
+func (s *CorePostCoreUpdatesOsInstallAcceptedResult) SetRebootRequired(val bool) {
 	s.RebootRequired = val
 }
 
 // SetSecurity sets the value of Security.
-func (s *CorePostCoreUpdatesOsInstallOKResult) SetSecurity(val int) {
+func (s *CorePostCoreUpdatesOsInstallAcceptedResult) SetSecurity(val int) {
 	s.Security = val
 }
 
-type CorePostCoreUpdatesOsInstallOKResultHealthItem struct {
+type CorePostCoreUpdatesOsInstallAcceptedResultHealthItem struct {
 	Name string `json:"name"`
 	Ok   bool   `json:"ok"`
 }
 
 // GetName returns the value of Name.
-func (s *CorePostCoreUpdatesOsInstallOKResultHealthItem) GetName() string {
+func (s *CorePostCoreUpdatesOsInstallAcceptedResultHealthItem) GetName() string {
 	return s.Name
 }
 
 // GetOk returns the value of Ok.
-func (s *CorePostCoreUpdatesOsInstallOKResultHealthItem) GetOk() bool {
+func (s *CorePostCoreUpdatesOsInstallAcceptedResultHealthItem) GetOk() bool {
 	return s.Ok
 }
 
 // SetName sets the value of Name.
-func (s *CorePostCoreUpdatesOsInstallOKResultHealthItem) SetName(val string) {
+func (s *CorePostCoreUpdatesOsInstallAcceptedResultHealthItem) SetName(val string) {
 	s.Name = val
 }
 
 // SetOk sets the value of Ok.
-func (s *CorePostCoreUpdatesOsInstallOKResultHealthItem) SetOk(val bool) {
+func (s *CorePostCoreUpdatesOsInstallAcceptedResultHealthItem) SetOk(val bool) {
 	s.Ok = val
 }
 
-type CorePostCoreUpdatesOsInstallOKScope string
+type CorePostCoreUpdatesOsInstallAcceptedScope string
 
 const (
-	CorePostCoreUpdatesOsInstallOKScopeSecurity CorePostCoreUpdatesOsInstallOKScope = "security"
-	CorePostCoreUpdatesOsInstallOKScopeAll      CorePostCoreUpdatesOsInstallOKScope = "all"
+	CorePostCoreUpdatesOsInstallAcceptedScopeSecurity CorePostCoreUpdatesOsInstallAcceptedScope = "security"
+	CorePostCoreUpdatesOsInstallAcceptedScopeAll      CorePostCoreUpdatesOsInstallAcceptedScope = "all"
 )
 
-// AllValues returns all CorePostCoreUpdatesOsInstallOKScope values.
-func (CorePostCoreUpdatesOsInstallOKScope) AllValues() []CorePostCoreUpdatesOsInstallOKScope {
-	return []CorePostCoreUpdatesOsInstallOKScope{
-		CorePostCoreUpdatesOsInstallOKScopeSecurity,
-		CorePostCoreUpdatesOsInstallOKScopeAll,
+// AllValues returns all CorePostCoreUpdatesOsInstallAcceptedScope values.
+func (CorePostCoreUpdatesOsInstallAcceptedScope) AllValues() []CorePostCoreUpdatesOsInstallAcceptedScope {
+	return []CorePostCoreUpdatesOsInstallAcceptedScope{
+		CorePostCoreUpdatesOsInstallAcceptedScopeSecurity,
+		CorePostCoreUpdatesOsInstallAcceptedScopeAll,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s CorePostCoreUpdatesOsInstallOKScope) MarshalText() ([]byte, error) {
+func (s CorePostCoreUpdatesOsInstallAcceptedScope) MarshalText() ([]byte, error) {
 	switch s {
-	case CorePostCoreUpdatesOsInstallOKScopeSecurity:
+	case CorePostCoreUpdatesOsInstallAcceptedScopeSecurity:
 		return []byte(s), nil
-	case CorePostCoreUpdatesOsInstallOKScopeAll:
+	case CorePostCoreUpdatesOsInstallAcceptedScopeAll:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -28053,40 +27699,40 @@ func (s CorePostCoreUpdatesOsInstallOKScope) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *CorePostCoreUpdatesOsInstallOKScope) UnmarshalText(data []byte) error {
-	switch CorePostCoreUpdatesOsInstallOKScope(data) {
-	case CorePostCoreUpdatesOsInstallOKScopeSecurity:
-		*s = CorePostCoreUpdatesOsInstallOKScopeSecurity
+func (s *CorePostCoreUpdatesOsInstallAcceptedScope) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesOsInstallAcceptedScope(data) {
+	case CorePostCoreUpdatesOsInstallAcceptedScopeSecurity:
+		*s = CorePostCoreUpdatesOsInstallAcceptedScopeSecurity
 		return nil
-	case CorePostCoreUpdatesOsInstallOKScopeAll:
-		*s = CorePostCoreUpdatesOsInstallOKScopeAll
+	case CorePostCoreUpdatesOsInstallAcceptedScopeAll:
+		*s = CorePostCoreUpdatesOsInstallAcceptedScopeAll
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type CorePostCoreUpdatesOsInstallOKStatus string
+type CorePostCoreUpdatesOsInstallAcceptedStatus string
 
 const (
-	CorePostCoreUpdatesOsInstallOKStatusRunning CorePostCoreUpdatesOsInstallOKStatus = "running"
-	CorePostCoreUpdatesOsInstallOKStatusDone    CorePostCoreUpdatesOsInstallOKStatus = "done"
+	CorePostCoreUpdatesOsInstallAcceptedStatusRunning CorePostCoreUpdatesOsInstallAcceptedStatus = "running"
+	CorePostCoreUpdatesOsInstallAcceptedStatusDone    CorePostCoreUpdatesOsInstallAcceptedStatus = "done"
 )
 
-// AllValues returns all CorePostCoreUpdatesOsInstallOKStatus values.
-func (CorePostCoreUpdatesOsInstallOKStatus) AllValues() []CorePostCoreUpdatesOsInstallOKStatus {
-	return []CorePostCoreUpdatesOsInstallOKStatus{
-		CorePostCoreUpdatesOsInstallOKStatusRunning,
-		CorePostCoreUpdatesOsInstallOKStatusDone,
+// AllValues returns all CorePostCoreUpdatesOsInstallAcceptedStatus values.
+func (CorePostCoreUpdatesOsInstallAcceptedStatus) AllValues() []CorePostCoreUpdatesOsInstallAcceptedStatus {
+	return []CorePostCoreUpdatesOsInstallAcceptedStatus{
+		CorePostCoreUpdatesOsInstallAcceptedStatusRunning,
+		CorePostCoreUpdatesOsInstallAcceptedStatusDone,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s CorePostCoreUpdatesOsInstallOKStatus) MarshalText() ([]byte, error) {
+func (s CorePostCoreUpdatesOsInstallAcceptedStatus) MarshalText() ([]byte, error) {
 	switch s {
-	case CorePostCoreUpdatesOsInstallOKStatusRunning:
+	case CorePostCoreUpdatesOsInstallAcceptedStatusRunning:
 		return []byte(s), nil
-	case CorePostCoreUpdatesOsInstallOKStatusDone:
+	case CorePostCoreUpdatesOsInstallAcceptedStatusDone:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -28094,13 +27740,13 @@ func (s CorePostCoreUpdatesOsInstallOKStatus) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *CorePostCoreUpdatesOsInstallOKStatus) UnmarshalText(data []byte) error {
-	switch CorePostCoreUpdatesOsInstallOKStatus(data) {
-	case CorePostCoreUpdatesOsInstallOKStatusRunning:
-		*s = CorePostCoreUpdatesOsInstallOKStatusRunning
+func (s *CorePostCoreUpdatesOsInstallAcceptedStatus) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesOsInstallAcceptedStatus(data) {
+	case CorePostCoreUpdatesOsInstallAcceptedStatusRunning:
+		*s = CorePostCoreUpdatesOsInstallAcceptedStatusRunning
 		return nil
-	case CorePostCoreUpdatesOsInstallOKStatusDone:
-		*s = CorePostCoreUpdatesOsInstallOKStatusDone
+	case CorePostCoreUpdatesOsInstallAcceptedStatusDone:
+		*s = CorePostCoreUpdatesOsInstallAcceptedStatusDone
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -29514,6 +29160,224 @@ func (s *CorePostCoreUpdatesRollbackReq) SetComponent(val string) {
 	s.Component = val
 }
 
+type CorePostCoreUsersCreated struct {
+	// Returned once only.
+	TempPassword string                       `json:"temp_password"`
+	User         CorePostCoreUsersCreatedUser `json:"user"`
+}
+
+// GetTempPassword returns the value of TempPassword.
+func (s *CorePostCoreUsersCreated) GetTempPassword() string {
+	return s.TempPassword
+}
+
+// GetUser returns the value of User.
+func (s *CorePostCoreUsersCreated) GetUser() CorePostCoreUsersCreatedUser {
+	return s.User
+}
+
+// SetTempPassword sets the value of TempPassword.
+func (s *CorePostCoreUsersCreated) SetTempPassword(val string) {
+	s.TempPassword = val
+}
+
+// SetUser sets the value of User.
+func (s *CorePostCoreUsersCreated) SetUser(val CorePostCoreUsersCreatedUser) {
+	s.User = val
+}
+
+type CorePostCoreUsersCreatedUser struct {
+	CreatedAt   time.Time                                  `json:"created_at"`
+	Disabled    bool                                       `json:"disabled"`
+	Email       string                                     `json:"email"`
+	ID          string                                     `json:"id"`
+	LastLogin   NilDateTime                                `json:"last_login"`
+	Name        string                                     `json:"name"`
+	Role        CorePostCoreUsersCreatedUserRole           `json:"role"`
+	Twofa       bool                                       `json:"twofa"`
+	TwofaMethod NilCorePostCoreUsersCreatedUserTwofaMethod `json:"twofa_method"`
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *CorePostCoreUsersCreatedUser) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetDisabled returns the value of Disabled.
+func (s *CorePostCoreUsersCreatedUser) GetDisabled() bool {
+	return s.Disabled
+}
+
+// GetEmail returns the value of Email.
+func (s *CorePostCoreUsersCreatedUser) GetEmail() string {
+	return s.Email
+}
+
+// GetID returns the value of ID.
+func (s *CorePostCoreUsersCreatedUser) GetID() string {
+	return s.ID
+}
+
+// GetLastLogin returns the value of LastLogin.
+func (s *CorePostCoreUsersCreatedUser) GetLastLogin() NilDateTime {
+	return s.LastLogin
+}
+
+// GetName returns the value of Name.
+func (s *CorePostCoreUsersCreatedUser) GetName() string {
+	return s.Name
+}
+
+// GetRole returns the value of Role.
+func (s *CorePostCoreUsersCreatedUser) GetRole() CorePostCoreUsersCreatedUserRole {
+	return s.Role
+}
+
+// GetTwofa returns the value of Twofa.
+func (s *CorePostCoreUsersCreatedUser) GetTwofa() bool {
+	return s.Twofa
+}
+
+// GetTwofaMethod returns the value of TwofaMethod.
+func (s *CorePostCoreUsersCreatedUser) GetTwofaMethod() NilCorePostCoreUsersCreatedUserTwofaMethod {
+	return s.TwofaMethod
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *CorePostCoreUsersCreatedUser) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetDisabled sets the value of Disabled.
+func (s *CorePostCoreUsersCreatedUser) SetDisabled(val bool) {
+	s.Disabled = val
+}
+
+// SetEmail sets the value of Email.
+func (s *CorePostCoreUsersCreatedUser) SetEmail(val string) {
+	s.Email = val
+}
+
+// SetID sets the value of ID.
+func (s *CorePostCoreUsersCreatedUser) SetID(val string) {
+	s.ID = val
+}
+
+// SetLastLogin sets the value of LastLogin.
+func (s *CorePostCoreUsersCreatedUser) SetLastLogin(val NilDateTime) {
+	s.LastLogin = val
+}
+
+// SetName sets the value of Name.
+func (s *CorePostCoreUsersCreatedUser) SetName(val string) {
+	s.Name = val
+}
+
+// SetRole sets the value of Role.
+func (s *CorePostCoreUsersCreatedUser) SetRole(val CorePostCoreUsersCreatedUserRole) {
+	s.Role = val
+}
+
+// SetTwofa sets the value of Twofa.
+func (s *CorePostCoreUsersCreatedUser) SetTwofa(val bool) {
+	s.Twofa = val
+}
+
+// SetTwofaMethod sets the value of TwofaMethod.
+func (s *CorePostCoreUsersCreatedUser) SetTwofaMethod(val NilCorePostCoreUsersCreatedUserTwofaMethod) {
+	s.TwofaMethod = val
+}
+
+type CorePostCoreUsersCreatedUserRole string
+
+const (
+	CorePostCoreUsersCreatedUserRoleViewer   CorePostCoreUsersCreatedUserRole = "viewer"
+	CorePostCoreUsersCreatedUserRoleOperator CorePostCoreUsersCreatedUserRole = "operator"
+	CorePostCoreUsersCreatedUserRoleAdmin    CorePostCoreUsersCreatedUserRole = "admin"
+)
+
+// AllValues returns all CorePostCoreUsersCreatedUserRole values.
+func (CorePostCoreUsersCreatedUserRole) AllValues() []CorePostCoreUsersCreatedUserRole {
+	return []CorePostCoreUsersCreatedUserRole{
+		CorePostCoreUsersCreatedUserRoleViewer,
+		CorePostCoreUsersCreatedUserRoleOperator,
+		CorePostCoreUsersCreatedUserRoleAdmin,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUsersCreatedUserRole) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUsersCreatedUserRoleViewer:
+		return []byte(s), nil
+	case CorePostCoreUsersCreatedUserRoleOperator:
+		return []byte(s), nil
+	case CorePostCoreUsersCreatedUserRoleAdmin:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUsersCreatedUserRole) UnmarshalText(data []byte) error {
+	switch CorePostCoreUsersCreatedUserRole(data) {
+	case CorePostCoreUsersCreatedUserRoleViewer:
+		*s = CorePostCoreUsersCreatedUserRoleViewer
+		return nil
+	case CorePostCoreUsersCreatedUserRoleOperator:
+		*s = CorePostCoreUsersCreatedUserRoleOperator
+		return nil
+	case CorePostCoreUsersCreatedUserRoleAdmin:
+		*s = CorePostCoreUsersCreatedUserRoleAdmin
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// App = authenticator app (TOTP), email = 6-digit code sent to the sign-in email.
+type CorePostCoreUsersCreatedUserTwofaMethod string
+
+const (
+	CorePostCoreUsersCreatedUserTwofaMethodApp   CorePostCoreUsersCreatedUserTwofaMethod = "app"
+	CorePostCoreUsersCreatedUserTwofaMethodEmail CorePostCoreUsersCreatedUserTwofaMethod = "email"
+)
+
+// AllValues returns all CorePostCoreUsersCreatedUserTwofaMethod values.
+func (CorePostCoreUsersCreatedUserTwofaMethod) AllValues() []CorePostCoreUsersCreatedUserTwofaMethod {
+	return []CorePostCoreUsersCreatedUserTwofaMethod{
+		CorePostCoreUsersCreatedUserTwofaMethodApp,
+		CorePostCoreUsersCreatedUserTwofaMethodEmail,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUsersCreatedUserTwofaMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUsersCreatedUserTwofaMethodApp:
+		return []byte(s), nil
+	case CorePostCoreUsersCreatedUserTwofaMethodEmail:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUsersCreatedUserTwofaMethod) UnmarshalText(data []byte) error {
+	switch CorePostCoreUsersCreatedUserTwofaMethod(data) {
+	case CorePostCoreUsersCreatedUserTwofaMethodApp:
+		*s = CorePostCoreUsersCreatedUserTwofaMethodApp
+		return nil
+	case CorePostCoreUsersCreatedUserTwofaMethodEmail:
+		*s = CorePostCoreUsersCreatedUserTwofaMethodEmail
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CorePostCoreUsersID2FAResetOK struct {
 	Ok bool `json:"ok"`
 }
@@ -29540,224 +29404,6 @@ func (s *CorePostCoreUsersIDResetPasswordOK) GetTempPassword() string {
 // SetTempPassword sets the value of TempPassword.
 func (s *CorePostCoreUsersIDResetPasswordOK) SetTempPassword(val string) {
 	s.TempPassword = val
-}
-
-type CorePostCoreUsersOK struct {
-	// Returned once only.
-	TempPassword string                  `json:"temp_password"`
-	User         CorePostCoreUsersOKUser `json:"user"`
-}
-
-// GetTempPassword returns the value of TempPassword.
-func (s *CorePostCoreUsersOK) GetTempPassword() string {
-	return s.TempPassword
-}
-
-// GetUser returns the value of User.
-func (s *CorePostCoreUsersOK) GetUser() CorePostCoreUsersOKUser {
-	return s.User
-}
-
-// SetTempPassword sets the value of TempPassword.
-func (s *CorePostCoreUsersOK) SetTempPassword(val string) {
-	s.TempPassword = val
-}
-
-// SetUser sets the value of User.
-func (s *CorePostCoreUsersOK) SetUser(val CorePostCoreUsersOKUser) {
-	s.User = val
-}
-
-type CorePostCoreUsersOKUser struct {
-	CreatedAt   time.Time                             `json:"created_at"`
-	Disabled    bool                                  `json:"disabled"`
-	Email       string                                `json:"email"`
-	ID          string                                `json:"id"`
-	LastLogin   NilDateTime                           `json:"last_login"`
-	Name        string                                `json:"name"`
-	Role        CorePostCoreUsersOKUserRole           `json:"role"`
-	Twofa       bool                                  `json:"twofa"`
-	TwofaMethod NilCorePostCoreUsersOKUserTwofaMethod `json:"twofa_method"`
-}
-
-// GetCreatedAt returns the value of CreatedAt.
-func (s *CorePostCoreUsersOKUser) GetCreatedAt() time.Time {
-	return s.CreatedAt
-}
-
-// GetDisabled returns the value of Disabled.
-func (s *CorePostCoreUsersOKUser) GetDisabled() bool {
-	return s.Disabled
-}
-
-// GetEmail returns the value of Email.
-func (s *CorePostCoreUsersOKUser) GetEmail() string {
-	return s.Email
-}
-
-// GetID returns the value of ID.
-func (s *CorePostCoreUsersOKUser) GetID() string {
-	return s.ID
-}
-
-// GetLastLogin returns the value of LastLogin.
-func (s *CorePostCoreUsersOKUser) GetLastLogin() NilDateTime {
-	return s.LastLogin
-}
-
-// GetName returns the value of Name.
-func (s *CorePostCoreUsersOKUser) GetName() string {
-	return s.Name
-}
-
-// GetRole returns the value of Role.
-func (s *CorePostCoreUsersOKUser) GetRole() CorePostCoreUsersOKUserRole {
-	return s.Role
-}
-
-// GetTwofa returns the value of Twofa.
-func (s *CorePostCoreUsersOKUser) GetTwofa() bool {
-	return s.Twofa
-}
-
-// GetTwofaMethod returns the value of TwofaMethod.
-func (s *CorePostCoreUsersOKUser) GetTwofaMethod() NilCorePostCoreUsersOKUserTwofaMethod {
-	return s.TwofaMethod
-}
-
-// SetCreatedAt sets the value of CreatedAt.
-func (s *CorePostCoreUsersOKUser) SetCreatedAt(val time.Time) {
-	s.CreatedAt = val
-}
-
-// SetDisabled sets the value of Disabled.
-func (s *CorePostCoreUsersOKUser) SetDisabled(val bool) {
-	s.Disabled = val
-}
-
-// SetEmail sets the value of Email.
-func (s *CorePostCoreUsersOKUser) SetEmail(val string) {
-	s.Email = val
-}
-
-// SetID sets the value of ID.
-func (s *CorePostCoreUsersOKUser) SetID(val string) {
-	s.ID = val
-}
-
-// SetLastLogin sets the value of LastLogin.
-func (s *CorePostCoreUsersOKUser) SetLastLogin(val NilDateTime) {
-	s.LastLogin = val
-}
-
-// SetName sets the value of Name.
-func (s *CorePostCoreUsersOKUser) SetName(val string) {
-	s.Name = val
-}
-
-// SetRole sets the value of Role.
-func (s *CorePostCoreUsersOKUser) SetRole(val CorePostCoreUsersOKUserRole) {
-	s.Role = val
-}
-
-// SetTwofa sets the value of Twofa.
-func (s *CorePostCoreUsersOKUser) SetTwofa(val bool) {
-	s.Twofa = val
-}
-
-// SetTwofaMethod sets the value of TwofaMethod.
-func (s *CorePostCoreUsersOKUser) SetTwofaMethod(val NilCorePostCoreUsersOKUserTwofaMethod) {
-	s.TwofaMethod = val
-}
-
-type CorePostCoreUsersOKUserRole string
-
-const (
-	CorePostCoreUsersOKUserRoleViewer   CorePostCoreUsersOKUserRole = "viewer"
-	CorePostCoreUsersOKUserRoleOperator CorePostCoreUsersOKUserRole = "operator"
-	CorePostCoreUsersOKUserRoleAdmin    CorePostCoreUsersOKUserRole = "admin"
-)
-
-// AllValues returns all CorePostCoreUsersOKUserRole values.
-func (CorePostCoreUsersOKUserRole) AllValues() []CorePostCoreUsersOKUserRole {
-	return []CorePostCoreUsersOKUserRole{
-		CorePostCoreUsersOKUserRoleViewer,
-		CorePostCoreUsersOKUserRoleOperator,
-		CorePostCoreUsersOKUserRoleAdmin,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s CorePostCoreUsersOKUserRole) MarshalText() ([]byte, error) {
-	switch s {
-	case CorePostCoreUsersOKUserRoleViewer:
-		return []byte(s), nil
-	case CorePostCoreUsersOKUserRoleOperator:
-		return []byte(s), nil
-	case CorePostCoreUsersOKUserRoleAdmin:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *CorePostCoreUsersOKUserRole) UnmarshalText(data []byte) error {
-	switch CorePostCoreUsersOKUserRole(data) {
-	case CorePostCoreUsersOKUserRoleViewer:
-		*s = CorePostCoreUsersOKUserRoleViewer
-		return nil
-	case CorePostCoreUsersOKUserRoleOperator:
-		*s = CorePostCoreUsersOKUserRoleOperator
-		return nil
-	case CorePostCoreUsersOKUserRoleAdmin:
-		*s = CorePostCoreUsersOKUserRoleAdmin
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// App = authenticator app (TOTP), email = 6-digit code sent to the sign-in email.
-type CorePostCoreUsersOKUserTwofaMethod string
-
-const (
-	CorePostCoreUsersOKUserTwofaMethodApp   CorePostCoreUsersOKUserTwofaMethod = "app"
-	CorePostCoreUsersOKUserTwofaMethodEmail CorePostCoreUsersOKUserTwofaMethod = "email"
-)
-
-// AllValues returns all CorePostCoreUsersOKUserTwofaMethod values.
-func (CorePostCoreUsersOKUserTwofaMethod) AllValues() []CorePostCoreUsersOKUserTwofaMethod {
-	return []CorePostCoreUsersOKUserTwofaMethod{
-		CorePostCoreUsersOKUserTwofaMethodApp,
-		CorePostCoreUsersOKUserTwofaMethodEmail,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s CorePostCoreUsersOKUserTwofaMethod) MarshalText() ([]byte, error) {
-	switch s {
-	case CorePostCoreUsersOKUserTwofaMethodApp:
-		return []byte(s), nil
-	case CorePostCoreUsersOKUserTwofaMethodEmail:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *CorePostCoreUsersOKUserTwofaMethod) UnmarshalText(data []byte) error {
-	switch CorePostCoreUsersOKUserTwofaMethod(data) {
-	case CorePostCoreUsersOKUserTwofaMethodApp:
-		*s = CorePostCoreUsersOKUserTwofaMethodApp
-		return nil
-	case CorePostCoreUsersOKUserTwofaMethodEmail:
-		*s = CorePostCoreUsersOKUserTwofaMethodEmail
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }
 
 type CorePostCoreUsersReq struct {
@@ -36155,6 +35801,546 @@ func (s *ExposurePostExposureBoxIPVerifyOKValidity) UnmarshalText(data []byte) e
 	}
 }
 
+type ExposurePostExposureTargetsCreated struct {
+	// Why it cannot be scanned yet; null = can be scanned.
+	BlockedReason NilExposurePostExposureTargetsCreatedBlockedReason `json:"blocked_reason"`
+	// Who ticked "my company owns it and I am authorized to scan it", and when.
+	Commitment NilExposurePostExposureTargetsCreatedCommitment `json:"commitment"`
+	CreatedAt  time.Time                                       `json:"created_at"`
+	// IP: verified_at + 90 days. Domain: null (the TXT record is re-checked right before every scan).
+	ExpiresAt  NilDateTime                                    `json:"expires_at"`
+	ID         string                                         `json:"id"`
+	Kind       ExposurePostExposureTargetsCreatedKind         `json:"kind"`
+	LastCheck  NilExposurePostExposureTargetsCreatedLastCheck `json:"last_check"`
+	LastScanAt NilDateTime                                    `json:"last_scan_at"`
+	Latest     NilExposurePostExposureTargetsCreatedLatest    `json:"latest"`
+	Method     NilExposurePostExposureTargetsCreatedMethod    `json:"method"`
+	Scannable  bool                                           `json:"scannable"`
+	// Expired only exists for IPs: more than 90 days since the last verification.
+	Status ExposurePostExposureTargetsCreatedStatus `json:"status"`
+	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
+	// string.
+	Token string `json:"token"`
+	// IPs only: expiring = 14 days or less left.
+	Validity NilExposurePostExposureTargetsCreatedValidity `json:"validity"`
+	Value    string                                        `json:"value"`
+	// Last successful verification.
+	VerifiedAt NilDateTime `json:"verified_at"`
+}
+
+// GetBlockedReason returns the value of BlockedReason.
+func (s *ExposurePostExposureTargetsCreated) GetBlockedReason() NilExposurePostExposureTargetsCreatedBlockedReason {
+	return s.BlockedReason
+}
+
+// GetCommitment returns the value of Commitment.
+func (s *ExposurePostExposureTargetsCreated) GetCommitment() NilExposurePostExposureTargetsCreatedCommitment {
+	return s.Commitment
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ExposurePostExposureTargetsCreated) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ExposurePostExposureTargetsCreated) GetExpiresAt() NilDateTime {
+	return s.ExpiresAt
+}
+
+// GetID returns the value of ID.
+func (s *ExposurePostExposureTargetsCreated) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposurePostExposureTargetsCreated) GetKind() ExposurePostExposureTargetsCreatedKind {
+	return s.Kind
+}
+
+// GetLastCheck returns the value of LastCheck.
+func (s *ExposurePostExposureTargetsCreated) GetLastCheck() NilExposurePostExposureTargetsCreatedLastCheck {
+	return s.LastCheck
+}
+
+// GetLastScanAt returns the value of LastScanAt.
+func (s *ExposurePostExposureTargetsCreated) GetLastScanAt() NilDateTime {
+	return s.LastScanAt
+}
+
+// GetLatest returns the value of Latest.
+func (s *ExposurePostExposureTargetsCreated) GetLatest() NilExposurePostExposureTargetsCreatedLatest {
+	return s.Latest
+}
+
+// GetMethod returns the value of Method.
+func (s *ExposurePostExposureTargetsCreated) GetMethod() NilExposurePostExposureTargetsCreatedMethod {
+	return s.Method
+}
+
+// GetScannable returns the value of Scannable.
+func (s *ExposurePostExposureTargetsCreated) GetScannable() bool {
+	return s.Scannable
+}
+
+// GetStatus returns the value of Status.
+func (s *ExposurePostExposureTargetsCreated) GetStatus() ExposurePostExposureTargetsCreatedStatus {
+	return s.Status
+}
+
+// GetToken returns the value of Token.
+func (s *ExposurePostExposureTargetsCreated) GetToken() string {
+	return s.Token
+}
+
+// GetValidity returns the value of Validity.
+func (s *ExposurePostExposureTargetsCreated) GetValidity() NilExposurePostExposureTargetsCreatedValidity {
+	return s.Validity
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePostExposureTargetsCreated) GetValue() string {
+	return s.Value
+}
+
+// GetVerifiedAt returns the value of VerifiedAt.
+func (s *ExposurePostExposureTargetsCreated) GetVerifiedAt() NilDateTime {
+	return s.VerifiedAt
+}
+
+// SetBlockedReason sets the value of BlockedReason.
+func (s *ExposurePostExposureTargetsCreated) SetBlockedReason(val NilExposurePostExposureTargetsCreatedBlockedReason) {
+	s.BlockedReason = val
+}
+
+// SetCommitment sets the value of Commitment.
+func (s *ExposurePostExposureTargetsCreated) SetCommitment(val NilExposurePostExposureTargetsCreatedCommitment) {
+	s.Commitment = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ExposurePostExposureTargetsCreated) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ExposurePostExposureTargetsCreated) SetExpiresAt(val NilDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetID sets the value of ID.
+func (s *ExposurePostExposureTargetsCreated) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposurePostExposureTargetsCreated) SetKind(val ExposurePostExposureTargetsCreatedKind) {
+	s.Kind = val
+}
+
+// SetLastCheck sets the value of LastCheck.
+func (s *ExposurePostExposureTargetsCreated) SetLastCheck(val NilExposurePostExposureTargetsCreatedLastCheck) {
+	s.LastCheck = val
+}
+
+// SetLastScanAt sets the value of LastScanAt.
+func (s *ExposurePostExposureTargetsCreated) SetLastScanAt(val NilDateTime) {
+	s.LastScanAt = val
+}
+
+// SetLatest sets the value of Latest.
+func (s *ExposurePostExposureTargetsCreated) SetLatest(val NilExposurePostExposureTargetsCreatedLatest) {
+	s.Latest = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ExposurePostExposureTargetsCreated) SetMethod(val NilExposurePostExposureTargetsCreatedMethod) {
+	s.Method = val
+}
+
+// SetScannable sets the value of Scannable.
+func (s *ExposurePostExposureTargetsCreated) SetScannable(val bool) {
+	s.Scannable = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ExposurePostExposureTargetsCreated) SetStatus(val ExposurePostExposureTargetsCreatedStatus) {
+	s.Status = val
+}
+
+// SetToken sets the value of Token.
+func (s *ExposurePostExposureTargetsCreated) SetToken(val string) {
+	s.Token = val
+}
+
+// SetValidity sets the value of Validity.
+func (s *ExposurePostExposureTargetsCreated) SetValidity(val NilExposurePostExposureTargetsCreatedValidity) {
+	s.Validity = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePostExposureTargetsCreated) SetValue(val string) {
+	s.Value = val
+}
+
+// SetVerifiedAt sets the value of VerifiedAt.
+func (s *ExposurePostExposureTargetsCreated) SetVerifiedAt(val NilDateTime) {
+	s.VerifiedAt = val
+}
+
+type ExposurePostExposureTargetsCreatedBlockedReason string
+
+const (
+	ExposurePostExposureTargetsCreatedBlockedReasonUnverified   ExposurePostExposureTargetsCreatedBlockedReason = "unverified"
+	ExposurePostExposureTargetsCreatedBlockedReasonExpired      ExposurePostExposureTargetsCreatedBlockedReason = "expired"
+	ExposurePostExposureTargetsCreatedBlockedReasonTxtMissing   ExposurePostExposureTargetsCreatedBlockedReason = "txt_missing"
+	ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment ExposurePostExposureTargetsCreatedBlockedReason = "no_commitment"
+)
+
+// AllValues returns all ExposurePostExposureTargetsCreatedBlockedReason values.
+func (ExposurePostExposureTargetsCreatedBlockedReason) AllValues() []ExposurePostExposureTargetsCreatedBlockedReason {
+	return []ExposurePostExposureTargetsCreatedBlockedReason{
+		ExposurePostExposureTargetsCreatedBlockedReasonUnverified,
+		ExposurePostExposureTargetsCreatedBlockedReasonExpired,
+		ExposurePostExposureTargetsCreatedBlockedReasonTxtMissing,
+		ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsCreatedBlockedReason) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsCreatedBlockedReasonUnverified:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedBlockedReasonExpired:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedBlockedReasonTxtMissing:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsCreatedBlockedReason) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsCreatedBlockedReason(data) {
+	case ExposurePostExposureTargetsCreatedBlockedReasonUnverified:
+		*s = ExposurePostExposureTargetsCreatedBlockedReasonUnverified
+		return nil
+	case ExposurePostExposureTargetsCreatedBlockedReasonExpired:
+		*s = ExposurePostExposureTargetsCreatedBlockedReasonExpired
+		return nil
+	case ExposurePostExposureTargetsCreatedBlockedReasonTxtMissing:
+		*s = ExposurePostExposureTargetsCreatedBlockedReasonTxtMissing
+		return nil
+	case ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment:
+		*s = ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTargetsCreatedCommitment struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePostExposureTargetsCreatedCommitment) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePostExposureTargetsCreatedCommitment) GetBy() string {
+	return s.By
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePostExposureTargetsCreatedCommitment) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePostExposureTargetsCreatedCommitment) SetBy(val string) {
+	s.By = val
+}
+
+type ExposurePostExposureTargetsCreatedKind string
+
+const (
+	ExposurePostExposureTargetsCreatedKindDomain ExposurePostExposureTargetsCreatedKind = "domain"
+	ExposurePostExposureTargetsCreatedKindIP     ExposurePostExposureTargetsCreatedKind = "ip"
+)
+
+// AllValues returns all ExposurePostExposureTargetsCreatedKind values.
+func (ExposurePostExposureTargetsCreatedKind) AllValues() []ExposurePostExposureTargetsCreatedKind {
+	return []ExposurePostExposureTargetsCreatedKind{
+		ExposurePostExposureTargetsCreatedKindDomain,
+		ExposurePostExposureTargetsCreatedKindIP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsCreatedKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsCreatedKindDomain:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedKindIP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsCreatedKind) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsCreatedKind(data) {
+	case ExposurePostExposureTargetsCreatedKindDomain:
+		*s = ExposurePostExposureTargetsCreatedKindDomain
+		return nil
+	case ExposurePostExposureTargetsCreatedKindIP:
+		*s = ExposurePostExposureTargetsCreatedKindIP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTargetsCreatedLastCheck struct {
+	At      time.Time `json:"at"`
+	Message string    `json:"message"`
+	Ok      bool      `json:"ok"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePostExposureTargetsCreatedLastCheck) GetAt() time.Time {
+	return s.At
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposurePostExposureTargetsCreatedLastCheck) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposurePostExposureTargetsCreatedLastCheck) GetOk() bool {
+	return s.Ok
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePostExposureTargetsCreatedLastCheck) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposurePostExposureTargetsCreatedLastCheck) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposurePostExposureTargetsCreatedLastCheck) SetOk(val bool) {
+	s.Ok = val
+}
+
+type ExposurePostExposureTargetsCreatedLatest struct {
+	AdminPanels   int `json:"admin_panels"`
+	CertsExpiring int `json:"certs_expiring"`
+	Ips           int `json:"ips"`
+	Ports         int `json:"ports"`
+	Subdomains    int `json:"subdomains"`
+}
+
+// GetAdminPanels returns the value of AdminPanels.
+func (s *ExposurePostExposureTargetsCreatedLatest) GetAdminPanels() int {
+	return s.AdminPanels
+}
+
+// GetCertsExpiring returns the value of CertsExpiring.
+func (s *ExposurePostExposureTargetsCreatedLatest) GetCertsExpiring() int {
+	return s.CertsExpiring
+}
+
+// GetIps returns the value of Ips.
+func (s *ExposurePostExposureTargetsCreatedLatest) GetIps() int {
+	return s.Ips
+}
+
+// GetPorts returns the value of Ports.
+func (s *ExposurePostExposureTargetsCreatedLatest) GetPorts() int {
+	return s.Ports
+}
+
+// GetSubdomains returns the value of Subdomains.
+func (s *ExposurePostExposureTargetsCreatedLatest) GetSubdomains() int {
+	return s.Subdomains
+}
+
+// SetAdminPanels sets the value of AdminPanels.
+func (s *ExposurePostExposureTargetsCreatedLatest) SetAdminPanels(val int) {
+	s.AdminPanels = val
+}
+
+// SetCertsExpiring sets the value of CertsExpiring.
+func (s *ExposurePostExposureTargetsCreatedLatest) SetCertsExpiring(val int) {
+	s.CertsExpiring = val
+}
+
+// SetIps sets the value of Ips.
+func (s *ExposurePostExposureTargetsCreatedLatest) SetIps(val int) {
+	s.Ips = val
+}
+
+// SetPorts sets the value of Ports.
+func (s *ExposurePostExposureTargetsCreatedLatest) SetPorts(val int) {
+	s.Ports = val
+}
+
+// SetSubdomains sets the value of Subdomains.
+func (s *ExposurePostExposureTargetsCreatedLatest) SetSubdomains(val int) {
+	s.Subdomains = val
+}
+
+type ExposurePostExposureTargetsCreatedMethod string
+
+const (
+	ExposurePostExposureTargetsCreatedMethodDNSTxt    ExposurePostExposureTargetsCreatedMethod = "dns_txt"
+	ExposurePostExposureTargetsCreatedMethodBoxEgress ExposurePostExposureTargetsCreatedMethod = "box_egress"
+)
+
+// AllValues returns all ExposurePostExposureTargetsCreatedMethod values.
+func (ExposurePostExposureTargetsCreatedMethod) AllValues() []ExposurePostExposureTargetsCreatedMethod {
+	return []ExposurePostExposureTargetsCreatedMethod{
+		ExposurePostExposureTargetsCreatedMethodDNSTxt,
+		ExposurePostExposureTargetsCreatedMethodBoxEgress,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsCreatedMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsCreatedMethodDNSTxt:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedMethodBoxEgress:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsCreatedMethod) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsCreatedMethod(data) {
+	case ExposurePostExposureTargetsCreatedMethodDNSTxt:
+		*s = ExposurePostExposureTargetsCreatedMethodDNSTxt
+		return nil
+	case ExposurePostExposureTargetsCreatedMethodBoxEgress:
+		*s = ExposurePostExposureTargetsCreatedMethodBoxEgress
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Expired only exists for IPs: more than 90 days since the last verification.
+type ExposurePostExposureTargetsCreatedStatus string
+
+const (
+	ExposurePostExposureTargetsCreatedStatusUnverified ExposurePostExposureTargetsCreatedStatus = "unverified"
+	ExposurePostExposureTargetsCreatedStatusVerified   ExposurePostExposureTargetsCreatedStatus = "verified"
+	ExposurePostExposureTargetsCreatedStatusExpired    ExposurePostExposureTargetsCreatedStatus = "expired"
+)
+
+// AllValues returns all ExposurePostExposureTargetsCreatedStatus values.
+func (ExposurePostExposureTargetsCreatedStatus) AllValues() []ExposurePostExposureTargetsCreatedStatus {
+	return []ExposurePostExposureTargetsCreatedStatus{
+		ExposurePostExposureTargetsCreatedStatusUnverified,
+		ExposurePostExposureTargetsCreatedStatusVerified,
+		ExposurePostExposureTargetsCreatedStatusExpired,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsCreatedStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsCreatedStatusUnverified:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedStatusVerified:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedStatusExpired:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsCreatedStatus) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsCreatedStatus(data) {
+	case ExposurePostExposureTargetsCreatedStatusUnverified:
+		*s = ExposurePostExposureTargetsCreatedStatusUnverified
+		return nil
+	case ExposurePostExposureTargetsCreatedStatusVerified:
+		*s = ExposurePostExposureTargetsCreatedStatusVerified
+		return nil
+	case ExposurePostExposureTargetsCreatedStatusExpired:
+		*s = ExposurePostExposureTargetsCreatedStatusExpired
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTargetsCreatedValidity string
+
+const (
+	ExposurePostExposureTargetsCreatedValidityValid    ExposurePostExposureTargetsCreatedValidity = "valid"
+	ExposurePostExposureTargetsCreatedValidityExpiring ExposurePostExposureTargetsCreatedValidity = "expiring"
+	ExposurePostExposureTargetsCreatedValidityExpired  ExposurePostExposureTargetsCreatedValidity = "expired"
+)
+
+// AllValues returns all ExposurePostExposureTargetsCreatedValidity values.
+func (ExposurePostExposureTargetsCreatedValidity) AllValues() []ExposurePostExposureTargetsCreatedValidity {
+	return []ExposurePostExposureTargetsCreatedValidity{
+		ExposurePostExposureTargetsCreatedValidityValid,
+		ExposurePostExposureTargetsCreatedValidityExpiring,
+		ExposurePostExposureTargetsCreatedValidityExpired,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsCreatedValidity) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsCreatedValidityValid:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedValidityExpiring:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedValidityExpired:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsCreatedValidity) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsCreatedValidity(data) {
+	case ExposurePostExposureTargetsCreatedValidityValid:
+		*s = ExposurePostExposureTargetsCreatedValidityValid
+		return nil
+	case ExposurePostExposureTargetsCreatedValidityExpiring:
+		*s = ExposurePostExposureTargetsCreatedValidityExpiring
+		return nil
+	case ExposurePostExposureTargetsCreatedValidityExpired:
+		*s = ExposurePostExposureTargetsCreatedValidityExpired
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposurePostExposureTargetsIDCommitmentOK struct {
 	// Why it cannot be scanned yet; null = can be scanned.
 	BlockedReason NilExposurePostExposureTargetsIDCommitmentOKBlockedReason `json:"blocked_reason"`
@@ -37635,546 +37821,6 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetValidity) UnmarshalText(data
 		return nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetValidityExpired:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetValidityExpired
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type ExposurePostExposureTargetsOK struct {
-	// Why it cannot be scanned yet; null = can be scanned.
-	BlockedReason NilExposurePostExposureTargetsOKBlockedReason `json:"blocked_reason"`
-	// Who ticked "my company owns it and I am authorized to scan it", and when.
-	Commitment NilExposurePostExposureTargetsOKCommitment `json:"commitment"`
-	CreatedAt  time.Time                                  `json:"created_at"`
-	// IP: verified_at + 90 days. Domain: null (the TXT record is re-checked right before every scan).
-	ExpiresAt  NilDateTime                               `json:"expires_at"`
-	ID         string                                    `json:"id"`
-	Kind       ExposurePostExposureTargetsOKKind         `json:"kind"`
-	LastCheck  NilExposurePostExposureTargetsOKLastCheck `json:"last_check"`
-	LastScanAt NilDateTime                               `json:"last_scan_at"`
-	Latest     NilExposurePostExposureTargetsOKLatest    `json:"latest"`
-	Method     NilExposurePostExposureTargetsOKMethod    `json:"method"`
-	Scannable  bool                                      `json:"scannable"`
-	// Expired only exists for IPs: more than 90 days since the last verification.
-	Status ExposurePostExposureTargetsOKStatus `json:"status"`
-	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
-	// string.
-	Token string `json:"token"`
-	// IPs only: expiring = 14 days or less left.
-	Validity NilExposurePostExposureTargetsOKValidity `json:"validity"`
-	Value    string                                   `json:"value"`
-	// Last successful verification.
-	VerifiedAt NilDateTime `json:"verified_at"`
-}
-
-// GetBlockedReason returns the value of BlockedReason.
-func (s *ExposurePostExposureTargetsOK) GetBlockedReason() NilExposurePostExposureTargetsOKBlockedReason {
-	return s.BlockedReason
-}
-
-// GetCommitment returns the value of Commitment.
-func (s *ExposurePostExposureTargetsOK) GetCommitment() NilExposurePostExposureTargetsOKCommitment {
-	return s.Commitment
-}
-
-// GetCreatedAt returns the value of CreatedAt.
-func (s *ExposurePostExposureTargetsOK) GetCreatedAt() time.Time {
-	return s.CreatedAt
-}
-
-// GetExpiresAt returns the value of ExpiresAt.
-func (s *ExposurePostExposureTargetsOK) GetExpiresAt() NilDateTime {
-	return s.ExpiresAt
-}
-
-// GetID returns the value of ID.
-func (s *ExposurePostExposureTargetsOK) GetID() string {
-	return s.ID
-}
-
-// GetKind returns the value of Kind.
-func (s *ExposurePostExposureTargetsOK) GetKind() ExposurePostExposureTargetsOKKind {
-	return s.Kind
-}
-
-// GetLastCheck returns the value of LastCheck.
-func (s *ExposurePostExposureTargetsOK) GetLastCheck() NilExposurePostExposureTargetsOKLastCheck {
-	return s.LastCheck
-}
-
-// GetLastScanAt returns the value of LastScanAt.
-func (s *ExposurePostExposureTargetsOK) GetLastScanAt() NilDateTime {
-	return s.LastScanAt
-}
-
-// GetLatest returns the value of Latest.
-func (s *ExposurePostExposureTargetsOK) GetLatest() NilExposurePostExposureTargetsOKLatest {
-	return s.Latest
-}
-
-// GetMethod returns the value of Method.
-func (s *ExposurePostExposureTargetsOK) GetMethod() NilExposurePostExposureTargetsOKMethod {
-	return s.Method
-}
-
-// GetScannable returns the value of Scannable.
-func (s *ExposurePostExposureTargetsOK) GetScannable() bool {
-	return s.Scannable
-}
-
-// GetStatus returns the value of Status.
-func (s *ExposurePostExposureTargetsOK) GetStatus() ExposurePostExposureTargetsOKStatus {
-	return s.Status
-}
-
-// GetToken returns the value of Token.
-func (s *ExposurePostExposureTargetsOK) GetToken() string {
-	return s.Token
-}
-
-// GetValidity returns the value of Validity.
-func (s *ExposurePostExposureTargetsOK) GetValidity() NilExposurePostExposureTargetsOKValidity {
-	return s.Validity
-}
-
-// GetValue returns the value of Value.
-func (s *ExposurePostExposureTargetsOK) GetValue() string {
-	return s.Value
-}
-
-// GetVerifiedAt returns the value of VerifiedAt.
-func (s *ExposurePostExposureTargetsOK) GetVerifiedAt() NilDateTime {
-	return s.VerifiedAt
-}
-
-// SetBlockedReason sets the value of BlockedReason.
-func (s *ExposurePostExposureTargetsOK) SetBlockedReason(val NilExposurePostExposureTargetsOKBlockedReason) {
-	s.BlockedReason = val
-}
-
-// SetCommitment sets the value of Commitment.
-func (s *ExposurePostExposureTargetsOK) SetCommitment(val NilExposurePostExposureTargetsOKCommitment) {
-	s.Commitment = val
-}
-
-// SetCreatedAt sets the value of CreatedAt.
-func (s *ExposurePostExposureTargetsOK) SetCreatedAt(val time.Time) {
-	s.CreatedAt = val
-}
-
-// SetExpiresAt sets the value of ExpiresAt.
-func (s *ExposurePostExposureTargetsOK) SetExpiresAt(val NilDateTime) {
-	s.ExpiresAt = val
-}
-
-// SetID sets the value of ID.
-func (s *ExposurePostExposureTargetsOK) SetID(val string) {
-	s.ID = val
-}
-
-// SetKind sets the value of Kind.
-func (s *ExposurePostExposureTargetsOK) SetKind(val ExposurePostExposureTargetsOKKind) {
-	s.Kind = val
-}
-
-// SetLastCheck sets the value of LastCheck.
-func (s *ExposurePostExposureTargetsOK) SetLastCheck(val NilExposurePostExposureTargetsOKLastCheck) {
-	s.LastCheck = val
-}
-
-// SetLastScanAt sets the value of LastScanAt.
-func (s *ExposurePostExposureTargetsOK) SetLastScanAt(val NilDateTime) {
-	s.LastScanAt = val
-}
-
-// SetLatest sets the value of Latest.
-func (s *ExposurePostExposureTargetsOK) SetLatest(val NilExposurePostExposureTargetsOKLatest) {
-	s.Latest = val
-}
-
-// SetMethod sets the value of Method.
-func (s *ExposurePostExposureTargetsOK) SetMethod(val NilExposurePostExposureTargetsOKMethod) {
-	s.Method = val
-}
-
-// SetScannable sets the value of Scannable.
-func (s *ExposurePostExposureTargetsOK) SetScannable(val bool) {
-	s.Scannable = val
-}
-
-// SetStatus sets the value of Status.
-func (s *ExposurePostExposureTargetsOK) SetStatus(val ExposurePostExposureTargetsOKStatus) {
-	s.Status = val
-}
-
-// SetToken sets the value of Token.
-func (s *ExposurePostExposureTargetsOK) SetToken(val string) {
-	s.Token = val
-}
-
-// SetValidity sets the value of Validity.
-func (s *ExposurePostExposureTargetsOK) SetValidity(val NilExposurePostExposureTargetsOKValidity) {
-	s.Validity = val
-}
-
-// SetValue sets the value of Value.
-func (s *ExposurePostExposureTargetsOK) SetValue(val string) {
-	s.Value = val
-}
-
-// SetVerifiedAt sets the value of VerifiedAt.
-func (s *ExposurePostExposureTargetsOK) SetVerifiedAt(val NilDateTime) {
-	s.VerifiedAt = val
-}
-
-type ExposurePostExposureTargetsOKBlockedReason string
-
-const (
-	ExposurePostExposureTargetsOKBlockedReasonUnverified   ExposurePostExposureTargetsOKBlockedReason = "unverified"
-	ExposurePostExposureTargetsOKBlockedReasonExpired      ExposurePostExposureTargetsOKBlockedReason = "expired"
-	ExposurePostExposureTargetsOKBlockedReasonTxtMissing   ExposurePostExposureTargetsOKBlockedReason = "txt_missing"
-	ExposurePostExposureTargetsOKBlockedReasonNoCommitment ExposurePostExposureTargetsOKBlockedReason = "no_commitment"
-)
-
-// AllValues returns all ExposurePostExposureTargetsOKBlockedReason values.
-func (ExposurePostExposureTargetsOKBlockedReason) AllValues() []ExposurePostExposureTargetsOKBlockedReason {
-	return []ExposurePostExposureTargetsOKBlockedReason{
-		ExposurePostExposureTargetsOKBlockedReasonUnverified,
-		ExposurePostExposureTargetsOKBlockedReasonExpired,
-		ExposurePostExposureTargetsOKBlockedReasonTxtMissing,
-		ExposurePostExposureTargetsOKBlockedReasonNoCommitment,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePostExposureTargetsOKBlockedReason) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePostExposureTargetsOKBlockedReasonUnverified:
-		return []byte(s), nil
-	case ExposurePostExposureTargetsOKBlockedReasonExpired:
-		return []byte(s), nil
-	case ExposurePostExposureTargetsOKBlockedReasonTxtMissing:
-		return []byte(s), nil
-	case ExposurePostExposureTargetsOKBlockedReasonNoCommitment:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePostExposureTargetsOKBlockedReason) UnmarshalText(data []byte) error {
-	switch ExposurePostExposureTargetsOKBlockedReason(data) {
-	case ExposurePostExposureTargetsOKBlockedReasonUnverified:
-		*s = ExposurePostExposureTargetsOKBlockedReasonUnverified
-		return nil
-	case ExposurePostExposureTargetsOKBlockedReasonExpired:
-		*s = ExposurePostExposureTargetsOKBlockedReasonExpired
-		return nil
-	case ExposurePostExposureTargetsOKBlockedReasonTxtMissing:
-		*s = ExposurePostExposureTargetsOKBlockedReasonTxtMissing
-		return nil
-	case ExposurePostExposureTargetsOKBlockedReasonNoCommitment:
-		*s = ExposurePostExposureTargetsOKBlockedReasonNoCommitment
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type ExposurePostExposureTargetsOKCommitment struct {
-	At time.Time `json:"at"`
-	By string    `json:"by"`
-}
-
-// GetAt returns the value of At.
-func (s *ExposurePostExposureTargetsOKCommitment) GetAt() time.Time {
-	return s.At
-}
-
-// GetBy returns the value of By.
-func (s *ExposurePostExposureTargetsOKCommitment) GetBy() string {
-	return s.By
-}
-
-// SetAt sets the value of At.
-func (s *ExposurePostExposureTargetsOKCommitment) SetAt(val time.Time) {
-	s.At = val
-}
-
-// SetBy sets the value of By.
-func (s *ExposurePostExposureTargetsOKCommitment) SetBy(val string) {
-	s.By = val
-}
-
-type ExposurePostExposureTargetsOKKind string
-
-const (
-	ExposurePostExposureTargetsOKKindDomain ExposurePostExposureTargetsOKKind = "domain"
-	ExposurePostExposureTargetsOKKindIP     ExposurePostExposureTargetsOKKind = "ip"
-)
-
-// AllValues returns all ExposurePostExposureTargetsOKKind values.
-func (ExposurePostExposureTargetsOKKind) AllValues() []ExposurePostExposureTargetsOKKind {
-	return []ExposurePostExposureTargetsOKKind{
-		ExposurePostExposureTargetsOKKindDomain,
-		ExposurePostExposureTargetsOKKindIP,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePostExposureTargetsOKKind) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePostExposureTargetsOKKindDomain:
-		return []byte(s), nil
-	case ExposurePostExposureTargetsOKKindIP:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePostExposureTargetsOKKind) UnmarshalText(data []byte) error {
-	switch ExposurePostExposureTargetsOKKind(data) {
-	case ExposurePostExposureTargetsOKKindDomain:
-		*s = ExposurePostExposureTargetsOKKindDomain
-		return nil
-	case ExposurePostExposureTargetsOKKindIP:
-		*s = ExposurePostExposureTargetsOKKindIP
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type ExposurePostExposureTargetsOKLastCheck struct {
-	At      time.Time `json:"at"`
-	Message string    `json:"message"`
-	Ok      bool      `json:"ok"`
-}
-
-// GetAt returns the value of At.
-func (s *ExposurePostExposureTargetsOKLastCheck) GetAt() time.Time {
-	return s.At
-}
-
-// GetMessage returns the value of Message.
-func (s *ExposurePostExposureTargetsOKLastCheck) GetMessage() string {
-	return s.Message
-}
-
-// GetOk returns the value of Ok.
-func (s *ExposurePostExposureTargetsOKLastCheck) GetOk() bool {
-	return s.Ok
-}
-
-// SetAt sets the value of At.
-func (s *ExposurePostExposureTargetsOKLastCheck) SetAt(val time.Time) {
-	s.At = val
-}
-
-// SetMessage sets the value of Message.
-func (s *ExposurePostExposureTargetsOKLastCheck) SetMessage(val string) {
-	s.Message = val
-}
-
-// SetOk sets the value of Ok.
-func (s *ExposurePostExposureTargetsOKLastCheck) SetOk(val bool) {
-	s.Ok = val
-}
-
-type ExposurePostExposureTargetsOKLatest struct {
-	AdminPanels   int `json:"admin_panels"`
-	CertsExpiring int `json:"certs_expiring"`
-	Ips           int `json:"ips"`
-	Ports         int `json:"ports"`
-	Subdomains    int `json:"subdomains"`
-}
-
-// GetAdminPanels returns the value of AdminPanels.
-func (s *ExposurePostExposureTargetsOKLatest) GetAdminPanels() int {
-	return s.AdminPanels
-}
-
-// GetCertsExpiring returns the value of CertsExpiring.
-func (s *ExposurePostExposureTargetsOKLatest) GetCertsExpiring() int {
-	return s.CertsExpiring
-}
-
-// GetIps returns the value of Ips.
-func (s *ExposurePostExposureTargetsOKLatest) GetIps() int {
-	return s.Ips
-}
-
-// GetPorts returns the value of Ports.
-func (s *ExposurePostExposureTargetsOKLatest) GetPorts() int {
-	return s.Ports
-}
-
-// GetSubdomains returns the value of Subdomains.
-func (s *ExposurePostExposureTargetsOKLatest) GetSubdomains() int {
-	return s.Subdomains
-}
-
-// SetAdminPanels sets the value of AdminPanels.
-func (s *ExposurePostExposureTargetsOKLatest) SetAdminPanels(val int) {
-	s.AdminPanels = val
-}
-
-// SetCertsExpiring sets the value of CertsExpiring.
-func (s *ExposurePostExposureTargetsOKLatest) SetCertsExpiring(val int) {
-	s.CertsExpiring = val
-}
-
-// SetIps sets the value of Ips.
-func (s *ExposurePostExposureTargetsOKLatest) SetIps(val int) {
-	s.Ips = val
-}
-
-// SetPorts sets the value of Ports.
-func (s *ExposurePostExposureTargetsOKLatest) SetPorts(val int) {
-	s.Ports = val
-}
-
-// SetSubdomains sets the value of Subdomains.
-func (s *ExposurePostExposureTargetsOKLatest) SetSubdomains(val int) {
-	s.Subdomains = val
-}
-
-type ExposurePostExposureTargetsOKMethod string
-
-const (
-	ExposurePostExposureTargetsOKMethodDNSTxt    ExposurePostExposureTargetsOKMethod = "dns_txt"
-	ExposurePostExposureTargetsOKMethodBoxEgress ExposurePostExposureTargetsOKMethod = "box_egress"
-)
-
-// AllValues returns all ExposurePostExposureTargetsOKMethod values.
-func (ExposurePostExposureTargetsOKMethod) AllValues() []ExposurePostExposureTargetsOKMethod {
-	return []ExposurePostExposureTargetsOKMethod{
-		ExposurePostExposureTargetsOKMethodDNSTxt,
-		ExposurePostExposureTargetsOKMethodBoxEgress,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePostExposureTargetsOKMethod) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePostExposureTargetsOKMethodDNSTxt:
-		return []byte(s), nil
-	case ExposurePostExposureTargetsOKMethodBoxEgress:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePostExposureTargetsOKMethod) UnmarshalText(data []byte) error {
-	switch ExposurePostExposureTargetsOKMethod(data) {
-	case ExposurePostExposureTargetsOKMethodDNSTxt:
-		*s = ExposurePostExposureTargetsOKMethodDNSTxt
-		return nil
-	case ExposurePostExposureTargetsOKMethodBoxEgress:
-		*s = ExposurePostExposureTargetsOKMethodBoxEgress
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// Expired only exists for IPs: more than 90 days since the last verification.
-type ExposurePostExposureTargetsOKStatus string
-
-const (
-	ExposurePostExposureTargetsOKStatusUnverified ExposurePostExposureTargetsOKStatus = "unverified"
-	ExposurePostExposureTargetsOKStatusVerified   ExposurePostExposureTargetsOKStatus = "verified"
-	ExposurePostExposureTargetsOKStatusExpired    ExposurePostExposureTargetsOKStatus = "expired"
-)
-
-// AllValues returns all ExposurePostExposureTargetsOKStatus values.
-func (ExposurePostExposureTargetsOKStatus) AllValues() []ExposurePostExposureTargetsOKStatus {
-	return []ExposurePostExposureTargetsOKStatus{
-		ExposurePostExposureTargetsOKStatusUnverified,
-		ExposurePostExposureTargetsOKStatusVerified,
-		ExposurePostExposureTargetsOKStatusExpired,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePostExposureTargetsOKStatus) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePostExposureTargetsOKStatusUnverified:
-		return []byte(s), nil
-	case ExposurePostExposureTargetsOKStatusVerified:
-		return []byte(s), nil
-	case ExposurePostExposureTargetsOKStatusExpired:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePostExposureTargetsOKStatus) UnmarshalText(data []byte) error {
-	switch ExposurePostExposureTargetsOKStatus(data) {
-	case ExposurePostExposureTargetsOKStatusUnverified:
-		*s = ExposurePostExposureTargetsOKStatusUnverified
-		return nil
-	case ExposurePostExposureTargetsOKStatusVerified:
-		*s = ExposurePostExposureTargetsOKStatusVerified
-		return nil
-	case ExposurePostExposureTargetsOKStatusExpired:
-		*s = ExposurePostExposureTargetsOKStatusExpired
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type ExposurePostExposureTargetsOKValidity string
-
-const (
-	ExposurePostExposureTargetsOKValidityValid    ExposurePostExposureTargetsOKValidity = "valid"
-	ExposurePostExposureTargetsOKValidityExpiring ExposurePostExposureTargetsOKValidity = "expiring"
-	ExposurePostExposureTargetsOKValidityExpired  ExposurePostExposureTargetsOKValidity = "expired"
-)
-
-// AllValues returns all ExposurePostExposureTargetsOKValidity values.
-func (ExposurePostExposureTargetsOKValidity) AllValues() []ExposurePostExposureTargetsOKValidity {
-	return []ExposurePostExposureTargetsOKValidity{
-		ExposurePostExposureTargetsOKValidityValid,
-		ExposurePostExposureTargetsOKValidityExpiring,
-		ExposurePostExposureTargetsOKValidityExpired,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePostExposureTargetsOKValidity) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePostExposureTargetsOKValidityValid:
-		return []byte(s), nil
-	case ExposurePostExposureTargetsOKValidityExpiring:
-		return []byte(s), nil
-	case ExposurePostExposureTargetsOKValidityExpired:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePostExposureTargetsOKValidity) UnmarshalText(data []byte) error {
-	switch ExposurePostExposureTargetsOKValidity(data) {
-	case ExposurePostExposureTargetsOKValidityValid:
-		*s = ExposurePostExposureTargetsOKValidityValid
-		return nil
-	case ExposurePostExposureTargetsOKValidityExpiring:
-		*s = ExposurePostExposureTargetsOKValidityExpiring
-		return nil
-	case ExposurePostExposureTargetsOKValidityExpired:
-		*s = ExposurePostExposureTargetsOKValidityExpired
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -40366,264 +40012,264 @@ func (s *FeedsGetFeedsWeeklyOKItemsItemAnswer) UnmarshalText(data []byte) error 
 	}
 }
 
-type FeedsPostFeedsCustomOK struct {
-	Auth    FeedsPostFeedsCustomOKAuth `json:"auth"`
-	Builtin bool                       `json:"builtin"`
+type FeedsPostFeedsCustomCreated struct {
+	Auth    FeedsPostFeedsCustomCreatedAuth `json:"auth"`
+	Builtin bool                            `json:"builtin"`
 	// Built-in feeds only; used by "Reset to default".
-	DefaultURL    NilString                    `json:"default_url"`
-	Enabled       bool                         `json:"enabled"`
-	Error         NilString                    `json:"error"`
-	Format        FeedsPostFeedsCustomOKFormat `json:"format"`
-	ID            string                       `json:"id"`
-	IntervalHours int                          `json:"interval_hours"`
-	Kind          FeedsPostFeedsCustomOKKind   `json:"kind"`
-	LastFetch     NilDateTime                  `json:"last_fetch"`
-	License       NilString                    `json:"license"`
-	Name          string                       `json:"name"`
+	DefaultURL    NilString                         `json:"default_url"`
+	Enabled       bool                              `json:"enabled"`
+	Error         NilString                         `json:"error"`
+	Format        FeedsPostFeedsCustomCreatedFormat `json:"format"`
+	ID            string                            `json:"id"`
+	IntervalHours int                               `json:"interval_hours"`
+	Kind          FeedsPostFeedsCustomCreatedKind   `json:"kind"`
+	LastFetch     NilDateTime                       `json:"last_fetch"`
+	License       NilString                         `json:"license"`
+	Name          string                            `json:"name"`
 	// Null for built-in feeds.
-	Parser  NilFeedsPostFeedsCustomOKParser `json:"parser"`
-	Records NilInt                          `json:"records"`
-	Status  FeedsPostFeedsCustomOKStatus    `json:"status"`
-	URL     string                          `json:"url"`
+	Parser  NilFeedsPostFeedsCustomCreatedParser `json:"parser"`
+	Records NilInt                               `json:"records"`
+	Status  FeedsPostFeedsCustomCreatedStatus    `json:"status"`
+	URL     string                               `json:"url"`
 }
 
 // GetAuth returns the value of Auth.
-func (s *FeedsPostFeedsCustomOK) GetAuth() FeedsPostFeedsCustomOKAuth {
+func (s *FeedsPostFeedsCustomCreated) GetAuth() FeedsPostFeedsCustomCreatedAuth {
 	return s.Auth
 }
 
 // GetBuiltin returns the value of Builtin.
-func (s *FeedsPostFeedsCustomOK) GetBuiltin() bool {
+func (s *FeedsPostFeedsCustomCreated) GetBuiltin() bool {
 	return s.Builtin
 }
 
 // GetDefaultURL returns the value of DefaultURL.
-func (s *FeedsPostFeedsCustomOK) GetDefaultURL() NilString {
+func (s *FeedsPostFeedsCustomCreated) GetDefaultURL() NilString {
 	return s.DefaultURL
 }
 
 // GetEnabled returns the value of Enabled.
-func (s *FeedsPostFeedsCustomOK) GetEnabled() bool {
+func (s *FeedsPostFeedsCustomCreated) GetEnabled() bool {
 	return s.Enabled
 }
 
 // GetError returns the value of Error.
-func (s *FeedsPostFeedsCustomOK) GetError() NilString {
+func (s *FeedsPostFeedsCustomCreated) GetError() NilString {
 	return s.Error
 }
 
 // GetFormat returns the value of Format.
-func (s *FeedsPostFeedsCustomOK) GetFormat() FeedsPostFeedsCustomOKFormat {
+func (s *FeedsPostFeedsCustomCreated) GetFormat() FeedsPostFeedsCustomCreatedFormat {
 	return s.Format
 }
 
 // GetID returns the value of ID.
-func (s *FeedsPostFeedsCustomOK) GetID() string {
+func (s *FeedsPostFeedsCustomCreated) GetID() string {
 	return s.ID
 }
 
 // GetIntervalHours returns the value of IntervalHours.
-func (s *FeedsPostFeedsCustomOK) GetIntervalHours() int {
+func (s *FeedsPostFeedsCustomCreated) GetIntervalHours() int {
 	return s.IntervalHours
 }
 
 // GetKind returns the value of Kind.
-func (s *FeedsPostFeedsCustomOK) GetKind() FeedsPostFeedsCustomOKKind {
+func (s *FeedsPostFeedsCustomCreated) GetKind() FeedsPostFeedsCustomCreatedKind {
 	return s.Kind
 }
 
 // GetLastFetch returns the value of LastFetch.
-func (s *FeedsPostFeedsCustomOK) GetLastFetch() NilDateTime {
+func (s *FeedsPostFeedsCustomCreated) GetLastFetch() NilDateTime {
 	return s.LastFetch
 }
 
 // GetLicense returns the value of License.
-func (s *FeedsPostFeedsCustomOK) GetLicense() NilString {
+func (s *FeedsPostFeedsCustomCreated) GetLicense() NilString {
 	return s.License
 }
 
 // GetName returns the value of Name.
-func (s *FeedsPostFeedsCustomOK) GetName() string {
+func (s *FeedsPostFeedsCustomCreated) GetName() string {
 	return s.Name
 }
 
 // GetParser returns the value of Parser.
-func (s *FeedsPostFeedsCustomOK) GetParser() NilFeedsPostFeedsCustomOKParser {
+func (s *FeedsPostFeedsCustomCreated) GetParser() NilFeedsPostFeedsCustomCreatedParser {
 	return s.Parser
 }
 
 // GetRecords returns the value of Records.
-func (s *FeedsPostFeedsCustomOK) GetRecords() NilInt {
+func (s *FeedsPostFeedsCustomCreated) GetRecords() NilInt {
 	return s.Records
 }
 
 // GetStatus returns the value of Status.
-func (s *FeedsPostFeedsCustomOK) GetStatus() FeedsPostFeedsCustomOKStatus {
+func (s *FeedsPostFeedsCustomCreated) GetStatus() FeedsPostFeedsCustomCreatedStatus {
 	return s.Status
 }
 
 // GetURL returns the value of URL.
-func (s *FeedsPostFeedsCustomOK) GetURL() string {
+func (s *FeedsPostFeedsCustomCreated) GetURL() string {
 	return s.URL
 }
 
 // SetAuth sets the value of Auth.
-func (s *FeedsPostFeedsCustomOK) SetAuth(val FeedsPostFeedsCustomOKAuth) {
+func (s *FeedsPostFeedsCustomCreated) SetAuth(val FeedsPostFeedsCustomCreatedAuth) {
 	s.Auth = val
 }
 
 // SetBuiltin sets the value of Builtin.
-func (s *FeedsPostFeedsCustomOK) SetBuiltin(val bool) {
+func (s *FeedsPostFeedsCustomCreated) SetBuiltin(val bool) {
 	s.Builtin = val
 }
 
 // SetDefaultURL sets the value of DefaultURL.
-func (s *FeedsPostFeedsCustomOK) SetDefaultURL(val NilString) {
+func (s *FeedsPostFeedsCustomCreated) SetDefaultURL(val NilString) {
 	s.DefaultURL = val
 }
 
 // SetEnabled sets the value of Enabled.
-func (s *FeedsPostFeedsCustomOK) SetEnabled(val bool) {
+func (s *FeedsPostFeedsCustomCreated) SetEnabled(val bool) {
 	s.Enabled = val
 }
 
 // SetError sets the value of Error.
-func (s *FeedsPostFeedsCustomOK) SetError(val NilString) {
+func (s *FeedsPostFeedsCustomCreated) SetError(val NilString) {
 	s.Error = val
 }
 
 // SetFormat sets the value of Format.
-func (s *FeedsPostFeedsCustomOK) SetFormat(val FeedsPostFeedsCustomOKFormat) {
+func (s *FeedsPostFeedsCustomCreated) SetFormat(val FeedsPostFeedsCustomCreatedFormat) {
 	s.Format = val
 }
 
 // SetID sets the value of ID.
-func (s *FeedsPostFeedsCustomOK) SetID(val string) {
+func (s *FeedsPostFeedsCustomCreated) SetID(val string) {
 	s.ID = val
 }
 
 // SetIntervalHours sets the value of IntervalHours.
-func (s *FeedsPostFeedsCustomOK) SetIntervalHours(val int) {
+func (s *FeedsPostFeedsCustomCreated) SetIntervalHours(val int) {
 	s.IntervalHours = val
 }
 
 // SetKind sets the value of Kind.
-func (s *FeedsPostFeedsCustomOK) SetKind(val FeedsPostFeedsCustomOKKind) {
+func (s *FeedsPostFeedsCustomCreated) SetKind(val FeedsPostFeedsCustomCreatedKind) {
 	s.Kind = val
 }
 
 // SetLastFetch sets the value of LastFetch.
-func (s *FeedsPostFeedsCustomOK) SetLastFetch(val NilDateTime) {
+func (s *FeedsPostFeedsCustomCreated) SetLastFetch(val NilDateTime) {
 	s.LastFetch = val
 }
 
 // SetLicense sets the value of License.
-func (s *FeedsPostFeedsCustomOK) SetLicense(val NilString) {
+func (s *FeedsPostFeedsCustomCreated) SetLicense(val NilString) {
 	s.License = val
 }
 
 // SetName sets the value of Name.
-func (s *FeedsPostFeedsCustomOK) SetName(val string) {
+func (s *FeedsPostFeedsCustomCreated) SetName(val string) {
 	s.Name = val
 }
 
 // SetParser sets the value of Parser.
-func (s *FeedsPostFeedsCustomOK) SetParser(val NilFeedsPostFeedsCustomOKParser) {
+func (s *FeedsPostFeedsCustomCreated) SetParser(val NilFeedsPostFeedsCustomCreatedParser) {
 	s.Parser = val
 }
 
 // SetRecords sets the value of Records.
-func (s *FeedsPostFeedsCustomOK) SetRecords(val NilInt) {
+func (s *FeedsPostFeedsCustomCreated) SetRecords(val NilInt) {
 	s.Records = val
 }
 
 // SetStatus sets the value of Status.
-func (s *FeedsPostFeedsCustomOK) SetStatus(val FeedsPostFeedsCustomOKStatus) {
+func (s *FeedsPostFeedsCustomCreated) SetStatus(val FeedsPostFeedsCustomCreatedStatus) {
 	s.Status = val
 }
 
 // SetURL sets the value of URL.
-func (s *FeedsPostFeedsCustomOK) SetURL(val string) {
+func (s *FeedsPostFeedsCustomCreated) SetURL(val string) {
 	s.URL = val
 }
 
-type FeedsPostFeedsCustomOKAuth struct {
+type FeedsPostFeedsCustomCreatedAuth struct {
 	HeaderName NilString `json:"header_name"`
 	// Last 4 characters of the saved secret; the secret is never returned.
-	SecretLast4 NilString                      `json:"secret_last4"`
-	Type        FeedsPostFeedsCustomOKAuthType `json:"type"`
-	Username    NilString                      `json:"username"`
+	SecretLast4 NilString                           `json:"secret_last4"`
+	Type        FeedsPostFeedsCustomCreatedAuthType `json:"type"`
+	Username    NilString                           `json:"username"`
 }
 
 // GetHeaderName returns the value of HeaderName.
-func (s *FeedsPostFeedsCustomOKAuth) GetHeaderName() NilString {
+func (s *FeedsPostFeedsCustomCreatedAuth) GetHeaderName() NilString {
 	return s.HeaderName
 }
 
 // GetSecretLast4 returns the value of SecretLast4.
-func (s *FeedsPostFeedsCustomOKAuth) GetSecretLast4() NilString {
+func (s *FeedsPostFeedsCustomCreatedAuth) GetSecretLast4() NilString {
 	return s.SecretLast4
 }
 
 // GetType returns the value of Type.
-func (s *FeedsPostFeedsCustomOKAuth) GetType() FeedsPostFeedsCustomOKAuthType {
+func (s *FeedsPostFeedsCustomCreatedAuth) GetType() FeedsPostFeedsCustomCreatedAuthType {
 	return s.Type
 }
 
 // GetUsername returns the value of Username.
-func (s *FeedsPostFeedsCustomOKAuth) GetUsername() NilString {
+func (s *FeedsPostFeedsCustomCreatedAuth) GetUsername() NilString {
 	return s.Username
 }
 
 // SetHeaderName sets the value of HeaderName.
-func (s *FeedsPostFeedsCustomOKAuth) SetHeaderName(val NilString) {
+func (s *FeedsPostFeedsCustomCreatedAuth) SetHeaderName(val NilString) {
 	s.HeaderName = val
 }
 
 // SetSecretLast4 sets the value of SecretLast4.
-func (s *FeedsPostFeedsCustomOKAuth) SetSecretLast4(val NilString) {
+func (s *FeedsPostFeedsCustomCreatedAuth) SetSecretLast4(val NilString) {
 	s.SecretLast4 = val
 }
 
 // SetType sets the value of Type.
-func (s *FeedsPostFeedsCustomOKAuth) SetType(val FeedsPostFeedsCustomOKAuthType) {
+func (s *FeedsPostFeedsCustomCreatedAuth) SetType(val FeedsPostFeedsCustomCreatedAuthType) {
 	s.Type = val
 }
 
 // SetUsername sets the value of Username.
-func (s *FeedsPostFeedsCustomOKAuth) SetUsername(val NilString) {
+func (s *FeedsPostFeedsCustomCreatedAuth) SetUsername(val NilString) {
 	s.Username = val
 }
 
-type FeedsPostFeedsCustomOKAuthType string
+type FeedsPostFeedsCustomCreatedAuthType string
 
 const (
-	FeedsPostFeedsCustomOKAuthTypeNone   FeedsPostFeedsCustomOKAuthType = "none"
-	FeedsPostFeedsCustomOKAuthTypeHeader FeedsPostFeedsCustomOKAuthType = "header"
-	FeedsPostFeedsCustomOKAuthTypeBearer FeedsPostFeedsCustomOKAuthType = "bearer"
-	FeedsPostFeedsCustomOKAuthTypeBasic  FeedsPostFeedsCustomOKAuthType = "basic"
+	FeedsPostFeedsCustomCreatedAuthTypeNone   FeedsPostFeedsCustomCreatedAuthType = "none"
+	FeedsPostFeedsCustomCreatedAuthTypeHeader FeedsPostFeedsCustomCreatedAuthType = "header"
+	FeedsPostFeedsCustomCreatedAuthTypeBearer FeedsPostFeedsCustomCreatedAuthType = "bearer"
+	FeedsPostFeedsCustomCreatedAuthTypeBasic  FeedsPostFeedsCustomCreatedAuthType = "basic"
 )
 
-// AllValues returns all FeedsPostFeedsCustomOKAuthType values.
-func (FeedsPostFeedsCustomOKAuthType) AllValues() []FeedsPostFeedsCustomOKAuthType {
-	return []FeedsPostFeedsCustomOKAuthType{
-		FeedsPostFeedsCustomOKAuthTypeNone,
-		FeedsPostFeedsCustomOKAuthTypeHeader,
-		FeedsPostFeedsCustomOKAuthTypeBearer,
-		FeedsPostFeedsCustomOKAuthTypeBasic,
+// AllValues returns all FeedsPostFeedsCustomCreatedAuthType values.
+func (FeedsPostFeedsCustomCreatedAuthType) AllValues() []FeedsPostFeedsCustomCreatedAuthType {
+	return []FeedsPostFeedsCustomCreatedAuthType{
+		FeedsPostFeedsCustomCreatedAuthTypeNone,
+		FeedsPostFeedsCustomCreatedAuthTypeHeader,
+		FeedsPostFeedsCustomCreatedAuthTypeBearer,
+		FeedsPostFeedsCustomCreatedAuthTypeBasic,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s FeedsPostFeedsCustomOKAuthType) MarshalText() ([]byte, error) {
+func (s FeedsPostFeedsCustomCreatedAuthType) MarshalText() ([]byte, error) {
 	switch s {
-	case FeedsPostFeedsCustomOKAuthTypeNone:
+	case FeedsPostFeedsCustomCreatedAuthTypeNone:
 		return []byte(s), nil
-	case FeedsPostFeedsCustomOKAuthTypeHeader:
+	case FeedsPostFeedsCustomCreatedAuthTypeHeader:
 		return []byte(s), nil
-	case FeedsPostFeedsCustomOKAuthTypeBearer:
+	case FeedsPostFeedsCustomCreatedAuthTypeBearer:
 		return []byte(s), nil
-	case FeedsPostFeedsCustomOKAuthTypeBasic:
+	case FeedsPostFeedsCustomCreatedAuthTypeBasic:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -40631,58 +40277,58 @@ func (s FeedsPostFeedsCustomOKAuthType) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *FeedsPostFeedsCustomOKAuthType) UnmarshalText(data []byte) error {
-	switch FeedsPostFeedsCustomOKAuthType(data) {
-	case FeedsPostFeedsCustomOKAuthTypeNone:
-		*s = FeedsPostFeedsCustomOKAuthTypeNone
+func (s *FeedsPostFeedsCustomCreatedAuthType) UnmarshalText(data []byte) error {
+	switch FeedsPostFeedsCustomCreatedAuthType(data) {
+	case FeedsPostFeedsCustomCreatedAuthTypeNone:
+		*s = FeedsPostFeedsCustomCreatedAuthTypeNone
 		return nil
-	case FeedsPostFeedsCustomOKAuthTypeHeader:
-		*s = FeedsPostFeedsCustomOKAuthTypeHeader
+	case FeedsPostFeedsCustomCreatedAuthTypeHeader:
+		*s = FeedsPostFeedsCustomCreatedAuthTypeHeader
 		return nil
-	case FeedsPostFeedsCustomOKAuthTypeBearer:
-		*s = FeedsPostFeedsCustomOKAuthTypeBearer
+	case FeedsPostFeedsCustomCreatedAuthTypeBearer:
+		*s = FeedsPostFeedsCustomCreatedAuthTypeBearer
 		return nil
-	case FeedsPostFeedsCustomOKAuthTypeBasic:
-		*s = FeedsPostFeedsCustomOKAuthTypeBasic
+	case FeedsPostFeedsCustomCreatedAuthTypeBasic:
+		*s = FeedsPostFeedsCustomCreatedAuthTypeBasic
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type FeedsPostFeedsCustomOKFormat string
+type FeedsPostFeedsCustomCreatedFormat string
 
 const (
-	FeedsPostFeedsCustomOKFormatJSON  FeedsPostFeedsCustomOKFormat = "json"
-	FeedsPostFeedsCustomOKFormatCsv   FeedsPostFeedsCustomOKFormat = "csv"
-	FeedsPostFeedsCustomOKFormatRss   FeedsPostFeedsCustomOKFormat = "rss"
-	FeedsPostFeedsCustomOKFormatStix  FeedsPostFeedsCustomOKFormat = "stix"
-	FeedsPostFeedsCustomOKFormatLines FeedsPostFeedsCustomOKFormat = "lines"
+	FeedsPostFeedsCustomCreatedFormatJSON  FeedsPostFeedsCustomCreatedFormat = "json"
+	FeedsPostFeedsCustomCreatedFormatCsv   FeedsPostFeedsCustomCreatedFormat = "csv"
+	FeedsPostFeedsCustomCreatedFormatRss   FeedsPostFeedsCustomCreatedFormat = "rss"
+	FeedsPostFeedsCustomCreatedFormatStix  FeedsPostFeedsCustomCreatedFormat = "stix"
+	FeedsPostFeedsCustomCreatedFormatLines FeedsPostFeedsCustomCreatedFormat = "lines"
 )
 
-// AllValues returns all FeedsPostFeedsCustomOKFormat values.
-func (FeedsPostFeedsCustomOKFormat) AllValues() []FeedsPostFeedsCustomOKFormat {
-	return []FeedsPostFeedsCustomOKFormat{
-		FeedsPostFeedsCustomOKFormatJSON,
-		FeedsPostFeedsCustomOKFormatCsv,
-		FeedsPostFeedsCustomOKFormatRss,
-		FeedsPostFeedsCustomOKFormatStix,
-		FeedsPostFeedsCustomOKFormatLines,
+// AllValues returns all FeedsPostFeedsCustomCreatedFormat values.
+func (FeedsPostFeedsCustomCreatedFormat) AllValues() []FeedsPostFeedsCustomCreatedFormat {
+	return []FeedsPostFeedsCustomCreatedFormat{
+		FeedsPostFeedsCustomCreatedFormatJSON,
+		FeedsPostFeedsCustomCreatedFormatCsv,
+		FeedsPostFeedsCustomCreatedFormatRss,
+		FeedsPostFeedsCustomCreatedFormatStix,
+		FeedsPostFeedsCustomCreatedFormatLines,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s FeedsPostFeedsCustomOKFormat) MarshalText() ([]byte, error) {
+func (s FeedsPostFeedsCustomCreatedFormat) MarshalText() ([]byte, error) {
 	switch s {
-	case FeedsPostFeedsCustomOKFormatJSON:
+	case FeedsPostFeedsCustomCreatedFormatJSON:
 		return []byte(s), nil
-	case FeedsPostFeedsCustomOKFormatCsv:
+	case FeedsPostFeedsCustomCreatedFormatCsv:
 		return []byte(s), nil
-	case FeedsPostFeedsCustomOKFormatRss:
+	case FeedsPostFeedsCustomCreatedFormatRss:
 		return []byte(s), nil
-	case FeedsPostFeedsCustomOKFormatStix:
+	case FeedsPostFeedsCustomCreatedFormatStix:
 		return []byte(s), nil
-	case FeedsPostFeedsCustomOKFormatLines:
+	case FeedsPostFeedsCustomCreatedFormatLines:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -40690,49 +40336,49 @@ func (s FeedsPostFeedsCustomOKFormat) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *FeedsPostFeedsCustomOKFormat) UnmarshalText(data []byte) error {
-	switch FeedsPostFeedsCustomOKFormat(data) {
-	case FeedsPostFeedsCustomOKFormatJSON:
-		*s = FeedsPostFeedsCustomOKFormatJSON
+func (s *FeedsPostFeedsCustomCreatedFormat) UnmarshalText(data []byte) error {
+	switch FeedsPostFeedsCustomCreatedFormat(data) {
+	case FeedsPostFeedsCustomCreatedFormatJSON:
+		*s = FeedsPostFeedsCustomCreatedFormatJSON
 		return nil
-	case FeedsPostFeedsCustomOKFormatCsv:
-		*s = FeedsPostFeedsCustomOKFormatCsv
+	case FeedsPostFeedsCustomCreatedFormatCsv:
+		*s = FeedsPostFeedsCustomCreatedFormatCsv
 		return nil
-	case FeedsPostFeedsCustomOKFormatRss:
-		*s = FeedsPostFeedsCustomOKFormatRss
+	case FeedsPostFeedsCustomCreatedFormatRss:
+		*s = FeedsPostFeedsCustomCreatedFormatRss
 		return nil
-	case FeedsPostFeedsCustomOKFormatStix:
-		*s = FeedsPostFeedsCustomOKFormatStix
+	case FeedsPostFeedsCustomCreatedFormatStix:
+		*s = FeedsPostFeedsCustomCreatedFormatStix
 		return nil
-	case FeedsPostFeedsCustomOKFormatLines:
-		*s = FeedsPostFeedsCustomOKFormatLines
+	case FeedsPostFeedsCustomCreatedFormatLines:
+		*s = FeedsPostFeedsCustomCreatedFormatLines
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type FeedsPostFeedsCustomOKKind string
+type FeedsPostFeedsCustomCreatedKind string
 
 const (
-	FeedsPostFeedsCustomOKKindVulnerabilities FeedsPostFeedsCustomOKKind = "vulnerabilities"
-	FeedsPostFeedsCustomOKKindIoc             FeedsPostFeedsCustomOKKind = "ioc"
+	FeedsPostFeedsCustomCreatedKindVulnerabilities FeedsPostFeedsCustomCreatedKind = "vulnerabilities"
+	FeedsPostFeedsCustomCreatedKindIoc             FeedsPostFeedsCustomCreatedKind = "ioc"
 )
 
-// AllValues returns all FeedsPostFeedsCustomOKKind values.
-func (FeedsPostFeedsCustomOKKind) AllValues() []FeedsPostFeedsCustomOKKind {
-	return []FeedsPostFeedsCustomOKKind{
-		FeedsPostFeedsCustomOKKindVulnerabilities,
-		FeedsPostFeedsCustomOKKindIoc,
+// AllValues returns all FeedsPostFeedsCustomCreatedKind values.
+func (FeedsPostFeedsCustomCreatedKind) AllValues() []FeedsPostFeedsCustomCreatedKind {
+	return []FeedsPostFeedsCustomCreatedKind{
+		FeedsPostFeedsCustomCreatedKindVulnerabilities,
+		FeedsPostFeedsCustomCreatedKindIoc,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s FeedsPostFeedsCustomOKKind) MarshalText() ([]byte, error) {
+func (s FeedsPostFeedsCustomCreatedKind) MarshalText() ([]byte, error) {
 	switch s {
-	case FeedsPostFeedsCustomOKKindVulnerabilities:
+	case FeedsPostFeedsCustomCreatedKindVulnerabilities:
 		return []byte(s), nil
-	case FeedsPostFeedsCustomOKKindIoc:
+	case FeedsPostFeedsCustomCreatedKindIoc:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -40740,24 +40386,24 @@ func (s FeedsPostFeedsCustomOKKind) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *FeedsPostFeedsCustomOKKind) UnmarshalText(data []byte) error {
-	switch FeedsPostFeedsCustomOKKind(data) {
-	case FeedsPostFeedsCustomOKKindVulnerabilities:
-		*s = FeedsPostFeedsCustomOKKindVulnerabilities
+func (s *FeedsPostFeedsCustomCreatedKind) UnmarshalText(data []byte) error {
+	switch FeedsPostFeedsCustomCreatedKind(data) {
+	case FeedsPostFeedsCustomCreatedKindVulnerabilities:
+		*s = FeedsPostFeedsCustomCreatedKindVulnerabilities
 		return nil
-	case FeedsPostFeedsCustomOKKindIoc:
-		*s = FeedsPostFeedsCustomOKKindIoc
+	case FeedsPostFeedsCustomCreatedKindIoc:
+		*s = FeedsPostFeedsCustomCreatedKindIoc
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type FeedsPostFeedsCustomOKParser struct {
+type FeedsPostFeedsCustomCreatedParser struct {
 	// CSV only.
-	Delimiter string                             `json:"delimiter"`
-	Fields    FeedsPostFeedsCustomOKParserFields `json:"fields"`
-	Format    FeedsPostFeedsCustomOKParserFormat `json:"format"`
+	Delimiter string                                  `json:"delimiter"`
+	Fields    FeedsPostFeedsCustomCreatedParserFields `json:"fields"`
+	Format    FeedsPostFeedsCustomCreatedParserFormat `json:"format"`
 	// CSV only.
 	HasHeader bool `json:"has_header"`
 	// JSON only: JSONPath of the records, for example $.vulnerabilities[*].
@@ -40765,70 +40411,70 @@ type FeedsPostFeedsCustomOKParser struct {
 }
 
 // GetDelimiter returns the value of Delimiter.
-func (s *FeedsPostFeedsCustomOKParser) GetDelimiter() string {
+func (s *FeedsPostFeedsCustomCreatedParser) GetDelimiter() string {
 	return s.Delimiter
 }
 
 // GetFields returns the value of Fields.
-func (s *FeedsPostFeedsCustomOKParser) GetFields() FeedsPostFeedsCustomOKParserFields {
+func (s *FeedsPostFeedsCustomCreatedParser) GetFields() FeedsPostFeedsCustomCreatedParserFields {
 	return s.Fields
 }
 
 // GetFormat returns the value of Format.
-func (s *FeedsPostFeedsCustomOKParser) GetFormat() FeedsPostFeedsCustomOKParserFormat {
+func (s *FeedsPostFeedsCustomCreatedParser) GetFormat() FeedsPostFeedsCustomCreatedParserFormat {
 	return s.Format
 }
 
 // GetHasHeader returns the value of HasHeader.
-func (s *FeedsPostFeedsCustomOKParser) GetHasHeader() bool {
+func (s *FeedsPostFeedsCustomCreatedParser) GetHasHeader() bool {
 	return s.HasHeader
 }
 
 // GetRecordsPath returns the value of RecordsPath.
-func (s *FeedsPostFeedsCustomOKParser) GetRecordsPath() string {
+func (s *FeedsPostFeedsCustomCreatedParser) GetRecordsPath() string {
 	return s.RecordsPath
 }
 
 // SetDelimiter sets the value of Delimiter.
-func (s *FeedsPostFeedsCustomOKParser) SetDelimiter(val string) {
+func (s *FeedsPostFeedsCustomCreatedParser) SetDelimiter(val string) {
 	s.Delimiter = val
 }
 
 // SetFields sets the value of Fields.
-func (s *FeedsPostFeedsCustomOKParser) SetFields(val FeedsPostFeedsCustomOKParserFields) {
+func (s *FeedsPostFeedsCustomCreatedParser) SetFields(val FeedsPostFeedsCustomCreatedParserFields) {
 	s.Fields = val
 }
 
 // SetFormat sets the value of Format.
-func (s *FeedsPostFeedsCustomOKParser) SetFormat(val FeedsPostFeedsCustomOKParserFormat) {
+func (s *FeedsPostFeedsCustomCreatedParser) SetFormat(val FeedsPostFeedsCustomCreatedParserFormat) {
 	s.Format = val
 }
 
 // SetHasHeader sets the value of HasHeader.
-func (s *FeedsPostFeedsCustomOKParser) SetHasHeader(val bool) {
+func (s *FeedsPostFeedsCustomCreatedParser) SetHasHeader(val bool) {
 	s.HasHeader = val
 }
 
 // SetRecordsPath sets the value of RecordsPath.
-func (s *FeedsPostFeedsCustomOKParser) SetRecordsPath(val string) {
+func (s *FeedsPostFeedsCustomCreatedParser) SetRecordsPath(val string) {
 	s.RecordsPath = val
 }
 
-type FeedsPostFeedsCustomOKParserFields map[string]FeedsPostFeedsCustomOKParserFieldsItem
+type FeedsPostFeedsCustomCreatedParserFields map[string]FeedsPostFeedsCustomCreatedParserFieldsItem
 
-func (s *FeedsPostFeedsCustomOKParserFields) init() FeedsPostFeedsCustomOKParserFields {
+func (s *FeedsPostFeedsCustomCreatedParserFields) init() FeedsPostFeedsCustomCreatedParserFields {
 	m := *s
 	if m == nil {
-		m = map[string]FeedsPostFeedsCustomOKParserFieldsItem{}
+		m = map[string]FeedsPostFeedsCustomCreatedParserFieldsItem{}
 		*s = m
 	}
 	return m
 }
 
-type FeedsPostFeedsCustomOKParserFieldsItem struct {
+type FeedsPostFeedsCustomCreatedParserFieldsItem struct {
 	// Only used by date fields.
-	DateFormat FeedsPostFeedsCustomOKParserFieldsItemDateFormat `json:"date_format"`
-	Lowercase  bool                                             `json:"lowercase"`
+	DateFormat FeedsPostFeedsCustomCreatedParserFieldsItemDateFormat `json:"date_format"`
+	Lowercase  bool                                                  `json:"lowercase"`
 	// Optional regex; the first capture group (or the whole match) is kept.
 	Regex string `json:"regex"`
 	// JSONPath (json), column name or 1-based number (csv), item field (rss); empty = not mapped.
@@ -40837,85 +40483,85 @@ type FeedsPostFeedsCustomOKParserFieldsItem struct {
 }
 
 // GetDateFormat returns the value of DateFormat.
-func (s *FeedsPostFeedsCustomOKParserFieldsItem) GetDateFormat() FeedsPostFeedsCustomOKParserFieldsItemDateFormat {
+func (s *FeedsPostFeedsCustomCreatedParserFieldsItem) GetDateFormat() FeedsPostFeedsCustomCreatedParserFieldsItemDateFormat {
 	return s.DateFormat
 }
 
 // GetLowercase returns the value of Lowercase.
-func (s *FeedsPostFeedsCustomOKParserFieldsItem) GetLowercase() bool {
+func (s *FeedsPostFeedsCustomCreatedParserFieldsItem) GetLowercase() bool {
 	return s.Lowercase
 }
 
 // GetRegex returns the value of Regex.
-func (s *FeedsPostFeedsCustomOKParserFieldsItem) GetRegex() string {
+func (s *FeedsPostFeedsCustomCreatedParserFieldsItem) GetRegex() string {
 	return s.Regex
 }
 
 // GetSource returns the value of Source.
-func (s *FeedsPostFeedsCustomOKParserFieldsItem) GetSource() string {
+func (s *FeedsPostFeedsCustomCreatedParserFieldsItem) GetSource() string {
 	return s.Source
 }
 
 // GetTrim returns the value of Trim.
-func (s *FeedsPostFeedsCustomOKParserFieldsItem) GetTrim() bool {
+func (s *FeedsPostFeedsCustomCreatedParserFieldsItem) GetTrim() bool {
 	return s.Trim
 }
 
 // SetDateFormat sets the value of DateFormat.
-func (s *FeedsPostFeedsCustomOKParserFieldsItem) SetDateFormat(val FeedsPostFeedsCustomOKParserFieldsItemDateFormat) {
+func (s *FeedsPostFeedsCustomCreatedParserFieldsItem) SetDateFormat(val FeedsPostFeedsCustomCreatedParserFieldsItemDateFormat) {
 	s.DateFormat = val
 }
 
 // SetLowercase sets the value of Lowercase.
-func (s *FeedsPostFeedsCustomOKParserFieldsItem) SetLowercase(val bool) {
+func (s *FeedsPostFeedsCustomCreatedParserFieldsItem) SetLowercase(val bool) {
 	s.Lowercase = val
 }
 
 // SetRegex sets the value of Regex.
-func (s *FeedsPostFeedsCustomOKParserFieldsItem) SetRegex(val string) {
+func (s *FeedsPostFeedsCustomCreatedParserFieldsItem) SetRegex(val string) {
 	s.Regex = val
 }
 
 // SetSource sets the value of Source.
-func (s *FeedsPostFeedsCustomOKParserFieldsItem) SetSource(val string) {
+func (s *FeedsPostFeedsCustomCreatedParserFieldsItem) SetSource(val string) {
 	s.Source = val
 }
 
 // SetTrim sets the value of Trim.
-func (s *FeedsPostFeedsCustomOKParserFieldsItem) SetTrim(val bool) {
+func (s *FeedsPostFeedsCustomCreatedParserFieldsItem) SetTrim(val bool) {
 	s.Trim = val
 }
 
 // Only used by date fields.
-type FeedsPostFeedsCustomOKParserFieldsItemDateFormat string
+type FeedsPostFeedsCustomCreatedParserFieldsItemDateFormat string
 
 const (
-	FeedsPostFeedsCustomOKParserFieldsItemDateFormatAuto  FeedsPostFeedsCustomOKParserFieldsItemDateFormat = "auto"
-	FeedsPostFeedsCustomOKParserFieldsItemDateFormatDmy   FeedsPostFeedsCustomOKParserFieldsItemDateFormat = "dmy"
-	FeedsPostFeedsCustomOKParserFieldsItemDateFormatMdy   FeedsPostFeedsCustomOKParserFieldsItemDateFormat = "mdy"
-	FeedsPostFeedsCustomOKParserFieldsItemDateFormatEpoch FeedsPostFeedsCustomOKParserFieldsItemDateFormat = "epoch"
+	FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatAuto  FeedsPostFeedsCustomCreatedParserFieldsItemDateFormat = "auto"
+	FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatDmy   FeedsPostFeedsCustomCreatedParserFieldsItemDateFormat = "dmy"
+	FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatMdy   FeedsPostFeedsCustomCreatedParserFieldsItemDateFormat = "mdy"
+	FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatEpoch FeedsPostFeedsCustomCreatedParserFieldsItemDateFormat = "epoch"
 )
 
-// AllValues returns all FeedsPostFeedsCustomOKParserFieldsItemDateFormat values.
-func (FeedsPostFeedsCustomOKParserFieldsItemDateFormat) AllValues() []FeedsPostFeedsCustomOKParserFieldsItemDateFormat {
-	return []FeedsPostFeedsCustomOKParserFieldsItemDateFormat{
-		FeedsPostFeedsCustomOKParserFieldsItemDateFormatAuto,
-		FeedsPostFeedsCustomOKParserFieldsItemDateFormatDmy,
-		FeedsPostFeedsCustomOKParserFieldsItemDateFormatMdy,
-		FeedsPostFeedsCustomOKParserFieldsItemDateFormatEpoch,
+// AllValues returns all FeedsPostFeedsCustomCreatedParserFieldsItemDateFormat values.
+func (FeedsPostFeedsCustomCreatedParserFieldsItemDateFormat) AllValues() []FeedsPostFeedsCustomCreatedParserFieldsItemDateFormat {
+	return []FeedsPostFeedsCustomCreatedParserFieldsItemDateFormat{
+		FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatAuto,
+		FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatDmy,
+		FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatMdy,
+		FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatEpoch,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s FeedsPostFeedsCustomOKParserFieldsItemDateFormat) MarshalText() ([]byte, error) {
+func (s FeedsPostFeedsCustomCreatedParserFieldsItemDateFormat) MarshalText() ([]byte, error) {
 	switch s {
-	case FeedsPostFeedsCustomOKParserFieldsItemDateFormatAuto:
+	case FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatAuto:
 		return []byte(s), nil
-	case FeedsPostFeedsCustomOKParserFieldsItemDateFormatDmy:
+	case FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatDmy:
 		return []byte(s), nil
-	case FeedsPostFeedsCustomOKParserFieldsItemDateFormatMdy:
+	case FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatMdy:
 		return []byte(s), nil
-	case FeedsPostFeedsCustomOKParserFieldsItemDateFormatEpoch:
+	case FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatEpoch:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -40923,58 +40569,58 @@ func (s FeedsPostFeedsCustomOKParserFieldsItemDateFormat) MarshalText() ([]byte,
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *FeedsPostFeedsCustomOKParserFieldsItemDateFormat) UnmarshalText(data []byte) error {
-	switch FeedsPostFeedsCustomOKParserFieldsItemDateFormat(data) {
-	case FeedsPostFeedsCustomOKParserFieldsItemDateFormatAuto:
-		*s = FeedsPostFeedsCustomOKParserFieldsItemDateFormatAuto
+func (s *FeedsPostFeedsCustomCreatedParserFieldsItemDateFormat) UnmarshalText(data []byte) error {
+	switch FeedsPostFeedsCustomCreatedParserFieldsItemDateFormat(data) {
+	case FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatAuto:
+		*s = FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatAuto
 		return nil
-	case FeedsPostFeedsCustomOKParserFieldsItemDateFormatDmy:
-		*s = FeedsPostFeedsCustomOKParserFieldsItemDateFormatDmy
+	case FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatDmy:
+		*s = FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatDmy
 		return nil
-	case FeedsPostFeedsCustomOKParserFieldsItemDateFormatMdy:
-		*s = FeedsPostFeedsCustomOKParserFieldsItemDateFormatMdy
+	case FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatMdy:
+		*s = FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatMdy
 		return nil
-	case FeedsPostFeedsCustomOKParserFieldsItemDateFormatEpoch:
-		*s = FeedsPostFeedsCustomOKParserFieldsItemDateFormatEpoch
+	case FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatEpoch:
+		*s = FeedsPostFeedsCustomCreatedParserFieldsItemDateFormatEpoch
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type FeedsPostFeedsCustomOKParserFormat string
+type FeedsPostFeedsCustomCreatedParserFormat string
 
 const (
-	FeedsPostFeedsCustomOKParserFormatJSON  FeedsPostFeedsCustomOKParserFormat = "json"
-	FeedsPostFeedsCustomOKParserFormatCsv   FeedsPostFeedsCustomOKParserFormat = "csv"
-	FeedsPostFeedsCustomOKParserFormatRss   FeedsPostFeedsCustomOKParserFormat = "rss"
-	FeedsPostFeedsCustomOKParserFormatStix  FeedsPostFeedsCustomOKParserFormat = "stix"
-	FeedsPostFeedsCustomOKParserFormatLines FeedsPostFeedsCustomOKParserFormat = "lines"
+	FeedsPostFeedsCustomCreatedParserFormatJSON  FeedsPostFeedsCustomCreatedParserFormat = "json"
+	FeedsPostFeedsCustomCreatedParserFormatCsv   FeedsPostFeedsCustomCreatedParserFormat = "csv"
+	FeedsPostFeedsCustomCreatedParserFormatRss   FeedsPostFeedsCustomCreatedParserFormat = "rss"
+	FeedsPostFeedsCustomCreatedParserFormatStix  FeedsPostFeedsCustomCreatedParserFormat = "stix"
+	FeedsPostFeedsCustomCreatedParserFormatLines FeedsPostFeedsCustomCreatedParserFormat = "lines"
 )
 
-// AllValues returns all FeedsPostFeedsCustomOKParserFormat values.
-func (FeedsPostFeedsCustomOKParserFormat) AllValues() []FeedsPostFeedsCustomOKParserFormat {
-	return []FeedsPostFeedsCustomOKParserFormat{
-		FeedsPostFeedsCustomOKParserFormatJSON,
-		FeedsPostFeedsCustomOKParserFormatCsv,
-		FeedsPostFeedsCustomOKParserFormatRss,
-		FeedsPostFeedsCustomOKParserFormatStix,
-		FeedsPostFeedsCustomOKParserFormatLines,
+// AllValues returns all FeedsPostFeedsCustomCreatedParserFormat values.
+func (FeedsPostFeedsCustomCreatedParserFormat) AllValues() []FeedsPostFeedsCustomCreatedParserFormat {
+	return []FeedsPostFeedsCustomCreatedParserFormat{
+		FeedsPostFeedsCustomCreatedParserFormatJSON,
+		FeedsPostFeedsCustomCreatedParserFormatCsv,
+		FeedsPostFeedsCustomCreatedParserFormatRss,
+		FeedsPostFeedsCustomCreatedParserFormatStix,
+		FeedsPostFeedsCustomCreatedParserFormatLines,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s FeedsPostFeedsCustomOKParserFormat) MarshalText() ([]byte, error) {
+func (s FeedsPostFeedsCustomCreatedParserFormat) MarshalText() ([]byte, error) {
 	switch s {
-	case FeedsPostFeedsCustomOKParserFormatJSON:
+	case FeedsPostFeedsCustomCreatedParserFormatJSON:
 		return []byte(s), nil
-	case FeedsPostFeedsCustomOKParserFormatCsv:
+	case FeedsPostFeedsCustomCreatedParserFormatCsv:
 		return []byte(s), nil
-	case FeedsPostFeedsCustomOKParserFormatRss:
+	case FeedsPostFeedsCustomCreatedParserFormatRss:
 		return []byte(s), nil
-	case FeedsPostFeedsCustomOKParserFormatStix:
+	case FeedsPostFeedsCustomCreatedParserFormatStix:
 		return []byte(s), nil
-	case FeedsPostFeedsCustomOKParserFormatLines:
+	case FeedsPostFeedsCustomCreatedParserFormatLines:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -40982,53 +40628,53 @@ func (s FeedsPostFeedsCustomOKParserFormat) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *FeedsPostFeedsCustomOKParserFormat) UnmarshalText(data []byte) error {
-	switch FeedsPostFeedsCustomOKParserFormat(data) {
-	case FeedsPostFeedsCustomOKParserFormatJSON:
-		*s = FeedsPostFeedsCustomOKParserFormatJSON
+func (s *FeedsPostFeedsCustomCreatedParserFormat) UnmarshalText(data []byte) error {
+	switch FeedsPostFeedsCustomCreatedParserFormat(data) {
+	case FeedsPostFeedsCustomCreatedParserFormatJSON:
+		*s = FeedsPostFeedsCustomCreatedParserFormatJSON
 		return nil
-	case FeedsPostFeedsCustomOKParserFormatCsv:
-		*s = FeedsPostFeedsCustomOKParserFormatCsv
+	case FeedsPostFeedsCustomCreatedParserFormatCsv:
+		*s = FeedsPostFeedsCustomCreatedParserFormatCsv
 		return nil
-	case FeedsPostFeedsCustomOKParserFormatRss:
-		*s = FeedsPostFeedsCustomOKParserFormatRss
+	case FeedsPostFeedsCustomCreatedParserFormatRss:
+		*s = FeedsPostFeedsCustomCreatedParserFormatRss
 		return nil
-	case FeedsPostFeedsCustomOKParserFormatStix:
-		*s = FeedsPostFeedsCustomOKParserFormatStix
+	case FeedsPostFeedsCustomCreatedParserFormatStix:
+		*s = FeedsPostFeedsCustomCreatedParserFormatStix
 		return nil
-	case FeedsPostFeedsCustomOKParserFormatLines:
-		*s = FeedsPostFeedsCustomOKParserFormatLines
+	case FeedsPostFeedsCustomCreatedParserFormatLines:
+		*s = FeedsPostFeedsCustomCreatedParserFormatLines
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type FeedsPostFeedsCustomOKStatus string
+type FeedsPostFeedsCustomCreatedStatus string
 
 const (
-	FeedsPostFeedsCustomOKStatusOk    FeedsPostFeedsCustomOKStatus = "ok"
-	FeedsPostFeedsCustomOKStatusError FeedsPostFeedsCustomOKStatus = "error"
-	FeedsPostFeedsCustomOKStatusNever FeedsPostFeedsCustomOKStatus = "never"
+	FeedsPostFeedsCustomCreatedStatusOk    FeedsPostFeedsCustomCreatedStatus = "ok"
+	FeedsPostFeedsCustomCreatedStatusError FeedsPostFeedsCustomCreatedStatus = "error"
+	FeedsPostFeedsCustomCreatedStatusNever FeedsPostFeedsCustomCreatedStatus = "never"
 )
 
-// AllValues returns all FeedsPostFeedsCustomOKStatus values.
-func (FeedsPostFeedsCustomOKStatus) AllValues() []FeedsPostFeedsCustomOKStatus {
-	return []FeedsPostFeedsCustomOKStatus{
-		FeedsPostFeedsCustomOKStatusOk,
-		FeedsPostFeedsCustomOKStatusError,
-		FeedsPostFeedsCustomOKStatusNever,
+// AllValues returns all FeedsPostFeedsCustomCreatedStatus values.
+func (FeedsPostFeedsCustomCreatedStatus) AllValues() []FeedsPostFeedsCustomCreatedStatus {
+	return []FeedsPostFeedsCustomCreatedStatus{
+		FeedsPostFeedsCustomCreatedStatusOk,
+		FeedsPostFeedsCustomCreatedStatusError,
+		FeedsPostFeedsCustomCreatedStatusNever,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s FeedsPostFeedsCustomOKStatus) MarshalText() ([]byte, error) {
+func (s FeedsPostFeedsCustomCreatedStatus) MarshalText() ([]byte, error) {
 	switch s {
-	case FeedsPostFeedsCustomOKStatusOk:
+	case FeedsPostFeedsCustomCreatedStatusOk:
 		return []byte(s), nil
-	case FeedsPostFeedsCustomOKStatusError:
+	case FeedsPostFeedsCustomCreatedStatusError:
 		return []byte(s), nil
-	case FeedsPostFeedsCustomOKStatusNever:
+	case FeedsPostFeedsCustomCreatedStatusNever:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -41036,16 +40682,16 @@ func (s FeedsPostFeedsCustomOKStatus) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *FeedsPostFeedsCustomOKStatus) UnmarshalText(data []byte) error {
-	switch FeedsPostFeedsCustomOKStatus(data) {
-	case FeedsPostFeedsCustomOKStatusOk:
-		*s = FeedsPostFeedsCustomOKStatusOk
+func (s *FeedsPostFeedsCustomCreatedStatus) UnmarshalText(data []byte) error {
+	switch FeedsPostFeedsCustomCreatedStatus(data) {
+	case FeedsPostFeedsCustomCreatedStatusOk:
+		*s = FeedsPostFeedsCustomCreatedStatusOk
 		return nil
-	case FeedsPostFeedsCustomOKStatusError:
-		*s = FeedsPostFeedsCustomOKStatusError
+	case FeedsPostFeedsCustomCreatedStatusError:
+		*s = FeedsPostFeedsCustomCreatedStatusError
 		return nil
-	case FeedsPostFeedsCustomOKStatusNever:
-		*s = FeedsPostFeedsCustomOKStatusNever
+	case FeedsPostFeedsCustomCreatedStatusNever:
+		*s = FeedsPostFeedsCustomCreatedStatusNever
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -56408,119 +56054,119 @@ func (s *HoneypotPatchHoneypotTrapsServiceService) UnmarshalText(data []byte) er
 	}
 }
 
-type HoneypotPostHoneypotDecoysOK struct {
-	CreatedAt   time.Time                                  `json:"created_at"`
-	Enabled     bool                                       `json:"enabled"`
-	ID          string                                     `json:"id"`
-	IP          string                                     `json:"ip"`
-	Name        string                                     `json:"name"`
-	Personality HoneypotPostHoneypotDecoysOKPersonality    `json:"personality"`
-	Services    []HoneypotPostHoneypotDecoysOKServicesItem `json:"services"`
+type HoneypotPostHoneypotDecoysCreated struct {
+	CreatedAt   time.Time                                       `json:"created_at"`
+	Enabled     bool                                            `json:"enabled"`
+	ID          string                                          `json:"id"`
+	IP          string                                          `json:"ip"`
+	Name        string                                          `json:"name"`
+	Personality HoneypotPostHoneypotDecoysCreatedPersonality    `json:"personality"`
+	Services    []HoneypotPostHoneypotDecoysCreatedServicesItem `json:"services"`
 }
 
 // GetCreatedAt returns the value of CreatedAt.
-func (s *HoneypotPostHoneypotDecoysOK) GetCreatedAt() time.Time {
+func (s *HoneypotPostHoneypotDecoysCreated) GetCreatedAt() time.Time {
 	return s.CreatedAt
 }
 
 // GetEnabled returns the value of Enabled.
-func (s *HoneypotPostHoneypotDecoysOK) GetEnabled() bool {
+func (s *HoneypotPostHoneypotDecoysCreated) GetEnabled() bool {
 	return s.Enabled
 }
 
 // GetID returns the value of ID.
-func (s *HoneypotPostHoneypotDecoysOK) GetID() string {
+func (s *HoneypotPostHoneypotDecoysCreated) GetID() string {
 	return s.ID
 }
 
 // GetIP returns the value of IP.
-func (s *HoneypotPostHoneypotDecoysOK) GetIP() string {
+func (s *HoneypotPostHoneypotDecoysCreated) GetIP() string {
 	return s.IP
 }
 
 // GetName returns the value of Name.
-func (s *HoneypotPostHoneypotDecoysOK) GetName() string {
+func (s *HoneypotPostHoneypotDecoysCreated) GetName() string {
 	return s.Name
 }
 
 // GetPersonality returns the value of Personality.
-func (s *HoneypotPostHoneypotDecoysOK) GetPersonality() HoneypotPostHoneypotDecoysOKPersonality {
+func (s *HoneypotPostHoneypotDecoysCreated) GetPersonality() HoneypotPostHoneypotDecoysCreatedPersonality {
 	return s.Personality
 }
 
 // GetServices returns the value of Services.
-func (s *HoneypotPostHoneypotDecoysOK) GetServices() []HoneypotPostHoneypotDecoysOKServicesItem {
+func (s *HoneypotPostHoneypotDecoysCreated) GetServices() []HoneypotPostHoneypotDecoysCreatedServicesItem {
 	return s.Services
 }
 
 // SetCreatedAt sets the value of CreatedAt.
-func (s *HoneypotPostHoneypotDecoysOK) SetCreatedAt(val time.Time) {
+func (s *HoneypotPostHoneypotDecoysCreated) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
 }
 
 // SetEnabled sets the value of Enabled.
-func (s *HoneypotPostHoneypotDecoysOK) SetEnabled(val bool) {
+func (s *HoneypotPostHoneypotDecoysCreated) SetEnabled(val bool) {
 	s.Enabled = val
 }
 
 // SetID sets the value of ID.
-func (s *HoneypotPostHoneypotDecoysOK) SetID(val string) {
+func (s *HoneypotPostHoneypotDecoysCreated) SetID(val string) {
 	s.ID = val
 }
 
 // SetIP sets the value of IP.
-func (s *HoneypotPostHoneypotDecoysOK) SetIP(val string) {
+func (s *HoneypotPostHoneypotDecoysCreated) SetIP(val string) {
 	s.IP = val
 }
 
 // SetName sets the value of Name.
-func (s *HoneypotPostHoneypotDecoysOK) SetName(val string) {
+func (s *HoneypotPostHoneypotDecoysCreated) SetName(val string) {
 	s.Name = val
 }
 
 // SetPersonality sets the value of Personality.
-func (s *HoneypotPostHoneypotDecoysOK) SetPersonality(val HoneypotPostHoneypotDecoysOKPersonality) {
+func (s *HoneypotPostHoneypotDecoysCreated) SetPersonality(val HoneypotPostHoneypotDecoysCreatedPersonality) {
 	s.Personality = val
 }
 
 // SetServices sets the value of Services.
-func (s *HoneypotPostHoneypotDecoysOK) SetServices(val []HoneypotPostHoneypotDecoysOKServicesItem) {
+func (s *HoneypotPostHoneypotDecoysCreated) SetServices(val []HoneypotPostHoneypotDecoysCreatedServicesItem) {
 	s.Services = val
 }
 
-type HoneypotPostHoneypotDecoysOKPersonality string
+type HoneypotPostHoneypotDecoysCreatedPersonality string
 
 const (
-	HoneypotPostHoneypotDecoysOKPersonalityWindowsFs HoneypotPostHoneypotDecoysOKPersonality = "windows_fs"
-	HoneypotPostHoneypotDecoysOKPersonalityNas       HoneypotPostHoneypotDecoysOKPersonality = "nas"
-	HoneypotPostHoneypotDecoysOKPersonalityPrinter   HoneypotPostHoneypotDecoysOKPersonality = "printer"
-	HoneypotPostHoneypotDecoysOKPersonalityCamera    HoneypotPostHoneypotDecoysOKPersonality = "camera"
-	HoneypotPostHoneypotDecoysOKPersonalityLinux     HoneypotPostHoneypotDecoysOKPersonality = "linux"
+	HoneypotPostHoneypotDecoysCreatedPersonalityWindowsFs HoneypotPostHoneypotDecoysCreatedPersonality = "windows_fs"
+	HoneypotPostHoneypotDecoysCreatedPersonalityNas       HoneypotPostHoneypotDecoysCreatedPersonality = "nas"
+	HoneypotPostHoneypotDecoysCreatedPersonalityPrinter   HoneypotPostHoneypotDecoysCreatedPersonality = "printer"
+	HoneypotPostHoneypotDecoysCreatedPersonalityCamera    HoneypotPostHoneypotDecoysCreatedPersonality = "camera"
+	HoneypotPostHoneypotDecoysCreatedPersonalityLinux     HoneypotPostHoneypotDecoysCreatedPersonality = "linux"
 )
 
-// AllValues returns all HoneypotPostHoneypotDecoysOKPersonality values.
-func (HoneypotPostHoneypotDecoysOKPersonality) AllValues() []HoneypotPostHoneypotDecoysOKPersonality {
-	return []HoneypotPostHoneypotDecoysOKPersonality{
-		HoneypotPostHoneypotDecoysOKPersonalityWindowsFs,
-		HoneypotPostHoneypotDecoysOKPersonalityNas,
-		HoneypotPostHoneypotDecoysOKPersonalityPrinter,
-		HoneypotPostHoneypotDecoysOKPersonalityCamera,
-		HoneypotPostHoneypotDecoysOKPersonalityLinux,
+// AllValues returns all HoneypotPostHoneypotDecoysCreatedPersonality values.
+func (HoneypotPostHoneypotDecoysCreatedPersonality) AllValues() []HoneypotPostHoneypotDecoysCreatedPersonality {
+	return []HoneypotPostHoneypotDecoysCreatedPersonality{
+		HoneypotPostHoneypotDecoysCreatedPersonalityWindowsFs,
+		HoneypotPostHoneypotDecoysCreatedPersonalityNas,
+		HoneypotPostHoneypotDecoysCreatedPersonalityPrinter,
+		HoneypotPostHoneypotDecoysCreatedPersonalityCamera,
+		HoneypotPostHoneypotDecoysCreatedPersonalityLinux,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s HoneypotPostHoneypotDecoysOKPersonality) MarshalText() ([]byte, error) {
+func (s HoneypotPostHoneypotDecoysCreatedPersonality) MarshalText() ([]byte, error) {
 	switch s {
-	case HoneypotPostHoneypotDecoysOKPersonalityWindowsFs:
+	case HoneypotPostHoneypotDecoysCreatedPersonalityWindowsFs:
 		return []byte(s), nil
-	case HoneypotPostHoneypotDecoysOKPersonalityNas:
+	case HoneypotPostHoneypotDecoysCreatedPersonalityNas:
 		return []byte(s), nil
-	case HoneypotPostHoneypotDecoysOKPersonalityPrinter:
+	case HoneypotPostHoneypotDecoysCreatedPersonalityPrinter:
 		return []byte(s), nil
-	case HoneypotPostHoneypotDecoysOKPersonalityCamera:
+	case HoneypotPostHoneypotDecoysCreatedPersonalityCamera:
 		return []byte(s), nil
-	case HoneypotPostHoneypotDecoysOKPersonalityLinux:
+	case HoneypotPostHoneypotDecoysCreatedPersonalityLinux:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -56528,50 +56174,50 @@ func (s HoneypotPostHoneypotDecoysOKPersonality) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *HoneypotPostHoneypotDecoysOKPersonality) UnmarshalText(data []byte) error {
-	switch HoneypotPostHoneypotDecoysOKPersonality(data) {
-	case HoneypotPostHoneypotDecoysOKPersonalityWindowsFs:
-		*s = HoneypotPostHoneypotDecoysOKPersonalityWindowsFs
+func (s *HoneypotPostHoneypotDecoysCreatedPersonality) UnmarshalText(data []byte) error {
+	switch HoneypotPostHoneypotDecoysCreatedPersonality(data) {
+	case HoneypotPostHoneypotDecoysCreatedPersonalityWindowsFs:
+		*s = HoneypotPostHoneypotDecoysCreatedPersonalityWindowsFs
 		return nil
-	case HoneypotPostHoneypotDecoysOKPersonalityNas:
-		*s = HoneypotPostHoneypotDecoysOKPersonalityNas
+	case HoneypotPostHoneypotDecoysCreatedPersonalityNas:
+		*s = HoneypotPostHoneypotDecoysCreatedPersonalityNas
 		return nil
-	case HoneypotPostHoneypotDecoysOKPersonalityPrinter:
-		*s = HoneypotPostHoneypotDecoysOKPersonalityPrinter
+	case HoneypotPostHoneypotDecoysCreatedPersonalityPrinter:
+		*s = HoneypotPostHoneypotDecoysCreatedPersonalityPrinter
 		return nil
-	case HoneypotPostHoneypotDecoysOKPersonalityCamera:
-		*s = HoneypotPostHoneypotDecoysOKPersonalityCamera
+	case HoneypotPostHoneypotDecoysCreatedPersonalityCamera:
+		*s = HoneypotPostHoneypotDecoysCreatedPersonalityCamera
 		return nil
-	case HoneypotPostHoneypotDecoysOKPersonalityLinux:
-		*s = HoneypotPostHoneypotDecoysOKPersonalityLinux
+	case HoneypotPostHoneypotDecoysCreatedPersonalityLinux:
+		*s = HoneypotPostHoneypotDecoysCreatedPersonalityLinux
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type HoneypotPostHoneypotDecoysOKServicesItem struct {
+type HoneypotPostHoneypotDecoysCreatedServicesItem struct {
 	Name string `json:"name"`
 	Port int    `json:"port"`
 }
 
 // GetName returns the value of Name.
-func (s *HoneypotPostHoneypotDecoysOKServicesItem) GetName() string {
+func (s *HoneypotPostHoneypotDecoysCreatedServicesItem) GetName() string {
 	return s.Name
 }
 
 // GetPort returns the value of Port.
-func (s *HoneypotPostHoneypotDecoysOKServicesItem) GetPort() int {
+func (s *HoneypotPostHoneypotDecoysCreatedServicesItem) GetPort() int {
 	return s.Port
 }
 
 // SetName sets the value of Name.
-func (s *HoneypotPostHoneypotDecoysOKServicesItem) SetName(val string) {
+func (s *HoneypotPostHoneypotDecoysCreatedServicesItem) SetName(val string) {
 	s.Name = val
 }
 
 // SetPort sets the value of Port.
-func (s *HoneypotPostHoneypotDecoysOKServicesItem) SetPort(val int) {
+func (s *HoneypotPostHoneypotDecoysCreatedServicesItem) SetPort(val int) {
 	s.Port = val
 }
 
@@ -57231,6 +56877,166 @@ func (s *HoneypotPostHoneypotTestScanOKService) UnmarshalText(data []byte) error
 	}
 }
 
+type HoneypotPostHoneypotTokensCreated struct {
+	CreatedAt       time.Time   `json:"created_at"`
+	ID              string      `json:"id"`
+	LastTriggeredAt NilDateTime `json:"last_triggered_at"`
+	Name            string      `json:"name"`
+	// Only for credential tokens: the decoy password.
+	Password NilString `json:"password"`
+	// Where the owner plants it.
+	PlantAt  string                                `json:"plant_at"`
+	Triggers int                                   `json:"triggers"`
+	Type     HoneypotPostHoneypotTokensCreatedType `json:"type"`
+	// File name, user name, URL or hostname to plant.
+	Value string `json:"value"`
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *HoneypotPostHoneypotTokensCreated) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetID returns the value of ID.
+func (s *HoneypotPostHoneypotTokensCreated) GetID() string {
+	return s.ID
+}
+
+// GetLastTriggeredAt returns the value of LastTriggeredAt.
+func (s *HoneypotPostHoneypotTokensCreated) GetLastTriggeredAt() NilDateTime {
+	return s.LastTriggeredAt
+}
+
+// GetName returns the value of Name.
+func (s *HoneypotPostHoneypotTokensCreated) GetName() string {
+	return s.Name
+}
+
+// GetPassword returns the value of Password.
+func (s *HoneypotPostHoneypotTokensCreated) GetPassword() NilString {
+	return s.Password
+}
+
+// GetPlantAt returns the value of PlantAt.
+func (s *HoneypotPostHoneypotTokensCreated) GetPlantAt() string {
+	return s.PlantAt
+}
+
+// GetTriggers returns the value of Triggers.
+func (s *HoneypotPostHoneypotTokensCreated) GetTriggers() int {
+	return s.Triggers
+}
+
+// GetType returns the value of Type.
+func (s *HoneypotPostHoneypotTokensCreated) GetType() HoneypotPostHoneypotTokensCreatedType {
+	return s.Type
+}
+
+// GetValue returns the value of Value.
+func (s *HoneypotPostHoneypotTokensCreated) GetValue() string {
+	return s.Value
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *HoneypotPostHoneypotTokensCreated) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetID sets the value of ID.
+func (s *HoneypotPostHoneypotTokensCreated) SetID(val string) {
+	s.ID = val
+}
+
+// SetLastTriggeredAt sets the value of LastTriggeredAt.
+func (s *HoneypotPostHoneypotTokensCreated) SetLastTriggeredAt(val NilDateTime) {
+	s.LastTriggeredAt = val
+}
+
+// SetName sets the value of Name.
+func (s *HoneypotPostHoneypotTokensCreated) SetName(val string) {
+	s.Name = val
+}
+
+// SetPassword sets the value of Password.
+func (s *HoneypotPostHoneypotTokensCreated) SetPassword(val NilString) {
+	s.Password = val
+}
+
+// SetPlantAt sets the value of PlantAt.
+func (s *HoneypotPostHoneypotTokensCreated) SetPlantAt(val string) {
+	s.PlantAt = val
+}
+
+// SetTriggers sets the value of Triggers.
+func (s *HoneypotPostHoneypotTokensCreated) SetTriggers(val int) {
+	s.Triggers = val
+}
+
+// SetType sets the value of Type.
+func (s *HoneypotPostHoneypotTokensCreated) SetType(val HoneypotPostHoneypotTokensCreatedType) {
+	s.Type = val
+}
+
+// SetValue sets the value of Value.
+func (s *HoneypotPostHoneypotTokensCreated) SetValue(val string) {
+	s.Value = val
+}
+
+type HoneypotPostHoneypotTokensCreatedType string
+
+const (
+	HoneypotPostHoneypotTokensCreatedTypeFile       HoneypotPostHoneypotTokensCreatedType = "file"
+	HoneypotPostHoneypotTokensCreatedTypeCredential HoneypotPostHoneypotTokensCreatedType = "credential"
+	HoneypotPostHoneypotTokensCreatedTypeURL        HoneypotPostHoneypotTokensCreatedType = "url"
+	HoneypotPostHoneypotTokensCreatedTypeDNS        HoneypotPostHoneypotTokensCreatedType = "dns"
+)
+
+// AllValues returns all HoneypotPostHoneypotTokensCreatedType values.
+func (HoneypotPostHoneypotTokensCreatedType) AllValues() []HoneypotPostHoneypotTokensCreatedType {
+	return []HoneypotPostHoneypotTokensCreatedType{
+		HoneypotPostHoneypotTokensCreatedTypeFile,
+		HoneypotPostHoneypotTokensCreatedTypeCredential,
+		HoneypotPostHoneypotTokensCreatedTypeURL,
+		HoneypotPostHoneypotTokensCreatedTypeDNS,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HoneypotPostHoneypotTokensCreatedType) MarshalText() ([]byte, error) {
+	switch s {
+	case HoneypotPostHoneypotTokensCreatedTypeFile:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTokensCreatedTypeCredential:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTokensCreatedTypeURL:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTokensCreatedTypeDNS:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HoneypotPostHoneypotTokensCreatedType) UnmarshalText(data []byte) error {
+	switch HoneypotPostHoneypotTokensCreatedType(data) {
+	case HoneypotPostHoneypotTokensCreatedTypeFile:
+		*s = HoneypotPostHoneypotTokensCreatedTypeFile
+		return nil
+	case HoneypotPostHoneypotTokensCreatedTypeCredential:
+		*s = HoneypotPostHoneypotTokensCreatedTypeCredential
+		return nil
+	case HoneypotPostHoneypotTokensCreatedTypeURL:
+		*s = HoneypotPostHoneypotTokensCreatedTypeURL
+		return nil
+	case HoneypotPostHoneypotTokensCreatedTypeDNS:
+		*s = HoneypotPostHoneypotTokensCreatedTypeDNS
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type HoneypotPostHoneypotTokensIDTestOK struct {
 	Excerpt string `json:"excerpt"`
 	ID      string `json:"id"`
@@ -57466,166 +57272,6 @@ func (s *HoneypotPostHoneypotTokensIDTestOKService) UnmarshalText(data []byte) e
 		return nil
 	case HoneypotPostHoneypotTokensIDTestOKServiceHTTP:
 		*s = HoneypotPostHoneypotTokensIDTestOKServiceHTTP
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type HoneypotPostHoneypotTokensOK struct {
-	CreatedAt       time.Time   `json:"created_at"`
-	ID              string      `json:"id"`
-	LastTriggeredAt NilDateTime `json:"last_triggered_at"`
-	Name            string      `json:"name"`
-	// Only for credential tokens: the decoy password.
-	Password NilString `json:"password"`
-	// Where the owner plants it.
-	PlantAt  string                           `json:"plant_at"`
-	Triggers int                              `json:"triggers"`
-	Type     HoneypotPostHoneypotTokensOKType `json:"type"`
-	// File name, user name, URL or hostname to plant.
-	Value string `json:"value"`
-}
-
-// GetCreatedAt returns the value of CreatedAt.
-func (s *HoneypotPostHoneypotTokensOK) GetCreatedAt() time.Time {
-	return s.CreatedAt
-}
-
-// GetID returns the value of ID.
-func (s *HoneypotPostHoneypotTokensOK) GetID() string {
-	return s.ID
-}
-
-// GetLastTriggeredAt returns the value of LastTriggeredAt.
-func (s *HoneypotPostHoneypotTokensOK) GetLastTriggeredAt() NilDateTime {
-	return s.LastTriggeredAt
-}
-
-// GetName returns the value of Name.
-func (s *HoneypotPostHoneypotTokensOK) GetName() string {
-	return s.Name
-}
-
-// GetPassword returns the value of Password.
-func (s *HoneypotPostHoneypotTokensOK) GetPassword() NilString {
-	return s.Password
-}
-
-// GetPlantAt returns the value of PlantAt.
-func (s *HoneypotPostHoneypotTokensOK) GetPlantAt() string {
-	return s.PlantAt
-}
-
-// GetTriggers returns the value of Triggers.
-func (s *HoneypotPostHoneypotTokensOK) GetTriggers() int {
-	return s.Triggers
-}
-
-// GetType returns the value of Type.
-func (s *HoneypotPostHoneypotTokensOK) GetType() HoneypotPostHoneypotTokensOKType {
-	return s.Type
-}
-
-// GetValue returns the value of Value.
-func (s *HoneypotPostHoneypotTokensOK) GetValue() string {
-	return s.Value
-}
-
-// SetCreatedAt sets the value of CreatedAt.
-func (s *HoneypotPostHoneypotTokensOK) SetCreatedAt(val time.Time) {
-	s.CreatedAt = val
-}
-
-// SetID sets the value of ID.
-func (s *HoneypotPostHoneypotTokensOK) SetID(val string) {
-	s.ID = val
-}
-
-// SetLastTriggeredAt sets the value of LastTriggeredAt.
-func (s *HoneypotPostHoneypotTokensOK) SetLastTriggeredAt(val NilDateTime) {
-	s.LastTriggeredAt = val
-}
-
-// SetName sets the value of Name.
-func (s *HoneypotPostHoneypotTokensOK) SetName(val string) {
-	s.Name = val
-}
-
-// SetPassword sets the value of Password.
-func (s *HoneypotPostHoneypotTokensOK) SetPassword(val NilString) {
-	s.Password = val
-}
-
-// SetPlantAt sets the value of PlantAt.
-func (s *HoneypotPostHoneypotTokensOK) SetPlantAt(val string) {
-	s.PlantAt = val
-}
-
-// SetTriggers sets the value of Triggers.
-func (s *HoneypotPostHoneypotTokensOK) SetTriggers(val int) {
-	s.Triggers = val
-}
-
-// SetType sets the value of Type.
-func (s *HoneypotPostHoneypotTokensOK) SetType(val HoneypotPostHoneypotTokensOKType) {
-	s.Type = val
-}
-
-// SetValue sets the value of Value.
-func (s *HoneypotPostHoneypotTokensOK) SetValue(val string) {
-	s.Value = val
-}
-
-type HoneypotPostHoneypotTokensOKType string
-
-const (
-	HoneypotPostHoneypotTokensOKTypeFile       HoneypotPostHoneypotTokensOKType = "file"
-	HoneypotPostHoneypotTokensOKTypeCredential HoneypotPostHoneypotTokensOKType = "credential"
-	HoneypotPostHoneypotTokensOKTypeURL        HoneypotPostHoneypotTokensOKType = "url"
-	HoneypotPostHoneypotTokensOKTypeDNS        HoneypotPostHoneypotTokensOKType = "dns"
-)
-
-// AllValues returns all HoneypotPostHoneypotTokensOKType values.
-func (HoneypotPostHoneypotTokensOKType) AllValues() []HoneypotPostHoneypotTokensOKType {
-	return []HoneypotPostHoneypotTokensOKType{
-		HoneypotPostHoneypotTokensOKTypeFile,
-		HoneypotPostHoneypotTokensOKTypeCredential,
-		HoneypotPostHoneypotTokensOKTypeURL,
-		HoneypotPostHoneypotTokensOKTypeDNS,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s HoneypotPostHoneypotTokensOKType) MarshalText() ([]byte, error) {
-	switch s {
-	case HoneypotPostHoneypotTokensOKTypeFile:
-		return []byte(s), nil
-	case HoneypotPostHoneypotTokensOKTypeCredential:
-		return []byte(s), nil
-	case HoneypotPostHoneypotTokensOKTypeURL:
-		return []byte(s), nil
-	case HoneypotPostHoneypotTokensOKTypeDNS:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *HoneypotPostHoneypotTokensOKType) UnmarshalText(data []byte) error {
-	switch HoneypotPostHoneypotTokensOKType(data) {
-	case HoneypotPostHoneypotTokensOKTypeFile:
-		*s = HoneypotPostHoneypotTokensOKTypeFile
-		return nil
-	case HoneypotPostHoneypotTokensOKTypeCredential:
-		*s = HoneypotPostHoneypotTokensOKTypeCredential
-		return nil
-	case HoneypotPostHoneypotTokensOKTypeURL:
-		*s = HoneypotPostHoneypotTokensOKTypeURL
-		return nil
-	case HoneypotPostHoneypotTokensOKTypeDNS:
-		*s = HoneypotPostHoneypotTokensOKTypeDNS
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -62742,6 +62388,159 @@ func (s *InventoryPostIntakeOsqueryStatusOK) SetHosts(val int) {
 	s.Hosts = val
 }
 
+type InventoryPostInventoryAgentsTokensCreated struct {
+	// Full token, returned only at creation.
+	Secret string                                         `json:"secret"`
+	Token  InventoryPostInventoryAgentsTokensCreatedToken `json:"token"`
+}
+
+// GetSecret returns the value of Secret.
+func (s *InventoryPostInventoryAgentsTokensCreated) GetSecret() string {
+	return s.Secret
+}
+
+// GetToken returns the value of Token.
+func (s *InventoryPostInventoryAgentsTokensCreated) GetToken() InventoryPostInventoryAgentsTokensCreatedToken {
+	return s.Token
+}
+
+// SetSecret sets the value of Secret.
+func (s *InventoryPostInventoryAgentsTokensCreated) SetSecret(val string) {
+	s.Secret = val
+}
+
+// SetToken sets the value of Token.
+func (s *InventoryPostInventoryAgentsTokensCreated) SetToken(val InventoryPostInventoryAgentsTokensCreatedToken) {
+	s.Token = val
+}
+
+type InventoryPostInventoryAgentsTokensCreatedToken struct {
+	CreatedAt time.Time `json:"created_at"`
+	// Null = never expires; default 7 days. The token only enrolls osquery (it can read nothing) and can
+	// be revoked.
+	ExpiresAt    NilDateTime                                        `json:"expires_at"`
+	Hosts        int                                                `json:"hosts"`
+	ID           string                                             `json:"id"`
+	Kind         InventoryPostInventoryAgentsTokensCreatedTokenKind `json:"kind"`
+	Last4        string                                             `json:"last4"`
+	LastReceived NilDateTime                                        `json:"last_received"`
+	Name         string                                             `json:"name"`
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetExpiresAt() NilDateTime {
+	return s.ExpiresAt
+}
+
+// GetHosts returns the value of Hosts.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetHosts() int {
+	return s.Hosts
+}
+
+// GetID returns the value of ID.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetKind() InventoryPostInventoryAgentsTokensCreatedTokenKind {
+	return s.Kind
+}
+
+// GetLast4 returns the value of Last4.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetLast4() string {
+	return s.Last4
+}
+
+// GetLastReceived returns the value of LastReceived.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetLastReceived() NilDateTime {
+	return s.LastReceived
+}
+
+// GetName returns the value of Name.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetName() string {
+	return s.Name
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) SetExpiresAt(val NilDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetHosts sets the value of Hosts.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) SetKind(val InventoryPostInventoryAgentsTokensCreatedTokenKind) {
+	s.Kind = val
+}
+
+// SetLast4 sets the value of Last4.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) SetLast4(val string) {
+	s.Last4 = val
+}
+
+// SetLastReceived sets the value of LastReceived.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) SetLastReceived(val NilDateTime) {
+	s.LastReceived = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) SetName(val string) {
+	s.Name = val
+}
+
+type InventoryPostInventoryAgentsTokensCreatedTokenKind string
+
+const (
+	InventoryPostInventoryAgentsTokensCreatedTokenKindOsquery InventoryPostInventoryAgentsTokensCreatedTokenKind = "osquery"
+)
+
+// AllValues returns all InventoryPostInventoryAgentsTokensCreatedTokenKind values.
+func (InventoryPostInventoryAgentsTokensCreatedTokenKind) AllValues() []InventoryPostInventoryAgentsTokensCreatedTokenKind {
+	return []InventoryPostInventoryAgentsTokensCreatedTokenKind{
+		InventoryPostInventoryAgentsTokensCreatedTokenKindOsquery,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventoryAgentsTokensCreatedTokenKind) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventoryAgentsTokensCreatedTokenKindOsquery:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventoryAgentsTokensCreatedTokenKind) UnmarshalText(data []byte) error {
+	switch InventoryPostInventoryAgentsTokensCreatedTokenKind(data) {
+	case InventoryPostInventoryAgentsTokensCreatedTokenKindOsquery:
+		*s = InventoryPostInventoryAgentsTokensCreatedTokenKindOsquery
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type InventoryPostInventoryAgentsTokensIDSampleDataOK struct {
 	Devices  int `json:"devices"`
 	Software int `json:"software"`
@@ -62765,159 +62564,6 @@ func (s *InventoryPostInventoryAgentsTokensIDSampleDataOK) SetDevices(val int) {
 // SetSoftware sets the value of Software.
 func (s *InventoryPostInventoryAgentsTokensIDSampleDataOK) SetSoftware(val int) {
 	s.Software = val
-}
-
-type InventoryPostInventoryAgentsTokensOK struct {
-	// Full token, returned only at creation.
-	Secret string                                    `json:"secret"`
-	Token  InventoryPostInventoryAgentsTokensOKToken `json:"token"`
-}
-
-// GetSecret returns the value of Secret.
-func (s *InventoryPostInventoryAgentsTokensOK) GetSecret() string {
-	return s.Secret
-}
-
-// GetToken returns the value of Token.
-func (s *InventoryPostInventoryAgentsTokensOK) GetToken() InventoryPostInventoryAgentsTokensOKToken {
-	return s.Token
-}
-
-// SetSecret sets the value of Secret.
-func (s *InventoryPostInventoryAgentsTokensOK) SetSecret(val string) {
-	s.Secret = val
-}
-
-// SetToken sets the value of Token.
-func (s *InventoryPostInventoryAgentsTokensOK) SetToken(val InventoryPostInventoryAgentsTokensOKToken) {
-	s.Token = val
-}
-
-type InventoryPostInventoryAgentsTokensOKToken struct {
-	CreatedAt time.Time `json:"created_at"`
-	// Null = never expires; default 7 days. The token only enrolls osquery (it can read nothing) and can
-	// be revoked.
-	ExpiresAt    NilDateTime                                   `json:"expires_at"`
-	Hosts        int                                           `json:"hosts"`
-	ID           string                                        `json:"id"`
-	Kind         InventoryPostInventoryAgentsTokensOKTokenKind `json:"kind"`
-	Last4        string                                        `json:"last4"`
-	LastReceived NilDateTime                                   `json:"last_received"`
-	Name         string                                        `json:"name"`
-}
-
-// GetCreatedAt returns the value of CreatedAt.
-func (s *InventoryPostInventoryAgentsTokensOKToken) GetCreatedAt() time.Time {
-	return s.CreatedAt
-}
-
-// GetExpiresAt returns the value of ExpiresAt.
-func (s *InventoryPostInventoryAgentsTokensOKToken) GetExpiresAt() NilDateTime {
-	return s.ExpiresAt
-}
-
-// GetHosts returns the value of Hosts.
-func (s *InventoryPostInventoryAgentsTokensOKToken) GetHosts() int {
-	return s.Hosts
-}
-
-// GetID returns the value of ID.
-func (s *InventoryPostInventoryAgentsTokensOKToken) GetID() string {
-	return s.ID
-}
-
-// GetKind returns the value of Kind.
-func (s *InventoryPostInventoryAgentsTokensOKToken) GetKind() InventoryPostInventoryAgentsTokensOKTokenKind {
-	return s.Kind
-}
-
-// GetLast4 returns the value of Last4.
-func (s *InventoryPostInventoryAgentsTokensOKToken) GetLast4() string {
-	return s.Last4
-}
-
-// GetLastReceived returns the value of LastReceived.
-func (s *InventoryPostInventoryAgentsTokensOKToken) GetLastReceived() NilDateTime {
-	return s.LastReceived
-}
-
-// GetName returns the value of Name.
-func (s *InventoryPostInventoryAgentsTokensOKToken) GetName() string {
-	return s.Name
-}
-
-// SetCreatedAt sets the value of CreatedAt.
-func (s *InventoryPostInventoryAgentsTokensOKToken) SetCreatedAt(val time.Time) {
-	s.CreatedAt = val
-}
-
-// SetExpiresAt sets the value of ExpiresAt.
-func (s *InventoryPostInventoryAgentsTokensOKToken) SetExpiresAt(val NilDateTime) {
-	s.ExpiresAt = val
-}
-
-// SetHosts sets the value of Hosts.
-func (s *InventoryPostInventoryAgentsTokensOKToken) SetHosts(val int) {
-	s.Hosts = val
-}
-
-// SetID sets the value of ID.
-func (s *InventoryPostInventoryAgentsTokensOKToken) SetID(val string) {
-	s.ID = val
-}
-
-// SetKind sets the value of Kind.
-func (s *InventoryPostInventoryAgentsTokensOKToken) SetKind(val InventoryPostInventoryAgentsTokensOKTokenKind) {
-	s.Kind = val
-}
-
-// SetLast4 sets the value of Last4.
-func (s *InventoryPostInventoryAgentsTokensOKToken) SetLast4(val string) {
-	s.Last4 = val
-}
-
-// SetLastReceived sets the value of LastReceived.
-func (s *InventoryPostInventoryAgentsTokensOKToken) SetLastReceived(val NilDateTime) {
-	s.LastReceived = val
-}
-
-// SetName sets the value of Name.
-func (s *InventoryPostInventoryAgentsTokensOKToken) SetName(val string) {
-	s.Name = val
-}
-
-type InventoryPostInventoryAgentsTokensOKTokenKind string
-
-const (
-	InventoryPostInventoryAgentsTokensOKTokenKindOsquery InventoryPostInventoryAgentsTokensOKTokenKind = "osquery"
-)
-
-// AllValues returns all InventoryPostInventoryAgentsTokensOKTokenKind values.
-func (InventoryPostInventoryAgentsTokensOKTokenKind) AllValues() []InventoryPostInventoryAgentsTokensOKTokenKind {
-	return []InventoryPostInventoryAgentsTokensOKTokenKind{
-		InventoryPostInventoryAgentsTokensOKTokenKindOsquery,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s InventoryPostInventoryAgentsTokensOKTokenKind) MarshalText() ([]byte, error) {
-	switch s {
-	case InventoryPostInventoryAgentsTokensOKTokenKindOsquery:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *InventoryPostInventoryAgentsTokensOKTokenKind) UnmarshalText(data []byte) error {
-	switch InventoryPostInventoryAgentsTokensOKTokenKind(data) {
-	case InventoryPostInventoryAgentsTokensOKTokenKindOsquery:
-		*s = InventoryPostInventoryAgentsTokensOKTokenKindOsquery
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }
 
 type InventoryPostInventoryAgentsTokensReq struct {
@@ -63102,6 +62748,42 @@ func (s *InventoryPostInventoryAgentsWazuhTestReq) SetUsername(val string) {
 	s.Username = val
 }
 
+type InventoryPostInventoryDevicesCreated struct {
+	Display string `json:"display"`
+	ID      string `json:"id"`
+	KevCves int    `json:"kev_cves"`
+}
+
+// GetDisplay returns the value of Display.
+func (s *InventoryPostInventoryDevicesCreated) GetDisplay() string {
+	return s.Display
+}
+
+// GetID returns the value of ID.
+func (s *InventoryPostInventoryDevicesCreated) GetID() string {
+	return s.ID
+}
+
+// GetKevCves returns the value of KevCves.
+func (s *InventoryPostInventoryDevicesCreated) GetKevCves() int {
+	return s.KevCves
+}
+
+// SetDisplay sets the value of Display.
+func (s *InventoryPostInventoryDevicesCreated) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryPostInventoryDevicesCreated) SetID(val string) {
+	s.ID = val
+}
+
+// SetKevCves sets the value of KevCves.
+func (s *InventoryPostInventoryDevicesCreated) SetKevCves(val int) {
+	s.KevCves = val
+}
+
 type InventoryPostInventoryDevicesIDApproveOK struct {
 	Ok bool `json:"ok"`
 }
@@ -63116,17 +62798,17 @@ func (s *InventoryPostInventoryDevicesIDApproveOK) SetOk(val bool) {
 	s.Ok = val
 }
 
-type InventoryPostInventoryDevicesIDSoftwareOK struct {
+type InventoryPostInventoryDevicesIDSoftwareCreated struct {
 	KevCves int `json:"kev_cves"`
 }
 
 // GetKevCves returns the value of KevCves.
-func (s *InventoryPostInventoryDevicesIDSoftwareOK) GetKevCves() int {
+func (s *InventoryPostInventoryDevicesIDSoftwareCreated) GetKevCves() int {
 	return s.KevCves
 }
 
 // SetKevCves sets the value of KevCves.
-func (s *InventoryPostInventoryDevicesIDSoftwareOK) SetKevCves(val int) {
+func (s *InventoryPostInventoryDevicesIDSoftwareCreated) SetKevCves(val int) {
 	s.KevCves = val
 }
 
@@ -63206,42 +62888,6 @@ func (s *InventoryPostInventoryDevicesIDSuspiciousReq) GetSuspicious() bool {
 // SetSuspicious sets the value of Suspicious.
 func (s *InventoryPostInventoryDevicesIDSuspiciousReq) SetSuspicious(val bool) {
 	s.Suspicious = val
-}
-
-type InventoryPostInventoryDevicesOK struct {
-	Display string `json:"display"`
-	ID      string `json:"id"`
-	KevCves int    `json:"kev_cves"`
-}
-
-// GetDisplay returns the value of Display.
-func (s *InventoryPostInventoryDevicesOK) GetDisplay() string {
-	return s.Display
-}
-
-// GetID returns the value of ID.
-func (s *InventoryPostInventoryDevicesOK) GetID() string {
-	return s.ID
-}
-
-// GetKevCves returns the value of KevCves.
-func (s *InventoryPostInventoryDevicesOK) GetKevCves() int {
-	return s.KevCves
-}
-
-// SetDisplay sets the value of Display.
-func (s *InventoryPostInventoryDevicesOK) SetDisplay(val string) {
-	s.Display = val
-}
-
-// SetID sets the value of ID.
-func (s *InventoryPostInventoryDevicesOK) SetID(val string) {
-	s.ID = val
-}
-
-// SetKevCves sets the value of KevCves.
-func (s *InventoryPostInventoryDevicesOK) SetKevCves(val int) {
-	s.KevCves = val
 }
 
 type InventoryPostInventoryDevicesReq struct {
@@ -65994,347 +65640,347 @@ func (s *LogsPostLogsSiemTestOK) SetOk(val bool) {
 	s.Ok = val
 }
 
-type LogsPostLogsSourcesOK struct {
+type LogsPostLogsSourcesCreated struct {
 	// Inventory device with the same IP; null when none.
-	AssetID      NilString                  `json:"asset_id"`
-	AssetName    NilString                  `json:"asset_name"`
-	CreatedAt    time.Time                  `json:"created_at"`
-	ID           string                     `json:"id"`
-	Kind         LogsPostLogsSourcesOKKind  `json:"kind"`
-	LastReceived NilDateTime                `json:"last_received"`
-	LinesPerHour int                        `json:"lines_per_hour"`
-	Name         string                     `json:"name"`
-	Port         int                        `json:"port"`
-	Proto        LogsPostLogsSourcesOKProto `json:"proto"`
-	SenderIP     string                     `json:"sender_ip"`
-	State        LogsPostLogsSourcesOKState `json:"state"`
+	AssetID      NilString                       `json:"asset_id"`
+	AssetName    NilString                       `json:"asset_name"`
+	CreatedAt    time.Time                       `json:"created_at"`
+	ID           string                          `json:"id"`
+	Kind         LogsPostLogsSourcesCreatedKind  `json:"kind"`
+	LastReceived NilDateTime                     `json:"last_received"`
+	LinesPerHour int                             `json:"lines_per_hour"`
+	Name         string                          `json:"name"`
+	Port         int                             `json:"port"`
+	Proto        LogsPostLogsSourcesCreatedProto `json:"proto"`
+	SenderIP     string                          `json:"sender_ip"`
+	State        LogsPostLogsSourcesCreatedState `json:"state"`
 }
 
 // GetAssetID returns the value of AssetID.
-func (s *LogsPostLogsSourcesOK) GetAssetID() NilString {
+func (s *LogsPostLogsSourcesCreated) GetAssetID() NilString {
 	return s.AssetID
 }
 
 // GetAssetName returns the value of AssetName.
-func (s *LogsPostLogsSourcesOK) GetAssetName() NilString {
+func (s *LogsPostLogsSourcesCreated) GetAssetName() NilString {
 	return s.AssetName
 }
 
 // GetCreatedAt returns the value of CreatedAt.
-func (s *LogsPostLogsSourcesOK) GetCreatedAt() time.Time {
+func (s *LogsPostLogsSourcesCreated) GetCreatedAt() time.Time {
 	return s.CreatedAt
 }
 
 // GetID returns the value of ID.
-func (s *LogsPostLogsSourcesOK) GetID() string {
+func (s *LogsPostLogsSourcesCreated) GetID() string {
 	return s.ID
 }
 
 // GetKind returns the value of Kind.
-func (s *LogsPostLogsSourcesOK) GetKind() LogsPostLogsSourcesOKKind {
+func (s *LogsPostLogsSourcesCreated) GetKind() LogsPostLogsSourcesCreatedKind {
 	return s.Kind
 }
 
 // GetLastReceived returns the value of LastReceived.
-func (s *LogsPostLogsSourcesOK) GetLastReceived() NilDateTime {
+func (s *LogsPostLogsSourcesCreated) GetLastReceived() NilDateTime {
 	return s.LastReceived
 }
 
 // GetLinesPerHour returns the value of LinesPerHour.
-func (s *LogsPostLogsSourcesOK) GetLinesPerHour() int {
+func (s *LogsPostLogsSourcesCreated) GetLinesPerHour() int {
 	return s.LinesPerHour
 }
 
 // GetName returns the value of Name.
-func (s *LogsPostLogsSourcesOK) GetName() string {
+func (s *LogsPostLogsSourcesCreated) GetName() string {
 	return s.Name
 }
 
 // GetPort returns the value of Port.
-func (s *LogsPostLogsSourcesOK) GetPort() int {
+func (s *LogsPostLogsSourcesCreated) GetPort() int {
 	return s.Port
 }
 
 // GetProto returns the value of Proto.
-func (s *LogsPostLogsSourcesOK) GetProto() LogsPostLogsSourcesOKProto {
+func (s *LogsPostLogsSourcesCreated) GetProto() LogsPostLogsSourcesCreatedProto {
 	return s.Proto
 }
 
 // GetSenderIP returns the value of SenderIP.
-func (s *LogsPostLogsSourcesOK) GetSenderIP() string {
+func (s *LogsPostLogsSourcesCreated) GetSenderIP() string {
 	return s.SenderIP
 }
 
 // GetState returns the value of State.
-func (s *LogsPostLogsSourcesOK) GetState() LogsPostLogsSourcesOKState {
+func (s *LogsPostLogsSourcesCreated) GetState() LogsPostLogsSourcesCreatedState {
 	return s.State
 }
 
 // SetAssetID sets the value of AssetID.
-func (s *LogsPostLogsSourcesOK) SetAssetID(val NilString) {
+func (s *LogsPostLogsSourcesCreated) SetAssetID(val NilString) {
 	s.AssetID = val
 }
 
 // SetAssetName sets the value of AssetName.
-func (s *LogsPostLogsSourcesOK) SetAssetName(val NilString) {
+func (s *LogsPostLogsSourcesCreated) SetAssetName(val NilString) {
 	s.AssetName = val
 }
 
 // SetCreatedAt sets the value of CreatedAt.
-func (s *LogsPostLogsSourcesOK) SetCreatedAt(val time.Time) {
+func (s *LogsPostLogsSourcesCreated) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
 }
 
 // SetID sets the value of ID.
-func (s *LogsPostLogsSourcesOK) SetID(val string) {
+func (s *LogsPostLogsSourcesCreated) SetID(val string) {
 	s.ID = val
 }
 
 // SetKind sets the value of Kind.
-func (s *LogsPostLogsSourcesOK) SetKind(val LogsPostLogsSourcesOKKind) {
+func (s *LogsPostLogsSourcesCreated) SetKind(val LogsPostLogsSourcesCreatedKind) {
 	s.Kind = val
 }
 
 // SetLastReceived sets the value of LastReceived.
-func (s *LogsPostLogsSourcesOK) SetLastReceived(val NilDateTime) {
+func (s *LogsPostLogsSourcesCreated) SetLastReceived(val NilDateTime) {
 	s.LastReceived = val
 }
 
 // SetLinesPerHour sets the value of LinesPerHour.
-func (s *LogsPostLogsSourcesOK) SetLinesPerHour(val int) {
+func (s *LogsPostLogsSourcesCreated) SetLinesPerHour(val int) {
 	s.LinesPerHour = val
 }
 
 // SetName sets the value of Name.
-func (s *LogsPostLogsSourcesOK) SetName(val string) {
+func (s *LogsPostLogsSourcesCreated) SetName(val string) {
 	s.Name = val
 }
 
 // SetPort sets the value of Port.
-func (s *LogsPostLogsSourcesOK) SetPort(val int) {
+func (s *LogsPostLogsSourcesCreated) SetPort(val int) {
 	s.Port = val
 }
 
 // SetProto sets the value of Proto.
-func (s *LogsPostLogsSourcesOK) SetProto(val LogsPostLogsSourcesOKProto) {
+func (s *LogsPostLogsSourcesCreated) SetProto(val LogsPostLogsSourcesCreatedProto) {
 	s.Proto = val
 }
 
 // SetSenderIP sets the value of SenderIP.
-func (s *LogsPostLogsSourcesOK) SetSenderIP(val string) {
+func (s *LogsPostLogsSourcesCreated) SetSenderIP(val string) {
 	s.SenderIP = val
 }
 
 // SetState sets the value of State.
-func (s *LogsPostLogsSourcesOK) SetState(val LogsPostLogsSourcesOKState) {
+func (s *LogsPostLogsSourcesCreated) SetState(val LogsPostLogsSourcesCreatedState) {
 	s.State = val
 }
 
-type LogsPostLogsSourcesOKKind string
+type LogsPostLogsSourcesCreatedKind string
 
 const (
-	LogsPostLogsSourcesOKKindFortigate     LogsPostLogsSourcesOKKind = "fortigate"
-	LogsPostLogsSourcesOKKindSophos        LogsPostLogsSourcesOKKind = "sophos"
-	LogsPostLogsSourcesOKKindPaloalto      LogsPostLogsSourcesOKKind = "paloalto"
-	LogsPostLogsSourcesOKKindCiscoAsa      LogsPostLogsSourcesOKKind = "cisco-asa"
-	LogsPostLogsSourcesOKKindCiscoFtd      LogsPostLogsSourcesOKKind = "cisco-ftd"
-	LogsPostLogsSourcesOKKindCiscoIos      LogsPostLogsSourcesOKKind = "cisco-ios"
-	LogsPostLogsSourcesOKKindMeraki        LogsPostLogsSourcesOKKind = "meraki"
-	LogsPostLogsSourcesOKKindMikrotik      LogsPostLogsSourcesOKKind = "mikrotik"
-	LogsPostLogsSourcesOKKindPfsense       LogsPostLogsSourcesOKKind = "pfsense"
-	LogsPostLogsSourcesOKKindOpnsense      LogsPostLogsSourcesOKKind = "opnsense"
-	LogsPostLogsSourcesOKKindSonicwall     LogsPostLogsSourcesOKKind = "sonicwall"
-	LogsPostLogsSourcesOKKindWatchguard    LogsPostLogsSourcesOKKind = "watchguard"
-	LogsPostLogsSourcesOKKindCheckpoint    LogsPostLogsSourcesOKKind = "checkpoint"
-	LogsPostLogsSourcesOKKindJuniperSrx    LogsPostLogsSourcesOKKind = "juniper-srx"
-	LogsPostLogsSourcesOKKindHuawei        LogsPostLogsSourcesOKKind = "huawei"
-	LogsPostLogsSourcesOKKindDraytek       LogsPostLogsSourcesOKKind = "draytek"
-	LogsPostLogsSourcesOKKindUbiquiti      LogsPostLogsSourcesOKKind = "ubiquiti"
-	LogsPostLogsSourcesOKKindZyxel         LogsPostLogsSourcesOKKind = "zyxel"
-	LogsPostLogsSourcesOKKindOmada         LogsPostLogsSourcesOKKind = "omada"
-	LogsPostLogsSourcesOKKindIvanti        LogsPostLogsSourcesOKKind = "ivanti"
-	LogsPostLogsSourcesOKKindNetscaler     LogsPostLogsSourcesOKKind = "netscaler"
-	LogsPostLogsSourcesOKKindOpenvpnAs     LogsPostLogsSourcesOKKind = "openvpn-as"
-	LogsPostLogsSourcesOKKindWindows       LogsPostLogsSourcesOKKind = "windows"
-	LogsPostLogsSourcesOKKindLinuxRsyslog  LogsPostLogsSourcesOKKind = "linux-rsyslog"
-	LogsPostLogsSourcesOKKindLinuxJournald LogsPostLogsSourcesOKKind = "linux-journald"
-	LogsPostLogsSourcesOKKindSyslogNg      LogsPostLogsSourcesOKKind = "syslog-ng"
-	LogsPostLogsSourcesOKKindSynology      LogsPostLogsSourcesOKKind = "synology"
-	LogsPostLogsSourcesOKKindQnap          LogsPostLogsSourcesOKKind = "qnap"
-	LogsPostLogsSourcesOKKindEsxi          LogsPostLogsSourcesOKKind = "esxi"
-	LogsPostLogsSourcesOKKindProxmox       LogsPostLogsSourcesOKKind = "proxmox"
-	LogsPostLogsSourcesOKKindSuricata      LogsPostLogsSourcesOKKind = "suricata"
-	LogsPostLogsSourcesOKKindZeek          LogsPostLogsSourcesOKKind = "zeek"
-	LogsPostLogsSourcesOKKindWazuh         LogsPostLogsSourcesOKKind = "wazuh"
-	LogsPostLogsSourcesOKKindCrowdsec      LogsPostLogsSourcesOKKind = "crowdsec"
-	LogsPostLogsSourcesOKKindNginx         LogsPostLogsSourcesOKKind = "nginx"
-	LogsPostLogsSourcesOKKindApache        LogsPostLogsSourcesOKKind = "apache"
-	LogsPostLogsSourcesOKKindSquid         LogsPostLogsSourcesOKKind = "squid"
-	LogsPostLogsSourcesOKKindPihole        LogsPostLogsSourcesOKKind = "pihole"
-	LogsPostLogsSourcesOKKindBind          LogsPostLogsSourcesOKKind = "bind"
-	LogsPostLogsSourcesOKKindWindowsDNS    LogsPostLogsSourcesOKKind = "windows-dns"
-	LogsPostLogsSourcesOKKindPostfix       LogsPostLogsSourcesOKKind = "postfix"
-	LogsPostLogsSourcesOKKindCiscoSwitch   LogsPostLogsSourcesOKKind = "cisco-switch"
-	LogsPostLogsSourcesOKKindArubaCx       LogsPostLogsSourcesOKKind = "aruba-cx"
-	LogsPostLogsSourcesOKKindHpeProcurve   LogsPostLogsSourcesOKKind = "hpe-procurve"
-	LogsPostLogsSourcesOKKindHpeComware    LogsPostLogsSourcesOKKind = "hpe-comware"
-	LogsPostLogsSourcesOKKindUnifi         LogsPostLogsSourcesOKKind = "unifi"
-	LogsPostLogsSourcesOKKindSyslogGeneric LogsPostLogsSourcesOKKind = "syslog-generic"
-	LogsPostLogsSourcesOKKindCefLeef       LogsPostLogsSourcesOKKind = "cef-leef"
+	LogsPostLogsSourcesCreatedKindFortigate     LogsPostLogsSourcesCreatedKind = "fortigate"
+	LogsPostLogsSourcesCreatedKindSophos        LogsPostLogsSourcesCreatedKind = "sophos"
+	LogsPostLogsSourcesCreatedKindPaloalto      LogsPostLogsSourcesCreatedKind = "paloalto"
+	LogsPostLogsSourcesCreatedKindCiscoAsa      LogsPostLogsSourcesCreatedKind = "cisco-asa"
+	LogsPostLogsSourcesCreatedKindCiscoFtd      LogsPostLogsSourcesCreatedKind = "cisco-ftd"
+	LogsPostLogsSourcesCreatedKindCiscoIos      LogsPostLogsSourcesCreatedKind = "cisco-ios"
+	LogsPostLogsSourcesCreatedKindMeraki        LogsPostLogsSourcesCreatedKind = "meraki"
+	LogsPostLogsSourcesCreatedKindMikrotik      LogsPostLogsSourcesCreatedKind = "mikrotik"
+	LogsPostLogsSourcesCreatedKindPfsense       LogsPostLogsSourcesCreatedKind = "pfsense"
+	LogsPostLogsSourcesCreatedKindOpnsense      LogsPostLogsSourcesCreatedKind = "opnsense"
+	LogsPostLogsSourcesCreatedKindSonicwall     LogsPostLogsSourcesCreatedKind = "sonicwall"
+	LogsPostLogsSourcesCreatedKindWatchguard    LogsPostLogsSourcesCreatedKind = "watchguard"
+	LogsPostLogsSourcesCreatedKindCheckpoint    LogsPostLogsSourcesCreatedKind = "checkpoint"
+	LogsPostLogsSourcesCreatedKindJuniperSrx    LogsPostLogsSourcesCreatedKind = "juniper-srx"
+	LogsPostLogsSourcesCreatedKindHuawei        LogsPostLogsSourcesCreatedKind = "huawei"
+	LogsPostLogsSourcesCreatedKindDraytek       LogsPostLogsSourcesCreatedKind = "draytek"
+	LogsPostLogsSourcesCreatedKindUbiquiti      LogsPostLogsSourcesCreatedKind = "ubiquiti"
+	LogsPostLogsSourcesCreatedKindZyxel         LogsPostLogsSourcesCreatedKind = "zyxel"
+	LogsPostLogsSourcesCreatedKindOmada         LogsPostLogsSourcesCreatedKind = "omada"
+	LogsPostLogsSourcesCreatedKindIvanti        LogsPostLogsSourcesCreatedKind = "ivanti"
+	LogsPostLogsSourcesCreatedKindNetscaler     LogsPostLogsSourcesCreatedKind = "netscaler"
+	LogsPostLogsSourcesCreatedKindOpenvpnAs     LogsPostLogsSourcesCreatedKind = "openvpn-as"
+	LogsPostLogsSourcesCreatedKindWindows       LogsPostLogsSourcesCreatedKind = "windows"
+	LogsPostLogsSourcesCreatedKindLinuxRsyslog  LogsPostLogsSourcesCreatedKind = "linux-rsyslog"
+	LogsPostLogsSourcesCreatedKindLinuxJournald LogsPostLogsSourcesCreatedKind = "linux-journald"
+	LogsPostLogsSourcesCreatedKindSyslogNg      LogsPostLogsSourcesCreatedKind = "syslog-ng"
+	LogsPostLogsSourcesCreatedKindSynology      LogsPostLogsSourcesCreatedKind = "synology"
+	LogsPostLogsSourcesCreatedKindQnap          LogsPostLogsSourcesCreatedKind = "qnap"
+	LogsPostLogsSourcesCreatedKindEsxi          LogsPostLogsSourcesCreatedKind = "esxi"
+	LogsPostLogsSourcesCreatedKindProxmox       LogsPostLogsSourcesCreatedKind = "proxmox"
+	LogsPostLogsSourcesCreatedKindSuricata      LogsPostLogsSourcesCreatedKind = "suricata"
+	LogsPostLogsSourcesCreatedKindZeek          LogsPostLogsSourcesCreatedKind = "zeek"
+	LogsPostLogsSourcesCreatedKindWazuh         LogsPostLogsSourcesCreatedKind = "wazuh"
+	LogsPostLogsSourcesCreatedKindCrowdsec      LogsPostLogsSourcesCreatedKind = "crowdsec"
+	LogsPostLogsSourcesCreatedKindNginx         LogsPostLogsSourcesCreatedKind = "nginx"
+	LogsPostLogsSourcesCreatedKindApache        LogsPostLogsSourcesCreatedKind = "apache"
+	LogsPostLogsSourcesCreatedKindSquid         LogsPostLogsSourcesCreatedKind = "squid"
+	LogsPostLogsSourcesCreatedKindPihole        LogsPostLogsSourcesCreatedKind = "pihole"
+	LogsPostLogsSourcesCreatedKindBind          LogsPostLogsSourcesCreatedKind = "bind"
+	LogsPostLogsSourcesCreatedKindWindowsDNS    LogsPostLogsSourcesCreatedKind = "windows-dns"
+	LogsPostLogsSourcesCreatedKindPostfix       LogsPostLogsSourcesCreatedKind = "postfix"
+	LogsPostLogsSourcesCreatedKindCiscoSwitch   LogsPostLogsSourcesCreatedKind = "cisco-switch"
+	LogsPostLogsSourcesCreatedKindArubaCx       LogsPostLogsSourcesCreatedKind = "aruba-cx"
+	LogsPostLogsSourcesCreatedKindHpeProcurve   LogsPostLogsSourcesCreatedKind = "hpe-procurve"
+	LogsPostLogsSourcesCreatedKindHpeComware    LogsPostLogsSourcesCreatedKind = "hpe-comware"
+	LogsPostLogsSourcesCreatedKindUnifi         LogsPostLogsSourcesCreatedKind = "unifi"
+	LogsPostLogsSourcesCreatedKindSyslogGeneric LogsPostLogsSourcesCreatedKind = "syslog-generic"
+	LogsPostLogsSourcesCreatedKindCefLeef       LogsPostLogsSourcesCreatedKind = "cef-leef"
 )
 
-// AllValues returns all LogsPostLogsSourcesOKKind values.
-func (LogsPostLogsSourcesOKKind) AllValues() []LogsPostLogsSourcesOKKind {
-	return []LogsPostLogsSourcesOKKind{
-		LogsPostLogsSourcesOKKindFortigate,
-		LogsPostLogsSourcesOKKindSophos,
-		LogsPostLogsSourcesOKKindPaloalto,
-		LogsPostLogsSourcesOKKindCiscoAsa,
-		LogsPostLogsSourcesOKKindCiscoFtd,
-		LogsPostLogsSourcesOKKindCiscoIos,
-		LogsPostLogsSourcesOKKindMeraki,
-		LogsPostLogsSourcesOKKindMikrotik,
-		LogsPostLogsSourcesOKKindPfsense,
-		LogsPostLogsSourcesOKKindOpnsense,
-		LogsPostLogsSourcesOKKindSonicwall,
-		LogsPostLogsSourcesOKKindWatchguard,
-		LogsPostLogsSourcesOKKindCheckpoint,
-		LogsPostLogsSourcesOKKindJuniperSrx,
-		LogsPostLogsSourcesOKKindHuawei,
-		LogsPostLogsSourcesOKKindDraytek,
-		LogsPostLogsSourcesOKKindUbiquiti,
-		LogsPostLogsSourcesOKKindZyxel,
-		LogsPostLogsSourcesOKKindOmada,
-		LogsPostLogsSourcesOKKindIvanti,
-		LogsPostLogsSourcesOKKindNetscaler,
-		LogsPostLogsSourcesOKKindOpenvpnAs,
-		LogsPostLogsSourcesOKKindWindows,
-		LogsPostLogsSourcesOKKindLinuxRsyslog,
-		LogsPostLogsSourcesOKKindLinuxJournald,
-		LogsPostLogsSourcesOKKindSyslogNg,
-		LogsPostLogsSourcesOKKindSynology,
-		LogsPostLogsSourcesOKKindQnap,
-		LogsPostLogsSourcesOKKindEsxi,
-		LogsPostLogsSourcesOKKindProxmox,
-		LogsPostLogsSourcesOKKindSuricata,
-		LogsPostLogsSourcesOKKindZeek,
-		LogsPostLogsSourcesOKKindWazuh,
-		LogsPostLogsSourcesOKKindCrowdsec,
-		LogsPostLogsSourcesOKKindNginx,
-		LogsPostLogsSourcesOKKindApache,
-		LogsPostLogsSourcesOKKindSquid,
-		LogsPostLogsSourcesOKKindPihole,
-		LogsPostLogsSourcesOKKindBind,
-		LogsPostLogsSourcesOKKindWindowsDNS,
-		LogsPostLogsSourcesOKKindPostfix,
-		LogsPostLogsSourcesOKKindCiscoSwitch,
-		LogsPostLogsSourcesOKKindArubaCx,
-		LogsPostLogsSourcesOKKindHpeProcurve,
-		LogsPostLogsSourcesOKKindHpeComware,
-		LogsPostLogsSourcesOKKindUnifi,
-		LogsPostLogsSourcesOKKindSyslogGeneric,
-		LogsPostLogsSourcesOKKindCefLeef,
+// AllValues returns all LogsPostLogsSourcesCreatedKind values.
+func (LogsPostLogsSourcesCreatedKind) AllValues() []LogsPostLogsSourcesCreatedKind {
+	return []LogsPostLogsSourcesCreatedKind{
+		LogsPostLogsSourcesCreatedKindFortigate,
+		LogsPostLogsSourcesCreatedKindSophos,
+		LogsPostLogsSourcesCreatedKindPaloalto,
+		LogsPostLogsSourcesCreatedKindCiscoAsa,
+		LogsPostLogsSourcesCreatedKindCiscoFtd,
+		LogsPostLogsSourcesCreatedKindCiscoIos,
+		LogsPostLogsSourcesCreatedKindMeraki,
+		LogsPostLogsSourcesCreatedKindMikrotik,
+		LogsPostLogsSourcesCreatedKindPfsense,
+		LogsPostLogsSourcesCreatedKindOpnsense,
+		LogsPostLogsSourcesCreatedKindSonicwall,
+		LogsPostLogsSourcesCreatedKindWatchguard,
+		LogsPostLogsSourcesCreatedKindCheckpoint,
+		LogsPostLogsSourcesCreatedKindJuniperSrx,
+		LogsPostLogsSourcesCreatedKindHuawei,
+		LogsPostLogsSourcesCreatedKindDraytek,
+		LogsPostLogsSourcesCreatedKindUbiquiti,
+		LogsPostLogsSourcesCreatedKindZyxel,
+		LogsPostLogsSourcesCreatedKindOmada,
+		LogsPostLogsSourcesCreatedKindIvanti,
+		LogsPostLogsSourcesCreatedKindNetscaler,
+		LogsPostLogsSourcesCreatedKindOpenvpnAs,
+		LogsPostLogsSourcesCreatedKindWindows,
+		LogsPostLogsSourcesCreatedKindLinuxRsyslog,
+		LogsPostLogsSourcesCreatedKindLinuxJournald,
+		LogsPostLogsSourcesCreatedKindSyslogNg,
+		LogsPostLogsSourcesCreatedKindSynology,
+		LogsPostLogsSourcesCreatedKindQnap,
+		LogsPostLogsSourcesCreatedKindEsxi,
+		LogsPostLogsSourcesCreatedKindProxmox,
+		LogsPostLogsSourcesCreatedKindSuricata,
+		LogsPostLogsSourcesCreatedKindZeek,
+		LogsPostLogsSourcesCreatedKindWazuh,
+		LogsPostLogsSourcesCreatedKindCrowdsec,
+		LogsPostLogsSourcesCreatedKindNginx,
+		LogsPostLogsSourcesCreatedKindApache,
+		LogsPostLogsSourcesCreatedKindSquid,
+		LogsPostLogsSourcesCreatedKindPihole,
+		LogsPostLogsSourcesCreatedKindBind,
+		LogsPostLogsSourcesCreatedKindWindowsDNS,
+		LogsPostLogsSourcesCreatedKindPostfix,
+		LogsPostLogsSourcesCreatedKindCiscoSwitch,
+		LogsPostLogsSourcesCreatedKindArubaCx,
+		LogsPostLogsSourcesCreatedKindHpeProcurve,
+		LogsPostLogsSourcesCreatedKindHpeComware,
+		LogsPostLogsSourcesCreatedKindUnifi,
+		LogsPostLogsSourcesCreatedKindSyslogGeneric,
+		LogsPostLogsSourcesCreatedKindCefLeef,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s LogsPostLogsSourcesOKKind) MarshalText() ([]byte, error) {
+func (s LogsPostLogsSourcesCreatedKind) MarshalText() ([]byte, error) {
 	switch s {
-	case LogsPostLogsSourcesOKKindFortigate:
+	case LogsPostLogsSourcesCreatedKindFortigate:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindSophos:
+	case LogsPostLogsSourcesCreatedKindSophos:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindPaloalto:
+	case LogsPostLogsSourcesCreatedKindPaloalto:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindCiscoAsa:
+	case LogsPostLogsSourcesCreatedKindCiscoAsa:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindCiscoFtd:
+	case LogsPostLogsSourcesCreatedKindCiscoFtd:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindCiscoIos:
+	case LogsPostLogsSourcesCreatedKindCiscoIos:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindMeraki:
+	case LogsPostLogsSourcesCreatedKindMeraki:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindMikrotik:
+	case LogsPostLogsSourcesCreatedKindMikrotik:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindPfsense:
+	case LogsPostLogsSourcesCreatedKindPfsense:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindOpnsense:
+	case LogsPostLogsSourcesCreatedKindOpnsense:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindSonicwall:
+	case LogsPostLogsSourcesCreatedKindSonicwall:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindWatchguard:
+	case LogsPostLogsSourcesCreatedKindWatchguard:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindCheckpoint:
+	case LogsPostLogsSourcesCreatedKindCheckpoint:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindJuniperSrx:
+	case LogsPostLogsSourcesCreatedKindJuniperSrx:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindHuawei:
+	case LogsPostLogsSourcesCreatedKindHuawei:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindDraytek:
+	case LogsPostLogsSourcesCreatedKindDraytek:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindUbiquiti:
+	case LogsPostLogsSourcesCreatedKindUbiquiti:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindZyxel:
+	case LogsPostLogsSourcesCreatedKindZyxel:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindOmada:
+	case LogsPostLogsSourcesCreatedKindOmada:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindIvanti:
+	case LogsPostLogsSourcesCreatedKindIvanti:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindNetscaler:
+	case LogsPostLogsSourcesCreatedKindNetscaler:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindOpenvpnAs:
+	case LogsPostLogsSourcesCreatedKindOpenvpnAs:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindWindows:
+	case LogsPostLogsSourcesCreatedKindWindows:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindLinuxRsyslog:
+	case LogsPostLogsSourcesCreatedKindLinuxRsyslog:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindLinuxJournald:
+	case LogsPostLogsSourcesCreatedKindLinuxJournald:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindSyslogNg:
+	case LogsPostLogsSourcesCreatedKindSyslogNg:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindSynology:
+	case LogsPostLogsSourcesCreatedKindSynology:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindQnap:
+	case LogsPostLogsSourcesCreatedKindQnap:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindEsxi:
+	case LogsPostLogsSourcesCreatedKindEsxi:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindProxmox:
+	case LogsPostLogsSourcesCreatedKindProxmox:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindSuricata:
+	case LogsPostLogsSourcesCreatedKindSuricata:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindZeek:
+	case LogsPostLogsSourcesCreatedKindZeek:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindWazuh:
+	case LogsPostLogsSourcesCreatedKindWazuh:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindCrowdsec:
+	case LogsPostLogsSourcesCreatedKindCrowdsec:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindNginx:
+	case LogsPostLogsSourcesCreatedKindNginx:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindApache:
+	case LogsPostLogsSourcesCreatedKindApache:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindSquid:
+	case LogsPostLogsSourcesCreatedKindSquid:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindPihole:
+	case LogsPostLogsSourcesCreatedKindPihole:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindBind:
+	case LogsPostLogsSourcesCreatedKindBind:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindWindowsDNS:
+	case LogsPostLogsSourcesCreatedKindWindowsDNS:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindPostfix:
+	case LogsPostLogsSourcesCreatedKindPostfix:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindCiscoSwitch:
+	case LogsPostLogsSourcesCreatedKindCiscoSwitch:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindArubaCx:
+	case LogsPostLogsSourcesCreatedKindArubaCx:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindHpeProcurve:
+	case LogsPostLogsSourcesCreatedKindHpeProcurve:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindHpeComware:
+	case LogsPostLogsSourcesCreatedKindHpeComware:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindUnifi:
+	case LogsPostLogsSourcesCreatedKindUnifi:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindSyslogGeneric:
+	case LogsPostLogsSourcesCreatedKindSyslogGeneric:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKKindCefLeef:
+	case LogsPostLogsSourcesCreatedKindCefLeef:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -66342,182 +65988,182 @@ func (s LogsPostLogsSourcesOKKind) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *LogsPostLogsSourcesOKKind) UnmarshalText(data []byte) error {
-	switch LogsPostLogsSourcesOKKind(data) {
-	case LogsPostLogsSourcesOKKindFortigate:
-		*s = LogsPostLogsSourcesOKKindFortigate
+func (s *LogsPostLogsSourcesCreatedKind) UnmarshalText(data []byte) error {
+	switch LogsPostLogsSourcesCreatedKind(data) {
+	case LogsPostLogsSourcesCreatedKindFortigate:
+		*s = LogsPostLogsSourcesCreatedKindFortigate
 		return nil
-	case LogsPostLogsSourcesOKKindSophos:
-		*s = LogsPostLogsSourcesOKKindSophos
+	case LogsPostLogsSourcesCreatedKindSophos:
+		*s = LogsPostLogsSourcesCreatedKindSophos
 		return nil
-	case LogsPostLogsSourcesOKKindPaloalto:
-		*s = LogsPostLogsSourcesOKKindPaloalto
+	case LogsPostLogsSourcesCreatedKindPaloalto:
+		*s = LogsPostLogsSourcesCreatedKindPaloalto
 		return nil
-	case LogsPostLogsSourcesOKKindCiscoAsa:
-		*s = LogsPostLogsSourcesOKKindCiscoAsa
+	case LogsPostLogsSourcesCreatedKindCiscoAsa:
+		*s = LogsPostLogsSourcesCreatedKindCiscoAsa
 		return nil
-	case LogsPostLogsSourcesOKKindCiscoFtd:
-		*s = LogsPostLogsSourcesOKKindCiscoFtd
+	case LogsPostLogsSourcesCreatedKindCiscoFtd:
+		*s = LogsPostLogsSourcesCreatedKindCiscoFtd
 		return nil
-	case LogsPostLogsSourcesOKKindCiscoIos:
-		*s = LogsPostLogsSourcesOKKindCiscoIos
+	case LogsPostLogsSourcesCreatedKindCiscoIos:
+		*s = LogsPostLogsSourcesCreatedKindCiscoIos
 		return nil
-	case LogsPostLogsSourcesOKKindMeraki:
-		*s = LogsPostLogsSourcesOKKindMeraki
+	case LogsPostLogsSourcesCreatedKindMeraki:
+		*s = LogsPostLogsSourcesCreatedKindMeraki
 		return nil
-	case LogsPostLogsSourcesOKKindMikrotik:
-		*s = LogsPostLogsSourcesOKKindMikrotik
+	case LogsPostLogsSourcesCreatedKindMikrotik:
+		*s = LogsPostLogsSourcesCreatedKindMikrotik
 		return nil
-	case LogsPostLogsSourcesOKKindPfsense:
-		*s = LogsPostLogsSourcesOKKindPfsense
+	case LogsPostLogsSourcesCreatedKindPfsense:
+		*s = LogsPostLogsSourcesCreatedKindPfsense
 		return nil
-	case LogsPostLogsSourcesOKKindOpnsense:
-		*s = LogsPostLogsSourcesOKKindOpnsense
+	case LogsPostLogsSourcesCreatedKindOpnsense:
+		*s = LogsPostLogsSourcesCreatedKindOpnsense
 		return nil
-	case LogsPostLogsSourcesOKKindSonicwall:
-		*s = LogsPostLogsSourcesOKKindSonicwall
+	case LogsPostLogsSourcesCreatedKindSonicwall:
+		*s = LogsPostLogsSourcesCreatedKindSonicwall
 		return nil
-	case LogsPostLogsSourcesOKKindWatchguard:
-		*s = LogsPostLogsSourcesOKKindWatchguard
+	case LogsPostLogsSourcesCreatedKindWatchguard:
+		*s = LogsPostLogsSourcesCreatedKindWatchguard
 		return nil
-	case LogsPostLogsSourcesOKKindCheckpoint:
-		*s = LogsPostLogsSourcesOKKindCheckpoint
+	case LogsPostLogsSourcesCreatedKindCheckpoint:
+		*s = LogsPostLogsSourcesCreatedKindCheckpoint
 		return nil
-	case LogsPostLogsSourcesOKKindJuniperSrx:
-		*s = LogsPostLogsSourcesOKKindJuniperSrx
+	case LogsPostLogsSourcesCreatedKindJuniperSrx:
+		*s = LogsPostLogsSourcesCreatedKindJuniperSrx
 		return nil
-	case LogsPostLogsSourcesOKKindHuawei:
-		*s = LogsPostLogsSourcesOKKindHuawei
+	case LogsPostLogsSourcesCreatedKindHuawei:
+		*s = LogsPostLogsSourcesCreatedKindHuawei
 		return nil
-	case LogsPostLogsSourcesOKKindDraytek:
-		*s = LogsPostLogsSourcesOKKindDraytek
+	case LogsPostLogsSourcesCreatedKindDraytek:
+		*s = LogsPostLogsSourcesCreatedKindDraytek
 		return nil
-	case LogsPostLogsSourcesOKKindUbiquiti:
-		*s = LogsPostLogsSourcesOKKindUbiquiti
+	case LogsPostLogsSourcesCreatedKindUbiquiti:
+		*s = LogsPostLogsSourcesCreatedKindUbiquiti
 		return nil
-	case LogsPostLogsSourcesOKKindZyxel:
-		*s = LogsPostLogsSourcesOKKindZyxel
+	case LogsPostLogsSourcesCreatedKindZyxel:
+		*s = LogsPostLogsSourcesCreatedKindZyxel
 		return nil
-	case LogsPostLogsSourcesOKKindOmada:
-		*s = LogsPostLogsSourcesOKKindOmada
+	case LogsPostLogsSourcesCreatedKindOmada:
+		*s = LogsPostLogsSourcesCreatedKindOmada
 		return nil
-	case LogsPostLogsSourcesOKKindIvanti:
-		*s = LogsPostLogsSourcesOKKindIvanti
+	case LogsPostLogsSourcesCreatedKindIvanti:
+		*s = LogsPostLogsSourcesCreatedKindIvanti
 		return nil
-	case LogsPostLogsSourcesOKKindNetscaler:
-		*s = LogsPostLogsSourcesOKKindNetscaler
+	case LogsPostLogsSourcesCreatedKindNetscaler:
+		*s = LogsPostLogsSourcesCreatedKindNetscaler
 		return nil
-	case LogsPostLogsSourcesOKKindOpenvpnAs:
-		*s = LogsPostLogsSourcesOKKindOpenvpnAs
+	case LogsPostLogsSourcesCreatedKindOpenvpnAs:
+		*s = LogsPostLogsSourcesCreatedKindOpenvpnAs
 		return nil
-	case LogsPostLogsSourcesOKKindWindows:
-		*s = LogsPostLogsSourcesOKKindWindows
+	case LogsPostLogsSourcesCreatedKindWindows:
+		*s = LogsPostLogsSourcesCreatedKindWindows
 		return nil
-	case LogsPostLogsSourcesOKKindLinuxRsyslog:
-		*s = LogsPostLogsSourcesOKKindLinuxRsyslog
+	case LogsPostLogsSourcesCreatedKindLinuxRsyslog:
+		*s = LogsPostLogsSourcesCreatedKindLinuxRsyslog
 		return nil
-	case LogsPostLogsSourcesOKKindLinuxJournald:
-		*s = LogsPostLogsSourcesOKKindLinuxJournald
+	case LogsPostLogsSourcesCreatedKindLinuxJournald:
+		*s = LogsPostLogsSourcesCreatedKindLinuxJournald
 		return nil
-	case LogsPostLogsSourcesOKKindSyslogNg:
-		*s = LogsPostLogsSourcesOKKindSyslogNg
+	case LogsPostLogsSourcesCreatedKindSyslogNg:
+		*s = LogsPostLogsSourcesCreatedKindSyslogNg
 		return nil
-	case LogsPostLogsSourcesOKKindSynology:
-		*s = LogsPostLogsSourcesOKKindSynology
+	case LogsPostLogsSourcesCreatedKindSynology:
+		*s = LogsPostLogsSourcesCreatedKindSynology
 		return nil
-	case LogsPostLogsSourcesOKKindQnap:
-		*s = LogsPostLogsSourcesOKKindQnap
+	case LogsPostLogsSourcesCreatedKindQnap:
+		*s = LogsPostLogsSourcesCreatedKindQnap
 		return nil
-	case LogsPostLogsSourcesOKKindEsxi:
-		*s = LogsPostLogsSourcesOKKindEsxi
+	case LogsPostLogsSourcesCreatedKindEsxi:
+		*s = LogsPostLogsSourcesCreatedKindEsxi
 		return nil
-	case LogsPostLogsSourcesOKKindProxmox:
-		*s = LogsPostLogsSourcesOKKindProxmox
+	case LogsPostLogsSourcesCreatedKindProxmox:
+		*s = LogsPostLogsSourcesCreatedKindProxmox
 		return nil
-	case LogsPostLogsSourcesOKKindSuricata:
-		*s = LogsPostLogsSourcesOKKindSuricata
+	case LogsPostLogsSourcesCreatedKindSuricata:
+		*s = LogsPostLogsSourcesCreatedKindSuricata
 		return nil
-	case LogsPostLogsSourcesOKKindZeek:
-		*s = LogsPostLogsSourcesOKKindZeek
+	case LogsPostLogsSourcesCreatedKindZeek:
+		*s = LogsPostLogsSourcesCreatedKindZeek
 		return nil
-	case LogsPostLogsSourcesOKKindWazuh:
-		*s = LogsPostLogsSourcesOKKindWazuh
+	case LogsPostLogsSourcesCreatedKindWazuh:
+		*s = LogsPostLogsSourcesCreatedKindWazuh
 		return nil
-	case LogsPostLogsSourcesOKKindCrowdsec:
-		*s = LogsPostLogsSourcesOKKindCrowdsec
+	case LogsPostLogsSourcesCreatedKindCrowdsec:
+		*s = LogsPostLogsSourcesCreatedKindCrowdsec
 		return nil
-	case LogsPostLogsSourcesOKKindNginx:
-		*s = LogsPostLogsSourcesOKKindNginx
+	case LogsPostLogsSourcesCreatedKindNginx:
+		*s = LogsPostLogsSourcesCreatedKindNginx
 		return nil
-	case LogsPostLogsSourcesOKKindApache:
-		*s = LogsPostLogsSourcesOKKindApache
+	case LogsPostLogsSourcesCreatedKindApache:
+		*s = LogsPostLogsSourcesCreatedKindApache
 		return nil
-	case LogsPostLogsSourcesOKKindSquid:
-		*s = LogsPostLogsSourcesOKKindSquid
+	case LogsPostLogsSourcesCreatedKindSquid:
+		*s = LogsPostLogsSourcesCreatedKindSquid
 		return nil
-	case LogsPostLogsSourcesOKKindPihole:
-		*s = LogsPostLogsSourcesOKKindPihole
+	case LogsPostLogsSourcesCreatedKindPihole:
+		*s = LogsPostLogsSourcesCreatedKindPihole
 		return nil
-	case LogsPostLogsSourcesOKKindBind:
-		*s = LogsPostLogsSourcesOKKindBind
+	case LogsPostLogsSourcesCreatedKindBind:
+		*s = LogsPostLogsSourcesCreatedKindBind
 		return nil
-	case LogsPostLogsSourcesOKKindWindowsDNS:
-		*s = LogsPostLogsSourcesOKKindWindowsDNS
+	case LogsPostLogsSourcesCreatedKindWindowsDNS:
+		*s = LogsPostLogsSourcesCreatedKindWindowsDNS
 		return nil
-	case LogsPostLogsSourcesOKKindPostfix:
-		*s = LogsPostLogsSourcesOKKindPostfix
+	case LogsPostLogsSourcesCreatedKindPostfix:
+		*s = LogsPostLogsSourcesCreatedKindPostfix
 		return nil
-	case LogsPostLogsSourcesOKKindCiscoSwitch:
-		*s = LogsPostLogsSourcesOKKindCiscoSwitch
+	case LogsPostLogsSourcesCreatedKindCiscoSwitch:
+		*s = LogsPostLogsSourcesCreatedKindCiscoSwitch
 		return nil
-	case LogsPostLogsSourcesOKKindArubaCx:
-		*s = LogsPostLogsSourcesOKKindArubaCx
+	case LogsPostLogsSourcesCreatedKindArubaCx:
+		*s = LogsPostLogsSourcesCreatedKindArubaCx
 		return nil
-	case LogsPostLogsSourcesOKKindHpeProcurve:
-		*s = LogsPostLogsSourcesOKKindHpeProcurve
+	case LogsPostLogsSourcesCreatedKindHpeProcurve:
+		*s = LogsPostLogsSourcesCreatedKindHpeProcurve
 		return nil
-	case LogsPostLogsSourcesOKKindHpeComware:
-		*s = LogsPostLogsSourcesOKKindHpeComware
+	case LogsPostLogsSourcesCreatedKindHpeComware:
+		*s = LogsPostLogsSourcesCreatedKindHpeComware
 		return nil
-	case LogsPostLogsSourcesOKKindUnifi:
-		*s = LogsPostLogsSourcesOKKindUnifi
+	case LogsPostLogsSourcesCreatedKindUnifi:
+		*s = LogsPostLogsSourcesCreatedKindUnifi
 		return nil
-	case LogsPostLogsSourcesOKKindSyslogGeneric:
-		*s = LogsPostLogsSourcesOKKindSyslogGeneric
+	case LogsPostLogsSourcesCreatedKindSyslogGeneric:
+		*s = LogsPostLogsSourcesCreatedKindSyslogGeneric
 		return nil
-	case LogsPostLogsSourcesOKKindCefLeef:
-		*s = LogsPostLogsSourcesOKKindCefLeef
+	case LogsPostLogsSourcesCreatedKindCefLeef:
+		*s = LogsPostLogsSourcesCreatedKindCefLeef
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type LogsPostLogsSourcesOKProto string
+type LogsPostLogsSourcesCreatedProto string
 
 const (
-	LogsPostLogsSourcesOKProtoUDP LogsPostLogsSourcesOKProto = "udp"
-	LogsPostLogsSourcesOKProtoTCP LogsPostLogsSourcesOKProto = "tcp"
-	LogsPostLogsSourcesOKProtoTLS LogsPostLogsSourcesOKProto = "tls"
+	LogsPostLogsSourcesCreatedProtoUDP LogsPostLogsSourcesCreatedProto = "udp"
+	LogsPostLogsSourcesCreatedProtoTCP LogsPostLogsSourcesCreatedProto = "tcp"
+	LogsPostLogsSourcesCreatedProtoTLS LogsPostLogsSourcesCreatedProto = "tls"
 )
 
-// AllValues returns all LogsPostLogsSourcesOKProto values.
-func (LogsPostLogsSourcesOKProto) AllValues() []LogsPostLogsSourcesOKProto {
-	return []LogsPostLogsSourcesOKProto{
-		LogsPostLogsSourcesOKProtoUDP,
-		LogsPostLogsSourcesOKProtoTCP,
-		LogsPostLogsSourcesOKProtoTLS,
+// AllValues returns all LogsPostLogsSourcesCreatedProto values.
+func (LogsPostLogsSourcesCreatedProto) AllValues() []LogsPostLogsSourcesCreatedProto {
+	return []LogsPostLogsSourcesCreatedProto{
+		LogsPostLogsSourcesCreatedProtoUDP,
+		LogsPostLogsSourcesCreatedProtoTCP,
+		LogsPostLogsSourcesCreatedProtoTLS,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s LogsPostLogsSourcesOKProto) MarshalText() ([]byte, error) {
+func (s LogsPostLogsSourcesCreatedProto) MarshalText() ([]byte, error) {
 	switch s {
-	case LogsPostLogsSourcesOKProtoUDP:
+	case LogsPostLogsSourcesCreatedProtoUDP:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKProtoTCP:
+	case LogsPostLogsSourcesCreatedProtoTCP:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKProtoTLS:
+	case LogsPostLogsSourcesCreatedProtoTLS:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -66525,47 +66171,47 @@ func (s LogsPostLogsSourcesOKProto) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *LogsPostLogsSourcesOKProto) UnmarshalText(data []byte) error {
-	switch LogsPostLogsSourcesOKProto(data) {
-	case LogsPostLogsSourcesOKProtoUDP:
-		*s = LogsPostLogsSourcesOKProtoUDP
+func (s *LogsPostLogsSourcesCreatedProto) UnmarshalText(data []byte) error {
+	switch LogsPostLogsSourcesCreatedProto(data) {
+	case LogsPostLogsSourcesCreatedProtoUDP:
+		*s = LogsPostLogsSourcesCreatedProtoUDP
 		return nil
-	case LogsPostLogsSourcesOKProtoTCP:
-		*s = LogsPostLogsSourcesOKProtoTCP
+	case LogsPostLogsSourcesCreatedProtoTCP:
+		*s = LogsPostLogsSourcesCreatedProtoTCP
 		return nil
-	case LogsPostLogsSourcesOKProtoTLS:
-		*s = LogsPostLogsSourcesOKProtoTLS
+	case LogsPostLogsSourcesCreatedProtoTLS:
+		*s = LogsPostLogsSourcesCreatedProtoTLS
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type LogsPostLogsSourcesOKState string
+type LogsPostLogsSourcesCreatedState string
 
 const (
-	LogsPostLogsSourcesOKStateReceiving LogsPostLogsSourcesOKState = "receiving"
-	LogsPostLogsSourcesOKStateSilent    LogsPostLogsSourcesOKState = "silent"
-	LogsPostLogsSourcesOKStateNever     LogsPostLogsSourcesOKState = "never"
+	LogsPostLogsSourcesCreatedStateReceiving LogsPostLogsSourcesCreatedState = "receiving"
+	LogsPostLogsSourcesCreatedStateSilent    LogsPostLogsSourcesCreatedState = "silent"
+	LogsPostLogsSourcesCreatedStateNever     LogsPostLogsSourcesCreatedState = "never"
 )
 
-// AllValues returns all LogsPostLogsSourcesOKState values.
-func (LogsPostLogsSourcesOKState) AllValues() []LogsPostLogsSourcesOKState {
-	return []LogsPostLogsSourcesOKState{
-		LogsPostLogsSourcesOKStateReceiving,
-		LogsPostLogsSourcesOKStateSilent,
-		LogsPostLogsSourcesOKStateNever,
+// AllValues returns all LogsPostLogsSourcesCreatedState values.
+func (LogsPostLogsSourcesCreatedState) AllValues() []LogsPostLogsSourcesCreatedState {
+	return []LogsPostLogsSourcesCreatedState{
+		LogsPostLogsSourcesCreatedStateReceiving,
+		LogsPostLogsSourcesCreatedStateSilent,
+		LogsPostLogsSourcesCreatedStateNever,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s LogsPostLogsSourcesOKState) MarshalText() ([]byte, error) {
+func (s LogsPostLogsSourcesCreatedState) MarshalText() ([]byte, error) {
 	switch s {
-	case LogsPostLogsSourcesOKStateReceiving:
+	case LogsPostLogsSourcesCreatedStateReceiving:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKStateSilent:
+	case LogsPostLogsSourcesCreatedStateSilent:
 		return []byte(s), nil
-	case LogsPostLogsSourcesOKStateNever:
+	case LogsPostLogsSourcesCreatedStateNever:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -66573,16 +66219,16 @@ func (s LogsPostLogsSourcesOKState) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *LogsPostLogsSourcesOKState) UnmarshalText(data []byte) error {
-	switch LogsPostLogsSourcesOKState(data) {
-	case LogsPostLogsSourcesOKStateReceiving:
-		*s = LogsPostLogsSourcesOKStateReceiving
+func (s *LogsPostLogsSourcesCreatedState) UnmarshalText(data []byte) error {
+	switch LogsPostLogsSourcesCreatedState(data) {
+	case LogsPostLogsSourcesCreatedStateReceiving:
+		*s = LogsPostLogsSourcesCreatedStateReceiving
 		return nil
-	case LogsPostLogsSourcesOKStateSilent:
-		*s = LogsPostLogsSourcesOKStateSilent
+	case LogsPostLogsSourcesCreatedStateSilent:
+		*s = LogsPostLogsSourcesCreatedStateSilent
 		return nil
-	case LogsPostLogsSourcesOKStateNever:
-		*s = LogsPostLogsSourcesOKStateNever
+	case LogsPostLogsSourcesCreatedStateNever:
+		*s = LogsPostLogsSourcesCreatedStateNever
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -68792,51 +68438,6 @@ func (o NilAiGetAiAsksOKItemsItemTable) Or(d AiGetAiAsksOKItemsItemTable) AiGetA
 	return d
 }
 
-// NewNilAiGetAiConnectionsOKItemsItemVendor returns new NilAiGetAiConnectionsOKItemsItemVendor with value set to v.
-func NewNilAiGetAiConnectionsOKItemsItemVendor(v AiGetAiConnectionsOKItemsItemVendor) NilAiGetAiConnectionsOKItemsItemVendor {
-	return NilAiGetAiConnectionsOKItemsItemVendor{
-		Value: v,
-	}
-}
-
-// NilAiGetAiConnectionsOKItemsItemVendor is nullable AiGetAiConnectionsOKItemsItemVendor.
-type NilAiGetAiConnectionsOKItemsItemVendor struct {
-	Value AiGetAiConnectionsOKItemsItemVendor
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilAiGetAiConnectionsOKItemsItemVendor) SetTo(v AiGetAiConnectionsOKItemsItemVendor) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilAiGetAiConnectionsOKItemsItemVendor) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilAiGetAiConnectionsOKItemsItemVendor) SetToNull() {
-	o.Null = true
-	var v AiGetAiConnectionsOKItemsItemVendor
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilAiGetAiConnectionsOKItemsItemVendor) Get() (v AiGetAiConnectionsOKItemsItemVendor, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilAiGetAiConnectionsOKItemsItemVendor) Or(d AiGetAiConnectionsOKItemsItemVendor) AiGetAiConnectionsOKItemsItemVendor {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewNilAiGetAiCveIDCachedOKExplain returns new NilAiGetAiCveIDCachedOKExplain with value set to v.
 func NewNilAiGetAiCveIDCachedOKExplain(v AiGetAiCveIDCachedOKExplain) NilAiGetAiCveIDCachedOKExplain {
 	return NilAiGetAiCveIDCachedOKExplain{
@@ -69011,231 +68612,6 @@ func (o NilAiPostAiAskOKTable) Get() (v AiPostAiAskOKTable, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o NilAiPostAiAskOKTable) Or(d AiPostAiAskOKTable) AiPostAiAskOKTable {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilAiPostAiConnectionsIDTestOKConnectorVendor returns new NilAiPostAiConnectionsIDTestOKConnectorVendor with value set to v.
-func NewNilAiPostAiConnectionsIDTestOKConnectorVendor(v AiPostAiConnectionsIDTestOKConnectorVendor) NilAiPostAiConnectionsIDTestOKConnectorVendor {
-	return NilAiPostAiConnectionsIDTestOKConnectorVendor{
-		Value: v,
-	}
-}
-
-// NilAiPostAiConnectionsIDTestOKConnectorVendor is nullable AiPostAiConnectionsIDTestOKConnectorVendor.
-type NilAiPostAiConnectionsIDTestOKConnectorVendor struct {
-	Value AiPostAiConnectionsIDTestOKConnectorVendor
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilAiPostAiConnectionsIDTestOKConnectorVendor) SetTo(v AiPostAiConnectionsIDTestOKConnectorVendor) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilAiPostAiConnectionsIDTestOKConnectorVendor) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilAiPostAiConnectionsIDTestOKConnectorVendor) SetToNull() {
-	o.Null = true
-	var v AiPostAiConnectionsIDTestOKConnectorVendor
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilAiPostAiConnectionsIDTestOKConnectorVendor) Get() (v AiPostAiConnectionsIDTestOKConnectorVendor, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilAiPostAiConnectionsIDTestOKConnectorVendor) Or(d AiPostAiConnectionsIDTestOKConnectorVendor) AiPostAiConnectionsIDTestOKConnectorVendor {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilAiPostAiConnectionsOKVendor returns new NilAiPostAiConnectionsOKVendor with value set to v.
-func NewNilAiPostAiConnectionsOKVendor(v AiPostAiConnectionsOKVendor) NilAiPostAiConnectionsOKVendor {
-	return NilAiPostAiConnectionsOKVendor{
-		Value: v,
-	}
-}
-
-// NilAiPostAiConnectionsOKVendor is nullable AiPostAiConnectionsOKVendor.
-type NilAiPostAiConnectionsOKVendor struct {
-	Value AiPostAiConnectionsOKVendor
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilAiPostAiConnectionsOKVendor) SetTo(v AiPostAiConnectionsOKVendor) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilAiPostAiConnectionsOKVendor) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilAiPostAiConnectionsOKVendor) SetToNull() {
-	o.Null = true
-	var v AiPostAiConnectionsOKVendor
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilAiPostAiConnectionsOKVendor) Get() (v AiPostAiConnectionsOKVendor, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilAiPostAiConnectionsOKVendor) Or(d AiPostAiConnectionsOKVendor) AiPostAiConnectionsOKVendor {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilAiPostAiConnectionsReqVendor returns new NilAiPostAiConnectionsReqVendor with value set to v.
-func NewNilAiPostAiConnectionsReqVendor(v AiPostAiConnectionsReqVendor) NilAiPostAiConnectionsReqVendor {
-	return NilAiPostAiConnectionsReqVendor{
-		Value: v,
-	}
-}
-
-// NilAiPostAiConnectionsReqVendor is nullable AiPostAiConnectionsReqVendor.
-type NilAiPostAiConnectionsReqVendor struct {
-	Value AiPostAiConnectionsReqVendor
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilAiPostAiConnectionsReqVendor) SetTo(v AiPostAiConnectionsReqVendor) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilAiPostAiConnectionsReqVendor) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilAiPostAiConnectionsReqVendor) SetToNull() {
-	o.Null = true
-	var v AiPostAiConnectionsReqVendor
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilAiPostAiConnectionsReqVendor) Get() (v AiPostAiConnectionsReqVendor, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilAiPostAiConnectionsReqVendor) Or(d AiPostAiConnectionsReqVendor) AiPostAiConnectionsReqVendor {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilAiPutAiConnectionsIDOKVendor returns new NilAiPutAiConnectionsIDOKVendor with value set to v.
-func NewNilAiPutAiConnectionsIDOKVendor(v AiPutAiConnectionsIDOKVendor) NilAiPutAiConnectionsIDOKVendor {
-	return NilAiPutAiConnectionsIDOKVendor{
-		Value: v,
-	}
-}
-
-// NilAiPutAiConnectionsIDOKVendor is nullable AiPutAiConnectionsIDOKVendor.
-type NilAiPutAiConnectionsIDOKVendor struct {
-	Value AiPutAiConnectionsIDOKVendor
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilAiPutAiConnectionsIDOKVendor) SetTo(v AiPutAiConnectionsIDOKVendor) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilAiPutAiConnectionsIDOKVendor) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilAiPutAiConnectionsIDOKVendor) SetToNull() {
-	o.Null = true
-	var v AiPutAiConnectionsIDOKVendor
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilAiPutAiConnectionsIDOKVendor) Get() (v AiPutAiConnectionsIDOKVendor, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilAiPutAiConnectionsIDOKVendor) Or(d AiPutAiConnectionsIDOKVendor) AiPutAiConnectionsIDOKVendor {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilAiPutAiConnectionsIDReqVendor returns new NilAiPutAiConnectionsIDReqVendor with value set to v.
-func NewNilAiPutAiConnectionsIDReqVendor(v AiPutAiConnectionsIDReqVendor) NilAiPutAiConnectionsIDReqVendor {
-	return NilAiPutAiConnectionsIDReqVendor{
-		Value: v,
-	}
-}
-
-// NilAiPutAiConnectionsIDReqVendor is nullable AiPutAiConnectionsIDReqVendor.
-type NilAiPutAiConnectionsIDReqVendor struct {
-	Value AiPutAiConnectionsIDReqVendor
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilAiPutAiConnectionsIDReqVendor) SetTo(v AiPutAiConnectionsIDReqVendor) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilAiPutAiConnectionsIDReqVendor) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilAiPutAiConnectionsIDReqVendor) SetToNull() {
-	o.Null = true
-	var v AiPutAiConnectionsIDReqVendor
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilAiPutAiConnectionsIDReqVendor) Get() (v AiPutAiConnectionsIDReqVendor, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilAiPutAiConnectionsIDReqVendor) Or(d AiPutAiConnectionsIDReqVendor) AiPutAiConnectionsIDReqVendor {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -69917,37 +69293,37 @@ func (o NilCorePostCoreUpdatesOsCheckOKReleaseUpgrade) Or(d CorePostCoreUpdatesO
 	return d
 }
 
-// NewNilCorePostCoreUpdatesOsInstallOKResult returns new NilCorePostCoreUpdatesOsInstallOKResult with value set to v.
-func NewNilCorePostCoreUpdatesOsInstallOKResult(v CorePostCoreUpdatesOsInstallOKResult) NilCorePostCoreUpdatesOsInstallOKResult {
-	return NilCorePostCoreUpdatesOsInstallOKResult{
+// NewNilCorePostCoreUpdatesOsInstallAcceptedResult returns new NilCorePostCoreUpdatesOsInstallAcceptedResult with value set to v.
+func NewNilCorePostCoreUpdatesOsInstallAcceptedResult(v CorePostCoreUpdatesOsInstallAcceptedResult) NilCorePostCoreUpdatesOsInstallAcceptedResult {
+	return NilCorePostCoreUpdatesOsInstallAcceptedResult{
 		Value: v,
 	}
 }
 
-// NilCorePostCoreUpdatesOsInstallOKResult is nullable CorePostCoreUpdatesOsInstallOKResult.
-type NilCorePostCoreUpdatesOsInstallOKResult struct {
-	Value CorePostCoreUpdatesOsInstallOKResult
+// NilCorePostCoreUpdatesOsInstallAcceptedResult is nullable CorePostCoreUpdatesOsInstallAcceptedResult.
+type NilCorePostCoreUpdatesOsInstallAcceptedResult struct {
+	Value CorePostCoreUpdatesOsInstallAcceptedResult
 	Null  bool
 }
 
 // SetTo sets value to v.
-func (o *NilCorePostCoreUpdatesOsInstallOKResult) SetTo(v CorePostCoreUpdatesOsInstallOKResult) {
+func (o *NilCorePostCoreUpdatesOsInstallAcceptedResult) SetTo(v CorePostCoreUpdatesOsInstallAcceptedResult) {
 	o.Null = false
 	o.Value = v
 }
 
 // IsNull returns true if value is Null.
-func (o NilCorePostCoreUpdatesOsInstallOKResult) IsNull() bool { return o.Null }
+func (o NilCorePostCoreUpdatesOsInstallAcceptedResult) IsNull() bool { return o.Null }
 
 // SetToNull sets value to null.
-func (o *NilCorePostCoreUpdatesOsInstallOKResult) SetToNull() {
+func (o *NilCorePostCoreUpdatesOsInstallAcceptedResult) SetToNull() {
 	o.Null = true
-	var v CorePostCoreUpdatesOsInstallOKResult
+	var v CorePostCoreUpdatesOsInstallAcceptedResult
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o NilCorePostCoreUpdatesOsInstallOKResult) Get() (v CorePostCoreUpdatesOsInstallOKResult, ok bool) {
+func (o NilCorePostCoreUpdatesOsInstallAcceptedResult) Get() (v CorePostCoreUpdatesOsInstallAcceptedResult, ok bool) {
 	if o.Null {
 		return v, false
 	}
@@ -69955,7 +69331,7 @@ func (o NilCorePostCoreUpdatesOsInstallOKResult) Get() (v CorePostCoreUpdatesOsI
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o NilCorePostCoreUpdatesOsInstallOKResult) Or(d CorePostCoreUpdatesOsInstallOKResult) CorePostCoreUpdatesOsInstallOKResult {
+func (o NilCorePostCoreUpdatesOsInstallAcceptedResult) Or(d CorePostCoreUpdatesOsInstallAcceptedResult) CorePostCoreUpdatesOsInstallAcceptedResult {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -70007,37 +69383,37 @@ func (o NilCorePostCoreUpdatesOsRebootOKReleaseUpgrade) Or(d CorePostCoreUpdates
 	return d
 }
 
-// NewNilCorePostCoreUsersOKUserTwofaMethod returns new NilCorePostCoreUsersOKUserTwofaMethod with value set to v.
-func NewNilCorePostCoreUsersOKUserTwofaMethod(v CorePostCoreUsersOKUserTwofaMethod) NilCorePostCoreUsersOKUserTwofaMethod {
-	return NilCorePostCoreUsersOKUserTwofaMethod{
+// NewNilCorePostCoreUsersCreatedUserTwofaMethod returns new NilCorePostCoreUsersCreatedUserTwofaMethod with value set to v.
+func NewNilCorePostCoreUsersCreatedUserTwofaMethod(v CorePostCoreUsersCreatedUserTwofaMethod) NilCorePostCoreUsersCreatedUserTwofaMethod {
+	return NilCorePostCoreUsersCreatedUserTwofaMethod{
 		Value: v,
 	}
 }
 
-// NilCorePostCoreUsersOKUserTwofaMethod is nullable CorePostCoreUsersOKUserTwofaMethod.
-type NilCorePostCoreUsersOKUserTwofaMethod struct {
-	Value CorePostCoreUsersOKUserTwofaMethod
+// NilCorePostCoreUsersCreatedUserTwofaMethod is nullable CorePostCoreUsersCreatedUserTwofaMethod.
+type NilCorePostCoreUsersCreatedUserTwofaMethod struct {
+	Value CorePostCoreUsersCreatedUserTwofaMethod
 	Null  bool
 }
 
 // SetTo sets value to v.
-func (o *NilCorePostCoreUsersOKUserTwofaMethod) SetTo(v CorePostCoreUsersOKUserTwofaMethod) {
+func (o *NilCorePostCoreUsersCreatedUserTwofaMethod) SetTo(v CorePostCoreUsersCreatedUserTwofaMethod) {
 	o.Null = false
 	o.Value = v
 }
 
 // IsNull returns true if value is Null.
-func (o NilCorePostCoreUsersOKUserTwofaMethod) IsNull() bool { return o.Null }
+func (o NilCorePostCoreUsersCreatedUserTwofaMethod) IsNull() bool { return o.Null }
 
 // SetToNull sets value to null.
-func (o *NilCorePostCoreUsersOKUserTwofaMethod) SetToNull() {
+func (o *NilCorePostCoreUsersCreatedUserTwofaMethod) SetToNull() {
 	o.Null = true
-	var v CorePostCoreUsersOKUserTwofaMethod
+	var v CorePostCoreUsersCreatedUserTwofaMethod
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o NilCorePostCoreUsersOKUserTwofaMethod) Get() (v CorePostCoreUsersOKUserTwofaMethod, ok bool) {
+func (o NilCorePostCoreUsersCreatedUserTwofaMethod) Get() (v CorePostCoreUsersCreatedUserTwofaMethod, ok bool) {
 	if o.Null {
 		return v, false
 	}
@@ -70045,7 +69421,7 @@ func (o NilCorePostCoreUsersOKUserTwofaMethod) Get() (v CorePostCoreUsersOKUserT
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o NilCorePostCoreUsersOKUserTwofaMethod) Or(d CorePostCoreUsersOKUserTwofaMethod) CorePostCoreUsersOKUserTwofaMethod {
+func (o NilCorePostCoreUsersCreatedUserTwofaMethod) Or(d CorePostCoreUsersCreatedUserTwofaMethod) CorePostCoreUsersCreatedUserTwofaMethod {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -71087,6 +70463,276 @@ func (o NilExposurePostExposureBoxIPVerifyOKValidity) Or(d ExposurePostExposureB
 	return d
 }
 
+// NewNilExposurePostExposureTargetsCreatedBlockedReason returns new NilExposurePostExposureTargetsCreatedBlockedReason with value set to v.
+func NewNilExposurePostExposureTargetsCreatedBlockedReason(v ExposurePostExposureTargetsCreatedBlockedReason) NilExposurePostExposureTargetsCreatedBlockedReason {
+	return NilExposurePostExposureTargetsCreatedBlockedReason{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsCreatedBlockedReason is nullable ExposurePostExposureTargetsCreatedBlockedReason.
+type NilExposurePostExposureTargetsCreatedBlockedReason struct {
+	Value ExposurePostExposureTargetsCreatedBlockedReason
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsCreatedBlockedReason) SetTo(v ExposurePostExposureTargetsCreatedBlockedReason) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsCreatedBlockedReason) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsCreatedBlockedReason) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsCreatedBlockedReason
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsCreatedBlockedReason) Get() (v ExposurePostExposureTargetsCreatedBlockedReason, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsCreatedBlockedReason) Or(d ExposurePostExposureTargetsCreatedBlockedReason) ExposurePostExposureTargetsCreatedBlockedReason {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTargetsCreatedCommitment returns new NilExposurePostExposureTargetsCreatedCommitment with value set to v.
+func NewNilExposurePostExposureTargetsCreatedCommitment(v ExposurePostExposureTargetsCreatedCommitment) NilExposurePostExposureTargetsCreatedCommitment {
+	return NilExposurePostExposureTargetsCreatedCommitment{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsCreatedCommitment is nullable ExposurePostExposureTargetsCreatedCommitment.
+type NilExposurePostExposureTargetsCreatedCommitment struct {
+	Value ExposurePostExposureTargetsCreatedCommitment
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsCreatedCommitment) SetTo(v ExposurePostExposureTargetsCreatedCommitment) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsCreatedCommitment) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsCreatedCommitment) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsCreatedCommitment
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsCreatedCommitment) Get() (v ExposurePostExposureTargetsCreatedCommitment, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsCreatedCommitment) Or(d ExposurePostExposureTargetsCreatedCommitment) ExposurePostExposureTargetsCreatedCommitment {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTargetsCreatedLastCheck returns new NilExposurePostExposureTargetsCreatedLastCheck with value set to v.
+func NewNilExposurePostExposureTargetsCreatedLastCheck(v ExposurePostExposureTargetsCreatedLastCheck) NilExposurePostExposureTargetsCreatedLastCheck {
+	return NilExposurePostExposureTargetsCreatedLastCheck{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsCreatedLastCheck is nullable ExposurePostExposureTargetsCreatedLastCheck.
+type NilExposurePostExposureTargetsCreatedLastCheck struct {
+	Value ExposurePostExposureTargetsCreatedLastCheck
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsCreatedLastCheck) SetTo(v ExposurePostExposureTargetsCreatedLastCheck) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsCreatedLastCheck) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsCreatedLastCheck) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsCreatedLastCheck
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsCreatedLastCheck) Get() (v ExposurePostExposureTargetsCreatedLastCheck, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsCreatedLastCheck) Or(d ExposurePostExposureTargetsCreatedLastCheck) ExposurePostExposureTargetsCreatedLastCheck {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTargetsCreatedLatest returns new NilExposurePostExposureTargetsCreatedLatest with value set to v.
+func NewNilExposurePostExposureTargetsCreatedLatest(v ExposurePostExposureTargetsCreatedLatest) NilExposurePostExposureTargetsCreatedLatest {
+	return NilExposurePostExposureTargetsCreatedLatest{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsCreatedLatest is nullable ExposurePostExposureTargetsCreatedLatest.
+type NilExposurePostExposureTargetsCreatedLatest struct {
+	Value ExposurePostExposureTargetsCreatedLatest
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsCreatedLatest) SetTo(v ExposurePostExposureTargetsCreatedLatest) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsCreatedLatest) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsCreatedLatest) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsCreatedLatest
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsCreatedLatest) Get() (v ExposurePostExposureTargetsCreatedLatest, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsCreatedLatest) Or(d ExposurePostExposureTargetsCreatedLatest) ExposurePostExposureTargetsCreatedLatest {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTargetsCreatedMethod returns new NilExposurePostExposureTargetsCreatedMethod with value set to v.
+func NewNilExposurePostExposureTargetsCreatedMethod(v ExposurePostExposureTargetsCreatedMethod) NilExposurePostExposureTargetsCreatedMethod {
+	return NilExposurePostExposureTargetsCreatedMethod{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsCreatedMethod is nullable ExposurePostExposureTargetsCreatedMethod.
+type NilExposurePostExposureTargetsCreatedMethod struct {
+	Value ExposurePostExposureTargetsCreatedMethod
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsCreatedMethod) SetTo(v ExposurePostExposureTargetsCreatedMethod) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsCreatedMethod) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsCreatedMethod) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsCreatedMethod
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsCreatedMethod) Get() (v ExposurePostExposureTargetsCreatedMethod, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsCreatedMethod) Or(d ExposurePostExposureTargetsCreatedMethod) ExposurePostExposureTargetsCreatedMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTargetsCreatedValidity returns new NilExposurePostExposureTargetsCreatedValidity with value set to v.
+func NewNilExposurePostExposureTargetsCreatedValidity(v ExposurePostExposureTargetsCreatedValidity) NilExposurePostExposureTargetsCreatedValidity {
+	return NilExposurePostExposureTargetsCreatedValidity{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsCreatedValidity is nullable ExposurePostExposureTargetsCreatedValidity.
+type NilExposurePostExposureTargetsCreatedValidity struct {
+	Value ExposurePostExposureTargetsCreatedValidity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsCreatedValidity) SetTo(v ExposurePostExposureTargetsCreatedValidity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsCreatedValidity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsCreatedValidity) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsCreatedValidity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsCreatedValidity) Get() (v ExposurePostExposureTargetsCreatedValidity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsCreatedValidity) Or(d ExposurePostExposureTargetsCreatedValidity) ExposurePostExposureTargetsCreatedValidity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposurePostExposureTargetsIDCommitmentOKBlockedReason returns new NilExposurePostExposureTargetsIDCommitmentOKBlockedReason with value set to v.
 func NewNilExposurePostExposureTargetsIDCommitmentOKBlockedReason(v ExposurePostExposureTargetsIDCommitmentOKBlockedReason) NilExposurePostExposureTargetsIDCommitmentOKBlockedReason {
 	return NilExposurePostExposureTargetsIDCommitmentOKBlockedReason{
@@ -71627,276 +71273,6 @@ func (o NilExposurePostExposureTargetsIDVerifyOKTargetValidity) Or(d ExposurePos
 	return d
 }
 
-// NewNilExposurePostExposureTargetsOKBlockedReason returns new NilExposurePostExposureTargetsOKBlockedReason with value set to v.
-func NewNilExposurePostExposureTargetsOKBlockedReason(v ExposurePostExposureTargetsOKBlockedReason) NilExposurePostExposureTargetsOKBlockedReason {
-	return NilExposurePostExposureTargetsOKBlockedReason{
-		Value: v,
-	}
-}
-
-// NilExposurePostExposureTargetsOKBlockedReason is nullable ExposurePostExposureTargetsOKBlockedReason.
-type NilExposurePostExposureTargetsOKBlockedReason struct {
-	Value ExposurePostExposureTargetsOKBlockedReason
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilExposurePostExposureTargetsOKBlockedReason) SetTo(v ExposurePostExposureTargetsOKBlockedReason) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilExposurePostExposureTargetsOKBlockedReason) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilExposurePostExposureTargetsOKBlockedReason) SetToNull() {
-	o.Null = true
-	var v ExposurePostExposureTargetsOKBlockedReason
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePostExposureTargetsOKBlockedReason) Get() (v ExposurePostExposureTargetsOKBlockedReason, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilExposurePostExposureTargetsOKBlockedReason) Or(d ExposurePostExposureTargetsOKBlockedReason) ExposurePostExposureTargetsOKBlockedReason {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilExposurePostExposureTargetsOKCommitment returns new NilExposurePostExposureTargetsOKCommitment with value set to v.
-func NewNilExposurePostExposureTargetsOKCommitment(v ExposurePostExposureTargetsOKCommitment) NilExposurePostExposureTargetsOKCommitment {
-	return NilExposurePostExposureTargetsOKCommitment{
-		Value: v,
-	}
-}
-
-// NilExposurePostExposureTargetsOKCommitment is nullable ExposurePostExposureTargetsOKCommitment.
-type NilExposurePostExposureTargetsOKCommitment struct {
-	Value ExposurePostExposureTargetsOKCommitment
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilExposurePostExposureTargetsOKCommitment) SetTo(v ExposurePostExposureTargetsOKCommitment) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilExposurePostExposureTargetsOKCommitment) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilExposurePostExposureTargetsOKCommitment) SetToNull() {
-	o.Null = true
-	var v ExposurePostExposureTargetsOKCommitment
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePostExposureTargetsOKCommitment) Get() (v ExposurePostExposureTargetsOKCommitment, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilExposurePostExposureTargetsOKCommitment) Or(d ExposurePostExposureTargetsOKCommitment) ExposurePostExposureTargetsOKCommitment {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilExposurePostExposureTargetsOKLastCheck returns new NilExposurePostExposureTargetsOKLastCheck with value set to v.
-func NewNilExposurePostExposureTargetsOKLastCheck(v ExposurePostExposureTargetsOKLastCheck) NilExposurePostExposureTargetsOKLastCheck {
-	return NilExposurePostExposureTargetsOKLastCheck{
-		Value: v,
-	}
-}
-
-// NilExposurePostExposureTargetsOKLastCheck is nullable ExposurePostExposureTargetsOKLastCheck.
-type NilExposurePostExposureTargetsOKLastCheck struct {
-	Value ExposurePostExposureTargetsOKLastCheck
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilExposurePostExposureTargetsOKLastCheck) SetTo(v ExposurePostExposureTargetsOKLastCheck) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilExposurePostExposureTargetsOKLastCheck) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilExposurePostExposureTargetsOKLastCheck) SetToNull() {
-	o.Null = true
-	var v ExposurePostExposureTargetsOKLastCheck
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePostExposureTargetsOKLastCheck) Get() (v ExposurePostExposureTargetsOKLastCheck, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilExposurePostExposureTargetsOKLastCheck) Or(d ExposurePostExposureTargetsOKLastCheck) ExposurePostExposureTargetsOKLastCheck {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilExposurePostExposureTargetsOKLatest returns new NilExposurePostExposureTargetsOKLatest with value set to v.
-func NewNilExposurePostExposureTargetsOKLatest(v ExposurePostExposureTargetsOKLatest) NilExposurePostExposureTargetsOKLatest {
-	return NilExposurePostExposureTargetsOKLatest{
-		Value: v,
-	}
-}
-
-// NilExposurePostExposureTargetsOKLatest is nullable ExposurePostExposureTargetsOKLatest.
-type NilExposurePostExposureTargetsOKLatest struct {
-	Value ExposurePostExposureTargetsOKLatest
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilExposurePostExposureTargetsOKLatest) SetTo(v ExposurePostExposureTargetsOKLatest) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilExposurePostExposureTargetsOKLatest) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilExposurePostExposureTargetsOKLatest) SetToNull() {
-	o.Null = true
-	var v ExposurePostExposureTargetsOKLatest
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePostExposureTargetsOKLatest) Get() (v ExposurePostExposureTargetsOKLatest, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilExposurePostExposureTargetsOKLatest) Or(d ExposurePostExposureTargetsOKLatest) ExposurePostExposureTargetsOKLatest {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilExposurePostExposureTargetsOKMethod returns new NilExposurePostExposureTargetsOKMethod with value set to v.
-func NewNilExposurePostExposureTargetsOKMethod(v ExposurePostExposureTargetsOKMethod) NilExposurePostExposureTargetsOKMethod {
-	return NilExposurePostExposureTargetsOKMethod{
-		Value: v,
-	}
-}
-
-// NilExposurePostExposureTargetsOKMethod is nullable ExposurePostExposureTargetsOKMethod.
-type NilExposurePostExposureTargetsOKMethod struct {
-	Value ExposurePostExposureTargetsOKMethod
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilExposurePostExposureTargetsOKMethod) SetTo(v ExposurePostExposureTargetsOKMethod) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilExposurePostExposureTargetsOKMethod) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilExposurePostExposureTargetsOKMethod) SetToNull() {
-	o.Null = true
-	var v ExposurePostExposureTargetsOKMethod
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePostExposureTargetsOKMethod) Get() (v ExposurePostExposureTargetsOKMethod, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilExposurePostExposureTargetsOKMethod) Or(d ExposurePostExposureTargetsOKMethod) ExposurePostExposureTargetsOKMethod {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilExposurePostExposureTargetsOKValidity returns new NilExposurePostExposureTargetsOKValidity with value set to v.
-func NewNilExposurePostExposureTargetsOKValidity(v ExposurePostExposureTargetsOKValidity) NilExposurePostExposureTargetsOKValidity {
-	return NilExposurePostExposureTargetsOKValidity{
-		Value: v,
-	}
-}
-
-// NilExposurePostExposureTargetsOKValidity is nullable ExposurePostExposureTargetsOKValidity.
-type NilExposurePostExposureTargetsOKValidity struct {
-	Value ExposurePostExposureTargetsOKValidity
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilExposurePostExposureTargetsOKValidity) SetTo(v ExposurePostExposureTargetsOKValidity) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilExposurePostExposureTargetsOKValidity) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilExposurePostExposureTargetsOKValidity) SetToNull() {
-	o.Null = true
-	var v ExposurePostExposureTargetsOKValidity
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePostExposureTargetsOKValidity) Get() (v ExposurePostExposureTargetsOKValidity, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilExposurePostExposureTargetsOKValidity) Or(d ExposurePostExposureTargetsOKValidity) ExposurePostExposureTargetsOKValidity {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewNilFeedsGetFeedsHotOKLatest returns new NilFeedsGetFeedsHotOKLatest with value set to v.
 func NewNilFeedsGetFeedsHotOKLatest(v FeedsGetFeedsHotOKLatest) NilFeedsGetFeedsHotOKLatest {
 	return NilFeedsGetFeedsHotOKLatest{
@@ -72122,37 +71498,37 @@ func (o NilFeedsGetFeedsWeeklyOKItemsItemAnswer) Or(d FeedsGetFeedsWeeklyOKItems
 	return d
 }
 
-// NewNilFeedsPostFeedsCustomOKParser returns new NilFeedsPostFeedsCustomOKParser with value set to v.
-func NewNilFeedsPostFeedsCustomOKParser(v FeedsPostFeedsCustomOKParser) NilFeedsPostFeedsCustomOKParser {
-	return NilFeedsPostFeedsCustomOKParser{
+// NewNilFeedsPostFeedsCustomCreatedParser returns new NilFeedsPostFeedsCustomCreatedParser with value set to v.
+func NewNilFeedsPostFeedsCustomCreatedParser(v FeedsPostFeedsCustomCreatedParser) NilFeedsPostFeedsCustomCreatedParser {
+	return NilFeedsPostFeedsCustomCreatedParser{
 		Value: v,
 	}
 }
 
-// NilFeedsPostFeedsCustomOKParser is nullable FeedsPostFeedsCustomOKParser.
-type NilFeedsPostFeedsCustomOKParser struct {
-	Value FeedsPostFeedsCustomOKParser
+// NilFeedsPostFeedsCustomCreatedParser is nullable FeedsPostFeedsCustomCreatedParser.
+type NilFeedsPostFeedsCustomCreatedParser struct {
+	Value FeedsPostFeedsCustomCreatedParser
 	Null  bool
 }
 
 // SetTo sets value to v.
-func (o *NilFeedsPostFeedsCustomOKParser) SetTo(v FeedsPostFeedsCustomOKParser) {
+func (o *NilFeedsPostFeedsCustomCreatedParser) SetTo(v FeedsPostFeedsCustomCreatedParser) {
 	o.Null = false
 	o.Value = v
 }
 
 // IsNull returns true if value is Null.
-func (o NilFeedsPostFeedsCustomOKParser) IsNull() bool { return o.Null }
+func (o NilFeedsPostFeedsCustomCreatedParser) IsNull() bool { return o.Null }
 
 // SetToNull sets value to null.
-func (o *NilFeedsPostFeedsCustomOKParser) SetToNull() {
+func (o *NilFeedsPostFeedsCustomCreatedParser) SetToNull() {
 	o.Null = true
-	var v FeedsPostFeedsCustomOKParser
+	var v FeedsPostFeedsCustomCreatedParser
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o NilFeedsPostFeedsCustomOKParser) Get() (v FeedsPostFeedsCustomOKParser, ok bool) {
+func (o NilFeedsPostFeedsCustomCreatedParser) Get() (v FeedsPostFeedsCustomCreatedParser, ok bool) {
 	if o.Null {
 		return v, false
 	}
@@ -72160,7 +71536,7 @@ func (o NilFeedsPostFeedsCustomOKParser) Get() (v FeedsPostFeedsCustomOKParser, 
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o NilFeedsPostFeedsCustomOKParser) Or(d FeedsPostFeedsCustomOKParser) FeedsPostFeedsCustomOKParser {
+func (o NilFeedsPostFeedsCustomCreatedParser) Or(d FeedsPostFeedsCustomCreatedParser) FeedsPostFeedsCustomCreatedParser {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -77407,37 +76783,37 @@ func (o NilResponsePostResponseBlocklistTokenOKLastFetch) Or(d ResponsePostRespo
 	return d
 }
 
-// NewNilResponsePostResponseCatalogOKConnectionKind returns new NilResponsePostResponseCatalogOKConnectionKind with value set to v.
-func NewNilResponsePostResponseCatalogOKConnectionKind(v ResponsePostResponseCatalogOKConnectionKind) NilResponsePostResponseCatalogOKConnectionKind {
-	return NilResponsePostResponseCatalogOKConnectionKind{
+// NewNilResponsePostResponseCatalogCreatedConnectionKind returns new NilResponsePostResponseCatalogCreatedConnectionKind with value set to v.
+func NewNilResponsePostResponseCatalogCreatedConnectionKind(v ResponsePostResponseCatalogCreatedConnectionKind) NilResponsePostResponseCatalogCreatedConnectionKind {
+	return NilResponsePostResponseCatalogCreatedConnectionKind{
 		Value: v,
 	}
 }
 
-// NilResponsePostResponseCatalogOKConnectionKind is nullable ResponsePostResponseCatalogOKConnectionKind.
-type NilResponsePostResponseCatalogOKConnectionKind struct {
-	Value ResponsePostResponseCatalogOKConnectionKind
+// NilResponsePostResponseCatalogCreatedConnectionKind is nullable ResponsePostResponseCatalogCreatedConnectionKind.
+type NilResponsePostResponseCatalogCreatedConnectionKind struct {
+	Value ResponsePostResponseCatalogCreatedConnectionKind
 	Null  bool
 }
 
 // SetTo sets value to v.
-func (o *NilResponsePostResponseCatalogOKConnectionKind) SetTo(v ResponsePostResponseCatalogOKConnectionKind) {
+func (o *NilResponsePostResponseCatalogCreatedConnectionKind) SetTo(v ResponsePostResponseCatalogCreatedConnectionKind) {
 	o.Null = false
 	o.Value = v
 }
 
 // IsNull returns true if value is Null.
-func (o NilResponsePostResponseCatalogOKConnectionKind) IsNull() bool { return o.Null }
+func (o NilResponsePostResponseCatalogCreatedConnectionKind) IsNull() bool { return o.Null }
 
 // SetToNull sets value to null.
-func (o *NilResponsePostResponseCatalogOKConnectionKind) SetToNull() {
+func (o *NilResponsePostResponseCatalogCreatedConnectionKind) SetToNull() {
 	o.Null = true
-	var v ResponsePostResponseCatalogOKConnectionKind
+	var v ResponsePostResponseCatalogCreatedConnectionKind
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o NilResponsePostResponseCatalogOKConnectionKind) Get() (v ResponsePostResponseCatalogOKConnectionKind, ok bool) {
+func (o NilResponsePostResponseCatalogCreatedConnectionKind) Get() (v ResponsePostResponseCatalogCreatedConnectionKind, ok bool) {
 	if o.Null {
 		return v, false
 	}
@@ -77445,44 +76821,44 @@ func (o NilResponsePostResponseCatalogOKConnectionKind) Get() (v ResponsePostRes
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o NilResponsePostResponseCatalogOKConnectionKind) Or(d ResponsePostResponseCatalogOKConnectionKind) ResponsePostResponseCatalogOKConnectionKind {
+func (o NilResponsePostResponseCatalogCreatedConnectionKind) Or(d ResponsePostResponseCatalogCreatedConnectionKind) ResponsePostResponseCatalogCreatedConnectionKind {
 	if v, ok := o.Get(); ok {
 		return v
 	}
 	return d
 }
 
-// NewNilResponsePostResponseProposalsIDRequestOKAi returns new NilResponsePostResponseProposalsIDRequestOKAi with value set to v.
-func NewNilResponsePostResponseProposalsIDRequestOKAi(v ResponsePostResponseProposalsIDRequestOKAi) NilResponsePostResponseProposalsIDRequestOKAi {
-	return NilResponsePostResponseProposalsIDRequestOKAi{
+// NewNilResponsePostResponseProposalsIDRequestCreatedAi returns new NilResponsePostResponseProposalsIDRequestCreatedAi with value set to v.
+func NewNilResponsePostResponseProposalsIDRequestCreatedAi(v ResponsePostResponseProposalsIDRequestCreatedAi) NilResponsePostResponseProposalsIDRequestCreatedAi {
+	return NilResponsePostResponseProposalsIDRequestCreatedAi{
 		Value: v,
 	}
 }
 
-// NilResponsePostResponseProposalsIDRequestOKAi is nullable ResponsePostResponseProposalsIDRequestOKAi.
-type NilResponsePostResponseProposalsIDRequestOKAi struct {
-	Value ResponsePostResponseProposalsIDRequestOKAi
+// NilResponsePostResponseProposalsIDRequestCreatedAi is nullable ResponsePostResponseProposalsIDRequestCreatedAi.
+type NilResponsePostResponseProposalsIDRequestCreatedAi struct {
+	Value ResponsePostResponseProposalsIDRequestCreatedAi
 	Null  bool
 }
 
 // SetTo sets value to v.
-func (o *NilResponsePostResponseProposalsIDRequestOKAi) SetTo(v ResponsePostResponseProposalsIDRequestOKAi) {
+func (o *NilResponsePostResponseProposalsIDRequestCreatedAi) SetTo(v ResponsePostResponseProposalsIDRequestCreatedAi) {
 	o.Null = false
 	o.Value = v
 }
 
 // IsNull returns true if value is Null.
-func (o NilResponsePostResponseProposalsIDRequestOKAi) IsNull() bool { return o.Null }
+func (o NilResponsePostResponseProposalsIDRequestCreatedAi) IsNull() bool { return o.Null }
 
 // SetToNull sets value to null.
-func (o *NilResponsePostResponseProposalsIDRequestOKAi) SetToNull() {
+func (o *NilResponsePostResponseProposalsIDRequestCreatedAi) SetToNull() {
 	o.Null = true
-	var v ResponsePostResponseProposalsIDRequestOKAi
+	var v ResponsePostResponseProposalsIDRequestCreatedAi
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o NilResponsePostResponseProposalsIDRequestOKAi) Get() (v ResponsePostResponseProposalsIDRequestOKAi, ok bool) {
+func (o NilResponsePostResponseProposalsIDRequestCreatedAi) Get() (v ResponsePostResponseProposalsIDRequestCreatedAi, ok bool) {
 	if o.Null {
 		return v, false
 	}
@@ -77490,44 +76866,44 @@ func (o NilResponsePostResponseProposalsIDRequestOKAi) Get() (v ResponsePostResp
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o NilResponsePostResponseProposalsIDRequestOKAi) Or(d ResponsePostResponseProposalsIDRequestOKAi) ResponsePostResponseProposalsIDRequestOKAi {
+func (o NilResponsePostResponseProposalsIDRequestCreatedAi) Or(d ResponsePostResponseProposalsIDRequestCreatedAi) ResponsePostResponseProposalsIDRequestCreatedAi {
 	if v, ok := o.Get(); ok {
 		return v
 	}
 	return d
 }
 
-// NewNilResponsePostResponseProposalsIDRequestOKAiSecondCheck returns new NilResponsePostResponseProposalsIDRequestOKAiSecondCheck with value set to v.
-func NewNilResponsePostResponseProposalsIDRequestOKAiSecondCheck(v ResponsePostResponseProposalsIDRequestOKAiSecondCheck) NilResponsePostResponseProposalsIDRequestOKAiSecondCheck {
-	return NilResponsePostResponseProposalsIDRequestOKAiSecondCheck{
+// NewNilResponsePostResponseProposalsIDRequestCreatedAiSecondCheck returns new NilResponsePostResponseProposalsIDRequestCreatedAiSecondCheck with value set to v.
+func NewNilResponsePostResponseProposalsIDRequestCreatedAiSecondCheck(v ResponsePostResponseProposalsIDRequestCreatedAiSecondCheck) NilResponsePostResponseProposalsIDRequestCreatedAiSecondCheck {
+	return NilResponsePostResponseProposalsIDRequestCreatedAiSecondCheck{
 		Value: v,
 	}
 }
 
-// NilResponsePostResponseProposalsIDRequestOKAiSecondCheck is nullable ResponsePostResponseProposalsIDRequestOKAiSecondCheck.
-type NilResponsePostResponseProposalsIDRequestOKAiSecondCheck struct {
-	Value ResponsePostResponseProposalsIDRequestOKAiSecondCheck
+// NilResponsePostResponseProposalsIDRequestCreatedAiSecondCheck is nullable ResponsePostResponseProposalsIDRequestCreatedAiSecondCheck.
+type NilResponsePostResponseProposalsIDRequestCreatedAiSecondCheck struct {
+	Value ResponsePostResponseProposalsIDRequestCreatedAiSecondCheck
 	Null  bool
 }
 
 // SetTo sets value to v.
-func (o *NilResponsePostResponseProposalsIDRequestOKAiSecondCheck) SetTo(v ResponsePostResponseProposalsIDRequestOKAiSecondCheck) {
+func (o *NilResponsePostResponseProposalsIDRequestCreatedAiSecondCheck) SetTo(v ResponsePostResponseProposalsIDRequestCreatedAiSecondCheck) {
 	o.Null = false
 	o.Value = v
 }
 
 // IsNull returns true if value is Null.
-func (o NilResponsePostResponseProposalsIDRequestOKAiSecondCheck) IsNull() bool { return o.Null }
+func (o NilResponsePostResponseProposalsIDRequestCreatedAiSecondCheck) IsNull() bool { return o.Null }
 
 // SetToNull sets value to null.
-func (o *NilResponsePostResponseProposalsIDRequestOKAiSecondCheck) SetToNull() {
+func (o *NilResponsePostResponseProposalsIDRequestCreatedAiSecondCheck) SetToNull() {
 	o.Null = true
-	var v ResponsePostResponseProposalsIDRequestOKAiSecondCheck
+	var v ResponsePostResponseProposalsIDRequestCreatedAiSecondCheck
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o NilResponsePostResponseProposalsIDRequestOKAiSecondCheck) Get() (v ResponsePostResponseProposalsIDRequestOKAiSecondCheck, ok bool) {
+func (o NilResponsePostResponseProposalsIDRequestCreatedAiSecondCheck) Get() (v ResponsePostResponseProposalsIDRequestCreatedAiSecondCheck, ok bool) {
 	if o.Null {
 		return v, false
 	}
@@ -77535,91 +76911,46 @@ func (o NilResponsePostResponseProposalsIDRequestOKAiSecondCheck) Get() (v Respo
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o NilResponsePostResponseProposalsIDRequestOKAiSecondCheck) Or(d ResponsePostResponseProposalsIDRequestOKAiSecondCheck) ResponsePostResponseProposalsIDRequestOKAiSecondCheck {
+func (o NilResponsePostResponseProposalsIDRequestCreatedAiSecondCheck) Or(d ResponsePostResponseProposalsIDRequestCreatedAiSecondCheck) ResponsePostResponseProposalsIDRequestCreatedAiSecondCheck {
 	if v, ok := o.Get(); ok {
 		return v
 	}
 	return d
 }
 
-// NewNilResponsePostResponseProposalsIDRequestOKItemsItemChangeRest returns new NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRest with value set to v.
-func NewNilResponsePostResponseProposalsIDRequestOKItemsItemChangeRest(v ResponsePostResponseProposalsIDRequestOKItemsItemChangeRest) NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRest {
-	return NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRest{
+// NewNilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest returns new NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest with value set to v.
+func NewNilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest(v ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest {
+	return NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest{
 		Value: v,
 	}
 }
 
-// NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRest is nullable ResponsePostResponseProposalsIDRequestOKItemsItemChangeRest.
-type NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRest struct {
-	Value ResponsePostResponseProposalsIDRequestOKItemsItemChangeRest
+// NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest is nullable ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest.
+type NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest struct {
+	Value ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest
 	Null  bool
 }
 
 // SetTo sets value to v.
-func (o *NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRest) SetTo(v ResponsePostResponseProposalsIDRequestOKItemsItemChangeRest) {
+func (o *NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) SetTo(v ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) {
 	o.Null = false
 	o.Value = v
 }
 
 // IsNull returns true if value is Null.
-func (o NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRest) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRest) SetToNull() {
-	o.Null = true
-	var v ResponsePostResponseProposalsIDRequestOKItemsItemChangeRest
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRest) Get() (v ResponsePostResponseProposalsIDRequestOKItemsItemChangeRest, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRest) Or(d ResponsePostResponseProposalsIDRequestOKItemsItemChangeRest) ResponsePostResponseProposalsIDRequestOKItemsItemChangeRest {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest returns new NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest with value set to v.
-func NewNilResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest(v ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest) NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest {
-	return NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest{
-		Value: v,
-	}
-}
-
-// NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest is nullable ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest.
-type NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest struct {
-	Value ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest) SetTo(v ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest) IsNull() bool {
+func (o NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) IsNull() bool {
 	return o.Null
 }
 
 // SetToNull sets value to null.
-func (o *NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest) SetToNull() {
+func (o *NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) SetToNull() {
 	o.Null = true
-	var v ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest
+	var v ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest) Get() (v ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest, ok bool) {
+func (o NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) Get() (v ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest, ok bool) {
 	if o.Null {
 		return v, false
 	}
@@ -77627,44 +76958,46 @@ func (o NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest) 
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest) Or(d ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest) ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest {
+func (o NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) Or(d ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest {
 	if v, ok := o.Get(); ok {
 		return v
 	}
 	return d
 }
 
-// NewNilResponsePostResponseProposalsIDRequestOKItemsItemVerified returns new NilResponsePostResponseProposalsIDRequestOKItemsItemVerified with value set to v.
-func NewNilResponsePostResponseProposalsIDRequestOKItemsItemVerified(v ResponsePostResponseProposalsIDRequestOKItemsItemVerified) NilResponsePostResponseProposalsIDRequestOKItemsItemVerified {
-	return NilResponsePostResponseProposalsIDRequestOKItemsItemVerified{
+// NewNilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest returns new NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest with value set to v.
+func NewNilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest(v ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest {
+	return NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest{
 		Value: v,
 	}
 }
 
-// NilResponsePostResponseProposalsIDRequestOKItemsItemVerified is nullable ResponsePostResponseProposalsIDRequestOKItemsItemVerified.
-type NilResponsePostResponseProposalsIDRequestOKItemsItemVerified struct {
-	Value ResponsePostResponseProposalsIDRequestOKItemsItemVerified
+// NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest is nullable ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest.
+type NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest struct {
+	Value ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest
 	Null  bool
 }
 
 // SetTo sets value to v.
-func (o *NilResponsePostResponseProposalsIDRequestOKItemsItemVerified) SetTo(v ResponsePostResponseProposalsIDRequestOKItemsItemVerified) {
+func (o *NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) SetTo(v ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) {
 	o.Null = false
 	o.Value = v
 }
 
 // IsNull returns true if value is Null.
-func (o NilResponsePostResponseProposalsIDRequestOKItemsItemVerified) IsNull() bool { return o.Null }
+func (o NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) IsNull() bool {
+	return o.Null
+}
 
 // SetToNull sets value to null.
-func (o *NilResponsePostResponseProposalsIDRequestOKItemsItemVerified) SetToNull() {
+func (o *NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) SetToNull() {
 	o.Null = true
-	var v ResponsePostResponseProposalsIDRequestOKItemsItemVerified
+	var v ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o NilResponsePostResponseProposalsIDRequestOKItemsItemVerified) Get() (v ResponsePostResponseProposalsIDRequestOKItemsItemVerified, ok bool) {
+func (o NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) Get() (v ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest, ok bool) {
 	if o.Null {
 		return v, false
 	}
@@ -77672,44 +77005,46 @@ func (o NilResponsePostResponseProposalsIDRequestOKItemsItemVerified) Get() (v R
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o NilResponsePostResponseProposalsIDRequestOKItemsItemVerified) Or(d ResponsePostResponseProposalsIDRequestOKItemsItemVerified) ResponsePostResponseProposalsIDRequestOKItemsItemVerified {
+func (o NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) Or(d ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest {
 	if v, ok := o.Get(); ok {
 		return v
 	}
 	return d
 }
 
-// NewNilResponsePostResponseProposalsIDRequestOKTrigger returns new NilResponsePostResponseProposalsIDRequestOKTrigger with value set to v.
-func NewNilResponsePostResponseProposalsIDRequestOKTrigger(v ResponsePostResponseProposalsIDRequestOKTrigger) NilResponsePostResponseProposalsIDRequestOKTrigger {
-	return NilResponsePostResponseProposalsIDRequestOKTrigger{
+// NewNilResponsePostResponseProposalsIDRequestCreatedItemsItemVerified returns new NilResponsePostResponseProposalsIDRequestCreatedItemsItemVerified with value set to v.
+func NewNilResponsePostResponseProposalsIDRequestCreatedItemsItemVerified(v ResponsePostResponseProposalsIDRequestCreatedItemsItemVerified) NilResponsePostResponseProposalsIDRequestCreatedItemsItemVerified {
+	return NilResponsePostResponseProposalsIDRequestCreatedItemsItemVerified{
 		Value: v,
 	}
 }
 
-// NilResponsePostResponseProposalsIDRequestOKTrigger is nullable ResponsePostResponseProposalsIDRequestOKTrigger.
-type NilResponsePostResponseProposalsIDRequestOKTrigger struct {
-	Value ResponsePostResponseProposalsIDRequestOKTrigger
+// NilResponsePostResponseProposalsIDRequestCreatedItemsItemVerified is nullable ResponsePostResponseProposalsIDRequestCreatedItemsItemVerified.
+type NilResponsePostResponseProposalsIDRequestCreatedItemsItemVerified struct {
+	Value ResponsePostResponseProposalsIDRequestCreatedItemsItemVerified
 	Null  bool
 }
 
 // SetTo sets value to v.
-func (o *NilResponsePostResponseProposalsIDRequestOKTrigger) SetTo(v ResponsePostResponseProposalsIDRequestOKTrigger) {
+func (o *NilResponsePostResponseProposalsIDRequestCreatedItemsItemVerified) SetTo(v ResponsePostResponseProposalsIDRequestCreatedItemsItemVerified) {
 	o.Null = false
 	o.Value = v
 }
 
 // IsNull returns true if value is Null.
-func (o NilResponsePostResponseProposalsIDRequestOKTrigger) IsNull() bool { return o.Null }
+func (o NilResponsePostResponseProposalsIDRequestCreatedItemsItemVerified) IsNull() bool {
+	return o.Null
+}
 
 // SetToNull sets value to null.
-func (o *NilResponsePostResponseProposalsIDRequestOKTrigger) SetToNull() {
+func (o *NilResponsePostResponseProposalsIDRequestCreatedItemsItemVerified) SetToNull() {
 	o.Null = true
-	var v ResponsePostResponseProposalsIDRequestOKTrigger
+	var v ResponsePostResponseProposalsIDRequestCreatedItemsItemVerified
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o NilResponsePostResponseProposalsIDRequestOKTrigger) Get() (v ResponsePostResponseProposalsIDRequestOKTrigger, ok bool) {
+func (o NilResponsePostResponseProposalsIDRequestCreatedItemsItemVerified) Get() (v ResponsePostResponseProposalsIDRequestCreatedItemsItemVerified, ok bool) {
 	if o.Null {
 		return v, false
 	}
@@ -77717,7 +77052,52 @@ func (o NilResponsePostResponseProposalsIDRequestOKTrigger) Get() (v ResponsePos
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o NilResponsePostResponseProposalsIDRequestOKTrigger) Or(d ResponsePostResponseProposalsIDRequestOKTrigger) ResponsePostResponseProposalsIDRequestOKTrigger {
+func (o NilResponsePostResponseProposalsIDRequestCreatedItemsItemVerified) Or(d ResponsePostResponseProposalsIDRequestCreatedItemsItemVerified) ResponsePostResponseProposalsIDRequestCreatedItemsItemVerified {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilResponsePostResponseProposalsIDRequestCreatedTrigger returns new NilResponsePostResponseProposalsIDRequestCreatedTrigger with value set to v.
+func NewNilResponsePostResponseProposalsIDRequestCreatedTrigger(v ResponsePostResponseProposalsIDRequestCreatedTrigger) NilResponsePostResponseProposalsIDRequestCreatedTrigger {
+	return NilResponsePostResponseProposalsIDRequestCreatedTrigger{
+		Value: v,
+	}
+}
+
+// NilResponsePostResponseProposalsIDRequestCreatedTrigger is nullable ResponsePostResponseProposalsIDRequestCreatedTrigger.
+type NilResponsePostResponseProposalsIDRequestCreatedTrigger struct {
+	Value ResponsePostResponseProposalsIDRequestCreatedTrigger
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilResponsePostResponseProposalsIDRequestCreatedTrigger) SetTo(v ResponsePostResponseProposalsIDRequestCreatedTrigger) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilResponsePostResponseProposalsIDRequestCreatedTrigger) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilResponsePostResponseProposalsIDRequestCreatedTrigger) SetToNull() {
+	o.Null = true
+	var v ResponsePostResponseProposalsIDRequestCreatedTrigger
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilResponsePostResponseProposalsIDRequestCreatedTrigger) Get() (v ResponsePostResponseProposalsIDRequestCreatedTrigger, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilResponsePostResponseProposalsIDRequestCreatedTrigger) Or(d ResponsePostResponseProposalsIDRequestCreatedTrigger) ResponsePostResponseProposalsIDRequestCreatedTrigger {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -78176,6 +77556,51 @@ func (o NilScanGetScansTargetsOKItemsItemReason) Or(d ScanGetScansTargetsOKItems
 	return d
 }
 
+// NewNilScanPostScansCredentialedCreatedLastTest returns new NilScanPostScansCredentialedCreatedLastTest with value set to v.
+func NewNilScanPostScansCredentialedCreatedLastTest(v ScanPostScansCredentialedCreatedLastTest) NilScanPostScansCredentialedCreatedLastTest {
+	return NilScanPostScansCredentialedCreatedLastTest{
+		Value: v,
+	}
+}
+
+// NilScanPostScansCredentialedCreatedLastTest is nullable ScanPostScansCredentialedCreatedLastTest.
+type NilScanPostScansCredentialedCreatedLastTest struct {
+	Value ScanPostScansCredentialedCreatedLastTest
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanPostScansCredentialedCreatedLastTest) SetTo(v ScanPostScansCredentialedCreatedLastTest) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanPostScansCredentialedCreatedLastTest) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanPostScansCredentialedCreatedLastTest) SetToNull() {
+	o.Null = true
+	var v ScanPostScansCredentialedCreatedLastTest
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanPostScansCredentialedCreatedLastTest) Get() (v ScanPostScansCredentialedCreatedLastTest, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanPostScansCredentialedCreatedLastTest) Or(d ScanPostScansCredentialedCreatedLastTest) ScanPostScansCredentialedCreatedLastTest {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilScanPostScansCredentialedIDTestOKLastTest returns new NilScanPostScansCredentialedIDTestOKLastTest with value set to v.
 func NewNilScanPostScansCredentialedIDTestOKLastTest(v ScanPostScansCredentialedIDTestOKLastTest) NilScanPostScansCredentialedIDTestOKLastTest {
 	return NilScanPostScansCredentialedIDTestOKLastTest{
@@ -78221,37 +77646,37 @@ func (o NilScanPostScansCredentialedIDTestOKLastTest) Or(d ScanPostScansCredenti
 	return d
 }
 
-// NewNilScanPostScansCredentialedOKLastTest returns new NilScanPostScansCredentialedOKLastTest with value set to v.
-func NewNilScanPostScansCredentialedOKLastTest(v ScanPostScansCredentialedOKLastTest) NilScanPostScansCredentialedOKLastTest {
-	return NilScanPostScansCredentialedOKLastTest{
+// NewNilScanPostScansRunsCreatedCurrent returns new NilScanPostScansRunsCreatedCurrent with value set to v.
+func NewNilScanPostScansRunsCreatedCurrent(v ScanPostScansRunsCreatedCurrent) NilScanPostScansRunsCreatedCurrent {
+	return NilScanPostScansRunsCreatedCurrent{
 		Value: v,
 	}
 }
 
-// NilScanPostScansCredentialedOKLastTest is nullable ScanPostScansCredentialedOKLastTest.
-type NilScanPostScansCredentialedOKLastTest struct {
-	Value ScanPostScansCredentialedOKLastTest
+// NilScanPostScansRunsCreatedCurrent is nullable ScanPostScansRunsCreatedCurrent.
+type NilScanPostScansRunsCreatedCurrent struct {
+	Value ScanPostScansRunsCreatedCurrent
 	Null  bool
 }
 
 // SetTo sets value to v.
-func (o *NilScanPostScansCredentialedOKLastTest) SetTo(v ScanPostScansCredentialedOKLastTest) {
+func (o *NilScanPostScansRunsCreatedCurrent) SetTo(v ScanPostScansRunsCreatedCurrent) {
 	o.Null = false
 	o.Value = v
 }
 
 // IsNull returns true if value is Null.
-func (o NilScanPostScansCredentialedOKLastTest) IsNull() bool { return o.Null }
+func (o NilScanPostScansRunsCreatedCurrent) IsNull() bool { return o.Null }
 
 // SetToNull sets value to null.
-func (o *NilScanPostScansCredentialedOKLastTest) SetToNull() {
+func (o *NilScanPostScansRunsCreatedCurrent) SetToNull() {
 	o.Null = true
-	var v ScanPostScansCredentialedOKLastTest
+	var v ScanPostScansRunsCreatedCurrent
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o NilScanPostScansCredentialedOKLastTest) Get() (v ScanPostScansCredentialedOKLastTest, ok bool) {
+func (o NilScanPostScansRunsCreatedCurrent) Get() (v ScanPostScansRunsCreatedCurrent, ok bool) {
 	if o.Null {
 		return v, false
 	}
@@ -78259,7 +77684,7 @@ func (o NilScanPostScansCredentialedOKLastTest) Get() (v ScanPostScansCredential
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o NilScanPostScansCredentialedOKLastTest) Or(d ScanPostScansCredentialedOKLastTest) ScanPostScansCredentialedOKLastTest {
+func (o NilScanPostScansRunsCreatedCurrent) Or(d ScanPostScansRunsCreatedCurrent) ScanPostScansRunsCreatedCurrent {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -78305,51 +77730,6 @@ func (o NilScanPostScansRunsIDStopOKCurrent) Get() (v ScanPostScansRunsIDStopOKC
 
 // Or returns value if set, or given parameter if does not.
 func (o NilScanPostScansRunsIDStopOKCurrent) Or(d ScanPostScansRunsIDStopOKCurrent) ScanPostScansRunsIDStopOKCurrent {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilScanPostScansRunsOKCurrent returns new NilScanPostScansRunsOKCurrent with value set to v.
-func NewNilScanPostScansRunsOKCurrent(v ScanPostScansRunsOKCurrent) NilScanPostScansRunsOKCurrent {
-	return NilScanPostScansRunsOKCurrent{
-		Value: v,
-	}
-}
-
-// NilScanPostScansRunsOKCurrent is nullable ScanPostScansRunsOKCurrent.
-type NilScanPostScansRunsOKCurrent struct {
-	Value ScanPostScansRunsOKCurrent
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilScanPostScansRunsOKCurrent) SetTo(v ScanPostScansRunsOKCurrent) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilScanPostScansRunsOKCurrent) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilScanPostScansRunsOKCurrent) SetToNull() {
-	o.Null = true
-	var v ScanPostScansRunsOKCurrent
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilScanPostScansRunsOKCurrent) Get() (v ScanPostScansRunsOKCurrent, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilScanPostScansRunsOKCurrent) Or(d ScanPostScansRunsOKCurrent) ScanPostScansRunsOKCurrent {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -85600,15 +84980,16 @@ func (s *ReportsGetReportsPdplOKReportRisksItemStatus) UnmarshalText(data []byte
 }
 
 type ReportsGetReportsScheduleOK struct {
-	Day        ReportsGetReportsScheduleOKDay `json:"day"`
-	Enabled    bool                           `json:"enabled"`
-	Hour       int                            `json:"hour"`
-	NextRun    NilDateTime                    `json:"next_run"`
-	Recipients []string                       `json:"recipients"`
+	// 1 = Monday … 7 = Sunday (D-57).
+	Day        int         `json:"day"`
+	Enabled    bool        `json:"enabled"`
+	Hour       int         `json:"hour"`
+	NextRun    NilDateTime `json:"next_run"`
+	Recipients []string    `json:"recipients"`
 }
 
 // GetDay returns the value of Day.
-func (s *ReportsGetReportsScheduleOK) GetDay() ReportsGetReportsScheduleOKDay {
+func (s *ReportsGetReportsScheduleOK) GetDay() int {
 	return s.Day
 }
 
@@ -85633,7 +85014,7 @@ func (s *ReportsGetReportsScheduleOK) GetRecipients() []string {
 }
 
 // SetDay sets the value of Day.
-func (s *ReportsGetReportsScheduleOK) SetDay(val ReportsGetReportsScheduleOKDay) {
+func (s *ReportsGetReportsScheduleOK) SetDay(val int) {
 	s.Day = val
 }
 
@@ -85655,82 +85036,6 @@ func (s *ReportsGetReportsScheduleOK) SetNextRun(val NilDateTime) {
 // SetRecipients sets the value of Recipients.
 func (s *ReportsGetReportsScheduleOK) SetRecipients(val []string) {
 	s.Recipients = val
-}
-
-type ReportsGetReportsScheduleOKDay string
-
-const (
-	ReportsGetReportsScheduleOKDayMon ReportsGetReportsScheduleOKDay = "mon"
-	ReportsGetReportsScheduleOKDayTue ReportsGetReportsScheduleOKDay = "tue"
-	ReportsGetReportsScheduleOKDayWed ReportsGetReportsScheduleOKDay = "wed"
-	ReportsGetReportsScheduleOKDayThu ReportsGetReportsScheduleOKDay = "thu"
-	ReportsGetReportsScheduleOKDayFri ReportsGetReportsScheduleOKDay = "fri"
-	ReportsGetReportsScheduleOKDaySat ReportsGetReportsScheduleOKDay = "sat"
-	ReportsGetReportsScheduleOKDaySun ReportsGetReportsScheduleOKDay = "sun"
-)
-
-// AllValues returns all ReportsGetReportsScheduleOKDay values.
-func (ReportsGetReportsScheduleOKDay) AllValues() []ReportsGetReportsScheduleOKDay {
-	return []ReportsGetReportsScheduleOKDay{
-		ReportsGetReportsScheduleOKDayMon,
-		ReportsGetReportsScheduleOKDayTue,
-		ReportsGetReportsScheduleOKDayWed,
-		ReportsGetReportsScheduleOKDayThu,
-		ReportsGetReportsScheduleOKDayFri,
-		ReportsGetReportsScheduleOKDaySat,
-		ReportsGetReportsScheduleOKDaySun,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ReportsGetReportsScheduleOKDay) MarshalText() ([]byte, error) {
-	switch s {
-	case ReportsGetReportsScheduleOKDayMon:
-		return []byte(s), nil
-	case ReportsGetReportsScheduleOKDayTue:
-		return []byte(s), nil
-	case ReportsGetReportsScheduleOKDayWed:
-		return []byte(s), nil
-	case ReportsGetReportsScheduleOKDayThu:
-		return []byte(s), nil
-	case ReportsGetReportsScheduleOKDayFri:
-		return []byte(s), nil
-	case ReportsGetReportsScheduleOKDaySat:
-		return []byte(s), nil
-	case ReportsGetReportsScheduleOKDaySun:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ReportsGetReportsScheduleOKDay) UnmarshalText(data []byte) error {
-	switch ReportsGetReportsScheduleOKDay(data) {
-	case ReportsGetReportsScheduleOKDayMon:
-		*s = ReportsGetReportsScheduleOKDayMon
-		return nil
-	case ReportsGetReportsScheduleOKDayTue:
-		*s = ReportsGetReportsScheduleOKDayTue
-		return nil
-	case ReportsGetReportsScheduleOKDayWed:
-		*s = ReportsGetReportsScheduleOKDayWed
-		return nil
-	case ReportsGetReportsScheduleOKDayThu:
-		*s = ReportsGetReportsScheduleOKDayThu
-		return nil
-	case ReportsGetReportsScheduleOKDayFri:
-		*s = ReportsGetReportsScheduleOKDayFri
-		return nil
-	case ReportsGetReportsScheduleOKDaySat:
-		*s = ReportsGetReportsScheduleOKDaySat
-		return nil
-	case ReportsGetReportsScheduleOKDaySun:
-		*s = ReportsGetReportsScheduleOKDaySun
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }
 
 // Ref: #/components/schemas/reports_get_reports_weekly_history_id_1_fix
@@ -91129,15 +90434,16 @@ func (s *ReportsPutReportsPdplOrgReqSize) UnmarshalText(data []byte) error {
 }
 
 type ReportsPutReportsScheduleOK struct {
-	Day        ReportsPutReportsScheduleOKDay `json:"day"`
-	Enabled    bool                           `json:"enabled"`
-	Hour       int                            `json:"hour"`
-	NextRun    NilDateTime                    `json:"next_run"`
-	Recipients []string                       `json:"recipients"`
+	// 1 = Monday … 7 = Sunday (D-57).
+	Day        int         `json:"day"`
+	Enabled    bool        `json:"enabled"`
+	Hour       int         `json:"hour"`
+	NextRun    NilDateTime `json:"next_run"`
+	Recipients []string    `json:"recipients"`
 }
 
 // GetDay returns the value of Day.
-func (s *ReportsPutReportsScheduleOK) GetDay() ReportsPutReportsScheduleOKDay {
+func (s *ReportsPutReportsScheduleOK) GetDay() int {
 	return s.Day
 }
 
@@ -91162,7 +90468,7 @@ func (s *ReportsPutReportsScheduleOK) GetRecipients() []string {
 }
 
 // SetDay sets the value of Day.
-func (s *ReportsPutReportsScheduleOK) SetDay(val ReportsPutReportsScheduleOKDay) {
+func (s *ReportsPutReportsScheduleOK) SetDay(val int) {
 	s.Day = val
 }
 
@@ -91186,91 +90492,16 @@ func (s *ReportsPutReportsScheduleOK) SetRecipients(val []string) {
 	s.Recipients = val
 }
 
-type ReportsPutReportsScheduleOKDay string
-
-const (
-	ReportsPutReportsScheduleOKDayMon ReportsPutReportsScheduleOKDay = "mon"
-	ReportsPutReportsScheduleOKDayTue ReportsPutReportsScheduleOKDay = "tue"
-	ReportsPutReportsScheduleOKDayWed ReportsPutReportsScheduleOKDay = "wed"
-	ReportsPutReportsScheduleOKDayThu ReportsPutReportsScheduleOKDay = "thu"
-	ReportsPutReportsScheduleOKDayFri ReportsPutReportsScheduleOKDay = "fri"
-	ReportsPutReportsScheduleOKDaySat ReportsPutReportsScheduleOKDay = "sat"
-	ReportsPutReportsScheduleOKDaySun ReportsPutReportsScheduleOKDay = "sun"
-)
-
-// AllValues returns all ReportsPutReportsScheduleOKDay values.
-func (ReportsPutReportsScheduleOKDay) AllValues() []ReportsPutReportsScheduleOKDay {
-	return []ReportsPutReportsScheduleOKDay{
-		ReportsPutReportsScheduleOKDayMon,
-		ReportsPutReportsScheduleOKDayTue,
-		ReportsPutReportsScheduleOKDayWed,
-		ReportsPutReportsScheduleOKDayThu,
-		ReportsPutReportsScheduleOKDayFri,
-		ReportsPutReportsScheduleOKDaySat,
-		ReportsPutReportsScheduleOKDaySun,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ReportsPutReportsScheduleOKDay) MarshalText() ([]byte, error) {
-	switch s {
-	case ReportsPutReportsScheduleOKDayMon:
-		return []byte(s), nil
-	case ReportsPutReportsScheduleOKDayTue:
-		return []byte(s), nil
-	case ReportsPutReportsScheduleOKDayWed:
-		return []byte(s), nil
-	case ReportsPutReportsScheduleOKDayThu:
-		return []byte(s), nil
-	case ReportsPutReportsScheduleOKDayFri:
-		return []byte(s), nil
-	case ReportsPutReportsScheduleOKDaySat:
-		return []byte(s), nil
-	case ReportsPutReportsScheduleOKDaySun:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ReportsPutReportsScheduleOKDay) UnmarshalText(data []byte) error {
-	switch ReportsPutReportsScheduleOKDay(data) {
-	case ReportsPutReportsScheduleOKDayMon:
-		*s = ReportsPutReportsScheduleOKDayMon
-		return nil
-	case ReportsPutReportsScheduleOKDayTue:
-		*s = ReportsPutReportsScheduleOKDayTue
-		return nil
-	case ReportsPutReportsScheduleOKDayWed:
-		*s = ReportsPutReportsScheduleOKDayWed
-		return nil
-	case ReportsPutReportsScheduleOKDayThu:
-		*s = ReportsPutReportsScheduleOKDayThu
-		return nil
-	case ReportsPutReportsScheduleOKDayFri:
-		*s = ReportsPutReportsScheduleOKDayFri
-		return nil
-	case ReportsPutReportsScheduleOKDaySat:
-		*s = ReportsPutReportsScheduleOKDaySat
-		return nil
-	case ReportsPutReportsScheduleOKDaySun:
-		*s = ReportsPutReportsScheduleOKDaySun
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
 type ReportsPutReportsScheduleReq struct {
-	Day        ReportsPutReportsScheduleReqDay `json:"day"`
-	Enabled    bool                            `json:"enabled"`
-	Hour       int                             `json:"hour"`
-	Recipients []string                        `json:"recipients"`
+	// 1 = Monday … 7 = Sunday (D-57).
+	Day        int      `json:"day"`
+	Enabled    bool     `json:"enabled"`
+	Hour       int      `json:"hour"`
+	Recipients []string `json:"recipients"`
 }
 
 // GetDay returns the value of Day.
-func (s *ReportsPutReportsScheduleReq) GetDay() ReportsPutReportsScheduleReqDay {
+func (s *ReportsPutReportsScheduleReq) GetDay() int {
 	return s.Day
 }
 
@@ -91290,7 +90521,7 @@ func (s *ReportsPutReportsScheduleReq) GetRecipients() []string {
 }
 
 // SetDay sets the value of Day.
-func (s *ReportsPutReportsScheduleReq) SetDay(val ReportsPutReportsScheduleReqDay) {
+func (s *ReportsPutReportsScheduleReq) SetDay(val int) {
 	s.Day = val
 }
 
@@ -91307,82 +90538,6 @@ func (s *ReportsPutReportsScheduleReq) SetHour(val int) {
 // SetRecipients sets the value of Recipients.
 func (s *ReportsPutReportsScheduleReq) SetRecipients(val []string) {
 	s.Recipients = val
-}
-
-type ReportsPutReportsScheduleReqDay string
-
-const (
-	ReportsPutReportsScheduleReqDayMon ReportsPutReportsScheduleReqDay = "mon"
-	ReportsPutReportsScheduleReqDayTue ReportsPutReportsScheduleReqDay = "tue"
-	ReportsPutReportsScheduleReqDayWed ReportsPutReportsScheduleReqDay = "wed"
-	ReportsPutReportsScheduleReqDayThu ReportsPutReportsScheduleReqDay = "thu"
-	ReportsPutReportsScheduleReqDayFri ReportsPutReportsScheduleReqDay = "fri"
-	ReportsPutReportsScheduleReqDaySat ReportsPutReportsScheduleReqDay = "sat"
-	ReportsPutReportsScheduleReqDaySun ReportsPutReportsScheduleReqDay = "sun"
-)
-
-// AllValues returns all ReportsPutReportsScheduleReqDay values.
-func (ReportsPutReportsScheduleReqDay) AllValues() []ReportsPutReportsScheduleReqDay {
-	return []ReportsPutReportsScheduleReqDay{
-		ReportsPutReportsScheduleReqDayMon,
-		ReportsPutReportsScheduleReqDayTue,
-		ReportsPutReportsScheduleReqDayWed,
-		ReportsPutReportsScheduleReqDayThu,
-		ReportsPutReportsScheduleReqDayFri,
-		ReportsPutReportsScheduleReqDaySat,
-		ReportsPutReportsScheduleReqDaySun,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ReportsPutReportsScheduleReqDay) MarshalText() ([]byte, error) {
-	switch s {
-	case ReportsPutReportsScheduleReqDayMon:
-		return []byte(s), nil
-	case ReportsPutReportsScheduleReqDayTue:
-		return []byte(s), nil
-	case ReportsPutReportsScheduleReqDayWed:
-		return []byte(s), nil
-	case ReportsPutReportsScheduleReqDayThu:
-		return []byte(s), nil
-	case ReportsPutReportsScheduleReqDayFri:
-		return []byte(s), nil
-	case ReportsPutReportsScheduleReqDaySat:
-		return []byte(s), nil
-	case ReportsPutReportsScheduleReqDaySun:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ReportsPutReportsScheduleReqDay) UnmarshalText(data []byte) error {
-	switch ReportsPutReportsScheduleReqDay(data) {
-	case ReportsPutReportsScheduleReqDayMon:
-		*s = ReportsPutReportsScheduleReqDayMon
-		return nil
-	case ReportsPutReportsScheduleReqDayTue:
-		*s = ReportsPutReportsScheduleReqDayTue
-		return nil
-	case ReportsPutReportsScheduleReqDayWed:
-		*s = ReportsPutReportsScheduleReqDayWed
-		return nil
-	case ReportsPutReportsScheduleReqDayThu:
-		*s = ReportsPutReportsScheduleReqDayThu
-		return nil
-	case ReportsPutReportsScheduleReqDayFri:
-		*s = ReportsPutReportsScheduleReqDayFri
-		return nil
-	case ReportsPutReportsScheduleReqDaySat:
-		*s = ReportsPutReportsScheduleReqDaySat
-		return nil
-	case ReportsPutReportsScheduleReqDaySun:
-		*s = ReportsPutReportsScheduleReqDaySun
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }
 
 // ResponseDeleteResponseCatalogIDNoContent is response for ResponseDeleteResponseCatalogID operation.
@@ -92382,6 +91537,7 @@ type ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethod string
 const (
 	ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodGET    ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethod = "GET"
 	ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodPUT    ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethod = "PUT"
+	ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodPATCH  ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethod = "PATCH"
 	ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodPOST   ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethod = "POST"
 	ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodDELETE ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethod = "DELETE"
 )
@@ -92391,6 +91547,7 @@ func (ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethod) AllValues(
 	return []ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethod{
 		ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodGET,
 		ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodPUT,
+		ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodPATCH,
 		ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodPOST,
 		ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodDELETE,
 	}
@@ -92402,6 +91559,8 @@ func (s ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethod) MarshalT
 	case ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodGET:
 		return []byte(s), nil
 	case ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodPUT:
+		return []byte(s), nil
+	case ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodPATCH:
 		return []byte(s), nil
 	case ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodPOST:
 		return []byte(s), nil
@@ -92420,6 +91579,9 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethod) Unmarsh
 		return nil
 	case ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodPUT:
 		*s = ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodPUT
+		return nil
+	case ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodPATCH:
+		*s = ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodPATCH
 		return nil
 	case ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodPOST:
 		*s = ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethodPOST
@@ -92510,6 +91672,7 @@ type ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethod stri
 const (
 	ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodGET    ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethod = "GET"
 	ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodPUT    ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethod = "PUT"
+	ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodPATCH  ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethod = "PATCH"
 	ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodPOST   ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethod = "POST"
 	ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodDELETE ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethod = "DELETE"
 )
@@ -92519,6 +91682,7 @@ func (ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethod) Al
 	return []ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethod{
 		ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodGET,
 		ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodPUT,
+		ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodPATCH,
 		ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodPOST,
 		ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodDELETE,
 	}
@@ -92530,6 +91694,8 @@ func (s ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethod) 
 	case ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodGET:
 		return []byte(s), nil
 	case ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodPUT:
+		return []byte(s), nil
+	case ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodPATCH:
 		return []byte(s), nil
 	case ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodPOST:
 		return []byte(s), nil
@@ -92548,6 +91714,9 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethod)
 		return nil
 	case ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodPUT:
 		*s = ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodPUT
+		return nil
+	case ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodPATCH:
+		*s = ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodPATCH
 		return nil
 	case ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodPOST:
 		*s = ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethodPOST
@@ -93839,6 +93008,7 @@ type ResponseGetResponseApproveTokenOKItemsItemChangeRestMethod string
 const (
 	ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodGET    ResponseGetResponseApproveTokenOKItemsItemChangeRestMethod = "GET"
 	ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodPUT    ResponseGetResponseApproveTokenOKItemsItemChangeRestMethod = "PUT"
+	ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodPATCH  ResponseGetResponseApproveTokenOKItemsItemChangeRestMethod = "PATCH"
 	ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodPOST   ResponseGetResponseApproveTokenOKItemsItemChangeRestMethod = "POST"
 	ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodDELETE ResponseGetResponseApproveTokenOKItemsItemChangeRestMethod = "DELETE"
 )
@@ -93848,6 +93018,7 @@ func (ResponseGetResponseApproveTokenOKItemsItemChangeRestMethod) AllValues() []
 	return []ResponseGetResponseApproveTokenOKItemsItemChangeRestMethod{
 		ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodGET,
 		ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodPUT,
+		ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodPATCH,
 		ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodPOST,
 		ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodDELETE,
 	}
@@ -93859,6 +93030,8 @@ func (s ResponseGetResponseApproveTokenOKItemsItemChangeRestMethod) MarshalText(
 	case ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodGET:
 		return []byte(s), nil
 	case ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodPUT:
+		return []byte(s), nil
+	case ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodPATCH:
 		return []byte(s), nil
 	case ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodPOST:
 		return []byte(s), nil
@@ -93877,6 +93050,9 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRestMethod) UnmarshalTe
 		return nil
 	case ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodPUT:
 		*s = ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodPUT
+		return nil
+	case ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodPATCH:
+		*s = ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodPATCH
 		return nil
 	case ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodPOST:
 		*s = ResponseGetResponseApproveTokenOKItemsItemChangeRestMethodPOST
@@ -93967,6 +93143,7 @@ type ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethod string
 const (
 	ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodGET    ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethod = "GET"
 	ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodPUT    ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethod = "PUT"
+	ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodPATCH  ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethod = "PATCH"
 	ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodPOST   ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethod = "POST"
 	ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodDELETE ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethod = "DELETE"
 )
@@ -93976,6 +93153,7 @@ func (ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethod) AllVal
 	return []ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethod{
 		ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodGET,
 		ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodPUT,
+		ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodPATCH,
 		ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodPOST,
 		ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodDELETE,
 	}
@@ -93987,6 +93165,8 @@ func (s ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethod) Mars
 	case ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodGET:
 		return []byte(s), nil
 	case ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodPUT:
+		return []byte(s), nil
+	case ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodPATCH:
 		return []byte(s), nil
 	case ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodPOST:
 		return []byte(s), nil
@@ -94005,6 +93185,9 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethod) Unm
 		return nil
 	case ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodPUT:
 		*s = ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodPUT
+		return nil
+	case ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodPATCH:
+		*s = ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodPATCH
 		return nil
 	case ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodPOST:
 		*s = ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethodPOST
@@ -94379,7 +93562,6 @@ type ResponseGetResponseCatalogOKConnectionsItem struct {
 	Kind     ResponseGetResponseCatalogOKConnectionsItemKind `json:"kind"`
 	Name     string                                          `json:"name"`
 	ReadOnly bool                                            `json:"read_only"`
-	Vendor   NilString                                       `json:"vendor"`
 	// Enabled write tools; empty = read-only, cannot carry out actions.
 	WriteTools []string `json:"write_tools"`
 }
@@ -94407,11 +93589,6 @@ func (s *ResponseGetResponseCatalogOKConnectionsItem) GetName() string {
 // GetReadOnly returns the value of ReadOnly.
 func (s *ResponseGetResponseCatalogOKConnectionsItem) GetReadOnly() bool {
 	return s.ReadOnly
-}
-
-// GetVendor returns the value of Vendor.
-func (s *ResponseGetResponseCatalogOKConnectionsItem) GetVendor() NilString {
-	return s.Vendor
 }
 
 // GetWriteTools returns the value of WriteTools.
@@ -94444,11 +93621,6 @@ func (s *ResponseGetResponseCatalogOKConnectionsItem) SetReadOnly(val bool) {
 	s.ReadOnly = val
 }
 
-// SetVendor sets the value of Vendor.
-func (s *ResponseGetResponseCatalogOKConnectionsItem) SetVendor(val NilString) {
-	s.Vendor = val
-}
-
 // SetWriteTools sets the value of WriteTools.
 func (s *ResponseGetResponseCatalogOKConnectionsItem) SetWriteTools(val []string) {
 	s.WriteTools = val
@@ -94457,19 +93629,21 @@ func (s *ResponseGetResponseCatalogOKConnectionsItem) SetWriteTools(val []string
 type ResponseGetResponseCatalogOKConnectionsItemKind string
 
 const (
-	ResponseGetResponseCatalogOKConnectionsItemKindDeviceAPI ResponseGetResponseCatalogOKConnectionsItemKind = "device-api"
-	ResponseGetResponseCatalogOKConnectionsItemKindSSH       ResponseGetResponseCatalogOKConnectionsItemKind = "ssh"
-	ResponseGetResponseCatalogOKConnectionsItemKindHTTP      ResponseGetResponseCatalogOKConnectionsItemKind = "http"
-	ResponseGetResponseCatalogOKConnectionsItemKindMcpHTTP   ResponseGetResponseCatalogOKConnectionsItemKind = "mcp-http"
-	ResponseGetResponseCatalogOKConnectionsItemKindMcpStdio  ResponseGetResponseCatalogOKConnectionsItemKind = "mcp-stdio"
+	ResponseGetResponseCatalogOKConnectionsItemKindHTTP            ResponseGetResponseCatalogOKConnectionsItemKind = "http"
+	ResponseGetResponseCatalogOKConnectionsItemKindSSH             ResponseGetResponseCatalogOKConnectionsItemKind = "ssh"
+	ResponseGetResponseCatalogOKConnectionsItemKindNetconfRestconf ResponseGetResponseCatalogOKConnectionsItemKind = "netconf-restconf"
+	ResponseGetResponseCatalogOKConnectionsItemKindAutomation      ResponseGetResponseCatalogOKConnectionsItemKind = "automation"
+	ResponseGetResponseCatalogOKConnectionsItemKindMcpHTTP         ResponseGetResponseCatalogOKConnectionsItemKind = "mcp-http"
+	ResponseGetResponseCatalogOKConnectionsItemKindMcpStdio        ResponseGetResponseCatalogOKConnectionsItemKind = "mcp-stdio"
 )
 
 // AllValues returns all ResponseGetResponseCatalogOKConnectionsItemKind values.
 func (ResponseGetResponseCatalogOKConnectionsItemKind) AllValues() []ResponseGetResponseCatalogOKConnectionsItemKind {
 	return []ResponseGetResponseCatalogOKConnectionsItemKind{
-		ResponseGetResponseCatalogOKConnectionsItemKindDeviceAPI,
-		ResponseGetResponseCatalogOKConnectionsItemKindSSH,
 		ResponseGetResponseCatalogOKConnectionsItemKindHTTP,
+		ResponseGetResponseCatalogOKConnectionsItemKindSSH,
+		ResponseGetResponseCatalogOKConnectionsItemKindNetconfRestconf,
+		ResponseGetResponseCatalogOKConnectionsItemKindAutomation,
 		ResponseGetResponseCatalogOKConnectionsItemKindMcpHTTP,
 		ResponseGetResponseCatalogOKConnectionsItemKindMcpStdio,
 	}
@@ -94478,11 +93652,13 @@ func (ResponseGetResponseCatalogOKConnectionsItemKind) AllValues() []ResponseGet
 // MarshalText implements encoding.TextMarshaler.
 func (s ResponseGetResponseCatalogOKConnectionsItemKind) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponseGetResponseCatalogOKConnectionsItemKindDeviceAPI:
+	case ResponseGetResponseCatalogOKConnectionsItemKindHTTP:
 		return []byte(s), nil
 	case ResponseGetResponseCatalogOKConnectionsItemKindSSH:
 		return []byte(s), nil
-	case ResponseGetResponseCatalogOKConnectionsItemKindHTTP:
+	case ResponseGetResponseCatalogOKConnectionsItemKindNetconfRestconf:
+		return []byte(s), nil
+	case ResponseGetResponseCatalogOKConnectionsItemKindAutomation:
 		return []byte(s), nil
 	case ResponseGetResponseCatalogOKConnectionsItemKindMcpHTTP:
 		return []byte(s), nil
@@ -94496,14 +93672,17 @@ func (s ResponseGetResponseCatalogOKConnectionsItemKind) MarshalText() ([]byte, 
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *ResponseGetResponseCatalogOKConnectionsItemKind) UnmarshalText(data []byte) error {
 	switch ResponseGetResponseCatalogOKConnectionsItemKind(data) {
-	case ResponseGetResponseCatalogOKConnectionsItemKindDeviceAPI:
-		*s = ResponseGetResponseCatalogOKConnectionsItemKindDeviceAPI
+	case ResponseGetResponseCatalogOKConnectionsItemKindHTTP:
+		*s = ResponseGetResponseCatalogOKConnectionsItemKindHTTP
 		return nil
 	case ResponseGetResponseCatalogOKConnectionsItemKindSSH:
 		*s = ResponseGetResponseCatalogOKConnectionsItemKindSSH
 		return nil
-	case ResponseGetResponseCatalogOKConnectionsItemKindHTTP:
-		*s = ResponseGetResponseCatalogOKConnectionsItemKindHTTP
+	case ResponseGetResponseCatalogOKConnectionsItemKindNetconfRestconf:
+		*s = ResponseGetResponseCatalogOKConnectionsItemKindNetconfRestconf
+		return nil
+	case ResponseGetResponseCatalogOKConnectionsItemKindAutomation:
+		*s = ResponseGetResponseCatalogOKConnectionsItemKindAutomation
 		return nil
 	case ResponseGetResponseCatalogOKConnectionsItemKindMcpHTTP:
 		*s = ResponseGetResponseCatalogOKConnectionsItemKindMcpHTTP
@@ -94528,10 +93707,10 @@ type ResponseGetResponseCatalogOKItemsItem struct {
 	// Changes another device, so the execution switch applies.
 	Device bool `json:"device"`
 	// Allowed = enabled.
-	Enabled bool                                      `json:"enabled"`
-	ID      string                                    `json:"id"`
-	Name    string                                    `json:"name"`
-	Pack    ResponseGetResponseCatalogOKItemsItemPack `json:"pack"`
+	Enabled bool   `json:"enabled"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Pack    string `json:"pack"`
 	// Placeholders the templates use.
 	Params []ResponseGetResponseCatalogOKItemsItemParamsItem `json:"params"`
 	// Has a rollback step.
@@ -94602,7 +93781,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) GetName() string {
 }
 
 // GetPack returns the value of Pack.
-func (s *ResponseGetResponseCatalogOKItemsItem) GetPack() ResponseGetResponseCatalogOKItemsItemPack {
+func (s *ResponseGetResponseCatalogOKItemsItem) GetPack() string {
 	return s.Pack
 }
 
@@ -94707,7 +93886,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) SetName(val string) {
 }
 
 // SetPack sets the value of Pack.
-func (s *ResponseGetResponseCatalogOKItemsItem) SetPack(val ResponseGetResponseCatalogOKItemsItemPack) {
+func (s *ResponseGetResponseCatalogOKItemsItem) SetPack(val string) {
 	s.Pack = val
 }
 
@@ -94759,19 +93938,21 @@ func (s *ResponseGetResponseCatalogOKItemsItem) SetVerify(val ResponseGetRespons
 type ResponseGetResponseCatalogOKItemsItemConnectionKind string
 
 const (
-	ResponseGetResponseCatalogOKItemsItemConnectionKindDeviceAPI ResponseGetResponseCatalogOKItemsItemConnectionKind = "device-api"
-	ResponseGetResponseCatalogOKItemsItemConnectionKindSSH       ResponseGetResponseCatalogOKItemsItemConnectionKind = "ssh"
-	ResponseGetResponseCatalogOKItemsItemConnectionKindHTTP      ResponseGetResponseCatalogOKItemsItemConnectionKind = "http"
-	ResponseGetResponseCatalogOKItemsItemConnectionKindMcpHTTP   ResponseGetResponseCatalogOKItemsItemConnectionKind = "mcp-http"
-	ResponseGetResponseCatalogOKItemsItemConnectionKindMcpStdio  ResponseGetResponseCatalogOKItemsItemConnectionKind = "mcp-stdio"
+	ResponseGetResponseCatalogOKItemsItemConnectionKindHTTP            ResponseGetResponseCatalogOKItemsItemConnectionKind = "http"
+	ResponseGetResponseCatalogOKItemsItemConnectionKindSSH             ResponseGetResponseCatalogOKItemsItemConnectionKind = "ssh"
+	ResponseGetResponseCatalogOKItemsItemConnectionKindNetconfRestconf ResponseGetResponseCatalogOKItemsItemConnectionKind = "netconf-restconf"
+	ResponseGetResponseCatalogOKItemsItemConnectionKindAutomation      ResponseGetResponseCatalogOKItemsItemConnectionKind = "automation"
+	ResponseGetResponseCatalogOKItemsItemConnectionKindMcpHTTP         ResponseGetResponseCatalogOKItemsItemConnectionKind = "mcp-http"
+	ResponseGetResponseCatalogOKItemsItemConnectionKindMcpStdio        ResponseGetResponseCatalogOKItemsItemConnectionKind = "mcp-stdio"
 )
 
 // AllValues returns all ResponseGetResponseCatalogOKItemsItemConnectionKind values.
 func (ResponseGetResponseCatalogOKItemsItemConnectionKind) AllValues() []ResponseGetResponseCatalogOKItemsItemConnectionKind {
 	return []ResponseGetResponseCatalogOKItemsItemConnectionKind{
-		ResponseGetResponseCatalogOKItemsItemConnectionKindDeviceAPI,
-		ResponseGetResponseCatalogOKItemsItemConnectionKindSSH,
 		ResponseGetResponseCatalogOKItemsItemConnectionKindHTTP,
+		ResponseGetResponseCatalogOKItemsItemConnectionKindSSH,
+		ResponseGetResponseCatalogOKItemsItemConnectionKindNetconfRestconf,
+		ResponseGetResponseCatalogOKItemsItemConnectionKindAutomation,
 		ResponseGetResponseCatalogOKItemsItemConnectionKindMcpHTTP,
 		ResponseGetResponseCatalogOKItemsItemConnectionKindMcpStdio,
 	}
@@ -94780,11 +93961,13 @@ func (ResponseGetResponseCatalogOKItemsItemConnectionKind) AllValues() []Respons
 // MarshalText implements encoding.TextMarshaler.
 func (s ResponseGetResponseCatalogOKItemsItemConnectionKind) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponseGetResponseCatalogOKItemsItemConnectionKindDeviceAPI:
+	case ResponseGetResponseCatalogOKItemsItemConnectionKindHTTP:
 		return []byte(s), nil
 	case ResponseGetResponseCatalogOKItemsItemConnectionKindSSH:
 		return []byte(s), nil
-	case ResponseGetResponseCatalogOKItemsItemConnectionKindHTTP:
+	case ResponseGetResponseCatalogOKItemsItemConnectionKindNetconfRestconf:
+		return []byte(s), nil
+	case ResponseGetResponseCatalogOKItemsItemConnectionKindAutomation:
 		return []byte(s), nil
 	case ResponseGetResponseCatalogOKItemsItemConnectionKindMcpHTTP:
 		return []byte(s), nil
@@ -94798,103 +93981,23 @@ func (s ResponseGetResponseCatalogOKItemsItemConnectionKind) MarshalText() ([]by
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *ResponseGetResponseCatalogOKItemsItemConnectionKind) UnmarshalText(data []byte) error {
 	switch ResponseGetResponseCatalogOKItemsItemConnectionKind(data) {
-	case ResponseGetResponseCatalogOKItemsItemConnectionKindDeviceAPI:
-		*s = ResponseGetResponseCatalogOKItemsItemConnectionKindDeviceAPI
+	case ResponseGetResponseCatalogOKItemsItemConnectionKindHTTP:
+		*s = ResponseGetResponseCatalogOKItemsItemConnectionKindHTTP
 		return nil
 	case ResponseGetResponseCatalogOKItemsItemConnectionKindSSH:
 		*s = ResponseGetResponseCatalogOKItemsItemConnectionKindSSH
 		return nil
-	case ResponseGetResponseCatalogOKItemsItemConnectionKindHTTP:
-		*s = ResponseGetResponseCatalogOKItemsItemConnectionKindHTTP
+	case ResponseGetResponseCatalogOKItemsItemConnectionKindNetconfRestconf:
+		*s = ResponseGetResponseCatalogOKItemsItemConnectionKindNetconfRestconf
+		return nil
+	case ResponseGetResponseCatalogOKItemsItemConnectionKindAutomation:
+		*s = ResponseGetResponseCatalogOKItemsItemConnectionKindAutomation
 		return nil
 	case ResponseGetResponseCatalogOKItemsItemConnectionKindMcpHTTP:
 		*s = ResponseGetResponseCatalogOKItemsItemConnectionKindMcpHTTP
 		return nil
 	case ResponseGetResponseCatalogOKItemsItemConnectionKindMcpStdio:
 		*s = ResponseGetResponseCatalogOKItemsItemConnectionKindMcpStdio
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type ResponseGetResponseCatalogOKItemsItemPack string
-
-const (
-	ResponseGetResponseCatalogOKItemsItemPackBox       ResponseGetResponseCatalogOKItemsItemPack = "box"
-	ResponseGetResponseCatalogOKItemsItemPackFortigate ResponseGetResponseCatalogOKItemsItemPack = "fortigate"
-	ResponseGetResponseCatalogOKItemsItemPackMikrotik  ResponseGetResponseCatalogOKItemsItemPack = "mikrotik"
-	ResponseGetResponseCatalogOKItemsItemPackPfsense   ResponseGetResponseCatalogOKItemsItemPack = "pfsense"
-	ResponseGetResponseCatalogOKItemsItemPackOpnsense  ResponseGetResponseCatalogOKItemsItemPack = "opnsense"
-	ResponseGetResponseCatalogOKItemsItemPackSwitch    ResponseGetResponseCatalogOKItemsItemPack = "switch"
-	ResponseGetResponseCatalogOKItemsItemPackDNS       ResponseGetResponseCatalogOKItemsItemPack = "dns"
-	ResponseGetResponseCatalogOKItemsItemPackGeneric   ResponseGetResponseCatalogOKItemsItemPack = "generic"
-)
-
-// AllValues returns all ResponseGetResponseCatalogOKItemsItemPack values.
-func (ResponseGetResponseCatalogOKItemsItemPack) AllValues() []ResponseGetResponseCatalogOKItemsItemPack {
-	return []ResponseGetResponseCatalogOKItemsItemPack{
-		ResponseGetResponseCatalogOKItemsItemPackBox,
-		ResponseGetResponseCatalogOKItemsItemPackFortigate,
-		ResponseGetResponseCatalogOKItemsItemPackMikrotik,
-		ResponseGetResponseCatalogOKItemsItemPackPfsense,
-		ResponseGetResponseCatalogOKItemsItemPackOpnsense,
-		ResponseGetResponseCatalogOKItemsItemPackSwitch,
-		ResponseGetResponseCatalogOKItemsItemPackDNS,
-		ResponseGetResponseCatalogOKItemsItemPackGeneric,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ResponseGetResponseCatalogOKItemsItemPack) MarshalText() ([]byte, error) {
-	switch s {
-	case ResponseGetResponseCatalogOKItemsItemPackBox:
-		return []byte(s), nil
-	case ResponseGetResponseCatalogOKItemsItemPackFortigate:
-		return []byte(s), nil
-	case ResponseGetResponseCatalogOKItemsItemPackMikrotik:
-		return []byte(s), nil
-	case ResponseGetResponseCatalogOKItemsItemPackPfsense:
-		return []byte(s), nil
-	case ResponseGetResponseCatalogOKItemsItemPackOpnsense:
-		return []byte(s), nil
-	case ResponseGetResponseCatalogOKItemsItemPackSwitch:
-		return []byte(s), nil
-	case ResponseGetResponseCatalogOKItemsItemPackDNS:
-		return []byte(s), nil
-	case ResponseGetResponseCatalogOKItemsItemPackGeneric:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponseGetResponseCatalogOKItemsItemPack) UnmarshalText(data []byte) error {
-	switch ResponseGetResponseCatalogOKItemsItemPack(data) {
-	case ResponseGetResponseCatalogOKItemsItemPackBox:
-		*s = ResponseGetResponseCatalogOKItemsItemPackBox
-		return nil
-	case ResponseGetResponseCatalogOKItemsItemPackFortigate:
-		*s = ResponseGetResponseCatalogOKItemsItemPackFortigate
-		return nil
-	case ResponseGetResponseCatalogOKItemsItemPackMikrotik:
-		*s = ResponseGetResponseCatalogOKItemsItemPackMikrotik
-		return nil
-	case ResponseGetResponseCatalogOKItemsItemPackPfsense:
-		*s = ResponseGetResponseCatalogOKItemsItemPackPfsense
-		return nil
-	case ResponseGetResponseCatalogOKItemsItemPackOpnsense:
-		*s = ResponseGetResponseCatalogOKItemsItemPackOpnsense
-		return nil
-	case ResponseGetResponseCatalogOKItemsItemPackSwitch:
-		*s = ResponseGetResponseCatalogOKItemsItemPackSwitch
-		return nil
-	case ResponseGetResponseCatalogOKItemsItemPackDNS:
-		*s = ResponseGetResponseCatalogOKItemsItemPackDNS
-		return nil
-	case ResponseGetResponseCatalogOKItemsItemPackGeneric:
-		*s = ResponseGetResponseCatalogOKItemsItemPackGeneric
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -94911,6 +94014,8 @@ const (
 	ResponseGetResponseCatalogOKItemsItemParamsItemMAC       ResponseGetResponseCatalogOKItemsItemParamsItem = "mac"
 	ResponseGetResponseCatalogOKItemsItemParamsItemVlan      ResponseGetResponseCatalogOKItemsItemParamsItem = "vlan"
 	ResponseGetResponseCatalogOKItemsItemParamsItemInterface ResponseGetResponseCatalogOKItemsItemParamsItem = "interface"
+	ResponseGetResponseCatalogOKItemsItemParamsItemID        ResponseGetResponseCatalogOKItemsItemParamsItem = "id"
+	ResponseGetResponseCatalogOKItemsItemParamsItemName      ResponseGetResponseCatalogOKItemsItemParamsItem = "name"
 	ResponseGetResponseCatalogOKItemsItemParamsItemText      ResponseGetResponseCatalogOKItemsItemParamsItem = "text"
 )
 
@@ -94924,6 +94029,8 @@ func (ResponseGetResponseCatalogOKItemsItemParamsItem) AllValues() []ResponseGet
 		ResponseGetResponseCatalogOKItemsItemParamsItemMAC,
 		ResponseGetResponseCatalogOKItemsItemParamsItemVlan,
 		ResponseGetResponseCatalogOKItemsItemParamsItemInterface,
+		ResponseGetResponseCatalogOKItemsItemParamsItemID,
+		ResponseGetResponseCatalogOKItemsItemParamsItemName,
 		ResponseGetResponseCatalogOKItemsItemParamsItemText,
 	}
 }
@@ -94944,6 +94051,10 @@ func (s ResponseGetResponseCatalogOKItemsItemParamsItem) MarshalText() ([]byte, 
 	case ResponseGetResponseCatalogOKItemsItemParamsItemVlan:
 		return []byte(s), nil
 	case ResponseGetResponseCatalogOKItemsItemParamsItemInterface:
+		return []byte(s), nil
+	case ResponseGetResponseCatalogOKItemsItemParamsItemID:
+		return []byte(s), nil
+	case ResponseGetResponseCatalogOKItemsItemParamsItemName:
 		return []byte(s), nil
 	case ResponseGetResponseCatalogOKItemsItemParamsItemText:
 		return []byte(s), nil
@@ -94975,6 +94086,12 @@ func (s *ResponseGetResponseCatalogOKItemsItemParamsItem) UnmarshalText(data []b
 		return nil
 	case ResponseGetResponseCatalogOKItemsItemParamsItemInterface:
 		*s = ResponseGetResponseCatalogOKItemsItemParamsItemInterface
+		return nil
+	case ResponseGetResponseCatalogOKItemsItemParamsItemID:
+		*s = ResponseGetResponseCatalogOKItemsItemParamsItemID
+		return nil
+	case ResponseGetResponseCatalogOKItemsItemParamsItemName:
+		*s = ResponseGetResponseCatalogOKItemsItemParamsItemName
 		return nil
 	case ResponseGetResponseCatalogOKItemsItemParamsItemText:
 		*s = ResponseGetResponseCatalogOKItemsItemParamsItemText
@@ -95036,7 +94153,9 @@ type ResponseGetResponseCatalogOKItemsItemRollback struct {
 	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
 	Body string `json:"body"`
 	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
-	// {interface}, {text}; shell characters are refused.
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
 	// HTTP headers, one "Name: value" per line, may be empty.
 	Headers string                                              `json:"headers"`
@@ -95101,6 +94220,7 @@ const (
 	ResponseGetResponseCatalogOKItemsItemRollbackMethodEmpty  ResponseGetResponseCatalogOKItemsItemRollbackMethod = ""
 	ResponseGetResponseCatalogOKItemsItemRollbackMethodGET    ResponseGetResponseCatalogOKItemsItemRollbackMethod = "GET"
 	ResponseGetResponseCatalogOKItemsItemRollbackMethodPUT    ResponseGetResponseCatalogOKItemsItemRollbackMethod = "PUT"
+	ResponseGetResponseCatalogOKItemsItemRollbackMethodPATCH  ResponseGetResponseCatalogOKItemsItemRollbackMethod = "PATCH"
 	ResponseGetResponseCatalogOKItemsItemRollbackMethodPOST   ResponseGetResponseCatalogOKItemsItemRollbackMethod = "POST"
 	ResponseGetResponseCatalogOKItemsItemRollbackMethodDELETE ResponseGetResponseCatalogOKItemsItemRollbackMethod = "DELETE"
 )
@@ -95111,6 +94231,7 @@ func (ResponseGetResponseCatalogOKItemsItemRollbackMethod) AllValues() []Respons
 		ResponseGetResponseCatalogOKItemsItemRollbackMethodEmpty,
 		ResponseGetResponseCatalogOKItemsItemRollbackMethodGET,
 		ResponseGetResponseCatalogOKItemsItemRollbackMethodPUT,
+		ResponseGetResponseCatalogOKItemsItemRollbackMethodPATCH,
 		ResponseGetResponseCatalogOKItemsItemRollbackMethodPOST,
 		ResponseGetResponseCatalogOKItemsItemRollbackMethodDELETE,
 	}
@@ -95124,6 +94245,8 @@ func (s ResponseGetResponseCatalogOKItemsItemRollbackMethod) MarshalText() ([]by
 	case ResponseGetResponseCatalogOKItemsItemRollbackMethodGET:
 		return []byte(s), nil
 	case ResponseGetResponseCatalogOKItemsItemRollbackMethodPUT:
+		return []byte(s), nil
+	case ResponseGetResponseCatalogOKItemsItemRollbackMethodPATCH:
 		return []byte(s), nil
 	case ResponseGetResponseCatalogOKItemsItemRollbackMethodPOST:
 		return []byte(s), nil
@@ -95146,6 +94269,9 @@ func (s *ResponseGetResponseCatalogOKItemsItemRollbackMethod) UnmarshalText(data
 	case ResponseGetResponseCatalogOKItemsItemRollbackMethodPUT:
 		*s = ResponseGetResponseCatalogOKItemsItemRollbackMethodPUT
 		return nil
+	case ResponseGetResponseCatalogOKItemsItemRollbackMethodPATCH:
+		*s = ResponseGetResponseCatalogOKItemsItemRollbackMethodPATCH
+		return nil
 	case ResponseGetResponseCatalogOKItemsItemRollbackMethodPOST:
 		*s = ResponseGetResponseCatalogOKItemsItemRollbackMethodPOST
 		return nil
@@ -95161,7 +94287,9 @@ type ResponseGetResponseCatalogOKItemsItemRun struct {
 	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
 	Body string `json:"body"`
 	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
-	// {interface}, {text}; shell characters are refused.
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
 	// HTTP headers, one "Name: value" per line, may be empty.
 	Headers string                                         `json:"headers"`
@@ -95226,6 +94354,7 @@ const (
 	ResponseGetResponseCatalogOKItemsItemRunMethodEmpty  ResponseGetResponseCatalogOKItemsItemRunMethod = ""
 	ResponseGetResponseCatalogOKItemsItemRunMethodGET    ResponseGetResponseCatalogOKItemsItemRunMethod = "GET"
 	ResponseGetResponseCatalogOKItemsItemRunMethodPUT    ResponseGetResponseCatalogOKItemsItemRunMethod = "PUT"
+	ResponseGetResponseCatalogOKItemsItemRunMethodPATCH  ResponseGetResponseCatalogOKItemsItemRunMethod = "PATCH"
 	ResponseGetResponseCatalogOKItemsItemRunMethodPOST   ResponseGetResponseCatalogOKItemsItemRunMethod = "POST"
 	ResponseGetResponseCatalogOKItemsItemRunMethodDELETE ResponseGetResponseCatalogOKItemsItemRunMethod = "DELETE"
 )
@@ -95236,6 +94365,7 @@ func (ResponseGetResponseCatalogOKItemsItemRunMethod) AllValues() []ResponseGetR
 		ResponseGetResponseCatalogOKItemsItemRunMethodEmpty,
 		ResponseGetResponseCatalogOKItemsItemRunMethodGET,
 		ResponseGetResponseCatalogOKItemsItemRunMethodPUT,
+		ResponseGetResponseCatalogOKItemsItemRunMethodPATCH,
 		ResponseGetResponseCatalogOKItemsItemRunMethodPOST,
 		ResponseGetResponseCatalogOKItemsItemRunMethodDELETE,
 	}
@@ -95249,6 +94379,8 @@ func (s ResponseGetResponseCatalogOKItemsItemRunMethod) MarshalText() ([]byte, e
 	case ResponseGetResponseCatalogOKItemsItemRunMethodGET:
 		return []byte(s), nil
 	case ResponseGetResponseCatalogOKItemsItemRunMethodPUT:
+		return []byte(s), nil
+	case ResponseGetResponseCatalogOKItemsItemRunMethodPATCH:
 		return []byte(s), nil
 	case ResponseGetResponseCatalogOKItemsItemRunMethodPOST:
 		return []byte(s), nil
@@ -95271,6 +94403,9 @@ func (s *ResponseGetResponseCatalogOKItemsItemRunMethod) UnmarshalText(data []by
 	case ResponseGetResponseCatalogOKItemsItemRunMethodPUT:
 		*s = ResponseGetResponseCatalogOKItemsItemRunMethodPUT
 		return nil
+	case ResponseGetResponseCatalogOKItemsItemRunMethodPATCH:
+		*s = ResponseGetResponseCatalogOKItemsItemRunMethodPATCH
+		return nil
 	case ResponseGetResponseCatalogOKItemsItemRunMethodPOST:
 		*s = ResponseGetResponseCatalogOKItemsItemRunMethodPOST
 		return nil
@@ -95286,7 +94421,9 @@ type ResponseGetResponseCatalogOKItemsItemVerify struct {
 	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
 	Body string `json:"body"`
 	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
-	// {interface}, {text}; shell characters are refused.
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
 	// HTTP headers, one "Name: value" per line, may be empty.
 	Headers string                                            `json:"headers"`
@@ -95351,6 +94488,7 @@ const (
 	ResponseGetResponseCatalogOKItemsItemVerifyMethodEmpty  ResponseGetResponseCatalogOKItemsItemVerifyMethod = ""
 	ResponseGetResponseCatalogOKItemsItemVerifyMethodGET    ResponseGetResponseCatalogOKItemsItemVerifyMethod = "GET"
 	ResponseGetResponseCatalogOKItemsItemVerifyMethodPUT    ResponseGetResponseCatalogOKItemsItemVerifyMethod = "PUT"
+	ResponseGetResponseCatalogOKItemsItemVerifyMethodPATCH  ResponseGetResponseCatalogOKItemsItemVerifyMethod = "PATCH"
 	ResponseGetResponseCatalogOKItemsItemVerifyMethodPOST   ResponseGetResponseCatalogOKItemsItemVerifyMethod = "POST"
 	ResponseGetResponseCatalogOKItemsItemVerifyMethodDELETE ResponseGetResponseCatalogOKItemsItemVerifyMethod = "DELETE"
 )
@@ -95361,6 +94499,7 @@ func (ResponseGetResponseCatalogOKItemsItemVerifyMethod) AllValues() []ResponseG
 		ResponseGetResponseCatalogOKItemsItemVerifyMethodEmpty,
 		ResponseGetResponseCatalogOKItemsItemVerifyMethodGET,
 		ResponseGetResponseCatalogOKItemsItemVerifyMethodPUT,
+		ResponseGetResponseCatalogOKItemsItemVerifyMethodPATCH,
 		ResponseGetResponseCatalogOKItemsItemVerifyMethodPOST,
 		ResponseGetResponseCatalogOKItemsItemVerifyMethodDELETE,
 	}
@@ -95374,6 +94513,8 @@ func (s ResponseGetResponseCatalogOKItemsItemVerifyMethod) MarshalText() ([]byte
 	case ResponseGetResponseCatalogOKItemsItemVerifyMethodGET:
 		return []byte(s), nil
 	case ResponseGetResponseCatalogOKItemsItemVerifyMethodPUT:
+		return []byte(s), nil
+	case ResponseGetResponseCatalogOKItemsItemVerifyMethodPATCH:
 		return []byte(s), nil
 	case ResponseGetResponseCatalogOKItemsItemVerifyMethodPOST:
 		return []byte(s), nil
@@ -95395,6 +94536,9 @@ func (s *ResponseGetResponseCatalogOKItemsItemVerifyMethod) UnmarshalText(data [
 		return nil
 	case ResponseGetResponseCatalogOKItemsItemVerifyMethodPUT:
 		*s = ResponseGetResponseCatalogOKItemsItemVerifyMethodPUT
+		return nil
+	case ResponseGetResponseCatalogOKItemsItemVerifyMethodPATCH:
+		*s = ResponseGetResponseCatalogOKItemsItemVerifyMethodPATCH
 		return nil
 	case ResponseGetResponseCatalogOKItemsItemVerifyMethodPOST:
 		*s = ResponseGetResponseCatalogOKItemsItemVerifyMethodPOST
@@ -96718,6 +95862,7 @@ type ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethod string
 const (
 	ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodGET    ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethod = "GET"
 	ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodPUT    ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethod = "PUT"
+	ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodPATCH  ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethod = "PATCH"
 	ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodPOST   ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethod = "POST"
 	ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodDELETE ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethod = "DELETE"
 )
@@ -96727,6 +95872,7 @@ func (ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethod) AllV
 	return []ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethod{
 		ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodGET,
 		ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodPUT,
+		ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodPATCH,
 		ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodPOST,
 		ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodDELETE,
 	}
@@ -96738,6 +95884,8 @@ func (s ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethod) Ma
 	case ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodGET:
 		return []byte(s), nil
 	case ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodPUT:
+		return []byte(s), nil
+	case ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodPATCH:
 		return []byte(s), nil
 	case ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodPOST:
 		return []byte(s), nil
@@ -96756,6 +95904,9 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethod) U
 		return nil
 	case ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodPUT:
 		*s = ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodPUT
+		return nil
+	case ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodPATCH:
+		*s = ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodPATCH
 		return nil
 	case ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodPOST:
 		*s = ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethodPOST
@@ -96846,6 +95997,7 @@ type ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMetho
 const (
 	ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodGET    ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethod = "GET"
 	ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodPUT    ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethod = "PUT"
+	ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodPATCH  ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethod = "PATCH"
 	ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodPOST   ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethod = "POST"
 	ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodDELETE ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethod = "DELETE"
 )
@@ -96855,6 +96007,7 @@ func (ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMeth
 	return []ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethod{
 		ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodGET,
 		ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodPUT,
+		ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodPATCH,
 		ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodPOST,
 		ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodDELETE,
 	}
@@ -96866,6 +96019,8 @@ func (s ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMe
 	case ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodGET:
 		return []byte(s), nil
 	case ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodPUT:
+		return []byte(s), nil
+	case ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodPATCH:
 		return []byte(s), nil
 	case ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodPOST:
 		return []byte(s), nil
@@ -96884,6 +96039,9 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestM
 		return nil
 	case ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodPUT:
 		*s = ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodPUT
+		return nil
+	case ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodPATCH:
+		*s = ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodPATCH
 		return nil
 	case ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodPOST:
 		*s = ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethodPOST
@@ -98637,6 +97795,8 @@ const (
 	ResponseGetResponseTriggersOKItemsItemFieldsItemTypeMAC       ResponseGetResponseTriggersOKItemsItemFieldsItemType = "mac"
 	ResponseGetResponseTriggersOKItemsItemFieldsItemTypeVlan      ResponseGetResponseTriggersOKItemsItemFieldsItemType = "vlan"
 	ResponseGetResponseTriggersOKItemsItemFieldsItemTypeInterface ResponseGetResponseTriggersOKItemsItemFieldsItemType = "interface"
+	ResponseGetResponseTriggersOKItemsItemFieldsItemTypeID        ResponseGetResponseTriggersOKItemsItemFieldsItemType = "id"
+	ResponseGetResponseTriggersOKItemsItemFieldsItemTypeName      ResponseGetResponseTriggersOKItemsItemFieldsItemType = "name"
 	ResponseGetResponseTriggersOKItemsItemFieldsItemTypeText      ResponseGetResponseTriggersOKItemsItemFieldsItemType = "text"
 	ResponseGetResponseTriggersOKItemsItemFieldsItemTypeNumber    ResponseGetResponseTriggersOKItemsItemFieldsItemType = "number"
 	ResponseGetResponseTriggersOKItemsItemFieldsItemTypeFlag      ResponseGetResponseTriggersOKItemsItemFieldsItemType = "flag"
@@ -98653,6 +97813,8 @@ func (ResponseGetResponseTriggersOKItemsItemFieldsItemType) AllValues() []Respon
 		ResponseGetResponseTriggersOKItemsItemFieldsItemTypeMAC,
 		ResponseGetResponseTriggersOKItemsItemFieldsItemTypeVlan,
 		ResponseGetResponseTriggersOKItemsItemFieldsItemTypeInterface,
+		ResponseGetResponseTriggersOKItemsItemFieldsItemTypeID,
+		ResponseGetResponseTriggersOKItemsItemFieldsItemTypeName,
 		ResponseGetResponseTriggersOKItemsItemFieldsItemTypeText,
 		ResponseGetResponseTriggersOKItemsItemFieldsItemTypeNumber,
 		ResponseGetResponseTriggersOKItemsItemFieldsItemTypeFlag,
@@ -98676,6 +97838,10 @@ func (s ResponseGetResponseTriggersOKItemsItemFieldsItemType) MarshalText() ([]b
 	case ResponseGetResponseTriggersOKItemsItemFieldsItemTypeVlan:
 		return []byte(s), nil
 	case ResponseGetResponseTriggersOKItemsItemFieldsItemTypeInterface:
+		return []byte(s), nil
+	case ResponseGetResponseTriggersOKItemsItemFieldsItemTypeID:
+		return []byte(s), nil
+	case ResponseGetResponseTriggersOKItemsItemFieldsItemTypeName:
 		return []byte(s), nil
 	case ResponseGetResponseTriggersOKItemsItemFieldsItemTypeText:
 		return []byte(s), nil
@@ -98713,6 +97879,12 @@ func (s *ResponseGetResponseTriggersOKItemsItemFieldsItemType) UnmarshalText(dat
 		return nil
 	case ResponseGetResponseTriggersOKItemsItemFieldsItemTypeInterface:
 		*s = ResponseGetResponseTriggersOKItemsItemFieldsItemTypeInterface
+		return nil
+	case ResponseGetResponseTriggersOKItemsItemFieldsItemTypeID:
+		*s = ResponseGetResponseTriggersOKItemsItemFieldsItemTypeID
+		return nil
+	case ResponseGetResponseTriggersOKItemsItemFieldsItemTypeName:
+		*s = ResponseGetResponseTriggersOKItemsItemFieldsItemTypeName
 		return nil
 	case ResponseGetResponseTriggersOKItemsItemFieldsItemTypeText:
 		*s = ResponseGetResponseTriggersOKItemsItemFieldsItemTypeText
@@ -99791,6 +98963,7 @@ type ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethod string
 const (
 	ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodGET    ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethod = "GET"
 	ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodPUT    ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethod = "PUT"
+	ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodPATCH  ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethod = "PATCH"
 	ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodPOST   ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethod = "POST"
 	ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodDELETE ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethod = "DELETE"
 )
@@ -99800,6 +98973,7 @@ func (ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethod) AllValues
 	return []ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethod{
 		ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodGET,
 		ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodPUT,
+		ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodPATCH,
 		ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodPOST,
 		ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodDELETE,
 	}
@@ -99811,6 +98985,8 @@ func (s ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethod) Marshal
 	case ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodGET:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodPATCH:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodPOST:
 		return []byte(s), nil
@@ -99829,6 +99005,9 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethod) Unmars
 		return nil
 	case ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodPUT:
 		*s = ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodPUT
+		return nil
+	case ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodPATCH:
+		*s = ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodPATCH
 		return nil
 	case ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodPOST:
 		*s = ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethodPOST
@@ -99919,6 +99098,7 @@ type ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethod str
 const (
 	ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodGET    ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethod = "GET"
 	ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodPUT    ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethod = "PUT"
+	ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodPATCH  ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethod = "PATCH"
 	ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodPOST   ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethod = "POST"
 	ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodDELETE ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethod = "DELETE"
 )
@@ -99928,6 +99108,7 @@ func (ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethod) A
 	return []ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethod{
 		ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodGET,
 		ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodPUT,
+		ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodPATCH,
 		ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodPOST,
 		ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodDELETE,
 	}
@@ -99939,6 +99120,8 @@ func (s ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethod)
 	case ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodGET:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodPATCH:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodPOST:
 		return []byte(s), nil
@@ -99957,6 +99140,9 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethod
 		return nil
 	case ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodPUT:
 		*s = ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodPUT
+		return nil
+	case ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodPATCH:
+		*s = ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodPATCH
 		return nil
 	case ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodPOST:
 		*s = ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethodPOST
@@ -101355,6 +100541,7 @@ type ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethod string
 const (
 	ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodGET    ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethod = "GET"
 	ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodPUT    ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethod = "PUT"
+	ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodPATCH  ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethod = "PATCH"
 	ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodPOST   ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethod = "POST"
 	ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodDELETE ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethod = "DELETE"
 )
@@ -101364,6 +100551,7 @@ func (ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethod) AllV
 	return []ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethod{
 		ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodGET,
 		ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodPUT,
+		ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodPATCH,
 		ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodPOST,
 		ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodDELETE,
 	}
@@ -101375,6 +100563,8 @@ func (s ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethod) Ma
 	case ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodGET:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodPATCH:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodPOST:
 		return []byte(s), nil
@@ -101393,6 +100583,9 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethod) U
 		return nil
 	case ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodPUT:
 		*s = ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodPUT
+		return nil
+	case ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodPATCH:
+		*s = ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodPATCH
 		return nil
 	case ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodPOST:
 		*s = ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethodPOST
@@ -101483,6 +100676,7 @@ type ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMetho
 const (
 	ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodGET    ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethod = "GET"
 	ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodPUT    ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethod = "PUT"
+	ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodPATCH  ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethod = "PATCH"
 	ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodPOST   ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethod = "POST"
 	ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodDELETE ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethod = "DELETE"
 )
@@ -101492,6 +100686,7 @@ func (ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMeth
 	return []ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethod{
 		ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodGET,
 		ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodPUT,
+		ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodPATCH,
 		ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodPOST,
 		ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodDELETE,
 	}
@@ -101503,6 +100698,8 @@ func (s ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMe
 	case ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodGET:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodPATCH:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodPOST:
 		return []byte(s), nil
@@ -101521,6 +100718,9 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestM
 		return nil
 	case ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodPUT:
 		*s = ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodPUT
+		return nil
+	case ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodPATCH:
+		*s = ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodPATCH
 		return nil
 	case ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodPOST:
 		*s = ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethodPOST
@@ -103019,6 +102219,7 @@ type ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethod string
 const (
 	ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodGET    ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethod = "GET"
 	ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodPUT    ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethod = "PUT"
+	ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodPATCH  ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethod = "PATCH"
 	ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodPOST   ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethod = "POST"
 	ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodDELETE ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethod = "DELETE"
 )
@@ -103028,6 +102229,7 @@ func (ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethod) AllValues(
 	return []ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethod{
 		ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodGET,
 		ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodPUT,
+		ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodPATCH,
 		ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodPOST,
 		ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodDELETE,
 	}
@@ -103039,6 +102241,8 @@ func (s ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethod) MarshalT
 	case ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodGET:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodPATCH:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodPOST:
 		return []byte(s), nil
@@ -103057,6 +102261,9 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethod) Unmarsh
 		return nil
 	case ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodPUT:
 		*s = ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodPUT
+		return nil
+	case ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodPATCH:
+		*s = ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodPATCH
 		return nil
 	case ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodPOST:
 		*s = ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethodPOST
@@ -103147,6 +102354,7 @@ type ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethod stri
 const (
 	ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodGET    ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethod = "GET"
 	ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodPUT    ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethod = "PUT"
+	ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodPATCH  ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethod = "PATCH"
 	ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodPOST   ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethod = "POST"
 	ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodDELETE ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethod = "DELETE"
 )
@@ -103156,6 +102364,7 @@ func (ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethod) Al
 	return []ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethod{
 		ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodGET,
 		ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodPUT,
+		ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodPATCH,
 		ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodPOST,
 		ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodDELETE,
 	}
@@ -103167,6 +102376,8 @@ func (s ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethod) 
 	case ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodGET:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodPATCH:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodPOST:
 		return []byte(s), nil
@@ -103185,6 +102396,9 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethod)
 		return nil
 	case ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodPUT:
 		*s = ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodPUT
+		return nil
+	case ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodPATCH:
+		*s = ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodPATCH
 		return nil
 	case ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodPOST:
 		*s = ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethodPOST
@@ -104631,6 +103845,7 @@ type ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethod string
 const (
 	ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodGET    ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethod = "GET"
 	ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodPUT    ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethod = "PUT"
+	ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodPATCH  ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethod = "PATCH"
 	ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodPOST   ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethod = "POST"
 	ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodDELETE ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethod = "DELETE"
 )
@@ -104640,6 +103855,7 @@ func (ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethod) AllValue
 	return []ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethod{
 		ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodGET,
 		ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodPUT,
+		ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodPATCH,
 		ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodPOST,
 		ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodDELETE,
 	}
@@ -104651,6 +103867,8 @@ func (s ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethod) Marsha
 	case ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodGET:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodPATCH:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodPOST:
 		return []byte(s), nil
@@ -104669,6 +103887,9 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethod) Unmar
 		return nil
 	case ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodPUT:
 		*s = ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodPUT
+		return nil
+	case ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodPATCH:
+		*s = ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodPATCH
 		return nil
 	case ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodPOST:
 		*s = ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethodPOST
@@ -104759,6 +103980,7 @@ type ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethod st
 const (
 	ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodGET    ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethod = "GET"
 	ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodPUT    ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethod = "PUT"
+	ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodPATCH  ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethod = "PATCH"
 	ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodPOST   ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethod = "POST"
 	ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodDELETE ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethod = "DELETE"
 )
@@ -104768,6 +103990,7 @@ func (ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethod) 
 	return []ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethod{
 		ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodGET,
 		ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodPUT,
+		ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodPATCH,
 		ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodPOST,
 		ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodDELETE,
 	}
@@ -104779,6 +104002,8 @@ func (s ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethod
 	case ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodGET:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodPATCH:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodPOST:
 		return []byte(s), nil
@@ -104797,6 +104022,9 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMetho
 		return nil
 	case ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodPUT:
 		*s = ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodPUT
+		return nil
+	case ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodPATCH:
+		*s = ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodPATCH
 		return nil
 	case ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodPOST:
 		*s = ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethodPOST
@@ -106254,6 +105482,7 @@ type ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethod string
 const (
 	ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodGET    ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethod = "GET"
 	ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodPUT    ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethod = "PUT"
+	ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodPATCH  ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethod = "PATCH"
 	ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodPOST   ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethod = "POST"
 	ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodDELETE ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethod = "DELETE"
 )
@@ -106263,6 +105492,7 @@ func (ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethod) AllValu
 	return []ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethod{
 		ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodGET,
 		ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodPUT,
+		ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodPATCH,
 		ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodPOST,
 		ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodDELETE,
 	}
@@ -106274,6 +105504,8 @@ func (s ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethod) Marsh
 	case ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodGET:
 		return []byte(s), nil
 	case ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodPATCH:
 		return []byte(s), nil
 	case ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodPOST:
 		return []byte(s), nil
@@ -106292,6 +105524,9 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethod) Unma
 		return nil
 	case ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodPUT:
 		*s = ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodPUT
+		return nil
+	case ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodPATCH:
+		*s = ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodPATCH
 		return nil
 	case ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodPOST:
 		*s = ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethodPOST
@@ -106382,6 +105617,7 @@ type ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethod s
 const (
 	ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodGET    ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethod = "GET"
 	ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodPUT    ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethod = "PUT"
+	ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodPATCH  ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethod = "PATCH"
 	ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodPOST   ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethod = "POST"
 	ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodDELETE ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethod = "DELETE"
 )
@@ -106391,6 +105627,7 @@ func (ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethod)
 	return []ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethod{
 		ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodGET,
 		ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodPUT,
+		ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodPATCH,
 		ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodPOST,
 		ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodDELETE,
 	}
@@ -106402,6 +105639,8 @@ func (s ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMetho
 	case ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodGET:
 		return []byte(s), nil
 	case ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodPATCH:
 		return []byte(s), nil
 	case ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodPOST:
 		return []byte(s), nil
@@ -106420,6 +105659,9 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMeth
 		return nil
 	case ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodPUT:
 		*s = ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodPUT
+		return nil
+	case ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodPATCH:
+		*s = ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodPATCH
 		return nil
 	case ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodPOST:
 		*s = ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethodPOST
@@ -108643,6 +107885,7 @@ type ResponsePostResponseApproveTokenOKItemsItemChangeRestMethod string
 const (
 	ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodGET    ResponsePostResponseApproveTokenOKItemsItemChangeRestMethod = "GET"
 	ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodPUT    ResponsePostResponseApproveTokenOKItemsItemChangeRestMethod = "PUT"
+	ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodPATCH  ResponsePostResponseApproveTokenOKItemsItemChangeRestMethod = "PATCH"
 	ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodPOST   ResponsePostResponseApproveTokenOKItemsItemChangeRestMethod = "POST"
 	ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodDELETE ResponsePostResponseApproveTokenOKItemsItemChangeRestMethod = "DELETE"
 )
@@ -108652,6 +107895,7 @@ func (ResponsePostResponseApproveTokenOKItemsItemChangeRestMethod) AllValues() [
 	return []ResponsePostResponseApproveTokenOKItemsItemChangeRestMethod{
 		ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodGET,
 		ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodPUT,
+		ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodPATCH,
 		ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodPOST,
 		ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodDELETE,
 	}
@@ -108663,6 +107907,8 @@ func (s ResponsePostResponseApproveTokenOKItemsItemChangeRestMethod) MarshalText
 	case ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodGET:
 		return []byte(s), nil
 	case ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodPATCH:
 		return []byte(s), nil
 	case ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodPOST:
 		return []byte(s), nil
@@ -108681,6 +107927,9 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRestMethod) UnmarshalT
 		return nil
 	case ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodPUT:
 		*s = ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodPUT
+		return nil
+	case ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodPATCH:
+		*s = ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodPATCH
 		return nil
 	case ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodPOST:
 		*s = ResponsePostResponseApproveTokenOKItemsItemChangeRestMethodPOST
@@ -108771,6 +108020,7 @@ type ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethod string
 const (
 	ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodGET    ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethod = "GET"
 	ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodPUT    ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethod = "PUT"
+	ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodPATCH  ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethod = "PATCH"
 	ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodPOST   ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethod = "POST"
 	ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodDELETE ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethod = "DELETE"
 )
@@ -108780,6 +108030,7 @@ func (ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethod) AllVa
 	return []ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethod{
 		ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodGET,
 		ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodPUT,
+		ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodPATCH,
 		ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodPOST,
 		ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodDELETE,
 	}
@@ -108791,6 +108042,8 @@ func (s ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethod) Mar
 	case ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodGET:
 		return []byte(s), nil
 	case ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodPATCH:
 		return []byte(s), nil
 	case ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodPOST:
 		return []byte(s), nil
@@ -108809,6 +108062,9 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethod) Un
 		return nil
 	case ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodPUT:
 		*s = ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodPUT
+		return nil
+	case ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodPATCH:
+		*s = ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodPATCH
 		return nil
 	case ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodPOST:
 		*s = ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethodPOST
@@ -109794,279 +109050,283 @@ func (s *ResponsePostResponseBreakerResetOKMaintenanceItem) SetStart(val time.Ti
 	s.Start = val
 }
 
-type ResponsePostResponseCatalogOK struct {
+type ResponsePostResponseCatalogCreated struct {
 	// The AI may send a request for this action.
-	AiMayPropose   bool                                           `json:"ai_may_propose"`
-	Available      bool                                           `json:"available"`
-	Builtin        bool                                           `json:"builtin"`
-	Connection     NilString                                      `json:"connection"`
-	ConnectionID   NilString                                      `json:"connection_id"`
-	ConnectionKind NilResponsePostResponseCatalogOKConnectionKind `json:"connection_kind"`
-	Description    string                                         `json:"description"`
+	AiMayPropose   bool                                                `json:"ai_may_propose"`
+	Available      bool                                                `json:"available"`
+	Builtin        bool                                                `json:"builtin"`
+	Connection     NilString                                           `json:"connection"`
+	ConnectionID   NilString                                           `json:"connection_id"`
+	ConnectionKind NilResponsePostResponseCatalogCreatedConnectionKind `json:"connection_kind"`
+	Description    string                                              `json:"description"`
 	// Changes another device, so the execution switch applies.
 	Device bool `json:"device"`
 	// Allowed = enabled.
-	Enabled bool                              `json:"enabled"`
-	ID      string                            `json:"id"`
-	Name    string                            `json:"name"`
-	Pack    ResponsePostResponseCatalogOKPack `json:"pack"`
+	Enabled bool   `json:"enabled"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Pack    string `json:"pack"`
 	// Placeholders the templates use.
-	Params []ResponsePostResponseCatalogOKParamsItem `json:"params"`
+	Params []ResponsePostResponseCatalogCreatedParamsItem `json:"params"`
 	// Has a rollback step.
-	Reversible   bool                                  `json:"reversible"`
-	Risk         ResponsePostResponseCatalogOKRisk     `json:"risk"`
-	Rollback     ResponsePostResponseCatalogOKRollback `json:"rollback"`
-	RollbackTool NilString                             `json:"rollback_tool"`
-	Run          ResponsePostResponseCatalogOKRun      `json:"run"`
+	Reversible   bool                                       `json:"reversible"`
+	Risk         ResponsePostResponseCatalogCreatedRisk     `json:"risk"`
+	Rollback     ResponsePostResponseCatalogCreatedRollback `json:"rollback"`
+	RollbackTool NilString                                  `json:"rollback_tool"`
+	Run          ResponsePostResponseCatalogCreatedRun      `json:"run"`
 	// Write tool on the connection.
-	Tool              NilString                           `json:"tool"`
-	UnavailableReason NilString                           `json:"unavailable_reason"`
-	Verify            ResponsePostResponseCatalogOKVerify `json:"verify"`
+	Tool              NilString                                `json:"tool"`
+	UnavailableReason NilString                                `json:"unavailable_reason"`
+	Verify            ResponsePostResponseCatalogCreatedVerify `json:"verify"`
 }
 
 // GetAiMayPropose returns the value of AiMayPropose.
-func (s *ResponsePostResponseCatalogOK) GetAiMayPropose() bool {
+func (s *ResponsePostResponseCatalogCreated) GetAiMayPropose() bool {
 	return s.AiMayPropose
 }
 
 // GetAvailable returns the value of Available.
-func (s *ResponsePostResponseCatalogOK) GetAvailable() bool {
+func (s *ResponsePostResponseCatalogCreated) GetAvailable() bool {
 	return s.Available
 }
 
 // GetBuiltin returns the value of Builtin.
-func (s *ResponsePostResponseCatalogOK) GetBuiltin() bool {
+func (s *ResponsePostResponseCatalogCreated) GetBuiltin() bool {
 	return s.Builtin
 }
 
 // GetConnection returns the value of Connection.
-func (s *ResponsePostResponseCatalogOK) GetConnection() NilString {
+func (s *ResponsePostResponseCatalogCreated) GetConnection() NilString {
 	return s.Connection
 }
 
 // GetConnectionID returns the value of ConnectionID.
-func (s *ResponsePostResponseCatalogOK) GetConnectionID() NilString {
+func (s *ResponsePostResponseCatalogCreated) GetConnectionID() NilString {
 	return s.ConnectionID
 }
 
 // GetConnectionKind returns the value of ConnectionKind.
-func (s *ResponsePostResponseCatalogOK) GetConnectionKind() NilResponsePostResponseCatalogOKConnectionKind {
+func (s *ResponsePostResponseCatalogCreated) GetConnectionKind() NilResponsePostResponseCatalogCreatedConnectionKind {
 	return s.ConnectionKind
 }
 
 // GetDescription returns the value of Description.
-func (s *ResponsePostResponseCatalogOK) GetDescription() string {
+func (s *ResponsePostResponseCatalogCreated) GetDescription() string {
 	return s.Description
 }
 
 // GetDevice returns the value of Device.
-func (s *ResponsePostResponseCatalogOK) GetDevice() bool {
+func (s *ResponsePostResponseCatalogCreated) GetDevice() bool {
 	return s.Device
 }
 
 // GetEnabled returns the value of Enabled.
-func (s *ResponsePostResponseCatalogOK) GetEnabled() bool {
+func (s *ResponsePostResponseCatalogCreated) GetEnabled() bool {
 	return s.Enabled
 }
 
 // GetID returns the value of ID.
-func (s *ResponsePostResponseCatalogOK) GetID() string {
+func (s *ResponsePostResponseCatalogCreated) GetID() string {
 	return s.ID
 }
 
 // GetName returns the value of Name.
-func (s *ResponsePostResponseCatalogOK) GetName() string {
+func (s *ResponsePostResponseCatalogCreated) GetName() string {
 	return s.Name
 }
 
 // GetPack returns the value of Pack.
-func (s *ResponsePostResponseCatalogOK) GetPack() ResponsePostResponseCatalogOKPack {
+func (s *ResponsePostResponseCatalogCreated) GetPack() string {
 	return s.Pack
 }
 
 // GetParams returns the value of Params.
-func (s *ResponsePostResponseCatalogOK) GetParams() []ResponsePostResponseCatalogOKParamsItem {
+func (s *ResponsePostResponseCatalogCreated) GetParams() []ResponsePostResponseCatalogCreatedParamsItem {
 	return s.Params
 }
 
 // GetReversible returns the value of Reversible.
-func (s *ResponsePostResponseCatalogOK) GetReversible() bool {
+func (s *ResponsePostResponseCatalogCreated) GetReversible() bool {
 	return s.Reversible
 }
 
 // GetRisk returns the value of Risk.
-func (s *ResponsePostResponseCatalogOK) GetRisk() ResponsePostResponseCatalogOKRisk {
+func (s *ResponsePostResponseCatalogCreated) GetRisk() ResponsePostResponseCatalogCreatedRisk {
 	return s.Risk
 }
 
 // GetRollback returns the value of Rollback.
-func (s *ResponsePostResponseCatalogOK) GetRollback() ResponsePostResponseCatalogOKRollback {
+func (s *ResponsePostResponseCatalogCreated) GetRollback() ResponsePostResponseCatalogCreatedRollback {
 	return s.Rollback
 }
 
 // GetRollbackTool returns the value of RollbackTool.
-func (s *ResponsePostResponseCatalogOK) GetRollbackTool() NilString {
+func (s *ResponsePostResponseCatalogCreated) GetRollbackTool() NilString {
 	return s.RollbackTool
 }
 
 // GetRun returns the value of Run.
-func (s *ResponsePostResponseCatalogOK) GetRun() ResponsePostResponseCatalogOKRun {
+func (s *ResponsePostResponseCatalogCreated) GetRun() ResponsePostResponseCatalogCreatedRun {
 	return s.Run
 }
 
 // GetTool returns the value of Tool.
-func (s *ResponsePostResponseCatalogOK) GetTool() NilString {
+func (s *ResponsePostResponseCatalogCreated) GetTool() NilString {
 	return s.Tool
 }
 
 // GetUnavailableReason returns the value of UnavailableReason.
-func (s *ResponsePostResponseCatalogOK) GetUnavailableReason() NilString {
+func (s *ResponsePostResponseCatalogCreated) GetUnavailableReason() NilString {
 	return s.UnavailableReason
 }
 
 // GetVerify returns the value of Verify.
-func (s *ResponsePostResponseCatalogOK) GetVerify() ResponsePostResponseCatalogOKVerify {
+func (s *ResponsePostResponseCatalogCreated) GetVerify() ResponsePostResponseCatalogCreatedVerify {
 	return s.Verify
 }
 
 // SetAiMayPropose sets the value of AiMayPropose.
-func (s *ResponsePostResponseCatalogOK) SetAiMayPropose(val bool) {
+func (s *ResponsePostResponseCatalogCreated) SetAiMayPropose(val bool) {
 	s.AiMayPropose = val
 }
 
 // SetAvailable sets the value of Available.
-func (s *ResponsePostResponseCatalogOK) SetAvailable(val bool) {
+func (s *ResponsePostResponseCatalogCreated) SetAvailable(val bool) {
 	s.Available = val
 }
 
 // SetBuiltin sets the value of Builtin.
-func (s *ResponsePostResponseCatalogOK) SetBuiltin(val bool) {
+func (s *ResponsePostResponseCatalogCreated) SetBuiltin(val bool) {
 	s.Builtin = val
 }
 
 // SetConnection sets the value of Connection.
-func (s *ResponsePostResponseCatalogOK) SetConnection(val NilString) {
+func (s *ResponsePostResponseCatalogCreated) SetConnection(val NilString) {
 	s.Connection = val
 }
 
 // SetConnectionID sets the value of ConnectionID.
-func (s *ResponsePostResponseCatalogOK) SetConnectionID(val NilString) {
+func (s *ResponsePostResponseCatalogCreated) SetConnectionID(val NilString) {
 	s.ConnectionID = val
 }
 
 // SetConnectionKind sets the value of ConnectionKind.
-func (s *ResponsePostResponseCatalogOK) SetConnectionKind(val NilResponsePostResponseCatalogOKConnectionKind) {
+func (s *ResponsePostResponseCatalogCreated) SetConnectionKind(val NilResponsePostResponseCatalogCreatedConnectionKind) {
 	s.ConnectionKind = val
 }
 
 // SetDescription sets the value of Description.
-func (s *ResponsePostResponseCatalogOK) SetDescription(val string) {
+func (s *ResponsePostResponseCatalogCreated) SetDescription(val string) {
 	s.Description = val
 }
 
 // SetDevice sets the value of Device.
-func (s *ResponsePostResponseCatalogOK) SetDevice(val bool) {
+func (s *ResponsePostResponseCatalogCreated) SetDevice(val bool) {
 	s.Device = val
 }
 
 // SetEnabled sets the value of Enabled.
-func (s *ResponsePostResponseCatalogOK) SetEnabled(val bool) {
+func (s *ResponsePostResponseCatalogCreated) SetEnabled(val bool) {
 	s.Enabled = val
 }
 
 // SetID sets the value of ID.
-func (s *ResponsePostResponseCatalogOK) SetID(val string) {
+func (s *ResponsePostResponseCatalogCreated) SetID(val string) {
 	s.ID = val
 }
 
 // SetName sets the value of Name.
-func (s *ResponsePostResponseCatalogOK) SetName(val string) {
+func (s *ResponsePostResponseCatalogCreated) SetName(val string) {
 	s.Name = val
 }
 
 // SetPack sets the value of Pack.
-func (s *ResponsePostResponseCatalogOK) SetPack(val ResponsePostResponseCatalogOKPack) {
+func (s *ResponsePostResponseCatalogCreated) SetPack(val string) {
 	s.Pack = val
 }
 
 // SetParams sets the value of Params.
-func (s *ResponsePostResponseCatalogOK) SetParams(val []ResponsePostResponseCatalogOKParamsItem) {
+func (s *ResponsePostResponseCatalogCreated) SetParams(val []ResponsePostResponseCatalogCreatedParamsItem) {
 	s.Params = val
 }
 
 // SetReversible sets the value of Reversible.
-func (s *ResponsePostResponseCatalogOK) SetReversible(val bool) {
+func (s *ResponsePostResponseCatalogCreated) SetReversible(val bool) {
 	s.Reversible = val
 }
 
 // SetRisk sets the value of Risk.
-func (s *ResponsePostResponseCatalogOK) SetRisk(val ResponsePostResponseCatalogOKRisk) {
+func (s *ResponsePostResponseCatalogCreated) SetRisk(val ResponsePostResponseCatalogCreatedRisk) {
 	s.Risk = val
 }
 
 // SetRollback sets the value of Rollback.
-func (s *ResponsePostResponseCatalogOK) SetRollback(val ResponsePostResponseCatalogOKRollback) {
+func (s *ResponsePostResponseCatalogCreated) SetRollback(val ResponsePostResponseCatalogCreatedRollback) {
 	s.Rollback = val
 }
 
 // SetRollbackTool sets the value of RollbackTool.
-func (s *ResponsePostResponseCatalogOK) SetRollbackTool(val NilString) {
+func (s *ResponsePostResponseCatalogCreated) SetRollbackTool(val NilString) {
 	s.RollbackTool = val
 }
 
 // SetRun sets the value of Run.
-func (s *ResponsePostResponseCatalogOK) SetRun(val ResponsePostResponseCatalogOKRun) {
+func (s *ResponsePostResponseCatalogCreated) SetRun(val ResponsePostResponseCatalogCreatedRun) {
 	s.Run = val
 }
 
 // SetTool sets the value of Tool.
-func (s *ResponsePostResponseCatalogOK) SetTool(val NilString) {
+func (s *ResponsePostResponseCatalogCreated) SetTool(val NilString) {
 	s.Tool = val
 }
 
 // SetUnavailableReason sets the value of UnavailableReason.
-func (s *ResponsePostResponseCatalogOK) SetUnavailableReason(val NilString) {
+func (s *ResponsePostResponseCatalogCreated) SetUnavailableReason(val NilString) {
 	s.UnavailableReason = val
 }
 
 // SetVerify sets the value of Verify.
-func (s *ResponsePostResponseCatalogOK) SetVerify(val ResponsePostResponseCatalogOKVerify) {
+func (s *ResponsePostResponseCatalogCreated) SetVerify(val ResponsePostResponseCatalogCreatedVerify) {
 	s.Verify = val
 }
 
-type ResponsePostResponseCatalogOKConnectionKind string
+type ResponsePostResponseCatalogCreatedConnectionKind string
 
 const (
-	ResponsePostResponseCatalogOKConnectionKindDeviceAPI ResponsePostResponseCatalogOKConnectionKind = "device-api"
-	ResponsePostResponseCatalogOKConnectionKindSSH       ResponsePostResponseCatalogOKConnectionKind = "ssh"
-	ResponsePostResponseCatalogOKConnectionKindHTTP      ResponsePostResponseCatalogOKConnectionKind = "http"
-	ResponsePostResponseCatalogOKConnectionKindMcpHTTP   ResponsePostResponseCatalogOKConnectionKind = "mcp-http"
-	ResponsePostResponseCatalogOKConnectionKindMcpStdio  ResponsePostResponseCatalogOKConnectionKind = "mcp-stdio"
+	ResponsePostResponseCatalogCreatedConnectionKindHTTP            ResponsePostResponseCatalogCreatedConnectionKind = "http"
+	ResponsePostResponseCatalogCreatedConnectionKindSSH             ResponsePostResponseCatalogCreatedConnectionKind = "ssh"
+	ResponsePostResponseCatalogCreatedConnectionKindNetconfRestconf ResponsePostResponseCatalogCreatedConnectionKind = "netconf-restconf"
+	ResponsePostResponseCatalogCreatedConnectionKindAutomation      ResponsePostResponseCatalogCreatedConnectionKind = "automation"
+	ResponsePostResponseCatalogCreatedConnectionKindMcpHTTP         ResponsePostResponseCatalogCreatedConnectionKind = "mcp-http"
+	ResponsePostResponseCatalogCreatedConnectionKindMcpStdio        ResponsePostResponseCatalogCreatedConnectionKind = "mcp-stdio"
 )
 
-// AllValues returns all ResponsePostResponseCatalogOKConnectionKind values.
-func (ResponsePostResponseCatalogOKConnectionKind) AllValues() []ResponsePostResponseCatalogOKConnectionKind {
-	return []ResponsePostResponseCatalogOKConnectionKind{
-		ResponsePostResponseCatalogOKConnectionKindDeviceAPI,
-		ResponsePostResponseCatalogOKConnectionKindSSH,
-		ResponsePostResponseCatalogOKConnectionKindHTTP,
-		ResponsePostResponseCatalogOKConnectionKindMcpHTTP,
-		ResponsePostResponseCatalogOKConnectionKindMcpStdio,
+// AllValues returns all ResponsePostResponseCatalogCreatedConnectionKind values.
+func (ResponsePostResponseCatalogCreatedConnectionKind) AllValues() []ResponsePostResponseCatalogCreatedConnectionKind {
+	return []ResponsePostResponseCatalogCreatedConnectionKind{
+		ResponsePostResponseCatalogCreatedConnectionKindHTTP,
+		ResponsePostResponseCatalogCreatedConnectionKindSSH,
+		ResponsePostResponseCatalogCreatedConnectionKindNetconfRestconf,
+		ResponsePostResponseCatalogCreatedConnectionKindAutomation,
+		ResponsePostResponseCatalogCreatedConnectionKindMcpHTTP,
+		ResponsePostResponseCatalogCreatedConnectionKindMcpStdio,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseCatalogOKConnectionKind) MarshalText() ([]byte, error) {
+func (s ResponsePostResponseCatalogCreatedConnectionKind) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponsePostResponseCatalogOKConnectionKindDeviceAPI:
+	case ResponsePostResponseCatalogCreatedConnectionKindHTTP:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKConnectionKindSSH:
+	case ResponsePostResponseCatalogCreatedConnectionKindSSH:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKConnectionKindHTTP:
+	case ResponsePostResponseCatalogCreatedConnectionKindNetconfRestconf:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKConnectionKindMcpHTTP:
+	case ResponsePostResponseCatalogCreatedConnectionKindAutomation:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKConnectionKindMcpStdio:
+	case ResponsePostResponseCatalogCreatedConnectionKindMcpHTTP:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogCreatedConnectionKindMcpStdio:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -110074,73 +109334,84 @@ func (s ResponsePostResponseCatalogOKConnectionKind) MarshalText() ([]byte, erro
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseCatalogOKConnectionKind) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseCatalogOKConnectionKind(data) {
-	case ResponsePostResponseCatalogOKConnectionKindDeviceAPI:
-		*s = ResponsePostResponseCatalogOKConnectionKindDeviceAPI
+func (s *ResponsePostResponseCatalogCreatedConnectionKind) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseCatalogCreatedConnectionKind(data) {
+	case ResponsePostResponseCatalogCreatedConnectionKindHTTP:
+		*s = ResponsePostResponseCatalogCreatedConnectionKindHTTP
 		return nil
-	case ResponsePostResponseCatalogOKConnectionKindSSH:
-		*s = ResponsePostResponseCatalogOKConnectionKindSSH
+	case ResponsePostResponseCatalogCreatedConnectionKindSSH:
+		*s = ResponsePostResponseCatalogCreatedConnectionKindSSH
 		return nil
-	case ResponsePostResponseCatalogOKConnectionKindHTTP:
-		*s = ResponsePostResponseCatalogOKConnectionKindHTTP
+	case ResponsePostResponseCatalogCreatedConnectionKindNetconfRestconf:
+		*s = ResponsePostResponseCatalogCreatedConnectionKindNetconfRestconf
 		return nil
-	case ResponsePostResponseCatalogOKConnectionKindMcpHTTP:
-		*s = ResponsePostResponseCatalogOKConnectionKindMcpHTTP
+	case ResponsePostResponseCatalogCreatedConnectionKindAutomation:
+		*s = ResponsePostResponseCatalogCreatedConnectionKindAutomation
 		return nil
-	case ResponsePostResponseCatalogOKConnectionKindMcpStdio:
-		*s = ResponsePostResponseCatalogOKConnectionKindMcpStdio
+	case ResponsePostResponseCatalogCreatedConnectionKindMcpHTTP:
+		*s = ResponsePostResponseCatalogCreatedConnectionKindMcpHTTP
+		return nil
+	case ResponsePostResponseCatalogCreatedConnectionKindMcpStdio:
+		*s = ResponsePostResponseCatalogCreatedConnectionKindMcpStdio
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type ResponsePostResponseCatalogOKPack string
+type ResponsePostResponseCatalogCreatedParamsItem string
 
 const (
-	ResponsePostResponseCatalogOKPackBox       ResponsePostResponseCatalogOKPack = "box"
-	ResponsePostResponseCatalogOKPackFortigate ResponsePostResponseCatalogOKPack = "fortigate"
-	ResponsePostResponseCatalogOKPackMikrotik  ResponsePostResponseCatalogOKPack = "mikrotik"
-	ResponsePostResponseCatalogOKPackPfsense   ResponsePostResponseCatalogOKPack = "pfsense"
-	ResponsePostResponseCatalogOKPackOpnsense  ResponsePostResponseCatalogOKPack = "opnsense"
-	ResponsePostResponseCatalogOKPackSwitch    ResponsePostResponseCatalogOKPack = "switch"
-	ResponsePostResponseCatalogOKPackDNS       ResponsePostResponseCatalogOKPack = "dns"
-	ResponsePostResponseCatalogOKPackGeneric   ResponsePostResponseCatalogOKPack = "generic"
+	ResponsePostResponseCatalogCreatedParamsItemIP        ResponsePostResponseCatalogCreatedParamsItem = "ip"
+	ResponsePostResponseCatalogCreatedParamsItemCidr      ResponsePostResponseCatalogCreatedParamsItem = "cidr"
+	ResponsePostResponseCatalogCreatedParamsItemDomain    ResponsePostResponseCatalogCreatedParamsItem = "domain"
+	ResponsePostResponseCatalogCreatedParamsItemPort      ResponsePostResponseCatalogCreatedParamsItem = "port"
+	ResponsePostResponseCatalogCreatedParamsItemMAC       ResponsePostResponseCatalogCreatedParamsItem = "mac"
+	ResponsePostResponseCatalogCreatedParamsItemVlan      ResponsePostResponseCatalogCreatedParamsItem = "vlan"
+	ResponsePostResponseCatalogCreatedParamsItemInterface ResponsePostResponseCatalogCreatedParamsItem = "interface"
+	ResponsePostResponseCatalogCreatedParamsItemID        ResponsePostResponseCatalogCreatedParamsItem = "id"
+	ResponsePostResponseCatalogCreatedParamsItemName      ResponsePostResponseCatalogCreatedParamsItem = "name"
+	ResponsePostResponseCatalogCreatedParamsItemText      ResponsePostResponseCatalogCreatedParamsItem = "text"
 )
 
-// AllValues returns all ResponsePostResponseCatalogOKPack values.
-func (ResponsePostResponseCatalogOKPack) AllValues() []ResponsePostResponseCatalogOKPack {
-	return []ResponsePostResponseCatalogOKPack{
-		ResponsePostResponseCatalogOKPackBox,
-		ResponsePostResponseCatalogOKPackFortigate,
-		ResponsePostResponseCatalogOKPackMikrotik,
-		ResponsePostResponseCatalogOKPackPfsense,
-		ResponsePostResponseCatalogOKPackOpnsense,
-		ResponsePostResponseCatalogOKPackSwitch,
-		ResponsePostResponseCatalogOKPackDNS,
-		ResponsePostResponseCatalogOKPackGeneric,
+// AllValues returns all ResponsePostResponseCatalogCreatedParamsItem values.
+func (ResponsePostResponseCatalogCreatedParamsItem) AllValues() []ResponsePostResponseCatalogCreatedParamsItem {
+	return []ResponsePostResponseCatalogCreatedParamsItem{
+		ResponsePostResponseCatalogCreatedParamsItemIP,
+		ResponsePostResponseCatalogCreatedParamsItemCidr,
+		ResponsePostResponseCatalogCreatedParamsItemDomain,
+		ResponsePostResponseCatalogCreatedParamsItemPort,
+		ResponsePostResponseCatalogCreatedParamsItemMAC,
+		ResponsePostResponseCatalogCreatedParamsItemVlan,
+		ResponsePostResponseCatalogCreatedParamsItemInterface,
+		ResponsePostResponseCatalogCreatedParamsItemID,
+		ResponsePostResponseCatalogCreatedParamsItemName,
+		ResponsePostResponseCatalogCreatedParamsItemText,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseCatalogOKPack) MarshalText() ([]byte, error) {
+func (s ResponsePostResponseCatalogCreatedParamsItem) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponsePostResponseCatalogOKPackBox:
+	case ResponsePostResponseCatalogCreatedParamsItemIP:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKPackFortigate:
+	case ResponsePostResponseCatalogCreatedParamsItemCidr:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKPackMikrotik:
+	case ResponsePostResponseCatalogCreatedParamsItemDomain:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKPackPfsense:
+	case ResponsePostResponseCatalogCreatedParamsItemPort:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKPackOpnsense:
+	case ResponsePostResponseCatalogCreatedParamsItemMAC:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKPackSwitch:
+	case ResponsePostResponseCatalogCreatedParamsItemVlan:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKPackDNS:
+	case ResponsePostResponseCatalogCreatedParamsItemInterface:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKPackGeneric:
+	case ResponsePostResponseCatalogCreatedParamsItemID:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogCreatedParamsItemName:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogCreatedParamsItemText:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -110148,82 +109419,68 @@ func (s ResponsePostResponseCatalogOKPack) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseCatalogOKPack) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseCatalogOKPack(data) {
-	case ResponsePostResponseCatalogOKPackBox:
-		*s = ResponsePostResponseCatalogOKPackBox
+func (s *ResponsePostResponseCatalogCreatedParamsItem) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseCatalogCreatedParamsItem(data) {
+	case ResponsePostResponseCatalogCreatedParamsItemIP:
+		*s = ResponsePostResponseCatalogCreatedParamsItemIP
 		return nil
-	case ResponsePostResponseCatalogOKPackFortigate:
-		*s = ResponsePostResponseCatalogOKPackFortigate
+	case ResponsePostResponseCatalogCreatedParamsItemCidr:
+		*s = ResponsePostResponseCatalogCreatedParamsItemCidr
 		return nil
-	case ResponsePostResponseCatalogOKPackMikrotik:
-		*s = ResponsePostResponseCatalogOKPackMikrotik
+	case ResponsePostResponseCatalogCreatedParamsItemDomain:
+		*s = ResponsePostResponseCatalogCreatedParamsItemDomain
 		return nil
-	case ResponsePostResponseCatalogOKPackPfsense:
-		*s = ResponsePostResponseCatalogOKPackPfsense
+	case ResponsePostResponseCatalogCreatedParamsItemPort:
+		*s = ResponsePostResponseCatalogCreatedParamsItemPort
 		return nil
-	case ResponsePostResponseCatalogOKPackOpnsense:
-		*s = ResponsePostResponseCatalogOKPackOpnsense
+	case ResponsePostResponseCatalogCreatedParamsItemMAC:
+		*s = ResponsePostResponseCatalogCreatedParamsItemMAC
 		return nil
-	case ResponsePostResponseCatalogOKPackSwitch:
-		*s = ResponsePostResponseCatalogOKPackSwitch
+	case ResponsePostResponseCatalogCreatedParamsItemVlan:
+		*s = ResponsePostResponseCatalogCreatedParamsItemVlan
 		return nil
-	case ResponsePostResponseCatalogOKPackDNS:
-		*s = ResponsePostResponseCatalogOKPackDNS
+	case ResponsePostResponseCatalogCreatedParamsItemInterface:
+		*s = ResponsePostResponseCatalogCreatedParamsItemInterface
 		return nil
-	case ResponsePostResponseCatalogOKPackGeneric:
-		*s = ResponsePostResponseCatalogOKPackGeneric
+	case ResponsePostResponseCatalogCreatedParamsItemID:
+		*s = ResponsePostResponseCatalogCreatedParamsItemID
+		return nil
+	case ResponsePostResponseCatalogCreatedParamsItemName:
+		*s = ResponsePostResponseCatalogCreatedParamsItemName
+		return nil
+	case ResponsePostResponseCatalogCreatedParamsItemText:
+		*s = ResponsePostResponseCatalogCreatedParamsItemText
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type ResponsePostResponseCatalogOKParamsItem string
+type ResponsePostResponseCatalogCreatedRisk string
 
 const (
-	ResponsePostResponseCatalogOKParamsItemIP        ResponsePostResponseCatalogOKParamsItem = "ip"
-	ResponsePostResponseCatalogOKParamsItemCidr      ResponsePostResponseCatalogOKParamsItem = "cidr"
-	ResponsePostResponseCatalogOKParamsItemDomain    ResponsePostResponseCatalogOKParamsItem = "domain"
-	ResponsePostResponseCatalogOKParamsItemPort      ResponsePostResponseCatalogOKParamsItem = "port"
-	ResponsePostResponseCatalogOKParamsItemMAC       ResponsePostResponseCatalogOKParamsItem = "mac"
-	ResponsePostResponseCatalogOKParamsItemVlan      ResponsePostResponseCatalogOKParamsItem = "vlan"
-	ResponsePostResponseCatalogOKParamsItemInterface ResponsePostResponseCatalogOKParamsItem = "interface"
-	ResponsePostResponseCatalogOKParamsItemText      ResponsePostResponseCatalogOKParamsItem = "text"
+	ResponsePostResponseCatalogCreatedRiskLow    ResponsePostResponseCatalogCreatedRisk = "low"
+	ResponsePostResponseCatalogCreatedRiskMedium ResponsePostResponseCatalogCreatedRisk = "medium"
+	ResponsePostResponseCatalogCreatedRiskHigh   ResponsePostResponseCatalogCreatedRisk = "high"
 )
 
-// AllValues returns all ResponsePostResponseCatalogOKParamsItem values.
-func (ResponsePostResponseCatalogOKParamsItem) AllValues() []ResponsePostResponseCatalogOKParamsItem {
-	return []ResponsePostResponseCatalogOKParamsItem{
-		ResponsePostResponseCatalogOKParamsItemIP,
-		ResponsePostResponseCatalogOKParamsItemCidr,
-		ResponsePostResponseCatalogOKParamsItemDomain,
-		ResponsePostResponseCatalogOKParamsItemPort,
-		ResponsePostResponseCatalogOKParamsItemMAC,
-		ResponsePostResponseCatalogOKParamsItemVlan,
-		ResponsePostResponseCatalogOKParamsItemInterface,
-		ResponsePostResponseCatalogOKParamsItemText,
+// AllValues returns all ResponsePostResponseCatalogCreatedRisk values.
+func (ResponsePostResponseCatalogCreatedRisk) AllValues() []ResponsePostResponseCatalogCreatedRisk {
+	return []ResponsePostResponseCatalogCreatedRisk{
+		ResponsePostResponseCatalogCreatedRiskLow,
+		ResponsePostResponseCatalogCreatedRiskMedium,
+		ResponsePostResponseCatalogCreatedRiskHigh,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseCatalogOKParamsItem) MarshalText() ([]byte, error) {
+func (s ResponsePostResponseCatalogCreatedRisk) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponsePostResponseCatalogOKParamsItemIP:
+	case ResponsePostResponseCatalogCreatedRiskLow:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKParamsItemCidr:
+	case ResponsePostResponseCatalogCreatedRiskMedium:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKParamsItemDomain:
-		return []byte(s), nil
-	case ResponsePostResponseCatalogOKParamsItemPort:
-		return []byte(s), nil
-	case ResponsePostResponseCatalogOKParamsItemMAC:
-		return []byte(s), nil
-	case ResponsePostResponseCatalogOKParamsItemVlan:
-		return []byte(s), nil
-	case ResponsePostResponseCatalogOKParamsItemInterface:
-		return []byte(s), nil
-	case ResponsePostResponseCatalogOKParamsItemText:
+	case ResponsePostResponseCatalogCreatedRiskHigh:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -110231,181 +109488,258 @@ func (s ResponsePostResponseCatalogOKParamsItem) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseCatalogOKParamsItem) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseCatalogOKParamsItem(data) {
-	case ResponsePostResponseCatalogOKParamsItemIP:
-		*s = ResponsePostResponseCatalogOKParamsItemIP
+func (s *ResponsePostResponseCatalogCreatedRisk) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseCatalogCreatedRisk(data) {
+	case ResponsePostResponseCatalogCreatedRiskLow:
+		*s = ResponsePostResponseCatalogCreatedRiskLow
 		return nil
-	case ResponsePostResponseCatalogOKParamsItemCidr:
-		*s = ResponsePostResponseCatalogOKParamsItemCidr
+	case ResponsePostResponseCatalogCreatedRiskMedium:
+		*s = ResponsePostResponseCatalogCreatedRiskMedium
 		return nil
-	case ResponsePostResponseCatalogOKParamsItemDomain:
-		*s = ResponsePostResponseCatalogOKParamsItemDomain
-		return nil
-	case ResponsePostResponseCatalogOKParamsItemPort:
-		*s = ResponsePostResponseCatalogOKParamsItemPort
-		return nil
-	case ResponsePostResponseCatalogOKParamsItemMAC:
-		*s = ResponsePostResponseCatalogOKParamsItemMAC
-		return nil
-	case ResponsePostResponseCatalogOKParamsItemVlan:
-		*s = ResponsePostResponseCatalogOKParamsItemVlan
-		return nil
-	case ResponsePostResponseCatalogOKParamsItemInterface:
-		*s = ResponsePostResponseCatalogOKParamsItemInterface
-		return nil
-	case ResponsePostResponseCatalogOKParamsItemText:
-		*s = ResponsePostResponseCatalogOKParamsItemText
+	case ResponsePostResponseCatalogCreatedRiskHigh:
+		*s = ResponsePostResponseCatalogCreatedRiskHigh
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type ResponsePostResponseCatalogOKRisk string
-
-const (
-	ResponsePostResponseCatalogOKRiskLow    ResponsePostResponseCatalogOKRisk = "low"
-	ResponsePostResponseCatalogOKRiskMedium ResponsePostResponseCatalogOKRisk = "medium"
-	ResponsePostResponseCatalogOKRiskHigh   ResponsePostResponseCatalogOKRisk = "high"
-)
-
-// AllValues returns all ResponsePostResponseCatalogOKRisk values.
-func (ResponsePostResponseCatalogOKRisk) AllValues() []ResponsePostResponseCatalogOKRisk {
-	return []ResponsePostResponseCatalogOKRisk{
-		ResponsePostResponseCatalogOKRiskLow,
-		ResponsePostResponseCatalogOKRiskMedium,
-		ResponsePostResponseCatalogOKRiskHigh,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseCatalogOKRisk) MarshalText() ([]byte, error) {
-	switch s {
-	case ResponsePostResponseCatalogOKRiskLow:
-		return []byte(s), nil
-	case ResponsePostResponseCatalogOKRiskMedium:
-		return []byte(s), nil
-	case ResponsePostResponseCatalogOKRiskHigh:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseCatalogOKRisk) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseCatalogOKRisk(data) {
-	case ResponsePostResponseCatalogOKRiskLow:
-		*s = ResponsePostResponseCatalogOKRiskLow
-		return nil
-	case ResponsePostResponseCatalogOKRiskMedium:
-		*s = ResponsePostResponseCatalogOKRiskMedium
-		return nil
-	case ResponsePostResponseCatalogOKRiskHigh:
-		*s = ResponsePostResponseCatalogOKRiskHigh
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type ResponsePostResponseCatalogOKRollback struct {
+type ResponsePostResponseCatalogCreatedRollback struct {
 	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
 	Body string `json:"body"`
 	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
-	// {interface}, {text}; shell characters are refused.
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
+	Cli string `json:"cli"`
+	// HTTP headers, one "Name: value" per line, may be empty.
+	Headers string                                           `json:"headers"`
+	Method  ResponsePostResponseCatalogCreatedRollbackMethod `json:"method"`
+	// API path under the connection address, starts with /.
+	Path string `json:"path"`
+}
+
+// GetBody returns the value of Body.
+func (s *ResponsePostResponseCatalogCreatedRollback) GetBody() string {
+	return s.Body
+}
+
+// GetCli returns the value of Cli.
+func (s *ResponsePostResponseCatalogCreatedRollback) GetCli() string {
+	return s.Cli
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseCatalogCreatedRollback) GetHeaders() string {
+	return s.Headers
+}
+
+// GetMethod returns the value of Method.
+func (s *ResponsePostResponseCatalogCreatedRollback) GetMethod() ResponsePostResponseCatalogCreatedRollbackMethod {
+	return s.Method
+}
+
+// GetPath returns the value of Path.
+func (s *ResponsePostResponseCatalogCreatedRollback) GetPath() string {
+	return s.Path
+}
+
+// SetBody sets the value of Body.
+func (s *ResponsePostResponseCatalogCreatedRollback) SetBody(val string) {
+	s.Body = val
+}
+
+// SetCli sets the value of Cli.
+func (s *ResponsePostResponseCatalogCreatedRollback) SetCli(val string) {
+	s.Cli = val
+}
+
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseCatalogCreatedRollback) SetHeaders(val string) {
+	s.Headers = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ResponsePostResponseCatalogCreatedRollback) SetMethod(val ResponsePostResponseCatalogCreatedRollbackMethod) {
+	s.Method = val
+}
+
+// SetPath sets the value of Path.
+func (s *ResponsePostResponseCatalogCreatedRollback) SetPath(val string) {
+	s.Path = val
+}
+
+type ResponsePostResponseCatalogCreatedRollbackMethod string
+
+const (
+	ResponsePostResponseCatalogCreatedRollbackMethodEmpty  ResponsePostResponseCatalogCreatedRollbackMethod = ""
+	ResponsePostResponseCatalogCreatedRollbackMethodGET    ResponsePostResponseCatalogCreatedRollbackMethod = "GET"
+	ResponsePostResponseCatalogCreatedRollbackMethodPUT    ResponsePostResponseCatalogCreatedRollbackMethod = "PUT"
+	ResponsePostResponseCatalogCreatedRollbackMethodPATCH  ResponsePostResponseCatalogCreatedRollbackMethod = "PATCH"
+	ResponsePostResponseCatalogCreatedRollbackMethodPOST   ResponsePostResponseCatalogCreatedRollbackMethod = "POST"
+	ResponsePostResponseCatalogCreatedRollbackMethodDELETE ResponsePostResponseCatalogCreatedRollbackMethod = "DELETE"
+)
+
+// AllValues returns all ResponsePostResponseCatalogCreatedRollbackMethod values.
+func (ResponsePostResponseCatalogCreatedRollbackMethod) AllValues() []ResponsePostResponseCatalogCreatedRollbackMethod {
+	return []ResponsePostResponseCatalogCreatedRollbackMethod{
+		ResponsePostResponseCatalogCreatedRollbackMethodEmpty,
+		ResponsePostResponseCatalogCreatedRollbackMethodGET,
+		ResponsePostResponseCatalogCreatedRollbackMethodPUT,
+		ResponsePostResponseCatalogCreatedRollbackMethodPATCH,
+		ResponsePostResponseCatalogCreatedRollbackMethodPOST,
+		ResponsePostResponseCatalogCreatedRollbackMethodDELETE,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponsePostResponseCatalogCreatedRollbackMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponsePostResponseCatalogCreatedRollbackMethodEmpty:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogCreatedRollbackMethodGET:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogCreatedRollbackMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogCreatedRollbackMethodPATCH:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogCreatedRollbackMethodPOST:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogCreatedRollbackMethodDELETE:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponsePostResponseCatalogCreatedRollbackMethod) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseCatalogCreatedRollbackMethod(data) {
+	case ResponsePostResponseCatalogCreatedRollbackMethodEmpty:
+		*s = ResponsePostResponseCatalogCreatedRollbackMethodEmpty
+		return nil
+	case ResponsePostResponseCatalogCreatedRollbackMethodGET:
+		*s = ResponsePostResponseCatalogCreatedRollbackMethodGET
+		return nil
+	case ResponsePostResponseCatalogCreatedRollbackMethodPUT:
+		*s = ResponsePostResponseCatalogCreatedRollbackMethodPUT
+		return nil
+	case ResponsePostResponseCatalogCreatedRollbackMethodPATCH:
+		*s = ResponsePostResponseCatalogCreatedRollbackMethodPATCH
+		return nil
+	case ResponsePostResponseCatalogCreatedRollbackMethodPOST:
+		*s = ResponsePostResponseCatalogCreatedRollbackMethodPOST
+		return nil
+	case ResponsePostResponseCatalogCreatedRollbackMethodDELETE:
+		*s = ResponsePostResponseCatalogCreatedRollbackMethodDELETE
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ResponsePostResponseCatalogCreatedRun struct {
+	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
+	Body string `json:"body"`
+	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
 	// HTTP headers, one "Name: value" per line, may be empty.
 	Headers string                                      `json:"headers"`
-	Method  ResponsePostResponseCatalogOKRollbackMethod `json:"method"`
+	Method  ResponsePostResponseCatalogCreatedRunMethod `json:"method"`
 	// API path under the connection address, starts with /.
 	Path string `json:"path"`
 }
 
 // GetBody returns the value of Body.
-func (s *ResponsePostResponseCatalogOKRollback) GetBody() string {
+func (s *ResponsePostResponseCatalogCreatedRun) GetBody() string {
 	return s.Body
 }
 
 // GetCli returns the value of Cli.
-func (s *ResponsePostResponseCatalogOKRollback) GetCli() string {
+func (s *ResponsePostResponseCatalogCreatedRun) GetCli() string {
 	return s.Cli
 }
 
 // GetHeaders returns the value of Headers.
-func (s *ResponsePostResponseCatalogOKRollback) GetHeaders() string {
+func (s *ResponsePostResponseCatalogCreatedRun) GetHeaders() string {
 	return s.Headers
 }
 
 // GetMethod returns the value of Method.
-func (s *ResponsePostResponseCatalogOKRollback) GetMethod() ResponsePostResponseCatalogOKRollbackMethod {
+func (s *ResponsePostResponseCatalogCreatedRun) GetMethod() ResponsePostResponseCatalogCreatedRunMethod {
 	return s.Method
 }
 
 // GetPath returns the value of Path.
-func (s *ResponsePostResponseCatalogOKRollback) GetPath() string {
+func (s *ResponsePostResponseCatalogCreatedRun) GetPath() string {
 	return s.Path
 }
 
 // SetBody sets the value of Body.
-func (s *ResponsePostResponseCatalogOKRollback) SetBody(val string) {
+func (s *ResponsePostResponseCatalogCreatedRun) SetBody(val string) {
 	s.Body = val
 }
 
 // SetCli sets the value of Cli.
-func (s *ResponsePostResponseCatalogOKRollback) SetCli(val string) {
+func (s *ResponsePostResponseCatalogCreatedRun) SetCli(val string) {
 	s.Cli = val
 }
 
 // SetHeaders sets the value of Headers.
-func (s *ResponsePostResponseCatalogOKRollback) SetHeaders(val string) {
+func (s *ResponsePostResponseCatalogCreatedRun) SetHeaders(val string) {
 	s.Headers = val
 }
 
 // SetMethod sets the value of Method.
-func (s *ResponsePostResponseCatalogOKRollback) SetMethod(val ResponsePostResponseCatalogOKRollbackMethod) {
+func (s *ResponsePostResponseCatalogCreatedRun) SetMethod(val ResponsePostResponseCatalogCreatedRunMethod) {
 	s.Method = val
 }
 
 // SetPath sets the value of Path.
-func (s *ResponsePostResponseCatalogOKRollback) SetPath(val string) {
+func (s *ResponsePostResponseCatalogCreatedRun) SetPath(val string) {
 	s.Path = val
 }
 
-type ResponsePostResponseCatalogOKRollbackMethod string
+type ResponsePostResponseCatalogCreatedRunMethod string
 
 const (
-	ResponsePostResponseCatalogOKRollbackMethodEmpty  ResponsePostResponseCatalogOKRollbackMethod = ""
-	ResponsePostResponseCatalogOKRollbackMethodGET    ResponsePostResponseCatalogOKRollbackMethod = "GET"
-	ResponsePostResponseCatalogOKRollbackMethodPUT    ResponsePostResponseCatalogOKRollbackMethod = "PUT"
-	ResponsePostResponseCatalogOKRollbackMethodPOST   ResponsePostResponseCatalogOKRollbackMethod = "POST"
-	ResponsePostResponseCatalogOKRollbackMethodDELETE ResponsePostResponseCatalogOKRollbackMethod = "DELETE"
+	ResponsePostResponseCatalogCreatedRunMethodEmpty  ResponsePostResponseCatalogCreatedRunMethod = ""
+	ResponsePostResponseCatalogCreatedRunMethodGET    ResponsePostResponseCatalogCreatedRunMethod = "GET"
+	ResponsePostResponseCatalogCreatedRunMethodPUT    ResponsePostResponseCatalogCreatedRunMethod = "PUT"
+	ResponsePostResponseCatalogCreatedRunMethodPATCH  ResponsePostResponseCatalogCreatedRunMethod = "PATCH"
+	ResponsePostResponseCatalogCreatedRunMethodPOST   ResponsePostResponseCatalogCreatedRunMethod = "POST"
+	ResponsePostResponseCatalogCreatedRunMethodDELETE ResponsePostResponseCatalogCreatedRunMethod = "DELETE"
 )
 
-// AllValues returns all ResponsePostResponseCatalogOKRollbackMethod values.
-func (ResponsePostResponseCatalogOKRollbackMethod) AllValues() []ResponsePostResponseCatalogOKRollbackMethod {
-	return []ResponsePostResponseCatalogOKRollbackMethod{
-		ResponsePostResponseCatalogOKRollbackMethodEmpty,
-		ResponsePostResponseCatalogOKRollbackMethodGET,
-		ResponsePostResponseCatalogOKRollbackMethodPUT,
-		ResponsePostResponseCatalogOKRollbackMethodPOST,
-		ResponsePostResponseCatalogOKRollbackMethodDELETE,
+// AllValues returns all ResponsePostResponseCatalogCreatedRunMethod values.
+func (ResponsePostResponseCatalogCreatedRunMethod) AllValues() []ResponsePostResponseCatalogCreatedRunMethod {
+	return []ResponsePostResponseCatalogCreatedRunMethod{
+		ResponsePostResponseCatalogCreatedRunMethodEmpty,
+		ResponsePostResponseCatalogCreatedRunMethodGET,
+		ResponsePostResponseCatalogCreatedRunMethodPUT,
+		ResponsePostResponseCatalogCreatedRunMethodPATCH,
+		ResponsePostResponseCatalogCreatedRunMethodPOST,
+		ResponsePostResponseCatalogCreatedRunMethodDELETE,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseCatalogOKRollbackMethod) MarshalText() ([]byte, error) {
+func (s ResponsePostResponseCatalogCreatedRunMethod) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponsePostResponseCatalogOKRollbackMethodEmpty:
+	case ResponsePostResponseCatalogCreatedRunMethodEmpty:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKRollbackMethodGET:
+	case ResponsePostResponseCatalogCreatedRunMethodGET:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKRollbackMethodPUT:
+	case ResponsePostResponseCatalogCreatedRunMethodPUT:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKRollbackMethodPOST:
+	case ResponsePostResponseCatalogCreatedRunMethodPATCH:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKRollbackMethodDELETE:
+	case ResponsePostResponseCatalogCreatedRunMethodPOST:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogCreatedRunMethodDELETE:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -110413,124 +109747,133 @@ func (s ResponsePostResponseCatalogOKRollbackMethod) MarshalText() ([]byte, erro
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseCatalogOKRollbackMethod) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseCatalogOKRollbackMethod(data) {
-	case ResponsePostResponseCatalogOKRollbackMethodEmpty:
-		*s = ResponsePostResponseCatalogOKRollbackMethodEmpty
+func (s *ResponsePostResponseCatalogCreatedRunMethod) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseCatalogCreatedRunMethod(data) {
+	case ResponsePostResponseCatalogCreatedRunMethodEmpty:
+		*s = ResponsePostResponseCatalogCreatedRunMethodEmpty
 		return nil
-	case ResponsePostResponseCatalogOKRollbackMethodGET:
-		*s = ResponsePostResponseCatalogOKRollbackMethodGET
+	case ResponsePostResponseCatalogCreatedRunMethodGET:
+		*s = ResponsePostResponseCatalogCreatedRunMethodGET
 		return nil
-	case ResponsePostResponseCatalogOKRollbackMethodPUT:
-		*s = ResponsePostResponseCatalogOKRollbackMethodPUT
+	case ResponsePostResponseCatalogCreatedRunMethodPUT:
+		*s = ResponsePostResponseCatalogCreatedRunMethodPUT
 		return nil
-	case ResponsePostResponseCatalogOKRollbackMethodPOST:
-		*s = ResponsePostResponseCatalogOKRollbackMethodPOST
+	case ResponsePostResponseCatalogCreatedRunMethodPATCH:
+		*s = ResponsePostResponseCatalogCreatedRunMethodPATCH
 		return nil
-	case ResponsePostResponseCatalogOKRollbackMethodDELETE:
-		*s = ResponsePostResponseCatalogOKRollbackMethodDELETE
+	case ResponsePostResponseCatalogCreatedRunMethodPOST:
+		*s = ResponsePostResponseCatalogCreatedRunMethodPOST
+		return nil
+	case ResponsePostResponseCatalogCreatedRunMethodDELETE:
+		*s = ResponsePostResponseCatalogCreatedRunMethodDELETE
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type ResponsePostResponseCatalogOKRun struct {
+type ResponsePostResponseCatalogCreatedVerify struct {
 	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
 	Body string `json:"body"`
 	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
-	// {interface}, {text}; shell characters are refused.
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
 	// HTTP headers, one "Name: value" per line, may be empty.
-	Headers string                                 `json:"headers"`
-	Method  ResponsePostResponseCatalogOKRunMethod `json:"method"`
+	Headers string                                         `json:"headers"`
+	Method  ResponsePostResponseCatalogCreatedVerifyMethod `json:"method"`
 	// API path under the connection address, starts with /.
 	Path string `json:"path"`
 }
 
 // GetBody returns the value of Body.
-func (s *ResponsePostResponseCatalogOKRun) GetBody() string {
+func (s *ResponsePostResponseCatalogCreatedVerify) GetBody() string {
 	return s.Body
 }
 
 // GetCli returns the value of Cli.
-func (s *ResponsePostResponseCatalogOKRun) GetCli() string {
+func (s *ResponsePostResponseCatalogCreatedVerify) GetCli() string {
 	return s.Cli
 }
 
 // GetHeaders returns the value of Headers.
-func (s *ResponsePostResponseCatalogOKRun) GetHeaders() string {
+func (s *ResponsePostResponseCatalogCreatedVerify) GetHeaders() string {
 	return s.Headers
 }
 
 // GetMethod returns the value of Method.
-func (s *ResponsePostResponseCatalogOKRun) GetMethod() ResponsePostResponseCatalogOKRunMethod {
+func (s *ResponsePostResponseCatalogCreatedVerify) GetMethod() ResponsePostResponseCatalogCreatedVerifyMethod {
 	return s.Method
 }
 
 // GetPath returns the value of Path.
-func (s *ResponsePostResponseCatalogOKRun) GetPath() string {
+func (s *ResponsePostResponseCatalogCreatedVerify) GetPath() string {
 	return s.Path
 }
 
 // SetBody sets the value of Body.
-func (s *ResponsePostResponseCatalogOKRun) SetBody(val string) {
+func (s *ResponsePostResponseCatalogCreatedVerify) SetBody(val string) {
 	s.Body = val
 }
 
 // SetCli sets the value of Cli.
-func (s *ResponsePostResponseCatalogOKRun) SetCli(val string) {
+func (s *ResponsePostResponseCatalogCreatedVerify) SetCli(val string) {
 	s.Cli = val
 }
 
 // SetHeaders sets the value of Headers.
-func (s *ResponsePostResponseCatalogOKRun) SetHeaders(val string) {
+func (s *ResponsePostResponseCatalogCreatedVerify) SetHeaders(val string) {
 	s.Headers = val
 }
 
 // SetMethod sets the value of Method.
-func (s *ResponsePostResponseCatalogOKRun) SetMethod(val ResponsePostResponseCatalogOKRunMethod) {
+func (s *ResponsePostResponseCatalogCreatedVerify) SetMethod(val ResponsePostResponseCatalogCreatedVerifyMethod) {
 	s.Method = val
 }
 
 // SetPath sets the value of Path.
-func (s *ResponsePostResponseCatalogOKRun) SetPath(val string) {
+func (s *ResponsePostResponseCatalogCreatedVerify) SetPath(val string) {
 	s.Path = val
 }
 
-type ResponsePostResponseCatalogOKRunMethod string
+type ResponsePostResponseCatalogCreatedVerifyMethod string
 
 const (
-	ResponsePostResponseCatalogOKRunMethodEmpty  ResponsePostResponseCatalogOKRunMethod = ""
-	ResponsePostResponseCatalogOKRunMethodGET    ResponsePostResponseCatalogOKRunMethod = "GET"
-	ResponsePostResponseCatalogOKRunMethodPUT    ResponsePostResponseCatalogOKRunMethod = "PUT"
-	ResponsePostResponseCatalogOKRunMethodPOST   ResponsePostResponseCatalogOKRunMethod = "POST"
-	ResponsePostResponseCatalogOKRunMethodDELETE ResponsePostResponseCatalogOKRunMethod = "DELETE"
+	ResponsePostResponseCatalogCreatedVerifyMethodEmpty  ResponsePostResponseCatalogCreatedVerifyMethod = ""
+	ResponsePostResponseCatalogCreatedVerifyMethodGET    ResponsePostResponseCatalogCreatedVerifyMethod = "GET"
+	ResponsePostResponseCatalogCreatedVerifyMethodPUT    ResponsePostResponseCatalogCreatedVerifyMethod = "PUT"
+	ResponsePostResponseCatalogCreatedVerifyMethodPATCH  ResponsePostResponseCatalogCreatedVerifyMethod = "PATCH"
+	ResponsePostResponseCatalogCreatedVerifyMethodPOST   ResponsePostResponseCatalogCreatedVerifyMethod = "POST"
+	ResponsePostResponseCatalogCreatedVerifyMethodDELETE ResponsePostResponseCatalogCreatedVerifyMethod = "DELETE"
 )
 
-// AllValues returns all ResponsePostResponseCatalogOKRunMethod values.
-func (ResponsePostResponseCatalogOKRunMethod) AllValues() []ResponsePostResponseCatalogOKRunMethod {
-	return []ResponsePostResponseCatalogOKRunMethod{
-		ResponsePostResponseCatalogOKRunMethodEmpty,
-		ResponsePostResponseCatalogOKRunMethodGET,
-		ResponsePostResponseCatalogOKRunMethodPUT,
-		ResponsePostResponseCatalogOKRunMethodPOST,
-		ResponsePostResponseCatalogOKRunMethodDELETE,
+// AllValues returns all ResponsePostResponseCatalogCreatedVerifyMethod values.
+func (ResponsePostResponseCatalogCreatedVerifyMethod) AllValues() []ResponsePostResponseCatalogCreatedVerifyMethod {
+	return []ResponsePostResponseCatalogCreatedVerifyMethod{
+		ResponsePostResponseCatalogCreatedVerifyMethodEmpty,
+		ResponsePostResponseCatalogCreatedVerifyMethodGET,
+		ResponsePostResponseCatalogCreatedVerifyMethodPUT,
+		ResponsePostResponseCatalogCreatedVerifyMethodPATCH,
+		ResponsePostResponseCatalogCreatedVerifyMethodPOST,
+		ResponsePostResponseCatalogCreatedVerifyMethodDELETE,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseCatalogOKRunMethod) MarshalText() ([]byte, error) {
+func (s ResponsePostResponseCatalogCreatedVerifyMethod) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponsePostResponseCatalogOKRunMethodEmpty:
+	case ResponsePostResponseCatalogCreatedVerifyMethodEmpty:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKRunMethodGET:
+	case ResponsePostResponseCatalogCreatedVerifyMethodGET:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKRunMethodPUT:
+	case ResponsePostResponseCatalogCreatedVerifyMethodPUT:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKRunMethodPOST:
+	case ResponsePostResponseCatalogCreatedVerifyMethodPATCH:
 		return []byte(s), nil
-	case ResponsePostResponseCatalogOKRunMethodDELETE:
+	case ResponsePostResponseCatalogCreatedVerifyMethodPOST:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogCreatedVerifyMethodDELETE:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -110538,147 +109881,25 @@ func (s ResponsePostResponseCatalogOKRunMethod) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseCatalogOKRunMethod) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseCatalogOKRunMethod(data) {
-	case ResponsePostResponseCatalogOKRunMethodEmpty:
-		*s = ResponsePostResponseCatalogOKRunMethodEmpty
+func (s *ResponsePostResponseCatalogCreatedVerifyMethod) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseCatalogCreatedVerifyMethod(data) {
+	case ResponsePostResponseCatalogCreatedVerifyMethodEmpty:
+		*s = ResponsePostResponseCatalogCreatedVerifyMethodEmpty
 		return nil
-	case ResponsePostResponseCatalogOKRunMethodGET:
-		*s = ResponsePostResponseCatalogOKRunMethodGET
+	case ResponsePostResponseCatalogCreatedVerifyMethodGET:
+		*s = ResponsePostResponseCatalogCreatedVerifyMethodGET
 		return nil
-	case ResponsePostResponseCatalogOKRunMethodPUT:
-		*s = ResponsePostResponseCatalogOKRunMethodPUT
+	case ResponsePostResponseCatalogCreatedVerifyMethodPUT:
+		*s = ResponsePostResponseCatalogCreatedVerifyMethodPUT
 		return nil
-	case ResponsePostResponseCatalogOKRunMethodPOST:
-		*s = ResponsePostResponseCatalogOKRunMethodPOST
+	case ResponsePostResponseCatalogCreatedVerifyMethodPATCH:
+		*s = ResponsePostResponseCatalogCreatedVerifyMethodPATCH
 		return nil
-	case ResponsePostResponseCatalogOKRunMethodDELETE:
-		*s = ResponsePostResponseCatalogOKRunMethodDELETE
+	case ResponsePostResponseCatalogCreatedVerifyMethodPOST:
+		*s = ResponsePostResponseCatalogCreatedVerifyMethodPOST
 		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type ResponsePostResponseCatalogOKVerify struct {
-	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
-	Body string `json:"body"`
-	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
-	// {interface}, {text}; shell characters are refused.
-	Cli string `json:"cli"`
-	// HTTP headers, one "Name: value" per line, may be empty.
-	Headers string                                    `json:"headers"`
-	Method  ResponsePostResponseCatalogOKVerifyMethod `json:"method"`
-	// API path under the connection address, starts with /.
-	Path string `json:"path"`
-}
-
-// GetBody returns the value of Body.
-func (s *ResponsePostResponseCatalogOKVerify) GetBody() string {
-	return s.Body
-}
-
-// GetCli returns the value of Cli.
-func (s *ResponsePostResponseCatalogOKVerify) GetCli() string {
-	return s.Cli
-}
-
-// GetHeaders returns the value of Headers.
-func (s *ResponsePostResponseCatalogOKVerify) GetHeaders() string {
-	return s.Headers
-}
-
-// GetMethod returns the value of Method.
-func (s *ResponsePostResponseCatalogOKVerify) GetMethod() ResponsePostResponseCatalogOKVerifyMethod {
-	return s.Method
-}
-
-// GetPath returns the value of Path.
-func (s *ResponsePostResponseCatalogOKVerify) GetPath() string {
-	return s.Path
-}
-
-// SetBody sets the value of Body.
-func (s *ResponsePostResponseCatalogOKVerify) SetBody(val string) {
-	s.Body = val
-}
-
-// SetCli sets the value of Cli.
-func (s *ResponsePostResponseCatalogOKVerify) SetCli(val string) {
-	s.Cli = val
-}
-
-// SetHeaders sets the value of Headers.
-func (s *ResponsePostResponseCatalogOKVerify) SetHeaders(val string) {
-	s.Headers = val
-}
-
-// SetMethod sets the value of Method.
-func (s *ResponsePostResponseCatalogOKVerify) SetMethod(val ResponsePostResponseCatalogOKVerifyMethod) {
-	s.Method = val
-}
-
-// SetPath sets the value of Path.
-func (s *ResponsePostResponseCatalogOKVerify) SetPath(val string) {
-	s.Path = val
-}
-
-type ResponsePostResponseCatalogOKVerifyMethod string
-
-const (
-	ResponsePostResponseCatalogOKVerifyMethodEmpty  ResponsePostResponseCatalogOKVerifyMethod = ""
-	ResponsePostResponseCatalogOKVerifyMethodGET    ResponsePostResponseCatalogOKVerifyMethod = "GET"
-	ResponsePostResponseCatalogOKVerifyMethodPUT    ResponsePostResponseCatalogOKVerifyMethod = "PUT"
-	ResponsePostResponseCatalogOKVerifyMethodPOST   ResponsePostResponseCatalogOKVerifyMethod = "POST"
-	ResponsePostResponseCatalogOKVerifyMethodDELETE ResponsePostResponseCatalogOKVerifyMethod = "DELETE"
-)
-
-// AllValues returns all ResponsePostResponseCatalogOKVerifyMethod values.
-func (ResponsePostResponseCatalogOKVerifyMethod) AllValues() []ResponsePostResponseCatalogOKVerifyMethod {
-	return []ResponsePostResponseCatalogOKVerifyMethod{
-		ResponsePostResponseCatalogOKVerifyMethodEmpty,
-		ResponsePostResponseCatalogOKVerifyMethodGET,
-		ResponsePostResponseCatalogOKVerifyMethodPUT,
-		ResponsePostResponseCatalogOKVerifyMethodPOST,
-		ResponsePostResponseCatalogOKVerifyMethodDELETE,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseCatalogOKVerifyMethod) MarshalText() ([]byte, error) {
-	switch s {
-	case ResponsePostResponseCatalogOKVerifyMethodEmpty:
-		return []byte(s), nil
-	case ResponsePostResponseCatalogOKVerifyMethodGET:
-		return []byte(s), nil
-	case ResponsePostResponseCatalogOKVerifyMethodPUT:
-		return []byte(s), nil
-	case ResponsePostResponseCatalogOKVerifyMethodPOST:
-		return []byte(s), nil
-	case ResponsePostResponseCatalogOKVerifyMethodDELETE:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseCatalogOKVerifyMethod) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseCatalogOKVerifyMethod(data) {
-	case ResponsePostResponseCatalogOKVerifyMethodEmpty:
-		*s = ResponsePostResponseCatalogOKVerifyMethodEmpty
-		return nil
-	case ResponsePostResponseCatalogOKVerifyMethodGET:
-		*s = ResponsePostResponseCatalogOKVerifyMethodGET
-		return nil
-	case ResponsePostResponseCatalogOKVerifyMethodPUT:
-		*s = ResponsePostResponseCatalogOKVerifyMethodPUT
-		return nil
-	case ResponsePostResponseCatalogOKVerifyMethodPOST:
-		*s = ResponsePostResponseCatalogOKVerifyMethodPOST
-		return nil
-	case ResponsePostResponseCatalogOKVerifyMethodDELETE:
-		*s = ResponsePostResponseCatalogOKVerifyMethodDELETE
+	case ResponsePostResponseCatalogCreatedVerifyMethodDELETE:
+		*s = ResponsePostResponseCatalogCreatedVerifyMethodDELETE
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -110862,7 +110083,9 @@ type ResponsePostResponseCatalogReqRollback struct {
 	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
 	Body string `json:"body"`
 	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
-	// {interface}, {text}; shell characters are refused.
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
 	// HTTP headers, one "Name: value" per line, may be empty.
 	Headers string                                       `json:"headers"`
@@ -110927,6 +110150,7 @@ const (
 	ResponsePostResponseCatalogReqRollbackMethodEmpty  ResponsePostResponseCatalogReqRollbackMethod = ""
 	ResponsePostResponseCatalogReqRollbackMethodGET    ResponsePostResponseCatalogReqRollbackMethod = "GET"
 	ResponsePostResponseCatalogReqRollbackMethodPUT    ResponsePostResponseCatalogReqRollbackMethod = "PUT"
+	ResponsePostResponseCatalogReqRollbackMethodPATCH  ResponsePostResponseCatalogReqRollbackMethod = "PATCH"
 	ResponsePostResponseCatalogReqRollbackMethodPOST   ResponsePostResponseCatalogReqRollbackMethod = "POST"
 	ResponsePostResponseCatalogReqRollbackMethodDELETE ResponsePostResponseCatalogReqRollbackMethod = "DELETE"
 )
@@ -110937,6 +110161,7 @@ func (ResponsePostResponseCatalogReqRollbackMethod) AllValues() []ResponsePostRe
 		ResponsePostResponseCatalogReqRollbackMethodEmpty,
 		ResponsePostResponseCatalogReqRollbackMethodGET,
 		ResponsePostResponseCatalogReqRollbackMethodPUT,
+		ResponsePostResponseCatalogReqRollbackMethodPATCH,
 		ResponsePostResponseCatalogReqRollbackMethodPOST,
 		ResponsePostResponseCatalogReqRollbackMethodDELETE,
 	}
@@ -110950,6 +110175,8 @@ func (s ResponsePostResponseCatalogReqRollbackMethod) MarshalText() ([]byte, err
 	case ResponsePostResponseCatalogReqRollbackMethodGET:
 		return []byte(s), nil
 	case ResponsePostResponseCatalogReqRollbackMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogReqRollbackMethodPATCH:
 		return []byte(s), nil
 	case ResponsePostResponseCatalogReqRollbackMethodPOST:
 		return []byte(s), nil
@@ -110972,6 +110199,9 @@ func (s *ResponsePostResponseCatalogReqRollbackMethod) UnmarshalText(data []byte
 	case ResponsePostResponseCatalogReqRollbackMethodPUT:
 		*s = ResponsePostResponseCatalogReqRollbackMethodPUT
 		return nil
+	case ResponsePostResponseCatalogReqRollbackMethodPATCH:
+		*s = ResponsePostResponseCatalogReqRollbackMethodPATCH
+		return nil
 	case ResponsePostResponseCatalogReqRollbackMethodPOST:
 		*s = ResponsePostResponseCatalogReqRollbackMethodPOST
 		return nil
@@ -110987,7 +110217,9 @@ type ResponsePostResponseCatalogReqRun struct {
 	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
 	Body string `json:"body"`
 	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
-	// {interface}, {text}; shell characters are refused.
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
 	// HTTP headers, one "Name: value" per line, may be empty.
 	Headers string                                  `json:"headers"`
@@ -111052,6 +110284,7 @@ const (
 	ResponsePostResponseCatalogReqRunMethodEmpty  ResponsePostResponseCatalogReqRunMethod = ""
 	ResponsePostResponseCatalogReqRunMethodGET    ResponsePostResponseCatalogReqRunMethod = "GET"
 	ResponsePostResponseCatalogReqRunMethodPUT    ResponsePostResponseCatalogReqRunMethod = "PUT"
+	ResponsePostResponseCatalogReqRunMethodPATCH  ResponsePostResponseCatalogReqRunMethod = "PATCH"
 	ResponsePostResponseCatalogReqRunMethodPOST   ResponsePostResponseCatalogReqRunMethod = "POST"
 	ResponsePostResponseCatalogReqRunMethodDELETE ResponsePostResponseCatalogReqRunMethod = "DELETE"
 )
@@ -111062,6 +110295,7 @@ func (ResponsePostResponseCatalogReqRunMethod) AllValues() []ResponsePostRespons
 		ResponsePostResponseCatalogReqRunMethodEmpty,
 		ResponsePostResponseCatalogReqRunMethodGET,
 		ResponsePostResponseCatalogReqRunMethodPUT,
+		ResponsePostResponseCatalogReqRunMethodPATCH,
 		ResponsePostResponseCatalogReqRunMethodPOST,
 		ResponsePostResponseCatalogReqRunMethodDELETE,
 	}
@@ -111075,6 +110309,8 @@ func (s ResponsePostResponseCatalogReqRunMethod) MarshalText() ([]byte, error) {
 	case ResponsePostResponseCatalogReqRunMethodGET:
 		return []byte(s), nil
 	case ResponsePostResponseCatalogReqRunMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogReqRunMethodPATCH:
 		return []byte(s), nil
 	case ResponsePostResponseCatalogReqRunMethodPOST:
 		return []byte(s), nil
@@ -111097,6 +110333,9 @@ func (s *ResponsePostResponseCatalogReqRunMethod) UnmarshalText(data []byte) err
 	case ResponsePostResponseCatalogReqRunMethodPUT:
 		*s = ResponsePostResponseCatalogReqRunMethodPUT
 		return nil
+	case ResponsePostResponseCatalogReqRunMethodPATCH:
+		*s = ResponsePostResponseCatalogReqRunMethodPATCH
+		return nil
 	case ResponsePostResponseCatalogReqRunMethodPOST:
 		*s = ResponsePostResponseCatalogReqRunMethodPOST
 		return nil
@@ -111112,7 +110351,9 @@ type ResponsePostResponseCatalogReqVerify struct {
 	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
 	Body string `json:"body"`
 	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
-	// {interface}, {text}; shell characters are refused.
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
 	// HTTP headers, one "Name: value" per line, may be empty.
 	Headers string                                     `json:"headers"`
@@ -111177,6 +110418,7 @@ const (
 	ResponsePostResponseCatalogReqVerifyMethodEmpty  ResponsePostResponseCatalogReqVerifyMethod = ""
 	ResponsePostResponseCatalogReqVerifyMethodGET    ResponsePostResponseCatalogReqVerifyMethod = "GET"
 	ResponsePostResponseCatalogReqVerifyMethodPUT    ResponsePostResponseCatalogReqVerifyMethod = "PUT"
+	ResponsePostResponseCatalogReqVerifyMethodPATCH  ResponsePostResponseCatalogReqVerifyMethod = "PATCH"
 	ResponsePostResponseCatalogReqVerifyMethodPOST   ResponsePostResponseCatalogReqVerifyMethod = "POST"
 	ResponsePostResponseCatalogReqVerifyMethodDELETE ResponsePostResponseCatalogReqVerifyMethod = "DELETE"
 )
@@ -111187,6 +110429,7 @@ func (ResponsePostResponseCatalogReqVerifyMethod) AllValues() []ResponsePostResp
 		ResponsePostResponseCatalogReqVerifyMethodEmpty,
 		ResponsePostResponseCatalogReqVerifyMethodGET,
 		ResponsePostResponseCatalogReqVerifyMethodPUT,
+		ResponsePostResponseCatalogReqVerifyMethodPATCH,
 		ResponsePostResponseCatalogReqVerifyMethodPOST,
 		ResponsePostResponseCatalogReqVerifyMethodDELETE,
 	}
@@ -111200,6 +110443,8 @@ func (s ResponsePostResponseCatalogReqVerifyMethod) MarshalText() ([]byte, error
 	case ResponsePostResponseCatalogReqVerifyMethodGET:
 		return []byte(s), nil
 	case ResponsePostResponseCatalogReqVerifyMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseCatalogReqVerifyMethodPATCH:
 		return []byte(s), nil
 	case ResponsePostResponseCatalogReqVerifyMethodPOST:
 		return []byte(s), nil
@@ -111221,6 +110466,9 @@ func (s *ResponsePostResponseCatalogReqVerifyMethod) UnmarshalText(data []byte) 
 		return nil
 	case ResponsePostResponseCatalogReqVerifyMethodPUT:
 		*s = ResponsePostResponseCatalogReqVerifyMethodPUT
+		return nil
+	case ResponsePostResponseCatalogReqVerifyMethodPATCH:
+		*s = ResponsePostResponseCatalogReqVerifyMethodPATCH
 		return nil
 	case ResponsePostResponseCatalogReqVerifyMethodPOST:
 		*s = ResponsePostResponseCatalogReqVerifyMethodPOST
@@ -111675,421 +110923,421 @@ func (s *ResponsePostResponseExecutionReq) SetPhrase(val OptString) {
 	s.Phrase = val
 }
 
-type ResponsePostResponseProposalsIDRequestOK struct {
-	Ai        NilResponsePostResponseProposalsIDRequestOKAi           `json:"ai"`
-	Approvals []ResponsePostResponseProposalsIDRequestOKApprovalsItem `json:"approvals"`
-	AssetID   NilString                                               `json:"asset_id"`
-	AssetName string                                                  `json:"asset_name"`
-	Cve       NilString                                               `json:"cve"`
-	DecidedAt NilDateTime                                             `json:"decided_at"`
+type ResponsePostResponseProposalsIDRequestCreated struct {
+	Ai        NilResponsePostResponseProposalsIDRequestCreatedAi           `json:"ai"`
+	Approvals []ResponsePostResponseProposalsIDRequestCreatedApprovalsItem `json:"approvals"`
+	AssetID   NilString                                                    `json:"asset_id"`
+	AssetName string                                                       `json:"asset_name"`
+	Cve       NilString                                                    `json:"cve"`
+	DecidedAt NilDateTime                                                  `json:"decided_at"`
 	// Preview build only, admin only: the approval links that would be emailed.
-	EmailLinks []ResponsePostResponseProposalsIDRequestOKEmailLinksItem `json:"email_links"`
-	ExpiresAt  time.Time                                                `json:"expires_at"`
-	FindingID  NilString                                                `json:"finding_id"`
-	ID         string                                                   `json:"id"`
-	Items      []ResponsePostResponseProposalsIDRequestOKItemsItem      `json:"items"`
-	Note       NilString                                                `json:"note"`
+	EmailLinks []ResponsePostResponseProposalsIDRequestCreatedEmailLinksItem `json:"email_links"`
+	ExpiresAt  time.Time                                                     `json:"expires_at"`
+	FindingID  NilString                                                     `json:"finding_id"`
+	ID         string                                                        `json:"id"`
+	Items      []ResponsePostResponseProposalsIDRequestCreatedItemsItem      `json:"items"`
+	Note       NilString                                                     `json:"note"`
 	// Carried out by the rule pre-approval option, without a person.
 	PreApproved       bool      `json:"pre_approved"`
 	ProposalID        string    `json:"proposal_id"`
 	RequestedAt       time.Time `json:"requested_at"`
 	RequiresApprovals int       `json:"requires_approvals"`
 	// Highest risk among the actions.
-	Risk     ResponsePostResponseProposalsIDRequestOKRisk `json:"risk"`
-	RuleID   NilString                                    `json:"rule_id"`
-	RuleName NilString                                    `json:"rule_name"`
+	Risk     ResponsePostResponseProposalsIDRequestCreatedRisk `json:"risk"`
+	RuleID   NilString                                         `json:"rule_id"`
+	RuleName NilString                                         `json:"rule_name"`
 	// Channels that received the approval request.
-	SentTo         []string                                           `json:"sent_to"`
-	Source         ResponsePostResponseProposalsIDRequestOKSource     `json:"source"`
-	Status         ResponsePostResponseProposalsIDRequestOKStatus     `json:"status"`
-	Title          string                                             `json:"title"`
-	Trigger        NilResponsePostResponseProposalsIDRequestOKTrigger `json:"trigger"`
-	TriggerSummary NilString                                          `json:"trigger_summary"`
+	SentTo         []string                                                `json:"sent_to"`
+	Source         ResponsePostResponseProposalsIDRequestCreatedSource     `json:"source"`
+	Status         ResponsePostResponseProposalsIDRequestCreatedStatus     `json:"status"`
+	Title          string                                                  `json:"title"`
+	Trigger        NilResponsePostResponseProposalsIDRequestCreatedTrigger `json:"trigger"`
+	TriggerSummary NilString                                               `json:"trigger_summary"`
 	// Why two different approvers are needed.
 	TwoBecause NilString `json:"two_because"`
 }
 
 // GetAi returns the value of Ai.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetAi() NilResponsePostResponseProposalsIDRequestOKAi {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetAi() NilResponsePostResponseProposalsIDRequestCreatedAi {
 	return s.Ai
 }
 
 // GetApprovals returns the value of Approvals.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetApprovals() []ResponsePostResponseProposalsIDRequestOKApprovalsItem {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetApprovals() []ResponsePostResponseProposalsIDRequestCreatedApprovalsItem {
 	return s.Approvals
 }
 
 // GetAssetID returns the value of AssetID.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetAssetID() NilString {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetAssetID() NilString {
 	return s.AssetID
 }
 
 // GetAssetName returns the value of AssetName.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetAssetName() string {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetAssetName() string {
 	return s.AssetName
 }
 
 // GetCve returns the value of Cve.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetCve() NilString {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetCve() NilString {
 	return s.Cve
 }
 
 // GetDecidedAt returns the value of DecidedAt.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetDecidedAt() NilDateTime {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetDecidedAt() NilDateTime {
 	return s.DecidedAt
 }
 
 // GetEmailLinks returns the value of EmailLinks.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetEmailLinks() []ResponsePostResponseProposalsIDRequestOKEmailLinksItem {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetEmailLinks() []ResponsePostResponseProposalsIDRequestCreatedEmailLinksItem {
 	return s.EmailLinks
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetExpiresAt() time.Time {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetExpiresAt() time.Time {
 	return s.ExpiresAt
 }
 
 // GetFindingID returns the value of FindingID.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetFindingID() NilString {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetFindingID() NilString {
 	return s.FindingID
 }
 
 // GetID returns the value of ID.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetID() string {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetID() string {
 	return s.ID
 }
 
 // GetItems returns the value of Items.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetItems() []ResponsePostResponseProposalsIDRequestOKItemsItem {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetItems() []ResponsePostResponseProposalsIDRequestCreatedItemsItem {
 	return s.Items
 }
 
 // GetNote returns the value of Note.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetNote() NilString {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetNote() NilString {
 	return s.Note
 }
 
 // GetPreApproved returns the value of PreApproved.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetPreApproved() bool {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetPreApproved() bool {
 	return s.PreApproved
 }
 
 // GetProposalID returns the value of ProposalID.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetProposalID() string {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetProposalID() string {
 	return s.ProposalID
 }
 
 // GetRequestedAt returns the value of RequestedAt.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetRequestedAt() time.Time {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetRequestedAt() time.Time {
 	return s.RequestedAt
 }
 
 // GetRequiresApprovals returns the value of RequiresApprovals.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetRequiresApprovals() int {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetRequiresApprovals() int {
 	return s.RequiresApprovals
 }
 
 // GetRisk returns the value of Risk.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetRisk() ResponsePostResponseProposalsIDRequestOKRisk {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetRisk() ResponsePostResponseProposalsIDRequestCreatedRisk {
 	return s.Risk
 }
 
 // GetRuleID returns the value of RuleID.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetRuleID() NilString {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetRuleID() NilString {
 	return s.RuleID
 }
 
 // GetRuleName returns the value of RuleName.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetRuleName() NilString {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetRuleName() NilString {
 	return s.RuleName
 }
 
 // GetSentTo returns the value of SentTo.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetSentTo() []string {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetSentTo() []string {
 	return s.SentTo
 }
 
 // GetSource returns the value of Source.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetSource() ResponsePostResponseProposalsIDRequestOKSource {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetSource() ResponsePostResponseProposalsIDRequestCreatedSource {
 	return s.Source
 }
 
 // GetStatus returns the value of Status.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetStatus() ResponsePostResponseProposalsIDRequestOKStatus {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetStatus() ResponsePostResponseProposalsIDRequestCreatedStatus {
 	return s.Status
 }
 
 // GetTitle returns the value of Title.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetTitle() string {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetTitle() string {
 	return s.Title
 }
 
 // GetTrigger returns the value of Trigger.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetTrigger() NilResponsePostResponseProposalsIDRequestOKTrigger {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetTrigger() NilResponsePostResponseProposalsIDRequestCreatedTrigger {
 	return s.Trigger
 }
 
 // GetTriggerSummary returns the value of TriggerSummary.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetTriggerSummary() NilString {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetTriggerSummary() NilString {
 	return s.TriggerSummary
 }
 
 // GetTwoBecause returns the value of TwoBecause.
-func (s *ResponsePostResponseProposalsIDRequestOK) GetTwoBecause() NilString {
+func (s *ResponsePostResponseProposalsIDRequestCreated) GetTwoBecause() NilString {
 	return s.TwoBecause
 }
 
 // SetAi sets the value of Ai.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetAi(val NilResponsePostResponseProposalsIDRequestOKAi) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetAi(val NilResponsePostResponseProposalsIDRequestCreatedAi) {
 	s.Ai = val
 }
 
 // SetApprovals sets the value of Approvals.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetApprovals(val []ResponsePostResponseProposalsIDRequestOKApprovalsItem) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetApprovals(val []ResponsePostResponseProposalsIDRequestCreatedApprovalsItem) {
 	s.Approvals = val
 }
 
 // SetAssetID sets the value of AssetID.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetAssetID(val NilString) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetAssetID(val NilString) {
 	s.AssetID = val
 }
 
 // SetAssetName sets the value of AssetName.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetAssetName(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetAssetName(val string) {
 	s.AssetName = val
 }
 
 // SetCve sets the value of Cve.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetCve(val NilString) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetCve(val NilString) {
 	s.Cve = val
 }
 
 // SetDecidedAt sets the value of DecidedAt.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetDecidedAt(val NilDateTime) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetDecidedAt(val NilDateTime) {
 	s.DecidedAt = val
 }
 
 // SetEmailLinks sets the value of EmailLinks.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetEmailLinks(val []ResponsePostResponseProposalsIDRequestOKEmailLinksItem) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetEmailLinks(val []ResponsePostResponseProposalsIDRequestCreatedEmailLinksItem) {
 	s.EmailLinks = val
 }
 
 // SetExpiresAt sets the value of ExpiresAt.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetExpiresAt(val time.Time) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetExpiresAt(val time.Time) {
 	s.ExpiresAt = val
 }
 
 // SetFindingID sets the value of FindingID.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetFindingID(val NilString) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetFindingID(val NilString) {
 	s.FindingID = val
 }
 
 // SetID sets the value of ID.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetID(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetID(val string) {
 	s.ID = val
 }
 
 // SetItems sets the value of Items.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetItems(val []ResponsePostResponseProposalsIDRequestOKItemsItem) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetItems(val []ResponsePostResponseProposalsIDRequestCreatedItemsItem) {
 	s.Items = val
 }
 
 // SetNote sets the value of Note.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetNote(val NilString) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetNote(val NilString) {
 	s.Note = val
 }
 
 // SetPreApproved sets the value of PreApproved.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetPreApproved(val bool) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetPreApproved(val bool) {
 	s.PreApproved = val
 }
 
 // SetProposalID sets the value of ProposalID.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetProposalID(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetProposalID(val string) {
 	s.ProposalID = val
 }
 
 // SetRequestedAt sets the value of RequestedAt.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetRequestedAt(val time.Time) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetRequestedAt(val time.Time) {
 	s.RequestedAt = val
 }
 
 // SetRequiresApprovals sets the value of RequiresApprovals.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetRequiresApprovals(val int) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetRequiresApprovals(val int) {
 	s.RequiresApprovals = val
 }
 
 // SetRisk sets the value of Risk.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetRisk(val ResponsePostResponseProposalsIDRequestOKRisk) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetRisk(val ResponsePostResponseProposalsIDRequestCreatedRisk) {
 	s.Risk = val
 }
 
 // SetRuleID sets the value of RuleID.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetRuleID(val NilString) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetRuleID(val NilString) {
 	s.RuleID = val
 }
 
 // SetRuleName sets the value of RuleName.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetRuleName(val NilString) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetRuleName(val NilString) {
 	s.RuleName = val
 }
 
 // SetSentTo sets the value of SentTo.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetSentTo(val []string) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetSentTo(val []string) {
 	s.SentTo = val
 }
 
 // SetSource sets the value of Source.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetSource(val ResponsePostResponseProposalsIDRequestOKSource) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetSource(val ResponsePostResponseProposalsIDRequestCreatedSource) {
 	s.Source = val
 }
 
 // SetStatus sets the value of Status.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetStatus(val ResponsePostResponseProposalsIDRequestOKStatus) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetStatus(val ResponsePostResponseProposalsIDRequestCreatedStatus) {
 	s.Status = val
 }
 
 // SetTitle sets the value of Title.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetTitle(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetTitle(val string) {
 	s.Title = val
 }
 
 // SetTrigger sets the value of Trigger.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetTrigger(val NilResponsePostResponseProposalsIDRequestOKTrigger) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetTrigger(val NilResponsePostResponseProposalsIDRequestCreatedTrigger) {
 	s.Trigger = val
 }
 
 // SetTriggerSummary sets the value of TriggerSummary.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetTriggerSummary(val NilString) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetTriggerSummary(val NilString) {
 	s.TriggerSummary = val
 }
 
 // SetTwoBecause sets the value of TwoBecause.
-func (s *ResponsePostResponseProposalsIDRequestOK) SetTwoBecause(val NilString) {
+func (s *ResponsePostResponseProposalsIDRequestCreated) SetTwoBecause(val NilString) {
 	s.TwoBecause = val
 }
 
-type ResponsePostResponseProposalsIDRequestOKAi struct {
-	Confidence float64                                                  `json:"confidence"`
-	Evidence   []ResponsePostResponseProposalsIDRequestOKAiEvidenceItem `json:"evidence"`
+type ResponsePostResponseProposalsIDRequestCreatedAi struct {
+	Confidence float64                                                       `json:"confidence"`
+	Evidence   []ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItem `json:"evidence"`
 	// High risk: only an in-app approval with the two-step code counts.
 	InAppOnly bool `json:"in_app_only"`
 	// Deterministic second checker, only for high-risk actions.
-	SecondCheck NilResponsePostResponseProposalsIDRequestOKAiSecondCheck `json:"second_check"`
-	Why         string                                                   `json:"why"`
+	SecondCheck NilResponsePostResponseProposalsIDRequestCreatedAiSecondCheck `json:"second_check"`
+	Why         string                                                        `json:"why"`
 }
 
 // GetConfidence returns the value of Confidence.
-func (s *ResponsePostResponseProposalsIDRequestOKAi) GetConfidence() float64 {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAi) GetConfidence() float64 {
 	return s.Confidence
 }
 
 // GetEvidence returns the value of Evidence.
-func (s *ResponsePostResponseProposalsIDRequestOKAi) GetEvidence() []ResponsePostResponseProposalsIDRequestOKAiEvidenceItem {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAi) GetEvidence() []ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItem {
 	return s.Evidence
 }
 
 // GetInAppOnly returns the value of InAppOnly.
-func (s *ResponsePostResponseProposalsIDRequestOKAi) GetInAppOnly() bool {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAi) GetInAppOnly() bool {
 	return s.InAppOnly
 }
 
 // GetSecondCheck returns the value of SecondCheck.
-func (s *ResponsePostResponseProposalsIDRequestOKAi) GetSecondCheck() NilResponsePostResponseProposalsIDRequestOKAiSecondCheck {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAi) GetSecondCheck() NilResponsePostResponseProposalsIDRequestCreatedAiSecondCheck {
 	return s.SecondCheck
 }
 
 // GetWhy returns the value of Why.
-func (s *ResponsePostResponseProposalsIDRequestOKAi) GetWhy() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAi) GetWhy() string {
 	return s.Why
 }
 
 // SetConfidence sets the value of Confidence.
-func (s *ResponsePostResponseProposalsIDRequestOKAi) SetConfidence(val float64) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAi) SetConfidence(val float64) {
 	s.Confidence = val
 }
 
 // SetEvidence sets the value of Evidence.
-func (s *ResponsePostResponseProposalsIDRequestOKAi) SetEvidence(val []ResponsePostResponseProposalsIDRequestOKAiEvidenceItem) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAi) SetEvidence(val []ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItem) {
 	s.Evidence = val
 }
 
 // SetInAppOnly sets the value of InAppOnly.
-func (s *ResponsePostResponseProposalsIDRequestOKAi) SetInAppOnly(val bool) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAi) SetInAppOnly(val bool) {
 	s.InAppOnly = val
 }
 
 // SetSecondCheck sets the value of SecondCheck.
-func (s *ResponsePostResponseProposalsIDRequestOKAi) SetSecondCheck(val NilResponsePostResponseProposalsIDRequestOKAiSecondCheck) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAi) SetSecondCheck(val NilResponsePostResponseProposalsIDRequestCreatedAiSecondCheck) {
 	s.SecondCheck = val
 }
 
 // SetWhy sets the value of Why.
-func (s *ResponsePostResponseProposalsIDRequestOKAi) SetWhy(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAi) SetWhy(val string) {
 	s.Why = val
 }
 
-type ResponsePostResponseProposalsIDRequestOKAiEvidenceItem struct {
-	ID      string                                                     `json:"id"`
-	Kind    ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKind `json:"kind"`
-	Summary string                                                     `json:"summary"`
+type ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItem struct {
+	ID      string                                                          `json:"id"`
+	Kind    ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKind `json:"kind"`
+	Summary string                                                          `json:"summary"`
 }
 
 // GetID returns the value of ID.
-func (s *ResponsePostResponseProposalsIDRequestOKAiEvidenceItem) GetID() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItem) GetID() string {
 	return s.ID
 }
 
 // GetKind returns the value of Kind.
-func (s *ResponsePostResponseProposalsIDRequestOKAiEvidenceItem) GetKind() ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKind {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItem) GetKind() ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKind {
 	return s.Kind
 }
 
 // GetSummary returns the value of Summary.
-func (s *ResponsePostResponseProposalsIDRequestOKAiEvidenceItem) GetSummary() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItem) GetSummary() string {
 	return s.Summary
 }
 
 // SetID sets the value of ID.
-func (s *ResponsePostResponseProposalsIDRequestOKAiEvidenceItem) SetID(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItem) SetID(val string) {
 	s.ID = val
 }
 
 // SetKind sets the value of Kind.
-func (s *ResponsePostResponseProposalsIDRequestOKAiEvidenceItem) SetKind(val ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKind) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItem) SetKind(val ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKind) {
 	s.Kind = val
 }
 
 // SetSummary sets the value of Summary.
-func (s *ResponsePostResponseProposalsIDRequestOKAiEvidenceItem) SetSummary(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItem) SetSummary(val string) {
 	s.Summary = val
 }
 
-type ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKind string
+type ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKind string
 
 const (
-	ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKindFinding    ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKind = "finding"
-	ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKindIocHit     ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKind = "ioc_hit"
-	ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKindConfigRead ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKind = "config_read"
+	ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKindFinding    ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKind = "finding"
+	ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKindIocHit     ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKind = "ioc_hit"
+	ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKindConfigRead ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKind = "config_read"
 )
 
-// AllValues returns all ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKind values.
-func (ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKind) AllValues() []ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKind {
-	return []ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKind{
-		ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKindFinding,
-		ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKindIocHit,
-		ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKindConfigRead,
+// AllValues returns all ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKind values.
+func (ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKind) AllValues() []ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKind {
+	return []ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKind{
+		ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKindFinding,
+		ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKindIocHit,
+		ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKindConfigRead,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKind) MarshalText() ([]byte, error) {
+func (s ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKind) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKindFinding:
+	case ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKindFinding:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKindIocHit:
+	case ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKindIocHit:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKindConfigRead:
+	case ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKindConfigRead:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -112097,158 +111345,158 @@ func (s ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKind) MarshalText(
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKind) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKind(data) {
-	case ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKindFinding:
-		*s = ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKindFinding
+func (s *ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKind) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKind(data) {
+	case ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKindFinding:
+		*s = ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKindFinding
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKindIocHit:
-		*s = ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKindIocHit
+	case ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKindIocHit:
+		*s = ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKindIocHit
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKindConfigRead:
-		*s = ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKindConfigRead
+	case ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKindConfigRead:
+		*s = ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKindConfigRead
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type ResponsePostResponseProposalsIDRequestOKAiSecondCheck struct {
+type ResponsePostResponseProposalsIDRequestCreatedAiSecondCheck struct {
 	Notes string `json:"notes"`
 	Ok    bool   `json:"ok"`
 }
 
 // GetNotes returns the value of Notes.
-func (s *ResponsePostResponseProposalsIDRequestOKAiSecondCheck) GetNotes() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAiSecondCheck) GetNotes() string {
 	return s.Notes
 }
 
 // GetOk returns the value of Ok.
-func (s *ResponsePostResponseProposalsIDRequestOKAiSecondCheck) GetOk() bool {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAiSecondCheck) GetOk() bool {
 	return s.Ok
 }
 
 // SetNotes sets the value of Notes.
-func (s *ResponsePostResponseProposalsIDRequestOKAiSecondCheck) SetNotes(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAiSecondCheck) SetNotes(val string) {
 	s.Notes = val
 }
 
 // SetOk sets the value of Ok.
-func (s *ResponsePostResponseProposalsIDRequestOKAiSecondCheck) SetOk(val bool) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAiSecondCheck) SetOk(val bool) {
 	s.Ok = val
 }
 
-type ResponsePostResponseProposalsIDRequestOKApprovalsItem struct {
+type ResponsePostResponseProposalsIDRequestCreatedApprovalsItem struct {
 	At    time.Time `json:"at"`
 	Email string    `json:"email"`
 	// Item ids this person approved.
-	Items  []string                                                 `json:"items"`
-	Name   string                                                   `json:"name"`
-	UserID string                                                   `json:"user_id"`
-	Via    ResponsePostResponseProposalsIDRequestOKApprovalsItemVia `json:"via"`
+	Items  []string                                                      `json:"items"`
+	Name   string                                                        `json:"name"`
+	UserID string                                                        `json:"user_id"`
+	Via    ResponsePostResponseProposalsIDRequestCreatedApprovalsItemVia `json:"via"`
 }
 
 // GetAt returns the value of At.
-func (s *ResponsePostResponseProposalsIDRequestOKApprovalsItem) GetAt() time.Time {
+func (s *ResponsePostResponseProposalsIDRequestCreatedApprovalsItem) GetAt() time.Time {
 	return s.At
 }
 
 // GetEmail returns the value of Email.
-func (s *ResponsePostResponseProposalsIDRequestOKApprovalsItem) GetEmail() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedApprovalsItem) GetEmail() string {
 	return s.Email
 }
 
 // GetItems returns the value of Items.
-func (s *ResponsePostResponseProposalsIDRequestOKApprovalsItem) GetItems() []string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedApprovalsItem) GetItems() []string {
 	return s.Items
 }
 
 // GetName returns the value of Name.
-func (s *ResponsePostResponseProposalsIDRequestOKApprovalsItem) GetName() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedApprovalsItem) GetName() string {
 	return s.Name
 }
 
 // GetUserID returns the value of UserID.
-func (s *ResponsePostResponseProposalsIDRequestOKApprovalsItem) GetUserID() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedApprovalsItem) GetUserID() string {
 	return s.UserID
 }
 
 // GetVia returns the value of Via.
-func (s *ResponsePostResponseProposalsIDRequestOKApprovalsItem) GetVia() ResponsePostResponseProposalsIDRequestOKApprovalsItemVia {
+func (s *ResponsePostResponseProposalsIDRequestCreatedApprovalsItem) GetVia() ResponsePostResponseProposalsIDRequestCreatedApprovalsItemVia {
 	return s.Via
 }
 
 // SetAt sets the value of At.
-func (s *ResponsePostResponseProposalsIDRequestOKApprovalsItem) SetAt(val time.Time) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedApprovalsItem) SetAt(val time.Time) {
 	s.At = val
 }
 
 // SetEmail sets the value of Email.
-func (s *ResponsePostResponseProposalsIDRequestOKApprovalsItem) SetEmail(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedApprovalsItem) SetEmail(val string) {
 	s.Email = val
 }
 
 // SetItems sets the value of Items.
-func (s *ResponsePostResponseProposalsIDRequestOKApprovalsItem) SetItems(val []string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedApprovalsItem) SetItems(val []string) {
 	s.Items = val
 }
 
 // SetName sets the value of Name.
-func (s *ResponsePostResponseProposalsIDRequestOKApprovalsItem) SetName(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedApprovalsItem) SetName(val string) {
 	s.Name = val
 }
 
 // SetUserID sets the value of UserID.
-func (s *ResponsePostResponseProposalsIDRequestOKApprovalsItem) SetUserID(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedApprovalsItem) SetUserID(val string) {
 	s.UserID = val
 }
 
 // SetVia sets the value of Via.
-func (s *ResponsePostResponseProposalsIDRequestOKApprovalsItem) SetVia(val ResponsePostResponseProposalsIDRequestOKApprovalsItemVia) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedApprovalsItem) SetVia(val ResponsePostResponseProposalsIDRequestCreatedApprovalsItemVia) {
 	s.Via = val
 }
 
-type ResponsePostResponseProposalsIDRequestOKApprovalsItemVia string
+type ResponsePostResponseProposalsIDRequestCreatedApprovalsItemVia string
 
 const (
-	ResponsePostResponseProposalsIDRequestOKApprovalsItemViaApp          ResponsePostResponseProposalsIDRequestOKApprovalsItemVia = "app"
-	ResponsePostResponseProposalsIDRequestOKApprovalsItemViaSlack        ResponsePostResponseProposalsIDRequestOKApprovalsItemVia = "slack"
-	ResponsePostResponseProposalsIDRequestOKApprovalsItemViaTelegram     ResponsePostResponseProposalsIDRequestOKApprovalsItemVia = "telegram"
-	ResponsePostResponseProposalsIDRequestOKApprovalsItemViaEmail        ResponsePostResponseProposalsIDRequestOKApprovalsItemVia = "email"
-	ResponsePostResponseProposalsIDRequestOKApprovalsItemViaZalo         ResponsePostResponseProposalsIDRequestOKApprovalsItemVia = "zalo"
-	ResponsePostResponseProposalsIDRequestOKApprovalsItemViaZaloPersonal ResponsePostResponseProposalsIDRequestOKApprovalsItemVia = "zalo-personal"
-	ResponsePostResponseProposalsIDRequestOKApprovalsItemViaAuto         ResponsePostResponseProposalsIDRequestOKApprovalsItemVia = "auto"
+	ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaApp          ResponsePostResponseProposalsIDRequestCreatedApprovalsItemVia = "app"
+	ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaSlack        ResponsePostResponseProposalsIDRequestCreatedApprovalsItemVia = "slack"
+	ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaTelegram     ResponsePostResponseProposalsIDRequestCreatedApprovalsItemVia = "telegram"
+	ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaEmail        ResponsePostResponseProposalsIDRequestCreatedApprovalsItemVia = "email"
+	ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaZalo         ResponsePostResponseProposalsIDRequestCreatedApprovalsItemVia = "zalo"
+	ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaZaloPersonal ResponsePostResponseProposalsIDRequestCreatedApprovalsItemVia = "zalo-personal"
+	ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaAuto         ResponsePostResponseProposalsIDRequestCreatedApprovalsItemVia = "auto"
 )
 
-// AllValues returns all ResponsePostResponseProposalsIDRequestOKApprovalsItemVia values.
-func (ResponsePostResponseProposalsIDRequestOKApprovalsItemVia) AllValues() []ResponsePostResponseProposalsIDRequestOKApprovalsItemVia {
-	return []ResponsePostResponseProposalsIDRequestOKApprovalsItemVia{
-		ResponsePostResponseProposalsIDRequestOKApprovalsItemViaApp,
-		ResponsePostResponseProposalsIDRequestOKApprovalsItemViaSlack,
-		ResponsePostResponseProposalsIDRequestOKApprovalsItemViaTelegram,
-		ResponsePostResponseProposalsIDRequestOKApprovalsItemViaEmail,
-		ResponsePostResponseProposalsIDRequestOKApprovalsItemViaZalo,
-		ResponsePostResponseProposalsIDRequestOKApprovalsItemViaZaloPersonal,
-		ResponsePostResponseProposalsIDRequestOKApprovalsItemViaAuto,
+// AllValues returns all ResponsePostResponseProposalsIDRequestCreatedApprovalsItemVia values.
+func (ResponsePostResponseProposalsIDRequestCreatedApprovalsItemVia) AllValues() []ResponsePostResponseProposalsIDRequestCreatedApprovalsItemVia {
+	return []ResponsePostResponseProposalsIDRequestCreatedApprovalsItemVia{
+		ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaApp,
+		ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaSlack,
+		ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaTelegram,
+		ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaEmail,
+		ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaZalo,
+		ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaZaloPersonal,
+		ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaAuto,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseProposalsIDRequestOKApprovalsItemVia) MarshalText() ([]byte, error) {
+func (s ResponsePostResponseProposalsIDRequestCreatedApprovalsItemVia) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponsePostResponseProposalsIDRequestOKApprovalsItemViaApp:
+	case ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaApp:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKApprovalsItemViaSlack:
+	case ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaSlack:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKApprovalsItemViaTelegram:
+	case ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaTelegram:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKApprovalsItemViaEmail:
+	case ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaEmail:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKApprovalsItemViaZalo:
+	case ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaZalo:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKApprovalsItemViaZaloPersonal:
+	case ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaZaloPersonal:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKApprovalsItemViaAuto:
+	case ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaAuto:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -112256,35 +111504,35 @@ func (s ResponsePostResponseProposalsIDRequestOKApprovalsItemVia) MarshalText() 
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseProposalsIDRequestOKApprovalsItemVia) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseProposalsIDRequestOKApprovalsItemVia(data) {
-	case ResponsePostResponseProposalsIDRequestOKApprovalsItemViaApp:
-		*s = ResponsePostResponseProposalsIDRequestOKApprovalsItemViaApp
+func (s *ResponsePostResponseProposalsIDRequestCreatedApprovalsItemVia) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseProposalsIDRequestCreatedApprovalsItemVia(data) {
+	case ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaApp:
+		*s = ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaApp
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKApprovalsItemViaSlack:
-		*s = ResponsePostResponseProposalsIDRequestOKApprovalsItemViaSlack
+	case ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaSlack:
+		*s = ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaSlack
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKApprovalsItemViaTelegram:
-		*s = ResponsePostResponseProposalsIDRequestOKApprovalsItemViaTelegram
+	case ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaTelegram:
+		*s = ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaTelegram
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKApprovalsItemViaEmail:
-		*s = ResponsePostResponseProposalsIDRequestOKApprovalsItemViaEmail
+	case ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaEmail:
+		*s = ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaEmail
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKApprovalsItemViaZalo:
-		*s = ResponsePostResponseProposalsIDRequestOKApprovalsItemViaZalo
+	case ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaZalo:
+		*s = ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaZalo
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKApprovalsItemViaZaloPersonal:
-		*s = ResponsePostResponseProposalsIDRequestOKApprovalsItemViaZaloPersonal
+	case ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaZaloPersonal:
+		*s = ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaZaloPersonal
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKApprovalsItemViaAuto:
-		*s = ResponsePostResponseProposalsIDRequestOKApprovalsItemViaAuto
+	case ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaAuto:
+		*s = ResponsePostResponseProposalsIDRequestCreatedApprovalsItemViaAuto
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type ResponsePostResponseProposalsIDRequestOKEmailLinksItem struct {
+type ResponsePostResponseProposalsIDRequestCreatedEmailLinksItem struct {
 	Address   string    `json:"address"`
 	Approver  string    `json:"approver"`
 	ExpiresAt time.Time `json:"expires_at"`
@@ -112293,69 +111541,69 @@ type ResponsePostResponseProposalsIDRequestOKEmailLinksItem struct {
 }
 
 // GetAddress returns the value of Address.
-func (s *ResponsePostResponseProposalsIDRequestOKEmailLinksItem) GetAddress() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedEmailLinksItem) GetAddress() string {
 	return s.Address
 }
 
 // GetApprover returns the value of Approver.
-func (s *ResponsePostResponseProposalsIDRequestOKEmailLinksItem) GetApprover() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedEmailLinksItem) GetApprover() string {
 	return s.Approver
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
-func (s *ResponsePostResponseProposalsIDRequestOKEmailLinksItem) GetExpiresAt() time.Time {
+func (s *ResponsePostResponseProposalsIDRequestCreatedEmailLinksItem) GetExpiresAt() time.Time {
 	return s.ExpiresAt
 }
 
 // GetURL returns the value of URL.
-func (s *ResponsePostResponseProposalsIDRequestOKEmailLinksItem) GetURL() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedEmailLinksItem) GetURL() string {
 	return s.URL
 }
 
 // GetUsed returns the value of Used.
-func (s *ResponsePostResponseProposalsIDRequestOKEmailLinksItem) GetUsed() bool {
+func (s *ResponsePostResponseProposalsIDRequestCreatedEmailLinksItem) GetUsed() bool {
 	return s.Used
 }
 
 // SetAddress sets the value of Address.
-func (s *ResponsePostResponseProposalsIDRequestOKEmailLinksItem) SetAddress(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedEmailLinksItem) SetAddress(val string) {
 	s.Address = val
 }
 
 // SetApprover sets the value of Approver.
-func (s *ResponsePostResponseProposalsIDRequestOKEmailLinksItem) SetApprover(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedEmailLinksItem) SetApprover(val string) {
 	s.Approver = val
 }
 
 // SetExpiresAt sets the value of ExpiresAt.
-func (s *ResponsePostResponseProposalsIDRequestOKEmailLinksItem) SetExpiresAt(val time.Time) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedEmailLinksItem) SetExpiresAt(val time.Time) {
 	s.ExpiresAt = val
 }
 
 // SetURL sets the value of URL.
-func (s *ResponsePostResponseProposalsIDRequestOKEmailLinksItem) SetURL(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedEmailLinksItem) SetURL(val string) {
 	s.URL = val
 }
 
 // SetUsed sets the value of Used.
-func (s *ResponsePostResponseProposalsIDRequestOKEmailLinksItem) SetUsed(val bool) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedEmailLinksItem) SetUsed(val bool) {
 	s.Used = val
 }
 
-type ResponsePostResponseProposalsIDRequestOKItemsItem struct {
-	ActionID   string                                                  `json:"action_id"`
-	Change     ResponsePostResponseProposalsIDRequestOKItemsItemChange `json:"change"`
-	Connection NilString                                               `json:"connection"`
+type ResponsePostResponseProposalsIDRequestCreatedItemsItem struct {
+	ActionID   string                                                       `json:"action_id"`
+	Change     ResponsePostResponseProposalsIDRequestCreatedItemsItemChange `json:"change"`
+	Connection NilString                                                    `json:"connection"`
 	// Null = the action does not change another device (block list, message).
-	ConnectorID  NilString                                               `json:"connector_id"`
-	ExecutedAt   NilDateTime                                             `json:"executed_at"`
-	ID           string                                                  `json:"id"`
-	RemoveAt     NilDateTime                                             `json:"remove_at"`
-	Result       NilString                                               `json:"result"`
-	Reversible   bool                                                    `json:"reversible"`
-	Risk         ResponsePostResponseProposalsIDRequestOKItemsItemRisk   `json:"risk"`
-	RolledBackAt NilDateTime                                             `json:"rolled_back_at"`
-	Status       ResponsePostResponseProposalsIDRequestOKItemsItemStatus `json:"status"`
+	ConnectorID  NilString                                                    `json:"connector_id"`
+	ExecutedAt   NilDateTime                                                  `json:"executed_at"`
+	ID           string                                                       `json:"id"`
+	RemoveAt     NilDateTime                                                  `json:"remove_at"`
+	Result       NilString                                                    `json:"result"`
+	Reversible   bool                                                         `json:"reversible"`
+	Risk         ResponsePostResponseProposalsIDRequestCreatedItemsItemRisk   `json:"risk"`
+	RolledBackAt NilDateTime                                                  `json:"rolled_back_at"`
+	Status       ResponsePostResponseProposalsIDRequestCreatedItemsItemStatus `json:"status"`
 	// How many addresses or objects the action touches.
 	Targets int    `json:"targets"`
 	Title   string `json:"title"`
@@ -112363,180 +111611,180 @@ type ResponsePostResponseProposalsIDRequestOKItemsItem struct {
 	// Minutes after execution until the change is undone automatically.
 	TTLMin NilInt `json:"ttl_min"`
 	// Result of the read-back after the action ran.
-	Verified NilResponsePostResponseProposalsIDRequestOKItemsItemVerified `json:"verified"`
+	Verified NilResponsePostResponseProposalsIDRequestCreatedItemsItemVerified `json:"verified"`
 }
 
 // GetActionID returns the value of ActionID.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) GetActionID() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetActionID() string {
 	return s.ActionID
 }
 
 // GetChange returns the value of Change.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) GetChange() ResponsePostResponseProposalsIDRequestOKItemsItemChange {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetChange() ResponsePostResponseProposalsIDRequestCreatedItemsItemChange {
 	return s.Change
 }
 
 // GetConnection returns the value of Connection.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) GetConnection() NilString {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetConnection() NilString {
 	return s.Connection
 }
 
 // GetConnectorID returns the value of ConnectorID.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) GetConnectorID() NilString {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetConnectorID() NilString {
 	return s.ConnectorID
 }
 
 // GetExecutedAt returns the value of ExecutedAt.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) GetExecutedAt() NilDateTime {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetExecutedAt() NilDateTime {
 	return s.ExecutedAt
 }
 
 // GetID returns the value of ID.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) GetID() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetID() string {
 	return s.ID
 }
 
 // GetRemoveAt returns the value of RemoveAt.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) GetRemoveAt() NilDateTime {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetRemoveAt() NilDateTime {
 	return s.RemoveAt
 }
 
 // GetResult returns the value of Result.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) GetResult() NilString {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetResult() NilString {
 	return s.Result
 }
 
 // GetReversible returns the value of Reversible.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) GetReversible() bool {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetReversible() bool {
 	return s.Reversible
 }
 
 // GetRisk returns the value of Risk.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) GetRisk() ResponsePostResponseProposalsIDRequestOKItemsItemRisk {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetRisk() ResponsePostResponseProposalsIDRequestCreatedItemsItemRisk {
 	return s.Risk
 }
 
 // GetRolledBackAt returns the value of RolledBackAt.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) GetRolledBackAt() NilDateTime {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetRolledBackAt() NilDateTime {
 	return s.RolledBackAt
 }
 
 // GetStatus returns the value of Status.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) GetStatus() ResponsePostResponseProposalsIDRequestOKItemsItemStatus {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetStatus() ResponsePostResponseProposalsIDRequestCreatedItemsItemStatus {
 	return s.Status
 }
 
 // GetTargets returns the value of Targets.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) GetTargets() int {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetTargets() int {
 	return s.Targets
 }
 
 // GetTitle returns the value of Title.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) GetTitle() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetTitle() string {
 	return s.Title
 }
 
 // GetTool returns the value of Tool.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) GetTool() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetTool() string {
 	return s.Tool
 }
 
 // GetTTLMin returns the value of TTLMin.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) GetTTLMin() NilInt {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetTTLMin() NilInt {
 	return s.TTLMin
 }
 
 // GetVerified returns the value of Verified.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) GetVerified() NilResponsePostResponseProposalsIDRequestOKItemsItemVerified {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetVerified() NilResponsePostResponseProposalsIDRequestCreatedItemsItemVerified {
 	return s.Verified
 }
 
 // SetActionID sets the value of ActionID.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) SetActionID(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetActionID(val string) {
 	s.ActionID = val
 }
 
 // SetChange sets the value of Change.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) SetChange(val ResponsePostResponseProposalsIDRequestOKItemsItemChange) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetChange(val ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) {
 	s.Change = val
 }
 
 // SetConnection sets the value of Connection.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) SetConnection(val NilString) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetConnection(val NilString) {
 	s.Connection = val
 }
 
 // SetConnectorID sets the value of ConnectorID.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) SetConnectorID(val NilString) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetConnectorID(val NilString) {
 	s.ConnectorID = val
 }
 
 // SetExecutedAt sets the value of ExecutedAt.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) SetExecutedAt(val NilDateTime) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetExecutedAt(val NilDateTime) {
 	s.ExecutedAt = val
 }
 
 // SetID sets the value of ID.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) SetID(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetID(val string) {
 	s.ID = val
 }
 
 // SetRemoveAt sets the value of RemoveAt.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) SetRemoveAt(val NilDateTime) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetRemoveAt(val NilDateTime) {
 	s.RemoveAt = val
 }
 
 // SetResult sets the value of Result.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) SetResult(val NilString) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetResult(val NilString) {
 	s.Result = val
 }
 
 // SetReversible sets the value of Reversible.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) SetReversible(val bool) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetReversible(val bool) {
 	s.Reversible = val
 }
 
 // SetRisk sets the value of Risk.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) SetRisk(val ResponsePostResponseProposalsIDRequestOKItemsItemRisk) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetRisk(val ResponsePostResponseProposalsIDRequestCreatedItemsItemRisk) {
 	s.Risk = val
 }
 
 // SetRolledBackAt sets the value of RolledBackAt.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) SetRolledBackAt(val NilDateTime) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetRolledBackAt(val NilDateTime) {
 	s.RolledBackAt = val
 }
 
 // SetStatus sets the value of Status.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) SetStatus(val ResponsePostResponseProposalsIDRequestOKItemsItemStatus) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetStatus(val ResponsePostResponseProposalsIDRequestCreatedItemsItemStatus) {
 	s.Status = val
 }
 
 // SetTargets sets the value of Targets.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) SetTargets(val int) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetTargets(val int) {
 	s.Targets = val
 }
 
 // SetTitle sets the value of Title.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) SetTitle(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetTitle(val string) {
 	s.Title = val
 }
 
 // SetTool sets the value of Tool.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) SetTool(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetTool(val string) {
 	s.Tool = val
 }
 
 // SetTTLMin sets the value of TTLMin.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) SetTTLMin(val NilInt) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetTTLMin(val NilInt) {
 	s.TTLMin = val
 }
 
 // SetVerified sets the value of Verified.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) SetVerified(val NilResponsePostResponseProposalsIDRequestOKItemsItemVerified) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetVerified(val NilResponsePostResponseProposalsIDRequestCreatedItemsItemVerified) {
 	s.Verified = val
 }
 
-type ResponsePostResponseProposalsIDRequestOKItemsItemChange struct {
+type ResponsePostResponseProposalsIDRequestCreatedItemsItemChange struct {
 	// State of the target after the change, in plain words.
 	After string `json:"after"`
 	// State of the target before the change, in plain words.
@@ -112544,138 +111792,142 @@ type ResponsePostResponseProposalsIDRequestOKItemsItemChange struct {
 	// The same change as a device command, for people who want to check it by hand (may be empty).
 	Cli string `json:"cli"`
 	// The exact API call, or null when the action is a command only.
-	Rest     NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRest  `json:"rest"`
-	Rollback ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollback `json:"rollback"`
+	Rest     NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest  `json:"rest"`
+	Rollback ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollback `json:"rollback"`
 	// How Vedette reads the result back after running the change (empty when the action cannot be read
 	// back).
 	Verify string `json:"verify"`
 }
 
 // GetAfter returns the value of After.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChange) GetAfter() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) GetAfter() string {
 	return s.After
 }
 
 // GetBefore returns the value of Before.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChange) GetBefore() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) GetBefore() string {
 	return s.Before
 }
 
 // GetCli returns the value of Cli.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChange) GetCli() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) GetCli() string {
 	return s.Cli
 }
 
 // GetRest returns the value of Rest.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChange) GetRest() NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRest {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) GetRest() NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest {
 	return s.Rest
 }
 
 // GetRollback returns the value of Rollback.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChange) GetRollback() ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollback {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) GetRollback() ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollback {
 	return s.Rollback
 }
 
 // GetVerify returns the value of Verify.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChange) GetVerify() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) GetVerify() string {
 	return s.Verify
 }
 
 // SetAfter sets the value of After.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChange) SetAfter(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) SetAfter(val string) {
 	s.After = val
 }
 
 // SetBefore sets the value of Before.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChange) SetBefore(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) SetBefore(val string) {
 	s.Before = val
 }
 
 // SetCli sets the value of Cli.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChange) SetCli(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) SetCli(val string) {
 	s.Cli = val
 }
 
 // SetRest sets the value of Rest.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChange) SetRest(val NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRest) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) SetRest(val NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) {
 	s.Rest = val
 }
 
 // SetRollback sets the value of Rollback.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChange) SetRollback(val ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollback) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) SetRollback(val ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollback) {
 	s.Rollback = val
 }
 
 // SetVerify sets the value of Verify.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChange) SetVerify(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) SetVerify(val string) {
 	s.Verify = val
 }
 
-type ResponsePostResponseProposalsIDRequestOKItemsItemChangeRest struct {
-	Body   NilString                                                         `json:"body"`
-	Method ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethod `json:"method"`
-	URL    string                                                            `json:"url"`
+type ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest struct {
+	Body   NilString                                                              `json:"body"`
+	Method ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod `json:"method"`
+	URL    string                                                                 `json:"url"`
 }
 
 // GetBody returns the value of Body.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRest) GetBody() NilString {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) GetBody() NilString {
 	return s.Body
 }
 
 // GetMethod returns the value of Method.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRest) GetMethod() ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethod {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) GetMethod() ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod {
 	return s.Method
 }
 
 // GetURL returns the value of URL.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRest) GetURL() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) GetURL() string {
 	return s.URL
 }
 
 // SetBody sets the value of Body.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRest) SetBody(val NilString) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) SetBody(val NilString) {
 	s.Body = val
 }
 
 // SetMethod sets the value of Method.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRest) SetMethod(val ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethod) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) SetMethod(val ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod) {
 	s.Method = val
 }
 
 // SetURL sets the value of URL.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRest) SetURL(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) SetURL(val string) {
 	s.URL = val
 }
 
-type ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethod string
+type ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod string
 
 const (
-	ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodGET    ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethod = "GET"
-	ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodPUT    ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethod = "PUT"
-	ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodPOST   ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethod = "POST"
-	ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodDELETE ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethod = "DELETE"
+	ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodGET    ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod = "GET"
+	ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodPUT    ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod = "PUT"
+	ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodPATCH  ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod = "PATCH"
+	ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodPOST   ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod = "POST"
+	ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodDELETE ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod = "DELETE"
 )
 
-// AllValues returns all ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethod values.
-func (ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethod) AllValues() []ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethod {
-	return []ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethod{
-		ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodGET,
-		ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodPUT,
-		ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodPOST,
-		ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodDELETE,
+// AllValues returns all ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod values.
+func (ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod) AllValues() []ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod {
+	return []ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod{
+		ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodGET,
+		ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodPUT,
+		ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodPATCH,
+		ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodPOST,
+		ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodDELETE,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethod) MarshalText() ([]byte, error) {
+func (s ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodGET:
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodGET:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodPUT:
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodPUT:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodPOST:
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodPATCH:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodDELETE:
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodPOST:
+		return []byte(s), nil
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodDELETE:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -112683,127 +111935,134 @@ func (s ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethod) Marsh
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethod) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethod(data) {
-	case ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodGET:
-		*s = ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodGET
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod(data) {
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodGET:
+		*s = ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodGET
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodPUT:
-		*s = ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodPUT
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodPUT:
+		*s = ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodPUT
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodPOST:
-		*s = ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodPOST
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodPATCH:
+		*s = ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodPATCH
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodDELETE:
-		*s = ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethodDELETE
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodPOST:
+		*s = ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodPOST
+		return nil
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodDELETE:
+		*s = ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethodDELETE
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollback struct {
+type ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollback struct {
 	Cli string `json:"cli"`
 	// The exact API call, or null when the action is a command only.
-	Rest  NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest `json:"rest"`
-	Title string                                                                 `json:"title"`
+	Rest  NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest `json:"rest"`
+	Title string                                                                      `json:"title"`
 }
 
 // GetCli returns the value of Cli.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollback) GetCli() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollback) GetCli() string {
 	return s.Cli
 }
 
 // GetRest returns the value of Rest.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollback) GetRest() NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollback) GetRest() NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest {
 	return s.Rest
 }
 
 // GetTitle returns the value of Title.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollback) GetTitle() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollback) GetTitle() string {
 	return s.Title
 }
 
 // SetCli sets the value of Cli.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollback) SetCli(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollback) SetCli(val string) {
 	s.Cli = val
 }
 
 // SetRest sets the value of Rest.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollback) SetRest(val NilResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollback) SetRest(val NilResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) {
 	s.Rest = val
 }
 
 // SetTitle sets the value of Title.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollback) SetTitle(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollback) SetTitle(val string) {
 	s.Title = val
 }
 
-type ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest struct {
-	Body   NilString                                                                 `json:"body"`
-	Method ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethod `json:"method"`
-	URL    string                                                                    `json:"url"`
+type ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest struct {
+	Body   NilString                                                                      `json:"body"`
+	Method ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod `json:"method"`
+	URL    string                                                                         `json:"url"`
 }
 
 // GetBody returns the value of Body.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest) GetBody() NilString {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) GetBody() NilString {
 	return s.Body
 }
 
 // GetMethod returns the value of Method.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest) GetMethod() ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethod {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) GetMethod() ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod {
 	return s.Method
 }
 
 // GetURL returns the value of URL.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest) GetURL() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) GetURL() string {
 	return s.URL
 }
 
 // SetBody sets the value of Body.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest) SetBody(val NilString) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) SetBody(val NilString) {
 	s.Body = val
 }
 
 // SetMethod sets the value of Method.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest) SetMethod(val ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethod) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) SetMethod(val ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod) {
 	s.Method = val
 }
 
 // SetURL sets the value of URL.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest) SetURL(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) SetURL(val string) {
 	s.URL = val
 }
 
-type ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethod string
+type ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod string
 
 const (
-	ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodGET    ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethod = "GET"
-	ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodPUT    ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethod = "PUT"
-	ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodPOST   ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethod = "POST"
-	ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodDELETE ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethod = "DELETE"
+	ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodGET    ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod = "GET"
+	ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodPUT    ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod = "PUT"
+	ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodPATCH  ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod = "PATCH"
+	ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodPOST   ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod = "POST"
+	ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodDELETE ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod = "DELETE"
 )
 
-// AllValues returns all ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethod values.
-func (ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethod) AllValues() []ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethod {
-	return []ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethod{
-		ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodGET,
-		ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodPUT,
-		ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodPOST,
-		ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodDELETE,
+// AllValues returns all ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod values.
+func (ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod) AllValues() []ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod {
+	return []ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod{
+		ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodGET,
+		ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodPUT,
+		ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodPATCH,
+		ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodPOST,
+		ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodDELETE,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethod) MarshalText() ([]byte, error) {
+func (s ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodGET:
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodGET:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodPUT:
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodPUT:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodPOST:
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodPATCH:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodDELETE:
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodPOST:
+		return []byte(s), nil
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodDELETE:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -112811,50 +112070,53 @@ func (s ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMetho
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethod) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethod(data) {
-	case ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodGET:
-		*s = ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodGET
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod(data) {
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodGET:
+		*s = ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodGET
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodPUT:
-		*s = ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodPUT
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodPUT:
+		*s = ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodPUT
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodPOST:
-		*s = ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodPOST
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodPATCH:
+		*s = ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodPATCH
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodDELETE:
-		*s = ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethodDELETE
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodPOST:
+		*s = ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodPOST
+		return nil
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodDELETE:
+		*s = ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethodDELETE
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type ResponsePostResponseProposalsIDRequestOKItemsItemRisk string
+type ResponsePostResponseProposalsIDRequestCreatedItemsItemRisk string
 
 const (
-	ResponsePostResponseProposalsIDRequestOKItemsItemRiskLow    ResponsePostResponseProposalsIDRequestOKItemsItemRisk = "low"
-	ResponsePostResponseProposalsIDRequestOKItemsItemRiskMedium ResponsePostResponseProposalsIDRequestOKItemsItemRisk = "medium"
-	ResponsePostResponseProposalsIDRequestOKItemsItemRiskHigh   ResponsePostResponseProposalsIDRequestOKItemsItemRisk = "high"
+	ResponsePostResponseProposalsIDRequestCreatedItemsItemRiskLow    ResponsePostResponseProposalsIDRequestCreatedItemsItemRisk = "low"
+	ResponsePostResponseProposalsIDRequestCreatedItemsItemRiskMedium ResponsePostResponseProposalsIDRequestCreatedItemsItemRisk = "medium"
+	ResponsePostResponseProposalsIDRequestCreatedItemsItemRiskHigh   ResponsePostResponseProposalsIDRequestCreatedItemsItemRisk = "high"
 )
 
-// AllValues returns all ResponsePostResponseProposalsIDRequestOKItemsItemRisk values.
-func (ResponsePostResponseProposalsIDRequestOKItemsItemRisk) AllValues() []ResponsePostResponseProposalsIDRequestOKItemsItemRisk {
-	return []ResponsePostResponseProposalsIDRequestOKItemsItemRisk{
-		ResponsePostResponseProposalsIDRequestOKItemsItemRiskLow,
-		ResponsePostResponseProposalsIDRequestOKItemsItemRiskMedium,
-		ResponsePostResponseProposalsIDRequestOKItemsItemRiskHigh,
+// AllValues returns all ResponsePostResponseProposalsIDRequestCreatedItemsItemRisk values.
+func (ResponsePostResponseProposalsIDRequestCreatedItemsItemRisk) AllValues() []ResponsePostResponseProposalsIDRequestCreatedItemsItemRisk {
+	return []ResponsePostResponseProposalsIDRequestCreatedItemsItemRisk{
+		ResponsePostResponseProposalsIDRequestCreatedItemsItemRiskLow,
+		ResponsePostResponseProposalsIDRequestCreatedItemsItemRiskMedium,
+		ResponsePostResponseProposalsIDRequestCreatedItemsItemRiskHigh,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseProposalsIDRequestOKItemsItemRisk) MarshalText() ([]byte, error) {
+func (s ResponsePostResponseProposalsIDRequestCreatedItemsItemRisk) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponsePostResponseProposalsIDRequestOKItemsItemRiskLow:
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemRiskLow:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemRiskMedium:
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemRiskMedium:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemRiskHigh:
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemRiskHigh:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -112862,55 +112124,55 @@ func (s ResponsePostResponseProposalsIDRequestOKItemsItemRisk) MarshalText() ([]
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemRisk) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseProposalsIDRequestOKItemsItemRisk(data) {
-	case ResponsePostResponseProposalsIDRequestOKItemsItemRiskLow:
-		*s = ResponsePostResponseProposalsIDRequestOKItemsItemRiskLow
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemRisk) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseProposalsIDRequestCreatedItemsItemRisk(data) {
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemRiskLow:
+		*s = ResponsePostResponseProposalsIDRequestCreatedItemsItemRiskLow
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemRiskMedium:
-		*s = ResponsePostResponseProposalsIDRequestOKItemsItemRiskMedium
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemRiskMedium:
+		*s = ResponsePostResponseProposalsIDRequestCreatedItemsItemRiskMedium
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemRiskHigh:
-		*s = ResponsePostResponseProposalsIDRequestOKItemsItemRiskHigh
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemRiskHigh:
+		*s = ResponsePostResponseProposalsIDRequestCreatedItemsItemRiskHigh
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type ResponsePostResponseProposalsIDRequestOKItemsItemStatus string
+type ResponsePostResponseProposalsIDRequestCreatedItemsItemStatus string
 
 const (
-	ResponsePostResponseProposalsIDRequestOKItemsItemStatusPending    ResponsePostResponseProposalsIDRequestOKItemsItemStatus = "pending"
-	ResponsePostResponseProposalsIDRequestOKItemsItemStatusSkipped    ResponsePostResponseProposalsIDRequestOKItemsItemStatus = "skipped"
-	ResponsePostResponseProposalsIDRequestOKItemsItemStatusExecuted   ResponsePostResponseProposalsIDRequestOKItemsItemStatus = "executed"
-	ResponsePostResponseProposalsIDRequestOKItemsItemStatusFailed     ResponsePostResponseProposalsIDRequestOKItemsItemStatus = "failed"
-	ResponsePostResponseProposalsIDRequestOKItemsItemStatusRolledBack ResponsePostResponseProposalsIDRequestOKItemsItemStatus = "rolled_back"
+	ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusPending    ResponsePostResponseProposalsIDRequestCreatedItemsItemStatus = "pending"
+	ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusSkipped    ResponsePostResponseProposalsIDRequestCreatedItemsItemStatus = "skipped"
+	ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusExecuted   ResponsePostResponseProposalsIDRequestCreatedItemsItemStatus = "executed"
+	ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusFailed     ResponsePostResponseProposalsIDRequestCreatedItemsItemStatus = "failed"
+	ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusRolledBack ResponsePostResponseProposalsIDRequestCreatedItemsItemStatus = "rolled_back"
 )
 
-// AllValues returns all ResponsePostResponseProposalsIDRequestOKItemsItemStatus values.
-func (ResponsePostResponseProposalsIDRequestOKItemsItemStatus) AllValues() []ResponsePostResponseProposalsIDRequestOKItemsItemStatus {
-	return []ResponsePostResponseProposalsIDRequestOKItemsItemStatus{
-		ResponsePostResponseProposalsIDRequestOKItemsItemStatusPending,
-		ResponsePostResponseProposalsIDRequestOKItemsItemStatusSkipped,
-		ResponsePostResponseProposalsIDRequestOKItemsItemStatusExecuted,
-		ResponsePostResponseProposalsIDRequestOKItemsItemStatusFailed,
-		ResponsePostResponseProposalsIDRequestOKItemsItemStatusRolledBack,
+// AllValues returns all ResponsePostResponseProposalsIDRequestCreatedItemsItemStatus values.
+func (ResponsePostResponseProposalsIDRequestCreatedItemsItemStatus) AllValues() []ResponsePostResponseProposalsIDRequestCreatedItemsItemStatus {
+	return []ResponsePostResponseProposalsIDRequestCreatedItemsItemStatus{
+		ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusPending,
+		ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusSkipped,
+		ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusExecuted,
+		ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusFailed,
+		ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusRolledBack,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseProposalsIDRequestOKItemsItemStatus) MarshalText() ([]byte, error) {
+func (s ResponsePostResponseProposalsIDRequestCreatedItemsItemStatus) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponsePostResponseProposalsIDRequestOKItemsItemStatusPending:
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusPending:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemStatusSkipped:
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusSkipped:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemStatusExecuted:
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusExecuted:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemStatusFailed:
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusFailed:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemStatusRolledBack:
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusRolledBack:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -112918,79 +112180,79 @@ func (s ResponsePostResponseProposalsIDRequestOKItemsItemStatus) MarshalText() (
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemStatus) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseProposalsIDRequestOKItemsItemStatus(data) {
-	case ResponsePostResponseProposalsIDRequestOKItemsItemStatusPending:
-		*s = ResponsePostResponseProposalsIDRequestOKItemsItemStatusPending
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemStatus) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseProposalsIDRequestCreatedItemsItemStatus(data) {
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusPending:
+		*s = ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusPending
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemStatusSkipped:
-		*s = ResponsePostResponseProposalsIDRequestOKItemsItemStatusSkipped
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusSkipped:
+		*s = ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusSkipped
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemStatusExecuted:
-		*s = ResponsePostResponseProposalsIDRequestOKItemsItemStatusExecuted
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusExecuted:
+		*s = ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusExecuted
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemStatusFailed:
-		*s = ResponsePostResponseProposalsIDRequestOKItemsItemStatusFailed
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusFailed:
+		*s = ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusFailed
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKItemsItemStatusRolledBack:
-		*s = ResponsePostResponseProposalsIDRequestOKItemsItemStatusRolledBack
+	case ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusRolledBack:
+		*s = ResponsePostResponseProposalsIDRequestCreatedItemsItemStatusRolledBack
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type ResponsePostResponseProposalsIDRequestOKItemsItemVerified struct {
+type ResponsePostResponseProposalsIDRequestCreatedItemsItemVerified struct {
 	Detail string `json:"detail"`
 	Ok     bool   `json:"ok"`
 }
 
 // GetDetail returns the value of Detail.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemVerified) GetDetail() string {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemVerified) GetDetail() string {
 	return s.Detail
 }
 
 // GetOk returns the value of Ok.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemVerified) GetOk() bool {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemVerified) GetOk() bool {
 	return s.Ok
 }
 
 // SetDetail sets the value of Detail.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemVerified) SetDetail(val string) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemVerified) SetDetail(val string) {
 	s.Detail = val
 }
 
 // SetOk sets the value of Ok.
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemVerified) SetOk(val bool) {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemVerified) SetOk(val bool) {
 	s.Ok = val
 }
 
 // Highest risk among the actions.
-type ResponsePostResponseProposalsIDRequestOKRisk string
+type ResponsePostResponseProposalsIDRequestCreatedRisk string
 
 const (
-	ResponsePostResponseProposalsIDRequestOKRiskLow    ResponsePostResponseProposalsIDRequestOKRisk = "low"
-	ResponsePostResponseProposalsIDRequestOKRiskMedium ResponsePostResponseProposalsIDRequestOKRisk = "medium"
-	ResponsePostResponseProposalsIDRequestOKRiskHigh   ResponsePostResponseProposalsIDRequestOKRisk = "high"
+	ResponsePostResponseProposalsIDRequestCreatedRiskLow    ResponsePostResponseProposalsIDRequestCreatedRisk = "low"
+	ResponsePostResponseProposalsIDRequestCreatedRiskMedium ResponsePostResponseProposalsIDRequestCreatedRisk = "medium"
+	ResponsePostResponseProposalsIDRequestCreatedRiskHigh   ResponsePostResponseProposalsIDRequestCreatedRisk = "high"
 )
 
-// AllValues returns all ResponsePostResponseProposalsIDRequestOKRisk values.
-func (ResponsePostResponseProposalsIDRequestOKRisk) AllValues() []ResponsePostResponseProposalsIDRequestOKRisk {
-	return []ResponsePostResponseProposalsIDRequestOKRisk{
-		ResponsePostResponseProposalsIDRequestOKRiskLow,
-		ResponsePostResponseProposalsIDRequestOKRiskMedium,
-		ResponsePostResponseProposalsIDRequestOKRiskHigh,
+// AllValues returns all ResponsePostResponseProposalsIDRequestCreatedRisk values.
+func (ResponsePostResponseProposalsIDRequestCreatedRisk) AllValues() []ResponsePostResponseProposalsIDRequestCreatedRisk {
+	return []ResponsePostResponseProposalsIDRequestCreatedRisk{
+		ResponsePostResponseProposalsIDRequestCreatedRiskLow,
+		ResponsePostResponseProposalsIDRequestCreatedRiskMedium,
+		ResponsePostResponseProposalsIDRequestCreatedRiskHigh,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseProposalsIDRequestOKRisk) MarshalText() ([]byte, error) {
+func (s ResponsePostResponseProposalsIDRequestCreatedRisk) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponsePostResponseProposalsIDRequestOKRiskLow:
+	case ResponsePostResponseProposalsIDRequestCreatedRiskLow:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKRiskMedium:
+	case ResponsePostResponseProposalsIDRequestCreatedRiskMedium:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKRiskHigh:
+	case ResponsePostResponseProposalsIDRequestCreatedRiskHigh:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -112998,43 +112260,43 @@ func (s ResponsePostResponseProposalsIDRequestOKRisk) MarshalText() ([]byte, err
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseProposalsIDRequestOKRisk) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseProposalsIDRequestOKRisk(data) {
-	case ResponsePostResponseProposalsIDRequestOKRiskLow:
-		*s = ResponsePostResponseProposalsIDRequestOKRiskLow
+func (s *ResponsePostResponseProposalsIDRequestCreatedRisk) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseProposalsIDRequestCreatedRisk(data) {
+	case ResponsePostResponseProposalsIDRequestCreatedRiskLow:
+		*s = ResponsePostResponseProposalsIDRequestCreatedRiskLow
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKRiskMedium:
-		*s = ResponsePostResponseProposalsIDRequestOKRiskMedium
+	case ResponsePostResponseProposalsIDRequestCreatedRiskMedium:
+		*s = ResponsePostResponseProposalsIDRequestCreatedRiskMedium
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKRiskHigh:
-		*s = ResponsePostResponseProposalsIDRequestOKRiskHigh
+	case ResponsePostResponseProposalsIDRequestCreatedRiskHigh:
+		*s = ResponsePostResponseProposalsIDRequestCreatedRiskHigh
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type ResponsePostResponseProposalsIDRequestOKSource string
+type ResponsePostResponseProposalsIDRequestCreatedSource string
 
 const (
-	ResponsePostResponseProposalsIDRequestOKSourceAi   ResponsePostResponseProposalsIDRequestOKSource = "ai"
-	ResponsePostResponseProposalsIDRequestOKSourceRule ResponsePostResponseProposalsIDRequestOKSource = "rule"
+	ResponsePostResponseProposalsIDRequestCreatedSourceAi   ResponsePostResponseProposalsIDRequestCreatedSource = "ai"
+	ResponsePostResponseProposalsIDRequestCreatedSourceRule ResponsePostResponseProposalsIDRequestCreatedSource = "rule"
 )
 
-// AllValues returns all ResponsePostResponseProposalsIDRequestOKSource values.
-func (ResponsePostResponseProposalsIDRequestOKSource) AllValues() []ResponsePostResponseProposalsIDRequestOKSource {
-	return []ResponsePostResponseProposalsIDRequestOKSource{
-		ResponsePostResponseProposalsIDRequestOKSourceAi,
-		ResponsePostResponseProposalsIDRequestOKSourceRule,
+// AllValues returns all ResponsePostResponseProposalsIDRequestCreatedSource values.
+func (ResponsePostResponseProposalsIDRequestCreatedSource) AllValues() []ResponsePostResponseProposalsIDRequestCreatedSource {
+	return []ResponsePostResponseProposalsIDRequestCreatedSource{
+		ResponsePostResponseProposalsIDRequestCreatedSourceAi,
+		ResponsePostResponseProposalsIDRequestCreatedSourceRule,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseProposalsIDRequestOKSource) MarshalText() ([]byte, error) {
+func (s ResponsePostResponseProposalsIDRequestCreatedSource) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponsePostResponseProposalsIDRequestOKSourceAi:
+	case ResponsePostResponseProposalsIDRequestCreatedSourceAi:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKSourceRule:
+	case ResponsePostResponseProposalsIDRequestCreatedSourceRule:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -113042,60 +112304,60 @@ func (s ResponsePostResponseProposalsIDRequestOKSource) MarshalText() ([]byte, e
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseProposalsIDRequestOKSource) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseProposalsIDRequestOKSource(data) {
-	case ResponsePostResponseProposalsIDRequestOKSourceAi:
-		*s = ResponsePostResponseProposalsIDRequestOKSourceAi
+func (s *ResponsePostResponseProposalsIDRequestCreatedSource) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseProposalsIDRequestCreatedSource(data) {
+	case ResponsePostResponseProposalsIDRequestCreatedSourceAi:
+		*s = ResponsePostResponseProposalsIDRequestCreatedSourceAi
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKSourceRule:
-		*s = ResponsePostResponseProposalsIDRequestOKSourceRule
+	case ResponsePostResponseProposalsIDRequestCreatedSourceRule:
+		*s = ResponsePostResponseProposalsIDRequestCreatedSourceRule
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type ResponsePostResponseProposalsIDRequestOKStatus string
+type ResponsePostResponseProposalsIDRequestCreatedStatus string
 
 const (
-	ResponsePostResponseProposalsIDRequestOKStatusPending    ResponsePostResponseProposalsIDRequestOKStatus = "pending"
-	ResponsePostResponseProposalsIDRequestOKStatusApproved   ResponsePostResponseProposalsIDRequestOKStatus = "approved"
-	ResponsePostResponseProposalsIDRequestOKStatusRejected   ResponsePostResponseProposalsIDRequestOKStatus = "rejected"
-	ResponsePostResponseProposalsIDRequestOKStatusExpired    ResponsePostResponseProposalsIDRequestOKStatus = "expired"
-	ResponsePostResponseProposalsIDRequestOKStatusExecuted   ResponsePostResponseProposalsIDRequestOKStatus = "executed"
-	ResponsePostResponseProposalsIDRequestOKStatusFailed     ResponsePostResponseProposalsIDRequestOKStatus = "failed"
-	ResponsePostResponseProposalsIDRequestOKStatusRolledBack ResponsePostResponseProposalsIDRequestOKStatus = "rolled_back"
+	ResponsePostResponseProposalsIDRequestCreatedStatusPending    ResponsePostResponseProposalsIDRequestCreatedStatus = "pending"
+	ResponsePostResponseProposalsIDRequestCreatedStatusApproved   ResponsePostResponseProposalsIDRequestCreatedStatus = "approved"
+	ResponsePostResponseProposalsIDRequestCreatedStatusRejected   ResponsePostResponseProposalsIDRequestCreatedStatus = "rejected"
+	ResponsePostResponseProposalsIDRequestCreatedStatusExpired    ResponsePostResponseProposalsIDRequestCreatedStatus = "expired"
+	ResponsePostResponseProposalsIDRequestCreatedStatusExecuted   ResponsePostResponseProposalsIDRequestCreatedStatus = "executed"
+	ResponsePostResponseProposalsIDRequestCreatedStatusFailed     ResponsePostResponseProposalsIDRequestCreatedStatus = "failed"
+	ResponsePostResponseProposalsIDRequestCreatedStatusRolledBack ResponsePostResponseProposalsIDRequestCreatedStatus = "rolled_back"
 )
 
-// AllValues returns all ResponsePostResponseProposalsIDRequestOKStatus values.
-func (ResponsePostResponseProposalsIDRequestOKStatus) AllValues() []ResponsePostResponseProposalsIDRequestOKStatus {
-	return []ResponsePostResponseProposalsIDRequestOKStatus{
-		ResponsePostResponseProposalsIDRequestOKStatusPending,
-		ResponsePostResponseProposalsIDRequestOKStatusApproved,
-		ResponsePostResponseProposalsIDRequestOKStatusRejected,
-		ResponsePostResponseProposalsIDRequestOKStatusExpired,
-		ResponsePostResponseProposalsIDRequestOKStatusExecuted,
-		ResponsePostResponseProposalsIDRequestOKStatusFailed,
-		ResponsePostResponseProposalsIDRequestOKStatusRolledBack,
+// AllValues returns all ResponsePostResponseProposalsIDRequestCreatedStatus values.
+func (ResponsePostResponseProposalsIDRequestCreatedStatus) AllValues() []ResponsePostResponseProposalsIDRequestCreatedStatus {
+	return []ResponsePostResponseProposalsIDRequestCreatedStatus{
+		ResponsePostResponseProposalsIDRequestCreatedStatusPending,
+		ResponsePostResponseProposalsIDRequestCreatedStatusApproved,
+		ResponsePostResponseProposalsIDRequestCreatedStatusRejected,
+		ResponsePostResponseProposalsIDRequestCreatedStatusExpired,
+		ResponsePostResponseProposalsIDRequestCreatedStatusExecuted,
+		ResponsePostResponseProposalsIDRequestCreatedStatusFailed,
+		ResponsePostResponseProposalsIDRequestCreatedStatusRolledBack,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseProposalsIDRequestOKStatus) MarshalText() ([]byte, error) {
+func (s ResponsePostResponseProposalsIDRequestCreatedStatus) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponsePostResponseProposalsIDRequestOKStatusPending:
+	case ResponsePostResponseProposalsIDRequestCreatedStatusPending:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKStatusApproved:
+	case ResponsePostResponseProposalsIDRequestCreatedStatusApproved:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKStatusRejected:
+	case ResponsePostResponseProposalsIDRequestCreatedStatusRejected:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKStatusExpired:
+	case ResponsePostResponseProposalsIDRequestCreatedStatusExpired:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKStatusExecuted:
+	case ResponsePostResponseProposalsIDRequestCreatedStatusExecuted:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKStatusFailed:
+	case ResponsePostResponseProposalsIDRequestCreatedStatusFailed:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKStatusRolledBack:
+	case ResponsePostResponseProposalsIDRequestCreatedStatusRolledBack:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -113103,79 +112365,79 @@ func (s ResponsePostResponseProposalsIDRequestOKStatus) MarshalText() ([]byte, e
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseProposalsIDRequestOKStatus) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseProposalsIDRequestOKStatus(data) {
-	case ResponsePostResponseProposalsIDRequestOKStatusPending:
-		*s = ResponsePostResponseProposalsIDRequestOKStatusPending
+func (s *ResponsePostResponseProposalsIDRequestCreatedStatus) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseProposalsIDRequestCreatedStatus(data) {
+	case ResponsePostResponseProposalsIDRequestCreatedStatusPending:
+		*s = ResponsePostResponseProposalsIDRequestCreatedStatusPending
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKStatusApproved:
-		*s = ResponsePostResponseProposalsIDRequestOKStatusApproved
+	case ResponsePostResponseProposalsIDRequestCreatedStatusApproved:
+		*s = ResponsePostResponseProposalsIDRequestCreatedStatusApproved
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKStatusRejected:
-		*s = ResponsePostResponseProposalsIDRequestOKStatusRejected
+	case ResponsePostResponseProposalsIDRequestCreatedStatusRejected:
+		*s = ResponsePostResponseProposalsIDRequestCreatedStatusRejected
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKStatusExpired:
-		*s = ResponsePostResponseProposalsIDRequestOKStatusExpired
+	case ResponsePostResponseProposalsIDRequestCreatedStatusExpired:
+		*s = ResponsePostResponseProposalsIDRequestCreatedStatusExpired
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKStatusExecuted:
-		*s = ResponsePostResponseProposalsIDRequestOKStatusExecuted
+	case ResponsePostResponseProposalsIDRequestCreatedStatusExecuted:
+		*s = ResponsePostResponseProposalsIDRequestCreatedStatusExecuted
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKStatusFailed:
-		*s = ResponsePostResponseProposalsIDRequestOKStatusFailed
+	case ResponsePostResponseProposalsIDRequestCreatedStatusFailed:
+		*s = ResponsePostResponseProposalsIDRequestCreatedStatusFailed
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKStatusRolledBack:
-		*s = ResponsePostResponseProposalsIDRequestOKStatusRolledBack
+	case ResponsePostResponseProposalsIDRequestCreatedStatusRolledBack:
+		*s = ResponsePostResponseProposalsIDRequestCreatedStatusRolledBack
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type ResponsePostResponseProposalsIDRequestOKTrigger string
+type ResponsePostResponseProposalsIDRequestCreatedTrigger string
 
 const (
-	ResponsePostResponseProposalsIDRequestOKTriggerHoneypot      ResponsePostResponseProposalsIDRequestOKTrigger = "honeypot"
-	ResponsePostResponseProposalsIDRequestOKTriggerIocConnection ResponsePostResponseProposalsIDRequestOKTrigger = "ioc_connection"
-	ResponsePostResponseProposalsIDRequestOKTriggerFinding       ResponsePostResponseProposalsIDRequestOKTrigger = "finding"
-	ResponsePostResponseProposalsIDRequestOKTriggerUnknownDevice ResponsePostResponseProposalsIDRequestOKTrigger = "unknown_device"
-	ResponsePostResponseProposalsIDRequestOKTriggerLogThreshold  ResponsePostResponseProposalsIDRequestOKTrigger = "log_threshold"
-	ResponsePostResponseProposalsIDRequestOKTriggerNewPort       ResponsePostResponseProposalsIDRequestOKTrigger = "new_port"
-	ResponsePostResponseProposalsIDRequestOKTriggerSchedule      ResponsePostResponseProposalsIDRequestOKTrigger = "schedule"
-	ResponsePostResponseProposalsIDRequestOKTriggerManual        ResponsePostResponseProposalsIDRequestOKTrigger = "manual"
+	ResponsePostResponseProposalsIDRequestCreatedTriggerHoneypot      ResponsePostResponseProposalsIDRequestCreatedTrigger = "honeypot"
+	ResponsePostResponseProposalsIDRequestCreatedTriggerIocConnection ResponsePostResponseProposalsIDRequestCreatedTrigger = "ioc_connection"
+	ResponsePostResponseProposalsIDRequestCreatedTriggerFinding       ResponsePostResponseProposalsIDRequestCreatedTrigger = "finding"
+	ResponsePostResponseProposalsIDRequestCreatedTriggerUnknownDevice ResponsePostResponseProposalsIDRequestCreatedTrigger = "unknown_device"
+	ResponsePostResponseProposalsIDRequestCreatedTriggerLogThreshold  ResponsePostResponseProposalsIDRequestCreatedTrigger = "log_threshold"
+	ResponsePostResponseProposalsIDRequestCreatedTriggerNewPort       ResponsePostResponseProposalsIDRequestCreatedTrigger = "new_port"
+	ResponsePostResponseProposalsIDRequestCreatedTriggerSchedule      ResponsePostResponseProposalsIDRequestCreatedTrigger = "schedule"
+	ResponsePostResponseProposalsIDRequestCreatedTriggerManual        ResponsePostResponseProposalsIDRequestCreatedTrigger = "manual"
 )
 
-// AllValues returns all ResponsePostResponseProposalsIDRequestOKTrigger values.
-func (ResponsePostResponseProposalsIDRequestOKTrigger) AllValues() []ResponsePostResponseProposalsIDRequestOKTrigger {
-	return []ResponsePostResponseProposalsIDRequestOKTrigger{
-		ResponsePostResponseProposalsIDRequestOKTriggerHoneypot,
-		ResponsePostResponseProposalsIDRequestOKTriggerIocConnection,
-		ResponsePostResponseProposalsIDRequestOKTriggerFinding,
-		ResponsePostResponseProposalsIDRequestOKTriggerUnknownDevice,
-		ResponsePostResponseProposalsIDRequestOKTriggerLogThreshold,
-		ResponsePostResponseProposalsIDRequestOKTriggerNewPort,
-		ResponsePostResponseProposalsIDRequestOKTriggerSchedule,
-		ResponsePostResponseProposalsIDRequestOKTriggerManual,
+// AllValues returns all ResponsePostResponseProposalsIDRequestCreatedTrigger values.
+func (ResponsePostResponseProposalsIDRequestCreatedTrigger) AllValues() []ResponsePostResponseProposalsIDRequestCreatedTrigger {
+	return []ResponsePostResponseProposalsIDRequestCreatedTrigger{
+		ResponsePostResponseProposalsIDRequestCreatedTriggerHoneypot,
+		ResponsePostResponseProposalsIDRequestCreatedTriggerIocConnection,
+		ResponsePostResponseProposalsIDRequestCreatedTriggerFinding,
+		ResponsePostResponseProposalsIDRequestCreatedTriggerUnknownDevice,
+		ResponsePostResponseProposalsIDRequestCreatedTriggerLogThreshold,
+		ResponsePostResponseProposalsIDRequestCreatedTriggerNewPort,
+		ResponsePostResponseProposalsIDRequestCreatedTriggerSchedule,
+		ResponsePostResponseProposalsIDRequestCreatedTriggerManual,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseProposalsIDRequestOKTrigger) MarshalText() ([]byte, error) {
+func (s ResponsePostResponseProposalsIDRequestCreatedTrigger) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponsePostResponseProposalsIDRequestOKTriggerHoneypot:
+	case ResponsePostResponseProposalsIDRequestCreatedTriggerHoneypot:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKTriggerIocConnection:
+	case ResponsePostResponseProposalsIDRequestCreatedTriggerIocConnection:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKTriggerFinding:
+	case ResponsePostResponseProposalsIDRequestCreatedTriggerFinding:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKTriggerUnknownDevice:
+	case ResponsePostResponseProposalsIDRequestCreatedTriggerUnknownDevice:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKTriggerLogThreshold:
+	case ResponsePostResponseProposalsIDRequestCreatedTriggerLogThreshold:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKTriggerNewPort:
+	case ResponsePostResponseProposalsIDRequestCreatedTriggerNewPort:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKTriggerSchedule:
+	case ResponsePostResponseProposalsIDRequestCreatedTriggerSchedule:
 		return []byte(s), nil
-	case ResponsePostResponseProposalsIDRequestOKTriggerManual:
+	case ResponsePostResponseProposalsIDRequestCreatedTriggerManual:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -113183,31 +112445,499 @@ func (s ResponsePostResponseProposalsIDRequestOKTrigger) MarshalText() ([]byte, 
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseProposalsIDRequestOKTrigger) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseProposalsIDRequestOKTrigger(data) {
-	case ResponsePostResponseProposalsIDRequestOKTriggerHoneypot:
-		*s = ResponsePostResponseProposalsIDRequestOKTriggerHoneypot
+func (s *ResponsePostResponseProposalsIDRequestCreatedTrigger) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseProposalsIDRequestCreatedTrigger(data) {
+	case ResponsePostResponseProposalsIDRequestCreatedTriggerHoneypot:
+		*s = ResponsePostResponseProposalsIDRequestCreatedTriggerHoneypot
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKTriggerIocConnection:
-		*s = ResponsePostResponseProposalsIDRequestOKTriggerIocConnection
+	case ResponsePostResponseProposalsIDRequestCreatedTriggerIocConnection:
+		*s = ResponsePostResponseProposalsIDRequestCreatedTriggerIocConnection
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKTriggerFinding:
-		*s = ResponsePostResponseProposalsIDRequestOKTriggerFinding
+	case ResponsePostResponseProposalsIDRequestCreatedTriggerFinding:
+		*s = ResponsePostResponseProposalsIDRequestCreatedTriggerFinding
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKTriggerUnknownDevice:
-		*s = ResponsePostResponseProposalsIDRequestOKTriggerUnknownDevice
+	case ResponsePostResponseProposalsIDRequestCreatedTriggerUnknownDevice:
+		*s = ResponsePostResponseProposalsIDRequestCreatedTriggerUnknownDevice
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKTriggerLogThreshold:
-		*s = ResponsePostResponseProposalsIDRequestOKTriggerLogThreshold
+	case ResponsePostResponseProposalsIDRequestCreatedTriggerLogThreshold:
+		*s = ResponsePostResponseProposalsIDRequestCreatedTriggerLogThreshold
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKTriggerNewPort:
-		*s = ResponsePostResponseProposalsIDRequestOKTriggerNewPort
+	case ResponsePostResponseProposalsIDRequestCreatedTriggerNewPort:
+		*s = ResponsePostResponseProposalsIDRequestCreatedTriggerNewPort
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKTriggerSchedule:
-		*s = ResponsePostResponseProposalsIDRequestOKTriggerSchedule
+	case ResponsePostResponseProposalsIDRequestCreatedTriggerSchedule:
+		*s = ResponsePostResponseProposalsIDRequestCreatedTriggerSchedule
 		return nil
-	case ResponsePostResponseProposalsIDRequestOKTriggerManual:
-		*s = ResponsePostResponseProposalsIDRequestOKTriggerManual
+	case ResponsePostResponseProposalsIDRequestCreatedTriggerManual:
+		*s = ResponsePostResponseProposalsIDRequestCreatedTriggerManual
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ResponsePostResponseRulesCreated struct {
+	Actions    []ResponsePostResponseRulesCreatedActionsItem    `json:"actions"`
+	Conditions []ResponsePostResponseRulesCreatedConditionsItem `json:"conditions"`
+	Enabled    bool                                             `json:"enabled"`
+	ID         string                                           `json:"id"`
+	LastFired  NilDateTime                                      `json:"last_fired"`
+	// False = dry run: matches are logged, nothing is requested or run.
+	Live       bool                                  `json:"live"`
+	Match      ResponsePostResponseRulesCreatedMatch `json:"match"`
+	MaxPerHour int                                   `json:"max_per_hour"`
+	Name       string                                `json:"name"`
+	// Admin only, off by default: run without a person, for low-risk reversible actions with an undo time
+	// of 24 hours or less.
+	PreApproved bool `json:"pre_approved"`
+	// Schedule trigger: run every this many minutes (15 to 10080).
+	ScheduleMin NilInt                                  `json:"schedule_min"`
+	TemplateID  NilString                               `json:"template_id"`
+	Trigger     ResponsePostResponseRulesCreatedTrigger `json:"trigger"`
+}
+
+// GetActions returns the value of Actions.
+func (s *ResponsePostResponseRulesCreated) GetActions() []ResponsePostResponseRulesCreatedActionsItem {
+	return s.Actions
+}
+
+// GetConditions returns the value of Conditions.
+func (s *ResponsePostResponseRulesCreated) GetConditions() []ResponsePostResponseRulesCreatedConditionsItem {
+	return s.Conditions
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *ResponsePostResponseRulesCreated) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetID returns the value of ID.
+func (s *ResponsePostResponseRulesCreated) GetID() string {
+	return s.ID
+}
+
+// GetLastFired returns the value of LastFired.
+func (s *ResponsePostResponseRulesCreated) GetLastFired() NilDateTime {
+	return s.LastFired
+}
+
+// GetLive returns the value of Live.
+func (s *ResponsePostResponseRulesCreated) GetLive() bool {
+	return s.Live
+}
+
+// GetMatch returns the value of Match.
+func (s *ResponsePostResponseRulesCreated) GetMatch() ResponsePostResponseRulesCreatedMatch {
+	return s.Match
+}
+
+// GetMaxPerHour returns the value of MaxPerHour.
+func (s *ResponsePostResponseRulesCreated) GetMaxPerHour() int {
+	return s.MaxPerHour
+}
+
+// GetName returns the value of Name.
+func (s *ResponsePostResponseRulesCreated) GetName() string {
+	return s.Name
+}
+
+// GetPreApproved returns the value of PreApproved.
+func (s *ResponsePostResponseRulesCreated) GetPreApproved() bool {
+	return s.PreApproved
+}
+
+// GetScheduleMin returns the value of ScheduleMin.
+func (s *ResponsePostResponseRulesCreated) GetScheduleMin() NilInt {
+	return s.ScheduleMin
+}
+
+// GetTemplateID returns the value of TemplateID.
+func (s *ResponsePostResponseRulesCreated) GetTemplateID() NilString {
+	return s.TemplateID
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ResponsePostResponseRulesCreated) GetTrigger() ResponsePostResponseRulesCreatedTrigger {
+	return s.Trigger
+}
+
+// SetActions sets the value of Actions.
+func (s *ResponsePostResponseRulesCreated) SetActions(val []ResponsePostResponseRulesCreatedActionsItem) {
+	s.Actions = val
+}
+
+// SetConditions sets the value of Conditions.
+func (s *ResponsePostResponseRulesCreated) SetConditions(val []ResponsePostResponseRulesCreatedConditionsItem) {
+	s.Conditions = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *ResponsePostResponseRulesCreated) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetID sets the value of ID.
+func (s *ResponsePostResponseRulesCreated) SetID(val string) {
+	s.ID = val
+}
+
+// SetLastFired sets the value of LastFired.
+func (s *ResponsePostResponseRulesCreated) SetLastFired(val NilDateTime) {
+	s.LastFired = val
+}
+
+// SetLive sets the value of Live.
+func (s *ResponsePostResponseRulesCreated) SetLive(val bool) {
+	s.Live = val
+}
+
+// SetMatch sets the value of Match.
+func (s *ResponsePostResponseRulesCreated) SetMatch(val ResponsePostResponseRulesCreatedMatch) {
+	s.Match = val
+}
+
+// SetMaxPerHour sets the value of MaxPerHour.
+func (s *ResponsePostResponseRulesCreated) SetMaxPerHour(val int) {
+	s.MaxPerHour = val
+}
+
+// SetName sets the value of Name.
+func (s *ResponsePostResponseRulesCreated) SetName(val string) {
+	s.Name = val
+}
+
+// SetPreApproved sets the value of PreApproved.
+func (s *ResponsePostResponseRulesCreated) SetPreApproved(val bool) {
+	s.PreApproved = val
+}
+
+// SetScheduleMin sets the value of ScheduleMin.
+func (s *ResponsePostResponseRulesCreated) SetScheduleMin(val NilInt) {
+	s.ScheduleMin = val
+}
+
+// SetTemplateID sets the value of TemplateID.
+func (s *ResponsePostResponseRulesCreated) SetTemplateID(val NilString) {
+	s.TemplateID = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ResponsePostResponseRulesCreated) SetTrigger(val ResponsePostResponseRulesCreatedTrigger) {
+	s.Trigger = val
+}
+
+type ResponsePostResponseRulesCreatedActionsItem struct {
+	ActionID string `json:"action_id"`
+	// Placeholder name to a literal or a trigger field such as {{trigger.source_ip}}.
+	Params ResponsePostResponseRulesCreatedActionsItemParams `json:"params"`
+	// Undo after this many minutes (null = keep until undone by hand).
+	TTLMin NilInt `json:"ttl_min"`
+}
+
+// GetActionID returns the value of ActionID.
+func (s *ResponsePostResponseRulesCreatedActionsItem) GetActionID() string {
+	return s.ActionID
+}
+
+// GetParams returns the value of Params.
+func (s *ResponsePostResponseRulesCreatedActionsItem) GetParams() ResponsePostResponseRulesCreatedActionsItemParams {
+	return s.Params
+}
+
+// GetTTLMin returns the value of TTLMin.
+func (s *ResponsePostResponseRulesCreatedActionsItem) GetTTLMin() NilInt {
+	return s.TTLMin
+}
+
+// SetActionID sets the value of ActionID.
+func (s *ResponsePostResponseRulesCreatedActionsItem) SetActionID(val string) {
+	s.ActionID = val
+}
+
+// SetParams sets the value of Params.
+func (s *ResponsePostResponseRulesCreatedActionsItem) SetParams(val ResponsePostResponseRulesCreatedActionsItemParams) {
+	s.Params = val
+}
+
+// SetTTLMin sets the value of TTLMin.
+func (s *ResponsePostResponseRulesCreatedActionsItem) SetTTLMin(val NilInt) {
+	s.TTLMin = val
+}
+
+// Placeholder name to a literal or a trigger field such as {{trigger.source_ip}}.
+type ResponsePostResponseRulesCreatedActionsItemParams map[string]string
+
+func (s *ResponsePostResponseRulesCreatedActionsItemParams) init() ResponsePostResponseRulesCreatedActionsItemParams {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+type ResponsePostResponseRulesCreatedConditionsItem struct {
+	// Trigger field; empty for the device type test.
+	Field string `json:"field"`
+	// Count_window: at least this many; first_time: hours.
+	N     NilInt                                           `json:"n"`
+	Op    ResponsePostResponseRulesCreatedConditionsItemOp `json:"op"`
+	Value string                                           `json:"value"`
+	// Count_window: minutes.
+	WindowMin NilInt `json:"window_min"`
+}
+
+// GetField returns the value of Field.
+func (s *ResponsePostResponseRulesCreatedConditionsItem) GetField() string {
+	return s.Field
+}
+
+// GetN returns the value of N.
+func (s *ResponsePostResponseRulesCreatedConditionsItem) GetN() NilInt {
+	return s.N
+}
+
+// GetOp returns the value of Op.
+func (s *ResponsePostResponseRulesCreatedConditionsItem) GetOp() ResponsePostResponseRulesCreatedConditionsItemOp {
+	return s.Op
+}
+
+// GetValue returns the value of Value.
+func (s *ResponsePostResponseRulesCreatedConditionsItem) GetValue() string {
+	return s.Value
+}
+
+// GetWindowMin returns the value of WindowMin.
+func (s *ResponsePostResponseRulesCreatedConditionsItem) GetWindowMin() NilInt {
+	return s.WindowMin
+}
+
+// SetField sets the value of Field.
+func (s *ResponsePostResponseRulesCreatedConditionsItem) SetField(val string) {
+	s.Field = val
+}
+
+// SetN sets the value of N.
+func (s *ResponsePostResponseRulesCreatedConditionsItem) SetN(val NilInt) {
+	s.N = val
+}
+
+// SetOp sets the value of Op.
+func (s *ResponsePostResponseRulesCreatedConditionsItem) SetOp(val ResponsePostResponseRulesCreatedConditionsItemOp) {
+	s.Op = val
+}
+
+// SetValue sets the value of Value.
+func (s *ResponsePostResponseRulesCreatedConditionsItem) SetValue(val string) {
+	s.Value = val
+}
+
+// SetWindowMin sets the value of WindowMin.
+func (s *ResponsePostResponseRulesCreatedConditionsItem) SetWindowMin(val NilInt) {
+	s.WindowMin = val
+}
+
+type ResponsePostResponseRulesCreatedConditionsItemOp string
+
+const (
+	ResponsePostResponseRulesCreatedConditionsItemOpEq          ResponsePostResponseRulesCreatedConditionsItemOp = "eq"
+	ResponsePostResponseRulesCreatedConditionsItemOpIn          ResponsePostResponseRulesCreatedConditionsItemOp = "in"
+	ResponsePostResponseRulesCreatedConditionsItemOpInCidr      ResponsePostResponseRulesCreatedConditionsItemOp = "in_cidr"
+	ResponsePostResponseRulesCreatedConditionsItemOpGte         ResponsePostResponseRulesCreatedConditionsItemOp = "gte"
+	ResponsePostResponseRulesCreatedConditionsItemOpLte         ResponsePostResponseRulesCreatedConditionsItemOp = "lte"
+	ResponsePostResponseRulesCreatedConditionsItemOpDeviceType  ResponsePostResponseRulesCreatedConditionsItemOp = "device_type"
+	ResponsePostResponseRulesCreatedConditionsItemOpCountWindow ResponsePostResponseRulesCreatedConditionsItemOp = "count_window"
+	ResponsePostResponseRulesCreatedConditionsItemOpFirstTime   ResponsePostResponseRulesCreatedConditionsItemOp = "first_time"
+)
+
+// AllValues returns all ResponsePostResponseRulesCreatedConditionsItemOp values.
+func (ResponsePostResponseRulesCreatedConditionsItemOp) AllValues() []ResponsePostResponseRulesCreatedConditionsItemOp {
+	return []ResponsePostResponseRulesCreatedConditionsItemOp{
+		ResponsePostResponseRulesCreatedConditionsItemOpEq,
+		ResponsePostResponseRulesCreatedConditionsItemOpIn,
+		ResponsePostResponseRulesCreatedConditionsItemOpInCidr,
+		ResponsePostResponseRulesCreatedConditionsItemOpGte,
+		ResponsePostResponseRulesCreatedConditionsItemOpLte,
+		ResponsePostResponseRulesCreatedConditionsItemOpDeviceType,
+		ResponsePostResponseRulesCreatedConditionsItemOpCountWindow,
+		ResponsePostResponseRulesCreatedConditionsItemOpFirstTime,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponsePostResponseRulesCreatedConditionsItemOp) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponsePostResponseRulesCreatedConditionsItemOpEq:
+		return []byte(s), nil
+	case ResponsePostResponseRulesCreatedConditionsItemOpIn:
+		return []byte(s), nil
+	case ResponsePostResponseRulesCreatedConditionsItemOpInCidr:
+		return []byte(s), nil
+	case ResponsePostResponseRulesCreatedConditionsItemOpGte:
+		return []byte(s), nil
+	case ResponsePostResponseRulesCreatedConditionsItemOpLte:
+		return []byte(s), nil
+	case ResponsePostResponseRulesCreatedConditionsItemOpDeviceType:
+		return []byte(s), nil
+	case ResponsePostResponseRulesCreatedConditionsItemOpCountWindow:
+		return []byte(s), nil
+	case ResponsePostResponseRulesCreatedConditionsItemOpFirstTime:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponsePostResponseRulesCreatedConditionsItemOp) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseRulesCreatedConditionsItemOp(data) {
+	case ResponsePostResponseRulesCreatedConditionsItemOpEq:
+		*s = ResponsePostResponseRulesCreatedConditionsItemOpEq
+		return nil
+	case ResponsePostResponseRulesCreatedConditionsItemOpIn:
+		*s = ResponsePostResponseRulesCreatedConditionsItemOpIn
+		return nil
+	case ResponsePostResponseRulesCreatedConditionsItemOpInCidr:
+		*s = ResponsePostResponseRulesCreatedConditionsItemOpInCidr
+		return nil
+	case ResponsePostResponseRulesCreatedConditionsItemOpGte:
+		*s = ResponsePostResponseRulesCreatedConditionsItemOpGte
+		return nil
+	case ResponsePostResponseRulesCreatedConditionsItemOpLte:
+		*s = ResponsePostResponseRulesCreatedConditionsItemOpLte
+		return nil
+	case ResponsePostResponseRulesCreatedConditionsItemOpDeviceType:
+		*s = ResponsePostResponseRulesCreatedConditionsItemOpDeviceType
+		return nil
+	case ResponsePostResponseRulesCreatedConditionsItemOpCountWindow:
+		*s = ResponsePostResponseRulesCreatedConditionsItemOpCountWindow
+		return nil
+	case ResponsePostResponseRulesCreatedConditionsItemOpFirstTime:
+		*s = ResponsePostResponseRulesCreatedConditionsItemOpFirstTime
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ResponsePostResponseRulesCreatedMatch string
+
+const (
+	ResponsePostResponseRulesCreatedMatchAll ResponsePostResponseRulesCreatedMatch = "all"
+	ResponsePostResponseRulesCreatedMatchAny ResponsePostResponseRulesCreatedMatch = "any"
+)
+
+// AllValues returns all ResponsePostResponseRulesCreatedMatch values.
+func (ResponsePostResponseRulesCreatedMatch) AllValues() []ResponsePostResponseRulesCreatedMatch {
+	return []ResponsePostResponseRulesCreatedMatch{
+		ResponsePostResponseRulesCreatedMatchAll,
+		ResponsePostResponseRulesCreatedMatchAny,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponsePostResponseRulesCreatedMatch) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponsePostResponseRulesCreatedMatchAll:
+		return []byte(s), nil
+	case ResponsePostResponseRulesCreatedMatchAny:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponsePostResponseRulesCreatedMatch) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseRulesCreatedMatch(data) {
+	case ResponsePostResponseRulesCreatedMatchAll:
+		*s = ResponsePostResponseRulesCreatedMatchAll
+		return nil
+	case ResponsePostResponseRulesCreatedMatchAny:
+		*s = ResponsePostResponseRulesCreatedMatchAny
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ResponsePostResponseRulesCreatedTrigger string
+
+const (
+	ResponsePostResponseRulesCreatedTriggerHoneypot      ResponsePostResponseRulesCreatedTrigger = "honeypot"
+	ResponsePostResponseRulesCreatedTriggerIocConnection ResponsePostResponseRulesCreatedTrigger = "ioc_connection"
+	ResponsePostResponseRulesCreatedTriggerFinding       ResponsePostResponseRulesCreatedTrigger = "finding"
+	ResponsePostResponseRulesCreatedTriggerUnknownDevice ResponsePostResponseRulesCreatedTrigger = "unknown_device"
+	ResponsePostResponseRulesCreatedTriggerLogThreshold  ResponsePostResponseRulesCreatedTrigger = "log_threshold"
+	ResponsePostResponseRulesCreatedTriggerNewPort       ResponsePostResponseRulesCreatedTrigger = "new_port"
+	ResponsePostResponseRulesCreatedTriggerSchedule      ResponsePostResponseRulesCreatedTrigger = "schedule"
+	ResponsePostResponseRulesCreatedTriggerManual        ResponsePostResponseRulesCreatedTrigger = "manual"
+)
+
+// AllValues returns all ResponsePostResponseRulesCreatedTrigger values.
+func (ResponsePostResponseRulesCreatedTrigger) AllValues() []ResponsePostResponseRulesCreatedTrigger {
+	return []ResponsePostResponseRulesCreatedTrigger{
+		ResponsePostResponseRulesCreatedTriggerHoneypot,
+		ResponsePostResponseRulesCreatedTriggerIocConnection,
+		ResponsePostResponseRulesCreatedTriggerFinding,
+		ResponsePostResponseRulesCreatedTriggerUnknownDevice,
+		ResponsePostResponseRulesCreatedTriggerLogThreshold,
+		ResponsePostResponseRulesCreatedTriggerNewPort,
+		ResponsePostResponseRulesCreatedTriggerSchedule,
+		ResponsePostResponseRulesCreatedTriggerManual,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponsePostResponseRulesCreatedTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponsePostResponseRulesCreatedTriggerHoneypot:
+		return []byte(s), nil
+	case ResponsePostResponseRulesCreatedTriggerIocConnection:
+		return []byte(s), nil
+	case ResponsePostResponseRulesCreatedTriggerFinding:
+		return []byte(s), nil
+	case ResponsePostResponseRulesCreatedTriggerUnknownDevice:
+		return []byte(s), nil
+	case ResponsePostResponseRulesCreatedTriggerLogThreshold:
+		return []byte(s), nil
+	case ResponsePostResponseRulesCreatedTriggerNewPort:
+		return []byte(s), nil
+	case ResponsePostResponseRulesCreatedTriggerSchedule:
+		return []byte(s), nil
+	case ResponsePostResponseRulesCreatedTriggerManual:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponsePostResponseRulesCreatedTrigger) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseRulesCreatedTrigger(data) {
+	case ResponsePostResponseRulesCreatedTriggerHoneypot:
+		*s = ResponsePostResponseRulesCreatedTriggerHoneypot
+		return nil
+	case ResponsePostResponseRulesCreatedTriggerIocConnection:
+		*s = ResponsePostResponseRulesCreatedTriggerIocConnection
+		return nil
+	case ResponsePostResponseRulesCreatedTriggerFinding:
+		*s = ResponsePostResponseRulesCreatedTriggerFinding
+		return nil
+	case ResponsePostResponseRulesCreatedTriggerUnknownDevice:
+		*s = ResponsePostResponseRulesCreatedTriggerUnknownDevice
+		return nil
+	case ResponsePostResponseRulesCreatedTriggerLogThreshold:
+		*s = ResponsePostResponseRulesCreatedTriggerLogThreshold
+		return nil
+	case ResponsePostResponseRulesCreatedTriggerNewPort:
+		*s = ResponsePostResponseRulesCreatedTriggerNewPort
+		return nil
+	case ResponsePostResponseRulesCreatedTriggerSchedule:
+		*s = ResponsePostResponseRulesCreatedTriggerSchedule
+		return nil
+	case ResponsePostResponseRulesCreatedTriggerManual:
+		*s = ResponsePostResponseRulesCreatedTriggerManual
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -113295,474 +113025,6 @@ func (s *ResponsePostResponseRulesIDManualReq) GetAssetID() string {
 // SetAssetID sets the value of AssetID.
 func (s *ResponsePostResponseRulesIDManualReq) SetAssetID(val string) {
 	s.AssetID = val
-}
-
-type ResponsePostResponseRulesOK struct {
-	Actions    []ResponsePostResponseRulesOKActionsItem    `json:"actions"`
-	Conditions []ResponsePostResponseRulesOKConditionsItem `json:"conditions"`
-	Enabled    bool                                        `json:"enabled"`
-	ID         string                                      `json:"id"`
-	LastFired  NilDateTime                                 `json:"last_fired"`
-	// False = dry run: matches are logged, nothing is requested or run.
-	Live       bool                             `json:"live"`
-	Match      ResponsePostResponseRulesOKMatch `json:"match"`
-	MaxPerHour int                              `json:"max_per_hour"`
-	Name       string                           `json:"name"`
-	// Admin only, off by default: run without a person, for low-risk reversible actions with an undo time
-	// of 24 hours or less.
-	PreApproved bool `json:"pre_approved"`
-	// Schedule trigger: run every this many minutes (15 to 10080).
-	ScheduleMin NilInt                             `json:"schedule_min"`
-	TemplateID  NilString                          `json:"template_id"`
-	Trigger     ResponsePostResponseRulesOKTrigger `json:"trigger"`
-}
-
-// GetActions returns the value of Actions.
-func (s *ResponsePostResponseRulesOK) GetActions() []ResponsePostResponseRulesOKActionsItem {
-	return s.Actions
-}
-
-// GetConditions returns the value of Conditions.
-func (s *ResponsePostResponseRulesOK) GetConditions() []ResponsePostResponseRulesOKConditionsItem {
-	return s.Conditions
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *ResponsePostResponseRulesOK) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetID returns the value of ID.
-func (s *ResponsePostResponseRulesOK) GetID() string {
-	return s.ID
-}
-
-// GetLastFired returns the value of LastFired.
-func (s *ResponsePostResponseRulesOK) GetLastFired() NilDateTime {
-	return s.LastFired
-}
-
-// GetLive returns the value of Live.
-func (s *ResponsePostResponseRulesOK) GetLive() bool {
-	return s.Live
-}
-
-// GetMatch returns the value of Match.
-func (s *ResponsePostResponseRulesOK) GetMatch() ResponsePostResponseRulesOKMatch {
-	return s.Match
-}
-
-// GetMaxPerHour returns the value of MaxPerHour.
-func (s *ResponsePostResponseRulesOK) GetMaxPerHour() int {
-	return s.MaxPerHour
-}
-
-// GetName returns the value of Name.
-func (s *ResponsePostResponseRulesOK) GetName() string {
-	return s.Name
-}
-
-// GetPreApproved returns the value of PreApproved.
-func (s *ResponsePostResponseRulesOK) GetPreApproved() bool {
-	return s.PreApproved
-}
-
-// GetScheduleMin returns the value of ScheduleMin.
-func (s *ResponsePostResponseRulesOK) GetScheduleMin() NilInt {
-	return s.ScheduleMin
-}
-
-// GetTemplateID returns the value of TemplateID.
-func (s *ResponsePostResponseRulesOK) GetTemplateID() NilString {
-	return s.TemplateID
-}
-
-// GetTrigger returns the value of Trigger.
-func (s *ResponsePostResponseRulesOK) GetTrigger() ResponsePostResponseRulesOKTrigger {
-	return s.Trigger
-}
-
-// SetActions sets the value of Actions.
-func (s *ResponsePostResponseRulesOK) SetActions(val []ResponsePostResponseRulesOKActionsItem) {
-	s.Actions = val
-}
-
-// SetConditions sets the value of Conditions.
-func (s *ResponsePostResponseRulesOK) SetConditions(val []ResponsePostResponseRulesOKConditionsItem) {
-	s.Conditions = val
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *ResponsePostResponseRulesOK) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetID sets the value of ID.
-func (s *ResponsePostResponseRulesOK) SetID(val string) {
-	s.ID = val
-}
-
-// SetLastFired sets the value of LastFired.
-func (s *ResponsePostResponseRulesOK) SetLastFired(val NilDateTime) {
-	s.LastFired = val
-}
-
-// SetLive sets the value of Live.
-func (s *ResponsePostResponseRulesOK) SetLive(val bool) {
-	s.Live = val
-}
-
-// SetMatch sets the value of Match.
-func (s *ResponsePostResponseRulesOK) SetMatch(val ResponsePostResponseRulesOKMatch) {
-	s.Match = val
-}
-
-// SetMaxPerHour sets the value of MaxPerHour.
-func (s *ResponsePostResponseRulesOK) SetMaxPerHour(val int) {
-	s.MaxPerHour = val
-}
-
-// SetName sets the value of Name.
-func (s *ResponsePostResponseRulesOK) SetName(val string) {
-	s.Name = val
-}
-
-// SetPreApproved sets the value of PreApproved.
-func (s *ResponsePostResponseRulesOK) SetPreApproved(val bool) {
-	s.PreApproved = val
-}
-
-// SetScheduleMin sets the value of ScheduleMin.
-func (s *ResponsePostResponseRulesOK) SetScheduleMin(val NilInt) {
-	s.ScheduleMin = val
-}
-
-// SetTemplateID sets the value of TemplateID.
-func (s *ResponsePostResponseRulesOK) SetTemplateID(val NilString) {
-	s.TemplateID = val
-}
-
-// SetTrigger sets the value of Trigger.
-func (s *ResponsePostResponseRulesOK) SetTrigger(val ResponsePostResponseRulesOKTrigger) {
-	s.Trigger = val
-}
-
-type ResponsePostResponseRulesOKActionsItem struct {
-	ActionID string `json:"action_id"`
-	// Placeholder name to a literal or a trigger field such as {{trigger.source_ip}}.
-	Params ResponsePostResponseRulesOKActionsItemParams `json:"params"`
-	// Undo after this many minutes (null = keep until undone by hand).
-	TTLMin NilInt `json:"ttl_min"`
-}
-
-// GetActionID returns the value of ActionID.
-func (s *ResponsePostResponseRulesOKActionsItem) GetActionID() string {
-	return s.ActionID
-}
-
-// GetParams returns the value of Params.
-func (s *ResponsePostResponseRulesOKActionsItem) GetParams() ResponsePostResponseRulesOKActionsItemParams {
-	return s.Params
-}
-
-// GetTTLMin returns the value of TTLMin.
-func (s *ResponsePostResponseRulesOKActionsItem) GetTTLMin() NilInt {
-	return s.TTLMin
-}
-
-// SetActionID sets the value of ActionID.
-func (s *ResponsePostResponseRulesOKActionsItem) SetActionID(val string) {
-	s.ActionID = val
-}
-
-// SetParams sets the value of Params.
-func (s *ResponsePostResponseRulesOKActionsItem) SetParams(val ResponsePostResponseRulesOKActionsItemParams) {
-	s.Params = val
-}
-
-// SetTTLMin sets the value of TTLMin.
-func (s *ResponsePostResponseRulesOKActionsItem) SetTTLMin(val NilInt) {
-	s.TTLMin = val
-}
-
-// Placeholder name to a literal or a trigger field such as {{trigger.source_ip}}.
-type ResponsePostResponseRulesOKActionsItemParams map[string]string
-
-func (s *ResponsePostResponseRulesOKActionsItemParams) init() ResponsePostResponseRulesOKActionsItemParams {
-	m := *s
-	if m == nil {
-		m = map[string]string{}
-		*s = m
-	}
-	return m
-}
-
-type ResponsePostResponseRulesOKConditionsItem struct {
-	// Trigger field; empty for the device type test.
-	Field string `json:"field"`
-	// Count_window: at least this many; first_time: hours.
-	N     NilInt                                      `json:"n"`
-	Op    ResponsePostResponseRulesOKConditionsItemOp `json:"op"`
-	Value string                                      `json:"value"`
-	// Count_window: minutes.
-	WindowMin NilInt `json:"window_min"`
-}
-
-// GetField returns the value of Field.
-func (s *ResponsePostResponseRulesOKConditionsItem) GetField() string {
-	return s.Field
-}
-
-// GetN returns the value of N.
-func (s *ResponsePostResponseRulesOKConditionsItem) GetN() NilInt {
-	return s.N
-}
-
-// GetOp returns the value of Op.
-func (s *ResponsePostResponseRulesOKConditionsItem) GetOp() ResponsePostResponseRulesOKConditionsItemOp {
-	return s.Op
-}
-
-// GetValue returns the value of Value.
-func (s *ResponsePostResponseRulesOKConditionsItem) GetValue() string {
-	return s.Value
-}
-
-// GetWindowMin returns the value of WindowMin.
-func (s *ResponsePostResponseRulesOKConditionsItem) GetWindowMin() NilInt {
-	return s.WindowMin
-}
-
-// SetField sets the value of Field.
-func (s *ResponsePostResponseRulesOKConditionsItem) SetField(val string) {
-	s.Field = val
-}
-
-// SetN sets the value of N.
-func (s *ResponsePostResponseRulesOKConditionsItem) SetN(val NilInt) {
-	s.N = val
-}
-
-// SetOp sets the value of Op.
-func (s *ResponsePostResponseRulesOKConditionsItem) SetOp(val ResponsePostResponseRulesOKConditionsItemOp) {
-	s.Op = val
-}
-
-// SetValue sets the value of Value.
-func (s *ResponsePostResponseRulesOKConditionsItem) SetValue(val string) {
-	s.Value = val
-}
-
-// SetWindowMin sets the value of WindowMin.
-func (s *ResponsePostResponseRulesOKConditionsItem) SetWindowMin(val NilInt) {
-	s.WindowMin = val
-}
-
-type ResponsePostResponseRulesOKConditionsItemOp string
-
-const (
-	ResponsePostResponseRulesOKConditionsItemOpEq          ResponsePostResponseRulesOKConditionsItemOp = "eq"
-	ResponsePostResponseRulesOKConditionsItemOpIn          ResponsePostResponseRulesOKConditionsItemOp = "in"
-	ResponsePostResponseRulesOKConditionsItemOpInCidr      ResponsePostResponseRulesOKConditionsItemOp = "in_cidr"
-	ResponsePostResponseRulesOKConditionsItemOpGte         ResponsePostResponseRulesOKConditionsItemOp = "gte"
-	ResponsePostResponseRulesOKConditionsItemOpLte         ResponsePostResponseRulesOKConditionsItemOp = "lte"
-	ResponsePostResponseRulesOKConditionsItemOpDeviceType  ResponsePostResponseRulesOKConditionsItemOp = "device_type"
-	ResponsePostResponseRulesOKConditionsItemOpCountWindow ResponsePostResponseRulesOKConditionsItemOp = "count_window"
-	ResponsePostResponseRulesOKConditionsItemOpFirstTime   ResponsePostResponseRulesOKConditionsItemOp = "first_time"
-)
-
-// AllValues returns all ResponsePostResponseRulesOKConditionsItemOp values.
-func (ResponsePostResponseRulesOKConditionsItemOp) AllValues() []ResponsePostResponseRulesOKConditionsItemOp {
-	return []ResponsePostResponseRulesOKConditionsItemOp{
-		ResponsePostResponseRulesOKConditionsItemOpEq,
-		ResponsePostResponseRulesOKConditionsItemOpIn,
-		ResponsePostResponseRulesOKConditionsItemOpInCidr,
-		ResponsePostResponseRulesOKConditionsItemOpGte,
-		ResponsePostResponseRulesOKConditionsItemOpLte,
-		ResponsePostResponseRulesOKConditionsItemOpDeviceType,
-		ResponsePostResponseRulesOKConditionsItemOpCountWindow,
-		ResponsePostResponseRulesOKConditionsItemOpFirstTime,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseRulesOKConditionsItemOp) MarshalText() ([]byte, error) {
-	switch s {
-	case ResponsePostResponseRulesOKConditionsItemOpEq:
-		return []byte(s), nil
-	case ResponsePostResponseRulesOKConditionsItemOpIn:
-		return []byte(s), nil
-	case ResponsePostResponseRulesOKConditionsItemOpInCidr:
-		return []byte(s), nil
-	case ResponsePostResponseRulesOKConditionsItemOpGte:
-		return []byte(s), nil
-	case ResponsePostResponseRulesOKConditionsItemOpLte:
-		return []byte(s), nil
-	case ResponsePostResponseRulesOKConditionsItemOpDeviceType:
-		return []byte(s), nil
-	case ResponsePostResponseRulesOKConditionsItemOpCountWindow:
-		return []byte(s), nil
-	case ResponsePostResponseRulesOKConditionsItemOpFirstTime:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseRulesOKConditionsItemOp) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseRulesOKConditionsItemOp(data) {
-	case ResponsePostResponseRulesOKConditionsItemOpEq:
-		*s = ResponsePostResponseRulesOKConditionsItemOpEq
-		return nil
-	case ResponsePostResponseRulesOKConditionsItemOpIn:
-		*s = ResponsePostResponseRulesOKConditionsItemOpIn
-		return nil
-	case ResponsePostResponseRulesOKConditionsItemOpInCidr:
-		*s = ResponsePostResponseRulesOKConditionsItemOpInCidr
-		return nil
-	case ResponsePostResponseRulesOKConditionsItemOpGte:
-		*s = ResponsePostResponseRulesOKConditionsItemOpGte
-		return nil
-	case ResponsePostResponseRulesOKConditionsItemOpLte:
-		*s = ResponsePostResponseRulesOKConditionsItemOpLte
-		return nil
-	case ResponsePostResponseRulesOKConditionsItemOpDeviceType:
-		*s = ResponsePostResponseRulesOKConditionsItemOpDeviceType
-		return nil
-	case ResponsePostResponseRulesOKConditionsItemOpCountWindow:
-		*s = ResponsePostResponseRulesOKConditionsItemOpCountWindow
-		return nil
-	case ResponsePostResponseRulesOKConditionsItemOpFirstTime:
-		*s = ResponsePostResponseRulesOKConditionsItemOpFirstTime
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type ResponsePostResponseRulesOKMatch string
-
-const (
-	ResponsePostResponseRulesOKMatchAll ResponsePostResponseRulesOKMatch = "all"
-	ResponsePostResponseRulesOKMatchAny ResponsePostResponseRulesOKMatch = "any"
-)
-
-// AllValues returns all ResponsePostResponseRulesOKMatch values.
-func (ResponsePostResponseRulesOKMatch) AllValues() []ResponsePostResponseRulesOKMatch {
-	return []ResponsePostResponseRulesOKMatch{
-		ResponsePostResponseRulesOKMatchAll,
-		ResponsePostResponseRulesOKMatchAny,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseRulesOKMatch) MarshalText() ([]byte, error) {
-	switch s {
-	case ResponsePostResponseRulesOKMatchAll:
-		return []byte(s), nil
-	case ResponsePostResponseRulesOKMatchAny:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseRulesOKMatch) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseRulesOKMatch(data) {
-	case ResponsePostResponseRulesOKMatchAll:
-		*s = ResponsePostResponseRulesOKMatchAll
-		return nil
-	case ResponsePostResponseRulesOKMatchAny:
-		*s = ResponsePostResponseRulesOKMatchAny
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type ResponsePostResponseRulesOKTrigger string
-
-const (
-	ResponsePostResponseRulesOKTriggerHoneypot      ResponsePostResponseRulesOKTrigger = "honeypot"
-	ResponsePostResponseRulesOKTriggerIocConnection ResponsePostResponseRulesOKTrigger = "ioc_connection"
-	ResponsePostResponseRulesOKTriggerFinding       ResponsePostResponseRulesOKTrigger = "finding"
-	ResponsePostResponseRulesOKTriggerUnknownDevice ResponsePostResponseRulesOKTrigger = "unknown_device"
-	ResponsePostResponseRulesOKTriggerLogThreshold  ResponsePostResponseRulesOKTrigger = "log_threshold"
-	ResponsePostResponseRulesOKTriggerNewPort       ResponsePostResponseRulesOKTrigger = "new_port"
-	ResponsePostResponseRulesOKTriggerSchedule      ResponsePostResponseRulesOKTrigger = "schedule"
-	ResponsePostResponseRulesOKTriggerManual        ResponsePostResponseRulesOKTrigger = "manual"
-)
-
-// AllValues returns all ResponsePostResponseRulesOKTrigger values.
-func (ResponsePostResponseRulesOKTrigger) AllValues() []ResponsePostResponseRulesOKTrigger {
-	return []ResponsePostResponseRulesOKTrigger{
-		ResponsePostResponseRulesOKTriggerHoneypot,
-		ResponsePostResponseRulesOKTriggerIocConnection,
-		ResponsePostResponseRulesOKTriggerFinding,
-		ResponsePostResponseRulesOKTriggerUnknownDevice,
-		ResponsePostResponseRulesOKTriggerLogThreshold,
-		ResponsePostResponseRulesOKTriggerNewPort,
-		ResponsePostResponseRulesOKTriggerSchedule,
-		ResponsePostResponseRulesOKTriggerManual,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseRulesOKTrigger) MarshalText() ([]byte, error) {
-	switch s {
-	case ResponsePostResponseRulesOKTriggerHoneypot:
-		return []byte(s), nil
-	case ResponsePostResponseRulesOKTriggerIocConnection:
-		return []byte(s), nil
-	case ResponsePostResponseRulesOKTriggerFinding:
-		return []byte(s), nil
-	case ResponsePostResponseRulesOKTriggerUnknownDevice:
-		return []byte(s), nil
-	case ResponsePostResponseRulesOKTriggerLogThreshold:
-		return []byte(s), nil
-	case ResponsePostResponseRulesOKTriggerNewPort:
-		return []byte(s), nil
-	case ResponsePostResponseRulesOKTriggerSchedule:
-		return []byte(s), nil
-	case ResponsePostResponseRulesOKTriggerManual:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseRulesOKTrigger) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseRulesOKTrigger(data) {
-	case ResponsePostResponseRulesOKTriggerHoneypot:
-		*s = ResponsePostResponseRulesOKTriggerHoneypot
-		return nil
-	case ResponsePostResponseRulesOKTriggerIocConnection:
-		*s = ResponsePostResponseRulesOKTriggerIocConnection
-		return nil
-	case ResponsePostResponseRulesOKTriggerFinding:
-		*s = ResponsePostResponseRulesOKTriggerFinding
-		return nil
-	case ResponsePostResponseRulesOKTriggerUnknownDevice:
-		*s = ResponsePostResponseRulesOKTriggerUnknownDevice
-		return nil
-	case ResponsePostResponseRulesOKTriggerLogThreshold:
-		*s = ResponsePostResponseRulesOKTriggerLogThreshold
-		return nil
-	case ResponsePostResponseRulesOKTriggerNewPort:
-		*s = ResponsePostResponseRulesOKTriggerNewPort
-		return nil
-	case ResponsePostResponseRulesOKTriggerSchedule:
-		*s = ResponsePostResponseRulesOKTriggerSchedule
-		return nil
-	case ResponsePostResponseRulesOKTriggerManual:
-		*s = ResponsePostResponseRulesOKTriggerManual
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }
 
 type ResponsePostResponseRulesReq struct {
@@ -114725,6 +113987,7 @@ type ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethod string
 const (
 	ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodGET    ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethod = "GET"
 	ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodPUT    ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethod = "PUT"
+	ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodPATCH  ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethod = "PATCH"
 	ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodPOST   ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethod = "POST"
 	ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodDELETE ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethod = "DELETE"
 )
@@ -114734,6 +113997,7 @@ func (ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethod) AllValues() 
 	return []ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethod{
 		ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodGET,
 		ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodPUT,
+		ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodPATCH,
 		ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodPOST,
 		ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodDELETE,
 	}
@@ -114745,6 +114009,8 @@ func (s ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethod) MarshalTex
 	case ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodGET:
 		return []byte(s), nil
 	case ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodPATCH:
 		return []byte(s), nil
 	case ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodPOST:
 		return []byte(s), nil
@@ -114763,6 +114029,9 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethod) Unmarshal
 		return nil
 	case ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodPUT:
 		*s = ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodPUT
+		return nil
+	case ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodPATCH:
+		*s = ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodPATCH
 		return nil
 	case ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodPOST:
 		*s = ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethodPOST
@@ -114853,6 +114122,7 @@ type ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethod string
 const (
 	ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodGET    ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethod = "GET"
 	ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodPUT    ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethod = "PUT"
+	ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodPATCH  ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethod = "PATCH"
 	ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodPOST   ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethod = "POST"
 	ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodDELETE ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethod = "DELETE"
 )
@@ -114862,6 +114132,7 @@ func (ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethod) AllV
 	return []ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethod{
 		ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodGET,
 		ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodPUT,
+		ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodPATCH,
 		ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodPOST,
 		ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodDELETE,
 	}
@@ -114873,6 +114144,8 @@ func (s ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethod) Ma
 	case ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodGET:
 		return []byte(s), nil
 	case ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodPATCH:
 		return []byte(s), nil
 	case ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodPOST:
 		return []byte(s), nil
@@ -114891,6 +114164,9 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethod) U
 		return nil
 	case ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodPUT:
 		*s = ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodPUT
+		return nil
+	case ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodPATCH:
+		*s = ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodPATCH
 		return nil
 	case ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodPOST:
 		*s = ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethodPOST
@@ -115411,198 +114687,198 @@ func (s *ResponsePostResponseRulesSimulateReqRuleTrigger) UnmarshalText(data []b
 	}
 }
 
-type ResponsePostResponseTemplatesIDCloneOK struct {
-	Actions    []ResponsePostResponseTemplatesIDCloneOKActionsItem    `json:"actions"`
-	Conditions []ResponsePostResponseTemplatesIDCloneOKConditionsItem `json:"conditions"`
-	Enabled    bool                                                   `json:"enabled"`
-	ID         string                                                 `json:"id"`
-	LastFired  NilDateTime                                            `json:"last_fired"`
+type ResponsePostResponseTemplatesIDCloneCreated struct {
+	Actions    []ResponsePostResponseTemplatesIDCloneCreatedActionsItem    `json:"actions"`
+	Conditions []ResponsePostResponseTemplatesIDCloneCreatedConditionsItem `json:"conditions"`
+	Enabled    bool                                                        `json:"enabled"`
+	ID         string                                                      `json:"id"`
+	LastFired  NilDateTime                                                 `json:"last_fired"`
 	// False = dry run: matches are logged, nothing is requested or run.
-	Live       bool                                        `json:"live"`
-	Match      ResponsePostResponseTemplatesIDCloneOKMatch `json:"match"`
-	MaxPerHour int                                         `json:"max_per_hour"`
-	Name       string                                      `json:"name"`
+	Live       bool                                             `json:"live"`
+	Match      ResponsePostResponseTemplatesIDCloneCreatedMatch `json:"match"`
+	MaxPerHour int                                              `json:"max_per_hour"`
+	Name       string                                           `json:"name"`
 	// Admin only, off by default: run without a person, for low-risk reversible actions with an undo time
 	// of 24 hours or less.
 	PreApproved bool `json:"pre_approved"`
 	// Schedule trigger: run every this many minutes (15 to 10080).
-	ScheduleMin NilInt                                        `json:"schedule_min"`
-	TemplateID  NilString                                     `json:"template_id"`
-	Trigger     ResponsePostResponseTemplatesIDCloneOKTrigger `json:"trigger"`
+	ScheduleMin NilInt                                             `json:"schedule_min"`
+	TemplateID  NilString                                          `json:"template_id"`
+	Trigger     ResponsePostResponseTemplatesIDCloneCreatedTrigger `json:"trigger"`
 }
 
 // GetActions returns the value of Actions.
-func (s *ResponsePostResponseTemplatesIDCloneOK) GetActions() []ResponsePostResponseTemplatesIDCloneOKActionsItem {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) GetActions() []ResponsePostResponseTemplatesIDCloneCreatedActionsItem {
 	return s.Actions
 }
 
 // GetConditions returns the value of Conditions.
-func (s *ResponsePostResponseTemplatesIDCloneOK) GetConditions() []ResponsePostResponseTemplatesIDCloneOKConditionsItem {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) GetConditions() []ResponsePostResponseTemplatesIDCloneCreatedConditionsItem {
 	return s.Conditions
 }
 
 // GetEnabled returns the value of Enabled.
-func (s *ResponsePostResponseTemplatesIDCloneOK) GetEnabled() bool {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) GetEnabled() bool {
 	return s.Enabled
 }
 
 // GetID returns the value of ID.
-func (s *ResponsePostResponseTemplatesIDCloneOK) GetID() string {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) GetID() string {
 	return s.ID
 }
 
 // GetLastFired returns the value of LastFired.
-func (s *ResponsePostResponseTemplatesIDCloneOK) GetLastFired() NilDateTime {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) GetLastFired() NilDateTime {
 	return s.LastFired
 }
 
 // GetLive returns the value of Live.
-func (s *ResponsePostResponseTemplatesIDCloneOK) GetLive() bool {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) GetLive() bool {
 	return s.Live
 }
 
 // GetMatch returns the value of Match.
-func (s *ResponsePostResponseTemplatesIDCloneOK) GetMatch() ResponsePostResponseTemplatesIDCloneOKMatch {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) GetMatch() ResponsePostResponseTemplatesIDCloneCreatedMatch {
 	return s.Match
 }
 
 // GetMaxPerHour returns the value of MaxPerHour.
-func (s *ResponsePostResponseTemplatesIDCloneOK) GetMaxPerHour() int {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) GetMaxPerHour() int {
 	return s.MaxPerHour
 }
 
 // GetName returns the value of Name.
-func (s *ResponsePostResponseTemplatesIDCloneOK) GetName() string {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) GetName() string {
 	return s.Name
 }
 
 // GetPreApproved returns the value of PreApproved.
-func (s *ResponsePostResponseTemplatesIDCloneOK) GetPreApproved() bool {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) GetPreApproved() bool {
 	return s.PreApproved
 }
 
 // GetScheduleMin returns the value of ScheduleMin.
-func (s *ResponsePostResponseTemplatesIDCloneOK) GetScheduleMin() NilInt {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) GetScheduleMin() NilInt {
 	return s.ScheduleMin
 }
 
 // GetTemplateID returns the value of TemplateID.
-func (s *ResponsePostResponseTemplatesIDCloneOK) GetTemplateID() NilString {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) GetTemplateID() NilString {
 	return s.TemplateID
 }
 
 // GetTrigger returns the value of Trigger.
-func (s *ResponsePostResponseTemplatesIDCloneOK) GetTrigger() ResponsePostResponseTemplatesIDCloneOKTrigger {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) GetTrigger() ResponsePostResponseTemplatesIDCloneCreatedTrigger {
 	return s.Trigger
 }
 
 // SetActions sets the value of Actions.
-func (s *ResponsePostResponseTemplatesIDCloneOK) SetActions(val []ResponsePostResponseTemplatesIDCloneOKActionsItem) {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) SetActions(val []ResponsePostResponseTemplatesIDCloneCreatedActionsItem) {
 	s.Actions = val
 }
 
 // SetConditions sets the value of Conditions.
-func (s *ResponsePostResponseTemplatesIDCloneOK) SetConditions(val []ResponsePostResponseTemplatesIDCloneOKConditionsItem) {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) SetConditions(val []ResponsePostResponseTemplatesIDCloneCreatedConditionsItem) {
 	s.Conditions = val
 }
 
 // SetEnabled sets the value of Enabled.
-func (s *ResponsePostResponseTemplatesIDCloneOK) SetEnabled(val bool) {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) SetEnabled(val bool) {
 	s.Enabled = val
 }
 
 // SetID sets the value of ID.
-func (s *ResponsePostResponseTemplatesIDCloneOK) SetID(val string) {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) SetID(val string) {
 	s.ID = val
 }
 
 // SetLastFired sets the value of LastFired.
-func (s *ResponsePostResponseTemplatesIDCloneOK) SetLastFired(val NilDateTime) {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) SetLastFired(val NilDateTime) {
 	s.LastFired = val
 }
 
 // SetLive sets the value of Live.
-func (s *ResponsePostResponseTemplatesIDCloneOK) SetLive(val bool) {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) SetLive(val bool) {
 	s.Live = val
 }
 
 // SetMatch sets the value of Match.
-func (s *ResponsePostResponseTemplatesIDCloneOK) SetMatch(val ResponsePostResponseTemplatesIDCloneOKMatch) {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) SetMatch(val ResponsePostResponseTemplatesIDCloneCreatedMatch) {
 	s.Match = val
 }
 
 // SetMaxPerHour sets the value of MaxPerHour.
-func (s *ResponsePostResponseTemplatesIDCloneOK) SetMaxPerHour(val int) {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) SetMaxPerHour(val int) {
 	s.MaxPerHour = val
 }
 
 // SetName sets the value of Name.
-func (s *ResponsePostResponseTemplatesIDCloneOK) SetName(val string) {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) SetName(val string) {
 	s.Name = val
 }
 
 // SetPreApproved sets the value of PreApproved.
-func (s *ResponsePostResponseTemplatesIDCloneOK) SetPreApproved(val bool) {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) SetPreApproved(val bool) {
 	s.PreApproved = val
 }
 
 // SetScheduleMin sets the value of ScheduleMin.
-func (s *ResponsePostResponseTemplatesIDCloneOK) SetScheduleMin(val NilInt) {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) SetScheduleMin(val NilInt) {
 	s.ScheduleMin = val
 }
 
 // SetTemplateID sets the value of TemplateID.
-func (s *ResponsePostResponseTemplatesIDCloneOK) SetTemplateID(val NilString) {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) SetTemplateID(val NilString) {
 	s.TemplateID = val
 }
 
 // SetTrigger sets the value of Trigger.
-func (s *ResponsePostResponseTemplatesIDCloneOK) SetTrigger(val ResponsePostResponseTemplatesIDCloneOKTrigger) {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) SetTrigger(val ResponsePostResponseTemplatesIDCloneCreatedTrigger) {
 	s.Trigger = val
 }
 
-type ResponsePostResponseTemplatesIDCloneOKActionsItem struct {
+type ResponsePostResponseTemplatesIDCloneCreatedActionsItem struct {
 	ActionID string `json:"action_id"`
 	// Placeholder name to a literal or a trigger field such as {{trigger.source_ip}}.
-	Params ResponsePostResponseTemplatesIDCloneOKActionsItemParams `json:"params"`
+	Params ResponsePostResponseTemplatesIDCloneCreatedActionsItemParams `json:"params"`
 	// Undo after this many minutes (null = keep until undone by hand).
 	TTLMin NilInt `json:"ttl_min"`
 }
 
 // GetActionID returns the value of ActionID.
-func (s *ResponsePostResponseTemplatesIDCloneOKActionsItem) GetActionID() string {
+func (s *ResponsePostResponseTemplatesIDCloneCreatedActionsItem) GetActionID() string {
 	return s.ActionID
 }
 
 // GetParams returns the value of Params.
-func (s *ResponsePostResponseTemplatesIDCloneOKActionsItem) GetParams() ResponsePostResponseTemplatesIDCloneOKActionsItemParams {
+func (s *ResponsePostResponseTemplatesIDCloneCreatedActionsItem) GetParams() ResponsePostResponseTemplatesIDCloneCreatedActionsItemParams {
 	return s.Params
 }
 
 // GetTTLMin returns the value of TTLMin.
-func (s *ResponsePostResponseTemplatesIDCloneOKActionsItem) GetTTLMin() NilInt {
+func (s *ResponsePostResponseTemplatesIDCloneCreatedActionsItem) GetTTLMin() NilInt {
 	return s.TTLMin
 }
 
 // SetActionID sets the value of ActionID.
-func (s *ResponsePostResponseTemplatesIDCloneOKActionsItem) SetActionID(val string) {
+func (s *ResponsePostResponseTemplatesIDCloneCreatedActionsItem) SetActionID(val string) {
 	s.ActionID = val
 }
 
 // SetParams sets the value of Params.
-func (s *ResponsePostResponseTemplatesIDCloneOKActionsItem) SetParams(val ResponsePostResponseTemplatesIDCloneOKActionsItemParams) {
+func (s *ResponsePostResponseTemplatesIDCloneCreatedActionsItem) SetParams(val ResponsePostResponseTemplatesIDCloneCreatedActionsItemParams) {
 	s.Params = val
 }
 
 // SetTTLMin sets the value of TTLMin.
-func (s *ResponsePostResponseTemplatesIDCloneOKActionsItem) SetTTLMin(val NilInt) {
+func (s *ResponsePostResponseTemplatesIDCloneCreatedActionsItem) SetTTLMin(val NilInt) {
 	s.TTLMin = val
 }
 
 // Placeholder name to a literal or a trigger field such as {{trigger.source_ip}}.
-type ResponsePostResponseTemplatesIDCloneOKActionsItemParams map[string]string
+type ResponsePostResponseTemplatesIDCloneCreatedActionsItemParams map[string]string
 
-func (s *ResponsePostResponseTemplatesIDCloneOKActionsItemParams) init() ResponsePostResponseTemplatesIDCloneOKActionsItemParams {
+func (s *ResponsePostResponseTemplatesIDCloneCreatedActionsItemParams) init() ResponsePostResponseTemplatesIDCloneCreatedActionsItemParams {
 	m := *s
 	if m == nil {
 		m = map[string]string{}
@@ -115611,112 +114887,112 @@ func (s *ResponsePostResponseTemplatesIDCloneOKActionsItemParams) init() Respons
 	return m
 }
 
-type ResponsePostResponseTemplatesIDCloneOKConditionsItem struct {
+type ResponsePostResponseTemplatesIDCloneCreatedConditionsItem struct {
 	// Trigger field; empty for the device type test.
 	Field string `json:"field"`
 	// Count_window: at least this many; first_time: hours.
-	N     NilInt                                                 `json:"n"`
-	Op    ResponsePostResponseTemplatesIDCloneOKConditionsItemOp `json:"op"`
-	Value string                                                 `json:"value"`
+	N     NilInt                                                      `json:"n"`
+	Op    ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp `json:"op"`
+	Value string                                                      `json:"value"`
 	// Count_window: minutes.
 	WindowMin NilInt `json:"window_min"`
 }
 
 // GetField returns the value of Field.
-func (s *ResponsePostResponseTemplatesIDCloneOKConditionsItem) GetField() string {
+func (s *ResponsePostResponseTemplatesIDCloneCreatedConditionsItem) GetField() string {
 	return s.Field
 }
 
 // GetN returns the value of N.
-func (s *ResponsePostResponseTemplatesIDCloneOKConditionsItem) GetN() NilInt {
+func (s *ResponsePostResponseTemplatesIDCloneCreatedConditionsItem) GetN() NilInt {
 	return s.N
 }
 
 // GetOp returns the value of Op.
-func (s *ResponsePostResponseTemplatesIDCloneOKConditionsItem) GetOp() ResponsePostResponseTemplatesIDCloneOKConditionsItemOp {
+func (s *ResponsePostResponseTemplatesIDCloneCreatedConditionsItem) GetOp() ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp {
 	return s.Op
 }
 
 // GetValue returns the value of Value.
-func (s *ResponsePostResponseTemplatesIDCloneOKConditionsItem) GetValue() string {
+func (s *ResponsePostResponseTemplatesIDCloneCreatedConditionsItem) GetValue() string {
 	return s.Value
 }
 
 // GetWindowMin returns the value of WindowMin.
-func (s *ResponsePostResponseTemplatesIDCloneOKConditionsItem) GetWindowMin() NilInt {
+func (s *ResponsePostResponseTemplatesIDCloneCreatedConditionsItem) GetWindowMin() NilInt {
 	return s.WindowMin
 }
 
 // SetField sets the value of Field.
-func (s *ResponsePostResponseTemplatesIDCloneOKConditionsItem) SetField(val string) {
+func (s *ResponsePostResponseTemplatesIDCloneCreatedConditionsItem) SetField(val string) {
 	s.Field = val
 }
 
 // SetN sets the value of N.
-func (s *ResponsePostResponseTemplatesIDCloneOKConditionsItem) SetN(val NilInt) {
+func (s *ResponsePostResponseTemplatesIDCloneCreatedConditionsItem) SetN(val NilInt) {
 	s.N = val
 }
 
 // SetOp sets the value of Op.
-func (s *ResponsePostResponseTemplatesIDCloneOKConditionsItem) SetOp(val ResponsePostResponseTemplatesIDCloneOKConditionsItemOp) {
+func (s *ResponsePostResponseTemplatesIDCloneCreatedConditionsItem) SetOp(val ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp) {
 	s.Op = val
 }
 
 // SetValue sets the value of Value.
-func (s *ResponsePostResponseTemplatesIDCloneOKConditionsItem) SetValue(val string) {
+func (s *ResponsePostResponseTemplatesIDCloneCreatedConditionsItem) SetValue(val string) {
 	s.Value = val
 }
 
 // SetWindowMin sets the value of WindowMin.
-func (s *ResponsePostResponseTemplatesIDCloneOKConditionsItem) SetWindowMin(val NilInt) {
+func (s *ResponsePostResponseTemplatesIDCloneCreatedConditionsItem) SetWindowMin(val NilInt) {
 	s.WindowMin = val
 }
 
-type ResponsePostResponseTemplatesIDCloneOKConditionsItemOp string
+type ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp string
 
 const (
-	ResponsePostResponseTemplatesIDCloneOKConditionsItemOpEq          ResponsePostResponseTemplatesIDCloneOKConditionsItemOp = "eq"
-	ResponsePostResponseTemplatesIDCloneOKConditionsItemOpIn          ResponsePostResponseTemplatesIDCloneOKConditionsItemOp = "in"
-	ResponsePostResponseTemplatesIDCloneOKConditionsItemOpInCidr      ResponsePostResponseTemplatesIDCloneOKConditionsItemOp = "in_cidr"
-	ResponsePostResponseTemplatesIDCloneOKConditionsItemOpGte         ResponsePostResponseTemplatesIDCloneOKConditionsItemOp = "gte"
-	ResponsePostResponseTemplatesIDCloneOKConditionsItemOpLte         ResponsePostResponseTemplatesIDCloneOKConditionsItemOp = "lte"
-	ResponsePostResponseTemplatesIDCloneOKConditionsItemOpDeviceType  ResponsePostResponseTemplatesIDCloneOKConditionsItemOp = "device_type"
-	ResponsePostResponseTemplatesIDCloneOKConditionsItemOpCountWindow ResponsePostResponseTemplatesIDCloneOKConditionsItemOp = "count_window"
-	ResponsePostResponseTemplatesIDCloneOKConditionsItemOpFirstTime   ResponsePostResponseTemplatesIDCloneOKConditionsItemOp = "first_time"
+	ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpEq          ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp = "eq"
+	ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpIn          ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp = "in"
+	ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpInCidr      ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp = "in_cidr"
+	ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpGte         ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp = "gte"
+	ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpLte         ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp = "lte"
+	ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpDeviceType  ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp = "device_type"
+	ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpCountWindow ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp = "count_window"
+	ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpFirstTime   ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp = "first_time"
 )
 
-// AllValues returns all ResponsePostResponseTemplatesIDCloneOKConditionsItemOp values.
-func (ResponsePostResponseTemplatesIDCloneOKConditionsItemOp) AllValues() []ResponsePostResponseTemplatesIDCloneOKConditionsItemOp {
-	return []ResponsePostResponseTemplatesIDCloneOKConditionsItemOp{
-		ResponsePostResponseTemplatesIDCloneOKConditionsItemOpEq,
-		ResponsePostResponseTemplatesIDCloneOKConditionsItemOpIn,
-		ResponsePostResponseTemplatesIDCloneOKConditionsItemOpInCidr,
-		ResponsePostResponseTemplatesIDCloneOKConditionsItemOpGte,
-		ResponsePostResponseTemplatesIDCloneOKConditionsItemOpLte,
-		ResponsePostResponseTemplatesIDCloneOKConditionsItemOpDeviceType,
-		ResponsePostResponseTemplatesIDCloneOKConditionsItemOpCountWindow,
-		ResponsePostResponseTemplatesIDCloneOKConditionsItemOpFirstTime,
+// AllValues returns all ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp values.
+func (ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp) AllValues() []ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp {
+	return []ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp{
+		ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpEq,
+		ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpIn,
+		ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpInCidr,
+		ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpGte,
+		ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpLte,
+		ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpDeviceType,
+		ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpCountWindow,
+		ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpFirstTime,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseTemplatesIDCloneOKConditionsItemOp) MarshalText() ([]byte, error) {
+func (s ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponsePostResponseTemplatesIDCloneOKConditionsItemOpEq:
+	case ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpEq:
 		return []byte(s), nil
-	case ResponsePostResponseTemplatesIDCloneOKConditionsItemOpIn:
+	case ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpIn:
 		return []byte(s), nil
-	case ResponsePostResponseTemplatesIDCloneOKConditionsItemOpInCidr:
+	case ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpInCidr:
 		return []byte(s), nil
-	case ResponsePostResponseTemplatesIDCloneOKConditionsItemOpGte:
+	case ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpGte:
 		return []byte(s), nil
-	case ResponsePostResponseTemplatesIDCloneOKConditionsItemOpLte:
+	case ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpLte:
 		return []byte(s), nil
-	case ResponsePostResponseTemplatesIDCloneOKConditionsItemOpDeviceType:
+	case ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpDeviceType:
 		return []byte(s), nil
-	case ResponsePostResponseTemplatesIDCloneOKConditionsItemOpCountWindow:
+	case ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpCountWindow:
 		return []byte(s), nil
-	case ResponsePostResponseTemplatesIDCloneOKConditionsItemOpFirstTime:
+	case ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpFirstTime:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -115724,58 +115000,58 @@ func (s ResponsePostResponseTemplatesIDCloneOKConditionsItemOp) MarshalText() ([
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseTemplatesIDCloneOKConditionsItemOp) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseTemplatesIDCloneOKConditionsItemOp(data) {
-	case ResponsePostResponseTemplatesIDCloneOKConditionsItemOpEq:
-		*s = ResponsePostResponseTemplatesIDCloneOKConditionsItemOpEq
+func (s *ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp(data) {
+	case ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpEq:
+		*s = ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpEq
 		return nil
-	case ResponsePostResponseTemplatesIDCloneOKConditionsItemOpIn:
-		*s = ResponsePostResponseTemplatesIDCloneOKConditionsItemOpIn
+	case ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpIn:
+		*s = ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpIn
 		return nil
-	case ResponsePostResponseTemplatesIDCloneOKConditionsItemOpInCidr:
-		*s = ResponsePostResponseTemplatesIDCloneOKConditionsItemOpInCidr
+	case ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpInCidr:
+		*s = ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpInCidr
 		return nil
-	case ResponsePostResponseTemplatesIDCloneOKConditionsItemOpGte:
-		*s = ResponsePostResponseTemplatesIDCloneOKConditionsItemOpGte
+	case ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpGte:
+		*s = ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpGte
 		return nil
-	case ResponsePostResponseTemplatesIDCloneOKConditionsItemOpLte:
-		*s = ResponsePostResponseTemplatesIDCloneOKConditionsItemOpLte
+	case ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpLte:
+		*s = ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpLte
 		return nil
-	case ResponsePostResponseTemplatesIDCloneOKConditionsItemOpDeviceType:
-		*s = ResponsePostResponseTemplatesIDCloneOKConditionsItemOpDeviceType
+	case ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpDeviceType:
+		*s = ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpDeviceType
 		return nil
-	case ResponsePostResponseTemplatesIDCloneOKConditionsItemOpCountWindow:
-		*s = ResponsePostResponseTemplatesIDCloneOKConditionsItemOpCountWindow
+	case ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpCountWindow:
+		*s = ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpCountWindow
 		return nil
-	case ResponsePostResponseTemplatesIDCloneOKConditionsItemOpFirstTime:
-		*s = ResponsePostResponseTemplatesIDCloneOKConditionsItemOpFirstTime
+	case ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpFirstTime:
+		*s = ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOpFirstTime
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type ResponsePostResponseTemplatesIDCloneOKMatch string
+type ResponsePostResponseTemplatesIDCloneCreatedMatch string
 
 const (
-	ResponsePostResponseTemplatesIDCloneOKMatchAll ResponsePostResponseTemplatesIDCloneOKMatch = "all"
-	ResponsePostResponseTemplatesIDCloneOKMatchAny ResponsePostResponseTemplatesIDCloneOKMatch = "any"
+	ResponsePostResponseTemplatesIDCloneCreatedMatchAll ResponsePostResponseTemplatesIDCloneCreatedMatch = "all"
+	ResponsePostResponseTemplatesIDCloneCreatedMatchAny ResponsePostResponseTemplatesIDCloneCreatedMatch = "any"
 )
 
-// AllValues returns all ResponsePostResponseTemplatesIDCloneOKMatch values.
-func (ResponsePostResponseTemplatesIDCloneOKMatch) AllValues() []ResponsePostResponseTemplatesIDCloneOKMatch {
-	return []ResponsePostResponseTemplatesIDCloneOKMatch{
-		ResponsePostResponseTemplatesIDCloneOKMatchAll,
-		ResponsePostResponseTemplatesIDCloneOKMatchAny,
+// AllValues returns all ResponsePostResponseTemplatesIDCloneCreatedMatch values.
+func (ResponsePostResponseTemplatesIDCloneCreatedMatch) AllValues() []ResponsePostResponseTemplatesIDCloneCreatedMatch {
+	return []ResponsePostResponseTemplatesIDCloneCreatedMatch{
+		ResponsePostResponseTemplatesIDCloneCreatedMatchAll,
+		ResponsePostResponseTemplatesIDCloneCreatedMatchAny,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseTemplatesIDCloneOKMatch) MarshalText() ([]byte, error) {
+func (s ResponsePostResponseTemplatesIDCloneCreatedMatch) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponsePostResponseTemplatesIDCloneOKMatchAll:
+	case ResponsePostResponseTemplatesIDCloneCreatedMatchAll:
 		return []byte(s), nil
-	case ResponsePostResponseTemplatesIDCloneOKMatchAny:
+	case ResponsePostResponseTemplatesIDCloneCreatedMatchAny:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -115783,64 +115059,64 @@ func (s ResponsePostResponseTemplatesIDCloneOKMatch) MarshalText() ([]byte, erro
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseTemplatesIDCloneOKMatch) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseTemplatesIDCloneOKMatch(data) {
-	case ResponsePostResponseTemplatesIDCloneOKMatchAll:
-		*s = ResponsePostResponseTemplatesIDCloneOKMatchAll
+func (s *ResponsePostResponseTemplatesIDCloneCreatedMatch) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseTemplatesIDCloneCreatedMatch(data) {
+	case ResponsePostResponseTemplatesIDCloneCreatedMatchAll:
+		*s = ResponsePostResponseTemplatesIDCloneCreatedMatchAll
 		return nil
-	case ResponsePostResponseTemplatesIDCloneOKMatchAny:
-		*s = ResponsePostResponseTemplatesIDCloneOKMatchAny
+	case ResponsePostResponseTemplatesIDCloneCreatedMatchAny:
+		*s = ResponsePostResponseTemplatesIDCloneCreatedMatchAny
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type ResponsePostResponseTemplatesIDCloneOKTrigger string
+type ResponsePostResponseTemplatesIDCloneCreatedTrigger string
 
 const (
-	ResponsePostResponseTemplatesIDCloneOKTriggerHoneypot      ResponsePostResponseTemplatesIDCloneOKTrigger = "honeypot"
-	ResponsePostResponseTemplatesIDCloneOKTriggerIocConnection ResponsePostResponseTemplatesIDCloneOKTrigger = "ioc_connection"
-	ResponsePostResponseTemplatesIDCloneOKTriggerFinding       ResponsePostResponseTemplatesIDCloneOKTrigger = "finding"
-	ResponsePostResponseTemplatesIDCloneOKTriggerUnknownDevice ResponsePostResponseTemplatesIDCloneOKTrigger = "unknown_device"
-	ResponsePostResponseTemplatesIDCloneOKTriggerLogThreshold  ResponsePostResponseTemplatesIDCloneOKTrigger = "log_threshold"
-	ResponsePostResponseTemplatesIDCloneOKTriggerNewPort       ResponsePostResponseTemplatesIDCloneOKTrigger = "new_port"
-	ResponsePostResponseTemplatesIDCloneOKTriggerSchedule      ResponsePostResponseTemplatesIDCloneOKTrigger = "schedule"
-	ResponsePostResponseTemplatesIDCloneOKTriggerManual        ResponsePostResponseTemplatesIDCloneOKTrigger = "manual"
+	ResponsePostResponseTemplatesIDCloneCreatedTriggerHoneypot      ResponsePostResponseTemplatesIDCloneCreatedTrigger = "honeypot"
+	ResponsePostResponseTemplatesIDCloneCreatedTriggerIocConnection ResponsePostResponseTemplatesIDCloneCreatedTrigger = "ioc_connection"
+	ResponsePostResponseTemplatesIDCloneCreatedTriggerFinding       ResponsePostResponseTemplatesIDCloneCreatedTrigger = "finding"
+	ResponsePostResponseTemplatesIDCloneCreatedTriggerUnknownDevice ResponsePostResponseTemplatesIDCloneCreatedTrigger = "unknown_device"
+	ResponsePostResponseTemplatesIDCloneCreatedTriggerLogThreshold  ResponsePostResponseTemplatesIDCloneCreatedTrigger = "log_threshold"
+	ResponsePostResponseTemplatesIDCloneCreatedTriggerNewPort       ResponsePostResponseTemplatesIDCloneCreatedTrigger = "new_port"
+	ResponsePostResponseTemplatesIDCloneCreatedTriggerSchedule      ResponsePostResponseTemplatesIDCloneCreatedTrigger = "schedule"
+	ResponsePostResponseTemplatesIDCloneCreatedTriggerManual        ResponsePostResponseTemplatesIDCloneCreatedTrigger = "manual"
 )
 
-// AllValues returns all ResponsePostResponseTemplatesIDCloneOKTrigger values.
-func (ResponsePostResponseTemplatesIDCloneOKTrigger) AllValues() []ResponsePostResponseTemplatesIDCloneOKTrigger {
-	return []ResponsePostResponseTemplatesIDCloneOKTrigger{
-		ResponsePostResponseTemplatesIDCloneOKTriggerHoneypot,
-		ResponsePostResponseTemplatesIDCloneOKTriggerIocConnection,
-		ResponsePostResponseTemplatesIDCloneOKTriggerFinding,
-		ResponsePostResponseTemplatesIDCloneOKTriggerUnknownDevice,
-		ResponsePostResponseTemplatesIDCloneOKTriggerLogThreshold,
-		ResponsePostResponseTemplatesIDCloneOKTriggerNewPort,
-		ResponsePostResponseTemplatesIDCloneOKTriggerSchedule,
-		ResponsePostResponseTemplatesIDCloneOKTriggerManual,
+// AllValues returns all ResponsePostResponseTemplatesIDCloneCreatedTrigger values.
+func (ResponsePostResponseTemplatesIDCloneCreatedTrigger) AllValues() []ResponsePostResponseTemplatesIDCloneCreatedTrigger {
+	return []ResponsePostResponseTemplatesIDCloneCreatedTrigger{
+		ResponsePostResponseTemplatesIDCloneCreatedTriggerHoneypot,
+		ResponsePostResponseTemplatesIDCloneCreatedTriggerIocConnection,
+		ResponsePostResponseTemplatesIDCloneCreatedTriggerFinding,
+		ResponsePostResponseTemplatesIDCloneCreatedTriggerUnknownDevice,
+		ResponsePostResponseTemplatesIDCloneCreatedTriggerLogThreshold,
+		ResponsePostResponseTemplatesIDCloneCreatedTriggerNewPort,
+		ResponsePostResponseTemplatesIDCloneCreatedTriggerSchedule,
+		ResponsePostResponseTemplatesIDCloneCreatedTriggerManual,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ResponsePostResponseTemplatesIDCloneOKTrigger) MarshalText() ([]byte, error) {
+func (s ResponsePostResponseTemplatesIDCloneCreatedTrigger) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponsePostResponseTemplatesIDCloneOKTriggerHoneypot:
+	case ResponsePostResponseTemplatesIDCloneCreatedTriggerHoneypot:
 		return []byte(s), nil
-	case ResponsePostResponseTemplatesIDCloneOKTriggerIocConnection:
+	case ResponsePostResponseTemplatesIDCloneCreatedTriggerIocConnection:
 		return []byte(s), nil
-	case ResponsePostResponseTemplatesIDCloneOKTriggerFinding:
+	case ResponsePostResponseTemplatesIDCloneCreatedTriggerFinding:
 		return []byte(s), nil
-	case ResponsePostResponseTemplatesIDCloneOKTriggerUnknownDevice:
+	case ResponsePostResponseTemplatesIDCloneCreatedTriggerUnknownDevice:
 		return []byte(s), nil
-	case ResponsePostResponseTemplatesIDCloneOKTriggerLogThreshold:
+	case ResponsePostResponseTemplatesIDCloneCreatedTriggerLogThreshold:
 		return []byte(s), nil
-	case ResponsePostResponseTemplatesIDCloneOKTriggerNewPort:
+	case ResponsePostResponseTemplatesIDCloneCreatedTriggerNewPort:
 		return []byte(s), nil
-	case ResponsePostResponseTemplatesIDCloneOKTriggerSchedule:
+	case ResponsePostResponseTemplatesIDCloneCreatedTriggerSchedule:
 		return []byte(s), nil
-	case ResponsePostResponseTemplatesIDCloneOKTriggerManual:
+	case ResponsePostResponseTemplatesIDCloneCreatedTriggerManual:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -115848,31 +115124,31 @@ func (s ResponsePostResponseTemplatesIDCloneOKTrigger) MarshalText() ([]byte, er
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePostResponseTemplatesIDCloneOKTrigger) UnmarshalText(data []byte) error {
-	switch ResponsePostResponseTemplatesIDCloneOKTrigger(data) {
-	case ResponsePostResponseTemplatesIDCloneOKTriggerHoneypot:
-		*s = ResponsePostResponseTemplatesIDCloneOKTriggerHoneypot
+func (s *ResponsePostResponseTemplatesIDCloneCreatedTrigger) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseTemplatesIDCloneCreatedTrigger(data) {
+	case ResponsePostResponseTemplatesIDCloneCreatedTriggerHoneypot:
+		*s = ResponsePostResponseTemplatesIDCloneCreatedTriggerHoneypot
 		return nil
-	case ResponsePostResponseTemplatesIDCloneOKTriggerIocConnection:
-		*s = ResponsePostResponseTemplatesIDCloneOKTriggerIocConnection
+	case ResponsePostResponseTemplatesIDCloneCreatedTriggerIocConnection:
+		*s = ResponsePostResponseTemplatesIDCloneCreatedTriggerIocConnection
 		return nil
-	case ResponsePostResponseTemplatesIDCloneOKTriggerFinding:
-		*s = ResponsePostResponseTemplatesIDCloneOKTriggerFinding
+	case ResponsePostResponseTemplatesIDCloneCreatedTriggerFinding:
+		*s = ResponsePostResponseTemplatesIDCloneCreatedTriggerFinding
 		return nil
-	case ResponsePostResponseTemplatesIDCloneOKTriggerUnknownDevice:
-		*s = ResponsePostResponseTemplatesIDCloneOKTriggerUnknownDevice
+	case ResponsePostResponseTemplatesIDCloneCreatedTriggerUnknownDevice:
+		*s = ResponsePostResponseTemplatesIDCloneCreatedTriggerUnknownDevice
 		return nil
-	case ResponsePostResponseTemplatesIDCloneOKTriggerLogThreshold:
-		*s = ResponsePostResponseTemplatesIDCloneOKTriggerLogThreshold
+	case ResponsePostResponseTemplatesIDCloneCreatedTriggerLogThreshold:
+		*s = ResponsePostResponseTemplatesIDCloneCreatedTriggerLogThreshold
 		return nil
-	case ResponsePostResponseTemplatesIDCloneOKTriggerNewPort:
-		*s = ResponsePostResponseTemplatesIDCloneOKTriggerNewPort
+	case ResponsePostResponseTemplatesIDCloneCreatedTriggerNewPort:
+		*s = ResponsePostResponseTemplatesIDCloneCreatedTriggerNewPort
 		return nil
-	case ResponsePostResponseTemplatesIDCloneOKTriggerSchedule:
-		*s = ResponsePostResponseTemplatesIDCloneOKTriggerSchedule
+	case ResponsePostResponseTemplatesIDCloneCreatedTriggerSchedule:
+		*s = ResponsePostResponseTemplatesIDCloneCreatedTriggerSchedule
 		return nil
-	case ResponsePostResponseTemplatesIDCloneOKTriggerManual:
-		*s = ResponsePostResponseTemplatesIDCloneOKTriggerManual
+	case ResponsePostResponseTemplatesIDCloneCreatedTriggerManual:
+		*s = ResponsePostResponseTemplatesIDCloneCreatedTriggerManual
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -115971,10 +115247,10 @@ type ResponsePutResponseCatalogIDOK struct {
 	// Changes another device, so the execution switch applies.
 	Device bool `json:"device"`
 	// Allowed = enabled.
-	Enabled bool                               `json:"enabled"`
-	ID      string                             `json:"id"`
-	Name    string                             `json:"name"`
-	Pack    ResponsePutResponseCatalogIDOKPack `json:"pack"`
+	Enabled bool   `json:"enabled"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Pack    string `json:"pack"`
 	// Placeholders the templates use.
 	Params []ResponsePutResponseCatalogIDOKParamsItem `json:"params"`
 	// Has a rollback step.
@@ -116045,7 +115321,7 @@ func (s *ResponsePutResponseCatalogIDOK) GetName() string {
 }
 
 // GetPack returns the value of Pack.
-func (s *ResponsePutResponseCatalogIDOK) GetPack() ResponsePutResponseCatalogIDOKPack {
+func (s *ResponsePutResponseCatalogIDOK) GetPack() string {
 	return s.Pack
 }
 
@@ -116150,7 +115426,7 @@ func (s *ResponsePutResponseCatalogIDOK) SetName(val string) {
 }
 
 // SetPack sets the value of Pack.
-func (s *ResponsePutResponseCatalogIDOK) SetPack(val ResponsePutResponseCatalogIDOKPack) {
+func (s *ResponsePutResponseCatalogIDOK) SetPack(val string) {
 	s.Pack = val
 }
 
@@ -116202,19 +115478,21 @@ func (s *ResponsePutResponseCatalogIDOK) SetVerify(val ResponsePutResponseCatalo
 type ResponsePutResponseCatalogIDOKConnectionKind string
 
 const (
-	ResponsePutResponseCatalogIDOKConnectionKindDeviceAPI ResponsePutResponseCatalogIDOKConnectionKind = "device-api"
-	ResponsePutResponseCatalogIDOKConnectionKindSSH       ResponsePutResponseCatalogIDOKConnectionKind = "ssh"
-	ResponsePutResponseCatalogIDOKConnectionKindHTTP      ResponsePutResponseCatalogIDOKConnectionKind = "http"
-	ResponsePutResponseCatalogIDOKConnectionKindMcpHTTP   ResponsePutResponseCatalogIDOKConnectionKind = "mcp-http"
-	ResponsePutResponseCatalogIDOKConnectionKindMcpStdio  ResponsePutResponseCatalogIDOKConnectionKind = "mcp-stdio"
+	ResponsePutResponseCatalogIDOKConnectionKindHTTP            ResponsePutResponseCatalogIDOKConnectionKind = "http"
+	ResponsePutResponseCatalogIDOKConnectionKindSSH             ResponsePutResponseCatalogIDOKConnectionKind = "ssh"
+	ResponsePutResponseCatalogIDOKConnectionKindNetconfRestconf ResponsePutResponseCatalogIDOKConnectionKind = "netconf-restconf"
+	ResponsePutResponseCatalogIDOKConnectionKindAutomation      ResponsePutResponseCatalogIDOKConnectionKind = "automation"
+	ResponsePutResponseCatalogIDOKConnectionKindMcpHTTP         ResponsePutResponseCatalogIDOKConnectionKind = "mcp-http"
+	ResponsePutResponseCatalogIDOKConnectionKindMcpStdio        ResponsePutResponseCatalogIDOKConnectionKind = "mcp-stdio"
 )
 
 // AllValues returns all ResponsePutResponseCatalogIDOKConnectionKind values.
 func (ResponsePutResponseCatalogIDOKConnectionKind) AllValues() []ResponsePutResponseCatalogIDOKConnectionKind {
 	return []ResponsePutResponseCatalogIDOKConnectionKind{
-		ResponsePutResponseCatalogIDOKConnectionKindDeviceAPI,
-		ResponsePutResponseCatalogIDOKConnectionKindSSH,
 		ResponsePutResponseCatalogIDOKConnectionKindHTTP,
+		ResponsePutResponseCatalogIDOKConnectionKindSSH,
+		ResponsePutResponseCatalogIDOKConnectionKindNetconfRestconf,
+		ResponsePutResponseCatalogIDOKConnectionKindAutomation,
 		ResponsePutResponseCatalogIDOKConnectionKindMcpHTTP,
 		ResponsePutResponseCatalogIDOKConnectionKindMcpStdio,
 	}
@@ -116223,11 +115501,13 @@ func (ResponsePutResponseCatalogIDOKConnectionKind) AllValues() []ResponsePutRes
 // MarshalText implements encoding.TextMarshaler.
 func (s ResponsePutResponseCatalogIDOKConnectionKind) MarshalText() ([]byte, error) {
 	switch s {
-	case ResponsePutResponseCatalogIDOKConnectionKindDeviceAPI:
+	case ResponsePutResponseCatalogIDOKConnectionKindHTTP:
 		return []byte(s), nil
 	case ResponsePutResponseCatalogIDOKConnectionKindSSH:
 		return []byte(s), nil
-	case ResponsePutResponseCatalogIDOKConnectionKindHTTP:
+	case ResponsePutResponseCatalogIDOKConnectionKindNetconfRestconf:
+		return []byte(s), nil
+	case ResponsePutResponseCatalogIDOKConnectionKindAutomation:
 		return []byte(s), nil
 	case ResponsePutResponseCatalogIDOKConnectionKindMcpHTTP:
 		return []byte(s), nil
@@ -116241,103 +115521,23 @@ func (s ResponsePutResponseCatalogIDOKConnectionKind) MarshalText() ([]byte, err
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *ResponsePutResponseCatalogIDOKConnectionKind) UnmarshalText(data []byte) error {
 	switch ResponsePutResponseCatalogIDOKConnectionKind(data) {
-	case ResponsePutResponseCatalogIDOKConnectionKindDeviceAPI:
-		*s = ResponsePutResponseCatalogIDOKConnectionKindDeviceAPI
+	case ResponsePutResponseCatalogIDOKConnectionKindHTTP:
+		*s = ResponsePutResponseCatalogIDOKConnectionKindHTTP
 		return nil
 	case ResponsePutResponseCatalogIDOKConnectionKindSSH:
 		*s = ResponsePutResponseCatalogIDOKConnectionKindSSH
 		return nil
-	case ResponsePutResponseCatalogIDOKConnectionKindHTTP:
-		*s = ResponsePutResponseCatalogIDOKConnectionKindHTTP
+	case ResponsePutResponseCatalogIDOKConnectionKindNetconfRestconf:
+		*s = ResponsePutResponseCatalogIDOKConnectionKindNetconfRestconf
+		return nil
+	case ResponsePutResponseCatalogIDOKConnectionKindAutomation:
+		*s = ResponsePutResponseCatalogIDOKConnectionKindAutomation
 		return nil
 	case ResponsePutResponseCatalogIDOKConnectionKindMcpHTTP:
 		*s = ResponsePutResponseCatalogIDOKConnectionKindMcpHTTP
 		return nil
 	case ResponsePutResponseCatalogIDOKConnectionKindMcpStdio:
 		*s = ResponsePutResponseCatalogIDOKConnectionKindMcpStdio
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type ResponsePutResponseCatalogIDOKPack string
-
-const (
-	ResponsePutResponseCatalogIDOKPackBox       ResponsePutResponseCatalogIDOKPack = "box"
-	ResponsePutResponseCatalogIDOKPackFortigate ResponsePutResponseCatalogIDOKPack = "fortigate"
-	ResponsePutResponseCatalogIDOKPackMikrotik  ResponsePutResponseCatalogIDOKPack = "mikrotik"
-	ResponsePutResponseCatalogIDOKPackPfsense   ResponsePutResponseCatalogIDOKPack = "pfsense"
-	ResponsePutResponseCatalogIDOKPackOpnsense  ResponsePutResponseCatalogIDOKPack = "opnsense"
-	ResponsePutResponseCatalogIDOKPackSwitch    ResponsePutResponseCatalogIDOKPack = "switch"
-	ResponsePutResponseCatalogIDOKPackDNS       ResponsePutResponseCatalogIDOKPack = "dns"
-	ResponsePutResponseCatalogIDOKPackGeneric   ResponsePutResponseCatalogIDOKPack = "generic"
-)
-
-// AllValues returns all ResponsePutResponseCatalogIDOKPack values.
-func (ResponsePutResponseCatalogIDOKPack) AllValues() []ResponsePutResponseCatalogIDOKPack {
-	return []ResponsePutResponseCatalogIDOKPack{
-		ResponsePutResponseCatalogIDOKPackBox,
-		ResponsePutResponseCatalogIDOKPackFortigate,
-		ResponsePutResponseCatalogIDOKPackMikrotik,
-		ResponsePutResponseCatalogIDOKPackPfsense,
-		ResponsePutResponseCatalogIDOKPackOpnsense,
-		ResponsePutResponseCatalogIDOKPackSwitch,
-		ResponsePutResponseCatalogIDOKPackDNS,
-		ResponsePutResponseCatalogIDOKPackGeneric,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ResponsePutResponseCatalogIDOKPack) MarshalText() ([]byte, error) {
-	switch s {
-	case ResponsePutResponseCatalogIDOKPackBox:
-		return []byte(s), nil
-	case ResponsePutResponseCatalogIDOKPackFortigate:
-		return []byte(s), nil
-	case ResponsePutResponseCatalogIDOKPackMikrotik:
-		return []byte(s), nil
-	case ResponsePutResponseCatalogIDOKPackPfsense:
-		return []byte(s), nil
-	case ResponsePutResponseCatalogIDOKPackOpnsense:
-		return []byte(s), nil
-	case ResponsePutResponseCatalogIDOKPackSwitch:
-		return []byte(s), nil
-	case ResponsePutResponseCatalogIDOKPackDNS:
-		return []byte(s), nil
-	case ResponsePutResponseCatalogIDOKPackGeneric:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ResponsePutResponseCatalogIDOKPack) UnmarshalText(data []byte) error {
-	switch ResponsePutResponseCatalogIDOKPack(data) {
-	case ResponsePutResponseCatalogIDOKPackBox:
-		*s = ResponsePutResponseCatalogIDOKPackBox
-		return nil
-	case ResponsePutResponseCatalogIDOKPackFortigate:
-		*s = ResponsePutResponseCatalogIDOKPackFortigate
-		return nil
-	case ResponsePutResponseCatalogIDOKPackMikrotik:
-		*s = ResponsePutResponseCatalogIDOKPackMikrotik
-		return nil
-	case ResponsePutResponseCatalogIDOKPackPfsense:
-		*s = ResponsePutResponseCatalogIDOKPackPfsense
-		return nil
-	case ResponsePutResponseCatalogIDOKPackOpnsense:
-		*s = ResponsePutResponseCatalogIDOKPackOpnsense
-		return nil
-	case ResponsePutResponseCatalogIDOKPackSwitch:
-		*s = ResponsePutResponseCatalogIDOKPackSwitch
-		return nil
-	case ResponsePutResponseCatalogIDOKPackDNS:
-		*s = ResponsePutResponseCatalogIDOKPackDNS
-		return nil
-	case ResponsePutResponseCatalogIDOKPackGeneric:
-		*s = ResponsePutResponseCatalogIDOKPackGeneric
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -116354,6 +115554,8 @@ const (
 	ResponsePutResponseCatalogIDOKParamsItemMAC       ResponsePutResponseCatalogIDOKParamsItem = "mac"
 	ResponsePutResponseCatalogIDOKParamsItemVlan      ResponsePutResponseCatalogIDOKParamsItem = "vlan"
 	ResponsePutResponseCatalogIDOKParamsItemInterface ResponsePutResponseCatalogIDOKParamsItem = "interface"
+	ResponsePutResponseCatalogIDOKParamsItemID        ResponsePutResponseCatalogIDOKParamsItem = "id"
+	ResponsePutResponseCatalogIDOKParamsItemName      ResponsePutResponseCatalogIDOKParamsItem = "name"
 	ResponsePutResponseCatalogIDOKParamsItemText      ResponsePutResponseCatalogIDOKParamsItem = "text"
 )
 
@@ -116367,6 +115569,8 @@ func (ResponsePutResponseCatalogIDOKParamsItem) AllValues() []ResponsePutRespons
 		ResponsePutResponseCatalogIDOKParamsItemMAC,
 		ResponsePutResponseCatalogIDOKParamsItemVlan,
 		ResponsePutResponseCatalogIDOKParamsItemInterface,
+		ResponsePutResponseCatalogIDOKParamsItemID,
+		ResponsePutResponseCatalogIDOKParamsItemName,
 		ResponsePutResponseCatalogIDOKParamsItemText,
 	}
 }
@@ -116387,6 +115591,10 @@ func (s ResponsePutResponseCatalogIDOKParamsItem) MarshalText() ([]byte, error) 
 	case ResponsePutResponseCatalogIDOKParamsItemVlan:
 		return []byte(s), nil
 	case ResponsePutResponseCatalogIDOKParamsItemInterface:
+		return []byte(s), nil
+	case ResponsePutResponseCatalogIDOKParamsItemID:
+		return []byte(s), nil
+	case ResponsePutResponseCatalogIDOKParamsItemName:
 		return []byte(s), nil
 	case ResponsePutResponseCatalogIDOKParamsItemText:
 		return []byte(s), nil
@@ -116418,6 +115626,12 @@ func (s *ResponsePutResponseCatalogIDOKParamsItem) UnmarshalText(data []byte) er
 		return nil
 	case ResponsePutResponseCatalogIDOKParamsItemInterface:
 		*s = ResponsePutResponseCatalogIDOKParamsItemInterface
+		return nil
+	case ResponsePutResponseCatalogIDOKParamsItemID:
+		*s = ResponsePutResponseCatalogIDOKParamsItemID
+		return nil
+	case ResponsePutResponseCatalogIDOKParamsItemName:
+		*s = ResponsePutResponseCatalogIDOKParamsItemName
 		return nil
 	case ResponsePutResponseCatalogIDOKParamsItemText:
 		*s = ResponsePutResponseCatalogIDOKParamsItemText
@@ -116479,7 +115693,9 @@ type ResponsePutResponseCatalogIDOKRollback struct {
 	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
 	Body string `json:"body"`
 	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
-	// {interface}, {text}; shell characters are refused.
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
 	// HTTP headers, one "Name: value" per line, may be empty.
 	Headers string                                       `json:"headers"`
@@ -116544,6 +115760,7 @@ const (
 	ResponsePutResponseCatalogIDOKRollbackMethodEmpty  ResponsePutResponseCatalogIDOKRollbackMethod = ""
 	ResponsePutResponseCatalogIDOKRollbackMethodGET    ResponsePutResponseCatalogIDOKRollbackMethod = "GET"
 	ResponsePutResponseCatalogIDOKRollbackMethodPUT    ResponsePutResponseCatalogIDOKRollbackMethod = "PUT"
+	ResponsePutResponseCatalogIDOKRollbackMethodPATCH  ResponsePutResponseCatalogIDOKRollbackMethod = "PATCH"
 	ResponsePutResponseCatalogIDOKRollbackMethodPOST   ResponsePutResponseCatalogIDOKRollbackMethod = "POST"
 	ResponsePutResponseCatalogIDOKRollbackMethodDELETE ResponsePutResponseCatalogIDOKRollbackMethod = "DELETE"
 )
@@ -116554,6 +115771,7 @@ func (ResponsePutResponseCatalogIDOKRollbackMethod) AllValues() []ResponsePutRes
 		ResponsePutResponseCatalogIDOKRollbackMethodEmpty,
 		ResponsePutResponseCatalogIDOKRollbackMethodGET,
 		ResponsePutResponseCatalogIDOKRollbackMethodPUT,
+		ResponsePutResponseCatalogIDOKRollbackMethodPATCH,
 		ResponsePutResponseCatalogIDOKRollbackMethodPOST,
 		ResponsePutResponseCatalogIDOKRollbackMethodDELETE,
 	}
@@ -116567,6 +115785,8 @@ func (s ResponsePutResponseCatalogIDOKRollbackMethod) MarshalText() ([]byte, err
 	case ResponsePutResponseCatalogIDOKRollbackMethodGET:
 		return []byte(s), nil
 	case ResponsePutResponseCatalogIDOKRollbackMethodPUT:
+		return []byte(s), nil
+	case ResponsePutResponseCatalogIDOKRollbackMethodPATCH:
 		return []byte(s), nil
 	case ResponsePutResponseCatalogIDOKRollbackMethodPOST:
 		return []byte(s), nil
@@ -116589,6 +115809,9 @@ func (s *ResponsePutResponseCatalogIDOKRollbackMethod) UnmarshalText(data []byte
 	case ResponsePutResponseCatalogIDOKRollbackMethodPUT:
 		*s = ResponsePutResponseCatalogIDOKRollbackMethodPUT
 		return nil
+	case ResponsePutResponseCatalogIDOKRollbackMethodPATCH:
+		*s = ResponsePutResponseCatalogIDOKRollbackMethodPATCH
+		return nil
 	case ResponsePutResponseCatalogIDOKRollbackMethodPOST:
 		*s = ResponsePutResponseCatalogIDOKRollbackMethodPOST
 		return nil
@@ -116604,7 +115827,9 @@ type ResponsePutResponseCatalogIDOKRun struct {
 	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
 	Body string `json:"body"`
 	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
-	// {interface}, {text}; shell characters are refused.
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
 	// HTTP headers, one "Name: value" per line, may be empty.
 	Headers string                                  `json:"headers"`
@@ -116669,6 +115894,7 @@ const (
 	ResponsePutResponseCatalogIDOKRunMethodEmpty  ResponsePutResponseCatalogIDOKRunMethod = ""
 	ResponsePutResponseCatalogIDOKRunMethodGET    ResponsePutResponseCatalogIDOKRunMethod = "GET"
 	ResponsePutResponseCatalogIDOKRunMethodPUT    ResponsePutResponseCatalogIDOKRunMethod = "PUT"
+	ResponsePutResponseCatalogIDOKRunMethodPATCH  ResponsePutResponseCatalogIDOKRunMethod = "PATCH"
 	ResponsePutResponseCatalogIDOKRunMethodPOST   ResponsePutResponseCatalogIDOKRunMethod = "POST"
 	ResponsePutResponseCatalogIDOKRunMethodDELETE ResponsePutResponseCatalogIDOKRunMethod = "DELETE"
 )
@@ -116679,6 +115905,7 @@ func (ResponsePutResponseCatalogIDOKRunMethod) AllValues() []ResponsePutResponse
 		ResponsePutResponseCatalogIDOKRunMethodEmpty,
 		ResponsePutResponseCatalogIDOKRunMethodGET,
 		ResponsePutResponseCatalogIDOKRunMethodPUT,
+		ResponsePutResponseCatalogIDOKRunMethodPATCH,
 		ResponsePutResponseCatalogIDOKRunMethodPOST,
 		ResponsePutResponseCatalogIDOKRunMethodDELETE,
 	}
@@ -116692,6 +115919,8 @@ func (s ResponsePutResponseCatalogIDOKRunMethod) MarshalText() ([]byte, error) {
 	case ResponsePutResponseCatalogIDOKRunMethodGET:
 		return []byte(s), nil
 	case ResponsePutResponseCatalogIDOKRunMethodPUT:
+		return []byte(s), nil
+	case ResponsePutResponseCatalogIDOKRunMethodPATCH:
 		return []byte(s), nil
 	case ResponsePutResponseCatalogIDOKRunMethodPOST:
 		return []byte(s), nil
@@ -116714,6 +115943,9 @@ func (s *ResponsePutResponseCatalogIDOKRunMethod) UnmarshalText(data []byte) err
 	case ResponsePutResponseCatalogIDOKRunMethodPUT:
 		*s = ResponsePutResponseCatalogIDOKRunMethodPUT
 		return nil
+	case ResponsePutResponseCatalogIDOKRunMethodPATCH:
+		*s = ResponsePutResponseCatalogIDOKRunMethodPATCH
+		return nil
 	case ResponsePutResponseCatalogIDOKRunMethodPOST:
 		*s = ResponsePutResponseCatalogIDOKRunMethodPOST
 		return nil
@@ -116729,7 +115961,9 @@ type ResponsePutResponseCatalogIDOKVerify struct {
 	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
 	Body string `json:"body"`
 	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
-	// {interface}, {text}; shell characters are refused.
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
 	// HTTP headers, one "Name: value" per line, may be empty.
 	Headers string                                     `json:"headers"`
@@ -116794,6 +116028,7 @@ const (
 	ResponsePutResponseCatalogIDOKVerifyMethodEmpty  ResponsePutResponseCatalogIDOKVerifyMethod = ""
 	ResponsePutResponseCatalogIDOKVerifyMethodGET    ResponsePutResponseCatalogIDOKVerifyMethod = "GET"
 	ResponsePutResponseCatalogIDOKVerifyMethodPUT    ResponsePutResponseCatalogIDOKVerifyMethod = "PUT"
+	ResponsePutResponseCatalogIDOKVerifyMethodPATCH  ResponsePutResponseCatalogIDOKVerifyMethod = "PATCH"
 	ResponsePutResponseCatalogIDOKVerifyMethodPOST   ResponsePutResponseCatalogIDOKVerifyMethod = "POST"
 	ResponsePutResponseCatalogIDOKVerifyMethodDELETE ResponsePutResponseCatalogIDOKVerifyMethod = "DELETE"
 )
@@ -116804,6 +116039,7 @@ func (ResponsePutResponseCatalogIDOKVerifyMethod) AllValues() []ResponsePutRespo
 		ResponsePutResponseCatalogIDOKVerifyMethodEmpty,
 		ResponsePutResponseCatalogIDOKVerifyMethodGET,
 		ResponsePutResponseCatalogIDOKVerifyMethodPUT,
+		ResponsePutResponseCatalogIDOKVerifyMethodPATCH,
 		ResponsePutResponseCatalogIDOKVerifyMethodPOST,
 		ResponsePutResponseCatalogIDOKVerifyMethodDELETE,
 	}
@@ -116817,6 +116053,8 @@ func (s ResponsePutResponseCatalogIDOKVerifyMethod) MarshalText() ([]byte, error
 	case ResponsePutResponseCatalogIDOKVerifyMethodGET:
 		return []byte(s), nil
 	case ResponsePutResponseCatalogIDOKVerifyMethodPUT:
+		return []byte(s), nil
+	case ResponsePutResponseCatalogIDOKVerifyMethodPATCH:
 		return []byte(s), nil
 	case ResponsePutResponseCatalogIDOKVerifyMethodPOST:
 		return []byte(s), nil
@@ -116838,6 +116076,9 @@ func (s *ResponsePutResponseCatalogIDOKVerifyMethod) UnmarshalText(data []byte) 
 		return nil
 	case ResponsePutResponseCatalogIDOKVerifyMethodPUT:
 		*s = ResponsePutResponseCatalogIDOKVerifyMethodPUT
+		return nil
+	case ResponsePutResponseCatalogIDOKVerifyMethodPATCH:
+		*s = ResponsePutResponseCatalogIDOKVerifyMethodPATCH
 		return nil
 	case ResponsePutResponseCatalogIDOKVerifyMethodPOST:
 		*s = ResponsePutResponseCatalogIDOKVerifyMethodPOST
@@ -117028,7 +116269,9 @@ type ResponsePutResponseCatalogIDReqRollback struct {
 	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
 	Body string `json:"body"`
 	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
-	// {interface}, {text}; shell characters are refused.
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
 	// HTTP headers, one "Name: value" per line, may be empty.
 	Headers string                                        `json:"headers"`
@@ -117093,6 +116336,7 @@ const (
 	ResponsePutResponseCatalogIDReqRollbackMethodEmpty  ResponsePutResponseCatalogIDReqRollbackMethod = ""
 	ResponsePutResponseCatalogIDReqRollbackMethodGET    ResponsePutResponseCatalogIDReqRollbackMethod = "GET"
 	ResponsePutResponseCatalogIDReqRollbackMethodPUT    ResponsePutResponseCatalogIDReqRollbackMethod = "PUT"
+	ResponsePutResponseCatalogIDReqRollbackMethodPATCH  ResponsePutResponseCatalogIDReqRollbackMethod = "PATCH"
 	ResponsePutResponseCatalogIDReqRollbackMethodPOST   ResponsePutResponseCatalogIDReqRollbackMethod = "POST"
 	ResponsePutResponseCatalogIDReqRollbackMethodDELETE ResponsePutResponseCatalogIDReqRollbackMethod = "DELETE"
 )
@@ -117103,6 +116347,7 @@ func (ResponsePutResponseCatalogIDReqRollbackMethod) AllValues() []ResponsePutRe
 		ResponsePutResponseCatalogIDReqRollbackMethodEmpty,
 		ResponsePutResponseCatalogIDReqRollbackMethodGET,
 		ResponsePutResponseCatalogIDReqRollbackMethodPUT,
+		ResponsePutResponseCatalogIDReqRollbackMethodPATCH,
 		ResponsePutResponseCatalogIDReqRollbackMethodPOST,
 		ResponsePutResponseCatalogIDReqRollbackMethodDELETE,
 	}
@@ -117116,6 +116361,8 @@ func (s ResponsePutResponseCatalogIDReqRollbackMethod) MarshalText() ([]byte, er
 	case ResponsePutResponseCatalogIDReqRollbackMethodGET:
 		return []byte(s), nil
 	case ResponsePutResponseCatalogIDReqRollbackMethodPUT:
+		return []byte(s), nil
+	case ResponsePutResponseCatalogIDReqRollbackMethodPATCH:
 		return []byte(s), nil
 	case ResponsePutResponseCatalogIDReqRollbackMethodPOST:
 		return []byte(s), nil
@@ -117138,6 +116385,9 @@ func (s *ResponsePutResponseCatalogIDReqRollbackMethod) UnmarshalText(data []byt
 	case ResponsePutResponseCatalogIDReqRollbackMethodPUT:
 		*s = ResponsePutResponseCatalogIDReqRollbackMethodPUT
 		return nil
+	case ResponsePutResponseCatalogIDReqRollbackMethodPATCH:
+		*s = ResponsePutResponseCatalogIDReqRollbackMethodPATCH
+		return nil
 	case ResponsePutResponseCatalogIDReqRollbackMethodPOST:
 		*s = ResponsePutResponseCatalogIDReqRollbackMethodPOST
 		return nil
@@ -117153,7 +116403,9 @@ type ResponsePutResponseCatalogIDReqRun struct {
 	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
 	Body string `json:"body"`
 	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
-	// {interface}, {text}; shell characters are refused.
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
 	// HTTP headers, one "Name: value" per line, may be empty.
 	Headers string                                   `json:"headers"`
@@ -117218,6 +116470,7 @@ const (
 	ResponsePutResponseCatalogIDReqRunMethodEmpty  ResponsePutResponseCatalogIDReqRunMethod = ""
 	ResponsePutResponseCatalogIDReqRunMethodGET    ResponsePutResponseCatalogIDReqRunMethod = "GET"
 	ResponsePutResponseCatalogIDReqRunMethodPUT    ResponsePutResponseCatalogIDReqRunMethod = "PUT"
+	ResponsePutResponseCatalogIDReqRunMethodPATCH  ResponsePutResponseCatalogIDReqRunMethod = "PATCH"
 	ResponsePutResponseCatalogIDReqRunMethodPOST   ResponsePutResponseCatalogIDReqRunMethod = "POST"
 	ResponsePutResponseCatalogIDReqRunMethodDELETE ResponsePutResponseCatalogIDReqRunMethod = "DELETE"
 )
@@ -117228,6 +116481,7 @@ func (ResponsePutResponseCatalogIDReqRunMethod) AllValues() []ResponsePutRespons
 		ResponsePutResponseCatalogIDReqRunMethodEmpty,
 		ResponsePutResponseCatalogIDReqRunMethodGET,
 		ResponsePutResponseCatalogIDReqRunMethodPUT,
+		ResponsePutResponseCatalogIDReqRunMethodPATCH,
 		ResponsePutResponseCatalogIDReqRunMethodPOST,
 		ResponsePutResponseCatalogIDReqRunMethodDELETE,
 	}
@@ -117241,6 +116495,8 @@ func (s ResponsePutResponseCatalogIDReqRunMethod) MarshalText() ([]byte, error) 
 	case ResponsePutResponseCatalogIDReqRunMethodGET:
 		return []byte(s), nil
 	case ResponsePutResponseCatalogIDReqRunMethodPUT:
+		return []byte(s), nil
+	case ResponsePutResponseCatalogIDReqRunMethodPATCH:
 		return []byte(s), nil
 	case ResponsePutResponseCatalogIDReqRunMethodPOST:
 		return []byte(s), nil
@@ -117263,6 +116519,9 @@ func (s *ResponsePutResponseCatalogIDReqRunMethod) UnmarshalText(data []byte) er
 	case ResponsePutResponseCatalogIDReqRunMethodPUT:
 		*s = ResponsePutResponseCatalogIDReqRunMethodPUT
 		return nil
+	case ResponsePutResponseCatalogIDReqRunMethodPATCH:
+		*s = ResponsePutResponseCatalogIDReqRunMethodPATCH
+		return nil
 	case ResponsePutResponseCatalogIDReqRunMethodPOST:
 		*s = ResponsePutResponseCatalogIDReqRunMethodPOST
 		return nil
@@ -117278,7 +116537,9 @@ type ResponsePutResponseCatalogIDReqVerify struct {
 	// JSON body (for an MCP server: the tool arguments as JSON), may be empty.
 	Body string `json:"body"`
 	// Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan},
-	// {interface}, {text}; shell characters are refused.
+	// {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values
+	// Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s},
+	// {timeout}, {rules_before}) are shown as and so on.
 	Cli string `json:"cli"`
 	// HTTP headers, one "Name: value" per line, may be empty.
 	Headers string                                      `json:"headers"`
@@ -117343,6 +116604,7 @@ const (
 	ResponsePutResponseCatalogIDReqVerifyMethodEmpty  ResponsePutResponseCatalogIDReqVerifyMethod = ""
 	ResponsePutResponseCatalogIDReqVerifyMethodGET    ResponsePutResponseCatalogIDReqVerifyMethod = "GET"
 	ResponsePutResponseCatalogIDReqVerifyMethodPUT    ResponsePutResponseCatalogIDReqVerifyMethod = "PUT"
+	ResponsePutResponseCatalogIDReqVerifyMethodPATCH  ResponsePutResponseCatalogIDReqVerifyMethod = "PATCH"
 	ResponsePutResponseCatalogIDReqVerifyMethodPOST   ResponsePutResponseCatalogIDReqVerifyMethod = "POST"
 	ResponsePutResponseCatalogIDReqVerifyMethodDELETE ResponsePutResponseCatalogIDReqVerifyMethod = "DELETE"
 )
@@ -117353,6 +116615,7 @@ func (ResponsePutResponseCatalogIDReqVerifyMethod) AllValues() []ResponsePutResp
 		ResponsePutResponseCatalogIDReqVerifyMethodEmpty,
 		ResponsePutResponseCatalogIDReqVerifyMethodGET,
 		ResponsePutResponseCatalogIDReqVerifyMethodPUT,
+		ResponsePutResponseCatalogIDReqVerifyMethodPATCH,
 		ResponsePutResponseCatalogIDReqVerifyMethodPOST,
 		ResponsePutResponseCatalogIDReqVerifyMethodDELETE,
 	}
@@ -117366,6 +116629,8 @@ func (s ResponsePutResponseCatalogIDReqVerifyMethod) MarshalText() ([]byte, erro
 	case ResponsePutResponseCatalogIDReqVerifyMethodGET:
 		return []byte(s), nil
 	case ResponsePutResponseCatalogIDReqVerifyMethodPUT:
+		return []byte(s), nil
+	case ResponsePutResponseCatalogIDReqVerifyMethodPATCH:
 		return []byte(s), nil
 	case ResponsePutResponseCatalogIDReqVerifyMethodPOST:
 		return []byte(s), nil
@@ -117387,6 +116652,9 @@ func (s *ResponsePutResponseCatalogIDReqVerifyMethod) UnmarshalText(data []byte)
 		return nil
 	case ResponsePutResponseCatalogIDReqVerifyMethodPUT:
 		*s = ResponsePutResponseCatalogIDReqVerifyMethodPUT
+		return nil
+	case ResponsePutResponseCatalogIDReqVerifyMethodPATCH:
+		*s = ResponsePutResponseCatalogIDReqVerifyMethodPATCH
 		return nil
 	case ResponsePutResponseCatalogIDReqVerifyMethodPOST:
 		*s = ResponsePutResponseCatalogIDReqVerifyMethodPOST
@@ -119110,7 +118378,7 @@ type ScanGetScansConfigOKConfigSchedule struct {
 	At        string                                      `json:"at"`
 	Enabled   bool                                        `json:"enabled"`
 	Frequency ScanGetScansConfigOKConfigScheduleFrequency `json:"frequency"`
-	// 0 = Sunday … 6 = Saturday.
+	// 1 = Monday … 7 = Sunday (D-57).
 	Weekday int `json:"weekday"`
 }
 
@@ -119314,7 +118582,8 @@ type ScanGetScansCredentialedOKItemsItem struct {
 	CreatedAt time.Time `json:"created_at"`
 	Host      string    `json:"host"`
 	ID        string    `json:"id"`
-	// Last 4 characters only; the private key is never stored or returned (SYS-4).
+	// Last 4 characters only. The private key is stored encrypted on the box (SYS-4) and never shown or
+	// returned again (D-57).
 	KeyLast4 string                                         `json:"key_last4"`
 	Label    string                                         `json:"label"`
 	LastTest NilScanGetScansCredentialedOKItemsItemLastTest `json:"last_test"`
@@ -120588,12 +119857,153 @@ func (s *ScanGetScansTargetsOKItemsItemReason) UnmarshalText(data []byte) error 
 	}
 }
 
+type ScanPostScansCredentialedCreated struct {
+	AssetID   string    `json:"asset_id"`
+	CreatedAt time.Time `json:"created_at"`
+	Host      string    `json:"host"`
+	ID        string    `json:"id"`
+	// Last 4 characters only. The private key is stored encrypted on the box (SYS-4) and never shown or
+	// returned again (D-57).
+	KeyLast4 string                                      `json:"key_last4"`
+	Label    string                                      `json:"label"`
+	LastTest NilScanPostScansCredentialedCreatedLastTest `json:"last_test"`
+	Port     int                                         `json:"port"`
+	Username string                                      `json:"username"`
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *ScanPostScansCredentialedCreated) GetAssetID() string {
+	return s.AssetID
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ScanPostScansCredentialedCreated) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetHost returns the value of Host.
+func (s *ScanPostScansCredentialedCreated) GetHost() string {
+	return s.Host
+}
+
+// GetID returns the value of ID.
+func (s *ScanPostScansCredentialedCreated) GetID() string {
+	return s.ID
+}
+
+// GetKeyLast4 returns the value of KeyLast4.
+func (s *ScanPostScansCredentialedCreated) GetKeyLast4() string {
+	return s.KeyLast4
+}
+
+// GetLabel returns the value of Label.
+func (s *ScanPostScansCredentialedCreated) GetLabel() string {
+	return s.Label
+}
+
+// GetLastTest returns the value of LastTest.
+func (s *ScanPostScansCredentialedCreated) GetLastTest() NilScanPostScansCredentialedCreatedLastTest {
+	return s.LastTest
+}
+
+// GetPort returns the value of Port.
+func (s *ScanPostScansCredentialedCreated) GetPort() int {
+	return s.Port
+}
+
+// GetUsername returns the value of Username.
+func (s *ScanPostScansCredentialedCreated) GetUsername() string {
+	return s.Username
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *ScanPostScansCredentialedCreated) SetAssetID(val string) {
+	s.AssetID = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ScanPostScansCredentialedCreated) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetHost sets the value of Host.
+func (s *ScanPostScansCredentialedCreated) SetHost(val string) {
+	s.Host = val
+}
+
+// SetID sets the value of ID.
+func (s *ScanPostScansCredentialedCreated) SetID(val string) {
+	s.ID = val
+}
+
+// SetKeyLast4 sets the value of KeyLast4.
+func (s *ScanPostScansCredentialedCreated) SetKeyLast4(val string) {
+	s.KeyLast4 = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ScanPostScansCredentialedCreated) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetLastTest sets the value of LastTest.
+func (s *ScanPostScansCredentialedCreated) SetLastTest(val NilScanPostScansCredentialedCreatedLastTest) {
+	s.LastTest = val
+}
+
+// SetPort sets the value of Port.
+func (s *ScanPostScansCredentialedCreated) SetPort(val int) {
+	s.Port = val
+}
+
+// SetUsername sets the value of Username.
+func (s *ScanPostScansCredentialedCreated) SetUsername(val string) {
+	s.Username = val
+}
+
+type ScanPostScansCredentialedCreatedLastTest struct {
+	Message string    `json:"message"`
+	Ok      bool      `json:"ok"`
+	Ts      time.Time `json:"ts"`
+}
+
+// GetMessage returns the value of Message.
+func (s *ScanPostScansCredentialedCreatedLastTest) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *ScanPostScansCredentialedCreatedLastTest) GetOk() bool {
+	return s.Ok
+}
+
+// GetTs returns the value of Ts.
+func (s *ScanPostScansCredentialedCreatedLastTest) GetTs() time.Time {
+	return s.Ts
+}
+
+// SetMessage sets the value of Message.
+func (s *ScanPostScansCredentialedCreatedLastTest) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ScanPostScansCredentialedCreatedLastTest) SetOk(val bool) {
+	s.Ok = val
+}
+
+// SetTs sets the value of Ts.
+func (s *ScanPostScansCredentialedCreatedLastTest) SetTs(val time.Time) {
+	s.Ts = val
+}
+
 type ScanPostScansCredentialedIDTestOK struct {
 	AssetID   string    `json:"asset_id"`
 	CreatedAt time.Time `json:"created_at"`
 	Host      string    `json:"host"`
 	ID        string    `json:"id"`
-	// Last 4 characters only; the private key is never stored or returned (SYS-4).
+	// Last 4 characters only. The private key is stored encrypted on the box (SYS-4) and never shown or
+	// returned again (D-57).
 	KeyLast4 string                                       `json:"key_last4"`
 	Label    string                                       `json:"label"`
 	LastTest NilScanPostScansCredentialedIDTestOKLastTest `json:"last_test"`
@@ -120727,145 +120137,6 @@ func (s *ScanPostScansCredentialedIDTestOKLastTest) SetTs(val time.Time) {
 	s.Ts = val
 }
 
-type ScanPostScansCredentialedOK struct {
-	AssetID   string    `json:"asset_id"`
-	CreatedAt time.Time `json:"created_at"`
-	Host      string    `json:"host"`
-	ID        string    `json:"id"`
-	// Last 4 characters only; the private key is never stored or returned (SYS-4).
-	KeyLast4 string                                 `json:"key_last4"`
-	Label    string                                 `json:"label"`
-	LastTest NilScanPostScansCredentialedOKLastTest `json:"last_test"`
-	Port     int                                    `json:"port"`
-	Username string                                 `json:"username"`
-}
-
-// GetAssetID returns the value of AssetID.
-func (s *ScanPostScansCredentialedOK) GetAssetID() string {
-	return s.AssetID
-}
-
-// GetCreatedAt returns the value of CreatedAt.
-func (s *ScanPostScansCredentialedOK) GetCreatedAt() time.Time {
-	return s.CreatedAt
-}
-
-// GetHost returns the value of Host.
-func (s *ScanPostScansCredentialedOK) GetHost() string {
-	return s.Host
-}
-
-// GetID returns the value of ID.
-func (s *ScanPostScansCredentialedOK) GetID() string {
-	return s.ID
-}
-
-// GetKeyLast4 returns the value of KeyLast4.
-func (s *ScanPostScansCredentialedOK) GetKeyLast4() string {
-	return s.KeyLast4
-}
-
-// GetLabel returns the value of Label.
-func (s *ScanPostScansCredentialedOK) GetLabel() string {
-	return s.Label
-}
-
-// GetLastTest returns the value of LastTest.
-func (s *ScanPostScansCredentialedOK) GetLastTest() NilScanPostScansCredentialedOKLastTest {
-	return s.LastTest
-}
-
-// GetPort returns the value of Port.
-func (s *ScanPostScansCredentialedOK) GetPort() int {
-	return s.Port
-}
-
-// GetUsername returns the value of Username.
-func (s *ScanPostScansCredentialedOK) GetUsername() string {
-	return s.Username
-}
-
-// SetAssetID sets the value of AssetID.
-func (s *ScanPostScansCredentialedOK) SetAssetID(val string) {
-	s.AssetID = val
-}
-
-// SetCreatedAt sets the value of CreatedAt.
-func (s *ScanPostScansCredentialedOK) SetCreatedAt(val time.Time) {
-	s.CreatedAt = val
-}
-
-// SetHost sets the value of Host.
-func (s *ScanPostScansCredentialedOK) SetHost(val string) {
-	s.Host = val
-}
-
-// SetID sets the value of ID.
-func (s *ScanPostScansCredentialedOK) SetID(val string) {
-	s.ID = val
-}
-
-// SetKeyLast4 sets the value of KeyLast4.
-func (s *ScanPostScansCredentialedOK) SetKeyLast4(val string) {
-	s.KeyLast4 = val
-}
-
-// SetLabel sets the value of Label.
-func (s *ScanPostScansCredentialedOK) SetLabel(val string) {
-	s.Label = val
-}
-
-// SetLastTest sets the value of LastTest.
-func (s *ScanPostScansCredentialedOK) SetLastTest(val NilScanPostScansCredentialedOKLastTest) {
-	s.LastTest = val
-}
-
-// SetPort sets the value of Port.
-func (s *ScanPostScansCredentialedOK) SetPort(val int) {
-	s.Port = val
-}
-
-// SetUsername sets the value of Username.
-func (s *ScanPostScansCredentialedOK) SetUsername(val string) {
-	s.Username = val
-}
-
-type ScanPostScansCredentialedOKLastTest struct {
-	Message string    `json:"message"`
-	Ok      bool      `json:"ok"`
-	Ts      time.Time `json:"ts"`
-}
-
-// GetMessage returns the value of Message.
-func (s *ScanPostScansCredentialedOKLastTest) GetMessage() string {
-	return s.Message
-}
-
-// GetOk returns the value of Ok.
-func (s *ScanPostScansCredentialedOKLastTest) GetOk() bool {
-	return s.Ok
-}
-
-// GetTs returns the value of Ts.
-func (s *ScanPostScansCredentialedOKLastTest) GetTs() time.Time {
-	return s.Ts
-}
-
-// SetMessage sets the value of Message.
-func (s *ScanPostScansCredentialedOKLastTest) SetMessage(val string) {
-	s.Message = val
-}
-
-// SetOk sets the value of Ok.
-func (s *ScanPostScansCredentialedOKLastTest) SetOk(val bool) {
-	s.Ok = val
-}
-
-// SetTs sets the value of Ts.
-func (s *ScanPostScansCredentialedOKLastTest) SetTs(val time.Time) {
-	s.Ts = val
-}
-
 type ScanPostScansCredentialedReq struct {
 	AssetID    string `json:"asset_id"`
 	Port       int    `json:"port"`
@@ -120911,6 +120182,436 @@ func (s *ScanPostScansCredentialedReq) SetPrivateKey(val string) {
 // SetUsername sets the value of Username.
 func (s *ScanPostScansCredentialedReq) SetUsername(val string) {
 	s.Username = val
+}
+
+type ScanPostScansRunsCreated struct {
+	Current     NilScanPostScansRunsCreatedCurrent    `json:"current"`
+	Done        int                                   `json:"done"`
+	EndedAt     NilDateTime                           `json:"ended_at"`
+	ID          string                                `json:"id"`
+	Matched     int                                   `json:"matched"`
+	Results     []ScanPostScansRunsCreatedResultsItem `json:"results"`
+	StartedAt   time.Time                             `json:"started_at"`
+	StartedBy   string                                `json:"started_by"`
+	Status      ScanPostScansRunsCreatedStatus        `json:"status"`
+	StopReason  NilString                             `json:"stop_reason"`
+	Total       int                                   `json:"total"`
+	Trigger     ScanPostScansRunsCreatedTrigger       `json:"trigger"`
+	TriggerNote NilString                             `json:"trigger_note"`
+}
+
+// GetCurrent returns the value of Current.
+func (s *ScanPostScansRunsCreated) GetCurrent() NilScanPostScansRunsCreatedCurrent {
+	return s.Current
+}
+
+// GetDone returns the value of Done.
+func (s *ScanPostScansRunsCreated) GetDone() int {
+	return s.Done
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *ScanPostScansRunsCreated) GetEndedAt() NilDateTime {
+	return s.EndedAt
+}
+
+// GetID returns the value of ID.
+func (s *ScanPostScansRunsCreated) GetID() string {
+	return s.ID
+}
+
+// GetMatched returns the value of Matched.
+func (s *ScanPostScansRunsCreated) GetMatched() int {
+	return s.Matched
+}
+
+// GetResults returns the value of Results.
+func (s *ScanPostScansRunsCreated) GetResults() []ScanPostScansRunsCreatedResultsItem {
+	return s.Results
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ScanPostScansRunsCreated) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStartedBy returns the value of StartedBy.
+func (s *ScanPostScansRunsCreated) GetStartedBy() string {
+	return s.StartedBy
+}
+
+// GetStatus returns the value of Status.
+func (s *ScanPostScansRunsCreated) GetStatus() ScanPostScansRunsCreatedStatus {
+	return s.Status
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ScanPostScansRunsCreated) GetStopReason() NilString {
+	return s.StopReason
+}
+
+// GetTotal returns the value of Total.
+func (s *ScanPostScansRunsCreated) GetTotal() int {
+	return s.Total
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ScanPostScansRunsCreated) GetTrigger() ScanPostScansRunsCreatedTrigger {
+	return s.Trigger
+}
+
+// GetTriggerNote returns the value of TriggerNote.
+func (s *ScanPostScansRunsCreated) GetTriggerNote() NilString {
+	return s.TriggerNote
+}
+
+// SetCurrent sets the value of Current.
+func (s *ScanPostScansRunsCreated) SetCurrent(val NilScanPostScansRunsCreatedCurrent) {
+	s.Current = val
+}
+
+// SetDone sets the value of Done.
+func (s *ScanPostScansRunsCreated) SetDone(val int) {
+	s.Done = val
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *ScanPostScansRunsCreated) SetEndedAt(val NilDateTime) {
+	s.EndedAt = val
+}
+
+// SetID sets the value of ID.
+func (s *ScanPostScansRunsCreated) SetID(val string) {
+	s.ID = val
+}
+
+// SetMatched sets the value of Matched.
+func (s *ScanPostScansRunsCreated) SetMatched(val int) {
+	s.Matched = val
+}
+
+// SetResults sets the value of Results.
+func (s *ScanPostScansRunsCreated) SetResults(val []ScanPostScansRunsCreatedResultsItem) {
+	s.Results = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ScanPostScansRunsCreated) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStartedBy sets the value of StartedBy.
+func (s *ScanPostScansRunsCreated) SetStartedBy(val string) {
+	s.StartedBy = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ScanPostScansRunsCreated) SetStatus(val ScanPostScansRunsCreatedStatus) {
+	s.Status = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ScanPostScansRunsCreated) SetStopReason(val NilString) {
+	s.StopReason = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ScanPostScansRunsCreated) SetTotal(val int) {
+	s.Total = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ScanPostScansRunsCreated) SetTrigger(val ScanPostScansRunsCreatedTrigger) {
+	s.Trigger = val
+}
+
+// SetTriggerNote sets the value of TriggerNote.
+func (s *ScanPostScansRunsCreated) SetTriggerNote(val NilString) {
+	s.TriggerNote = val
+}
+
+type ScanPostScansRunsCreatedCurrent struct {
+	IP    string `json:"ip"`
+	Label string `json:"label"`
+}
+
+// GetIP returns the value of IP.
+func (s *ScanPostScansRunsCreatedCurrent) GetIP() string {
+	return s.IP
+}
+
+// GetLabel returns the value of Label.
+func (s *ScanPostScansRunsCreatedCurrent) GetLabel() string {
+	return s.Label
+}
+
+// SetIP sets the value of IP.
+func (s *ScanPostScansRunsCreatedCurrent) SetIP(val string) {
+	s.IP = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ScanPostScansRunsCreatedCurrent) SetLabel(val string) {
+	s.Label = val
+}
+
+type ScanPostScansRunsCreatedResultsItem struct {
+	FindingID NilString                                 `json:"finding_id"`
+	IP        string                                    `json:"ip"`
+	Label     string                                    `json:"label"`
+	Note      string                                    `json:"note"`
+	Result    ScanPostScansRunsCreatedResultsItemResult `json:"result"`
+	TargetID  string                                    `json:"target_id"`
+	Template  NilString                                 `json:"template"`
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ScanPostScansRunsCreatedResultsItem) GetFindingID() NilString {
+	return s.FindingID
+}
+
+// GetIP returns the value of IP.
+func (s *ScanPostScansRunsCreatedResultsItem) GetIP() string {
+	return s.IP
+}
+
+// GetLabel returns the value of Label.
+func (s *ScanPostScansRunsCreatedResultsItem) GetLabel() string {
+	return s.Label
+}
+
+// GetNote returns the value of Note.
+func (s *ScanPostScansRunsCreatedResultsItem) GetNote() string {
+	return s.Note
+}
+
+// GetResult returns the value of Result.
+func (s *ScanPostScansRunsCreatedResultsItem) GetResult() ScanPostScansRunsCreatedResultsItemResult {
+	return s.Result
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ScanPostScansRunsCreatedResultsItem) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTemplate returns the value of Template.
+func (s *ScanPostScansRunsCreatedResultsItem) GetTemplate() NilString {
+	return s.Template
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ScanPostScansRunsCreatedResultsItem) SetFindingID(val NilString) {
+	s.FindingID = val
+}
+
+// SetIP sets the value of IP.
+func (s *ScanPostScansRunsCreatedResultsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ScanPostScansRunsCreatedResultsItem) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetNote sets the value of Note.
+func (s *ScanPostScansRunsCreatedResultsItem) SetNote(val string) {
+	s.Note = val
+}
+
+// SetResult sets the value of Result.
+func (s *ScanPostScansRunsCreatedResultsItem) SetResult(val ScanPostScansRunsCreatedResultsItemResult) {
+	s.Result = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ScanPostScansRunsCreatedResultsItem) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTemplate sets the value of Template.
+func (s *ScanPostScansRunsCreatedResultsItem) SetTemplate(val NilString) {
+	s.Template = val
+}
+
+type ScanPostScansRunsCreatedResultsItemResult string
+
+const (
+	ScanPostScansRunsCreatedResultsItemResultMatched       ScanPostScansRunsCreatedResultsItemResult = "matched"
+	ScanPostScansRunsCreatedResultsItemResultNotMatched    ScanPostScansRunsCreatedResultsItemResult = "not_matched"
+	ScanPostScansRunsCreatedResultsItemResultNotApplicable ScanPostScansRunsCreatedResultsItemResult = "not_applicable"
+	ScanPostScansRunsCreatedResultsItemResultNoTemplate    ScanPostScansRunsCreatedResultsItemResult = "no_template"
+	ScanPostScansRunsCreatedResultsItemResultNoResponse    ScanPostScansRunsCreatedResultsItemResult = "no_response"
+	ScanPostScansRunsCreatedResultsItemResultSkipped       ScanPostScansRunsCreatedResultsItemResult = "skipped"
+)
+
+// AllValues returns all ScanPostScansRunsCreatedResultsItemResult values.
+func (ScanPostScansRunsCreatedResultsItemResult) AllValues() []ScanPostScansRunsCreatedResultsItemResult {
+	return []ScanPostScansRunsCreatedResultsItemResult{
+		ScanPostScansRunsCreatedResultsItemResultMatched,
+		ScanPostScansRunsCreatedResultsItemResultNotMatched,
+		ScanPostScansRunsCreatedResultsItemResultNotApplicable,
+		ScanPostScansRunsCreatedResultsItemResultNoTemplate,
+		ScanPostScansRunsCreatedResultsItemResultNoResponse,
+		ScanPostScansRunsCreatedResultsItemResultSkipped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanPostScansRunsCreatedResultsItemResult) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanPostScansRunsCreatedResultsItemResultMatched:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedResultsItemResultNotMatched:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedResultsItemResultNotApplicable:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedResultsItemResultNoTemplate:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedResultsItemResultNoResponse:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedResultsItemResultSkipped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanPostScansRunsCreatedResultsItemResult) UnmarshalText(data []byte) error {
+	switch ScanPostScansRunsCreatedResultsItemResult(data) {
+	case ScanPostScansRunsCreatedResultsItemResultMatched:
+		*s = ScanPostScansRunsCreatedResultsItemResultMatched
+		return nil
+	case ScanPostScansRunsCreatedResultsItemResultNotMatched:
+		*s = ScanPostScansRunsCreatedResultsItemResultNotMatched
+		return nil
+	case ScanPostScansRunsCreatedResultsItemResultNotApplicable:
+		*s = ScanPostScansRunsCreatedResultsItemResultNotApplicable
+		return nil
+	case ScanPostScansRunsCreatedResultsItemResultNoTemplate:
+		*s = ScanPostScansRunsCreatedResultsItemResultNoTemplate
+		return nil
+	case ScanPostScansRunsCreatedResultsItemResultNoResponse:
+		*s = ScanPostScansRunsCreatedResultsItemResultNoResponse
+		return nil
+	case ScanPostScansRunsCreatedResultsItemResultSkipped:
+		*s = ScanPostScansRunsCreatedResultsItemResultSkipped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanPostScansRunsCreatedStatus string
+
+const (
+	ScanPostScansRunsCreatedStatusRunning     ScanPostScansRunsCreatedStatus = "running"
+	ScanPostScansRunsCreatedStatusStopping    ScanPostScansRunsCreatedStatus = "stopping"
+	ScanPostScansRunsCreatedStatusDone        ScanPostScansRunsCreatedStatus = "done"
+	ScanPostScansRunsCreatedStatusStopped     ScanPostScansRunsCreatedStatus = "stopped"
+	ScanPostScansRunsCreatedStatusAutoStopped ScanPostScansRunsCreatedStatus = "auto_stopped"
+)
+
+// AllValues returns all ScanPostScansRunsCreatedStatus values.
+func (ScanPostScansRunsCreatedStatus) AllValues() []ScanPostScansRunsCreatedStatus {
+	return []ScanPostScansRunsCreatedStatus{
+		ScanPostScansRunsCreatedStatusRunning,
+		ScanPostScansRunsCreatedStatusStopping,
+		ScanPostScansRunsCreatedStatusDone,
+		ScanPostScansRunsCreatedStatusStopped,
+		ScanPostScansRunsCreatedStatusAutoStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanPostScansRunsCreatedStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanPostScansRunsCreatedStatusRunning:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedStatusStopping:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedStatusDone:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedStatusStopped:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedStatusAutoStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanPostScansRunsCreatedStatus) UnmarshalText(data []byte) error {
+	switch ScanPostScansRunsCreatedStatus(data) {
+	case ScanPostScansRunsCreatedStatusRunning:
+		*s = ScanPostScansRunsCreatedStatusRunning
+		return nil
+	case ScanPostScansRunsCreatedStatusStopping:
+		*s = ScanPostScansRunsCreatedStatusStopping
+		return nil
+	case ScanPostScansRunsCreatedStatusDone:
+		*s = ScanPostScansRunsCreatedStatusDone
+		return nil
+	case ScanPostScansRunsCreatedStatusStopped:
+		*s = ScanPostScansRunsCreatedStatusStopped
+		return nil
+	case ScanPostScansRunsCreatedStatusAutoStopped:
+		*s = ScanPostScansRunsCreatedStatusAutoStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanPostScansRunsCreatedTrigger string
+
+const (
+	ScanPostScansRunsCreatedTriggerManual   ScanPostScansRunsCreatedTrigger = "manual"
+	ScanPostScansRunsCreatedTriggerSchedule ScanPostScansRunsCreatedTrigger = "schedule"
+	ScanPostScansRunsCreatedTriggerNewKev   ScanPostScansRunsCreatedTrigger = "new_kev"
+)
+
+// AllValues returns all ScanPostScansRunsCreatedTrigger values.
+func (ScanPostScansRunsCreatedTrigger) AllValues() []ScanPostScansRunsCreatedTrigger {
+	return []ScanPostScansRunsCreatedTrigger{
+		ScanPostScansRunsCreatedTriggerManual,
+		ScanPostScansRunsCreatedTriggerSchedule,
+		ScanPostScansRunsCreatedTriggerNewKev,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanPostScansRunsCreatedTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanPostScansRunsCreatedTriggerManual:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedTriggerSchedule:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedTriggerNewKev:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanPostScansRunsCreatedTrigger) UnmarshalText(data []byte) error {
+	switch ScanPostScansRunsCreatedTrigger(data) {
+	case ScanPostScansRunsCreatedTriggerManual:
+		*s = ScanPostScansRunsCreatedTriggerManual
+		return nil
+	case ScanPostScansRunsCreatedTriggerSchedule:
+		*s = ScanPostScansRunsCreatedTriggerSchedule
+		return nil
+	case ScanPostScansRunsCreatedTriggerNewKev:
+		*s = ScanPostScansRunsCreatedTriggerNewKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ScanPostScansRunsIDStopOK struct {
@@ -121343,436 +121044,6 @@ func (s *ScanPostScansRunsIDStopOKTrigger) UnmarshalText(data []byte) error {
 	}
 }
 
-type ScanPostScansRunsOK struct {
-	Current     NilScanPostScansRunsOKCurrent    `json:"current"`
-	Done        int                              `json:"done"`
-	EndedAt     NilDateTime                      `json:"ended_at"`
-	ID          string                           `json:"id"`
-	Matched     int                              `json:"matched"`
-	Results     []ScanPostScansRunsOKResultsItem `json:"results"`
-	StartedAt   time.Time                        `json:"started_at"`
-	StartedBy   string                           `json:"started_by"`
-	Status      ScanPostScansRunsOKStatus        `json:"status"`
-	StopReason  NilString                        `json:"stop_reason"`
-	Total       int                              `json:"total"`
-	Trigger     ScanPostScansRunsOKTrigger       `json:"trigger"`
-	TriggerNote NilString                        `json:"trigger_note"`
-}
-
-// GetCurrent returns the value of Current.
-func (s *ScanPostScansRunsOK) GetCurrent() NilScanPostScansRunsOKCurrent {
-	return s.Current
-}
-
-// GetDone returns the value of Done.
-func (s *ScanPostScansRunsOK) GetDone() int {
-	return s.Done
-}
-
-// GetEndedAt returns the value of EndedAt.
-func (s *ScanPostScansRunsOK) GetEndedAt() NilDateTime {
-	return s.EndedAt
-}
-
-// GetID returns the value of ID.
-func (s *ScanPostScansRunsOK) GetID() string {
-	return s.ID
-}
-
-// GetMatched returns the value of Matched.
-func (s *ScanPostScansRunsOK) GetMatched() int {
-	return s.Matched
-}
-
-// GetResults returns the value of Results.
-func (s *ScanPostScansRunsOK) GetResults() []ScanPostScansRunsOKResultsItem {
-	return s.Results
-}
-
-// GetStartedAt returns the value of StartedAt.
-func (s *ScanPostScansRunsOK) GetStartedAt() time.Time {
-	return s.StartedAt
-}
-
-// GetStartedBy returns the value of StartedBy.
-func (s *ScanPostScansRunsOK) GetStartedBy() string {
-	return s.StartedBy
-}
-
-// GetStatus returns the value of Status.
-func (s *ScanPostScansRunsOK) GetStatus() ScanPostScansRunsOKStatus {
-	return s.Status
-}
-
-// GetStopReason returns the value of StopReason.
-func (s *ScanPostScansRunsOK) GetStopReason() NilString {
-	return s.StopReason
-}
-
-// GetTotal returns the value of Total.
-func (s *ScanPostScansRunsOK) GetTotal() int {
-	return s.Total
-}
-
-// GetTrigger returns the value of Trigger.
-func (s *ScanPostScansRunsOK) GetTrigger() ScanPostScansRunsOKTrigger {
-	return s.Trigger
-}
-
-// GetTriggerNote returns the value of TriggerNote.
-func (s *ScanPostScansRunsOK) GetTriggerNote() NilString {
-	return s.TriggerNote
-}
-
-// SetCurrent sets the value of Current.
-func (s *ScanPostScansRunsOK) SetCurrent(val NilScanPostScansRunsOKCurrent) {
-	s.Current = val
-}
-
-// SetDone sets the value of Done.
-func (s *ScanPostScansRunsOK) SetDone(val int) {
-	s.Done = val
-}
-
-// SetEndedAt sets the value of EndedAt.
-func (s *ScanPostScansRunsOK) SetEndedAt(val NilDateTime) {
-	s.EndedAt = val
-}
-
-// SetID sets the value of ID.
-func (s *ScanPostScansRunsOK) SetID(val string) {
-	s.ID = val
-}
-
-// SetMatched sets the value of Matched.
-func (s *ScanPostScansRunsOK) SetMatched(val int) {
-	s.Matched = val
-}
-
-// SetResults sets the value of Results.
-func (s *ScanPostScansRunsOK) SetResults(val []ScanPostScansRunsOKResultsItem) {
-	s.Results = val
-}
-
-// SetStartedAt sets the value of StartedAt.
-func (s *ScanPostScansRunsOK) SetStartedAt(val time.Time) {
-	s.StartedAt = val
-}
-
-// SetStartedBy sets the value of StartedBy.
-func (s *ScanPostScansRunsOK) SetStartedBy(val string) {
-	s.StartedBy = val
-}
-
-// SetStatus sets the value of Status.
-func (s *ScanPostScansRunsOK) SetStatus(val ScanPostScansRunsOKStatus) {
-	s.Status = val
-}
-
-// SetStopReason sets the value of StopReason.
-func (s *ScanPostScansRunsOK) SetStopReason(val NilString) {
-	s.StopReason = val
-}
-
-// SetTotal sets the value of Total.
-func (s *ScanPostScansRunsOK) SetTotal(val int) {
-	s.Total = val
-}
-
-// SetTrigger sets the value of Trigger.
-func (s *ScanPostScansRunsOK) SetTrigger(val ScanPostScansRunsOKTrigger) {
-	s.Trigger = val
-}
-
-// SetTriggerNote sets the value of TriggerNote.
-func (s *ScanPostScansRunsOK) SetTriggerNote(val NilString) {
-	s.TriggerNote = val
-}
-
-type ScanPostScansRunsOKCurrent struct {
-	IP    string `json:"ip"`
-	Label string `json:"label"`
-}
-
-// GetIP returns the value of IP.
-func (s *ScanPostScansRunsOKCurrent) GetIP() string {
-	return s.IP
-}
-
-// GetLabel returns the value of Label.
-func (s *ScanPostScansRunsOKCurrent) GetLabel() string {
-	return s.Label
-}
-
-// SetIP sets the value of IP.
-func (s *ScanPostScansRunsOKCurrent) SetIP(val string) {
-	s.IP = val
-}
-
-// SetLabel sets the value of Label.
-func (s *ScanPostScansRunsOKCurrent) SetLabel(val string) {
-	s.Label = val
-}
-
-type ScanPostScansRunsOKResultsItem struct {
-	FindingID NilString                            `json:"finding_id"`
-	IP        string                               `json:"ip"`
-	Label     string                               `json:"label"`
-	Note      string                               `json:"note"`
-	Result    ScanPostScansRunsOKResultsItemResult `json:"result"`
-	TargetID  string                               `json:"target_id"`
-	Template  NilString                            `json:"template"`
-}
-
-// GetFindingID returns the value of FindingID.
-func (s *ScanPostScansRunsOKResultsItem) GetFindingID() NilString {
-	return s.FindingID
-}
-
-// GetIP returns the value of IP.
-func (s *ScanPostScansRunsOKResultsItem) GetIP() string {
-	return s.IP
-}
-
-// GetLabel returns the value of Label.
-func (s *ScanPostScansRunsOKResultsItem) GetLabel() string {
-	return s.Label
-}
-
-// GetNote returns the value of Note.
-func (s *ScanPostScansRunsOKResultsItem) GetNote() string {
-	return s.Note
-}
-
-// GetResult returns the value of Result.
-func (s *ScanPostScansRunsOKResultsItem) GetResult() ScanPostScansRunsOKResultsItemResult {
-	return s.Result
-}
-
-// GetTargetID returns the value of TargetID.
-func (s *ScanPostScansRunsOKResultsItem) GetTargetID() string {
-	return s.TargetID
-}
-
-// GetTemplate returns the value of Template.
-func (s *ScanPostScansRunsOKResultsItem) GetTemplate() NilString {
-	return s.Template
-}
-
-// SetFindingID sets the value of FindingID.
-func (s *ScanPostScansRunsOKResultsItem) SetFindingID(val NilString) {
-	s.FindingID = val
-}
-
-// SetIP sets the value of IP.
-func (s *ScanPostScansRunsOKResultsItem) SetIP(val string) {
-	s.IP = val
-}
-
-// SetLabel sets the value of Label.
-func (s *ScanPostScansRunsOKResultsItem) SetLabel(val string) {
-	s.Label = val
-}
-
-// SetNote sets the value of Note.
-func (s *ScanPostScansRunsOKResultsItem) SetNote(val string) {
-	s.Note = val
-}
-
-// SetResult sets the value of Result.
-func (s *ScanPostScansRunsOKResultsItem) SetResult(val ScanPostScansRunsOKResultsItemResult) {
-	s.Result = val
-}
-
-// SetTargetID sets the value of TargetID.
-func (s *ScanPostScansRunsOKResultsItem) SetTargetID(val string) {
-	s.TargetID = val
-}
-
-// SetTemplate sets the value of Template.
-func (s *ScanPostScansRunsOKResultsItem) SetTemplate(val NilString) {
-	s.Template = val
-}
-
-type ScanPostScansRunsOKResultsItemResult string
-
-const (
-	ScanPostScansRunsOKResultsItemResultMatched       ScanPostScansRunsOKResultsItemResult = "matched"
-	ScanPostScansRunsOKResultsItemResultNotMatched    ScanPostScansRunsOKResultsItemResult = "not_matched"
-	ScanPostScansRunsOKResultsItemResultNotApplicable ScanPostScansRunsOKResultsItemResult = "not_applicable"
-	ScanPostScansRunsOKResultsItemResultNoTemplate    ScanPostScansRunsOKResultsItemResult = "no_template"
-	ScanPostScansRunsOKResultsItemResultNoResponse    ScanPostScansRunsOKResultsItemResult = "no_response"
-	ScanPostScansRunsOKResultsItemResultSkipped       ScanPostScansRunsOKResultsItemResult = "skipped"
-)
-
-// AllValues returns all ScanPostScansRunsOKResultsItemResult values.
-func (ScanPostScansRunsOKResultsItemResult) AllValues() []ScanPostScansRunsOKResultsItemResult {
-	return []ScanPostScansRunsOKResultsItemResult{
-		ScanPostScansRunsOKResultsItemResultMatched,
-		ScanPostScansRunsOKResultsItemResultNotMatched,
-		ScanPostScansRunsOKResultsItemResultNotApplicable,
-		ScanPostScansRunsOKResultsItemResultNoTemplate,
-		ScanPostScansRunsOKResultsItemResultNoResponse,
-		ScanPostScansRunsOKResultsItemResultSkipped,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ScanPostScansRunsOKResultsItemResult) MarshalText() ([]byte, error) {
-	switch s {
-	case ScanPostScansRunsOKResultsItemResultMatched:
-		return []byte(s), nil
-	case ScanPostScansRunsOKResultsItemResultNotMatched:
-		return []byte(s), nil
-	case ScanPostScansRunsOKResultsItemResultNotApplicable:
-		return []byte(s), nil
-	case ScanPostScansRunsOKResultsItemResultNoTemplate:
-		return []byte(s), nil
-	case ScanPostScansRunsOKResultsItemResultNoResponse:
-		return []byte(s), nil
-	case ScanPostScansRunsOKResultsItemResultSkipped:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ScanPostScansRunsOKResultsItemResult) UnmarshalText(data []byte) error {
-	switch ScanPostScansRunsOKResultsItemResult(data) {
-	case ScanPostScansRunsOKResultsItemResultMatched:
-		*s = ScanPostScansRunsOKResultsItemResultMatched
-		return nil
-	case ScanPostScansRunsOKResultsItemResultNotMatched:
-		*s = ScanPostScansRunsOKResultsItemResultNotMatched
-		return nil
-	case ScanPostScansRunsOKResultsItemResultNotApplicable:
-		*s = ScanPostScansRunsOKResultsItemResultNotApplicable
-		return nil
-	case ScanPostScansRunsOKResultsItemResultNoTemplate:
-		*s = ScanPostScansRunsOKResultsItemResultNoTemplate
-		return nil
-	case ScanPostScansRunsOKResultsItemResultNoResponse:
-		*s = ScanPostScansRunsOKResultsItemResultNoResponse
-		return nil
-	case ScanPostScansRunsOKResultsItemResultSkipped:
-		*s = ScanPostScansRunsOKResultsItemResultSkipped
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type ScanPostScansRunsOKStatus string
-
-const (
-	ScanPostScansRunsOKStatusRunning     ScanPostScansRunsOKStatus = "running"
-	ScanPostScansRunsOKStatusStopping    ScanPostScansRunsOKStatus = "stopping"
-	ScanPostScansRunsOKStatusDone        ScanPostScansRunsOKStatus = "done"
-	ScanPostScansRunsOKStatusStopped     ScanPostScansRunsOKStatus = "stopped"
-	ScanPostScansRunsOKStatusAutoStopped ScanPostScansRunsOKStatus = "auto_stopped"
-)
-
-// AllValues returns all ScanPostScansRunsOKStatus values.
-func (ScanPostScansRunsOKStatus) AllValues() []ScanPostScansRunsOKStatus {
-	return []ScanPostScansRunsOKStatus{
-		ScanPostScansRunsOKStatusRunning,
-		ScanPostScansRunsOKStatusStopping,
-		ScanPostScansRunsOKStatusDone,
-		ScanPostScansRunsOKStatusStopped,
-		ScanPostScansRunsOKStatusAutoStopped,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ScanPostScansRunsOKStatus) MarshalText() ([]byte, error) {
-	switch s {
-	case ScanPostScansRunsOKStatusRunning:
-		return []byte(s), nil
-	case ScanPostScansRunsOKStatusStopping:
-		return []byte(s), nil
-	case ScanPostScansRunsOKStatusDone:
-		return []byte(s), nil
-	case ScanPostScansRunsOKStatusStopped:
-		return []byte(s), nil
-	case ScanPostScansRunsOKStatusAutoStopped:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ScanPostScansRunsOKStatus) UnmarshalText(data []byte) error {
-	switch ScanPostScansRunsOKStatus(data) {
-	case ScanPostScansRunsOKStatusRunning:
-		*s = ScanPostScansRunsOKStatusRunning
-		return nil
-	case ScanPostScansRunsOKStatusStopping:
-		*s = ScanPostScansRunsOKStatusStopping
-		return nil
-	case ScanPostScansRunsOKStatusDone:
-		*s = ScanPostScansRunsOKStatusDone
-		return nil
-	case ScanPostScansRunsOKStatusStopped:
-		*s = ScanPostScansRunsOKStatusStopped
-		return nil
-	case ScanPostScansRunsOKStatusAutoStopped:
-		*s = ScanPostScansRunsOKStatusAutoStopped
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type ScanPostScansRunsOKTrigger string
-
-const (
-	ScanPostScansRunsOKTriggerManual   ScanPostScansRunsOKTrigger = "manual"
-	ScanPostScansRunsOKTriggerSchedule ScanPostScansRunsOKTrigger = "schedule"
-	ScanPostScansRunsOKTriggerNewKev   ScanPostScansRunsOKTrigger = "new_kev"
-)
-
-// AllValues returns all ScanPostScansRunsOKTrigger values.
-func (ScanPostScansRunsOKTrigger) AllValues() []ScanPostScansRunsOKTrigger {
-	return []ScanPostScansRunsOKTrigger{
-		ScanPostScansRunsOKTriggerManual,
-		ScanPostScansRunsOKTriggerSchedule,
-		ScanPostScansRunsOKTriggerNewKev,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ScanPostScansRunsOKTrigger) MarshalText() ([]byte, error) {
-	switch s {
-	case ScanPostScansRunsOKTriggerManual:
-		return []byte(s), nil
-	case ScanPostScansRunsOKTriggerSchedule:
-		return []byte(s), nil
-	case ScanPostScansRunsOKTriggerNewKev:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ScanPostScansRunsOKTrigger) UnmarshalText(data []byte) error {
-	switch ScanPostScansRunsOKTrigger(data) {
-	case ScanPostScansRunsOKTriggerManual:
-		*s = ScanPostScansRunsOKTriggerManual
-		return nil
-	case ScanPostScansRunsOKTriggerSchedule:
-		*s = ScanPostScansRunsOKTriggerSchedule
-		return nil
-	case ScanPostScansRunsOKTriggerNewKev:
-		*s = ScanPostScansRunsOKTriggerNewKev
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
 type ScanPostScansRunsReq struct {
 	Targets []string `json:"targets"`
 }
@@ -121943,7 +121214,7 @@ type ScanPutScansConfigOKConfigSchedule struct {
 	At        string                                      `json:"at"`
 	Enabled   bool                                        `json:"enabled"`
 	Frequency ScanPutScansConfigOKConfigScheduleFrequency `json:"frequency"`
-	// 0 = Sunday … 6 = Saturday.
+	// 1 = Monday … 7 = Sunday (D-57).
 	Weekday int `json:"weekday"`
 }
 
@@ -122216,7 +121487,7 @@ type ScanPutScansConfigReqSchedule struct {
 	At        OptString                                 `json:"at"`
 	Enabled   OptBool                                   `json:"enabled"`
 	Frequency OptScanPutScansConfigReqScheduleFrequency `json:"frequency"`
-	// 0 = Sunday … 6 = Saturday.
+	// 1 = Monday … 7 = Sunday (D-57).
 	Weekday OptInt `json:"weekday"`
 }
 

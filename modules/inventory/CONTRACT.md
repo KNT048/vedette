@@ -59,6 +59,6 @@ S-INV-1, 2, 3, 5; D-30 danh mục, D-32 tiền tố, D-45 mong manh, D-53 hộp 
 
 ## Không khớp / câu hỏi mở
 - `SettingsSaved.adjusted` ("192.168.18.0 → /24") mâu thuẫn D-32 và mock (từ chối `no_prefix`). Hợp đồng theo D-32; bỏ `adjusted`.
-- ARCHITECTURE §4 xếp ưu tiên nguồn `manual > agent > snmp > nmap > passive`; GUI dùng "khai tay > tin cậy cao > mới hơn". Hợp đồng theo GUI.
+- ~~ARCHITECTURE §4 xếp ưu tiên nguồn; GUI dùng "khai tay > tin cậy cao > mới hơn"~~ Đã thống nhất theo DATA_MODEL §5.1: manual > agent > snmp > nmap = scan > passive, rồi `confidence`, `seen_at`, `id` (mock `markCurrent` đã sửa, WP-06).
 - Danh mục ~880 mục là fixture biên dịch sẵn hay dựng từ `feeds`? Khi `feeds` tắt dùng gì?
-- Cửa sổ quét ở `inventory` (ngày 1..7, gói/giây) khác `scan` (ngày 0..6, request/giây): hai cấu hình riêng, chưa gộp.
+- Cửa sổ quét ở `inventory` (gói/giây) và `scan` (request/giây): hai cấu hình riêng, chưa gộp; ngày đã thống nhất 1..7 (D-57 (9)).

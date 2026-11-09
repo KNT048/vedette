@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
+import { eachOption } from '@/test/formMatrix'
 import { auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { nextRun, timing } from './mocks'
 import type { ScanConfig, ScanRun } from './types'
@@ -75,7 +76,7 @@ describe('scan: trang chính và chọn mục tiêu (S-SCAN-1)', () => {
     as('u-admin')
     const res = await postRun(['a-nas02'])
     expect(res.status).toBe(400)
-    expect((await res.json()).error.code).toBe('no_commitment')
+    expect((await res.json()).error.code).toBe('commitment_required')
   })
 
   it('lỗi API hiện thông báo và nút thử lại', async () => {
@@ -289,6 +290,27 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect(alert).toHaveTextContent('For example 192.168.10.5')
   })
 
+  it('ngày trong tuần là 1 đến 7 (Thứ Hai = 1, Chủ Nhật = 7), ô chọn ngày chỉ mở khi lịch hằng tuần (D-57)', async () => {
+    renderApp('/scans?tab=safety')
+    const freq = await screen.findByLabelText('Frequency')
+    const day = screen.getByLabelText('Day of the week') as HTMLSelectElement
+    const opts = [...day.options].map((o) => [o.value, o.textContent])
+    expect(opts).toEqual([['1', 'Monday'], ['2', 'Tuesday'], ['3', 'Wednesday'], ['4', 'Thursday'], ['5', 'Friday'], ['6', 'Saturday'], ['7', 'Sunday']])
+    await eachOption([
+      { option: 'daily', locked: ['Day of the week'] },
+      { option: 'weekly', shown: ['Day of the week'] },
+      { option: 'daily', locked: ['Day of the week'] },
+    ], async (o) => { await userEvent.selectOptions(freq, o) })
+    expect(screen.getAllByRole('checkbox', { name: /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/ }).map((c) => c.getAttribute('id'))).toEqual(['day-1', 'day-2', 'day-3', 'day-4', 'day-5', 'day-6', 'day-7'])
+    as('u-admin')
+    const put = (b: unknown) => fetch(`${base()}/scans/config`, json('PUT', b))
+    expect((await put({ window: { days: [0] } })).status).toBe(400) // the old Sunday = 0 is refused
+    expect((await put({ window: { days: [8] } })).status).toBe(400)
+    expect((await put({ schedule: { weekday: 0 } })).status).toBe(400)
+    expect((await put({ schedule: { frequency: 'weekly', weekday: 7 } })).status).toBe(200)
+    expect(((await (await fetch(`${base()}/scans/config`)).json()).config as ScanConfig).schedule.weekday).toBe(7)
+  })
+
   it('giờ chạy lịch phải nằm trong cửa sổ giờ', async () => {
     renderApp('/scans?tab=safety')
     const at = await screen.findByLabelText('Run at')
@@ -325,12 +347,13 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
   })
 
   it('tính lần quét kế tiếp theo lịch hằng ngày, hằng tuần và khi tắt', () => {
-    const c: ScanConfig = { window: { days: [1, 2, 3, 4, 5, 6, 0], from: '22:00', to: '05:00' }, rate: 5, exclusions: [], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true, schedule: { enabled: true, frequency: 'daily', weekday: 0, at: '23:00' } }
+    const c: ScanConfig = { window: { days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00' }, rate: 5, exclusions: [], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true, schedule: { enabled: true, frequency: 'daily', weekday: 7, at: '23:00' } }
     const now = new Date(2026, 10, 6, 12, 0) // thứ Sáu
     expect(new Date(nextRun(c, now)!).getDate()).toBe(6)
     expect(new Date(nextRun(c, now)!).getHours()).toBe(23)
     expect(new Date(nextRun(c, new Date(2026, 10, 6, 23, 30))!).getDate()).toBe(7)
-    expect(new Date(nextRun({ ...c, schedule: { ...c.schedule, frequency: 'weekly', weekday: 0 } }, now)!).getDay()).toBe(0)
+    expect(new Date(nextRun({ ...c, schedule: { ...c.schedule, frequency: 'weekly', weekday: 7 } }, now)!).getDay()).toBe(0) // 7 = Sunday (D-57)
+    expect(new Date(nextRun({ ...c, schedule: { ...c.schedule, frequency: 'weekly', weekday: 1 } }, now)!).getDay()).toBe(1) // 1 = Monday
     expect(nextRun({ ...c, schedule: { ...c.schedule, enabled: false } }, now)).toBeNull()
     expect(nextRun({ ...c, schedule: { ...c.schedule, frequency: 'weekly', weekday: 3 }, window: { ...c.window, days: [1] } }, now)).toBeNull()
   })
@@ -423,7 +446,7 @@ describe('scan: quét có tài khoản (S-SCAN-5)', () => {
     expect(list).not.toContain('b3BlbnNzaC1rZXktdjE')
     expect(list).not.toContain('PRIVATE KEY')
     const { collection } = await import('@/mocks/db')
-    expect(JSON.stringify(collection('scan_cred', () => []).get())).not.toContain('b3BlbnNzaC1rZXktdjE')
+    expect(JSON.stringify(collection('scc_target', () => []).get())).not.toContain('b3BlbnNzaC1rZXktdjE')
     expect(auditStore.get().some((a) => a.action === 'scan.credentialed.add')).toBe(true)
 
     await userEvent.click(within(table).getByRole('button', { name: 'Check connection to WEB01' }))

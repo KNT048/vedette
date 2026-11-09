@@ -11,9 +11,9 @@ import { useFindings } from './api'
 export function DevicePanel(props: Record<string, unknown>) {
   const assetId = String(props.assetId ?? '')
   const { t } = useTranslation('findings')
-  const on = useModuleEnabled('mitigation')
+  const on = useModuleEnabled('findings')
   const q = useFindings(assetId)
-  if (on === false) return <Section title={t('device.title')}><ModuleOff module="mitigation" /></Section>
+  if (on === false) return <Section title={t('device.title')}><ModuleOff module="findings" /></Section>
   return (
     <Section id="device-findings" title={t('device.title')} description={t('device.description')} stories={['S-MIT-1']}>
       <QueryState query={q}>

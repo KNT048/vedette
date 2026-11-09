@@ -5,15 +5,14 @@ import { collection, newId, nowIso } from '@/mocks/db'
 import { aiAvailable, aiCandidates, isOn, orgStore, recordAiRun } from '@/mocks/stores'
 import { buildPdpl } from './pdpl'
 import { buildWeekly } from './weekly'
-import type { AiSummary, DataVolume, HistoryEntry, OrgSize, PdplOrg, PdplReport, Schedule, Weekday, WeeklyReport } from './types'
+import type { AiSummary, DataVolume, HistoryEntry, OrgSize, PdplOrg, PdplReport, Schedule, WeeklyReport } from './types'
 
-const DAYS: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 const VOLUMES: DataVolume[] = ['lt1k', '1k_10k', '10k_100k', 'gte100k']
 const SIZES: OrgSize[] = ['household', 'micro', 'small', 'startup', 'other']
 
 type StoredSchedule = Omit<Schedule, 'next_run'>
 // Cài sạch: chưa có người nhận nào, chưa gửi gì, nên tắt gửi tự động cho tới khi người dùng thêm email.
-const schedule = collection<StoredSchedule>('rep_schedule', () => ({ enabled: true, day: 'mon', hour: 8, recipients: ['director@acme.example', 'it@acme.example'] }), () => ({ enabled: false, day: 'mon', hour: 8, recipients: [] }))
+const schedule = collection<StoredSchedule>('rep_schedule', () => ({ enabled: true, day: 1, hour: 8, recipients: ['director@acme.example', 'it@acme.example'] }), () => ({ enabled: false, day: 1, hour: 8, recipients: [] }))
 const history = collection<HistoryEntry[]>('rep_history', () =>
   [1, 2, 3].map((k): HistoryEntry => {
     const at = Date.now() - k * 7 * 864e5
@@ -28,7 +27,7 @@ function nextRun(s: StoredSchedule): string | null {
   if (!s.enabled) return null
   const d = new Date()
   d.setHours(s.hour, 0, 0, 0)
-  const want = (DAYS.indexOf(s.day) + 1) % 7 // getDay: 0 = Chủ nhật
+  const want = s.day % 7 // 1 = Monday … 7 = Sunday; JS getDay: 0 = Sunday
   let add = (want - d.getDay() + 7) % 7
   if (add === 0 && d.getTime() <= Date.now()) add = 7
   d.setDate(d.getDate() + add)
@@ -58,7 +57,7 @@ function aiPdpl(r: PdplReport): string[] {
 }
 
 function checkSchedule(b: Partial<StoredSchedule>) {
-  if (!DAYS.includes(b.day as Weekday)) return fail(400, 'invalid_day', 'Pick a day of the week.')
+  if (!Number.isInteger(b.day) || (b.day as number) < 1 || (b.day as number) > 7) return fail(400, 'invalid_day', 'Pick a day of the week.')
   if (!Number.isInteger(b.hour) || (b.hour as number) < 0 || (b.hour as number) > 23) return fail(400, 'invalid_hour', 'The send hour must be 0 to 23.')
   const rec = b.recipients
   if (!Array.isArray(rec) || rec.length > 20) return fail(400, 'invalid_recipients', 'The recipient list holds 20 emails at most.')

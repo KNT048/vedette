@@ -64,7 +64,7 @@ Không route `/install/*`, `/intake/*`, `/inventory/agents*`; không kéo Wazuh;
 - **DEPENDED ON BY**: `inventory` (cột nguồn `agent`, độ tin cậy cao), `exposure/scan` (không bắt buộc), `reports` (nguồn kiểm kê trong PDPL `inventory.sources`).
 
 ## Câu hỏi mở
-1. Tên bảng: MODULES.md cũ ghi `inv_*` (nguồn=agent) còn mock dùng `inv_agent_tokens`/`inv_wazuh`; theo modules.md bảng mang tiền tố module nên đổi `intake_*`. Cần chốt.
+1. ~~Tên bảng `inv_*` vs `intake_*`~~ Mock đã đổi sang `intake_agent_tokens`/`intake_wazuh` (WP-06).
 2. Đường dẫn osquery TLS API và cách xác thực sau đăng ký (node_key) chưa ghi ở đâu; không nằm trong `contract.ts` nên OpenAPI sẽ không phủ.
 3. Token hết hạn có làm máy đã đăng ký ngừng báo không? Thiết kế (D-34) nói token "chỉ dùng để đăng ký" nên đề xuất: không.
 4. Gói osquery chính thức hộp phục vụ lấy từ đâu (đóng sẵn trong image hay kéo)? Nếu kéo = luồng ra mới → `PRIVACY.md` (legal.md) và `THIRD_PARTY_NOTICES.md`.

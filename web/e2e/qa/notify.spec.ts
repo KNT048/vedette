@@ -13,7 +13,7 @@ const TOKEN = '123456789:EXAMPLE_not_a_real_token_0000000000'
 async function asUser(page: Page, userId: string) {
   await page.addInitScript((u) => {
     try {
-      const k = 'vedette-mock-db-v3'
+      const k = 'vedette-mock-db-v4'
       const raw = localStorage.getItem(k)
       if (raw) { const db = JSON.parse(raw); db.core_session = { userId: u }; localStorage.setItem(k, JSON.stringify(db)) }
     } catch { /* ignore */ }

@@ -112,9 +112,13 @@
       "name": "Active sensor",
       "summary": "Light nmap scans inside the allowed time window."
     },
+    "findings": {
+      "name": "Findings",
+      "summary": "Matches your devices against exploited vulnerabilities and tracks each one until it is fixed."
+    },
     "mitigation": {
       "name": "Mitigation",
-      "summary": "Patch steps, temporary fixes, config snippets for your devices."
+      "summary": "Patch steps, temporary fixes and config snippets that confirmed recommendations add to a finding."
     },
     "exposure": {
       "name": "External surface",

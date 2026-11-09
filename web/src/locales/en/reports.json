@@ -50,13 +50,13 @@
       "day": "Day",
       "hour": "Hour",
       "days": {
-        "mon": "Monday",
-        "tue": "Tuesday",
-        "wed": "Wednesday",
-        "thu": "Thursday",
-        "fri": "Friday",
-        "sat": "Saturday",
-        "sun": "Sunday"
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday",
+        "7": "Sunday"
       },
       "recipients": "Recipients",
       "recipientsHint": "Type an email, then click Add or press Enter. Up to 20 people.",

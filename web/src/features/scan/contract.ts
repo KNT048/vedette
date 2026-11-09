@@ -4,7 +4,7 @@ import { defineEndpoints } from '@/lib/contract'
 
 const iso = z.iso.datetime()
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).describe('HH:MM')
-const day = z.number().int().min(0).max(6).describe('0 = Sunday … 6 = Saturday')
+const day = z.number().int().min(1).max(7).describe('1 = Monday … 7 = Sunday (D-57)')
 
 export const ScanTarget = z.object({
   id: z.string().describe('device id (a-nas02) or ext:<target id> for a verified external target'),
@@ -52,7 +52,7 @@ export const RescanEvent = z.object({
 })
 export const CredTarget = z.object({
   id: z.string(), asset_id: z.string(), label: z.string(), host: z.string(), port: z.number().int(), username: z.string(),
-  key_last4: z.string().describe('Last 4 characters only; the private key is never stored or returned (SYS-4)'), created_at: iso,
+  key_last4: z.string().describe('Last 4 characters only. The private key is stored encrypted on the box (SYS-4) and never shown or returned again (D-57)'), created_at: iso,
   last_test: z.object({ ok: z.boolean(), ts: iso, message: z.string() }).nullable(),
 })
 
@@ -61,13 +61,13 @@ export const endpoints = defineEndpoints([
   { method: 'put', path: '/scans/config', summary: 'Save scan settings (partial update); dangerous checks are always rejected', stories: ['S-SCAN-2', 'S-SCAN-4'], role: 'admin', body: ScanConfigPatch, response: ScanConfigResponse },
   { method: 'get', path: '/scans/targets', summary: 'Scannable targets and why others are not (unapproved device, out of scope, external IP whose 90-day verification expired)', stories: ['S-SCAN-1'], role: 'viewer', response: z.object({ items: z.array(ScanTarget) }) },
   { method: 'get', path: '/scans/runs', summary: 'Scan history and the running scan, with per-device results', stories: ['S-SCAN-1', 'S-SCAN-3', 'S-SCAN-4'], role: 'viewer', response: z.object({ items: z.array(ScanRun) }) },
-  { method: 'post', path: '/scans/runs', summary: 'Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked)', stories: ['S-SCAN-1'], role: 'operator', body: z.object({ targets: z.array(z.string()).min(1).max(200) }), response: ScanRun },
+  { method: 'post', path: '/scans/runs', status: 201, summary: 'Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked)', stories: ['S-SCAN-1'], role: 'operator', body: z.object({ targets: z.array(z.string()).min(1).max(200) }), response: ScanRun },
   { method: 'post', path: '/scans/runs/{id}/stop', summary: 'Stop a scan now (takes effect within 5 seconds)', stories: ['S-SCAN-4'], role: 'operator', params: z.object({ id: z.string() }), response: ScanRun },
   { method: 'get', path: '/scans/probes.csv', summary: 'Download the probe log (target, time, template) as CSV', stories: ['S-SCAN-4'], role: 'viewer', response: 'file' },
   { method: 'get', path: '/scans/probes', summary: 'Probe log, kept at least 90 days', stories: ['S-SCAN-4'], role: 'viewer', response: z.object({ items: z.array(ProbeEntry), retention_days: z.number().int() }) },
   { method: 'get', path: '/scans/events', summary: 'Log of automatic rescans when a new KEV entry has a scan template', stories: ['S-SCAN-2'], role: 'viewer', response: z.object({ items: z.array(RescanEvent), auto_rescan: z.boolean() }) },
   { method: 'get', path: '/scans/credentialed', summary: 'Servers scanned with an SSH account, and the state of the scan-credentialed module', stories: ['S-SCAN-5'], role: 'viewer', response: z.object({ items: z.array(CredTarget), enabled: z.boolean() }) },
-  { method: 'post', path: '/scans/credentialed', summary: 'Add a server for account-based scanning with an SSH private key (only the last 4 characters are kept)', stories: ['S-SCAN-5'], role: 'admin',
+  { method: 'post', path: '/scans/credentialed', status: 201, summary: 'Add a server for account-based scanning with an SSH private key (stored encrypted on the box, never shown again; only the last 4 characters are displayed)', stories: ['S-SCAN-5'], role: 'admin',
     body: z.object({ asset_id: z.string(), port: z.number().int().min(1).max(65535), username: z.string().regex(/^[a-z_][a-z0-9_-]{0,31}$/), private_key: z.string().max(16384) }), response: CredTarget },
   { method: 'delete', path: '/scans/credentialed/{id}', summary: 'Remove the scan account of a server', stories: ['S-SCAN-5'], role: 'admin', params: z.object({ id: z.string() }), response: null },
   { method: 'post', path: '/scans/credentialed/{id}/test', summary: 'Test the SSH connection with the stored key', stories: ['S-SCAN-5'], role: 'operator', params: z.object({ id: z.string() }), response: CredTarget },

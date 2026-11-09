@@ -1,44 +1,10 @@
 // Pure helpers for the response module: tamper-evident log hash, action templates, allowlist matching, tokens.
 // No imports from mocks: the UI uses these too (log verification, form checks). The server (M2) re-implements them in Go.
 
-// ---- SHA-256 (sync, for the mock that appends log lines; the UI verifies with crypto.subtle when it exists) ----
-const K = Uint32Array.from([
-  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-  0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-  0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
-])
-const rotr = (x: number, n: number) => (x >>> n) | (x << (32 - n))
-
-export function sha256Sync(text: string): string {
-  const msg = new TextEncoder().encode(text)
-  const total = Math.ceil((msg.length + 9) / 64) * 64
-  const buf = new Uint8Array(total)
-  buf.set(msg)
-  buf[msg.length] = 0x80
-  const view = new DataView(buf.buffer)
-  view.setUint32(total - 8, Math.floor((msg.length * 8) / 2 ** 32))
-  view.setUint32(total - 4, (msg.length * 8) >>> 0)
-  const h = Uint32Array.from([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19])
-  const w = new Uint32Array(64)
-  for (let off = 0; off < total; off += 64) {
-    for (let i = 0; i < 16; i++) w[i] = view.getUint32(off + i * 4)
-    for (let i = 16; i < 64; i++) {
-      const a = w[i - 15]!, b = w[i - 2]!
-      w[i] = (w[i - 16]! + (rotr(a, 7) ^ rotr(a, 18) ^ (a >>> 3)) + w[i - 7]! + (rotr(b, 17) ^ rotr(b, 19) ^ (b >>> 10))) >>> 0
-    }
-    const v = [...h]
-    let a = v[0]!, b = v[1]!, c = v[2]!, d = v[3]!, e = v[4]!, f = v[5]!, g = v[6]!, hh = v[7]!
-    for (let i = 0; i < 64; i++) {
-      const t1 = (hh + (rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)) + ((e & f) ^ (~e & g)) + K[i]! + w[i]!) >>> 0
-      const t2 = ((rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) >>> 0
-      hh = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0
-    }
-    const add = [a, b, c, d, e, f, g, hh]
-    for (let i = 0; i < 8; i++) h[i] = (h[i]! + add[i]!) >>> 0
-  }
-  return [...h].map((x) => x.toString(16).padStart(8, '0')).join('')
-}
+// ---- SHA-256: one implementation for every chain, see src/lib/chain.ts (the UI verifies with crypto.subtle when it exists) ----
+import { GENESIS, respLogHash, sha256 as sha256Sync } from '@/lib/chain'
+import { isMcpKind, type ConnectionKindId } from '@/lib/connections'
+export { sha256Sync }
 
 /** Browser: crypto.subtle. Where it is missing (some test environments): the same digest from the JS version. */
 export async function sha256Hex(text: string): Promise<string> {
@@ -49,25 +15,27 @@ export async function sha256Hex(text: string): Promise<string> {
 }
 
 // ---- Tamper-evident log (D-48) ----
-export const GENESIS = '0'.repeat(64)
+export { GENESIS }
 export interface LogCore { id: string; ts: string; kind: string; actor: string; detail: string; prev_hash: string }
-/** hash = SHA-256( prev_hash + "\n" + JSON([id, ts, kind, actor, detail]) ) as lowercase hex. */
-export const logPreimage = (e: LogCore) => `${e.prev_hash}\n${JSON.stringify([e.id, e.ts, e.kind, e.actor, e.detail])}`
-export const logHashSync = (e: LogCore) => sha256Sync(logPreimage(e))
+/** One formula for every chain (D-57 (14)): SHA-256( prev_hash + "\n" + canonical JSON of the entry without hash ), see src/lib/chain.ts. */
+export const logHashSync = (e: LogCore) => respLogHash(e)
 
 /** Walk the chain oldest to newest. `broken_at` = index of the first entry whose link or hash does not match. */
 export async function verifyChain(entries: (LogCore & { hash: string })[]): Promise<{ ok: boolean; broken_at: number | null }> {
   let prev = GENESIS
   for (const [i, e] of entries.entries()) {
-    if (e.prev_hash !== prev || e.hash !== (await sha256Hex(logPreimage(e)))) return { ok: false, broken_at: i }
+    const { hash, ...rest } = e
+    if (e.prev_hash !== prev || hash !== logHashSync(rest)) return { ok: false, broken_at: i }
     prev = e.hash
   }
   return { ok: true, broken_at: null }
 }
 
 // ---- Typed placeholders (D-47, D-51, SYS-1: no free shell text). Trigger data is attacker-controlled: every value is checked by type. ----
-export type ParamType = 'ip' | 'cidr' | 'domain' | 'port' | 'mac' | 'vlan' | 'interface' | 'text'
-export const PARAM_TYPES: ParamType[] = ['ip', 'cidr', 'domain', 'port', 'mac', 'vlan', 'interface', 'text']
+export type ParamType = 'ip' | 'cidr' | 'domain' | 'port' | 'mac' | 'vlan' | 'interface' | 'id' | 'name' | 'text'
+export const PARAM_TYPES: ParamType[] = ['ip', 'cidr', 'domain', 'port', 'mac', 'vlan', 'interface', 'id', 'name', 'text']
+/** Values Vedette reads from the device or derives when it runs (action-templates §1.1 precheck, §1.4 ttl). Rules never supply them: they are not parameters, and a request shows them as <name>. */
+export const RUNTIME_VALUES = ['seq', 'previous_vlan', 'found_id', 'expiry_s', 'timeout', 'rules_before'] as const
 const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/
 const DOMAIN = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i
 export const isIpv4 = (v: string) => IPV4.test(v)
@@ -80,18 +48,21 @@ export const PARAM_CHECK: Record<ParamType, (v: string) => boolean> = {
   port: (v) => /^\d{1,5}$/.test(v) && Number(v) >= 1 && Number(v) <= 65535,
   mac: (v) => /^([0-9a-f]{2}[:-]){5}[0-9a-f]{2}$/i.test(v),
   vlan: (v) => /^\d{1,4}$/.test(v) && Number(v) >= 1 && Number(v) <= 4094,
-  interface: (v) => /^[A-Za-z][A-Za-z0-9/._-]{0,31}$/.test(v),
+  interface: (v) => /^[A-Za-z0-9][A-Za-z0-9/.:-]{0,31}$/.test(v),
+  id: (v) => /^\d{1,10}$/.test(v) && Number(v) >= 1 && Number(v) <= 2147483647,
+  name: (v) => /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/.test(v),
   text: (v) => TEXT.test(v),
 }
-export const PARAM_LABEL: Record<ParamType, string> = { ip: 'an IP address', cidr: 'an address range', domain: 'a domain', port: 'a port number', mac: 'a MAC address', vlan: 'a VLAN number', interface: 'a port or interface name', text: 'a short plain-text value' }
+export const PARAM_LABEL: Record<ParamType, string> = { ip: 'an IP address', cidr: 'an address range', domain: 'a domain', port: 'a port number', mac: 'a MAC address', vlan: 'a VLAN number', interface: 'a port or interface name', id: 'a whole number (for example a policy number)', name: 'a name of letters, numbers, . _ and - (up to 64)', text: 'a short plain-text value' }
 
-export interface Tpl { cli: string; method: '' | 'GET' | 'PUT' | 'POST' | 'DELETE'; path: string; body: string; headers: string }
+export interface Tpl { cli: string; method: '' | 'GET' | 'PUT' | 'PATCH' | 'POST' | 'DELETE'; path: string; body: string; headers: string }
 export const EMPTY_TPL: Tpl = { cli: '', method: '', path: '', body: '', headers: '' }
 export const tplEmpty = (t: Tpl) => !t.cli.trim() && !t.method && !t.path && !t.body.trim()
 
 /** Characters a template may contain. Shell metacharacters (; | & $ ` < > ( ) \ ! ~ ^) are never allowed, even in the fixed text. */
 const SAFE_TEXT = /^[A-Za-z0-9 _.,:/"'{}=\n\t@#%+*?[\]-]*$/
 const PLACEHOLDER = /\{([a-z_]+)\}/g
+const isRuntime = (k: string) => (RUNTIME_VALUES as readonly string[]).includes(k)
 const HEADER_LINE = /^[A-Za-z][A-Za-z0-9-]{0,40}: [A-Za-z0-9 _.,:/@#=+{}*-]{0,200}$/
 
 export function templateParams(...texts: string[]): ParamType[] {
@@ -107,23 +78,27 @@ export function validateTpl(t: Tpl, what: string): string | null {
   if (t.cli.length > 2000 || t.body.length > 2000 || t.path.length > 300 || t.headers.length > 600) return `${what}: too long.`
   for (const [field, v] of [['command', t.cli], ['API path', t.path], ['API body', t.body], ['headers', t.headers]] as const) {
     if (!SAFE_TEXT.test(v)) return `${what}: the ${field} contains a character that is not allowed (shell characters such as ; | & $ \` < > ( ) \\ are refused).`
-    for (const m of v.matchAll(PLACEHOLDER)) if (!(PARAM_TYPES as string[]).includes(m[1]!)) return `${what}: unknown placeholder {${m[1]}}. Use {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface} or {text}.`
+    for (const m of v.matchAll(PLACEHOLDER)) {
+      if (m[1] === 'text') return `${what}: {text} is only for message actions. In a command or API call use a typed placeholder such as {ip}, {domain}, {name} or {id}.`
+      if (!(PARAM_TYPES as string[]).includes(m[1]!) && !isRuntime(m[1]!)) return `${what}: unknown placeholder {${m[1]}}. Use {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id} or {name}.`
+    }
   }
   if (t.headers && !t.headers.split('\n').every((l) => HEADER_LINE.test(l))) return `${what}: each header must look like "Name: value".`
   if (t.method && !t.path) return `${what}: an API call needs a path.`
   if (t.path && !t.method) return `${what}: choose the API method.`
   if (t.path && (!/^\/[A-Za-z0-9/_.{}-]*$/.test(t.path) || t.path.includes('..'))) return `${what}: the API path must start with / and cannot contain .. or a query.`
-  if (t.body) { try { JSON.parse(t.body.replace(PLACEHOLDER, 'x')) } catch { return `${what}: the API body must be valid JSON.` } }
+  if (t.body) { try { JSON.parse(t.body.replace(PLACEHOLDER, '0')) } catch { return `${what}: the API body must be valid JSON.` } }
   return null
 }
 
 // ---- Connection kinds: the form and the server both follow the kind of the chosen connection ----
-export type ConnKind = 'device-api' | 'ssh' | 'http' | 'mcp-http' | 'mcp-stdio'
+export type ConnKind = ConnectionKindId
 export type TplField = 'cli' | 'method' | 'path' | 'body' | 'headers'
-export const isMcp = (k: ConnKind | null | undefined) => k === 'mcp-http' || k === 'mcp-stdio'
-/** Which template fields a kind uses. MCP: the tool is chosen separately and the arguments are the body (JSON). */
+export const isMcp = isMcpKind
+/** Which template fields a kind uses. HTTP-carried kinds: method, path, headers, body. MCP: the tool is chosen separately and the arguments are the body (JSON). */
 export const KIND_FIELDS: Record<ConnKind, TplField[]> = {
-  'device-api': ['method', 'path', 'body'], http: ['method', 'path', 'headers', 'body'], ssh: ['cli'], 'mcp-http': ['body'], 'mcp-stdio': ['body'],
+  http: ['method', 'path', 'headers', 'body'], 'netconf-restconf': ['method', 'path', 'headers', 'body'], automation: ['method', 'path', 'headers', 'body'],
+  ssh: ['cli'], 'mcp-http': ['body'], 'mcp-stdio': ['body'],
 }
 /** null = the template only uses fields of this kind. */
 export function kindProblem(kind: ConnKind, t: Tpl, what: string): string | null {
@@ -133,13 +108,13 @@ export function kindProblem(kind: ConnKind, t: Tpl, what: string): string | null
 }
 /** Reason a connection cannot carry out actions, or null. */
 export const READ_ONLY = 'Read-only: this connection has no write tools'
-/** Vendor-specific starting point. Only a known vendor gets a prefill; any other connection starts empty. */
-export function vendorExample(kind: ConnKind | null, vendor: string | null): { run: Partial<Tpl>; rollback: Partial<Tpl>; hint: string } {
-  if ((kind === 'device-api') && vendor === 'fortinet') return { run: { method: 'PUT', path: '/api/v2/cmdb/firewall/vip/{text}', body: '{"status":"disable"}' }, rollback: { method: 'PUT', path: '/api/v2/cmdb/firewall/vip/{text}', body: '{"status":"enable"}' }, hint: 'FortiOS REST example: turn a virtual IP off and on again.' }
-  if (kind === 'device-api' && vendor === 'mikrotik') return { run: { method: 'PUT', path: '/rest/ip/firewall/address-list', body: '{"list":"vedette-block","address":"{ip}","timeout":"1d"}' }, rollback: {}, hint: 'RouterOS REST example: add an address to an address list.' }
-  if (kind === 'device-api' && vendor === 'pfsense') return { run: { method: 'POST', path: '/api/v1/firewall/alias/entry', body: '{"name":"Vedette_Blocklist","address":["{ip}"]}' }, rollback: { method: 'DELETE', path: '/api/v1/firewall/alias/entry', body: '{"name":"Vedette_Blocklist","address":["{ip}"]}' }, hint: 'pfSense API example: add an address to an alias.' }
-  if (kind === 'ssh') return { run: {}, rollback: {}, hint: 'Cisco: "ip access-list extended VEDETTE" then "deny ip host {ip} any". Aruba/HPE: "ip access-list extended VEDETTE" then "deny any {ip} 0.0.0.0". MikroTik: "/ip firewall address-list add list=vedette address={ip}".' }
+/** Starting hint for a new action by kind. Generic only (D-58): device examples live in the template library, not here. */
+export function kindHint(kind: ConnKind | null): { run: Partial<Tpl>; rollback: Partial<Tpl>; hint: string } {
+  if (kind === 'ssh') return { run: {}, rollback: {}, hint: 'One command per line. Use typed placeholders such as {ip}, {interface} or {vlan}. Each line is sent on its own.' }
+  if (kind === 'netconf-restconf') return { run: {}, rollback: {}, hint: 'RESTCONF: choose the method and the path under the device address. NETCONF: put the request in the body.' }
+  if (kind === 'automation') return { run: {}, rollback: {}, hint: 'Start a job or workflow on the platform: choose the method, the path of the job and give its variables as the JSON body.' }
   if (isMcp(kind)) return { run: {}, rollback: {}, hint: 'Pick one write tool of this server, then give its arguments as JSON. Values may use {ip}, {domain} and the other typed placeholders.' }
+  if (kind === 'http') return { run: {}, rollback: {}, hint: 'Choose the method and the path under the connection address, and give the JSON body. Values may use {ip}, {domain}, {name} and the other typed placeholders.' }
   return { run: {}, rollback: {}, hint: '' }
 }
 
@@ -160,6 +135,7 @@ export function checkValues(params: ParamType[], values: Partial<Record<ParamTyp
 /** Fill placeholders. Throws on anything unchecked: callers run checkValues first. */
 export function fill(text: string, values: Partial<Record<ParamType, string>>, transport: Transport = 'cli'): string {
   return text.replace(PLACEHOLDER, (_, k: string) => {
+    if (isRuntime(k)) return `<${k}>`
     const v = values[k as ParamType]
     if (v === undefined || !PARAM_CHECK[k as ParamType]?.(v)) throw new Error(`unchecked placeholder ${k}`)
     return escapeFor(transport, v)

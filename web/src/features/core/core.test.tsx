@@ -15,6 +15,8 @@ import { nav, compareVersion, toBase64 } from './util'
 const setModule = (id: string, enabled: boolean) => modulesStore.update((l) => l.map((m) => (m.id === id ? { ...m, enabled } : m)))
 const user = () => userEvent.setup()
 
+const NOHASH = { prev_hash: '0'.repeat(64), hash: '0'.repeat(64) } // rows written straight into the store, the chain is not under test here
+
 describe('core: cài đặt ban đầu', () => {
   it('đi hết 4 bước, tạo quản trị, đặt setup_complete và vào trang chủ', async () => {
     const u = user()
@@ -131,6 +133,18 @@ describe('core: cài đặt ban đầu', () => {
     expect(usersStore.get().find((x) => x.id === sessionStore.get().userId)?.email).toBe('admin@acme.example')
   })
 
+  it('the LAN range typed in setup is stored where Devices → Scope keeps ranges, and the commitment with it', async () => {
+    orgStore.update((o) => ({ ...o, setup_complete: false }))
+    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.18.0/24', '10.1.0.0/16'], bundle: 'smb', commitment: true }) })
+    expect(res.status).toBe(200)
+    const st = (await (await fetch(`${location.origin}/api/v1/inventory/settings`)).json()) as { lan_ranges: string[]; scope_confirmed_at: string | null; scope_confirmed_by: string | null }
+    expect(st.lan_ranges).toEqual(['192.168.18.0/24', '10.1.0.0/16'])
+    expect(st).toMatchObject({ scope_confirmed_by: 'lan@abc.vn' })
+    expect(st.scope_confirmed_at).not.toBeNull()
+    const scan = (await (await fetch(`${location.origin}/api/v1/scans/config`)).json()) as { scope: { networks: string[] } }
+    expect(scan.scope.networks).toEqual(['192.168.18.0/24', '10.1.0.0/16'])
+  })
+
   it('đã cài xong thì /setup chuyển về đăng nhập', async () => {
     renderApp('/setup', { role: null })
     expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument()
@@ -221,18 +235,20 @@ describe('core: module (S-CORE-1)', () => {
 })
 
 describe('core: quyền riêng tư (S-CORE-4)', () => {
-  it('hiện đủ 10 luồng, payload nguyên văn và tắt được tín hiệu ẩn danh', async () => {
+  it('hiện đủ 11 luồng, payload nguyên văn và tắt được tín hiệu ẩn danh', async () => {
     const u = user()
     renderApp('/settings/privacy')
     const table = await screen.findByRole('table', { name: 'Data flows that leave the box' })
-    expect(within(table).getAllByRole('row')).toHaveLength(11)
-    for (const n of ['Pull feeds directly from their sources', 'Anonymous signal', 'AI assistant', 'Data sources that need a key', 'Notifications', 'Update check', 'Forwarding to a SIEM', 'News about a CVE', 'External surface', 'Time sync']) expect(within(table).getAllByText(new RegExp(n)).length).toBeGreaterThan(0)
+    expect(within(table).getAllByRole('row')).toHaveLength(12)
+    for (const n of ['Pull feeds directly from their sources', 'Anonymous signal', 'AI assistant', 'Data sources that need a key', 'Notifications', 'Update check', 'Forwarding to a SIEM', 'News about a CVE', 'External exposure', 'Time sync', 'Single sign-on']) expect(within(table).getAllByText(new RegExp(n)).length).toBeGreaterThan(0)
     const code = document.querySelector('pre code')!.textContent!
     const payload = JSON.parse(code) as { country: string; install_id: string; device_counts: Record<string, number> }
     expect(payload.country).toBe('VN')
     expect(payload.install_id).toMatch(/^ins-/)
     expect(Object.keys(payload.device_counts).length).toBeGreaterThan(0)
     expect(code).not.toMatch(/192\.168|hostname|Company/)
+    expect(Object.keys(payload)).toContain('cve_matches')
+    expect(document.body.textContent).not.toMatch(/\bIDS\b|ids_matches/i) // there is no IDS on the box (D-43)
     await u.click(screen.getByRole('switch', { name: 'Send anonymous signal' }))
     expect(await screen.findByText('Off. Nothing is sent.')).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('The anonymous signal is off')
@@ -243,7 +259,7 @@ describe('core: quyền riêng tư (S-CORE-4)', () => {
     setModule('exposure', false)
     renderApp('/settings/privacy')
     const table = await screen.findByRole('table', { name: 'Data flows that leave the box' })
-    const row = within(table).getByText(/9\. External surface/).closest('tr')!
+    const row = within(table).getByText(/9\. External exposure/).closest('tr')!
     expect(within(row).getByText('Off')).toBeInTheDocument()
   })
 
@@ -411,8 +427,8 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
   it('nhật ký lọc được theo chữ và nhóm', async () => {
     const u = user()
     auditStore.set([
-      { id: 'a1', ts: new Date().toISOString(), user: 'admin@acme.example', action: 'module.enable', target: 'scan' },
-      { id: 'a2', ts: new Date().toISOString(), user: 'it@acme.example', action: 'user.create', target: 'hana@acme.example' },
+      { id: 'a1', ts: new Date().toISOString(), user: 'admin@acme.example', action: 'module.enable', target: 'scan', detail: null, ...NOHASH },
+      { id: 'a2', ts: new Date().toISOString(), user: 'it@acme.example', action: 'user.create', target: 'hana@acme.example', detail: null, ...NOHASH },
     ])
     renderApp('/settings/audit')
     expect(await screen.findByText('2 log lines match the filters', { exact: false })).toBeInTheDocument()
@@ -428,7 +444,7 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
   it('xuất CSV chống công thức và đúng dấu ngoặc', async () => {
     renderApp('/settings/audit')
     await screen.findByRole('table', { name: 'Audit log' })
-    auditStore.set([{ id: 'x', ts: '2026-11-06T01:00:00.000Z', user: 'a@b.vn', action: 'data.export', target: '=HYPERLINK("x")', detail: 'yes, comma' }])
+    auditStore.set([{ id: 'x', ts: '2026-11-06T01:00:00.000Z', user: 'a@b.vn', action: 'data.export', target: '=HYPERLINK("x")', detail: 'yes, comma', ...NOHASH }])
     const res = await fetch(`${location.origin}/api/v1/core/audit/export`)
     const text = await res.text()
     expect(res.headers.get('Content-Disposition')).toContain('vedette-audit.csv')
@@ -881,7 +897,7 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
     expect(os.getByText('Release upgrade to Ubuntu 26.04 LTS is available')).toBeInTheDocument()
     expect(os.getByText(/sudo do-release-upgrade/)).toBeInTheDocument()
     expect(os.queryByRole('button', { name: /upgrade/i })).toBeNull()
-    expect(os.getByText(/vedette-updater, runs a fixed list of apt commands/)).toBeInTheDocument()
+    expect(os.getByText(/vedette-host, runs a fixed list of apt commands/)).toBeInTheDocument()
     // block 2
     const managed = screen.getByRole('table', { name: 'Packages managed by Vedette' })
     for (const n of ['nmap', 'OpenCanary', 'osquery mirror files', 'nuclei templates']) expect(within(managed).getByText(n)).toBeInTheDocument()

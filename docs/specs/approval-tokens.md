@@ -31,7 +31,7 @@ Ngoài phạm vi: nội dung/cơ chế của hành động (`action-packs.md`), 
 4. **Rủi ro cao do AI gửi** chỉ duyệt **trong app bằng mã hai bước** (D-51); kênh chat/email với yêu cầu này nhận tin "mở Vedette để duyệt", không có nút duyệt (khớp `in_app_required` trong mock).
 5. **Kiểm lại lúc duyệt**: dù token/nút hợp lệ, core kiểm tại thời điểm POST/callback: người duyệt vẫn trong danh sách của kênh, vẫn là người dùng đang hoạt động vai ≥ operator, kênh vẫn bật "Approve actions from this channel", yêu cầu vẫn `pending`, module `response` còn bật và `execution` còn bật. Sai → từ chối `403 approver_not_listed` (khớp mock).
 6. Duyệt xong core đặt trạng thái; thực thi sau khi đủ số người; **dừng khẩn cấp và cầu dao** (D-51) có thể chặn ngay cả yêu cầu đã duyệt đủ, không do token quyết định.
-7. Mọi bước (`request`, `approved`, `rejected`, `expired`, `refused`, `executed`…) ghi vào nhật ký `resp_log` với `hash = SHA-256(prev_hash "\n" JSON([id, ts, kind, actor, detail]))` (đúng như `LogEntry` trong mock) và `core_audit` (SYS-3). `actor` ghi **kênh và danh tính** (ví dụ `Lan Pham via email lan@…`).
+7. Mọi bước (`request`, `approved`, `rejected`, `expired`, `refused`, `executed`…) ghi vào nhật ký `resp_log` với `hash = SHA-256(prev_hash "\n" canon(entry không có hash))` (một công thức cho mọi chuỗi, D-57 (14)) và `core_audit` (SYS-3). `actor` ghi **kênh và danh tính** (ví dụ `Lan Pham via email lan@…`).
 
 ## 4. Email: liên kết xác nhận
 

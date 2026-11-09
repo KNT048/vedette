@@ -1,6 +1,7 @@
 // Hợp đồng API module ai (D-18). Kiểu UI suy ra từ schema ở đây (types.ts).
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
+import { ConnectionKind, KIND_AUTH } from '@/lib/connections'
 
 export const AiTier = z.enum(['min', 'med', 'max'])
 const iso = z.iso.datetime()
@@ -103,19 +104,18 @@ export const KnowledgeInput = z.object({ name: z.string().min(1).max(120), size:
 export const KnowledgeSettings = z.object({ index_profile: z.string().nullable() })
 export const KnowledgePatch = z.object({ jobs: z.array(AiJob) })
 
-export const ConnectorKind = z.enum(['device-api', 'ssh', 'http', 'mcp-http', 'mcp-stdio'])
-/** Which sign-in each kind of connection can use (the dialog locks the others; the server refuses them). */
-export const CONNECTOR_AUTH: Record<z.infer<typeof ConnectorKind>, ('none' | 'token' | 'basic' | 'ssh-key')[]> = { 'device-api': ['token', 'basic'], ssh: ['ssh-key', 'basic'], http: ['none', 'token', 'basic'], 'mcp-http': ['none', 'token', 'basic'], 'mcp-stdio': ['none', 'token'] }
-export const Vendor = z.enum(['fortinet', 'mikrotik', 'pfsense', 'other'])
+// Generic kinds only (D-58): src/lib/connections.ts. No vendor field: brand knowledge is template data.
+export const ConnectorKind = ConnectionKind
+export const CONNECTOR_AUTH = KIND_AUTH
 export const ConnectorTool = z.object({ name: z.string(), access: z.enum(['read', 'write']), description: z.string(), enabled: z.boolean() })
 export const Connector = z.object({
-  id: z.string(), name: z.string(), kind: ConnectorKind, vendor: Vendor.nullable(), target: z.string().describe('Base URL, host:port, or the MCP command'), asset_id: z.string().nullable(),
+  id: z.string(), name: z.string(), kind: ConnectorKind, target: z.string().describe('Base URL, host:port, or the MCP command'), asset_id: z.string().nullable(),
   auth: z.object({ type: z.enum(['none', 'token', 'basic', 'ssh-key']), last4: z.string().nullable().describe('Last 4 characters of the secret; the full secret is never returned (SYS-4)') }),
   allow: z.array(z.string()).describe('Hosts, URL prefixes or commands the AI may use through this connection'),
   tools: z.array(ConnectorTool), enabled: z.boolean(), status: z.enum(['ok', 'error', 'untested']), last_test: iso.nullable(),
 })
 export const ConnectorInput = z.object({
-  name: z.string().min(1).max(40), kind: ConnectorKind, vendor: Vendor.nullable(), target: z.string(), asset_id: z.string().nullable().optional(),
+  name: z.string().min(1).max(40), kind: ConnectorKind, target: z.string(), asset_id: z.string().nullable().optional(),
   auth_type: z.enum(['none', 'token', 'basic', 'ssh-key']), secret: z.string().optional().describe('Leave blank when editing to keep the old secret'),
   allow: z.array(z.string()), enabled: z.boolean(), tools: z.array(z.object({ name: z.string(), enabled: z.boolean() })).optional().describe('Per-tool enable; tools not listed keep their state'),
 })

@@ -39,8 +39,8 @@ Nguồn hành vi: `web/src/features/scan/CredentialedTab.tsx`, `/scans/credentia
 | `POST /scans/credentialed/{id}/test` | operator |
 | `POST /scans/credentialed`, `DELETE /scans/credentialed/{id}` | admin |
 
-## Tables owned (`scancred_`)
-`scancred_target` (tài khoản; khoá nằm ở `core_secret`), `scancred_run` (lượt quét), `scancred_result`.
+## Tables owned (`scc_`)
+`scc_target` (tài khoản; khoá nằm ở `core_secret`), `scc_run` (lượt quét), `scc_result`.
 
 ## Events
 - **Phát**: `scancred.run.finished {run_id, findings}`, `scancred.finding.reported {asset_id, cve}` (đề xuất).
@@ -53,8 +53,8 @@ Không route `/scans/credentialed*` (tab hiện "off" qua `enabled:false` ở b�
 S-SCAN-5. D-17 giấy phép minh bạch; D-55 container `greenbone` tuỳ chọn.
 
 ## Không khớp / câu hỏi mở
-- `contract.ts` ghi "khoá riêng không bao giờ được lưu"; không thể đăng nhập SSH nếu không giữ khoá. Hợp đồng này lưu bằng `core/secrets` (SYS-4); cần sửa chữ trong GUI.
+- ~~`contract.ts` ghi "khoá riêng không bao giờ được lưu"~~ Đã sửa chữ trong GUI/contract theo D-57 (11): "lưu mã hoá trên hộp, không bao giờ hiện lại" (`core/secrets`, SYS-4).
 - Chưa có endpoint chạy quét hoặc xem kết quả credentialed; chưa rõ nó dùng `POST /scans/runs` (id `cred:<id>`?) hay endpoint riêng.
 - Kéo feed NVT của Greenbone là luồng dữ liệu ra mới: chưa có trong `PRIVACY.md` (legal.md bắt buộc cập nhật cùng commit).
-- `MODULES.md` ghi bảng `scan_*`, trùng tiền tố với `scan`; đề xuất `scancred_`.
+- ~~`MODULES.md` ghi bảng `scan_*`~~ Đã chốt `scc_` theo D-57 (12) (manifest, mock `scc_target`).
 - `basis` của finding từ credentialed chưa định nghĩa.

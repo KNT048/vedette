@@ -7,6 +7,7 @@ import { collection, dataMode, daysAgo, newId, nowIso, resetMockDb, setDataMode 
 import type { Role } from '@/lib/session'
 import type { ModuleId } from '@/lib/modules'
 import { BUNDLES } from './bundles'
+import { inventorySettingsStore } from '@/features/inventory/mocks'
 import { osHandlers } from './osMock'
 import { networkHandlers } from './networkMock'
 import { networkStore } from '@/mocks/network'
@@ -72,6 +73,8 @@ const setupHandlers = [
     usersStore.set([user])
     orgStore.update((o) => ({ ...o, name: org, setup_complete: true }))
     modulesStore.set(all.map((m) => ({ ...m, enabled: m.tier === 'core' || enable.includes(m.id), enabled_at: m.tier === 'core' || enable.includes(m.id) ? nowIso() : null })))
+    // The LAN ranges asked for here are the ranges of Devices → Scope and sensors (and what Scan reads); the commitment ticked here is that page's commitment.
+    inventorySettingsStore.update((st) => ({ ...st, lan_ranges: [...new Set(lan)], scope_confirmed_at: b.commitment ? nowIso() : null, scope_confirmed_by: b.commitment ? email : null }))
     sessionStore.set({ userId: user.id })
     audit('core.setup', org, `bundle ${b.bundle}, ${lan.length} ranges${b.commitment ? ', active-scan commitment confirmed' : ''}`)
     return HttpResponse.json({ ok: true })
@@ -235,7 +238,7 @@ const accountHandlers = [
 ]
 
 // ---------- Người dùng, OIDC ----------
-const oidcStore = collection<{ issuer: string; client_id: string; secret: string; default_role: Role; role_map: { group: string; role: Role }[] }>('core_oidc', () => ({ issuer: '', client_id: '', secret: '', default_role: 'viewer', role_map: [] }))
+const oidcStore = collection<{ issuer: string; client_id: string; secret: string; default_role: Role; role_map: { group: string; role: Role }[] }>('oidc_config', () => ({ issuer: '', client_id: '', secret: '', default_role: 'viewer', role_map: [] }))
 const oidcView = (): OidcConfig => { const c = oidcStore.get(); return { issuer: c.issuer, client_id: c.client_id, secret_last4: c.secret ? c.secret.slice(-4) : null, default_role: c.default_role, role_map: c.role_map } }
 const activeAdmins = (l: User[]) => l.filter((x) => x.role === 'admin' && !x.disabled).length
 
@@ -373,7 +376,7 @@ function filterAudit(q: Partial<AuditQuery>): AuditRow[] {
   const text = (q.q ?? '').trim().toLowerCase()
   const from = q.from ? new Date(`${q.from}T00:00:00`).getTime() : -Infinity
   const to = q.to ? new Date(`${q.to}T23:59:59.999`).getTime() : Infinity
-  return auditStore.get().filter((r) => {
+  return auditStore.get().map(({ prev_hash: _p, hash: _h, detail, ...r }): AuditRow => (detail === null ? r : { ...r, detail })).filter((r) => {
     const t = new Date(r.ts).getTime()
     if (t < from || t > to) return false
     if (q.user && r.user !== q.user) return false
@@ -592,8 +595,9 @@ function telemetryPayload() {
     // Cài sạch: hộp chưa ghi nhận gì nên mọi số đếm là 0 (bản mẫu hiện số minh hoạ).
     honeypot_touches: clean ? { smb: 0, rdp: 0, ssh: 0 } : { smb: 0, rdp: 2, ssh: 1 },
     ioc_connections: clean ? 0 : 3,
-    ids_matches: clean ? {} : { 'CVE-2022-27593': 1 },
-    device_counts: Object.fromEntries(Object.entries(counts).sort(([a], [b]) => a.localeCompare(b))),
+    cve_matches: clean ? {} : { 'CVE-2022-27593': 1 }, // counts of matches between devices and exploited vulnerabilities, by CVE (there is no IDS, D-43)
+    // A product found on one device only is left out (PRIVACY.md flow 2): a rare product must not identify a small company.
+    device_counts: Object.fromEntries(Object.entries(counts).filter(([, n]) => n >= 2).sort(([a], [b]) => a.localeCompare(b))),
   }
 }
 
@@ -617,6 +621,7 @@ function privacyView() {
     { id: 8, state: isOn('ai') ? 'conditional' : 'off', control: 'reason' },
     { id: 9, state: isOn('exposure') ? 'on' : 'off', control: 'reason' },
     { id: 10, state: ntpPublic() ? 'on' : 'off', control: 'reason' },
+    { id: 11, state: isOn('auth-oidc') && !!oidcStore.get().issuer ? 'conditional' : 'off', control: 'reason' },
   ]
   return { flows, telemetry: { enabled: p.telemetry, last_sent: p.last_sent, payload: telemetryPayload() }, update_check: p.update_check }
 }
@@ -647,7 +652,7 @@ const MCP_TOOLS = [
   { name: 'list_findings', scope: 'findings' }, { name: 'get_finding', scope: 'findings' },
   { name: 'lookup_cve', scope: 'feeds' }, { name: 'lookup_ioc', scope: 'feeds' }, { name: 'hot_vulnerabilities', scope: 'feeds' },
 ]
-const mcpTokens = collection<(McpToken & { secret_hash: string })[]>('core_mcp_tokens', () => [])
+const mcpTokens = collection<(McpToken & { secret_hash: string })[]>('mcp_tokens', () => [])
 const mcpView = () => ({ enabled: isOn('mcp-server'), bind: '127.0.0.1', port: 8765, endpoint: 'http://127.0.0.1:8765/mcp', tokens: mcpTokens.get().map(({ secret_hash: _h, ...t }) => t), tools: MCP_TOOLS, scopes: MCP_SCOPES })
 
 const mcpHandlers = [

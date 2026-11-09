@@ -14,7 +14,7 @@ import { useSaveConfig, useScanConfig } from './api'
 import { errMsg } from './errors'
 import type { ScanConfig, ScanConfigResponse } from './types'
 
-const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
+const DAY_ORDER = [1, 2, 3, 4, 5, 6, 7]
 const RATES = [1, 2, 5, 10, 20]
 const AFTER = [2, 3, 5, 10]
 

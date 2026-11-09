@@ -20,7 +20,7 @@ export const rulesStore = collection<Rule[]>('ai_rules', () => [
 
 // ---- Memory
 export const memoryStore = collection<MemoryEntry[]>('ai_memory', () => [
-  { id: 'mem-1', text: 'NAS-PHOTOS is reachable from the Internet through FortiGate virtual IP NAS-PHOTO-443.', source: 'ai', created_at: ago(6), last_used_at: ago(1), enabled: true },
+  { id: 'mem-1', text: 'NAS-PHOTOS is reachable from the Internet through the firewall virtual IP NAS-PHOTO-443.', source: 'ai', created_at: ago(6), last_used_at: ago(1), enabled: true },
   { id: 'mem-2', text: 'Remote desktop to SRV-AD is allowed only through the VPN; the office has no other RDP exposure.', source: 'user', created_at: ago(20), last_used_at: ago(3), enabled: true },
   { id: 'mem-3', text: 'The camera VLAN is 192.168.20.0/24 and must never reach the Internet.', source: 'user', created_at: ago(20), last_used_at: null, enabled: true },
 ], () => [])
@@ -53,7 +53,7 @@ export interface StoredDoc { id: string; name: string; size: number; jobs: AiJob
 export const knowledgeStore = collection<StoredDoc[]>('ai_knowledge', () => [
   { id: 'kd-1', name: 'office-network-diagram.pdf', size: 1_840_000, jobs: ['explain-finding', 'ask-my-data', 'response-plan'], uploaded_at: ago(9) },
   { id: 'kd-2', name: 'it-security-policy.docx', size: 420_000, jobs: ['explain-finding', 'weekly-report', 'pdpl-assessment'], uploaded_at: ago(9) },
-  { id: 'kd-3', name: 'runbook-fortigate-changes.md', size: 38_000, jobs: ['mitigation-config', 'response-plan'], uploaded_at: ago(2) },
+  { id: 'kd-3', name: 'runbook-firewall-changes.md', size: 38_000, jobs: ['mitigation-config', 'response-plan'], uploaded_at: ago(2) },
 ], () => [])
 export const knowledgeSettings = collection<{ index_profile: string | null }>('ai_knowledge_settings', () => ({ index_profile: 'p-ollama' }), () => ({ index_profile: null }))
 export const UPLOAD_MS = 1200

@@ -27,7 +27,7 @@ const cvesFor = (keys: string[]) => kevVulns.filter((v) => keys.includes(`${v.ve
 
 // ---- bảng riêng ----
 interface Meta { suspicious?: boolean; fragile_manual?: boolean; regular_scan?: RegularScan }
-type StoredObs = Omit<Observation, 'current'>
+export type StoredObs = Omit<Observation, 'current'>
 const metaStore = collection<Record<string, Meta>>('inv_meta', () => ({}))
 const obsStore = collection<Record<string, StoredObs[]>>('inv_obs', () => ({}))
 const notifyStore = collection<{ enabled: boolean }>('inv_notify', () => ({ enabled: true }))
@@ -45,13 +45,13 @@ const settingsStore = collection<InventorySettings>('inv_settings', () => ({
 }))
 // Chỉ cảm biến của chính hộp này (đa site chưa hỗ trợ — chủ dự án, D-28).
 type StoredSensor = Omit<Sensor, 'interface' | 'interfaces' | 'span' | 'span_status'>
-const sensorsStore = collection<StoredSensor[]>('inv_sensors', () => [
+const sensorsStore = collection<StoredSensor[]>('sp_sensor', () => [
   { id: 'sn-local', name: 'vedette-hq', status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 30 },
 ], () => [
   // Cài sạch: cảm biến của chính hộp, chưa thấy thiết bị nào.
   { id: 'sn-local', name: boxInfo().hostname, status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 0 },
 ])
-const agentsStore = collection<AgentToken[]>('inv_agent_tokens', () => [
+const agentsStore = collection<AgentToken[]>('intake_agent_tokens', () => [
   { id: 'tk-osquery', name: 'osquery on SRV-AD and SRV-FILE', kind: 'osquery', last4: 'k3Pq', created_at: daysAgo(12), last_received: daysAgo(0, 3), hosts: 2, expires_at: new Date(Date.now() + 5 * 864e5).toISOString() },
 ], () => [])
 type StoredWazuh = WazuhConnection & { password: string }
@@ -68,7 +68,7 @@ const installers = async () => {
   }
 }
 const expired = (t: AgentToken) => t.expires_at !== null && new Date(t.expires_at).getTime() < Date.now()
-const wazuhStore = collection<StoredWazuh | null>('inv_wazuh', () => null, () => null)
+const wazuhStore = collection<StoredWazuh | null>('intake_wazuh', () => null, () => null)
 
 // ---- tiện ích ----
 const rand = (n: number, alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789') => {
@@ -157,15 +157,22 @@ function addObs(a: Asset, field: ObsField, value: string, source: ObsSource, con
   const cur = obsOf(a)
   obsStore.update((m) => ({ ...m, [a.id]: [...cur, { id: `${a.id}:${field}:${cur.length}:${Date.now().toString(36)}`, field, value, source, confidence, seen_at: nowIso() }] }))
 }
-/** Giá trị "đang dùng": khai tay > tin cậy cao hơn > mới hơn. */
-function markCurrent(list: StoredObs[]): Observation[] {
+/** Source rank (DATA_MODEL §5.1 (2), ARCHITECTURE §4): manual > agent > snmp > nmap = scan > passive. Unknown sources rank lowest. */
+const SOURCE_RANK: Record<string, number> = { manual: 5, agent: 4, snmp: 3, nmap: 2, scan: 2, passive: 1 }
+const sourceRank = (s: string) => SOURCE_RANK[s] ?? 0
+/** > 0 when `a` wins over `b`: source rank, then higher confidence, then newer seen_at, then smaller id (so the result is deterministic). */
+export function compareObs(a: StoredObs, b: StoredObs): number {
+  return sourceRank(a.source) - sourceRank(b.source)
+    || a.confidence - b.confidence
+    || new Date(a.seen_at).getTime() - new Date(b.seen_at).getTime()
+    || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0)
+}
+/** Current value of each field = the winning observation by compareObs. Nothing is overwritten: weaker values stay in the list. */
+export function markCurrent(list: StoredObs[]): Observation[] {
   const best = new Map<ObsField, StoredObs>()
-  const rank = (o: StoredObs) => [o.source === 'manual' ? 1 : 0, o.confidence, new Date(o.seen_at).getTime()]
   for (const o of list) {
     const b = best.get(o.field)
-    if (!b) { best.set(o.field, o); continue }
-    const [x, y] = [rank(o), rank(b)]
-    if (x[0]! > y[0]! || (x[0] === y[0] && (x[1]! > y[1]! || (x[1] === y[1] && x[2]! >= y[2]!)))) best.set(o.field, o)
+    if (!b || compareObs(o, b) > 0) best.set(o.field, o)
   }
   return list.map((o) => ({ ...o, current: best.get(o.field)?.id === o.id }))
 }

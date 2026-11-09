@@ -435,20 +435,20 @@ test.describe('updates', () => {
 })
 
 test.describe('privacy', () => {
-  test('10 flows, switch, verbatim payload', async ({ page }) => {
+  test('11 flows, switch, verbatim payload', async ({ page }) => {
     const errors = collectErrors(page)
     await cleanInstall(page)
     await page.goto('/settings/privacy')
     await expect(h1(page)).toContainText('anonymous signal every hour')
     await expectAccessible(page, 'privacy')
-    await expect(page.getByRole('table', { name: 'Data flows that leave the box' }).locator('tbody tr')).toHaveCount(10)
+    await expect(page.getByRole('table', { name: 'Data flows that leave the box' }).locator('tbody tr')).toHaveCount(11)
     await expect(page.getByText("The Vedette project's server").first()).toBeVisible()
     await shot(page, 'core', 'privacy')
     const payload = async () => JSON.parse(await page.getByLabel('JSON, exactly what would be sent').innerText()) as Record<string, unknown>
     const p = await payload()
-    expect(Object.keys(p)).toEqual(['schema', 'install_id', 'country', 'version', 'hour', 'honeypot_touches', 'ioc_connections', 'ids_matches', 'device_counts'])
+    expect(Object.keys(p)).toEqual(['schema', 'install_id', 'country', 'version', 'hour', 'honeypot_touches', 'ioc_connections', 'cve_matches', 'device_counts'])
     expect(p.ioc_connections).toBe(0)
-    expect(p.ids_matches).toEqual({})
+    expect(p.cve_matches).toEqual({})
     expect(p.device_counts).toEqual({})
     expect(JSON.stringify(p)).not.toMatch(/Company|admin@|192\.168/)
     await expect(page.getByText('Never sent')).toBeVisible()

@@ -13,7 +13,7 @@ Tên endpoint, mã lỗi, tên trường giữ tiếng Anh; văn xuôi tiếng V
 | Phân nhóm theo module | Phần đầu đường dẫn = nhóm của module: `/ai`, `/core`, `/exposure`, `/feeds`, `/findings`, `/honeypot`, `/inventory`, `/logs`, `/notify`, `/reports`, `/response`, `/scans`. Ngoại lệ có chủ đích, đều thuộc `core` hoặc `inventory`: `/auth/*`, `/me`, `/modules`, `/setup` (core); `/install/*`, `/intake/*` (inventory, tệp cài và nhận dữ liệu agent). `/findings` thuộc module `mitigation` (README `features/findings`); `/scans` (số nhiều) thuộc module `scan`. |
 | Số thao tác mỗi nhóm | core 57 · ai 52 · response 39 · inventory 29 · honeypot 15 · feeds 13 · scan 13 · notify 12 · exposure 11 · reports 11 · logs 10 · findings 5 (GET 103, POST 97, PUT 33, DELETE 22, PATCH 12). |
 | Danh từ, kebab-case | Đường dẫn là danh từ số nhiều cho tập hợp (`/core/users`, `/inventory/devices`, `/honeypot/decoys`), số ít cho đối tượng cấu hình một-bản (`/core/general`, `/core/privacy`, `/scans/config`, `/logs/siem`, `/honeypot/config`). Đoạn đường dẫn kebab-case (`box-ip`, `chat-decision`, `sample-data`, `auth-options`). Tham số đường dẫn `{id}`, trừ khoá tự nhiên: `{type}` (kênh), `{service}` (bẫy), `{date}`, `{token}`. |
-| Tên trường, tham số | JSON và query: `snake_case`. Định danh **của một thứ** (id module, kênh, việc AI, loại): kebab-case (`explain-finding`, `zalo-personal`, `sensor-passive`, `device-api`). **Trạng thái / enum trạng thái**: snake_case (`false_positive`, `auto_stopped`, `blocked_by_hook`). |
+| Tên trường, tham số | JSON và query: `snake_case`. Định danh **của một thứ** (id module, kênh, việc AI, loại): kebab-case (`explain-finding`, `zalo-personal`, `sensor-passive`, `netconf-restconf`). **Trạng thái / enum trạng thái**: snake_case (`false_positive`, `auto_stopped`, `blocked_by_hook`). |
 | Hành động = POST vào tài nguyên con | `POST /{tài nguyên}/{id}/{động từ}`: `verify`, `scan`, `stop`, `approve`, `reject`, `rollback`, `test`, `resend`, `commitment`, `status`, `applied`, `suspicious`, `reset-password`, `2fa/reset`. Hành động trên cả tập hợp: `POST /scans/runs`, `/response/rules/run`, `/response/rules/simulate`, `/feeds/parse-test`, `/ai/hooks/test`, `/ai/profiles/test`. Không có động từ trong đường dẫn của GET/PUT/DELETE. |
 | GET | Đọc, không tác dụng phụ (kể cả `GET /response/approve/{token}`: chỉ hiện trạng thái). Tải tệp cũng là GET (mục 12). |
 | POST | Tạo mới (trả 201), hoặc hành động có tác dụng phụ (trả 200/202/204). |
@@ -27,8 +27,8 @@ Tên endpoint, mã lỗi, tên trường giữ tiếng Anh; văn xuôi tiếng V
 | Mã | Dùng cho | Ghi chú |
 |---|---|---|
 | 200 | Đọc, sửa, hành động trả tài nguyên mới | Hầu hết `POST …/approve\|reject\|status\|verify` trả tài nguyên đã cập nhật |
-| 201 | Tạo (16 chỗ trong mock) | **Hợp đồng đang khai 200** cho các POST tạo (mock trả 201): `Endpoint` chưa có trường `status`; thêm (mục 12, câu hỏi mở 1). Kèm `Location` **[ĐX]** |
-| 202 | Việc dài chạy nền (`POST /core/updates/os/install`) | Thân = tài nguyên "lần chạy" (`id`, `status`); theo dõi bằng `GET …/run` hoặc SSE (mục 11) |
+| 201 | Tạo (16 chỗ trong mock) | Đã khai bằng `status: 201` trong `contract.ts` và có trong `openapi.json` (WP-06; test `contract.test.ts` đối chiếu mock). Hai endpoint trả 201 hoặc 200 tuỳ trường hợp (`POST /exposure/box-ip/verify`, `POST /response/ai/proposals`) giữ mặc định 200 và nói rõ trong `summary`. Kèm `Location` **[ĐX]** |
+| 202 | Việc dài chạy nền (`POST /core/updates/os/install`, khai `status: 202`) | Thân = tài nguyên "lần chạy" (`id`, `status`); theo dõi bằng `GET …/run` hoặc SSE (mục 11) |
 | 204 | Xoá, hành động không có kết quả | Không thân |
 | 400 | Dữ liệu vào sai ở biên (SYS-2) | Gần như mọi lỗi kiểm tra (205 mã, mục 3). `invalid_credentials` khi đăng nhập sai cũng là 400, **không** phải 401 |
 | 401 | Chưa đăng nhập / phiên hết hạn (`unauthenticated`), hoặc cần mã 2 bước (`twofa_required` ở `POST /auth/login`, kèm `method`) | |
@@ -236,7 +236,6 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_timezone` | 400 | The time zone is not in the list. | `PUT /core/general` |
 | `invalid_type` | 400 | Only PDF, MD, TXT and DOCX files can be added. | `POST /ai/knowledge` |
 | `invalid_url` | 400 | Use an https:// address (http:// is only allowed for internal addresses). | `PUT /feeds/sources/{id}` |
-| `invalid_vendor` | 400 | Pick which device API this is: FortiOS, RouterOS, pfSense or other. | module ai (validator dùng chung) |
 | `invalid_volume` | 400 | Pick how many people\ | module reports (validator dùng chung) |
 | `invalid_when` | 400 | Pick when the hook runs: before sending to the AI, after the AI answers, or before a tool call. | `POST /ai/hooks/test`; `POST /core/updates/os/reboot` |
 | `invalid_window` | 400 | The maintenance window is "any time" or "only in a window". | `PATCH /core/updates/os/settings` |
@@ -248,7 +247,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `locked` | 400 | "Write tools need approval" is always on. A tool that changes something can only run through an action a person approves | `PUT /ai/hooks/builtin/{id}` |
 | `missing_dependencies` | 400/409 | Module ${id} also needs: ${lacking.join(', ')}. | `PATCH /modules/{id}`; `POST /core/setup` |
 | `no_code` | 400 | No code is waiting. Ask for a new code. | module core (validator dùng chung) |
-| `no_commitment` | 400/409 | You have not confirmed that your company owns ${t.value} and you are authorized to scan it. Confirm it first. | `POST /exposure/targets/{id}/scan`; `POST /scans/runs` |
+| `commitment_required` | 400 | You have not confirmed that your company owns ${t.value} and you are authorized to scan it. Confirm it first. | `POST /exposure/targets/{id}/scan`; `POST /scans/runs` |
 | `no_days` | 400 | Pick at least one day for the maintenance window. | `PATCH /core/updates/os/settings`; `PUT /inventory/settings` |
 | `no_index_profile` | 400 | Choose which AI profile builds the index before adding documents. | `POST /ai/knowledge` |
 | `no_lan` | 400 | Add your LAN range first (Devices, Scope and sensors), so Vedette knows which network the box is on. | `POST /honeypot/decoys`; `PUT /honeypot/config` |
@@ -677,8 +676,8 @@ Go codegen (M2: type + giao diện handler, strict)                   ← backen
 
 - **Nơi khai báo:** mỗi endpoint là một phần tử `defineEndpoints([...])` với `method`, `path` (không có `/api/v1`), `summary` (một câu tiếng Anh), `stories` (ID story), `role`, `params`/`query`/`body`/`response` (Zod; `null` = 204; `'file'` = tải tệp), `example` (cho test GET). Kiểu của SPA lấy bằng `z.infer` từ chính schema (`types.ts`), nên SPA, mock và backend không lệch.
 - **Sinh OpenAPI:** `z.toJSONSchema(…, {target: 'draft-2020-12', io: 'output'})`; thao tác có `operationId` = `<module>_<method>_<path>`, `tags: [module]`, `x-stories`, `x-min-role`; mọi thao tác thêm `default → Error`; `securitySchemes.session` = cookie `vedette_session`.
-- **Lệch đã biết** (giữa quyết định/mock và hợp đồng sinh ra): D-18 ghi `api/openapi.yaml`, thực tế `api/openapi.json` (spec này coi **`.json` là chuẩn**, câu hỏi mở 9); POST tạo trả 201 nhưng khai 200; không có khai lỗi theo thao tác; SSE và `multipart` chưa biểu diễn được (`Endpoint` chưa có `status`, `errors`, kiểu `stream`).
-- **Đề xuất mở rộng `Endpoint`** (một PR riêng, trước khi viết Go) **[ĐX]**: `status?: 200 | 201 | 202` (mặc định 200; 204 khi `response === null`), `errors?: string[]` (mã lỗi có thể trả → `x-errors` + bảng mục 3.3 sinh tự động), `response: 'file' | 'stream'`, `contentType?` cho tệp/đa phần.
+- **Lệch đã biết** (giữa quyết định/mock và hợp đồng sinh ra): D-18 ghi `api/openapi.yaml`, thực tế `api/openapi.json` (spec này coi **`.json` là chuẩn**, câu hỏi mở 9); ~~POST tạo trả 201 nhưng khai 200~~ (đã sửa: `status` trong `Endpoint`); không có khai lỗi theo thao tác; SSE và `multipart` chưa biểu diễn được (`Endpoint` chưa có `errors`, kiểu `stream`).
+- **Mở rộng `Endpoint`**: `status?: 200 | 201 | 202` **đã có** (mặc định 200; 204 khi `response === null`; WP-06). Còn đề xuất **[ĐX]**: `errors?: string[]` (mã lỗi có thể trả → `x-errors` + bảng mục 3.3 sinh tự động), `response: 'file' | 'stream'`, `contentType?` cho tệp/đa phần.
 
 ### 12.1 Kiểm tra lệch (CI)
 
@@ -715,7 +714,7 @@ Thêm khi có Go **[ĐX]**, đều chạy trong `make verify` và workflow CI đ
 
 | # | Câu hỏi | Gợi ý / ảnh hưởng |
 |---|---|---|
-| 1 | **POST tạo trả 201 nhưng hợp đồng khai 200** (16 chỗ). Thêm `status` vào `Endpoint` và sinh lại `openapi.json` (đổi lớn trong file sinh) trước M2? | Nếu không, backend và spec lệch ngay ngày đầu |
+| 1 | ~~**POST tạo trả 201 nhưng hợp đồng khai 200** (16 chỗ)~~ Đã làm ở WP-06: `status` trong `Endpoint`, `openapi.json` sinh lại. Còn lại: hai endpoint trả 201/200 tuỳ trường hợp chưa biểu diễn được. | |
 | 2 | **Khai mã lỗi theo thao tác** (`errors: [...]`) để bảng 3.3 sinh tự động thay vì trích tĩnh bằng regex (hạn chế: nhiều mã gắn "validator dùng chung"). Có làm không? | Giảm công bảo trì bảng 278 mã; cần sửa toàn bộ `contract.ts` |
 | 3 | **Phân trang `GET /inventory/devices`, `/findings`:** SPA tải toàn bộ và lọc ở client. Chuyển sang phân trang/ lọc ở máy chủ ở M2 hay giữ tới khi vượt ngưỡng? | Mục tiêu 1.000 thiết bị vẫn chạy được không phân trang; cần xác nhận |
 | 4 | **Hạn phiên** (idle, tuyệt đối), khoá đăng nhập sai, chính sách "ghi nhớ thiết bị": mock chưa có. Giá trị mặc định? | Cũng là câu hỏi mở số 7 của DATA_MODEL |

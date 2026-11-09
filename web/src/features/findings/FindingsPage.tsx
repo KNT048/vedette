@@ -105,5 +105,5 @@ function List() {
 }
 
 export default function FindingsPage() {
-  return <RequireModule module="mitigation"><List /></RequireModule>
+  return <RequireModule module="findings"><List /></RequireModule>
 }

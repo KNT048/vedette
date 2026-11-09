@@ -1,8 +1,8 @@
 // Kho dữ liệu của mock API. Trình duyệt: lưu localStorage để dữ liệu người dùng nhập còn sau khi tải lại;
 // test: chỉ trong bộ nhớ. Nút "Khôi phục dữ liệu mẫu" trong Cài đặt gọi resetMockDb().
 // Đổi số khi cấu trúc dữ liệu lưu trong trình duyệt thay đổi không tương thích: mọi trình duyệt bắt đầu lại sạch.
-// v2: tiếng Anh (D-28). v3: phản ứng D-51, Incidents D-52, kênh có người duyệt (2026-11-09).
-const KEY = 'vedette-mock-db-v3'
+// v2: tiếng Anh (D-28). v3: phản ứng D-51, Incidents D-52, kênh có người duyệt (2026-11-09). v4: tên bảng theo tiền tố module (D-57 (12), WP-06).
+const KEY = 'vedette-mock-db-v4'
 const persist = typeof window !== 'undefined' && import.meta.env.MODE !== 'test'
 
 let cache: Record<string, unknown> | null = null

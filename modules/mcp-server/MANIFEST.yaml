@@ -9,6 +9,6 @@ permissions: []
 ports: ["tcp/8765"]                 # bind 127.0.0.1, endpoint http://127.0.0.1:8765/mcp (theo mock); xem câu hỏi mở 1
 container: core        # D-55
 tables_prefix: mcp_
-tables: [mcp_tokens]                # tên mock: core_mcp_tokens
+tables: [mcp_tokens]
 stories: [S-MCP-1]
 milestone: M6

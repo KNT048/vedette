@@ -55,5 +55,5 @@ S-EXP-1; D-5 luật ANM; D-25 xác thực mục tiêu; D-26 một ô cam kết.
 
 ## Không khớp / câu hỏi mở
 - IP phân giải từ subdomain (có thể thuộc CDN/bên thứ ba) có được quét cổng không? D-25 chỉ xác thực domain và IP hộp; mock vẫn liệt kê cổng theo IP của host.
-- `scan` trả 400 `no_commitment` còn `exposure` trả 409 cho cùng khái niệm.
+- ~~`scan` trả 400 `no_commitment` còn `exposure` trả 409~~ Đã thống nhất theo D-57 (10): `400 commitment_required` ở cả hai (GUI/mock đã khớp; `blocked_reason: no_commitment` giữ là nhãn trạng thái, không phải mã lỗi).
 - Chu kỳ ảnh chụp tự động chưa có trong GUI (chỉ nút "Scan now").

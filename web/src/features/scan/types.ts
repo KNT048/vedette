@@ -4,7 +4,7 @@ import type * as C from './contract'
 
 export type ScanTarget = z.infer<typeof C.ScanTarget>
 export type ScanScope = z.infer<typeof C.ScanScope>
-/** window.days: 0 = Chủ nhật … 6 = Thứ bảy; rate = yêu cầu mỗi giây. */
+/** window.days: 1 = Thứ Hai … 7 = Chủ nhật (D-57); rate = yêu cầu mỗi giây. */
 export type ScanConfig = z.infer<typeof C.ScanConfig>
 export type ScanConfigResponse = z.infer<typeof C.ScanConfigResponse>
 export type RunStatus = z.infer<typeof C.RunStatus>

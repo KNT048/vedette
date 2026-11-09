@@ -1,4 +1,4 @@
-// Mock API: hệ điều hành của chính hộp (D-53, S-CORE-7). Bản thật chạy qua `vedette-updater` (systemd, đặc quyền) với danh sách lệnh apt cố định;
+// Mock API: hệ điều hành của chính hộp (D-53, S-CORE-7). Bản thật chạy qua `vedette-host` (systemd, đặc quyền) với danh sách lệnh apt cố định;
 // web không bao giờ chạy shell. Tiến trình cài đặt mô phỏng theo đồng hồ: log hiện dần theo thời gian từ lúc bắt đầu, không cần timer phía máy chủ.
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
@@ -138,8 +138,8 @@ export const osHandlers = (deps: { updateCheckOn: () => boolean; addHistory: (e:
     const [main, sec] = MIRRORS[s.distro]
     const codename = s.distro === 'ubuntu' ? 'noble' : 'bookworm'
     return [
-      `[vedette-updater] run started: apt-get install (${scope === 'security' ? 'security updates only' : 'all updates'})`,
-      `[vedette-updater] pre-update backup of the Vedette database: ${backup}`,
+      `[vedette-host] run started: apt-get install (${scope === 'security' ? 'security updates only' : 'all updates'})`,
+      `[vedette-host] pre-update backup of the Vedette database: ${backup}`,
       `Hit:1 http://${main}/${s.distro} ${codename} InRelease`,
       `Get:2 http://${sec}/${s.distro} ${codename}-security InRelease [126 kB]`,
       'Reading package lists... Done',
@@ -149,8 +149,8 @@ export const osHandlers = (deps: { updateCheckOn: () => boolean; addHistory: (e:
       ...pkgs.flatMap((p) => [`Unpacking ${p.name} (${p.new}) over (${p.current}) ...`, `Setting up ${p.name} (${p.new}) ...`]),
       'Processing triggers for man-db ...',
       'Processing triggers for libc-bin ...',
-      '[vedette-updater] health check: vedette-api ok, database ok, sensor ok, web interface ok',
-      `[vedette-updater] run finished: ${pkgs.length} packages installed`,
+      '[vedette-host] health check: vedette-api ok, database ok, sensor ok, web interface ok',
+      `[vedette-host] run finished: ${pkgs.length} packages installed`,
     ]
   }
 

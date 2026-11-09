@@ -88,7 +88,7 @@ const id = z.object({ id: z.string() })
 
 export const endpoints = defineEndpoints([
   { method: 'get', path: '/logs/sources', summary: 'Declared log sources, where the box listens, retention period', stories: ['S-LOG-1'], role: 'viewer', response: SourcesResponse },
-  { method: 'post', path: '/logs/sources', summary: 'Create a log source (device type, sender IP, protocol, port)', stories: ['S-LOG-1'], role: 'admin', body: SourceInput, response: LogSource },
+  { method: 'post', path: '/logs/sources', status: 201, summary: 'Create a log source (device type, sender IP, protocol, port)', stories: ['S-LOG-1'], role: 'admin', body: SourceInput, response: LogSource },
   { method: 'put', path: '/logs/sources/{id}', summary: 'Update a log source', stories: ['S-LOG-1'], role: 'admin', params: id, body: SourceInput, response: LogSource },
   { method: 'delete', path: '/logs/sources/{id}', summary: 'Delete a log source; already received logs are kept until retention expires', stories: ['S-LOG-1'], role: 'admin', params: id, response: null },
   { method: 'get', path: '/logs/digest', summary: 'Digest: connections to known-bad addresses (from SPAN metadata and syslog), new log types, spikes', stories: ['S-LOG-1', 'S-LOG-2', 'S-LOG-4'], role: 'viewer', response: Digest },

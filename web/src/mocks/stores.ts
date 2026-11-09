@@ -1,6 +1,7 @@
 // Bảng dùng chung giữa module trong mock: phiên, người dùng, module, tài sản, kiểm toán.
 // Bảng riêng của từng module nằm trong features/<m>/mocks.ts.
 import { collection, dataMode, newId, nowIso, peek } from './db'
+import { canonHash, GENESIS } from '@/lib/chain'
 import type { Role } from '@/lib/session'
 import type { ModuleId, ModuleState } from '@/lib/modules'
 import type { Asset, Finding } from '@/lib/types'
@@ -27,15 +28,17 @@ const MODULES: Array<Omit<ModuleState, 'enabled_at'>> = [
   { id: 'notify', enabled: true, tier: 'standard', depends: ['core'] },
   { id: 'sensor-passive', enabled: true, tier: 'standard', depends: ['inventory'] },
   { id: 'sensor-active', enabled: true, tier: 'standard', depends: ['inventory'] },
-  { id: 'mitigation', enabled: true, tier: 'standard', depends: ['feeds', 'inventory'] },
+  // D-57 (6): findings is its own module (fnd_*, on by default); mitigation only adds the "What to do" packs and needs findings.
+  { id: 'findings', enabled: true, tier: 'standard', depends: ['feeds', 'inventory'] },
+  { id: 'mitigation', enabled: true, tier: 'standard', depends: ['findings'] },
   { id: 'exposure', enabled: true, tier: 'optional', depends: ['inventory'] },
   { id: 'scan', enabled: true, tier: 'optional', depends: ['inventory', 'feeds'] },
-  { id: 'scan-credentialed', enabled: false, tier: 'optional', depends: ['scan'] },
+  { id: 'scan-credentialed', enabled: false, tier: 'optional', depends: ['inventory', 'scan'] },
   { id: 'honeypot', enabled: true, tier: 'optional', depends: ['inventory'] },
   { id: 'logs', enabled: true, tier: 'optional', depends: ['feeds', 'inventory'] },
   { id: 'agent-intake', enabled: false, tier: 'optional', depends: ['inventory'] },
   { id: 'ai', enabled: true, tier: 'optional', depends: ['core'] },
-  { id: 'reports', enabled: true, tier: 'optional', depends: ['inventory', 'feeds'] },
+  { id: 'reports', enabled: true, tier: 'optional', depends: ['inventory', 'feeds', 'notify'] },
   { id: 'mcp-server', enabled: false, tier: 'optional', depends: ['core'] },
   { id: 'auth-oidc', enabled: false, tier: 'optional', depends: ['core'] },
   // D-40: AI đề xuất phản ứng (bật). D-41: thực thi đã duyệt là công tắc riêng bên trong module, TẮT mặc định.
@@ -45,16 +48,20 @@ export const modulesStore = collection<ModuleState[]>('core_modules', () => MODU
 export const isOn = (id: ModuleId) => modulesStore.get().find((m) => m.id === id)?.enabled ?? false
 
 export const assetsStore = collection<Asset[]>('inv_assets', seedAssets, () => [])
-export const findingsStore = collection<Finding[]>('inv_findings', seedFindings, () => [])
+export const findingsStore = collection<Finding[]>('fnd_finding', seedFindings, () => [])
 
-export interface AuditEntry { id: string; ts: string; user: string; action: string; target: string; detail?: string }
+// core_audit is a hash chain (DATA_MODEL §5.3, D-57 (14)). Newest first here; each entry's prev_hash is the hash of the one before it in time.
+export interface AuditEntry { id: string; ts: string; user: string; action: string; target: string; detail: string | null; prev_hash: string; hash: string }
 export const auditStore = collection<AuditEntry[]>('core_audit', () => [])
 
 /** SYS-3: mọi mutation ghi kiểm toán. */
 export function audit(action: string, target: string, detail?: string) {
   const s = sessionStore.get()
   const u = usersStore.get().find((x) => x.id === s.userId)
-  auditStore.update((l) => [{ id: newId('au'), ts: nowIso(), user: u?.email ?? 'system', action, target, detail }, ...l].slice(0, 1000))
+  auditStore.update((l) => {
+    const core = { id: newId('au'), ts: nowIso(), user: u?.email ?? 'system', action, target, detail: detail ?? null, prev_hash: l[0]?.hash ?? GENESIS }
+    return [{ ...core, hash: canonHash(core) }, ...l].slice(0, 1000)
+  })
 }
 
 // AI BYOK (S-AI-1/4): cấu hình và đồng hồ token dùng chung — module ai sở hữu UI/endpoint; module khác đọc để biết "Hỏi AI của tôi" dùng được không.

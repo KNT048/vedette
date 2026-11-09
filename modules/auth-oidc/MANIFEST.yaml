@@ -8,6 +8,6 @@ permissions: ["outbound:https"]     # discovery, token, JWKS tới IdP của kh�
 ports: []                           # redirect/callback trên cổng 8443 của core
 container: core        # D-55
 tables_prefix: oidc_
-tables: [oidc_config]               # tên mock: core_oidc
+tables: [oidc_config]
 stories: [S-CORE-3]
 milestone: M7

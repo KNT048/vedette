@@ -160,7 +160,7 @@
   "detail": {
     "back": "Device list",
     "title": "{{name}}: {{kind}}, last seen {{when}}",
-    "meta": "Every observation is kept for comparison. Vedette uses the value you entered, otherwise the one with the highest confidence.",
+    "meta": "Every observation is kept for comparison. For each field Vedette uses the value you entered; otherwise it ranks the sources: agent first, then SNMP, then scan or nmap, then passive listening. Within the same source the higher confidence wins, then the newest observation.",
     "notFound": "This device does not exist",
     "delete": "Remove from list",
     "overview": "General information",

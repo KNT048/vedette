@@ -448,7 +448,7 @@
       "installAllTitle": "Install all {{count}} updates?",
       "installAllBody": "This installs security and normal updates. Services may restart for a few seconds. A database backup is taken first.",
       "installAllConfirm": "Install all",
-      "helper": "A separate privileged helper, vedette-updater, runs a fixed list of apt commands. The web app never runs shell commands. A database backup is taken before every run, and only one run can go at a time.",
+      "helper": "A separate privileged helper, vedette-host, runs a fixed list of apt commands. The web app never runs shell commands. A database backup is taken before every run, and only one run can go at a time.",
       "checked": "Checked the package mirrors.",
       "pending": "{{count}} updates waiting, {{security}} of them security",
       "pendingCaption": "Pending operating system updates",
@@ -533,7 +533,7 @@
       },
       "2": {
         "name": "Anonymous signal",
-        "what": "An hourly packet of counts, shown verbatim below.",
+        "what": "An hourly packet of counts, shown verbatim below, with a fixed schema number and the hour. A product found on only one device is left out.",
         "to": "The Vedette project's server, kept aggregated, raw copies deleted after 30 days",
         "control": "Switch in the Anonymous signal block below"
       },
@@ -559,7 +559,7 @@
       },
       "6": {
         "name": "Update checks",
-        "what": "Your current Vedette version, inside the request to GitHub. For the operating system, the box runs apt against its distribution's package mirrors: the request carries the package list of this machine's release (Ubuntu or Debian version and architecture), as every apt client does, and no Vedette data.",
+        "what": "Your current Vedette version, inside the request to GitHub. For the operating system the box runs apt through the privileged helper vedette-host, and the request carries what any apt client sends: the release and architecture of this machine and the package names it asks about. No Vedette data, no inventory, no findings.",
         "to": "GitHub releases (signed software updates), and the distribution's package mirrors: archive.ubuntu.com and security.ubuntu.com on Ubuntu, deb.debian.org and security.debian.org on Debian. You can point apt at a local mirror inside your network instead.",
         "control": "Turn off to update by hand or by bundle only. Operating system updates you start yourself, or that unattended-upgrades runs, still contact the mirrors unless you point apt at a local mirror.",
         "switch": "Automatic update check"
@@ -579,10 +579,10 @@
         "link": "Open modules"
       },
       "9": {
-        "name": "External surface",
-        "what": "Domains you verified, to find subdomains in public certificate logs. Verifying a public IP address also makes the box look up its own public address.",
-        "to": "A Certificate Transparency lookup service, and a public-IP lookup service",
-        "control": "Turn off the External surface module to stop.",
+        "name": "External exposure",
+        "what": "Your verified domain names, to find subdomains in public certificate-transparency logs; and an HTTPS request to a fixed Vedette endpoint so the box can see its own public IP for IP verification.",
+        "to": "Certificate-transparency search services; the Vedette project's endpoint on Cloudflare",
+        "control": "Turn off the External exposure module.",
         "link": "Open modules"
       },
       "10": {
@@ -591,6 +591,13 @@
         "to": "pool.ntp.org by default, or the NTP servers you enter (they can be inside your network)",
         "control": "Enter your own NTP server in Box network to keep time requests inside your network.",
         "link": "Open Box network"
+      },
+      "11": {
+        "name": "Single sign-on (OIDC)",
+        "what": "Only if you set up SSO: the box reads the discovery document and the signing keys from the issuer address you entered, and exchanges the one-time sign-in code for a token. It sends your client ID and client secret and the one-time code; the identity provider sees the box's IP address and its redirect address. No devices, findings, logs or AI data are sent.",
+        "to": "The identity provider whose issuer address you entered (it can be inside your network)",
+        "control": "Turn off the SSO module (auth-oidc). Password sign-in keeps working.",
+        "link": "Open modules"
       }
     },
     "telemetry": {

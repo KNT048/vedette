@@ -11,7 +11,7 @@ test.describe.configure({ timeout: 150_000 })
 async function asUser(page: Page, userId: string) {
   await page.addInitScript((u) => {
     try {
-      const k = 'vedette-mock-db-v3'
+      const k = 'vedette-mock-db-v4'
       const raw = localStorage.getItem(k)
       if (raw) { const db = JSON.parse(raw); db.core_session = { userId: u }; localStorage.setItem(k, JSON.stringify(db)) }
     } catch { /* bỏ qua */ }
@@ -81,14 +81,14 @@ test.describe('reports: clean install', () => {
     await page.getByRole('button', { name: 'Save', exact: true }).click()
     await expect(page.getByText(/Press Add to put this email on the list/)).toBeVisible()
     await mail.press('Enter')
-    await page.getByLabel('Day').selectOption('fri')
+    await page.getByLabel('Day').selectOption('5')
     await page.getByLabel('Hour').selectOption('17')
     await page.getByRole('button', { name: 'Save', exact: true }).click()
     await expect(page.getByText('Schedule saved').first()).toBeVisible()
     await expect(page.getByText(/Next send:/)).toBeVisible()
     await page.reload()
     await expect(page.getByText('accounts@testco.example')).toBeVisible()
-    await expect(page.getByLabel('Day')).toHaveValue('fri')
+    await expect(page.getByLabel('Day')).toHaveValue('5')
     await page.getByRole('button', { name: 'Remove accounts@testco.example' }).click()
     await page.getByRole('button', { name: 'Save', exact: true }).click()
     await expect(page.getByText('accounts@testco.example')).toHaveCount(0)

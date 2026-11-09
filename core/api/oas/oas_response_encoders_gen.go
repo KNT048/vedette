@@ -1193,9 +1193,9 @@ func encodeCorePostCoreDataPurgeResponse(response *CorePostCoreDataPurgeOK, w ht
 	return nil
 }
 
-func encodeCorePostCoreMcpTokensResponse(response *CorePostCoreMcpTokensOK, w http.ResponseWriter) error {
+func encodeCorePostCoreMcpTokensResponse(response *CorePostCoreMcpTokensCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
+	w.WriteHeader(201)
 
 	e := new(jx.Encoder)
 	response.Encode(e)
@@ -1323,9 +1323,9 @@ func encodeCorePostCoreUpdatesOsCheckResponse(response *CorePostCoreUpdatesOsChe
 	return nil
 }
 
-func encodeCorePostCoreUpdatesOsInstallResponse(response *CorePostCoreUpdatesOsInstallOK, w http.ResponseWriter) error {
+func encodeCorePostCoreUpdatesOsInstallResponse(response *CorePostCoreUpdatesOsInstallAccepted, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
+	w.WriteHeader(202)
 
 	e := new(jx.Encoder)
 	response.Encode(e)
@@ -1362,9 +1362,9 @@ func encodeCorePostCoreUpdatesRollbackResponse(response *CorePostCoreUpdatesRoll
 	return nil
 }
 
-func encodeCorePostCoreUsersResponse(response *CorePostCoreUsersOK, w http.ResponseWriter) error {
+func encodeCorePostCoreUsersResponse(response *CorePostCoreUsersCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
+	w.WriteHeader(201)
 
 	e := new(jx.Encoder)
 	response.Encode(e)
@@ -1563,9 +1563,9 @@ func encodeExposurePostExposureBoxIPVerifyResponse(response *ExposurePostExposur
 	return nil
 }
 
-func encodeExposurePostExposureTargetsResponse(response *ExposurePostExposureTargetsOK, w http.ResponseWriter) error {
+func encodeExposurePostExposureTargetsResponse(response *ExposurePostExposureTargetsCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
+	w.WriteHeader(201)
 
 	e := new(jx.Encoder)
 	response.Encode(e)
@@ -1699,9 +1699,9 @@ func encodeFeedsGetFeedsWeeklyResponse(response *FeedsGetFeedsWeeklyOK, w http.R
 	return nil
 }
 
-func encodeFeedsPostFeedsCustomResponse(response *FeedsPostFeedsCustomOK, w http.ResponseWriter) error {
+func encodeFeedsPostFeedsCustomResponse(response *FeedsPostFeedsCustomCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
+	w.WriteHeader(201)
 
 	e := new(jx.Encoder)
 	response.Encode(e)
@@ -1945,9 +1945,9 @@ func encodeHoneypotPatchHoneypotTrapsServiceResponse(response *HoneypotPatchHone
 	return nil
 }
 
-func encodeHoneypotPostHoneypotDecoysResponse(response *HoneypotPostHoneypotDecoysOK, w http.ResponseWriter) error {
+func encodeHoneypotPostHoneypotDecoysResponse(response *HoneypotPostHoneypotDecoysCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
+	w.WriteHeader(201)
 
 	e := new(jx.Encoder)
 	response.Encode(e)
@@ -1984,9 +1984,9 @@ func encodeHoneypotPostHoneypotTestScanResponse(response *HoneypotPostHoneypotTe
 	return nil
 }
 
-func encodeHoneypotPostHoneypotTokensResponse(response *HoneypotPostHoneypotTokensOK, w http.ResponseWriter) error {
+func encodeHoneypotPostHoneypotTokensResponse(response *HoneypotPostHoneypotTokensCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
+	w.WriteHeader(201)
 
 	e := new(jx.Encoder)
 	response.Encode(e)
@@ -2211,9 +2211,9 @@ func encodeInventoryPostIntakeOsqueryStatusResponse(response *InventoryPostIntak
 	return nil
 }
 
-func encodeInventoryPostInventoryAgentsTokensResponse(response *InventoryPostInventoryAgentsTokensOK, w http.ResponseWriter) error {
+func encodeInventoryPostInventoryAgentsTokensResponse(response *InventoryPostInventoryAgentsTokensCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
+	w.WriteHeader(201)
 
 	e := new(jx.Encoder)
 	response.Encode(e)
@@ -2263,9 +2263,9 @@ func encodeInventoryPostInventoryAgentsWazuhTestResponse(response *InventoryPost
 	return nil
 }
 
-func encodeInventoryPostInventoryDevicesResponse(response *InventoryPostInventoryDevicesOK, w http.ResponseWriter) error {
+func encodeInventoryPostInventoryDevicesResponse(response *InventoryPostInventoryDevicesCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
+	w.WriteHeader(201)
 
 	e := new(jx.Encoder)
 	response.Encode(e)
@@ -2289,9 +2289,9 @@ func encodeInventoryPostInventoryDevicesIDApproveResponse(response *InventoryPos
 	return nil
 }
 
-func encodeInventoryPostInventoryDevicesIDSoftwareResponse(response *InventoryPostInventoryDevicesIDSoftwareOK, w http.ResponseWriter) error {
+func encodeInventoryPostInventoryDevicesIDSoftwareResponse(response *InventoryPostInventoryDevicesIDSoftwareCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
+	w.WriteHeader(201)
 
 	e := new(jx.Encoder)
 	response.Encode(e)
@@ -2438,9 +2438,9 @@ func encodeLogsPostLogsSiemTestResponse(response *LogsPostLogsSiemTestOK, w http
 	return nil
 }
 
-func encodeLogsPostLogsSourcesResponse(response *LogsPostLogsSourcesOK, w http.ResponseWriter) error {
+func encodeLogsPostLogsSourcesResponse(response *LogsPostLogsSourcesCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
+	w.WriteHeader(201)
 
 	e := new(jx.Encoder)
 	response.Encode(e)
@@ -3108,9 +3108,9 @@ func encodeResponsePostResponseBreakerResetResponse(response *ResponsePostRespon
 	return nil
 }
 
-func encodeResponsePostResponseCatalogResponse(response *ResponsePostResponseCatalogOK, w http.ResponseWriter) error {
+func encodeResponsePostResponseCatalogResponse(response *ResponsePostResponseCatalogCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
+	w.WriteHeader(201)
 
 	e := new(jx.Encoder)
 	response.Encode(e)
@@ -3147,9 +3147,9 @@ func encodeResponsePostResponseExecutionResponse(response *ResponsePostResponseE
 	return nil
 }
 
-func encodeResponsePostResponseProposalsIDRequestResponse(response *ResponsePostResponseProposalsIDRequestOK, w http.ResponseWriter) error {
+func encodeResponsePostResponseProposalsIDRequestResponse(response *ResponsePostResponseProposalsIDRequestCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
+	w.WriteHeader(201)
 
 	e := new(jx.Encoder)
 	response.Encode(e)
@@ -3160,9 +3160,9 @@ func encodeResponsePostResponseProposalsIDRequestResponse(response *ResponsePost
 	return nil
 }
 
-func encodeResponsePostResponseRulesResponse(response *ResponsePostResponseRulesOK, w http.ResponseWriter) error {
+func encodeResponsePostResponseRulesResponse(response *ResponsePostResponseRulesCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
+	w.WriteHeader(201)
 
 	e := new(jx.Encoder)
 	response.Encode(e)
@@ -3212,9 +3212,9 @@ func encodeResponsePostResponseRulesSimulateResponse(response *ResponsePostRespo
 	return nil
 }
 
-func encodeResponsePostResponseTemplatesIDCloneResponse(response *ResponsePostResponseTemplatesIDCloneOK, w http.ResponseWriter) error {
+func encodeResponsePostResponseTemplatesIDCloneResponse(response *ResponsePostResponseTemplatesIDCloneCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
+	w.WriteHeader(201)
 
 	e := new(jx.Encoder)
 	response.Encode(e)
@@ -3376,9 +3376,9 @@ func encodeScanGetScansTargetsResponse(response *ScanGetScansTargetsOK, w http.R
 	return nil
 }
 
-func encodeScanPostScansCredentialedResponse(response *ScanPostScansCredentialedOK, w http.ResponseWriter) error {
+func encodeScanPostScansCredentialedResponse(response *ScanPostScansCredentialedCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
+	w.WriteHeader(201)
 
 	e := new(jx.Encoder)
 	response.Encode(e)
@@ -3402,9 +3402,9 @@ func encodeScanPostScansCredentialedIDTestResponse(response *ScanPostScansCreden
 	return nil
 }
 
-func encodeScanPostScansRunsResponse(response *ScanPostScansRunsOK, w http.ResponseWriter) error {
+func encodeScanPostScansRunsResponse(response *ScanPostScansRunsCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
+	w.WriteHeader(201)
 
 	e := new(jx.Encoder)
 	response.Encode(e)

@@ -12,11 +12,12 @@ import { Field, Input, Select, Textarea } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { errText, useCatalog, useDeleteAction, useSaveAction } from './api'
 import { RiskChip } from './parts'
-import { EMPTY_TPL, isMcp, KIND_FIELDS, kindProblem, tplEmpty, validateTpl, vendorExample, type ConnKind, type Tpl, type TplField } from './logic'
+import { EMPTY_TPL, isMcp, KIND_FIELDS, kindHint, kindProblem, tplEmpty, validateTpl, type ConnKind, type Tpl, type TplField } from './logic'
 import type { Catalog, CatalogAction, CatalogInput, Connection, Risk } from './types'
 
-const METHODS: Tpl['method'][] = ['', 'GET', 'PUT', 'POST', 'DELETE']
-const PACKS = ['box', 'fortigate', 'mikrotik', 'pfsense', 'opnsense', 'switch', 'dns', 'generic'] as const
+const METHODS: Tpl['method'][] = ['', 'GET', 'PUT', 'PATCH', 'POST', 'DELETE']
+/** Packs come from the template library (data): box first, then the library's packs in their order, generic last. */
+const packsOf = (items: CatalogAction[]) => { const named = [...new Set(items.map((a) => a.pack))].filter((p) => p !== 'box' && p !== 'generic'); return [...(items.some((a) => a.pack === 'box') ? ['box'] : []), ...named, ...(items.some((a) => a.pack === 'generic') ? ['generic'] : [])] }
 
 /** Connections that can carry actions come first; a read-only one is shown but cannot be chosen. */
 export function ConnectionOptions({ connections }: { connections: Connection[] }) {
@@ -77,7 +78,7 @@ export function ActionDialog({ action, cat, onClose, onSaved }: { action: Catalo
   const save = useSaveAction()
   const usable = cat.connections.filter((c) => !c.read_only)
   const start = (c: Connection | undefined): Pick<CatalogInput, 'connection_id' | 'tool' | 'rollback_tool' | 'run' | 'rollback' | 'verify'> => {
-    const ex = vendorExample(c?.kind ?? null, c?.vendor ?? null) // prefill only from this connection's vendor
+    const ex = kindHint(c?.kind ?? null)
     return { connection_id: c?.id ?? '', tool: null, rollback_tool: null, run: { ...EMPTY_TPL, ...ex.run }, rollback: { ...EMPTY_TPL, ...ex.rollback }, verify: EMPTY_TPL }
   }
   const [f, setF] = useState<CatalogInput>(action
@@ -87,7 +88,7 @@ export function ActionDialog({ action, cat, onClose, onSaved }: { action: Catalo
   const conn = cat.connections.find((c) => c.id === f.connection_id)
   const kind = conn?.kind as ConnKind | undefined
   const set = (p: Partial<CatalogInput>) => { setF({ ...f, ...p }); setError(undefined) }
-  const ex = vendorExample(kind ?? null, conn?.vendor ?? null)
+  const ex = kindHint(kind ?? null)
   const submit = () => {
     if (!conn || !kind) { setError(t('catalog.noWritable')); return }
     const bad = (['run', 'rollback'] as const).map((k) => kindProblem(kind, f[k], t(k === 'run' ? 'catalog.runLegend' : 'catalog.rollbackLegend')) ?? (isMcp(kind) ? null : validateTpl(f[k], t(k === 'run' ? 'catalog.runLegend' : 'catalog.rollbackLegend')))).find(Boolean)
@@ -113,7 +114,7 @@ export function ActionDialog({ action, cat, onClose, onSaved }: { action: Catalo
           <p className="-mt-2 text-[13px] text-muted">{t('catalog.needConnection')} <Link className="text-accent underline underline-offset-4" to="/settings/ai?tab=connections">{t('catalog.toConnections')}</Link></p>
           {kind ? (
             <>
-              <p className="text-[13px] text-muted">{t('catalog.placeholders')}</p>
+              <p className="text-[13px] text-muted">{t(action && !action.device ? 'catalog.placeholdersMessage' : 'catalog.placeholders')}</p>
               {ex.hint ? <p className="rounded-md border border-dashed border-rule px-3 py-2 text-[13px] text-muted">{ex.hint}</p> : null}
               <TplFields key={`run-${f.connection_id}`} id="ca-run" legend={t('catalog.runLegend')} kind={kind} value={f.run} onChange={(run) => set({ run })} tools={conn?.write_tools ?? []} tool={f.tool} onTool={(tool) => set({ tool })} />
               <TplFields key={`rb-${f.connection_id}`} id="ca-rb" legend={t('catalog.rollbackLegend')} kind={kind} value={f.rollback} onChange={(rollback) => set({ rollback })} tools={conn?.write_tools ?? []} tool={f.rollback_tool} onTool={(rollback_tool) => set({ rollback_tool })} />
@@ -135,7 +136,7 @@ export function ActionDialog({ action, cat, onClose, onSaved }: { action: Catalo
   )
 }
 
-/** Settings, AI response: the action catalog by vendor pack. An action is allowed when it is enabled. */
+/** Settings, AI response: the action catalog by template pack. An action is allowed when it is enabled. */
 export function CatalogEditor() {
   const { t } = useTranslation('response')
   const q = useCatalog()
@@ -152,12 +153,12 @@ export function CatalogEditor() {
         <div><h3 className="text-sm font-medium">{t('catalog.title')}</h3><p className="text-[13px] text-muted">{t('catalog.hint')}</p></div>
         <Button onClick={() => setEdit('new')}><Plus className="size-4" aria-hidden />{t('catalog.add')}</Button>
       </div>
-      {PACKS.map((pack) => {
+      {packsOf(cat.items).map((pack) => {
         const items = cat.items.filter((a) => a.pack === pack)
         if (!items.length) return null
         return (
-          <section key={pack} className="grid grid-cols-[minmax(0,1fr)] gap-2" aria-label={t(`catalog.packs.${pack}`)}>
-            <h4 className="mt-2 text-[13px] font-medium text-muted">{t(`catalog.packs.${pack}`)}</h4>
+          <section key={pack} className="grid grid-cols-[minmax(0,1fr)] gap-2" aria-label={t(`catalog.packs.${pack}`, { defaultValue: pack })}>
+            <h4 className="mt-2 text-[13px] font-medium text-muted">{t(`catalog.packs.${pack}`, { defaultValue: pack })}</h4>
             {items.map((a) => (
               <Panel key={a.id} className="grid grid-cols-[minmax(0,1fr)] gap-2 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">

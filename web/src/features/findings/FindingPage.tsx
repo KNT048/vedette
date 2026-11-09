@@ -191,7 +191,7 @@ function Detail({ f }: { f: FindingDetail }) {
         <div>
           <Evidence f={f} />
           <Section id="mitigation" title={t('rec.title')} description={t('rec.description')} stories={['S-MIT-1']}>
-            {f.pack ? <PackView finding={f} /> : <NoPack finding={f} />}
+            <RequireModule module="mitigation">{f.pack ? <PackView finding={f} /> : <NoPack finding={f} />}</RequireModule>
           </Section>
           <Compromise f={f} />
           <Slot name="finding.panels" props={{ findingId: f.id }} />
@@ -211,7 +211,7 @@ export default function FindingPage() {
   const { id = '' } = useParams()
   const q = useFinding(id)
   return (
-    <RequireModule module="mitigation">
+    <RequireModule module="findings">
       <Link to="/findings" className="mb-3 inline-flex items-center gap-1 text-[13px] text-muted hover:text-ink"><ArrowLeft className="size-3.5" />{t('back')}</Link>
       <QueryState query={q}>{(f) => <Detail f={f} />}</QueryState>
     </RequireModule>

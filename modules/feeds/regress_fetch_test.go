@@ -50,7 +50,7 @@ func TestRegress_CheckURLReviewerCases(t *testing.T) {
 }
 
 func TestRegress_GzipBombCapIsOnTheDecompressedBody(t *testing.T) {
-	t.Parallel()
+	// Not parallel: peakHeap reads the process-wide heap, which other tests would inflate.
 	var gz bytes.Buffer
 	w := gzip.NewWriter(&gz)
 	zero := make([]byte, 1<<20)

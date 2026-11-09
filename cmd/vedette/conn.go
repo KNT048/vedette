@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -161,7 +162,9 @@ func defaultGateway(route io.Reader) (netip.Addr, bool) {
 		if err != nil || v == 0 {
 			continue
 		}
-		return netip.AddrFrom4([4]byte{byte(v), byte(v >> 8), byte(v >> 16), byte(v >> 24)}), true // little-endian
+		var b [4]byte
+		binary.LittleEndian.PutUint32(b[:], uint32(v))
+		return netip.AddrFrom4(b), true
 	}
 	return netip.Addr{}, false
 }

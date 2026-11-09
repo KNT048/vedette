@@ -19,7 +19,7 @@ func TestConnectionRequestSecretIsRedactedWhenFormatted(t *testing.T) {
 	if err := json.Unmarshal([]byte(body), &w); err != nil {
 		t.Fatal(err)
 	}
-	for _, got := range []string{fmt.Sprintf("%v", w), fmt.Sprintf("%+v", w), fmt.Sprintf("%#v", w), fmt.Sprint(w.Secret), fmt.Sprintf("%s", w.Secret)} { //nolint:gosec,staticcheck // the point
+	for _, got := range []string{fmt.Sprintf("%v", w), fmt.Sprintf("%+v", w), fmt.Sprintf("%#v", w), fmt.Sprint(w.Secret), fmt.Sprintf("%s", w.Secret)} {
 		if strings.Contains(got, secret) || strings.Contains(got, "0123456789") {
 			t.Errorf("a formatted request shows the secret: %s", got)
 		}

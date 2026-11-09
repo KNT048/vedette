@@ -988,7 +988,7 @@ func TestNameLengthIsCodePoints(t *testing.T) {
 func TestInputSecretIsRedactedWhenFormatted(t *testing.T) {
 	t.Parallel()
 	in := httpIn("Office API")
-	for _, got := range []string{fmt.Sprintf("%v", in), fmt.Sprintf("%+v", in), fmt.Sprintf("%#v", in), fmt.Sprint(in.Secret), fmt.Sprintf("%s", in.Secret), fmt.Sprintf("%q", in.Secret)} { //nolint:gosec,staticcheck // the point
+	for _, got := range []string{fmt.Sprintf("%v", in), fmt.Sprintf("%+v", in), fmt.Sprintf("%#v", in), fmt.Sprint(in.Secret), fmt.Sprintf("%s", in.Secret), fmt.Sprintf("%q", in.Secret)} {
 		if strings.Contains(got, secret1) || strings.Contains(got, secret1[:10]) {
 			t.Errorf("a formatted input shows the secret: %s", got)
 		}

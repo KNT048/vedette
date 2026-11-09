@@ -129,7 +129,7 @@ func startSys(t *testing.T, muts ...mut) *sysEnv {
 	}}, muts...)
 	e.o = m.Ops(e.clock.Now, all...)
 	e.h = servertest.Start(t, e.o.Commands(), func(o *server.Options) {
-		o.StateDir, o.Readers, o.Now, o.WriteGate = m.State, e.o.Readers(), e.clock.Now, e.o.WriteGate
+		o.StateDir, o.Readers, o.Now, o.WriteGate, o.Resume = m.State, e.o.Readers(), e.clock.Now, e.o.WriteGate, e.o.Resume
 	})
 	return e
 }
@@ -264,15 +264,16 @@ func assertEnvClean(t *testing.T, envs [][]string) {
 
 // --- the command table matches the spec ----------------------------------------------------------
 
-// documentedCommandsPart1 are the commands WP-07b part 1 implements.
+// documentedCommandsPart1 are the commands WP-07b has implemented so far (parts 1 and 3-4).
 var documentedCommandsPart1 = []string{
-	"backup.create", "backup.restore", "logs.export", "os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel",
+	"backup.create", "backup.restore", "logs.export", "net.apply", "net.confirm", "net.revert",
+	"os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel",
 }
 
-// notYetImplemented are the commands of spec section 6 that later parts bring (net, decoy IP, containers).
+// notYetImplemented are the commands of spec section 6 that later slices bring (decoy IP, containers).
 var notYetImplemented = []string{
 	"container.pull", "container.rollback", "container.start", "container.stop",
-	"decoy_ip.add", "decoy_ip.remove", "net.apply", "net.confirm", "net.revert",
+	"decoy_ip.add", "decoy_ip.remove",
 }
 
 func TestContract_Part1_TheCommandTableMatchesSection6OfTheSpec(t *testing.T) {

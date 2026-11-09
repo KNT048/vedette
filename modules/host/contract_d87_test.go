@@ -23,6 +23,7 @@ import (
 
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/ops"
+	"github.com/knt048/vedette/host/server"
 )
 
 // sourcesUnder parses every Go file under the given directories, tests included.
@@ -442,3 +443,5 @@ func (failingNotifier) Note(string, string, map[string]any) error {
 func (failingNotifier) WriteActive() bool { return false }
 
 func (failingNotifier) AwaitingConfirm() bool { return false }
+
+func (failingNotifier) Claim(string) (*server.Claimed, error) { return nil, server.ErrNotAwaiting }

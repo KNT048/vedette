@@ -8,6 +8,7 @@ import (
 
 	"github.com/knt048/vedette/host/ops"
 	"github.com/knt048/vedette/host/ops/opstest"
+	"github.com/knt048/vedette/host/server"
 )
 
 // awaitNotifier is the server as Ops sees it, with the awaiting flag under the test's control.
@@ -16,6 +17,7 @@ type awaitNotifier struct{ awaiting atomic.Bool }
 func (*awaitNotifier) Note(string, string, map[string]any) error { return nil }
 func (*awaitNotifier) WriteActive() bool                         { return false }
 func (n *awaitNotifier) AwaitingConfirm() bool                   { return n.awaiting.Load() }
+func (*awaitNotifier) Claim(string) (*server.Claimed, error)     { return nil, server.ErrNotAwaiting }
 
 // Deps.NetPending defaults to the server's answer: os.reboot refuses with net_pending_confirm
 // while a run awaits confirmation (spec 16, D-100).

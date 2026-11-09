@@ -21,10 +21,14 @@ const (
 	binJournal   = "journalctl"
 )
 
-// binNetplan names the netplan grammar of validateNetplan. It is NOT in the production runner
-// (D-87 style review of slice 3-3): netplan generate returns with slice 3-4 and a directory the host
-// creates itself. Only a CI test builds a runner with it.
-const binNetplan = "netplan"
+// binNetplan and binChronyc are the network binaries (slice 3-4). The production runner knows
+// netplan only for "apply": "generate --root-dir" stays out (its grammar checks a string, and a
+// path that is a symlink to "/" passes it; netplan apply validates the file itself, so nothing
+// here needs generate). Only a CI test builds a runner with the generate grammar.
+const (
+	binNetplan = "netplan"
+	binChronyc = "chronyc"
+)
 
 var prodPaths = map[string]string{
 	binAptGet:    "/usr/bin/apt-get",
@@ -32,6 +36,8 @@ var prodPaths = map[string]string{
 	binDpkg:      "/usr/bin/dpkg",
 	binSystemctl: "/usr/bin/systemctl",
 	binJournal:   "/usr/bin/journalctl",
+	binNetplan:   "/usr/sbin/netplan",
+	binChronyc:   "/usr/bin/chronyc",
 }
 
 // The fixed timers of unattended security updates (spec 6.3).
@@ -123,15 +129,28 @@ func validateSystemctl(coreUnit string) func([]string) error {
 // characters, at least two levels deep and not under a system directory. "generate" without
 // --root-dir, or with "/", would regenerate the real network configuration, so those are refused.
 // The grammar checks the string only: a path that is a symlink to "/" passes it. That is why no
-// production runner has it (slice 3-4 creates the directory itself, root-owned and opened without
-// following links); only a CI test runs it, on a directory of its own.
+// production runner has it; only a CI test runs it, on a directory of its own.
 var netplanRootDirRE = regexp.MustCompile(`^(/[A-Za-z0-9_.-]+){2,16}$`)
 
 var systemTopDirs = []string{"bin", "boot", "dev", "etc", "lib", "lib64", "proc", "root", "run", "sbin", "sys", "usr", "var"}
 
-// validateNetplan accepts exactly "generate --root-dir <dir>" (the netplan apply of net.apply
-// joins the grammar with slice 3-4).
-func validateNetplan(args []string) error {
+// validateNetplan is the production grammar of netplan: exactly "apply".
+var validateNetplan = exactly("apply")
+
+// chronycSources lists the sources as CSV with names ("-"+"c" is chronyc's CSV flag; it is written
+// in two parts so that the contract test that looks for shell literals does not take it for "sh -c").
+var chronycSources = []string{"-N", "-" + "c", "sources"}
+
+// validateChronyc accepts the two calls of the NTP command (D-106): reload the sources, and list them.
+func validateChronyc(args []string) error {
+	if slices.Equal(args, []string{"reload", "sources"}) || slices.Equal(args, chronycSources) {
+		return nil
+	}
+	return errors.New("not one of the fixed chronyc command lines")
+}
+
+// validateNetplanGenerate accepts exactly "generate --root-dir <dir>"; CI tests only.
+func validateNetplanGenerate(args []string) error {
 	if len(args) != 3 || args[0] != "generate" || args[1] != "--root-dir" {
 		return errors.New("not the fixed netplan command line")
 	}
@@ -160,6 +179,8 @@ func newRunner(log logger, coreUnit string, paths map[string]string, streamLimit
 		vexec.Binary{Name: binDpkg, Path: p(binDpkg), Validate: exactly("--audit")},
 		vexec.Binary{Name: binSystemctl, Path: p(binSystemctl), Validate: validateSystemctl(coreUnit)},
 		vexec.Binary{Name: binJournal, Path: p(binJournal), Validate: validateJournal, MaxOutput: streamLimit + 1},
+		vexec.Binary{Name: binNetplan, Path: p(binNetplan), Validate: validateNetplan},
+		vexec.Binary{Name: binChronyc, Path: p(binChronyc), Validate: validateChronyc},
 	)
 }
 

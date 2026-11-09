@@ -120,7 +120,11 @@ func (s *Server) Settle(runID string, status api.Status, rerr *api.RunError) err
 func (s *Server) enterAwaiting(lr *liveRun, cmd Command, aw Awaiting, rc *RunContext) bool {
 	run := &lr.sr.Run
 	revertAt := aw.RevertAt.UTC()
-	if !cmd.awaits || cmd.whileAwaiting || !lr.sr.Write || revertAt.IsZero() || !revertAt.After(s.now()) || revertAt.After(run.StartedAt.Add(maxRevertWindow)) {
+	now := s.now()
+	// The bound is elapsed + (RevertAt - now) <= 660 s with the elapsed time on the monotonic clock
+	// (Sub uses it when both times have it), so a step of the wall clock during the run neither
+	// refuses a good park nor lets a window of more than 660 s through.
+	if !cmd.awaits || cmd.whileAwaiting || !lr.sr.Write || revertAt.IsZero() || !revertAt.After(now) || now.Sub(lr.started)+revertAt.Sub(now) > maxRevertWindow {
 		s.log.Error("a command returned an invalid Awaiting", "command", lr.sub.command)
 		return false
 	}

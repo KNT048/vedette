@@ -26,7 +26,7 @@ import (
 )
 
 // Bins are the binary names of the command runner.
-var Bins = []string{"apt-get", "apt-config", "dpkg", "systemctl", "journalctl"}
+var Bins = []string{"apt-get", "apt-config", "dpkg", "systemctl", "journalctl", "netplan", "chronyc"}
 
 // BootID is the boot id a fresh machine has.
 const BootID = "11111111-2222-4333-8444-555555555555"
@@ -72,6 +72,7 @@ func NewMachine(t testing.TB) *Machine {
 	m.must(os.MkdirAll(m.CoreData, 0o700))
 	m.OSRelease("ubuntu", "24.04", "Ubuntu 24.04.3 LTS")
 	m.WriteRoot("proc/sys/kernel/random/boot_id", BootID+"\n")
+	m.WriteRoot("usr/sbin/netplan", "") // CheckBackend wants the file (the fake binary lives in Bin)
 	m.WriteRoot("proc/sys/kernel/osrelease", "6.8.0-45-generic\n")
 	m.WriteRoot("proc/uptime", "3600.55 12000.10\n")
 	for _, f := range []string{"var/lib/dpkg/lock-frontend", "var/lib/dpkg/lock", "var/lib/apt/lists/lock", "var/cache/apt/archives/lock"} {

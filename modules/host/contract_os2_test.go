@@ -18,6 +18,7 @@ import (
 	vexec "github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/ops"
+	"github.com/knt048/vedette/host/server"
 )
 
 // TestHelperHoldLock is not a test: the lock tests start this binary again through core/exec (the
@@ -140,6 +141,8 @@ func (n *noteRecorder) Note(command, code string, detail map[string]any) error {
 func (n *noteRecorder) WriteActive() bool { return false }
 
 func (n *noteRecorder) AwaitingConfirm() bool { return false }
+
+func (n *noteRecorder) Claim(string) (*server.Claimed, error) { return nil, server.ErrNotAwaiting }
 
 func (n *noteRecorder) text() string {
 	n.mu.Lock()

@@ -41,8 +41,11 @@ func ParseSnapshotMeta(b []byte) (created time.Time, schema string, includesKey 
 	return m.created, m.DBSchema, m.IncludesKey, err
 }
 
-// ValidateNetplan is the validator of the netplan binary.
+// ValidateNetplan is the validator of the netplan binary (production: "apply" only).
 func ValidateNetplan(args []string) error { return validateNetplan(args) }
+
+// ValidateChronyc is the validator of the chronyc binary.
+func ValidateChronyc(args []string) error { return validateChronyc(args) }
 
 // ParseARP validates one ARP frame (exactly 42 bytes) and reports its opcode, sender MAC and sender IP.
 // The fuzz targets and the contract tests call it; the host's own code calls parseARP.

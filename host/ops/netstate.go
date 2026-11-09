@@ -221,6 +221,11 @@ func (o *Ops) defaultRoute() *api.NetRoute {
 func (o *Ops) readNetplanConfig() (NetplanConfig, bool) {
 	for _, dir := range []string{"run/netplan", "etc/netplan"} {
 		cfg, st := o.readNetplanFile(dir)
+		if dir == "run/netplan" && st != netplanAbsent && !o.netPending() {
+			// An overlay that no awaiting run owns is not a configuration anyone confirmed (an
+			// unwatched leftover): it never becomes "the current configuration" (review of 3-4, H-1 (c)).
+			return NetplanConfig{}, false
+		}
 		switch st {
 		case netplanOurs:
 			return cfg, true
@@ -326,7 +331,10 @@ func (o *Ops) readNet(context.Context) (any, error) {
 	cfg, managed := o.readNetplanConfig()
 	route := o.defaultRoute()
 	st := api.NetState{Interfaces: []api.NetInterface{}, DefaultRoute: route, Decoys: []api.NetDecoy{}}
-	st.Config.NTP = []string{}
+	st.Config.NTP = o.readNTP()
+	if p, ps := o.loadPending(); ps == pendOK && (o.netPending() || p.RebootAt != nil) {
+		st.Pending = &api.NetPending{RunID: p.RunID, RevertAt: p.RevertAt, RebootAt: p.RebootAt}
+	}
 	mgmtName, spanName := "", ""
 	if managed {
 		mgmtName, spanName = cfg.Mgmt.Iface, cfg.SPAN

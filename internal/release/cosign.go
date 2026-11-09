@@ -21,8 +21,9 @@ const cosignType = "cosign container image signature"
 
 var digestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
-// payload is the simple-signing document exactly as sigstore's payload.go emits it. The spec says
-// critical.identity.docker-reference is ignored, and optional is free-form annotations.
+// payload is the simple-signing document exactly as sigstore's payload.go emits it. The cosign
+// spec says a verifier ignores docker-reference unless it cares; we do care (D-108): see verifyCosign.
+// optional is free-form annotations.
 type payload struct {
 	Critical struct {
 		Identity struct {
@@ -36,27 +37,29 @@ type payload struct {
 	Optional any `json:"optional"`
 }
 
-// parseCosignPayload decodes a payload strictly and returns the digest it claims, after checking
-// critical.type. It does not compare the digest; the caller does.
-func parseCosignPayload(b []byte) (string, error) {
+// parseCosignPayload decodes a payload strictly and returns the docker-reference and the digest it
+// claims, after checking critical.type. It does not compare either; the caller does.
+func parseCosignPayload(b []byte) (ref, digest string, err error) {
 	if len(b) > maxCosignPayload {
-		return "", wrap(ErrTooLarge, "cosign payload")
+		return "", "", wrap(ErrTooLarge, "cosign payload")
 	}
 	var p payload
 	if err := jsonstrict.Decode(b, &p); err != nil {
-		return "", wrap(ErrMalformed, "cosign payload: %v", errClass(err))
+		return "", "", wrap(ErrMalformed, "cosign payload: %v", errClass(err))
 	}
 	if p.Critical.Type != cosignType {
-		return "", wrap(ErrBadSignature, "cosign payload type %q", clip(p.Critical.Type))
+		return "", "", wrap(ErrBadSignature, "cosign payload type %q", clip(p.Critical.Type))
 	}
-	return p.Critical.Image.DockerManifestDigest, nil
+	return p.Critical.Identity.DockerReference, p.Critical.Image.DockerManifestDigest, nil
 }
 
 // errClass gives a decoder error without echoing document text.
 func errClass(err error) string {
 	switch {
 	case errors.Is(err, jsonstrict.ErrAmbiguous):
-		return "repeated key or too deep"
+		return "repeated key"
+	case errors.Is(err, jsonstrict.ErrTooDeep):
+		return "nested too deep"
 	case errors.Is(err, jsonstrict.ErrTrailing):
 		return "trailing data"
 	case errors.Is(err, jsonstrict.ErrNotObject):
@@ -81,7 +84,7 @@ func errClass(err error) string {
 // (sigstore) signs with ecdsa.SignASN1 and does not normalise S, so about half of genuine
 // signatures are high-S, and S malleability buys an attacker nothing here because trust is in the
 // digest the payload names, not in the signature bytes.
-func verifyCosign(c CosignSig, digest string, keys []*ecdsa.PublicKey, skip map[string]bool) error {
+func verifyCosign(c CosignSig, service, digest string, keys []*ecdsa.PublicKey, skip map[string]bool) error {
 	if !digestRE.MatchString(digest) {
 		return wrap(ErrMalformed, "digest %q", clip(digest))
 	}
@@ -111,9 +114,15 @@ func verifyCosign(c CosignSig, digest string, keys []*ecdsa.PublicKey, skip map[
 	if !ok {
 		return wrap(ErrBadSignature, "cosign signature does not verify")
 	}
-	got, err := parseCosignPayload(pl)
+	ref, got, err := parseCosignPayload(pl)
 	if err != nil {
 		return err
+	}
+	// The signature travels inside the manifest instead of next to the image in the registry, so
+	// nothing else ties it to a repository: docker-reference is the repository of the signed image
+	// (what cosign emits when signing <repo>@<digest>) and must be this service's repository.
+	if ref != RegistryPrefix+service {
+		return wrap(ErrBadSignature, "cosign payload is for repository %q, not for service %s", clip(ref), clip(service))
 	}
 	if got != digest { // exact: a different case or any other text is a different digest
 		return wrap(ErrBadSignature, "cosign payload names another digest")

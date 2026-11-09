@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
 )
 
@@ -68,10 +69,16 @@ func main() {
 		return base64.StdEncoding.EncodeToString(sig)
 	}
 	// Sign the two payloads taken from sigstore's own payload_test.go.
+	// The golden strings are signed as they are (parse vectors: the repository is example.com, so the
+	// verifier refuses them) and again with docker-reference set to the repository of vedette-core
+	// ("-for-core"), which is what `cosign sign <repo>@<digest>` emits for our images.
 	for _, n := range []string{"null-optional", "nested-optional"} {
 		p, err := os.ReadFile(filepath.Join(dir, "cosign/sigstore-"+n+".json"))
 		must(err)
 		write(dir, "cosign/sigstore-"+n+".sig", []byte(sign(p)))
+		forCore := regexp.MustCompile(`"docker-reference":"[^"]*"`).ReplaceAll(p, []byte(`"docker-reference":"ghcr.io/knt048/vedette-core"`))
+		write(dir, "cosign/sigstore-"+n+"-for-core.json", forCore)
+		write(dir, "cosign/sigstore-"+n+"-for-core.sig", []byte(sign(forCore)))
 	}
 
 	// A realistic manifest: one payload per image, signed with the same key.

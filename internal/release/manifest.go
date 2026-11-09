@@ -47,6 +47,8 @@ type Manifest struct {
 	KeyID string `json:"-"`
 	// revokedCosign holds the cosign key ids the index revoked when the manifest was verified.
 	revokedCosign map[string]bool
+	// verified is set only by VerifyManifest; VerifyImage refuses a manifest without it.
+	verified bool
 }
 
 // Rollback says whether the previous version may run on the new database.

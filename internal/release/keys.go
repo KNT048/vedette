@@ -1,9 +1,11 @@
 package release
 
 import (
+	"errors"
 	"log/slog"
 	"os"
 	"sync"
+	"testing"
 )
 
 // logger carries the one message that says why a build refuses everything.
@@ -26,9 +28,16 @@ func syncOnce() sync.Once { return sync.Once{} }
 
 // Embedded returns the keys compiled into this build. With no real keys (and no test keys) it
 // returns ErrNoTrustKeys and logs why, once.
-func Embedded() (Trust, error) {
+func Embedded() (Trust, error) { return embeddedTrust(testing.Testing()) }
+
+// embeddedTrust is Embedded with the "inside a test binary" fact passed in, so a test can prove
+// that test-only keys are refused everywhere else.
+func embeddedTrust(inTest bool) (Trust, error) {
 	active, backup, cosign, testOnly := embeddedKeys()
 	t, err := parseTrust(active, backup, cosign)
+	if err == nil && testOnly && !inTest {
+		err = errors.New("test-only keys outside a test binary")
+	}
 	if err != nil {
 		logOnce.Do(func() {
 			logger.Error( //nolint:sloglint // the one package logger is swapped by the test; there is no caller to pass one

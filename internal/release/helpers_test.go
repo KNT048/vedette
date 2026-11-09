@@ -88,8 +88,8 @@ func (c *csigner) sign(t testing.TB, payload []byte) CosignSig {
 	return CosignSig{base64.StdEncoding.EncodeToString(payload), base64.StdEncoding.EncodeToString(c.signRaw(t, payload))}
 }
 
-func payloadFor(digest string) []byte {
-	return []byte(`{"critical":{"identity":{"docker-reference":"ghcr.io/knt048/vedette-core"},"image":{"docker-manifest-digest":"` +
+func payloadFor(service, digest string) []byte {
+	return []byte(`{"critical":{"identity":{"docker-reference":"` + RegistryPrefix + service + `"},"image":{"docker-manifest-digest":"` +
 		digest + `"},"type":"cosign container image signature"},"optional":null}`)
 }
 
@@ -151,7 +151,7 @@ func revocation(kind, id string) m {
 
 func (e *env) image(service, version, digest string) m {
 	return m{"service": service, "ref": ImageRef(service, version), "digest": digest, "size": 1000,
-		"platforms": []string{"linux/amd64"}, "cosign": e.cosign.sign(e.t, payloadFor(digest))}
+		"platforms": []string{"linux/amd64"}, "cosign": e.cosign.sign(e.t, payloadFor(service, digest))}
 }
 
 func (e *env) manifestMap() m {

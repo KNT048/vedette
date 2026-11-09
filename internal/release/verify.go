@@ -1,12 +1,18 @@
 package release
 
+import (
+	"crypto/sha256"
+	"encoding/hex"
+)
+
 // VerifyIndex checks index.json against the trusted keys and the stored index (the newest one the
 // caller has accepted before; nil on the first ever check). It returns the parsed index, with the
 // sticky key revocations of stored carried over, which the caller stores in place of stored.
 //
-// Order: size, minisign signature, signer not revoked by stored, schema and shape, key
-// revocations authorised, sequence not below stored (equal is allowed). An expired index is not an
-// error; ask Index.Expired.
+// Order: size, minisign signature, signer not revoked by stored, schema and shape, key revocations
+// filtered (revoke.go), sequence not below stored (equal only for the same bytes, unless the backup
+// key is revoking the signer of stored), stored revocations carried forward. An expired index is not
+// an error; ask Index.Expired.
 func VerifyIndex(raw, sig []byte, trust Trust, stored *Index) (*Index, error) {
 	if err := trust.validate(); err != nil {
 		return nil, wrap(ErrNoTrustKeys, "%v", err)
@@ -15,20 +21,32 @@ func VerifyIndex(raw, sig []byte, trust Trust, stored *Index) (*Index, error) {
 	if err != nil {
 		return nil, err
 	}
-	if stored != nil && stored.KeyRevoked(res.key.KeyID()) {
+	if stored != nil && stored.keyRevokedFor(res.key.KeyID(), trust) {
 		return nil, ErrKeyRevoked
 	}
 	x, err := parseIndex(raw)
 	if err != nil {
 		return nil, err
 	}
-	if err := authoriseRevocations(x, res, trust); err != nil {
+	h := sha256.Sum256(raw)
+	x.RawSHA256 = hex.EncodeToString(h[:])
+	if err := filterKeyRevocations(x, res, trust); err != nil {
 		return nil, err
 	}
-	if stored != nil && x.Sequence < stored.Sequence {
-		return nil, wrap(ErrSequenceRegress, "%d < %d", x.Sequence, stored.Sequence)
+	if stored != nil {
+		// Recovery (rule 4): the backup key revokes the signer of the stored index.
+		recovery := res.backup && stored.KeyID != "" && stored.KeyID != trust.Backup.KeyID() && x.KeyRevoked(stored.KeyID)
+		switch {
+		case recovery:
+		case x.Sequence < stored.Sequence:
+			return nil, wrap(ErrSequenceRegress, "%d < %d", x.Sequence, stored.Sequence)
+		case x.Sequence == stored.Sequence && x.RawSHA256 != stored.RawSHA256:
+			return nil, wrap(ErrSequenceRegress, "same sequence %d with different content", x.Sequence)
+		}
 	}
-	carryStickyRevocations(x, stored, trust)
+	if err := carryRevocations(x, stored, res, trust); err != nil {
+		return nil, err
+	}
 	x.KeyID = res.key.KeyID()
 	return x, nil
 }
@@ -50,7 +68,7 @@ func VerifyManifest(raw, sig []byte, trust Trust, idx *Index) (*Manifest, error)
 	if err != nil {
 		return nil, err
 	}
-	if idx.KeyRevoked(res.key.KeyID()) {
+	if idx.keyRevokedFor(res.key.KeyID(), trust) {
 		return nil, ErrKeyRevoked
 	}
 	m, err := parseManifest(raw)
@@ -69,6 +87,7 @@ func VerifyManifest(raw, sig []byte, trust Trust, idx *Index) (*Manifest, error)
 		}
 	}
 	m.KeyID = res.key.KeyID()
+	m.verified = true
 	m.revokedCosign = idx.revokedCosignKeys(trust)
 	return m, nil
 }
@@ -80,9 +99,12 @@ func VerifyImage(m *Manifest, service string, digest string, trust Trust) error 
 	if err := trust.validate(); err != nil {
 		return wrap(ErrNoTrustKeys, "%v", err)
 	}
+	if !m.verified {
+		return wrap(ErrBadSignature, "manifest was not verified by VerifyManifest")
+	}
 	im := m.image(service)
 	if im == nil || im.Digest != digest {
 		return wrap(ErrDigestNotInManifest, "service %s", clip(service))
 	}
-	return verifyCosign(im.Cosign, im.Digest, trust.Cosign, m.revokedCosign)
+	return verifyCosign(im.Cosign, service, im.Digest, trust.Cosign, m.revokedCosign)
 }

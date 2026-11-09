@@ -32,6 +32,20 @@ rm minisign/*.key
 `test.pub` is the active key, `backup.pub` the offline backup key, `other.pub` an untrusted key.
 `minisign -V` verified the default-mode signatures and the legacy one when they were made.
 
+## How the release job must sign images
+
+The verifier requires `critical.identity.docker-reference` to equal `ghcr.io/knt048/vedette-<service>`: the
+repository, no tag, no digest. cosign writes exactly that when it signs a `<repo>@<digest>` reference without
+`--sign-container-identity`, so the job signs each image like this (cosign pinned, legacy format):
+
+```sh
+cosign sign --key cosign.key --new-bundle-format=false --use-signing-config=false --upload=false \
+  --output-payload payload.json --output-signature sig.b64 ghcr.io/knt048/vedette-<service>@sha256:<digest>
+# images[].cosign = { "payload": base64(payload.json), "signature": contents of sig.b64 }
+```
+
+Do not sign by tag and do not pass `--sign-container-identity`. Verify the manifest with `internal/release` before publishing.
+
 ## cosign (legacy format, built in Go; the cosign CLI is not installed)
 
 `gen.go` (`//go:build ignore`) makes a fresh ECDSA P-256 test key, writes `cosign/cosign.pub` (PEM, what
@@ -47,7 +61,7 @@ It also writes the unsigned `release/index.json` and `release/release-manifest.j
 No real cosign signature fixture (payload plus signature plus public key) was found at a pinned commit of
 the sigstore repositories (guessed paths under sigstore/cosign returned 404). What exists is the golden payload
 text of sigstore's own marshalling tests. Two of those strings are copied as `cosign/sigstore-null-optional.json`
-and `cosign/sigstore-nested-optional.json` (Apache-2.0, unchanged), and `gen.go` signs them with the test key:
+and `cosign/sigstore-nested-optional.json` (Apache-2.0, unchanged), and `gen.go` signs them with the test key, once as they are (`sigstore-*.sig`, parse vectors: the repository is example.com, so the verifier refuses them for any of our services) and once with `docker-reference` replaced by `ghcr.io/knt048/vedette-core` (`sigstore-*-for-core.*`, which verify for the core service only):
 
 - Source: https://github.com/sigstore/sigstore/blob/cb58109ea91db68619f7f9ae6a72102abf3fcda1/pkg/signature/payload/payload_test.go
   (commit `cb58109ea91db68619f7f9ae6a72102abf3fcda1`, `TestMarshalCosign` expected strings, lines 50 and 77).
@@ -57,6 +71,8 @@ and `cosign/sigstore-nested-optional.json` (Apache-2.0, unchanged), and `gen.go`
 
 These show the real key spelling (`docker-manifest-digest`, lower case; the spec's example capitalises it),
 `"optional":null`, and nested optional values with numbers, booleans and nulls.
+
+Trusted comments: minisign's own default comment contains tabs; that case is tested with a Go-built signature (no real-tool vector for it).
 
 Negative cases (tampered trusted comment, wrong key id, bit flips, high-S, DER trailing bytes, upper-case digest,
 duplicate keys and so on) are built in Go inside the tests; they need no committed files.

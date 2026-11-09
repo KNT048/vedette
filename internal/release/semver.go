@@ -45,10 +45,14 @@ func CheckUpgrade(m *Manifest, running string) error {
 }
 
 // CheckRollback applies D-104 (5): running is the manifest of the release that is running, previous
-// the version to go back to; previous below running.rollback.min_version is refused.
+// the version to go back to. previous must be below the running version, and not below
+// running.rollback.min_version.
 func CheckRollback(running *Manifest, previous string) error {
 	if !validVersion(previous) {
 		return wrap(ErrMalformed, "version %q", clip(previous))
+	}
+	if !validVersion(running.Version) || compareVersions(previous, running.Version) >= 0 {
+		return wrap(ErrRollbackNotAllowed, "%s is not below the running version", previous)
 	}
 	if running.Rollback.MinVersion != "" && compareVersions(previous, running.Rollback.MinVersion) < 0 {
 		return wrap(ErrRollbackNotAllowed, "%s < %s", previous, running.Rollback.MinVersion)

@@ -11,14 +11,68 @@ import (
 const sigstoreDigest = "sha256:d34db33fd34db33fd34db33fd34db33fd34db33fd34db33fd34db33fd34db33f"
 
 // D-103 (3): payloads exactly as sigstore's payload.go and payload_test.go emit them (null optional,
-// nested optional), signed with the vector key, verify.
+// nested optional with numbers, booleans and null) parse, and their signatures are valid. As
+// sigstore wrote them they name example.com, so verification refuses them for the wrong repository;
+// with docker-reference set to the repository of vedette-core (what `cosign sign <repo>@<digest>`
+// emits for our images) they verify for core and for no other service.
 func TestCosignSigstorePayloads(t *testing.T) {
 	tr := tdTrust(t)
 	for _, n := range []string{"null-optional", "nested-optional"} {
-		c := CosignSig{base64.StdEncoding.EncodeToString(td(t, "cosign/sigstore-"+n+".json")), string(td(t, "cosign/sigstore-"+n+".sig"))}
-		if err := verifyCosign(c, sigstoreDigest, tr.Cosign, nil); err != nil {
+		orig := CosignSig{base64.StdEncoding.EncodeToString(td(t, "cosign/sigstore-"+n+".json")), string(td(t, "cosign/sigstore-"+n+".sig"))}
+		ref, d, err := parseCosignPayload(td(t, "cosign/sigstore-"+n+".json"))
+		if err != nil || d != sigstoreDigest || !strings.HasPrefix(ref, "example.com/") {
+			t.Errorf("%s: parse %q %q %v", n, ref, d, err)
+		}
+		if err := verifyCosign(orig, "core", sigstoreDigest, tr.Cosign, nil); !errors.Is(err, ErrBadSignature) || !strings.Contains(err.Error(), "repository") {
+			t.Errorf("%s: payload for example.com verified for core, or the signature itself failed: %v", n, err)
+		}
+		forCore := CosignSig{base64.StdEncoding.EncodeToString(td(t, "cosign/sigstore-"+n+"-for-core.json")), string(td(t, "cosign/sigstore-"+n+"-for-core.sig"))}
+		if err := verifyCosign(forCore, "core", sigstoreDigest, tr.Cosign, nil); err != nil {
 			t.Errorf("%s: %v", n, err)
 		}
+		if err := verifyCosign(forCore, "sensor", sigstoreDigest, tr.Cosign, nil); !errors.Is(err, ErrBadSignature) {
+			t.Errorf("%s: a vedette-core signature verified for sensor: %v", n, err)
+		}
+	}
+}
+
+// M3: the signature travels inside the manifest, so docker-reference is what ties it to a repository.
+// A genuine signature made for vedette-core must not verify another service's image entry, and
+// docker-reference must be exactly the repository (no tag, no digest, no other registry).
+func TestCosignSignatureBoundToService(t *testing.T) {
+	e := newEnv(t)
+	idx := e.verifiedIndex(e.active, e.indexMap(1))
+	mx := e.manifestMap()
+	sensor := e.image("sensor", "1.4.0", digestCore)
+	sensor["cosign"] = e.cosign.sign(t, payloadFor("core", digestCore)) // the genuine core signature
+	core := e.image("core", "1.4.0", digestCore)
+	mx["images"] = []any{core, sensor}
+	mf := e.verifiedManifest(mx, idx)
+	if err := VerifyImage(mf, "core", digestCore, e.trust); err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyImage(mf, "sensor", digestCore, e.trust); !errors.Is(err, ErrBadSignature) {
+		t.Errorf("the core image's cosign signature verified the sensor entry: %v", err)
+	}
+	withRef := func(ref string) []byte {
+		return []byte(strings.Replace(string(payloadFor("core", digestCore)), RegistryPrefix+"core", ref, 1))
+	}
+	for name, ref := range map[string]string{
+		"with tag":        RegistryPrefix + "core:1.4.0",
+		"with digest":     RegistryPrefix + "core@" + digestCore,
+		"other registry":  "evil.example/knt048/vedette-core",
+		"other owner":     "ghcr.io/other/vedette-core",
+		"upper-case host": "GHCR.io/knt048/vedette-core",
+		"empty":           "",
+		"prefix only":     RegistryPrefix,
+	} {
+		if err := verifyCosign(e.cosign.sign(t, withRef(ref)), "core", digestCore, e.trust.Cosign, nil); !errors.Is(err, ErrBadSignature) {
+			t.Errorf("docker-reference %s: %v", name, err)
+		}
+	}
+	noIdentity := []byte(`{"critical":{"image":{"docker-manifest-digest":"` + digestCore + `"},"type":"cosign container image signature"},"optional":null}`)
+	if err := verifyCosign(e.cosign.sign(t, noIdentity), "core", digestCore, e.trust.Cosign, nil); !errors.Is(err, ErrBadSignature) {
+		t.Errorf("payload without identity: %v", err)
 	}
 }
 
@@ -26,24 +80,24 @@ func TestCosignRejects(t *testing.T) {
 	e := newEnv(t)
 	keys := e.trust.Cosign
 	d := digestCore
-	good := payloadFor(d)
-	if err := verifyCosign(e.cosign.sign(t, good), d, keys, nil); err != nil {
+	good := payloadFor("core", d)
+	if err := verifyCosign(e.cosign.sign(t, good), "core", d, keys, nil); err != nil {
 		t.Fatal(err)
 	}
 	refuse := func(name string, c CosignSig, digest string, want error) {
 		t.Helper()
-		if err := verifyCosign(c, digest, keys, nil); !errors.Is(err, want) {
+		if err := verifyCosign(c, "core", digest, keys, nil); !errors.Is(err, want) {
 			t.Errorf("%s: got %v, want %v", name, err, want)
 		}
 	}
 	// the digest in the payload must equal images[].digest, byte for byte
-	refuse("other digest", e.cosign.sign(t, payloadFor(digestSensor)), d, ErrBadSignature)
+	refuse("other digest", e.cosign.sign(t, payloadFor("core", digestSensor)), d, ErrBadSignature)
 	upper := "sha256:" + strings.ToUpper(strings.TrimPrefix(d, "sha256:"))
-	refuse("upper-case digest in payload", e.cosign.sign(t, payloadFor(upper)), d, ErrBadSignature)
-	refuse("upper-case digest argument", e.cosign.sign(t, payloadFor(d)), upper, ErrMalformed)
-	refuse("digest with algorithm in caps", e.cosign.sign(t, payloadFor(d)), "SHA256:"+strings.TrimPrefix(d, "sha256:"), ErrMalformed)
-	refuse("short digest", e.cosign.sign(t, payloadFor(d)), d[:len(d)-1], ErrMalformed)
-	refuse("empty payload digest", e.cosign.sign(t, payloadFor("")), d, ErrBadSignature)
+	refuse("upper-case digest in payload", e.cosign.sign(t, payloadFor("core", upper)), d, ErrBadSignature)
+	refuse("upper-case digest argument", e.cosign.sign(t, payloadFor("core", d)), upper, ErrMalformed)
+	refuse("digest with algorithm in caps", e.cosign.sign(t, payloadFor("core", d)), "SHA256:"+strings.TrimPrefix(d, "sha256:"), ErrMalformed)
+	refuse("short digest", e.cosign.sign(t, payloadFor("core", d)), d[:len(d)-1], ErrMalformed)
+	refuse("empty payload digest", e.cosign.sign(t, payloadFor("core", "")), d, ErrBadSignature)
 
 	// critical.type
 	wrongType := strings.Replace(string(good), "cosign container image signature", "atomic container signature", 1)
@@ -85,7 +139,7 @@ func TestCosignRejects(t *testing.T) {
 // genuine signatures are high-S about half the time: both forms must verify.
 func TestCosignHighS(t *testing.T) {
 	e := newEnv(t)
-	p := payloadFor(digestCore)
+	p := payloadFor("core", digestCore)
 	sig := e.cosign.signRaw(t, p)
 	flipped, flippedHigh := flipS(t, sig)
 	low, high := sig, flipped
@@ -94,7 +148,7 @@ func TestCosignHighS(t *testing.T) {
 	}
 	for name, s := range map[string][]byte{"low-S": low, "high-S": high} {
 		c := CosignSig{base64.StdEncoding.EncodeToString(p), base64.StdEncoding.EncodeToString(s)}
-		if err := verifyCosign(c, digestCore, e.trust.Cosign, nil); err != nil {
+		if err := verifyCosign(c, "core", digestCore, e.trust.Cosign, nil); err != nil {
 			t.Errorf("%s refused: %v", name, err)
 		}
 	}
@@ -104,7 +158,7 @@ func TestCosignHighS(t *testing.T) {
 func TestCosignPayloadStrictJSON(t *testing.T) {
 	e := newEnv(t)
 	d := digestCore
-	ok := string(payloadFor(d))
+	ok := string(payloadFor("core", d))
 	crit := `"critical":{"identity":{"docker-reference":"x"},"image":{"docker-manifest-digest":"` + d + `"},"type":"cosign container image signature"}`
 	cases := map[string]string{
 		"duplicate critical":      `{` + crit + `,` + crit + `,"optional":null}`,
@@ -123,14 +177,14 @@ func TestCosignPayloadStrictJSON(t *testing.T) {
 		"deep optional":           strings.Replace(ok, `"optional":null`, `"optional":`+strings.Repeat("[", 100)+strings.Repeat("]", 100), 1),
 	}
 	for name, p := range cases {
-		err := verifyCosign(e.cosign.sign(t, []byte(p)), d, e.trust.Cosign, nil)
+		err := verifyCosign(e.cosign.sign(t, []byte(p)), "core", d, e.trust.Cosign, nil)
 		if err == nil {
 			t.Errorf("%s accepted", name)
 		}
 	}
 	// accepted shapes: whitespace, nested optional, number optional values (sigstore's own test payloads)
-	good := `  {"critical":{"image":{"docker-manifest-digest":"` + d + `"},"type":"cosign container image signature"},"optional":{"timestamp":1458239713,"n":{"x":null}}}` + "\n"
-	if err := verifyCosign(e.cosign.sign(t, []byte(good)), d, e.trust.Cosign, nil); err != nil {
+	good := `  {"critical":{"identity":{"docker-reference":"` + RegistryPrefix + `core"},"image":{"docker-manifest-digest":"` + d + `"},"type":"cosign container image signature"},"optional":{"timestamp":1458239713,"n":{"x":null}}}` + "\n"
+	if err := verifyCosign(e.cosign.sign(t, []byte(good)), "core", d, e.trust.Cosign, nil); err != nil {
 		t.Errorf("good payload: %v", err)
 	}
 }
@@ -139,21 +193,21 @@ func TestCosignKeyRotationAndRevocation(t *testing.T) {
 	e := newEnv(t)
 	second := newCsigner(t)
 	keys := []*ecdsa.PublicKey{e.cosign.pub(), second.pub()}
-	p := payloadFor(digestCore)
+	p := payloadFor("core", digestCore)
 	for name, s := range map[string]*csigner{"first": e.cosign, "second": second} {
-		if err := verifyCosign(s.sign(t, p), digestCore, keys, nil); err != nil {
+		if err := verifyCosign(s.sign(t, p), "core", digestCore, keys, nil); err != nil {
 			t.Errorf("%s key: %v", name, err)
 		}
 	}
 	skip := map[string]bool{CosignKeyID(e.cosign.pub()): true}
-	if err := verifyCosign(e.cosign.sign(t, p), digestCore, keys, skip); !errors.Is(err, ErrBadSignature) {
+	if err := verifyCosign(e.cosign.sign(t, p), "core", digestCore, keys, skip); !errors.Is(err, ErrBadSignature) {
 		t.Errorf("revoked first key still verifies: %v", err)
 	}
-	if err := verifyCosign(second.sign(t, p), digestCore, keys, skip); err != nil {
+	if err := verifyCosign(second.sign(t, p), "core", digestCore, keys, skip); err != nil {
 		t.Errorf("second key refused: %v", err)
 	}
 	skip[CosignKeyID(second.pub())] = true
-	if err := verifyCosign(second.sign(t, p), digestCore, keys, skip); !errors.Is(err, ErrKeyRevoked) {
+	if err := verifyCosign(second.sign(t, p), "core", digestCore, keys, skip); !errors.Is(err, ErrKeyRevoked) {
 		t.Errorf("all keys revoked: %v", err)
 	}
 }

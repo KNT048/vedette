@@ -34,6 +34,7 @@ if has "$go_paths"; then
 	fi
 	# The Go test cache re-runs only packages whose code, dependencies or test files changed.
 	go test -race ./...
+	go test -race -tags releasetestkeys ./internal/release/... # build with the throwaway release keys (keys_testonly.go)
 	make contract lint-go
 fi
 

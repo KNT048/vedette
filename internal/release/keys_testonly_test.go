@@ -4,6 +4,7 @@ package release
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 )
 
@@ -33,6 +34,16 @@ func TestTestKeysBuild(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := VerifyImage(mf, "core", mf.Images[0].Digest, tr); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Test-only keys are refused unless the binary is a test binary (Embedded passes testing.Testing()).
+func TestTestKeysRefusedOutsideTests(t *testing.T) {
+	if _, err := embeddedTrust(false); !errors.Is(err, ErrNoTrustKeys) {
+		t.Fatalf("test-only keys accepted outside a test binary: %v", err)
+	}
+	if _, err := embeddedTrust(true); err != nil {
 		t.Fatal(err)
 	}
 }

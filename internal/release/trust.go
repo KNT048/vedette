@@ -1,6 +1,7 @@
 package release
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/sha256"
@@ -22,8 +23,8 @@ func (t Trust) validate() error {
 	if len(t.Active.Key) != 32 || len(t.Backup.Key) != 32 {
 		return errors.New("a minisign key is missing")
 	}
-	if t.Active.ID == t.Backup.ID {
-		return errors.New("the two minisign keys have the same id")
+	if t.Active.ID == t.Backup.ID || bytes.Equal(t.Active.Key, t.Backup.Key) {
+		return errors.New("the two minisign keys are the same key")
 	}
 	if len(t.Cosign) == 0 || len(t.Cosign) > 2 {
 		return errors.New("need one or two cosign keys")
@@ -100,17 +101,4 @@ func CosignKeyID(k *ecdsa.PublicKey) string {
 	}
 	s := sha256.Sum256(der)
 	return hex.EncodeToString(s[:])
-}
-
-// isEmbeddedKeyID reports whether id names one of the keys in t.
-func (t Trust) isEmbeddedKeyID(id string) bool {
-	if id == t.Active.KeyID() || id == t.Backup.KeyID() {
-		return true
-	}
-	for _, k := range t.Cosign {
-		if id == CosignKeyID(k) {
-			return true
-		}
-	}
-	return false
 }

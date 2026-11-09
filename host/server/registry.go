@@ -223,7 +223,11 @@ func decodeStrict(raw []byte, v any) error {
 	if bytes.Equal(raw, []byte("null")) {
 		return Invalid("", "args must be an object")
 	}
-	if why := ambiguousKeys(raw); why != "" {
+	switch ambiguousKeys(raw) {
+	case "":
+	case jsonstrict.WhyDeep:
+		return Invalid("", "the args are nested too deep")
+	default:
 		return Invalid("", "an object has keys that differ only by case or repeat")
 	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
@@ -259,7 +263,13 @@ func jsonReason(err error) string {
 // ambiguousKeys returns a non-empty description when some JSON object in raw has two keys that are
 // equal ignoring case (encoding/json matches field names case-insensitively, so such an object
 // means different things to a reader and to the decoder) or repeat exactly. Malformed JSON gives "".
-func ambiguousKeys(raw []byte) string { return jsonstrict.Ambiguous(raw) }
+// Malformed JSON gives "": the decoder that follows reports the syntax error in the usual words.
+func ambiguousKeys(raw []byte) string {
+	if why := jsonstrict.Ambiguous(raw); why != jsonstrict.WhyMalformed {
+		return why
+	}
+	return ""
+}
 
 func mustMarshal(v any) []byte {
 	b, err := json.Marshal(v)

@@ -1,6 +1,7 @@
 package release
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -181,12 +182,12 @@ func TestVerifyImage(t *testing.T) {
 	}
 	// a manifest whose image carries a signature of a different digest, or by another key
 	x := e.manifestMap()
-	x["images"].([]any)[0].(m)["cosign"] = e.cosign.sign(t, payloadFor(digestSensor))
+	x["images"].([]any)[0].(m)["cosign"] = e.cosign.sign(t, payloadFor("core", digestSensor))
 	bad := e.verifiedManifest(x, idx) // the manifest itself is validly signed...
 	if err := VerifyImage(bad, "core", digestCore, e.trust); !errors.Is(err, ErrBadSignature) {
 		t.Errorf("...but its image signature names another digest: %v", err)
 	}
-	x["images"].([]any)[0].(m)["cosign"] = newCsigner(t).sign(t, payloadFor(digestCore))
+	x["images"].([]any)[0].(m)["cosign"] = newCsigner(t).sign(t, payloadFor("core", digestCore))
 	if err := VerifyImage(e.verifiedManifest(x, idx), "core", digestCore, e.trust); !errors.Is(err, ErrBadSignature) {
 		t.Errorf("signed by another key: %v", err)
 	}
@@ -214,7 +215,9 @@ func TestManifestChecks(t *testing.T) {
 	for _, tc := range []struct {
 		prev string
 		want error
-	}{{"1.3.0", nil}, {"1.3.9", nil}, {"1.3.0-rc.1", ErrRollbackNotAllowed}, {"1.2.9", ErrRollbackNotAllowed}, {"0.9.0", ErrRollbackNotAllowed}} {
+	}{{"1.3.0", nil}, {"1.3.9", nil}, {"1.3.0-rc.1", ErrRollbackNotAllowed}, {"1.2.9", ErrRollbackNotAllowed}, {"0.9.0", ErrRollbackNotAllowed},
+		// a rollback goes to a lower version than the running one
+		{"1.4.0", ErrRollbackNotAllowed}, {"1.4.1", ErrRollbackNotAllowed}, {"2.0.0", ErrRollbackNotAllowed}, {"1.4.0-rc.1", nil}} {
 		if err := CheckRollback(mf, tc.prev); (tc.want == nil && err != nil) || (tc.want != nil && !errors.Is(err, tc.want)) {
 			t.Errorf("CheckRollback previous %q: %v, want %v", tc.prev, err, tc.want)
 		}
@@ -270,5 +273,40 @@ func TestVersionOrdering(t *testing.T) {
 		if _, err := CompareVersions(bad, "1.0.0"); err == nil {
 			t.Errorf("%q accepted", bad)
 		}
+	}
+}
+
+// L3: VerifyImage only trusts a Manifest that VerifyManifest produced.
+func TestVerifyImageRefusesUnverifiedManifest(t *testing.T) {
+	e := newEnv(t)
+	im := e.image("core", "1.4.0", digestCore)
+	raw := js(t, im)
+	var img Image
+	if err := json.Unmarshal(raw, &img); err != nil {
+		t.Fatal(err)
+	}
+	lit := &Manifest{Version: "1.4.0", Images: []Image{img}} // never went through VerifyManifest
+	if err := VerifyImage(lit, "core", digestCore, e.trust); !errors.Is(err, ErrBadSignature) {
+		t.Errorf("hand-built manifest: %v", err)
+	}
+	parsed, err := parseManifest(js(t, e.manifestMap())) // parsed but not verified
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyImage(parsed, "core", digestCore, e.trust); !errors.Is(err, ErrBadSignature) {
+		t.Errorf("parsed-only manifest: %v", err)
+	}
+}
+
+func TestTrustRefusesSameKeyTwice(t *testing.T) {
+	e := newEnv(t)
+	same := e.trust
+	same.Backup = MinisignKey{ID: [8]byte{9, 9, 9}, Key: e.trust.Active.Key} // other id, same key bytes
+	if err := same.validate(); err == nil {
+		t.Error("active and backup with the same key bytes accepted")
+	}
+	same.Backup = MinisignKey{ID: e.trust.Active.ID, Key: e.trust.Backup.Key}
+	if err := same.validate(); err == nil {
+		t.Error("active and backup with the same id accepted")
 	}
 }

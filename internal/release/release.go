@@ -17,11 +17,12 @@
 //     SHA-256 signature (the legacy cosign format, verified offline; no Rekor). The signature travels
 //     inside the minisign-signed manifest, so image trust is exactly manifest trust plus a second,
 //     separate key. The payload's critical.image.docker-manifest-digest must equal images[].digest.
-//   - Revocation lives in the newest index the box has accepted (the "stored" index). A revoked
-//     signing key, release version or image digest is refused. Authority rules: an index may
-//     revoke an embedded key only when the backup key signed it, and never the backup key itself;
-//     revocations of embedded keys are sticky (carried into every later index), so a later index
-//     cannot quietly un-revoke a leaked key. The sequence number never goes back (equal is fine).
+//   - Revocation lives in the newest index the box has accepted (the "stored" index) and is sticky
+//     (revoke.go): key, release and image-digest revocations carry into every later index, and only
+//     an index signed by the backup key can drop a release or digest revocation. Key revocations count
+//     only from the backup key and never name the backup key. The sequence never goes back (equal
+//     only for the same bytes), except when the backup key revokes the signer of the stored index.
+//   - The image signature must name this service's repository (critical.identity.docker-reference).
 //   - JSON is decoded strictly (internal/jsonstrict): unknown fields, repeated keys and keys that
 //     differ only by case are refused, sizes are capped, and every schema check fails closed.
 //

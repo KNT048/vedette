@@ -36,7 +36,7 @@ func TestDecode(t *testing.T) {
 		`{"zzz":1}`:               nil, // unknown field: a decoder error, checked below
 		`{"a":"s"}`:               nil, // wrong type
 		`{"a":`:                   nil, // truncated
-		`{"x":` + strings.Repeat("[", MaxDepth+1) + strings.Repeat("]", MaxDepth+1) + `}`: ErrAmbiguous,
+		`{"x":` + strings.Repeat("[", MaxDepth+1) + strings.Repeat("]", MaxDepth+1) + `}`: ErrTooDeep,
 	}
 	for s, want := range bad {
 		var d doc

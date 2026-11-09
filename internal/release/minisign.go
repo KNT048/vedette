@@ -130,7 +130,7 @@ func parseMinisig(raw []byte) (*minisigFile, error) {
 		return nil, wrap(ErrBadSignature, "trusted comment too long")
 	}
 	for i := 0; i < len(tc); i++ {
-		if tc[i] < 0x20 || tc[i] == 0x7f {
+		if (tc[i] < 0x20 && tc[i] != '\t') || tc[i] == 0x7f { // minisign's own default comment has tabs
 			return nil, wrap(ErrBadSignature, "control character in trusted comment")
 		}
 	}

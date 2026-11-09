@@ -24,6 +24,8 @@ type Index struct {
 
 	// KeyID is the minisign key that signed this index; set by VerifyIndex, never read from JSON.
 	KeyID string `json:"-"`
+	// RawSHA256 is the SHA-256 (hex) of the signed bytes; set by VerifyIndex, never read from JSON.
+	RawSHA256 string `json:"-"`
 }
 
 // Channel is one release channel entry of the index.
@@ -106,7 +108,7 @@ func parseIndex(raw []byte) (*Index, error) {
 // checkSchema returns ErrUnknownSchema unless the top-level "schema" is the integer 1.
 func checkSchema(raw []byte) error {
 	if jsonstrict.Ambiguous(raw) != "" {
-		return wrap(ErrMalformed, "repeated key or too deep")
+		return wrap(ErrMalformed, "repeated key, nested too deep or malformed")
 	}
 	var head struct {
 		Schema json.RawMessage `json:"schema"`

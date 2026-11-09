@@ -4,7 +4,7 @@
     "stable": {
       "latest": "1.4.0",
       "manifest": "https://github.com/knt048/vedette/releases/download/v1.4.0/release-manifest.json",
-      "manifest_sha256": "c7546158cce36f035802216781eda4f24d598a44d597e3e46835ab945cbf695b",
+      "manifest_sha256": "562f6d88744582c1d4639054a6479fe75573f63e66fa208c729fbdf5ab647727",
       "rollout": {
         "percent": 100
       }

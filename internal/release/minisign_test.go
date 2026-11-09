@@ -14,7 +14,8 @@ import (
 func TestMinisignRealVectors(t *testing.T) {
 	tr := tdTrust(t)
 	doc := td(t, "minisign/doc.json")
-	if got := tr.Active.KeyID(); got != "81D87D70120E940A" { // as `minisign -G` printed it
+	want := strings.TrimPrefix(strings.Split(string(td(t, "minisign/test.pub")), "\n")[0], "untrusted comment: minisign public key ")
+	if got := tr.Active.KeyID(); got != want { // as `minisign -G` printed it in the .pub comment
 		t.Fatalf("key id %s", got)
 	}
 	res, err := verifyMinisign(doc, td(t, "minisign/doc.json.minisig"), tr)
@@ -211,5 +212,21 @@ func TestMinisignBackupKey(t *testing.T) {
 	res, err := verifyMinisign(msg, e.backup.sign(msg), e.trust)
 	if err != nil || !res.backup || res.key.ID != e.backup.id {
 		t.Fatal(res, err)
+	}
+}
+
+// M4: minisign's own default trusted comment is "timestamp:<ts>\tfile:<name>\thashed" (default_trusted_comment
+// in minisign.c), so a release signed with a plain `minisign -Sm index.json` must verify. Every other
+// control byte stays refused.
+func TestMinisignTrustedCommentAllowsTabsOnly(t *testing.T) {
+	e := newEnv(t)
+	raw := js(t, e.indexMap(1))
+	if _, err := VerifyIndex(raw, e.active.signC(raw, "timestamp:1700000000\tfile:index.json\thashed"), e.trust, nil); err != nil {
+		t.Errorf("signature with minisign's default trusted comment refused: %v", err)
+	}
+	for _, c := range []string{"\x00", "\x01", "\x08", "\x0b", "\x0c", "\x1b", "\x1f", "\x7f"} {
+		if _, err := VerifyIndex(raw, e.active.signC(raw, "a"+c+"b"), e.trust, nil); !errors.Is(err, ErrBadSignature) {
+			t.Errorf("control byte %q accepted: %v", c, err)
+		}
 	}
 }

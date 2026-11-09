@@ -6,11 +6,11 @@ package release
 // throwaway keys under testdata/ (see testdata/README.md; their private halves are not kept).
 // A production build never passes this tag, and a test proves it embeds no key.
 const (
-	testMinisignActive = "RWQKlA4ScH3YgTPtNRI2lXvp+qqxNB4JMtwen+fPXZX2SwayKdy3b0VF"
-	testMinisignBackup = "RWSv8NWZsQoH50es1abOBWl5Q1vU5Xi99s5m4ZXDkaUu5z+ibvrErpZn"
+	testMinisignActive = "RWQoMGCadH/y2zDMUp9yWF1XArDH1RqkXCsqQeHwyhnXOCyKlJ3c5uD3"
+	testMinisignBackup = "RWSLahs6lf1b8KCTWyGzo96ecNkY9ukL2lvoSK2VcAAJK5R3q8g1Yafu"
 	testCosign         = `-----BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEi+p8NnqO/1b1gKrYq1TWg7LHYdAG
-kvmL+BY3itWt2Gx0VQcUOWpD2mVTFguZy3U4Ssn+rk86m0CwM1/TLVA0LA==
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEdGQd2grAcfphVcDEkmEskS/5cKsE
+4Kd5B6gch15BR5xCEV84CnZFnt1YshNz+AlSvezJo6TJdpMKazGBvkVoTg==
 -----END PUBLIC KEY-----
 `
 )

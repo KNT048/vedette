@@ -17,8 +17,10 @@ import (
 const MaxDepth = 32
 
 var (
-	// ErrAmbiguous means a key repeats (exactly or after case folding), or the nesting is too deep.
-	ErrAmbiguous = errors.New("json: repeated key or nesting too deep")
+	// ErrAmbiguous means a key repeats, exactly or after case folding.
+	ErrAmbiguous = errors.New("json: repeated key")
+	// ErrTooDeep means objects or arrays nest deeper than MaxDepth.
+	ErrTooDeep = errors.New("json: nested too deep")
 	// ErrTrailing means data follows the JSON value.
 	ErrTrailing = errors.New("json: data after the value")
 	// ErrNotObject means the top-level value is not an object.
@@ -27,14 +29,21 @@ var (
 
 // Decode decodes one JSON object from raw into v under the strict rule above.
 func Decode(raw []byte, v any) error {
-	raw = bytes.TrimSpace(raw)
+	raw = bytes.Trim(raw, " \t\r\n") // JSON whitespace only; bytes.TrimSpace would also drop \v, \f, U+0085
 	if len(raw) == 0 || raw[0] != '{' {
 		return ErrNotObject
 	}
-	if Ambiguous(raw) != "" {
+	switch Ambiguous(raw) {
+	case "":
+	case WhyDeep:
+		return ErrTooDeep
+	case WhyMalformed:
+		// the decoder below reports the syntax error
+	default:
 		return ErrAmbiguous
 	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
 		return err
@@ -45,10 +54,21 @@ func Decode(raw []byte, v any) error {
 	return nil
 }
 
-// Ambiguous returns a non-empty description when some JSON object in raw repeats a key (exactly
-// or equal after case folding) or the nesting is deeper than MaxDepth. Malformed JSON gives "".
+// Descriptions returned by Ambiguous.
+const (
+	WhyRepeated  = "repeated key"
+	WhyDeep      = "nested too deep"
+	WhyMalformed = "malformed JSON"
+)
+
+// Ambiguous returns a non-empty description (WhyRepeated, WhyDeep) when some JSON object in raw
+// repeats a key (exactly or equal after case folding) or the nesting is deeper than MaxDepth. It
+// fails closed: any other error from the tokenizer gives WhyMalformed, so a document it cannot walk
+// to the end is never reported clean. Numbers are read as json.Number, so one that overflows
+// float64 (1e400) cannot stop the walk early.
 func Ambiguous(raw []byte) string {
 	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
 	type frame struct {
 		object bool
 		seen   map[string]bool
@@ -58,7 +78,10 @@ func Ambiguous(raw []byte) string {
 	for {
 		tok, err := dec.Token()
 		if err != nil {
-			return ""
+			if errors.Is(err, io.EOF) && len(stack) == 0 {
+				return ""
+			}
+			return WhyMalformed
 		}
 		top := (*frame)(nil)
 		if len(stack) > 0 {
@@ -69,12 +92,12 @@ func Ambiguous(raw []byte) string {
 			switch t {
 			case '{':
 				if len(stack) >= MaxDepth {
-					return "nesting too deep"
+					return WhyDeep
 				}
 				stack = append(stack, &frame{object: true, seen: map[string]bool{}, key: true})
 			case '[':
 				if len(stack) >= MaxDepth {
-					return "nesting too deep"
+					return WhyDeep
 				}
 				stack = append(stack, &frame{})
 			default:
@@ -88,7 +111,7 @@ func Ambiguous(raw []byte) string {
 			if top != nil && top.object && top.key {
 				low := Fold(t)
 				if top.seen[low] {
-					return "repeated key"
+					return WhyRepeated
 				}
 				top.seen[low] = true
 				top.key = false

@@ -73,21 +73,25 @@ func FuzzDecodeB64(f *testing.F) {
 func FuzzCosignPayload(f *testing.F) {
 	f.Add(td(f, "cosign/sigstore-null-optional.json"))
 	f.Add(td(f, "cosign/sigstore-nested-optional.json"))
-	f.Add(payloadFor(digestCore))
+	f.Add(td(f, "cosign/sigstore-nested-optional-for-core.json"))
+	f.Add(payloadFor("core", digestCore))
 	f.Fuzz(func(t *testing.T, b []byte) {
-		d, err := parseCosignPayload(b)
+		ref, d, err := parseCosignPayload(b)
 		if err != nil {
 			return
 		}
 		var std struct {
 			Critical struct {
-				Type  string
+				Type     string
+				Identity struct {
+					DockerReference string `json:"docker-reference"`
+				}
 				Image struct {
 					DockerManifestDigest string `json:"docker-manifest-digest"`
 				}
 			}
 		}
-		if json.Unmarshal(b, &std) != nil || std.Critical.Type != cosignType || std.Critical.Image.DockerManifestDigest != d {
+		if json.Unmarshal(b, &std) != nil || std.Critical.Type != cosignType || std.Critical.Image.DockerManifestDigest != d || std.Critical.Identity.DockerReference != ref {
 			t.Fatalf("accepted payload disagrees with encoding/json: %q", b)
 		}
 	})

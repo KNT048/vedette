@@ -39,7 +39,7 @@
       ],
       "cosign": {
         "payload": "eyJjcml0aWNhbCI6eyJpZGVudGl0eSI6eyJkb2NrZXItcmVmZXJlbmNlIjoiZ2hjci5pby9rbnQwNDgvdmVkZXR0ZS1jb3JlIn0sImltYWdlIjp7ImRvY2tlci1tYW5pZmVzdC1kaWdlc3QiOiJzaGEyNTY6NDQ5YjY5N2FjYjRhMzE0ZTYxYWU0NjFlOGMzNWUzNDIyOTI0ZjFkMTI2YTIyZTcwZWVkMGFiMGIxZTBjY2IwYSJ9LCJ0eXBlIjoiY29zaWduIGNvbnRhaW5lciBpbWFnZSBzaWduYXR1cmUifSwib3B0aW9uYWwiOm51bGx9",
-        "signature": "MEUCIAfkAVnndo1siUS07J4tItx1YCxWn+SPcE7EGV4sXYGwAiEArQQEKEZHSBWQ+jer/w/jKsIK3QZj4akScPkcpkrLhbc="
+        "signature": "MEUCIQDGlX+D32DTyfhmVLRBkd6u1dFcv6F+YibvpeLXG/h53wIgPtZIvmCDEEcngv9Vlu64xC0o0f7XQ4Ir4ROSyfMfK28="
       }
     },
     {
@@ -52,7 +52,7 @@
       ],
       "cosign": {
         "payload": "eyJjcml0aWNhbCI6eyJpZGVudGl0eSI6eyJkb2NrZXItcmVmZXJlbmNlIjoiZ2hjci5pby9rbnQwNDgvdmVkZXR0ZS1zZW5zb3IifSwiaW1hZ2UiOnsiZG9ja2VyLW1hbmlmZXN0LWRpZ2VzdCI6InNoYTI1NjozZTUyNzA0ZjhlMzQxM2I2Mzg3NDg5M2E3OGI0MzAxZGYzY2NlOTc4OGRiNWYwNWQ2ODEwMzhmMWQwMWUwOTExIn0sInR5cGUiOiJjb3NpZ24gY29udGFpbmVyIGltYWdlIHNpZ25hdHVyZSJ9LCJvcHRpb25hbCI6bnVsbH0=",
-        "signature": "MEYCIQDP4orUyp9xHqWB7kocyea91beNLXJDVFdHR5GS4j+bXwIhAMF9QBUgrAZXJRHkXri3ssa6ylkEgHf46CaysvGuSNCC"
+        "signature": "MEYCIQDfmZ0FTG9FcXi5CbiQPb2/I3Qj1NtNQ7QRiiWDJa3q6gIhAIttAblFKBu200R576t3b8MVl5Rxo/C6itSetFzVHf/W"
       }
     }
   ],

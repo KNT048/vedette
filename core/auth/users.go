@@ -222,8 +222,19 @@ func (s *Service) ChangeOwnPassword(ctx context.Context, userID, keepSessionID, 
 	}
 	_, err = write(ctx, s.db, func(tx *sql.Tx) (struct{}, *apierr.Error, error) {
 		q := coredb.New(tx)
-		if _, err := q.UpdateUserPassword(ctx, coredb.UpdateUserPasswordParams{PasswordHash: hash, ID: t.ID}); err != nil {
+		// The password was checked and the new one hashed outside this transaction: an administrator's
+		// reset (or this user's other request) may have changed it since. Then this request is stale and
+		// must not overwrite the newer password. The caller must also still be who they were: not
+		// disabled, and the session they act from not ended.
+		if refusal, err := s.callerRefusal(ctx, q, t.ID, keepSessionID); refusal != nil || err != nil {
+			return struct{}{}, refusal, err
+		}
+		n, err := q.ChangeUserPassword(ctx, coredb.ChangeUserPasswordParams{PasswordHash: hash, ID: t.ID, CredVersion: t.CredVersion})
+		if err != nil {
 			return struct{}{}, nil, fmt.Errorf("auth: set password: %w", err)
+		}
+		if n == 0 {
+			return struct{}{}, passwordMoved(), nil
 		}
 		if _, err := q.RevokeOtherSessions(ctx, coredb.RevokeOtherSessionsParams{RevokedAt: ptr(store.FormatTS(s.now())), UserID: t.ID, ID: keepSessionID}); err != nil {
 			return struct{}{}, nil, fmt.Errorf("auth: revoke other sessions: %w", err)
@@ -233,16 +244,52 @@ func (s *Service) ChangeOwnPassword(ctx context.Context, userID, keepSessionID, 
 	return err
 }
 
+// passwordMoved is the refusal when the password changed between the check and the write. wrong_password
+// (API_CONVENTIONS 3.3) is the honest code: the password the caller proved is no longer the current one.
+func passwordMoved() *apierr.Error {
+	return apierr.New(400, CodeWrongPassword, "Your password was changed while this request was running. Enter your current password again.")
+}
+
+// callerRefusal is checked inside the write transaction of every operation done for a signed-in user: the
+// account must not be disabled (403 disabled) and, when keepSessionID is given, that session must still be
+// live (401 unauthenticated): a revoked or expired session, or a disabled account, must not finish a
+// request it started before. Nothing has been written when it returns a refusal.
+func (s *Service) callerRefusal(ctx context.Context, q *coredb.Queries, userID, keepSessionID string) (*apierr.Error, error) {
+	cur, err := q.GetUserByID(ctx, userID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return apierr.Unauthenticated(), nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("auth: read user: %w", err)
+	}
+	if cur.Disabled != 0 {
+		return disabledError(), nil
+	}
+	if keepSessionID == "" {
+		return nil, nil
+	}
+	now := s.now()
+	_, err = q.GetLiveSession(ctx, coredb.GetLiveSessionParams{ID: keepSessionID, UserID: userID, ExpiresAt: store.FormatTS(now), LastSeen: store.FormatTS(now.Add(-IdleTimeout))})
+	if errors.Is(err, sql.ErrNoRows) {
+		return apierr.Unauthenticated(), nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("auth: read session: %w", err)
+	}
+	return nil, nil
+}
+
 // checkOwnPassword verifies the password of a signed-in user for a sensitive change. Wrong guesses share the
 // sign-in rate limit (keyed by account, since a signed-in caller's IP is not the point); a guess is counted
 // before it is checked so parallel guesses cannot all pass, and the count goes away on the right password.
 func (s *Service) checkOwnPassword(ctx context.Context, t coredb.CoreUser, password, wrongMsg string) error {
-	if e := s.limit.begin("account", t.Email); e != nil {
+	try, e := s.limit.begin(accountKey, t.Email)
+	if e != nil {
 		return e
 	}
 	ok, _, err := s.verifyPassword(ctx, t.PasswordHash, password[:min(len(password), maxPasswordBytes)])
 	if err != nil {
-		s.limit.refund("account", t.Email) // busy, cancelled or a broken stored hash: not a wrong guess
+		try.refund() // busy, cancelled or a broken stored hash: not a wrong guess
 		if errors.Is(err, ErrBadHash) {
 			return fmt.Errorf("auth: stored password hash: %w", err)
 		}
@@ -251,6 +298,6 @@ func (s *Service) checkOwnPassword(ctx context.Context, t coredb.CoreUser, passw
 	if !ok || len(password) > maxPasswordBytes {
 		return apierr.New(400, CodeWrongPassword, wrongMsg)
 	}
-	s.limit.reset("account", t.Email)
+	s.limit.reset(accountKey, t.Email)
 	return nil
 }

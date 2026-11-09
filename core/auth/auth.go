@@ -19,6 +19,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -83,7 +84,9 @@ type Config struct {
 	Log     *slog.Logger
 	// Argon2 overrides DefaultParams. Tests lower it; production leaves it zero.
 	Argon2 Params
-	// MaxHashing caps the argon2 runs at once (each takes Argon2.Memory); 0 means max(1, NumCPU/2).
+	// MaxHashing caps the argon2 runs at once (each takes Argon2.Memory); 0 means half the CPUs this process
+	// may use (GOMAXPROCS, so a container quota counts), at least 1, and at most a quarter of the Go memory
+	// limit (GOMEMLIMIT) divided by Argon2.Memory.
 	MaxHashing int
 	// HashWait is how long a request waits for a free slot before 503 server_busy; 0 means 2 s.
 	HashWait time.Duration
@@ -105,6 +108,9 @@ type Service struct {
 	gate    *gate
 	dummy   string // a valid hash no password matches, verified against for unknown emails
 
+	auditKeyMu sync.Mutex
+	auditKey   []byte // HMAC key of the unknown-email audit target, read from core_secret on first use
+
 	probe func(delta int) // tests only (export_test.go): +1 when an argon2 run starts, -1 when it ends
 }
 
@@ -125,7 +131,7 @@ func New(c Config) (*Service, error) {
 	}
 	s := &Service{
 		db: c.DB, secrets: c.Secrets, audit: c.Audit, mailer: c.Mailer, now: c.Clock, log: c.Log,
-		params: c.Argon2, limit: newLimiter(c.Clock), gate: newGate(c.MaxHashing, c.HashWait), dummy: dummy,
+		params: c.Argon2, limit: newLimiter(c.Clock), gate: newGate(c.MaxHashing, c.HashWait, c.Argon2), dummy: dummy,
 	}
 	s.Sessions = &Sessions{db: c.DB, audit: c.Audit, now: c.Clock, log: c.Log}
 	s.Codes = &EmailCodes{db: c.DB, secrets: c.Secrets, mailer: c.Mailer, now: c.Clock, log: c.Log}
@@ -195,14 +201,15 @@ func normalizeEmail(e string) string { return strings.ToLower(strings.TrimSpace(
 // refuse to go on when that fails, because there is no address to fall back to that would not be shared.
 func ipText(a netip.Addr) string { return a.Unmap().WithZone("").String() }
 
-// ipLimitKey is the address part of the (IP, email) rate-limit key. A whole IPv6 /64 is one client (a
-// host rotates through the addresses of its /64 for free), so it shares one key; IPv4 is per address.
-func ipLimitKey(a netip.Addr) string {
+// ipLimitKeys are the address parts of the (IP, email) rate-limit keys of one request: the address itself
+// and, for IPv6, its /64 as well (a host rotates through the addresses of its /64 for free, so the /64 is
+// bounded too, at a higher limit: see ratelimit.go).
+func ipLimitKeys(a netip.Addr) []string {
 	a = a.Unmap().WithZone("")
 	if a.Is6() {
-		return netip.PrefixFrom(a, 64).Masked().String()
+		return []string{a.String(), netip.PrefixFrom(a, 64).Masked().String()}
 	}
-	return a.String()
+	return []string{a.String()}
 }
 
 func errNoIP() error { return errors.New("auth: the client address is missing or not an IP address") }

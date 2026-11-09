@@ -11,8 +11,12 @@ import (
 	"encoding/base32"
 	"encoding/hex"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"log/slog"
 	"net/netip"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -325,32 +329,39 @@ func TestM3RotatingIPv6AddressesInOnePrefixShareTheLimit(t *testing.T) {
 	}
 }
 
-func TestM3PasswordGuessesFromOneIPv6PrefixShareTheLimitButOtherPrefixesDoNot(t *testing.T) {
+func TestM3OneIPv6HostCannotLockTheWholePrefixOut(t *testing.T) {
 	t.Parallel()
 	env := authtest.New(t)
 	u := env.User(t, "ann@acme.example", routes.Viewer)
-	var judged, limited int
-	for i := range 60 {
-		switch e, _ := apierr.As(loginAs(env, u.Email, "wrong password here", "", ip(fmt.Sprintf("2001:db8:0:1::%x", i+1)))); {
-		case e != nil && e.Code == "invalid_credentials":
-			judged++
-		case e != nil && e.Code == "rate_limited":
-			limited++
-		default:
-			t.Fatalf("attempt %d: %v", i, e)
-		}
+	attacker := ip("2001:db8:0:1::bad")
+	for range 10 {
+		wantAPI(t, loginAs(env, u.Email, "wrong password here", "", attacker), 400, "invalid_credentials")
 	}
-	if judged != 10 || limited != 50 {
-		t.Fatalf("one /64: judged=%d limited=%d, want 10 and 50", judged, limited)
+	wantAPI(t, loginAs(env, u.Email, authtest.Password, "", attacker), 429, "rate_limited")
+	// A neighbour in the same /64 (a LAN host, the real user) is not locked out by the attacker.
+	if err := loginAs(env, u.Email, authtest.Password, "", ip("2001:db8:0:1::1")); err != nil {
+		t.Fatalf("a neighbour in the /64 was locked out by one host: %v", err)
 	}
-	// Another prefix, and an IPv4 address, are other clients.
-	wantAPI(t, loginAs(env, u.Email, "wrong password here", "", ip("2001:db8:0:2::1")), 400, "invalid_credentials")
-	wantAPI(t, loginAs(env, u.Email, "wrong password here", "", ip("192.0.2.1")), 400, "invalid_credentials")
 	// An IPv4-mapped IPv6 address is the IPv4 client.
-	for range 9 {
+	for range 10 {
 		wantAPI(t, loginAs(env, u.Email, "wrong password here", "", ip("::ffff:192.0.2.1")), 400, "invalid_credentials")
 	}
 	wantAPI(t, loginAs(env, u.Email, "wrong password here", "", ip("192.0.2.1")), 429, "rate_limited")
+}
+
+func TestM3AHostRotatingInsideItsPrefixIsStillBounded(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	u := env.User(t, "ann@acme.example", routes.Viewer)
+	for i := range 100 {
+		wantAPI(t, loginAs(env, u.Email, "wrong password here", "", ip(fmt.Sprintf("2001:db8:0:1::%x", i+1))), 400, "invalid_credentials")
+	}
+	e := apiErr(t, loginAs(env, u.Email, "wrong password here", "", ip("2001:db8:0:1::ffff")), 429, "rate_limited")
+	if e.Extra["retry_after"] == nil {
+		t.Fatal("no retry_after")
+	}
+	// The refused attempt did not count against that new address, and another /64 is another client.
+	wantAPI(t, loginAs(env, u.Email, "wrong password here", "", ip("2001:db8:0:2::1")), 400, "invalid_credentials")
 }
 
 func TestM3RotatingPrefixesStillHitThePerAccountLimit(t *testing.T) {
@@ -797,5 +808,242 @@ func TestTempPasswordAlphabet(t *testing.T) {
 	p, err := auth.NewTempPassword()
 	if err != nil || len(p) != 20 || strings.Trim(p, auth.TempAlphabet) != "" {
 		t.Fatalf("password %q, %v", p, err)
+	}
+}
+
+// ---- review round 2 ------------------------------------------------------------------------------
+
+// #1: a request that proved the old password must not overwrite a newer one.
+func TestChangeOwnPasswordInFlightDoesNotOverwriteAnAdminReset(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t, func(c *auth.Config) { c.MaxHashing = 4 })
+	admin := env.User(t, "admin@acme.example", routes.Admin)
+	u := env.User(t, "ann@acme.example", routes.Viewer)
+	pauseAtFirstHash(env)
+	done := make(chan error, 1)
+	go func() {
+		done <- env.Svc.ChangeOwnPassword(context.Background(), u.ID, "", authtest.Password, "attacker chosen password")
+	}()
+	temp := resetWhilePaused(t, env, admin.Email, u.ID)
+	wantAPI(t, <-done, 400, "wrong_password")
+	if err := loginAs(env, u.Email, temp, "", ip("192.0.2.9")); err != nil {
+		t.Fatalf("the administrator's temporary password was overwritten: %v", err)
+	}
+	wantAPI(t, loginAs(env, u.Email, "attacker chosen password", "", ip("192.0.2.9")), 400, "invalid_credentials")
+}
+
+func TestDisableTwoFAInFlightDoesNotActAfterAPasswordReset(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t, func(c *auth.Config) { c.MaxHashing = 4 })
+	admin := env.User(t, "admin@acme.example", routes.Admin)
+	appUser(t, env)
+	u := userByEmail(t, env, "ann@acme.example")
+	pauseAtFirstHash(env)
+	done := make(chan error, 1)
+	go func() { done <- env.Svc.DisableTwoFA(context.Background(), u.ID, "", authtest.Password) }()
+	resetWhilePaused(t, env, admin.Email, u.ID)
+	wantAPI(t, <-done, 400, "wrong_password")
+	if got, _ := env.Svc.GetUser(t.Context(), u.ID); got.TwofaMethod != "app" {
+		t.Fatalf("two-step was turned off with a stale password proof (method %q)", got.TwofaMethod)
+	}
+}
+
+// pauseAtFirstHash makes the next argon2 run (of the call about to start) wait until resetWhilePaused lets it go.
+func pauseAtFirstHash(env *authtest.Env) {
+	entered, hold := make(chan struct{}), make(chan struct{})
+	var armed atomic.Bool
+	armed.Store(true)
+	auth.SetHashProbe(env.Svc, func(d int) {
+		if d > 0 && armed.CompareAndSwap(true, false) {
+			close(entered)
+			<-hold
+		}
+	})
+	pauseState.Store(env, [2]chan struct{}{entered, hold})
+}
+
+var pauseState sync.Map // *authtest.Env -> {entered, hold}
+
+func resetWhilePaused(t *testing.T, env *authtest.Env, adminEmail, userID string) string {
+	t.Helper()
+	ch, _ := pauseState.Load(env)
+	c := ch.([2]chan struct{})
+	<-c[0]
+	temp, err := env.Svc.ResetPassword(t.Context(), adminEmail, userID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	close(c[1])
+	return temp
+}
+
+func TestOperationsOfARevokedSessionOrDisabledAccountAreRefused(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	ctx := t.Context()
+	admin := env.User(t, "admin@acme.example", routes.Admin)
+	u := env.User(t, "ann@acme.example", routes.Viewer)
+	res, err := env.Login(t, u.Email, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sid := res.Session.SessionID
+	if err := env.Svc.Sessions.Revoke(ctx, u.Email, u.ID, sid); err != nil {
+		t.Fatal(err)
+	}
+	wantAPI(t, env.Svc.ChangeOwnPassword(ctx, u.ID, sid, authtest.Password, "another long password"), 401, "unauthenticated")
+	if err := loginAs(env, u.Email, authtest.Password, "", ip("192.0.2.9")); err != nil {
+		t.Fatalf("password changed by a revoked session: %v", err)
+	}
+	setup, err := env.Svc.StartTOTP(ctx, u.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := decodeBase32(t, setup.Secret)
+	wantAPI(t, env.Svc.ConfirmTOTP(ctx, u.ID, sid, auth.TOTPCode(key, auth.TOTPStep(env.Clock.Now()))), 401, "unauthenticated")
+	if _, err := env.Svc.StartEmail2FA(ctx, u.ID); err != nil {
+		t.Fatal(err)
+	}
+	wantAPI(t, env.Svc.ConfirmEmail2FA(ctx, u.ID, sid, env.Mailer.LastCode()), 401, "unauthenticated")
+	if got, _ := env.Svc.GetUser(ctx, u.ID); got.TwofaMethod != "" {
+		t.Fatalf("two-step turned on from a revoked session: %q", got.TwofaMethod)
+	}
+	// An expired session is refused the same way.
+	live, _ := env.Login(t, u.Email, "")
+	env.Clock.Advance(auth.IdleTimeout + time.Minute)
+	wantAPI(t, env.Svc.ChangeOwnPassword(ctx, u.ID, live.Session.SessionID, authtest.Password, "another long password"), 401, "unauthenticated")
+
+	// A disabled account finishes nothing it started.
+	yes := true
+	if _, err := env.Svc.UpdateUser(ctx, admin.ID, admin.Email, u.ID, auth.UserPatch{Disabled: &yes}); err != nil {
+		t.Fatal(err)
+	}
+	wantAPI(t, env.Svc.ChangeOwnPassword(ctx, u.ID, "", authtest.Password, "another long password"), 403, "disabled")
+	if _, err := env.Svc.StartEmail2FA(ctx, u.ID); err != nil {
+		t.Fatal(err)
+	}
+	wantAPI(t, env.Svc.ConfirmEmail2FA(ctx, u.ID, "", env.Mailer.LastCode()), 403, "disabled")
+}
+
+// #5: after a wait ran out, a right password must not start a new wait.
+func TestRightPasswordAfterTheWaitDoesNotBlockTheSecondStep(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	secret := appUser(t, env)
+	a := ip("192.0.2.7")
+	for range 10 {
+		wantAPI(t, loginAs(env, "ann@acme.example", "wrong password here", "", a), 400, "invalid_credentials")
+	}
+	env.Clock.Advance(31 * time.Second) // the 30 s wait is over
+	wantAPI(t, loginAs(env, "ann@acme.example", authtest.Password, "", a), 401, "twofa_required")
+	env.Clock.Advance(30 * time.Second) // the next TOTP step, but less than the 60 s the old code imposed
+	if err := loginAs(env, "ann@acme.example", authtest.Password, auth.TOTPCode(secret, auth.TOTPStep(env.Clock.Now())), a); err != nil {
+		t.Fatalf("right password and code after the wait: %v", err)
+	}
+}
+
+// #6: two sign-ins racing across a hash upgrade both succeed.
+func TestConcurrentSignInsAcrossAnArgonUpgradeBothSucceed(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t, func(c *auth.Config) { c.MaxHashing = 4 })
+	u := env.User(t, "ann@acme.example", routes.Viewer)
+	old, err := auth.Params{Memory: 32, Time: 1, Threads: 1}.Hash(authtest.Password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.DB.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := coredb.New(tx).UpdateUserPassword(t.Context(), coredb.UpdateUserPasswordParams{PasswordHash: old, ID: u.ID})
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	entered, hold := make(chan struct{}), make(chan struct{})
+	var runs atomic.Int32
+	auth.SetHashProbe(env.Svc, func(d int) {
+		if d > 0 && runs.Add(1) == 2 { // the first sign-in's rehash: its password check is done
+			close(entered)
+			<-hold
+		}
+	})
+	first := make(chan error, 1)
+	go func() { first <- loginAs(env, u.Email, authtest.Password, "", ip("192.0.2.1")) }()
+	<-entered
+	if err := loginAs(env, u.Email, authtest.Password, "", ip("192.0.2.2")); err != nil { // upgrades the hash first
+		t.Fatal(err)
+	}
+	close(hold)
+	if err := <-first; err != nil {
+		t.Fatalf("a right password was refused because another sign-in upgraded the hash: %v", err)
+	}
+	if n := env.Count(t, "SELECT count(*) FROM core_session WHERE user_id = ? AND revoked_at IS NULL", u.ID); n != 2 {
+		t.Fatalf("%d sessions, want 2", n)
+	}
+}
+
+// #7: the package does not export argon2 helpers that skip the concurrency cap.
+func TestNoExportedHashHelperBypassesTheGate(t *testing.T) {
+	t.Parallel()
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := token.NewFileSet()
+	for _, name := range files {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(fset, name, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, d := range f.Decls {
+			if fn, ok := d.(*ast.FuncDecl); ok && fn.Recv == nil && (fn.Name.Name == "HashPassword" || fn.Name.Name == "VerifyPassword") {
+				t.Errorf("exported func %s skips the argon2 gate; use Service", fn.Name.Name)
+			}
+		}
+	}
+}
+
+// #8: the unknown-email audit target is a keyed hash.
+func TestUnknownEmailAuditTargetIsKeyed(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	const typed = "my-secret-passw0rd@x.example" // people paste passwords into the email field
+	for range 2 {
+		wantAPI(t, loginAs(env, typed, "wrong password here", "", ip("192.0.2.1")), 400, "invalid_credentials")
+	}
+	wantAPI(t, loginAs(env, "other@x.example", "wrong password here", "", ip("192.0.2.1")), 400, "invalid_credentials")
+	rows, err := env.DB.Reader().QueryContext(t.Context(), "SELECT target FROM core_audit WHERE action = 'auth.login_failed' AND detail = 'unknown email' ORDER BY seq")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var got []string
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, s)
+	}
+	if len(got) != 3 || got[0] != got[1] || got[0] == got[2] {
+		t.Fatalf("targets = %v: the same address must give the same text, another address another", got)
+	}
+	plain := sha256.Sum256([]byte(typed))
+	if strings.HasSuffix(got[0], hex.EncodeToString(plain[:8])) {
+		t.Fatal("target is the unsalted SHA-256 prefix: a table of guesses undoes it")
+	}
+	var id string
+	if err := env.DB.Reader().QueryRowContext(t.Context(), "SELECT id FROM core_secret WHERE purpose = 'core_audit.unknown_email_key'").Scan(&id); err != nil {
+		t.Fatalf("no key in core_secret: %v", err)
+	}
+	key, err := env.Secrets.Open(t.Context(), env.DB.Reader(), id, "core_audit.unknown_email_key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := hmac.New(sha256.New, key)
+	m.Write([]byte(typed))
+	if want := "unknown email " + hex.EncodeToString(m.Sum(nil)[:8]); got[0] != want {
+		t.Fatalf("target = %q, want %q", got[0], want)
 	}
 }

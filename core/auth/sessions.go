@@ -41,7 +41,7 @@ const (
 	// touchWait is how long a request waits for last_seen to be refreshed. The refresh is a courtesy: when
 	// the single writer is busy (a backup, a long import) the request goes on without it and the refresh
 	// finishes in the background, at the price of idle accuracy shortened by about a minute.
-	touchWait = 50 * time.Millisecond
+	touchWait = 250 * time.Millisecond
 	// touchDeadline bounds the background refresh itself.
 	touchDeadline = 5 * time.Second
 )

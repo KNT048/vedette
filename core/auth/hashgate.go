@@ -2,7 +2,9 @@ package auth
 
 import (
 	"context"
+	"math"
 	"runtime"
+	"runtime/debug"
 	"sync/atomic"
 	"time"
 
@@ -19,7 +21,20 @@ const (
 	busyRetryAfter  = 3 // seconds, in the response
 )
 
-func defaultMaxHashing() int { return max(1, runtime.NumCPU()/2) }
+// maxHashingFor is the default size of the gate: half of procs (the CPUs this process may use), at least 1,
+// and when the Go memory limit is set at most a quarter of it spent on argon2 (the rest is the database,
+// the scanners and the Go heap). memLimit is debug.SetMemoryLimit(-1): math.MaxInt64 means "none".
+func maxHashingFor(procs int, memLimit int64, runKiB uint32) int {
+	n := max(1, procs/2)
+	if memLimit > 0 && memLimit != math.MaxInt64 && runKiB > 0 {
+		n = min(n, max(1, int(memLimit/4/(int64(runKiB)*1024))))
+	}
+	return n
+}
+
+func defaultMaxHashing(p Params) int {
+	return maxHashingFor(runtime.GOMAXPROCS(0), debug.SetMemoryLimit(-1), p.Memory)
+}
 
 type gate struct {
 	slots    chan struct{}
@@ -28,9 +43,9 @@ type gate struct {
 	wait     time.Duration
 }
 
-func newGate(n int, wait time.Duration) *gate {
+func newGate(n int, wait time.Duration, p Params) *gate {
 	if n < 1 {
-		n = defaultMaxHashing()
+		n = defaultMaxHashing(p)
 	}
 	if wait <= 0 {
 		wait = defaultHashWait

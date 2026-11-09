@@ -45,6 +45,24 @@ func (q *Queries) AdvanceTotpStep(ctx context.Context, arg AdvanceTotpStepParams
 	return result.RowsAffected()
 }
 
+const changeUserPassword = `-- name: ChangeUserPassword :execrows
+UPDATE core_user SET password_hash = ?, cred_version = cred_version + 1 WHERE id = ? AND cred_version = ?
+`
+
+type ChangeUserPasswordParams struct {
+	PasswordHash string
+	ID           string
+	CredVersion  int64
+}
+
+func (q *Queries) ChangeUserPassword(ctx context.Context, arg ChangeUserPasswordParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, changeUserPassword, arg.PasswordHash, arg.ID, arg.CredVersion)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const confirmTotp = `-- name: ConfirmTotp :execrows
 UPDATE core_user_totp SET confirmed = 1, last_step = ? WHERE user_id = ? AND confirmed = 0
 `
@@ -185,6 +203,30 @@ func (q *Queries) GetEmailCode(ctx context.Context, userID string) (CoreEmailCod
 	return i, err
 }
 
+const getLiveSession = `-- name: GetLiveSession :one
+SELECT id FROM core_session
+WHERE id = ? AND user_id = ? AND revoked_at IS NULL AND expires_at > ? AND last_seen > ?
+`
+
+type GetLiveSessionParams struct {
+	ID        string
+	UserID    string
+	ExpiresAt string
+	LastSeen  string
+}
+
+func (q *Queries) GetLiveSession(ctx context.Context, arg GetLiveSessionParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, getLiveSession,
+		arg.ID,
+		arg.UserID,
+		arg.ExpiresAt,
+		arg.LastSeen,
+	)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getSessionByTokenHash = `-- name: GetSessionByTokenHash :one
 SELECT s.id, s.user_id, s.csrf_hash, s.started_at, s.last_seen, s.expires_at, s.revoked_at,
        u.email, u.role, u.disabled
@@ -243,7 +285,7 @@ func (q *Queries) GetTotp(ctx context.Context, userID string) (CoreUserTotp, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, name, email, role, password_hash, twofa_method, disabled, created_at, last_login
+SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login
 FROM core_user WHERE email = ?
 `
 
@@ -256,6 +298,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (CoreUser, e
 		&i.Email,
 		&i.Role,
 		&i.PasswordHash,
+		&i.CredVersion,
 		&i.TwofaMethod,
 		&i.Disabled,
 		&i.CreatedAt,
@@ -265,7 +308,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (CoreUser, e
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, name, email, role, password_hash, twofa_method, disabled, created_at, last_login
+SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login
 FROM core_user WHERE id = ?
 `
 
@@ -278,6 +321,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (CoreUser, error) 
 		&i.Email,
 		&i.Role,
 		&i.PasswordHash,
+		&i.CredVersion,
 		&i.TwofaMethod,
 		&i.Disabled,
 		&i.CreatedAt,
@@ -427,17 +471,17 @@ func (q *Queries) PruneEmailCodeSends(ctx context.Context, arg PruneEmailCodeSen
 }
 
 const rehashUserPassword = `-- name: RehashUserPassword :execrows
-UPDATE core_user SET password_hash = ? WHERE id = ? AND password_hash = ?
+UPDATE core_user SET password_hash = ? WHERE id = ? AND cred_version = ?
 `
 
 type RehashUserPasswordParams struct {
-	PasswordHash   string
-	ID             string
-	PasswordHash_2 string
+	PasswordHash string
+	ID           string
+	CredVersion  int64
 }
 
 func (q *Queries) RehashUserPassword(ctx context.Context, arg RehashUserPasswordParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, rehashUserPassword, arg.PasswordHash, arg.ID, arg.PasswordHash_2)
+	result, err := q.db.ExecContext(ctx, rehashUserPassword, arg.PasswordHash, arg.ID, arg.CredVersion)
 	if err != nil {
 		return 0, err
 	}
@@ -557,7 +601,7 @@ func (q *Queries) UpdateUserLastLogin(ctx context.Context, arg UpdateUserLastLog
 }
 
 const updateUserPassword = `-- name: UpdateUserPassword :execrows
-UPDATE core_user SET password_hash = ? WHERE id = ?
+UPDATE core_user SET password_hash = ?, cred_version = cred_version + 1 WHERE id = ?
 `
 
 type UpdateUserPasswordParams struct {

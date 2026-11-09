@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -48,14 +49,15 @@ func invalidCredentials() *apierr.Error {
 // have accounts. A failure writes one auth.login_failed row for a real account and for an unknown email
 // alike (the same writer work on both paths); the count stays. A right password gives the count back. It
 // returns the account row and whether its hash should be recomputed with the current parameters.
-func (s *Service) checkPassword(ctx context.Context, email, password, limitIP string) (coredb.CoreUser, bool, error) {
-	if e := s.limit.begin(limitIP, email); e != nil {
+func (s *Service) checkPassword(ctx context.Context, email, password string, lims []string) (coredb.CoreUser, bool, error) {
+	tries, e := s.limit.beginAll(email, lims)
+	if e != nil {
 		return coredb.CoreUser{}, false, e
 	}
 	row, err := coredb.New(s.db.Reader()).GetUserByEmail(ctx, email)
 	found := err == nil
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		s.limit.refund(limitIP, email)
+		refundAll(tries)
 		return coredb.CoreUser{}, false, fmt.Errorf("auth: look up user: %w", err)
 	}
 	hash := s.dummy
@@ -69,7 +71,7 @@ func (s *Service) checkPassword(ctx context.Context, email, password, limitIP st
 	ok, rehash, verr := s.verifyPassword(ctx, hash, password)
 	if verr != nil {
 		if !errors.Is(verr, ErrBadHash) { // busy or cancelled: nothing was judged
-			s.limit.refund(limitIP, email)
+			refundAll(tries)
 			return coredb.CoreUser{}, false, verr
 		}
 		s.log.ErrorContext(ctx, "stored password hash is malformed", "user_id", row.ID)
@@ -78,22 +80,41 @@ func (s *Service) checkPassword(ctx context.Context, email, password, limitIP st
 	if !found || !ok || tooLong {
 		user, target, why := row.Email, row.Email, "wrong password"
 		if !found {
-			user, target, why = "unknown", unknownEmailRef(email), "unknown email"
+			ref, err := s.unknownEmailRef(ctx, email)
+			if err != nil {
+				return coredb.CoreUser{}, false, err
+			}
+			user, target, why = "unknown", ref, "unknown email"
 		}
 		if err := s.auditFailure(ctx, user, target, why); err != nil {
 			return coredb.CoreUser{}, false, err
 		}
 		return coredb.CoreUser{}, false, invalidCredentials()
 	}
-	s.limit.refund(limitIP, email)
+	refundAll(tries)
 	return row, rehash, nil
 }
 
+// auditKeyPurpose is the core_secret purpose of the key of unknownEmailRef (DATA_MODEL 5.4).
+const auditKeyPurpose = "core_audit.unknown_email_key"
+
 // unknownEmailRef names an email that has no account in core_audit without storing the address a stranger
-// typed: a short hash, enough to see that one address is being tried again and again.
-func unknownEmailRef(email string) string {
-	h := sha256.Sum256([]byte(email))
-	return "unknown email " + hex.EncodeToString(h[:8])
+// typed (people paste passwords into the email field, and the audit chain cannot be pruned): a keyed hash,
+// HMAC-SHA-256 under a key of the box, cut to 16 hex characters. It is enough to see that one address is
+// being tried again and again, and no table of guesses can undo it without the key.
+func (s *Service) unknownEmailRef(ctx context.Context, email string) (string, error) {
+	s.auditKeyMu.Lock()
+	defer s.auditKeyMu.Unlock()
+	if s.auditKey == nil {
+		k, err := s.secrets.OpenOrCreate(ctx, s.db, auditKeyPurpose, 32)
+		if err != nil {
+			return "", fmt.Errorf("auth: audit key: %w", err)
+		}
+		s.auditKey = k
+	}
+	m := hmac.New(sha256.New, s.auditKey)
+	m.Write([]byte(email))
+	return "unknown email " + hex.EncodeToString(m.Sum(nil)[:8]), nil
 }
 
 func (s *Service) auditFailure(ctx context.Context, user, target, why string) error {
@@ -129,8 +150,8 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResult, err
 	if !req.IP.IsValid() {
 		return LoginResult{}, errNoIP()
 	}
-	email, lim := normalizeEmail(req.Email), ipLimitKey(req.IP)
-	row, rehash, err := s.checkPassword(ctx, email, req.Password, lim)
+	email, lims := normalizeEmail(req.Email), ipLimitKeys(req.IP)
+	row, rehash, err := s.checkPassword(ctx, email, req.Password, lims)
 	if err != nil {
 		return LoginResult{}, err
 	}
@@ -146,24 +167,28 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResult, err
 	if row.TwofaMethod != nil {
 		// A code is a guess: count it before checking so parallel guesses cannot all pass. Asking for the
 		// prompt (no code) only needs the account not to be blocked.
+		var guess attempt
 		if code == "" {
 			if e := s.limit.check(twofaKey, row.Email); e != nil {
 				return LoginResult{}, e
 			}
-		} else if e := s.limit.begin(twofaKey, row.Email); e != nil {
-			return LoginResult{}, e
+		} else {
+			var e *apierr.Error
+			if guess, e = s.limit.begin(twofaKey, row.Email); e != nil {
+				return LoginResult{}, e
+			}
 		}
 		var err error
 		switch *row.TwofaMethod {
 		case "email":
-			err = s.loginEmailCode(ctx, row, code, lim)
+			err = s.loginEmailCode(ctx, row, code, lims)
 		case "app":
-			totpStep, err = s.loginTOTP(ctx, row, code, lim)
+			totpStep, err = s.loginTOTP(ctx, row, code, lims)
 		default:
 			err = fmt.Errorf("auth: user %s has unknown twofa_method %q", row.ID, *row.TwofaMethod)
 		}
 		if code != "" && (err == nil || !isCodeVerdict(err)) {
-			s.limit.refund(twofaKey, row.Email) // right, or never judged (channel down, internal error)
+			guess.refund() // right, or never judged (channel down, internal error)
 		}
 		if err != nil {
 			return LoginResult{}, err
@@ -194,7 +219,9 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResult, err
 		if cur.Disabled != 0 {
 			return LoginResult{}, disabledError(), nil
 		}
-		if cur.PasswordHash != row.PasswordHash || !sameMethod(cur.TwofaMethod, row.TwofaMethod) {
+		// cred_version, not the hash: a concurrent sign-in that only upgraded the hash must not make this
+		// one fail with the right password (and burn its email code).
+		if cur.CredVersion != row.CredVersion || !sameMethod(cur.TwofaMethod, row.TwofaMethod) {
 			return LoginResult{}, invalidCredentials(), nil
 		}
 		if row.TwofaMethod != nil && *row.TwofaMethod == "app" {
@@ -204,7 +231,7 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResult, err
 				return LoginResult{}, nil, fmt.Errorf("auth: store totp step: %w", err)
 			}
 			if n == 0 { // another request used this code (or a later one) between our check and now
-				s.limit.fail(lim, email)
+				s.limit.failAll(email, lims)
 				s.limit.fail(twofaKey, row.Email)
 				if err := s.audit.Append(ctx, tx, audit.Entry{User: row.Email, Action: "auth.login_failed", Target: row.Email, Detail: "two-step code already used"}); err != nil {
 					return LoginResult{}, nil, err
@@ -217,7 +244,7 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResult, err
 			return LoginResult{}, nil, fmt.Errorf("auth: set last_login: %w", err)
 		}
 		if newHash != "" {
-			if _, err := q.RehashUserPassword(ctx, coredb.RehashUserPasswordParams{PasswordHash: newHash, ID: row.ID, PasswordHash_2: row.PasswordHash}); err != nil {
+			if _, err := q.RehashUserPassword(ctx, coredb.RehashUserPasswordParams{PasswordHash: newHash, ID: row.ID, CredVersion: row.CredVersion}); err != nil {
 				return LoginResult{}, nil, fmt.Errorf("auth: rehash password: %w", err)
 			}
 		}
@@ -236,7 +263,7 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResult, err
 	if err != nil {
 		return LoginResult{}, err
 	}
-	s.limit.reset(lim, email)
+	s.limit.resetAll(email, lims)
 	s.limit.reset(twofaKey, row.Email)
 	return res, nil
 }
@@ -272,7 +299,7 @@ func wrongAppCode() *apierr.Error {
 }
 
 // loginEmailCode is step 3 for the email method. It returns nil only when a correct code was used up.
-func (s *Service) loginEmailCode(ctx context.Context, row coredb.CoreUser, code, lim string) error {
+func (s *Service) loginEmailCode(ctx context.Context, row coredb.CoreUser, code string, lims []string) error {
 	if !s.Codes.Available(ctx) {
 		// INV-8: never fall back to the password alone.
 		if err := s.auditFailure(ctx, row.Email, row.Email, "email channel unavailable for two-step code"); err != nil {
@@ -290,7 +317,7 @@ func (s *Service) loginEmailCode(ctx context.Context, row coredb.CoreUser, code,
 	}
 	if err := s.Codes.Verify(ctx, row.ID, code); err != nil {
 		if _, ok := apierr.As(err); ok {
-			s.limit.fail(lim, row.Email)
+			s.limit.failAll(row.Email, lims)
 			if aerr := s.auditFailure(ctx, row.Email, row.Email, "wrong two-step code"); aerr != nil {
 				return aerr
 			}
@@ -302,7 +329,7 @@ func (s *Service) loginEmailCode(ctx context.Context, row coredb.CoreUser, code,
 
 // loginTOTP is step 3 for the authenticator-app method. It returns the accepted time step; the caller stores
 // it in the sign-in transaction.
-func (s *Service) loginTOTP(ctx context.Context, row coredb.CoreUser, code, lim string) (int64, error) {
+func (s *Service) loginTOTP(ctx context.Context, row coredb.CoreUser, code string, lims []string) (int64, error) {
 	if code == "" {
 		return 0, apierr.New(401, CodeTwofaRequired, "This account has two-step sign-in on. Enter the 6-digit code from your authenticator app.").With("method", "app")
 	}
@@ -326,7 +353,7 @@ func (s *Service) loginTOTP(ctx context.Context, row coredb.CoreUser, code, lim 
 		s.log.ErrorContext(ctx, "user has two-step app method but no confirmed key", "user_id", row.ID)
 	}
 	if !ok {
-		s.limit.fail(lim, row.Email)
+		s.limit.failAll(row.Email, lims)
 		if aerr := s.auditFailure(ctx, row.Email, row.Email, "wrong two-step code"); aerr != nil {
 			return 0, aerr
 		}
@@ -346,7 +373,7 @@ func (s *Service) ResendCode(ctx context.Context, email, password string, ip net
 		return Sent{}, errNoIP()
 	}
 	email = normalizeEmail(email)
-	row, _, err := s.checkPassword(ctx, email, password, ipLimitKey(ip))
+	row, _, err := s.checkPassword(ctx, email, password, ipLimitKeys(ip))
 	if err != nil {
 		return Sent{}, err
 	}

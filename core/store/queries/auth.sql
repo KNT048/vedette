@@ -3,18 +3,18 @@ INSERT INTO core_user (id, name, email, role, password_hash, created_at)
 VALUES (?, ?, ?, ?, ?, ?);
 
 -- name: GetUserByEmail :one
-SELECT id, name, email, role, password_hash, twofa_method, disabled, created_at, last_login
+SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login
 FROM core_user WHERE email = ?;
 
 -- name: GetUserByID :one
-SELECT id, name, email, role, password_hash, twofa_method, disabled, created_at, last_login
+SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login
 FROM core_user WHERE id = ?;
 
 -- name: CountOtherActiveAdmins :one
 SELECT count(*) FROM core_user WHERE role = 'admin' AND disabled = 0 AND id <> ?;
 
 -- name: UpdateUserPassword :execrows
-UPDATE core_user SET password_hash = ? WHERE id = ?;
+UPDATE core_user SET password_hash = ?, cred_version = cred_version + 1 WHERE id = ?;
 
 -- name: UpdateUserRole :execrows
 UPDATE core_user SET role = ? WHERE id = ?;
@@ -32,7 +32,10 @@ UPDATE core_user SET twofa_method = ? WHERE id = ?;
 UPDATE core_user SET twofa_method = ? WHERE id = ? AND twofa_method IS NULL;
 
 -- name: RehashUserPassword :execrows
-UPDATE core_user SET password_hash = ? WHERE id = ? AND password_hash = ?;
+UPDATE core_user SET password_hash = ? WHERE id = ? AND cred_version = ?;
+
+-- name: ChangeUserPassword :execrows
+UPDATE core_user SET password_hash = ?, cred_version = cred_version + 1 WHERE id = ? AND cred_version = ?;
 
 -- name: UpsertTotp :exec
 INSERT INTO core_user_totp (user_id, secret_id, confirmed, last_step, created_at)
@@ -92,6 +95,10 @@ SELECT s.id, s.user_id, s.csrf_hash, s.started_at, s.last_seen, s.expires_at, s.
        u.email, u.role, u.disabled
 FROM core_session s JOIN core_user u ON u.id = s.user_id
 WHERE s.token_hash = ?;
+
+-- name: GetLiveSession :one
+SELECT id FROM core_session
+WHERE id = ? AND user_id = ? AND revoked_at IS NULL AND expires_at > ? AND last_seen > ?;
 
 -- name: TouchSession :exec
 UPDATE core_session SET last_seen = ? WHERE id = ? AND revoked_at IS NULL;

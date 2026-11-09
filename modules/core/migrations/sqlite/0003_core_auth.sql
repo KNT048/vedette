@@ -8,6 +8,7 @@ CREATE TABLE core_user (
     email         TEXT    NOT NULL UNIQUE CHECK (email = lower(email) AND length(email) BETWEEN 3 AND 320),
     role          TEXT    NOT NULL CHECK (role IN ('viewer', 'operator', 'admin')),
     password_hash TEXT    NOT NULL CHECK (length(password_hash) BETWEEN 1 AND 512), -- argon2id PHC string
+    cred_version  INTEGER NOT NULL DEFAULT 0 CHECK (cred_version >= 0), -- +1 on every real password change or reset (not on a rehash with new argon2 parameters)
     twofa_method  TEXT    CHECK (twofa_method IS NULL OR twofa_method IN ('app', 'email')),
     disabled      INTEGER NOT NULL DEFAULT 0 CHECK (disabled IN (0, 1)),
     created_at    TEXT    NOT NULL CHECK (created_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),

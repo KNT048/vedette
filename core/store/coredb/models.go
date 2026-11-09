@@ -107,6 +107,7 @@ type CoreUser struct {
 	Email        string
 	Role         string
 	PasswordHash string
+	CredVersion  int64
 	TwofaMethod  *string
 	Disabled     int64
 	CreatedAt    string

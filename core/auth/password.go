@@ -36,7 +36,7 @@ type Params struct {
 }
 
 // DefaultParams is what new password hashes use: m=64 MiB, t=3, p=2 (OWASP-grade for a login that runs
-// once per sign-in). Raising it later makes VerifyPassword report needsRehash for older hashes.
+// once per sign-in). Raising it later makes Params.Verify report needsRehash for older hashes. Callers outside this package get hashing through Service, which holds the argon2 concurrency cap.
 var DefaultParams = Params{Memory: 64 * 1024, Time: 3, Threads: 2}
 
 // Upper bounds accepted when reading a hash from the database, so a corrupted or planted row cannot make
@@ -117,14 +117,6 @@ func parsePHC(encoded string) (Params, []byte, []byte, error) {
 		return bad()
 	}
 	return p, salt, key, nil
-}
-
-// HashPassword hashes with DefaultParams.
-func HashPassword(password string) (string, error) { return DefaultParams.Hash(password) }
-
-// VerifyPassword verifies against DefaultParams (see Params.Verify).
-func VerifyPassword(encoded, password string) (ok, needsRehash bool, err error) {
-	return DefaultParams.Verify(encoded, password)
 }
 
 // ValidatePassword applies the password policy to a new password: 12 to 256 characters, valid UTF-8,

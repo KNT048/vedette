@@ -131,7 +131,11 @@ func (s *Service) ConfirmTOTP(ctx context.Context, userID, keepSessionID, code s
 	_, err = write(ctx, s.db, func(tx *sql.Tx) (struct{}, *apierr.Error, error) {
 		q := coredb.New(tx)
 		// Checked again here, before anything is written: the single writer serialises us with a racing
-		// confirm of the other method (a refusal after a write would commit that write).
+		// confirm of the other method (a refusal after a write would commit that write), and the caller
+		// must still be allowed to act (account not disabled, session not ended).
+		if refusal, err := s.callerRefusal(ctx, q, t.ID, keepSessionID); refusal != nil || err != nil {
+			return struct{}{}, refusal, err
+		}
 		if cur, err := q.GetUserByID(ctx, t.ID); err != nil {
 			return struct{}{}, nil, fmt.Errorf("auth: read user: %w", err)
 		} else if cur.TwofaMethod != nil {
@@ -191,6 +195,9 @@ func (s *Service) ConfirmEmail2FA(ctx context.Context, userID, keepSessionID, co
 		return err
 	}
 	_, err = write(ctx, s.db, func(tx *sql.Tx) (struct{}, *apierr.Error, error) {
+		if refusal, err := s.callerRefusal(ctx, coredb.New(tx), t.ID, keepSessionID); refusal != nil || err != nil {
+			return struct{}{}, refusal, err
+		}
 		if cur, err := coredb.New(tx).GetUserByID(ctx, t.ID); err != nil {
 			return struct{}{}, nil, fmt.Errorf("auth: read user: %w", err)
 		} else if cur.TwofaMethod != nil {
@@ -219,6 +226,14 @@ func (s *Service) DisableTwoFA(ctx context.Context, userID, keepSessionID, passw
 		cur, err := coredb.New(tx).GetUserByID(ctx, t.ID)
 		if err != nil {
 			return struct{}{}, nil, fmt.Errorf("auth: read user: %w", err)
+		}
+		// The password was checked outside this transaction: when it has been changed or reset since,
+		// that proof is stale. Same for a caller whose account or session is gone.
+		if cur.CredVersion != t.CredVersion {
+			return struct{}{}, passwordMoved(), nil
+		}
+		if refusal, err := s.callerRefusal(ctx, coredb.New(tx), t.ID, keepSessionID); refusal != nil || err != nil {
+			return struct{}{}, refusal, err
 		}
 		if cur.TwofaMethod == nil {
 			return struct{}{}, apierr.New(409, CodeNotOn, "Two-step sign-in is already off."), nil

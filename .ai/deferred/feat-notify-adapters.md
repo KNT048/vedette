@@ -1,0 +1,2 @@
+- [ ] Zalo personal Send (reverse-engineered QR login and request signing) — NewZaloPersonal only validates, Send returns ErrUnsupported; porting needs a legal/ToS and effort decision (D-46) — WP-22 / Emily + Kien
+- [ ] Zalo OA access token refresh (the Open API token expires and needs the refresh token and app secret, which contract.ts does not store) — adapter sends with the one saved token — WP-22 / contract change

@@ -1,7 +1,7 @@
 # Vedette — lệnh chung. Máy: `make check` trước khi push (D-62); CI gọi đúng các đích ở đây (D-63, docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: help dev check verify verify-web verify-go test test-go contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build e2e fixtures clean
+.PHONY: help dev check verify node-version-check verify-web verify-go test test-go contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build e2e fixtures clean
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -33,7 +33,7 @@ check:
 
 verify: verify-web verify-go
 
-verify-web:
+verify-web: node-version-check
 	pnpm --dir web install --frozen-lockfile
 	pnpm --dir web exec tsc -b
 	pnpm --dir web lint
@@ -59,6 +59,13 @@ GENERATED := core/store/coredb core/api
 generate-check: generate
 	git diff --exit-code -- $(GENERATED)
 	@test -z "$$(git status --porcelain -- $(GENERATED))" || { git status --porcelain -- $(GENERATED); echo "generate-check: untracked generated files"; exit 1; }
+
+# web/.npmrc node-version phải bằng devEngines.runtime.version: pnpm bản độc lập kiểm engine bằng
+# Node nhúng của nó và bỏ qua native binding của oxlint/rolldown (issue #21).
+node-version-check:
+	@want=$$(sed -n '/"devEngines"/,/}/s/.*"version": *"\([0-9.]*\)".*/\1/p' web/package.json); \
+	have=$$(sed -n 's/^node-version=//p' web/.npmrc); \
+	test -n "$$want" && test "$$want" = "$$have" || { echo "web/.npmrc node-version=$$have, devEngines.runtime.version=$$want: make them equal"; exit 1; }
 
 # api/openapi.json phải đúng bằng bản sinh từ contract.ts (D-18).
 openapi-check:

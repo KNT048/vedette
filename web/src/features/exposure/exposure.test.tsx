@@ -175,7 +175,7 @@ describe('exposure: public IP = only an IP this box uses to reach the Internet',
     expect(a.json.items).toHaveLength(1)
     expect(a.json.items[0]).toMatchObject({ kind: 'ip', value: '198.51.100.7', status: 'verified', method: 'box_egress', validity: 'valid', blocked_reason: 'no_commitment' })
     expect(Math.round((Date.parse(a.json.items[0].expires_at) - Date.parse(a.json.items[0].verified_at)) / 864e5)).toBe(30)
-    expect(a.json.message).toMatch(/^The box reaches the Internet via 198\.51\.100\.7\. Verified until \d{4}-\d{2}-\d{2}\.$/)
+    expect(a.json.message).toMatch(/^The box reaches the Internet via 198\.51\.100\.7\. Verified until \d{1,2} [A-Z][a-z]{2} \d{4}\.$/)
     const b = await call('POST', '/exposure/box-ip/verify')
     expect(b.status).toBe(200)
     expect(b.json.items[0].id).toBe(a.json.items[0].id)
@@ -298,9 +298,9 @@ describe('exposure: auto-detect of the box public IPs (kien 2026-11-09)', () => 
 
   it('checks again only when the interval has passed; each sighting renews the IP', async () => {
     const before = (await call('GET', '/exposure/targets/xt-2')).json.verified_at as string
-    later(30)
+    later(10) // the sample last checked 42 minutes ago
     await state()
-    expect((await call('GET', '/exposure/targets/xt-2')).json.verified_at).toBe(before) // 30 of 60 minutes: not due
+    expect((await call('GET', '/exposure/targets/xt-2')).json.verified_at).toBe(before) // 52 of 60 minutes since the last check: not due
     later(40)
     setEgress('203.0.113.10,198.51.100.9')
     expect(await ipsOf()).toContain('198.51.100.9') // due: the new IP is added
@@ -632,7 +632,7 @@ describe('exposure: scan-time check of an IP (D-79 (2), INV-13)', () => {
     const paused = await scanXt2()
     expect(paused.status).toBe(409)
     expect(paused.json.error.code).toBe('ip_not_current')
-    expect(paused.json.error.message).toMatch(/^This box no longer reaches the Internet through 203\.0\.113\.10; it was last seen \d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC\. Scans of it are paused until the box uses it again\.$/)
+    expect(paused.json.error.message).toMatch(/^This box no longer reaches the Internet through 203\.0\.113\.10; it was last seen \d{1,2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2}\. Scans of it are paused until the box uses it again\.$/)
     expect((await call('GET', '/exposure/targets/xt-2')).json).toMatchObject({ value: '203.0.113.10', status: 'verified' }) // still in the list
     for (const down of ['offline', 'disagree']) {
       advance(6)
@@ -736,5 +736,178 @@ describe('exposure: add target form matrix (docs/QA.md §2)', () => {
     const section = document.getElementById('box-ip')!
     expect(within(section).queryByRole('textbox')).toBeNull()
     expect(within(section).getByRole('button', { name: 'Detect now' })).toBeInTheDocument()
+  })
+})
+
+describe('exposure: QA pass fixes (paused IP, copy, dates, IPv6, remove dialog, rate limit)', () => {
+  const human = /\b\d{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4}\b/
+  const numeric = /\b\d{1,2}\/\d{1,2}\/\d{4}\b/
+  const iso = /\b\d{4}-\d{2}-\d{2}\b/
+  const pause = async () => {
+    setEgress('203.0.113.11') // the box no longer goes out through 203.0.113.10
+    expect((await call('POST', '/exposure/targets/xt-2/scan')).json.error.code).toBe('ip_not_current')
+  }
+
+  it('1. a paused IP is a state of the target: the API, the target page and both lists say so', async () => {
+    expect((await call('GET', '/exposure/targets/xt-2')).json).toMatchObject({ scannable: true, blocked_reason: null }) // before: nothing is known against it
+    await pause()
+    expect((await call('GET', '/exposure/targets/xt-2')).json).toMatchObject({ status: 'verified', scannable: false, blocked_reason: 'ip_not_current' })
+    expect((await call('GET', '/exposure/targets')).json.items.find((x: { id: string }) => x.id === 'xt-2')).toMatchObject({ scannable: false, blocked_reason: 'ip_not_current' })
+    renderApp('/exposure/xt-2')
+    expect(await screen.findByRole('heading', { level: 1, name: /203\.0\.113\.10 is paused/ })).toBeInTheDocument()
+    expect(screen.getByText(/Scans paused: the box no longer reaches the Internet through this IP \(last seen \d{1,2} \w{3} \d{4}, \d{2}:\d{2}\)/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Scan now' })).toBeDisabled()
+    expect(document.getElementById('scan-reason')?.textContent).toMatch(/no longer goes out through 203\.0\.113\.10/)
+    expect(screen.queryByText(/The box reaches the Internet via 203\.0\.113\.10/)).toBeNull() // the stale green "Verified" card is gone
+    expect(screen.queryByText(/is ready for its first scan/)).toBeNull()
+  })
+
+  it('1. the paused state rests on stored facts: it stays after 10 minutes and 3 hours, a failed check changes nothing, a later check that sees the IP clears it', async () => {
+    const advance = (min: number) => { if (!vi.isFakeTimers()) vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(Date.now() + min * 60_000) }
+    const state = async () => (await call('GET', '/exposure/targets/xt-2')).json.blocked_reason
+    expect(await state()).toBeNull() // no full check yet: nothing is known against the IP
+    advance(1)
+    await pause()
+    for (const min of [10, 170]) {
+      advance(min)
+      expect(await state()).toBe('ip_not_current') // no window: it stays until a check sees the IP
+    }
+    for (const down of ['offline', 'disagree']) {
+      advance(6)
+      setEgress(down)
+      await call('POST', '/exposure/box-ip/verify') // a failed check (no answer)
+      expect(await state()).toBe('ip_not_current') // changes nothing
+    }
+    advance(6)
+    setEgress('203.0.113.10,203.0.113.11') // a load balancer: both seen
+    expect((await call('POST', '/exposure/box-ip/verify')).status).toBe(200)
+    expect(await state()).toBeNull()
+    advance(180)
+    expect(await state()).toBeNull() // it does not come back by itself
+    // a new full check that does not see the IP pauses it again
+    advance(1)
+    setEgress('203.0.113.11')
+    await call('POST', '/exposure/box-ip/verify')
+    expect(await state()).toBe('ip_not_current')
+  })
+
+  it('1. the list says Paused instead of Ready to scan', async () => {
+    await pause()
+    renderApp('/exposure')
+    const row = within(await ipTable()).getByRole('row', { name: /203\.0\.113\.10/ })
+    expect(within(row).getByText('Paused')).toBeInTheDocument()
+    expect(within(row).queryByText('Ready to scan')).toBeNull()
+  })
+
+  it('1. the pause ends when the box uses the IP again (Verify again)', async () => {
+    await pause()
+    setEgress('203.0.113.10')
+    expect((await call('POST', '/exposure/targets/xt-2/verify')).json.verified).toBe(true)
+    expect((await call('GET', '/exposure/targets/xt-2')).json).toMatchObject({ scannable: true, blocked_reason: null })
+  })
+
+  it('2. the IP page says that the box reaches the Internet through the IP only once', async () => {
+    renderApp('/exposure/xt-2')
+    await screen.findByRole('heading', { level: 1 })
+    expect(screen.getAllByText(/verified because (this|the) box reaches the Internet through it/i)).toHaveLength(1)
+  })
+
+  it('3. Verify again says it is a full check (5 rounds, 15 requests), not "three times"', async () => {
+    renderApp('/exposure/xt-2')
+    const hint = await screen.findByText(/Works only while this box currently reaches the Internet through 203\.0\.113\.10/)
+    expect(hint.textContent).toMatch(/full check/)
+    expect(hint.textContent).toMatch(/15 requests/)
+    expect(hint.textContent).not.toMatch(/three times/)
+  })
+
+  it('4. the help and the "no check yet" text say what is a full check and name the services', async () => {
+    server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [] })))
+    renderApp('/exposure')
+    const never = await screen.findByText(/^No check yet\./)
+    for (const re of [/first check/, /full check/, /15 requests/, /checkip\.amazonaws\.com/, /icanhazip\.com/, /ifconfig\.me\/ip/]) expect(never.textContent).toMatch(re)
+    const help = document.getElementById('box-ip')!.querySelector('details')!.textContent!
+    expect(help).toMatch(/first check after install, Detect now and Verify again are full checks/)
+    expect(help).toMatch(/checkip\.amazonaws\.com/)
+    expect(help).toMatch(/once.*3 requests/s)
+  })
+
+  it('5. the page header has a space between the certificate count and the rule', async () => {
+    renderApp('/exposure')
+    await screen.findByRole('heading', { level: 1 })
+    const meta = await screen.findByText(/certificates? (is|are) about to expire\./)
+    expect(meta.textContent).toMatch(/about to expire\. Only what you have proven/)
+  })
+
+  it('6. one date format on the list, the IP page and the domain page: 9 Nov 2026, 21:01', async () => {
+    for (const path of ['/exposure', '/exposure/xt-2', '/exposure/xt-1']) {
+      const { unmount } = renderApp(path)
+      await screen.findByRole('heading', { level: 1 })
+      await waitFor(() => expect(screen.queryByText(/^Loading/)).toBeNull())
+      const text = document.querySelector('main')!.textContent!
+      expect(text, `${path} has a numeric date`).not.toMatch(numeric)
+      expect(text, `${path} has an ISO date`).not.toMatch(iso)
+      expect(text, `${path} has no readable date`).toMatch(human)
+      unmount()
+    }
+  })
+
+  it('6. messages of the API that carry a date use the same format', async () => {
+    setEgress('198.51.100.7')
+    const r = await call('POST', '/exposure/box-ip/verify')
+    expect(r.json.message).toMatch(/Verified until \d{1,2} \w{3} \d{4}\./)
+    expect(r.json.message).not.toMatch(iso)
+    expect((await call('POST', '/exposure/targets/xt-4/scan')).json.error.message).toMatch(/expired on \d{1,2} \w{3} \d{4}, so/)
+  })
+
+  it.each(['2001:4860:4860::8888', '[::1]', '::ffff:203.0.113.5', '2001:DB8::1'])('7. IPv6 %s gets the same IP-specific answer as IPv4', async (v) => {
+    const r = await call('POST', '/exposure/targets', { value: v })
+    expect(r.status).toBe(400)
+    expect(r.json.error.code).toBe('ip_not_allowed')
+    expect(r.json.error.message).toMatch(/Public IPs are not typed in/)
+  })
+
+  it('7. a domain with a colon is still a plain bad value; the dialog shows the IP message for IPv6', async () => {
+    expect((await call('POST', '/exposure/targets', { value: 'acme.example:8080' })).json.error.code).toBe('bad_value')
+    renderApp('/exposure')
+    await userEvent.click(await screen.findByRole('button', { name: 'Add domain' }))
+    await userEvent.type(screen.getByRole('textbox', { name: 'Domain' }), '2001:4860:4860::8888')
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(await screen.findByText(/Public IPs are not typed in/)).toBeInTheDocument()
+  })
+
+  it('8. deleting an IP from its page opens the same dialog as the list, with "Don\'t add it again" ticked', async () => {
+    renderApp('/exposure/xt-2')
+    await userEvent.click(await screen.findByRole('button', { name: 'Delete target' }))
+    const dlg = await screen.findByRole('dialog')
+    expect(within(dlg).getByRole('checkbox', { name: "Don't add it again if detected" })).toBeChecked()
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Remove' }))
+    await waitFor(async () => expect((await call('GET', '/exposure/targets')).json.ignored.map((x: { value: string }) => x.value)).toContain('203.0.113.10'))
+    expect((await call('GET', '/exposure/targets/xt-2')).status).toBe(404)
+  })
+
+  it('8. a domain page keeps the plain delete dialog: nothing to ignore', async () => {
+    renderApp('/exposure/xt-1')
+    await userEvent.click(await screen.findByRole('button', { name: 'Delete target' }))
+    expect(within(await screen.findByRole('dialog')).queryByRole('checkbox')).toBeNull()
+  })
+
+  it('9. when the 10 attempts an hour are used up, Detect now is disabled with the wait; the help says the budget is shared', async () => {
+    expect((await call('GET', '/exposure/targets')).json.box_ip.retry_in_min).toBeNull()
+    setEgress('203.0.113.10')
+    for (let i = 0; i < 10; i++) expect((await call('POST', '/exposure/targets/xt-2/verify')).status).toBe(200) // a domain Check and Verify again count too
+    const box = (await call('GET', '/exposure/targets')).json.box_ip
+    expect(box.retry_in_min).toBeGreaterThanOrEqual(1)
+    expect(box.retry_in_min).toBeLessThanOrEqual(60)
+    renderApp('/exposure')
+    const detect = await screen.findByRole('button', { name: 'Detect now' })
+    expect(detect).toBeDisabled()
+    expect(screen.getByText(/Try again in about \d+ minutes?\./)).toBeInTheDocument()
+    expect(document.getElementById('box-ip')!.querySelector('details')!.textContent).toMatch(/Detect now, Verify again and the DNS Check of a domain share 10 attempts per hour/)
+  })
+
+  it('9. with attempts left, Detect now is enabled and no wait is shown', async () => {
+    renderApp('/exposure')
+    expect(await screen.findByRole('button', { name: 'Detect now' })).toBeEnabled()
+    expect(screen.queryByText(/Try again in about/)).toBeNull()
   })
 })

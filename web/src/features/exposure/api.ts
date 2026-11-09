@@ -45,7 +45,7 @@ export function useDetectBoxIp() {
   const inv = useInvalidate()
   return useMutation({ mutationFn: () => api.post<BoxIpDetectResult>('/exposure/box-ip/verify'), onSuccess: inv, onError: inv })
 }
-/** Auto-detect on or off and the check interval (15 to 1440 minutes). */
+/** Auto-detect on or off and the check interval (1 to 1440 minutes). */
 export function useSaveBoxIpSettings() {
   const inv = useInvalidate()
   return useMutation({ mutationFn: (s: Pick<BoxIpSettings, 'auto' | 'interval_min'>) => api.put<BoxIpSettings>('/exposure/box-ip/settings', s), onSuccess: inv })
@@ -56,5 +56,6 @@ export function useCommit() {
 }
 export function useScan() {
   const inv = useInvalidate()
-  return useMutation({ mutationFn: (id: string) => api.post<Snapshot>(`/exposure/targets/${encodeURIComponent(id)}/scan`), onSuccess: inv })
+  // onError too: a refused scan may have found the IP paused, and the page must then show it (the answer is a state of the target).
+  return useMutation({ mutationFn: (id: string) => api.post<Snapshot>(`/exposure/targets/${encodeURIComponent(id)}/scan`), onSuccess: inv, onError: inv })
 }

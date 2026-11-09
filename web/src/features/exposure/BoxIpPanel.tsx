@@ -8,14 +8,14 @@ import { EmptyState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Field, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
+import { fmtRelative } from '@/lib/format'
+import { dateText, dateTimeText } from './dates'
 import { useCan } from '@/lib/session'
 import { OwnerChip } from './OwnerChip'
-import { useDeleteTarget, useDetectBoxIp, useRestoreIgnored, useSaveBoxIpSettings } from './api'
+import { RemoveDialog } from './RemoveDialog'
+import { useDetectBoxIp, useRestoreIgnored, useSaveBoxIpSettings } from './api'
 import type { BoxIpSettings, IgnoredIp, Target } from './types'
 
 const PRESETS = [1, 5, 10, 15, 30, 60, 120, 360, 720, 1440]
@@ -34,6 +34,9 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
   const options = PRESETS.includes(settings.interval_min) ? PRESETS : [...PRESETS, settings.interval_min].sort((a, b) => a - b)
   const locked = !can ? t('common:needRole', { role: t('common:role.admin') }) : undefined
   const run = settings.last_run
+  // The 10 attempts an hour are used up: say so on the button and next to it, not only in a toast.
+  const wait = settings.retry_in_min ?? null
+  const waitText = wait === null ? undefined : t('boxIp.retry', { count: wait })
   // The dialog state lives here, not in a table cell: `columns` is rebuilt on every render, which remounts the cells and would close an open dialog on any refetch.
   const [removing, setRemoving] = useState<Target | null>(null)
 
@@ -46,8 +49,8 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
   const columns: ColumnDef<Target>[] = [
     { id: 'ip', header: t('boxIp.col.ip'), accessorFn: (r) => r.value, cell: ({ row }) => <Link className="font-medium text-accent underline-offset-4 hover:underline" to={`/exposure/${row.original.id}`}>{row.original.value}</Link> },
     { id: 'status', header: t('boxIp.col.status'), accessorFn: (r) => r.status, cell: ({ row }) => <OwnerChip target={row.original} /> },
-    { id: 'seen', header: t('boxIp.col.seen'), accessorFn: (r) => r.verified_at ?? '', cell: ({ row }) => <span title={fmtDateTime(row.original.verified_at)}>{fmtRelative(row.original.verified_at)}</span> },
-    { id: 'expires', header: t('boxIp.col.expires'), accessorFn: (r) => r.expires_at ?? '', cell: ({ row }) => <span>{fmtDate(row.original.expires_at)}</span> },
+    { id: 'seen', header: t('boxIp.col.seen'), accessorFn: (r) => r.verified_at ?? '', cell: ({ row }) => <span title={dateTimeText(row.original.verified_at)}>{fmtRelative(row.original.verified_at)}</span> },
+    { id: 'expires', header: t('boxIp.col.expires'), accessorFn: (r) => r.expires_at ?? '', cell: ({ row }) => <span>{dateText(row.original.expires_at)}</span> },
     { id: 'scan', header: t('boxIp.col.scan'), enableSorting: false, cell: ({ row }) => (row.original.blocked_reason ? <span className="text-[13px] text-warn">{t(`blocked.${row.original.blocked_reason}`)}</span> : <span className="text-[13px]">{t('targets.ready')}</span>) },
     { id: 'remove', header: t('boxIp.col.remove'), enableSorting: false, cell: ({ row }) => <RemoveButton target={row.original} onRemove={setRemoving} /> },
   ]
@@ -70,17 +73,18 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
                 </Select>
               </Field>
             ) : null}
-            <Button onClick={detectNow} disabled={!can || detect.isPending} title={locked}>
+            <Button onClick={detectNow} disabled={!can || detect.isPending || wait !== null} title={locked ?? waitText}>
               <RefreshCw className={detect.isPending ? 'animate-spin motion-reduce:animate-none' : undefined} />{detect.isPending ? t('boxIp.detecting') : t('boxIp.detect')}
             </Button>
           </div>
           <p className="max-w-3xl text-[13px] text-muted">{t('boxIp.switchHint')}</p>
+          {waitText ? <p className="max-w-3xl text-[13px] text-warn">{waitText}</p> : null}
           {!can ? <p className="text-[13px] text-muted">{locked}</p> : null}
           {run ? (
             <div role="status" className={`rounded-md border px-3 py-2 text-sm ${run.ok ? 'border-ok/40 bg-ok-soft' : 'border-warn/50 bg-warn-soft/60'}`}>
               <p className="mb-1 flex flex-wrap items-center gap-2">
                 <Chip tone={run.ok ? 'ok' : 'warn'}>{run.ok ? t('boxIp.last.ok') : t('boxIp.last.failed')}</Chip>
-                <span className="text-[12px] text-muted">{t('boxIp.last.title')} {t('boxIp.last.at', { time: fmtDateTime(run.at) })}</span>
+                <span className="text-[12px] text-muted">{t('boxIp.last.title')} {t('boxIp.last.at', { time: dateTimeText(run.at) })}</span>
               </p>
               <p>{run.message}</p>
             </div>
@@ -100,7 +104,7 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
                 <RemoveButton target={r} onRemove={setRemoving} />
               </div>
               <div className="flex flex-wrap items-center gap-2"><OwnerChip target={r} /></div>
-              <p className="text-[13px] text-muted">{t('boxIp.col.seen')}: {fmtRelative(r.verified_at)}. {t('boxIp.col.expires')}: {fmtDate(r.expires_at)}.</p>
+              <p className="text-[13px] text-muted">{t('boxIp.col.seen')}: {fmtRelative(r.verified_at)}. {t('boxIp.col.expires')}: {dateText(r.expires_at)}.</p>
               <p className="text-[13px] text-muted">{r.blocked_reason ? t(`blocked.${r.blocked_reason}`) : t('targets.ready')}</p>
             </div>
           )}
@@ -120,35 +124,6 @@ function RemoveButton({ target, onRemove }: { target: Target; onRemove: (t: Targ
   return <Button onClick={() => onRemove(target)} disabled={!can} aria-label={t('boxIp.removeLabel', { value: target.value })} title={can ? undefined : t('common:needRole', { role: t('common:role.admin') })}><Trash2 />{t('boxIp.col.remove')}</Button>
 }
 
-function RemoveDialog({ target, onClose }: { target: Target | null; onClose: () => void }) {
-  const { t } = useTranslation('exposure')
-  const del = useDeleteTarget()
-  // Ticked by default (D-79): an address the box uses but that is not the company's must not come back. Reset for every IP.
-  const [ignore, setIgnore] = useState(true)
-  const [seen, setSeen] = useState<string | null>(null)
-  // Reset when the dialog opens for an IP and when it closes, so Cancel followed by Remove on the same IP starts ticked again.
-  if ((target?.id ?? null) !== seen) { setSeen(target?.id ?? null); setIgnore(true) }
-  return (
-    <Dialog open={target !== null} onOpenChange={(o) => { if (!o) onClose() }}>
-      {target ? (
-        <DialogContent title={t('boxIp.remove.title', { value: target.value })} description={t('boxIp.remove.body')}>
-          <div className="flex items-start gap-3">
-            <Checkbox id="box-ignore" checked={ignore} onCheckedChange={(v) => setIgnore(v === true)} className="mt-0.5" aria-describedby="box-ignore-hint" />
-            <div className="grid gap-1">
-              <Label htmlFor="box-ignore" className="font-normal">{t('boxIp.remove.ignoreLabel')}</Label>
-              <p id="box-ignore-hint" className="text-[13px] text-muted">{ignore ? t('boxIp.remove.ignoreOn') : t('boxIp.remove.ignoreOff')}</p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={onClose}>{t('common:cancel')}</Button>
-            <Button variant="danger" disabled={del.isPending} onClick={() => { del.mutateAsync({ id: target.id, ignore }).then(() => { toast.success(t(ignore ? 'boxIp.remove.toastIgnored' : 'boxIp.remove.toast', { value: target.value })); onClose() }, (e: unknown) => toast.error(errMsg(e))) }}>{t('boxIp.remove.confirm')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      ) : null}
-    </Dialog>
-  )
-}
-
 /** The Ignored list (D-79). It only blocks: Restore lets detection add the IP again, it never adds or allows anything itself. */
 function IgnoredList({ ignored }: { ignored: IgnoredIp[] }) {
   const { t } = useTranslation('exposure')
@@ -159,7 +134,7 @@ function IgnoredList({ ignored }: { ignored: IgnoredIp[] }) {
   const columns: ColumnDef<IgnoredIp>[] = [
     { id: 'ip', header: t('boxIp.ignored.col.ip'), accessorFn: (r) => r.value, cell: ({ row }) => <span className="font-medium">{row.original.value}</span> },
     { id: 'by', header: t('boxIp.ignored.col.by'), accessorFn: (r) => r.ignored_by },
-    { id: 'at', header: t('boxIp.ignored.col.at'), accessorFn: (r) => r.ignored_at, cell: ({ row }) => <span title={fmtDateTime(row.original.ignored_at)}>{fmtDate(row.original.ignored_at)}</span> },
+    { id: 'at', header: t('boxIp.ignored.col.at'), accessorFn: (r) => r.ignored_at, cell: ({ row }) => <span title={dateTimeText(row.original.ignored_at)}>{dateText(row.original.ignored_at)}</span> },
     { id: 'restore', header: t('boxIp.ignored.col.restore'), enableSorting: false, cell: ({ row }) => btn(row.original) },
   ]
   return (
@@ -168,7 +143,7 @@ function IgnoredList({ ignored }: { ignored: IgnoredIp[] }) {
         mobileRow={(r) => (
           <div className="grid gap-1.5">
             <div className="flex items-center justify-between gap-2"><span className="font-medium">{r.value}</span>{btn(r)}</div>
-            <p className="text-[13px] text-muted">{t('boxIp.ignored.col.by')}: {r.ignored_by}. {t('boxIp.ignored.col.at')}: {fmtDate(r.ignored_at)}.</p>
+            <p className="text-[13px] text-muted">{t('boxIp.ignored.col.by')}: {r.ignored_by}. {t('boxIp.ignored.col.at')}: {dateText(r.ignored_at)}.</p>
           </div>
         )}
         empty={<EmptyState title={t('boxIp.ignored.emptyTitle')}>{t('boxIp.ignored.emptyBody')}</EmptyState>} />

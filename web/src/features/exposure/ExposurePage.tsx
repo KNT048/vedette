@@ -36,7 +36,7 @@ export default function ExposurePage() {
   return (
     <RequireModule module="exposure">
       <PageHeader title={title} stories={['S-EXP-1']} actions={<AddTarget />}
-        meta={<span className="flex flex-wrap items-center gap-2"><SampleDataNote />{certs > 0 ? t('meta.certs', { count: certs }) : null}{t('meta.rule')}</span>} />
+        meta={<span className="flex flex-wrap items-center gap-2"><SampleDataNote />{certs > 0 ? `${t('meta.certs', { count: certs })} ` : null}{t('meta.rule')}</span>} />
       <QueryState query={{ data, error, isPending, refetch }}>
         {(d) => (
           <>

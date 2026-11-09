@@ -222,7 +222,7 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   const box = page.locator('#box-ip')
   await box.getByRole('button', { name: 'Detect now' }).waitFor()
   await box.getByText('How the box finds its IPs').click()
-  for (const t of [/You cannot type an IP/, /Private, reserved and shared carrier \(CGNAT/, /Detect now is limited to 10 attempts per hour/]) await expect(box.getByText(t)).toBeVisible()
+  for (const t of [/You cannot type an IP/, /Private, reserved and shared carrier \(CGNAT/, /Detect now, Verify again and the DNS Check of a domain share 10 attempts per hour/]) await expect(box.getByText(t)).toBeVisible()
   await setEgress(page, '100.64.20.7')
   await box.getByRole('button', { name: 'Detect now' }).click()
   await expect(box.getByRole('status')).toContainText('private, reserved or shared carrier (CGNAT) address')
@@ -255,11 +255,29 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   await setEgress(page, '198.51.100.8')
   await page.clock.fastForward('06:00') // the check of the last 5 minutes saw the IP; after 5 minutes the box is asked again
   await page.getByRole('button', { name: 'Scan now' }).click()
-  await expect(page.getByText(/no longer reaches the Internet through 198.51.100.7/).first()).toBeVisible()
-  await expect(page.getByText(/Scans of it are paused until the box uses it again/).first()).toBeVisible()
+  // The pause stays on the page, not only in a toast: heading, card, locked button with the reason, and "Paused" in the list.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/198\.51\.100\.7 is paused: the box no longer goes out through it/)
+  await expect(page.getByRole('alert').filter({ hasText: /Scans paused: the box no longer reaches the Internet through this IP \(last seen \d{1,2} \w{3} \d{4}, \d{2}:\d{2}\)/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Scan now' })).toBeDisabled()
+  await expect(page.locator('#scan-reason')).toContainText('no longer goes out through 198.51.100.7')
+  await expect(page.getByText(/is ready for its first scan/)).toHaveCount(0)
+  await expect(page.getByText(/The box reaches the Internet via 198\.51\.100\.7\. Verified until/)).toHaveCount(0) // no stale green result next to the pause
   await shot(page, 'exposure', `scan-paused-${isMobile ? 'mobile' : 'desktop'}`)
+  await expectAccessible(page, 'ip target paused')
+  await page.goto('/exposure')
+  await expect(page.locator('#box-ip').getByText('Paused').first()).toBeVisible()
+  await expect(page.locator('#box-ip').getByText('Ready to scan')).toHaveCount(0)
+  await shot(page, 'exposure', `list-paused-${isMobile ? 'mobile' : 'desktop'}`)
+  // The pause rests on stored facts, not on a window: it is still there 10 minutes later, until a check sees the IP again (INV-13).
+  await page.clock.fastForward('10:00')
+  await page.reload()
+  await expect(page.locator('#box-ip').getByText('Paused').first()).toBeVisible()
+  await expect(page.locator('#box-ip').getByText('Ready to scan')).toHaveCount(0)
+  // The box is back: Verify again (a full check) sees the IP and the pause ends.
   await setEgress(page, '198.51.100.7')
-  await page.clock.fastForward('06:00') // the answer of the full check (not seen) is reused for 5 minutes, then the box is asked again
+  await page.locator('#box-ip').getByRole('link', { name: '198.51.100.7' }).click()
+  await page.getByRole('button', { name: 'Verify again' }).click()
+  await expect(page.getByRole('button', { name: 'Scan now' })).toBeEnabled()
   await page.getByRole('button', { name: 'Scan now' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/198\.51\.100\.7: \d+ open port\(s\)/)
   await expect(page.getByRole('heading', { name: 'Subdomains' })).toHaveCount(0)
@@ -361,5 +379,53 @@ test('English only and dark mode: no Vietnamese in any exposure page, no console
     await shot(page, 'exposure', `dark-${path.replace(/\W/g, '_')}`)
     await expectAccessible(page, `${path} dark`)
   }
+  expect(errors).toEqual([])
+})
+
+test('clean install: IPv6 is refused like IPv4, an IP page offers the same Remove dialog, the shared 10 attempts show on Detect now, one date format', async ({ page, isMobile }) => {
+  test.setTimeout(120_000)
+  const errors = collectErrors(page)
+  await finishClean(page)
+  await page.goto('/exposure')
+  const box = page.locator('#box-ip')
+  await expect(box.getByRole('link').first()).toBeVisible() // the box found its IPs by itself at first start
+
+  // IPv6 gets the IP-specific answer, in the dialog.
+  await page.getByRole('button', { name: 'Add domain' }).first().click()
+  const input = page.getByRole('textbox', { name: 'Domain' })
+  for (const v of ['2001:4860:4860::8888', '[::1]']) {
+    await input.fill(v)
+    await input.press('Enter')
+    await expect(page.getByText(/Public IPs are not typed in/)).toBeVisible()
+    await expect(page.getByText(/Enter only a domain name/)).toHaveCount(0)
+  }
+  await page.keyboard.press('Escape')
+
+  // The IP's own page: Delete opens the same dialog as the list, ticked by default.
+  await box.getByRole('link').first().click()
+  await expect(page).toHaveURL(/\/exposure\/xt-/)
+  await expect(page.getByText(/verified because (this|the) box reaches the Internet through it/i)).toHaveCount(1)
+  await expect(page.getByText(/Verify again runs a full check/)).toBeVisible()
+  await page.getByRole('button', { name: 'Delete target' }).click()
+  const dlg = page.getByRole('dialog')
+  await expect(dlg.getByRole('checkbox', { name: "Don't add it again if detected" })).toBeChecked()
+  await shot(page, 'exposure', `ip-remove-dialog-${isMobile ? 'mobile' : 'desktop'}`)
+  await dlg.getByRole('button', { name: 'Cancel' }).click()
+  await expect(dlg).toHaveCount(0)
+
+  // One date format everywhere: no 09/11/2026, no 2026-11-09, no "UTC".
+  const main = (await page.locator('main').innerText())
+  expect(main).not.toMatch(/\b\d{1,2}\/\d{1,2}\/\d{4}\b|\b\d{4}-\d{2}-\d{2}\b|\bUTC\b/)
+  expect(main).toMatch(/\b\d{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4}\b/)
+
+  // The 10 attempts an hour are shared; when they are used up the button says so and stays locked.
+  await page.goto('/exposure')
+  await expect(box.getByRole('link').first()).toBeVisible() // the mock API answers only once the page has started
+  for (let i = 0; i < 10; i++) expect((await api(page, 'POST', '/exposure/box-ip/verify')).status).toBe(200)
+  await page.reload()
+  await expect(box.getByRole('button', { name: 'Detect now' })).toBeDisabled()
+  await expect(box.getByText(/Try again in about \d+ minutes?\./)).toBeVisible()
+  await shot(page, 'exposure', `detect-rate-limited-${isMobile ? 'mobile' : 'desktop'}`)
+  await expectAccessible(page, 'exposure detect rate limited')
   expect(errors).toEqual([])
 })

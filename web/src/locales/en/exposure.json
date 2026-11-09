@@ -36,11 +36,13 @@
     "unverified": "Needs ownership proof",
     "expired": "Verification expired",
     "txt_missing": "TXT record missing",
+    "ip_not_current": "Paused",
     "no_commitment": "Needs your confirmation",
     "reasonLong": {
       "unverified": "Cannot scan yet: {{value}} has no ownership proof. Do step 1 below first.",
       "expired": "Cannot scan yet: the verification of {{value}} has expired. Verify it again in step 1 below.",
       "txt_missing": "Cannot scan yet: Vedette no longer finds the DNS TXT record on {{value}}. Add it back in step 1 below, then check again.",
+      "ip_not_current": "Cannot scan right now: the box no longer goes out through {{value}}. Step 1 below says how to check again.",
       "no_commitment": "Cannot scan yet: you have not confirmed that your company owns {{value}} and you are authorized to scan it. Do step 2 below first."
     }
   },
@@ -78,6 +80,7 @@
       "unverified": "{{value}} cannot be scanned yet: awaiting ownership proof",
       "expired": "{{value}} cannot be scanned yet: verification expired",
       "txt_missing": "{{value}} cannot be scanned yet: DNS TXT record missing",
+      "ip_not_current": "{{value}} is paused: the box no longer goes out through it",
       "no_commitment": "{{value}} cannot be scanned yet: needs your confirmation",
       "result": "{{value}}: {{subs}} subdomain(s), {{admin}} admin interface(s) exposed to the Internet",
       "resultIp": "{{value}}: {{ports}} open port(s), {{admin}} admin interface(s) exposed to the Internet",
@@ -119,14 +122,15 @@
     "doneDomain": "Verified with a DNS TXT record on {{time}}. Vedette re-checks the record right before every scan.",
     "keepRecord": "Keep the TXT record in DNS: if it disappears, scanning is blocked until you add it back.",
     "txtMissing": "Vedette could not find the TXT record at the last check, so scanning is blocked. Add the record back, then select Check again.",
-    "ipIntro": "This IP is verified because the box reaches the Internet through it. Auto-detect renews it each time the box sees it.",
+    "paused": "Scans paused: the box no longer reaches the Internet through this IP (last seen {{time}}). Scanning resumes when the box goes out through it again. Select Verify again to check now.",
+    "pausedChip": "Paused",
     "ipStatus": "Status",
     "valid": "Valid",
     "verifiedOn": "Last seen by the box",
     "expiresOn": "Expires on",
     "ipExpired": "The box has not seen this IP for 30 days, so it cannot be scanned. It becomes valid again once the box goes out through it: turn on auto-detect, or route the box through this IP (for example switch WAN) and verify again.",
     "ipRecheck": "Verify again",
-    "ipRecheckHint": "Works only while this box currently reaches the Internet through {{value}}. A check looks three times, so any of several IPs behind a load balancer is found. Renews the IP for 30 days.",
+    "ipRecheckHint": "Works only while this box currently reaches the Internet through {{value}}. Verify again runs a full check: the box asks checkip.amazonaws.com, icanhazip.com and ifconfig.me/ip over 5 rounds on new connections (15 requests), so any IP behind a load balancer is found. It renews the IP for 30 days and uses one of the 10 attempts an hour.",
     "found": "Found",
     "notFound": "Not found",
     "checkedAt": "Checked {{time}}",
@@ -270,6 +274,8 @@
     "detect": "Detect now",
     "detecting": "Detecting",
     "toast": "{{message}}",
+    "retry_one": "Try again in about {{count}} minute. The 10 attempts an hour are used up.",
+    "retry_other": "Try again in about {{count}} minutes. The 10 attempts an hour are used up.",
     "toastOn": "Auto-detect is on.",
     "toastOff": "Auto-detect is off. The list is kept.",
     "toastInterval": "The box will check {{every}}.",
@@ -278,7 +284,7 @@
       "ok": "Succeeded",
       "failed": "Failed",
       "at": "{{time}}",
-      "never": "No check yet. The first one runs when the box starts, or when you select Detect now."
+      "never": "No check yet. The first check is a full check (15 requests to checkip.amazonaws.com, icanhazip.com and ifconfig.me/ip). It runs when the box starts, or when you select Detect now."
     },
     "col": {
       "ip": "Public IP",
@@ -318,11 +324,11 @@
     },
     "help": {
       "summary": "How the box finds its IPs",
-      "how": "The box asks three public \"what is my IP\" services over HTTPS: checkip.amazonaws.com (AWS), icanhazip.com (Cloudflare) and ifconfig.me/ip (Google Cloud). It accepts an IP only when at least two of them return the same one, so one wrong answer is not enough. A full check repeats this several times on new connections, so several IPs behind a load balancer all show up.",
+      "how": "The box asks three public \"what is my IP\" services over HTTPS: checkip.amazonaws.com (AWS), icanhazip.com (Cloudflare) and ifconfig.me/ip (Google Cloud). It accepts an IP only when at least two of them return the same one, so one wrong answer is not enough. A full check does this in 5 rounds on new connections (15 requests), so several IPs behind a load balancer all show up. The first check after install, Detect now and Verify again are full checks. The automatic checks after that ask each service once (3 requests).",
       "result": "Each IP the box sees is added or renewed for 30 days from that moment. An IP expires only when the box has not seen it for 30 days.",
       "why": "You cannot type an IP. Only an address the box really uses proves it belongs to your network, so nobody can verify someone else's address.",
       "refuse": "Private, reserved and shared carrier (CGNAT, 100.64.0.0/10) addresses are refused, because scanning them could hit other people.",
-      "limit": "Detect now is limited to 10 attempts per hour. Automatic checks can run as often as every minute: a short interval asks each service once per check, and a full check runs at most once an hour. Every change is written to the audit log."
+      "limit": "Detect now, Verify again and the DNS Check of a domain share 10 attempts per hour. Automatic checks do not use them: they can run as often as every minute, and a full check runs at most once an hour by itself. Every change is written to the audit log."
     }
   },
   "commit": {

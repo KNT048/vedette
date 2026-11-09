@@ -128,7 +128,7 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
     expect(paused.status).toBe(409)
     const err = (await paused.json()).error
     expect(err.code).toBe('ip_not_current')
-    expect(err.message).toMatch(/^This box no longer reaches the Internet through 203\.0\.113\.10; it was last seen .* UTC\. Scans of it are paused until the box uses it again\.$/)
+    expect(err.message).toMatch(/^This box no longer reaches the Internet through 203\.0\.113\.10; it was last seen \d{1,2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2}\. Scans of it are paused until the box uses it again\.$/)
     expect((await getRuns()).filter((r) => !r.id.startsWith('run-seed'))).toHaveLength(0)
     localStorage.removeItem('vedette-mock-egress') // the box is back, but the answer of the full check of a minute ago still stands
     vi.setSystemTime(Date.now() + 2 * 60_000)

@@ -5,7 +5,7 @@ import { Panel } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/input'
-import { fmtDateTime } from '@/lib/format'
+import { dateTimeText } from './dates'
 import { useCan } from '@/lib/session'
 import { useCommit } from './api'
 import type { Target } from './types'
@@ -24,7 +24,7 @@ export function CommitmentPanel({ target }: { target: Target }) {
   if (c) {
     return (
       <Panel className="grid gap-2 p-4 text-sm">
-        <p>{t('commit.doneBody', { user: c.by, time: fmtDateTime(c.at) })}</p>
+        <p>{t('commit.doneBody', { user: c.by, time: dateTimeText(c.at) })}</p>
         <p className="text-[13px] text-muted">{t('commit.asIs')}</p>
       </Panel>
     )

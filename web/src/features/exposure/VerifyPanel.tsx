@@ -5,7 +5,7 @@ import { Panel, KeyValue } from '@/components/common/PageHeader'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
-import { fmtDate, fmtDateTime } from '@/lib/format'
+import { dateText, dateTimeText } from './dates'
 import { useCan } from '@/lib/session'
 import { useVerify } from './api'
 import type { Target } from './types'
@@ -22,6 +22,8 @@ export function VerifyPanel({ target }: { target: Target }) {
   const check = target.last_check
   const domain = target.kind === 'domain'
   const verified = target.status !== 'unverified'
+  // The box was just checked and no longer goes out through this IP: the green result of an earlier check would say the opposite, so it is not shown.
+  const paused = target.blocked_reason === 'ip_not_current'
 
   function run() {
     verify.mutate(target.id, {
@@ -32,7 +34,7 @@ export function VerifyPanel({ target }: { target: Target }) {
   const label = domain ? (verified ? t('verify.checkAgain') : t('verify.recheck')) : t('verify.ipRecheck')
   const recheck = (
     <div className="flex flex-wrap items-center gap-3">
-      <Button variant={verified && target.blocked_reason !== 'txt_missing' && target.validity !== 'expired' ? 'secondary' : 'primary'} onClick={run} disabled={!can || verify.isPending} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}>
+      <Button variant={verified && target.blocked_reason !== 'txt_missing' && !paused && target.validity !== 'expired' ? 'secondary' : 'primary'} onClick={run} disabled={!can || verify.isPending} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}>
         <RefreshCw className={verify.isPending ? 'animate-spin motion-reduce:animate-none' : undefined} />{verify.isPending ? t('verify.checking') : label}
       </Button>
       <span className="max-w-xl text-[13px] text-muted">{domain ? t('verify.recheckHint') : t('verify.ipRecheckHint', { value: target.value })}</span>
@@ -45,7 +47,7 @@ export function VerifyPanel({ target }: { target: Target }) {
         <>
           {verified ? (
             <>
-              <p className="max-w-3xl text-sm">{t('verify.doneDomain', { time: fmtDateTime(target.verified_at) })}</p>
+              <p className="max-w-3xl text-sm">{t('verify.doneDomain', { time: dateTimeText(target.verified_at) })}</p>
               {target.blocked_reason === 'txt_missing' ? <p role="alert" className="max-w-3xl rounded-md border border-warn/50 bg-warn-soft/60 px-3 py-2 text-sm">{t('verify.txtMissing')}</p> : null}
             </>
           ) : <p className="max-w-3xl text-sm">{t('verify.dnsIntro', { value: target.value })}</p>}
@@ -63,19 +65,20 @@ export function VerifyPanel({ target }: { target: Target }) {
         </>
       ) : (
         <>
-          <p className="max-w-3xl text-sm">{t('verify.ipIntro', { value: target.value })}</p>
+          {/* The "verified because the box reaches the Internet through it" fact is said once, in the step description above. */}
           <KeyValue items={[
-            { label: t('verify.ipStatus'), value: target.validity === 'expired' ? <Chip tone="danger">{t('status.expired')}</Chip> : target.validity === 'expiring' ? <Chip tone="warn">{t('status.expiresIn', { count: Math.max(0, Math.ceil((Date.parse(target.expires_at ?? '') - Date.now()) / 864e5)) })}</Chip> : <Chip tone="ok">{t('verify.valid')}</Chip> },
-            { label: t('verify.verifiedOn'), value: fmtDateTime(target.verified_at) },
-            { label: t('verify.expiresOn'), value: fmtDate(target.expires_at) },
+            { label: t('verify.ipStatus'), value: target.validity === 'expired' ? <Chip tone="danger">{t('status.expired')}</Chip> : paused ? <Chip tone="warn">{t('verify.pausedChip')}</Chip> : target.validity === 'expiring' ? <Chip tone="warn">{t('status.expiresIn', { count: Math.max(0, Math.ceil((Date.parse(target.expires_at ?? '') - Date.now()) / 864e5)) })}</Chip> : <Chip tone="ok">{t('verify.valid')}</Chip> },
+            { label: t('verify.verifiedOn'), value: dateTimeText(target.verified_at) },
+            { label: t('verify.expiresOn'), value: dateText(target.expires_at) },
           ]} />
           {target.validity === 'expired' ? <p role="alert" className="max-w-3xl rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{t('verify.ipExpired')}</p> : null}
+          {paused ? <p role="alert" className="max-w-3xl rounded-md border border-warn/50 bg-warn-soft/60 px-3 py-2 text-sm">{t('verify.paused', { time: dateTimeText(target.verified_at) })}</p> : null}
         </>
       )}
       {recheck}
-      {check ? (
+      {check && !paused ? (
         <div role="status" className={`rounded-md border px-3 py-2 text-sm ${check.ok ? 'border-ok/40 bg-ok-soft' : 'border-warn/50 bg-warn-soft/60'}`}>
-          <p className="mb-1 flex flex-wrap items-center gap-2"><Chip tone={check.ok ? 'ok' : 'warn'}>{domain ? (check.ok ? t('verify.found') : t('verify.notFound')) : (check.ok ? t('verify.passed') : t('verify.failed'))}</Chip><span className="text-[12px] text-muted">{t('verify.checkedAt', { time: fmtDateTime(check.at) })}</span></p>
+          <p className="mb-1 flex flex-wrap items-center gap-2"><Chip tone={check.ok ? 'ok' : 'warn'}>{domain ? (check.ok ? t('verify.found') : t('verify.notFound')) : (check.ok ? t('verify.passed') : t('verify.failed'))}</Chip><span className="text-[12px] text-muted">{t('verify.checkedAt', { time: dateTimeText(check.at) })}</span></p>
           <p>{check.message}</p>
         </div>
       ) : null}

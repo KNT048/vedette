@@ -6,7 +6,7 @@ import { Chip } from '@/components/common/StatusChip'
 import { SourceBadge } from '@/components/common/SourceBadge'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Field, Select } from '@/components/ui/input'
-import { fmtDate } from '@/lib/format'
+import { dateText } from './dates'
 import { useDiff, useSnapshot, useSnapshots } from './api'
 import { CERT_WARN_DAYS, type AdminRow, type CertRow, type DiffItem, type DiffChange, type HostRow, type PortRow, type Snapshot, type Target } from './types'
 
@@ -33,7 +33,7 @@ export function ResultsPanel({ target, blockedText }: { target: Target; blockedT
             <div className="grid gap-4">
               <Field label={t('results.pick')} htmlFor="ex-snap" className="max-w-xs">
                 <Select id="ex-snap" value={date ?? ''} onChange={(e) => setDate(e.target.value)}>
-                  {l.items.map((s) => <option key={s.id} value={s.date}>{fmtDate(s.scanned_at)}</option>)}
+                  {l.items.map((s) => <option key={s.id} value={s.date}>{dateText(s.scanned_at)}</option>)}
                 </Select>
               </Field>
               {snap.isPending ? <Loading /> : snap.error ? <ErrorState error={snap.error} onRetry={() => void snap.refetch()} /> : snap.data ? <SnapshotView target={target} s={snap.data} /> : null}
@@ -41,7 +41,7 @@ export function ResultsPanel({ target, blockedText }: { target: Target; blockedT
           )}
         </QueryState>
       </Section>
-      {list.data && list.data.items.length > 0 ? <Compare target={target} dates={dates} label={Object.fromEntries(list.data.items.map((s) => [s.date, fmtDate(s.scanned_at)]))} /> : null}
+      {list.data && list.data.items.length > 0 ? <Compare target={target} dates={dates} label={Object.fromEntries(list.data.items.map((s) => [s.date, dateText(s.scanned_at)]))} /> : null}
     </>
   )
 }
@@ -67,7 +67,7 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
   const certCols: ColumnDef<CertRow>[] = [
     { id: 'host', header: t('col.name'), accessorFn: (r) => r.host },
     { id: 'issuer', header: t('col.issuer'), accessorFn: (r) => r.issuer },
-    { id: 'expires', header: t('col.expires'), accessorFn: (r) => r.expires_at, cell: ({ row }) => fmtDate(row.original.expires_at) },
+    { id: 'expires', header: t('col.expires'), accessorFn: (r) => r.expires_at, cell: ({ row }) => dateText(row.original.expires_at) },
     { id: 'left', header: t('col.left'), accessorFn: (r) => daysLeft(r.expires_at), cell: ({ row }) => {
       const d = daysLeft(row.original.expires_at)
       return d < 0 ? <Chip tone="danger">{t('cert.expired')}</Chip> : d <= 14 ? <Chip tone="danger">{t('cert.left', { count: d })}</Chip> : d <= CERT_WARN_DAYS ? <Chip tone="warn">{t('cert.left', { count: d })}</Chip> : <span className="text-[13px] text-muted">{t('cert.left', { count: d })}</span>
@@ -114,7 +114,7 @@ function Compare({ target, dates, label }: { target: Target; dates: string[]; la
     { id: 'change', header: t('diff.col.change'), accessorFn: (r) => r.change, cell: ({ row }) => <Chip tone={row.original.change === 'added' ? 'warn' : 'off'}>{t(`diff.change.${row.original.change}`)}</Chip> },
     { id: 'kind', header: t('diff.col.kind'), accessorFn: (r) => t(`diff.kind.${r.item.kind}`) },
     { id: 'label', header: t('diff.col.item'), accessorFn: (r) => r.item.label },
-    { id: 'detail', header: t('diff.col.detail'), accessorFn: (r) => r.item.detail, cell: ({ row }) => row.original.change === 'changed' ? t('diff.certChanged', { from: fmtDate(row.original.from), to: fmtDate(row.original.to) }) : row.original.item.detail },
+    { id: 'detail', header: t('diff.col.detail'), accessorFn: (r) => r.item.detail, cell: ({ row }) => row.original.change === 'changed' ? t('diff.certChanged', { from: dateText(row.original.from), to: dateText(row.original.to) }) : row.original.item.detail },
   ]
   const rows: Row[] = diff.data ? [
     ...diff.data.added.map((item): Row => ({ change: 'added', item })),

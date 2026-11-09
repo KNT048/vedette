@@ -8,11 +8,12 @@ import { QueryState, RequireModule } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
-import { fmtDateTime } from '@/lib/format'
+import { dateTimeText } from './dates'
 import { useCan } from '@/lib/session'
 import { useDeleteTarget, useScan, useTarget } from './api'
 import { CommitmentPanel } from './CommitmentPanel'
 import { OwnerChip } from './OwnerChip'
+import { RemoveDialog } from './RemoveDialog'
 import { ResultsPanel } from './ResultsPanel'
 import { VerifyPanel } from './VerifyPanel'
 import type { Target } from './types'
@@ -51,7 +52,7 @@ function TargetView({ target }: { target: Target }) {
   return (
     <>
       <PageHeader title={title} stories={['S-EXP-1']}
-        meta={<span className="flex flex-wrap items-center gap-2"><OwnerChip target={target} />{target.commitment ? <Chip tone="ok">{t('status.commitYes')}</Chip> : <Chip tone="off">{t('status.commitNo')}</Chip>}{target.last_scan_at ? t('target.lastScan', { time: fmtDateTime(target.last_scan_at) }) : t('targets.neverScanned')}</span>}
+        meta={<span className="flex flex-wrap items-center gap-2"><OwnerChip target={target} />{target.commitment ? <Chip tone="ok">{t('status.commitYes')}</Chip> : <Chip tone="off">{t('status.commitNo')}</Chip>}{target.last_scan_at ? t('target.lastScan', { time: dateTimeText(target.last_scan_at) }) : t('targets.neverScanned')}</span>}
         actions={<>
           <Button variant="primary" onClick={run} disabled={!!blocked || !operator || scan.isPending} title={blocked ?? roleReason ?? undefined} aria-describedby={blocked ? 'scan-reason' : undefined}>
             <Play />{scan.isPending ? t('scan.running') : t('scan.button')}
@@ -80,15 +81,17 @@ function DeleteTarget({ target }: { target: Target }) {
   return (
     <>
       <Button onClick={() => setOpen(true)} disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.admin') })}><Trash2 />{t('delete.button')}</Button>
+      {/* A public IP uses the same dialog as the list (with "Don't add it again if detected" ticked); a domain has nothing to ignore. */}
+      {target.kind === 'ip' ? <RemoveDialog target={open ? target : null} onClose={() => setOpen(false)} onDone={() => void nav('/exposure')} /> : (
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent title={t('delete.title', { value: target.value })} description={t('delete.body')}>
-          {target.kind === 'ip' ? <p className="text-sm">{t('boxIp.comeBack')}</p> : null}
           <DialogFooter>
             <Button onClick={() => setOpen(false)}>{t('common:cancel')}</Button>
             <Button variant="danger" disabled={del.isPending} onClick={() => { del.mutateAsync({ id: target.id }).then(() => { toast.success(t('delete.toast', { value: target.value })); void nav('/exposure') }, (e: unknown) => toast.error(errMsg(e))) }}>{t('delete.confirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
     </>
   )
 }

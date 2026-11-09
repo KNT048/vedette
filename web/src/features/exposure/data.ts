@@ -1,5 +1,6 @@
 // Sample data and scan-result generator of the exposure mock. 203.0.113.0/24 is the documentation range (RFC 5737), not real IPs.
 import { daysAgo } from '@/mocks/db'
+import { dateText } from './dates'
 import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type Counts, type HostRow, type IgnoredIp, type PortRow, type Snapshot, type Target, type TargetKind } from './types'
 
 export const BOX_EGRESS_IP = '203.0.113.10'
@@ -98,7 +99,7 @@ const plusDays = (iso: string, d: number) => new Date(Date.parse(iso) + d * 864e
 
 export function seedTargets(): StoredTarget[] {
   const ok = (value: string, at: string) => ({ at, ok: true, message: `Found the TXT record on ${value}.` })
-  const ipOk = (ip: string, at: string) => ({ at, ok: true, message: `The box reaches the Internet via ${ip}. Verified until ${plusDays(at, VERIFY_DAYS).slice(0, 10)}.` })
+  const ipOk = (ip: string, at: string) => ({ at, ok: true, message: `The box reaches the Internet via ${ip}. Verified until ${dateText(plusDays(at, VERIFY_DAYS))}.` })
   const v1 = daysAgo(21), v4 = daysAgo(40), v5 = daysAgo(40)
   const seen = daysAgo(0, 0.7) // the box saw its two IPs 40 minutes ago (auto-detect, every 60 minutes)
   const standby = daysAgo(26) // an old failover link: not seen for 26 days
@@ -118,7 +119,7 @@ export function seedTargets(): StoredTarget[] {
 }
 
 /** Sample auto-detect state: on, every 60 minutes, the last check saw both IPs. */
-export function seedBoxIp(): BoxIpSettings {
+export function seedBoxIp(): Omit<BoxIpSettings, 'retry_in_min'> {
   return { auto: true, interval_min: DEFAULT_INTERVAL, last_run: { at: daysAgo(0, 0.7), ok: true, message: `The box reaches the Internet via 2 public IPs: ${BOX_EGRESS_IP}, ${BOX_EGRESS_IP_2}.` } }
 }
 

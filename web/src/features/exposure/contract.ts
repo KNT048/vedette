@@ -30,7 +30,7 @@ export const Target = z.object({
   last_check: z.object({ at: z.iso.datetime(), ok: z.boolean(), message: z.string() }).nullable(),
   commitment: Commitment.nullable().describe('Who ticked "my company owns it and I am authorized to scan it", and when'),
   scannable: z.boolean(),
-  blocked_reason: z.enum(['unverified', 'expired', 'txt_missing', 'no_commitment']).nullable().describe('Why it cannot be scanned yet; null = can be scanned'),
+  blocked_reason: z.enum(['unverified', 'expired', 'txt_missing', 'no_commitment', 'ip_not_current']).nullable().describe('Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it'),
   created_at: z.iso.datetime(),
   last_scan_at: z.iso.datetime().nullable(),
   latest: Counts.nullable(),
@@ -60,6 +60,7 @@ export const BoxIpSettings = z.object({
   auto: z.boolean().describe('On: the box detects its public IPs at first start and then every interval_min minutes. Off: only "Detect now". Default on'),
   interval_min: z.number().int().describe('Minutes between automatic checks, 1 to 1440. Default 60'),
   last_run: BoxIpRun.nullable().describe('The last automatic or manual detection; null before the first one'),
+  retry_in_min: z.number().int().nullable().describe('null while attempts are left. When the 10 attempts an hour (shared by Detect now, Verify again and the DNS Check of a domain) are used up: minutes until the next one is possible, 1 or more'),
 })
 /** An IP the customer removed and told Vedette not to add again (D-79). The list only blocks, it never allows: restoring only lets detection add the IP again. */
 export const IgnoredIp = z.object({ value: z.string().describe('A public IPv4 address'), ignored_by: z.string(), ignored_at: z.iso.datetime() })

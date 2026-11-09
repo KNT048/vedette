@@ -66,6 +66,9 @@ func slackText(m Message, link string) string {
 	for _, x := range l[1 : len(l)-1] {
 		out = append(out, slackEscape(x))
 	}
+	if link == "" {
+		return strings.Join(append(out, openVedetteLine), "\n")
+	}
 	return strings.Join(append(out, "<"+slackEscape(link)+"|Open in Vedette>"), "\n")
 }
 

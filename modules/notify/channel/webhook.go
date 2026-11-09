@@ -28,8 +28,13 @@ type WebhookConfig struct {
 	URL        secrets.Value
 	SigningKey secrets.Value // at least 16 bytes; signs every request
 	BoxAddrs   []netip.Addr  // this box's own addresses: never a valid target
-	Client     *http.Client  // nil = a client whose dialer refuses forbidden addresses (see dialControl)
-	Now        func() time.Time
+	// BoxAddrsFunc is asked again at every connection, so an address the box gets later is refused too
+	// (the caller fills it from the network interfaces).
+	BoxAddrsFunc func() []netip.Addr
+
+	allowLoopback bool         // tests only: the package tests talk to httptest servers on 127.0.0.1
+	Client        *http.Client // nil = a client whose dialer refuses forbidden addresses (see dialControl)
+	Now           func() time.Time
 }
 
 // Request headers of a signed webhook call. A receiver computes
@@ -53,10 +58,10 @@ type webhookSender struct {
 
 var numericLabelRE = regexp.MustCompile(`^(0x[0-9a-f]+|[0-9]+)$`)
 
-// forbiddenAddr reports whether a webhook may never connect to a. Loopback is
-// forbidden unless allowLoopback (plain http to the internal list, which
-// includes 127/8). Link-local, unspecified, multicast and the box's own
-// addresses are always forbidden. Private RFC 1918 addresses are allowed on both
+// forbiddenAddr reports whether a webhook may never connect to a: loopback (on http and https alike, unless
+// allowLoopback, which only package tests set:
+// the box's own services listen there), link-local, unspecified, multicast and the box's own
+// addresses. Private RFC 1918 addresses are allowed on both
 // schemes: an internal SIEM is a normal target.
 func forbiddenAddr(a netip.Addr, allowLoopback bool, box []netip.Addr) bool {
 	a = a.Unmap()
@@ -79,20 +84,20 @@ var errForbiddenDial = errors.New("notify: webhook: refusing to connect to a loo
 // dialControl runs after name resolution, on the address about to be dialled,
 // so a DNS name that resolves to a forbidden address (or rebinds to one) is
 // refused too.
-func dialControl(allowLoopback bool, box []netip.Addr) func(network, address string, c syscall.RawConn) error {
+func dialControl(allowLoopback bool, box func() []netip.Addr) func(network, address string, c syscall.RawConn) error {
 	return func(_, address string, _ syscall.RawConn) error {
 		host, _, err := net.SplitHostPort(address)
 		if err != nil {
 			return errForbiddenDial
 		}
-		if a, err := netip.ParseAddr(host); err != nil || forbiddenAddr(a, allowLoopback, box) {
+		if a, err := netip.ParseAddr(host); err != nil || forbiddenAddr(a, allowLoopback, box()) {
 			return errForbiddenDial
 		}
 		return nil
 	}
 }
 
-func webhookClient(allowLoopback bool, box []netip.Addr) *http.Client {
+func webhookClient(allowLoopback bool, box func() []netip.Addr) *http.Client {
 	return &http.Client{
 		Timeout:       defaultTimeout,
 		CheckRedirect: noRedirect,
@@ -107,7 +112,7 @@ func webhookClient(allowLoopback bool, box []netip.Addr) *http.Client {
 }
 
 // NewWebhook validates cfg (INV-8) and returns the adapter. Rules: https, or
-// http only for hosts on the internal list; never loopback over https, never
+// http only for hosts on the internal list; never loopback (on http or https), never
 // link-local, unspecified, multicast or the box itself; no numeric host
 // spellings such as 2130706433 or 0x7f.1.
 func NewWebhook(cfg WebhookConfig) (Sender, error) {
@@ -123,8 +128,15 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 		}
 	}
 	host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
+	boxFn := func() []netip.Addr {
+		out := append([]netip.Addr(nil), cfg.BoxAddrs...)
+		if cfg.BoxAddrsFunc != nil {
+			out = append(out, cfg.BoxAddrsFunc()...)
+		}
+		return out
+	}
 	blocked := cfgErr("blocked_host", "The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.")
-	https := u.Scheme == "https"
+
 	switch u.Scheme {
 	case "https":
 	case "http":
@@ -135,7 +147,7 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 		return nil, bad
 	}
 	if a, err := netip.ParseAddr(host); err == nil {
-		if forbiddenAddr(a, !https, cfg.BoxAddrs) {
+		if forbiddenAddr(a, cfg.allowLoopback, boxFn()) {
 			return nil, blocked
 		}
 	} else {
@@ -143,7 +155,7 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 		if numericLabelRE.MatchString(labels[len(labels)-1]) {
 			return nil, bad // a number-like host is an IP in disguise
 		}
-		if https && (host == "localhost" || strings.HasSuffix(host, ".localhost")) {
+		if !cfg.allowLoopback && (host == "localhost" || strings.HasSuffix(host, ".localhost")) {
 			return nil, blocked
 		}
 	}
@@ -159,7 +171,7 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 	}
 	client := cfg.Client
 	if client == nil {
-		client = webhookClient(!https, cfg.BoxAddrs)
+		client = webhookClient(cfg.allowLoopback, boxFn)
 	}
 	return &webhookSender{url: secrets.NewValue(u.String()), to: u.Scheme + "://" + u.Host, key: cfg.SigningKey, client: clientOrDefault(client), now: now}, nil
 }
@@ -167,15 +179,32 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 func (*webhookSender) Type() Type { return Webhook }
 
 type webhookPayload struct {
-	Event    string   `json:"event"` // the Message kind: incident, vuln, approval, test
-	ID       string   `json:"id"`
-	Severity string   `json:"severity"`
-	Title    string   `json:"title"`
-	Device   string   `json:"device,omitempty"`
-	What     string   `json:"what,omitempty"`
-	Action   string   `json:"action,omitempty"`
-	Items    []string `json:"items,omitempty"`
-	URL      string   `json:"url"`
+	Event    string      `json:"event"`          // incident.created, vuln.created, approval.requested or test
+	Kind     string      `json:"kind,omitempty"` // incidents: trap, bad_address, log_anomaly or unknown_device
+	ID       string      `json:"id"`
+	Severity string      `json:"severity"`
+	Title    string      `json:"title"`
+	Devices  []DeviceRef `json:"devices"`
+	What     string      `json:"what,omitempty"`
+	Action   string      `json:"action,omitempty"`
+	Items    []string    `json:"items,omitempty"`
+	URL      string      `json:"url,omitempty"`
+}
+
+// newWebhookPayload builds the JSON body of a webhook call from a normalised Message.
+func newWebhookPayload(n Message, link string) webhookPayload {
+	event := n.Kind
+	switch n.Kind {
+	case "incident", "vuln":
+		event += ".created"
+	case "approval":
+		event += ".requested"
+	}
+	devices := n.Devices
+	if devices == nil {
+		devices = []DeviceRef{}
+	}
+	return webhookPayload{Event: event, Kind: n.IncidentKind, ID: n.ID, Severity: n.Severity, Title: n.Title, Devices: devices, What: n.What, Action: n.Action, Items: n.Items, URL: link}
 }
 
 // sign returns the signature header value for body at timestamp ts.
@@ -193,7 +222,7 @@ func (w *webhookSender) Send(ctx context.Context, m Message) (Receipt, error) {
 	}
 	link, _ := safeLink(m.Link)
 	n := m.norm()
-	body, err := json.Marshal(webhookPayload{Event: n.Kind, ID: n.ID, Severity: n.Severity, Title: n.Title, Device: n.Device, What: n.What, Action: n.Action, Items: n.Items, URL: link})
+	body, err := json.Marshal(newWebhookPayload(n, link))
 	if err != nil {
 		return Receipt{}, fmt.Errorf("notify: webhook: encode message: %w", err)
 	}

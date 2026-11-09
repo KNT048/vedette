@@ -24,8 +24,7 @@ func Preview(t Type, m Message) (subject, text string, err error) {
 	case Email:
 		return emailSubject(n), emailBody(n, link), nil
 	case Webhook:
-		b, err := json.MarshalIndent(webhookPayload{Event: n.Kind, ID: n.ID, Severity: n.Severity, Title: n.Title, Device: n.Device,
-			What: n.What, Action: n.Action, Items: n.Items, URL: link}, "", "  ")
+		b, err := json.MarshalIndent(newWebhookPayload(n, link), "", "  ")
 		if err != nil {
 			return "", "", fmt.Errorf("notify: preview: encode webhook payload: %w", err)
 		}

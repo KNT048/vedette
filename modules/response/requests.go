@@ -568,6 +568,9 @@ type itemOutcome struct {
 	result   string
 	verified *Verified
 	block    bool // add the value to the block list in the same transaction
+	// unknown marks a step that was sent and whose outcome is not known (the sweep or the step deadline gave up waiting): the item
+	// is failed but its change may be in force (itemRec.StateUnknown).
+	unknown bool
 
 	// sweep makes the write a compare-and-set on the running mark the sweep read (ifRunning): an item that was claimed or
 	// finished since is left alone. fromRun marks the result of a step runItem sent: it may replace the "State unknown" the
@@ -613,7 +616,7 @@ func (s *Service) carryOut(ctx context.Context, r request, it itemRec, cat catRo
 	res, err := s.execute(ctx, DeviceStep{ConnectionID: conn.ID, Tool: it.RunTool, Phase: "run", CLI: it.Change.CLI, Rest: it.Change.Rest, RequestID: r.ID, ItemID: it.ID})
 	if err != nil {
 		if ctx.Err() != nil { // the step ran out of time: it may have been applied
-			return itemOutcome{err: "The connection " + oneLine(conn.Name, 80) + " did not answer in time. " + stateUnknown}
+			return itemOutcome{err: "The connection " + oneLine(conn.Name, 80) + " did not answer in time. " + stateUnknown, unknown: true}
 		}
 		return itemOutcome{err: "The connection " + oneLine(conn.Name, 80) + " did not answer. Nothing was changed."}
 	}
@@ -672,7 +675,7 @@ func (s *Service) finishItem(ctx context.Context, reqID, itemID string, o itemOu
 		it := &r.recs[k]
 		corrects := false // a real result replaces the sweep's "State unknown"
 		switch {
-		case it.Status == ItemFailed && o.fromRun && deref2(it.Result) == stateUnknown:
+		case it.Status == ItemFailed && o.fromRun && it.StateUnknown:
 			corrects = true
 		case it.Status != ItemPending, o.sweep && it.RunningAt != o.ifRunning:
 			return nil
@@ -682,6 +685,7 @@ func (s *Service) finishItem(ctx context.Context, reqID, itemID string, o itemOu
 			note = "Correction of the earlier \"State unknown\": "
 		}
 		it.RunningAt = ""
+		it.StateUnknown = false
 		now := s.now()
 		switch {
 		case o.refusal != nil:
@@ -690,7 +694,7 @@ func (s *Service) finishItem(ctx context.Context, reqID, itemID string, o itemOu
 				return err
 			}
 		case o.err != "":
-			it.Status, it.Result = ItemFailed, strp(o.err)
+			it.Status, it.Result, it.StateUnknown = ItemFailed, strp(o.err), o.unknown
 			if err := s.step(ctx, tx, "response.fail", r.ID, LogFailed, note+it.Title+": "+o.err, "system"); err != nil {
 				return err
 			}
@@ -747,7 +751,7 @@ func (s *Service) failStuck(ctx context.Context) error {
 			}
 			switch {
 			case it.RunningAt != "" && now.Sub(parseTS(it.RunningAt)) > s.stepLimit+stuckGrace:
-				err = s.finishItem(ctx, r.ID, it.ID, itemOutcome{err: stateUnknown, sweep: true, ifRunning: it.RunningAt})
+				err = s.finishItem(ctx, r.ID, it.ID, itemOutcome{err: stateUnknown, unknown: true, sweep: true, ifRunning: it.RunningAt})
 			case it.RunningAt == "" && r.DecidedAt != nil && now.Sub(parseTS(*r.DecidedAt)) > notStartedAfter:
 				err = s.finishItem(ctx, r.ID, it.ID, itemOutcome{err: "This action did not start (the box restarted or was busy after the approval). Nothing was changed. Ask again.", sweep: true})
 			}

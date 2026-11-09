@@ -1,0 +1,4 @@
+Throwaway SSH keys for tests only. They guard nothing and were generated for this directory with ssh-keygen:
+  ed25519             no passphrase       SHA256:/kA0pXYtDFuusYtey0m8NN8Hk6ZIkyj29OfaP2KL3Xk   (ssh-keygen -lf)
+  ed25519-passphrase  passphrase hunter2  (a key Vedette must refuse: it cannot type a passphrase)
+  rsa1024             no passphrase       (too weak to accept)

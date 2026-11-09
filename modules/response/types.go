@@ -137,6 +137,10 @@ type itemRec struct {
 	// RunningAt is set, in its own transaction with a log line, before a step is sent to a device or a webhook (INV-19). An item that
 	// stays so after a restart or a timeout is failed by the sweep with "state unknown": a step may have been applied.
 	RunningAt string `json:"running_at,omitempty"`
+
+	// StateUnknown marks a failed item whose step was sent and never answered in time: its change may be in force on the device, so the
+	// connection cannot be deleted (ChangesInForce). A late result of the step clears it. Not the text of Result: the text is for people.
+	StateUnknown bool `json:"state_unknown,omitempty"`
 }
 
 // Approval is one person's (or a pre-approved rule's) approval.

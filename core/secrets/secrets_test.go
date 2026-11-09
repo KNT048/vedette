@@ -550,3 +550,65 @@ func TestOpenOrCreateMakesOneKeyPerPurpose(t *testing.T) {
 		t.Fatalf("size 8: %v", err)
 	}
 }
+
+// Restrict hands the reading of one purpose to a single holder: Store.Open refuses it from then on, the Opener reads it, other
+// purposes are not affected, and sealing, replacing and deleting stay open (the owner of a purpose still writes through Store).
+func TestRestrictLeavesOneReader(t *testing.T) {
+	t.Parallel()
+	s, db := newStore(t)
+	ctx := t.Context()
+	const purpose = "restricted.demo"
+	var id, other string
+	err := db.Write(ctx, func(tx *sql.Tx) (err error) {
+		if id, _, err = s.Seal(ctx, tx, purpose, []byte("the-token-0123456789"), true); err != nil {
+			return err
+		}
+		other, _, err = s.Seal(ctx, tx, "other.demo", []byte("other-token-0123456789"), true)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := s.Open(ctx, db.Reader(), id, purpose); err != nil || string(got) != "the-token-0123456789" {
+		t.Fatalf("Open before Restrict = %q, %v", got, err)
+	}
+	op, err := s.Restrict(purpose)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Open(ctx, db.Reader(), id, purpose); !errors.Is(err, secrets.ErrRestricted) {
+		t.Fatalf("Store.Open of a restricted purpose = %v, want ErrRestricted", err)
+	}
+	if got, err := op.Open(ctx, db.Reader(), id); err != nil || string(got) != "the-token-0123456789" {
+		t.Fatalf("Opener.Open = %q, %v", got, err)
+	}
+	if got, err := s.Open(ctx, db.Reader(), other, "other.demo"); err != nil || string(got) != "other-token-0123456789" {
+		t.Fatalf("another purpose after Restrict = %q, %v", got, err)
+	}
+	// The opener reads its own purpose only: a secret of another purpose does not decrypt through it.
+	if _, err := op.Open(ctx, db.Reader(), other); !errors.Is(err, secrets.ErrDecrypt) {
+		t.Fatalf("Opener.Open of another purpose's secret = %v, want ErrDecrypt", err)
+	}
+	if _, err := s.Restrict(purpose); !errors.Is(err, secrets.ErrInvalid) {
+		t.Fatalf("a second Restrict of the same purpose = %v, want ErrInvalid (one holder)", err)
+	}
+	if _, err := s.Restrict("Bad Purpose"); !errors.Is(err, secrets.ErrInvalid) {
+		t.Fatalf("Restrict of a malformed purpose = %v", err)
+	}
+	err = db.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := s.Replace(ctx, tx, id, purpose, []byte("a-newer-token-0123456789"), true); err != nil {
+			return err
+		}
+		fresh, _, err := s.Seal(ctx, tx, purpose, []byte("another-0123456789"), true)
+		if err != nil {
+			return err
+		}
+		return s.Delete(ctx, tx, fresh)
+	})
+	if err != nil {
+		t.Fatalf("writing a restricted purpose: %v", err)
+	}
+	if got, err := op.Open(ctx, db.Reader(), id); err != nil || string(got) != "a-newer-token-0123456789" {
+		t.Fatalf("Opener.Open after Replace = %q, %v", got, err)
+	}
+}

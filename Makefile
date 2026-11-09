@@ -112,7 +112,7 @@ e2e:
 fixtures:
 	pnpm --dir web fixtures
 
-# Bảng OUI→hãng (D-83): kéo macs.json của runZero mac-tracker (MIT, dựng từ 5 file CSV của IEEE), giữ tổ chức mới nhất cho mỗi tiền tố /24 /28 /36, ghi file nén có thứ tự cố định. Kết quả được commit; sản phẩm không tải gì lúc chạy.
+# Bảng OUI→hãng (D-83): kéo macs.json của runZero mac-tracker (MIT, dựng từ 5 file CSV của IEEE) ở commit đã ghim, kiểm SHA-256, giữ tổ chức mới nhất cho mỗi tiền tố /24 /28 /36, ghi file nén có thứ tự cố định. Kết quả được commit; sản phẩm không tải gì lúc chạy.
 oui:
 	go run ./scripts/oui
 

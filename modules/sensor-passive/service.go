@@ -72,6 +72,10 @@ type Service struct {
 	mu  sync.Mutex
 	eng *Engine // the running capture, nil when idle
 	seq uint64  // last batch number handed out
+
+	devices   *deviceBook // devices already reported: outlives the Engines (INV-6, SYS-6)
+	failures  int         // deliveries to the inventory that failed in a row (the capture goroutine only)
+	holdUntil time.Time   // no delivery before this instant while the inventory is failing
 }
 
 // New returns the service.
@@ -81,7 +85,7 @@ func New(cfg Config) (*Service, error) {
 	}
 	s := &Service{db: cfg.DB, audit: cfg.Audit, sink: cfg.Sink, meta: cfg.Meta, host: cfg.Host, clock: cfg.Clock, log: cfg.Log,
 		version: cfg.Version, name: cfg.Name, open: cfg.Open, flushEvery: cfg.FlushEvery, beatEvery: cfg.HeartbeatEvery,
-		retryEvery: cfg.RetryEvery, summaryEvery: cfg.SummaryEvery, reload: make(chan struct{}, 1)}
+		retryEvery: cfg.RetryEvery, summaryEvery: cfg.SummaryEvery, reload: make(chan struct{}, 1), devices: newDeviceBook(defaultLimits)}
 	if s.meta == nil {
 		s.meta = NoMetadata{}
 	}
@@ -328,6 +332,8 @@ func nullStr(s string) any {
 }
 
 // SubmitBatch records a batch of passive observations with the inventory (PRE-3, POST-3). seq must increase;
+// when the inventory took the batch but saving seq failed, it returns applied=true together with the error (the
+// batch is in, do not send it again);
 // a batch whose seq is not above the last accepted one was already applied, so it is acknowledged and not
 // applied again (applied=false). Every observation must have source "passive" (INV-5).
 //
@@ -343,7 +349,7 @@ func (s *Service) SubmitBatch(ctx context.Context, sensorID string, seq uint64, 
 	}
 	for i, o := range obs {
 		if o.Source != observe.Passive {
-			return false, fmt.Errorf("%w: observation %d has source %q, want passive", ErrInvalid, i, o.Source)
+			return false, &observe.ErrRejected{Index: i, Err: fmt.Errorf("%w: observation %d has source %q, want passive", ErrInvalid, i, o.Source)}
 		}
 	}
 	s.submitMu.Lock()

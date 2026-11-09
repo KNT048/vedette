@@ -14,7 +14,6 @@ import (
 
 // Confidence of each kind of passive observation (INV-5). The inventory ranks values by source first and
 // confidence second (DATA_MODEL 5.1); passive is a low-trust source, so none of these is above 0.9.
-// There is no OUI vendor row: no OUI table with a redistributable licence ships with Vedette yet (deferred).
 const (
 	ConfMACBinding  = 0.9 // ARP sender, DHCP ACK: the address pair is what the frame itself says
 	ConfLLDPName    = 0.7 // LLDP system name: set by the device's admin
@@ -33,18 +32,17 @@ const (
 // Bounds on what one Engine holds between two drains (SYS-6: the network is untrusted, a flood must not
 // grow memory without limit). Overflow is counted, never silent.
 const (
-	maxPending          = 5000
-	maxMeta             = 20000
-	maxFlows            = 20000
-	maxSent             = 50000
-	maxOthers           = 4096
-	maxSeen             = 50000
-	maxValue            = 200              // the inventory refuses longer values (inventory PRE-1); sensor-protocol 5.3 says free text is cut
-	maxNewMACsPerMinute = 60               // new devices one minute may add: a flood of random MACs must not fill the inventory
-	repeatAfter         = 15 * time.Minute // the same observation is sent again at most this often
-	macWindow           = 5 * time.Minute  // "other MACs" counts sources seen within this window
-	seenWindow          = 24 * time.Hour   // devices_seen counts MACs seen within this window
-	flowWindow          = time.Minute      // flows are summed over this window, then handed out
+	maxPending  = 5000
+	maxMeta     = 20000
+	maxFlows    = 20000
+	maxSent     = 50000
+	maxOthers   = 4096
+	maxSeen     = 50000
+	maxValue    = 200              // the inventory refuses longer values (inventory PRE-1); sensor-protocol 5.3 says free text is cut
+	repeatAfter = 15 * time.Minute // the same observation is sent again at most this often
+	macWindow   = 5 * time.Minute  // "other MACs" counts sources seen within this window
+	seenWindow  = 24 * time.Hour   // devices_seen counts MACs seen within this window
+	flowWindow  = time.Minute      // flows are summed over this window, then handed out
 )
 
 var mdnsKinds = map[string]struct {
@@ -64,6 +62,7 @@ type engineConfig struct {
 	Filters []Filter
 	OwnMACs []string
 	OwnIPs  []netip.Addr
+	Devices *deviceBook // devices already reported; shared by the Engines of one Service (nil: a book of its own, see bookLimits)
 }
 
 type flowKey struct {
@@ -105,9 +104,8 @@ type Engine struct {
 	lastPacket time.Time
 	others     map[mac]time.Time
 	seen       map[mac]time.Time
-	known      map[mac]struct{} // MACs this engine already reported (new ones are rate limited)
-	newWindow  time.Time
-	newCount   int
+	book       *deviceBook
+	resend     map[mac]struct{} // MACs whose vendor row failed to be delivered: queued again at their next frame
 }
 
 // newEngine compiles the filters and the own-address sets.
@@ -124,7 +122,10 @@ func newEngine(cfg engineConfig) (*Engine, error) {
 		clock: clock, span: cfg.Span, extract: cfg.Extract, filt: m,
 		ownMAC: map[mac]bool{}, ownIP: map[netip.Addr]bool{},
 		flows: map[flowKey]*flowVal{}, sent: map[obsKey]time.Time{}, counters: map[string]uint64{},
-		others: map[mac]time.Time{}, seen: map[mac]time.Time{}, known: map[mac]struct{}{},
+		others: map[mac]time.Time{}, seen: map[mac]time.Time{}, book: cfg.Devices, resend: map[mac]struct{}{},
+	}
+	if e.book == nil {
+		e.book = newDeviceBook(bookLimits{PerMinute: maxNewMACsPerMinute, PerDay: maxNewMACsPerDay})
 	}
 	for _, s := range cfg.OwnMACs {
 		if b, ok := parseMAC(s); ok {
@@ -309,32 +310,40 @@ func (e *Engine) add(now time.Time, hintMAC mac, hintIP netip.Addr, field observ
 		value = fit(value)
 		e.drop("value_truncated")
 	}
-	if _, ok := e.known[hintMAC]; !ok {
-		if !e.takeNewMAC(now) {
-			e.drop("new_macs_dropped")
-			return
-		}
-		if len(e.known) >= maxSeen {
-			clear(e.known)
-		}
-		e.known[hintMAC] = struct{}{}
-		if v, ok := oui.Lookup(hintMAC); ok {
-			e.queue(now, hintMAC, netip.Addr{}, observe.Vendor, v, ConfOUIVendor)
-		}
+	if value == "" { // the cut can leave nothing (a name of dots and dashes): the inventory refuses an empty value
+		e.drop("value_empty")
+		return
+	}
+	switch e.book.admit(hintMAC, now) {
+	case admitKnown:
+	case admitNew:
+		e.queueVendor(now, hintMAC)
+	case admitWait:
+		e.drop("new_macs_unconfirmed")
+		return
+	default:
+		e.drop("new_macs_dropped")
+		return
+	}
+	if _, ok := e.resend[hintMAC]; ok {
+		delete(e.resend, hintMAC)
+		e.queueVendor(now, hintMAC)
 	}
 	e.queue(now, hintMAC, hintIP, field, value, conf)
 }
 
-// takeNewMAC spends one unit of the budget of new devices for the current minute.
-func (e *Engine) takeNewMAC(now time.Time) bool {
-	if now.Sub(e.newWindow) >= time.Minute || now.Before(e.newWindow) {
-		e.newWindow, e.newCount = now, 0
+// queueVendor queues the vendor the OUI table gives for a MAC. The table is ours but the value goes through the same
+// check as every other text (INV-3).
+func (e *Engine) queueVendor(now time.Time, m mac) {
+	v, ok := oui.Lookup(m)
+	if !ok {
+		return
 	}
-	if e.newCount >= maxNewMACsPerMinute {
-		return false
+	if len(v) > maxValue || !printable(v) {
+		e.drop("vendor_rejected")
+		return
 	}
-	e.newCount++
-	return true
+	e.queue(now, m, netip.Addr{}, observe.Vendor, v, ConfOUIVendor)
 }
 
 func (e *Engine) queue(now time.Time, hintMAC mac, hintIP netip.Addr, field observe.Field, value string, conf float64) {
@@ -362,9 +371,18 @@ func fit(s string) string {
 	return strings.TrimRight(s, ". -_")
 }
 
-// unicastIP reports whether a is an address a host can have: not unspecified, loopback, multicast or broadcast.
+// unicastIP reports whether a is an address a host can have: not unspecified, loopback, multicast, broadcast, 0.0.0.0/8 or 240.0.0.0/4.
 func unicastIP(a netip.Addr) bool {
-	return a.IsValid() && !a.IsUnspecified() && !a.IsLoopback() && !a.IsMulticast() && a != netip.AddrFrom4([4]byte{255, 255, 255, 255})
+	a = a.Unmap()
+	if !a.IsValid() || a.IsUnspecified() || a.IsLoopback() || a.IsMulticast() {
+		return false
+	}
+	if a.Is4() {
+		if b := a.As4(); b[0] == 0 || b[0] >= 240 { // 0.0.0.0/8 "this network", 240.0.0.0/4 reserved (and the broadcast)
+			return false
+		}
+	}
+	return true
 }
 
 func (e *Engine) handleARP(f frame, now time.Time) {
@@ -687,11 +705,33 @@ func (e *Engine) Drain(now time.Time, final bool) ([]observe.Observation, []Meta
 	return obs, meta
 }
 
-// Unmark forgets that obs were sent, so a failed delivery is not suppressed as a repeat.
+// Unmark forgets that obs were sent, so a failed delivery is not suppressed as a repeat. A vendor row is queued
+// only once per new MAC, so the MAC is remembered and its vendor goes out again with its next frame.
 func (e *Engine) Unmark(obs []observe.Observation) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	for _, o := range obs {
 		delete(e.sent, obsKey{o.AssetHint.MAC, o.AssetHint.IP.String(), string(o.Field), o.Value})
+		if o.Field == observe.Vendor && len(e.resend) < maxSeen {
+			if m, ok := parseMAC(o.AssetHint.MAC); ok {
+				e.resend[m] = struct{}{}
+			}
+		}
 	}
+}
+
+// Requeue puts observations whose delivery failed back at the head of the queue, to be sent as one batch later.
+// They stay marked as sent, so a repeat of the same frame does not queue them twice. What does not fit under
+// maxPending is dropped and counted.
+func (e *Engine) Requeue(obs []observe.Observation) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	room := maxPending - len(e.obs)
+	if room < len(obs) {
+		for range len(obs) - max(room, 0) {
+			e.drop("observations_dropped")
+		}
+		obs = obs[:max(room, 0)]
+	}
+	e.obs = append(append(make([]observe.Observation, 0, len(obs)+len(e.obs)), obs...), e.obs...)
 }

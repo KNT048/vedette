@@ -494,7 +494,7 @@ func TestContract_POST3_SameSeqNoSecondObservation(t *testing.T) {
 // box only it is own_only, a quiet one has no traffic, a stopped capture too.
 func TestContract_POST4_SpanStatsAreMeasured(t *testing.T) {
 	t.Parallel()
-	e := newEnv(t, map[string][]pktgen.Frame{"eth1": pktgen.SpanMetadata()}, true, withClock(pktgen.T0.Add(13*time.Second)))
+	e := newEnv(t, map[string][]pktgen.Frame{"eth1": pktgen.SpanMetadata()}, true, withClock(pktgen.T0.Add(13*time.Second)), withSinglePass())
 	ctx := t.Context()
 	if st, _ := e.svc.SpanStats(ctx); st.Verdict != sp.VerdictOff {
 		t.Fatalf("no SPAN configured: %+v", st)
@@ -679,7 +679,7 @@ func TestContract_DropSummaryIsLoggedOnceWhileUnchanged(t *testing.T) {
 	t.Parallel()
 	var buf syncBuffer
 	e := newEnv(t, map[string][]pktgen.Frame{"eth1": pktgen.Malformed()}, true,
-		withLog(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo})), withSummaryEvery(20*time.Millisecond))
+		withLog(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo})), withSummaryEvery(20*time.Millisecond), withSinglePass())
 	e.setInterface("eth1", true)
 	e.run()
 	waitFor(t, "the summary", func() bool { return strings.Contains(buf.String(), "packets dropped or ignored") })
@@ -708,12 +708,16 @@ func TestContract_FailingOpenBacksOff(t *testing.T) {
 	e := newEnv(t, nil, true)
 	e.src.fail = true
 	e.setInterface("eth0", false)
+	start := time.Now()
 	e.run()
-	pause(t, 400*time.Millisecond) // RetryEvery is 20 ms: a constant pause would try about 20 times
-	e.src.mu.Lock()
-	tries := e.src.tries
-	e.src.mu.Unlock()
-	if tries < 3 || tries > 7 {
-		t.Errorf("%d attempts in 400 ms, want 3 to 7 (20, 40, 80, 160 ms pauses)", tries)
+	// RetryEvery is 20 ms. Four attempts take at least 20+40+80 = 140 ms with a doubling pause and only 60 ms with a
+	// constant one. A loaded machine only makes it slower, so the lower bound cannot fail by chance.
+	waitFor(t, "four attempts", func() bool {
+		e.src.mu.Lock()
+		defer e.src.mu.Unlock()
+		return e.src.tries >= 4
+	})
+	if d := time.Since(start); d < 140*time.Millisecond {
+		t.Errorf("four attempts in %v, want at least 140 ms (20, 40, 80 ms pauses)", d)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/netip"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -178,8 +179,9 @@ func hostnameOK(s string) bool {
 	return labelLen > 0 // no trailing dot: callers trim it first
 }
 
-// printable reports whether s is text a person can read: valid UTF-8, no control characters (C0 or C1) and
-// no bidirectional override or separator.
+// printable reports whether s is text a person can read: valid UTF-8, no control characters (C0 or C1), no
+// invisible format character (Unicode category Cf: bidirectional marks, zero-width, soft hyphen, tags) and no line or
+// paragraph separator.
 func printable(s string) bool {
 	if !utf8.ValidString(s) {
 		return false
@@ -188,8 +190,8 @@ func printable(s string) bool {
 		switch {
 		case r < 0x20, r >= 0x7f && r <= 0x9f: // C0, DEL and C1 controls
 			return false
-		case r >= 0x202a && r <= 0x202e, r >= 0x2066 && r <= 0x2069, r == 0x200e, r == 0x200f, r == 0x061c, r == 0x2028, r == 0x2029:
-			return false // bidirectional overrides and separators: they make a name read as another name
+		case r == 0x2028, r == 0x2029, r >= 0xe0000 && r <= 0xe007f, unicode.Is(unicode.Cf, r):
+			return false // format characters (bidirectional marks and overrides, zero-width, joiners, BOM, soft hyphen, tags): they make a name read as another name
 		}
 	}
 	return true

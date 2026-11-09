@@ -703,3 +703,140 @@ func TestVendorFromTheOUITable(t *testing.T) {
 		t.Errorf("vendors %v", vendors)
 	}
 }
+
+// H1: the cut trims the separators it leaves at the end, so a long name of such characters came out empty, the inventory
+// refused it, and the item was queued again by the next frame. An empty value is dropped and counted, never queued.
+func TestValueThatFitsToNothingIsDroppedAndCounted(t *testing.T) {
+	t.Parallel()
+	e, _ := newEngine(own)
+	for i, name := range []string{strings.Repeat("-", 230), strings.Repeat(". ", 120), strings.Repeat("_", 201)} {
+		e.Handle(Packet{At: pktgen.T0.Add(time.Duration(i) * time.Second), Data: pktgen.LLDP(pktgen.Switch, pktgen.LLDPInfo{Chassis: pktgen.Switch, Port: "1", SysName: name})})
+	}
+	obs, _ := e.Drain(pktgen.T0, true)
+	for _, o := range obs {
+		if o.Value == "" {
+			t.Errorf("an empty %s was queued", o.Field)
+		}
+		if o.Field == observe.Hostname {
+			t.Errorf("hostname %q survived", o.Value)
+		}
+	}
+	if n := e.Counters()["value_empty"]; n != 3 {
+		t.Errorf("value_empty = %d, want 3 (counters %v)", n, e.Counters())
+	}
+}
+
+// The empty value is dropped before the book is asked: only the frame's MAC row counts as a sighting of the device.
+func TestValueEmptyDoesNotCountAsASighting(t *testing.T) {
+	t.Parallel()
+	e, _ := newEngine(engineConfig{OwnMACs: own.OwnMACs, Devices: newDeviceBook(defaultLimits)})
+	e.Handle(Packet{At: pktgen.T0, Data: pktgen.LLDP(pktgen.Switch, pktgen.LLDPInfo{Chassis: pktgen.Switch, Port: "1", SysName: strings.Repeat("-", 230)})})
+	if c := e.Counters(); c["new_macs_unconfirmed"] != 1 || c["value_empty"] != 1 {
+		t.Errorf("counters %v", c)
+	}
+}
+
+// M2: broadcasts and replies to the box do not count as "other MACs", also with a VLAN tag, a QinQ tag, or an 802.3 frame.
+func TestOtherMACsIgnoreTaggedBroadcastsAndRepliesToTheBox(t *testing.T) {
+	t.Parallel()
+	e, _ := newEngine(spanCfg())
+	at := pktgen.T0
+	e.Handle(Packet{At: at, Data: pktgen.EthVLAN(pktgen.Bcast, pktgen.PC, 10, 0x0806, pktgen.ARP(pktgen.Bcast, 1, pktgen.PC, pktgen.PCIP, pktgen.MAC{}, pktgen.RouterIP)[14:])})
+	inner := pktgen.EthVLAN(pktgen.Box, pktgen.Router, 20, 0x0800, pktgen.IPv4(pktgen.DNSIP, pktgen.BoxIP, 17, pktgen.UDP(53, 40000, nil)))
+	qinq := append(append([]byte{}, inner[:12]...), 0x88, 0xa8, 0x00, 0x64)
+	qinq = append(qinq, inner[12:]...)
+	e.Handle(Packet{At: at, Data: qinq})
+	e.Handle(Packet{At: at, Data: pktgen.Eth(pktgen.MAC{0x01, 0x80, 0xc2, 0, 0, 0}, pktgen.Router, 0x0026, make([]byte, 38))}) // 802.3 LLC (STP)
+	if _, others, _ := e.Stats(at); others != 0 {
+		t.Errorf("other_macs = %d, want 0", others)
+	}
+}
+
+// The vendor row is queued once, with the first frame of a MAC. When its delivery failed (Unmark), it comes back with the
+// next frame of that MAC.
+func TestVendorIsResentAfterAFailedDelivery(t *testing.T) {
+	t.Parallel()
+	e, _ := newEngine(own)
+	arp := Packet{At: pktgen.T0, Data: pktgen.ARP(pktgen.Bcast, 1, pktgen.Laptop, pktgen.LaptopIP, pktgen.MAC{}, pktgen.RouterIP)}
+	e.Handle(arp)
+	obs, _ := e.Drain(pktgen.T0, false)
+	e.Unmark(obs) // the inventory was not reachable
+	arp.At = pktgen.T0.Add(time.Minute)
+	e.Handle(arp)
+	again, _ := e.Drain(pktgen.T0.Add(time.Minute), false)
+	vendors := 0
+	for _, o := range again {
+		if o.Field == observe.Vendor {
+			vendors++
+		}
+	}
+	if vendors != 1 {
+		t.Errorf("after a failed delivery the vendor came back %d times: %+v", vendors, again)
+	}
+	arp.At = pktgen.T0.Add(2 * time.Minute)
+	e.Handle(arp)
+	if more, _ := e.Drain(pktgen.T0.Add(2*time.Minute), false); len(more) != 0 {
+		t.Errorf("a vendor that was delivered is sent again: %+v", more)
+	}
+}
+
+// INV-3: the vendor from the table goes through the same text check as every other value. The 2026-11 table held
+// U+200E, U+200B and U+00AD in the vendors of these prefixes.
+func TestVendorFromTheTableIsCleanText(t *testing.T) {
+	t.Parallel()
+	for _, m := range []pktgen.MAC{{0x70, 0xb3, 0xd5, 0x26, 0x90, 0x01}, {0x48, 0xbc, 0xa6, 0x00, 0x00, 0x01}, {0x70, 0xb3, 0xd5, 0x8a, 0xc0, 0x01}, {0x00, 0x50, 0xc2, 0x57, 0x40, 0x01}} {
+		e, _ := newEngine(own)
+		e.Handle(Packet{At: pktgen.T0, Data: pktgen.ARP(pktgen.Bcast, 1, m, netip.IPv4Unspecified(), pktgen.MAC{}, pktgen.RouterIP)})
+		obs, _ := e.Drain(pktgen.T0, true)
+		found := false
+		for _, o := range obs {
+			if o.Field == observe.Vendor {
+				found = true
+				if !printable(o.Value) || o.Value != strings.TrimSpace(o.Value) {
+					t.Errorf("%s: vendor %q is not clean text", m, o.Value)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("%s: no vendor row", m)
+		}
+	}
+}
+
+// Low: 0.0.0.0/8 and 240.0.0.0/4 are not host addresses, neither is the broadcast; the address is dropped, the observation stays.
+func TestUnicastIPRefusesReservedRanges(t *testing.T) {
+	t.Parallel()
+	for s, want := range map[string]bool{
+		"0.1.2.3": false, "0.0.0.0": false, "240.0.0.1": false, "254.255.255.254": false, "255.255.255.255": false,
+		"127.0.0.1": false, "224.0.0.251": false, "10.0.0.1": true, "192.168.1.20": true, "169.254.1.1": true, "239.255.255.250": false,
+	} {
+		if got := unicastIP(netip.MustParseAddr(s)); got != want {
+			t.Errorf("unicastIP(%s) = %t, want %t", s, got, want)
+		}
+	}
+	e, _ := newEngine(own)
+	e.Handle(Packet{At: pktgen.T0, Data: pktgen.ARP(pktgen.Bcast, 1, pktgen.PC, netip.MustParseAddr("240.0.0.7"), pktgen.MAC{}, pktgen.RouterIP)})
+	obs, _ := e.Drain(pktgen.T0, true)
+	if len(obs) == 0 {
+		t.Fatal("the observation was lost with its address")
+	}
+	for _, o := range obs {
+		if o.AssetHint.IP.IsValid() {
+			t.Errorf("a reserved address reached the sink: %+v", o)
+		}
+	}
+}
+
+// Low: printable() refuses every invisible format character, not only the bidirectional ones: "SW-CORE-01" and the same
+// name with a zero-width space must not both be possible values.
+func TestPrintableRefusesInvisibleFormatCharacters(t *testing.T) {
+	t.Parallel()
+	for _, r := range []rune{0x200b, 0x200c, 0x200d, 0x200e, 0x2060, 0xfeff, 0x00ad, 0x061c, 0x202e, 0x2066, 0xe0041, 0xe007f} {
+		if s := "SW-CORE-01" + string(r); printable(s) {
+			t.Errorf("printable(%q) = true", s)
+		}
+	}
+	if !printable("Müller-PC 日本 Ñandú") {
+		t.Error("ordinary text refused")
+	}
+}

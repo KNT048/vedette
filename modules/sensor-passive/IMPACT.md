@@ -8,7 +8,10 @@
 - **cmd/vedette** (`sensorpassive.go`): `netHost` là chỗ thay bằng module `host`; job `capture` và handler dùng chung một `Service`.
 
 ## Modifying: `content/oui` (bảng OUI) và `make oui`
-- **inventory**: quan sát `vendor` 0.4 của thiết bị mới. Đổi bảng (chạy lại `make oui`) đổi tên hãng hiển thị cho thiết bị mới, không sửa quan sát cũ. THIRD_PARTY_NOTICES ghi nguồn runZero/IEEE.
+- **inventory**: quan sát `vendor` 0.4 của thiết bị mới. `make oui` ghim nguồn theo commit + SHA-256 (`scripts/oui`, hằng `pinnedCommit`/`pinnedSHA256`), làm sạch tên hãng (bỏ C0/C1, bidi, zero-width, dấu gạch nối mềm, tag), lỗi nếu hai hãng cùng một tiền tố; `TestEveryVendorIsCleanText` canh bảng. Đổi bảng (chạy lại `make oui`) đổi tên hãng hiển thị cho thiết bị mới, không sửa quan sát cũ. THIRD_PARTY_NOTICES ghi nguồn runZero/IEEE.
+
+## Modifying: `deviceBook` (`book.go`, hạn mức MAC mới)
+- **inventory** (số thiết bị `discovered` mỗi ngày, bản ghi kiểm toán, sự kiện `asset.discovered`): đổi `maxNewMACsPerMinute/Day`, `confirmAfter` đổi tốc độ thiết bị thật xuất hiện (thiết bị chỉ nói một lần sẽ không được ghi). Tập nằm trong `Service`, không trong `Engine`.
 
 ## Modifying: gọi `inventory.RecordObservation`
 - **inventory**: `source=passive` và thang `confidence` quyết định giá trị "đang dùng". Đổi thang tin cậy làm đổi `summary` và thứ tự hiển thị ở mọi thiết bị.

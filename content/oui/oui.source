@@ -1,4 +1,5 @@
-source: https://raw.githubusercontent.com/runZeroInc/mac-tracker/main/data/macs.json
+source: https://raw.githubusercontent.com/runZeroInc/mac-tracker/05af1197de5f8604957ceb8c9ef374fffbbfd95f/data/macs.json
+source_commit: 05af1197de5f8604957ceb8c9ef374fffbbfd95f
 source_sha256: 8dc5fbd67026d8e9049ee637bb5881e07e761999c2c4bf59077368d0e6bfd12b
-prefixes: 58539
+prefixes: 58539 (40146 of 24 bits, 6597 of 28, 11796 of 36)
 skipped: 777 (deleted, IEEE pointer entries, private, other lengths)

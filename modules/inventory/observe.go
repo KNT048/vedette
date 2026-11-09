@@ -82,39 +82,48 @@ func (s *Service) check(batch []observe.Observation) ([]cleanObs, error) {
 	}
 	out := make([]cleanObs, 0, len(batch))
 	for i, o := range batch {
-		ip, mac, err := checkHint(o.AssetHint)
+		c, err := s.checkOne(i, o)
 		if err != nil {
-			return nil, fmt.Errorf("observation %d: %w", i, err)
+			return nil, &observe.ErrRejected{Index: i, Err: err} // the caller may drop this item and send the rest
 		}
-		if !observe.ValidSource(o.Source) || o.Source == observe.Manual {
-			return nil, invalid("observation %d: source %q is not allowed", i, o.Source)
-		}
-		if !observe.ValidField(o.Field) {
-			return nil, invalid("observation %d: field %q is unknown", i, o.Field)
-		}
-		if math.IsNaN(o.Confidence) || o.Confidence < 0 || o.Confidence > 1 {
-			return nil, invalid("observation %d: confidence must be between 0 and 1", i)
-		}
-		value := o.Value
-		switch o.Field {
-		case observe.MAC:
-			m, ok := normMAC(value)
-			if !ok {
-				return nil, invalid("observation %d: value is not a MAC address", i)
-			}
-			value = m
-		case observe.Kind:
-			if !validKind(value) {
-				return nil, invalid("observation %d: unknown device type", i)
-			}
-		default:
-			if !cleanText(value) {
-				return nil, invalid("observation %d: value must be 1 to %d printable characters", i, maxObsValue)
-			}
-		}
-		out = append(out, cleanObs{ip: ip, mac: mac, field: string(o.Field), value: value, source: string(o.Source), conf: o.Confidence, seenAt: s.seen(o.SeenAt)})
+		out = append(out, c)
 	}
 	return out, nil
+}
+
+// checkOne validates observation i of a batch.
+func (s *Service) checkOne(i int, o observe.Observation) (cleanObs, error) {
+	ip, mac, err := checkHint(o.AssetHint)
+	if err != nil {
+		return cleanObs{}, fmt.Errorf("observation %d: %w", i, err)
+	}
+	if !observe.ValidSource(o.Source) || o.Source == observe.Manual {
+		return cleanObs{}, invalid("observation %d: source %q is not allowed", i, o.Source)
+	}
+	if !observe.ValidField(o.Field) {
+		return cleanObs{}, invalid("observation %d: field %q is unknown", i, o.Field)
+	}
+	if math.IsNaN(o.Confidence) || o.Confidence < 0 || o.Confidence > 1 {
+		return cleanObs{}, invalid("observation %d: confidence must be between 0 and 1", i)
+	}
+	value := o.Value
+	switch o.Field {
+	case observe.MAC:
+		m, ok := normMAC(value)
+		if !ok {
+			return cleanObs{}, invalid("observation %d: value is not a MAC address", i)
+		}
+		value = m
+	case observe.Kind:
+		if !validKind(value) {
+			return cleanObs{}, invalid("observation %d: unknown device type", i)
+		}
+	default:
+		if !cleanText(value) {
+			return cleanObs{}, invalid("observation %d: value must be 1 to %d printable characters", i, maxObsValue)
+		}
+	}
+	return cleanObs{ip: ip, mac: mac, field: string(o.Field), value: value, source: string(o.Source), conf: o.Confidence, seenAt: s.seen(o.SeenAt)}, nil
 }
 
 // Record implements observe.Sink: the whole batch in one transaction (all or none). A device is found by

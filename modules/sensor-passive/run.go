@@ -8,6 +8,7 @@ import (
 	"io"
 	"maps"
 	"net/netip"
+	"slices"
 	"time"
 
 	"github.com/knt048/vedette/core/observe"
@@ -38,7 +39,8 @@ func (s *Service) Run(ctx context.Context) error {
 			s.wait(ctx, s.retryEvery)
 			continue
 		}
-		switch err := s.session(ctx, st); {
+		got, err := s.session(ctx, st)
+		switch {
 		case err == nil || errors.Is(err, errReload):
 			failures = 0
 			if errors.Is(err, errReload) {
@@ -47,6 +49,9 @@ func (s *Service) Run(ctx context.Context) error {
 			s.wait(ctx, 24*time.Hour) // the recording ended: nothing more until the settings change
 		case ctx.Err() != nil:
 		default:
+			if got { // a capture that worked for a while and then failed is a new failure, not the next of a series
+				failures = 0
+			}
 			failures++
 			wait := backoff(s.retryEvery, failures)
 			s.log.WarnContext(ctx, "sensor-passive: capture stopped, will retry", "interface", st.Interface, "retry_in", wait.String(), "error", err)
@@ -115,10 +120,11 @@ func (s *Service) settings(ctx context.Context) (Settings, error) {
 }
 
 // session captures on one interface until ctx ends, the settings change, the source ends or fails.
-func (s *Service) session(ctx context.Context, st Settings) error {
+// It reports whether any frame was received, so that Run starts the back-off over after a session that worked.
+func (s *Service) session(ctx context.Context, st Settings) (received bool, err error) {
 	ifaces, err := s.host.Interfaces(ctx)
 	if err != nil {
-		return fmt.Errorf("list interfaces: %w", err)
+		return false, fmt.Errorf("list interfaces: %w", err)
 	}
 	var macs []string
 	var ips []netip.Addr
@@ -126,13 +132,13 @@ func (s *Service) session(ctx context.Context, st Settings) error {
 		macs = append(macs, i.MAC)
 		ips = append(ips, i.Addresses...)
 	}
-	eng, err := newEngine(engineConfig{Clock: s.clock, Span: st.Span, Extract: st.Extract, Filters: st.Filters, OwnMACs: macs, OwnIPs: ips})
+	eng, err := newEngine(engineConfig{Clock: s.clock, Span: st.Span, Extract: st.Extract, Filters: st.Filters, OwnMACs: macs, OwnIPs: ips, Devices: s.devices})
 	if err != nil {
-		return err
+		return false, err
 	}
 	src, err := s.open(st.Interface)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer func() { _ = src.Close() }()
 
@@ -155,18 +161,20 @@ func (s *Service) session(ctx context.Context, st Settings) error {
 	err = s.capture(sctx, src, eng)
 	cancel()
 	_, wasReload := <-reloaded
+	_, _, last := eng.Stats(s.clock())
+	received = !last.IsZero()
 	switch {
 	case ctx.Err() != nil:
-		return ctx.Err() // module off or shutdown: no final flush, nothing is written after that (SYS-5)
+		return received, ctx.Err() // module off or shutdown: no final flush, nothing is written after that (SYS-5)
 	case wasReload:
 		s.flush(ctx, eng, true)
-		return errReload
+		return received, errReload
 	case errors.Is(err, io.EOF):
 		s.flush(ctx, eng, true)
 		s.heartbeat(ctx, eng)
-		return nil
+		return received, nil
 	}
-	return err
+	return received, err
 }
 
 func (s *Service) setEngine(e *Engine) {
@@ -213,14 +221,24 @@ func (s *Service) capture(ctx context.Context, src Source, eng *Engine) error {
 }
 
 // flush sends what the engine collected: observations to the inventory (batch by batch, each with its seq)
-// and metadata to the MetadataSink. A failed batch is logged and dropped from this round; its observations are
-// forgotten by the repeat filter so the next sighting is sent again.
+// and metadata to the MetadataSink. When the inventory cannot be reached the observations go back to the engine and
+// the next try waits (back-off); items the inventory refuses are dropped one by one (see deliver). A final flush
+// (the recording ended, the settings changed) tries once and forgets what fails.
 func (s *Service) flush(ctx context.Context, eng *Engine, final bool) {
+	if !final && s.clock().Before(s.holdUntil) {
+		return
+	}
 	obs, meta := eng.Drain(s.clock(), final)
 	for len(obs) > 0 {
 		n := min(len(obs), maxSubmitBatch)
-		s.deliver(ctx, eng, obs[:n])
+		if !s.deliver(ctx, eng, obs[:n]) {
+			s.holdOff(ctx, eng, obs, final)
+			break
+		}
 		obs = obs[n:]
+	}
+	if len(obs) == 0 {
+		s.failures, s.holdUntil = 0, time.Time{}
 	}
 	for len(meta) > 0 {
 		n := min(len(meta), maxSubmitBatch)
@@ -238,34 +256,55 @@ func (s *Service) flush(ctx context.Context, eng *Engine, final bool) {
 	}
 }
 
-// deliver records one batch. If the inventory refuses it, the observations are offered one by one, so a single
-// bad item never blinds the rest of the batch (sensor-protocol 5.5); the ones refused alone are dropped,
-// counted, and forgotten by the repeat filter. The batch number is used up either way.
-func (s *Service) deliver(ctx context.Context, eng *Engine, batch []observe.Observation) {
+// holdOff handles observations the inventory could not take for a reason that is not about them (a busy or failing
+// store): they go back to the engine and are sent again as a whole after a pause that doubles with every failure in a
+// row. When this was the final flush there is no later, so they are forgotten and counted.
+func (s *Service) holdOff(ctx context.Context, eng *Engine, obs []observe.Observation, final bool) {
+	s.failures++
+	if final {
+		eng.Unmark(obs)
+		for range obs {
+			eng.CountDrop("observation_failed")
+		}
+		return
+	}
+	eng.Requeue(obs)
+	wait := min(backoff(s.flushEvery, s.failures), maxDeliverPause)
+	s.holdUntil = s.clock().Add(wait)
+	s.log.WarnContext(ctx, "sensor-passive: the inventory did not take the observations, will retry", "count", len(obs), "retry_in", wait.String())
+}
+
+// maxDeliverPause is the longest pause between two tries to hand observations to a failing inventory.
+const maxDeliverPause = time.Minute
+
+// deliver records one batch and reports whether the inventory could be reached. When the inventory refuses one item
+// at its boundary (observe.ErrRejected names it), that item is dropped and counted, and the rest is sent again; the
+// refused item stays marked as sent, so it is not offered again for fifteen minutes. Any other error says nothing
+// about the items: deliver returns false and the caller retries the whole batch later. A batch the inventory accepted
+// is never recorded a second time, even when saving its number fails.
+func (s *Service) deliver(ctx context.Context, eng *Engine, batch []observe.Observation) bool {
 	seq := s.nextSeq()
-	_, err := s.SubmitBatch(ctx, SensorID, seq, batch)
-	if err == nil {
-		return
-	}
-	if len(batch) == 1 || ctx.Err() != nil {
-		eng.Unmark(batch)
-		eng.CountDrop("observation_rejected")
-		s.log.WarnContext(ctx, "sensor-passive: observations not recorded", "count", len(batch), "error", err)
-		return
-	}
-	rejected := 0
-	for _, o := range batch {
-		one := []observe.Observation{o}
-		if err := s.sink.Record(ctx, one); err != nil {
-			eng.Unmark(one)
+	for len(batch) > 0 {
+		applied, err := s.SubmitBatch(ctx, SensorID, seq, batch)
+		var rej *observe.ErrRejected
+		switch {
+		case applied:
+			if err != nil {
+				s.log.WarnContext(ctx, "sensor-passive: saving the batch number failed", "error", err)
+			}
+			return true
+		case err == nil:
+			return true
+		case errors.As(err, &rej) && rej.Index >= 0 && rej.Index < len(batch) && ctx.Err() == nil:
 			eng.CountDrop("observation_rejected")
-			rejected++
+			s.log.WarnContext(ctx, "sensor-passive: an observation was refused and dropped", "field", batch[rej.Index].Field, "error", err)
+			batch = slices.Delete(slices.Clone(batch), rej.Index, rej.Index+1) // the caller's slice is not ours to change
+		default:
+			s.log.WarnContext(ctx, "sensor-passive: observations not recorded", "count", len(batch), "error", err)
+			return false
 		}
 	}
-	s.log.WarnContext(ctx, "sensor-passive: a batch was refused and recorded item by item", "count", len(batch), "rejected", rejected, "error", err)
-	if err := s.advance(ctx, seq); err != nil {
-		s.log.WarnContext(ctx, "sensor-passive: saving the batch number failed", "error", err)
-	}
+	return true
 }
 
 // heartbeat writes last_seen (the sensor is listening), the number of devices heard and the SPAN measurement

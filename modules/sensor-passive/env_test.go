@@ -94,6 +94,7 @@ type openSource struct {
 	hold   bool
 	fail   bool // every open fails, like a card that vanished
 	tries  int
+	once   bool // play the recording once (a test that looks at timestamps or counts frames)
 }
 
 func (o *openSource) open(iface string) (sp.Source, error) {
@@ -104,7 +105,11 @@ func (o *openSource) open(iface string) (sp.Source, error) {
 	if o.fail {
 		return nil, errors.New("no such card")
 	}
-	return &replaySource{owner: o, frames: o.files[iface], hold: o.hold}, nil
+	frames := o.files[iface]
+	if !o.once {
+		frames = twice(frames)
+	}
+	return &replaySource{owner: o, frames: frames, hold: o.hold}, nil
 }
 
 func (o *openSource) opens() []string {
@@ -114,6 +119,21 @@ func (o *openSource) opens() []string {
 }
 
 func (o *openSource) closes() int { o.mu.Lock(); defer o.mu.Unlock(); return o.closed }
+
+// twice plays a recording a second time, after the whole of it and a pause: the sensor reports a new MAC only when
+// it was heard in two frames at least two seconds apart (SYS-6), and the second pass is what makes it so. The
+// repeat filter keeps the second pass from sending anything twice.
+func twice(frames []pktgen.Frame) []pktgen.Frame {
+	if len(frames) == 0 {
+		return nil
+	}
+	shift := frames[len(frames)-1].At.Sub(frames[0].At) + 3*time.Second
+	out := append([]pktgen.Frame(nil), frames...)
+	for _, f := range frames {
+		out = append(out, pktgen.Frame{At: f.At.Add(shift), Data: f.Data})
+	}
+	return out
+}
 
 type replaySource struct {
 	owner  *openSource
@@ -174,9 +194,9 @@ func (c *countingSink) Record(ctx context.Context, obs []observe.Observation) er
 	c.mu.Lock()
 	c.got = append(c.got, obs...)
 	c.mu.Unlock()
-	for _, o := range obs {
+	for i, o := range obs {
 		if c.reject != "" && o.Value == c.reject {
-			return errors.New("refused")
+			return &observe.ErrRejected{Index: i, Err: errors.New("refused")}
 		}
 	}
 	return c.inner.Record(ctx, obs)
@@ -195,6 +215,9 @@ func withReject(value string) option { return func(_ *sp.Config, e *env) { e.sin
 func withSummaryEvery(d time.Duration) option {
 	return func(c *sp.Config, _ *env) { c.SummaryEvery = d }
 }
+
+// withSinglePass plays each recording once instead of twice (see twice).
+func withSinglePass() option { return func(_ *sp.Config, e *env) { e.src.once = true } }
 
 func withClock(base time.Time) option {
 	return func(_ *sp.Config, e *env) { e.now = elapsedFrom(base) }

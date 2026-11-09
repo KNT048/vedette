@@ -29,3 +29,6 @@ var (
 	// ErrInvalidEvidence: scan evidence lacks a template or time, or a field is too large (PRE-2).
 	ErrInvalidEvidence = errors.New("invalid scan evidence")
 )
+
+// ErrUnknownAsset: the device does not exist in the inventory (PRE-1 of UpsertFromMatch).
+var ErrUnknownAsset = errors.New("unknown asset")

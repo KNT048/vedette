@@ -111,6 +111,13 @@ type CoreSecret struct {
 	RotatedAt  *string
 }
 
+type CoreSensorCert struct {
+	Serial    string
+	Role      string
+	NotAfter  string
+	RetiredAt *string
+}
+
 type CoreSession struct {
 	ID        string
 	UserID    string

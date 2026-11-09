@@ -163,9 +163,9 @@ func TestContract_POST1_KEVPullStoresAndPublishesNewCVEsOnce(t *testing.T) {
 	if n := rowsOf(t, e.db, "feeds_vuln"); n != 3 {
 		t.Fatalf("%d vulnerabilities", n)
 	}
-	news := e.pub.named(EventNewKEV)
-	if len(news) != 3 || news[0] != (NewKEVEvent{CVE: "CVE-2026-10001", Vendor: "Synology", Product: "DiskStation Manager", DateAdded: "2026-11-03"}) {
-		t.Errorf("new_kev: %v", news)
+	// D-78: the first pull into an empty table is a baseline: one event, not one per CVE
+	if news, base := e.pub.named(EventNewKEV), e.pub.named(EventSyncBaseline); len(news) != 0 || len(base) != 1 || base[0] != (SyncBaselineEvent{Source: "cisa-kev", Count: 3}) {
+		t.Errorf("first pull: new_kev %v, baseline %v", news, base)
 	}
 	_, s := e.get("/feeds/status")
 	if at(s, "kev_catalog_version") != "2026.11.04" || at(s, "sources", 0, "name") != "CISA KEV" {
@@ -179,7 +179,7 @@ func TestContract_POST1_KEVPullStoresAndPublishesNewCVEsOnce(t *testing.T) {
 	e.setNow(e.clock().Add(time.Hour))
 	c, b = e.fetch("cisa-kev")
 	hits := o.all()
-	if c != 200 || at(b, "status") != "ok" || at(b, "records") != 3.0 || hits[len(hits)-1].header.Get("If-None-Match") != `"v1"` || len(e.pub.named(EventNewKEV)) != 3 {
+	if c != 200 || at(b, "status") != "ok" || at(b, "records") != 3.0 || hits[len(hits)-1].header.Get("If-None-Match") != `"v1"` || len(e.pub.named(EventNewKEV)) != 0 || len(e.pub.named(EventSyncBaseline)) != 1 {
 		t.Errorf("repeat: %d %v %v", c, b, hits[len(hits)-1].header)
 	}
 	if ua := hits[0].header.Get("User-Agent"); ua != "Vedette/test" || hits[0].header.Get("Authorization") != "" {
@@ -193,8 +193,9 @@ func TestContract_POST1_KEVPullStoresAndPublishesNewCVEsOnce(t *testing.T) {
 	if c, b = e.fetch("cisa-kev"); c != 200 || at(b, "records") != 4.0 {
 		t.Fatalf("%d %v", c, b)
 	}
-	news = e.pub.named(EventNewKEV)
-	if len(news) != 4 || news[3].(NewKEVEvent).CVE != "CVE-2026-10099" || len(e.pub.named(EventVulnUpdated)) != 0 {
+	// later pulls publish per item
+	news := e.pub.named(EventNewKEV)
+	if len(news) != 1 || news[0] != (NewKEVEvent{CVE: "CVE-2026-10099", Vendor: "Acme", Product: "Box", DateAdded: "2026-11-04"}) || len(e.pub.named(EventSyncBaseline)) != 1 || len(e.pub.named(EventVulnUpdated)) != 0 {
 		t.Errorf("events: %v", e.pub.events)
 	}
 }

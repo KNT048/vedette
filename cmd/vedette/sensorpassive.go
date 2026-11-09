@@ -4,47 +4,28 @@ import (
 	"context"
 	"net"
 	"net/netip"
-	"sync"
 	"time"
 
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/observe"
-	"github.com/knt048/vedette/core/store"
 	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
 )
 
-var (
-	sensorMu       sync.Mutex
-	sensorServices = map[*store.DB]*sensorpassive.Service{}
-)
-
-// newSensorPassive returns the passive sensor service of d's database, building it on first use. The capture
-// job and the HTTP handler must share one instance: the SPAN measurement lives in its memory.
-// ponytail: keyed by database so serve and tests build one each; a field in deps would be cleaner once main.go
-// may change (issue #33). No metadata consumer yet (the `logs` module, S-LOG-4): the default sink drops it.
-func newSensorPassive(d deps) *sensorpassive.Service {
-	sensorMu.Lock()
-	defer sensorMu.Unlock()
-	if s, ok := sensorServices[d.DB]; ok {
-		return s
-	}
+// newSensorPassive builds the passive sensor service once, in buildServices (deps.SensorPassive): the capture
+// job and the HTTP handler must share it. No metadata consumer yet (the `logs` module, S-LOG-4): the default
+// sink drops it.
+func newSensorPassive(d deps) (*sensorpassive.Service, error) {
 	var sink observe.Sink // a nil *inventory.Service must stay a nil interface so New reports it
 	if d.Inventory != nil {
 		sink = d.Inventory
 	}
-	s, err := sensorpassive.New(sensorpassive.Config{DB: d.DB, Audit: d.Audit, Sink: sink, Host: netHost{}, Clock: d.Clock, Log: d.Log, Version: version})
-	if err != nil { // only a missing dependency: a programming error in serve
-		panic("vedette: " + err.Error())
-	}
-	sensorServices[d.DB] = s
-	return s
+	return sensorpassive.New(sensorpassive.Config{DB: d.DB, Audit: d.Audit, Sink: sink, Host: netHost{}, Clock: d.Clock, Log: d.Log, Version: version})
 }
 
 // sensorPassiveJobs runs the capture loop while the module is on (SYS-5). Run blocks until the module is turned
 // off; Every only matters when it fails early (a card that vanished): the scheduler starts it again.
 func sensorPassiveJobs(d deps) []jobs.Job {
-	svc := newSensorPassive(d)
-	return []jobs.Job{{Module: "sensor-passive", Name: "capture", Every: 15 * time.Second, Run: svc.Run}}
+	return []jobs.Job{{Module: "sensor-passive", Name: "capture", Every: 15 * time.Second, Run: d.SensorPassive.Run}}
 }
 
 // netHost is the stand-in for the host module (Box network, D-56): it lists the box's cards from the

@@ -10,17 +10,18 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// newInventory builds the inventory service from the shared deps; serve calls it once and stores it in
-// deps.Inventory. Its events go to deps.Bus.
-// ponytail: no feeds KEV data (WP-20: Config.KEV), no box packages (WP-07: Config.Box); the service degrades without them.
-func newInventory(d deps) *inventory.Service {
+// newInventory builds the inventory service from the shared deps; buildServices calls it once and stores it in
+// deps.Inventory. Its events go to deps.Bus; its KEV data comes from the feeds service (looked up lazily, see
+// feedsKEV, because feeds in turn takes the inventory).
+// ponytail: no box packages (WP-07: Config.Box) and no findings counter (needs a read method of findings); the service degrades without them.
+func newInventory(d *deps) *inventory.Service {
 	var pub inventory.Publisher
 	if d.Bus != nil {
 		pub = inventory.PublisherFunc(func(ctx context.Context, e inventory.Event) error {
 			return d.Bus.Publish(ctx, events.Event{Name: e.Name, Data: e.Data})
 		})
 	}
-	svc, err := inventory.New(inventory.Config{DB: d.DB, Audit: d.Audit, Modules: d.Reg, Clock: d.Clock, Log: d.Log, Events: pub})
+	svc, err := inventory.New(inventory.Config{DB: d.DB, Audit: d.Audit, Modules: d.Reg, Clock: d.Clock, Log: d.Log, Events: pub, KEV: feedsKEV{d}})
 	if err != nil { // only a missing DB or audit log: a programming error in serve
 		panic("vedette: " + err.Error())
 	}

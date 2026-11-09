@@ -10,7 +10,7 @@
 - Ghi chú trạng thái đo như GUI: `trim` của JavaScript và độ dài UTF-16 (ngưỡng 3 và 500).
 
 ## Modifying: `findings.Service.UpsertFromMatch(ctx, Asset, []Vuln)` và `OnMatchChanged(ctx, assetID)`
-- **inventory** (sự kiện `inventory.match.changed`; phải cài `findings.Inventory{Assets, MatchInput}`), **feeds** (phải cài `findings.Feeds{KevInfo, Vulns}`), **core/jobs** (khớp lại sau `feeds.vuln.new_kev`). Interface do `findings` định nghĩa, `cmd/vedette` nối cài đặt thật. Đổi quy tắc khớp/tạo/độ nghiêm trọng đổi số finding và tin `notify`.
+- **inventory** (sự kiện `inventory.match.changed`; phải cài `findings.Inventory{Assets, MatchInput}`), **feeds** (phải cài `findings.Feeds{KevInfo, Vulns}`; `cmd/vedette/wiring.go` cài từ `feeds.Store.KevVulns/KevVulnsByCVE`, chỉ hàng `cisa-kev`, chưa có khoảng bị ảnh hưởng nên chỉ `basis=product`; `findings.Inventory` từ `inventory.DeviceRefs/MatchInput`), **core/jobs** (khớp lại sau `feeds.vuln.new_kev`). Interface do `findings` định nghĩa, `cmd/vedette` nối cài đặt thật. Đổi quy tắc khớp/tạo/độ nghiêm trọng đổi số finding và tin `notify`.
 
 ## Modifying: `findings.Service.ConfirmFromScan(ctx, assetID, cve, Evidence)`
 - **scan** (kết quả `matched`), **scan-credentialed** (tương lai). Đổi `Evidence` hay điều kiện `confirmed` làm lệch bảng kết quả quét (`finding_id`) và trang finding.

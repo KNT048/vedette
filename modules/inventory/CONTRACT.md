@@ -1,6 +1,6 @@
 # Inventory Contract
 
-> Tier: standard · Story: S-INV-1, 2, 3, 5 (+ cột "Do you have it?" của S-FEED-1) · Last verified: 2026-11-09 (WP-10: backend Go + contract test)
+> Tier: standard · Story: S-INV-1, 2, 3, 5 (+ cột "Do you have it?" của S-FEED-1) · Last verified: 2026-11-09 (WP-10 + nối module: đọc cho feeds/findings/mitigation, `AddManualDevice`, khớp lại, nghe `feeds.*`)
 
 Nguồn hành vi: `web/src/features/inventory/{contract,mocks,validate}.ts`. Code: `modules/inventory` (`Service` là nơi ghi duy nhất, `Handlers` cho 16 thao tác của module). Cảm biến/agent ghi qua `core/observe` (`Sink`, `SoftwareSink`), không import gói này. Phần agent (osquery, Wazuh, `/install/*`, `/intake/*`) trong cùng `contract.ts` thuộc `agent-intake`; phần cảm biến (`/inventory/sensors*`) thuộc `sensor-passive`.
 
@@ -19,6 +19,9 @@ Nguồn hành vi: `web/src/features/inventory/{contract,mocks,validate}.ts`. Cod
 - **INV-12**: Danh mục `GET /inventory/catalog`: trả tối đa 30 mục kèm `total`; id mục tuyển chọn cố định, mục từ KEV là `kev:<vendor>:<product>`; chứa mọi cặp hãng/sản phẩm từng có trong KEV + sản phẩm SMB phổ biến; nhập tự do vẫn được (D-30). **Một nguồn dữ liệu cho cả web và Go**: `content/catalog/curated.json` (danh sách tuyển chọn) và `kev-products.json` (cặp KEV, thay bằng `feeds` qua `KEV.Products` khi WP-20 xong); thuật toán tìm kiếm có hai bản (`catalog.ts`, `catalog.go`) giữ đồng bộ bằng `content/catalog/search-golden.json` (`TestContract_INV12_CatalogMatchesTheWebGolden` + `catalog.golden.test.ts`).
 - **INV-13**: Nhập CSV ≤ 200 KB và ≤ 500 dòng; dòng lỗi báo theo số dòng, dòng hợp lệ vẫn thêm; tiêu đề cần cột `name` hoặc `product`. Xuất CSV UTF-8 có BOM.
 
+- **INV-14** (nối module, #38/#39): `AddManualDevice(ctx, tx, actor, ManualDevice)` chạy **trong giao dịch của người gọi** (feeds): thiết bị, phần mềm `manual`, dòng `core_audit` `inventory.add_manual` và sự kiện là một lần commit; sự kiện giữ lại tới `Settle(ctx, tx, committed)` (commit → phát, rollback → bỏ). Mọi kiểm tra của `AddDevice` áp dụng (khoá khớp `lower(vendor)|lower(product)`, nhãn ≤ 64 ký tự không có `<` `>`, loại thiết bị lạ bị bỏ qua). Một ngoại lệ: cặp hãng/sản phẩm **đúng bằng một cặp trong danh sách KEV** được dài tới 200 ký tự (dữ liệu của CISA, không phải người gõ; nếu không thì "Cisco ASA…" không bao giờ trả lời được "I have it"). Thiết bị khai tay: `origin=manual`, `approved=true`, không bao giờ quét (INV-5); INV-9 (`approved=false`) chỉ áp cho thiết bị cảm biến thấy. `TestAddManualDevice*`, `TestWiringFeedsYouHaveAndIHaveItAreAtomic`.
+- **INV-15**: `DevicesRunning` trả "yes" khi một phần mềm của thiết bị mang đúng khoá của sản phẩm; với mục "Multiple products" chỉ phần mềm khai đúng sản phẩm đó là "yes", thiết bị có phần mềm (hoặc nhà sản xuất) của hãng là "maybe" (INV-11 của feeds).
+
 ## Preconditions / Postconditions
 - **PRE-1** (`Record(ctx, []observe.Observation)` / `RecordObservation`): `source ∈ {agent,snmp,nmap,passive,scan}` (không `manual`), `field ∈ {hostname,mac,vendor,model,os,kind}`, `confidence ∈ [0,1]`, giá trị 1–200 ký tự in được (MAC chuẩn hoá `aa:bb:..`, kind thuộc 13 loại), gợi ý thiết bị có MAC hoặc IPv4; tối đa 5000 quan sát một lô; cả lô một giao dịch (hỏng một dòng = không lưu gì, lỗi bọc `ErrInvalid`). **POST-1**: quan sát thêm; tài sản tạo nếu MAC/IP mới (`approved=false`); `last_seen` cập nhật. Tìm theo MAC trước, rồi IP; thiết bị đã có MAC khác thì mất IP (DHCP đổi chủ) nếu là thiết bị phát hiện, còn thiết bị khai tay giữ IP. `TestContract_POST1_…`
 - **PRE-2** (`UpsertSoftware(assetID, items, source)`, `ReplaceSoftware(hint, source, items)`): tài sản tồn tại (hoặc tạo theo gợi ý), `source ≠ manual`. **POST-2**: `inv_software` của nguồn đó thay đúng bằng danh sách (dòng nguồn khác, kể cả `manual`, không đụng); danh sách y hệt không phát gì; đổi thì phát `inventory.software.changed` và `inventory.match.changed` cho CVE mới khớp.
@@ -34,7 +37,7 @@ Nguồn hành vi: `web/src/features/inventory/{contract,mocks,validate}.ts`. Cod
 - **FORBID-5**: Gửi dữ liệu tài sản ra ngoài hộp (trừ khi `ai`/`notify` được cấu hình, qua module đó).
 
 ## Dependencies
-- **DEPENDS ON**: `core`, `feeds` (khớp KEV, danh mục; qua interface `KEV`, tuỳ chọn: thiếu thì danh mục dùng `kev-products.json` nhúng và không có CVE).
+- **DEPENDS ON**: `core`, `feeds` (khớp KEV, danh mục; qua interface `KEV` do `cmd/vedette` cài từ `feeds.Store`; bảng `feeds_vuln` còn rỗng hoặc `feeds` tắt thì danh mục dùng `kev-products.json` nhúng và không có CVE).
 - **DEPENDED ON BY**: `sensor-passive`, `sensor-active`, `agent-intake`, `findings` (khớp KEV, finding), `mitigation` (hãng thiết bị cho `firewall[].detected`), `exposure`, `scan`, `scan-credentialed`, `honeypot`, `logs`, `response`, `reports`, `ai`, `mcp-server`; tuỳ chọn `notify` (tên thiết bị trong tin).
 
 ## Endpoints owned (role tối thiểu)
@@ -49,7 +52,7 @@ Nguồn hành vi: `web/src/features/inventory/{contract,mocks,validate}.ts`. Cod
 
 ## Events
 - **Phát** (sau khi giao dịch commit): `inventory.asset.discovered {asset_id, notify}`, `inventory.asset.updated {asset_id}` (sửa tay, duyệt, đánh dấu, tạo khai tay, giá trị hiện hành đổi), `inventory.asset.deleted {asset_id}`, `inventory.software.changed {asset_id}`, `inventory.match.changed {asset_id, cve, basis}`, `inventory.settings.changed {scope: scan|notify_new}`. Kiểu dữ liệu: `AssetEvent`, `MatchEvent`, `SettingsEvent` trong `modules/inventory/types.go`.
-- **Nhận**: chưa. `feeds.vuln.new_kev`/`feeds.vuln.updated` (khớp lại) để sau: `findings` tự khớp lại từ phần mềm + khoá KEV của inventory, inventory chỉ báo lúc thêm (xem `.ai/deferred/feat-inventory.md`).
+- **Nhận** (đăng ký ở `cmd/vedette/wiring.go`, chỉ chạy khi `inventory` bật): `feeds.vuln.new_kev {cve, vendor, product}` → `RematchCVE` (phát `inventory.match.changed` cho thiết bị chạy sản phẩm đó; mục "Multiple products" khớp mọi thiết bị có phần mềm của hãng); `feeds.sync.baseline` (D-78) → `RematchAll` (một lượt: mọi thiết bị × mọi CVE đang khớp, chạy trong goroutine của bên phát với trần 2 phút). `feeds.vuln.updated` **chưa** được nghe: CVE đổi hãng/sản phẩm hay `has_template` không khớp lại (deferred).
 
 ## Behaviour khi tắt
 Không route; Devices trống; `sensor-*`/`agent-intake` mất nơi ghi (chúng phụ thuộc, `affected`); `findings` không có finding mới; `scan` không mục tiêu nội bộ; "Do you have it?" thành `null`; honeypot/logs không tra tên thiết bị. Dữ liệu giữ.

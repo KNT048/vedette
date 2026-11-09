@@ -16,7 +16,9 @@ import (
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/feeds"
+	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
+	"github.com/knt048/vedette/modules/mitigation"
 	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
 )
 
@@ -33,7 +35,11 @@ type deps struct {
 
 	// Module services other modules use through their own ports (issue #38, #39). Built once in serve,
 	// after the fields above, so every handler, job and subscriber shares one instance.
-	Inventory *inventory.Service
+	Inventory          *inventory.Service
+	Findings           *findings.Service
+	FindingHandlers    *findings.FindingHandlers // also carries mitigation's guidance (SetGuidance) and is mitigation's Details
+	MitigationHandlers *mitigation.ActionHandlers
+	SensorPassive      *sensorpassive.Service // the capture job and the HTTP handler share it: the SPAN measurement lives in its memory
 }
 
 // moduleWiring is one module the binary carries. Adding a module = one entry in wiredModules and
@@ -52,6 +58,8 @@ func wiredModules() []moduleWiring {
 		{ID: "core", Migrations: core.Migrations},
 		{ID: "feeds", Migrations: feeds.Migrations, Jobs: feedsJobs},
 		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},
+		{ID: "findings", Migrations: findings.Migrations},
+		{ID: "mitigation", Migrations: mitigation.Migrations},
 		{ID: "sensor-passive", Migrations: sensorpassive.Migrations, Jobs: sensorPassiveJobs},
 	}
 }

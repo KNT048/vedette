@@ -202,7 +202,17 @@ const steps: Step[] = [
   { name: 'parse-test missing parser', role: 'admin', method: 'POST', path: '/feeds/parse-test', body: { kind: 'ioc' }, status: 400, code: 'invalid_body', real: { code: 'invalid' } },
 ]
 
+// A real box keeps what an earlier (or failed) run left: remove the custom feeds this script creates before starting, and again at the end.
+const MINE = new Set(['Partner blocklist', 'Partner blocklist renamed', 'partner blocklist RENAMED', 'Internal', 'Basic one', 'Header one', 'Auth probe'])
+async function sweep(target: 'mock' | 'real') {
+  const list = await call(target, { name: 'list', role: 'admin', method: 'GET', path: '/feeds/sources', status: 200 }, {})
+  for (const f of ((list.body as { items?: { id: string; name: string; builtin: boolean }[] })?.items ?? [])) {
+    if (!f.builtin && MINE.has(f.name)) await call(target, { name: 'sweep', role: 'admin', method: 'DELETE', path: `/feeds/custom/${f.id}`, status: 204 }, {})
+  }
+}
+
 async function run(target: 'mock' | 'real') {
+  await sweep(target)
   const c: Ctx = {}
   const problems: string[] = []
   for (const s of steps) {
@@ -220,6 +230,7 @@ async function run(target: 'mock' | 'real') {
     }
     try { s.keep?.(r.body, c); s.check?.(r.body, c, target) } catch (e) { problems.push(`${s.name}: ${e instanceof Error ? e.message.split('\n')[0] : String(e)}`) }
   }
+  await sweep(target)
   return problems
 }
 

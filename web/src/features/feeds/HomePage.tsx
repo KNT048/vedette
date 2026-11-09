@@ -9,7 +9,8 @@ import { EmptyState, QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
-import { fmtDate, fmtDateTime, fmtPercent } from '@/lib/format'
+import { fmtPercent } from '@/lib/format'
+import { fmtDay, fmtStamp } from './dates'
 import { useCan } from '@/lib/session'
 import { useSetup } from '@/app/RequireSession'
 import { ApiError } from '@/lib/api'
@@ -26,8 +27,8 @@ function SearchBox() {
     if (q.trim()) navigate(`/lookup?q=${encodeURIComponent(q.trim())}`)
   }
   return (
-    <form role="search" onSubmit={submit} className="flex w-full max-w-md gap-2">
-      <Input value={q} maxLength={200} onChange={(e) => setQ(e.target.value)} placeholder={t('search.placeholder')} aria-label={t('search.placeholder')} />
+    <form role="search" onSubmit={submit} className="flex w-full min-w-[min(100%,22rem)] max-w-md flex-wrap gap-2">
+      <Input value={q} maxLength={200} className="min-w-[17rem] flex-1" onChange={(e) => setQ(e.target.value)} placeholder={t('search.placeholder')} aria-label={t('search.placeholder')} />
       <Button type="submit"><Search />{t('search.submit')}</Button>
     </form>
   )
@@ -86,7 +87,7 @@ function HotBoard() {
             )} />
         ) : (
           <EmptyState title={t('hot.empty', { window: win === '24h' ? t('hot.24h') : t('hot.7d') })}>
-            {d.latest ? t('hot.emptyLatest', { date: fmtDate(d.latest.date_added), product: d.latest.display }) : null}
+            {d.latest ? t('hot.emptyLatest', { date: fmtDay(d.latest.date_added), product: d.latest.display }) : null}
           </EmptyState>
         )}
       </QueryState>
@@ -146,7 +147,7 @@ export default function HomePage() {
       <PageHeader
         title={title}
         stories={['S-FEED-1', 'S-FEED-3']}
-        meta={never ? t('home.metaNone') : status.data ? <>{t('home.meta', { time: fmtDateTime(status.data.generated_at), sources: status.data.sources.map((s) => s.name).join(', ') })}{setup.data?.data_mode === 'sample' ? ` ${t('home.sampleInventory')}` : ''}</> : null}
+        meta={never ? t('home.metaNone') : status.data ? <>{t('home.meta', { time: fmtStamp(status.data.generated_at), sources: status.data.sources.map((s) => s.name).join(', ') })}{setup.data?.data_mode === 'sample' ? ` ${t('home.sampleInventory')}` : ''}</> : null}
         actions={<SearchBox />}
       />
       {matched > 0 ? (

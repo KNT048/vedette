@@ -102,7 +102,9 @@
     "matchedNone": "No matching devices found",
     "matchedNoneBody": "If you have this product but have not listed it, add it on the Devices page.",
     "toFindings": "See findings and what to do",
-    "tryLookup": "Look up this ID"
+    "tryLookup": "Look up this ID",
+    "notAnId": "“{{id}}” is not a CVE ID",
+    "notAnIdBody": "CVE IDs look like CVE-2021-44228: the letters CVE, a year, and a number."
   },
   "settings": {
     "nav": "Feeds",
@@ -151,7 +153,7 @@
     "nowOff": "{{name}} is off",
     "fetchNow": "Fetch now",
     "fetching": "Fetching...",
-    "fetchNamed": "Fetch {{name}} now",
+    "fetchNamed": "Fetch now: {{name}}",
     "turnOnFirst": "Turn the feed on first",
     "fetched": "Fetched {{name}}: {{count}} records",
     "failed": "fetch failed",

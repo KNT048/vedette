@@ -170,3 +170,81 @@ describe('feeds: CVE links (contract.ts: http(s) only)', () => {
     expect(document.querySelectorAll('a[href^="javascript:"], a[href^="data:"]')).toHaveLength(0)
   })
 })
+
+describe('feeds: after a refused submit the first wrong field takes focus (phone: the message is off-screen)', () => {
+  async function openAdd() {
+    renderApp('/settings/feeds')
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add a feed' }))[0]!)
+    return screen.findByRole('dialog', { name: 'Add a feed' })
+  }
+  const add = (dlg: HTMLElement) => userEvent.click(within(dlg).getByRole('button', { name: /^Add feed$|^Add$/ }))
+
+  it('the browser-side checks: name, then address, then the secret', async () => {
+    const dlg = await openAdd()
+    await add(dlg)
+    expect(within(dlg).getByLabelText('Name')).toHaveFocus()
+    await userEvent.type(within(dlg).getByLabelText('Name'), 'Partner IOC')
+    await add(dlg)
+    expect(within(dlg).getByLabelText('Address')).toHaveFocus()
+    await userEvent.type(within(dlg).getByLabelText('Address'), 'https://feeds.partner.example/ioc.json')
+    await userEvent.selectOptions(within(dlg).getByLabelText('Authentication'), 'bearer')
+    await add(dlg)
+    expect(within(dlg).getByLabelText('Secret')).toHaveFocus()
+  })
+
+  it('an answer from the server: a name that exists takes focus; an unknown error takes the message', async () => {
+    const dlg = await openAdd()
+    await userEvent.type(within(dlg).getByLabelText('Name'), 'CISA KEV')
+    await userEvent.type(within(dlg).getByLabelText('Address'), 'https://feeds.partner.example/ioc.json')
+    await userEvent.click(within(dlg).getByLabelText('Address')) // focus away from the name
+    await add(dlg)
+    await waitFor(() => expect(within(dlg).getByLabelText('Name')).toHaveFocus())
+    server.use(http.post('*/api/v1/feeds/custom', () => HttpResponse.json({ error: { code: 'x', message: 'The box is busy.' } }, { status: 503 })))
+    await userEvent.clear(within(dlg).getByLabelText('Name')); await userEvent.type(within(dlg).getByLabelText('Name'), 'Another one')
+    await userEvent.click(within(dlg).getByLabelText('Address'))
+    await add(dlg)
+    await waitFor(() => expect(within(dlg).getByRole('alert')).toHaveFocus())
+  })
+})
+
+describe('feeds: Lookup keeps a long query inside the page', () => {
+  it('a 200-character string without spaces is allowed to break anywhere', async () => {
+    const q = 'a'.repeat(200)
+    renderApp(`/lookup?q=${q}`)
+    const title = await screen.findByText(`No exploited vulnerability matches "${q}"`)
+    // jsdom has no layout: the rule is inherited from the wrapper that holds the result
+    expect(title.closest('[class*="overflow-wrap:anywhere"]')).not.toBeNull()
+  })
+})
+
+describe('feeds: a button\'s accessible name contains its visible text (WCAG 2.5.3)', () => {
+  it('Settings -> Feeds: no label-content-name-mismatch on any button', async () => {
+    renderApp('/settings/feeds')
+    await screen.findByRole('button', { name: /^Fetch now: CISA KEV$|^Fetch CISA KEV now$/ })
+    // axe's own rule needs a real layout engine; this is the same rule: the label must contain what is written on the button
+    const bad = [...document.querySelectorAll('button[aria-label]')].filter((b) => {
+      const visible = (b.textContent ?? '').trim().toLowerCase()
+      return visible && !(b.getAttribute('aria-label') ?? '').toLowerCase().includes(visible)
+    }).map((b) => `${b.getAttribute('aria-label')} (shows "${b.textContent}")`)
+    expect(bad).toEqual([])
+  })
+})
+
+describe('feeds: plain words for what is not a CVE, and dates that mean one thing', () => {
+  it('/cve/hello says it is not a CVE ID, with an example, and never asks the API', async () => {
+    let asked = 0
+    server.use(http.get('*/api/v1/feeds/cve/:id', () => { asked++; return HttpResponse.json({ error: { code: 'invalid', message: 'Invalid request. The parameter "id" is not valid.' } }, { status: 400 }) }))
+    renderApp('/cve/hello')
+    expect(await screen.findByText('“hello” is not a CVE ID')).toBeInTheDocument()
+    expect(screen.getByText(/CVE IDs look like CVE-2021-44228/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Look up this ID' })).toHaveAttribute('href', '/lookup?q=hello')
+    expect(document.body.textContent).not.toMatch(/Invalid request|parameter "id"/)
+    expect(asked).toBe(0)
+  })
+
+  it('dates are written with the month in letters', async () => {
+    renderApp('/cve/CVE-2024-27834')
+    expect(await screen.findByText(/Added to exploited list 4 Nov 2026/)).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/\b\d{2}\/\d{2}\/20\d\d\b/)
+  })
+})

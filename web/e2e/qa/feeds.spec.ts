@@ -7,7 +7,10 @@
 // The same steps must pass on both: that is the point. Set FEEDS_REAL=1 when the backend is real (it checks things only a real pull can show);
 // FEEDS_EMPTY=1 as well when the box has never fetched anything (a fresh dev-api box).
 import { expect, test, type Page } from '@playwright/test'
+import { createRequire } from 'node:module'
 import { collectErrors, shot, startWithSample } from '../helpers'
+
+const AXE = createRequire(import.meta.url).resolve('axe-core/axe.min.js')
 
 test.describe.configure({ retries: 1 })
 const REAL = !!process.env.FEEDS_REAL
@@ -193,7 +196,7 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
     // switch off: Fetch now is locked and says why; on again
     const sw = page.getByRole('switch', { name: 'Enable ET Open compromised IPs' })
     const was = await sw.isChecked() // leave the feed as it was: a box pulls whatever is left on
-    const fetchBtn = page.getByRole('button', { name: 'Fetch ET Open compromised IPs now' })
+    const fetchBtn = page.getByRole('button', { name: 'Fetch now: ET Open compromised IPs' })
     await sw.click()
     await toast(page, was ? /ET Open compromised IPs is off/ : /ET Open compromised IPs is on/)
     if (was) await expect(fetchBtn).toBeDisabled(); else await expect(fetchBtn).toBeEnabled()
@@ -207,7 +210,7 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
     for (const role of ['viewer', 'operator'] as const) {
       await start(page, role, SETTINGS)
       await expect(feedRow(page, 'CISA KEV')).toBeVisible()
-      for (const b of [page.getByRole('button', { name: 'Settings for CISA KEV' }), page.getByRole('button', { name: 'Fetch CISA KEV now' }), page.getByRole('switch', { name: 'Enable CISA KEV' })]) {
+      for (const b of [page.getByRole('button', { name: 'Settings for CISA KEV' }), page.getByRole('button', { name: 'Fetch now: CISA KEV' }), page.getByRole('switch', { name: 'Enable CISA KEV' })]) {
         await expect(b).toBeDisabled()
         await expect(b).toHaveAttribute('title', /Requires .+ role/)
       }
@@ -321,7 +324,7 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
     await dlg.locator('#pe-format').selectOption('lines')
     await dlg.getByRole('button', { name: 'Add feed' }).click()
     await toast(page, /Unreachable partner added/)
-    await page.getByRole('button', { name: 'Fetch Unreachable partner now' }).click()
+    await page.getByRole('button', { name: 'Fetch now: Unreachable partner' }).click()
     await toast(page, /Unreachable partner: /)
     const row = feedRow(page, 'Unreachable partner')
     await expect(row).toContainText('Error')
@@ -349,5 +352,62 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
     await dlg.getByRole('button', { name: 'Test on a sample' }).click()
     await expect(dlg.getByRole('status')).not.toContainText('Your sample')
     await expect(dlg.getByRole('status')).toContainText(/rows? accepted/)
+  })
+})
+
+test.describe('feeds: fixes from the independent QA pass', () => {
+  test('phone and desktop: refused submits move focus to the first wrong field, and it is on screen', async ({ page }) => {
+    await start(page, 'admin', SETTINGS)
+    await page.getByRole('button', { name: 'Add a feed' }).first().click()
+    const dlg = page.getByRole('dialog', { name: 'Add a feed' })
+    await dlg.getByRole('button', { name: 'Add feed' }).click() // nothing filled in
+    await expect(dlg.locator('#cf-name')).toBeFocused()
+    await expect(dlg.locator('#cf-name')).toBeInViewport()
+    await dlg.locator('#cf-name').fill('cisa kev') // a name the server refuses, address fine
+    await dlg.locator('#cf-url').fill('https://feeds.partner.example/ioc.json')
+    await dlg.locator('#cf-url').scrollIntoViewIfNeeded()
+    await dlg.getByRole('button', { name: 'Add feed' }).click()
+    await expect(dlg.getByText('A feed with this name already exists.')).toBeVisible()
+    await expect(dlg.locator('#cf-name')).toBeFocused()
+    await expect(dlg.locator('#cf-name')).toBeInViewport()
+  })
+
+  test('Lookup: 200 characters without a space wrap inside the page', async ({ page }) => {
+    await start(page, 'viewer', `/lookup?q=${'x'.repeat(200)}`)
+    await expect(page.getByText(/No exploited vulnerability matches/)).toBeVisible()
+    await noHorizontalScroll(page)
+  })
+
+  test('every Fetch now button names the feed and still contains its visible words; axe is clean, light and dark', async ({ page }) => {
+    for (const scheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: scheme })
+      await start(page, 'admin', SETTINGS)
+      await expect(page.getByRole('button', { name: 'Fetch now: CISA KEV' })).toBeVisible()
+      await page.addScriptTag({ path: AXE })
+      const bad = await page.evaluate(async () => {
+        // @ts-expect-error axe is put on window by addScriptTag
+        const r = await window.axe.run(document, { rules: { 'label-content-name-mismatch': { enabled: true } }, resultTypes: ['violations'] })
+        return (r.violations as { id: string; impact: string; nodes: { target: string[] }[] }[]).filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id}: ${v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(' | ')}`)
+      })
+      expect(bad, `${scheme}: ${bad.join('\n')}`).toEqual([])
+    }
+  })
+
+  test('/cve/hello: plain words, no API wording', async ({ page }) => {
+    await start(page, 'viewer', '/cve/hello')
+    await expect(page.getByText('\u201chello\u201d is not a CVE ID')).toBeVisible()
+    await expect(page.getByText(/CVE IDs look like CVE-2021-44228/)).toBeVisible()
+    await expect(page.locator('body')).not.toContainText(/Invalid request|parameter "id"/)
+  })
+
+  test('the search box is wide enough for its hint, and dates read as "9 Nov 2026"', async ({ page, isMobile }) => {
+    test.skip(EMPTY, 'needs data')
+    await start(page, 'viewer', '/')
+    const box = page.getByRole('textbox', { name: 'CVE, product, IP or domain' })
+    await expect(box).toBeVisible()
+    const w = (await box.boundingBox())!.width
+    expect(w, `search box is ${w}px wide`).toBeGreaterThanOrEqual(isMobile ? 280 : 260)
+    await expect(page.getByText(/Data updated \d{1,2} [A-Z][a-z]{2} 20\d\d, \d\d:\d\d/)).toBeVisible()
+    await expect(page.locator('main')).not.toContainText(/\b\d{2}\/\d{2}\/20\d\d\b/)
   })
 })

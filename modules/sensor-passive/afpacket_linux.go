@@ -6,10 +6,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"syscall"
 	"time"
-	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 // ErrNoLiveCapture is returned by OpenLive where there is no AF_PACKET. On Linux it is never returned.
@@ -45,10 +47,12 @@ func OpenLive(iface string) (Source, error) {
 	if err := syscall.Bind(fd, &syscall.SockaddrLinklayer{Protocol: htons(syscall.ETH_P_ALL), Ifindex: ifc.Index}); err != nil {
 		return fail("bind", err)
 	}
-	mreq := packetMreq{ifindex: int32(ifc.Index), typ: 1} // PACKET_MR_PROMISC
-	if _, _, e := syscall.Syscall6(syscall.SYS_SETSOCKOPT, uintptr(fd), syscall.SOL_PACKET, syscall.PACKET_ADD_MEMBERSHIP,
-		uintptr(unsafe.Pointer(&mreq)), unsafe.Sizeof(mreq), 0); e != 0 {
-		return fail("promiscuous membership", e)
+	if ifc.Index < 1 || ifc.Index > math.MaxInt32 {
+		return fail("interface index", fmt.Errorf("index %d out of range", ifc.Index))
+	}
+	mreq := unix.PacketMreq{Ifindex: int32(ifc.Index), Type: unix.PACKET_MR_PROMISC}
+	if err := unix.SetsockoptPacketMreq(fd, unix.SOL_PACKET, unix.PACKET_ADD_MEMBERSHIP, &mreq); err != nil {
+		return fail("promiscuous membership", err)
 	}
 	// Wake up every second so the loop can flush and see a stop request while the line is quiet.
 	tv := syscall.NsecToTimeval(int64(time.Second))
@@ -56,13 +60,6 @@ func OpenLive(iface string) (Source, error) {
 		return fail("receive timeout", err)
 	}
 	return &liveSource{fd: fd, buf: make([]byte, 65536)}, nil
-}
-
-type packetMreq struct {
-	ifindex int32
-	typ     uint16
-	alen    uint16
-	addr    [8]byte
 }
 
 func htons(v uint16) uint16 { return v<<8 | v>>8 }

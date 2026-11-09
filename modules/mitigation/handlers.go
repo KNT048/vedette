@@ -25,9 +25,9 @@ type Details interface {
 	Detail(ctx context.Context, rec findings.Record) (findings.Detail, error)
 }
 
-// MitigationHandlers implements POST /findings/{id}/applied and POST /findings/{id}/ai (operator). Embed it
+// ActionHandlers implements POST /findings/{id}/applied and POST /findings/{id}/ai (operator). Embed it
 // in the composite handler; it implements no other operation.
-type MitigationHandlers struct {
+type ActionHandlers struct {
 	db      *store.DB
 	audit   *audit.Log
 	finding *findings.Service
@@ -36,12 +36,12 @@ type MitigationHandlers struct {
 	now     func() time.Time
 }
 
-// NewMitigationHandlers returns the handlers. clock may be nil.
-func NewMitigationHandlers(db *store.DB, a *audit.Log, f *findings.Service, d Details, ai AI, clock func() time.Time) *MitigationHandlers {
+// NewActionHandlers returns the handlers. clock may be nil.
+func NewActionHandlers(db *store.DB, a *audit.Log, f *findings.Service, d Details, ai AI, clock func() time.Time) *ActionHandlers {
 	if clock == nil {
 		clock = time.Now
 	}
-	return &MitigationHandlers{db: db, audit: a, finding: f, details: d, ai: ai, now: clock}
+	return &ActionHandlers{db: db, audit: a, finding: f, details: d, ai: ai, now: clock}
 }
 
 // Limits on what the AI may hand back: its output is untrusted text (rules/security.md).
@@ -62,7 +62,7 @@ func aiUnavailable() error {
 
 // FindingsPostFindingsIDApplied implements findings_post_findings_id_applied (INV-1): it logs one item
 // as applied, once, and never changes the finding's status.
-func (h *MitigationHandlers) FindingsPostFindingsIDApplied(ctx context.Context, req *oas.FindingsPostFindingsIDAppliedReq, params oas.FindingsPostFindingsIDAppliedParams) (*oas.FindingsPostFindingsIDAppliedOK, error) {
+func (h *ActionHandlers) FindingsPostFindingsIDApplied(ctx context.Context, req *oas.FindingsPostFindingsIDAppliedReq, params oas.FindingsPostFindingsIDAppliedParams) (*oas.FindingsPostFindingsIDAppliedOK, error) {
 	p, ok := server.PrincipalFrom(ctx)
 	if !ok {
 		return nil, apierr.Unauthenticated()
@@ -81,7 +81,7 @@ func (h *MitigationHandlers) FindingsPostFindingsIDApplied(ctx context.Context, 
 	return findings.Into[oas.FindingsPostFindingsIDAppliedOK](d)
 }
 
-func (h *MitigationHandlers) markApplied(ctx context.Context, rec findings.Record, item, user string) error {
+func (h *ActionHandlers) markApplied(ctx context.Context, rec findings.Record, item, user string) error {
 	var has int
 	if err := h.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM mit_pack WHERE cve = ?`, rec.CVE).Scan(&has); err != nil {
 		return fmt.Errorf("mitigation: looking up pack: %w", err)
@@ -109,7 +109,7 @@ func (h *MitigationHandlers) markApplied(ctx context.Context, rec findings.Recor
 // FindingsPostFindingsIDAi implements findings_post_findings_id_ai (INV-3): the customer's AI explains
 // the finding or drafts a recommendation; the result is stored as an AI result and answered with its
 // AI label data (model, profile, tokens, citations). 409 ai_unavailable when it cannot be used.
-func (h *MitigationHandlers) FindingsPostFindingsIDAi(ctx context.Context, req *oas.FindingsPostFindingsIDAiReq, params oas.FindingsPostFindingsIDAiParams) (*oas.FindingsPostFindingsIDAiOK, error) {
+func (h *ActionHandlers) FindingsPostFindingsIDAi(ctx context.Context, req *oas.FindingsPostFindingsIDAiReq, params oas.FindingsPostFindingsIDAiParams) (*oas.FindingsPostFindingsIDAiOK, error) {
 	p, ok := server.PrincipalFrom(ctx)
 	if !ok {
 		return nil, apierr.Unauthenticated()
@@ -144,7 +144,7 @@ func (h *MitigationHandlers) FindingsPostFindingsIDAi(ctx context.Context, req *
 	return findings.Into[oas.FindingsPostFindingsIDAiOK](d)
 }
 
-func (h *MitigationHandlers) storeAI(ctx context.Context, rec findings.Record, res findings.AIResult, activityID, user string) error {
+func (h *ActionHandlers) storeAI(ctx context.Context, rec findings.Record, res findings.AIResult, activityID, user string) error {
 	payload, err := jsonOf(res)
 	if err != nil {
 		return err

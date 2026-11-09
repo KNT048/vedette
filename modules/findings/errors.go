@@ -30,5 +30,5 @@ var (
 	ErrInvalidEvidence = errors.New("invalid scan evidence")
 )
 
-// ErrUnknownAsset: the device does not exist in the inventory (PRE-1 of UpsertFromMatch).
+// ErrUnknownAsset means the device does not exist in the inventory (PRE-1 of UpsertFromMatch).
 var ErrUnknownAsset = errors.New("unknown asset")

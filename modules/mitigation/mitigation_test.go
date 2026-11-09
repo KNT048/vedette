@@ -115,7 +115,7 @@ type rig struct {
 type composite struct {
 	server.Fallback
 	*findings.FindingHandlers
-	*MitigationHandlers
+	*ActionHandlers
 }
 
 func newRig(t *testing.T) *rig {
@@ -141,7 +141,7 @@ func newRig(t *testing.T) *rig {
 	fh.SetGuidance(NewProvider(db, r.vendors, r.ai))
 	r.loader = NewLoader(db, a, fakeVerifier{}, log, clock)
 	r.h, err = server.New(server.Config{
-		API:     composite{Fallback: server.Fallback{Log: log}, FindingHandlers: fh, MitigationHandlers: NewMitigationHandlers(db, a, r.svc, fh, r.ai, clock)},
+		API:     composite{Fallback: server.Fallback{Log: log}, FindingHandlers: fh, ActionHandlers: NewActionHandlers(db, a, r.svc, fh, r.ai, clock)},
 		Auth:    &servertest.Auth{Users: servertest.StandardUsers()},
 		Modules: r.gate,
 		Log:     log,
@@ -171,7 +171,7 @@ func (r *rig) call(method, path, user, body string) (int, map[string]any) {
 	req := httptest.NewRequestWithContext(r.t.Context(), method, server.Prefix+path, rd)
 	req.Header.Set("Content-Type", "application/json")
 	if user != "" {
-		req.AddCookie(&http.Cookie{Name: servertest.CookieName, Value: user})
+		req.AddCookie(&http.Cookie{Name: servertest.CookieName, Value: user, Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode})
 	}
 	req.Header.Set(servertest.CSRFHeader, servertest.CSRFValue)
 	w := httptest.NewRecorder()
@@ -191,10 +191,10 @@ func errCode(b map[string]any) string {
 	return c
 }
 
-func (r *rig) count(query string, args ...any) int {
+func (r *rig) count(query string) int {
 	r.t.Helper()
 	var n int
-	if err := r.db.Reader().QueryRowContext(r.t.Context(), query, args...).Scan(&n); err != nil {
+	if err := r.db.Reader().QueryRowContext(r.t.Context(), query).Scan(&n); err != nil {
 		r.t.Fatal(err)
 	}
 	return n

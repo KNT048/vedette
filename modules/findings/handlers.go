@@ -114,7 +114,7 @@ func (h *FindingHandlers) Detail(ctx context.Context, rec Record) (Detail, error
 			return Detail{}, fmt.Errorf("findings: reading the recommendation: %w", err)
 		}
 	}
-	d.Guide.Normalize()
+	d.Normalize()
 	return d, nil
 }
 

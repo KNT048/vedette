@@ -139,9 +139,9 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 				return err
 			}
 			before := r.Finding
-			r.Finding = r.Finding.ApplyMatch(em)
+			r.Finding = r.ApplyMatch(em)
 			r.LastSeen = now
-			if err := r.Finding.Validate(); err != nil {
+			if err := r.Validate(); err != nil {
 				return fmt.Errorf("findings: finding %s after a repeated match: %w", r.ID, err)
 			}
 			if err := updateRecord(ctx, tx, r); err != nil {
@@ -180,7 +180,7 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 			ev.CheckedAt = now
 		}
 		was := r.Status
-		o, err := r.Finding.ConfirmFromScan(ev, now)
+		o, err := r.ConfirmFromScan(ev, now)
 		if err != nil {
 			return err
 		}
@@ -190,7 +190,7 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 		}
 		r.Finding = o.Finding
 		r.LastSeen = now
-		if err := r.Finding.Validate(); err != nil {
+		if err := r.Validate(); err != nil {
 			return fmt.Errorf("findings: finding %s after a scan: %w", r.ID, err)
 		}
 		if err := updateRecord(ctx, tx, r); err != nil {
@@ -242,7 +242,7 @@ func (s *Service) SetStatus(ctx context.Context, id string, action Action, note,
 			return err
 		}
 		was := r.Status
-		f, h, err := r.Finding.Apply(action, note, user, now)
+		f, h, err := r.Apply(action, note, user, now)
 		if err != nil {
 			return err
 		}

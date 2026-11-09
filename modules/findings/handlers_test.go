@@ -56,7 +56,7 @@ func (e *httpEnv) call(method, path, user, body string) (int, map[string]any) {
 	r := httptest.NewRequestWithContext(e.t.Context(), method, server.Prefix+path, rd)
 	r.Header.Set("Content-Type", "application/json")
 	if user != "" {
-		r.AddCookie(&http.Cookie{Name: servertest.CookieName, Value: user})
+		r.AddCookie(&http.Cookie{Name: servertest.CookieName, Value: user, Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode})
 	}
 	r.Header.Set(servertest.CSRFHeader, servertest.CSRFValue)
 	w := httptest.NewRecorder()

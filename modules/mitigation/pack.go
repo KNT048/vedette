@@ -52,10 +52,10 @@ type InstallResult struct {
 	Rejected []Rejection
 }
 
-// ErrNoVerifier: no signature verifier is configured, so every update is refused (fail closed, FORBID-3).
+// ErrNoVerifier means no signature verifier is configured, so every update is refused (fail closed, FORBID-3).
 var ErrNoVerifier = errors.New("no update signature verifier configured")
 
-// ErrUnsigned: the update's signature is not valid.
+// ErrUnsigned means the update's signature is not valid.
 var ErrUnsigned = errors.New("update signature is not valid")
 
 // packDoc is the pack file format: the pack of contract.ts plus status and the optional recheck and

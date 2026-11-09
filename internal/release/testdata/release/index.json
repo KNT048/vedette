@@ -1,0 +1,27 @@
+{
+  "advisories": [],
+  "channels": {
+    "stable": {
+      "latest": "1.4.0",
+      "manifest": "https://github.com/knt048/vedette/releases/download/v1.4.0/release-manifest.json",
+      "manifest_sha256": "562f6d88744582c1d4639054a6479fe75573f63e66fa208c729fbdf5ab647727",
+      "rollout": {
+        "percent": 100
+      }
+    }
+  },
+  "expires_at": "2026-12-16T08:00:00Z",
+  "generated_at": "2026-12-02T08:00:00Z",
+  "keys": [],
+  "revoked": [
+    {
+      "action": "block_install",
+      "id": "1.3.2",
+      "kind": "release",
+      "reason": "Test vector: broken migration",
+      "since": "2026-11-20T00:00:00Z"
+    }
+  ],
+  "schema": 1,
+  "sequence": 7
+}

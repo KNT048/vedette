@@ -1,0 +1,1 @@
+{"critical":{"identity":{"docker-reference":"ghcr.io/knt048/vedette-core"},"image":{"docker-manifest-digest":"sha256:d34db33fd34db33fd34db33fd34db33fd34db33fd34db33fd34db33fd34db33f"},"type":"cosign container image signature"},"optional":{"CamelCase WithSpace":8.314,"creator":"anyone","some_struct":{"false":true,"foo":"bar","nothing":null}}}

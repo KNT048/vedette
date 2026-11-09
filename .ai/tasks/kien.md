@@ -48,6 +48,8 @@ kien 2026-11-09 (đã chuyển cho Emily): "tôi muốn box có thêm chế đ�
 - [ ] Quyết định ghi vào DECISIONS (số **D-79** để dành cho việc này).
 
 ## Trước khi phát hành (đợt rà WP-31/WP-32)
+- [ ] D-108: mỗi lần tăng `schema` của `index.json`/manifest, job phát hành **vẫn đăng index của schema trước** cạnh bản mới (ví dụ `index.v1.json`) ít nhất 12 tháng, để hộp cũ nhận được thu hồi (update-manifest §14); và ký image bằng `cosign sign --key … <kho>@<digest>` đúng như update-manifest §4.2 (docker-reference = kho).
+
 - [ ] D-82: tín hiệu ẩn danh không được gửi (không có bộ gửi, không có nơi nhận). PRIVACY luồng 2 và mục "Anonymous signal" ở Cài đặt → Quyền riêng tư phải khớp thực tế lúc phát hành (dùng lại theo story mới, hoặc ẩn/ghi "không gửi").
 
 - [ ] D-81: ba dịch vụ dò IP công cộng (`checkip.amazonaws.com`, `icanhazip.com`, `ifconfig.me/ip`) vẫn thuộc ba nhà vận hành khác nhau: tra DNS/AS mỗi lần phát hành.

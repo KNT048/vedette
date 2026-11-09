@@ -1,0 +1,77 @@
+{
+  "bundled": [
+    {
+      "name": "nmap",
+      "service": "scan",
+      "version": "7.95"
+    }
+  ],
+  "channel": "stable",
+  "content": [
+    {
+      "in_image": "core",
+      "name": "mitigation-packs",
+      "path": "/opt/vedette/content/mitigation-packs",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "version": "2026-12-02.1"
+    }
+  ],
+  "db_schema": 14,
+  "host": {
+    "files": [
+      {
+        "name": "vedette-host_1.4.0_amd64.deb",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "size": 1234
+      }
+    ],
+    "version": "1.4.0"
+  },
+  "images": [
+    {
+      "service": "core",
+      "ref": "ghcr.io/knt048/vedette-core:1.4.0",
+      "digest": "sha256:449b697acb4a314e61ae461e8c35e3422924f1d126a22e70eed0ab0b1e0ccb0a",
+      "size": 61203456,
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
+      "cosign": {
+        "payload": "eyJjcml0aWNhbCI6eyJpZGVudGl0eSI6eyJkb2NrZXItcmVmZXJlbmNlIjoiZ2hjci5pby9rbnQwNDgvdmVkZXR0ZS1jb3JlIn0sImltYWdlIjp7ImRvY2tlci1tYW5pZmVzdC1kaWdlc3QiOiJzaGEyNTY6NDQ5YjY5N2FjYjRhMzE0ZTYxYWU0NjFlOGMzNWUzNDIyOTI0ZjFkMTI2YTIyZTcwZWVkMGFiMGIxZTBjY2IwYSJ9LCJ0eXBlIjoiY29zaWduIGNvbnRhaW5lciBpbWFnZSBzaWduYXR1cmUifSwib3B0aW9uYWwiOm51bGx9",
+        "signature": "MEUCIQDGlX+D32DTyfhmVLRBkd6u1dFcv6F+YibvpeLXG/h53wIgPtZIvmCDEEcngv9Vlu64xC0o0f7XQ4Ir4ROSyfMfK28="
+      }
+    },
+    {
+      "service": "sensor",
+      "ref": "ghcr.io/knt048/vedette-sensor:1.4.0",
+      "digest": "sha256:3e52704f8e3413b63874893a78b4301df3cce9788db5f05d681038f1d01e0911",
+      "size": 48000000,
+      "platforms": [
+        "linux/amd64"
+      ],
+      "cosign": {
+        "payload": "eyJjcml0aWNhbCI6eyJpZGVudGl0eSI6eyJkb2NrZXItcmVmZXJlbmNlIjoiZ2hjci5pby9rbnQwNDgvdmVkZXR0ZS1zZW5zb3IifSwiaW1hZ2UiOnsiZG9ja2VyLW1hbmlmZXN0LWRpZ2VzdCI6InNoYTI1NjozZTUyNzA0ZjhlMzQxM2I2Mzg3NDg5M2E3OGI0MzAxZGYzY2NlOTc4OGRiNWYwNWQ2ODEwMzhmMWQwMWUwOTExIn0sInR5cGUiOiJjb3NpZ24gY29udGFpbmVyIGltYWdlIHNpZ25hdHVyZSJ9LCJvcHRpb25hbCI6bnVsbH0=",
+        "signature": "MEYCIQDfmZ0FTG9FcXi5CbiQPb2/I3Qj1NtNQ7QRiiWDJa3q6gIhAIttAblFKBu200R576t3b8MVl5Rxo/C6itSetFzVHf/W"
+      }
+    }
+  ],
+  "install_modes": [
+    "appliance",
+    "container"
+  ],
+  "min_upgrade_from": "1.2.0",
+  "notes": "Test vector release.",
+  "released_at": "2026-12-02T08:00:00Z",
+  "rollback": {
+    "min_version": "1.3.0",
+    "safe": true
+  },
+  "sbom": {
+    "format": "CycloneDX",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "url": "https://github.com/knt048/vedette/releases/download/v1.4.0/sbom.json"
+  },
+  "schema": 1,
+  "version": "1.4.0"
+}

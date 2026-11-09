@@ -6,13 +6,16 @@ import "time"
 const (
 	ValidDays          = 30 // an IP is valid this long after the box last saw it
 	ExpiringDays       = 5  // at most this many days left: validity "expiring"
-	Probes             = 3  // requests to the endpoint per detection, each on its own connection
-	MinIntervalMin     = 15 // auto-detect interval bounds and default, in minutes
+	DeepRounds         = 5  // rounds of a full check (finds every IP of a load balancer); a round asks each of the three services once
+	LightRounds        = 1  // rounds of the check at a short interval
+	MinIntervalMin     = 1  // auto-detect interval bounds and default, in minutes (kien: 1 minute to 24 hours)
 	MaxIntervalMin     = 1440
 	DefaultIntervalMin = 60
 	MaxTargets         = 20
 	MaxAttemptsPerHour = 10
 	CertWarnDays       = 30
+	DeepEvery          = time.Hour       // a full check runs at most this often by itself; shorter intervals do light checks
+	EnableGap          = 5 * time.Minute // turning auto-detect on checks at once, unless it checked within this time
 	ModuleID           = "exposure"
 	// SystemUser is the actor of everything the box does by itself (the audit trail of auto-detect).
 	SystemUser = "system"

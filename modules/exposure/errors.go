@@ -34,15 +34,16 @@ var (
 	ErrIPNotAllowed   = apiErr(400, "ip_not_allowed", "Public IPs are not typed in. The box finds its own public IPs: turn on auto-detect or select \"Detect now\" under Public IPs of this box.")
 	ErrTooMany        = apiErr(400, "too_many", "At most %d targets. Delete ones you no longer use.", MaxTargets)
 	ErrNotConfirmed   = apiErr(400, "not_confirmed", "Tick the box to confirm that your company owns this and you are authorized to scan it.")
-	ErrBadInterval    = apiErr(400, "bad_interval", "Choose how often to check: every %d minutes up to every 24 hours (%d minutes).", MinIntervalMin, MaxIntervalMin)
+	ErrBadInterval    = apiErr(400, "bad_interval", "Choose how often to check: every minute up to every 24 hours (%d minutes).", MaxIntervalMin)
 	ErrUnreachable    = apiErr(502, "unreachable", "%s", msgOffline)
+	ErrDisagree       = apiErr(502, "unreachable", "%s", msgDisagree)
 	ErrNotImplemented = apiErr(501, "not_implemented", "This part of the box is not built yet.")
 )
 
 // Messages that are shared by a response and the stored result of a check.
 const (
-	msgOffline = "The box could not reach the Vedette endpoint to read its public IP. Check that this box can make outgoing HTTPS connections, then try again."
-	msgNoURL   = "The Vedette endpoint that tells the box its public IP is not set in this build."
+	msgOffline  = "The box could not reach the public IP services (checkip.amazonaws.com, icanhazip.com, api.ipify.org). Check that this box can make outgoing HTTPS connections, then try again."
+	msgDisagree = "The public IP services did not agree on the box's IP (at least two of the three must return the same address), so nothing was added. Try again in a few minutes."
 )
 
 func duplicate(value string) *APIError {
@@ -67,18 +68,12 @@ func notPublic(ips []string) *APIError {
 		strings.Join(ips, ", "), is, kind, it, it)
 }
 
-// ErrNoEndpoint is returned when the build has no address of the Vedette endpoint (the probe cannot run).
-var ErrNoEndpoint = errors.New("exposure: the endpoint that reports the public IP is not set")
-
 // ToAPIError turns an API error of this package into the *apierr.Error of the response; other errors
 // pass through (the server answers them as 500 internal without detail).
 func ToAPIError(err error) error {
 	var ae *APIError
-	switch {
-	case errors.As(err, &ae):
+	if errors.As(err, &ae) {
 		return apierr.New(ae.HTTP, ae.Code, ae.Message)
-	case errors.Is(err, ErrNoEndpoint):
-		return apierr.New(ErrNotImplemented.HTTP, ErrNotImplemented.Code, msgNoURL)
 	}
 	return err
 }

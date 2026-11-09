@@ -357,16 +357,31 @@ func saveSettings(ctx context.Context, tx *sql.Tx, auto bool, interval int) erro
 	return nil
 }
 
-func saveRun(ctx context.Context, tx *sql.Tx, at time.Time, ok bool, message string) error {
+// saveRun records the last detection; deep marks a full check, which also moves last_deep_at (the light checks of a
+// short interval do not, so a full check still runs once an hour).
+func saveRun(ctx context.Context, tx *sql.Tx, at time.Time, ok bool, message string, deep bool) error {
 	if len(message) > 1000 {
 		message = message[:1000]
 	}
-	o := 0
+	o, d := 0, 0
 	if ok {
 		o = 1
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE exp_setting SET last_run_at = ?, last_run_ok = ?, last_run_message = ? WHERE id = 1`, store.FormatTS(at), o, message); err != nil {
+	if deep {
+		d = 1
+	}
+	ts := store.FormatTS(at)
+	if _, err := tx.ExecContext(ctx, `UPDATE exp_setting SET last_run_at = ?, last_run_ok = ?, last_run_message = ?, last_deep_at = CASE WHEN ? = 1 THEN ? ELSE last_deep_at END WHERE id = 1`, ts, o, message, d, ts); err != nil {
 		return fmt.Errorf("saving the last detection: %w", err)
 	}
 	return nil
+}
+
+// loadLastDeep returns when the last full check ran; the zero time when none did.
+func loadLastDeep(ctx context.Context, q querier) (time.Time, error) {
+	var s sql.NullString
+	if err := q.QueryRowContext(ctx, `SELECT last_deep_at FROM exp_setting WHERE id = 1`).Scan(&s); err != nil {
+		return time.Time{}, fmt.Errorf("last full check: %w", err)
+	}
+	return optTS(s)
 }

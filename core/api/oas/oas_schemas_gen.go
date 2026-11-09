@@ -58670,7 +58670,8 @@ func (s *InventoryGetInventoryDevicesIDOK) SetSuspicious(val bool) {
 
 type InventoryGetInventoryDevicesIDOKAsset struct {
 	Approved bool `json:"approved"`
-	// When the one gentle first scan happened; null = not scanned (not fragile, or declared by hand).
+	// When the one gentle first scan happened; null = no gentle scan (declared by hand, the box itself, or
+	// a known kind that is not fragile and not set to never).
 	FirstScanAt NilDateTime `json:"first_scan_at"`
 	FirstSeen   time.Time   `json:"first_seen"`
 	Fragile     bool        `json:"fragile"`
@@ -58687,7 +58688,8 @@ type InventoryGetInventoryDevicesIDOKAsset struct {
 	Notes    OptString                                     `json:"notes"`
 	Origin   InventoryGetInventoryDevicesIDOKAssetOrigin   `json:"origin"`
 	Os       NilInventoryGetInventoryDevicesIDOKAssetOs    `json:"os"`
-	// Per-device override of the type setting for regular scans of fragile devices (D-45).
+	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
+	// never actively scanned again, for every kind of device (D-74).
 	RegularScan InventoryGetInventoryDevicesIDOKAssetRegularScan    `json:"regular_scan"`
 	Services    []InventoryGetInventoryDevicesIDOKAssetServicesItem `json:"services"`
 	Site        string                                              `json:"site"`
@@ -59286,7 +59288,8 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsSource) UnmarshalText(data []byt
 	}
 }
 
-// Per-device override of the type setting for regular scans of fragile devices (D-45).
+// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
+// never actively scanned again, for every kind of device (D-74).
 type InventoryGetInventoryDevicesIDOKAssetRegularScan string
 
 const (
@@ -60237,7 +60240,8 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	Approved bool `json:"approved"`
 	// Number of findings attached to the device; deleting the device also deletes these findings.
 	FindingsCount int `json:"findings_count"`
-	// When the one gentle first scan happened; null = not scanned (not fragile, or declared by hand).
+	// When the one gentle first scan happened; null = no gentle scan (declared by hand, the box itself, or
+	// a known kind that is not fragile and not set to never).
 	FirstScanAt NilDateTime `json:"first_scan_at"`
 	FirstSeen   time.Time   `json:"first_seen"`
 	Fragile     bool        `json:"fragile"`
@@ -60254,7 +60258,8 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	Notes    OptString                                       `json:"notes"`
 	Origin   InventoryGetInventoryDevicesOKItemsItemOrigin   `json:"origin"`
 	Os       NilInventoryGetInventoryDevicesOKItemsItemOs    `json:"os"`
-	// Per-device override of the type setting for regular scans of fragile devices (D-45).
+	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
+	// never actively scanned again, for every kind of device (D-74).
 	RegularScan InventoryGetInventoryDevicesOKItemsItemRegularScan    `json:"regular_scan"`
 	Services    []InventoryGetInventoryDevicesOKItemsItemServicesItem `json:"services"`
 	Site        string                                                `json:"site"`
@@ -60886,7 +60891,8 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOsSource) UnmarshalText(data []b
 	}
 }
 
-// Per-device override of the type setting for regular scans of fragile devices (D-45).
+// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
+// never actively scanned again, for every kind of device (D-74).
 type InventoryGetInventoryDevicesOKItemsItemRegularScan string
 
 const (
@@ -62194,7 +62200,8 @@ type InventoryPatchInventoryDevicesIDReq struct {
 	Fragile OptBool                                    `json:"fragile"`
 	Kind    OptInventoryPatchInventoryDevicesIDReqKind `json:"kind"`
 	Notes   OptString                                  `json:"notes"`
-	// Per-device override of the type setting for regular scans of fragile devices (D-45).
+	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
+	// never actively scanned again, for every kind of device (D-74).
 	RegularScan OptInventoryPatchInventoryDevicesIDReqRegularScan `json:"regular_scan"`
 }
 
@@ -62356,7 +62363,8 @@ func (s *InventoryPatchInventoryDevicesIDReqKind) UnmarshalText(data []byte) err
 	}
 }
 
-// Per-device override of the type setting for regular scans of fragile devices (D-45).
+// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
+// never actively scanned again, for every kind of device (D-74).
 type InventoryPatchInventoryDevicesIDReqRegularScan string
 
 const (

@@ -12,3 +12,4 @@
 - [ ] `Health` has no endpoint yet (no status page reads `Service.Health`, `Zone` or `Warning`); expose it with the module status in `core` — core status WP
 - [ ] A gentle scan has no `-O`/`-sV`, so a device that only the sweep found stays `kind=unknown` (passive-only after its gentle scan, `unclassified_passive_only`) until passive data or a person sets its kind; decide whether the open ports of the gentle scan may suggest a kind (a story first, no-imagined-features) — kien / story
 - [ ] Merge: this branch changes `inventory/scanpolicy.go` (unknown kind -> gentle, `ProtectedIPs`); the sensor-passive worktree changes `inventory/observe.go` (`observe.ErrRejected`): expect a conflict only in observe.go, not in scanpolicy.go — lead
+- [ ] The future `scan` module must treat the policy reason `first_gentle_scan` as a refusal (it only allows sensor-active's one gentle scan), see sensor-active CONTRACT PRE-2 — scan WP

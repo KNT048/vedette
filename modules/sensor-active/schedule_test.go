@@ -261,15 +261,15 @@ func TestProbeRowsAreCompact(t *testing.T) {
 	if err := e.svc.ScanDevice(e.ctx(), "a-web", "discovered"); err != nil {
 		t.Fatal(err)
 	}
-	if got := e.str(`SELECT group_concat(shape || ' ' || rate || ' ' || hosts || ' ' || target_first || ' ' || target_last, '; ') FROM sa_probe`); got !=
-		"sweep 100 64 192.168.10.1 192.168.10.64; sweep 100 62 192.168.10.65 192.168.10.126; normal 100 1 192.168.10.20 192.168.10.20" {
+	if got := e.str(`SELECT group_concat(shape || ' ' || rate || ' ' || hosts || ' ' || targets, '; ') FROM sa_probe`); got !=
+		"sweep 100 64 192.168.10.1-192.168.10.64; sweep 100 62 192.168.10.65-192.168.10.126; normal 100 1 192.168.10.20" {
 		t.Fatalf("probe rows = %q", got)
 	}
 	probes, err := e.svc.Probes(e.ctx(), e.base.Add(-time.Hour), 100)
 	if err != nil || len(probes) != 3 {
 		t.Fatalf("Probes = %d rows, %v", len(probes), err)
 	}
-	if probes[1].Target != "192.168.10.65..192.168.10.126 (62 hosts)" || probes[1].Shape != "sweep" || probes[1].Rate != 100 || probes[2].Target != "192.168.10.20" {
+	if probes[1].Target != "192.168.10.65-192.168.10.126" || probes[1].Shape != "sweep" || probes[1].Rate != 100 || probes[2].Target != "192.168.10.20" {
 		t.Fatalf("probes = %+v", probes)
 	}
 }
@@ -286,7 +286,7 @@ func TestPruneRemovesOldJobsWithTheirProbes(t *testing.T) {
 		if _, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_job (id, kind, started_at, finished_at, status) VALUES ('saj-old', 'sweep', ?, ?, 'done')`, old, old); err != nil {
 			return err
 		}
-		_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, target_first, target_last, result) VALUES (?, 'saj-old', 'sweep', 10, 1, '10.0.0.1', '10.0.0.1', 'ok')`, old)
+		_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES (?, 'saj-old', 'sweep', 10, 1, '--privileged -sn -n --max-rate 10', '10.0.0.1', 'ok')`, old)
 		return err
 	}); err != nil {
 		t.Fatal(err)

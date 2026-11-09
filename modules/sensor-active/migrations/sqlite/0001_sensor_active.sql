@@ -16,9 +16,10 @@ CREATE TABLE sa_job (
 );
 CREATE INDEX sa_job_started_ix ON sa_job (kind, started_at);
 
--- The probe log (INV-9, legal.md): one compact row per nmap run. The command line is not stored whole: shape
--- (sweep, normal or gentle) and rate give its flags exactly (flagsFor), the targets are counted and bounded by
--- first and last (a sweep batch is up to 64 consecutive in-scope addresses; a device scan has one).
+-- The probe log (INV-9, legal.md): one compact row per nmap run. flags is the flag part of the command line as
+-- it was approved (short, no spaces inside an argument), so a later change of the templates does not rewrite
+-- history; targets are the addresses it was run on as merged ranges ("a-b,c,d-e": a sweep batch skips protected
+-- devices, so it has holes and first..last would not say which addresses were probed). 64 addresses always fit.
 CREATE TABLE sa_probe (
     id           INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     time         TEXT    NOT NULL CHECK (time GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
@@ -26,8 +27,8 @@ CREATE TABLE sa_probe (
     shape        TEXT    NOT NULL CHECK (shape IN ('sweep', 'normal', 'gentle')),
     rate         INTEGER NOT NULL CHECK (rate BETWEEN 1 AND 1000),
     hosts        INTEGER NOT NULL CHECK (hosts BETWEEN 1 AND 64),
-    target_first TEXT    NOT NULL CHECK (length(target_first) BETWEEN 7 AND 15),
-    target_last  TEXT    NOT NULL CHECK (length(target_last) BETWEEN 7 AND 15),
+    flags        TEXT    NOT NULL CHECK (length(flags) BETWEEN 1 AND 300),
+    targets      TEXT    NOT NULL CHECK (length(targets) BETWEEN 7 AND 1100),
     result       TEXT    NOT NULL CHECK (length(result) <= 200)
 );
 CREATE INDEX sa_probe_time_ix ON sa_probe (time);

@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"os"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -66,9 +67,12 @@ type Service struct {
 }
 
 type running struct {
-	cancel  context.CancelFunc
-	targets []netip.Addr // the run in progress, published before it is checked
-	rate    int          // the packets per second of the run
+	cancel   context.CancelFunc
+	targets  []netip.Addr // the run in progress, published before it is checked
+	rate     int          // the packets per second of the run
+	deadline time.Time    // when the run in progress stops by itself: the end of the window it was checked against, or maxRun
+	asset    string       // the device a device run is for ("" for a sweep), set before its policy is read
+	gentle   bool         // the run is the one gentle scan
 }
 
 // New returns the service.
@@ -292,6 +296,7 @@ func (s *Service) probe(ctx context.Context, jobID string, kind scanKind, rate i
 	if timeout <= 0 || ctx.Err() != nil {
 		return nil, ErrStopped
 	}
+	s.setDeadline(s.clock().Add(timeout))
 	probeID, err := s.insertProbe(ctx, jobID, kind, rate, targets)
 	if err != nil {
 		return nil, err
@@ -339,6 +344,12 @@ func (s *Service) probe(ctx context.Context, jobID string, kind scanKind, rate i
 	return hosts, nil
 }
 
+// Reasons of the inventory's ScanPolicy that are states of the box, not of the device.
+const (
+	reasonScanningOff       = "scanning_off"
+	reasonScopeNotConfirmed = "scope_not_confirmed"
+)
+
 const stoppedText = "stopped: the window closed, the scope changed or the module was turned off"
 
 // stopFor turns a refusal found while checking a run into the error of the caller: a read failure stays one,
@@ -358,21 +369,46 @@ func (s *Service) setTargets(t []netip.Addr, rate int) {
 	}
 }
 
-func targetText(first, last netip.Addr, n int) string {
-	if n == 1 {
-		return first.String()
+func (s *Service) setDeadline(t time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.cur != nil {
+		s.cur.deadline = t
 	}
-	return fmt.Sprintf("%s..%s (%d hosts)", first, last, n)
+}
+
+// compactTargets writes the addresses of a batch, in the order they were sent, as merged ranges: "a-b,c,d-e". A
+// sweep batch has holes where it skipped protected devices, so only this says which addresses were probed. At
+// most 64 addresses: at most 64 pieces of at most 15 characters, 1023 in all.
+func compactTargets(ts []netip.Addr) string {
+	var parts []string
+	for i := 0; i < len(ts); {
+		j := i
+		for j+1 < len(ts) && ts[j+1] == ts[j].Next() {
+			j++
+		}
+		if j == i {
+			parts = append(parts, ts[i].String())
+		} else {
+			parts = append(parts, ts[i].String()+"-"+ts[j].String())
+		}
+		i = j + 1
+	}
+	return strings.Join(parts, ",")
 }
 
 func (s *Service) insertProbe(ctx context.Context, jobID string, kind scanKind, rate int, targets []netip.Addr) (int64, error) {
 	if kind == kindGentle {
 		rate = 1
 	}
+	flags, err := flagsFor(kind, rate)
+	if err != nil {
+		return 0, err
+	}
 	var id int64
-	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		res, err := tx.ExecContext(ctx, `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, target_first, target_last, result) VALUES (?, ?, ?, ?, ?, ?, ?, 'started')`,
-			s.now(), jobID, kind.name(), rate, len(targets), targets[0].String(), targets[len(targets)-1].String())
+	err = s.db.Write(ctx, func(tx *sql.Tx) error {
+		res, err := tx.ExecContext(ctx, `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES (?, ?, ?, ?, ?, ?, ?, 'started')`,
+			s.now(), jobID, kind.name(), rate, len(targets), strings.Join(flags, " "), compactTargets(targets))
 		if err != nil {
 			return err
 		}
@@ -398,10 +434,10 @@ func (s *Service) finishProbe(ctx context.Context, id int64, result string) {
 }
 
 // Probes returns the probe log from since on, oldest first, at most limit rows (INV-9). The future
-// scan_probes export category of /core/logs/export reads it. Argv is rebuilt from the row's shape and rate, so
-// it is exactly what was approved.
+// scan_probes export category of /core/logs/export reads it. Argv is the flag part stored with the row, so
+// history stays true when the templates change; Target is the merged ranges of the addresses probed.
 func (s *Service) Probes(ctx context.Context, since time.Time, limit int) ([]Probe, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT time, shape, rate, hosts, target_first, target_last, result, job_id FROM sa_probe WHERE time >= ? ORDER BY id LIMIT ?`, store.FormatTS(since), clamp(limit, 1, 100000))
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT time, shape, rate, flags, targets, result, job_id FROM sa_probe WHERE time >= ? ORDER BY id LIMIT ?`, store.FormatTS(since), clamp(limit, 1, 100000))
 	if err != nil {
 		return nil, fmt.Errorf("sensoractive: read probes: %w", err)
 	}
@@ -409,23 +445,11 @@ func (s *Service) Probes(ctx context.Context, since time.Time, limit int) ([]Pro
 	var out []Probe
 	for rows.Next() {
 		var p Probe
-		var n int
-		var first, last string
-		if err := rows.Scan(&p.Time, &p.Shape, &p.Rate, &n, &first, &last, &p.Result, &p.JobID); err != nil {
+		var flags string
+		if err := rows.Scan(&p.Time, &p.Shape, &p.Rate, &flags, &p.Target, &p.Result, &p.JobID); err != nil {
 			return nil, fmt.Errorf("sensoractive: read probes: %w", err)
 		}
-		a, err1 := netip.ParseAddr(first)
-		b, err2 := netip.ParseAddr(last)
-		kind, ok := kindByName(p.Shape)
-		if err1 != nil || err2 != nil || !ok {
-			return nil, errors.New("sensoractive: read probes: a row is not valid")
-		}
-		flags, err := flagsFor(kind, p.Rate)
-		if err != nil {
-			return nil, fmt.Errorf("sensoractive: read probes: %w", err)
-		}
-		p.Argv = append(flags, flagXML, "-")
-		p.Target = targetText(a, b, n)
+		p.Argv = append(strings.Fields(flags), flagXML, "-")
 		out = append(out, p)
 	}
 	return out, rows.Err()
@@ -657,6 +681,22 @@ func (s *Service) recordSweep(ctx context.Context, hosts []host, batch []netip.A
 	return len(fresh), nil
 }
 
+func (s *Service) setGentle(g bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.cur != nil {
+		s.cur.gentle = g
+	}
+}
+
+func (s *Service) setAsset(id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.cur != nil {
+		s.cur.asset = id
+	}
+}
+
 func (s *Service) setCur(r *running) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -676,13 +716,30 @@ func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error 
 	defer s.runMu.Unlock()
 	jctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	s.setCur(&running{cancel: cancel})
+	s.setCur(&running{cancel: cancel, asset: assetID})
 	defer s.setCur(nil)
-	dec, err := s.inv.ScanPolicy(jctx, assetID)
-	if err != nil {
+	// A run stopped by a settings or device change while it checks is not a failure: whatever the storage
+	// read then returns (context canceled), the caller sees ErrStopped and does not count an attempt.
+	stopped := func(err error) error {
+		if jctx.Err() != nil {
+			return ErrStopped
+		}
 		return err
 	}
+	dec, err := s.inv.ScanPolicy(jctx, assetID)
+	if err != nil {
+		return stopped(err)
+	}
 	if !dec.Allowed {
+		// scanning off and an unconfirmed scope are states of the box, not of the device: the device stays queued
+		switch dec.Reason {
+		case reasonScanningOff:
+			s.blocked(ctx, assetID, dec.Reason)
+			return ErrScanningOff
+		case reasonScopeNotConfirmed:
+			s.blocked(ctx, assetID, dec.Reason)
+			return ErrScopeNotConfirmed
+		}
 		s.blocked(ctx, assetID, dec.Reason)
 		return fmt.Errorf("%w: %s", ErrBlocked, dec.Reason)
 	}
@@ -692,17 +749,17 @@ func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error 
 		s.blocked(ctx, assetID, reasonOf(err))
 		return err
 	case err != nil:
-		return err
+		return stopped(err)
 	}
 	asset, err := s.inv.Asset(jctx, assetID)
 	if err != nil {
-		return err
+		return stopped(err)
 	}
 	in := false
 	if asset.IP.IsValid() {
 		s.setTargets([]netip.Addr{asset.IP}, st.Rate)
 		if in, err = s.inv.InScope(jctx, asset.IP); err != nil {
-			return err
+			return stopped(err)
 		}
 	}
 	if !in {
@@ -716,12 +773,14 @@ func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error 
 	if dec.FirstGentle {
 		kind, rate = kindGentle, 1
 	}
+	s.setGentle(kind == kindGentle)
 
 	id, err := s.startJob(ctx, KindDevice, reason, 1)
 	if err != nil {
 		return err
 	}
 	hosts, err := s.probe(jctx, id, kind, rate, []netip.Addr{asset.IP})
+	s.setAsset("") // nmap is done: a change of the device now has nothing to stop
 	if err == nil {
 		// nmap finished: the gentle scan happened, whatever becomes of recording its results (D-45, L2)
 		var markErr error
@@ -898,8 +957,9 @@ func (s *Service) SettingsChanged(ctx context.Context) error {
 	cur := s.cur
 	var targets []netip.Addr
 	var rate int
+	var deadline time.Time
 	if cur != nil {
-		targets, rate = slices.Clone(cur.targets), cur.rate
+		targets, rate, deadline = slices.Clone(cur.targets), cur.rate, cur.deadline
 	}
 	s.mu.Unlock()
 	if cur == nil {
@@ -910,13 +970,43 @@ func (s *Service) SettingsChanged(ctx context.Context) error {
 		cur.cancel() // fail closed
 		return err
 	}
-	if _, _, ok := st.window(s.local()); !ok || st.Rate < rate {
+	// A window shortened under a run in progress ends it: the run's deadline came from the old end (INV-3).
+	_, end, ok := st.window(s.local())
+	if !ok || st.Rate < rate || (!deadline.IsZero() && end.Before(deadline)) {
 		cur.cancel()
 		return nil
 	}
 	sc := newScope(st)
 	if slices.ContainsFunc(targets, func(t netip.Addr) bool { return !sc.contains(t) }) {
 		cur.cancel()
+	}
+	return nil
+}
+
+// AssetChanged reacts to inventory.asset.updated and .deleted: if the device being scanned now no longer passes
+// the inventory's policy (marked fragile, regular scan never, declared by hand, deleted, out of scope), or the
+// run is heavier than the policy now allows, the run is stopped; that is not an attempt (the queue keeps it
+// only if the policy still lets it be scanned later). Other devices are not the run's business.
+func (s *Service) AssetChanged(ctx context.Context, assetID string) error {
+	s.mu.Lock()
+	cur := s.cur
+	var gentle bool
+	var rate int
+	match := cur != nil && cur.asset == assetID
+	if match {
+		gentle, rate = cur.gentle, cur.rate
+	}
+	s.mu.Unlock()
+	if !match {
+		return nil
+	}
+	dec, err := s.inv.ScanPolicy(ctx, assetID)
+	if err != nil || !dec.Allowed || (dec.FirstGentle && !gentle) || (dec.Rate > 0 && dec.Rate < rate) {
+		cur.cancel() // fail closed
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
+		return err
 	}
 	return nil
 }

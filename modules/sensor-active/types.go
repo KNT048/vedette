@@ -127,8 +127,8 @@ type Health struct {
 }
 
 // Probe is one row of the probe log (INV-9). Argv is the flag part of the command line that was approved, up
-// to and including "-oX -"; the addresses it was run on are in Target ("a.b.c.d" or "first..last (N hosts)").
-// Shape is the template (sweep, normal or gentle) and Rate the --max-rate of it.
+// to and including "-oX -", as stored with the row (a later change of the templates does not rewrite it); the
+// addresses it was run on are in Target as merged ranges ("a.b.c.d-e.f.g.h,i.j.k.l"). Shape is the template (sweep, normal or gentle) and Rate the --max-rate of it.
 type Probe struct {
 	Time   string   `json:"time"`
 	Shape  string   `json:"shape"`

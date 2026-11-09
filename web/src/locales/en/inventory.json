@@ -179,7 +179,7 @@
     "originManual": "Added by hand",
     "originDiscovered": "Found on the network",
     "regularScan": "Regular scans",
-    "regularScanHint": "Applies to fragile devices only. After the first gentle scan, Vedette only listens unless regular scans are allowed.",
+    "regularScanHint": "After the first gentle scan, Vedette only listens to a fragile device or one of unknown type unless regular scans are allowed. Never means never, for every type of device.",
     "regularScanOpt": {
       "follow": "Follow type setting",
       "allow": "Allow",
@@ -187,7 +187,7 @@
     },
     "regularScanSaved": "Regular scan setting saved.",
     "firstScan": "First scan",
-    "firstScanNone": "Not scanned (declared by hand, or not a fragile device)"
+    "firstScanNone": "No gentle first scan (declared by hand, the Vedette box itself, or a known type that is not fragile)"
   },
   "approval": {
     "pending": "This device is not approved yet",
@@ -327,7 +327,7 @@
   },
   "fragile": {
     "title": "Device types scanned only once",
-    "description": "Vedette scans these gently once when it first sees them, then only listens.",
+    "description": "Vedette scans these gently once when it first sees them, then only listens. A device of unknown type is treated the same until it is classified.",
     "note": "Each device gets one scan at the lowest speed. To allow regular scans, switch it on for the type below. You can still change a single device on its detail page; changes here apply to devices you have not changed individually.",
     "allowRegular": "Allow regular scans",
     "allowRegularFor": "Allow regular scans, {{kind}}"

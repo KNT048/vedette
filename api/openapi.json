@@ -30077,7 +30077,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "When the one gentle first scan happened; null = not scanned (not fragile, or declared by hand)"
+                            "description": "When the one gentle first scan happened; null = no gentle scan (declared by hand, the box itself, or a known kind that is not fragile and not set to never)"
                           },
                           "regular_scan": {
                             "type": "string",
@@ -30086,7 +30086,7 @@
                               "allow",
                               "never"
                             ],
-                            "description": "Per-device override of the type setting for regular scans of fragile devices (D-45)"
+                            "description": "Per-device override of the type setting for regular scans after the one gentle scan (D-45); never = never actively scanned again, for every kind of device (D-74)"
                           },
                           "suspicious": {
                             "type": "boolean"
@@ -30646,7 +30646,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "When the one gentle first scan happened; null = not scanned (not fragile, or declared by hand)"
+                          "description": "When the one gentle first scan happened; null = no gentle scan (declared by hand, the box itself, or a known kind that is not fragile and not set to never)"
                         },
                         "regular_scan": {
                           "type": "string",
@@ -30655,7 +30655,7 @@
                             "allow",
                             "never"
                           ],
-                          "description": "Per-device override of the type setting for regular scans of fragile devices (D-45)"
+                          "description": "Per-device override of the type setting for regular scans after the one gentle scan (D-45); never = never actively scanned again, for every kind of device (D-74)"
                         },
                         "software": {
                           "type": "array",
@@ -30910,7 +30910,7 @@
                       "allow",
                       "never"
                     ],
-                    "description": "Per-device override of the type setting for regular scans of fragile devices (D-45)"
+                    "description": "Per-device override of the type setting for regular scans after the one gentle scan (D-45); never = never actively scanned again, for every kind of device (D-74)"
                   },
                   "notes": {
                     "type": "string",

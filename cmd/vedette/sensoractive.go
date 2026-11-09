@@ -83,6 +83,16 @@ func newSensorActive(d deps, path string) (*sensoractive.Service, error) {
 		}
 		return svc.Enqueue(ctx, ev.AssetID, "discovered")
 	}))
+	// A change to the device being scanned right now (marked fragile, regular scan never, deleted...) stops the run.
+	for _, name := range []string{inventory.EventAssetUpdated, inventory.EventAssetDeleted} {
+		d.Bus.Subscribe(name, on(func(ctx context.Context, data any) error {
+			ev, ok := data.(inventory.AssetEvent)
+			if !ok {
+				return fmt.Errorf("unexpected payload %T", data)
+			}
+			return svc.AssetChanged(ctx, ev.AssetID)
+		}))
+	}
 	d.Bus.Subscribe(inventory.EventSettingsChanged, on(func(ctx context.Context, _ any) error {
 		return svc.SettingsChanged(ctx)
 	}))

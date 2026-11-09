@@ -494,14 +494,14 @@ func TestContract_INV9_ProbeLog(t *testing.T) {
 			t.Errorf("row %d = %+v", i, p)
 		}
 	}
-	if probes[1].Target != "192.168.10.20" || !strings.Contains(probes[0].Target, "(62 hosts)") {
+	if probes[1].Target != "192.168.10.20" || probes[0].Target != "192.168.10.1-192.168.10.62" {
 		t.Errorf("targets = %q, %q", probes[0].Target, probes[1].Target)
 	}
 	// Retention: a row from 100 days ago stays (at least 90 days), one from 400 days ago goes.
 	old := func(days int) {
 		ts := store.FormatTS(e.clock().AddDate(0, 0, -days))
 		if err := e.db.Write(e.ctx(), func(tx dbTx) error {
-			_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, target_first, target_last, result) VALUES (?, ?, 'sweep', 10, 1, '10.0.0.1', '10.0.0.1', 'ok')`, ts, probes[0].JobID)
+			_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES (?, ?, 'sweep', 10, 1, '--privileged -sn -n --max-rate 10', '10.0.0.1', 'ok')`, ts, probes[0].JobID)
 			return err
 		}); err != nil {
 			t.Fatal(err)

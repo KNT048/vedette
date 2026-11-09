@@ -55,15 +55,6 @@ func (k scanKind) name() string {
 	return ""
 }
 
-func kindByName(n string) (scanKind, bool) {
-	for _, k := range []scanKind{kindSweep, kindNormal, kindGentle} {
-		if k.name() == n {
-			return k, true
-		}
-	}
-	return 0, false
-}
-
 // flagsFor is the whole flag part of the command line of a kind: the only three shapes nmap is ever run with.
 // -sV makes nmap run the scripts of its "version" category (and nothing else), -O has its own timing; no
 // script flag, no -A and no -sC exists (FORBID-3, FORBID-6). The gentle shape has neither -sV nor -O: on a

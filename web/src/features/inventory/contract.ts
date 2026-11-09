@@ -23,11 +23,11 @@ export const Asset = z.object({
 /** Một lần quan sát một trường. Không bao giờ bị ghi đè: giá trị mới thêm vào, "đang dùng" chọn theo khai tay > tin cậy cao > mới hơn (ARCHITECTURE §4). */
 export const Observation = z.object({ id: z.string(), field: ObsField, value: z.string(), source: ObsSource, confidence, seen_at: dt, current: z.boolean() })
 
-export const RegularScan = z.enum(['follow', 'allow', 'never']).describe('Per-device override of the type setting for regular scans of fragile devices (D-45)')
-/** D-45: a fragile device gets ONE gentle scan when first seen (lowest speed), then it is passive-only unless regular scans are allowed. */
+export const RegularScan = z.enum(['follow', 'allow', 'never']).describe('Per-device override of the type setting for regular scans after the one gentle scan (D-45); never = never actively scanned again, for every kind of device (D-74)')
+/** D-45, D-84: a fragile device, or one of unknown kind, gets ONE gentle scan when first seen (lowest speed, no service/OS detection), then it is passive-only until classified or allowed; regular_scan=never means never for every kind; the box itself is never scanned. */
 const ScanInfo = z.object({
   is_box: z.boolean().describe('true for the Vedette box itself: the first device, always present, cannot be deleted (409)'),
-  first_scan_at: dt.nullable().describe('When the one gentle first scan happened; null = not scanned (not fragile, or declared by hand)'),
+  first_scan_at: dt.nullable().describe('When the one gentle first scan happened; null = no gentle scan (declared by hand, the box itself, or a known kind that is not fragile and not set to never)'),
   regular_scan: RegularScan,
 })
 export const DeviceRow = Asset.extend(ScanInfo.shape).extend({

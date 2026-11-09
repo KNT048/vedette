@@ -45,8 +45,8 @@ func invalid(msg string) error { return fail(http.StatusBadRequest, "invalid", m
 
 func compatible(p ParamType, fieldType string) bool { return fieldType == string(p) || p == PText }
 
-// checkRule validates a rule a client sent. cats are the catalog actions by id.
-func (s *Service) checkRule(b RuleInput, cats map[string]catRow) (RuleInput, error) {
+// checkRule validates a rule a client sent. cats are the catalog actions by id, st the settings (the limit of the pre-approval).
+func (s *Service) checkRule(b RuleInput, cats map[string]catRow, st Settings) (RuleInput, error) {
 	if !catTextRE.MatchString(b.Name) {
 		return b, invalid("Name: 1 to 80 letters, numbers, spaces and . , : ' ( ) / -")
 	}
@@ -163,6 +163,21 @@ func (s *Service) checkRule(b RuleInput, cats map[string]catRow) (RuleInput, err
 	if b.PreApproved {
 		if bad := preApprovedProblem(acts, cats); bad != "" {
 			return b, invalid(bad)
+		}
+		// A pre-approved rule is never one of two approvers (INV-2): refuse a rule whose request would already need two people.
+		// A range that comes from the event is only known when the rule runs; fire refuses it then.
+		items := make([]itemRec, len(acts))
+		for i, a := range acts {
+			n := 1
+			if spec := a.Params[string(PCIDR)]; spec != "" && len(refsIn(spec)) == 0 {
+				if c, ok := CheckValue(PCIDR, spec); ok {
+					n = prefixSize(c)
+				}
+			}
+			items[i] = itemRec{RequestItem: RequestItem{Risk: cats[a.ActionID].Risk, Targets: n}}
+		}
+		if n, why := requiredApprovals(items, st); n > 1 {
+			return b, invalid("Pre-approved is only for a request that one person can approve. " + why)
 		}
 	}
 	return RuleInput{Name: b.Name, Enabled: b.Enabled, Live: b.Live, Trigger: b.Trigger, Match: b.Match, Conditions: conds, Actions: acts,
@@ -349,7 +364,11 @@ func (s *Service) AddRule(ctx context.Context, who Actor, in RuleInput) (Rule, e
 			return err
 		}
 		in.Live = false // INV-14d
-		c, err := s.checkRule(in, cats)
+		st, err := loadSettings(ctx, tx)
+		if err != nil {
+			return err
+		}
+		c, err := s.checkRule(in, cats, st)
 		if err != nil {
 			return err
 		}
@@ -393,7 +412,11 @@ func (s *Service) ChangeRule(ctx context.Context, who Actor, id string, in RuleI
 		if err != nil {
 			return err
 		}
-		c, err := s.checkRule(in, cats)
+		st, err := loadSettings(ctx, tx)
+		if err != nil {
+			return err
+		}
+		c, err := s.checkRule(in, cats, st)
 		if err != nil {
 			return err
 		}
@@ -524,12 +547,15 @@ func (s *Service) Allowlist(ctx context.Context) ([]AllowEntry, error) {
 // always count.
 func (s *Service) SetAllowlist(ctx context.Context, who Actor, in []AllowEntry) ([]AllowEntry, error) {
 	box := map[string]bool{}
-	for _, e := range boxEntries(s.boxAddrs()) {
+	addrs, err := s.boxAddrs()
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range boxEntries(addrs) {
 		box[e.Value] = true
 	}
 	var clean []AllowEntry
 	seen := map[string]bool{}
-	err := error(nil)
 	if len(in) > maxAllow {
 		err = invalid("Each entry needs an IP address, CIDR range or domain, and a label of up to 80 characters (up to 100 entries).")
 	}

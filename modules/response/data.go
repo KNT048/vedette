@@ -197,11 +197,12 @@ func mustJSON(v any) string {
 	return string(b)
 }
 
-// interfaceAddrs reads the addresses of the box's network interfaces.
-func interfaceAddrs() []netip.Addr {
+// interfaceAddrs reads the addresses of the box's network interfaces. A failed read is an error, never an empty list: the
+// caller must not go on as if the box had no address (the box's own addresses are never-touch and never a webhook target).
+func interfaceAddrs() ([]netip.Addr, error) {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("response: read the box addresses: %w", err)
 	}
 	var out []netip.Addr
 	for _, a := range addrs {
@@ -211,7 +212,7 @@ func interfaceAddrs() []netip.Addr {
 			}
 		}
 	}
-	return out
+	return out, nil
 }
 
 func asAPI(err error) (*apierr.Error, bool) { return apierr.As(err) }

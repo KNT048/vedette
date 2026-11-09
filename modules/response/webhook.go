@@ -58,13 +58,18 @@ func forbiddenAddr(a netip.Addr, allowLoopback bool, box []netip.Addr) bool {
 	return false
 }
 
-func dialControl(allowLoopback bool, box func() []netip.Addr) func(network, address string, c syscall.RawConn) error {
+func dialControl(allowLoopback bool, box func() ([]netip.Addr, error)) func(network, address string, c syscall.RawConn) error {
 	return func(_, address string, _ syscall.RawConn) error {
 		host, _, err := net.SplitHostPort(address)
 		if err != nil {
 			return errForbiddenDial
 		}
-		if a, err := netip.ParseAddr(host); err != nil || forbiddenAddr(a, allowLoopback, box()) {
+		a, err := netip.ParseAddr(host)
+		if err != nil {
+			return errForbiddenDial
+		}
+		list, err := box()
+		if err != nil || forbiddenAddr(a, allowLoopback, list) { // the box addresses cannot be read: refuse, do not guess
 			return errForbiddenDial
 		}
 		return nil
@@ -103,7 +108,11 @@ func (s *Service) checkWebhookURL(raw string) (*url.URL, error) {
 	}
 	host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
 	if a, err := netip.ParseAddr(host); err == nil {
-		if forbiddenAddr(a, s.allowLoopback, s.boxAddrs()) {
+		box, err := s.boxAddrs()
+		if err != nil {
+			return nil, shown("This box's own addresses could not be read, so the webhook address cannot be checked. Nothing was sent.")
+		}
+		if forbiddenAddr(a, s.allowLoopback, box) {
 			return nil, shown("The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.")
 		}
 		return u, nil

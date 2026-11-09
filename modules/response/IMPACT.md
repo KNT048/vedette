@@ -1,12 +1,18 @@
 # Response — Change Impact Map
 
-> WP-13a đã có mã Go (package `modules/response`); chữ ký dưới đây còn là tên khái niệm: `Evaluate`/`fire` (engine.go), `approve`/`runItem` (requests.go; `runItem` là nơi duy nhất gửi bước tới thiết bị), `Fill`/`CheckValue`/`ValidateTpl` (params.go), `appendLog`/`VerifyLog` (service.go, plans.go), `FetchBlocklist`/`renderBlocklist` (blocklist.go). Phần AI (`AIGate`) là 13b. Module **rủi ro cao**: mọi thay đổi ở cổng chặn (INV-1…16) cần test hợp đồng và ghi rõ trong commit.
+> WP-13a đã có mã Go (package `modules/response`); chữ ký dưới đây còn là tên khái niệm: `Evaluate`/`fire` (engine.go), `approve`/`runItem` (requests.go; `runItem` là nơi duy nhất gửi bước tới thiết bị; `markRunning`/`failStuck` ghi trạng thái "đang chạy"), `Fill`/`CheckValue`/`ValidateTpl` (params.go), `appendLog`/`VerifyLog` (service.go, plans.go), `FetchBlocklist`/`renderBlocklist` (blocklist.go). Phần AI (`AIGate`) là 13b. Module **rủi ro cao**: mọi thay đổi ở cổng chặn (INV-1…16) cần test hợp đồng và ghi rõ trong commit.
 
 ## Modifying: `Engine.Evaluate(ctx, Event) error` (khớp quy tắc, dựng yêu cầu) — 6 nguồn sự kiện
 - **honeypot** (`Hits`/`honeypot.hit`), **logs** (`IocHits`), **findings** (`findings.finding.created|status_changed`, D-57 (6)), **inventory** (thiết bị chưa duyệt), **exposure** (cổng mới), **scheduler** (lịch): đổi tên/kiểu trường trigger → điều kiện và tham số `{{trigger.field}}` của quy tắc đang có không còn khớp, quy tắc im lặng. Danh mục trường (`/response/triggers`) là hợp đồng với GUI.
 
 ## Modifying: `Approve(ctx, reqID, Approver, items, code) (Request, error)` — 4 người gọi
 - **HTTP** `/response/actions/{id}/approve` (app); **kênh chat** (Slack Socket Mode, Telegram long polling, Zalo cá nhân) qua `notify`; **liên kết email/Zalo OA** `/response/approve/{token}`; **rule engine** (`via=auto`, chỉ INV-5). Đổi thứ tự cổng (INV-9) hoặc điều kiện hai người → thay đổi ai có thể gây thay đổi trên thiết bị; test `TestContract_INV2_*`, `INV16_*` bắt buộc.
+
+## Modifying: `RequestProposal` và hình dạng của `resp_plans.steps[].proposal` (job kế hoạch AI, 13b)
+- Đề xuất chỉ chứa `action_id` + `params` có kiểu (+ `ttl_min`, `asset_id`, `asset_name`); mọi lệnh/đường dẫn/body do `planAction` dựng từ danh mục lúc xem và lúc yêu cầu. Job kế hoạch của 13b phải ghi đúng dạng này; dạng cũ (lệnh lưu sẵn) bị từ chối `tool_not_allowed`.
+
+## Modifying: `Directory`, `ConnectionInfo` (cmd/vedette, 13b)
+- `Directory.DevicesOfKind` nuôi danh sách không đụng (router, firewall); lỗi đọc = từ chối hành động. `ConnectionInfo.UpdatedAt` phải đổi mỗi khi kết nối bị sửa (địa chỉ, thông tin xác thực, công cụ): nó nằm trong dấu vân tay lưu theo item (INV-9 `connection_changed`).
 
 ## Modifying: `Execute(ctx, Item) (Result, error)` — 1 người gọi (chỉ `Approve`)
 - Gọi **công cụ ghi** của `ai.Connections`. Là điểm duy nhất của FORBID-1; không thêm người gọi thứ hai. Đổi chữ ký → kiểm tra mọi nơi ghi log (`executed`/`failed`) và `verify`.

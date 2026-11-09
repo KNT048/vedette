@@ -25,6 +25,9 @@ const (
 	apiPrefix     = "/api/v1"
 	fetchPerMin   = 60 // pulls per source address per minute
 	badTokenPerMi = 20 // wrong tokens per source address per minute before 429
+
+	maxBlockEntries = 10000 // blocklist-format section 7: at the limit a new entry is refused, never silently cut
+	maxFetchKeys    = 10000 // sources the rate limit remembers at once
 )
 
 var tokenRE = regexp.MustCompile(`^[a-f0-9]{32}$`)
@@ -87,8 +90,30 @@ func (s *Service) blockURL(token string) string {
 	return strings.TrimRight(s.cfg.BaseURL, "/") + apiPrefix + "/response/blocklist/" + token + ".txt"
 }
 
-// blockEntries are the entries in force, newest first. An entry whose time to live ended no longer counts, whether or
-// not the sweep has removed it, and an entry on the never-touch list is never listed (INV-10, FORBID-7).
+// publishable reports whether an address may be on the published list: a public address. RFC 1918 and unique-local ranges,
+// 100.64.0.0/10 (carrier-grade NAT), 0.0.0.0/8, loopback, link-local, multicast and the reserved 240.0.0.0/4 never are
+// (blocklist-format section 5): a poisoned feed must not be able to lock the customer's own network out.
+func publishable(a netip.Addr) bool {
+	a = a.Unmap()
+	if !a.IsValid() || a.IsUnspecified() || a.IsPrivate() || a.IsLoopback() || a.IsLinkLocalUnicast() || a.IsLinkLocalMulticast() || a.IsMulticast() || reservedV4(a) {
+		return false
+	}
+	return !a.Is4() || !netip.MustParsePrefix("100.64.0.0/10").Contains(a)
+}
+
+// blockListFull is true when value would be a new entry and the list already holds maxBlockEntries entries in force.
+func (s *Service) blockListFull(ctx context.Context, value string) (bool, error) {
+	var n, same int
+	now := store2(s.now())
+	if err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT count(*), ifnull(sum(value = ?), 0) FROM resp_block_entries WHERE expires_at IS NULL OR expires_at > ?`, value, now).Scan(&n, &same); err != nil {
+		return false, err
+	}
+	return same == 0 && n >= maxBlockEntries, nil
+}
+
+// blockEntries are the entries in force that may be published, newest first, at most maxBlockEntries. An entry whose time
+// to live ended no longer counts, whether or not the sweep has removed it; an entry on the never-touch list is never
+// listed (INV-10, FORBID-7); neither is an address that is not public (publishable).
 func (s *Service) blockEntries(ctx context.Context, q dbq) ([]BlockEntry, error) {
 	never, err := s.neverTouch(ctx, q)
 	if err != nil {
@@ -107,10 +132,15 @@ func (s *Service) blockEntries(ctx context.Context, q dbq) ([]BlockEntry, error)
 			return nil, err
 		}
 		e.ExpiresAt = ptrOrNilNS(exp)
+		if a, err := netip.ParseAddr(e.Value); err != nil || !publishable(a) {
+			continue
+		}
 		if _, hit := firstTouched(never, []string{e.Value}); hit {
 			continue
 		}
-		out = append(out, e)
+		if out = append(out, e); len(out) >= maxBlockEntries {
+			break
+		}
 	}
 	return out, rows.Err()
 }
@@ -187,10 +217,11 @@ func cleanComment(s string, limit int) string {
 	return strings.ReplaceAll(oneLine(s, limit), "|", "/")
 }
 
-// RenderBlocklist is the plain-text list (one address or range per line). Domains never appear in it.
+// renderBlocklist is the plain-text list (one address per line). Domains never appear in it. The three comment lines carry
+// only the name of the list, the time and the count: the file is public to anyone who holds the address (the token), so it
+// names no device, rule, event or reason (blocklist-format 12 (a)).
 func (s *Service) renderBlocklist(entries []BlockEntry) []byte {
-	var b strings.Builder
-	b.WriteString("# Vedette block list, " + store2(s.now()) + ". One IP address per line. Lines starting with # are comments.\n")
+	var lines []string
 	seen := map[string]bool{}
 	for _, e := range entries {
 		a, err := netip.ParseAddr(e.Value)
@@ -198,51 +229,89 @@ func (s *Service) renderBlocklist(entries []BlockEntry) []byte {
 			continue
 		}
 		seen[e.Value] = true
-		exp := "never"
-		if e.ExpiresAt != nil {
-			exp = *e.ExpiresAt
-		}
-		b.WriteString("# " + cleanComment(e.Source, 120) + " | " + cleanComment(e.Reason, 200) + " | expires " + exp + "\n")
-		b.WriteString(a.String() + "\n")
+		lines = append(lines, a.String())
+	}
+	var b strings.Builder
+	b.WriteString("# vedette blocklist\n# generated " + store2(s.now()) + "\n# entries " + itoa(len(lines)) + "\n")
+	for _, l := range lines {
+		b.WriteString(l + "\n")
 	}
 	return []byte(b.String())
 }
 
+// sourceKey is the key the rate limit uses for a source address: the address for IPv4, the /64 for IPv6 (one host owns a whole
+// /64 and can rotate addresses inside it), the cut text for anything that is not an address.
+func sourceKey(from string) string {
+	a, err := netip.ParseAddr(from)
+	if err != nil {
+		if ap, err2 := netip.ParseAddrPort(from); err2 == nil {
+			a, err = ap.Addr(), nil
+		}
+	}
+	if err != nil {
+		return oneLine(from, 64)
+	}
+	a = a.Unmap().WithZone("")
+	if a.Is6() {
+		p, _ := a.Prefix(64)
+		return p.String()
+	}
+	return a.String()
+}
+
+// errListUnavailable is 503 with Retry-After: when the store cannot be read the answer is an error, never an empty list (a
+// firewall keeps its old list on an error and drops every entry on an empty one: blocklist-format section 6, fail-static).
+func errListUnavailable() error {
+	return fail(http.StatusServiceUnavailable, "server_busy", "The block list cannot be read just now. Keep the list you have and try again shortly.").With("retry_after", 60)
+}
+
 // FetchBlocklist answers a pull of the public address. A wrong token is a plain 404 (it looks like a wrong path);
-// a source address that pulls too often, or guesses tokens, gets 429. from is the source address of the request.
+// a source address that pulls too often, or guesses tokens, gets 429. A store that cannot be read gives 503, never an empty
+// list. from is the source address of the request; the limit is per address, per /64 for IPv6.
 func (s *Service) FetchBlocklist(ctx context.Context, token, from string) ([]byte, error) {
-	if !s.allowFetch("bad:"+from, badTokenPerMi, false) || !s.allowFetch("ok:"+from, fetchPerMin, false) {
+	key := sourceKey(from)
+	if !s.allowFetch("bad:"+key, badTokenPerMi, false) || !s.allowFetch("ok:"+key, fetchPerMin, false) {
 		return nil, fail(http.StatusTooManyRequests, "rate_limited", "Too many requests. Try again in a minute.").With("retry_after", 60)
 	}
 	var stored string
 	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT token_hash FROM resp_blocklist WHERE id = 1`).Scan(&stored)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, err
+		s.cfg.Log.ErrorContext(ctx, "response: read the block list token", "error", err)
+		return nil, errListUnavailable()
 	}
 	if !tokenRE.MatchString(token) || errors.Is(err, sql.ErrNoRows) || subtle.ConstantTimeCompare([]byte(hashToken(token)), []byte(stored)) != 1 {
-		s.allowFetch("bad:"+from, badTokenPerMi, true)
+		s.allowFetch("bad:"+key, badTokenPerMi, true)
 		return nil, fail(http.StatusNotFound, "not_found", "This item no longer exists.")
 	}
-	s.allowFetch("ok:"+from, fetchPerMin, true)
+	s.allowFetch("ok:"+key, fetchPerMin, true)
 	var out []byte
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, `UPDATE resp_blocklist SET last_fetch_at = ?, last_fetch_from = ? WHERE id = 1`, s.ts(), oneLine(from, 64)); err != nil {
 			return err
 		}
 		es, err := s.blockEntries(ctx, tx)
+		if err != nil {
+			return err
+		}
 		out = s.renderBlocklist(es)
-		return err
+		return nil
 	})
-	return out, err
+	if err != nil {
+		s.cfg.Log.ErrorContext(ctx, "response: serve the block list", "error", err)
+		return nil, errListUnavailable()
+	}
+	return out, nil
 }
 
-// allowFetch is a sliding one-minute window per key: it reports whether another event still fits; record adds one.
+// allowFetch is a sliding one-minute window per key: it reports whether another event still fits; record adds one. The
+// table holds at most maxFetchKeys sources: when it is full a source it does not know yet is refused (429) until old ones age out.
 func (s *Service) allowFetch(key string, limit int, record bool) bool {
 	s.limitMu.Lock()
 	defer s.limitMu.Unlock()
 	now := s.now()
-	keep := s.fetchTimes[key][:0]
-	for _, t := range s.fetchTimes[key] {
+	times, known := s.fetchTimes[key]
+	keep := times[:0]
+	for _, t := range times {
 		if now.Sub(t) < time.Minute {
 			keep = append(keep, t)
 		}
@@ -252,8 +321,27 @@ func (s *Service) allowFetch(key string, limit int, record bool) bool {
 		return false
 	}
 	if record {
+		if !known && len(s.fetchTimes) >= maxFetchKeys {
+			s.purgeFetch(now)
+			if len(s.fetchTimes) >= maxFetchKeys {
+				return false
+			}
+		}
 		keep = append(keep, now)
 	}
-	s.fetchTimes[key] = keep
+	if len(keep) == 0 {
+		delete(s.fetchTimes, key)
+	} else {
+		s.fetchTimes[key] = keep
+	}
 	return true
+}
+
+// purgeFetch forgets the sources with nothing in the last minute. The caller holds limitMu.
+func (s *Service) purgeFetch(now time.Time) {
+	for k, l := range s.fetchTimes {
+		if len(l) == 0 || now.Sub(l[len(l)-1]) >= time.Minute {
+			delete(s.fetchTimes, k)
+		}
+	}
 }

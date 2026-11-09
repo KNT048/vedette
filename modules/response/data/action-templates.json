@@ -218,7 +218,7 @@
       "pack": "pfSense",
       "kind": "device",
       "name": "pfSense: add an IP to an alias (unofficial REST package)",
-      "description": "Adds the address to the Vedette_Blocklist alias through the pfSense REST API package version 2, then applies the change. This package is not made or supported by Netgate: install it yourself first. A floating block rule on that alias (you create it once) does the blocking. Applying reloads the firewall filter and can drop connections briefly.",
+      "description": "Adds the address to the Vedette_Blocklist alias through the pfSense REST API package version 2, then applies the change. This package is not made or supported by Netgate: install it yourself first. A floating block rule on that alias (you create it once) does the blocking. Applying reloads the firewall filter and can drop connections briefly. Vedette cannot undo this change: the package has no verified call that removes one address, so remove it from the alias yourself when it is no longer needed.",
       "connection_id": null,
       "tool": null,
       "rollback_tool": null,
@@ -231,9 +231,9 @@
       },
       "rollback": {
         "cli": "",
-        "method": "PATCH",
-        "path": "/api/v2/firewall/alias",
-        "body": "{\"name\":\"Vedette_Blocklist\",\"address\":[\"{ip}\"]}",
+        "method": "",
+        "path": "",
+        "body": "",
         "headers": ""
       },
       "verify": {

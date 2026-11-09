@@ -2,13 +2,16 @@ package response
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
@@ -101,6 +104,9 @@ type FindingInfo struct {
 
 // Directory resolves the ids an event carries. cmd/vedette adapts inventory and findings; the module never imports them.
 type Directory interface {
+	// DevicesOfKind lists the inventory devices of the given kinds (router, firewall: the never-touch gateways). An error means the
+	// inventory cannot be read: the callers refuse the action instead of going on with fewer entries.
+	DevicesOfKind(ctx context.Context, kinds ...string) ([]DeviceInfo, error)
 	Device(ctx context.Context, id string) (DeviceInfo, bool, error)
 	Finding(ctx context.Context, id string) (FindingInfo, bool, error)
 }
@@ -109,6 +115,15 @@ type Directory interface {
 type ConnectionInfo struct {
 	Connection
 	Target string // address the API paths are under, for the exact call a request shows
+	// UpdatedAt changes whenever the connection is edited (address, credentials, tools). With the id, kind and Target it makes the
+	// fingerprint stored in every request item (INV-9).
+	UpdatedAt string
+}
+
+// connFP is the fingerprint of a connection as a request saw it: the same connection is the same fingerprint.
+func connFP(c ConnectionInfo) string {
+	h := sha256.Sum256([]byte(c.ID + "\x00" + c.Kind + "\x00" + c.Target + "\x00" + c.UpdatedAt))
+	return hex.EncodeToString(h[:16])
 }
 
 // Connections lists the connections to devices. nil = none exist.
@@ -191,8 +206,25 @@ type Service struct {
 	seeded bool
 
 	limitMu    sync.Mutex
-	fetchTimes map[string][]time.Time // block list pulls per source address, for the rate limit
+	fetchTimes map[string][]time.Time // block list pulls per source address (per /64 for IPv6), for the rate limit
+
+	interfaceFn func() ([]netip.Addr, error) // reads the box interfaces; only export_test.go replaces it
+	maxBacklog  int                          // unprocessed events kept; only export_test.go replaces it
+	stepLimit   time.Duration                // bound of one item; only export_test.go replaces it
+	dropped     atomic.Int64                 // unprocessed events dropped because the backlog was full (M2), the metric
 }
+
+// interfaces reads the addresses of the box's network interfaces.
+func (s *Service) interfaces() ([]netip.Addr, error) {
+	if s.interfaceFn != nil {
+		return s.interfaceFn()
+	}
+	return interfaceAddrs()
+}
+
+// DroppedEvents counts the unprocessed trigger events dropped because the backlog was full since the box started. Each drop is
+// also a warning in the log and a refused line in the response log.
+func (s *Service) DroppedEvents() int64 { return s.dropped.Load() }
 
 // New builds a Service and loads the data files (action templates, rule templates, triggers). The built-in catalog rows are
 // written by the first call that reads the catalog.
@@ -203,7 +235,7 @@ func New(c Config) (*Service, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	s := &Service{cfg: c, fetchTimes: map[string][]time.Time{}}
+	s := &Service{cfg: c, fetchTimes: map[string][]time.Time{}, maxBacklog: maxEventBacklog, stepLimit: stepTimeout}
 	if err := s.loadData(); err != nil {
 		return nil, err
 	}
@@ -240,12 +272,16 @@ func (s *Service) flush(ctx context.Context, ob *events.Outbox) {
 }
 
 // boxAddrs lists this box's own addresses: its interfaces (read at every call) and Config.BoxAddrs.
-func (s *Service) boxAddrs() []netip.Addr {
+func (s *Service) boxAddrs() ([]netip.Addr, error) {
 	var out []netip.Addr
 	if s.cfg.BoxAddrs != nil {
 		out = append(out, s.cfg.BoxAddrs()...)
 	}
-	return append(out, interfaceAddrs()...)
+	own, err := s.interfaces()
+	if err != nil {
+		return nil, err
+	}
+	return append(out, own...), nil
 }
 
 // dbq is what *sql.DB and *sql.Tx share.
@@ -363,8 +399,9 @@ func (s *Service) refuse(ctx context.Context, e error, target, actor string) err
 	if !ok {
 		return e
 	}
-	if err := s.cfg.DB.Write(context.WithoutCancel(ctx), func(tx *sql.Tx) error {
-		return s.step(ctx, tx, "response.refused", target, LogRefused, ae.Code+": "+ae.Message, actor)
+	wctx := context.WithoutCancel(ctx) // the write and every query in it use one context: a disconnected caller must not cancel the record of a refusal
+	if err := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
+		return s.step(wctx, tx, "response.refused", target, LogRefused, ae.Code+": "+ae.Message, actor)
 	}); err != nil {
 		s.cfg.Log.ErrorContext(ctx, "response: record a refusal", "error", err)
 	}

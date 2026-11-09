@@ -120,7 +120,17 @@ type RequestItem struct {
 type itemRec struct {
 	RequestItem
 	Values map[ParamType]string `json:"values"`
-	Acted  []string             `json:"acted"` // the addresses and domains the item touches (and the device of a finding), read again by the never-touch gate
+	Acted  []string             `json:"acted"` // the addresses, domains, MACs and ports the item touches (and the subject of the event), read again by the never-touch gate
+
+	// What the request was made against, compared with the catalog and the connection right before the item runs or is undone
+	// (INV-9): an admin who edits the action or the connection while the request waits cannot make an approval run something else.
+	RunTool      string `json:"run_tool"`
+	RollbackTool string `json:"rollback_tool"`
+	ConnFP       string `json:"conn_fp"`
+
+	// RunningAt is set, in its own transaction with a log line, before a step is sent to a device or a webhook (INV-19). An item that
+	// stays so after a restart or a timeout is failed by the sweep with "state unknown": a step may have been applied.
+	RunningAt string `json:"running_at,omitempty"`
 }
 
 // Approval is one person's (or a pre-approved rule's) approval.

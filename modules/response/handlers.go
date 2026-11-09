@@ -8,6 +8,7 @@ import (
 	"io"
 
 	"github.com/knt048/vedette/core/api/oas"
+	"github.com/knt048/vedette/core/api/routes"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/server"
 )
@@ -409,6 +410,7 @@ func (h *ResponseHandlers) ResponseGetResponseBlocklistTokenTxt(ctx context.Cont
 	if x, ok := server.ExchangeFrom(ctx); ok {
 		from = x.ClientAddr().String()
 		x.W.Header().Set("Cache-Control", "no-store")
+		x.W.Header().Set("X-Content-Type-Options", "nosniff")
 	}
 	b, err := h.svc.FetchBlocklist(ctx, params.Token, from)
 	if err != nil {
@@ -419,7 +421,11 @@ func (h *ResponseHandlers) ResponseGetResponseBlocklistTokenTxt(ctx context.Cont
 
 // ResponseGetResponseCatalog implements GET /response/catalog (viewer).
 func (h *ResponseHandlers) ResponseGetResponseCatalog(ctx context.Context) (*oas.ResponseGetResponseCatalogOK, error) {
-	v, err := h.svc.Catalog(ctx)
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	v, err := h.svc.Catalog(ctx, p.Role == routes.Admin)
 	if err != nil {
 		return nil, err
 	}

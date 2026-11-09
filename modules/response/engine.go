@@ -78,14 +78,10 @@ func (s *Service) planAction(a RuleAction, ev Det, why string, cats map[string]c
 	if bad != "" {
 		return planned{}, &planFail{"invalid_target", bad, title}
 	}
-	// Never touch the gateway, DNS servers, domain controllers, this box or management addresses. For a finding the
-	// device itself must stay reachable.
-	acted := actedOf(vals)
-	if ev.Trigger == "finding" {
-		if ip, ok := CheckValue(PIP, ev.Fields["ip"]); ok {
-			acted = append(acted, ip)
-		}
-	}
+	// Never touch the gateway, DNS servers, domain controllers, this box or management addresses. The subject of the event
+	// (the device it is about) counts too, for every trigger: the device itself must stay reachable, whatever the action
+	// names (a switch port, a VLAN, an address).
+	acted := dedupe(append(actedOf(vals), subjectOf(ev.Fields)...))
 	if e, hit := firstTouched(never, acted); hit {
 		return planned{}, &planFail{"never_touch", strings.Join(acted, " / ") + " matches the never-touch list (" + e.Label + ", " + e.Value + "). Nothing was changed.", title}
 	}
@@ -113,11 +109,37 @@ func (s *Service) planAction(a RuleAction, ev Det, why string, cats map[string]c
 	default:
 		it.Title = cat.Name + ": " + first
 	}
+	rec := itemRec{RequestItem: it, Values: map[ParamType]string(vals), Acted: acted, RunTool: cat.Tool, RollbackTool: cat.RollbackTool}
 	if cat.device() {
-		it.ConnectorID, it.Connection = strp(cat.ConnectionID), strp(conn.Name)
+		rec.ConnectorID, rec.Connection, rec.ConnFP = strp(cat.ConnectionID), strp(conn.Name), connFP(*conn)
 	}
-	val := map[ParamType]string(vals)
-	return planned{rec: itemRec{RequestItem: it, Values: val, Acted: acted}, key: planKey(it)}, nil
+	return planned{rec: rec, key: planKey(rec.RequestItem)}, nil
+}
+
+// dedupe drops repeated strings, keeping the first of each.
+func dedupe(l []string) []string {
+	var out []string
+	for _, x := range l {
+		if !slices.Contains(out, x) {
+			out = append(out, x)
+		}
+	}
+	return out
+}
+
+// subjectOf is the device an event is about: its address (the field is named ip, src_ip or source_ip by trigger) and its MAC,
+// as checked canonical values. Values that are not valid addresses are left out: they cannot be on the never-touch list.
+func subjectOf(f map[string]string) []string {
+	var out []string
+	for _, k := range []string{"ip", "src_ip", "source_ip"} {
+		if ip, ok := CheckValue(PIP, f[k]); ok {
+			out = append(out, ip)
+		}
+	}
+	if mac, ok := CheckValue(PMAC, f["mac"]); ok {
+		out = append(out, mac)
+	}
+	return out
 }
 
 func orStr(a, b string) string {
@@ -129,7 +151,7 @@ func orStr(a, b string) string {
 
 func actedOf(v Values) []string {
 	var out []string
-	for _, p := range []ParamType{PIP, PCIDR, PDomain} {
+	for _, p := range []ParamType{PIP, PCIDR, PDomain, PMAC, PInterface} {
 		if x, ok := v[p]; ok {
 			out = append(out, x)
 		}
@@ -275,9 +297,12 @@ func (s *Service) fire(ctx context.Context, tx *sql.Tx, rule Rule, ev Det, sum *
 	if err != nil {
 		return "", err
 	}
-	never, err := s.neverTouch(ctx, tx)
+	never, refusal, err := s.neverTouchOrRefusal(ctx, tx)
 	if err != nil {
 		return "", err
+	}
+	if refusal != nil {
+		return no(refusal.Code, refusal.Message)
 	}
 	var plan []planned
 	for _, a := range rule.Actions {
@@ -330,14 +355,21 @@ func (s *Service) fire(ctx context.Context, tx *sql.Tx, rule Rule, ev Det, sum *
 		p.rec.ID = newID("it")
 		recs[i] = p.rec
 	}
-	pre := rule.PreApproved && preApprovedProblem(rule.Actions, cats) == ""
+	// A pre-approved rule never stands in for one of two people: when the request needs two approvers (INV-2, for example the
+	// limit was lowered after the rule was saved) it is a normal pending request.
+	need, _ := requiredApprovals(recs, st)
+	held := ""
+	if rule.PreApproved && need > 1 {
+		held = "; pre-approval not used, this request needs " + itoa(need) + " approvers"
+	}
+	pre := rule.PreApproved && preApprovedProblem(rule.Actions, cats) == "" && need == 1
 	title := rule.Name + ": " + itoa(len(recs)) + " actions"
 	if len(recs) == 1 {
 		title = recs[0].Title
 	}
 	name := firstNonEmpty(ev.Fields["device"], ev.Fields["source_device"], ev.Fields["ip"], ev.Fields["source_ip"], "Network")
 	r, err := s.createRequest(ctx, tx, st, reqInit{Source: "rule", ProposalID: "rule:" + rule.ID + ":" + ev.ID, RuleID: rule.ID, RuleName: rule.Name, Trigger: rule.Trigger, TriggerSummary: ev.Summary,
-		FindingID: ev.FindingID, CVE: ev.CVE, AssetID: ev.AssetID, AssetName: name, Title: title, Recs: recs}, fx)
+		FindingID: ev.FindingID, CVE: ev.CVE, AssetID: ev.AssetID, AssetName: name, Title: title, Recs: recs, Held: held}, fx)
 	if err != nil {
 		return "", err
 	}
@@ -426,20 +458,9 @@ func (s *Service) evaluateOne(ctx context.Context, ev Det, sum *RunSummary) erro
 		handled := false
 		s.mu.Lock()
 		err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-			res, err := tx.ExecContext(ctx, `INSERT INTO resp_done (rule_id, event_id, at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`, rule.ID, ev.ID, s.ts())
-			if err != nil {
-				return err
-			}
-			if n, _ := res.RowsAffected(); n == 0 {
-				return nil // already handled
-			}
-			handled = true
-			// the rule may have changed since it was read
-			cur, ok, err := loadRule(ctx, tx, rule.ID)
-			if err != nil || !ok || !cur.Enabled {
-				return err
-			}
-			pre, err = s.fire(ctx, tx, cur, ev, sum, &fx)
+			fx = effects{}
+			var err error
+			pre, handled, err = s.handleInTx(ctx, tx, rule.ID, ev, all, sum, &fx)
 			return err
 		})
 		s.mu.Unlock()
@@ -458,6 +479,28 @@ func (s *Service) evaluateOne(ctx context.Context, ev Det, sum *RunSummary) erro
 		_, err := tx.ExecContext(ctx, `UPDATE resp_events SET processed = 1 WHERE id = ?`, ev.ID)
 		return err
 	})
+}
+
+// handleInTx runs one rule on one event inside tx. The rule may have changed since the caller read it, so its trigger, switch and
+// conditions are tested again on the stored rule before anything is recorded: a rule that no longer matches is not run and the
+// event is not marked handled for it. handled is true when the pair was new and the rule ran.
+func (s *Service) handleInTx(ctx context.Context, tx *sql.Tx, ruleID string, ev Det, all []Det, sum *RunSummary, fx *effects) (pre string, handled bool, err error) {
+	cur, ok, err := loadRule(ctx, tx, ruleID)
+	if err != nil || !ok || !cur.Enabled || cur.Trigger != ev.Trigger {
+		return "", false, err
+	}
+	if match, _ := conditionsOK(cur.RuleInput, ev, all); !match {
+		return "", false, nil
+	}
+	res, err := tx.ExecContext(ctx, `INSERT INTO resp_done (rule_id, event_id, at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`, ruleID, ev.ID, s.ts())
+	if err != nil {
+		return "", false, err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return "", false, nil // already handled
+	}
+	pre, err = s.fire(ctx, tx, cur, ev, sum, fx)
+	return pre, true, err
 }
 
 // autoApprove carries out the request of a pre-approved rule (INV-5): no person, via auto. Every other gate still applies.
@@ -522,7 +565,16 @@ func (s *Service) StoreEvent(ctx context.Context, d Det) error {
 	if d.Fields == nil {
 		d.Fields = map[string]string{}
 	}
-	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { _, err := insertEvent(ctx, tx, d); return err })
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		_, dropped, err := insertEvent(ctx, tx, d, s.maxBacklog)
+		if err != nil || dropped == 0 {
+			return err
+		}
+		// never a silent loss: a metric, a warning and a line in the response log
+		s.dropped.Add(int64(dropped))
+		s.cfg.Log.WarnContext(ctx, "response: the event backlog is full, the oldest unprocessed events were dropped", "dropped", dropped, "backlog", s.maxBacklog)
+		return s.step(ctx, tx, "response.events_dropped", "response", LogRefused, "event_backlog: "+itoa(dropped)+" unprocessed trigger event(s) were dropped, oldest first, because more than "+itoa(s.maxBacklog)+" were waiting. Rules did not see them.", "system")
+	})
 }
 
 // RunManual is POST /response/rules/{id}/manual: run a manual-trigger rule on a chosen device. It still goes through every gate.
@@ -641,7 +693,11 @@ func (s *Service) Simulate(ctx context.Context, who Actor, in RuleInput, eventID
 	if err != nil {
 		return Simulation{}, err
 	}
-	rule, err := s.checkRule(in, cats)
+	st, err := loadSettings(ctx, rdb)
+	if err != nil {
+		return Simulation{}, err
+	}
+	rule, err := s.checkRule(in, cats, st)
 	if err != nil {
 		return Simulation{}, s.refuse(ctx, err, "response.simulate", who.Email)
 	}
@@ -676,13 +732,12 @@ func (s *Service) Simulate(ctx context.Context, who Actor, in RuleInput, eventID
 	if err != nil {
 		return Simulation{}, err
 	}
-	never, err := s.neverTouch(ctx, rdb)
+	never, nt, err := s.neverTouchOrRefusal(ctx, rdb)
 	if err != nil {
 		return Simulation{}, err
 	}
-	st, err := loadSettings(ctx, rdb)
-	if err != nil {
-		return Simulation{}, err
+	if nt != nil {
+		return Simulation{}, s.refuse(ctx, nt, "response.simulate", who.Email)
 	}
 	steps := []SimStep{}
 	var plan []planned

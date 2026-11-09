@@ -61,6 +61,22 @@ func (f *fakeNotifier) Message(_ context.Context, id, title, text string) error 
 type fakeDirectory struct {
 	devices  map[string]response.DeviceInfo
 	findings map[string]response.FindingInfo
+	listErr  error // DevicesOfKind fails with it
+}
+
+func (f *fakeDirectory) DevicesOfKind(_ context.Context, kinds ...string) ([]response.DeviceInfo, error) {
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
+	var out []response.DeviceInfo
+	for _, d := range f.devices {
+		for _, k := range kinds {
+			if d.Kind == k {
+				out = append(out, d)
+			}
+		}
+	}
+	return out, nil
 }
 
 func (f *fakeDirectory) Device(_ context.Context, id string) (response.DeviceInfo, bool, error) {

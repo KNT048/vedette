@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -78,13 +80,53 @@ func loadAllow(ctx context.Context, q dbq) ([]AllowEntry, error) {
 	return out, rows.Err()
 }
 
-// neverTouch is the declared list plus the box's own addresses (INV-10).
+// errNeverTouchUnread is what neverTouch returns when part of the list cannot be built. The callers refuse the action (fail
+// closed) rather than go on with a shorter list.
+var errNeverTouchUnread = errors.New("response: the never-touch list could not be read in full")
+
+// neverTouchGateways are the inventory kinds whose devices count as never-touch without being listed: in practice they are
+// the gateways (INV-10). The gateway and DNS addresses read from the host's network state come with WP-07b part 3.
+var neverTouchGateways = []string{"router", "firewall"}
+
+// neverTouch is the declared list, the box's own addresses and every inventory router and firewall (INV-10). The box's
+// addresses and the inventory are read at every call. When either cannot be read the error wraps errNeverTouchUnread.
 func (s *Service) neverTouch(ctx context.Context, q dbq) ([]AllowEntry, error) {
 	l, err := loadAllow(ctx, q)
 	if err != nil {
 		return nil, err
 	}
-	return append(l, boxEntries(s.boxAddrs())...), nil
+	box, err := s.boxAddrs()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errNeverTouchUnread, err)
+	}
+	l = append(l, boxEntries(box)...)
+	if s.cfg.Directory == nil {
+		return l, nil
+	}
+	gws, err := s.cfg.Directory.DevicesOfKind(ctx, neverTouchGateways...)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errNeverTouchUnread, err)
+	}
+	for _, d := range gws {
+		label := "Router or firewall " + oneLine(d.Name, 60)
+		if ip, ok := CheckValue(PIP, d.IP); ok {
+			l = append(l, AllowEntry{Value: ip, Label: label})
+		}
+		if mac, ok := CheckValue(PMAC, d.MAC); ok {
+			l = append(l, AllowEntry{Value: mac, Label: label})
+		}
+	}
+	return l, nil
+}
+
+// neverTouchOrRefusal is neverTouch for the callers that refuse an action: an unreadable list is a refusal with a plain
+// reason (409 never_touch, nothing is requested or run), any other failure is an error.
+func (s *Service) neverTouchOrRefusal(ctx context.Context, q dbq) ([]AllowEntry, *apierr.Error, error) {
+	l, err := s.neverTouch(ctx, q)
+	if errors.Is(err, errNeverTouchUnread) {
+		return nil, fail(http.StatusConflict, "never_touch", "The never-touch list could not be read in full (this box's own addresses or the inventory are not available), so nothing was changed."), nil
+	}
+	return l, nil, err
 }
 
 // ---- catalog ----
@@ -410,20 +452,42 @@ func loadEvents(ctx context.Context, q dbq, where string, limit int, args ...any
 	return out, rows.Err()
 }
 
-// maxEvents bounds resp_events: the newest are kept.
-const maxEvents = 500
+// Bounds of resp_events: the newest processed events are kept for the conditions that count (a window of events and the
+// "first time" test); events no rule has seen yet are never trimmed to make room, only dropped (and counted, logged) when the
+// backlog itself passes maxEventBacklog.
+const (
+	maxEvents       = 500
+	maxEventBacklog = 2000
+)
 
-func insertEvent(ctx context.Context, tx *sql.Tx, d Det) (bool, error) {
+// insertEvent records an event. Only processed events are trimmed. When the unprocessed events pass backlog, the oldest of
+// them are deleted and their number is returned: the caller must log that loss (never silent).
+func insertEvent(ctx context.Context, tx *sql.Tx, d Det, backlog int) (inserted bool, dropped int, err error) {
 	res, err := tx.ExecContext(ctx, `INSERT INTO resp_events (id, trigger, ts, summary, fields, device_kind, asset_id, finding_id, cve) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING`,
 		d.ID, d.Trigger, d.TS, d.Summary, mustJSON(d.Fields), nullable(d.DeviceKind), nullable(d.AssetID), nullable(d.FindingID), nullable(d.CVE))
 	if err != nil {
-		return false, fmt.Errorf("response: save an event: %w", err)
+		return false, 0, fmt.Errorf("response: save an event: %w", err)
 	}
 	n, _ := res.RowsAffected()
-	if _, err := tx.ExecContext(ctx, `DELETE FROM resp_events WHERE seq <= (SELECT max(seq) FROM resp_events) - ?`, maxEvents); err != nil {
-		return false, fmt.Errorf("response: trim the events: %w", err)
+	if _, err := tx.ExecContext(ctx, `DELETE FROM resp_events WHERE processed = 1 AND seq NOT IN (SELECT seq FROM resp_events WHERE processed = 1 ORDER BY seq DESC LIMIT ?)`, maxEvents); err != nil {
+		return false, 0, fmt.Errorf("response: trim the events: %w", err)
 	}
-	return n > 0, nil
+	if n == 0 {
+		return false, 0, nil
+	}
+	var open int
+	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM resp_events WHERE processed = 0`).Scan(&open); err != nil {
+		return false, 0, fmt.Errorf("response: count the events: %w", err)
+	}
+	if open <= backlog {
+		return true, 0, nil
+	}
+	res, err = tx.ExecContext(ctx, `DELETE FROM resp_events WHERE seq IN (SELECT seq FROM resp_events WHERE processed = 0 ORDER BY seq LIMIT ?)`, open-backlog)
+	if err != nil {
+		return false, 0, fmt.Errorf("response: bound the event backlog: %w", err)
+	}
+	k, _ := res.RowsAffected()
+	return true, int(k), nil
 }
 
 func doneKeys(ctx context.Context, q dbq) ([]string, error) {

@@ -27,6 +27,7 @@ type reqInit struct {
 	Source, ProposalID, RuleID, RuleName, Trigger, TriggerSummary, FindingID, CVE, AssetID, AssetName, Title string
 	Recs                                                                                                     []itemRec
 	AI                                                                                                       *AiMeta
+	Held                                                                                                     string // why a pre-approval was not used, for the log line
 }
 
 // createRequest writes a pending request and its log line inside tx.
@@ -51,7 +52,7 @@ func (s *Service) createRequest(ctx context.Context, tx *sql.Tx, st Settings, in
 	if in.Source == "rule" {
 		actor = "rule:" + oneLine(in.RuleName, 80)
 	}
-	detail := in.Title + ": " + strings.Join(calls, " | ") + "; expires " + a.ExpiresAt + "; needs " + itoa(need) + " approver" + plural(need) + "; sent to the app only"
+	detail := in.Title + ": " + strings.Join(calls, " | ") + "; expires " + a.ExpiresAt + "; needs " + itoa(need) + " approver" + plural(need) + "; sent to the app only" + in.Held
 	if err := s.step(ctx, tx, "response.request", a.ID, LogRequest, detail, actor); err != nil {
 		return request{}, err
 	}
@@ -72,7 +73,7 @@ func notFound() error { return fail(http.StatusNotFound, "not_found", "No such r
 
 // Actions is GET /response/actions: newest first. email_links is always empty in the real build (FORBID-4).
 func (s *Service) Actions(ctx context.Context) ([]ActionRequest, error) {
-	if err := s.Sweep(ctx); err != nil {
+	if err := s.sweepExpired(ctx); err != nil { // a read only expires what is past its time; changes on devices are the job's (Sweep)
 		return nil, err
 	}
 	rs, err := loadReqs(ctx, s.cfg.DB.Reader(), `ORDER BY requested_at DESC, seq DESC LIMIT 500`)
@@ -99,7 +100,8 @@ func (s *Service) approve(ctx context.Context, who Actor, id string, pick []stri
 	if err := s.ensureSeeded(ctx); err != nil {
 		return ActionRequest{}, err
 	}
-	_ = code // the two-step code belongs to high-risk AI requests (part 13b); a request with AI data is refused below
+	_ = code            // the two-step code belongs to high-risk AI requests (part 13b); a request with AI data is refused below
+	pick = dedupe(pick) // a repeated id must not pass for a different selection
 	s.mu.Lock()
 	var refusal error
 	var final bool
@@ -187,6 +189,10 @@ func (s *Service) approve(ctx context.Context, who Actor, id string, pick []stri
 			refusal = fail(http.StatusForbidden, "forbidden", "Pre-approval refused: only low-risk, reversible actions with an undo time of 24 hours or less qualify.")
 			return nil
 		}
+		if n, _ := requiredApprovals(chosenRecs, st); auto && n > 1 { // INV-2: a rule is not one of two people
+			refusal = fail(http.StatusForbidden, "forbidden", "Pre-approval refused: this request needs two different people to approve it.")
+			return nil
+		}
 		cats, err := s.cats(ctx, tx)
 		if err != nil {
 			return err
@@ -223,7 +229,13 @@ func (s *Service) approve(ctx context.Context, who Actor, id string, pick []stri
 			a.Title+", approved by "+who.Email+" via "+string(who.Via)+": "+strings.Join(titles, "; ")+" (approval "+itoa(len(a.Approvals))+" of "+itoa(need)+")", who.Email+" ("+string(who.Via)+")"); err != nil {
 			return err
 		}
-		if len(a.Approvals) >= need {
+		humans := 0 // an automatic approval (via=auto) never counts towards two approvers (INV-2)
+		for _, x := range a.Approvals {
+			if x.Via != ViaAuto {
+				humans++
+			}
+		}
+		if len(a.Approvals) >= need && (need == 1 || humans >= need) {
 			final = true
 			a.Status, a.DecidedAt = StatusApproved, strp(at)
 			for k := range r.recs {
@@ -247,11 +259,15 @@ func (s *Service) approve(ctx context.Context, who Actor, id string, pick []stri
 		return ActionRequest{}, s.refuse(ctx, refusal, id, who.Email)
 	}
 	if final {
+		// The approval is committed: the items run to the end whether or not the approver is still connected (a closed
+		// browser or a proxy timeout must not leave a bundle half run).
+		dctx := context.WithoutCancel(ctx)
 		for _, itemID := range chosen {
-			if err := s.runItem(ctx, id, itemID); err != nil {
+			if err := s.runItem(dctx, id, itemID); err != nil {
 				return ActionRequest{}, err
 			}
 		}
+		return s.get(dctx, id)
 	}
 	return s.get(ctx, id)
 }
@@ -314,9 +330,9 @@ func deviceActionsLastHour(ctx context.Context, q dbq, now time.Time) (int, erro
 }
 
 // gateItem is the part of INV-9 that every execution path shares, per item: the execution switch (device actions only),
-// the catalog entry still enabled (403 tool_not_allowed), the connection unchanged and its write tool still on (409
-// tool_unavailable). With run set (right before running) it adds the breaker, the maintenance window and the
-// never-touch list, read fresh.
+// the catalog entry still enabled (403 tool_not_allowed), the connection unchanged since the request (409
+// connection_changed), its write tool still on and the tool of the action unchanged (409 tool_unavailable). With run set
+// (right before running) it adds the breaker, the maintenance window and the never-touch list, read fresh.
 func gateItem(i itemRec, st Settings, cats map[string]catRow, cs conns, run *runGate) *apierr.Error {
 	device := i.ConnectorID != nil
 	if device && !st.Execution {
@@ -330,12 +346,14 @@ func gateItem(i itemRec, st Settings, cats map[string]catRow, cs conns, run *run
 		}
 		return fail(http.StatusForbidden, "tool_not_allowed", "The action \""+name+"\" is not enabled in the action catalog (Settings, AI response).")
 	}
-	why := unavailable(cat, cs)
-	if why == "" && device && cat.ConnectionID != *i.ConnectorID {
-		why = "The connection for this action was changed after the request was made."
+	if e := connectionGate(i, cat, cs); e != nil {
+		return e
 	}
-	if why != "" {
+	if why := unavailable(cat, cs); why != "" {
 		return fail(http.StatusConflict, "tool_unavailable", why)
+	}
+	if device && cat.Tool != i.RunTool {
+		return fail(http.StatusConflict, "tool_unavailable", "The write tool of \""+cat.Name+"\" was changed after the request was made. Nothing was changed. Ask again.")
 	}
 	if run == nil {
 		return nil
@@ -352,6 +370,40 @@ func gateItem(i itemRec, st Settings, cats map[string]catRow, cs conns, run *run
 	return nil
 }
 
+// connectionGate is 409 connection_changed when the connection of a device item is not the one the request was made against:
+// the action now uses another connection, or the connection's address, kind or version (UpdatedAt) changed. The stored call
+// holds the address of the old one, so it must not be sent to the new one.
+func connectionGate(i itemRec, cat catRow, cs conns) *apierr.Error {
+	if i.ConnectorID == nil {
+		return nil
+	}
+	conn, known := cs.get(*i.ConnectorID)
+	if cat.ConnectionID != *i.ConnectorID || (known && connFP(conn) != i.ConnFP) {
+		return fail(http.StatusConflict, "connection_changed", "The connection \""+oneLine(deref2(i.Connection), 80)+"\" was changed after the request was made. Nothing was changed. Ask again.")
+	}
+	return nil
+}
+
+// rollbackGate is what an undo of a device item still needs: the same connection as the request and the same rollback tool.
+// It does not look at the catalog switch: after an admin disables an action its changes must still be removable (removing a
+// change is the safe direction, D-88 (4)); the execution switch is the caller's.
+func rollbackGate(i itemRec, cats map[string]catRow, cs conns) *apierr.Error {
+	if i.ConnectorID == nil {
+		return nil
+	}
+	cat, ok := cats[i.ActionID]
+	if !ok {
+		return fail(http.StatusConflict, "tool_unavailable", "The action of this change no longer exists in the catalog, so it cannot be undone from here.")
+	}
+	if e := connectionGate(i, cat, cs); e != nil {
+		return e
+	}
+	if cat.RollbackTool != i.RollbackTool {
+		return fail(http.StatusConflict, "tool_unavailable", "The undo tool of \""+cat.Name+"\" was changed after the request was made, so the change was not undone.")
+	}
+	return nil
+}
+
 // runGate is the fresh state the run-time gates read.
 type runGate struct {
 	now   time.Time
@@ -360,10 +412,24 @@ type runGate struct {
 
 // ---- running an item (the one place that changes anything) ----
 
+const (
+	// stepTimeout bounds one item (its step and the read-back). It is the item's own limit: the approver's connection does not count.
+	stepTimeout = 90 * time.Second
+	// stuckGrace is added to the step limit: an item "running" for longer is failed by the sweep (the box restarted or the step never returned).
+	stuckGrace = 30 * time.Second
+	// notStartedAfter is how long an approved request may wait for its items to start before the sweep fails them.
+	notStartedAfter = 10 * time.Minute
+
+	stateUnknown = "State unknown: check the device. The step may or may not have been applied."
+)
+
 // runItem carries out one approved item. It re-reads the request, the settings, the catalog, the connections and the
 // never-touch list, re-checks every gate, and only then acts. A gate that fails marks the item failed with the reason and logs
 // the refusal; nothing is sent. The steps that touch a device run one at a time (execMu), so the hourly limit holds.
+// Whatever the caller's context says, the item runs on its own: the approval was committed and a half-run bundle is worse
+// than a slow one. Before a step is sent the item is marked running with a log line, so a step is never unrecorded.
 func (s *Service) runItem(ctx context.Context, reqID, itemID string) error {
+	ctx = context.WithoutCancel(ctx)
 	if err := s.ensureSeeded(ctx); err != nil {
 		return err
 	}
@@ -375,7 +441,7 @@ func (s *Service) runItem(ctx context.Context, reqID, itemID string) error {
 		return err
 	}
 	k := slices.IndexFunc(r.recs, func(i itemRec) bool { return i.ID == itemID })
-	if k < 0 || r.Status != StatusApproved || r.recs[k].Status != ItemPending {
+	if k < 0 || r.Status != StatusApproved || r.recs[k].Status != ItemPending || r.recs[k].RunningAt != "" {
 		return nil // cancelled or already handled since the approval
 	}
 	it := r.recs[k]
@@ -391,9 +457,12 @@ func (s *Service) runItem(ctx context.Context, reqID, itemID string) error {
 	if err != nil {
 		return err
 	}
-	never, err := s.neverTouch(ctx, rdb)
+	never, refusal, err := s.neverTouchOrRefusal(ctx, rdb)
 	if err != nil {
 		return err
+	}
+	if refusal != nil {
+		return s.finishItem(ctx, reqID, itemID, itemOutcome{refusal: refusal})
 	}
 	if e := gateItem(it, st, cats, cs, &runGate{now: s.now(), never: never}); e != nil {
 		return s.finishItem(ctx, reqID, itemID, itemOutcome{refusal: e})
@@ -408,8 +477,35 @@ func (s *Service) runItem(ctx context.Context, reqID, itemID string) error {
 		}
 	}
 	cat := cats[it.ActionID]
-	out := s.carryOut(ctx, r, it, cat, cs)
+	if it.ConnectorID != nil || cat.ID == "webhook_call" { // a step that leaves the box
+		if err := s.markRunning(ctx, reqID, itemID); err != nil {
+			return err
+		}
+	}
+	xctx, cancel := context.WithTimeout(ctx, s.stepLimit)
+	out := s.carryOut(xctx, r, it, cat, cs)
+	cancel()
 	return s.finishItem(ctx, reqID, itemID, out)
+}
+
+// markRunning records, before anything is sent, that the item is running: the item state and a log line, in one transaction.
+func (s *Service) markRunning(ctx context.Context, reqID, itemID string) error {
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		r, ok, err := loadReq(ctx, tx, reqID)
+		if err != nil || !ok {
+			return err
+		}
+		k := slices.IndexFunc(r.recs, func(i itemRec) bool { return i.ID == itemID })
+		if k < 0 || r.recs[k].Status != ItemPending {
+			return nil
+		}
+		r.recs[k].RunningAt = s.ts()
+		it := r.recs[k]
+		if err := s.step(ctx, tx, "response.run", r.ID, LogApproved, "Running: "+it.Title+": "+callText(it.Change.Rest, it.Change.CLI)+"; the step is being sent now and the result follows", "system"); err != nil {
+			return err
+		}
+		return updateReq(ctx, tx, r)
+	})
 }
 
 // itemOutcome is what happened to an item.
@@ -426,6 +522,13 @@ func (s *Service) carryOut(ctx context.Context, r request, it itemRec, cat catRo
 	case !cat.device():
 		switch cat.ID {
 		case "blocklist_add":
+			full, err := s.blockListFull(ctx, it.Values[PIP])
+			if err != nil {
+				return itemOutcome{err: "The block list could not be read, so nothing was added."}
+			}
+			if full {
+				return itemOutcome{refusal: fail(http.StatusConflict, "limit", "The block list holds "+itoa(maxBlockEntries)+" entries, the most it can publish. Nothing was added. Remove entries or let them expire first.")}
+			}
 			return itemOutcome{result: "Added to the block list. Your firewall picks it up on its next fetch.", verified: &Verified{OK: true, Detail: "Read back from the block list: the entry is present."}, block: true}
 		case "msg_send":
 			if s.cfg.Notifier == nil {
@@ -447,13 +550,16 @@ func (s *Service) carryOut(ctx context.Context, r request, it itemRec, cat catRo
 		return itemOutcome{err: "No device executor is available in this build. Nothing was changed."}
 	}
 	conn := cs.by[*it.ConnectorID]
-	res, err := s.cfg.Executor.Execute(ctx, DeviceStep{ConnectionID: conn.ID, Tool: cat.Tool, Phase: "run", CLI: it.Change.CLI, Rest: it.Change.Rest, RequestID: r.ID, ItemID: it.ID})
+	res, err := s.cfg.Executor.Execute(ctx, DeviceStep{ConnectionID: conn.ID, Tool: it.RunTool, Phase: "run", CLI: it.Change.CLI, Rest: it.Change.Rest, RequestID: r.ID, ItemID: it.ID})
 	if err != nil {
+		if ctx.Err() != nil { // the step ran out of time: it may have been applied
+			return itemOutcome{err: "The connection " + oneLine(conn.Name, 80) + " did not answer in time. " + stateUnknown}
+		}
 		return itemOutcome{err: "The connection " + oneLine(conn.Name, 80) + " did not answer. Nothing was changed."}
 	}
 	out := itemOutcome{result: oneLine(res.Detail, 300), verified: res.Verified}
 	if it.Change.Verify != "" && res.Verified == nil {
-		if vr, err := s.cfg.Executor.Execute(ctx, DeviceStep{ConnectionID: conn.ID, Tool: cat.Tool, Phase: "verify", CLI: it.Change.Verify, RequestID: r.ID, ItemID: it.ID}); err == nil {
+		if vr, err := s.cfg.Executor.Execute(ctx, DeviceStep{ConnectionID: conn.ID, Tool: it.RunTool, Phase: "verify", CLI: it.Change.Verify, RequestID: r.ID, ItemID: it.ID}); err == nil {
 			out.verified = vr.Verified
 		} else {
 			out.verified = &Verified{OK: false, Detail: "The read-back did not answer."}
@@ -463,9 +569,12 @@ func (s *Service) carryOut(ctx context.Context, r request, it itemRec, cat catRo
 }
 
 // finishItem records what happened to an item in one transaction: the item, the block list entry, the request status, the log.
+// The write and every query in it use one context that the caller's cancellation cannot reach.
 func (s *Service) finishItem(ctx context.Context, reqID, itemID string, o itemOutcome) error {
+	ctx = context.WithoutCancel(ctx)
 	var fx effects
-	err := s.cfg.DB.Write(context.WithoutCancel(ctx), func(tx *sql.Tx) error {
+	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		fx = effects{}
 		r, ok, err := loadReq(ctx, tx, reqID)
 		if err != nil || !ok {
 			return err
@@ -475,6 +584,7 @@ func (s *Service) finishItem(ctx context.Context, reqID, itemID string, o itemOu
 			return nil
 		}
 		it := &r.recs[k]
+		it.RunningAt = ""
 		now := s.now()
 		switch {
 		case o.refusal != nil:
@@ -521,6 +631,34 @@ func (s *Service) finishItem(ctx context.Context, reqID, itemID string, o itemOu
 		return err
 	}
 	s.run(ctx, &fx)
+	return nil
+}
+
+// failStuck fails the items an approved request left behind: an item "running" for longer than stuckAfter (the box restarted
+// or the step never returned: state unknown, check the device) and items that never started within notStartedAfter. Each is
+// logged as failed. The sweep job calls it.
+func (s *Service) failStuck(ctx context.Context) error {
+	now := s.now()
+	reqs, err := loadReqs(ctx, s.cfg.DB.Reader(), `WHERE status = 'approved'`)
+	if err != nil {
+		return err
+	}
+	for _, r := range reqs {
+		for _, it := range r.recs {
+			if it.Status != ItemPending {
+				continue
+			}
+			switch {
+			case it.RunningAt != "" && now.Sub(parseTS(it.RunningAt)) > s.stepLimit+stuckGrace:
+				err = s.finishItem(ctx, r.ID, it.ID, itemOutcome{err: stateUnknown})
+			case it.RunningAt == "" && r.DecidedAt != nil && now.Sub(parseTS(*r.DecidedAt)) > notStartedAfter:
+				err = s.finishItem(ctx, r.ID, it.ID, itemOutcome{err: "This action did not start (the box restarted or was busy after the approval). Nothing was changed. Ask again."})
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -600,10 +738,14 @@ func (s *Service) expire(ctx context.Context, tx *sql.Tx, r *request, fx *effect
 	return updateReq(ctx, tx, *r)
 }
 
-// Sweep expires the pending requests past their time and undoes the executed changes whose undo time ended. The sweep
-// job calls it, and every list of requests does first, so a stale request never looks open.
+// Sweep expires the pending requests past their time, fails the items an approved request left behind, and undoes the
+// executed changes whose undo time ended. Only the sweep job calls it: a read (GET) never sends a step to a device. A list of
+// requests only expires what is past its time (sweepExpired), so a stale request never looks open.
 func (s *Service) Sweep(ctx context.Context) error {
 	if err := s.sweepExpired(ctx); err != nil {
+		return err
+	}
+	if err := s.failStuck(ctx); err != nil {
 		return err
 	}
 	return s.sweepTTL(ctx)
@@ -701,7 +843,10 @@ func (s *Service) Rollback(ctx context.Context, who Actor, id string) (ActionReq
 		if i.ConnectorID == nil {
 			continue // a box action (the block list) is undone locally: no switch, no connection
 		}
-		if e := gateItem(i, st, cats, cs, nil); e != nil {
+		if !st.Execution { // INV-7: a person's undo of a device change needs the switch; the action may be disabled since (L2)
+			return ActionRequest{}, s.refuse(ctx, fail(http.StatusConflict, "execution_off", offMsg), id, who.Email)
+		}
+		if e := rollbackGate(i, cats, cs); e != nil {
 			return ActionRequest{}, s.refuse(ctx, e, id, who.Email)
 		}
 	}
@@ -722,8 +867,10 @@ func (s *Service) Rollback(ctx context.Context, who Actor, id string) (ActionReq
 	return got, nil
 }
 
-// undoItem sends the rollback step of one executed item and records the result. auto is the sweep (ttl_removed).
+// undoItem sends the rollback step of one executed item and records the result. auto is the sweep (ttl_removed). Like
+// runItem it runs on its own context (a disconnected caller must not abort an undo half way).
 func (s *Service) undoItem(ctx context.Context, reqID, itemID string, auto bool, actor string) error {
+	ctx = context.WithoutCancel(ctx)
 	if err := s.ensureSeeded(ctx); err != nil {
 		return err
 	}
@@ -745,23 +892,31 @@ func (s *Service) undoItem(ctx context.Context, reqID, itemID string, auto bool,
 		if err != nil {
 			return err
 		}
+		cats, err := s.cats(ctx, rdb)
+		if err != nil {
+			return err
+		}
 		switch conn, known := cs.get(*it.ConnectorID); {
 		case s.cfg.Executor == nil:
 			failure = "No device executor is available in this build. The change was not undone."
 		case !known:
 			failure = "The connection of this action no longer exists. The change was not undone."
 		default:
-			cats, err := s.cats(ctx, rdb)
-			if err != nil {
-				return err
+			if e := rollbackGate(it, cats, cs); e != nil {
+				failure = e.Message
+				break
 			}
-			if _, err := s.cfg.Executor.Execute(ctx, DeviceStep{ConnectionID: conn.ID, Tool: cats[it.ActionID].RollbackTool, Phase: "rollback", CLI: it.Change.Rollback.CLI, Rest: it.Change.Rollback.Rest, RequestID: r.ID, ItemID: it.ID}); err != nil {
+			xctx, cancel := context.WithTimeout(ctx, s.stepLimit)
+			_, err := s.cfg.Executor.Execute(xctx, DeviceStep{ConnectionID: conn.ID, Tool: it.RollbackTool, Phase: "rollback", CLI: it.Change.Rollback.CLI, Rest: it.Change.Rollback.Rest, RequestID: r.ID, ItemID: it.ID})
+			cancel()
+			if err != nil {
 				failure = "The connection " + oneLine(conn.Name, 80) + " did not answer. The change was not undone."
 			}
 		}
 	}
 	var fx effects
-	err = s.cfg.DB.Write(context.WithoutCancel(ctx), func(tx *sql.Tx) error {
+	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		fx = effects{}
 		cur, ok, err := loadReq(ctx, tx, reqID)
 		if err != nil || !ok {
 			return err
@@ -819,8 +974,11 @@ func (s *Service) undoItem(ctx context.Context, reqID, itemID string, auto bool,
 
 // ---- emergency stop (INV-8) ----
 
-// EmergencyStop is POST /response/emergency-stop: execution off and every pending request cancelled, in one transaction.
-// It takes neither mu nor execMu: a stop must never wait. A step that is already running finishes; the next one reads the switch.
+// EmergencyStop is POST /response/emergency-stop: execution off, the global circuit breaker open and every pending request
+// cancelled, in one transaction. The open breaker stops what the execution switch does not: pre-approved rules, the box actions
+// (block list, webhook, message) and every item still to run (fire and runItem read it per rule and per item); only an admin
+// resets it (INV-8, INV-12). It takes neither mu nor execMu: a stop must never wait. A step that is already running finishes;
+// the next one reads the switch and the breaker.
 func (s *Service) EmergencyStop(ctx context.Context, who Actor) (int, error) {
 	cancelled := 0
 	var fx effects
@@ -830,6 +988,9 @@ func (s *Service) EmergencyStop(ctx context.Context, who Actor) (int, error) {
 			return err
 		}
 		st.Execution = false
+		if st.BreakerTrippedAt == nil {
+			st.BreakerTrippedAt = strp(s.ts())
+		}
 		if err := s.saveSettings(ctx, tx, st); err != nil {
 			return err
 		}
@@ -848,7 +1009,7 @@ func (s *Service) EmergencyStop(ctx context.Context, who Actor) (int, error) {
 			fx.ob.Add(events.Event{Name: EventDecisionMade, Data: DecisionEvent{RequestID: r.ID, Decision: "cancelled", By: who.Email, Final: true}})
 		}
 		cancelled = len(pending)
-		return s.step(ctx, tx, "response.emergency_stop", "response", LogEmergencyStop, who.Email+" stopped execution; "+itoa(cancelled)+" pending request"+plural(cancelled)+" cancelled", who.Email)
+		return s.step(ctx, tx, "response.emergency_stop", "response", LogEmergencyStop, who.Email+" stopped execution and opened the circuit breaker (only an admin can resume); "+itoa(cancelled)+" pending request"+plural(cancelled)+" cancelled", who.Email)
 	})
 	if err != nil {
 		return 0, err
@@ -907,7 +1068,7 @@ func stat(list []request) Stat {
 
 // Metrics is GET /response/metrics.
 func (s *Service) Metrics(ctx context.Context) (Metrics, error) {
-	if err := s.Sweep(ctx); err != nil {
+	if err := s.sweepExpired(ctx); err != nil {
 		return Metrics{}, err
 	}
 	all, err := loadReqs(ctx, s.cfg.DB.Reader(), `ORDER BY seq`)

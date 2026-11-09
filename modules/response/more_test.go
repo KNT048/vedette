@@ -42,10 +42,10 @@ func TestContract_INV17_Blocklist(t *testing.T) {
 			lines = append(lines, l)
 		}
 	}
-	if len(lines) != 1 || lines[0] != "198.51.100.7" || !strings.HasPrefix(string(b), "# Vedette block list") || strings.Contains(string(b), "203.0.113.99\n") && !strings.Contains(string(b), "# Rule") {
+	if len(lines) != 1 || lines[0] != "198.51.100.7" || !strings.HasPrefix(string(b), "# vedette blocklist") || strings.Contains(string(b), "203.0.113.99") || strings.Contains(string(b), "PC connected") {
 		t.Fatalf("list:\n%s", b)
 	}
-	if strings.Count(string(b), "\n") != 3 {
+	if strings.Count(string(b), "\n") != 4 { // three comment lines and the address
 		t.Fatalf("a reason added lines:\n%s", b)
 	}
 	v, _ = e.svc.Blocklist(e.ctx())
@@ -358,7 +358,7 @@ func TestContract_INV14c_Catalog(t *testing.T) {
 	_, err = e.svc.ChangeAction(e.ctx(), admin, "fgt_ban_ip", response.CatalogUpdate{ConnectionID: &cid, Present: map[string]bool{"connection_id": true}})
 	wantCode(t, err, 409, "read_only")
 	// The catalog lists packs from the data files and connections.
-	c, err := e.svc.Catalog(e.ctx())
+	c, err := e.svc.Catalog(e.ctx(), true)
 	e.must(err)
 	if len(c.Items) < 20 || len(c.Connections) != 4 {
 		t.Fatalf("catalog: %d items, %d connections", len(c.Items), len(c.Connections))
@@ -387,8 +387,7 @@ func TestPlansAndProposalRequest(t *testing.T) {
 	e.firewall("fgt_vip_disable")
 	e.dir.findings["f1"] = response.FindingInfo{ID: "f1", AssetID: "a-nas", CVE: "CVE-2024-3400", Severity: "critical", Status: "confirmed"}
 	e.dir.devices["a-nas"] = response.DeviceInfo{ID: "a-nas", Name: "NAS", IP: "192.168.10.21", Approved: true}
-	steps := `[{"kind":"contain","title":"Switch off the virtual IP","detail":"d","proposal":{"id":"pr-1","title":"Disable NAS-PHOTO-443","tool_key":"cn-fw/disable_virtual_ip","tool":"disable_virtual_ip","connector_id":"cn-fw","connection":"Office firewall","asset_id":"a-nas","asset_name":"NAS",` +
-		`"change":{"before":"b","after":"a","cli":"c","rest":null,"rollback":{"title":"Undo","cli":"u","rest":null},"verify":""}}},{"kind":"check","title":"Check","detail":"d","proposal":null}]`
+	steps := `[{"kind":"contain","title":"Switch off the virtual IP","detail":"d","proposal":{"id":"pr-1","action_id":"fgt_vip_disable","params":{"name":"NAS-PHOTO-443"},"asset_id":"a-nas","asset_name":"NAS"}},{"kind":"check","title":"Check","detail":"d","proposal":null}]`
 	e.exec1(`INSERT INTO resp_plans (id, finding_id, cve, asset_id, asset_name, generated_at, model, profile, path, reads, steps) VALUES ('plan-f1','f1','CVE-2024-3400','a-nas','NAS','2026-11-09T09:00:00.000Z','m','p','path','[]',?)`, steps)
 	pl, err := e.svc.Plans(e.ctx(), "")
 	e.must(err)

@@ -222,8 +222,9 @@ func inputOf(c catRow) CatalogInput {
 
 // ---- reads and writes of the catalog (admin) ----
 
-// Catalog is GET /response/catalog.
-func (s *Service) Catalog(ctx context.Context) (Catalog, error) {
+// Catalog is GET /response/catalog. The header lines of a template can carry an authorisation value, so the values are hidden
+// from everyone but an admin (full): GET is open to viewers (CONTRACT), who see the header names only.
+func (s *Service) Catalog(ctx context.Context, full bool) (Catalog, error) {
 	if err := s.ensureSeeded(ctx); err != nil {
 		return Catalog{}, err
 	}
@@ -238,11 +239,27 @@ func (s *Service) Catalog(ctx context.Context) (Catalog, error) {
 	out := Catalog{Items: make([]CatalogAction, len(rows)), Connections: make([]Connection, len(cs.list))}
 	for i, r := range rows {
 		out.Items[i] = r.view(cs)
+		if !full {
+			out.Items[i].Run.Headers, out.Items[i].Rollback.Headers, out.Items[i].Verify.Headers = maskHeaders(r.Run.Headers), maskHeaders(r.Rollback.Headers), maskHeaders(r.Verify.Headers)
+		}
 	}
 	for i, c := range cs.list {
 		out.Connections[i] = c.Connection
 	}
 	return out, nil
+}
+
+// maskHeaders keeps the names of the header lines and hides the values.
+func maskHeaders(h string) string {
+	if h == "" {
+		return ""
+	}
+	lines := strings.Split(h, "\n")
+	for i, l := range lines {
+		name, _, _ := strings.Cut(l, ":")
+		lines[i] = name + ": (hidden)"
+	}
+	return strings.Join(lines, "\n")
 }
 
 const maxCatalog = 50
@@ -388,6 +405,11 @@ func (s *Service) ChangeAction(ctx context.Context, who Actor, id string, u Cata
 		if err := saveCat(ctx, tx, n, 0); err != nil {
 			return err
 		}
+		if !old.Builtin && (old.Run != n.Run || old.Rollback != n.Rollback || old.Verify != n.Verify || old.Risk != n.Risk || old.Tool != n.Tool || old.RollbackTool != n.RollbackTool) {
+			if err := s.revokePreApprovals(ctx, tx, n, who.Email); err != nil {
+				return err
+			}
+		}
 		out = n
 		return s.step(ctx, tx, "response.catalog.change", n.ID, LogSettings, "Action "+onOff(n.Enabled, "enabled", "disabled")+": "+n.Name+" ("+string(n.Risk)+" risk"+flagIf(n.AIMayPropose, ", AI may propose")+")", who.Email)
 	})
@@ -395,6 +417,28 @@ func (s *Service) ChangeAction(ctx context.Context, who Actor, id string, u Cata
 		return CatalogAction{}, s.refuse(ctx, err, id, who.Email)
 	}
 	return out.view(cs), nil
+}
+
+// revokePreApprovals switches pre-approval off on every rule that uses an action whose templates or risk were just edited: what
+// an admin confirmed for the old action is not what the rule would now run without asking. Each rule is logged; an admin
+// confirms it again by saving the rule (INV-5).
+func (s *Service) revokePreApprovals(ctx context.Context, tx *sql.Tx, c catRow, actor string) error {
+	rules, err := loadRules(ctx, tx)
+	if err != nil {
+		return err
+	}
+	for _, r := range rules {
+		if !r.PreApproved || !slices.ContainsFunc(r.Actions, func(a RuleAction) bool { return a.ActionID == c.ID }) {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE resp_rules SET pre_approved = 0 WHERE id = ?`, r.ID); err != nil {
+			return err
+		}
+		if err := s.step(ctx, tx, "response.rule.change", r.ID, LogSettings, "Pre-approval switched off for rule \""+oneLine(r.Name, 80)+"\": its action \""+oneLine(c.Name, 80)+"\" was edited. An admin must confirm it again.", actor); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // DeleteAction is DELETE /response/catalog/{id}: a custom action that no rule uses.

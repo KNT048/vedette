@@ -54,17 +54,17 @@ Tên trường JSON thống nhất với `BlockEntry` trong `contract.ts`: `adde
 ### 4.2 Biến thể `.txt`
 
 ```
-# Vedette block list, 2026-11-09T07:12:41Z. One IP address per line. Lines starting with # are comments.
-# Rule: Known-bad IP: add to the block list | IPsum, confidence 85 | expires 2026-11-10T07:10:02Z
+# vedette blocklist
+# generated 2026-11-09T07:12:41.000Z
+# entries 2
 203.0.113.77
-# Rule: Known-bad IP: add to the block list | Feodo Tracker, confidence 95 | expires 2026-11-10T06:55:19Z
-198.51.100.0/24
+198.51.100.9
 ```
 
-- Dòng đầu là comment có `generated` theo giờ máy chủ. Mỗi mục: một dòng comment `# <source> | <reason> | expires <time|never>` rồi một dòng giá trị.
+- Ba dòng comment đầu (rà bảo mật WP-13a, D-88, thay dạng cũ có `# <source> | <reason> | expires …` trước từng mục): tên danh sách, giờ máy chủ, số mục. **Không có tên thiết bị, quy tắc, tóm tắt sự kiện hay lý do** trong tệp công khai (§12 (a)); `source`, `reason`, `expires_at` nằm ở màn hình quản trị và `.json`. Sau đó mỗi mục một dòng giá trị.
 - Kết thúc dòng `\n` (LF), mã hoá UTF-8 không BOM; dòng trống không có.
-- Danh sách rỗng: vẫn `200` với riêng dòng comment đầu (không `404`, không thân rỗng).
-- **Chống tiêm dòng.** `source` và `reason` có thể chứa dữ liệu do kẻ tấn công kiểm soát (D-51). Trước khi phát hành, mọi ký tự điều khiển (`\r`, `\n`, `\t`, NUL, U+0085, U+2028/2029…) bị thay bằng khoảng trắng, `|` bị thay bằng `/`, và cắt theo giới hạn. Nhờ vậy một `reason` chứa xuống dòng **không bao giờ** tạo ra một dòng `value` giả. Đây là bất biến phải có test (§12).
+- Danh sách rỗng: vẫn `200` với riêng ba dòng comment (`# entries 0`; không `404`, không thân rỗng).
+- **Chống tiêm dòng.** (Chỉ còn quan trọng cho `.json`/màn hình quản trị: `.txt` không in `source`/`reason` nữa.) `source` và `reason` có thể chứa dữ liệu do kẻ tấn công kiểm soát (D-51). Trước khi phát hành, mọi ký tự điều khiển (`\r`, `\n`, `\t`, NUL, U+0085, U+2028/2029…) bị thay bằng khoảng trắng, `|` bị thay bằng `/`, và cắt theo giới hạn. Nhờ vậy một `reason` chứa xuống dòng **không bao giờ** tạo ra một dòng `value` giả. Đây là bất biến phải có test (§12).
 - Chỉ `ip` và `cidr` trong `.txt`; mục `domain` không bao giờ xuất hiện ở `.txt` (một firewall không hiểu domain sẽ bỏ qua hoặc lỗi cả danh sách).
 
 ### 4.3 Biến thể `.json`
@@ -107,7 +107,7 @@ Mỗi dòng một domain, comment `#` như `.txt`. Pi-hole chấp nhận danh s�
 |---|---|---|
 | `ETag` | `"<version>"` (16 hex đầu của SHA-256 nội dung) | firewall thông minh hỏi lại bằng `If-None-Match` → `304` |
 | `Last-Modified` | thời điểm thay đổi gần nhất của tập mục | |
-| `Cache-Control` | `private, no-cache` | URL chứa token; proxy chung không được lưu; luôn xác thực lại |
+| `Cache-Control` | `no-store` (D-88: URL chứa token, không lưu ở đâu cả) | URL chứa token; proxy chung không được lưu; luôn xác thực lại |
 | `Content-Type` | như §4 | |
 | `X-Content-Type-Options` | `nosniff` | |
 | `Referrer-Policy` | `no-referrer` | |

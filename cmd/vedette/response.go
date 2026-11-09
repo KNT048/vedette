@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
@@ -83,6 +84,26 @@ func (r responseDirectory) Device(ctx context.Context, id string) (response.Devi
 	if err != nil {
 		return response.DeviceInfo{}, false, err
 	}
+	return deviceInfo(d), true, nil
+}
+
+// DevicesOfKind lists the inventory devices of the kinds (the gateways: router, firewall). An unreadable inventory is an error:
+// response refuses the action rather than go on without them.
+func (r responseDirectory) DevicesOfKind(ctx context.Context, kinds ...string) ([]response.DeviceInfo, error) {
+	l, err := r.inv.Devices(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var out []response.DeviceInfo
+	for _, d := range l.Items {
+		if slices.Contains(kinds, d.Kind) {
+			out = append(out, deviceInfo(d))
+		}
+	}
+	return out, nil
+}
+
+func deviceInfo(d inventory.Device) response.DeviceInfo {
 	out := response.DeviceInfo{ID: d.ID, IP: d.IP, Kind: d.Kind, Approved: d.Approved}
 	if d.IP == "—" { // unknown address
 		out.IP = ""
@@ -98,7 +119,7 @@ func (r responseDirectory) Device(ctx context.Context, id string) (response.Devi
 		out.Vendor = d.Vendor.Value
 	}
 	out.Seen, _ = time.Parse(time.RFC3339, d.FirstSeen)
-	return out, true, nil
+	return out
 }
 
 // Finding answers the fields a trigger needs. Every finding the box holds comes from the exploited-vulnerability list

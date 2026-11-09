@@ -90,7 +90,8 @@ func TestValidateTpl(t *testing.T) {
 
 // The data files are valid by the same checks as a customer's action (they are validated when the service starts), and the
 // action library does not drift from the copy the GUI mock uses: the only differences are the ones that keep shell
-// characters out of the shipped templates (INV-14b), listed here.
+// characters out of the shipped templates (INV-14b) and the pfSense alias rollback that was a copy of its run step (D-88 amendment
+// 2026-11-09), listed here.
 func TestLibraryMatchesTheMockExceptForShellCharacters(t *testing.T) {
 	mock, err := os.ReadFile("../../web/src/features/response/templates/action-templates.sample.json")
 	if err != nil {
@@ -107,7 +108,7 @@ func TestLibraryMatchesTheMockExceptForShellCharacters(t *testing.T) {
 	if json.Unmarshal(mock, &a) != nil || json.Unmarshal(ours, &b) != nil || len(a.Actions) != len(b.Actions) {
 		t.Fatal("the libraries do not parse or differ in size")
 	}
-	allowed := map[string]bool{"adguard_block": true, "cisco_save_config": true}
+	allowed := map[string]bool{"adguard_block": true, "cisco_save_config": true, "pf_alias_add": true}
 	for i := range a.Actions {
 		id := a.Actions[i]["id"].(string)
 		x, _ := json.Marshal(a.Actions[i])

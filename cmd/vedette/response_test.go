@@ -9,12 +9,17 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-func (s *stack) pull(path string) (int, string) {
+func (s *stack) pull(path string) int {
+	s.t.Helper()
+	return s.pullRaw(path).Code
+}
+
+func (s *stack) pullRaw(path string) *httptest.ResponseRecorder {
 	s.t.Helper()
 	r := httptest.NewRequestWithContext(s.t.Context(), http.MethodGet, server.Prefix+path, nil)
 	w := httptest.NewRecorder()
 	s.h.ServeHTTP(w, r)
-	return w.Code, w.Body.String()
+	return w
 }
 
 // The response module in the real wiring: off by default (no route at all, the public ones included), the preview-only
@@ -28,7 +33,7 @@ func TestWiringResponseModule(t *testing.T) {
 			t.Errorf("GET %s with the module off: %d", p, c)
 		}
 	}
-	if c, _ := s.pull("/response/blocklist/" + strings.Repeat("a", 32) + ".txt"); c != 404 {
+	if c := s.pull("/response/blocklist/" + strings.Repeat("a", 32) + ".txt"); c != 404 {
 		t.Errorf("the public block list with the module off: %d", c)
 	}
 	s.setModule("notify", true)
@@ -81,14 +86,19 @@ func TestWiringResponseModule(t *testing.T) {
 		t.Fatalf("blocklist: %d %v", c, v)
 	}
 	path := url[strings.Index(url, "/response/"):]
-	if c, body := s.pull(path); c != 200 || !strings.HasPrefix(body, "# Vedette block list") {
-		t.Errorf("pull: %d %q", c, body)
+	pulled := s.pullRaw(path)
+	if pulled.Code != 200 || !strings.HasPrefix(pulled.Body.String(), "# vedette blocklist") {
+		t.Errorf("pull: %d %q", pulled.Code, pulled.Body.String())
 	}
-	if c, _ := s.pull("/response/blocklist/" + strings.Repeat("0", 32) + ".txt"); c != http.StatusNotFound {
+	// The token is in the address: never cached, never sniffed (blocklist-format 6).
+	if pulled.Header().Get("Cache-Control") != "no-store" || pulled.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Errorf("block list headers: %v", pulled.Header())
+	}
+	if c := s.pull("/response/blocklist/" + strings.Repeat("0", 32) + ".txt"); c != http.StatusNotFound {
 		t.Errorf("wrong token: %d", c)
 	}
 	s.setModule("response", false)
-	if c, _ := s.pull(path); c != 404 {
+	if c := s.pull(path); c != 404 {
 		t.Errorf("pull with the module off: %d", c)
 	}
 	if c, _ := s.do("GET", "/response/rules", "admin", ""); c != 404 {

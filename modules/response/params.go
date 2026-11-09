@@ -94,7 +94,7 @@ func CheckValue(t ParamType, v string) (string, bool) {
 			return "", false
 		}
 		a = a.Unmap()
-		if a.IsUnspecified() || a.IsLoopback() || a.IsMulticast() || a.IsLinkLocalUnicast() || a.IsLinkLocalMulticast() {
+		if a.IsUnspecified() || a.IsLoopback() || a.IsMulticast() || a.IsLinkLocalUnicast() || a.IsLinkLocalMulticast() || reservedV4(a) {
 			return "", false
 		}
 		return a.String(), true
@@ -105,7 +105,7 @@ func CheckValue(t ParamType, v string) (string, bool) {
 		}
 		p = netip.PrefixFrom(p.Addr().Unmap(), unmapBits(p)).Masked()
 		a := p.Addr()
-		if a.IsUnspecified() || a.IsLoopback() || a.IsMulticast() || a.IsLinkLocalUnicast() || a.IsLinkLocalMulticast() {
+		if a.IsUnspecified() || a.IsLoopback() || a.IsMulticast() || a.IsLinkLocalUnicast() || a.IsLinkLocalMulticast() || reservedV4(a) {
 			return "", false
 		}
 		if (a.Is4() && p.Bits() < minCIDRBitsV4) || (a.Is6() && p.Bits() < minCIDRBitsV6) {
@@ -131,7 +131,7 @@ func CheckValue(t ParamType, v string) (string, bool) {
 		n, ok := intIn(v, 1, 4094)
 		return strconv.Itoa(n), ok
 	case PInterface:
-		return v, interfaceRE.MatchString(v)
+		return v, interfaceRE.MatchString(v) && cleanSegments(v)
 	case PID:
 		n, ok := intIn(v, 1, 2147483647)
 		return strconv.Itoa(n), ok
@@ -141,6 +141,30 @@ func CheckValue(t ParamType, v string) (string, bool) {
 		return v, textRE.MatchString(v)
 	}
 	return "", false
+}
+
+// reservedV4 reports an IPv4 address that is never a target: 0.0.0.0/8 ("this network") and 240.0.0.0/4 (reserved, which
+// holds the broadcast address 255.255.255.255).
+func reservedV4(a netip.Addr) bool {
+	if !a.Is4() {
+		return false
+	}
+	b := a.As4()
+	return b[0] == 0 || b[0] >= 240
+}
+
+// cleanSegments is false when an interface value has an empty segment or a "." or ".." segment: the value lands in an API
+// path (1%2F..%2Fadmin), and a server that decodes %2F before routing would walk up it.
+func cleanSegments(v string) bool {
+	if strings.Contains(v, "..") {
+		return false
+	}
+	for seg := range strings.SplitSeq(v, "/") {
+		if seg == "" || seg == "." {
+			return false
+		}
+	}
+	return true
 }
 
 // unmapBits is the prefix length of p after the address is unmapped (::ffff:a.b.c.d/N counts as IPv4 /N-96).
@@ -338,8 +362,8 @@ func ValidateTpl(t Tpl, what string) string {
 	if t.Path != "" && t.Method == "" {
 		return what + ": choose the API method."
 	}
-	if t.Path != "" && (!apiPathRE.MatchString(t.Path) || strings.Contains(t.Path, "..")) {
-		return what + ": the API path must start with / and cannot contain .. or a query."
+	if t.Path != "" && (!apiPathRE.MatchString(t.Path) || strings.HasPrefix(t.Path, "//") || strings.Contains(t.Path, "..")) {
+		return what + ": the API path must start with a single / and cannot contain .. or a query."
 	}
 	if t.Body != "" && !json.Valid([]byte(placeholderRE.ReplaceAllString(t.Body, "0"))) {
 		return what + ": the API body must be valid JSON."

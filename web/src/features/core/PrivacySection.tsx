@@ -12,7 +12,7 @@ import { usePrivacy, useSavePrivacy } from './api'
 import { errMsg, ReadOnlyNote, useGate } from './parts'
 import type { PrivacyFlow, PrivacyState } from './types'
 
-// Mười luồng dữ liệu rời hộp, đúng như PRIVACY.md. Thêm luồng mới = sửa PRIVACY.md + bảng này cùng commit (rule legal.md).
+// Mười một luồng dữ liệu rời hộp, đúng như PRIVACY.md. Thêm luồng mới = sửa PRIVACY.md + bảng này cùng commit (rule legal.md).
 function Body({ d }: { d: PrivacyState }) {
   const { t } = useTranslation('core')
   const gate = useGate('admin')
@@ -21,13 +21,7 @@ function Body({ d }: { d: PrivacyState }) {
     try { await save.mutateAsync(v); toast.success(t('common:saved')) } catch (e) { toast.error(errMsg(e, t)) }
   }
   const stateChip = (f: PrivacyFlow) => (f.state === 'on' ? <Chip tone="ok">{t('privacy.state.on')}</Chip> : f.state === 'off' ? <Chip tone="off">{t('privacy.state.off')}</Chip> : <Chip tone="off">{t('privacy.state.conditional')}</Chip>)
-  const columns: ColumnDef<PrivacyFlow>[] = [
-    { id: 'flow', header: t('privacy.col.flow'), accessorFn: (f) => f.id, cell: ({ row }) => <span className="font-medium">{row.original.id}. {t(`privacy.flow.${row.original.id}.name`)}</span> },
-    { id: 'what', header: t('privacy.col.what'), enableSorting: false, accessorFn: (f) => f.id, cell: ({ row }) => <span className="block max-w-sm text-[13px]">{t(`privacy.flow.${row.original.id}.what`)}</span> },
-    { id: 'to', header: t('privacy.col.to'), enableSorting: false, accessorFn: (f) => f.id, cell: ({ row }) => <span className="block max-w-[200px] text-[13px]">{t(`privacy.flow.${row.original.id}.to`)}</span> },
-    { id: 'state', header: t('privacy.col.state'), accessorFn: (f) => f.state, cell: ({ row }) => stateChip(row.original) },
-    { id: 'control', header: t('privacy.col.control'), enableSorting: false, accessorFn: (f) => f.id, cell: ({ row }) => {
-      const f = row.original
+  const control = (f: PrivacyFlow) => {
       if (f.id === 2) return <a className="text-[13px] text-accent underline-offset-4 hover:underline" href="#telemetry">{t('privacy.flow.2.control')}</a>
       if (f.id === 6) return (
         <div className="flex items-center gap-2">
@@ -42,18 +36,32 @@ function Body({ d }: { d: PrivacyState }) {
           {f.id === 5 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/channels">{t('privacy.flow.5.link')}</Link> : null}
           {f.id === 7 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/siem">{t('privacy.flow.7.link')}</Link> : null}
           {f.id === 8 || f.id === 9 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/modules">{t(`privacy.flow.${f.id}.link`)}</Link> : null}
+          {f.id === 11 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/modules">{t('privacy.flow.11.link')}</Link> : null}
           {f.id === 10 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/network">{t('privacy.flow.10.link')}</Link> : null}
           {f.id === 1 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/feeds">{t('privacy.flow.1.link')}</Link> : null}
         </span>
       )
-    } },
+  }
+  const columns: ColumnDef<PrivacyFlow>[] = [
+    { id: 'flow', header: t('privacy.col.flow'), accessorFn: (f) => f.id, cell: ({ row }) => <span className="font-medium">{row.original.id}. {t(`privacy.flow.${row.original.id}.name`)}</span> },
+    { id: 'what', header: t('privacy.col.what'), enableSorting: false, accessorFn: (f) => f.id, cell: ({ row }) => <span className="block max-w-sm text-[13px]">{t(`privacy.flow.${row.original.id}.what`)}</span> },
+    { id: 'to', header: t('privacy.col.to'), enableSorting: false, accessorFn: (f) => f.id, cell: ({ row }) => <span className="block max-w-[200px] text-[13px]">{t(`privacy.flow.${row.original.id}.to`)}</span> },
+    { id: 'state', header: t('privacy.col.state'), accessorFn: (f) => f.state, cell: ({ row }) => stateChip(row.original) },
+    { id: 'control', header: t('privacy.col.control'), enableSorting: false, accessorFn: (f) => f.id, cell: ({ row }) => control(row.original) },
   ]
   const tel = d.telemetry
   return (
     <>
       <ReadOnlyNote role="admin" />
       <Section title={t('privacy.flows')} description={t('privacy.flowsDesc')}>
-        <DataTable data={d.flows} columns={columns} caption={t('privacy.flows')} pageSize={10} />
+        <DataTable data={d.flows} columns={columns} caption={t('privacy.flows')} pageSize={12} mobileRow={(f) => (
+          <div className="grid gap-1.5">
+            <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{f.id}. {t(`privacy.flow.${f.id}.name`)}</span>{stateChip(f)}</div>
+            <p className="text-[13px]">{t(`privacy.flow.${f.id}.what`)}</p>
+            <p className="text-[13px] text-muted"><span className="font-medium text-ink">{t('privacy.col.to')}: </span>{t(`privacy.flow.${f.id}.to`)}</p>
+            <div className="text-[13px] text-muted"><span className="font-medium text-ink">{t('privacy.col.control')}: </span>{control(f)}</div>
+          </div>
+        )} />
       </Section>
 
       <Section title={t('privacy.bugNote.title')}>

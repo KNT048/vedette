@@ -10,11 +10,11 @@ import { actionsStore, appendLog, breakerOpen, BREAKER_MSG, catById, connById, H
 import type { ActionRequest, AiNote, AiState, Evidence, Metrics, ProposeResult, Stat, Trigger } from './types'
 
 export interface Hint { id: string; ts: string; kind: 'rule' | 'memory'; text: string; from_request: string }
-export const notesStore = collection<AiNote[]>('response_ai_notes', () => [{
+export const notesStore = collection<AiNote[]>('resp_ai_notes', () => [{
   id: 'note-seed-1', ts: new Date(Date.now() - 50 * 60e3).toISOString(), kind: 'suggestion', title: 'Consider blocking 91.92.240.12', confidence: 0.6, action_id: 'blocklist_add', target: '91.92.240.12',
   why: 'PC-HR-01 connected to an address that one feed lists (URLhaus). Confidence 0.6 is below 0.8, so this is a note, not an approval request.', evidence: [{ kind: 'ioc_hit', id: 'det-s-ioc-2', summary: 'PC-HR-01 connected to 91.92.240.12 (URLhaus, confidence 60)' }],
 }], () => [])
-export const hintsStore = collection<Hint[]>('response_hints', () => [{ id: 'hint-seed-1', ts: new Date(Date.now() - 2 * 864e5).toISOString(), kind: 'memory', text: 'Our own vulnerability scanner uses 203.0.113.77. Never propose blocking it.', from_request: 'act-seed-4' }], () => [])
+export const hintsStore = collection<Hint[]>('resp_hints', () => [{ id: 'hint-seed-1', ts: new Date(Date.now() - 2 * 864e5).toISOString(), kind: 'memory', text: 'Our own vulnerability scanner uses 203.0.113.77. Never propose blocking it.', from_request: 'act-seed-4' }], () => [])
 
 const FORBIDDEN = ['cli', 'rest', 'change', 'command', 'template', 'run', 'rollback', 'method', 'path', 'url', 'body', 'headers', 'script']
 const aiRequests = () => actionsStore.get().filter((a) => a.source === 'ai' && a.ai)

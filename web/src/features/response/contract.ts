@@ -4,6 +4,7 @@
 // templates, validates every value by type, escapes it for the transport and enforces every gate (the UI only mirrors them).
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
+import { ConnectionKind } from '@/lib/connections'
 
 const iso = z.iso.datetime()
 const id = z.string().regex(/^[\w.-]{1,96}$/)
@@ -19,19 +20,21 @@ export const ChatChannel = z.enum(['slack', 'telegram', 'zalo-personal'])
 export const TriggerKind = z.enum(['honeypot', 'ioc_connection', 'finding', 'unknown_device', 'log_threshold', 'new_port', 'schedule', 'manual'])
 export const Trigger = TriggerKind
 export const Risk = z.enum(['low', 'medium', 'high'])
-export const ParamType = z.enum(['ip', 'cidr', 'domain', 'port', 'mac', 'vlan', 'interface', 'text'])
-export const FieldType = z.enum(['ip', 'cidr', 'domain', 'port', 'mac', 'vlan', 'interface', 'text', 'number', 'flag', 'choice'])
-export const Pack = z.enum(['box', 'fortigate', 'mikrotik', 'pfsense', 'opnsense', 'switch', 'dns', 'generic'])
-export const ConnKind = z.enum(['device-api', 'ssh', 'http', 'mcp-http', 'mcp-stdio'])
+// `id`: whole number 1 to 2147483647 (a policy number); `name`: letters, numbers, . _ - up to 64 (API_CONVENTIONS, action-templates §1.2). `text` is for message actions only.
+export const ParamType = z.enum(['ip', 'cidr', 'domain', 'port', 'mac', 'vlan', 'interface', 'id', 'name', 'text'])
+export const FieldType = z.enum(['ip', 'cidr', 'domain', 'port', 'mac', 'vlan', 'interface', 'id', 'name', 'text', 'number', 'flag', 'choice'])
+// Packs are labels from the template library (data, D-58): "box" and "generic" are built in, any other pack is named by the library or the customer.
+export const Pack = z.string().min(1).max(60)
+export const ConnKind = ConnectionKind
 
 export const Tpl = z.object({
-  cli: z.string().max(2000).describe('Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {text}; shell characters are refused'),
-  method: z.enum(['', 'GET', 'PUT', 'POST', 'DELETE']), path: z.string().max(300).describe('API path under the connection address, starts with /'),
+  cli: z.string().max(2000).describe('Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on'),
+  method: z.enum(['', 'GET', 'PUT', 'PATCH', 'POST', 'DELETE']), path: z.string().max(300).describe('API path under the connection address, starts with /'),
   body: z.string().max(2000).describe('JSON body (for an MCP server: the tool arguments as JSON), may be empty'),
   headers: z.string().max(600).describe('HTTP headers, one "Name: value" per line, may be empty'),
 })
 
-export const RestCall = z.object({ method: z.enum(['GET', 'PUT', 'POST', 'DELETE']), url: z.string(), body: z.string().nullable() })
+export const RestCall = z.object({ method: z.enum(['GET', 'PUT', 'PATCH', 'POST', 'DELETE']), url: z.string(), body: z.string().nullable() })
 const rest = RestCall.nullable().describe('The exact API call, or null when the action is a command only')
 export const Change = z.object({
   before: z.string().describe('State of the target before the change, in plain words'),
@@ -128,7 +131,7 @@ export const TriggerList = z.object({ items: z.array(TriggerInfo) })
 
 // ---- Action catalog ----
 export const Connection = z.object({
-  id: z.string(), name: z.string(), enabled: z.boolean(), kind: ConnKind, vendor: z.string().nullable(),
+  id: z.string(), name: z.string(), enabled: z.boolean(), kind: ConnKind,
   write_tools: z.array(z.string()).describe('Enabled write tools; empty = read-only, cannot carry out actions'), read_only: z.boolean(),
 })
 export const CatalogAction = z.object({
@@ -234,7 +237,7 @@ export const endpoints = defineEndpoints([
   R({ method: 'get', path: '/response/plans', summary: 'AI response plans for unresolved critical findings, with the proposed actions and what blocks them', stories: ['S-RESP-1'], role: 'viewer',
     query: z.object({ finding: z.string().optional() }), response: PlanList }),
   R({ method: 'get', path: '/response/actions', summary: 'Requests (one bundled request per rule run or AI proposal) with items, approvals, status, exact changes, rollback and read-back result', stories: ['S-RESP-2', 'S-RESP-3'], role: 'viewer', response: ActionList }),
-  R({ method: 'post', path: '/response/proposals/{id}/request', summary: 'Ask for approval of one action proposed in an AI plan (refused when execution is off, the action is not enabled or a request is already open)', stories: ['S-RESP-2'], role: 'operator',
+  R({ method: 'post', path: '/response/proposals/{id}/request', status: 201, summary: 'Ask for approval of one action proposed in an AI plan (refused when execution is off, the action is not enabled or a request is already open)', stories: ['S-RESP-2'], role: 'operator',
     params: idParams, response: ActionRequest }),
   R({ method: 'post', path: '/response/actions/{id}/approve', summary: 'Approve a request in the app: all actions or the ones picked. High-risk requests need a second, different approver; AI high-risk requests need the two-step code', stories: ['S-RESP-2'], role: 'operator',
     params: idParams, body: z.object({ items: z.array(z.string()).optional(), code: z.string().optional() }), response: ActionRequest }),
@@ -257,7 +260,7 @@ export const endpoints = defineEndpoints([
 
   R({ method: 'get', path: '/response/triggers', summary: 'Trigger catalog: each WHEN with its typed fields for conditions and parameters, and whether the AI may use it', stories: ['S-RESP-3'], role: 'viewer', response: TriggerList }),
   R({ method: 'get', path: '/response/rules', summary: 'Rules: trigger, conditions, ordered actions, dry-run or live, pre-approved option and limits', stories: ['S-RESP-3'], role: 'viewer', response: RuleList }),
-  R({ method: 'post', path: '/response/rules', summary: 'Add a rule. It always starts in dry run (log only). Parameters are checked by type; pre-approved is refused unless every action is low risk, reversible and undone within 24 hours', stories: ['S-RESP-3'], role: 'admin', body: RuleInput, response: Rule }),
+  R({ method: 'post', path: '/response/rules', status: 201, summary: 'Add a rule. It always starts in dry run (log only). Parameters are checked by type; pre-approved is refused unless every action is low risk, reversible and undone within 24 hours', stories: ['S-RESP-3'], role: 'admin', body: RuleInput, response: Rule }),
   R({ method: 'put', path: '/response/rules/{id}', summary: 'Change a rule, switch it on or off, or switch it from dry run to live', stories: ['S-RESP-3'], role: 'admin', params: idParams, body: RuleInput, response: Rule }),
   R({ method: 'delete', path: '/response/rules/{id}', summary: 'Delete a rule', stories: ['S-RESP-3'], role: 'admin', params: idParams, response: null }),
   R({ method: 'post', path: '/response/rules/run', summary: 'Preview build only: check the current events against the enabled rules now (on a real box this runs continuously)', stories: ['S-RESP-3'], role: 'operator', response: RunSummary }),
@@ -266,7 +269,7 @@ export const endpoints = defineEndpoints([
   R({ method: 'post', path: '/response/rules/{id}/manual', summary: 'Run a manual-trigger rule on a chosen device', stories: ['S-RESP-3'], role: 'operator', params: idParams, body: z.object({ asset_id: z.string() }), response: RunSummary }),
   R({ method: 'get', path: '/response/events', summary: 'Recent events the triggers watch for, with their typed fields: honeypot touches, known-bad connections, findings, unknown devices, log thresholds, new ports', stories: ['S-RESP-3'], role: 'viewer', response: EventList }),
   R({ method: 'get', path: '/response/templates', summary: 'Gallery of ready-made rules (disabled, dry run) to clone and edit', stories: ['S-RESP-3'], role: 'viewer', response: TemplateList }),
-  R({ method: 'post', path: '/response/templates/{id}/clone', summary: 'Clone a template into a new rule that is switched off and in dry run', stories: ['S-RESP-3'], role: 'admin', params: idParams, response: Rule }),
+  R({ method: 'post', path: '/response/templates/{id}/clone', status: 201, summary: 'Clone a template into a new rule that is switched off and in dry run', stories: ['S-RESP-3'], role: 'admin', params: idParams, response: Rule }),
   R({ method: 'get', path: '/response/allowlist', summary: 'Never-touch list: gateway, DNS servers, domain controllers, this box, management IPs and services you declared', stories: ['S-RESP-3'], role: 'viewer', response: Allowlist }),
   R({ method: 'put', path: '/response/allowlist', summary: 'Replace the never-touch list (IP addresses, CIDR ranges or domains)', stories: ['S-RESP-3'], role: 'admin', body: Allowlist, response: Allowlist }),
 
@@ -274,13 +277,13 @@ export const endpoints = defineEndpoints([
   R({ method: 'post', path: '/response/blocklist/token', summary: 'Regenerate the block list token; the old address stops working at once', stories: ['S-RESP-3'], role: 'admin', response: Blocklist }),
   R({ method: 'get', path: '/response/blocklist/{token}.txt', summary: 'Plain-text block list (one IP address per line) for firewalls to pull; the token in the address is the only credential', stories: ['S-RESP-3'], role: 'public', params: tokenParams, response: 'file' }),
 
-  R({ method: 'get', path: '/response/catalog', summary: 'Action catalog in plain words: vendor packs, generic actions and custom ones; connections with their kind and whether they can write', stories: ['S-RESP-4'], role: 'viewer', response: Catalog }),
-  R({ method: 'post', path: '/response/catalog', summary: 'Add a custom action. The fields must fit the connection kind (API: method, path, body; SSH: command; MCP: write tool and arguments) and the connection must have an enabled write tool', stories: ['S-RESP-4'], role: 'admin', body: CatalogInput, response: CatalogAction }),
+  R({ method: 'get', path: '/response/catalog', summary: 'Action catalog in plain words: template packs from the library (data, D-58), generic actions and custom ones; connections with their kind and whether they can write', stories: ['S-RESP-4'], role: 'viewer', response: Catalog }),
+  R({ method: 'post', path: '/response/catalog', status: 201, summary: 'Add a custom action. The fields must fit the connection kind (API: method, path, body; SSH: command; MCP: write tool and arguments) and the connection must have an enabled write tool', stories: ['S-RESP-4'], role: 'admin', body: CatalogInput, response: CatalogAction }),
   R({ method: 'put', path: '/response/catalog/{id}', summary: 'Change a custom action, or enable a built-in one, choose its connection and set whether the AI may propose it', stories: ['S-RESP-4'], role: 'admin', params: idParams, body: CatalogUpdate, response: CatalogAction }),
   R({ method: 'delete', path: '/response/catalog/{id}', summary: 'Delete a custom action that no rule uses', stories: ['S-RESP-4'], role: 'admin', params: idParams, response: null }),
 
   R({ method: 'get', path: '/response/ai', summary: 'AI request state: gates, usage against the budget, quality breaker, suggestions, digest and saved hints', stories: ['S-RESP-2', 'S-AI-8'], role: 'viewer', response: AiState }),
-  R({ method: 'post', path: '/response/ai/proposals', summary: 'The AI agent sends a request. Server-side gates: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk', stories: ['S-RESP-2'], role: 'operator',
+  R({ method: 'post', path: '/response/ai/proposals', summary: 'The AI agent sends a request. Server-side gates: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an approval request was created, 200 for a suggestion note or a digest (the generated file documents 200)', stories: ['S-RESP-2'], role: 'operator',
     body: ProposeBody, response: ProposeResult }),
   R({ method: 'post', path: '/response/ai/resume', summary: 'Resume AI requests after the quality breaker paused them', stories: ['S-RESP-2'], role: 'admin', response: AiState }),
   R({ method: 'get', path: '/response/metrics', summary: 'Acceptance rate, time to approve and rejected requests, for the AI and for rules', stories: ['S-RESP-2', 'S-AI-8'], role: 'viewer', response: Metrics }),

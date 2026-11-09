@@ -3,7 +3,9 @@
 import { collection, dataMode, daysAgo, nowIso, newId, peek } from '@/mocks/db'
 import { assetsStore, findingsStore } from '@/mocks/stores'
 import type { Finding } from '@/lib/types'
-import { KINDS, TEMPLATES, TRIGGERS } from './data'
+import { KINDS, TRIGGERS } from './data'
+import { SEED_RULES, TEMPLATES } from './templates'
+import { exposingVip } from './templates/sample-firewall'
 import { checkValues, condText, evalCondition, isCidr, isIpv4, oneLine, PARAM_CHECK, refsIn, resolveParam, touches, type ParamType } from './logic'
 import {
   actionsStore, allowStore, approve, breakerOpen, BREAKER_MSG, buildChange, catById, checkBreaker, connById, doneStore, HOUR, isObj, maintenanceNow, newRequest, paramsOf, refuse, requiredApprovals,
@@ -14,16 +16,14 @@ import type { Condition, EventView, RequestItem, Rule, RuleAction, RuleInput, Ru
 // ---- Rules ----
 const C = (field: string, op: Condition['op'], value: string, n: number | null = null, window_min: number | null = null): Condition => ({ field, op, value, n, window_min })
 const seedRules = (on: boolean): Rule[] => [
-  { id: 'r-ioc', name: 'Block destinations of known-bad connections', enabled: on, live: true, trigger: 'ioc_connection', match: 'all', conditions: [C('dest_kind', 'eq', 'ip'), C('confidence', 'gte', '80')], actions: [{ action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 1440 }], pre_approved: true, max_per_hour: 10, schedule_min: null, template_id: null, last_fired: on ? daysAgo(0, 2) : null },
-  { id: 'r-ioc-ask', name: 'Ask before blocking medium-confidence matches', enabled: on, live: true, trigger: 'ioc_connection', match: 'all', conditions: [C('dest_kind', 'eq', 'ip'), C('confidence', 'gte', '50')], actions: [{ action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 720 }, { action_id: 'msg_send', params: { text: 'Known-bad connection from {{trigger.device}} to {{trigger.dest}}' }, ttl_min: null }], pre_approved: false, max_per_hour: 10, schedule_min: null, template_id: null, last_fired: on ? daysAgo(0, 0.02) : null },
-  { id: 'r-hp', name: 'Trap touched: block source on FortiGate', enabled: false, live: false, trigger: 'honeypot', match: 'all', conditions: [], actions: [{ action_id: 'block_ip', params: { ip: '{{trigger.source_ip}}' }, ttl_min: 1440 }], pre_approved: false, max_per_hour: 3, schedule_min: null, template_id: 'tpl-trap-fgt', last_fired: null },
-  { id: 'r-nat', name: 'Critical and exposed: disable the virtual IP', enabled: false, live: false, trigger: 'finding', match: 'all', conditions: [C('severity', 'eq', 'critical'), C('exposed_via_nat', 'eq', 'true')], actions: [{ action_id: 'nat_off', params: { text: '{{trigger.vip}}' }, ttl_min: 1440 }], pre_approved: false, max_per_hour: 2, schedule_min: null, template_id: 'tpl-nat-vip', last_fired: null },
+  { id: 'r-ioc', name: 'Block destinations of known-bad connections', enabled: on, live: true, trigger: 'ioc_connection', match: 'all', conditions: [C('dest_kind', 'eq', 'ip'), C('confidence', 'gte', '0.8')], actions: [{ action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 1440 }], pre_approved: true, max_per_hour: 10, schedule_min: null, template_id: null, last_fired: on ? daysAgo(0, 2) : null },
+  { id: 'r-ioc-ask', name: 'Ask before blocking medium-confidence matches', enabled: on, live: true, trigger: 'ioc_connection', match: 'all', conditions: [C('dest_kind', 'eq', 'ip'), C('confidence', 'gte', '0.5')], actions: [{ action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 720 }, { action_id: 'msg_send', params: { text: 'Known-bad connection from {{trigger.device}} to {{trigger.dest}}' }, ttl_min: null }], pre_approved: false, max_per_hour: 10, schedule_min: null, template_id: null, last_fired: on ? daysAgo(0, 0.02) : null },
+  ...SEED_RULES.map((r): Rule => ({ ...r, trigger: r.trigger as Rule['trigger'], conditions: r.conditions as Rule['conditions'], last_fired: null })),
 ]
-export const rulesStore = collection<Rule[]>('response_rules', () => seedRules(true), () => seedRules(false))
+export const rulesStore = collection<Rule[]>('resp_rules', () => seedRules(true), () => seedRules(false))
 
 // ---- Events (what the triggers watch) ----
 export interface Det { id: string; trigger: Trigger; ts: string; summary: string; fields: Record<string, string>; device_kind: string | null; asset_id: string | null; finding_id?: string; cve?: string }
-const FGT_VIPS = [{ name: 'NAS-PHOTO-443', mappedip: '192.168.10.21', status: 'enable' }, { name: 'WEB-HTTPS', mappedip: '192.168.10.12', status: 'enable' }]
 const portOf = (ip: string) => `Gi1/0/${(Number(ip.split('.')[3] ?? 0) % 24) + 1}` // mock of the switch MAC table lookup
 function deviceOf(ip: string, fallback?: string) {
   const a = assetsStore.get().find((x) => x.ip === ip)
@@ -42,10 +42,10 @@ export function events(): Det[] {
       fields: { src_ip: src, device: dev.name, dest, dest_kind: kind, dest_ip: kind === 'ip' ? dest : '', dest_domain: kind === 'domain' ? dest : '', feeds, confidence: String(conf), switch_port: portOf(src) } })
   }
   if (sample) {
-    ioc('det-s-ioc-1', '192.168.10.105', '185.220.101.47', 'ip', 92, 'Tor exit list', daysAgo(0, 2))
-    ioc('det-s-ioc-2', '192.168.10.107', '91.92.240.12', 'ip', 60, 'URLhaus', daysAgo(0, 1))
-    ioc('det-s-ioc-3', '192.168.10.107', 'cdn-update.badhost.example', 'domain', 55, 'URLhaus', daysAgo(0, 1))
-    ioc('det-s-ioc-4', '192.168.10.10', '1.1.1.1', 'ip', 85, 'IPsum', daysAgo(0, 0.5)) // a noisy feed lists a public DNS server: the never-touch list must stop it
+    ioc('det-s-ioc-1', '192.168.10.105', '185.220.101.47', 'ip', 0.92, 'Tor exit list', daysAgo(0, 2))
+    ioc('det-s-ioc-2', '192.168.10.107', '91.92.240.12', 'ip', 0.6, 'URLhaus', daysAgo(0, 1))
+    ioc('det-s-ioc-3', '192.168.10.107', 'cdn-update.badhost.example', 'domain', 0.55, 'URLhaus', daysAgo(0, 1))
+    ioc('det-s-ioc-4', '192.168.10.10', '1.1.1.1', 'ip', 0.85, 'IPsum', daysAgo(0, 0.5)) // a noisy feed lists a public DNS server: the never-touch list must stop it
   }
   // Logs module: known-bad connection list (peek, may be absent).
   const hits = peek<unknown>('logs_ioc_hits')
@@ -53,7 +53,7 @@ export function events(): Det[] {
     for (const h of hits.filter(isObj).slice(0, 200)) {
       const src = str(h.src_ip), dest = str(h.dest), kind = h.dest_kind === 'domain' ? 'domain' : 'ip'
       if (!isIpv4(src) || !str(h.id) || !dest) continue
-      const c = typeof h.confidence === 'number' ? Math.round(h.confidence <= 1 ? h.confidence * 100 : h.confidence) : 0
+      const c = typeof h.confidence === 'number' && h.confidence >= 0 && h.confidence <= 1 ? h.confidence : 0 // 0 to 1 everywhere (D-57 (13))
       ioc(`det-l-${str(h.id)}`, src, dest, kind, c, Array.isArray(h.feeds) ? h.feeds.map(String).join(', ') : '', str(h.ts) || nowIso())
     }
   }
@@ -70,12 +70,11 @@ export function events(): Det[] {
       touch(`det-hp-${str(h.id)}`, ip, str(h.trap_hostname) || str(h.trap_ip) || 'decoy', ['service', 'token', 'scan'].includes(str(h.kind)) ? str(h.kind) : 'service', str(h.ts) || nowIso())
     }
   } else if (sample) touch('det-s-hp-1', '192.168.10.107', 'FILESRV-OLD', 'service', daysAgo(1, 1), 'PC-HR-01')
-  // Findings (open), with the FortiGate virtual IP that exposes the device when there is one.
-  const fgt = connById('cn-fgt')?.enabled && connById('cn-fgt')!.tools.some((t) => t.name === 'get_virtual_ips' && t.access === 'read' && t.enabled)
+  // Findings (open), with the virtual IP that exposes the device when a readable firewall connection says so (sample data).
   for (const f of findingsStore.get().filter(openFinding).slice(0, 60)) {
     const asset = assetsStore.get().find((a) => a.id === f.asset_id)
     if (!asset) continue
-    const vip = fgt ? FGT_VIPS.find((v) => v.mappedip === asset.ip && v.status === 'enable') : undefined
+    const vip = exposingVip(asset.ip)
     const name = asset.hostname ?? asset.ip
     // ponytail: the KEV flag comes from the Feeds module on a real box; the mock treats critical findings as exploited in the wild.
     add({ id: `det-f-${f.id}`, trigger: 'finding', ts: f.last_seen, device_kind: asset.kind, asset_id: asset.id, finding_id: f.id, cve: f.cve,

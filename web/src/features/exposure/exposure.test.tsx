@@ -260,7 +260,7 @@ describe('exposure: the commitment replaces signed documents', () => {
     await call('POST', '/exposure/targets', { value: 'blocked.acme.example' })
     const id = ((await call('GET', '/exposure/targets')).json.items as { id: string; value: string }[]).find((t) => t.value === 'blocked.acme.example')!.id
     await call('POST', `/exposure/targets/${id}/verify`); await call('POST', `/exposure/targets/${id}/verify`)
-    expect((await call('POST', `/exposure/targets/${id}/scan`)).json.error.code).toBe('no_commitment')
+    expect((await call('POST', `/exposure/targets/${id}/scan`)).json.error).toMatchObject({ code: 'commitment_required' })
     expect((await call('POST', `/exposure/targets/${id}/commitment`, { confirm: false })).status).toBe(400)
     expect((await call('POST', `/exposure/targets/${id}/commitment`, { confirm: true }, 'operator')).status).toBe(403)
     expect((await call('POST', `/exposure/targets/${id}/commitment`, { confirm: true })).status).toBe(200)

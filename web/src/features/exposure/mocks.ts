@@ -220,7 +220,7 @@ export const handlers = [
       targets.update((l) => l.map((x) => (x.id === t.id ? { ...x, last_check: { at: nowIso(), ok: false, message: `The TXT record vedette-verify=${t.token} was not found on ${t.value}.` } } : x)))
       return fail(409, 'txt_missing', `The DNS TXT record vedette-verify=${t.token} is no longer on ${t.value}, so it cannot be scanned. Add the record back, then check again.`)
     }
-    if (!v.commitment) return fail(409, 'no_commitment', `You have not confirmed that your company owns ${t.value} and you are authorized to scan it. Confirm it first.`)
+    if (!v.commitment) return fail(400, 'commitment_required', `You have not confirmed that your company owns ${t.value} and you are authorized to scan it. Confirm it first.`)
     const at = nowIso()
     const content = scanContent(t)
     const snap = makeSnapshot(newId('sn'), at, content, t.kind === 'ip' ? t.value : undefined)

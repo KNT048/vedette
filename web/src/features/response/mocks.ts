@@ -1,6 +1,6 @@
 // Mock API for the response module (S-RESP-1..4, S-AI-8; D-40, D-41, D-44, D-46, D-47, D-48, D-51).
-// Tables: response_settings, response_plans, response_actions, response_catalog, response_rules, response_allowlist, response_blocklist (token),
-// response_tokens (email approval links), response_done (rule x event already handled), response_ai_notes, response_hints, resp_log.
+// Tables: resp_settings, resp_plans, resp_actions, resp_catalog, resp_rules, resp_allowlist, resp_blocklist (token),
+// resp_tokens (email approval links), resp_done (rule x event already handled), resp_ai_notes, resp_hints, resp_log.
 // Every security gate is enforced on the server side of the mock (state.ts, engine.ts, ai.ts), never only in the UI.
 import { http, HttpResponse } from 'msw'
 import { API, body, currentUser, fail, guard } from '@/mocks/http'
@@ -10,7 +10,8 @@ import { aiAvailable, aiCandidates, assetsStore, boxInfo, findingsStore, recordA
 import type { Finding } from '@/lib/types'
 import { aiState, afterReject, metrics, propose, resume } from './ai'
 import { RISK_PHRASE } from './contract'
-import { TEMPLATES, TRIGGERS } from './data'
+import { TRIGGERS } from './data'
+import { TEMPLATES } from './templates'
 import { checkRule, events, eventView, rulesStore, runRules, simulate, templates } from './engine'
 import { isCidr, isDomain, isIpv4, TOKEN_RE } from './logic'
 import {
@@ -18,50 +19,23 @@ import {
   newRequest, OFF_MSG, oneLine, previewBuild, rawChans, readyChan, refuse, reject, rollbackRequest, settings, settingsStore, settingsView, step, sweep, tokensStore, unavailable, userCanApprove, who,
   type Allow, type CatErr, randomToken, reversible, TEXT_RE,
 } from './state'
-import type { ActionRequest, ApprovalView, BlockEntry, Change, Plan, PlanStep, Proposal, RequestItem, Rule, RuleInput, StoredProposal } from './types'
+import type { ActionRequest, ApprovalView, BlockEntry, Plan, Proposal, RequestItem, Rule, RuleInput, StoredProposal } from './types'
 
 // ---- Plans (S-RESP-1): what the AI drafts for an unresolved critical finding, deterministic here ----
-type StoredStep = Omit<PlanStep, 'proposal'> & { proposal: StoredProposal | null }
+import { sampleContainment, type StoredStep } from './templates/sample-firewall'
 type StoredPlan = Omit<Plan, 'steps' | 'sent_to'> & { steps: StoredStep[] }
 const openCritical = (f: Finding) => f.severity === 'critical' && (f.status === 'confirmed' || f.status === 'suspected')
-// Mock of the FortiGate read tool get_virtual_ips (the real call goes through the AI connection, D-39).
-const FGT_VIPS = [
-  { name: 'NAS-PHOTO-443', extip: '203.0.113.10', extport: 443, mappedip: '192.168.10.21', mappedport: 443, status: 'enable' },
-  { name: 'WEB-HTTPS', extip: '203.0.113.11', extport: 443, mappedip: '192.168.10.12', mappedport: 443, status: 'enable' },
-]
-const fortigate = () => connectorsStore.get().find((c) => c.enabled && c.vendor === 'fortinet' && c.tools.some((t) => t.name === 'get_virtual_ips' && t.access === 'read' && t.enabled))
-const plansStore = collection<StoredPlan[]>('response_plans', () => findingsStore.get().filter(openCritical).flatMap((f) => { const p = draft(f); return p ? [p] : [] }), () => [])
+const plansStore = collection<StoredPlan[]>('resp_plans', () => findingsStore.get().filter(openCritical).flatMap((f) => { const p = draft(f); return p ? [p] : [] }), () => [])
 
 function draft(f: Finding): StoredPlan | null {
   const asset = assetsStore.get().find((a) => a.id === f.asset_id)
   if (!asset) return null
   const name = asset.hostname ?? asset.ip
   const profile = aiCandidates('response-plan')[0]
-  const conn = fortigate()
-  const vips = conn ? FGT_VIPS.filter((v) => v.mappedip === asset.ip && v.status === 'enable') : []
-  const vip = vips[0]
-  const write = conn?.tools.find((t) => t.name === 'disable_virtual_ip' && t.access === 'write')
-  const reads = conn ? [{ connection: conn.name, tool: 'get_virtual_ips', summary: `${FGT_VIPS.length} virtual IPs, ${vips.length} point${vips.length === 1 ? 's' : ''} to ${name} (${asset.ip})` }] : []
-  const path = !conn ? `Vedette has no read access to a firewall, so it could not check how ${name} is exposed. Connect your firewall in Settings, AI assistant to get a plan that fits your network.`
-    : vip ? `${name} is reachable from the Internet through FortiGate virtual IP ${vip.name} (${vip.extip}:${vip.extport} to ${vip.mappedip}:${vip.mappedport}).`
-    : `No virtual IP on ${conn.name} points to ${name}, so it is not forwarded from the Internet. It is reachable from the internal network only.`
+  // What the AI would read and propose through the connections: sample data (the firewall read and its virtual IP live in templates/sample-firewall.ts).
+  const { reads, path, contain } = sampleContainment(f, asset, name)
   const steps: StoredStep[] = []
-  if (vip && conn && write) {
-    const fw = assetsStore.get().find((a) => a.id === conn.asset_id)?.hostname ?? conn.name
-    const url = `${conn.target}/api/v2/cmdb/firewall/vip/${encodeURIComponent(vip.name)}`
-    const change: Change = {
-      before: `Virtual IP ${vip.name}: ${vip.extip}:${vip.extport} to ${vip.mappedip}:${vip.mappedport}, status enable`,
-      after: `Virtual IP ${vip.name}: status disable. Internet traffic to ${vip.extip}:${vip.extport} is no longer forwarded to ${name}.`,
-      cli: `config firewall vip\n    edit "${vip.name}"\n        set status disable\n    next\nend`,
-      rest: { method: 'PUT', url, body: '{"status":"disable"}' },
-      rollback: { title: `Turn virtual IP ${vip.name} back on`, cli: `config firewall vip\n    edit "${vip.name}"\n        set status enable\n    next\nend`, rest: { method: 'PUT', url, body: '{"status":"enable"}' } },
-      verify: `GET ${url}`,
-    }
-    steps.push({ kind: 'contain', title: `Turn off virtual IP ${vip.name} on ${fw}`, detail: `Stops the Internet from reaching ${name} while you patch. Existing LAN access is not affected. Side effect: anyone using the published address ${vip.extip}:${vip.extport} loses access until you turn it back on.`,
-      proposal: { id: `pr-${f.id}-${vip.name}`.toLowerCase(), title: `Turn off virtual IP ${vip.name} on ${fw}`, tool_key: `${conn.id}/${write.name}`, tool: write.name, connector_id: conn.id, connection: conn.name, asset_id: conn.asset_id ?? '', asset_name: fw, change } })
-  } else {
-    steps.push({ kind: 'contain', title: `Limit who can reach ${name}`, detail: vip ? 'No write tool is connected for this, so do it by hand on the firewall.' : 'Allow only the admin workstations to connect until the fix is installed.', proposal: null })
-  }
+  steps.push(contain)
   steps.push({ kind: 'check', title: 'Check for compromise', detail: 'Look for the exploitation signs listed on this finding (files, web requests, processes) before you patch, so evidence is kept.', proposal: null })
   steps.push({ kind: 'patch', title: `Patch ${f.cve}`, detail: 'Install the vendor fix, then rescan to confirm. Turn the virtual IP back on only after the fixed version is running.', proposal: null })
   return { id: `plan-${f.id}`, finding_id: f.id, cve: f.cve, asset_id: asset.id, asset_name: name, generated_at: nowIso(), model: profile?.model ?? 'claude-sonnet-5-5', profile: profile?.name ?? 'Claude Sonnet', path, reads, steps }
@@ -78,7 +52,7 @@ function proposalView(p: StoredProposal): Proposal {
 const planView = (p: StoredPlan): Plan => ({ ...p, steps: p.steps.map((s) => ({ ...s, proposal: s.proposal ? proposalView(s.proposal) : null })), sent_to: chanList().map(chanLabel) })
 
 // ---- Block list (pull, D-44): entries are executed block-list items still in force ----
-const blockMeta = collection<{ token: string; last_fetch: { at: string; from: string } | null }>('response_blocklist', () => ({ token: randomToken(), last_fetch: null }))
+const blockMeta = collection<{ token: string; last_fetch: { at: string; from: string } | null }>('resp_blocklist', () => ({ token: randomToken(), last_fetch: null }))
 function blockEntries(): BlockEntry[] {
   const now = Date.now()
   return actionsStore.get().flatMap((a) => a.items.filter((i) => i.action_id === 'blocklist_add' && i.status === 'executed' && (!i.remove_at || Date.parse(i.remove_at) > now)).flatMap((i) => {

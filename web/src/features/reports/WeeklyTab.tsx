@@ -19,7 +19,7 @@ import { WeeklyDocument } from './WeeklyDocument'
 import { ActionError } from './parts'
 import type { HistoryEntry, Schedule, Weekday } from './types'
 
-const DAYS: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+const DAYS: Weekday[] = [1, 2, 3, 4, 5, 6, 7]
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function WeeklyTab() {
@@ -117,7 +117,7 @@ function ScheduleForm({ s }: { s: Schedule }) {
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={t('weekly.schedule.day')} htmlFor="rep-day">
-          <Select id="rep-day" value={day} onChange={(e) => setDay(e.target.value as Weekday)} disabled={!admin} title={reason}>{DAYS.map((d) => <option key={d} value={d}>{t(`weekly.schedule.days.${d}`)}</option>)}</Select>
+          <Select id="rep-day" value={day} onChange={(e) => setDay(Number(e.target.value))} disabled={!admin} title={reason}>{DAYS.map((d) => <option key={d} value={d}>{t(`weekly.schedule.days.${d}`)}</option>)}</Select>
         </Field>
         <Field label={t('weekly.schedule.hour')} htmlFor="rep-hour">
           <Select id="rep-hour" value={hour} onChange={(e) => setHour(Number(e.target.value))} disabled={!admin} title={reason}>{Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{`${String(h).padStart(2, '0')}:00`}</option>)}</Select>

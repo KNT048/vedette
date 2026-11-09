@@ -6,7 +6,7 @@
 ## Invariants (luôn đúng)
 - **INV-1** Số liệu báo cáo tuần **tính khi mở** từ `inventory`, findings và KEV; `sources[]` nêu nguồn và thời điểm của từng nhóm số. Số liệu không do AI sinh.
 - **INV-2** Mục lịch sử gửi (`rep_history`) giữ **nguyên số liệu của tuần đó** (`HistoryEntry.report`); mở lại/in lại không tính lại.
-- **INV-3** Lịch: `day` ∈ {mon..sun}, `hour` 0..23, `recipients` ≤ 20 email, mỗi địa chỉ ≤ 120 ký tự và hợp lệ (kiểm ở biên, SYS-2); `next_run` tính từ lịch, `null` khi tắt. Trạng thái gửi ∈ {sent, failed}, `trigger` ∈ {manual, scheduled}, lỗi ghi rõ (`error`).
+- **INV-3** Lịch: `day` ∈ 1..7 (1=Thứ Hai, D-57 (9)), `hour` 0..23, `recipients` ≤ 20 email, mỗi địa chỉ ≤ 120 ký tự và hợp lệ (kiểm ở biên, SYS-2); `next_run` tính từ lịch, `null` khi tắt. Trạng thái gửi ∈ {sent, failed}, `trigger` ∈ {manual, scheduled}, lỗi ghi rõ (`error`).
 - **INV-4** Gửi email chỉ qua kênh email của `notify` (SMTP của khách, PRIVACY luồng 5); không SMTP riêng của module.
 - **INV-5** Nhận xét AI (`AiSummary`) chỉ do module `ai` sinh (`weekly-report`, `pdpl-assessment`), luôn hiển thị trong khối "AI tạo" và **không thay đổi số liệu**; tuân luật dữ liệu nội bộ (D-29) vì báo cáo chứa dữ liệu thiết bị. Không có AI → báo cáo vẫn đầy đủ, `ai_available=false`.
 - **INV-6** Báo cáo PDPL: chế độ nghĩa vụ (`Obligation.regime`: required/optional/exempt) cho `dpia`, `dpo` được **tính tất định** từ quy mô tổ chức (`size`, theo Điều 38 Luật 91/2025/QH15 và Điều 41 NĐ 356/2025/NĐ-CP), không do AI quyết; các nghĩa vụ còn lại luôn bắt buộc. Cấp độ hệ thống thông tin (`level` 1..5 hoặc rỗng) là chế độ riêng, không thuộc Luật BVDLCN.

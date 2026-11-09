@@ -4,7 +4,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
 import { DIACRITICS, sampleStart } from './clean'
 
-const DB = 'vedette-mock-db-v3'
+const DB = 'vedette-mock-db-v4'
 type UserId = 'u-admin' | 'u-op' | 'u-view'
 /**
  * Ghi kho mock TRƯỚC khi trang tải (init script chạy một lần cho mỗi lần gọi), vì trang đang mở có thể ghi đè localStorage khi tải lại.

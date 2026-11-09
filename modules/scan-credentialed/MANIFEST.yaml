@@ -7,7 +7,7 @@ depends: [core, inventory, scan]
 permissions: ["container:greenbone", outbound:https]   # container qua vedette-host (Podman/Quadlet, D-55); outbound:https = kéo feed NVT của Greenbone
 ports: []
 container: greenbone                                    # D-55: container riêng, không sửa, giấy phép GPL/AGPL
-tables_prefix: scancred_                                # ⚠ MODULES.md ghi `scan_*` (trùng tiền tố với `scan`)
+tables_prefix: scc_
 stories: [S-SCAN-5]
 decisions: [D-17, D-55]
 milestone: M7

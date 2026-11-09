@@ -41,7 +41,7 @@
 Các `/core/mcp*` nằm dưới tiền tố `core` trong `contract.ts` của GUI nhưng thuộc module này. Công cụ MCP (7 công cụ) không có trong `contract.ts`; danh sách ở trên là hợp đồng.
 
 ## Tables owned
-`mcp_tokens` (id, tên, phạm vi, băm token, `last4`, `created_at`, `last_used`). Mock: `core_mcp_tokens`.
+`mcp_tokens` (id, tên, phạm vi, băm token, `last4`, `created_at`, `last_used`). Mock: `mcp_tokens` (đã đổi tên, WP-06).
 
 ## Events
 - **Phát**: không. **Nhận**: không. Đọc `inventory`, findings, `feeds` qua interface chỉ-đọc.
@@ -57,4 +57,4 @@ Cổng 8765 đóng, không route `/core/mcp*`, không job. Token giữ nguyên n
 1. Loopback trong container `core` (D-55): agent/SIEM **ở máy khác** không với tới được. Cách mở (publish cổng trên loopback của host + SSH tunnel, hay reverse proxy có TLS)? Nếu mở ra LAN thì cần TLS và có thể thêm luồng/cổng → PRIVACY, MANIFEST `ports`.
 2. Giới hạn kích thước trang và tốc độ gọi cho từng công cụ (SYS-6).
 3. Có cần phạm vi riêng cho `findings` chứa bằng chứng quét (request/response rút gọn) không, hay `get_finding` trả bản đã lọc?
-4. Tên bảng: mock `core_mcp_tokens` vs tiền tố module `mcp_`.
+4. ~~Tên bảng: mock `core_mcp_tokens` vs tiền tố module `mcp_`~~ Đã đổi mock sang `mcp_tokens` (WP-06).

@@ -10,7 +10,7 @@
 - **sensor-active** (mọi probe nmap/SNMP), **scan** (chọn mục tiêu, `reason`), **scan-credentialed**. Đây là rào chắn SYS-7 phía LAN: đổi/nới phải sửa CONTRACT + test của cả ba module.
 
 ## Modifying: `inventory.Service.Settings()` (dải, cửa sổ, loại mong manh, `scope_confirmed_at`)
-- **sensor-active**, **scan** (`scope.commitment`, `can_scan`), **SPA** (`NetworkForm`, Scan → Safety). Đổi định dạng ngày (1..7) phải đồng bộ với `scan` (0..6).
+- **sensor-active**, **scan** (`scope.commitment`, `can_scan`), **SPA** (`NetworkForm`, Scan → Safety). Ngày 1..7 (Thứ Hai=1) dùng chung với `scan` (D-57 (9)); đổi phải đồng bộ.
 
 ## Modifying: `inventory.Service.GetAsset/ListAssets/Names`
 - **findings** (`FindingAsset`; D-57 (6)), **notify** (`devices[]` của incident), **honeypot/logs/response** (thiết bị nguồn), **reports**, **ai**, **mcp-server** (`search_assets`).

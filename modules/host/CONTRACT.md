@@ -1,7 +1,7 @@
 # Host (`vedette-host`) Contract
 
 > Loại: **thành phần** (component), không phải module bật/tắt · Story: S-CORE-7, S-INV-5 (+ D-56) · Quyết định: D-53, D-55, D-56, D-12 · Last verified: 2026-11-09
-> Thay thế `vedette-updater` của D-53 (D-55). `web/src/features/core/contract.ts`, `osMock.ts` và `PRIVACY.md` luồng 6 còn nhắc tên cũ.
+> Thay thế `vedette-updater` của D-53 (D-55). `contract.ts`, `osMock.ts`, `locales/en/core.json` và `PRIVACY.md` luồng 6 đã đổi sang tên mới (WP-06).
 > Là phần duy nhất của hộp chạy **root**. Mọi thứ khác (core, sensor, honeypot, scan) chạy không root trong container.
 
 ## Invariants (luôn đúng)
@@ -71,5 +71,5 @@ Không có "tắt" (không phải module). Kiểu "Chỉ container": mọi tính
 1. Cấu hình mạng/SPAN (D-56) chưa có story ID trong `USER_STORIES.md` và chưa có endpoint trong `contract.ts` (no-imagined-features: cần story trước khi code).
 2. Đổi card quản trị có thể cắt đứt chính kết nối quản trị: cần cơ chế tự hoàn tác sau N giây nếu `core` không xác nhận? (chưa nêu trong D-56).
 3. Tên lệnh ở bảng trên là đề xuất; chốt cùng lúc viết `host`.
-4. `vedette-updater` còn trong `contract.ts` (core), `osMock.ts`, `locales/en/core.json`, `PRIVACY.md` luồng 6: cần đổi tên sang `vedette-host`.
+4. ~~`vedette-updater` còn trong `contract.ts`, `osMock.ts`, `locales/en/core.json`, `PRIVACY.md` luồng 6~~ Đã đổi sang `vedette-host` (WP-06).
 5. Registry image cho phép (tên/host) và khoá cosign công khai đặt ở đâu (nhúng trong gói cài, D-12)?

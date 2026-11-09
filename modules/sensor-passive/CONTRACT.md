@@ -55,7 +55,7 @@ Không bắt gói, không job; thiết bị mới chỉ phát hiện qua quét c
 S-INV-1, S-INV-3, S-LOG-4; D-43 SPAN thay Zeek/Suricata; D-45; D-55 container `sensor`; D-56 Box network.
 
 ## Không khớp / câu hỏi mở
-- `MODULES.md` ghi "Zeek/Suricata EVE reader" và `PRIVACY.md` luồng 2 còn "IDS matches by CVE": trái D-43.
+- `MODULES.md` ghi "Zeek/Suricata EVE reader" và ~~`PRIVACY.md` luồng 2 còn "IDS matches by CVE"~~ Đã đổi sang `cve_matches` (WP-06); phần `MODULES.md` còn mở.
 - `MODULES.md` ghi bảng `inv_*` cho sensor; rule `modules.md` cấm module đọc bảng module khác nên đề xuất `sp_` + ghi qua `inventory`.
 - Ai khớp IOC từ metadata SPAN: đề xuất `logs` nhận `sensor.span.metadata_batch`.
 - Fingerbank chưa nằm trong bảng luồng PRIVACY (luồng 4 chỉ nói IP/domain/hash).

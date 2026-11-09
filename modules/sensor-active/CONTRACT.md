@@ -53,5 +53,5 @@ S-INV-1, S-SCAN-4. D-4 nmap tiến trình riêng; D-26 xác nhận phạm vi; D-
 - Cấu hình SNMP (community/v3) chưa có trong GUI (`contract.ts` không có endpoint).
 - Quét nhẹ lần đầu có được chạy ngoài cửa sổ giờ không? D-45 không nói.
 - Thiết bị `approved=false` có bị nmap quét để phân loại không (hợp đồng này cho phép; `scan` thì không, `reason: unapproved`)?
-- Hai cửa sổ giờ: `inventory.active` (ngày 1..7, gói/giây) và `scan.config.window` (ngày 0..6, request/giây).
+- Hai cửa sổ giờ: `inventory.active` (ngày 1..7, gói/giây) và `scan.config.window` (ngày 1..7, request/giây; cùng quy ước ngày D-57 (9)).
 - `MODULES.md` ghi bảng `inv_*`; đề xuất `sa_` và ghi qua `inventory`.

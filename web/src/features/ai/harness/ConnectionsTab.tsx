@@ -12,15 +12,15 @@ import { fmtRelative } from '@/lib/format'
 import { useConnections, useRemoveConnection, useSaveConnection, useTestConnection } from '../harness-api'
 import { ActionError } from '../parts'
 import { CONNECTOR_AUTH } from '../contract'
+import { CONNECTION_KINDS } from '@/lib/connections'
 import type { Connector, ConnectorInput, ConnectorKind } from '../types'
 import { ConfirmDelete } from './shared'
 
-const KINDS: ConnectorKind[] = ['device-api', 'ssh', 'http', 'mcp-http', 'mcp-stdio']
-const VENDORS = ['fortinet', 'mikrotik', 'pfsense', 'other'] as const
+const KINDS: ConnectorKind[] = [...CONNECTION_KINDS]
 const AUTHS = ['none', 'token', 'basic', 'ssh-key'] as const
-const asInput = (c: Connector, over: Partial<ConnectorInput> = {}): ConnectorInput => ({ name: c.name, kind: c.kind, vendor: c.vendor, target: c.target, asset_id: c.asset_id, auth_type: c.auth.type, allow: c.allow, enabled: c.enabled, ...over })
+const asInput = (c: Connector, over: Partial<ConnectorInput> = {}): ConnectorInput => ({ name: c.name, kind: c.kind, target: c.target, asset_id: c.asset_id, auth_type: c.auth.type, allow: c.allow, enabled: c.enabled, ...over })
 
-/** Kết nối ra ngoài cho AI (D-39): API thiết bị, SSH, HTTP, máy chủ MCP. Công cụ ghi chỉ chạy qua hành động được duyệt (D-41). */
+/** Kết nối ra ngoài cho AI (D-39): HTTP API, SSH/CLI, NETCONF/RESTCONF, nền tảng tự động hoá, máy chủ MCP (D-58, không gắn hãng). Công cụ ghi chỉ chạy qua hành động được duyệt (D-41). */
 export default function ConnectionsTab() {
   const { t } = useTranslation('ai')
   const conns = useConnections()
@@ -93,16 +93,15 @@ export default function ConnectionsTab() {
   )
 }
 
-const TARGET_EXAMPLE: Record<ConnectorKind, string> = { 'device-api': 'https://192.168.10.1', ssh: '192.168.10.30:22', http: 'https://', 'mcp-http': 'https://mcp.example.local/mcp', 'mcp-stdio': 'npx some-mcp-server' }
-const ALLOW_EXAMPLE: Record<ConnectorKind, string> = { 'device-api': 'https://192.168.10.1/api/v2/', ssh: 'uname -a\nss -tlnp', http: 'https://www.cisa.gov/', 'mcp-http': 'mcp.example.local', 'mcp-stdio': 'api.example.com' }
+const TARGET_EXAMPLE: Record<ConnectorKind, string> = { http: 'https://192.168.10.1', ssh: '192.168.10.30:22', 'netconf-restconf': 'https://192.168.10.2', automation: 'https://automation.example.local', 'mcp-http': 'https://mcp.example.local/mcp', 'mcp-stdio': 'npx some-mcp-server' }
+const ALLOW_EXAMPLE: Record<ConnectorKind, string> = { http: 'https://192.168.10.1/api/', ssh: 'uname -a\nss -tlnp', 'netconf-restconf': 'https://192.168.10.2/restconf/', automation: 'https://automation.example.local/api/', 'mcp-http': 'mcp.example.local', 'mcp-stdio': 'api.example.com' }
 
 function ConnDialog({ conn, onClose }: { conn: Connector | null; onClose: () => void }) {
   const { t } = useTranslation('ai')
   const save = useSaveConnection()
   const [name, setName] = useState(conn?.name ?? '')
-  const [kind, setKind] = useState<ConnectorKind>(conn?.kind ?? 'device-api')
-  const [vendor, setVendor] = useState<(typeof VENDORS)[number]>(conn?.vendor ?? 'fortinet')
-  const [target, setTarget] = useState(conn?.target ?? TARGET_EXAMPLE['device-api'])
+  const [kind, setKind] = useState<ConnectorKind>(conn?.kind ?? 'http')
+  const [target, setTarget] = useState(conn?.target ?? TARGET_EXAMPLE.http)
   const [auth, setAuth] = useState<(typeof AUTHS)[number]>(conn?.auth.type ?? 'token')
   const [secret, setSecret] = useState('')
   const [allow, setAllow] = useState((conn?.allow ?? []).join('\n'))
@@ -114,8 +113,8 @@ function ConnDialog({ conn, onClose }: { conn: Connector | null; onClose: () => 
   // Going back to the saved kind of an existing connection restores its saved values.
   function pickKind(k: ConnectorKind) {
     setKind(k); setErrs({}); setSecret('')
-    if (conn && k === conn.kind) { setTarget(conn.target); setAuth(conn.auth.type); setAllow(conn.allow.join('\n')); setVendor(conn.vendor ?? 'fortinet'); return }
-    setTarget(TARGET_EXAMPLE[k]); setAllow(''); setAuth(k === 'ssh' ? 'ssh-key' : k === 'http' || k === 'mcp-stdio' ? 'none' : 'token'); setVendor('fortinet')
+    if (conn && k === conn.kind) { setTarget(conn.target); setAuth(conn.auth.type); setAllow(conn.allow.join('\n')); return }
+    setTarget(TARGET_EXAMPLE[k]); setAllow(''); setAuth(k === 'ssh' ? 'ssh-key' : k === 'http' || k === 'mcp-stdio' ? 'none' : 'token')
   }
   function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -127,7 +126,7 @@ function ConnDialog({ conn, onClose }: { conn: Connector | null; onClose: () => 
     if (list.length === 0) n.allow = t('harness.conn.errAllow')
     setErrs(n)
     if (Object.keys(n).length) return
-    save.mutate({ id: conn?.id, name: name.trim(), kind, vendor: kind === 'device-api' ? vendor : null, target: target.trim(), asset_id: conn?.asset_id ?? null, auth_type: auth, secret: secret || undefined, allow: list, enabled, tools: conn?.tools.map((x) => ({ name: x.name, enabled: x.enabled })) }, { onSuccess: () => { toast.success(conn ? t('harness.conn.saved') : t('harness.conn.added')); onClose() } })
+    save.mutate({ id: conn?.id, name: name.trim(), kind, target: target.trim(), asset_id: conn?.asset_id ?? null, auth_type: auth, secret: secret || undefined, allow: list, enabled, tools: conn?.tools.map((x) => ({ name: x.name, enabled: x.enabled })) }, { onSuccess: () => { toast.success(conn ? t('harness.conn.saved') : t('harness.conn.added')); onClose() } })
   }
   const srv = (k: 'name' | 'target' | 'secret' | 'allow') => errs[k]
   return (
@@ -137,11 +136,10 @@ function ConnDialog({ conn, onClose }: { conn: Connector | null; onClose: () => 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t('harness.conn.f.name')} htmlFor="cn-name" error={srv('name')}><Input id="cn-name" value={name} maxLength={40} autoComplete="off" onChange={(e) => { setName(e.target.value); clear('name') }} aria-invalid={srv('name') ? true : undefined} aria-describedby={srv('name') ? 'cn-name-error' : undefined} /></Field>
             <Field label={t('harness.conn.f.kind')} htmlFor="cn-kind"><Select id="cn-kind" value={kind} onChange={(e) => pickKind(e.target.value as ConnectorKind)}>{KINDS.map((k) => <option key={k} value={k}>{t(`harness.conn.kind.${k}`)}</option>)}</Select></Field>
-            {kind === 'device-api' ? <Field label={t('harness.conn.f.vendor')} htmlFor="cn-vendor" className="sm:col-span-2"><Select id="cn-vendor" value={vendor} onChange={(e) => setVendor(e.target.value as (typeof VENDORS)[number])}>{VENDORS.map((v) => <option key={v} value={v}>{t(`harness.conn.vendor.${v}`)}</option>)}</Select></Field> : null}
             <Field label={t(`harness.conn.f.target_${kind}`)} htmlFor="cn-target" hint={t('harness.conn.f.targetExample', { example: TARGET_EXAMPLE[kind] })} error={srv('target')} className="sm:col-span-2"><Input id="cn-target" value={target} autoComplete="off" onChange={(e) => { setTarget(e.target.value); clear('target') }} aria-invalid={srv('target') ? true : undefined} aria-describedby={srv('target') ? 'cn-target-error' : 'cn-target-hint'} /></Field>
             <Field label={t('harness.conn.f.auth')} htmlFor="cn-auth"><Select id="cn-auth" value={auth} onChange={(e) => { setAuth(e.target.value as (typeof AUTHS)[number]); clear('secret') }}>{AUTHS.map((a) => { const no = !CONNECTOR_AUTH[kind].includes(a); return <option key={a} value={a} disabled={no}>{t(`harness.conn.auth.${a}`)}{no ? ` (${t('harness.conn.authNo')})` : ''}</option> })}</Select></Field>
             {auth !== 'none' ? <Field label={t('harness.conn.f.secret')} htmlFor="cn-secret" error={srv('secret')} hint={keep ? t('harness.conn.f.secretSaved', { last4: conn!.auth.last4 }) : t('harness.conn.f.secretHint')}><Input id="cn-secret" type="password" autoComplete="off" value={secret} placeholder={keep ? `••••${conn!.auth.last4}` : ''} onChange={(e) => { setSecret(e.target.value); clear('secret') }} aria-invalid={srv('secret') ? true : undefined} aria-describedby={srv('secret') ? 'cn-secret-error' : 'cn-secret-hint'} /></Field> : <span />}
-            <Field label={t('harness.conn.f.allow')} htmlFor="cn-allow" hint={t(`harness.conn.f.allowHint_${kind}`, { example: ALLOW_EXAMPLE[kind] })} error={srv('allow')} className="sm:col-span-2"><Textarea id="cn-allow" className="font-mono text-[13px]" value={allow} onChange={(e) => { setAllow(e.target.value); clear('allow') }} aria-invalid={srv('allow') ? true : undefined} aria-describedby={srv('allow') ? 'cn-allow-error' : 'cn-allow-hint'} /></Field>
+            <Field label={t('harness.conn.f.allow')} htmlFor="cn-allow" hint={t(`harness.conn.f.allowHint_${kind}`, { example: ALLOW_EXAMPLE[kind].includes('\n') ? ALLOW_EXAMPLE[kind].split('\n').map((x) => `"${x}"`).join(', ') : ALLOW_EXAMPLE[kind] })} error={srv('allow')} className="sm:col-span-2"><Textarea id="cn-allow" className="font-mono text-[13px]" value={allow} onChange={(e) => { setAllow(e.target.value); clear('allow') }} aria-invalid={srv('allow') ? true : undefined} aria-describedby={srv('allow') ? 'cn-allow-error' : 'cn-allow-hint'} /></Field>
           </div>
           <div className="flex items-center gap-3"><Switch id="cn-enabled" checked={enabled} onCheckedChange={setEnabled} /><Label htmlFor="cn-enabled" className="font-normal">{t('harness.enabled')}</Label></div>
           <p className="text-[13px] text-muted">{t('harness.conn.writeNote')}</p>

@@ -10,7 +10,7 @@ import kevProducts from '@/mocks/fixtures/kev-products.json'
 import { linuxOneLiner, OSQUERY_SCHEDULE, osquerySteps, wazuhReaderSteps, windowsOneLiner } from './agentConfig'
 import { CATALOG, customEntry, findCatalog, searchCatalog } from './catalog'
 import { sha256Hex } from './kinds'
-import { BOX_ID, ensureBox, inventorySettingsStore } from './mocks'
+import { BOX_ID, compareObs, ensureBox, inventorySettingsStore, markCurrent, type StoredObs } from './mocks'
 import { normalizeRange, rangeProblem } from './validate'
 
 vi.setConfig({ testTimeout: 30_000 })
@@ -1529,5 +1529,44 @@ describe('inventory: form matrix (docs/QA.md §2)', () => {
     const r = await call('PUT', '/settings', { ...cur, active: { ...cur.active, enabled: true }, scope_confirmed: false })
     expect(r.status).toBe(400)
     expect(r.json?.error?.code).toBe('scope_not_confirmed')
+  })
+})
+
+describe('inventory: merging observations follows the source priority (DATA_MODEL §5.1, WP-06)', () => {
+  const T0 = '2026-11-09T01:00:00.000Z'
+  const ob = (id: string, source: string, confidence: number, seen_at = T0): StoredObs => ({ id, field: 'os', value: id, source: source as StoredObs['source'], confidence, seen_at })
+  const winner = (list: StoredObs[]) => markCurrent(list).find((o) => o.current)!.id
+
+  it('manual > agent > snmp > nmap = scan > passive, whatever the confidence', () => {
+    expect(winner([ob('passive', 'passive', 0.99), ob('agent', 'agent', 0.5)])).toBe('agent') // the old mock picked the passive 0.99
+    expect(winner([ob('agent', 'agent', 1), ob('manual', 'manual', 0.1)])).toBe('manual')
+    expect(winner([ob('nmap', 'nmap', 0.9), ob('snmp', 'snmp', 0.2)])).toBe('snmp')
+    expect(winner([ob('passive', 'passive', 0.7), ob('nmap', 'nmap', 0.3)])).toBe('nmap')
+  })
+
+  it('nmap and scan rank the same, so confidence decides; then seen_at; then the smaller id', () => {
+    expect(winner([ob('nmap', 'nmap', 0.6), ob('scan', 'scan', 0.8)])).toBe('scan')
+    expect(winner([ob('scan', 'scan', 0.8), ob('nmap', 'nmap', 0.6)])).toBe('scan')
+    expect(winner([ob('old', 'agent', 0.9, '2026-11-01T00:00:00.000Z'), ob('new', 'agent', 0.9, T0)])).toBe('new')
+    expect(winner([ob('b', 'agent', 0.9), ob('a', 'agent', 0.9)])).toBe('a')
+    expect(winner([ob('a', 'agent', 0.9), ob('b', 'agent', 0.9)])).toBe('a')
+    expect(compareObs(ob('a', 'nmap', 0.5), ob('b', 'scan', 0.5))).toBeGreaterThan(0) // the only difference is the id
+  })
+
+  it('a weaker observation never changes the current value, and no observation is dropped', () => {
+    const base = [ob('agent', 'agent', 0.95)]
+    const after = markCurrent([...base, ob('passive', 'passive', 0.99, '2026-11-09T05:00:00.000Z')])
+    expect(after).toHaveLength(2)
+    expect(after.find((o) => o.current)!.id).toBe('agent')
+  })
+
+  it('device page: the sample device with an agent OS keeps it over the older passive guess', async () => {
+    asAdmin()
+    const a = assetsStore.get().find((x) => x.os && x.os.source !== 'passive' && x.os.source !== 'manual')
+    expect(a).toBeTruthy()
+    const r = await call('GET', `/devices/${a!.id}`)
+    const cur = (r.json!.observations as { field: string; source: string; current: boolean }[]).filter((o) => o.field === 'os' && o.current)
+    expect(cur).toHaveLength(1)
+    expect(cur[0]!.source).toBe(a!.os!.source)
   })
 })

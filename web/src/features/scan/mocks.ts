@@ -53,19 +53,19 @@ const external = {
   },
 }
 const config = collection<ScanConfig>('scan_config', () => ({
-  window: { days: [1, 2, 3, 4, 5, 6, 0], from: '22:00', to: '05:00' },
+  window: { days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00' },
   rate: 5, exclusions: ['192.168.10.250'], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true,
-  schedule: { enabled: true, frequency: 'weekly', weekday: 0, at: '23:00' },
+  schedule: { enabled: true, frequency: 'weekly', weekday: 7, at: '23:00' },
 }), () => ({
   // Cài sạch: cùng mặc định nhưng chưa loại trừ IP nào (IP hộp mẫu 192.168.10.250 không phải của khách). Chưa có phạm vi/đồng ý thì không quét được.
-  window: { days: [1, 2, 3, 4, 5, 6, 0], from: '22:00', to: '05:00' },
+  window: { days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00' },
   rate: 5, exclusions: [], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true,
-  schedule: { enabled: true, frequency: 'weekly', weekday: 0, at: '23:00' },
+  schedule: { enabled: true, frequency: 'weekly', weekday: 7, at: '23:00' },
 }))
 const runs = collection<StoredRun[]>('scan_runs', seedRuns, () => [])
 const probes = collection<ProbeEntry[]>('scan_probes', seedProbes, () => [])
 const events = collection<RescanEvent[]>('scan_events', seedEvents, () => [])
-const creds = collection<CredTarget[]>('scan_cred', () => [])
+const creds = collection<CredTarget[]>('scc_target', () => [])
 
 function seedProbes(): ProbeEntry[] {
   const out: ProbeEntry[] = []
@@ -129,13 +129,16 @@ const hm = (s: string) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3))
 const HM_RE = /^([01]\d|2[0-3]):[0-5]\d$/
 const inTimeRange = (at: string, from: string, to: string) => (hm(from) < hm(to) ? hm(at) >= hm(from) && hm(at) < hm(to) : hm(at) >= hm(from) || hm(at) < hm(to))
 
+/** ISO weekday: 1 = Monday … 7 = Sunday (D-57). */
+const isoDay = (d: Date) => d.getDay() || 7
+
 export function nextRun(c: ScanConfig, now = new Date()): string | null {
   if (!c.schedule.enabled) return null
   for (let i = 0; i < 15; i++) {
     const d = new Date(now)
     d.setDate(d.getDate() + i)
     d.setHours(hm(c.schedule.at) / 60 | 0, hm(c.schedule.at) % 60, 0, 0)
-    if (d.getTime() > now.getTime() && c.window.days.includes(d.getDay()) && (c.schedule.frequency === 'daily' || d.getDay() === c.schedule.weekday)) return d.toISOString()
+    if (d.getTime() > now.getTime() && c.window.days.includes(isoDay(d)) && (c.schedule.frequency === 'daily' || isoDay(d) === c.schedule.weekday)) return d.toISOString()
   }
   return null
 }
@@ -263,7 +266,7 @@ const allRuns = () => runs.get().map(advance)
 // ---- validate cấu hình ----
 function validateConfig(c: ScanConfig): string | null {
   const w = c.window
-  if (!Array.isArray(w.days) || !w.days.length || w.days.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) return 'Choose at least one day for the scan window.'
+  if (!Array.isArray(w.days) || !w.days.length || w.days.some((d) => !Number.isInteger(d) || d < 1 || d > 7)) return 'Choose at least one day for the scan window.'
   if (!HM_RE.test(w.from) || !HM_RE.test(w.to)) return 'Time must look like HH:MM, for example 22:00.'
   if (w.from === w.to) return 'The start and end times must differ. To scan all day, set 00:00 to 23:59.'
   if (!Number.isInteger(c.rate) || c.rate < 1 || c.rate > 20) return 'The rate must be 1 to 20 requests per second. A lower rate is safer for old devices.'
@@ -273,7 +276,7 @@ function validateConfig(c: ScanConfig): string | null {
   const s = c.schedule
   if (s.frequency !== 'daily' && s.frequency !== 'weekly') return 'The schedule must be daily or weekly.'
   if (!HM_RE.test(s.at)) return 'The schedule time must look like HH:MM.'
-  if (!Number.isInteger(s.weekday) || s.weekday < 0 || s.weekday > 6) return 'The schedule day is not valid.'
+  if (!Number.isInteger(s.weekday) || s.weekday < 1 || s.weekday > 7) return 'The schedule day is not valid.'
   if (s.enabled) {
     if (!inTimeRange(s.at, w.from, w.to)) return `The schedule time ${s.at} is outside the ${w.from} to ${w.to} window. Pick a time inside the window or widen the window.`
     if (s.frequency === 'weekly' && !w.days.includes(s.weekday)) return 'The weekly schedule day must be one of the scan window days.'
@@ -329,7 +332,7 @@ export const handlers = [
   http.post(`${API}/scans/runs`, async ({ request }) => {
     const d = guard('operator'); if (d) return d
     const sc = scope.get()
-    if (!sc.commitment) return fail(400, 'no_commitment', 'Vedette does not scan until the scope commitment is ticked. Do it under Devices, Scope and sensors.')
+    if (!sc.commitment) return fail(400, 'commitment_required', 'Vedette does not scan until the scope commitment is ticked. Do it under Devices, Scope and sensors.')
     const b = await body<{ targets: string[] }>(request)
     if (!Array.isArray(b.targets) || !b.targets.length) return fail(400, 'no_targets', 'Choose at least one device to scan.')
     if (b.targets.length > 200) return fail(400, 'too_many', 'A scan can include at most 200 devices.')

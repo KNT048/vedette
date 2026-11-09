@@ -11,7 +11,7 @@ test.describe.configure({ timeout: 150_000 })
 async function asUser(page: Page, userId: string) {
   await page.addInitScript((u) => {
     try {
-      const k = 'vedette-mock-db-v3'
+      const k = 'vedette-mock-db-v4'
       const raw = localStorage.getItem(k)
       if (raw) { const db = JSON.parse(raw); db.core_session = { userId: u }; localStorage.setItem(k, JSON.stringify(db)) }
     } catch { /* bỏ qua */ }
@@ -339,10 +339,10 @@ test.describe('ai: sample data', () => {
   test('AI module off: the page says so; saved data is kept', async ({ page }) => {
     await sampleStart(page)
     // tắt module bằng cách ép core_modules trước mỗi lần tải trang (chờ kho mock có bảng module)
-    await page.waitForFunction(() => !!JSON.parse(localStorage.getItem('vedette-mock-db-v3') ?? '{}').core_modules)
+    await page.waitForFunction(() => !!JSON.parse(localStorage.getItem('vedette-mock-db-v4') ?? '{}').core_modules)
     await page.addInitScript(() => {
       try {
-        const k = 'vedette-mock-db-v3'
+        const k = 'vedette-mock-db-v4'
         const raw = localStorage.getItem(k)
         if (!raw) return
         const db = JSON.parse(raw)

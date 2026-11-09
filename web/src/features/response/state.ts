@@ -5,8 +5,10 @@ import { audit, currentUser, fail } from '@/mocks/http'
 import { collection, daysAgo, newId, nowIso, peek } from '@/mocks/db'
 import { connectorsStore, type Connector } from '@/mocks/connectors'
 import { boxInfo, usersStore } from '@/mocks/stores'
+import { isHttpKind } from '@/lib/connections'
 import { RISK_PHRASE } from './contract'
-import { seedCatalog, type StoredCat } from './data'
+import type { StoredCat } from './data'
+import { seedCatalog } from './templates'
 import {
   fill, GENESIS, isMcp, KIND_FIELDS, kindProblem, logHashSync, oneLine, randomToken, READ_ONLY, tplEmpty, tplParams, TOKEN_RE, validateTpl, verifyChain,
   type ConnKind, type ParamType, type Tpl,
@@ -27,13 +29,13 @@ const DEFAULTS = (): Settings => ({
   breaker_max_per_hour: 20, breaker_tripped_at: null, breaker_notified: [], multi_target_max: 5, maintenance: [],
   ai: { triggers: ['ioc_connection', 'finding'], budget_hour: 2, budget_day: 5, paused_at: null, paused_reason: null },
 })
-export const settingsStore = collection<Settings>('response_settings', DEFAULTS)
+export const settingsStore = collection<Settings>('resp_settings', DEFAULTS)
 export const settings = () => ({ ...DEFAULTS(), ...settingsStore.get() })
 
 // ---- Never-touch list ----
 export interface Allow { value: string; label: string }
-export const allowStore = collection<Allow[]>('response_allowlist', () => [
-  { value: '192.168.10.1', label: 'Office FortiGate (gateway)' }, { value: '192.168.10.10', label: 'Internal DNS and domain controller (SRV-AD)' },
+export const allowStore = collection<Allow[]>('resp_allowlist', () => [
+  { value: '192.168.10.1', label: 'Office firewall (gateway)' }, { value: '192.168.10.10', label: 'Internal DNS and domain controller (SRV-AD)' },
   { value: '192.168.10.250', label: 'This Vedette box' }, { value: '192.168.99.0/24', label: 'Management network' },
   { value: '1.1.1.1', label: 'Public DNS (Cloudflare)' }, { value: 'mail.acme.example', label: 'Declared service: company mail' },
 ], () => [{ value: boxInfo().ip ?? '127.0.0.1', label: 'This Vedette box' }])
@@ -41,7 +43,7 @@ export const allowStore = collection<Allow[]>('response_allowlist', () => [
 // ---- Tamper-evident log (D-48): collection `resp_log`, oldest first; the core agent reads it for "download all logs" ----
 export const logStore = collection<LogEntry[]>('resp_log', () => {
   const rows: [string, LogKind, string, string][] = [
-    [daysAgo(0, 2), 'rule_fired', 'rule:Block destinations of known-bad connections', 'Block destinations of known-bad connections: PC-SALES-02 connected to 185.220.101.47 (Tor exit list, confidence 92)'],
+    [daysAgo(0, 2), 'rule_fired', 'rule:Block destinations of known-bad connections', 'Block destinations of known-bad connections: PC-SALES-02 connected to 185.220.101.47 (Tor exit list, confidence 0.92)'],
     [daysAgo(0, 2), 'request', 'rule:Block destinations of known-bad connections', 'Add 185.220.101.47 to the block list; pre-approved by the rule (low risk, reversible, undone in 24 hours)'],
     [daysAgo(0, 2), 'executed', 'system', 'blocklist add 185.220.101.47; undone automatically in 1440 minutes; read back: entry present'],
     [daysAgo(2), 'request', 'ai:response', 'Add 203.0.113.77 to the block list (AI, confidence 0.83)'],
@@ -85,16 +87,16 @@ export const userCanApprove = (id: string) => { const u = usersStore.get().find(
 
 // ---- Email approval links (D-46): one token per approver, single use, 30 minutes, bound to request and approver ----
 export interface Token { token: string; action_id: string; user_id: string; address: string; channel: string; expires_at: string; used_at: string | null }
-export const tokensStore = collection<Token[]>('response_tokens', () => [])
+export const tokensStore = collection<Token[]>('resp_tokens', () => [])
 export const TOKEN_MIN = 30
 export const linkUrl = (t: string) => `https://${boxInfo().ip ?? '<box ip>'}:8443/approve/${t}`
 
 // ---- Action catalog (D-47, D-51) ----
-export const catalogStore = collection<StoredCat[]>('response_catalog', seedCatalog)
+export const catalogStore = collection<StoredCat[]>('resp_catalog', seedCatalog)
 export const catById = (id: string | null | undefined) => (id ? catalogStore.get().find((c) => c.id === id) : undefined)
 export const connById = (id: string | null | undefined) => (id ? connectorsStore.get().find((c) => c.id === id) : undefined)
 export const writeToolsOf = (c: Connector) => c.tools.filter((t) => t.enabled && t.access === 'write').map((t) => t.name)
-export const connView = (c: Connector): Connection => ({ id: c.id, name: c.name, enabled: c.enabled, kind: c.kind, vendor: c.vendor, write_tools: writeToolsOf(c), read_only: writeToolsOf(c).length === 0 })
+export const connView = (c: Connector): Connection => ({ id: c.id, name: c.name, enabled: c.enabled, kind: c.kind, write_tools: writeToolsOf(c), read_only: writeToolsOf(c).length === 0 })
 export const paramsOf = (c: Pick<StoredCat, 'run' | 'rollback' | 'verify'>) => tplParams(c.run, c.rollback, c.verify)
 export const reversible = (c: Pick<StoredCat, 'rollback'>) => !tplEmpty(c.rollback)
 
@@ -127,7 +129,7 @@ export type CatClean = { name: string; description: string; connection_id: strin
 /** Validate custom catalog fields (everything the client may set). The fields must fit the kind of the chosen connection. */
 export function checkCatalog(b: Record<string, unknown>): CatErr | CatClean {
   const bad = (error: string, code = 'invalid'): CatErr => ({ error, code })
-  const tpl = (v: unknown): Tpl => { const o = (v ?? {}) as Partial<Tpl>; const s = (x: unknown) => (typeof x === 'string' ? x : ''); return { cli: s(o.cli), method: (['', 'GET', 'PUT', 'POST', 'DELETE'] as const).find((m) => m === o.method) ?? '', path: s(o.path), body: s(o.body), headers: s(o.headers) } }
+  const tpl = (v: unknown): Tpl => { const o = (v ?? {}) as Partial<Tpl>; const s = (x: unknown) => (typeof x === 'string' ? x : ''); return { cli: s(o.cli), method: (['', 'GET', 'PUT', 'PATCH', 'POST', 'DELETE'] as const).find((m) => m === o.method) ?? '', path: s(o.path), body: s(o.body), headers: s(o.headers) } }
   if (typeof b.name !== 'string' || !TEXT_RE.test(b.name)) return bad('Name: 1 to 80 letters, numbers, spaces and . , : \' ( ) / -')
   if (typeof b.description !== 'string' || b.description.length > 300) return bad('Description: up to 300 characters.')
   if (b.risk !== 'low' && b.risk !== 'medium' && b.risk !== 'high') return bad('Risk must be low, medium or high.')
@@ -164,9 +166,9 @@ export function checkCatalog(b: Record<string, unknown>): CatErr | CatClean {
 
 /** Exact change for one catalog action and validated values. Each value is escaped for the place it lands in. */
 export function buildChange(c: StoredCat, values: Partial<Record<ParamType, string>>, conn: Connector | undefined, why: string): Change {
-  const api = conn && (conn.kind === 'device-api' || conn.kind === 'http')
+  const api = conn && isHttpKind(conn.kind)
   const mcp = conn && isMcp(conn.kind)
-  const call = (t: Tpl) => (api && t.method && t.path ? { method: t.method as 'GET' | 'PUT' | 'POST' | 'DELETE', url: `${conn.target}${fill(t.path, values, 'url')}`, body: t.body ? fill(t.body, values, 'json') : null } : null)
+  const call = (t: Tpl) => (api && t.method && t.path ? { method: t.method as 'GET' | 'PUT' | 'PATCH' | 'POST' | 'DELETE', url: `${conn.target}${fill(t.path, values, 'url')}`, body: t.body ? fill(t.body, values, 'json') : null } : null)
   const cli = (t: Tpl, tool: string | null) => (mcp ? `${tool ?? ''}(${t.body ? fill(t.body, values, 'json') : ''})` : conn?.kind === 'ssh' || !conn ? fill(t.cli, values, 'cli') : api && t.method && t.path ? '' : fill(t.cli, values, 'cli'))
   const what = Object.entries(values).filter(([k]) => paramsOf(c).includes(k as ParamType)).map(([k, v]) => `${k} ${v}`).join(', ')
   const v = c.verify.method && c.verify.path && api ? `GET ${conn.target}${fill(c.verify.path, values, 'url')}` : c.verify.cli ? fill(c.verify.cli, values, 'cli') : ''
@@ -202,24 +204,24 @@ function buildSeed(o: SeedBits): ActionRequest {
     sent_to: [], email_links: [], note: o.note ?? null, pre_approved: o.pre ?? false, ai: o.ai ?? null,
   }
 }
-export const actionsStore = collection<ActionRequest[]>('response_actions', () => {
+export const actionsStore = collection<ActionRequest[]>('resp_actions', () => {
   const t1 = daysAgo(0, 2), t2 = daysAgo(0, 5), t3 = daysAgo(0, 6), t4 = daysAgo(2), t5 = daysAgo(1)
-  const why1 = 'PC-SALES-02 connected to 185.220.101.47 (Tor exit list, confidence 92)'
+  const why1 = 'PC-SALES-02 connected to 185.220.101.47 (Tor exit list, confidence 0.92)'
   const i1 = catItem('blocklist_add', { ip: '185.220.101.47' }, why1, { ttl: 1440, ...done(t1, 1440) })
-  const i2 = catItem('blocklist_add', { ip: '45.9.148.20' }, 'PC-ACC-04 connected to 45.9.148.20 (IPsum, confidence 85)', { ttl: 720, ...done(t2, 720) })
+  const i2 = catItem('blocklist_add', { ip: '45.9.148.20' }, 'PC-ACC-04 connected to 45.9.148.20 (IPsum, confidence 0.85)', { ttl: 720, ...done(t2, 720) })
   const i3 = catItem('blocklist_add', { ip: '198.51.100.23' }, 'AI: scanning our public address range, confidence 0.88', { ttl: 1440, ...done(t3, 1440) })
   const i4 = catItem('blocklist_add', { ip: '203.0.113.77' }, 'AI: repeated probes of port 3389', { ttl: 1440, status: 'pending' })
-  const i5a = catItem('blocklist_add', { ip: '91.92.240.12' }, 'PC-HR-01 connected to 91.92.240.12 (URLhaus, confidence 60)', { ttl: 720 })
+  const i5a = catItem('blocklist_add', { ip: '91.92.240.12' }, 'PC-HR-01 connected to 91.92.240.12 (URLhaus, confidence 0.6)', { ttl: 720 })
   const i5b = catItem('msg_send', { text: 'Known-bad connection from PC-HR-01 to 91.92.240.12' }, '', { ttl: null })
   const i6 = catItem('blocklist_add', { ip: '45.148.10.95' }, 'AI: PC-FIN-02 connected to 45.148.10.95 (ET Open compromised, IPsum), confidence 0.86', { ttl: 1440 })
   const i7 = catItem('msg_send', { text: 'Unknown device 3c:22:fb:10:aa:01, vendor Unknown vendor, at 192.168.10.157' }, '', { ttl: null })
   return [
-    buildSeed({ id: 'act-seed-5', source: 'rule', rule_id: 'r-ioc-ask', rule_name: 'Ask before blocking medium-confidence matches', trigger: 'ioc_connection', summary: 'PC-HR-01 connected to 91.92.240.12 (URLhaus, confidence 60)', asset_id: 'a-pc07', asset_name: 'PC-HR-01', title: 'Block 91.92.240.12 and tell the team', items: [i5a, i5b], status: 'pending', at: new Date(Date.now() - 60e3).toISOString(), pending_min: 28 }),
+    buildSeed({ id: 'act-seed-5', source: 'rule', rule_id: 'r-ioc-ask', rule_name: 'Ask before blocking medium-confidence matches', trigger: 'ioc_connection', summary: 'PC-HR-01 connected to 91.92.240.12 (URLhaus, confidence 0.6)', asset_id: 'a-pc07', asset_name: 'PC-HR-01', title: 'Block 91.92.240.12 and tell the team', items: [i5a, i5b], status: 'pending', at: new Date(Date.now() - 60e3).toISOString(), pending_min: 28 }),
     buildSeed({ id: 'act-seed-6', source: 'ai', trigger: 'ioc_connection', summary: 'AI request', asset_name: 'PC-FIN-02', title: 'Add 45.148.10.95 to the block list', items: [i6], status: 'pending', at: new Date(Date.now() - 3 * 60e3).toISOString(), pending_min: 26,
       ai: { confidence: 0.86, why: 'PC-FIN-02 connected to 45.148.10.95, which two threat feeds list as a command-and-control server. Blocking the address stops the connection without touching the PC.', evidence: [{ kind: 'ioc_hit', id: 'b-3', summary: 'PC-FIN-02 to 45.148.10.95 via the firewall log, 2 feeds, confidence 0.6 in the hit list' }], second_check: null, in_app_only: false } }),
     buildSeed({ id: 'act-seed-1', source: 'rule', rule_id: 'r-ioc', rule_name: 'Block destinations of known-bad connections', trigger: 'ioc_connection', summary: why1, asset_id: 'a-pc05', asset_name: 'PC-SALES-02', title: 'Add 185.220.101.47 to the block list', items: [i1], status: 'executed', at: t1, decided: t1,
       pre: true, approvals: [{ user_id: 'rule:r-ioc', name: 'Rule: Block destinations of known-bad connections', email: 'rule@vedette', via: 'auto', at: t1, items: [i1.id] }] }),
-    buildSeed({ id: 'act-seed-2', source: 'rule', rule_id: 'r-ioc-ask', rule_name: 'Ask before blocking medium-confidence matches', trigger: 'ioc_connection', summary: 'PC-ACC-04 connected to 45.9.148.20 (IPsum, confidence 85)', asset_name: 'PC-ACC-04', title: 'Add 45.9.148.20 to the block list', items: [i2], status: 'executed', at: t2, decided: t2,
+    buildSeed({ id: 'act-seed-2', source: 'rule', rule_id: 'r-ioc-ask', rule_name: 'Ask before blocking medium-confidence matches', trigger: 'ioc_connection', summary: 'PC-ACC-04 connected to 45.9.148.20 (IPsum, confidence 0.85)', asset_name: 'PC-ACC-04', title: 'Add 45.9.148.20 to the block list', items: [i2], status: 'executed', at: t2, decided: t2,
       approvals: [person('u-op', 'IT Operator', 'it@acme.example', 'slack', t2, [i2])] }),
     buildSeed({ id: 'act-seed-3', source: 'ai', trigger: 'ioc_connection', summary: 'AI request', asset_name: 'Public address range', title: 'Add 198.51.100.23 to the block list', items: [i3], status: 'executed', at: t3, decided: t3,
       approvals: [person('u-admin', 'Admin', 'admin@acme.example', 'app', t3, [i3])],
@@ -230,7 +232,7 @@ export const actionsStore = collection<ActionRequest[]>('response_actions', () =
     buildSeed({ id: 'act-seed-7', source: 'rule', rule_id: 'r-unknown', rule_name: 'Unknown device: message only', trigger: 'unknown_device', summary: 'Unknown device at 192.168.10.157', asset_id: 'a-unk01', asset_name: '192.168.10.157', title: 'Send a message to your alert channels', items: [{ ...i7, status: 'skipped' }], status: 'expired', at: t5, decided: new Date(Date.parse(t5) + 15 * 60e3).toISOString(), note: 'Expired without a decision' }),
   ]
 }, () => [])
-export const doneStore = collection<string[]>('response_done', () => ['r-ioc:det-s-ioc-1'], () => [])
+export const doneStore = collection<string[]>('resp_done', () => ['r-ioc:det-s-ioc-1'], () => [])
 
 export function patchAction(id: string, fn: (a: ActionRequest) => ActionRequest): ActionRequest {
   let out!: ActionRequest

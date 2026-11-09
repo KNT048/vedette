@@ -1775,27 +1775,12 @@
                           "kind": {
                             "type": "string",
                             "enum": [
-                              "device-api",
-                              "ssh",
                               "http",
+                              "ssh",
+                              "netconf-restconf",
+                              "automation",
                               "mcp-http",
                               "mcp-stdio"
-                            ]
-                          },
-                          "vendor": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "enum": [
-                                  "fortinet",
-                                  "mikrotik",
-                                  "pfsense",
-                                  "other"
-                                ]
-                              },
-                              {
-                                "type": "null"
-                              }
                             ]
                           },
                           "target": {
@@ -1900,7 +1885,6 @@
                           "id",
                           "name",
                           "kind",
-                          "vendor",
                           "target",
                           "asset_id",
                           "auth",
@@ -1959,27 +1943,12 @@
                   "kind": {
                     "type": "string",
                     "enum": [
-                      "device-api",
-                      "ssh",
                       "http",
+                      "ssh",
+                      "netconf-restconf",
+                      "automation",
                       "mcp-http",
                       "mcp-stdio"
-                    ]
-                  },
-                  "vendor": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "enum": [
-                          "fortinet",
-                          "mikrotik",
-                          "pfsense",
-                          "other"
-                        ]
-                      },
-                      {
-                        "type": "null"
-                      }
                     ]
                   },
                   "target": {
@@ -2037,7 +2006,6 @@
                 "required": [
                   "name",
                   "kind",
-                  "vendor",
                   "target",
                   "auth_type",
                   "allow",
@@ -2065,27 +2033,12 @@
                     "kind": {
                       "type": "string",
                       "enum": [
-                        "device-api",
-                        "ssh",
                         "http",
+                        "ssh",
+                        "netconf-restconf",
+                        "automation",
                         "mcp-http",
                         "mcp-stdio"
-                      ]
-                    },
-                    "vendor": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": [
-                            "fortinet",
-                            "mikrotik",
-                            "pfsense",
-                            "other"
-                          ]
-                        },
-                        {
-                          "type": "null"
-                        }
                       ]
                     },
                     "target": {
@@ -2190,7 +2143,6 @@
                     "id",
                     "name",
                     "kind",
-                    "vendor",
                     "target",
                     "asset_id",
                     "auth",
@@ -2290,27 +2242,12 @@
                   "kind": {
                     "type": "string",
                     "enum": [
-                      "device-api",
-                      "ssh",
                       "http",
+                      "ssh",
+                      "netconf-restconf",
+                      "automation",
                       "mcp-http",
                       "mcp-stdio"
-                    ]
-                  },
-                  "vendor": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "enum": [
-                          "fortinet",
-                          "mikrotik",
-                          "pfsense",
-                          "other"
-                        ]
-                      },
-                      {
-                        "type": "null"
-                      }
                     ]
                   },
                   "target": {
@@ -2368,7 +2305,6 @@
                 "required": [
                   "name",
                   "kind",
-                  "vendor",
                   "target",
                   "auth_type",
                   "allow",
@@ -2396,27 +2332,12 @@
                     "kind": {
                       "type": "string",
                       "enum": [
-                        "device-api",
-                        "ssh",
                         "http",
+                        "ssh",
+                        "netconf-restconf",
+                        "automation",
                         "mcp-http",
                         "mcp-stdio"
-                      ]
-                    },
-                    "vendor": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": [
-                            "fortinet",
-                            "mikrotik",
-                            "pfsense",
-                            "other"
-                          ]
-                        },
-                        {
-                          "type": "null"
-                        }
                       ]
                     },
                     "target": {
@@ -2521,7 +2442,6 @@
                     "id",
                     "name",
                     "kind",
-                    "vendor",
                     "target",
                     "asset_id",
                     "auth",
@@ -2605,27 +2525,12 @@
                         "kind": {
                           "type": "string",
                           "enum": [
-                            "device-api",
-                            "ssh",
                             "http",
+                            "ssh",
+                            "netconf-restconf",
+                            "automation",
                             "mcp-http",
                             "mcp-stdio"
-                          ]
-                        },
-                        "vendor": {
-                          "anyOf": [
-                            {
-                              "type": "string",
-                              "enum": [
-                                "fortinet",
-                                "mikrotik",
-                                "pfsense",
-                                "other"
-                              ]
-                            },
-                            {
-                              "type": "null"
-                            }
                           ]
                         },
                         "target": {
@@ -2730,7 +2635,6 @@
                         "id",
                         "name",
                         "kind",
-                        "vendor",
                         "target",
                         "asset_id",
                         "auth",
@@ -9100,8 +9004,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
@@ -12191,7 +12095,7 @@
     "/core/privacy": {
       "get": {
         "operationId": "core_get_core_privacy",
-        "summary": "The 10 data flows leaving the box and the verbatim anonymous-signal payload",
+        "summary": "The 11 data flows leaving the box and the verbatim anonymous-signal payload",
         "tags": [
           "core"
         ],
@@ -12215,7 +12119,7 @@
                           "id": {
                             "type": "integer",
                             "minimum": 1,
-                            "maximum": 10
+                            "maximum": 11
                           },
                           "state": {
                             "type": "string",
@@ -12243,7 +12147,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Exactly the 10 flows listed in PRIVACY.md"
+                      "description": "Exactly the 11 flows listed in PRIVACY.md"
                     },
                     "telemetry": {
                       "type": "object",
@@ -12350,7 +12254,7 @@
                           "id": {
                             "type": "integer",
                             "minimum": 1,
-                            "maximum": 10
+                            "maximum": 11
                           },
                           "state": {
                             "type": "string",
@@ -12378,7 +12282,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Exactly the 10 flows listed in PRIVACY.md"
+                      "description": "Exactly the 11 flows listed in PRIVACY.md"
                     },
                     "telemetry": {
                       "type": "object",
@@ -14776,7 +14680,7 @@
     "/core/updates/os/install": {
       "post": {
         "operationId": "core_post_core_updates_os_install",
-        "summary": "Install security updates or all updates through vedette-updater; one run at a time (409 when busy), database backup first",
+        "summary": "Install security updates or all updates through vedette-host; one run at a time (409 when busy), database backup first",
         "tags": [
           "core"
         ],
@@ -14808,8 +14712,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "202": {
+            "description": "Accepted",
             "content": {
               "application/json": {
                 "schema": {
@@ -16367,8 +16271,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
@@ -16732,7 +16636,7 @@
     "/exposure/box-ip/verify": {
       "post": {
         "operationId": "exposure_post_exposure_box_ip_verify",
-        "summary": "The box detects the public IP it uses to reach the Internet (TLS to a fixed endpoint) and verifies it for 90 days. Takes no IP input; refuses private, reserved and CGNAT results; rate limited to 10 attempts per hour",
+        "summary": "The box detects the public IP it uses to reach the Internet (TLS to a fixed endpoint) and verifies it for 90 days. Takes no IP input; refuses private, reserved and CGNAT results; rate limited to 10 attempts per hour. 201 when the IP is new in the list, 200 when it was already there (the generated file documents 200)",
         "tags": [
           "exposure"
         ],
@@ -17320,8 +17224,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
@@ -18400,7 +18304,7 @@
     "/exposure/targets/{id}/scan": {
       "post": {
         "operationId": "exposure_post_exposure_targets_id_scan",
-        "summary": "Scan now. 409 when not verified, verification expired, the DNS TXT record is gone (re-checked right before the scan) or the commitment is missing",
+        "summary": "Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 400 commitment_required when the commitment is missing",
         "tags": [
           "exposure"
         ],
@@ -19446,8 +19350,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
@@ -27155,8 +27059,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
@@ -28198,8 +28102,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
@@ -29147,8 +29051,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
@@ -30327,8 +30231,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
@@ -31118,8 +31022,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
@@ -33268,8 +33172,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
@@ -37470,16 +37374,10 @@
                       "type": "boolean"
                     },
                     "day": {
-                      "type": "string",
-                      "enum": [
-                        "mon",
-                        "tue",
-                        "wed",
-                        "thu",
-                        "fri",
-                        "sat",
-                        "sun"
-                      ]
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 7,
+                      "description": "1 = Monday … 7 = Sunday (D-57)"
                     },
                     "hour": {
                       "type": "integer",
@@ -37552,16 +37450,10 @@
                     "type": "boolean"
                   },
                   "day": {
-                    "type": "string",
-                    "enum": [
-                      "mon",
-                      "tue",
-                      "wed",
-                      "thu",
-                      "fri",
-                      "sat",
-                      "sun"
-                    ]
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 7,
+                    "description": "1 = Monday … 7 = Sunday (D-57)"
                   },
                   "hour": {
                     "type": "integer",
@@ -37600,16 +37492,10 @@
                       "type": "boolean"
                     },
                     "day": {
-                      "type": "string",
-                      "enum": [
-                        "mon",
-                        "tue",
-                        "wed",
-                        "thu",
-                        "fri",
-                        "sat",
-                        "sun"
-                      ]
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 7,
+                      "description": "1 = Monday … 7 = Sunday (D-57)"
                     },
                     "hour": {
                       "type": "integer",
@@ -39096,6 +38982,7 @@
                                               "enum": [
                                                 "GET",
                                                 "PUT",
+                                                "PATCH",
                                                 "POST",
                                                 "DELETE"
                                               ]
@@ -39142,6 +39029,7 @@
                                                   "enum": [
                                                     "GET",
                                                     "PUT",
+                                                    "PATCH",
                                                     "POST",
                                                     "DELETE"
                                                   ]
@@ -39799,6 +39687,7 @@
                                         "enum": [
                                           "GET",
                                           "PUT",
+                                          "PATCH",
                                           "POST",
                                           "DELETE"
                                         ]
@@ -39845,6 +39734,7 @@
                                             "enum": [
                                               "GET",
                                               "PUT",
+                                              "PATCH",
                                               "POST",
                                               "DELETE"
                                             ]
@@ -40510,6 +40400,7 @@
                                         "enum": [
                                           "GET",
                                           "PUT",
+                                          "PATCH",
                                           "POST",
                                           "DELETE"
                                         ]
@@ -40556,6 +40447,7 @@
                                             "enum": [
                                               "GET",
                                               "PUT",
+                                              "PATCH",
                                               "POST",
                                               "DELETE"
                                             ]
@@ -41209,6 +41101,7 @@
                                         "enum": [
                                           "GET",
                                           "PUT",
+                                          "PATCH",
                                           "POST",
                                           "DELETE"
                                         ]
@@ -41255,6 +41148,7 @@
                                             "enum": [
                                               "GET",
                                               "PUT",
+                                              "PATCH",
                                               "POST",
                                               "DELETE"
                                             ]
@@ -41883,6 +41777,7 @@
                                         "enum": [
                                           "GET",
                                           "PUT",
+                                          "PATCH",
                                           "POST",
                                           "DELETE"
                                         ]
@@ -41929,6 +41824,7 @@
                                             "enum": [
                                               "GET",
                                               "PUT",
+                                              "PATCH",
                                               "POST",
                                               "DELETE"
                                             ]
@@ -42658,7 +42554,7 @@
     "/response/ai/proposals": {
       "post": {
         "operationId": "response_post_response_ai_proposals",
-        "summary": "The AI agent sends a request. Server-side gates: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk",
+        "summary": "The AI agent sends a request. Server-side gates: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an approval request was created, 200 for a suggestion note or a digest (the generated file documents 200)",
         "tags": [
           "response"
         ],
@@ -42920,6 +42816,7 @@
                                                 "enum": [
                                                   "GET",
                                                   "PUT",
+                                                  "PATCH",
                                                   "POST",
                                                   "DELETE"
                                                 ]
@@ -42966,6 +42863,7 @@
                                                     "enum": [
                                                       "GET",
                                                       "PUT",
+                                                      "PATCH",
                                                       "POST",
                                                       "DELETE"
                                                     ]
@@ -43950,6 +43848,7 @@
                                         "enum": [
                                           "GET",
                                           "PUT",
+                                          "PATCH",
                                           "POST",
                                           "DELETE"
                                         ]
@@ -43996,6 +43895,7 @@
                                             "enum": [
                                               "GET",
                                               "PUT",
+                                              "PATCH",
                                               "POST",
                                               "DELETE"
                                             ]
@@ -44345,6 +44245,7 @@
                                         "enum": [
                                           "GET",
                                           "PUT",
+                                          "PATCH",
                                           "POST",
                                           "DELETE"
                                         ]
@@ -44391,6 +44292,7 @@
                                             "enum": [
                                               "GET",
                                               "PUT",
+                                              "PATCH",
                                               "POST",
                                               "DELETE"
                                             ]
@@ -45378,7 +45280,7 @@
     "/response/catalog": {
       "get": {
         "operationId": "response_get_response_catalog",
-        "summary": "Action catalog in plain words: vendor packs, generic actions and custom ones; connections with their kind and whether they can write",
+        "summary": "Action catalog in plain words: template packs from the library (data, D-58), generic actions and custom ones; connections with their kind and whether they can write",
         "tags": [
           "response"
         ],
@@ -45408,16 +45310,8 @@
                           },
                           "pack": {
                             "type": "string",
-                            "enum": [
-                              "box",
-                              "fortigate",
-                              "mikrotik",
-                              "pfsense",
-                              "opnsense",
-                              "switch",
-                              "dns",
-                              "generic"
-                            ]
+                            "minLength": 1,
+                            "maxLength": 60
                           },
                           "name": {
                             "type": "string"
@@ -45442,9 +45336,10 @@
                               {
                                 "type": "string",
                                 "enum": [
-                                  "device-api",
-                                  "ssh",
                                   "http",
+                                  "ssh",
+                                  "netconf-restconf",
+                                  "automation",
                                   "mcp-http",
                                   "mcp-stdio"
                                 ]
@@ -45473,7 +45368,7 @@
                               "cli": {
                                 "type": "string",
                                 "maxLength": 2000,
-                                "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {text}; shell characters are refused"
+                                "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
                               },
                               "method": {
                                 "type": "string",
@@ -45481,6 +45376,7 @@
                                   "",
                                   "GET",
                                   "PUT",
+                                  "PATCH",
                                   "POST",
                                   "DELETE"
                                 ]
@@ -45516,7 +45412,7 @@
                               "cli": {
                                 "type": "string",
                                 "maxLength": 2000,
-                                "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {text}; shell characters are refused"
+                                "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
                               },
                               "method": {
                                 "type": "string",
@@ -45524,6 +45420,7 @@
                                   "",
                                   "GET",
                                   "PUT",
+                                  "PATCH",
                                   "POST",
                                   "DELETE"
                                 ]
@@ -45559,7 +45456,7 @@
                               "cli": {
                                 "type": "string",
                                 "maxLength": 2000,
-                                "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {text}; shell characters are refused"
+                                "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
                               },
                               "method": {
                                 "type": "string",
@@ -45567,6 +45464,7 @@
                                   "",
                                   "GET",
                                   "PUT",
+                                  "PATCH",
                                   "POST",
                                   "DELETE"
                                 ]
@@ -45608,6 +45506,8 @@
                                 "mac",
                                 "vlan",
                                 "interface",
+                                "id",
+                                "name",
                                 "text"
                               ]
                             },
@@ -45690,17 +45590,12 @@
                           "kind": {
                             "type": "string",
                             "enum": [
-                              "device-api",
-                              "ssh",
                               "http",
+                              "ssh",
+                              "netconf-restconf",
+                              "automation",
                               "mcp-http",
                               "mcp-stdio"
-                            ]
-                          },
-                          "vendor": {
-                            "type": [
-                              "string",
-                              "null"
                             ]
                           },
                           "write_tools": {
@@ -45719,7 +45614,6 @@
                           "name",
                           "enabled",
                           "kind",
-                          "vendor",
                           "write_tools",
                           "read_only"
                         ],
@@ -45796,7 +45690,7 @@
                       "cli": {
                         "type": "string",
                         "maxLength": 2000,
-                        "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {text}; shell characters are refused"
+                        "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
                       },
                       "method": {
                         "type": "string",
@@ -45804,6 +45698,7 @@
                           "",
                           "GET",
                           "PUT",
+                          "PATCH",
                           "POST",
                           "DELETE"
                         ]
@@ -45839,7 +45734,7 @@
                       "cli": {
                         "type": "string",
                         "maxLength": 2000,
-                        "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {text}; shell characters are refused"
+                        "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
                       },
                       "method": {
                         "type": "string",
@@ -45847,6 +45742,7 @@
                           "",
                           "GET",
                           "PUT",
+                          "PATCH",
                           "POST",
                           "DELETE"
                         ]
@@ -45882,7 +45778,7 @@
                       "cli": {
                         "type": "string",
                         "maxLength": 2000,
-                        "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {text}; shell characters are refused"
+                        "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
                       },
                       "method": {
                         "type": "string",
@@ -45890,6 +45786,7 @@
                           "",
                           "GET",
                           "PUT",
+                          "PATCH",
                           "POST",
                           "DELETE"
                         ]
@@ -45953,8 +45850,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
@@ -45969,16 +45866,8 @@
                     },
                     "pack": {
                       "type": "string",
-                      "enum": [
-                        "box",
-                        "fortigate",
-                        "mikrotik",
-                        "pfsense",
-                        "opnsense",
-                        "switch",
-                        "dns",
-                        "generic"
-                      ]
+                      "minLength": 1,
+                      "maxLength": 60
                     },
                     "name": {
                       "type": "string"
@@ -46003,9 +45892,10 @@
                         {
                           "type": "string",
                           "enum": [
-                            "device-api",
-                            "ssh",
                             "http",
+                            "ssh",
+                            "netconf-restconf",
+                            "automation",
                             "mcp-http",
                             "mcp-stdio"
                           ]
@@ -46034,7 +45924,7 @@
                         "cli": {
                           "type": "string",
                           "maxLength": 2000,
-                          "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {text}; shell characters are refused"
+                          "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
                         },
                         "method": {
                           "type": "string",
@@ -46042,6 +45932,7 @@
                             "",
                             "GET",
                             "PUT",
+                            "PATCH",
                             "POST",
                             "DELETE"
                           ]
@@ -46077,7 +45968,7 @@
                         "cli": {
                           "type": "string",
                           "maxLength": 2000,
-                          "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {text}; shell characters are refused"
+                          "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
                         },
                         "method": {
                           "type": "string",
@@ -46085,6 +45976,7 @@
                             "",
                             "GET",
                             "PUT",
+                            "PATCH",
                             "POST",
                             "DELETE"
                           ]
@@ -46120,7 +46012,7 @@
                         "cli": {
                           "type": "string",
                           "maxLength": 2000,
-                          "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {text}; shell characters are refused"
+                          "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
                         },
                         "method": {
                           "type": "string",
@@ -46128,6 +46020,7 @@
                             "",
                             "GET",
                             "PUT",
+                            "PATCH",
                             "POST",
                             "DELETE"
                           ]
@@ -46169,6 +46062,8 @@
                           "mac",
                           "vlan",
                           "interface",
+                          "id",
+                          "name",
                           "text"
                         ]
                       },
@@ -46345,7 +46240,7 @@
                       "cli": {
                         "type": "string",
                         "maxLength": 2000,
-                        "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {text}; shell characters are refused"
+                        "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
                       },
                       "method": {
                         "type": "string",
@@ -46353,6 +46248,7 @@
                           "",
                           "GET",
                           "PUT",
+                          "PATCH",
                           "POST",
                           "DELETE"
                         ]
@@ -46388,7 +46284,7 @@
                       "cli": {
                         "type": "string",
                         "maxLength": 2000,
-                        "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {text}; shell characters are refused"
+                        "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
                       },
                       "method": {
                         "type": "string",
@@ -46396,6 +46292,7 @@
                           "",
                           "GET",
                           "PUT",
+                          "PATCH",
                           "POST",
                           "DELETE"
                         ]
@@ -46431,7 +46328,7 @@
                       "cli": {
                         "type": "string",
                         "maxLength": 2000,
-                        "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {text}; shell characters are refused"
+                        "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
                       },
                       "method": {
                         "type": "string",
@@ -46439,6 +46336,7 @@
                           "",
                           "GET",
                           "PUT",
+                          "PATCH",
                           "POST",
                           "DELETE"
                         ]
@@ -46506,16 +46404,8 @@
                     },
                     "pack": {
                       "type": "string",
-                      "enum": [
-                        "box",
-                        "fortigate",
-                        "mikrotik",
-                        "pfsense",
-                        "opnsense",
-                        "switch",
-                        "dns",
-                        "generic"
-                      ]
+                      "minLength": 1,
+                      "maxLength": 60
                     },
                     "name": {
                       "type": "string"
@@ -46540,9 +46430,10 @@
                         {
                           "type": "string",
                           "enum": [
-                            "device-api",
-                            "ssh",
                             "http",
+                            "ssh",
+                            "netconf-restconf",
+                            "automation",
                             "mcp-http",
                             "mcp-stdio"
                           ]
@@ -46571,7 +46462,7 @@
                         "cli": {
                           "type": "string",
                           "maxLength": 2000,
-                          "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {text}; shell characters are refused"
+                          "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
                         },
                         "method": {
                           "type": "string",
@@ -46579,6 +46470,7 @@
                             "",
                             "GET",
                             "PUT",
+                            "PATCH",
                             "POST",
                             "DELETE"
                           ]
@@ -46614,7 +46506,7 @@
                         "cli": {
                           "type": "string",
                           "maxLength": 2000,
-                          "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {text}; shell characters are refused"
+                          "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
                         },
                         "method": {
                           "type": "string",
@@ -46622,6 +46514,7 @@
                             "",
                             "GET",
                             "PUT",
+                            "PATCH",
                             "POST",
                             "DELETE"
                           ]
@@ -46657,7 +46550,7 @@
                         "cli": {
                           "type": "string",
                           "maxLength": 2000,
-                          "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {text}; shell characters are refused"
+                          "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
                         },
                         "method": {
                           "type": "string",
@@ -46665,6 +46558,7 @@
                             "",
                             "GET",
                             "PUT",
+                            "PATCH",
                             "POST",
                             "DELETE"
                           ]
@@ -46706,6 +46600,8 @@
                           "mac",
                           "vlan",
                           "interface",
+                          "id",
+                          "name",
                           "text"
                         ]
                       },
@@ -47683,6 +47579,7 @@
                                                       "enum": [
                                                         "GET",
                                                         "PUT",
+                                                        "PATCH",
                                                         "POST",
                                                         "DELETE"
                                                       ]
@@ -47729,6 +47626,7 @@
                                                           "enum": [
                                                             "GET",
                                                             "PUT",
+                                                            "PATCH",
                                                             "POST",
                                                             "DELETE"
                                                           ]
@@ -47905,8 +47803,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
@@ -48061,6 +47959,7 @@
                                         "enum": [
                                           "GET",
                                           "PUT",
+                                          "PATCH",
                                           "POST",
                                           "DELETE"
                                         ]
@@ -48107,6 +48006,7 @@
                                             "enum": [
                                               "GET",
                                               "PUT",
+                                              "PATCH",
                                               "POST",
                                               "DELETE"
                                             ]
@@ -49000,8 +48900,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
@@ -50237,6 +50137,7 @@
                                             "enum": [
                                               "GET",
                                               "PUT",
+                                              "PATCH",
                                               "POST",
                                               "DELETE"
                                             ]
@@ -50283,6 +50184,7 @@
                                                 "enum": [
                                                   "GET",
                                                   "PUT",
+                                                  "PATCH",
                                                   "POST",
                                                   "DELETE"
                                                 ]
@@ -51312,8 +51214,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
@@ -51600,6 +51502,8 @@
                                     "mac",
                                     "vlan",
                                     "interface",
+                                    "id",
+                                    "name",
                                     "text",
                                     "number",
                                     "flag",
@@ -51693,9 +51597,9 @@
                               "type": "array",
                               "items": {
                                 "type": "integer",
-                                "minimum": 0,
-                                "maximum": 6,
-                                "description": "0 = Sunday … 6 = Saturday"
+                                "minimum": 1,
+                                "maximum": 7,
+                                "description": "1 = Monday … 7 = Sunday (D-57)"
                               }
                             },
                             "from": {
@@ -51756,9 +51660,9 @@
                             },
                             "weekday": {
                               "type": "integer",
-                              "minimum": 0,
-                              "maximum": 6,
-                              "description": "0 = Sunday … 6 = Saturday"
+                              "minimum": 1,
+                              "maximum": 7,
+                              "description": "1 = Monday … 7 = Sunday (D-57)"
                             },
                             "at": {
                               "type": "string",
@@ -51905,9 +51809,9 @@
                         "type": "array",
                         "items": {
                           "type": "integer",
-                          "minimum": 0,
-                          "maximum": 6,
-                          "description": "0 = Sunday … 6 = Saturday"
+                          "minimum": 1,
+                          "maximum": 7,
+                          "description": "1 = Monday … 7 = Sunday (D-57)"
                         }
                       },
                       "from": {
@@ -51963,9 +51867,9 @@
                       },
                       "weekday": {
                         "type": "integer",
-                        "minimum": 0,
-                        "maximum": 6,
-                        "description": "0 = Sunday … 6 = Saturday"
+                        "minimum": 1,
+                        "maximum": 7,
+                        "description": "1 = Monday … 7 = Sunday (D-57)"
                       },
                       "at": {
                         "type": "string",
@@ -52005,9 +51909,9 @@
                               "type": "array",
                               "items": {
                                 "type": "integer",
-                                "minimum": 0,
-                                "maximum": 6,
-                                "description": "0 = Sunday … 6 = Saturday"
+                                "minimum": 1,
+                                "maximum": 7,
+                                "description": "1 = Monday … 7 = Sunday (D-57)"
                               }
                             },
                             "from": {
@@ -52068,9 +51972,9 @@
                             },
                             "weekday": {
                               "type": "integer",
-                              "minimum": 0,
-                              "maximum": 6,
-                              "description": "0 = Sunday … 6 = Saturday"
+                              "minimum": 1,
+                              "maximum": 7,
+                              "description": "1 = Monday … 7 = Sunday (D-57)"
                             },
                             "at": {
                               "type": "string",
@@ -52238,7 +52142,7 @@
                           },
                           "key_last4": {
                             "type": "string",
-                            "description": "Last 4 characters only; the private key is never stored or returned (SYS-4)"
+                            "description": "Last 4 characters only. The private key is stored encrypted on the box (SYS-4) and never shown or returned again (D-57)"
                           },
                           "created_at": {
                             "type": "string",
@@ -52316,7 +52220,7 @@
       },
       "post": {
         "operationId": "scan_post_scans_credentialed",
-        "summary": "Add a server for account-based scanning with an SSH private key (only the last 4 characters are kept)",
+        "summary": "Add a server for account-based scanning with an SSH private key (stored encrypted on the box, never shown again; only the last 4 characters are displayed)",
         "tags": [
           "scan"
         ],
@@ -52360,8 +52264,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
@@ -52389,7 +52293,7 @@
                     },
                     "key_last4": {
                       "type": "string",
-                      "description": "Last 4 characters only; the private key is never stored or returned (SYS-4)"
+                      "description": "Last 4 characters only. The private key is stored encrypted on the box (SYS-4) and never shown or returned again (D-57)"
                     },
                     "created_at": {
                       "type": "string",
@@ -52544,7 +52448,7 @@
                     },
                     "key_last4": {
                       "type": "string",
-                      "description": "Last 4 characters only; the private key is never stored or returned (SYS-4)"
+                      "description": "Last 4 characters only. The private key is stored encrypted on the box (SYS-4) and never shown or returned again (D-57)"
                     },
                     "created_at": {
                       "type": "string",
@@ -53097,8 +53001,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {

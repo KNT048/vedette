@@ -47,7 +47,7 @@ async function cleanInstall(page: Page, lan = '192.168.10.0/24') {
 /** Đổi phiên mock sang tài khoản khác (u-view = chỉ xem). */
 async function asUser(page: Page, userId: string) {
   await page.evaluate((u) => {
-    const k = 'vedette-mock-db-v3'
+    const k = 'vedette-mock-db-v4'
     const db = JSON.parse(localStorage.getItem(k) ?? '{}')
     db.core_session = { userId: u }
     localStorage.setItem(k, JSON.stringify(db))

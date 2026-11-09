@@ -52,7 +52,7 @@ describe('reports: weekly report (S-REP-1)', () => {
 
   it('no recipients: cannot send and the server says how to fix it', async () => {
     sessionStore.set({ userId: 'u-admin' })
-    expect((await api('/reports/schedule', { method: 'PUT', body: JSON.stringify({ enabled: false, day: 'mon', hour: 8, recipients: [] }) })).status).toBe(200)
+    expect((await api('/reports/schedule', { method: 'PUT', body: JSON.stringify({ enabled: false, day: 1, hour: 8, recipients: [] }) })).status).toBe(200)
     renderApp('/reports')
     const btn = await screen.findByRole('button', { name: 'Send now' })
     await enabled(btn)
@@ -80,14 +80,14 @@ describe('reports: weekly report (S-REP-1)', () => {
     renderApp('/reports')
     const day = await screen.findByLabelText('Day')
     await enabled(day)
-    await userEvent.selectOptions(day, 'fri')
+    await userEvent.selectOptions(day, '5')
     await userEvent.selectOptions(screen.getByLabelText('Hour'), '17')
     await userEvent.type(screen.getByLabelText('Recipients'), 'accounting@acme.example{Enter}')
     await userEvent.click(screen.getByRole('button', { name: 'Remove it@acme.example' }))
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect((await screen.findAllByText('Schedule saved')).length).toBeGreaterThan(0)
-    const s = (await (await api('/reports/schedule')).json()) as { day: string; hour: number; recipients: string[]; next_run: string }
-    expect(s).toMatchObject({ day: 'fri', hour: 17, recipients: ['director@acme.example', 'accounting@acme.example'] })
+    const s = (await (await api('/reports/schedule')).json()) as { day: number; hour: number; recipients: string[]; next_run: string }
+    expect(s).toMatchObject({ day: 5, hour: 17, recipients: ['director@acme.example', 'accounting@acme.example'] })
     expect(new Date(s.next_run).getDay()).toBe(5)
     expect(screen.getByText(/Next send:/)).toBeInTheDocument()
   })
@@ -103,11 +103,11 @@ describe('reports: weekly report (S-REP-1)', () => {
     await userEvent.type(input, 'someone@acme.example')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText(/Press Add to put this email on the list/)).toBeInTheDocument()
-    const bad = await api('/reports/schedule', { method: 'PUT', body: JSON.stringify({ enabled: true, day: 'mon', hour: 8, recipients: [] }) })
+    const bad = await api('/reports/schedule', { method: 'PUT', body: JSON.stringify({ enabled: true, day: 1, hour: 8, recipients: [] }) })
     expect(bad.status).toBe(400)
     expect(((await bad.json()) as { error: { message: string } }).error.message).toMatch(/at least one recipient/)
-    expect((await api('/reports/schedule', { method: 'PUT', body: JSON.stringify({ enabled: true, day: 'xyz', hour: 8, recipients: ['a@b.vn'] }) })).status).toBe(400)
-    expect((await api('/reports/schedule', { method: 'PUT', body: JSON.stringify({ enabled: true, day: 'mon', hour: 30, recipients: ['a@b.vn'] }) })).status).toBe(400)
+    expect((await api('/reports/schedule', { method: 'PUT', body: JSON.stringify({ enabled: true, day: 0, hour: 8, recipients: ['a@b.vn'] }) })).status).toBe(400)
+    expect((await api('/reports/schedule', { method: 'PUT', body: JSON.stringify({ enabled: true, day: 1, hour: 30, recipients: ['a@b.vn'] }) })).status).toBe(400)
   })
 
   it('AI commentary lives only inside the AI block, labelled with model and profile, records one run', async () => {

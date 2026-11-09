@@ -24,7 +24,7 @@ export const WeeklyReport = z.object({
   ai_summary: AiSummary.nullable(),
 })
 export const WeeklyPreview = z.object({ report: WeeklyReport, ai_available: z.boolean() })
-export const Weekday = z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])
+export const Weekday = z.number().int().min(1).max(7).describe('1 = Monday … 7 = Sunday (D-57)')
 export const Schedule = z.object({ enabled: z.boolean(), day: Weekday, hour: z.number().int().min(0).max(23), recipients: z.array(email).max(20), next_run: iso.nullable() })
 export const ScheduleInput = Schedule.omit({ next_run: true })
 const HistoryBase = { id: z.string(), ts: iso, trigger: z.enum(['manual', 'scheduled']), recipients: z.array(email), status: z.enum(['sent', 'failed']), error: z.string().optional() }

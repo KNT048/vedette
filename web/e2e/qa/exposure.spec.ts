@@ -67,8 +67,8 @@ test('clean install: no sample targets; a domain goes through TXT verification, 
   await expect(scan).toBeDisabled()
   await expect(page.locator('#scan-reason')).toContainText('you have not confirmed')
   const blocked = await api(page, 'POST', `/exposure/targets/${id}/scan`)
-  expect(blocked.status).toBe(409)
-  expect(blocked.body.error.code).toBe('no_commitment')
+  expect(blocked.status).toBe(400)
+  expect(blocked.body.error.code).toBe('commitment_required')
 
   // Commitment: exact wording, as-is line, needs the tick.
   await expect(page.getByText(COMMIT)).toBeVisible()

@@ -20,6 +20,8 @@ export interface Endpoint {
   body?: z.ZodType
   /** null = 204 không có nội dung. 'file' = tải tệp (CSV, JSON, rule). */
   response: z.ZodType | null | 'file'
+  /** HTTP status của phản hồi thành công có nội dung (API_CONVENTIONS §12). Mặc định 200; 201 = tạo mới; 202 = đã nhận, chạy tiếp nền. Endpoint trả hai mã tuỳ tình huống: giữ mặc định và nói rõ trong `summary`. */
+  status?: 200 | 201 | 202
   /** Giá trị để test hợp đồng gọi thử GET (đường dẫn có tham số cần example, không có thì bỏ qua). */
   example?: { params?: Record<string, string>; query?: Record<string, string> }
 }

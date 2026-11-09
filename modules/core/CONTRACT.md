@@ -79,7 +79,8 @@ Không áp dụng (tier core). Riêng `notify` tắt: 2FA email báo `reason:mod
 S-CORE-1, 2, 3, 4, 5, 6, 7. D-8 một binary; D-10 module; D-12 cập nhật ký, A/B; D-16/17 tín hiệu ẩn danh + pháp lý; D-18 OpenAPI từ Zod; D-24 không nhiều site; D-35 2FA; D-42 báo lỗi; D-48 xuất log; D-53/55 OS và `vedette-host`.
 
 ## Không khớp / câu hỏi mở
-- `contract.ts` ghi `vedette-updater`; D-55 đã thay bằng `vedette-host` (hợp đồng này dùng `vedette-host`).
+- ~~`contract.ts` ghi `vedette-updater`~~ Đã đổi sang `vedette-host` (D-55) trong contract/mock/UI.
 - Box network (D-56) chưa có endpoint trong `contract.ts` và mock; thuộc module `host` (nhóm B), `core` chỉ cung cấp client socket.
 - `core/types.ts` còn `ChannelType = telegram|zalo|email` (cũ, notify có 6 loại).
 - Tắt module không tự tắt phụ thuộc (mock đúng vậy); cần chốt có muốn cascade không.
+- Đã làm ở WP-06: mock có module `findings` (D-57 (6)), `mitigation` phụ thuộc `findings`, `reports` phụ thuộc `notify`, `scan-credentialed` phụ thuộc `inventory`; chuỗi hash `core_audit` có trong mock (`src/lib/chain.ts`); luồng PRIVACY thứ 11 (OIDC).

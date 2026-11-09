@@ -150,7 +150,7 @@ export const endpoints = defineEndpoints([
   { method: 'put', path: '/feeds/sources/{id}', summary: 'Turn a feed on or off, change its schedule, or set a mirror address (built-in feeds cannot be deleted)', stories: ['S-FEED-4'], role: 'admin',
     params: z.object({ id: z.string() }), body: FeedPatch, response: Feed },
   { method: 'post', path: '/feeds/sources/{id}/fetch', summary: 'Fetch a feed now, directly from its source', stories: ['S-FEED-4'], role: 'admin', params: z.object({ id: z.string() }), response: Feed },
-  { method: 'post', path: '/feeds/custom', summary: 'Add your own feed (vulnerabilities or IOC) with its parsing rules', stories: ['S-FEED-4', 'S-FEED-5'], role: 'admin', body: FeedInput, response: Feed },
+  { method: 'post', path: '/feeds/custom', status: 201, summary: 'Add your own feed (vulnerabilities or IOC) with its parsing rules', stories: ['S-FEED-4', 'S-FEED-5'], role: 'admin', body: FeedInput, response: Feed },
   { method: 'put', path: '/feeds/custom/{id}', summary: 'Edit your own feed and its parsing rules', stories: ['S-FEED-4', 'S-FEED-5'], role: 'admin', params: z.object({ id: z.string() }), body: FeedInput, response: Feed },
   { method: 'delete', path: '/feeds/custom/{id}', summary: 'Delete your own feed; records already fetched are removed', stories: ['S-FEED-4'], role: 'admin', params: z.object({ id: z.string() }), response: null },
   { method: 'post', path: '/feeds/parse-test', summary: 'Try parsing rules on a sample and preview the normalised records, accepted and rejected rows', stories: ['S-FEED-5'], role: 'admin', body: ParseTestInput, response: ParseResult },

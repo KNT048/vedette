@@ -1,4 +1,5 @@
-// Step-by-step setup of the pull method for each firewall (D-44). Menu paths are those of current releases; names differ a little between versions.
+// Step-by-step setup of the pull method for each device (D-44): one-time setup shown as a guide, never run by Vedette (action-templates §12 point 11).
+// This is template data (D-58): vendor names are allowed here. Menu paths are those of current releases; names differ a little between versions.
 export interface Guide { id: string; title: string; steps: string[]; note?: string; code?: { label: string; text: string } }
 
 export const guides = (url: string): Guide[] => [
@@ -69,5 +70,20 @@ export const guides = (url: string): Guide[] => [
 }`,
     },
     note: 'check-certificate=no is used because the box certificate is self-signed. The address is only reachable from your LAN and the token is the credential.',
+  },
+  {
+    id: 'adguard', title: 'AdGuard Home: DNS blocklist (domains)',
+    steps: [
+      'Open Filters, then DNS blocklists, then Add blocklist, then Add a custom list.',
+      'Name: Vedette. Paste the address of the domain block list of this box (the domain variant of the list below, one domain per line).',
+      `For reference, the address of the IP list is: ${url}`,
+      'Click Save. AdGuard Home fetches the list at the update interval set under Filters, DNS blocklists (the interval is one setting for all lists, in hours).',
+      'Open Filters, then DNS blocklists and check that Vedette shows a number of rules and a recent update time.',
+    ],
+    code: {
+      label: 'The same through the AdGuard Home API (POST /control/filtering/add_url)',
+      text: '{"name":"Vedette","url":"<address of the domain block list>","whitelist":false}',
+    },
+    note: 'This is a one-time setup you do yourself: Vedette does not change AdGuard Home settings. The call and its fields come from the AdGuard Home API description; the domain list address is not published by this box yet.',
   },
 ]

@@ -638,6 +638,8 @@ Mẫu tuỳ chỉnh dùng chung vỏ an toàn của D-51: danh sách không đ�
 
 ## 12. Chênh lệch với GUI hiện tại (kien duyệt, không tự sửa)
 
+> **WP-06 (2026-11-09) đã áp dụng** 11 điểm dưới đây vào thư viện mẫu (dữ liệu, D-58) `web/src/features/response/templates/action-templates.sample.json` (kèm test `templates.test.ts`). Cách thể hiện: mỗi `{...}` là tham số có kiểu (`ip`, `cidr`, `domain`, `port`, `mac`, `vlan`, `interface`, `id`, `name`; `text` chỉ cho hành động gửi tin) hoặc **giá trị Vedette tự đọc/tính khi chạy** (`{seq}`, `{previous_vlan}`, `{found_id}`, `{expiry_s}`, `{timeout}`, `{rules_before}`; luật không cung cấp, giao diện hiện `<seq>`...). Mẫu nào spec còn ghi "chưa xác minh" mang câu "Not verified on a device yet — test in a lab first" trong mô tả. **Còn thiếu so với spec** (mô hình mẫu hiện là một lời gọi mỗi bước): chuỗi nhiều lời gọi REST (tạo đối tượng địa chỉ rồi thêm vào nhóm FortiGate; apply của pfSense; đọc-sửa-ghi AdGuard), `precheck` và `ttl` gốc của thiết bị chỉ nằm trong mô tả/giá trị runtime. Backend (WP-13) cần `steps[]`.
+
 Danh mục hiện tại ở `web/src/features/response/data.ts`:
 
 1. `nat_off` (FortiGate VIP): dùng `{text}` cho tên VIP; spec dùng `{name}`. `set status` trên `firewall vip` chưa xác minh; đề xuất lab trước khi giữ hành động này; thay thế `fgt_policy_disable` (2.5).

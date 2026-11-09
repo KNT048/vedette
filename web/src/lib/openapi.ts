@@ -36,9 +36,10 @@ const ERROR = {
 export function buildOpenApi() {
   const paths: Record<string, Record<string, unknown>> = {}
   for (const e of allEndpoints) {
+    const code = String(e.status ?? 200)
     const ok = e.response === null ? { '204': { description: 'Done, no content' } }
-      : e.response === 'file' ? { '200': { description: 'File download', content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } } } }
-      : { '200': { description: 'OK', content: { 'application/json': { schema: js(e.response) } } } }
+      : e.response === 'file' ? { [code]: { description: 'File download', content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } } } }
+      : { [code]: { description: code === '201' ? 'Created' : code === '202' ? 'Accepted' : 'OK', content: { 'application/json': { schema: js(e.response) } } } }
     ;(paths[e.path] ??= {})[e.method] = {
       operationId: `${e.module}_${e.method}_${e.path.replace(/[{}]/g, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '')}`,
       summary: e.summary,

@@ -37,7 +37,7 @@
 - **INV-18** Học từ từ chối: từ chối yêu cầu AI có thể lưu lý do thành gợi ý quy tắc hoặc memory (`remember`) — chỉ là **gợi ý**, không tự áp dụng. Đo tỉ lệ duyệt (`/response/metrics`).
 
 ### Nhật ký (D-48)
-- **INV-19** `resp_log` chỉ thêm (append-only), chuỗi hash: `hash = SHA-256_hex(prev_hash + "\n" + JSON([id, ts, kind, actor, detail]))`; `prev_hash` của dòng đầu = 64 ký tự `0`; trả **cũ nhất trước** để kiểm từ đầu. **Không có endpoint sửa/xoá.** Ghi mọi sự kiện: `rule_fired, proposal, request, approved, rejected, executed, rolled_back, ttl_removed, refused, expired, failed, settings, emergency_stop, blocklist_token, dry_run, simulated, deduped, breaker, ai_note`. Mọi **từ chối** cũng được ghi. Giữ mặc định 1 năm (chỉnh được).
+- **INV-19** `resp_log` chỉ thêm (append-only), chuỗi hash: `hash = SHA-256_hex(prev_hash + "\n" + canon(entry không có hash))`, cùng công thức với `core_audit` và `ai_activity` (D-57 (14); không còn dạng mảng vị trí); `prev_hash` của dòng đầu = 64 ký tự `0`; trả **cũ nhất trước** để kiểm từ đầu. **Không có endpoint sửa/xoá.** Ghi mọi sự kiện: `rule_fired, proposal, request, approved, rejected, executed, rolled_back, ttl_removed, refused, expired, failed, settings, emergency_stop, blocklist_token, dry_run, simulated, deduped, breaker, ai_note`. Mọi **từ chối** cũng được ghi. Giữ mặc định 1 năm (chỉnh được).
 - **INV-20** Mọi mutation còn ghi `core_audit` (SYS-3). Không bí mật trong `detail` (SYS-4); bí mật kết nối ở `ai_connectors` (xem `ai`).
 
 ## Preconditions (trước khi gọi)
@@ -94,10 +94,10 @@
 | GET | `/response/log` | operator | S-RESP-2, 3, S-AI-8 |
 
 ## Tables owned
-`resp_settings, resp_plans, resp_actions` (yêu cầu gộp có `items`), `resp_catalog, resp_rules, resp_allowlist, resp_blocklist, resp_tokens` (token duyệt một lần), `resp_done` (khoá gộp trùng), `resp_ai_notes, resp_hints`, `resp_log`. Mock đặt `response_*`; tiền tố chuẩn theo MODULES là `resp_` (câu hỏi mở 2).
+`resp_settings, resp_plans, resp_actions` (yêu cầu gộp có `items`), `resp_catalog, resp_rules, resp_allowlist, resp_blocklist, resp_tokens` (token duyệt một lần), `resp_done` (khoá gộp trùng), `resp_ai_notes, resp_hints`, `resp_log`. Mock đã đặt `resp_*` (WP-06).
 
 ## Events
-- **Nhận (nguồn trigger)**: `honeypot.hit` (honeypot); `logs.ioc_hit` (logs, trigger `ioc_connection`; `confidence` 0..1 ở logs, 0..100 ở trigger field — cần chuyển đổi); finding mới/xác nhận (module `findings`: `findings.finding.created`, `findings.finding.status_changed`; D-57 (6)); thiết bị chưa duyệt (`inventory.observation`); ngưỡng log (`log_threshold`); cổng mới trên IP public (`exposure`); lịch; chạy tay. Đọc qua interface của từng module (modules.md), không đọc bảng trực tiếp.
+- **Nhận (nguồn trigger)**: `honeypot.hit` (honeypot); `logs.ioc_hit` (logs, trigger `ioc_connection`; `confidence` 0..1 ở cả logs và trigger field, D-57 (13)); finding mới/xác nhận (module `findings`: `findings.finding.created`, `findings.finding.status_changed`; D-57 (6)); thiết bị chưa duyệt (`inventory.observation`); ngưỡng log (`log_threshold`); cổng mới trên IP public (`exposure`); lịch; chạy tay. Đọc qua interface của từng module (modules.md), không đọc bảng trực tiếp.
 - **Phát**: `response.request`, `response.decision`, `response.executed`, `response.rolled_back`, `response.breaker` (tên đề xuất) cho `notify` (gửi duyệt/thông báo kết quả) và export log.
 
 ## Khi tắt module (SYS-5)
@@ -109,10 +109,10 @@ Không route `/response/*` (kể cả `approve/{token}` và `blocklist/{token}.t
 
 ## Câu hỏi mở
 1. MODULES.md ghi `response` phụ thuộc `ai` (đúng vì kết nối ở `ai_connectors`), dù quy tắc không cần AI (D-44). Đề xuất: giữ `depends: ai` hoặc chuyển kết nối lên `core` để `response` chạy khi `ai` tắt.
-2. Đổi tên bảng mock `response_*` thành `resp_*`.
+2. ~~Đổi tên bảng mock `response_*` thành `resp_*`~~ Đã đổi (WP-06; `db.ts` v4).
 3. Đọc chéo: GUI dùng `peek` vào `notify_channels`, `logs_ioc_hits`, `hp_hits`; modules.md cấm đọc bảng module khác → thay bằng interface (IMPACT).
 4. D-51 "AI rủi ro cao: bộ kiểm thứ hai + duyệt trong app bằng mã hai bước" và "rủi ro cao cần 2 người": hợp đồng đọc là **cả hai** (hai người, mỗi người trong app với mã hai bước), theo mock (`ai.ts`). Xác nhận.
 5. Danh tính của "AI agent" khi gọi `/response/ai/proposals` (vai operator): xem `ai` câu hỏi mở 3.
-6. `Trigger.confidence` 0..100 so với `IocHit.confidence` 0..1.
+6. ~~`Trigger.confidence` 0..100 so với `IocHit.confidence` 0..1~~ Đã thống nhất 0..1 (D-57 (13)); trường trigger `confidence` và mẫu quy tắc dùng 0.8, 0.9…
 7. Mã hai bước "in-app" kiểm bởi `core` (TOTP/email code, D-35): cần hàm `core.VerifyTwoStep(user, code)` công khai.
 8. Tắt module khi còn hành động đang có hiệu lực: chặn tắt hay cảnh báo (S-CORE-1)?

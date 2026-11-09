@@ -1,5 +1,5 @@
 // API contract of module exposure (D-18, S-EXP-1). UI types are inferred from here (types.ts).
-// Hard rule (LEGAL §3): POST .../scan returns 409 unless ownership is verified (IPs: within 90 days), the DNS TXT record is still there, and the commitment is recorded.
+// Hard rule (LEGAL §3): POST .../scan returns 409 unless ownership is verified (IPs: within 90 days) and the DNS TXT record is still there, and 400 `commitment_required` (D-57) until the commitment is recorded.
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 
@@ -59,13 +59,13 @@ const idEx = { params: { id: 'xt-1' } }
 
 export const endpoints = defineEndpoints([
   { method: 'get', path: '/exposure/targets', summary: 'Domains and verified public IPs with ownership status, expiry, commitment and latest result', stories: ['S-EXP-1'], role: 'viewer', response: z.object({ items: z.array(Target) }) },
-  { method: 'post', path: '/exposure/targets', summary: 'Add a domain (changes scan scope). Public IPs cannot be typed in: use /exposure/box-ip/verify', stories: ['S-EXP-1'], role: 'admin', body: z.object({ value: z.string() }), response: Target },
-  { method: 'post', path: '/exposure/box-ip/verify', summary: 'The box detects the public IP it uses to reach the Internet (TLS to a fixed endpoint) and verifies it for 90 days. Takes no IP input; refuses private, reserved and CGNAT results; rate limited to 10 attempts per hour', stories: ['S-EXP-1'], role: 'admin', response: Target },
+  { method: 'post', path: '/exposure/targets', status: 201, summary: 'Add a domain (changes scan scope). Public IPs cannot be typed in: use /exposure/box-ip/verify', stories: ['S-EXP-1'], role: 'admin', body: z.object({ value: z.string() }), response: Target },
+  { method: 'post', path: '/exposure/box-ip/verify', summary: 'The box detects the public IP it uses to reach the Internet (TLS to a fixed endpoint) and verifies it for 90 days. Takes no IP input; refuses private, reserved and CGNAT results; rate limited to 10 attempts per hour. 201 when the IP is new in the list, 200 when it was already there (the generated file documents 200)', stories: ['S-EXP-1'], role: 'admin', response: Target },
   { method: 'get', path: '/exposure/targets/{id}', summary: 'One external-exposure target', stories: ['S-EXP-1'], role: 'viewer', params: id, response: Target, example: idEx },
   { method: 'delete', path: '/exposure/targets/{id}', summary: 'Delete a target with its snapshots and commitment', stories: ['S-EXP-1'], role: 'admin', params: id, response: null },
   { method: 'post', path: '/exposure/targets/{id}/verify', summary: 'Re-check ownership: domain = DNS TXT record; IP = the box must currently egress through this same IP (renews 90 days). Not found is a normal answer (verified:false). Rate limited', stories: ['S-EXP-1'], role: 'operator', params: id, response: VerifyResult },
   { method: 'post', path: '/exposure/targets/{id}/commitment', summary: 'Record the commitment: my company owns this domain/IP and I am authorized to scan it (who and when are audited). Only for verified targets', stories: ['S-EXP-1'], role: 'admin', params: id, body: z.object({ confirm: z.literal(true) }), response: Target },
-  { method: 'post', path: '/exposure/targets/{id}/scan', summary: 'Scan now. 409 when not verified, verification expired, the DNS TXT record is gone (re-checked right before the scan) or the commitment is missing', stories: ['S-EXP-1'], role: 'operator', params: id, response: Snapshot },
+  { method: 'post', path: '/exposure/targets/{id}/scan', summary: 'Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 400 commitment_required when the commitment is missing', stories: ['S-EXP-1'], role: 'operator', params: id, response: Snapshot },
   { method: 'get', path: '/exposure/targets/{id}/snapshots', summary: 'Scan days of a target, newest first', stories: ['S-EXP-1'], role: 'viewer', params: id, response: z.object({ items: z.array(SnapshotMeta) }), example: idEx },
   { method: 'get', path: '/exposure/targets/{id}/snapshots/{date}', summary: 'Scan result of one day', stories: ['S-EXP-1'], role: 'viewer', params: z.object({ id: z.string(), date: isoDate }), response: Snapshot, example: { params: { id: 'xt-1', date: day(1) } } },
   { method: 'get', path: '/exposure/targets/{id}/diff', summary: 'Compare two scan days: newly exposed, gone, changed', stories: ['S-EXP-1'], role: 'viewer', params: id, query: z.object({ from: isoDate, to: isoDate }), response: Diff, example: { params: { id: 'xt-1' }, query: { from: day(7), to: day(1) } } },

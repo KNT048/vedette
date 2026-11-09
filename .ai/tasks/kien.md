@@ -30,7 +30,7 @@ WP-01 (#7), WP-02 ogen (#11), WP-03 store/secrets/audit/exec (#12), #14, #18 (h�
 3. Giao thức sensor mTLS (đưa capture/nmap ra khỏi tiến trình core) → WP-13 response (rà Opus) → WP-14 honeypot → WP-08 đóng gói (Quadlet `Restart=always`, `KillMode=control-group`, `core_cgroup`, `core_data`, TZ + `time/tzdata`, GOMEMLIMIT) → WP-30 E2E backend thật → WP-31 rà SYS-1..8 + D-41 → WP-32 RUNBOOK.
 
 ## Số quyết định
-… D-74 phân vân → top-tier · D-75 mã cài đặt một lần (sửa 2026-11-09: đếm theo địa chỉ client) · D-76 bật 2FA nhập lại mật khẩu · D-77 cookie thiết bị (PR #58) · D-78 đường cơ sở KEV · D-79 giữ cho Emily (exposure) · D-80 sensor-passive, D-83 bảng OUI (PR #57) · D-81 không máy chủ dự án ngoài GitHub · D-82 không gửi tín hiệu ẩn danh · D-84 sensor-active (nhánh WP-12) · D-85 lệnh OS của host (nhánh WP-07b) · D-86 notify (Emily). Tiếp theo: **D-87**.
+… D-74 phân vân → top-tier · D-75 mã cài đặt một lần (sửa 2026-11-09: đếm theo địa chỉ client) · D-76 bật 2FA nhập lại mật khẩu · D-77 cookie thiết bị (PR #58) · D-78 đường cơ sở KEV · D-79 exposure: tự dò IP, kiểm lúc quét, danh sách bỏ qua (Emily, issue #61) · D-80 sensor-passive, D-83 bảng OUI (PR #57) · D-81 không máy chủ dự án ngoài GitHub · D-82 không gửi tín hiệu ẩn danh · D-84 sensor-active (nhánh WP-12) · D-85 lệnh OS của host (nhánh WP-07b) · D-86 notify (Emily). Tiếp theo: **D-87**.
 
 ## Giám sát WP-23: tự phát hiện IP công cộng (việc của Emily, phía Kiên chỉ giám sát)
 kien 2026-11-09 (đã chuyển cho Emily): "tôi muốn box có thêm chế độ tự detect ip public để bỏ vào kho. ví dụ KH có nhiều ip public và load balance, chỉ cần bật chế độ tự detect là được, trong 1 số trường hợp, khách hàng muốn chủ động detect thì manual cũng ok. tự detect lần đầu lúc mới cài, 60p 1 lần recheck, cho KH sửa nếu muốn. kho ip public cho phép sử dụng cũng expire time 30 ngày thay cho 90 ngày hiện tại. nhưng chỉ trong trường hợp không renew được mới phải chạy". Phía Kiên **không chủ động làm**; khi PR của Emily tới, kiểm:
@@ -49,6 +49,8 @@ kien 2026-11-09 (đã chuyển cho Emily): "tôi muốn box có thêm chế đ�
 
 ## Trước khi phát hành (đợt rà WP-31/WP-32)
 - [ ] D-82: tín hiệu ẩn danh không được gửi (không có bộ gửi, không có nơi nhận). PRIVACY luồng 2 và mục "Anonymous signal" ở Cài đặt → Quyền riêng tư phải khớp thực tế lúc phát hành (dùng lại theo story mới, hoặc ẩn/ghi "không gửi").
+
+- [ ] D-81: ba dịch vụ dò IP công cộng (`checkip.amazonaws.com`, `icanhazip.com`, `ifconfig.me/ip`) vẫn thuộc ba nhà vận hành khác nhau: tra DNS/AS mỗi lần phát hành.
 
 ## Câu hỏi đang chờ Kiên
 - Không có. Từ D-74: phân vân → tham khảo top-tier rồi tự quyết, chỉ hỏi khi rất đặc biệt. B2 đã quyết: có mã cài đặt một lần (D-75); bật 2FA đòi nhập lại mật khẩu (D-76); cả hai làm trong WP-04b phần 2.

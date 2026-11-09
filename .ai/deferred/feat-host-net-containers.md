@@ -33,7 +33,6 @@ Kế hoạch: D-99…D-107, `docs/specs/host-api.md` §18. Mỗi dòng nói lát
 - [ ] 2026-11-10 — WP-08: quyền của thư mục `log/` của honeypot khi container chạy `UserNS=auto` (uid trong container đổi mỗi lần khởi động; ví dụ tuỳ chọn `:U` của volume hoặc uid cố định) — vì sao để sau: chốt cùng đường dẫn `-honeypot-dir` thật — ở đâu: docs/DEPLOYMENT.md §6.1
 - [ ] 2026-11-10 — GUI nói rõ khi decoy không chạy được vì macvlan (Wi-Fi, vSwitch VMware/Hyper-V chặn giả MAC): cần story/tiêu chí trước khi làm — vì sao để sau: chưa có story; đổi GUI là story mới — ở đâu: modules/honeypot/CONTRACT.md INV-20
 - [ ] 2026-11-10 — Host chưa có lệnh hay endpoint cho danh sách gói của "This box" (host CONTRACT INV-9, `inventory.BoxPackages`); bảng nháp cũ gọi nó `pkg.list` — vì sao để sau: ngoài phạm vi phần 3; cần thêm vào `host-api.md` §6 và CONTRACT khi làm — ở đâu: modules/host/CONTRACT.md "Lệnh (allowlist)"
-- [ ] 2026-11-10 — Cho chủ tệp `.ai/deferred/feat-host-os-commands.md`: D-105 trả lời dòng "Decide system vs user scope of core's Quadlet" (unit hệ thống, rootful, `User=` cố định) và D-100 trả lời dòng "`net_pending_confirm` is a seam" (nối ở lát 3-1/3-4); dòng "`container.*`… not implemented" chuyển sang các lát 3-1…3-8 — vì sao để sau: không được sửa tệp deferred của session khác (deferred-work.md) — ở đâu: .ai/deferred/feat-host-os-commands.md
 
 ## Điều kiện do kien làm (trước lát cần nó)
 

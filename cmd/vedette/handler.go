@@ -25,7 +25,7 @@ func newHandler(d deps) handler {
 	return handler{
 		Fallback:       server.Fallback{Log: d.Log},
 		ModuleHandlers: core.NewModuleHandlers(d.DB, d.Reg),
-		Handlers:       inventory.NewHandlers(newInventory(d)),
+		Handlers:       inventory.NewHandlers(d.Inventory),
 	}
 }
 

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/secrets"
@@ -128,7 +129,8 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return err
 	}
-	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now}
+	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log)}
+	d.Inventory = newInventory(d)
 	sched := jobs.New(log, reg, nil, jobs.WithRecorder(jobs.NewHistory(db)))
 	reg.OnChange(sched.ModuleChanged)
 	if err := addJobs(sched, d, wired); err != nil {

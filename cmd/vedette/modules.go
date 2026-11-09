@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/secrets"
@@ -26,6 +27,11 @@ type deps struct {
 	Secrets *secrets.Store
 	Audit   *audit.Log
 	Clock   func() time.Time
+	Bus     *events.Bus // in-process event bus (core/events); modules publish after commit and subscribe here
+
+	// Module services other modules use through their own ports (issue #38, #39). Built once in serve,
+	// after the fields above, so every handler, job and subscriber shares one instance.
+	Inventory *inventory.Service
 }
 
 // moduleWiring is one module the binary carries. Adding a module = one entry in wiredModules and

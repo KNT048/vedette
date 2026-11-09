@@ -152,6 +152,7 @@ var Operations = map[string]Operation{
 	"exposure_post_exposure_targets_id_commitment":          {Method: "POST", Path: "/exposure/targets/{id}/commitment", MinRole: Admin, Tag: "exposure"},
 	"exposure_post_exposure_targets_id_scan":                {Method: "POST", Path: "/exposure/targets/{id}/scan", MinRole: Operator, Tag: "exposure"},
 	"exposure_post_exposure_targets_id_verify":              {Method: "POST", Path: "/exposure/targets/{id}/verify", MinRole: Operator, Tag: "exposure"},
+	"exposure_put_exposure_box_ip_settings":                 {Method: "PUT", Path: "/exposure/box-ip/settings", MinRole: Admin, Tag: "exposure"},
 	"feeds_delete_feeds_custom_id":                          {Method: "DELETE", Path: "/feeds/custom/{id}", MinRole: Admin, Tag: "feeds"},
 	"feeds_get_feeds_cve_id":                                {Method: "GET", Path: "/feeds/cve/{id}", MinRole: Viewer, Tag: "feeds"},
 	"feeds_get_feeds_hot":                                   {Method: "GET", Path: "/feeds/hot", MinRole: Viewer, Tag: "feeds"},

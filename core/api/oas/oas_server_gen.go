@@ -728,13 +728,15 @@ type Handler interface {
 	CorePutCoreOidc(ctx context.Context, req *CorePutCoreOidcReq) (*CorePutCoreOidcOK, error)
 	// ExposureDeleteExposureTargetsID implements exposure_delete_exposure_targets_id operation.
 	//
-	// Delete a target with its snapshots and commitment.
+	// Delete a target with its snapshots and commitment. For a public IP this removes it from the list;
+	// with auto-detect on it comes back (as a new target) the next time the box sees it.
 	//
 	// DELETE /exposure/targets/{id}
 	ExposureDeleteExposureTargetsID(ctx context.Context, params ExposureDeleteExposureTargetsIDParams) error
 	// ExposureGetExposureTargets implements exposure_get_exposure_targets operation.
 	//
-	// Domains and verified public IPs with ownership status, expiry, commitment and latest result.
+	// Domains and verified public IPs with ownership status, expiry, commitment and latest result, plus
+	// the box-IP auto-detect settings.
 	//
 	// GET /exposure/targets
 	ExposureGetExposureTargets(ctx context.Context) (*ExposureGetExposureTargetsOK, error)
@@ -764,10 +766,11 @@ type Handler interface {
 	ExposureGetExposureTargetsIDSnapshotsDate(ctx context.Context, params ExposureGetExposureTargetsIDSnapshotsDateParams) (*ExposureGetExposureTargetsIDSnapshotsDateOK, error)
 	// ExposurePostExposureBoxIPVerify implements exposure_post_exposure_box_ip_verify operation.
 	//
-	// The box detects the public IP it uses to reach the Internet (TLS to a fixed endpoint) and verifies
-	// it for 90 days. Takes no IP input; refuses private, reserved and CGNAT results; rate limited to 10
-	// attempts per hour. 201 when the IP is new in the list, 200 when it was already there (the generated
-	// file documents 200).
+	// "Detect now": the box probes the fixed project endpoint three times over separate HTTPS connections
+	// and adds or renews (30 days from now) every distinct public IP it sees, so several egress IPs behind
+	// a load balancer are all found. Takes no IP input; refuses private, reserved and CGNAT results (400
+	// not_public when none is public); 502 unreachable when no probe answered; rate limited to 10 attempts
+	// per hour.
 	//
 	// POST /exposure/box-ip/verify
 	ExposurePostExposureBoxIPVerify(ctx context.Context) (*ExposurePostExposureBoxIPVerifyOK, error)
@@ -794,10 +797,18 @@ type Handler interface {
 	// ExposurePostExposureTargetsIDVerify implements exposure_post_exposure_targets_id_verify operation.
 	//
 	// Re-check ownership: domain = DNS TXT record; IP = the box must currently egress through this same IP
-	// (renews 90 days). Not found is a normal answer (verified:false). Rate limited.
+	// (renews it for 30 days). Not found is a normal answer (verified:false). Rate limited.
 	//
 	// POST /exposure/targets/{id}/verify
 	ExposurePostExposureTargetsIDVerify(ctx context.Context, params ExposurePostExposureTargetsIDVerifyParams) (*ExposurePostExposureTargetsIDVerifyOK, error)
+	// ExposurePutExposureBoxIPSettings implements exposure_put_exposure_box_ip_settings operation.
+	//
+	// Turn auto-detect on or off and set the check interval (15 to 1440 minutes, else 400 bad_interval).
+	// Turning it on checks at once. The IP list is kept when it is turned off. Typing an IP is not
+	// possible here either.
+	//
+	// PUT /exposure/box-ip/settings
+	ExposurePutExposureBoxIPSettings(ctx context.Context, req *ExposurePutExposureBoxIPSettingsReq) (*ExposurePutExposureBoxIPSettingsOK, error)
 	// FeedsDeleteFeedsCustomID implements feeds_delete_feeds_custom_id operation.
 	//
 	// Delete your own feed; records already fetched are removed.
@@ -1678,8 +1689,8 @@ type Handler interface {
 	ScanGetScansRuns(ctx context.Context) (*ScanGetScansRunsOK, error)
 	// ScanGetScansTargets implements scan_get_scans_targets operation.
 	//
-	// Scannable targets and why others are not (unapproved device, out of scope, external IP whose 90-day
-	// verification expired).
+	// Scannable targets and why others are not (unapproved device, out of scope, external IP the box has
+	// not seen for 30 days).
 	//
 	// GET /scans/targets
 	ScanGetScansTargets(ctx context.Context) (*ScanGetScansTargetsOK, error)

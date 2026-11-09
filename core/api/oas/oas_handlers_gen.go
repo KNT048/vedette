@@ -15701,7 +15701,8 @@ func (s *Server) handleCorePutCoreOidcRequest(args [0]string, argsEscaped bool, 
 
 // handleExposureDeleteExposureTargetsIDRequest handles exposure_delete_exposure_targets_id operation.
 //
-// Delete a target with its snapshots and commitment.
+// Delete a target with its snapshots and commitment. For a public IP this removes it from the list;
+// with auto-detect on it comes back (as a new target) the next time the box sees it.
 //
 // DELETE /exposure/targets/{id}
 func (s *Server) handleExposureDeleteExposureTargetsIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -15780,7 +15781,7 @@ func (s *Server) handleExposureDeleteExposureTargetsIDRequest(args [1]string, ar
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposureDeleteExposureTargetsIDOperation,
-			OperationSummary: "Delete a target with its snapshots and commitment",
+			OperationSummary: "Delete a target with its snapshots and commitment. For a public IP this removes it from the list; with auto-detect on it comes back (as a new target) the next time the box sees it",
 			OperationID:      "exposure_delete_exposure_targets_id",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -15842,7 +15843,8 @@ func (s *Server) handleExposureDeleteExposureTargetsIDRequest(args [1]string, ar
 
 // handleExposureGetExposureTargetsRequest handles exposure_get_exposure_targets operation.
 //
-// Domains and verified public IPs with ownership status, expiry, commitment and latest result.
+// Domains and verified public IPs with ownership status, expiry, commitment and latest result, plus
+// the box-IP auto-detect settings.
 //
 // GET /exposure/targets
 func (s *Server) handleExposureGetExposureTargetsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -15911,7 +15913,7 @@ func (s *Server) handleExposureGetExposureTargetsRequest(args [0]string, argsEsc
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposureGetExposureTargetsOperation,
-			OperationSummary: "Domains and verified public IPs with ownership status, expiry, commitment and latest result",
+			OperationSummary: "Domains and verified public IPs with ownership status, expiry, commitment and latest result, plus the box-IP auto-detect settings",
 			OperationID:      "exposure_get_exposure_targets",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -16544,10 +16546,11 @@ func (s *Server) handleExposureGetExposureTargetsIDSnapshotsDateRequest(args [2]
 
 // handleExposurePostExposureBoxIPVerifyRequest handles exposure_post_exposure_box_ip_verify operation.
 //
-// The box detects the public IP it uses to reach the Internet (TLS to a fixed endpoint) and verifies
-// it for 90 days. Takes no IP input; refuses private, reserved and CGNAT results; rate limited to 10
-// attempts per hour. 201 when the IP is new in the list, 200 when it was already there (the generated
-// file documents 200).
+// "Detect now": the box probes the fixed project endpoint three times over separate HTTPS connections
+// and adds or renews (30 days from now) every distinct public IP it sees, so several egress IPs behind
+// a load balancer are all found. Takes no IP input; refuses private, reserved and CGNAT results (400
+// not_public when none is public); 502 unreachable when no probe answered; rate limited to 10 attempts
+// per hour.
 //
 // POST /exposure/box-ip/verify
 func (s *Server) handleExposurePostExposureBoxIPVerifyRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -16616,7 +16619,7 @@ func (s *Server) handleExposurePostExposureBoxIPVerifyRequest(args [0]string, ar
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePostExposureBoxIPVerifyOperation,
-			OperationSummary: "The box detects the public IP it uses to reach the Internet (TLS to a fixed endpoint) and verifies it for 90 days. Takes no IP input; refuses private, reserved and CGNAT results; rate limited to 10 attempts per hour. 201 when the IP is new in the list, 200 when it was already there (the generated file documents 200)",
+			OperationSummary: "\"Detect now\": the box probes the fixed project endpoint three times over separate HTTPS connections and adds or renews (30 days from now) every distinct public IP it sees, so several egress IPs behind a load balancer are all found. Takes no IP input; refuses private, reserved and CGNAT results (400 not_public when none is public); 502 unreachable when no probe answered; rate limited to 10 attempts per hour",
 			OperationID:      "exposure_post_exposure_box_ip_verify",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -17114,7 +17117,7 @@ func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, 
 // handleExposurePostExposureTargetsIDVerifyRequest handles exposure_post_exposure_targets_id_verify operation.
 //
 // Re-check ownership: domain = DNS TXT record; IP = the box must currently egress through this same IP
-// (renews 90 days). Not found is a normal answer (verified:false). Rate limited.
+// (renews it for 30 days). Not found is a normal answer (verified:false). Rate limited.
 //
 // POST /exposure/targets/{id}/verify
 func (s *Server) handleExposurePostExposureTargetsIDVerifyRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -17193,7 +17196,7 @@ func (s *Server) handleExposurePostExposureTargetsIDVerifyRequest(args [1]string
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePostExposureTargetsIDVerifyOperation,
-			OperationSummary: "Re-check ownership: domain = DNS TXT record; IP = the box must currently egress through this same IP (renews 90 days). Not found is a normal answer (verified:false). Rate limited",
+			OperationSummary: "Re-check ownership: domain = DNS TXT record; IP = the box must currently egress through this same IP (renews it for 30 days). Not found is a normal answer (verified:false). Rate limited",
 			OperationID:      "exposure_post_exposure_targets_id_verify",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -17245,6 +17248,149 @@ func (s *Server) handleExposurePostExposureTargetsIDVerifyRequest(args [1]string
 	}
 
 	if err := encodeExposurePostExposureTargetsIDVerifyResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleExposurePutExposureBoxIPSettingsRequest handles exposure_put_exposure_box_ip_settings operation.
+//
+// Turn auto-detect on or off and set the check interval (15 to 1440 minutes, else 400 bad_interval).
+// Turning it on checks at once. The IP list is kept when it is turned off. Typing an IP is not
+// possible here either.
+//
+// PUT /exposure/box-ip/settings
+func (s *Server) handleExposurePutExposureBoxIPSettingsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ExposurePutExposureBoxIPSettingsOperation,
+			ID:   "exposure_put_exposure_box_ip_settings",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, ExposurePutExposureBoxIPSettingsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeExposurePutExposureBoxIPSettingsRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *ExposurePutExposureBoxIPSettingsOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ExposurePutExposureBoxIPSettingsOperation,
+			OperationSummary: "Turn auto-detect on or off and set the check interval (15 to 1440 minutes, else 400 bad_interval). Turning it on checks at once. The IP list is kept when it is turned off. Typing an IP is not possible here either",
+			OperationID:      "exposure_put_exposure_box_ip_settings",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *ExposurePutExposureBoxIPSettingsReq
+			Params   = struct{}
+			Response = *ExposurePutExposureBoxIPSettingsOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ExposurePutExposureBoxIPSettings(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ExposurePutExposureBoxIPSettings(ctx, request)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeExposurePutExposureBoxIPSettingsResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -36232,8 +36378,8 @@ func (s *Server) handleScanGetScansRunsRequest(args [0]string, argsEscaped bool,
 
 // handleScanGetScansTargetsRequest handles scan_get_scans_targets operation.
 //
-// Scannable targets and why others are not (unapproved device, out of scope, external IP whose 90-day
-// verification expired).
+// Scannable targets and why others are not (unapproved device, out of scope, external IP the box has
+// not seen for 30 days).
 //
 // GET /scans/targets
 func (s *Server) handleScanGetScansTargetsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -36302,7 +36448,7 @@ func (s *Server) handleScanGetScansTargetsRequest(args [0]string, argsEscaped bo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ScanGetScansTargetsOperation,
-			OperationSummary: "Scannable targets and why others are not (unapproved device, out of scope, external IP whose 90-day verification expired)",
+			OperationSummary: "Scannable targets and why others are not (unapproved device, out of scope, external IP the box has not seen for 30 days)",
 			OperationID:      "scan_get_scans_targets",
 			Body:             nil,
 			RawBody:          rawBody,

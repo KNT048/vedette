@@ -134,6 +134,7 @@ const (
 	ExposurePostExposureTargetsIDCommitmentOperation        OperationName = "ExposurePostExposureTargetsIDCommitment"
 	ExposurePostExposureTargetsIDScanOperation              OperationName = "ExposurePostExposureTargetsIDScan"
 	ExposurePostExposureTargetsIDVerifyOperation            OperationName = "ExposurePostExposureTargetsIDVerify"
+	ExposurePutExposureBoxIPSettingsOperation               OperationName = "ExposurePutExposureBoxIPSettings"
 	FeedsDeleteFeedsCustomIDOperation                       OperationName = "FeedsDeleteFeedsCustomID"
 	FeedsGetFeedsCveIDOperation                             OperationName = "FeedsGetFeedsCveID"
 	FeedsGetFeedsHotOperation                               OperationName = "FeedsGetFeedsHot"

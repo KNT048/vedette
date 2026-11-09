@@ -255,6 +255,7 @@
   "PUT /core/network/ntp": "host",
   "PUT /core/network/span": "host",
   "PUT /core/oidc": "auth-oidc",
+  "PUT /exposure/box-ip/settings": "exposure",
   "PUT /feeds/custom/{id}": "feeds",
   "PUT /feeds/sources/{id}": "feeds",
   "PUT /honeypot/config": "honeypot",

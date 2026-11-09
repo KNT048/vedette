@@ -224,7 +224,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_rule` | 400 | Write the rule in 3 to 300 characters, for example "Always name devices by hostname and IP address". | module ai (validator dùng chung) |
 | `invalid_scope` | 400 | Choose security updates or all updates. | `POST /core/updates/os/install` |
 | `invalid_scopes` | 400 | Choose at least one read scope: devices, findings or vulnerability feeds. | `POST /core/mcp/tokens` |
-| `invalid_secret` | 400 | The secret is too short. Copy the whole token, password or key again. Also: This private key is protected by a passphrase, which Vedette cannot type. Save a copy without one and paste that. | `PUT /core/oidc`; `POST /core/connections`; `PUT /core/connections/{id}` |
+| `invalid_secret` | 400 | The secret is too short. Copy the whole token, password or key again. Also: This private key is protected by a passphrase, which Vedette cannot type. Save a copy without one and paste that. Also (13b-4): This private key could not be read. Paste the whole key, including the BEGIN and END lines.; This key type is not accepted. Use an Ed25519, ECDSA or RSA key of at least 2048 bits. | `PUT /core/oidc`; `POST /core/connections`; `PUT /core/connections/{id}` |
 | `invalid_sector` | 400 | Pick the field of activity. | module reports (validator dùng chung) |
 | `invalid_setting` | 400 | Say whether the AI may suggest new memories: on or off. | `PUT /ai/hooks/builtin/{id}`; `PUT /ai/memory/settings`; `PUT /ai/skills/{id}` |
 | `invalid_size` | 400 | The file is empty. | `POST /ai/knowledge` |
@@ -289,7 +289,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `self_disable` | 400 | You cannot disable the account you are using. Ask another administrator. | `PATCH /core/users/{id}` |
 | `self_reset` | 400 | You cannot reset your own two-step sign-in here. Use My account instead. | `POST /core/users/{id}/2fa/reset` |
 | `too_large` | 400/413 | The file is larger than 10 MB. Split it or remove pictures, then upload again. | 4 endpoint (/ai, /core, /feeds, /inventory) |
-| `too_many` | 400 | A box holds up to 30 custom rules. Delete one you no longer need. | 10 endpoint (/ai, /core, /exposure, /scans) |
+| `too_many` | 400 | A box holds up to 30 custom rules. Delete one you no longer need. Also: A box holds up to 20 connections. Delete one you no longer use. | 10 endpoint (/ai, /core, /exposure, /scans); `POST /core/connections` |
 | `too_many_ranges` | 400 | At most 16 network ranges. | `PUT /inventory/settings` |
 | `too_many_rows` | 400 | At most ${MAX_IMPORT_ROWS} rows per import. This file has ${data.length} rows. | `POST /inventory/import` |
 | `too_many_tries` | 400 | Too many wrong codes. Ask for a new code. | module core (validator dùng chung) |

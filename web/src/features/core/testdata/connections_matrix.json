@@ -1,0 +1,1781 @@
+{
+ "comment": "The same script runs against the GUI mock (web/src/features/core/connections.parity.test.ts) and the real backend (modules/core/handlers_connections_test.go). Where the backend deliberately differs it says so in `real`. $KEY_PLAIN, $KEY_LOCKED are replaced by keys/ed25519 and keys/ed25519-passphrase next to this file. {name} in a path is the id kept by an earlier step.",
+ "steps": [
+  {
+   "name": "signed out: 401",
+   "role": null,
+   "method": "GET",
+   "path": "/core/connections",
+   "status": 401
+  },
+  {
+   "name": "viewer list: 403",
+   "role": "viewer",
+   "method": "GET",
+   "path": "/core/connections",
+   "status": 403,
+   "error": {
+    "code": "forbidden"
+   }
+  },
+  {
+   "name": "viewer create: 403",
+   "role": "viewer",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Parity API",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true
+   },
+   "status": 403,
+   "error": {
+    "code": "forbidden"
+   }
+  },
+  {
+   "name": "viewer edit: 403",
+   "role": "viewer",
+   "method": "PUT",
+   "path": "/core/connections/cn-x",
+   "body": {
+    "name": "Parity API",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true
+   },
+   "status": 403,
+   "error": {
+    "code": "forbidden"
+   }
+  },
+  {
+   "name": "viewer delete: 403",
+   "role": "viewer",
+   "method": "DELETE",
+   "path": "/core/connections/cn-x",
+   "status": 403,
+   "error": {
+    "code": "forbidden"
+   }
+  },
+  {
+   "name": "viewer test: 403",
+   "role": "viewer",
+   "method": "POST",
+   "path": "/core/connections/cn-x/test",
+   "status": 403,
+   "error": {
+    "code": "forbidden"
+   }
+  },
+  {
+   "name": "operator list: 403",
+   "role": "operator",
+   "method": "GET",
+   "path": "/core/connections",
+   "status": 403,
+   "error": {
+    "code": "forbidden"
+   }
+  },
+  {
+   "name": "operator create: 403",
+   "role": "operator",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Parity API",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true
+   },
+   "status": 403,
+   "error": {
+    "code": "forbidden"
+   }
+  },
+  {
+   "name": "operator edit: 403",
+   "role": "operator",
+   "method": "PUT",
+   "path": "/core/connections/cn-x",
+   "body": {
+    "name": "Parity API",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true
+   },
+   "status": 403,
+   "error": {
+    "code": "forbidden"
+   }
+  },
+  {
+   "name": "operator delete: 403",
+   "role": "operator",
+   "method": "DELETE",
+   "path": "/core/connections/cn-x",
+   "status": 403,
+   "error": {
+    "code": "forbidden"
+   }
+  },
+  {
+   "name": "operator test: 403",
+   "role": "operator",
+   "method": "POST",
+   "path": "/core/connections/cn-x/test",
+   "status": 403,
+   "error": {
+    "code": "forbidden"
+   }
+  },
+  {
+   "name": "create an HTTP token connection: 201, no secret in the answer",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Parity API",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true
+   },
+   "status": 201,
+   "keep": "http",
+   "expect": {
+    "name": "Parity API",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "asset_id": null,
+    "auth": {
+     "type": "token",
+     "last4": "cdef",
+     "key_fingerprint": null
+    },
+    "username": null,
+    "pin": null,
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true,
+    "status": "untested",
+    "last_test": null,
+    "tools": [
+     {
+      "name": "fetch_url",
+      "access": "read",
+      "description": "Fetch a page from an allowed address and return its text",
+      "enabled": true
+     },
+     {
+      "name": "send_request",
+      "access": "write",
+      "description": "Send one API request that an approved action defines",
+      "enabled": false
+     }
+    ]
+   },
+   "absent": [
+    "par-0123456789",
+    "0123456789-cdef"
+   ]
+  },
+  {
+   "name": "create an SSH key connection: the key is shown by its fingerprint, last4 is null",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Parity switch",
+    "kind": "ssh",
+    "target": "192.168.10.61:22",
+    "auth_type": "ssh-key",
+    "username": "vedette",
+    "secret": "$KEY_PLAIN",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 201,
+   "keep": "ssh",
+   "expect": {
+    "kind": "ssh",
+    "auth": {
+     "type": "ssh-key",
+     "last4": null
+    },
+    "username": "vedette",
+    "pin": null,
+    "status": "untested",
+    "tools": [
+     {
+      "name": "run_allowed_command",
+      "access": "read",
+      "enabled": true
+     },
+     {
+      "name": "run_approved_command",
+      "access": "write",
+      "enabled": false
+     }
+    ]
+   },
+   "matches": {
+    "auth.key_fingerprint": "^SHA256:[A-Za-z0-9+/]{43}$"
+   },
+   "absent": [
+    "BEGIN OPENSSH",
+    "b3BlbnNzaC1rZXk"
+   ]
+  },
+  {
+   "name": "create RESTCONF with Basic keeps the user name",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Parity restconf",
+    "kind": "netconf-restconf",
+    "target": "https://192.168.10.62",
+    "auth_type": "basic",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.62/restconf/"
+    ],
+    "enabled": true,
+    "username": "admin"
+   },
+   "status": 201,
+   "expect": {
+    "username": "admin",
+    "auth": {
+     "type": "basic",
+     "last4": "cdef"
+    },
+    "tools": [
+     {
+      "name": "get_config",
+      "access": "read"
+     },
+     {
+      "name": "apply_config",
+      "access": "write",
+      "enabled": false
+     }
+    ]
+   }
+  },
+  {
+   "name": "a token has no user name even when one is sent",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Parity token",
+    "kind": "http",
+    "target": "https://192.168.10.63",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.63/"
+    ],
+    "enabled": true,
+    "username": "ignored"
+   },
+   "status": 201,
+   "expect": {
+    "username": null
+   }
+  },
+  {
+   "name": "a public name the administrator typed is accepted",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Parity cloud",
+    "kind": "http",
+    "target": "https://mcp.cloud.example.com",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://mcp.cloud.example.com/"
+    ],
+    "enabled": true
+   },
+   "status": 201
+  },
+  {
+   "name": "list has the new connection and no secret",
+   "role": "admin",
+   "method": "GET",
+   "path": "/core/connections",
+   "status": 200,
+   "listHas": [
+    "http",
+    "ssh"
+   ],
+   "absent": [
+    "par-0123456789",
+    "BEGIN OPENSSH"
+   ]
+  },
+  {
+   "name": "duplicate name, any letter case",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "parity api",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "duplicate_name",
+    "field": "name",
+    "message": "Another connection already has this name. Pick a different one."
+   }
+  },
+  {
+   "name": "empty name",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "  ",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_name",
+    "field": "name",
+    "message": "Give the connection a name of 1 to 40 characters, for example \"Office firewall API\"."
+   }
+  },
+  {
+   "name": "mcp-stdio is not supported",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Local MCP",
+    "kind": "mcp-stdio",
+    "target": "npx some-mcp-server",
+    "auth_type": "none",
+    "allow": [
+     "api.example.com"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "kind_unsupported",
+    "field": "kind",
+    "message": "An MCP server that Vedette starts as a command is not supported. Use an MCP server that has a web address (kind \"MCP server (URL)\")."
+   }
+  },
+  {
+   "name": "an unknown kind",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Other",
+    "kind": "device-api",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_kind",
+    "field": "kind"
+   },
+   "real": {
+    "error": {
+     "code": "invalid",
+     "field": "kind"
+    }
+   }
+  },
+  {
+   "name": "http:// is refused",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Plain",
+    "kind": "http",
+    "target": "http://192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "http://192.168.10.60/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "The address must start with https://. Vedette sends sign-in details and changes only over HTTPS."
+   }
+  },
+  {
+   "name": "a user name in the address",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Userinfo",
+    "kind": "http",
+    "target": "https://u:p@192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "The address must not contain a user name or password. Enter the secret in its own field."
+   }
+  },
+  {
+   "name": "SSH host and port form",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Bad ssh",
+    "kind": "ssh",
+    "target": "https://sw",
+    "auth_type": "ssh-key",
+    "username": "vedette",
+    "secret": "$KEY_PLAIN",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "Enter the SSH server as host or host:port, for example 192.168.10.30:22."
+   }
+  },
+  {
+   "name": "address policy refuses https://localhost",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy 0",
+    "kind": "http",
+    "target": "https://localhost",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://localhost/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses https://LOCALHOST.",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy 1",
+    "kind": "http",
+    "target": "https://LOCALHOST.",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://LOCALHOST./"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses https://api.localhost",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy 2",
+    "kind": "http",
+    "target": "https://api.localhost",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://api.localhost/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses https://127.0.0.1",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy 3",
+    "kind": "http",
+    "target": "https://127.0.0.1",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://127.0.0.1/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses https://127.1.2.3",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy 4",
+    "kind": "http",
+    "target": "https://127.1.2.3",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://127.1.2.3/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses https://[::1]",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy 5",
+    "kind": "http",
+    "target": "https://[::1]",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://[::1]/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses https://169.254.169.254",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy 6",
+    "kind": "http",
+    "target": "https://169.254.169.254",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://169.254.169.254/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses https://[fe80::1]",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy 7",
+    "kind": "http",
+    "target": "https://[fe80::1]",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://[fe80::1]/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses https://[ff02::1]",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy 8",
+    "kind": "http",
+    "target": "https://[ff02::1]",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://[ff02::1]/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses https://224.0.0.1",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy 9",
+    "kind": "http",
+    "target": "https://224.0.0.1",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://224.0.0.1/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses https://239.255.255.250",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy 10",
+    "kind": "http",
+    "target": "https://239.255.255.250",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://239.255.255.250/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses https://0.0.0.0",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy 11",
+    "kind": "http",
+    "target": "https://0.0.0.0",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://0.0.0.0/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses https://[::]",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy 12",
+    "kind": "http",
+    "target": "https://[::]",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://[::]/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses https://2130706433",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy 13",
+    "kind": "http",
+    "target": "https://2130706433",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://2130706433/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses https://0x7f.1",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy 14",
+    "kind": "http",
+    "target": "https://0x7f.1",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://0x7f.1/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses https://192.168.010.001",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy 15",
+    "kind": "http",
+    "target": "https://192.168.010.001",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.010.001/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses https://192.168.10.250",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy 16",
+    "kind": "http",
+    "target": "https://192.168.10.250",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.250/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses SSH localhost:22",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy ssh 0",
+    "kind": "ssh",
+    "target": "localhost:22",
+    "auth_type": "ssh-key",
+    "username": "vedette",
+    "secret": "$KEY_PLAIN",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses SSH 127.0.0.1:22",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy ssh 1",
+    "kind": "ssh",
+    "target": "127.0.0.1:22",
+    "auth_type": "ssh-key",
+    "username": "vedette",
+    "secret": "$KEY_PLAIN",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses SSH 169.254.169.254:22",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy ssh 2",
+    "kind": "ssh",
+    "target": "169.254.169.254:22",
+    "auth_type": "ssh-key",
+    "username": "vedette",
+    "secret": "$KEY_PLAIN",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses SSH 224.0.0.1:22",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy ssh 3",
+    "kind": "ssh",
+    "target": "224.0.0.1:22",
+    "auth_type": "ssh-key",
+    "username": "vedette",
+    "secret": "$KEY_PLAIN",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses SSH 0.0.0.0:22",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy ssh 4",
+    "kind": "ssh",
+    "target": "0.0.0.0:22",
+    "auth_type": "ssh-key",
+    "username": "vedette",
+    "secret": "$KEY_PLAIN",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses SSH 2130706433:22",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy ssh 5",
+    "kind": "ssh",
+    "target": "2130706433:22",
+    "auth_type": "ssh-key",
+    "username": "vedette",
+    "secret": "$KEY_PLAIN",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses SSH 0x7f.1:22",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy ssh 6",
+    "kind": "ssh",
+    "target": "0x7f.1:22",
+    "auth_type": "ssh-key",
+    "username": "vedette",
+    "secret": "$KEY_PLAIN",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "address policy refuses SSH 192.168.10.250:22",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Policy ssh 7",
+    "kind": "ssh",
+    "target": "192.168.10.250:22",
+    "auth_type": "ssh-key",
+    "username": "vedette",
+    "secret": "$KEY_PLAIN",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "the box itself is named",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Box",
+    "kind": "http",
+    "target": "https://192.168.10.250",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.250/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "Vedette never connects to the box itself. Enter the address of the device or service itself."
+   }
+  },
+  {
+   "name": "a loopback address is named",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Lo",
+    "kind": "http",
+    "target": "https://127.0.0.1",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://127.0.0.1/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "Vedette never connects to a loopback address. Enter the address of the device or service itself."
+   }
+  },
+  {
+   "name": "a sign-in the kind cannot use",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Bad auth",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "ssh-key",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_auth",
+    "field": "auth_type",
+    "message": "This kind of connection cannot sign in that way. Pick one of the options the form offers."
+   }
+  },
+  {
+   "name": "SSH cannot use a token",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Bad ssh auth",
+    "kind": "ssh",
+    "target": "192.168.10.61:22",
+    "auth_type": "token",
+    "username": "vedette",
+    "secret": "$KEY_PLAIN",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_auth",
+    "field": "auth_type",
+    "message": "An SSH server cannot sign in that way. Pick one of the options the form offers."
+   }
+  },
+  {
+   "name": "SSH needs a user name",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "No user",
+    "kind": "ssh",
+    "target": "192.168.10.61:22",
+    "auth_type": "ssh-key",
+    "username": "",
+    "secret": "$KEY_PLAIN",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "username_required",
+    "field": "username",
+    "message": "Enter the user name the box signs in with."
+   },
+   "real": {
+    "error": {
+     "code": "invalid",
+     "field": "username"
+    }
+   }
+  },
+  {
+   "name": "Basic needs a user name",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "No user 2",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "basic",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "username_required",
+    "field": "username",
+    "message": "Enter the user name the box signs in with."
+   }
+  },
+  {
+   "name": "a user name with a space",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Spaced",
+    "kind": "ssh",
+    "target": "192.168.10.61:22",
+    "auth_type": "ssh-key",
+    "username": "lan admin",
+    "secret": "$KEY_PLAIN",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid",
+    "field": "username",
+    "message": "The user name is 1 to 64 characters, with no spaces, colons or control characters."
+   },
+   "real": {
+    "error": {
+     "code": "invalid",
+     "field": "username"
+    }
+   }
+  },
+  {
+   "name": "a short secret",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Short",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "secret": "short",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_secret",
+    "field": "secret",
+    "message": "The secret is too short. Copy the whole token, password or key again."
+   }
+  },
+  {
+   "name": "a key with a passphrase",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Locked",
+    "kind": "ssh",
+    "target": "192.168.10.61:22",
+    "auth_type": "ssh-key",
+    "username": "vedette",
+    "secret": "$KEY_LOCKED",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_secret",
+    "field": "secret",
+    "message": "This private key is protected by a passphrase, which Vedette cannot type. Save a copy without one and paste that."
+   }
+  },
+  {
+   "name": "no secret",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "No secret",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "secret_required",
+    "field": "secret",
+    "message": "Enter the secret. It stays on this box and is encrypted; only the last 4 characters are shown afterwards."
+   }
+  },
+  {
+   "name": "no allow-list",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "No allow",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "allow_required",
+    "field": "allow",
+    "message": "Add at least one entry to the allow-list. Only hosts, addresses or commands on this list may be used."
+   }
+  },
+  {
+   "name": "an allow-list entry outside the target",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Outside",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/api/",
+     "https://evil.example.com/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_allow",
+    "field": "allow",
+    "message": "Each allow-list entry must be an address under https://192.168.10.60, for example https://192.168.10.60/api/."
+   }
+  },
+  {
+   "name": "a longer host name is not under the target",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Longer",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60.evil.example/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_allow",
+    "field": "allow",
+    "message": "Each allow-list entry must be an address under https://192.168.10.60, for example https://192.168.10.60/api/."
+   }
+  },
+  {
+   "name": "a space in an address of the allow-list",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Space",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/a b"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_allow",
+    "field": "allow",
+    "message": "A host or address in the allow-list cannot contain spaces."
+   }
+  },
+  {
+   "name": "an unknown device",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Asset",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true,
+    "asset_id": "a-nope"
+   },
+   "status": 400,
+   "error": {
+    "code": "unknown_asset",
+    "field": "asset_id",
+    "message": "The device you linked is not in the inventory."
+   }
+  },
+  {
+   "name": "access only for MCP tools",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Access",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true,
+    "tools": [
+     {
+      "name": "fetch_url",
+      "enabled": true,
+      "access": "write"
+     }
+    ]
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_tool_access",
+    "field": "tools",
+    "message": "Only tools of an MCP server can be marked read or write; the built-in tools of this kind are fixed."
+   }
+  },
+  {
+   "name": "an edit with a blank secret keeps the saved one and the name moves",
+   "role": "admin",
+   "method": "PUT",
+   "path": "/core/connections/{http}",
+   "body": {
+    "name": "Parity API 2",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true
+   },
+   "status": 200,
+   "expect": {
+    "name": "Parity API 2",
+    "auth": {
+     "type": "token",
+     "last4": "cdef"
+    }
+   },
+   "absent": [
+    "par-0123456789"
+   ]
+  },
+  {
+   "name": "the same server written another way keeps the secret",
+   "role": "admin",
+   "method": "PUT",
+   "path": "/core/connections/{http}",
+   "body": {
+    "name": "Parity API 2",
+    "kind": "http",
+    "target": "https://192.168.10.60/",
+    "auth_type": "token",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true
+   },
+   "status": 200,
+   "expect": {
+    "auth": {
+     "last4": "cdef"
+    }
+   }
+  },
+  {
+   "name": "a write tool can be turned on",
+   "role": "admin",
+   "method": "PUT",
+   "path": "/core/connections/{http}",
+   "body": {
+    "name": "Parity API 2",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true,
+    "tools": [
+     {
+      "name": "send_request",
+      "enabled": true
+     }
+    ]
+   },
+   "status": 200,
+   "expect": {
+    "tools": [
+     {
+      "name": "fetch_url",
+      "enabled": true
+     },
+     {
+      "name": "send_request",
+      "access": "write",
+      "enabled": true
+     }
+    ]
+   }
+  },
+  {
+   "name": "another host needs the secret again",
+   "role": "admin",
+   "method": "PUT",
+   "path": "/core/connections/{http}",
+   "body": {
+    "name": "Parity API 2",
+    "kind": "http",
+    "target": "https://192.168.10.64",
+    "auth_type": "token",
+    "allow": [
+     "https://192.168.10.64/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "secret_required",
+    "field": "secret",
+    "message": "Enter the secret again: the address changed, and a saved secret is only sent to the address it was saved for."
+   }
+  },
+  {
+   "name": "another host with a new secret works and the test result goes",
+   "role": "admin",
+   "method": "PUT",
+   "path": "/core/connections/{http}",
+   "body": {
+    "name": "Parity API 2",
+    "kind": "http",
+    "target": "https://192.168.10.64",
+    "auth_type": "token",
+    "secret": "par-9876543210-wxyz",
+    "allow": [
+     "https://192.168.10.64/"
+    ],
+    "enabled": true
+   },
+   "status": 200,
+   "expect": {
+    "target": "https://192.168.10.64",
+    "auth": {
+     "last4": "wxyz"
+    },
+    "status": "untested",
+    "pin": null
+   }
+  },
+  {
+   "name": "another kind needs a new secret",
+   "role": "admin",
+   "method": "PUT",
+   "path": "/core/connections/{ssh}",
+   "body": {
+    "name": "Parity switch",
+    "kind": "http",
+    "target": "https://192.168.10.65",
+    "auth_type": "token",
+    "allow": [
+     "https://192.168.10.65/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "secret_required",
+    "field": "secret"
+   }
+  },
+  {
+   "name": "an unknown connection",
+   "role": "admin",
+   "method": "PUT",
+   "path": "/core/connections/cn-nope",
+   "body": {
+    "name": "Nope",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true
+   },
+   "status": 404,
+   "error": {
+    "code": "not_found",
+    "message": "This connection no longer exists."
+   }
+  },
+  {
+   "name": "the same checks as a create: duplicate name",
+   "role": "admin",
+   "method": "PUT",
+   "path": "/core/connections/{ssh}",
+   "body": {
+    "name": "parity api 2",
+    "kind": "ssh",
+    "target": "192.168.10.61:22",
+    "auth_type": "ssh-key",
+    "username": "vedette",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "duplicate_name",
+    "field": "name",
+    "message": "Another connection already has this name. Pick a different one."
+   }
+  },
+  {
+   "name": "turning a connection off",
+   "role": "admin",
+   "method": "PUT",
+   "path": "/core/connections/{ssh}",
+   "body": {
+    "name": "Parity switch",
+    "kind": "ssh",
+    "target": "192.168.10.61:22",
+    "auth_type": "ssh-key",
+    "username": "vedette",
+    "allow": [
+     "show version"
+    ],
+    "enabled": false
+   },
+   "status": 200,
+   "expect": {
+    "enabled": false,
+    "auth": {
+     "type": "ssh-key"
+    }
+   }
+  },
+  {
+   "name": "Test on a connection that is off: 409 and nothing is sent",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections/{ssh}/test",
+   "status": 409,
+   "error": {
+    "code": "connection_off",
+    "message": "This connection is turned off, so nothing is sent to it. Turn it on, then test it."
+   }
+  },
+  {
+   "name": "Test on an unknown connection",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections/cn-nope/test",
+   "status": 404,
+   "error": {
+    "code": "not_found",
+    "message": "This connection no longer exists."
+   }
+  },
+  {
+   "name": "Test on a connection that is on (the transports come with slice 13b-5)",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections/{http}/test",
+   "status": 200,
+   "real": {
+    "status": 501,
+    "error": {
+     "code": "not_implemented"
+    }
+   }
+  },
+  {
+   "name": "delete",
+   "role": "admin",
+   "method": "DELETE",
+   "path": "/core/connections/{http}",
+   "status": 204
+  },
+  {
+   "name": "delete again",
+   "role": "admin",
+   "method": "DELETE",
+   "path": "/core/connections/{http}",
+   "status": 404,
+   "error": {
+    "code": "not_found",
+    "message": "This connection no longer exists."
+   }
+  },
+  {
+   "name": "the list no longer has it",
+   "role": "admin",
+   "method": "GET",
+   "path": "/core/connections",
+   "status": 200,
+   "listLacks": [
+    "http"
+   ],
+   "listHas": [
+    "ssh"
+   ]
+  }
+ ]
+}

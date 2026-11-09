@@ -40,7 +40,7 @@ Pure Go, no cgo. Versions pinned in `go.mod`/`go.sum`; licenses read from each m
 | github.com/sethvargo/go-retry | v0.5.0 | Apache-2.0 | embedded: via goose |
 | go.uber.org/multierr | v1.11.0 | MIT | embedded: via goose |
 | golang.org/x/sync, golang.org/x/sys | v0.24.0, v0.49.0 | BSD-3-Clause | embedded: via goose and modernc.org/sqlite; golang.org/x/sys/unix is also used directly by `modules/sensor-passive` (AF_PACKET promiscuous membership, Linux) and `host/peer` (Linux only, `vedette-host`: `SO_PEERPIDFD` and `SO_PEERCRED` of the socket peer) |
-| golang.org/x/crypto (package `argon2` only, with `blake2b` and `cpu` it uses) | v0.58.0 | BSD-3-Clause | embedded: argon2id password hashing in `core/auth` (WP-04b). Already in the module graph through goose and x/net; now a direct dependency |
+| golang.org/x/crypto (packages `argon2` and `ssh`, with what they use) | v0.58.0 | BSD-3-Clause | embedded: argon2id password hashing in `core/auth` (WP-04b); `ssh` reads and fingerprints the private key of an SSH connection in `core/conn` (WP-13b slice 4: key must parse, no passphrase, SHA256 fingerprint of the public half), and opens the SSH session itself from slice 13b-5 (D-94). Already in the module graph through goose and x/net; a direct dependency, version unchanged |
 | github.com/coder/websocket | v1.8.15 | ISC | embedded: outward WebSocket client for notify approvals: Slack Socket Mode (D-38) and the Zalo personal reply-code listener (D-46); no dependencies of its own. Added for issue #43; the first importer (WP-22) turns the `// indirect` mark into a direct requirement |
 
 ### Generated API server (`core/api/oas`, ogen, D-60)

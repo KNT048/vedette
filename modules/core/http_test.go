@@ -2,19 +2,23 @@ package core_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/base32"
 	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/knt048/vedette/core/api/routes"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/auth/authtest"
+	"github.com/knt048/vedette/core/conn"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/modules"
@@ -38,7 +42,17 @@ type world struct {
 	h    *core.APIHandlers
 	api  http.Handler
 	logs *bytes.Buffer
+	// conns is the store behind /core/connections; inUse is what the response module would answer to "is a change still
+	// in force" for every connection.
+	conns *conn.Service
+	inUse atomic.Bool
 }
+
+// What the stand-ins of the other modules know: the address of the box and the one device of the inventory.
+const (
+	boxAddress = "192.168.10.250"
+	knownAsset = "a-fw01"
+)
 
 func newWorld(t *testing.T, modify ...func(*auth.Config)) *world {
 	t.Helper()
@@ -49,7 +63,16 @@ func newWorld(t *testing.T, modify ...func(*auth.Config)) *world {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, err := core.NewAPIHandlers(core.HandlersConfig{DB: env.DB, Auth: env.Svc, Reg: reg, Audit: env.Audit, Secrets: env.Secrets, Log: log, Clock: env.Clock.Now})
+	w := &world{t: t, env: env, logs: logs}
+	conns, err := conn.New(conn.Config{DB: env.DB, Secrets: env.Secrets, Audit: env.Audit, Clock: env.Clock.Now,
+		InUse:       func(context.Context, string) (bool, error) { return w.inUse.Load(), nil },
+		BoxAddrs:    func(context.Context) []netip.Addr { return []netip.Addr{netip.MustParseAddr(boxAddress)} },
+		AssetExists: func(_ context.Context, id string) (bool, error) { return id == knownAsset, nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := core.NewAPIHandlers(core.HandlersConfig{DB: env.DB, Auth: env.Svc, Reg: reg, Audit: env.Audit, Secrets: env.Secrets, Log: log, Clock: env.Clock.Now, Conns: conns})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +85,8 @@ func newWorld(t *testing.T, modify ...func(*auth.Config)) *world {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &world{t: t, env: env, reg: reg, h: h, api: api, logs: logs}
+	w.reg, w.h, w.api, w.conns = reg, h, api, conns
+	return w
 }
 
 // client is a browser: it keeps the cookies it was given (and drops the ones that were cleared) and sends the
@@ -157,6 +181,7 @@ func (c *client) request(method, path string, body any, mutate ...func(*http.Req
 func (c *client) get(path string) reply           { c.w.t.Helper(); return c.request("GET", path, nil) }
 func (c *client) post(path string, b any) reply   { c.w.t.Helper(); return c.request("POST", path, b) }
 func (c *client) patch(path string, b any) reply  { c.w.t.Helper(); return c.request("PATCH", path, b) }
+func (c *client) put(path string, b any) reply    { c.w.t.Helper(); return c.request("PUT", path, b) }
 func (c *client) putGeneral(b any) reply          { c.w.t.Helper(); return c.request("PUT", "/core/general", b) }
 func (c *client) delete(path string) reply        { c.w.t.Helper(); return c.request("DELETE", path, nil) }
 func (c *client) cookie(name string) *http.Cookie { return c.jar[name] }

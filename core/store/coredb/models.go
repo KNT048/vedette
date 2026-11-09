@@ -30,6 +30,34 @@ type CoreChainHead struct {
 	UpdatedAt string
 }
 
+type CoreConnection struct {
+	ID        string
+	Name      string
+	Kind      string
+	Target    string
+	AssetID   *string
+	AuthType  string
+	Username  *string
+	SecretID  *string
+	KeyFp     *string
+	Pin       *string
+	PinSeen   *string
+	Allow     string
+	Enabled   bool
+	Status    string
+	LastTest  *string
+	UpdatedAt string
+}
+
+type CoreConnectionTool struct {
+	ConnectionID string
+	Name         string
+	Pos          int64
+	Access       string
+	Description  string
+	Enabled      bool
+}
+
 type CoreEmailCode struct {
 	UserID    string
 	CodeHash  string

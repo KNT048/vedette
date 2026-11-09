@@ -831,7 +831,7 @@ func TestBackupDownloadStreamsTheHostsFileAndHoldsNoKey(t *testing.T) {
 			t.Errorf("%s contains the master key", name)
 		}
 	}
-	if !bytes.Contains(members["manifest.json"], []byte(`"db_schema":"core=5"`)) || !bytes.Contains(members["manifest.json"], []byte(`"includes_secrets":false`)) {
+	if !bytes.Contains(members["manifest.json"], []byte(`"db_schema":"core=6"`)) || !bytes.Contains(members["manifest.json"], []byte(`"includes_secrets":false`)) {
 		t.Errorf("manifest = %s", members["manifest.json"])
 	}
 	bl, err := e.hh.Client.StateBackups(t.Context())

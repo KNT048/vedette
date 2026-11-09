@@ -10,6 +10,7 @@ import (
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/auth"
+	"github.com/knt048/vedette/core/conn"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
@@ -41,6 +42,7 @@ type deps struct {
 	Auth    *auth.Service // sessions, sign-in and two-step (core/auth)
 	// BaseURL is the address people open Vedette at (links in notify messages); empty on loopback, see baseURL.
 	BaseURL string
+	Conn    *conn.Service     // connections to devices (core/conn, D-93): core's handlers, response and the Privacy page share it
 	Core    *core.APIHandlers // core's own operations (sign-in, account, users, setup, audit, general settings)
 	OS      *core.OSHandlers  // operating system updates and the backup download, on top of vedette-host
 	// HostSocket is the unix socket of vedette-host ("" = this install has none: every OS endpoint answers 409 not_appliance).

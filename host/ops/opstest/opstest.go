@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/exec/exectest"
 	"github.com/knt048/vedette/host/ops"
 )
 
@@ -265,7 +266,7 @@ while IFS='|' read -r pat out code req set; do
 done < "$RULES"
 exit 0
 `
-	m.must(os.WriteFile(filepath.Join(m.Bin, name), []byte(script), 0o755)) //nolint:gosec // a test fake must be executable
+	exectest.WriteScript(m.t, filepath.Join(m.Bin, name), script) // under syscall.ForkLock: no ETXTBSY when parallel tests fork
 }
 
 // BinPaths is the Deps.BinPaths of the fakes.

@@ -1,0 +1,376 @@
+{
+  "nav": {
+    "incidents": "Incidents"
+  },
+  "ch": {
+    "telegram": "Telegram",
+    "slack": "Slack",
+    "zalo": "Zalo OA",
+    "email": "Email",
+    "webhook": "Webhook",
+    "zalo-personal": "Zalo personal"
+  },
+  "channels": {
+    "nav": "Alert channels",
+    "title": "Alert channels",
+    "description": "Choose where Vedette sends alerts. With no channel on, alerts only appear in the app.",
+    "privacy": "Alert content (device names, CVE IDs) leaves the box only to the channels you turn on here and nowhere else. A channel that is off sends no data.",
+    "caption": "Alert channels",
+    "col": {
+      "channel": "Channel",
+      "dest": "Sent to",
+      "min": "Send from severity",
+      "status": "Status",
+      "test": "Last test",
+      "actions": "Actions"
+    },
+    "state": {
+      "on": "On",
+      "off": "Off",
+      "none": "Not set up"
+    },
+    "dest": {
+      "telegram": "Chat {{id}}",
+      "zalo": "OA {{id}}, recipient {{user}}",
+      "slack": "Slack webhook",
+      "zaloPersonal": "Zalo, recipient {{id}}"
+    },
+    "min": "{{sev}} and above",
+    "testNever": "Not tested",
+    "testOk": "Tested {{time}}: success",
+    "testFail": "Tested {{time}}: failed",
+    "configure": "Set up",
+    "edit": "Edit",
+    "test": "Send test",
+    "testFor": "Send test via {{name}}",
+    "editFor": "Set up {{name}}",
+    "removeFor": "Remove channel {{name}}",
+    "remove": "Remove channel",
+    "removeTitle": "Remove channel {{name}}?",
+    "removeBody": "Deletes this channel's settings and saved key. Future alerts will not be sent through it.",
+    "removed": "Channel {{name}} and its saved key were removed.",
+    "dialogTitle": "Channel {{name}}",
+    "dialogDesc": "Enter the details, save, then send a test to be sure messages arrive.",
+    "enabled": "Turn this channel on",
+    "minSeverity": "Send from severity",
+    "minSeverityHint": "Alerts below this severity are not sent through this channel.",
+    "secretSaved": "Saved, ending in {{last4}}. Leave empty to keep it.",
+    "generate": "Generate random",
+    "save": "Save",
+    "saveTest": "Save and send test",
+    "saved": "Channel {{name}} saved.",
+    "needRole": "Only administrators can change notification channels.",
+    "f": {
+      "telegram": {
+        "chat_id": {
+          "label": "Chat ID",
+          "hint": "Number of the chat or group that receives messages. To find it: send the bot a message (or add the bot to a group and post a message there), open https://api.telegram.org/bot<TOKEN>/getUpdates in a browser and read the number in \"chat\":{\"id\":…}. Groups usually look like -1001234567890; for a public channel enter @channelname."
+        },
+        "secret": {
+          "label": "Bot token",
+          "hint": "Message @BotFather, send /newbot and paste the token you get (like 123456789:AAH…). The token is the bot's password: share it with nobody. To send to a group, add the bot to the group first."
+        }
+      },
+      "zalo": {
+        "oa_id": {
+          "label": "OA ID",
+          "hint": "OA ID: the Official Account ID number, shown in the OA management page or your app in Zalo Developers."
+        },
+        "secret": {
+          "label": "Access token",
+          "hint": "The OA access token issued in Zalo Developers. Zalo tokens live about 25 hours and are renewed with a refresh token: when it expires, sending reports an error so you can paste a new token. Check the Zalo Developers documentation."
+        },
+        "user_id": {
+          "label": "Recipient ID (user_id)",
+          "hint": "The Zalo ID of the person who receives alerts. They must have followed or messaged the OA, and Zalo only lets an OA send consultation messages within about 48 hours of their last interaction. Check the Zalo Developers documentation."
+        }
+      },
+      "email": {
+        "host": {
+          "label": "SMTP server",
+          "hint": "For example smtp.company.com."
+        },
+        "port": {
+          "label": "Port",
+          "hint": "587 for STARTTLS, 465 for SSL/TLS. Changing the encryption changes the port to match."
+        },
+        "security": {
+          "label": "Encryption",
+          "starttls": "STARTTLS",
+          "ssl": "SSL/TLS",
+          "none": "No encryption"
+        },
+        "username": {
+          "label": "Username",
+          "hint": "Usually the sending email address."
+        },
+        "from": {
+          "label": "Send from",
+          "hint": "Address shown on the received email."
+        },
+        "to": {
+          "label": "Send to",
+          "hint": "Separate several recipients with commas."
+        },
+        "secret": {
+          "label": "SMTP password",
+          "hint": "Gmail and Microsoft 365 require an app password instead of the normal password. Prefer a dedicated account for Vedette."
+        }
+      },
+      "webhook": {
+        "url": {
+          "label": "Webhook URL",
+          "hint": "The box sends a POST with a JSON body to this address. Use https:// (http:// only on an internal network)."
+        },
+        "secret": {
+          "label": "Signing key",
+          "hint": "The box signs the JSON body with HMAC-SHA256 and puts the result, as sha256=<hex>, in the X-Vedette-Signature header. The receiver recomputes it with the same key to verify. At least 16 characters."
+        }
+      },
+      "slack": {
+        "label": {
+          "label": "Channel label (optional)",
+          "hint": "A name to recognise this channel in the list, for example #it-alerts. It is only shown in Vedette."
+        },
+        "secret": {
+          "label": "Incoming Webhook URL",
+          "hint": "In your Slack app turn on Incoming Webhooks, add it to a channel and paste the URL (starts with https://hooks.slack.com/services/). The URL is a secret: anyone with it can post to that channel."
+        },
+        "channel_id": {
+          "label": "Channel ID",
+          "hint": "The channel where approval requests appear, like C04ABCDEF12. In Slack open the channel details and copy the ID at the bottom. Invite the bot to that channel."
+        },
+        "app_token": {
+          "label": "App-level token (xapp-…)",
+          "hint": "Slack app, Basic Information, App-Level Tokens: create one with the connections:write scope. Used to open the Socket Mode connection."
+        },
+        "bot_token": {
+          "label": "Bot token (xoxb-…)",
+          "hint": "Slack app, OAuth & Permissions, after installing the app to your workspace. Needs the chat:write scope."
+        }
+      },
+      "zalo-personal": {
+        "user_id": {
+          "label": "Recipient (user or group ID)",
+          "hint": "The numeric Zalo ID of the person or group that receives alerts. Check how your Zalo client shows IDs, or the community node documentation."
+        },
+        "secret": {
+          "label": "Session",
+          "hint": "Created by scanning the QR code below."
+        }
+      }
+    },
+    "emailCodes_one": "{{count}} user signs in with email codes. They will not be able to sign in until this channel is back on or an administrator resets their two-step sign-in.",
+    "emailCodes_other": "{{count}} users sign in with email codes. They will not be able to sign in until this channel is back on or an administrator resets their two-step sign-in.",
+    "turnOffTitle": "Turn off the email channel?",
+    "turnOffConfirm": "Turn off anyway",
+    "keepEditing": "Keep editing"
+  },
+  "rules": {
+    "quiet": {
+      "title": "Quiet hours",
+      "description": "During these hours Vedette holds messages and sends them together when the period ends. Times use the box time zone. Crossing midnight is fine: 22:00 to 06:30 means from evening to the next morning.",
+      "enabled": "Turn on quiet hours",
+      "from": "From",
+      "to": "Until",
+      "allowCritical": "Still send Critical right away",
+      "overnight": "Quiet from {{from}} this evening until {{to}} the next morning.",
+      "sameDay": "Quiet from {{from}} to {{to}} on the same day."
+    },
+    "grouping": {
+      "title": "Grouping",
+      "description": "Several alerts for the same product within this window become one message. Critical is always sent right away, never held for grouping.",
+      "enabled": "Group messages for the same product",
+      "window": "Grouping window",
+      "w15": "15 minutes",
+      "w60": "1 hour",
+      "w240": "4 hours"
+    },
+    "save": "Save quiet hours and grouping",
+    "saved": "Quiet hours and grouping saved."
+  },
+  "approve": {
+    "title": "Approvals",
+    "switch": "Approve actions from this channel",
+    "chip": "Approvals",
+    "listTitle": "Who can approve",
+    "empty": "No approvers yet. Add at least one operator or administrator.",
+    "addLabel": "Add approver",
+    "add": "Add",
+    "remove": "Remove {{who}}",
+    "viewers": "Viewers cannot be added: only operators and administrators may approve. A response counts only when it comes from a listed address.",
+    "address": {
+      "slack": "Slack member ID",
+      "telegram": "Telegram user ID",
+      "email": "Sign-in email",
+      "zalo-personal": "Zalo user ID or phone"
+    },
+    "placeholder": {
+      "slack": "U04ABCD1234",
+      "telegram": "123456789",
+      "email": "name@company.com",
+      "zalo-personal": "0912345678"
+    },
+    "hint": {
+      "slack": "Approval requests show Approve and Reject buttons in Slack. This uses Slack Socket Mode: the box opens the connection outward to Slack, so you open no inbound port and need no public address.",
+      "telegram": "Approval requests show inline Approve and Reject buttons in the chat. This uses the bot above with long polling: the box asks Telegram for new button presses, so you open no inbound port.",
+      "email": "Each approver receives an email with an Approve button that opens a confirmation page on Vedette.",
+      "zalo-personal": "Approval requests list a short code. An approver replies in Zalo with that code to approve. Only listed approvers count."
+    },
+    "email": {
+      "p1": "The link is single-use, valid for 30 minutes, and bound to that one action and that one approver.",
+      "p2": "The page requires pressing Approve, so mail scanners that only open links cannot approve.",
+      "p3": "The box must be reachable from where the approver opens the email (office LAN or VPN).",
+      "p4": "Replying to the email does not approve anything, because replies are easy to forge."
+    },
+    "linkOnly": "This channel cannot take approvals. Messages sent here carry a link that opens Vedette, where an operator or administrator approves."
+  },
+  "zp": {
+    "warning": "Unofficial: uses Zalo's personal web protocol, not an official API. Zalo may lock the account. Use a dedicated account, not your personal one.",
+    "login": "Zalo login",
+    "none": "Not signed in yet.",
+    "ready": "Signed in. The session is saved when you press Save.",
+    "show": "Show QR code",
+    "relogin": "Sign in again",
+    "qrAlt": "QR code placeholder for Zalo login",
+    "scan": "Scan with the Zalo app on a dedicated phone.",
+    "scanned": "I scanned it"
+  },
+  "incidents": {
+    "title_one": "{{count}} new incident",
+    "title_other": "{{count}} new incidents",
+    "titleNone": "No new incidents",
+    "titleLoading": "Incidents",
+    "meta": "Something happening on your network now. Vulnerabilities to patch are in Findings.",
+    "filter": "Filter incidents",
+    "open": "Open",
+    "all": "All",
+    "caption": "Incidents",
+    "col": {
+      "incident": "Incident",
+      "severity": "Severity",
+      "device": "Device",
+      "status": "Status",
+      "seen": "First and last seen",
+      "count": "Times",
+      "sent": "Delivery",
+      "respond": "Respond"
+    },
+    "status": {
+      "new": "New",
+      "acknowledged": "Acknowledged",
+      "resolved": "Resolved"
+    },
+    "statusBy": "{{user}}, {{time}}",
+    "times": "{{count}}×",
+    "seen": "{{first}} to {{last}}",
+    "seenOnce": "{{first}}",
+    "kind": {
+      "trap": "Internal trap touched",
+      "bad_address": "Connection to a known-bad address",
+      "log_anomaly": "Log anomaly",
+      "unknown_device": "Unknown device appeared"
+    },
+    "kf": {
+      "all": "All kinds",
+      "trap": "Trap touches",
+      "bad_address": "Bad addresses",
+      "log_anomaly": "Log anomalies",
+      "unknown_device": "Unknown devices"
+    },
+    "kindFilter": "Filter by kind",
+    "notSent": "Not sent",
+    "sentAt": "{{channel}} {{time}}",
+    "sentFailed": "{{channel}} failed",
+    "respond": "Respond",
+    "respondFor": "Respond to {{title}}",
+    "emptyOpenTitle": "No open incidents",
+    "emptyAllTitle": "No incidents yet",
+    "emptyBody": "When a trap is touched, a machine connects to a known-bad address, a log looks wrong or an unknown device appears, it shows up here and is sent through the channels you turned on.",
+    "setupChannels": "Set up alert channels"
+  },
+  "detail": {
+    "meta": "First seen {{time}}.",
+    "back": "Back to incidents",
+    "notFound": "This incident does not exist",
+    "summary": "Summary",
+    "kind": "Kind",
+    "severity": "Severity",
+    "status": "Status",
+    "devices": "Devices",
+    "what": "What happened",
+    "action": "What to do first",
+    "firstSeen": "First seen",
+    "lastSeen": "Last seen",
+    "count": "Times seen",
+    "origin": "Source details",
+    "open": {
+      "trap": "Open trap touch",
+      "bad_address": "Open related logs",
+      "log_anomaly": "Open related logs",
+      "unknown_device": "Open the device"
+    },
+    "respond": "Respond",
+    "sentTitle": "Messages sent",
+    "sentDescription": "Exactly what was sent to each channel.",
+    "subject": "Subject: {{subject}}",
+    "noSendsTitle": "Not sent through any channel",
+    "noSendsBody": "No channel was on when this incident was raised. An administrator sets up channels in Settings.",
+    "logTitle": "Delivery log",
+    "logCaption": "Delivery log of the incident",
+    "log": {
+      "time": "Time",
+      "channel": "Channel",
+      "to": "Sent to",
+      "result": "Result"
+    },
+    "ok": "Sent",
+    "failed": "Failed",
+    "handleTitle": "Handle the incident",
+    "note": "Note (optional)",
+    "notePlaceholder": "Example: asked the user, machine is clean",
+    "acknowledge": "Acknowledge",
+    "resolve": "Resolve",
+    "reopen": "Reopen",
+    "handledBy": "{{status}} by {{user}} at {{time}}.",
+    "noteShown": "Note: {{note}}",
+    "updated": "Incident updated."
+  },
+  "finding": {
+    "title": "Notifications",
+    "description": "Who was told about this finding.",
+    "notified": "Notified: {{list}}",
+    "entry": "{{channel}} {{time}}",
+    "entryFailed": "{{channel}} (failed: {{reason}})",
+    "history": "All sent messages"
+  },
+  "history": {
+    "title": "History",
+    "description": "Every message Vedette sent: incidents, vulnerability notices and approval requests.",
+    "meta": "Vedette only alerts for products you own. {{count}} new vulnerabilities in the last {{days}} days match none of your devices, so nothing was sent.",
+    "meta_one": "Vedette only alerts for products you own. {{count}} new vulnerability in the last {{days}} days matches none of your devices, so nothing was sent.",
+    "meta_other": "Vedette only alerts for products you own. {{count}} new vulnerabilities in the last {{days}} days match none of your devices, so nothing was sent.",
+    "metaNone": "Vedette only alerts for products you own. Every new vulnerability in the last {{days}} days already has a notice.",
+    "caption": "Sent messages",
+    "col": {
+      "time": "Time",
+      "channel": "Channel",
+      "to": "Sent to",
+      "what": "What",
+      "result": "Result",
+      "actions": "Actions"
+    },
+    "kind": {
+      "incident": "Incident",
+      "vuln": "Vulnerability",
+      "approval": "Approval request"
+    },
+    "ok": "Sent",
+    "failed": "Failed",
+    "resend": "Send again",
+    "resendFor": "Send again via {{channel}}",
+    "resendOk": "Sent again via {{channel}}.",
+    "emptyTitle": "Nothing sent yet",
+    "emptyBody": "Messages appear here once a channel is on and something worth telling you happens."
+  }
+}

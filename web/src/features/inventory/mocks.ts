@@ -1,0 +1,701 @@
+// Mock API module inventory (S-INV-1..4). Tài sản nằm ở assetsStore dùng chung; bảng riêng của module tiền tố inv_.
+// Observation không bao giờ bị ghi đè (ARCHITECTURE §4): sửa tay chỉ thêm một observation nguồn "khai tay".
+import { http, HttpResponse } from 'msw'
+import kev from '@/mocks/fixtures/kev.json'
+import { API, audit, body, CIDR_RE, currentUser, fail, guard, IPV4_RE } from '@/mocks/http'
+import { assetsStore, boxInfo, isOn, findingsStore } from '@/mocks/stores'
+import { matchAssetToKev } from '@/mocks/match'
+import { collection, dataMode, daysAgo, newId, nowIso } from '@/mocks/db'
+import type { Asset, AssetKind, ObsSource, Software } from '@/lib/types'
+import { linuxInstallScript, OSQUERY_VERSION, windowsInstallScript } from './installScripts'
+import { sha256Hex } from './kinds'
+import { customEntry, findById, findCatalog, searchCatalog, type CatalogEntry } from './catalog'
+import type {
+  AddDeviceInput, AddDeviceResult, AgentToken, DeviceDetail, DeviceRow, DevicesResponse, ImportResult,
+  InventorySettings, ObsField, Observation, RegularScan, Sensor, SettingsInput, SoftwareView, WazuhConnection, WazuhInput,
+} from './types'
+import { KINDS } from './types'
+import { cidrRange, hasHostBits, isPrivateCidr, normalizeRange, overlapping } from './validate'
+
+// Địa chỉ hộp Vedette đưa vào cấu hình agent: Vedette phục vụ cả giao diện lẫn API trên https://<IP hộp>:8443 (TLS). Không biết IP thì để chỗ trống rõ ràng, không bịa.
+const serverUrl = () => `https://${boxInfo().ip ?? '<VEDETTE_BOX_IP>'}:8443`
+const FIELD_ORDER: ObsField[] = ['kind', 'hostname', 'mac', 'vendor', 'model', 'os']
+
+const kevVulns = (kev as { vulns: { cve: string; vendor: string; product: string }[] }).vulns
+const cvesFor = (keys: string[]) => kevVulns.filter((v) => keys.includes(`${v.vendor}|${v.product}`.toLowerCase())).map((v) => v.cve)
+
+// ---- bảng riêng ----
+interface Meta { suspicious?: boolean; fragile_manual?: boolean; regular_scan?: RegularScan }
+type StoredObs = Omit<Observation, 'current'>
+const metaStore = collection<Record<string, Meta>>('inv_meta', () => ({}))
+const obsStore = collection<Record<string, StoredObs[]>>('inv_obs', () => ({}))
+const notifyStore = collection<{ enabled: boolean }>('inv_notify', () => ({ enabled: true }))
+const settingsStore = collection<InventorySettings>('inv_settings', () => ({
+  lan_ranges: ['192.168.10.0/24', '192.168.20.0/24'],
+  active: { enabled: true, days: [1, 2, 3, 4, 5, 6, 7], from: '23:00', to: '05:00', rate: 50, exclusions: [] },
+  fragile_kinds: ['printer', 'camera', 'nvr', 'nas', 'ap', 'iot'], regular_scan_kinds: [],
+  scope_confirmed_at: daysAgo(36), scope_confirmed_by: 'admin@acme.example',
+}), () => ({
+  // Cài sạch: chưa có dải mạng nào, chưa xác nhận phạm vi nên chưa quét chủ động. Người quản trị khai ở trang Phạm vi quét.
+  lan_ranges: [],
+  active: { enabled: false, days: [1, 2, 3, 4, 5, 6, 7], from: '23:00', to: '05:00', rate: 50, exclusions: [] },
+  fragile_kinds: ['printer', 'camera', 'nvr', 'nas', 'ap', 'iot'], regular_scan_kinds: [],
+  scope_confirmed_at: null, scope_confirmed_by: null,
+}))
+// Chỉ cảm biến của chính hộp này (đa site chưa hỗ trợ — chủ dự án, D-28).
+const sensorsStore = collection<Sensor[]>('inv_sensors', () => [
+  { id: 'sn-local', name: 'vedette-hq', interface: 'eth0', interfaces: ['eth0', 'eth1'], span: false, status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 30 },
+], () => [
+  // Cài sạch: cảm biến của chính hộp, chưa thấy thiết bị nào.
+  { id: 'sn-local', name: boxInfo().hostname, interface: 'eth0', interfaces: ['eth0'], span: false, status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 0 },
+])
+const agentsStore = collection<AgentToken[]>('inv_agent_tokens', () => [
+  { id: 'tk-osquery', name: 'osquery on SRV-AD and SRV-FILE', kind: 'osquery', last4: 'k3Pq', created_at: daysAgo(12), last_received: daysAgo(0, 3), hosts: 2, expires_at: new Date(Date.now() + 5 * 864e5).toISOString() },
+], () => [])
+type StoredWazuh = WazuhConnection & { password: string }
+// Chứng chỉ CA của hộp (mock: giá trị giả, nhúng trong script như bản thật sẽ nhúng CA tự ký của hộp).
+const MOCK_CA = '-----BEGIN CERTIFICATE-----\nMIIBmockVedetteBoxCA0000000000000000000000000000000000000000000000\n(mock certificate: the real box embeds its own CA here)\n-----END CERTIFICATE-----'
+const installers = async () => {
+  const box = serverUrl()
+  const linux = linuxInstallScript(box, MOCK_CA)
+  const windows = windowsInstallScript(box, MOCK_CA)
+  return {
+    osquery_version: OSQUERY_VERSION,
+    linux: { url: `${box}/api/v1/install/osquery.sh`, sha256: await sha256Hex(linux), script: linux },
+    windows: { url: `${box}/api/v1/install/osquery.ps1`, sha256: await sha256Hex(windows), script: windows },
+  }
+}
+const expired = (t: AgentToken) => t.expires_at !== null && new Date(t.expires_at).getTime() < Date.now()
+const wazuhStore = collection<StoredWazuh | null>('inv_wazuh', () => null, () => null)
+
+// ---- tiện ích ----
+const rand = (n: number, alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789') => {
+  const b = crypto.getRandomValues(new Uint8Array(n))
+  return Array.from(b, (x) => alphabet[x % alphabet.length]).join('')
+}
+// eslint-disable-next-line no-control-regex
+const LABEL_RE = /^[^<>\u0000-\u001f]{1,64}$/
+const VERSION_RE = /^[\w.\-+() ]{1,40}$/u
+const hasIp = (a: Asset) => a.ip !== '' && a.ip !== '—'
+/** Đọc cài đặt; dải lưu với bit máy ("192.168.18.5/24") được đưa về địa chỉ mạng. Dải thiếu /prefix giữ nguyên để UI báo lỗi trên dòng đó, không kẹt các thao tác khác. */
+function loadSettings(): InventorySettings {
+  const cur = settingsStore.get()
+  const next = [...new Set(cur.lan_ranges.map((r) => normalizeRange(r).value))]
+  if (JSON.stringify(next) === JSON.stringify(cur.lan_ranges)) return cur
+  const upd = { ...cur, lan_ranges: next }
+  settingsStore.set(upd)
+  return upd
+}
+const policyFragile = (kind: AssetKind) => settingsStore.get().fragile_kinds.includes(kind)
+
+// ---- Chính hộp là thiết bị đầu tiên (D-53, S-INV-5) ----
+export const BOX_ID = 'a-box'
+const boxSoftware = (key: string, display: string, vendor: string, product: string, version: string, kev: string[]): Software => ({ id: `s-box-${key}`, display, vendor, product, version, kev, source: 'agent', confidence: 1 })
+/** Gói trên hộp (dpkg), nguồn "this box" (tác nhân của chính hộp), độ tin cậy 1.0. Phiên bản khớp trạng thái hệ điều hành mẫu ở Settings, Updates. */
+const BOX_SOFTWARE: Software[] = [
+  boxSoftware('openssh', 'OpenSSH server', 'OpenBSD', 'OpenSSH', '9.6p1', ['openbsd|openssh']),
+  boxSoftware('openssl', 'OpenSSL', 'OpenSSL', 'OpenSSL', '3.0.13', ['openssl|openssl']),
+  boxSoftware('kernel', 'Linux kernel', 'Linux', 'Kernel', '6.8.0-71', ['linux|kernel']),
+  boxSoftware('glibc', 'GNU C Library (libc6)', 'GNU', 'glibc', '2.39', ['gnu|glibc']),
+  boxSoftware('curl', 'curl', 'Haxx', 'curl', '8.5.0', ['haxx|curl']),
+  boxSoftware('caddy', 'Caddy web server (Vedette web interface)', 'Caddy', 'Caddy', '2.6.2', ['caddyserver|caddy']),
+  boxSoftware('python3', 'Python 3 (OpenCanary)', 'Python', 'Python', '3.12.3', ['python|python']),
+]
+/** Đảm bảo hộp có trong kho, cả dữ liệu mẫu lẫn cài sạch; tên và IP lấy từ boxInfo() mỗi lần (chỉ đọc). Gọi trước mọi đọc/ghi tài sản của module. */
+export function ensureBox() {
+  const info = boxInfo()
+  const ip = info.ip ?? '—'
+  const cur = assetsStore.get().find((x) => x.id === BOX_ID)
+  if (cur) {
+    if (cur.ip !== ip || cur.hostname !== info.hostname) assetsStore.update((l) => l.map((x) => (x.id === BOX_ID ? { ...x, ip, hostname: info.hostname } : x)))
+    return
+  }
+  const now = nowIso()
+  const seen = (v: string): Asset['os'] => ({ value: v, source: 'agent', confidence: 1, seen_at: now })
+  const a: Asset = {
+    id: BOX_ID, site: 'hq', ip, mac: null, hostname: info.hostname, kind: 'server',
+    vendor: seen('Vedette'), model: seen('Security box (appliance)'), os: seen('Ubuntu 24.04.3 LTS'),
+    software: BOX_SOFTWARE, services: [
+      { port: 22, proto: 'tcp', name: 'ssh', product: 'OpenSSH', version: '9.6p1', source: 'agent', confidence: 1 },
+      { port: 8443, proto: 'tcp', name: 'https', product: 'Caddy', version: '2.6.2', source: 'agent', confidence: 1 },
+    ],
+    first_seen: dataMode() === 'sample' ? daysAgo(40) : now, last_seen: now, approved: true, fragile: false, origin: 'discovered',
+  }
+  assetsStore.update((l) => [a, ...l])
+  matchAssetToKev(BOX_ID)
+}
+function allAssets(): Asset[] { ensureBox(); return assetsStore.get() }
+// Hộp có mặt ngay khi mock khởi động, để trang chủ và Findings thấy phát hiện trên hộp mà không cần mở Devices trước. Test tự gọi ensureBox.
+if (import.meta.env.MODE !== 'test') ensureBox()
+
+function derive(a: Asset): StoredObs[] {
+  const out: StoredObs[] = []
+  const push = (field: ObsField, value: string, source: ObsSource, confidence: number, seen_at: string) => out.push({ id: `${a.id}:${field}:${out.length}`, field, value, source, confidence, seen_at })
+  const manual = a.origin === 'manual'
+  const own = a.id === BOX_ID // the box knows itself: not a passive guess
+  const [src, conf]: [ObsSource, number] = own ? ['agent', 1] : manual ? ['manual', 1] : ['passive', 0.7]
+  if (a.hostname) push('hostname', a.hostname, src, conf, a.first_seen)
+  if (a.mac) push('mac', a.mac, 'passive', 0.99, a.first_seen)
+  for (const f of ['vendor', 'model', 'os'] as const) {
+    const o = a[f]
+    if (!o) continue
+    push(f, o.value, o.source, o.confidence, o.seen_at)
+    // Lần thấy trước đó yếu hơn: chứng minh giá trị cũ không bị xoá khi có giá trị mới (dữ liệu mẫu).
+    if (f === 'os' && o.source !== 'passive' && o.source !== 'manual') push('os', 'Unknown OS (guessed from packet TTL)', 'passive', 0.2, new Date(new Date(o.seen_at).getTime() - 7 * 864e5).toISOString())
+  }
+  push('kind', a.kind, src, conf, a.first_seen)
+  return out
+}
+
+function obsOf(a: Asset): StoredObs[] {
+  if (!obsStore.get()[a.id]) obsStore.update((m) => ({ ...m, [a.id]: derive(a) }))
+  return obsStore.get()[a.id]!
+}
+function addObs(a: Asset, field: ObsField, value: string, source: ObsSource, confidence: number) {
+  const cur = obsOf(a)
+  obsStore.update((m) => ({ ...m, [a.id]: [...cur, { id: `${a.id}:${field}:${cur.length}:${Date.now().toString(36)}`, field, value, source, confidence, seen_at: nowIso() }] }))
+}
+/** Giá trị "đang dùng": khai tay > tin cậy cao hơn > mới hơn. */
+function markCurrent(list: StoredObs[]): Observation[] {
+  const best = new Map<ObsField, StoredObs>()
+  const rank = (o: StoredObs) => [o.source === 'manual' ? 1 : 0, o.confidence, new Date(o.seen_at).getTime()]
+  for (const o of list) {
+    const b = best.get(o.field)
+    if (!b) { best.set(o.field, o); continue }
+    const [x, y] = [rank(o), rank(b)]
+    if (x[0]! > y[0]! || (x[0] === y[0] && (x[1]! > y[1]! || (x[1] === y[1] && x[2]! >= y[2]!)))) best.set(o.field, o)
+  }
+  return list.map((o) => ({ ...o, current: best.get(o.field)?.id === o.id }))
+}
+
+function summaryOf(a: Asset): DeviceRow['summary'] {
+  const f = [a.vendor, a.model, a.os].filter((x): x is NonNullable<typeof x> => x !== null)
+  if (!f.length) return null
+  const top = f.reduce((m, x) => (x.confidence > m.confidence ? x : m))
+  return { source: top.source, confidence: Math.min(...f.map((x) => x.confidence)) }
+}
+const findingsOf = (id: string) => findingsStore.get().filter((f) => f.asset_id === id).length
+/** D-45: one gentle scan right after a fragile device is first seen (lowest speed); devices declared by hand are never scanned. */
+const scanInfo = (a: Asset) => ({
+  is_box: a.id === BOX_ID,
+  first_scan_at: a.origin === 'discovered' && a.fragile ? new Date(new Date(a.first_seen).getTime() + 4 * 60_000).toISOString() : null,
+  regular_scan: metaStore.get()[a.id]?.regular_scan ?? ('follow' as RegularScan),
+})
+// Hộp luôn "vừa thấy": nó là máy đang chạy Vedette.
+const live = (a: Asset): Asset => (a.id === BOX_ID ? { ...a, last_seen: nowIso() } : a)
+const toRow = (a: Asset): DeviceRow => ({ ...live(a), ...scanInfo(a), suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), summary: summaryOf(a) })
+const find = (id: string) => allAssets().find((x) => x.id === id)
+const notFound = (_request?: Request) => fail(404, 'not_found', 'No such device. It may have been removed; go back to the list to see the remaining devices.')
+
+function createManual(entry: CatalogEntry | null, o: { version?: string; name?: string; ip?: string; kind?: AssetKind }): Asset {
+  const now = nowIso()
+  const kind = o.kind ?? entry?.kind ?? 'unknown'
+  const a: Asset = {
+    id: newId('a'), site: 'hq', ip: o.ip || '—', mac: null, hostname: o.name || null, kind,
+    vendor: entry ? { value: entry.vendor, source: 'manual', confidence: 1, seen_at: now } : null,
+    model: null, os: null, services: [], first_seen: now, last_seen: now, approved: true, fragile: policyFragile(kind), origin: 'manual',
+    software: entry ? [softwareOf(entry, o.version)] : [],
+  }
+  assetsStore.update((l) => [a, ...l])
+  matchAssetToKev(a.id)
+  return a
+}
+const softwareOf = (e: CatalogEntry, version?: string): Software => ({ id: newId('s'), display: e.display, vendor: e.vendor, product: e.product, version: version || null, kev: e.kev, source: 'manual', confidence: 1 })
+
+const bad = (status: number, code: string, message: string) => ({ status, code, message })
+type AddCheck = { err: ReturnType<typeof bad> } | { err?: undefined; entry: CatalogEntry | undefined; version: string; name: string; ip: string }
+/** Sản phẩm: chọn trong danh mục (catalog_id) hoặc tự nhập hãng + sản phẩm ("không thấy sản phẩm?"). */
+function resolveProduct(b: Partial<AddDeviceInput>): { entry?: CatalogEntry; err?: ReturnType<typeof bad> } {
+  if (b.catalog_id) { const e = findById(b.catalog_id); return e ? { entry: e } : { err: bad(400, 'unknown_product', 'That product is not in the list. Pick one from the suggestions, or enter the vendor and product yourself.') } }
+  const vendor = typeof b.vendor === 'string' ? b.vendor.trim() : ''
+  const product = typeof b.product === 'string' ? b.product.trim() : ''
+  if (!vendor && !product) return {}
+  if (!vendor || !product) return { err: bad(400, 'incomplete_product', 'Enter both the vendor and the product, for example vendor "Fortinet" and product "FortiGate".') }
+  if (!LABEL_RE.test(vendor) || !LABEL_RE.test(product)) return { err: bad(400, 'bad_product', 'Vendor and product are at most 64 characters each and cannot contain < or >.') }
+  return { entry: customEntry(vendor, product) }
+}
+function validateAdd(_request: Request, b: Partial<AddDeviceInput>, requireProduct: boolean): AddCheck {
+  const { entry, err } = resolveProduct(b)
+  if (err) return { err }
+  if (requireProduct && !entry) return { err: bad(400, 'unknown_product', 'Pick a product from the suggestions. Type a vendor or product name, for example "FortiGate".') }
+  const version = typeof b.version === 'string' ? b.version.trim() : ''
+  if (version && !VERSION_RE.test(version)) return { err: bad(400, 'bad_version', 'The version may only contain letters, digits, dots, hyphens and brackets, up to 40 characters. Example 7.2.5.') }
+  const name = typeof b.name === 'string' ? b.name.trim() : ''
+  if (name && !LABEL_RE.test(name)) return { err: bad(400, 'bad_name', 'The name is at most 64 characters and cannot contain < or >.') }
+  const ip = typeof b.ip === 'string' ? b.ip.trim() : ''
+  if (ip && !IPV4_RE.test(ip)) return { err: bad(400, 'bad_ip', 'That IP address is not valid. Enter something like 192.168.10.25, or leave it empty if unknown.') }
+  if (ip) { const dup = allAssets().find((x) => x.ip === ip); if (dup) return { err: bad(409, 'duplicate_ip', `IP ${ip} is already in the list (${dup.hostname ?? dup.id}). Open that device instead of adding a new one.`) } }
+  return { entry, version, name, ip }
+}
+
+// ---- CSV ----
+function csvCell(v: string | number | boolean | null | undefined): string {
+  let s = v === null || v === undefined ? '' : String(v)
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}` // chống CSV injection khi mở bằng Excel
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+/** Excel tiếng Việt thường lưu CSV phân cách bằng dấu chấm phẩy (hoặc tab): đoán theo dòng tiêu đề. */
+function detectDelimiter(text: string): string {
+  const first = text.split(/\r\n|\n|\r/).find((l) => l.trim()) ?? ''
+  const count = (d: string) => first.split(d).length - 1
+  return [';', '\t'].reduce((best, d) => (count(d) > count(best) ? d : best), ',')
+}
+function parseCsv(text: string): string[][] {
+  const delim = detectDelimiter(text)
+  const rows: string[][] = []
+  let row: string[] = []
+  let cell = ''
+  let q = false
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]!
+    if (q) {
+      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++ } else q = false } else cell += c
+    } else if (c === '"') q = true
+    else if (c === delim) { row.push(cell); cell = '' }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = '' }
+    else cell += c
+  }
+  if (cell !== '' || row.length) { row.push(cell); rows.push(row) }
+  return rows
+}
+/** Hạ chữ thường, mọi ký tự lạ thành "_": "IP Address" → ip_address. */
+const fold = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+const HEADER_ALIAS: Record<string, string> = {
+  device: 'name', device_name: 'name', hostname: 'name', host_name: 'name', ip_address: 'ip', address: 'ip', software: 'product', application: 'product',
+  product_name: 'product', ver: 'version', type: 'kind', device_type: 'kind',
+}
+// Nhãn loại như hiển thị trong giao diện ("Wi-Fi (AP)", "Camera recorder") cũng được nhận ngoài khoá (firewall, ap, nvr…).
+const KIND_LABEL: Record<string, AssetKind> = {
+  wi_fi_ap: 'ap', wifi: 'ap', access_point: 'ap', camera_recorder: 'nvr', iot_device: 'iot', website: 'web', laptop: 'pc', computer: 'pc', desktop: 'pc', other: 'unknown',
+}
+const parseKind = (text: string): AssetKind | undefined => { const k = fold(text); return KINDS.find((x) => x === k) ?? KIND_LABEL[k] }
+const MAX_IMPORT_BYTES = 200_000
+const MAX_IMPORT_ROWS = 500
+
+function applyFragilePolicy() {
+  const meta = metaStore.get()
+  const kinds = settingsStore.get().fragile_kinds
+  assetsStore.update((l) => l.map((a) => (meta[a.id]?.fragile_manual ? a : { ...a, fragile: kinds.includes(a.kind) })))
+}
+
+
+const publicWazuh = ({ password: _p, ...rest }: StoredWazuh): WazuhConnection => rest
+const wazuhAgentCount = () => Math.max(allAssets().filter((a) => a.kind === 'server' || a.kind === 'pc').length, 1)
+const INTERVALS = [5, 15, 60, 360, 1440]
+/** Kiểm tra form Wazuh như máy chủ thật sẽ làm; mô phỏng các lỗi hay gặp: sai địa chỉ, không tới được, sai mật khẩu. */
+function checkWazuhInput(b: Partial<WazuhInput>, prev: StoredWazuh | null): { status: number; code: string; message: string } | null {
+  const url = typeof b.url === 'string' ? b.url.trim() : ''
+  let u: URL | null = null
+  try { u = new URL(url) } catch { /* không phải URL */ }
+  if (!u || u.protocol !== 'https:' || !u.hostname || u.username || u.password) return { status: 400, code: 'bad_url', message: 'Enter the Wazuh server API address starting with https://, for example https://wazuh-manager:55000. Do not put the user name or password in it.' }
+  const user = typeof b.username === 'string' ? b.username.trim() : ''
+  if (!/^[\w.@-]{1,64}$/.test(user)) return { status: 400, code: 'bad_username', message: 'Enter the read-only API user name (letters, digits, dot, dash, underscore; up to 64 characters).' }
+  if (!b.password && !prev) return { status: 400, code: 'password_required', message: 'Enter the password of the read-only API user.' }
+  if (b.password && b.password.length > 200) return { status: 400, code: 'bad_password', message: 'The password is too long (up to 200 characters).' }
+  if (!INTERVALS.includes(Number(b.interval_minutes))) return { status: 400, code: 'bad_interval', message: 'Choose how often to sync: every 5, 15, 60, 360 or 1440 minutes.' }
+  if (/unreachable|\.invalid$|(^|\.)down(\.|$)/i.test(u.hostname)) return { status: 502, code: 'wazuh_unreachable', message: `Could not reach ${u.origin}. Check the address and port (55000 by default) and that this box may connect to the Wazuh server.` }
+  if (b.password === 'wrong') return { status: 422, code: 'wazuh_auth', message: 'Wazuh refused the user name or password. Check the read-only API user you created.' }
+  return null
+}
+/** Mô phỏng một lần agent/Wazuh báo về: tới 3 máy chủ hoặc máy tính nhận phần mềm nguồn "agent" (tin cậy cao) và một quan sát hệ điều hành. */
+function injectSample(): { devices: number; software: number } | { err: string } {
+  const targets = allAssets().filter((a) => a.id !== BOX_ID && a.approved && (a.kind === 'server' || a.kind === 'pc')).slice(0, 3)
+  if (!targets.length) return { err: 'There is no server or computer in the device list to match yet. Add a device first, then send sample data.' }
+  let added = 0
+  for (const a of targets) {
+    const windows = /windows/i.test(a.os?.value ?? '') || /windows/i.test(a.hostname ?? '') || a.kind === 'pc'
+    const picks = (windows ? ['Microsoft Office', 'Microsoft Edge'] : ['OpenSSH', 'Apache HTTP Server']).map((n) => findCatalog(n)).filter((e): e is CatalogEntry => !!e)
+    const fresh = picks.filter((e) => !a.software.some((x) => x.product === e.product && x.vendor === e.vendor))
+    const sw: Software[] = fresh.map((e, i) => ({ ...softwareOf(e, windows ? ['2021', '122.0'][i] : ['9.6p1', '2.4.58'][i]), source: 'agent' as const, confidence: 0.95 }))
+    assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: [...x.software, ...sw] } : x)))
+    matchAssetToKev(a.id)
+    addObs(a, 'os', a.os?.value ?? (windows ? 'Windows Server 2019 (build 17763)' : 'Ubuntu 22.04.4 LTS'), 'agent', 0.95)
+    added += sw.length
+  }
+  return { devices: targets.length, software: added }
+}
+
+export const handlers = [
+  // ---- Danh sách thiết bị ----
+  http.get(`${API}/inventory/devices`, () => {
+    const denied = guard('viewer'); if (denied) return denied
+    const items = allAssets().map(toRow)
+    return HttpResponse.json({
+      items,
+      counts: { all: items.length, pending: items.filter((a) => !a.approved).length, fragile: items.filter((a) => a.fragile).length, manual: items.filter((a) => a.origin === 'manual').length },
+      notify_new: notifyStore.get().enabled,
+      notify_available: isOn('notify'),
+    } satisfies DevicesResponse)
+  }),
+
+  http.get(`${API}/inventory/catalog`, ({ request }) => {
+    const denied = guard('viewer'); if (denied) return denied
+    const q = (new URL(request.url).searchParams.get('q') ?? '').slice(0, 80)
+    const r = searchCatalog(q, 30)
+    return HttpResponse.json({
+      items: r.items.map((c) => ({ id: c.id, display: c.display, hint: c.hint, category: c.category, vendor: c.vendor, product: c.product, kind: c.kind, version_hint: c.version_hint, kev_cves: c.kev_count })),
+      total: r.total,
+    })
+  }),
+
+  // S-INV-2: ≤3 bấm — Khai thiết bị, chọn gợi ý, Thêm.
+  http.post(`${API}/inventory/devices`, async ({ request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const v = validateAdd(request, await body<AddDeviceInput>(request), true)
+    if (v.err) return fail(v.err.status, v.err.code, v.err.message)
+    const a = createManual(v.entry!, v)
+    audit('inventory.add_manual', v.entry!.display, v.ip || undefined)
+    return HttpResponse.json({ id: a.id, display: v.entry!.display, kev_cves: v.entry!.kev_count } satisfies AddDeviceResult, { status: 201 })
+  }),
+
+  http.get(`${API}/inventory/devices/:id`, ({ params, request }) => {
+    const denied = guard('viewer'); if (denied) return denied
+    const a = find(String(params.id))
+    if (!a) return notFound(request)
+    const software: SoftwareView[] = a.software.map((s) => ({ id: s.id, display: s.display, vendor: s.vendor, product: s.product, version: s.version, source: s.source, confidence: s.confidence, kev_cves: cvesFor(s.kev) }))
+    const observations = markCurrent(obsOf(a)).sort((x, y) => FIELD_ORDER.indexOf(x.field) - FIELD_ORDER.indexOf(y.field) || new Date(y.seen_at).getTime() - new Date(x.seen_at).getTime())
+    return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), observations, kinds: KINDS } satisfies DeviceDetail)
+  }),
+
+  http.patch(`${API}/inventory/devices/:id`, async ({ params, request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const a = find(String(params.id))
+    if (!a) return notFound(request)
+    const b = await body<{ kind: AssetKind; fragile: boolean; regular_scan: RegularScan; notes: string }>(request)
+    const patch: Partial<Asset> = {}
+    if (b.regular_scan !== undefined) {
+      if (!['follow', 'allow', 'never'].includes(b.regular_scan)) return fail(400, 'bad_regular_scan', 'Regular scans must be: follow type setting, allow or never.')
+      metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], regular_scan: b.regular_scan } }))
+      audit('inventory.set_regular_scan', a.hostname ?? a.id, b.regular_scan)
+    }
+    if (b.kind !== undefined) {
+      if (!KINDS.includes(b.kind)) return fail(400, 'bad_kind', `Device type must be one of: ${KINDS.join(', ')}.`)
+      if (b.kind !== a.kind) {
+        addObs(a, 'kind', b.kind, 'manual', 1)
+        patch.kind = b.kind
+        if (!metaStore.get()[a.id]?.fragile_manual) patch.fragile = policyFragile(b.kind)
+        audit('inventory.set_kind', a.hostname ?? a.id, `${a.kind} → ${b.kind}`)
+      }
+    }
+    if (b.fragile !== undefined) {
+      if (typeof b.fragile !== 'boolean') return fail(400, 'bad_fragile', 'fragile must be true or false.')
+      patch.fragile = b.fragile
+      metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], fragile_manual: true } }))
+      audit('inventory.set_fragile', a.hostname ?? a.id, String(b.fragile))
+    }
+    if (b.notes !== undefined) {
+      if (typeof b.notes !== 'string' || b.notes.length > 2000) return fail(400, 'bad_notes', 'Notes are at most 2000 characters.')
+      patch.notes = b.notes
+      audit('inventory.set_notes', a.hostname ?? a.id)
+    }
+    assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, ...patch } : x)))
+    return HttpResponse.json({ ok: true })
+  }),
+
+  http.delete(`${API}/inventory/devices/:id`, ({ params, request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const a = find(String(params.id))
+    if (!a) return notFound(request)
+    if (a.id === BOX_ID) return fail(409, 'box_device', 'This is the Vedette box itself, so it cannot be deleted. It is always the first device in the list. Its packages come from the box.')
+    assetsStore.update((l) => l.filter((x) => x.id !== a.id))
+    metaStore.update((m) => { const { [a.id]: _gone, ...rest } = m; return rest })
+    obsStore.update((m) => { const { [a.id]: _gone, ...rest } = m; return rest })
+    // Phát hiện gắn thiết bị đã xoá không còn nghĩa: gỡ cùng lúc để không còn phát hiện mồ côi (supervisor).
+    const orphaned = findingsStore.get().filter((f) => f.asset_id === a.id).length
+    if (orphaned) findingsStore.update((l) => l.filter((f) => f.asset_id !== a.id))
+    audit('inventory.delete', a.hostname ?? a.ip, orphaned ? `${a.id}; removed ${orphaned} findings of the device` : a.id)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // S-INV-3
+  http.post(`${API}/inventory/devices/:id/approve`, ({ params, request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const a = find(String(params.id))
+    if (!a) return notFound(request)
+    assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, approved: true } : x)))
+    metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], suspicious: false } }))
+    audit('inventory.approve', a.hostname ?? a.ip, a.id)
+    return HttpResponse.json({ ok: true })
+  }),
+
+  http.post(`${API}/inventory/devices/:id/suspicious`, async ({ params, request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const a = find(String(params.id))
+    if (!a) return notFound(request)
+    const b = await body<{ suspicious: boolean }>(request)
+    if (typeof b.suspicious !== 'boolean') return fail(400, 'bad_flag', 'suspicious must be true or false.')
+    metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], suspicious: b.suspicious } }))
+    audit(b.suspicious ? 'inventory.mark_suspicious' : 'inventory.unmark_suspicious', a.hostname ?? a.ip, a.id)
+    return HttpResponse.json({ ok: true })
+  }),
+
+  http.post(`${API}/inventory/devices/:id/software`, async ({ params, request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const a = find(String(params.id))
+    if (!a) return notFound(request)
+    const v = validateAdd(request, { ...(await body<AddDeviceInput>(request)), ip: '' }, true)
+    if (v.err) return fail(v.err.status, v.err.code, v.err.message)
+    if (a.software.some((s) => s.product === v.entry!.product && s.vendor === v.entry!.vendor && s.display === v.entry!.display)) return fail(409, 'duplicate_software', `${v.entry!.display} is already on this device. To change the version, remove it and add it again.`)
+    const sw = softwareOf(v.entry!, v.version)
+    assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: [...x.software, sw] } : x)))
+    matchAssetToKev(a.id)
+    audit('inventory.add_software', `${a.hostname ?? a.id}: ${sw.display}`)
+    return HttpResponse.json({ kev_cves: v.entry!.kev_count }, { status: 201 })
+  }),
+
+  http.delete(`${API}/inventory/devices/:id/software/:sid`, ({ params, request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const a = find(String(params.id))
+    if (!a) return notFound(request)
+    const sw = a.software.find((s) => s.id === params.sid)
+    if (!sw) return fail(404, 'not_found', 'No such software on this device.')
+    if (sw.source !== 'manual') return fail(400, 'not_manual', 'Only manually declared software can be removed. Software seen by a sensor or agent updates on the next scan.')
+    assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: x.software.filter((s) => s.id !== sw.id) } : x)))
+    audit('inventory.remove_software', `${a.hostname ?? a.id}: ${sw.display}`)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.put(`${API}/inventory/notify-new`, async ({ request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const b = await body<{ enabled: boolean }>(request)
+    if (typeof b.enabled !== 'boolean') return fail(400, 'bad_flag', 'enabled must be true or false.')
+    notifyStore.set({ enabled: b.enabled })
+    audit('inventory.notify_new', b.enabled ? 'on' : 'off')
+    return HttpResponse.json({ enabled: b.enabled })
+  }),
+
+  // ---- CSV ----
+  http.get(`${API}/inventory/export.csv`, () => {
+    const denied = guard('viewer'); if (denied) return denied
+    const head = ['name', 'ip', 'mac', 'kind', 'vendor', 'model', 'os', 'software', 'approved', 'fragile', 'origin', 'source', 'confidence', 'last_seen']
+    const lines = allAssets().map((a) => {
+      const s = summaryOf(a)
+      return [a.hostname ?? '', hasIp(a) ? a.ip : '', a.mac ?? '', a.kind, a.vendor?.value, a.model?.value, a.os?.value, a.software.map((x) => `${x.display}${x.version ? ` ${x.version}` : ''}`).join('; '), a.approved ? 'yes' : 'no', a.fragile ? 'yes' : 'no', a.origin, s?.source, s ? s.confidence.toFixed(2) : '', a.last_seen].map(csvCell).join(',')
+    })
+    audit('inventory.export', 'devices.csv', `${lines.length} rows`)
+    return new HttpResponse(`﻿${[head.join(','), ...lines].join('\r\n')}\r\n`, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename=vedette-devices.csv' } })
+  }),
+
+  http.get(`${API}/inventory/import-template.csv`, () => {
+    const denied = guard('viewer'); if (denied) return denied
+    const text = 'name,ip,product,version,kind\r\nBranch firewall,192.168.30.1,FortiGate,7.2.5,firewall\r\nCompany website,,WordPress,6.5.2,web\r\n'
+    return new HttpResponse(`﻿${text}`, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename=vedette-devices-template.csv' } })
+  }),
+
+  http.post(`${API}/inventory/import`, async ({ request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const b = await body<{ filename: string; size: number; text: string }>(request)
+    if (typeof b.text !== 'string' || !b.text.trim()) return fail(400, 'empty_file', 'The file is empty. Download the template, fill in your devices and choose it again.')
+    if (b.text.length > MAX_IMPORT_BYTES) return fail(400, 'too_large', `The file is too large (max ${MAX_IMPORT_BYTES / 1000} KB). Split it into smaller files.`)
+    const table = parseCsv(b.text.replace(/^\uFEFF/, ''))
+    const hi = table.findIndex((r) => r.some((c) => c.trim())) // bỏ dòng trống đầu file
+    const header = (table[hi] ?? []).map((h) => { const k = fold(h); return HEADER_ALIAS[k] ?? k })
+    if (!header.includes('name') && !header.includes('product')) return fail(400, 'bad_header', 'The first row must be column headers with at least a name or product column. Download the template to see the format.')
+    const data = table.slice(hi + 1)
+    if (data.length > MAX_IMPORT_ROWS) return fail(400, 'too_many_rows', `At most ${MAX_IMPORT_ROWS} rows per import. This file has ${data.length} rows.`)
+    const res: ImportResult = { created: 0, skipped: 0, errors: [] }
+    const seenIps = new Set<string>()
+    const seenNames = new Set<string>()
+    const noIpNames = new Set(allAssets().filter((a) => !hasIp(a) && a.hostname).map((a) => a.hostname!.toLowerCase()))
+    data.forEach((cells, i) => {
+      const line = hi + i + 2
+      if (cells.every((c) => !c.trim())) return
+      // Excel tắt công thức bằng dấu ' đứng trước (xem csvCell khi xuất): bỏ lại khi nhập.
+      const get = (k: string) => (cells[header.indexOf(k)] ?? '').trim().replace(/^'(?=[=+\-@])/, '')
+      const err = (message: string) => { res.errors.push({ line, message }); res.skipped++ }
+      const productText = get('product')
+      const entry = productText ? findCatalog(productText) : undefined
+      if (productText && !entry) return err(`Product "${productText.slice(0, 40)}" not recognised. Use names as in the suggestion box when declaring by hand, for example FortiGate, Synology, WordPress.`)
+      if (!productText && !get('name')) return err('This row has neither name nor product. At least one is needed.')
+      const kindText = get('kind')
+      const kind = kindText ? parseKind(kindText) : undefined
+      if (kindText && !kind) return err(`Type "${kindText.slice(0, 20)}" is not valid. Use one of: ${KINDS.join(', ')}.`)
+      const v = validateAdd(request, { catalog_id: entry?.id, version: get('version'), name: get('name'), ip: get('ip') }, false)
+      if (v.err) return err(v.err.message)
+      if (v.ip) { if (seenIps.has(v.ip)) return err(`IP ${v.ip} appears twice in the file.`); seenIps.add(v.ip) }
+      else if (v.name) {
+        // Nhập lại file vừa xuất: thiết bị chưa có IP không được nhân đôi.
+        const key = v.name.toLowerCase()
+        if (noIpNames.has(key) || seenNames.has(key)) return err(`A device named "${v.name.slice(0, 40)}" (no IP yet) is already in the list. Add an IP to this row if it is a different device.`)
+        seenNames.add(key)
+      }
+      createManual(entry ?? null, { version: v.version, name: v.name, ip: v.ip, kind })
+      res.created++
+    })
+    audit('inventory.import', b.filename ? String(b.filename).slice(0, 80) : 'csv', `${res.created} devices, ${res.errors.length} errors`)
+    return HttpResponse.json(res)
+  }),
+
+  // ---- Phạm vi và cảm biến (admin) ----
+  http.get(`${API}/inventory/settings`, () => {
+    const denied = guard('admin'); if (denied) return denied
+    return HttpResponse.json(loadSettings())
+  }),
+
+  http.put(`${API}/inventory/settings`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<SettingsInput>(request)
+    const adjusted: { from: string; to: string }[] = []
+    // "192.168.18.5/24" được đưa về "192.168.18.0/24" (phản hồi nói rõ đã đổi gì); địa chỉ không có /prefix bị từ chối bên dưới, không đoán.
+    const ranges = Array.isArray(b.lan_ranges) ? [...new Set(b.lan_ranges.map((x) => { const raw = String(x).trim(); const n = normalizeRange(raw); if (n.value !== raw) adjusted.push({ from: raw, to: n.value }); return n.value }))] : null
+    if (!ranges) return fail(400, 'bad_ranges', 'The list of network ranges is missing.')
+    if (ranges.length > 16) return fail(400, 'too_many_ranges', 'At most 16 network ranges.')
+    for (const r of ranges) {
+      if (IPV4_RE.test(r)) return fail(400, 'no_prefix', `"${r}" has no prefix length. Add it so Vedette scans the right size of network, for example ${r}/24 or ${r}/25.`)
+      if (!CIDR_RE.test(r)) return fail(400, 'bad_cidr', `"${r.slice(0, 30)}" is not a valid network range. Enter something like 192.168.10.0/24.`)
+      if (hasHostBits(r)) return fail(400, 'host_bits', `Range ${r} is not written correctly: the address part must be the first address of the range. Use ${cidrRange(r).network}.`)
+      if (!isPrivateCidr(r)) return fail(400, 'public_range', `${r} is not an internal range (10.x, 172.16-31.x, 192.168.x). To scan public addresses, add them under External exposure after verifying ownership.`)
+      const clash = overlapping(r, ranges)
+      if (clash) return fail(400, 'overlap_range', `Range ${r} overlaps ${clash}. Keep the larger range and drop the smaller one.`)
+    }
+    const act = b.active
+    if (!act || typeof act.enabled !== 'boolean') return fail(400, 'bad_active', 'Active scan settings are missing.')
+    if (!Array.isArray(act.days) || act.days.some((d) => !Number.isInteger(d) || d < 1 || d > 7)) return fail(400, 'bad_days', 'Scan days must be Monday to Sunday.')
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(act.from) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(act.to)) return fail(400, 'bad_time', 'Time must look like 23:00.')
+    if (act.from === act.to) return fail(400, 'bad_window', 'Start and end time cannot be the same.')
+    if (!Number.isInteger(act.rate) || act.rate < 1 || act.rate > 1000) return fail(400, 'bad_rate', 'Scan rate is 1 to 1000 packets per second.')
+    const excl = Array.isArray(act.exclusions) ? act.exclusions.map((x) => String(x).trim()) : []
+    for (const x of excl) if ((!IPV4_RE.test(x) && !CIDR_RE.test(x)) || (CIDR_RE.test(x) && hasHostBits(x))) return fail(400, 'bad_exclusion', `Exclusion "${x.slice(0, 30)}" is not valid. Enter an IP (192.168.10.10) or a valid range (192.168.10.0/28).`)
+    if (act.enabled && act.days.length === 0) return fail(400, 'no_days', 'Choose at least one day for the scan window, or turn active scanning off.')
+    if (act.enabled && ranges.length === 0) return fail(400, 'no_ranges', 'Active scanning needs at least one network range.')
+    if (act.enabled && b.scope_confirmed !== true) return fail(400, 'scope_not_confirmed', 'Tick the confirmation that these network ranges belong to your company and you are allowed to scan them. Vedette only scans within the confirmed scope.')
+    const kinds = Array.isArray(b.fragile_kinds) ? b.fragile_kinds : null
+    if (!kinds || kinds.some((k) => !KINDS.includes(k))) return fail(400, 'bad_kinds', 'The list of fragile device types is not valid.')
+    const regular = Array.isArray(b.regular_scan_kinds) ? b.regular_scan_kinds : []
+    if (regular.some((k) => !KINDS.includes(k))) return fail(400, 'bad_kinds', 'The list of device types for regular scans is not valid.')
+    const prev = loadSettings()
+    const confirmedNow = b.scope_confirmed === true
+    const next: InventorySettings = {
+      lan_ranges: ranges, fragile_kinds: [...new Set(kinds)], regular_scan_kinds: [...new Set(regular)].filter((k) => kinds.includes(k)),
+      active: { enabled: act.enabled, days: [...new Set(act.days)].sort(), from: act.from, to: act.to, rate: act.rate, exclusions: [...new Set(excl)] },
+      scope_confirmed_at: confirmedNow ? (prev.scope_confirmed_at && sameSet(prev.lan_ranges, ranges) ? prev.scope_confirmed_at : nowIso()) : null,
+      scope_confirmed_by: confirmedNow ? (prev.scope_confirmed_at && sameSet(prev.lan_ranges, ranges) ? prev.scope_confirmed_by : (currentUser()?.email ?? null)) : null,
+    }
+    settingsStore.set(next)
+    applyFragilePolicy()
+    audit('inventory.settings', 'scan scope', `${ranges.length} ranges, active scanning ${act.enabled ? 'on' : 'off'}`)
+    return HttpResponse.json({ ...next, adjusted })
+  }),
+
+  http.get(`${API}/inventory/sensors`, () => {
+    const denied = guard('admin'); if (denied) return denied
+    return HttpResponse.json({ sensors: sensorsStore.get() })
+  }),
+
+  http.patch(`${API}/inventory/sensors/:id`, async ({ params, request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const s = sensorsStore.get().find((x) => x.id === params.id)
+    if (!s) return fail(404, 'not_found', 'No such sensor.')
+    const b = await body<{ interface: string; span: boolean }>(request)
+    if (b.interface !== undefined && !s.interfaces.includes(b.interface)) return fail(400, 'bad_interface', `Network interface must be one of: ${s.interfaces.join(', ')}.`)
+    if (b.span !== undefined && typeof b.span !== 'boolean') return fail(400, 'bad_span', 'span must be true or false.')
+    sensorsStore.update((l) => l.map((x) => (x.id === s.id ? { ...x, interface: b.interface ?? x.interface, span: b.span ?? x.span } : x)))
+    audit('inventory.sensor_update', s.name, `${b.interface ?? s.interface}, SPAN ${(b.span ?? s.span) ? 'on' : 'off'}`)
+    return HttpResponse.json({ ok: true })
+  }),
+
+  // ---- Agent (S-INV-4) ----
+  http.get(`${API}/inventory/agents`, async () => {
+    const denied = guard('admin'); if (denied) return denied
+    const w = wazuhStore.get()
+    return HttpResponse.json({ install: await installers(), tokens: agentsStore.get(), server_url: serverUrl(), wazuh: w ? publicWazuh(w) : null })
+  }),
+
+  // Công khai (không bí mật): script do hộp phục vụ; SHA-256 hiện trong giao diện tính đúng trên nội dung này.
+  http.get(`${API}/install/osquery.sh`, () => new HttpResponse(linuxInstallScript(serverUrl(), MOCK_CA), { headers: { 'Content-Type': 'text/x-shellscript; charset=utf-8' } })),
+  http.get(`${API}/install/osquery.ps1`, () => new HttpResponse(windowsInstallScript(serverUrl(), MOCK_CA), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })),
+
+  // Script cài hỏi trạng thái bằng token trong header (không bao giờ trong URL). Token chỉ cho phép việc này và đăng ký osquery.
+  http.post(`${API}/intake/osquery/status`, ({ request }) => {
+    const m = /^Bearer (vdt_osquery_[a-z0-9]{32})$/.exec(request.headers.get('authorization') ?? '')
+    const t = m ? agentsStore.get().find((x) => x.last4 === m[1]!.slice(-4)) : undefined
+    if (!t) return fail(403, 'invalid_token', 'This enrollment token is not valid. Create a new one in Vedette.')
+    if (expired(t)) return fail(403, 'token_expired', 'This enrollment token has expired. Create a new one in Vedette.')
+    return HttpResponse.json({ enrolled: t.last_received !== null, hosts: t.hosts })
+  }),
+
+  http.post(`${API}/inventory/agents/tokens`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<{ name: string; kind?: string; expires_in_days?: number }>(request)
+    const name = String(b.name ?? '').trim()
+    if (!LABEL_RE.test(name)) return fail(400, 'bad_name', 'Name the token so you remember which machines use it, up to 64 characters. Example "osquery on SRV-AD".')
+    if (b.kind !== undefined && b.kind !== 'osquery') return fail(400, 'bad_kind', 'Only osquery uses a token. To use Wazuh, connect its API instead.')
+    const days = b.expires_in_days === undefined ? 7 : Number(b.expires_in_days)
+    if (!Number.isInteger(days) || days < 0 || days > 365) return fail(400, 'bad_expiry', 'Choose how long the token works: 1 to 365 days, or 0 for no expiry.')
+    const secret = `vdt_osquery_${rand(32, 'abcdefghijkmnpqrstuvwxyz23456789')}`
+    const token: AgentToken = { id: newId('tk'), name, kind: 'osquery', last4: secret.slice(-4), created_at: nowIso(), last_received: null, hosts: 0, expires_at: days === 0 ? null : new Date(Date.now() + days * 864e5).toISOString() }
+    agentsStore.update((l) => [...l, token])
+    audit('inventory.agent_token_create', name, `osquery, ${days === 0 ? 'no expiry' : `expires in ${days} days`}`)
+    return HttpResponse.json({ token, secret }, { status: 201 })
+  }),
+
+  http.delete(`${API}/inventory/agents/tokens/:id`, ({ params }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const t = agentsStore.get().find((x) => x.id === params.id)
+    if (!t) return fail(404, 'not_found', 'No such token.')
+    agentsStore.update((l) => l.filter((x) => x.id !== t.id))
+    audit('inventory.agent_token_revoke', t.name)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // CHỈ BẢN XEM THỬ: bản thật có agent báo về. Ở đây giả lập một lần báo về để người dùng thấy tác dụng.
+  http.post(`${API}/inventory/agents/tokens/:id/sample-data`, ({ params }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const t = agentsStore.get().find((x) => x.id === params.id)
+    if (!t) return fail(404, 'not_found', 'No such token.')
+    if (expired(t)) return fail(403, 'token_expired', 'This enrollment token has expired. Create a new one and run the install command again.')
+    const r = injectSample()
+    if ('err' in r) return fail(409, 'no_devices', r.err)
+    agentsStore.update((l) => l.map((x) => (x.id === t.id ? { ...x, last_received: nowIso(), hosts: r.devices } : x)))
+    audit('inventory.agent_enroll', t.name, `sample data: ${r.devices} devices, ${r.software} software`)
+    return HttpResponse.json({ devices: r.devices, software: r.software })
+  }),
+
+  http.post(`${API}/inventory/agents/wazuh/test`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<WazuhInput>(request)
+    const bad = checkWazuhInput(b, wazuhStore.get())
+    if (bad) return fail(bad.status, bad.code, bad.message)
+    return HttpResponse.json({ ok: true as const, version: '4.9.2', agents: wazuhAgentCount() })
+  }),
+
+  http.put(`${API}/inventory/agents/wazuh`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<Partial<WazuhInput>>(request)
+    const prev = wazuhStore.get()
+    const bad = checkWazuhInput(b, prev)
+    if (bad) return fail(bad.status, bad.code, bad.message)
+    const password = b.password ? b.password : prev!.password
+    const conn: StoredWazuh = {
+      url: (b.url ?? '').trim().replace(/\/+$/, ''), username: (b.username ?? '').trim(), password, password_last4: password.slice(-4), interval_minutes: Number(b.interval_minutes),
+      status: prev?.status ?? 'never', last_sync: prev?.last_sync ?? null, agents: prev?.agents ?? 0, packages: prev?.packages ?? 0, error: null,
+    }
+    wazuhStore.set(conn)
+    audit('inventory.wazuh_connect', conn.url, `user ${conn.username}, every ${conn.interval_minutes} min`)
+    return HttpResponse.json(publicWazuh(conn))
+  }),
+
+  http.delete(`${API}/inventory/agents/wazuh`, () => {
+    const denied = guard('admin'); if (denied) return denied
+    if (!wazuhStore.get()) return fail(404, 'not_found', 'Wazuh is not connected.')
+    wazuhStore.set(null)
+    audit('inventory.wazuh_disconnect', 'Wazuh')
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.post(`${API}/inventory/agents/wazuh/sample-data`, () => {
+    const denied = guard('admin'); if (denied) return denied
+    const w = wazuhStore.get()
+    if (!w) return fail(404, 'not_found', 'Connect Wazuh first.')
+    const r = injectSample()
+    if ('err' in r) return fail(409, 'no_devices', r.err)
+    wazuhStore.set({ ...w, status: 'connected', last_sync: nowIso(), agents: r.devices, packages: r.software * 40 + 120, error: null })
+    audit('inventory.wazuh_sample_data', w.url, `${r.devices} devices, ${r.software} software`)
+    return HttpResponse.json({ devices: r.devices, software: r.software })
+  }),
+]
+
+function sameSet(a: string[], b: string[]) { return a.length === b.length && a.every((x) => b.includes(x)) }
+
+// Dùng chung trong lớp mock (supervisor): module scan đọc dải mạng và xác nhận phạm vi từ đây.
+export { settingsStore as inventorySettingsStore }

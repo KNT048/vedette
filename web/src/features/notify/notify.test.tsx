@@ -1,0 +1,361 @@
+import { describe, expect, it } from 'vitest'
+import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { http, HttpResponse } from 'msw'
+import { MemoryRouter } from 'react-router'
+import { Toaster } from 'sonner'
+import { makeQueryClient } from '@/app/App'
+import { renderApp, expectNoA11yViolations } from '@/test/render'
+import { server } from '@/test/server'
+import { auditStore, modulesStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
+import type { Role } from '@/lib/session'
+import ChannelsSettings from './ChannelsSettings'
+
+const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
+function renderChannels(role: Role = 'admin') {
+  orgStore.update((o) => ({ ...o, setup_complete: true }))
+  sessionStore.set({ userId: USER[role] })
+  return render(<MemoryRouter><QueryClientProvider client={makeQueryClient()}><ChannelsSettings /><Toaster /></QueryClientProvider></MemoryRouter>)
+}
+const getJson = async (path: string) => (await fetch(`${location.origin}/api/v1${path}`)).json() as Promise<Record<string, unknown>>
+/** Button is disabled until the role is known: wait until it is enabled, then press. */
+async function press(name: string | RegExp) {
+  await waitFor(() => expect(screen.getByRole('button', { name })).toBeEnabled())
+  await userEvent.click(screen.getByRole('button', { name }))
+}
+const TOKEN = '8123456789:AAHnewTokenForVedette_1234567890abcdefXY7z'
+
+describe('notify: incidents (S-ALERT-3, D-52)', () => {
+  it('the heading counts new incidents; the list has trap, bad address and log anomaly, no vulnerabilities; no a11y violations', async () => {
+    renderApp('/incidents')
+    expect(await screen.findByRole('heading', { level: 1, name: '3 new incidents' })).toBeInTheDocument()
+    const table = await screen.findByRole('table', { name: 'Incidents' })
+    expect(within(table).getAllByRole('row')).toHaveLength(5)
+    expect(within(table).getByRole('link', { name: 'PC-HR-01 touched the SMB trap on FILESRV-OLD' })).toHaveAttribute('href', '/incidents/al-4')
+    expect(within(table).getByRole('link', { name: 'PC-HR-01' })).toHaveAttribute('href', '/devices/a-pc07')
+    expect(within(table).getByText('Internal trap touched')).toBeInTheDocument()
+    expect(within(table).getByText('Connection to a known-bad address')).toBeInTheDocument()
+    expect(within(table).getByText('Log anomaly')).toBeInTheDocument()
+    expect(within(table).getByText('14×')).toBeInTheDocument()
+    expect(within(table).getByText('Email failed')).toBeInTheDocument()
+    expect(within(table).getAllByText(/^Telegram \d\d:\d\d$/).length).toBeGreaterThan(0)
+    expect(screen.queryByText('QNAP Photo Station')).not.toBeInTheDocument()
+    expect(within(table).queryByText(/Vulnerabilit/)).not.toBeInTheDocument()
+    await expectNoA11yViolations()
+  })
+
+  it('every row has a Respond link carrying the incident id', async () => {
+    renderApp('/incidents')
+    const table = await screen.findByRole('table', { name: 'Incidents' })
+    expect(within(table).getByRole('link', { name: 'Respond to PC-HR-01 touched the SMB trap on FILESRV-OLD' })).toHaveAttribute('href', '/response?incident=al-4')
+  })
+
+  it('the All filter also shows resolved and acknowledged incidents; the kind filter narrows', async () => {
+    renderApp('/incidents')
+    await screen.findByRole('table', { name: 'Incidents' })
+    expect(screen.queryByText(/192\.168\.10\.157 touched/)).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /^All$/ }))
+    expect(await screen.findByText('192.168.10.157 touched the RDP trap on FILESRV-OLD')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Trap touches' }))
+    expect(within(screen.getByRole('table', { name: 'Incidents' })).getAllByRole('row')).toHaveLength(3)
+  })
+
+  it('detail: what happened, first and last seen, count, who responded; message text per channel; Respond link', async () => {
+    renderApp('/incidents/al-4')
+    expect(await screen.findByRole('heading', { level: 1, name: 'PC-HR-01 touched the SMB trap on FILESRV-OLD' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Respond' })).toHaveAttribute('href', '/response?incident=al-4')
+    expect(screen.getByRole('link', { name: 'Open trap touch' })).toHaveAttribute('href', '/honeypot/hits/hit-seed-1')
+    expect(screen.getByRole('link', { name: 'PC-HR-01' })).toHaveAttribute('href', '/devices/a-pc07')
+    expect(screen.getByText('Times seen')).toBeInTheDocument()
+    expect(screen.getByText('3×')).toBeInTheDocument()
+    const tg = await screen.findByRole('figure', { name: 'Telegram' })
+    expect(tg).toHaveTextContent('Critical: PC-HR-01 touched the SMB trap on FILESRV-OLD')
+    expect(tg).toHaveTextContent('Device: PC-HR-01 (192.168.10.107)')
+    expect(tg).toHaveTextContent('What to do first: Take the machine off the network')
+    expect(tg).toHaveTextContent('https://192.168.10.250/incidents/al-4')
+    expect(screen.queryByText('Vulnerability IDs')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('table', { name: 'Delivery log of the incident' })).getAllByText('Sent')).toHaveLength(1)
+    await expectNoA11yViolations()
+  })
+
+  it('bad-address detail shows the failed email with the reason', async () => {
+    renderApp('/incidents/al-6')
+    expect(await screen.findByRole('link', { name: 'Open related logs' })).toHaveAttribute('href', '/logs')
+    expect(within(screen.getByRole('table', { name: 'Delivery log of the incident' })).getByText(/The SMTP server rejected the login/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: 'Email' }))
+    expect(await screen.findByRole('figure', { name: 'Email' })).toHaveTextContent('Subject: [Vedette] High: PC-SALES-02 connected to 185.220.101.47')
+  })
+
+  it('acknowledge, then resolve with a note, then reopen', async () => {
+    renderApp('/incidents/al-4', { role: 'operator' })
+    await press('Acknowledge')
+    expect(await screen.findByText(/Acknowledged by it@acme\.example/)).toBeInTheDocument()
+    await userEvent.type(await screen.findByLabelText('Note (optional)'), 'Machine is clean')
+    await press('Resolve')
+    expect(await screen.findByText(/Resolved by it@acme\.example/)).toBeInTheDocument()
+    expect(screen.getByText(/Note: Machine is clean/)).toBeInTheDocument()
+    expect(auditStore.get().some((e) => e.action === 'notify.incident_status' && e.detail?.includes('resolved'))).toBe(true)
+    await userEvent.click(screen.getByRole('button', { name: 'Reopen' }))
+    expect(await screen.findByRole('button', { name: 'Acknowledge' })).toBeInTheDocument()
+  })
+
+  it('a viewer can read but not acknowledge or resolve', async () => {
+    renderApp('/incidents/al-4', { role: 'viewer' })
+    expect(await screen.findByRole('button', { name: 'Acknowledge' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Resolve' })).toBeDisabled()
+    const res = await fetch(`${location.origin}/api/v1/notify/incidents/al-4`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'resolved' }) })
+    expect(res.status).toBe(403)
+  })
+
+  it('an unknown incident says so', async () => {
+    renderApp('/incidents/al-zzz')
+    expect(await screen.findByText(/No such incident/)).toBeInTheDocument()
+  })
+
+  it('no open incidents: the empty state shows what to do', async () => {
+    server.use(http.get('*/api/v1/notify/incidents', () => HttpResponse.json({ incidents: [] })))
+    renderApp('/incidents')
+    expect(await screen.findByRole('heading', { level: 1, name: 'No new incidents' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Set up alert channels' })).toHaveAttribute('href', '/settings/channels')
+  })
+
+  it('an API error shows the message and a retry button', async () => {
+    server.use(http.get('*/api/v1/notify/incidents', () => HttpResponse.json({ error: { code: 'x', message: 'The incident list could not be read.' } }, { status: 500 })))
+    renderApp('/incidents')
+    expect(await screen.findByText('The incident list could not be read.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+
+  it('notify module off: says where to turn it on', async () => {
+    modulesStore.update((l) => l.map((m) => (m.id === 'notify' ? { ...m, enabled: false } : m)))
+    renderApp('/incidents')
+    expect(await screen.findByText(/module is off/)).toBeInTheDocument()
+  })
+
+  it('the incident list holds no vulnerability kind', async () => {
+    const res = await getJsonAfterLogin('/notify/incidents')
+    for (const i of res.incidents as { kind: string }[]) expect(['trap', 'bad_address', 'log_anomaly', 'unknown_device']).toContain(i.kind)
+  })
+})
+
+describe('notify: old /alerts links (D-52)', () => {
+  it('/alerts goes to /incidents', async () => {
+    renderApp('/alerts')
+    expect(await screen.findByRole('table', { name: 'Incidents' })).toBeInTheDocument()
+  })
+  it('/alerts/:id of an incident goes to the incident', async () => {
+    renderApp('/alerts/al-4')
+    expect(await screen.findByRole('heading', { level: 1, name: /touched the SMB trap/ })).toBeInTheDocument()
+  })
+  it('/alerts/:id of an old vulnerability alert goes to the finding', async () => {
+    const res = await getJsonAfterLogin('/notify/alerts/al-1/target')
+    expect(res.to).toBe('/findings/f-1')
+  })
+})
+
+describe('notify: vulnerability notices on the finding (S-ALERT-1)', () => {
+  it('the finding shows where it was sent and a failure with its reason', async () => {
+    renderApp('/findings/f-2')
+    expect(await screen.findByText(/Notified: Telegram \d\d:\d\d, Email \(failed: The SMTP server rejected the login/)).toBeInTheDocument()
+  })
+  it('a finding that was never notified shows no panel', async () => {
+    const res = await getJsonAfterLogin('/notify/findings/f-zzz/notices')
+    expect(res.sends).toEqual([])
+  })
+})
+
+describe('notify: delivery history (S-NOT-1, D-52)', () => {
+  it('Settings, Alert channels lists every message of every kind, with the meta line', async () => {
+    renderChannels()
+    const table = await screen.findByRole('table', { name: 'Sent messages' })
+    expect(within(table).getAllByText('Incident').length).toBeGreaterThan(0)
+    expect(within(table).getAllByText('Vulnerability').length).toBeGreaterThan(0)
+    expect(within(table).getByText('Approval request')).toBeInTheDocument()
+    expect(screen.getByText(/Vedette only alerts for products you own/)).toBeInTheDocument()
+    await expectNoA11yViolations()
+  })
+
+  it('Send again repeats a failed message and adds a row', async () => {
+    renderChannels()
+    const table = await screen.findByRole('table', { name: 'Sent messages' })
+    const before = within(table).getAllByRole('row').length
+    const btn = within(table).getAllByRole('button', { name: 'Send again via Email' })[0]!
+    await waitFor(() => expect(btn).toBeEnabled())
+    await userEvent.click(btn)
+    await waitFor(() => expect(within(screen.getByRole('table', { name: 'Sent messages' })).getAllByRole('row').length).toBe(before + 1))
+    expect(auditStore.get().some((e) => e.action === 'notify.resend')).toBe(true)
+  })
+})
+
+describe('notify: alert channels (S-NOT-1)', () => {
+  it('lists 6 channels with their status, no a11y violations', async () => {
+    renderChannels()
+    const table = await screen.findByRole('table', { name: 'Alert channels' })
+    expect(within(table).getAllByRole('row')).toHaveLength(7)
+    expect(within(table).getAllByText('On')).toHaveLength(3)
+    expect(within(table).getAllByText('Not set up')).toHaveLength(3)
+    expect(screen.getByText(/leaves the box only to the channels you turn on here/)).toBeInTheDocument()
+    await expectNoA11yViolations()
+  })
+
+  it('the API never returns a full secret, only the last 4 characters', async () => {
+    renderChannels()
+    await screen.findByRole('table', { name: 'Alert channels' })
+    const res = await getJson('/notify/channels')
+    const tg = (res.channels as { type: string; secret_last4: string }[]).find((c) => c.type === 'telegram')!
+    expect(tg.secret_last4).toBe('0000')
+    expect(JSON.stringify(res)).not.toContain('EXAMPLE_not_a_real')
+    expect(JSON.stringify(res)).not.toContain('MatKhauMau')
+  })
+
+  it('set up Telegram: a wrong token is refused, a right one is saved with only the last 4 characters shown, then a test is sent', async () => {
+    renderChannels()
+    await press('Edit Telegram')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Telegram' })
+    const secret = within(dlg).getByLabelText('Bot token')
+    expect(secret).toHaveAttribute('type', 'password')
+    expect(within(dlg).getByText('Saved, ending in 0000. Leave empty to keep it.')).toBeInTheDocument()
+    await userEvent.type(secret, 'not-a-token')
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    expect(await within(dlg).findByRole('alert')).toHaveTextContent('A bot token looks like 123456789:AAH')
+    await userEvent.clear(secret)
+    await userEvent.type(secret, TOKEN)
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    expect((await screen.findAllByText('Channel Telegram saved.')).length).toBeGreaterThan(0)
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    const tg = ((await getJson('/notify/channels')).channels as { type: string; secret_last4: string }[]).find((c) => c.type === 'telegram')!
+    expect(tg.secret_last4).toBe(TOKEN.slice(-4))
+    await userEvent.click(screen.getByRole('button', { name: 'Send test Telegram' }))
+    expect((await screen.findAllByText(/Telegram received the test message/)).length).toBeGreaterThan(0)
+    expect(auditStore.get().some((e) => e.action === 'notify.channel_test' && e.target === 'telegram')).toBe(true)
+  })
+
+  it('Zalo OA: the access token is required on first save, a full form can be turned on', async () => {
+    renderChannels()
+    await press('Set up Zalo OA')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Zalo OA' })
+    await userEvent.type(within(dlg).getByLabelText('OA ID'), '12345')
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    expect(await within(dlg).findByRole('alert')).toHaveTextContent('OA ID is a string of digits')
+    await userEvent.clear(within(dlg).getByLabelText('OA ID'))
+    await userEvent.type(within(dlg).getByLabelText('OA ID'), '1234567890')
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    expect(await within(dlg).findByRole('alert')).toHaveTextContent('Zalo recipient ID (user_id)')
+    await userEvent.type(within(dlg).getByLabelText('Recipient ID (user_id)'), '2468013579')
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    expect(await within(dlg).findByRole('alert')).toHaveTextContent('Enter the access token')
+    await userEvent.type(within(dlg).getByLabelText('Access token'), 'zalo-access-token-0123456789-abcdef')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save and send test' }))
+    expect((await screen.findAllByText(/Zalo OA 1234567890 sent the test message to recipient 2468013579/)).length).toBeGreaterThan(0)
+    const z = ((await getJson('/notify/channels')).channels as { type: string; configured: boolean; secret_last4: string }[]).find((c) => c.type === 'zalo')!
+    expect(z).toMatchObject({ configured: true, secret_last4: 'cdef' })
+  })
+
+  it('SMTP email: recipients are checked at the boundary', async () => {
+    renderChannels()
+    await press('Edit Email')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Email' })
+    const to = within(dlg).getByLabelText('Send to')
+    await userEvent.clear(to)
+    await userEvent.type(to, 'it@acme.example, not-an-email')
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    expect(await within(dlg).findByRole('alert')).toHaveTextContent('A recipient email is not valid')
+  })
+
+  it('webhook: generate a random key and save; an unreachable host makes the test fail with advice', async () => {
+    renderChannels()
+    await press('Set up Webhook')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Webhook' })
+    await userEvent.type(within(dlg).getByLabelText('Webhook URL'), 'https://hooks.khong-co.invalid/vedette')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Generate random' }))
+    expect((within(dlg).getByLabelText('Signing key') as HTMLInputElement).value).toMatch(/^[0-9a-f]{48}$/)
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save and send test' }))
+    expect((await screen.findAllByText(/Could not connect to hooks\.khong-co\.invalid/)).length).toBeGreaterThan(0)
+    await press('Send test Webhook')
+    expect(await screen.findByText(/Tested .*: failed/)).toBeInTheDocument()
+  })
+
+  it('removing a channel also deletes its saved key', async () => {
+    renderChannels()
+    await press('Remove channel Email')
+    const dlg = await screen.findByRole('dialog', { name: 'Remove channel Email?' })
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Delete' }))
+    await waitFor(async () => {
+      const em = ((await getJson('/notify/channels')).channels as { type: string; configured: boolean; secret_last4: string | null }[]).find((c) => c.type === 'email')!
+      expect(em).toMatchObject({ configured: false, secret_last4: null })
+    })
+  })
+
+  it('two-step email codes: the channels API counts the users; turning the email channel off or removing it warns first', async () => {
+    const setCodeUsers = (ids: string[]) => usersStore.update((l) => l.map((x) => (ids.includes(x.id) ? { ...x, twofa: true, twofa_method: 'email' as const } : x)))
+    expect((await getJsonAfterLogin('/notify/channels')).email_code_users).toBe(0)
+    setCodeUsers(['u-op', 'u-view'])
+    expect((await getJsonAfterLogin('/notify/channels')).email_code_users).toBe(2)
+    renderChannels()
+    // turn the email channel off in the edit dialog: a confirm names the count; "Keep editing" changes nothing
+    await press('Edit Email')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Email' })
+    await userEvent.click(within(dlg).getByRole('switch', { name: 'Turn this channel on' }))
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    const warn = await screen.findByRole('dialog', { name: 'Turn off the email channel?' })
+    expect(warn).toHaveTextContent('2 users sign in with email codes. They will not be able to sign in until this channel is back on or an administrator resets their two-step sign-in.')
+    await userEvent.click(within(warn).getByRole('button', { name: 'Keep editing' }))
+    expect(((await getJson('/notify/channels')).channels as { type: string; enabled: boolean }[]).find((c) => c.type === 'email')!.enabled).toBe(true)
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Turn off the email channel?' })).getByRole('button', { name: 'Turn off anyway' }))
+    await waitFor(async () => expect(((await getJson('/notify/channels')).channels as { type: string; enabled: boolean }[]).find((c) => c.type === 'email')!.enabled).toBe(false))
+  })
+
+  it('removing the email channel names the affected user (singular); no warning when nobody uses email codes', async () => {
+    renderChannels()
+    await press('Remove channel Email')
+    const none = await screen.findByRole('dialog', { name: 'Remove channel Email?' })
+    expect(within(none).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('removing the email channel with one email-code user shows the warning in the dialog', async () => {
+    usersStore.update((l) => l.map((x) => (x.id === 'u-op' ? { ...x, twofa: true, twofa_method: 'email' as const } : x)))
+    renderChannels()
+    await press('Remove channel Email')
+    const dlg = await screen.findByRole('dialog', { name: 'Remove channel Email?' })
+    expect(within(dlg).getByRole('alert')).toHaveTextContent('1 user signs in with email codes. They will not be able to sign in until this channel is back on or an administrator resets their two-step sign-in.')
+  })
+
+  it('save quiet hours and grouping; identical times are refused', async () => {
+    renderChannels()
+    await screen.findByRole('table', { name: 'Alert channels' })
+    await waitFor(() => expect(screen.getByLabelText('Until')).toBeEnabled())
+    const to = screen.getByLabelText('Until')
+    await userEvent.clear(to)
+    await userEvent.type(to, '22:00')
+    await userEvent.click(screen.getByRole('button', { name: 'Save quiet hours and grouping' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('The start and end times must not be the same')
+    await userEvent.clear(to)
+    await userEvent.type(to, '07:00')
+    await userEvent.selectOptions(screen.getByLabelText('Grouping window'), '240')
+    await userEvent.click(screen.getByRole('button', { name: 'Save quiet hours and grouping' }))
+    expect((await screen.findAllByText('Quiet hours and grouping saved.')).length).toBeGreaterThan(0)
+    const res = await getJson('/notify/channels')
+    expect(res.quiet).toMatchObject({ from: '22:00', to: '07:00', allow_critical: true })
+    expect(res.grouping).toMatchObject({ window_min: 240 })
+  })
+
+  it('an operator cannot read channel settings (admins only)', async () => {
+    renderChannels('operator')
+    expect(await screen.findByText('Your account is not allowed to do this.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Set up|Edit/ })).not.toBeInTheDocument()
+  })
+
+  it('an API error shows the message and a retry button', async () => {
+    server.use(http.get('*/api/v1/notify/channels', () => HttpResponse.json({ error: { code: 'x', message: 'The channel settings could not be read.' } }, { status: 500 })))
+    renderChannels()
+    expect(await screen.findByText('The channel settings could not be read.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+})
+
+async function getJsonAfterLogin(path: string) {
+  sessionStore.set({ userId: 'u-admin' })
+  return getJson(path)
+}

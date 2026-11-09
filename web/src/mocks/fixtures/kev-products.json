@@ -1,0 +1,5133 @@
+[
+ {
+  "vendor": "7-Zip",
+  "product": "7-Zip",
+  "kev_count": 1,
+  "last_added": "2025-02-06",
+  "ransomware": false
+ },
+ {
+  "vendor": "Accellion",
+  "product": "FTA",
+  "kev_count": 4,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Acclaim Systems",
+  "product": "USAHERDS",
+  "kev_count": 1,
+  "last_added": "2024-12-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "Acronis",
+  "product": "Backup",
+  "kev_count": 1,
+  "last_added": "2026-09-16",
+  "ransomware": false
+ },
+ {
+  "vendor": "Acronis",
+  "product": "Cyber Infrastructure (ACI)",
+  "kev_count": 1,
+  "last_added": "2024-07-29",
+  "ransomware": false
+ },
+ {
+  "vendor": "Adminer",
+  "product": "Adminer",
+  "kev_count": 1,
+  "last_added": "2025-09-29",
+  "ransomware": false
+ },
+ {
+  "vendor": "Adobe",
+  "product": "Acrobat",
+  "kev_count": 1,
+  "last_added": "2026-04-13",
+  "ransomware": false
+ },
+ {
+  "vendor": "Adobe",
+  "product": "Acrobat and Reader",
+  "kev_count": 13,
+  "last_added": "2026-05-20",
+  "ransomware": true
+ },
+ {
+  "vendor": "Adobe",
+  "product": "Acrobat and Reader, Flash Player",
+  "kev_count": 1,
+  "last_added": "2022-06-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "Adobe",
+  "product": "BlazeDS",
+  "kev_count": 1,
+  "last_added": "2022-03-07",
+  "ransomware": true
+ },
+ {
+  "vendor": "Adobe",
+  "product": "ColdFusion",
+  "kev_count": 16,
+  "last_added": "2026-07-07",
+  "ransomware": true
+ },
+ {
+  "vendor": "Adobe",
+  "product": "Commerce and Magento",
+  "kev_count": 3,
+  "last_added": "2026-10-27",
+  "ransomware": false
+ },
+ {
+  "vendor": "Adobe",
+  "product": "Commerce and Magento",
+  "kev_count": 1,
+  "last_added": "2025-10-24",
+  "ransomware": false
+ },
+ {
+  "vendor": "Adobe",
+  "product": "Commerce and Magento Open Source",
+  "kev_count": 2,
+  "last_added": "2024-07-17",
+  "ransomware": false
+ },
+ {
+  "vendor": "Adobe",
+  "product": "Experience Manager (AEM) Forms",
+  "kev_count": 1,
+  "last_added": "2025-10-15",
+  "ransomware": false
+ },
+ {
+  "vendor": "Adobe",
+  "product": "Flash Player",
+  "kev_count": 33,
+  "last_added": "2024-09-17",
+  "ransomware": true
+ },
+ {
+  "vendor": "Adobe",
+  "product": "Flash Player and AIR",
+  "kev_count": 2,
+  "last_added": "2022-05-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Adobe",
+  "product": "Reader",
+  "kev_count": 1,
+  "last_added": "2022-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Adobe",
+  "product": "Reader and Acrobat",
+  "kev_count": 8,
+  "last_added": "2022-06-08",
+  "ransomware": true
+ },
+ {
+  "vendor": "Advantive",
+  "product": "VeraCore",
+  "kev_count": 2,
+  "last_added": "2025-03-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "Ahsay",
+  "product": "AhsayCBS",
+  "kev_count": 2,
+  "last_added": "2026-10-14",
+  "ransomware": false
+ },
+ {
+  "vendor": "Ajax.NET Professional",
+  "product": "Ajax.NET Professional",
+  "kev_count": 1,
+  "last_added": "2026-08-26",
+  "ransomware": false
+ },
+ {
+  "vendor": "Alcatel",
+  "product": "OmniPCX Enterprise",
+  "kev_count": 1,
+  "last_added": "2022-04-15",
+  "ransomware": false
+ },
+ {
+  "vendor": "Amcrest",
+  "product": "Cameras and Network Video Recorder (NVR)",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "AMI",
+  "product": "MegaRAC SPx",
+  "kev_count": 1,
+  "last_added": "2025-06-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Android",
+  "product": "Android Kernel",
+  "kev_count": 2,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Android",
+  "product": "Android OS",
+  "kev_count": 1,
+  "last_added": "2022-09-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "Android",
+  "product": "Framework",
+  "kev_count": 6,
+  "last_added": "2026-06-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "Android",
+  "product": "Kernel",
+  "kev_count": 3,
+  "last_added": "2024-08-07",
+  "ransomware": false
+ },
+ {
+  "vendor": "Android",
+  "product": "Pixel",
+  "kev_count": 4,
+  "last_added": "2024-06-13",
+  "ransomware": false
+ },
+ {
+  "vendor": "Android",
+  "product": "Runtime",
+  "kev_count": 1,
+  "last_added": "2025-09-04",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apache",
+  "product": "ActiveMQ",
+  "kev_count": 3,
+  "last_added": "2026-04-16",
+  "ransomware": true
+ },
+ {
+  "vendor": "Apache",
+  "product": "Airflow",
+  "kev_count": 1,
+  "last_added": "2022-01-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apache",
+  "product": "Airflow's Experimental API",
+  "kev_count": 1,
+  "last_added": "2022-01-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apache",
+  "product": "Apache",
+  "kev_count": 1,
+  "last_added": "2021-12-01",
+  "ransomware": true
+ },
+ {
+  "vendor": "Apache",
+  "product": "APISIX",
+  "kev_count": 1,
+  "last_added": "2022-08-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apache",
+  "product": "CouchDB",
+  "kev_count": 1,
+  "last_added": "2022-08-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apache",
+  "product": "Flink",
+  "kev_count": 1,
+  "last_added": "2024-05-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apache",
+  "product": "HTTP Server",
+  "kev_count": 4,
+  "last_added": "2025-05-01",
+  "ransomware": true
+ },
+ {
+  "vendor": "Apache",
+  "product": "HugeGraph-Server",
+  "kev_count": 1,
+  "last_added": "2024-09-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apache",
+  "product": "Kylin",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apache",
+  "product": "Log4j2",
+  "kev_count": 2,
+  "last_added": "2023-05-01",
+  "ransomware": true
+ },
+ {
+  "vendor": "Apache",
+  "product": "OFBiz",
+  "kev_count": 3,
+  "last_added": "2025-02-04",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apache",
+  "product": "RocketMQ",
+  "kev_count": 1,
+  "last_added": "2023-09-06",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apache",
+  "product": "Shiro",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apache",
+  "product": "Solr",
+  "kev_count": 2,
+  "last_added": "2021-12-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apache",
+  "product": "Spark",
+  "kev_count": 1,
+  "last_added": "2023-03-07",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apache",
+  "product": "Struts",
+  "kev_count": 6,
+  "last_added": "2026-10-08",
+  "ransomware": true
+ },
+ {
+  "vendor": "Apache",
+  "product": "Struts 1",
+  "kev_count": 2,
+  "last_added": "2022-02-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apache",
+  "product": "Struts 2",
+  "kev_count": 1,
+  "last_added": "2022-01-21",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apache",
+  "product": "Superset",
+  "kev_count": 1,
+  "last_added": "2024-01-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apache",
+  "product": "Tomcat",
+  "kev_count": 6,
+  "last_added": "2026-08-04",
+  "ransomware": true
+ },
+ {
+  "vendor": "Apple",
+  "product": "iOS",
+  "kev_count": 8,
+  "last_added": "2022-12-14",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apple",
+  "product": "iOS and iPadOS",
+  "kev_count": 5,
+  "last_added": "2026-03-05",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apple",
+  "product": "iOS and macOS",
+  "kev_count": 4,
+  "last_added": "2022-08-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apple",
+  "product": "iOS, iPadOS, and macOS",
+  "kev_count": 11,
+  "last_added": "2025-08-21",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apple",
+  "product": "iOS, iPadOS, and watchOS",
+  "kev_count": 4,
+  "last_added": "2023-09-11",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apple",
+  "product": "iOS, macOS, watchOS",
+  "kev_count": 1,
+  "last_added": "2022-08-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apple",
+  "product": "macOS",
+  "kev_count": 6,
+  "last_added": "2026-08-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apple",
+  "product": "Multiple Products",
+  "kev_count": 55,
+  "last_added": "2026-11-04",
+  "ransomware": false
+ },
+ {
+  "vendor": "Apple",
+  "product": "OS X",
+  "kev_count": 2,
+  "last_added": "2022-02-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "Aquasecurity",
+  "product": "Trivy",
+  "kev_count": 1,
+  "last_added": "2026-03-26",
+  "ransomware": false
+ },
+ {
+  "vendor": "Arcadyan",
+  "product": "Buffalo Firmware",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Arcserve",
+  "product": "Unified Data Protection (UDP)",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Arista",
+  "product": "Extensible Operating System",
+  "kev_count": 1,
+  "last_added": "2026-06-09",
+  "ransomware": false
+ },
+ {
+  "vendor": "Arista",
+  "product": "VeloCloud Orchestrator",
+  "kev_count": 3,
+  "last_added": "2026-10-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "Arm",
+  "product": "Mali GPU Kernel Driver",
+  "kev_count": 2,
+  "last_added": "2024-06-12",
+  "ransomware": false
+ },
+ {
+  "vendor": "Arm",
+  "product": "Mali Graphics Processing Unit (GPU)",
+  "kev_count": 6,
+  "last_added": "2023-07-07",
+  "ransomware": false
+ },
+ {
+  "vendor": "Arm",
+  "product": "Trusted Firmware",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Array Networks",
+  "product": "AG/vxAG ArrayOS",
+  "kev_count": 1,
+  "last_added": "2024-11-25",
+  "ransomware": true
+ },
+ {
+  "vendor": "Array Networks",
+  "product": "ArrayOS AG",
+  "kev_count": 1,
+  "last_added": "2025-12-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "Artifex",
+  "product": "Ghostscript",
+  "kev_count": 1,
+  "last_added": "2022-05-24",
+  "ransomware": false
+ },
+ {
+  "vendor": "ASUS",
+  "product": "Live Update",
+  "kev_count": 1,
+  "last_added": "2025-12-17",
+  "ransomware": false
+ },
+ {
+  "vendor": "ASUS",
+  "product": "Routers",
+  "kev_count": 1,
+  "last_added": "2025-06-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "ASUS",
+  "product": "RT-AX55 Routers",
+  "kev_count": 1,
+  "last_added": "2025-06-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "Atlassian",
+  "product": "Bitbucket Server and Data Center",
+  "kev_count": 1,
+  "last_added": "2022-09-30",
+  "ransomware": false
+ },
+ {
+  "vendor": "Atlassian",
+  "product": "Confluence",
+  "kev_count": 1,
+  "last_added": "2022-07-29",
+  "ransomware": false
+ },
+ {
+  "vendor": "Atlassian",
+  "product": "Confluence Data Center and Server",
+  "kev_count": 3,
+  "last_added": "2024-01-24",
+  "ransomware": true
+ },
+ {
+  "vendor": "Atlassian",
+  "product": "Confluence Server",
+  "kev_count": 1,
+  "last_added": "2022-03-28",
+  "ransomware": true
+ },
+ {
+  "vendor": "Atlassian",
+  "product": "Confluence Server and Data Center",
+  "kev_count": 2,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Atlassian",
+  "product": "Confluence Server and Data Server",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Atlassian",
+  "product": "Confluence Server/Data Center",
+  "kev_count": 1,
+  "last_added": "2022-06-02",
+  "ransomware": true
+ },
+ {
+  "vendor": "Atlassian",
+  "product": "Crowd and Crowd Data Center",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Atlassian",
+  "product": "Jira Server and Data Center",
+  "kev_count": 2,
+  "last_added": "2024-11-12",
+  "ransomware": false
+ },
+ {
+  "vendor": "Atlassian",
+  "product": "Multiple Products",
+  "kev_count": 1,
+  "last_added": "2026-10-15",
+  "ransomware": false
+ },
+ {
+  "vendor": "Audinate",
+  "product": "Dante Discovery",
+  "kev_count": 1,
+  "last_added": "2025-02-06",
+  "ransomware": false
+ },
+ {
+  "vendor": "Aviatrix",
+  "product": "Aviatrix Controller",
+  "kev_count": 1,
+  "last_added": "2022-01-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "Aviatrix",
+  "product": "Controllers",
+  "kev_count": 1,
+  "last_added": "2025-01-16",
+  "ransomware": false
+ },
+ {
+  "vendor": "Balbooa",
+  "product": "Forms",
+  "kev_count": 1,
+  "last_added": "2026-07-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "Barracuda Networks",
+  "product": "Email Security Gateway (ESG) Appliance",
+  "kev_count": 1,
+  "last_added": "2023-05-26",
+  "ransomware": false
+ },
+ {
+  "vendor": "BerriAI",
+  "product": "LiteLLM",
+  "kev_count": 3,
+  "last_added": "2026-09-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "BeyondTrust",
+  "product": "Privileged Remote Access (PRA) and Remote Support (RS)",
+  "kev_count": 2,
+  "last_added": "2025-01-13",
+  "ransomware": false
+ },
+ {
+  "vendor": "BeyondTrust",
+  "product": "Remote Support",
+  "kev_count": 1,
+  "last_added": "2026-10-16",
+  "ransomware": false
+ },
+ {
+  "vendor": "BeyondTrust",
+  "product": "Remote Support (RS) and Privileged Remote Access (PRA)",
+  "kev_count": 1,
+  "last_added": "2026-02-13",
+  "ransomware": true
+ },
+ {
+  "vendor": "BQE",
+  "product": "BillQuick Web Suite",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Broadcom",
+  "product": "Brocade Fabric OS",
+  "kev_count": 1,
+  "last_added": "2025-04-28",
+  "ransomware": false
+ },
+ {
+  "vendor": "Broadcom",
+  "product": "VMware Aria Operations",
+  "kev_count": 1,
+  "last_added": "2026-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Broadcom",
+  "product": "VMware Aria Operations and VMware Tools",
+  "kev_count": 1,
+  "last_added": "2025-10-30",
+  "ransomware": false
+ },
+ {
+  "vendor": "Broadcom",
+  "product": "VMware ESX",
+  "kev_count": 1,
+  "last_added": "2026-10-28",
+  "ransomware": false
+ },
+ {
+  "vendor": "Broadcom",
+  "product": "VMware vCenter",
+  "kev_count": 1,
+  "last_added": "2026-08-18",
+  "ransomware": true
+ },
+ {
+  "vendor": "Broadcom",
+  "product": "VMware vCenter Server",
+  "kev_count": 1,
+  "last_added": "2026-01-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cacti",
+  "product": "Cacti",
+  "kev_count": 1,
+  "last_added": "2023-02-16",
+  "ransomware": false
+ },
+ {
+  "vendor": "ChakraCore",
+  "product": "ChakraCore scripting engine",
+  "kev_count": 1,
+  "last_added": "2022-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Check Point",
+  "product": "Multiple Products",
+  "kev_count": 2,
+  "last_added": "2026-09-22",
+  "ransomware": false
+ },
+ {
+  "vendor": "Check Point",
+  "product": "Quantum Security Gateways",
+  "kev_count": 1,
+  "last_added": "2024-05-30",
+  "ransomware": true
+ },
+ {
+  "vendor": "Check Point",
+  "product": "Security Gateway",
+  "kev_count": 1,
+  "last_added": "2026-06-08",
+  "ransomware": true
+ },
+ {
+  "vendor": "Check Point",
+  "product": "SmartConsole",
+  "kev_count": 1,
+  "last_added": "2026-07-22",
+  "ransomware": false
+ },
+ {
+  "vendor": "Checkbox",
+  "product": "Checkbox Survey",
+  "kev_count": 1,
+  "last_added": "2022-04-11",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Adaptive Security Appliance (ASA)",
+  "kev_count": 4,
+  "last_added": "2024-11-12",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Adaptive Security Appliance (ASA) and Firepower Threat Defense (FTD)",
+  "kev_count": 6,
+  "last_added": "2024-10-24",
+  "ransomware": true
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Adaptive Security Appliance and Firepower Threat Defense",
+  "kev_count": 1,
+  "last_added": "2023-09-13",
+  "ransomware": true
+ },
+ {
+  "vendor": "Cisco",
+  "product": "AnyConnect Secure",
+  "kev_count": 2,
+  "last_added": "2022-10-24",
+  "ransomware": true
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Catalyst 4500 Series Switches and Cisco Catalyst 4500-X Series Switches",
+  "kev_count": 1,
+  "last_added": "2022-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Catalyst 6800 Series Switches",
+  "kev_count": 1,
+  "last_added": "2022-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Catalyst SD-WAN",
+  "kev_count": 1,
+  "last_added": "2026-05-14",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Catalyst SD-WAN Controller and Manager",
+  "kev_count": 1,
+  "last_added": "2026-02-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Catalyst SD-WAN Manager",
+  "kev_count": 5,
+  "last_added": "2026-09-30",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Catalyst SD-WAN Manger",
+  "kev_count": 1,
+  "last_added": "2026-04-20",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Cisco IOS XE Web UI",
+  "kev_count": 1,
+  "last_added": "2023-10-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Cisco IP Phones",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "HyperFlex HX",
+  "kev_count": 2,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Identity Services Engine",
+  "kev_count": 3,
+  "last_added": "2026-09-16",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "IOS",
+  "kev_count": 2,
+  "last_added": "2026-07-13",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "IOS and IOS XE",
+  "kev_count": 4,
+  "last_added": "2025-09-29",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "IOS and IOS XE Software",
+  "kev_count": 14,
+  "last_added": "2023-04-19",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "IOS Software",
+  "kev_count": 10,
+  "last_added": "2022-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "IOS Software and Cisco IOS XE Software",
+  "kev_count": 3,
+  "last_added": "2022-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "IOS XE Software",
+  "kev_count": 2,
+  "last_added": "2022-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "IOS XE Web UI",
+  "kev_count": 1,
+  "last_added": "2023-10-16",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "IOS XR",
+  "kev_count": 6,
+  "last_added": "2022-05-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "IOS, IOS XR, and IOS XE",
+  "kev_count": 1,
+  "last_added": "2023-05-19",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "IOS, XR, and XE Software",
+  "kev_count": 2,
+  "last_added": "2022-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Multiple Products",
+  "kev_count": 1,
+  "last_added": "2025-12-17",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "NX-OS",
+  "kev_count": 1,
+  "last_added": "2024-07-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Prime Data Center Network Manager (DCNM)",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "RV Series Routers",
+  "kev_count": 1,
+  "last_added": "2022-06-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "SD-WAN",
+  "kev_count": 1,
+  "last_added": "2026-02-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Secure Access Control System (ACS)",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Secure Email Gateway",
+  "kev_count": 2,
+  "last_added": "2026-10-14",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Secure Firewall Adaptive Security Appliance (ASA) and Secure Firewall Threat Defense (FTD)",
+  "kev_count": 1,
+  "last_added": "2026-08-11",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Secure Firewall Adaptive Security Appliance and Secure Firewall Threat Defense",
+  "kev_count": 2,
+  "last_added": "2025-09-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Secure Firewall ASA Software and Cisco Secure FTD Software",
+  "kev_count": 1,
+  "last_added": "2026-10-29",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Secure Firewall Management Center (FMC)",
+  "kev_count": 2,
+  "last_added": "2026-07-29",
+  "ransomware": true
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Secure Firewall Management Center (FMC) and Security Cloud Control (SCC) Firewall Management",
+  "kev_count": 1,
+  "last_added": "2026-09-09",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Small Business RV Series Routers",
+  "kev_count": 1,
+  "last_added": "2025-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Small Business RV160, RV260, RV340, and RV345 Series Routers",
+  "kev_count": 5,
+  "last_added": "2022-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Small Business RV320 and RV325 Dual Gigabit WAN VPN Routers",
+  "kev_count": 1,
+  "last_added": "2022-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Small Business RV320 and RV325 Routers",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Smart Licensing Utility",
+  "kev_count": 1,
+  "last_added": "2025-03-31",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "Unified Communications Manager",
+  "kev_count": 2,
+  "last_added": "2026-06-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Cisco",
+  "product": "VPN Routers",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Citrix",
+  "product": "Application Delivery Controller (ADC) and Gateway",
+  "kev_count": 1,
+  "last_added": "2022-12-13",
+  "ransomware": false
+ },
+ {
+  "vendor": "Citrix",
+  "product": "Application Delivery Controller (ADC), Gateway, and SD-WAN WANOP Appliance",
+  "kev_count": 4,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Citrix",
+  "product": "Content Collaboration",
+  "kev_count": 1,
+  "last_added": "2023-08-16",
+  "ransomware": false
+ },
+ {
+  "vendor": "Citrix",
+  "product": "NetScaler",
+  "kev_count": 6,
+  "last_added": "2026-10-04",
+  "ransomware": false
+ },
+ {
+  "vendor": "Citrix",
+  "product": "NetScaler ADC and Gateway",
+  "kev_count": 2,
+  "last_added": "2025-07-10",
+  "ransomware": true
+ },
+ {
+  "vendor": "Citrix",
+  "product": "NetScaler ADC and NetScaler Gateway",
+  "kev_count": 5,
+  "last_added": "2026-08-26",
+  "ransomware": true
+ },
+ {
+  "vendor": "Citrix",
+  "product": "NetScaler SD-WAN Enterprise, CloudBridge Virtual WAN, and XenMobile Server",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Citrix",
+  "product": "SD-WAN and NetScaler",
+  "kev_count": 2,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Citrix",
+  "product": "Session Recording",
+  "kev_count": 2,
+  "last_added": "2025-08-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Citrix",
+  "product": "ShareFile",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": true
+ },
+ {
+  "vendor": "Citrix",
+  "product": "StoreFront Server",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Citrix",
+  "product": "Workspace Application and Receiver for Windows",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Cleo",
+  "product": "Multiple Products",
+  "kev_count": 2,
+  "last_added": "2024-12-17",
+  "ransomware": true
+ },
+ {
+  "vendor": "Code Aurora",
+  "product": "ACDB Audio Driver",
+  "kev_count": 1,
+  "last_added": "2022-09-15",
+  "ransomware": false
+ },
+ {
+  "vendor": "Collabora",
+  "product": "Collabora Online – Built-in CODE Server",
+  "kev_count": 1,
+  "last_added": "2026-10-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "Commvault",
+  "product": "Command Center",
+  "kev_count": 1,
+  "last_added": "2025-05-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "Commvault",
+  "product": "Web Server",
+  "kev_count": 1,
+  "last_added": "2025-04-28",
+  "ransomware": false
+ },
+ {
+  "vendor": "ConnectWise",
+  "product": "ScreenConnect",
+  "kev_count": 4,
+  "last_added": "2026-09-11",
+  "ransomware": true
+ },
+ {
+  "vendor": "Craft CMS",
+  "product": "Craft CMS",
+  "kev_count": 4,
+  "last_added": "2026-03-20",
+  "ransomware": false
+ },
+ {
+  "vendor": "Crestron",
+  "product": "Multiple Products",
+  "kev_count": 1,
+  "last_added": "2022-04-15",
+  "ransomware": false
+ },
+ {
+  "vendor": "CrushFTP",
+  "product": "CrushFTP",
+  "kev_count": 3,
+  "last_added": "2025-07-22",
+  "ransomware": true
+ },
+ {
+  "vendor": "CWP",
+  "product": "Control Web Panel",
+  "kev_count": 2,
+  "last_added": "2025-11-04",
+  "ransomware": false
+ },
+ {
+  "vendor": "CyberPersons",
+  "product": "CyberPanel",
+  "kev_count": 2,
+  "last_added": "2024-12-04",
+  "ransomware": true
+ },
+ {
+  "vendor": "D-Link",
+  "product": "DCS-2530L and DCS-2670L Devices",
+  "kev_count": 2,
+  "last_added": "2025-08-05",
+  "ransomware": false
+ },
+ {
+  "vendor": "D-Link",
+  "product": "DCS-930L Devices",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "D-Link",
+  "product": "DIR-300 Router",
+  "kev_count": 1,
+  "last_added": "2022-09-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "D-Link",
+  "product": "DIR-600 Router",
+  "kev_count": 1,
+  "last_added": "2024-05-16",
+  "ransomware": false
+ },
+ {
+  "vendor": "D-Link",
+  "product": "DIR-605 Router",
+  "kev_count": 1,
+  "last_added": "2024-05-16",
+  "ransomware": false
+ },
+ {
+  "vendor": "D-Link",
+  "product": "DIR-610 Devices",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "D-Link",
+  "product": "DIR-645 Router",
+  "kev_count": 1,
+  "last_added": "2022-02-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "D-Link",
+  "product": "DIR-820 Router",
+  "kev_count": 1,
+  "last_added": "2024-09-30",
+  "ransomware": false
+ },
+ {
+  "vendor": "D-Link",
+  "product": "DIR-820L",
+  "kev_count": 1,
+  "last_added": "2022-09-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "D-Link",
+  "product": "DIR-823X",
+  "kev_count": 1,
+  "last_added": "2026-04-24",
+  "ransomware": false
+ },
+ {
+  "vendor": "D-Link",
+  "product": "DIR-825 R1 Devices",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "D-Link",
+  "product": "DIR-859 Router",
+  "kev_count": 2,
+  "last_added": "2025-06-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "D-Link",
+  "product": "DNR-322L",
+  "kev_count": 1,
+  "last_added": "2025-08-05",
+  "ransomware": false
+ },
+ {
+  "vendor": "D-Link",
+  "product": "DNS-320 Device",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "D-Link",
+  "product": "DNS-320 Storage Device",
+  "kev_count": 1,
+  "last_added": "2022-04-15",
+  "ransomware": true
+ },
+ {
+  "vendor": "D-Link",
+  "product": "DSL-2750B Devices",
+  "kev_count": 1,
+  "last_added": "2024-01-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "D-Link",
+  "product": "DSL-2760U",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "D-Link",
+  "product": "DWL-2600AP Access Point",
+  "kev_count": 1,
+  "last_added": "2023-06-29",
+  "ransomware": false
+ },
+ {
+  "vendor": "D-Link",
+  "product": "Multiple NAS Devices",
+  "kev_count": 2,
+  "last_added": "2024-04-11",
+  "ransomware": false
+ },
+ {
+  "vendor": "D-Link",
+  "product": "Multiple Routers",
+  "kev_count": 3,
+  "last_added": "2022-09-08",
+  "ransomware": true
+ },
+ {
+  "vendor": "D-Link",
+  "product": "Routers",
+  "kev_count": 1,
+  "last_added": "2025-12-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "D-Link and TRENDnet",
+  "product": "Multiple Devices",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Daemon",
+  "product": "Daemon Tools Lite",
+  "kev_count": 1,
+  "last_added": "2026-05-27",
+  "ransomware": false
+ },
+ {
+  "vendor": "Dahua",
+  "product": "IP Camera Firmware",
+  "kev_count": 2,
+  "last_added": "2024-08-21",
+  "ransomware": false
+ },
+ {
+  "vendor": "Dasan",
+  "product": "Gigabit Passive Optical Network (GPON) Routers",
+  "kev_count": 2,
+  "last_added": "2022-03-31",
+  "ransomware": true
+ },
+ {
+  "vendor": "Dassault Systèmes",
+  "product": "DELMIA Apriso",
+  "kev_count": 3,
+  "last_added": "2025-10-28",
+  "ransomware": false
+ },
+ {
+  "vendor": "DD-WRT",
+  "product": "DD-WRT",
+  "kev_count": 1,
+  "last_added": "2026-07-21",
+  "ransomware": false
+ },
+ {
+  "vendor": "Dell",
+  "product": "dbutil Driver",
+  "kev_count": 1,
+  "last_added": "2022-03-31",
+  "ransomware": false
+ },
+ {
+  "vendor": "Dell",
+  "product": "RecoverPoint for Virtual Machines (RP4VMs)",
+  "kev_count": 1,
+  "last_added": "2026-02-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "Delta Electronics",
+  "product": "DOPSoft 2",
+  "kev_count": 1,
+  "last_added": "2022-08-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Digiever",
+  "product": "DS-2105 Pro",
+  "kev_count": 1,
+  "last_added": "2025-12-22",
+  "ransomware": false
+ },
+ {
+  "vendor": "Docker",
+  "product": "Desktop Community Edition",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "dotCMS",
+  "product": "dotCMS",
+  "kev_count": 1,
+  "last_added": "2022-08-25",
+  "ransomware": true
+ },
+ {
+  "vendor": "DotNetNuke (DNN)",
+  "product": "DotNetNuke (DNN)",
+  "kev_count": 3,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "DrayTek",
+  "product": "Multiple Vigor Routers",
+  "kev_count": 2,
+  "last_added": "2024-09-30",
+  "ransomware": false
+ },
+ {
+  "vendor": "DrayTek",
+  "product": "Vigor Routers",
+  "kev_count": 1,
+  "last_added": "2025-05-15",
+  "ransomware": false
+ },
+ {
+  "vendor": "DrayTek",
+  "product": "VigorConnect",
+  "kev_count": 2,
+  "last_added": "2024-09-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Drupal",
+  "product": "Core",
+  "kev_count": 3,
+  "last_added": "2026-05-22",
+  "ransomware": true
+ },
+ {
+  "vendor": "Drupal",
+  "product": "Drupal core",
+  "kev_count": 2,
+  "last_added": "2022-01-18",
+  "ransomware": true
+ },
+ {
+  "vendor": "Edimax",
+  "product": "IC-7100 IP Camera",
+  "kev_count": 1,
+  "last_added": "2025-03-19",
+  "ransomware": false
+ },
+ {
+  "vendor": "EG Secure Solutions",
+  "product": "SiteGuard Server Edition",
+  "kev_count": 1,
+  "last_added": "2026-10-20",
+  "ransomware": false
+ },
+ {
+  "vendor": "Elastic",
+  "product": "Elasticsearch",
+  "kev_count": 2,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Elastic",
+  "product": "Kibana",
+  "kev_count": 1,
+  "last_added": "2022-01-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "Embedthis",
+  "product": "GoAhead",
+  "kev_count": 1,
+  "last_added": "2021-12-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "Erlang",
+  "product": "Erlang/OTP",
+  "kev_count": 1,
+  "last_added": "2025-06-09",
+  "ransomware": false
+ },
+ {
+  "vendor": "Exim",
+  "product": "Exim",
+  "kev_count": 3,
+  "last_added": "2022-03-25",
+  "ransomware": true
+ },
+ {
+  "vendor": "Exim",
+  "product": "Exim Internet Mailer",
+  "kev_count": 1,
+  "last_added": "2022-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Exim",
+  "product": "Mail Transfer Agent (MTA)",
+  "kev_count": 1,
+  "last_added": "2022-01-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "EyesOfNetwork",
+  "product": "EyesOfNetwork",
+  "kev_count": 2,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "F5",
+  "product": "BIG-IP",
+  "kev_count": 3,
+  "last_added": "2026-03-27",
+  "ransomware": true
+ },
+ {
+  "vendor": "F5",
+  "product": "BIG-IP and BIG-IQ Centralized Management",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "F5",
+  "product": "BIG-IP APM",
+  "kev_count": 1,
+  "last_added": "2026-09-22",
+  "ransomware": false
+ },
+ {
+  "vendor": "F5",
+  "product": "BIG-IP Configuration Utility",
+  "kev_count": 2,
+  "last_added": "2023-10-31",
+  "ransomware": true
+ },
+ {
+  "vendor": "F5",
+  "product": "BIG-IP Traffic Management Microkernel",
+  "kev_count": 1,
+  "last_added": "2022-01-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "FatPipe",
+  "product": "WARP, IPVPN, and MPVPN software",
+  "kev_count": 1,
+  "last_added": "2022-01-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "ForgeRock",
+  "product": "Access Management (AM)",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Fortinet",
+  "product": "FortiClient EMS",
+  "kev_count": 3,
+  "last_added": "2026-04-13",
+  "ransomware": true
+ },
+ {
+  "vendor": "Fortinet",
+  "product": "FortiMail",
+  "kev_count": 1,
+  "last_added": "2026-10-01",
+  "ransomware": false
+ },
+ {
+  "vendor": "Fortinet",
+  "product": "FortiManager",
+  "kev_count": 1,
+  "last_added": "2024-10-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "Fortinet",
+  "product": "FortiOS",
+  "kev_count": 9,
+  "last_added": "2026-07-27",
+  "ransomware": true
+ },
+ {
+  "vendor": "Fortinet",
+  "product": "FortiOS and FortiADC",
+  "kev_count": 1,
+  "last_added": "2022-09-08",
+  "ransomware": true
+ },
+ {
+  "vendor": "Fortinet",
+  "product": "FortiOS and FortiProxy",
+  "kev_count": 4,
+  "last_added": "2025-03-18",
+  "ransomware": true
+ },
+ {
+  "vendor": "Fortinet",
+  "product": "FortiOS and FortiProxy SSL-VPN",
+  "kev_count": 1,
+  "last_added": "2023-06-13",
+  "ransomware": true
+ },
+ {
+  "vendor": "Fortinet",
+  "product": "FortiSandbox",
+  "kev_count": 2,
+  "last_added": "2026-07-16",
+  "ransomware": false
+ },
+ {
+  "vendor": "Fortinet",
+  "product": "FortiWeb",
+  "kev_count": 3,
+  "last_added": "2025-11-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "Fortinet",
+  "product": "Multiple Products",
+  "kev_count": 7,
+  "last_added": "2026-10-16",
+  "ransomware": true
+ },
+ {
+  "vendor": "Fortra",
+  "product": "Cobalt Strike",
+  "kev_count": 2,
+  "last_added": "2023-03-30",
+  "ransomware": false
+ },
+ {
+  "vendor": "Fortra",
+  "product": "GoAnywhere MFT",
+  "kev_count": 2,
+  "last_added": "2025-09-29",
+  "ransomware": true
+ },
+ {
+  "vendor": "FreeType",
+  "product": "FreeType",
+  "kev_count": 1,
+  "last_added": "2025-05-06",
+  "ransomware": false
+ },
+ {
+  "vendor": "Fuel CMS",
+  "product": "Fuel CMS",
+  "kev_count": 1,
+  "last_added": "2021-12-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "FXC",
+  "product": "AE1021, AE1021PE",
+  "kev_count": 1,
+  "last_added": "2023-12-21",
+  "ransomware": false
+ },
+ {
+  "vendor": "GeoVision",
+  "product": "Multiple Devices",
+  "kev_count": 2,
+  "last_added": "2025-05-07",
+  "ransomware": false
+ },
+ {
+  "vendor": "GIGABYTE",
+  "product": "Multiple Products",
+  "kev_count": 4,
+  "last_added": "2022-10-24",
+  "ransomware": true
+ },
+ {
+  "vendor": "Git",
+  "product": "Git",
+  "kev_count": 1,
+  "last_added": "2025-08-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Gitea",
+  "product": "Gitea",
+  "kev_count": 1,
+  "last_added": "2026-08-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "GitLab",
+  "product": "Community and Enterprise Editions",
+  "kev_count": 2,
+  "last_added": "2026-02-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "GitLab",
+  "product": "Community Edition and Enterprise Edition",
+  "kev_count": 2,
+  "last_added": "2026-10-29",
+  "ransomware": false
+ },
+ {
+  "vendor": "GitLab",
+  "product": "GitLab",
+  "kev_count": 1,
+  "last_added": "2026-02-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "GitLab",
+  "product": "GitLab CE/EE",
+  "kev_count": 1,
+  "last_added": "2024-05-01",
+  "ransomware": false
+ },
+ {
+  "vendor": "Gladinet",
+  "product": "CentreStack",
+  "kev_count": 1,
+  "last_added": "2025-04-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "Gladinet",
+  "product": "CentreStack and Triofox",
+  "kev_count": 2,
+  "last_added": "2025-12-15",
+  "ransomware": false
+ },
+ {
+  "vendor": "Gladinet",
+  "product": "Triofox",
+  "kev_count": 1,
+  "last_added": "2025-11-12",
+  "ransomware": false
+ },
+ {
+  "vendor": "GNU",
+  "product": "Bourne-Again Shell (Bash)",
+  "kev_count": 2,
+  "last_added": "2022-01-28",
+  "ransomware": false
+ },
+ {
+  "vendor": "GNU",
+  "product": "GNU Bash",
+  "kev_count": 1,
+  "last_added": "2025-10-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "GNU",
+  "product": "GNU C Library",
+  "kev_count": 1,
+  "last_added": "2023-11-21",
+  "ransomware": false
+ },
+ {
+  "vendor": "GNU",
+  "product": "InetUtils",
+  "kev_count": 1,
+  "last_added": "2026-01-26",
+  "ransomware": false
+ },
+ {
+  "vendor": "Gogs",
+  "product": "Gogs",
+  "kev_count": 1,
+  "last_added": "2026-01-12",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Brotli",
+  "kev_count": 1,
+  "last_added": "2026-10-27",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chrome",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chrome Blink",
+  "kev_count": 1,
+  "last_added": "2022-05-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chrome for Android UI",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chrome FreeType",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chrome Media",
+  "kev_count": 1,
+  "last_added": "2022-01-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chrome WebAudio",
+  "kev_count": 1,
+  "last_added": "2022-05-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chromium",
+  "kev_count": 6,
+  "last_added": "2026-02-17",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chromium Animation",
+  "kev_count": 1,
+  "last_added": "2022-02-15",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chromium Blink",
+  "kev_count": 2,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chromium GPU",
+  "kev_count": 1,
+  "last_added": "2022-11-28",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chromium Indexed DB API",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chromium Intents",
+  "kev_count": 2,
+  "last_added": "2022-08-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chromium libvpx",
+  "kev_count": 1,
+  "last_added": "2023-10-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chromium Mojo",
+  "kev_count": 2,
+  "last_added": "2025-03-27",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chromium Network Service",
+  "kev_count": 1,
+  "last_added": "2023-03-30",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chromium PopupBlocker",
+  "kev_count": 1,
+  "last_added": "2022-06-27",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chromium Portals",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chromium Skia",
+  "kev_count": 2,
+  "last_added": "2023-11-30",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chromium V8",
+  "kev_count": 41,
+  "last_added": "2026-09-09",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chromium WebGL",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chromium WebP",
+  "kev_count": 1,
+  "last_added": "2023-09-13",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Chromium WebRTC",
+  "kev_count": 1,
+  "last_added": "2024-01-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Dawn",
+  "kev_count": 1,
+  "last_added": "2026-04-01",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Pixel",
+  "kev_count": 2,
+  "last_added": "2026-09-16",
+  "ransomware": false
+ },
+ {
+  "vendor": "Google",
+  "product": "Skia",
+  "kev_count": 1,
+  "last_added": "2026-03-13",
+  "ransomware": false
+ },
+ {
+  "vendor": "Grafana Labs",
+  "product": "Grafana",
+  "kev_count": 2,
+  "last_added": "2025-10-09",
+  "ransomware": false
+ },
+ {
+  "vendor": "Grandstream",
+  "product": "UCM6200",
+  "kev_count": 1,
+  "last_added": "2022-01-28",
+  "ransomware": false
+ },
+ {
+  "vendor": "Hewlett Packard (HP)",
+  "product": "OpenView Network Node Manager",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Hewlett Packard (HP)",
+  "product": "ProCurve Manager (PCM), PCM+, Identity Driven Manager (IDM), and Application Lifecycle Management",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Hewlett Packard Enterprise (HPE)",
+  "product": "OneView",
+  "kev_count": 1,
+  "last_added": "2026-01-07",
+  "ransomware": false
+ },
+ {
+  "vendor": "Hikvision",
+  "product": "Multiple Products",
+  "kev_count": 1,
+  "last_added": "2026-03-05",
+  "ransomware": false
+ },
+ {
+  "vendor": "Hikvision",
+  "product": "Security cameras web server",
+  "kev_count": 1,
+  "last_added": "2022-01-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "Hitachi Vantara",
+  "product": "Pentaho Business Analytics (BA) Server",
+  "kev_count": 2,
+  "last_added": "2025-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "IBM",
+  "product": "Aspera Faspex",
+  "kev_count": 1,
+  "last_added": "2023-02-21",
+  "ransomware": true
+ },
+ {
+  "vendor": "IBM",
+  "product": "Data Risk Manager",
+  "kev_count": 3,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "IBM",
+  "product": "InfoSphere BigInsights",
+  "kev_count": 1,
+  "last_added": "2022-05-25",
+  "ransomware": true
+ },
+ {
+  "vendor": "IBM",
+  "product": "Langflow",
+  "kev_count": 1,
+  "last_added": "2026-08-04",
+  "ransomware": false
+ },
+ {
+  "vendor": "IBM",
+  "product": "Planning Analytics",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "IBM",
+  "product": "WebSphere Application Server and Server Hypervisor Edition",
+  "kev_count": 1,
+  "last_added": "2022-01-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "iCagenda",
+  "product": "iCagenda",
+  "kev_count": 1,
+  "last_added": "2026-07-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "IETF",
+  "product": "HTTP/2",
+  "kev_count": 1,
+  "last_added": "2023-10-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "IETF",
+  "product": "Service Location Protocol (SLP)",
+  "kev_count": 1,
+  "last_added": "2023-11-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "IGEL",
+  "product": "IGEL OS",
+  "kev_count": 1,
+  "last_added": "2025-10-14",
+  "ransomware": false
+ },
+ {
+  "vendor": "Ignite Realtime",
+  "product": "Openfire",
+  "kev_count": 1,
+  "last_added": "2023-08-24",
+  "ransomware": false
+ },
+ {
+  "vendor": "ImageMagick",
+  "product": "ImageMagick",
+  "kev_count": 3,
+  "last_added": "2024-09-09",
+  "ransomware": false
+ },
+ {
+  "vendor": "InduSoft",
+  "product": "Web Studio",
+  "kev_count": 1,
+  "last_added": "2022-04-15",
+  "ransomware": false
+ },
+ {
+  "vendor": "Intel",
+  "product": "Active Management Technology (AMT), Small Business Technology (SBT), and Standard Manageability",
+  "kev_count": 1,
+  "last_added": "2022-01-28",
+  "ransomware": false
+ },
+ {
+  "vendor": "Intel",
+  "product": "Ethernet Diagnostics Driver for Windows",
+  "kev_count": 1,
+  "last_added": "2023-02-10",
+  "ransomware": true
+ },
+ {
+  "vendor": "ISC",
+  "product": "BIND",
+  "kev_count": 1,
+  "last_added": "2026-10-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "Ivanti",
+  "product": "Cloud Services Appliance",
+  "kev_count": 1,
+  "last_added": "2024-09-13",
+  "ransomware": false
+ },
+ {
+  "vendor": "Ivanti",
+  "product": "Cloud Services Appliance (CSA)",
+  "kev_count": 3,
+  "last_added": "2024-10-09",
+  "ransomware": false
+ },
+ {
+  "vendor": "Ivanti",
+  "product": "Connect Secure",
+  "kev_count": 3,
+  "last_added": "2026-10-30",
+  "ransomware": false
+ },
+ {
+  "vendor": "Ivanti",
+  "product": "Connect Secure and Policy Secure",
+  "kev_count": 2,
+  "last_added": "2024-01-10",
+  "ransomware": true
+ },
+ {
+  "vendor": "Ivanti",
+  "product": "Connect Secure, Policy Secure, and Neurons",
+  "kev_count": 1,
+  "last_added": "2024-01-31",
+  "ransomware": true
+ },
+ {
+  "vendor": "Ivanti",
+  "product": "Connect Secure, Policy Secure, and ZTA Gateways",
+  "kev_count": 2,
+  "last_added": "2025-04-04",
+  "ransomware": true
+ },
+ {
+  "vendor": "Ivanti",
+  "product": "Endpoint Manager (EPM)",
+  "kev_count": 5,
+  "last_added": "2026-03-09",
+  "ransomware": false
+ },
+ {
+  "vendor": "Ivanti",
+  "product": "Endpoint Manager Cloud Service Appliance (EPM CSA)",
+  "kev_count": 1,
+  "last_added": "2024-03-25",
+  "ransomware": true
+ },
+ {
+  "vendor": "Ivanti",
+  "product": "Endpoint Manager Mobile (EPMM)",
+  "kev_count": 7,
+  "last_added": "2026-05-07",
+  "ransomware": true
+ },
+ {
+  "vendor": "Ivanti",
+  "product": "Endpoint Manager Mobile (EPMM) and MobileIron Core",
+  "kev_count": 1,
+  "last_added": "2024-01-18",
+  "ransomware": true
+ },
+ {
+  "vendor": "Ivanti",
+  "product": "MobileIron Multiple Products",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Ivanti",
+  "product": "Pulse Connect Secure",
+  "kev_count": 7,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Ivanti",
+  "product": "Pulse Connect Secure and Pulse Policy Secure",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Ivanti",
+  "product": "Sentry",
+  "kev_count": 2,
+  "last_added": "2026-06-11",
+  "ransomware": true
+ },
+ {
+  "vendor": "Ivanti",
+  "product": "Virtual Traffic Manager",
+  "kev_count": 1,
+  "last_added": "2024-09-24",
+  "ransomware": false
+ },
+ {
+  "vendor": "Jenkins",
+  "product": "Jenkins",
+  "kev_count": 1,
+  "last_added": "2025-10-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "Jenkins",
+  "product": "Jenkins Command Line Interface (CLI)",
+  "kev_count": 1,
+  "last_added": "2024-08-19",
+  "ransomware": true
+ },
+ {
+  "vendor": "Jenkins",
+  "product": "Jenkins Stapler Web Framework",
+  "kev_count": 1,
+  "last_added": "2022-02-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "Jenkins",
+  "product": "Jenkins User Interface (UI)",
+  "kev_count": 1,
+  "last_added": "2023-05-12",
+  "ransomware": false
+ },
+ {
+  "vendor": "Jenkins",
+  "product": "Matrix Project Plugin",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Jenkins",
+  "product": "Script Security Plugin",
+  "kev_count": 1,
+  "last_added": "2022-04-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "JetBrains",
+  "product": "TeamCity",
+  "kev_count": 4,
+  "last_added": "2026-08-05",
+  "ransomware": true
+ },
+ {
+  "vendor": "JFrog",
+  "product": "Artifactory",
+  "kev_count": 4,
+  "last_added": "2026-09-11",
+  "ransomware": false
+ },
+ {
+  "vendor": "Joomla!",
+  "product": "Joomla!",
+  "kev_count": 1,
+  "last_added": "2024-01-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "Joomlack",
+  "product": "Page Builder",
+  "kev_count": 1,
+  "last_added": "2026-07-07",
+  "ransomware": false
+ },
+ {
+  "vendor": "JoomShaper",
+  "product": "SP Page Builder",
+  "kev_count": 1,
+  "last_added": "2026-07-07",
+  "ransomware": false
+ },
+ {
+  "vendor": "JQuery",
+  "product": "JQuery",
+  "kev_count": 1,
+  "last_added": "2025-01-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "Juniper",
+  "product": "Junos OS",
+  "kev_count": 7,
+  "last_added": "2025-03-13",
+  "ransomware": false
+ },
+ {
+  "vendor": "Juniper",
+  "product": "ScreenOS",
+  "kev_count": 1,
+  "last_added": "2025-10-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "Justice AV Solutions",
+  "product": "Viewer",
+  "kev_count": 1,
+  "last_added": "2024-05-29",
+  "ransomware": false
+ },
+ {
+  "vendor": "Kaseya",
+  "product": "Virtual System/Server Administrator (VSA)",
+  "kev_count": 3,
+  "last_added": "2022-05-24",
+  "ransomware": true
+ },
+ {
+  "vendor": "Kentico",
+  "product": "Kentico Xperience",
+  "kev_count": 1,
+  "last_added": "2026-04-20",
+  "ransomware": false
+ },
+ {
+  "vendor": "Kentico",
+  "product": "Xperience",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Kentico",
+  "product": "Xperience CMS",
+  "kev_count": 2,
+  "last_added": "2025-10-20",
+  "ransomware": false
+ },
+ {
+  "vendor": "Kestra",
+  "product": "Kestra OSS",
+  "kev_count": 1,
+  "last_added": "2026-09-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "Kingsoft",
+  "product": "WPS Office",
+  "kev_count": 1,
+  "last_added": "2024-09-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Kludex",
+  "product": "Starlette",
+  "kev_count": 1,
+  "last_added": "2026-09-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "KNX Association",
+  "product": "KNX Protocol Connection Authorization Option 1",
+  "kev_count": 1,
+  "last_added": "2026-07-15",
+  "ransomware": false
+ },
+ {
+  "vendor": "Langflow",
+  "product": "Langflow",
+  "kev_count": 5,
+  "last_added": "2026-07-21",
+  "ransomware": true
+ },
+ {
+  "vendor": "Lantronix",
+  "product": "EDS5000",
+  "kev_count": 1,
+  "last_added": "2026-06-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "Laravel",
+  "product": "Ignition",
+  "kev_count": 1,
+  "last_added": "2023-09-18",
+  "ransomware": true
+ },
+ {
+  "vendor": "Laravel",
+  "product": "Laravel Framework",
+  "kev_count": 1,
+  "last_added": "2024-01-16",
+  "ransomware": false
+ },
+ {
+  "vendor": "Laravel",
+  "product": "Livewire",
+  "kev_count": 1,
+  "last_added": "2026-03-20",
+  "ransomware": false
+ },
+ {
+  "vendor": "LG",
+  "product": "N1A1 NAS",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Libraesva",
+  "product": "Email Security Gateway",
+  "kev_count": 1,
+  "last_added": "2025-09-29",
+  "ransomware": false
+ },
+ {
+  "vendor": "Liferay",
+  "product": "Liferay Portal",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Linux",
+  "product": "Kernel",
+  "kev_count": 32,
+  "last_added": "2026-10-28",
+  "ransomware": true
+ },
+ {
+  "vendor": "LiteSpeed",
+  "product": "cPanel Plugin",
+  "kev_count": 2,
+  "last_added": "2026-06-15",
+  "ransomware": false
+ },
+ {
+  "vendor": "Looking Glass",
+  "product": "Multi-Router Looking Glass (MRLG)",
+  "kev_count": 1,
+  "last_added": "2025-07-07",
+  "ransomware": false
+ },
+ {
+  "vendor": "Marimo",
+  "product": "Marimo",
+  "kev_count": 1,
+  "last_added": "2026-04-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "McAfee",
+  "product": "McAfee Total Protection (MTP)",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "MDaemon",
+  "product": "Email Server",
+  "kev_count": 1,
+  "last_added": "2025-05-19",
+  "ransomware": false
+ },
+ {
+  "vendor": "MediaTek",
+  "product": "Multiple Chipsets",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Meta",
+  "product": "React Server Components",
+  "kev_count": 1,
+  "last_added": "2025-12-05",
+  "ransomware": true
+ },
+ {
+  "vendor": "Meta Platforms",
+  "product": "WhatsApp",
+  "kev_count": 3,
+  "last_added": "2025-09-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "Metabase",
+  "product": "Metabase",
+  "kev_count": 2,
+  "last_added": "2026-08-11",
+  "ransomware": false
+ },
+ {
+  "vendor": "Micro Focus",
+  "product": "Micro Focus Access Manager",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Micro Focus",
+  "product": "Operation Bridge Reporter (OBR)",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": ".NET Core and Visual Studio",
+  "kev_count": 1,
+  "last_added": "2023-08-09",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": ".NET Framework",
+  "kev_count": 3,
+  "last_added": "2025-02-04",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": ".NET Framework, SharePoint, Visual Studio",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Active Directory",
+  "kev_count": 3,
+  "last_added": "2022-08-18",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Active Directory Federation Services",
+  "kev_count": 1,
+  "last_added": "2026-07-14",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Ancillary Function Driver (afd.sys)",
+  "kev_count": 1,
+  "last_added": "2022-03-28",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "ATM Font Driver",
+  "kev_count": 1,
+  "last_added": "2022-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Client-Server Run-time Subsystem (CSRSS)",
+  "kev_count": 1,
+  "last_added": "2022-03-28",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Configuration Manager",
+  "kev_count": 1,
+  "last_added": "2026-02-12",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Defender",
+  "kev_count": 5,
+  "last_added": "2026-05-20",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "DirectX",
+  "kev_count": 1,
+  "last_added": "2026-05-20",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "DirectX Graphics Kernel (DXGKRNL)",
+  "kev_count": 2,
+  "last_added": "2022-03-28",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "DWM Core Library",
+  "kev_count": 1,
+  "last_added": "2024-05-14",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Edge",
+  "kev_count": 2,
+  "last_added": "2022-03-28",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Edge and Internet Explorer",
+  "kev_count": 2,
+  "last_added": "2022-03-28",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Enhanced Cryptographic Provider",
+  "kev_count": 2,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Excel",
+  "kev_count": 3,
+  "last_added": "2022-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Exchange",
+  "kev_count": 1,
+  "last_added": "2021-11-17",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Exchange Server",
+  "kev_count": 17,
+  "last_added": "2026-04-13",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Forefront Threat Management Gateway (TMG)",
+  "kev_count": 1,
+  "last_added": "2022-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Graphics Component",
+  "kev_count": 1,
+  "last_added": "2022-02-15",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Graphics Device Interface (GDI)",
+  "kev_count": 2,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "HTTP Protocol Stack",
+  "kev_count": 1,
+  "last_added": "2022-04-06",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "HTTP.sys",
+  "kev_count": 1,
+  "last_added": "2022-02-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Hyper-V RemoteFX",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Input Method Editor (IME) Japanese",
+  "kev_count": 1,
+  "last_added": "2022-05-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Internet Explorer",
+  "kev_count": 36,
+  "last_added": "2026-05-20",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Internet Explorer and Edge",
+  "kev_count": 1,
+  "last_added": "2022-05-24",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Internet Explorer Scripting Engine",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Internet Information Services (IIS)",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Internet Key Exchange (IKE) Service Extensions",
+  "kev_count": 1,
+  "last_added": "2026-08-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Kerberos Key Distribution Center (KDC)",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Malware Protection Engine",
+  "kev_count": 1,
+  "last_added": "2022-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Microsoft",
+  "kev_count": 1,
+  "last_added": "2026-05-15",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "MSCOMCTL.OCX",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "MSHTML",
+  "kev_count": 2,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Netlogon",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Office",
+  "kev_count": 29,
+  "last_added": "2026-04-14",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Office and WordPad",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Office Outlook",
+  "kev_count": 1,
+  "last_added": "2025-02-06",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Open Management Infrastructure (OMI)",
+  "kev_count": 4,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Outlook",
+  "kev_count": 1,
+  "last_added": "2023-07-11",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Partner Center",
+  "kev_count": 1,
+  "last_added": "2025-02-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Power Pages",
+  "kev_count": 1,
+  "last_added": "2025-02-21",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "PowerPoint",
+  "kev_count": 2,
+  "last_added": "2022-06-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Project",
+  "kev_count": 1,
+  "last_added": "2024-08-13",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Publisher",
+  "kev_count": 1,
+  "last_added": "2024-09-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Remote Desktop Services",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "SharePoint",
+  "kev_count": 10,
+  "last_added": "2026-09-25",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "SharePoint Server",
+  "kev_count": 5,
+  "last_added": "2026-07-14",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Silverlight",
+  "kev_count": 3,
+  "last_added": "2022-05-25",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Skype for Business",
+  "kev_count": 1,
+  "last_added": "2023-10-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "SmartScreen Prompt",
+  "kev_count": 1,
+  "last_added": "2024-04-30",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "SMBv1",
+  "kev_count": 2,
+  "last_added": "2022-02-10",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "SMBv1 server",
+  "kev_count": 2,
+  "last_added": "2022-05-24",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "SMBv3",
+  "kev_count": 1,
+  "last_added": "2022-02-10",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "SQL Server",
+  "kev_count": 2,
+  "last_added": "2026-08-26",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Streaming Service",
+  "kev_count": 1,
+  "last_added": "2024-02-29",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Streaming Service Proxy",
+  "kev_count": 1,
+  "last_added": "2023-09-12",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Task Scheduler",
+  "kev_count": 1,
+  "last_added": "2022-03-15",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Update Notification Manager",
+  "kev_count": 1,
+  "last_added": "2022-05-23",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Visual Basic for Applications (VBA)",
+  "kev_count": 1,
+  "last_added": "2026-04-13",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Win32k",
+  "kev_count": 25,
+  "last_added": "2023-06-22",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Windows",
+  "kev_count": 175,
+  "last_added": "2026-10-13",
+  "ransomware": true
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Windows Ancillary Function Driver for WinSock",
+  "kev_count": 1,
+  "last_added": "2026-08-11",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Windows CNG Key Isolation Service",
+  "kev_count": 1,
+  "last_added": "2023-10-04",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Windows COM+ Event System Service",
+  "kev_count": 1,
+  "last_added": "2022-10-11",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "WinVerifyTrust function",
+  "kev_count": 1,
+  "last_added": "2022-01-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "Word",
+  "kev_count": 4,
+  "last_added": "2023-09-12",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "WordPad",
+  "kev_count": 1,
+  "last_added": "2023-10-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "Microsoft",
+  "product": "XML Core Services",
+  "kev_count": 2,
+  "last_added": "2022-06-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "MikroTik",
+  "product": "RouterOS",
+  "kev_count": 5,
+  "last_added": "2026-09-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "MinIO",
+  "product": "MinIO",
+  "kev_count": 2,
+  "last_added": "2023-09-19",
+  "ransomware": false
+ },
+ {
+  "vendor": "Mirasvit",
+  "product": "Mirasvit Full Page Cache Warmer",
+  "kev_count": 1,
+  "last_added": "2026-06-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Mitel",
+  "product": "MiCollab",
+  "kev_count": 2,
+  "last_added": "2025-01-07",
+  "ransomware": true
+ },
+ {
+  "vendor": "Mitel",
+  "product": "MiCollab, MiVoice Business Express",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Mitel",
+  "product": "MiVoice Connect",
+  "kev_count": 3,
+  "last_added": "2023-02-21",
+  "ransomware": true
+ },
+ {
+  "vendor": "Mitel",
+  "product": "SIP Phones",
+  "kev_count": 1,
+  "last_added": "2025-02-12",
+  "ransomware": false
+ },
+ {
+  "vendor": "MLflow",
+  "product": "MLflow",
+  "kev_count": 1,
+  "last_added": "2026-08-19",
+  "ransomware": false
+ },
+ {
+  "vendor": "MongoDB",
+  "product": "mongo-express",
+  "kev_count": 1,
+  "last_added": "2021-12-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "MongoDB",
+  "product": "MongoDB and MongoDB Server",
+  "kev_count": 1,
+  "last_added": "2025-12-29",
+  "ransomware": false
+ },
+ {
+  "vendor": "Motex",
+  "product": "LANSCOPE Endpoint Manager",
+  "kev_count": 1,
+  "last_added": "2025-10-22",
+  "ransomware": false
+ },
+ {
+  "vendor": "Mozilla",
+  "product": "Firefox",
+  "kev_count": 5,
+  "last_added": "2024-10-15",
+  "ransomware": true
+ },
+ {
+  "vendor": "Mozilla",
+  "product": "Firefox and Thunderbird",
+  "kev_count": 6,
+  "last_added": "2022-05-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "Mozilla",
+  "product": "Firefox, Firefox ESR, and Thunderbird",
+  "kev_count": 1,
+  "last_added": "2023-06-22",
+  "ransomware": false
+ },
+ {
+  "vendor": "Mozilla",
+  "product": "Multiple Products",
+  "kev_count": 1,
+  "last_added": "2025-10-06",
+  "ransomware": false
+ },
+ {
+  "vendor": "N-able",
+  "product": "N-central",
+  "kev_count": 5,
+  "last_added": "2026-09-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "n8n",
+  "product": "n8n",
+  "kev_count": 1,
+  "last_added": "2026-03-11",
+  "ransomware": false
+ },
+ {
+  "vendor": "Nagios",
+  "product": "Nagios XI",
+  "kev_count": 4,
+  "last_added": "2022-01-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "NAKIVO",
+  "product": "Backup and Replication",
+  "kev_count": 1,
+  "last_added": "2025-03-19",
+  "ransomware": false
+ },
+ {
+  "vendor": "NETGEAR",
+  "product": "DGN2200 Devices",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "NETGEAR",
+  "product": "JGS516PE Devices",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "NETGEAR",
+  "product": "Multiple Devices",
+  "kev_count": 2,
+  "last_added": "2022-09-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "NETGEAR",
+  "product": "Multiple Routers",
+  "kev_count": 1,
+  "last_added": "2022-03-07",
+  "ransomware": false
+ },
+ {
+  "vendor": "NETGEAR",
+  "product": "Wireless Access Point (WAP) Devices",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "NETGEAR",
+  "product": "Wireless Router DGN2200",
+  "kev_count": 1,
+  "last_added": "2022-03-07",
+  "ransomware": false
+ },
+ {
+  "vendor": "NETGEAR",
+  "product": "WNR2000v5 Router",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Netis",
+  "product": "WF2419 Devices",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Netwrix",
+  "product": "Auditor",
+  "kev_count": 1,
+  "last_added": "2023-07-11",
+  "ransomware": true
+ },
+ {
+  "vendor": "NextGen Healthcare",
+  "product": "Mirth Connect",
+  "kev_count": 1,
+  "last_added": "2024-05-20",
+  "ransomware": true
+ },
+ {
+  "vendor": "Nice",
+  "product": "Linear eMerge E3-Series",
+  "kev_count": 1,
+  "last_added": "2024-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "North Grid",
+  "product": "Proself",
+  "kev_count": 1,
+  "last_added": "2024-12-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Nostromo",
+  "product": "nhttpd",
+  "kev_count": 1,
+  "last_added": "2024-11-07",
+  "ransomware": false
+ },
+ {
+  "vendor": "Notepad++",
+  "product": "Notepad++",
+  "kev_count": 1,
+  "last_added": "2026-02-12",
+  "ransomware": false
+ },
+ {
+  "vendor": "Novi Survey",
+  "product": "Novi Survey",
+  "kev_count": 1,
+  "last_added": "2023-04-13",
+  "ransomware": false
+ },
+ {
+  "vendor": "Npm package",
+  "product": "System Information Library for Node.JS",
+  "kev_count": 1,
+  "last_added": "2022-01-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "NUUO",
+  "product": "NVRmini Devices",
+  "kev_count": 1,
+  "last_added": "2024-12-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "NUUO",
+  "product": "NVRmini2 Devices",
+  "kev_count": 1,
+  "last_added": "2024-12-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "Nx",
+  "product": "Nx Console",
+  "kev_count": 1,
+  "last_added": "2026-05-27",
+  "ransomware": true
+ },
+ {
+  "vendor": "October CMS",
+  "product": "October CMS",
+  "kev_count": 1,
+  "last_added": "2022-01-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "Omnissa",
+  "product": "Workspace One UEM",
+  "kev_count": 1,
+  "last_added": "2026-03-09",
+  "ransomware": false
+ },
+ {
+  "vendor": "ONLYOFFICE",
+  "product": "Docs",
+  "kev_count": 1,
+  "last_added": "2026-10-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "OpenBSD",
+  "product": "OpenSMTPD",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "OpenPLC",
+  "product": "ScadaBR",
+  "kev_count": 2,
+  "last_added": "2025-12-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "OpenSSL",
+  "product": "OpenSSL",
+  "kev_count": 1,
+  "last_added": "2022-05-04",
+  "ransomware": false
+ },
+ {
+  "vendor": "Oracle",
+  "product": "ADF Faces",
+  "kev_count": 1,
+  "last_added": "2024-09-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "Oracle",
+  "product": "Agile Product Lifecycle Management (PLM)",
+  "kev_count": 2,
+  "last_added": "2025-02-24",
+  "ransomware": false
+ },
+ {
+  "vendor": "Oracle",
+  "product": "BI Publisher (Formerly XML Publisher)",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Oracle",
+  "product": "E-Business Suite",
+  "kev_count": 4,
+  "last_added": "2026-07-15",
+  "ransomware": true
+ },
+ {
+  "vendor": "Oracle",
+  "product": "Fusion Middleware",
+  "kev_count": 6,
+  "last_added": "2025-11-21",
+  "ransomware": true
+ },
+ {
+  "vendor": "Oracle",
+  "product": "HTTP Server and Oracle Weblogic Server Proxy Plug-in",
+  "kev_count": 1,
+  "last_added": "2026-08-24",
+  "ransomware": false
+ },
+ {
+  "vendor": "Oracle",
+  "product": "Intelligence Enterprise Edition",
+  "kev_count": 1,
+  "last_added": "2022-01-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "Oracle",
+  "product": "Java Runtime Environment (JRE)",
+  "kev_count": 4,
+  "last_added": "2022-05-25",
+  "ransomware": true
+ },
+ {
+  "vendor": "Oracle",
+  "product": "Java SE",
+  "kev_count": 7,
+  "last_added": "2022-03-28",
+  "ransomware": true
+ },
+ {
+  "vendor": "Oracle",
+  "product": "Java SE and JRockit",
+  "kev_count": 1,
+  "last_added": "2023-05-12",
+  "ransomware": false
+ },
+ {
+  "vendor": "Oracle",
+  "product": "Java SE JDK and JRE",
+  "kev_count": 1,
+  "last_added": "2022-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Oracle",
+  "product": "Multiple Products",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Oracle",
+  "product": "PeopleSoft Enterprise PeopleTools",
+  "kev_count": 1,
+  "last_added": "2026-06-12",
+  "ransomware": true
+ },
+ {
+  "vendor": "Oracle",
+  "product": "Solaris",
+  "kev_count": 1,
+  "last_added": "2022-05-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Oracle",
+  "product": "Solaris and Zettabyte File System (ZFS)",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Oracle",
+  "product": "VirtualBox",
+  "kev_count": 1,
+  "last_added": "2022-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Oracle",
+  "product": "WebLogic Server",
+  "kev_count": 12,
+  "last_added": "2026-06-01",
+  "ransomware": true
+ },
+ {
+  "vendor": "OSGeo",
+  "product": "GeoServer",
+  "kev_count": 2,
+  "last_added": "2025-12-11",
+  "ransomware": false
+ },
+ {
+  "vendor": "OSGeo",
+  "product": "JAI-EXT",
+  "kev_count": 1,
+  "last_added": "2024-06-26",
+  "ransomware": false
+ },
+ {
+  "vendor": "ownCloud",
+  "product": "ownCloud",
+  "kev_count": 1,
+  "last_added": "2026-08-27",
+  "ransomware": false
+ },
+ {
+  "vendor": "ownCloud",
+  "product": "ownCloud graphapi",
+  "kev_count": 1,
+  "last_added": "2023-11-30",
+  "ransomware": false
+ },
+ {
+  "vendor": "Paessler",
+  "product": "PRTG Network Monitor",
+  "kev_count": 2,
+  "last_added": "2025-02-04",
+  "ransomware": false
+ },
+ {
+  "vendor": "Palo Alto Networks",
+  "product": "Expedition",
+  "kev_count": 3,
+  "last_added": "2024-11-14",
+  "ransomware": false
+ },
+ {
+  "vendor": "Palo Alto Networks",
+  "product": "PAN-OS",
+  "kev_count": 13,
+  "last_added": "2026-10-14",
+  "ransomware": true
+ },
+ {
+  "vendor": "PaperCut",
+  "product": "MF/NG",
+  "kev_count": 1,
+  "last_added": "2023-04-21",
+  "ransomware": true
+ },
+ {
+  "vendor": "PaperCut",
+  "product": "NG/MF",
+  "kev_count": 4,
+  "last_added": "2026-08-31",
+  "ransomware": true
+ },
+ {
+  "vendor": "PEAR",
+  "product": "Archive_Tar",
+  "kev_count": 2,
+  "last_added": "2022-08-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Perl",
+  "product": "Exiftool",
+  "kev_count": 1,
+  "last_added": "2021-11-17",
+  "ransomware": false
+ },
+ {
+  "vendor": "PHP",
+  "product": "FastCGI Process Manager (FPM)",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": true
+ },
+ {
+  "vendor": "PHP",
+  "product": "PHP",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "PHP",
+  "product": "PHPMailer",
+  "kev_count": 1,
+  "last_added": "2025-07-07",
+  "ransomware": false
+ },
+ {
+  "vendor": "PHP Group",
+  "product": "PHP",
+  "kev_count": 3,
+  "last_added": "2026-10-26",
+  "ransomware": true
+ },
+ {
+  "vendor": "phpMyAdmin",
+  "product": "phpMyAdmin",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "PHPUnit",
+  "product": "PHPUnit",
+  "kev_count": 1,
+  "last_added": "2022-02-15",
+  "ransomware": false
+ },
+ {
+  "vendor": "Pi-hole",
+  "product": "AdminLTE",
+  "kev_count": 1,
+  "last_added": "2021-12-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "PlaySMS",
+  "product": "PlaySMS",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Plex",
+  "product": "Media Server",
+  "kev_count": 5,
+  "last_added": "2026-10-20",
+  "ransomware": false
+ },
+ {
+  "vendor": "Prettier",
+  "product": "eslint-config-prettier",
+  "kev_count": 1,
+  "last_added": "2026-01-22",
+  "ransomware": false
+ },
+ {
+  "vendor": "Primetek",
+  "product": "Primefaces Application",
+  "kev_count": 1,
+  "last_added": "2022-01-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "ProFTPD",
+  "product": "ProFTPD",
+  "kev_count": 1,
+  "last_added": "2026-10-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "Progress",
+  "product": "ASP.NET AJAX and Sitefinity",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Progress",
+  "product": "Kemp LoadMaster",
+  "kev_count": 1,
+  "last_added": "2024-11-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "Progress",
+  "product": "LoadMaster",
+  "kev_count": 1,
+  "last_added": "2026-08-07",
+  "ransomware": false
+ },
+ {
+  "vendor": "Progress",
+  "product": "MOVEit Transfer",
+  "kev_count": 1,
+  "last_added": "2023-06-02",
+  "ransomware": true
+ },
+ {
+  "vendor": "Progress",
+  "product": "Telerik Report Server",
+  "kev_count": 1,
+  "last_added": "2024-06-13",
+  "ransomware": false
+ },
+ {
+  "vendor": "Progress",
+  "product": "Telerik UI for ASP.NET AJAX",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Progress",
+  "product": "WhatsUp Gold",
+  "kev_count": 2,
+  "last_added": "2025-03-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Progress",
+  "product": "WS_FTP Server",
+  "kev_count": 1,
+  "last_added": "2023-10-05",
+  "ransomware": true
+ },
+ {
+  "vendor": "ProjectSend",
+  "product": "ProjectSend",
+  "kev_count": 1,
+  "last_added": "2024-12-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "PTC",
+  "product": "Windchill and FlexPLM",
+  "kev_count": 1,
+  "last_added": "2026-06-25",
+  "ransomware": true
+ },
+ {
+  "vendor": "PTZOptics",
+  "product": "PT30X-SDI/NDI Cameras",
+  "kev_count": 2,
+  "last_added": "2024-11-04",
+  "ransomware": false
+ },
+ {
+  "vendor": "Pulse Secure",
+  "product": "Pulse Connect Secure",
+  "kev_count": 1,
+  "last_added": "2022-03-07",
+  "ransomware": false
+ },
+ {
+  "vendor": "Qlik",
+  "product": "Sense",
+  "kev_count": 3,
+  "last_added": "2025-01-13",
+  "ransomware": true
+ },
+ {
+  "vendor": "QNAP",
+  "product": "Network Attached Storage (NAS)",
+  "kev_count": 4,
+  "last_added": "2022-05-24",
+  "ransomware": true
+ },
+ {
+  "vendor": "QNAP",
+  "product": "Photo Station",
+  "kev_count": 4,
+  "last_added": "2022-09-08",
+  "ransomware": true
+ },
+ {
+  "vendor": "QNAP",
+  "product": "QNAP Network-Attached Storage (NAS)",
+  "kev_count": 1,
+  "last_added": "2022-04-11",
+  "ransomware": false
+ },
+ {
+  "vendor": "QNAP",
+  "product": "QTS",
+  "kev_count": 1,
+  "last_added": "2022-06-08",
+  "ransomware": true
+ },
+ {
+  "vendor": "QNAP",
+  "product": "VioStor NVR",
+  "kev_count": 1,
+  "last_added": "2023-12-21",
+  "ransomware": false
+ },
+ {
+  "vendor": "QNAP Systems",
+  "product": "Helpdesk",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Qualcomm",
+  "product": "Multiple Chipsets",
+  "kev_count": 11,
+  "last_added": "2026-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Qualcomm",
+  "product": "Snapdragon Auto, Snapdragon Compute, Snapdragon Connectivity, Snapdragon Consumer IOT, Snapdragon Industrial IOT, Snapdragon Mobile, Snapdragon Voice & Music, S",
+  "kev_count": 1,
+  "last_added": "2021-12-01",
+  "ransomware": false
+ },
+ {
+  "vendor": "Qualitia",
+  "product": "Active! Mail",
+  "kev_count": 1,
+  "last_added": "2025-04-28",
+  "ransomware": false
+ },
+ {
+  "vendor": "Quest",
+  "product": "KACE System Management Appliance",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": true
+ },
+ {
+  "vendor": "Quest",
+  "product": "KACE Systems Management Appliance (SMA)",
+  "kev_count": 1,
+  "last_added": "2026-04-20",
+  "ransomware": false
+ },
+ {
+  "vendor": "Rails",
+  "product": "Ruby on Rails",
+  "kev_count": 3,
+  "last_added": "2025-07-07",
+  "ransomware": false
+ },
+ {
+  "vendor": "RARLAB",
+  "product": "UnRAR",
+  "kev_count": 1,
+  "last_added": "2022-08-09",
+  "ransomware": true
+ },
+ {
+  "vendor": "RARLAB",
+  "product": "WinRAR",
+  "kev_count": 4,
+  "last_added": "2025-12-09",
+  "ransomware": true
+ },
+ {
+  "vendor": "Ray-Project",
+  "product": "Ray",
+  "kev_count": 1,
+  "last_added": "2026-08-17",
+  "ransomware": false
+ },
+ {
+  "vendor": "rConfig",
+  "product": "rConfig",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "React Native Community",
+  "product": "CLI",
+  "kev_count": 1,
+  "last_added": "2026-02-05",
+  "ransomware": false
+ },
+ {
+  "vendor": "Realtek",
+  "product": "AP-Router SDK",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Realtek",
+  "product": "Jungle Software Development Kit (SDK)",
+  "kev_count": 1,
+  "last_added": "2021-12-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "Realtek",
+  "product": "SDK",
+  "kev_count": 1,
+  "last_added": "2023-09-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "Red Hat",
+  "product": "Automatic Bug Reporting Tool",
+  "kev_count": 1,
+  "last_added": "2026-08-26",
+  "ransomware": false
+ },
+ {
+  "vendor": "Red Hat",
+  "product": "JBoss",
+  "kev_count": 2,
+  "last_added": "2022-05-25",
+  "ransomware": true
+ },
+ {
+  "vendor": "Red Hat",
+  "product": "JBoss Application Server",
+  "kev_count": 1,
+  "last_added": "2021-12-10",
+  "ransomware": true
+ },
+ {
+  "vendor": "Red Hat",
+  "product": "JBoss RichFaces Framework",
+  "kev_count": 1,
+  "last_added": "2023-09-28",
+  "ransomware": false
+ },
+ {
+  "vendor": "Red Hat",
+  "product": "JBoss Seam 2",
+  "kev_count": 1,
+  "last_added": "2021-12-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "Red Hat",
+  "product": "Libuser",
+  "kev_count": 1,
+  "last_added": "2026-08-26",
+  "ransomware": false
+ },
+ {
+  "vendor": "Red Hat",
+  "product": "Polkit",
+  "kev_count": 2,
+  "last_added": "2023-05-12",
+  "ransomware": true
+ },
+ {
+  "vendor": "Redis",
+  "product": "Debian-specific Redis Servers",
+  "kev_count": 1,
+  "last_added": "2022-03-28",
+  "ransomware": false
+ },
+ {
+  "vendor": "Rejetto",
+  "product": "HTTP File Server",
+  "kev_count": 1,
+  "last_added": "2024-07-09",
+  "ransomware": true
+ },
+ {
+  "vendor": "Rejetto",
+  "product": "HTTP File Server (HFS)",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Reolink",
+  "product": "Multiple IP Cameras",
+  "kev_count": 1,
+  "last_added": "2024-12-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "Reolink",
+  "product": "RLC-410W IP Camera",
+  "kev_count": 1,
+  "last_added": "2024-12-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "reviewdog",
+  "product": "action-setup GitHub Action",
+  "kev_count": 1,
+  "last_added": "2025-03-24",
+  "ransomware": false
+ },
+ {
+  "vendor": "Rockwell",
+  "product": "Multiple Products",
+  "kev_count": 1,
+  "last_added": "2026-03-05",
+  "ransomware": false
+ },
+ {
+  "vendor": "Roundcube",
+  "product": "Roundcube Webmail",
+  "kev_count": 4,
+  "last_added": "2023-06-22",
+  "ransomware": false
+ },
+ {
+  "vendor": "Roundcube",
+  "product": "Webmail",
+  "kev_count": 7,
+  "last_added": "2026-02-20",
+  "ransomware": false
+ },
+ {
+  "vendor": "Ruckus Wireless",
+  "product": "Multiple Products",
+  "kev_count": 1,
+  "last_added": "2023-05-12",
+  "ransomware": false
+ },
+ {
+  "vendor": "SaltStack",
+  "product": "Salt",
+  "kev_count": 3,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Samba",
+  "product": "Samba",
+  "kev_count": 1,
+  "last_added": "2023-03-30",
+  "ransomware": true
+ },
+ {
+  "vendor": "Samsung",
+  "product": "MagicINFO 9 Server",
+  "kev_count": 2,
+  "last_added": "2026-04-24",
+  "ransomware": false
+ },
+ {
+  "vendor": "Samsung",
+  "product": "Mobile Devices",
+  "kev_count": 13,
+  "last_added": "2025-11-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "Sangoma",
+  "product": "FreePBX",
+  "kev_count": 3,
+  "last_added": "2026-02-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Sangoma",
+  "product": "Switchvox",
+  "kev_count": 1,
+  "last_added": "2026-09-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "SAP",
+  "product": "Commerce Cloud",
+  "kev_count": 1,
+  "last_added": "2024-09-30",
+  "ransomware": false
+ },
+ {
+  "vendor": "SAP",
+  "product": "Customer Relationship Management (CRM)",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "SAP",
+  "product": "Multiple Products",
+  "kev_count": 1,
+  "last_added": "2022-08-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "SAP",
+  "product": "NetWeaver",
+  "kev_count": 10,
+  "last_added": "2025-05-15",
+  "ransomware": true
+ },
+ {
+  "vendor": "SAP",
+  "product": "Solution Manager",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Schneider Electric",
+  "product": "U.motion Builder",
+  "kev_count": 1,
+  "last_added": "2022-04-15",
+  "ransomware": false
+ },
+ {
+  "vendor": "ScienceLogic",
+  "product": "SL1",
+  "kev_count": 1,
+  "last_added": "2024-10-21",
+  "ransomware": false
+ },
+ {
+  "vendor": "ServiceNow",
+  "product": "Utah, Vancouver, and Washington DC Now Platform",
+  "kev_count": 2,
+  "last_added": "2024-07-29",
+  "ransomware": false
+ },
+ {
+  "vendor": "Siemens",
+  "product": "SIMATIC CP",
+  "kev_count": 1,
+  "last_added": "2022-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Siemens",
+  "product": "Software Center",
+  "kev_count": 1,
+  "last_added": "2026-10-20",
+  "ransomware": false
+ },
+ {
+  "vendor": "Sierra Wireless",
+  "product": "AirLink ALEOS",
+  "kev_count": 1,
+  "last_added": "2025-12-12",
+  "ransomware": false
+ },
+ {
+  "vendor": "SIMalliance",
+  "product": "Toolbox Browser",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "SimpleHelp",
+  "product": "SimpleHelp",
+  "kev_count": 4,
+  "last_added": "2026-06-29",
+  "ransomware": true
+ },
+ {
+  "vendor": "Sitecore",
+  "product": "CMS and Experience Platform (XP)",
+  "kev_count": 2,
+  "last_added": "2025-03-26",
+  "ransomware": false
+ },
+ {
+  "vendor": "Sitecore",
+  "product": "Multiple Products",
+  "kev_count": 1,
+  "last_added": "2025-09-04",
+  "ransomware": false
+ },
+ {
+  "vendor": "Sitecore",
+  "product": "XP",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": true
+ },
+ {
+  "vendor": "SKYSEA",
+  "product": "Client View",
+  "kev_count": 1,
+  "last_added": "2025-10-14",
+  "ransomware": false
+ },
+ {
+  "vendor": "Smartbedded",
+  "product": "Meteobridge",
+  "kev_count": 1,
+  "last_added": "2025-10-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "SmarterTools",
+  "product": "SmarterMail",
+  "kev_count": 3,
+  "last_added": "2026-02-05",
+  "ransomware": true
+ },
+ {
+  "vendor": "SolarView",
+  "product": "Compact",
+  "kev_count": 1,
+  "last_added": "2023-07-13",
+  "ransomware": false
+ },
+ {
+  "vendor": "SolarWinds",
+  "product": "Orion",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "SolarWinds",
+  "product": "Serv-U",
+  "kev_count": 4,
+  "last_added": "2026-06-05",
+  "ransomware": true
+ },
+ {
+  "vendor": "SolarWinds",
+  "product": "Virtualization Manager",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "SolarWinds",
+  "product": "Web Help Desk",
+  "kev_count": 5,
+  "last_added": "2026-03-09",
+  "ransomware": true
+ },
+ {
+  "vendor": "Soliton Systems K.K",
+  "product": "FileZen",
+  "kev_count": 1,
+  "last_added": "2026-02-24",
+  "ransomware": false
+ },
+ {
+  "vendor": "Sonatype",
+  "product": "Nexus Repository",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Sonatype",
+  "product": "Nexus Repository Manager",
+  "kev_count": 1,
+  "last_added": "2021-12-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "SonicWall",
+  "product": "Secure Remote Access (SRA)",
+  "kev_count": 1,
+  "last_added": "2022-03-28",
+  "ransomware": true
+ },
+ {
+  "vendor": "SonicWall",
+  "product": "SMA 100 Appliances",
+  "kev_count": 1,
+  "last_added": "2022-01-28",
+  "ransomware": true
+ },
+ {
+  "vendor": "SonicWall",
+  "product": "SMA100",
+  "kev_count": 2,
+  "last_added": "2022-03-28",
+  "ransomware": true
+ },
+ {
+  "vendor": "SonicWall",
+  "product": "SMA100 Appliances",
+  "kev_count": 2,
+  "last_added": "2025-05-01",
+  "ransomware": false
+ },
+ {
+  "vendor": "SonicWall",
+  "product": "SMA1000 appliance",
+  "kev_count": 1,
+  "last_added": "2025-12-17",
+  "ransomware": false
+ },
+ {
+  "vendor": "SonicWall",
+  "product": "SMA1000 Appliances",
+  "kev_count": 5,
+  "last_added": "2026-09-02",
+  "ransomware": true
+ },
+ {
+  "vendor": "SonicWall",
+  "product": "SonicOS",
+  "kev_count": 3,
+  "last_added": "2025-02-18",
+  "ransomware": true
+ },
+ {
+  "vendor": "SonicWall",
+  "product": "SonicWall Email Security",
+  "kev_count": 3,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "SonicWall",
+  "product": "SSLVPN SMA100",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Sophos",
+  "product": "CyberoamOS",
+  "kev_count": 1,
+  "last_added": "2025-02-06",
+  "ransomware": true
+ },
+ {
+  "vendor": "Sophos",
+  "product": "Firewall",
+  "kev_count": 2,
+  "last_added": "2022-09-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "Sophos",
+  "product": "SFOS",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Sophos",
+  "product": "SG UTM",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Sophos",
+  "product": "Web Appliance",
+  "kev_count": 1,
+  "last_added": "2023-11-16",
+  "ransomware": false
+ },
+ {
+  "vendor": "Sophos",
+  "product": "XG Firewall",
+  "kev_count": 1,
+  "last_added": "2025-02-06",
+  "ransomware": false
+ },
+ {
+  "vendor": "Splunk",
+  "product": "Enterprise",
+  "kev_count": 1,
+  "last_added": "2026-06-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "Spreadsheet::ParseExcel",
+  "product": "Spreadsheet::ParseExcel",
+  "kev_count": 1,
+  "last_added": "2024-01-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "Srimax",
+  "product": "Output Messenger",
+  "kev_count": 1,
+  "last_added": "2025-05-19",
+  "ransomware": false
+ },
+ {
+  "vendor": "Strapi",
+  "product": "Strapi",
+  "kev_count": 1,
+  "last_added": "2026-10-08",
+  "ransomware": false
+ },
+ {
+  "vendor": "Sudo",
+  "product": "Sudo",
+  "kev_count": 2,
+  "last_added": "2025-09-29",
+  "ransomware": false
+ },
+ {
+  "vendor": "SugarCRM",
+  "product": "Multiple Products",
+  "kev_count": 1,
+  "last_added": "2023-02-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "Sumavision",
+  "product": "Enhanced Multimedia Router (EMR)",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Sunhillo",
+  "product": "SureLine",
+  "kev_count": 1,
+  "last_added": "2024-03-05",
+  "ransomware": false
+ },
+ {
+  "vendor": "Symantec",
+  "product": "Symantec Messaging Gateway",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Synacor",
+  "product": "Zimbra Collaborate Suite (ZCS)",
+  "kev_count": 1,
+  "last_added": "2022-02-25",
+  "ransomware": true
+ },
+ {
+  "vendor": "Synacor",
+  "product": "Zimbra Collaboration Suite",
+  "kev_count": 1,
+  "last_added": "2026-02-17",
+  "ransomware": false
+ },
+ {
+  "vendor": "Synacor",
+  "product": "Zimbra Collaboration Suite (ZCS)",
+  "kev_count": 17,
+  "last_added": "2026-08-21",
+  "ransomware": true
+ },
+ {
+  "vendor": "SysAid",
+  "product": "SysAid On-Prem",
+  "kev_count": 2,
+  "last_added": "2025-07-22",
+  "ransomware": false
+ },
+ {
+  "vendor": "SysAid",
+  "product": "SysAid Server",
+  "kev_count": 1,
+  "last_added": "2023-11-13",
+  "ransomware": true
+ },
+ {
+  "vendor": "TanStack",
+  "product": "TanStack",
+  "kev_count": 1,
+  "last_added": "2026-05-27",
+  "ransomware": true
+ },
+ {
+  "vendor": "TeamT5",
+  "product": "ThreatSonar Anti-Ransomware",
+  "kev_count": 1,
+  "last_added": "2026-02-17",
+  "ransomware": false
+ },
+ {
+  "vendor": "TeamViewer",
+  "product": "Desktop",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Teclib",
+  "product": "GLPI",
+  "kev_count": 1,
+  "last_added": "2023-03-07",
+  "ransomware": false
+ },
+ {
+  "vendor": "TeleMessage",
+  "product": "TM SGNL",
+  "kev_count": 3,
+  "last_added": "2025-07-01",
+  "ransomware": false
+ },
+ {
+  "vendor": "Telerik",
+  "product": "User Interface (UI) for ASP.NET AJAX",
+  "kev_count": 2,
+  "last_added": "2023-01-26",
+  "ransomware": true
+ },
+ {
+  "vendor": "Tenda",
+  "product": "AC11 Router",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Tenda",
+  "product": "AC1900 Router AC15 Model",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Tenda",
+  "product": "AC7, AC9, and AC10 Routers",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "TerraMaster",
+  "product": "TerraMaster OS",
+  "kev_count": 1,
+  "last_added": "2023-02-10",
+  "ransomware": true
+ },
+ {
+  "vendor": "ThinkPHP",
+  "product": "noneCms",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "ThinkPHP",
+  "product": "ThinkPHP",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "TIBCO",
+  "product": "JasperReports",
+  "kev_count": 2,
+  "last_added": "2022-12-29",
+  "ransomware": false
+ },
+ {
+  "vendor": "tj-actions",
+  "product": "changed-files GitHub Action",
+  "kev_count": 1,
+  "last_added": "2025-03-18",
+  "ransomware": false
+ },
+ {
+  "vendor": "TP-Link",
+  "product": "Archer AX21",
+  "kev_count": 1,
+  "last_added": "2023-05-01",
+  "ransomware": false
+ },
+ {
+  "vendor": "TP-Link",
+  "product": "Multiple Archer Devices",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "TP-Link",
+  "product": "Multiple Routers",
+  "kev_count": 2,
+  "last_added": "2025-09-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "TP-Link",
+  "product": "TL-WA855RE",
+  "kev_count": 1,
+  "last_added": "2025-09-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "TP-Link",
+  "product": "TL-WR841N",
+  "kev_count": 1,
+  "last_added": "2025-09-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Treck TCP/IP stack",
+  "product": "IPv6",
+  "kev_count": 1,
+  "last_added": "2022-03-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Trend Micro",
+  "product": "Apex Central",
+  "kev_count": 1,
+  "last_added": "2022-03-31",
+  "ransomware": false
+ },
+ {
+  "vendor": "Trend Micro",
+  "product": "Apex One",
+  "kev_count": 2,
+  "last_added": "2026-05-21",
+  "ransomware": false
+ },
+ {
+  "vendor": "Trend Micro",
+  "product": "Apex One and Apex One as a Service",
+  "kev_count": 1,
+  "last_added": "2022-09-15",
+  "ransomware": false
+ },
+ {
+  "vendor": "Trend Micro",
+  "product": "Apex One and OfficeScan",
+  "kev_count": 2,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Trend Micro",
+  "product": "Apex One and Worry-Free Business Security",
+  "kev_count": 1,
+  "last_added": "2023-09-21",
+  "ransomware": false
+ },
+ {
+  "vendor": "Trend Micro",
+  "product": "Apex One, Apex One as a Service, and Worry-Free Business Security",
+  "kev_count": 2,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Trend Micro",
+  "product": "Apex One, OfficeScan and Worry-Free Business Security Agents",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Trend Micro",
+  "product": "Apex One, OfficeScan, and Worry-Free Business Security",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Trend Micro",
+  "product": "OfficeScan",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Trihedral",
+  "product": "VTScada (formerly VTS)",
+  "kev_count": 1,
+  "last_added": "2022-04-15",
+  "ransomware": false
+ },
+ {
+  "vendor": "Trimble",
+  "product": "Cityworks",
+  "kev_count": 1,
+  "last_added": "2025-02-07",
+  "ransomware": false
+ },
+ {
+  "vendor": "TrueConf",
+  "product": "Client",
+  "kev_count": 1,
+  "last_added": "2026-04-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "TrueConf",
+  "product": "Server",
+  "kev_count": 2,
+  "last_added": "2026-08-20",
+  "ransomware": false
+ },
+ {
+  "vendor": "TVT",
+  "product": "NVMS-1000",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Twilio",
+  "product": "Authy",
+  "kev_count": 1,
+  "last_added": "2024-07-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "Ubiquiti",
+  "product": "AirOS",
+  "kev_count": 1,
+  "last_added": "2022-04-15",
+  "ransomware": false
+ },
+ {
+  "vendor": "Ubiquiti",
+  "product": "UniFi OS",
+  "kev_count": 3,
+  "last_added": "2026-06-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "Unitronics",
+  "product": "Vision PLC and HMI",
+  "kev_count": 1,
+  "last_added": "2023-12-11",
+  "ransomware": false
+ },
+ {
+  "vendor": "Unraid",
+  "product": "Unraid",
+  "kev_count": 2,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "vBulletin",
+  "product": "vBulletin",
+  "kev_count": 2,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Veeam",
+  "product": "Backup & Replication",
+  "kev_count": 4,
+  "last_added": "2024-10-17",
+  "ransomware": true
+ },
+ {
+  "vendor": "Veritas",
+  "product": "Backup Exec Agent",
+  "kev_count": 3,
+  "last_added": "2023-04-07",
+  "ransomware": true
+ },
+ {
+  "vendor": "Versa",
+  "product": "Concerto",
+  "kev_count": 1,
+  "last_added": "2026-01-22",
+  "ransomware": false
+ },
+ {
+  "vendor": "Versa",
+  "product": "Director",
+  "kev_count": 1,
+  "last_added": "2024-08-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "Vite",
+  "product": "Vitejs",
+  "kev_count": 1,
+  "last_added": "2026-01-22",
+  "ransomware": false
+ },
+ {
+  "vendor": "VMware",
+  "product": "Aria Operations for Networks",
+  "kev_count": 1,
+  "last_added": "2023-06-22",
+  "ransomware": false
+ },
+ {
+  "vendor": "VMware",
+  "product": "ESXi",
+  "kev_count": 3,
+  "last_added": "2025-03-04",
+  "ransomware": true
+ },
+ {
+  "vendor": "VMware",
+  "product": "ESXi and Workstation",
+  "kev_count": 1,
+  "last_added": "2025-03-04",
+  "ransomware": false
+ },
+ {
+  "vendor": "VMware",
+  "product": "ESXi, Workstation, and Fusion",
+  "kev_count": 1,
+  "last_added": "2025-03-04",
+  "ransomware": false
+ },
+ {
+  "vendor": "VMware",
+  "product": "Multiple Products",
+  "kev_count": 3,
+  "last_added": "2022-04-15",
+  "ransomware": false
+ },
+ {
+  "vendor": "VMware",
+  "product": "SD-WAN Edge",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "VMware",
+  "product": "Spring Cloud Gateway",
+  "kev_count": 1,
+  "last_added": "2022-05-16",
+  "ransomware": false
+ },
+ {
+  "vendor": "VMware",
+  "product": "Spring Framework",
+  "kev_count": 1,
+  "last_added": "2022-04-04",
+  "ransomware": false
+ },
+ {
+  "vendor": "VMware",
+  "product": "Tools",
+  "kev_count": 1,
+  "last_added": "2023-06-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "VMware",
+  "product": "vCenter Server",
+  "kev_count": 9,
+  "last_added": "2024-11-20",
+  "ransomware": true
+ },
+ {
+  "vendor": "VMware",
+  "product": "vCenter Server and Cloud Foundation",
+  "kev_count": 1,
+  "last_added": "2022-03-07",
+  "ransomware": false
+ },
+ {
+  "vendor": "VMware",
+  "product": "VMware ESXi and Horizon DaaS",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "VMware",
+  "product": "vRealize Operations Manager API",
+  "kev_count": 1,
+  "last_added": "2022-01-18",
+  "ransomware": true
+ },
+ {
+  "vendor": "VMware",
+  "product": "Workspace ONE Access and Identity Manager",
+  "kev_count": 1,
+  "last_added": "2022-04-14",
+  "ransomware": true
+ },
+ {
+  "vendor": "VMware Tanzu",
+  "product": "Spring Cloud",
+  "kev_count": 1,
+  "last_added": "2022-08-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "VMware Tanzu",
+  "product": "Spring Cloud Configuration (Config) Server",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "VMware Tanzu",
+  "product": "Spring Data Commons",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": true
+ },
+ {
+  "vendor": "WatchGuard",
+  "product": "Firebox",
+  "kev_count": 2,
+  "last_added": "2025-12-19",
+  "ransomware": true
+ },
+ {
+  "vendor": "WatchGuard",
+  "product": "Firebox and XTM",
+  "kev_count": 1,
+  "last_added": "2022-04-11",
+  "ransomware": false
+ },
+ {
+  "vendor": "WatchGuard",
+  "product": "Firebox and XTM Appliances",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "Wazuh",
+  "product": "Wazuh Server",
+  "kev_count": 1,
+  "last_added": "2025-06-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "WebKitGTK",
+  "product": "WebKitGTK",
+  "kev_count": 1,
+  "last_added": "2022-05-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "Webmin",
+  "product": "Webmin",
+  "kev_count": 1,
+  "last_added": "2022-03-25",
+  "ransomware": true
+ },
+ {
+  "vendor": "WebPros",
+  "product": "cPanel & WHM and WP2 (WordPress Squared)",
+  "kev_count": 1,
+  "last_added": "2026-04-30",
+  "ransomware": true
+ },
+ {
+  "vendor": "WebRTC",
+  "product": "WebRTC",
+  "kev_count": 1,
+  "last_added": "2022-08-25",
+  "ransomware": true
+ },
+ {
+  "vendor": "Widget Factory",
+  "product": "Joomla Content Editor",
+  "kev_count": 1,
+  "last_added": "2026-06-16",
+  "ransomware": false
+ },
+ {
+  "vendor": "Wing FTP Server",
+  "product": "Wing FTP Server",
+  "kev_count": 2,
+  "last_added": "2026-03-16",
+  "ransomware": false
+ },
+ {
+  "vendor": "WordPress",
+  "product": "Core",
+  "kev_count": 3,
+  "last_added": "2026-09-25",
+  "ransomware": false
+ },
+ {
+  "vendor": "WordPress",
+  "product": "File Manager Plugin",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "WordPress",
+  "product": "Snap Creek Duplicator Plugin",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "WordPress",
+  "product": "Social Warfare Plugin",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "WordPress",
+  "product": "WordPress Core",
+  "kev_count": 1,
+  "last_added": "2026-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "WSO2",
+  "product": "Multiple Products",
+  "kev_count": 2,
+  "last_added": "2026-09-24",
+  "ransomware": true
+ },
+ {
+  "vendor": "XStream",
+  "product": "XStream",
+  "kev_count": 1,
+  "last_added": "2023-03-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "XWiki",
+  "product": "Platform",
+  "kev_count": 1,
+  "last_added": "2025-10-30",
+  "ransomware": false
+ },
+ {
+  "vendor": "Yealink",
+  "product": "Device Management",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Yiiframework",
+  "product": "Yii",
+  "kev_count": 1,
+  "last_added": "2025-05-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "Zabbix",
+  "product": "Frontend",
+  "kev_count": 2,
+  "last_added": "2022-02-22",
+  "ransomware": false
+ },
+ {
+  "vendor": "Zammad GmbH",
+  "product": "Zammad",
+  "kev_count": 2,
+  "last_added": "2026-10-02",
+  "ransomware": false
+ },
+ {
+  "vendor": "ZK Framework",
+  "product": "AuUploader",
+  "kev_count": 1,
+  "last_added": "2023-02-27",
+  "ransomware": true
+ },
+ {
+  "vendor": "ZKTeco",
+  "product": "BioTime",
+  "kev_count": 1,
+  "last_added": "2025-05-19",
+  "ransomware": false
+ },
+ {
+  "vendor": "Zoho",
+  "product": "Desktop Central",
+  "kev_count": 1,
+  "last_added": "2021-12-10",
+  "ransomware": false
+ },
+ {
+  "vendor": "Zoho",
+  "product": "ManageEngine",
+  "kev_count": 6,
+  "last_added": "2023-03-07",
+  "ransomware": true
+ },
+ {
+  "vendor": "Zoho",
+  "product": "ManageEngine ServiceDesk Plus (SDP)",
+  "kev_count": 1,
+  "last_added": "2021-12-01",
+  "ransomware": false
+ },
+ {
+  "vendor": "Zoho",
+  "product": "ManageEngine ServiceDesk Plus (SDP) / SupportCenter Plus",
+  "kev_count": 1,
+  "last_added": "2021-12-01",
+  "ransomware": false
+ },
+ {
+  "vendor": "Zyxel",
+  "product": "DSL CPE Devices",
+  "kev_count": 2,
+  "last_added": "2025-02-11",
+  "ransomware": false
+ },
+ {
+  "vendor": "Zyxel",
+  "product": "EMG2926 Routers",
+  "kev_count": 1,
+  "last_added": "2023-09-18",
+  "ransomware": true
+ },
+ {
+  "vendor": "Zyxel",
+  "product": "GS1900 Series Switches",
+  "kev_count": 1,
+  "last_added": "2026-09-21",
+  "ransomware": false
+ },
+ {
+  "vendor": "Zyxel",
+  "product": "Multiple Firewalls",
+  "kev_count": 5,
+  "last_added": "2024-12-03",
+  "ransomware": true
+ },
+ {
+  "vendor": "Zyxel",
+  "product": "Multiple Network-Attached Storage (NAS) Devices",
+  "kev_count": 2,
+  "last_added": "2023-06-23",
+  "ransomware": false
+ },
+ {
+  "vendor": "Zyxel",
+  "product": "Multiple Products",
+  "kev_count": 1,
+  "last_added": "2021-11-03",
+  "ransomware": false
+ },
+ {
+  "vendor": "Zyxel",
+  "product": "P660HN-T1A Routers",
+  "kev_count": 1,
+  "last_added": "2023-08-07",
+  "ransomware": false
+ }
+]

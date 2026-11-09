@@ -1,0 +1,1 @@
+Skill của SẢN PHẨM (trợ lý AI BYOK dùng lúc chạy), định dạng tương thích Agent Skills. Ship qua content pack ký (docs/UPDATES.md). Không phải skill cho Claude Code. Danh sách: docs/AI_ASSISTANT.md §2.

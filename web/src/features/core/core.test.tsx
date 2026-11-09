@@ -1,0 +1,1102 @@
+import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
+import { renderApp, expectNoA11yViolations } from '@/test/render'
+import { eachOption } from '@/test/formMatrix'
+import { server } from '@/test/server'
+import { assetsStore, auditStore, modulesStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
+import { encode } from 'uqr'
+import { totpAt } from './totp'
+import { emailCodes } from './emailCode'
+import { mockSign } from './mocks'
+import { nav, compareVersion, toBase64 } from './util'
+
+const setModule = (id: string, enabled: boolean) => modulesStore.update((l) => l.map((m) => (m.id === id ? { ...m, enabled } : m)))
+const user = () => userEvent.setup()
+
+describe('core: cài đặt ban đầu', () => {
+  it('đi hết 4 bước, tạo quản trị, đặt setup_complete và vào trang chủ', async () => {
+    const u = user()
+    renderApp('/setup', { role: null, setupComplete: false })
+    expect(await screen.findByRole('heading', { level: 2, name: 'Organization and administrator account' })).toBeInTheDocument()
+    await expectNoA11yViolations()
+    // lỗi ở bước 1: mật khẩu ngắn
+    await u.type(screen.getByLabelText('Organization name'), 'ABC Company')
+    await u.type(screen.getByLabelText('Administrator name'), 'Lan')
+    await u.type(screen.getByLabelText('Sign-in email'), 'lan@abc.vn')
+    await u.type(screen.getByLabelText('Password'), 'ngan')
+    await u.type(screen.getByLabelText('Repeat password'), 'ngan')
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(await screen.findByText(/The password needs at least 12 characters, it has 4 so far/)).toBeInTheDocument()
+    await u.clear(screen.getByLabelText('Password'))
+    await u.clear(screen.getByLabelText('Repeat password'))
+    await u.type(screen.getByLabelText('Password'), 'mot-cau-mat-khau-dai')
+    await u.type(screen.getByLabelText('Repeat password'), 'mot-cau-mat-khau-dai')
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    // bước 2
+    expect(await screen.findByRole('heading', { level: 2, name: 'Network to watch' })).toBeInTheDocument()
+    await u.type(screen.getByLabelText('Range 1'), '192.168.10.0/33')
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(await screen.findByText(/"192.168.10.0\/33" is not a valid range/)).toBeInTheDocument()
+    await u.clear(screen.getByLabelText('Range 1'))
+    // địa chỉ trần thiếu tiền tố: báo lỗi, không tự đoán /24 (kien: có thể là /25)
+    await u.type(screen.getByLabelText('Range 1'), '192.168.10.0')
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(await screen.findByText(/"192.168.10.0" has no prefix length/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Range 1')).toHaveValue('192.168.10.0')
+    await u.clear(screen.getByLabelText('Range 1'))
+    await u.type(screen.getByLabelText('Range 1'), '192.168.10.0/24')
+    await u.click(screen.getByRole('button', { name: 'Add range' }))
+    await u.type(screen.getByLabelText('Range 2'), '10.20.0.0/16')
+    await u.click(screen.getByRole('button', { name: 'Add range' }))
+    await u.type(screen.getByLabelText('Range 3'), '10.20.0.0/16')
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(await screen.findByText(/10.20.0.0\/16 is listed twice/)).toBeInTheDocument()
+    await u.click(screen.getByRole('button', { name: 'Remove range 3' }))
+    expect(screen.getByText(/Vedette is provided as is under the Apache-2.0 license/)).toBeInTheDocument()
+    await u.click(screen.getByRole('checkbox', { name: /I confirm these ranges belong to my company/ }))
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    // bước 3: tuỳ chọn, chọn module kéo theo phụ thuộc
+    expect(await screen.findByRole('heading', { level: 2, name: 'Choose a module bundle' })).toBeInTheDocument()
+    await u.click(screen.getByRole('radio', { name: /Custom/ }))
+    await u.click(await screen.findByRole('checkbox', { name: /^Vulnerability scan/ }))
+    expect(screen.getByRole('checkbox', { name: /^Inventory/ })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: /^Vulnerability feeds/ })).toBeChecked()
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    // bước 4: bỏ qua kênh
+    expect(await screen.findByRole('heading', { level: 2, name: 'Where alerts go' })).toBeInTheDocument()
+    await u.click(screen.getByRole('button', { name: 'Skip and finish' }))
+    expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
+    expect(orgStore.get().setup_complete).toBe(true)
+    expect(orgStore.get().name).toBe('ABC Company')
+    expect(usersStore.get().map((x) => x.email)).toEqual(['lan@abc.vn'])
+    expect(assetsStore.get()).toHaveLength(0)
+    expect(modulesStore.get().find((m) => m.id === 'scan')!.enabled).toBe(true)
+    expect(modulesStore.get().find((m) => m.id === 'agent-intake')!.enabled).toBe(false)
+    // phạm vi quét được ghi vào module kiểm kê thật
+    const inv = (await (await fetch(`${location.origin}/api/v1/inventory/settings`)).json()) as { lan_ranges: string[]; scope_confirmed_at: string | null; scope_confirmed_by: string | null; active: { enabled: boolean } }
+    expect(inv.lan_ranges).toEqual(['192.168.10.0/24', '10.20.0.0/16'])
+    expect(inv.scope_confirmed_by).toBe('lan@abc.vn')
+    expect(inv.active.enabled).toBe(true)
+    expect(auditStore.get().some((a) => a.action === 'core.setup' && a.detail?.includes('commitment confirmed'))).toBe(true)
+  })
+
+  it('bước kênh lưu qua module thông báo; token sai báo lỗi và thử lại được', async () => {
+    const u = user()
+    renderApp('/setup', { role: null, setupComplete: false })
+    await u.type(await screen.findByLabelText('Organization name'), 'XYZ Company')
+    await u.type(screen.getByLabelText('Administrator name'), 'Nam')
+    await u.type(screen.getByLabelText('Sign-in email'), 'nam@xyz.vn')
+    await u.type(screen.getByLabelText('Password'), 'mot-cau-mat-khau-dai')
+    await u.type(screen.getByLabelText('Repeat password'), 'mot-cau-mat-khau-dai')
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    await u.type(await screen.findByLabelText('Range 1'), '8.8.8.0/24')
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(await screen.findByText(/8.8.8.0\/24 is not a private range/)).toBeInTheDocument()
+    await u.clear(screen.getByLabelText('Range 1'))
+    await u.type(screen.getByLabelText('Range 1'), '10.0.0.0/0')
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(await screen.findByText(/0.0.0.0\/0 is not a private range/)).toBeInTheDocument()
+    await u.clear(screen.getByLabelText('Range 1'))
+    await u.type(screen.getByLabelText('Range 1'), '10.0.0.0/24')
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    await u.click(await screen.findByRole('button', { name: 'Continue' }))
+    await u.click(await screen.findByRole('button', { name: 'Finish setup' }))
+    expect((await screen.findAllByText('Fill this in.')).length).toBe(2)
+    await u.type(screen.getByLabelText('Chat ID to send to'), '-1001234567890')
+    await u.type(screen.getByLabelText('Bot token'), 'token-sai')
+    await u.click(screen.getByRole('button', { name: 'Finish setup' }))
+    expect(await screen.findByText(/The account was created but the channel was not saved/)).toBeInTheDocument()
+    expect(orgStore.get().setup_complete).toBe(true)
+    await u.clear(screen.getByLabelText('Bot token'))
+    await u.type(screen.getByLabelText('Bot token'), '123456789:EXAMPLE_not_a_real_token_0000000000')
+    await u.click(screen.getByRole('button', { name: 'Finish setup' }))
+    expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
+    const ch = (await (await fetch(`${location.origin}/api/v1/notify/channels`)).json()) as { channels: { type: string; configured: boolean; enabled: boolean; fields: Record<string, string>; secret_last4: string }[] }
+    const tg = ch.channels.find((c) => c.type === 'telegram')!
+    expect(tg).toMatchObject({ configured: true, enabled: true, secret_last4: '0000' })
+    expect(tg.fields.chat_id).toBe('-1001234567890')
+    const inv = (await (await fetch(`${location.origin}/api/v1/inventory/settings`)).json()) as { lan_ranges: string[]; active: { enabled: boolean } }
+    expect(inv.lan_ranges).toEqual(['10.0.0.0/24'])
+    expect(inv.active.enabled).toBe(false) // không tick xác nhận: chỉ nghe thụ động
+  })
+
+  it('sample data signs in the sample administrator at once', async () => {
+    const u = user()
+    renderApp('/setup', { role: null, setupComplete: false })
+    await u.click(await screen.findByRole('button', { name: 'Use sample data' }))
+    expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
+    expect(orgStore.get().setup_complete).toBe(true)
+    expect(usersStore.get().find((x) => x.id === sessionStore.get().userId)?.email).toBe('admin@acme.example')
+  })
+
+  it('đã cài xong thì /setup chuyển về đăng nhập', async () => {
+    renderApp('/setup', { role: null })
+    expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument()
+  })
+})
+
+describe('core: khung Cài đặt và vai', () => {
+  it('/settings chuyển tới mục đầu tiên, a11y sạch', async () => {
+    renderApp('/settings')
+    expect(await screen.findByRole('heading', { level: 1, name: /Sample Company box/ })).toBeInTheDocument()
+    const nav = screen.getByRole('navigation', { name: 'Settings sections' })
+    for (const n of ['General', 'Modules', 'Users', 'Audit log', 'Updates', 'Privacy', 'MCP server', 'Data']) expect(within(nav).getByRole('link', { name: n })).toBeInTheDocument()
+    await expectNoA11yViolations()
+  })
+
+  it('chỉ xem: menu ẩn mục cần quản trị, URL trực tiếp báo cần quyền', async () => {
+    renderApp('/settings/users', { role: 'viewer' })
+    expect(await screen.findByText('Users needs a higher role')).toBeInTheDocument()
+    const nav = screen.getByRole('navigation', { name: 'Settings sections' })
+    expect(within(nav).queryByRole('link', { name: 'User' })).toBeNull()
+    expect(within(nav).getByRole('link', { name: 'Privacy' })).toBeInTheDocument()
+  })
+
+  it('chỉ xem: mục Chung chỉ đọc, nút Lưu tắt kèm lý do', async () => {
+    renderApp('/settings/general', { role: 'viewer' })
+    expect(await screen.findByLabelText('Organization name')).toBeDisabled()
+    expect(screen.getByRole('note')).toHaveTextContent('Changing it needs the Admin role')
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+  })
+
+  it('mục không tồn tại: thông báo thân thiện', async () => {
+    renderApp('/settings/khong-co')
+    expect(await screen.findByText('No such settings section')).toBeInTheDocument()
+  })
+
+  it('lưu cài đặt chung và ghi nhật ký', async () => {
+    const u = user()
+    renderApp('/settings/general')
+    const name = await screen.findByLabelText('Organization name')
+    await u.clear(name)
+    await u.type(name, 'New Company')
+    await u.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Saved')).toBeInTheDocument()
+    expect(orgStore.get().name).toBe('New Company')
+    expect(auditStore.get()[0]!.action).toBe('core.general')
+  })
+
+  it('lỗi API hiện thông báo và nút thử lại', async () => {
+    server.use(http.get('*/api/v1/core/general', () => HttpResponse.json({ error: { code: 'x', message: 'The settings server is not responding.' } }, { status: 503 })))
+    renderApp('/settings/general')
+    expect(await screen.findByText('The settings server is not responding.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+})
+
+describe('core: module (S-CORE-1)', () => {
+  it('bật module thiếu phụ thuộc: hộp thoại "bật kèm"', async () => {
+    const u = user()
+    setModule('scan', false)
+    renderApp('/settings/modules')
+    await u.click(await screen.findByRole('switch', { name: 'Turn on module Credentialed scan' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Turn on the required modules too?' })
+    expect(within(dlg).getByText('Vulnerability scan')).toBeInTheDocument()
+    expect(modulesStore.get().find((m) => m.id === 'scan-credentialed')!.enabled).toBe(false)
+    await u.click(within(dlg).getByRole('button', { name: 'Turn on together' }))
+    await waitFor(() => expect(modulesStore.get().find((m) => m.id === 'scan-credentialed')!.enabled).toBe(true))
+    expect(modulesStore.get().find((m) => m.id === 'scan')!.enabled).toBe(true)
+  })
+
+  it('tắt module: liệt kê module bị ảnh hưởng và nói dữ liệu được giữ', async () => {
+    const u = user()
+    renderApp('/settings/modules')
+    await u.click(await screen.findByRole('switch', { name: 'Turn on module Inventory' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Turn off Inventory?' })
+    expect(within(dlg).getByText(/The module's data is kept/)).toBeInTheDocument()
+    expect(within(dlg).getByText('Passive sensor')).toBeInTheDocument()
+    await u.click(within(dlg).getByRole('button', { name: 'Turn off' }))
+    await waitFor(() => expect(modulesStore.get().find((m) => m.id === 'inventory')!.enabled).toBe(false))
+    expect(assetsStore.get().length).toBeGreaterThan(0)
+  })
+
+  it('vai chỉ xem không bật tắt được, module lõi bị khoá', async () => {
+    renderApp('/settings/modules', { role: 'viewer' })
+    expect(await screen.findByRole('switch', { name: 'Turn on module Inventory' })).toBeDisabled()
+    expect(screen.getByRole('switch', { name: 'Turn on module Core' })).toBeDisabled()
+    await expectNoA11yViolations()
+  })
+})
+
+describe('core: quyền riêng tư (S-CORE-4)', () => {
+  it('hiện đủ 9 luồng, payload nguyên văn và tắt được tín hiệu ẩn danh', async () => {
+    const u = user()
+    renderApp('/settings/privacy')
+    const table = await screen.findByRole('table', { name: 'Nine data flows that leave the box' })
+    expect(within(table).getAllByRole('row')).toHaveLength(10)
+    for (const n of ['Pull feeds directly from their sources', 'Anonymous signal', 'AI assistant', 'Data sources that need a key', 'Notifications', 'Update check', 'Forwarding to a SIEM', 'News about a CVE', 'External surface']) expect(within(table).getAllByText(new RegExp(n)).length).toBeGreaterThan(0)
+    const code = document.querySelector('pre code')!.textContent!
+    const payload = JSON.parse(code) as { country: string; install_id: string; device_counts: Record<string, number> }
+    expect(payload.country).toBe('VN')
+    expect(payload.install_id).toMatch(/^ins-/)
+    expect(Object.keys(payload.device_counts).length).toBeGreaterThan(0)
+    expect(code).not.toMatch(/192\.168|hostname|Company/)
+    await u.click(screen.getByRole('switch', { name: 'Send anonymous signal' }))
+    expect(await screen.findByText('Off. Nothing is sent.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('The anonymous signal is off')
+    await expectNoA11yViolations()
+  })
+
+  it('luồng 8 và 9 theo trạng thái module', async () => {
+    setModule('exposure', false)
+    renderApp('/settings/privacy')
+    const table = await screen.findByRole('table', { name: 'Nine data flows that leave the box' })
+    const row = within(table).getByText(/9\. External surface/).closest('tr')!
+    expect(within(row).getByText('Off')).toBeInTheDocument()
+  })
+
+  it('vai chỉ xem xem được nhưng công tắc tắt', async () => {
+    renderApp('/settings/privacy', { role: 'viewer' })
+    expect(await screen.findByRole('switch', { name: 'Send anonymous signal' })).toBeDisabled()
+  })
+})
+
+describe('core: dữ liệu', () => {
+  it('xoá toàn bộ dữ liệu: gõ đúng tên, hộp về trạng thái chưa cài đặt', async () => {
+    const u = user()
+    const spy = vi.spyOn(nav, 'toSetup').mockImplementation(() => {})
+    renderApp('/settings/data')
+    await u.click(await screen.findByRole('button', { name: 'Delete all data' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Delete all data on the box?' })
+    const confirm = within(dlg).getByRole('button', { name: 'Delete everything' })
+    expect(confirm).toBeDisabled()
+    await u.type(within(dlg).getByLabelText(/Type the organization name/), 'Sample')
+    expect(confirm).toBeDisabled()
+    await u.type(within(dlg).getByLabelText(/Type the organization name/), ' Company')
+    expect(confirm).toBeEnabled()
+    await u.click(confirm)
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
+    expect(orgStore.get().setup_complete).toBe(false)
+    expect(sessionStore.get().userId).toBeNull()
+    spy.mockRestore()
+  })
+
+  it('server từ chối khi tên không khớp', async () => {
+    renderApp('/settings/data')
+    await screen.findByRole('button', { name: 'Delete all data' })
+    const res = await fetch(`${location.origin}/api/v1/core/data/purge`, { method: 'POST', body: JSON.stringify({ confirm: 'sai' }) })
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as { error: { code: string } }).error.code).toBe('confirm_mismatch')
+    expect(assetsStore.get().length).toBeGreaterThan(0)
+  })
+
+  it('khôi phục dữ liệu mẫu gọi reset rồi tải lại', async () => {
+    const u = user()
+    const spy = vi.spyOn(nav, 'reload').mockImplementation(() => {})
+    renderApp('/settings/data')
+    await u.click(await screen.findByRole('button', { name: 'Restore sample data' }))
+    await u.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Restore and reload' }))
+    expect(spy).toHaveBeenCalledTimes(1)
+    spy.mockRestore()
+  })
+
+  it('vai chỉ xem bị chặn ở mục Dữ liệu', async () => {
+    renderApp('/settings/data', { role: 'viewer' })
+    expect(await screen.findByText('Data needs a higher role')).toBeInTheDocument()
+  })
+})
+
+describe('core: đăng nhập hai lớp', () => {
+  it('đúng mật khẩu nhưng thiếu mã: trang đăng nhập hỏi mã; mã sai bị từ chối; mã đúng vào được', async () => {
+    const u = user()
+    const secret = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP'
+    localStorage.clear()
+    // bật 2FA bằng khoá cố định qua API thật của mock
+    sessionStore.set({ userId: 'u-admin' })
+    const st = (await (await fetch(`${location.origin}/api/v1/core/account/2fa/start`, { method: 'POST', body: '{}' })).json()) as { secret: string }
+    const ok = await fetch(`${location.origin}/api/v1/core/account/2fa/confirm`, { method: 'POST', body: JSON.stringify({ code: await totpAt(st.secret, Date.now()) }) })
+    expect(ok.status).toBe(200)
+    expect(secret).toBeTruthy()
+    renderApp('/login', { role: null })
+    await u.type(await screen.findByLabelText('Email'), 'admin@acme.example')
+    await u.type(screen.getByLabelText('Password'), 'vedette-demo')
+    await u.click(screen.getByRole('button', { name: 'Sign in' }))
+    const code = await screen.findByLabelText('6-digit code')
+    expect(sessionStore.get().userId).toBeNull()
+    await u.type(code, '000000')
+    await u.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByText(/Wrong code/)).toBeInTheDocument()
+    expect(sessionStore.get().userId).toBeNull()
+    await u.clear(code)
+    await u.type(code, await totpAt(st.secret, Date.now()))
+    await u.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
+    expect(sessionStore.get().userId).toBe('u-admin')
+  })
+
+  it('API: thiếu mã 401 twofa_required, mã sai 400 invalid_code', async () => {
+    usersStore.update((l) => l.map((x) => (x.id === 'u-op' ? { ...x, twofa: true } : x)))
+    const login = (extra: object) => fetch(`${location.origin}/api/v1/auth/login`, { method: 'POST', body: JSON.stringify({ email: 'it@acme.example', password: 'vedette-demo', ...extra }) })
+    const a = await login({})
+    expect(a.status).toBe(401)
+    expect(((await a.json()) as { error: { code: string } }).error.code).toBe('twofa_required')
+    const b = await login({ code: '123456' })
+    expect(b.status).toBe(400)
+    expect(((await b.json()) as { error: { code: string } }).error.code).toBe('invalid_code')
+    expect(sessionStore.get().userId).toBeNull()
+  })
+})
+
+describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
+  it('thêm người dùng cho mật khẩu tạm một lần', async () => {
+    const u = user()
+    renderApp('/settings/users')
+    await u.click(await screen.findByRole('button', { name: 'Add user' }))
+    await u.type(screen.getByLabelText('Display name'), 'Hoa')
+    await u.type(screen.getByLabelText('Sign-in email'), 'hana@acme.example')
+    await u.selectOptions(screen.getByLabelText('Role'), 'operator')
+    await u.click(screen.getByRole('button', { name: 'Create account' }))
+    expect(await screen.findByRole('dialog', { name: 'Account created' })).toBeInTheDocument()
+    expect(document.querySelector('pre code')!.textContent).toMatch(/^[0-9a-f]{6}-/)
+    expect(usersStore.get().find((x) => x.email === 'hana@acme.example')?.role).toBe('operator')
+  })
+
+  it('không hạ vai quản trị cuối cùng', async () => {
+    const u = user()
+    renderApp('/settings/users')
+    await u.selectOptions((await screen.findAllByLabelText('Role of Admin'))[0]!, 'viewer')
+    expect(await screen.findByText(/At least one active administrator must remain/)).toBeInTheDocument()
+    expect(usersStore.get().find((x) => x.id === 'u-admin')!.role).toBe('admin')
+  })
+
+  it('đổi vai và vô hiệu người dùng', async () => {
+    const u = user()
+    renderApp('/settings/users')
+    await u.selectOptions((await screen.findAllByLabelText('Role of IT Operator'))[0]!, 'viewer')
+    await waitFor(() => expect(usersStore.get().find((x) => x.id === 'u-op')!.role).toBe('viewer'))
+    await u.click(screen.getAllByRole('button', { name: 'Disable Director' })[0]!)
+    await waitFor(() => expect(usersStore.get().find((x) => x.id === 'u-view')!.disabled).toBe(true))
+  })
+
+  it('OIDC: bật, lưu, thử, và nút SSO hiện ở trang đăng nhập', async () => {
+    const u = user()
+    renderApp('/settings/users')
+    await u.click(await screen.findByRole('button', { name: 'Turn on SSO sign-in' }))
+    await u.type(await screen.findByLabelText('Issuer'), 'http://sso.acme.example')
+    await u.type(screen.getByLabelText('Client ID'), 'vedette')
+    await u.type(screen.getByLabelText('Client secret'), 'bi-mat-rat-dai')
+    await u.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText(/The issuer must be an https address/)).toBeInTheDocument()
+    await u.clear(screen.getByLabelText('Issuer'))
+    await u.type(screen.getByLabelText('Issuer'), 'https://sso.acme.example/realms/main')
+    await u.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText(/ending in/)).toBeInTheDocument()
+    await u.click(screen.getByRole('button', { name: 'Test connection' }))
+    expect(await screen.findByText('Read the IdP\'s OIDC configuration.')).toBeInTheDocument()
+  })
+
+  it('trang đăng nhập có nút SSO khi auth-oidc bật và đã cấu hình', async () => {
+    setModule('auth-oidc', true)
+    const r = await fetch(`${location.origin}/api/v1/core/auth-options`)
+    expect(((await r.json()) as { oidc: boolean }).oidc).toBe(false) // bật nhưng chưa cấu hình issuer
+    renderApp('/login', { role: null })
+    expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Sign in with SSO' })).toBeNull()
+  })
+
+  it('SSO đã cấu hình: nút hiện ở trang đăng nhập và đăng nhập được', async () => {
+    const u = user()
+    setModule('auth-oidc', true)
+    sessionStore.set({ userId: 'u-admin' })
+    const put = await fetch(`${location.origin}/api/v1/core/oidc`, { method: 'PUT', body: JSON.stringify({ issuer: 'https://sso.acme.example', client_id: 'v', client_secret: 'bi-mat-rat-dai', default_role: 'viewer', role_map: [] }) })
+    expect(put.status).toBe(200)
+    renderApp('/login', { role: null })
+    await u.click(await screen.findByRole('button', { name: 'Sign in with SSO' }))
+    expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
+    expect(usersStore.get().find((x) => x.id === sessionStore.get().userId)?.role).toBe('viewer')
+  })
+
+  it('nhật ký lọc được theo chữ và nhóm', async () => {
+    const u = user()
+    auditStore.set([
+      { id: 'a1', ts: new Date().toISOString(), user: 'admin@acme.example', action: 'module.enable', target: 'scan' },
+      { id: 'a2', ts: new Date().toISOString(), user: 'it@acme.example', action: 'user.create', target: 'hana@acme.example' },
+    ])
+    renderApp('/settings/audit')
+    expect(await screen.findByText('2 log lines match the filters', { exact: false })).toBeInTheDocument()
+    await u.selectOptions(screen.getByLabelText('Kind of action'), 'user')
+    expect(await screen.findByRole('heading', { level: 1, name: /^1 log lines/ })).toBeInTheDocument()
+    const table = screen.getByRole('table', { name: 'Audit log' })
+    expect(within(table).getByText('Create user')).toBeInTheDocument()
+    await u.type(screen.getByLabelText('Search text'), 'khong-co-gi')
+    expect((await screen.findAllByText(/No line matches the filters/)).length).toBeGreaterThan(0)
+    await expectNoA11yViolations()
+  })
+
+  it('xuất CSV chống công thức và đúng dấu ngoặc', async () => {
+    renderApp('/settings/audit')
+    await screen.findByRole('table', { name: 'Audit log' })
+    auditStore.set([{ id: 'x', ts: '2026-11-06T01:00:00.000Z', user: 'a@b.vn', action: 'data.export', target: '=HYPERLINK("x")', detail: 'yes, comma' }])
+    const res = await fetch(`${location.origin}/api/v1/core/audit/export`)
+    const text = await res.text()
+    expect(res.headers.get('Content-Disposition')).toContain('vedette-audit.csv')
+    expect(text).toContain(`"'=HYPERLINK(""x"")"`)
+    expect(text).toContain('"yes, comma"')
+  })
+})
+
+describe('core: cập nhật (S-CORE-2)', () => {
+  it('cảnh báo khuyến cáo, cập nhật phần mềm rồi khuyến cáo hết', async () => {
+    const u = user()
+    renderApp('/settings/updates')
+    expect(await screen.findByRole('alert')).toHaveTextContent('1 known vulnerabilities')
+    await u.click(screen.getByRole('button', { name: 'Update Vedette software' }))
+    expect(await screen.findByText(/switched to the new build/)).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
+    expect(screen.getByRole('table', { name: 'Versions in use' })).toHaveTextContent('0.9.4')
+  })
+
+  it('rollback hỏi xác nhận và chuyển sang cập nhật tay', async () => {
+    const u = user()
+    renderApp('/settings/updates')
+    await u.click(await screen.findByRole('button', { name: /^Back to .*Vedette software/i }))
+    const dlg = await screen.findByRole('dialog')
+    expect(dlg).toHaveTextContent('0.9.3')
+    await u.click(within(dlg).getByRole('button', { name: 'Roll back' }))
+    expect(await screen.findByText('Vedette software rolled back.')).toBeInTheDocument()
+    const table = screen.getByRole('table', { name: 'Versions in use' })
+    expect(within(table).getByText('0.9.2')).toBeInTheDocument()
+  })
+
+  it('đổi kênh và chế độ; chế độ tự động tự cài khi kiểm tra', async () => {
+    const u = user()
+    renderApp('/settings/updates')
+    await u.click(await screen.findByRole('button', { name: 'Automatic' }))
+    await u.click(screen.getByRole('button', { name: 'Check for Vedette releases' }))
+    expect(await screen.findByText(/Installed \d+ new items automatically/)).toBeInTheDocument()
+  })
+
+  it('bundle offline: chữ ký sai bị từ chối, chữ ký đúng được cài', async () => {
+    const u = user()
+    renderApp('/settings/updates')
+    const input = await screen.findByLabelText('Bundle file')
+    const items = [{ component: 'pack-parsers', version: '1.4.1', channel: 'stable' }]
+    const created_at = '2026-11-06T00:00:00Z'
+    const bad = JSON.stringify({ format: 'vedette-bundle/1', created_at, items, signature: 'mock-sig-00000000' })
+    await u.upload(input, new File([bad], 'bad.json', { type: 'application/json' }))
+    expect(await screen.findByText(/Invalid signature/)).toBeInTheDocument()
+    const good = JSON.stringify({ format: 'vedette-bundle/1', created_at, items, signature: mockSign(JSON.stringify(items) + created_at) })
+    await u.upload(input, new File([good], 'good.json', { type: 'application/json' }))
+    expect(await screen.findByText('Bundle imported, 1 new items installed.')).toBeInTheDocument()
+  })
+
+  it('chỉ xem: không cập nhật được', async () => {
+    renderApp('/settings/updates', { role: 'viewer' })
+    expect(await screen.findByRole('button', { name: 'Update Vedette software' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Check for Vedette releases' })).toBeDisabled()
+    await expectNoA11yViolations()
+  })
+
+  it('so sánh phiên bản', () => {
+    expect(compareVersion('0.9.4', '0.10.0-beta.1')).toBe(-1)
+    expect(compareVersion('0.10.0', '0.10.0-beta.1')).toBe(1)
+    expect(compareVersion('20261106.08', '20261106.12')).toBe(-1)
+    expect(toBase64('á')).toBe('w6E=')
+  })
+})
+
+describe('core: MCP (S-MCP-1)', () => {
+  it('bật, tạo token chỉ hiện một lần, thu hồi', async () => {
+    const u = user()
+    renderApp('/settings/mcp')
+    expect(await screen.findByRole('heading', { level: 1, name: 'MCP server is off' })).toBeInTheDocument()
+    await u.click(screen.getByRole('switch', { name: 'Turn on MCP server' }))
+    expect(await screen.findByText('127.0.0.1:8765')).toBeInTheDocument()
+    await u.click(screen.getByRole('button', { name: 'Create token' }))
+    expect(await screen.findByText('Name the token so you know which one to revoke later.')).toBeInTheDocument()
+    await u.type(screen.getByLabelText('Token name'), 'Claude Desktop')
+    await u.click(screen.getByRole('button', { name: 'Create token' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Token Claude Desktop created' })
+    expect(document.querySelector('[role=dialog] pre code')!.textContent).toMatch(/^vmcp_[0-9a-f]{32}$/)
+    await u.click(within(dlg).getByRole('button', { name: 'I have copied it' }))
+    const row = (await screen.findByText('Claude Desktop', { selector: 'span' })).closest('tr')!
+    expect(row.textContent).not.toMatch(/vmcp_/)
+    await u.click(within(row).getByRole('button', { name: 'Revoke token Claude Desktop' }))
+    expect(await screen.findByText('No tokens yet. Create one so an outside tool can connect.')).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: 'Tools the MCP server offers' })).toBeInTheDocument()
+    await expectNoA11yViolations()
+  })
+})
+
+describe('core: tài khoản', () => {
+  it('đổi mật khẩu: sai mật khẩu cũ, rồi thành công', async () => {
+    const u = user()
+    renderApp('/account')
+    await u.type(await screen.findByLabelText('Current password'), 'sai-roi')
+    await u.type(screen.getByLabelText('New password'), 'mat-khau-moi-rat-dai')
+    await u.type(screen.getByLabelText('Repeat new password'), 'mat-khau-moi-rat-dai')
+    await u.click(screen.getByRole('button', { name: 'Change password' }))
+    expect(await screen.findByText('The current password is wrong.')).toBeInTheDocument()
+    await u.clear(screen.getByLabelText('Current password'))
+    await u.type(screen.getByLabelText('Current password'), 'vedette-demo')
+    await u.click(screen.getByRole('button', { name: 'Change password' }))
+    expect(await screen.findByText('Password changed.')).toBeInTheDocument()
+    expect(usersStore.get().find((x) => x.id === 'u-admin')!.password).toBe('mat-khau-moi-rat-dai')
+  })
+
+  it('bật 2FA bằng mã TOTP thật, sai mã bị từ chối, rồi tắt bằng mật khẩu', async () => {
+    const u = user()
+    renderApp('/account')
+    await u.click(await screen.findByRole('button', { name: 'Set up authenticator app' }))
+    const key = (await screen.findByText(/^[A-Z2-7]{32}$/)).textContent!
+    const otpauth = screen.getByText(/^otpauth:\/\/totp\/Vedette:/).textContent!
+    // QR drawn locally: black modules on white with a 4-module quiet zone, own accessible name
+    const qr = screen.getByRole('img', { name: 'QR code for your authenticator app' })
+    const size = encode(otpauth, { ecc: 'M', border: 0 }).size
+    expect(qr.getAttribute('viewBox')).toBe(`0 0 ${size + 8} ${size + 8}`)
+    expect(qr.querySelector('rect')).toHaveAttribute('fill', '#fff')
+    const d = qr.querySelector('path')!.getAttribute('d')!
+    const xs = [...d.matchAll(/M(\d+) (\d+)h/g)].map((m) => [Number(m[1]), Number(m[2])] as const)
+    expect(xs.length).toBeGreaterThan(100)
+    expect(Math.min(...xs.map(([x]) => x))).toBeGreaterThanOrEqual(4)
+    expect(Math.max(...xs.map(([x, y]) => Math.max(x, y)))).toBeLessThanOrEqual(size + 3)
+    expect(screen.getByText('Scan this QR code with your authenticator app, or enter the key by hand.')).toBeInTheDocument()
+    await u.type(screen.getByLabelText('6-digit code'), '000000')
+    await u.click(screen.getByRole('button', { name: 'Confirm and turn on' }))
+    expect(await screen.findByText(/Wrong code/)).toBeInTheDocument()
+    await u.clear(screen.getByLabelText('6-digit code'))
+    await u.type(screen.getByLabelText('6-digit code'), await totpAt(key, Date.now()))
+    await u.click(screen.getByRole('button', { name: 'Confirm and turn on' }))
+    expect(await screen.findByText('Two-step sign-in is on.')).toBeInTheDocument()
+    expect(usersStore.get().find((x) => x.id === 'u-admin')!.twofa).toBe(true)
+    await u.click(screen.getByRole('button', { name: 'Turn off two-step sign-in' }))
+    await u.type(screen.getByLabelText('Current password', { selector: '#twofa-off-pw' }), 'vedette-demo')
+    await u.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Turn off' }))
+    await waitFor(() => expect(usersStore.get().find((x) => x.id === 'u-admin')!.twofa).toBe(false))
+  })
+
+  it('kết thúc phiên khác, a11y sạch', async () => {
+    const u = user()
+    renderApp('/account', { role: 'viewer' })
+    await u.click(await screen.findByRole('button', { name: 'End session Firefox on Windows' }))
+    expect(await screen.findByText('Session ended.')).toBeInTheDocument()
+    await expectNoA11yViolations()
+  })
+})
+
+// ---------- D-35: hai kiểu đăng nhập hai bước ----------
+const call = (path: string, method = 'POST', body: object = {}) => fetch(`${location.origin}/api/v1${path}`, { method, body: method === 'GET' ? undefined : JSON.stringify(body) })
+const errCode = async (r: Response) => ((await r.json()) as { error: { code: string } }).error.code
+const setUser = (id: string, patch: object) => usersStore.update((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)))
+const slot = (id: string) => emailCodes.get()[id]!
+const ageCode = (id: string, ms: number) => emailCodes.update((all) => ({ ...all, [id]: { ...all[id]!, pending: all[id]!.pending && { ...all[id]!.pending!, sent_at: all[id]!.pending!.sent_at - ms, expires: all[id]!.pending!.expires - ms }, sends: all[id]!.sends } }))
+const loginAs = (email: string, extra: object = {}) => call('/auth/login', 'POST', { email, password: 'vedette-demo', ...extra })
+
+describe('core: two-step sign-in, email code method (D-35)', () => {
+  it('account: both methods are offered; email is enabled when the email channel is on', async () => {
+    renderApp('/account')
+    expect(await screen.findByRole('button', { name: 'Set up authenticator app' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Set up email code' })).toBeEnabled()
+    expect(screen.getByText(/emails a 6-digit code to your sign-in address, a•••@acme\.example/)).toBeInTheDocument()
+    await expectNoA11yViolations()
+  })
+
+  it('account: email option is disabled with the reason when the channel is removed; admins get a link, others are told to ask', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    expect((await call('/notify/channels/email', 'DELETE')).status).toBe(204)
+    const { unmount } = renderApp('/account')
+    const btn = await screen.findByRole('button', { name: 'Set up email code' })
+    expect(btn).toBeDisabled()
+    expect(screen.getByText(/the email alert channel, which is not set up or is turned off/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open alert channels' })).toHaveAttribute('href', '/settings/channels')
+    expect((await call('/core/account/2fa/email/start')).status).toBe(409)
+    expect(screen.getByRole('button', { name: 'Set up authenticator app' })).toBeEnabled()
+    unmount()
+    renderApp('/account', { role: 'viewer' })
+    expect(await screen.findByText(/Ask an administrator to set up the email channel\./)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Open alert channels' })).not.toBeInTheDocument()
+  })
+
+  it('account: Notifications module off is a separate reason', async () => {
+    setModule('notify', false)
+    renderApp('/account')
+    expect(await screen.findByRole('button', { name: 'Set up email code' })).toBeDisabled()
+    expect(screen.getByText('Email codes need the Notifications module, which is off.')).toBeInTheDocument()
+  })
+
+  it('setup: code goes to the masked sign-in email, wrong tries are counted, 5 wrong cancel the code, the right code turns it on', async () => {
+    const u = user()
+    renderApp('/account')
+    await u.click(await screen.findByRole('button', { name: 'Set up email code' }))
+    expect(await screen.findByText(/We sent a 6-digit code to a•••@acme\.example/)).toBeInTheDocument()
+    const code = slot('u-admin').pending!.code
+    expect(code).toMatch(/^\d{6}$/)
+    expect(screen.getByTestId('preview-code')).toHaveTextContent(`Preview build: the email would contain ${code}`)
+    expect(screen.getByRole('button', { name: /^Send a new code in \d+ s$/ })).toBeDisabled()
+    const wrong = code === '000000' ? '111111' : '000000'
+    const field = screen.getByLabelText('6-digit code')
+    await u.type(field, wrong)
+    await u.click(screen.getByRole('button', { name: 'Confirm and turn on' }))
+    expect(await screen.findByText('Wrong code. 4 tries left.')).toBeInTheDocument()
+    expect(usersStore.get().find((x) => x.id === 'u-admin')!.twofa).toBe(false)
+    for (const left of [3, 2, 1]) {
+      await u.click(screen.getByRole('button', { name: 'Confirm and turn on' }))
+      expect(await screen.findByText(`Wrong code. ${left} ${left === 1 ? 'try' : 'tries'} left.`)).toBeInTheDocument()
+    }
+    await u.click(screen.getByRole('button', { name: 'Confirm and turn on' }))
+    expect(await screen.findByText('Too many wrong codes. Ask for a new code.')).toBeInTheDocument()
+    // the cancelled code no longer works even when typed correctly
+    await u.clear(field)
+    await u.type(field, code)
+    await u.click(screen.getByRole('button', { name: 'Confirm and turn on' }))
+    expect(await screen.findByText('No code is waiting. Ask for a new code.')).toBeInTheDocument()
+    // a new code after the cooldown works
+    ageCode('u-admin', 61_000)
+    expect((await call('/core/account/2fa/email/start')).status).toBe(200)
+    const fresh = slot('u-admin').pending!.code
+    await u.clear(field)
+    await u.type(field, fresh)
+    await u.click(screen.getByRole('button', { name: 'Confirm and turn on' }))
+    expect((await screen.findAllByText('Two-step sign-in is on.')).length).toBeGreaterThan(0)
+    const me = usersStore.get().find((x) => x.id === 'u-admin')!
+    expect(me).toMatchObject({ twofa: true, twofa_method: 'email' })
+    expect(await screen.findByText('On: Email code')).toBeInTheDocument()
+    expect(auditStore.get().some((r) => r.action === 'account.2fa_on' && r.detail === 'email code')).toBe(true)
+    // switching: a second method cannot be started while one is on
+    expect((await call('/core/account/2fa/start')).status).toBe(409)
+    expect((await call('/core/account/2fa/email/start')).status).toBe(409)
+  })
+
+  it('codes: expire after 10 minutes, single use, 60 s resend wait, 5 sends per hour', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    expect((await call('/core/account/2fa/email/start')).status).toBe(200)
+    const first = slot('u-admin').pending!
+    expect(first.expires - first.sent_at).toBe(10 * 60_000)
+    const soon = await call('/core/account/2fa/email/start')
+    expect(soon.status).toBe(429)
+    const body = (await soon.json()) as { error: { code: string; message: string; retry_after: number } }
+    expect(body.error).toMatchObject({ code: 'resend_too_soon' })
+    expect(body.error.retry_after).toBeGreaterThan(0)
+    expect(body.error.message).toMatch(/^Wait \d+ seconds before asking for a new code\.$/)
+    // expiry
+    ageCode('u-admin', 10 * 60_000 + 1)
+    const late = await call('/core/account/2fa/email/confirm', 'POST', { code: first.code })
+    expect(late.status).toBe(400)
+    expect(await late.json()).toMatchObject({ error: { code: 'code_expired', message: 'This code has expired. Ask for a new code.' } })
+    // 5 sends per hour: sends 2..5 pass (aging only the cooldown), the 6th is refused
+    for (let i = 0; i < 4; i += 1) { ageCode('u-admin', 61_000); expect((await call('/core/account/2fa/email/start')).status).toBe(200) }
+    ageCode('u-admin', 61_000)
+    const many = await call('/core/account/2fa/email/start')
+    expect(many.status).toBe(429)
+    expect(await many.json()).toMatchObject({ error: { code: 'too_many_codes', message: 'Too many codes were sent in the last hour. Try again later.' } })
+  })
+
+  it('login: an email-method user gets a code sent, the page says where, preview note, resend with cooldown; wrong code refused; right code signs in; code is single use', async () => {
+    const u = user()
+    setUser('u-op', { twofa: true, twofa_method: 'email' })
+    renderApp('/login', { role: null })
+    await u.type(await screen.findByLabelText('Email'), 'it@acme.example')
+    await u.type(screen.getByLabelText('Password'), 'vedette-demo')
+    await u.click(screen.getByRole('button', { name: 'Sign in' }))
+    const field = await screen.findByLabelText('6-digit code')
+    expect(field).toHaveAttribute('autocomplete', 'one-time-code')
+    expect(field).toHaveFocus()
+    expect(screen.getByText('We sent a 6-digit code to i•••@acme.example. It expires in 10 minutes.')).toBeInTheDocument()
+    const code = slot('u-op').pending!.code
+    expect(screen.getByTestId('preview-code')).toHaveTextContent(code)
+    expect(await screen.findByRole('button', { name: /^Send a new code in \d+ s$/ })).toBeDisabled()
+    expect(sessionStore.get().userId).toBeNull()
+    // wrong code
+    await u.type(field, code === '000000' ? '111111' : '000000')
+    await u.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByText('Wrong code. 4 tries left.')).toBeInTheDocument()
+    expect(sessionStore.get().userId).toBeNull()
+    // resend after the 60 s wait (the page countdown follows the clock)
+    ageCode('u-op', 61_000)
+    vi.useFakeTimers({ toFake: ['Date'], now: Date.now() })
+    try { vi.setSystemTime(Date.now() + 61_000) } catch { /* ignore */ }
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send a new code' })).toBeEnabled(), { timeout: 3000 })
+    await u.click(screen.getByRole('button', { name: 'Send a new code' }))
+    expect(await screen.findByText('A new code was sent to i•••@acme.example.')).toBeInTheDocument()
+    vi.useRealTimers()
+    const fresh = slot('u-op').pending!.code
+    await waitFor(() => expect(screen.getByTestId('preview-code')).toHaveTextContent(fresh))
+    await u.type(screen.getByLabelText('6-digit code'), fresh)
+    await u.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
+    expect(sessionStore.get().userId).toBe('u-op')
+    // single use: the same code does nothing the second time
+    sessionStore.set({ userId: null })
+    const again = await loginAs('it@acme.example', { code: fresh })
+    expect(again.status).toBe(400)
+    expect(await errCode(again)).toBe('no_code')
+    expect(sessionStore.get().userId).toBeNull()
+  })
+
+  it('login API: 401 twofa_required carries method and masked sent_to; app users get method app and no code is sent', async () => {
+    setUser('u-op', { twofa: true, twofa_method: 'email' })
+    setUser('u-view', { twofa: true })
+    const a = await loginAs('it@acme.example')
+    expect(a.status).toBe(401)
+    expect(((await a.json()) as { error: Record<string, unknown> }).error).toMatchObject({ code: 'twofa_required', method: 'email', sent_to: 'i•••@acme.example', resend_after: 60 })
+    // reloading the page and signing in again within 60 s keeps the code instead of spending another send
+    const code = slot('u-op').pending!.code
+    const b = await loginAs('it@acme.example')
+    expect(b.status).toBe(401)
+    expect(slot('u-op').pending!.code).toBe(code)
+    expect(slot('u-op').sends).toHaveLength(1)
+    const c = await loginAs('director@acme.example')
+    expect(c.status).toBe(401)
+    const cb = ((await c.json()) as { error: Record<string, unknown> }).error
+    expect(cb).toMatchObject({ code: 'twofa_required', method: 'app' })
+    expect(cb.sent_to).toBeUndefined()
+    expect(emailCodes.get()['u-view']).toBeUndefined()
+  })
+
+  it('login API: resend needs the password, obeys the 60 s wait, and only works for email users', async () => {
+    setUser('u-op', { twofa: true, twofa_method: 'email' })
+    await loginAs('it@acme.example')
+    const soon = await call('/auth/login/resend-code', 'POST', { email: 'it@acme.example', password: 'vedette-demo' })
+    expect(soon.status).toBe(429)
+    expect(await errCode(soon)).toBe('resend_too_soon')
+    expect(await errCode(await call('/auth/login/resend-code', 'POST', { email: 'it@acme.example', password: 'wrong' }))).toBe('invalid_credentials')
+    expect(await errCode(await call('/auth/login/resend-code', 'POST', { email: 'director@acme.example', password: 'vedette-demo' }))).toBe('not_email_method')
+    ageCode('u-op', 61_000)
+    const ok = await call('/auth/login/resend-code', 'POST', { email: 'it@acme.example', password: 'vedette-demo' })
+    expect(ok.status).toBe(200)
+    expect(await ok.json()).toMatchObject({ sent_to: 'i•••@acme.example', resend_after: 60 })
+  })
+
+  it('login: when the email channel is off an email-method user is refused (never password-only), with a clear message', async () => {
+    const u = user()
+    setUser('u-op', { twofa: true, twofa_method: 'email' })
+    sessionStore.set({ userId: 'u-admin' })
+    await call('/notify/channels/email', 'DELETE')
+    sessionStore.set({ userId: null })
+    const r = await loginAs('it@acme.example')
+    expect(r.status).toBe(503)
+    expect(await errCode(r)).toBe('twofa_email_unavailable')
+    expect(sessionStore.get().userId).toBeNull()
+    renderApp('/login', { role: null })
+    await u.type(await screen.findByLabelText('Email'), 'it@acme.example')
+    await u.type(screen.getByLabelText('Password'), 'vedette-demo')
+    await u.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByText('Two-step email codes cannot be sent right now. Ask an administrator to turn the email channel back on, or to reset your two-step sign-in.')).toBeInTheDocument()
+    expect(sessionStore.get().userId).toBeNull()
+    expect(screen.queryByLabelText('6-digit code')).not.toBeInTheDocument()
+  })
+
+  it('login: an authenticator-app user still sees the authenticator copy and no resend button', async () => {
+    const u = user()
+    setUser('u-op', { twofa: true })
+    renderApp('/login', { role: null })
+    await u.type(await screen.findByLabelText('Email'), 'it@acme.example')
+    await u.type(screen.getByLabelText('Password'), 'vedette-demo')
+    await u.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByText(/Get the code from your authenticator app/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Send a new code/ })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('preview-code')).not.toBeInTheDocument()
+  })
+
+  it('turning two-step off (with the password) works for the email method too', async () => {
+    const u = user()
+    setUser('u-admin', { twofa: true, twofa_method: 'email' })
+    renderApp('/account')
+    expect(await screen.findByText(/Vedette emails to a•••@acme\.example/)).toBeInTheDocument()
+    await u.click(screen.getByRole('button', { name: 'Turn off two-step sign-in' }))
+    await u.type(screen.getByLabelText('Current password', { selector: '#twofa-off-pw' }), 'vedette-demo')
+    await u.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Turn off' }))
+    await waitFor(() => expect(usersStore.get().find((x) => x.id === 'u-admin')).toMatchObject({ twofa: false, twofa_method: null }))
+  })
+})
+
+describe('core: admin reset of two-step sign-in (D-35)', () => {
+  it('users list shows the method; reset asks first, turns it off and writes an audit entry', async () => {
+    const u = user()
+    setUser('u-op', { twofa: true, twofa_method: 'email' })
+    setUser('u-view', { twofa: true })
+    renderApp('/settings/users')
+    const row = (await screen.findByRole('table', { name: 'Users' })).querySelectorAll('tbody tr')
+    const text = [...row].map((r) => r.textContent ?? '').join('|')
+    expect(text).toContain('Email code')
+    expect(text).toContain('Authenticator app')
+    expect(screen.queryByRole('button', { name: 'Reset two-step sign-in of Director' })).toBeInTheDocument()
+    await u.click(screen.getByRole('button', { name: 'Reset two-step sign-in of IT Operator' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Reset two-step sign-in for IT Operator?' })
+    expect(usersStore.get().find((x) => x.id === 'u-op')!.twofa).toBe(true)
+    await u.click(within(dlg).getByRole('button', { name: 'Reset two-step sign-in' }))
+    await waitFor(() => expect(usersStore.get().find((x) => x.id === 'u-op')).toMatchObject({ twofa: false, twofa_method: null }))
+    const entry = auditStore.get().find((r) => r.action === 'user.2fa_reset')!
+    expect(entry).toMatchObject({ user: 'admin@acme.example', target: 'it@acme.example', detail: 'was email code' })
+    expect(await screen.findByText('Two-step sign-in was reset.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reset two-step sign-in of IT Operator' })).not.toBeInTheDocument()
+    // the reset user signs in with the password alone again
+    expect((await loginAs('it@acme.example')).status).toBe(200)
+  })
+
+  it('an administrator cannot reset their own; non-admins are refused; users without two-step have no reset', async () => {
+    setUser('u-admin', { twofa: true })
+    renderApp('/settings/users')
+    const own = await screen.findByRole('button', { name: 'Reset two-step sign-in of Admin' })
+    expect(own).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Reset two-step sign-in of IT Operator' })).not.toBeInTheDocument()
+    const self = await call('/core/users/u-admin/2fa/reset')
+    expect(self.status).toBe(400)
+    expect(await errCode(self)).toBe('self_reset')
+    expect(await errCode(await call('/core/users/u-op/2fa/reset'))).toBe('not_on')
+    sessionStore.set({ userId: 'u-op' })
+    expect((await call('/core/users/u-view/2fa/reset')).status).toBe(403)
+  })
+})
+
+describe('core: turning off Notifications warns about email-code users (D-35)', () => {
+  it('the module dialog says how many users will be locked out; no warning when there are none', async () => {
+    const u = user()
+    renderApp('/settings/modules')
+    await u.click(await screen.findByRole('switch', { name: 'Turn on module Notifications' }))
+    const none = await screen.findByRole('dialog', { name: 'Turn off Notifications?' })
+    expect(within(none).queryByText(/sign in with email codes/)).not.toBeInTheDocument()
+    await u.click(within(none).getByRole('button', { name: 'Cancel' }))
+    setUser('u-op', { twofa: true, twofa_method: 'email' })
+    setUser('u-view', { twofa: true, twofa_method: 'email' })
+    await u.click(screen.getByRole('switch', { name: 'Turn on module Notifications' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Turn off Notifications?' })
+    expect(await within(dlg).findByText(/2 users sign in with email codes\. They will not be able to sign in until the email channel is back on or an administrator resets their two-step sign-in\./)).toBeInTheDocument()
+  })
+})
+
+describe('core: operating system of the box (S-CORE-7, D-53)', () => {
+  const BASE = `${location.origin}/api/v1/core/updates/os`
+  const post = (path: string, body?: unknown) => fetch(`${BASE}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
+  const patch = (body: unknown) => fetch(`${BASE}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  const T = { timeout: 8000 }
+  const asAdmin = () => sessionStore.set({ userId: 'u-admin' })
+  const osSection = () => within(document.getElementById('os') ?? document.body)
+
+  it('shows the release, kernel, support end, auto updates, pending packages with security and CVEs, and guidance for a release upgrade', async () => {
+    renderApp('/settings/updates')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Ubuntu 24.04.3 LTS: 5 security updates waiting' }, T)).toBeInTheDocument()
+    const os = osSection()
+    expect(await os.findByText('6.8.0-71-generic')).toBeInTheDocument()
+    expect(os.getByText('Until May 2029')).toBeInTheDocument()
+    expect(os.getByText('Supported')).toBeInTheDocument()
+    expect(os.getByRole('switch', { name: 'Automatic security updates' })).toBeChecked()
+    const table = os.getByRole('table', { name: 'Pending operating system updates' })
+    for (const n of ['openssh-server', 'openssl', 'linux-image-6.8.0-87-generic', 'libc6', 'curl', 'tzdata']) expect(within(table).getByText(n)).toBeInTheDocument()
+    expect(within(table).getByText('CVE-2025-26465')).toBeInTheDocument()
+    expect(within(table).getAllByText('Yes')).toHaveLength(5)
+    // release upgrade: guidance only, no button that does it
+    expect(os.getByText('Release upgrade to Ubuntu 26.04 LTS is available')).toBeInTheDocument()
+    expect(os.getByText(/sudo do-release-upgrade/)).toBeInTheDocument()
+    expect(os.queryByRole('button', { name: /upgrade/i })).toBeNull()
+    expect(os.getByText(/vedette-updater, runs a fixed list of apt commands/)).toBeInTheDocument()
+    // block 2
+    const managed = screen.getByRole('table', { name: 'Packages managed by Vedette' })
+    for (const n of ['nmap', 'OpenCanary', 'osquery mirror files', 'nuclei templates']) expect(within(managed).getByText(n)).toBeInTheDocument()
+    expect(within(managed).getAllByText('Updated together with Vedette releases').length).toBeGreaterThan(0)
+    await expectNoA11yViolations()
+  })
+
+  it('Debian 12: standard support has ended, LTS runs to June 2028', async () => {
+    const debian = { os: { distro: 'debian', name: 'Debian GNU/Linux 12 (bookworm)', release: '12', kernel: '6.1.0-37-amd64', support_end: '2026-06-10', extended_end: '2028-06-30', booted_at: new Date().toISOString(), last_check: new Date().toISOString(), mirrors: ['deb.debian.org', 'security.debian.org'] }, pending: [], reboot_required: false, reboot_reasons: [], reboot_scheduled_at: null, auto_security: false, window: { mode: 'always', days: [7], from: '02:00', to: '05:00' }, release_upgrade: { to: 'Debian 13 (trixie)', steps: ['Take a snapshot.'] }, busy: false }
+    server.use(http.get('*/api/v1/core/updates/os', () => HttpResponse.json(debian)))
+    renderApp('/settings/updates')
+    const os = osSection
+    expect(await screen.findByRole('heading', { level: 1, name: 'Debian GNU/Linux 12 (bookworm): no security updates waiting' }, T)).toBeInTheDocument()
+    expect(os().getByText('Standard support ended')).toBeInTheDocument()
+    expect(os().getByText('Extended (LTS) support until June 2028')).toBeInTheDocument()
+    expect(os().getByText('Release upgrade to Debian 13 (trixie) is available')).toBeInTheDocument()
+    expect(os().getByRole('switch', { name: 'Automatic security updates' })).not.toBeChecked()
+    expect(os().getByText('Nothing waiting. The operating system is up to date.')).toBeInTheDocument()
+  })
+
+  it('install security updates: live log, backup, health check, reboot required, then the security rows are gone; a second run is refused meanwhile', async () => {
+    const u = user()
+    renderApp('/settings/updates')
+    await u.click(await screen.findByRole('button', { name: /^Install security updates/ }, T))
+    expect(await screen.findByText('Install started. Watch the progress below.')).toBeInTheDocument()
+    const log = await screen.findByRole('log', { name: 'apt output' })
+    expect(await within(log.parentElement!).findByText('Running')).toBeInTheDocument()
+    // a second run while the first is going: refused with a clear message, nothing started
+    const second = await post('/install', { scope: 'all' })
+    expect(second.status).toBe(409)
+    expect((await second.json()).error.message).toMatch(/already in progress/)
+    expect(await within(log.parentElement!).findByText('Finished', undefined, { timeout: 8000 })).toBeInTheDocument()
+    expect(log).toHaveTextContent('pre-update backup of the Vedette database: vedette-pre-update-')
+    expect(log).toHaveTextContent('Unpacking openssh-server')
+    expect(log).toHaveTextContent('archive.ubuntu.com')
+    const panel = log.parentElement!
+    expect(within(panel).getByText('5 packages, 5 security')).toBeInTheDocument()
+    expect(within(panel).getByText(/^vedette-pre-update-.*\.db\.gz \(4\.2 MB\)$/)).toBeInTheDocument()
+    for (const n of ['vedette-api', 'database', 'sensor', 'web interface']) expect(within(panel).getByText(n)).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Ubuntu 24.04.3 LTS: no security updates waiting'), T)
+    const os = osSection()
+    expect(os.getAllByText('Reboot required').length).toBeGreaterThan(0)
+    expect(os.getByText(/Needed by: linux-image-6.8.0-87-generic .*libc6/)).toBeInTheDocument()
+    const table = os.getByRole('table', { name: 'Pending operating system updates' })
+    expect(within(table).queryByText('openssl')).toBeNull()
+    expect(within(table).getByText('tzdata')).toBeInTheDocument()
+    expect(auditStore.get().some((a) => a.action === 'os.install' && a.target === 'security')).toBe(true)
+    expect(auditStore.get().some((a) => a.action === 'os.install_done')).toBe(true)
+    // nothing to install now
+    const again = await post('/install', { scope: 'security' })
+    expect(again.status).toBe(409)
+    expect((await again.json()).error.code).toBe('nothing_to_install')
+  })
+
+  it('reboot now asks first, then clears the reboot-required state; the update history gets the run', async () => {
+    const u = user()
+    asAdmin()
+    await post('/install', { scope: 'security' })
+    renderApp('/settings/updates')
+    await waitFor(() => expect(osSection().getByText('Reboot required')).toBeInTheDocument(), T)
+    await u.click(osSection().getByRole('button', { name: 'Reboot now' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Reboot the box now?' })
+    await u.click(within(dlg).getByRole('button', { name: 'Reboot now' }))
+    await waitFor(() => expect(osSection().getByText('No reboot needed')).toBeInTheDocument(), T)
+    expect(osSection().getByText('6.8.0-87-generic')).toBeInTheDocument()
+    const hist = screen.getByRole('table', { name: 'Update history' })
+    expect(within(hist).getByText('Operating system')).toBeInTheDocument()
+  })
+
+  it('viewer sees everything read-only: every action is disabled with the reason', async () => {
+    renderApp('/settings/updates', { role: 'viewer' })
+    const os = osSection
+    await screen.findByRole('heading', { level: 1, name: /security updates waiting/ }, T)
+    for (const n of [/^Install security updates/, 'Install all updates', 'Reboot now', 'Schedule reboot', 'Check now']) expect(os().getByRole('button', { name: n })).toBeDisabled()
+    expect(os().getByRole('switch', { name: 'Automatic security updates' })).toBeDisabled()
+    expect(os().getByRole('button', { name: 'Save window' })).toBeDisabled()
+    expect(os().getByRole('button', { name: 'Install all updates' })).toHaveAttribute('title', expect.stringMatching(/admin/i))
+    expect((await post('/install', { scope: 'security' })).status).toBe(403)
+    await expectNoA11yViolations()
+  })
+
+  it('operator can check but not install, reboot or change settings', async () => {
+    sessionStore.set({ userId: 'u-op' })
+    expect((await post('/check')).status).toBe(200)
+    for (const r of [post('/install', { scope: 'all' }), post('/reboot', { when: 'now' }), patch({ auto_security: false })]) expect((await r).status).toBe(403)
+  })
+
+  it('check now refreshes the time; refused when update checks are off under Privacy', async () => {
+    const u = user()
+    renderApp('/settings/updates')
+    await u.click(await screen.findByRole('button', { name: 'Check now' }, T))
+    expect(await screen.findByText('Checked the package mirrors.')).toBeInTheDocument()
+    asAdmin()
+    await fetch(`${location.origin}/api/v1/core/privacy`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ update_check: false }) })
+    const r = await post('/check')
+    expect(r.status).toBe(409)
+    expect((await r.json()).error.code).toBe('check_off')
+  })
+
+  it('automatic security updates switch is saved and audited', async () => {
+    const u = user()
+    renderApp('/settings/updates')
+    await screen.findByRole('button', { name: 'Check now' }, T)
+    const sw = await osSection().findByRole('switch', { name: 'Automatic security updates' }, T)
+    await u.click(sw)
+    expect(await screen.findByText('Automatic security updates are off.')).toBeInTheDocument()
+    await waitFor(() => expect(osSection().getByRole('switch', { name: 'Automatic security updates' })).not.toBeChecked())
+    expect(auditStore.get().some((a) => a.action === 'os.settings')).toBe(true)
+  })
+
+  describe('form matrix: maintenance window', () => {
+    it('every mode shows only its own fields and rejects bad input', async () => {
+      const u = user()
+      renderApp('/settings/updates')
+      await screen.findByRole('button', { name: 'Save window' }, T)
+      const os = osSection()
+      const group = () => os.getByRole('group', { name: 'Window mode' })
+      const dayFields = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'From', 'until']
+      await eachOption([
+        { option: 'Only in a window', shown: dayFields, hidden: [/any time of day/] },
+        { option: 'Any time', shown: [/any time of day/], hidden: dayFields },
+        { option: 'Only in a window', shown: dayFields, hidden: [/any time of day/] }, // going back restores the fields
+      ], async (o) => { await u.click(within(group()).getByRole('button', { name: o })) }, document.getElementById('os')!)
+      // the saved days survive the round trip
+      expect(os.getByLabelText('Sunday')).toBeChecked()
+      expect(os.getByLabelText('Monday')).not.toBeChecked()
+      // no days: error, Save locked; same start and end: error
+      await u.click(os.getByLabelText('Sunday'))
+      expect(os.getByRole('alert')).toHaveTextContent('Pick at least one day.')
+      expect(os.getByRole('button', { name: 'Save window' })).toBeDisabled()
+      await u.click(os.getByLabelText('Monday'))
+      fireEvent.change(os.getByLabelText('until'), { target: { value: '02:00' } })
+      expect(os.getByRole('alert')).toHaveTextContent('The start and the end are the same')
+      fireEvent.change(os.getByLabelText('until'), { target: { value: '04:00' } })
+      await u.click(os.getByRole('button', { name: 'Save window' }))
+      expect(await screen.findByText('Maintenance window saved.')).toBeInTheDocument()
+      expect(await os.findByText('Mon, 02:00 to 04:00')).toBeInTheDocument()
+      // the server checks too
+      asAdmin()
+      expect((await patch({ window: { mode: 'window', days: [], from: '02:00', to: '04:00' } })).status).toBe(400)
+      expect((await patch({ window: { mode: 'window', days: [1], from: '02:00', to: '02:00' } })).status).toBe(400)
+      expect((await patch({ window: { mode: 'window', days: [8], from: '02:00', to: '04:00' } })).status).toBe(400)
+      expect((await patch({ window: { mode: 'weekly', days: [1], from: '02:00', to: '04:00' } })).status).toBe(400)
+      expect((await patch({ window: { mode: 'window', days: [1], from: '25:00', to: '04:00' } })).status).toBe(400)
+    })
+  })
+
+  describe('form matrix: schedule a reboot', () => {
+    const open = async (u: ReturnType<typeof user>) => {
+      await screen.findByRole('button', { name: 'Check now' }, T)
+      await u.click(await osSection().findByRole('button', { name: 'Schedule reboot' }, T))
+      return screen.findByRole('dialog', { name: 'Schedule a reboot' })
+    }
+
+    it('with a maintenance window: both choices usable, the time field only for "a time I choose"', async () => {
+      const u = user()
+      renderApp('/settings/updates')
+      const dlg = await open(u)
+      const d = within(dlg)
+      expect(d.getByRole('radio', { name: 'At the start of the next maintenance window' })).toBeEnabled()
+      await eachOption([
+        { option: 'At a time I choose', shown: ['Time', /inside the maintenance window/], hidden: [/no maintenance window yet/] },
+        { option: 'At the start of the next maintenance window', hidden: ['Time'] },
+        { option: 'At a time I choose', shown: ['Time'] },
+      ], async (o) => { await u.click(d.getByRole('radio', { name: o })) }, dlg)
+      expect(d.getByLabelText('Time')).toHaveValue('') // going back does not keep an earlier value
+      // outside the window (window is Sunday 02:00 to 05:00, so 12:00 is outside)
+      await u.type(d.getByLabelText('Time'), '12:00')
+      await u.click(d.getByRole('button', { name: 'Schedule reboot' }))
+      expect(await screen.findByText(/12:00 is outside the maintenance window/)).toBeInTheDocument()
+      fireEvent.change(d.getByLabelText('Time'), { target: { value: '03:30' } })
+      await u.click(d.getByRole('button', { name: 'Schedule reboot' }))
+      expect(await screen.findByText('Reboot scheduled.')).toBeInTheDocument()
+      const note = await osSection().findByText(/^Reboot scheduled for /)
+      expect(note).toBeInTheDocument()
+      const when = await (await fetch(BASE)).json()
+      expect(new Date(when.reboot_scheduled_at).getDay()).toBe(0) // a Sunday
+      expect(new Date(when.reboot_scheduled_at).getHours()).toBe(3)
+      // cancel
+      await u.click(osSection().getByRole('button', { name: 'Cancel reboot' }))
+      await waitFor(() => expect(osSection().queryByText(/^Reboot scheduled for /)).toBeNull())
+    })
+
+    it('without a window ("any time"): the window choice is locked with the reason, any time is accepted, and the server refuses "window"', async () => {
+      const u = user()
+      asAdmin()
+      expect((await patch({ window: { mode: 'always', days: [7], from: '02:00', to: '05:00' } })).status).toBe(200)
+      renderApp('/settings/updates')
+      const dlg = await open(u)
+      const d = within(dlg)
+      await eachOption([
+        { option: 'At a time I choose', shown: ['Time', /next time this clock time comes/], hidden: [/inside the maintenance window/], locked: ['At the start of the next maintenance window'] },
+      ], async (o) => { await u.click(d.getByRole('radio', { name: o })) }, dlg)
+      expect(d.getByText(/There is no maintenance window yet/)).toBeInTheDocument()
+      expect((await post('/reboot', { when: 'window' })).status).toBe(400)
+      fireEvent.change(d.getByLabelText('Time'), { target: { value: '12:00' } })
+      await u.click(d.getByRole('button', { name: 'Schedule reboot' }))
+      expect((await screen.findAllByText('Reboot scheduled.')).length).toBeGreaterThan(0)
+    })
+
+    it('server side: bad time, wrong choice, window shrinking drops a schedule that no longer fits', async () => {
+      asAdmin()
+      expect((await post('/reboot', { when: 'custom', at: '7pm' })).status).toBe(400)
+      expect((await post('/reboot', { when: 'soon' })).status).toBe(400)
+      expect((await post('/reboot', { when: 'window' })).status).toBe(200)
+      expect((await (await fetch(BASE)).json()).reboot_scheduled_at).not.toBeNull()
+      await patch({ window: { mode: 'window', days: [3], from: '10:00', to: '11:00' } })
+      expect((await (await fetch(BASE)).json()).reboot_scheduled_at).toBeNull()
+      expect((await fetch(`${BASE}/reboot`, { method: 'DELETE' })).status).toBe(409)
+    })
+  })
+
+  it('privacy flow 6 names the distribution mirrors and the local mirror option', async () => {
+    renderApp('/settings/privacy')
+    const row = (await screen.findByText(/^6\. Update checks/)).closest('tr')!
+    for (const h of ['archive.ubuntu.com', 'security.ubuntu.com', 'deb.debian.org', 'security.debian.org', 'local mirror']) expect(row).toHaveTextContent(h)
+  })
+})

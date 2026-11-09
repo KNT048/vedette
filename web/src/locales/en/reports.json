@@ -1,0 +1,408 @@
+{
+  "nav": {
+    "reports": "Reports"
+  },
+  "page": {
+    "titleLoading": "Reports",
+    "title": "This week {{open}} findings are unresolved and {{unapproved}} devices await approval.",
+    "titleClear": "No unresolved findings this week; {{unapproved}} devices await approval.",
+    "meta": "The weekly report goes to management; the assessment report is for your records or for filing.",
+    "tabs": "Report type",
+    "weekly": "Weekly report",
+    "pdpl": "Data protection assessment",
+    "titleEmpty": "No data to build a report yet: add devices first"
+  },
+  "print": {
+    "back": "Back to reports",
+    "hint": "Click Print, then choose Save as PDF in the print dialog.",
+    "button": "Print / Save PDF",
+    "weeklyTitle": "Weekly report, print view",
+    "pdplTitle": "Assessment report, print view",
+    "noPdpl": "No assessment report to print yet",
+    "noPdplBody": "Go back to reports, fill in the organisation details and click Generate report."
+  },
+  "weekly": {
+    "preview": {
+      "title": "Weekly report preview",
+      "description": "One page: what is new, what was handled, what remains and what to do next week. Figures are computed when you open the page."
+    },
+    "ai": {
+      "button": "Write AI commentary",
+      "working": "Writing",
+      "done": "AI commentary added to the report",
+      "unavailable": "Connect AI in Settings, AI assistant"
+    },
+    "send": {
+      "button": "Send now",
+      "title": "Send the weekly report now?",
+      "body_one": "The report will be sent to the {{count}} recipient below.",
+      "body_other": "The report will be sent to the {{count}} recipients below.",
+      "noRecipients": "No recipients yet. Add emails under Schedule and recipients.",
+      "flow": "The content leaves through the email channel you configured, not through any Vedette server.",
+      "confirm": "Send",
+      "sending": "Sending",
+      "sent": "Weekly report sent"
+    },
+    "schedule": {
+      "title": "Schedule and recipients",
+      "description": "Vedette sends the weekly report automatically on the day and hour you choose.",
+      "enabled": "Send automatically every week",
+      "day": "Day",
+      "hour": "Hour",
+      "days": {
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday",
+        "sun": "Sunday"
+      },
+      "recipients": "Recipients",
+      "recipientsHint": "Type an email, then click Add or press Enter. Up to 20 people.",
+      "list": "Recipient list",
+      "add": "Add",
+      "remove": "Remove {{email}}",
+      "noRecipients": "No recipients yet.",
+      "next": "Next send: {{time}}.",
+      "off": "Automatic sending is off.",
+      "channel": "Sent through the email channel in Settings, Alert channels.",
+      "saved": "Schedule saved",
+      "saving": "Saving",
+      "badEmail": "The email is not valid. Use the form name@company.com.",
+      "dupEmail": "This email is already in the list.",
+      "pending": "Press Add to put this email on the list before saving.",
+      "needRecipient": "Automatic sending needs at least one recipient. Enter an email and press Add."
+    },
+    "history": {
+      "title": "Sent",
+      "description": "Each sent report keeps that week's figures as they were; open it again to print or save as PDF.",
+      "empty": "No report sent yet",
+      "emptyBody": "Click Send now or turn on automatic sending to start a history.",
+      "caption": "History of weekly reports sent",
+      "col": {
+        "time": "Time",
+        "trigger": "How sent",
+        "to": "Recipients",
+        "status": "Result",
+        "open": "Sent copy"
+      },
+      "trigger": {
+        "manual": "Manual",
+        "scheduled": "Scheduled"
+      },
+      "people_one": "{{count}} person",
+      "people_other": "{{count}} people",
+      "sent": "Sent",
+      "failed": "Failed",
+      "open": "View and print"
+    },
+    "empty": {
+      "title": "No data for the weekly report yet",
+      "body": "The weekly report takes its figures from the device inventory and findings. Add a device, import a CSV or turn on passive inventory; once there are devices the report fills itself in.",
+      "cta": "Open Devices"
+    }
+  },
+  "pdpl": {
+    "sensitive": "We process sensitive personal data",
+    "sensitiveHint": "As listed in Decree 356/2025/ND-CP: health, biometrics, personal location, bank accounts and cards, citizen ID card images, online behavior tracking data.",
+    "crossBorder": "We transfer data abroad",
+    "crossBorderHint": "Stored on a server or cloud abroad, sent to a recipient abroad, or put on a platform outside Vietnam for further processing. Sending logs that contain personal data to an AI hosted abroad counts too.",
+    "processors": "We use other parties to process data",
+    "processorsHint": "For example payroll, email marketing, cloud or outsourced storage services.",
+    "volume": {
+      "lt1k": "Under 1,000 people",
+      "1k_10k": "1,000 to under 10,000 people",
+      "10k_100k": "10,000 to under 100,000 people",
+      "gte100k": "100,000 people or more"
+    },
+    "sector": {
+      "retail": "Retail and trade",
+      "manufacturing": "Manufacturing",
+      "services": "Services",
+      "education": "Education",
+      "health": "Healthcare",
+      "finance": "Finance and insurance",
+      "it": "Information technology",
+      "other": "Other"
+    },
+    "org": {
+      "title": "Organisation details",
+      "description": "Vedette cannot know this part. Fill it in once, then just edit.",
+      "name": "Organisation name",
+      "tax": "Tax code",
+      "taxHint": "10 digits, or 10 digits, a hyphen and 3 digits for a branch.",
+      "address": "Head office address",
+      "sector": "Line of business",
+      "sectorPick": "Choose a sector",
+      "employees": "Number of staff",
+      "volume": "People whose personal data you have processed",
+      "volumeHint": "Cumulative since you started. At 100,000 people or more you lose the exemption or the option to skip the impact assessment dossier and the data protection person.",
+      "level": "Information system security level",
+      "levelHint": "Under the separate rules on information system security by level (1 to 5), not part of the Personal Data Protection Law. If not determined, choose Not determined.",
+      "levelOption": "Level {{level}}",
+      "contactName": "Data protection contact",
+      "contactHint": "Full name of the person given this task.",
+      "contactEmail": "Contact email",
+      "contactPhone": "Contact phone",
+      "saved": "Organisation details saved",
+      "saving": "Saving",
+      "save": "Save details",
+      "size": "Organisation size",
+      "sizeHint": "By the criteria of Vietnamese law on small and medium enterprises. The size decides whether you must file an impact assessment dossier and appoint a data protection person (Article 38 of Law 91/2025/QH15; Article 41 of Decree 356/2025/ND-CP).",
+      "sizePick": "Pick a size",
+      "levelNone": "Not determined"
+    },
+    "report": {
+      "title": "Assessment report",
+      "description": "Technical sections are generated from the current inventory, findings and module status. Legal sections only list what a person must do.",
+      "needOrg": "Save the organisation details first",
+      "generate": "Generate report",
+      "regenerate": "Regenerate from new data",
+      "generating": "Generating",
+      "generated": "Assessment report generated",
+      "at": "Generated {{time}} from inventory and findings at that moment.",
+      "empty": "No report yet",
+      "emptyNeedOrg": "Fill in and save the organisation details above, then click Generate report.",
+      "emptyReady": "Click Generate report to build it from the data we have."
+    },
+    "size": {
+      "household": "Household business",
+      "micro": "Micro enterprise",
+      "small": "Small enterprise",
+      "startup": "Startup",
+      "other": "Medium or large enterprise, or other organisation"
+    },
+    "processingService": "Provides personal data processing services to others",
+    "processingServiceHint": "For example processing customer, payroll or marketing data on behalf of other organisations. This type gets no exemption.",
+    "err": {
+      "name": "Enter the organisation name (2 to 120 characters).",
+      "tax": "The tax code is 10 digits, or 10 digits, a dash and 3 digits for a branch. Example 0312345678.",
+      "address": "Enter the head office address (at least 5 characters).",
+      "sector": "Pick the field of activity.",
+      "employees": "Enter the headcount, a whole number from 0.",
+      "size": "Pick the organisation size.",
+      "contactName": "Enter the name of the person in charge of data protection.",
+      "contactEmail": "The email is not valid. Use the form name@company.com.",
+      "contactPhone": "The phone number starts with 0 or +84 and has 10 to 11 digits."
+    }
+  },
+  "doc": {
+    "sources": "Data sources:",
+    "src": {
+      "inventory": "Device inventory",
+      "findings": "Findings",
+      "kev": "CISA KEV"
+    },
+    "col": {
+      "device": "Device",
+      "cve": "CVE",
+      "product": "Product",
+      "status": "Status",
+      "since": "Since",
+      "kind": "Type",
+      "os": "Operating system",
+      "measure": "Measure",
+      "detail": "Observation"
+    },
+    "kind": {
+      "firewall": "Firewall",
+      "router": "Router",
+      "switch": "Switch",
+      "ap": "Wi-Fi",
+      "nas": "NAS",
+      "server": "Server",
+      "pc": "Computer",
+      "printer": "Printer",
+      "camera": "Camera",
+      "nvr": "Recorder",
+      "iot": "IoT",
+      "web": "Website",
+      "unknown": "Unknown"
+    },
+    "weekly": {
+      "title": "Weekly security report",
+      "period": "From {{from}} to {{to}}",
+      "headline": "{{open}} findings unresolved, {{confirmed}} of them confirmed; {{unapproved}} devices await approval.",
+      "headlineClear": "No unresolved findings; {{unapproved}} devices await approval.",
+      "stat": {
+        "new": "New findings",
+        "resolved": "Resolved",
+        "open": "Remaining",
+        "devices": "Devices",
+        "devicesValue": "{{total}} ({{unapproved}} awaiting approval)",
+        "kev": "Newly exploited vulnerabilities",
+        "kevValue": "{{matched}} match your devices out of {{n}} new"
+      },
+      "new": "What is new",
+      "done": "Handled",
+      "remaining": "Remaining",
+      "next": "To do next week",
+      "noneNew": "No new findings this week.",
+      "noneDone": "No finding was handled this week.",
+      "noneOpen": "No unresolved findings remain.",
+      "noneNext": "Nothing more to do.",
+      "aiCite": "Figures in this report",
+      "footer": "Generated by Vedette {{time}}.",
+      "act": {
+        "fix": "Patch or apply a temporary fix for {{cve}} on {{device}} (confirmed).",
+        "verify": "Check the version to confirm or rule out {{cve}} on {{device}}.",
+        "review_devices": "Approve or flag the new devices ({{count}}).",
+        "plan_os": "Plan upgrades for machines on an operating system near end of support ({{count}})."
+      },
+      "notIncluded": "Honeypot touches and unusual log items are not part of this report yet; see the Internal honeypot and Logs pages."
+    },
+    "pdpl": {
+      "title": "Information security and personal data assessment report",
+      "subtitle": "Based on the Personal Data Protection Law No. 91/2025/QH15 (effective 01/01/2026) and Decree 356/2025/ND-CP",
+      "generated": "Prepared {{time}}",
+      "disclaimerTitle": "Assessment support, not legal advice",
+      "disclaimerBody": "Vedette prepared this report from the technical data the box can observe. It does not replace a lawyer or the competent authority. Check current legal texts before filing or relying on it.",
+      "s": {
+        "org": "1. Organisation",
+        "inventory": "2. Data processing systems",
+        "measures": "3. Technical protection measures",
+        "risks": "4. Unresolved exploited vulnerabilities",
+        "obligations": "5. Tasks for a person",
+        "coverage": "6. Data coverage of this report",
+        "basis": "7. Legal basis and sources"
+      },
+      "org": {
+        "name": "Organisation",
+        "tax": "Tax code",
+        "address": "Address",
+        "sector": "Sector",
+        "employees": "Staff",
+        "volume": "People with data held",
+        "level": "System level",
+        "contact": "Contact person",
+        "flags": "Processing traits",
+        "size": "Organisation size",
+        "service": "Processing services for others"
+      },
+      "levelValue": "Level {{level}}",
+      "noFlags": "No special traits declared",
+      "inventorySummary": "The inventory records {{total}} devices: {{approved}} approved, {{unapproved}} awaiting approval, {{fragile}} fragile devices (printers, cameras, NAS) that are only listened to passively.",
+      "byKind": "By type:",
+      "keyCaption": "Key systems: servers, NAS and firewalls",
+      "noRisks": "No unresolved exploited vulnerability in the current data.",
+      "obligationsIntro": "The items below concern records, processes and contracts. Vedette cannot see them, so it does not claim they are met; the responsible person confirms each one.",
+      "recorded": "Contact recorded",
+      "todo": "Needs a person",
+      "coverageIntro": "The report only has data from modules that are on:",
+      "covOn": "on",
+      "covOff": "off, related items lack data",
+      "aiCite": "Figures in this report",
+      "sign": {
+        "author": "Prepared by",
+        "approver": "Approved by",
+        "date": "Date"
+      },
+      "regime": {
+        "required": "Mandatory",
+        "optional": "Optional for 5 years from 01/01/2026",
+        "exempt": "Not mandatory at your size"
+      },
+      "regimeNote": "Your size and the traits you declared decide this item: small enterprises and startups may choose to comply or not during those 5 years, micro enterprises and household businesses need not comply (Article 38 of the Law; Article 41 of Decree 356/2025/ND-CP). Not mandatory does not mean not advisable.",
+      "levelNone": "Not determined",
+      "levelNote": "The information system security level falls under separate rules, not the Personal Data Protection Law; shown as you declared it.",
+      "basis": [
+        "Personal Data Protection Law No. 91/2025/QH15, effective 01/01/2026.",
+        "Decree 356/2025/ND-CP of 31/12/2025 guiding the Law (Official Gazette No. 18, 18/01/2026), replacing Decree 13/2023/ND-CP.",
+        "Decree article numbers were checked directly against the Gazette text; Law article numbers against the full text on legal databases. The texts may be amended or supplemented: check the current version before filing.",
+        "The information system security level falls under the 2025 Cybersecurity Law (effective 01/07/2026) and its guidance, outside this report."
+      ],
+      "yes": "Yes",
+      "no": "No"
+    },
+    "measureStatus": {
+      "ok": "Met",
+      "attention": "Needs work",
+      "unknown": "No data"
+    },
+    "measure": {
+      "firewall": {
+        "title": "A firewall at the network edge",
+        "ok": "The inventory includes a firewall.",
+        "attention": "The inventory shows no firewall."
+      },
+      "patching": {
+        "title": "Exploited vulnerabilities are handled",
+        "ok": "No unresolved findings.",
+        "attention": "{{n}} unresolved findings: {{names}}."
+      },
+      "eol": {
+        "title": "Operating systems still supported",
+        "ok": "No operating system at or near end of support.",
+        "attention": "{{n}} machines on an operating system at or near end of support: {{names}}."
+      },
+      "unapproved": {
+        "title": "Every device on the network is approved",
+        "ok": "No device awaits approval.",
+        "attention": "{{n}} devices not approved: {{names}}."
+      },
+      "remote": {
+        "title": "No unnecessary remote access",
+        "ok": "No device exposes RDP.",
+        "attention": "{{n}} machines expose RDP (3389): {{names}}. Confirm the port is not reachable from the Internet."
+      },
+      "logging": {
+        "title": "Central log collection",
+        "ok": "The logs module is on.",
+        "attention": "The logs module is off, so there is no central log."
+      },
+      "honeypot": {
+        "title": "A trap to catch lateral movement",
+        "ok": "The internal honeypot module is on.",
+        "unknown": "The internal honeypot module is off."
+      },
+      "scan": {
+        "title": "Confirmed vulnerability scanning",
+        "ok": "The vulnerability scan module is on.",
+        "unknown": "The scan module is off, so findings rely on versions only."
+      },
+      "backup": {
+        "title": "Data backups",
+        "unknown": "Vedette cannot see your backup system. The responsible person records this by hand."
+      }
+    },
+    "obligation": {
+      "dpia": {
+        "title": "Personal data processing impact assessment dossier",
+        "body": "Prepare and keep the dossier from the day processing starts; file 1 original with the specialized agency (under the Ministry of Public Security) within 60 days of starting processing, with Form 02a or 02b. Update every 6 months when something changes, or within 10 days on reorganisation, dissolution or a change of data protection service provider (Law Articles 21, 22; Decree 356 Articles 19, 20). Vedette supplies the technical figures in the sections above; the person in charge writes the legal part."
+      },
+      "dpo": {
+        "title": "Person or unit in charge of personal data protection",
+        "body": "Appoint in writing, stating assignment, functions and authority, or hire a provider of data protection services (Law Article 33(2)). Staff need at least a college degree, 2 years of relevant experience and data protection training (Decree 356 Article 13). This report records the person you entered in the form; Vedette does not check the appointment document."
+      },
+      "breach": {
+        "title": "Procedure when a data breach happens",
+        "body": "On detecting a breach likely to harm national defense, public order and safety, or a data subject's life, health, honor, dignity or property, notify the specialized agency within 72 hours of detection, using Form 08 or the national portal, and keep a written record (Law Article 23; Decree 356 Article 28). For location and biometric data you must also notify data subjects within 72 hours and keep breach records for at least 5 years (Decree 356 Article 29). Vedette reports technical detections but never notifies any authority by itself."
+      },
+      "consent": {
+        "title": "Consent and data subject rights",
+        "body": "Consent must be voluntary, explicit and specific to each purpose, and capable of being printed or copied to text; silence or no response is not consent (Law Article 9). Keep proof of consent and bear the burden of proof in a dispute (Decree 356 Article 6). You need a process for data subject requests: respond within 2 working days; act on withdrawal of consent within 15 days, access or correction within 10 days, deletion within 20 days, with one extension (Decree 356 Article 5). This is outside what Vedette can see."
+      },
+      "sensitive": {
+        "title": "Sensitive personal data",
+        "body": "You declared that you process sensitive data (list in Decree 356 Article 4). You need access rules, processing procedures and security measures (Article 4(2)); when asking for consent you must say that the data is sensitive (Article 6(4)). Organisations that directly process sensitive data get no exemption or option to skip the impact dossier and the data protection person (Decree 356 Article 41)."
+      },
+      "cross_border": {
+        "title": "Transfer of data abroad",
+        "body": "You declared that you transfer data abroad. You must prepare a cross-border transfer impact assessment dossier (report on Form 09) and file 1 original with Form 01a or 01b with the specialized agency within 60 days of starting the transfer (Law Article 20; Decree 356 Article 18). Some cases are exempt, for example HR management under labor rules, payments, logistics, visa applications (Decree 356 Article 17(3)). Small and micro enterprises are not exempt from this duty under Article 41."
+      },
+      "processors": {
+        "title": "Outsourced data processors",
+        "body": "You need a contract or agreement stating each party's responsibilities, rights and obligations; a processor only receives data after signing and must process per the contract and apply protection measures (Law Article 37). Contracts with cloud services have extra requirements, including encryption at rest and in transit (Decree 356 Article 12)."
+      }
+    },
+    "cov": {
+      "inventory": "Inventory",
+      "scan": "Vulnerability scan",
+      "logs": "Logs",
+      "honeypot": "Internal honeypot",
+      "exposure": "External exposure"
+    },
+    "aiAt": "AI comment written at {{time}}; the figures above may have changed since."
+  }
+}

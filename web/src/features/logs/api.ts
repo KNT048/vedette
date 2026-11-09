@@ -1,0 +1,27 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+import type { Digest, EventsResponse, EventWindow, LogSource, SiemConfig, SiemInput, SourceInput, SourcesResponse } from './types'
+
+export const useSources = () => useQuery({ queryKey: ['logs', 'sources'], queryFn: () => api.get<SourcesResponse>('/logs/sources') })
+export const useDigest = () => useQuery({ queryKey: ['logs', 'digest'], queryFn: () => api.get<Digest>('/logs/digest') })
+
+export const useEvents = (p: { window: EventWindow; source: string; q: string }) =>
+  useQuery({
+    queryKey: ['logs', 'events', p],
+    queryFn: () => api.get<EventsResponse>(`/logs/events?window=${p.window}&source=${encodeURIComponent(p.source)}&q=${encodeURIComponent(p.q)}`),
+    placeholderData: (prev) => prev,
+  })
+
+function useInvalidating<V, R>(fn: (v: V) => Promise<R>) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: fn, onSuccess: () => { void qc.invalidateQueries({ queryKey: ['logs'] }) } })
+}
+
+export const useAddSource = () => useInvalidating((v: SourceInput) => api.post<LogSource>('/logs/sources', v))
+export const useEditSource = () => useInvalidating(({ id, ...v }: SourceInput & { id: string }) => api.put<LogSource>(`/logs/sources/${id}`, v))
+export const useDeleteSource = () => useInvalidating((id: string) => api.del<void>(`/logs/sources/${id}`))
+export const useSetRetention = () => useInvalidating((days: number) => api.put<{ retention_days: number }>('/logs/retention', { days }))
+
+export const useSiem = () => useQuery({ queryKey: ['logs', 'siem'], queryFn: () => api.get<SiemConfig>('/logs/siem') })
+export const useSaveSiem = () => useInvalidating((v: SiemInput) => api.put<SiemConfig>('/logs/siem', v))
+export const useTestSiem = () => useInvalidating(() => api.post<{ ok: boolean; at: string; detail: string }>('/logs/siem/test'))

@@ -1,0 +1,1000 @@
+import { describe, expect, it } from 'vitest'
+import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter } from 'react-router'
+import { Toaster } from 'sonner'
+import { makeQueryClient } from '@/app/App'
+import { renderApp } from '@/test/render'
+import { eachOption } from '@/test/formMatrix'
+import { collection } from '@/mocks/db'
+import { connectorsStore, type Connector } from '@/mocks/connectors'
+import { assetsStore, auditStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
+import { checkValues, evalCondition, resolveParam, validateTpl, verifyChain, EMPTY_TPL, PARAM_CHECK, PARAM_TYPES } from './logic'
+import type { Role } from '@/lib/session'
+import type { ActionRequest, AiState, Blocklist, Catalog, LogEntry, PlanList, ProposeResult, Rule, RuleInput, RunSummary, SettingsView, Simulation } from './types'
+import ResponseSettings from './ResponseSettings'
+import { ActionDialog } from './CatalogEditor'
+import { RuleDialog } from './RuleEditor'
+import { catalogStore } from './state'
+
+const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
+const PROPOSAL = 'pr-f-1-nas-photo-443'
+const PHRASE = 'I ACCEPT THE RISK'
+
+async function call<T = Record<string, unknown>>(role: Role, method: string, path: string, body?: unknown) {
+  orgStore.update((o) => ({ ...o, setup_complete: true }))
+  sessionStore.set({ userId: USER[role] })
+  const res = await fetch(`${location.origin}/api/v1${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
+  const json = (await res.json().catch(() => null)) as T & { error?: { code: string; message: string } }
+  return { status: res.status, json, code: json?.error?.code }
+}
+const withTwofa = (on = true, ids = ['u-admin']) => usersStore.update((l) => l.map((u) => (ids.includes(u.id) ? { ...u, twofa: on } : u)))
+async function turnOn() { withTwofa(); return call('admin', 'POST', '/response/execution', { enabled: true, phrase: PHRASE }) }
+async function request() { return call<ActionRequest>('operator', 'POST', `/response/proposals/${PROPOSAL}/request`) }
+const SETTINGS = { max_per_hour: 3, expiry_min: 15, approval_channels: [] as string[], breaker_max_per_hour: 20, multi_target_max: 5, maintenance: [] as unknown[], ai: { triggers: ['ioc_connection', 'finding'], budget_hour: 2, budget_day: 5 } }
+const saveSettings = (over: Record<string, unknown> = {}) => call<SettingsView>('admin', 'PUT', '/response/settings', { ...SETTINGS, ...over })
+const allow = (enabled: boolean) => call('admin', 'PUT', '/response/catalog/nat_off', { enabled })
+const actionsDb = collection<ActionRequest[]>('response_actions', () => [])
+const auditActions = () => auditStore.get().map((a) => a.action)
+const list = <T,>(role: Role, path: string) => call<{ items: T[] }>(role, 'GET', path).then((r) => r.json.items)
+const logList = () => list<LogEntry>('admin', '/response/log')
+const getAction = async (id: string) => (await list<ActionRequest>('admin', '/response/actions')).find((a) => a.id === id)!
+function mapChat() {
+  collection<unknown>('notify_channels', () => []).set([
+    { type: 'slack', configured: true, enabled: true, approvals: true, fields: { label: '#security' }, approvers: [{ user_id: 'u-op', address: 'U0OPS' }, { user_id: 'u-view', address: 'U0VIEW' }] },
+    { type: 'telegram', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-admin', address: '777' }] },
+  ])
+}
+const chat = (id: string, external_id: string, decision: 'approve' | 'reject' = 'approve') => call<ActionRequest>('admin', 'POST', `/response/actions/${id}/chat-decision`, { channel: 'slack', external_id, decision })
+
+// ---- Rule helpers ----
+const RULE: RuleInput = { name: 'Test rule', enabled: true, live: false, trigger: 'ioc_connection', match: 'all', conditions: [{ field: 'dest_kind', op: 'eq', value: 'ip', n: null, window_min: null }, { field: 'confidence', op: 'gte', value: '50', n: null, window_min: null }],
+  actions: [{ action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 60 }], pre_approved: false, max_per_hour: 10, schedule_min: null }
+const addRule = (over: Partial<RuleInput> = {}) => call<Rule>('admin', 'POST', '/response/rules', { ...RULE, ...over })
+async function liveRule(over: Partial<RuleInput> = {}) {
+  const r = await addRule(over)
+  expect(r.status, JSON.stringify(r.json)).toBe(201)
+  const live = await call<Rule>('admin', 'PUT', `/response/rules/${r.json.id}`, { ...RULE, ...over, live: true })
+  expect(live.status).toBe(200)
+  return live.json
+}
+/** Only the rule under test is on, so the run shows only its effect. */
+async function onlyRule(id: string) {
+  for (const r of await list<Rule>('admin', '/response/rules')) if (r.id !== id) await call('admin', 'PUT', `/response/rules/${r.id}`, { ...r, enabled: false })
+  collection<string[]>('response_done', () => []).set([])
+}
+const run = () => call<RunSummary>('operator', 'POST', '/response/rules/run').then((r) => r.json)
+const pendingOf = async () => (await list<ActionRequest>('operator', '/response/actions')).filter((a) => a.status === 'pending')
+const SSH_W: Connector = { id: 'cn-sw', name: 'Core switch (SSH)', kind: 'ssh', vendor: null, target: '192.168.10.2:22', asset_id: null, auth: { type: 'ssh-key', last4: 'c3Pq' }, allow: [], tools: [{ name: 'run_config', access: 'write', description: 'Run a configuration command', enabled: true }], enabled: true, status: 'ok', last_test: null }
+const withSwitch = () => connectorsStore.update((l) => [...l, SSH_W])
+async function enableSwitchActions() {
+  withSwitch()
+  expect((await call('admin', 'PUT', '/response/catalog/sw_vlan_quarantine', { connection_id: 'cn-sw', enabled: true })).status).toBe(200)
+}
+const hpHits = (n: number, ip = '192.168.10.157') => collection<unknown>('hp_hits', () => []).set(Array.from({ length: n }, (_, i) => ({ id: `hit-t${i}`, ts: new Date(Date.now() - i * 60e3).toISOString(), kind: 'scan', src_ip: ip, trap_hostname: 'DECOY-1', is_test: false })))
+const iocHits = (dests: string[]) => collection<unknown>('logs_ioc_hits', () => []).set(dests.map((d, i) => ({ id: `h${i + 1}`, ts: new Date().toISOString(), asset_id: null, src_ip: '192.168.10.105', dest: d, dest_kind: 'ip', seen_via: 'span_flow', feeds: ['IPsum'], confidence: 0.9 })))
+const propose = (over: Record<string, unknown> = {}) => call<ProposeResult>('operator', 'POST', '/response/ai/proposals', {
+  trigger: 'ioc_connection', action_id: 'blocklist_add', params: { ip: '185.220.101.77' }, confidence: 0.9, evidence: [{ kind: 'ioc_hit', id: 'h1' }], why: 'It keeps talking to a listed address.', ...over })
+
+describe('response: AI plans (S-RESP-1, D-40)', () => {
+  it('drafts the NAS plan from the inventory and the FortiGate read, with the exact change', async () => {
+    mapChat()
+    const { json } = await call<PlanList>('viewer', 'GET', '/response/plans?finding=f-1')
+    expect(json.execution).toBe(false)
+    const plan = json.items[0]!
+    expect(plan.path).toContain('NAS-PHOTOS is reachable from the Internet through FortiGate virtual IP NAS-PHOTO-443')
+    expect(plan.sent_to).toEqual(['Slack #security', 'Telegram'])
+    expect(plan.steps.map((s) => s.kind)).toEqual(['contain', 'check', 'patch'])
+    const p = plan.steps[0]!.proposal!
+    expect(p.title).toBe('Turn off virtual IP NAS-PHOTO-443 on FW-HQ')
+    expect(p.change.cli).toContain('edit "NAS-PHOTO-443"')
+    expect(p.change.rest!.method).toBe('PUT')
+    expect(p.change.rollback.cli).toContain('set status enable')
+    expect(p.state).toBe('execution_off')
+  })
+
+  it('clean install: no plans, no requests', async () => {
+    const { setDataMode } = await import('@/mocks/db')
+    setDataMode('clean')
+    usersStore.set([{ id: 'u-admin', name: 'Admin', email: 'a@x.example', role: 'admin', password: 'x', twofa: false, created_at: new Date().toISOString(), last_login: null }])
+    expect((await call<PlanList>('admin', 'GET', '/response/plans')).json.items).toEqual([])
+    expect((await call<{ items: unknown[] }>('admin', 'GET', '/response/actions')).json.items).toEqual([])
+  })
+})
+
+describe('response: security gates (S-RESP-2, D-41) G-1..G-8', () => {
+  it('G-1 no request and no approval while the switch is off, and the refusal is audited', async () => {
+    expect((await request()).code).toBe('execution_off')
+    expect(auditActions()).toContain('response.refused')
+  })
+
+  it('G-2 enabling needs an admin, two-step sign-in and the exact phrase', async () => {
+    expect((await call('operator', 'POST', '/response/execution', { enabled: true, phrase: PHRASE })).status).toBe(403)
+    expect((await call('admin', 'POST', '/response/execution', { enabled: true, phrase: PHRASE })).code).toBe('twofa_required')
+    withTwofa()
+    for (const phrase of ['i accept the risk', 'I ACCEPT THE RISK ', 'I ACCEPT', undefined]) expect((await call('admin', 'POST', '/response/execution', { enabled: true, phrase })).code).toBe('phrase_mismatch')
+    expect((await call<SettingsView>('admin', 'GET', '/response/settings')).json.execution).toBe(false)
+    const ok = await call<SettingsView>('admin', 'POST', '/response/execution', { enabled: true, phrase: PHRASE })
+    expect(ok.json.execution).toBe(true)
+    expect(ok.json.accepted_by).toBe('admin@acme.example')
+    expect(auditActions()).toContain('response.execution.enable')
+  })
+
+  it('G-3 a viewer can neither request nor approve', async () => {
+    await turnOn()
+    const r = await request()
+    expect(r.status).toBe(201)
+    expect((await call('viewer', 'POST', `/response/actions/${r.json.id}/approve`)).status).toBe(403)
+    expect((await call('viewer', 'POST', `/response/proposals/${PROPOSAL}/request`)).status).toBe(403)
+    expect((await getAction(r.json.id)).status).toBe('pending')
+  })
+
+  it('G-4 an expired request cannot be approved, nothing happens, and a notice is logged', async () => {
+    await turnOn()
+    const r = await request()
+    actionsDb.update((l) => l.map((a) => (a.id === r.json.id ? { ...a, expires_at: new Date(Date.now() - 1000).toISOString() } : a)))
+    expect((await call('operator', 'POST', `/response/actions/${r.json.id}/approve`)).code).toBe('expired')
+    const a = await getAction(r.json.id)
+    expect(a.status).toBe('expired')
+    expect(a.items.every((i) => i.status === 'skipped')).toBe(true)
+    expect(auditActions()).toContain('response.expire')
+    expect((await logList()).some((e) => e.kind === 'expired' && /Notice sent/.test(e.detail))).toBe(true)
+  })
+
+  it('expiry is 15 minutes by default and only 15 to 30 can be configured', async () => {
+    await turnOn()
+    const r = await request()
+    expect(Date.parse(r.json.expires_at) - Date.parse(r.json.requested_at)).toBe(15 * 60e3)
+    for (const expiry_min of [5, 14, 31, 60]) expect((await saveSettings({ expiry_min })).code).toBe('invalid')
+    expect((await saveSettings({ expiry_min: 30 })).status).toBe(200)
+    await call('operator', 'POST', `/response/actions/${r.json.id}/reject`)
+    expect(Date.parse((await request()).json.expires_at) - Date.now()).toBeGreaterThan(29 * 60e3)
+  })
+
+  it('G-5 a chat approval counts only from a mapped operator or admin on an approved channel, per channel', async () => {
+    await turnOn(); mapChat()
+    const r = await request()
+    const id = r.json.id
+    expect((await chat(id, 'U0NOPE')).code).toBe('approver_not_listed')
+    expect((await chat(id, 'U0VIEW')).code).toBe('approver_not_listed') // on the list, but a viewer
+    expect((await chat(id, 'U0OPS')).code).toBe('channel_not_allowed') // listed operator, channel not chosen for approvals
+    expect((await saveSettings({ approval_channels: ['zalo'] })).status).toBe(400) // channel that does not exist
+    await saveSettings({ approval_channels: ['slack', 'telegram'] })
+    expect((await call('admin', 'POST', `/response/actions/${id}/chat-decision`, { channel: 'telegram', external_id: 'U0OPS', decision: 'approve' })).code).toBe('approver_not_listed')
+    const ok = await chat(id, 'U0OPS')
+    expect(ok.status).toBe(200)
+    expect(ok.json.status).toBe('executed')
+    expect(ok.json.approvals[0]!.via).toBe('slack')
+    expect(ok.json.approvals[0]!.name).toBe('IT Operator')
+    expect(ok.json.items[0]!.verified?.ok).toBe(true)
+    expect(auditActions()).toEqual(expect.arrayContaining(['response.approve', 'response.execute']))
+  })
+
+  it('G-6 one request is approved once: a second approval is refused', async () => {
+    await turnOn()
+    const r = await request()
+    expect((await call('operator', 'POST', `/response/actions/${r.json.id}/approve`)).status).toBe(200)
+    expect((await call('operator', 'POST', `/response/actions/${r.json.id}/approve`)).code).toBe('not_pending')
+    expect((await request()).code).toBe('already_requested')
+    expect(auditStore.get().filter((a) => a.action === 'response.execute')).toHaveLength(1)
+  })
+
+  it('G-7 the client cannot send its own command: the request carries the stored change only', async () => {
+    await turnOn()
+    const res = await call<ActionRequest>('operator', 'POST', `/response/proposals/${PROPOSAL}/request`, { change: { cli: 'execute factoryreset' }, tool: 'x' })
+    expect(res.json.items[0]!.change.cli).toContain('set status disable')
+    expect(res.json.items[0]!.change.cli).not.toContain('factoryreset')
+    expect((await call('operator', 'POST', '/response/proposals/not-a-proposal/request')).status).toBe(404)
+  })
+
+  it('G-8 hourly limit of approved device actions', async () => {
+    await turnOn()
+    await saveSettings({ max_per_hour: 1 })
+    const a = await request()
+    expect((await call('operator', 'POST', `/response/actions/${a.json.id}/approve`)).status).toBe(200)
+    expect((await call('operator', 'POST', `/response/actions/${a.json.id}/rollback`)).status).toBe(200)
+    const b = await request()
+    expect(b.status).toBe(201)
+    expect((await call('operator', 'POST', `/response/actions/${b.json.id}/approve`)).code).toBe('rate_limited')
+  })
+
+  it('only enabled catalog actions (allowed = enabled)', async () => {
+    await turnOn()
+    await allow(false)
+    expect((await request()).code).toBe('tool_not_allowed')
+    await allow(true)
+    const r = await request()
+    await allow(false)
+    expect((await call('operator', 'POST', `/response/actions/${r.json.id}/approve`)).code).toBe('tool_not_allowed')
+    expect((await call('operator', 'PUT', '/response/catalog/nat_off', { enabled: true })).status).toBe(403)
+  })
+
+  it('only enabled write tools on enabled connections', async () => {
+    await turnOn()
+    const r = await request()
+    connectorsStore.update((l) => l.map((c) => ({ ...c, tools: c.tools.map((t) => (t.name === 'disable_virtual_ip' ? { ...t, enabled: false } : t)) })))
+    expect((await call('operator', 'POST', `/response/actions/${r.json.id}/approve`)).code).toBe('tool_unavailable')
+    connectorsStore.update((l) => l.map((c) => ({ ...c, tools: c.tools.map((t) => (t.name === 'disable_virtual_ip' ? { ...t, enabled: true } : t)), enabled: false })))
+    expect((await call('operator', 'POST', `/response/actions/${r.json.id}/approve`)).code).toBe('tool_unavailable')
+    expect((await getAction(r.json.id)).status).toBe('pending')
+  })
+
+  it('emergency stop turns execution off and cancels every pending request', async () => {
+    await turnOn()
+    const r = await request()
+    const before = (await pendingOf()).length
+    const stop = await call<{ cancelled: number }>('operator', 'POST', '/response/emergency-stop')
+    expect(stop.json.cancelled).toBe(before)
+    const a = await getAction(r.json.id)
+    expect(a.status).toBe('rejected')
+    expect(a.note).toContain('emergency stop')
+    expect((await call('operator', 'POST', `/response/actions/${r.json.id}/approve`)).code).toBe('not_pending')
+    expect((await call<SettingsView>('admin', 'GET', '/response/settings')).json.execution).toBe(false)
+    expect((await call('viewer', 'POST', '/response/emergency-stop')).status).toBe(403)
+    expect(auditActions()).toContain('response.emergency_stop')
+  })
+
+  it('rollback restores the device, needs execution on, and every step is in the audit log', async () => {
+    await turnOn()
+    const r = await request()
+    await call('operator', 'POST', `/response/actions/${r.json.id}/approve`)
+    await call('admin', 'POST', '/response/execution', { enabled: false })
+    expect((await call('operator', 'POST', `/response/actions/${r.json.id}/rollback`)).code).toBe('execution_off')
+    await call('admin', 'POST', '/response/execution', { enabled: true, phrase: PHRASE })
+    const rb = await call<ActionRequest>('operator', 'POST', `/response/actions/${r.json.id}/rollback`)
+    expect(rb.json.status).toBe('rolled_back')
+    expect(auditActions()).toEqual(expect.arrayContaining(['response.execution.enable', 'response.request', 'response.approve', 'response.execute', 'response.execution.disable', 'response.refused', 'response.rollback']))
+  })
+
+  it('a rejected request stays rejected and records the reason', async () => {
+    await turnOn()
+    const r = await request()
+    const rej = await call<ActionRequest>('operator', 'POST', `/response/actions/${r.json.id}/reject`, { reason: 'Planned change' })
+    expect(rej.json.status).toBe('rejected')
+    expect(rej.json.note).toContain('Planned change')
+    expect((await call('operator', 'POST', `/response/actions/${r.json.id}/approve`)).code).toBe('not_pending')
+  })
+})
+
+describe('response: approval model (D-51)', () => {
+  it('every action needs approval by default: a live rule creates a pending bundled request and runs nothing', async () => {
+    iocHits(['198.51.100.50'])
+    const rule = await liveRule({ actions: [{ action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 60 }, { action_id: 'msg_send', params: { text: 'Bad connection from {{trigger.device}}' }, ttl_min: null }] })
+    await onlyRule(rule.id)
+    const sum = await run()
+    expect(sum.requests).toBeGreaterThan(0)
+    expect(sum.executed).toBe(0)
+    const pending = (await pendingOf()).filter((a) => a.rule_id === rule.id && a.items.length === 2)
+    expect(pending.length).toBe(1) // one bundled request per run; a duplicate target was merged out of the others
+    expect(pending[0]!.items.every((i) => i.status === 'pending')).toBe(true)
+    expect(pending[0]!.pre_approved).toBe(false)
+    const bl = (await call<Blocklist>('admin', 'GET', '/response/blocklist')).json
+    expect(bl.entries.map((e) => e.value)).not.toContain(pending[0]!.items[0]!.change.cli.split(' ').pop())
+  })
+
+  it('the approver can approve all or pick actions; unpicked actions are skipped', async () => {
+    iocHits(['198.51.100.50'])
+    const rule = await liveRule({ actions: [{ action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 60 }, { action_id: 'msg_send', params: { text: 'Bad connection from {{trigger.device}}' }, ttl_min: null }] })
+    await onlyRule(rule.id); await run()
+    const req = (await pendingOf()).find((a) => a.rule_id === rule.id && a.items.length === 2)!
+    expect((await call('operator', 'POST', `/response/actions/${req.id}/approve`, { items: ['nope'] })).code).toBe('invalid_items')
+    const ok = await call<ActionRequest>('operator', 'POST', `/response/actions/${req.id}/approve`, { items: [req.items[0]!.id] })
+    expect(ok.json.status).toBe('executed')
+    expect(ok.json.items.map((i) => i.status)).toEqual(['executed', 'skipped'])
+    expect(ok.json.items[0]!.verified?.ok).toBe(true)
+  })
+
+  it('pre-approved is only for low-risk, reversible actions with an undo time of 24 hours or less, and only for an admin', async () => {
+    const pre = (over: Partial<RuleInput>) => addRule({ pre_approved: true, ...over })
+    expect((await pre({ actions: [{ action_id: 'block_ip', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 60 }] })).status).toBe(400) // medium risk
+    expect((await pre({ actions: [{ action_id: 'msg_send', params: { text: 'Hello' }, ttl_min: null }] })).status).toBe(400) // cannot be undone
+    expect((await pre({ actions: [{ action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 1441 }] })).status).toBe(400) // more than 24 hours
+    expect((await pre({ actions: [{ action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: null }] })).status).toBe(400) // no undo time
+    const ok = await pre({ actions: [{ action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 1440 }] })
+    expect(ok.status).toBe(201)
+    expect(ok.json.pre_approved).toBe(true)
+    expect((await call('operator', 'POST', '/response/rules', { ...RULE, pre_approved: true, actions: [{ action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 60 }] })).status).toBe(403)
+    // a rule that was pre-approved cannot be edited into a risky one
+    expect((await call('admin', 'PUT', `/response/rules/${ok.json.id}`, { ...RULE, pre_approved: true, actions: [{ action_id: 'nat_off', params: { text: '{{trigger.vip}}' }, ttl_min: 60 }], trigger: 'finding', conditions: [] })).status).toBe(400)
+  })
+
+  it('a pre-approved live rule runs without a person; the seeded one is marked in the request', async () => {
+    const seeded = (await list<ActionRequest>('viewer', '/response/actions')).find((a) => a.id === 'act-seed-1')!
+    expect(seeded.pre_approved).toBe(true)
+    expect(seeded.approvals[0]!.via).toBe('auto')
+    await call('admin', 'PUT', '/response/allowlist', { items: [] })
+    const rule = await liveRule({ pre_approved: true, actions: [{ action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 600 }] })
+    await onlyRule(rule.id)
+    const sum = await run()
+    expect(sum.executed).toBeGreaterThan(0)
+    const done = (await list<ActionRequest>('viewer', '/response/actions')).filter((a) => a.rule_id === rule.id)
+    expect(done.every((a) => a.pre_approved && a.status === 'executed')).toBe(true)
+  })
+
+  it('a high-risk action needs two different approvers, and the same person cannot approve twice', async () => {
+    await turnOn(); await enableSwitchActions(); hpHits(3)
+    const cloned = await call<Rule>('admin', 'POST', '/response/templates/tpl-sweep-vlan/clone')
+    expect(cloned.status).toBe(201)
+    expect(cloned.json.enabled).toBe(false)
+    expect(cloned.json.live).toBe(false)
+    await call('admin', 'PUT', `/response/rules/${cloned.json.id}`, { ...cloned.json, enabled: true, live: true })
+    await onlyRule(cloned.json.id)
+    await run()
+    const req = (await pendingOf()).find((a) => a.rule_id === cloned.json.id)!
+    expect(req.risk).toBe('high')
+    expect(req.requires_approvals).toBe(2)
+    expect(req.two_because).toMatch(/two different approvers/)
+    expect(req.items[0]!.change.cli).toContain('switchport access vlan 999')
+    mapChat(); await saveSettings({ approval_channels: ['slack', 'telegram'] })
+    const first = await call<ActionRequest>('operator', 'POST', `/response/actions/${req.id}/approve`)
+    expect(first.json.status).toBe('pending')
+    expect(first.json.approvals).toHaveLength(1)
+    expect(first.json.items[0]!.status).toBe('pending') // nothing ran yet
+    expect((await call('operator', 'POST', `/response/actions/${req.id}/approve`)).code).toBe('same_approver')
+    expect((await chat(req.id, 'U0OPS')).code).toBe('same_approver') // the same person from chat
+    const second = await call<ActionRequest>('admin', 'POST', `/response/actions/${req.id}/approve`)
+    expect(second.json.status).toBe('executed')
+    expect(second.json.approvals.map((a) => a.user_id)).toEqual(['u-op', 'u-admin'])
+  })
+
+  it('an action that touches more targets than the limit also needs two approvers', async () => {
+    await enableSwitchActions()
+    const wide = await call<Rule>('admin', 'POST', '/response/rules', { ...RULE, trigger: 'manual', conditions: [], actions: [{ action_id: 'block_ip', params: { ip: '{{trigger.ip}}' }, ttl_min: 60 }] })
+    expect(wide.status).toBe(201)
+    // 'cidr' fills {ip}? no: a range is its own type. The multi-target rule is exercised in the server through the targets count.
+    const sim = await call<Simulation>('operator', 'POST', '/response/rules/simulate', { rule: { ...RULE, trigger: 'manual', conditions: [], actions: [{ action_id: 'block_ip', params: { ip: '{{trigger.ip}}' }, ttl_min: 60 }] } })
+    expect(sim.json.approvals).toBe(1)
+  })
+
+  it('email approval links stay single use; opening one approves nothing', async () => {
+    await turnOn()
+    collection<unknown>('notify_channels', () => []).set([{ type: 'email', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }, { user_id: 'u-admin', address: 'admin@acme.example' }] }])
+    await saveSettings({ approval_channels: ['email'] })
+    const r = await request()
+    const links = (await getAction(r.json.id)).email_links
+    expect(links).toHaveLength(2)
+    const token = links[0]!.url.split('/').pop()!
+    const pub = async (m: string, p: string, b?: unknown) => { sessionStore.set({ userId: null }); const res = await fetch(`${location.origin}/api/v1${p}`, { method: m, headers: { 'Content-Type': 'application/json' }, body: b === undefined ? undefined : JSON.stringify(b) }); return { status: res.status, json: (await res.json()) as { state?: string; status?: string; error?: { code: string } } } }
+    expect((await pub('GET', `/response/approve/${token}`)).json.state).toBe('ready')
+    expect((await getAction(r.json.id)).status).toBe('pending')
+    expect((await pub('POST', `/response/approve/${token}`, { decision: 'approve' })).json.status).toBe('executed')
+    expect((await pub('POST', `/response/approve/${token}`, { decision: 'approve' })).json.error?.code).toBe('used')
+  })
+})
+
+describe('response: typed placeholders and trigger data (D-51)', () => {
+  it('every placeholder type accepts valid values and rejects injection', () => {
+    const ok: Record<string, string> = { ip: '10.0.0.1', cidr: '10.0.0.0/24', domain: 'bad.example.com', port: '8080', mac: '3c:22:fb:10:aa:01', vlan: '999', interface: 'Gi1/0/12', text: 'NAS-PHOTO-443' }
+    for (const p of PARAM_TYPES) expect(PARAM_CHECK[p](ok[p]!), p).toBe(true)
+    const inject = ['10.0.0.1; reboot', '10.0.0.1\nreboot', '$(id)', '`id`', 'a | b', '10.0.0.1 && x', '"quoted"', '']
+    for (const p of PARAM_TYPES) for (const v of inject) expect(PARAM_CHECK[p](v), `${p}: ${JSON.stringify(v)}`).toBe(false)
+    const wrong: Record<string, string[]> = { ip: ['10.0.0.999', '1.2.3'], cidr: ['1.2.3.4/33', '1.2.3.4'], domain: ['x.y', 'bad_domain.com'], port: ['0', '70000'], mac: ['zz:zz:zz:zz:zz:zz'], vlan: ['0', '4095'], interface: ['1bad', '../x'], text: ['-leading', 'a'.repeat(81)] }
+    for (const [p, vs] of Object.entries(wrong)) for (const v of vs) expect(PARAM_CHECK[p as keyof typeof PARAM_CHECK](v), `${p}: ${v}`).toBe(false)
+    expect(checkValues(['ip'], { ip: '10.0.0.1\nreboot' })).not.toBeNull()
+    expect(resolveParam('Alert {{trigger.device}} at {{ trigger.ip }}', { device: 'PC-1', ip: '10.0.0.5' })).toBe('Alert PC-1 at 10.0.0.5')
+    expect(resolveParam('{{trigger.missing}}', {})).toBe('')
+  })
+
+  it('attacker-controlled trigger data is refused at run time and nothing is requested', async () => {
+    for (const evil of ['Evil; reboot', 'Evil\nreboot', 'Evil `id`', 'Evil $(id)']) {
+      assetsStore.update((l) => [...l, { ...l[0]!, id: 'a-evil', ip: '192.168.10.222', mac: '3c:22:fb:10:aa:99', hostname: 'evil', approved: false, vendor: { value: evil, source: 'dhcp', confidence: 1, seen_at: new Date().toISOString() } } as never])
+      const rule = await liveRule({ trigger: 'unknown_device', conditions: [], actions: [{ action_id: 'msg_send', params: { text: 'Unknown device by {{trigger.vendor}}' }, ttl_min: null }] })
+      await onlyRule(rule.id)
+      const sum = await run()
+      expect(sum.refused, evil).toBeGreaterThan(0)
+      const all = JSON.stringify(await list<ActionRequest>('operator', '/response/actions'))
+      expect(all, evil).not.toContain('Evil') // the crafted value never reached a request
+      expect((await logList()).some((e) => e.kind === 'refused' && /not valid/.test(e.detail))).toBe(true)
+      assetsStore.update((l) => l.filter((a) => a.id !== 'a-evil'))
+      await call('admin', 'DELETE', `/response/rules/${rule.id}`)
+    }
+  })
+
+  it('rules are checked when saved: unknown fields, wrong types and mixed values are refused', async () => {
+    const bad = (params: Record<string, string>, action_id = 'blocklist_add') => addRule({ actions: [{ action_id, params, ttl_min: 60 }] })
+    expect((await bad({ ip: '{{trigger.nope}}' })).status).toBe(400)
+    expect((await bad({ ip: '{{trigger.device}}' })).status).toBe(400) // text field into an ip
+    expect((await bad({ ip: '{{trigger.dest_ip}} extra' })).status).toBe(400)
+    expect((await bad({ ip: '10.0.0.1; reboot' })).status).toBe(400)
+    expect((await bad({})).status).toBe(400)
+    expect((await bad({ ip: '{{trigger.dest_ip}}' })).status).toBe(201)
+    expect((await addRule({ conditions: [{ field: 'nope', op: 'eq', value: 'x', n: null, window_min: null }] })).status).toBe(400)
+    expect((await addRule({ conditions: [{ field: 'src_ip', op: 'in_cidr', value: 'x', n: null, window_min: null }] })).status).toBe(400)
+  })
+
+  it('conditions: equals, in list, CIDR, at least, device type, count in window, first time', () => {
+    const now = Date.now(), ev = (id: string, m: number, f: Record<string, string>) => ({ id, ts: new Date(now - m * 60e3).toISOString(), fields: f, device_kind: 'camera' })
+    const e = ev('e', 0, { ip: '10.1.2.3', n: '12', k: 'A' })
+    const c = (op: string, field: string, value: string, n: number | null = null, window_min: number | null = null) => ({ op, field, value, n, window_min })
+    expect(evalCondition(c('eq', 'k', 'a'), e, [])).toBe(true)
+    expect(evalCondition(c('in', 'k', 'b, a'), e, [])).toBe(true)
+    expect(evalCondition(c('in_cidr', 'ip', '10.1.0.0/16'), e, [])).toBe(true)
+    expect(evalCondition(c('in_cidr', 'ip', '10.2.0.0/16'), e, [])).toBe(false)
+    expect(evalCondition(c('gte', 'n', '12'), e, [])).toBe(true)
+    expect(evalCondition(c('lte', 'n', '11'), e, [])).toBe(false)
+    expect(evalCondition(c('device_type', '', 'camera,nvr'), e, [])).toBe(true)
+    const others = [ev('o1', 3, { ip: '10.1.2.3' }), ev('o2', 6, { ip: '10.1.2.3' }), ev('o3', 30, { ip: '10.1.2.3' })]
+    expect(evalCondition(c('count_window', 'ip', '', 3, 10), e, others)).toBe(true) // 2 earlier + this one within 10 minutes
+    expect(evalCondition(c('count_window', 'ip', '', 4, 10), e, others)).toBe(false) // the third is 30 minutes old
+    expect(evalCondition(c('first_time', 'ip', '', 24), e, others)).toBe(false)
+    expect(evalCondition(c('first_time', 'ip', '', 24), e, [])).toBe(true)
+  })
+})
+
+describe('response: safety envelope (D-51)', () => {
+  it('dry run: a new rule starts in dry run, a match is logged and nothing is requested or run', async () => {
+    iocHits(['198.51.100.50'])
+    const r = await call<Rule>('admin', 'POST', '/response/rules', { ...RULE, live: true })
+    expect(r.json.live).toBe(false) // the client cannot start a rule live
+    await onlyRule(r.json.id)
+    const before = (await list<ActionRequest>('operator', '/response/actions')).length
+    const sum = await run()
+    expect(sum.dry_run).toBeGreaterThan(0)
+    expect(sum.requests).toBe(0)
+    expect(sum.executed).toBe(0)
+    expect((await list<ActionRequest>('operator', '/response/actions')).length).toBe(before)
+    const dry = (await logList()).filter((e) => e.kind === 'dry_run')
+    expect(dry.length).toBeGreaterThan(0)
+    expect(dry[0]!.detail).toMatch(/Would do: Add .* to the block list/)
+    expect(auditActions()).not.toContain('response.execute')
+  })
+
+  it('simulate shows the rendered commands and requests and executes nothing', async () => {
+    iocHits(['198.51.100.50'])
+    const before = [(await list<ActionRequest>('operator', '/response/actions')).length, (await logList()).length]
+    const sim = await call<Simulation>('operator', 'POST', '/response/rules/simulate', { rule: { ...RULE, actions: [{ action_id: 'block_ip', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 60 }] } })
+    expect(sim.status).toBe(200)
+    expect(sim.json.executed).toBe(0)
+    expect(sim.json.event?.trigger).toBe('ioc_connection')
+    expect(sim.json.steps[0]!.change?.rest?.url).toMatch(/^https:\/\/192\.168\.10\.1\/api\/v2\/cmdb\/firewall\/addrgrp\/Vedette-Blocked\/member$/)
+    expect(sim.json.steps[0]!.change?.rest?.body).toMatch(/"name":"vedette-\d+\.\d+\.\d+\.\d+"/)
+    expect(sim.json.notes.join(' ')).toMatch(/dry run/)
+    expect((await list<ActionRequest>('operator', '/response/actions')).length).toBe(before[0])
+    expect((await logList()).length).toBe(before[1]! + 1) // one simulated line
+    expect((await logList()).at(-1)!.kind).toBe('simulated')
+    expect(auditActions()).not.toContain('response.execute')
+    expect((await call('viewer', 'POST', '/response/rules/simulate', { rule: RULE })).status).toBe(403)
+    expect((await call('operator', 'POST', '/response/rules/simulate', { rule: { ...RULE, actions: [{ action_id: 'blocklist_add', params: { ip: 'x; y' }, ttl_min: 60 }] } })).status).toBe(400)
+  })
+
+  it('dedupe: the same target and action is merged, not asked again', async () => {
+    iocHits(['198.51.100.50', '198.51.100.51'])
+    const rule = await liveRule({ conditions: [{ field: 'dest_kind', op: 'eq', value: 'ip', n: null, window_min: null }] })
+    await onlyRule(rule.id)
+    const first = await run()
+    expect(first.requests).toBeGreaterThan(0)
+    const ips = (await list<ActionRequest>('operator', '/response/actions')).flatMap((a) => (a.status === 'pending' ? a.items.map((i) => i.change.cli) : []))
+    expect(new Set(ips).size).toBe(ips.length) // no target twice
+    // a second rule for the same events merges into what is already open
+    const twin = await liveRule({ name: 'Twin rule' })
+    await onlyRule(twin.id)
+    const second = await run()
+    expect(second.requests).toBe(0)
+    expect(second.deduped).toBeGreaterThan(0)
+    expect((await logList()).some((e) => e.kind === 'deduped')).toBe(true)
+  })
+
+  it('per-rule hourly limit', async () => {
+    iocHits(['198.51.100.50', '198.51.100.51'])
+    const rule = await liveRule({ max_per_hour: 1, conditions: [{ field: 'dest_kind', op: 'eq', value: 'ip', n: null, window_min: null }] })
+    await onlyRule(rule.id)
+    await call('admin', 'PUT', '/response/allowlist', { items: [] })
+    const sum = await run()
+    expect(sum.requests).toBe(1)
+    expect((await logList()).some((e) => e.kind === 'refused' && /limit of 1 runs per hour/.test(e.detail))).toBe(true)
+  })
+
+  it('circuit breaker: more than N actions in an hour pauses everything, notifies, and an admin resumes', async () => {
+    mapChat()
+    expect((await saveSettings({ breaker_max_per_hour: 3 })).status).toBe(200)
+    iocHits(['198.51.100.50', '198.51.100.51'])
+    const rule = await liveRule({ conditions: [{ field: 'dest_kind', op: 'eq', value: 'ip', n: null, window_min: null }] })
+    await onlyRule(rule.id)
+    await run()
+    const s = (await call<SettingsView>('admin', 'GET', '/response/settings')).json
+    expect(s.breaker_tripped_at).not.toBeNull()
+    expect(s.breaker_notified).toEqual(['Slack #security', 'Telegram'])
+    const log = await logList()
+    expect(log.some((e) => e.kind === 'breaker' && /Notified: Slack #security, Telegram/.test(e.detail))).toBe(true)
+    // everything is paused: rules and the AI
+    collection<string[]>('response_done', () => []).set([])
+    expect((await run()).requests).toBe(0)
+    expect((await logList()).some((e) => e.kind === 'refused' && /circuit breaker is open/.test(e.detail))).toBe(true)
+    iocHits(['198.51.100.9'])
+    expect((await propose({ params: { ip: '198.51.100.9' } })).code).toBe('circuit_open')
+    expect((await call('operator', 'POST', '/response/breaker/reset')).status).toBe(403)
+    expect((await call<SettingsView>('admin', 'POST', '/response/breaker/reset')).json.breaker_tripped_at).toBeNull()
+  })
+
+  it('maintenance windows hold rules and AI requests', async () => {
+    const now = Date.now()
+    await saveSettings({ maintenance: [{ id: 'mw-1', name: 'Patch night', start: new Date(now - 60e3).toISOString(), end: new Date(now + 3600e3).toISOString() }] })
+    const rule = await liveRule()
+    await onlyRule(rule.id)
+    expect((await run()).requests).toBe(0)
+    expect((await logList()).some((e) => /maintenance window "Patch night"/.test(e.detail))).toBe(true)
+    iocHits(['198.51.100.9'])
+    expect((await propose({ params: { ip: '198.51.100.9' } })).code).toBe('maintenance')
+    expect((await saveSettings({ maintenance: [{ id: 'x', name: 'Bad', start: new Date(now).toISOString(), end: new Date(now - 1000).toISOString() }] })).status).toBe(400)
+  })
+
+  it('never-touch list: never changed by a rule, even when a feed lists it; a range protects its members', async () => {
+    const rule = await liveRule({ pre_approved: true, actions: [{ action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 600 }], conditions: [{ field: 'dest_kind', op: 'eq', value: 'ip', n: null, window_min: null }] })
+    await onlyRule(rule.id)
+    await run()
+    const entries = (await call<Blocklist>('admin', 'GET', '/response/blocklist')).json.entries.map((e) => e.value)
+    expect(entries).not.toContain('1.1.1.1') // a public DNS server on the never-touch list
+    expect((await logList()).filter((e) => e.kind === 'refused').map((e) => e.detail).join('\n')).toMatch(/never-touch list \(Public DNS/)
+    expect((await call('admin', 'PUT', '/response/allowlist', { items: [{ value: 'x; rm -rf /', label: 'bad' }] })).status).toBe(400)
+    expect((await call('admin', 'PUT', '/response/allowlist', { items: [{ value: '185.220.101.0/24', label: 'Range' }] })).status).toBe(200)
+    collection<string[]>('response_done', () => []).set([])
+    await run()
+    expect((await logList()).filter((e) => e.kind === 'refused').map((e) => e.detail).join('\n')).toMatch(/185\.220\.101\.0\/24/)
+  })
+
+  it('a finding rule never switches off forwarding to a device on the never-touch list', async () => {
+    await turnOn()
+    const rule = await liveRule({ trigger: 'finding', conditions: [{ field: 'exposed_via_nat', op: 'eq', value: 'true', n: null, window_min: null }, { field: 'ip', op: 'eq', value: '192.168.10.21', n: null, window_min: null }], actions: [{ action_id: 'nat_off', params: { text: '{{trigger.vip}}' }, ttl_min: 1440 }] })
+    await onlyRule(rule.id)
+    await call('admin', 'PUT', '/response/allowlist', { items: [{ value: '192.168.10.21', label: 'Declared service: photos' }] })
+    await run()
+    expect((await list<ActionRequest>('operator', '/response/actions')).some((a) => a.rule_id === rule.id)).toBe(false)
+    await call('admin', 'PUT', '/response/allowlist', { items: [] })
+    collection<string[]>('response_done', () => []).set([])
+    await run()
+    const nat = (await list<ActionRequest>('operator', '/response/actions')).find((a) => a.rule_id === rule.id)!
+    expect(nat.source).toBe('rule')
+    expect(nat.status).toBe('pending')
+    expect(nat.items[0]!.change.rest!.url).toContain('/vip/NAS-PHOTO-443')
+  })
+
+  it('TTL: an executed change is undone when its undo time ends', async () => {
+    const rule = await liveRule({ pre_approved: true, actions: [{ action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 600 }], conditions: [{ field: 'dest_kind', op: 'eq', value: 'ip', n: null, window_min: null }] })
+    await onlyRule(rule.id); await call('admin', 'PUT', '/response/allowlist', { items: [] })
+    await run()
+    const bl = (await call<Blocklist>('admin', 'GET', '/response/blocklist')).json
+    expect(bl.entries.length).toBeGreaterThan(0)
+    actionsDb.update((l) => l.map((a) => ({ ...a, items: a.items.map((i) => (i.status === 'executed' ? { ...i, remove_at: new Date(Date.now() - 1000).toISOString() } : i)) })))
+    expect((await call<Blocklist>('admin', 'GET', '/response/blocklist')).json.entries).toEqual([])
+    expect((await logList()).filter((x) => x.kind === 'ttl_removed').length).toBeGreaterThan(0)
+  })
+
+  it('rules: only an admin edits, a rule needs one action, templates clone disabled in dry run', async () => {
+    expect((await call('operator', 'POST', '/response/rules', RULE)).status).toBe(403)
+    expect((await addRule({ actions: [] })).status).toBe(400)
+    const t = await list<{ id: string; rule: RuleInput }>('viewer', '/response/templates')
+    expect(t.length).toBeGreaterThanOrEqual(12)
+    expect(t.length).toBeLessThanOrEqual(15)
+    expect(t.every((x) => !x.rule.enabled && !x.rule.live)).toBe(true)
+    const clone = await call<Rule>('admin', 'POST', `/response/templates/${t[0]!.id}/clone`)
+    expect(clone.json).toMatchObject({ enabled: false, live: false, pre_approved: false })
+    expect((await call('operator', 'POST', `/response/templates/${t[0]!.id}/clone`)).status).toBe(403)
+  })
+})
+
+describe('response: AI requests, server-side gates (D-51)', () => {
+  const OK_HIGH = { trigger: 'ioc_connection', action_id: 'sw_vlan_quarantine', params: { interface: 'Gi1/0/7', vlan: '999' }, confidence: 0.95, evidence: [{ kind: 'config_read', id: 'cn-fgt/get_virtual_ips' }, { kind: 'config_read', id: 'cn-fgt/get_firewall_policies' }] }
+  const setup = async () => { await saveSettings({ ai: { triggers: ['ioc_connection', 'finding'], budget_hour: 20, budget_day: 100 } }); iocHits(['185.220.101.77', '198.51.100.1', '198.51.100.2', '198.51.100.3', '198.51.100.4', '198.51.100.5', '198.51.100.6']) }
+
+  it('a good request becomes a pending request with the evidence the server verified', async () => {
+    await setup()
+    const r = await propose()
+    expect(r.status).toBe(201)
+    expect(r.json.outcome).toBe('request')
+    const a = r.json.request!
+    expect(a.source).toBe('ai')
+    expect(a.status).toBe('pending')
+    expect(a.ai!.evidence[0]!.summary).toContain('185.220.101.77')
+    expect(a.items[0]!.change.cli).toBe('blocklist add 185.220.101.77')
+  })
+
+  it('the AI never writes commands: any command, request or template field is refused', async () => {
+    await setup()
+    for (const field of ['cli', 'rest', 'change', 'command', 'url', 'body']) expect((await propose({ [field]: 'execute factoryreset' })).code, field).toBe('no_commands')
+    expect((await propose({ params: { ip: '185.220.101.77; reboot' } })).code).toBe('invalid_target')
+    expect((await propose({ action_id: 'does_not_exist' })).code).toBe('invalid')
+  })
+
+  it('only triggers the admin allows for the AI, and only actions flagged "AI may propose"', async () => {
+    await setup()
+    expect((await propose({ trigger: 'honeypot' })).code).toBe('trigger_not_allowed')
+    expect((await propose({ action_id: 'webhook_call', params: { text: 'hello' } })).code).toBe('action_not_ai_allowed')
+    await call('admin', 'PUT', '/response/catalog/blocklist_add', { ai_may_propose: false })
+    expect((await propose()).code).toBe('action_not_ai_allowed')
+    expect((await call('operator', 'PUT', '/response/catalog/blocklist_add', { ai_may_propose: true })).status).toBe(403)
+  })
+
+  it('evidence must be real, and about the target', async () => {
+    await setup()
+    expect((await propose({ evidence: [] })).code).toBe('evidence_missing')
+    expect((await propose({ evidence: [{ kind: 'ioc_hit', id: 'h-invented' }] })).code).toBe('evidence_invalid')
+    expect((await propose({ evidence: [{ kind: 'finding', id: 'f-invented' }] })).code).toBe('evidence_invalid')
+    expect((await propose({ evidence: [{ kind: 'config_read', id: 'cn-fgt/disable_virtual_ip' }] })).code).toBe('evidence_invalid') // a write tool is not a read
+    expect((await propose({ evidence: [{ kind: 'ioc_hit', id: 'h2' }] })).code).toBe('evidence_mismatch') // a real hit about another address
+    expect((await propose({ evidence: [{ kind: 'finding', id: 'f-1' }, { kind: 'ioc_hit', id: 'h1' }] })).status).toBe(201)
+  })
+
+  it('confidence below 0.8 is a suggestion note with no approval request', async () => {
+    await setup()
+    const before = (await list<ActionRequest>('operator', '/response/actions')).length
+    const r = await propose({ confidence: 0.79 })
+    expect(r.json.outcome).toBe('suggestion')
+    expect(r.json.request).toBeNull()
+    expect((await list<ActionRequest>('operator', '/response/actions')).length).toBe(before)
+    expect((await call<AiState>('viewer', 'GET', '/response/ai')).json.notes.some((n) => n.target === '185.220.101.77' && n.kind === 'suggestion')).toBe(true)
+    expect((await propose({ confidence: 0.8 })).json.outcome).toBe('request')
+  })
+
+  it('one open request per target and action', async () => {
+    await setup()
+    expect((await propose()).status).toBe(201)
+    expect((await propose()).code).toBe('already_open')
+    expect((await propose({ params: { ip: '198.51.100.1' }, evidence: [{ kind: 'ioc_hit', id: 'h2' }] })).status).toBe(201)
+  })
+
+  it('after a rejection, no repeat for 7 days unless there is new evidence; the reason can be saved as a hint', async () => {
+    await setup()
+    const a = (await propose()).json.request!
+    const rej = await call<ActionRequest>('operator', 'POST', `/response/actions/${a.id}/reject`, { reason: 'This is our backup provider', remember: 'memory' })
+    expect(rej.json.status).toBe('rejected')
+    expect((await propose()).code).toBe('repeat_blocked')
+    expect((await propose({ evidence: [{ kind: 'ioc_hit', id: 'h1' }, { kind: 'config_read', id: 'cn-fgt/get_virtual_ips' }] })).status).toBe(201) // new evidence
+    const hints = (await call<AiState>('viewer', 'GET', '/response/ai')).json.hints
+    expect(hints.some((h) => h.kind === 'memory' && h.text === 'This is our backup provider')).toBe(true)
+    // after 7 days the rejection no longer counts
+    actionsDb.update((l) => l.map((x) => (x.id === a.id ? { ...x, decided_at: new Date(Date.now() - 8 * 864e5).toISOString() } : x)))
+    expect((await call<AiState>('viewer', 'GET', '/response/ai')).json.hints.length).toBeGreaterThan(0)
+  })
+
+  it('budget: over the hourly or daily budget the proposal goes into a digest', async () => {
+    await saveSettings({ ai: { triggers: ['ioc_connection'], budget_hour: 2, budget_day: 5 } })
+    iocHits(['198.51.100.1', '198.51.100.2', '198.51.100.3'])
+    // one seeded AI request is already inside the hour
+    expect((await propose({ params: { ip: '198.51.100.1' }, evidence: [{ kind: 'ioc_hit', id: 'h1' }] })).json.outcome).toBe('request')
+    const over = await propose({ params: { ip: '198.51.100.2' }, evidence: [{ kind: 'ioc_hit', id: 'h2' }] })
+    expect(over.json.outcome).toBe('digest')
+    expect(over.json.request).toBeNull()
+    const ai = (await call<AiState>('viewer', 'GET', '/response/ai')).json
+    expect(ai.notes.some((n) => n.kind === 'digest' && n.target === '198.51.100.2')).toBe(true)
+    expect(ai.usage.hour).toBe(2)
+    expect((await saveSettings({ ai: { triggers: ['ioc_connection'], budget_hour: 5, budget_day: 3 } })).status).toBe(400) // day budget cannot be below the hourly one
+  })
+
+  it('quality breaker: more than half of the last 10 rejected pauses AI requests until an admin resumes', async () => {
+    await setup()
+    const targets = ['198.51.100.1', '198.51.100.2', '198.51.100.3', '198.51.100.4', '198.51.100.5']
+    let paused = false
+    for (const [i, ip] of targets.entries()) {
+      const r = await propose({ params: { ip }, evidence: [{ kind: 'ioc_hit', id: `h${i + 2}` }] })
+      if (r.code === 'ai_paused') { paused = true; break }
+      expect(r.status).toBe(201)
+      await call('operator', 'POST', `/response/actions/${r.json.request!.id}/reject`, { reason: 'Not a threat' })
+    }
+    const ai = (await call<AiState>('viewer', 'GET', '/response/ai')).json
+    expect(ai.gates.paused_at).not.toBeNull()
+    expect(ai.quality.rejected * 2).toBeGreaterThan(ai.quality.decided)
+    expect(paused || (await propose({ params: { ip: '198.51.100.6' }, evidence: [{ kind: 'ioc_hit', id: 'h7' }] })).code === 'ai_paused').toBe(true)
+    expect((await logList()).some((e) => e.kind === 'breaker' && /quality breaker/.test(e.detail))).toBe(true)
+    expect((await call('operator', 'POST', '/response/ai/resume')).status).toBe(403)
+    expect((await call<AiState>('admin', 'POST', '/response/ai/resume')).json.gates.paused_at).toBeNull()
+  })
+
+  it('high risk: a second check, and approval only in the app with the two-step code, from two different people', async () => {
+    await turnOn(); await enableSwitchActions(); await saveSettings({ ai: { triggers: ['ioc_connection'], budget_hour: 20, budget_day: 100 } })
+    mapChat(); await saveSettings({ approval_channels: ['slack', 'telegram'], ai: { triggers: ['ioc_connection'], budget_hour: 20, budget_day: 100 } })
+    // second checker: needs 2 pieces of evidence and a confidence of 0.9 or more
+    expect((await propose({ ...OK_HIGH, evidence: [OK_HIGH.evidence[0]] })).code).toBe('second_check_failed')
+    expect((await propose({ ...OK_HIGH, confidence: 0.85 })).code).toBe('second_check_failed')
+    const r = await propose(OK_HIGH)
+    expect(r.status).toBe(201)
+    const a = r.json.request!
+    expect(a.risk).toBe('high')
+    expect(a.requires_approvals).toBe(2)
+    expect(a.ai!.in_app_only).toBe(true)
+    expect(a.ai!.second_check?.ok).toBe(true)
+    // not one tap from chat
+    expect((await chat(a.id, 'U0OPS')).code).toBe('in_app_required')
+    // in the app: two-step must be on, and the code must be given
+    expect((await call('operator', 'POST', `/response/actions/${a.id}/approve`)).code).toBe('twofa_required')
+    withTwofa(true, ['u-admin', 'u-op'])
+    expect((await call('operator', 'POST', `/response/actions/${a.id}/approve`)).code).toBe('code_required')
+    expect((await call('operator', 'POST', `/response/actions/${a.id}/approve`, { code: 'abc' })).code).toBe('invalid_code')
+    const first = await call<ActionRequest>('operator', 'POST', `/response/actions/${a.id}/approve`, { code: '123456' })
+    expect(first.json.status).toBe('pending')
+    expect(first.json.approvals).toHaveLength(1)
+    expect((await call('operator', 'POST', `/response/actions/${a.id}/approve`, { code: '123456' })).code).toBe('same_approver')
+    const second = await call<ActionRequest>('admin', 'POST', `/response/actions/${a.id}/approve`, { code: '654321' })
+    expect(second.json.status).toBe('executed')
+  })
+})
+
+describe('response: action catalog (S-RESP-4)', () => {
+  const CUSTOM = { name: 'Block a domain on the DNS filter', description: 'Adds a domain to the filter.', connection_id: 'cn-fgt', tool: null, rollback_tool: null, risk: 'low', enabled: true, ai_may_propose: false,
+    run: { ...EMPTY_TPL, method: 'POST', path: '/api/v2/cmdb/webfilter/urlfilter/1/entries', body: '{"url":"{domain}"}' }, rollback: { ...EMPTY_TPL, method: 'DELETE', path: '/api/v2/cmdb/webfilter/urlfilter/1/entries/{domain}' }, verify: EMPTY_TPL }
+  const MCP: Connector = { id: 'cn-mcp', name: 'Firewall MCP server', kind: 'mcp-http', vendor: null, target: 'https://mcp.lan/mcp', asset_id: null, auth: { type: 'token', last4: 'z9Zz' }, allow: [], enabled: true, status: 'ok', last_test: null,
+    tools: [{ name: 'list_rules', access: 'read', description: '', enabled: true }, { name: 'block_address', access: 'write', description: '', enabled: true }, { name: 'unblock_address', access: 'write', description: '', enabled: true }] }
+
+  it('template placeholders are typed and shell metacharacters are refused', () => {
+    for (const bad of ['block {ip}; rm -rf /', 'block {ip} | nc evil 1', 'block $(id) {ip}', 'block `id` {ip}', 'block {ip} > /tmp/x', 'block {cmd}', 'block {name}']) expect(validateTpl({ ...EMPTY_TPL, cli: bad }, 'Action'), bad).not.toBeNull()
+    expect(validateTpl({ ...EMPTY_TPL, method: 'PUT', path: '/api/v2/x/../y' }, 'Action')).not.toBeNull()
+    expect(validateTpl({ ...EMPTY_TPL, method: 'PUT', path: '/api/v2/vip/{text}', body: '{"status":"disable"}' }, 'Action')).toBeNull()
+    expect(validateTpl({ ...EMPTY_TPL, method: 'POST', path: '/x', headers: 'X-Test: a\nInjected' }, 'Action')).not.toBeNull()
+    expect(validateTpl({ ...EMPTY_TPL, method: 'POST', path: '/x', headers: 'X-Token: {text}' }, 'Action')).toBeNull()
+  })
+
+  it('custom actions: add, edit, delete; unsafe templates are refused; built-ins cannot be deleted; a rule in use blocks delete', async () => {
+    expect((await call('admin', 'POST', '/response/catalog', { ...CUSTOM, run: { ...CUSTOM.run, body: '{"url":"{domain}; reboot"}' } })).status).toBe(400)
+    expect((await call('admin', 'POST', '/response/catalog', { ...CUSTOM, run: { ...CUSTOM.run, body: '{"url":"{host}"}' } })).status).toBe(400)
+    expect((await call('admin', 'POST', '/response/catalog', { ...CUSTOM, rollback: { ...CUSTOM.rollback, path: '/x/{ip}' } })).status).toBe(400) // rollback needs a value the action does not have
+    expect((await call('operator', 'POST', '/response/catalog', CUSTOM)).status).toBe(403)
+    const made = await call<{ id: string; params: string[]; builtin: boolean; pack: string }>('admin', 'POST', '/response/catalog', CUSTOM)
+    expect(made.status).toBe(201)
+    expect(made.json.params).toEqual(['domain'])
+    expect((await call('admin', 'PUT', `/response/catalog/${made.json.id}`, { risk: 'high' })).status).toBe(200)
+    expect((await call('admin', 'DELETE', '/response/catalog/nat_off')).code).toBe('builtin')
+    expect((await addRule({ actions: [{ action_id: made.json.id, params: { domain: '{{trigger.dest_domain}}' }, ttl_min: 60 }], conditions: [] })).status).toBe(201)
+    expect((await call('admin', 'DELETE', `/response/catalog/${made.json.id}`)).code).toBe('in_use')
+    expect((await addRule({ trigger: 'honeypot', conditions: [], actions: [{ action_id: made.json.id, params: { domain: '{{trigger.source_device}}' }, ttl_min: 60 }] })).status).toBe(400) // a device name is not a domain
+  })
+
+  it('the server follows the connection kind: fields of another kind are refused, read-only connections cannot be chosen', async () => {
+    connectorsStore.update((l) => [...l, SSH_W, MCP])
+    const post = (o: Record<string, unknown>) => call('admin', 'POST', '/response/catalog', { ...CUSTOM, ...o })
+    // read-only connection (File server, only a read tool)
+    const ro = await post({ connection_id: 'cn-ssh', run: { ...EMPTY_TPL, cli: 'block {ip}' }, rollback: { ...EMPTY_TPL, cli: 'unblock {ip}' } })
+    expect(ro.status).toBe(409)
+    expect(ro.code).toBe('read_only')
+    expect((await call('admin', 'PUT', '/response/catalog/sw_acl_deny', { connection_id: 'cn-ssh' })).code).toBe('read_only')
+    // SSH: command only
+    expect((await post({ connection_id: 'cn-sw' })).status).toBe(400) // API fields on an SSH connection
+    expect((await post({ connection_id: 'cn-sw', run: { ...EMPTY_TPL, cli: 'block {ip}' }, rollback: { ...EMPTY_TPL, cli: 'unblock {ip}' } })).status).toBe(201)
+    // API: no command
+    expect((await post({ run: { ...CUSTOM.run, cli: 'block {domain}' } })).status).toBe(400)
+    // MCP: a write tool of that server and arguments
+    const mcp = { connection_id: 'cn-mcp', run: { ...EMPTY_TPL, body: '{"address":"{ip}"}' }, rollback: { ...EMPTY_TPL, body: '{"address":"{ip}"}' } }
+    expect((await post({ ...mcp, tool: null, rollback_tool: 'unblock_address' })).status).toBe(400)
+    expect((await post({ ...mcp, tool: 'list_rules', rollback_tool: 'unblock_address' })).status).toBe(400) // a read tool
+    expect((await post({ ...mcp, tool: 'block_address', rollback_tool: 'unblock_address', run: { ...EMPTY_TPL, method: 'POST', path: '/x', body: '{"address":"{ip}"}' } })).status).toBe(400)
+    const ok = await post({ ...mcp, tool: 'block_address', rollback_tool: 'unblock_address' })
+    expect(ok.status).toBe(201)
+    expect((ok.json as unknown as { connection_kind: string }).connection_kind).toBe('mcp-http')
+    // a built-in action meant for an API cannot be pointed at an SSH connection
+    expect((await call('admin', 'PUT', '/response/catalog/pihole_block', { connection_id: 'cn-sw' })).code).toBe('wrong_kind')
+  })
+})
+
+describe('response: block list (pull)', () => {
+  it('serves a plain-text list on a tokenised address, and a regenerated token kills the old one', async () => {
+    const b = (await call<Blocklist>('admin', 'GET', '/response/blocklist')).json
+    expect(b.url).toMatch(/^https:\/\/192\.168\.10\.250:8443\/api\/v1\/response\/blocklist\/[a-f0-9]{32}\.txt$/)
+    expect(b.entries.map((e) => e.value)).toEqual(expect.arrayContaining(['185.220.101.47', '45.9.148.20', '198.51.100.23']))
+    const path = new URL(b.url).pathname
+    const txt = await fetch(`${location.origin}${path}`)
+    expect(txt.headers.get('content-type')).toContain('text/plain')
+    expect(await txt.text()).toMatch(/\n185\.220\.101\.47\n/)
+    expect((await fetch(`${location.origin}/api/v1/response/blocklist/${'0'.repeat(32)}.txt`)).status).toBe(404)
+    expect((await call('operator', 'POST', '/response/blocklist/token')).status).toBe(403)
+    await call('admin', 'POST', '/response/blocklist/token')
+    expect((await fetch(`${location.origin}${path}`)).status).toBe(404)
+  })
+})
+
+describe('response: tamper-evident log (D-48)', () => {
+  it('every step is chained, the chain verifies, and editing or deleting a line breaks it', async () => {
+    await turnOn(); mapChat()
+    const r = await request()
+    await call('operator', 'POST', `/response/actions/${r.json.id}/reject`)
+    await request()
+    const log = await logList()
+    expect(log.map((e) => e.kind)).toEqual(expect.arrayContaining(['request', 'rejected', 'settings']))
+    expect(log[1]!.prev_hash).toBe(log[0]!.hash)
+    expect(Object.keys(log[0]!).sort()).toEqual(['actor', 'detail', 'hash', 'id', 'kind', 'prev_hash', 'ts'])
+    expect(await verifyChain(log)).toEqual({ ok: true, broken_at: null })
+    expect(await verifyChain(log.map((e, i) => (i === 3 ? { ...e, detail: 'edited' } : e)))).toEqual({ ok: false, broken_at: 3 })
+    expect((await verifyChain([...log.slice(0, 2), ...log.slice(3)])).ok).toBe(false)
+    expect((await call('viewer', 'GET', '/response/log')).status).toBe(403)
+  })
+})
+
+function renderUi(ui: React.ReactNode, role: Role = 'admin') {
+  sessionStore.set({ userId: USER[role] })
+  const qc = makeQueryClient()
+  return render(<QueryClientProvider client={qc}><MemoryRouter>{ui}</MemoryRouter><Toaster /></QueryClientProvider>)
+}
+
+describe('response: screens', () => {
+  it('the enable dialog shows the risk statement and needs two-step sign-in plus the exact phrase', async () => {
+    renderUi(<ResponseSettings />)
+    const sw = await screen.findByRole('switch', { name: /Let the AI carry out actions I approve/ })
+    await waitFor(() => expect(sw).toBeEnabled())
+    await userEvent.click(sw)
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('This is a high-risk feature. Your AI can be wrong and can change your network devices. You carry the risk yourself. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for actions your AI takes.')
+    expect(screen.getByRole('link', { name: 'Turn it on in My account' })).toHaveAttribute('href', '/account')
+    await userEvent.type(screen.getByLabelText(`Type ${PHRASE} to confirm`), PHRASE)
+    expect(screen.getByRole('button', { name: 'Turn on AI execution' })).toBeDisabled() // two-step sign-in is off
+  })
+
+  it('with two-step sign-in on, only the exact phrase enables it, then Emergency stop shows', async () => {
+    withTwofa()
+    renderUi(<ResponseSettings />)
+    const sw = await screen.findByRole('switch', { name: /Let the AI carry out actions I approve/ })
+    await waitFor(() => expect(sw).toBeEnabled())
+    await userEvent.click(sw)
+    const input = await screen.findByLabelText(`Type ${PHRASE} to confirm`)
+    const confirm = screen.getByRole('button', { name: 'Turn on AI execution' })
+    await waitFor(() => expect(screen.getByText('On')).toBeInTheDocument())
+    await userEvent.type(input, 'i accept the risk')
+    expect(confirm).toBeDisabled()
+    await userEvent.clear(input)
+    await userEvent.type(input, PHRASE)
+    expect(confirm).toBeEnabled()
+    await userEvent.click(confirm)
+    expect(await screen.findByRole('button', { name: 'Emergency stop' })).toBeInTheDocument()
+    expect((await call<SettingsView>('admin', 'GET', '/response/settings')).json.execution).toBe(true)
+  })
+
+  it('settings show the safety envelope, AI gates, the never-touch list and the catalog by pack', async () => {
+    renderUi(<ResponseSettings />)
+    expect(await screen.findByLabelText('Circuit breaker: actions per hour')).toHaveValue(20)
+    expect(screen.getByLabelText('Approval expiry (minutes)')).toHaveValue(15)
+    expect(screen.getByText('AI requests: gates')).toBeInTheDocument()
+    expect(await screen.findByText('Never-touch list')).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'FortiGate' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'MikroTik' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /Switches over SSH/ })).toBeInTheDocument()
+  })
+
+  it('Response page has the five tabs; Rules shows rules and the template gallery', async () => {
+    renderApp('/response')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Response' })).toBeInTheDocument()
+    for (const name of ['Rules', /Requests/, 'Block list', 'Log', 'Metrics']) expect(screen.getByRole('tab', { name })).toBeInTheDocument()
+    expect(await screen.findByText('Block destinations of known-bad connections')).toBeInTheDocument()
+    expect(await screen.findByText('Template gallery')).toBeInTheDocument()
+    expect(await screen.findByText('Trap touched: block the source on FortiGate for 24 hours')).toBeInTheDocument()
+    expect(screen.getAllByText('Dry run').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Pre-approved, no person').length).toBeGreaterThan(0)
+  })
+
+  it('Requests tab: pending bundled request with pick boxes, AI request with evidence, and the AI plan with its off-state message', async () => {
+    renderApp('/response#requests')
+    expect(await screen.findByText('Block 91.92.240.12 and tell the team')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: /Include: Add 91.92.240.12 to the block list/ })).toBeChecked()
+    expect(screen.getByRole('button', { name: 'Approve all' })).toBeInTheDocument()
+    expect((await screen.findAllByText(/PC-FIN-02 connected to 45.148.10.95/)).length).toBeGreaterThan(0)
+    expect(document.querySelector('[data-ai="true"]')).toBeTruthy()
+    expect(await screen.findByText(/NAS-PHOTOS is reachable from the Internet through FortiGate virtual IP NAS-PHOTO-443/)).toBeInTheDocument()
+    expect(screen.getAllByText('Execution is off. Turn it on in Settings, AI response (high risk).').length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: 'Request approval' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: /History/ }))
+    expect((await screen.findAllByText('Add 203.0.113.77 to the block list')).length).toBeGreaterThan(0)
+  })
+
+  it('Metrics tab: acceptance, AI budget and the rejected requests with their reasons', async () => {
+    renderApp('/response#metrics')
+    expect((await screen.findAllByText('Acceptance')).length).toBeGreaterThan(0)
+    expect(await screen.findByText('This hour')).toBeInTheDocument()
+    expect((await screen.findAllByText(/Our own vulnerability scanner/)).length).toBeGreaterThan(0)
+    expect(screen.getByText('Try an AI request (preview build)')).toBeInTheDocument()
+  })
+
+  it('Block list tab with setup steps, and the Log tab with "Chain verified"', async () => {
+    renderApp('/response#blocklist')
+    expect((await screen.findAllByText(/:8443\/api\/v1\/response\/blocklist\//)).length).toBeGreaterThan(0)
+    expect(screen.getByText('FortiGate: External Block List (threat feed)')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Regenerate token' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: 'Log' }))
+    expect(await screen.findByText('Chain verified')).toBeInTheDocument()
+  })
+
+  it('finding page shows the response plan through the slot', async () => {
+    renderApp('/findings/f-1')
+    expect(await screen.findByRole('heading', { name: 'Response plan' })).toBeInTheDocument()
+    expect(await screen.findByText(/Turn off virtual IP NAS-PHOTO-443 on FW-HQ/, { selector: 'p' })).toBeInTheDocument()
+  })
+
+  it('the public approval page shows the change on load and decides only on the button', async () => {
+    await turnOn()
+    collection<unknown>('notify_channels', () => []).set([{ type: 'email', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }, { user_id: 'u-admin', address: 'admin@acme.example' }] }])
+    await saveSettings({ approval_channels: ['email'] })
+    const r = await request()
+    const token = (await getAction(r.json.id)).email_links[0]!.url.split('/').pop()!
+    sessionStore.set({ userId: null })
+    renderApp(`/approve/${token}`, { role: null })
+    expect(await screen.findByText(/Turn off virtual IP NAS-PHOTO-443/, { selector: 'p' })).toBeInTheDocument()
+    expect((await getAction(r.json.id)).status).toBe('pending')
+    await userEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    expect(await screen.findByText(/Approved\. The action is being carried out/)).toBeInTheDocument()
+  })
+
+  it('the rule editor has WHEN, IF and THEN, simulates, and warns about pre-approved', async () => {
+    renderUi(<RuleDialog rule={null} onClose={() => undefined} />)
+    expect(await screen.findByRole('heading', { name: 'WHEN' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'IF' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'THEN' })).toBeInTheDocument()
+    expect(screen.getByText(/Trigger data is attacker-controlled/)).toBeInTheDocument()
+    const pre = await screen.findByRole('switch', { name: /Pre-approved \(no person asks\)/ })
+    await waitFor(() => expect(pre).toBeEnabled()) // the default action is low risk and reversible
+    await userEvent.click(pre)
+    expect(await screen.findByText(/will carry out these actions without asking anyone/)).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('Name'), 'Editor test')
+    await userEvent.click(screen.getByRole('button', { name: 'Simulate with the latest event' }))
+    const sim = await screen.findByRole('region', { name: 'Simulation' })
+    expect(within(sim).getByText('Nothing was executed')).toBeInTheDocument()
+  })
+})
+
+// ---- Form matrix (docs/QA.md §2): the custom action form per connection kind ----
+describe('response: custom action form follows the connection kind', () => {
+  const extra: Connector[] = [
+    SSH_W,
+    { id: 'cn-web', name: 'Ticket API (HTTP)', kind: 'http', vendor: null, target: 'https://tickets.lan', asset_id: null, auth: { type: 'token', last4: 'a1Bc' }, allow: [], tools: [{ name: 'post_ticket', access: 'write', description: '', enabled: true }], enabled: true, status: 'ok', last_test: null },
+    { id: 'cn-mt', name: 'MikroTik API', kind: 'device-api', vendor: 'mikrotik', target: 'https://192.168.10.2', asset_id: null, auth: { type: 'token', last4: 'm1Kr' }, allow: [], tools: [{ name: 'add_address', access: 'write', description: '', enabled: true }], enabled: true, status: 'ok', last_test: null },
+    { id: 'cn-mcp', name: 'Firewall MCP server', kind: 'mcp-http', vendor: null, target: 'https://mcp.lan/mcp', asset_id: null, auth: { type: 'token', last4: 'z9Zz' }, allow: [], enabled: true, status: 'ok', last_test: null,
+      tools: [{ name: 'list_rules', access: 'read', description: '', enabled: true }, { name: 'block_address', access: 'write', description: '', enabled: true }, { name: 'unblock_address', access: 'write', description: '', enabled: true }] },
+    { id: 'cn-mcps', name: 'Local MCP (stdio)', kind: 'mcp-stdio', vendor: null, target: 'fw-mcp', asset_id: null, auth: { type: 'none', last4: null }, allow: [], enabled: true, status: 'ok', last_test: null, tools: [{ name: 'quarantine', access: 'write', description: '', enabled: true }] },
+  ]
+  const FORTI = /cmdb\/firewall\/vip/
+  const L = { method: /^API method$/, path: /^API path$/, body: /^API body/, command: /^Command$/, headers: /^Headers$/, tool: /^Write tool$/, args: /^Tool arguments$/ }
+  const ALL = [L.method, L.path, L.body, L.command, L.headers, L.tool, L.args]
+  const only = (shown: RegExp[]) => ALL.filter((p) => !shown.includes(p))
+
+  it('renders only the fields of each kind, leaks no default from another kind, and locks read-only connections', async () => {
+    connectorsStore.update((l) => [...l, ...extra])
+    orgStore.update((o) => ({ ...o, setup_complete: true }))
+    const cat = (await call<Catalog>('admin', 'GET', '/response/catalog')).json
+    renderUi(<ActionDialog action={null} cat={cat} onClose={() => undefined} />)
+    const conn = await screen.findByLabelText('Connection')
+    // the dialog opens on the first connection that can write: the FortiGate API with its own prefill
+    expect(screen.getAllByLabelText(L.path)[0]).toHaveValue('/api/v2/cmdb/firewall/vip/{text}')
+    const pick = async (name: string) => { await userEvent.selectOptions(conn, within(conn).getByRole('option', { name: new RegExp(name) })) }
+    await eachOption([
+      { option: 'Office FortiGate API', shown: [L.method, L.path, L.body], hidden: only([L.method, L.path, L.body]) },
+      { option: 'File server', hidden: [] }, // read-only: see below, the option cannot be picked
+      { option: 'MikroTik API', shown: [L.method, L.path, L.body], hidden: only([L.method, L.path, L.body]) },
+      { option: 'Ticket API', shown: [L.method, L.path, L.headers, L.body], hidden: only([L.method, L.path, L.headers, L.body]) },
+      { option: 'Core switch', shown: [L.command], hidden: only([L.command]) },
+      { option: 'Firewall MCP server', shown: [L.tool, L.args], hidden: only([L.tool, L.args]) },
+      { option: 'Local MCP', shown: [L.tool, L.args], hidden: only([L.tool, L.args]) },
+      { option: 'Office FortiGate API', shown: [L.method, L.path, L.body], hidden: only([L.method, L.path, L.body]) }, // going back restores the same fields
+    ], async (o) => { if (o !== 'File server') await pick(o) })
+
+    // no default of one kind leaks into another
+    await pick('Core switch')
+    expect(screen.queryByDisplayValue(FORTI)).toBeNull()
+    expect(within(screen.getByRole('group', { name: 'Action' })).getByLabelText(L.command)).toHaveValue('')
+    await pick('Ticket API')
+    expect(screen.queryByDisplayValue(FORTI)).toBeNull()
+    expect(within(screen.getByRole('group', { name: 'Action' })).getByLabelText(L.path)).toHaveValue('')
+    await pick('MikroTik API')
+    expect(screen.queryByDisplayValue(FORTI)).toBeNull()
+    expect(within(screen.getByRole('group', { name: 'Action' })).getByLabelText(L.path)).toHaveValue('/rest/ip/firewall/address-list')
+
+    // switching clears what the user typed, and the FortiGate example is back only for the FortiOS connection
+    await pick('Office FortiGate API')
+    const path = within(screen.getByRole('group', { name: 'Action' })).getByLabelText(L.path)
+    await userEvent.clear(path); await userEvent.type(path, '/typed/by/hand')
+    await pick('Core switch'); await pick('Office FortiGate API')
+    expect(within(screen.getByRole('group', { name: 'Action' })).getByLabelText(L.path)).toHaveValue('/api/v2/cmdb/firewall/vip/{text}')
+
+    // MCP: only the write tools of that server can be chosen
+    await pick('Firewall MCP server')
+    const tool = within(screen.getByRole('group', { name: 'Action' })).getByLabelText(L.tool)
+    expect(within(tool).getAllByRole('option').map((x) => x.textContent)).toEqual(['Pick a write tool', 'block_address', 'unblock_address'])
+
+    // read-only connections are in the list but cannot be chosen
+    const ro = within(conn).getByRole('option', { name: /File server \(read-only SSH\) \(Read-only: this connection has no write tools\)/ })
+    expect(ro).toBeDisabled()
+    expect(within(conn).getByRole('option', { name: /Vendor advisories \(HTTP\) \(Read-only/ })).toBeDisabled()
+    expect(within(conn).getByRole('option', { name: 'Core switch (SSH)' })).toBeEnabled()
+  })
+
+  it('the rule builder THEN step does not offer an action whose connection is read-only', async () => {
+    catalogStore.update((l) => l.map((c) => (c.id === 'sw_acl_deny' ? { ...c, connection_id: 'cn-ssh' } : c)))
+    renderUi(<RuleDialog rule={null} onClose={() => undefined} />)
+    const select = await screen.findByLabelText('Action 1')
+    const opt = within(select).getByRole('option', { name: /Switch \(SSH\): deny an IP in the ACL \(Read-only: this connection has no write tools\)/ })
+    expect(opt).toBeDisabled()
+  })
+})

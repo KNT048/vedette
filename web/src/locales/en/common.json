@@ -1,0 +1,203 @@
+{
+  "close": "Close",
+  "cancel": "Cancel",
+  "save": "Save",
+  "saved": "Saved",
+  "edit": "Edit",
+  "delete": "Delete",
+  "add": "Add",
+  "retry": "Try again",
+  "loading": "Loading",
+  "copy": "Copy",
+  "copied": "Copied",
+  "search": "Search",
+  "back": "Back",
+  "yes": "Yes",
+  "no": "No",
+  "unknown": "Unknown",
+  "none": "None",
+  "sampleData": "Sample data",
+  "needRole": "Requires {{role}} role",
+  "updatedAt": "Updated {{time}}",
+  "error": {
+    "loadFailed": "Could not load data",
+    "saveFailed": "Could not save",
+    "unknown": "Something went wrong. Try again in a few minutes.",
+    "notFound": "Not found",
+    "forbidden": "You do not have access to this",
+    "unauthenticated": "Your session has ended",
+    "invalid": "Invalid request",
+    "previewStale": "In this preview, the saved sample data may come from an older version of the app.",
+    "previewStaleLink": "Restore sample data"
+  },
+  "table": {
+    "empty": "No rows.",
+    "page": "Page {{page}} of {{pages}}",
+    "prev": "Previous",
+    "next": "Next"
+  },
+  "status": {
+    "confirmed": "Confirmed",
+    "suspected": "Suspected",
+    "mitigated": "Mitigated",
+    "patched": "Patched",
+    "false_positive": "False positive",
+    "not_relevant": "Not relevant"
+  },
+  "severity": {
+    "critical": "Critical",
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low",
+    "info": "Info"
+  },
+  "source": {
+    "manual": "Added by hand",
+    "agent": "Agent",
+    "snmp": "SNMP",
+    "nmap": "Active scan",
+    "passive": "Passive",
+    "scan": "Confirmation scan",
+    "kev": "CISA KEV",
+    "epss": "FIRST EPSS",
+    "nuclei": "nuclei-templates",
+    "project": "Vedette"
+  },
+  "confidence": {
+    "high": "high confidence",
+    "medium": "medium confidence",
+    "low": "low confidence"
+  },
+  "ai": {
+    "label": "AI-generated, needs human review",
+    "originCustomer": "Your AI",
+    "model": "Model {{model}}",
+    "tokens": "{{input}} tokens in, {{output}} tokens out",
+    "sources": "Sources:",
+    "noSources": "No sources. Verify before using.",
+    "originProject": "Drafted by Vedette with AI"
+  },
+  "role": {
+    "viewer": "Viewer",
+    "operator": "Operator",
+    "admin": "Admin"
+  },
+  "moduleOff": {
+    "title": "{{name}} module is off",
+    "body": "Existing data is kept. Turn the module on to get new data here.",
+    "enable": "Open module settings"
+  },
+  "modules": {
+    "core": {
+      "name": "Core",
+      "summary": "Interface, sign-in, configuration, scheduler, audit log, updates."
+    },
+    "feeds": {
+      "name": "Vulnerability feeds",
+      "summary": "Pulls signed data, hot board, CVE and bad IP/domain lookup."
+    },
+    "inventory": {
+      "name": "Inventory",
+      "summary": "Device list from manual entries and sensors, matched against vulnerabilities."
+    },
+    "notify": {
+      "name": "Notifications",
+      "summary": "Sends alerts via Telegram, Zalo, email, webhook."
+    },
+    "sensor-passive": {
+      "name": "Passive sensor",
+      "summary": "Listens to DHCP, mDNS, SSDP, ARP, LLDP to learn devices without scanning."
+    },
+    "sensor-active": {
+      "name": "Active sensor",
+      "summary": "Light nmap scans inside the allowed time window."
+    },
+    "mitigation": {
+      "name": "Mitigation",
+      "summary": "Patch steps, temporary fixes, config snippets for your devices."
+    },
+    "exposure": {
+      "name": "External surface",
+      "summary": "Domains, IPs, ports and admin panels exposed to the Internet."
+    },
+    "scan": {
+      "name": "Vulnerability scan",
+      "summary": "Safe confirmation scans; re-scans when a new exploited vulnerability appears."
+    },
+    "scan-credentialed": {
+      "name": "Credentialed scan",
+      "summary": "Deep scans of key servers using SSH credentials."
+    },
+    "honeypot": {
+      "name": "Internal traps",
+      "summary": "Fake servers on your network; any touch raises an alert."
+    },
+    "logs": {
+      "name": "Logs",
+      "summary": "Receives firewall and server logs; shows what is new or spiking."
+    },
+    "agent-intake": {
+      "name": "Agent intake",
+      "summary": "Receives the software list of your servers from osquery agents or Wazuh."
+    },
+    "ai": {
+      "name": "AI assistant",
+      "summary": "Uses your own AI key to explain, write configs, read logs."
+    },
+    "reports": {
+      "name": "Reports",
+      "summary": "Weekly report and data-protection security assessment."
+    },
+    "mcp-server": {
+      "name": "MCP server",
+      "summary": "Lets external AI tools query data, read-only."
+    },
+    "auth-oidc": {
+      "name": "SSO sign-in",
+      "summary": "Sign in via OIDC (Keycloak, Entra ID…) with roles."
+    },
+    "response": {
+      "name": "AI response",
+      "summary": "AI proposes what to do about critical findings. Letting it carry out approved actions is a separate high-risk switch, off by default."
+    }
+  },
+  "layout": {
+    "nav": "Main navigation",
+    "skip": "Skip to content",
+    "openMenu": "Open menu",
+    "account": "Account",
+    "settings": "Settings",
+    "theme": "Appearance",
+    "themeSystem": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "logout": "Sign out",
+    "group": {
+      "monitor": "Monitor",
+      "assets": "Assets",
+      "detect": "Intrusion detection",
+      "assist": "Assistant and reports"
+    },
+    "myAccount": "My account",
+    "reportProblem": "Report a problem"
+  },
+  "login": {
+    "subtitle": "Sign in to see exploited vulnerabilities that match your devices.",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign in",
+    "signingIn": "Signing in",
+    "demoHint": "Sample-data build: sign in as admin@acme.example, it@acme.example or director@acme.example with the password vedette-demo."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "The link may have changed. Use the sidebar to find the page you need.",
+    "home": "Go to home"
+  },
+  "routeError": {
+    "title": "This page hit an error",
+    "body": "Reload the page. If it keeps failing, send the text below to your administrator.",
+    "report": "Report this problem"
+  },
+  "codeBlock": "Code snippet"
+}

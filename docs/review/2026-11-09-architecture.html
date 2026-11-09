@@ -1,0 +1,813 @@
+<title>Kiến trúc hộp Vedette</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: technical dossier — sticky table of contents on the left at desktop width, one reading column (≈74ch), wide tables and diagrams scroll inside their own frames. */
+:root {
+  --paper: #f6f7f5;
+  --sheet: #ffffff;
+  --ink: #17201c;
+  --muted: #56615b;
+  --rule: #d9dfdb;
+  --sunken: #eef1ee;
+  --accent: #1d5c46;
+  --accent-soft: #e3efe9;
+  --ok: #1f6b3a; --ok-soft: #e4f2e8;
+  --warn: #8a5a00; --warn-soft: #fbf0d9;
+  --danger: #a3261c; --danger-soft: #fae6e3;
+  --info: #23507a; --info-soft: #e5eef7;
+  --font-body: "Be Vietnam Pro", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --diagram-box: #ffffff;
+  --diagram-zone: #f0f4f1;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #111614; --sheet: #171d1a; --ink: #e5ebe7; --muted: #9aa6a0; --rule: #2c3631; --sunken: #1d2521;
+    --accent: #6cc39c; --accent-soft: #19302a;
+    --ok: #7ccf96; --ok-soft: #173023; --warn: #e4b45a; --warn-soft: #33270f; --danger: #f0837a; --danger-soft: #3a1b18; --info: #8fbbe6; --info-soft: #182736;
+    --diagram-box: #1b2420; --diagram-zone: #141b18;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #111614; --sheet: #171d1a; --ink: #e5ebe7; --muted: #9aa6a0; --rule: #2c3631; --sunken: #1d2521;
+  --accent: #6cc39c; --accent-soft: #19302a;
+  --ok: #7ccf96; --ok-soft: #173023; --warn: #e4b45a; --warn-soft: #33270f; --danger: #f0837a; --danger-soft: #3a1b18; --info: #8fbbe6; --info-soft: #182736;
+  --diagram-box: #1b2420; --diagram-zone: #141b18;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 15.5px; line-height: 1.62; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 40px 96px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; }
+@media (min-width: 1040px) { .wrap { grid-template-columns: 236px minmax(0, 1fr); } }
+nav.toc { display: none; }
+@media (min-width: 1040px) {
+  nav.toc { display: block; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; max-height: calc(100vh - 48px); overflow: auto; font-size: 13px; }
+}
+nav.toc p { margin: 0 0 8px; font-weight: 600; color: var(--muted); letter-spacing: .02em; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; counter-reset: t; }
+nav.toc a { display: block; padding: 3px 8px; border-radius: 4px; color: var(--ink); text-decoration: none; }
+nav.toc a:hover, nav.toc a:focus-visible { background: var(--accent-soft); color: var(--accent); outline: none; }
+main { min-width: 0; }
+.doc { background: var(--sheet); border: 1px solid var(--rule); border-radius: 8px; padding-block: 40px; padding-inline: clamp(18px, 4vw, 56px); }
+h1, h2, h3, h4 { text-wrap: balance; line-height: 1.25; }
+h1 { font-size: clamp(28px, 4vw, 38px); margin: 0 0 6px; letter-spacing: -.015em; }
+.lede { font-size: 17px; color: var(--muted); max-width: 70ch; margin: 0 0 24px; }
+h2 { font-size: 22px; margin: 56px 0 12px; padding-top: 18px; border-top: 1px solid var(--rule); display: flex; gap: 12px; align-items: baseline; }
+h2 .num { font-family: var(--font-mono); font-size: 14px; color: var(--accent); font-weight: 500; }
+h3 { font-size: 17px; margin: 28px 0 8px; }
+h4 { font-size: 15px; margin: 20px 0 6px; }
+p, li { max-width: 76ch; }
+p { margin: 0 0 12px; }
+ul, ol { padding-left: 22px; margin: 0 0 14px; }
+li { margin: 3px 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+code, .mono { font-family: var(--font-mono); font-size: .86em; }
+code { background: var(--sunken); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+strong { font-weight: 600; }
+.meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; margin: 18px 0 8px; }
+.meta div { background: var(--sheet); padding: 10px 14px; min-width: 0; }
+.meta dt { font-size: 12px; color: var(--muted); }
+.meta dd { margin: 2px 0 0; font-weight: 500; }
+dl { margin: 0; }
+.tbl { overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--rule); border-radius: 6px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 8px 12px; border-bottom: 1px solid var(--rule); }
+th { background: var(--sunken); font-weight: 600; font-size: 13px; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.nw, th.nw { white-space: nowrap; }
+.num-col { font-variant-numeric: tabular-nums; text-align: right; }
+.chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; border: 1px solid transparent; }
+.c-ok { background: var(--ok-soft); color: var(--ok); }
+.c-warn { background: var(--warn-soft); color: var(--warn); }
+.c-danger { background: var(--danger-soft); color: var(--danger); }
+.c-info { background: var(--info-soft); color: var(--info); }
+.c-plain { background: var(--sunken); color: var(--muted); }
+.note { border: 1px solid var(--rule); background: var(--sunken); border-radius: 6px; padding: 12px 16px; margin: 14px 0; max-width: 80ch; }
+.note.risk { border-color: var(--danger); background: var(--danger-soft); }
+.note.risk strong { color: var(--danger); }
+.note p:last-child, .note ul:last-child { margin-bottom: 0; }
+figure { margin: 18px 0 26px; }
+.diagram { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--diagram-zone); padding: 12px; }
+.diagram svg { display: block; min-width: 860px; width: 100%; height: auto; }
+figcaption { font-size: 13px; color: var(--muted); margin-top: 8px; max-width: 80ch; }
+svg text { font-family: var(--font-body); fill: var(--ink); }
+svg .t-muted { fill: var(--muted); }
+svg .t-accent { fill: var(--accent); }
+svg .t-danger { fill: var(--danger); }
+svg .box { fill: var(--diagram-box); stroke: var(--rule); stroke-width: 1.2; }
+svg .core { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.6; }
+svg .zone { fill: none; stroke: var(--muted); stroke-dasharray: 5 5; stroke-width: 1; }
+svg .riskbox { fill: var(--danger-soft); stroke: var(--danger); stroke-width: 1.4; }
+svg .ln { stroke: var(--muted); stroke-width: 1.3; fill: none; }
+svg .ln-a { stroke: var(--accent); stroke-width: 1.6; fill: none; }
+svg .ln-d { stroke: var(--danger); stroke-width: 1.6; fill: none; stroke-dasharray: 6 4; }
+svg .ah { fill: var(--muted); }
+svg .ah-a { fill: var(--accent); }
+svg .ah-d { fill: var(--danger); }
+pre.mermaid { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 14px; overflow-x: auto; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 12px 0 18px; }
+.card { border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; min-width: 0; }
+.card h4 { margin-top: 0; }
+.card p:last-child, .card ul:last-child { margin-bottom: 0; }
+.kpi { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent); line-height: 1.1; }
+.small { font-size: 13px; color: var(--muted); }
+footer { margin-top: 48px; font-size: 13px; color: var(--muted); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+html { scroll-behavior: smooth; }
+</style>
+
+<div class="wrap">
+  <nav class="toc" aria-label="Mục lục">
+    <p>Mục lục</p>
+    <ol>
+      <li><a href="#tom-tat">1. Tóm tắt</a></li>
+      <li><a href="#pham-vi">2. Phạm vi, giả định</a></li>
+      <li><a href="#boi-canh">3. Bối cảnh hệ thống</a></li>
+      <li><a href="#thanh-phan">4. Thành phần bên trong</a></li>
+      <li><a href="#module">5. Danh mục module</a></li>
+      <li><a href="#du-lieu">6. Mô hình dữ liệu</a></li>
+      <li><a href="#luong">7. Luồng xử lý chính</a></li>
+      <li><a href="#api">8. API, xác thực, phân quyền</a></li>
+      <li><a href="#bao-mat">9. Kiến trúc bảo mật</a></li>
+      <li><a href="#ai">10. Harness AI</a></li>
+      <li><a href="#response">11. Phản ứng do AI thực thi</a></li>
+      <li><a href="#rieng-tu">12. Dữ liệu rời hộp</a></li>
+      <li><a href="#cap-nhat">13. Cập nhật, chuỗi cung ứng</a></li>
+      <li><a href="#van-hanh">14. Triển khai, vận hành</a></li>
+      <li><a href="#giao-dien">15. Giao diện</a></li>
+      <li><a href="#chat-luong">16. Kiểm thử, hiện trạng</a></li>
+      <li><a href="#phap-ly">17. Pháp lý, giấy phép</a></li>
+      <li><a href="#phat-hien">18. Phát hiện khi rà soát</a></li>
+      <li><a href="#quyet-dinh">19. Nhật ký quyết định</a></li>
+    </ol>
+  </nav>
+
+  <main>
+  <article class="doc">
+    <h1>Kiến trúc hộp Vedette</h1>
+    <p class="lede">Hồ sơ thiết kế kiến trúc để rà soát độc lập: hộp làm gì, các thành phần hoạt động thế nào, kiểm soát bảo mật nào áp dụng ở đâu, dữ liệu nào rời hộp, và những điểm còn mở.</p>
+
+    <dl class="meta">
+      <div><dt>Phiên bản tài liệu</dt><dd>1.0, ngày 09/11/2026</dd></div>
+      <div><dt>Chủ dự án</dt><dd>Kien Nguyen (dự án cá nhân, D-27)</dd></div>
+      <div><dt>Giấy phép</dt><dd>Apache-2.0, miễn phí</dd></div>
+      <div><dt>Trạng thái</dt><dd><span class="chip c-warn">Thiết kế + GUI trên mock</span></dd></div>
+      <div><dt>Nguồn chân lý</dt><dd><code>docs/</code>, quyết định D-1…D-42</dd></div>
+      <div><dt>Mốc hiện tại</dt><dd>M1: GUI hoàn chỉnh; backend bắt đầu từ M2</dd></div>
+    </dl>
+    <p class="small">Cách đọc trạng thái trong tài liệu: <span class="chip c-ok">Đã xây</span> có mã chạy và được kiểm thử; <span class="chip c-info">GUI trên mock</span> có màn hình và hợp đồng API, dữ liệu giả lập trong trình duyệt; <span class="chip c-plain">Thiết kế</span> đã chốt, chưa có mã.</p>
+
+    <h2 id="tom-tat"><span class="num">1</span>Tóm tắt</h2>
+    <p>Vedette là một hộp phần mềm đặt trong mạng LAN của doanh nghiệp nhỏ và vừa. Nó cho biết <strong>lỗ hổng nào đang bị khai thác thật ngoài thế giới khớp với thiết bị công ty đang có</strong>, chứng minh bằng quét an toàn khi có thể, đưa ra cách giảm thiểu cụ thể cho đúng thiết bị, và theo dõi dấu hiệu bị xâm nhập qua bẫy nội bộ và log.</p>
+    <div class="cols">
+      <div class="card"><h4>Hộp làm</h4><ul>
+        <li>Kéo feed lỗ hổng đang bị khai thác (CISA KEV, EPSS…) trực tiếp từ nguồn và đối chiếu với kho thiết bị.</li>
+        <li>Lập kho thiết bị: nghe thụ động, quét nhẹ trong phạm vi đã xác nhận, khai tay, nhận từ osquery/Wazuh.</li>
+        <li>Quét xác nhận bằng template an toàn; tách rõ "đã xác nhận" và "nghi ngờ".</li>
+        <li>Bẫy nội bộ, thu log, đối chiếu IOC, báo cáo, cảnh báo qua kênh của khách.</li>
+        <li>Trợ lý AI dùng khoá của khách (BYOK), có harness: quy tắc, memory, kho tri thức, hook chặn.</li>
+      </ul></div>
+      <div class="card"><h4>Hộp không làm</h4><ul>
+        <li>Không nằm trên đường mạng, không chặn traffic (D-3).</li>
+        <li>Không gửi thiết bị, log, phát hiện hay khoá ra ngoài; danh sách luồng ra là đầy đủ và công khai (§12).</li>
+        <li>Không quét ngoài phạm vi đã xác nhận sở hữu (D-25, D-32).</li>
+        <li>AI không tự thay đổi hệ thống. Ngoại lệ duy nhất: module <code>response</code>, tắt mặc định, từng hành động phải được người có quyền duyệt (D-41, §11).</li>
+      </ul></div>
+    </div>
+    <div class="cols">
+      <div class="card"><div class="kpi">19</div><p class="small">module bật/tắt riêng (1 lõi, 6 chuẩn, 12 tuỳ chọn), cộng 1 module hoãn (fleet)</p></div>
+      <div class="card"><div class="kpi">45</div><p class="small">user story; 42 đạt, 3 rớt theo quyết định (D-23, D-24, D-31)</p></div>
+      <div class="card"><div class="kpi">175</div><p class="small">đường dẫn API, 217 thao tác trong <code>api/openapi.json</code> (đo 09/11/2026)</p></div>
+      <div class="card"><div class="kpi">0</div><p class="small">dòng mã backend. Toàn bộ kiểm soát bảo mật ở §9 là mức thiết kế cho tới M2</p></div>
+    </div>
+
+    <h2 id="pham-vi"><span class="num">2</span>Phạm vi, giả định</h2>
+    <h3>Phạm vi rà soát</h3>
+    <ul>
+      <li>Kiến trúc đích của hộp: thành phần, dữ liệu, luồng, API, bảo mật, cập nhật, vận hành.</li>
+      <li>Hiện trạng thực tế: giao diện React chạy trên API giả lập (MSW), hợp đồng API sinh từ schema Zod.</li>
+      <li>Ngoài phạm vi: mã backend (chưa có), hạ tầng phát hành trên GitHub, nội dung pháp lý chi tiết của báo cáo PDPL.</li>
+    </ul>
+    <h3>Giả định triển khai</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Mục</th><th>Giả định</th><th>Ghi chú</th></tr></thead>
+      <tbody>
+        <tr><td>Khách hàng</td><td>Doanh nghiệp 10–300 người, một văn phòng (một site)</td><td>Nhiều site/tenant/MSP hoãn (D-24)</td></tr>
+        <tr><td>Phần cứng</td><td>4 nhân, 8 GB RAM, SSD 64 GB+; x86_64 hoặc ARM64</td><td>Mục tiêu: 1.000 thiết bị, 50.000 IOC, log gộp 7 ngày ≤ 2 GB</td></tr>
+        <tr><td>Hệ điều hành</td><td>Debian 12 / Ubuntu 24.04 LTS (gói <code>.deb</code>, systemd); Docker image tuỳ chọn</td><td>OS không hỗ trợ: installer dừng và báo rõ (ships-as-code)</td></tr>
+        <tr><td>Vị trí mạng</td><td>Một host trong LAN (hoặc VM). Tuỳ chọn: cổng SPAN/TAP, nhận syslog, IP phụ cho bẫy</td><td>Không inline</td></tr>
+        <tr><td>Internet</td><td>Kết nối ra HTTPS (443). Không cần cổng vào từ Internet</td><td>Slack duyệt qua Socket Mode, Telegram qua long polling (D-38)</td></tr>
+        <tr><td>Người dùng</td><td>1–5 người IT/quản lý; ba vai xem, vận hành, quản trị</td><td>Giao diện chỉ tiếng Anh (D-28)</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2 id="boi-canh"><span class="num">3</span>Bối cảnh hệ thống</h2>
+    <p>Hộp là một host thường trong LAN. Mọi kết nối ra Internet do hộp chủ động mở; không có dịch vụ nào cần mở cổng từ Internet vào. Đường đứt nét đỏ là kết nối ghi duy nhất của hệ thống: chỉ chạy khi khách bật thực thi phản ứng và một người có quyền duyệt từng hành động.</p>
+    <figure>
+      <div class="diagram">
+        <svg viewBox="0 0 960 600" role="img" aria-labelledby="ctx-t ctx-d">
+          <title id="ctx-t">Sơ đồ bối cảnh hộp Vedette</title>
+          <desc id="ctx-d">Hộp Vedette ở giữa mạng LAN, nối với người dùng, thiết bị LAN, máy chủ có osquery, Wazuh, firewall, nguồn syslog; ra Internet tới nguồn feed, GitHub Releases, nhà cung cấp AI, kênh thông báo, máy chủ tín hiệu ẩn danh và log chứng chỉ.</desc>
+          <defs>
+            <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah-a" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah-d" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+          <rect class="zone" x="10" y="10" width="520" height="580" rx="10"/>
+          <text x="26" y="34" class="t-muted" font-size="13" font-weight="600">Mạng LAN của khách</text>
+          <rect class="zone" x="560" y="10" width="390" height="580" rx="10"/>
+          <text x="576" y="34" class="t-muted" font-size="13" font-weight="600">Internet (chỉ kết nối ra)</text>
+
+          <rect class="core" x="300" y="230" width="210" height="140" rx="8"/>
+          <text x="405" y="262" text-anchor="middle" font-size="16" font-weight="700">Hộp Vedette</text>
+          <text x="405" y="284" text-anchor="middle" font-size="12" class="t-muted">một binary Go, SPA nhúng</text>
+          <text x="405" y="304" text-anchor="middle" font-size="12" class="t-muted">SQLite (WAL), khoá bí mật 0600</text>
+          <text x="405" y="324" text-anchor="middle" font-size="12" class="t-muted">HTTPS 8443 · syslog 514</text>
+          <text x="405" y="344" text-anchor="middle" font-size="12" class="t-muted">bẫy trên IP phụ</text>
+
+          <rect class="box" x="30" y="60" width="200" height="56" rx="6"/>
+          <text x="130" y="84" text-anchor="middle" font-size="13" font-weight="600">Người dùng IT</text>
+          <text x="130" y="102" text-anchor="middle" font-size="11" class="t-muted">trình duyệt, 3 vai, 2FA</text>
+          <path class="ln-a" d="M230 92 C300 110 330 170 360 228" marker-end="url(#a2)"/>
+          <text x="262" y="150" font-size="11" class="t-accent">HTTPS 8443</text>
+
+          <rect class="box" x="30" y="150" width="200" height="56" rx="6"/>
+          <text x="130" y="174" text-anchor="middle" font-size="13" font-weight="600">Thiết bị LAN</text>
+          <text x="130" y="192" text-anchor="middle" font-size="11" class="t-muted">PC, NAS, camera, máy in…</text>
+          <path class="ln" d="M298 262 C260 250 250 200 232 188" marker-end="url(#a1)"/>
+          <text x="236" y="236" font-size="11" class="t-muted">nghe + quét trong phạm vi</text>
+
+          <rect class="box" x="30" y="240" width="200" height="56" rx="6"/>
+          <text x="130" y="264" text-anchor="middle" font-size="13" font-weight="600">Máy chủ có osquery</text>
+          <text x="130" y="282" text-anchor="middle" font-size="11" class="t-muted">Linux, Windows Server</text>
+          <path class="ln" d="M230 270 L298 286" marker-end="url(#a1)"/>
+
+          <rect class="box" x="30" y="330" width="200" height="56" rx="6"/>
+          <text x="130" y="354" text-anchor="middle" font-size="13" font-weight="600">Wazuh manager</text>
+          <text x="130" y="372" text-anchor="middle" font-size="11" class="t-muted">API, người dùng chỉ đọc</text>
+          <path class="ln" d="M298 330 L232 352" marker-end="url(#a1)"/>
+
+          <rect class="box" x="30" y="420" width="200" height="56" rx="6"/>
+          <text x="130" y="444" text-anchor="middle" font-size="13" font-weight="600">Firewall, router, máy chủ</text>
+          <text x="130" y="462" text-anchor="middle" font-size="11" class="t-muted">nguồn syslog</text>
+          <path class="ln" d="M232 440 C270 420 290 390 318 372" marker-end="url(#a1)"/>
+          <text x="244" y="418" font-size="11" class="t-muted">syslog 514</text>
+
+          <rect class="riskbox" x="30" y="510" width="200" height="56" rx="6"/>
+          <text x="130" y="534" text-anchor="middle" font-size="13" font-weight="600">FortiGate / RouterOS API</text>
+          <text x="130" y="552" text-anchor="middle" font-size="11" class="t-muted">đọc cấu hình; ghi khi được duyệt</text>
+          <path class="ln-d" d="M360 372 C340 450 290 520 232 536" marker-end="url(#a3)"/>
+          <text x="282" y="482" font-size="11" class="t-danger">ghi: D-41</text>
+
+          <rect class="box" x="600" y="54" width="320" height="50" rx="6"/>
+          <text x="760" y="76" text-anchor="middle" font-size="13" font-weight="600">Nguồn feed (trực tiếp, D-36)</text>
+          <text x="760" y="94" text-anchor="middle" font-size="11" class="t-muted">CISA, FIRST, NVD, abuse.ch, feed của khách…</text>
+          <rect class="box" x="600" y="118" width="320" height="50" rx="6"/>
+          <text x="760" y="140" text-anchor="middle" font-size="13" font-weight="600">GitHub Releases</text>
+          <text x="760" y="158" text-anchor="middle" font-size="11" class="t-muted">chỉ bản cập nhật phần mềm đã ký</text>
+          <rect class="box" x="600" y="182" width="320" height="50" rx="6"/>
+          <text x="760" y="204" text-anchor="middle" font-size="13" font-weight="600">Nhà cung cấp AI của khách</text>
+          <text x="760" y="222" text-anchor="middle" font-size="11" class="t-muted">chỉ khi cấu hình; có thể là máy nội bộ</text>
+          <rect class="box" x="600" y="246" width="320" height="50" rx="6"/>
+          <text x="760" y="268" text-anchor="middle" font-size="13" font-weight="600">Kênh thông báo</text>
+          <text x="760" y="286" text-anchor="middle" font-size="11" class="t-muted">SMTP của khách, Slack, Telegram, Zalo OA, webhook</text>
+          <rect class="box" x="600" y="310" width="320" height="50" rx="6"/>
+          <text x="760" y="332" text-anchor="middle" font-size="13" font-weight="600">Tín hiệu ẩn danh</text>
+          <text x="760" y="350" text-anchor="middle" font-size="11" class="t-muted">chỉ số đếm, tắt được một bấm (D-16)</text>
+          <rect class="box" x="600" y="374" width="320" height="50" rx="6"/>
+          <text x="760" y="396" text-anchor="middle" font-size="13" font-weight="600">Log chứng chỉ, điểm dò IP</text>
+          <text x="760" y="414" text-anchor="middle" font-size="11" class="t-muted">module bề mặt ngoài, khi bật</text>
+          <rect class="box" x="600" y="438" width="320" height="50" rx="6"/>
+          <text x="760" y="460" text-anchor="middle" font-size="13" font-weight="600">Dịch vụ tra cứu cần khoá</text>
+          <text x="760" y="478" text-anchor="middle" font-size="11" class="t-muted">VulnCheck, AbuseIPDB… bằng khoá của khách</text>
+          <rect class="box" x="600" y="502" width="320" height="50" rx="6"/>
+          <text x="760" y="524" text-anchor="middle" font-size="13" font-weight="600">SIEM của khách</text>
+          <text x="760" y="542" text-anchor="middle" font-size="11" class="t-muted">syslog/CEF/JSON, khi cấu hình</text>
+
+          <path class="ln" d="M510 262 L598 80" marker-end="url(#a1)"/>
+          <path class="ln" d="M510 272 L598 143" marker-end="url(#a1)"/>
+          <path class="ln" d="M510 284 L598 207" marker-end="url(#a1)"/>
+          <path class="ln" d="M510 296 L598 271" marker-end="url(#a1)"/>
+          <path class="ln" d="M510 308 L598 335" marker-end="url(#a1)"/>
+          <path class="ln" d="M510 320 L598 399" marker-end="url(#a1)"/>
+          <path class="ln" d="M510 334 L598 463" marker-end="url(#a1)"/>
+          <path class="ln" d="M510 348 L598 527" marker-end="url(#a1)"/>
+        </svg>
+      </div>
+      <figcaption>Hình 1. Bối cảnh (mức C4-1). Mũi tên chỉ chiều mở kết nối. Thiết bị LAN không cần phần mềm nào; osquery là tuỳ chọn để biết chính xác phần mềm trên máy chủ.</figcaption>
+    </figure>
+
+    <h2 id="thanh-phan"><span class="num">4</span>Thành phần bên trong</h2>
+    <p>Một binary Go duy nhất (<code>vedette</code>) chứa máy chủ HTTP, giao diện SPA nhúng, bộ lập lịch và toàn bộ module. Công cụ có giấy phép không nhúng được chạy thành tiến trình riêng, gọi qua <code>core/exec</code> với danh sách binary và tham số cho phép (SYS-1).</p>
+    <figure>
+      <div class="diagram">
+        <svg viewBox="0 0 960 520" role="img" aria-labelledby="ct-t ct-d">
+          <title id="ct-t">Sơ đồ thành phần bên trong hộp</title>
+          <desc id="ct-d">Lớp giao diện và API; lõi gồm xác thực, phân quyền, kiểm toán, lập lịch, bí mật, exec, cập nhật; bốn nhóm module dữ liệu, phát hiện, phản ứng và trợ lý; lưu trữ SQLite; tiến trình ngoài nmap, OpenCanary, Zeek hoặc Suricata, Greenbone.</desc>
+          <rect class="zone" x="10" y="10" width="940" height="500" rx="10"/>
+          <text x="26" y="34" class="t-muted" font-size="13" font-weight="600">vedette (một tiến trình, người dùng không phải root; CAP_NET_RAW cho cảm biến)</text>
+
+          <rect class="core" x="30" y="50" width="900" height="56" rx="6"/>
+          <text x="480" y="74" text-anchor="middle" font-size="14" font-weight="700">HTTP: SPA nhúng · REST /api/v1 (OpenAPI 3.1) · SSE /api/v1/events · intake osquery · MCP chỉ đọc (tuỳ chọn)</text>
+          <text x="480" y="94" text-anchor="middle" font-size="12" class="t-muted">TLS, cookie phiên httpOnly + CSRF, token API có phạm vi, CSP nghiêm, giới hạn tốc độ đăng nhập</text>
+
+          <rect class="box" x="30" y="122" width="900" height="70" rx="6"/>
+          <text x="46" y="144" font-size="13" font-weight="700">Lõi (core)</text>
+          <text x="46" y="166" font-size="12">auth + 2FA · RBAC 3 vai · audit (SYS-3) · module registry · job scheduler có khoá · core/secrets AES-256-GCM (SYS-4)</text>
+          <text x="46" y="184" font-size="12">core/exec allowlist (SYS-1) · validator ở biên (SYS-2) · update client minisign + A/B · xuất/xoá dữ liệu · báo lỗi</text>
+
+          <rect class="box" x="30" y="208" width="216" height="170" rx="6"/>
+          <text x="46" y="230" font-size="13" font-weight="700">Dữ liệu</text>
+          <text x="46" y="254" font-size="12">feeds: kéo trực tiếp, parser</text>
+          <text x="46" y="274" font-size="12">  tuỳ chỉnh (D-36, D-37)</text>
+          <text x="46" y="294" font-size="12">inventory: hợp nhất quan sát</text>
+          <text x="46" y="314" font-size="12">matching → findings</text>
+          <text x="46" y="334" font-size="12">mitigation: gói đã xác nhận</text>
+          <text x="46" y="354" font-size="12">agent-intake: osquery, Wazuh</text>
+
+          <rect class="box" x="258" y="208" width="216" height="170" rx="6"/>
+          <text x="274" y="230" font-size="13" font-weight="700">Phát hiện</text>
+          <text x="274" y="254" font-size="12">sensor-passive: DHCP, ARP,</text>
+          <text x="274" y="274" font-size="12">  mDNS, SSDP, LLDP, SPAN</text>
+          <text x="274" y="294" font-size="12">sensor-active: nmap trong cửa sổ</text>
+          <text x="274" y="314" font-size="12">scan: nuclei template an toàn</text>
+          <text x="274" y="334" font-size="12">exposure · honeypot · logs</text>
+          <text x="274" y="354" font-size="12">  (syslog, baseline 7 ngày, IOC)</text>
+
+          <rect class="box" x="486" y="208" width="216" height="170" rx="6"/>
+          <text x="502" y="230" font-size="13" font-weight="700">Trợ lý, báo cáo</text>
+          <text x="502" y="254" font-size="12">ai: hồ sơ, phân việc, dự phòng</text>
+          <text x="502" y="274" font-size="12">harness: rules, memory, skills,</text>
+          <text x="502" y="294" font-size="12">  RAG, kết nối, hook (D-39)</text>
+          <text x="502" y="314" font-size="12">reports: tuần, PDPL</text>
+          <text x="502" y="334" font-size="12">notify: 6 loại kênh, duyệt</text>
+          <text x="502" y="354" font-size="12">mcp-server: chỉ đọc</text>
+
+          <rect class="riskbox" x="714" y="208" width="216" height="170" rx="6"/>
+          <text x="730" y="230" font-size="13" font-weight="700">Phản ứng (response)</text>
+          <text x="730" y="254" font-size="12">đề xuất cho phát hiện Critical</text>
+          <text x="730" y="274" font-size="12">  (D-40, bật)</text>
+          <text x="730" y="294" font-size="12">thực thi hành động đã duyệt</text>
+          <text x="730" y="314" font-size="12">  (D-41, TẮT mặc định)</text>
+          <text x="730" y="334" font-size="12">cổng kiểm soát ở §11</text>
+          <text x="730" y="354" font-size="12">nút dừng khẩn cấp</text>
+
+          <rect class="box" x="30" y="394" width="440" height="100" rx="6"/>
+          <text x="46" y="416" font-size="13" font-weight="700">Lưu trữ</text>
+          <text x="46" y="440" font-size="12">SQLite (modernc, không cgo, WAL), bảng có tiền tố module</text>
+          <text x="46" y="460" font-size="12">PostgreSQL 16 tuỳ chọn qua cùng lớp store (sqlc) · FTS5 cho RAG</text>
+          <text x="46" y="480" font-size="12">khoá bí mật trong file 0600 do installer tạo; không nằm trong DB</text>
+
+          <rect class="box" x="490" y="394" width="440" height="100" rx="6"/>
+          <text x="506" y="416" font-size="13" font-weight="700">Tiến trình ngoài (qua core/exec)</text>
+          <text x="506" y="440" font-size="12">nmap (cài từ repo OS, NPSL, không ship) · OpenCanary (BSD-3)</text>
+          <text x="506" y="460" font-size="12">Zeek / Suricata (tuỳ chọn) · Greenbone CE (container riêng)</text>
+          <text x="506" y="480" font-size="12">nuclei, httpx, subfinder, dnsx: thư viện Go nhúng (MIT)</text>
+        </svg>
+      </div>
+      <figcaption>Hình 2. Thành phần bên trong (mức C4-2). Cảm biến, bẫy và log có thể chạy ở chế độ <code>vedette sensor</code> tách khỏi máy chủ; cảm biến chỉ gọi ra máy chủ bằng mTLS. SMB mặc định chạy chung một tiến trình (<code>vedette all</code>).</figcaption>
+    </figure>
+
+    <h3>Công nghệ và lý do</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Lớp</th><th>Chọn</th><th>Lý do</th></tr></thead>
+      <tbody>
+        <tr><td>Backend</td><td>Go 1.26, một binary tĩnh, <code>net/http</code>, <code>embed</code> SPA</td><td>Nuclei/httpx/subfinder là thư viện Go nên nhúng được; cross-compile x86/ARM; không cần runtime</td></tr>
+        <tr><td>Cơ sở dữ liệu</td><td>SQLite mặc định, PostgreSQL tuỳ chọn</td><td>SMB: một file, sao lưu bằng cách chép; doanh nghiệp lớn hơn dùng Postgres</td></tr>
+        <tr><td>Giao diện</td><td>React 19, TypeScript 7 strict, Vite 8, Tailwind v4, Radix, TanStack Query/Table, React Router 8</td><td>Chi tiết ở §15</td></tr>
+        <tr><td>Lập lịch</td><td>Trong tiến trình, có khoá và lịch sử; không hàng đợi ngoài</td><td>Đủ cho vài trăm đến 1.000 thiết bị một site</td></tr>
+        <tr><td>Hợp đồng API</td><td>Schema Zod → OpenAPI 3.1 → Go sinh type/handler</td><td>Spec-first (D-18); CI so khớp</td></tr>
+        <tr><td>Đóng gói</td><td><code>.deb</code>, Docker image, <code>install.sh</code> idempotent, systemd unit có hardening</td><td>Máy mới dựng từ repo phải ra cùng trạng thái</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2 id="module"><span class="num">5</span>Danh mục module</h2>
+    <p>Mỗi module có <code>MANIFEST.yaml</code>, <code>CONTRACT.md</code> (bất biến kiểm thử được) và <code>IMPACT.md</code>. Tắt module nghĩa là không route, không job, không cổng; dữ liệu giữ nguyên (SYS-5). Bật module thiếu phụ thuộc thì giao diện hỏi, không tự bật ngầm.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Module</th><th>Tier</th><th>Mặc định</th><th>Phụ thuộc</th><th>Quyền, cổng</th><th>Story</th><th>Trạng thái</th></tr></thead>
+      <tbody>
+        <tr><td><code>core</code></td><td>lõi</td><td>bật</td><td>—</td><td>HTTPS 8443</td><td>S-CORE-1…5</td><td><span class="chip c-info">GUI trên mock</span></td></tr>
+        <tr><td><code>feeds</code></td><td>chuẩn</td><td>bật</td><td>core</td><td>ra HTTPS</td><td>S-FEED-1…5</td><td><span class="chip c-info">GUI trên mock</span></td></tr>
+        <tr><td><code>inventory</code></td><td>chuẩn</td><td>bật</td><td>core, feeds</td><td>—</td><td>S-INV-1…3</td><td><span class="chip c-info">GUI trên mock</span></td></tr>
+        <tr><td><code>notify</code></td><td>chuẩn</td><td>bật</td><td>core</td><td>ra HTTPS, SMTP</td><td>S-NOT-1, S-NOT-2, S-ALERT-1</td><td><span class="chip c-info">GUI trên mock</span></td></tr>
+        <tr><td><code>sensor-passive</code></td><td>chuẩn</td><td>bật</td><td>inventory</td><td>raw socket, pcap</td><td>S-INV-1, S-INV-3</td><td><span class="chip c-plain">Thiết kế</span></td></tr>
+        <tr><td><code>sensor-active</code></td><td>chuẩn</td><td>bật</td><td>inventory</td><td>raw socket, nmap</td><td>S-INV-1, S-SCAN-4</td><td><span class="chip c-plain">Thiết kế</span></td></tr>
+        <tr><td><code>mitigation</code></td><td>chuẩn</td><td>bật</td><td>feeds, inventory</td><td>—</td><td>S-MIT-1, S-MIT-3, S-MIT-4</td><td><span class="chip c-info">GUI trên mock</span></td></tr>
+        <tr><td><code>exposure</code></td><td>tuỳ chọn</td><td>bật (gói vừa)</td><td>inventory</td><td>ra HTTPS</td><td>S-EXP-1</td><td><span class="chip c-info">GUI trên mock</span></td></tr>
+        <tr><td><code>scan</code></td><td>tuỳ chọn</td><td>bật (gói vừa)</td><td>inventory, feeds</td><td>LAN, Internet trong phạm vi</td><td>S-SCAN-1…4</td><td><span class="chip c-info">GUI trên mock</span></td></tr>
+        <tr><td><code>scan-credentialed</code></td><td>tuỳ chọn</td><td>tắt</td><td>scan</td><td>container</td><td>S-SCAN-5</td><td><span class="chip c-info">GUI trên mock</span></td></tr>
+        <tr><td><code>honeypot</code></td><td>tuỳ chọn</td><td>bật (gói vừa)</td><td>inventory</td><td>445, 3389, 22, 1433, 80 trên IP phụ</td><td>S-HP-1</td><td><span class="chip c-info">GUI trên mock</span></td></tr>
+        <tr><td><code>logs</code></td><td>tuỳ chọn</td><td>bật (gói vừa)</td><td>feeds, inventory</td><td>UDP/TCP 514, TLS</td><td>S-LOG-1…3</td><td><span class="chip c-info">GUI trên mock</span></td></tr>
+        <tr><td><code>agent-intake</code></td><td>tuỳ chọn</td><td>tắt</td><td>inventory</td><td>HTTPS (intake)</td><td>S-INV-4</td><td><span class="chip c-info">GUI trên mock</span></td></tr>
+        <tr><td><code>ai</code></td><td>tuỳ chọn</td><td>bật</td><td>core</td><td>ra nhà cung cấp AI</td><td>S-AI-1…7</td><td><span class="chip c-info">GUI trên mock</span></td></tr>
+        <tr><td><code>response</code></td><td>tuỳ chọn</td><td>đề xuất bật, thực thi TẮT</td><td>ai, notify, inventory</td><td>ghi qua API thiết bị khi được duyệt</td><td>S-RESP-1, S-RESP-2</td><td><span class="chip c-info">GUI trên mock</span></td></tr>
+        <tr><td><code>reports</code></td><td>tuỳ chọn</td><td>bật</td><td>inventory, feeds</td><td>—</td><td>S-REP-1, S-REP-2</td><td><span class="chip c-info">GUI trên mock</span></td></tr>
+        <tr><td><code>mcp-server</code></td><td>tuỳ chọn</td><td>tắt</td><td>core</td><td>localhost</td><td>S-MCP-1</td><td><span class="chip c-info">GUI trên mock</span></td></tr>
+        <tr><td><code>auth-oidc</code></td><td>tuỳ chọn</td><td>tắt</td><td>core</td><td>ra IdP</td><td>S-CORE-3</td><td><span class="chip c-info">GUI trên mock</span></td></tr>
+        <tr><td><code>fleet</code></td><td>—</td><td>hoãn</td><td>—</td><td>—</td><td>S-FLEET-1 (rớt)</td><td><span class="chip c-plain">Hoãn, D-24</span></td></tr>
+      </tbody>
+    </table></div>
+    <p class="small">"Gói vừa": khi cài đặt, người dùng chọn một gói module (nhỏ, vừa, đầy đủ, tuỳ chọn); bảng ghi giá trị của gói "Mid-size business".</p>
+
+    <h2 id="du-lieu"><span class="num">6</span>Mô hình dữ liệu</h2>
+    <p>Mỗi bảng mang tiền tố module; không module nào đọc bảng module khác trực tiếp mà đi qua interface trong <code>core/</code>. Kho thiết bị không ghi đè: mọi giá trị là một quan sát có nguồn và độ tin cậy, thiết bị là view hợp nhất theo thứ tự ưu tiên <code>manual &gt; agent &gt; snmp &gt; nmap &gt; passive</code>.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Bảng</th><th>Trường chính</th><th>Ghi chú</th></tr></thead>
+      <tbody>
+        <tr><td><code>inv_asset</code></td><td>id, ip, mac, hostname, kind, vendor, model, os, approved, fragile, first_seen, last_seen</td><td>View hợp nhất</td></tr>
+        <tr><td><code>inv_observation</code></td><td>asset_id, source, field, value, confidence, seen_at, evidence</td><td>Chỉ thêm, không sửa</td></tr>
+        <tr><td><code>inv_software</code>, <code>inv_service</code></td><td>vendor, product, version, cpe, port, banner_hash, source</td><td>Đầu vào cho khớp lỗ hổng</td></tr>
+        <tr><td><code>inv_scope</code></td><td>lan_ranges (CIDR bắt buộc tiền tố), cửa sổ quét, tốc độ, loại thiết bị chỉ nghe, loại trừ, confirmed_by/at</td><td>D-32; mọi quét chủ động đọc bảng này (INV)</td></tr>
+        <tr><td><code>inv_finding</code></td><td>asset_id, cve, status, basis (scan / version / product), confidence, evidence, resolved_by</td><td>Phát hiện = CVE × thiết bị</td></tr>
+        <tr><td><code>feeds_source</code></td><td>id, built_in, url, schedule, enabled, auth (secret ref), format, kind, last_fetch, records, error</td><td>D-37</td></tr>
+        <tr><td><code>feeds_parser</code></td><td>source_id, format, root path, field map, regex, normalisers, limits</td><td>Fail-closed (SYS-6)</td></tr>
+        <tr><td><code>feeds_vuln</code>, <code>feeds_ioc</code></td><td>cve, vendor, product, version_ranges, kev_date, epss, ransomware · type, value, sources, score, ttl</td><td>Chuẩn hoá trên hộp</td></tr>
+        <tr><td><code>exp_target</code></td><td>domain hoặc IP, cách xác thực (TXT / IP ra), verified_at, expires_at (IP: 90 ngày)</td><td>D-25</td></tr>
+        <tr><td><code>scan_run</code>, <code>scan_probe</code></td><td>trigger, targets, template, request/response rút gọn, kết quả</td><td>Mọi probe ghi log</td></tr>
+        <tr><td><code>logs_event</code>, <code>hp_hit</code></td><td>sự kiện đã gộp theo cửa sổ · lần chạm bẫy</td><td>Không lưu log thô dài hạn; thời hạn cấu hình</td></tr>
+        <tr><td><code>ai_profile</code>, <code>ai_assign</code>, <code>ai_run</code></td><td>nhà cung cấp, model, nơi chạy (nội bộ / đám mây), trần · việc → chính, dự phòng · token, hash đầu vào, hồ sơ trả lời</td><td>D-29</td></tr>
+        <tr><td><code>ai_rule</code>, <code>ai_memory</code>, <code>ai_doc</code>, <code>ai_connector</code>, <code>ai_hook</code></td><td>quy tắc · điều ghi nhớ · tài liệu RAG · kết nối và công cụ đọc/ghi · hook trước/sau</td><td>D-39</td></tr>
+        <tr><td><code>resp_proposal</code>, <code>resp_action</code></td><td>finding_id, kế hoạch · công cụ, thay đổi trước/sau, hoàn tác, trạng thái, hết hạn, người duyệt, nơi duyệt</td><td>D-40, D-41</td></tr>
+        <tr><td><code>notify_channel</code>, <code>notify_approver</code></td><td>loại, cấu hình, bí mật, approvals · user_id ↔ Slack ID, Telegram ID</td><td>D-38</td></tr>
+        <tr><td><code>core_user</code>, <code>core_session</code></td><td>vai, mật khẩu (argon2id), twofa_method (app / email), bí mật TOTP (mã hoá)</td><td>D-35</td></tr>
+        <tr><td><code>core_audit</code></td><td>ts, user, action, target, hash trước/sau</td><td>Mọi thay đổi (SYS-3)</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2 id="luong"><span class="num">7</span>Luồng xử lý chính</h2>
+    <h3>7.1 Feed → khớp → phát hiện → cảnh báo</h3>
+    <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant S as Nguồn feed
+  participant F as feeds
+  participant M as matching
+  participant I as inventory
+  participant N as notify
+  F->>S: GET theo lịch (ETag, giới hạn kích thước/thời gian)
+  S-->>F: dữ liệu (không tin cậy)
+  F->>F: parser fail-closed, chuẩn hoá, lọc trùng, chấm điểm
+  F->>M: bản ghi KEV/IOC mới
+  M->>I: thiết bị có vendor|product khớp?
+  I-->>M: danh sách thiết bị + phiên bản
+  M->>M: có khoảng phiên bản? → "nghi theo phiên bản", không có → "chỉ khớp sản phẩm"
+  M->>N: phát hiện mới (mức, thiết bị, CVE)
+  N->>N: lịch im lặng, gộp theo sản phẩm
+  N-->>N: gửi kênh đã cấu hình (Critical luôn gửi ngay)
+    </pre>
+    <p>Khi một thiết bị mới được thêm (khai tay, CSV, osquery, quét), hộp đối chiếu ngay với toàn bộ danh sách đang có, không chờ feed mới. Kết quả chỉ là "đã xác nhận" khi có bằng chứng từ quét template an toàn (§7.3).</p>
+
+    <h3>7.2 Lập kho thiết bị</h3>
+    <ul>
+      <li><strong>Thụ động</strong> (luôn chạy khi bật): DHCP, ARP, mDNS, SSDP, LLDP; Zeek/Suricata EVE nếu có SPAN. Không gửi gói nào ra mạng.</li>
+      <li><strong>Chủ động</strong>: nmap <code>-sV</code> nhẹ chỉ trong <code>inv_scope</code> đã xác nhận, trong cửa sổ giờ, với tốc độ đặt trước (10–500 gói/giây). Loại thiết bị "mong manh" (NAS, camera, máy in…) chỉ nghe, không quét. Danh sách loại trừ không bao giờ bị chạm.</li>
+      <li><strong>Agent</strong>: osquery gửi danh sách gói về hộp qua TLS (hộp là máy chủ TLS của osquery, token đăng ký dùng một lần, hết hạn 7 ngày; D-33, D-34). Wazuh: hộp kéo qua API bằng người dùng chỉ đọc.</li>
+      <li><strong>Khai tay</strong>: chọn sản phẩm trong danh mục 883 mục (733 cặp hãng/sản phẩm từ KEV + sản phẩm phổ biến SMB), hoặc nhập tự do (D-30).</li>
+    </ul>
+
+    <h3>7.3 Quét xác nhận</h3>
+    <ul>
+      <li>Nuclei nhúng, chỉ bộ template <code>kev,vkev</code> có tag an toàn; không template nào gây từ chối dịch vụ hay ghi dữ liệu.</li>
+      <li>Mục tiêu ngoài: domain chỉ quét khi bản ghi DNS TXT còn đúng ngay trước lần quét; IP chỉ khi đó là IP mà chính hộp đang dùng ra Internet, đã xác minh trong 90 ngày (từ chối IP riêng, CGNAT; 10 lần thử/giờ) (D-25).</li>
+      <li>KEV mới có template → tự quét lại thiết bị liên quan (S-SCAN-2). Mỗi probe ghi log: thời điểm, mục tiêu, template, request/response rút gọn.</li>
+    </ul>
+
+    <h3>7.4 Một lần gọi AI đi qua harness</h3>
+    <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant U as Người dùng / job
+  participant H as harness
+  participant R as RAG + memory
+  participant P as Hồ sơ AI
+  participant T as Công cụ chỉ đọc
+  U->>H: việc (ví dụ explain-finding) + dữ liệu hộp chuẩn bị
+  H->>H: hook trước: chặn dữ liệu cá nhân, phạm vi bảo mật, hook của khách
+  H->>H: chọn hồ sơ: chính → dự phòng; dữ liệu nội bộ chỉ tới hồ sơ nội bộ nếu bật
+  H->>R: truy xuất top-k (BM25), memory đang bật, quy tắc
+  H->>P: prompt (dữ liệu không tin cậy trong khối có nhãn)
+  P-->>H: yêu cầu gọi công cụ
+  H->>T: chỉ công cụ đọc; công cụ ghi bị từ chối (hook khoá)
+  T-->>H: kết quả
+  P-->>H: câu trả lời theo schema
+  H->>H: hook sau, kiểm schema, gắn nhãn "AI-generated", ghi ai_run
+  H-->>U: kết quả + nguồn + hồ sơ đã trả lời
+    </pre>
+
+    <h3>7.5 Đề xuất và thực thi phản ứng</h3>
+    <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant F as findings
+  participant A as harness AI
+  participant C as Kết nối thiết bị
+  participant R as response
+  participant N as Kênh duyệt
+  participant U as Người duyệt
+  F->>R: phát hiện Critical mới
+  R->>A: việc response-plan
+  A->>C: đọc cấu hình (get_virtual_ips…)
+  C-->>A: NAS-PHOTO-443: 203.0.113.10:443 → 192.168.10.21
+  A-->>R: kế hoạch + hành động đề xuất (tắt VIP)
+  R->>R: thực thi đang bật? loại hành động được phép? còn hạn mức giờ?
+  R->>N: yêu cầu duyệt: thay đổi trước/sau, hoàn tác, hết hạn 15 phút
+  U->>N: Duyệt
+  N->>R: danh tính chat
+  R->>R: đã liên kết? vai ≥ vận hành? chưa hết hạn? một hành động một lần duyệt
+  R->>C: disable_virtual_ip(NAS-PHOTO-443)
+  C-->>R: kết quả
+  R->>N: báo kết quả + nút hoàn tác
+    </pre>
+
+    <h3>7.6 Cập nhật</h3>
+    <p>Hộp hỏi GitHub Releases theo lịch (hoặc người dùng bấm kiểm tra), tải bản mới vào khe A/B còn trống, kiểm chữ ký minisign với khoá công khai nhúng trong binary, khởi động lại vào khe mới, tự lùi về khe cũ nếu kiểm tra sức khoẻ thất bại. Bản phát hành chia theo lô (cohort 10 → 50 → 100 %), có danh sách thu hồi.</p>
+
+    <h2 id="api"><span class="num">8</span>API, xác thực, phân quyền</h2>
+    <h3>Hợp đồng</h3>
+    <ul>
+      <li>REST JSON tại <code>/api/v1</code>; mỗi module khai endpoint trong <code>features/&lt;module&gt;/contract.ts</code> (Zod) kèm story ID và vai tối thiểu. <code>pnpm openapi</code> sinh <code>api/openapi.json</code> (OpenAPI 3.1). Backend Go sinh type và handler từ file này; CI so khớp.</li>
+      <li>Test hợp đồng: mọi handler mock phải có trong hợp đồng; mọi phản hồi GET khớp schema.</li>
+      <li>Lỗi chuẩn: <code>{"error": {"code", "message"}}</code>; 401 chưa đăng nhập, 403 thiếu quyền, 404, 409 xung đột trạng thái, 422 dữ liệu sai, 429 quá giới hạn, 503 dịch vụ phụ thuộc không sẵn sàng.</li>
+      <li>Sự kiện trực tiếp qua SSE <code>/api/v1/events</code>.</li>
+    </ul>
+    <h3>Xác thực</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Cơ chế</th><th>Đặc tả</th></tr></thead>
+      <tbody>
+        <tr><td>Phiên</td><td>Cookie <code>vedette_session</code>: Secure, HttpOnly, SameSite=Strict; token CSRF cho mọi thay đổi; hết hạn khi rảnh; danh sách phiên, thu hồi được</td></tr>
+        <tr><td>Mật khẩu</td><td>Tối thiểu 12 ký tự, băm argon2id; giới hạn tốc độ đăng nhập theo tài khoản và IP</td></tr>
+        <tr><td>Hai bước, ứng dụng</td><td>TOTP RFC 6238 (SHA-1, 6 số, 30 s), quét QR vẽ tại chỗ hoặc nhập khoá (D-35)</td></tr>
+        <tr><td>Hai bước, email</td><td>Mã 6 số tới email đăng nhập, chỉ khi kênh email bật; hết hạn 10 phút, dùng 1 lần, 5 lần sai, gửi lại sau 60 s, 5 mã/giờ. Kênh hỏng → từ chối đăng nhập, không lùi về chỉ mật khẩu</td></tr>
+        <tr><td>Đặt lại hai bước</td><td>Quản trị viên đặt lại cho người khác, có xác nhận và ghi kiểm toán; không tự đặt lại cho chính mình</td></tr>
+        <tr><td>OIDC</td><td>Module <code>auth-oidc</code>, vai mặc định cho người mới; hai bước do IdP đảm nhận</td></tr>
+        <tr><td>Token API, MCP</td><td>Token có phạm vi, chỉ đọc; MCP mặc định chỉ nghe localhost</td></tr>
+      </tbody>
+    </table></div>
+    <h3>Ma trận vai</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Thao tác</th><th>Xem</th><th>Vận hành</th><th>Quản trị</th></tr></thead>
+      <tbody>
+        <tr><td>Xem bảng nóng, thiết bị, phát hiện, cảnh báo, báo cáo</td><td>có</td><td>có</td><td>có</td></tr>
+        <tr><td>Xử lý phát hiện, đánh dấu áp dụng, chạy quét, hỏi AI</td><td>không</td><td>có</td><td>có</td></tr>
+        <tr><td>Duyệt hành động phản ứng (D-41)</td><td>không</td><td>có, nếu đã liên kết danh tính chat</td><td>có, nếu đã liên kết</td></tr>
+        <tr><td>Phạm vi quét, kênh, feed, hồ sơ AI, harness, module</td><td>không</td><td>không</td><td>có</td></tr>
+        <tr><td>Bật thực thi phản ứng</td><td>không</td><td>không</td><td>có, cần 2FA + câu chấp nhận rủi ro</td></tr>
+        <tr><td>Người dùng, xoá toàn bộ dữ liệu</td><td>không</td><td>không</td><td>có</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2 id="bao-mat"><span class="num">9</span>Kiến trúc bảo mật</h2>
+    <h3>Bất biến hệ thống (áp dụng mọi module)</h3>
+    <div class="tbl"><table>
+      <thead><tr><th class="nw">ID</th><th>Bất biến</th><th>Cách kiểm</th></tr></thead>
+      <tbody>
+        <tr><td class="nw">SYS-1</td><td>Tiến trình ngoài chỉ qua <code>core/exec</code>, danh sách binary + argv; không gọi shell bằng chuỗi lệnh</td><td>Lint cấm <code>os/exec</code> ngoài core/exec; test contract</td></tr>
+        <tr><td class="nw">SYS-2</td><td>Input ở biên validate theo schema trước service; IP qua <code>netip</code>, tên theo regex chặt</td><td>Handler sinh từ OpenAPI; fuzz validator</td></tr>
+        <tr><td class="nw">SYS-3</td><td>Mọi thay đổi ghi <code>core_audit</code></td><td>Test mỗi mutation có bản ghi</td></tr>
+        <tr><td class="nw">SYS-4</td><td>Bí mật qua <code>core/secrets</code> (AES-256-GCM), không log, không xuất; giao diện chỉ hiện 4 ký tự cuối</td><td>Test quét log và bản xuất</td></tr>
+        <tr><td class="nw">SYS-5</td><td>Module tắt: không route, không job, không cổng; dữ liệu giữ</td><td>Test bật/tắt từng module</td></tr>
+        <tr><td class="nw">SYS-6</td><td>Feed, log, web, agent là dữ liệu không tin cậy: parser fail-closed, giới hạn kích thước</td><td>Fuzz parser, test giới hạn</td></tr>
+        <tr><td class="nw">SYS-7</td><td>Hành động mạng ra ngoài LAN chỉ trong phạm vi đã xác thực hoặc nguồn feed đã khai báo</td><td>Test egress theo bảng phạm vi</td></tr>
+        <tr><td class="nw">SYS-8</td><td>AI không có công cụ ghi. Ngoại lệ duy nhất: <code>response</code> với các cổng ở §11</td><td>Test harness từ chối công cụ ghi ngoài response</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Ranh giới tin cậy</h3>
+    <div class="tbl"><table>
+      <thead><tr><th class="nw">Ranh giới</th><th>Bên kia là</th><th>Kiểm soát</th></tr></thead>
+      <tbody>
+        <tr><td class="nw">TB-1 Trình duyệt ↔ hộp</td><td>Người dùng đã/ chưa đăng nhập trong LAN</td><td>TLS, phiên + CSRF, 2FA, RBAC, CSP không inline script, giới hạn tốc độ</td></tr>
+        <tr><td class="nw">TB-2 Hộp ↔ nguồn feed</td><td>Dữ liệu Internet không tin cậy</td><td>Chỉ HTTPS, giới hạn kích thước/thời gian, parser fail-closed, kiểm tra an toàn (không đưa domain phổ biến vào danh sách chặn)</td></tr>
+        <tr><td class="nw">TB-3 Hộp ↔ thiết bị LAN</td><td>Thiết bị có thể đã bị chiếm</td><td>Banner, syslog, dữ liệu agent đều không tin cậy; quét chỉ đọc, trong phạm vi</td></tr>
+        <tr><td class="nw">TB-4 Hộp ↔ nhà cung cấp AI</td><td>Dịch vụ ngoài, có thể nhận dữ liệu khách</td><td>Chỉ khi khách cấu hình; che dữ liệu cá nhân; dữ liệu nội bộ có thể khoá vào hồ sơ nội bộ; output theo schema</td></tr>
+        <tr><td class="nw">TB-5 AI ↔ công cụ</td><td>Mô hình có thể bị prompt injection</td><td>Dữ liệu ngoài trong khối có nhãn; công cụ đọc theo danh sách cho phép; công cụ ghi chỉ qua §11</td></tr>
+        <tr><td class="nw">TB-6 Kênh chat ↔ hộp</td><td>Lời duyệt từ Slack/Telegram</td><td>Chỉ danh tính đã liên kết với người dùng vai ≥ vận hành; hết hạn; một hành động một lần duyệt</td></tr>
+        <tr><td class="nw">TB-7 Hộp ↔ GitHub Releases</td><td>Chuỗi cung ứng</td><td>Chữ ký minisign, khoá công khai nhúng, A/B, thu hồi</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Mô hình mối đe doạ (STRIDE, rút gọn)</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Mối đe doạ</th><th>Loại</th><th>Tác động</th><th>Giảm thiểu</th><th>Rủi ro còn lại</th></tr></thead>
+      <tbody>
+        <tr><td>Kẻ tấn công trong LAN chiếm phiên quản trị</td><td>S, E</td><td>Đổi phạm vi quét, bật thực thi phản ứng</td><td>2FA, cookie Strict, CSRF, giới hạn tốc độ, kiểm toán; bật thực thi cần 2FA + câu chấp nhận</td><td><span class="chip c-warn">Trung bình</span></td></tr>
+        <tr><td>Feed độc hại đưa domain/IP phổ biến vào danh sách IOC</td><td>T</td><td>Cảnh báo giả hàng loạt; đề xuất chặn sai</td><td>Kiểm tra an toàn trước khi dùng; danh sách domain phổ biến loại trừ; feed tuỳ chỉnh đếm và hiện dòng lỗi</td><td><span class="chip c-ok">Thấp</span></td></tr>
+        <tr><td>Prompt injection qua log hoặc trang web đã tải</td><td>T, E</td><td>AI đề xuất hành động có hại</td><td>Khối dữ liệu có nhãn, lọc mẫu injection, công cụ ghi không bao giờ chạy từ chat, mỗi hành động cần người duyệt xem thay đổi chính xác</td><td><span class="chip c-warn">Trung bình</span></td></tr>
+        <tr><td>Lộ khoá AI, token kênh, khoá SSH</td><td>I</td><td>Lạm dụng tài khoản của khách</td><td>AES-256-GCM, file khoá 0600, không log, không xuất, chỉ hiện 4 ký tự cuối</td><td><span class="chip c-ok">Thấp</span></td></tr>
+        <tr><td>Quét nhầm tài sản của bên thứ ba</td><td>—</td><td>Rủi ro pháp lý (Luật ANM)</td><td>Xác thực DNS TXT trước mỗi lần quét, IP chỉ là IP ra của hộp, ô cam kết, nhật ký probe</td><td><span class="chip c-ok">Thấp</span></td></tr>
+        <tr><td>Bản cập nhật giả</td><td>T</td><td>Chiếm toàn bộ hộp</td><td>Chữ ký minisign, khoá nhúng, thu hồi, phát hành theo lô</td><td><span class="chip c-ok">Thấp</span></td></tr>
+        <tr><td>Lạm dụng kết nối SSH/HTTP của AI để đi ngang (SSRF, lateral movement)</td><td>E</td><td>Truy cập máy khác trong LAN</td><td>Danh sách host/URL/lệnh cho phép theo từng kết nối, kiểm ở <code>core/exec</code> và lớp HTTP, không nhận chuyển hướng ngoài danh sách</td><td><span class="chip c-warn">Trung bình</span></td></tr>
+        <tr><td>Từ chối dịch vụ do quét làm treo thiết bị cũ</td><td>D</td><td>Gián đoạn vận hành khách</td><td>Cửa sổ giờ, tốc độ thấp mặc định, loại thiết bị mong manh chỉ nghe, loại trừ</td><td><span class="chip c-ok">Thấp</span></td></tr>
+        <tr><td>Người duyệt bấm nhầm, hoặc AI đề xuất sai rồi được duyệt</td><td>—</td><td>Mất kết nối dịch vụ</td><td>Thay đổi chính xác trước/sau, hoàn tác một bấm, hạn mức giờ, nút dừng khẩn cấp, cảnh báo rủi ro</td><td><span class="chip c-danger">Cao (chấp nhận bởi khách)</span></td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Cứng hoá máy chủ</h3>
+    <ul>
+      <li>Chạy bằng người dùng hệ thống riêng; chỉ <code>CAP_NET_RAW</code> cho cảm biến; cổng thấp của bẫy qua socket activation hoặc <code>CAP_NET_BIND_SERVICE</code>.</li>
+      <li>systemd: <code>ProtectSystem=strict</code>, <code>NoNewPrivileges</code>, <code>PrivateTmp</code>, thư mục ghi được khai báo rõ.</li>
+      <li>Header: CSP không inline script, không tài nguyên CDN ngoài trong SPA; một cookie phiên, không analytics.</li>
+      <li>SBOM CycloneDX mỗi bản phát hành; <code>govulncheck</code> và <code>trivy fs</code> trong CI; phụ thuộc ghim phiên bản; không nhúng GPL/AGPL vào lõi.</li>
+    </ul>
+
+    <h2 id="ai"><span class="num">10</span>Harness AI</h2>
+    <p>Sản phẩm không bán AI. Khách thêm một hoặc nhiều <strong>hồ sơ AI</strong> (Anthropic, OpenAI, Gemini, máy chủ tương thích OpenAI như Ollama/vLLM, hoặc tuỳ chỉnh với kiểu API riêng). Harness là bộ khung bọc mọi lần gọi (D-39).</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Thành phần</th><th>Chức năng</th><th>Đảm bảo</th></tr></thead>
+      <tbody>
+        <tr><td>Phân việc</td><td>10 việc (giải thích phát hiện, cấu hình giảm thiểu, tin CVE, tóm tắt log, điều tra log, hỏi dữ liệu, báo cáo tuần, đánh giá PDPL, dịch khuyến cáo, kế hoạch phản ứng), mỗi việc một hồ sơ chính và một dự phòng</td><td>Ghi hồ sơ nào trả lời, có dùng dự phòng không</td></tr>
+        <tr><td>Quy tắc dữ liệu</td><td>Việc gửi log/thiết bị chỉ tới hồ sơ chạy trong mạng nội bộ (khi bật)</td><td>Máy chủ chặn cả khi giao diện bị bỏ qua</td></tr>
+        <tr><td>Quy tắc (rules)</td><td>Quy tắc có sẵn (chỉ giúp việc bảo mật của mạng này) và quy tắc của khách theo việc</td><td>Đưa vào mọi lần gọi</td></tr>
+        <tr><td>Memory</td><td>Điều AI ghi nhớ về hạ tầng (ví dụ đường NAT của NAS); AI chỉ đề xuất, người duyệt mới lưu</td><td>Xem, sửa, tắt, xoá được</td></tr>
+        <tr><td>Skills</td><td>Gói việc dạng Agent Skills (<code>skills/</code>), cập nhật cùng bản phát hành, bật/tắt</td><td>Output theo schema cứng</td></tr>
+        <tr><td>Kho tri thức (RAG)</td><td>Tài liệu khách tải lên (sơ đồ mạng, chính sách, runbook), chỉ mục FTS5 trên hộp, vector tuỳ chọn</td><td>Cảnh báo khi hồ sơ lập chỉ mục là đám mây</td></tr>
+        <tr><td>Kết nối (MCP)</td><td>API thiết bị, SSH, HTTP, máy chủ MCP; mỗi công cụ là đọc hoặc ghi</td><td>Danh sách cho phép theo kết nối; công cụ ghi chỉ dùng qua §11</td></tr>
+        <tr><td>Hook</td><td>Chặn dữ liệu cá nhân; chỉ làm việc bảo mật; công cụ ghi phải duyệt (khoá luôn bật); hook của khách theo từ khoá/regex</td><td>Câu trả lời ghi hook nào đã tác động</td></tr>
+        <tr><td>Đồng hồ token</td><td>Ba mức (tối thiểu, trung bình, tối đa), trần ngày tổng và từng hồ sơ</td><td>Không hiện giá tiền (D-6)</td></tr>
+        <tr><td>Nhãn</td><td>Mọi output AI có nhãn "AI-generated, needs human review"</td><td>Không gỡ được (rule legal.md)</td></tr>
+      </tbody>
+    </table></div>
+    <p>Khuyến nghị giảm thiểu có hai nguồn không bao giờ trộn: gói do người duy trì dự án xác nhận (soạn với AI, xác nhận qua PR, đóng vào bản phát hành đã ký; D-21, D-36), và câu trả lời của AI của khách khi chưa có gói xác nhận.</p>
+
+    <h2 id="response"><span class="num">11</span>Phản ứng do AI thực thi</h2>
+    <div class="note risk">
+      <p><strong>Chức năng rủi ro cao, tắt mặc định.</strong> AI của khách có thể sai và có thể thay đổi thiết bị mạng của họ. Khách tự chịu rủi ro. Vedette được cung cấp nguyên trạng theo Apache-2.0; tác giả Kien Nguyen không chịu trách nhiệm cho hành động mà AI của khách thực hiện.</p>
+    </div>
+    <h3>Điều kiện để bật</h3>
+    <ul>
+      <li>Người bật là quản trị viên và đang bật đăng nhập hai bước.</li>
+      <li>Gõ đúng câu <code>I ACCEPT THE RISK</code>; hộp ghi kiểm toán người bật, thời điểm, nội dung câu cảnh báo đã hiển thị.</li>
+      <li>Chọn loại hành động được phép (từ các công cụ ghi đang bật), hạn mức mỗi giờ, thời gian hết hạn của yêu cầu (mặc định 15 phút), kênh nhận yêu cầu duyệt.</li>
+    </ul>
+    <h3>Điều kiện cho từng hành động (kiểm ở máy chủ)</h3>
+    <div class="tbl"><table>
+      <thead><tr><th class="nw">Cổng</th><th>Quy tắc</th></tr></thead>
+      <tbody>
+        <tr><td class="nw">G-1</td><td>Thực thi đang bật; nút dừng khẩn cấp chưa kích hoạt</td></tr>
+        <tr><td class="nw">G-2</td><td>Loại hành động nằm trong danh sách được phép; công cụ ghi đang bật trên kết nối đang bật</td></tr>
+        <tr><td class="nw">G-3</td><td>Yêu cầu hiện chính xác thay đổi trước/sau (lệnh CLI và lệnh REST tương ứng) và bước hoàn tác</td></tr>
+        <tr><td class="nw">G-4</td><td>Người duyệt là người dùng Vedette vai vận hành trở lên; duyệt qua chat chỉ hợp lệ khi danh tính chat đã liên kết</td></tr>
+        <tr><td class="nw">G-5</td><td>Yêu cầu chưa hết hạn; một lần duyệt cho đúng một hành động</td></tr>
+        <tr><td class="nw">G-6</td><td>Chưa vượt hạn mức hành động mỗi giờ</td></tr>
+        <tr><td class="nw">G-7</td><td>Mọi bước ghi kiểm toán: tạo, gửi, duyệt hoặc từ chối, thực thi, kết quả, hoàn tác</td></tr>
+        <tr><td class="nw">G-8</td><td>Nút dừng khẩn cấp tắt thực thi ngay và huỷ mọi yêu cầu đang chờ</td></tr>
+      </tbody>
+    </table></div>
+    <h3>Kênh duyệt</h3>
+    <ul>
+      <li><strong>Slack</strong>: app ở chế độ Socket Mode; hộp mở kết nối ra, không cần cổng vào. Nút Duyệt/Từ chối trong kênh.</li>
+      <li><strong>Telegram</strong>: bot hiện có, long polling, nút inline.</li>
+      <li><strong>Email, Zalo OA, webhook</strong>: tin chứa liên kết mở Vedette để duyệt (cần đăng nhập).</li>
+      <li><strong>Trong ứng dụng</strong>: trang Response, cho người vai vận hành trở lên.</li>
+    </ul>
+
+    <h2 id="rieng-tu"><span class="num">12</span>Dữ liệu rời hộp</h2>
+    <p>Danh sách dưới đây là đầy đủ; cùng nội dung hiện trong ứng dụng tại Settings → Privacy. Thêm bất kỳ luồng ra nào phải cập nhật cả hai trong cùng commit (rule legal.md).</p>
+    <div class="tbl"><table>
+      <thead><tr><th class="num-col">#</th><th>Luồng</th><th>Gửi gì</th><th>Tới đâu</th><th>Tắt được</th></tr></thead>
+      <tbody>
+        <tr><td class="num-col">1</td><td>Kéo feed (D-36)</td><td>Yêu cầu HTTPS tải tệp công khai; không có dữ liệu khách</td><td>Từng nguồn trực tiếp; feed tuỳ chỉnh của khách</td><td>Không (cần cho sản phẩm); gỡ feed tuỳ chỉnh được</td></tr>
+        <tr><td class="num-col">2</td><td>Tín hiệu ẩn danh</td><td>Mỗi giờ: <code>install_id</code> ngẫu nhiên, quốc gia, phiên bản, chỉ số đếm (chạm bẫy, kết nối tới IP xấu, thiết bị theo loại); không tên công ty, không IP, không log thô</td><td>Máy chủ của dự án</td><td>Có, một bấm; payload nguyên văn hiện trong giao diện</td></tr>
+        <tr><td class="num-col">3</td><td>AI</td><td>Dữ liệu khách chọn gửi cho việc tương ứng</td><td>Nhà cung cấp khách chọn, hoặc máy nội bộ</td><td>Có</td></tr>
+        <tr><td class="num-col">4</td><td>Tra cứu cần khoá</td><td>IP, domain, hash được tra</td><td>Dịch vụ khách nhập khoá</td><td>Có</td></tr>
+        <tr><td class="num-col">5</td><td>Thông báo</td><td>Nội dung cảnh báo, mã đăng nhập email; yêu cầu duyệt và kết quả (Slack, Telegram)</td><td>Kênh khách cấu hình; email qua SMTP của khách</td><td>Có</td></tr>
+        <tr><td class="num-col">6</td><td>Kiểm tra cập nhật</td><td>Phiên bản hiện tại</td><td>Chỉ GitHub Releases</td><td>Có, chuyển sang thủ công/ngoại tuyến</td></tr>
+        <tr><td class="num-col">7</td><td>Chuyển tiếp SIEM</td><td>Sự kiện Vedette</td><td>Địa chỉ SIEM của khách</td><td>Có</td></tr>
+        <tr><td class="num-col">8</td><td>Tin CVE (khi bấm)</td><td>Mã CVE</td><td>Trang khuyến cáo, RSS công khai</td><td>Có</td></tr>
+        <tr><td class="num-col">9</td><td>Bề mặt ngoài</td><td>Domain đã xác thực; yêu cầu tới điểm dò IP của dự án</td><td>Log chứng chỉ công khai; điểm dò trên Cloudflare</td><td>Có, tắt module</td></tr>
+      </tbody>
+    </table></div>
+    <p>Báo lỗi (D-42) không phải luồng: hộp không gửi gì; người dùng tải tệp chẩn đoán đã lọc và tự mở GitHub issue trong trình duyệt của mình.</p>
+
+    <h2 id="cap-nhat"><span class="num">13</span>Cập nhật, chuỗi cung ứng</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Mục</th><th>Thiết kế</th></tr></thead>
+      <tbody>
+        <tr><td>Kênh</td><td>Chỉ GitHub Releases cho phần mềm (D-36). Gói nội dung (skills, gói khuyến nghị đã xác nhận, parser log, danh mục) đi cùng bản phát hành</td></tr>
+        <tr><td>Chữ ký</td><td>minisign; khoá riêng giữ ngoại tuyến, dự phòng YubiKey; khoá công khai nhúng trong binary; danh sách thu hồi</td></tr>
+        <tr><td>Cài đặt bản mới</td><td>Khe A/B, kiểm tra sức khoẻ sau khởi động, tự lùi khi lỗi; giữ bản trước</td></tr>
+        <tr><td>Phát hành theo lô</td><td><code>cohort = hash(install_id) mod 100</code>; 10 → 50 → 100 % sau 24 giờ không lỗi</td></tr>
+        <tr><td>Quy trình CI</td><td>Test, <code>govulncheck</code>, <code>trivy fs</code>, SBOM CycloneDX, changelog, bản beta trước bản ổn định</td></tr>
+        <tr><td>Ngoại tuyến</td><td>Tải gói đã ký và nạp tay qua giao diện</td></tr>
+        <tr><td>Báo lỗ hổng sản phẩm</td><td><code>SECURITY.md</code>: kênh báo riêng, thời hạn phản hồi, khuyến cáo công khai</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2 id="van-hanh"><span class="num">14</span>Triển khai, vận hành</h2>
+    <h3>Cổng</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Cổng</th><th>Hướng</th><th>Mục đích</th><th>Khi nào mở</th></tr></thead>
+      <tbody>
+        <tr><td class="nw">TCP 8443</td><td>vào, từ LAN</td><td>Giao diện, API, intake osquery</td><td>Luôn</td></tr>
+        <tr><td class="nw">UDP/TCP 514, TLS</td><td>vào, từ LAN</td><td>Nhận syslog</td><td>Module logs bật</td></tr>
+        <tr><td class="nw">22, 80, 445, 1433, 3389</td><td>vào, trên IP phụ</td><td>Bẫy (OpenCanary)</td><td>Module honeypot bật</td></tr>
+        <tr><td class="nw">TCP 443</td><td>ra</td><td>Feed, cập nhật, AI, Slack, Telegram, tín hiệu</td><td>Theo luồng ở §12</td></tr>
+        <tr><td class="nw">SMTP của khách</td><td>ra</td><td>Email cảnh báo, mã đăng nhập</td><td>Khi cấu hình</td></tr>
+        <tr><td class="nw">API thiết bị, SSH</td><td>ra, trong LAN</td><td>Kết nối của harness AI</td><td>Khi cấu hình; ghi chỉ qua §11</td></tr>
+      </tbody>
+    </table></div>
+    <h3>Vận hành</h3>
+    <ul>
+      <li><strong>Cài đặt</strong>: <code>install.sh</code> idempotent cài phụ thuộc ghim phiên bản (nmap, OpenCanary…), tạo người dùng hệ thống, khoá bí mật, unit systemd; xác minh bằng hiệu ứng (dịch vụ chạy, cổng mở).</li>
+      <li><strong>Lần đầu</strong>: trình hướng dẫn trên web: tổ chức, quản trị viên, dải LAN có tiền tố, cam kết quét, gói module, kênh thông báo.</li>
+      <li><strong>Sao lưu</strong>: Settings → Data xuất toàn bộ (không có bí mật); SQLite chép được khi dừng dịch vụ hoặc qua snapshot WAL.</li>
+      <li><strong>Theo dõi</strong>: trang sức khoẻ module, lịch sử job, lỗi feed, nhật ký kiểm toán; chuyển tiếp SIEM tuỳ chọn.</li>
+      <li><strong>Mục tiêu hiệu năng</strong> (đo lại khi có mã): giao diện &lt; 300 ms p95; cảm biến thụ động ≤ 5 % một nhân ở 100 Mbps; kéo feed ≤ 5 MB/giờ.</li>
+    </ul>
+
+    <h2 id="giao-dien"><span class="num">15</span>Giao diện</h2>
+    <ul>
+      <li>SPA React nhúng trong binary; mỗi module là một thư mục <code>web/src/features/&lt;module&gt;</code> tự đăng ký route, menu, mục cài đặt và slot qua registry; module tắt thì giao diện nói rõ chỗ thiếu dữ liệu.</li>
+      <li>M1 chạy trên mock MSW trong trình duyệt, lưu localStorage; hai chế độ "dữ liệu mẫu" và "cài sạch". M2 build với <code>VITE_API_MOCK=off</code> để nối backend.</li>
+      <li>Chỉ tiếng Anh (D-28), giữ i18next để thêm ngôn ngữ sau không phải sửa component.</li>
+      <li>Truy cập được: axe-core trên trình duyệt thật (gồm tương phản), focus trả về nút mở hộp thoại, tiêu đề trang theo route, bàn phím đầy đủ; bảng thành danh sách trên điện thoại; giao diện sáng và tối.</li>
+      <li>Giao diện ẩn hoặc khoá nút theo vai, nhưng quyền thật luôn kiểm ở máy chủ.</li>
+    </ul>
+
+    <h2 id="chat-luong"><span class="num">16</span>Kiểm thử, hiện trạng</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Kiểm tra</th><th>Kết quả</th><th>Ngày đo</th><th>Ghi chú</th></tr></thead>
+      <tbody>
+        <tr><td>TypeScript strict (<code>tsc -b</code>)</td><td><span class="chip c-ok">sạch</span></td><td class="nw">06/11/2026</td><td>Chạy lại sau mỗi đợt</td></tr>
+        <tr><td>oxlint</td><td>0 lỗi, 28 cảnh báo</td><td class="nw">06/11/2026</td><td>14 về fast-refresh; còn lại là mẫu có chủ đích, đã rà</td></tr>
+        <tr><td>Unit test (vitest + Testing Library + axe)</td><td><span class="chip c-ok">504/504</span></td><td class="nw">09/11/2026</td><td>Gồm các tính năng D-35…D-42 (cổng kiểm soát của response có test riêng)</td></tr>
+        <tr><td>Test hợp đồng API</td><td><span class="chip c-ok">qua</span></td><td class="nw">09/11/2026</td><td>OpenAPI sinh lại: 175 đường dẫn, 217 thao tác</td></tr>
+        <tr><td>E2E Playwright trên bản build (desktop + Pixel 7)</td><td><span class="chip c-warn">216/260</span></td><td class="nw">06/11/2026</td><td>Các lỗi đã chẩn đoán và sửa (khoá lưu trữ cũ trong test, kỳ vọng sai, chập chờn khi chạy 4 worker); chưa chạy lại toàn bộ</td></tr>
+        <tr><td>E2E hai bước (D-35)</td><td><span class="chip c-ok">8/8</span></td><td class="nw">06/11/2026</td><td>Chưa quét QR bằng điện thoại thật</td></tr>
+        <tr><td>Hành trình người dùng (cài sạch → phạm vi → thiết bị → phát hiện → AI)</td><td><span class="chip c-ok">2/2</span></td><td class="nw">09/11/2026</td><td>Desktop</td></tr>
+        <tr><td>Backend, fuzz parser, kiểm thử xâm nhập</td><td><span class="chip c-plain">chưa có</span></td><td class="nw">—</td><td>Từ M2</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small">Theo yêu cầu của chủ dự án ngày 09/11/2026, giai đoạn hiện tại ưu tiên tốc độ xem sản phẩm; bộ kiểm thử đầy đủ sẽ chạy lại trước khi đóng M1.</p>
+
+    <h2 id="phap-ly"><span class="num">17</span>Pháp lý, giấy phép</h2>
+    <ul>
+      <li><strong>Giấy phép</strong>: Apache-2.0; <code>NOTICE</code>: Copyright 2026 Kien Nguyen and the Vedette contributors. Dự án cá nhân, không thuộc tổ chức nào (D-27).</li>
+      <li><strong>Thành phần bên thứ ba</strong> (<code>THIRD_PARTY_NOTICES.md</code>): thư viện nhúng giấy phép MIT/BSD/Apache; nmap không ship (cài từ repo OS); GPL/AGPL chỉ chạy thành tiến trình hoặc container riêng (Suricata, Greenbone); dữ liệu feed ghi nguồn và giấy phép từng nguồn (KEV CC0, EPSS ghi nguồn, hagezi GPL-3 dùng như dữ liệu…).</li>
+      <li><strong>Luật An ninh mạng 116/2025</strong>: quét chủ động chỉ trong phạm vi đã xác thực sở hữu, có ô cam kết của người dùng, mọi probe ghi log (D-5, D-25, D-26).</li>
+      <li><strong>Luật Bảo vệ dữ liệu cá nhân 91/2025/QH15 và Nghị định 356/2025/NĐ-CP</strong>: hộp xử lý dữ liệu có thể là dữ liệu cá nhân (tên tài khoản trong log, IP nội bộ). Khách là bên kiểm soát; dữ liệu ở lại trên hộp; luồng ra công khai đầy đủ. Báo cáo tự đánh giá trong sản phẩm có câu miễn trừ và nguồn pháp lý; nội dung cần người hiểu luật rà.</li>
+      <li><strong>Nhãn AI</strong>: mọi output AI có nhãn, không gỡ được. Không dùng tên hay logo hãng khác trong marketing.</li>
+    </ul>
+
+    <h2 id="phat-hien"><span class="num">18</span>Phát hiện khi rà soát</h2>
+    <p>Các điểm dưới đây là kết quả tự rà soát hồ sơ này với tài liệu dự án và mã giao diện hiện có, trước khi gửi bên đánh giá độc lập.</p>
+    <div class="tbl"><table>
+      <thead><tr><th class="nw">ID</th><th>Mức</th><th>Phát hiện</th><th>Khuyến nghị</th></tr></thead>
+      <tbody>
+        <tr><td class="nw">F-01</td><td><span class="chip c-danger">Cao</span></td><td>Thực thi phản ứng (D-41) là ngoại lệ của SYS-8; hiện mới có cổng kiểm soát trong mock</td><td>Viết <code>modules/response/CONTRACT.md</code> với mỗi cổng G-1…G-8 là một test; rà soát bảo mật và kiểm thử xâm nhập riêng trước khi phát hành; cân nhắc bắt nhập lại mã hai bước khi duyệt hành động ghi trên thiết bị biên</td></tr>
+        <tr><td class="nw">F-02</td><td><span class="chip c-danger">Cao</span></td><td>Chưa có backend: mọi kiểm soát ở §9 là mức thiết kế</td><td>Mỗi bất biến SYS-1…8 có test contract trong Go từ module đầu tiên của M2; không phát hành trước khi có kết quả</td></tr>
+        <tr><td class="nw">F-03</td><td><span class="chip c-warn">Trung bình</span></td><td><code>docs/ARCHITECTURE.md</code> còn mô tả builder trung tâm, module fleet, giao diện vi/en và "AI không tiêu thụ MCP ngoài", trái với D-24, D-28, D-36, D-39, D-41</td><td>Cập nhật ARCHITECTURE.md theo hồ sơ này</td></tr>
+        <tr><td class="nw">F-04</td><td><span class="chip c-ok">Đã sửa 09/11</span></td><td>Luồng 1 trong PRIVACY.md chỉ nêu tên ba máy chủ, trong khi feed có sẵn còn gồm abuse.ch, Tor Project, Emerging Threats, nuclei-templates và IPsum (lưu trên GitHub), hagezi</td><td>Liệt kê đủ tên máy chủ của từng feed có sẵn; giao diện Settings → Privacy đọc từ cùng danh sách feed để không lệch</td></tr>
+        <tr><td class="nw">F-05</td><td><span class="chip c-warn">Trung bình</span></td><td>Kết nối SSH/HTTP của harness mở rộng bề mặt tấn công (đi ngang, SSRF)</td><td>Bắt buộc danh sách cho phép ở <code>core/exec</code> và lớp HTTP, chặn chuyển hướng, không cho dải localhost/metadata, giới hạn thời gian và kích thước; test riêng</td></tr>
+        <tr><td class="nw">F-06</td><td><span class="chip c-warn">Trung bình</span></td><td>Parser feed tuỳ chỉnh nhận dữ liệu do khách cấu hình từ Internet</td><td>Fuzz từng định dạng (JSON, CSV, RSS, STIX, danh sách); thêm giới hạn thời gian (hiện mock có giới hạn kích thước và số dòng)</td></tr>
+        <tr><td class="nw">F-07</td><td><span class="chip c-warn">Trung bình</span></td><td>Tín hiệu ẩn danh bật mặc định (D-16); máy chủ nhận vẫn thấy IP của hộp ở tầng mạng</td><td>Người hiểu luật xác nhận cách làm theo Luật 91/2025; công bố chính sách không lưu IP của máy chủ nhận và kiểm chứng được</td></tr>
+        <tr><td class="nw">F-08</td><td><span class="chip c-info">Thấp</span></td><td>Chưa có mã khôi phục hai bước; quản trị viên cuối cùng mất điện thoại thì chưa có đường khôi phục</td><td>Thêm mã khôi phục dùng một lần và lệnh khôi phục trên console của hộp (cần quyền máy)</td></tr>
+        <tr><td class="nw">F-09</td><td><span class="chip c-info">Thấp</span></td><td>Mã email yếu hơn TOTP</td><td>Khuyến nghị quản trị viên dùng ứng dụng xác thực; cân nhắc chính sách bắt TOTP cho vai quản trị</td></tr>
+        <tr><td class="nw">F-10</td><td><span class="chip c-info">Thấp</span></td><td>Lịch sử git (commit đầu) còn tên tổ chức cũ của tác giả</td><td>Quyết định viết lại lịch sử trước khi công khai repo</td></tr>
+        <tr><td class="nw">F-11</td><td><span class="chip c-info">Thấp</span></td><td>Báo cáo PDPL trong sản phẩm chưa qua người hiểu luật</td><td>Rà nội dung với luật sư trước khi phát hành</td></tr>
+        <tr><td class="nw">F-12</td><td><span class="chip c-info">Thấp</span></td><td>Bộ E2E đầy đủ chưa chạy lại sau các sửa đổi; gói JS chính khoảng 561 kB</td><td>Chạy lại toàn bộ trước khi đóng M1; tách chunk theo module</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2 id="quyet-dinh"><span class="num">19</span>Nhật ký quyết định</h2>
+    <p>Toàn văn ở <code>docs/DECISIONS.md</code>. Các quyết định định hình kiến trúc:</p>
+    <div class="tbl"><table>
+      <thead><tr><th class="nw">ID</th><th>Quyết định</th></tr></thead>
+      <tbody>
+        <tr><td class="nw">D-1</td><td>Dự án độc lập, tên Vedette, Apache-2.0, miễn phí</td></tr>
+        <tr><td class="nw">D-3</td><td>Không chắn inline trên hộp; giảm thiểu áp lên thiết bị khách sẵn có</td></tr>
+        <tr><td class="nw">D-4</td><td>nmap cài từ repo OS, gọi tiến trình riêng; naabu/httpx/nuclei/Recog</td></tr>
+        <tr><td class="nw">D-5</td><td>Luật ANM: xác thực sở hữu + cam kết của người dùng</td></tr>
+        <tr><td class="nw">D-8</td><td>Go một binary, SQLite/Postgres, SPA nhúng; cảm biến/máy chủ tách được</td></tr>
+        <tr><td class="nw">D-9, D-10</td><td>Giao diện trước backend; mọi tính năng truy về story; module bật/tắt riêng có hợp đồng</td></tr>
+        <tr><td class="nw">D-11</td><td>AI BYOK, skill dạng Agent Skills, RAG BM25 trước, ba mức token</td></tr>
+        <tr><td class="nw">D-12</td><td>Cập nhật ký minisign, phát hành theo lô, A/B, thu hồi, SBOM</td></tr>
+        <tr><td class="nw">D-16, D-17</td><td>Tín hiệu ẩn danh bật mặc định, tắt được; mọi luồng ra phải công khai</td></tr>
+        <tr><td class="nw">D-18</td><td>OpenAPI spec-first từ schema Zod</td></tr>
+        <tr><td class="nw">D-21</td><td>Khuyến nghị do dự án soạn với AI, người duy trì xác nhận qua PR</td></tr>
+        <tr><td class="nw">D-24</td><td>Chưa hỗ trợ nhiều site, khách, tenant</td></tr>
+        <tr><td class="nw">D-25, D-26</td><td>Xác thực domain bằng DNS TXT, IP bằng IP ra của hộp; một ô cam kết thay văn bản đồng ý</td></tr>
+        <tr><td class="nw">D-28</td><td>Sản phẩm chỉ tiếng Anh</td></tr>
+        <tr><td class="nw">D-29</td><td>Nhiều hồ sơ AI, phân việc, dự phòng, quy tắc dữ liệu nội bộ</td></tr>
+        <tr><td class="nw">D-32</td><td>Dải mạng bắt buộc có độ dài tiền tố</td></tr>
+        <tr><td class="nw">D-33, D-34</td><td>osquery mặc định, cài một dòng lệnh từ hộp; Wazuh qua API</td></tr>
+        <tr><td class="nw">D-35</td><td>Hai bước: ứng dụng xác thực hoặc mã email; quản trị viên đặt lại</td></tr>
+        <tr><td class="nw">D-36, D-37</td><td>Hộp tự kéo và phân tích feed; GitHub chỉ để cập nhật; feed tuỳ chỉnh và parser do khách chỉnh</td></tr>
+        <tr><td class="nw">D-38</td><td>Kênh Slack; duyệt qua Socket Mode, không cổng vào</td></tr>
+        <tr><td class="nw">D-39</td><td>Harness AI: rules, memory, skills, RAG, kết nối MCP, hook</td></tr>
+        <tr><td class="nw">D-40, D-41</td><td>AI đề xuất phản ứng; thực thi sau khi duyệt, rủi ro cao, tắt mặc định</td></tr>
+        <tr><td class="nw">D-42</td><td>Báo lỗi trong ứng dụng, hộp không tự gửi</td></tr>
+      </tbody>
+    </table></div>
+
+    <footer>
+      Kiến trúc hộp Vedette · phiên bản tài liệu 1.0 · 09/11/2026 · lập từ <code>docs/</code> và mã <code>web/</code> của repo Vedette tại commit f1c16ff cộng các thay đổi đang làm.
+    </footer>
+  </article>
+  </main>
+</div>

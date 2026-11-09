@@ -1,0 +1,149 @@
+// Hợp đồng API module inventory (D-18). Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
+import { z } from 'zod'
+import { defineEndpoints } from '@/lib/contract'
+
+export const ObsSource = z.enum(['manual', 'agent', 'snmp', 'nmap', 'passive', 'scan'])
+export const AssetKind = z.enum(['firewall', 'router', 'switch', 'ap', 'nas', 'server', 'pc', 'printer', 'camera', 'nvr', 'iot', 'web', 'unknown'])
+export const ObsField = z.enum(['hostname', 'mac', 'vendor', 'model', 'os', 'kind'])
+const dt = z.iso.datetime()
+const confidence = z.number().min(0).max(1)
+
+export const Observed = z.object({ value: z.string(), source: ObsSource, confidence, seen_at: dt })
+export const Software = z.object({
+  id: z.string(), display: z.string().describe('Commercial name the user recognizes'), vendor: z.string(), product: z.string(), version: z.string().nullable(),
+  kev: z.array(z.string()).describe('KEV match keys: lowercase "vendorproject|product"'), source: ObsSource, confidence,
+})
+export const Service = z.object({ port: z.number().int().min(1).max(65535), proto: z.enum(['tcp', 'udp']), name: z.string(), product: z.string().optional(), version: z.string().optional(), source: ObsSource, confidence })
+export const Asset = z.object({
+  id: z.string(), site: z.string(), ip: z.string().describe('"—" when declared manually and the IP is unknown'), mac: z.string().nullable(), hostname: z.string().nullable(), kind: AssetKind,
+  vendor: Observed.nullable(), model: Observed.nullable(), os: Observed.nullable(), software: z.array(Software), services: z.array(Service),
+  first_seen: dt, last_seen: dt, approved: z.boolean(), fragile: z.boolean(), origin: z.enum(['discovered', 'manual']), notes: z.string().optional(),
+})
+
+/** Một lần quan sát một trường. Không bao giờ bị ghi đè: giá trị mới thêm vào, "đang dùng" chọn theo khai tay > tin cậy cao > mới hơn (ARCHITECTURE §4). */
+export const Observation = z.object({ id: z.string(), field: ObsField, value: z.string(), source: ObsSource, confidence, seen_at: dt, current: z.boolean() })
+
+export const RegularScan = z.enum(['follow', 'allow', 'never']).describe('Per-device override of the type setting for regular scans of fragile devices (D-45)')
+/** D-45: a fragile device gets ONE gentle scan when first seen (lowest speed), then it is passive-only unless regular scans are allowed. */
+const ScanInfo = z.object({
+  is_box: z.boolean().describe('true for the Vedette box itself: the first device, always present, cannot be deleted (409)'),
+  first_scan_at: dt.nullable().describe('When the one gentle first scan happened; null = not scanned (not fragile, or declared by hand)'),
+  regular_scan: RegularScan,
+})
+export const DeviceRow = Asset.extend(ScanInfo.shape).extend({
+  suspicious: z.boolean(),
+  findings_count: z.number().int().describe('Number of findings attached to the device; deleting the device also deletes these findings'),
+  summary: z.object({ source: ObsSource, confidence }).nullable().describe('Source of the most trusted value; confidence is that of the weakest value'),
+})
+export const DevicesResponse = z.object({
+  items: z.array(DeviceRow),
+  counts: z.object({ all: z.number().int(), pending: z.number().int(), fragile: z.number().int(), manual: z.number().int() }),
+  notify_new: z.boolean(),
+  notify_available: z.boolean().describe('false when the notify module is off'),
+})
+export const SoftwareView = Software.omit({ kev: true }).extend({ kev_cves: z.array(z.string()) })
+export const DeviceDetail = z.object({
+  asset: Asset.omit({ software: true }).extend(ScanInfo.shape).extend({ software: z.array(SoftwareView) }),
+  suspicious: z.boolean(),
+  findings_count: z.number().int().describe('Number of findings attached to the device; deleting the device also deletes these findings'),
+  observations: z.array(Observation),
+  kinds: z.array(AssetKind),
+})
+export const CatalogItem = z.object({
+  id: z.string().describe('Stable: curated entries have fixed ids, entries from CISA KEV have id "kev:<vendor>:<product>"'), display: z.string().describe('Name the user recognizes'), hint: z.string(),
+  category: z.string(), vendor: z.string(), product: z.string(), kind: AssetKind, version_hint: z.string(),
+  kev_cves: z.number().int().describe('Number of the product vulnerabilities ever exploited in the wild (CISA KEV)'),
+})
+export const CatalogResponse = z.object({ items: z.array(CatalogItem), total: z.number().int().describe('Number of matching results; items returns at most 30') })
+
+export const AddDeviceInput = z.object({
+  catalog_id: z.string().optional().describe('Product from the catalog; leave blank when entering vendor + product manually'),
+  vendor: z.string().max(64).optional().describe('Entered manually when the product is not found; matched by vendor'), product: z.string().max(64).optional(),
+  version: z.string().max(40).optional().describe('Letters, digits, . - + ( ) and spaces'),
+  name: z.string().max(64).optional().describe('Must not contain < >'), ip: z.string().optional().describe('IPv4; 409 if the IP already exists'),
+})
+export const AddDeviceResult = z.object({ id: z.string(), display: z.string(), kev_cves: z.number().int() })
+export const ImportInput = z.object({ filename: z.string(), size: z.number().int(), sha256: z.string(), text: z.string().describe('UTF-8 CSV content, at most 200 KB and 500 rows') })
+export const ImportResult = z.object({ created: z.number().int(), skipped: z.number().int(), errors: z.array(z.object({ line: z.number().int(), message: z.string() })) })
+
+export const ActiveWindow = z.object({
+  enabled: z.boolean(), days: z.array(z.number().int().min(1).max(7)).describe('1 = Monday … 7 = Sunday'),
+  from: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), to: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).describe('Earlier than "from" means it crosses midnight'),
+  rate: z.number().int().min(1).max(1000).describe('Packets per second'), exclusions: z.array(z.string()).describe('IPv4 or CIDR'),
+})
+export const InventorySettings = z.object({
+  lan_ranges: z.array(z.string()).max(16).describe('Internal IPv4 CIDR (RFC 1918)'), active: ActiveWindow, fragile_kinds: z.array(AssetKind).describe('Device types scanned only once, gently, when first seen; passive-only after that'),
+  regular_scan_kinds: z.array(AssetKind).describe('Subset of fragile_kinds for which the owner allowed regular scans'),
+  scope_confirmed_at: dt.nullable(), scope_confirmed_by: z.string().nullable(),
+})
+export const SettingsInput = InventorySettings.extend({ scope_confirmed: z.boolean().describe('Attestation: the ranges belong to the company and scanning them is permitted') })
+export const SettingsSaved = InventorySettings.extend({
+  adjusted: z.array(z.object({ from: z.string(), to: z.string() })).describe('Ranges normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24'),
+})
+
+export const SensorStatus = z.enum(['online', 'offline'])
+/** Chỉ cảm biến của chính hộp này (chưa hỗ trợ nhiều site). */
+export const Sensor = z.object({
+  id: z.string(), name: z.string(), interface: z.string().nullable(), interfaces: z.array(z.string()), span: z.boolean(),
+  status: SensorStatus, last_seen: dt.nullable(), version: z.string().nullable(), devices_seen: z.number().int(),
+})
+export const SensorsResponse = z.object({ sensors: z.array(Sensor) })
+
+/** Chỉ osquery dùng token (Vedette là máy chủ TLS của osquery). Wazuh là kết nối kéo qua API (WazuhConnection), không có token. Không hỗ trợ Trivy (D-33). */
+export const AgentKind = z.enum(['osquery'])
+export const AgentToken = z.object({
+  id: z.string(), name: z.string(), kind: AgentKind, last4: z.string(), created_at: dt, last_received: dt.nullable(), hosts: z.number().int(),
+  expires_at: dt.nullable().describe('null = never expires; default 7 days. The token only enrolls osquery (it can read nothing) and can be revoked'),
+})
+const Installer = z.object({ url: z.string(), sha256: z.string().describe('SHA-256 (lowercase hex) of the script served by the box; users compare it before running'), script: z.string().describe('Full script text, for the admin to read first') })
+export const Installers = z.object({ osquery_version: z.string(), linux: Installer, windows: Installer })
+export const OsqueryStatus = z.object({ enrolled: z.boolean(), hosts: z.number().int() })
+export const WazuhConnection = z.object({
+  url: z.string().describe('Wazuh server API address, e.g. https://wazuh-manager:55000'), username: z.string(), password_last4: z.string().describe('Password is stored encrypted; only the last 4 characters'),
+  interval_minutes: z.number().int(), status: z.enum(['never', 'connected', 'error']), last_sync: dt.nullable(), agents: z.number().int(), packages: z.number().int(), error: z.string().nullable(),
+})
+export const WazuhInput = z.object({
+  url: z.string().max(200), username: z.string().max(64), password: z.string().max(200).optional().describe('Leave blank when editing to keep the saved password'),
+  interval_minutes: z.number().int().describe('5, 15, 60, 360 or 1440'),
+})
+export const WazuhTestResult = z.object({ ok: z.literal(true), version: z.string(), agents: z.number().int().describe('Number of Wazuh agents the API user can read') })
+export const AgentsResponse = z.object({ install: Installers, tokens: z.array(AgentToken), server_url: z.string().describe('https://<box IP>:8443, or https://<VEDETTE_BOX_IP>:8443 when the IP is unknown'), wazuh: WazuhConnection.nullable() })
+export const CreateTokenResult = z.object({ token: AgentToken, secret: z.string().describe('Full token, returned only at creation') })
+export const SampleResult = z.object({ devices: z.number().int(), software: z.number().int() })
+
+const id = z.object({ id: z.string() })
+const ok = z.object({ ok: z.literal(true) })
+
+export const endpoints = defineEndpoints([
+  { method: 'get', path: '/inventory/devices', summary: 'List devices with counts per filter', stories: ['S-INV-1', 'S-INV-3'], role: 'viewer', response: DevicesResponse },
+  { method: 'post', path: '/inventory/devices', summary: 'Declare a device manually using a product from the suggestion list', stories: ['S-INV-2'], role: 'operator', body: AddDeviceInput, response: AddDeviceResult },
+  { method: 'get', path: '/inventory/devices/{id}', summary: 'Device details: observations, services, software', stories: ['S-INV-1'], role: 'viewer', params: id, response: DeviceDetail, example: { params: { id: 'a-nas02' } } },
+  { method: 'patch', path: '/inventory/devices/{id}', summary: 'Change the type, mark as fragile, override regular scans or edit the notes of a device', stories: ['S-INV-1'], role: 'operator', params: id,
+    body: z.object({ kind: AssetKind.optional(), fragile: z.boolean().optional(), regular_scan: RegularScan.optional(), notes: z.string().max(2000).optional() }), response: ok },
+  { method: 'delete', path: '/inventory/devices/{id}', summary: 'Delete a device from the inventory, along with its findings (409 for the Vedette box itself, which is always the first device)', stories: ['S-INV-3'], role: 'operator', params: id, response: null },
+  { method: 'post', path: '/inventory/devices/{id}/approve', summary: 'Approve a new device', stories: ['S-INV-3'], role: 'operator', params: id, response: ok },
+  { method: 'post', path: '/inventory/devices/{id}/suspicious', summary: 'Mark or unmark a device as suspicious', stories: ['S-INV-3'], role: 'operator', params: id, body: z.object({ suspicious: z.boolean() }), response: ok },
+  { method: 'post', path: '/inventory/devices/{id}/software', summary: 'Declare additional software running on a device', stories: ['S-INV-2'], role: 'operator', params: id,
+    body: AddDeviceInput.omit({ name: true, ip: true }), response: z.object({ kev_cves: z.number().int() }) },
+  { method: 'delete', path: '/inventory/devices/{id}/software/{sid}', summary: 'Remove manually declared software from a device', stories: ['S-INV-2'], role: 'operator', params: id.extend({ sid: z.string() }), response: null },
+  { method: 'get', path: '/inventory/catalog', summary: 'Suggest products by vendor or commercial name', stories: ['S-INV-2'], role: 'viewer', query: z.object({ q: z.string().max(80) }), response: CatalogResponse, example: { query: { q: 'forti' } } },
+  { method: 'put', path: '/inventory/notify-new', summary: 'Turn alerts for new devices on or off', stories: ['S-INV-3'], role: 'operator', body: z.object({ enabled: z.boolean() }), response: z.object({ enabled: z.boolean() }) },
+  { method: 'get', path: '/inventory/export.csv', summary: 'Download the device list as CSV (UTF-8 with BOM, opens in Excel)', stories: ['S-INV-2'], role: 'viewer', response: 'file' },
+  { method: 'get', path: '/inventory/import-template.csv', summary: 'Download a sample CSV for importing devices', stories: ['S-INV-2'], role: 'viewer', response: 'file' },
+  { method: 'post', path: '/inventory/import', summary: 'Import devices from CSV content; invalid rows are reported by row number, valid rows are still added', stories: ['S-INV-2'], role: 'operator', body: ImportInput, response: ImportResult },
+  { method: 'get', path: '/inventory/settings', summary: 'LAN ranges, active scan window, device types scanned only once (and which allow regular scans), scope attestation', stories: ['S-INV-1'], role: 'admin', response: InventorySettings },
+  { method: 'put', path: '/inventory/settings', summary: 'Save the scan scope; enabling active scanning requires scope attestation', stories: ['S-INV-1'], role: 'admin', body: SettingsInput, response: SettingsSaved },
+  { method: 'get', path: '/inventory/sensors', summary: 'Sensors of this box only (multiple sites not supported yet)', stories: ['S-INV-1'], role: 'admin', response: SensorsResponse },
+  { method: 'patch', path: '/inventory/sensors/{id}', summary: 'Choose the network interface of the sensor on the box and whether it receives mirrored (SPAN/TAP) traffic', stories: ['S-INV-1'], role: 'admin', params: id, body: z.object({ interface: z.string().optional(), span: z.boolean().optional() }), response: ok },
+  { method: 'get', path: '/inventory/agents', summary: 'Issued osquery tokens and the Wazuh connection (if any)', stories: ['S-INV-4'], role: 'admin', response: AgentsResponse },
+  { method: 'post', path: '/inventory/agents/tokens', summary: 'Issue an osquery token, returning the full token once', stories: ['S-INV-4'], role: 'admin', body: z.object({ name: z.string().max(64), kind: AgentKind.optional(), expires_in_days: z.number().int().min(0).max(365).optional().describe('Default 7; 0 = never expires') }), response: CreateTokenResult },
+  { method: 'delete', path: '/inventory/agents/tokens/{id}', summary: 'Revoke an osquery token', stories: ['S-INV-4'], role: 'admin', params: id, response: null },
+  { method: 'post', path: '/inventory/agents/tokens/{id}/sample-data', summary: 'PREVIEW ONLY (mock): send sample data as if the agent had reported in, to see the effect', stories: ['S-INV-4'], role: 'admin', params: id, response: SampleResult },
+  { method: 'get', path: '/install/osquery.sh', summary: 'One-line osquery install script for Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux), served by the box; public, contains no secrets (the token is passed as a parameter)', stories: ['S-INV-4'], role: 'public', response: 'file' },
+  { method: 'get', path: '/install/osquery.ps1', summary: 'osquery install script for Windows Server, served by the box; public, contains no secrets', stories: ['S-INV-4'], role: 'public', response: 'file' },
+  { method: 'post', path: '/intake/osquery/status', summary: 'The install script asks "has this machine reported in yet"; token goes in the Authorization: Bearer header, never in the URL', stories: ['S-INV-4'], role: 'public', response: OsqueryStatus },
+  { method: 'put', path: '/inventory/agents/wazuh', summary: 'Connect (or edit) a Wazuh server: verify the API login, then save; the password is stored encrypted', stories: ['S-INV-4'], role: 'admin', body: WazuhInput, response: WazuhConnection },
+  { method: 'post', path: '/inventory/agents/wazuh/test', summary: 'Test the connection to the Wazuh API with the form values, without saving', stories: ['S-INV-4'], role: 'admin', body: WazuhInput, response: WazuhTestResult },
+  { method: 'delete', path: '/inventory/agents/wazuh', summary: 'Disconnect Wazuh and delete the saved password', stories: ['S-INV-4'], role: 'admin', response: null },
+  { method: 'post', path: '/inventory/agents/wazuh/sample-data', summary: 'PREVIEW ONLY (mock): sync sample data as if just pulled from Wazuh', stories: ['S-INV-4'], role: 'admin', response: SampleResult },
+])

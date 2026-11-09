@@ -1,0 +1,964 @@
+{
+  "readOnly": "You can view this section but not change it. Changing it needs the {{role}} role.",
+  "settings": {
+    "nav": "Settings sections",
+    "general": "General",
+    "modules": "Modules",
+    "users": "Users",
+    "audit": "Audit log",
+    "updates": "Updates",
+    "privacy": "Privacy",
+    "mcp": "MCP server",
+    "data": "Data",
+    "myAccount": "My account",
+    "notFound": {
+      "title": "No such settings section",
+      "body": "The link may have changed, or the module that owns it is off.",
+      "back": "Open {{name}}"
+    },
+    "needRole": {
+      "title": "{{name}} needs a higher role",
+      "body": "Only the {{role}} role can open this section. Ask an administrator if you need access."
+    }
+  },
+  "general": {
+    "title": "{{name}} box: name and time zone",
+    "name": "Organization name",
+    "nameHint": "Shown in the sidebar, reports and alert messages.",
+    "nameError": "The organization name needs at least 2 characters.",
+    "timezone": "Time zone",
+    "timezoneHint": "Used for scan windows, quiet hours and the weekly report."
+  },
+  "modules": {
+    "title": "{{on}} of {{total}} modules are on",
+    "meta": "Turning a module off stops that work but keeps its data. Turn it back on and it is all there.",
+    "caption": "Modules",
+    "filter": "Find a module",
+    "col": {
+      "module": "Module",
+      "needs": "Needs",
+      "state": "Status",
+      "since": "On since",
+      "switch": "Turn on or off"
+    },
+    "on": "On",
+    "off": "Off",
+    "always": "Always on",
+    "coreLocked": "The core module is always on",
+    "toggle": "Turn on module {{name}}",
+    "enabledToast": "{{name}} is on",
+    "disabledToast": "{{name}} is off. Modules affected: {{count}}. Data is kept.",
+    "deps": {
+      "title": "Turn on the required modules too?",
+      "body": "{{name}} needs these modules, which are off right now:",
+      "confirm": "Turn on together"
+    },
+    "disable": {
+      "title": "Turn off {{name}}?",
+      "keep": "The module's data is kept. Only new work stops.",
+      "affected": "These modules are on and depend on it, so they will be missing data:",
+      "none": "No module that is on depends on this one.",
+      "reenable": "Turn it back on any time from this page.",
+      "confirm": "Turn off",
+      "emailCodes_one": "{{count}} user signs in with email codes. They will not be able to sign in until the email channel is back on or an administrator resets their two-step sign-in.",
+      "emailCodes_other": "{{count}} users sign in with email codes. They will not be able to sign in until the email channel is back on or an administrator resets their two-step sign-in."
+    }
+  },
+  "users": {
+    "title": "{{count}} active users",
+    "meta": "Three roles: viewer (read), operator (daily handling), admin (system settings). Every change is written to the audit log.",
+    "caption": "Users",
+    "filter": "Find a user",
+    "you": "(you)",
+    "col": {
+      "name": "User",
+      "role": "Role",
+      "twofa": "Two-step",
+      "last": "Last sign-in",
+      "state": "Status",
+      "actions": "Actions"
+    },
+    "roleOf": "Role of {{name}}",
+    "roleHint": {
+      "viewer": "See findings, devices and reports. Cannot change anything.",
+      "operator": "Daily handling: approve devices, mark as handled, scan now.",
+      "admin": "System settings: channels, modules, users, scan scope."
+    },
+    "twofaOn": "On",
+    "twofaOff": "Off",
+    "never": "Never signed in",
+    "active": "Active",
+    "disabled": "Disabled",
+    "disable": "Disable",
+    "enable": "Enable again",
+    "disableOf": "Disable {{name}}",
+    "selfDisable": "You cannot disable yourself. Ask another administrator.",
+    "enableOf": "Enable {{name}} again",
+    "reset": "Reset password",
+    "resetOf": "Reset password of {{name}}",
+    "resetAsk": {
+      "title": "Reset the password of {{name}}?",
+      "body": "The old password stops working and this person is signed out everywhere. You get a temporary password, shown once.",
+      "confirm": "Reset"
+    },
+    "add": {
+      "open": "Add user",
+      "title": "Add user",
+      "body": "The box makes a temporary password. You pass it on through a private channel and they change it at first sign-in.",
+      "name": "Display name",
+      "email": "Sign-in email",
+      "role": "Role",
+      "submit": "Create account",
+      "nameError": "Enter the user's name.",
+      "emailError": "The email does not look right, for example name@company.vn."
+    },
+    "temp": {
+      "titleCreate": "Account created",
+      "titleReset": "Password reset",
+      "body": "Temporary password for {{email}}. Copy it now: once you close this dialog it cannot be shown again.",
+      "label": "Temporary password",
+      "done": "I have copied it"
+    },
+    "method": {
+      "app": "Authenticator app",
+      "email": "Email code"
+    },
+    "resetTwofa": "Reset two-step sign-in",
+    "resetTwofaOf": "Reset two-step sign-in of {{name}}",
+    "resetTwofaSelf": "You cannot reset your own two-step sign-in here. Use My account.",
+    "resetTwofaDone": "Two-step sign-in was reset.",
+    "resetTwofaAsk": {
+      "title": "Reset two-step sign-in for {{name}}?",
+      "body": "Two-step sign-in is turned off for this person, so the account is protected by the password alone until they set it up again. Use this when they lost their phone or can no longer read their mailbox. The reset is written to the audit log.",
+      "confirm": "Reset two-step sign-in"
+    }
+  },
+  "oidc": {
+    "title": "SSO sign-in (OIDC)",
+    "desc": "Let staff sign in with their company account (Keycloak, Entra ID, Google Workspace) and map groups to roles.",
+    "off": "SSO sign-in is off. Turn it on to add a \"Sign in with SSO\" button on the sign-in page. Email and password accounts keep working.",
+    "enable": "Turn on SSO sign-in",
+    "disable": "Turn off SSO",
+    "enabledToast": "SSO module is on. Fill in the settings below.",
+    "disabledToast": "SSO sign-in is off. The settings are kept.",
+    "redirect": "Redirect URI, register it in your IdP",
+    "issuer": "Issuer",
+    "issuerHint": "The https address of your IdP, where /.well-known/openid-configuration lives.",
+    "clientId": "Client ID",
+    "secret": "Client secret",
+    "secretHint": "Enter to save. After saving only the last 4 characters show.",
+    "secretSaved": "Saved, ending in {{last4}}. Leave empty to keep it.",
+    "defaultRole": "Default role",
+    "defaultRoleHint": "Used when the signed-in person is in none of the groups below. Viewer is the safe choice.",
+    "map": "Group to role mapping",
+    "mapHint": "Which IdP group (the groups claim) gets which role. Up to 10 rows.",
+    "group": "Group name, row {{n}}",
+    "mapRole": "Role, row {{n}}",
+    "mapRemove": "Remove row {{n}}",
+    "mapAdd": "Add row",
+    "test": "Test connection",
+    "testOk": "Read the IdP's OIDC configuration.",
+    "saveFirst": "Save the settings before testing"
+  },
+  "audit": {
+    "title": "{{count}} log lines match the filters",
+    "meta": "Who did what, when, and to what. The box keeps the latest 1000 lines, and every configuration change has one.",
+    "caption": "Audit log",
+    "export": "Export CSV",
+    "empty": "No log lines yet. Each configuration change adds one here.",
+    "emptyFiltered": "No line matches the filters. Remove a condition or widen the dates.",
+    "truncated": "Showing the latest {{shown}} of {{total}} matching lines. Export CSV for all of them.",
+    "col": {
+      "time": "When",
+      "user": "Who",
+      "action": "What was done",
+      "target": "Target",
+      "detail": "Detail"
+    },
+    "filter": {
+      "text": "Search text",
+      "user": "Who",
+      "group": "Kind of action",
+      "from": "From date",
+      "to": "To date",
+      "any": "All"
+    },
+    "group": {
+      "auth": "Sign-in",
+      "module": "Module",
+      "user": "User",
+      "account": "Account",
+      "update": "Update",
+      "privacy": "Privacy",
+      "mcp": "MCP",
+      "data": "Data",
+      "oidc": "SSO",
+      "core": "Settings"
+    },
+    "action": {
+      "auth": {
+        "login": "Sign in",
+        "logout": "Sign out",
+        "login_failed": "Sign-in with wrong two-step code",
+        "code_resend": "Send new two-step email code"
+      },
+      "module": {
+        "enable": "Turn module on",
+        "disable": "Turn module off"
+      },
+      "core": {
+        "setup": "First-run setup",
+        "general": "Change general settings"
+      },
+      "user": {
+        "create": "Create user",
+        "role": "Change role",
+        "disable": "Disable user",
+        "enable": "Enable user",
+        "reset_password": "Reset password",
+        "2fa_reset": "Reset two-step sign-in"
+      },
+      "account": {
+        "profile": "Change display name",
+        "password": "Change password",
+        "2fa_on": "Turn on two-step sign-in",
+        "2fa_off": "Turn off two-step sign-in",
+        "session_revoke": "End session"
+      },
+      "oidc": {
+        "update": "Save SSO settings",
+        "test": "Test SSO connection"
+      },
+      "update": {
+        "settings": "Change update settings",
+        "check": "Check for updates",
+        "apply": "Install update",
+        "rollback": "Roll back",
+        "bundle_export": "Export bundle",
+        "bundle_import": "Import bundle"
+      },
+      "privacy": {
+        "telemetry": "Change anonymous signal",
+        "update_check": "Change update check"
+      },
+      "mcp": {
+        "token_create": "Create MCP token",
+        "token_revoke": "Revoke MCP token"
+      },
+      "data": {
+        "backup": "Download backup",
+        "export": "Export JSON data",
+        "purge": "Delete data"
+      },
+      "logs.export": "Download logs",
+      "ai.activity_retention": "Change AI activity log retention"
+    }
+  },
+  "updates": {
+    "title": "Software {{version}}, {{count}} updates available",
+    "titleLatest": "Software {{version}}, up to date",
+    "meta": "This box maintains itself: the operating system and its packages, the packages Vedette pins, and Vedette itself. Software updates come only from signed GitHub releases; the box refuses packages that are unsigned or badly signed.",
+    "settings": "Channel and update method",
+    "channel": "Software channel",
+    "stable": "Stable",
+    "beta": "Beta",
+    "channelHint": {
+      "stable": "Builds that ran at least 7 days on beta first. Recommended.",
+      "beta": "Get new builds early; they may have bugs. Use on a test box only."
+    },
+    "mode": "Update method",
+    "auto": "Automatic",
+    "manual": "Manual",
+    "modeHint": {
+      "auto": "The box installs new builds when a check finds them. Boxes get them in waves to limit risk.",
+      "manual": "The box only tells you there is a new build; you press Update when ready."
+    },
+    "check": "Check for Vedette releases",
+    "checkOff": "Update checks are off in Privacy.",
+    "lastCheck": "Last checked {{time}}.",
+    "checkedApplied": "Installed {{count}} new items automatically.",
+    "checkedNew": "{{count}} new items. Press Update on the matching row.",
+    "checkedNone": "Everything is up to date.",
+    "components": "Versions in use",
+    "componentsDesc": "Software and confirmed recommendation packs (mitigation guides, scan templates, log parsers) arrive inside signed updates. Vulnerability data is not an update: the box fetches it directly from each source.",
+    "comp": {
+      "software": "Vedette software",
+      "data": "Vulnerability data",
+      "pack-mitigation": "Mitigation guide pack",
+      "pack-nuclei": "Scan template pack",
+      "pack-parsers": "Log parser pack",
+      "os": "Operating system"
+    },
+    "kind": {
+      "software": "Software",
+      "data": "Data",
+      "content": "Content pack"
+    },
+    "col": {
+      "component": "Component",
+      "version": "In use",
+      "signature": "Signature",
+      "available": "New version",
+      "rollback": "Previous version"
+    },
+    "sig": {
+      "valid": "Valid",
+      "invalid": "Invalid",
+      "unsigned": "Unsigned"
+    },
+    "latest": "Up to date",
+    "apply": "Update",
+    "applyOf": "Update {{name}}",
+    "applied": "{{name}} updated. Signature valid.",
+    "appliedSoftware": "{{name}} installed in the spare slot, health check passed, switched to the new build.",
+    "rollbackTo": "Back to {{version}}",
+    "rollbackOf": "Roll {{name}} back",
+    "noPrevious": "None",
+    "rolledBack": "{{name}} rolled back.",
+    "rollbackAsk": {
+      "title": "Roll {{name}} back?",
+      "body": "Change from {{from}} back to {{to}}.",
+      "manual": "The box switches to manual updates so it does not climb back to the old build. Turn automatic on again on this page when you want.",
+      "confirm": "Roll back"
+    },
+    "advisories": "Vedette security advisories",
+    "advisoriesDesc": "Vulnerabilities in Vedette itself, with the fix. The box tells administrators when a new one appears.",
+    "advisoryBanner": "The Vedette build you run has {{count}} known vulnerabilities",
+    "advisoryFix": "Update the software to get the fix for {{id}} (fixed in {{version}}).",
+    "advisoryAffected": "Affects you",
+    "advisoryFixed": "Fixed in your build",
+    "fixedIn": "Fixed in {{version}}.",
+    "bundle": {
+      "title": "Bundle for air-gapped networks",
+      "desc": "If the box cannot reach GitHub or the Internet, export a bundle on a connected machine, carry it over on USB and import it here. A bundle must carry a valid signature too.",
+      "export": "Export bundle",
+      "import": "Import bundle",
+      "file": "Bundle file",
+      "tooLarge": "The file is over 5 MB. A real bundle is smaller, check the file.",
+      "done": "Bundle imported, {{count}} new items installed."
+    },
+    "history": "Update history",
+    "historyDesc": "The latest 20.",
+    "historyEmpty": "No updates yet.",
+    "hist": {
+      "time": "When",
+      "action": "Action",
+      "change": "Change",
+      "by": "By",
+      "system": "Automatic"
+    },
+    "act": {
+      "update": "Update",
+      "rollback": "Rollback",
+      "bundle": "Bundle import"
+    },
+    "sources": {
+      "title": "Where updates and feeds come from",
+      "body": "Software updates come only from signed GitHub releases. Feeds (CISA KEV, FIRST EPSS, NVD, vendor advisories, IOC feeds and your own) are fetched by the box directly from each source, never through GitHub. Confirmed recommendation packs ship inside updates.",
+      "link": "Open Settings, Feeds"
+    },
+    "titleOs": "{{name}}: {{count}} security updates waiting",
+    "titleOsClean": "{{name}}: no security updates waiting",
+    "managed": {
+      "title": "Packages managed by Vedette",
+      "desc": "Tools Vedette installs and pins itself. They are not taken from the operating system's package mirrors.",
+      "col": {
+        "package": "Package",
+        "version": "Pinned version",
+        "status": "Status",
+        "how": "How it updates"
+      },
+      "pinned": "Pinned, up to date",
+      "pending": "New version in the next release",
+      "how": "Updated together with Vedette releases"
+    },
+    "vedette": {
+      "title": "Vedette software",
+      "desc": "Signed releases from GitHub, with a spare slot and a one-click rollback. Channel, history and offline bundles are here."
+    },
+    "os": {
+      "title": "Operating system of this box",
+      "desc": "This box is a security appliance, so it keeps its own operating system patched. Ubuntu and Debian are supported.",
+      "distro": "Distribution",
+      "kernel": "Kernel",
+      "lastCheck": "Last checked",
+      "support": "Standard support",
+      "supportUntil": "Until {{date}}",
+      "extendedUntil": "Extended (LTS) support until {{date}}",
+      "sup": {
+        "ok": "Supported",
+        "soon": "Ends within a year",
+        "extended": "Standard support ended",
+        "ended": "Support ended"
+      },
+      "supHint": {
+        "soon": "This release stops getting standard updates soon. Plan the release upgrade below.",
+        "extended": "Only the extended (LTS) support is left. Plan the release upgrade below before it ends.",
+        "ended": "This release no longer gets security fixes. Upgrade the release below as soon as you can."
+      },
+      "rebootLabel": "Reboot",
+      "rebootRequired": "Reboot required",
+      "rebootNotNeeded": "No reboot needed",
+      "rebootWhy": "Needed by: {{packages}}.",
+      "bootedAt": "Last booted {{time}}",
+      "rebootScheduled": "Reboot scheduled for {{time}}.",
+      "auto": "Automatic security updates",
+      "autoOn": "Automatic security updates are on.",
+      "autoOff": "Automatic security updates are off.",
+      "autoHintOn": "unattended-upgrades installs security updates by itself, inside the maintenance window.",
+      "autoHintOff": "Nothing is installed until you press a button below. Security fixes can wait for days.",
+      "windowLabel": "Maintenance window",
+      "dayShort": {
+        "1": "Mon",
+        "2": "Tue",
+        "3": "Wed",
+        "4": "Thu",
+        "5": "Fri",
+        "6": "Sat",
+        "7": "Sun"
+      },
+      "day": {
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday",
+        "7": "Sunday"
+      },
+      "window": {
+        "title": "Maintenance window",
+        "anytime": "Any time",
+        "only": "Only in a window",
+        "days": "Days",
+        "from": "From",
+        "until": "until",
+        "to": "to",
+        "hintAnytime": "Automatic installs and scheduled reboots can happen at any time of day.",
+        "hintWindow": "Automatic installs and scheduled reboots happen only on these days and hours. A window that ends before it starts crosses midnight.",
+        "noDays": "Pick at least one day.",
+        "empty": "The start and the end are the same, so the window is empty.",
+        "save": "Save window",
+        "saved": "Maintenance window saved.",
+        "modeLabel": "Window mode"
+      },
+      "installSecurity": "Install security updates",
+      "installAll": "Install all updates",
+      "installAllTitle": "Install all {{count}} updates?",
+      "installAllBody": "This installs security and normal updates. Services may restart for a few seconds. A database backup is taken first.",
+      "installAllConfirm": "Install all",
+      "helper": "A separate privileged helper, vedette-updater, runs a fixed list of apt commands. The web app never runs shell commands. A database backup is taken before every run, and only one run can go at a time.",
+      "checked": "Checked the package mirrors.",
+      "pending": "{{count}} updates waiting, {{security}} of them security",
+      "pendingCaption": "Pending operating system updates",
+      "pendingEmpty": "Nothing waiting. The operating system is up to date.",
+      "col": {
+        "package": "Package",
+        "current": "Installed",
+        "new": "New",
+        "security": "Security",
+        "cves": "CVEs fixed"
+      },
+      "reboot": {
+        "now": "Reboot now",
+        "nowTitle": "Reboot the box now?",
+        "nowBody": "The Vedette web interface, sensors and traps are offline for a minute or two. Choose a quiet moment.",
+        "nowConfirm": "Reboot now",
+        "done": "Reboot started. The box is back in a minute or two.",
+        "schedule": "Schedule reboot",
+        "scheduleTitle": "Schedule a reboot",
+        "scheduleBody": "Maintenance window: {{window}}.",
+        "optWindow": "At the start of the next maintenance window",
+        "optCustom": "At a time I choose",
+        "windowLocked": "There is no maintenance window yet. Set one above to use this choice.",
+        "at": "Time",
+        "atHintAny": "The next time this clock time comes.",
+        "atHintWindow": "Must fall inside the maintenance window.",
+        "scheduleConfirm": "Schedule reboot",
+        "scheduled": "Reboot scheduled.",
+        "cancel": "Cancel reboot",
+        "cancelled": "Scheduled reboot cancelled."
+      },
+      "run": {
+        "title": "Latest install run",
+        "running": "Running",
+        "done": "Finished",
+        "log": "apt output",
+        "started": "Install started. Watch the progress below.",
+        "finished": "Finished: {{count}} packages installed.",
+        "scope": {
+          "security": "Security updates",
+          "all": "All updates"
+        },
+        "installed": "Installed",
+        "installedValue": "{{count}} packages, {{security}} security",
+        "backup": "Database backup before the run",
+        "health": "Health check after the run",
+        "failed": "failed",
+        "reboot": "Reboot"
+      },
+      "upgrade": {
+        "title": "Release upgrade to {{to}} is available",
+        "warn": "Vedette does not do this for you. A release upgrade changes the whole system and can fail halfway. Do it by hand, in a console, at a quiet time, with a snapshot or backup."
+      },
+      "checkNow": "Check now"
+    }
+  },
+  "privacy": {
+    "titleOn": "The box sends an anonymous signal every hour, with none of your private data",
+    "titleOff": "The anonymous signal is off; the box only connects out for the flows listed",
+    "meta": "Assets, logs, findings and AI keys never leave the machine. Below is every data flow that goes out to the Internet.",
+    "flows": "Nine data flows that leave the box",
+    "flowsDesc": "A flow that only runs when you configure it says so. There is no other flow. Reporting a problem is not a flow: the box sends nothing, and your own browser opens GitHub.",
+    "col": {
+      "flow": "Flow",
+      "what": "What is sent",
+      "to": "To where",
+      "state": "Now",
+      "control": "How to turn off"
+    },
+    "state": {
+      "on": "Running",
+      "off": "Off",
+      "conditional": "Only if you configure it"
+    },
+    "flow": {
+      "1": {
+        "name": "Pull feeds directly from their sources",
+        "what": "The box fetches each feed itself with plain HTTPS requests for public files. None of your data is sent; only your IP address appears in the source's logs. Vedette's own GitHub repository is used only for software updates; some public sources happen to host their files on GitHub.",
+        "to": "CISA KEV (www.cisa.gov), FIRST EPSS (api.first.org), the nuclei-templates CVE list, IPsum and hagezi TIF (public data files on raw.githubusercontent.com), ET Open (rules.emergingthreats.net), abuse.ch Feodo Tracker and SSLBL (feodotracker.abuse.ch, sslbl.abuse.ch), the Tor exit list (check.torproject.org), and any custom feed you add",
+        "control": "Cannot be turned off because the product needs this data; remove a custom feed to stop it. Air-gapped networks use the offline bundle.",
+        "link": "Open Feeds"
+      },
+      "2": {
+        "name": "Anonymous signal",
+        "what": "An hourly packet of counts, shown verbatim below.",
+        "to": "The Vedette project's server, kept aggregated, raw copies deleted after 30 days",
+        "control": "Switch in the Anonymous signal block below"
+      },
+      "3": {
+        "name": "AI assistant",
+        "what": "Data you choose to send (findings, merged logs), with your own key.",
+        "to": "The AI providers you add (one or more profiles), or a model inside your network",
+        "control": "No AI profile, no flow. You choose which profile handles each job and can keep logs and device data on profiles inside your network.",
+        "link": "Open AI settings"
+      },
+      "4": {
+        "name": "Data sources that need a key",
+        "what": "IP, domain and hash lookups to services you gave a key for.",
+        "to": "That service",
+        "control": "No key entered, no flow."
+      },
+      "5": {
+        "name": "Notifications",
+        "what": "Alert content, and the 6-digit sign-in code for people who use two-step email codes. Email goes through your own SMTP server. Slack: Incoming Webhook, plus an outward Socket Mode connection if you approve actions in Slack. Telegram: bot with long polling. Zalo personal (unofficial): the box signs in to Zalo with that account's session and sends alerts and approval codes. Email approvals add a single-use link valid for 30 minutes that opens a confirmation page on this box.",
+        "to": "The Slack, Telegram, Zalo OA, Zalo personal or webhook you set up, or your own SMTP server for email",
+        "control": "Remove the channel, or turn off approvals in chat, to stop it.",
+        "link": "Open alert channels"
+      },
+      "6": {
+        "name": "Update checks",
+        "what": "Your current Vedette version, inside the request to GitHub. For the operating system, the box runs apt against its distribution's package mirrors: the request carries the package list of this machine's release (Ubuntu or Debian version and architecture), as every apt client does, and no Vedette data.",
+        "to": "GitHub releases (signed software updates), and the distribution's package mirrors: archive.ubuntu.com and security.ubuntu.com on Ubuntu, deb.debian.org and security.debian.org on Debian. You can point apt at a local mirror inside your network instead.",
+        "control": "Turn off to update by hand or by bundle only. Operating system updates you start yourself, or that unattended-upgrades runs, still contact the mirrors unless you point apt at a local mirror.",
+        "switch": "Automatic update check"
+      },
+      "7": {
+        "name": "Forwarding to a SIEM",
+        "what": "Vedette events (alerts, trap touches, merged logs) as syslog, CEF or JSON.",
+        "to": "The SIEM or webhook target you enter",
+        "control": "No configuration, no flow. Remove the target to turn it off.",
+        "link": "Open SIEM settings"
+      },
+      "8": {
+        "name": "News about a CVE",
+        "what": "The CVE ID inside a lookup request. Runs only when you press the button, part of the AI assistant module.",
+        "to": "Vendor advisory pages, GitHub, public RSS",
+        "control": "If you do not press it, nothing is sent. Turn off the AI assistant module to remove it.",
+        "link": "Open modules"
+      },
+      "9": {
+        "name": "External surface",
+        "what": "Domains you verified, to find subdomains in public certificate logs. Verifying a public IP address also makes the box look up its own public address.",
+        "to": "A Certificate Transparency lookup service, and a public-IP lookup service",
+        "control": "Turn off the External surface module to stop.",
+        "link": "Open modules"
+      }
+    },
+    "telemetry": {
+      "title": "Anonymous signal",
+      "desc": "Helps the project see which vulnerabilities are being hit in Vietnam and rank work by the business devices Vietnamese companies really use. On by default, one click to turn off.",
+      "switch": "Send anonymous signal",
+      "on": "Sending every hour.",
+      "off": "Off. Nothing is sent.",
+      "lastSent": "Last sent",
+      "never": "Never sent",
+      "where": "Sent to",
+      "whereValue": "The Vedette project's server",
+      "keep": "Kept for",
+      "keepValue": "Kept aggregated; raw copies deleted after 30 days",
+      "payloadOn": "The packet that goes out next, verbatim",
+      "payloadOff": "This packet would be sent if you turn it back on, verbatim. Nothing is sent now.",
+      "payloadLabel": "JSON, exactly what would be sent",
+      "notSent": "No company name, no internal or public IP of yours, no raw logs, no device names."
+    },
+    "cookie": {
+      "title": "Cookies",
+      "body": "One sign-in session cookie only (vedette_session). No tracking, no analytics, no resources loaded from outside servers."
+    },
+    "bugNote": {
+      "title": "Report a problem",
+      "body": "The box sends nothing when you report a problem. You download a filtered diagnostic file and press Open GitHub issue; your own browser opens GitHub with your text filled in."
+    }
+  },
+  "mcp": {
+    "titleOn": "MCP server is on, read-only, {{count}} tokens",
+    "titleOff": "MCP server is off",
+    "meta": "Lets outside AI tools or a SIEM look up the box's devices, findings and vulnerability feeds. Read-only; there are no write tools.",
+    "switch": "Turn on MCP server",
+    "enabledToast": "MCP server is on.",
+    "disabledToast": "MCP server is off. Tokens are kept but do not work.",
+    "readOnly": "Read-only",
+    "onHint": "Listening on this machine only (localhost).",
+    "offHint": "No port is open. Turn it on to create tokens and connect.",
+    "connect": "Connect",
+    "connectDesc": "Paste this config into your MCP tool and replace <token> with a token below.",
+    "bind": "Listen address",
+    "bindNote": "localhost only, not open to the network",
+    "endpoint": "MCP address",
+    "clientConfig": "Config for the MCP tool",
+    "remote": "A tool on another machine must go through an SSH tunnel or a reverse proxy you set up. Vedette does not open this port to the LAN.",
+    "verify": "The format above follows the Claude Code MCP docs (type http, url, headers). Other tools may name the fields differently: check that tool's docs.",
+    "scope": {
+      "assets": "Devices",
+      "findings": "Findings",
+      "feeds": "Vulnerability feeds"
+    },
+    "token": {
+      "title": "Read-only tokens",
+      "desc": "One token per tool, with only the scope it needs. Revoke any time.",
+      "name": "Token name",
+      "nameHint": "For example: Nam's Claude Desktop.",
+      "nameError": "Name the token so you know which one to revoke later.",
+      "scopes": "Scopes it may read",
+      "scopeError": "Pick at least one scope.",
+      "create": "Create token",
+      "createdTitle": "Token {{name}} created",
+      "createdBody": "Copy the token now: once you close this dialog it cannot be shown again. The box keeps only the last 4 characters.",
+      "label": "Token",
+      "done": "I have copied it",
+      "empty": "No tokens yet. Create one so an outside tool can connect.",
+      "never": "Never used",
+      "revoke": "Revoke",
+      "revokeOf": "Revoke token {{name}}",
+      "revoked": "Token {{name}} revoked.",
+      "col": {
+        "name": "Name",
+        "scopes": "Scopes",
+        "last4": "Last 4 characters",
+        "created": "Created",
+        "used": "Last used",
+        "revoke": "Revoke"
+      }
+    },
+    "tools": {
+      "title": "Tools the MCP server offers",
+      "desc": "All are read tools. None can edit devices, change a finding's status or run a scan.",
+      "col": {
+        "name": "Tool",
+        "what": "What it does",
+        "scope": "Needs scope"
+      },
+      "list_assets": "List devices in the inventory",
+      "get_asset": "Show one device and its software",
+      "list_findings": "List findings, filter by status",
+      "get_finding": "Show one finding and its evidence",
+      "lookup_cve": "Look up a CVE in the exploited list",
+      "lookup_ioc": "Look up a bad IP or domain",
+      "hot_vulnerabilities": "Recently exploited vulnerabilities"
+    }
+  },
+  "data": {
+    "title": "Back up, export and delete the box's data",
+    "meta": "All of this works from here, no command line. Your data stays on this machine.",
+    "downloaded": "Downloaded {{file}}",
+    "backup": {
+      "title": "Backup",
+      "desc": "Settings, users (no passwords), modules, devices, findings and the log. No AI keys or tokens.",
+      "button": "Download backup"
+    },
+    "export": {
+      "title": "Export data",
+      "desc": "Devices, findings and the log as JSON to take to another tool.",
+      "button": "Export JSON"
+    },
+    "purge": {
+      "title": "Delete all data",
+      "desc": "Deletes everything on this box: devices, findings, the log, users, settings and every module's data. The box returns to a fresh install. This cannot be undone.",
+      "button": "Delete all data",
+      "ask": {
+        "title": "Delete all data on the box?",
+        "body": "Download a backup first if you still need the data. After deleting, you are signed out and the box reopens first-run setup.",
+        "removes": "Deleted: devices, findings, the log, users, alert channels, settings, every module's data.",
+        "keeps": "Nothing is kept on this box.",
+        "type": "Type the organization name \"{{org}}\" to confirm",
+        "confirm": "Delete everything"
+      }
+    },
+    "sample": {
+      "title": "Restore sample data",
+      "desc": "Trial build only: puts everything back to the original sample data, including anything you entered.",
+      "button": "Restore sample data",
+      "ask": {
+        "title": "Restore sample data?",
+        "body": "Everything you entered in this trial build is erased. The page reloads with the original sample data and signs you in again as the sample administrator.",
+        "confirm": "Restore and reload"
+      }
+    },
+    "logs": {
+      "title": "Download logs",
+      "desc": "One file with the box's logs. Secrets (passwords, keys, tokens, webhook addresses) are never included. Hash-chained logs include their hashes so you can verify them offline.",
+      "categories": "Logs to include",
+      "from": "From",
+      "to": "To",
+      "format": "Format",
+      "button": "Download logs",
+      "none": "Pick at least one log.",
+      "range": "The start date is after the end date.",
+      "verify": "Verify offline: hash = SHA-256(previous hash + the entry as JSON with sorted keys, without its hash).",
+      "cat": {
+        "audit": "Audit log",
+        "ai_activity": "AI activity",
+        "response": "Response log",
+        "scan_probes": "Scan probes",
+        "alerts": "Alerts",
+        "device_logs": "Device logs",
+        "known_bad": "Known-bad connections",
+        "honeypot": "Honeypot hits"
+      }
+    }
+  },
+  "account": {
+    "title": "{{name}}'s account",
+    "titleLoading": "My account",
+    "meta": "Profile, password, two-step sign-in and the places you are signed in.",
+    "profile": {
+      "title": "Profile",
+      "name": "Display name",
+      "nameError": "Enter a display name.",
+      "email": "Sign-in email",
+      "role": "Role",
+      "lastLogin": "Last sign-in"
+    },
+    "password": {
+      "title": "Change password",
+      "desc": "At least {{min}} characters. A long sentence is easier to remember than random characters.",
+      "current": "Current password",
+      "next": "New password",
+      "again": "Repeat new password",
+      "submit": "Change password",
+      "currentError": "Enter your current password.",
+      "shortError": "The new password needs at least {{min}} characters.",
+      "mismatch": "The two entries do not match.",
+      "done": "Password changed."
+    },
+    "twofa": {
+      "title": "Two-step sign-in",
+      "desc": "On top of your password, signing in needs a 6-digit code. Pick one method; to switch, turn it off and set up the other.",
+      "on": "On",
+      "off": "Off",
+      "onWith": "On: {{method}}",
+      "method": {
+        "app": "Authenticator app",
+        "email": "Email code"
+      },
+      "appActive": "Signing in asks for the 6-digit code shown in your authenticator app.",
+      "emailActive": "Signing in asks for a 6-digit code that Vedette emails to {{to}}.",
+      "turnOff": "Turn off two-step sign-in",
+      "app": {
+        "desc": "Google Authenticator, Microsoft Authenticator, Aegis or any app that supports time-based codes.",
+        "setup": "Set up authenticator app",
+        "scan": "Scan this QR code with your authenticator app, or enter the key by hand.",
+        "qrLabel": "QR code for your authenticator app",
+        "enter": "Then enter the 6-digit code the app shows to confirm."
+      },
+      "email": {
+        "desc": "Vedette emails a 6-digit code to your sign-in address, {{to}}.",
+        "setup": "Set up email code",
+        "moduleOff": "Email codes need the Notifications module, which is off.",
+        "notReady": "Email codes need the email alert channel, which is not set up or is turned off.",
+        "openChannels": "Open alert channels",
+        "openModules": "Open modules",
+        "askAdmin": "Ask an administrator to set up the email channel.",
+        "sent": "We sent a 6-digit code to {{to}}. Enter it to confirm that this mailbox works. The code expires in 10 minutes.",
+        "codeHint": "The code can be used once. After 5 wrong tries it is cancelled and you need a new one.",
+        "resend": "Send a new code",
+        "resendIn": "Send a new code in {{s}} s"
+      },
+      "key": "Manual key",
+      "uri": "otpauth address",
+      "code": "6-digit code",
+      "codeHint": "The code changes every 30 seconds. If it is wrong, enter a fresh one.",
+      "confirm": "Confirm and turn on",
+      "enabled": "Two-step sign-in is on.",
+      "disabled": "Two-step sign-in is off.",
+      "offAsk": {
+        "title": "Turn off two-step sign-in?",
+        "body": "The account will be protected by the password alone.",
+        "password": "Current password",
+        "confirm": "Turn off"
+      }
+    },
+    "sessions": {
+      "title": "Where you are signed in",
+      "desc": "If you see a session you do not know, end it and change your password.",
+      "device": "Device",
+      "ip": "IP address",
+      "started": "Started",
+      "last": "Last active",
+      "end": "End",
+      "current": "This session",
+      "endBtn": "End",
+      "endOf": "End session {{device}}",
+      "endOthers": "End all other sessions",
+      "ended": "Session ended.",
+      "endedAll": "All other sessions ended."
+    }
+  },
+  "login": {
+    "sso": "Sign in with SSO",
+    "code": "6-digit code",
+    "codeHint": "This account has two-step sign-in. Get the code from your authenticator app.",
+    "codeHintEmail": "We sent a 6-digit code to {{to}}. It expires in 10 minutes.",
+    "resend": "Send a new code",
+    "resendIn": "Send a new code in {{s}} s",
+    "resent": "A new code was sent to {{to}}."
+  },
+  "setup": {
+    "title": "First-time Vedette setup",
+    "subtitle": "Four steps, about five minutes. You can change every step later in Settings.",
+    "steps": "Setup steps",
+    "step": {
+      "account": "Account",
+      "network": "Network",
+      "modules": "Modules",
+      "channel": "Alerts"
+    },
+    "back": "Back",
+    "next": "Continue",
+    "finish": "Finish setup",
+    "account": {
+      "title": "Organization and administrator account",
+      "desc": "This account is the first administrator, with full control over settings.",
+      "org": "Organization name",
+      "orgError": "Enter the organization name (at least 2 characters).",
+      "name": "Administrator name",
+      "nameError": "Enter the administrator's name.",
+      "email": "Sign-in email",
+      "emailError": "The email does not look right, for example name@company.vn.",
+      "password": "Password",
+      "passwordHint": "At least {{min}} characters. A long sentence is easier to remember than random characters.",
+      "passwordError": "The password needs at least {{min}} characters, it has {{count}} so far.",
+      "again": "Repeat password",
+      "againError": "The two entries do not match."
+    },
+    "network": {
+      "title": "Network to watch",
+      "desc": "Vedette listens and (if you confirm) scans only inside these ranges.",
+      "lan": "Network ranges",
+      "lanHint": "One range per row, like 192.168.10.0/24. A bare address such as 192.168.10.0 is read as /24. Printers and cameras should be inside the list.",
+      "lanRow": "Range {{n}}",
+      "lanAdd": "Add range",
+      "lanRemove": "Remove range {{n}}",
+      "lanKeepOne": "Keep at least one range",
+      "lanEmpty": "Enter at least one range.",
+      "lanBlank": "Fill in this range or remove the row.",
+      "lanBad": "\"{{value}}\" is not a valid range. Write it like 192.168.10.0/24 (address, slash, prefix length 0 to 32).",
+      "lanPublic": "{{value}} is not a private range (10.0.0.0/8, 172.16.0.0/12 or 192.168.0.0/16). Add public addresses later under External exposure.",
+      "lanDup": "{{value}} is listed twice. Remove one of the rows.",
+      "lanMany": "At most 16 ranges. Merge them into larger ranges.",
+      "noteLabel": "Ranges adjusted",
+      "note": {
+        "prefix": "\"{{from}}\" had no prefix length, so it was read as {{to}} (a /24 holds 254 addresses). Change it if your network is a different size.",
+        "network": "\"{{from}}\" was changed to {{to}}, the first address of that range."
+      },
+      "commitment": "I confirm these ranges belong to my company and I am allowed to scan them.",
+      "passiveOnly": "Not ticked: Vedette only listens passively and does not scan yet. You can confirm later under Devices, Scope and sensors.",
+      "license": "Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.",
+      "saveFailed": "Setup finished but the scan scope was not saved: {{message}} Open Devices, Scope and sensors to enter it again.",
+      "lanNoPrefix": "\"{{value}}\" has no prefix length. Add it so Vedette scans the right size of network, for example {{value}}/24 or {{value}}/25."
+    },
+    "modules": {
+      "title": "Choose a module bundle",
+      "desc": "Modules are separate pieces of work you switch on and off. Pick the closest bundle and change it later in Settings, Modules.",
+      "smb": {
+        "name": "Small business",
+        "desc": "Know your devices, see exploited vulnerabilities that match them, alert through a channel, internal traps, weekly report. Light, little upkeep."
+      },
+      "mid": {
+        "name": "Mid-size business",
+        "desc": "The small bundle plus confirming scans, external surface, firewall logs and the AI assistant (with your own key)."
+      },
+      "custom": {
+        "name": "Custom",
+        "desc": "Pick each module yourself. A module that needs another gets it picked too."
+      },
+      "pick": "Modules to turn on",
+      "pickHint": "Core is always on. Picking a module that needs others picks them too; dropping a module also drops those that depend on it.",
+      "needs": "Needs: {{list}}",
+      "customEmpty": "Pick at least one module."
+    },
+    "channel": {
+      "title": "Where alerts go",
+      "desc": "You can skip this. The channel is saved under Settings, Alert channels and switched on.",
+      "type": "Channel type",
+      "secret": {
+        "telegram": "Bot token",
+        "zalo": "Access token",
+        "email": "SMTP password"
+      },
+      "secretHint": "Only the last 4 characters show after saving.",
+      "emailError": "The email does not look right, for example security@company.vn.",
+      "later": "You send a test and set quiet hours in Settings, Alert channels.",
+      "skip": "Skip and finish",
+      "field": {
+        "chat_id": "Chat ID to send to",
+        "oa_id": "OA ID",
+        "host": "SMTP server",
+        "port": "SMTP port",
+        "security": "Encryption",
+        "username": "SMTP username",
+        "from": "Sender email",
+        "to": "Recipient emails (comma separated)",
+        "user_id": "Recipient user ID (the follower who receives alerts)"
+      },
+      "required": "Fill this in.",
+      "toError": "A recipient email does not look right. Separate several with commas.",
+      "noEncryption": "No encryption",
+      "saveFailed": "The account was created but the channel was not saved: {{message}} Fix it and press Finish, or skip and set it up later.",
+      "skipDone": "Skip the channel and enter the box"
+    },
+    "sample": {
+      "title": "Just want a look?",
+      "desc": "Use sample data: 30 made-up devices, a few findings, and you are signed in at once as the sample administrator. Restore or delete it in Settings, Data.",
+      "button": "Use sample data"
+    }
+  },
+  "preview": {
+    "emailCode": "Preview build: the email would contain {{code}}"
+  },
+  "bug": {
+    "title": "Report a problem",
+    "desc": "Describe what went wrong. You review everything before it leaves your hands.",
+    "noSend": "The box sends nothing itself. \"Download report\" saves a file on your computer, and \"Open GitHub issue\" opens GitHub in your own browser with the text below filled in. You decide what to post.",
+    "what": "What happened",
+    "steps": "Steps to reproduce",
+    "expected": "What you expected",
+    "bundle": "Diagnostic bundle",
+    "bundleDesc": "Exactly what the downloaded file contains besides your text. It never includes devices, logs, findings, keys, email addresses or IP addresses; those are removed from error messages.",
+    "bundleLabel": "JSON, preview of the diagnostic bundle",
+    "attach": "The GitHub issue holds your text and a short summary only. Attach the downloaded file to it so the maintainer can see the full bundle.",
+    "download": "Download report",
+    "open": "Open GitHub issue"
+  }
+}

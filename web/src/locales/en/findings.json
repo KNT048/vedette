@@ -1,0 +1,174 @@
+{
+  "nav": {
+    "findings": "Findings"
+  },
+  "titleLoading": "Findings",
+  "titleNone": "No unresolved findings",
+  "title_one": "{{count}} unresolved finding, {{confirmed}} confirmed",
+  "title_other": "{{count}} unresolved findings, {{confirmed}} confirmed",
+  "intro": "A finding is an actively exploited vulnerability (CISA KEV) that matches one of your devices. Confirmed means a safe scan template saw the vulnerability; suspected means it only matches by version or product.",
+  "caption": "Findings list",
+  "filter": "Filter by device, CVE, product",
+  "filterLabel": "Filter by status",
+  "filters": {
+    "open": "Unresolved",
+    "confirmed": "Confirmed",
+    "suspected": "Suspected",
+    "resolved": "Resolved",
+    "all": "All"
+  },
+  "clearCve": "Clear {{cve}} filter",
+  "emptyCve": "No findings for {{cve}} in this filter.",
+  "emptyOpen": "No unresolved findings.",
+  "emptyFilter": "No findings in this status.",
+  "emptyHelp": "Vedette only matches vulnerabilities against devices it knows. If you have no devices yet, add them first; once you do, run a scan to check right away. Vedette will tell you when a new vulnerability matches.",
+  "emptyDevices": "Open Devices",
+  "emptyScan": "Open Vulnerability scans",
+  "col": {
+    "device": "Device",
+    "cve": "CVE",
+    "product": "Product",
+    "status": "Status",
+    "severity": "Severity",
+    "basis": "Basis",
+    "lastSeen": "Last seen"
+  },
+  "basis": {
+    "scan": "Confirmed by scan",
+    "version": "By version",
+    "product": "Product match only"
+  },
+  "back": "Back to findings",
+  "headline": {
+    "confirmed": "{{device}} has a confirmed vulnerability ({{cve}}) that is being exploited in the wild",
+    "suspected": "{{device}} may be affected by {{cve}}: needs checking",
+    "mitigated": "{{device}}: {{cve}} is mitigated, patching is still needed to remove it",
+    "patched": "{{device}}: {{cve}} is patched",
+    "false_positive": "{{device}}: {{cve}} marked as false positive",
+    "not_relevant": "{{device}}: {{cve}} marked as not relevant"
+  },
+  "meta": {
+    "ransomware": "Used by ransomware",
+    "seen": "First seen {{first}}, last seen {{last}}.",
+    "due": "CISA requires action by {{date}}."
+  },
+  "device": {
+    "title": "Findings on this device",
+    "description": "Exploited vulnerabilities that match this device.",
+    "none": "No findings for this device yet.",
+    "lastSeen": "Seen {{time}}"
+  },
+  "status": {
+    "mark": "Mark as handled",
+    "reopen": "Reopen finding",
+    "reopened": "Finding reopened",
+    "done": "Status updated",
+    "title": "Mark as handled",
+    "description": "Record a new status for {{cve}}. History is kept so others know who changed it and why.",
+    "noteLabel": "Note (optional)",
+    "noteLabelRequired": "Note: why (required)",
+    "noteRequired": "Say why this is a false positive or not relevant (at least 3 characters).",
+    "submit": "Save status",
+    "patched": "Patched",
+    "patchedHint": "The vendor patch is installed. Rescan to confirm.",
+    "mitigated": "Mitigated",
+    "mitigatedHint": "Not patched, but the way in is blocked (for example Internet access cut off).",
+    "false_positive": "False positive",
+    "false_positiveHint": "The device is not affected; Vedette matched it wrongly.",
+    "not_relevant": "Not relevant",
+    "not_relevantHint": "Affected, but no action needed (for example a device being retired, not on the network)."
+  },
+  "evidence": {
+    "title": "Evidence",
+    "description": "Why Vedette thinks this device is affected, and how you can check it yourself.",
+    "none": "No scan evidence for this finding yet.",
+    "basis": "Basis",
+    "confidence": "Confidence",
+    "template": "Scan template",
+    "noTemplate": "No safe scan template for this CVE yet",
+    "noTemplateRun": "A template exists; not yet run on this device",
+    "source": "Source",
+    "request": "Request sent (shortened)",
+    "response": "Response (shortened)",
+    "recheck": "How to check it yourself",
+    "recheckCode": "Run from a machine on the internal network",
+    "rescan": "Rescan this device"
+  },
+  "rec": {
+    "title": "What to do",
+    "description": "The source of a recommendation is always stated: confirmed by Vedette maintainers, or none yet.",
+    "sideEffect": "Side effects:",
+    "applied": "Applied",
+    "appliedHint": "Only writes a log entry. The finding changes status after you mark it or rescan.",
+    "appliedToast": "Logged. Rescan to confirm.",
+    "appliedBy": "Recorded as applied by {{user}} at {{time}}.",
+    "verify": "Check after applying",
+    "undo": "Undo",
+    "confirmedChip": "Confirmed by Vedette maintainers",
+    "confirmedBy": "Confirmed by {{by}} on {{date}} through a GitHub pull request. Drafted with AI, every step checked by a maintainer.",
+    "patchTitle": "1. Install the patch",
+    "fixedVersion": "Fixed version:",
+    "vendorAdvisory": "Open the vendor advisory",
+    "workaroundTitle": "2. Temporary workaround if you cannot update yet",
+    "firewallTitle": "3. Firewall configuration to cut off access",
+    "firewallHint": "Each command is in its own box; paste them one at a time, in order. Read the side effects before pasting.",
+    "fwDetected": "Pre-selected the firewall vendor you declared in the inventory.",
+    "fwNone": "You have not declared a firewall in the inventory, so below is general guidance and reference syntax.",
+    "fwVendor": "Firewall vendor",
+    "fwDeclared": "{{name}} (declared)",
+    "checklistTitle": "4. Checklist",
+    "checklistHint": "Tick as you finish ({{done}}/{{total}}). Only for tracking on this screen; not saved.",
+    "noPack": "No confirmed recommendation yet",
+    "noPackBody": "Vedette maintainers have not confirmed a mitigation pack for this CVE. Below is source information from CISA and the vendor, not a Vedette recommendation. You can ask your own AI; its answer always carries the AI-generated label.",
+    "sourceTitle": "Source information",
+    "sourceHint": "CISA's required action when it added this vulnerability on {{date}} (original English).",
+    "dueDate": "CISA due date: {{date}}.",
+    "askTitle": "Ask your AI",
+    "askAi": "Ask my AI"
+  },
+  "compromise": {
+    "title": "Have I been hit?",
+    "description": "Signs that the device was exploited, and commands to check yourself.",
+    "none": "No confirmed exploitation signs for this CVE yet. Follow the recheck steps under Evidence and look at the device logs around the day the vulnerability was published.",
+    "ifFound": "If you see signs"
+  },
+  "aside": {
+    "label": "Device and history",
+    "device": "Device",
+    "noDevice": "The device is no longer in the inventory.",
+    "cvePage": "Open {{cve}} page"
+  },
+  "history": {
+    "title": "History",
+    "system": "system",
+    "created": "Finding created",
+    "confirmed": "Scan confirmed a match",
+    "rescanned": "Rescanned, still matches",
+    "rescan_clear": "Rescanned, no longer matches",
+    "patched": "Marked as patched",
+    "mitigated": "Marked as mitigated",
+    "false_positive": "Marked as false positive",
+    "not_relevant": "Marked as not relevant",
+    "reopened": "Reopened",
+    "applied": "Applied: {{item}}",
+    "item": {
+      "patch": "patch",
+      "workaround": "workaround",
+      "fortigate": "FortiGate configuration",
+      "mikrotik": "MikroTik configuration",
+      "generic": "general guidance"
+    }
+  },
+  "explain": {
+    "title": "Explain in plain language",
+    "description": "Your AI explains whether this device is affected and why.",
+    "button": "Explain"
+  },
+  "ai": {
+    "running": "Asking AI",
+    "again": "Ask again",
+    "unavailable": "The AI assistant is off, or no AI profile is assigned to this job.",
+    "openSettings": "Open AI assistant settings",
+    "privacy": "Sent to the AI provider you configured, with your key. Data level is set in Settings, AI assistant."
+  }
+}

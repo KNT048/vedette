@@ -1,0 +1,286 @@
+{
+  "nav": {
+    "home": "Home",
+    "lookup": "Lookup"
+  },
+  "home": {
+    "titleLoading": "Today",
+    "meta": "Data updated {{time}}. Sources: {{sources}}, each fetched directly from its source.",
+    "sampleInventory": "The device list in this build is sample data.",
+    "toFindings": "See findings on your devices",
+    "title_one": "Today: {{count}} vulnerability newly exploited in the last 7 days. Products you use among them: {{matched}}.",
+    "title_other": "Today: {{count}} vulnerabilities newly exploited in the last 7 days. Products you use among them: {{matched}}.",
+    "titleNoInv_one": "Today: {{count}} vulnerability newly exploited in the last 7 days.",
+    "titleNoInv_other": "Today: {{count}} vulnerabilities newly exploited in the last 7 days."
+  },
+  "search": {
+    "placeholder": "CVE, product, IP or domain",
+    "submit": "Look up"
+  },
+  "hot": {
+    "title": "Newly exploited",
+    "description": "Vulnerabilities newly added to the exploited-in-the-wild list (CISA KEV), grouped by product. Rows with a red bar are products you use.",
+    "window": "Time window",
+    "24h": "24 hours",
+    "7d": "7 days",
+    "col": {
+      "product": "Product",
+      "cves": "New CVEs",
+      "epss": "Exploit likelihood (EPSS)",
+      "template": "Check available",
+      "ransomware": "Ransomware",
+      "youHave": "In your network?"
+    },
+    "delta": "+{{delta}} in 7 days",
+    "yes": "Yes",
+    "empty": "No newly exploited vulnerabilities in the last {{window}}.",
+    "emptyLatest": "Most recent addition: {{date}}, {{product}}."
+  },
+  "youHave": {
+    "yes": "Yes",
+    "maybe": "Maybe",
+    "maybeHint": "Same vendor, but not sure it is the same product. Open the details to see which devices.",
+    "no": "No",
+    "off": "Inventory is off"
+  },
+  "weekly": {
+    "title": "This week in plain words",
+    "description": "What is under attack, in plain words. Click \"I have this\" to get alerts for that product.",
+    "have": "I have this",
+    "notRelevant": "Not relevant",
+    "added": "Added to your devices",
+    "addedToast": "Added to your device list. You will get alerts for this product.",
+    "hiddenToast": "Item hidden."
+  },
+  "lookup": {
+    "title": "Lookup",
+    "meta": "Searches data on this box: CVE, product name, IP address or domain. Nothing is sent out.",
+    "emptyTitle": "Enter what you want to check",
+    "emptyBody": "For example: CVE-2022-27593, FortiGate, 185.220.101.47 or an odd domain from a log.",
+    "cveFound": "{{cve}} is on the exploited list. Open details",
+    "cveNotFound": "{{cve}} is not on the exploited list",
+    "cveNotFoundBody": "No evidence of real-world exploitation in current data. Still patch per the vendor's advice.",
+    "verdict": {
+      "block": "Block",
+      "alert": "Watch"
+    },
+    "category": "Category",
+    "sources": "Sources",
+    "score": "Confidence score",
+    "seen": "Seen",
+    "seenRange": "from {{first}} to {{last}}",
+    "iocNote": "Vedette does not block. Add this address to your firewall block list if needed.",
+    "iocClean": "{{value}} is not on the bad IP/domain lists",
+    "iocCleanBody": "That does not mean it is safe, only that no source has flagged it.",
+    "addedOn": "listed {{date}}",
+    "textNone": "No exploited vulnerability matches \"{{q}}\"",
+    "textNoneBody": "Try a vendor name (Fortinet, QNAP) or a shorter product name."
+  },
+  "cve": {
+    "back": "Home",
+    "title": "{{cve}}: {{product}}",
+    "ransomware": "Used in ransomware",
+    "inKev": "Added to exploited list {{date}}",
+    "facts": "Details",
+    "name": "Vulnerability name",
+    "product": "Vendor and product",
+    "kevDate": "Date added",
+    "dueDate": "CISA due date",
+    "dueHint": "(deadline for US agencies, shown as an urgency signal)",
+    "epss": "Exploit likelihood",
+    "epssHint": "(EPSS, next 30 days)",
+    "template": "Confirmation template",
+    "templateYes": "Yes (nuclei-templates), can be confirmed by scanning",
+    "templateNo": "Not yet, version-based assessment only",
+    "description": "Original description",
+    "descriptionHint": "Verbatim from CISA KEV.",
+    "requiredAction": "CISA required action:",
+    "links": "Sources and vendor advisories",
+    "matched": "Your devices",
+    "matchedNone": "No matching devices found",
+    "matchedNoneBody": "If you have this product but have not listed it, add it on the Devices page.",
+    "toFindings": "See findings and what to do",
+    "tryLookup": "Look up this ID"
+  },
+  "settings": {
+    "nav": "Feeds",
+    "title": "Feeds",
+    "direct": "Vedette fetches each feed directly from its source. GitHub is only used for software updates."
+  },
+  "builtin": {
+    "title": "Built-in feeds",
+    "description": "Turn a feed off, change how often it is fetched, or point it at a mirror you host. Built-in feeds cannot be deleted.",
+    "caption": "Built-in feeds"
+  },
+  "custom": {
+    "title": "Your own feeds",
+    "description": "Add a feed from your company or a partner: vulnerabilities, or indicators of compromise (IOC). You decide how Vedette reads it.",
+    "caption": "Your own feeds",
+    "add": "Add a feed",
+    "empty": "No feeds of your own yet",
+    "emptyBody": "Add a vulnerability feed or an IOC list, tell Vedette how to read it, and preview the result before saving."
+  },
+  "kind": {
+    "vulnerabilities": "Vulnerabilities",
+    "ioc": "IOC"
+  },
+  "status": {
+    "ok": "OK",
+    "error": "Error",
+    "never": "Not fetched yet"
+  },
+  "col": {
+    "feed": "Feed",
+    "on": "On",
+    "schedule": "Fetch",
+    "last": "Last fetch",
+    "records": "Records",
+    "status": "Status",
+    "actions": "Actions"
+  },
+  "row": {
+    "every_one": "Every hour",
+    "every_other": "Every {{count}} hours",
+    "never": "Never",
+    "records_one": "{{n}} record",
+    "records_other": "{{n}} records",
+    "enable": "Enable {{name}}",
+    "nowOn": "{{name}} is on",
+    "nowOff": "{{name}} is off",
+    "fetchNow": "Fetch now",
+    "fetching": "Fetching...",
+    "fetchNamed": "Fetch {{name}} now",
+    "turnOnFirst": "Turn the feed on first",
+    "fetched": "Fetched {{name}}: {{count}} records",
+    "failed": "fetch failed",
+    "settings": "Settings",
+    "settingsNamed": "Settings for {{name}}",
+    "edit": "Edit",
+    "editNamed": "Edit {{name}}",
+    "deleteNamed": "Delete {{name}}"
+  },
+  "dialog": {
+    "schedule": "Fetch schedule",
+    "everyHours_one": "Every hour",
+    "everyHours_other": "Every {{count}} hours",
+    "address": "Address",
+    "mirrorHint": "Use a mirror if you host a copy of this feed yourself. https only, except internal addresses.",
+    "reset": "Reset to default",
+    "defaultIs": "Default: {{url}}",
+    "saved": "{{name}} saved",
+    "added": "{{name}} added",
+    "deleted": "{{name}} deleted",
+    "builtinTitle": "{{name}} settings",
+    "builtinBody": "The schedule and address Vedette uses to fetch this feed.",
+    "addTitle": "Add a feed",
+    "editTitle": "Edit {{name}}",
+    "customBody": "Vedette fetches this feed directly from its address on the schedule you choose.",
+    "name": "Name",
+    "type": "Feed type",
+    "typeHint": {
+      "ioc": "Indicators: IP address, domain, URL or file hash, with confidence and first seen.",
+      "vulnerabilities": "CVE, vendor, product, date, description and link."
+    },
+    "urlHint": "https only, except internal addresses (private ranges, localhost, .local).",
+    "auth": "Authentication",
+    "authType": {
+      "none": "None",
+      "header": "Custom header",
+      "bearer": "Bearer token",
+      "basic": "Basic (user and password)"
+    },
+    "headerName": "Header name",
+    "username": "User name",
+    "secret": "Secret",
+    "password": "Password",
+    "secretHint": "At least 8 characters. Stored encrypted; only the last 4 characters are shown afterwards.",
+    "secretSaved": "A secret ending in {{last4}} is saved. Leave empty to keep it.",
+    "addConfirm": "Add feed",
+    "saving": "Saving...",
+    "deleteTitle": "Delete {{name}}?",
+    "deleteBody": "Vedette stops fetching this feed and removes the records it fetched. This cannot be undone.",
+    "err": {
+      "name": "Enter a name.",
+      "url": "Enter a full address such as https://example.com/feed.json.",
+      "https": "Use an https:// address. http:// is only allowed for internal addresses.",
+      "header": "Enter a header name such as X-Api-Key.",
+      "user": "Enter the user name.",
+      "secret": "Enter the secret.",
+      "secretShape": "The secret must be at least 8 characters with no spaces.",
+      "required": "Map the required field: {{field}}."
+    }
+  },
+  "parser": {
+    "title": "How Vedette reads this feed",
+    "intro": "Choose the format, say where each field is, then test on a sample. Rows that do not fit are counted and skipped, never crash the fetch.",
+    "format": "Format",
+    "formats": {
+      "json": "JSON",
+      "csv": "CSV",
+      "rss": "RSS / Atom",
+      "stix": "STIX 2.1 / TAXII 2.1",
+      "lines": "Plain list (one per line)"
+    },
+    "recordsPath": "Records path",
+    "recordsHint": "JSONPath to the list of records, for example $.vulnerabilities[*]. Supported: .key, ['key'], [n], [*].",
+    "delimiter": "Delimiter",
+    "delims": {
+      "comma": "Comma (,)",
+      "semicolon": "Semicolon (;)",
+      "tab": "Tab",
+      "pipe": "Pipe (|)"
+    },
+    "header": "First row is a header",
+    "note": {
+      "json": "Each record is mapped with a JSONPath relative to it, such as $.cveID.",
+      "csv": "Lines starting with # are skipped. Name a column from the header, or give its number.",
+      "rss": "Use item fields: title, link, description, pubDate (or published), category, id.",
+      "stix": "Vedette reads indicator objects and their patterns, such as [ipv4-addr:value = '203.0.113.7'], [domain-name:value = '...'], [url:value = '...'] and file hashes. A bundle or a TAXII collection response both work. Fields are fixed; nothing to map.",
+      "lines": "One indicator per line; blank lines and # comments are skipped. Only the first word on each line is used. The kind (IP, domain, URL, hash) is detected."
+    },
+    "field": {
+      "cve": "CVE",
+      "vendor": "Vendor",
+      "product": "Product",
+      "date": "Date",
+      "description": "Description",
+      "link": "Link",
+      "indicator": "Indicator",
+      "kind": "Kind",
+      "confidence": "Confidence",
+      "first_seen": "First seen"
+    },
+    "required": "required",
+    "source": "Source",
+    "srcJson": "JSONPath, for example $.cveID. Empty = not mapped.",
+    "srcCsv": "Column name or number. Empty = not mapped.",
+    "srcRss": "Item field. Empty = not mapped.",
+    "regex": "Regex (optional)",
+    "regexHint": "The first capture group is kept; no match rejects the row.",
+    "trim": "Trim spaces",
+    "lowercase": "Lower-case",
+    "dateFormat": "Date format",
+    "dates": {
+      "auto": "Auto (ISO, RFC 822)",
+      "dmy": "DD/MM/YYYY",
+      "mdy": "MM/DD/YYYY",
+      "epoch": "Unix seconds"
+    },
+    "ownSample": "Test with your own sample (optional)",
+    "ownPlaceholder": "Paste a few lines of the feed here",
+    "ownHint": "Leave empty to use a built-in sample of this format.",
+    "test": "Test on a sample",
+    "testing": "Testing...",
+    "limits": "Limits: {{size}} MB and {{rows}} rows per fetch.",
+    "accepted_one": "{{count}} row accepted",
+    "accepted_other": "{{count}} rows accepted",
+    "rejected_one": "{{count}} row rejected",
+    "rejected_other": "{{count}} rows rejected",
+    "truncated": "Stopped at the row limit ({{rows}}). Remaining rows would be ignored.",
+    "previewCaption": "Preview of normalised records",
+    "noRecords": "No records came out. Check the paths, column names or regex.",
+    "whyRejected": "Why rows were rejected",
+    "firstRejected": "First rejected rows (numbers): {{rows}}",
+    "showSample": "Show the sample used"
+  }
+}

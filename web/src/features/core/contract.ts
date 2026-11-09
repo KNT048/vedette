@@ -1,0 +1,203 @@
+// Hợp đồng API module core (D-18), gồm cả các endpoint nền ở src/mocks/core.ts: /me, /setup, /auth/*, /modules.
+// Kiểu UI suy ra từ schema ở đây (types.ts).
+import { z } from 'zod'
+import { defineEndpoints } from '@/lib/contract'
+
+const ts = z.iso.datetime()
+const Role = z.enum(['viewer', 'operator', 'admin'])
+const ModuleId = z.enum([
+  'core', 'feeds', 'inventory', 'notify', 'sensor-passive', 'sensor-active', 'mitigation', 'exposure', 'scan',
+  'scan-credentialed', 'honeypot', 'logs', 'agent-intake', 'ai', 'reports', 'mcp-server', 'auth-oidc', 'response',
+])
+const Ok = z.object({ ok: z.literal(true) })
+const Tier = z.enum(['core', 'standard', 'optional'])
+export const TwofaMethod = z.enum(['app', 'email']).describe('app = authenticator app (TOTP), email = 6-digit code sent to the sign-in email')
+
+// ---- nền ----
+export const Me = z.object({ id: z.string(), name: z.string(), email: z.string(), role: Role, org: z.string(), twofa: z.boolean(), twofa_method: TwofaMethod.nullable() })
+export const SetupStatus = z.object({ complete: z.boolean(), org: z.string(), data_mode: z.enum(['sample', 'clean']).describe('sample = trial build with sample data; clean = real install, every table starts empty') })
+export const LoginBody = z.object({ email: z.string(), password: z.string(), code: z.string().optional().describe('6-digit code when the account has two-step sign-in; a missing code gives 401 twofa_required with method (app|email) and, for email, sent_to (masked address) and resend_after (seconds). The email code is sent by that same call. Email channel off or unconfigured: 503 twofa_email_unavailable, never password-only') })
+export const EmailCodeSent = z.object({ sent_to: z.string().describe('Masked sign-in email, like a•••@acme.example'), resend_after: z.number().int().describe('Seconds before another code can be sent (60)') })
+export const ModuleState = z.object({ id: ModuleId, enabled: z.boolean(), tier: Tier, depends: z.array(ModuleId), enabled_at: ts.nullable() })
+export const ModulesResponse = z.object({ modules: z.array(ModuleState) })
+export const ToggleResponse = z.object({ modules: z.array(ModuleState), affected: z.array(ModuleId).describe('Enabled modules that depend on the module just turned off') })
+
+// ---- cài đặt ban đầu ----
+export const BundleId = z.enum(['smb', 'mid', 'custom'])
+export const SetupModule = z.object({ id: ModuleId, tier: Tier, depends: z.array(ModuleId) })
+export const SetupPayload = z.object({
+  sample: z.boolean().optional().describe('true = use sample data and sign in as the sample administrator; other fields are ignored'),
+  org: z.string().optional(),
+  admin: z.object({ name: z.string(), email: z.string(), password: z.string() }).optional(),
+  lan: z.array(z.string()).optional(),
+  commitment: z.boolean().optional().describe('true = the user confirms the ranges belong to their company and they may scan them actively'),
+  bundle: BundleId.optional(),
+  modules: z.array(ModuleId).optional(),
+})
+
+// ---- chung ----
+export const GeneralSettings = z.object({ name: z.string(), timezone: z.string() })
+export const AuthOptions = z.object({ oidc: z.boolean() })
+
+// ---- tài khoản ----
+export const AccountSession = z.object({ id: z.string(), device: z.string(), ip: z.string(), started_at: ts, last_seen: ts, current: z.boolean() })
+export const Account = z.object({
+  user: z.object({ id: z.string(), name: z.string(), email: z.string(), role: Role, twofa: z.boolean(), twofa_method: TwofaMethod.nullable(), created_at: ts, last_login: ts.nullable() }),
+  twofa_email: z.object({
+    available: z.boolean().describe('true only when the notify module is on and an email channel is configured and enabled'),
+    reason: z.enum(['module_off', 'channel_not_ready']).nullable().describe('Why the email method cannot be chosen, null when available'),
+    sent_to: z.string().describe('Masked sign-in email where codes would go'),
+  }),
+  sessions: z.array(AccountSession),
+})
+export const TotpStart = z.object({ secret: z.string().describe('20-byte base32 key (RFC 4648), typed by hand into the authenticator app'), otpauth: z.string().describe('URI otpauth://totp/Vedette:<email>?secret=…&issuer=Vedette&algorithm=SHA1&digits=6&period=30') })
+
+// ---- người dùng, OIDC ----
+export const AdminUser = z.object({ id: z.string(), name: z.string(), email: z.string(), role: Role, twofa: z.boolean(), twofa_method: TwofaMethod.nullable(), disabled: z.boolean(), created_at: ts, last_login: ts.nullable() })
+export const UserCreated = z.object({ user: AdminUser, temp_password: z.string().describe('Returned once only') })
+export const OidcConfig = z.object({
+  issuer: z.string(), client_id: z.string(), secret_last4: z.string().nullable(), default_role: Role,
+  role_map: z.array(z.object({ group: z.string(), role: Role })),
+})
+export const OidcSave = OidcConfig.omit({ secret_last4: true }).extend({ client_secret: z.string().describe('Empty keeps the stored secret') })
+export const OidcTest = z.object({ ok: z.literal(true), endpoints: z.record(z.string(), z.string()) })
+
+// ---- audit ----
+export const AuditRow = z.object({ id: z.string(), ts, user: z.string(), action: z.string(), target: z.string(), detail: z.string().optional() })
+export const AuditQuery = z.object({ q: z.string().optional(), user: z.string().optional(), group: z.string().optional(), from: z.string().optional(), to: z.string().optional() })
+export const AuditResult = z.object({ items: z.array(AuditRow), total: z.number(), users: z.array(z.string()), groups: z.array(z.string()) })
+
+// ---- cập nhật ----
+export const UpdateChannel = z.enum(['stable', 'beta'])
+export const UpdateComponent = z.object({ id: z.string(), kind: z.enum(['software', 'data', 'content']), version: z.string(), previous: z.string().nullable(), installed_at: ts, signature: z.enum(['valid', 'invalid', 'unsigned']) })
+export const UpdateAvailable = z.object({ component: z.string(), version: z.string(), channel: UpdateChannel, size_kb: z.number(), note: z.string() })
+export const UpdateHistory = z.object({ id: z.string(), ts, component: z.string(), from: z.string().nullable(), to: z.string(), action: z.enum(['update', 'rollback', 'bundle']), user: z.string() })
+export const Advisory = z.object({ id: z.string(), title: z.string(), severity: z.enum(['critical', 'high', 'medium']), published: z.string(), fixed_in: z.string(), summary: z.string(), status: z.enum(['affected', 'fixed']) })
+export const ManagedPackage = z.object({ id: z.string(), name: z.string(), version: z.string(), status: z.enum(['ok', 'update_pending']) })
+export const UpdatesState = z.object({
+  channel: UpdateChannel, mode: z.enum(['auto', 'manual']), check_enabled: z.boolean(), last_check: ts,
+  components: z.array(UpdateComponent), available: z.array(UpdateAvailable), history: z.array(UpdateHistory).describe('Latest 20'), advisories: z.array(Advisory),
+  managed: z.array(ManagedPackage).describe('Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)'),
+})
+
+// ---- hệ điều hành của hộp (D-53). Chạy qua trình trợ giúp đặc quyền `vedette-updater`: danh sách lệnh apt cố định, web không bao giờ chạy shell (SYS-1). ----
+const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+export const MaintenanceWindow = z.object({
+  mode: z.enum(['always', 'window']).describe('"always" = no restriction; "window" = only on the days and hours below'),
+  days: z.array(z.number().int().min(1).max(7)).describe('1 = Monday … 7 = Sunday; used only when mode is "window"'),
+  from: hhmm, to: hhmm.describe('Earlier than "from" means it crosses midnight'),
+})
+export const OsPackage = z.object({ name: z.string(), current: z.string(), new: z.string(), security: z.boolean(), cves: z.array(z.string()).describe('CVE ids fixed by the new version, where known') })
+export const OsInfo = z.object({
+  distro: z.enum(['ubuntu', 'debian']), name: z.string().describe('For example "Ubuntu 24.04.3 LTS"'), release: z.string(), kernel: z.string(),
+  support_end: z.string().describe('End of standard support, YYYY-MM-DD'), extended_end: z.string().nullable().describe('End of extended support (Debian LTS), YYYY-MM-DD'),
+  booted_at: ts, last_check: ts, mirrors: z.array(z.string()).describe('Package mirror host names the box contacts'),
+})
+export const ReleaseUpgrade = z.object({ to: z.string(), steps: z.array(z.string()) }).describe('Guidance only; Vedette never runs a release upgrade')
+export const OsState = z.object({
+  os: OsInfo, pending: z.array(OsPackage),
+  reboot_required: z.boolean(), reboot_reasons: z.array(z.string()).describe('Packages that need a reboot to take effect'), reboot_scheduled_at: ts.nullable(),
+  auto_security: z.boolean().describe('unattended-upgrades installs security updates by itself'), window: MaintenanceWindow,
+  release_upgrade: ReleaseUpgrade.nullable(), busy: z.boolean().describe('An install run is in progress; only one at a time'),
+})
+export const OsRunResult = z.object({
+  installed: z.number().int(), security: z.number().int(), backup: z.string().describe('Database backup taken before the run'),
+  health: z.array(z.object({ name: z.string(), ok: z.boolean() })).describe('Checks after the run'), reboot_required: z.boolean(),
+})
+export const OsRun = z.object({
+  id: z.string(), scope: z.enum(['security', 'all']), status: z.enum(['running', 'done']), started_at: ts, finished_at: ts.nullable(), user: z.string(),
+  lines: z.array(z.string()).describe('apt output so far'), result: OsRunResult.nullable(),
+})
+export const OsRebootBody = z.object({ when: z.enum(['now', 'window', 'custom']), at: z.string().optional().describe('Local time HH:MM, only for "custom"; must fall inside the maintenance window') })
+export const UpdateCheck = UpdatesState.extend({ applied: z.number().describe('Items installed automatically in automatic mode') })
+export const BundleUpload = z.object({ name: z.string(), size: z.number(), sha256: z.string(), content: z.string().describe('Bundle file content, base64 (UTF-8)') })
+
+// ---- quyền riêng tư ----
+export const PrivacyFlow = z.object({ id: z.number().int().min(1).max(9), state: z.enum(['on', 'off', 'conditional']), control: z.enum(['switch', 'reason']), configured: z.boolean().optional() })
+export const PrivacyState = z.object({
+  flows: z.array(PrivacyFlow).describe('Exactly the 9 flows listed in PRIVACY.md'),
+  telemetry: z.object({ enabled: z.boolean(), last_sent: ts.nullable(), payload: z.record(z.string(), z.unknown()).describe('Anonymous-signal payload verbatim, exactly what will be sent next hour') }),
+  update_check: z.boolean(),
+})
+
+// ---- MCP ----
+export const McpToken = z.object({ id: z.string(), name: z.string(), scopes: z.array(z.string()), last4: z.string(), created_at: ts, last_used: ts.nullable() })
+export const McpState = z.object({
+  enabled: z.boolean(), bind: z.string(), port: z.number(), endpoint: z.string(), tokens: z.array(McpToken),
+  tools: z.array(z.object({ name: z.string(), scope: z.string() })), scopes: z.array(z.string()),
+})
+export const McpTokenCreated = z.object({ token: z.string().describe('Returned once, at creation'), item: McpToken })
+
+const id = z.object({ id: z.string() })
+
+export const endpoints = defineEndpoints([
+  // nền
+  { method: 'get', path: '/me', summary: 'The signed-in user (401 when not signed in)', stories: ['S-CORE-3'], role: 'viewer', response: Me },
+  { method: 'get', path: '/setup', summary: 'Whether first-run setup is done', stories: ['S-CORE-1'], role: 'public', response: SetupStatus },
+  { method: 'post', path: '/auth/login', summary: 'Sign in with email and password (plus the two-step code when on; email-code users get a code sent and 401 twofa_required)', stories: ['S-CORE-3'], role: 'public', body: LoginBody, response: Ok },
+  { method: 'post', path: '/auth/login/resend-code', summary: 'Send a new two-step email code during sign-in (needs the password again; 429 resend_too_soon within 60 s, too_many_codes after 5 per hour)', stories: ['S-CORE-3'], role: 'public', body: z.object({ email: z.string(), password: z.string() }), response: EmailCodeSent },
+  { method: 'post', path: '/auth/logout', summary: 'Sign out', stories: ['S-CORE-3'], role: 'public', response: null },
+  { method: 'get', path: '/modules', summary: 'On/off state of every module', stories: ['S-CORE-1'], role: 'viewer', response: ModulesResponse },
+  { method: 'patch', path: '/modules/{id}', summary: 'Turn a module on or off; turning on with missing dependencies gives 409 missing_dependencies', stories: ['S-CORE-1'], role: 'admin',
+    params: id, body: z.object({ enabled: z.boolean(), with_dependencies: z.boolean().optional() }), response: ToggleResponse },
+  // cài đặt ban đầu
+  { method: 'get', path: '/core/setup/modules', summary: 'Modules and dependencies for the bundle step (does not reveal what is on)', stories: ['S-CORE-1'], role: 'public', response: z.object({ modules: z.array(SetupModule) }) },
+  { method: 'post', path: '/core/setup', summary: 'First-run setup: create the organization and administrator, choose a module bundle, or use sample data', stories: ['S-CORE-1'], role: 'public', body: SetupPayload, response: Ok },
+  { method: 'get', path: '/core/auth-options', summary: 'Whether the sign-in page shows the SSO button', stories: ['S-CORE-3'], role: 'public', response: AuthOptions },
+  { method: 'post', path: '/core/sso/login', summary: 'SSO sign-in (mock for the OIDC redirect round trip)', stories: ['S-CORE-3'], role: 'public', response: Ok },
+  // chung
+  { method: 'get', path: '/core/general', summary: 'Organization name and time zone', stories: ['S-CORE-1'], role: 'viewer', response: GeneralSettings },
+  { method: 'put', path: '/core/general', summary: 'Save organization name and time zone', stories: ['S-CORE-1'], role: 'admin', body: GeneralSettings, response: GeneralSettings },
+  // tài khoản
+  { method: 'get', path: '/core/account', summary: 'My profile and sign-in sessions', stories: ['S-CORE-3'], role: 'viewer', response: Account },
+  { method: 'patch', path: '/core/account', summary: 'Change display name', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ name: z.string() }), response: Ok },
+  { method: 'post', path: '/core/account/password', summary: 'Change password (needs the current password)', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ current: z.string(), next: z.string() }), response: Ok },
+  { method: 'post', path: '/core/account/2fa/start', summary: 'Authenticator app: create a TOTP key waiting for confirmation', stories: ['S-CORE-3'], role: 'viewer', response: TotpStart },
+  { method: 'post', path: '/core/account/2fa/confirm', summary: 'Authenticator app: confirm the TOTP key with a 6-digit code to turn on two-step sign-in', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ code: z.string() }), response: Ok },
+  { method: 'post', path: '/core/account/2fa/email/start', summary: 'Email code: send a 6-digit code to my own sign-in email (409 when the email channel is not ready or two-step is already on; same limits as sign-in codes)', stories: ['S-CORE-3'], role: 'viewer', response: EmailCodeSent },
+  { method: 'post', path: '/core/account/2fa/email/confirm', summary: 'Email code: enter the code to prove the mailbox works and turn on two-step sign-in (expires in 10 min, single use, 5 wrong tries cancel it)', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ code: z.string() }), response: Ok },
+  { method: 'post', path: '/core/account/2fa/disable', summary: 'Turn off two-step sign-in (needs the password)', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ password: z.string() }), response: Ok },
+  { method: 'delete', path: '/core/account/sessions/{id}', summary: 'End one of my other sessions', stories: ['S-CORE-3'], role: 'viewer', params: id, response: null },
+  { method: 'post', path: '/core/account/sessions/revoke-others', summary: 'End all my other sessions', stories: ['S-CORE-3'], role: 'viewer', response: z.object({ ok: z.literal(true), revoked: z.number() }) },
+  // người dùng, OIDC
+  { method: 'get', path: '/core/users', summary: 'List users', stories: ['S-CORE-3'], role: 'admin', response: z.object({ items: z.array(AdminUser) }) },
+  { method: 'post', path: '/core/users', summary: 'Create a user with a role; returns a temporary password once', stories: ['S-CORE-3'], role: 'admin', body: z.object({ name: z.string(), email: z.string(), role: Role }), response: UserCreated },
+  { method: 'patch', path: '/core/users/{id}', summary: 'Change role or disable/re-enable; blocks disabling yourself and removing the last administrator', stories: ['S-CORE-3'], role: 'admin',
+    params: id, body: z.object({ role: Role.optional(), disabled: z.boolean().optional() }), response: z.object({ user: AdminUser }) },
+  { method: 'post', path: '/core/users/{id}/reset-password', summary: 'Reset password: temporary password once, ends all of that user\'s sessions', stories: ['S-CORE-3'], role: 'admin', params: id, response: z.object({ temp_password: z.string() }) },
+  { method: 'post', path: '/core/users/{id}/2fa/reset', summary: 'Reset two-step sign-in for a user who lost the phone or mailbox: turns it off and writes an audit entry (an administrator cannot reset their own)', stories: ['S-CORE-3'], role: 'admin', params: id, response: Ok },
+  { method: 'get', path: '/core/oidc', summary: 'OIDC sign-in settings (secret shows only the last 4 characters)', stories: ['S-CORE-3'], role: 'admin', response: OidcConfig },
+  { method: 'put', path: '/core/oidc', summary: 'Save OIDC settings', stories: ['S-CORE-3'], role: 'admin', body: OidcSave, response: OidcConfig },
+  { method: 'post', path: '/core/oidc/test', summary: 'Try reading the IdP discovery document', stories: ['S-CORE-3'], role: 'admin', response: OidcTest },
+  // audit
+  { method: 'get', path: '/core/audit', summary: 'Audit log filtered by text, user, group and date (at most 200 rows)', stories: ['S-CORE-3'], role: 'admin', query: AuditQuery, response: AuditResult, example: { query: { group: 'core' } } },
+  { method: 'get', path: '/core/audit/export', summary: 'Export the audit log to CSV with the same filters', stories: ['S-CORE-3'], role: 'admin', query: AuditQuery, response: 'file' },
+  // cập nhật
+  { method: 'get', path: '/core/updates', summary: 'Versions, new builds, history and security advisories of Vedette', stories: ['S-CORE-2'], role: 'viewer', response: UpdatesState },
+  { method: 'patch', path: '/core/updates', summary: 'Change channel (stable/beta) and mode (automatic/manual)', stories: ['S-CORE-2'], role: 'admin', body: z.object({ channel: UpdateChannel.optional(), mode: z.enum(['auto', 'manual']).optional() }), response: UpdatesState },
+  { method: 'post', path: '/core/updates/check', summary: 'Check for updates now (409 when turned off under Privacy)', stories: ['S-CORE-2'], role: 'operator', response: UpdateCheck },
+  { method: 'post', path: '/core/updates/apply', summary: 'Install the new version of one component', stories: ['S-CORE-2'], role: 'admin', body: z.object({ component: z.string() }), response: UpdatesState },
+  { method: 'post', path: '/core/updates/rollback', summary: 'Go back to the previous version of one component', stories: ['S-CORE-2'], role: 'admin', body: z.object({ component: z.string() }), response: UpdatesState },
+  { method: 'get', path: '/core/updates/os', summary: 'Operating system of the box: release, kernel, end of support, pending packages, reboot state, maintenance window', stories: ['S-CORE-7'], role: 'viewer', response: OsState },
+  { method: 'post', path: '/core/updates/os/check', summary: 'Run the equivalent of apt update now (409 when update checks are off under Privacy)', stories: ['S-CORE-7'], role: 'operator', response: OsState },
+  { method: 'post', path: '/core/updates/os/install', summary: 'Install security updates or all updates through vedette-updater; one run at a time (409 when busy), database backup first', stories: ['S-CORE-7'], role: 'admin', body: z.object({ scope: z.enum(['security', 'all']) }), response: OsRun },
+  { method: 'get', path: '/core/updates/os/run', summary: 'The current or latest install run with its live apt output; null before the first run', stories: ['S-CORE-7'], role: 'viewer', response: OsRun.nullable() },
+  { method: 'patch', path: '/core/updates/os/settings', summary: 'Turn automatic security updates (unattended-upgrades) on/off and set the maintenance window', stories: ['S-CORE-7'], role: 'admin', body: z.object({ auto_security: z.boolean().optional(), window: MaintenanceWindow.optional() }), response: OsState },
+  { method: 'post', path: '/core/updates/os/reboot', summary: 'Reboot now, at the next maintenance window, or at a chosen time inside the window; 409 while an install runs', stories: ['S-CORE-7'], role: 'admin', body: OsRebootBody, response: OsState },
+  { method: 'delete', path: '/core/updates/os/reboot', summary: 'Cancel a scheduled reboot', stories: ['S-CORE-7'], role: 'admin', response: OsState },
+  { method: 'get', path: '/core/updates/bundle', summary: 'Export a signed offline bundle for an air-gapped box', stories: ['S-CORE-2'], role: 'operator', response: 'file' },
+  { method: 'post', path: '/core/updates/bundle', summary: 'Import an offline bundle; a bad signature is rejected', stories: ['S-CORE-2'], role: 'admin', body: BundleUpload, response: z.object({ applied: z.number(), state: UpdatesState }) },
+  // quyền riêng tư
+  { method: 'get', path: '/core/privacy', summary: 'The 9 data flows leaving the box and the verbatim anonymous-signal payload', stories: ['S-CORE-4'], role: 'viewer', response: PrivacyState },
+  { method: 'patch', path: '/core/privacy', summary: 'Turn the anonymous signal and update checks on/off', stories: ['S-CORE-4'], role: 'admin', body: z.object({ telemetry: z.boolean().optional(), update_check: z.boolean().optional() }), response: PrivacyState },
+  // MCP
+  { method: 'get', path: '/core/mcp', summary: 'MCP server state, tokens (last 4 characters only) and the read-only tool list', stories: ['S-MCP-1'], role: 'admin', response: McpState },
+  { method: 'patch', path: '/core/mcp', summary: 'Turn the MCP server on/off (binds to localhost)', stories: ['S-MCP-1'], role: 'admin', body: z.object({ enabled: z.boolean() }), response: McpState },
+  { method: 'post', path: '/core/mcp/tokens', summary: 'Create a read-only token by scope; returns the full token once', stories: ['S-MCP-1'], role: 'admin', body: z.object({ name: z.string(), scopes: z.array(z.string()) }), response: McpTokenCreated },
+  { method: 'delete', path: '/core/mcp/tokens/{id}', summary: 'Revoke an MCP token', stories: ['S-MCP-1'], role: 'admin', params: id, response: null },
+  // dữ liệu
+  { method: 'get', path: '/core/data/backup', summary: 'Download a backup (no passwords or keys)', stories: ['S-CORE-1'], role: 'admin', response: 'file' },
+  { method: 'get', path: '/core/logs/export', summary: 'Download the box logs (audit, AI activity, response, scan probes, alerts, device logs, known-bad connections, honeypot hits) as one JSON or CSV file; secrets are removed, hash-chained logs keep their hashes for offline verification; the download is audited', stories: ['S-CORE-6'], role: 'admin', query: z.object({ categories: z.string().describe('Comma list: audit, ai_activity, response, scan_probes, alerts, device_logs, known_bad, honeypot'), from: z.string().optional().describe('Start date, YYYY-MM-DD'), to: z.string().optional().describe('End date, YYYY-MM-DD'), format: z.enum(['json', 'csv']) }), response: 'file', example: { query: { categories: 'audit,ai_activity', format: 'json' } } },
+  { method: 'get', path: '/core/data/export', summary: 'Export my data as JSON', stories: ['S-CORE-1'], role: 'admin', response: 'file' },
+  { method: 'post', path: '/core/data/purge', summary: 'Delete all data back to a fresh install (type the exact organization name to confirm)', stories: ['S-CORE-1'], role: 'admin', body: z.object({ confirm: z.string() }), response: z.object({ ok: z.literal(true), removed: z.record(z.string(), z.number()) }) },
+])

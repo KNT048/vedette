@@ -1,0 +1,10 @@
+id: example            # trùng tên thư mục
+name: { vi: "Ví dụ", en: "Example" }
+summary: { vi: "Một câu nói module làm gì cho ai.", en: "" }
+tier: optional         # core | standard | optional
+depends: [core]        # module phải bật trước
+permissions: []        # net_raw | net_bind_low | pcap | exec:nmap | docker | outbound:https
+ports: []              # cổng mở khi bật, ví dụ "udp/514"
+tables_prefix: ex_
+stories: [S-XXX-1]     # bắt buộc ≥1, phải có trong docs/USER_STORIES.md
+milestone: M9

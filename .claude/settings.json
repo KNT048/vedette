@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "_comment": "Hook: chưa có. Khi thêm, MỘT script .claude/hooks/hooks.py đọc hook_event_name từ stdin, không đọc argv. Dự kiến: PreToolUse Bash chặn lệnh nguy hiểm (docker system prune, rm -rf ngoài repo, git push main); PreToolUse Write/Edit chặn ghi file secret; SessionStart nhắc GUI-first + story ID.",
+  "plansDirectory": "./docs/plans",
+  "permissions": {
+    "deny": [
+      "Bash(git push origin main*)",
+      "Bash(git push --force*)",
+      "Bash(docker system prune*)"
+    ]
+  }
+}

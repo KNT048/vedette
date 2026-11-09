@@ -1,0 +1,210 @@
+{
+  "nav": {
+    "logs": "Logs"
+  },
+  "title": "Today: {{bad}} connections to bad destinations, {{fresh}} new log types, {{spikes}} spikes.",
+  "titleQuiet": "Today: logs look normal, nothing new compared with the last 7 days.",
+  "titleLoading": "Logs",
+  "titleNoSources": "No device is sending logs to the box yet.",
+  "meta": "From {{lines}} log lines in the last 24 hours, compared with the previous {{days}} days. Updated {{time}}.",
+  "refresh": "Refresh",
+  "sources": {
+    "title": "Log sources",
+    "description": "Devices that send syslog to the box {{ip}}. The box only accepts logs from the IPs declared here.",
+    "add": "Add log source",
+    "caption": "Log sources currently received",
+    "col": {
+      "device": "Device",
+      "ip": "Sender IP",
+      "proto": "Protocol",
+      "state": "Status",
+      "last": "Last received",
+      "rate": "Lines per hour",
+      "actions": "Actions"
+    },
+    "state": {
+      "receiving": "Receiving",
+      "silent": "Silent",
+      "never": "Nothing yet"
+    },
+    "silentHint": "No new line for over 1 hour. Check the device is on, can reach the box, and no firewall blocks port {{port}}.",
+    "neverHint": "Save the settings on the device, wait 1 to 2 minutes, then press Refresh.",
+    "never": "No line yet",
+    "rate": "{{n}} lines/hour",
+    "guide": "Device setup",
+    "guideFor": "Device setup for {{name}}",
+    "edit": "Edit",
+    "editFor": "Edit {{name}}",
+    "delete": "Delete",
+    "deleteFor": "Delete {{name}}",
+    "notInInventory": "Not in the inventory",
+    "emptyTitle": "No log sources yet",
+    "emptyBody": "Add the first device or program that sends logs, such as a firewall, NAS, Windows server or web server. Vedette then shows the exact settings to enter on it.",
+    "descriptionNoIp": "Devices that send syslog to the box. The box address is not known yet: add your LAN range first (Devices, Scope and sensors)."
+  },
+  "form": {
+    "addTitle": "Add log source",
+    "editTitle": "Edit log source",
+    "addDesc": "Choose what will send logs. The next step shows the exact settings to enter on that device.",
+    "kind": "Device type",
+    "name": "Name",
+    "nameHint": "Letters without accents, digits, dashes. Example: FW-HQ.",
+    "ip": "IP of the sending device",
+    "ipHint": "The box only accepts logs from this IP. Example: 192.168.10.1.",
+    "proto": "Protocol",
+    "port": "Port the box listens on",
+    "portHint": "Usually 514, or 6514 for TLS.",
+    "submitAdd": "Add and show setup",
+    "added": "Log source added. Apply the setup on the device to start receiving.",
+    "edited": "Log source saved.",
+    "deleted": "Log source deleted.",
+    "deleteTitle": "Delete log source {{name}}?",
+    "deleteBody": "The box stops accepting logs from this IP. Logs already received are kept until the retention period ends. The device configuration is not removed.",
+    "kindSearch": "Find your device or software",
+    "kindPlaceholder": "Try FortiGate, Synology, nginx, Windows…",
+    "matches_one": "{{count}} match",
+    "matches_other": "{{count}} matches",
+    "noMatch": "Nothing matches \"{{q}}\". Try another word, or choose Other device (standard syslog).",
+    "change": "Change device type",
+    "chosen": "Device type: {{name}}",
+    "reads": "What Vedette reads"
+  },
+  "config": {
+    "title": "Set up {{name}} to send logs to the box",
+    "target": "The box receives at {{ip}}, port {{port}}/{{proto}}. It only accepts logs from {{sender}}.",
+    "verify": "After saving on the device, wait 1 to 2 minutes and press Refresh: the status changes to Receiving.",
+    "reads": "What Vedette reads from this source",
+    "steps": "Steps",
+    "notes": "Good to know",
+    "parsed": "Read and analysed",
+    "stored": "Stored only",
+    "noIp": "The box address is not known yet. Add your LAN range first (Devices, Scope and sensors). Until then the settings below show {{placeholder}} where the box address goes."
+  },
+  "digest": {
+    "bad": {
+      "title": "Connections to bad IPs or domains",
+      "description": "A device on your network connected to an address on a threat feed stored on the box. The box sees this in metadata from a SPAN or mirror port (DNS queries, TLS server names, HTTP host names, flows) or in syslog from a firewall, DNS server or proxy.",
+      "caption": "Connections to bad IPs or domains",
+      "col": {
+        "last": "When",
+        "device": "Device",
+        "dst": "Destination",
+        "via": "Seen via",
+        "feed": "Matching feeds",
+        "confidence": "Confidence"
+      },
+      "lookup": "Look up {{dst}}",
+      "empty": "No connection to bad addresses in the last 24 hours.",
+      "via": {
+        "span_dns": "SPAN: DNS query",
+        "span_sni": "SPAN: TLS server name",
+        "span_http": "SPAN: HTTP host",
+        "span_flow": "SPAN: network flow",
+        "syslog": "Syslog from {{name}}"
+      },
+      "note": "SPAN rows come from metadata only: the box keeps names, addresses and counts, never the content of traffic. Add a mirror port under Devices, Scope and sensors."
+    },
+    "new": {
+      "title": "New compared with {{days}} days ago",
+      "description": "Log types never seen before from the same source, grouped by type rather than listed line by line.",
+      "caption": "New log types",
+      "col": {
+        "signature": "Log type",
+        "source": "Source",
+        "count": "Times",
+        "first": "First seen"
+      },
+      "empty": "No new log types compared with {{days}} days ago."
+    },
+    "spikes": {
+      "title": "Spikes",
+      "description": "Log types that appear far more often than the {{days}}-day average.",
+      "caption": "Log types with a spike",
+      "col": {
+        "signature": "Log type",
+        "source": "Source",
+        "count": "Last 24 hours",
+        "baseline": "Daily average",
+        "ratio": "Increase"
+      },
+      "ratio": "{{x}} times more",
+      "empty": "No log type is unusually high."
+    },
+    "findEvents": "View log lines",
+    "sample": "Sample line: {{sample}}",
+    "none": {
+      "title": "No logs to analyse yet",
+      "body": "The digest needs a few days of logs to know what normal looks like. Add a log source, paste the configuration into the device, then come back in 1 to 2 minutes."
+    }
+  },
+  "events": {
+    "title": "Search events",
+    "description": "Search the logs stored on the box.",
+    "caption": "Log events",
+    "window": "Time range",
+    "w1h": "1 hour",
+    "w24h": "24 hours",
+    "w7d": "7 days",
+    "source": "Source",
+    "allSources": "All sources",
+    "q": "Keyword",
+    "qPlaceholder": "IP, account name, port",
+    "col": {
+      "time": "Time",
+      "source": "Source",
+      "line": "Log line"
+    },
+    "count": "{{shown}} of {{total}} matching lines.",
+    "capped": "Only the newest 200 lines are shown. Narrow the time range or add a keyword.",
+    "empty": "No matching line. Try a longer time range or remove the keyword.",
+    "emptyNone": "No log line in this range yet. If you just configured the device, wait 1 to 2 minutes and press Refresh in the Log sources section."
+  },
+  "retention": {
+    "title": "Log retention",
+    "description": "Logs past the period are deleted automatically. At the current rate, {{days}} days take about {{mb}} MB.",
+    "label": "Keep logs for",
+    "option": "{{n}} days",
+    "saved": "Log retention saved."
+  },
+  "siem": {
+    "nav": "SIEM forwarding",
+    "title": "Forward to a SIEM",
+    "description": "Vedette sends a copy of events to your SIEM (Wazuh, Graylog, Splunk, Elastic). Data only goes to the destination you enter here; switching it off stops it immediately.",
+    "enabled": "Forwarding is on",
+    "format": "Format",
+    "formats": {
+      "syslog": "Syslog",
+      "cef": "CEF",
+      "json": "JSON webhook"
+    },
+    "host": "SIEM server",
+    "hostHint": "IP or domain, for example 192.168.10.50.",
+    "port": "Port",
+    "proto": "Protocol",
+    "url": "Webhook URL",
+    "urlHint": "The box sends a POST with a JSON body to this address.",
+    "secret": "Signing key (optional)",
+    "secretHint": "Used to sign the body with HMAC-SHA256 in the X-Vedette-Signature header. At least 16 characters.",
+    "secretSaved": "Saved, ending in {{last4}}. Leave empty to keep it.",
+    "generate": "Generate random",
+    "events": "Events to forward",
+    "event": {
+      "findings": "Findings: vulnerabilities matching your devices",
+      "alerts": "Alerts sent",
+      "honeypot": "Honeypot touches",
+      "bad_conn": "Connections to bad IPs or domains"
+    },
+    "sample": "Sample of one record that will be sent",
+    "save": "Save",
+    "saved": "SIEM settings saved.",
+    "saveTest": "Save and send test",
+    "test": "Send test",
+    "testing": "Sending",
+    "testOk": "Test sent successfully.",
+    "lastOk": "Test at {{time}}: success. {{detail}}",
+    "lastFail": "Test at {{time}}: failed. {{detail}}",
+    "adminOnly": "Only administrators can change this setting.",
+    "cefHint": "CEF: 7 header fields separated by |, then key=value pairs."
+  },
+  "titleNoLogs": "No log line received yet."
+}

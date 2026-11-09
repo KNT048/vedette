@@ -1,0 +1,333 @@
+{
+  "nav": "Internal traps",
+  "titleLoading": "Internal traps",
+  "title": {
+    "noTraps": "No traps are on. Turn on at least one service to learn when something probes your network.",
+    "today_one": "{{count}} trap hit today",
+    "today_other": "{{count}} trap hits today",
+    "week_one": "Traps were hit {{count}} time in 7 days, last {{when}} from {{src}}",
+    "week_other": "Traps were hit {{count}} times in 7 days, last {{when}} from {{src}}",
+    "quiet": "No trap was hit in the last 7 days"
+  },
+  "meta": "Updated {{time}}. Traps only listen and log. They do not block or hit back.",
+  "needAdmin": "Only administrators can change the secondary IP or switch traps. Operators can still view and test traps.",
+  "conflict": {
+    "title": "Secondary IP {{ip}} clashes with a real device",
+    "body": "Device {{name}} already uses this address, so the trap cannot listen. Change the secondary IP to an unused address.",
+    "open": "Open device"
+  },
+  "decoy": {
+    "title": "Decoy machine",
+    "description": "The trap is a fake machine on {{lan}}. Nobody has a reason to connect to it, so every connection deserves a look.",
+    "ip": "Trap secondary IP",
+    "ipHint": "An unused address inside {{lan}}. Vedette rejects an address that matches a device in the inventory.",
+    "hostname": "Fake hostname",
+    "hostnameHint": "Pick a name that looks like a real server, such as FILESRV-OLD. Up to 15 characters.",
+    "saved": "Decoy saved"
+  },
+  "service": {
+    "smb": "SMB (file sharing)",
+    "rdp": "RDP (remote desktop)",
+    "ssh": "SSH",
+    "mssql": "MSSQL (SQL Server)",
+    "http": "HTTP (fake admin page)"
+  },
+  "serviceHint": {
+    "smb": "Intruders moving inside a network usually probe file shares first",
+    "rdp": "A favourite target of ransomware",
+    "ssh": "Password guessing against Linux servers and network gear",
+    "mssql": "Probing accounting and sales databases",
+    "http": "Fake login page that catches web scanners"
+  },
+  "state": {
+    "listening": "Listening",
+    "off": "Off",
+    "needIp": "Needs secondary IP",
+    "conflict": "Error: IP clashes with a device"
+  },
+  "traps": {
+    "title": "Traps by service",
+    "description": "Turn on each service so the decoy opens the matching port. Any connection to that port counts as a trap hit.",
+    "caption": "Traps and their status",
+    "col": {
+      "service": "Service",
+      "port": "Port",
+      "state": "Status",
+      "hits": "Hits in 7 days",
+      "enabled": "On",
+      "test": "Test"
+    },
+    "lastHit": "last {{when}}",
+    "needIpReason": "Set the decoy's secondary IP before turning a trap on",
+    "testOffReason": "Turn this trap on before testing",
+    "switchLabel": "Turn on {{service}} trap",
+    "testLabel": "Test trap {{service}}",
+    "test": "Test trap",
+    "enabledToast": "{{service}} trap is on",
+    "disabledToast": "{{service}} trap is off",
+    "testToast": "Recorded a test hit on the {{service}} trap",
+    "testNote": "Test a trap to confirm it records hits. The test comes from the Vedette box itself, is labelled as a test, is not counted as a hit and sends no alert.",
+    "testConflictReason": "The secondary IP clashes with a real device. Change the secondary IP before testing."
+  },
+  "exclusion": {
+    "title": "Vedette's own scanner does not count as a trap hit",
+    "description": "When Vedette scans for vulnerabilities or inventories actively, the box knocks on every port, traps included. To avoid false alarms, connections from the box are always ignored.",
+    "who": "Excluded machine",
+    "locked": "Always excluded",
+    "why": "Reason",
+    "whyBody": "This is your own scanner. Without the exclusion every scan would raise a false alert.",
+    "ignored": "Last 7 days",
+    "ignoredBody_one": "Ignored {{count}} connection from the box",
+    "ignoredBody_other": "Ignored {{count}} connections from the box"
+  },
+  "hits": {
+    "title": "Trap hits",
+    "description": "Newest first. Includes decoy connections, honey token use and port scans across the decoys. Select a time to see the hour of events around the hit.",
+    "caption": "Trap hits",
+    "filter": "Filter by service, IP or device",
+    "col": {
+      "time": "Time",
+      "service": "Service",
+      "src": "Source IP",
+      "device": "Source device",
+      "excerpt": "Session excerpt",
+      "respond": "Respond"
+    },
+    "test": "Test",
+    "deviceBox": "Vedette box (test)",
+    "deviceUnknown": "Not in inventory",
+    "emptyTitle": "No hits yet",
+    "emptyBody": "That is good news. Turn a trap on, then select Test trap to confirm it records hits.",
+    "emptyBodyOff": "No trap is on yet, so there is nothing to record. Follow the steps above, then select Test trap to see that the trap is recording.",
+    "respond": "Respond",
+    "respondLabel": "Respond to the hit from {{src}} at {{time}}",
+    "kind": {
+      "scan": "Scan",
+      "token": "Token"
+    }
+  },
+  "hit": {
+    "back": "Back to internal traps",
+    "titleTest": "Test hit on the {{service}} trap at {{time}}",
+    "facts": "What happened",
+    "service": "Service",
+    "port": "port {{port}}",
+    "trap": "Trap",
+    "srcIp": "Source IP",
+    "srcDevice": "Source device",
+    "unapproved": "Not approved",
+    "noDevice": "This IP is not in the inventory. It may be an unknown device that just joined the network.",
+    "session": "Session excerpt",
+    "sessionHint": "Content sent by the connecting machine. Treat it as untrusted data.",
+    "sessionLabel": "Recorded by the trap",
+    "events": "Events in the {{minutes}} minutes around the hit",
+    "eventsHint": "Firewall, DHCP, AD and trap events about the source machine. Rows tagged Trap come from the trap.",
+    "eventsCaption": "Events around the trap hit",
+    "col": {
+      "time": "Time",
+      "source": "Log source",
+      "text": "Event"
+    },
+    "markTrap": "Trap",
+    "next": "What to do",
+    "next1": "Ask the user of {{src}} whether they are browsing network folders or running a scanning tool.",
+    "next2": "If they do not know, unplug the machine from the network and check for unknown software and running processes.",
+    "next3": "Compare the firewall events after the hit: did this machine connect to any other server?",
+    "title_service": "{{service}} was hit at {{time}} from {{src}}",
+    "meta_service": "Trap {{ip}} recorded this hit.",
+    "title_token": "{{service}} was triggered at {{time}} from {{src}}",
+    "title_scan": "{{service}} at {{time}} from {{src}}",
+    "meta_token": "Someone used bait you planted: {{ip}}.",
+    "meta_scan": "A sweep touched the decoy IPs: {{ip}}."
+  },
+  "eventSource": {
+    "honeypot": "Trap",
+    "firewall": "Firewall",
+    "dhcp": "DHCP",
+    "ad": "Active Directory",
+    "vedette": "Vedette"
+  },
+  "kind": {
+    "pc": "Computer",
+    "unknown": "Unknown device",
+    "server": "Server",
+    "printer": "Printer",
+    "camera": "Camera",
+    "nas": "NAS",
+    "iot": "IoT",
+    "firewall": "Firewall",
+    "router": "Router",
+    "switch": "Switch",
+    "ap": "Wi-Fi access point",
+    "nvr": "Camera recorder",
+    "web": "Web service"
+  },
+  "device": {
+    "title": "Internal trap hits",
+    "description": "Times this device connected to a trap. A normal machine has no reason to.",
+    "none": "This device has not hit any trap.",
+    "item": "{{service}} at {{time}}"
+  },
+  "start": {
+    "title": "Get started with internal traps in three steps",
+    "step1": "Give the decoy machine a secondary IP: an address in {{lan}} that no device uses, plus a decoy name, then select Save.",
+    "step2": "Turn on each trap service in the table below.",
+    "step3": "Select Test trap to make sure the trap is recording. From then on every connection to the decoy shows up here."
+  },
+  "lanUnknown": "your LAN (add it first under Devices, Scope and sensors)",
+  "personality": {
+    "title": "Decoy personalities",
+    "description": "Choose what each trap looks like to someone scanning the network. A decoy that matches a device you really have blends in. These decoys are in addition to the decoy machine above.",
+    "suggestTitle": "Suggested from your inventory",
+    "suggestItem_one": "You have {{count}} {{type}} ({{names}}), so an attacker expects to find one.",
+    "suggestItem_other": "You have {{count}} {{type}} devices ({{names}}), so an attacker expects to find them.",
+    "useType": "Use {{type}}",
+    "type": {
+      "windows_fs": "Windows file server",
+      "nas": "Synology or QNAP NAS",
+      "printer": "Office printer",
+      "camera": "IP camera",
+      "linux": "Linux server"
+    },
+    "form": {
+      "type": "Looks like",
+      "typeHint": "Opens: {{services}}",
+      "name": "Decoy name",
+      "nameHint": "Up to 15 characters, for example {{example}}.",
+      "ip": "Spare IP",
+      "ipHint": "Unused in the inventory: {{ips}}",
+      "ipHintNone": "An unused address in your LAN.",
+      "add": "Add decoy"
+    },
+    "added": "Decoy added",
+    "listLabel": "Decoys",
+    "none": "No extra decoys yet. Add one on a spare IP. Several decoys on different IPs also let Vedette spot a scan.",
+    "switchLabel": "Turn on decoy {{name}}",
+    "deleteLabel": "Delete decoy {{name}}",
+    "deleted": "Decoy {{name}} deleted",
+    "scan": {
+      "title": "Scan detection",
+      "body": "A device that touches two or more decoy IPs, or many ports on one decoy, within a minute raises one high-confidence alert that names the source device. Normal machines have no reason to do this.",
+      "last": "Last scan alert {{when}} from {{src}}.",
+      "never": "No scan has been seen.",
+      "test": "Test scan",
+      "testToast": "Recorded a test scan alert",
+      "needDecoys": "Add a decoy first. Detection needs at least two decoy IPs."
+    }
+  },
+  "token": {
+    "title": "Honey tokens",
+    "description": "Bait you plant on real systems. Nobody has a reason to use it, so any use is an alert that names where it came from. Plant a few in places an intruder would look.",
+    "type": {
+      "file": "Decoy file",
+      "credential": "Fake credentials",
+      "url": "URL token",
+      "dns": "DNS token"
+    },
+    "what": {
+      "file": "A .docx or .xlsx for a file share. It calls home when opened.",
+      "credential": "A user and password for a password manager or a script. Any login attempt with them alerts.",
+      "url": "A web link. Opening it alerts.",
+      "dns": "A hostname. Resolving it alerts."
+    },
+    "form": {
+      "type": "Token type",
+      "ext": "File type",
+      "plant": "Where will you plant it?",
+      "create": "Create token",
+      "name": {
+        "file": "File name",
+        "credential": "User name",
+        "url": "Label",
+        "dns": "Label"
+      },
+      "nameHint": {
+        "file": "Looks tempting: Payroll-2026-Q4, Passwords-IT.",
+        "credential": "Looks like an old service account: svc-backup-old.",
+        "url": "Names this token in alerts, for example Wiki admin link.",
+        "dns": "Names this token in alerts, for example Backup script host."
+      },
+      "plantHint": {
+        "file": "For example \\\\SRV-FILE\\HR",
+        "credential": "For example the IT password manager",
+        "url": "For example an intranet wiki page",
+        "dns": "For example a backup script config"
+      }
+    },
+    "created": "Token created",
+    "emptyTitle": "No honey tokens yet",
+    "emptyBody": "Create one above, then plant it where an intruder would look first.",
+    "listLabel": "Honey tokens",
+    "plantedAt": "Plant at: {{where}}",
+    "lastTriggered_one": "Last triggered {{when}} ({{count}} real trigger)",
+    "lastTriggered_other": "Last triggered {{when}} ({{count}} real triggers)",
+    "never": "Never triggered",
+    "test": "Test token",
+    "testLabel": "Test token {{name}}",
+    "testToast": "Recorded a test trigger for {{name}}",
+    "deleteLabel": "Delete token {{name}}",
+    "deleted": "Token {{name}} deleted",
+    "valueLabel": {
+      "file": "File name",
+      "credential": "Credentials to plant",
+      "url": "URL to plant",
+      "dns": "Hostname to plant"
+    },
+    "triggerLabel": "Triggers when:",
+    "howLabel": "How to plant:",
+    "trigger": {
+      "file": "someone opens the file in Word or Excel and it loads a hidden image from the box.",
+      "credential": "anyone tries to sign in with this user name, from any machine.",
+      "url": "anyone opens the link in a browser or a link scanner fetches it.",
+      "dns": "any machine looks the name up, for example a script or a malware config using it."
+    },
+    "how": {
+      "file": "Download {{value}} from this page and copy it to the share. In this preview there is no download: the real box generates the file with its call-home address inside, and you copy it to the share like any other document.",
+      "credential": "Save the user and password as an entry in a password manager or a script config. Do not create the account in Active Directory: the box alerts on the failed login.",
+      "url": "Paste the link into a wiki page, a document or a note where an intruder reads about admin systems.",
+      "dns": "Use {{value}} as a server name in a config or script. Forward the vedette.internal zone to the box in your DNS server so lookups reach it."
+    }
+  },
+  "coverage": {
+    "title": "Is this enough?",
+    "description": "A guide to which common attacker moves traps and tokens can see. It is not a score.",
+    "listLabel": "Coverage by attacker move",
+    "level": {
+      "covered": "Covered",
+      "partial": "Partly",
+      "none": "Not covered"
+    },
+    "openLogs": "Open Logs",
+    "row": {
+      "lateral": {
+        "move": "Moving sideways to file shares",
+        "how": "SMB decoys and decoy files on shares catch someone browsing for data."
+      },
+      "credentials": {
+        "move": "Using stolen or guessed credentials",
+        "how": "Fake credentials alert on any login attempt. Real accounts that were stolen are not seen."
+      },
+      "scanning": {
+        "move": "Scanning the network for targets",
+        "how": "A sweep across the decoy IPs raises one alert that names the source."
+      },
+      "documents": {
+        "move": "Opening or following bait",
+        "how": "Decoy files, URL tokens and DNS tokens alert when touched."
+      },
+      "outbound": {
+        "move": "Talking to known-bad addresses",
+        "how": "Not a trap job: the Logs page matches SPAN metadata and syslog against the threat lists."
+      },
+      "endpoint": {
+        "move": "Malware or tools running on a computer",
+        "how": "Traps do not watch what happens on endpoints. Use endpoint protection for that."
+      },
+      "email": {
+        "move": "Phishing and mailbox takeover",
+        "how": "Traps and tokens do not see email. Use your mail provider's protection."
+      }
+    },
+    "note": "Traps catch an intruder who is already inside and touches something. They do not stop a break-in. More varied bait in more places gives better odds."
+  }
+}

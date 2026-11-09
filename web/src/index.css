@@ -1,0 +1,84 @@
+@import "tailwindcss";
+@import "@fontsource/be-vietnam-pro/400.css";
+@import "@fontsource/be-vietnam-pro/500.css";
+@import "@fontsource/be-vietnam-pro/600.css";
+@import "@fontsource/jetbrains-mono/400.css";
+
+/* Design tokens — docs/FRONTEND.md §3. Một màu nhấn (xanh lục đậm), bốn màu trạng thái nghĩa cố định, luôn kèm chữ. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  --paper: #f8f9f7; --surface: #ffffff; --sunken: #f1f3f0;
+  --ink: #18211d; --muted: #56615c; --rule: #dfe3df;
+  --accent: #1d5a45; --accent-ink: #ffffff; --accent-soft: #e3eee8;
+  --danger: #b42318; --danger-soft: #fbeae8;
+  --warn: #9a5b06; --warn-soft: #fbf1df;
+  --ok: #3b6b1e; --ok-soft: #ebf3e3;
+  --off: #5a635f; --off-soft: #edf0ee;
+  --focus: #1d5a45;
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --paper: #11181b; --surface: #172125; --sunken: #0d1416;
+  --ink: #e3eae7; --muted: #9aa7a2; --rule: #263338;
+  --accent: #6bbe9c; --accent-ink: #0b1712; --accent-soft: #1b3027;
+  --danger: #f2857a; --danger-soft: #3b1d1a;
+  --warn: #e7a748; --warn-soft: #382a16;
+  --ok: #97c977; --ok-soft: #213019;
+  --off: #8e9893; --off-soft: #1f2a2e;
+  --focus: #6bbe9c;
+  color-scheme: dark;
+}
+/* Trước khi JS chạy (hoặc khi chọn "Theo hệ thống"): theo cài đặt máy, tránh nháy nền sáng. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  --paper: #11181b; --surface: #172125; --sunken: #0d1416;
+  --ink: #e3eae7; --muted: #9aa7a2; --rule: #263338;
+  --accent: #6bbe9c; --accent-ink: #0b1712; --accent-soft: #1b3027;
+  --danger: #f2857a; --danger-soft: #3b1d1a;
+  --warn: #e7a748; --warn-soft: #382a16;
+  --ok: #97c977; --ok-soft: #213019;
+  --off: #8e9893; --off-soft: #1f2a2e;
+  --focus: #6bbe9c;
+  color-scheme: dark;
+}
+}
+
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-rule: var(--rule);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-off: var(--off);
+  --color-off-soft: var(--off-soft);
+  --color-focus: var(--focus);
+  --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  ::selection { background: var(--accent-soft); }
+  table { font-variant-numeric: tabular-nums; }
+  a { color: inherit; text-underline-offset: 3px; }
+  /* Link nằm trong đoạn văn/ô bảng phải nhận ra được không chỉ nhờ màu (WCAG 1.4.1). */
+  :where(p, li, dd, td, label) a[href] { text-decoration-line: underline; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}

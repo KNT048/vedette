@@ -1,0 +1,120 @@
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+import { Plus } from 'lucide-react'
+import { PageHeader, Section, KeyValue } from '@/components/common/PageHeader'
+import { DataTable, type ColumnDef } from '@/components/common/DataTable'
+import { CodeBlock } from '@/components/common/CodeBlock'
+import { Chip } from '@/components/common/StatusChip'
+import { QueryState } from '@/components/common/States'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
+import { Field, Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { fmtDateTime, fmtRelative } from '@/lib/format'
+import { useMcp, useMcpMutations } from './api'
+import { errMsg, useGate } from './parts'
+import type { McpState, McpToken } from './types'
+
+function Body({ s }: { s: McpState }) {
+  const { t } = useTranslation('core')
+  const gate = useGate('admin')
+  const m = useMcpMutations()
+  const [name, setName] = useState('')
+  const [scopes, setScopes] = useState<string[]>(['assets', 'findings', 'feeds'])
+  const [formErr, setFormErr] = useState<string | null>(null)
+  const [created, setCreated] = useState<{ token: string; name: string } | null>(null)
+
+  async function toggle(v: boolean) {
+    try { await m.toggle.mutateAsync(v); toast.success(v ? t('mcp.enabledToast') : t('mcp.disabledToast')) } catch (e) { toast.error(errMsg(e, t)) }
+  }
+  async function create(e: React.FormEvent) {
+    e.preventDefault()
+    setFormErr(null)
+    if (!name.trim()) { setFormErr(t('mcp.token.nameError')); return }
+    if (!scopes.length) { setFormErr(t('mcp.token.scopeError')); return }
+    try { const r = await m.create.mutateAsync({ name: name.trim(), scopes }); setName(''); setCreated({ token: r.token, name: r.item.name }) } catch (err) { setFormErr(errMsg(err, t)) }
+  }
+  async function revoke(tk: McpToken) {
+    try { await m.revoke.mutateAsync(tk.id); toast.success(t('mcp.token.revoked', { name: tk.name })) } catch (e) { toast.error(errMsg(e, t)) }
+  }
+
+  const tokenCols: ColumnDef<McpToken>[] = [
+    { id: 'name', header: t('mcp.token.col.name'), accessorFn: (x) => x.name, cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
+    { id: 'scopes', header: t('mcp.token.col.scopes'), accessorFn: (x) => x.scopes.join(','), cell: ({ row }) => row.original.scopes.map((x) => t(`mcp.scope.${x}`)).join(', ') },
+    { id: 'last4', header: t('mcp.token.col.last4'), accessorFn: (x) => x.last4, cell: ({ row }) => <span className="font-mono text-[12.5px]">…{row.original.last4}</span> },
+    { id: 'created', header: t('mcp.token.col.created'), accessorFn: (x) => x.created_at, cell: ({ row }) => fmtDateTime(row.original.created_at) },
+    { id: 'used', header: t('mcp.token.col.used'), accessorFn: (x) => x.last_used ?? '', cell: ({ row }) => (row.original.last_used ? fmtRelative(row.original.last_used) : t('mcp.token.never')) },
+    { id: 'rev', header: t('mcp.token.col.revoke'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => <Button size="sm" variant="danger" aria-label={t('mcp.token.revokeOf', { name: row.original.name })} disabled={m.revoke.isPending} onClick={() => void revoke(row.original)}>{t('mcp.token.revoke')}</Button> },
+  ]
+  const toolCols: ColumnDef<{ name: string; scope: string }>[] = [
+    { id: 'name', header: t('mcp.tools.col.name'), accessorFn: (x) => x.name, cell: ({ row }) => <span className="font-mono text-[12.5px]">{row.original.name}</span> },
+    { id: 'what', header: t('mcp.tools.col.what'), accessorFn: (x) => x.name, cell: ({ row }) => t(`mcp.tools.${row.original.name}`) },
+    { id: 'scope', header: t('mcp.tools.col.scope'), accessorFn: (x) => x.scope, cell: ({ row }) => t(`mcp.scope.${row.original.scope}`) },
+  ]
+
+  return (
+    <>
+      <div className="mb-6 flex flex-wrap items-center gap-3 rounded-md border border-rule bg-surface px-4 py-3">
+        <Switch id="mcp-switch" checked={s.enabled} disabled={gate.disabled || m.toggle.isPending} title={gate.title} aria-label={t('mcp.switch')} onCheckedChange={(v) => void toggle(v)} />
+        <label htmlFor="mcp-switch" className="text-sm font-medium">{t('mcp.switch')}</label>
+        {s.enabled ? <Chip tone="ok">{t('mcp.readOnly')}</Chip> : null}
+        <span className="text-[13px] text-muted">{s.enabled ? t('mcp.onHint') : t('mcp.offHint')}</span>
+      </div>
+
+      {s.enabled ? (
+        <>
+          <Section title={t('mcp.connect')} description={t('mcp.connectDesc')}>
+            <KeyValue items={[
+              { label: t('mcp.bind'), value: <span><span className="font-mono text-[12.5px]">{s.bind}:{s.port}</span> {t('mcp.bindNote')}</span> },
+              { label: t('mcp.endpoint'), value: <span className="font-mono text-[12.5px]">{s.endpoint}</span> },
+            ]} />
+            <div className="mt-3"><CodeBlock label={t('mcp.clientConfig')} code={JSON.stringify({ mcpServers: { vedette: { type: 'http', url: s.endpoint, headers: { Authorization: 'Bearer <token>' } } } }, null, 2)} /></div>
+            <p className="mt-2 text-[13px] text-muted">{t('mcp.remote')}</p>
+            <p className="mt-1 text-[13px] text-muted">{t('mcp.verify')}</p>
+          </Section>
+
+          <Section title={t('mcp.token.title')} description={t('mcp.token.desc')}>
+            <form onSubmit={(e) => void create(e)} className="mb-4 grid max-w-xl gap-3" noValidate>
+              <Field label={t('mcp.token.name')} hint={t('mcp.token.nameHint')} htmlFor="mcp-name" error={formErr ?? undefined}><Input id="mcp-name" value={name} disabled={gate.disabled} aria-invalid={!!formErr} onChange={(e) => setName(e.target.value)} /></Field>
+              <fieldset className="grid gap-2">
+                <legend className="text-sm font-medium">{t('mcp.token.scopes')}</legend>
+                {s.scopes.map((sc) => (
+                  <div key={sc} className="flex items-center gap-2">
+                    <Checkbox id={`sc-${sc}`} checked={scopes.includes(sc)} disabled={gate.disabled} onCheckedChange={(v) => setScopes(v === true ? [...scopes, sc] : scopes.filter((x) => x !== sc))} />
+                    <label htmlFor={`sc-${sc}`} className="text-sm">{t(`mcp.scope.${sc}`)}</label>
+                  </div>
+                ))}
+              </fieldset>
+              <div><Button type="submit" variant="primary" disabled={gate.disabled || m.create.isPending} title={gate.title}><Plus />{t('mcp.token.create')}</Button></div>
+            </form>
+            <DataTable data={s.tokens} columns={tokenCols} caption={t('mcp.token.title')} empty={t('mcp.token.empty')} />
+          </Section>
+
+          <Section title={t('mcp.tools.title')} description={t('mcp.tools.desc')}>
+            <DataTable data={s.tools} columns={toolCols} caption={t('mcp.tools.title')} />
+          </Section>
+        </>
+      ) : null}
+
+      <Dialog open={!!created} onOpenChange={(o) => !o && setCreated(null)}>
+        <DialogContent title={t('mcp.token.createdTitle', { name: created?.name ?? '' })} description={t('mcp.token.createdBody')}>
+          {created ? <CodeBlock label={t('mcp.token.label')} code={created.token} /> : null}
+          <DialogFooter><Button variant="primary" onClick={() => setCreated(null)}>{t('mcp.token.done')}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+export default function McpSection() {
+  const { t } = useTranslation('core')
+  const q = useMcp()
+  return (
+    <>
+      <PageHeader title={q.data ? (q.data.enabled ? t('mcp.titleOn', { count: q.data.tokens.length }) : t('mcp.titleOff')) : t('settings.mcp')} meta={t('mcp.meta')} stories={['S-MCP-1']} />
+      <QueryState query={q}>{(s) => <Body s={s} />}</QueryState>
+    </>
+  )
+}

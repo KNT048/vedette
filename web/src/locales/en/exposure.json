@@ -1,0 +1,258 @@
+{
+  "nav": "External exposure",
+  "titleLoading": "External exposure",
+  "title": {
+    "none": "No domain or verified public IP yet",
+    "pending_one": "{{count}} item cannot be scanned yet: it needs ownership proof or your confirmation",
+    "pending_other": "{{count}} items cannot be scanned yet: they need ownership proof or your confirmation",
+    "admin_one": "{{count}} admin interface is exposed to the Internet",
+    "admin_other": "{{count}} admin interfaces are exposed to the Internet",
+    "clean": "No admin interface is exposed to the Internet",
+    "ready_one": "{{count}} target is verified and confirmed, ready for the first scan",
+    "ready_other": "{{count}} targets are verified and confirmed, ready for the first scan",
+    "cleanPartial_one": "No exposed admin interface in the targets scanned so far. {{count}} target cannot be scanned yet",
+    "cleanPartial_other": "No exposed admin interface in the targets scanned so far. {{count}} targets cannot be scanned yet"
+  },
+  "meta": {
+    "certs_one": "{{count}} certificate is about to expire.",
+    "certs_other": "{{count}} certificates are about to expire.",
+    "rule": "Only what you have proven you own and confirmed is scanned."
+  },
+  "rule": "Scanning your external surface is active scanning, so Vedette sets two conditions. First, you prove ownership: a domain with a DNS TXT record (re-checked right before every scan), a public IP only when this box itself reaches the Internet through it (valid for 90 days). Second, you confirm that your company owns it and you are authorized to scan it. Without both, the scan button stays locked. Every verification and scan is written to the audit log.",
+  "kind": {
+    "domain": "Domain",
+    "ip": "Public IP (this box)"
+  },
+  "status": {
+    "verified": "Ownership verified",
+    "unverified": "Awaiting ownership proof",
+    "expired": "Verification expired",
+    "expiresIn_one": "Expires in {{count}} day",
+    "expiresIn_other": "Expires in {{count}} days",
+    "commitYes": "Commitment confirmed",
+    "commitNo": "Not confirmed yet"
+  },
+  "blocked": {
+    "unverified": "Needs ownership proof",
+    "expired": "Verification expired",
+    "txt_missing": "TXT record missing",
+    "no_commitment": "Needs your confirmation",
+    "reasonLong": {
+      "unverified": "Cannot scan yet: {{value}} has no ownership proof. Do step 1 below first.",
+      "expired": "Cannot scan yet: the verification of {{value}} has expired. Verify it again in step 1 below.",
+      "txt_missing": "Cannot scan yet: Vedette no longer finds the DNS TXT record on {{value}}. Add it back in step 1 below, then check again.",
+      "no_commitment": "Cannot scan yet: you have not confirmed that your company owns {{value}} and you are authorized to scan it. Do step 2 below first."
+    }
+  },
+  "targets": {
+    "title": "Domains and public IPs",
+    "description": "Select a name to verify it, confirm your authorization and read scan results.",
+    "caption": "Declared domains and verified public IPs",
+    "col": {
+      "target": "Target",
+      "owner": "Ownership",
+      "commit": "Commitment",
+      "scan": "Scan",
+      "latest": "Latest result"
+    },
+    "neverScanned": "Never scanned",
+    "ready": "Ready to scan",
+    "latest": "{{admin}} admin interfaces, {{ports}} open ports, {{certs}} certificates expiring",
+    "noResult": "No result yet",
+    "emptyTitle": "No domain or public IP yet",
+    "emptyBody": "Select Add domain and follow the DNS TXT steps, or select Verify this box's public IP. Then confirm your authorization and scan."
+  },
+  "add": {
+    "button": "Add domain",
+    "title": "Add a domain",
+    "description": "Only enter a domain your company owns. After adding it you will prove ownership with a DNS TXT record and confirm your authorization before any scan.",
+    "label": "Domain",
+    "hint": "For example example.com. Do not type http:// or a path. Public IPs cannot be typed in: use Verify this box's public IP.",
+    "empty": "Enter a domain, for example example.com.",
+    "submit": "Add",
+    "toast": "Added {{value}}. Next step: verify ownership."
+  },
+  "target": {
+    "back": "Back to external exposure",
+    "title": {
+      "unverified": "{{value}} cannot be scanned yet: awaiting ownership proof",
+      "expired": "{{value}} cannot be scanned yet: verification expired",
+      "txt_missing": "{{value}} cannot be scanned yet: DNS TXT record missing",
+      "no_commitment": "{{value}} cannot be scanned yet: needs your confirmation",
+      "result": "{{value}}: {{subs}} subdomain(s), {{admin}} admin interface(s) exposed to the Internet",
+      "resultIp": "{{value}}: {{ports}} open port(s), {{admin}} admin interface(s) exposed to the Internet",
+      "ready": "{{value}} is ready for its first scan"
+    },
+    "lastScan": "Last scanned {{time}}",
+    "viewOnly": "You have view-only access. Scanning and re-checking ownership need the operator role; confirming authorization and deleting need admin."
+  },
+  "scan": {
+    "button": "Scan now",
+    "running": "Scanning",
+    "done": "Scan finished: {{ports}} open port(s), {{admin}} admin interface(s) exposed",
+    "safe": "Non-intrusive scan: no exploitation, no disruption. Aimed only at this target."
+  },
+  "step": {
+    "verify": "Step 1. Verify ownership",
+    "verifyHintDomain": "Prove the domain is yours with a DNS TXT record, so nobody can enter someone else's domain.",
+    "verifyHintIp": "This IP is verified because this box reaches the Internet through it. Verification lasts 90 days.",
+    "commit": "Step 2. Confirm your authorization",
+    "commitHint": "One confirmation per target. Vedette records who confirmed it and when."
+  },
+  "verify": {
+    "okToast": "Verified {{value}}",
+    "failToast": "Not verified yet. The reason is shown just below the button.",
+    "checking": "Checking",
+    "recheck": "Check",
+    "checkAgain": "Check again",
+    "recheckHint": "Select it after you have saved the record at your DNS provider.",
+    "dnsIntro": "Add a TXT record to the DNS of {{value}}. Do it where you manage the domain (your registrar, Cloudflare, or whoever hosts your DNS).",
+    "dns": {
+      "type": "Record type",
+      "name": "Name (host)",
+      "nameValue": "@ (or {{value}})",
+      "ttl": "TTL",
+      "ttlValue": "300 seconds or the lowest allowed",
+      "valueLabel": "TXT record value"
+    },
+    "dnsHint": "This record only proves you control the DNS. It gives Vedette no other access. Paste the value without quotes. If your DNS provider appends the domain to the Name field automatically, type just @. DNS usually updates within minutes, can take up to 72 hours (as in Google domain verification guidance). Keep the record until Vedette confirms verification; you can delete it afterwards.",
+    "doneDomain": "Verified with a DNS TXT record on {{time}}. Vedette re-checks the record right before every scan.",
+    "keepRecord": "Keep the TXT record in DNS: if it disappears, scanning is blocked until you add it back.",
+    "txtMissing": "Vedette could not find the TXT record at the last check, so scanning is blocked. Add the record back, then select Check again.",
+    "ipIntro": "This IP was verified because the box reaches the Internet through it.",
+    "ipStatus": "Status",
+    "valid": "Valid",
+    "verifiedOn": "Last verified",
+    "expiresOn": "Expires on",
+    "ipExpired": "Verification expired, so this IP cannot be scanned. Route the box through this IP again (for example switch WAN), then verify again.",
+    "ipRecheck": "Verify again",
+    "ipRecheckHint": "Works only while this box currently reaches the Internet through {{value}}. With several public IPs, route the box through this one first.",
+    "found": "Found",
+    "notFound": "Not found",
+    "checkedAt": "Checked {{time}}",
+    "passed": "Verified",
+    "failed": "Not verified"
+  },
+  "results": {
+    "title": "Scan results",
+    "description": "Each scan creates a snapshot for that day. Pick a day to read it, or compare two days further down.",
+    "emptyTitle": "No scan results yet",
+    "emptyBody": "Finish the two steps above, then select Scan now. The first result shows up here.",
+    "pick": "Snapshot of",
+    "sourceNote": "The Vedette box scans from outside into your public addresses."
+  },
+  "count": {
+    "subdomains": "Subdomains",
+    "ips": "IP addresses",
+    "ports": "Open ports",
+    "admin": "Admin interfaces exposed",
+    "certs": "Certificates expiring"
+  },
+  "col": {
+    "name": "Name",
+    "ip": "IP",
+    "port": "Port",
+    "service": "Service",
+    "product": "Software",
+    "url": "Address",
+    "risk": "Level",
+    "issuer": "Issuer",
+    "expires": "Expires",
+    "left": "Remaining"
+  },
+  "hosts": {
+    "title": "Subdomains",
+    "description": "Names under the domain that Vedette found pointing at an address.",
+    "caption": "Subdomains found",
+    "empty": "No subdomain found."
+  },
+  "ports": {
+    "title": "Open ports",
+    "description": "Which services answer from the Internet. Close unneeded ports at the firewall.",
+    "caption": "Ports open to the Internet",
+    "empty": "No open ports.",
+    "filter": "Filter by IP, port or service"
+  },
+  "admin": {
+    "title": "Admin interfaces exposed to the Internet",
+    "description": "Admin login pages that anyone on the Internet can open. Attackers probe exactly these pages.",
+    "caption": "Admin interfaces exposed to the Internet",
+    "emptyTitle": "No admin interface is exposed",
+    "emptyBody": "Good. Scan again regularly to learn when a new page appears.",
+    "risk": {
+      "danger": "Close now",
+      "warn": "Restrict by IP"
+    }
+  },
+  "cert": {
+    "title": "Certificates about to expire",
+    "description": "An expired certificate shows visitors a red warning and can stop a service. Under {{days}} days are flagged.",
+    "caption": "Certificates by expiry date",
+    "empty": "No certificate found.",
+    "expired": "Expired",
+    "left_one": "{{count}} day left",
+    "left_other": "{{count}} days left"
+  },
+  "diff": {
+    "title": "Compare two days",
+    "description": "See what newly appeared and what disappeared between two scans.",
+    "needTwoTitle": "At least two scan days are needed to compare",
+    "needTwoBody": "Scan again on another day, then come back here.",
+    "from": "From date",
+    "to": "To date",
+    "sameDate": "Choose two different days.",
+    "summary": "From {{from}} to {{to}}: {{added}} added, {{removed}} gone, {{changed}} changed.",
+    "caption": "Changes between two scan days",
+    "none": "Nothing changed between these two days.",
+    "change": {
+      "added": "Added",
+      "removed": "Gone",
+      "changed": "Changed"
+    },
+    "kind": {
+      "subdomain": "Subdomain",
+      "port": "Open port",
+      "admin": "Admin interface",
+      "cert": "Certificate"
+    },
+    "col": {
+      "change": "Change",
+      "kind": "Type",
+      "item": "Item",
+      "detail": "Detail"
+    },
+    "certChanged": "Expiry changed from {{from}} to {{to}}"
+  },
+  "delete": {
+    "button": "Delete target",
+    "title": "Delete {{value}}?",
+    "body": "The snapshots and your confirmation for this target are removed from the box. The audit log is kept. This cannot be undone.",
+    "confirm": "Delete",
+    "toast": "Deleted {{value}}"
+  },
+  "boxIp": {
+    "button": "Verify this box's public IP",
+    "title": "Verify this box's public IP",
+    "description": "Vedette verifies a public IP only when this box itself reaches the Internet through it.",
+    "how": "The box connects to a fixed endpoint over TLS (Cloudflare /cdn-cgi/trace) and reads the IP address it uses to reach the Internet.",
+    "result": "That IP is added as verified for 90 days. Verify it again before it expires.",
+    "why": "You cannot type an IP. Only an address the box really uses proves it belongs to your network, so nobody can verify someone else's address.",
+    "refuse": "Private, reserved and shared carrier (CGNAT, 100.64.0.0/10) addresses are refused, because scanning them could hit other people.",
+    "limit": "At most 10 verification attempts per hour, and every attempt is written to the audit log.",
+    "multi": "Several public IPs? Route the box through each one in turn (for example switch WAN) and verify each.",
+    "submit": "Detect and verify",
+    "running": "Detecting",
+    "toast": "Verified {{ip}} until {{date}}."
+  },
+  "commit": {
+    "waitVerify": "Finish step 1 first. You can confirm only after ownership is verified.",
+    "intro": "Before the first scan of {{value}}, confirm that you may scan it.",
+    "checkbox": "I confirm my company owns this domain/IP and I am authorized to scan it.",
+    "asIs": "Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.",
+    "err": "Tick the box to confirm.",
+    "save": "Confirm and allow scanning",
+    "savedToast": "Confirmed. You can scan now.",
+    "doneBody": "Confirmed by {{user}} on {{time}}.",
+    "needAdmin": "Only administrators can confirm."
+  }
+}

@@ -1,0 +1,730 @@
+{
+ "generated_at": "2026-11-06T07:17:12.891Z",
+ "kev_catalog_version": "2026.11.04",
+ "sources": [
+  {
+   "name": "CISA KEV",
+   "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+   "license": "CC0",
+   "fetched_at": "2026-11-06T07:17:12.891Z"
+  },
+  {
+   "name": "FIRST EPSS",
+   "url": "https://api.first.org/data/v1/epss",
+   "license": "ghi nguồn: EPSS by FIRST",
+   "fetched_at": "2026-11-06T07:17:12.891Z"
+  },
+  {
+   "name": "nuclei-templates",
+   "url": "https://raw.githubusercontent.com/projectdiscovery/nuclei-templates/main/cves.json",
+   "license": "MIT",
+   "fetched_at": "2026-11-06T07:17:12.891Z"
+  }
+ ],
+ "vulns": [
+  {
+   "cve": "CVE-2024-27834",
+   "vendor": "Apple",
+   "product": "Multiple Products",
+   "name": "Apple Multiple Products Improper Authentication Vulnerability",
+   "description": "Apple iOS, iPadOS, macOS, Safari, tvOS and watchOS 10.5 contain an improper authentication vulnerability which could allow an attacker with arbitrary read and write capability to bypass pointer authentication.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://support.apple.com/en-us/120896",
+    "https://support.apple.com/en-us/120898",
+    "https://support.apple.com/en-us/120901",
+    "https://support.apple.com/en-us/120902",
+    "https://support.apple.com/en-us/120903"
+   ],
+   "date_added": "2026-11-04",
+   "due_date": "2026-11-18",
+   "ransomware": false,
+   "epss": 0.01414,
+   "epss_7d_ago": 0.00598,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2026-119977",
+   "vendor": "WordPress",
+   "product": "WordPress Core",
+   "name": "WordPress WordPress Core Time-of-check Time-of-use (TOCTOU) Race Condition Vulnerability",
+   "description": "WordPress WordPress Core contains a time-of-check time-of-use (TOCTOU) race condition vulnerability that could allow unauthenticated attackers to execute code on the server during the upgrade window. This is due to predictable, web-accessible staging paths used during full-package core upgrades.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://wordpress.org/news/2026/10/wordpress-7-1-4",
+    "https://www.wordfence.com/threat-intel/vulnerabilities/wordpress-core/wordpress-core-470-713-unauthenticated-upgrade-window-staged-installer-remote-code-execution",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-119977"
+   ],
+   "date_added": "2026-11-03",
+   "due_date": "2026-11-06",
+   "ransomware": false,
+   "epss": 0.01157,
+   "epss_7d_ago": null,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2026-118527",
+   "vendor": "Ivanti",
+   "product": "Connect Secure",
+   "name": "Ivanti Connect Secure Generation of Predictable Numbers or Identifiers Vulnerability",
+   "description": "Ivanti Connect Secure contains a generation of predictable numbers or identifiers vulnerability that allows a remote authenticated attacker to upload files with attacker-controlled content to a known location on disk. This vulnerability can be chained with CVE-2026-104935 and CVE-2026-111357.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://hub.ivanti.com/s/article/Security-Advisory-Ivanti-Connect-Secure-CVE-2026-104935?language=en_US",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-118527"
+   ],
+   "date_added": "2026-10-30",
+   "due_date": "2026-11-13",
+   "ransomware": false,
+   "epss": 0.00822,
+   "epss_7d_ago": null,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2026-111357",
+   "vendor": "Ivanti",
+   "product": "Connect Secure",
+   "name": "Ivanti Connect Secure Missing Authentication for Critical Function Vulnerability",
+   "description": "Ivanti Connect Secure contains a missing authentication for critical function vulnerability that could allow a local authenticated attacker to escalate their privileges. This vulnerability can be chained with CVE-2026-104935 and CVE-2026-118527.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://hub.ivanti.com/s/article/Security-Advisory-Ivanti-Connect-Secure-CVE-2026-104935?language=en_US",
+    "https://www.cisa.gov/news-events/alerts/2026/10/13/cisa-urges-patching-newly-exploited-vulnerability-ivanti-connect-secure",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-111357"
+   ],
+   "date_added": "2026-10-30",
+   "due_date": "2026-11-02",
+   "ransomware": false,
+   "epss": 0.00533,
+   "epss_7d_ago": 0.00316,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2026-97229",
+   "vendor": "GitLab",
+   "product": "Community Edition and Enterprise Edition",
+   "name": "GitLab Community Edition and Enterprise Edition Integer Overflow or Wraparound Vulnerability",
+   "description": "GitLab Community Edition and Enterprise Edition contain a integer overflow or wraparound vulnerability that could allow an unauthenticated user to execute arbitrary code on the GitLab server via a specially crafted regular expression in a CI/CD configuration, due to insufficient regular expression validation.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://www.ruby-lang.org/en/news/2026/10/23/regexp-fixes-for-gitlab-cves",
+    "https://docs.gitlab.com/releases/patches/patch-release-gitlab-19-4-2-released/",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-97229"
+   ],
+   "date_added": "2026-10-29",
+   "due_date": "2026-11-01",
+   "ransomware": false,
+   "epss": 0.6522,
+   "epss_7d_ago": 0.26569,
+   "has_template": true
+  },
+  {
+   "cve": "CVE-2026-76418",
+   "vendor": "Cisco",
+   "product": "Secure Firewall ASA Software and Cisco Secure FTD Software",
+   "name": "Cisco Secure Firewall ASA Software and Cisco Secure FTD Software Unchecked Return Value to NULL Pointer Dereference Vulnerability",
+   "description": "Cisco Secure Firewall ASA Software and Cisco Secure FTD Software contains an unchecked return value to NULL pointer dereference vulnerability that could allow an unauthenticated, remote attacker to cause the device to reload unexpectedly, resulting in a denial of service (DoS) condition.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://sec.cloudapps.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-asaftd-tunnel-dos-s6mgkb75",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-76418"
+   ],
+   "date_added": "2026-10-29",
+   "due_date": "2026-11-01",
+   "ransomware": false,
+   "epss": 0.00821,
+   "epss_7d_ago": 0.0091,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2026-41709",
+   "vendor": "Broadcom",
+   "product": "VMware ESX",
+   "name": "Broadcom VMWare ESX Insufficient Logging Vulnerability",
+   "description": "Broadcom VMWare ESX contains an insufficient logging vulnerability that could allow a malicious actor with admin access to perform certain operations without being logged.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://support.broadcom.com/web/ecx/support-content-notification/-/external/content/SecurityAdvisories/0/38017",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-41709"
+   ],
+   "date_added": "2026-10-28",
+   "due_date": "2026-11-11",
+   "ransomware": false,
+   "epss": 0.00689,
+   "epss_7d_ago": 0.00689,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2026-46300",
+   "vendor": "Linux",
+   "product": "Kernel",
+   "name": "Linux Kernel Missing Initialization of a Variable Vulnerability",
+   "description": "Linux Kernel contains a missing initialization of a variable vulnerability that could allow for unintended modification of page-cache-backed data via failure to preserve the shared-fragment marker during socket buffer coalescing, causing ESP input processing to decrypt shared fragments in place. This vulnerability can be chained with CVE-2026-109618 and CVE-2026-109619 to implant PHP webshells and run commands as root.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://git.kernel.org/stable/c/3599e6b3cc1ada96883d496a50a210d3afbb6987",
+    "https://git.kernel.org/stable/c/2f2b16022a2e10ca7bccfb98db5ed2ec0f72641c",
+    "https://git.kernel.org/stable/c/9d3e5fd19fe1063bf607219e8562fbd567b8e8d5",
+    "https://git.kernel.org/stable/c/78bf6b6bb19541d19fbda6242e7cfe2c682763c0",
+    "https://git.kernel.org/stable/c/760e1addc27ba1a7beb4a0a7e8b3e9ec49e7a34e"
+   ],
+   "date_added": "2026-10-28",
+   "due_date": "2026-10-31",
+   "ransomware": false,
+   "epss": 0.1613,
+   "epss_7d_ago": 0.1613,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2026-48356",
+   "vendor": "Adobe",
+   "product": "Commerce and Magento",
+   "name": "Adobe Commerce and Magento Unrestricted Upload of File with Dangerous Type Vulnerability",
+   "description": "Adobe Commerce and Magento contain an unrestricted upload of file with dangerous type vulnerability that could result in arbitrary code execution in the context of the current user, potentially gaining elevated access or control over the victim's account or session.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://www.adobe.com/trust/security/products/commerce/apsb26-73.html",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-48356"
+   ],
+   "date_added": "2026-10-27",
+   "due_date": "2026-11-10",
+   "ransomware": false,
+   "epss": 0.47472,
+   "epss_7d_ago": 0.44579,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2026-111497",
+   "vendor": "Google",
+   "product": "Brotli",
+   "name": "Google Brotli Unchecked Return Value Vulnerability",
+   "description": "Google Brotli contains an unchecked return value vulnerability that allows a remote unauthenticated attacker to corrupt adjacent decoder state memory, disclose sensitive memory contents, cause a denial of service, or potentially execute arbitrary code using a crafted Brotli-compressed stream.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://github.com/google/brotli/releases/tag/v1.2.1",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-111497"
+   ],
+   "date_added": "2026-10-27",
+   "due_date": "2026-11-10",
+   "ransomware": false,
+   "epss": 0.82641,
+   "epss_7d_ago": 0.82641,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2026-109618",
+   "vendor": "PHP Group",
+   "product": "PHP",
+   "name": "PHP Memory Corruption Vulnerability",
+   "description": "PHP contains an out-of-memory corruption vulnerability that allows for unauthenticated remote code execution.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://www.php.net/",
+    "https://www.cisa.gov/news-events/alerts/2026/10/21/critical-vulnerabilities-php-require-immediate-patching",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-109618"
+   ],
+   "date_added": "2026-10-26",
+   "due_date": "2026-10-29",
+   "ransomware": false,
+   "epss": 0.99999,
+   "epss_7d_ago": 0.99999,
+   "has_template": true
+  },
+  {
+   "cve": "CVE-2026-109619",
+   "vendor": "PHP Group",
+   "product": "PHP",
+   "name": "PHP Stale Internal Request-State Vulnerability",
+   "description": "PHP contains a stale internal request-state vulnerability that allows for unauthenticated remote code execution.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://www.php.net/",
+    "https://www.cisa.gov/news-events/alerts/2026/10/21/critical-vulnerabilities-php-require-immediate-patching",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-109619"
+   ],
+   "date_added": "2026-10-26",
+   "due_date": "2026-10-29",
+   "ransomware": false,
+   "epss": 0.99999,
+   "epss_7d_ago": 0.99999,
+   "has_template": true
+  },
+  {
+   "cve": "CVE-2026-114625",
+   "vendor": "Arista",
+   "product": "VeloCloud Orchestrator",
+   "name": "Arista VeloCloud Orchestrator SQL Injection Vulnerability",
+   "description": "Arista VeloCloud Orchestrator on-prem contains a SQL injection vulnerability that may allow a remote attacker to access privileged internal functionality and impact the VCO host. Successful exploitation may compromise the confidentiality, integrity, and availability of the orchestrator and data managed by the orchestrator.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://www.arista.com/en/support/advisories-notices/security-advisory/24838-security-advisory-0199",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-114625"
+   ],
+   "date_added": "2026-10-23",
+   "due_date": "2026-10-26",
+   "ransomware": false,
+   "epss": 0.01025,
+   "epss_7d_ago": 0.01025,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2026-110447",
+   "vendor": "Collabora",
+   "product": "Collabora Online – Built-in CODE Server",
+   "name": "Collabora Online – Built-in CODE Server OS Command Injection Vulnerability",
+   "description": "Collabora Collabora Online – Built-in CODE Server when used within the NextCloud platform contains an OS command injection vulnerability that allows for remote code execution when the CODE server isn't running.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://help.nextcloud.com/t/to-collabora-built-in-user-update-asap/250516",
+    "https://github.com/CollaboraOnline/online/security/advisories/GHSA-g3vx-3m76-fghh",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-110447"
+   ],
+   "date_added": "2026-10-23",
+   "due_date": "2026-10-26",
+   "ransomware": false,
+   "epss": 0.73307,
+   "epss_7d_ago": 0.73307,
+   "has_template": true
+  },
+  {
+   "cve": "CVE-2026-106931",
+   "vendor": "EG Secure Solutions",
+   "product": "SiteGuard Server Edition",
+   "name": "EG Secure Solutions SiteGuard Server Edition OS Command Injection Vulnerability",
+   "description": "EG Secure Solutions SiteGuard Server Edition contains an OS command injection vulnerability which may allow an attacker to execute arbitrary OS commands with root or SYSTEM privileges on the system running the affected product.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://www.eg-secure.co.jp/siteguard/news/alert-202610-1",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-106931"
+   ],
+   "date_added": "2026-10-20",
+   "due_date": "2026-10-23",
+   "ransomware": false,
+   "epss": 0.02528,
+   "epss_7d_ago": 0.02528,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2026-96656",
+   "vendor": "Plex",
+   "product": "Media Server",
+   "name": "Plex Media Server External Control of File Name or Path Vulnerability",
+   "description": "Plex Media Server contains an external control of file name or path vulnerability which can allow an admin user to write arbitrary files that may be executed on load. This vulnerability can be chained with CVE-2026-96652, CVE-2026-96654, and CVE-2026-96655.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://forums.plex.tv/t/important-security-update-for-plex-media-server-v1-43-2-and-earlier/942319",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-96656"
+   ],
+   "date_added": "2026-10-20",
+   "due_date": "2026-10-23",
+   "ransomware": false,
+   "epss": 0.01785,
+   "epss_7d_ago": 0.01785,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2026-96655",
+   "vendor": "Plex",
+   "product": "Media Server",
+   "name": "Plex Media Server Server-Side Request Forgery (SSRF) Vulnerability",
+   "description": "Plex Media Server contains a server-side request forgery (SSRF) vulnerability that could allow an authenticated user to request arbitrary internal or external addresses via the '/video/:/transcode/universal' path parameter. This vulnerability can be chained with CVE-2026-96652, CVE-2026-96654, and CVE-2026-96656.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://forums.plex.tv/t/important-security-update-for-plex-media-server-v1-43-2-and-earlier/942319",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-96655"
+   ],
+   "date_added": "2026-10-20",
+   "due_date": "2026-11-03",
+   "ransomware": false,
+   "epss": 0.10724,
+   "epss_7d_ago": 0.01637,
+   "has_template": true
+  },
+  {
+   "cve": "CVE-2026-96654",
+   "vendor": "Plex",
+   "product": "Media Server",
+   "name": "Plex Media Server Improper Neutralization of Encoded URI Schemes in a Web Page Vulnerability",
+   "description": "Plex Media Server contains an improper neutralization of encoded URI schemes in a web page vulnerability that could allow an attacker to call other plugins' functions and supply their own parameters. This vulnerability can be chained with CVE-2026-96652, CVE-2026-96655, and CVE-2026-96656.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://forums.plex.tv/t/important-security-update-for-plex-media-server-v1-43-2-and-earlier/942319",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-96654"
+   ],
+   "date_added": "2026-10-20",
+   "due_date": "2026-10-23",
+   "ransomware": false,
+   "epss": 0.01949,
+   "epss_7d_ago": 0.01949,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2026-96652",
+   "vendor": "Plex",
+   "product": "Media Server",
+   "name": "Plex Media Server Server-Side Request Forgery (SSRF) Vulnerability",
+   "description": "Plex Media Server contains a server-side request forgery (SSRF) vulnerability which could allow an attacker using any X-Plex-Token value to include a full URL in the 'protocol' parameter and force the Plex server to POST to the attacker's chosen destination. This vulnerability can be chained with CVE-2026-96654, CVE-2026-96655, and CVE-2026-96656. ",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://forums.plex.tv/t/important-security-update-for-plex-media-server-v1-43-2-and-earlier/942319",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-96652"
+   ],
+   "date_added": "2026-10-20",
+   "due_date": "2026-11-03",
+   "ransomware": false,
+   "epss": 0.11886,
+   "epss_7d_ago": 0.01821,
+   "has_template": true
+  },
+  {
+   "cve": "CVE-2026-110936",
+   "vendor": "Siemens",
+   "product": "Software Center",
+   "name": "Siemens Software Center Uncontrolled Search Path Element Vulnerability",
+   "description": "Siemens Software Center contains an uncontrolled search path element vulnerability that could allow an authenticated local attacker to place a specially crafted DLL in a directory that the application searches, leading to arbitrary code execution with the privileges of the affected application.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://productcert.siemens.com/productcert/html/ssa-580366.html",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-110936"
+   ],
+   "date_added": "2026-10-20",
+   "due_date": "2026-11-03",
+   "ransomware": false,
+   "epss": 0.00967,
+   "epss_7d_ago": 0.00967,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2026-102764",
+   "vendor": "BeyondTrust",
+   "product": "Remote Support",
+   "name": "BeyondTrust Remote Support Authentication Bypass by Spoofing Vulnerability",
+   "description": "BeyondTrust Remote Support contains an authentication bypass by spoofing vulnerability that could allow a remote attacker to perform file operations on the appliance.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://www.beyondtrust.com/trust-center/security-advisories/bt26-05",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-102764"
+   ],
+   "date_added": "2026-10-16",
+   "due_date": "2026-10-19",
+   "ransomware": false,
+   "epss": 0.77994,
+   "epss_7d_ago": 0.1895,
+   "has_template": true
+  },
+  {
+   "cve": "CVE-2025-61624",
+   "vendor": "Fortinet",
+   "product": "Multiple Products",
+   "name": "Fortinet Multiple Products Path Traversal Vulnerability",
+   "description": "FortiOS, FortiPAM, FortiProxy, and FortiSwitchManager contain a path traversal vulnerability that may allow an authenticated attacker with admin profile and at least read-write permissions to write or delete arbitrary files via specific CLI commands.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://fortiguard.fortinet.com/psirt/FG-IR-26-122",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2025-61624"
+   ],
+   "date_added": "2026-10-16",
+   "due_date": "2026-10-19",
+   "ransomware": false,
+   "epss": 0.01343,
+   "epss_7d_ago": 0.01343,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2026-21589",
+   "vendor": "Atlassian",
+   "product": "Multiple Products",
+   "name": "Atlassian Multiple Products Files or Directories Accessible to External Parties Vulnerability",
+   "description": "Multiple Atlassian products (Bitbucket Data Center ,Confluence Data Center, Jira Service Management Data Center, Jira Software Data Center, Bamboo Data Center, Crowd Data Center, Crucible and Fisheye) contain a files or directories accessible to external parties vulnerability which could allow an unauthenticated attacker to access specific files within the web application root directory in affected versions.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://confluence.atlassian.com/security/cve-2026-21589-arbitrary-file-access-vulnerability-impacts-multiple-products-1870495748.html?ref=labs.watchtowr.com",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-21589"
+   ],
+   "date_added": "2026-10-15",
+   "due_date": "2026-10-18",
+   "ransomware": false,
+   "epss": 0.99664,
+   "epss_7d_ago": 0.99477,
+   "has_template": true
+  },
+  {
+   "cve": "CVE-2026-105134",
+   "vendor": "Ahsay",
+   "product": "AhsayCBS",
+   "name": "Ahsay AhsayCBS Command Injection Vulnerability",
+   "description": "Ahsay AhsayCBS contains a command injection vulnerability that could allow a remote attacker to execute operating system commands via manipulation of the random parameter in the Replication Receiver component’s /rps/api/json/UpdateReceivers.do endpoint. This vulnerability can be chained with CVE-2026-105133.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://www.ahsay.com/en/company/announcements/patch-cve-105133-105134-update",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-105134"
+   ],
+   "date_added": "2026-10-14",
+   "due_date": "2026-10-17",
+   "ransomware": false,
+   "epss": 0.81763,
+   "epss_7d_ago": 0.81763,
+   "has_template": true
+  },
+  {
+   "cve": "CVE-2026-76519",
+   "vendor": "Cisco",
+   "product": "Secure Email Gateway",
+   "name": "Cisco Secure Email Gateway Relative Path Traversal Vulnerability",
+   "description": "Cisco Secure Email Gateway contains a relative path traversal vulnerability that could allow an unauthenticated, remote attacker to write arbitrary files on the underlying operating system.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://sec.cloudapps.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-esa-afw-zqYJkjxp",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-76519"
+   ],
+   "date_added": "2026-10-14",
+   "due_date": "2026-10-17",
+   "ransomware": false,
+   "epss": 0.02152,
+   "epss_7d_ago": 0.02152,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2026-105133",
+   "vendor": "Ahsay",
+   "product": "AhsayCBS",
+   "name": "Ahsay AhsayCBS Improper Authentication Vulnerability",
+   "description": "Ahsay AhsayCBS contains an improper authentication vulnerability that could allow a remote attacker to bypass authentication via manipulation of the random parameter in the API component’s checkSysPwd function. This vulnerability can be chained with CVE-2026-105134.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://www.ahsay.com/en/company/announcements/patch-cve-105133-105134-update",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-105133"
+   ],
+   "date_added": "2026-10-14",
+   "due_date": "2026-10-17",
+   "ransomware": false,
+   "epss": 0.7947,
+   "epss_7d_ago": 0.7947,
+   "has_template": true
+  },
+  {
+   "cve": "CVE-2026-0322",
+   "vendor": "Palo Alto Networks",
+   "product": "PAN-OS",
+   "name": "Palo Alto Networks PAN-OS Code Injection Vulnerability",
+   "description": "Palo Alto Networks PAN-OS contains a code injection vulnerability that could allow an authenticated attacker with network access to execute arbitrary code with root privileges on the firewall.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://security.paloaltonetworks.com/CVE-2026-0322",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-0322"
+   ],
+   "date_added": "2026-10-14",
+   "due_date": "2026-10-17",
+   "ransomware": false,
+   "epss": 0.0174,
+   "epss_7d_ago": 0.0174,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2026-104935",
+   "vendor": "Ivanti",
+   "product": "Connect Secure",
+   "name": "Ivanti Connect Secure Authentication Bypass by Spoofing Vulnerability",
+   "description": "Ivanti Connect Secure contains an authentication bypass by spoofing vulnerability that allows a remote unauthenticated attacker to execute arbitrary commands.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-104935"
+   ],
+   "date_added": "2026-10-13",
+   "due_date": "2026-10-16",
+   "ransomware": false,
+   "epss": 0.88936,
+   "epss_7d_ago": 0.86766,
+   "has_template": true
+  },
+  {
+   "cve": "CVE-2026-96951",
+   "vendor": "Microsoft",
+   "product": "Windows",
+   "name": "Microsoft Windows Command Injection Vulnerability",
+   "description": "Microsoft Windows Shell contains a command injection vulnerability that allows an unauthorized attacker to bypass a security feature over a network.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2026-96951",
+    "https://nvd.nist.gov/vuln/detail/CVE-2026-96951"
+   ],
+   "date_added": "2026-10-13",
+   "due_date": "2026-10-16",
+   "ransomware": false,
+   "epss": 0.09813,
+   "epss_7d_ago": 0.09813,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2015-5477",
+   "vendor": "ISC",
+   "product": "BIND",
+   "name": " ISC BIND Data Processing Errors Vulnerability",
+   "description": "ISC BIND contains a data processing errors vulnerability that could allow remote attackers to cause a denial of service via TKEY queries.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://web.archive.org/web/20150729014733/https://kb.isc.org/article/AA-01272",
+    "https://access.redhat.com/errata/RHSA-2015:1513.html",
+    "https://supportportal.juniper.net/s/article/2016-01-Security-Bulletin-Junos-Vulnerability-in-ISC-BIND-named-CVE-2015-5477",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk"
+   ],
+   "date_added": "2026-10-08",
+   "due_date": "2026-10-11",
+   "ransomware": false,
+   "epss": 0.99584,
+   "epss_7d_ago": 0.99584,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2016-3081",
+   "vendor": "Apache",
+   "product": "Struts",
+   "name": "Apache Struts Command Injection Vulnerability",
+   "description": "Apache Struts contains a command injection vulnerability that could allow remote attackers to execute arbitrary code via method:prefix when Dynamic Method Invocation is enabled.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://cwiki.apache.org/confluence/display/WW/S2-032",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2016-3081"
+   ],
+   "date_added": "2026-10-08",
+   "due_date": "2026-10-11",
+   "ransomware": false,
+   "epss": 0.96525,
+   "epss_7d_ago": 0.96525,
+   "has_template": true
+  },
+  {
+   "cve": "CVE-2023-22894",
+   "vendor": "Strapi",
+   "product": "Strapi",
+   "name": "Strapi Cleartext Storage of Sensitive Information Vulnerability",
+   "description": "Strapi contains a cleartext storage of sensitive information vulnerability that could allow attackers with access to the admin panel to discover sensitive user details via the query filter. The impacted product(s) could be end-of-life (EoL) and/or end-of-service (EoS). Users are advised to discontinue use and/or transition to a supported version. This vulnerability can be chained with CVE-2023-22621 to achieve remote code execution. ",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://strapi.io/blog/security-disclosure-of-vulnerabilities-cve",
+    "https://github.com/strapi/strapi/releases",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2023-22894"
+   ],
+   "date_added": "2026-10-08",
+   "due_date": "2026-10-11",
+   "ransomware": false,
+   "epss": 0.04114,
+   "epss_7d_ago": 0.04114,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2021-3199",
+   "vendor": "ONLYOFFICE",
+   "product": "Docs",
+   "name": "ONLYOFFICE Docs Server Path Traversal Vulnerability",
+   "description": "ONLYOFFICE Docs contains a path traversal vulnerability that can occur when JWT is used, via a /.. sequence in an image upload parameter and could allow for remote code execution.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://github.com/ONLYOFFICE/DocumentServer/blob/903fe5ab7a275bd69c3c3346af2d21cf87ebeabf/CHANGELOG.md#563",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2021-3199"
+   ],
+   "date_added": "2026-10-08",
+   "due_date": "2026-10-11",
+   "ransomware": false,
+   "epss": 0.30244,
+   "epss_7d_ago": 0.30244,
+   "has_template": false
+  },
+  {
+   "cve": "CVE-2015-3306",
+   "vendor": "ProFTPD",
+   "product": "ProFTPD",
+   "name": "ProFTPD Improper Access Control Vulnerability",
+   "description": "ProFTPD contains an improper access control vulnerability that could allow remote attackers to read and write to arbitrary files via the site cpfr and site cpto commands.",
+   "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+   "links": [
+    "https://lists.debian.org/debian-security-announce/2015/msg00154.html",
+    "https://lists.opensuse.org/archives/list/updates@lists.opensuse.org/message/WE6YZRG5UVXMGQ7IVDRYBPIWV4M6UUGM/",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk",
+    "https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk",
+    "https://nvd.nist.gov/vuln/detail/CVE-2015-3306"
+   ],
+   "date_added": "2026-10-08",
+   "due_date": "2026-10-11",
+   "ransomware": false,
+   "epss": 0.99497,
+   "epss_7d_ago": 0.99497,
+   "has_template": true
+  },
+  {
+   "cve": "CVE-2022-27593",
+   "vendor": "QNAP",
+   "product": "Photo Station",
+   "name": "QNAP Photo Station Externally Controlled Reference Vulnerability",
+   "description": "Certain QNAP NAS running Photo Station with internet exposure contain an externally controlled reference to a resource vulnerability which can allow an attacker to modify system files. This vulnerability was observed being utilized in a Deadbolt ransomware campaign.",
+   "required_action": "Apply updates per vendor instructions.",
+   "links": [
+    "https://www.qnap.com/en/security-advisory/qsa-22-24",
+    "https://nvd.nist.gov/vuln/detail/CVE-2022-27593"
+   ],
+   "date_added": "2022-09-08",
+   "due_date": "2022-09-29",
+   "ransomware": true,
+   "epss": 0.87908,
+   "epss_7d_ago": 0.87908,
+   "has_template": true
+  }
+ ]
+}

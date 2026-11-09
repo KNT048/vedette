@@ -1,0 +1,372 @@
+import { describe, expect, it } from 'vitest'
+import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { http, HttpResponse } from 'msw'
+import { Toaster } from 'sonner'
+import { makeQueryClient } from '@/app/App'
+import { renderApp, expectNoA11yViolations } from '@/test/render'
+import { server } from '@/test/server'
+import { assetsStore, auditStore, modulesStore, orgStore, sessionStore } from '@/mocks/stores'
+import type { Role } from '@/lib/session'
+import SiemSettings from './SiemSettings'
+import { CATALOG, ENTRIES, GROUPS, searchCatalog } from './catalog'
+import { KIND_IDS } from './kinds'
+import type { SourceKind } from './types'
+
+const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
+function renderSiem(role: Role = 'admin') {
+  orgStore.update((o) => ({ ...o, setup_complete: true }))
+  sessionStore.set({ userId: USER[role] })
+  return render(<QueryClientProvider client={makeQueryClient()}><SiemSettings /><Toaster /></QueryClientProvider>)
+}
+const getJson = async (path: string) => (await fetch(`${location.origin}/api/v1${path}`)).json() as Promise<Record<string, unknown>>
+
+const IP = '192.168.10.250'
+const code = (k: SourceKind, proto: 'udp' | 'tcp' | 'tls' = 'udp', port = 514) => CATALOG[k].snippets({ ip: IP, port, proto }).map((s) => s.code).join('\n')
+
+describe('logs: source catalog (S-LOG-1)', () => {
+  it('covers the full list the owner asked for, each entry in a group, with steps, an honest "reads" note and a sane protocol list', () => {
+    expect(ENTRIES).toHaveLength(KIND_IDS.length)
+    const names = ENTRIES.map((e) => e.name).join(' | ')
+    for (const needle of ['FortiGate', 'Sophos Firewall', 'Palo Alto', 'Cisco ASA', 'Cisco Secure Firewall', 'Cisco IOS', 'Meraki', 'MikroTik', 'pfSense', 'OPNsense', 'SonicWall', 'WatchGuard', 'Check Point', 'Juniper SRX', 'Huawei', 'DrayTek', 'Ubiquiti', 'Zyxel', 'Omada',
+      'Ivanti', 'NetScaler', 'OpenVPN', 'Windows (via NXLog', 'rsyslog', 'journald', 'syslog-ng', 'Synology', 'QNAP', 'ESXi', 'Proxmox', 'Suricata', 'Zeek', 'Wazuh', 'CrowdSec',
+      'nginx', 'Apache', 'Squid', 'Pi-hole', 'BIND', 'Windows DNS', 'Postfix', 'Aruba', 'HPE', 'UniFi', 'RFC 3164 / 5424', 'CEF or LEEF']) expect(names, needle).toContain(needle)
+    for (const e of ENTRIES) {
+      expect(GROUPS, e.id).toContain(e.group)
+      expect(e.protos.length, e.id).toBeGreaterThan(0)
+      expect(e.steps({ ip: IP, port: 514, proto: e.protos[0]! }).length, e.id).toBeGreaterThan(0)
+      expect(e.snippets({ ip: IP, port: 514, proto: e.protos[0]! }).length, e.id).toBeGreaterThan(0)
+      expect(e.readsNote.length, e.id).toBeGreaterThan(10)
+      // no Vietnamese in the copy users read
+      expect(JSON.stringify([e.name, e.intro, e.readsNote, e.steps({ ip: IP, port: 514, proto: e.protos[0]! }), e.snippets({ ip: IP, port: 514, proto: e.protos[0]! }), e.notes]), e.id).not.toMatch(/[ạảãàáâấầẩẫậăắằẳẵặẹẻẽèéêếềểễệỉĩìíịọỏõòóôốồổỗộơớờởỡợụủũùúưứừửữựỳỷỹỵýđ]/i)
+    }
+    // honesty: only the five kinds that have a reader claim to read; everyone else says stored only
+    expect(ENTRIES.filter((e) => e.reads === 'parsed').map((e) => e.id).sort()).toEqual(['fortigate', 'mikrotik', 'opnsense', 'pfsense', 'suricata', 'windows'])
+    expect(CATALOG.nginx.readsNote).toMatch(/Stored and searchable only/)
+  })
+
+  it('every snippet that names the box uses the box address and port', () => {
+    for (const e of ENTRIES) {
+      for (const proto of e.protos) {
+        const text = e.snippets({ ip: IP, port: proto === 'tls' ? 6514 : 514, proto }).map((s) => s.code).join('\n') + e.steps({ ip: IP, port: 514, proto }).join('\n')
+        expect(text, `${e.id}/${proto}`).toContain(IP)
+      }
+    }
+  })
+
+  it('search matches names, aliases and groups; every word must match', () => {
+    expect(searchCatalog('forti').map((e) => e.id)).toEqual(['fortigate'])
+    expect(searchCatalog('synology').map((e) => e.id)).toEqual(['synology'])
+    expect(searchCatalog('ubuntu').map((e) => e.id)).toContain('linux-rsyslog')
+    expect(searchCatalog('windows dns').map((e) => e.id)).toEqual(['windows-dns'])
+    expect(searchCatalog('NAS').map((e) => e.id)).toEqual(expect.arrayContaining(['synology', 'qnap']))
+    expect(searchCatalog('zzzz-nothing')).toEqual([])
+    expect(searchCatalog('')).toHaveLength(ENTRIES.length)
+  })
+
+  it('FortiOS: correct modes (TCP is reliable, not legacy-reliable) and TLS adds enc-algorithm', () => {
+    expect(code('fortigate')).toBe(['config log syslogd setting', '    set status enable', `    set server "${IP}"`, '    set port 514', '    set mode udp', 'end', 'config log syslogd filter', '    set severity information', 'end'].join('\n'))
+    expect(code('fortigate', 'tcp')).toContain('set mode reliable')
+    expect(code('fortigate', 'tcp')).not.toContain('legacy-reliable')
+    const tls = code('fortigate', 'tls', 6514)
+    expect(tls).toContain('set mode reliable')
+    expect(tls).toContain('set enc-algorithm high')
+    expect(tls).toContain('set port 6514')
+  })
+
+  it('MikroTik: action remote then topics firewall, info, critical; UDP only', () => {
+    const lines = code('mikrotik').split('\n')
+    expect(lines[0]).toBe(`/system logging action add name=vedette target=remote remote=${IP} remote-port=514`)
+    expect(lines.slice(1)).toEqual(['/system logging add action=vedette topics=firewall', '/system logging add action=vedette topics=info', '/system logging add action=vedette topics=critical'])
+    expect(CATALOG.mikrotik.protos).toEqual(['udp'])
+  })
+
+  it('pfSense is UDP only with the IP:port field; OPNsense also does TCP and TLS', () => {
+    expect(CATALOG.pfsense.protos).toEqual(['udp'])
+    expect(code('pfsense')).toBe(`${IP}:514`)
+    expect(CATALOG.opnsense.protos).toEqual(['udp', 'tcp', 'tls'])
+  })
+
+  it('Windows: NXLog nxlog.conf with im_msvistalog, xm_syslog to_syslog_bsd, om_udp or om_tcp, restart command; WEF note', () => {
+    const conf = CATALOG.windows.snippets({ ip: IP, port: 514, proto: 'udp' })
+    expect(conf[0]!.code).toMatch(/Module\s+im_msvistalog/)
+    expect(conf[0]!.code).toMatch(/Module\s+om_udp/)
+    expect(conf[0]!.code).toMatch(/to_syslog_bsd\(\)/)
+    expect(conf[0]!.code).toMatch(new RegExp(`Host\\s+${IP.replace(/\./g, '\\.')}`))
+    expect(conf[0]!.code).toContain('Path    eventlog => vedette')
+    expect(code('windows', 'tcp')).toMatch(/Module\s+om_tcp/)
+    expect(conf[1]!.code).toBe('Restart-Service nxlog')
+    expect(CATALOG.windows.notes.join(' ')).toMatch(/Windows Event Forwarding/)
+  })
+
+  it('Suricata: eve-log filetype syslog and rsyslog forwarding (UDP or TCP)', () => {
+    const s = CATALOG.suricata.snippets({ ip: IP, port: 514, proto: 'udp' })
+    expect(s[0]!.code).toContain('filetype: syslog')
+    expect(s[1]!.code).toBe(`local5.* action(type="omfwd" target="${IP}" port="514" protocol="udp")`)
+    expect(CATALOG.suricata.snippets({ ip: IP, port: 514, proto: 'tcp' })[1]!.code).toContain('protocol="tcp"')
+  })
+
+  it('other well-known syntax: Cisco ASA, IOS, Check Point, NetScaler, ESXi, nginx, Wazuh, rsyslog', () => {
+    expect(code('cisco-asa')).toContain(`logging host inside ${IP} udp/514`)
+    expect(code('cisco-asa', 'tcp')).toContain(`logging host inside ${IP} tcp/514`)
+    expect(code('cisco-ios')).toContain(`logging host ${IP} transport udp port 514`)
+    expect(code('cisco-switch', 'tcp')).toContain(`logging host ${IP} transport tcp port 514`)
+    expect(code('checkpoint')).toContain(`cp_log_export add name vedette target-server ${IP} target-port 514 protocol udp format syslog`)
+    expect(code('netscaler')).toContain(`add audit syslogAction vedette ${IP} -serverPort 514 -logLevel ALL`)
+    expect(code('netscaler')).toContain('bind system global vedette-policy -priority 100')
+    expect(code('esxi')).toContain(`esxcli system syslog config set --loghost='udp://${IP}:514'`)
+    expect(code('esxi', 'tls', 6514)).toContain(`ssl://${IP}:6514`)
+    expect(code('nginx')).toContain(`access_log syslog:server=${IP}:514,facility=local7,tag=nginx,severity=info combined;`)
+    expect(CATALOG.nginx.protos).toEqual(['udp'])
+    expect(code('wazuh')).toContain(`<server>${IP}</server>`)
+    expect(code('linux-rsyslog')).toContain(`*.* action(type="omfwd" target="${IP}" port="514" protocol="udp")`)
+    expect(code('linux-journald')).toContain('ForwardToSyslog=yes')
+    expect(code('syslog-ng')).toContain(`network("${IP}" port(514) transport("udp"))`)
+    expect(code('juniper-srx')).toContain(`set security log stream vedette host ${IP}`)
+  })
+})
+
+/** Opens "Add log source", picks a device type from the picker, returns the dialog. */
+async function openAdd(pick: RegExp | string) {
+  await userEvent.click(await screen.findByRole('button', { name: 'Add log source' }))
+  const form = await screen.findByRole('dialog', { name: 'Add log source' })
+  await userEvent.click(within(form).getByRole('button', { name: pick }))
+  return form
+}
+
+describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
+  it('the heading answers the question, sources and digest tables show, no a11y violations', async () => {
+    renderApp('/logs')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today: 3 connections to bad destinations, 3 new log types, 2 spikes.' })).toBeInTheDocument()
+    const sources = await screen.findByRole('table', { name: 'Log sources currently received' })
+    expect(within(sources).getAllByRole('row')).toHaveLength(5)
+    expect(within(sources).getAllByText('Receiving')).toHaveLength(3)
+    expect(within(sources).getByText('Silent')).toBeInTheDocument()
+    expect(screen.getByText(/No new line for over 1 hour/)).toBeInTheDocument()
+    expect(await screen.findByRole('table', { name: 'Connections to bad IPs or domains' })).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: 'New log types' })).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: 'Log types with a spike' })).toBeInTheDocument()
+    await expectNoA11yViolations()
+  })
+
+  it('bad connections point to the source device in the inventory', async () => {
+    renderApp('/logs')
+    const table = await screen.findByRole('table', { name: 'Connections to bad IPs or domains' })
+    const nas = assetsStore.get().find((a) => a.ip === '192.168.10.20')!
+    expect(within(table).getByRole('link', { name: nas.hostname! })).toHaveAttribute('href', `/devices/${nas.id}`)
+    expect(within(table).getByText('update-dsm-synology.com')).toBeInTheDocument()
+    expect(within(table).getByRole('link', { name: 'Look up 185.220.101.47' })).toHaveAttribute('href', '/lookup?q=185.220.101.47')
+  })
+
+  it('a machine that is not in the inventory is said so', async () => {
+    assetsStore.update((l) => l.filter((a) => a.ip !== '192.168.10.157'))
+    renderApp('/logs')
+    const table = await screen.findByRole('table', { name: 'Connections to bad IPs or domains' })
+    expect(within(table).getByText('Not in the inventory')).toBeInTheDocument()
+  })
+
+  it('"Device setup" for MikroTik shows the RouterOS commands, what Vedette reads, and the UDP note', async () => {
+    renderApp('/logs')
+    await userEvent.click(await screen.findByRole('button', { name: 'Device setup for RT-BACKUP' }))
+    const dialog = await screen.findByRole('dialog', { name: /Set up RT-BACKUP to send logs to the box/ })
+    expect(within(dialog).getByText(/\/system logging action add name=vedette target=remote remote=192\.168\.10\.250 remote-port=514/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/RouterOS syslog always goes over UDP/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/Reads firewall log lines/)).toBeInTheDocument()
+    await expectNoA11yViolations(dialog)
+  })
+
+  it('add a FortiGate in three clicks: search, validate, then the setup shows the box IP; saved after reload', async () => {
+    renderApp('/logs')
+    await userEvent.click(await screen.findByRole('button', { name: 'Add log source' }))
+    const form = await screen.findByRole('dialog', { name: 'Add log source' })
+    await userEvent.type(within(form).getByLabelText('Find your device or software'), 'forti')
+    expect(within(form).getByText('1 match')).toBeInTheDocument()
+    await userEvent.click(within(form).getByRole('button', { name: /FortiGate/ }))
+    await userEvent.type(within(form).getByLabelText('Name'), 'FW-CN1')
+    await userEvent.type(within(form).getByLabelText('IP of the sending device'), '300.1.1.1')
+    await userEvent.click(within(form).getByRole('button', { name: 'Add and show setup' }))
+    expect(await within(form).findByRole('alert')).toHaveTextContent('The IP address of the sending device is not valid')
+    expect(within(form).getByLabelText('Name')).toHaveValue('FW-CN1')
+    await userEvent.clear(within(form).getByLabelText('IP of the sending device'))
+    await userEvent.type(within(form).getByLabelText('IP of the sending device'), '192.168.30.1')
+    await userEvent.click(within(form).getByRole('button', { name: 'Add and show setup' }))
+    const guide = await screen.findByRole('dialog', { name: /Set up FW-CN1 to send logs to the box/ })
+    expect(within(guide).getByText(/set server "192\.168\.10\.250"/)).toBeInTheDocument()
+    expect(within(guide).getByText(/set mode udp/)).toBeInTheDocument()
+    await userEvent.click(within(guide).getAllByRole('button', { name: 'Close' })[0]!)
+    expect((await screen.findAllByText('FW-CN1')).length).toBeGreaterThan(0)
+    expect(auditStore.get().some((e) => e.action === 'logs.source_add' && e.target === 'FW-CN1')).toBe(true)
+    const res = await getJson('/logs/sources')
+    expect((res.sources as { name: string; state: string; kind: string }[]).find((s) => s.name === 'FW-CN1')).toMatchObject({ state: 'never', kind: 'fortigate' })
+  })
+
+  it('the picker groups by category, filters as you type, says when nothing matches, and Enter picks a single match', async () => {
+    renderApp('/logs')
+    await userEvent.click(await screen.findByRole('button', { name: 'Add log source' }))
+    const form = await screen.findByRole('dialog', { name: 'Add log source' })
+    for (const g of ['Firewalls and routers', 'VPN and remote access', 'Servers and operating systems', 'NAS and virtualisation', 'Security tools', 'Web, proxy, DNS and mail', 'Switches and Wi-Fi', 'Other and generic']) {
+      expect(within(form).getByRole('region', { name: g })).toBeInTheDocument()
+    }
+    const find = within(form).getByLabelText('Find your device or software')
+    await userEvent.type(find, 'zzzz')
+    expect(within(form).getByText(/Nothing matches "zzzz"/)).toBeInTheDocument()
+    await userEvent.clear(find)
+    await userEvent.type(find, 'synology{Enter}')
+    expect(within(form).getByText('Device type: Synology DSM (Log Center)')).toBeInTheDocument()
+    expect(within(form).getByText(/Stored and searchable only/)).toBeInTheDocument()
+    await userEvent.click(within(form).getByRole('button', { name: 'Change device type' }))
+    expect(within(form).getByLabelText('Find your device or software')).toBeInTheDocument()
+  })
+
+  it('protocol options follow the device: MikroTik UDP only, FortiGate UDP/TCP/TLS; a duplicate IP is refused at the boundary', async () => {
+    renderApp('/logs')
+    const form = await openAdd(/MikroTik/)
+    expect(within(within(form).getByLabelText('Protocol')).getAllByRole('option')).toHaveLength(1)
+    await userEvent.type(within(form).getByLabelText('Name'), 'RT-NEW')
+    await userEvent.type(within(form).getByLabelText('IP of the sending device'), '192.168.10.1')
+    await userEvent.click(within(form).getByRole('button', { name: 'Add and show setup' }))
+    expect(await within(form).findByRole('alert')).toHaveTextContent('There is already a log source with this IP address')
+    await userEvent.click(within(form).getByRole('button', { name: 'Change device type' }))
+    await userEvent.click(within(form).getByRole('button', { name: /FortiGate/ }))
+    expect(within(within(form).getByLabelText('Protocol')).getAllByRole('option')).toHaveLength(3)
+    await userEvent.selectOptions(within(form).getByLabelText('Protocol'), 'tls')
+    expect(within(form).getByLabelText('Port the box listens on')).toHaveValue(6514)
+  })
+
+  it('deleting a log source needs confirmation', async () => {
+    renderApp('/logs')
+    await userEvent.click(await screen.findByRole('button', { name: 'Delete SRV-FILE' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Delete log source SRV-FILE?' })
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(screen.queryByText('SRV-FILE')).not.toBeInTheDocument())
+    expect(auditStore.get().some((e) => e.action === 'logs.source_delete')).toBe(true)
+  })
+
+  it('a viewer can read the setup but cannot add, edit or delete', async () => {
+    renderApp('/logs', { role: 'viewer' })
+    expect(await screen.findByRole('button', { name: 'Add log source' })).toBeDisabled()
+    expect(await screen.findByRole('button', { name: 'Edit FW-HQ' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Delete FW-HQ' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Device setup for FW-HQ' })).toBeEnabled()
+    expect(screen.getByLabelText('Keep logs for')).toBeDisabled()
+    const res = await fetch(`${location.origin}/api/v1/logs/sources`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    expect(res.status).toBe(403)
+  })
+
+  it('searching events by keyword; says so when no line matches', async () => {
+    renderApp('/logs')
+    const input = await screen.findByLabelText('Keyword')
+    await userEvent.type(input, '185.220.101.47')
+    const table = await screen.findByRole('table', { name: 'Log events' })
+    await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(2))
+    expect(within(table).getByText(/dstip=185\.220\.101\.47/)).toBeInTheDocument()
+    await userEvent.clear(input)
+    await userEvent.type(input, 'no-such-line')
+    expect(await screen.findByText(/No matching line/)).toBeInTheDocument()
+  })
+
+  it('changing the retention period', async () => {
+    renderApp('/logs')
+    await userEvent.selectOptions(await screen.findByLabelText('Keep logs for'), '90')
+    expect(await screen.findByText('Log retention saved.')).toBeInTheDocument()
+    expect(((await getJson('/logs/sources')).retention_days)).toBe(90)
+  })
+
+  it('no sources yet: the empty state says what to do and nothing else is shown', async () => {
+    server.use(http.get('*/api/v1/logs/sources', () => HttpResponse.json({ box: { ip: '192.168.10.250', hostname: 'vedette-hq' }, sources: [], retention_days: 30 })))
+    renderApp('/logs')
+    expect(await screen.findByRole('heading', { level: 1, name: 'No device is sending logs to the box yet.' })).toBeInTheDocument()
+    expect(screen.getByText('No log sources yet')).toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: 'New log types' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Keyword')).not.toBeInTheDocument()
+  })
+
+  it('the box address is unknown (no LAN range yet): the page says so and the setup shows a clear placeholder', async () => {
+    server.use(http.get('*/api/v1/logs/sources', () => HttpResponse.json({
+      box: { ip: null, hostname: 'vedette', lan: null, iface: 'eth0' }, retention_days: 30,
+      sources: [{ id: 'ls-9', kind: 'nginx', name: 'WEB-1', sender_ip: '10.0.0.5', asset_id: null, asset_name: null, proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: new Date().toISOString() }],
+    })))
+    renderApp('/logs')
+    expect(await screen.findByText(/add your LAN range first \(Devices, Scope and sensors\)/)).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: 'Device setup for WEB-1' }))
+    const dialog = await screen.findByRole('dialog', { name: /Set up WEB-1/ })
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Add your LAN range first')
+    expect(within(dialog).getByText(/access_log syslog:server=<VEDETTE_BOX_IP>:514/)).toBeInTheDocument()
+    expect(dialog).not.toHaveTextContent('192.168.10.250')
+  })
+
+  it('an API error shows the message and a retry button', async () => {
+    server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json({ error: { code: 'x', message: 'The log aggregator has not finished yet.' } }, { status: 503 })))
+    renderApp('/logs')
+    expect(await screen.findByText('The log aggregator has not finished yet.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+
+  it('logs module off: says where to turn it on', async () => {
+    modulesStore.update((l) => l.map((m) => (m.id === 'logs' ? { ...m, enabled: false } : m)))
+    renderApp('/logs')
+    expect(await screen.findByText(/module is off/)).toBeInTheDocument()
+  })
+})
+
+describe('logs: SIEM forwarding (S-LOG-3)', () => {
+  it('no a11y violations; an unconfigured form shows a sample record', async () => {
+    renderSiem()
+    expect(await screen.findByRole('heading', { name: 'Forward to a SIEM' })).toBeInTheDocument()
+    expect(screen.getByText(/<130>1 .* finding\.confirmed/)).toBeInTheDocument()
+    await expectNoA11yViolations()
+  })
+
+  it('a wrong server is refused, a right one is saved and tested', async () => {
+    renderSiem()
+    await userEvent.click(await screen.findByRole('button', { name: /^Save$/ }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('The SIEM server must be an IP address or a domain name')
+    await userEvent.type(screen.getByLabelText('SIEM server'), 'siem.company.com')
+    await userEvent.click(screen.getByRole('button', { name: 'Save and send test' }))
+    expect((await screen.findAllByText('SIEM settings saved.')).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText(/Sent 1 test record to siem\.company\.com:514\/udp/)).length).toBeGreaterThan(0)
+    expect(await screen.findByRole('status')).toHaveTextContent('success')
+    expect(auditStore.get().some((e) => e.action === 'logs.siem_test')).toBe(true)
+  })
+
+  it('an unreachable destination: the error says how to fix it', async () => {
+    renderSiem()
+    await userEvent.type(await screen.findByLabelText('SIEM server'), 'siem.invalid')
+    await userEvent.click(screen.getByRole('button', { name: 'Save and send test' }))
+    expect((await screen.findAllByText(/Could not connect to siem\.invalid/)).length).toBeGreaterThan(0)
+    expect(await screen.findByRole('status')).toHaveTextContent('failed')
+  })
+
+  it('JSON webhook: the signing key keeps only its last 4 characters, the API never returns the full key', async () => {
+    renderSiem()
+    await userEvent.click(await screen.findByRole('button', { name: 'JSON webhook' }))
+    await userEvent.type(screen.getByLabelText('Webhook URL'), 'https://siem.company.com/hooks/vedette')
+    await userEvent.type(screen.getByLabelText('Signing key (optional)'), 'a-signing-key-longer-than-16-ABCD')
+    expect(screen.getByLabelText('Signing key (optional)')).toHaveAttribute('type', 'password')
+    await userEvent.click(screen.getByRole('button', { name: /^Save$/ }))
+    expect((await screen.findAllByText('SIEM settings saved.')).length).toBeGreaterThan(0)
+    expect(await screen.findByText('Saved, ending in ABCD. Leave empty to keep it.')).toBeInTheDocument()
+    const cfg = await getJson('/logs/siem')
+    expect(cfg.secret_last4).toBe('ABCD')
+    expect(JSON.stringify(cfg)).not.toContain('a-signing-key')
+    expect(screen.getByLabelText('Signing key (optional)')).toHaveValue('')
+  })
+
+  it('clearing every event type is refused', async () => {
+    renderSiem()
+    await userEvent.type(await screen.findByLabelText('SIEM server'), '192.168.10.50')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Findings: vulnerabilities matching your devices' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Alerts sent' }))
+    await userEvent.click(screen.getByRole('button', { name: /^Save$/ }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Choose at least one event type')
+  })
+
+  it('an operator cannot change the SIEM settings', async () => {
+    renderSiem('operator')
+    expect(await screen.findByText('Your account is not allowed to do this.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+    const res = await fetch(`${location.origin}/api/v1/logs/siem`)
+    expect(res.status).toBe(403)
+  })
+})

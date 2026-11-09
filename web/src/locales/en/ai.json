@@ -1,0 +1,711 @@
+{
+  "nav": {
+    "assistant": "AI assistant"
+  },
+  "gate": {
+    "loading": "Checking AI status",
+    "off": "The AI assistant module is off",
+    "unconfigured": "No AI profile yet",
+    "unconfiguredBody": "Add an AI profile (provider, model and key) to use this. Until then Vedette sends nothing out.",
+    "toSettings": "Open Settings, AI assistant",
+    "askAdmin": "Ask an administrator to add an AI profile.",
+    "unassigned": "No AI profile is assigned to this task",
+    "unassignedBody": "A profile exists, but this task has none assigned, or the privacy rule excludes it. Assign one in the job routing table."
+  },
+  "page": {
+    "titleLoading": "AI assistant",
+    "titleOff": "AI assistant is off, existing data is kept",
+    "titleUnconfigured": "No AI profile yet: add one in Settings to ask your data",
+    "title": "{{used}} of {{cap}} tokens used today. The AI only reads data and changes nothing.",
+    "meta": "{{tier}} level. Every answer needs a person to confirm before acting on it."
+  },
+  "skill": {
+    "ask-my-data": "Ask your data",
+    "explain-finding": "Explain finding",
+    "cve-news": "CVE news",
+    "log-digest": "Log digest",
+    "log-investigate": "Log investigation",
+    "weekly-report": "Weekly report",
+    "pdpl-assessment": "Data protection assessment",
+    "connection-test": "Connection test",
+    "mitigation-config": "Mitigation config",
+    "translate-advisory": "Translate advisory",
+    "response-plan": "Response plan"
+  },
+  "ask": {
+    "title": "Ask your data",
+    "description": "Ask in plain words. The AI uses read-only tools to look up devices and findings on this box; no tool writes or changes anything.",
+    "label": "Question",
+    "hint": "For example: which machines still expose RDP, which NAS has findings, which devices are new.",
+    "placeholder": "Which machines still expose RDP?",
+    "submit": "Ask",
+    "asking": "Asking",
+    "suggested": "Suggested questions",
+    "q": {
+      "rdp": "Which machines still expose RDP?",
+      "unapproved": "Which devices are not approved yet?",
+      "confirmed": "Which findings are confirmed?",
+      "nas": "Which NAS has findings?",
+      "camera": "Which cameras are Hikvision?",
+      "oldOs": "Which machines run an operating system near end of support?"
+    },
+    "working": "Looking up data and writing the answer.",
+    "empty": "No questions yet. Pick a suggested question or type your own.",
+    "history": "Recent questions",
+    "downgraded": "Daily token cap exceeded, level lowered from {{from}} to {{to}}.",
+    "answerFor": "Answer to: {{q}}",
+    "you": "You asked:",
+    "tableTitle": "Result table ({{n}} rows)",
+    "tableNote": "The box computes this table straight from inventory and findings; the AI did not write it.",
+    "tableCaption": "Results for the question: {{q}}",
+    "toolsTitle": "Read-only tools called",
+    "toolsNote": "The AI only has these lookup tools. It has no write, block or scan tool.",
+    "toolResult": "returned {{result}}",
+    "refused": "The AI was not asked",
+    "hooksTitle": "Hooks that acted"
+  },
+  "meter": {
+    "title": "Token meter",
+    "description": "Tokens used with your provider. Vedette charges nothing; you pay the provider directly.",
+    "today": "Today: {{used}} of {{cap}} tokens",
+    "tier": "Current level: {{tier}}",
+    "barLabel": "Tokens used today against the cap",
+    "percent": "{{pct}}% of today's cap",
+    "split": "Today {{input}} tokens in, {{output}} tokens out. Last 30 days: {{month}} tokens.",
+    "over": "Today's cap is used up. At the minimum level Vedette stops calling AI until tomorrow; you can raise the cap in Settings.",
+    "near": "Close to today's cap. Past it Vedette lowers the level automatically.",
+    "skillCaption": "Tokens by task, last 30 days",
+    "skillEmpty": "No AI calls yet.",
+    "col": {
+      "skill": "Task",
+      "runs": "Runs",
+      "tokens": "Tokens"
+    },
+    "downgrades": "Automatic level downgrades",
+    "noDowngrades": "No downgrade has happened.",
+    "downgrade": "{{time}}: lowered from {{from}} to {{to}}. {{reason}}."
+  },
+  "runs": {
+    "title": "AI run log",
+    "description": "Every time Vedette calls an AI: which task, which profile and model, how many tokens. The content sent is not stored.",
+    "caption": "Log of AI calls",
+    "filter": "Filter by task, target or model",
+    "empty": "No AI calls yet.",
+    "col": {
+      "time": "Time",
+      "skill": "Task",
+      "target": "Target",
+      "model": "Model",
+      "in": "Tokens in",
+      "out": "Tokens out",
+      "status": "Result",
+      "profile": "AI profile"
+    },
+    "status": {
+      "ok": "Succeeded",
+      "schema_error": "Bad format",
+      "capped": "Blocked by cap"
+    },
+    "fallback": "Fallback used"
+  },
+  "settings": {
+    "nav": "AI assistant",
+    "title": "AI assistant",
+    "saved": "Token level saved",
+    "statusOn": "AI profiles are set up. Each task uses the profile you assign to it below.",
+    "statusOff": "No usable AI profile yet. The Ask AI buttons stay off until you add one.",
+    "flow": {
+      "title": "What data leaves this box",
+      "remote": "Data for tasks assigned to cloud profiles goes to {{hosts}} using your key. It is covered by your own agreement with that provider.",
+      "rules": "Data does not pass through any Vedette server and keys never leave this box. With no profile saved, nothing is sent. Passwords and tokens in logs are always masked before sending.",
+      "abroad": "If a cloud provider hosts its servers outside Vietnam and the data sent contains personal data (user names or emails in logs), this may count as a cross-border transfer of personal data under Vietnam's Law on Personal Data Protection No. 91/2025/QH15 (Article 20). Keep personal data masking on below, use a profile inside your network for internal data, and see the assessment on the Reports page.",
+      "noneRemote": "No cloud profile is set up, so nothing leaves your network. Profiles inside your network keep data on it."
+    },
+    "tier": {
+      "title": "Token level",
+      "intro": "The level decides what Vedette sends and when. Past the daily cap Vedette lowers the level itself and records it.",
+      "min": {
+        "name": "Minimum",
+        "sends": "One log digest per day with the worst anomalies. Explaining a vulnerability runs only when you click."
+      },
+      "med": {
+        "name": "Medium",
+        "sends": "Hourly digest of new log events. Automatically explains new high-severity findings."
+      },
+      "max": {
+        "name": "Maximum",
+        "sends": "Per new alert, the AI investigates with read-only tools. Automatically fetches and summarises news on new CVEs."
+      },
+      "estimate": "About {{n}} tokens per day.",
+      "estimateMax": "Depends on alert volume; you set the cap below."
+    },
+    "cap": "Daily token cap for all profiles together",
+    "capHint": "From 1,000 to 5,000,000. The medium level default is 60,000. Each profile also has its own cap.",
+    "redact": "Mask personal information before sending",
+    "redactHint": "Masks emails and phone numbers in logs. Passwords and tokens are always masked.",
+    "saving": "Saving",
+    "err": {
+      "cap": "The cap must be a whole number from 1,000 to 5,000,000."
+    },
+    "retention": {
+      "title": "Activity log retention",
+      "intro": "How long the AI activity log is kept. Entries are never edited or deleted before then.",
+      "label": "Keep for (days)",
+      "hint": "Default 365, minimum 90.",
+      "err": "Enter a whole number of days, at least 90."
+    }
+  },
+  "cve": {
+    "explainTitle": "Explain in plain English",
+    "explainDesc": "The AI reads the CVE data and your devices, then says whether you are affected and how to fix it. The result is saved, so asking again costs no tokens.",
+    "explain": "Explain",
+    "explainAgain": "Ask again",
+    "working": "Working",
+    "explainEmpty": "Click Explain and the AI explains it in plain English.",
+    "newsTitle": "Latest news on this CVE",
+    "newsDesc": "The box fetches the vendor advisory, GitHub PoC search results and a few security news feeds, then asks the AI to summarise. The AI does not browse the web itself.",
+    "news": "Fetch and summarise news",
+    "newsAgain": "Fetch again",
+    "newsEmpty": "Click to have the box fetch the sources and summarise.",
+    "affected": {
+      "yes": "You are affected",
+      "unknown": "You may be affected, check the version",
+      "no": "No affected device found"
+    },
+    "patch": "How to patch",
+    "temp": "Temporary fix while you wait",
+    "detect": "Signs of exploitation",
+    "cached": "Saved result from {{time}}.",
+    "generated": "Created {{time}}.",
+    "fetched": "Sources the box fetched",
+    "source": {
+      "ok": "Fetched",
+      "failed": "Could not fetch"
+    },
+    "newsMeta": "Summarised {{time}}. Fetched text was filtered for injected instructions before reaching the AI."
+  },
+  "logs": {
+    "title": "AI log digest",
+    "description": "The AI reads aggregated logs and says what to look at first. Logs are untrusted data: the AI only summarises and does nothing on your behalf.",
+    "refresh": "Regenerate now",
+    "working": "Summarising",
+    "tier": "{{tier}} level: {{cadence}}.",
+    "cite": "Aggregated logs on this box",
+    "severity": {
+      "high": "High",
+      "medium": "Medium",
+      "info": "Info"
+    },
+    "device": "View device",
+    "tools": "Read-only tools used to investigate",
+    "meta": "Summarised {{time}}.",
+    "emptyHint": "Add a log source",
+    "noItems": "Nothing in the current log data needs a look."
+  },
+  "profiles": {
+    "title": "AI profiles",
+    "description": "A profile is one AI you can use: provider, model, key and where it runs. Add several, for example a fast cheap model and a strong one, or a model on your own network.",
+    "caption": "AI profiles",
+    "add": "Add AI profile",
+    "empty": "No AI profile yet",
+    "emptyBody": "Add one to turn on explanations, log digests and asking your data. Anthropic, OpenAI and Gemini keys, a local Ollama or vLLM server, or any compatible service all work.",
+    "col": {
+      "name": "Profile",
+      "location": "Where it runs",
+      "model": "Model",
+      "key": "Key",
+      "usage": "Used today",
+      "actions": "Actions"
+    },
+    "kind": {
+      "anthropic": "Anthropic",
+      "openai": "OpenAI",
+      "gemini": "Google Gemini",
+      "openai-compatible": "OpenAI-compatible (Ollama, vLLM, LM Studio)",
+      "custom": "Custom"
+    },
+    "style": {
+      "openai": "OpenAI Chat Completions",
+      "anthropic": "Anthropic Messages",
+      "gemini": "Google Gemini"
+    },
+    "location": {
+      "internal": "Inside your network",
+      "cloud": "Cloud"
+    },
+    "keyEnds": "Key ends in {{last4}}",
+    "noKeyNeeded": "No key needed",
+    "keyMissing": "No key yet",
+    "usage": "{{used}} of {{cap}} tokens",
+    "test": "Test connection",
+    "testing": "Testing",
+    "testNamed": "Test connection for {{name}}",
+    "editNamed": "Edit {{name}}",
+    "removeNamed": "Remove {{name}}",
+    "edit": "Edit",
+    "remove": "Remove",
+    "testOk": "Connected",
+    "testDetail": "{{name}} replied in {{ms}} ms. The test used {{input}} tokens in, {{output}} tokens out.",
+    "thisProfile": "This profile",
+    "capTools": "The model can call tools.",
+    "capNoTools": "The model cannot call tools; investigation tasks will not work well with it.",
+    "addTitle": "Add AI profile",
+    "editTitle": "Edit {{name}}",
+    "dialogBody": "The key is stored encrypted on this box. Only its last 4 characters are shown afterwards.",
+    "addConfirm": "Add profile",
+    "saving": "Saving",
+    "saved": "AI profile saved",
+    "added": "AI profile added",
+    "removed": "{{name}} removed",
+    "removeTitle": "Remove {{name}}?",
+    "removeBody": "No task uses this profile. Its run history stays in the log.",
+    "removeBodyUsed": "It is assigned to: {{jobs}}. A task that loses its primary profile moves up its fallback; otherwise it stops until you assign another.",
+    "removeConfirm": "Remove profile",
+    "f": {
+      "kind": "Provider type",
+      "name": "Profile name",
+      "nameHint": "Shown in the run log and on every AI answer, for example Claude Sonnet.",
+      "style": "API style",
+      "styleHint": "Which API the server speaks. Most self-hosted servers use OpenAI Chat Completions.",
+      "baseUrl": "Server address",
+      "baseUrlCloud": "Must be https://. Keep the default if you use the provider directly.",
+      "baseUrlInternal": "A server on your own network may use http://. Ollama defaults to http://localhost:11434/v1 (same machine as Vedette) or http://server-IP:11434/v1; vLLM defaults to port 8000.",
+      "model": "Model",
+      "modelHint": "A small model suits batch jobs such as log digests; a stronger one suits explanations. Model names change over time: if the connection test says the model does not exist, copy the name from the provider's model page.",
+      "key": "API key",
+      "keySaved": "A key ending in {{last4}} is stored. Leave empty to keep it; enter a new key to replace it.",
+      "keyOptional": "A server inside your network may not need a key.",
+      "keyHint": "Encrypted on this box; only the last 4 characters are shown after saving.",
+      "location": "Where does it run?",
+      "location_internal": "On your own network or machine (Ollama, vLLM). Data sent to it does not leave your network.",
+      "location_cloud": "A provider's cloud service. Data sent to it leaves your network.",
+      "cloudOnly": "Anthropic, OpenAI and Gemini run in the cloud. Choose OpenAI-compatible or Custom for a server on your own network.",
+      "cap": "Daily token cap for this profile",
+      "capHint": "From 1,000 to 5,000,000. When the cap is reached, tasks move to their fallback profile.",
+      "ack": "I understand the data for tasks assigned to this profile will be sent to {{host}}."
+    },
+    "err": {
+      "name": "Enter a profile name.",
+      "duplicate": "Another profile already has this name.",
+      "style": "Pick the API style the server speaks.",
+      "url": "The address is not valid. Enter it in full, for example https://api.anthropic.com.",
+      "https": "The address must start with https://. Only a server inside your own network may use http://.",
+      "model": "Enter a model name, for example claude-haiku-5-5.",
+      "keyRequired": "Enter the provider's API key. It stays on this box and is encrypted.",
+      "keyShape": "The key is too short or contains spaces. Copy the whole key again from the provider's console.",
+      "cap": "The cap must be a whole number from 1,000 to 5,000,000."
+    }
+  },
+  "assign": {
+    "title": "Job routing",
+    "description": "Each AI task uses a primary profile and, optionally, a fallback. Vedette switches to the fallback when the primary fails, times out or reaches its daily cap, and records which profile answered.",
+    "rule": "Logs and device data go only to profiles inside your network",
+    "ruleBody": "On: tasks that send your logs, devices or findings (summaries, investigation, asking your data, explanations, reports) can only use profiles that run inside your network, so that data never leaves it. Tasks on public data (CVE news, translating vendor advisories) may still use cloud profiles. Off: any profile can be used for any task.",
+    "suggest": "Apply suggestion",
+    "suggested": "Suggestion applied below. Review it, then save.",
+    "suggestedSame": "Your saved routing already matches the suggestion. Nothing to save.",
+    "needProfile": "Add a usable profile first",
+    "cleared": "{{count}} cloud assignment(s) were cleared because the rule allows only internal profiles for that data. Save to apply.",
+    "noProfiles": "No usable profile to assign",
+    "noProfilesBody": "Add an AI profile above; a profile that needs a key is not usable until the key is saved.",
+    "caption": "AI job routing",
+    "col": {
+      "job": "Task",
+      "data": "Data it sends",
+      "primary": "Primary profile",
+      "fallback": "Fallback profile"
+    },
+    "data": {
+      "internal": "Your logs and devices",
+      "public": "Public data only"
+    },
+    "none": "None",
+    "primaryFor": "Primary profile for {{job}}",
+    "fallbackFor": "Fallback profile for {{job}}",
+    "fallbackNeedsPrimary": "Pick a primary profile first",
+    "optNoKey": "no key yet",
+    "optCloud": "cloud, not allowed for internal data",
+    "fallbackNote": "The suggestion puts a fast model on batch tasks such as log digests, news and translation, and a strong model on tasks that need reasoning such as explanations and asking your data. Tasks with internal data prefer profiles inside your network.",
+    "save": "Save routing",
+    "saving": "Saving",
+    "saved": "Job routing saved",
+    "discard": "Discard changes",
+    "nothingToSave": "No changes to save"
+  },
+  "jobs": {
+    "explain-finding": {
+      "name": "Explain findings",
+      "what": "Why a vulnerability matters for your devices and how to fix it"
+    },
+    "mitigation-config": {
+      "name": "Write mitigation configs",
+      "what": "Config snippets for your firewall or device vendor"
+    },
+    "ask-my-data": {
+      "name": "Ask your data",
+      "what": "Free questions about your devices and findings"
+    },
+    "log-digest": {
+      "name": "Log summaries",
+      "what": "What is new or unusual in your logs"
+    },
+    "log-investigate": {
+      "name": "Log investigation",
+      "what": "Follows an alert with read-only tools"
+    },
+    "weekly-report": {
+      "name": "Weekly report comments",
+      "what": "A short comment on the weekly report"
+    },
+    "pdpl-assessment": {
+      "name": "Assessment comments",
+      "what": "A short comment on the data protection assessment"
+    },
+    "cve-news": {
+      "name": "CVE news",
+      "what": "Summarises advisories and exploit news fetched by the box"
+    },
+    "translate-advisory": {
+      "name": "Translate advisories",
+      "what": "Translates vendor advisories into plain English"
+    },
+    "response-plan": {
+      "name": "Response plans",
+      "what": "What to do now when a device has a critical finding"
+    }
+  },
+  "harness": {
+    "tabs": {
+      "label": "AI assistant settings",
+      "profiles": "Profiles and routing",
+      "rules": "Rules",
+      "memory": "Memory",
+      "skills": "Skills",
+      "knowledge": "Knowledge",
+      "connections": "Connections",
+      "hooks": "Hooks"
+    },
+    "builtIn": "Built in",
+    "allJobs": "All jobs",
+    "chosenJobs": "Chosen jobs only",
+    "atLeastOne": "Keep at least one job ticked, or choose All jobs.",
+    "appliesTo": "Applies to: {{jobs}}",
+    "off": "Off",
+    "enabled": "Enabled",
+    "saving": "Saving…",
+    "edit": "Edit",
+    "delete": "Delete",
+    "editNamed": "Edit {{name}}",
+    "deleteNamed": "Delete {{name}}",
+    "rules": {
+      "builtinTitle": "Built-in rules",
+      "builtinBody": "Sent with every AI call. They keep the AI inside its job and cannot be changed or turned off.",
+      "customTitle": "Your rules",
+      "customBody": "Extra instructions added to AI calls, for example how to name devices or your change window.",
+      "add": "Add rule",
+      "empty": "No custom rules yet",
+      "emptyBody": "Add a rule to tell the AI something it should always follow in this company.",
+      "enable": "Rule enabled: {{text}}",
+      "addTitle": "Add rule",
+      "editTitle": "Edit rule",
+      "dialogBody": "The rule is added to the instructions of every chosen AI job.",
+      "text": "Rule",
+      "textHint": "One clear instruction, for example: Always name devices by hostname and IP address.",
+      "errText": "Write the rule in at least 3 characters.",
+      "jobs": "Which jobs follow this rule",
+      "saved": "Rule saved",
+      "deleteTitle": "Delete this rule?",
+      "deleted": "Rule deleted"
+    },
+    "memory": {
+      "suggestTitle": "New memories",
+      "suggestSwitch": "AI may suggest new memories",
+      "suggestHint": "When on, the AI can propose things it noticed about this network. Nothing is remembered until you accept it.",
+      "queueTitle": "Suggested memories ({{n}})",
+      "queueEmpty": "No suggestions waiting.",
+      "accept": "Accept",
+      "reject": "Reject",
+      "acceptNamed": "Accept memory: {{text}}",
+      "rejectNamed": "Reject memory: {{text}}",
+      "accepted": "Memory added",
+      "noticed": "Noticed in {{evidence}}, {{when}}",
+      "title": "What the AI remembers",
+      "body": "Facts about this network the AI keeps between questions. You can edit, turn off or delete any of them.",
+      "add": "Add memory",
+      "empty": "The AI remembers nothing yet",
+      "emptyBody": "Add a fact about your network, for example how a device is exposed, so the AI does not have to guess.",
+      "source": {
+        "ai": "Learned by AI",
+        "user": "Added by you"
+      },
+      "created": "Created {{date}}",
+      "used": "Last used {{when}}",
+      "neverUsed": "Never used",
+      "enable": "Memory enabled: {{text}}",
+      "addTitle": "Add memory",
+      "editTitle": "Edit memory",
+      "dialogBody": "The AI reads enabled memories before it answers.",
+      "text": "Memory",
+      "textHint": "A fact, for example: NAS-PHOTOS is reachable from the Internet through FortiGate virtual IP NAS-PHOTO-443.",
+      "errText": "Write the memory in at least 3 characters.",
+      "saved": "Memory saved",
+      "deleteTitle": "Delete this memory?",
+      "deleted": "Memory deleted"
+    },
+    "skills": {
+      "title": "Skills",
+      "body": "The ready-made jobs the AI can do. Turn a skill off and its job stops running.",
+      "enable": "Skill enabled: {{name}}",
+      "usedBy": "Used by: {{jobs}}",
+      "batch": "Runs in batches during inventory, not from a button."
+    },
+    "knowledge": {
+      "indexTitle": "Index",
+      "indexBody": "The index is built on this box. The AI profile you choose reads the text of each document to build it.",
+      "indexLabel": "AI profile that builds the index",
+      "indexHint": "A profile that runs inside your network keeps document text in the network.",
+      "indexNone": "None chosen",
+      "indexSaved": "Index profile saved",
+      "cloudWarn": "This is a cloud profile. The text of every document you add leaves your network and goes to {{host}}. Choose a profile that runs inside your network if the documents are confidential.",
+      "internalNote": "This profile runs inside your network, so document text stays here.",
+      "title": "Documents",
+      "body": "Network diagrams, policies and runbooks the AI can look things up in. PDF, MD, TXT or DOCX, up to 10 MB each.",
+      "upload": "Upload document",
+      "uploading": "Uploading…",
+      "needIndex": "Choose an AI profile for the index first.",
+      "errType": "{{name}} is not a PDF, MD, TXT or DOCX file.",
+      "errSize": "{{name}} is larger than 10 MB.",
+      "errEmpty": "{{name}} is empty.",
+      "added": "{{name}} added",
+      "empty": "No documents yet",
+      "emptyBody": "Upload a network diagram or your security policy and the AI can use it when it explains findings.",
+      "status": {
+        "uploading": "Uploading",
+        "indexing": "Indexing",
+        "ready": "Ready"
+      },
+      "noChunks": "Not indexed yet",
+      "chunks": "{{n}} chunks",
+      "usedBy": "Used by: {{jobs}}",
+      "jobs": "Jobs",
+      "jobsNamed": "Choose jobs for {{name}}",
+      "jobsTitle": "Jobs that may use {{name}}",
+      "jobsBody": "Only the chosen jobs can read this document.",
+      "jobsLegend": "Jobs that may use this document",
+      "allJobs": "All jobs",
+      "jobsSaved": "Jobs saved",
+      "deleteTitle": "Delete {{name}}?",
+      "deleteBody": "The document and its index are removed from this box. This cannot be undone.",
+      "deleted": "Document deleted"
+    },
+    "conn": {
+      "title": "Connections",
+      "body": "Systems the AI may reach: device APIs, SSH servers, web addresses and MCP servers. It only uses what is on each allow-list.",
+      "add": "Add connection",
+      "writeNoteLead": "Write tools never run from a chat answer.",
+      "writeNote": "Tools that change something are used only through actions you approve in the AI response module.",
+      "writeOnlyApproved": "Write tools run only through an action you approve in the AI response module.",
+      "empty": "No connections yet",
+      "emptyBody": "Add a connection so the AI can read a firewall or check a vendor page instead of guessing.",
+      "kind": {
+        "device-api": "Device API",
+        "ssh": "SSH",
+        "http": "HTTP",
+        "mcp-http": "MCP server (URL)",
+        "mcp-stdio": "MCP server (command)"
+      },
+      "status": {
+        "ok": "Working",
+        "error": "Failed",
+        "untested": "Not tested"
+      },
+      "auth": {
+        "none": "No sign-in",
+        "token": "API token",
+        "basic": "User and password",
+        "ssh-key": "SSH key"
+      },
+      "noAuth": "No sign-in",
+      "authEnds": "{{type}} ending {{last4}}",
+      "tested": "tested {{when}}",
+      "neverTested": "never tested",
+      "enable": "Connection enabled: {{name}}",
+      "test": "Test connection",
+      "testNamed": "Test connection {{name}}",
+      "testing": "Testing…",
+      "testOk": "Connected",
+      "allowTitle": "Allow-list",
+      "allowFor": "Allow-list of {{name}}",
+      "toolsTitle": "Tools",
+      "toolsFor": "Tools of {{name}}",
+      "toolEnable": "Tool {{tool}} enabled on {{name}}",
+      "access": {
+        "read": "Read",
+        "write": "Write"
+      },
+      "deleteTitle": "Delete {{name}}?",
+      "deleteBody": "The AI loses access to this system. Response actions that used it can no longer run.",
+      "deleted": "Connection deleted",
+      "addTitle": "Add connection",
+      "editTitle": "Edit {{name}}",
+      "dialogBody": "The secret stays on this box, encrypted. After saving only its last 4 characters are shown.",
+      "addConfirm": "Add connection",
+      "saved": "Connection saved",
+      "added": "Connection added",
+      "vendor": {
+        "fortinet": "FortiOS (Fortinet)",
+        "mikrotik": "RouterOS (MikroTik)",
+        "pfsense": "pfSense",
+        "other": "Other device"
+      },
+      "errName": "Give the connection a name.",
+      "errTarget": "Enter where to connect.",
+      "errSecret": "Enter the secret.",
+      "errAllow": "Add at least one allow-list entry, one per line.",
+      "f": {
+        "name": "Name",
+        "kind": "Kind",
+        "vendor": "Which device API",
+        "target_device-api": "Device address (URL)",
+        "target_ssh": "SSH server (host or host:port)",
+        "target_http": "Base address (URL)",
+        "target_mcp-http": "MCP server address (URL)",
+        "target_mcp-stdio": "Command that starts the MCP server",
+        "targetExample": "For example {{example}}",
+        "auth": "Sign-in",
+        "secret": "Secret",
+        "secretHint": "Token, password or key. Stored encrypted; only the last 4 characters are shown afterwards.",
+        "secretSaved": "Saved, ending {{last4}}. Leave blank to keep it.",
+        "allow": "Allow-list (one per line)",
+        "allowHint_device-api": "URL prefixes the AI may call, for example {{example}}",
+        "allowHint_ssh": "Exact commands the AI may run, one per line, for example {{example}}",
+        "allowHint_http": "Addresses the AI may fetch, for example {{example}}",
+        "allowHint_mcp-http": "Hosts the server may reach, for example {{example}}",
+        "allowHint_mcp-stdio": "Hosts the server may reach, for example {{example}}"
+      }
+    },
+    "hooks": {
+      "builtinTitle": "Built-in hooks",
+      "body": "Hooks are checks that run before and after every AI call.",
+      "locked": "Always on",
+      "lockedWhy": "A tool that changes something can only run through an action a person approves. This hook cannot be turned off.",
+      "enable": "Hook enabled: {{name}}",
+      "customTitle": "Your hooks",
+      "customBody": "Look for words or a pattern in what is sent to the AI, in its answer, or in a tool call, then block it, mask it or hold it for approval.",
+      "add": "Add hook",
+      "empty": "No custom hooks yet",
+      "emptyBody": "Add a hook to stop something specific, for example a project code name leaving your network.",
+      "when": {
+        "before_ai": "Before sending to AI",
+        "after_ai": "After the AI answers",
+        "before_tool": "Before a tool call"
+      },
+      "matchType": {
+        "keywords": "Keywords",
+        "regex": "Regex"
+      },
+      "action": {
+        "block": "Block",
+        "mask": "Mask",
+        "approve": "Require approval"
+      },
+      "shows": "Message shown: {{message}}",
+      "tryTitle": "Try the hooks",
+      "tryBody": "Type a sample text and see what the hooks that are on would do with it.",
+      "sample": "Sample text",
+      "sampleHint": "For example: email me at an.nguyen@example.com",
+      "stage": "Stage",
+      "test": "Test",
+      "testing": "Testing…",
+      "outcome": {
+        "pass": "Passes",
+        "masked": "Masked",
+        "blocked": "Blocked",
+        "held": "Held for approval"
+      },
+      "addTitle": "Add hook",
+      "editTitle": "Edit {{name}}",
+      "dialogBody": "A hook runs on every AI call at the stage you choose.",
+      "testTitle": "Test this hook",
+      "errName": "Give the hook a name.",
+      "errPattern": "Enter the words or the pattern to look for.",
+      "errMessage": "Write the message people will see.",
+      "f": {
+        "name": "Name",
+        "when": "When it runs",
+        "matchType": "Match by",
+        "action": "What it does",
+        "actionHint_block": "The text is not sent or the answer is not shown.",
+        "actionHint_mask": "The matching part is replaced with [masked].",
+        "actionHint_approve": "The call waits until a person approves it.",
+        "pattern_keywords": "Keywords",
+        "pattern_regex": "Regular expression",
+        "patternHint_keywords": "Separate words with commas, for example: project falcon, salary",
+        "patternHint_regex": "For example: password\\s*[:=]\\s*\\S+",
+        "message": "Message shown to the user",
+        "messageHint": "Say why it acted and what to do next."
+      },
+      "saved": "Hook saved",
+      "deleteTitle": "Delete {{name}}?",
+      "deleteBody": "The hook stops checking AI calls straight away.",
+      "deleted": "Hook deleted"
+    }
+  },
+  "activity": {
+    "title": "Activity log",
+    "description": "Everything the AI did on this box: who or what started it, the checks that acted, the tools it used, and hashes of what was sent and answered. The content itself is not stored.",
+    "caption": "AI activity log",
+    "empty": "No AI activity matches these filters.",
+    "verifying": "Checking the log chain...",
+    "verified": "Chain verified: {{n}} entries, none changed.",
+    "broken": "Chain broken at entry {{n}}: this entry or an earlier one was changed after it was written.",
+    "readOnly": "Entries cannot be edited or deleted. They are kept for {{days}} days; change this in Settings, AI assistant.",
+    "open": "Details",
+    "openFor": "Details of {{job}} at {{time}}",
+    "col": {
+      "time": "Time",
+      "job": "Task",
+      "trigger": "Started by",
+      "model": "Model",
+      "tokens": "Tokens",
+      "result": "Result",
+      "details": "Details"
+    },
+    "filter": {
+      "job": "Task",
+      "result": "Result",
+      "from": "From",
+      "to": "To",
+      "any": "Any"
+    },
+    "result": {
+      "ok": "OK",
+      "blocked_by_hook": "Blocked by a hook",
+      "fallback_used": "Fallback used",
+      "error": "Error"
+    },
+    "access": {
+      "read": "read",
+      "write": "write"
+    },
+    "link": {
+      "proposal": "Proposal",
+      "action": "Action"
+    },
+    "detail": {
+      "title": "{{job}}",
+      "summary": "Summary",
+      "tokens": "Tokens",
+      "tokensBody": "{{in}} in, {{out}} out",
+      "hooks": "Hooks that acted",
+      "tools": "Tools called",
+      "links": "Produced",
+      "none": "None",
+      "inHash": "Input SHA-256",
+      "outHash": "Output SHA-256",
+      "prev": "Previous hash",
+      "hash": "Entry hash",
+      "note": "hash = SHA-256 of the previous hash plus the entry's canonical JSON (sorted keys, without hash). Download the logs in Settings, Data to verify offline."
+    }
+  }
+}

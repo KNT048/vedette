@@ -3,19 +3,19 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/knt048/vedette/core/audit"
-	"github.com/knt048/vedette/core/events"
-	"github.com/knt048/vedette/core/store"
-	"github.com/knt048/vedette/modules/inventory"
 	"log/slog"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
+	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules"
+	"github.com/knt048/vedette/modules/inventory"
 )
 
 // Migrations run in wiredModules order, so a module whose tables reference another module's must

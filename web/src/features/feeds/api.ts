@@ -17,7 +17,8 @@ export function useAnswerWeekly() {
   })
 }
 
-export const useCve = (id: string) => useQuery({ queryKey: ['feeds', 'cve', id], queryFn: () => api.get<CveDetail>(`/feeds/cve/${encodeURIComponent(id)}`), retry: false })
+export const CVE_ID = /^CVE-\d{4}-\d{4,}$/
+export const useCve = (id: string) => useQuery({ queryKey: ['feeds', 'cve', id], queryFn: () => api.get<CveDetail>(`/feeds/cve/${encodeURIComponent(id)}`), retry: false, enabled: CVE_ID.test(id) })
 
 export const useSearch = (q: string) =>
   useQuery({ queryKey: ['feeds', 'search', q], queryFn: () => api.get<SearchResult>(`/feeds/search?q=${encodeURIComponent(q)}`), enabled: q.trim().length > 0, retry: false })

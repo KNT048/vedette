@@ -41,15 +41,17 @@ func (s *Service) RunPull(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	force := map[string]bool{}
 	for _, r := range rows {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if !r.Enabled || (!force[r.ID] && !r.state().Due(now, r.IntervalHours)) {
+		if cur, err := s.st.source(ctx, r.ID); err == nil { // an earlier pull of this tick may have filled it (EPSS after the CISA list)
+			r = cur
+		}
+		if !r.Enabled || !r.state().Due(now, r.IntervalHours) {
 			continue
 		}
-		_, fresh, err := s.pull(ctx, r.ID, "")
+		_, err := s.pull(ctx, r.ID, "") // pull brings the EPSS scores after a CISA list load
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -59,9 +61,6 @@ func (s *Service) RunPull(ctx context.Context) error {
 		if err != nil { // a database failure: the feed's own error state could not be written either
 			s.Log.ErrorContext(ctx, "pulling a feed failed", "feed", r.ID, "error", err)
 			continue
-		}
-		if fresh > 0 {
-			force["first-epss"] = true // new CVEs get their EPSS score now, not in a day
 		}
 	}
 	if err := s.reconcileDevices(ctx); err != nil && ctx.Err() == nil {
@@ -76,7 +75,7 @@ func (s *Service) RunPull(ctx context.Context) error {
 // Fetch pulls one feed now (PRE-1: the feed is on; its address passes INV-2 inside the fetcher). A failed pull is
 // recorded on the feed (status error) and is not an error here; ErrFeedDisabled and ErrNotFound are.
 func (s *Service) Fetch(ctx context.Context, feedID string) error {
-	_, _, err := s.pull(ctx, feedID, "")
+	_, err := s.pull(ctx, feedID, "")
 	return err
 }
 
@@ -368,13 +367,13 @@ func (s *Service) buildEPSS(ctx context.Context, src sourceRow, p pullPlan) (pul
 // errStoreFailed is the sentence stored on a feed when its result could not be written (a database problem).
 const errStoreFailed = "The result could not be stored. Check the disk space and the box logs."
 
-// pull runs one pull of one feed under the feed's lock and writes its result in one transaction (with a core_audit
+// pullOne runs one pull of one feed under the feed's lock and writes its result in one transaction (with a core_audit
 // row when a person started it: actor is their email). It returns the feed as stored afterwards and how many CVEs
 // of the CISA list were new. A pull whose feed was edited, turned off or deleted while it ran writes nothing (the
 // row is re-read inside the transaction and its rev compared): deleted is ErrNotFound, the others return the feed
 // as it is. A failed pull is recorded on the feed; if even that fails to store, a second short transaction records
 // the failure. Only a context error, ErrNotFound, ErrFeedDisabled or a database that cannot record anything is an error.
-func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, int, error) {
+func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int, error) {
 	if err := s.ready(ctx); err != nil {
 		return sourceRow{}, 0, err
 	}
@@ -504,4 +503,20 @@ func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, int, e
 		s.publish(ctx, EventFetchFailed, FetchFailedEvent{FeedID: src.ID, Error: p.out.Err})
 	}
 	return row, kev, nil
+}
+
+// pull is pullOne plus the rule that every load of the CISA list brings the EPSS scores with it, whoever started it
+// (the job or "Fetch now"): new CVEs get their score now, not in a day, and a box whose EPSS feed ran before the list
+// existed ("OK, 0 records") is filled. A feed that is off is left alone; EPSS failing is its own feed's status, not the list's.
+func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, error) {
+	row, fresh, err := s.pullOne(ctx, id, actor)
+	if err != nil || id != "cisa-kev" || row.Status != "ok" {
+		return row, err
+	}
+	if e, err := s.st.source(ctx, "first-epss"); err == nil && e.Enabled && (fresh > 0 || e.Records == nil || *e.Records == 0) {
+		if _, _, err := s.pullOne(ctx, "first-epss", ""); err != nil && ctx.Err() != nil {
+			return row, ctx.Err()
+		}
+	}
+	return row, nil
 }

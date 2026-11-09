@@ -178,7 +178,10 @@ func TestRegress_BuiltinSourceLimits(t *testing.T) {
 		return []byte(b.String())
 	}
 	hagezi, _ := BuiltinByID("hagezi-tif")
-	if hagezi.MaxRows != 100_000 || hagezi.rowLimit() != 100_000 {
+	if hagezi.URL != "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.mini-onlydomains.txt" {
+		t.Fatalf("hagezi address = %s (domains/tif.mini.txt no longer exists upstream)", hagezi.URL)
+	}
+	if hagezi.MaxRows != 250_000 || hagezi.rowLimit() != 250_000 { // the mini list has 186,000 entries and grows
 		t.Fatalf("hagezi limit = %d", hagezi.MaxRows)
 	}
 	data := gen(60_000)
@@ -191,8 +194,11 @@ func TestRegress_BuiltinSourceLimits(t *testing.T) {
 	if err != nil || c.Accepted != MaxRows || !c.Truncated {
 		t.Errorf("custom 60k: %v %+v", err, c.Stats)
 	}
-	big, err := ParseSource(context.Background(), hagezi, gen(100_005))
-	if err != nil || big.Accepted != 100_000 || !big.Truncated {
+	if whole, err := ParseSource(context.Background(), hagezi, gen(186_200)); err != nil || whole.Accepted != 186_200 || whole.Truncated {
+		t.Errorf("hagezi mini today (186,200 lines): %v %+v", err, whole.Stats)
+	}
+	big, err := ParseSource(context.Background(), hagezi, gen(250_005))
+	if err != nil || big.Accepted != 250_000 || !big.Truncated {
 		t.Errorf("hagezi over: %v %+v", err, big.Stats)
 	}
 	ipsum, _ := BuiltinByID("ipsum")

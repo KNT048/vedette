@@ -139,11 +139,12 @@ func startArgs(t *testing.T, dir string, extra ...string) (addr string, tap *log
 	t.Helper()
 	var ctx context.Context
 	ctx, cancel = context.WithCancel(t.Context())
-	t.Cleanup(cancel)
 	tap, done = &logTap{}, make(chan error, 1)
 	pr, pw := io.Pipe()
 	args := append([]string{"-db", filepath.Join(dir, "v.db"), "-key", filepath.Join(dir, "v.key")}, extra...)
-	go func() { done <- run(ctx, args, io.Discard, pw); _ = pw.Close() }()
+	stopped := make(chan struct{})
+	go func() { defer close(stopped); done <- run(ctx, args, io.Discard, pw); _ = pw.Close() }()
+	waitStopped(t, cancel, stopped)
 	sc := bufio.NewScanner(pr)
 	for sc.Scan() {
 		tap.add(sc.Text())

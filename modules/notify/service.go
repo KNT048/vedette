@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
@@ -70,6 +71,15 @@ type Service struct {
 	// webhookClient replaces the webhook adapter's own guarded client. Only export_test.go sets it: a client from Config
 	// would skip the connect-time address check, so no configuration can reach a webhook.
 	webhookClient *http.Client
+	// reenabled is set when the module is turned on (modreg tells us) and cleared by the next Flush, which then drops
+	// the queued notices that went stale while it was off (D-86 (7)).
+	reenabled atomic.Bool
+}
+
+// changeNotifier is the part of core/modreg.Registry that tells when a module is switched (OnChange). Config.Modules
+// is asserted to it, so the ModuleGate interface stays small.
+type changeNotifier interface {
+	OnChange(fn func(id string, enabled bool))
 }
 
 type cachedSender struct {
@@ -85,7 +95,15 @@ func New(c Config) (*Service, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	return &Service{cfg: c, senders: map[channel.Type]cachedSender{}}, nil
+	s := &Service{cfg: c, senders: map[channel.Type]cachedSender{}}
+	if cn, ok := c.Modules.(changeNotifier); ok { // the callback only sets a flag: it runs on the publisher's goroutine and must not block
+		cn.OnChange(func(id string, enabled bool) {
+			if id == ModuleID && enabled {
+				s.reenabled.Store(true)
+			}
+		})
+	}
+	return s, nil
 }
 
 func (s *Service) now() time.Time { return s.cfg.Clock() }

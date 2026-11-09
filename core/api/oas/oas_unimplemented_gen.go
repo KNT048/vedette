@@ -621,7 +621,7 @@ func (UnimplementedHandler) CoreGetCoreOidc(ctx context.Context) (r *CoreGetCore
 
 // CoreGetCorePrivacy implements core_get_core_privacy operation.
 //
-// The 10 data flows leaving the box and the verbatim anonymous-signal payload.
+// The 11 data flows leaving the box and the verbatim anonymous-signal payload.
 //
 // GET /core/privacy
 func (UnimplementedHandler) CoreGetCorePrivacy(ctx context.Context) (r *CoreGetCorePrivacyOK, _ error) {
@@ -881,7 +881,7 @@ func (UnimplementedHandler) CorePostCoreDataPurge(ctx context.Context, req *Core
 // Create a read-only token by scope; returns the full token once.
 //
 // POST /core/mcp/tokens
-func (UnimplementedHandler) CorePostCoreMcpTokens(ctx context.Context, req *CorePostCoreMcpTokensReq) (r *CorePostCoreMcpTokensOK, _ error) {
+func (UnimplementedHandler) CorePostCoreMcpTokens(ctx context.Context, req *CorePostCoreMcpTokensReq) (r *CorePostCoreMcpTokensCreated, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -969,11 +969,11 @@ func (UnimplementedHandler) CorePostCoreUpdatesOsCheck(ctx context.Context) (r *
 
 // CorePostCoreUpdatesOsInstall implements core_post_core_updates_os_install operation.
 //
-// Install security updates or all updates through vedette-updater; one run at a time (409 when busy),
+// Install security updates or all updates through vedette-host; one run at a time (409 when busy),
 // database backup first.
 //
 // POST /core/updates/os/install
-func (UnimplementedHandler) CorePostCoreUpdatesOsInstall(ctx context.Context, req *CorePostCoreUpdatesOsInstallReq) (r *CorePostCoreUpdatesOsInstallOK, _ error) {
+func (UnimplementedHandler) CorePostCoreUpdatesOsInstall(ctx context.Context, req *CorePostCoreUpdatesOsInstallReq) (r *CorePostCoreUpdatesOsInstallAccepted, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1001,7 +1001,7 @@ func (UnimplementedHandler) CorePostCoreUpdatesRollback(ctx context.Context, req
 // Create a user with a role; returns a temporary password once.
 //
 // POST /core/users
-func (UnimplementedHandler) CorePostCoreUsers(ctx context.Context, req *CorePostCoreUsersReq) (r *CorePostCoreUsersOK, _ error) {
+func (UnimplementedHandler) CorePostCoreUsers(ctx context.Context, req *CorePostCoreUsersReq) (r *CorePostCoreUsersCreated, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1139,7 +1139,8 @@ func (UnimplementedHandler) ExposureGetExposureTargetsIDSnapshotsDate(ctx contex
 //
 // The box detects the public IP it uses to reach the Internet (TLS to a fixed endpoint) and verifies
 // it for 90 days. Takes no IP input; refuses private, reserved and CGNAT results; rate limited to 10
-// attempts per hour.
+// attempts per hour. 201 when the IP is new in the list, 200 when it was already there (the generated
+// file documents 200).
 //
 // POST /exposure/box-ip/verify
 func (UnimplementedHandler) ExposurePostExposureBoxIPVerify(ctx context.Context) (r *ExposurePostExposureBoxIPVerifyOK, _ error) {
@@ -1151,7 +1152,7 @@ func (UnimplementedHandler) ExposurePostExposureBoxIPVerify(ctx context.Context)
 // Add a domain (changes scan scope). Public IPs cannot be typed in: use /exposure/box-ip/verify.
 //
 // POST /exposure/targets
-func (UnimplementedHandler) ExposurePostExposureTargets(ctx context.Context, req *ExposurePostExposureTargetsReq) (r *ExposurePostExposureTargetsOK, _ error) {
+func (UnimplementedHandler) ExposurePostExposureTargets(ctx context.Context, req *ExposurePostExposureTargetsReq) (r *ExposurePostExposureTargetsCreated, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1167,8 +1168,8 @@ func (UnimplementedHandler) ExposurePostExposureTargetsIDCommitment(ctx context.
 
 // ExposurePostExposureTargetsIDScan implements exposure_post_exposure_targets_id_scan operation.
 //
-// Scan now. 409 when not verified, verification expired, the DNS TXT record is gone (re-checked right
-// before the scan) or the commitment is missing.
+// Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked
+// right before the scan); 400 commitment_required when the commitment is missing.
 //
 // POST /exposure/targets/{id}/scan
 func (UnimplementedHandler) ExposurePostExposureTargetsIDScan(ctx context.Context, params ExposurePostExposureTargetsIDScanParams) (r *ExposurePostExposureTargetsIDScanOK, _ error) {
@@ -1253,7 +1254,7 @@ func (UnimplementedHandler) FeedsGetFeedsWeekly(ctx context.Context) (r *FeedsGe
 // Add your own feed (vulnerabilities or IOC) with its parsing rules.
 //
 // POST /feeds/custom
-func (UnimplementedHandler) FeedsPostFeedsCustom(ctx context.Context, req *FeedsPostFeedsCustomReq) (r *FeedsPostFeedsCustomOK, _ error) {
+func (UnimplementedHandler) FeedsPostFeedsCustom(ctx context.Context, req *FeedsPostFeedsCustomReq) (r *FeedsPostFeedsCustomCreated, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1434,7 +1435,7 @@ func (UnimplementedHandler) HoneypotPatchHoneypotTrapsService(ctx context.Contex
 // Add a decoy with a personality on a spare IP.
 //
 // POST /honeypot/decoys
-func (UnimplementedHandler) HoneypotPostHoneypotDecoys(ctx context.Context, req *HoneypotPostHoneypotDecoysReq) (r *HoneypotPostHoneypotDecoysOK, _ error) {
+func (UnimplementedHandler) HoneypotPostHoneypotDecoys(ctx context.Context, req *HoneypotPostHoneypotDecoysReq) (r *HoneypotPostHoneypotDecoysCreated, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1463,7 +1464,7 @@ func (UnimplementedHandler) HoneypotPostHoneypotTestScan(ctx context.Context) (r
 // Create a honey token (decoy file, fake credentials, URL or DNS name).
 //
 // POST /honeypot/tokens
-func (UnimplementedHandler) HoneypotPostHoneypotTokens(ctx context.Context, req *HoneypotPostHoneypotTokensReq) (r *HoneypotPostHoneypotTokensOK, _ error) {
+func (UnimplementedHandler) HoneypotPostHoneypotTokens(ctx context.Context, req *HoneypotPostHoneypotTokensReq) (r *HoneypotPostHoneypotTokensCreated, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1639,7 +1640,7 @@ func (UnimplementedHandler) InventoryPostIntakeOsqueryStatus(ctx context.Context
 // Issue an osquery token, returning the full token once.
 //
 // POST /inventory/agents/tokens
-func (UnimplementedHandler) InventoryPostInventoryAgentsTokens(ctx context.Context, req *InventoryPostInventoryAgentsTokensReq) (r *InventoryPostInventoryAgentsTokensOK, _ error) {
+func (UnimplementedHandler) InventoryPostInventoryAgentsTokens(ctx context.Context, req *InventoryPostInventoryAgentsTokensReq) (r *InventoryPostInventoryAgentsTokensCreated, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1675,7 +1676,7 @@ func (UnimplementedHandler) InventoryPostInventoryAgentsWazuhTest(ctx context.Co
 // Declare a device manually using a product from the suggestion list.
 //
 // POST /inventory/devices
-func (UnimplementedHandler) InventoryPostInventoryDevices(ctx context.Context, req *InventoryPostInventoryDevicesReq) (r *InventoryPostInventoryDevicesOK, _ error) {
+func (UnimplementedHandler) InventoryPostInventoryDevices(ctx context.Context, req *InventoryPostInventoryDevicesReq) (r *InventoryPostInventoryDevicesCreated, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1693,7 +1694,7 @@ func (UnimplementedHandler) InventoryPostInventoryDevicesIDApprove(ctx context.C
 // Declare additional software running on a device.
 //
 // POST /inventory/devices/{id}/software
-func (UnimplementedHandler) InventoryPostInventoryDevicesIDSoftware(ctx context.Context, req *InventoryPostInventoryDevicesIDSoftwareReq, params InventoryPostInventoryDevicesIDSoftwareParams) (r *InventoryPostInventoryDevicesIDSoftwareOK, _ error) {
+func (UnimplementedHandler) InventoryPostInventoryDevicesIDSoftware(ctx context.Context, req *InventoryPostInventoryDevicesIDSoftwareReq, params InventoryPostInventoryDevicesIDSoftwareParams) (r *InventoryPostInventoryDevicesIDSoftwareCreated, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1801,7 +1802,7 @@ func (UnimplementedHandler) LogsPostLogsSiemTest(ctx context.Context) (r *LogsPo
 // Create a log source (device type, sender IP, protocol, port).
 //
 // POST /logs/sources
-func (UnimplementedHandler) LogsPostLogsSources(ctx context.Context, req *LogsPostLogsSourcesReq) (r *LogsPostLogsSourcesOK, _ error) {
+func (UnimplementedHandler) LogsPostLogsSources(ctx context.Context, req *LogsPostLogsSourcesReq) (r *LogsPostLogsSourcesCreated, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2123,8 +2124,8 @@ func (UnimplementedHandler) ResponseGetResponseBlocklistTokenTxt(ctx context.Con
 
 // ResponseGetResponseCatalog implements response_get_response_catalog operation.
 //
-// Action catalog in plain words: vendor packs, generic actions and custom ones; connections with their
-// kind and whether they can write.
+// Action catalog in plain words: template packs from the library (data, D-58), generic actions and
+// custom ones; connections with their kind and whether they can write.
 //
 // GET /response/catalog
 func (UnimplementedHandler) ResponseGetResponseCatalog(ctx context.Context) (r *ResponseGetResponseCatalogOK, _ error) {
@@ -2250,7 +2251,9 @@ func (UnimplementedHandler) ResponsePostResponseActionsIDRollback(ctx context.Co
 //
 // The AI agent sends a request. Server-side gates: allowed trigger, action flagged for AI, real
 // evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a
-// rejection, hourly and daily budget, quality breaker, second checker for high risk.
+// rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an
+// approval request was created, 200 for a suggestion note or a digest (the generated file documents
+// 200).
 //
 // POST /response/ai/proposals
 func (UnimplementedHandler) ResponsePostResponseAiProposals(ctx context.Context, req *ResponsePostResponseAiProposalsReq) (r *ResponsePostResponseAiProposalsOK, _ error) {
@@ -2300,7 +2303,7 @@ func (UnimplementedHandler) ResponsePostResponseBreakerReset(ctx context.Context
 // MCP: write tool and arguments) and the connection must have an enabled write tool.
 //
 // POST /response/catalog
-func (UnimplementedHandler) ResponsePostResponseCatalog(ctx context.Context, req *ResponsePostResponseCatalogReq) (r *ResponsePostResponseCatalogOK, _ error) {
+func (UnimplementedHandler) ResponsePostResponseCatalog(ctx context.Context, req *ResponsePostResponseCatalogReq) (r *ResponsePostResponseCatalogCreated, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2328,7 +2331,7 @@ func (UnimplementedHandler) ResponsePostResponseExecution(ctx context.Context, r
 // not enabled or a request is already open).
 //
 // POST /response/proposals/{id}/request
-func (UnimplementedHandler) ResponsePostResponseProposalsIDRequest(ctx context.Context, params ResponsePostResponseProposalsIDRequestParams) (r *ResponsePostResponseProposalsIDRequestOK, _ error) {
+func (UnimplementedHandler) ResponsePostResponseProposalsIDRequest(ctx context.Context, params ResponsePostResponseProposalsIDRequestParams) (r *ResponsePostResponseProposalsIDRequestCreated, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2338,7 +2341,7 @@ func (UnimplementedHandler) ResponsePostResponseProposalsIDRequest(ctx context.C
 // refused unless every action is low risk, reversible and undone within 24 hours.
 //
 // POST /response/rules
-func (UnimplementedHandler) ResponsePostResponseRules(ctx context.Context, req *ResponsePostResponseRulesReq) (r *ResponsePostResponseRulesOK, _ error) {
+func (UnimplementedHandler) ResponsePostResponseRules(ctx context.Context, req *ResponsePostResponseRulesReq) (r *ResponsePostResponseRulesCreated, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2376,7 +2379,7 @@ func (UnimplementedHandler) ResponsePostResponseRulesSimulate(ctx context.Contex
 // Clone a template into a new rule that is switched off and in dry run.
 //
 // POST /response/templates/{id}/clone
-func (UnimplementedHandler) ResponsePostResponseTemplatesIDClone(ctx context.Context, params ResponsePostResponseTemplatesIDCloneParams) (r *ResponsePostResponseTemplatesIDCloneOK, _ error) {
+func (UnimplementedHandler) ResponsePostResponseTemplatesIDClone(ctx context.Context, params ResponsePostResponseTemplatesIDCloneParams) (r *ResponsePostResponseTemplatesIDCloneCreated, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2493,11 +2496,11 @@ func (UnimplementedHandler) ScanGetScansTargets(ctx context.Context) (r *ScanGet
 
 // ScanPostScansCredentialed implements scan_post_scans_credentialed operation.
 //
-// Add a server for account-based scanning with an SSH private key (only the last 4 characters are
-// kept).
+// Add a server for account-based scanning with an SSH private key (stored encrypted on the box, never
+// shown again; only the last 4 characters are displayed).
 //
 // POST /scans/credentialed
-func (UnimplementedHandler) ScanPostScansCredentialed(ctx context.Context, req *ScanPostScansCredentialedReq) (r *ScanPostScansCredentialedOK, _ error) {
+func (UnimplementedHandler) ScanPostScansCredentialed(ctx context.Context, req *ScanPostScansCredentialedReq) (r *ScanPostScansCredentialedCreated, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2515,7 +2518,7 @@ func (UnimplementedHandler) ScanPostScansCredentialedIDTest(ctx context.Context,
 // Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked).
 //
 // POST /scans/runs
-func (UnimplementedHandler) ScanPostScansRuns(ctx context.Context, req *ScanPostScansRunsReq) (r *ScanPostScansRunsOK, _ error) {
+func (UnimplementedHandler) ScanPostScansRuns(ctx context.Context, req *ScanPostScansRunsReq) (r *ScanPostScansRunsCreated, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

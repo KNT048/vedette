@@ -9216,7 +9216,7 @@ func (s *Server) handleCoreGetCoreOidcRequest(args [0]string, argsEscaped bool, 
 
 // handleCoreGetCorePrivacyRequest handles core_get_core_privacy operation.
 //
-// The 10 data flows leaving the box and the verbatim anonymous-signal payload.
+// The 11 data flows leaving the box and the verbatim anonymous-signal payload.
 //
 // GET /core/privacy
 func (s *Server) handleCoreGetCorePrivacyRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -9285,7 +9285,7 @@ func (s *Server) handleCoreGetCorePrivacyRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CoreGetCorePrivacyOperation,
-			OperationSummary: "The 10 data flows leaving the box and the verbatim anonymous-signal payload",
+			OperationSummary: "The 11 data flows leaving the box and the verbatim anonymous-signal payload",
 			OperationID:      "core_get_core_privacy",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -12826,7 +12826,7 @@ func (s *Server) handleCorePostCoreMcpTokensRequest(args [0]string, argsEscaped 
 		}
 	}()
 
-	var response *CorePostCoreMcpTokensOK
+	var response *CorePostCoreMcpTokensCreated
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -12842,7 +12842,7 @@ func (s *Server) handleCorePostCoreMcpTokensRequest(args [0]string, argsEscaped 
 		type (
 			Request  = *CorePostCoreMcpTokensReq
 			Params   = struct{}
-			Response = *CorePostCoreMcpTokensOK
+			Response = *CorePostCoreMcpTokensCreated
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -13972,7 +13972,7 @@ func (s *Server) handleCorePostCoreUpdatesOsCheckRequest(args [0]string, argsEsc
 
 // handleCorePostCoreUpdatesOsInstallRequest handles core_post_core_updates_os_install operation.
 //
-// Install security updates or all updates through vedette-updater; one run at a time (409 when busy),
+// Install security updates or all updates through vedette-host; one run at a time (409 when busy),
 // database backup first.
 //
 // POST /core/updates/os/install
@@ -14052,12 +14052,12 @@ func (s *Server) handleCorePostCoreUpdatesOsInstallRequest(args [0]string, argsE
 		}
 	}()
 
-	var response *CorePostCoreUpdatesOsInstallOK
+	var response *CorePostCoreUpdatesOsInstallAccepted
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CorePostCoreUpdatesOsInstallOperation,
-			OperationSummary: "Install security updates or all updates through vedette-updater; one run at a time (409 when busy), database backup first",
+			OperationSummary: "Install security updates or all updates through vedette-host; one run at a time (409 when busy), database backup first",
 			OperationID:      "core_post_core_updates_os_install",
 			Body:             request,
 			RawBody:          rawBody,
@@ -14068,7 +14068,7 @@ func (s *Server) handleCorePostCoreUpdatesOsInstallRequest(args [0]string, argsE
 		type (
 			Request  = *CorePostCoreUpdatesOsInstallReq
 			Params   = struct{}
-			Response = *CorePostCoreUpdatesOsInstallOK
+			Response = *CorePostCoreUpdatesOsInstallAccepted
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -14476,7 +14476,7 @@ func (s *Server) handleCorePostCoreUsersRequest(args [0]string, argsEscaped bool
 		}
 	}()
 
-	var response *CorePostCoreUsersOK
+	var response *CorePostCoreUsersCreated
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -14492,7 +14492,7 @@ func (s *Server) handleCorePostCoreUsersRequest(args [0]string, argsEscaped bool
 		type (
 			Request  = *CorePostCoreUsersReq
 			Params   = struct{}
-			Response = *CorePostCoreUsersOK
+			Response = *CorePostCoreUsersCreated
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -16515,7 +16515,8 @@ func (s *Server) handleExposureGetExposureTargetsIDSnapshotsDateRequest(args [2]
 //
 // The box detects the public IP it uses to reach the Internet (TLS to a fixed endpoint) and verifies
 // it for 90 days. Takes no IP input; refuses private, reserved and CGNAT results; rate limited to 10
-// attempts per hour.
+// attempts per hour. 201 when the IP is new in the list, 200 when it was already there (the generated
+// file documents 200).
 //
 // POST /exposure/box-ip/verify
 func (s *Server) handleExposurePostExposureBoxIPVerifyRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -16584,7 +16585,7 @@ func (s *Server) handleExposurePostExposureBoxIPVerifyRequest(args [0]string, ar
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePostExposureBoxIPVerifyOperation,
-			OperationSummary: "The box detects the public IP it uses to reach the Internet (TLS to a fixed endpoint) and verifies it for 90 days. Takes no IP input; refuses private, reserved and CGNAT results; rate limited to 10 attempts per hour",
+			OperationSummary: "The box detects the public IP it uses to reach the Internet (TLS to a fixed endpoint) and verifies it for 90 days. Takes no IP input; refuses private, reserved and CGNAT results; rate limited to 10 attempts per hour. 201 when the IP is new in the list, 200 when it was already there (the generated file documents 200)",
 			OperationID:      "exposure_post_exposure_box_ip_verify",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -16720,7 +16721,7 @@ func (s *Server) handleExposurePostExposureTargetsRequest(args [0]string, argsEs
 		}
 	}()
 
-	var response *ExposurePostExposureTargetsOK
+	var response *ExposurePostExposureTargetsCreated
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -16736,7 +16737,7 @@ func (s *Server) handleExposurePostExposureTargetsRequest(args [0]string, argsEs
 		type (
 			Request  = *ExposurePostExposureTargetsReq
 			Params   = struct{}
-			Response = *ExposurePostExposureTargetsOK
+			Response = *ExposurePostExposureTargetsCreated
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -16939,8 +16940,8 @@ func (s *Server) handleExposurePostExposureTargetsIDCommitmentRequest(args [1]st
 
 // handleExposurePostExposureTargetsIDScanRequest handles exposure_post_exposure_targets_id_scan operation.
 //
-// Scan now. 409 when not verified, verification expired, the DNS TXT record is gone (re-checked right
-// before the scan) or the commitment is missing.
+// Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked
+// right before the scan); 400 commitment_required when the commitment is missing.
 //
 // POST /exposure/targets/{id}/scan
 func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -17019,7 +17020,7 @@ func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePostExposureTargetsIDScanOperation,
-			OperationSummary: "Scan now. 409 when not verified, verification expired, the DNS TXT record is gone (re-checked right before the scan) or the commitment is missing",
+			OperationSummary: "Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 400 commitment_required when the commitment is missing",
 			OperationID:      "exposure_post_exposure_targets_id_scan",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -18244,7 +18245,7 @@ func (s *Server) handleFeedsPostFeedsCustomRequest(args [0]string, argsEscaped b
 		}
 	}()
 
-	var response *FeedsPostFeedsCustomOK
+	var response *FeedsPostFeedsCustomCreated
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -18260,7 +18261,7 @@ func (s *Server) handleFeedsPostFeedsCustomRequest(args [0]string, argsEscaped b
 		type (
 			Request  = *FeedsPostFeedsCustomReq
 			Params   = struct{}
-			Response = *FeedsPostFeedsCustomOK
+			Response = *FeedsPostFeedsCustomCreated
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -21140,7 +21141,7 @@ func (s *Server) handleHoneypotPostHoneypotDecoysRequest(args [0]string, argsEsc
 		}
 	}()
 
-	var response *HoneypotPostHoneypotDecoysOK
+	var response *HoneypotPostHoneypotDecoysCreated
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -21156,7 +21157,7 @@ func (s *Server) handleHoneypotPostHoneypotDecoysRequest(args [0]string, argsEsc
 		type (
 			Request  = *HoneypotPostHoneypotDecoysReq
 			Params   = struct{}
-			Response = *HoneypotPostHoneypotDecoysOK
+			Response = *HoneypotPostHoneypotDecoysCreated
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -21550,7 +21551,7 @@ func (s *Server) handleHoneypotPostHoneypotTokensRequest(args [0]string, argsEsc
 		}
 	}()
 
-	var response *HoneypotPostHoneypotTokensOK
+	var response *HoneypotPostHoneypotTokensCreated
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -21566,7 +21567,7 @@ func (s *Server) handleHoneypotPostHoneypotTokensRequest(args [0]string, argsEsc
 		type (
 			Request  = *HoneypotPostHoneypotTokensReq
 			Params   = struct{}
-			Response = *HoneypotPostHoneypotTokensOK
+			Response = *HoneypotPostHoneypotTokensCreated
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -23953,7 +23954,7 @@ func (s *Server) handleInventoryPostInventoryAgentsTokensRequest(args [0]string,
 		}
 	}()
 
-	var response *InventoryPostInventoryAgentsTokensOK
+	var response *InventoryPostInventoryAgentsTokensCreated
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -23969,7 +23970,7 @@ func (s *Server) handleInventoryPostInventoryAgentsTokensRequest(args [0]string,
 		type (
 			Request  = *InventoryPostInventoryAgentsTokensReq
 			Params   = struct{}
-			Response = *InventoryPostInventoryAgentsTokensOK
+			Response = *InventoryPostInventoryAgentsTokensCreated
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -24502,7 +24503,7 @@ func (s *Server) handleInventoryPostInventoryDevicesRequest(args [0]string, args
 		}
 	}()
 
-	var response *InventoryPostInventoryDevicesOK
+	var response *InventoryPostInventoryDevicesCreated
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -24518,7 +24519,7 @@ func (s *Server) handleInventoryPostInventoryDevicesRequest(args [0]string, args
 		type (
 			Request  = *InventoryPostInventoryDevicesReq
 			Params   = struct{}
-			Response = *InventoryPostInventoryDevicesOK
+			Response = *InventoryPostInventoryDevicesCreated
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -24794,7 +24795,7 @@ func (s *Server) handleInventoryPostInventoryDevicesIDSoftwareRequest(args [1]st
 		}
 	}()
 
-	var response *InventoryPostInventoryDevicesIDSoftwareOK
+	var response *InventoryPostInventoryDevicesIDSoftwareCreated
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -24815,7 +24816,7 @@ func (s *Server) handleInventoryPostInventoryDevicesIDSoftwareRequest(args [1]st
 		type (
 			Request  = *InventoryPostInventoryDevicesIDSoftwareReq
 			Params   = InventoryPostInventoryDevicesIDSoftwareParams
-			Response = *InventoryPostInventoryDevicesIDSoftwareOK
+			Response = *InventoryPostInventoryDevicesIDSoftwareCreated
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -26454,7 +26455,7 @@ func (s *Server) handleLogsPostLogsSourcesRequest(args [0]string, argsEscaped bo
 		}
 	}()
 
-	var response *LogsPostLogsSourcesOK
+	var response *LogsPostLogsSourcesCreated
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -26470,7 +26471,7 @@ func (s *Server) handleLogsPostLogsSourcesRequest(args [0]string, argsEscaped bo
 		type (
 			Request  = *LogsPostLogsSourcesReq
 			Params   = struct{}
-			Response = *LogsPostLogsSourcesOK
+			Response = *LogsPostLogsSourcesCreated
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -31048,8 +31049,8 @@ func (s *Server) handleResponseGetResponseBlocklistTokenTxtRequest(args [1]strin
 
 // handleResponseGetResponseCatalogRequest handles response_get_response_catalog operation.
 //
-// Action catalog in plain words: vendor packs, generic actions and custom ones; connections with their
-// kind and whether they can write.
+// Action catalog in plain words: template packs from the library (data, D-58), generic actions and
+// custom ones; connections with their kind and whether they can write.
 //
 // GET /response/catalog
 func (s *Server) handleResponseGetResponseCatalogRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -31118,7 +31119,7 @@ func (s *Server) handleResponseGetResponseCatalogRequest(args [0]string, argsEsc
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ResponseGetResponseCatalogOperation,
-			OperationSummary: "Action catalog in plain words: vendor packs, generic actions and custom ones; connections with their kind and whether they can write",
+			OperationSummary: "Action catalog in plain words: template packs from the library (data, D-58), generic actions and custom ones; connections with their kind and whether they can write",
 			OperationID:      "response_get_response_catalog",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -32816,7 +32817,9 @@ func (s *Server) handleResponsePostResponseActionsIDRollbackRequest(args [1]stri
 //
 // The AI agent sends a request. Server-side gates: allowed trigger, action flagged for AI, real
 // evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a
-// rejection, hourly and daily budget, quality breaker, second checker for high risk.
+// rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an
+// approval request was created, 200 for a suggestion note or a digest (the generated file documents
+// 200).
 //
 // POST /response/ai/proposals
 func (s *Server) handleResponsePostResponseAiProposalsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -32900,7 +32903,7 @@ func (s *Server) handleResponsePostResponseAiProposalsRequest(args [0]string, ar
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ResponsePostResponseAiProposalsOperation,
-			OperationSummary: "The AI agent sends a request. Server-side gates: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk",
+			OperationSummary: "The AI agent sends a request. Server-side gates: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an approval request was created, 200 for a suggestion note or a digest (the generated file documents 200)",
 			OperationID:      "response_post_response_ai_proposals",
 			Body:             request,
 			RawBody:          rawBody,
@@ -33526,7 +33529,7 @@ func (s *Server) handleResponsePostResponseCatalogRequest(args [0]string, argsEs
 		}
 	}()
 
-	var response *ResponsePostResponseCatalogOK
+	var response *ResponsePostResponseCatalogCreated
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -33542,7 +33545,7 @@ func (s *Server) handleResponsePostResponseCatalogRequest(args [0]string, argsEs
 		type (
 			Request  = *ResponsePostResponseCatalogReq
 			Params   = struct{}
-			Response = *ResponsePostResponseCatalogOK
+			Response = *ResponsePostResponseCatalogCreated
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -33930,7 +33933,7 @@ func (s *Server) handleResponsePostResponseProposalsIDRequestRequest(args [1]str
 
 	var rawBody []byte
 
-	var response *ResponsePostResponseProposalsIDRequestOK
+	var response *ResponsePostResponseProposalsIDRequestCreated
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -33951,7 +33954,7 @@ func (s *Server) handleResponsePostResponseProposalsIDRequestRequest(args [1]str
 		type (
 			Request  = struct{}
 			Params   = ResponsePostResponseProposalsIDRequestParams
-			Response = *ResponsePostResponseProposalsIDRequestOK
+			Response = *ResponsePostResponseProposalsIDRequestCreated
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -34077,7 +34080,7 @@ func (s *Server) handleResponsePostResponseRulesRequest(args [0]string, argsEsca
 		}
 	}()
 
-	var response *ResponsePostResponseRulesOK
+	var response *ResponsePostResponseRulesCreated
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -34093,7 +34096,7 @@ func (s *Server) handleResponsePostResponseRulesRequest(args [0]string, argsEsca
 		type (
 			Request  = *ResponsePostResponseRulesReq
 			Params   = struct{}
-			Response = *ResponsePostResponseRulesOK
+			Response = *ResponsePostResponseRulesCreated
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -34638,7 +34641,7 @@ func (s *Server) handleResponsePostResponseTemplatesIDCloneRequest(args [1]strin
 
 	var rawBody []byte
 
-	var response *ResponsePostResponseTemplatesIDCloneOK
+	var response *ResponsePostResponseTemplatesIDCloneCreated
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -34659,7 +34662,7 @@ func (s *Server) handleResponsePostResponseTemplatesIDCloneRequest(args [1]strin
 		type (
 			Request  = struct{}
 			Params   = ResponsePostResponseTemplatesIDCloneParams
-			Response = *ResponsePostResponseTemplatesIDCloneOK
+			Response = *ResponsePostResponseTemplatesIDCloneCreated
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -36325,8 +36328,8 @@ func (s *Server) handleScanGetScansTargetsRequest(args [0]string, argsEscaped bo
 
 // handleScanPostScansCredentialedRequest handles scan_post_scans_credentialed operation.
 //
-// Add a server for account-based scanning with an SSH private key (only the last 4 characters are
-// kept).
+// Add a server for account-based scanning with an SSH private key (stored encrypted on the box, never
+// shown again; only the last 4 characters are displayed).
 //
 // POST /scans/credentialed
 func (s *Server) handleScanPostScansCredentialedRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -36405,12 +36408,12 @@ func (s *Server) handleScanPostScansCredentialedRequest(args [0]string, argsEsca
 		}
 	}()
 
-	var response *ScanPostScansCredentialedOK
+	var response *ScanPostScansCredentialedCreated
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ScanPostScansCredentialedOperation,
-			OperationSummary: "Add a server for account-based scanning with an SSH private key (only the last 4 characters are kept)",
+			OperationSummary: "Add a server for account-based scanning with an SSH private key (stored encrypted on the box, never shown again; only the last 4 characters are displayed)",
 			OperationID:      "scan_post_scans_credentialed",
 			Body:             request,
 			RawBody:          rawBody,
@@ -36421,7 +36424,7 @@ func (s *Server) handleScanPostScansCredentialedRequest(args [0]string, argsEsca
 		type (
 			Request  = *ScanPostScansCredentialedReq
 			Params   = struct{}
-			Response = *ScanPostScansCredentialedOK
+			Response = *ScanPostScansCredentialedCreated
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -36687,7 +36690,7 @@ func (s *Server) handleScanPostScansRunsRequest(args [0]string, argsEscaped bool
 		}
 	}()
 
-	var response *ScanPostScansRunsOK
+	var response *ScanPostScansRunsCreated
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -36703,7 +36706,7 @@ func (s *Server) handleScanPostScansRunsRequest(args [0]string, argsEscaped bool
 		type (
 			Request  = *ScanPostScansRunsReq
 			Params   = struct{}
-			Response = *ScanPostScansRunsOK
+			Response = *ScanPostScansRunsCreated
 		)
 		response, err = middleware.HookMiddleware[
 			Request,

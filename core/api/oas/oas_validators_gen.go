@@ -1135,24 +1135,6 @@ func (s *AiGetAiConnectionsOKItemsItem) Validate() error {
 			Error: err,
 		})
 	}
-	if err := func() error {
-		if value, ok := s.Vendor.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "vendor",
-			Error: err,
-		})
-	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -1199,11 +1181,13 @@ func (s AiGetAiConnectionsOKItemsItemAuthType) Validate() error {
 
 func (s AiGetAiConnectionsOKItemsItemKind) Validate() error {
 	switch s {
-	case "device-api":
+	case "http":
 		return nil
 	case "ssh":
 		return nil
-	case "http":
+	case "netconf-restconf":
+		return nil
+	case "automation":
 		return nil
 	case "mcp-http":
 		return nil
@@ -1255,21 +1239,6 @@ func (s AiGetAiConnectionsOKItemsItemToolsItemAccess) Validate() error {
 	case "read":
 		return nil
 	case "write":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s AiGetAiConnectionsOKItemsItemVendor) Validate() error {
-	switch s {
-	case "fortinet":
-		return nil
-	case "mikrotik":
-		return nil
-	case "pfsense":
-		return nil
-	case "other":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -3666,24 +3635,6 @@ func (s *AiPostAiConnectionsIDTestOKConnector) Validate() error {
 			Error: err,
 		})
 	}
-	if err := func() error {
-		if value, ok := s.Vendor.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "vendor",
-			Error: err,
-		})
-	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -3730,11 +3681,13 @@ func (s AiPostAiConnectionsIDTestOKConnectorAuthType) Validate() error {
 
 func (s AiPostAiConnectionsIDTestOKConnectorKind) Validate() error {
 	switch s {
-	case "device-api":
+	case "http":
 		return nil
 	case "ssh":
 		return nil
-	case "http":
+	case "netconf-restconf":
+		return nil
+	case "automation":
 		return nil
 	case "mcp-http":
 		return nil
@@ -3786,21 +3739,6 @@ func (s AiPostAiConnectionsIDTestOKConnectorToolsItemAccess) Validate() error {
 	case "read":
 		return nil
 	case "write":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s AiPostAiConnectionsIDTestOKConnectorVendor) Validate() error {
-	switch s {
-	case "fortinet":
-		return nil
-	case "mikrotik":
-		return nil
-	case "pfsense":
-		return nil
-	case "other":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -3885,24 +3823,6 @@ func (s *AiPostAiConnectionsOK) Validate() error {
 			Error: err,
 		})
 	}
-	if err := func() error {
-		if value, ok := s.Vendor.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "vendor",
-			Error: err,
-		})
-	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -3949,11 +3869,13 @@ func (s AiPostAiConnectionsOKAuthType) Validate() error {
 
 func (s AiPostAiConnectionsOKKind) Validate() error {
 	switch s {
-	case "device-api":
+	case "http":
 		return nil
 	case "ssh":
 		return nil
-	case "http":
+	case "netconf-restconf":
+		return nil
+	case "automation":
 		return nil
 	case "mcp-http":
 		return nil
@@ -4005,21 +3927,6 @@ func (s AiPostAiConnectionsOKToolsItemAccess) Validate() error {
 	case "read":
 		return nil
 	case "write":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s AiPostAiConnectionsOKVendor) Validate() error {
-	switch s {
-	case "fortinet":
-		return nil
-	case "mikrotik":
-		return nil
-	case "pfsense":
-		return nil
-	case "other":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -4088,24 +3995,6 @@ func (s *AiPostAiConnectionsReq) Validate() error {
 			Error: err,
 		})
 	}
-	if err := func() error {
-		if value, ok := s.Vendor.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "vendor",
-			Error: err,
-		})
-	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -4129,30 +4018,17 @@ func (s AiPostAiConnectionsReqAuthType) Validate() error {
 
 func (s AiPostAiConnectionsReqKind) Validate() error {
 	switch s {
-	case "device-api":
+	case "http":
 		return nil
 	case "ssh":
 		return nil
-	case "http":
+	case "netconf-restconf":
+		return nil
+	case "automation":
 		return nil
 	case "mcp-http":
 		return nil
 	case "mcp-stdio":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s AiPostAiConnectionsReqVendor) Validate() error {
-	switch s {
-	case "fortinet":
-		return nil
-	case "mikrotik":
-		return nil
-	case "pfsense":
-		return nil
-	case "other":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -6623,24 +6499,6 @@ func (s *AiPutAiConnectionsIDOK) Validate() error {
 			Error: err,
 		})
 	}
-	if err := func() error {
-		if value, ok := s.Vendor.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "vendor",
-			Error: err,
-		})
-	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -6687,11 +6545,13 @@ func (s AiPutAiConnectionsIDOKAuthType) Validate() error {
 
 func (s AiPutAiConnectionsIDOKKind) Validate() error {
 	switch s {
-	case "device-api":
+	case "http":
 		return nil
 	case "ssh":
 		return nil
-	case "http":
+	case "netconf-restconf":
+		return nil
+	case "automation":
 		return nil
 	case "mcp-http":
 		return nil
@@ -6743,21 +6603,6 @@ func (s AiPutAiConnectionsIDOKToolsItemAccess) Validate() error {
 	case "read":
 		return nil
 	case "write":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s AiPutAiConnectionsIDOKVendor) Validate() error {
-	switch s {
-	case "fortinet":
-		return nil
-	case "mikrotik":
-		return nil
-	case "pfsense":
-		return nil
-	case "other":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -6826,24 +6671,6 @@ func (s *AiPutAiConnectionsIDReq) Validate() error {
 			Error: err,
 		})
 	}
-	if err := func() error {
-		if value, ok := s.Vendor.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "vendor",
-			Error: err,
-		})
-	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -6867,30 +6694,17 @@ func (s AiPutAiConnectionsIDReqAuthType) Validate() error {
 
 func (s AiPutAiConnectionsIDReqKind) Validate() error {
 	switch s {
-	case "device-api":
+	case "http":
 		return nil
 	case "ssh":
 		return nil
-	case "http":
+	case "netconf-restconf":
+		return nil
+	case "automation":
 		return nil
 	case "mcp-http":
 		return nil
 	case "mcp-stdio":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s AiPutAiConnectionsIDReqVendor) Validate() error {
-	switch s {
-	case "fortinet":
-		return nil
-	case "mikrotik":
-		return nil
-	case "pfsense":
-		return nil
-	case "other":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -9536,7 +9350,7 @@ func (s *CoreGetCorePrivacyOKFlowsItem) Validate() error {
 			MinSet:        true,
 			Min:           1,
 			MaxSet:        true,
-			Max:           10,
+			Max:           11,
 			MinExclusive:  false,
 			MaxExclusive:  false,
 			MultipleOfSet: false,
@@ -11244,7 +11058,7 @@ func (s *CorePatchCorePrivacyOKFlowsItem) Validate() error {
 			MinSet:        true,
 			Min:           1,
 			MaxSet:        true,
-			Max:           10,
+			Max:           11,
 			MinExclusive:  false,
 			MaxExclusive:  false,
 			MultipleOfSet: false,
@@ -12791,7 +12605,7 @@ func (s CorePostCoreDataPurgeOKRemoved) Validate() error {
 	return nil
 }
 
-func (s *CorePostCoreMcpTokensOK) Validate() error {
+func (s *CorePostCoreMcpTokensCreated) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -12814,7 +12628,7 @@ func (s *CorePostCoreMcpTokensOK) Validate() error {
 	return nil
 }
 
-func (s *CorePostCoreMcpTokensOKItem) Validate() error {
+func (s *CorePostCoreMcpTokensCreatedItem) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -15526,7 +15340,7 @@ func (s CorePostCoreUpdatesOsCheckOKWindowMode) Validate() error {
 	}
 }
 
-func (s *CorePostCoreUpdatesOsInstallOK) Validate() error {
+func (s *CorePostCoreUpdatesOsInstallAccepted) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -15589,7 +15403,7 @@ func (s *CorePostCoreUpdatesOsInstallOK) Validate() error {
 	return nil
 }
 
-func (s *CorePostCoreUpdatesOsInstallOKResult) Validate() error {
+func (s *CorePostCoreUpdatesOsInstallAcceptedResult) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -15654,7 +15468,7 @@ func (s *CorePostCoreUpdatesOsInstallOKResult) Validate() error {
 	return nil
 }
 
-func (s CorePostCoreUpdatesOsInstallOKScope) Validate() error {
+func (s CorePostCoreUpdatesOsInstallAcceptedScope) Validate() error {
 	switch s {
 	case "security":
 		return nil
@@ -15665,7 +15479,7 @@ func (s CorePostCoreUpdatesOsInstallOKScope) Validate() error {
 	}
 }
 
-func (s CorePostCoreUpdatesOsInstallOKStatus) Validate() error {
+func (s CorePostCoreUpdatesOsInstallAcceptedStatus) Validate() error {
 	switch s {
 	case "running":
 		return nil
@@ -16475,7 +16289,7 @@ func (s CorePostCoreUpdatesRollbackOKMode) Validate() error {
 	}
 }
 
-func (s *CorePostCoreUsersOK) Validate() error {
+func (s *CorePostCoreUsersCreated) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -16498,7 +16312,7 @@ func (s *CorePostCoreUsersOK) Validate() error {
 	return nil
 }
 
-func (s *CorePostCoreUsersOKUser) Validate() error {
+func (s *CorePostCoreUsersCreatedUser) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -16539,7 +16353,7 @@ func (s *CorePostCoreUsersOKUser) Validate() error {
 	return nil
 }
 
-func (s CorePostCoreUsersOKUserRole) Validate() error {
+func (s CorePostCoreUsersCreatedUserRole) Validate() error {
 	switch s {
 	case "viewer":
 		return nil
@@ -16552,7 +16366,7 @@ func (s CorePostCoreUsersOKUserRole) Validate() error {
 	}
 }
 
-func (s CorePostCoreUsersOKUserTwofaMethod) Validate() error {
+func (s CorePostCoreUsersCreatedUserTwofaMethod) Validate() error {
 	switch s {
 	case "app":
 		return nil
@@ -20564,6 +20378,292 @@ func (s ExposurePostExposureBoxIPVerifyOKValidity) Validate() error {
 	}
 }
 
+func (s *ExposurePostExposureTargetsCreated) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.BlockedReason.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "blocked_reason",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Latest.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "latest",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Method.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "method",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Status.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "status",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Validity.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "validity",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposurePostExposureTargetsCreatedBlockedReason) Validate() error {
+	switch s {
+	case "unverified":
+		return nil
+	case "expired":
+		return nil
+	case "txt_missing":
+		return nil
+	case "no_commitment":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposurePostExposureTargetsCreatedKind) Validate() error {
+	switch s {
+	case "domain":
+		return nil
+	case "ip":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ExposurePostExposureTargetsCreatedLatest) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.AdminPanels)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "admin_panels",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.CertsExpiring)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "certs_expiring",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Ips)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ips",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Ports)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Subdomains)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "subdomains",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposurePostExposureTargetsCreatedMethod) Validate() error {
+	switch s {
+	case "dns_txt":
+		return nil
+	case "box_egress":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposurePostExposureTargetsCreatedStatus) Validate() error {
+	switch s {
+	case "unverified":
+		return nil
+	case "verified":
+		return nil
+	case "expired":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposurePostExposureTargetsCreatedValidity) Validate() error {
+	switch s {
+	case "valid":
+		return nil
+	case "expiring":
+		return nil
+	case "expired":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *ExposurePostExposureTargetsIDCommitmentOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -21476,292 +21576,6 @@ func (s ExposurePostExposureTargetsIDVerifyOKTargetStatus) Validate() error {
 }
 
 func (s ExposurePostExposureTargetsIDVerifyOKTargetValidity) Validate() error {
-	switch s {
-	case "valid":
-		return nil
-	case "expiring":
-		return nil
-	case "expired":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s *ExposurePostExposureTargetsOK) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if value, ok := s.BlockedReason.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "blocked_reason",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Kind.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "kind",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Latest.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "latest",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Method.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "method",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Status.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "status",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Validity.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "validity",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s ExposurePostExposureTargetsOKBlockedReason) Validate() error {
-	switch s {
-	case "unverified":
-		return nil
-	case "expired":
-		return nil
-	case "txt_missing":
-		return nil
-	case "no_commitment":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s ExposurePostExposureTargetsOKKind) Validate() error {
-	switch s {
-	case "domain":
-		return nil
-	case "ip":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s *ExposurePostExposureTargetsOKLatest) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.AdminPanels)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "admin_panels",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.CertsExpiring)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "certs_expiring",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Ips)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "ips",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Ports)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "ports",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Subdomains)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "subdomains",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s ExposurePostExposureTargetsOKMethod) Validate() error {
-	switch s {
-	case "dns_txt":
-		return nil
-	case "box_egress":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s ExposurePostExposureTargetsOKStatus) Validate() error {
-	switch s {
-	case "unverified":
-		return nil
-	case "verified":
-		return nil
-	case "expired":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s ExposurePostExposureTargetsOKValidity) Validate() error {
 	switch s {
 	case "valid":
 		return nil
@@ -23376,7 +23190,7 @@ func (s FeedsGetFeedsWeeklyOKItemsItemAnswer) Validate() error {
 	}
 }
 
-func (s *FeedsPostFeedsCustomOK) Validate() error {
+func (s *FeedsPostFeedsCustomCreated) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -23499,7 +23313,7 @@ func (s *FeedsPostFeedsCustomOK) Validate() error {
 	return nil
 }
 
-func (s *FeedsPostFeedsCustomOKAuth) Validate() error {
+func (s *FeedsPostFeedsCustomCreatedAuth) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -23522,7 +23336,7 @@ func (s *FeedsPostFeedsCustomOKAuth) Validate() error {
 	return nil
 }
 
-func (s FeedsPostFeedsCustomOKAuthType) Validate() error {
+func (s FeedsPostFeedsCustomCreatedAuthType) Validate() error {
 	switch s {
 	case "none":
 		return nil
@@ -23537,7 +23351,7 @@ func (s FeedsPostFeedsCustomOKAuthType) Validate() error {
 	}
 }
 
-func (s FeedsPostFeedsCustomOKFormat) Validate() error {
+func (s FeedsPostFeedsCustomCreatedFormat) Validate() error {
 	switch s {
 	case "json":
 		return nil
@@ -23554,7 +23368,7 @@ func (s FeedsPostFeedsCustomOKFormat) Validate() error {
 	}
 }
 
-func (s FeedsPostFeedsCustomOKKind) Validate() error {
+func (s FeedsPostFeedsCustomCreatedKind) Validate() error {
 	switch s {
 	case "vulnerabilities":
 		return nil
@@ -23565,7 +23379,7 @@ func (s FeedsPostFeedsCustomOKKind) Validate() error {
 	}
 }
 
-func (s *FeedsPostFeedsCustomOKParser) Validate() error {
+func (s *FeedsPostFeedsCustomCreatedParser) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -23645,7 +23459,7 @@ func (s *FeedsPostFeedsCustomOKParser) Validate() error {
 	return nil
 }
 
-func (s FeedsPostFeedsCustomOKParserFields) Validate() error {
+func (s FeedsPostFeedsCustomCreatedParserFields) Validate() error {
 	var failures []validate.FieldError
 	for key, elem := range s {
 		if err := func() error {
@@ -23667,7 +23481,7 @@ func (s FeedsPostFeedsCustomOKParserFields) Validate() error {
 	return nil
 }
 
-func (s *FeedsPostFeedsCustomOKParserFieldsItem) Validate() error {
+func (s *FeedsPostFeedsCustomCreatedParserFieldsItem) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -23736,7 +23550,7 @@ func (s *FeedsPostFeedsCustomOKParserFieldsItem) Validate() error {
 	return nil
 }
 
-func (s FeedsPostFeedsCustomOKParserFieldsItemDateFormat) Validate() error {
+func (s FeedsPostFeedsCustomCreatedParserFieldsItemDateFormat) Validate() error {
 	switch s {
 	case "auto":
 		return nil
@@ -23751,7 +23565,7 @@ func (s FeedsPostFeedsCustomOKParserFieldsItemDateFormat) Validate() error {
 	}
 }
 
-func (s FeedsPostFeedsCustomOKParserFormat) Validate() error {
+func (s FeedsPostFeedsCustomCreatedParserFormat) Validate() error {
 	switch s {
 	case "json":
 		return nil
@@ -23768,7 +23582,7 @@ func (s FeedsPostFeedsCustomOKParserFormat) Validate() error {
 	}
 }
 
-func (s FeedsPostFeedsCustomOKStatus) Validate() error {
+func (s FeedsPostFeedsCustomCreatedStatus) Validate() error {
 	switch s {
 	case "ok":
 		return nil
@@ -32285,7 +32099,7 @@ func (s HoneypotPatchHoneypotTrapsServiceService) Validate() error {
 	}
 }
 
-func (s *HoneypotPostHoneypotDecoysOK) Validate() error {
+func (s *HoneypotPostHoneypotDecoysCreated) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -32336,7 +32150,7 @@ func (s *HoneypotPostHoneypotDecoysOK) Validate() error {
 	return nil
 }
 
-func (s HoneypotPostHoneypotDecoysOKPersonality) Validate() error {
+func (s HoneypotPostHoneypotDecoysCreatedPersonality) Validate() error {
 	switch s {
 	case "windows_fs":
 		return nil
@@ -32353,7 +32167,7 @@ func (s HoneypotPostHoneypotDecoysOKPersonality) Validate() error {
 	}
 }
 
-func (s *HoneypotPostHoneypotDecoysOKServicesItem) Validate() error {
+func (s *HoneypotPostHoneypotDecoysCreatedServicesItem) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -32664,6 +32478,65 @@ func (s HoneypotPostHoneypotTestScanOKService) Validate() error {
 	}
 }
 
+func (s *HoneypotPostHoneypotTokensCreated) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Triggers)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "triggers",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Type.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "type",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s HoneypotPostHoneypotTokensCreatedType) Validate() error {
+	switch s {
+	case "file":
+		return nil
+	case "credential":
+		return nil
+	case "url":
+		return nil
+	case "dns":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *HoneypotPostHoneypotTokensIDTestOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -32757,65 +32630,6 @@ func (s HoneypotPostHoneypotTokensIDTestOKService) Validate() error {
 	case "mssql":
 		return nil
 	case "http":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s *HoneypotPostHoneypotTokensOK) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Triggers)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "triggers",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Type.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "type",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s HoneypotPostHoneypotTokensOKType) Validate() error {
-	switch s {
-	case "file":
-		return nil
-	case "credential":
-		return nil
-	case "url":
-		return nil
-	case "dns":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -35754,6 +35568,82 @@ func (s *InventoryPostIntakeOsqueryStatusOK) Validate() error {
 	return nil
 }
 
+func (s *InventoryPostInventoryAgentsTokensCreated) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Token.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "token",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Hosts)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "hosts",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s InventoryPostInventoryAgentsTokensCreatedTokenKind) Validate() error {
+	switch s {
+	case "osquery":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *InventoryPostInventoryAgentsTokensIDSampleDataOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -35806,82 +35696,6 @@ func (s *InventoryPostInventoryAgentsTokensIDSampleDataOK) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s *InventoryPostInventoryAgentsTokensOK) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.Token.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "token",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *InventoryPostInventoryAgentsTokensOKToken) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Hosts)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "hosts",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Kind.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "kind",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s InventoryPostInventoryAgentsTokensOKTokenKind) Validate() error {
-	switch s {
-	case "osquery":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *InventoryPostInventoryAgentsTokensReq) Validate() error {
@@ -36170,7 +35984,40 @@ func (s *InventoryPostInventoryAgentsWazuhTestReq) Validate() error {
 	return nil
 }
 
-func (s *InventoryPostInventoryDevicesIDSoftwareOK) Validate() error {
+func (s *InventoryPostInventoryDevicesCreated) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.KevCves)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kev_cves",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *InventoryPostInventoryDevicesIDSoftwareCreated) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -36296,39 +36143,6 @@ func (s *InventoryPostInventoryDevicesIDSoftwareReq) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "version",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *InventoryPostInventoryDevicesOK) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.KevCves)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "kev_cves",
 			Error: err,
 		})
 	}
@@ -38206,7 +38020,7 @@ func (s LogsGetLogsSourcesOKSourcesItemState) Validate() error {
 	}
 }
 
-func (s *LogsPostLogsSourcesOK) Validate() error {
+func (s *LogsPostLogsSourcesCreated) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -38316,7 +38130,7 @@ func (s *LogsPostLogsSourcesOK) Validate() error {
 	return nil
 }
 
-func (s LogsPostLogsSourcesOKKind) Validate() error {
+func (s LogsPostLogsSourcesCreatedKind) Validate() error {
 	switch s {
 	case "fortigate":
 		return nil
@@ -38419,7 +38233,7 @@ func (s LogsPostLogsSourcesOKKind) Validate() error {
 	}
 }
 
-func (s LogsPostLogsSourcesOKProto) Validate() error {
+func (s LogsPostLogsSourcesCreatedProto) Validate() error {
 	switch s {
 	case "udp":
 		return nil
@@ -38432,7 +38246,7 @@ func (s LogsPostLogsSourcesOKProto) Validate() error {
 	}
 }
 
-func (s LogsPostLogsSourcesOKState) Validate() error {
+func (s LogsPostLogsSourcesCreatedState) Validate() error {
 	switch s {
 	case "receiving":
 		return nil
@@ -42253,8 +42067,18 @@ func (s *ReportsGetReportsScheduleOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.Day.Validate(); err != nil {
-			return err
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           7,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Day)); err != nil {
+			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
@@ -42336,27 +42160,6 @@ func (s *ReportsGetReportsScheduleOK) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s ReportsGetReportsScheduleOKDay) Validate() error {
-	switch s {
-	case "mon":
-		return nil
-	case "tue":
-		return nil
-	case "wed":
-		return nil
-	case "thu":
-		return nil
-	case "fri":
-		return nil
-	case "sat":
-		return nil
-	case "sun":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *ReportsGetReportsWeeklyHistoryID1PlanOs) Validate() error {
@@ -45217,8 +45020,18 @@ func (s *ReportsPutReportsScheduleOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.Day.Validate(); err != nil {
-			return err
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           7,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Day)); err != nil {
+			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
@@ -45300,27 +45113,6 @@ func (s *ReportsPutReportsScheduleOK) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s ReportsPutReportsScheduleOKDay) Validate() error {
-	switch s {
-	case "mon":
-		return nil
-	case "tue":
-		return nil
-	case "wed":
-		return nil
-	case "thu":
-		return nil
-	case "fri":
-		return nil
-	case "sat":
-		return nil
-	case "sun":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *ReportsPutReportsScheduleReq) Validate() error {
@@ -45330,8 +45122,18 @@ func (s *ReportsPutReportsScheduleReq) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.Day.Validate(); err != nil {
-			return err
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           7,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Day)); err != nil {
+			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
@@ -45413,27 +45215,6 @@ func (s *ReportsPutReportsScheduleReq) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s ReportsPutReportsScheduleReqDay) Validate() error {
-	switch s {
-	case "mon":
-		return nil
-	case "tue":
-		return nil
-	case "wed":
-		return nil
-	case "thu":
-		return nil
-	case "fri":
-		return nil
-	case "sat":
-		return nil
-	case "sun":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *ResponseGetResponseActionsOK) Validate() error {
@@ -46018,6 +45799,8 @@ func (s ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethod) Validate
 		return nil
 	case "PUT":
 		return nil
+	case "PATCH":
+		return nil
 	case "POST":
 		return nil
 	case "DELETE":
@@ -46085,6 +45868,8 @@ func (s ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethod) 
 	case "GET":
 		return nil
 	case "PUT":
+		return nil
+	case "PATCH":
 		return nil
 	case "POST":
 		return nil
@@ -46980,6 +46765,8 @@ func (s ResponseGetResponseApproveTokenOKItemsItemChangeRestMethod) Validate() e
 		return nil
 	case "PUT":
 		return nil
+	case "PATCH":
+		return nil
 	case "POST":
 		return nil
 	case "DELETE":
@@ -47047,6 +46834,8 @@ func (s ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethod) Vali
 	case "GET":
 		return nil
 	case "PUT":
+		return nil
+	case "PATCH":
 		return nil
 	case "POST":
 		return nil
@@ -47235,11 +47024,13 @@ func (s *ResponseGetResponseCatalogOKConnectionsItem) Validate() error {
 
 func (s ResponseGetResponseCatalogOKConnectionsItemKind) Validate() error {
 	switch s {
-	case "device-api":
+	case "http":
 		return nil
 	case "ssh":
 		return nil
-	case "http":
+	case "netconf-restconf":
+		return nil
+	case "automation":
 		return nil
 	case "mcp-http":
 		return nil
@@ -47298,8 +47089,20 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := s.Pack.Validate(); err != nil {
-			return err
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     60,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Pack)); err != nil {
+			return errors.Wrap(err, "string")
 		}
 		return nil
 	}(); err != nil {
@@ -47388,38 +47191,17 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Validate() error {
 
 func (s ResponseGetResponseCatalogOKItemsItemConnectionKind) Validate() error {
 	switch s {
-	case "device-api":
+	case "http":
 		return nil
 	case "ssh":
 		return nil
-	case "http":
+	case "netconf-restconf":
+		return nil
+	case "automation":
 		return nil
 	case "mcp-http":
 		return nil
 	case "mcp-stdio":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s ResponseGetResponseCatalogOKItemsItemPack) Validate() error {
-	switch s {
-	case "box":
-		return nil
-	case "fortigate":
-		return nil
-	case "mikrotik":
-		return nil
-	case "pfsense":
-		return nil
-	case "opnsense":
-		return nil
-	case "switch":
-		return nil
-	case "dns":
-		return nil
-	case "generic":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -47441,6 +47223,10 @@ func (s ResponseGetResponseCatalogOKItemsItemParamsItem) Validate() error {
 	case "vlan":
 		return nil
 	case "interface":
+		return nil
+	case "id":
+		return nil
+	case "name":
 		return nil
 	case "text":
 		return nil
@@ -47585,6 +47371,8 @@ func (s ResponseGetResponseCatalogOKItemsItemRollbackMethod) Validate() error {
 		return nil
 	case "PUT":
 		return nil
+	case "PATCH":
+		return nil
 	case "POST":
 		return nil
 	case "DELETE":
@@ -47717,6 +47505,8 @@ func (s ResponseGetResponseCatalogOKItemsItemRunMethod) Validate() error {
 		return nil
 	case "PUT":
 		return nil
+	case "PATCH":
+		return nil
 	case "POST":
 		return nil
 	case "DELETE":
@@ -47848,6 +47638,8 @@ func (s ResponseGetResponseCatalogOKItemsItemVerifyMethod) Validate() error {
 	case "GET":
 		return nil
 	case "PUT":
+		return nil
+	case "PATCH":
 		return nil
 	case "POST":
 		return nil
@@ -48882,6 +48674,8 @@ func (s ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethod) Va
 		return nil
 	case "PUT":
 		return nil
+	case "PATCH":
+		return nil
 	case "POST":
 		return nil
 	case "DELETE":
@@ -48949,6 +48743,8 @@ func (s ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMe
 	case "GET":
 		return nil
 	case "PUT":
+		return nil
+	case "PATCH":
 		return nil
 	case "POST":
 		return nil
@@ -50614,6 +50410,10 @@ func (s ResponseGetResponseTriggersOKItemsItemFieldsItemType) Validate() error {
 		return nil
 	case "interface":
 		return nil
+	case "id":
+		return nil
+	case "name":
+		return nil
 	case "text":
 		return nil
 	case "number":
@@ -51192,6 +50992,8 @@ func (s ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethod) Validat
 		return nil
 	case "PUT":
 		return nil
+	case "PATCH":
+		return nil
 	case "POST":
 		return nil
 	case "DELETE":
@@ -51259,6 +51061,8 @@ func (s ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethod)
 	case "GET":
 		return nil
 	case "PUT":
+		return nil
+	case "PATCH":
 		return nil
 	case "POST":
 		return nil
@@ -51909,6 +51713,8 @@ func (s ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethod) Va
 		return nil
 	case "PUT":
 		return nil
+	case "PATCH":
+		return nil
 	case "POST":
 		return nil
 	case "DELETE":
@@ -51976,6 +51782,8 @@ func (s ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMe
 	case "GET":
 		return nil
 	case "PUT":
+		return nil
+	case "PATCH":
 		return nil
 	case "POST":
 		return nil
@@ -52707,6 +52515,8 @@ func (s ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethod) Validate
 		return nil
 	case "PUT":
 		return nil
+	case "PATCH":
+		return nil
 	case "POST":
 		return nil
 	case "DELETE":
@@ -52774,6 +52584,8 @@ func (s ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethod) 
 	case "GET":
 		return nil
 	case "PUT":
+		return nil
+	case "PATCH":
 		return nil
 	case "POST":
 		return nil
@@ -53497,6 +53309,8 @@ func (s ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethod) Valida
 		return nil
 	case "PUT":
 		return nil
+	case "PATCH":
+		return nil
 	case "POST":
 		return nil
 	case "DELETE":
@@ -53564,6 +53378,8 @@ func (s ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethod
 	case "GET":
 		return nil
 	case "PUT":
+		return nil
+	case "PATCH":
 		return nil
 	case "POST":
 		return nil
@@ -54268,6 +54084,8 @@ func (s ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethod) Valid
 		return nil
 	case "PUT":
 		return nil
+	case "PATCH":
+		return nil
 	case "POST":
 		return nil
 	case "DELETE":
@@ -54335,6 +54153,8 @@ func (s ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMetho
 	case "GET":
 		return nil
 	case "PUT":
+		return nil
+	case "PATCH":
 		return nil
 	case "POST":
 		return nil
@@ -55773,6 +55593,8 @@ func (s ResponsePostResponseApproveTokenOKItemsItemChangeRestMethod) Validate() 
 		return nil
 	case "PUT":
 		return nil
+	case "PATCH":
+		return nil
 	case "POST":
 		return nil
 	case "DELETE":
@@ -55840,6 +55662,8 @@ func (s ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethod) Val
 	case "GET":
 		return nil
 	case "PUT":
+		return nil
+	case "PATCH":
 		return nil
 	case "POST":
 		return nil
@@ -56386,7 +56210,7 @@ func (s *ResponsePostResponseBreakerResetOKMaintenanceItem) Validate() error {
 	return nil
 }
 
-func (s *ResponsePostResponseCatalogOK) Validate() error {
+func (s *ResponsePostResponseCatalogCreated) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -56434,8 +56258,20 @@ func (s *ResponsePostResponseCatalogOK) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := s.Pack.Validate(); err != nil {
-			return err
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     60,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Pack)); err != nil {
+			return errors.Wrap(err, "string")
 		}
 		return nil
 	}(); err != nil {
@@ -56522,13 +56358,15 @@ func (s *ResponsePostResponseCatalogOK) Validate() error {
 	return nil
 }
 
-func (s ResponsePostResponseCatalogOKConnectionKind) Validate() error {
+func (s ResponsePostResponseCatalogCreatedConnectionKind) Validate() error {
 	switch s {
-	case "device-api":
+	case "http":
 		return nil
 	case "ssh":
 		return nil
-	case "http":
+	case "netconf-restconf":
+		return nil
+	case "automation":
 		return nil
 	case "mcp-http":
 		return nil
@@ -56539,30 +56377,7 @@ func (s ResponsePostResponseCatalogOKConnectionKind) Validate() error {
 	}
 }
 
-func (s ResponsePostResponseCatalogOKPack) Validate() error {
-	switch s {
-	case "box":
-		return nil
-	case "fortigate":
-		return nil
-	case "mikrotik":
-		return nil
-	case "pfsense":
-		return nil
-	case "opnsense":
-		return nil
-	case "switch":
-		return nil
-	case "dns":
-		return nil
-	case "generic":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s ResponsePostResponseCatalogOKParamsItem) Validate() error {
+func (s ResponsePostResponseCatalogCreatedParamsItem) Validate() error {
 	switch s {
 	case "ip":
 		return nil
@@ -56578,6 +56393,10 @@ func (s ResponsePostResponseCatalogOKParamsItem) Validate() error {
 		return nil
 	case "interface":
 		return nil
+	case "id":
+		return nil
+	case "name":
+		return nil
 	case "text":
 		return nil
 	default:
@@ -56585,7 +56404,7 @@ func (s ResponsePostResponseCatalogOKParamsItem) Validate() error {
 	}
 }
 
-func (s ResponsePostResponseCatalogOKRisk) Validate() error {
+func (s ResponsePostResponseCatalogCreatedRisk) Validate() error {
 	switch s {
 	case "low":
 		return nil
@@ -56598,7 +56417,7 @@ func (s ResponsePostResponseCatalogOKRisk) Validate() error {
 	}
 }
 
-func (s *ResponsePostResponseCatalogOKRollback) Validate() error {
+func (s *ResponsePostResponseCatalogCreatedRollback) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -56713,13 +56532,15 @@ func (s *ResponsePostResponseCatalogOKRollback) Validate() error {
 	return nil
 }
 
-func (s ResponsePostResponseCatalogOKRollbackMethod) Validate() error {
+func (s ResponsePostResponseCatalogCreatedRollbackMethod) Validate() error {
 	switch s {
 	case "":
 		return nil
 	case "GET":
 		return nil
 	case "PUT":
+		return nil
+	case "PATCH":
 		return nil
 	case "POST":
 		return nil
@@ -56730,7 +56551,7 @@ func (s ResponsePostResponseCatalogOKRollbackMethod) Validate() error {
 	}
 }
 
-func (s *ResponsePostResponseCatalogOKRun) Validate() error {
+func (s *ResponsePostResponseCatalogCreatedRun) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -56845,13 +56666,15 @@ func (s *ResponsePostResponseCatalogOKRun) Validate() error {
 	return nil
 }
 
-func (s ResponsePostResponseCatalogOKRunMethod) Validate() error {
+func (s ResponsePostResponseCatalogCreatedRunMethod) Validate() error {
 	switch s {
 	case "":
 		return nil
 	case "GET":
 		return nil
 	case "PUT":
+		return nil
+	case "PATCH":
 		return nil
 	case "POST":
 		return nil
@@ -56862,7 +56685,7 @@ func (s ResponsePostResponseCatalogOKRunMethod) Validate() error {
 	}
 }
 
-func (s *ResponsePostResponseCatalogOKVerify) Validate() error {
+func (s *ResponsePostResponseCatalogCreatedVerify) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -56977,13 +56800,15 @@ func (s *ResponsePostResponseCatalogOKVerify) Validate() error {
 	return nil
 }
 
-func (s ResponsePostResponseCatalogOKVerifyMethod) Validate() error {
+func (s ResponsePostResponseCatalogCreatedVerifyMethod) Validate() error {
 	switch s {
 	case "":
 		return nil
 	case "GET":
 		return nil
 	case "PUT":
+		return nil
+	case "PATCH":
 		return nil
 	case "POST":
 		return nil
@@ -57232,6 +57057,8 @@ func (s ResponsePostResponseCatalogReqRollbackMethod) Validate() error {
 		return nil
 	case "PUT":
 		return nil
+	case "PATCH":
+		return nil
 	case "POST":
 		return nil
 	case "DELETE":
@@ -57364,6 +57191,8 @@ func (s ResponsePostResponseCatalogReqRunMethod) Validate() error {
 		return nil
 	case "PUT":
 		return nil
+	case "PATCH":
+		return nil
 	case "POST":
 		return nil
 	case "DELETE":
@@ -57495,6 +57324,8 @@ func (s ResponsePostResponseCatalogReqVerifyMethod) Validate() error {
 	case "GET":
 		return nil
 	case "PUT":
+		return nil
+	case "PATCH":
 		return nil
 	case "POST":
 		return nil
@@ -57919,7 +57750,7 @@ func (s *ResponsePostResponseExecutionOKMaintenanceItem) Validate() error {
 	return nil
 }
 
-func (s *ResponsePostResponseProposalsIDRequestOK) Validate() error {
+func (s *ResponsePostResponseProposalsIDRequestCreated) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -58122,7 +57953,7 @@ func (s *ResponsePostResponseProposalsIDRequestOK) Validate() error {
 	return nil
 }
 
-func (s *ResponsePostResponseProposalsIDRequestOKAi) Validate() error {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAi) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -58183,7 +58014,7 @@ func (s *ResponsePostResponseProposalsIDRequestOKAi) Validate() error {
 	return nil
 }
 
-func (s *ResponsePostResponseProposalsIDRequestOKAiEvidenceItem) Validate() error {
+func (s *ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItem) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -58206,7 +58037,7 @@ func (s *ResponsePostResponseProposalsIDRequestOKAiEvidenceItem) Validate() erro
 	return nil
 }
 
-func (s ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKind) Validate() error {
+func (s ResponsePostResponseProposalsIDRequestCreatedAiEvidenceItemKind) Validate() error {
 	switch s {
 	case "finding":
 		return nil
@@ -58219,7 +58050,7 @@ func (s ResponsePostResponseProposalsIDRequestOKAiEvidenceItemKind) Validate() e
 	}
 }
 
-func (s *ResponsePostResponseProposalsIDRequestOKApprovalsItem) Validate() error {
+func (s *ResponsePostResponseProposalsIDRequestCreatedApprovalsItem) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -58253,7 +58084,7 @@ func (s *ResponsePostResponseProposalsIDRequestOKApprovalsItem) Validate() error
 	return nil
 }
 
-func (s ResponsePostResponseProposalsIDRequestOKApprovalsItemVia) Validate() error {
+func (s ResponsePostResponseProposalsIDRequestCreatedApprovalsItemVia) Validate() error {
 	switch s {
 	case "app":
 		return nil
@@ -58274,7 +58105,7 @@ func (s ResponsePostResponseProposalsIDRequestOKApprovalsItemVia) Validate() err
 	}
 }
 
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) Validate() error {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -58391,7 +58222,7 @@ func (s *ResponsePostResponseProposalsIDRequestOKItemsItem) Validate() error {
 	return nil
 }
 
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChange) Validate() error {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -58432,7 +58263,7 @@ func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChange) Validate() err
 	return nil
 }
 
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRest) Validate() error {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -58455,11 +58286,13 @@ func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRest) Validate()
 	return nil
 }
 
-func (s ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethod) Validate() error {
+func (s ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod) Validate() error {
 	switch s {
 	case "GET":
 		return nil
 	case "PUT":
+		return nil
+	case "PATCH":
 		return nil
 	case "POST":
 		return nil
@@ -58470,7 +58303,7 @@ func (s ResponsePostResponseProposalsIDRequestOKItemsItemChangeRestMethod) Valid
 	}
 }
 
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollback) Validate() error {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollback) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -58500,7 +58333,7 @@ func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollback) Valida
 	return nil
 }
 
-func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest) Validate() error {
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -58523,11 +58356,13 @@ func (s *ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRest) Va
 	return nil
 }
 
-func (s ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMethod) Validate() error {
+func (s ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod) Validate() error {
 	switch s {
 	case "GET":
 		return nil
 	case "PUT":
+		return nil
+	case "PATCH":
 		return nil
 	case "POST":
 		return nil
@@ -58538,7 +58373,7 @@ func (s ResponsePostResponseProposalsIDRequestOKItemsItemChangeRollbackRestMetho
 	}
 }
 
-func (s ResponsePostResponseProposalsIDRequestOKItemsItemRisk) Validate() error {
+func (s ResponsePostResponseProposalsIDRequestCreatedItemsItemRisk) Validate() error {
 	switch s {
 	case "low":
 		return nil
@@ -58551,7 +58386,7 @@ func (s ResponsePostResponseProposalsIDRequestOKItemsItemRisk) Validate() error 
 	}
 }
 
-func (s ResponsePostResponseProposalsIDRequestOKItemsItemStatus) Validate() error {
+func (s ResponsePostResponseProposalsIDRequestCreatedItemsItemStatus) Validate() error {
 	switch s {
 	case "pending":
 		return nil
@@ -58568,7 +58403,7 @@ func (s ResponsePostResponseProposalsIDRequestOKItemsItemStatus) Validate() erro
 	}
 }
 
-func (s ResponsePostResponseProposalsIDRequestOKRisk) Validate() error {
+func (s ResponsePostResponseProposalsIDRequestCreatedRisk) Validate() error {
 	switch s {
 	case "low":
 		return nil
@@ -58581,7 +58416,7 @@ func (s ResponsePostResponseProposalsIDRequestOKRisk) Validate() error {
 	}
 }
 
-func (s ResponsePostResponseProposalsIDRequestOKSource) Validate() error {
+func (s ResponsePostResponseProposalsIDRequestCreatedSource) Validate() error {
 	switch s {
 	case "ai":
 		return nil
@@ -58592,7 +58427,7 @@ func (s ResponsePostResponseProposalsIDRequestOKSource) Validate() error {
 	}
 }
 
-func (s ResponsePostResponseProposalsIDRequestOKStatus) Validate() error {
+func (s ResponsePostResponseProposalsIDRequestCreatedStatus) Validate() error {
 	switch s {
 	case "pending":
 		return nil
@@ -58613,7 +58448,7 @@ func (s ResponsePostResponseProposalsIDRequestOKStatus) Validate() error {
 	}
 }
 
-func (s ResponsePostResponseProposalsIDRequestOKTrigger) Validate() error {
+func (s ResponsePostResponseProposalsIDRequestCreatedTrigger) Validate() error {
 	switch s {
 	case "honeypot":
 		return nil
@@ -58636,145 +58471,7 @@ func (s ResponsePostResponseProposalsIDRequestOKTrigger) Validate() error {
 	}
 }
 
-func (s *ResponsePostResponseRulesIDManualOK) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Deduped)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "deduped",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.DryRun)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "dry_run",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Executed)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "executed",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Matched)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "matched",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Refused)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "refused",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Requests)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "requests",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *ResponsePostResponseRulesOK) Validate() error {
+func (s *ResponsePostResponseRulesCreated) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -58952,7 +58649,7 @@ func (s *ResponsePostResponseRulesOK) Validate() error {
 	return nil
 }
 
-func (s *ResponsePostResponseRulesOKActionsItem) Validate() error {
+func (s *ResponsePostResponseRulesCreatedActionsItem) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -59026,7 +58723,7 @@ func (s *ResponsePostResponseRulesOKActionsItem) Validate() error {
 	return nil
 }
 
-func (s ResponsePostResponseRulesOKActionsItemParams) Validate() error {
+func (s ResponsePostResponseRulesCreatedActionsItemParams) Validate() error {
 	var failures []validate.FieldError
 	for key, elem := range s {
 		if err := func() error {
@@ -59060,7 +58757,7 @@ func (s ResponsePostResponseRulesOKActionsItemParams) Validate() error {
 	return nil
 }
 
-func (s *ResponsePostResponseRulesOKConditionsItem) Validate() error {
+func (s *ResponsePostResponseRulesCreatedConditionsItem) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -59185,7 +58882,7 @@ func (s *ResponsePostResponseRulesOKConditionsItem) Validate() error {
 	return nil
 }
 
-func (s ResponsePostResponseRulesOKConditionsItemOp) Validate() error {
+func (s ResponsePostResponseRulesCreatedConditionsItemOp) Validate() error {
 	switch s {
 	case "eq":
 		return nil
@@ -59208,7 +58905,7 @@ func (s ResponsePostResponseRulesOKConditionsItemOp) Validate() error {
 	}
 }
 
-func (s ResponsePostResponseRulesOKMatch) Validate() error {
+func (s ResponsePostResponseRulesCreatedMatch) Validate() error {
 	switch s {
 	case "all":
 		return nil
@@ -59219,7 +58916,7 @@ func (s ResponsePostResponseRulesOKMatch) Validate() error {
 	}
 }
 
-func (s ResponsePostResponseRulesOKTrigger) Validate() error {
+func (s ResponsePostResponseRulesCreatedTrigger) Validate() error {
 	switch s {
 	case "honeypot":
 		return nil
@@ -59240,6 +58937,144 @@ func (s ResponsePostResponseRulesOKTrigger) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *ResponsePostResponseRulesIDManualOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Deduped)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "deduped",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.DryRun)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "dry_run",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Executed)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "executed",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Matched)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "matched",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Refused)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "refused",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Requests)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "requests",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *ResponsePostResponseRulesReq) Validate() error {
@@ -60128,6 +59963,8 @@ func (s ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethod) Validate()
 		return nil
 	case "PUT":
 		return nil
+	case "PATCH":
+		return nil
 	case "POST":
 		return nil
 	case "DELETE":
@@ -60195,6 +60032,8 @@ func (s ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethod) Va
 	case "GET":
 		return nil
 	case "PUT":
+		return nil
+	case "PATCH":
 		return nil
 	case "POST":
 		return nil
@@ -60686,7 +60525,7 @@ func (s ResponsePostResponseRulesSimulateReqRuleTrigger) Validate() error {
 	}
 }
 
-func (s *ResponsePostResponseTemplatesIDCloneOK) Validate() error {
+func (s *ResponsePostResponseTemplatesIDCloneCreated) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -60864,7 +60703,7 @@ func (s *ResponsePostResponseTemplatesIDCloneOK) Validate() error {
 	return nil
 }
 
-func (s *ResponsePostResponseTemplatesIDCloneOKActionsItem) Validate() error {
+func (s *ResponsePostResponseTemplatesIDCloneCreatedActionsItem) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -60938,7 +60777,7 @@ func (s *ResponsePostResponseTemplatesIDCloneOKActionsItem) Validate() error {
 	return nil
 }
 
-func (s ResponsePostResponseTemplatesIDCloneOKActionsItemParams) Validate() error {
+func (s ResponsePostResponseTemplatesIDCloneCreatedActionsItemParams) Validate() error {
 	var failures []validate.FieldError
 	for key, elem := range s {
 		if err := func() error {
@@ -60972,7 +60811,7 @@ func (s ResponsePostResponseTemplatesIDCloneOKActionsItemParams) Validate() erro
 	return nil
 }
 
-func (s *ResponsePostResponseTemplatesIDCloneOKConditionsItem) Validate() error {
+func (s *ResponsePostResponseTemplatesIDCloneCreatedConditionsItem) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -61097,7 +60936,7 @@ func (s *ResponsePostResponseTemplatesIDCloneOKConditionsItem) Validate() error 
 	return nil
 }
 
-func (s ResponsePostResponseTemplatesIDCloneOKConditionsItemOp) Validate() error {
+func (s ResponsePostResponseTemplatesIDCloneCreatedConditionsItemOp) Validate() error {
 	switch s {
 	case "eq":
 		return nil
@@ -61120,7 +60959,7 @@ func (s ResponsePostResponseTemplatesIDCloneOKConditionsItemOp) Validate() error
 	}
 }
 
-func (s ResponsePostResponseTemplatesIDCloneOKMatch) Validate() error {
+func (s ResponsePostResponseTemplatesIDCloneCreatedMatch) Validate() error {
 	switch s {
 	case "all":
 		return nil
@@ -61131,7 +60970,7 @@ func (s ResponsePostResponseTemplatesIDCloneOKMatch) Validate() error {
 	}
 }
 
-func (s ResponsePostResponseTemplatesIDCloneOKTrigger) Validate() error {
+func (s ResponsePostResponseTemplatesIDCloneCreatedTrigger) Validate() error {
 	switch s {
 	case "honeypot":
 		return nil
@@ -61248,8 +61087,20 @@ func (s *ResponsePutResponseCatalogIDOK) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := s.Pack.Validate(); err != nil {
-			return err
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     60,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Pack)); err != nil {
+			return errors.Wrap(err, "string")
 		}
 		return nil
 	}(); err != nil {
@@ -61338,38 +61189,17 @@ func (s *ResponsePutResponseCatalogIDOK) Validate() error {
 
 func (s ResponsePutResponseCatalogIDOKConnectionKind) Validate() error {
 	switch s {
-	case "device-api":
+	case "http":
 		return nil
 	case "ssh":
 		return nil
-	case "http":
+	case "netconf-restconf":
+		return nil
+	case "automation":
 		return nil
 	case "mcp-http":
 		return nil
 	case "mcp-stdio":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s ResponsePutResponseCatalogIDOKPack) Validate() error {
-	switch s {
-	case "box":
-		return nil
-	case "fortigate":
-		return nil
-	case "mikrotik":
-		return nil
-	case "pfsense":
-		return nil
-	case "opnsense":
-		return nil
-	case "switch":
-		return nil
-	case "dns":
-		return nil
-	case "generic":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -61391,6 +61221,10 @@ func (s ResponsePutResponseCatalogIDOKParamsItem) Validate() error {
 	case "vlan":
 		return nil
 	case "interface":
+		return nil
+	case "id":
+		return nil
+	case "name":
 		return nil
 	case "text":
 		return nil
@@ -61535,6 +61369,8 @@ func (s ResponsePutResponseCatalogIDOKRollbackMethod) Validate() error {
 		return nil
 	case "PUT":
 		return nil
+	case "PATCH":
+		return nil
 	case "POST":
 		return nil
 	case "DELETE":
@@ -61667,6 +61503,8 @@ func (s ResponsePutResponseCatalogIDOKRunMethod) Validate() error {
 		return nil
 	case "PUT":
 		return nil
+	case "PATCH":
+		return nil
 	case "POST":
 		return nil
 	case "DELETE":
@@ -61798,6 +61636,8 @@ func (s ResponsePutResponseCatalogIDOKVerifyMethod) Validate() error {
 	case "GET":
 		return nil
 	case "PUT":
+		return nil
+	case "PATCH":
 		return nil
 	case "POST":
 		return nil
@@ -62028,6 +61868,8 @@ func (s ResponsePutResponseCatalogIDReqRollbackMethod) Validate() error {
 		return nil
 	case "PUT":
 		return nil
+	case "PATCH":
+		return nil
 	case "POST":
 		return nil
 	case "DELETE":
@@ -62160,6 +62002,8 @@ func (s ResponsePutResponseCatalogIDReqRunMethod) Validate() error {
 		return nil
 	case "PUT":
 		return nil
+	case "PATCH":
+		return nil
 	case "POST":
 		return nil
 	case "DELETE":
@@ -62291,6 +62135,8 @@ func (s ResponsePutResponseCatalogIDReqVerifyMethod) Validate() error {
 	case "GET":
 		return nil
 	case "PUT":
+		return nil
+	case "PATCH":
 		return nil
 	case "POST":
 		return nil
@@ -64076,9 +63922,9 @@ func (s *ScanGetScansConfigOKConfigSchedule) Validate() error {
 	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
-			Min:           0,
+			Min:           1,
 			MaxSet:        true,
-			Max:           6,
+			Max:           7,
 			MinExclusive:  false,
 			MaxExclusive:  false,
 			MultipleOfSet: false,
@@ -64134,9 +63980,9 @@ func (s *ScanGetScansConfigOKConfigWindow) Validate() error {
 			if err := func() error {
 				if err := (validate.Int{
 					MinSet:        true,
-					Min:           0,
+					Min:           1,
 					MaxSet:        true,
-					Max:           6,
+					Max:           7,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
@@ -64935,7 +64781,7 @@ func (s ScanGetScansTargetsOKItemsItemReason) Validate() error {
 	}
 }
 
-func (s *ScanPostScansCredentialedIDTestOK) Validate() error {
+func (s *ScanPostScansCredentialedCreated) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -64968,7 +64814,7 @@ func (s *ScanPostScansCredentialedIDTestOK) Validate() error {
 	return nil
 }
 
-func (s *ScanPostScansCredentialedOK) Validate() error {
+func (s *ScanPostScansCredentialedIDTestOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -65078,6 +64924,203 @@ func (s *ScanPostScansCredentialedReq) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *ScanPostScansRunsCreated) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Done)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "done",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Matched)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "matched",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Results == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Results {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "results",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Status.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "status",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Total)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "total",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Trigger.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "trigger",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ScanPostScansRunsCreatedResultsItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Result.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "result",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ScanPostScansRunsCreatedResultsItemResult) Validate() error {
+	switch s {
+	case "matched":
+		return nil
+	case "not_matched":
+		return nil
+	case "not_applicable":
+		return nil
+	case "no_template":
+		return nil
+	case "no_response":
+		return nil
+	case "skipped":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ScanPostScansRunsCreatedStatus) Validate() error {
+	switch s {
+	case "running":
+		return nil
+	case "stopping":
+		return nil
+	case "done":
+		return nil
+	case "stopped":
+		return nil
+	case "auto_stopped":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ScanPostScansRunsCreatedTrigger) Validate() error {
+	switch s {
+	case "manual":
+		return nil
+	case "schedule":
+		return nil
+	case "new_kev":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *ScanPostScansRunsIDStopOK) Validate() error {
@@ -65265,203 +65308,6 @@ func (s ScanPostScansRunsIDStopOKStatus) Validate() error {
 }
 
 func (s ScanPostScansRunsIDStopOKTrigger) Validate() error {
-	switch s {
-	case "manual":
-		return nil
-	case "schedule":
-		return nil
-	case "new_kev":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s *ScanPostScansRunsOK) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Done)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "done",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Matched)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "matched",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if s.Results == nil {
-			return errors.New("nil is invalid value")
-		}
-		var failures []validate.FieldError
-		for i, elem := range s.Results {
-			if err := func() error {
-				if err := elem.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "results",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Status.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "status",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Total)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "total",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Trigger.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "trigger",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *ScanPostScansRunsOKResultsItem) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.Result.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "result",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s ScanPostScansRunsOKResultsItemResult) Validate() error {
-	switch s {
-	case "matched":
-		return nil
-	case "not_matched":
-		return nil
-	case "not_applicable":
-		return nil
-	case "no_template":
-		return nil
-	case "no_response":
-		return nil
-	case "skipped":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s ScanPostScansRunsOKStatus) Validate() error {
-	switch s {
-	case "running":
-		return nil
-	case "stopping":
-		return nil
-	case "done":
-		return nil
-	case "stopped":
-		return nil
-	case "auto_stopped":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s ScanPostScansRunsOKTrigger) Validate() error {
 	switch s {
 	case "manual":
 		return nil
@@ -65677,9 +65523,9 @@ func (s *ScanPutScansConfigOKConfigSchedule) Validate() error {
 	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
-			Min:           0,
+			Min:           1,
 			MaxSet:        true,
-			Max:           6,
+			Max:           7,
 			MinExclusive:  false,
 			MaxExclusive:  false,
 			MultipleOfSet: false,
@@ -65735,9 +65581,9 @@ func (s *ScanPutScansConfigOKConfigWindow) Validate() error {
 			if err := func() error {
 				if err := (validate.Int{
 					MinSet:        true,
-					Min:           0,
+					Min:           1,
 					MaxSet:        true,
-					Max:           6,
+					Max:           7,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
@@ -66021,9 +65867,9 @@ func (s *ScanPutScansConfigReqSchedule) Validate() error {
 			if err := func() error {
 				if err := (validate.Int{
 					MinSet:        true,
-					Min:           0,
+					Min:           1,
 					MaxSet:        true,
-					Max:           6,
+					Max:           7,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
@@ -66084,9 +65930,9 @@ func (s *ScanPutScansConfigReqWindow) Validate() error {
 			if err := func() error {
 				if err := (validate.Int{
 					MinSet:        true,
-					Min:           0,
+					Min:           1,
 					MaxSet:        true,
-					Max:           6,
+					Max:           7,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,

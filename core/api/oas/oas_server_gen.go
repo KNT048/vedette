@@ -415,7 +415,7 @@ type Handler interface {
 	CoreGetCoreOidc(ctx context.Context) (*CoreGetCoreOidcOK, error)
 	// CoreGetCorePrivacy implements core_get_core_privacy operation.
 	//
-	// The 10 data flows leaving the box and the verbatim anonymous-signal payload.
+	// The 11 data flows leaving the box and the verbatim anonymous-signal payload.
 	//
 	// GET /core/privacy
 	CoreGetCorePrivacy(ctx context.Context) (*CoreGetCorePrivacyOK, error)
@@ -591,7 +591,7 @@ type Handler interface {
 	// Create a read-only token by scope; returns the full token once.
 	//
 	// POST /core/mcp/tokens
-	CorePostCoreMcpTokens(ctx context.Context, req *CorePostCoreMcpTokensReq) (*CorePostCoreMcpTokensOK, error)
+	CorePostCoreMcpTokens(ctx context.Context, req *CorePostCoreMcpTokensReq) (*CorePostCoreMcpTokensCreated, error)
 	// CorePostCoreNetworkManagementConfirm implements core_post_core_network_management_confirm operation.
 	//
 	// Confirm the pending management change from the new address (409 when none is pending or it expired).
@@ -649,11 +649,11 @@ type Handler interface {
 	CorePostCoreUpdatesOsCheck(ctx context.Context) (*CorePostCoreUpdatesOsCheckOK, error)
 	// CorePostCoreUpdatesOsInstall implements core_post_core_updates_os_install operation.
 	//
-	// Install security updates or all updates through vedette-updater; one run at a time (409 when busy),
+	// Install security updates or all updates through vedette-host; one run at a time (409 when busy),
 	// database backup first.
 	//
 	// POST /core/updates/os/install
-	CorePostCoreUpdatesOsInstall(ctx context.Context, req *CorePostCoreUpdatesOsInstallReq) (*CorePostCoreUpdatesOsInstallOK, error)
+	CorePostCoreUpdatesOsInstall(ctx context.Context, req *CorePostCoreUpdatesOsInstallReq) (*CorePostCoreUpdatesOsInstallAccepted, error)
 	// CorePostCoreUpdatesOsReboot implements core_post_core_updates_os_reboot operation.
 	//
 	// Reboot now, at the next maintenance window, or at a chosen time inside the window; 409 while an
@@ -672,7 +672,7 @@ type Handler interface {
 	// Create a user with a role; returns a temporary password once.
 	//
 	// POST /core/users
-	CorePostCoreUsers(ctx context.Context, req *CorePostCoreUsersReq) (*CorePostCoreUsersOK, error)
+	CorePostCoreUsers(ctx context.Context, req *CorePostCoreUsersReq) (*CorePostCoreUsersCreated, error)
 	// CorePostCoreUsersID2FAReset implements core_post_core_users_id_2fa_reset operation.
 	//
 	// Reset two-step sign-in for a user who lost the phone or mailbox: turns it off and writes an audit
@@ -765,7 +765,8 @@ type Handler interface {
 	//
 	// The box detects the public IP it uses to reach the Internet (TLS to a fixed endpoint) and verifies
 	// it for 90 days. Takes no IP input; refuses private, reserved and CGNAT results; rate limited to 10
-	// attempts per hour.
+	// attempts per hour. 201 when the IP is new in the list, 200 when it was already there (the generated
+	// file documents 200).
 	//
 	// POST /exposure/box-ip/verify
 	ExposurePostExposureBoxIPVerify(ctx context.Context) (*ExposurePostExposureBoxIPVerifyOK, error)
@@ -774,7 +775,7 @@ type Handler interface {
 	// Add a domain (changes scan scope). Public IPs cannot be typed in: use /exposure/box-ip/verify.
 	//
 	// POST /exposure/targets
-	ExposurePostExposureTargets(ctx context.Context, req *ExposurePostExposureTargetsReq) (*ExposurePostExposureTargetsOK, error)
+	ExposurePostExposureTargets(ctx context.Context, req *ExposurePostExposureTargetsReq) (*ExposurePostExposureTargetsCreated, error)
 	// ExposurePostExposureTargetsIDCommitment implements exposure_post_exposure_targets_id_commitment operation.
 	//
 	// Record the commitment: my company owns this domain/IP and I am authorized to scan it (who and when
@@ -784,8 +785,8 @@ type Handler interface {
 	ExposurePostExposureTargetsIDCommitment(ctx context.Context, req *ExposurePostExposureTargetsIDCommitmentReq, params ExposurePostExposureTargetsIDCommitmentParams) (*ExposurePostExposureTargetsIDCommitmentOK, error)
 	// ExposurePostExposureTargetsIDScan implements exposure_post_exposure_targets_id_scan operation.
 	//
-	// Scan now. 409 when not verified, verification expired, the DNS TXT record is gone (re-checked right
-	// before the scan) or the commitment is missing.
+	// Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked
+	// right before the scan); 400 commitment_required when the commitment is missing.
 	//
 	// POST /exposure/targets/{id}/scan
 	ExposurePostExposureTargetsIDScan(ctx context.Context, params ExposurePostExposureTargetsIDScanParams) (*ExposurePostExposureTargetsIDScanOK, error)
@@ -843,7 +844,7 @@ type Handler interface {
 	// Add your own feed (vulnerabilities or IOC) with its parsing rules.
 	//
 	// POST /feeds/custom
-	FeedsPostFeedsCustom(ctx context.Context, req *FeedsPostFeedsCustomReq) (*FeedsPostFeedsCustomOK, error)
+	FeedsPostFeedsCustom(ctx context.Context, req *FeedsPostFeedsCustomReq) (*FeedsPostFeedsCustomCreated, error)
 	// FeedsPostFeedsParseTest implements feeds_post_feeds_parse_test operation.
 	//
 	// Try parsing rules on a sample and preview the normalised records, accepted and rejected rows.
@@ -964,7 +965,7 @@ type Handler interface {
 	// Add a decoy with a personality on a spare IP.
 	//
 	// POST /honeypot/decoys
-	HoneypotPostHoneypotDecoys(ctx context.Context, req *HoneypotPostHoneypotDecoysReq) (*HoneypotPostHoneypotDecoysOK, error)
+	HoneypotPostHoneypotDecoys(ctx context.Context, req *HoneypotPostHoneypotDecoysReq) (*HoneypotPostHoneypotDecoysCreated, error)
 	// HoneypotPostHoneypotTestHit implements honeypot_post_honeypot_test_hit operation.
 	//
 	// "Test trap": creates a hit labelled as a test from the box itself, not counted in statistics, no
@@ -984,7 +985,7 @@ type Handler interface {
 	// Create a honey token (decoy file, fake credentials, URL or DNS name).
 	//
 	// POST /honeypot/tokens
-	HoneypotPostHoneypotTokens(ctx context.Context, req *HoneypotPostHoneypotTokensReq) (*HoneypotPostHoneypotTokensOK, error)
+	HoneypotPostHoneypotTokens(ctx context.Context, req *HoneypotPostHoneypotTokensReq) (*HoneypotPostHoneypotTokensCreated, error)
 	// HoneypotPostHoneypotTokensIDTest implements honeypot_post_honeypot_tokens_id_test operation.
 	//
 	// "Test token": a labelled test trigger, not counted, no alert sent.
@@ -1103,7 +1104,7 @@ type Handler interface {
 	// Issue an osquery token, returning the full token once.
 	//
 	// POST /inventory/agents/tokens
-	InventoryPostInventoryAgentsTokens(ctx context.Context, req *InventoryPostInventoryAgentsTokensReq) (*InventoryPostInventoryAgentsTokensOK, error)
+	InventoryPostInventoryAgentsTokens(ctx context.Context, req *InventoryPostInventoryAgentsTokensReq) (*InventoryPostInventoryAgentsTokensCreated, error)
 	// InventoryPostInventoryAgentsTokensIDSampleData implements inventory_post_inventory_agents_tokens_id_sample_data operation.
 	//
 	// PREVIEW ONLY (mock): send sample data as if the agent had reported in, to see the effect.
@@ -1127,7 +1128,7 @@ type Handler interface {
 	// Declare a device manually using a product from the suggestion list.
 	//
 	// POST /inventory/devices
-	InventoryPostInventoryDevices(ctx context.Context, req *InventoryPostInventoryDevicesReq) (*InventoryPostInventoryDevicesOK, error)
+	InventoryPostInventoryDevices(ctx context.Context, req *InventoryPostInventoryDevicesReq) (*InventoryPostInventoryDevicesCreated, error)
 	// InventoryPostInventoryDevicesIDApprove implements inventory_post_inventory_devices_id_approve operation.
 	//
 	// Approve a new device.
@@ -1139,7 +1140,7 @@ type Handler interface {
 	// Declare additional software running on a device.
 	//
 	// POST /inventory/devices/{id}/software
-	InventoryPostInventoryDevicesIDSoftware(ctx context.Context, req *InventoryPostInventoryDevicesIDSoftwareReq, params InventoryPostInventoryDevicesIDSoftwareParams) (*InventoryPostInventoryDevicesIDSoftwareOK, error)
+	InventoryPostInventoryDevicesIDSoftware(ctx context.Context, req *InventoryPostInventoryDevicesIDSoftwareReq, params InventoryPostInventoryDevicesIDSoftwareParams) (*InventoryPostInventoryDevicesIDSoftwareCreated, error)
 	// InventoryPostInventoryDevicesIDSuspicious implements inventory_post_inventory_devices_id_suspicious operation.
 	//
 	// Mark or unmark a device as suspicious.
@@ -1211,7 +1212,7 @@ type Handler interface {
 	// Create a log source (device type, sender IP, protocol, port).
 	//
 	// POST /logs/sources
-	LogsPostLogsSources(ctx context.Context, req *LogsPostLogsSourcesReq) (*LogsPostLogsSourcesOK, error)
+	LogsPostLogsSources(ctx context.Context, req *LogsPostLogsSourcesReq) (*LogsPostLogsSourcesCreated, error)
 	// LogsPutLogsRetention implements logs_put_logs_retention operation.
 	//
 	// Change log retention (7, 30, 90 or 180 days).
@@ -1428,8 +1429,8 @@ type Handler interface {
 	ResponseGetResponseBlocklistTokenTxt(ctx context.Context, params ResponseGetResponseBlocklistTokenTxtParams) (ResponseGetResponseBlocklistTokenTxtOK, error)
 	// ResponseGetResponseCatalog implements response_get_response_catalog operation.
 	//
-	// Action catalog in plain words: vendor packs, generic actions and custom ones; connections with their
-	// kind and whether they can write.
+	// Action catalog in plain words: template packs from the library (data, D-58), generic actions and
+	// custom ones; connections with their kind and whether they can write.
 	//
 	// GET /response/catalog
 	ResponseGetResponseCatalog(ctx context.Context) (*ResponseGetResponseCatalogOK, error)
@@ -1516,7 +1517,9 @@ type Handler interface {
 	//
 	// The AI agent sends a request. Server-side gates: allowed trigger, action flagged for AI, real
 	// evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a
-	// rejection, hourly and daily budget, quality breaker, second checker for high risk.
+	// rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an
+	// approval request was created, 200 for a suggestion note or a digest (the generated file documents
+	// 200).
 	//
 	// POST /response/ai/proposals
 	ResponsePostResponseAiProposals(ctx context.Context, req *ResponsePostResponseAiProposalsReq) (*ResponsePostResponseAiProposalsOK, error)
@@ -1551,7 +1554,7 @@ type Handler interface {
 	// MCP: write tool and arguments) and the connection must have an enabled write tool.
 	//
 	// POST /response/catalog
-	ResponsePostResponseCatalog(ctx context.Context, req *ResponsePostResponseCatalogReq) (*ResponsePostResponseCatalogOK, error)
+	ResponsePostResponseCatalog(ctx context.Context, req *ResponsePostResponseCatalogReq) (*ResponsePostResponseCatalogCreated, error)
 	// ResponsePostResponseEmergencyStop implements response_post_response_emergency_stop operation.
 	//
 	// Emergency stop: turn execution off at once and cancel every pending request.
@@ -1570,14 +1573,14 @@ type Handler interface {
 	// not enabled or a request is already open).
 	//
 	// POST /response/proposals/{id}/request
-	ResponsePostResponseProposalsIDRequest(ctx context.Context, params ResponsePostResponseProposalsIDRequestParams) (*ResponsePostResponseProposalsIDRequestOK, error)
+	ResponsePostResponseProposalsIDRequest(ctx context.Context, params ResponsePostResponseProposalsIDRequestParams) (*ResponsePostResponseProposalsIDRequestCreated, error)
 	// ResponsePostResponseRules implements response_post_response_rules operation.
 	//
 	// Add a rule. It always starts in dry run (log only). Parameters are checked by type; pre-approved is
 	// refused unless every action is low risk, reversible and undone within 24 hours.
 	//
 	// POST /response/rules
-	ResponsePostResponseRules(ctx context.Context, req *ResponsePostResponseRulesReq) (*ResponsePostResponseRulesOK, error)
+	ResponsePostResponseRules(ctx context.Context, req *ResponsePostResponseRulesReq) (*ResponsePostResponseRulesCreated, error)
 	// ResponsePostResponseRulesIDManual implements response_post_response_rules_id_manual operation.
 	//
 	// Run a manual-trigger rule on a chosen device.
@@ -1603,7 +1606,7 @@ type Handler interface {
 	// Clone a template into a new rule that is switched off and in dry run.
 	//
 	// POST /response/templates/{id}/clone
-	ResponsePostResponseTemplatesIDClone(ctx context.Context, params ResponsePostResponseTemplatesIDCloneParams) (*ResponsePostResponseTemplatesIDCloneOK, error)
+	ResponsePostResponseTemplatesIDClone(ctx context.Context, params ResponsePostResponseTemplatesIDCloneParams) (*ResponsePostResponseTemplatesIDCloneCreated, error)
 	// ResponsePutResponseAllowlist implements response_put_response_allowlist operation.
 	//
 	// Replace the never-touch list (IP addresses, CIDR ranges or domains).
@@ -1681,11 +1684,11 @@ type Handler interface {
 	ScanGetScansTargets(ctx context.Context) (*ScanGetScansTargetsOK, error)
 	// ScanPostScansCredentialed implements scan_post_scans_credentialed operation.
 	//
-	// Add a server for account-based scanning with an SSH private key (only the last 4 characters are
-	// kept).
+	// Add a server for account-based scanning with an SSH private key (stored encrypted on the box, never
+	// shown again; only the last 4 characters are displayed).
 	//
 	// POST /scans/credentialed
-	ScanPostScansCredentialed(ctx context.Context, req *ScanPostScansCredentialedReq) (*ScanPostScansCredentialedOK, error)
+	ScanPostScansCredentialed(ctx context.Context, req *ScanPostScansCredentialedReq) (*ScanPostScansCredentialedCreated, error)
 	// ScanPostScansCredentialedIDTest implements scan_post_scans_credentialed_id_test operation.
 	//
 	// Test the SSH connection with the stored key.
@@ -1697,7 +1700,7 @@ type Handler interface {
 	// Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked).
 	//
 	// POST /scans/runs
-	ScanPostScansRuns(ctx context.Context, req *ScanPostScansRunsReq) (*ScanPostScansRunsOK, error)
+	ScanPostScansRuns(ctx context.Context, req *ScanPostScansRunsReq) (*ScanPostScansRunsCreated, error)
 	// ScanPostScansRunsIDStop implements scan_post_scans_runs_id_stop operation.
 	//
 	// Stop a scan now (takes effect within 5 seconds).

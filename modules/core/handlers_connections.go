@@ -190,20 +190,28 @@ func (h *APIHandlers) CoreDeleteCoreConnectionsID(ctx context.Context, params oa
 	})
 }
 
-// CorePostCoreConnectionsIDTest implements POST /core/connections/{id}/test (admin). The transports and the pin come with
-// slice 13b-5, so a connection that is on answers 501 and nothing is sent; one that is off is 409 connection_off first
-// (PRIVACY flow 12: nothing goes to a connection that is turned off).
+// CorePostCoreConnectionsIDTest implements POST /core/connections/{id}/test (admin): one harmless read over the transport of the
+// connection's kind, with the certificate or host key pinned at the first success (D-94). A connection that is off is 409
+// connection_off and nothing is sent. The admin check runs before the first byte leaves the box and again inside the write
+// transaction that saves the result; the network call itself is in no transaction.
 func (h *APIHandlers) CorePostCoreConnectionsIDTest(ctx context.Context, params oas.CorePostCoreConnectionsIDTestParams) (*oas.CorePostCoreConnectionsIDTestOK, error) {
 	svc, err := h.connsOrNotImplemented()
 	if err != nil {
 		return nil, err
 	}
-	cur, err := svc.Get(ctx, params.ID)
+	c, err := h.caller(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if !cur.Enabled {
-		return nil, apierr.New(409, "connection_off", "This connection is turned off, so nothing is sent to it. Turn it on, then test it.")
+	res, err := svc.Test(ctx, c.Email, params.ID, func(ctx context.Context, tx *sql.Tx) error {
+		return h.auth.CheckAdmin(ctx, tx, c.ID, c.SessionID)
+	})
+	if err != nil {
+		return nil, err
 	}
-	return nil, apierr.NotImplemented()
+	conn, err := connView[oas.CorePostCoreConnectionsIDTestOKConnector](res.Connection)
+	if err != nil {
+		return nil, err
+	}
+	return &oas.CorePostCoreConnectionsIDTestOK{Ok: true, LatencyMs: float64(res.LatencyMS), ToolsFound: res.ToolsFound, Message: res.Message, Connector: *conn}, nil
 }

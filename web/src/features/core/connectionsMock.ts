@@ -35,12 +35,12 @@ function discover(kind: ConnectorKind): ConnectorTool[] {
 }
 
 const hostOf = (c: Pick<Connector, 'kind' | 'target'>) => { try { return c.kind === 'ssh' ? c.target.split(':')[0]! : new URL(c.target).hostname } catch { return '' } }
-/** What the first Test pins (D-94): the SSH host key, or the leaf certificate of an HTTPS device that no public authority vouches for (an address on the LAN, a .local name). */
+/** What the first Test records (D-94): the SSH host key; for HTTPS the public key of a certificate that no public authority vouches for (an address on the LAN, a .local name), or `tls_roots`: a public authority did vouch for it, and every later Test requires that again. */
 function pinFor(c: Connector): Omit<ConnectorPin, 'first_seen'> | null {
   const host = hostOf(c)
   if (c.kind === 'ssh') return { kind: 'ssh_hostkey', value: `ssh-ed25519 SHA256:${fakeHash(host, 43)}` }
   if (c.kind === 'mcp-stdio' || !c.target.startsWith('https:')) return null
-  return /^[\d.]+$/.test(host) || /\.(local|lan|internal|home\.arpa)$/i.test(host) || !host.includes('.') ? { kind: 'tls_sha256', value: fakeHash(host, 64, true) } : null
+  return /^[\d.]+$/.test(host) || /\.(local|lan|internal|home\.arpa)$/i.test(host) || !host.includes('.') ? { kind: 'tls_sha256', value: fakeHash(host, 64, true) } : { kind: 'tls_roots', value: 'system roots' }
 }
 function fakeHash(seed: string, len: number, hex = false) {
   const chars = hex ? '0123456789abcdef' : 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
@@ -48,6 +48,9 @@ function fakeHash(seed: string, len: number, hex = false) {
   for (let i = 0; out.length < len; i++) { h = Math.imul(h ^ (seed.charCodeAt(i % Math.max(seed.length, 1)) || 7) ^ i, 16777619) >>> 0; out += chars[h % chars.length] }
   return out
 }
+
+/** The fields that decide what a request may do (D-93 (4)): a change in any of them while a Test runs makes its result void. */
+const securityKey = (c: Connector) => JSON.stringify([c.id, c.kind, c.target, c.auth.type, c.auth.last4, c.auth.key_fingerprint, c.username, c.allow, c.tools.map((t) => [t.name, t.access, t.enabled]), c.pin?.value ?? null])
 
 const bad = (code: string, message: string, field: string) => fail(400, code, message, { field })
 
@@ -210,7 +213,7 @@ export const connectionsHandlers = [
     connectorsStore.update((l) => [...l, c]); audit('core.connection.add', c.name, `${c.kind}, ${c.tools.filter((t) => t.access === 'write').length} write tools${r.secret ? ', secret set' : ''}`)
     return HttpResponse.json(c, { status: 201 })
   }),
-  http.post(`${API}/core/connections/:id/test`, ({ params }) => {
+  http.post(`${API}/core/connections/:id/test`, async ({ params }) => {
     const denied = guard('admin'); if (denied) return denied
     const cur = connectorsStore.get().find((c) => c.id === params.id)
     if (!cur) return notFound()
@@ -218,6 +221,14 @@ export const connectionsHandlers = [
     // Privacy flow 12: nothing is sent to a connection that is off, and a Test is a request.
     if (!cur.enabled) return fail(409, 'connection_off', 'This connection is turned off, so nothing is sent to it. Turn it on, then test it.')
     const stamp = (patch: Partial<Connector>) => connectorsStore.update((l) => l.map((c) => (c.id === cur.id ? { ...c, ...patch } : c)))
+    const snapshot = securityKey(cur)
+    // A device is slow to answer: the connection can be edited meanwhile, and a result for the old configuration is not saved.
+    await new Promise((r) => setTimeout(r, /slow/i.test(cur.target) ? 80 : 0))
+    // The address policy runs at dial time on what the name resolves to now (D-94): a name that now points at loopback, the metadata service or the box is not dialled.
+    if (/rebound/i.test(cur.target)) {
+      stamp({ status: 'error', last_test: nowIso() })
+      return fail(502, 'address_refused', `${cur.target} now points to a loopback address, so Vedette did not connect. Check the name in your DNS.`)
+    }
     if (/unreachable/i.test(cur.target)) {
       stamp({ status: 'error', last_test: nowIso() })
       return fail(502, 'unreachable', `Could not connect to ${cur.target}. Check the address, the box's network and the firewall.`)
@@ -225,13 +236,25 @@ export const connectionsHandlers = [
     // A pinned certificate or host key that no longer matches is refused before any credential is sent (D-94).
     if (cur.pin && /changed/i.test(cur.target)) {
       stamp({ status: 'error', last_test: nowIso() })
-      return fail(502, 'pin_mismatch', `${cur.pin.kind === 'ssh_hostkey' ? 'The SSH host key' : 'The certificate'} of ${cur.target} is not the one pinned at the first test. Nothing was sent. If you changed the device, edit this connection, turn on "Forget pinned key", save, then test again.`)
+      const what = cur.pin.kind === 'ssh_hostkey' ? 'The SSH host key' : 'The certificate'
+      const rest = cur.pin.kind === 'tls_roots' ? 'is not one that a public certificate authority vouches for, as it was at the first test' : 'is not the one pinned at the first test'
+      return fail(502, 'pin_mismatch', `${what} of ${cur.target} ${rest}. Nothing was sent. If you changed the device, edit this connection, turn on "Forget pinned key", save, then test again.`)
     }
+    // The device answered and said no.
+    if (/denied/i.test(cur.target)) {
+      stamp({ status: 'error', last_test: nowIso() })
+      return fail(502, 'device_error', `${cur.target} was reached, but the device refused the sign-in (HTTP 401).`)
+    }
+    const now = connectorsStore.get().find((c) => c.id === cur.id)
+    if (!now) return notFound()
+    if (!now.enabled) return fail(409, 'connection_off', 'This connection is turned off, so nothing is sent to it. Turn it on, then test it.')
+    if (securityKey(now) !== snapshot) return fail(409, 'connection_changed', 'This connection was edited while the test ran, so the result was not saved. Test it again.')
     const found = discover(cur.kind)
     const pin = cur.pin ?? (() => { const p = pinFor(cur); return p ? { ...p, first_seen: nowIso() } : null })()
     const c: Connector = { ...cur, status: 'ok', last_test: nowIso(), pin, tools: [...cur.tools, ...found.filter((t) => !cur.tools.some((x) => x.name === t.name))] }
-    connectorsStore.update((l) => l.map((x) => (x.id === c.id ? c : x))); audit('core.connection.test', c.name, !cur.pin && pin ? `pinned ${pin.kind === 'ssh_hostkey' ? 'host key' : 'certificate'}` : undefined)
-    return HttpResponse.json({ ok: true, latency_ms: c.kind === 'ssh' ? 90 : 240, tools_found: c.tools.length, message: `Connected. ${c.tools.length} ${c.tools.length === 1 ? 'tool' : 'tools'} found (${c.tools.filter((t) => t.access === 'write').length} can change something).${!cur.pin && pin ? ` ${pin.kind === 'ssh_hostkey' ? 'The host key' : 'The certificate'} is now pinned.` : ''}`, connector: c })
+    connectorsStore.update((l) => l.map((x) => (x.id === c.id ? c : x))); audit('core.connection.test', c.name, !cur.pin && pin ? `pinned ${pin.kind === 'ssh_hostkey' ? 'host key' : pin.kind === 'tls_roots' ? 'public trust' : 'certificate'}` : undefined)
+    const pinnedNow = !cur.pin && pin ? (pin.kind === 'ssh_hostkey' ? ' The host key is now pinned.' : pin.kind === 'tls_roots' ? ' Later tests require a certificate that a public authority vouches for.' : ' The certificate is now pinned.') : ''
+    return HttpResponse.json({ ok: true, latency_ms: c.kind === 'ssh' ? 90 : 240, tools_found: c.tools.length, message: `Connected. ${c.tools.length} ${c.tools.length === 1 ? 'tool' : 'tools'} found (${c.tools.filter((t) => t.access === 'write').length} can change something).${pinnedNow}`, connector: c })
   }),
   http.put(`${API}/core/connections/:id`, async ({ request, params }) => {
     const denied = guard('admin'); if (denied) return denied

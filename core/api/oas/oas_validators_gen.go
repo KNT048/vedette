@@ -7725,6 +7725,8 @@ func (s CoreGetCoreConnectionsOKItemsItemPinKind) Validate() error {
 	switch s {
 	case "tls_sha256":
 		return nil
+	case "tls_roots":
+		return nil
 	case "ssh_hostkey":
 		return nil
 	default:
@@ -11975,6 +11977,8 @@ func (s CorePostCoreConnectionsCreatedPinKind) Validate() error {
 	switch s {
 	case "tls_sha256":
 		return nil
+	case "tls_roots":
+		return nil
 	case "ssh_hostkey":
 		return nil
 	default:
@@ -12269,6 +12273,8 @@ func (s *CorePostCoreConnectionsIDTestOKConnectorPin) Validate() error {
 func (s CorePostCoreConnectionsIDTestOKConnectorPinKind) Validate() error {
 	switch s {
 	case "tls_sha256":
+		return nil
+	case "tls_roots":
 		return nil
 	case "ssh_hostkey":
 		return nil
@@ -16560,6 +16566,8 @@ func (s *CorePutCoreConnectionsIDOKPin) Validate() error {
 func (s CorePutCoreConnectionsIDOKPinKind) Validate() error {
 	switch s {
 	case "tls_sha256":
+		return nil
+	case "tls_roots":
 		return nil
 	case "ssh_hostkey":
 		return nil

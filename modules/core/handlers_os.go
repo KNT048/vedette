@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"strconv"
+	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/knt048/vedette/core/api/oas"
@@ -35,15 +38,41 @@ type OSHandlers struct {
 	zone  func(context.Context) (string, error)
 	log   *slog.Logger
 	now   func() time.Time
+	// loadTimeout bounds one shared read of the host (loadTimeout, shorter in tests).
+	loadTimeout time.Duration
 
 	ctx    context.Context //nolint:containedctx // the lifetime of the run followers, not of a request
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 
 	installMu sync.Mutex // one install at a time through this process, from the busy check to the host's answer
-	runMu     sync.Mutex // guards run, loaded and the fields of the run state
+	runMu     sync.Mutex // guards run, loaded, loading and the fields of the run state; never held across a host call
 	run       *osRunState
 	loaded    bool
+	loading   *flight[*osRunState]
+
+	state stateCache
+
+	dlMu   sync.Mutex // one backup download at a time: held from the busy check until backup.create ends
+	lastDL time.Time  // when the last download started its snapshot; guarded by dlMu
+}
+
+// stateTTL is how long GET /core/updates/os may answer from one read of the host: the host allows 60 requests a
+// minute for all of core, and a page that refreshes must not spend them. Every change (a check, an install and
+// its end, settings, a reboot) drops the copy.
+const stateTTL = 10 * time.Second
+
+// downloadGap is the least time between two backup downloads; every one makes a full snapshot and a manual
+// backup on the box (the host keeps the latest 10 manual ones).
+const downloadGap = time.Minute
+
+// stateCache is the last answer of the host's state/os, shared by concurrent readers.
+type stateCache struct {
+	mu     sync.Mutex
+	st     api.OSState
+	at     time.Time
+	valid  bool
+	flight *flight[api.OSState]
 }
 
 // OSConfig wires OSHandlers. DB, Auth, Audit, Log and Zone are required; Host may be nil (an install without
@@ -71,7 +100,7 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	h := &OSHandlers{db: c.DB, auth: c.Auth, audit: c.Audit, host: c.Host, zone: c.Zone, log: c.Log, now: c.Clock}
+	h := &OSHandlers{db: c.DB, auth: c.Auth, audit: c.Audit, host: c.Host, zone: c.Zone, log: c.Log, now: c.Clock, loadTimeout: loadTimeout}
 	if c.Host != nil {
 		if c.DataDir == "" || c.KeyPath == "" {
 			return nil, errors.New("core: OSConfig with a Host needs DataDir and KeyPath")
@@ -84,6 +113,12 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 		}
 	}
 	h.ctx, h.cancel = context.WithCancel(context.Background())
+	if c.Host != nil {
+		if m, err := h.loadRunMeta(h.ctx); err == nil && (m.Snapshot != "" || !m.Audited) {
+			h.wg.Add(1)
+			go h.resume()
+		}
+	}
 	return h, nil
 }
 
@@ -168,13 +203,20 @@ func (h *OSHandlers) settings(ctx context.Context) (osSettings, error) {
 	return s, nil
 }
 
-// updateCheckOn reads the Privacy switch of update checks (core_setting core_privacy, field update_check; on
-// when nothing was ever stored: PRIVACY.md flow 6 is on by default).
+// keyPrivacy is the core_setting key of the Privacy settings and privacySetting the part of its JSON that
+// the OS code reads. The writer of Privacy (GET and PATCH /core/privacy) must use both, or the switch of
+// update checks has no effect; a test pins the shape.
+const keyPrivacy = "core_privacy"
+
+type privacySetting struct {
+	// UpdateCheck is the switch of update checks (PRIVACY.md flow 6); nil, an absent row included, means on.
+	UpdateCheck *bool `json:"update_check"`
+}
+
+// updateCheckOn reads the switch of update checks from the Privacy setting.
 func (h *OSHandlers) updateCheckOn(ctx context.Context) (bool, error) {
-	var p struct {
-		UpdateCheck *bool `json:"update_check"`
-	}
-	if err := h.loadJSON(ctx, "core_privacy", &p); err != nil {
+	var p privacySetting
+	if err := h.loadJSON(ctx, keyPrivacy, &p); err != nil {
 		return false, err
 	}
 	return p.UpdateCheck == nil || *p.UpdateCheck, nil
@@ -192,11 +234,87 @@ func (h *OSHandlers) location(ctx context.Context) (*time.Location, error) {
 	return loc, nil
 }
 
+// hostState reads state/os, from the copy younger than stateTTL when there is one, else from the host; callers
+// that arrive during a read share it. It is the read for GET /core/updates/os.
+func (h *OSHandlers) hostState(ctx context.Context) (api.OSState, error) {
+	c := &h.state
+	c.mu.Lock()
+	if age := h.now().Sub(c.at); c.valid && age >= 0 && age < stateTTL {
+		st := c.st
+		c.mu.Unlock()
+		return st, nil
+	}
+	f := c.flight
+	if f == nil {
+		f = newFlight[api.OSState]()
+		c.flight = f
+		h.wg.Add(1)
+		go h.fetchState(f) //nolint:contextcheck // the read is shared: it runs on the handlers' lifetime, each waiter leaves at its own deadline
+	}
+	c.mu.Unlock()
+	st, err := f.wait(ctx)
+	if err != nil {
+		return api.OSState{}, h.failure(ctx, err)
+	}
+	return st, nil
+}
+
+func (h *OSHandlers) fetchState(f *flight[api.OSState]) {
+	defer h.wg.Done()
+	ctx, cancel := context.WithTimeout(h.ctx, h.loadTimeout)
+	defer cancel()
+	st, err := h.host.StateOS(ctx)
+	err = h.timedOut(ctx, err)
+	c := &h.state
+	c.mu.Lock()
+	if c.flight == f { // not dropped by a change meanwhile
+		if err == nil {
+			c.st, c.at, c.valid = st, h.now(), true
+		}
+		c.flight = nil
+	}
+	f.val, f.err = st, err
+	c.mu.Unlock()
+	close(f.done)
+}
+
+// invalidateState drops the copy and lets no read that started before now fill it.
+func (h *OSHandlers) invalidateState() {
+	h.state.mu.Lock()
+	h.state.valid, h.state.flight = false, nil
+	h.state.mu.Unlock()
+}
+
+// isNoCheck reports whether err is the host's "no check yet", raw or already mapped to the API error.
+func isNoCheck(err error) bool {
+	var he *client.Error
+	if errors.As(err, &he) {
+		return he.Code == api.CodeNoCheckYet
+	}
+	ae, ok := apierr.As(err)
+	return ok && ae.Code == CodeNoCheckYet
+}
+
 // stateNow reads the host's view and adds what core owns.
 func (h *OSHandlers) stateNow(ctx context.Context) (osStateView, error) {
-	hs, err := h.host.StateOS(ctx)
+	hs, err := h.hostState(ctx)
 	if err != nil {
-		return osStateView{}, hostErr(ctx, h.log, err)
+		return osStateView{}, err
+	}
+	return h.compose(ctx, hs)
+}
+
+// stateAfter is the answer of an operation that changed something: a fresh read of the host. On a box that has
+// never checked, the host has no state to give: the answer is core's own settings with an empty host part
+// (no OS details, no packages, last_check at the zero time), not an error after the change was made.
+func (h *OSHandlers) stateAfter(ctx context.Context) (osStateView, error) {
+	h.invalidateState()
+	hs, err := h.hostState(ctx)
+	if isNoCheck(err) {
+		hs, err = api.OSState{}, nil
+	}
+	if err != nil {
+		return osStateView{}, err
 	}
 	return h.compose(ctx, hs)
 }
@@ -232,15 +350,18 @@ func (h *OSHandlers) CorePostCoreUpdatesOsCheck(ctx context.Context) (*oas.CoreP
 	if err != nil {
 		return nil, err
 	}
-	if err := h.alive(ctx); err != nil {
+	if err := h.needHost(); err != nil {
 		return nil, err
 	}
-	on, err := h.updateCheckOn(ctx)
+	on, err := h.updateCheckOn(ctx) // before any host call: with checks off the box makes no request at all
 	if err != nil {
 		return nil, err
 	}
 	if !on {
 		return nil, apierr.New(409, CodeCheckOff, "Update checks are off under Privacy. Turn them on to look for operating system updates.")
+	}
+	if err := h.alive(ctx); err != nil {
+		return nil, err
 	}
 	if h.busy(ctx) {
 		return nil, apierr.New(409, codeBusy, "An update run is in progress. Wait for it to finish, then check again.")
@@ -256,7 +377,7 @@ func (h *OSHandlers) CorePostCoreUpdatesOsCheck(ctx context.Context) (*oas.CoreP
 	if err != nil {
 		return nil, err
 	}
-	v, err := h.stateNow(ctx)
+	v, err := h.stateAfter(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -303,25 +424,35 @@ func (h *OSHandlers) CorePostCoreUpdatesOsInstall(ctx context.Context, req *oas.
 
 	var snap snapshot
 	var run api.Run
+	keepSnap := false
 	err = h.act(ctx, c, true, "os.install", scope, fmt.Sprintf("%d packages waiting", n), func(id, actor string) error {
 		var err error
 		if snap, err = h.snaps.create(ctx, true); err != nil {
-			return fmt.Errorf("core: write snapshot: %w", err)
+			return h.snapshotFailure(ctx, err)
 		}
 		if run, err = h.host.OSInstall(ctx, scope, snap.ID, id, actor); err != nil {
+			var found, known bool
+			if run, found, known = h.recoverRun(ctx, err, api.CmdOSInstall, id); found {
+				return nil // the host took it; only its answer was lost
+			}
+			keepSnap = !known // the host may be running it and reading the snapshot: the start-up sweep removes it later
 			return hostErr(ctx, h.log, err)
 		}
 		return nil
 	})
 	if err != nil {
-		snap.remove() // the host did not take the run: nothing will read it
+		if !keepSnap {
+			snap.remove() // the host did not take the run: nothing will read it
+		}
 		return nil, err
 	}
+	h.invalidateState()
 	rs := &osRunState{
 		meta:    osRunMeta{RunID: run.RunID, Scope: scope, User: c.Email, Snapshot: snap.ID},
 		started: run.StartedAt, status: run.Status, lines: []string{},
 	}
-	if err := h.db.Write(ctx, func(tx *sql.Tx) error { return h.putSetting(ctx, tx, keyOSRun, rs.meta, c.Email) }); err != nil {
+	wctx := context.WithoutCancel(ctx) // the run is going: its record is written even when the caller left
+	if err := h.db.Write(wctx, func(tx *sql.Tx) error { return h.putSetting(wctx, tx, keyOSRun, rs.meta, c.Email) }); err != nil {
 		h.log.ErrorContext(ctx, "core: could not store the install run", "run", run.RunID, "error", err) // the run goes on; the host holds the record
 	}
 	h.runMu.Lock()
@@ -367,7 +498,7 @@ func (h *OSHandlers) CorePatchCoreUpdatesOsSettings(ctx context.Context, req *oa
 	if err != nil {
 		return nil, err
 	}
-	if err := h.alive(ctx); err != nil {
+	if err := h.needHost(); err != nil {
 		return nil, err
 	}
 	cur, err := h.settings(ctx)
@@ -392,7 +523,21 @@ func (h *OSHandlers) CorePatchCoreUpdatesOsSettings(ctx context.Context, req *oa
 	if err != nil {
 		return nil, err
 	}
+	// Also the check that the helper answers, before anything is written. A box that has never checked has no
+	// schedule to read; any other failure means the schedule is unknown, and a window is not saved over that.
+	hs, err := h.host.StateOS(ctx)
+	if err != nil && !isNoCheck(err) {
+		return nil, hostErr(ctx, h.log, err)
+	}
+	// The schedule belongs to the old window: if the new one does not hold it, it is cancelled BEFORE the
+	// window is saved, and a cancel that fails refuses the whole change.
+	cancel := err == nil && hs.RebootScheduledAt != nil && !next.Window.contains(*hs.RebootScheduledAt, loc)
 	err = h.act(ctx, c, true, "os.settings", "operating system", detail, func(id, actor string) error {
+		if cancel {
+			if err := h.cancelReboot(ctx, c, "no longer inside the maintenance window"); err != nil {
+				return err
+			}
+		}
 		if autoSet {
 			run, err := h.host.OSAutoSecuritySet(ctx, auto, id, actor)
 			if err != nil {
@@ -405,19 +550,14 @@ func (h *OSHandlers) CorePatchCoreUpdatesOsSettings(ctx context.Context, req *oa
 		}
 		return nil
 	})
+	h.invalidateState()
 	if err != nil {
 		return nil, err
 	}
 	if err := h.db.Write(ctx, func(tx *sql.Tx) error { return h.putSetting(ctx, tx, keyOSSettings, next, c.Email) }); err != nil {
 		return nil, err
 	}
-	// The schedule belongs to the old window: if the new one does not hold it, drop it.
-	if hs, err := h.host.StateOS(ctx); err == nil && hs.RebootScheduledAt != nil && !next.Window.contains(*hs.RebootScheduledAt, loc) {
-		if cerr := h.cancelReboot(ctx, c, "no longer inside the maintenance window"); cerr != nil {
-			h.log.WarnContext(ctx, "core: could not cancel a reboot outside the new window", "error", cerr)
-		}
-	}
-	v, err := h.stateNow(ctx)
+	v, err := h.stateAfter(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -451,7 +591,7 @@ func (h *OSHandlers) CorePostCoreUpdatesOsReboot(ctx context.Context, req *oas.C
 	if err != nil {
 		return nil, err
 	}
-	before, err := h.stateNow(ctx) // also what the answer falls back to when the box is already going down
+	before, err := h.stateAfter(ctx) // also what the answer falls back to when the box is already going down
 	if err != nil {
 		return nil, err
 	}
@@ -466,7 +606,7 @@ func (h *OSHandlers) CorePostCoreUpdatesOsReboot(ctx context.Context, req *oas.C
 	if err != nil {
 		return nil, err
 	}
-	v, err := h.stateNow(ctx)
+	v, err := h.stateAfter(ctx)
 	if err != nil {
 		v = before // the reboot was accepted; the box may already be going down
 	}
@@ -525,16 +665,18 @@ func (h *OSHandlers) CoreDeleteCoreUpdatesOsReboot(ctx context.Context) (*oas.Co
 		return nil, err
 	}
 	hs, err := h.host.StateOS(ctx)
-	if err != nil {
+	if err != nil && !isNoCheck(err) { // a box that never checked can still hold a schedule: ask it to cancel
 		return nil, hostErr(ctx, h.log, err)
 	}
-	if hs.RebootScheduledAt == nil {
+	if err == nil && hs.RebootScheduledAt == nil {
 		return nil, apierr.New(409, CodeNothingPlanned, "No reboot is scheduled.")
 	}
-	if err := h.cancelReboot(ctx, c, ""); err != nil {
+	err = h.cancelReboot(ctx, c, "")
+	h.invalidateState()
+	if err != nil {
 		return nil, err
 	}
-	v, err := h.stateNow(ctx)
+	v, err := h.stateAfter(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -560,7 +702,9 @@ const backupLabel = "Downloaded from Settings"
 // CoreGetCoreDataBackup implements GET /core/data/backup (admin): a backup of the database WITHOUT the master
 // key, streamed from the host's copy. core writes a snapshot without the key (INV-6: a downloadable backup never
 // holds one), asks for backup.create {manual, include_secrets: false}, deletes the snapshot when that call ends,
-// and copies the host's file to the response as it reads it; nothing is held whole in memory.
+// and copies the host's file to the response as it reads it; nothing is held whole in memory. Every download
+// makes a full snapshot and a manual backup on the box (the host keeps the latest 10), so: 409 busy while an
+// install runs or another download is being made, 429 within a minute of the last one.
 func (h *OSHandlers) CoreGetCoreDataBackup(ctx context.Context) (oas.CoreGetCoreDataBackupOK, error) {
 	c, err := callerOf(ctx, h.auth)
 	if err != nil {
@@ -569,16 +713,37 @@ func (h *OSHandlers) CoreGetCoreDataBackup(ctx context.Context) (oas.CoreGetCore
 	if err := h.alive(ctx); err != nil {
 		return oas.CoreGetCoreDataBackupOK{}, err
 	}
+	if h.busy(ctx) {
+		return oas.CoreGetCoreDataBackupOK{}, apierr.New(409, codeBusy, "An update run is in progress. Wait for it to finish, then download the backup.")
+	}
+	if !h.dlMu.TryLock() {
+		return oas.CoreGetCoreDataBackupOK{}, apierr.New(409, codeBusy, "A backup is already being made. Wait for it to finish.")
+	}
+	defer h.dlMu.Unlock()
+	if wait := downloadGap - h.now().Sub(h.lastDL); !h.lastDL.IsZero() && wait > 0 {
+		secs := int((wait + time.Second - 1) / time.Second)
+		return oas.CoreGetCoreDataBackupOK{}, apierr.New(429, codeRateLimited, "A backup was made a moment ago. Wait a minute before downloading another.").With("retry_after", secs)
+	}
 	var backupID string
 	err = h.act(ctx, c, true, "data.backup", "backup", "database without secrets", func(id, actor string) error {
+		h.lastDL = h.now()
 		snap, err := h.snaps.create(ctx, false)
 		if err != nil {
-			return fmt.Errorf("core: write snapshot: %w", err)
+			return h.snapshotFailure(ctx, err)
 		}
-		defer snap.remove()
+		keepSnap := false
+		defer func() {
+			if !keepSnap {
+				snap.remove()
+			}
+		}()
 		run, err := h.host.BackupCreate(ctx, api.BackupCreateArgs{Kind: "manual", IncludeSecrets: false, Label: backupLabel, Snapshot: snap.ID}, id, actor)
 		if err != nil {
-			return hostErr(ctx, h.log, err)
+			var found, known bool
+			if run, found, known = h.recoverRun(ctx, err, api.CmdBackupCreate, id); !found {
+				keepSnap = !known // the host may be reading it: the start-up sweep removes it later
+				return hostErr(ctx, h.log, err)
+			}
 		}
 		run, err = waitRun(ctx, h.log, h.host, run, 16*time.Minute)
 		if err != nil {
@@ -595,16 +760,67 @@ func (h *OSHandlers) CoreGetCoreDataBackup(ctx context.Context) (oas.CoreGetCore
 	if err != nil {
 		return oas.CoreGetCoreDataBackupOK{}, err
 	}
+	// From here the backup exists on the box: a failure to hand it over is its own audit row.
+	failed := func(code string, err error) (oas.CoreGetCoreDataBackupOK, error) {
+		if rerr := h.record(context.WithoutCancel(ctx), c, false, "data.backup_failed", "backup", code); rerr != nil {
+			h.log.ErrorContext(ctx, "core: could not audit a failed download", "error", rerr)
+		}
+		return oas.CoreGetCoreDataBackupOK{}, err
+	}
 	body, size, err := h.host.DownloadBackup(ctx, backupID)
 	if err != nil {
-		return oas.CoreGetCoreDataBackupOK{}, hostErr(ctx, h.log, err)
+		herr := hostErr(ctx, h.log, err)
+		code := "error"
+		if ae, ok := apierr.As(herr); ok {
+			code = ae.Code
+		}
+		return failed(code, herr)
+	}
+	if size < 0 { // the 200 and its headers would go out before anybody could tell a cut file from a whole one
+		_ = body.Close()
+		h.log.ErrorContext(ctx, "core: the host sent a backup of unknown size", "backup", backupID)
+		return failed(CodeHostError, apierr.New(502, CodeHostError, "The operating system helper could not do this. The details are in the box log."))
 	}
 	if x, ok := server.ExchangeFrom(ctx); ok {
 		hd := x.W.Header()
 		hd.Set("Content-Disposition", `attachment; filename="vedette-backup-`+h.now().UTC().Format("2006-01-02")+`.tar.gz"`)
-		if size >= 0 {
-			hd.Set("Content-Length", strconv.FormatInt(size, 10))
-		}
+		hd.Set("Content-Length", strconv.FormatInt(size, 10))
 	}
 	return oas.CoreGetCoreDataBackupOK{Data: body}, nil // the encoder closes body when the copy ends
+}
+
+// recoverRun is for a write command whose answer may have been lost (the call went out and nothing came back:
+// a timeout, a reset connection, the caller leaving). The host remembers the run by request id (host-api 4, 11):
+// found is true with the run when it took the command. known is false when the host could not be asked, so the
+// command may be running and its snapshot must stay.
+func (h *OSHandlers) recoverRun(ctx context.Context, err error, command, requestID string) (run api.Run, found, known bool) {
+	var he *client.Error
+	if errors.As(err, &he) || errors.Is(err, client.ErrDenied) || errors.Is(err, fs.ErrNotExist) {
+		return api.Run{}, false, true // an answer, or no socket at all: the command was not taken
+	}
+	lctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+	defer cancel()
+	runs, lerr := h.host.ListRuns(lctx, listRunsWindow)
+	if lerr != nil {
+		return api.Run{}, false, false
+	}
+	for _, r := range runs {
+		if r.RequestID == requestID && r.Command == command {
+			return r, true, true
+		}
+	}
+	return api.Run{}, false, true
+}
+
+// snapshotFailure is the answer for a snapshot that could not be written: 409 low_disk when the disk is full
+// or too small for a copy, else 502 snapshot_failed; never a 500.
+func (h *OSHandlers) snapshotFailure(ctx context.Context, err error) error {
+	switch {
+	case errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded):
+		return err
+	case errors.Is(err, errLowDisk), errors.Is(err, syscall.ENOSPC), strings.Contains(err.Error(), "disk is full"):
+		return mapHostCode(ctx, h.log, api.CodeLowDisk, "", 0)
+	}
+	h.log.ErrorContext(ctx, "core: could not write a snapshot of the data", "error", err)
+	return apierr.New(502, CodeSnapshotFailed, "Vedette could not write a copy of its data to the box's data folder. Check that the folder is writable and the disk is healthy, then try again.")
 }

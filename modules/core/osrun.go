@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/coredb"
@@ -29,6 +30,11 @@ const (
 	runTimeout     = 70 * time.Minute // os.install's own limit is 60 minutes
 	followRetry    = 5 * time.Second
 	listRunsWindow = 50
+	// loadTimeout bounds one read of the host that other callers share (the rebuild of the run after a restart,
+	// the state of the box): a request leaves at its own deadline, the shared read is given up after this.
+	loadTimeout = 30 * time.Second
+	// resumeTries is how many times, followRetry apart, the start-up pass asks the host about the stored run.
+	resumeTries = 24
 )
 
 // osRunMeta is what core_setting os.run holds.
@@ -74,36 +80,120 @@ func (r *osRunState) addLine(s string) {
 	}
 }
 
-// current returns the latest install run (nil before the first one), rebuilding it from the host once after a
-// start. The host being unreachable at that moment is an error and is tried again next time.
-func (h *OSHandlers) current(ctx context.Context) (*osRunState, error) {
-	h.runMu.Lock()
-	defer h.runMu.Unlock()
-	if h.run != nil || h.loaded {
-		return h.run, nil
-	}
-	runs, err := h.host.ListRuns(ctx, listRunsWindow)
-	if err != nil {
-		return nil, hostErr(ctx, h.log, err)
-	}
-	h.loaded = true
-	for _, r := range runs { // newest first
-		if r.Command != api.CmdOSInstall {
-			continue
-		}
-		rs, err := h.rebuild(ctx, r)
-		if err != nil {
-			h.loaded = false // try again next time rather than show half a run
-			return nil, hostErr(ctx, h.log, err)
-		}
-		h.run = rs
-		break
-	}
-	return h.run, nil
+// flight is one read of the host that every caller arriving meanwhile shares (singleflight from the standard
+// library's parts): the read runs on its own context, each waiter leaves at its own deadline.
+type flight[T any] struct {
+	done chan struct{}
+	val  T
+	err  error
 }
 
-// rebuild makes the in-memory copy of a run the host knows: a finished one from its stored events, a running
-// one by following it from the start.
+func newFlight[T any]() *flight[T] { return &flight[T]{done: make(chan struct{})} }
+
+func (f *flight[T]) wait(ctx context.Context) (T, error) {
+	select {
+	case <-f.done:
+		return f.val, f.err
+	case <-ctx.Done():
+		var zero T
+		return zero, ctx.Err()
+	}
+}
+
+// failure is what a caller of a shared read answers when it failed: an API error stays, a host error is mapped.
+func (h *OSHandlers) failure(ctx context.Context, err error) error {
+	if _, ok := apierr.As(err); ok {
+		return err
+	}
+	return hostErr(ctx, h.log, err)
+}
+
+// timedOut turns the end of a shared read's own time limit (core is not shutting down) into 503 host_unreachable.
+func (h *OSHandlers) timedOut(lctx context.Context, err error) error {
+	if err != nil && h.ctx.Err() == nil && lctx.Err() != nil {
+		return apierr.New(503, CodeHostUnreachable, "The operating system helper (vedette-host) took too long to answer. Try again in a minute.")
+	}
+	return err
+}
+
+// current returns the latest install run (nil before the first one), rebuilding it from the host once after a
+// start. The rebuild runs outside runMu and is shared by whoever asks meanwhile; the host being unreachable
+// at that moment is an error and is tried again next time.
+func (h *OSHandlers) current(ctx context.Context) (*osRunState, error) {
+	h.runMu.Lock()
+	if h.run != nil || h.loaded {
+		rs := h.run
+		h.runMu.Unlock()
+		return rs, nil
+	}
+	f := h.loading
+	if f == nil {
+		f = newFlight[*osRunState]()
+		h.loading = f
+		h.wg.Add(1)
+		go h.load(f) //nolint:contextcheck // the read is shared: it runs on the handlers' lifetime, each waiter leaves at its own deadline
+	}
+	h.runMu.Unlock()
+	rs, err := f.wait(ctx)
+	if err != nil {
+		return nil, h.failure(ctx, err)
+	}
+	return rs, nil
+}
+
+func (h *OSHandlers) load(f *flight[*osRunState]) {
+	defer h.wg.Done()
+	ctx, cancel := context.WithTimeout(h.ctx, h.loadTimeout)
+	defer cancel()
+	rs, err := h.loadRun(ctx)
+	err = h.timedOut(ctx, err)
+	h.runMu.Lock()
+	if err == nil {
+		if h.run == nil { // an install that started meanwhile has set it already
+			h.run = rs
+		}
+		h.loaded = true
+	}
+	f.val, f.err = h.run, err
+	h.loading = nil
+	h.runMu.Unlock()
+	close(f.done)
+}
+
+func (h *OSHandlers) loadRun(ctx context.Context) (*osRunState, error) {
+	runs, err := h.host.ListRuns(ctx, listRunsWindow)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range runs { // newest first
+		if r.Command == api.CmdOSInstall {
+			return h.rebuild(ctx, r)
+		}
+	}
+	return nil, nil
+}
+
+// resume is the start-up pass: when the stored run is not settled (still running, or ended while core was down
+// and its snapshot with the key is still on disk) it rebuilds it now instead of waiting for somebody to ask, so
+// the end is audited and the snapshot goes at once, whatever its age. The host may still be starting: it tries
+// again for about two minutes.
+func (h *OSHandlers) resume() {
+	defer h.wg.Done()
+	for range resumeTries {
+		if _, err := h.current(h.ctx); err == nil || h.ctx.Err() != nil {
+			return
+		}
+		select {
+		case <-h.ctx.Done():
+			return
+		case <-time.After(followRetry):
+		}
+	}
+}
+
+// rebuild makes the in-memory copy of a run the host knows: a finished one from its stored events (settled at
+// once: audit and snapshot), a running one by following it from the start. It does not touch runMu: the copy
+// is not published yet.
 func (h *OSHandlers) rebuild(ctx context.Context, r api.Run) (*osRunState, error) {
 	meta, _ := h.loadRunMeta(ctx) // missing or for another run: the host's own record is enough
 	if meta.RunID != r.RunID {
@@ -126,6 +216,7 @@ func (h *OSHandlers) rebuild(ctx context.Context, r api.Run) (*osRunState, error
 			}
 		}
 		h.applyFinal(rs, r)
+		h.settle(ctx, rs, r)
 		return rs, nil
 	}
 	h.wg.Add(1)
@@ -196,20 +287,27 @@ func (h *OSHandlers) follow(rs *osRunState) {
 	}
 }
 
-// finish settles a run that ended: the copy, the snapshot directory that backed it (the host copied it during
-// the run), and one core_audit row, once.
+// finish settles a run that ended: the copy, then settle.
 func (h *OSHandlers) finish(parent context.Context, rs *osRunState, r api.Run) {
 	h.runMu.Lock()
 	h.applyFinal(rs, r)
+	h.runMu.Unlock()
+	h.settle(parent, rs, r)
+}
+
+// settle does the rest of the end of a run: the snapshot directory that backed it (the host copied it during
+// the run) goes, the cached state of the box is dropped, and one core_audit row is written, once (os.run says
+// whether it was).
+func (h *OSHandlers) settle(parent context.Context, rs *osRunState, r api.Run) {
+	h.runMu.Lock()
 	meta, res := rs.meta, rs.result
 	status := rs.status
-	if meta.Audited {
-		h.runMu.Unlock()
-		h.removeSnapshot(meta.Snapshot)
-		return
-	}
 	h.runMu.Unlock()
 	h.removeSnapshot(meta.Snapshot)
+	h.invalidateState()
+	if meta.Audited {
+		return
+	}
 
 	detail := "run " + string(status)
 	if r.Error != nil {
@@ -218,7 +316,7 @@ func (h *OSHandlers) finish(parent context.Context, rs *osRunState, r api.Run) {
 	if res != nil {
 		detail = fmt.Sprintf("%s: %d installed, %d security, backup %s, reboot required %t", detail, res.Installed, res.Security, res.Backup, res.RebootRequired)
 	}
-	meta.Audited = true
+	meta.Audited, meta.Snapshot = true, ""
 	// The process may be shutting down: the write still gets its own short deadline.
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), 10*time.Second)
 	defer cancel()
@@ -233,7 +331,7 @@ func (h *OSHandlers) finish(parent context.Context, rs *osRunState, r api.Run) {
 		return
 	}
 	h.runMu.Lock()
-	rs.meta.Audited = true
+	rs.meta.Audited, rs.meta.Snapshot = true, ""
 	h.runMu.Unlock()
 }
 

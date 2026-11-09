@@ -75,3 +75,49 @@ func TestMaintWindowNormalize(t *testing.T) {
 		}
 	}
 }
+
+// The instant nextStart returns lies inside the window, also on the days a clock change moves or removes the
+// start time (America/New_York, 2026: spring forward on March 8, fall back on November 1).
+func TestMaintWindowNextStartAroundClockChanges(t *testing.T) {
+	t.Parallel()
+	ny, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Skip(err)
+	}
+	for _, c := range []struct {
+		name    string
+		w       maintWindow
+		now     time.Time
+		wantOK  bool
+		wantDay string // the local date of the start, when wantOK
+		wantAt  string // local time of day
+	}{
+		// 02:00 does not exist on March 8 and time.Date moves it to 01:00 EST, which is outside 02:00-02:30 (and
+		// outside 02:00-04:00): that day is skipped, and the next Sunday is more than a week away, so there is no
+		// start the host would take. The reboot is never scheduled outside the window.
+		{"spring forward, start vanishes", maintWindow{Mode: windowOnly, Days: []int{7}, From: "02:00", To: "02:30"}, time.Date(2026, 3, 7, 12, 0, 0, 0, ny), false, "", ""},
+		{"spring forward, start vanishes in a longer window", maintWindow{Mode: windowOnly, Days: []int{7}, From: "02:00", To: "04:00"}, time.Date(2026, 3, 7, 12, 0, 0, 0, ny), false, "", ""},
+		// A day with another start on the following Monday is found after the skipped Sunday.
+		{"spring forward, other day", maintWindow{Mode: windowOnly, Days: []int{7, 1}, From: "02:00", To: "02:30"}, time.Date(2026, 3, 7, 12, 0, 0, 0, ny), true, "2026-03-09", "02:00"},
+		// 01:30 happens twice on November 1; one of them is picked and it is inside the window.
+		{"fall back, repeated hour", maintWindow{Mode: windowOnly, Days: []int{7}, From: "01:30", To: "02:30"}, time.Date(2026, 10, 31, 12, 0, 0, 0, ny), true, "2026-11-01", "01:30"},
+		{"fall back, window across midnight", maintWindow{Mode: windowOnly, Days: []int{6}, From: "23:00", To: "02:00"}, time.Date(2026, 10, 31, 12, 0, 0, 0, ny), true, "2026-10-31", "23:00"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			got, ok := c.w.nextStart(c.now, ny)
+			if ok != c.wantOK {
+				t.Fatalf("nextStart ok = %t (%v), want %t", ok, got.In(ny), c.wantOK)
+			}
+			if !ok {
+				return
+			}
+			if !c.w.contains(got, ny) {
+				t.Errorf("nextStart = %v, outside the window %s-%s", got.In(ny), c.w.From, c.w.To)
+			}
+			if l := got.In(ny); l.Format("2006-01-02") != c.wantDay || l.Format("15:04") != c.wantAt {
+				t.Errorf("nextStart = %v, want %s %s", l, c.wantDay, c.wantAt)
+			}
+		})
+	}
+}

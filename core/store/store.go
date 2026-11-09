@@ -25,9 +25,10 @@ import (
 
 // DB is the application database: one writer connection and a pool of read-only connections.
 type DB struct {
-	w   *sql.DB
-	r   *sql.DB
-	log *slog.Logger
+	w    *sql.DB
+	r    *sql.DB
+	path string // absolute path of the database file
+	log  *slog.Logger
 }
 
 // Open opens the database at path. A missing file is created with mode 0600; an existing file
@@ -66,7 +67,7 @@ func Open(ctx context.Context, path string, log *slog.Logger) (*DB, error) {
 		_ = r.Close()
 		return nil, fmt.Errorf("store: ping reader: %w", err)
 	}
-	return &DB{w: w, r: r, log: log}, nil
+	return &DB{w: w, r: r, path: abs, log: log}, nil
 }
 
 // ensurePrivateFile creates path with mode 0600 if it does not exist, and otherwise refuses a
@@ -205,10 +206,10 @@ func (db *DB) Check(ctx context.Context) error {
 }
 
 // SnapshotTo writes a consistent, self-contained copy of the database to path with VACUUM INTO: one file, no
-// -wal or -shm (the copy is one read transaction, so the data is one moment). It runs on the writer connection,
-// the only one that may issue VACUUM (the reader pool is query_only), so writes made by others wait their turn
-// until the copy is done. path is created here with mode 0600 and must not exist; the caller owns the directory
-// around it and must not call this inside Write.
+// -wal or -shm (the copy is one read transaction, so the data is one moment). It runs on its own short-lived
+// connection, opened read-only at the file level but without query_only (VACUUM INTO only reads the source),
+// so on the WAL database the copy is a reader and writes made by others go on while it runs. path is created
+// here with mode 0600 and must not exist; the caller owns the directory around it.
 func (db *DB) SnapshotTo(ctx context.Context, path string) error {
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600) //nolint:gosec // path is built by the caller from its own data directory
 	if err != nil {
@@ -217,11 +218,38 @@ func (db *DB) SnapshotTo(ctx context.Context, path string) error {
 	if err := f.Close(); err != nil {
 		return fmt.Errorf("store: snapshot: %w", err)
 	}
-	if _, err := db.w.ExecContext(ctx, "VACUUM INTO ?", path); err != nil {
+	q := url.Values{}
+	q.Set("mode", "ro")
+	q.Add("_pragma", "busy_timeout(5000)")
+	src, err := sql.Open("sqlite", (&url.URL{Scheme: "file", Path: db.path, RawQuery: q.Encode()}).String())
+	if err != nil {
+		_ = os.Remove(path)
+		return fmt.Errorf("store: snapshot: %w", err)
+	}
+	defer func() { _ = src.Close() }()
+	src.SetMaxOpenConns(1)
+	if _, err := src.ExecContext(ctx, "VACUUM INTO ?", path); err != nil {
 		_ = os.Remove(path)
 		return fmt.Errorf("store: snapshot: %w", err)
 	}
 	return nil
+}
+
+// Size is the space the database takes on disk: the main file and the write-ahead log. A VACUUM INTO copy is
+// never bigger than this.
+func (db *DB) Size() (int64, error) {
+	var total int64
+	for _, name := range []string{db.path, db.path + "-wal"} {
+		info, err := os.Stat(name)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return 0, fmt.Errorf("store: size: %w", err)
+		}
+		total += info.Size()
+	}
+	return total, nil
 }
 
 var migrationTableRE = regexp.MustCompile(`^core_migration_[a-z][a-z0-9_]{0,40}$`)

@@ -4,15 +4,19 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/host/ops"
@@ -216,5 +220,111 @@ func TestSnapshotSweepRemovesOnlyOldOnesOfOurs(t *testing.T) {
 	s2, _, _ := newTestSnapshotter(t, db, time.Now)
 	if n, err := s2.sweep(); n != 0 || err != nil {
 		t.Errorf("sweep without a directory = %d %v", n, err)
+	}
+}
+
+// A write made while a snapshot is being copied does not wait for the whole copy: VACUUM INTO runs on its own
+// read-only connection, not on the writer. A database of about 96 MiB makes the copy long enough to tell.
+func TestSnapshotDoesNotBlockWritesForTheWholeCopy(t *testing.T) {
+	if testing.Short() {
+		t.Skip("writes about 200 MiB")
+	}
+	db := snapshotTestDB(t)
+	ctx := t.Context()
+	blob := strings.Repeat("x", 64<<10)
+	err := db.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `CREATE TABLE big_test (id INTEGER PRIMARY KEY, b BLOB)`); err != nil {
+			return err
+		}
+		for i := range 1536 {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO big_test (id, b) VALUES (?, ?)`, i, blob); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, _, _ := newTestSnapshotter(t, db, time.Now)
+	snapDone := make(chan time.Duration, 1)
+	start := time.Now()
+	go func() {
+		snap, err := s.create(context.Background(), false)
+		if err != nil {
+			t.Error(err)
+		}
+		snapDone <- time.Since(start)
+		snap.remove()
+	}()
+	select {
+	case <-t.Context().Done():
+	case <-time.After(20 * time.Millisecond):
+	}
+	ws := time.Now()
+	if err := putRow(ctx, db, 1); err != nil {
+		t.Fatal(err)
+	}
+	wait := time.Since(ws)
+	total := <-snapDone
+	t.Logf("snapshot of ~96 MiB took %v; a one-row write issued 20 ms in waited %v", total.Round(time.Millisecond), wait.Round(time.Millisecond))
+	// On the writer connection the write waits for nearly the whole copy; here it is a small fraction of it.
+	if total > 100*time.Millisecond && wait > total/2 {
+		t.Errorf("a one-row write waited %v of a %v snapshot", wait.Round(time.Millisecond), total.Round(time.Millisecond))
+	}
+}
+
+// Less free space than the database takes: no snapshot is started and nothing is left behind.
+func TestSnapshotRefusesWhenTheDiskIsTooSmall(t *testing.T) {
+	t.Parallel()
+	db := snapshotTestDB(t)
+	s, dir, _ := newTestSnapshotter(t, db, time.Now)
+	size, err := db.Size()
+	if err != nil || size == 0 {
+		t.Fatalf("db size = %d %v", size, err)
+	}
+	s.free = func(string) (uint64, error) { return uint64(size) - 1, nil } //nolint:gosec // size is positive
+	if _, err := s.create(t.Context(), true); !errors.Is(err, errLowDisk) {
+		t.Fatalf("create with too little space = %v, want errLowDisk", err)
+	}
+	if got := names(t, filepath.Join(dir, snapshotsDir)); len(got) != 0 {
+		t.Errorf("left behind: %v", got)
+	}
+	s.free = func(string) (uint64, error) { return uint64(size), nil } //nolint:gosec // size is positive
+	snap, err := s.create(t.Context(), true)
+	if err != nil {
+		t.Fatalf("create with just enough space: %v", err)
+	}
+	snap.remove()
+	s.free = func(string) (uint64, error) { return 0, errors.New("statfs failed") } // cannot tell: not a reason to refuse
+	snap, err = s.create(t.Context(), true)
+	if err != nil {
+		t.Fatalf("create when the free space is unknown: %v", err)
+	}
+	snap.remove()
+}
+
+// snapshotFailure: a full disk is 409 low_disk, anything else a coded 502, never a plain error (500).
+func TestSnapshotFailureMapping(t *testing.T) {
+	t.Parallel()
+	h := &OSHandlers{log: slog.New(slog.DiscardHandler)}
+	for name, c := range map[string]struct {
+		err    error
+		status int
+		code   string
+	}{
+		"too little space": {fmt.Errorf("wrapped: %w", errLowDisk), 409, CodeLowDisk},
+		"ENOSPC":           {fmt.Errorf("core: snapshot key: %w", &os.PathError{Op: "write", Path: "x", Err: syscall.ENOSPC}), 409, CodeLowDisk},
+		"sqlite disk full": {errors.New("store: snapshot: database or disk is full (13)"), 409, CodeLowDisk},
+		"not writable":     {fmt.Errorf("core: snapshot directory: %w", &os.PathError{Op: "mkdir", Path: "x", Err: syscall.EACCES}), 502, CodeSnapshotFailed},
+		"unreadable key":   {errors.New("core: snapshot key: the key file is empty, unreadable or larger than 4096 bytes"), 502, CodeSnapshotFailed},
+	} {
+		ae, ok := apierr.As(h.snapshotFailure(t.Context(), c.err))
+		if !ok || ae.Status != c.status || ae.Code != c.code {
+			t.Errorf("%s: got %+v, want %d %s", name, ae, c.status, c.code)
+		}
+	}
+	if err := h.snapshotFailure(t.Context(), context.Canceled); !errors.Is(err, context.Canceled) {
+		t.Errorf("a cancelled request became %v", err)
 	}
 }

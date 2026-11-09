@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/knt048/vedette/core/store"
@@ -31,6 +32,26 @@ const (
 	snapshotMaxAge = time.Hour
 )
 
+// errLowDisk is create's answer when the disk under snapshots/ has less free space than the database takes.
+var errLowDisk = errors.New("core: not enough free disk space for a snapshot")
+
+// freeBytes is the space available to an unprivileged process on the file system of dir (Linux and macOS).
+func freeBytes(dir string) (uint64, error) {
+	var st syscall.Statfs_t
+	if err := syscall.Statfs(dir, &st); err != nil {
+		return 0, err //nolint:wrapcheck // the caller only looks at whether it worked
+	}
+	return nonNeg(st.Bavail) * nonNeg(st.Bsize), nil
+}
+
+// nonNeg converts a Statfs_t field, whose type differs between Linux and macOS, to uint64.
+func nonNeg[T ~int32 | ~int64 | ~uint32 | ~uint64](v T) uint64 {
+	if v < 0 {
+		return 0
+	}
+	return uint64(v)
+}
+
 var snapshotIDRE = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
 // snapshotter writes and removes the snapshots of one core.
@@ -39,6 +60,7 @@ type snapshotter struct {
 	dir     string // <core_data>/snapshots
 	keyPath string
 	now     func() time.Time
+	free    func(dir string) (uint64, error) // free bytes under dir; freeBytes, a fake in tests
 }
 
 // snapshot is one directory written by snapshotter.create.
@@ -55,16 +77,21 @@ func (s snapshot) remove() {
 }
 
 func newSnapshotter(db *store.DB, dataDir, keyPath string, now func() time.Time) *snapshotter {
-	return &snapshotter{db: db, dir: filepath.Join(dataDir, snapshotsDir), keyPath: keyPath, now: now}
+	return &snapshotter{db: db, dir: filepath.Join(dataDir, snapshotsDir), keyPath: keyPath, now: now, free: freeBytes}
 }
 
 // create writes snapshots/<id>/ with vedette.db (VACUUM INTO: one file, no -wal or -shm, taken while the
 // writer keeps going), vedette.key when withKey, and snapshot.json LAST: the host reads it first, and a
 // directory without it is "no snapshot yet". Files are 0600 and owned by core's uid (core writes them).
-// A failure leaves nothing behind.
+// Less free space than the database takes: errLowDisk before anything is written. A failure leaves nothing behind.
 func (s *snapshotter) create(ctx context.Context, withKey bool) (snap snapshot, err error) {
 	if err := os.MkdirAll(s.dir, 0o700); err != nil {
 		return snapshot{}, fmt.Errorf("core: snapshot directory: %w", err)
+	}
+	if size, serr := s.db.Size(); serr == nil { // best effort: a file system that cannot say is not a reason to refuse
+		if free, ferr := s.free(s.dir); ferr == nil && free < uint64(size) { //nolint:gosec // size is non-negative
+			return snapshot{}, errLowDisk
+		}
 	}
 	var raw [16]byte
 	if _, err := rand.Read(raw[:]); err != nil {

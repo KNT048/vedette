@@ -566,3 +566,53 @@ func TestIsUniqueViolation(t *testing.T) {
 		t.Fatal("only driver errors count")
 	}
 }
+
+// SnapshotTo runs on its own read-only connection, so it works while a write transaction is open on the writer
+// (it used to wait for the writer and so could not finish before the transaction did).
+func TestSnapshotToDoesNotNeedTheWriter(t *testing.T) {
+	t.Parallel()
+	db := storetest.New(t)
+	ctx := t.Context()
+	if err := db.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `CREATE TABLE snap_t (v TEXT)`)
+		if err == nil {
+			_, err = tx.ExecContext(ctx, `INSERT INTO snap_t VALUES ('before')`)
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(t.TempDir(), "snap.db")
+	err := db.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO snap_t VALUES ('inside the open transaction')`); err != nil {
+			return err
+		}
+		done := make(chan error, 1)
+		go func() { done <- db.SnapshotTo(ctx, out) }()
+		select {
+		case err := <-done:
+			return err
+		case <-time.After(10 * time.Second):
+			return errors.New("SnapshotTo did not finish while the writer was held")
+		}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	copyDB, err := store.Open(ctx, out, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = copyDB.Close() })
+	var n int
+	var first string
+	if err := copyDB.Reader().QueryRowContext(ctx, `SELECT count(*), min(v) FROM snap_t`).Scan(&n, &first); err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 || first != "before" {
+		t.Errorf("the copy holds %d rows (first %q), want the committed one only", n, first)
+	}
+	if info, err := os.Stat(out); err != nil || info.Mode().Perm() != 0o600 {
+		t.Errorf("snapshot file mode: %v %v", info, err)
+	}
+}

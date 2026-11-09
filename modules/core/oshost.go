@@ -49,6 +49,7 @@ const (
 	CodeRebooting         = "rebooting"
 	CodeRebootLimit       = "reboot_limit_reached"
 	CodeSnapshotRejected  = "snapshot_rejected"
+	CodeSnapshotFailed    = "snapshot_failed"
 	CodeAptFailed         = "apt_failed"
 	CodeHealthCheckFailed = "health_check_failed"
 	CodeEffectNotVerified = "effect_not_verified"

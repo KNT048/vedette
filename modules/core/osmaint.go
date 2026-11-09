@@ -114,12 +114,14 @@ func reachable(c, now time.Time) bool {
 }
 
 // nextStart is the first start of the window after now that the host will take (two minutes to a week ahead).
+// The instant it returns lies inside the window: on a day a clock change removes the start time (02:00 on a
+// spring-forward day), time.Date moves it to a time that may be outside, and that day is skipped.
 func (w maintWindow) nextStart(now time.Time, loc *time.Location) (time.Time, bool) {
 	if w.Mode != windowOnly {
 		return time.Time{}, false
 	}
 	for i := 0; i <= 8; i++ {
-		if c := at(now, i, w.From, loc); reachable(c, now) && slices.Contains(w.Days, isoDay(c)) {
+		if c := at(now, i, w.From, loc); reachable(c, now) && slices.Contains(w.Days, isoDay(c)) && w.contains(c, loc) {
 			return c, true
 		}
 	}

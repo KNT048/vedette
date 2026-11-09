@@ -85,7 +85,7 @@ Danh sách trả đối tượng, không phải mảng trần (cho phép thêm `
 
 ### 3.3 Danh mục mọi mã lỗi đang dùng
 
-Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, code}` trong `web/src/features/*/mocks.ts`, `*/state.ts`, `*/osMock.ts`, `*/sourcesMock.ts`, `*/harness-mocks.ts`, `*/emailCode.ts`, `*/logExport.ts`, `*/activity.ts` và `web/src/mocks/*.ts` (2026-11-09): **278 mã** (từ mock), cộng 5 mã chỉ backend thêm ở WP-04b phần 2 (`invalid_setup_code`, `sample_unavailable`, `invalid_from`, `invalid_to`, `misdirected_request`) và 13 mã chỉ backend thêm ở WP-07b phần 2 (lỗi của `vedette-host`: `not_appliance`, `host_unreachable`, `host_error`, `no_check_yet`, `dpkg_locked`, `dpkg_inconsistent`, `low_disk`, `rebooting`, `reboot_limit_reached`, `snapshot_rejected`, `apt_failed`, `health_check_failed`, `effect_not_verified`; bảng ánh xạ mã host → mã API ở `modules/core/CONTRACT.md` INV-18): 301. Cột "Endpoint dùng" là handler gần nhất chứa lời gọi; với mã sinh từ hàm kiểm tra dùng chung, ghi `module <tên> (validator dùng chung)` (đó là hạn chế của cách trích tĩnh) (mục 12 đề xuất khai `errors` trong `contract.ts` để bảng này sinh tự động). Thông điệp là bản mẫu tiếng Anh trong mock.
+Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, code}` trong `web/src/features/*/mocks.ts`, `*/state.ts`, `*/osMock.ts`, `*/sourcesMock.ts`, `*/harness-mocks.ts`, `*/emailCode.ts`, `*/logExport.ts`, `*/activity.ts` và `web/src/mocks/*.ts` (2026-11-09): **278 mã** (từ mock), cộng 5 mã chỉ backend thêm ở WP-04b phần 2 (`invalid_setup_code`, `sample_unavailable`, `invalid_from`, `invalid_to`, `misdirected_request`) và 14 mã chỉ backend thêm ở WP-07b phần 2 (lỗi của `vedette-host` và của việc core ghi snapshot: `not_appliance`, `host_unreachable`, `host_error`, `no_check_yet`, `dpkg_locked`, `dpkg_inconsistent`, `low_disk`, `rebooting`, `reboot_limit_reached`, `snapshot_rejected`, `snapshot_failed`, `apt_failed`, `health_check_failed`, `effect_not_verified`; bảng ánh xạ mã host → mã API ở `modules/core/CONTRACT.md` INV-18): 302. Cột "Endpoint dùng" là handler gần nhất chứa lời gọi; với mã sinh từ hàm kiểm tra dùng chung, ghi `module <tên> (validator dùng chung)` (đó là hạn chế của cách trích tĩnh) (mục 12 đề xuất khai `errors` trong `contract.ts` để bảng này sinh tự động). Thông điệp là bản mẫu tiếng Anh trong mock.
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
@@ -346,7 +346,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `already_setup` | 409 | This box is already set up. Sign in with the administrator account. | `POST /core/setup` |
 | `box_device` | 409 | This is the Vedette box itself, so it cannot be deleted. It is always the first device in the list. Its packages come fr | `DELETE /inventory/devices/{id}` |
 | `builtin` | 409 | Built-in actions cannot be deleted. Disable it instead. | `DELETE /response/catalog/{id}` |
-| `busy` | 409 | An update run is in progress. Wait for it to finish, then check again. | `POST /core/updates/os/check`; `POST /core/updates/os/install`; `POST /core/updates/os/reboot` |
+| `busy` | 409 | An update run is in progress. Wait for it to finish, then check again. | `POST /core/updates/os/check`; `POST /core/updates/os/install`; `POST /core/updates/os/reboot`; `GET /core/data/backup` (cũng khi một lần tải khác đang chạy) |
 | `channel_not_ready` | 409 | This channel is not set up or is turned off. An administrator can turn it on in Settings, Alert channels. | `POST /notify/history/{id}/resend` |
 | `check_off` | 409 | Update checks are off under Privacy. Turn them on or import an offline bundle. | `POST /core/updates/check`; `POST /core/updates/os/check` |
 | `duplicate` | 409 | This email already has an account. | `POST /core/users`; `POST /exposure/targets`; `POST /honeypot/tokens` |
@@ -412,11 +412,11 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `daily_cap` | 429 | The AI daily token cap is reached; the call is not made. | module ai (validator dùng chung) |
-| `rate_limited` | 429 | Too many verification attempts (limit ${MAX_ATTEMPTS_PER_HOUR} per hour). Try again in about ${wait} minute${wait === 1  | module exposure, response (validator dùng chung) ; `POST /auth/login`; `POST /auth/login/resend-code` (kèm `retry_after` và `Retry-After`); `POST /core/setup` (sai mã cài đặt, D-75); mật khẩu của người đã đăng nhập (`/core/account/password`, `/core/account/2fa/{start,email/start,disable}`) |
+| `rate_limited` | 429 | Too many verification attempts (limit ${MAX_ATTEMPTS_PER_HOUR} per hour). Try again in about ${wait} minute${wait === 1  | module exposure, response (validator dùng chung) ; `POST /auth/login`; `POST /auth/login/resend-code` (kèm `retry_after` và `Retry-After`); `GET /core/data/backup` (một lần tải mỗi phút mỗi hộp, kèm `retry_after` và `Retry-After`); `POST /core/setup` (sai mã cài đặt, D-75); mật khẩu của người đã đăng nhập (`/core/account/password`, `/core/account/2fa/{start,email/start,disable}`) |
 | `resend_too_soon` | 429 | Wait ${wait} seconds before asking for a new code. | module core (validator dùng chung) |
 | `too_many_codes` | 429 | Too many codes were sent in the last hour. Try again later. | module core (validator dùng chung) |
 
-#### HTTP 502 (8 mã)
+#### HTTP 502 (9 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -428,6 +428,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `health_check_failed` | 502 | The updates were installed but a health check failed afterwards. Check the services on the box. Backend [ĐX]: host `health_check_failed`; trong lần chạy cài đặt nó hiện ở dòng cuối của `OsRun.lines`. | `POST /core/updates/os/check` |
 | `host_error` | 502 | The operating system helper could not do this. The details are in the box log. Backend [ĐX]: mọi mã host còn lại (`internal`, `timeout`, `command_failed`, `backup_unknown`, ...) hoặc câu trả lời không dùng được; chi tiết chỉ ở log. | `GET /core/updates/os`; `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup` |
 | `snapshot_rejected` | 502 | The helper could not take over a copy of the box's data. Check the box clock and the permissions of the data folder, then try again. Backend [ĐX]: host `snapshot_required`, `snapshot_invalid`, `db_unreadable`, `key_unreadable` (lỗi triển khai hoặc lệch đồng hồ, không phải lỗi người dùng). | `POST /core/updates/os/install`; `GET /core/data/backup` |
+| `snapshot_failed` | 502 | Vedette could not write a copy of its data to the box's data folder. Check that the folder is writable and the disk is healthy, then try again. Backend [ĐX]: core không ghi được snapshot (thư mục `snapshots/` không ghi được, tệp khoá không đọc được, lỗi I/O); đĩa đầy hoặc ít chỗ trống hơn cỡ cơ sở dữ liệu thì là `low_disk` (409). Không bao giờ là 500. | `POST /core/updates/os/install`; `GET /core/data/backup` |
 
 #### HTTP 500 (1 mã)
 

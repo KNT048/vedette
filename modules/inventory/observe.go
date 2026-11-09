@@ -22,6 +22,10 @@ var (
 
 const maxBatch = 5000
 
+// maxObsPerSeries is how many observation rows one (device, field, source) keeps: Record deletes the older ones in the
+// same transaction (INV-16), so one MAC that keeps changing a value cannot grow the table without limit.
+const maxObsPerSeries = 32
+
 // maxClockSkew is how far into the future a sensor's clock may be before its time is replaced by ours.
 const maxClockSkew = 5 * time.Minute
 
@@ -82,39 +86,48 @@ func (s *Service) check(batch []observe.Observation) ([]cleanObs, error) {
 	}
 	out := make([]cleanObs, 0, len(batch))
 	for i, o := range batch {
-		ip, mac, err := checkHint(o.AssetHint)
+		c, err := s.checkOne(i, o)
 		if err != nil {
-			return nil, fmt.Errorf("observation %d: %w", i, err)
+			return nil, &observe.ErrRejected{Index: i, Err: err} // the caller may drop this item and send the rest
 		}
-		if !observe.ValidSource(o.Source) || o.Source == observe.Manual {
-			return nil, invalid("observation %d: source %q is not allowed", i, o.Source)
-		}
-		if !observe.ValidField(o.Field) {
-			return nil, invalid("observation %d: field %q is unknown", i, o.Field)
-		}
-		if math.IsNaN(o.Confidence) || o.Confidence < 0 || o.Confidence > 1 {
-			return nil, invalid("observation %d: confidence must be between 0 and 1", i)
-		}
-		value := o.Value
-		switch o.Field {
-		case observe.MAC:
-			m, ok := normMAC(value)
-			if !ok {
-				return nil, invalid("observation %d: value is not a MAC address", i)
-			}
-			value = m
-		case observe.Kind:
-			if !validKind(value) {
-				return nil, invalid("observation %d: unknown device type", i)
-			}
-		default:
-			if !cleanText(value) {
-				return nil, invalid("observation %d: value must be 1 to %d printable characters", i, maxObsValue)
-			}
-		}
-		out = append(out, cleanObs{ip: ip, mac: mac, field: string(o.Field), value: value, source: string(o.Source), conf: o.Confidence, seenAt: s.seen(o.SeenAt)})
+		out = append(out, c)
 	}
 	return out, nil
+}
+
+// checkOne validates observation i of a batch.
+func (s *Service) checkOne(i int, o observe.Observation) (cleanObs, error) {
+	ip, mac, err := checkHint(o.AssetHint)
+	if err != nil {
+		return cleanObs{}, fmt.Errorf("observation %d: %w", i, err)
+	}
+	if !observe.ValidSource(o.Source) || o.Source == observe.Manual {
+		return cleanObs{}, invalid("observation %d: source %q is not allowed", i, o.Source)
+	}
+	if !observe.ValidField(o.Field) {
+		return cleanObs{}, invalid("observation %d: field %q is unknown", i, o.Field)
+	}
+	if math.IsNaN(o.Confidence) || o.Confidence < 0 || o.Confidence > 1 {
+		return cleanObs{}, invalid("observation %d: confidence must be between 0 and 1", i)
+	}
+	value := o.Value
+	switch o.Field {
+	case observe.MAC:
+		m, ok := normMAC(value)
+		if !ok {
+			return cleanObs{}, invalid("observation %d: value is not a MAC address", i)
+		}
+		value = m
+	case observe.Kind:
+		if !validKind(value) {
+			return cleanObs{}, invalid("observation %d: unknown device type", i)
+		}
+	default:
+		if !cleanText(value) {
+			return cleanObs{}, invalid("observation %d: value must be 1 to %d printable characters", i, maxObsValue)
+		}
+	}
+	return cleanObs{ip: ip, mac: mac, field: string(o.Field), value: value, source: string(o.Source), conf: o.Confidence, seenAt: s.seen(o.SeenAt)}, nil
 }
 
 // Record implements observe.Sink: the whole batch in one transaction (all or none). A device is found by
@@ -148,11 +161,11 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 			if !slices.Contains(touched, id) {
 				touched = append(touched, id)
 			}
-			if err := insertObs(ctx, tx, id, c.field, c.value, c.source, c.conf, c.seenAt); err != nil {
+			if err := insertPruned(ctx, tx, id, c.field, c.value, c.source, c.conf, c.seenAt); err != nil {
 				return err
 			}
 			if c.mac != "" && c.field != "mac" { // the MAC that found the device is itself an observation
-				if err := insertObs(ctx, tx, id, "mac", c.mac, c.source, c.conf, c.seenAt); err != nil {
+				if err := insertPruned(ctx, tx, id, "mac", c.mac, c.source, c.conf, c.seenAt); err != nil {
 					return err
 				}
 			}
@@ -246,13 +259,33 @@ func (s *Service) claimIP(ctx context.Context, tx *sql.Tx, id string, ip netip.A
 }
 
 // insertObs appends an observation. An exact repeat of (device, field, source, value) moves seen_at forward
-// and keeps the higher confidence; nothing else is ever changed or removed (INV-1).
+// and keeps the higher confidence; nothing else is ever changed (INV-1). Record alone deletes, by pruneObs (INV-16).
 func insertObs(ctx context.Context, tx *sql.Tx, assetID, field, value, source string, conf float64, seenAt string) error {
 	_, err := tx.ExecContext(ctx, `INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at) VALUES (?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (asset_id, field, source, value) DO UPDATE SET seen_at = max(seen_at, excluded.seen_at), confidence = max(confidence, excluded.confidence)`,
 		store.NewID("o"), assetID, field, value, source, conf, seenAt)
 	if err != nil {
 		return fmt.Errorf("inventory: record observation: %w", err)
+	}
+	return nil
+}
+
+// insertPruned is insertObs followed by pruneObs: what Record does for every observation it takes.
+func insertPruned(ctx context.Context, tx *sql.Tx, assetID, field, value, source string, conf float64, seenAt string) error {
+	if err := insertObs(ctx, tx, assetID, field, value, source, conf, seenAt); err != nil {
+		return err
+	}
+	return pruneObs(ctx, tx, assetID, field, source)
+}
+
+// pruneObs keeps the latest maxObsPerSeries rows of (device, field, source) and deletes the older ones (INV-16). The
+// unique index inv_observation_uq starts with these three columns, so the statement reads at most one series.
+func pruneObs(ctx context.Context, tx *sql.Tx, assetID, field, source string) error {
+	_, err := tx.ExecContext(ctx, `DELETE FROM inv_observation WHERE asset_id = ? AND field = ? AND source = ? AND id NOT IN
+		(SELECT id FROM inv_observation WHERE asset_id = ? AND field = ? AND source = ? ORDER BY seen_at DESC, id DESC LIMIT ?)`,
+		assetID, field, source, assetID, field, source, maxObsPerSeries)
+	if err != nil {
+		return fmt.Errorf("inventory: prune observations: %w", err)
 	}
 	return nil
 }

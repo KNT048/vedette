@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/go-faster/jx"
@@ -61,6 +62,13 @@ func mapError(err error) (*apierr.Error, bool) {
 	case errors.As(err, &parErr):
 		return apierr.Invalid("A parameter is not valid."), false
 	case errors.As(err, &reqErr):
+		if path, unknown := decodeFieldPath(reqErr.Err); safeField.MatchString(path) {
+			msg := "The field %q has a value of the wrong type. Fix it and try again."
+			if unknown {
+				msg = "The field %q is not allowed. Remove it and try again."
+			}
+			return apierr.Invalid(fmt.Sprintf(msg, path)).With("field", path), false
+		}
 		return apierr.Invalid("The request body is not valid JSON of the expected shape."), false
 	}
 	return apierr.Internal(), true
@@ -84,6 +92,55 @@ func fieldPath(e *validate.Error) string {
 		e = next
 	}
 	return path
+}
+
+// decodeFieldPath recovers the path of the failing field from a body decode error. ogen wraps the error
+// of a field as `decode field "name"` once per object level and names an unknown key as
+// `unexpected field "key"` (additionalProperties: false); array elements carry no index, so the path
+// of an element is "tools.name", not "tools[0].name". Only these exact prefixes of the wrapping layers
+// are read, never the leaf message (it can hold a value from the body). unknown says the last step
+// is an unexpected key. The caller must still check the path against safeField: an unknown key is
+// attacker-controlled.
+func decodeFieldPath(err error) (path string, unknown bool) {
+	const fieldPrefix, unknownPrefix = `decode field `, `unexpected field `
+	for err != nil {
+		if j, ok := err.(interface{ Unwrap() []error }); ok {
+			// ogen joins the decode error with the result of closing the body (nil): same message
+			if errs := j.Unwrap(); len(errs) == 1 {
+				err = errs[0]
+				continue
+			}
+			return "", false
+		}
+		next := errors.Unwrap(err)
+		if next == nil {
+			// the leaf is the only place a body key can appear, and only in this one form
+			if q, ok := strings.CutPrefix(err.Error(), unknownPrefix); ok {
+				key, uerr := strconv.Unquote(q)
+				if uerr != nil {
+					return "", true
+				}
+				return joinPath(path, key), true
+			}
+			return path, false
+		}
+		// the layer's own message is what it adds in front of the inner error
+		layer := strings.TrimSuffix(err.Error(), ": "+next.Error())
+		if q, ok := strings.CutPrefix(layer, fieldPrefix); ok {
+			if name, uerr := strconv.Unquote(q); uerr == nil {
+				path = joinPath(path, name)
+			}
+		}
+		err = next
+	}
+	return path, false
+}
+
+func joinPath(path, name string) string {
+	if path == "" {
+		return name
+	}
+	return path + "." + name
 }
 
 // toOAS converts an API error to the generated response type, extras included.

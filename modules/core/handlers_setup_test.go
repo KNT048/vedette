@@ -2,11 +2,13 @@ package core_test
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/auth/authtest"
 )
 
@@ -394,4 +396,113 @@ func TestSetup_OrganizationNameRefusesInvisibleFormatCharacters(t *testing.T) {
 	b = setupBody(code)
 	b["admin"] = map[string]any{"name": "Ann\u202Enimda", "email": "admin@acme.example", "password": authtest.Password}
 	wantStatus(t, w.client().post("/core/setup", b), 400, "invalid_name")
+}
+
+// attrsOf is a Set-Cookie line without its value: the flags and the lifetime a browser acts on.
+func attrsOf(t *testing.T, r reply, name string) string {
+	t.Helper()
+	for _, line := range r.Header.Values("Set-Cookie") {
+		if n, rest, _ := strings.Cut(line, "="); n == name {
+			_, attrs, _ := strings.Cut(rest, ";")
+			return attrs
+		}
+	}
+	return ""
+}
+
+// Finishing setup signs the new administrator in as a password sign-in does: the same two cookies with the same
+// flags and lifetime, no device cookie (that one is for two-step trusted devices), and the session works for a
+// read and for a CSRF-protected write. A setup that fails sets no cookie.
+func TestSetup_SignsTheAdministratorInLikeASignIn(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	code := w.openSetup()
+
+	bad := w.client()
+	for _, body := range []map[string]any{
+		setupBody("AAAAA-AAAAA-AAAAA-AAAAA"),
+		func() map[string]any { b := setupBody(code); b["lan"] = []string{"8.8.8.0/24"}; return b }(),
+		func() map[string]any { b := setupBody(code); b["org"] = ""; return b }(),
+	} {
+		r := bad.post("/core/setup", body)
+		if r.Code < 400 || len(r.Header.Values("Set-Cookie")) != 0 || bad.signedIn() {
+			t.Fatalf("failed setup = %d %s, cookies %v", r.Code, r.Raw, r.Header.Values("Set-Cookie"))
+		}
+	}
+
+	c := w.client()
+	setup := c.post("/core/setup", setupBody(code))
+	wantOK(t, setup, 200)
+	if n := len(setup.Header.Values("Set-Cookie")); n != 2 || c.cookie(auth.CookieDevice) != nil {
+		t.Fatalf("setup set %d cookies (device cookie %v)", n, c.cookie(auth.CookieDevice))
+	}
+	login := w.client().login("admin@acme.example")
+	wantOK(t, login, 200)
+	for _, name := range []string{auth.CookieSession, auth.CookieCSRF} {
+		got, want := attrsOf(t, setup, name), attrsOf(t, login, name)
+		if got == "" || got != want {
+			t.Errorf("%s after setup: %q, after sign-in: %q", name, got, want)
+		}
+	}
+	wantOK(t, c.get("/me"), 200)
+	wantOK(t, c.patch("/core/privacy", map[string]any{"telemetry": false}), 200)
+	noCSRF := c.request("PATCH", "/core/privacy", map[string]any{"telemetry": true}, func(r *http.Request) { r.Header.Del(auth.HeaderCSRF) })
+	wantStatus(t, noCSRF, 403, "csrf_invalid")
+	// Setup runs once, and a second try neither signs anyone in nor changes the first account.
+	again := w.client()
+	r := again.post("/core/setup", setupBody(code))
+	wantStatus(t, r, 409, "already_setup")
+	if again.signedIn() || len(r.Header.Values("Set-Cookie")) != 0 {
+		t.Fatal("a second setup set cookies")
+	}
+	// One sign-in row from setup itself, one from the sign-in above; and the setup row.
+	if n := w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'auth.login' AND user = 'admin@acme.example'"); n != 2 {
+		t.Errorf("auth.login rows = %d, want 2", n)
+	}
+	if n := w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'core.setup'"); n != 1 {
+		t.Errorf("core.setup rows = %d", n)
+	}
+}
+
+// Session fixation: cookies the browser already holds when it finishes setup are replaced, never adopted.
+func TestSetup_DoesNotAdoptAPlantedSession(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	code := w.openSetup()
+	c := w.client()
+	c.jar[auth.CookieSession] = &http.Cookie{Name: auth.CookieSession, Value: "planted-session-token-planted-session-token", Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode}
+	c.jar[auth.CookieCSRF] = &http.Cookie{Name: auth.CookieCSRF, Value: "planted-csrf-token-planted-csrf-token", Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode}
+	logStart := w.logs.Len()
+	wantOK(t, c.post("/core/setup", setupBody(code)), 200)
+	sess, csrf := c.cookie(auth.CookieSession), c.cookie(auth.CookieCSRF)
+	if sess == nil || csrf == nil || strings.HasPrefix(sess.Value, "planted") || strings.HasPrefix(csrf.Value, "planted") {
+		t.Fatalf("setup kept a planted cookie: %v %v", sess, csrf)
+	}
+	attacker := w.client()
+	attacker.jar[auth.CookieSession] = &http.Cookie{Name: auth.CookieSession, Value: "planted-session-token-planted-session-token", Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode}
+	wantStatus(t, attacker.get("/me"), 401, "unauthenticated")
+	if n := w.env.Count(t, "SELECT count(*) FROM core_session"); n != 1 {
+		t.Errorf("sessions after setup = %d", n)
+	}
+	// The setup code is single-use: gone from core_secret in the same transaction.
+	if n := w.env.Count(t, "SELECT count(*) FROM core_secret WHERE purpose = 'core_setup_code'"); n != 0 {
+		t.Errorf("setup code rows after setup = %d", n)
+	}
+	// Nothing secret reaches the log during setup.
+	logged := w.logs.String()[logStart:]
+	for _, s := range []string{authtest.Password, code, sess.Value, csrf.Value} {
+		if strings.Contains(logged, s) {
+			t.Errorf("setup logged a secret (%q...)", s[:4])
+		}
+	}
+	// The setup code cannot be reused for a second administrator.
+	r := w.client().post("/core/setup", func() map[string]any {
+		b := setupBody(code)
+		b["admin"] = map[string]any{"name": "Eve", "email": "eve@acme.example", "password": authtest.Password}
+		return b
+	}())
+	wantStatus(t, r, 409, "already_setup")
+	if n := w.env.Count(t, "SELECT count(*) FROM core_user"); n != 1 {
+		t.Errorf("users = %d", n)
+	}
 }

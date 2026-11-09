@@ -33,9 +33,10 @@ type APIHandlers struct {
 	secrets *secrets.Store
 	log     *slog.Logger
 	now     func() time.Time
+	facts   PrivacyFacts // nil: the answers of today (see PrivacyFacts)
 }
 
-// HandlersConfig wires APIHandlers; every field but Clock is required.
+// HandlersConfig wires APIHandlers; every field but Clock and Facts is required.
 type HandlersConfig struct {
 	DB      *store.DB
 	Auth    *auth.Service
@@ -43,6 +44,7 @@ type HandlersConfig struct {
 	Audit   *audit.Log
 	Secrets *secrets.Store
 	Log     *slog.Logger
+	Facts   PrivacyFacts     // optional
 	Clock   func() time.Time // nil: time.Now
 }
 
@@ -54,7 +56,7 @@ func NewAPIHandlers(c HandlersConfig) (*APIHandlers, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	return &APIHandlers{db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock}, nil
+	return &APIHandlers{db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts}, nil
 }
 
 // caller is who a signed-in request acts as.

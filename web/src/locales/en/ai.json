@@ -498,89 +498,6 @@
       "deleteBody": "The document and its index are removed from this box. This cannot be undone.",
       "deleted": "Document deleted"
     },
-    "conn": {
-      "title": "Connections",
-      "body": "Systems the AI may reach: HTTP APIs, SSH/CLI, NETCONF/RESTCONF, automation platforms and MCP servers. It only uses what is on each allow-list.",
-      "add": "Add connection",
-      "writeNoteLead": "Write tools never run from a chat answer.",
-      "writeNote": "Tools that change something are used only through actions you approve in the AI response module.",
-      "writeOnlyApproved": "Write tools run only through an action you approve in the AI response module.",
-      "empty": "No connections yet",
-      "emptyBody": "Add a connection so the AI can read a firewall or check a vendor page instead of guessing.",
-      "kind": {
-        "http": "HTTP API",
-        "ssh": "SSH / CLI",
-        "netconf-restconf": "NETCONF / RESTCONF",
-        "automation": "Automation platform (Ansible AWX/Tower, n8n...)",
-        "mcp-http": "MCP server (URL)",
-        "mcp-stdio": "MCP server (command)"
-      },
-      "status": {
-        "ok": "Working",
-        "error": "Failed",
-        "untested": "Not tested"
-      },
-      "auth": {
-        "none": "No sign-in",
-        "token": "API token",
-        "basic": "User and password",
-        "ssh-key": "SSH key"
-      },
-      "authNo": "not for this kind",
-      "noAuth": "No sign-in",
-      "authEnds": "{{type}} ending {{last4}}",
-      "tested": "tested {{when}}",
-      "neverTested": "never tested",
-      "enable": "Connection enabled: {{name}}",
-      "test": "Test connection",
-      "testNamed": "Test connection {{name}}",
-      "testing": "Testing…",
-      "testOk": "Connected",
-      "allowTitle": "Allow-list",
-      "allowFor": "Allow-list of {{name}}",
-      "toolsTitle": "Tools",
-      "toolsFor": "Tools of {{name}}",
-      "toolEnable": "Tool {{tool}} enabled on {{name}}",
-      "access": {
-        "read": "Read",
-        "write": "Write"
-      },
-      "deleteTitle": "Delete {{name}}?",
-      "deleteBody": "The AI loses access to this system. Response actions that used it can no longer run.",
-      "deleted": "Connection deleted",
-      "addTitle": "Add connection",
-      "editTitle": "Edit {{name}}",
-      "dialogBody": "The secret stays on this box, encrypted. After saving only its last 4 characters are shown.",
-      "addConfirm": "Add connection",
-      "saved": "Connection saved",
-      "added": "Connection added",
-      "errName": "Give the connection a name.",
-      "errTarget": "Enter where to connect.",
-      "errSecret": "Enter the secret.",
-      "errAllow": "Add at least one allow-list entry, one per line.",
-      "f": {
-        "name": "Name",
-        "kind": "Kind",
-        "target_ssh": "SSH server (host or host:port)",
-        "target_http": "Base address (URL)",
-        "target_netconf-restconf": "Device address (URL, or host:port for NETCONF)",
-        "target_automation": "Platform address (URL)",
-        "target_mcp-http": "MCP server address (URL)",
-        "target_mcp-stdio": "Command that starts the MCP server",
-        "targetExample": "For example {{example}}",
-        "auth": "Sign-in",
-        "secret": "Secret",
-        "secretHint": "Token, password or key. Stored encrypted; only the last 4 characters are shown afterwards.",
-        "secretSaved": "Saved, ending {{last4}}. Leave blank to keep it.",
-        "allow": "Allow-list (one per line)",
-        "allowHint_ssh": "Exact commands the AI may run, one per line, for example {{example}}",
-        "allowHint_http": "URL prefixes the AI may call, for example {{example}}",
-        "allowHint_mcp-http": "Hosts the server may reach, for example {{example}}",
-        "allowHint_mcp-stdio": "Hosts the server may reach, for example {{example}}",
-        "allowHint_netconf-restconf": "URL prefixes or hosts the AI may use, for example {{example}}",
-        "allowHint_automation": "URL prefixes the AI may call on the platform, for example {{example}}"
-      }
-    },
     "hooks": {
       "builtinTitle": "Built-in hooks",
       "body": "Hooks are checks that run before and after every AI call.",
@@ -646,6 +563,9 @@
       "deleteTitle": "Delete {{name}}?",
       "deleteBody": "The hook stops checking AI calls straight away.",
       "deleted": "Hook deleted"
+    },
+    "conn": {
+      "moved": "Connections moved to <go>Settings → Connections</go>."
     }
   },
   "activity": {

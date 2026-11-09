@@ -13,15 +13,6 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
-// AiDeleteAiConnectionsID implements ai_delete_ai_connections_id operation.
-//
-// Delete a connection.
-//
-// DELETE /ai/connections/{id}
-func (UnimplementedHandler) AiDeleteAiConnectionsID(ctx context.Context, params AiDeleteAiConnectionsIDParams) error {
-	return ht.ErrNotImplemented
-}
-
 // AiDeleteAiHooksID implements ai_delete_ai_hooks_id operation.
 //
 // Delete a custom hook.
@@ -131,15 +122,6 @@ func (UnimplementedHandler) AiGetAiConfig(ctx context.Context) (r *AiGetAiConfig
 	return r, ht.ErrNotImplemented
 }
 
-// AiGetAiConnections implements ai_get_ai_connections operation.
-//
-// Outside connections the AI may use: device API, SSH, HTTP, MCP server.
-//
-// GET /ai/connections
-func (UnimplementedHandler) AiGetAiConnections(ctx context.Context) (r *AiGetAiConnectionsOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // AiGetAiCveIDCached implements ai_get_ai_cve_id_cached operation.
 //
 // Previously generated explanation and news for a CVE.
@@ -236,24 +218,6 @@ func (UnimplementedHandler) AiGetAiUsage(ctx context.Context) (r *AiGetAiUsageOK
 //
 // POST /ai/ask
 func (UnimplementedHandler) AiPostAiAsk(ctx context.Context, req *AiPostAiAskReq) (r *AiPostAiAskOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// AiPostAiConnections implements ai_post_ai_connections operation.
-//
-// Add a connection with its allow-list; write tools are only used through approved response actions.
-//
-// POST /ai/connections
-func (UnimplementedHandler) AiPostAiConnections(ctx context.Context, req *AiPostAiConnectionsReq) (r *AiPostAiConnectionsOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// AiPostAiConnectionsIDTest implements ai_post_ai_connections_id_test operation.
-//
-// Test a connection and refresh its tool list.
-//
-// POST /ai/connections/{id}/test
-func (UnimplementedHandler) AiPostAiConnectionsIDTest(ctx context.Context, params AiPostAiConnectionsIDTestParams) (r *AiPostAiConnectionsIDTestOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -392,15 +356,6 @@ func (UnimplementedHandler) AiPutAiConfig(ctx context.Context, req *AiPutAiConfi
 	return r, ht.ErrNotImplemented
 }
 
-// AiPutAiConnectionsID implements ai_put_ai_connections_id operation.
-//
-// Edit a connection, its allow-list and per-tool enable (blank secret = keep the old one).
-//
-// PUT /ai/connections/{id}
-func (UnimplementedHandler) AiPutAiConnectionsID(ctx context.Context, req *AiPutAiConnectionsIDReq, params AiPutAiConnectionsIDParams) (r *AiPutAiConnectionsIDOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // AiPutAiHooksBuiltinID implements ai_put_ai_hooks_builtin_id operation.
 //
 // Turn a built-in hook on or off; "write tools need approval" is locked on.
@@ -491,6 +446,15 @@ func (UnimplementedHandler) CoreDeleteCoreAccountSessionsID(ctx context.Context,
 	return ht.ErrNotImplemented
 }
 
+// CoreDeleteCoreConnectionsID implements core_delete_core_connections_id operation.
+//
+// Delete a connection; 409 in_use while a response change made through it is still in force.
+//
+// DELETE /core/connections/{id}
+func (UnimplementedHandler) CoreDeleteCoreConnectionsID(ctx context.Context, params CoreDeleteCoreConnectionsIDParams) error {
+	return ht.ErrNotImplemented
+}
+
 // CoreDeleteCoreMcpTokensID implements core_delete_core_mcp_tokens_id operation.
 //
 // Revoke an MCP token.
@@ -542,6 +506,16 @@ func (UnimplementedHandler) CoreGetCoreAuditExport(ctx context.Context, params C
 //
 // GET /core/auth-options
 func (UnimplementedHandler) CoreGetCoreAuthOptions(ctx context.Context) (r *CoreGetCoreAuthOptionsOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CoreGetCoreConnections implements core_get_core_connections operation.
+//
+// Connections to devices and services that response actions and the AI use: HTTP API, SSH, RESTCONF,
+// automation platform, MCP server.
+//
+// GET /core/connections
+func (UnimplementedHandler) CoreGetCoreConnections(ctx context.Context) (r *CoreGetCoreConnectionsOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -621,7 +595,7 @@ func (UnimplementedHandler) CoreGetCoreOidc(ctx context.Context) (r *CoreGetCore
 
 // CoreGetCorePrivacy implements core_get_core_privacy operation.
 //
-// The 11 data flows leaving the box and the verbatim anonymous-signal payload.
+// The 12 data flows leaving the box and the verbatim anonymous-signal payload.
 //
 // GET /core/privacy
 func (UnimplementedHandler) CoreGetCorePrivacy(ctx context.Context) (r *CoreGetCorePrivacyOK, _ error) {
@@ -868,6 +842,26 @@ func (UnimplementedHandler) CorePostCoreAccountSessionsRevokeOthers(ctx context.
 	return r, ht.ErrNotImplemented
 }
 
+// CorePostCoreConnections implements core_post_core_connections operation.
+//
+// Add a connection with its allow-list. Write tools start off and run only through approved response
+// actions. "mcp-stdio" is refused: 400 kind_unsupported. The address may be public when the
+// administrator declares it (privacy flow 12).
+//
+// POST /core/connections
+func (UnimplementedHandler) CorePostCoreConnections(ctx context.Context, req *CorePostCoreConnectionsReq) (r *CorePostCoreConnectionsCreated, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CorePostCoreConnectionsIDTest implements core_post_core_connections_id_test operation.
+//
+// Test a connection, pin its certificate or host key on first use, and refresh its tool list.
+//
+// POST /core/connections/{id}/test
+func (UnimplementedHandler) CorePostCoreConnectionsIDTest(ctx context.Context, params CorePostCoreConnectionsIDTestParams) (r *CorePostCoreConnectionsIDTestOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CorePostCoreDataPurge implements core_post_core_data_purge operation.
 //
 // Delete all data back to a fresh install (type the exact organization name to confirm).
@@ -1022,6 +1016,16 @@ func (UnimplementedHandler) CorePostCoreUsersID2FAReset(ctx context.Context, par
 //
 // POST /core/users/{id}/reset-password
 func (UnimplementedHandler) CorePostCoreUsersIDResetPassword(ctx context.Context, params CorePostCoreUsersIDResetPasswordParams) (r *CorePostCoreUsersIDResetPasswordOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CorePutCoreConnectionsID implements core_put_core_connections_id operation.
+//
+// Edit a connection, its allow-list and per-tool enable (blank secret = keep the old one; clear_pin =
+// forget the pin).
+//
+// PUT /core/connections/{id}
+func (UnimplementedHandler) CorePutCoreConnectionsID(ctx context.Context, req *CorePutCoreConnectionsIDReq, params CorePutCoreConnectionsIDParams) (r *CorePutCoreConnectionsIDOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

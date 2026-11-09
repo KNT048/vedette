@@ -30,11 +30,11 @@ Tên endpoint, mã lỗi, tên trường giữ tiếng Anh; văn xuôi tiếng V
 | 201 | Tạo (16 chỗ trong mock) | Đã khai bằng `status: 201` trong `contract.ts` và có trong `openapi.json` (WP-06; test `contract.test.ts` đối chiếu mock). Hai endpoint trả 201 hoặc 200 tuỳ trường hợp (`POST /exposure/box-ip/verify`, `POST /response/ai/proposals`) giữ mặc định 200 và nói rõ trong `summary`. Kèm `Location` **[ĐX]** |
 | 202 | Việc dài chạy nền (`POST /core/updates/os/install`, khai `status: 202`) | Thân = tài nguyên "lần chạy" (`id`, `status`); theo dõi bằng `GET …/run` hoặc SSE (mục 11) |
 | 204 | Xoá, hành động không có kết quả | Không thân |
-| 400 | Dữ liệu vào sai ở biên (SYS-2) | Gần như mọi lỗi kiểm tra (205 mã, mục 3). `invalid_credentials` khi đăng nhập sai cũng là 400, **không** phải 401 |
+| 400 | Dữ liệu vào sai ở biên (SYS-2) | Gần như mọi lỗi kiểm tra (211 mã, mục 3). `invalid_credentials` khi đăng nhập sai cũng là 400, **không** phải 401 |
 | 401 | Chưa đăng nhập / phiên hết hạn (`unauthenticated`), hoặc cần mã 2 bước (`twofa_required` ở `POST /auth/login`, kèm `method`) | |
 | 403 | Đủ phiên nhưng không đủ quyền hoặc bị cấm theo trạng thái (`forbidden`, `disabled`, `tool_not_allowed`, `token_expired`, `approver_not_listed`…) | |
 | 404 | Không có đối tượng (`not_found`, 51 endpoint) hoặc liên kết sai (`unknown`) | Không phân biệt "không tồn tại" và "không được xem" với token công khai |
-| 409 | Trạng thái hiện tại không cho phép (48 mã: `already_*`, `busy`, `expired`, `not_pending`, `ip_in_use`…) | Thao tác có thể thành công sau khi người dùng sửa trạng thái |
+| 409 | Trạng thái hiện tại không cho phép (62 mã: `already_*`, `busy`, `expired`, `not_pending`, `ip_in_use`…) | Thao tác có thể thành công sau khi người dùng sửa trạng thái |
 | 413 | Tệp/thân quá lớn (`too_large` ở `POST /feeds/parse-test`) | Mock còn trả 400 `too_large` ở 3 endpoint tải tệp: thống nhất về 413 **[ĐX]** |
 | 422 | Dịch vụ ngoài từ chối thông tin hợp lệ về hình thức (`wazuh_auth`) | Hiện đúng 1 chỗ; dùng cho "đúng dạng nhưng bên kia từ chối" |
 | 429 | Giới hạn tần suất / trần (`rate_limited`, `resend_too_soon`, `too_many_codes`, `daily_cap`) | Kèm `Retry-After` (mục 8) |
@@ -85,15 +85,15 @@ Danh sách trả đối tượng, không phải mảng trần (cho phép thêm `
 
 ### 3.3 Danh mục mọi mã lỗi đang dùng
 
-Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, code}` trong `web/src/features/*/mocks.ts`, `*/state.ts`, `*/osMock.ts`, `*/sourcesMock.ts`, `*/harness-mocks.ts`, `*/emailCode.ts`, `*/logExport.ts`, `*/activity.ts` và `web/src/mocks/*.ts` (2026-11-09): **278 mã** (từ mock), cộng 5 mã chỉ backend thêm ở WP-04b phần 2 (`invalid_setup_code`, `sample_unavailable`, `invalid_from`, `invalid_to`, `misdirected_request`) và 14 mã chỉ backend thêm ở WP-07b phần 2 (lỗi của `vedette-host` và của việc core ghi snapshot: `not_appliance`, `host_unreachable`, `host_error`, `no_check_yet`, `dpkg_locked`, `dpkg_inconsistent`, `low_disk`, `rebooting`, `reboot_limit_reached`, `snapshot_rejected`, `snapshot_failed`, `apt_failed`, `health_check_failed`, `effect_not_verified`; bảng ánh xạ mã host → mã API ở `modules/core/CONTRACT.md` INV-18): 302. Cột "Endpoint dùng" là handler gần nhất chứa lời gọi; với mã sinh từ hàm kiểm tra dùng chung, ghi `module <tên> (validator dùng chung)` (đó là hạn chế của cách trích tĩnh) (mục 12 đề xuất khai `errors` trong `contract.ts` để bảng này sinh tự động). Thông điệp là bản mẫu tiếng Anh trong mock.
+Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, code}` trong `web/src/features/*/mocks.ts`, `*/state.ts`, `*/osMock.ts`, `*/sourcesMock.ts`, `*/harness-mocks.ts`, `*/emailCode.ts`, `*/logExport.ts`, `*/activity.ts` và `web/src/mocks/*.ts` (2026-11-09): **293 mã** (từ mock), cộng 5 mã chỉ backend thêm ở WP-04b phần 2 (`invalid_setup_code`, `sample_unavailable`, `invalid_from`, `invalid_to`, `misdirected_request`) và 14 mã chỉ backend thêm ở WP-07b phần 2 (lỗi của `vedette-host` và của việc core ghi snapshot: `not_appliance`, `host_unreachable`, `host_error`, `no_check_yet`, `dpkg_locked`, `dpkg_inconsistent`, `low_disk`, `rebooting`, `reboot_limit_reached`, `snapshot_rejected`, `snapshot_failed`, `apt_failed`, `health_check_failed`, `effect_not_verified`; bảng ánh xạ mã host → mã API ở `modules/core/CONTRACT.md` INV-18): 312. Cột "Endpoint dùng" là handler gần nhất chứa lời gọi; với mã sinh từ hàm kiểm tra dùng chung, ghi `module <tên> (validator dùng chung)` (đó là hạn chế của cách trích tĩnh) (mục 12 đề xuất khai `errors` trong `contract.ts` để bảng này sinh tự động). Thông điệp là bản mẫu tiếng Anh trong mock.
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (209 mã)
+#### HTTP 400 (211 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
-| `allow_required` | 400 | Add at least one entry to the allow-list. The AI may only use hosts, addresses or commands on this list. | module ai (validator dùng chung) |
+| `allow_required` | 400 | Add at least one entry to the allow-list. Only hosts, addresses or commands on this list. | `POST /core/connections`; `PUT /core/connections/{id}` |
 | `approvals_unsupported` | 400 | This channel cannot take approvals. It sends a link that opens Vedette instead. | module notify (validator dùng chung) |
 | `approvers_required` | 400 | Add at least one approver, or turn off "Approve actions from this channel". | module notify (validator dùng chung) |
 | `bad_action` | 400 | Choose one of: patched, mitigated, false positive, not relevant, or reopen. | `POST /findings/{id}/status` |
@@ -166,7 +166,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `core_module` | 400 | Core modules are always on. | `PATCH /modules/{id}` |
 | `current_session` | 400 | This is the session you are using. Use "Sign out" in the account menu. | `DELETE /core/account/sessions/{id}` |
 | `dangerous_locked` | 400 | Vedette has no dangerous checks: no exploitation, no denial of service. It cannot be turned on. | `PUT /scans/config` |
-| `duplicate_name` | 400 | Another connection already has this name. Pick a different one. | module ai, feeds (validator dùng chung) |
+| `duplicate_name` | 400 | Another connection already has this name. Pick a different one. | `POST /core/connections`; `PUT /core/connections/{id}`; module feeds (validator dùng chung) |
 | `duplicate_user` | 400 | The same user is listed twice as approver. | module notify (validator dùng chung) |
 | `empty` | 400 | No bundle file chosen. | `POST /core/updates/bundle`; `POST /exposure/targets` |
 | `empty_file` | 400 | The file is empty. Download the template, fill in your devices and choose it again. | `POST /inventory/import` |
@@ -178,8 +178,8 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid` | 400 | The switch value must be on or off. | 12 endpoint (/core, /response) |
 | `invalid_action` | 400 | Pick what the hook does: block, mask or require approval. | module ai (validator dùng chung) |
 | `invalid_address` | 400 | Enter the head office address (5 to 200 characters). | module reports (validator dùng chung) |
-| `invalid_allow` | 400 | The allow-list holds up to 30 entries of 200 characters each, one per line. | module ai (validator dùng chung) |
-| `invalid_auth` | 400 | Pick how the box signs in: none, token, user and password, or SSH key. | module ai, feeds (validator dùng chung) |
+| `invalid_allow` | 400 | The allow-list holds up to 30 entries of 200 characters each, one per line. Also: Each allow-list entry must be an address under ${target}, for example ${target}/api/. | `POST /core/connections`; `PUT /core/connections/{id}` |
+| `invalid_auth` | 400 | Pick how the box signs in: none, token, user and password, or SSH key. | `POST /core/connections`; `PUT /core/connections/{id}`; module feeds (validator dùng chung) |
 | `invalid_auto` | 400 | Automatic security updates are on or off. | `PATCH /core/updates/os/settings` |
 | `invalid_base_url` | 400 | The server address is not valid. Enter it in full, for example https://api.anthropic.com or http://localhost:11434/v1. | module ai (validator dùng chung) |
 | `invalid_body` | 400 | Check the values and try again. | 4 endpoint (/feeds) |
@@ -203,7 +203,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_items` | 400 | Pick at least one action of this request. | module response (validator dùng chung) |
 | `invalid_jobs` | 400 | One of the chosen jobs is not an AI job. Pick from the list. | `POST /ai/knowledge`; `PUT /ai/knowledge/{id}` |
 | `invalid_key` | 400 | The API key is too short or contains spaces. Copy the whole key again from the provider\ | module ai (validator dùng chung) |
-| `invalid_kind` | 400 | Pick a kind: device API, SSH, HTTP or MCP server. | module ai (validator dùng chung) |
+| `invalid_kind` | 400 | Pick a kind: HTTP API, SSH / CLI, NETCONF / RESTCONF, automation platform or MCP server. | `POST /core/connections`; `PUT /core/connections/{id}` |
 | `invalid_lan` | 400 | Enter 1 to 16 LAN ranges, for example 192.168.10.0/24. | `POST /core/setup` |
 | `invalid_level` | 400 | The information system level is 1 to 5, or leave it empty if not determined yet. | module reports (validator dùng chung) |
 | `invalid_location` | 400 | Say where the model runs: inside the company network or in the cloud. | module ai (validator dùng chung) |
@@ -224,18 +224,19 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_rule` | 400 | Write the rule in 3 to 300 characters, for example "Always name devices by hostname and IP address". | module ai (validator dùng chung) |
 | `invalid_scope` | 400 | Choose security updates or all updates. | `POST /core/updates/os/install` |
 | `invalid_scopes` | 400 | Choose at least one read scope: devices, findings or vulnerability feeds. | `POST /core/mcp/tokens` |
-| `invalid_secret` | 400 | The secret is too short. Copy the whole token, password or key again. | `PUT /core/oidc` |
+| `invalid_secret` | 400 | The secret is too short. Copy the whole token, password or key again. Also: This private key is protected by a passphrase, which Vedette cannot type. Save a copy without one and paste that. | `PUT /core/oidc`; `POST /core/connections`; `PUT /core/connections/{id}` |
 | `invalid_sector` | 400 | Pick the field of activity. | module reports (validator dùng chung) |
 | `invalid_setting` | 400 | Say whether the AI may suggest new memories: on or off. | `PUT /ai/hooks/builtin/{id}`; `PUT /ai/memory/settings`; `PUT /ai/skills/{id}` |
 | `invalid_size` | 400 | The file is empty. | `POST /ai/knowledge` |
 | `invalid_style` | 400 | Pick the API style the server speaks: OpenAI Chat Completions, Anthropic Messages or Gemini. | module ai (validator dùng chung) |
-| `invalid_target` | 400 | Enter the SSH server as host or host:port, for example 192.168.10.30:22. | module ai (validator dùng chung) |
+| `invalid_target` | 400 | Enter the SSH server as host or host:port, for example 192.168.10.30:22. Also: The address must start with https://. Vedette sends sign-in details and changes only over HTTPS.; Vedette never connects to ${why}. Enter the address of the device or service itself. (loopback, link-local, multicast, unspecified, `localhost`, non-standard numeric names, the box itself; D-94) | `POST /core/connections`; `PUT /core/connections/{id}` |
 | `invalid_tax_code` | 400 | The tax code is 10 digits, or 10 digits, a dash and 3 digits for a branch. Example 0312345678. | module reports (validator dùng chung) |
 | `invalid_text` | 400 | Type a sample text of up to 1,000 characters. | `POST /ai/hooks/test` |
 | `invalid_tier` | 400 | Pick a tier: minimum, medium or maximum. | `PUT /ai/config` |
 | `invalid_time` | 400 | Enter the start and end as hours and minutes, for example 02:00. | `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot` |
 | `invalid_timezone` | 400 | The time zone is not in the list. | `PUT /core/general` |
 | `invalid_to` | 400 | The end of the range must be a date like 2026-11-09 or a UTC time ending in Z, like 2026-11-09T23:59:59Z. | `GET /core/audit`; `GET /core/audit/export`. Như `invalid_from` |
+| `invalid_tool_access` | 400 | Only tools of an MCP server can be marked read or write; the built-in tools of this kind are fixed. | `POST /core/connections`; `PUT /core/connections/{id}` |
 | `invalid_type` | 400 | Only PDF, MD, TXT and DOCX files can be added. | `POST /ai/knowledge` |
 | `invalid_url` | 400 | Use an https:// address (http:// is only allowed for internal addresses). | `PUT /feeds/sources/{id}` |
 | `invalid_volume` | 400 | Pick how many people\ | module reports (validator dùng chung) |
@@ -245,6 +246,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `ip_not_allowed` | 400 | Public IPs are not typed in. Select "Verify this box\ | `POST /exposure/targets` |
 | `ip_outside_lan` | 400 | The secondary IP must be inside the box's network (${boxInfo().lan}), not the network or broadcast address. | `POST /honeypot/decoys`; `PUT /honeypot/config` |
 | `key_required` | 400 | The API key is required (changing the provider type needs the key again). | module ai (validator dùng chung) |
+| `kind_unsupported` | 400 | An MCP server that Vedette starts as a command is not supported. Use an MCP server that has a web address (kind "MCP server (URL)"). | `POST /core/connections`; `PUT /core/connections/{id}`; `POST /core/connections/{id}/test` (D-94) |
 | `last_admin` | 400 | At least one active administrator must remain. Add another administrator first. | `PATCH /core/users/{id}` |
 | `locked` | 400 | "Write tools need approval" is always on. A tool that changes something can only run through an action a person approves | `PUT /ai/hooks/builtin/{id}` |
 | `missing_dependencies` | 400/409 | Module ${id} also needs: ${lacking.join(', ')}. | `PATCH /modules/{id}`; `POST /core/setup` |
@@ -283,7 +285,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `same_profile` | 400 | The fallback for ${JOB_NAME[j.id]} must be a different profile from the primary. | module ai (validator dùng chung) |
 | `sample_unavailable` | 400 | This build has no sample data. Fill in the setup form instead. | `POST /core/setup`. Mã mới của backend [ĐX] (INV-15): `sample:true` chỉ hợp lệ ở bản `data_mode=sample`; bản backend hiện chưa có dữ liệu mẫu |
 | `scope_not_confirmed` | 400 | Tick the confirmation that these network ranges belong to your company and you are allowed to scan them. Vedette only sc | `PUT /inventory/settings` |
-| `secret_required` | 400 | Enter the secret. It stays on this box and is encrypted; only the last 4 characters are shown afterwards. | module ai, notify (validator dùng chung) |
+| `secret_required` | 400 | Enter the secret. It stays on this box and is encrypted; only the last 4 characters are shown afterwards. Also: Enter the secret again: the address changed, and a saved secret is only sent to the address it was saved for. | `POST /core/connections`; `PUT /core/connections/{id}`; module notify (validator dùng chung) |
 | `self_disable` | 400 | You cannot disable the account you are using. Ask another administrator. | `PATCH /core/users/{id}` |
 | `self_reset` | 400 | You cannot reset your own two-step sign-in here. Use My account instead. | `POST /core/users/{id}/2fa/reset` |
 | `too_large` | 400/413 | The file is larger than 10 MB. Split it or remove pictures, then upload again. | 4 endpoint (/ai, /core, /feeds, /inventory) |
@@ -291,11 +293,12 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `too_many_ranges` | 400 | At most 16 network ranges. | `PUT /inventory/settings` |
 | `too_many_rows` | 400 | At most ${MAX_IMPORT_ROWS} rows per import. This file has ${data.length} rows. | `POST /inventory/import` |
 | `too_many_tries` | 400 | Too many wrong codes. Ask for a new code. | module core (validator dùng chung) |
-| `unknown_asset` | 400 | The device you linked is not in the inventory. | module ai (validator dùng chung) |
+| `unknown_asset` | 400 | The device you linked is not in the inventory. | `POST /core/connections`; `PUT /core/connections/{id}` |
 | `unknown_host` | 400 | Choose a server from the device list in the inventory. | `POST /scans/credentialed` |
 | `unknown_product` | 400 | That product is not in the list. Pick one from the suggestions, or enter the vendor and product yourself. | module inventory (validator dùng chung) |
 | `unknown_profile` | 400 | This AI profile no longer exists. Pick another. | `PUT /ai/knowledge/settings` |
 | `unknown_target` | 400 | There is no target "${id.slice(0, 40)}" in the scan list. | `POST /scans/runs` |
+| `username_required` | 400 | Enter the user name the box signs in with. | `POST /core/connections`; `PUT /core/connections/{id}` (SSH and Basic sign-in) |
 | `viewer_not_allowed` | 400 | A viewer cannot be an approver. | module notify (validator dùng chung) |
 | `weak_password` | 400 | The password needs at least ${MIN_PASSWORD} characters. A long sentence is easier to remember than random characters. | `POST /core/account/password`; `POST /core/setup` |
 | `wrong_code` | 400 | Wrong code. ${left} ${left === 1 ? 'try' : 'tries'} left. | `POST /core/account/2fa/confirm` |
@@ -335,7 +338,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (61 mã)
+#### HTTP 409 (62 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -352,6 +355,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `busy` | 409 | An update run is in progress. Wait for it to finish, then check again. | `POST /core/updates/os/check`; `POST /core/updates/os/install`; `POST /core/updates/os/reboot`; `GET /core/data/backup` (cũng khi một lần tải khác đang chạy) |
 | `channel_not_ready` | 409 | This channel is not set up or is turned off. An administrator can turn it on in Settings, Alert channels. | `POST /notify/history/{id}/resend` |
 | `check_off` | 409 | Update checks are off under Privacy. Turn them on or import an offline bundle. | `POST /core/updates/check`; `POST /core/updates/os/check` |
+| `connection_off` | 409 | This connection is turned off, so nothing is sent to it. Turn it on, then test it. | `POST /core/connections/{id}/test` (PRIVACY flow 12) |
 | `duplicate` | 409 | This email already has an account. | `POST /core/users`; `POST /exposure/targets`; `POST /honeypot/tokens` |
 | `duplicate_ip` | 409 | IP ${ip} is already in the list (${dup.hostname ?? dup.id}). Open that device instead of adding a new one. | module inventory (validator dùng chung) |
 | `duplicate_software` | 409 | This software is already on the device. | `POST /inventory/devices/{id}/software` |
@@ -362,7 +366,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `feed_disabled` | 409 | Turn the feed on before fetching it. | `POST /feeds/sources/{id}/fetch` |
 | `finding_closed` | 409 | The finding is no longer an open critical finding. | `POST /response/proposals/{id}/request` |
 | `hostname_in_use` | 409 | The name ${hostname} belongs to device ${hostClash.ip} in the inventory. Pick another name. | `POST /honeypot/decoys`; `PUT /honeypot/config` |
-| `in_use` | 409 | The rule "${user.name}" uses this action. Change or delete the rule first. | `DELETE /response/catalog/{id}` |
+| `in_use` | 409 | The rule "${user.name}" uses this action. Change or delete the rule first. / A change made through ${name} is still in force. Roll it back in Response, or wait until it expires, then delete the connection. | `DELETE /response/catalog/{id}`; `DELETE /core/connections/{id}` |
 | `ip_in_use` | 409 | IP ${ip} belongs to device ${assetName(clash)} in the inventory. Pick an unused IP. | 4 endpoint (/honeypot) |
 | `limit` | 409 | Up to 30 rules. | `POST /response/catalog`; `POST /response/rules`; `POST /response/templates/{id}/clone`; `POST /response/actions/{id}/approve` (a `blocklist_add` item refused when the block list already holds 10 000 entries) |
 | `module_off` | 409 | Turn on the MCP server before creating a token. | `POST /core/mcp/tokens` |
@@ -422,12 +426,13 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `resend_too_soon` | 429 | Wait ${wait} seconds before asking for a new code. | module core (validator dùng chung) |
 | `too_many_codes` | 429 | Too many codes were sent in the last hour. Try again later. | module core (validator dùng chung) |
 
-#### HTTP 502 (9 mã)
+#### HTTP 502 (10 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `discovery_failed` | 502 | Cannot read ${c.issuer}/.well-known/openid-configuration. Check the issuer and the network path from the box to the IdP. | `POST /core/oidc/test` |
-| `unreachable` | 502 | Could not connect to ${cur.target}. Check the address, the box's network and the firewall. | `POST /ai/connections/{id}/test` (thành `POST /core/connections/{id}/test` ở lát 13b-1, D-93); `POST /ai/profiles/test` |
+| `pin_mismatch` | 502 | The certificate of ${cur.target} is not the one pinned at the first test. Nothing was sent. If you changed the device, edit this connection, turn on "Forget pinned key", save, then test again. | `POST /core/connections/{id}/test` (D-94) |
+| `unreachable` | 502 | Could not connect to ${cur.target}. Check the address, the box's network and the firewall. | `POST /core/connections/{id}/test` (trước là `POST /ai/connections/{id}/test`, D-93); `POST /ai/profiles/test` |
 | `wazuh_unreachable` | 502 | Could not reach ${u.origin}. Check the address and port (55000 by default) and that this box may connect to the Wazuh se | module inventory (validator dùng chung) |
 | `apt_failed` | 502 | The package manager failed. See the update output for the reason. Backend [ĐX]: host `apt_failed`, `stale_check`. | `POST /core/updates/os/check` |
 | `effect_not_verified` | 502 | The change was made but could not be confirmed on the box. Check the setting again. Backend [ĐX]: host `effect_not_verified`. | `PATCH /core/updates/os/settings` |
@@ -749,7 +754,7 @@ Thêm khi có Go **[ĐX]**, đều chạy trong `make verify` và workflow CI đ
 | # | Câu hỏi | Gợi ý / ảnh hưởng |
 |---|---|---|
 | 1 | ~~**POST tạo trả 201 nhưng hợp đồng khai 200** (16 chỗ)~~ Đã làm ở WP-06: `status` trong `Endpoint`, `openapi.json` sinh lại. Còn lại: hai endpoint trả 201/200 tuỳ trường hợp chưa biểu diễn được. | |
-| 2 | **Khai mã lỗi theo thao tác** (`errors: [...]`) để bảng 3.3 sinh tự động thay vì trích tĩnh bằng regex (hạn chế: nhiều mã gắn "validator dùng chung"). Có làm không? | Giảm công bảo trì bảng 278 mã; cần sửa toàn bộ `contract.ts` |
+| 2 | **Khai mã lỗi theo thao tác** (`errors: [...]`) để bảng 3.3 sinh tự động thay vì trích tĩnh bằng regex (hạn chế: nhiều mã gắn "validator dùng chung"). Có làm không? | Giảm công bảo trì bảng 312 mã; cần sửa toàn bộ `contract.ts` |
 | 3 | **Phân trang `GET /inventory/devices`, `/findings`:** SPA tải toàn bộ và lọc ở client. Chuyển sang phân trang/ lọc ở máy chủ ở M2 hay giữ tới khi vượt ngưỡng? | Mục tiêu 1.000 thiết bị vẫn chạy được không phân trang; cần xác nhận |
 | 4 | **Hạn phiên** (idle, tuyệt đối), khoá đăng nhập sai, chính sách "ghi nhớ thiết bị": mock chưa có. Giá trị mặc định? | Cũng là câu hỏi mở số 7 của DATA_MODEL |
 | 5 | **Đường gọi lại OIDC** (`/core/sso/callback` hoặc tương đương) và đăng xuất SSO chưa có trong `contract.ts` dù `core_oidc` có `POST /core/oidc/test` và `POST /core/sso/login`. Thêm endpoint nào, thuộc story nào? | Cần trước khi xây `auth-oidc` |

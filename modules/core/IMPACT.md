@@ -54,6 +54,11 @@ Interface Go (`core/…`). Mọi module gọi `core`; đổi chữ ký ở đây
 - **Bộ nhớ trong tiến trình**: `OSHandlers` giữ bản sao run mới nhất (`runMu`, không bao giờ giữ qua lời gọi host), bộ đệm `state/os` 10 giây (`stateCache`), khoá một lần tải backup (`dlMu`) và mốc lần tải cuối. `flight[T]` là gộp lời gọi (kiểu singleflight, thư viện chuẩn). Khi khởi động, nếu `os.run` chưa chốt (chưa audit hoặc còn bản chụp), một goroutine dựng lại run ngay (thử lại ~2 phút nếu host chưa lên). Mỗi lần tải backup tạo một backup `manual` trên hộp (giữ 10); giới hạn 1 lần/phút/hộp.
 - **GUI**: `web/src/features/core/{contract.ts,osMock.ts,OsUpdates.tsx}` không đổi; thêm mã `not_appliance`, `no_check_yet`, `host_unreachable`… ở backend mà GUI chưa có màn hình riêng (deferred).
 
+## Modifying: kết nối tới thiết bị (D-93, lát 13b-1: `web/src/features/core/{contract.ts,connectionsMock.ts,ConnectionsSection.tsx}`, `api/openapi.json`, `core/api`)
+- **Năm route mới, 501 tới lát 13b-4** (`/core/connections*`, INV-23): ogen sinh handler từ `api/openapi.json`; `server.Fallback` trả 501 cho tới khi `core/conn` có backend. **`core/server/modules_test.go` (`contractRoutes`) và `api/route-modules.json`** đã đổi: năm route rời `ai`, vào `core`.
+- **`ai`**: mất 5 endpoint `/ai/connections*` (người sửa `modules/ai/contract.ts` phía GUI: `features/ai/{contract,harness-api,harness-mocks}.ts`); tab Connections của Cài đặt AI chỉ còn một liên kết tới Settings → Connections. **`response`**: mock `connectorsStore` (`web/src/mocks/connectors.ts`, khoá `core_connections`) giữ nguyên hình dạng cộng `username` và `pin`; chữ và liên kết trỏ tới Settings → Connections. Backend `response` (Go) không đổi ở lát này.
+- **`PrivacyFacts`** có thêm `ConnectionsConfigured(ctx) bool` (luồng 12): ai cài cổng này (`cmd/vedette`, `privacyFacts`) phải thêm hàm; trả `false` tới lát 13b-4. Đổi số luồng (11 → 12) chạm `PRIVACY.md`, `web/src/features/core/{contract,mocks,PrivacySection}`, test `TestPrivacy_*`.
+
 ## Modifying: `module.Module` — `ID, Init, Routes, Jobs, Migrations, Enable, Disable, Health`
 - **Mọi `modules/<id>/module.go`**: thêm/bớt phương thức = sửa tất cả module.
 

@@ -111,7 +111,7 @@ export function ActionDialog({ action, cat, onClose, onSaved }: { action: Catalo
             </Field>
             <Field htmlFor="ca-risk" label={t('catalog.risk')}><Select id="ca-risk" value={f.risk} onChange={(e) => set({ risk: e.target.value as Risk })}>{(['low', 'medium', 'high'] as Risk[]).map((r) => <option key={r} value={r}>{t(`catalog.risks.${r}`)}</option>)}</Select></Field>
           </div>
-          <p className="-mt-2 text-[13px] text-muted">{t('catalog.needConnection')} <Link className="text-accent underline underline-offset-4" to="/settings/ai?tab=connections">{t('catalog.toConnections')}</Link></p>
+          <p className="-mt-2 text-[13px] text-muted">{t('catalog.needConnection')} <Link className="text-accent underline underline-offset-4" to="/settings/connections">{t('catalog.toConnections')}</Link></p>
           {kind ? (
             <>
               <p className="text-[13px] text-muted">{t(action && !action.device ? 'catalog.placeholdersMessage' : 'catalog.placeholders')}</p>

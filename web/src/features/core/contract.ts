@@ -2,6 +2,7 @@
 // Kiểu UI suy ra từ schema ở đây (types.ts).
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
+import { ConnectionKind, KIND_AUTH } from '@/lib/connections'
 
 const ts = z.iso.datetime()
 const Role = z.enum(['viewer', 'operator', 'admin'])
@@ -114,12 +115,43 @@ export const UpdateCheck = UpdatesState.extend({ applied: z.number().describe('I
 export const BundleUpload = z.object({ name: z.string(), size: z.number(), sha256: z.string(), content: z.string().describe('Bundle file content, base64 (UTF-8)') })
 
 // ---- quyền riêng tư ----
-export const PrivacyFlow = z.object({ id: z.number().int().min(1).max(11), state: z.enum(['on', 'off', 'conditional']), control: z.enum(['switch', 'reason']), configured: z.boolean().optional() })
+export const PrivacyFlow = z.object({ id: z.number().int().min(1).max(12), state: z.enum(['on', 'off', 'conditional']), control: z.enum(['switch', 'reason']), configured: z.boolean().optional() })
 export const PrivacyState = z.object({
-  flows: z.array(PrivacyFlow).describe('Exactly the 11 flows listed in PRIVACY.md'),
+  flows: z.array(PrivacyFlow).describe('Exactly the 12 flows listed in PRIVACY.md'),
   telemetry: z.object({ enabled: z.boolean(), last_sent: ts.nullable(), payload: z.record(z.string(), z.unknown()).describe('Anonymous-signal payload verbatim, exactly what will be sent next hour') }),
   update_check: z.boolean(),
 })
+
+// ---- kết nối tới thiết bị (D-93, D-94; S-AI-7, S-RESP-4) ----
+// Generic kinds only (D-58): src/lib/connections.ts. No vendor field: brand knowledge is template data.
+export const ConnectorKind = ConnectionKind
+export const CONNECTOR_AUTH = KIND_AUTH
+const ConnectorAuthType = z.enum(['none', 'token', 'basic', 'ssh-key'])
+export const ConnectorTool = z.object({ name: z.string(), access: z.enum(['read', 'write']), description: z.string(), enabled: z.boolean() })
+export const ConnectorPin = z.object({
+  kind: z.enum(['tls_sha256', 'ssh_hostkey']).describe('tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system roots); ssh_hostkey = the SSH server host key'),
+  value: z.string().describe('tls_sha256: 64 hex characters; ssh_hostkey: key type and SHA256 fingerprint'),
+  first_seen: ts,
+}).describe('Pinned at the first successful Test (trust on first use, D-94). A changed certificate or host key is refused until an administrator forgets the pin')
+export const Connector = z.object({
+  id: z.string(), name: z.string(), kind: ConnectorKind, target: z.string().describe('Base URL or host:port. "mcp-stdio" rows are not supported (D-94)'), asset_id: z.string().nullable(),
+  auth: z.object({
+    type: ConnectorAuthType, last4: z.string().nullable().describe('Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is never returned (SYS-4)'),
+    key_fingerprint: z.string().nullable().describe('SSH key only: SHA256:<base64> fingerprint of the saved private key, like GitHub shows for a key. The mock uses a hash of the key body; the backend computes the public-key fingerprint'),
+  }),
+  username: z.string().nullable().describe('User name for SSH and for Basic sign-in; null for the other sign-ins'),
+  pin: ConnectorPin.nullable().describe('Read-only. null until the first Test, or after the pin was forgotten'),
+  allow: z.array(z.string()).describe('Hosts, URL prefixes or commands that may be used through this connection'),
+  tools: z.array(ConnectorTool), enabled: z.boolean(), status: z.enum(['ok', 'error', 'untested']), last_test: ts.nullable(),
+})
+export const ConnectorInput = z.object({
+  name: z.string().min(1).max(40), kind: ConnectorKind, target: z.string(), asset_id: z.string().nullable().optional(),
+  auth_type: ConnectorAuthType, secret: z.string().optional().describe('Leave blank when editing to keep the old secret'),
+  username: z.string().regex(/^[^\s:\p{Cc}\p{Cf}]{1,64}$/u).nullable().optional().describe('Required for SSH and for Basic sign-in (400 username_required); 1 to 64 characters without spaces, colons or control characters; ignored for the other sign-ins'),
+  clear_pin: z.boolean().optional().describe('true = forget the pinned certificate or host key; the next Test pins again. It is also forgotten when the kind changes or the host or port changes (a trailing slash or path does not count); a change of sign-in keeps it'),
+  allow: z.array(z.string()), enabled: z.boolean(), tools: z.array(z.object({ name: z.string(), enabled: z.boolean(), access: z.enum(['read', 'write']).optional().describe('Only for an MCP server (mcp-http): other kinds answer 400 invalid_tool_access, their tools are fixed. A tool found on an MCP server starts as write and off') })).optional().describe('Per-tool enable; tools not listed keep their state'),
+})
+export const ConnectorTestResult = z.object({ ok: z.literal(true), latency_ms: z.number(), tools_found: z.number().int(), message: z.string(), connector: Connector })
 
 // ---- MCP ----
 export const McpToken = z.object({ id: z.string(), name: z.string(), scopes: z.array(z.string()), last4: z.string(), created_at: ts, last_used: ts.nullable() })
@@ -212,9 +244,14 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/core/updates/bundle', summary: 'Export a signed offline bundle for an air-gapped box', stories: ['S-CORE-2'], role: 'operator', response: 'file' },
   { method: 'post', path: '/core/updates/bundle', summary: 'Import an offline bundle; a bad signature is rejected', stories: ['S-CORE-2'], role: 'admin', body: BundleUpload, response: z.object({ applied: z.number(), state: UpdatesState }) },
   // quyền riêng tư
-  { method: 'get', path: '/core/privacy', summary: 'The 11 data flows leaving the box and the verbatim anonymous-signal payload', stories: ['S-CORE-4'], role: 'viewer', response: PrivacyState },
+  { method: 'get', path: '/core/privacy', summary: 'The 12 data flows leaving the box and the verbatim anonymous-signal payload', stories: ['S-CORE-4'], role: 'viewer', response: PrivacyState },
   { method: 'patch', path: '/core/privacy', summary: 'Turn the anonymous signal and update checks on/off', stories: ['S-CORE-4'], role: 'admin', body: z.object({ telemetry: z.boolean().optional(), update_check: z.boolean().optional() }), response: PrivacyState },
   // MCP
+  { method: 'get', path: '/core/connections', summary: 'Connections to devices and services that response actions and the AI use: HTTP API, SSH, RESTCONF, automation platform, MCP server', stories: ['S-AI-7', 'S-RESP-4'], role: 'admin', response: z.object({ items: z.array(Connector) }) },
+  { method: 'post', path: '/core/connections', status: 201, summary: 'Add a connection with its allow-list. Write tools start off and run only through approved response actions. "mcp-stdio" is refused: 400 kind_unsupported. The address may be public when the administrator declares it (privacy flow 12)', stories: ['S-AI-7', 'S-RESP-4'], role: 'admin', body: ConnectorInput, response: Connector },
+  { method: 'put', path: '/core/connections/{id}', summary: 'Edit a connection, its allow-list and per-tool enable (blank secret = keep the old one; clear_pin = forget the pin)', stories: ['S-AI-7', 'S-RESP-4'], role: 'admin', params: z.object({ id: z.string() }), body: ConnectorInput, response: Connector },
+  { method: 'delete', path: '/core/connections/{id}', summary: 'Delete a connection; 409 in_use while a response change made through it is still in force', stories: ['S-AI-7', 'S-RESP-4'], role: 'admin', params: z.object({ id: z.string() }), response: null },
+  { method: 'post', path: '/core/connections/{id}/test', summary: 'Test a connection, pin its certificate or host key on first use, and refresh its tool list', stories: ['S-AI-7', 'S-RESP-4'], role: 'admin', params: z.object({ id: z.string() }), response: ConnectorTestResult },
   { method: 'get', path: '/core/mcp', summary: 'MCP server state, tokens (last 4 characters only) and the read-only tool list', stories: ['S-MCP-1'], role: 'admin', response: McpState },
   { method: 'patch', path: '/core/mcp', summary: 'Turn the MCP server on/off (binds to localhost)', stories: ['S-MCP-1'], role: 'admin', body: z.object({ enabled: z.boolean() }), response: McpState },
   { method: 'post', path: '/core/mcp/tokens', status: 201, summary: 'Create a read-only token by scope; returns the full token once', stories: ['S-MCP-1'], role: 'admin', body: z.object({ name: z.string(), scopes: z.array(z.string()) }), response: McpTokenCreated },

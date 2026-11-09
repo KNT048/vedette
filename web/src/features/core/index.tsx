@@ -27,6 +27,7 @@ export const feature: Feature = {
     { id: 'general', label: 'core:settings.general', module: 'core', minRole: 'viewer', order: 10, element: section(() => import('./GeneralSection')) },
     { id: 'modules', label: 'core:settings.modules', module: 'core', minRole: 'viewer', order: 20, element: section(() => import('./ModulesSection')) },
     { id: 'users', label: 'core:settings.users', module: 'core', minRole: 'admin', order: 60, element: section(() => import('./UsersSection')) },
+    { id: 'connections', label: 'core:settings.connections', module: 'core', minRole: 'admin', order: 65, element: section(() => import('./ConnectionsSection')) },
     { id: 'audit', label: 'core:settings.audit', module: 'core', minRole: 'admin', order: 70, element: section(() => import('./AuditSection')) },
     { id: 'updates', label: 'core:settings.updates', module: 'core', minRole: 'viewer', order: 80, element: section(() => import('./UpdatesSection')) },
     { id: 'network', label: 'core:settings.network', module: 'core', minRole: 'viewer', order: 75, element: section(() => import('./NetworkSection')) },

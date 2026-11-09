@@ -124,7 +124,7 @@ describe('action template library (data, D-58)', () => {
 })
 
 describe('no brand in code (D-58): vendor names live only in the template data, the seeds and the examples', () => {
-  const sources = import.meta.glob<string>(['../*.{ts,tsx}', '../../ai/*.{ts,tsx}', '../../ai/harness/*.{ts,tsx}', '../../../mocks/connectors.ts', '../../../lib/connections.ts'], { query: '?raw', import: 'default', eager: true })
+  const sources = import.meta.glob<string>(['../*.{ts,tsx}', '../../ai/*.{ts,tsx}', '../../ai/harness/*.{ts,tsx}', '../../core/ConnectionsSection.tsx', '../../core/connectionsMock.ts', '../../../mocks/connectors.ts', '../../../lib/connections.ts'], { query: '?raw', import: 'default', eager: true })
   const BRAND = /fortigate|fortios|fortinet|mikrotik|routeros|pfsense|opnsense|cisco|aruba|pi-hole|pihole|adguard|palo ?alto/i
   it('no code file under response or ai names a brand', () => {
     expect(Object.keys(sources).length).toBeGreaterThan(30) // the glob really found the code

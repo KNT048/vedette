@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { BuiltinHook, Connector, ConnectorInput, ConnectorTestResult, CustomHook, HookInput, HookTestInput, HookTestResult, HooksView, KnowledgeDoc, KnowledgeInput, KnowledgeView, MemoryEntry, MemoryInput, MemoryPatch, MemoryView, Rule, RuleInput, RulesView, Skill } from './types'
+import type { BuiltinHook, CustomHook, HookInput, HookTestInput, HookTestResult, HooksView, KnowledgeDoc, KnowledgeInput, KnowledgeView, MemoryEntry, MemoryInput, MemoryPatch, MemoryView, Rule, RuleInput, RulesView, Skill } from './types'
 
 const enc = encodeURIComponent
 /** Mọi thao tác harness làm tươi cả nhóm ['ai', 'harness']; hỏi dữ liệu cũng làm tươi vì hook/memory đổi theo. */
@@ -33,11 +33,6 @@ export const useAddDoc = () => useWrite((b: KnowledgeInput) => api.post<Knowledg
 export const useDocJobs = () => useWrite(({ id, jobs }: { id: string; jobs: KnowledgeDoc['jobs'] }) => api.put<KnowledgeDoc>(`/ai/knowledge/${enc(id)}`, { jobs }))
 export const useRemoveDoc = () => useWrite((id: string) => api.del(`/ai/knowledge/${enc(id)}`))
 export const useIndexProfile = () => useWrite((index_profile: string | null) => api.put<KnowledgeView>('/ai/knowledge/settings', { index_profile }))
-
-export const useConnections = () => useQuery({ queryKey: ['ai', 'harness', 'connections'], queryFn: () => api.get<{ items: Connector[] }>('/ai/connections') })
-export const useSaveConnection = () => useWrite(({ id, ...b }: ConnectorInput & { id?: string }) => (id ? api.put<Connector>(`/ai/connections/${enc(id)}`, b) : api.post<Connector>('/ai/connections', b)))
-export const useRemoveConnection = () => useWrite((id: string) => api.del(`/ai/connections/${enc(id)}`))
-export const useTestConnection = () => useWrite((id: string) => api.post<ConnectorTestResult>(`/ai/connections/${enc(id)}/test`))
 
 export const useHooks = () => useQuery({ queryKey: ['ai', 'harness', 'hooks'], queryFn: () => api.get<HooksView>('/ai/hooks') })
 export const useToggleBuiltinHook = () => useWrite(({ id, enabled }: { id: string; enabled: boolean }) => api.put<BuiltinHook>(`/ai/hooks/builtin/${enc(id)}`, { enabled }))

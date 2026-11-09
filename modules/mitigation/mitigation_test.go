@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/server/servertest"
@@ -110,6 +111,7 @@ type rig struct {
 	gate    *servertest.Gate
 	h       http.Handler
 	ids     map[string]string // cve -> finding id on asset a-1
+	actions *ActionHandlers
 }
 
 type composite struct {
@@ -138,10 +140,18 @@ func newRig(t *testing.T) *rig {
 		t.Fatal(err)
 	}
 	fh := findings.NewFindingHandlers(r.svc, r.inv, fakeFeeds{}, r.gate)
-	fh.SetGuidance(NewProvider(db, r.vendors, r.ai))
+	prov, err := NewProvider(db, r.vendors, r.ai)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fh.SetGuidance(prov)
 	r.loader = NewLoader(db, a, fakeVerifier{}, log, clock)
+	r.actions, err = NewActionHandlers(db, a, r.svc, fh, r.ai, clock)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r.h, err = server.New(server.Config{
-		API:     composite{Fallback: server.Fallback{Log: log}, FindingHandlers: fh, ActionHandlers: NewActionHandlers(db, a, r.svc, fh, r.ai, clock)},
+		API:     composite{Fallback: server.Fallback{Log: log}, FindingHandlers: fh, ActionHandlers: r.actions},
 		Auth:    &servertest.Auth{Users: servertest.StandardUsers()},
 		Modules: r.gate,
 		Log:     log,
@@ -237,7 +247,7 @@ func TestContract_INV2_LoaderFailsClosedWithoutVerifier(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
 	l := NewLoader(r.db, audit.New(nil), nil, slog.New(slog.DiscardHandler), nil)
-	_, err := l.Install(t.Context(), Update{Version: "v1", Docs: []Doc{{Name: "a", Data: qnapPack(t)}}})
+	_, err := l.Install(t.Context(), Update{Version: "2026.11.1", Docs: []Doc{{Name: "a", Data: qnapPack(t)}}})
 	if !errors.Is(err, ErrNoVerifier) {
 		t.Fatalf("err = %v", err)
 	}
@@ -251,7 +261,7 @@ func TestContract_INV2_LoaderRefusesBadSignatureAndKeepsOldPacks(t *testing.T) {
 	r := newRig(t)
 	r.install()
 	bad := NewLoader(r.db, audit.New(nil), fakeVerifier{err: errors.New("bad sig")}, slog.New(slog.DiscardHandler), nil)
-	_, err := bad.Install(t.Context(), Update{Version: "v2"}) // would withdraw every pack
+	_, err := bad.Install(t.Context(), Update{Version: "2026.11.2"}) // would withdraw every pack
 	if !errors.Is(err, ErrUnsigned) {
 		t.Fatalf("err = %v", err)
 	}
@@ -283,14 +293,14 @@ func TestContract_INV2_LoaderRequiresConfirmation(t *testing.T) {
 		},
 	}
 	for name, edit := range cases {
-		res, err := r.loader.Install(t.Context(), Update{Version: "v1", Docs: []Doc{{Name: name, Data: modify(t, edit)}}})
-		if err != nil || res.Loaded != 0 || len(res.Rejected) != 1 || res.Rejected[0].Name != name {
+		res, err := r.loader.Install(t.Context(), Update{Version: "2026.11.1", Docs: []Doc{{Name: name, Data: modify(t, edit)}}})
+		if !errors.Is(err, ErrNoValidPack) || res.Loaded != 0 || len(res.Rejected) != 1 || res.Rejected[0].Name != name {
 			t.Errorf("%s: %+v %v", name, res, err)
 		}
 	}
 	for name, data := range map[string][]byte{"not json": []byte("cve: x"), "trailing": append(qnapPack(t), []byte(`{}`)...), "huge": make([]byte, maxDocBytes+1)} {
-		res, err := r.loader.Install(t.Context(), Update{Version: "v1", Docs: []Doc{{Name: name, Data: data}}})
-		if err != nil || res.Loaded != 0 || len(res.Rejected) != 1 {
+		res, err := r.loader.Install(t.Context(), Update{Version: "2026.11.1", Docs: []Doc{{Name: name, Data: data}}})
+		if !errors.Is(err, ErrNoValidPack) || res.Loaded != 0 || len(res.Rejected) != 1 {
 			t.Errorf("%s: %+v %v", name, res, err)
 		}
 	}
@@ -309,14 +319,15 @@ func TestLoaderReplacesAllPacksAndIgnoresDetectedInFile(t *testing.T) {
 		t.Fatalf("detected = %q err=%v", detected, err)
 	}
 	dup := Doc{Name: "dup", Data: qnapPack(t)}
-	res, err := r.loader.Install(t.Context(), Update{Version: "v2", Docs: []Doc{{Name: "one", Data: qnapPack(t)}, dup}})
+	res, err := r.loader.Install(t.Context(), Update{Version: "2026.11.2", Docs: []Doc{{Name: "one", Data: qnapPack(t)}, dup}})
 	if err != nil || res.Loaded != 1 || len(res.Rejected) != 1 {
 		t.Fatalf("duplicate: %+v %v", res, err)
 	}
-	if res, err = r.loader.Install(t.Context(), Update{Version: "v3"}); err != nil || res.Loaded != 0 {
-		t.Fatalf("empty update: %+v %v", res, err)
+	other := modify(t, func(m map[string]any) { m["cve"] = "CVE-2020-1234" })
+	if res, err = r.loader.Install(t.Context(), Update{Version: "2026.11.3", Docs: []Doc{{Name: "other", Data: other}}}); err != nil || res.Loaded != 1 {
+		t.Fatalf("replacing update: %+v %v", res, err)
 	}
-	if r.count(`SELECT count(*) FROM mit_pack`) != 0 {
+	if r.count(`SELECT count(*) FROM mit_pack WHERE cve = 'CVE-2022-27593'`) != 0 {
 		t.Fatal("a withdrawn pack is still loaded")
 	}
 	if r.count(`SELECT count(*) FROM core_audit WHERE action = 'mitigation.packs_loaded'`) != 3 {
@@ -573,23 +584,170 @@ func FuzzParsePack(f *testing.F) {
 	})
 }
 
-func TestContract_INV6_NothingInThisModuleRunsCommands(t *testing.T) {
+func TestContract_INV1_AppliedShowsInTheHistory(t *testing.T) {
 	t.Parallel()
-	files, err := os.ReadDir(".")
+	r := newRig(t)
+	r.install()
+	id := r.ids[qnapCVE]
+	code, b := r.call("POST", "/findings/"+id+"/applied", "operator", `{"item":"patch"}`)
+	if code != 200 {
+		t.Fatalf("%d %v", code, b)
+	}
+	hist := b["history"].([]any)
+	last := hist[len(hist)-1].(map[string]any)
+	applied := b["applied"].([]any)[0].(map[string]any)
+	if last["action"] != "applied:patch" || last["user"] != "it@acme.example" || last["ts"] != applied["ts"] {
+		t.Fatalf("last history row = %v, applied = %v", last, applied)
+	}
+	if hist[0].(map[string]any)["action"] != "created" {
+		t.Fatalf("history = %v", hist)
+	}
+	// the list shows the same history
+	_, b = r.call("GET", "/findings?asset=a-1", "viewer", "")
+	for _, it := range b["items"].([]any) {
+		m := it.(map[string]any)
+		if m["id"] == id {
+			h := m["history"].([]any)
+			if len(h) != 1 {
+				t.Fatalf("list history = %v: only the detail page composes the applied rows", h)
+			}
+		}
+	}
+}
+
+func TestMarkAppliedSurfacesConstraintFailuresAndRefusesBadUsers(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.install()
+	rec, err := r.svc.Get(t.Context(), r.ids[qnapCVE])
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, f := range files {
-		if !strings.HasSuffix(f.Name(), ".go") || strings.HasSuffix(f.Name(), "_test.go") {
-			continue
+	// an item the table's CHECK refuses must be an error, not a silent no-op
+	if err := r.actions.markApplied(t.Context(), rec, "bogus", "it@acme.example"); err == nil {
+		t.Fatal("a CHECK failure was swallowed")
+	}
+	for _, u := range []string{"", strings.Repeat("a", 321), "a\x00b"} {
+		err := r.actions.markApplied(t.Context(), rec, "patch", u)
+		var ae *apierr.Error
+		if !errors.As(err, &ae) || ae.Status != 400 {
+			t.Errorf("user %q: err = %v", u, err)
 		}
-		src, err := os.ReadFile(f.Name())
-		if err != nil {
-			t.Fatal(err)
+	}
+	if r.count(`SELECT count(*) FROM mit_applied`) != 0 {
+		t.Fatal("a refused request wrote a row")
+	}
+}
+
+func TestContract_INV2_LoaderRefusesUpdatesThatWouldWipeThePacks(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.install()
+	bad := modify(t, func(m map[string]any) { m["status"] = "draft" })
+	for name, u := range map[string]Update{
+		"no documents":  {Version: "2026.11.2"},
+		"only rejected": {Version: "2026.11.2", Docs: []Doc{{Name: "draft", Data: bad}}},
+	} {
+		res, err := r.loader.Install(t.Context(), u)
+		if !errors.Is(err, ErrNoValidPack) || res.Loaded != 0 {
+			t.Errorf("%s: %+v %v", name, res, err)
 		}
-		for _, banned := range []string{`"os/exec"`, `core/exec"`} {
-			if strings.Contains(string(src), banned) {
-				t.Errorf("%s imports %s: indicators and commands are text only", f.Name(), banned)
+		if name == "only rejected" && len(res.Rejected) != 1 {
+			t.Errorf("%s: the reasons must come back with the refusal: %+v", name, res)
+		}
+	}
+	if r.count(`SELECT count(*) FROM mit_pack`) != 1 {
+		t.Fatal("a refused update changed the loaded packs")
+	}
+	// a refused update does not use up its version
+	res, err := r.loader.Install(t.Context(), Update{Version: "2026.11.2", Docs: []Doc{{Name: "ok", Data: qnapPack(t)}}})
+	if err != nil || res.Loaded != 1 {
+		t.Fatalf("retry with the same version: %+v %v", res, err)
+	}
+}
+
+func TestContract_INV2_LoaderRefusesReplayedAndOlderVersions(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.install() // 2026.11.1
+	docs := []Doc{{Name: "ok", Data: qnapPack(t)}}
+	for _, v := range []string{"2026.11.1", "2026.10.9", "2025.12.31", "!!!"} {
+		if _, err := r.loader.Install(t.Context(), Update{Version: v, Docs: docs}); !errors.Is(err, ErrReplay) {
+			t.Errorf("version %q: err = %v", v, err)
+		}
+	}
+	if _, err := r.loader.Install(t.Context(), Update{Version: "2026.11.2", Docs: docs}); err != nil {
+		t.Fatalf("a newer version was refused: %v", err)
+	}
+	if _, err := r.loader.Install(t.Context(), Update{Version: "2026.11.1", Docs: docs}); !errors.Is(err, ErrReplay) {
+		t.Fatalf("the old version came back: %v", err)
+	}
+	// an unreadable version is refused on a first install as well, or it would block every later one
+	fresh := newRig(t)
+	if _, err := fresh.loader.Install(t.Context(), Update{Version: "!!!", Docs: docs}); err == nil {
+		t.Fatal("an unreadable version was accepted")
+	}
+}
+
+func TestConstructorsRefuseMissingDependencies(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	if _, err := NewProvider(nil, r.vendors, r.ai); err == nil {
+		t.Error("NewProvider accepted a nil database")
+	}
+	if _, err := NewProvider(r.db, nil, r.ai); err == nil {
+		t.Error("NewProvider accepted nil vendors")
+	}
+	if _, err := NewProvider(r.db, r.vendors, nil); err == nil {
+		t.Error("NewProvider accepted a nil AI")
+	}
+	a := audit.New(nil)
+	fh := findings.NewFindingHandlers(r.svc, r.inv, fakeFeeds{}, r.gate)
+	for name, args := range map[string][]any{"db": {nil, a, r.svc, fh, r.ai}, "audit": {r.db, nil, r.svc, fh, r.ai}, "findings": {r.db, a, nil, fh, r.ai}, "details": {r.db, a, r.svc, nil, r.ai}, "ai": {r.db, a, r.svc, fh, nil}} {
+		var (
+			db  *store.DB
+			au  *audit.Log
+			svc *findings.Service
+			det Details
+			ai  AI
+		)
+		db, _ = args[0].(*store.DB)
+		au, _ = args[1].(*audit.Log)
+		svc, _ = args[2].(*findings.Service)
+		det, _ = args[3].(Details)
+		ai, _ = args[4].(AI)
+		if _, err := NewActionHandlers(db, au, svc, det, ai, nil); err == nil {
+			t.Errorf("NewActionHandlers accepted a missing %s", name)
+		}
+	}
+}
+
+// Compromise commands are text from the signed pack: the page shows them with the device values put
+// in and nothing else, whatever the device is called, and no code path here can run them (os/exec is
+// banned by the linter, and core/exec is not imported).
+func TestContract_INV6_CompromiseCommandsAreSignedTextOnly(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.install()
+	r.inv.assets["a-1"] = findings.AssetView{ID: "a-1", Hostname: ptr("$(reboot);x"), IP: "192.168.10.21", Kind: "nas"}
+	_, b := r.call("GET", "/findings/"+r.ids[qnapCVE], "viewer", "")
+	var pack struct {
+		Compromise struct {
+			Indicators []struct {
+				Commands []struct{ Code string } `json:"commands"`
+			} `json:"indicators"`
+		} `json:"compromise"`
+	}
+	if err := json.Unmarshal(qnapPack(t), &pack); err != nil {
+		t.Fatal(err)
+	}
+	want := strings.NewReplacer("{IP}", "192.168.10.21", "{HOST}", "192.168.10.21")
+	got := b["compromise"].(map[string]any)["indicators"].([]any)
+	for i, in := range pack.Compromise.Indicators {
+		for j, c := range in.Commands {
+			shown := got[i].(map[string]any)["commands"].([]any)[j].(map[string]any)["code"]
+			if shown != want.Replace(c.Code) {
+				t.Errorf("indicator %d command %d: shown %q, signed %q", i, j, shown, c.Code)
 			}
 		}
 	}

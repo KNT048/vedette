@@ -59,6 +59,8 @@ type Vendors interface {
 
 // Verifier checks the signature of an update (core/updates, Kien's; not built yet).
 type Verifier interface {
-	// Verify returns nil only when the signature of the whole update is valid.
+	// Verify returns nil only when the signature of the whole update is valid. The signature must bind
+	// Update.Version and the bytes of every Docs[].Data (and their set), or the replay protection and
+	// the confirmed-pack rule can be bypassed by swapping what the signature does not cover.
 	Verify(ctx context.Context, u Update) error
 }

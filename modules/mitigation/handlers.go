@@ -36,12 +36,15 @@ type ActionHandlers struct {
 	now     func() time.Time
 }
 
-// NewActionHandlers returns the handlers. clock may be nil.
-func NewActionHandlers(db *store.DB, a *audit.Log, f *findings.Service, d Details, ai AI, clock func() time.Time) *ActionHandlers {
+// NewActionHandlers returns the handlers; every argument except clock is required.
+func NewActionHandlers(db *store.DB, a *audit.Log, f *findings.Service, d Details, ai AI, clock func() time.Time) (*ActionHandlers, error) {
+	if db == nil || a == nil || f == nil || d == nil || ai == nil {
+		return nil, errors.New("mitigation: creating handlers: db, audit, findings, details and ai are required")
+	}
 	if clock == nil {
 		clock = time.Now
 	}
-	return &ActionHandlers{db: db, audit: a, finding: f, details: d, ai: ai, now: clock}
+	return &ActionHandlers{db: db, audit: a, finding: f, details: d, ai: ai, now: clock}, nil
 }
 
 // Limits on what the AI may hand back: its output is untrusted text (rules/security.md).
@@ -82,6 +85,9 @@ func (h *ActionHandlers) FindingsPostFindingsIDApplied(ctx context.Context, req 
 }
 
 func (h *ActionHandlers) markApplied(ctx context.Context, rec findings.Record, item, user string) error {
+	if err := findings.ValidUser(user); err != nil {
+		return findings.ToAPIError(err)
+	}
 	var has int
 	if err := h.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM mit_pack WHERE cve = ?`, rec.CVE).Scan(&has); err != nil {
 		return fmt.Errorf("mitigation: looking up pack: %w", err)
@@ -90,7 +96,7 @@ func (h *ActionHandlers) markApplied(ctx context.Context, rec findings.Record, i
 		return noPack()
 	}
 	err := h.db.Write(ctx, func(tx *sql.Tx) error {
-		res, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO mit_applied (finding_id, item, ts, user) VALUES (?, ?, ?, ?)`,
+		res, err := tx.ExecContext(ctx, `INSERT INTO mit_applied (finding_id, item, ts, user) VALUES (?, ?, ?, ?) ON CONFLICT (finding_id, item) DO NOTHING`,
 			rec.ID, item, store.FormatTS(h.now()), user)
 		if err != nil {
 			return fmt.Errorf("mitigation: logging applied item: %w", err)
@@ -113,6 +119,9 @@ func (h *ActionHandlers) FindingsPostFindingsIDAi(ctx context.Context, req *oas.
 	p, ok := server.PrincipalFrom(ctx)
 	if !ok {
 		return nil, apierr.Unauthenticated()
+	}
+	if err := findings.ValidUser(p.Email); err != nil {
+		return nil, findings.ToAPIError(err)
 	}
 	rec, err := h.finding.Get(ctx, params.ID)
 	if err != nil {

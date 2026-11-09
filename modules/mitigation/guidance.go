@@ -24,8 +24,11 @@ type Provider struct {
 }
 
 // NewProvider returns the provider.
-func NewProvider(db *store.DB, vendors Vendors, ai AI) *Provider {
-	return &Provider{db: db, vendors: vendors, ai: ai}
+func NewProvider(db *store.DB, vendors Vendors, ai AI) (*Provider, error) {
+	if db == nil || vendors == nil || ai == nil {
+		return nil, errors.New("mitigation: creating provider: db, vendors and ai are required")
+	}
+	return &Provider{db: db, vendors: vendors, ai: ai}, nil
 }
 
 // inventoryVendor maps a guide's vendor to the vendor name the inventory records (INV-5). The generic

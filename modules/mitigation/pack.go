@@ -58,6 +58,13 @@ var ErrNoVerifier = errors.New("no update signature verifier configured")
 // ErrUnsigned means the update's signature is not valid.
 var ErrUnsigned = errors.New("update signature is not valid")
 
+// ErrNoValidPack means the update holds no valid pack (no documents, or every one was rejected). It is
+// refused rather than wiping the packs that are loaded.
+var ErrNoValidPack = errors.New("update has no valid pack")
+
+// ErrReplay means the update is not newer than the installed one, or its version cannot be ordered.
+var ErrReplay = errors.New("update version is not newer than the installed one")
+
 // packDoc is the pack file format: the pack of contract.ts plus status and the optional recheck and
 // compromise blocks. Unknown fields are refused.
 type packDoc struct {
@@ -103,6 +110,8 @@ func NewLoader(db *store.DB, a *audit.Log, v Verifier, log *slog.Logger, clock f
 }
 
 // Install replaces the loaded packs with the valid ones of the update, in one transaction.
+// An update with no valid pack (ErrNoValidPack) and one whose version is not newer than the installed
+// one (ErrReplay) are refused and change nothing; a refused update does not use up its version.
 //
 // The signature is checked first: without a verifier, or when it fails, nothing is read and nothing
 // changes. Then each document is held to INV-2: status confirmed, confirmed_by, confirmed_at,
@@ -117,6 +126,9 @@ func (l *Loader) Install(ctx context.Context, u Update) (InstallResult, error) {
 	}
 	if n := utf8.RuneCountInString(u.Version); n < 1 || n > 64 || strings.ContainsRune(u.Version, 0) {
 		return InstallResult{}, fmt.Errorf("mitigation: installing packs: update version must be 1 to 64 characters")
+	}
+	if _, ok := findings.CompareVersions(u.Version, u.Version); !ok {
+		return InstallResult{}, fmt.Errorf("mitigation: installing packs: update version %q cannot be ordered: %w", u.Version, ErrReplay)
 	}
 	if len(u.Docs) > maxDocs {
 		return InstallResult{}, fmt.Errorf("mitigation: installing packs: more than %d documents", maxDocs)
@@ -136,7 +148,14 @@ func (l *Loader) Install(ctx context.Context, u Update) (InstallResult, error) {
 		seen[p.CVE] = true
 		packs = append(packs, p)
 	}
+	if len(packs) == 0 {
+		// Nothing valid to load: an update that would only wipe the packs is refused, with the reasons.
+		return res, fmt.Errorf("mitigation: installing packs: %w", ErrNoValidPack)
+	}
 	err := l.db.Write(ctx, func(tx *sql.Tx) error {
+		if err := l.checkVersion(ctx, tx, u.Version); err != nil {
+			return err
+		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM mit_pack`); err != nil {
 			return fmt.Errorf("mitigation: clearing packs: %w", err)
 		}
@@ -157,6 +176,10 @@ func (l *Loader) Install(ctx context.Context, u Update) (InstallResult, error) {
 				p.CVE, string(body), comp, p.ConfirmedBy, store.FormatTS(p.ConfirmedAt), p.DraftedWith, u.Version); err != nil {
 				return fmt.Errorf("mitigation: storing pack %s: %w", p.CVE, err)
 			}
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO mit_pack_state (id, version, installed_at) VALUES (1, ?, ?) ON CONFLICT(id) DO UPDATE SET version = excluded.version, installed_at = excluded.installed_at`,
+			u.Version, store.FormatTS(l.now())); err != nil {
+			return fmt.Errorf("mitigation: recording the update version: %w", err)
 		}
 		return l.audit.Append(ctx, tx, audit.Entry{User: findings.SystemUser, Action: "mitigation.packs_loaded", Target: u.Version,
 			Detail: fmt.Sprintf("%d packs loaded, %d rejected", len(packs), len(res.Rejected))})
@@ -270,4 +293,21 @@ func text(field, s string, maxLen int) error {
 func httpURL(s string) bool {
 	u, err := url.Parse(s)
 	return err == nil && (u.Scheme == "https" || u.Scheme == "http") && u.Host != ""
+}
+
+// checkVersion refuses an update whose version is not newer than the installed one. An installed
+// version that cannot be compared refuses everything (fail closed) instead of letting a replay through.
+func (l *Loader) checkVersion(ctx context.Context, tx *sql.Tx, version string) error {
+	var last string
+	err := tx.QueryRowContext(ctx, `SELECT version FROM mit_pack_state WHERE id = 1`).Scan(&last)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("mitigation: reading the installed version: %w", err)
+	}
+	if order, ok := findings.CompareVersions(version, last); !ok || order <= 0 {
+		return fmt.Errorf("mitigation: installing packs: version %q is not newer than %q: %w", version, last, ErrReplay)
+	}
+	return nil
 }

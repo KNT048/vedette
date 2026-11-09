@@ -1,11 +1,11 @@
 # Sensor-passive — Change Impact Map
 
 ## Modifying: `sensorpassive.Service` — `Status() []Sensor`, `SetInterface(ctx,id,iface,span)`, `SpanStats()`
-- **SPA** (`SensorsSection`, Devices → Scope and sensors), **host** (Box network hiển thị `SpanStats`), **core** (`/core/logs/export` không dùng). Đổi `Sensor` phải sửa `inventory/contract.ts`.
+- **SPA** (`SensorsSection`, Devices → Scope and sensors), **host** (Box network hiển thị `SpanStats`), **core** (`/core/logs/export` không dùng). Đổi `Sensor` phải sửa `inventory/contract.ts`. Từ SP-4 `Status()`/`SpanStats()` đọc heartbeat của vai `passive` (không còn đọc `Engine`): đổi ngưỡng `online` (90 s) hay cách tính verdict là đổi điều GUI hiện, giữ tiêu chí S-INV-1 ("offline trong 90 s").
 
 ## Modifying: `Engine` (parser, thang tin cậy, bộ lọc) và `MetaItem`
 - **inventory** (giá trị "đang dùng"), **logs** (trường metadata): thêm trường vào `MetaItem` = lưu thêm về lưu lượng; test `TestContract_INV3` chặn, phải sửa CONTRACT INV-3 trước. Đổi thang `Conf*` đổi thứ tự hiển thị. Thêm parser = thêm `Fuzz*` (test INV-4 kiểm danh sách).
-- **cmd/vedette** (`sensorpassive.go`): `netHost` là chỗ thay bằng module `host`; job `capture` và handler dùng chung một `Service`.
+- **cmd/vedette** (`sensorpassive.go`): `netHost` là chỗ thay bằng module `host`; job `capture` và handler dùng chung một `Service`. Từ SP-4/SP-5 `Engine` chạy trong `cmd/vedette-sensor passive` (gói `capture`), job `capture` gỡ khỏi `core`, `netHost` thay bằng heartbeat rồi `GET /v1/state/net` của host (D-114 (5)).
 
 ## Modifying: `content/oui` (bảng OUI) và `make oui`
 - **inventory**: quan sát `vendor` 0.4 của thiết bị mới. `make oui` ghim nguồn theo commit + SHA-256 (`scripts/oui`, hằng `pinnedCommit`/`pinnedSHA256`), làm sạch tên hãng (bỏ C0/C1, bidi, zero-width, dấu gạch nối mềm, tag), lỗi nếu hai hãng cùng một tiền tố; `TestEveryVendorIsCleanText` canh bảng. Đổi bảng (chạy lại `make oui`) đổi tên hãng hiển thị cho thiết bị mới, không sửa quan sát cũ. THIRD_PARTY_NOTICES ghi nguồn runZero/IEEE.
@@ -20,7 +20,12 @@
 - **logs** (khớp IOC, nhóm B): đổi trường = mất cảnh báo "máy nào liên lạc IP/domain độc hại". Test hợp đồng ở bên phát.
 
 ## Modifying: quyền `net_raw`, `pcap` trong MANIFEST và container `sensor`
-- **vedette-host/Quadlet** (cấp CAP_NET_RAW): thêm quyền = thay đổi bảo mật cần sửa CONTRACT; bỏ quyền = module không khởi động.
+- **vedette-host/Quadlet** (cấp CAP_NET_RAW): thêm quyền = thay đổi bảo mật cần sửa CONTRACT; bỏ quyền = module không khởi động. Unit `sensor` (D-114, `host-api.md` §18): `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, chỉ `NET_RAW`; thêm `UserNS` làm raw socket hỏng trên mạng host; thêm `NET_BIND_SERVICE`/`NET_ADMIN` phải sửa D-114 và host CONTRACT INV-17.
+
+## Modifying: giao thức sensor vai `passive` (`core/sensorlink`, `docs/specs/sensor-protocol.md` §6.1–§6.3)
+- **core** (handler, `core_sensor_cert`), **sensor** (`capture` + client), **host** (unit, volume khoá `vedette-creds-passive`). Giải mã chặt hai phía: thêm hay đổi một trường dây = tăng `X-Vedette-Proto` (D-109 (4)); trong cửa sổ cập nhật sensor mới nhận `426` và giữ hàng đợi. Đổi trần thân, `items` ≤ 500, `value` ≤ 200 B, cửa sổ `seen_at` phải sửa spec §9 cùng test hợp đồng.
+- Hạn mức chống ngập có **hai nơi**: `book.go` (lớp thứ nhất trong `capture`) và handler `observations` của `core` (`budget_exhausted`, D-111 (2)); đổi một nơi phải đổi nơi kia, nếu không hoặc `core` từ chối điều sensor cho qua (mất thiết bị thật), hoặc lớp `core` không còn chặn được sensor bị chiếm.
+- Gói `capture` không được nhập `core/store`, `database/sql`, SQLite (test `go list -deps` của `cmd/vedette-sensor`, SP-5).
 
 ## Disabling this module
 - Devices ngừng nhận thiết bị mới thụ động; "Scope and sensors" trống; S-INV-3 chỉ còn nguồn khác.

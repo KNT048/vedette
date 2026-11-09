@@ -4,10 +4,10 @@ summary: { en: "Listens on the network (DHCP, mDNS, SSDP, ARP, LLDP and optional
 tier: standard
 default: true
 depends: [core, inventory]
-permissions: [net_raw, pcap]    # CAP_NET_RAW, không root (D-55); card SPAN không có IP (D-56)
+permissions: [net_raw, pcap]    # chỉ CAP_NET_RAW (ambient), User=<sensor_uid>, không UserNS (D-114); card SPAN không có IP (D-56)
 ports: []                       # chỉ bắt gói, không mở cổng nghe
-container: sensor               # D-55: mạng host, CAP_NET_RAW
+container: sensor               # D-114: nửa capture trong `sensor` (mạng host, vai mTLS passive); nửa core (sp_*) trong `core`
 tables_prefix: sp_              # ⚠ MODULES.md ghi `inv_*`; xem câu hỏi mở
 stories: [S-INV-1, S-INV-3, S-LOG-4]
-decisions: [D-43, D-45, D-55, D-56]
+decisions: [D-43, D-45, D-55, D-56, D-80, D-109, D-110, D-111, D-112, D-114]
 milestone: M3

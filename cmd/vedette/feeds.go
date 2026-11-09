@@ -27,6 +27,9 @@ func feedsService(d deps) (*feeds.Service, error) {
 	}
 	fd := feeds.Deps{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Modules: d.Reg, Log: d.Log,
 		Fetcher: feeds.Fetcher{Client: feedsClient, Version: version}, Clock: d.Clock}
+	if d.Inventory != nil {
+		fd.Inventory = feedsInventory{d.Inventory}
+	}
 	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
 		fd.Events = d.Bus
 	}

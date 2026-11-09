@@ -19,9 +19,14 @@
 
 ## Modifying: các interface phía dùng (`modules/inventory/types.go`) và `inventory.Config`
 - `Publisher` (`Publish(ctx, Event{Name, Data}) error`): `cmd/vedette` nối với `core/events.Bus` (WP-04b) bằng `inventory.PublisherFunc`; nil = không ai nghe. Đổi tên/kiểu dữ liệu sự kiện: `findings`, `notify`, `sensor-active` im lặng, không lỗi biên dịch (có test ở bên phát).
-- `KEV` (`Products`, `CVEs`): `feeds` (WP-20) cài; mặc định `EmbeddedKEV` (cặp hãng/sản phẩm nhúng, không CVE). `BoxPackages`: `vedette-host` (WP-07). `FindingCounter`: `findings` (đếm theo thiết bị; inventory không đọc `fnd_*`). `ModuleGate`: `modreg.Registry` (cho `notify_available`).
+- `KEV` (`Products`, `CVEs`): `cmd/vedette` cài `feedsKEV` (đọc `feeds.Store`; bảng rỗng hoặc `feeds` tắt → `EmbeddedKEV`: cặp hãng/sản phẩm nhúng, không CVE; version đổi từ `embedded` sang số hàng khi có dữ liệu thì danh mục dựng lại). `BoxPackages`: `vedette-host` (WP-07). `FindingCounter`: `findings` (đếm theo thiết bị; inventory không đọc `fnd_*`); **chưa nối** (findings chưa có hàm đếm), nên `findings_count` là 0 (deferred). `ModuleGate`: `modreg.Registry` (cho `notify_available`).
 - `EnsureBox`/`RefreshBoxPackages`: job `box` trong `cmd/vedette/inventory.go`; `MarkFirstScan`: `sensor-active` sau lần quét nhẹ đầu.
 - `Handlers`: nhúng trong `cmd/vedette/handler.go`; vai của 16 route lấy từ bảng route, handler không kiểm lại.
+
+## Modifying: `inventory.Service` đọc/ghi cho module khác (`wiring.go`): `DeviceRefs`, `MatchInput`, `HasDevice`, `DevicesRunning`, `AddManualDevice`+`Settle`, `RematchAll`, `RematchCVE`
+- Kiểu trung lập (`DeviceRef`, `MatchDevice`, `ProductQuery`, `DeviceMatch`, `ManualDevice`) không import module nào; `cmd/vedette/wiring.go` đổi sang cổng của từng bên: **feeds** (`feedsInventory`: `you_have`, `matched_assets`, "I have it"), **findings** (`findingsInventory`: `AssetView`, đầu vào bộ khớp), **mitigation** (`mitigationVendors`: `firewall[].detected`, gồm loại `firewall` và `router`). Đổi nghĩa của "yes/maybe", tên hiển thị (`DeviceRef.Display` = phần mềm đầu theo tên, nếu không thì loại) hay khoá khớp sẽ đổi cột "Do you have it?", danh sách finding và nhãn "detected" của hướng dẫn tường lửa.
+- `AddManualDevice` giữ sự kiện trong `Service.pending[tx]` tới `Settle`: người gọi **phải** gọi `Settle` sau mỗi giao dịch có gọi nó (feeds làm trong `writeDeclaring`), không thì bộ nhớ giữ lại và sự kiện không bao giờ phát.
+- `RematchAll`/`RematchCVE` phát `inventory.match.changed` cho **findings** (`OnMatchChanged` tính lại cả thiết bị mỗi lần: baseline = một lần gọi cho mỗi cặp thiết bị×CVE). Nếu baseline chậm, gộp theo thiết bị ở người nghe.
 
 ## Modifying: `content/catalog/{curated,kev-products}.json`
 - **SPA** (`catalog.ts` nhập cùng hai file), **Go** (`content/catalog` nhúng). Đổi file = chạy lại `UPDATE_GOLDEN=1 pnpm vitest run src/features/inventory/catalog.golden.test.ts` rồi `go test ./modules/inventory -run Catalog`; `make fixtures` ghi `kev-products.json`.

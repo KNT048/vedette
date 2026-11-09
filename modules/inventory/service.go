@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
@@ -42,6 +43,9 @@ type Service struct {
 	clock    func() time.Time
 	log      *slog.Logger
 	cat      catalogCache
+
+	pendMu  sync.Mutex
+	pending map[*sql.Tx]*outbox // events of AddManualDevice calls whose caller transaction is still open
 }
 
 // New returns the service.

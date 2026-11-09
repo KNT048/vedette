@@ -408,9 +408,10 @@ func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, int, e
 		changed        []string
 		added, removed int
 		stale          bool
+		baseline       bool // the CISA list filled an empty table: one baseline event, not one per CVE (D-78)
 	)
 	write := func(p pullPlan) error {
-		fresh, changed, added, removed, stale = nil, nil, 0, 0, false
+		fresh, changed, added, removed, stale, baseline = nil, nil, 0, 0, false, false
 		return s.DB.Write(ctx, func(tx *sql.Tx) error {
 			cur, err := sourceTx(ctx, tx, src.ID)
 			if err != nil {
@@ -423,6 +424,13 @@ func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, int, e
 			switch {
 			case p.hasVulns:
 				var updated []string
+				if src.ID == "cisa-kev" {
+					var have int
+					if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_vuln WHERE source_id = 'cisa-kev'`).Scan(&have); err != nil {
+						return fmt.Errorf("feeds: count KEV rows: %w", err)
+					}
+					baseline = have == 0
+				}
 				if fresh, updated, err = applyVulns(ctx, tx, p.out.Finished, src.ID, p.vulns, p.replaceVulns); err != nil {
 					return err
 				}
@@ -476,8 +484,14 @@ func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, int, e
 	kev := 0
 	if src.ID == "cisa-kev" { // only the CISA list makes KEV events; a custom feed's CVEs are not KEV entries
 		kev = len(fresh)
-		for _, v := range fresh {
-			s.publish(ctx, EventNewKEV, NewKEVEvent{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, HasTemplate: v.HasTemplate, DateAdded: v.DateAdded})
+		if baseline {
+			if kev > 0 {
+				s.publish(ctx, EventSyncBaseline, SyncBaselineEvent{Source: src.ID, Count: kev})
+			}
+		} else {
+			for _, v := range fresh {
+				s.publish(ctx, EventNewKEV, NewKEVEvent{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, HasTemplate: v.HasTemplate, DateAdded: v.DateAdded})
+			}
 		}
 	}
 	if len(changed) > 0 && (src.ID == "cisa-kev" || p.hasTemplates) {

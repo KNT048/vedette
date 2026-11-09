@@ -211,6 +211,9 @@ func buildServices(d *deps) error {
 	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock}); err != nil {
 		return fmt.Errorf("core: %w", err)
 	}
+	if d.Honeypot, err = newHoneypot(d); err != nil {
+		return fmt.Errorf("honeypot: %w", err)
+	}
 	sp, err := newSensorPassive(*d)
 	if err != nil {
 		return fmt.Errorf("sensor-passive: %w", err)

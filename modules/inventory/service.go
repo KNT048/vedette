@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
@@ -27,8 +29,12 @@ type Config struct {
 	Box      BoxPackages
 	Findings FindingCounter
 	Modules  ModuleGate // to tell whether notify is on (notify_available)
-	Clock    func() time.Time
-	Log      *slog.Logger
+	// BoxOwnedIPs lists the addresses the box itself answers on besides its own device (the decoy addresses of the
+	// honeypot, WP-14). Nothing observed at one of them is a device: Record and ReplaceSoftware ignore such an
+	// observation (counted, BoxOwnedSkipped) and ProtectedIPs lists the address. nil means none.
+	BoxOwnedIPs func(ctx context.Context) []netip.Addr
+	Clock       func() time.Time
+	Log         *slog.Logger
 }
 
 // Service is the only writer of the inv_* tables (INV-2). Create it with New.
@@ -40,6 +46,8 @@ type Service struct {
 	box      BoxPackages
 	findings FindingCounter
 	modules  ModuleGate
+	boxOwned func(ctx context.Context) []netip.Addr
+	ownedHit atomic.Int64 // observations ignored because their address is box-owned
 	clock    func() time.Time
 	log      *slog.Logger
 	cat      catalogCache
@@ -53,7 +61,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.DB == nil || cfg.Audit == nil {
 		return nil, errors.New("inventory: New needs DB and Audit")
 	}
-	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, findings: cfg.Findings, modules: cfg.Modules, clock: cfg.Clock, log: cfg.Log}
+	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, findings: cfg.Findings, modules: cfg.Modules, boxOwned: cfg.BoxOwnedIPs, clock: cfg.Clock, log: cfg.Log}
 	if s.clock == nil {
 		s.clock = time.Now
 	}
@@ -62,6 +70,25 @@ func New(cfg Config) (*Service, error) {
 	}
 	return s, nil
 }
+
+// ownedIPs is the set of box-owned addresses now (see Config.BoxOwnedIPs), empty when there is none.
+func (s *Service) ownedIPs(ctx context.Context) map[netip.Addr]bool {
+	if s.boxOwned == nil {
+		return nil
+	}
+	list := s.boxOwned(ctx)
+	if len(list) == 0 {
+		return nil
+	}
+	m := make(map[netip.Addr]bool, len(list))
+	for _, a := range list {
+		m[a] = true
+	}
+	return m
+}
+
+// BoxOwnedSkipped counts the observations ignored since start because they came from a box-owned address.
+func (s *Service) BoxOwnedSkipped() int { return int(s.ownedHit.Load()) }
 
 func (s *Service) now() string { return store.FormatTS(s.clock()) }
 

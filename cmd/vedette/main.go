@@ -56,6 +56,7 @@ type options struct {
 	db, key, listen string
 	tlsCert, tlsKey string
 	hosts           string
+	honeypotDir     string
 }
 
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
@@ -65,6 +66,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	var o options
 	flags.StringVar(&o.db, "db", "/var/lib/vedette/vedette.db", "path of the SQLite database (created with mode 0600)")
 	flags.StringVar(&o.key, "key", "/var/lib/vedette/vedette.key", "path of the secrets master key file (created with mode 0600 when missing)")
+	flags.StringVar(&o.honeypotDir, "honeypot-dir", "/var/lib/vedette/honeypot", "parent of the two folders shared with the honeypot container: config/ (core writes opencanary.conf; the container mounts it read-only) and log/ (the container writes the trap log, core reads it) (D-89)")
 	// Plain HTTP only on loopback; any other address is served over TLS (own certificate, or a self-signed one made at first start).
 	flags.StringVar(&o.listen, "listen", "127.0.0.1:8080", "address to listen on; plain HTTP on loopback, TLS on any other address")
 	flags.StringVar(&o.tlsCert, "tls-cert", "", "PEM certificate for TLS (with -tls-key); when both are missing and -listen is not loopback, a self-signed pair is made next to the database")
@@ -186,7 +188,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return err
 	}
-	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), BaseURL: baseURL(hosts, o.listen)}
+	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), BaseURL: baseURL(hosts, o.listen), HoneypotDir: o.honeypotDir}
 	if err := buildServices(&d); err != nil {
 		return err
 	}

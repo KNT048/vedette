@@ -20204,8 +20204,9 @@
                       "type": "array",
                       "items": {
                         "type": "string",
-                        "format": "uri"
-                      }
+                        "pattern": "^https?:\\/\\/"
+                      },
+                      "description": "http(s) addresses only"
                     },
                     "date_added": {
                       "type": "string",
@@ -20971,8 +20972,9 @@
                                 "type": "array",
                                 "items": {
                                   "type": "string",
-                                  "format": "uri"
-                                }
+                                  "pattern": "^https?:\\/\\/"
+                                },
+                                "description": "http(s) addresses only"
                               },
                               "date_added": {
                                 "type": "string",

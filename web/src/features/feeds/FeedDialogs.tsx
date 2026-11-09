@@ -36,8 +36,8 @@ export function BuiltinDialog({ feed, onClose }: { feed: Feed; onClose: () => vo
   function submit(e: React.FormEvent) {
     e.preventDefault()
     const c = checkFeedUrl(url)
-    if (c !== 'ok') { setErr(t(`dialog.err.${c}`)); return }
-    patch.mutate({ id: feed.id, interval_hours: hours, url: url.trim() }, { onSuccess: () => { toast.success(t('dialog.saved', { name: feed.name })); onClose() } })
+    if (c !== 'ok') { setErr(t(`dialog.err.${c}`)); document.getElementById('bf-url')?.focus(); return }
+    patch.mutate({ id: feed.id, interval_hours: hours, url: url.trim() }, { onSuccess: () => { toast.success(t('dialog.saved', { name: feed.name })); onClose() }, onError: () => document.getElementById('bf-url')?.focus() })
   }
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
@@ -86,6 +86,14 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
     const f: FeedFormat = FORMATS[k].includes(parser.format) ? parser.format : FORMATS[k][0]!
     setParser(defaultParser(k, f))
   }
+  // Errors can sit far above the button (phone): move focus to the first wrong field, which also scrolls it into view (as HoneypotPage does).
+  const focusField = (k: 'name' | 'url' | 'auth' | 'parser' | 'other') => {
+    const authId = auth === 'header' && !/^[A-Za-z0-9-]{1,80}$/.test(header) ? 'cf-header' : auth === 'basic' && !user.trim() ? 'cf-user' : 'cf-secret'
+    const id = { name: 'cf-name', url: 'cf-url', auth: authId, parser: `pe-${kind === 'ioc' ? 'indicator' : 'cve'}-src`, other: 'cf-error' }[k]
+    const go = () => (document.getElementById(id) ?? document.getElementById('pe-format'))?.focus()
+    if (k === 'other') setTimeout(go, 0) // the message is drawn after the answer arrives
+    else go()
+  }
   function submit(e: React.FormEvent) {
     e.preventDefault()
     const n: typeof errs = {}
@@ -98,10 +106,11 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
     else if (secret && (secret.length < 8 || /\s/.test(secret))) n.auth = t('dialog.err.secretShape')
     if (!parser.fields[kind === 'ioc' ? 'indicator' : 'cve']?.source.trim() && (parser.format === 'json' || parser.format === 'csv' || parser.format === 'rss')) n.parser = t('dialog.err.required', { field: t(`parser.field.${kind === 'ioc' ? 'indicator' : 'cve'}`) })
     setErrs(n)
-    if (Object.keys(n).length) return
+    const first = (['name', 'url', 'auth', 'parser'] as const).find((k) => n[k])
+    if (first) { focusField(first); return }
     save.mutate({ id: feed?.id, name: name.trim(), kind, url: url.trim(), enabled: feed?.enabled ?? true, interval_hours: hours,
       auth: { type: auth, header_name: auth === 'header' ? header : null, username: auth === 'basic' ? user.trim() : null, secret: secret || undefined }, parser },
-    { onSuccess: () => { toast.success(feed ? t('dialog.saved', { name: name.trim() }) : t('dialog.added', { name: name.trim() })); onClose() } })
+    { onSuccess: () => { toast.success(feed ? t('dialog.saved', { name: name.trim() }) : t('dialog.added', { name: name.trim() })); onClose() }, onError: (er) => focusField(serverField(er) ?? 'other') })
   }
   // The sign-in error shows under the field that is wrong, not always under the secret.
   const authErr = err('auth')
@@ -139,7 +148,7 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
           </div>
           <ParserEditor kind={kind} parser={parser} onChange={(p) => { setParser(p); clear('parser') }} onFormat={(f) => { setParser(defaultParser(kind, f)); clear('parser') }} />
           {err('parser') ? <p role="alert" className="text-[13px] text-danger">{err('parser')}</p> : null}
-          {save.error && !serverField(save.error) ? <p role="alert" className="text-sm text-danger">{(save.error as Error).message}</p> : null}
+          {save.error && !serverField(save.error) ? <p role="alert" id="cf-error" tabIndex={-1} className="text-sm text-danger outline-none">{(save.error as Error).message}</p> : null}
           <DialogFooter>
             <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
             <Button type="submit" variant="primary" disabled={save.isPending}>{save.isPending ? t('dialog.saving') : feed ? t('common:save') : t('dialog.addConfirm')}</Button>

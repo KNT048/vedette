@@ -1,6 +1,6 @@
 # Host (`vedette-host`) Contract
 
-> Loại: **thành phần** (component), không phải module bật/tắt · Story: S-CORE-7, S-INV-5 (+ D-56) · Quyết định: D-53, D-55, D-56, D-12 · Last verified: 2026-11-09
+> Loại: **thành phần** (component), không phải module bật/tắt · Story: S-CORE-7, S-INV-5 (+ D-56) · Quyết định: D-53, D-55, D-56, D-12 · Last verified: 2026-11-09 (khung WP-07a: INV-1/2/3/4/12, POST-4, FORBID-1/2 có test; lệnh hệ thống chờ WP-07b)
 > Thay thế `vedette-updater` của D-53 (D-55). `contract.ts`, `osMock.ts`, `locales/en/core.json` và `PRIVACY.md` luồng 6 đã đổi sang tên mới (WP-06).
 > Là phần duy nhất của hộp chạy **root**. Mọi thứ khác (core, sensor, honeypot, scan) chạy không root trong container.
 
@@ -18,7 +18,7 @@
 - **INV-11** Mạng ra của `host` chỉ gồm: kho gói apt của OS (host mirror liệt kê trong `OsInfo.mirrors`) và registry image đã khai báo (PRIVACY luồng 6); không có luồng khác (SYS-7).
 - **INV-12** Mọi lệnh ghi một dòng kết quả có cấu trúc (lệnh, tham số đã che bí mật, thời điểm, mã, người gọi do `core` truyền); lịch sử hiển thị ở Settings → Updates qua `core` (`core_os_run`).
 
-## Lệnh (allowlist) — *tên đề xuất, chốt ở M2*
+## Lệnh (allowlist) — *bảng này là bản nháp; danh sách chốt là `docs/specs/host-api.md` §6, hiện thực ở WP-07b*
 | Nhóm | Lệnh | Tham số có kiểu | Nguồn |
 |---|---|---|---|
 | OS | `os.status` | — | D-53 |
@@ -60,8 +60,23 @@ Không. Lịch sử chạy và cài đặt cửa sổ bảo trì lưu ở `core`
 ## Events
 - **Phát** (sang `core`): tiến trình cài (`lines`), hoàn tất, cần khởi động lại. **Nhận**: lệnh từ `core`.
 
+## Khung đã cài (WP-07a)
+Mã: `host/api` (kiểu dây), `host/config` (`/etc/vedette/host.conf`), `host/peer` (xác thực người gọi), `host/server` (máy chủ, bảng lệnh, run, kiểm toán), `host/client` (người gọi phía `core`), `cmd/vedette-host`. Chi tiết chốt ở `docs/specs/host-api.md` §15. Test hợp đồng: `modules/host/contract_test.go` (`go test ./modules/host/... -run Contract`):
+
+| Điều | Test |
+|---|---|
+| INV-1, FORBID-1 | `TestContract_INV1_UnknownCommandIsRefusedAndRecorded`, `…_CommandTableIsClosedAndMatchesTheSpec`, `…_NothingTakesABinaryArgvOrPathFromTheRequest`, `TestContract_FORBID1_NoShellNoGenericExec` |
+| INV-2 | `TestContract_INV2_BadArgsAreRefusedBeforeAnythingRuns` |
+| INV-3 | `TestContract_INV3_OneWriteAtATime` |
+| INV-4 | `TestContract_INV4_EachPeerLayerDeniesAndIsAudited`, `…_NoRealCheckOffLinux`; `host/peer` (Linux) |
+| INV-12 | `TestContract_INV12_EveryCommandLeavesOneChainedAuditLine` |
+| POST-4 | `TestContract_POST4_TimeoutReleasesTheLock` |
+| FORBID-2 | `TestContract_FORBID2_NoNetworkListener`, `…_TheListenerIsAUnixSocket` |
+
+Chưa kiểm được trên máy phát triển (macOS): hiệu ứng thật trên Linux (quyền socket do root, `SO_PEERCRED`, cgroup của unit thật, unit systemd); xem `.ai/deferred/feat-host-framework.md`.
+
 ## Khi vắng mặt / lỗi
-Không có "tắt" (không phải module). Kiểu "Chỉ container": mọi tính năng cần `host` trả `unsupported` có lý do. Appliance mà `host` không phản hồi: Settings → Updates và Box network hiện "Không liên lạc được với vedette-host" kèm trạng thái cuối cùng biết được; các module khác chạy bình thường nhưng không thay đổi được OS/mạng/image.
+Không có "tắt" (không phải module). Phía `core`, `host/client` trả `client.ErrUnreachable` khi socket vắng hoặc không nối được: đó là tín hiệu "không phải appliance / host không chạy", khác với lỗi của host (`*client.Error` có mã §11). Kiểu "Chỉ container": mọi tính năng cần `host` trả `unsupported` có lý do. Appliance mà `host` không phản hồi: Settings → Updates và Box network hiện "Không liên lạc được với vedette-host" kèm trạng thái cuối cùng biết được; các module khác chạy bình thường nhưng không thay đổi được OS/mạng/image.
 
 ## Dependencies
 - **DEPENDS ON**: systemd, apt, Podman, netlink của OS; `core` chỉ là **người gọi**.
@@ -70,6 +85,6 @@ Không có "tắt" (không phải module). Kiểu "Chỉ container": mọi tính
 ## Câu hỏi mở
 1. Cấu hình mạng/SPAN (D-56) chưa có story ID trong `USER_STORIES.md` và chưa có endpoint trong `contract.ts` (no-imagined-features: cần story trước khi code).
 2. Đổi card quản trị có thể cắt đứt chính kết nối quản trị: cần cơ chế tự hoàn tác sau N giây nếu `core` không xác nhận? (chưa nêu trong D-56).
-3. Tên lệnh ở bảng trên là đề xuất; chốt cùng lúc viết `host`.
+3. Tên lệnh ở bảng trên là đề xuất; chốt cùng lúc viết `host`. **Trả lời một phần (WP-07a):** dạng tên đã chốt ở khung (`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*){1,3}$`), bảng lệnh là một `Registry` đóng dựng một lần (không có hàm thêm/bớt), và nguồn chốt tên là `host-api.md` §6 (`os.check`, `os.install`, `os.auto_security.set`, `os.reboot`, `os.reboot.cancel`, `net.apply|confirm|revert`, `decoy_ip.add|remove`, `container.pull|start|stop|rollback`, `backup.create|restore`, `logs.export`; đọc trạng thái qua `GET /v1/state/*`), thay cho bảng nháp ở trên khi 07b đăng ký từng lệnh. Hiện `DefaultRegistry()` rỗng và test hợp đồng so với danh sách tài liệu.
 4. ~~`vedette-updater` còn trong `contract.ts`, `osMock.ts`, `locales/en/core.json`, `PRIVACY.md` luồng 6~~ Đã đổi sang `vedette-host` (WP-06).
 5. Registry image cho phép (tên/host) và khoá cosign công khai đặt ở đâu (nhúng trong gói cài, D-12)?

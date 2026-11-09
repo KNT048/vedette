@@ -8,7 +8,7 @@ install_types: [appliance]   # "Chỉ container": không có host; tính năng q
 depends: []            # là phần của appliance, độc lập với module Go
 permissions: [root, "systemd", "apt", "podman", "netlink"]   # chỉ trong tiến trình này; mọi thứ khác chạy không root (agent-safety, SYS-1)
 ports: []              # không cổng mạng: nghe socket Unix nội bộ
-socket: /run/vedette/host.sock   # đường dẫn đề xuất; chốt ở M2
+socket: /run/vedette/host.sock   # mặc định; installer ghi đường dẫn thật vào /etc/vedette/host.conf (docs/specs/host-api.md §15)
 container: none        # chạy trên OS (systemd, root), KHÔNG trong container
 tables_prefix: null    # không sở hữu bảng; lịch sử chạy lưu ở core (core_os_run, core_audit)
 stories: [S-CORE-7, S-INV-5]   # + cấu hình mạng/SPAN D-56 (chưa có story ID, xem câu hỏi mở 1)

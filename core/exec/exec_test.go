@@ -447,3 +447,41 @@ func TestNewRunnerRejectsNilLogger(t *testing.T) {
 		t.Fatal("nil logger accepted")
 	}
 }
+
+func TestRunExtraEnv(t *testing.T) {
+	t.Setenv("VEDETTE_SECRET_FOR_TEST", "must-not-leak")
+	b := testBinary(t, nil, 0)
+	b.Env = []string{"DEBIAN_FRONTEND=noninteractive"}
+	r := newRunner(t, b)
+	res, err := r.Run(deadline(t, 10*time.Second), "helper", helperArgs("env"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var env []string
+	if err := json.Unmarshal(res.Stdout, &env); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{"PATH=/usr/sbin:/usr/bin:/sbin:/bin": true, "LANG=C": true, "DEBIAN_FRONTEND=noninteractive": true}
+	for _, e := range env {
+		if !want[e] {
+			t.Errorf("unexpected environment entry %q", e)
+		}
+		delete(want, e)
+	}
+	if len(want) != 0 {
+		t.Errorf("missing environment entries %v", want)
+	}
+}
+
+func TestNewRunnerRejectsBadEnv(t *testing.T) {
+	t.Parallel()
+	for _, env := range [][]string{
+		{"PATH=/evil"}, {"LANG=en_US"}, {"lower=x"}, {"NOEQUALS"}, {"A=b\x00c"}, {"A=1", "A=2"}, {"=x"},
+	} {
+		b := testBinary(t, nil, 0)
+		b.Env = env
+		if _, err := vexec.NewRunner(slog.New(slog.DiscardHandler), b); err == nil {
+			t.Errorf("Env %q was accepted", env)
+		}
+	}
+}

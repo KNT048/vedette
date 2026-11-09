@@ -1,0 +1,564 @@
+{
+  "library": "Vedette sample rule templates",
+  "notice": "Ready-made rules (data, D-58). They name template actions by id; vendor names appear only here and in action-templates.sample.json.",
+  "templates": [
+    {
+      "id": "tpl-trap-fgt",
+      "name": "Trap touched: block the source on FortiGate for 24 hours",
+      "description": "When anything touches a honeypot trap, add its address to the FortiGate block group. Undone after 24 hours.",
+      "rule": {
+        "name": "Trap touched: block source on FortiGate",
+        "enabled": false,
+        "live": false,
+        "trigger": "honeypot",
+        "match": "all",
+        "conditions": [],
+        "pre_approved": false,
+        "max_per_hour": 5,
+        "schedule_min": null,
+        "actions": [
+          {
+            "action_id": "fgt_addrgrp_add",
+            "params": {
+              "ip": "{{trigger.source_ip}}"
+            },
+            "ttl_min": 1440
+          }
+        ]
+      }
+    },
+    {
+      "id": "tpl-ioc-blocklist",
+      "name": "Known-bad connection: add the destination to the block list",
+      "description": "A device talked to a bad IP address with confidence 0.8 or more: publish the destination on the block list your firewall pulls.",
+      "rule": {
+        "name": "Known-bad IP: add to the block list",
+        "enabled": false,
+        "live": false,
+        "trigger": "ioc_connection",
+        "match": "all",
+        "conditions": [
+          {
+            "field": "dest_kind",
+            "op": "eq",
+            "value": "ip",
+            "n": null,
+            "window_min": null
+          },
+          {
+            "field": "confidence",
+            "op": "gte",
+            "value": "0.8",
+            "n": null,
+            "window_min": null
+          }
+        ],
+        "pre_approved": false,
+        "max_per_hour": 10,
+        "schedule_min": null,
+        "actions": [
+          {
+            "action_id": "blocklist_add",
+            "params": {
+              "ip": "{{trigger.dest_ip}}"
+            },
+            "ttl_min": 1440
+          }
+        ]
+      }
+    },
+    {
+      "id": "tpl-ioc-pihole",
+      "name": "Known-bad domain: block it on Pi-hole",
+      "description": "A device looked up a domain from a threat feed: add it to the DNS filter deny list for a week.",
+      "rule": {
+        "name": "Known-bad domain: block on Pi-hole",
+        "enabled": false,
+        "live": false,
+        "trigger": "ioc_connection",
+        "match": "all",
+        "conditions": [
+          {
+            "field": "dest_kind",
+            "op": "eq",
+            "value": "domain",
+            "n": null,
+            "window_min": null
+          }
+        ],
+        "pre_approved": false,
+        "max_per_hour": 10,
+        "schedule_min": null,
+        "actions": [
+          {
+            "action_id": "pihole_block",
+            "params": {
+              "domain": "{{trigger.dest_domain}}"
+            },
+            "ttl_min": 10080
+          }
+        ]
+      }
+    },
+    {
+      "id": "tpl-vpn-ban",
+      "name": "10 failed VPN logins in 5 minutes: ban the address",
+      "description": "Brute force against the VPN: ban the source address on FortiGate for 24 hours.",
+      "rule": {
+        "name": "Failed VPN logins: ban the address",
+        "enabled": false,
+        "live": false,
+        "trigger": "log_threshold",
+        "match": "all",
+        "conditions": [
+          {
+            "field": "signature",
+            "op": "eq",
+            "value": "vpn_login_failed",
+            "n": null,
+            "window_min": null
+          },
+          {
+            "field": "count",
+            "op": "gte",
+            "value": "10",
+            "n": null,
+            "window_min": null
+          },
+          {
+            "field": "window",
+            "op": "lte",
+            "value": "5",
+            "n": null,
+            "window_min": null
+          }
+        ],
+        "pre_approved": false,
+        "max_per_hour": 5,
+        "schedule_min": null,
+        "actions": [
+          {
+            "action_id": "fgt_ban_ip",
+            "params": {
+              "ip": "{{trigger.source_ip}}"
+            },
+            "ttl_min": 1440
+          }
+        ]
+      }
+    },
+    {
+      "id": "tpl-nat-vip",
+      "name": "Critical finding exposed through NAT: disable the virtual IP",
+      "description": "A critical finding on a device that the Internet can reach: turn the FortiGate virtual IP off until it is patched.",
+      "rule": {
+        "name": "Critical and exposed: disable the virtual IP",
+        "enabled": false,
+        "live": false,
+        "trigger": "finding",
+        "match": "all",
+        "conditions": [
+          {
+            "field": "severity",
+            "op": "eq",
+            "value": "critical",
+            "n": null,
+            "window_min": null
+          },
+          {
+            "field": "exposed_via_nat",
+            "op": "eq",
+            "value": "true",
+            "n": null,
+            "window_min": null
+          }
+        ],
+        "pre_approved": false,
+        "max_per_hour": 2,
+        "schedule_min": null,
+        "actions": [
+          {
+            "action_id": "fgt_vip_disable",
+            "params": {
+              "name": "{{trigger.vip}}"
+            },
+            "ttl_min": 1440
+          }
+        ]
+      }
+    },
+    {
+      "id": "tpl-kev-msg",
+      "name": "Exploited vulnerability found: message only",
+      "description": "A finding that is exploited in the wild (KEV): send a message to your channels and change nothing.",
+      "rule": {
+        "name": "KEV finding: message only",
+        "enabled": false,
+        "live": false,
+        "trigger": "finding",
+        "match": "all",
+        "conditions": [
+          {
+            "field": "kev",
+            "op": "eq",
+            "value": "true",
+            "n": null,
+            "window_min": null
+          }
+        ],
+        "pre_approved": false,
+        "max_per_hour": 10,
+        "schedule_min": null,
+        "actions": [
+          {
+            "action_id": "msg_send",
+            "params": {
+              "text": "KEV finding {{trigger.cve}} on {{trigger.device}}"
+            },
+            "ttl_min": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "tpl-unknown-msg",
+      "name": "Unknown device: message only",
+      "description": "A device you have not approved joined the network: tell the team and change nothing.",
+      "rule": {
+        "name": "Unknown device: message only",
+        "enabled": false,
+        "live": false,
+        "trigger": "unknown_device",
+        "match": "all",
+        "conditions": [],
+        "pre_approved": false,
+        "max_per_hour": 10,
+        "schedule_min": null,
+        "actions": [
+          {
+            "action_id": "msg_send",
+            "params": {
+              "text": "Unknown device {{trigger.mac}}, vendor {{trigger.vendor}}, at {{trigger.ip}}"
+            },
+            "ttl_min": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "tpl-sweep-vlan",
+      "name": "Port scan of the decoys: move the switch port to the quarantine VLAN",
+      "description": "The same device touched the decoys 3 times in 10 minutes. HIGH RISK: it loses the network, so two different people must approve.",
+      "rule": {
+        "name": "Decoy sweep: quarantine the switch port",
+        "enabled": false,
+        "live": false,
+        "trigger": "honeypot",
+        "match": "all",
+        "conditions": [
+          {
+            "field": "source_ip",
+            "op": "count_window",
+            "value": "",
+            "n": 3,
+            "window_min": 10
+          }
+        ],
+        "pre_approved": false,
+        "max_per_hour": 2,
+        "schedule_min": null,
+        "actions": [
+          {
+            "action_id": "cisco_port_vlan_quarantine",
+            "params": {
+              "interface": "{{trigger.switch_port}}",
+              "vlan": "999"
+            },
+            "ttl_min": 240
+          }
+        ]
+      }
+    },
+    {
+      "id": "tpl-trap-mikrotik",
+      "name": "Trap touched: add the source to a MikroTik address list",
+      "description": "Same idea as the FortiGate rule, for a MikroTik router. Needs a MikroTik connection in the catalog.",
+      "rule": {
+        "name": "Trap touched: MikroTik address list",
+        "enabled": false,
+        "live": false,
+        "trigger": "honeypot",
+        "match": "all",
+        "conditions": [],
+        "pre_approved": false,
+        "max_per_hour": 5,
+        "schedule_min": null,
+        "actions": [
+          {
+            "action_id": "mt_addrlist_add",
+            "params": {
+              "ip": "{{trigger.source_ip}}"
+            },
+            "ttl_min": 1440
+          }
+        ]
+      }
+    },
+    {
+      "id": "tpl-ioc-pfsense",
+      "name": "Very likely bad connection: add the destination to a pfSense alias",
+      "description": "Confidence 0.9 or more: add the destination address to the pfSense Vedette_Blocklist alias.",
+      "rule": {
+        "name": "Known-bad IP: pfSense alias",
+        "enabled": false,
+        "live": false,
+        "trigger": "ioc_connection",
+        "match": "all",
+        "conditions": [
+          {
+            "field": "dest_kind",
+            "op": "eq",
+            "value": "ip",
+            "n": null,
+            "window_min": null
+          },
+          {
+            "field": "confidence",
+            "op": "gte",
+            "value": "0.9",
+            "n": null,
+            "window_min": null
+          }
+        ],
+        "pre_approved": false,
+        "max_per_hour": 5,
+        "schedule_min": null,
+        "actions": [
+          {
+            "action_id": "pf_alias_add",
+            "params": {
+              "ip": "{{trigger.dest_ip}}"
+            },
+            "ttl_min": 1440
+          }
+        ]
+      }
+    },
+    {
+      "id": "tpl-iot-shut",
+      "name": "Camera or IoT device talks to a bad address: shut its switch port",
+      "description": "Cameras and IoT devices have no reason to talk to bad addresses. Shuts the port until you turn it back on.",
+      "rule": {
+        "name": "Bad connection from IoT: shut the port",
+        "enabled": false,
+        "live": false,
+        "trigger": "ioc_connection",
+        "match": "all",
+        "conditions": [
+          {
+            "field": "",
+            "op": "device_type",
+            "value": "camera,nvr,iot",
+            "n": null,
+            "window_min": null
+          },
+          {
+            "field": "confidence",
+            "op": "gte",
+            "value": "0.7",
+            "n": null,
+            "window_min": null
+          }
+        ],
+        "pre_approved": false,
+        "max_per_hour": 3,
+        "schedule_min": null,
+        "actions": [
+          {
+            "action_id": "cisco_port_shut",
+            "params": {
+              "interface": "{{trigger.switch_port}}"
+            },
+            "ttl_min": 240
+          }
+        ]
+      }
+    },
+    {
+      "id": "tpl-ssh-acl",
+      "name": "SSH brute force: deny the address on the switch",
+      "description": "20 or more failed SSH logins in the window: add a deny line for the source on the switch ACL for 12 hours.",
+      "rule": {
+        "name": "SSH brute force: switch ACL",
+        "enabled": false,
+        "live": false,
+        "trigger": "log_threshold",
+        "match": "all",
+        "conditions": [
+          {
+            "field": "signature",
+            "op": "eq",
+            "value": "ssh_login_failed",
+            "n": null,
+            "window_min": null
+          },
+          {
+            "field": "count",
+            "op": "gte",
+            "value": "20",
+            "n": null,
+            "window_min": null
+          }
+        ],
+        "pre_approved": false,
+        "max_per_hour": 5,
+        "schedule_min": null,
+        "actions": [
+          {
+            "action_id": "cisco_acl_deny",
+            "params": {
+              "ip": "{{trigger.source_ip}}"
+            },
+            "ttl_min": 720
+          }
+        ]
+      }
+    },
+    {
+      "id": "tpl-newport-msg",
+      "name": "New open port on a public IP: message only",
+      "description": "A new port opened on a public address: send a message so someone can check it is intended.",
+      "rule": {
+        "name": "New public port: message only",
+        "enabled": false,
+        "live": false,
+        "trigger": "new_port",
+        "match": "all",
+        "conditions": [],
+        "pre_approved": false,
+        "max_per_hour": 10,
+        "schedule_min": null,
+        "actions": [
+          {
+            "action_id": "msg_send",
+            "params": {
+              "text": "New open port {{trigger.port}} on public IP {{trigger.ip}}, service {{trigger.service}}"
+            },
+            "ttl_min": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "tpl-weekly-digest",
+      "name": "Weekly: send a response digest message",
+      "description": "Every 7 days send a short message that the weekly response digest is ready.",
+      "rule": {
+        "name": "Weekly response digest",
+        "enabled": false,
+        "live": false,
+        "trigger": "schedule",
+        "match": "all",
+        "conditions": [],
+        "pre_approved": false,
+        "max_per_hour": 1,
+        "schedule_min": 10080,
+        "actions": [
+          {
+            "action_id": "msg_send",
+            "params": {
+              "text": "Weekly response digest is ready"
+            },
+            "ttl_min": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "tpl-manual-ban",
+      "name": "Manual: ban a device on FortiGate",
+      "description": "Nothing runs by itself. Pick a device and press Run: its address is banned on FortiGate for 4 hours after approval.",
+      "rule": {
+        "name": "Manual: ban a device on FortiGate",
+        "enabled": false,
+        "live": false,
+        "trigger": "manual",
+        "match": "all",
+        "conditions": [],
+        "pre_approved": false,
+        "max_per_hour": 5,
+        "schedule_min": null,
+        "actions": [
+          {
+            "action_id": "fgt_ban_ip",
+            "params": {
+              "ip": "{{trigger.ip}}"
+            },
+            "ttl_min": 240
+          }
+        ]
+      }
+    }
+  ],
+  "seed_rules": [
+    {
+      "id": "r-hp",
+      "name": "Trap touched: block source on FortiGate",
+      "enabled": false,
+      "live": false,
+      "trigger": "honeypot",
+      "match": "all",
+      "conditions": [],
+      "actions": [
+        {
+          "action_id": "fgt_addrgrp_add",
+          "params": {
+            "ip": "{{trigger.source_ip}}"
+          },
+          "ttl_min": 1440
+        }
+      ],
+      "pre_approved": false,
+      "max_per_hour": 3,
+      "schedule_min": null,
+      "template_id": "tpl-trap-fgt"
+    },
+    {
+      "id": "r-nat",
+      "name": "Critical and exposed: disable the virtual IP",
+      "enabled": false,
+      "live": false,
+      "trigger": "finding",
+      "match": "all",
+      "conditions": [
+        {
+          "field": "severity",
+          "op": "eq",
+          "value": "critical",
+          "n": null,
+          "window_min": null
+        },
+        {
+          "field": "exposed_via_nat",
+          "op": "eq",
+          "value": "true",
+          "n": null,
+          "window_min": null
+        }
+      ],
+      "actions": [
+        {
+          "action_id": "fgt_vip_disable",
+          "params": {
+            "name": "{{trigger.vip}}"
+          },
+          "ttl_min": 1440
+        }
+      ],
+      "pre_approved": false,
+      "max_per_hour": 2,
+      "schedule_min": null,
+      "template_id": "tpl-nat-vip"
+    }
+  ]
+}

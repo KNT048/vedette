@@ -1,0 +1,777 @@
+{
+  "library": "Vedette sample action templates",
+  "notice": "Device knowledge as data (D-58): commands, API paths, undo and read-back per device. Nothing here is code; the core only knows generic connection kinds. Shipped with signed updates; customers edit and add their own. Source: docs/specs/action-templates.md.",
+  "unverified_note": "Not verified on a device yet — test in a lab first",
+  "actions": [
+    {
+      "id": "blocklist_add",
+      "pack": "box",
+      "kind": "box",
+      "name": "Add an address to the block list your firewall pulls",
+      "description": "Publishes the IP address on the block list of this box. Your firewall fetches the list itself, so Vedette needs no write access to it. The entry is removed after the time to live.",
+      "connection_id": null,
+      "tool": null,
+      "rollback_tool": null,
+      "run": {
+        "cli": "blocklist add {ip}",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "blocklist remove {ip}",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "blocklist show {ip}",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "low",
+      "enabled": true,
+      "ai_may_propose": true,
+      "unverified": false
+    },
+    {
+      "id": "fgt_addrgrp_add",
+      "pack": "FortiGate",
+      "kind": "device",
+      "name": "FortiGate: add an IP to the Vedette-Blocked address group",
+      "description": "Adds the address to the Vedette-Blocked address group on the firewall. A deny policy on that group (you create it once, above your allow policies) then cuts the address off. Over SSH Vedette first creates the address object vedette-<ip> and removes it again on undo, after taking it out of the group. The group must always keep one anchor member (vedette-anchor, 192.0.2.1/32, created once during setup and never removed) because FortiOS does not accept an empty group. Over the API only the group membership call is sent.",
+      "connection_id": "cn-fgt",
+      "tool": "block_address",
+      "rollback_tool": null,
+      "run": {
+        "cli": "config firewall address\n    edit \"vedette-{ip}\"\n        set subnet {ip} 255.255.255.255\n        set comment \"vedette\"\n    next\nend\nconfig firewall addrgrp\n    edit \"Vedette-Blocked\"\n        append member \"vedette-{ip}\"\n    next\nend",
+        "method": "POST",
+        "path": "/api/v2/cmdb/firewall/addrgrp/Vedette-Blocked/member",
+        "body": "{\"name\":\"vedette-{ip}\"}",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "config firewall addrgrp\n    edit \"Vedette-Blocked\"\n        unselect member \"vedette-{ip}\"\n    next\nend\nconfig firewall address\n    delete \"vedette-{ip}\"\nend",
+        "method": "DELETE",
+        "path": "/api/v2/cmdb/firewall/addrgrp/Vedette-Blocked/member/vedette-{ip}",
+        "body": "",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "show firewall addrgrp Vedette-Blocked",
+        "method": "GET",
+        "path": "/api/v2/cmdb/firewall/addrgrp/Vedette-Blocked",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "medium",
+      "enabled": true,
+      "ai_may_propose": true,
+      "unverified": true
+    },
+    {
+      "id": "fgt_ban_ip",
+      "pack": "FortiGate",
+      "kind": "device",
+      "name": "FortiGate: ban an IP address",
+      "description": "Puts the address on the FortiGate banned list. All its sessions are dropped and new ones are refused until the ban expires (the expiry is the time to live of the action) or is removed. The banned list may be lost when the firewall restarts; Vedette reads it back and treats a missing entry as already removed.",
+      "connection_id": "cn-fgt",
+      "tool": null,
+      "rollback_tool": null,
+      "run": {
+        "cli": "diagnose user banned-ip add src4 {ip}",
+        "method": "POST",
+        "path": "/api/v2/monitor/user/banned/add_users",
+        "body": "{\"ip_addresses\":[\"{ip}\"],\"expiry\":{expiry_s}}",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "diagnose user banned-ip delete src4 {ip}",
+        "method": "POST",
+        "path": "/api/v2/monitor/user/banned/clear_users",
+        "body": "{\"ip_addresses\":[\"{ip}\"]}",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "diagnose user banned-ip list",
+        "method": "GET",
+        "path": "/api/v2/monitor/user/banned/select",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "medium",
+      "enabled": true,
+      "ai_may_propose": true,
+      "unverified": true
+    },
+    {
+      "id": "fgt_vip_disable",
+      "pack": "FortiGate",
+      "kind": "device",
+      "name": "FortiGate: disable a virtual IP (port forwarding)",
+      "description": "Turns off the firewall virtual IP (NAT) that sends Internet traffic to a device. Traffic inside the office is not affected. Anyone using the published address loses access until it is turned back on. The status field on virtual IPs is not confirmed: if the firewall has none, use \"FortiGate: disable a firewall policy\" instead.",
+      "connection_id": "cn-fgt",
+      "tool": "disable_virtual_ip",
+      "rollback_tool": null,
+      "run": {
+        "cli": "config firewall vip\n    edit \"{name}\"\n        set status disable\n    next\nend",
+        "method": "PUT",
+        "path": "/api/v2/cmdb/firewall/vip/{name}",
+        "body": "{\"status\":\"disable\"}",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "config firewall vip\n    edit \"{name}\"\n        set status enable\n    next\nend",
+        "method": "PUT",
+        "path": "/api/v2/cmdb/firewall/vip/{name}",
+        "body": "{\"status\":\"enable\"}",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "",
+        "method": "GET",
+        "path": "/api/v2/cmdb/firewall/vip/{name}",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "medium",
+      "enabled": true,
+      "ai_may_propose": true,
+      "unverified": true
+    },
+    {
+      "id": "fgt_policy_disable",
+      "pack": "FortiGate",
+      "kind": "device",
+      "name": "FortiGate: disable a firewall policy",
+      "description": "Turns off one firewall policy by its policy number; traffic that matched it falls through to the next policy. Vedette refuses to turn off a policy whose action is deny. The policy number is chosen by you when you build the rule; if an administrator deletes and recreates the policy the number can change, so the name is checked before undo. An alternative to disabling a virtual IP.",
+      "connection_id": "cn-fgt",
+      "tool": "disable_firewall_policy",
+      "rollback_tool": null,
+      "run": {
+        "cli": "config firewall policy\n    edit {id}\n        set status disable\n    next\nend",
+        "method": "PUT",
+        "path": "/api/v2/cmdb/firewall/policy/{id}",
+        "body": "{\"status\":\"disable\"}",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "config firewall policy\n    edit {id}\n        set status enable\n    next\nend",
+        "method": "PUT",
+        "path": "/api/v2/cmdb/firewall/policy/{id}",
+        "body": "{\"status\":\"enable\"}",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "",
+        "method": "GET",
+        "path": "/api/v2/cmdb/firewall/policy/{id}",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "high",
+      "enabled": false,
+      "ai_may_propose": false,
+      "unverified": true
+    },
+    {
+      "id": "mt_addrlist_add",
+      "pack": "MikroTik",
+      "kind": "device",
+      "name": "MikroTik: add an IP to an address list with a timeout",
+      "description": "Adds the address to the vedette-block address list on RouterOS. The router drops the entry by itself when the time to live ends (entries with a timeout are kept in memory and also disappear when the router restarts). A drop rule on that list (you create it once) does the blocking. To undo over the API Vedette first looks the entry up by list and address, then removes it by its id; it only removes entries it created.",
+      "connection_id": null,
+      "tool": null,
+      "rollback_tool": null,
+      "run": {
+        "cli": "/ip firewall address-list add list=vedette-block address={ip} timeout={timeout}",
+        "method": "PUT",
+        "path": "/rest/ip/firewall/address-list",
+        "body": "{\"list\":\"vedette-block\",\"address\":\"{ip}\",\"timeout\":\"{timeout}\"}",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "/ip firewall address-list remove [find list=vedette-block address={ip}]",
+        "method": "DELETE",
+        "path": "/rest/ip/firewall/address-list/{found_id}",
+        "body": "",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "/ip firewall address-list print where list=vedette-block",
+        "method": "GET",
+        "path": "/rest/ip/firewall/address-list",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "medium",
+      "enabled": false,
+      "ai_may_propose": false,
+      "unverified": true
+    },
+    {
+      "id": "pf_alias_add",
+      "pack": "pfSense",
+      "kind": "device",
+      "name": "pfSense: add an IP to an alias (unofficial REST package)",
+      "description": "Adds the address to the Vedette_Blocklist alias through the pfSense REST API package version 2, then applies the change. This package is not made or supported by Netgate: install it yourself first. A floating block rule on that alias (you create it once) does the blocking. Applying reloads the firewall filter and can drop connections briefly. Vedette cannot undo this change: the package has no verified call that removes one address, so remove it from the alias yourself when it is no longer needed.",
+      "connection_id": null,
+      "tool": null,
+      "rollback_tool": null,
+      "run": {
+        "cli": "",
+        "method": "PATCH",
+        "path": "/api/v2/firewall/alias",
+        "body": "{\"name\":\"Vedette_Blocklist\",\"address\":[\"{ip}\"]}",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "",
+        "method": "GET",
+        "path": "/api/v2/firewall/alias",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "medium",
+      "enabled": false,
+      "ai_may_propose": false,
+      "unverified": true
+    },
+    {
+      "id": "opn_alias_add",
+      "pack": "OPNsense",
+      "kind": "device",
+      "name": "OPNsense: add an IP to an alias",
+      "description": "Adds the address to the Vedette_Blocklist alias through the OPNsense API. Create that alias once, of type External (advanced), with a block rule on it. Entries added through the API are not kept when OPNsense restarts, and connections that are already open can stay up until their state ends.",
+      "connection_id": null,
+      "tool": null,
+      "rollback_tool": null,
+      "run": {
+        "cli": "",
+        "method": "POST",
+        "path": "/api/firewall/alias_util/add/Vedette_Blocklist",
+        "body": "{\"address\":\"{ip}\"}",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "",
+        "method": "POST",
+        "path": "/api/firewall/alias_util/delete/Vedette_Blocklist",
+        "body": "{\"address\":\"{ip}\"}",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "",
+        "method": "GET",
+        "path": "/api/firewall/alias_util/list/Vedette_Blocklist",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "medium",
+      "enabled": false,
+      "ai_may_propose": false,
+      "unverified": false
+    },
+    {
+      "id": "cisco_acl_deny",
+      "pack": "Cisco IOS / IOS-XE",
+      "kind": "device",
+      "name": "Cisco switch (SSH): deny an IP in the ACL",
+      "description": "Adds a deny line for the address to the VEDETTE-BLOCK extended access list, at a sequence number below the final permit line, so it is inserted at the top. Undo removes that line by its sequence number. You create the list once and apply it to your uplink; it must end with \"permit ip any any\" at a very high sequence number (for example 2147483000), otherwise the list blocks all traffic. Vedette does not save the configuration.",
+      "connection_id": null,
+      "tool": null,
+      "rollback_tool": null,
+      "run": {
+        "cli": "ip access-list extended VEDETTE-BLOCK\n    {seq} deny ip host {ip} any log",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "ip access-list extended VEDETTE-BLOCK\n    no {seq}",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "show ip access-lists VEDETTE-BLOCK",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "medium",
+      "enabled": false,
+      "ai_may_propose": false,
+      "unverified": true
+    },
+    {
+      "id": "cisco_port_shut",
+      "pack": "Cisco IOS / IOS-XE",
+      "kind": "device",
+      "name": "Cisco switch (SSH): shut a port",
+      "description": "Shuts one switch port. Whatever is plugged in loses its network (and PoE power) until the port is turned back on. If the port was already shut before, undo leaves it shut.",
+      "connection_id": null,
+      "tool": null,
+      "rollback_tool": null,
+      "run": {
+        "cli": "interface {interface}\n    shutdown",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "interface {interface}\n    no shutdown",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "show interfaces {interface} status",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "medium",
+      "enabled": false,
+      "ai_may_propose": false,
+      "unverified": true
+    },
+    {
+      "id": "cisco_port_vlan_quarantine",
+      "pack": "Cisco IOS / IOS-XE",
+      "kind": "device",
+      "name": "Cisco switch (SSH): move a port to the quarantine VLAN",
+      "description": "Moves one access port into the quarantine VLAN, which has no route to your servers. Vedette reads the current VLAN of the port first and puts exactly that VLAN back on undo. The device keeps a link but loses everything else, so two people must approve. The VLAN must already exist.",
+      "connection_id": null,
+      "tool": null,
+      "rollback_tool": null,
+      "run": {
+        "cli": "interface {interface}\n    switchport access vlan {vlan}",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "interface {interface}\n    switchport access vlan {previous_vlan}",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "show interfaces {interface} switchport",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "high",
+      "enabled": false,
+      "ai_may_propose": true,
+      "unverified": true
+    },
+    {
+      "id": "cisco_save_config",
+      "pack": "Cisco IOS / IOS-XE",
+      "kind": "device",
+      "name": "Cisco switch (SSH): save the configuration",
+      "description": "Writes the running configuration to the startup configuration so it survives a restart. Vedette does not do this after other actions: saving also keeps any unsaved change by another administrator, and a temporary block should disappear on restart. Use it only for a permanent change someone approved. It cannot be undone.",
+      "connection_id": null,
+      "tool": null,
+      "rollback_tool": null,
+      "run": {
+        "cli": "write memory",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "show startup-config",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "medium",
+      "enabled": false,
+      "ai_may_propose": false,
+      "unverified": true
+    },
+    {
+      "id": "aoscx_acl_deny",
+      "pack": "Aruba AOS-CX",
+      "kind": "device",
+      "name": "Aruba AOS-CX switch (SSH): deny an IP in the ACL",
+      "description": "Adds a deny line for the address to the VEDETTE-BLOCK access list at a sequence number below the final permit line. Undo removes the line by its sequence number. You create the list once with a final \"permit any any any\" at a high sequence number and apply it to your uplink. AOS-CX administrators have full rights, so restrict who can reach the switch. Vedette does not save the configuration.",
+      "connection_id": null,
+      "tool": null,
+      "rollback_tool": null,
+      "run": {
+        "cli": "access-list ip VEDETTE-BLOCK\n    {seq} deny any {ip}/32 any",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "access-list ip VEDETTE-BLOCK\n    no {seq}",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "show access-list ip VEDETTE-BLOCK",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "medium",
+      "enabled": false,
+      "ai_may_propose": false,
+      "unverified": true
+    },
+    {
+      "id": "aoscx_port_shut",
+      "pack": "Aruba AOS-CX",
+      "kind": "device",
+      "name": "Aruba AOS-CX switch (SSH): shut a port",
+      "description": "Shuts one switch port (names look like 1/1/5). Whatever is plugged in loses its network until the port is turned back on. If the port was already shut before, undo leaves it shut.",
+      "connection_id": null,
+      "tool": null,
+      "rollback_tool": null,
+      "run": {
+        "cli": "interface {interface}\n    shutdown",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "interface {interface}\n    no shutdown",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "show interface {interface}",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "medium",
+      "enabled": false,
+      "ai_may_propose": false,
+      "unverified": true
+    },
+    {
+      "id": "aoscx_vlan_quarantine",
+      "pack": "Aruba AOS-CX",
+      "kind": "device",
+      "name": "Aruba AOS-CX switch (SSH): move a port to the quarantine VLAN",
+      "description": "Moves one access port into the quarantine VLAN. Vedette reads the current access VLAN of the port first and puts it back on undo. The device keeps a link but loses everything else, so two people must approve.",
+      "connection_id": null,
+      "tool": null,
+      "rollback_tool": null,
+      "run": {
+        "cli": "interface {interface}\n    vlan access {vlan}",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "interface {interface}\n    vlan access {previous_vlan}",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "show interface {interface}",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "high",
+      "enabled": false,
+      "ai_may_propose": false,
+      "unverified": true
+    },
+    {
+      "id": "arubasw_acl_deny",
+      "pack": "ArubaOS-Switch (HPE ProVision)",
+      "kind": "device",
+      "name": "ArubaOS-Switch (SSH): deny an IP in the ACL",
+      "description": "Adds a deny line for the address to the VEDETTE-BLOCK access list at a sequence number below the final permit line; undo removes it by sequence number. Nothing about this template is confirmed yet, not even in the vendor documentation: build and test it in a lab before you rely on it.",
+      "connection_id": null,
+      "tool": null,
+      "rollback_tool": null,
+      "run": {
+        "cli": "ip access-list extended VEDETTE-BLOCK\n    {seq} deny ip {ip} 0.0.0.0 any",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "ip access-list extended VEDETTE-BLOCK\n    no {seq}",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "medium",
+      "enabled": false,
+      "ai_may_propose": false,
+      "unverified": true
+    },
+    {
+      "id": "arubasw_port_shut",
+      "pack": "ArubaOS-Switch (HPE ProVision)",
+      "kind": "device",
+      "name": "ArubaOS-Switch (SSH): shut a port",
+      "description": "Disables one switch port. Whatever is plugged in loses its network until the port is enabled again. Nothing about this template is confirmed yet, not even in the vendor documentation: build and test it in a lab before you rely on it.",
+      "connection_id": null,
+      "tool": null,
+      "rollback_tool": null,
+      "run": {
+        "cli": "interface {interface}\n    disable",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "interface {interface}\n    enable",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "medium",
+      "enabled": false,
+      "ai_may_propose": false,
+      "unverified": true
+    },
+    {
+      "id": "arubasw_vlan_quarantine",
+      "pack": "ArubaOS-Switch (HPE ProVision)",
+      "kind": "device",
+      "name": "ArubaOS-Switch (SSH): move a port to the quarantine VLAN",
+      "description": "Makes the port an untagged member of the quarantine VLAN. The command also removes it from its old untagged VLAN, so Vedette reads that VLAN first and restores it on undo. Two people must approve. Nothing about this template is confirmed yet, not even in the vendor documentation: build and test it in a lab before you rely on it.",
+      "connection_id": null,
+      "tool": null,
+      "rollback_tool": null,
+      "run": {
+        "cli": "vlan {vlan}\n    untagged {interface}",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "vlan {previous_vlan}\n    untagged {interface}",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "high",
+      "enabled": false,
+      "ai_may_propose": false,
+      "unverified": true
+    },
+    {
+      "id": "pihole_block",
+      "pack": "DNS filters (Pi-hole, AdGuard Home)",
+      "kind": "device",
+      "name": "Pi-hole: block a domain",
+      "description": "Adds the exact domain (not its subdomains) to the deny list of Pi-hole version 6, so devices can no longer resolve it. Answers already cached on devices last until their time to live ends. Undo removes only entries Vedette created.",
+      "connection_id": null,
+      "tool": null,
+      "rollback_tool": null,
+      "run": {
+        "cli": "",
+        "method": "POST",
+        "path": "/api/domains/deny/exact",
+        "body": "{\"domain\":\"{domain}\",\"comment\":\"vedette\",\"groups\":[0],\"enabled\":true}",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "",
+        "method": "DELETE",
+        "path": "/api/domains/deny/exact/{domain}",
+        "body": "",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "",
+        "method": "GET",
+        "path": "/api/domains/deny/exact/{domain}",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "low",
+      "enabled": false,
+      "ai_may_propose": true,
+      "unverified": true
+    },
+    {
+      "id": "adguard_block",
+      "pack": "DNS filters (Pi-hole, AdGuard Home)",
+      "kind": "device",
+      "name": "AdGuard Home: block a domain",
+      "description": "Adds a hosts-style rule (0.0.0.0 and the domain) to your user filter rules, which blocks that domain. AdGuard Home has no call to add one rule, so Vedette reads all your user rules, adds this rule and writes the whole list back (the API call shown is the shape of that write). It refuses to write if the rules changed in between, and saves the previous list to the audit log. Undo writes the previous list back.",
+      "connection_id": null,
+      "tool": null,
+      "rollback_tool": null,
+      "run": {
+        "cli": "",
+        "method": "POST",
+        "path": "/control/filtering/set_rules",
+        "body": "{\"rules\":[\"0.0.0.0 {domain}\"]}",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "",
+        "method": "POST",
+        "path": "/control/filtering/set_rules",
+        "body": "{\"rules\":{rules_before}}",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "",
+        "method": "GET",
+        "path": "/control/filtering/status",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "low",
+      "enabled": false,
+      "ai_may_propose": true,
+      "unverified": true
+    },
+    {
+      "id": "msg_send",
+      "pack": "generic",
+      "kind": "box",
+      "name": "Send a message to your alert channels",
+      "description": "Sends a short message to the alert channels you set up. It changes nothing on any device and cannot be unsent.",
+      "connection_id": null,
+      "tool": null,
+      "rollback_tool": null,
+      "run": {
+        "cli": "notify {text}",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "low",
+      "enabled": true,
+      "ai_may_propose": true,
+      "unverified": false
+    },
+    {
+      "id": "webhook_call",
+      "pack": "generic",
+      "kind": "box",
+      "name": "Call your webhook",
+      "description": "Sends a short text to the webhook channel you set up (a ticket system or automation tool). Nothing on your network changes.",
+      "connection_id": null,
+      "tool": null,
+      "rollback_tool": null,
+      "run": {
+        "cli": "webhook post {text}",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "rollback": {
+        "cli": "",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "verify": {
+        "cli": "",
+        "method": "",
+        "path": "",
+        "body": "",
+        "headers": ""
+      },
+      "risk": "low",
+      "enabled": true,
+      "ai_may_propose": false,
+      "unverified": false
+    }
+  ]
+}

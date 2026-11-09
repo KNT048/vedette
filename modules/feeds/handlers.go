@@ -38,7 +38,7 @@ func actor(ctx context.Context) (server.Principal, error) {
 
 // FeedsGetFeedsStatus implements GET /feeds/status: when the data was pulled and from where.
 func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFeedsStatusOK, error) {
-	rows, err := h.s.st.sources(ctx)
+	rows, err := h.s.sources(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -35,7 +35,7 @@ func (s *Service) Jobs() []jobs.Job {
 // the feed and never fails the job; only a cancelled context or a database failure does.
 func (s *Service) RunPull(ctx context.Context) error {
 	now := s.now()
-	rows, err := s.st.sources(ctx)
+	rows, err := s.sources(ctx)
 	if err != nil {
 		return err
 	}
@@ -349,6 +349,9 @@ func (s *Service) buildEPSS(ctx context.Context, src sourceRow, p pullPlan) (pul
 // row when a person started it: actor is their email). It returns the feed as stored afterwards and how many CVEs
 // were new. Only a database failure (or ErrNotFound, ErrFeedDisabled) is an error; a failed pull is recorded.
 func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, int, error) {
+	if err := s.ready(ctx); err != nil {
+		return sourceRow{}, 0, err
+	}
 	lock := s.feedLock(id)
 	lock.Lock()
 	defer lock.Unlock()

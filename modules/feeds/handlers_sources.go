@@ -21,7 +21,7 @@ func noSuchFeed() error { return apierr.New(http.StatusNotFound, apierr.CodeNotF
 
 // FeedsGetFeedsSources implements GET /feeds/sources: the built-in feeds in display order, then the custom ones.
 func (h *FeedHandlers) FeedsGetFeedsSources(ctx context.Context) (*oas.FeedsGetFeedsSourcesOK, error) {
-	rows, err := h.s.st.sources(ctx)
+	rows, err := h.s.sources(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -35,6 +35,9 @@ func (h *FeedHandlers) FeedsGetFeedsSources(ctx context.Context) (*oas.FeedsGetF
 // FeedsPutFeedsSourcesID implements PUT /feeds/sources/{id}: on or off, the schedule, a mirror address. A
 // built-in feed with an empty url goes back to its default address.
 func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.FeedsPutFeedsSourcesIDReq, params oas.FeedsPutFeedsSourcesIDParams) (*oas.FeedsPutFeedsSourcesIDOK, error) {
+	if err := h.s.ready(ctx); err != nil {
+		return nil, err
+	}
 	p, err := actor(ctx)
 	if err != nil {
 		return nil, err

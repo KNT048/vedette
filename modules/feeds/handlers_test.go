@@ -815,3 +815,17 @@ func TestCVEPathIsCheckedByTheGeneratedServer(t *testing.T) {
 		t.Errorf("lower case id: %d", c)
 	}
 }
+
+func TestBuiltinFeedsAreSeededOnFirstUse(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	write(t, e.db, func(tx *sql.Tx) error { _, err := tx.ExecContext(t.Context(), "DELETE FROM feeds_source"); return err })
+	svc, err := NewService(e.svc.Deps) // a new process: nobody called Seed
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := svc.sources(t.Context())
+	if err != nil || len(rows) != len(BuiltinSources()) {
+		t.Fatalf("%d feeds, %v", len(rows), err)
+	}
+}

@@ -327,7 +327,7 @@ func epssOrigin(o *origin, maxIDs *int) {
 			rows = append(rows, fmt.Sprintf(`{"cve":%q,"epss":%q,"percentile":"0.9","date":"2026-11-05"}`, id, score))
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"status":"OK","total":%d,"data":[%s]}`, len(rows), strings.Join(rows, ",")))) //nolint:gosec // a test origin echoing numbers and fixed ids
+		_, _ = fmt.Fprintf(w, `{"status":"OK","total":%d,"data":[%s]}`, len(rows), strings.Join(rows, ",")) //nolint:gosec // a test origin echoing numbers and fixed ids
 	})
 }
 

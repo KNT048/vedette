@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"sync"
 
 	"github.com/knt048/vedette/core/jobs"
@@ -15,7 +14,7 @@ var (
 )
 
 // feedsService builds the feeds service once per database, so the handlers and the pull job share it (and its
-// per-feed pull locks), and seeds the built-in feeds. Inventory and the event bus are not wired yet
+// per-feed pull locks). The built-in feeds are seeded on first use (Service.ready). Inventory and the event bus are not wired yet
 // (core/events and the inventory module are not on main): feeds answers you_have null and publishes nothing.
 func feedsService(d deps) (*feeds.Service, error) {
 	feedsMu.Lock()
@@ -26,9 +25,6 @@ func feedsService(d deps) (*feeds.Service, error) {
 	s, err := feeds.NewService(feeds.Deps{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Modules: d.Reg, Log: d.Log,
 		Fetcher: feeds.Fetcher{Version: version}, Clock: d.Clock})
 	if err != nil {
-		return nil, err
-	}
-	if err := s.Seed(context.Background()); err != nil {
 		return nil, err
 	}
 	feedsServices[d.DB] = s

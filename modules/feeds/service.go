@@ -86,6 +86,9 @@ type Service struct {
 
 	mu    sync.Mutex
 	locks map[string]*sync.Mutex // one pull at a time per feed
+
+	seedMu sync.Mutex
+	seeded bool
 }
 
 // NewService checks the dependencies.
@@ -129,4 +132,26 @@ func (s *Service) feedLock(id string) *sync.Mutex {
 		s.locks[id] = m
 	}
 	return m
+}
+
+// ready seeds the built-in feeds the first time a request or a pull needs them (once, with the caller context), so
+// start-up needs no context of its own. Seed stays callable directly (tests, tools).
+func (s *Service) ready(ctx context.Context) error {
+	s.seedMu.Lock()
+	defer s.seedMu.Unlock()
+	if s.seeded {
+		return nil
+	}
+	if err := s.Seed(ctx); err != nil {
+		return err
+	}
+	s.seeded = true
+	return nil
+}
+
+func (s *Service) sources(ctx context.Context) ([]sourceRow, error) {
+	if err := s.ready(ctx); err != nil {
+		return nil, err
+	}
+	return s.st.sources(ctx)
 }

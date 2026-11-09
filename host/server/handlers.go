@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -443,8 +444,8 @@ func (s *Server) submit(w http.ResponseWriter, sub submission, cmd Command, args
 			return
 		}
 		if !lockless { // a WhileAwaiting command runs under the lock the awaiting run already holds
-			if s.active != "" {
-				busy := s.active
+			if s.active != "" || s.inflight != "" {
+				busy := cmp.Or(s.inflight, s.active)
 				s.mu.Unlock()
 				s.refuse(w, sub, http.StatusConflict, api.ErrorInfo{Code: api.CodeBusy, Message: "Another write command is already running.", RunID: busy})
 				return
@@ -636,7 +637,7 @@ func (lr *liveRun) finish(s *Server, status api.Status, result json.RawMessage, 
 	}
 	lr.ev.add(api.Event{Kind: api.KindState, Status: status, Line: line})
 	lr.ev.finish()
-	if err := writeJSONAtomic(s.runs.eventsPath(run.RunID), lr.ev.snapshot()); err != nil {
+	if err := lr.ev.save(s.runs.eventsPath(run.RunID)); err != nil {
 		s.log.Error("could not save run events", "run_id", run.RunID)
 	}
 	s.mu.Lock()
@@ -666,12 +667,16 @@ func (s *Server) releaseWrite(runID string) {
 	s.mu.Unlock()
 }
 
+// releaseLocked frees what runID holds. When the awaiting run releases the lock while a
+// WhileAwaiting command is still running (the timer settled the run, or the command settled it
+// itself and has work left), the lock is handed to that command: it frees it when it ends, so
+// there is never a moment when a write is running and the lock looks free.
 func (s *Server) releaseLocked(runID string) {
-	if s.active == runID {
-		s.active = ""
-	}
 	if s.inflight == runID {
 		s.inflight = ""
+	}
+	if s.active == runID {
+		s.active = s.inflight
 	}
 }
 
@@ -776,7 +781,7 @@ func (s *Server) execute(lr *liveRun, cmd Command, args any) {
 	}
 	if !abandoned {
 		if aw, ok := asAwaiting(out.res); ok {
-			if out.err == nil && s.enterAwaiting(lr, aw, rc.after) {
+			if out.err == nil && s.enterAwaiting(lr, cmd, aw, rc) {
 				return // parked: Settle ends the run and releases the lock
 			}
 			if out.err == nil { // an invalid Awaiting is a bug of the command

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -39,11 +40,28 @@ type Command struct {
 	// runIDOf reads args.run_id of the decoded args.
 	whileAwaiting bool
 	runIDOf       func(args any) string
+	awaits        bool  // may return Awaiting
+	specErr       error // a mistake in the Spec, reported by NewRegistry
 	maxBody       int64 // 0 = the default maxBodyBytes
 }
 
 // Name is the command name, for example "os.check".
 func (c Command) Name() string { return c.name }
+
+// hasRunIDField reports whether A is a struct with a string field encoded as "run_id".
+func hasRunIDField[A any]() bool {
+	t := reflect.TypeFor[A]()
+	if t.Kind() != reflect.Struct {
+		return false
+	}
+	for f := range t.Fields() {
+		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		if name == "run_id" && f.Type.Kind() == reflect.String {
+			return true
+		}
+	}
+	return false
+}
 
 // bodyLimit is the largest request body the command accepts.
 func (c Command) bodyLimit() int64 {
@@ -69,6 +87,10 @@ type Spec[A any] struct {
 	// while a run waits; a WhileAwaiting command with no matching waiting run gets 412
 	// not_awaiting_confirm and never runs. One such command runs at a time (a second gets busy).
 	WhileAwaiting bool
+	// Awaits marks net.apply: the only kind of command whose Run may return Awaiting. It must be a
+	// Write command and cannot also be WhileAwaiting; an Awaiting from any other command fails the
+	// run as invalid (command_failed).
+	Awaits bool
 	// MaxBody is the largest request body in bytes; 0 means 512 KiB, at most 4 MiB.
 	MaxBody int64
 	// Validate checks the decoded args; return Invalid(...) for field errors. May be nil for no args.
@@ -86,6 +108,15 @@ type Spec[A any] struct {
 // Define turns a Spec into a Command.
 func Define[A any](s Spec[A]) Command {
 	c := Command{name: s.Name, write: s.Write, timeout: s.Timeout, whileAwaiting: s.WhileAwaiting, maxBody: s.MaxBody}
+	c.awaits = s.Awaits
+	switch {
+	case s.Awaits && s.WhileAwaiting:
+		c.specErr = errors.New("spec flags Awaits and WhileAwaiting exclude each other")
+	case s.Awaits && !s.Write:
+		c.specErr = errors.New("spec flag Awaits needs a Write command")
+	case s.WhileAwaiting && !hasRunIDField[A]():
+		c.specErr = errors.New(`WhileAwaiting needs a string field "run_id" in the args`)
+	}
 	if s.WhileAwaiting {
 		c.runIDOf = func(args any) string {
 			var v struct {
@@ -134,6 +165,8 @@ func NewRegistry(cmds ...Command) (*Registry, error) {
 			return nil, fmt.Errorf("host: command %q has no Run", c.name)
 		case c.timeout <= 0 || c.timeout > maxCommandTimeout:
 			return nil, fmt.Errorf("host: command %q needs a timeout between 1ns and %s", c.name, maxCommandTimeout)
+		case c.specErr != nil:
+			return nil, fmt.Errorf("host: command %q: %w", c.name, c.specErr)
 		case c.whileAwaiting && !c.write:
 			return nil, fmt.Errorf("host: command %q is WhileAwaiting but not a write command", c.name)
 		case c.maxBody < 0 || c.maxBody > maxCommandBody:
@@ -228,8 +261,8 @@ func (e *Reverted) Error() string { return "reverted: " + e.Code }
 // instead of finishing it (D-100): the run is stored with revert_at, an audit line awaiting_confirm is
 // written, and the run KEEPS the global write lock until (*Server).Settle ends it. Result is stored
 // as the run's result like Failure.Result. RevertAt must be set. The command arms its own timer
-// (and calls Settle from it); a Settle that arrives before Run has returned reports ErrNotAwaiting,
-// so arm timers for a moment well after Run returns (confirm windows are 30 s or more).
+// (arm it in rc.OnParked) and ends the run with Claim and Finish, or Settle. RevertAt must be in
+// the future and at most maxRevertWindow after the run started.
 type Awaiting struct {
 	RevertAt time.Time
 	Result   any
@@ -252,11 +285,12 @@ var codeRE = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 
 // RunContext is what a running command gets to report progress.
 type RunContext struct {
-	RunID string
-	Actor string
-	log   func(line string)
-	prog  func(percent int)
-	after []func(context.Context, api.Status)
+	RunID  string
+	Actor  string
+	log    func(line string)
+	prog   func(percent int)
+	after  []func(context.Context, api.Status)
+	parked []func()
 }
 
 // AfterFinish registers fn to run once the run is recorded as final: audit line and run file
@@ -269,6 +303,14 @@ type RunContext struct {
 func (rc *RunContext) AfterFinish(fn func(ctx context.Context, st api.Status)) {
 	rc.after = append(rc.after, fn)
 }
+
+// OnParked registers fn to run right after the run is parked in awaiting_confirm, when the write
+// lock and the waiting state are already published: arm the revert timer here, so that a timer
+// that fires at once can never find the run "not yet awaiting". fn must not block. It does not
+// run when the run ends any other way (an invalid Awaiting included). Call it from Run only.
+// Neither OnParked nor AfterFinish callbacks survive a host restart: after one, whoever resumed
+// the run (Options.Resume, then Ops.Start from net/pending.json) must re-arm its timer itself.
+func (rc *RunContext) OnParked(fn func()) { rc.parked = append(rc.parked, fn) }
 
 // Log appends one line (cut to 2 KiB, control characters removed) to the run's event stream.
 func (rc *RunContext) Log(line string) { rc.log(line) }

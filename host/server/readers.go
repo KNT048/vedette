@@ -154,7 +154,7 @@ func (s *Server) Note(command, code string, detail map[string]any) error {
 func (s *Server) WriteActive() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.active != ""
+	return s.active != "" || s.inflight != ""
 }
 
 // AwaitingConfirm reports whether a run is parked in awaiting_confirm (D-100). ops uses it as the

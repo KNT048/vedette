@@ -74,7 +74,7 @@ func newAwaitFx(t testing.TB) *awaitFx {
 	}
 	x.cmds = append(base.cmds,
 		server.Define(server.Spec[struct{}]{
-			Name: "test.park", Write: true, Timeout: 5 * time.Second,
+			Name: "test.park", Write: true, Awaits: true, Timeout: 5 * time.Second,
 			Run: func(_ context.Context, rc *server.RunContext, _ struct{}) (any, error) {
 				x.parks.Add(1)
 				rc.AfterFinish(func(_ context.Context, st api.Status) { x.after <- st })
@@ -82,11 +82,11 @@ func newAwaitFx(t testing.TB) *awaitFx {
 			},
 		}),
 		server.Define(server.Spec[struct{}]{
-			Name: "test.park_nodeadline", Write: true, Timeout: 5 * time.Second,
+			Name: "test.park_nodeadline", Write: true, Awaits: true, Timeout: 5 * time.Second,
 			Run: func(context.Context, *server.RunContext, struct{}) (any, error) { return server.Awaiting{}, nil },
 		}),
 		server.Define(server.Spec[struct{}]{
-			Name: "test.park_error", Write: true, Timeout: 5 * time.Second,
+			Name: "test.park_error", Write: true, Awaits: true, Timeout: 5 * time.Second,
 			Run: func(context.Context, *server.RunContext, struct{}) (any, error) {
 				return &server.Awaiting{RevertAt: time.Now().Add(time.Minute)}, errors.New("changed my mind")
 			},
@@ -123,10 +123,17 @@ func newAwaitFx(t testing.TB) *awaitFx {
 	return x
 }
 
+// prepareAwait is servertest.Prepare on the real clock: the test commands compute RevertAt from
+// time.Now(), and the server checks it against its own clock and the start of the run.
+func prepareAwait(t testing.TB, cmds []server.Command, mutate ...func(*server.Options)) *servertest.Harness {
+	t.Helper()
+	return servertest.Prepare(t, cmds, append([]func(*server.Options){func(o *server.Options) { o.Now = time.Now }}, mutate...)...)
+}
+
 func startAwait(t testing.TB) (*servertest.Harness, *awaitFx) {
 	t.Helper()
 	x := newAwaitFx(t)
-	h := servertest.Prepare(t, x.cmds)
+	h := prepareAwait(t, x.cmds)
 	x.srv.Store(h.Server)
 	h.Serve(t)
 	return h, x
@@ -438,7 +445,7 @@ func TestAwaiting_SettleRacingShutdownLeavesAConsistentRun(t *testing.T) {
 	t.Parallel()
 	for i := range 12 {
 		x := newAwaitFx(t)
-		h := servertest.Prepare(t, x.cmds, func(o *server.Options) {
+		h := prepareAwait(t, x.cmds, func(o *server.Options) {
 			o.Resume = func(api.Run) bool { return true }
 		})
 		x.srv.Store(h.Server)
@@ -472,7 +479,7 @@ func TestAwaiting_SettleRacingShutdownLeavesAConsistentRun(t *testing.T) {
 		default:
 			t.Fatalf("Settle = %v", settleErr)
 		}
-		h2 := servertest.Prepare(t, x.cmds, func(o *server.Options) {
+		h2 := prepareAwait(t, x.cmds, func(o *server.Options) {
 			o.StateDir, o.AuditPath, o.SocketPath = h.StateDir, h.AuditPath, h.Socket+"2"
 			o.Resume = func(api.Run) bool { return true }
 		})
@@ -511,7 +518,7 @@ func TestAwaiting_SettleAfterShutdownIsRefused(t *testing.T) {
 func TestAwaiting_RunSurvivesARestartWhenResumeSaysSo(t *testing.T) {
 	t.Parallel()
 	x := newAwaitFx(t)
-	h := servertest.Prepare(t, x.cmds)
+	h := prepareAwait(t, x.cmds)
 	x.srv.Store(h.Server)
 	h.Serve(t)
 	parked := park(t, h, rid1)
@@ -537,7 +544,7 @@ func TestAwaiting_RunSurvivesARestartWhenResumeSaysSo(t *testing.T) {
 	var asked []api.Run
 	var socketAtResume atomic.Bool
 	x2 := newAwaitFx(t)
-	h2 := servertest.Prepare(t, x2.cmds, func(o *server.Options) {
+	h2 := prepareAwait(t, x2.cmds, func(o *server.Options) {
 		o.StateDir, o.AuditPath, o.SocketPath = h.StateDir, h.AuditPath, h.Socket+"2"
 		o.Resume = func(r api.Run) bool {
 			asked = append(asked, r)
@@ -626,7 +633,7 @@ func TestAwaiting_RunIsFailedHostRestartedWithoutResume(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			x := newAwaitFx(t)
-			h := servertest.Prepare(t, x.cmds)
+			h := prepareAwait(t, x.cmds)
 			x.srv.Store(h.Server)
 			h.Serve(t)
 			parked := park(t, h, rid1)
@@ -635,7 +642,7 @@ func TestAwaiting_RunIsFailedHostRestartedWithoutResume(t *testing.T) {
 			if err := h.Server.Shutdown(sctx); err != nil {
 				t.Fatal(err)
 			}
-			h2 := servertest.Prepare(t, x.cmds, func(o *server.Options) {
+			h2 := prepareAwait(t, x.cmds, func(o *server.Options) {
 				o.StateDir, o.AuditPath, o.SocketPath = h.StateDir, h.AuditPath, h.Socket+"2"
 				setup(o)
 			})
@@ -663,7 +670,7 @@ func TestAwaiting_OnlyTheFirstAwaitingRunIsResumed(t *testing.T) {
 	t.Parallel()
 	// Two awaiting run files can only come from a damaged state directory; the lock allows one.
 	x := newAwaitFx(t)
-	h := servertest.Prepare(t, x.cmds)
+	h := prepareAwait(t, x.cmds)
 	x.srv.Store(h.Server)
 	h.Serve(t)
 	a := park(t, h, rid1)
@@ -681,7 +688,7 @@ func TestAwaiting_OnlyTheFirstAwaitingRunIsResumed(t *testing.T) {
 		t.Fatal(err)
 	}
 	var calls atomic.Int64
-	h2 := servertest.Prepare(t, x.cmds, func(o *server.Options) {
+	h2 := prepareAwait(t, x.cmds, func(o *server.Options) {
 		o.StateDir, o.AuditPath, o.SocketPath = h.StateDir, h.AuditPath, h.Socket+"2"
 		o.Resume = func(api.Run) bool { calls.Add(1); return true }
 	})

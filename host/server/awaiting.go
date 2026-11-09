@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/knt048/vedette/host/api"
@@ -29,54 +30,111 @@ var (
 // resultAwaiting is the audit result of the line written when a run starts waiting.
 const resultAwaiting = "awaiting_confirm"
 
-// Settle ends the run runID, which must be awaiting confirmation, as status (succeeded, failed or
-// reverted; failed and reverted need rerr). It writes the final audit line and the run, releases
-// the write lock and sends the final event, in that order, and then runs the AfterFinish callbacks
-// the awaiting command registered. It works exactly once per run (compare-and-set on the stored
-// state): a second call, or a call for any other run, returns ErrNotAwaiting and changes nothing.
-// The stored result of the awaiting run (Awaiting.Result) is kept.
-func (s *Server) Settle(runID string, status api.Status, rerr *api.RunError) error {
-	switch {
-	case status == api.StatusSucceeded:
-	case (status == api.StatusFailed || status == api.StatusReverted) && rerr != nil:
-	default:
-		return fmt.Errorf("host: Settle: %q with that error is not a final state of an awaiting run", status)
-	}
+// maxRevertWindow is the longest an awaiting run may wait: the 600 s of the confirm window plus
+// 60 s of slack (D-100 (7)). A longer RevertAt is invalid, and on resume a stored one is clamped.
+const maxRevertWindow = 660 * time.Second
+
+// Claimed is the right to end one awaiting run, taken by Claim. Finish ends it exactly once.
+type Claimed struct {
+	s  *Server
+	lr *liveRun
+	mu sync.Mutex
+	// done is set by the first successful Finish.
+	done bool
+}
+
+// Claim is the compare-and-set of an awaiting run: it takes the run out of the waiting state, so
+// every other Claim, Settle and WhileAwaiting command for it gets ErrNotAwaiting / 412 from now
+// on, but it KEEPS the write lock until Finish. Confirm and revert must Claim first, do their
+// effects, then Finish: the race between a confirm and the timer is then decided before either
+// touches the system, and nothing else can write while the winner works. A Claimed must always be
+// finished (use defer): until then the lock is held and Shutdown waits for it (bounded by its ctx).
+// ErrNotAwaiting: no such run is waiting (already claimed or settled, never waited); ErrShuttingDown
+// after Shutdown began (the run stays awaiting on disk).
+func (s *Server) Claim(runID string) (*Claimed, error) {
 	s.mu.Lock()
 	if s.draining.Load() {
 		s.mu.Unlock()
-		return ErrShuttingDown
+		return nil, ErrShuttingDown
 	}
 	lr := s.waiting
 	if lr == nil || lr.sr.Run.RunID != runID {
 		s.mu.Unlock()
+		return nil, ErrNotAwaiting
+	}
+	s.waiting = nil
+	s.wg.Add(1) // under s.mu, after the draining check: Shutdown waits for a Claim that got this far
+	s.mu.Unlock()
+	return &Claimed{s: s, lr: lr}, nil
+}
+
+// Finish ends the claimed run as status (succeeded, failed or reverted; failed and reverted need
+// rerr): it writes the final audit line and the run, releases the write lock (or hands it to the
+// WhileAwaiting command still running) and sends the final event, in that order, then runs the
+// AfterFinish callbacks the awaiting command registered. The stored Awaiting.Result is kept.
+// A bad status is an error and the claim stays open; a second successful Finish is ErrNotAwaiting.
+func (c *Claimed) Finish(status api.Status, rerr *api.RunError) error {
+	if err := checkFinal(status, rerr); err != nil {
+		return err
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.done {
 		return ErrNotAwaiting
 	}
-	s.waiting = nil // the compare-and-set: from here no other Settle and no WhileAwaiting command can see the run
-	s.wg.Add(1)     // under s.mu, after the draining check: Shutdown waits for a Settle that got this far
-	s.mu.Unlock()
-	defer s.wg.Done()
-	lr.finish(s, status, lr.sr.Run.Result, rerr, false)
-	s.runAfter(lr.sub.command, lr.after, status)
+	c.done = true
+	defer c.s.wg.Done()
+	c.lr.finish(c.s, status, c.lr.sr.Run.Result, rerr, false)
+	c.s.runAfter(c.lr.sub.command, c.lr.after, status)
 	return nil
 }
 
+func checkFinal(status api.Status, rerr *api.RunError) error {
+	switch {
+	case status == api.StatusSucceeded:
+	case (status == api.StatusFailed || status == api.StatusReverted) && rerr != nil:
+	default:
+		return fmt.Errorf("host: %q with that error is not a final state of an awaiting run", status)
+	}
+	return nil
+}
+
+// Settle is Claim and Finish in one call, for an ending that has no effects of its own to run
+// between the two (see Claim). It works exactly once per run (the loser of a race gets
+// ErrNotAwaiting and changes nothing).
+func (s *Server) Settle(runID string, status api.Status, rerr *api.RunError) error {
+	if err := checkFinal(status, rerr); err != nil {
+		return err
+	}
+	c, err := s.Claim(runID)
+	if err != nil {
+		return err
+	}
+	return c.Finish(status, rerr)
+}
+
 // enterAwaiting parks lr in awaiting_confirm after its command returned aw. It reports false (the
-// caller then finishes the run as failed) only for an Awaiting that is not valid.
-func (s *Server) enterAwaiting(lr *liveRun, aw Awaiting, after []func(context.Context, api.Status)) bool {
-	if aw.RevertAt.IsZero() {
-		s.log.Error("a command returned Awaiting without RevertAt", "command", lr.sub.command)
+// caller then finishes the run as failed) for an Awaiting that is not valid: the command is not
+// declared Awaits, is not a write run holding the lock, a run already waits, or RevertAt is not in
+// the future or is further than maxRevertWindow from the start of the run.
+func (s *Server) enterAwaiting(lr *liveRun, cmd Command, aw Awaiting, rc *RunContext) bool {
+	run := &lr.sr.Run
+	revertAt := aw.RevertAt.UTC()
+	if !cmd.awaits || cmd.whileAwaiting || !lr.sr.Write || revertAt.IsZero() || !revertAt.After(s.now()) || revertAt.After(run.StartedAt.Add(maxRevertWindow)) {
+		s.log.Error("a command returned an invalid Awaiting", "command", lr.sub.command)
 		return false
 	}
-	revertAt := aw.RevertAt.UTC()
-	run := &lr.sr.Run
-	run.Status, run.RevertAt, run.Result = api.StatusAwaitingConfirm, &revertAt, s.storeResult(s.baseCtx, aw.Result)
-	lr.after = after
 	// s.mu is held while the state is written, as submit does for a new run: the run is visible
-	// as waiting only together with its stored state, and a Settle that finds it waits for the
+	// as waiting only together with its stored state, and a Claim that finds it waits for the
 	// write to finish, so its final record can never be overwritten by this one.
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	if s.active != run.RunID || s.waiting != nil {
+		s.mu.Unlock()
+		s.log.Error("a command returned Awaiting without holding the write lock, or while a run waits", "command", lr.sub.command)
+		return false
+	}
+	run.Status, run.RevertAt, run.Result = api.StatusAwaitingConfirm, &revertAt, s.storeResult(s.baseCtx, aw.Result)
+	lr.after = rc.after
 	s.waiting = lr
 	id, err := newID("au_")
 	if err == nil {
@@ -94,16 +152,43 @@ func (s *Server) enterAwaiting(lr *liveRun, aw Awaiting, after []func(context.Co
 	if err := s.runs.put(lr.sr); err != nil {
 		s.log.Error("could not save an awaiting run", "run_id", run.RunID)
 	}
-	if err := writeJSONAtomic(s.runs.eventsPath(run.RunID), lr.ev.snapshot()); err != nil {
-		s.log.Error("could not save events of an awaiting run", "run_id", run.RunID)
+	s.persistEvents(lr)
+	s.mu.Unlock()
+	for _, fn := range rc.parked {
+		s.callParked(lr.sub.command, fn)
 	}
 	return true
+}
+
+// persistEvents saves the events of a waiting run now and after every later event, so a restart
+// resumes from the true last seq (the timer's own log lines count).
+func (s *Server) persistEvents(lr *liveRun) {
+	path := s.runs.eventsPath(lr.sr.Run.RunID)
+	lr.ev.setPersist(path, func(error) { s.log.Error("could not save events of an awaiting run", "run_id", lr.sr.Run.RunID) })
+	if err := lr.ev.save(path); err != nil {
+		s.log.Error("could not save events of an awaiting run", "run_id", lr.sr.Run.RunID)
+	}
+}
+
+func (s *Server) callParked(command string, fn func()) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			s.log.Error("OnParked callback panicked", "command", command, "panic", fmt.Sprint(rec))
+		}
+	}()
+	fn()
 }
 
 // resumeAwaiting keeps sr as the awaiting run when it is one and Options.Resume says so.
 func (s *Server) resumeAwaiting(sr storedRun) bool {
 	if sr.Run.Status != api.StatusAwaitingConfirm || sr.Run.RevertAt == nil || s.o.Resume == nil || s.waiting != nil || !s.askResume(sr.Run) {
 		return false
+	}
+	sr.Write = true // a run that holds the lock always releases it (a damaged file must not wedge it)
+	if limit := sr.Run.StartedAt.Add(maxRevertWindow); sr.Run.RevertAt.After(limit) {
+		s.log.Warn("the stored revert_at is beyond the confirm window; clamped", "run_id", sr.Run.RunID)
+		clamped := limit.UTC()
+		sr.Run.RevertAt = &clamped
 	}
 	lr := &liveRun{
 		sr: sr,
@@ -117,6 +202,10 @@ func (s *Server) resumeAwaiting(sr storedRun) bool {
 	s.active, s.waiting = sr.Run.RunID, lr
 	s.live[sr.Run.RunID] = lr.ev
 	s.mu.Unlock()
+	lr.ev.setPersist(s.runs.eventsPath(sr.Run.RunID), func(error) { s.log.Error("could not save events of an awaiting run", "run_id", sr.Run.RunID) })
+	if err := s.runs.put(lr.sr); err != nil {
+		s.log.Error("could not save a resumed run", "run_id", sr.Run.RunID)
+	}
 	s.log.Info("a run awaiting confirmation survived the restart", "run_id", sr.Run.RunID, "command", sr.Run.Command)
 	return true
 }

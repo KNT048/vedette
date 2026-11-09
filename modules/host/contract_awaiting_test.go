@@ -28,9 +28,9 @@ func TestContract_INV16_AwaitingRunBlocksSystemWrites(t *testing.T) {
 		d.FreeBytes = func(string) (uint64, error) { return 100 << 30, nil }
 	})
 	parkCmd := server.Define(server.Spec[struct{}]{
-		Name: "test.park", Write: true, Timeout: 5 * time.Second,
+		Name: "test.park", Write: true, Awaits: true, Timeout: 5 * time.Second,
 		Run: func(context.Context, *server.RunContext, struct{}) (any, error) {
-			return server.Awaiting{RevertAt: time.Now().Add(2 * time.Minute)}, nil
+			return server.Awaiting{RevertAt: clock.Now().Add(2 * time.Minute)}, nil
 		},
 	})
 	h := servertest.Start(t, append(o.Commands(), parkCmd), func(so *server.Options) {

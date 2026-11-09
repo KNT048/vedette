@@ -344,7 +344,7 @@ func TestSensorActiveSweepSkipsProtectedAddresses(t *testing.T) {
 	if !slices.Contains(swept, "192.168.10.29") || !slices.Contains(swept, "192.168.10.41") {
 		t.Errorf("the neighbours of the protected addresses are not swept: %d addresses", len(swept))
 	}
-	prot, err := sensorInventory{s.d.Inventory}.ProtectedIPs(t.Context())
+	prot, err := sensorInventory{inv: s.d.Inventory}.ProtectedIPs(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -418,7 +418,7 @@ func TestSensorActiveScopeRuleMatchesTheInventory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	st, err := sensorInventory{s.d.Inventory}.Settings(t.Context())
+	st, err := sensorInventory{inv: s.d.Inventory}.Settings(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

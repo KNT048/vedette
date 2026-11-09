@@ -358,6 +358,8 @@ func (m *Machine) Deps(now func() time.Time) ops.Deps {
 		Root: m.Root, BinPaths: m.BinPaths(), Now: now, ChainTop: filepath.Dir(m.CoreData),
 		CoreWait: 3 * time.Second, CorePoll: 5 * time.Millisecond, HealthSettle: 10 * time.Millisecond,
 		LockHeld: func(string) (bool, error) { return false, nil },
+		// The machine has no network cards unless a test says so: never the real ones of the developer's computer.
+		Interfaces: func() ([]ops.HostIface, error) { return nil, nil },
 	}
 }
 

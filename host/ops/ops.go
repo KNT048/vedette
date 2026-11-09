@@ -64,6 +64,10 @@ type Deps struct {
 	// whose own parent may be a sticky, world-writable /tmp on Linux). Unset in production: the walk goes up
 	// to "/" and every parent must be root-owned and closed to group and others.
 	ChainTop string
+	// Interfaces lists the network interfaces and their addresses (default: the net package). Probe is
+	// the ARP side of the network commands (default: the real packet socket, Linux only).
+	Interfaces func() ([]HostIface, error)
+	Probe      Prober
 }
 
 // Ops holds the state of the system commands.
@@ -145,6 +149,12 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 	if d.HealthSettle <= 0 {
 		d.HealthSettle = 5 * time.Second
 	}
+	if d.Interfaces == nil {
+		d.Interfaces = systemInterfaces
+	}
+	if d.Probe == nil {
+		d.Probe = newARPProber()
+	}
 	runner, err := newRunner(cfg.Logger, cfg.CoreUnit, d.BinPaths, min(d.ExportLimit, maxJournalStream))
 	if err != nil {
 		return nil, fmt.Errorf("ops: %w", err)
@@ -169,7 +179,7 @@ func (o *Ops) Commands() []server.Command {
 // Readers are the state endpoints of this part, for server.Options.Readers.
 func (o *Ops) Readers() server.Readers {
 	return server.Readers{
-		OS: o.readOS, Backups: o.readBackups, BackupContent: o.backupContent, ExportContent: o.exportContent,
+		OS: o.readOS, Backups: o.readBackups, Net: o.readNet, BackupContent: o.backupContent, ExportContent: o.exportContent,
 	}
 }
 

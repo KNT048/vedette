@@ -84,7 +84,8 @@ export const SettingsSaved = InventorySettings.extend({
 export const SensorStatus = z.enum(['online', 'offline'])
 /** Chỉ cảm biến của chính hộp này (chưa hỗ trợ nhiều site). */
 export const Sensor = z.object({
-  id: z.string(), name: z.string(), interface: z.string().nullable(), interfaces: z.array(z.string()), span: z.boolean(),
+  id: z.string(), name: z.string(), interface: z.string().nullable().describe('The port the sensor listens on: the SPAN port when SPAN is on, else the management port. Set in Settings → Box network'), interfaces: z.array(z.string()), span: z.boolean(),
+  span_status: z.object({ verdict: z.enum(['off', 'ok', 'own_only', 'no_traffic', 'no_link']), packets_per_s: z.number().int(), other_macs: z.number().int() }).describe('Live mirrored-traffic health, the same as Settings → Box network'),
   status: SensorStatus, last_seen: dt.nullable(), version: z.string().nullable(), devices_seen: z.number().int(),
 })
 export const SensorsResponse = z.object({ sensors: z.array(Sensor) })
@@ -134,7 +135,6 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/inventory/settings', summary: 'LAN ranges, active scan window, device types scanned only once (and which allow regular scans), scope attestation', stories: ['S-INV-1'], role: 'admin', response: InventorySettings },
   { method: 'put', path: '/inventory/settings', summary: 'Save the scan scope; enabling active scanning requires scope attestation', stories: ['S-INV-1'], role: 'admin', body: SettingsInput, response: SettingsSaved },
   { method: 'get', path: '/inventory/sensors', summary: 'Sensors of this box only (multiple sites not supported yet)', stories: ['S-INV-1'], role: 'admin', response: SensorsResponse },
-  { method: 'patch', path: '/inventory/sensors/{id}', summary: 'Choose the network interface of the sensor on the box and whether it receives mirrored (SPAN/TAP) traffic', stories: ['S-INV-1'], role: 'admin', params: id, body: z.object({ interface: z.string().optional(), span: z.boolean().optional() }), response: ok },
   { method: 'get', path: '/inventory/agents', summary: 'Issued osquery tokens and the Wazuh connection (if any)', stories: ['S-INV-4'], role: 'admin', response: AgentsResponse },
   { method: 'post', path: '/inventory/agents/tokens', summary: 'Issue an osquery token, returning the full token once', stories: ['S-INV-4'], role: 'admin', body: z.object({ name: z.string().max(64), kind: AgentKind.optional(), expires_in_days: z.number().int().min(0).max(365).optional().describe('Default 7; 0 = never expires') }), response: CreateTokenResult },
   { method: 'delete', path: '/inventory/agents/tokens/{id}', summary: 'Revoke an osquery token', stories: ['S-INV-4'], role: 'admin', params: id, response: null },

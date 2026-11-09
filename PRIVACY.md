@@ -13,6 +13,7 @@ Vedette runs on your own machine. Your devices, logs, findings and AI keys **nev
 | 7 | SIEM forwarding (only if you configure it) | Vedette events (alerts, trap touches, aggregated logs) as syslog/CEF/JSON | The SIEM/webhook address you enter | Yes — off unless configured |
 | 8 | CVE news (only when you click it) | The CVE ID in lookup requests | Vendor advisory pages, GitHub, public RSS feeds | Yes — nothing is sent unless you click |
 | 9 | External exposure (only if you turn it on) | Your verified domain names, to find subdomains in public certificate-transparency logs; and an HTTPS request to a fixed Vedette endpoint so the box can see its own public IP for IP verification | Certificate-transparency search services; the Vedette project's endpoint on Cloudflare | Yes — turn off the External exposure module |
+| 10 | Time sync (NTP, D-56) | A standard NTP request (UDP port 123) so the box clock stays right. It contains no Vedette data; the server sees the box's IP address | `pool.ntp.org` by default, or the NTP servers you enter in Settings → Box network (they can be inside your network) | Yes — enter an NTP server inside your network and nothing goes out |
 
 **Bug report (D-42) is not a flow.** The box sends nothing when you report a problem. The form builds a filtered diagnostic file (version, module states, recent errors; no devices, logs, findings, keys, emails or IPs) that you download, and "Open GitHub issue" opens GitHub in **your own browser** with your text filled in. You decide what to post. Nothing leaves the box unless you do it.
 

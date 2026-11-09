@@ -905,17 +905,16 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect((await call('GET', `/devices/${f.id}`)).json!.asset.regular_scan).toBe('never')
   })
 
-  it("configures this box's own sensor: network interface and SPAN", async () => {
+  it('the sensor dialog shows the SPAN status and links to Box network; it has no SPAN switch', async () => {
     const user = userEvent.setup()
     renderApp('/devices/setup')
     await screen.findAllByRole('button', { name: 'Configure sensor vedette-hq' }, T)
     await clickUntil(user, () => screen.getAllByRole('button', { name: 'Configure sensor vedette-hq' })[0]!, () => screen.getByRole('dialog'))
-    await user.selectOptions(await screen.findByRole('combobox', { name: 'Network interface' }, T), 'eth1')
-    await user.click(screen.getByRole('switch', { name: /This port receives mirrored traffic/ }))
-    await user.click(screen.getByRole('button', { name: 'Save' }))
-    expect(await screen.findByText('Sensor configuration saved.', undefined, T)).toBeInTheDocument()
-    const s = (await call('GET', '/sensors')).json!.sensors.find((x: { id: string }) => x.id === 'sn-local')
-    expect(s).toMatchObject({ interface: 'eth1', span: true })
+    const dlg = screen.getByRole('dialog')
+    expect(await within(dlg).findByText('Receiving', undefined, T)).toBeInTheDocument()
+    expect(within(dlg).getByText('eth1')).toBeInTheDocument()
+    expect(within(dlg).queryByRole('switch')).not.toBeInTheDocument()
+    expect(within(dlg).getByRole('link', { name: 'Configure SPAN in Settings → Box network' })).toHaveAttribute('href', '/settings/network')
   })
 
   it('single-box only: one local sensor, no kind/site/enrollment fields, no "other site" button, no remote-sensor endpoints', async () => {
@@ -933,12 +932,14 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect(screen.queryByText(/Waiting to enrol/i)).not.toBeInTheDocument()
   })
 
-  it('PATCH sensor validates the interface and span; unknown sensors are 404', async () => {
+  it('the sensor row follows Settings → Box network: SPAN off means the management port, no verdict traffic', async () => {
     asAdmin()
-    expect((await call('PATCH', '/sensors/sn-local', { interface: 'wlan9' })).json?.error.code).toBe('bad_interface')
-    expect((await call('PATCH', '/sensors/sn-local', { span: 'yes' })).json?.error.code).toBe('bad_span')
-    expect((await call('PATCH', '/sensors/sn-none', { span: true })).status).toBe(404)
-    expect((await call('PATCH', '/sensors/sn-local', { interface: 'eth1', span: true })).status).toBe(200)
+    const sensor = async () => (await call('GET', '/sensors')).json!.sensors.find((x: { id: string }) => x.id === 'sn-local')
+    expect(await sensor()).toMatchObject({ interface: 'eth1', span: true, interfaces: ['eth0', 'eth1', 'eth2'], span_status: { verdict: 'ok' } })
+    const net = (await (await fetch(`${location.origin}/api/v1/core/network`)).json()) as { span: Record<string, unknown> }
+    const r = await fetch(`${location.origin}/api/v1/core/network/span`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...net.span, enabled: false }) })
+    expect(r.status).toBe(200)
+    expect(await sensor()).toMatchObject({ interface: 'eth0', span: false, span_status: { verdict: 'off' } })
   })
 
   it('Active sensor module off: the active scanning part says why it is missing', async () => {
@@ -1368,9 +1369,8 @@ describe('inventory: audit log (SYS-3)', () => {
     await call('PUT', '/agents/wazuh', { url: 'https://wazuh-manager:55000', username: 'vedette', password: 'Audit-pass-1234', interval_minutes: 60 })
     await call('DELETE', '/agents/wazuh')
     await call('DELETE', `/agents/tokens/${token.id}`)
-    await call('PATCH', '/sensors/sn-local', { span: true })
     const actions = auditStore.get().map((e) => e.action)
-    for (const a of ['inventory.add_manual', 'inventory.approve', 'inventory.mark_suspicious', 'inventory.notify_new', 'inventory.agent_token_create', 'inventory.agent_enroll', 'inventory.wazuh_connect', 'inventory.wazuh_disconnect', 'inventory.agent_token_revoke', 'inventory.sensor_update']) expect(actions).toContain(a)
+    for (const a of ['inventory.add_manual', 'inventory.approve', 'inventory.mark_suspicious', 'inventory.notify_new', 'inventory.agent_token_create', 'inventory.agent_enroll', 'inventory.wazuh_connect', 'inventory.wazuh_disconnect', 'inventory.agent_token_revoke']) expect(actions).toContain(a)
     const log = JSON.stringify(auditStore.get())
     expect(log).not.toContain(secret)
     expect(log).not.toMatch(/vdt_osquery_[a-z0-9]{32}|Audit-pass-1234|Bearer /)
@@ -1411,7 +1411,6 @@ describe('inventory: English only', () => {
       (await call('POST', '/devices', { catalog_id: 'zzz' })).json?.error.message,
       (await call('PATCH', '/devices/a-none', { notes: 'x' })).json?.error.message,
       (await call('PUT', '/settings', { lan_ranges: ['8.8.8.0/24'] })).json?.error.message,
-      (await call('PATCH', '/sensors/sn-local', { interface: 'wlan9' })).json?.error.message,
       (await call('POST', '/import', { text: '' })).json?.error.message,
     ]
     for (const m of msgs) { expect(typeof m).toBe('string'); expect(m).not.toMatch(VI) }

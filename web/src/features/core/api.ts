@@ -5,6 +5,7 @@ import type { Role } from '@/lib/session'
 import type {
   Account, AdminUser, AuditQuery, AuditResult, AuthOptions, GeneralSettings, McpState, McpTokenCreated, OidcConfig, PrivacyState, SetupModule, SetupPayload, SetupStatus, TotpStart, EmailCodeSent,
   UpdateChannel, UpdatesState, MaintenanceWindow, OsRebootBody, OsRun, OsState,
+  NetworkState, IfaceRole, ManagementBody, SpanConfig, SpanStatus, NtpConfig,
 } from './types'
 
 const qs = (q: Partial<AuditQuery>) => {
@@ -161,3 +162,20 @@ export const saveNotifyChannel = (type: string, fields: Record<string, string>, 
   api.put(`/notify/channels/${type}`, { enabled: true, fields, secret: secret || undefined, min_severity: 'medium' })
 
 export const usePurge = () => useMutation({ mutationFn: (confirm: string) => api.post<{ ok: true; removed: Record<string, number> }>('/core/data/purge', { confirm }) })
+
+// ---- mạng của hộp (D-56) ----
+export const useNetwork = () => useQuery({ queryKey: ['core', 'network'], queryFn: () => api.get<NetworkState>('/core/network'), refetchInterval: (q) => (q.state.data?.pending ? 2000 : false) })
+/** Polled while the page is open: the point of the card is to watch traffic arrive. */
+export const useSpanStatus = () => useQuery({ queryKey: ['core', 'network', 'span-status'], queryFn: () => api.get<SpanStatus>('/core/network/span/status'), refetchInterval: 5000 })
+export function useNetworkActions() {
+  const qc = useQueryClient()
+  const done = (d: NetworkState) => { qc.setQueryData(['core', 'network'], d); void qc.invalidateQueries({ queryKey: ['core', 'network', 'span-status'] }); void qc.invalidateQueries({ queryKey: ['inventory'] }); void qc.invalidateQueries({ queryKey: ['core', 'privacy'] }) }
+  return {
+    roles: useMutation({ mutationFn: (roles: Record<string, IfaceRole>) => api.put<NetworkState>('/core/network/interfaces', { roles }), onSuccess: done }),
+    management: useMutation({ mutationFn: (b: ManagementBody) => api.put<NetworkState>('/core/network/management', b), onSuccess: done }),
+    confirm: useMutation({ mutationFn: () => api.post<NetworkState>('/core/network/management/confirm'), onSuccess: done }),
+    revert: useMutation({ mutationFn: () => api.post<NetworkState>('/core/network/management/revert'), onSuccess: done }),
+    span: useMutation({ mutationFn: (b: SpanConfig) => api.put<NetworkState>('/core/network/span', b), onSuccess: done }),
+    ntp: useMutation({ mutationFn: (b: NtpConfig) => api.put<NetworkState>('/core/network/ntp', b), onSuccess: done }),
+  }
+}

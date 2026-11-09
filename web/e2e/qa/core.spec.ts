@@ -435,13 +435,13 @@ test.describe('updates', () => {
 })
 
 test.describe('privacy', () => {
-  test('9 flows, switch, verbatim payload', async ({ page }) => {
+  test('10 flows, switch, verbatim payload', async ({ page }) => {
     const errors = collectErrors(page)
     await cleanInstall(page)
     await page.goto('/settings/privacy')
     await expect(h1(page)).toContainText('anonymous signal every hour')
     await expectAccessible(page, 'privacy')
-    await expect(page.getByRole('table', { name: 'Nine data flows that leave the box' }).locator('tbody tr')).toHaveCount(9)
+    await expect(page.getByRole('table', { name: 'Data flows that leave the box' }).locator('tbody tr')).toHaveCount(10)
     await expect(page.getByText("The Vedette project's server").first()).toBeVisible()
     await shot(page, 'core', 'privacy')
     const payload = async () => JSON.parse(await page.getByLabel('JSON, exactly what would be sent').innerText()) as Record<string, unknown>

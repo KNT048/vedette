@@ -343,7 +343,7 @@
   },
   "sensors": {
     "title": "Sensor on this box",
-    "description": "The sensor listens to the network (DHCP, ARP, mDNS, SSDP, LLDP) to learn devices without scanning. Choose which network port it listens on.",
+    "description": "The sensor listens to the network (DHCP, ARP, mDNS, SSDP, LLDP) to learn devices without scanning. The port it listens on and SPAN are set in Settings → Box network.",
     "off": "The passive sensor is off, so Vedette does not discover new devices by itself. Devices you add by hand still work.",
     "caption": "Sensors on this box",
     "col": {
@@ -363,12 +363,19 @@
     "config": "Configure",
     "configure": "Configure sensor {{name}}",
     "configTitle": "Configure {{name}}",
-    "configBody": "Choose the network port the sensor listens on.",
+    "configBody": "The port the sensor listens on and whether mirrored traffic is arriving. Change them in Settings.",
     "interface": "Network interface",
-    "interfaceHint": "The port plugged into the network to watch.",
-    "span": "This port receives mirrored traffic (SPAN or TAP)",
-    "spanHint": "Vedette reads DNS queries, TLS server names, HTTP hosts and connection metadata from the mirrored traffic to learn devices and spot connections to known-bad addresses. It does not store packet contents. Without mirrored traffic the sensor only sees broadcast messages (DHCP, ARP, mDNS).",
-    "configSaved": "Sensor configuration saved."
+    "spanStatus": "Mirrored traffic",
+    "spanLink": "Configure SPAN in Settings → Box network",
+    "rate": "{{pps}} packets/s, {{macs}} other devices",
+    "verdict": {
+      "off": "SPAN is off",
+      "ok": "Receiving",
+      "own_only": "Only the box's own traffic",
+      "no_traffic": "Nothing arriving",
+      "no_link": "No cable signal"
+    },
+    "spanHint": "Vedette reads DNS queries, TLS server names, HTTP hosts and connection metadata from the mirrored traffic to learn devices and spot connections to known-bad addresses. It does not store packet contents. Without mirrored traffic the sensor only sees broadcast messages (DHCP, ARP, mDNS)."
   },
   "agents": {
     "title": "Agents on servers",

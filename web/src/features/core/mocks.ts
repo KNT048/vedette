@@ -8,6 +8,8 @@ import type { Role } from '@/lib/session'
 import type { ModuleId } from '@/lib/modules'
 import { BUNDLES } from './bundles'
 import { osHandlers } from './osMock'
+import { networkHandlers } from './networkMock'
+import { networkStore } from '@/mocks/network'
 import { newSecret, verifyTotp } from './totp'
 import { checkCode, clearCode, issueCode, maskEmail, sentBody } from './emailCode'
 import { CIDR_RE, compareVersion, fromBase64, isPrivateCidr, MIN_PASSWORD, TIMEZONES } from './util'
@@ -595,6 +597,12 @@ function telemetryPayload() {
   }
 }
 
+/** Flow 10: time requests leave the LAN unless every NTP server is an internal address. Host names count as public (cannot tell from here). */
+function ntpPublic() {
+  const n = networkStore.get().ntp
+  return n.mode === 'default' || n.servers.some((x) => !isPrivateCidr(`${x}/32`))
+}
+
 function privacyView() {
   const p = privacyStore.get()
   const ai = aiConfigStore.get().configured && isOn('ai')
@@ -608,6 +616,7 @@ function privacyView() {
     { id: 7, state: 'conditional', control: 'reason' },
     { id: 8, state: isOn('ai') ? 'conditional' : 'off', control: 'reason' },
     { id: 9, state: isOn('exposure') ? 'on' : 'off', control: 'reason' },
+    { id: 10, state: ntpPublic() ? 'on' : 'off', control: 'reason' },
   ]
   return { flows, telemetry: { enabled: p.telemetry, last_sent: p.last_sent, payload: telemetryPayload() }, update_check: p.update_check }
 }
@@ -713,4 +722,4 @@ const dataHandlers = [
   }),
 ]
 
-export const handlers = [...logExportHandlers, ...setupHandlers, ...generalHandlers, ...accountHandlers, ...usersHandlers, ...auditHandlers, ...updatesHandlers, ...privacyHandlers, ...mcpHandlers, ...dataHandlers]
+export const handlers = [...logExportHandlers, ...setupHandlers, ...generalHandlers, ...accountHandlers, ...usersHandlers, ...auditHandlers, ...updatesHandlers, ...privacyHandlers, ...networkHandlers, ...mcpHandlers, ...dataHandlers]

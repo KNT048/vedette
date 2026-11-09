@@ -39,6 +39,12 @@ Lần kiểm độc lập 2026-11-09 còn thêm ba lỗi chung: hộp thoại đ
 | Settings → Updates → cửa sổ bảo trì | chế độ (mọi lúc / chỉ trong cửa sổ) | 2026-11-09, agent làm + ma trận tự động + Playwright 4 biến thể (kien chưa xem) |
 | Settings → Updates → Schedule reboot | lịch (đầu cửa sổ tiếp / giờ tự chọn), khoá khi không có cửa sổ | 2026-11-09, như trên |
 | Devices → hộp (This box) → xoá | nút bị khoá, máy chủ từ chối 409 | 2026-11-09, như trên |
+| Settings → Box network → Interfaces | vai giao diện (management / SPAN capture / unused), máy chủ từ chối hai management, đổi management, hai SPAN | 2026-11-09, agent làm + ma trận tự động + Playwright 4 biến thể (kien chưa xem) |
+| Settings → Box network → Management interface | DHCP / static (DHCP ẩn IP, prefix, gateway, DNS; không rò giá trị cũ), bước xác nhận 2 phút và hoàn tác | 2026-11-09, như trên |
+| Settings → Box network → SPAN capture | công tắc đọc gì (DNS, TLS SNI, HTTP host, kết nối), loại bộ lọc loại trừ (CIDR / host / port), cổng SPAN không được là cổng quản lý | 2026-11-09, như trên |
+| Settings → Box network → NTP | pool mặc định / máy chủ riêng | 2026-11-09, như trên |
+| Settings → Box network → Hướng dẫn mirror | hãng switch (8 mục) | 2026-11-09, như trên |
+| Devices → Scope and sensors → Sensor on this box | hộp thoại chỉ đọc: trạng thái SPAN + liên kết sang Box network | 2026-11-09, như trên |
 
 ## 5. Tốc độ không bỏ được bước 2–3
 Khi kien muốn ship nhanh: được bỏ chạy lại toàn bộ E2E, được bỏ test hồi quy rộng; **không** được bỏ ma trận form và kịch bản cho màn hình vừa làm.

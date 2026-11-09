@@ -9218,6 +9218,2683 @@
         }
       }
     },
+    "/core/network": {
+      "get": {
+        "operationId": "core_get_core_network",
+        "summary": "Network interfaces, management address, SPAN capture settings and live status, NTP, decoy IPs",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-CORE-8",
+          "S-INV-1"
+        ],
+        "x-min-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "interfaces": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "management",
+                              "span",
+                              "unused"
+                            ]
+                          },
+                          "link": {
+                            "type": "boolean"
+                          },
+                          "speed": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "mac": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "description": "address/prefix, only on the management interface",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "role",
+                          "link",
+                          "speed",
+                          "mac",
+                          "address"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "management": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "dhcp",
+                            "static"
+                          ]
+                        },
+                        "address": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "prefix": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "gateway": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "dns": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "address",
+                        "prefix",
+                        "gateway",
+                        "dns"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "span": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "interface": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "extract": {
+                          "type": "object",
+                          "properties": {
+                            "dns": {
+                              "type": "boolean"
+                            },
+                            "tls_sni": {
+                              "type": "boolean"
+                            },
+                            "http_host": {
+                              "type": "boolean"
+                            },
+                            "flows": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "dns",
+                            "tls_sni",
+                            "http_host",
+                            "flows"
+                          ],
+                          "additionalProperties": false,
+                          "description": "What is read from mirrored traffic. Packet contents are never stored."
+                        },
+                        "filters": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "cidr",
+                                  "host",
+                                  "port"
+                                ]
+                              },
+                              "value": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "cpu_percent": {
+                          "type": "integer",
+                          "minimum": 5,
+                          "maximum": 50
+                        },
+                        "memory_mb": {
+                          "type": "integer",
+                          "minimum": 128,
+                          "maximum": 2048
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "interface",
+                        "extract",
+                        "filters",
+                        "cpu_percent",
+                        "memory_mb"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "span_status": {
+                      "type": "object",
+                      "properties": {
+                        "verdict": {
+                          "type": "string",
+                          "enum": [
+                            "off",
+                            "ok",
+                            "own_only",
+                            "no_traffic",
+                            "no_link"
+                          ],
+                          "description": "own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link = no cable signal"
+                        },
+                        "interface": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "packets_per_s": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "other_macs": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Distinct source MAC addresses other than the box's own"
+                        },
+                        "last_packet_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "verdict",
+                        "interface",
+                        "packets_per_s",
+                        "other_macs",
+                        "last_packet_at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "ntp": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "default",
+                            "custom"
+                          ]
+                        },
+                        "servers": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Only for mode custom; empty for the default pool"
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "servers"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "default_ntp": {
+                      "type": "string"
+                    },
+                    "decoy_ips": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "pending": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "expires_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "previous_address": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "expires_at",
+                            "previous_address"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A management address change waiting for confirmation from the new address; the box reverts at expires_at"
+                    }
+                  },
+                  "required": [
+                    "interfaces",
+                    "management",
+                    "span",
+                    "span_status",
+                    "ntp",
+                    "default_ntp",
+                    "decoy_ips",
+                    "pending"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/network/interfaces": {
+      "put": {
+        "operationId": "core_put_core_network_interfaces",
+        "summary": "Set the role of every interface (management / SPAN capture / unused). Exactly one management interface, at most one SPAN interface; the management interface cannot be changed here (409)",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-CORE-8"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "roles": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "enum": [
+                        "management",
+                        "span",
+                        "unused"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "roles"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "interfaces": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "management",
+                              "span",
+                              "unused"
+                            ]
+                          },
+                          "link": {
+                            "type": "boolean"
+                          },
+                          "speed": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "mac": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "description": "address/prefix, only on the management interface",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "role",
+                          "link",
+                          "speed",
+                          "mac",
+                          "address"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "management": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "dhcp",
+                            "static"
+                          ]
+                        },
+                        "address": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "prefix": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "gateway": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "dns": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "address",
+                        "prefix",
+                        "gateway",
+                        "dns"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "span": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "interface": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "extract": {
+                          "type": "object",
+                          "properties": {
+                            "dns": {
+                              "type": "boolean"
+                            },
+                            "tls_sni": {
+                              "type": "boolean"
+                            },
+                            "http_host": {
+                              "type": "boolean"
+                            },
+                            "flows": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "dns",
+                            "tls_sni",
+                            "http_host",
+                            "flows"
+                          ],
+                          "additionalProperties": false,
+                          "description": "What is read from mirrored traffic. Packet contents are never stored."
+                        },
+                        "filters": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "cidr",
+                                  "host",
+                                  "port"
+                                ]
+                              },
+                              "value": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "cpu_percent": {
+                          "type": "integer",
+                          "minimum": 5,
+                          "maximum": 50
+                        },
+                        "memory_mb": {
+                          "type": "integer",
+                          "minimum": 128,
+                          "maximum": 2048
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "interface",
+                        "extract",
+                        "filters",
+                        "cpu_percent",
+                        "memory_mb"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "span_status": {
+                      "type": "object",
+                      "properties": {
+                        "verdict": {
+                          "type": "string",
+                          "enum": [
+                            "off",
+                            "ok",
+                            "own_only",
+                            "no_traffic",
+                            "no_link"
+                          ],
+                          "description": "own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link = no cable signal"
+                        },
+                        "interface": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "packets_per_s": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "other_macs": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Distinct source MAC addresses other than the box's own"
+                        },
+                        "last_packet_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "verdict",
+                        "interface",
+                        "packets_per_s",
+                        "other_macs",
+                        "last_packet_at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "ntp": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "default",
+                            "custom"
+                          ]
+                        },
+                        "servers": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Only for mode custom; empty for the default pool"
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "servers"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "default_ntp": {
+                      "type": "string"
+                    },
+                    "decoy_ips": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "pending": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "expires_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "previous_address": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "expires_at",
+                            "previous_address"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A management address change waiting for confirmation from the new address; the box reverts at expires_at"
+                    }
+                  },
+                  "required": [
+                    "interfaces",
+                    "management",
+                    "span",
+                    "span_status",
+                    "ntp",
+                    "default_ntp",
+                    "decoy_ips",
+                    "pending"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/network/management": {
+      "put": {
+        "operationId": "core_put_core_network_management",
+        "summary": "Management interface: DHCP or static. An address change applies for 2 minutes and reverts unless confirmed from the new address",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-CORE-8"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "dhcp",
+                      "static"
+                    ]
+                  },
+                  "address": {
+                    "type": "string"
+                  },
+                  "prefix": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "gateway": {
+                    "type": "string"
+                  },
+                  "dns": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "confirm": {
+                    "description": "Required when the address, prefix, gateway or mode changes: 409 confirm_required (with new_ip) otherwise. DNS-only changes apply at once. dhcp with any static field: 400 dhcp_no_static",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "mode"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "interfaces": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "management",
+                              "span",
+                              "unused"
+                            ]
+                          },
+                          "link": {
+                            "type": "boolean"
+                          },
+                          "speed": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "mac": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "description": "address/prefix, only on the management interface",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "role",
+                          "link",
+                          "speed",
+                          "mac",
+                          "address"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "management": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "dhcp",
+                            "static"
+                          ]
+                        },
+                        "address": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "prefix": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "gateway": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "dns": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "address",
+                        "prefix",
+                        "gateway",
+                        "dns"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "span": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "interface": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "extract": {
+                          "type": "object",
+                          "properties": {
+                            "dns": {
+                              "type": "boolean"
+                            },
+                            "tls_sni": {
+                              "type": "boolean"
+                            },
+                            "http_host": {
+                              "type": "boolean"
+                            },
+                            "flows": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "dns",
+                            "tls_sni",
+                            "http_host",
+                            "flows"
+                          ],
+                          "additionalProperties": false,
+                          "description": "What is read from mirrored traffic. Packet contents are never stored."
+                        },
+                        "filters": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "cidr",
+                                  "host",
+                                  "port"
+                                ]
+                              },
+                              "value": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "cpu_percent": {
+                          "type": "integer",
+                          "minimum": 5,
+                          "maximum": 50
+                        },
+                        "memory_mb": {
+                          "type": "integer",
+                          "minimum": 128,
+                          "maximum": 2048
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "interface",
+                        "extract",
+                        "filters",
+                        "cpu_percent",
+                        "memory_mb"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "span_status": {
+                      "type": "object",
+                      "properties": {
+                        "verdict": {
+                          "type": "string",
+                          "enum": [
+                            "off",
+                            "ok",
+                            "own_only",
+                            "no_traffic",
+                            "no_link"
+                          ],
+                          "description": "own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link = no cable signal"
+                        },
+                        "interface": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "packets_per_s": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "other_macs": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Distinct source MAC addresses other than the box's own"
+                        },
+                        "last_packet_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "verdict",
+                        "interface",
+                        "packets_per_s",
+                        "other_macs",
+                        "last_packet_at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "ntp": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "default",
+                            "custom"
+                          ]
+                        },
+                        "servers": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Only for mode custom; empty for the default pool"
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "servers"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "default_ntp": {
+                      "type": "string"
+                    },
+                    "decoy_ips": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "pending": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "expires_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "previous_address": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "expires_at",
+                            "previous_address"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A management address change waiting for confirmation from the new address; the box reverts at expires_at"
+                    }
+                  },
+                  "required": [
+                    "interfaces",
+                    "management",
+                    "span",
+                    "span_status",
+                    "ntp",
+                    "default_ntp",
+                    "decoy_ips",
+                    "pending"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/network/management/confirm": {
+      "post": {
+        "operationId": "core_post_core_network_management_confirm",
+        "summary": "Confirm the pending management change from the new address (409 when none is pending or it expired)",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-CORE-8"
+        ],
+        "x-min-role": "admin",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "interfaces": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "management",
+                              "span",
+                              "unused"
+                            ]
+                          },
+                          "link": {
+                            "type": "boolean"
+                          },
+                          "speed": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "mac": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "description": "address/prefix, only on the management interface",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "role",
+                          "link",
+                          "speed",
+                          "mac",
+                          "address"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "management": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "dhcp",
+                            "static"
+                          ]
+                        },
+                        "address": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "prefix": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "gateway": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "dns": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "address",
+                        "prefix",
+                        "gateway",
+                        "dns"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "span": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "interface": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "extract": {
+                          "type": "object",
+                          "properties": {
+                            "dns": {
+                              "type": "boolean"
+                            },
+                            "tls_sni": {
+                              "type": "boolean"
+                            },
+                            "http_host": {
+                              "type": "boolean"
+                            },
+                            "flows": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "dns",
+                            "tls_sni",
+                            "http_host",
+                            "flows"
+                          ],
+                          "additionalProperties": false,
+                          "description": "What is read from mirrored traffic. Packet contents are never stored."
+                        },
+                        "filters": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "cidr",
+                                  "host",
+                                  "port"
+                                ]
+                              },
+                              "value": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "cpu_percent": {
+                          "type": "integer",
+                          "minimum": 5,
+                          "maximum": 50
+                        },
+                        "memory_mb": {
+                          "type": "integer",
+                          "minimum": 128,
+                          "maximum": 2048
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "interface",
+                        "extract",
+                        "filters",
+                        "cpu_percent",
+                        "memory_mb"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "span_status": {
+                      "type": "object",
+                      "properties": {
+                        "verdict": {
+                          "type": "string",
+                          "enum": [
+                            "off",
+                            "ok",
+                            "own_only",
+                            "no_traffic",
+                            "no_link"
+                          ],
+                          "description": "own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link = no cable signal"
+                        },
+                        "interface": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "packets_per_s": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "other_macs": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Distinct source MAC addresses other than the box's own"
+                        },
+                        "last_packet_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "verdict",
+                        "interface",
+                        "packets_per_s",
+                        "other_macs",
+                        "last_packet_at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "ntp": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "default",
+                            "custom"
+                          ]
+                        },
+                        "servers": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Only for mode custom; empty for the default pool"
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "servers"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "default_ntp": {
+                      "type": "string"
+                    },
+                    "decoy_ips": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "pending": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "expires_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "previous_address": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "expires_at",
+                            "previous_address"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A management address change waiting for confirmation from the new address; the box reverts at expires_at"
+                    }
+                  },
+                  "required": [
+                    "interfaces",
+                    "management",
+                    "span",
+                    "span_status",
+                    "ntp",
+                    "default_ntp",
+                    "decoy_ips",
+                    "pending"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/network/management/revert": {
+      "post": {
+        "operationId": "core_post_core_network_management_revert",
+        "summary": "Cancel the pending management change now and go back to the old settings",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-CORE-8"
+        ],
+        "x-min-role": "admin",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "interfaces": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "management",
+                              "span",
+                              "unused"
+                            ]
+                          },
+                          "link": {
+                            "type": "boolean"
+                          },
+                          "speed": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "mac": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "description": "address/prefix, only on the management interface",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "role",
+                          "link",
+                          "speed",
+                          "mac",
+                          "address"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "management": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "dhcp",
+                            "static"
+                          ]
+                        },
+                        "address": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "prefix": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "gateway": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "dns": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "address",
+                        "prefix",
+                        "gateway",
+                        "dns"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "span": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "interface": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "extract": {
+                          "type": "object",
+                          "properties": {
+                            "dns": {
+                              "type": "boolean"
+                            },
+                            "tls_sni": {
+                              "type": "boolean"
+                            },
+                            "http_host": {
+                              "type": "boolean"
+                            },
+                            "flows": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "dns",
+                            "tls_sni",
+                            "http_host",
+                            "flows"
+                          ],
+                          "additionalProperties": false,
+                          "description": "What is read from mirrored traffic. Packet contents are never stored."
+                        },
+                        "filters": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "cidr",
+                                  "host",
+                                  "port"
+                                ]
+                              },
+                              "value": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "cpu_percent": {
+                          "type": "integer",
+                          "minimum": 5,
+                          "maximum": 50
+                        },
+                        "memory_mb": {
+                          "type": "integer",
+                          "minimum": 128,
+                          "maximum": 2048
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "interface",
+                        "extract",
+                        "filters",
+                        "cpu_percent",
+                        "memory_mb"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "span_status": {
+                      "type": "object",
+                      "properties": {
+                        "verdict": {
+                          "type": "string",
+                          "enum": [
+                            "off",
+                            "ok",
+                            "own_only",
+                            "no_traffic",
+                            "no_link"
+                          ],
+                          "description": "own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link = no cable signal"
+                        },
+                        "interface": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "packets_per_s": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "other_macs": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Distinct source MAC addresses other than the box's own"
+                        },
+                        "last_packet_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "verdict",
+                        "interface",
+                        "packets_per_s",
+                        "other_macs",
+                        "last_packet_at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "ntp": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "default",
+                            "custom"
+                          ]
+                        },
+                        "servers": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Only for mode custom; empty for the default pool"
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "servers"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "default_ntp": {
+                      "type": "string"
+                    },
+                    "decoy_ips": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "pending": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "expires_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "previous_address": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "expires_at",
+                            "previous_address"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A management address change waiting for confirmation from the new address; the box reverts at expires_at"
+                    }
+                  },
+                  "required": [
+                    "interfaces",
+                    "management",
+                    "span",
+                    "span_status",
+                    "ntp",
+                    "default_ntp",
+                    "decoy_ips",
+                    "pending"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/network/ntp": {
+      "put": {
+        "operationId": "core_put_core_network_ntp",
+        "summary": "NTP servers: default pool or your own (1 to 4)",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-CORE-8"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "default",
+                      "custom"
+                    ]
+                  },
+                  "servers": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Only for mode custom; empty for the default pool"
+                  }
+                },
+                "required": [
+                  "mode",
+                  "servers"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "interfaces": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "management",
+                              "span",
+                              "unused"
+                            ]
+                          },
+                          "link": {
+                            "type": "boolean"
+                          },
+                          "speed": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "mac": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "description": "address/prefix, only on the management interface",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "role",
+                          "link",
+                          "speed",
+                          "mac",
+                          "address"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "management": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "dhcp",
+                            "static"
+                          ]
+                        },
+                        "address": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "prefix": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "gateway": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "dns": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "address",
+                        "prefix",
+                        "gateway",
+                        "dns"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "span": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "interface": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "extract": {
+                          "type": "object",
+                          "properties": {
+                            "dns": {
+                              "type": "boolean"
+                            },
+                            "tls_sni": {
+                              "type": "boolean"
+                            },
+                            "http_host": {
+                              "type": "boolean"
+                            },
+                            "flows": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "dns",
+                            "tls_sni",
+                            "http_host",
+                            "flows"
+                          ],
+                          "additionalProperties": false,
+                          "description": "What is read from mirrored traffic. Packet contents are never stored."
+                        },
+                        "filters": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "cidr",
+                                  "host",
+                                  "port"
+                                ]
+                              },
+                              "value": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "cpu_percent": {
+                          "type": "integer",
+                          "minimum": 5,
+                          "maximum": 50
+                        },
+                        "memory_mb": {
+                          "type": "integer",
+                          "minimum": 128,
+                          "maximum": 2048
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "interface",
+                        "extract",
+                        "filters",
+                        "cpu_percent",
+                        "memory_mb"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "span_status": {
+                      "type": "object",
+                      "properties": {
+                        "verdict": {
+                          "type": "string",
+                          "enum": [
+                            "off",
+                            "ok",
+                            "own_only",
+                            "no_traffic",
+                            "no_link"
+                          ],
+                          "description": "own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link = no cable signal"
+                        },
+                        "interface": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "packets_per_s": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "other_macs": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Distinct source MAC addresses other than the box's own"
+                        },
+                        "last_packet_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "verdict",
+                        "interface",
+                        "packets_per_s",
+                        "other_macs",
+                        "last_packet_at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "ntp": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "default",
+                            "custom"
+                          ]
+                        },
+                        "servers": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Only for mode custom; empty for the default pool"
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "servers"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "default_ntp": {
+                      "type": "string"
+                    },
+                    "decoy_ips": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "pending": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "expires_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "previous_address": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "expires_at",
+                            "previous_address"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A management address change waiting for confirmation from the new address; the box reverts at expires_at"
+                    }
+                  },
+                  "required": [
+                    "interfaces",
+                    "management",
+                    "span",
+                    "span_status",
+                    "ntp",
+                    "default_ntp",
+                    "decoy_ips",
+                    "pending"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/network/span": {
+      "put": {
+        "operationId": "core_put_core_network_span",
+        "summary": "SPAN capture: port, what is extracted, exclusion filters, CPU and memory cap. The management interface cannot be the SPAN port (409); turning it on needs a port and at least one extraction",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-CORE-8",
+          "S-INV-1",
+          "S-LOG-4"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "interface": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "extract": {
+                    "type": "object",
+                    "properties": {
+                      "dns": {
+                        "type": "boolean"
+                      },
+                      "tls_sni": {
+                        "type": "boolean"
+                      },
+                      "http_host": {
+                        "type": "boolean"
+                      },
+                      "flows": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "dns",
+                      "tls_sni",
+                      "http_host",
+                      "flows"
+                    ],
+                    "additionalProperties": false,
+                    "description": "What is read from mirrored traffic. Packet contents are never stored."
+                  },
+                  "filters": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "cidr",
+                            "host",
+                            "port"
+                          ]
+                        },
+                        "value": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "cpu_percent": {
+                    "type": "integer",
+                    "minimum": 5,
+                    "maximum": 50
+                  },
+                  "memory_mb": {
+                    "type": "integer",
+                    "minimum": 128,
+                    "maximum": 2048
+                  }
+                },
+                "required": [
+                  "enabled",
+                  "interface",
+                  "extract",
+                  "filters",
+                  "cpu_percent",
+                  "memory_mb"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "interfaces": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "management",
+                              "span",
+                              "unused"
+                            ]
+                          },
+                          "link": {
+                            "type": "boolean"
+                          },
+                          "speed": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "mac": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "description": "address/prefix, only on the management interface",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "role",
+                          "link",
+                          "speed",
+                          "mac",
+                          "address"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "management": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "dhcp",
+                            "static"
+                          ]
+                        },
+                        "address": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "prefix": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "gateway": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "dns": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "address",
+                        "prefix",
+                        "gateway",
+                        "dns"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "span": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "interface": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "extract": {
+                          "type": "object",
+                          "properties": {
+                            "dns": {
+                              "type": "boolean"
+                            },
+                            "tls_sni": {
+                              "type": "boolean"
+                            },
+                            "http_host": {
+                              "type": "boolean"
+                            },
+                            "flows": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "dns",
+                            "tls_sni",
+                            "http_host",
+                            "flows"
+                          ],
+                          "additionalProperties": false,
+                          "description": "What is read from mirrored traffic. Packet contents are never stored."
+                        },
+                        "filters": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "cidr",
+                                  "host",
+                                  "port"
+                                ]
+                              },
+                              "value": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "cpu_percent": {
+                          "type": "integer",
+                          "minimum": 5,
+                          "maximum": 50
+                        },
+                        "memory_mb": {
+                          "type": "integer",
+                          "minimum": 128,
+                          "maximum": 2048
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "interface",
+                        "extract",
+                        "filters",
+                        "cpu_percent",
+                        "memory_mb"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "span_status": {
+                      "type": "object",
+                      "properties": {
+                        "verdict": {
+                          "type": "string",
+                          "enum": [
+                            "off",
+                            "ok",
+                            "own_only",
+                            "no_traffic",
+                            "no_link"
+                          ],
+                          "description": "own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link = no cable signal"
+                        },
+                        "interface": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "packets_per_s": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "other_macs": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Distinct source MAC addresses other than the box's own"
+                        },
+                        "last_packet_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "verdict",
+                        "interface",
+                        "packets_per_s",
+                        "other_macs",
+                        "last_packet_at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "ntp": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "default",
+                            "custom"
+                          ]
+                        },
+                        "servers": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Only for mode custom; empty for the default pool"
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "servers"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "default_ntp": {
+                      "type": "string"
+                    },
+                    "decoy_ips": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "pending": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "expires_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "previous_address": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "expires_at",
+                            "previous_address"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A management address change waiting for confirmation from the new address; the box reverts at expires_at"
+                    }
+                  },
+                  "required": [
+                    "interfaces",
+                    "management",
+                    "span",
+                    "span_status",
+                    "ntp",
+                    "default_ntp",
+                    "decoy_ips",
+                    "pending"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/network/span/status": {
+      "get": {
+        "operationId": "core_get_core_network_span_status",
+        "summary": "Live mirrored-traffic status: packets/s, other MACs, last packet, health verdict",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-CORE-8",
+          "S-INV-1"
+        ],
+        "x-min-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "verdict": {
+                      "type": "string",
+                      "enum": [
+                        "off",
+                        "ok",
+                        "own_only",
+                        "no_traffic",
+                        "no_link"
+                      ],
+                      "description": "own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link = no cable signal"
+                    },
+                    "interface": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "packets_per_s": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "other_macs": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Distinct source MAC addresses other than the box's own"
+                    },
+                    "last_packet_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "verdict",
+                    "interface",
+                    "packets_per_s",
+                    "other_macs",
+                    "last_packet_at"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/core/oidc": {
       "get": {
         "operationId": "core_get_core_oidc",
@@ -9514,7 +12191,7 @@
     "/core/privacy": {
       "get": {
         "operationId": "core_get_core_privacy",
-        "summary": "The 9 data flows leaving the box and the verbatim anonymous-signal payload",
+        "summary": "The 10 data flows leaving the box and the verbatim anonymous-signal payload",
         "tags": [
           "core"
         ],
@@ -9538,7 +12215,7 @@
                           "id": {
                             "type": "integer",
                             "minimum": 1,
-                            "maximum": 9
+                            "maximum": 10
                           },
                           "state": {
                             "type": "string",
@@ -9566,7 +12243,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Exactly the 9 flows listed in PRIVACY.md"
+                      "description": "Exactly the 10 flows listed in PRIVACY.md"
                     },
                     "telemetry": {
                       "type": "object",
@@ -9673,7 +12350,7 @@
                           "id": {
                             "type": "integer",
                             "minimum": 1,
-                            "maximum": 9
+                            "maximum": 10
                           },
                           "state": {
                             "type": "string",
@@ -9701,7 +12378,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Exactly the 9 flows listed in PRIVACY.md"
+                      "description": "Exactly the 10 flows listed in PRIVACY.md"
                     },
                     "telemetry": {
                       "type": "object",
@@ -28866,6 +31543,7 @@
                             "type": "string"
                           },
                           "interface": {
+                            "description": "The port the sensor listens on: the SPAN port when SPAN is on, else the management port. Set in Settings → Box network",
                             "type": [
                               "string",
                               "null"
@@ -28879,6 +31557,38 @@
                           },
                           "span": {
                             "type": "boolean"
+                          },
+                          "span_status": {
+                            "type": "object",
+                            "properties": {
+                              "verdict": {
+                                "type": "string",
+                                "enum": [
+                                  "off",
+                                  "ok",
+                                  "own_only",
+                                  "no_traffic",
+                                  "no_link"
+                                ]
+                              },
+                              "packets_per_s": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "other_macs": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "verdict",
+                              "packets_per_s",
+                              "other_macs"
+                            ],
+                            "additionalProperties": false,
+                            "description": "Live mirrored-traffic health, the same as Settings → Box network"
                           },
                           "status": {
                             "type": "string",
@@ -28917,6 +31627,7 @@
                           "interface",
                           "interfaces",
                           "span",
+                          "span_status",
                           "status",
                           "last_seen",
                           "version",
@@ -28928,80 +31639,6 @@
                   },
                   "required": [
                     "sensors"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/inventory/sensors/{id}": {
-      "patch": {
-        "operationId": "inventory_patch_inventory_sensors_id",
-        "summary": "Choose the network interface of the sensor on the box and whether it receives mirrored (SPAN/TAP) traffic",
-        "tags": [
-          "inventory"
-        ],
-        "x-stories": [
-          "S-INV-1"
-        ],
-        "x-min-role": "admin",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "interface": {
-                    "type": "string"
-                  },
-                  "span": {
-                    "type": "boolean"
-                  }
-                },
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "const": true
-                    }
-                  },
-                  "required": [
-                    "ok"
                   ],
                   "additionalProperties": false
                 }

@@ -113,9 +113,9 @@ export const UpdateCheck = UpdatesState.extend({ applied: z.number().describe('I
 export const BundleUpload = z.object({ name: z.string(), size: z.number(), sha256: z.string(), content: z.string().describe('Bundle file content, base64 (UTF-8)') })
 
 // ---- quyền riêng tư ----
-export const PrivacyFlow = z.object({ id: z.number().int().min(1).max(9), state: z.enum(['on', 'off', 'conditional']), control: z.enum(['switch', 'reason']), configured: z.boolean().optional() })
+export const PrivacyFlow = z.object({ id: z.number().int().min(1).max(10), state: z.enum(['on', 'off', 'conditional']), control: z.enum(['switch', 'reason']), configured: z.boolean().optional() })
 export const PrivacyState = z.object({
-  flows: z.array(PrivacyFlow).describe('Exactly the 9 flows listed in PRIVACY.md'),
+  flows: z.array(PrivacyFlow).describe('Exactly the 10 flows listed in PRIVACY.md'),
   telemetry: z.object({ enabled: z.boolean(), last_sent: ts.nullable(), payload: z.record(z.string(), z.unknown()).describe('Anonymous-signal payload verbatim, exactly what will be sent next hour') }),
   update_check: z.boolean(),
 })
@@ -129,6 +129,29 @@ export const McpState = z.object({
 export const McpTokenCreated = z.object({ token: z.string().describe('Returned once, at creation'), item: McpToken })
 
 const id = z.object({ id: z.string() })
+
+
+// ---- mạng của hộp (D-56, S-CORE-8) ----
+export const IfaceRole = z.enum(['management', 'span', 'unused'])
+export const NetInterface = z.object({ name: z.string(), role: IfaceRole, link: z.boolean(), speed: z.string().nullable(), mac: z.string(), address: z.string().nullable().describe('address/prefix, only on the management interface') })
+export const Management = z.object({ mode: z.enum(['dhcp', 'static']), address: z.string().nullable(), prefix: z.number().int().nullable(), gateway: z.string().nullable(), dns: z.array(z.string()) })
+export const SpanExtract = z.object({ dns: z.boolean(), tls_sni: z.boolean(), http_host: z.boolean(), flows: z.boolean() }).describe('What is read from mirrored traffic. Packet contents are never stored.')
+export const SpanFilter = z.object({ type: z.enum(['cidr', 'host', 'port']), value: z.string() })
+export const SpanConfig = z.object({ enabled: z.boolean(), interface: z.string().nullable(), extract: SpanExtract, filters: z.array(SpanFilter), cpu_percent: z.number().int().min(5).max(50), memory_mb: z.number().int().min(128).max(2048) })
+export const SpanStatus = z.object({
+  verdict: z.enum(['off', 'ok', 'own_only', 'no_traffic', 'no_link']).describe('own_only = packets arrive but only the box\'s own; no_traffic = link up, nothing arrives; no_link = no cable signal'),
+  interface: z.string().nullable(), packets_per_s: z.number().int(), other_macs: z.number().int().describe('Distinct source MAC addresses other than the box\'s own'), last_packet_at: ts.nullable(),
+})
+export const NtpConfig = z.object({ mode: z.enum(['default', 'custom']), servers: z.array(z.string()).describe('Only for mode custom; empty for the default pool') })
+export const PendingManagement = z.object({ expires_at: ts, previous_address: z.string().nullable() })
+export const NetworkState = z.object({
+  interfaces: z.array(NetInterface), management: Management, span: SpanConfig, span_status: SpanStatus, ntp: NtpConfig,
+  default_ntp: z.string(), decoy_ips: z.array(z.string()), pending: PendingManagement.nullable().describe('A management address change waiting for confirmation from the new address; the box reverts at expires_at'),
+})
+export const ManagementBody = z.object({
+  mode: z.enum(['dhcp', 'static']), address: z.string().optional(), prefix: z.number().int().optional(), gateway: z.string().optional(), dns: z.array(z.string()).optional(),
+  confirm: z.boolean().optional().describe('Required when the address, prefix, gateway or mode changes: 409 confirm_required (with new_ip) otherwise. DNS-only changes apply at once. dhcp with any static field: 400 dhcp_no_static'),
+})
 
 export const endpoints = defineEndpoints([
   // nền
@@ -188,7 +211,7 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/core/updates/bundle', summary: 'Export a signed offline bundle for an air-gapped box', stories: ['S-CORE-2'], role: 'operator', response: 'file' },
   { method: 'post', path: '/core/updates/bundle', summary: 'Import an offline bundle; a bad signature is rejected', stories: ['S-CORE-2'], role: 'admin', body: BundleUpload, response: z.object({ applied: z.number(), state: UpdatesState }) },
   // quyền riêng tư
-  { method: 'get', path: '/core/privacy', summary: 'The 9 data flows leaving the box and the verbatim anonymous-signal payload', stories: ['S-CORE-4'], role: 'viewer', response: PrivacyState },
+  { method: 'get', path: '/core/privacy', summary: 'The 10 data flows leaving the box and the verbatim anonymous-signal payload', stories: ['S-CORE-4'], role: 'viewer', response: PrivacyState },
   { method: 'patch', path: '/core/privacy', summary: 'Turn the anonymous signal and update checks on/off', stories: ['S-CORE-4'], role: 'admin', body: z.object({ telemetry: z.boolean().optional(), update_check: z.boolean().optional() }), response: PrivacyState },
   // MCP
   { method: 'get', path: '/core/mcp', summary: 'MCP server state, tokens (last 4 characters only) and the read-only tool list', stories: ['S-MCP-1'], role: 'admin', response: McpState },
@@ -200,4 +223,12 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/core/logs/export', summary: 'Download the box logs (audit, AI activity, response, scan probes, alerts, device logs, known-bad connections, honeypot hits) as one JSON or CSV file; secrets are removed, hash-chained logs keep their hashes for offline verification; the download is audited', stories: ['S-CORE-6'], role: 'admin', query: z.object({ categories: z.string().describe('Comma list: audit, ai_activity, response, scan_probes, alerts, device_logs, known_bad, honeypot'), from: z.string().optional().describe('Start date, YYYY-MM-DD'), to: z.string().optional().describe('End date, YYYY-MM-DD'), format: z.enum(['json', 'csv']) }), response: 'file', example: { query: { categories: 'audit,ai_activity', format: 'json' } } },
   { method: 'get', path: '/core/data/export', summary: 'Export my data as JSON', stories: ['S-CORE-1'], role: 'admin', response: 'file' },
   { method: 'post', path: '/core/data/purge', summary: 'Delete all data back to a fresh install (type the exact organization name to confirm)', stories: ['S-CORE-1'], role: 'admin', body: z.object({ confirm: z.string() }), response: z.object({ ok: z.literal(true), removed: z.record(z.string(), z.number()) }) },
+  { method: 'get', path: '/core/network', summary: 'Network interfaces, management address, SPAN capture settings and live status, NTP, decoy IPs', stories: ['S-CORE-8', 'S-INV-1'], role: 'viewer', response: NetworkState },
+  { method: 'put', path: '/core/network/interfaces', summary: 'Set the role of every interface (management / SPAN capture / unused). Exactly one management interface, at most one SPAN interface; the management interface cannot be changed here (409)', stories: ['S-CORE-8'], role: 'admin', body: z.object({ roles: z.record(z.string(), IfaceRole) }), response: NetworkState },
+  { method: 'put', path: '/core/network/management', summary: 'Management interface: DHCP or static. An address change applies for 2 minutes and reverts unless confirmed from the new address', stories: ['S-CORE-8'], role: 'admin', body: ManagementBody, response: NetworkState },
+  { method: 'post', path: '/core/network/management/confirm', summary: 'Confirm the pending management change from the new address (409 when none is pending or it expired)', stories: ['S-CORE-8'], role: 'admin', response: NetworkState },
+  { method: 'post', path: '/core/network/management/revert', summary: 'Cancel the pending management change now and go back to the old settings', stories: ['S-CORE-8'], role: 'admin', response: NetworkState },
+  { method: 'put', path: '/core/network/span', summary: 'SPAN capture: port, what is extracted, exclusion filters, CPU and memory cap. The management interface cannot be the SPAN port (409); turning it on needs a port and at least one extraction', stories: ['S-CORE-8', 'S-INV-1', 'S-LOG-4'], role: 'admin', body: SpanConfig, response: NetworkState },
+  { method: 'get', path: '/core/network/span/status', summary: 'Live mirrored-traffic status: packets/s, other MACs, last packet, health verdict', stories: ['S-CORE-8', 'S-INV-1'], role: 'viewer', response: SpanStatus },
+  { method: 'put', path: '/core/network/ntp', summary: 'NTP servers: default pool or your own (1 to 4)', stories: ['S-CORE-8'], role: 'admin', body: NtpConfig, response: NetworkState },
 ])

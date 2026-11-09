@@ -289,8 +289,9 @@ type Tpl struct {
 }
 
 // Empty reports whether the template has nothing to run.
+// Headers count: a step that holds only headers is not empty, so it is validated (and refused) like any other.
 func (t Tpl) Empty() bool {
-	return strings.TrimSpace(t.CLI) == "" && t.Method == "" && t.Path == "" && strings.TrimSpace(t.Body) == ""
+	return strings.TrimSpace(t.CLI) == "" && t.Method == "" && t.Path == "" && strings.TrimSpace(t.Body) == "" && strings.TrimSpace(t.Headers) == ""
 }
 
 // templateParams lists the typed placeholders the texts use, in the API order.
@@ -331,16 +332,19 @@ var (
 // Limits of the check before and the read-back text (D-95).
 const (
 	maxExpect     = 200
-	maxRefuse     = 5
+	maxRefuse     = 8
 	maxRefuseText = 80
 )
 
 // forbiddenHeader reports whether a template may not set the header: the connection sets the credentials and the address
-// (Authorization, Cookie, Host, Proxy-*), and hop-by-hop and forwarding headers belong to the connection too (D-94).
+// (Authorization, Cookie, Host, Proxy-*), and hop-by-hop and forwarding headers belong to the connection too (D-94). Headers that
+// make a server act as another method (X-HTTP-Method-Override...) or as another client or path (X-Real-IP, X-Original-URL...) are
+// refused as well (review of 13b-2).
 func forbiddenHeader(name string) bool {
 	n := strings.ToLower(name)
 	switch n {
-	case "authorization", "cookie", "host", "connection", "keep-alive", "te", "trailer", "transfer-encoding", "upgrade", "forwarded":
+	case "authorization", "cookie", "host", "connection", "keep-alive", "te", "trailer", "transfer-encoding", "upgrade", "forwarded", "via", "x-forwarded",
+		"x-http-method-override", "x-http-method", "x-method-override", "x-real-ip", "x-original-url", "x-rewrite-url":
 		return true
 	}
 	return strings.HasPrefix(n, "proxy-") || strings.HasPrefix(n, "x-forwarded-")
@@ -410,20 +414,21 @@ func ValidateTpl(t Tpl, what string) string {
 	return ""
 }
 
-// precheckProblem checks the check before and its refusal texts as a pair (D-95): both or neither, a read-only template (a
-// command, or a GET without a body), no read-back text, at most 5 texts of up to 80 plain characters. "" when acceptable.
-func precheckProblem(t Tpl, refuse []string) string {
+// precheckProblem checks the check before with its refusal texts and its required text as a group (D-95): a read-only template (a
+// command, or a GET without a body), at least one refusal text or a required text, no read-back text, at most 8 refusal texts of up
+// to 80 plain characters, a required text of up to 80 plain characters. "" when acceptable.
+func precheckProblem(t Tpl, refuse []string, expect string) string {
 	const what = "Check before"
-	if t.Empty() && len(refuse) == 0 {
+	if t.Empty() && len(refuse) == 0 && expect == "" {
 		return ""
 	}
 	switch {
 	case t.Empty():
 		return what + ": give the read-only command or API call, or remove the texts that make it refuse."
-	case len(refuse) == 0:
-		return what + ": add at least one text that makes it refuse."
+	case len(refuse) == 0 && expect == "":
+		return what + ": add at least one text that makes it refuse, or a text the output must contain."
 	case len(refuse) > maxRefuse:
-		return what + ": up to 5 texts that make it refuse."
+		return what + ": up to 8 texts that make it refuse."
 	case t.Expect != "":
 		return what + ": the text to look for belongs to the read-back, not here."
 	case (t.Method != "" && t.Method != "GET") || strings.TrimSpace(t.Body) != "":
@@ -434,13 +439,41 @@ func precheckProblem(t Tpl, refuse []string) string {
 			return what + ": each text that makes it refuse is 1 to 80 plain characters."
 		}
 	}
+	if expect != "" && (!refuseRE.MatchString(expect) || strings.TrimSpace(expect) == "") {
+		return what + ": the text the output must contain is 1 to 80 plain characters."
+	}
 	return ValidateTpl(t, what)
 }
 
-// needsPrecheck reports whether the templates name a port ({interface}) without the check before and a refusal text that D-95 (3)
-// requires, so a trunk or uplink port is never touched.
-func needsPrecheck(run, rollback, verify, pre Tpl, refuse []string) bool {
-	return slices.Contains(tplParams(run, rollback, verify, pre), PInterface) && (pre.Empty() || len(refuse) == 0)
+// portLikeParams are the placeholders that can name a port: {interface} always; in a customer's action also {port}, {id} and {name}
+// when they sit in a command or an API path, because the type system has no "this is a port" type for them ({port} is a TCP or UDP
+// number, {id} a whole number and {name} a free name, and "interface GigabitEthernet1/0/{port}" or "interface {name}" names a port
+// all the same).
+var portLikeParams = []ParamType{PInterface, PPort, PID, PName}
+
+func usesPortLike(run, rollback, verify, pre Tpl, custom bool) bool {
+	if slices.Contains(tplParams(run, rollback, verify, pre), PInterface) {
+		return true
+	}
+	if !custom {
+		return false
+	}
+	var texts []string
+	for _, t := range []Tpl{run, rollback} {
+		texts = append(texts, t.CLI, t.Path)
+	}
+	for _, p := range templateParams(texts...) {
+		if slices.Contains(portLikeParams, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// needsPrecheck reports whether the templates can name a port without the check before and a refusal text that D-95 (3) requires, so
+// a trunk or uplink port is never touched. custom: the action is a customer's (see portLikeParams).
+func needsPrecheck(run, rollback, verify, pre Tpl, refuse []string, custom bool) bool {
+	return usesPortLike(run, rollback, verify, pre, custom) && (pre.Empty() || len(refuse) == 0)
 }
 
 func validMethod(m string) bool {

@@ -27,7 +27,8 @@ export function ChangeView({ change }: { change: Change }) {
       <KeyValue items={[{ label: t('change.before'), value: change.before }, { label: t('change.after'), value: change.after }]} />
       {change.cli ? <CodeBlock code={change.cli} label={t('change.cli')} /> : null}
       {change.rest ? <CodeBlock code={restText(change.rest)} label={t('change.rest')} /> : null}
-      {change.verify ? <p className="text-[13px]"><span className="font-medium">{t('change.verify')}:</span> {change.verify}</p> : null}
+      {change.precheck ? <div className="grid gap-1"><CodeBlock code={change.precheck} label={t('change.precheck')} />{change.precheck_rules ? <p className="text-[13px] text-muted">{change.precheck_rules}</p> : null}</div> : null}
+      {change.verify ? <div className="grid gap-1"><CodeBlock code={change.verify} label={t('change.verify')} />{change.verify_rule ? <p className="text-[13px] text-muted">{change.verify_rule}</p> : null}</div> : null}
       <div className="grid gap-1 border-t border-rule pt-2">
         <p className="text-sm font-medium">{t('change.rollback')}: {change.rollback.title}</p>
         {change.rollback.cli ? <CodeBlock code={change.rollback.cli} label={t('change.cli')} /> : null}

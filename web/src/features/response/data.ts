@@ -32,7 +32,7 @@ export const TRIGGERS: { id: Trigger; name: string; description: string; fields:
 export interface StoredCat {
   id: string; builtin: boolean; pack: Pack; kind: 'box' | 'device'; name: string; description: string
   connection_id: string | null; tool: string | null; rollback_tool: string | null
-  run: Tpl; rollback: Tpl; verify: Tpl; precheck: Tpl; precheck_refuse: string[]; risk: Risk; enabled: boolean; ai_may_propose: boolean
+  run: Tpl; rollback: Tpl; verify: Tpl; precheck: Tpl; precheck_refuse: string[]; precheck_expect: string; risk: Risk; enabled: boolean; ai_may_propose: boolean
 }
 // ---- Rule templates (loaded from ./templates) ----
 export interface TemplateDef { id: string; name: string; description: string; rule: RuleInput }

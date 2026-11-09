@@ -74,7 +74,10 @@
     "cli": "Command",
     "rest": "API call",
     "rollback": "Rollback",
-    "verify": "Read back after running"
+    "verify": "Read back after running",
+    "precheck": "Check before running",
+    "precheckRules": "When the check refuses",
+    "verifyRule": "What the read-back must show"
   },
   "action": {
     "device": "Target device",
@@ -408,6 +411,9 @@
     "precheckHint": "A read-only command or GET that runs right before the action. If its output contains one of the texts below, Vedette changes nothing. Needed for any action that uses {interface}, so a trunk or uplink port is never touched.",
     "precheckNoMcp": "An MCP server cannot run a check before yet.",
     "refuse": "Refuse when the output contains",
+    "precheckExpect": "Output must contain (optional)",
+    "precheckExpectHint": "If the output does not contain this text, nothing is changed. Up to 80 plain characters, capital letters count. An empty output always refuses.",
+    "mustContain": "The check before also requires: {{text}}",
     "refuseHint": "One text per line, up to {{max}}, each up to {{len}} characters, matched exactly (capital letters count). For example: Administrative Mode: trunk",
     "checkedBefore": "Checked before it runs. Refuses on: {{texts}}",
     "readBackChecks": "Read-back must contain: {{text}}",

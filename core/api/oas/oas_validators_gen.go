@@ -47849,13 +47849,36 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     80,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.PrecheckExpect)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "precheck_expect",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.PrecheckRefuse == nil {
 			return errors.New("nil is invalid value")
 		}
 		if err := (validate.Array{
 			MinLength:    0,
 			MinLengthSet: false,
-			MaxLength:    5,
+			MaxLength:    8,
 			MaxLengthSet: true,
 		}).ValidateLength(len(s.PrecheckRefuse)); err != nil {
 			return errors.Wrap(err, "array")
@@ -57331,13 +57354,36 @@ func (s *ResponsePostResponseCatalogCreated) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     80,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.PrecheckExpect)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "precheck_expect",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.PrecheckRefuse == nil {
 			return errors.New("nil is invalid value")
 		}
 		if err := (validate.Array{
 			MinLength:    0,
 			MinLengthSet: false,
-			MaxLength:    5,
+			MaxLength:    8,
 			MaxLengthSet: true,
 		}).ValidateLength(len(s.PrecheckRefuse)); err != nil {
 			return errors.Wrap(err, "array")
@@ -58214,13 +58260,43 @@ func (s *ResponsePostResponseCatalogReq) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.PrecheckExpect.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     80,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "precheck_expect",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.PrecheckRefuse == nil {
 			return nil // optional
 		}
 		if err := (validate.Array{
 			MinLength:    0,
 			MinLengthSet: false,
-			MaxLength:    5,
+			MaxLength:    8,
 			MaxLengthSet: true,
 		}).ValidateLength(len(s.PrecheckRefuse)); err != nil {
 			return errors.Wrap(err, "array")
@@ -62793,13 +62869,36 @@ func (s *ResponsePutResponseCatalogIDOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     80,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.PrecheckExpect)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "precheck_expect",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.PrecheckRefuse == nil {
 			return errors.New("nil is invalid value")
 		}
 		if err := (validate.Array{
 			MinLength:    0,
 			MinLengthSet: false,
-			MaxLength:    5,
+			MaxLength:    8,
 			MaxLengthSet: true,
 		}).ValidateLength(len(s.PrecheckRefuse)); err != nil {
 			return errors.Wrap(err, "array")
@@ -63630,13 +63729,43 @@ func (s *ResponsePutResponseCatalogIDReq) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.PrecheckExpect.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     80,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "precheck_expect",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.PrecheckRefuse == nil {
 			return nil // optional
 		}
 		if err := (validate.Array{
 			MinLength:    0,
 			MinLengthSet: false,
-			MaxLength:    5,
+			MaxLength:    8,
 			MaxLengthSet: true,
 		}).ValidateLength(len(s.PrecheckRefuse)); err != nil {
 			return errors.Wrap(err, "array")

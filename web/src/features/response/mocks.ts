@@ -13,7 +13,7 @@ import { RISK_PHRASE } from './contract'
 import { TRIGGERS } from './data'
 import { TEMPLATES } from './templates'
 import { checkRule, events, eventView, rulesStore, runRules, simulate, templates } from './engine'
-import { isCidr, isDomain, isIpv4, TOKEN_RE } from './logic'
+import { isCidr, isDomain, isIpv4, TOKEN_RE, type Tpl } from './logic'
 import {
   actionsStore, actionsView, allowStore, approve, approversOf, catalogStore, catById, catView, checkCatalog, chanLabel, chanList, chanReady, connById, connView, doneStore, findAction, isObj, isResp, logStore, notFound,
   newRequest, OFF_MSG, oneLine, previewBuild, rawChans, readyChan, refuse, reject, rollbackRequest, settings, settingsStore, settingsView, step, sweep, tokensStore, unavailable, userCanApprove, who, writeToolsOf,
@@ -397,7 +397,11 @@ export const handlers = [
   // ---- Action catalog (S-RESP-4) ----
   http.get(`${API}/response/catalog`, () => {
     const denied = guard('viewer'); if (denied) return denied
-    return HttpResponse.json({ items: catalogStore.get().map(catView), connections: connectorsStore.get().map(connView) })
+    // D-88 (26): the header lines of a template can carry an authorisation value, so only an admin sees the values; others see the names
+    const admin = currentUser()?.role === 'admin'
+    const hide = (t: Tpl): Tpl => (admin ? t : { ...t, headers: t.headers.split('\n').filter(Boolean).map((l) => `${l.split(':')[0]}: (hidden)`).join('\n') })
+    const items = catalogStore.get().map(catView).map((a) => ({ ...a, run: hide(a.run), rollback: hide(a.rollback), verify: hide(a.verify), precheck: hide(a.precheck) }))
+    return HttpResponse.json({ items, connections: connectorsStore.get().map(connView) })
   }),
   http.post(`${API}/response/catalog`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied

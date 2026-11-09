@@ -177,6 +177,17 @@
         "headers": "",
         "expect": "\"status\":\"disable\""
       },
+      "precheck": {
+        "cli": "show full-configuration firewall policy {id}",
+        "method": "GET",
+        "path": "/api/v2/cmdb/firewall/policy/{id}",
+        "body": "",
+        "headers": ""
+      },
+      "precheck_refuse": [
+        "\"action\":\"deny\"",
+        "set action deny"
+      ],
       "risk": "high",
       "enabled": false,
       "ai_may_propose": false,
@@ -356,17 +367,21 @@
         "expect": "disabled"
       },
       "precheck": {
-        "cli": "terminal length 0\nshow interfaces {interface} switchport",
+        "cli": "terminal length 0\nshow interfaces {interface} switchport\nshow interfaces {interface}",
         "method": "",
         "path": "",
         "body": "",
         "headers": ""
       },
       "precheck_refuse": [
-        "Administrative Mode: trunk",
-        "Operational Mode: trunk",
-        "Administrative Mode: dynamic"
+        "Mode: trunk",
+        "Mode: dynamic",
+        "Mode: private-vlan trunk",
+        "Mode: tunnel",
+        "Switchport: Disabled",
+        "administratively down"
       ],
+      "precheck_expect": "Administrative Mode: static access",
       "risk": "medium",
       "enabled": false,
       "ai_may_propose": false,
@@ -411,10 +426,13 @@
         "headers": ""
       },
       "precheck_refuse": [
-        "Administrative Mode: trunk",
-        "Operational Mode: trunk",
-        "Administrative Mode: dynamic"
+        "Mode: trunk",
+        "Mode: dynamic",
+        "Mode: private-vlan trunk",
+        "Mode: tunnel",
+        "Switchport: Disabled"
       ],
+      "precheck_expect": "Administrative Mode: static access",
       "risk": "high",
       "enabled": false,
       "ai_may_propose": true,
@@ -531,7 +549,8 @@
       "precheck_refuse": [
         "VLAN Mode: trunk",
         "VLAN Mode: native-untagged",
-        "VLAN Mode: native-tagged"
+        "VLAN Mode: native-tagged",
+        "Admin state is down"
       ],
       "risk": "medium",
       "enabled": false,
@@ -579,131 +598,6 @@
         "VLAN Mode: trunk",
         "VLAN Mode: native-untagged",
         "VLAN Mode: native-tagged"
-      ],
-      "risk": "high",
-      "enabled": false,
-      "ai_may_propose": false,
-      "unverified": true
-    },
-    {
-      "id": "arubasw_acl_deny",
-      "pack": "ArubaOS-Switch (HPE ProVision)",
-      "kind": "device",
-      "name": "ArubaOS-Switch (SSH): deny an IP in the ACL",
-      "description": "Adds a deny line for the address to the VEDETTE-BLOCK access list at a sequence number below the final permit line; undo removes it by sequence number. Nothing about this template is confirmed yet, not even in the vendor documentation: build and test it in a lab before you rely on it.",
-      "connection_id": null,
-      "tool": null,
-      "rollback_tool": null,
-      "run": {
-        "cli": "no page\nconfigure\nip access-list extended VEDETTE-BLOCK\n{seq} deny ip {ip} 0.0.0.0 any\nend",
-        "method": "",
-        "path": "",
-        "body": "",
-        "headers": ""
-      },
-      "rollback": {
-        "cli": "no page\nconfigure\nip access-list extended VEDETTE-BLOCK\nno {seq}\nend",
-        "method": "",
-        "path": "",
-        "body": "",
-        "headers": ""
-      },
-      "verify": {
-        "cli": "",
-        "method": "",
-        "path": "",
-        "body": "",
-        "headers": ""
-      },
-      "risk": "medium",
-      "enabled": false,
-      "ai_may_propose": false,
-      "unverified": true
-    },
-    {
-      "id": "arubasw_port_shut",
-      "pack": "ArubaOS-Switch (HPE ProVision)",
-      "kind": "device",
-      "name": "ArubaOS-Switch (SSH): shut a port",
-      "description": "Disables one switch port. Whatever is plugged in loses its network until the port is enabled again. Nothing about this template is confirmed yet, not even in the vendor documentation: build and test it in a lab before you rely on it.",
-      "connection_id": null,
-      "tool": null,
-      "rollback_tool": null,
-      "run": {
-        "cli": "no page\nconfigure\ninterface {interface}\ndisable\nend",
-        "method": "",
-        "path": "",
-        "body": "",
-        "headers": ""
-      },
-      "rollback": {
-        "cli": "no page\nconfigure\ninterface {interface}\nenable\nend",
-        "method": "",
-        "path": "",
-        "body": "",
-        "headers": ""
-      },
-      "verify": {
-        "cli": "",
-        "method": "",
-        "path": "",
-        "body": "",
-        "headers": ""
-      },
-      "precheck": {
-        "cli": "no page\nshow vlans ports {interface} detail",
-        "method": "",
-        "path": "",
-        "body": "",
-        "headers": ""
-      },
-      "precheck_refuse": [
-        "Tagged"
-      ],
-      "risk": "medium",
-      "enabled": false,
-      "ai_may_propose": false,
-      "unverified": true
-    },
-    {
-      "id": "arubasw_vlan_quarantine",
-      "pack": "ArubaOS-Switch (HPE ProVision)",
-      "kind": "device",
-      "name": "ArubaOS-Switch (SSH): move a port to the quarantine VLAN",
-      "description": "Makes the port an untagged member of the quarantine VLAN. The command also removes it from its old untagged VLAN, so Vedette reads that VLAN first and restores it on undo. Two people must approve. Nothing about this template is confirmed yet, not even in the vendor documentation: build and test it in a lab before you rely on it.",
-      "connection_id": null,
-      "tool": null,
-      "rollback_tool": null,
-      "run": {
-        "cli": "no page\nconfigure\nvlan {vlan}\nuntagged {interface}\nend",
-        "method": "",
-        "path": "",
-        "body": "",
-        "headers": ""
-      },
-      "rollback": {
-        "cli": "no page\nconfigure\nvlan {previous_vlan}\nuntagged {interface}\nend",
-        "method": "",
-        "path": "",
-        "body": "",
-        "headers": ""
-      },
-      "verify": {
-        "cli": "",
-        "method": "",
-        "path": "",
-        "body": "",
-        "headers": ""
-      },
-      "precheck": {
-        "cli": "no page\nshow vlans ports {interface} detail",
-        "method": "",
-        "path": "",
-        "body": "",
-        "headers": ""
-      },
-      "precheck_refuse": [
-        "Tagged"
       ],
       "risk": "high",
       "enabled": false,

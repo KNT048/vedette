@@ -20,7 +20,7 @@ describe('action template library (data, D-58)', () => {
 
   it('what the docs still call unverified says so in the description the user reads (§0)', () => {
     expect(UNVERIFIED_NOTE).toBe('Not verified on a device yet — test in a lab first')
-    for (const id of ['fgt_ban_ip', 'fgt_vip_disable', 'fgt_policy_disable', 'fgt_addrgrp_add', 'mt_addrlist_add', 'pf_alias_add', 'cisco_acl_deny', 'cisco_port_vlan_quarantine', 'aoscx_acl_deny', 'arubasw_acl_deny', 'adguard_block', 'pihole_block']) {
+    for (const id of ['fgt_ban_ip', 'fgt_vip_disable', 'fgt_policy_disable', 'fgt_addrgrp_add', 'mt_addrlist_add', 'pf_alias_add', 'cisco_acl_deny', 'cisco_port_vlan_quarantine', 'aoscx_acl_deny', 'adguard_block', 'pihole_block']) {
       expect(get(id).description, id).toContain(UNVERIFIED_NOTE)
     }
     expect(get('opn_alias_add').description).not.toContain(UNVERIFIED_NOTE) // the OPNsense calls were read in the official documentation
@@ -64,21 +64,19 @@ describe('action template library (data, D-58)', () => {
 
   it('§12 (7)(8) one action per switch family; ACLs insert by sequence number and undo by it; the VLAN is restored from the port, not removed', () => {
     for (const id of ['sw_acl_deny', 'sw_port_shut', 'sw_vlan_quarantine']) expect(cat.some((a) => a.id === id), id).toBe(false)
-    for (const id of ['cisco_acl_deny', 'aoscx_acl_deny', 'arubasw_acl_deny']) {
+    for (const id of ['cisco_acl_deny', 'aoscx_acl_deny']) {
       expect(get(id).run.cli, id).toContain('{seq} deny')
       expect(get(id).rollback.cli, id).toContain('no {seq}')
     }
     expect(get('cisco_acl_deny').description).toMatch(/permit ip any any/)
     expect(get('aoscx_acl_deny').run.cli).toContain('deny any {ip}/32 any')
-    expect(get('arubasw_acl_deny').run.cli).toContain('deny ip {ip} 0.0.0.0 any')
-    for (const id of ['cisco_port_vlan_quarantine', 'aoscx_vlan_quarantine', 'arubasw_vlan_quarantine']) {
+    for (const id of ['cisco_port_vlan_quarantine', 'aoscx_vlan_quarantine']) {
       expect(get(id).rollback.cli, id).toContain('{previous_vlan}')
       expect(get(id).rollback.cli, id).not.toMatch(/^no (?!page)/m)
       expect(get(id).risk).toBe('high')
     }
     expect(get('cisco_port_vlan_quarantine').run.cli).toContain('switchport access vlan {vlan}')
     expect(get('aoscx_vlan_quarantine').run.cli).toContain('vlan access {vlan}')
-    expect(get('arubasw_vlan_quarantine').run.cli).toContain('untagged {interface}')
   })
 
   it('§12 (9) AdGuard Home is its own action (read, change, write back); the Pi-hole text no longer sends people to copy it', () => {
@@ -124,13 +122,13 @@ describe('action template library (data, D-58)', () => {
   })
 
   it('§12.1 (2) every SSH step is its own session: paging off first, configure terminal ... end around a change', () => {
-    const first: Record<string, string> = { cisco_: 'terminal length 0', aoscx_: 'no page', arubasw_: 'no page' }
-    const enter: Record<string, string> = { cisco_: 'configure terminal', aoscx_: 'configure terminal', arubasw_: 'configure' }
-    for (const a of cat.filter((x) => /^(cisco_|aoscx_|arubasw_)/.test(x.id))) {
+    const first: Record<string, string> = { cisco_: 'terminal length 0', aoscx_: 'no page' }
+    const enter: Record<string, string> = { cisco_: 'configure terminal', aoscx_: 'configure terminal' }
+    for (const a of cat.filter((x) => /^(cisco_|aoscx_)/.test(x.id))) {
       const p = Object.keys(first).find((k) => a.id.startsWith(k))!
       for (const step of ['run', 'rollback', 'verify', 'precheck'] as const) {
         const lines = a[step].cli.split('\n').filter(Boolean)
-        if (!lines.length) continue // ArubaOS-Switch has no read-back yet
+        if (!lines.length) continue
         expect(lines[0], `${a.id} ${step}`).toBe(first[p])
         if (step === 'run' || step === 'rollback') {
           if (a.id === 'cisco_save_config') continue
@@ -148,24 +146,23 @@ describe('action template library (data, D-58)', () => {
   })
 
   it('§12.1 (3) every port action has a read-only check before and the refusal texts of its platform; the library is valid by the customer rules', () => {
+    const cisco = ['Mode: trunk', 'Mode: dynamic', 'Mode: private-vlan trunk', 'Mode: tunnel', 'Switchport: Disabled']
     const want: Record<string, string[]> = {
-      cisco_port_shut: ['Administrative Mode: trunk', 'Operational Mode: trunk', 'Administrative Mode: dynamic'],
-      cisco_port_vlan_quarantine: ['Administrative Mode: trunk', 'Operational Mode: trunk', 'Administrative Mode: dynamic'],
-      aoscx_port_shut: ['VLAN Mode: trunk', 'VLAN Mode: native-untagged', 'VLAN Mode: native-tagged'], aoscx_vlan_quarantine: ['VLAN Mode: trunk', 'VLAN Mode: native-untagged', 'VLAN Mode: native-tagged'],
-      arubasw_port_shut: ['Tagged'], arubasw_vlan_quarantine: ['Tagged'],
+      cisco_port_shut: [...cisco, 'administratively down'], cisco_port_vlan_quarantine: cisco,
+      aoscx_port_shut: ['VLAN Mode: trunk', 'VLAN Mode: native-untagged', 'VLAN Mode: native-tagged', 'Admin state is down'], aoscx_vlan_quarantine: ['VLAN Mode: trunk', 'VLAN Mode: native-untagged', 'VLAN Mode: native-tagged'],
     }
     for (const [id, refuse] of Object.entries(want)) {
       expect(get(id).precheck_refuse, id).toEqual(refuse)
       expect(get(id).precheck.cli, id).toMatch(/\{interface\}/)
       expect(validatePrecheck(get(id).precheck, get(id).precheck_refuse, 'ssh'), id).toBeNull()
     }
-    expect(get('cisco_port_shut').precheck.cli).toBe('terminal length 0\nshow interfaces {interface} switchport')
-    expect(get('arubasw_port_shut').precheck.cli).toBe('no page\nshow vlans ports {interface} detail')
+    expect(get('cisco_port_shut').precheck.cli).toBe('terminal length 0\nshow interfaces {interface} switchport\nshow interfaces {interface}')
+    expect(get('cisco_port_vlan_quarantine').precheck.cli).toBe('terminal length 0\nshow interfaces {interface} switchport')
     // the rule that closes M4: anything that names {interface} has the check with at least one refusal
     for (const a of cat.filter((x) => x.kind === 'device')) expect(needsPrecheck(a.run, a.rollback, a.verify, a.precheck, a.precheck_refuse), a.id).toBe(false)
     for (const a of cat) {
       if (!a.precheck_refuse.length) continue
-      expect(a.precheck_refuse.length, a.id).toBeLessThanOrEqual(5)
+      expect(a.precheck_refuse.length, a.id).toBeLessThanOrEqual(8)
       for (const r of a.precheck_refuse) expect(r.length, a.id).toBeLessThanOrEqual(80)
     }
   })
@@ -176,7 +173,7 @@ describe('action template library (data, D-58)', () => {
       cisco_port_shut: 'disabled', aoscx_port_shut: 'Admin state is down', cisco_acl_deny: 'deny ip host {ip} any', cisco_port_vlan_quarantine: 'Access Mode VLAN: {vlan} ',
     }
     for (const [id, text] of Object.entries(want)) expect(get(id).verify.expect, id).toBe(text)
-    for (const id of ['cisco_save_config', 'pf_alias_add', 'arubasw_acl_deny', 'arubasw_port_shut', 'arubasw_vlan_quarantine']) expect(get(id).verify.expect ?? '', id).toBe('')
+    for (const id of ['cisco_save_config', 'pf_alias_add']) expect(get(id).verify.expect ?? '', id).toBe('')
     for (const a of cat) {
       expect([a.run.expect, a.rollback.expect, a.precheck.expect].filter(Boolean), `${a.id}: the text to look for is only on the read-back`).toEqual([])
       expect((a.verify.expect ?? '').length).toBeLessThanOrEqual(200)
@@ -186,7 +183,7 @@ describe('action template library (data, D-58)', () => {
 
   it('§12.1 (5)(6) runtime-value actions are named; the unverified FortiGate built-ins ship switched off', () => {
     const needs = cat.filter((a) => [a.run, a.rollback, a.verify, a.precheck].some((t) => /\{(seq|previous_vlan|found_id|rules_before|timeout)\}/.test(shape(t)))).map((a) => a.id).sort()
-    expect(needs).toEqual(['adguard_block', 'aoscx_acl_deny', 'aoscx_vlan_quarantine', 'arubasw_acl_deny', 'arubasw_vlan_quarantine', 'cisco_acl_deny', 'cisco_port_vlan_quarantine', 'mt_addrlist_add'])
+    expect(needs).toEqual(['adguard_block', 'aoscx_acl_deny', 'aoscx_vlan_quarantine', 'cisco_acl_deny', 'cisco_port_vlan_quarantine', 'mt_addrlist_add'])
     for (const id of ['fgt_addrgrp_add', 'fgt_ban_ip', 'fgt_vip_disable']) expect(get(id).enabled, id).toBe(false)
     expect(get('blocklist_add').enabled).toBe(true)
   })

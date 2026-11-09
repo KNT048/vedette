@@ -31,10 +31,11 @@ export const Tpl = z.object({
   cli: z.string().max(2000).describe('Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on'),
   method: z.enum(['', 'GET', 'PUT', 'PATCH', 'POST', 'DELETE']), path: z.string().max(300).describe('API path under the connection address, starts with /'),
   body: z.string().max(2000).describe('JSON body (for an MCP server: the tool arguments as JSON), may be empty'),
-  headers: z.string().max(600).describe('HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded and X-Forwarded-* are refused: the connection sets them'),
+  headers: z.string().max(600).describe('HTTP headers, one "Name: value" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means'),
   expect: z.string().max(200).optional().describe('Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is "not checked" (verified is null)'),
 })
-export const PrecheckRefuse = z.array(z.string().min(1).max(80)).max(5).describe('Texts that make the check before refuse: when its output contains one, nothing is written. Needed (at least one) for any device action that uses {interface}')
+export const PrecheckRefuse = z.array(z.string().min(1).max(80)).max(8).describe('Texts that make the check before refuse: when its output contains one, nothing is written. Needed (at least one) for any device action that can name a port: {interface}, and in a custom action {port}, {id} or {name} in a command or path')
+export const PrecheckExpect = z.string().max(80).describe('Text the output of the check before must contain, or nothing is written (printable ASCII, case-sensitive). Empty = none. An empty output always refuses')
 
 export const RestCall = z.object({ method: z.enum(['GET', 'PUT', 'PATCH', 'POST', 'DELETE']), url: z.string(), body: z.string().nullable() })
 const rest = RestCall.nullable().describe('The exact API call, or null when the action is a command only')
@@ -44,7 +45,10 @@ export const Change = z.object({
   cli: z.string().describe('The same change as a device command, for people who want to check it by hand (may be empty)'),
   rest,
   rollback: z.object({ title: z.string(), cli: z.string(), rest }),
-  verify: z.string().describe('How Vedette reads the result back after running the change (empty when the action cannot be read back)'),
+  verify: z.string().describe('How Vedette reads the result back after running the change: the exact call (method and URL) or command lines (empty when the action cannot be read back)'),
+  precheck: z.string().describe('The check Vedette runs right before the change: the exact call or command lines (empty when there is none)'),
+  precheck_rules: z.string().describe('When the check refuses the change, in plain words (empty when there is no check)'),
+  verify_rule: z.string().describe('What the read-back must contain after the change and must not contain after the undo (empty when there is none)'),
 })
 
 // ---- AI proposals from plans (S-RESP-1) ----
@@ -141,7 +145,7 @@ export const CatalogAction = z.object({
   connection_id: z.string().nullable(), connection: z.string().nullable(), connection_kind: ConnKind.nullable(), tool: z.string().nullable().describe('Write tool on the connection'),
   rollback_tool: z.string().nullable(),
   run: Tpl, rollback: Tpl, verify: Tpl,
-  precheck: Tpl.describe('Check before: a read-only command or GET that runs right before the action; empty when there is none'), precheck_refuse: PrecheckRefuse,
+  precheck: Tpl.describe('Check before: a read-only command or GET that runs right before the action; empty when there is none'), precheck_refuse: PrecheckRefuse, precheck_expect: PrecheckExpect,
   params: z.array(ParamType).describe('Placeholders the templates use'), risk: Risk, enabled: z.boolean().describe('Allowed = enabled'),
   reversible: z.boolean().describe('Has a rollback step'), ai_may_propose: z.boolean().describe('The AI may send a request for this action'),
   device: z.boolean().describe('Changes another device, so the execution switch applies'), available: z.boolean(), unavailable_reason: z.string().nullable(),
@@ -149,11 +153,11 @@ export const CatalogAction = z.object({
 export const CatalogInput = z.object({
   name: z.string().min(1).max(80), description: z.string().max(300), connection_id: z.string(),
   tool: z.string().nullable().describe('MCP server: the write tool to call; other kinds: null'), rollback_tool: z.string().nullable(),
-  run: Tpl, rollback: Tpl, verify: Tpl, precheck: Tpl.optional(), precheck_refuse: PrecheckRefuse.optional(), risk: Risk, enabled: z.boolean(), ai_may_propose: z.boolean(),
+  run: Tpl, rollback: Tpl, verify: Tpl, precheck: Tpl.optional(), precheck_refuse: PrecheckRefuse.optional(), precheck_expect: PrecheckExpect.optional(), risk: Risk, enabled: z.boolean(), ai_may_propose: z.boolean(),
 })
 export const CatalogUpdate = z.object({
   name: z.string().optional(), description: z.string().optional(), connection_id: z.string().nullable().optional(), tool: z.string().nullable().optional(), rollback_tool: z.string().nullable().optional(),
-  run: Tpl.optional(), rollback: Tpl.optional(), verify: Tpl.optional(), precheck: Tpl.optional(), precheck_refuse: PrecheckRefuse.optional(), risk: Risk.optional(), enabled: z.boolean().optional(), ai_may_propose: z.boolean().optional(),
+  run: Tpl.optional(), rollback: Tpl.optional(), verify: Tpl.optional(), precheck: Tpl.optional(), precheck_refuse: PrecheckRefuse.optional(), precheck_expect: PrecheckExpect.optional(), risk: Risk.optional(), enabled: z.boolean().optional(), ai_may_propose: z.boolean().optional(),
 }).describe('Built-in actions accept only enabled, ai_may_propose and connection_id; custom actions accept everything')
 export const Catalog = z.object({ items: z.array(CatalogAction), connections: z.array(Connection) })
 

@@ -175090,6 +175090,14 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChange) encodeFields(e *j
 		e.Str(s.Cli)
 	}
 	{
+		e.FieldStart("precheck")
+		e.Str(s.Precheck)
+	}
+	{
+		e.FieldStart("precheck_rules")
+		e.Str(s.PrecheckRules)
+	}
+	{
 		e.FieldStart("rest")
 		s.Rest.Encode(e)
 	}
@@ -175101,15 +175109,22 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChange) encodeFields(e *j
 		e.FieldStart("verify")
 		e.Str(s.Verify)
 	}
+	{
+		e.FieldStart("verify_rule")
+		e.Str(s.VerifyRule)
+	}
 }
 
-var jsonFieldsNameOfResponseGetResponseActionsOKItemsItemItemsItemChange = [6]string{
+var jsonFieldsNameOfResponseGetResponseActionsOKItemsItemItemsItemChange = [9]string{
 	0: "after",
 	1: "before",
 	2: "cli",
-	3: "rest",
-	4: "rollback",
-	5: "verify",
+	3: "precheck",
+	4: "precheck_rules",
+	5: "rest",
+	6: "rollback",
+	7: "verify",
+	8: "verify_rule",
 }
 
 // Decode decodes ResponseGetResponseActionsOKItemsItemItemsItemChange from json.
@@ -175117,7 +175132,7 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChange) Decode(d *jx.Deco
 	if s == nil {
 		return errors.New("invalid: unable to decode ResponseGetResponseActionsOKItemsItemItemsItemChange to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -175157,8 +175172,32 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChange) Decode(d *jx.Deco
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
-		case "rest":
+		case "precheck":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Precheck = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck\"")
+			}
+		case "precheck_rules":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.PrecheckRules = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_rules\"")
+			}
+		case "rest":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Rest.Decode(d); err != nil {
 					return err
@@ -175168,7 +175207,7 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChange) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"rest\"")
 			}
 		case "rollback":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Rollback.Decode(d); err != nil {
 					return err
@@ -175178,7 +175217,7 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChange) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"rollback\"")
 			}
 		case "verify":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Verify = string(v)
@@ -175189,6 +175228,18 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChange) Decode(d *jx.Deco
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"verify\"")
 			}
+		case "verify_rule":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.VerifyRule = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"verify_rule\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -175198,8 +175249,9 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChange) Decode(d *jx.Deco
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00111111,
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -178010,6 +178062,14 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChange) encodeFields(e *jx.En
 		e.Str(s.Cli)
 	}
 	{
+		e.FieldStart("precheck")
+		e.Str(s.Precheck)
+	}
+	{
+		e.FieldStart("precheck_rules")
+		e.Str(s.PrecheckRules)
+	}
+	{
 		e.FieldStart("rest")
 		s.Rest.Encode(e)
 	}
@@ -178021,15 +178081,22 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChange) encodeFields(e *jx.En
 		e.FieldStart("verify")
 		e.Str(s.Verify)
 	}
+	{
+		e.FieldStart("verify_rule")
+		e.Str(s.VerifyRule)
+	}
 }
 
-var jsonFieldsNameOfResponseGetResponseApproveTokenOKItemsItemChange = [6]string{
+var jsonFieldsNameOfResponseGetResponseApproveTokenOKItemsItemChange = [9]string{
 	0: "after",
 	1: "before",
 	2: "cli",
-	3: "rest",
-	4: "rollback",
-	5: "verify",
+	3: "precheck",
+	4: "precheck_rules",
+	5: "rest",
+	6: "rollback",
+	7: "verify",
+	8: "verify_rule",
 }
 
 // Decode decodes ResponseGetResponseApproveTokenOKItemsItemChange from json.
@@ -178037,7 +178104,7 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChange) Decode(d *jx.Decoder)
 	if s == nil {
 		return errors.New("invalid: unable to decode ResponseGetResponseApproveTokenOKItemsItemChange to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -178077,8 +178144,32 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChange) Decode(d *jx.Decoder)
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
-		case "rest":
+		case "precheck":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Precheck = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck\"")
+			}
+		case "precheck_rules":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.PrecheckRules = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_rules\"")
+			}
+		case "rest":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Rest.Decode(d); err != nil {
 					return err
@@ -178088,7 +178179,7 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChange) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"rest\"")
 			}
 		case "rollback":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Rollback.Decode(d); err != nil {
 					return err
@@ -178098,7 +178189,7 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChange) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"rollback\"")
 			}
 		case "verify":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Verify = string(v)
@@ -178109,6 +178200,18 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChange) Decode(d *jx.Decoder)
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"verify\"")
 			}
+		case "verify_rule":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.VerifyRule = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"verify_rule\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -178118,8 +178221,9 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChange) Decode(d *jx.Decoder)
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00111111,
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -179647,6 +179751,10 @@ func (s *ResponseGetResponseCatalogOKItemsItem) encodeFields(e *jx.Encoder) {
 		s.Precheck.Encode(e)
 	}
 	{
+		e.FieldStart("precheck_expect")
+		e.Str(s.PrecheckExpect)
+	}
+	{
 		e.FieldStart("precheck_refuse")
 		e.ArrStart()
 		for _, elem := range s.PrecheckRefuse {
@@ -179688,7 +179796,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponseGetResponseCatalogOKItemsItem = [23]string{
+var jsonFieldsNameOfResponseGetResponseCatalogOKItemsItem = [24]string{
 	0:  "ai_may_propose",
 	1:  "available",
 	2:  "builtin",
@@ -179703,15 +179811,16 @@ var jsonFieldsNameOfResponseGetResponseCatalogOKItemsItem = [23]string{
 	11: "pack",
 	12: "params",
 	13: "precheck",
-	14: "precheck_refuse",
-	15: "reversible",
-	16: "risk",
-	17: "rollback",
-	18: "rollback_tool",
-	19: "run",
-	20: "tool",
-	21: "unavailable_reason",
-	22: "verify",
+	14: "precheck_expect",
+	15: "precheck_refuse",
+	16: "reversible",
+	17: "risk",
+	18: "rollback",
+	19: "rollback_tool",
+	20: "run",
+	21: "tool",
+	22: "unavailable_reason",
+	23: "verify",
 }
 
 // Decode decodes ResponseGetResponseCatalogOKItemsItem from json.
@@ -179889,8 +179998,20 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"precheck\"")
 			}
-		case "precheck_refuse":
+		case "precheck_expect":
 			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				v, err := d.Str()
+				s.PrecheckExpect = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_expect\"")
+			}
+		case "precheck_refuse":
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				s.PrecheckRefuse = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -179910,7 +180031,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"precheck_refuse\"")
 			}
 		case "reversible":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				v, err := d.Bool()
 				s.Reversible = bool(v)
@@ -179922,7 +180043,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"reversible\"")
 			}
 		case "risk":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.Risk.Decode(d); err != nil {
 					return err
@@ -179932,7 +180053,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"risk\"")
 			}
 		case "rollback":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				if err := s.Rollback.Decode(d); err != nil {
 					return err
@@ -179942,7 +180063,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"rollback\"")
 			}
 		case "rollback_tool":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				if err := s.RollbackTool.Decode(d); err != nil {
 					return err
@@ -179952,7 +180073,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"rollback_tool\"")
 			}
 		case "run":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				if err := s.Run.Decode(d); err != nil {
 					return err
@@ -179962,7 +180083,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
 		case "tool":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.Tool.Decode(d); err != nil {
 					return err
@@ -179972,7 +180093,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tool\"")
 			}
 		case "unavailable_reason":
-			requiredBitSet[2] |= 1 << 5
+			requiredBitSet[2] |= 1 << 6
 			if err := func() error {
 				if err := s.UnavailableReason.Decode(d); err != nil {
 					return err
@@ -179982,7 +180103,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"unavailable_reason\"")
 			}
 		case "verify":
-			requiredBitSet[2] |= 1 << 6
+			requiredBitSet[2] |= 1 << 7
 			if err := func() error {
 				if err := s.Verify.Decode(d); err != nil {
 					return err
@@ -180003,7 +180124,7 @@ func (s *ResponseGetResponseCatalogOKItemsItem) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b01111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -183711,6 +183832,14 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChange) encodeField
 		e.Str(s.Cli)
 	}
 	{
+		e.FieldStart("precheck")
+		e.Str(s.Precheck)
+	}
+	{
+		e.FieldStart("precheck_rules")
+		e.Str(s.PrecheckRules)
+	}
+	{
 		e.FieldStart("rest")
 		s.Rest.Encode(e)
 	}
@@ -183722,15 +183851,22 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChange) encodeField
 		e.FieldStart("verify")
 		e.Str(s.Verify)
 	}
+	{
+		e.FieldStart("verify_rule")
+		e.Str(s.VerifyRule)
+	}
 }
 
-var jsonFieldsNameOfResponseGetResponsePlansOKItemsItemStepsItemProposalChange = [6]string{
+var jsonFieldsNameOfResponseGetResponsePlansOKItemsItemStepsItemProposalChange = [9]string{
 	0: "after",
 	1: "before",
 	2: "cli",
-	3: "rest",
-	4: "rollback",
-	5: "verify",
+	3: "precheck",
+	4: "precheck_rules",
+	5: "rest",
+	6: "rollback",
+	7: "verify",
+	8: "verify_rule",
 }
 
 // Decode decodes ResponseGetResponsePlansOKItemsItemStepsItemProposalChange from json.
@@ -183738,7 +183874,7 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChange) Decode(d *j
 	if s == nil {
 		return errors.New("invalid: unable to decode ResponseGetResponsePlansOKItemsItemStepsItemProposalChange to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -183778,8 +183914,32 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChange) Decode(d *j
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
-		case "rest":
+		case "precheck":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Precheck = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck\"")
+			}
+		case "precheck_rules":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.PrecheckRules = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_rules\"")
+			}
+		case "rest":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Rest.Decode(d); err != nil {
 					return err
@@ -183789,7 +183949,7 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChange) Decode(d *j
 				return errors.Wrap(err, "decode field \"rest\"")
 			}
 		case "rollback":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Rollback.Decode(d); err != nil {
 					return err
@@ -183799,7 +183959,7 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChange) Decode(d *j
 				return errors.Wrap(err, "decode field \"rollback\"")
 			}
 		case "verify":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Verify = string(v)
@@ -183810,6 +183970,18 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChange) Decode(d *j
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"verify\"")
 			}
+		case "verify_rule":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.VerifyRule = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"verify_rule\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -183819,8 +183991,9 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChange) Decode(d *j
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00111111,
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -189627,6 +189800,14 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChange) encodeFields(e *
 		e.Str(s.Cli)
 	}
 	{
+		e.FieldStart("precheck")
+		e.Str(s.Precheck)
+	}
+	{
+		e.FieldStart("precheck_rules")
+		e.Str(s.PrecheckRules)
+	}
+	{
 		e.FieldStart("rest")
 		s.Rest.Encode(e)
 	}
@@ -189638,15 +189819,22 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChange) encodeFields(e *
 		e.FieldStart("verify")
 		e.Str(s.Verify)
 	}
+	{
+		e.FieldStart("verify_rule")
+		e.Str(s.VerifyRule)
+	}
 }
 
-var jsonFieldsNameOfResponsePostResponseActionsIDApproveOKItemsItemChange = [6]string{
+var jsonFieldsNameOfResponsePostResponseActionsIDApproveOKItemsItemChange = [9]string{
 	0: "after",
 	1: "before",
 	2: "cli",
-	3: "rest",
-	4: "rollback",
-	5: "verify",
+	3: "precheck",
+	4: "precheck_rules",
+	5: "rest",
+	6: "rollback",
+	7: "verify",
+	8: "verify_rule",
 }
 
 // Decode decodes ResponsePostResponseActionsIDApproveOKItemsItemChange from json.
@@ -189654,7 +189842,7 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChange) Decode(d *jx.Dec
 	if s == nil {
 		return errors.New("invalid: unable to decode ResponsePostResponseActionsIDApproveOKItemsItemChange to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -189694,8 +189882,32 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChange) Decode(d *jx.Dec
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
-		case "rest":
+		case "precheck":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Precheck = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck\"")
+			}
+		case "precheck_rules":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.PrecheckRules = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_rules\"")
+			}
+		case "rest":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Rest.Decode(d); err != nil {
 					return err
@@ -189705,7 +189917,7 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChange) Decode(d *jx.Dec
 				return errors.Wrap(err, "decode field \"rest\"")
 			}
 		case "rollback":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Rollback.Decode(d); err != nil {
 					return err
@@ -189715,7 +189927,7 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChange) Decode(d *jx.Dec
 				return errors.Wrap(err, "decode field \"rollback\"")
 			}
 		case "verify":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Verify = string(v)
@@ -189726,6 +189938,18 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChange) Decode(d *jx.Dec
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"verify\"")
 			}
+		case "verify_rule":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.VerifyRule = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"verify_rule\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -189735,8 +189959,9 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChange) Decode(d *jx.Dec
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00111111,
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -192500,6 +192725,14 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChange) encodeField
 		e.Str(s.Cli)
 	}
 	{
+		e.FieldStart("precheck")
+		e.Str(s.Precheck)
+	}
+	{
+		e.FieldStart("precheck_rules")
+		e.Str(s.PrecheckRules)
+	}
+	{
 		e.FieldStart("rest")
 		s.Rest.Encode(e)
 	}
@@ -192511,15 +192744,22 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChange) encodeField
 		e.FieldStart("verify")
 		e.Str(s.Verify)
 	}
+	{
+		e.FieldStart("verify_rule")
+		e.Str(s.VerifyRule)
+	}
 }
 
-var jsonFieldsNameOfResponsePostResponseActionsIDChatDecisionOKItemsItemChange = [6]string{
+var jsonFieldsNameOfResponsePostResponseActionsIDChatDecisionOKItemsItemChange = [9]string{
 	0: "after",
 	1: "before",
 	2: "cli",
-	3: "rest",
-	4: "rollback",
-	5: "verify",
+	3: "precheck",
+	4: "precheck_rules",
+	5: "rest",
+	6: "rollback",
+	7: "verify",
+	8: "verify_rule",
 }
 
 // Decode decodes ResponsePostResponseActionsIDChatDecisionOKItemsItemChange from json.
@@ -192527,7 +192767,7 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChange) Decode(d *j
 	if s == nil {
 		return errors.New("invalid: unable to decode ResponsePostResponseActionsIDChatDecisionOKItemsItemChange to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -192567,8 +192807,32 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChange) Decode(d *j
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
-		case "rest":
+		case "precheck":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Precheck = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck\"")
+			}
+		case "precheck_rules":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.PrecheckRules = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_rules\"")
+			}
+		case "rest":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Rest.Decode(d); err != nil {
 					return err
@@ -192578,7 +192842,7 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChange) Decode(d *j
 				return errors.Wrap(err, "decode field \"rest\"")
 			}
 		case "rollback":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Rollback.Decode(d); err != nil {
 					return err
@@ -192588,7 +192852,7 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChange) Decode(d *j
 				return errors.Wrap(err, "decode field \"rollback\"")
 			}
 		case "verify":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Verify = string(v)
@@ -192599,6 +192863,18 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChange) Decode(d *j
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"verify\"")
 			}
+		case "verify_rule":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.VerifyRule = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"verify_rule\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -192608,8 +192884,9 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChange) Decode(d *j
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00111111,
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -195488,6 +195765,14 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChange) encodeFields(e *j
 		e.Str(s.Cli)
 	}
 	{
+		e.FieldStart("precheck")
+		e.Str(s.Precheck)
+	}
+	{
+		e.FieldStart("precheck_rules")
+		e.Str(s.PrecheckRules)
+	}
+	{
 		e.FieldStart("rest")
 		s.Rest.Encode(e)
 	}
@@ -195499,15 +195784,22 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChange) encodeFields(e *j
 		e.FieldStart("verify")
 		e.Str(s.Verify)
 	}
+	{
+		e.FieldStart("verify_rule")
+		e.Str(s.VerifyRule)
+	}
 }
 
-var jsonFieldsNameOfResponsePostResponseActionsIDRejectOKItemsItemChange = [6]string{
+var jsonFieldsNameOfResponsePostResponseActionsIDRejectOKItemsItemChange = [9]string{
 	0: "after",
 	1: "before",
 	2: "cli",
-	3: "rest",
-	4: "rollback",
-	5: "verify",
+	3: "precheck",
+	4: "precheck_rules",
+	5: "rest",
+	6: "rollback",
+	7: "verify",
+	8: "verify_rule",
 }
 
 // Decode decodes ResponsePostResponseActionsIDRejectOKItemsItemChange from json.
@@ -195515,7 +195807,7 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChange) Decode(d *jx.Deco
 	if s == nil {
 		return errors.New("invalid: unable to decode ResponsePostResponseActionsIDRejectOKItemsItemChange to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -195555,8 +195847,32 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChange) Decode(d *jx.Deco
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
-		case "rest":
+		case "precheck":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Precheck = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck\"")
+			}
+		case "precheck_rules":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.PrecheckRules = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_rules\"")
+			}
+		case "rest":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Rest.Decode(d); err != nil {
 					return err
@@ -195566,7 +195882,7 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChange) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"rest\"")
 			}
 		case "rollback":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Rollback.Decode(d); err != nil {
 					return err
@@ -195576,7 +195892,7 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChange) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"rollback\"")
 			}
 		case "verify":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Verify = string(v)
@@ -195587,6 +195903,18 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChange) Decode(d *jx.Deco
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"verify\"")
 			}
+		case "verify_rule":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.VerifyRule = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"verify_rule\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -195596,8 +195924,9 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChange) Decode(d *jx.Deco
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00111111,
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -198390,6 +198719,14 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChange) encodeFields(e 
 		e.Str(s.Cli)
 	}
 	{
+		e.FieldStart("precheck")
+		e.Str(s.Precheck)
+	}
+	{
+		e.FieldStart("precheck_rules")
+		e.Str(s.PrecheckRules)
+	}
+	{
 		e.FieldStart("rest")
 		s.Rest.Encode(e)
 	}
@@ -198401,15 +198738,22 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChange) encodeFields(e 
 		e.FieldStart("verify")
 		e.Str(s.Verify)
 	}
+	{
+		e.FieldStart("verify_rule")
+		e.Str(s.VerifyRule)
+	}
 }
 
-var jsonFieldsNameOfResponsePostResponseActionsIDRollbackOKItemsItemChange = [6]string{
+var jsonFieldsNameOfResponsePostResponseActionsIDRollbackOKItemsItemChange = [9]string{
 	0: "after",
 	1: "before",
 	2: "cli",
-	3: "rest",
-	4: "rollback",
-	5: "verify",
+	3: "precheck",
+	4: "precheck_rules",
+	5: "rest",
+	6: "rollback",
+	7: "verify",
+	8: "verify_rule",
 }
 
 // Decode decodes ResponsePostResponseActionsIDRollbackOKItemsItemChange from json.
@@ -198417,7 +198761,7 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChange) Decode(d *jx.De
 	if s == nil {
 		return errors.New("invalid: unable to decode ResponsePostResponseActionsIDRollbackOKItemsItemChange to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -198457,8 +198801,32 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChange) Decode(d *jx.De
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
-		case "rest":
+		case "precheck":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Precheck = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck\"")
+			}
+		case "precheck_rules":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.PrecheckRules = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_rules\"")
+			}
+		case "rest":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Rest.Decode(d); err != nil {
 					return err
@@ -198468,7 +198836,7 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChange) Decode(d *jx.De
 				return errors.Wrap(err, "decode field \"rest\"")
 			}
 		case "rollback":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Rollback.Decode(d); err != nil {
 					return err
@@ -198478,7 +198846,7 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChange) Decode(d *jx.De
 				return errors.Wrap(err, "decode field \"rollback\"")
 			}
 		case "verify":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Verify = string(v)
@@ -198489,6 +198857,18 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChange) Decode(d *jx.De
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"verify\"")
 			}
+		case "verify_rule":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.VerifyRule = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"verify_rule\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -198498,8 +198878,9 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChange) Decode(d *jx.De
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00111111,
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -201338,6 +201719,14 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChange) encodeFields(e
 		e.Str(s.Cli)
 	}
 	{
+		e.FieldStart("precheck")
+		e.Str(s.Precheck)
+	}
+	{
+		e.FieldStart("precheck_rules")
+		e.Str(s.PrecheckRules)
+	}
+	{
 		e.FieldStart("rest")
 		s.Rest.Encode(e)
 	}
@@ -201349,15 +201738,22 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChange) encodeFields(e
 		e.FieldStart("verify")
 		e.Str(s.Verify)
 	}
+	{
+		e.FieldStart("verify_rule")
+		e.Str(s.VerifyRule)
+	}
 }
 
-var jsonFieldsNameOfResponsePostResponseAiProposalsOKRequestItemsItemChange = [6]string{
+var jsonFieldsNameOfResponsePostResponseAiProposalsOKRequestItemsItemChange = [9]string{
 	0: "after",
 	1: "before",
 	2: "cli",
-	3: "rest",
-	4: "rollback",
-	5: "verify",
+	3: "precheck",
+	4: "precheck_rules",
+	5: "rest",
+	6: "rollback",
+	7: "verify",
+	8: "verify_rule",
 }
 
 // Decode decodes ResponsePostResponseAiProposalsOKRequestItemsItemChange from json.
@@ -201365,7 +201761,7 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChange) Decode(d *jx.D
 	if s == nil {
 		return errors.New("invalid: unable to decode ResponsePostResponseAiProposalsOKRequestItemsItemChange to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -201405,8 +201801,32 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChange) Decode(d *jx.D
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
-		case "rest":
+		case "precheck":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Precheck = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck\"")
+			}
+		case "precheck_rules":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.PrecheckRules = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_rules\"")
+			}
+		case "rest":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Rest.Decode(d); err != nil {
 					return err
@@ -201416,7 +201836,7 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChange) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"rest\"")
 			}
 		case "rollback":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Rollback.Decode(d); err != nil {
 					return err
@@ -201426,7 +201846,7 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChange) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"rollback\"")
 			}
 		case "verify":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Verify = string(v)
@@ -201437,6 +201857,18 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChange) Decode(d *jx.D
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"verify\"")
 			}
+		case "verify_rule":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.VerifyRule = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"verify_rule\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -201446,8 +201878,9 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChange) Decode(d *jx.D
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00111111,
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -205896,6 +206329,14 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChange) encodeFields(e *jx.E
 		e.Str(s.Cli)
 	}
 	{
+		e.FieldStart("precheck")
+		e.Str(s.Precheck)
+	}
+	{
+		e.FieldStart("precheck_rules")
+		e.Str(s.PrecheckRules)
+	}
+	{
 		e.FieldStart("rest")
 		s.Rest.Encode(e)
 	}
@@ -205907,15 +206348,22 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChange) encodeFields(e *jx.E
 		e.FieldStart("verify")
 		e.Str(s.Verify)
 	}
+	{
+		e.FieldStart("verify_rule")
+		e.Str(s.VerifyRule)
+	}
 }
 
-var jsonFieldsNameOfResponsePostResponseApproveTokenOKItemsItemChange = [6]string{
+var jsonFieldsNameOfResponsePostResponseApproveTokenOKItemsItemChange = [9]string{
 	0: "after",
 	1: "before",
 	2: "cli",
-	3: "rest",
-	4: "rollback",
-	5: "verify",
+	3: "precheck",
+	4: "precheck_rules",
+	5: "rest",
+	6: "rollback",
+	7: "verify",
+	8: "verify_rule",
 }
 
 // Decode decodes ResponsePostResponseApproveTokenOKItemsItemChange from json.
@@ -205923,7 +206371,7 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChange) Decode(d *jx.Decoder
 	if s == nil {
 		return errors.New("invalid: unable to decode ResponsePostResponseApproveTokenOKItemsItemChange to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -205963,8 +206411,32 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChange) Decode(d *jx.Decoder
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
-		case "rest":
+		case "precheck":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Precheck = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck\"")
+			}
+		case "precheck_rules":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.PrecheckRules = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_rules\"")
+			}
+		case "rest":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Rest.Decode(d); err != nil {
 					return err
@@ -205974,7 +206446,7 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChange) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"rest\"")
 			}
 		case "rollback":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Rollback.Decode(d); err != nil {
 					return err
@@ -205984,7 +206456,7 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChange) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"rollback\"")
 			}
 		case "verify":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Verify = string(v)
@@ -205995,6 +206467,18 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChange) Decode(d *jx.Decoder
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"verify\"")
 			}
+		case "verify_rule":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.VerifyRule = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"verify_rule\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -206004,8 +206488,9 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChange) Decode(d *jx.Decoder
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00111111,
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -208412,6 +208897,10 @@ func (s *ResponsePostResponseCatalogCreated) encodeFields(e *jx.Encoder) {
 		s.Precheck.Encode(e)
 	}
 	{
+		e.FieldStart("precheck_expect")
+		e.Str(s.PrecheckExpect)
+	}
+	{
 		e.FieldStart("precheck_refuse")
 		e.ArrStart()
 		for _, elem := range s.PrecheckRefuse {
@@ -208453,7 +208942,7 @@ func (s *ResponsePostResponseCatalogCreated) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseCatalogCreated = [23]string{
+var jsonFieldsNameOfResponsePostResponseCatalogCreated = [24]string{
 	0:  "ai_may_propose",
 	1:  "available",
 	2:  "builtin",
@@ -208468,15 +208957,16 @@ var jsonFieldsNameOfResponsePostResponseCatalogCreated = [23]string{
 	11: "pack",
 	12: "params",
 	13: "precheck",
-	14: "precheck_refuse",
-	15: "reversible",
-	16: "risk",
-	17: "rollback",
-	18: "rollback_tool",
-	19: "run",
-	20: "tool",
-	21: "unavailable_reason",
-	22: "verify",
+	14: "precheck_expect",
+	15: "precheck_refuse",
+	16: "reversible",
+	17: "risk",
+	18: "rollback",
+	19: "rollback_tool",
+	20: "run",
+	21: "tool",
+	22: "unavailable_reason",
+	23: "verify",
 }
 
 // Decode decodes ResponsePostResponseCatalogCreated from json.
@@ -208654,8 +209144,20 @@ func (s *ResponsePostResponseCatalogCreated) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"precheck\"")
 			}
-		case "precheck_refuse":
+		case "precheck_expect":
 			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				v, err := d.Str()
+				s.PrecheckExpect = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_expect\"")
+			}
+		case "precheck_refuse":
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				s.PrecheckRefuse = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -208675,7 +209177,7 @@ func (s *ResponsePostResponseCatalogCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"precheck_refuse\"")
 			}
 		case "reversible":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				v, err := d.Bool()
 				s.Reversible = bool(v)
@@ -208687,7 +209189,7 @@ func (s *ResponsePostResponseCatalogCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"reversible\"")
 			}
 		case "risk":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.Risk.Decode(d); err != nil {
 					return err
@@ -208697,7 +209199,7 @@ func (s *ResponsePostResponseCatalogCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"risk\"")
 			}
 		case "rollback":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				if err := s.Rollback.Decode(d); err != nil {
 					return err
@@ -208707,7 +209209,7 @@ func (s *ResponsePostResponseCatalogCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"rollback\"")
 			}
 		case "rollback_tool":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				if err := s.RollbackTool.Decode(d); err != nil {
 					return err
@@ -208717,7 +209219,7 @@ func (s *ResponsePostResponseCatalogCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"rollback_tool\"")
 			}
 		case "run":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				if err := s.Run.Decode(d); err != nil {
 					return err
@@ -208727,7 +209229,7 @@ func (s *ResponsePostResponseCatalogCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
 		case "tool":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.Tool.Decode(d); err != nil {
 					return err
@@ -208737,7 +209239,7 @@ func (s *ResponsePostResponseCatalogCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tool\"")
 			}
 		case "unavailable_reason":
-			requiredBitSet[2] |= 1 << 5
+			requiredBitSet[2] |= 1 << 6
 			if err := func() error {
 				if err := s.UnavailableReason.Decode(d); err != nil {
 					return err
@@ -208747,7 +209249,7 @@ func (s *ResponsePostResponseCatalogCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"unavailable_reason\"")
 			}
 		case "verify":
-			requiredBitSet[2] |= 1 << 6
+			requiredBitSet[2] |= 1 << 7
 			if err := func() error {
 				if err := s.Verify.Decode(d); err != nil {
 					return err
@@ -208768,7 +209270,7 @@ func (s *ResponsePostResponseCatalogCreated) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b01111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -209904,6 +210406,12 @@ func (s *ResponsePostResponseCatalogReq) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.PrecheckExpect.Set {
+			e.FieldStart("precheck_expect")
+			s.PrecheckExpect.Encode(e)
+		}
+	}
+	{
 		if s.PrecheckRefuse != nil {
 			e.FieldStart("precheck_refuse")
 			e.ArrStart()
@@ -209939,20 +210447,21 @@ func (s *ResponsePostResponseCatalogReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseCatalogReq = [13]string{
+var jsonFieldsNameOfResponsePostResponseCatalogReq = [14]string{
 	0:  "ai_may_propose",
 	1:  "connection_id",
 	2:  "description",
 	3:  "enabled",
 	4:  "name",
 	5:  "precheck",
-	6:  "precheck_refuse",
-	7:  "risk",
-	8:  "rollback",
-	9:  "rollback_tool",
-	10: "run",
-	11: "tool",
-	12: "verify",
+	6:  "precheck_expect",
+	7:  "precheck_refuse",
+	8:  "risk",
+	9:  "rollback",
+	10: "rollback_tool",
+	11: "run",
+	12: "tool",
+	13: "verify",
 }
 
 // Decode decodes ResponsePostResponseCatalogReq from json.
@@ -210034,6 +210543,16 @@ func (s *ResponsePostResponseCatalogReq) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"precheck\"")
 			}
+		case "precheck_expect":
+			if err := func() error {
+				s.PrecheckExpect.Reset()
+				if err := s.PrecheckExpect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_expect\"")
+			}
 		case "precheck_refuse":
 			if err := func() error {
 				s.PrecheckRefuse = make([]string, 0)
@@ -210054,7 +210573,7 @@ func (s *ResponsePostResponseCatalogReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"precheck_refuse\"")
 			}
 		case "risk":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Risk.Decode(d); err != nil {
 					return err
@@ -210064,7 +210583,7 @@ func (s *ResponsePostResponseCatalogReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"risk\"")
 			}
 		case "rollback":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Rollback.Decode(d); err != nil {
 					return err
@@ -210074,7 +210593,7 @@ func (s *ResponsePostResponseCatalogReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"rollback\"")
 			}
 		case "rollback_tool":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.RollbackTool.Decode(d); err != nil {
 					return err
@@ -210084,7 +210603,7 @@ func (s *ResponsePostResponseCatalogReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"rollback_tool\"")
 			}
 		case "run":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.Run.Decode(d); err != nil {
 					return err
@@ -210094,7 +210613,7 @@ func (s *ResponsePostResponseCatalogReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
 		case "tool":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Tool.Decode(d); err != nil {
 					return err
@@ -210104,7 +210623,7 @@ func (s *ResponsePostResponseCatalogReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tool\"")
 			}
 		case "verify":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Verify.Decode(d); err != nil {
 					return err
@@ -210123,8 +210642,8 @@ func (s *ResponsePostResponseCatalogReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b10011111,
 		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -213967,6 +214486,14 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) encodeFie
 		e.Str(s.Cli)
 	}
 	{
+		e.FieldStart("precheck")
+		e.Str(s.Precheck)
+	}
+	{
+		e.FieldStart("precheck_rules")
+		e.Str(s.PrecheckRules)
+	}
+	{
 		e.FieldStart("rest")
 		s.Rest.Encode(e)
 	}
@@ -213978,15 +214505,22 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) encodeFie
 		e.FieldStart("verify")
 		e.Str(s.Verify)
 	}
+	{
+		e.FieldStart("verify_rule")
+		e.Str(s.VerifyRule)
+	}
 }
 
-var jsonFieldsNameOfResponsePostResponseProposalsIDRequestCreatedItemsItemChange = [6]string{
+var jsonFieldsNameOfResponsePostResponseProposalsIDRequestCreatedItemsItemChange = [9]string{
 	0: "after",
 	1: "before",
 	2: "cli",
-	3: "rest",
-	4: "rollback",
-	5: "verify",
+	3: "precheck",
+	4: "precheck_rules",
+	5: "rest",
+	6: "rollback",
+	7: "verify",
+	8: "verify_rule",
 }
 
 // Decode decodes ResponsePostResponseProposalsIDRequestCreatedItemsItemChange from json.
@@ -213994,7 +214528,7 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) Decode(d 
 	if s == nil {
 		return errors.New("invalid: unable to decode ResponsePostResponseProposalsIDRequestCreatedItemsItemChange to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -214034,8 +214568,32 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) Decode(d 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
-		case "rest":
+		case "precheck":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Precheck = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck\"")
+			}
+		case "precheck_rules":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.PrecheckRules = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_rules\"")
+			}
+		case "rest":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Rest.Decode(d); err != nil {
 					return err
@@ -214045,7 +214603,7 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) Decode(d 
 				return errors.Wrap(err, "decode field \"rest\"")
 			}
 		case "rollback":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Rollback.Decode(d); err != nil {
 					return err
@@ -214055,7 +214613,7 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) Decode(d 
 				return errors.Wrap(err, "decode field \"rollback\"")
 			}
 		case "verify":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Verify = string(v)
@@ -214066,6 +214624,18 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) Decode(d 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"verify\"")
 			}
+		case "verify_rule":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.VerifyRule = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"verify_rule\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -214075,8 +214645,9 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) Decode(d 
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00111111,
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -217813,6 +218384,14 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChange) encodeFields(e *jx.
 		e.Str(s.Cli)
 	}
 	{
+		e.FieldStart("precheck")
+		e.Str(s.Precheck)
+	}
+	{
+		e.FieldStart("precheck_rules")
+		e.Str(s.PrecheckRules)
+	}
+	{
 		e.FieldStart("rest")
 		s.Rest.Encode(e)
 	}
@@ -217824,15 +218403,22 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChange) encodeFields(e *jx.
 		e.FieldStart("verify")
 		e.Str(s.Verify)
 	}
+	{
+		e.FieldStart("verify_rule")
+		e.Str(s.VerifyRule)
+	}
 }
 
-var jsonFieldsNameOfResponsePostResponseRulesSimulateOKStepsItemChange = [6]string{
+var jsonFieldsNameOfResponsePostResponseRulesSimulateOKStepsItemChange = [9]string{
 	0: "after",
 	1: "before",
 	2: "cli",
-	3: "rest",
-	4: "rollback",
-	5: "verify",
+	3: "precheck",
+	4: "precheck_rules",
+	5: "rest",
+	6: "rollback",
+	7: "verify",
+	8: "verify_rule",
 }
 
 // Decode decodes ResponsePostResponseRulesSimulateOKStepsItemChange from json.
@@ -217840,7 +218426,7 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChange) Decode(d *jx.Decode
 	if s == nil {
 		return errors.New("invalid: unable to decode ResponsePostResponseRulesSimulateOKStepsItemChange to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -217880,8 +218466,32 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChange) Decode(d *jx.Decode
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cli\"")
 			}
-		case "rest":
+		case "precheck":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Precheck = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck\"")
+			}
+		case "precheck_rules":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.PrecheckRules = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_rules\"")
+			}
+		case "rest":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Rest.Decode(d); err != nil {
 					return err
@@ -217891,7 +218501,7 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChange) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"rest\"")
 			}
 		case "rollback":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Rollback.Decode(d); err != nil {
 					return err
@@ -217901,7 +218511,7 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChange) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"rollback\"")
 			}
 		case "verify":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Verify = string(v)
@@ -217912,6 +218522,18 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChange) Decode(d *jx.Decode
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"verify\"")
 			}
+		case "verify_rule":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.VerifyRule = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"verify_rule\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -217921,8 +218543,9 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChange) Decode(d *jx.Decode
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00111111,
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -220644,6 +221267,10 @@ func (s *ResponsePutResponseCatalogIDOK) encodeFields(e *jx.Encoder) {
 		s.Precheck.Encode(e)
 	}
 	{
+		e.FieldStart("precheck_expect")
+		e.Str(s.PrecheckExpect)
+	}
+	{
 		e.FieldStart("precheck_refuse")
 		e.ArrStart()
 		for _, elem := range s.PrecheckRefuse {
@@ -220685,7 +221312,7 @@ func (s *ResponsePutResponseCatalogIDOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponsePutResponseCatalogIDOK = [23]string{
+var jsonFieldsNameOfResponsePutResponseCatalogIDOK = [24]string{
 	0:  "ai_may_propose",
 	1:  "available",
 	2:  "builtin",
@@ -220700,15 +221327,16 @@ var jsonFieldsNameOfResponsePutResponseCatalogIDOK = [23]string{
 	11: "pack",
 	12: "params",
 	13: "precheck",
-	14: "precheck_refuse",
-	15: "reversible",
-	16: "risk",
-	17: "rollback",
-	18: "rollback_tool",
-	19: "run",
-	20: "tool",
-	21: "unavailable_reason",
-	22: "verify",
+	14: "precheck_expect",
+	15: "precheck_refuse",
+	16: "reversible",
+	17: "risk",
+	18: "rollback",
+	19: "rollback_tool",
+	20: "run",
+	21: "tool",
+	22: "unavailable_reason",
+	23: "verify",
 }
 
 // Decode decodes ResponsePutResponseCatalogIDOK from json.
@@ -220886,8 +221514,20 @@ func (s *ResponsePutResponseCatalogIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"precheck\"")
 			}
-		case "precheck_refuse":
+		case "precheck_expect":
 			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				v, err := d.Str()
+				s.PrecheckExpect = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_expect\"")
+			}
+		case "precheck_refuse":
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				s.PrecheckRefuse = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -220907,7 +221547,7 @@ func (s *ResponsePutResponseCatalogIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"precheck_refuse\"")
 			}
 		case "reversible":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				v, err := d.Bool()
 				s.Reversible = bool(v)
@@ -220919,7 +221559,7 @@ func (s *ResponsePutResponseCatalogIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"reversible\"")
 			}
 		case "risk":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.Risk.Decode(d); err != nil {
 					return err
@@ -220929,7 +221569,7 @@ func (s *ResponsePutResponseCatalogIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"risk\"")
 			}
 		case "rollback":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				if err := s.Rollback.Decode(d); err != nil {
 					return err
@@ -220939,7 +221579,7 @@ func (s *ResponsePutResponseCatalogIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"rollback\"")
 			}
 		case "rollback_tool":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				if err := s.RollbackTool.Decode(d); err != nil {
 					return err
@@ -220949,7 +221589,7 @@ func (s *ResponsePutResponseCatalogIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"rollback_tool\"")
 			}
 		case "run":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				if err := s.Run.Decode(d); err != nil {
 					return err
@@ -220959,7 +221599,7 @@ func (s *ResponsePutResponseCatalogIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
 		case "tool":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.Tool.Decode(d); err != nil {
 					return err
@@ -220969,7 +221609,7 @@ func (s *ResponsePutResponseCatalogIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tool\"")
 			}
 		case "unavailable_reason":
-			requiredBitSet[2] |= 1 << 5
+			requiredBitSet[2] |= 1 << 6
 			if err := func() error {
 				if err := s.UnavailableReason.Decode(d); err != nil {
 					return err
@@ -220979,7 +221619,7 @@ func (s *ResponsePutResponseCatalogIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"unavailable_reason\"")
 			}
 		case "verify":
-			requiredBitSet[2] |= 1 << 6
+			requiredBitSet[2] |= 1 << 7
 			if err := func() error {
 				if err := s.Verify.Decode(d); err != nil {
 					return err
@@ -221000,7 +221640,7 @@ func (s *ResponsePutResponseCatalogIDOK) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b01111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -222146,6 +222786,12 @@ func (s *ResponsePutResponseCatalogIDReq) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.PrecheckExpect.Set {
+			e.FieldStart("precheck_expect")
+			s.PrecheckExpect.Encode(e)
+		}
+	}
+	{
 		if s.PrecheckRefuse != nil {
 			e.FieldStart("precheck_refuse")
 			e.ArrStart()
@@ -222193,20 +222839,21 @@ func (s *ResponsePutResponseCatalogIDReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponsePutResponseCatalogIDReq = [13]string{
+var jsonFieldsNameOfResponsePutResponseCatalogIDReq = [14]string{
 	0:  "ai_may_propose",
 	1:  "connection_id",
 	2:  "description",
 	3:  "enabled",
 	4:  "name",
 	5:  "precheck",
-	6:  "precheck_refuse",
-	7:  "risk",
-	8:  "rollback",
-	9:  "rollback_tool",
-	10: "run",
-	11: "tool",
-	12: "verify",
+	6:  "precheck_expect",
+	7:  "precheck_refuse",
+	8:  "risk",
+	9:  "rollback",
+	10: "rollback_tool",
+	11: "run",
+	12: "tool",
+	13: "verify",
 }
 
 // Decode decodes ResponsePutResponseCatalogIDReq from json.
@@ -222276,6 +222923,16 @@ func (s *ResponsePutResponseCatalogIDReq) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"precheck\"")
+			}
+		case "precheck_expect":
+			if err := func() error {
+				s.PrecheckExpect.Reset()
+				if err := s.PrecheckExpect.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"precheck_expect\"")
 			}
 		case "precheck_refuse":
 			if err := func() error {

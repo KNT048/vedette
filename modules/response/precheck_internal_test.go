@@ -16,6 +16,7 @@ func TestActionFPCoversPrecheckRefuseAndExpect(t *testing.T) {
 		"precheck path":  func(c *catRow) { c.Precheck.Path = "/x/{ip}" },
 		"precheck cli":   func(c *catRow) { c.Precheck = Tpl{CLI: "show x {ip}"} },
 		"refuse text":    func(c *catRow) { c.PrecheckRefuse = []string{"other"} },
+		"required text":  func(c *catRow) { c.PrecheckExpect = "ready" },
 		"refuse added":   func(c *catRow) { c.PrecheckRefuse = []string{"already", "more"} },
 		"refuse removed": func(c *catRow) { c.PrecheckRefuse = nil },
 		"expect":         func(c *catRow) { c.Verify.Expect = "x" },
@@ -63,9 +64,9 @@ func TestBuiltinLibraryIsCheckedLikeACustomerAction(t *testing.T) {
 		},
 		"check without refusal": func(a *builtinDef) { a.Precheck = Tpl{Method: "GET", Path: "/a/{ip}"}; a.PrecheckRefuse = nil },
 		"expect too long":       func(a *builtinDef) { a.Verify = Tpl{Method: "GET", Path: "/a/{ip}", Expect: strings.Repeat("x", 201)} },
-		"seven refusals": func(a *builtinDef) {
+		"nine refusals": func(a *builtinDef) {
 			a.Precheck = Tpl{Method: "GET", Path: "/a/{ip}"}
-			a.PrecheckRefuse = []string{"1", "2", "3", "4", "5", "6", "7"}
+			a.PrecheckRefuse = []string{"1", "2", "3", "4", "5", "6", "7", "8", "9"}
 		},
 		"port action without a refusal": func(a *builtinDef) {
 			a.Run, a.Rollback = Tpl{CLI: "interface {interface}\nshutdown"}, Tpl{CLI: "interface {interface}\nno shutdown"}

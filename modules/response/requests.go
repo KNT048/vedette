@@ -359,6 +359,9 @@ func gateItem(i itemRec, st Settings, cats map[string]catRow, cs conns, run *run
 	if device && cat.Tool != i.RunTool {
 		return fail(http.StatusConflict, "tool_unavailable", "The write tool of \""+cat.Name+"\" was changed after the request was made. Nothing was changed. Ask again.")
 	}
+	if device && cat.RollbackTool != i.RollbackTool { // the undo tool is checked before the run too: an action that cannot be undone as approved must not start
+		return fail(http.StatusConflict, "tool_unavailable", "The undo tool of \""+cat.Name+"\" was changed after the request was made. Nothing was changed. Ask again.")
+	}
 	if actionFP(cat) != i.ActionFP { // the stored call is the old rendering, approved at the old risk (INV-9)
 		return fail(http.StatusConflict, "tool_unavailable", "The action \""+oneLine(cat.Name, 80)+"\" was edited after the request was made. Nothing was changed. Ask again.")
 	}
@@ -381,7 +384,7 @@ func gateItem(i itemRec, st Settings, cats map[string]catRow, cs conns, run *run
 // its refusal texts, and the risk of the catalog entry. An edit of
 // either changes it, so a request made before the edit refuses at approval and at run instead of sending the old rendering at the old risk.
 func actionFP(c catRow) string {
-	b, _ := json.Marshal([]any{c.Run, c.Rollback, c.Verify, c.Precheck, nonNilStrings(c.PrecheckRefuse), c.Risk})
+	b, _ := json.Marshal([]any{c.Run, c.Rollback, c.Verify, c.Precheck, nonNilStrings(c.PrecheckRefuse), c.PrecheckExpect, c.Risk})
 	h := sha256.Sum256(b)
 	return hex.EncodeToString(h[:16])
 }

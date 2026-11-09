@@ -50,6 +50,7 @@ type builtinDef struct {
 	// Precheck and PrecheckRefuse are the check before the action (D-95): a read-only template and the texts that make it refuse.
 	Precheck       Tpl      `json:"precheck"`
 	PrecheckRefuse []string `json:"precheck_refuse"`
+	PrecheckExpect string   `json:"precheck_expect"`
 	Risk           Risk     `json:"risk"`
 	Enabled        bool     `json:"enabled"`
 	AIMayPropose   bool     `json:"ai_may_propose"`
@@ -154,13 +155,19 @@ func checkBuiltinTpls(a builtinDef) error {
 			return fmt.Errorf("response: action-templates.json: %s", why)
 		}
 	}
-	if why := precheckProblem(a.Precheck, a.PrecheckRefuse); why != "" {
+	if why := readBackProblem(a.Verify); why != "" {
+		return fmt.Errorf("response: action-templates.json: %s: %s", a.ID, why)
+	}
+	if why := cliProblem(stepSet{a.Run, a.Rollback, a.Verify, a.Precheck}, false); why != "" {
+		return fmt.Errorf("response: action-templates.json: %s: %s", a.ID, why)
+	}
+	if why := precheckProblem(a.Precheck, a.PrecheckRefuse, a.PrecheckExpect); why != "" {
 		return fmt.Errorf("response: action-templates.json: %s: %s", a.ID, why)
 	}
 	if a.Kind == "box" && !a.Precheck.Empty() {
 		return fmt.Errorf("response: action-templates.json: %s: a box action has no check before", a.ID)
 	}
-	if a.Kind == "device" && needsPrecheck(a.Run, a.Rollback, a.Verify, a.Precheck, a.PrecheckRefuse) {
+	if a.Kind == "device" && needsPrecheck(a.Run, a.Rollback, a.Verify, a.Precheck, a.PrecheckRefuse, false) {
 		return fmt.Errorf("response: action-templates.json: %s names a port and has no check before with a refusal text", a.ID)
 	}
 	return nil
@@ -195,13 +202,13 @@ func (s *Service) seedCatalog(ctx context.Context, tx *sql.Tx) error {
 			desc += " " + s.catNote + "."
 		}
 		run, rollback, verify, pre, refuse := mustJSON(a.Run), mustJSON(a.Rollback), mustJSON(a.Verify), mustJSON(a.Precheck), mustJSON(nonNilStrings(a.PrecheckRefuse))
-		_, err := tx.ExecContext(ctx, `INSERT INTO resp_catalog (id, builtin, pack, kind, name, description, connection_id, tool, rollback_tool, run, rollback, verify, precheck, precheck_refuse, risk, enabled, ai_may_propose, position)
-VALUES (?, 1, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		_, err := tx.ExecContext(ctx, `INSERT INTO resp_catalog (id, builtin, pack, kind, name, description, connection_id, tool, rollback_tool, run, rollback, verify, precheck, precheck_refuse, precheck_expect, risk, enabled, ai_may_propose, position)
+VALUES (?, 1, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (id) DO UPDATE SET pack = excluded.pack, kind = excluded.kind, name = excluded.name, description = excluded.description,
   tool = excluded.tool, rollback_tool = excluded.rollback_tool, run = excluded.run, rollback = excluded.rollback, verify = excluded.verify,
-  precheck = excluded.precheck, precheck_refuse = excluded.precheck_refuse, risk = excluded.risk, position = excluded.position
+  precheck = excluded.precheck, precheck_refuse = excluded.precheck_refuse, precheck_expect = excluded.precheck_expect, risk = excluded.risk, position = excluded.position
 WHERE resp_catalog.builtin = 1`,
-			a.ID, a.Pack, a.Kind, a.Name, desc, nullable(a.Tool), nullable(a.RollbackTool), run, rollback, verify, pre, refuse, string(a.Risk), boolInt(a.Enabled), boolInt(a.AIMayPropose), i)
+			a.ID, a.Pack, a.Kind, a.Name, desc, nullable(a.Tool), nullable(a.RollbackTool), run, rollback, verify, pre, refuse, a.PrecheckExpect, string(a.Risk), boolInt(a.Enabled), boolInt(a.AIMayPropose), i)
 		if err != nil {
 			return fmt.Errorf("response: seed action %s: %w", a.ID, err)
 		}

@@ -12,7 +12,8 @@ import { Field, Input, Select, Textarea } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { errText, useCatalog, useDeleteAction, useSaveAction } from './api'
 import { RiskChip } from './parts'
-import { EMPTY_TPL, isMcp, KIND_FIELDS, kindHint, kindProblem, MAX_EXPECT, MAX_REFUSE, MAX_REFUSE_LEN, needsPrecheck, tplEmpty, validatePrecheck, validateTpl, type ConnKind, type Tpl, type TplField } from './logic'
+import { EMPTY_TPL, isMcp, KIND_FIELDS, kindHint, kindProblem, MAX_EXPECT, MAX_REFUSE, MAX_REFUSE_LEN, needsPrecheck, readBackProblem, cliProblem, tplEmpty, validatePrecheck, validateTpl, type ConnKind, type Tpl, type TplField } from './logic'
+import { CLI_BAN } from './templates'
 import type { Catalog, CatalogAction, CatalogInput, Connection, Risk } from './types'
 
 const METHODS: Tpl['method'][] = ['', 'GET', 'PUT', 'PATCH', 'POST', 'DELETE']
@@ -85,12 +86,12 @@ export function ActionDialog({ action, cat, onClose, onSaved }: { action: Catalo
   const { t } = useTranslation('response')
   const save = useSaveAction()
   const usable = cat.connections.filter((c) => !c.read_only)
-  const start = (c: Connection | undefined): Pick<CatalogInput, 'connection_id' | 'tool' | 'rollback_tool' | 'run' | 'rollback' | 'verify' | 'precheck' | 'precheck_refuse'> => {
+  const start = (c: Connection | undefined): Pick<CatalogInput, 'connection_id' | 'tool' | 'rollback_tool' | 'run' | 'rollback' | 'verify' | 'precheck' | 'precheck_refuse' | 'precheck_expect'> => {
     const ex = kindHint(c?.kind ?? null)
-    return { connection_id: c?.id ?? '', tool: null, rollback_tool: null, run: { ...EMPTY_TPL, ...ex.run }, rollback: { ...EMPTY_TPL, ...ex.rollback }, verify: EMPTY_TPL, precheck: EMPTY_TPL, precheck_refuse: [] }
+    return { connection_id: c?.id ?? '', tool: null, rollback_tool: null, run: { ...EMPTY_TPL, ...ex.run }, rollback: { ...EMPTY_TPL, ...ex.rollback }, verify: EMPTY_TPL, precheck: EMPTY_TPL, precheck_refuse: [], precheck_expect: '' }
   }
   const [f, setF] = useState<CatalogInput>(action
-    ? { name: action.name, description: action.description, connection_id: action.connection_id ?? '', tool: action.tool, rollback_tool: action.rollback_tool, run: action.run, rollback: action.rollback, verify: action.verify, precheck: action.precheck, precheck_refuse: action.precheck_refuse, risk: action.risk, enabled: action.enabled, ai_may_propose: action.ai_may_propose }
+    ? { name: action.name, description: action.description, connection_id: action.connection_id ?? '', tool: action.tool, rollback_tool: action.rollback_tool, run: action.run, rollback: action.rollback, verify: action.verify, precheck: action.precheck, precheck_refuse: action.precheck_refuse, precheck_expect: action.precheck_expect, risk: action.risk, enabled: action.enabled, ai_may_propose: action.ai_may_propose }
     : { name: '', description: '', risk: 'medium', enabled: false, ai_may_propose: false, ...start(usable.find((c) => c.enabled) ?? usable[0]) })
   const [error, setError] = useState<string | undefined>()
   const conn = cat.connections.find((c) => c.id === f.connection_id)
@@ -102,10 +103,11 @@ export function ActionDialog({ action, cat, onClose, onSaved }: { action: Catalo
     const bad = (['run', 'rollback'] as const).map((k) => kindProblem(kind, f[k], t(k === 'run' ? 'catalog.runLegend' : 'catalog.rollbackLegend')) ?? (isMcp(kind) ? null : validateTpl(f[k], t(k === 'run' ? 'catalog.runLegend' : 'catalog.rollbackLegend')))).find(Boolean)
       ?? (!isMcp(kind) && !tplEmpty(f.verify) ? validateTpl(f.verify, t('catalog.verifyLegend')) : null)
     const pre = f.precheck ?? EMPTY_TPL, refuse = f.precheck_refuse ?? []
-    const wrong = bad ?? (f.run.expect || f.rollback.expect || pre.expect ? t('catalog.expectOnlyReadBack') : null) ?? validatePrecheck(pre, refuse, kind)
-      ?? (needsPrecheck(f.run, f.rollback, f.verify, pre, refuse) ? t('catalog.needsPrecheck') : null)
+    const wrong = bad ?? (f.run.expect || f.rollback.expect || pre.expect ? t('catalog.expectOnlyReadBack') : null) ?? validatePrecheck(pre, refuse, kind, f.precheck_expect ?? '') ?? readBackProblem(f.verify)
+      ?? cliProblem(CLI_BAN, { run: f.run, rollback: f.rollback, verify: f.verify, pre }, true)
+      ?? (needsPrecheck(f.run, f.rollback, f.verify, pre, refuse, true) ? t('catalog.needsPrecheck') : null)
     if (wrong) { setError(wrong); return }
-    save.mutate({ id: action?.id, input: { ...f, tool: isMcp(kind) ? f.tool : null, rollback_tool: isMcp(kind) ? f.rollback_tool : null, verify: isMcp(kind) ? EMPTY_TPL : f.verify, precheck: isMcp(kind) ? EMPTY_TPL : pre, precheck_refuse: isMcp(kind) ? [] : refuse } }, { onSuccess: (a) => { toast.success(t('common:saved')); onSaved?.(a); onClose() }, onError: (er) => setError(errText(er)) })
+    save.mutate({ id: action?.id, input: { ...f, tool: isMcp(kind) ? f.tool : null, rollback_tool: isMcp(kind) ? f.rollback_tool : null, verify: isMcp(kind) ? EMPTY_TPL : f.verify, precheck: isMcp(kind) ? EMPTY_TPL : pre, precheck_refuse: isMcp(kind) ? [] : refuse, precheck_expect: isMcp(kind) ? '' : f.precheck_expect ?? '' } }, { onSuccess: (a) => { toast.success(t('common:saved')); onSaved?.(a); onClose() }, onError: (er) => setError(errText(er)) })
   }
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose() }}>
@@ -135,6 +137,7 @@ export function ActionDialog({ action, cat, onClose, onSaved }: { action: Catalo
                   <Field htmlFor="ca-pc-refuse" label={t('catalog.refuse')} hint={t('catalog.refuseHint', { max: MAX_REFUSE, len: MAX_REFUSE_LEN })}>
                     <RefuseText id="ca-pc-refuse" value={f.precheck_refuse ?? []} onChange={(precheck_refuse) => set({ precheck_refuse })} />
                   </Field>
+                  <Field htmlFor="ca-pc-expect" label={t('catalog.precheckExpect')} hint={t('catalog.precheckExpectHint')}><Input id="ca-pc-expect" spellCheck={false} maxLength={MAX_REFUSE_LEN} value={f.precheck_expect ?? ''} onChange={(e) => set({ precheck_expect: e.target.value })} /></Field>
                 </TplFields>
               )}
             </>
@@ -196,6 +199,7 @@ export function CatalogEditor() {
                 </div>
                 <p className="text-[13px] text-muted">{a.description}</p>
                 {a.device && a.precheck_refuse.length ? <p className="text-[13px] text-muted">{t('catalog.checkedBefore', { texts: a.precheck_refuse.join(' · ') })}</p> : null}
+                {a.device && a.precheck_expect ? <p className="text-[13px] text-muted">{t('catalog.mustContain', { text: a.precheck_expect })}</p> : null}
                 {a.device && a.verify.expect ? <p className="text-[13px] text-muted">{t('catalog.readBackChecks', { text: a.verify.expect })}</p> : null}
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px]">
                   <div className="flex items-center gap-2">

@@ -8,9 +8,9 @@ import { boxInfo, usersStore } from '@/mocks/stores'
 import { isHttpKind } from '@/lib/connections'
 import { RISK_PHRASE } from './contract'
 import type { StoredCat } from './data'
-import { seedCatalog } from './templates'
+import { CLI_BAN, seedCatalog } from './templates'
 import {
-  approvalToken, EMPTY_TPL, fill, GENESIS, isMcp, KIND_FIELDS, kindProblem, logHashSync, needsPrecheck, oneLine, randomToken, READ_ONLY, RUNTIME_VALUES, tplEmpty, tplParams, TOKEN_RE, validatePrecheck, validateTpl, verifyChain,
+  approvalToken, EMPTY_TPL, fill, GENESIS, isMcp, KIND_FIELDS, kindProblem, logHashSync, needsPrecheck, oneLine, randomToken, readBackProblem, cliProblem, READ_ONLY, RUNTIME_VALUES, tplEmpty, tplParams, TOKEN_RE, validatePrecheck, validateTpl, verifyChain,
   type ConnKind, type ParamType, type Tpl,
 } from './logic'
 import type { ActionRequest, CatalogAction, Change, Connection, LogEntry, RequestItem, Risk, Settings, SettingsView, Trigger } from './types'
@@ -100,6 +100,7 @@ export const connView = (c: Connector): Connection => ({ id: c.id, name: c.name,
 // A browser that kept the sample data of an earlier build has catalog rows without a check before: read them as none.
 const preOf = (c: Pick<StoredCat, 'precheck'>): Tpl => c.precheck ?? EMPTY_TPL
 const refuseOf = (c: Pick<StoredCat, 'precheck_refuse'>): string[] => c.precheck_refuse ?? []
+const expectOf = (c: Pick<StoredCat, 'precheck_expect'>): string => c.precheck_expect ?? ''
 export const paramsOf = (c: Pick<StoredCat, 'run' | 'rollback' | 'verify' | 'precheck'>) => tplParams(c.run, c.rollback, c.verify, preOf(c))
 export const reversible = (c: Pick<StoredCat, 'rollback'>) => !tplEmpty(c.rollback)
 
@@ -125,18 +126,26 @@ export function unavailable(c: StoredCat): string | null {
   if (wrong) return wrong
   const rv = runtimeNeeded(c)
   if (rv) return `Not available yet: this action needs a value that is read from the device while it runs ({${rv}}), and Vedette cannot read that yet.`
-  if (needsPrecheck(c.run, c.rollback, c.verify, preOf(c), refuseOf(c))) return 'Not available: an action that names a port needs a check before it, with at least one text that makes it refuse (so a trunk or uplink port is never touched).'
+  if (needsPrecheck(c.run, c.rollback, c.verify, preOf(c), refuseOf(c), !c.builtin)) return 'Not available: an action that can name a port needs a check before it, with at least one text that makes it refuse (so a trunk or uplink port is never touched).'
+  if (isMcp(conn.kind) && (!tplEmpty(preOf(c)) || !tplEmpty(c.verify))) return `Not available yet: the check before and the read-back of this action need a read tool, and Vedette cannot name one for ${conn.name} yet.`
+  return stepFits(preOf(c), conn, 'check before')
+}
+/** null = the step has a form the connection kind can run: a command for SSH, an API call for the HTTP kinds. An action with both forms fits both. */
+function stepFits(t: Tpl, conn: Connector, what: string): string | null {
+  if (tplEmpty(t) || isMcp(conn.kind)) return null
+  if (conn.kind === 'ssh' && !t.cli.trim()) return `Not available: the ${what} of this action is an API call, and ${conn.name} is an SSH connection.`
+  if (conn.kind !== 'ssh' && !(t.method && t.path)) return `Not available: the ${what} of this action is a command, and ${conn.name} is an API connection.`
   return null
 }
 export const catView = (c: StoredCat): CatalogAction => {
   const conn = connById(c.connection_id)
-  return { ...c, precheck: preOf(c), precheck_refuse: refuseOf(c), connection: conn?.name ?? null, connection_kind: conn?.kind ?? null, params: paramsOf(c), reversible: reversible(c), device: c.kind === 'device', available: unavailable(c) === null, unavailable_reason: unavailable(c) }
+  return { ...c, precheck: preOf(c), precheck_refuse: refuseOf(c), precheck_expect: expectOf(c), connection: conn?.name ?? null, connection_kind: conn?.kind ?? null, params: paramsOf(c), reversible: reversible(c), device: c.kind === 'device', available: unavailable(c) === null, unavailable_reason: unavailable(c) }
 }
 
 const TEXT_RE = /^[A-Za-z0-9 _.,:'()/-]{1,80}$/
 export { TEXT_RE }
 export interface CatErr { error: string; code: string }
-export type CatClean = { name: string; description: string; connection_id: string; tool: string | null; rollback_tool: string | null; run: Tpl; rollback: Tpl; verify: Tpl; precheck: Tpl; precheck_refuse: string[]; risk: Risk; enabled: boolean; ai_may_propose: boolean }
+export type CatClean = { name: string; description: string; connection_id: string; tool: string | null; rollback_tool: string | null; run: Tpl; rollback: Tpl; verify: Tpl; precheck: Tpl; precheck_refuse: string[]; precheck_expect: string; risk: Risk; enabled: boolean; ai_may_propose: boolean }
 /** Validate custom catalog fields (everything the client may set). The fields must fit the kind of the chosen connection. */
 export function checkCatalog(b: Record<string, unknown>): CatErr | CatClean {
   const bad = (error: string, code = 'invalid'): CatErr => ({ error, code })
@@ -152,7 +161,10 @@ export function checkCatalog(b: Record<string, unknown>): CatErr | CatClean {
   const kind = conn.kind as ConnKind
   const run = tpl(b.run), rollback = tpl(b.rollback), verify = tpl(b.verify), precheck = tpl(b.precheck)
   const refuse = Array.isArray(b.precheck_refuse) && b.precheck_refuse.every((x) => typeof x === 'string') ? (b.precheck_refuse as string[]) : b.precheck_refuse == null ? [] : null
-  if (refuse === null) return bad('Check before: the texts that make it refuse must be a list of up to 5 texts.')
+  if (refuse === null) return bad('Check before: the texts that make it refuse must be a list of up to 8 texts.')
+  const expect = typeof b.precheck_expect === 'string' ? b.precheck_expect : b.precheck_expect == null ? '' : null
+  if (expect === null) return bad('Check before: the text the output must contain must be text.')
+  if (tplEmpty(verify) && verify.expect) return bad('Read-back: give the read-back command or API call before the text to look for.')
   for (const [what, t] of [['Action', run], ['Rollback', rollback], ['Check before', precheck]] as const) if (t.expect) return bad(`${what}: the text to look for belongs to the read-back only.`)
   let tool: string | null = null, rollback_tool: string | null = null
   for (const [what, t] of [['Action', run], ['Rollback', rollback], ['Read-back', verify]] as const) {
@@ -166,18 +178,19 @@ export function checkCatalog(b: Record<string, unknown>): CatErr | CatClean {
     const mcp = (t: Tpl, what: string) => validateTpl({ ...t, method: 'POST', path: '/mcp' }, what)
     const e = mcp(run, 'Action') ?? mcp(rollback, 'Rollback'); if (e) return bad(e)
     if (!tplEmpty(verify)) return bad('Read-back: not available for MCP servers.')
-    const pe = validatePrecheck(precheck, refuse, kind); if (pe) return bad(pe)
+    const pe = validatePrecheck(precheck, refuse, kind, expect); if (pe) return bad(pe)
   } else {
     if (b.tool != null && b.tool !== '') return bad('A tool is only chosen for an MCP server.')
-    const e = validateTpl(run, 'Action') ?? validateTpl(rollback, 'Rollback') ?? (tplEmpty(verify) ? null : validateTpl(verify, 'Read-back')) ?? validatePrecheck(precheck, refuse, kind); if (e) return bad(e)
+    const e = validateTpl(run, 'Action') ?? validateTpl(rollback, 'Rollback') ?? (tplEmpty(verify) ? null : validateTpl(verify, 'Read-back')) ?? readBackProblem(verify) ?? validatePrecheck(precheck, refuse, kind, expect); if (e) return bad(e)
   }
-  if (needsPrecheck(run, rollback, verify, precheck, refuse)) return bad(isMcp(kind) ? 'Action: {interface} needs a check before it, and an MCP server cannot run one yet.' : 'Action: a command that names a port ({interface}) needs a check before it, with at least one text that makes it refuse, so a trunk or uplink port is never touched.')
+  const cp = cliProblem(CLI_BAN, { run, rollback, verify, pre: precheck }, true); if (cp) return bad(cp)
+  if (needsPrecheck(run, rollback, verify, precheck, refuse, true)) return bad(isMcp(kind) ? 'Action: {interface} needs a check before it, and an MCP server cannot run one yet.' : 'Action: a command or API path that uses {interface}, {port}, {id} or {name} can name a port, so it needs a check before it, with at least one text that makes it refuse (a trunk or uplink port must never be touched). {interface} is the placeholder for a port name; {port} is a TCP or UDP number, {id} a whole number and {name} a free name, and they cannot be told apart from a port in a command.')
   const used = tplParams(run)
   if (!used.length) return bad('Action: use at least one placeholder, for example {ip}, {domain} or {interface}.')
   const extra = tplParams(rollback, verify, precheck).filter((p) => !used.includes(p))
   if (extra.length) return bad(`Rollback or read-back uses {${extra[0]}}, which the action does not have, so it could not be filled in.`)
   if (!KIND_FIELDS[kind]) return bad('Unknown connection kind.')
-  return { name: b.name, description: b.description, connection_id: conn.id, tool, rollback_tool, run, rollback, verify, precheck, precheck_refuse: refuse, risk: b.risk, enabled: b.enabled, ai_may_propose: b.ai_may_propose }
+  return { name: b.name, description: b.description, connection_id: conn.id, tool, rollback_tool, run, rollback, verify, precheck, precheck_refuse: refuse, precheck_expect: expect, risk: b.risk, enabled: b.enabled, ai_may_propose: b.ai_may_propose }
 }
 
 /** Exact change for one catalog action and validated values. Each value is escaped for the place it lands in. */
@@ -187,13 +200,18 @@ export function buildChange(c: StoredCat, values: Partial<Record<ParamType, stri
   const call = (t: Tpl) => (api && t.method && t.path ? { method: t.method as 'GET' | 'PUT' | 'PATCH' | 'POST' | 'DELETE', url: `${conn.target}${fill(t.path, values, 'url')}`, body: t.body ? fill(t.body, values, 'json') : null } : null)
   const cli = (t: Tpl, tool: string | null) => (mcp ? `${tool ?? ''}(${t.body ? fill(t.body, values, 'json') : ''})` : conn?.kind === 'ssh' || !conn ? fill(t.cli, values, 'cli') : api && t.method && t.path ? '' : fill(t.cli, values, 'cli'))
   const what = Object.entries(values).filter(([k]) => paramsOf(c).includes(k as ParamType)).map(([k, v]) => `${k} ${v}`).join(', ')
-  const v = c.verify.method && c.verify.path && api ? `GET ${conn.target}${fill(c.verify.path, values, 'url')}` : c.verify.cli ? fill(c.verify.cli, values, 'cli') : ''
+  /** The exact read-only step: the stored method and URL of an API call, or the command lines. */
+  const step = (t: Tpl) => (t.method && t.path && api ? `${t.method} ${conn.target}${fill(t.path, values, 'url')}` : t.cli ? fill(t.cli, values, 'cli') : '')
+  const pre = preOf(c)
+  const quoted = (l: string[]) => l.map((x) => `"${x}"`).join(', ')
+  const precheckRules = tplEmpty(pre) ? '' : [refuseOf(c).length ? `Nothing is changed if its output contains ${quoted(refuseOf(c))}` : '', expectOf(c) ? `nothing is changed unless its output contains "${expectOf(c)}"` : '', 'nothing is changed if it prints nothing'].filter(Boolean).join('; ') + '.'
   return {
     before: c.kind === 'box' && c.id === 'blocklist_add' ? `${values.ip ?? what} is not on the block list.` : c.kind === 'box' ? 'Nothing changes on any device.' : 'The current state is read from the device when the action runs.',
     after: c.id === 'blocklist_add' ? `${values.ip} is published on the block list your firewall pulls. Reason: ${why}` : `${c.name} (${what}). ${c.description}`,
     cli: cli(c.run, c.tool), rest: call(c.run),
     rollback: { title: reversible(c) ? `Undo: ${c.name} (${what})` : 'This action cannot be undone', cli: reversible(c) ? cli(c.rollback, c.rollback_tool) : '', rest: reversible(c) ? call(c.rollback) : null },
-    verify: v,
+    verify: step(c.verify), precheck: step(pre), precheck_rules: precheckRules,
+    verify_rule: c.verify.expect ? `After the change the read-back must contain "${fill(c.verify.expect, values, 'cli')}"; after the undo it must not.` : '',
   }
 }
 export const callText = (ch: Change['rest'], cli: string) => (ch ? `${ch.method} ${ch.url} ${ch.body ?? ''}`.trim() : `command: ${cli.split('\n')[0] ?? ''}`)

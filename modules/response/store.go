@@ -147,6 +147,7 @@ type catRow struct {
 	Verify         Tpl
 	Precheck       Tpl      // D-95: a read-only template that runs right before Run
 	PrecheckRefuse []string // D-95: texts that make the check refuse; never nil
+	PrecheckExpect string   // D-95: text the output of the check must contain; empty = none
 	Risk           Risk
 	Enabled        bool
 	AIMayPropose   bool
@@ -156,15 +157,15 @@ func (c catRow) params() []ParamType { return tplParams(c.Run, c.Rollback, c.Ver
 func (c catRow) reversible() bool    { return !c.Rollback.Empty() }
 func (c catRow) device() bool        { return c.Kind == "device" }
 
-const catCols = `id, builtin, pack, kind, name, description, connection_id, tool, rollback_tool, run, rollback, verify, precheck, precheck_refuse, risk, enabled, ai_may_propose`
+const catCols = `id, builtin, pack, kind, name, description, connection_id, tool, rollback_tool, run, rollback, verify, precheck, precheck_refuse, precheck_expect, risk, enabled, ai_may_propose`
 
 type scanner interface{ Scan(dest ...any) error }
 
 func scanCat(r scanner) (catRow, error) {
 	var c catRow
 	var conn, tool, rtool sql.NullString
-	var run, rb, vf, pre, refuse, risk string
-	if err := r.Scan(&c.ID, &c.Builtin, &c.Pack, &c.Kind, &c.Name, &c.Description, &conn, &tool, &rtool, &run, &rb, &vf, &pre, &refuse, &risk, &c.Enabled, &c.AIMayPropose); err != nil {
+	var run, rb, vf, pre, refuse, expect, risk string
+	if err := r.Scan(&c.ID, &c.Builtin, &c.Pack, &c.Kind, &c.Name, &c.Description, &conn, &tool, &rtool, &run, &rb, &vf, &pre, &refuse, &expect, &risk, &c.Enabled, &c.AIMayPropose); err != nil {
 		return catRow{}, err
 	}
 	c.ConnectionID, c.Tool, c.RollbackTool, c.Risk = conn.String, tool.String, rtool.String, Risk(risk)
@@ -177,6 +178,7 @@ func scanCat(r scanner) (catRow, error) {
 	if err := json.Unmarshal([]byte(vf), &c.Verify); err != nil {
 		return catRow{}, err
 	}
+	c.PrecheckExpect = expect
 	if err := json.Unmarshal([]byte(pre), &c.Precheck); err != nil {
 		return catRow{}, err
 	}
@@ -218,11 +220,11 @@ func loadCat(ctx context.Context, q dbq, id string) (catRow, bool, error) {
 }
 
 func saveCat(ctx context.Context, tx *sql.Tx, c catRow, position int) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO resp_catalog (`+catCols+`, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	_, err := tx.ExecContext(ctx, `INSERT INTO resp_catalog (`+catCols+`, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (id) DO UPDATE SET name = excluded.name, description = excluded.description, connection_id = excluded.connection_id, tool = excluded.tool, rollback_tool = excluded.rollback_tool,
-  run = excluded.run, rollback = excluded.rollback, verify = excluded.verify, precheck = excluded.precheck, precheck_refuse = excluded.precheck_refuse, risk = excluded.risk, enabled = excluded.enabled, ai_may_propose = excluded.ai_may_propose`,
+  run = excluded.run, rollback = excluded.rollback, verify = excluded.verify, precheck = excluded.precheck, precheck_refuse = excluded.precheck_refuse, precheck_expect = excluded.precheck_expect, risk = excluded.risk, enabled = excluded.enabled, ai_may_propose = excluded.ai_may_propose`,
 		c.ID, boolInt(c.Builtin), c.Pack, c.Kind, c.Name, c.Description, nullable(c.ConnectionID), nullable(c.Tool), nullable(c.RollbackTool),
-		mustJSON(c.Run), mustJSON(c.Rollback), mustJSON(c.Verify), mustJSON(c.Precheck), mustJSON(nonNilStrings(c.PrecheckRefuse)), string(c.Risk), boolInt(c.Enabled), boolInt(c.AIMayPropose), position)
+		mustJSON(c.Run), mustJSON(c.Rollback), mustJSON(c.Verify), mustJSON(c.Precheck), mustJSON(nonNilStrings(c.PrecheckRefuse)), c.PrecheckExpect, string(c.Risk), boolInt(c.Enabled), boolInt(c.AIMayPropose), position)
 	if err != nil {
 		return fmt.Errorf("response: save an action: %w", err)
 	}

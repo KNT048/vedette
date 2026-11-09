@@ -345,9 +345,9 @@ func (s *fakeSMTP) recipients() []string {
 }
 
 // email saves an email channel that points at the fake server.
-func (e *env) email(s *fakeSMTP, floor notify.Severity, extra ...func(*notify.ChannelInput)) {
+func (e *env) email(s *fakeSMTP, extra ...func(*notify.ChannelInput)) {
 	e.t.Helper()
-	in := notify.ChannelInput{Enabled: true, MinSeverity: floor, Secret: relayLogin,
+	in := notify.ChannelInput{Enabled: true, MinSeverity: notify.High, Secret: relayLogin,
 		Fields: map[string]string{"host": "127.0.0.1", "port": s.port(), "security": "none", "username": "alerts@acme.example", "from": "alerts@acme.example", "to": "it@acme.example, director@acme.example"}}
 	for _, f := range extra {
 		f(&in)

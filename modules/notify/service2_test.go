@@ -103,7 +103,7 @@ func TestContract_INV9_EmailChannelCarriesCodes(t *testing.T) {
 	e := newEnv(t)
 	e.users.emailCode = 3
 	s := newFakeSMTP(t)
-	e.email(s, notify.High)
+	e.email(s)
 	v, err := e.svc.Channels(e.ctx())
 	if err != nil || v.EmailCodeUsers != 3 {
 		t.Fatalf("email_code_users = %d, %v", v.EmailCodeUsers, err)
@@ -129,7 +129,7 @@ func TestContract_POST5_EmailReadyAndCodes(t *testing.T) {
 		t.Fatal("codes available without an email channel")
 	}
 	s := newFakeSMTP(t)
-	e.email(s, notify.High)
+	e.email(s)
 	if ok, why := e.svc.EmailReady(e.ctx()); !ok || why != "" || !m.Available(e.ctx()) {
 		t.Fatalf("EmailReady = %v %q", ok, why)
 	}
@@ -334,7 +334,7 @@ func TestContract_INV12_DeletingZaloPersonalDeletesTheSession(t *testing.T) {
 func TestContract_PRE4_ApprovalLinks(t *testing.T) {
 	e := newEnv(t)
 	s := newFakeSMTP(t)
-	e.email(s, notify.High, func(in *notify.ChannelInput) {
+	e.email(s, func(in *notify.ChannelInput) {
 		in.Approvals = true
 		in.Approvers = []notify.Approver{{UserID: "u-op", Address: "it@acme.example"}, {UserID: "u-admin", Address: "admin@acme.example"}}
 	})

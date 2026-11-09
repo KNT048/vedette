@@ -3,6 +3,7 @@ package notify_test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -88,12 +89,12 @@ func TestNoBaseURLMessagesCarryNoInventedLink(t *testing.T) {
 func TestContract_PRE4_NoBaseURLNoApprovalRequest(t *testing.T) {
 	e := newEnv(t, func(c *notify.Config) { c.BaseURL = "" })
 	s := newFakeSMTP(t)
-	e.email(s, notify.High, func(in *notify.ChannelInput) {
+	e.email(s, func(in *notify.ChannelInput) {
 		in.Approvals = true
 		in.Approvers = []notify.Approver{{UserID: "u-op", Address: "it@acme.example"}}
 	})
 	_, err := e.svc.SendApprovalRequest(e.ctx(), notify.ApprovalRequest{ID: "req-1", Title: "Block x", Severity: notify.High, Risk: notify.RiskLow, Expires: e.clock.Now().Add(15 * time.Minute)})
-	if err == nil || err != notify.ErrApprovalUnavailable || len(s.messages()) != 0 || len(e.tokens.recs) != 0 {
+	if !errors.Is(err, notify.ErrApprovalUnavailable) || len(s.messages()) != 0 || len(e.tokens.recs) != 0 {
 		t.Fatalf("err = %v, %d messages, %d tokens", err, len(s.messages()), len(e.tokens.recs))
 	}
 }
@@ -103,7 +104,7 @@ func TestContract_PRE4_NoBaseURLNoApprovalRequest(t *testing.T) {
 func TestContract_PRE4_ApprovalMailsGoToTheApproverNotTheAlertList(t *testing.T) {
 	e := newEnv(t)
 	s := newFakeSMTP(t)
-	e.email(s, notify.High, func(in *notify.ChannelInput) {
+	e.email(s, func(in *notify.ChannelInput) {
 		in.Approvals = true
 		in.Approvers = []notify.Approver{{UserID: "u-admin", Address: "admin@acme.example"}}
 	})
@@ -146,7 +147,7 @@ func TestContract_PRE4_ApprovalMailsGoToTheApproverNotTheAlertList(t *testing.T)
 func TestContract_PRE4_TokenRecordCarriesTheAddress(t *testing.T) {
 	e := newEnv(t)
 	s := newFakeSMTP(t)
-	e.email(s, notify.High, func(in *notify.ChannelInput) {
+	e.email(s, func(in *notify.ChannelInput) {
 		in.Approvals = true
 		in.Approvers = []notify.Approver{{UserID: "u-op", Address: "it@acme.example"}, {UserID: "u-admin", Address: "admin@acme.example"}}
 	})
@@ -161,7 +162,7 @@ func TestContract_PRE4_TokenRecordCarriesTheAddress(t *testing.T) {
 func TestApprovalWithoutRecorderStillTellsEveryone(t *testing.T) {
 	e := newEnv(t, func(c *notify.Config) { c.Tokens = nil })
 	s := newFakeSMTP(t)
-	e.email(s, notify.High, func(in *notify.ChannelInput) {
+	e.email(s, func(in *notify.ChannelInput) {
 		in.Approvals = true
 		in.Approvers = []notify.Approver{{UserID: "u-op", Address: "it@acme.example"}}
 	})
@@ -182,7 +183,7 @@ func TestApprovalWithoutRecorderStillTellsEveryone(t *testing.T) {
 func TestSendApprovalRequestChecksTheRequestID(t *testing.T) {
 	e := newEnv(t)
 	s := newFakeSMTP(t)
-	e.email(s, notify.High, func(in *notify.ChannelInput) {
+	e.email(s, func(in *notify.ChannelInput) {
 		in.Approvals = true
 		in.Approvers = []notify.Approver{{UserID: "u-op", Address: "it@acme.example"}}
 	})
@@ -554,19 +555,19 @@ func TestPublishAndOpenIncidentWhileOffQueueNothing(t *testing.T) {
 	e := newEnv(t, func(c *notify.Config) { c.Modules = gateFunc(func(string) bool { return !off }) })
 	e.telegram(notify.Low)
 	s := newFakeSMTP(t)
-	e.email(s, notify.High, func(in *notify.ChannelInput) {
+	e.email(s, func(in *notify.ChannelInput) {
 		in.Approvals = true
 		in.Approvers = []notify.Approver{{UserID: "u-op", Address: "it@acme.example"}}
 	})
 	e.plain()
 	off = true
-	if _, _, err := e.svc.OpenIncident(e.ctx(), notify.IncidentInput{Kind: notify.IncidentTrap, Source: "s", Target: "t", Title: "x", Severity: notify.Critical, Link: "/logs"}); err != notify.ErrModuleOff {
+	if _, _, err := e.svc.OpenIncident(e.ctx(), notify.IncidentInput{Kind: notify.IncidentTrap, Source: "s", Target: "t", Title: "x", Severity: notify.Critical, Link: "/logs"}); !errors.Is(err, notify.ErrModuleOff) {
 		t.Fatalf("OpenIncident err = %v", err)
 	}
-	if err := e.svc.Publish(e.ctx(), e.vulnNotice("n", "QNAP", "CVE-2026-1", notify.Critical, "NAS-01")); err != notify.ErrModuleOff {
+	if err := e.svc.Publish(e.ctx(), e.vulnNotice("n", "QNAP", "CVE-2026-1", notify.Critical, "NAS-01")); !errors.Is(err, notify.ErrModuleOff) {
 		t.Fatalf("Publish err = %v", err)
 	}
-	if _, err := e.svc.SendApprovalRequest(e.ctx(), notify.ApprovalRequest{ID: "r", Title: "t", Risk: notify.RiskLow, Expires: e.clock.Now().Add(time.Minute)}); err != notify.ErrModuleOff {
+	if _, err := e.svc.SendApprovalRequest(e.ctx(), notify.ApprovalRequest{ID: "r", Title: "t", Risk: notify.RiskLow, Expires: e.clock.Now().Add(time.Minute)}); !errors.Is(err, notify.ErrModuleOff) {
 		t.Fatalf("SendApprovalRequest err = %v", err)
 	}
 	if e.count(`SELECT COUNT(*) FROM notify_pending`) != 0 || e.count(`SELECT COUNT(*) FROM notify_incident`) != 0 || e.count(`SELECT COUNT(*) FROM notify_notice`) != 0 || len(s.messages()) != 0 {
@@ -580,7 +581,7 @@ func TestSendCodeErrorsCarryNothingFromTheServer(t *testing.T) {
 	e := newEnv(t)
 	s := newFakeSMTP(t)
 	s.rcptReply = "550 5.1.1 mx7.internal.corp: user jane.doe@acme.example unknown, relay 10.1.2.3"
-	e.email(s, notify.High)
+	e.email(s)
 	err := e.svc.CodeMailer().SendCode(e.ctx(), "jane.doe@acme.example", "246810")
 	if err == nil {
 		t.Fatal("a refused code was reported as sent")

@@ -24,6 +24,7 @@ var slackPathRE = regexp.MustCompile(`^/services/[A-Za-z0-9_-]+/[A-Za-z0-9_-]+/[
 const slackLabelMax = 80
 
 type slackSender struct {
+	noPrint
 	hook   Secret
 	label  string
 	client *http.Client
@@ -58,7 +59,7 @@ func slackEscape(s string) string {
 // slackText renders m as Slack mrkdwn: a bold head, plain lines, a link. Every
 // untrusted string is escaped; the link was validated to hold no < > |.
 func slackText(m Message, link string) string {
-	l := m.lines(link)
+	l := m.mapText(slackFormat).lines(link)
 	out := []string{"*" + slackEscape(l[0]) + "*"}
 	for _, x := range l[1 : len(l)-1] {
 		out = append(out, slackEscape(x))

@@ -59,6 +59,16 @@ func pieces(v string) []string {
 	}
 	out := []string{v}
 	if u, err := url.Parse(v); err == nil && u.Scheme != "" && u.Host != "" {
+		if len(u.RawQuery) >= 4 {
+			out = append(out, u.RawQuery)
+		}
+		for _, vals := range u.Query() {
+			for _, q := range vals {
+				if len(q) >= 4 {
+					out = append(out, q)
+				}
+			}
+		}
 		if len(u.Path) >= 4 {
 			out = append(out, u.Path)
 		}

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -14,10 +13,9 @@ import (
 
 // TelegramConfig configures a Telegram bot channel.
 type TelegramConfig struct {
-	Token   Secret       // bot token from @BotFather: 123456789:AAH…
-	ChatID  string       // number (groups look like -1001234567890) or a public @channel_name
-	BaseURL string       // empty = https://api.telegram.org ; set only by tests to point at a fake
-	Client  *http.Client // nil = NewHTTPClient()
+	Token  Secret       // bot token from @BotFather: 123456789:AAH…
+	ChatID string       // number (groups look like -1001234567890) or a public @channel_name
+	Client *http.Client // nil = NewHTTPClient()
 }
 
 var (
@@ -31,9 +29,10 @@ const (
 )
 
 type telegramSender struct {
+	noPrint
 	token  Secret
 	chat   string
-	base   string
+	base   string // official API; tests replace it inside the package (never configurable: it would ship the token anywhere)
 	client *http.Client
 }
 
@@ -50,15 +49,7 @@ func NewTelegram(cfg TelegramConfig) (Sender, error) {
 	if !telegramChatRE.MatchString(chat) {
 		return nil, cfgErr("bad_chat_id", "Chat ID is a number (groups look like -1001234567890) or a public @channel_name.")
 	}
-	base := telegramAPI
-	if cfg.BaseURL != "" {
-		u, err := url.Parse(cfg.BaseURL)
-		if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.User != nil {
-			return nil, cfgErr("bad_base_url", "The Telegram API address is not valid.")
-		}
-		base = strings.TrimRight(u.String(), "/")
-	}
-	return &telegramSender{token: NewSecret(tok), chat: chat, base: base, client: clientOrDefault(cfg.Client)}, nil
+	return &telegramSender{token: NewSecret(tok), chat: chat, base: telegramAPI, client: clientOrDefault(cfg.Client)}, nil
 }
 
 func (*telegramSender) Type() Type { return Telegram }
@@ -75,12 +66,13 @@ func fit(lines []string, limit int) string {
 	return truncRunes(head, room) + "\n" + last
 }
 
-// telegramText is plain text: no parse_mode is sent, so Telegram interprets no
-// markup or entity in any field. Untrusted text therefore needs no escaping and
-// cannot become a link, mention or formatting. HTML mode would need correct
-// escaping of three characters plus a failure mode (400 on malformed markup)
-// for no gain on a text-only alert.
-func telegramText(m Message, link string) string { return fit(m.lines(link), telegramTextMax) }
+// telegramText is plain text: no parse_mode is sent, so no markup or formatting
+// entity in any field is interpreted and nothing needs HTML escaping. Telegram
+// still auto-links URLs, @mentions and /commands in plain text, so feed-sourced
+// fields go through defang; the box's own link stays a real link.
+func telegramText(m Message, link string) string {
+	return fit(m.mapText(defang).lines(link), telegramTextMax)
+}
 
 func (t *telegramSender) Send(ctx context.Context, m Message) (Receipt, error) {
 	if err := m.check(); err != nil {
@@ -111,7 +103,7 @@ func (t *telegramSender) Send(ctx context.Context, m Message) (Receipt, error) {
 		OK bool `json:"ok"`
 	}
 	if json.Unmarshal(ans, &ok) != nil || !ok.OK {
-		return Receipt{}, &StatusError{Channel: Telegram, Code: code, Reason: "the answer did not confirm delivery"}
+		return Receipt{}, &ProviderError{Channel: Telegram, Reason: "the answer did not confirm delivery"}
 	}
 	return Receipt{To: "chat " + t.chat, Detail: fmt.Sprintf("Telegram received the message (chat %s).", t.chat)}, nil
 }

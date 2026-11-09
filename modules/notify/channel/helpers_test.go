@@ -46,3 +46,22 @@ func mustNot(t *testing.T, haystack string, needles ...string) {
 		}
 	}
 }
+
+// The Telegram and Zalo API addresses are not configurable (a configurable
+// address would ship the token anywhere); tests point the adapter at a fake from
+// inside the package.
+func newTelegramAt(base string, cfg TelegramConfig) (Sender, error) {
+	s, err := NewTelegram(cfg)
+	if err == nil {
+		s.(*telegramSender).base = strings.TrimRight(base, "/")
+	}
+	return s, err
+}
+
+func newZaloAt(base string, cfg ZaloConfig) (Sender, error) {
+	s, err := NewZalo(cfg)
+	if err == nil {
+		s.(*zaloSender).endpoint = strings.TrimRight(base, "/") + zaloSendPath
+	}
+	return s, err
+}

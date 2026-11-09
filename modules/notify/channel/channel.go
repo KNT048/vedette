@@ -96,6 +96,22 @@ func (e *StatusError) Error() string {
 	return fmt.Sprintf("notify: %s: server answered HTTP %d: %s", e.Channel, e.Code, e.Reason)
 }
 
+// ProviderError is a refusal the provider reports inside an HTTP 2xx answer
+// (Zalo "error": -216, Telegram "ok": false). Code is the provider's own code
+// (0 when it gave none); Reason is short and secret-free.
+type ProviderError struct {
+	Channel Type
+	Code    int
+	Reason  string
+}
+
+func (e *ProviderError) Error() string {
+	if e.Code == 0 {
+		return fmt.Sprintf("notify: %s: provider error: %s", e.Channel, e.Reason)
+	}
+	return fmt.Sprintf("notify: %s: provider error %d: %s", e.Channel, e.Code, e.Reason)
+}
+
 // Limits.
 const (
 	maxResponseBody = 64 << 10
@@ -108,16 +124,32 @@ const (
 func NewHTTPClient() *http.Client {
 	return &http.Client{
 		Timeout:       defaultTimeout,
-		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+		CheckRedirect: noRedirect,
 	}
 }
 
+func noRedirect(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+
+// clientOrDefault returns the caller's client on a shallow copy that never
+// follows redirects (the caller's own client is left untouched), or a new
+// default client.
 func clientOrDefault(c *http.Client) *http.Client {
 	if c == nil {
 		return NewHTTPClient()
 	}
-	return c
+	cp := *c
+	cp.CheckRedirect = noRedirect
+	return &cp
 }
+
+// noPrint is embedded in every sender. Its String and GoString are promoted to
+// the sender, so printing a sender (or a slice of them) with any verb never
+// walks its fields: fmt cannot call Secret's Format on unexported fields and
+// would print the raw value.
+type noPrint struct{}
+
+func (noPrint) String() string   { return "notify sender" }
+func (noPrint) GoString() string { return "notify sender" }
 
 // check validates the Message structure shared by every adapter.
 func (m Message) check() error {

@@ -100,3 +100,63 @@ func (m Message) lines(link string) []string {
 	}
 	return append(l, "Details: "+link)
 }
+
+// mapText applies f to every feed-sourced field (title, device, what, action,
+// items). ID, Kind, Severity and Link are not feed text: the link is the box's
+// own and stays a real link.
+func (m Message) mapText(f func(string) string) Message {
+	m.Title, m.Device, m.What, m.Action = f(m.Title), f(m.Device), f(m.What), f(m.Action)
+	items := make([]string, len(m.Items))
+	for i, it := range m.Items {
+		items[i] = f(it)
+	}
+	m.Items = items
+	return m
+}
+
+var zwj = string(rune(0x200d)) // zero-width joiner
+
+// defang stops chat apps that render plain text from turning feed text into
+// links, mentions or bot commands: an "@" or "/" that is not glued to a
+// preceding letter or digit (so "://", "@user", "/start" and "(/cmd)", but not
+// "and/or" or "a@b") gets a zero-width joiner after it. Bare domain names,
+// email addresses, hashtags and phone numbers are still auto-linked by some
+// apps: that residue is documented, not neutralised.
+func defang(s string) string {
+	var b strings.Builder
+	b.Grow(len(s) + 8)
+	prev := ' '
+	for _, r := range s {
+		b.WriteRune(r)
+		if (r == '@' || r == '/') && !unicode.IsLetter(prev) && !unicode.IsDigit(prev) {
+			b.WriteString(zwj)
+		}
+		prev = r
+	}
+	return b.String()
+}
+
+// slackFormat neutralises Slack mrkdwn formatting in feed text. Slack has no
+// escape for * _ ~ ` so each is replaced by a look-alike that formats nothing;
+// an underscore between two letters or digits (snake_case, which Slack never
+// formats) is kept.
+func slackFormat(s string) string {
+	r := []rune(s)
+	var b strings.Builder
+	b.Grow(len(s))
+	word := func(i int) bool { return i >= 0 && i < len(r) && (unicode.IsLetter(r[i]) || unicode.IsDigit(r[i])) }
+	for i, c := range r {
+		switch {
+		case c == '*':
+			c = 0x2217
+		case c == '~':
+			c = 0x223C
+		case c == '`':
+			c = 0x02CB
+		case c == '_' && (!word(i-1) || !word(i+1)):
+			c = 0xFF3F
+		}
+		b.WriteRune(c)
+	}
+	return b.String()
+}

@@ -6,18 +6,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strings"
 )
 
 // ZaloConfig configures an official Zalo OA channel (customer-service message to a follower).
 type ZaloConfig struct {
-	OAID    string       // Official Account ID, 6 to 20 digits
-	UserID  string       // recipient: the Zalo user_id of a person who followed or messaged the OA
-	Token   Secret       // OA access token from Zalo Developers
-	BaseURL string       // empty = https://openapi.zalo.me ; set only by tests to point at a fake
-	Client  *http.Client // nil = NewHTTPClient()
+	OAID   string       // Official Account ID, 6 to 20 digits
+	UserID string       // recipient: the Zalo user_id of a person who followed or messaged the OA
+	Token  Secret       // OA access token from Zalo Developers
+	Client *http.Client // nil = NewHTTPClient()
 }
 
 var (
@@ -33,6 +31,7 @@ const (
 )
 
 type zaloSender struct {
+	noPrint
 	oa, user string
 	token    Secret
 	endpoint string
@@ -60,15 +59,7 @@ func NewZalo(cfg ZaloConfig) (Sender, error) {
 			return nil, cfgErr("bad_token", "The Zalo access token has a character that is not allowed. Copy it again without spaces.")
 		}
 	}
-	base := zaloAPI
-	if cfg.BaseURL != "" {
-		u, err := url.Parse(cfg.BaseURL)
-		if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.User != nil {
-			return nil, cfgErr("bad_base_url", "The Zalo API address is not valid.")
-		}
-		base = strings.TrimRight(u.String(), "/")
-	}
-	return &zaloSender{oa: oa, user: user, token: NewSecret(tok), endpoint: base + zaloSendPath, client: clientOrDefault(cfg.Client)}, nil
+	return &zaloSender{oa: oa, user: user, token: NewSecret(tok), endpoint: zaloAPI + zaloSendPath, client: clientOrDefault(cfg.Client)}, nil
 }
 
 func (*zaloSender) Type() Type { return Zalo }
@@ -80,7 +71,7 @@ func (z *zaloSender) Send(ctx context.Context, m Message) (Receipt, error) {
 	link, _ := safeLink(m.Link)
 	body, err := json.Marshal(map[string]any{
 		"recipient": map[string]string{"user_id": z.user},
-		"message":   map[string]string{"text": fit(m.norm().lines(link), zaloTextMax)},
+		"message":   map[string]string{"text": fit(m.norm().mapText(defang).lines(link), zaloTextMax)},
 	})
 	if err != nil {
 		return Receipt{}, fmt.Errorf("notify: zalo: encode message: %w", err)
@@ -104,10 +95,10 @@ func (z *zaloSender) Send(ctx context.Context, m Message) (Receipt, error) {
 		Message string `json:"message"`
 	}
 	if json.Unmarshal(ans, &out) != nil || out.Error == nil {
-		return Receipt{}, &StatusError{Channel: Zalo, Code: code, Reason: "the answer did not confirm delivery"}
+		return Receipt{}, &ProviderError{Channel: Zalo, Reason: "the answer did not confirm delivery"}
 	}
 	if *out.Error != 0 {
-		return Receipt{}, &StatusError{Channel: Zalo, Code: code, Reason: fmt.Sprintf("Zalo error %d: %s", *out.Error, reasonFrom([]byte(out.Message), z.token))}
+		return Receipt{}, &ProviderError{Channel: Zalo, Code: *out.Error, Reason: reasonFrom([]byte(out.Message), z.token)}
 	}
 	return Receipt{To: "OA " + z.oa, Detail: fmt.Sprintf("Zalo OA %s sent the message to recipient %s.", z.oa, z.user)}, nil
 }

@@ -17,7 +17,10 @@ type ZaloPersonalConfig struct {
 
 var zaloPersonalUserRE = regexp.MustCompile(`^\d{6,25}$`)
 
-type zaloPersonalSender struct{ user string }
+type zaloPersonalSender struct {
+	noPrint
+	user string
+}
 
 // NewZaloPersonal validates the stored configuration. Sending is not
 // implemented: it would mean porting the reverse-engineered personal-account

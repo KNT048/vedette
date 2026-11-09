@@ -183,6 +183,11 @@ func TestSMTPNeverAuthenticatesInTheClear(t *testing.T) {
 		if err == nil {
 			t.Fatal("untrusted certificate accepted")
 		}
+		// It must fail for the right reason: the certificate, not some other fault.
+		var se *StatusError
+		if errors.As(err, &se) || !strings.Contains(err.Error(), "starttls") || !strings.Contains(err.Error(), "x509: certificate") {
+			t.Errorf("expected a certificate verification error during starttls, got: %v", err)
+		}
 		authPlain, authTLS, _, _, _ := f.snapshot()
 		if authPlain || authTLS {
 			t.Errorf("credentials sent to an unverified server: %v %v", authPlain, authTLS)
@@ -295,6 +300,11 @@ func FuzzBuildMIME(f *testing.F) {
 		}
 		if to, err := msg.Header.AddressList("To"); err != nil || len(to) != 2 {
 			t.Fatalf("To changed: %v %v", to, err)
+		}
+		for _, l := range headerLines(t, raw, "Subject") {
+			if len(l) > 78 {
+				t.Fatalf("subject line of %d characters", len(l))
+			}
 		}
 		sc := bufio.NewScanner(strings.NewReader(string(raw)))
 		sc.Buffer(nil, 1<<20)

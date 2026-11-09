@@ -27,8 +27,6 @@ func TestTelegramConfig(t *testing.T) {
 		"token newline": func(c *TelegramConfig) { c.Token = NewSecret(tgToken + "\nX") },
 		"chat letters":  func(c *TelegramConfig) { c.ChatID = "abc" },
 		"chat short":    func(c *TelegramConfig) { c.ChatID = "@ab" },
-		"base ftp":      func(c *TelegramConfig) { c.BaseURL = "ftp://x" },
-		"base userinfo": func(c *TelegramConfig) { c.BaseURL = "http://u:p@x" },
 	} {
 		c := ok
 		mod(&c)
@@ -54,7 +52,7 @@ func TestTelegramSend(t *testing.T) {
 		_, _ = io.WriteString(w, `{"ok":true,"result":{}}`)
 	}))
 	t.Cleanup(srv.Close)
-	s, err := NewTelegram(TelegramConfig{Token: NewSecret(tgToken), ChatID: "-1002145678901", BaseURL: srv.URL + "/", Client: srv.Client()})
+	s, err := newTelegramAt(srv.URL+"/", TelegramConfig{Token: NewSecret(tgToken), ChatID: "-1002145678901", Client: srv.Client()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +69,7 @@ func TestTelegramSend(t *testing.T) {
 		t.Error("parse_mode must not be sent (plain text is the safe choice)")
 	}
 	text, _ := body["text"].(string)
-	if !strings.Contains(text, "<b>bold</b> & [x](http://evil) *y*") || !strings.HasSuffix(text, "Details: https://192.168.10.2/incidents/al-4") {
+	if !strings.Contains(text, defang(m.Title)) || strings.Contains(strings.SplitN(text, "\nDetails: ", 2)[0], "://") || !strings.HasSuffix(text, "Details: https://192.168.10.2/incidents/al-4") {
 		t.Errorf("text = %q", text)
 	}
 	if body["chat_id"] != "-1002145678901" {
@@ -88,7 +86,7 @@ func TestTelegramLongTextKeepsLink(t *testing.T) {
 		_, _ = io.WriteString(w, `{"ok":true}`)
 	}))
 	t.Cleanup(srv.Close)
-	s, _ := NewTelegram(TelegramConfig{Token: NewSecret(tgToken), ChatID: "12345", BaseURL: srv.URL, Client: srv.Client()})
+	s, _ := newTelegramAt(srv.URL, TelegramConfig{Token: NewSecret(tgToken), ChatID: "12345", Client: srv.Client()})
 	m := sample
 	m.What, m.Action = strings.Repeat("w", 5000), strings.Repeat("a", 5000)
 	for range 30 {
@@ -110,7 +108,7 @@ func TestContract_FORBID2_TelegramErrorsNeverContainToken(t *testing.T) {
 		_, _ = io.WriteString(w, `{"ok":false,"error_code":401,"description":"Unauthorized (`+r.URL.Path+`)"}`) //nolint:gosec // test server echoing the request on purpose
 	}))
 	t.Cleanup(srv.Close)
-	s, _ := NewTelegram(TelegramConfig{Token: NewSecret(tgToken), ChatID: "12345", BaseURL: srv.URL, Client: srv.Client()})
+	s, _ := newTelegramAt(srv.URL, TelegramConfig{Token: NewSecret(tgToken), ChatID: "12345", Client: srv.Client()})
 	_, err := s.Send(context.Background(), sample)
 	var se *StatusError
 	if !errors.As(err, &se) || se.Code != 401 {
@@ -122,7 +120,7 @@ func TestContract_FORBID2_TelegramErrorsNeverContainToken(t *testing.T) {
 	dead := httptest.NewServer(http.NotFoundHandler())
 	base := dead.URL
 	dead.Close()
-	s2, _ := NewTelegram(TelegramConfig{Token: NewSecret(tgToken), ChatID: "12345", BaseURL: base})
+	s2, _ := newTelegramAt(base, TelegramConfig{Token: NewSecret(tgToken), ChatID: "12345"})
 	_, err = s2.Send(context.Background(), sample)
 	if err == nil {
 		t.Fatal("expected a connection error")
@@ -138,7 +136,7 @@ func TestTelegramRejectsUnconfirmedOK(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, `{"ok":false}`) }))
 	t.Cleanup(srv.Close)
-	s, _ := NewTelegram(TelegramConfig{Token: NewSecret(tgToken), ChatID: "12345", BaseURL: srv.URL, Client: srv.Client()})
+	s, _ := newTelegramAt(srv.URL, TelegramConfig{Token: NewSecret(tgToken), ChatID: "12345", Client: srv.Client()})
 	if _, err := s.Send(context.Background(), sample); err == nil {
 		t.Fatal("ok:false accepted")
 	}

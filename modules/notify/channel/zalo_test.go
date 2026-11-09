@@ -32,7 +32,6 @@ func TestZaloConfig(t *testing.T) {
 		"short token":  {func(c *ZaloConfig) { c.Token = NewSecret("short") }, "bad_token"},
 		"token space":  {func(c *ZaloConfig) { c.Token = NewSecret(zaloToken + " x") }, "bad_token"},
 		"token lf":     {func(c *ZaloConfig) { c.Token = NewSecret(zaloToken + "\nX-A: b") }, "bad_token"},
-		"base":         {func(c *ZaloConfig) { c.BaseURL = "file:///x" }, "bad_base_url"},
 	} {
 		cfg := ok
 		c.mod(&cfg)
@@ -64,7 +63,7 @@ func TestZaloSend(t *testing.T) {
 		_, _ = io.WriteString(w, `{"error":0,"message":"Success","data":{"message_id":"m1"}}`)
 	}))
 	t.Cleanup(srv.Close)
-	s, err := NewZalo(ZaloConfig{OAID: "1234567890", UserID: "987654321", Token: NewSecret(zaloToken), BaseURL: srv.URL + "/", Client: srv.Client()})
+	s, err := newZaloAt(srv.URL+"/", ZaloConfig{OAID: "1234567890", UserID: "987654321", Token: NewSecret(zaloToken), Client: srv.Client()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,26 +89,38 @@ func TestContract_FORBID2_ZaloErrorsNeverContainToken(t *testing.T) {
 		_, _ = io.WriteString(w, answer)
 	}))
 	t.Cleanup(srv.Close)
-	s, _ := NewZalo(ZaloConfig{OAID: "1234567890", UserID: "987654321", Token: NewSecret(zaloToken), BaseURL: srv.URL, Client: srv.Client()})
+	s, _ := newZaloAt(srv.URL, ZaloConfig{OAID: "1234567890", UserID: "987654321", Token: NewSecret(zaloToken), Client: srv.Client()})
 	for name, c := range map[string]struct {
-		status int
-		body   string
-		code   int
-		reason string
+		status   int
+		body     string
+		provider bool // a ProviderError (HTTP 2xx, provider says no) rather than a StatusError
+		code     int
+		reason   string
 	}{
-		"provider error in 200": {200, `{"error":-216,"message":"Access token is invalid ` + zaloToken + `"}`, 200, "Zalo error -216: Access token is invalid [redacted]"},
-		"http error":            {401, `unauthorized ` + zaloToken, 401, "unauthorized [redacted]"},
-		"garbage":               {200, `<html>`, 200, "did not confirm"},
-		"no error field":        {200, `{"message":"hi"}`, 200, "did not confirm"},
+		"provider error in 200": {200, `{"error":-216,"message":"Access token is invalid ` + zaloToken + `"}`, true, -216, "Access token is invalid [redacted]"},
+		"http error":            {401, `unauthorized ` + zaloToken, false, 401, "unauthorized [redacted]"},
+		"garbage":               {200, `<html>`, true, 0, "did not confirm"},
+		"no error field":        {200, `{"message":"hi"}`, true, 0, "did not confirm"},
 	} {
 		status, answer = c.status, c.body
 		_, err := s.Send(context.Background(), sample)
+		var pe *ProviderError
 		var se *StatusError
-		if !errors.As(err, &se) || se.Code != c.code || !strings.Contains(se.Reason, c.reason) {
-			t.Errorf("%s: err = %v", name, err)
+		switch {
+		case c.provider && errors.As(err, &pe):
+			if pe.Code != c.code || !strings.Contains(pe.Reason, c.reason) || errors.As(err, &se) || strings.Contains(err.Error(), "HTTP 200") {
+				t.Errorf("%s: err = %v", name, err)
+			}
+		case !c.provider && errors.As(err, &se):
+			if se.Code != c.code || !strings.Contains(se.Reason, c.reason) {
+				t.Errorf("%s: err = %v", name, err)
+			}
+		default:
+			t.Errorf("%s: wrong error type: %v", name, err)
 		}
 		mustNot(t, errString(err), zaloToken)
 	}
+
 }
 
 func TestContract_D46_ZaloPersonalValidatesButDoesNotSend(t *testing.T) {

@@ -9,8 +9,8 @@ import (
 var (
 	// Same shape as the SPA's DOMAIN_RE: dotted labels, alphabetic TLD.
 	domainRE = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
-	// Unquoted local part only (RFC 5322 atext plus dots): no spaces, quotes, angle brackets, CR or LF.
-	localPartRE = regexp.MustCompile("^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$")
+	// Unquoted local part only (RFC 5322 atext minus "%", which some relays treat as a source route, plus dots): no spaces, quotes, angle brackets, CR or LF.
+	localPartRE = regexp.MustCompile("^[A-Za-z0-9!#$&'*+/=?^_`{|}~-]+(\\.[A-Za-z0-9!#$&'*+/=?^_`{|}~-]+)*$")
 )
 
 // validDomain reports whether s is a dotted domain name (not an IP).

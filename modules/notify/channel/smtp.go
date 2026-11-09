@@ -46,6 +46,7 @@ const (
 )
 
 type emailSender struct {
+	noPrint
 	cfg  EmailConfig
 	addr string
 	tls  *tls.Config
@@ -160,13 +161,16 @@ func emailBody(m Message, link string) string {
 	return strings.Join(append([]string{"Hello,", ""}, append(l[1:], "", "This email was sent automatically by Vedette on your company box.")...), "\n")
 }
 
-// encodeSubject returns s unchanged when it is printable ASCII, otherwise a
-// folded series of RFC 2047 Q encoded words. mime.QEncoding does not fold and
-// leaves ASCII chunks unencoded, so the words are built here: 5 runes of up to
-// 4 bytes each encode to at most 60 characters plus the 12 of "=?utf-8?q?" and
-// "?=", within the 75-character limit. Every byte outside [A-Za-z0-9] is
+// foldSubject returns the Subject value folded so that every header line,
+// "Subject: " included, is at most 78 characters. Printable ASCII is folded at
+// spaces (words are separated by single spaces); anything else, a word too long
+// to fold, or text containing "=?" (which a reader would decode as an encoded
+// word) becomes a series of RFC 2047 Q encoded words. mime.QEncoding does not
+// fold and leaves ASCII chunks unencoded, so the words are built here: 4 runes
+// of up to 4 bytes each encode to at most 48 characters plus the 12 of
+// "=?utf-8?q?" and "?=", so a word line is at most 61 characters. Every byte outside [A-Za-z0-9] is
 // written as =XX (a space as =20), so no CR, LF or "?" can survive in a word.
-func encodeSubject(s string) string {
+func foldSubject(s string) string {
 	ascii := true
 	for _, r := range s {
 		if r < ' ' || r > '~' {
@@ -174,12 +178,14 @@ func encodeSubject(s string) string {
 			break
 		}
 	}
-	if ascii {
-		return s
+	if ascii && !strings.Contains(s, "=?") {
+		if f, ok := foldWords(s); ok {
+			return f
+		}
 	}
 	var words []string
 	for r := []rune(s); len(r) > 0; {
-		n := min(5, len(r))
+		n := min(4, len(r))
 		var w strings.Builder
 		w.WriteString("=?utf-8?q?")
 		for _, c := range []byte(string(r[:n])) {
@@ -198,7 +204,7 @@ func encodeSubject(s string) string {
 
 // buildMIME renders the RFC 5322 message. Header values come only from
 // validated addresses and from a subject that is one clean line (printable ASCII or
-// RFC 2047 encoded words, see encodeSubject); CR and LF can never be emitted raw.
+// RFC 2047 encoded words, see foldSubject); CR and LF can never be emitted raw.
 func buildMIME(from string, to []string, m Message, link string, now time.Time) ([]byte, error) {
 	var id [12]byte
 	if _, err := rand.Read(id[:]); err != nil {
@@ -210,7 +216,7 @@ func buildMIME(from string, to []string, m Message, link string, now time.Time) 
 	h("Date", now.Format(time.RFC1123Z))
 	h("From", "Vedette <"+from+">")
 	h("To", strings.Join(to, ",\r\n "))
-	h("Subject", encodeSubject(emailSubject(m)))
+	h("Subject", foldSubject(emailSubject(m)))
 	h("Message-ID", "<"+hex.EncodeToString(id[:])+"@"+domain+">")
 	h("MIME-Version", "1.0")
 	h("Content-Type", "text/plain; charset=utf-8")
@@ -242,15 +248,21 @@ func (e *emailSender) deliver(ctx context.Context, raw []byte) error {
 	}
 
 	d := net.Dialer{}
-	var conn net.Conn
-	var err error
-	if e.cfg.Security == SecuritySSL {
-		conn, err = (&tls.Dialer{NetDialer: &d, Config: e.tls}).DialContext(ctx, "tcp", e.addr)
-	} else {
-		conn, err = d.DialContext(ctx, "tcp", e.addr)
-	}
+	raw0, err := d.DialContext(ctx, "tcp", e.addr)
 	if err != nil {
 		return fail("connect", err)
+	}
+	// Every byte the server sends passes through the budget, below TLS so that
+	// implicit TLS and STARTTLS are both covered and net/smtp still sees a *tls.Conn.
+	budget := &budgetConn{Conn: raw0, left: maxSessionBytes}
+	var conn net.Conn = budget
+	if e.cfg.Security == SecuritySSL {
+		tc := tls.Client(conn, e.tls)
+		if err := tc.HandshakeContext(ctx); err != nil {
+			_ = conn.Close()
+			return fail("connect", err)
+		}
+		conn = tc
 	}
 	if dl, ok := ctx.Deadline(); ok {
 		_ = conn.SetDeadline(dl)
@@ -267,6 +279,10 @@ func (e *emailSender) deliver(ctx context.Context, raw []byte) error {
 
 	if e.cfg.Security == SecurityStartTLS {
 		if ok, _ := c.Extension("STARTTLS"); !ok {
+			// net/smtp swallows read errors in Extension: tell a spent budget from a plain no.
+			if budget.left <= 0 {
+				return fail("starttls", errServerTooMuch)
+			}
 			return fmt.Errorf("notify: email: the server does not offer STARTTLS, so nothing was sent (credentials are never sent unencrypted)")
 		}
 		if err := c.StartTLS(e.tls); err != nil {
@@ -304,3 +320,59 @@ func (e *emailSender) deliver(ctx context.Context, raw []byte) error {
 }
 
 func (e *emailSender) Dest() string { return strings.Join(e.cfg.To, ", ") }
+
+// maxSessionBytes bounds everything one SMTP session may read from the server;
+// net/smtp itself reads greeting and reply lines without a limit.
+const maxSessionBytes = 1 << 20
+
+var errServerTooMuch = errors.New("the server sent more data than one session allows")
+
+// budgetConn fails Read once the byte budget is spent.
+type budgetConn struct {
+	net.Conn
+	left int64
+}
+
+func (c *budgetConn) Read(p []byte) (int, error) {
+	if c.left <= 0 {
+		return 0, errServerTooMuch
+	}
+	if int64(len(p)) > c.left {
+		p = p[:c.left]
+	}
+	n, err := c.Conn.Read(p)
+	c.left -= int64(n)
+	return n, err
+}
+
+const subjectLineMax = 78
+
+// foldWords folds printable ASCII at spaces to lines of at most subjectLineMax
+// characters; ok is false when a word is too long for that.
+func foldWords(s string) (string, bool) {
+	words := strings.Fields(s)
+	if len(words) == 0 {
+		return "", true
+	}
+	lines := []string{words[0]}
+	room := subjectLineMax - len("Subject: ")
+	if len(words[0]) > room {
+		return "", false
+	}
+	for _, w := range words[1:] {
+		last := len(lines) - 1
+		limit := subjectLineMax
+		if last == 0 {
+			limit = room
+		}
+		switch {
+		case len(lines[last])+1+len(w) <= limit:
+			lines[last] += " " + w
+		case 1+len(w) <= subjectLineMax:
+			lines = append(lines, " "+w) // the fold keeps the separating space at the start of the line
+		default:
+			return "", false
+		}
+	}
+	return strings.Join(lines, "\r\n"), true
+}

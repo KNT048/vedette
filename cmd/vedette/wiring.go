@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/server"
+	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
@@ -195,6 +197,16 @@ func (aiOff) Run(context.Context, mitigation.AIRequest) (mitigation.AIOutput, er
 // subscribes the cross-module reactions. serve calls it after deps has its base fields; the handlers, jobs and
 // subscribers all share these instances.
 func buildServices(d *deps) error {
+	// core's own services first. No mailer until the notify module provides one: email two-step accounts get 503
+	// twofa_email_unavailable (INV-8, never password-only) and GET /core/account says the email method is not
+	// available.
+	var err error
+	if d.Auth, err = auth.New(auth.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Mailer: nil, Clock: d.Clock, Log: d.Log}); err != nil {
+		return fmt.Errorf("auth: %w", err)
+	}
+	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock}); err != nil {
+		return fmt.Errorf("core: %w", err)
+	}
 	d.Inventory = newInventory(d) // before feeds: feeds takes the inventory (feeds.Inventory)
 	sp, err := newSensorPassive(*d)
 	if err != nil {

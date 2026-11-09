@@ -355,6 +355,29 @@ func TestOSSettingsWindowIsNotSavedWhenTheOutOfWindowRebootCannotBeCancelled(t *
 	}
 }
 
+// A network change that waits for confirmation holds the host's write lock: the host answers pending_confirm
+// (or its second line of defence, net_pending_confirm) and core says so in one plain 409, with the host's run
+// id kept out of the answer (host-api section 4, D-100).
+func TestOSRebootWhileANetworkChangeAwaitsConfirmationAnswersPendingConfirm(t *testing.T) {
+	t.Parallel()
+	e, hh := newHookEnv(t)
+	e.setZone("UTC")
+	e.checked()
+	every := []int{1, 2, 3, 4, 5, 6, 7}
+	wantOK(t, e.admin.patch("/core/updates/os/settings", map[string]any{"window": map[string]any{"mode": "window", "days": every, "from": "02:00", "to": "05:00"}}), 200)
+	wantOK(t, e.admin.post("/core/updates/os/reboot", map[string]any{"when": "window"}), 200)
+	for _, code := range []string{api.CodePendingConfirm, api.CodeNetPendingConfirm} {
+		hh.onRebootCancel = func(context.Context, string, string) (api.Run, error) {
+			return api.Run{}, &hostclient.Error{Status: 409, Code: code, Message: "waiting", RunID: "rn_0123456789abcdef"}
+		}
+		r := e.admin.request("DELETE", "/core/updates/os/reboot", nil)
+		wantStatus(t, r, 409, "pending_confirm")
+		if strings.Contains(r.Raw, "rn_0123456789abcdef") {
+			t.Errorf("the host's run id leaked into %s", r.Raw)
+		}
+	}
+}
+
 // ---- update checks off ----
 
 func TestOSCheckWithUpdateChecksOffMakesNoHostCall(t *testing.T) {

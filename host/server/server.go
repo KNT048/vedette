@@ -39,6 +39,12 @@ type Options struct {
 	// lookup, so a retry of an accepted request still gets its run). A non-nil refusal ends the
 	// request like busy does: no run, one audit line. It must not block or take locks the server holds.
 	WriteGate func() *Refusal
+	// Resume is asked, during New (so before Listen), about each run a restart found in
+	// awaiting_confirm (D-100). True: the run stays awaiting and keeps the write lock; the caller
+	// then re-arms its timer (after New returns) and settles the run with Settle, at once if
+	// revert_at has passed. False, nil, a panic, or a second awaiting run: the run is settled
+	// failed host_restarted like any run a crash cut short. Resume must only read.
+	Resume    func(api.Run) bool
 	PeerCheck peer.Checker // layers 2 and 3 of the peer check; required
 	Version   string
 
@@ -77,9 +83,11 @@ type Server struct {
 	draining atomic.Bool
 	wg       sync.WaitGroup
 
-	mu     sync.Mutex // guards active, live and the submit sequence
-	active string     // run id holding the write lock, "" when free
-	live   map[string]*eventLog
+	mu       sync.Mutex // guards active, waiting, inflight, live and the submit sequence
+	active   string     // run id holding the write lock, "" when free (a waiting run holds it)
+	waiting  *liveRun   // the run parked in awaiting_confirm, nil when none; it is active
+	inflight string     // run id of the WhileAwaiting command running now, "" when none
+	live     map[string]*eventLog
 
 	srv *http.Server
 }
@@ -166,9 +174,12 @@ func New(o Options) (*Server, error) {
 func (s *Server) AuditError() error { return s.audit.brokenErr() }
 
 // recover fails every run a crash left in progress as host_restarted, audits it, and gives it a
-// final event. WP-07b must also decide what an awaiting_confirm net.apply does here (deferred).
+// final event. A run found in awaiting_confirm is kept instead when Options.Resume says so (D-100).
 func (s *Server) recover() {
 	for _, sr := range s.runs.nonTerminal() {
+		if s.resumeAwaiting(sr) {
+			continue
+		}
 		now := s.now().UTC()
 		sr.Run.Status = api.StatusFailed
 		sr.Run.FinishedAt = &now
@@ -361,9 +372,12 @@ func (s *Server) Serve(ln net.Listener) error {
 
 // Shutdown stops accepting work: new requests get 503 host_shutting_down, running commands have
 // their context cancelled, and it waits for them (bounded by ctx) before closing the listener
-// and the audit log.
+// and the audit log. A run awaiting confirmation stays awaiting on disk (the next start decides,
+// Options.Resume); Settle after Shutdown began returns ErrShuttingDown and changes nothing.
 func (s *Server) Shutdown(ctx context.Context) error {
+	s.mu.Lock() // under the lock so a Settle either sees draining or has already joined the wait group
 	s.draining.Store(true)
+	s.mu.Unlock()
 	s.cancel()
 	done := make(chan struct{})
 	go func() { s.wg.Wait(); close(done) }()

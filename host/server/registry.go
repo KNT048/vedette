@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -18,7 +19,10 @@ import (
 )
 
 // Limits on a command definition: a timeout is mandatory (agent-safety, POST-4).
-const maxCommandTimeout = 2 * time.Hour
+const (
+	maxCommandTimeout = 2 * time.Hour
+	maxCommandBody    = 4 << 20 // ceiling of Spec.MaxBody (ponytail: raise with the command that needs it)
+)
 
 var commandNameRE = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*){1,3}$`)
 
@@ -32,10 +36,40 @@ type Command struct {
 	decode func(raw json.RawMessage) (any, error)
 	check  func(ctx context.Context, args any) error
 	run    func(ctx context.Context, rc *RunContext, args any) (any, error)
+	// whileAwaiting: may run, one at a time, while a run awaits confirmation, and only then;
+	// runIDOf reads args.run_id of the decoded args.
+	whileAwaiting bool
+	runIDOf       func(args any) string
+	awaits        bool  // may return Awaiting
+	specErr       error // a mistake in the Spec, reported by NewRegistry
+	maxBody       int64 // 0 = the default maxBodyBytes
 }
 
 // Name is the command name, for example "os.check".
 func (c Command) Name() string { return c.name }
+
+// hasRunIDField reports whether A is a struct with a string field encoded as "run_id".
+func hasRunIDField[A any]() bool {
+	t := reflect.TypeFor[A]()
+	if t.Kind() != reflect.Struct {
+		return false
+	}
+	for f := range t.Fields() {
+		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		if name == "run_id" && f.Type.Kind() == reflect.String {
+			return true
+		}
+	}
+	return false
+}
+
+// bodyLimit is the largest request body the command accepts.
+func (c Command) bodyLimit() int64 {
+	if c.maxBody > 0 {
+		return c.maxBody
+	}
+	return maxBodyBytes
+}
 
 // Write reports whether the command takes the global write lock.
 func (c Command) Write() bool { return c.write }
@@ -47,6 +81,18 @@ type Spec[A any] struct {
 	Name    string
 	Write   bool
 	Timeout time.Duration // required, at most 2 h
+	// WhileAwaiting marks net.confirm and net.revert: the only commands that run while a run awaits
+	// confirmation (D-100), and only when args.run_id is that run's id. They must be Write commands
+	// and take a run_id field in A. A write command without this flag gets 409 pending_confirm
+	// while a run waits; a WhileAwaiting command with no matching waiting run gets 412
+	// not_awaiting_confirm and never runs. One such command runs at a time (a second gets busy).
+	WhileAwaiting bool
+	// Awaits marks net.apply: the only kind of command whose Run may return Awaiting. It must be a
+	// Write command and cannot also be WhileAwaiting; an Awaiting from any other command fails the
+	// run as invalid (command_failed).
+	Awaits bool
+	// MaxBody is the largest request body in bytes; 0 means 512 KiB, at most 4 MiB.
+	MaxBody int64
 	// Validate checks the decoded args; return Invalid(...) for field errors. May be nil for no args.
 	Validate func(*A) error
 	// Check runs the cheap preconditions synchronously (five seconds at most) before the run starts.
@@ -54,14 +100,34 @@ type Spec[A any] struct {
 	// is failed but the write lock stays held until it returns.
 	// Return a *Refusal to refuse; the run is recorded as refused with the matching HTTP status.
 	Check func(ctx context.Context, args A) error
-	// Run does the work. It must obey ctx. Return nil error with a JSON-encodable result, a *Refusal,
-	// a *Failure, or any other error (reported as command_failed without its text).
+	// Run does the work. It must obey ctx. Return nil error with a JSON-encodable result, an Awaiting
+	// (the run waits for Settle and keeps the write lock), a *Refusal, a *Failure, or any other error (reported as command_failed without its text).
 	Run func(ctx context.Context, rc *RunContext, args A) (any, error)
 }
 
 // Define turns a Spec into a Command.
 func Define[A any](s Spec[A]) Command {
-	c := Command{name: s.Name, write: s.Write, timeout: s.Timeout}
+	c := Command{name: s.Name, write: s.Write, timeout: s.Timeout, whileAwaiting: s.WhileAwaiting, maxBody: s.MaxBody}
+	c.awaits = s.Awaits
+	switch {
+	case s.Awaits && s.WhileAwaiting:
+		c.specErr = errors.New("spec flags Awaits and WhileAwaiting exclude each other")
+	case s.Awaits && !s.Write:
+		c.specErr = errors.New("spec flag Awaits needs a Write command")
+	case s.WhileAwaiting && !hasRunIDField[A]():
+		c.specErr = errors.New(`WhileAwaiting needs a string field "run_id" in the args`)
+	}
+	if s.WhileAwaiting {
+		c.runIDOf = func(args any) string {
+			var v struct {
+				RunID string `json:"run_id"`
+			}
+			if json.Unmarshal(mustMarshal(args), &v) != nil {
+				return ""
+			}
+			return v.RunID
+		}
+	}
 	c.decode = func(raw json.RawMessage) (any, error) {
 		var a A
 		if err := decodeStrict(raw, &a); err != nil {
@@ -99,6 +165,12 @@ func NewRegistry(cmds ...Command) (*Registry, error) {
 			return nil, fmt.Errorf("host: command %q has no Run", c.name)
 		case c.timeout <= 0 || c.timeout > maxCommandTimeout:
 			return nil, fmt.Errorf("host: command %q needs a timeout between 1ns and %s", c.name, maxCommandTimeout)
+		case c.specErr != nil:
+			return nil, fmt.Errorf("host: command %q: %w", c.name, c.specErr)
+		case c.whileAwaiting && !c.write:
+			return nil, fmt.Errorf("host: command %q is WhileAwaiting but not a write command", c.name)
+		case c.maxBody < 0 || c.maxBody > maxCommandBody:
+			return nil, fmt.Errorf("host: command %q needs a body limit between 0 and %d bytes", c.name, maxCommandBody)
 		}
 		if _, dup := r.cmds[c.name]; dup {
 			return nil, fmt.Errorf("host: command %q listed twice", c.name)
@@ -185,15 +257,40 @@ type Reverted struct {
 
 func (e *Reverted) Error() string { return "reverted: " + e.Code }
 
+// Awaiting is what Run returns (as its result, with a nil error) to park the run in awaiting_confirm
+// instead of finishing it (D-100): the run is stored with revert_at, an audit line awaiting_confirm is
+// written, and the run KEEPS the global write lock until (*Server).Settle ends it. Result is stored
+// as the run's result like Failure.Result. RevertAt must be set. The command arms its own timer
+// (arm it in rc.OnParked) and ends the run with Claim and Finish, or Settle. RevertAt must be in
+// the future and at most maxRevertWindow after the run started.
+type Awaiting struct {
+	RevertAt time.Time
+	Result   any
+}
+
+// asAwaiting recognises an Awaiting returned by value or by pointer.
+func asAwaiting(res any) (Awaiting, bool) {
+	switch v := res.(type) {
+	case Awaiting:
+		return v, true
+	case *Awaiting:
+		if v != nil {
+			return *v, true
+		}
+	}
+	return Awaiting{}, false
+}
+
 var codeRE = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 
 // RunContext is what a running command gets to report progress.
 type RunContext struct {
-	RunID string
-	Actor string
-	log   func(line string)
-	prog  func(percent int)
-	after []func(context.Context, api.Status)
+	RunID  string
+	Actor  string
+	log    func(line string)
+	prog   func(percent int)
+	after  []func(context.Context, api.Status)
+	parked []func()
 }
 
 // AfterFinish registers fn to run once the run is recorded as final: audit line and run file
@@ -206,6 +303,14 @@ type RunContext struct {
 func (rc *RunContext) AfterFinish(fn func(ctx context.Context, st api.Status)) {
 	rc.after = append(rc.after, fn)
 }
+
+// OnParked registers fn to run right after the run is parked in awaiting_confirm, when the write
+// lock and the waiting state are already published: arm the revert timer here, so that a timer
+// that fires at once can never find the run "not yet awaiting". fn must not block. It does not
+// run when the run ends any other way (an invalid Awaiting included). Call it from Run only.
+// Neither OnParked nor AfterFinish callbacks survive a host restart: after one, whoever resumed
+// the run (Options.Resume, then Ops.Start from net/pending.json) must re-arm its timer itself.
+func (rc *RunContext) OnParked(fn func()) { rc.parked = append(rc.parked, fn) }
 
 // Log appends one line (cut to 2 KiB, control characters removed) to the run's event stream.
 func (rc *RunContext) Log(line string) { rc.log(line) }

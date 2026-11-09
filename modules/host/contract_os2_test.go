@@ -139,6 +139,8 @@ func (n *noteRecorder) Note(command, code string, detail map[string]any) error {
 
 func (n *noteRecorder) WriteActive() bool { return false }
 
+func (n *noteRecorder) AwaitingConfirm() bool { return false }
+
 func (n *noteRecorder) text() string {
 	n.mu.Lock()
 	defer n.mu.Unlock()

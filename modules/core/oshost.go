@@ -54,6 +54,7 @@ const (
 	CodeHealthCheckFailed = "health_check_failed"
 	CodeEffectNotVerified = "effect_not_verified"
 	codeBusy              = "busy"
+	codePendingConfirm    = "pending_confirm"
 	codeRateLimited       = "rate_limited"
 )
 
@@ -94,6 +95,8 @@ func mapHostCode(ctx context.Context, log *slog.Logger, code, hostMsg string, re
 	switch code {
 	case api.CodeBusy, api.CodeInstallInProgress:
 		return apierr.New(409, codeBusy, "An update run is in progress. Wait for it to finish, then try again.")
+	case api.CodePendingConfirm, api.CodeNetPendingConfirm:
+		return apierr.New(409, codePendingConfirm, "A network change is waiting for confirmation. Confirm or cancel it in Settings, Box network, then try again.")
 	case api.CodeNotAppliance:
 		return apierr.New(409, CodeNotAppliance, "This operating system release is not one Vedette updates (see the supported list in the documentation).")
 	case api.CodeNoCheckYet:

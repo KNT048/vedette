@@ -440,3 +440,5 @@ func (failingNotifier) Note(string, string, map[string]any) error {
 	return os.ErrClosed
 }
 func (failingNotifier) WriteActive() bool { return false }
+
+func (failingNotifier) AwaitingConfirm() bool { return false }

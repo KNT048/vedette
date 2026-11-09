@@ -1,11 +1,14 @@
 package exposure
 
 import (
+	"context"
 	"crypto/x509"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -46,12 +49,20 @@ func prober(t *testing.T, timeout time.Duration, fs ...*fakeService) *PublicServ
 	t.Helper()
 	pool := x509.NewCertPool()
 	var urls []string
-	for _, f := range fs {
+	// Each service gets a host name of its own (the constructor refuses two services on one host); every name dials the
+	// local test server of that port, and the certificate of httptest is valid for example.com.
+	for i, f := range fs {
 		pool.AddCert(f.srv.Certificate())
-		urls = append(urls, f.srv.URL)
+		_, port, _ := net.SplitHostPort(f.srv.Listener.Addr().String())
+		urls = append(urls, "https://svc"+strconv.Itoa(i)+".test:"+port)
 	}
 	tr := fs[0].srv.Client().Transport.(*http.Transport).Clone()
 	tr.TLSClientConfig.RootCAs = pool
+	tr.TLSClientConfig.ServerName = "example.com"
+	tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		_, port, _ := net.SplitHostPort(addr)
+		return (&net.Dialer{}).DialContext(ctx, network, "127.0.0.1:"+port)
+	}
 	p, err := NewPublicServiceProber(urls, tr, timeout)
 	if err != nil {
 		t.Fatal(err)
@@ -237,6 +248,10 @@ func FuzzParseAnswer(f *testing.F) {
 		a, err := parseAnswer(b)
 		if err != nil {
 			return
+		}
+		want := netip.MustParseAddr(strings.TrimSpace(string(b))).Unmap()
+		if a != want {
+			t.Fatalf("parseAnswer(%q) = %v, want %v", b, a, want)
 		}
 		if len(b) > maxAnswerBody || !a.IsValid() || !a.IsGlobalUnicast() || a.Zone() != "" || a.Is4In6() {
 			t.Fatalf("parseAnswer(%q) accepted %v", b, a)

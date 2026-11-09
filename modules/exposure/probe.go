@@ -24,9 +24,8 @@ var DefaultServices = []string{
 }
 
 const (
-	maxAnswerBody  = 64 // INV-2: the answer is one address; anything longer is refused (an IPv6 address has 45 characters at most)
-	probeTimeout   = 5 * time.Second
-	probeUserAgent = "vedette-exposure"
+	maxAnswerBody = 64 // INV-2: the answer is one address; anything longer is refused (an IPv6 address has 45 characters at most)
+	probeTimeout  = 5 * time.Second
 )
 
 // The two ways a round can end without an address.
@@ -57,11 +56,18 @@ func NewPublicServiceProber(urls []string, transport *http.Transport, timeout ti
 		return nil, errors.New("exposure: creating prober: three services are needed for a two-of-three rule")
 	}
 	checked := make([]string, 0, 3)
+	hosts := map[string]bool{}
 	for _, raw := range urls {
 		u, err := url.Parse(raw)
-		if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil {
+		if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil {
 			return nil, errors.New("exposure: creating prober: every service must be an https URL without user info")
 		}
+		// Two services on one host would be one vote cast twice: the 2-of-3 rule needs independent services.
+		host := strings.ToLower(u.Hostname())
+		if hosts[host] {
+			return nil, errors.New("exposure: creating prober: the three services must be on three different hosts")
+		}
+		hosts[host] = true
 		checked = append(checked, u.String())
 	}
 	if transport == nil {
@@ -73,6 +79,9 @@ func NewPublicServiceProber(urls []string, transport *http.Transport, timeout ti
 	} else {
 		transport = transport.Clone()
 	}
+	// No proxy, whatever the environment says: a customer proxy (HTTPS_PROXY) would make all three services answer with the
+	// proxy vendor's address, and the box would verify, then scan, an IP that is not its own. TLS verification stays at its default.
+	transport.Proxy = nil
 	transport.DisableKeepAlives = true
 	if timeout <= 0 {
 		timeout = probeTimeout
@@ -127,7 +136,7 @@ func (p *PublicServiceProber) ask(ctx context.Context, u string) (netip.Addr, er
 		return netip.Addr{}, fmt.Errorf("exposure: asking a public IP service: %w", err)
 	}
 	req.Header.Set("Accept", "text/plain")
-	req.Header.Set("User-Agent", probeUserAgent)
+	// No User-Agent of our own: Go sets its default one, so the request carries nothing that names the product (PRIVACY flow 9).
 	resp, err := p.client.Do(req)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("exposure: asking a public IP service: %w", err)

@@ -111,16 +111,28 @@ func (s *Service) audit(ctx context.Context, tx *sql.Tx, user, action, target, d
 
 func ymd(t time.Time) string { return t.UTC().Format(dayFormat) }
 
-func (t Target) expiresAt() time.Time {
+// clockSlack is how far into the future a stored time may lie before it is taken as written by a clock that was ahead.
+const clockSlack = 5 * time.Minute
+
+// clampTS returns t, or now when t lies more than clockSlack after now: a time written while the clock was ahead (a wrong RTC
+// that NTP corrected) must neither keep an IP valid for longer than 30 days nor stop a check from being due.
+func clampTS(t, now time.Time) time.Time {
+	if t.After(now.Add(clockSlack)) {
+		return now
+	}
+	return t
+}
+
+func (t Target) expiresAt(now time.Time) time.Time {
 	if t.Kind != KindIP || t.VerifiedAt.IsZero() {
 		return time.Time{}
 	}
-	return t.VerifiedAt.Add(ValidDays * 24 * time.Hour)
+	return clampTS(t.VerifiedAt, now).Add(ValidDays * 24 * time.Hour)
 }
 
 // validity of an IP at now; the empty string for a domain or an IP that was never verified.
 func (t Target) validity(now time.Time) string {
-	exp := t.expiresAt()
+	exp := t.expiresAt(now)
 	switch {
 	case exp.IsZero():
 		return ""
@@ -180,7 +192,7 @@ func (s *Service) view(t Target, latest map[string]Counts, now time.Time) Target
 		x := store.FormatTS(t.VerifiedAt)
 		v.VerifiedAt = &x
 	}
-	if e := t.expiresAt(); !e.IsZero() {
+	if e := t.expiresAt(now); !e.IsZero() {
 		x := store.FormatTS(e)
 		v.ExpiresAt = &x
 	}

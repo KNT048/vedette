@@ -68,6 +68,11 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 	if err != nil {
 		return VerifyResult{}, fmt.Errorf("exposure: verifying: %w", err)
 	}
+	if t.Kind == KindIP {
+		// Like a detection, this probes the network and writes the sighting of an IP, so the two never run side by side (L4).
+		s.detectMu.Lock()
+		defer s.detectMu.Unlock()
+	}
 	if err := s.attempt(ctx); err != nil {
 		return VerifyResult{}, fmt.Errorf("exposure: verifying: %w", err)
 	}

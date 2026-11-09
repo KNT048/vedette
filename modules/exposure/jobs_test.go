@@ -58,7 +58,7 @@ func TestContract_INV11_AutoDetectSchedule(t *testing.T) {
 	if e.prober.count() != DeepRounds+LightRounds { // the full check was 59.5 minutes ago: this one is light
 		t.Fatalf("no check when it was due: %d rounds", e.prober.count())
 	}
-	// it runs as the box itself and leaves one audit row per run
+	// it runs as the box itself; the first run, which added two IPs, leaves its audit row and the routine run after it none (L3)
 	var runs, adds, renews int
 	for _, a := range e.audits() {
 		switch {
@@ -70,7 +70,7 @@ func TestContract_INV11_AutoDetectSchedule(t *testing.T) {
 			renews++
 		}
 	}
-	if runs != 2 || adds != 2 || renews != 0 {
+	if runs != 1 || adds != 2 || renews != 0 {
 		t.Fatalf("audit: %d runs, %d adds, %d renewals: %v", runs, adds, renews, e.audits())
 	}
 	if last := e.audits()[len(e.audits())-1]; !strings.HasPrefix(last.Detail, "seen: ") {

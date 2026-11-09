@@ -63,12 +63,12 @@ func (s *Service) CheckScannable(ctx context.Context, id string) (ok bool, reaso
 }
 
 // refusal is the API error of a blocked scan (INV-1).
-func refusal(t Target, r BlockedReason) error {
+func refusal(t Target, r BlockedReason, now time.Time) error {
 	switch r {
 	case BlockedUnverified:
 		return apiErr(409, "not_verified", "%s has no ownership proof, so it cannot be scanned. Finish verification first.", t.Value)
 	case BlockedExpired:
-		return apiErr(409, "expired", "Verification of %s expired on %s, so it cannot be scanned. Verify it again first.", t.Value, ymd(t.expiresAt()))
+		return apiErr(409, "expired", "Verification of %s expired on %s, so it cannot be scanned. Verify it again first.", t.Value, ymd(t.expiresAt(now)))
 	case BlockedTxtMissing:
 		return apiErr(409, "txt_missing", "The DNS TXT record %s is no longer on %s, so it cannot be scanned. Add the record back, then check again.", txtRecord(t.Token), t.Value)
 	case BlockedNoCommitment:
@@ -85,7 +85,7 @@ func (s *Service) Scan(ctx context.Context, user, id string) (Snapshot, error) {
 		return Snapshot{}, fmt.Errorf("exposure: scanning: %w", err)
 	}
 	if reason != "" {
-		return Snapshot{}, fmt.Errorf("exposure: scanning %s: %w", t.Value, refusal(t, reason))
+		return Snapshot{}, fmt.Errorf("exposure: scanning %s: %w", t.Value, refusal(t, reason, s.clock()))
 	}
 	r := s.scanRunner()
 	if r == nil {

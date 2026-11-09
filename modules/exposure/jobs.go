@@ -29,7 +29,7 @@ func autoDue(b BoxIP, now time.Time) bool {
 		return true
 	}
 	at, err := parseTS(b.LastRun.At)
-	if err != nil {
+	if err != nil || at.After(now.Add(clockSlack)) { // written while the clock was ahead (L1): do not wait for it
 		return true
 	}
 	return !now.Before(at.Add(time.Duration(b.IntervalMin) * time.Minute).Add(-JobTick / 2))

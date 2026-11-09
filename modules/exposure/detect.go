@@ -77,7 +77,8 @@ func (s *Service) deepDue(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return last.IsZero() || s.clock().Sub(last) >= DeepEvery, nil
+	now := s.clock()
+	return last.IsZero() || last.After(now.Add(clockSlack)) || now.Sub(last) >= DeepEvery, nil
 }
 
 // SaveSettings turns auto-detect on or off and sets its interval (PUT /exposure/box-ip/settings, INV-11).
@@ -123,7 +124,7 @@ func (s *Service) sinceLastRun(b BoxIP, now time.Time) time.Duration {
 		return time.Duration(1<<63 - 1)
 	}
 	at, err := parseTS(b.LastRun.At)
-	if err != nil {
+	if err != nil || at.After(now.Add(clockSlack)) {
 		return time.Duration(1<<63 - 1)
 	}
 	return now.Sub(at)
@@ -141,10 +142,17 @@ func isOutcome(err error) bool {
 // passed the two-of-three rule as a new target or renews it for 30 days from now. user is the person who asked, or
 // SystemUser when the box runs it by itself; the audit trail says which. Private, reserved and CGNAT addresses are
 // never stored. The outcome is also written to last_run, whether it worked or not. Expected failures come back as an
-// *APIError (not_public, too_many, unreachable).
+// *APIError (not_public, too_many, unreachable). Audit: a person's click is always audited; a run of the box is
+// audited only when something changed (an IP added, an expired IP seen again, a switch between working and failing,
+// a refused address that is new), because last_run already says what the routine runs did (INV-11).
 func (s *Service) Detect(ctx context.Context, user string, deep bool) (DetectResult, error) {
 	s.detectMu.Lock()
 	defer s.detectMu.Unlock()
+	return s.detectLocked(ctx, user, deep)
+}
+
+// detectLocked is Detect for a caller that holds detectMu (the scan-time check, INV-13).
+func (s *Service) detectLocked(ctx context.Context, user string, deep bool) (DetectResult, error) {
 	rounds := LightRounds
 	if deep {
 		rounds = DeepRounds
@@ -160,14 +168,27 @@ func (s *Service) Detect(ctx context.Context, user string, deep bool) (DetectRes
 	err := s.write(ctx, func(tx *sql.Tx, emit func(string, any)) error {
 		ids, message, outcome = nil, "", nil
 		now := s.clock()
+		prev, err := loadBoxIP(ctx, tx)
+		if err != nil {
+			return err
+		}
 		log := func(action, target, detail string) error { return s.audit(ctx, tx, user, action, target, detail) }
+		// The run of the box says nothing new when the last run already told this about the address (L3).
+		logRefused := func(ip string) error {
+			if auto && prev.LastRun != nil && strings.Contains(prev.LastRun.Message, ip) {
+				return nil
+			}
+			return log("exposure.verify_fail", ip, "box_egress: not a public address")
+		}
+		// A run of the box is audited when it switches between working and failing; the first run counts as coming from "working".
+		switched := func(nowOK bool) bool { return prev.LastRun == nil || prev.LastRun.OK != nowOK }
 		run := func(ok bool, text string) error { return saveRun(ctx, tx, now, ok, text, deep) }
 		fail := func(err *APIError, summary string) error {
 			outcome = err
 			if e := run(false, err.Message); e != nil {
 				return e
 			}
-			if auto {
+			if auto && switched(false) {
 				return log("exposure.auto_detect", "box", summary)
 			}
 			return nil
@@ -187,14 +208,14 @@ func (s *Service) Detect(ctx context.Context, user string, deep bool) (DetectRes
 			return fail(e, summary)
 		case len(public) == 0:
 			for _, ip := range refused {
-				if err := log("exposure.verify_fail", ip, "box_egress: not a public address"); err != nil {
+				if err := logRefused(ip); err != nil {
 					return err
 				}
 			}
 			return fail(notPublic(refused), "refused: "+strings.Join(refused, ", ")+" (not public)")
 		}
 		for _, ip := range refused {
-			if err := log("exposure.verify_fail", ip, "box_egress: not a public address"); err != nil {
+			if err := logRefused(ip); err != nil {
 				return err
 			}
 		}
@@ -204,6 +225,7 @@ func (s *Service) Detect(ctx context.Context, user string, deep bool) (DetectRes
 			return err
 		}
 		var seen, added, skipped []string
+		changed := false // something the audit trail of a run of the box must show
 		for _, a := range public {
 			ip := a.String()
 			msg := fmt.Sprintf("The box reaches the Internet via %s. Verified until %s.", ip, until)
@@ -217,12 +239,13 @@ func (s *Service) Detect(ctx context.Context, user string, deep bool) (DetectRes
 				if err := renewIP(ctx, tx, t.ID, now, msg); err != nil {
 					return err
 				}
-				if !auto || was != validityValid { // a routine renewal of a valid IP is covered by the run's own audit row
+				if !auto || was == validityExpired {
 					if err := log("exposure.verify_renew", ip, "box_egress"); err != nil {
 						return err
 					}
 				}
 				if was == validityExpired {
+					changed = true
 					emit(EventTargetVerified, TargetVerifiedEvent{TargetID: t.ID})
 				}
 				ids, seen = append(ids, t.ID), append(seen, ip)
@@ -244,6 +267,7 @@ func (s *Service) Detect(ctx context.Context, user string, deep bool) (DetectRes
 				}
 				emit(EventTargetVerified, TargetVerifiedEvent{TargetID: id})
 				n++
+				changed = true
 				ids, seen, added = append(ids, id), append(seen, ip), append(added, ip)
 			}
 		}
@@ -262,10 +286,11 @@ func (s *Service) Detect(ctx context.Context, user string, deep bool) (DetectRes
 		if len(skipped) > 0 {
 			message += fmt.Sprintf(" Not added, the list holds at most %d targets: %s.", MaxTargets, strings.Join(skipped, ", "))
 		}
-		if err := run(len(skipped) == 0, message); err != nil {
+		nowOK := len(skipped) == 0
+		if err := run(nowOK, message); err != nil {
 			return err
 		}
-		if !auto {
+		if !auto || !(changed || switched(nowOK)) {
 			return nil
 		}
 		summary := "seen: " + strings.Join(seen, ", ")

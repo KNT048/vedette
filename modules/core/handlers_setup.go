@@ -163,7 +163,7 @@ func (h *APIHandlers) wantedModules(req *oas.CorePostCoreSetupReq) (map[string]b
 }
 
 // CorePostCoreSetup implements POST /core/setup (public): first-run setup. It creates the organization, the
-// first administrator and a session for them, turns the chosen bundle on and writes core_audit, all in one
+// first administrator and a session for them (the response sets the session and CSRF cookies, as a sign-in does; no device cookie), turns the chosen bundle on and writes core_audit, all in one
 // transaction, and only while setup is not done (INV-15). Creating the administrator needs the one-time
 // setup code from the box's log (D-75). Order of refusals: already set up (also for sample data), the build has no
 // sample data, setup code, then the fields in the order of the form.
@@ -279,6 +279,10 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 		}
 		sess, err = h.auth.Sessions.Create(ctx, tx, u.ID, x.R.UserAgent(), ip)
 		if err != nil {
+			return err
+		}
+		// The administrator is signed in as a password sign-in does (same session, same audit row).
+		if err := h.audit.Append(ctx, tx, audit.Entry{User: email, Action: "auth.login", Target: email}); err != nil {
 			return err
 		}
 		detail := fmt.Sprintf("bundle %s, %d ranges", req.Bundle.Or(""), len(lan))

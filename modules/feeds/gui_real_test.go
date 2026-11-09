@@ -77,3 +77,36 @@ func TestGUIReal_OnlyHTTPLinksAreStored(t *testing.T) {
 		t.Fatalf("kevLinks = %v", got)
 	}
 }
+
+// CONTRACT: the EPSS scores are pulled right after a KEV load. That held for the scheduled tick only; a manual
+// "Fetch now" on the CISA list left every score empty and "FIRST EPSS: OK, 0 records" until someone fetched EPSS too.
+func TestGUIReal_ManualKEVFetchPullsEPSSToo(t *testing.T) {
+	t.Parallel()
+	e, o := pullEnv(t)
+	e.only("cisa-kev", "first-epss")
+	e.mirror("cisa-kev", o.url("/kev.json"))
+	e.mirror("first-epss", o.url("/epss"))
+	o.body("/kev.json", `"v1"`, testFile(t, "kev.json"))
+	maxIDs := 0
+	epssOrigin(o, &maxIDs)
+	if c, b := e.fetch("cisa-kev"); c != 200 || at(b, "status") != "ok" {
+		t.Fatalf("manual KEV fetch = %d %v", c, b)
+	}
+	if o.count("/epss") == 0 {
+		t.Fatal("no EPSS request after a manual KEV load")
+	}
+	v, _, _ := e.svc.st.VulnByCVE(t.Context(), "CVE-2026-10001")
+	if v.EPSS == nil || *v.EPSS != 0.8 {
+		t.Errorf("score after a manual KEV load: %v", v.EPSS)
+	}
+	if r := e.feed("first-epss").Records; r == nil || *r != 3 {
+		t.Errorf("FIRST EPSS records = %v, want 3", r)
+	}
+	// a feed that is off is not pulled behind the owner's back
+	e.put("first-epss", `{"enabled":false}`)
+	before := o.count("/epss")
+	e.fetch("cisa-kev")
+	if o.count("/epss") != before {
+		t.Error("EPSS pulled while its feed is off")
+	}
+}

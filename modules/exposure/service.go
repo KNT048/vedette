@@ -1,0 +1,325 @@
+package exposure
+
+import (
+	"context"
+	"crypto/rand"
+	"database/sql"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"log/slog"
+	"sync"
+	"time"
+
+	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/store"
+)
+
+// Config is what NewService needs. Publisher, Runner, Location and Clock may be nil.
+type Config struct {
+	DB        *store.DB
+	Audit     *audit.Log
+	Resolver  Resolver         // DNS TXT lookups of domain verification
+	Prober    EgressProber     // the three public IP services (PublicServiceProber); tests pass a fake
+	Publisher Publisher        // nil: no events
+	Runner    Runner           // nil: scanning answers 501 until the scan module registers one
+	Location  *time.Location   // the day of a snapshot (nil: time.Local)
+	Log       *slog.Logger     //
+	Clock     func() time.Time // nil: time.Now
+}
+
+// Service owns the exp_ tables. Every mutation runs in one transaction with its core_audit row (SYS-3);
+// events go out after the commit.
+type Service struct {
+	cfg Config
+	now func() time.Time
+
+	detectMu sync.Mutex // one detection at a time: they probe the network and write the same rows
+
+	mu     sync.RWMutex
+	runner Runner
+}
+
+// NewService returns the service. DB, Audit, Resolver, Prober and Log are required.
+func NewService(cfg Config) (*Service, error) {
+	if cfg.DB == nil || cfg.Audit == nil || cfg.Resolver == nil || cfg.Prober == nil || cfg.Log == nil {
+		return nil, errors.New("exposure: creating service: DB, Audit, Resolver, Prober and Log are required")
+	}
+	now := cfg.Clock
+	if now == nil {
+		now = time.Now
+	}
+	if cfg.Location == nil {
+		cfg.Location = time.Local
+	}
+	return &Service{cfg: cfg, now: now, runner: cfg.Runner}, nil
+}
+
+// SetRunner registers the scanner (the scan module does it at start-up). Nil removes it.
+func (s *Service) SetRunner(r Runner) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.runner = r
+}
+
+func (s *Service) scanRunner() Runner {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.runner
+}
+
+// clock returns the time of a change, in UTC at the precision the database stores.
+func (s *Service) clock() time.Time { return s.now().UTC().Truncate(time.Millisecond) }
+
+const publishTimeout = 5 * time.Second
+
+type pending struct {
+	name    string
+	payload any
+}
+
+// write runs fn in a write transaction, then publishes the events fn collected.
+func (s *Service) write(ctx context.Context, fn func(tx *sql.Tx, emit func(name string, payload any)) error) error {
+	var evs []pending
+	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		evs = evs[:0]
+		return fn(tx, func(name string, payload any) { evs = append(evs, pending{name, payload}) })
+	})
+	if err != nil {
+		return err
+	}
+	if s.cfg.Publisher == nil || len(evs) == 0 {
+		return nil
+	}
+	// The change is committed: the events go out even if the caller has hung up, within a short deadline.
+	pctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), publishTimeout)
+	defer cancel()
+	for _, e := range evs {
+		if err := s.cfg.Publisher.Publish(pctx, events.Event{Name: e.name, Data: e.payload}); err != nil {
+			s.cfg.Log.ErrorContext(pctx, "publishing an exposure event failed", "event", e.name, "error", err)
+		}
+	}
+	return nil
+}
+
+func (s *Service) audit(ctx context.Context, tx *sql.Tx, user, action, target, detail string) error {
+	return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: action, Target: target, Detail: detail})
+}
+
+// ---- how a target looks (INV-1, INV-4) ----
+
+func ymd(t time.Time) string { return t.UTC().Format(dayFormat) }
+
+func (t Target) expiresAt() time.Time {
+	if t.Kind != KindIP || t.VerifiedAt.IsZero() {
+		return time.Time{}
+	}
+	return t.VerifiedAt.Add(ValidDays * 24 * time.Hour)
+}
+
+// validity of an IP at now; the empty string for a domain or an IP that was never verified.
+func (t Target) validity(now time.Time) string {
+	exp := t.expiresAt()
+	switch {
+	case exp.IsZero():
+		return ""
+	case exp.Before(now):
+		return validityExpired
+	case daysLeft(exp, now) <= ExpiringDays:
+		return validityExpiring
+	}
+	return validityValid
+}
+
+func daysLeft(exp, now time.Time) int {
+	d := exp.Sub(now)
+	n := int(d / (24 * time.Hour))
+	if d%(24*time.Hour) > 0 {
+		n++
+	}
+	return n
+}
+
+func (t Target) status(now time.Time) string {
+	switch {
+	case t.VerifiedAt.IsZero():
+		return statusUnverified
+	case t.validity(now) == validityExpired:
+		return statusExpired
+	}
+	return statusVerified
+}
+
+// blocked says why the target cannot be scanned now; empty when it can (INV-1). It judges the stored
+// state: the DNS TXT record is looked up again by CheckScannable and Scan, right before a scan.
+func (t Target) blocked(now time.Time) BlockedReason {
+	switch {
+	case t.VerifiedAt.IsZero():
+		return BlockedUnverified
+	case t.validity(now) == validityExpired:
+		return BlockedExpired
+	case t.Kind == KindDomain && (t.LastCheck == nil || !t.LastCheck.OK):
+		return BlockedTxtMissing
+	case t.Commitment == nil:
+		return BlockedNoCommitment
+	}
+	return ""
+}
+
+func (s *Service) view(t Target, latest map[string]Counts, now time.Time) TargetView {
+	v := TargetView{
+		ID: t.ID, Kind: t.Kind, Value: t.Value, Status: t.status(now), Token: t.Token,
+		LastCheck: t.LastCheck, Commitment: t.Commitment, CreatedAt: store.FormatTS(t.CreatedAt),
+	}
+	if t.Method != "" {
+		m := t.Method
+		v.Method = &m
+	}
+	if !t.VerifiedAt.IsZero() {
+		x := store.FormatTS(t.VerifiedAt)
+		v.VerifiedAt = &x
+	}
+	if e := t.expiresAt(); !e.IsZero() {
+		x := store.FormatTS(e)
+		v.ExpiresAt = &x
+	}
+	if val := t.validity(now); val != "" {
+		v.Validity = &val
+	}
+	if b := t.blocked(now); b != "" {
+		v.BlockedReason = &b
+	} else {
+		v.Scannable = true
+	}
+	if !t.LastScanAt.IsZero() {
+		x := store.FormatTS(t.LastScanAt)
+		v.LastScanAt = &x
+	}
+	if c, ok := latest[t.ID]; ok {
+		v.Latest = &c
+	}
+	return v
+}
+
+// Targets returns every target, oldest first (GET /exposure/targets). The scan module reads the
+// scannable ones from here.
+func (s *Service) Targets(ctx context.Context) ([]TargetView, error) {
+	db := s.cfg.DB.Reader()
+	ts, err := listTargets(ctx, db)
+	if err != nil {
+		return nil, fmt.Errorf("exposure: listing targets: %w", err)
+	}
+	latest, err := latestCounts(ctx, db)
+	if err != nil {
+		return nil, fmt.Errorf("exposure: listing targets: %w", err)
+	}
+	now := s.clock()
+	out := make([]TargetView, 0, len(ts))
+	for _, t := range ts {
+		out = append(out, s.view(t, latest, now))
+	}
+	return out, nil
+}
+
+// Target returns one target, or an error wrapping ErrNotFound.
+func (s *Service) Target(ctx context.Context, id string) (TargetView, error) {
+	return s.targetView(ctx, s.cfg.DB.Reader(), id)
+}
+
+func (s *Service) targetView(ctx context.Context, q querier, id string) (TargetView, error) {
+	t, err := loadTarget(ctx, q, id)
+	if err != nil {
+		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
+	}
+	latest, err := latestCounts(ctx, q)
+	if err != nil {
+		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
+	}
+	return s.view(t, latest, s.clock()), nil
+}
+
+// ---- adding, deleting, committing ----
+
+func newToken() string {
+	b := make([]byte, tokenBytes)
+	_, _ = rand.Read(b) // crypto/rand.Read never returns an error (Go 1.24+)
+	return hex.EncodeToString(b)
+}
+
+// AddDomain adds a domain to prove (POST /exposure/targets, PRE-4). A public IP is never added here (INV-2).
+func (s *Service) AddDomain(ctx context.Context, user, raw string) (TargetView, error) {
+	value, err := normalizeDomain(raw)
+	if err != nil {
+		return TargetView{}, err
+	}
+	var id string
+	err = s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
+		if _, dup, err := loadTargetByValue(ctx, tx, value); err != nil {
+			return err
+		} else if dup {
+			return duplicate(value)
+		}
+		if n, err := countTargets(ctx, tx); err != nil {
+			return err
+		} else if n >= MaxTargets {
+			return ErrTooMany
+		}
+		id = store.NewID("xt")
+		if err := insertTarget(ctx, tx, Target{ID: id, Kind: KindDomain, Value: value, Token: newToken(), CreatedAt: s.clock()}); err != nil {
+			return err
+		}
+		return s.audit(ctx, tx, user, "exposure.target_add", value, "")
+	})
+	if err != nil {
+		return TargetView{}, fmt.Errorf("exposure: adding domain: %w", err)
+	}
+	return s.Target(ctx, id)
+}
+
+// Delete removes a target with its snapshots and its commitment; the audit log stays (INV-7). For an
+// IP it is how a customer takes it out of the inventory (INV-11).
+func (s *Service) Delete(ctx context.Context, user, id string) error {
+	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
+		t, err := loadTarget(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		if err := deleteTarget(ctx, tx, id); err != nil {
+			return err
+		}
+		return s.audit(ctx, tx, user, "exposure.target_delete", t.Value, "")
+	})
+	if err != nil {
+		return fmt.Errorf("exposure: deleting target: %w", err)
+	}
+	return nil
+}
+
+// Commit records the commitment of D-26 (POST …/commitment, PRE-4): only for a verified target (INV-7).
+func (s *Service) Commit(ctx context.Context, user, id string, confirm bool) (TargetView, error) {
+	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
+		t, err := loadTarget(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		now := s.clock()
+		switch t.status(now) {
+		case statusUnverified:
+			return apiErr(409, "not_verified", "Verify ownership first; only then can you confirm the commitment for this target.")
+		case statusExpired:
+			return apiErr(409, "expired", "Verification of %s has expired. Verify it again first.", t.Value)
+		}
+		if !confirm {
+			return ErrNotConfirmed
+		}
+		if err := setCommitment(ctx, tx, id, user, now); err != nil {
+			return err
+		}
+		return s.audit(ctx, tx, user, "exposure.commitment", t.Value, "confirmed: company owns it and user is authorized to scan it")
+	})
+	if err != nil {
+		return TargetView{}, fmt.Errorf("exposure: recording commitment: %w", err)
+	}
+	return s.Target(ctx, id)
+}

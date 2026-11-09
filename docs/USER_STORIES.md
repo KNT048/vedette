@@ -109,6 +109,7 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 **S-CORE-8** (P2) `[đạt]` (D-56) — Trong Settings → Box network tôi chọn card quản trị (DHCP/tĩnh, đổi IP có xác nhận trong 2 phút hoặc tự quay lại) và card nhận SPAN, thấy lưu lượng nhân bản có tới thật không kèm lời khuyên, chọn trích xuất gì, đặt bộ lọc, xem hướng dẫn bật port mirroring theo loại switch, IP phụ cho bẫy và NTP.
 **S-CORE-4** (P1, P2) `[đạt]` — Trong Cài đặt → Chia sẻ tín hiệu, tôi thấy **nguyên văn** gói dữ liệu ẩn danh sắp gửi, lần gửi gần nhất, và một công tắc tắt; tắt xong không còn gì rời hộp ngoài kéo feed và gọi provider AI tôi cấu hình.
 **S-CORE-3** (P4) `[đạt]` — Đăng nhập OIDC, 3 vai (xem/vận hành/quản trị), audit log mọi thay đổi. Đăng nhập hai bước: ứng dụng xác thực (QR hoặc khoá tay) hoặc mã qua email (cần kênh email); quản trị viên đặt lại được (D-35).
+- Tiêu chí bổ sung (D-75, D-76): màn hình Setup lần đầu đòi **mã cài đặt một lần** in trên console/log của hộp; sai mã → từ chối, mã hết hiệu lực khi admin đầu tiên được tạo. Bật đăng nhập hai bước (ứng dụng hoặc email) đòi **nhập lại mật khẩu hiện tại**, như khi tắt.
 **S-FLEET-1** (P3) `[rớt]` (hoãn, D-24) — Bảng tổng nhiều khách/site: khách nào có KEV mới khớp, bao nhiêu chưa xử lý, hộp nào mất liên lạc.
 **S-MCP-1** (P4) `[đạt]` — Bật MCP server chỉ-đọc để agent/SIEM bên ngoài tra tài sản, phát hiện, feed.
 **S-CORE-5** (tất cả) `[đạt]` (D-42) — Gặp lỗi, tôi bấm Báo lỗi: mô tả, xem trước gói chẩn đoán đã lọc, tải về và mở GitHub issue điền sẵn.

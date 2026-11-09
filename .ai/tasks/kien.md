@@ -27,10 +27,10 @@ WP-01 (#7), WP-02 ogen (#11), WP-03 store/secrets/audit/exec (#12), #14 (đổi 
 2. WP-11 sensor-passive (cần `core/observe`) → giao thức sensor mTLS (WP core riêng, `docs/specs/sensor-protocol.md`) → WP-12 sensor-active → WP-07 host (rà Opus) → WP-13 response (rà Opus), WP-14 honeypot → WP-08 đóng gói → WP-30 E2E backend thật module của Kiên → WP-31 rà bảo mật SYS-1..8 + D-41 → WP-32 RUNBOOK.
 
 ## Số quyết định
-D-59 khung Go · D-60 ogen · D-61 không Actions (đã thay) · D-62 make check · D-63 repo public + CI · D-64 e2e chỉ tính năng mới · D-65 chồng lấn → Kiên · D-66 tín hiệu ẩn danh ≥ 2 thiết bị · D-67..D-70 quyết định của Emily (notify, feeds, findings, ai) · D-71 thời hạn phiên idle 4 h / tuyệt đối 7 ngày + giới hạn đăng nhập (nhánh core-auth). Tiếp theo: **D-72**.
+D-59 khung Go · D-60 ogen · D-61 không Actions (đã thay) · D-62 make check · D-63 repo public + CI · D-64 e2e chỉ tính năng mới · D-65 chồng lấn → Kiên · D-66 tín hiệu ẩn danh ≥ 2 thiết bị · D-67..D-70 quyết định của Emily (notify, feeds, findings, ai) · D-71 thời hạn phiên idle 4 h / tuyệt đối 7 ngày + giới hạn đăng nhập (nhánh core-auth). D-72, D-73 (nhánh inventory: xuất dữ liệu ghi audit; lỗi schema trả `invalid` kèm đường dẫn trường) · D-74 phân vân → top-tier · D-75 mã cài đặt một lần · D-76 bật 2FA nhập lại mật khẩu. Tiếp theo: **D-77**.
 
 ## Câu hỏi đang chờ Kiên
-- B2: mã cài đặt một lần in ra console để chống chiếm `/setup` trong LAN (cần thêm một ô ở màn hình Setup → story mới). Chưa trả lời; WP-04b làm theo hợp đồng hiện tại.
+- Không có. Từ D-74: phân vân → tham khảo top-tier rồi tự quyết, chỉ hỏi khi rất đặc biệt. B2 đã quyết: có mã cài đặt một lần (D-75); bật 2FA đòi nhập lại mật khẩu (D-76); cả hai làm trong WP-04b phần 2.
 - Branch protection `main`: kien "chưa cần".
 
 ## Bẫy kỹ thuật đã gặp

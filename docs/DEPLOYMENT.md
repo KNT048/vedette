@@ -441,7 +441,7 @@ Kiểu Appliance, `deploy/install.sh` (idempotent; chạy lại không đổi g�
 | 2 | Cài gói ghim phiên bản (Podman, netavark, UFW nếu thiếu); cài `vedette-host` (gói/binary đã xác minh chữ ký) | `vedette-host` active; socket tồn tại, quyền 0660 `root:vedette` |
 | 3 | Tạo user hệ thống `vedette`, thư mục, khoá bí mật 0600 (`/etc/vedette/master.key`), khoá công khai cosign, `policy.json` bắt buộc chữ ký cho image của dự án | thử kéo image không ký bị từ chối |
 | 4 | Render và áp unit Quadlet; kéo image theo digest; khởi động `core` | `core` healthy trong 300 s; 8443 nghe **chỉ** trên IP quản trị |
-| 5 | In `https://<IP>:8443` và **mã cài đặt một lần** trên console | endpoint `/setup` từ chối khi thiếu mã (đề xuất, câu hỏi B2) |
+| 5 | In `https://<IP>:8443` và **mã cài đặt một lần** trên console | endpoint `/setup` từ chối khi thiếu mã (D-75) |
 | 6 | Trình hướng dẫn trên web (D-22, không SSH): tổ chức, quản trị viên + 2FA, dải LAN có **tiền tố** (D-32), ô cam kết quét (D-26), gói module (nhỏ/vừa/đầy đủ/tuỳ chọn), kênh thông báo, AI (tuỳ chọn), Box network (D-56) | mỗi bước ghi `core_audit`; module tắt không có container chạy |
 | 7 | Thiết bị đầu tiên "This box" xuất hiện trong kho (D-53, S-INV-5) | danh sách gói dpkg có, không xoá được |
 | 8 | Kéo feed lần đầu | `feeds` báo thành công cho nguồn bật; ≤ 5 MB/giờ sau đó |
@@ -548,7 +548,7 @@ Quy ước: dev trên macOS dùng Docker Desktop/Podman machine: không có mạ
 | # | Câu hỏi |
 |---|---|
 | B1 | Thêm endpoint health vào `api/openapi.json` (ví dụ `GET /api/v1/health` không cần đăng nhập, trả tối thiểu) và quy ước trong `API_CONVENTIONS.md`. |
-| B2 | Mã cài đặt một lần in trên console để chống kẻ trong LAN chiếm `/setup` trước admin thật. Có chấp nhận không? |
+| B2 | ~~Mã cài đặt một lần in trên console để chống kẻ trong LAN chiếm `/setup` trước admin thật. Có chấp nhận không?~~ **Đã quyết: có (D-75).** |
 | B3 | Chứng chỉ TLS 8443: tự ký + cho tải lên (đề xuất) hay ACME nội bộ? |
 | B4 | Có chấp nhận Podman rootful trên appliance (§12) hay bắt buộc rootless và chịu thêm shim? Cần PoC. |
 | B5 | Chặn egress của honeypot (macvlan không qua netfilter host): nftables bảng `netdev` trên NIC cha, hay chấp nhận rủi ro với cert mTLS riêng? |

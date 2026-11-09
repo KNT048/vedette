@@ -18,6 +18,9 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
+// only drops the renewed session of a call that returns one: these tests care about the error alone.
+func only(_ auth.Issued, err error) error { return err }
+
 func apiCode(t *testing.T, err error, status int, code string) {
 	t.Helper()
 	e, ok := apierr.As(err)
@@ -77,7 +80,7 @@ func TestContract_INV7_UserRules(t *testing.T) {
 	if _, err := env.Svc.StartEmail2FA(ctx, v.ID, "", temp); err != nil {
 		t.Fatal(err)
 	}
-	if err := env.Svc.ConfirmEmail2FA(ctx, v.ID, "", env.Mailer.LastCode()); err != nil {
+	if err := only(env.Svc.ConfirmEmail2FA(ctx, v.ID, "", env.Mailer.LastCode())); err != nil {
 		t.Fatal(err)
 	}
 	env.Clock.Advance(2 * time.Minute)
@@ -99,7 +102,7 @@ func TestContract_INV7_UserRules(t *testing.T) {
 	}
 	if res, err := env.Svc.Login(ctx, auth.LoginRequest{Email: v.Email, Password: temp, IP: home}); err != nil {
 		t.Fatal(err)
-	} else if err := env.Svc.DisableTwoFA(ctx, v.ID, res.Session.SessionID, temp); err == nil {
+	} else if err := only(env.Svc.DisableTwoFA(ctx, v.ID, res.Session.SessionID, temp)); err == nil {
 		t.Fatal("DisableTwoFA must refuse while two-step is off")
 	}
 	var hash string
@@ -131,7 +134,7 @@ func TestContract_INV8_TwoStep(t *testing.T) {
 		t.Fatal(err)
 	}
 	key := mustBase32(t, setup.Secret)
-	if err := env.Svc.ConfirmTOTP(ctx, app.ID, "", auth.TOTPCode(key, auth.TOTPStep(env.Clock.Now()))); err != nil {
+	if err := only(env.Svc.ConfirmTOTP(ctx, app.ID, "", auth.TOTPCode(key, auth.TOTPStep(env.Clock.Now())))); err != nil {
 		t.Fatal(err)
 	}
 	for _, code := range []string{"", "000000", "12345"} {
@@ -148,7 +151,7 @@ func TestContract_INV8_TwoStep(t *testing.T) {
 	if _, err := env.Svc.StartEmail2FA(ctx, em.ID, "", authtest.Password); err != nil {
 		t.Fatal(err)
 	}
-	if err := env.Svc.ConfirmEmail2FA(ctx, em.ID, "", env.Mailer.LastCode()); err != nil {
+	if err := only(env.Svc.ConfirmEmail2FA(ctx, em.ID, "", env.Mailer.LastCode())); err != nil {
 		t.Fatal(err)
 	}
 	env.Clock.Advance(2 * time.Minute)
@@ -200,7 +203,7 @@ func TestContract_INV8_TwoStep(t *testing.T) {
 	}
 }
 
-// INV-9: the only cookies are vedette_session (HttpOnly) and vedette_csrf, both Secure and SameSite=Strict;
+// INV-9: the only cookies are __Host-vedette_session (HttpOnly) and __Host-vedette_csrf, both Secure and SameSite=Strict;
 // the server keeps only SHA-256 of their values.
 func TestContract_INV9_Cookies(t *testing.T) {
 	t.Parallel()
@@ -216,11 +219,11 @@ func TestContract_INV9_Cookies(t *testing.T) {
 		if !c.Secure || c.SameSite != http.SameSiteStrictMode || c.Path != "/" || c.Domain != "" {
 			t.Errorf("cookie %s = %+v", c.Name, c)
 		}
-		if (c.Name == "vedette_session") != c.HttpOnly {
+		if (c.Name == "__Host-vedette_session") != c.HttpOnly {
 			t.Errorf("cookie %s HttpOnly = %v", c.Name, c.HttpOnly)
 		}
 	}
-	if len(names) != 2 || !names["vedette_session"] || !names["vedette_csrf"] {
+	if len(names) != 2 || !names["__Host-vedette_session"] || !names["__Host-vedette_csrf"] {
 		t.Fatalf("cookie names = %v", names)
 	}
 	if env.Count(t, "SELECT count(*) FROM core_session WHERE instr(token_hash || csrf_hash, ?) > 0 OR instr(token_hash || csrf_hash, ?) > 0", res.Session.Token, res.Session.CSRFToken) != 0 {

@@ -1,6 +1,8 @@
 package core_test
 
 import (
+	"fmt"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -289,4 +291,142 @@ func TestEndToEnd_SetupLoginMePasswordLogout(t *testing.T) {
 	if res, err := auditVerify(t, w); err != nil || !res {
 		t.Fatalf("the audit chain does not verify: %v", err)
 	}
+}
+
+// A wrong password typed to turn two-step on, off or to change the password leaves auth.reauth_failed in the
+// audit log: a stolen session guessing the password is visible to the administrator, as a wrong sign-in is.
+func TestAccount_WrongReauthPasswordIsAudited(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	c, _ := w.signIn("ann@acme.example", "viewer")
+	for path, body := range map[string]map[string]any{
+		"/core/account/2fa/start":       {"password": "wrong password here"},
+		"/core/account/2fa/disable":     {"password": "wrong password here"},
+		"/core/account/password":        {"current": "wrong password here", "next": "a brand new long password"},
+		"/core/account/2fa/email/start": {"password": "wrong password here"},
+	} {
+		before := w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'auth.reauth_failed'")
+		wantStatus(t, c.post(path, body), 400, "wrong_password")
+		if w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'auth.reauth_failed'") != before+1 {
+			t.Errorf("a wrong password at %s left no auth.reauth_failed row", path)
+		}
+	}
+}
+
+// Through HTTP, a second session of the owner (a stolen cookie) cannot try codes without bound against the
+// authenticator key the owner started: five wrong codes drop the pending key, and the right one is then too
+// late. (Before, 30 wrong codes were shown unlimited and the hit ended the owner's own sessions.)
+func TestAccount_ConfirmTOTPGuessingByAnotherSessionIsBounded(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	owner, u := w.signIn("ann@acme.example", "viewer")
+	thief := w.client()
+	thief.remote = "198.51.100.7:1000"
+	wantOK(t, thief.login(u.Email), 200) // stands for a stolen session cookie
+	r := owner.post("/core/account/2fa/start", map[string]any{"password": authtest.Password})
+	wantOK(t, r, 200)
+	key := decodeBase32(t, r.str("secret"))
+	cur := auth.TOTPStep(w.env.Clock.Now())
+	valid := map[string]bool{}
+	for d := int64(-1); d <= 1; d++ {
+		valid[auth.TOTPCode(key, cur+d)] = true
+	}
+	var seen []string
+	for n, tried := 0, 0; tried < 30; n++ {
+		code := fmt.Sprintf("%06d", n)
+		if valid[code] {
+			continue
+		}
+		tried++
+		g := thief.post("/core/account/2fa/confirm", map[string]any{"code": code})
+		seen = append(seen, fmt.Sprintf("%d %s", g.Code, g.code()))
+	}
+	want := []string{"400 wrong_code", "400 wrong_code", "400 wrong_code", "400 wrong_code", "400 too_many_tries"}
+	for i := 5; i < 30; i++ {
+		want = append(want, "409 no_pending")
+	}
+	if strings.Join(seen, ",") != strings.Join(want, ",") {
+		t.Fatalf("answers to 30 wrong codes = %v", seen)
+	}
+	wantStatus(t, thief.post("/core/account/2fa/confirm", map[string]any{"code": auth.TOTPCode(key, cur)}), 409, "no_pending")
+	if owner.get("/me").Code != 200 || owner.get("/core/account").JSON["user"].(map[string]any)["twofa"] != false {
+		t.Fatal("the guessing changed the owner's account")
+	}
+}
+
+// Changing the password renews the session of the browser that did it: the response sets new session and CSRF
+// cookies (the user stays signed in), the old token ends, and so does a copy of it that someone else holds.
+// (OWASP Session Management: renew the session ID after a change of privilege or re-authentication.)
+func TestAccount_PasswordChangeRenewsTheCurrentSession(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	owner, _ := w.signIn("ann@acme.example", "viewer")
+	thief := w.client()
+	thief.remote = "198.51.100.7:1000"
+	thief.jar[auth.CookieSession] = owner.cookie(auth.CookieSession) // malware, an extension or a shared machine
+	thief.jar[auth.CookieCSRF] = owner.cookie(auth.CookieCSRF)
+	if thief.get("/me").Code != 200 {
+		t.Fatal("the copy does not work before the change")
+	}
+	oldSession, oldCSRF := owner.cookie(auth.CookieSession).Value, owner.cookie(auth.CookieCSRF).Value
+	r := owner.post("/core/account/password", map[string]any{"current": authtest.Password, "next": "a brand new long password"})
+	wantOK(t, r, 200)
+	set := map[string]*http.Cookie{}
+	for _, ck := range (&http.Response{Header: r.Header}).Cookies() {
+		set[ck.Name] = ck
+	}
+	for _, name := range []string{auth.CookieSession, auth.CookieCSRF} {
+		ck := set[name]
+		if ck == nil || ck.Value == "" || !ck.Secure || ck.Path != "/" || ck.Domain != "" || ck.SameSite != http.SameSiteStrictMode {
+			t.Fatalf("cookie %s after the change = %+v", name, ck)
+		}
+	}
+	if set[auth.CookieSession].Value == oldSession || set[auth.CookieCSRF].Value == oldCSRF || set[auth.CookieSession].HttpOnly != true || set[auth.CookieCSRF].HttpOnly {
+		t.Fatal("the cookies were not renewed, or lost an attribute")
+	}
+	if len(set) != 2 {
+		t.Fatalf("the change set %d cookies, want the session and CSRF ones", len(set))
+	}
+	if g := thief.get("/me"); g.Code != 401 {
+		t.Fatalf("a copy of the old session cookie = %d after the owner changed the password from that session", g.Code)
+	}
+	wantOK(t, owner.get("/me"), 200)                                                    // the owner stays signed in, with the new cookies
+	wantOK(t, owner.patch("/core/account", map[string]any{"name": "Ann Renewed"}), 200) // and the new CSRF token works
+}
+
+// Turning two-step on and off renews the session of the browser that did it, like a password change: the old
+// token (and a copy of it) ends, the other sessions end, and the browser keeps working on the new cookies.
+func TestAccount_TwoStepChangesRenewTheCurrentSession(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	owner, u := w.signIn("ann@acme.example", "viewer")
+	other := w.client()
+	wantOK(t, other.login(u.Email), 200)
+	copyOf := func() *client {
+		c := w.client()
+		c.jar[auth.CookieSession], c.jar[auth.CookieCSRF] = owner.cookie(auth.CookieSession), owner.cookie(auth.CookieCSRF)
+		return c
+	}
+
+	copyOn := copyOf()
+	r := owner.post("/core/account/2fa/start", map[string]any{"password": authtest.Password})
+	wantOK(t, r, 200)
+	key := decodeBase32(t, r.str("secret"))
+	before := owner.cookie(auth.CookieSession).Value
+	wantOK(t, owner.post("/core/account/2fa/confirm", map[string]any{"code": auth.TOTPCode(key, auth.TOTPStep(w.env.Clock.Now()))}), 200)
+	if owner.cookie(auth.CookieSession).Value == before {
+		t.Fatal("turning two-step on kept the session cookie")
+	}
+	if copyOn.get("/me").Code != 401 || other.get("/me").Code != 401 {
+		t.Fatal("the old cookie or another session survived turning two-step on")
+	}
+	wantOK(t, owner.get("/me"), 200)
+
+	copyOff := copyOf()
+	before = owner.cookie(auth.CookieSession).Value
+	wantOK(t, owner.post("/core/account/2fa/disable", map[string]any{"password": authtest.Password}), 200)
+	if owner.cookie(auth.CookieSession).Value == before || copyOff.get("/me").Code != 401 {
+		t.Fatal("turning two-step off kept the session cookie, or a copy of it still works")
+	}
+	wantOK(t, owner.get("/me"), 200)
 }

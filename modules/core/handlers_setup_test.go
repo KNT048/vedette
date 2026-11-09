@@ -1,8 +1,10 @@
 package core_test
 
 import (
+	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/knt048/vedette/core/auth/authtest"
@@ -165,7 +167,7 @@ func TestContract_INV15_SetupHappyPath(t *testing.T) {
 	if r.JSON["ok"] != true {
 		t.Fatalf("setup = %s", r.Raw)
 	}
-	if !c.signedIn() || c.cookie("vedette_csrf") == nil {
+	if !c.signedIn() || c.cookie("__Host-vedette_csrf") == nil {
 		t.Fatal("setup did not sign the administrator in")
 	}
 	me := c.get("/me")
@@ -309,4 +311,87 @@ func tsBundle(t *testing.T, src, name string) []string {
 		}
 	}
 	return ids
+}
+
+// Review of WP-04b part 2 (M3, D-75 amended): wrong setup codes are counted per client address, so a
+// stranger who reaches the port before the owner cannot keep setup closed for everyone. (One global counter
+// let 10 wrong guesses, then one per lifted wait, answer 429 to the owner at another address with the right code.)
+func TestSetup_ACodeGuesserCannotLockTheOwnerOut(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	code := w.openSetup()
+	attacker := w.client()
+	attacker.remote = "198.51.100.66:4444"
+	for range 10 {
+		wantStatus(t, attacker.post("/core/setup", setupBody("AAAAA-AAAAA-AAAAA-AAAAA")), 403, "invalid_setup_code")
+	}
+	wantStatus(t, attacker.post("/core/setup", setupBody("AAAAA-AAAAA-AAAAA-AAAAA")), 429, "rate_limited") // the guesser is the one who waits
+	owner := w.client()                                                                                    // another machine on the LAN, holding the code from the box's log
+	r := owner.post("/core/setup", setupBody(code))
+	if r.Code != 200 {
+		t.Fatalf("the owner with the right code from another address = %d %s: one guesser keeps setup closed", r.Code, r.Raw)
+	}
+}
+
+// INV-15, the order of the mock: after setup every POST /core/setup is 409 already_setup, sample or not.
+func TestSetup_SampleAfterSetupIsAlreadySetup(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	w.setupAdmin()
+	wantStatus(t, w.client().post("/core/setup", map[string]any{"sample": true}), 409, "already_setup")
+	// Before setup the build has no sample data.
+	w2 := newWorld(t)
+	w2.openSetup()
+	wantStatus(t, w2.client().post("/core/setup", map[string]any{"sample": true}), 400, "sample_unavailable")
+}
+
+// Concurrent setups with the right code create exactly one administrator, and every loser is told the truth:
+// 409 already_setup (or 503 server_busy when the hashing slots are taken), never 403 invalid_setup_code for a
+// code that was right but already used up by the winner.
+func TestSetup_ConcurrentSetupsCreateOneAdminAndLosersAreTold409(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	code := w.openSetup()
+	const n = 6
+	codes := make([]int, n)
+	var wg sync.WaitGroup
+	for i := range n {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			b := setupBody(code)
+			b["admin"] = map[string]any{"name": "Admin", "email": fmt.Sprintf("admin%d@acme.example", i), "password": authtest.Password}
+			c := w.client()
+			c.remote = fmt.Sprintf("192.0.2.%d:5000", 20+i)
+			codes[i] = c.post("/core/setup", b).Code
+		}()
+	}
+	wg.Wait()
+	ok := 0
+	for _, c := range codes {
+		switch c {
+		case 200:
+			ok++
+		case 409, 503:
+		default:
+			t.Errorf("unexpected status %d in %v", c, codes)
+		}
+	}
+	if ok != 1 || w.env.Count(t, "SELECT count(*) FROM core_user") != 1 || w.env.Count(t, "SELECT count(*) FROM core_org") != 1 {
+		t.Fatalf("statuses %v: %d users", codes, w.env.Count(t, "SELECT count(*) FROM core_user"))
+	}
+}
+
+// The organization name refuses invisible format characters (a zero-width space cannot be typed back for the
+// purge confirmation), at setup as well as in general settings.
+func TestSetup_OrganizationNameRefusesInvisibleFormatCharacters(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	code := w.openSetup()
+	b := setupBody(code)
+	b["org"] = "Acme\u200B Co"
+	wantStatus(t, w.client().post("/core/setup", b), 400, "invalid_org")
+	b = setupBody(code)
+	b["admin"] = map[string]any{"name": "Ann\u202Enimda", "email": "admin@acme.example", "password": authtest.Password}
+	wantStatus(t, w.client().post("/core/setup", b), 400, "invalid_name")
 }

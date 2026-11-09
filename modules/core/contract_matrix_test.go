@@ -2,9 +2,16 @@ package core_test
 
 import (
 	"net/http"
+	"reflect"
+	"slices"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/api/routes"
+	"github.com/knt048/vedette/core/auth"
+	"github.com/knt048/vedette/core/auth/authtest"
+	"github.com/knt048/vedette/modules/core"
 )
 
 // matrixRoute is one route of core that this package implements, with the role CONTRACT.md gives it and a
@@ -126,50 +133,157 @@ func TestContract_RoleAndAuthMatrix(t *testing.T) {
 	}
 }
 
-// Every mutation of every route above wrote core_audit in the same transaction (INV-2, SYS-3): the routes
-// that change state, run with valid input, each leave a row.
+// auditStep is one state-changing operation of core, run with valid input; run is the call alone (the state it
+// needs is made before), and world is the world whose log it writes (the main one when nil).
+type auditStep struct {
+	op    string
+	world *world
+	run   func() reply
+}
+
+// implementedCoreMutations returns the operations of the core tag that change state (every method but GET)
+// and that this package has a handler for: the method set of the handlers is the source, so a route added
+// to the contract and implemented here cannot be missed by INV-2's harness. The ogen method name of an
+// operation is its operationId in CamelCase, so both compare as lower-case letters and digits.
+func implementedCoreMutations(t *testing.T, w *world) []string {
+	t.Helper()
+	have := map[string]bool{}
+	for _, v := range []any{w.h, core.NewModuleHandlers(w.env.DB, w.reg)} {
+		typ := reflect.TypeOf(v)
+		for i := range typ.NumMethod() {
+			have[strings.ToLower(typ.Method(i).Name)] = true
+		}
+	}
+	var out []string
+	for id, o := range routes.Operations {
+		if o.Tag == "core" && o.Method != http.MethodGet && have[strings.ReplaceAll(id, "_", "")] {
+			out = append(out, id)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+// Every state-changing operation of core that this package implements wrote core_audit in the same
+// transaction (INV-2, SYS-3): each one, run with valid input, leaves a row. The list of operations to run
+// comes from the route table and the handlers (implementedCoreMutations), not from a hand-written list: an
+// operation without a step here fails the test, and so does a step for an operation that does not exist.
 func TestContract_INV2_EveryCoreMutationIsAudited(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t)
 	admin := w.setupAdmin()
-	rows := func() int { return w.env.Count(t, "SELECT count(*) FROM core_audit") }
-	step := func(name string, f func() reply) {
-		t.Helper()
-		before := rows()
-		r := f()
-		if r.Code >= 400 {
-			t.Fatalf("%s = %d %s", name, r.Code, r.Raw)
-		}
-		if rows() <= before {
-			t.Errorf("%s changed state and left no core_audit row", name)
+	const adminEmail = "admin@acme.example"
+	// State the steps need, made before any row is counted: other sessions of the administrator, and a user
+	// with two-step sign-in on.
+	c2, c3, c4 := w.client(), w.client(), w.client()
+	wantOK(t, c2.login(adminEmail), 200)
+	var c2ID string
+	for _, s := range admin.get("/core/account").JSON["sessions"].([]any) { // the only other session is c2's
+		if m := s.(map[string]any); m["current"] == false {
+			c2ID = m["id"].(string)
 		}
 	}
+	wantOK(t, c3.login(adminEmail), 200)
+	wantOK(t, c4.login(adminEmail), 200)
+	cy := w.env.User(t, "cy@acme.example", routes.Viewer)
+	cySetup, err := w.env.Svc.StartTOTP(t.Context(), cy.ID, "", authtest.Password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := only(w.env.Svc.ConfirmTOTP(t.Context(), cy.ID, "", auth.TOTPCode(decodeBase32(t, cySetup.Secret), auth.TOTPStep(w.env.Clock.Now())))); err != nil {
+		t.Fatal(err)
+	}
+	// The first-run setup needs a box of its own.
+	w2 := newWorld(t)
+	code2 := w2.openSetup()
+
 	var bobID string
-	step("POST /core/users", func() reply {
-		r := admin.post("/core/users", map[string]any{"name": "Bob", "email": "bob@acme.example", "role": "viewer"})
-		bobID, _ = r.JSON["user"].(map[string]any)["id"].(string)
-		return r
-	})
-	step("PATCH /core/users/{id}", func() reply { return admin.patch("/core/users/"+bobID, map[string]any{"role": "operator"}) })
-	step("POST /core/users/{id}/reset-password", func() reply { return admin.post("/core/users/"+bobID+"/reset-password", nil) })
-	step("PUT /core/general", func() reply { return admin.putGeneral(map[string]any{"name": "Acme 2", "timezone": "UTC"}) })
-	step("PATCH /core/account", func() reply { return admin.patch("/core/account", map[string]any{"name": "Ann 2"}) })
-	step("POST /core/account/password", func() reply {
-		return admin.post("/core/account/password", map[string]any{"current": "correct horse battery staple", "next": "a brand new long password"})
-	})
-	step("PATCH /modules/{id}", func() reply {
-		return admin.patch("/modules/ai", map[string]any{"enabled": true, "with_dependencies": true})
-	})
-	step("POST /core/account/2fa/email/start", func() reply {
-		return admin.post("/core/account/2fa/email/start", map[string]any{"password": "a brand new long password"})
-	})
-	step("POST /core/account/2fa/email/confirm", func() reply {
-		return admin.post("/core/account/2fa/email/confirm", map[string]any{"code": w.env.Mailer.LastCode()})
-	})
+	var totpKey []byte
+	const newPassword = "a brand new long password"
+	steps := []auditStep{
+		{"core_post_core_setup", w2, func() reply { return w2.client().post("/core/setup", setupBody(code2)) }},
+		{"core_post_auth_login", nil, func() reply { return w.client().login(adminEmail) }},
+		{"core_delete_core_account_sessions_id", nil, func() reply { return admin.delete("/core/account/sessions/" + c2ID) }},
+		{"core_post_auth_logout", nil, func() reply { return c4.post("/auth/logout", nil) }},
+		{"core_post_core_account_sessions_revoke_others", nil, func() reply { return admin.post("/core/account/sessions/revoke-others", nil) }},
+		{"core_post_core_users", nil, func() reply {
+			r := admin.post("/core/users", map[string]any{"name": "Bob", "email": "bob@acme.example", "role": "viewer"})
+			bobID, _ = r.JSON["user"].(map[string]any)["id"].(string)
+			return r
+		}},
+		{"core_patch_core_users_id", nil, func() reply { return admin.patch("/core/users/"+bobID, map[string]any{"role": "operator"}) }},
+		{"core_post_core_users_id_reset_password", nil, func() reply { return admin.post("/core/users/"+bobID+"/reset-password", nil) }},
+		{"core_post_core_users_id_2fa_reset", nil, func() reply { return admin.post("/core/users/"+cy.ID+"/2fa/reset", nil) }},
+		{"core_put_core_general", nil, func() reply { return admin.putGeneral(map[string]any{"name": "Acme 2", "timezone": "UTC"}) }},
+		{"core_patch_core_account", nil, func() reply { return admin.patch("/core/account", map[string]any{"name": "Ann 2"}) }},
+		{"core_post_core_account_password", nil, func() reply {
+			return admin.post("/core/account/password", map[string]any{"current": authtest.Password, "next": newPassword})
+		}},
+		{"core_patch_modules_id", nil, func() reply {
+			return admin.patch("/modules/ai", map[string]any{"enabled": true, "with_dependencies": true})
+		}},
+		{"core_post_core_account_2fa_start", nil, func() reply {
+			r := admin.post("/core/account/2fa/start", map[string]any{"password": newPassword})
+			totpKey = decodeBase32(t, r.str("secret"))
+			return r
+		}},
+		{"core_post_core_account_2fa_confirm", nil, func() reply {
+			return admin.post("/core/account/2fa/confirm", map[string]any{"code": auth.TOTPCode(totpKey, auth.TOTPStep(w.env.Clock.Now()))})
+		}},
+		{"core_post_core_account_2fa_disable", nil, func() reply {
+			return admin.post("/core/account/2fa/disable", map[string]any{"password": newPassword})
+		}},
+		{"core_post_core_account_2fa_email_start", nil, func() reply {
+			return admin.post("/core/account/2fa/email/start", map[string]any{"password": newPassword})
+		}},
+		{"core_post_core_account_2fa_email_confirm", nil, func() reply {
+			return admin.post("/core/account/2fa/email/confirm", map[string]any{"code": w.env.Mailer.LastCode()})
+		}},
+		{"core_post_auth_login_resend_code", nil, func() reply {
+			w.env.Clock.Advance(2 * time.Minute) // past the resend wait of the code mailed above
+			return w.client().post("/auth/login/resend-code", map[string]any{"email": adminEmail, "password": newPassword})
+		}},
+	}
+
+	byOp := map[string]bool{}
+	for _, st := range steps {
+		if _, ok := routes.Operations[st.op]; !ok {
+			t.Errorf("step %q is not an operation of the contract", st.op)
+		}
+		if byOp[st.op] {
+			t.Errorf("two steps for %q", st.op)
+		}
+		byOp[st.op] = true
+	}
+	implemented := implementedCoreMutations(t, w)
+	for _, op := range implemented {
+		if !byOp[op] {
+			t.Errorf("%s is implemented and changes state, and has no step here: add one that shows it writes core_audit", op)
+		}
+	}
+	for op := range byOp {
+		if !slices.Contains(implemented, op) {
+			t.Errorf("step %q is for an operation this package does not implement (or the handler lookup is broken)", op)
+		}
+	}
+	for _, st := range steps {
+		sw := st.world
+		if sw == nil {
+			sw = w
+		}
+		before := sw.env.Count(t, "SELECT count(*) FROM core_audit")
+		r := st.run()
+		if r.Code >= 400 {
+			t.Fatalf("%s = %d %s", st.op, r.Code, r.Raw)
+		}
+		if sw.env.Count(t, "SELECT count(*) FROM core_audit") <= before {
+			t.Errorf("%s changed state and left no core_audit row", st.op)
+		}
+	}
 	// Refused requests change nothing and leave no row.
-	before := rows()
+	before := w.env.Count(t, "SELECT count(*) FROM core_audit")
 	wantStatus(t, admin.post("/core/users/"+bobID+"/2fa/reset", nil), 409, "not_on")
-	if rows() != before {
+	if w.env.Count(t, "SELECT count(*) FROM core_audit") != before {
 		t.Error("a refused reset left a core_audit row")
 	}
 }

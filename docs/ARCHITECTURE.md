@@ -165,7 +165,7 @@ Ngoại lệ không mở rộng sang `vedette-host`: AI không bao giờ gọi `
 
 | Ranh giới | Bên kia | Kiểm soát chính |
 |---|---|---|
-| TB-1 trình duyệt ↔ core | người dùng trong LAN | TLS (chứng chỉ riêng hoặc tự ký lúc khởi động đầu, `-tls-cert`/`-tls-key`; HTTP thuần chỉ trên loopback), danh sách Host cho phép (421, `-hosts`), cookie `vedette_session` (Secure/HttpOnly/SameSite=Strict) + CSRF + cookie thiết bị `vedette_device` (D-77), 2FA (D-35), RBAC, CSP không inline, rate limit |
+| TB-1 trình duyệt ↔ core | người dùng trong LAN | TLS (chứng chỉ riêng hoặc tự ký lúc khởi động đầu, `-tls-cert`/`-tls-key`; HTTP thuần chỉ trên loopback), danh sách Host cho phép (421, `-hosts`), cookie `__Host-vedette_session` (Secure/HttpOnly/SameSite=Strict) + CSRF + cookie thiết bị `__Secure-vedette_device` (D-77), 2FA (D-35), RBAC, CSP không inline, rate limit |
 | TB-2 core ↔ nguồn feed | dữ liệu Internet | HTTPS, giới hạn size/time, parser fail-closed, kiểm tra an toàn |
 | TB-3 hộp ↔ thiết bị LAN | thiết bị có thể bị chiếm | banner/syslog/agent không tin cậy; quét chỉ đọc trong phạm vi |
 | TB-4 harness ↔ provider AI | dịch vụ ngoài | chỉ khi cấu hình; che PII; hồ sơ nội bộ; output theo schema |

@@ -35,20 +35,20 @@ func TestLogin_SetsOnlyTheThreeCookies(t *testing.T) {
 	for _, ck := range (&http.Response{Header: rec.Header}).Cookies() {
 		got[ck.Name] = ck
 	}
-	if len(got) != 3 || got["vedette_session"] == nil || got["vedette_csrf"] == nil || got["vedette_device"] == nil {
+	if len(got) != 3 || got["__Host-vedette_session"] == nil || got["__Host-vedette_csrf"] == nil || got["__Secure-vedette_device"] == nil {
 		t.Fatalf("cookies = %v", rec.Header.Values("Set-Cookie"))
 	}
 	type attr struct {
 		httpOnly bool
 		path     string
 	}
-	for name, want := range map[string]attr{"vedette_session": {true, "/"}, "vedette_csrf": {false, "/"}, "vedette_device": {true, "/api/v1/auth/"}} {
+	for name, want := range map[string]attr{"__Host-vedette_session": {true, "/"}, "__Host-vedette_csrf": {false, "/"}, "__Secure-vedette_device": {true, "/api/v1/auth/"}} {
 		ck := got[name]
 		if ck.HttpOnly != want.httpOnly || !ck.Secure || ck.SameSite != http.SameSiteStrictMode || ck.Path != want.path || ck.Domain != "" || ck.MaxAge <= 0 {
 			t.Errorf("%s = %+v", name, ck)
 		}
 	}
-	if len(got["vedette_session"].Value) != 43 || len(got["vedette_csrf"].Value) != 43 || got["vedette_session"].Value == got["vedette_csrf"].Value {
+	if len(got["__Host-vedette_session"].Value) != 43 || len(got["__Host-vedette_csrf"].Value) != 43 || got["__Host-vedette_session"].Value == got["__Host-vedette_csrf"].Value {
 		t.Error("session and CSRF tokens must be two distinct 256-bit values")
 	}
 	if rec.Header.Get("Cache-Control") != "no-store" {
@@ -208,7 +208,7 @@ func TestLogout_ClearsCookiesAndNeverFails(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t)
 	c, _ := w.signIn("ann@acme.example", "viewer")
-	sess := c.cookie("vedette_session").Value
+	sess := c.cookie("__Host-vedette_session").Value
 	rec := c.post("/auth/logout", nil)
 	if rec.Code != 204 || rec.Raw != "" {
 		t.Fatalf("logout = %d %q", rec.Code, rec.Raw)
@@ -219,7 +219,7 @@ func TestLogout_ClearsCookiesAndNeverFails(t *testing.T) {
 			cleared[ck.Name] = true
 		}
 	}
-	if !cleared["vedette_session"] || !cleared["vedette_csrf"] || cleared["vedette_device"] {
+	if !cleared["__Host-vedette_session"] || !cleared["__Host-vedette_csrf"] || cleared["__Secure-vedette_device"] {
 		t.Fatalf("cleared cookies = %v (%v)", cleared, rec.Header.Values("Set-Cookie"))
 	}
 	if c.signedIn() {
@@ -227,12 +227,12 @@ func TestLogout_ClearsCookiesAndNeverFails(t *testing.T) {
 	}
 	// The old cookie value is dead on the server too.
 	old := w.client()
-	old.jar["vedette_session"] = &http.Cookie{Name: "vedette_session", Value: sess, Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode}
+	old.jar["__Host-vedette_session"] = &http.Cookie{Name: "__Host-vedette_session", Value: sess, Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode}
 	wantStatus(t, old.get("/me"), 401, "unauthenticated")
 	// Already out, no cookie at all, garbage cookie: all 204.
 	for _, cl := range []*client{c, w.client(), func() *client {
 		g := w.client()
-		g.jar["vedette_session"] = &http.Cookie{Name: "vedette_session", Value: "garbage", Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode}
+		g.jar["__Host-vedette_session"] = &http.Cookie{Name: "__Host-vedette_session", Value: "garbage", Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode}
 		return g
 	}()} {
 		if r := cl.post("/auth/logout", nil); r.Code != 204 {
@@ -263,14 +263,14 @@ func TestContract_INV9_HTTPOnlyTheNamedCookies(t *testing.T) {
 		r := f()
 		for _, ck := range (&http.Response{Header: r.Header}).Cookies() {
 			switch ck.Name {
-			case "vedette_session", "vedette_csrf", "vedette_device":
+			case "__Host-vedette_session", "__Host-vedette_csrf", "__Secure-vedette_device":
 			default:
 				t.Errorf("unexpected cookie %q", ck.Name)
 			}
 		}
 	}
 	for name := range c.seen {
-		if name != "vedette_session" && name != "vedette_csrf" && name != "vedette_device" {
+		if name != "__Host-vedette_session" && name != "__Host-vedette_csrf" && name != "__Secure-vedette_device" {
 			t.Errorf("seen cookie %q", name)
 		}
 	}
@@ -284,7 +284,7 @@ func TestContract_INV9_HTTPDeviceCookieBeatsTheInsider(t *testing.T) {
 	owner := w.client()
 	owner.remote = "[2001:db8:0:1::2]:5000"
 	wantOK(t, owner.login("admin@acme.example"), 200)
-	if owner.cookie("vedette_device") == nil {
+	if owner.cookie("__Secure-vedette_device") == nil {
 		t.Fatal("no device cookie")
 	}
 	insider := w.client()
@@ -299,7 +299,7 @@ func TestContract_INV9_HTTPDeviceCookieBeatsTheInsider(t *testing.T) {
 		t.Fatal("429 without Retry-After")
 	}
 	owner.dropSession()
-	wantOK(t, owner.login("admin@acme.example"), 200) // sends vedette_device, which only reaches /api/v1/auth/*
+	wantOK(t, owner.login("admin@acme.example"), 200) // sends __Secure-vedette_device, which only reaches /api/v1/auth/*
 	if !owner.signedIn() {
 		t.Fatal("the owner with a device cookie was locked out")
 	}

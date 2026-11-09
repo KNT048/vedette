@@ -109,3 +109,14 @@ func setSession(x server.Exchange, s auth.Issued, device string) {
 }
 
 func isNoRows(err error) bool { return errors.Is(err, sql.ErrNoRows) }
+
+// renewSession sends the cookies of the session that replaced the caller's (password change, two-step turned
+// on or off): the old tokens no longer work, the user stays signed in.
+func renewSession(ctx context.Context, fresh auth.Issued) error {
+	x, ok := server.ExchangeFrom(ctx)
+	if !ok {
+		return errors.New("core: no HTTP exchange in the request context")
+	}
+	setSession(x, fresh, "")
+	return nil
+}

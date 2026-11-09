@@ -27,7 +27,7 @@ func TestDisableTwoFARefusesADeadSessionBeforeTheStalePassword(t *testing.T) {
 	if _, err := env.Svc.StartEmail2FA(t.Context(), u.ID, sid, authtest.Password); err != nil {
 		t.Fatal(err)
 	}
-	if err := env.Svc.ConfirmEmail2FA(t.Context(), u.ID, sid, env.Mailer.LastCode()); err != nil {
+	if err := only(env.Svc.ConfirmEmail2FA(t.Context(), u.ID, sid, env.Mailer.LastCode())); err != nil {
 		t.Fatal(err)
 	}
 	var armed, fired atomic.Bool
@@ -39,7 +39,7 @@ func TestDisableTwoFARefusesADeadSessionBeforeTheStalePassword(t *testing.T) {
 		}
 	})
 	armed.Store(true)
-	wantAPI(t, env.Svc.DisableTwoFA(t.Context(), u.ID, sid, authtest.Password), 401, "unauthenticated")
+	wantAPI(t, only(env.Svc.DisableTwoFA(t.Context(), u.ID, sid, authtest.Password)), 401, "unauthenticated")
 	if !fired.Load() {
 		t.Fatal("the reset did not run in the window")
 	}
@@ -63,7 +63,7 @@ func TestAdminActionsRecheckTheActorInTheWriteTransaction(t *testing.T) {
 	if _, err := env.Svc.StartEmail2FA(ctx, v.ID, "", authtest.Password); err != nil {
 		t.Fatal(err)
 	}
-	if err := env.Svc.ConfirmEmail2FA(ctx, v.ID, "", env.Mailer.LastCode()); err != nil {
+	if err := only(env.Svc.ConfirmEmail2FA(ctx, v.ID, "", env.Mailer.LastCode())); err != nil {
 		t.Fatal(err)
 	}
 	yes := true

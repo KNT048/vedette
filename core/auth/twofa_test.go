@@ -3,6 +3,7 @@ package auth_test
 import (
 	"bytes"
 	"encoding/base32"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -27,7 +28,7 @@ func TestTOTPEnrolment(t *testing.T) {
 	u := env.User(t, "ann@acme.example", routes.Viewer)
 	ctx := t.Context()
 
-	wantAPI(t, env.Svc.ConfirmTOTP(ctx, u.ID, "", "123456"), 409, "no_pending")
+	wantAPI(t, only(env.Svc.ConfirmTOTP(ctx, u.ID, "", "123456")), 409, "no_pending")
 	setup, err := env.Svc.StartTOTP(ctx, u.ID, "", authtest.Password)
 	if err != nil {
 		t.Fatal(err)
@@ -42,8 +43,8 @@ func TestTOTPEnrolment(t *testing.T) {
 	if _, err := env.Login(t, u.Email, ""); err != nil {
 		t.Fatalf("unconfirmed key must not change sign-in: %v", err)
 	}
-	wantAPI(t, env.Svc.ConfirmTOTP(ctx, u.ID, "", "12 34"), 400, "invalid_code")
-	wantAPI(t, env.Svc.ConfirmTOTP(ctx, u.ID, "", auth.TOTPCode(secret, cur+5)), 400, "wrong_code")
+	wantAPI(t, only(env.Svc.ConfirmTOTP(ctx, u.ID, "", "12 34")), 400, "invalid_code")
+	wantAPI(t, only(env.Svc.ConfirmTOTP(ctx, u.ID, "", auth.TOTPCode(secret, cur+5))), 400, "wrong_code")
 
 	// A second Start replaces the first key (and does not leave the old sealed key behind).
 	setup2, err := env.Svc.StartTOTP(ctx, u.ID, "", authtest.Password)
@@ -53,16 +54,16 @@ func TestTOTPEnrolment(t *testing.T) {
 	if n := env.Count(t, "SELECT count(*) FROM core_secret WHERE purpose = 'core_user_totp'"); n != 1 {
 		t.Fatalf("%d sealed TOTP keys after a restart, want 1", n)
 	}
-	wantAPI(t, env.Svc.ConfirmTOTP(ctx, u.ID, "", auth.TOTPCode(secret, cur)), 400, "wrong_code") // the old key is dead
+	wantAPI(t, only(env.Svc.ConfirmTOTP(ctx, u.ID, "", auth.TOTPCode(secret, cur))), 400, "wrong_code") // the old key is dead
 
 	// A pending key expires after 10 minutes.
 	env.Clock.Advance(10*time.Minute + time.Second)
 	secret2 := b32(t, setup2.Secret)
-	wantAPI(t, env.Svc.ConfirmTOTP(ctx, u.ID, "", auth.TOTPCode(secret2, auth.TOTPStep(env.Clock.Now()))), 409, "no_pending")
+	wantAPI(t, only(env.Svc.ConfirmTOTP(ctx, u.ID, "", auth.TOTPCode(secret2, auth.TOTPStep(env.Clock.Now())))), 409, "no_pending")
 
 	setup3, _ := env.Svc.StartTOTP(ctx, u.ID, "", authtest.Password)
 	secret3 := b32(t, setup3.Secret)
-	if err := env.Svc.ConfirmTOTP(ctx, u.ID, "", " "+auth.TOTPCode(secret3, auth.TOTPStep(env.Clock.Now()))+" "); err != nil {
+	if err := only(env.Svc.ConfirmTOTP(ctx, u.ID, "", " "+auth.TOTPCode(secret3, auth.TOTPStep(env.Clock.Now()))+" ")); err != nil {
 		t.Fatal(err)
 	}
 	got, _ := env.Svc.GetUser(ctx, u.ID)
@@ -82,7 +83,7 @@ func TestTOTPEnrolment(t *testing.T) {
 	wantAPI(t, err, 409, "already_on")
 	_, err = env.Svc.StartEmail2FA(ctx, u.ID, "", authtest.Password)
 	wantAPI(t, err, 409, "already_on")
-	wantAPI(t, env.Svc.ConfirmTOTP(ctx, u.ID, "", "123456"), 409, "already_on")
+	wantAPI(t, only(env.Svc.ConfirmTOTP(ctx, u.ID, "", "123456")), 409, "already_on")
 	for _, a := range []string{"account.2fa_start", "account.2fa_on"} {
 		if env.Count(t, "SELECT count(*) FROM core_audit WHERE action = ?", a) == 0 {
 			t.Errorf("no %s audit row", a)
@@ -99,10 +100,10 @@ func TestEmailEnrolment(t *testing.T) {
 	env.Mailer.SetAvailable(false)
 	_, err := env.Svc.StartEmail2FA(ctx, u.ID, "", authtest.Password)
 	wantAPI(t, err, 409, "email_channel_not_ready")
-	wantAPI(t, env.Svc.ConfirmEmail2FA(ctx, u.ID, "", "123456"), 409, "email_channel_not_ready")
+	wantAPI(t, only(env.Svc.ConfirmEmail2FA(ctx, u.ID, "", "123456")), 409, "email_channel_not_ready")
 	env.Mailer.SetAvailable(true)
 
-	wantAPI(t, env.Svc.ConfirmEmail2FA(ctx, u.ID, "", "123456"), 400, "no_code")
+	wantAPI(t, only(env.Svc.ConfirmEmail2FA(ctx, u.ID, "", "123456")), 400, "no_code")
 	sent, err := env.Svc.StartEmail2FA(ctx, u.ID, "", authtest.Password)
 	if err != nil || sent.SentTo != "a•••@acme.example" || sent.ResendAfter != 60 {
 		t.Fatalf("start = %+v, %v", sent, err)
@@ -113,11 +114,11 @@ func TestEmailEnrolment(t *testing.T) {
 	if env.Mailer.LastCode() == wrong {
 		wrong = "111111"
 	}
-	wantAPI(t, env.Svc.ConfirmEmail2FA(ctx, u.ID, "", wrong), 400, "wrong_code")
+	wantAPI(t, only(env.Svc.ConfirmEmail2FA(ctx, u.ID, "", wrong)), 400, "wrong_code")
 	if got, _ := env.Svc.GetUser(ctx, u.ID); got.TwofaMethod != "" {
 		t.Fatal("two-step turned on with a wrong code")
 	}
-	if err := env.Svc.ConfirmEmail2FA(ctx, u.ID, "", env.Mailer.LastCode()); err != nil {
+	if err := only(env.Svc.ConfirmEmail2FA(ctx, u.ID, "", env.Mailer.LastCode())); err != nil {
 		t.Fatal(err)
 	}
 	if got, _ := env.Svc.GetUser(ctx, u.ID); got.TwofaMethod != "email" {
@@ -140,9 +141,9 @@ func TestDisableAndResetTwoFA(t *testing.T) {
 	}
 
 	// Disable: needs the password, and only when it is on.
-	wantAPI(t, env.Svc.DisableTwoFA(ctx, ann.ID, "", "not the password"), 400, "wrong_password")
-	wantAPI(t, env.Svc.DisableTwoFA(ctx, admin.ID, "", authtest.Password), 409, "not_on")
-	if err := env.Svc.DisableTwoFA(ctx, ann.ID, "", authtest.Password); err != nil {
+	wantAPI(t, only(env.Svc.DisableTwoFA(ctx, ann.ID, "", "not the password")), 400, "wrong_password")
+	wantAPI(t, only(env.Svc.DisableTwoFA(ctx, admin.ID, "", authtest.Password)), 409, "not_on")
+	if err := only(env.Svc.DisableTwoFA(ctx, ann.ID, "", authtest.Password)); err != nil {
 		t.Fatal(err)
 	}
 	if secretRows() != 0 || env.Count(t, "SELECT count(*) FROM core_user_totp") != 0 {
@@ -190,4 +191,88 @@ func userByEmail(t *testing.T, env *authtest.Env, email string) auth.User {
 		t.Fatal(err)
 	}
 	return u
+}
+
+// confirmWrongCodes sends n codes that are valid at no step the pending key accepts, through ConfirmTOTP,
+// and returns the error of the last one.
+func confirmWrongCodes(t *testing.T, env *authtest.Env, userID string, secret []byte, n int) error {
+	t.Helper()
+	cur := auth.TOTPStep(env.Clock.Now())
+	valid := map[string]bool{}
+	for d := int64(-1); d <= 1; d++ {
+		valid[auth.TOTPCode(secret, cur+d)] = true
+	}
+	var err error
+	for i, tried := 0, 0; tried < n; i++ {
+		code := fmt.Sprintf("%06d", i)
+		if valid[code] {
+			continue
+		}
+		tried++
+		err = only(env.Svc.ConfirmTOTP(t.Context(), userID, "", code))
+	}
+	return err
+}
+
+// Review of WP-04b part 2 (M2): a holder of any session of the account could try every 6-digit code at
+// network speed while the key was pending (three codes are valid at any time) and so turn two-step on and end
+// the owner's sessions. Five wrong codes now drop the pending key, like an emailed code.
+func TestConfirmTOTPDropsThePendingKeyAfterFiveWrongCodes(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	u := env.User(t, "ann@acme.example", routes.Viewer)
+	setup, err := env.Svc.StartTOTP(t.Context(), u.ID, "", authtest.Password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secret := b32(t, setup.Secret)
+	wantAPI(t, confirmWrongCodes(t, env, u.ID, secret, 4), 400, "wrong_code")
+	wantAPI(t, confirmWrongCodes(t, env, u.ID, secret, 1), 400, "too_many_tries")
+	if n := env.Count(t, "SELECT count(*) FROM core_secret WHERE purpose = 'core_user_totp'"); n != 0 {
+		t.Fatalf("%d sealed TOTP keys left after the key was dropped", n)
+	}
+	// Even the right code no longer works: the owner starts again with the password.
+	wantAPI(t, only(env.Svc.ConfirmTOTP(t.Context(), u.ID, "", auth.TOTPCode(secret, auth.TOTPStep(env.Clock.Now())))), 409, "no_pending")
+	again, err := env.Svc.StartTOTP(t.Context(), u.ID, "", authtest.Password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The new key has its own count: four wrong codes and the right one still turn it on.
+	secret2 := b32(t, again.Secret)
+	wantAPI(t, confirmWrongCodes(t, env, u.ID, secret2, 4), 400, "wrong_code")
+	if err := only(env.Svc.ConfirmTOTP(t.Context(), u.ID, "", auth.TOTPCode(secret2, auth.TOTPStep(env.Clock.Now())))); err != nil {
+		t.Fatalf("the right code after four wrong ones: %v", err)
+	}
+}
+
+// Review of WP-04b part 2 (M2): every confirm code is a guess on the account's two-step limiter (the one
+// of sign-in codes), so restarting the key with the password does not reset it.
+func TestConfirmTOTPGuessesShareTheAccountsTwoStepLimiter(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	u := env.User(t, "ann@acme.example", routes.Viewer)
+	var secret []byte
+	for range 2 { // 2 keys x 5 wrong codes = 10 guesses
+		setup, err := env.Svc.StartTOTP(t.Context(), u.ID, "", authtest.Password)
+		if err != nil {
+			t.Fatal(err)
+		}
+		secret = b32(t, setup.Secret)
+		wantAPI(t, confirmWrongCodes(t, env, u.ID, secret, 5), 400, "too_many_tries")
+	}
+	setup, err := env.Svc.StartTOTP(t.Context(), u.ID, "", authtest.Password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secret = b32(t, setup.Secret)
+	// Blocked: even the right code gets 429, and nothing was turned on.
+	wantAPI(t, only(env.Svc.ConfirmTOTP(t.Context(), u.ID, "", auth.TOTPCode(secret, auth.TOTPStep(env.Clock.Now())))), 429, "rate_limited")
+	if got, _ := env.Svc.GetUser(t.Context(), u.ID); got.TwofaMethod != "" {
+		t.Fatalf("two-step was turned on while blocked: %q", got.TwofaMethod)
+	}
+	// The wait is the sign-in one (30 s doubling, at most 10 minutes); after it the right code goes through.
+	env.Clock.Advance(10 * time.Minute)
+	if err := only(env.Svc.ConfirmTOTP(t.Context(), u.ID, "", auth.TOTPCode(secret, auth.TOTPStep(env.Clock.Now())))); err != nil {
+		t.Fatalf("after the wait: %v", err)
+	}
 }

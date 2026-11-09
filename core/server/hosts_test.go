@@ -60,3 +60,24 @@ func TestHostAllowlistCoversEveryRequest(t *testing.T) {
 		}
 	}
 }
+
+// A "*." entry matches like the wildcard of a certificate: one label, never the bare domain, never deeper,
+// never an IP literal. The default allowlist of an owner-supplied wildcard certificate is its names, so
+// without this a box with a certificate for *.corp.example answered 421 to its own name.
+func TestHostAllowlistWildcardMatchesOneLabel(t *testing.T) {
+	t.Parallel()
+	h := server.HostAllowlist([]string{"*.corp.example", "*.", "*.*.x.example", "*"}, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(204) }))
+	for host, want := range map[string]int{
+		"vedette.corp.example": 204, "vedette.corp.example:8443": 204, "VEDETTE.CORP.EXAMPLE.": 204, "a-1.corp.example": 204,
+		"a.b.corp.example": 421, "corp.example": 421, ".corp.example": 421, "xcorp.example": 421, "vedette.corp.example.evil.example": 421,
+		"*.corp.example": 421, "a*.corp.example": 421, "*": 421, "192.0.2.10": 421, "x.example": 421, "a.x.example": 421, "": 421,
+	} {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/setup", nil)
+		req.Host = host
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != want {
+			t.Errorf("Host %q = %d, want %d", host, rec.Code, want)
+		}
+	}
+}

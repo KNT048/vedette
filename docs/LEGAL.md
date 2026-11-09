@@ -27,7 +27,7 @@ kien, 2026-11-06: mọi thứ liên quan luật pháp, giấy phép, cookie ph�
 
 ## 4. Cookie và web
 
-- SPA của Vedette dùng **ba cookie, đều của chính hộp và cần cho đăng nhập**: cookie phiên (`vedette_session`, HttpOnly, Secure, SameSite=Strict), cookie CSRF (`vedette_csrf`, đọc được bởi SPA) và cookie thiết bị tin cậy (`vedette_device`, HttpOnly, chỉ gửi tới các endpoint đăng nhập, D-77), và và `localStorage` cho tuỳ chọn giao diện (ngôn ngữ, theme). Không cookie theo dõi, không analytics bên thứ ba, không font/CDN ngoài (font nhúng). Vì chỉ có cookie cần thiết, không cần banner; vẫn ghi rõ ở `PRIVACY.md` §4 và trang Cài đặt → Quyền riêng tư.
+- SPA của Vedette dùng **ba cookie, đều của chính hộp và cần cho đăng nhập**: cookie phiên (`__Host-vedette_session`, HttpOnly, Secure, SameSite=Strict), cookie CSRF (`__Host-vedette_csrf`, đọc được bởi SPA) và cookie thiết bị tin cậy (`__Secure-vedette_device`, HttpOnly, chỉ gửi tới các endpoint đăng nhập, D-77), và và `localStorage` cho tuỳ chọn giao diện (ngôn ngữ, theme). Không cookie theo dõi, không analytics bên thứ ba, không font/CDN ngoài (font nhúng). Vì chỉ có cookie cần thiết, không cần banner; vẫn ghi rõ ở `PRIVACY.md` §4 và trang Cài đặt → Quyền riêng tư.
 - ~~Site tĩnh công khai (bảng nóng trên Cloudflare Pages)~~: đã bỏ (D-36, D-81): dự án không chạy máy chủ nào ngoài GitHub.
 
 ## 5. Minh bạch với khách (bắt buộc trong UI)

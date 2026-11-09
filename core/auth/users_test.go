@@ -174,24 +174,29 @@ func TestChangeOwnPassword(t *testing.T) {
 	u := env.User(t, "ann@acme.example", routes.Viewer)
 	keep, _ := env.Login(t, u.Email, "")
 	other, _ := env.Login(t, u.Email, "")
-	change := func(cur, next string) error {
+	change := func(cur, next string) (auth.Issued, error) {
 		return env.Svc.ChangeOwnPassword(t.Context(), u.ID, keep.Session.SessionID, cur, next)
 	}
 
-	wantAPI(t, change("not my password", "a brand new password"), 400, "wrong_password")
-	wantAPI(t, change(authtest.Password, "short"), 400, "weak_password")
-	wantAPI(t, change(authtest.Password, "ann@acme.example"), 400, "weak_password")
-	wantAPI(t, change(authtest.Password, authtest.Password), 400, "same_password")
-	if err := change(authtest.Password, "a brand new password"); err != nil {
+	wantAPI(t, only(change("not my password", "a brand new password")), 400, "wrong_password")
+	wantAPI(t, only(change(authtest.Password, "short")), 400, "weak_password")
+	wantAPI(t, only(change(authtest.Password, "ann@acme.example")), 400, "weak_password")
+	wantAPI(t, only(change(authtest.Password, authtest.Password)), 400, "same_password")
+	fresh, err := change(authtest.Password, "a brand new password")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := env.Svc.Sessions.Authenticate(reqWith(keep, "GET", "")); err != nil {
-		t.Fatalf("the current session ended: %v", err)
+	// The current session is renewed: its old token ends, the new one works.
+	if _, err := env.Svc.Sessions.Authenticate(reqWith(keep, "GET", "")); err == nil {
+		t.Fatal("the old token of the current session survived a password change")
+	}
+	if _, err := env.Svc.Sessions.Authenticate(reqWith(auth.LoginResult{Session: fresh}, "GET", "")); err != nil {
+		t.Fatalf("the renewed session does not work: %v", err)
 	}
 	if _, err := env.Svc.Sessions.Authenticate(reqWith(other, "GET", "")); err == nil {
 		t.Fatal("another session survived a password change")
 	}
-	_, err := env.Login(t, u.Email, "")
+	_, err = env.Login(t, u.Email, "")
 	wantAPI(t, err, 400, "invalid_credentials")
 	if _, err := env.Svc.Login(t.Context(), auth.LoginRequest{Email: u.Email, Password: "a brand new password", IP: ip("192.0.2.1")}); err != nil {
 		t.Fatal(err)
@@ -206,12 +211,97 @@ func TestOwnPasswordGuessesAreRateLimited(t *testing.T) {
 	env := authtest.New(t)
 	u := env.User(t, "ann@acme.example", routes.Viewer)
 	for range 10 {
-		wantAPI(t, env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", "guess guess guess", "a brand new password"), 400, "wrong_password")
+		wantAPI(t, only(env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", "guess guess guess", "a brand new password")), 400, "wrong_password")
 	}
-	wantAPI(t, env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", authtest.Password, "a brand new password"), 429, "rate_limited")
-	wantAPI(t, env.Svc.DisableTwoFA(t.Context(), u.ID, "", authtest.Password), 429, "rate_limited")
+	wantAPI(t, only(env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", authtest.Password, "a brand new password")), 429, "rate_limited")
+	wantAPI(t, only(env.Svc.DisableTwoFA(t.Context(), u.ID, "", authtest.Password)), 429, "rate_limited")
 	env.Clock.Advance(31 * time.Second)
-	if err := env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", authtest.Password, "a brand new password"); err != nil {
+	if err := only(env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", authtest.Password, "a brand new password")); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// Review of WP-04b part 2 (M1): the renewed session is the same browser (device text and address) with new
+// tokens, and it lives a full lifetime from now, like a new sign-in (the user has just proved the password).
+func TestRenewedSessionKeepsTheBrowserAndChangesEveryToken(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	u := env.User(t, "ann@acme.example", routes.Viewer)
+	res, err := env.Svc.Login(t.Context(), auth.LoginRequest{Email: u.Email, Password: authtest.Password, IP: ip("192.0.2.77"), UserAgent: "Firefox on a desk"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh, err := env.Svc.ChangeOwnPassword(t.Context(), u.ID, res.Session.SessionID, authtest.Password, "a brand new password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fresh.SessionID == res.Session.SessionID || fresh.Token == res.Session.Token || fresh.CSRFToken == res.Session.CSRFToken {
+		t.Fatalf("the renewed session shares something with the old one: %+v / %+v", fresh, res.Session)
+	}
+	list, err := env.Svc.Sessions.List(t.Context(), u.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].ID != fresh.SessionID || list[0].Device != "Firefox on a desk" || list[0].IP != "192.0.2.77" {
+		t.Fatalf("sessions after the change = %+v, want only the renewed one for the same browser", list)
+	}
+	// No current session (a caller without one): every session ends and nothing new is made.
+	none, err := env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", "a brand new password", "yet another long password")
+	if err != nil || none != (auth.Issued{}) {
+		t.Fatalf("with no current session: %+v, %v", none, err)
+	}
+}
+
+// Review of WP-04b part 2 (L5): a wrong password typed to change the password or turn two-step on or off is
+// a guess, and leaves an auth.reauth_failed row like a wrong sign-in password leaves auth.login_failed.
+func TestWrongReauthPasswordIsAudited(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	u := env.User(t, "ann@acme.example", routes.Viewer)
+	wantAPI(t, only(env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", "guess guess guess", "a brand new password")), 400, "wrong_password")
+	_, err := env.Svc.StartTOTP(t.Context(), u.ID, "", "guess guess guess")
+	wantAPI(t, err, 400, "wrong_password")
+	wantAPI(t, only(env.Svc.DisableTwoFA(t.Context(), u.ID, "", "guess guess guess")), 400, "wrong_password")
+	if n := env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'auth.reauth_failed' AND target = 'ann@acme.example' AND detail = 'wrong password'"); n != 3 {
+		t.Fatalf("%d auth.reauth_failed rows, want 3", n)
+	}
+	if env.Count(t, "SELECT count(*) FROM core_audit WHERE detail LIKE '%guess%'") != 0 {
+		t.Fatal("a guessed password reached the audit log")
+	}
+	// The right password writes no such row.
+	if _, err := env.Svc.StartTOTP(t.Context(), u.ID, "", authtest.Password); err != nil {
+		t.Fatal(err)
+	}
+	if n := env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'auth.reauth_failed'"); n != 3 {
+		t.Fatalf("a right password wrote auth.reauth_failed (%d rows)", n)
+	}
+}
+
+// Review of WP-04b part 2 (L7): names refuse invisible format characters (category Cf) as well as control
+// characters: a bidirectional override makes a name read as another, a zero-width space makes one that cannot be
+// typed back.
+func TestNamesRefuseInvisibleFormatCharacters(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	u := env.User(t, "ann@acme.example", routes.Viewer)
+	for name, bad := range map[string]string{
+		"right-to-left override": "Ann\u202Enimda", "zero width space": "Bo\u200Bb", "soft hyphen": "An\u00ADn",
+		"byte order mark": "\uFEFFAnn", "word joiner": "A\u2060nn", "tag character": "Ann\U000E0041", "control": "Ann\u0007",
+	} {
+		if !auth.HasInvisible(bad) {
+			t.Errorf("%s: HasInvisible = false", name)
+		}
+		if _, e := auth.ValidateUserFields(bad, "bob@acme.example", routes.Viewer); e == nil || e.Code != "invalid_name" {
+			t.Errorf("%s: new user name accepted (%v)", name, e)
+		}
+		wantAPI(t, env.Svc.UpdateOwnName(t.Context(), u.ID, "", bad), 400, "invalid_name")
+	}
+	for _, ok := range []string{"Nguyễn Văn An", "Zoë O'Brien-Smith", "田中 太郎"} {
+		if auth.HasInvisible(ok) {
+			t.Errorf("%q refused", ok)
+		}
+		if _, e := auth.ValidateUserFields(ok, "bob@acme.example", routes.Viewer); e != nil {
+			t.Errorf("%q: %v", ok, e)
+		}
 	}
 }

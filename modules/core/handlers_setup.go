@@ -9,7 +9,6 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/api/oas"
@@ -117,7 +116,7 @@ func clip(s string) string {
 
 func validOrgName(s string) bool {
 	n := utf8.RuneCountInString(s)
-	return n >= 2 && n <= 80 && utf8.ValidString(s) && !strings.ContainsFunc(s, unicode.IsControl)
+	return n >= 2 && n <= 80 && utf8.ValidString(s) && !auth.HasInvisible(s)
 }
 
 // wantedModules turns the bundle choice of the setup form into the set of modules that must be on.
@@ -166,9 +165,14 @@ func (h *APIHandlers) wantedModules(req *oas.CorePostCoreSetupReq) (map[string]b
 // CorePostCoreSetup implements POST /core/setup (public): first-run setup. It creates the organization, the
 // first administrator and a session for them, turns the chosen bundle on and writes core_audit, all in one
 // transaction, and only while setup is not done (INV-15). Creating the administrator needs the one-time
-// setup code from the box's log (D-75). Order of refusals: already set up, setup code, then the fields in
-// the order of the form.
+// setup code from the box's log (D-75). Order of refusals: already set up (also for sample data), the build has no
+// sample data, setup code, then the fields in the order of the form.
 func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCoreSetupReq) (*oas.CorePostCoreSetupOK, error) {
+	if done, err := h.setupDone(ctx); err != nil {
+		return nil, err
+	} else if done {
+		return nil, alreadySetup()
+	}
 	if req.Sample.Or(false) {
 		// INV-15: sample data exists only in builds with data_mode=sample; this build has none.
 		return nil, apierr.New(400, CodeSampleUnavailable, "This build has no sample data. Fill in the setup form instead.")
@@ -177,12 +181,7 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 	if err != nil {
 		return nil, err
 	}
-	if done, err := h.setupDone(ctx); err != nil {
-		return nil, err
-	} else if done {
-		return nil, alreadySetup()
-	}
-	refund, werr := h.auth.BeginSetupAttempt()
+	refund, werr := h.auth.BeginSetupAttempt(ip)
 	if werr != nil {
 		return nil, werr
 	}
@@ -191,7 +190,19 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 		refund() // not a guess: nothing was judged
 		return nil, err
 	}
-	if !ok || !setupCodesEqual(req.SetupCode.Or(""), want) {
+	if !ok {
+		// No code is stored: setup finished between the check above and the read (the winner deleted it),
+		// or this box has not made one yet. The loser of a race is told the truth and keeps its guess.
+		if done, err := h.setupDone(ctx); err != nil {
+			refund()
+			return nil, err
+		} else if done {
+			refund()
+			return nil, alreadySetup()
+		}
+		return nil, invalidSetupCode()
+	}
+	if !setupCodesEqual(req.SetupCode.Or(""), want) {
 		return nil, invalidSetupCode()
 	}
 	refund() // the right code gives its count back

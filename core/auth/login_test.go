@@ -43,7 +43,7 @@ func TestLoginSuccess(t *testing.T) {
 			t.Errorf("cookie %s value is %d characters, want 43 (32 bytes base64url)", c.Name, len(c.Value))
 		}
 	}
-	if cs[0].Name != "vedette_session" || cs[1].Name != "vedette_csrf" || cs[0].Value == cs[1].Value {
+	if cs[0].Name != "__Host-vedette_session" || cs[1].Name != "__Host-vedette_csrf" || cs[0].Value == cs[1].Value {
 		t.Fatalf("cookies = %v", cs)
 	}
 

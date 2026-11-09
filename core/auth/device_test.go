@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -34,7 +35,7 @@ func signInForCookie(t *testing.T, env *authtest.Env, email string) string {
 func TestDeviceCookieAttributes(t *testing.T) {
 	t.Parallel()
 	c := auth.DeviceCookie("v")
-	if c.Name != "vedette_device" || !c.HttpOnly || !c.Secure || c.SameSite != http.SameSiteStrictMode || c.Path != "/api/v1/auth/" || c.Domain != "" {
+	if c.Name != "__Secure-vedette_device" || !c.HttpOnly || !c.Secure || c.SameSite != http.SameSiteStrictMode || c.Path != "/api/v1/auth/" || c.Domain != "" {
 		t.Fatalf("device cookie = %+v", c)
 	}
 	if time.Duration(c.MaxAge)*time.Second != auth.DeviceLifetime {
@@ -167,30 +168,116 @@ func TestResendCodeHonoursTheDeviceCookie(t *testing.T) {
 	}
 }
 
-// D-75: the setup-code counter is shared and bounded, and a right code gives its count back.
-func TestSetupAttemptsAreBounded(t *testing.T) {
+// D-75 (amended after the security review of WP-04b part 2): wrong setup codes are counted per client
+// address like a sign-in, so one guesser cannot keep setup closed for the owner at another address; a right
+// code gives its count back.
+func TestSetupAttemptsAreBoundedPerClient(t *testing.T) {
 	t.Parallel()
 	env := authtest.New(t)
+	attacker, owner := ip("198.51.100.66"), ip("192.0.2.5")
 	for range 10 {
-		if _, err := env.Svc.BeginSetupAttempt(); err != nil {
+		if _, err := env.Svc.BeginSetupAttempt(attacker); err != nil {
 			t.Fatal(err)
 		}
 	}
-	_, err := env.Svc.BeginSetupAttempt()
+	_, err := env.Svc.BeginSetupAttempt(attacker)
 	wantAPI(t, err, 429, "rate_limited")
+	if _, err := env.Svc.BeginSetupAttempt(owner); err != nil {
+		t.Fatalf("a guesser at another address locked the owner out: %v", err)
+	}
 
 	env2 := authtest.New(t)
 	for range 9 {
-		if _, err := env2.Svc.BeginSetupAttempt(); err != nil {
+		if _, err := env2.Svc.BeginSetupAttempt(owner); err != nil {
 			t.Fatal(err)
 		}
 	}
-	refund, err := env2.Svc.BeginSetupAttempt()
+	refund, err := env2.Svc.BeginSetupAttempt(owner)
 	if err != nil {
 		t.Fatal(err)
 	}
 	refund() // the tenth was right
-	if _, err := env2.Svc.BeginSetupAttempt(); err != nil {
+	if _, err := env2.Svc.BeginSetupAttempt(owner); err != nil {
 		t.Fatalf("a refunded attempt still counted: %v", err)
+	}
+}
+
+// D-75: an IPv6 client is counted per address and per /64 (the same keys as sign-in), so rotating inside
+// a /64 does not give a fresh budget forever.
+func TestSetupAttemptsOfOneIPv6PrefixShareABudget(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	for i := range 100 {
+		if _, err := env.Svc.BeginSetupAttempt(ip(fmt.Sprintf("2001:db8:0:1::%x", i+1))); err != nil {
+			t.Fatalf("guess %d: %v", i, err)
+		}
+	}
+	_, err := env.Svc.BeginSetupAttempt(ip("2001:db8:0:1::ffff"))
+	wantAPI(t, err, 429, "rate_limited")
+	if _, err := env.Svc.BeginSetupAttempt(ip("2001:db8:0:2::1")); err != nil {
+		t.Fatalf("another /64 was refused: %v", err)
+	}
+}
+
+// D-75: the whole box takes at most 1000 setup guesses an hour (a safety net far above anything an owner
+// types), the hour passes, and a right code gives its count back.
+func TestSetupAttemptsHaveAHighCeilingForTheWholeBox(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	addr := func(i int) netip.Addr { return ip(fmt.Sprintf("10.%d.%d.%d", i/65536, i/256%256, i%256)) }
+	var last func()
+	for i := range 1000 {
+		r, err := env.Svc.BeginSetupAttempt(addr(i))
+		if err != nil {
+			t.Fatalf("guess %d: %v", i, err)
+		}
+		last = r
+	}
+	_, err := env.Svc.BeginSetupAttempt(addr(1000))
+	wantAPI(t, err, 429, "rate_limited")
+	last() // the 1000th was right
+	r, err := env.Svc.BeginSetupAttempt(addr(1001))
+	if err != nil {
+		t.Fatalf("a refunded guess still counted against the ceiling: %v", err)
+	}
+	_ = r
+	_, err = env.Svc.BeginSetupAttempt(addr(1002))
+	wantAPI(t, err, 429, "rate_limited")
+	env.Clock.Advance(time.Hour)
+	if _, err := env.Svc.BeginSetupAttempt(addr(1003)); err != nil {
+		t.Fatalf("the ceiling did not lift after an hour: %v", err)
+	}
+	if _, err := env.Svc.BeginSetupAttempt(netip.Addr{}); err == nil {
+		t.Fatal("an invalid address was accepted")
+	}
+}
+
+// OWASP's device-cookie scheme issues a new cookie on every successful sign-in. Re-signing the presented
+// cookie with its own nonce (what the box did before) let a copy stolen once share the owner's counter for as
+// long as it lived: the thief could keep the owner's trusted browser at 429 even after the owner had signed
+// in again since the theft.
+func TestDeviceCookieNonceIsNewOnEverySignIn(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	u := env.User(t, "admin@acme.example", routes.Admin)
+	stolen := signInForCookie(t, env, u.Email) // the thief copies this one
+
+	// The owner signs in again with that cookie and gets a new one.
+	res, err := loginWith(env, u.Email, authtest.Password, stolen, "192.0.2.10")
+	if err != nil {
+		t.Fatal(err)
+	}
+	current := res.Device
+	if current == stolen {
+		t.Fatal("the cookie was re-issued unchanged")
+	}
+
+	// The thief burns the stolen copy's budget from anywhere.
+	for i := range 10 {
+		wantAPI(t, mustErr(loginWith(env, u.Email, "wrong password here", stolen, fmt.Sprintf("198.51.100.%d", i+1))), 400, "invalid_credentials")
+	}
+	// The owner's current cookie is not locked by the stale copy.
+	if _, err := loginWith(env, u.Email, authtest.Password, current, "192.0.2.10"); err != nil {
+		t.Fatalf("the owner's re-issued device cookie is locked by a copy stolen before the re-sign-in: %v", err)
 	}
 }

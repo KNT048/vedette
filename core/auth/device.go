@@ -32,13 +32,13 @@ import (
 //
 // The cookie is signed with HMAC-SHA-256 under a key of the box (core_secret), carries the user id, the
 // user's cred_version (a password change or reset kills every cookie of the account), a random nonce and
-// an expiry. A stolen cookie lets a thief guess from anywhere, but only loginMaxFailures times per window
+// an expiry. Every successful sign-in issues a new cookie with a new nonce. A stolen cookie lets a thief guess from anywhere, but only loginMaxFailures times per window
 // per cookie, and the cookie is useless once the password changes. Only the box reads it: HttpOnly,
 // Secure, SameSite=Strict, and a Path that only the sign-in endpoints match. It is a strictly necessary
 // cookie for sign-in security, not tracking: the value never leaves the box.
 const (
 	// CookieDevice is the name of the device cookie (core INV-9).
-	CookieDevice = "vedette_device"
+	CookieDevice = "__Secure-vedette_device"
 	// DeviceLifetime is how long a device cookie stays valid after the sign-in that issued it.
 	DeviceLifetime = 90 * 24 * time.Hour
 	// deviceCookiePath is the only path the browser sends the cookie to: the sign-in endpoints.
@@ -80,19 +80,17 @@ func deviceMAC(key []byte, payload string) []byte {
 	return m.Sum(nil)
 }
 
-// mintDevice signs a cookie value for the user.
-func (s *Service) mintDevice(ctx context.Context, userID string, cred int64, nonce string) (string, error) {
+// mintDevice signs a new cookie value for the user, with a fresh random nonce.
+func (s *Service) mintDevice(ctx context.Context, userID string, cred int64) (string, error) {
 	key, err := s.deviceKey(ctx)
 	if err != nil {
 		return "", err
 	}
-	if nonce == "" {
-		b := make([]byte, deviceNonceBytes)
-		if _, err := io.ReadFull(rand.Reader, b); err != nil {
-			return "", fmt.Errorf("auth: device nonce: %w", err)
-		}
-		nonce = hex.EncodeToString(b)
+	b := make([]byte, deviceNonceBytes)
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+		return "", fmt.Errorf("auth: device nonce: %w", err)
 	}
+	nonce := hex.EncodeToString(b)
 	payload := strings.Join([]string{"v1", userID, strconv.FormatInt(cred, 10), nonce, strconv.FormatInt(s.now().Add(DeviceLifetime).Unix(), 10)}, "|")
 	return tokenEnc.EncodeToString([]byte(payload)) + "." + tokenEnc.EncodeToString(deviceMAC(key, payload)), nil
 }
@@ -137,29 +135,30 @@ func (s *Service) parseDevice(ctx context.Context, v string) (deviceClaim, bool)
 }
 
 // limitKeys picks the rate-limit keys of a sign-in or resend: the cookie's own key when the request
-// presents a valid cookie of the account that email names, the address (and /64) keys otherwise. The
-// returned claim is the valid one, or zero.
-func (s *Service) limitKeys(ctx context.Context, email string, ip netip.Addr, cookie string) ([]string, deviceClaim, error) {
+// presents a valid cookie of the account that email names, the address (and /64) keys otherwise.
+func (s *Service) limitKeys(ctx context.Context, email string, ip netip.Addr, cookie string) ([]string, error) {
 	if cookie != "" {
 		if c, ok := s.parseDevice(ctx, cookie); ok {
 			row, err := coredb.New(s.db.Reader()).GetUserByEmail(ctx, email)
 			switch {
 			case err == nil && row.ID == c.userID && row.CredVersion == c.cred:
-				return []string{c.limiterKey()}, c, nil
+				return []string{c.limiterKey()}, nil
 			case err == nil || isNoRows(err): // another account's cookie, a stale one, or no such account: no exemption
 			default:
-				return nil, deviceClaim{}, fmt.Errorf("auth: look up user: %w", err)
+				return nil, fmt.Errorf("auth: look up user: %w", err)
 			}
 		}
 	}
-	return ipLimitKeys(ip), deviceClaim{}, nil
+	return ipLimitKeys(ip), nil
 }
 
-// deviceFor returns the cookie value to hand out after a successful sign-in of row: the nonce of the
-// presented cookie when it was valid (so its counter and its identity stay the same), a fresh one
-// otherwise. A failure is logged and means no cookie: sign-in itself must not fail for it.
-func (s *Service) deviceFor(ctx context.Context, userID string, cred int64, presented deviceClaim) string {
-	v, err := s.mintDevice(ctx, userID, cred, presented.nonce)
+// deviceFor returns the cookie value to hand out after a successful sign-in: always a new cookie with a
+// fresh nonce, never the presented one re-signed (OWASP's scheme issues a new device cookie on every
+// successful authentication). A copy stolen earlier then keeps the counter of its old nonce, which the
+// owner's current cookie does not share, so a thief burning the stale copy's budget cannot lock the owner's
+// browser. A failure is logged and means no cookie: sign-in itself must not fail for it.
+func (s *Service) deviceFor(ctx context.Context, userID string, cred int64) string {
+	v, err := s.mintDevice(ctx, userID, cred)
 	if err != nil {
 		s.log.WarnContext(ctx, "could not issue a device cookie", "error", err)
 		return ""

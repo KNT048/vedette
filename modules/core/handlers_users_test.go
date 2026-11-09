@@ -180,3 +180,20 @@ func TestUsers_ActorIsRecheckedForEveryAdminWrite(t *testing.T) {
 		t.Fatalf("users = %d", n)
 	}
 }
+
+// Names accept no invisible format characters (a bidirectional override makes "Ann" read as "admin"): the
+// administrator's new user, the user's own display name and the organization name all refuse them (400).
+func TestNamesRefuseInvisibleFormatCharacters(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin := w.setupAdmin()
+	for name, r := range map[string]reply{
+		"account name (RLO)":   admin.patch("/core/account", map[string]any{"name": "Ann\u202Enimda"}),
+		"new user name (ZWSP)": admin.post("/core/users", map[string]any{"name": "Bo\u200Bb", "email": "bob@acme.example", "role": "viewer"}),
+		"org name (ZWSP)":      admin.putGeneral(map[string]any{"name": "Acme\u200B Co", "timezone": "UTC"}),
+	} {
+		if r.Code != 400 {
+			t.Errorf("%s with an invisible format character = %d %s, want 400", name, r.Code, r.code())
+		}
+	}
+}

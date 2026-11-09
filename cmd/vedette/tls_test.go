@@ -5,18 +5,25 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
 	"io"
+	"log/slog"
+	"math/big"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/server"
 )
 
 func readCert(t *testing.T, path string) *x509.Certificate {
@@ -52,8 +59,8 @@ func TestEnsureCert(t *testing.T) {
 	if pk, ok := c.PublicKey.(*ecdsa.PublicKey); !ok || pk.Curve != elliptic.P256() {
 		t.Fatalf("public key is %T, want ECDSA P-256", c.PublicKey)
 	}
-	if got := c.NotAfter.Sub(c.NotBefore); got < 9*365*24*time.Hour || got > 11*365*24*time.Hour {
-		t.Fatalf("validity = %v, want about 10 years", got)
+	if got := c.NotAfter.Sub(c.NotBefore); got < 825*24*time.Hour || got > 826*24*time.Hour {
+		t.Fatalf("validity = %v, want 825 days (Apple's limit) plus the hour of back-dating", got)
 	}
 	var names []string
 	names = append(names, c.DNSNames...)
@@ -313,5 +320,227 @@ func TestSetupCodeIsLoggedAtEveryStartWhileSetupIsOpen(t *testing.T) {
 	}
 	if codes[0] != codes[1] {
 		t.Fatalf("the code changed between starts: %q then %q", codes[0], codes[1])
+	}
+}
+
+// writeTestPair writes a certificate made from tmpl (self-signed, with a new P-256 key) and its key, both
+// mode 0600, as an owner supplying their own pair would, and returns the paths and the key.
+func writeTestPair(t *testing.T, dir string, tmpl *x509.Certificate) (crt, keyPath string, key *ecdsa.PrivateKey) {
+	t.Helper()
+	crt, keyPath = filepath.Join(dir, "own.crt"), filepath.Join(dir, "own.key")
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl.SerialNumber = big.NewInt(7)
+	tmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kd, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(crt, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(keyPath, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: kd}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return crt, keyPath, key
+}
+
+func okHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(204) })
+}
+
+func hostStatus(t *testing.T, h http.Handler, host string) int {
+	t.Helper()
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/setup", nil)
+	req.Host = host
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	return rec.Code
+}
+
+// Review of WP-04b part 2 (L2): the master key file and the database are refused unless their mode is 0600,
+// and the TLS private key is held to the same rule: a key readable by other local users lets them impersonate
+// the box to every administrator.
+func TestLoadTLSRefusesAGroupOrWorldReadableKey(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	crt, key := filepath.Join(dir, "c.crt"), filepath.Join(dir, "c.key")
+	if err := ensureCert(crt, key, []string{"box.acme.example"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := loadTLS(crt, key); err != nil {
+		t.Fatalf("a 0600 key was refused: %v", err)
+	}
+	for _, mode := range []os.FileMode{0o644, 0o640, 0o604, 0o660} {
+		if err := os.Chmod(key, mode); err != nil {
+			t.Fatal(err)
+		}
+		_, _, err := loadTLS(crt, key)
+		if err == nil || !strings.Contains(err.Error(), "chmod 600") {
+			t.Errorf("a TLS private key with mode %#o was loaded (err %v)", mode, err)
+		}
+	}
+	// 0400 is fine (nobody else can read it), and so is a symlink to a good file (certbot links its live key).
+	if err := os.Chmod(key, 0o400); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "link.key")
+	if err := os.Symlink(key, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := loadTLS(crt, link); err != nil {
+		t.Fatalf("a 0400 key through a symlink was refused: %v", err)
+	}
+	// A directory is not a key file.
+	if _, _, err := loadTLS(crt, dir); err == nil || !strings.Contains(err.Error(), "not a regular file") {
+		t.Fatalf("a directory as the key file: %v", err)
+	}
+}
+
+// Review (L3): with a certificate the owner supplies and no -hosts, the Host allowlist is the names of the
+// certificate; a wildcard name (*.corp.example) matches one label like the certificate does, so the box does
+// not answer 421 to the very name its certificate is for.
+func TestWildcardCertificateDefaultAllowlist(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	crt, key, _ := writeTestPair(t, dir, &x509.Certificate{Subject: pkix.Name{CommonName: "corp"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), DNSNames: []string{"*.corp.example"}})
+	_, hosts, _, err := transport(options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443", tlsCert: crt, tlsKey: key})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := server.HostAllowlist(hosts, okHandler())
+	for host, want := range map[string]int{"vedette.corp.example:8443": 204, "a.b.corp.example": 421, "corp.example": 421, "evil.example": 421} {
+		if got := hostStatus(t, h, host); got != want {
+			t.Errorf("allowlist %v: Host %s = %d, want %d", hosts, host, got, want)
+		}
+	}
+}
+
+// A certificate with a common name and no subject alternative names (an old one) is matched by the common
+// name; one that has names is matched by them only.
+func TestCertificateNamesUseTheCommonNameOnlyWithoutSANs(t *testing.T) {
+	t.Parallel()
+	valid := func() (time.Time, time.Time) { return time.Now().Add(-time.Hour), time.Now().Add(time.Hour) }
+	nb, na := valid()
+	crt, key, _ := writeTestPair(t, t.TempDir(), &x509.Certificate{Subject: pkix.Name{CommonName: "Box.Corp.Example"}, NotBefore: nb, NotAfter: na})
+	if _, names, err := loadTLS(crt, key); err != nil || len(names) != 1 || names[0] != "box.corp.example" {
+		t.Fatalf("CN-only certificate: names %v, err %v", names, err)
+	}
+	crt, key, _ = writeTestPair(t, t.TempDir(), &x509.Certificate{Subject: pkix.Name{CommonName: "old.corp.example"}, NotBefore: nb, NotAfter: na, DNSNames: []string{"new.corp.example"}})
+	if _, names, err := loadTLS(crt, key); err != nil || len(names) != 1 || names[0] != "new.corp.example" {
+		t.Fatalf("certificate with SANs: names %v, err %v", names, err)
+	}
+	crt, key, _ = writeTestPair(t, t.TempDir(), &x509.Certificate{Subject: pkix.Name{CommonName: "Vedette box"}, NotBefore: nb, NotAfter: na})
+	if _, names, err := loadTLS(crt, key); err != nil || len(names) != 0 {
+		t.Fatalf("a common name that is not a host name gave names %v (err %v)", names, err)
+	}
+}
+
+func TestParseHostsAcceptsOneLabelWildcards(t *testing.T) {
+	t.Parallel()
+	got, err := parseHosts("*.Corp.Example, box.lan")
+	if err != nil || strings.Join(got, ",") != "*.corp.example,box.lan" {
+		t.Fatalf("parseHosts = %v, %v", got, err)
+	}
+	for _, bad := range []string{"*", "*.", "a.*.example", "*.*.example", "x*.example", "**.example"} {
+		if _, err := parseHosts(bad); err == nil {
+			t.Errorf("parseHosts(%q) accepted", bad)
+		}
+	}
+	h := server.HostAllowlist(got, okHandler())
+	if hostStatus(t, h, "vedette.corp.example") != 204 || hostStatus(t, h, "a.b.corp.example") != 421 {
+		t.Fatal("-hosts *.corp.example does not match like a wildcard certificate")
+	}
+}
+
+// A self-signed certificate made by the box expires within 30 days: the next start makes a new one for the
+// same key (one atomic file write) with fresh names. One that has time left, and a certificate the owner
+// supplied, are never replaced.
+func TestEnsureCertRenewsItsOwnPairNearExpiry(t *testing.T) {
+	t.Parallel()
+	own := func(left time.Duration, org string) *x509.Certificate {
+		return &x509.Certificate{Subject: pkix.Name{CommonName: "Vedette", Organization: []string{org}}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(left), DNSNames: []string{"old.example"}}
+	}
+	cases := []struct {
+		name  string
+		tmpl  *x509.Certificate
+		renew bool
+	}{
+		{"own pair, 10 days left", own(10*24*time.Hour, selfSignedOrg), true},
+		{"own pair, already expired", own(-time.Hour, selfSignedOrg), true},
+		{"own pair, 60 days left", own(60*24*time.Hour, selfSignedOrg), false},
+		{"owner's pair, 10 days left", own(10*24*time.Hour, "Acme IT"), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			crt, key, k := writeTestPair(t, t.TempDir(), tc.tmpl)
+			before, _ := os.ReadFile(crt) //nolint:gosec // a path the test made
+			if err := ensureCert(crt, key, []string{"new.example"}); err != nil {
+				t.Fatal(err)
+			}
+			after, _ := os.ReadFile(crt) //nolint:gosec // a path the test made
+			if replaced := string(after) != string(before); replaced != tc.renew {
+				t.Fatalf("certificate replaced = %v, want %v", replaced, tc.renew)
+			}
+			if !tc.renew {
+				return
+			}
+			c := readCert(t, crt)
+			if left := time.Until(c.NotAfter); left < 824*24*time.Hour {
+				t.Errorf("the new certificate has %v left", left)
+			}
+			if pk, ok := c.PublicKey.(*ecdsa.PublicKey); !ok || !pk.Equal(&k.PublicKey) {
+				t.Error("the renewed certificate is for another key")
+			}
+			if !strings.Contains(strings.Join(c.DNSNames, ","), "new.example") {
+				t.Errorf("names %v lack new.example", c.DNSNames)
+			}
+			if info, err := os.Stat(crt); err != nil || info.Mode().Perm() != 0o600 {
+				t.Errorf("mode after renewal: %v %v", info, err)
+			}
+			if _, _, err := loadTLS(crt, key); err != nil {
+				t.Errorf("the renewed pair does not load: %v", err)
+			}
+		})
+	}
+}
+
+// HSTS only for a certificate the owner supplied: with the self-signed one a browser would refuse to let the
+// owner click through its warning for a year.
+func TestStrictTransportSecurityOnlyWithAnOwnerCertificate(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	crt, key, _ := writeTestPair(t, dir, &x509.Certificate{Subject: pkix.Name{CommonName: "box"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), DNSNames: []string{"box.corp.example"}})
+	db := filepath.Join(dir, "v.db")
+	for name, tc := range map[string]struct {
+		o    options
+		want bool
+	}{
+		"owner certificate":    {options{db: db, listen: "0.0.0.0:8443", tlsCert: crt, tlsKey: key}, true},
+		"self-signed":          {options{db: db, listen: "0.0.0.0:8443"}, false},
+		"plain http, loopback": {options{db: db, listen: "127.0.0.1:8080"}, false},
+	} {
+		_, hosts, hsts, err := transport(tc.o)
+		if err != nil || hsts != tc.want {
+			t.Fatalf("%s: hsts = %v, err %v, want %v", name, hsts, err, tc.want)
+		}
+		h := topHandler(slog.New(slog.DiscardHandler), okHandler(), hosts, hsts)
+		for _, host := range []string{"localhost", "evil.example"} { // the 421 carries it too
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/setup", nil)
+			req.Host = host
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, req)
+			got := rec.Header().Get("Strict-Transport-Security")
+			if tc.want && got != "max-age=31536000" || !tc.want && got != "" {
+				t.Errorf("%s, Host %s: Strict-Transport-Security = %q", name, host, got)
+			}
+		}
 	}
 }

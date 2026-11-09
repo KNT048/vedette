@@ -62,13 +62,18 @@ func (h *APIHandlers) CorePatchCoreAccount(ctx context.Context, req *oas.CorePat
 	return &oas.CorePatchCoreAccountOK{Ok: true}, nil
 }
 
-// CorePostCoreAccountPassword implements POST /core/account/password (viewer): the other sessions end.
+// CorePostCoreAccountPassword implements POST /core/account/password (viewer): every session ends and the
+// response sets new session and CSRF cookies for this browser.
 func (h *APIHandlers) CorePostCoreAccountPassword(ctx context.Context, req *oas.CorePostCoreAccountPasswordReq) (*oas.CorePostCoreAccountPasswordOK, error) {
 	c, err := h.caller(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err := h.auth.ChangeOwnPassword(ctx, c.ID, c.SessionID, req.Current, req.Next); err != nil {
+	fresh, err := h.auth.ChangeOwnPassword(ctx, c.ID, c.SessionID, req.Current, req.Next)
+	if err != nil {
+		return nil, err
+	}
+	if err := renewSession(ctx, fresh); err != nil {
 		return nil, err
 	}
 	return &oas.CorePostCoreAccountPasswordOK{Ok: true}, nil
@@ -93,7 +98,11 @@ func (h *APIHandlers) CorePostCoreAccount2FAConfirm(ctx context.Context, req *oa
 	if err != nil {
 		return nil, err
 	}
-	if err := h.auth.ConfirmTOTP(ctx, c.ID, c.SessionID, req.Code); err != nil {
+	fresh, err := h.auth.ConfirmTOTP(ctx, c.ID, c.SessionID, req.Code)
+	if err != nil {
+		return nil, err
+	}
+	if err := renewSession(ctx, fresh); err != nil {
 		return nil, err
 	}
 	return &oas.CorePostCoreAccount2FAConfirmOK{Ok: true}, nil
@@ -118,7 +127,11 @@ func (h *APIHandlers) CorePostCoreAccount2FAEmailConfirm(ctx context.Context, re
 	if err != nil {
 		return nil, err
 	}
-	if err := h.auth.ConfirmEmail2FA(ctx, c.ID, c.SessionID, req.Code); err != nil {
+	fresh, err := h.auth.ConfirmEmail2FA(ctx, c.ID, c.SessionID, req.Code)
+	if err != nil {
+		return nil, err
+	}
+	if err := renewSession(ctx, fresh); err != nil {
 		return nil, err
 	}
 	return &oas.CorePostCoreAccount2FAEmailConfirmOK{Ok: true}, nil
@@ -130,7 +143,11 @@ func (h *APIHandlers) CorePostCoreAccount2FADisable(ctx context.Context, req *oa
 	if err != nil {
 		return nil, err
 	}
-	if err := h.auth.DisableTwoFA(ctx, c.ID, c.SessionID, req.Password); err != nil {
+	fresh, err := h.auth.DisableTwoFA(ctx, c.ID, c.SessionID, req.Password)
+	if err != nil {
+		return nil, err
+	}
+	if err := renewSession(ctx, fresh); err != nil {
 		return nil, err
 	}
 	return &oas.CorePostCoreAccount2FADisableOK{Ok: true}, nil

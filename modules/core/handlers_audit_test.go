@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"encoding/csv"
 	"fmt"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/audit"
 )
@@ -255,4 +257,47 @@ func TestContract_INV17_GeneralGetPutAndErrors(t *testing.T) {
 	v, _ := w.signIn("v@acme.example", "viewer")
 	wantOK(t, v.get("/core/general"), 200)
 	wantStatus(t, v.putGeneral(map[string]any{"name": "Acme", "timezone": "UTC"}), 403, "forbidden")
+}
+
+// The audit row of an export cuts its detail at 1000 bytes; the cut must not split a UTF-8 character, which
+// audit.Append refuses (the export then failed with 500 for a long filter with multi-byte characters).
+func TestAuditExport_DetailIsCutAtACharacterBoundary(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin := w.setupAdmin()
+	for name, query := range map[string]string{
+		"user": "user=" + url.QueryEscape("x"+strings.Repeat("é", 99)),
+		"q+group+user": "q=" + url.QueryEscape(strings.Repeat("é", 100)) + "&group=" + url.QueryEscape(strings.Repeat("ü", 100)) +
+			"&user=" + url.QueryEscape(strings.Repeat("ß", 100)) + "&from=2026-01-01&to=2026-12-31",
+	} {
+		r := admin.get("/core/audit/export?" + query)
+		if r.Code != 200 {
+			t.Fatalf("%s: export with a multi-byte filter = %d %s; log: %s", name, r.Code, r.Raw, w.logs.String())
+		}
+		var detail string
+		if err := w.env.DB.Reader().QueryRowContext(t.Context(), "SELECT detail FROM core_audit WHERE action = 'audit.export' ORDER BY seq DESC LIMIT 1").Scan(&detail); err != nil {
+			t.Fatal(err)
+		}
+		if !utf8.ValidString(detail) || len(detail) > 1000 {
+			t.Fatalf("%s: audit.export detail is %d bytes, valid UTF-8 %v", name, len(detail), utf8.ValidString(detail))
+		}
+	}
+}
+
+// The user and group filters are capped like the text filter (at most 200 characters).
+func TestAudit_FiltersAreCapped(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin := w.setupAdmin()
+	long := strings.Repeat("a", 201)
+	for _, param := range []string{"q", "user", "group"} {
+		for _, path := range []string{"/core/audit?", "/core/audit/export?"} {
+			if r := admin.get(path + param + "=" + long); r.Code != 400 || r.code() != "invalid" {
+				t.Errorf("%s%s too long = %d %s", path, param, r.Code, r.Raw)
+			}
+			if r := admin.get(path + param + "=" + long[:200]); r.Code != 200 {
+				t.Errorf("%s%s of 200 characters = %d %s", path, param, r.Code, r.Raw)
+			}
+		}
+	}
 }

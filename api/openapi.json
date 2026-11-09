@@ -20,7 +20,7 @@
       "session": {
         "type": "apiKey",
         "in": "cookie",
-        "name": "vedette_session"
+        "name": "__Host-vedette_session"
       }
     },
     "schemas": {

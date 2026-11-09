@@ -20,6 +20,6 @@ Vedette runs on your own machine. Your devices, logs, findings and AI keys **nev
 
 Why flow 2 is on by default: it gives the hot board a "being attacked in Vietnam" view that no other source has. It is anonymous by design and you can turn it off with one click.
 
-Cookies: only the three that signing in needs, all first-party and never sent anywhere but your box: the session cookie (`vedette_session`), its anti-forgery companion (`vedette_csrf`) and a trusted-device cookie (`vedette_device`, D-77) that keeps someone else's failed guesses from locking you out. No tracking, no analytics, no third-party fonts or scripts.
+Cookies: only the three that signing in needs, all first-party and never sent anywhere but your box: the session cookie (`__Host-vedette_session`), its anti-forgery companion (`__Host-vedette_csrf`) and a trusted-device cookie (`__Secure-vedette_device`, D-77) that keeps someone else's failed guesses from locking you out. No tracking, no analytics, no third-party fonts or scripts.
 
 Export or delete all your data: Settings → Data.

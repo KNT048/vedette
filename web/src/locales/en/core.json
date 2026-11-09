@@ -201,6 +201,7 @@
         "login": "Sign in",
         "logout": "Sign out",
         "login_failed": "Sign-in with wrong two-step code",
+        "reauth_failed": "Wrong password when confirming a change",
         "code_resend": "Send new two-step email code"
       },
       "module": {
@@ -619,7 +620,7 @@
     },
     "cookie": {
       "title": "Cookies",
-      "body": "One sign-in session cookie only (vedette_session). No tracking, no analytics, no resources loaded from outside servers."
+      "body": "One sign-in session cookie only (__Host-vedette_session). No tracking, no analytics, no resources loaded from outside servers."
     },
     "bugNote": {
       "title": "Report a problem",

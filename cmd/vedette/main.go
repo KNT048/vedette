@@ -71,7 +71,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	flags.StringVar(&o.listen, "listen", "127.0.0.1:8080", "address to listen on; plain HTTP on loopback, TLS on any other address")
 	flags.StringVar(&o.tlsCert, "tls-cert", "", "PEM certificate for TLS (with -tls-key); when both are missing and -listen is not loopback, a self-signed pair is made next to the database")
 	flags.StringVar(&o.tlsKey, "tls-key", "", "PEM private key for TLS")
-	flags.StringVar(&o.hosts, "hosts", "", "comma-separated host names and IP addresses the box answers to (Host header allowlist, 421 for others); default: the loopback names and the names of the certificate")
+	flags.StringVar(&o.hosts, "hosts", "", "comma-separated host names (a leading *. covers one label, like a wildcard certificate) and IP addresses the box answers to (Host header allowlist, 421 for others); default: the loopback names and the names of the certificate")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -114,35 +114,37 @@ func isLoopback(addr string) (bool, error) {
 // loopback (sessions and passwords must not cross a network in clear); anywhere else it is TLS, with the
 // certificate of -tls-cert/-tls-key or a self-signed one made next to the database on first start (names:
 // -hosts and what localNames finds). The allowlist is -hosts when given, otherwise the names of the
-// certificate in use; loopback is always allowed by core/server.HostAllowlist.
-func transport(o options) (cfg *tls.Config, hosts []string, err error) {
+// certificate in use; loopback is always allowed by core/server.HostAllowlist. hsts is true only for a
+// certificate the owner supplied: the box then tells browsers to insist on HTTPS. A self-signed pair gets
+// no HSTS, or a browser would refuse to let the owner click through its warning for a year.
+func transport(o options) (cfg *tls.Config, hosts []string, hsts bool, err error) {
 	hosts, err = parseHosts(o.hosts)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 	loop, err := isLoopback(o.listen)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 	certPath, keyPath := o.tlsCert, o.tlsKey
 	if certPath == "" && loop {
-		return nil, hosts, nil // plain HTTP on loopback
+		return nil, hosts, false, nil // plain HTTP on loopback
 	}
 	if certPath == "" {
 		dir := filepath.Dir(o.db)
 		certPath, keyPath = filepath.Join(dir, "vedette-selfsigned.crt"), filepath.Join(dir, "vedette-selfsigned.key")
 		if err := ensureCert(certPath, keyPath, hosts); err != nil {
-			return nil, nil, err
+			return nil, nil, false, err
 		}
 	}
 	cfg, names, err := loadTLS(certPath, keyPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 	if len(hosts) == 0 {
 		hosts = names
 	}
-	return cfg, hosts, nil
+	return cfg, hosts, o.tlsCert != "", nil
 }
 
 // serve opens everything, serves until ctx is cancelled, then shuts down in order: HTTP server,
@@ -159,7 +161,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return err
 	}
-	tlsCfg, hosts, err := transport(o)
+	tlsCfg, hosts, hsts, err := transport(o)
 	if err != nil {
 		return err
 	}
@@ -221,7 +223,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		return err
 	}
 	srv := &http.Server{
-		Handler:           topHandler(log, api, hosts),
+		Handler:           topHandler(log, api, hosts, hsts),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       60 * time.Second,
 		IdleTimeout:       2 * time.Minute,
@@ -242,10 +244,23 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 // else is routed (DNS rebinding). The Envelope (panic recovery, request id, security
 // headers) wraps the ServeMux too, so the mux's own answers (307 for /api/v1, //, .. and the 404 for
 // other paths) carry the headers the API's responses do.
-func topHandler(log *slog.Logger, api http.Handler, hosts []string) http.Handler {
+func topHandler(log *slog.Logger, api http.Handler, hosts []string, hsts bool) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle(server.Prefix+"/", api)
-	return server.Envelope(log, server.HostAllowlist(hosts, mux))
+	h := server.HostAllowlist(hosts, mux)
+	if hsts {
+		h = strictTransportSecurity(h)
+	}
+	return server.Envelope(log, h)
+}
+
+// strictTransportSecurity adds HSTS (one year, no includeSubDomains or preload: the box does not own the
+// owner's domain) to every response.
+func strictTransportSecurity(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+		next.ServeHTTP(w, r)
+	})
 }
 
 // serveUntilDone serves on ln and runs the scheduler until ctx is cancelled or the listener fails,

@@ -31,7 +31,7 @@ type LoginRequest struct {
 	Code      string // the two-step code, empty on the first call
 	IP        netip.Addr
 	UserAgent string
-	// DeviceCookie is the value of the vedette_device cookie the browser sent, "" when it sent none (D-77).
+	// DeviceCookie is the value of the __Secure-vedette_device cookie the browser sent, "" when it sent none (D-77).
 	DeviceCookie string
 }
 
@@ -156,7 +156,7 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResult, err
 		return LoginResult{}, errNoIP()
 	}
 	email := normalizeEmail(req.Email)
-	lims, dev, err := s.limitKeys(ctx, email, req.IP, req.DeviceCookie)
+	lims, err := s.limitKeys(ctx, email, req.IP, req.DeviceCookie)
 	if err != nil {
 		return LoginResult{}, err
 	}
@@ -274,7 +274,7 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResult, err
 	}
 	s.limit.resetAll(email, lims)
 	s.limit.reset(twofaKey, row.Email)
-	res.Device = s.deviceFor(ctx, row.ID, row.CredVersion, dev)
+	res.Device = s.deviceFor(ctx, row.ID, row.CredVersion)
 	return res, nil
 }
 
@@ -383,7 +383,7 @@ func (s *Service) ResendCode(ctx context.Context, email, password string, ip net
 		return Sent{}, errNoIP()
 	}
 	email = normalizeEmail(email)
-	lims, _, err := s.limitKeys(ctx, email, ip, deviceCookie)
+	lims, err := s.limitKeys(ctx, email, ip, deviceCookie)
 	if err != nil {
 		return Sent{}, err
 	}

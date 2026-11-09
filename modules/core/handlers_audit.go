@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
@@ -30,12 +31,24 @@ const (
 const (
 	auditPageRows    = 200  // GET /core/audit returns at most this many rows
 	auditExportPage  = 1000 // rows the export reads per query
-	auditMaxNeedle   = 200  // longest text filter
+	auditMaxNeedle   = 200  // longest text filter (q, user, group), in bytes
+	auditMaxDetail   = 1000 // longest detail of the audit row of an export
 	tsLayout         = "2006-01-02T15:04:05.000Z"
 	dateLayout       = "2006-01-02"
 	auditExportBOM   = "\ufeff"
 	auditExportTitle = "time,user,action,target,detail"
 )
+
+// cutAtRune shortens s to at most n bytes without splitting a UTF-8 character: audit.Append refuses invalid UTF-8.
+func cutAtRune(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
+	}
+	return s[:n]
+}
 
 var dateOnlyRE = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 
@@ -103,9 +116,15 @@ func (h *APIHandlers) auditFilter(ctx context.Context, q, user, group, from, to 
 		f.needle = strings.ToLower(s)
 	}
 	if s := set("user", user); s != "" {
+		if len(s) > auditMaxNeedle {
+			return f, apierr.Invalid("The user filter is too long (at most 200 characters).")
+		}
 		f.who = s
 	}
 	if s := set("group", group); s != "" {
+		if len(s) > auditMaxNeedle {
+			return f, apierr.Invalid("The group filter is too long (at most 200 characters).")
+		}
 		f.grp = s
 	}
 	fromS, toS := set("from", from), set("to", to)
@@ -203,9 +222,7 @@ func (h *APIHandlers) CoreGetCoreAuditExport(ctx context.Context, params oas.Cor
 	if f.text != "" {
 		detail += "; filters " + f.text
 	}
-	if len(detail) > 1000 {
-		detail = detail[:1000]
-	}
+	detail = cutAtRune(detail, auditMaxDetail)
 	err = h.db.Write(ctx, func(tx *sql.Tx) error {
 		if err := h.auth.CheckAdmin(ctx, tx, c.ID, c.SessionID); err != nil {
 			return err

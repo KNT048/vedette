@@ -68,11 +68,11 @@ func (s *Service) CreateUser(ctx context.Context, tx *sql.Tx, actor string, in N
 // is stored (trimmed, lowercase). Handlers that must refuse in a fixed order call it before the work
 // (hashing) that CreateUser would otherwise follow.
 func ValidateUserFields(name, rawEmail string, role routes.Role) (string, *apierr.Error) {
-	if n := utf8.RuneCountInString(name); n < 1 || n > 80 || !utf8.ValidString(name) || hasControl(name) {
+	if n := utf8.RuneCountInString(name); n < 1 || n > 80 || !utf8.ValidString(name) || HasInvisible(name) {
 		return "", apierr.New(400, CodeInvalidName, "Enter the user's name (at most 80 characters).")
 	}
 	email := normalizeEmail(rawEmail)
-	if !emailRE.MatchString(email) || len(email) > 320 || hasControl(email) {
+	if !emailRE.MatchString(email) || len(email) > 320 || HasInvisible(email) {
 		return "", apierr.New(400, CodeInvalidEmail, "The email is not valid, for example name@company.com.")
 	}
 	if !validRole(role) {
@@ -81,10 +81,14 @@ func ValidateUserFields(name, rawEmail string, role routes.Role) (string, *apier
 	return email, nil
 }
 
-// hasControl reports whether s has a control character (C0, DEL, C1): none belongs in a name or an email.
-func hasControl(s string) bool {
+// HasInvisible reports whether s has a control character (category Cc: C0, DEL, C1) or an invisible format
+// character (category Cf: bidirectional overrides and isolates, zero-width space and joiners, soft hyphen,
+// byte order mark, tag characters). None belongs in a name or an email: they let a name read as another
+// (an administrator-looking one) or make a name that cannot be typed back exactly. Used for the names of
+// accounts and the organization.
+func HasInvisible(s string) bool {
 	for _, r := range s {
-		if unicode.IsControl(r) {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
 			return true
 		}
 	}
@@ -218,50 +222,52 @@ func (s *Service) ResetPassword(ctx context.Context, actorID, actorEmail, actorS
 
 // ChangeOwnPassword is POST /core/account/password: the current password must be right (400 wrong_password,
 // counted by the same rate limit as sign-in), the new one must pass the policy (weak_password) and differ
-// (same_password). The user's other sessions end; keepSessionID (the current one) stays.
-func (s *Service) ChangeOwnPassword(ctx context.Context, userID, keepSessionID, current, next string) error {
+// (same_password). Every session of the user ends, the current one (currentSessionID) included, and a new
+// session for the same browser is returned for the handler to set as cookies (Sessions.Replace): the user
+// stays signed in, a copy of the old cookie does not.
+func (s *Service) ChangeOwnPassword(ctx context.Context, userID, currentSessionID, current, next string) (Issued, error) {
 	t, err := coredb.New(s.db.Reader()).GetUserByID(ctx, userID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return apierr.Unauthenticated()
+		return Issued{}, apierr.Unauthenticated()
 	}
 	if err != nil {
-		return fmt.Errorf("auth: read user: %w", err)
+		return Issued{}, fmt.Errorf("auth: read user: %w", err)
 	}
 	if err := s.checkOwnPassword(ctx, t, current, "The current password is wrong."); err != nil {
-		return err
+		return Issued{}, err
 	}
 	if e := ValidatePassword(next, t.Email); e != nil {
-		return e
+		return Issued{}, e
 	}
 	if next == current {
-		return apierr.New(400, CodeSamePassword, "The new password must differ from the current one.")
+		return Issued{}, apierr.New(400, CodeSamePassword, "The new password must differ from the current one.")
 	}
 	hash, err := s.hashPassword(ctx, next)
 	if err != nil {
-		return err
+		return Issued{}, err
 	}
-	_, err = write(ctx, s.db, func(tx *sql.Tx) (struct{}, *apierr.Error, error) {
+	return write(ctx, s.db, func(tx *sql.Tx) (Issued, *apierr.Error, error) {
 		q := coredb.New(tx)
 		// The password was checked and the new one hashed outside this transaction: an administrator's
 		// reset (or this user's other request) may have changed it since. Then this request is stale and
 		// must not overwrite the newer password. The caller must also still be who they were: not
 		// disabled, and the session they act from not ended.
-		if refusal, err := s.callerRefusal(ctx, q, t.ID, keepSessionID); refusal != nil || err != nil {
-			return struct{}{}, refusal, err
+		if refusal, err := s.callerRefusal(ctx, q, t.ID, currentSessionID); refusal != nil || err != nil {
+			return Issued{}, refusal, err
 		}
 		n, err := q.ChangeUserPassword(ctx, coredb.ChangeUserPasswordParams{PasswordHash: hash, ID: t.ID, CredVersion: t.CredVersion})
 		if err != nil {
-			return struct{}{}, nil, fmt.Errorf("auth: set password: %w", err)
+			return Issued{}, nil, fmt.Errorf("auth: set password: %w", err)
 		}
 		if n == 0 {
-			return struct{}{}, passwordMoved(), nil
+			return Issued{}, passwordMoved(), nil
 		}
-		if _, err := q.RevokeOtherSessions(ctx, coredb.RevokeOtherSessionsParams{RevokedAt: ptr(store.FormatTS(s.now())), UserID: t.ID, ID: keepSessionID}); err != nil {
-			return struct{}{}, nil, fmt.Errorf("auth: revoke other sessions: %w", err)
+		fresh, err := s.Sessions.Replace(ctx, tx, t.ID, currentSessionID)
+		if err != nil {
+			return Issued{}, nil, err
 		}
-		return struct{}{}, nil, s.audit.Append(ctx, tx, audit.Entry{User: t.Email, Action: "account.password", Target: t.Email})
+		return fresh, nil, s.audit.Append(ctx, tx, audit.Entry{User: t.Email, Action: "account.password", Target: t.Email})
 	})
-	return err
 }
 
 // passwordMoved is the refusal when the password changed between the check and the write. wrong_password
@@ -329,9 +335,12 @@ func (s *Service) CheckAdmin(ctx context.Context, tx *sql.Tx, actorID, actorSess
 	return nil
 }
 
-// checkOwnPassword verifies the password of a signed-in user for a sensitive change. Wrong guesses share the
-// sign-in rate limit (keyed by account, since a signed-in caller's IP is not the point); a guess is counted
-// before it is checked so parallel guesses cannot all pass, and the count goes away on the right password.
+// checkOwnPassword verifies the password of a signed-in user for a sensitive change (turning two-step on or
+// off, changing the password). Wrong guesses have their own per-account limiter (accountKey, with the
+// sign-in limits and wait; a signed-in caller's IP is not the point and it is not the sign-in counter of
+// the account); a guess is counted before it is checked so parallel guesses cannot all pass, and the count
+// goes away on the right password. A wrong password writes auth.reauth_failed, so a stolen session that
+// guesses the password leaves a trace for the administrator like a wrong sign-in does.
 func (s *Service) checkOwnPassword(ctx context.Context, t coredb.CoreUser, password, wrongMsg string) error {
 	try, e := s.limit.begin(accountKey, t.Email)
 	if e != nil {
@@ -346,6 +355,11 @@ func (s *Service) checkOwnPassword(ctx context.Context, t coredb.CoreUser, passw
 		return err
 	}
 	if !ok || len(password) > maxPasswordBytes {
+		if aerr := s.db.Write(ctx, func(tx *sql.Tx) error {
+			return s.audit.Append(ctx, tx, audit.Entry{User: t.Email, Action: "auth.reauth_failed", Target: t.Email, Detail: "wrong password"})
+		}); aerr != nil {
+			return aerr
+		}
 		return apierr.New(400, CodeWrongPassword, wrongMsg)
 	}
 	s.limit.reset(accountKey, t.Email)
@@ -370,7 +384,7 @@ func (s *Service) ListUsers(ctx context.Context) ([]User, error) {
 // must still be live when the name is written.
 func (s *Service) UpdateOwnName(ctx context.Context, userID, keepSessionID, name string) error {
 	name = strings.TrimSpace(name)
-	if n := utf8.RuneCountInString(name); n < 1 || n > 80 || !utf8.ValidString(name) || hasControl(name) {
+	if n := utf8.RuneCountInString(name); n < 1 || n > 80 || !utf8.ValidString(name) || HasInvisible(name) {
 		return apierr.New(400, CodeInvalidName, "Enter a display name (at most 80 characters).")
 	}
 	_, err := write(ctx, s.db, func(tx *sql.Tx) (struct{}, *apierr.Error, error) {

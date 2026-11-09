@@ -30,6 +30,8 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 
 **S-INV-1** (P2) `[đạt]` — Cắm hộp vào LAN, 1 giờ sau tôi có danh sách thiết bị: IP, MAC, hãng (OUI), tên, loại (router/NAS/máy in/camera/PC/server), OS, dịch vụ mở, sản phẩm+phiên bản khi đọc được, **độ tin cậy** từng trường và nguồn (thụ động/nmap/SNMP/agent).
 - Chấp nhận: thụ động chạy liên tục không cần cấu hình; quét chủ động chỉ trong cửa sổ giờ tôi đặt; thiết bị "mỏng manh" (máy in, camera, PLC, NAS cũ) mặc định chỉ thụ động.
+- Chấp nhận (D-84, D-74, WP-12): lần quét chủ động đầu tiên của một thiết bị **chưa rõ loại hoặc thuộc loại mong manh** là **một lần quét nhẹ** (tốc độ thấp nhất, không nhận dạng dịch vụ/OS), trong cửa sổ giờ; sau đó chỉ thụ động cho tới khi thiết bị được phân loại (dữ liệu thụ động hoặc người đặt loại) hoặc người cho phép quét thường (loại trong "regular scan kinds" hoặc "Allow regular scans").
+- Chấp nhận (D-74): "Never" nghĩa là **không bao giờ** quét chủ động sau lần quét nhẹ đầu, **với mọi loại thiết bị** (kể cả máy chủ không mong manh); chọn "Never" trên thiết bị đang được quét thì lượt quét dừng ngay. Chính hộp Vedette không bao giờ bị quét.
 
 **S-INV-2** (P1, P2) `[đạt]` — Không có hộp, tôi vẫn khai tay: chọn hãng/sản phẩm/phiên bản từ danh sách gợi ý (CPE) để nhận cảnh báo.
 - Chấp nhận: ≤3 bấm cho một sản phẩm; gợi ý tên thương mại, không chỉ CPE; danh mục đủ mọi sản phẩm từng có trong KEV + sản phẩm phổ biến SMB + khai tự do (D-30).

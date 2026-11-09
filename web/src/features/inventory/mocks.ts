@@ -184,10 +184,10 @@ function summaryOf(a: Asset): DeviceRow['summary'] {
   return { source: top.source, confidence: Math.min(...f.map((x) => x.confidence)) }
 }
 const findingsOf = (id: string) => findingsStore.get().filter((f) => f.asset_id === id).length
-/** D-45: one gentle scan right after a fragile device is first seen (lowest speed); devices declared by hand are never scanned. */
+/** D-45, D-84: one gentle scan right after a fragile device, a device of unknown kind or one set to "never" is first seen (lowest speed, no service/OS detection); devices declared by hand and the box itself are never scanned. */
 const scanInfo = (a: Asset) => ({
   is_box: a.id === BOX_ID,
-  first_scan_at: a.origin === 'discovered' && a.fragile ? new Date(new Date(a.first_seen).getTime() + 4 * 60_000).toISOString() : null,
+  first_scan_at: a.origin === 'discovered' && a.id !== BOX_ID && (a.fragile || a.kind === 'unknown' || metaStore.get()[a.id]?.regular_scan === 'never') ? new Date(new Date(a.first_seen).getTime() + 4 * 60_000).toISOString() : null,
   regular_scan: metaStore.get()[a.id]?.regular_scan ?? ('follow' as RegularScan),
 })
 // Hộp luôn "vừa thấy": nó là máy đang chạy Vedette.

@@ -1,0 +1,15 @@
+# Deferred — feat/sensor-active (WP-12)
+
+- [ ] SNMP (INV-10, the SNMP part of INV-8, `sa_snmp`): needs a story and a screen to enter community / v3 credentials first (gui-first, D-84 (3)); credentials go through `core/secrets` — kien / story first
+- [ ] Move nmap from the core process into the `scan` container with `CAP_NET_RAW` and the sensor protocol (D-55, D-84 (5)); today `core/exec` runs `/usr/bin/nmap --privileged` in the core process, and the install must put the OS package nmap there — WP-08 / sensor protocol, same time as the sensor-passive capture
+- [ ] Register the `scan_probes` export category in `/core/logs/export` once `logexport.Register` exists; the reader is `Service.Probes(since, limit)` — core logs WP
+- [ ] Time zone: `cmd/vedette/sensoractive.go` passes `Config.Location = time.Local`; when PR #58 (core general settings, organization time zone) lands, wire its zone there (and into `inventory` window text) — lead
+- [ ] Hosts that answer a sweep but have no MAC (routed subnets) create no device: `core/observe` has no "seen this IP" field and `Record` needs a field to key a device on; add one (or a lightweight `Seen(ip)`) to `core/observe` + inventory — inventory/observe owner
+- [ ] Devices the inventory knew before the module was turned on are never service-scanned again (only devices queued from `inventory.asset.discovered` are); decide a cadence for a periodic rescan (D-84 (6) names only the daily sweep) — kien
+- [ ] CPE-derived vendor/product (`cpe:/a:apache:http_server` -> `apache` / `http server`) is matched to KEV by lower(vendor)|lower(product) only; a CPE-to-KEV-key table (the matching lib / Recog) would raise the match rate — matching WP
+- [ ] Linux effect check on the lab VM with a real nmap against lab hosts only: `--privileged` with only `CAP_NET_RAW`, XML of nmap 7.94 parses, kill at window end leaves no child — WP-08 lab (never on a real network from a dev machine)
+- [ ] Decoy IPs of the future honeypot (`honeypot` module): the sweep must not probe them; add them to `Inventory.ProtectedIPs` when the module exists — honeypot WP
+- [ ] `Health` has no endpoint yet (no status page reads `Service.Health`, `Zone` or `Warning`); expose it with the module status in `core` — core status WP
+- [ ] A gentle scan has no `-O`/`-sV`, so a device that only the sweep found stays `kind=unknown` (passive-only after its gentle scan, `unclassified_passive_only`) until passive data or a person sets its kind; decide whether the open ports of the gentle scan may suggest a kind (a story first, no-imagined-features) — kien / story
+- [ ] Merge: this branch changes `inventory/scanpolicy.go` (unknown kind -> gentle, `ProtectedIPs`); the sensor-passive worktree changes `inventory/observe.go` (`observe.ErrRejected`): expect a conflict only in observe.go, not in scanpolicy.go — lead
+- [ ] The future `scan` module must treat the policy reason `first_gentle_scan` as a refusal (it only allows sensor-active's one gentle scan), see sensor-active CONTRACT PRE-2 — scan WP

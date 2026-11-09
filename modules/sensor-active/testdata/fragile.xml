@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<!-- hand-written fixture shaped after the nmap DTD; no live network was scanned -->
+<nmaprun scanner="nmap" args="nmap --privileged -sS -n -T2 --max-retries 1 --max-rate 1 --host-timeout 15m --top-ports 100 -oX -" start="1762650000" version="7.94" xmloutputversion="1.05">
+<host><status state="up" reason="syn-ack" reason_ttl="64"/>
+<address addr="192.168.10.30" addrtype="ipv4"/>
+<ports>
+<port protocol="tcp" portid="9100"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="jetdirect" method="table" conf="3"/></port>
+<port protocol="tcp" portid="80"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="http" product="Acme Embedded httpd" version="1.2" method="probed" conf="7"><cpe>cpe:/a:acme:embedded_httpd:1.2</cpe></service></port>
+</ports>
+</host>
+<runstats><finished time="1762650031" elapsed="100.00" summary="Nmap done" exit="success"/></runstats>
+</nmaprun>

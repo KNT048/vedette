@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -428,8 +429,14 @@ func TestWiringInventoryUsesTheFeedsKEV(t *testing.T) {
 // TestWiredModulesFollowDependencies); this pins the four the wiring added together. Later modules follow them.
 func TestWiredModulesIncludeFindingsAndMitigationInOrder(t *testing.T) {
 	t.Parallel()
-	got := strings.Join(ids(wiredModules()), ",")
-	if got != "core,feeds,inventory,findings,mitigation" && !strings.HasPrefix(got, "core,feeds,inventory,findings,mitigation,") {
+	var pinned []string // other modules wired between them (sensors) do not change this order
+	for _, id := range ids(wiredModules()) {
+		if slices.Contains([]string{"core", "feeds", "inventory", "findings", "mitigation"}, id) {
+			pinned = append(pinned, id)
+		}
+	}
+	got := strings.Join(pinned, ",")
+	if got != "core,feeds,inventory,findings,mitigation" {
 		t.Errorf("wired modules: %s", got)
 	}
 }

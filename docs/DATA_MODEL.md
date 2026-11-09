@@ -371,6 +371,17 @@ Mọi thay đổi trạng thái một yêu cầu = **một dòng `core_audit` + 
 
 Người dùng và phiên đăng nhập bằng SSO vẫn nằm ở `core_user`, `core_session`.
 
+### 4.14 `sensor-active` (`sa_`) — D-84
+
+| Bảng | Cột | Khoá / index | Giữ | R / W |
+|---|---|---|---|---|
+| **`sa_job`** (một lượt chạy nmap) | `id:id` (`saj-…`) · `kind:enum(sweep\|device)` · `reason:text?` (≤ 64; lý do quét thiết bị) · `started_at:ts` · `finished_at:ts?` · `status:enum(running\|done\|stopped\|failed)` · `targets:int=0` · `new_devices:int=0` · `error:text?` (≤ 1000) | PK(id); index (kind, started_at) | Mãi | R job `window-tick` (đã quét dò trong cửa sổ này chưa); W `sensoractive.Service` |
+| **`sa_probe`** (nhật ký thăm dò, INV-9; một dòng gọn mỗi lần chạy nmap) | `id:int` AUTOINCREMENT · `time:ts` · `job_id:id` · `shape:enum(sweep\|normal\|gentle)` (mẫu dòng lệnh) · `rate:int` (1..1000, `--max-rate`) · `hosts:int` (1..64) · `flags:text` (≤ 300; phần cờ của argv đúng như đã duyệt, cách nhau bằng dấu cách) · `targets:text` (≤ 1100; các đích dạng dải gộp `a-b,c,d-e`, theo thứ tự gửi; quét thiết bị: một IP) · `result:text` (≤ 200; `started` trong lúc chạy) | PK(id); FK `job_id`→`sa_job`; index (time), (job_id) | 365 ngày (job `prune-probes`; INV-9 đòi ≥ 90) | R `Service.Probes` (argv = `flags` đã lưu; danh mục `scan_probes` sau này); W `Service` |
+| **`sa_queue`** (thiết bị chờ quét trong cửa sổ) | `asset_id:id` · `queued_at:ts` · `reason:text` · `attempts:int=0` | PK(asset_id) | Đến khi quét xong, bị chặn hoặc thử lỗi 3 lần | R/W `Service` (`inventory.asset.discovered` xếp hàng) |
+| **`sa_sweep`** (vị trí lượt quét dò, một dòng `id=1`) | `id:int` (=1) · `cursor:text?` (địa chỉ cuối của lô đã xong; NULL = không có lượt đang dở) · `updated_at:ts` | PK(id) | Một dòng | R/W `Service.DiscoverRanges`: cửa sổ cắt giữa lượt thì ngày sau tiếp tục từ `cursor`; hết dải thì xoá `cursor`, lượt sau bắt đầu lại từ địa chỉ đầu |
+
+`asset_id` không có khoá ngoại sang `inv_asset` (rule 3: không FK chéo module); thiết bị đã xoá thì `ScanDevice` trả `ErrNotFound` và dòng bị bỏ. `sa_snmp` chưa tạo.
+
 ## 5. Chủ đề chuyên sâu
 
 ### 5.1 Gộp observation tài sản (không ghi đè, ưu tiên nguồn)
@@ -571,7 +582,7 @@ Chỉ liệt kê chỗ **khác tên** hoặc **thừa/thiếu bảng**; còn l�
 | `scan` | `scan_config`, `scan_result` | `scan_setting`, `results` JSON trong `scan_run` | tách `scan_result` thành bảng nếu cần lọc theo finding |
 | `scan-credentialed` | `scc_target`, `scc_run`, `scc_result` | `scc_target` | hai bảng sau chưa có trong mock |
 | `sensor-passive` | `sp_sensor`, `sp_span_stat`, `sp_seq` | `sp_sensor` | `sp_span_stat`, `sp_seq` chưa có trong mock (D-56) |
-| `sensor-active` | `sa_job`, `sa_probe`, `sa_snmp` | (chưa có) | chưa có trong mock |
+| `sensor-active` | `sa_job`, `sa_probe`, `sa_snmp` | `sa_job`, `sa_probe`, `sa_queue`, `sa_sweep` (mục 4.14) | `sa_snmp` chưa xây (D-84 (3)); `sa_queue` thêm (hàng đợi quét sống qua khởi động lại); `sa_sweep` thêm (con trỏ lượt quét dò) |
 | `agent-intake` | `intake_agent_tokens`, `intake_wazuh` | cùng tên | khớp |
 | `feeds` | `feeds_fetch_log` | `feeds_fetch` | đổi tên cho khớp |
 | `response` | `resp_settings`, `resp_plans`, `resp_actions`, `resp_catalog`, `resp_rules`, `resp_allowlist`, `resp_blocklist`, `resp_tokens`, `resp_done`, `resp_ai_notes`, `resp_hints`, `resp_log` | `resp_setting`, `resp_plan`, `resp_action` (+ `_item`, `resp_approval`), `resp_catalog`, `resp_rule`, `resp_allow`, `resp_setting.blocklist`, `resp_approval_token`, `resp_rule_done`, `resp_ai_note`, `resp_hint`, `resp_log` | `resp_actions` ở CONTRACT có `items` lồng; file này tách `resp_action_item`, `resp_approval` |

@@ -215,6 +215,9 @@ func buildServices(d *deps) error {
 	if d.OS, err = newOSHandlers(*d); err != nil {
 		return fmt.Errorf("os updates: %w", err)
 	}
+	if d.Honeypot, err = newHoneypot(d); err != nil {
+		return fmt.Errorf("honeypot: %w", err)
+	}
 	sp, err := newSensorPassive(*d)
 	if err != nil {
 		return fmt.Errorf("sensor-passive: %w", err)

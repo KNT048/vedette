@@ -18,6 +18,7 @@ import (
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
+	"github.com/knt048/vedette/modules/honeypot"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
@@ -50,6 +51,8 @@ type deps struct {
 	Findings           *findings.Service
 	FindingHandlers    *findings.FindingHandlers // also carries mitigation's guidance (SetGuidance) and is mitigation's Details
 	MitigationHandlers *mitigation.ActionHandlers
+	Honeypot           *honeypot.Service      // the run job, the HTTP handler and the inventory subscription share it
+	HoneypotDir        string                 // shared volume with the honeypot container (-honeypot-dir); empty = no container wired
 	SensorPassive      *sensorpassive.Service // the capture job and the HTTP handler share it: the SPAN measurement lives in its memory
 }
 
@@ -70,6 +73,7 @@ func wiredModules() []moduleWiring {
 		{ID: "feeds", Migrations: feeds.Migrations, Jobs: feedsJobs},
 		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},
 		{ID: "sensor-active", Migrations: sensoractive.Migrations, Jobs: sensorActiveJobs},
+		{ID: "honeypot", Migrations: honeypot.Migrations, Jobs: honeypotJobs},
 		{ID: "findings", Migrations: findings.Migrations},
 		{ID: "mitigation", Migrations: mitigation.Migrations},
 		{ID: "notify", Migrations: notify.Migrations, Jobs: notifyJobs},

@@ -334,7 +334,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (55 mã)
+#### HTTP 409 (56 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -363,6 +363,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `ip_in_use` | 409 | IP ${ip} belongs to device ${assetName(clash)} in the inventory. Pick an unused IP. | 4 endpoint (/honeypot) |
 | `limit` | 409 | Up to 30 rules. | `POST /response/catalog`; `POST /response/rules`; `POST /response/templates/{id}/clone` |
 | `module_off` | 409 | Turn on the MCP server before creating a token. | `POST /core/mcp/tokens` |
+| `limit_reached` | 409 | The box can hold 32 decoys. Delete one before adding another. | `POST /honeypot/decoys` |
 | `need_decoys` | 409 | Scan detection needs at least two decoy IPs. Add a decoy first. | `POST /honeypot/test-scan` |
 | `no_devices` | 409 | No device in the inventory matches (agent sample data). | `POST /inventory/agents/tokens/{id}/sample-data`; `POST /inventory/agents/wazuh/sample-data` |
 | `no_pending` | 409 | No key is waiting for confirmation. Click "Turn on two-factor authentication" to create one. | `POST /core/account/2fa/confirm` |

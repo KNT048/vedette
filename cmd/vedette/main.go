@@ -57,6 +57,7 @@ type options struct {
 	tlsCert, tlsKey string
 	hosts           string
 	hostSocket      string
+	honeypotDir     string
 }
 
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
@@ -66,6 +67,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	var o options
 	flags.StringVar(&o.db, "db", "/var/lib/vedette/vedette.db", "path of the SQLite database (created with mode 0600)")
 	flags.StringVar(&o.key, "key", "/var/lib/vedette/vedette.key", "path of the secrets master key file (created with mode 0600 when missing)")
+	flags.StringVar(&o.honeypotDir, "honeypot-dir", "/var/lib/vedette/honeypot", "parent of the two folders shared with the honeypot container: config/ (core writes opencanary.conf; the container mounts it read-only) and log/ (the container writes the trap log, core reads it) (D-89)")
 	// Plain HTTP only on loopback; any other address is served over TLS (own certificate, or a self-signed one made at first start).
 	flags.StringVar(&o.hostSocket, "host-socket", "/run/vedette/host.sock", "unix socket of vedette-host (operating system updates and backups); empty, or a missing socket file, means a container-only install and those endpoints answer 409 not_appliance. The database and key files must be <dir>/vedette.db and <dir>/vedette.key, where <dir> is the host's core_data")
 	flags.StringVar(&o.listen, "listen", "127.0.0.1:8080", "address to listen on; plain HTTP on loopback, TLS on any other address")
@@ -189,7 +191,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		return err
 	}
 	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), BaseURL: baseURL(hosts, o.listen),
-		HostSocket: o.hostSocket, DataDir: filepath.Dir(o.db), KeyPath: o.key}
+		HostSocket: o.hostSocket, DataDir: filepath.Dir(o.db), KeyPath: o.key, HoneypotDir: o.honeypotDir}
 	if err := buildServices(&d); err != nil {
 		return err
 	}

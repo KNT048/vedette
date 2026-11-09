@@ -66,15 +66,16 @@ type fieldSpec struct {
 	id       string
 	required bool
 	date     bool
+	free     bool // free text: invisible characters are stripped, not rejected
 }
 
 var vulnFields = []fieldSpec{
-	{"cve", true, false}, {"vendor", false, false}, {"product", false, false},
-	{"date", false, true}, {"description", false, false}, {"link", false, false},
+	{"cve", true, false, false}, {"vendor", false, false, false}, {"product", false, false, false},
+	{"date", false, true, false}, {"description", false, false, true}, {"link", false, false, false},
 }
 
 var iocFields = []fieldSpec{
-	{"indicator", true, false}, {"kind", false, false}, {"confidence", false, false}, {"first_seen", false, true},
+	{"indicator", true, false, false}, {"kind", false, false, false}, {"confidence", false, false, false}, {"first_seen", false, true, false},
 }
 
 func fieldSpecs(k Kind) []fieldSpec {

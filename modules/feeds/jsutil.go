@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -130,14 +131,45 @@ func jsNumString(f float64) string {
 	return sign + digits[:1] + "." + digits[1:] + "e" + es + strconv.Itoa(ae)
 }
 
-func hasControl(s string) bool {
-	for _, r := range s {
-		if (r < 0x20 && r != '\t' && r != '\n' && r != '\r') || r == 0x7f {
-			return true
-		}
+// unsafeRune reports characters that must never reach a log, a notification
+// or a page verbatim: C0 controls (except tab, newline, carriage return), DEL,
+// C1 controls, Unicode format characters (bidi overrides and isolates,
+// zero-width characters, BOM, ...) and the line and paragraph separators.
+func unsafeRune(r rune) bool {
+	switch {
+	case r < 0x20:
+		return r != '\t' && r != '\n' && r != '\r'
+	case r == 0x7f, r >= 0x80 && r <= 0x9f, r == 0x2028, r == 0x2029:
+		return true
 	}
-	return false
+	return r > 0x9f && unicode.Is(unicode.Cf, r)
 }
+
+func hasControl(s string) bool { return strings.ContainsFunc(s, unsafeRune) }
+
+// hasControlStrict also refuses tab, newline and carriage return: for identifiers.
+func hasControlStrict(s string) bool {
+	return strings.ContainsFunc(s, func(r rune) bool { return unsafeRune(r) || r == '\t' || r == '\n' || r == '\r' })
+}
+
+// stripFormat removes the format characters, C1 controls and separators that
+// hasControl would refuse, for free-text fields where dropping them is enough.
+// C0 controls are kept so that the caller still rejects them.
+func stripFormat(s string) string {
+	if !strings.ContainsFunc(s, func(r rune) bool { return unsafeRune(r) && r >= 0x7f }) {
+		return s
+	}
+	return strings.Map(func(r rune) rune {
+		if unsafeRune(r) && r >= 0x7f {
+			return -1
+		}
+		return r
+	}, s)
+}
+
+// quoteVal renders a feed-supplied value for a message: truncated, then quoted
+// with Go escapes so control and format characters show as \x1b or \u202e.
+func quoteVal(s string) string { return strconv.Quote(jsSlice(s, 40)) }
 
 // cleanText strips a UTF-8 BOM and replaces invalid UTF-8 so nothing downstream
 // (JSON, SQLite text columns) sees broken encoding.

@@ -1,10 +1,6 @@
 package feeds
 
 import (
-	"encoding/json"
-	"errors"
-	"io"
-	"net/url"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -36,16 +32,28 @@ type KEVCatalog struct {
 }
 
 type kevEntry struct {
-	CVEID       string `json:"cveID"`
-	Vendor      string `json:"vendorProject"`
-	Product     string `json:"product"`
-	Name        string `json:"vulnerabilityName"`
-	DateAdded   string `json:"dateAdded"`
-	Description string `json:"shortDescription"`
-	Action      string `json:"requiredAction"`
-	DueDate     string `json:"dueDate"`
-	Ransomware  string `json:"knownRansomwareCampaignUse"`
-	Notes       string `json:"notes"`
+	CVEID, Vendor, Product, Name, DateAdded, Description, Action, DueDate, Ransomware, Notes string
+}
+
+// kevFields maps KEV JSON keys (exact case, last duplicate wins like JSON.parse) to entry fields.
+func kevEntryFrom(n *jnode) (kevEntry, bool) {
+	var e kevEntry
+	ok := true
+	for key, dst := range map[string]*string{
+		"cveID": &e.CVEID, "vendorProject": &e.Vendor, "product": &e.Product, "vulnerabilityName": &e.Name,
+		"dateAdded": &e.DateAdded, "shortDescription": &e.Description, "requiredAction": &e.Action,
+		"dueDate": &e.DueDate, "knownRansomwareCampaignUse": &e.Ransomware, "notes": &e.Notes,
+	} {
+		v, found := n.get(key)
+		switch {
+		case !found || v.k == jNull:
+		case v.k == jStr:
+			*dst = v.s
+		default:
+			ok = false
+		}
+	}
+	return e, ok
 }
 
 // Text caps for descriptive fields (clipped); vendor/product are the matching
@@ -76,10 +84,7 @@ func kevLinks(notes string) []string {
 		if len(links) == maxLinks {
 			break
 		}
-		if !validIndicatorURL(part) {
-			continue
-		}
-		if u, err := url.Parse(part); err != nil || u.Host == "" {
+		if !validIndicatorURL(part) || hasControl(part) {
 			continue
 		}
 		dup := false
@@ -93,145 +98,111 @@ func kevLinks(notes string) []string {
 	return links
 }
 
-func (e kevEntry) toVuln() (Vuln, string) {
+// freeText strips invisible characters and clips; ok is false when a C0 control remains.
+func freeText(s string, runes int) (string, bool) {
+	s = clip(jsTrim(stripFormat(s)), runes)
+	return s, !hasControl(s)
+}
+
+func (e kevEntry) toVuln() (Vuln, rej) {
 	cve := strings.ToUpper(jsTrim(e.CVEID))
 	if !cveRE.MatchString(cve) {
-		return Vuln{}, `cveID: "` + jsSlice(cve, 30) + `" is not a CVE ID`
+		return Vuln{}, rj("cveID: %s is not a CVE ID", cve)
 	}
 	v := Vuln{CVE: cve, Links: kevLinks(e.Notes)}
-	for _, f := range []struct {
-		name, val string
-	}{{"vendorProject", e.Vendor}, {"product", e.Product}, {"vulnerabilityName", e.Name}, {"shortDescription", e.Description}, {"requiredAction", e.Action}, {"notes", e.Notes}} {
-		if hasControl(f.val) {
-			return Vuln{}, f.name + ": contains control characters"
-		}
-	}
 	v.Vendor, v.Product = jsTrim(e.Vendor), jsTrim(e.Product)
 	if v.Vendor == "" || v.Product == "" {
-		return Vuln{}, "vendorProject/product: missing"
+		return Vuln{}, rj("vendorProject/product: missing")
 	}
 	if utf8.RuneCountInString(v.Vendor) > maxKeyText || utf8.RuneCountInString(v.Product) > maxKeyText {
-		return Vuln{}, "vendorProject/product: too long"
+		return Vuln{}, rj("vendorProject/product: too long")
 	}
-	v.Name = clip(jsTrim(e.Name), maxNameText)
-	v.Description = clip(jsTrim(e.Description), maxDescText)
-	v.RequiredAction = clip(jsTrim(e.Action), maxDescText)
-	d, ok := normDate(e.DateAdded, DateAuto)
-	if !ok || !strictDateRE.MatchString(jsTrim(e.DateAdded)) {
-		return Vuln{}, `dateAdded: unrecognised date "` + jsSlice(e.DateAdded, 30) + `"`
+	if hasControlStrict(v.Vendor) || hasControlStrict(v.Product) {
+		return Vuln{}, rj("vendorProject/product: contains control or invisible characters")
+	}
+	var ok bool
+	for _, f := range []struct {
+		dst  *string
+		src  string
+		max  int
+		name string
+	}{{&v.Name, e.Name, maxNameText, "vulnerabilityName"}, {&v.Description, e.Description, maxDescText, "shortDescription"}, {&v.RequiredAction, e.Action, maxDescText, "requiredAction"}} {
+		if *f.dst, ok = freeText(f.src, f.max); !ok {
+			return Vuln{}, rj(f.name + ": contains control characters")
+		}
+	}
+	added := jsTrim(e.DateAdded)
+	d, ok := normDate(added, DateAuto)
+	if !ok || !strictDateRE.MatchString(added) {
+		return Vuln{}, rj("dateAdded: unrecognised date %s", added)
 	}
 	v.DateAdded = d
 	if due := jsTrim(e.DueDate); due != "" {
 		dd, ok := normDate(due, DateAuto)
 		if !ok || !strictDateRE.MatchString(due) {
-			return Vuln{}, `dueDate: unrecognised date "` + jsSlice(due, 30) + `"`
+			return Vuln{}, rj("dueDate: unrecognised date %s", due)
 		}
 		v.DueDate = dd
 	}
 	v.Ransomware = e.Ransomware == "Known"
-	return v, ""
+	return v, rej{}
 }
 
 // ParseKEV parses the CISA Known Exploited Vulnerabilities JSON catalog,
 // fail-closed per entry (INV-3): a bad entry is rejected and counted, the rest
 // are kept. Syntax errors, a missing "vulnerabilities" array or input over
 // MaxBodyBytes fail the whole parse so the caller keeps the data it has.
-// Duplicate CVE ids keep the first entry.
+// Keys are matched exactly and the last duplicate key wins, as JSON.parse in
+// the SPA does. Duplicate CVE ids keep the first entry.
 func ParseKEV(data []byte) (KEVCatalog, error) {
 	if len(data) > MaxBodyBytes {
 		return KEVCatalog{}, fail(ErrTooLarge, "The catalog is larger than %d MB; Vedette would skip it.", MaxBodyBytes/1_000_000)
 	}
-	dec := json.NewDecoder(strings.NewReader(cleanText(data)))
-	bad := func() (KEVCatalog, error) {
+	root, err := decodeJSON(cleanText(data))
+	if err != nil || root.k != jObj {
 		return KEVCatalog{}, fail(ErrBadSample, "The data is not a valid KEV JSON catalog.")
 	}
-	if t, err := dec.Token(); err != nil || t != json.Delim('{') {
-		return bad()
+	list, _ := root.get("vulnerabilities")
+	if list == nil || list.k != jArr {
+		return KEVCatalog{}, fail(ErrBadSample, `The catalog has no "vulnerabilities" list.`)
 	}
 	cat := KEVCatalog{Vulns: []Vuln{}}
+	if v, ok := root.get("catalogVersion"); ok && v.k == jStr && versionRE.MatchString(v.s) {
+		cat.Version = v.s
+	}
+	if v, ok := root.get("dateReleased"); ok && v.k == jStr {
+		if d, ok := normDate(v.s, DateAuto); ok && isoRE.MatchString(v.s) {
+			cat.Released = d
+		}
+	}
 	tl := newTally()
 	seen := map[string]bool{}
-	found := false
-	for dec.More() {
-		kt, err := dec.Token()
-		if err != nil {
-			return bad()
+	for i, n := range list.children() {
+		if i == MaxRows {
+			tl.Truncated = true
+			break
 		}
-		key, _ := kt.(string)
-		switch key {
-		case "catalogVersion", "dateReleased":
-			var s string
-			if err := dec.Decode(&s); err != nil {
-				var te *json.UnmarshalTypeError
-				if !errors.As(err, &te) {
-					return bad()
-				}
-				continue
-			}
-			if key == "catalogVersion" && versionRE.MatchString(s) {
-				cat.Version = s
-			}
-			if key == "dateReleased" {
-				if d, ok := normDate(s, DateAuto); ok && isoRE.MatchString(s) {
-					cat.Released = d
-				}
-			}
-		case "vulnerabilities":
-			t, err := dec.Token()
-			if err != nil {
-				return bad()
-			}
-			if t != json.Delim('[') {
-				return bad()
-			}
-			found = true
-			row := 0
-			for dec.More() {
-				if row == MaxRows {
-					tl.Truncated = true
-					cat.Stats = tl.stats()
-					return cat, nil
-				}
-				row++
-				var e kevEntry
-				if err := dec.Decode(&e); err != nil {
-					var te *json.UnmarshalTypeError
-					if !errors.As(err, &te) {
-						return bad()
-					}
-					tl.reject(row, "entry has a field of the wrong type")
-					continue
-				}
-				v, why := e.toVuln()
-				if why == "" && seen[v.CVE] {
-					why = "cveID: duplicate in the catalog"
-				}
-				if why != "" {
-					tl.reject(row, why)
-					continue
-				}
-				seen[v.CVE] = true
-				tl.Accepted++
-				cat.Vulns = append(cat.Vulns, v)
-			}
-			if _, err := dec.Token(); err != nil { // ]
-				return bad()
-			}
-		default:
-			var skip json.RawMessage
-			if err := dec.Decode(&skip); err != nil {
-				return bad()
-			}
+		row := i + 1
+		if n.k != jObj {
+			tl.reject(row, "entry is not an object")
+			continue
 		}
-	}
-	if _, err := dec.Token(); err != nil { // }
-		return bad()
-	}
-	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
-		return bad()
-	}
-	if !found {
-		return KEVCatalog{}, fail(ErrBadSample, `The catalog has no "vulnerabilities" list.`)
+		e, ok := kevEntryFrom(n)
+		if !ok {
+			tl.reject(row, "entry has a field of the wrong type")
+			continue
+		}
+		v, why := e.toVuln()
+		if why.none() && seen[v.CVE] {
+			why = rj("cveID: duplicate in the catalog")
+		}
+		if !why.none() {
+			tl.rejectR(row, why)
+			continue
+		}
+		seen[v.CVE] = true
+		tl.Accepted++
+		cat.Vulns = append(cat.Vulns, v)
 	}
 	cat.Stats = tl.stats()
 	return cat, nil

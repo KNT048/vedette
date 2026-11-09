@@ -162,7 +162,7 @@ Dán phần cuối kết quả + SHA commit vào mục **Local checks** của PR
 | a11y | `expectNoA11yViolations()` | mỗi trang |
 | Kịch bản người dùng | Playwright (`web/e2e/`) | mỗi story |
 | Fuzz | `go test -fuzz` | parser dữ liệu ngoài |
-| Hệ thống/appliance | VM Debian 12 + Ubuntu 24.04, mạng lab | M2 trở đi, trước mỗi release |
+| Hệ thống/appliance | VM Ubuntu 24.04, Ubuntu 26.04, Debian 13 (D-57 (1), D-107), mạng lab | M2 trở đi, trước mỗi release |
 
 Phương pháp kiểm giao diện **bắt buộc** nằm ở [`docs/QA.md`](QA.md): (1) người làm khác người kiểm; (2) ma trận form; (3) đi kịch bản bằng tay ảo, chụp từng bước, desktop + điện thoại, sáng + tối; (4) cập nhật danh mục form. Có thể bỏ chạy lại toàn bộ e2e khi cần ship nhanh, **không** được bỏ ma trận form và kịch bản cho màn hình vừa làm (QA.md §5). Quét chủ động chỉ trong lab; fixture thay mạng thật.
 

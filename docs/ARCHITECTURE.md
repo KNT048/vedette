@@ -47,7 +47,7 @@ Hộp **không** nằm trên đường mạng: nó là một host trong LAN, tu�
 | `vedette-host` | OS update, cấu hình mạng (card quản trị, SPAN, IP phụ), kéo + xác minh image, start/stop/rollback container, sao lưu, đọc dpkg cho "This box" | Tiến trình systemd trên host | root, bề mặt rất nhỏ (lệnh cố định, SYS-1) | D-53, D-55, D-56 |
 | `core` | Go + SPA nhúng + SQLite: auth, module registry, job, audit, secrets, feeds, inventory, matching, mitigation, notify, ai, response, reports, mcp-server | Container, mạng bridge nội bộ, publish 8443 | không root, cap_drop ALL, rootfs chỉ đọc | D-8, D-55 |
 | `sensor` | `sensor-passive` (DHCP/ARP/mDNS/SSDP/LLDP, bộ phân tích SPAN metadata viết bằng Go), `sensor-active` (nmap qua `core/exec`), nhận syslog (`logs`) | Container, **mạng host** | `CAP_NET_RAW`, `CAP_NET_BIND_SERVICE` | D-43, D-55 |
-| `honeypot` | OpenCanary + tác tử Go (lấy cấu hình sinh từ DB, gửi `honeypot.hit`), honey token | Container, **macvlan** (IP phụ) | `CAP_NET_BIND_SERVICE` (cổng thấp trên IP riêng) | D-50, D-55 |
+| `honeypot` | Một tiến trình OpenCanary + honey token; cấu hình đọc từ tệp `core` ghi, hit ghi ra tệp `core` đọc (D-89) | Container trong namespace `vedette-hp` do host giữ: mỗi IP phụ/decoy một link **macvlan** và MAC riêng, nft chặn kết nối mới đi ra | không capability (`ip_unprivileged_port_start=0` trong namespace) | D-50, D-55, D-89, D-102 |
 | `scan` | nmap + nuclei, nhận việc từ hàng đợi của `core`, trả bằng chứng | Container, mạng host | `CAP_NET_RAW` | D-4, D-55 |
 | `greenbone` | Greenbone CE, quét có đăng nhập (S-SCAN-5) | Nhóm container upstream, tuỳ chọn, mạng nội bộ | GPL/AGPL, không sửa | D-55, S-SCAN-5 |
 | SPA (`web/`) | React, một locale `en` qua i18next | Nhúng trong `core` | — | D-22, D-28 |
@@ -171,9 +171,9 @@ Ngoại lệ không mở rộng sang `vedette-host`: AI không bao giờ gọi `
 | TB-4 harness ↔ provider AI | dịch vụ ngoài | chỉ khi cấu hình; che PII; hồ sơ nội bộ; output theo schema |
 | TB-5 AI ↔ công cụ | mô hình có thể bị prompt injection | khối dữ liệu có nhãn; công cụ đọc theo allowlist; ghi chỉ qua §7.2 |
 | TB-6 kênh chat/email ↔ core | lời duyệt từ ngoài | danh tính đã liên kết, token ký dùng một lần, POST xác nhận (D-46) |
-| TB-7 hộp ↔ registry/GitHub | chuỗi cung ứng | chữ ký cosign **bắt buộc** khi kéo (policy trên host), digest ghim, thu hồi, theo lô |
+| TB-7 hộp ↔ registry/GitHub | chuỗi cung ứng | minisign cho index/manifest và cosign cho image, **kiểm trong mã của `vedette-host`** trước khi kéo (khoá nhúng, ngoại tuyến, D-103); tham chiếu kéo dựng từ hằng + digest; thu hồi, chống hạ bản (D-104); theo lô |
 | TB-8 core ↔ `vedette-host` | tiến trình root | socket nội bộ quyền chặt, lệnh cố định, tham số kiểm kiểu, một việc tại một thời điểm, audit; xem `specs/host-api.md` |
-| TB-9 sensor/honeypot/scan ↔ core | container có bề mặt tấn công từ LAN (bẫy, syslog) | mTLS cert riêng từng container, không tin dữ liệu từ container; honeypot bị chiếm không có đường tới DB |
+| TB-9 sensor/honeypot/scan ↔ core | container có bề mặt tấn công từ LAN (bẫy, syslog) | mTLS cert riêng cho `sensor`/`scan`; honeypot không có cổng mạng nào tới `core`, chỉ tệp một chiều (D-89), và không mở được kết nối mới ra ngoài namespace của nó (D-102); không tin dữ liệu từ container; honeypot bị chiếm không có đường tới DB |
 
 ### 7.4 Lớp cô lập container
 
@@ -251,11 +251,11 @@ Dependency/feed mới → cập nhật `../THIRD_PARTY_NOTICES.md` cùng commit 
 
 | # | Câu hỏi | Ảnh hưởng |
 |---|---|---|
-| A1 | Debian 12 đi kèm Podman 4.3 (không có Quadlet, từ 4.4). D-55 ghi Debian 12 / Ubuntu 24.04. Chọn: Debian 13, backports, hay chỉ Ubuntu 24.04 ở M2? Cần kiểm lại phiên bản gói | `DEPLOYMENT.md` §4 |
+| A1 | ~~Debian 12 đi kèm Podman 4.3 (không có Quadlet). Chọn bản OS nào?~~ **Đã chốt:** appliance chạy Ubuntu 24.04, Ubuntu 26.04, Debian 13 (D-57 (1)), cả ba dùng netplan với renderer `networkd` (D-99) và chrony (D-106); Debian 12 chỉ cho kiểu Chỉ container. Phiên bản gói thật kiểm ở lab | `DEPLOYMENT.md` §4 |
 | A2 | Image `scan` chứa nmap là phân phối lại nmap (NPSL 0.95), khác D-4 ("cài từ repo OS, không ship"). Giữ D-55 hay build image tại máy khách? | Giấy phép, `THIRD_PARTY_NOTICES.md` |
-| A3 | Registry chứa image (đề xuất GHCR cùng repo) và cosign key-based hay keyless: là luồng dữ liệu ra mới → cập nhật `PRIVACY.md` luồng 6 + UI cùng commit | `rules/legal.md` |
+| A3 | ~~Registry chứa image và cosign key-based hay keyless~~ **Đã chốt:** `ghcr.io/knt048/vedette-<service>`, cosign bằng khoá, kiểm ngoại tuyến (D-57 (3)), chữ ký đi trong manifest và được kiểm trong mã của host (D-103). `PRIVACY.md` luồng 6 + Settings → Privacy thêm `ghcr.io` cùng PR với mã kéo image (lát 3-7, `.ai/deferred/feat-host-net-containers.md`) | `rules/legal.md` |
 | A4 | Capability cho non-root trong container (sensor/scan): xác minh bằng test hiệu ứng, nếu không được thì chạy UID 0 + cap hạn chế | §7.4 |
-| A5 | Một container honeypot cho mỗi IP/vai giả (D-50) hay nhiều IP trong một container? | `DEPLOYMENT.md` §2.3 |
+| A5 | ~~Một container honeypot cho mỗi IP/vai giả hay nhiều IP trong một container?~~ **Đã chốt:** một container, một tiến trình OpenCanary (D-90 (1)) trong namespace `vedette-hp` với mọi decoy (D-102); chặn egress của bẫy (câu hỏi B5 của `DEPLOYMENT.md`) bằng nft trong namespace đó | `DEPLOYMENT.md` §2.3 |
 | A6 | Sao lưu có kèm khoá bí mật không (mã hoá bằng passphrase?) | `DEPLOYMENT.md` §10 |
 | A7 | Chế độ Chỉ container: "This box" (S-INV-5) lấy gói từ đâu khi không có dpkg của host? Cập nhật image do ai bấm? | `DEPLOYMENT.md` §5 |
 | A8 | `docs/MODULES.md`, `docs/DATA_PIPELINE.md` (mục cũ) vẫn nhắc fleet, vi/en, Zeek/Suricata, builder; cần dọn để khỏi mâu thuẫn tài liệu này | nhất quán tài liệu |

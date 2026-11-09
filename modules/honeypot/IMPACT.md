@@ -14,7 +14,11 @@
 
 ## Modifying: `Overview(ctx)`, `SetConfig(ctx, ip, hostname)` — GUI + host
 - **web/features/honeypot**: `HpOverview` là hợp đồng; đổi → sinh lại OpenAPI + sửa mock.
-- **host**: lệnh `decoy_ip.add/remove` và `container.start/stop` (service `honeypot`) nhận IP đã kiểm; đổi định dạng → IP phụ không dựng được, bẫy `conflict`/`off`.
+- **host**: lệnh `decoy_ip.add/remove` và `container.start/stop` (service `honeypot`) nhận IP đã kiểm; đổi định dạng → IP phụ không dựng được, bẫy `conflict`/`off`. Bộ chuyển `Host` ở `cmd/vedette/honeypot.go` (việc của `core`, CONTRACT "Bộ chuyển `Host` phía `core`") phải so với `decoys` của `GET /v1/state/net` và chỉ gửi phần khác: `syncIPs` gọi `AddDecoyIP` cho mọi IP ở mỗi `Apply`, gửi thẳng thì 32 decoy chạm trần 10 lệnh ghi/phút của host.
+
+## Modifying: mạng của container (namespace `vedette-hp`, D-102)
+- **host** (unit Quadlet, `decoy_ip.*`): container vào namespace do host sở hữu (`Network=ns:/run/netns/vedette-hp`), MAC mỗi IP do host sinh, chặn đi ra bằng nft trong namespace, `DropCapability=ALL` nhờ `ip_unprivileged_port_start=0`. Đổi sang network macvlan của Podman hay một container mỗi IP là trái D-102 (một IP mỗi lần gắn, phải khởi động lại); thêm chân `vedette-int` mở lại đường tới `core` mà D-89 đã bỏ.
+- **WP-08** (image honeypot): OpenCanary phải chạy được không capability nào trên cổng thấp (dựa vào sysctl của namespace), và không cần mạng ra.
 
 ## Modifying: hai thư mục dùng chung dưới `-honeypot-dir` (`config/`: `opencanary.conf`, `honeytokens.json`; `log/`: `opencanary.jsonl`)
 - **WP-08 (container honeypot)**: `config/` gắn **chỉ đọc**, `log/` gắn ghi được (đúng chủ sở hữu/quyền cho người dùng của container; hạn mức ổ đĩa của `log/`); `opencanary.conf` trỏ tới đường dẫn tuyệt đối của log, nên `log/` phải gắn ở **cùng đường dẫn** trong container (hoặc đổi `Config.LogDir`). Đổi tên tệp, dạng dòng log hoặc cờ xoay (`RotatingFileHandler` 10 MiB × 3) → hit không vào hoặc log phình. Golden test `testdata/opencanary.golden.json`.

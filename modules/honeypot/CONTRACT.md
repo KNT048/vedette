@@ -1,11 +1,11 @@
 # Honeypot Contract
 
 > Cài đặt: WP-14 (2026-11-09, D-89, D-90). Mọi điểm lệch/chốt thêm nằm ở D-90; sửa sau rà soát độc lập (hai thư mục, giới hạn ngập, dòng không thể có thật, IP bẫy thuộc hộp) ở mục "Sửa 2026-11-09 (rà WP-14)" của D-89 và D-90.
-> Tier: tuỳ chọn (tắt mặc định) · Story: S-HP-1, S-HP-2 · Quyết định: D-10, D-18, D-43, D-50, D-55, D-56 · Last verified: 2026-11-09
+> Tier: tuỳ chọn (tắt mặc định) · Story: S-HP-1, S-HP-2 · Quyết định: D-10, D-18, D-43, D-50, D-55, D-56, D-89, D-90, D-102 · Last verified: 2026-11-09; 2026-11-10 (mạng của container theo D-102, WP-07b phần 3 lát 3-0, chưa có mã host)
 > Nguồn hành vi thực tế: `web/src/features/honeypot/{contract,types,mocks}.ts`. OpenAPI sinh từ `contract.ts` (D-18); mọi khác biệt dưới đây là lỗi của một trong hai bên.
 
 ## Invariants (luôn đúng)
-- **INV-1** Bẫy chỉ nghe và ghi log, không bao giờ chủ động kết nối ngược về nguồn và không chạy dịch vụ thật (LEGAL §3, S-HP-2). Test: phía mã `TestContract_INV1_NoDialer` (module không import `net`/`os/exec`/`net/http`; `syscall` chỉ trong `tail.go` và chỉ cho hai cờ mở tệp `O_NOFOLLOW`, `O_NONBLOCK`); phía gói tin `TestContract_INV1_NoOutboundToSource` (bắt gói ra từ container `honeypot` tới IP nguồn = 0) thuộc WP-08.
+- **INV-1** Bẫy chỉ nghe và ghi log, không bao giờ chủ động kết nối ngược về nguồn và không chạy dịch vụ thật (LEGAL §3, S-HP-2). Test: phía mã `TestContract_INV1_NoDialer` (module không import `net`/`os/exec`/`net/http`; `syscall` chỉ trong `tail.go` và chỉ cho hai cờ mở tệp `O_NOFOLLOW`, `O_NONBLOCK`); phía gói tin `TestContract_INV1_NoOutboundToSource` (bắt gói ra từ container `honeypot` tới IP nguồn = 0) thuộc WP-08. Phía mạng (D-102): namespace `vedette-hp` của container có ruleset nft hằng chặn mọi kết nối **mới** đi ra (`ct state new drop` ở hook output; chỉ trả lời kết nối vào), do `vedette-host` đặt; kiểm ở lab (`nft list ruleset` trong namespace).
 - **INV-2** Cổng cố định theo dịch vụ: smb 445, rdp 3389, ssh 22, mssql 1433, http 80. Chỉ 5 dịch vụ trong enum `HpService`.
 - **INV-3** Kết nối của chính máy quét Vedette (IP của hộp) bị loại trừ: không tạo `hp_hits`, không cảnh báo, chỉ tăng `ignored_7d` (đếm đúng một lần, kể cả khi một lô ghi hỏng và đọc lại). Broadcast không tạo hit.
 - **INV-4** Hit thử (`is_test=true`: test-hit, test-scan, tokens/{id}/test) không vào `summary`, `hits_7d`, `last_hit_at`, tín hiệu ẩn danh; không gửi cảnh báo.
@@ -24,6 +24,8 @@
 - **INV-17** (rà WP-14) **Chặn ngập cảnh báo.** Một hit cho mỗi (IP nguồn, dịch vụ, IP bẫy) mỗi cửa sổ 10 phút; kết nối sau trong cửa sổ tăng `conn_count` và thêm dòng vào `events` của hit đó (tối đa 20), không thêm hàng và không phát sự kiện. Mỗi poll tối đa 500 hit mới, mỗi giờ đồng hồ tối đa 2.000; vượt thì đếm `Stats.Suppressed` và ghi log (tối đa mỗi phút một lần), không lưu, không phát. Tối đa 200 dòng của một nguồn được xử lý mỗi poll (`Stats.Flooded`). `TestIngestOneSourceStaysOneHitAcrossPolls`, `TestIngestCapsNewHitsPerPollAndPerHour`.
 - **INV-18** (rà WP-14) **Dòng không thể do một kết nối tới bẫy sinh ra thì bị bỏ và đếm** (`Stats.Implausible`), không thành hit: nguồn là loopback, IP của bẫy, địa chỉ mạng của LAN; đích không phải IP bẫy đang giao cho host; bẫy của dịch vụ đó đang tắt; thời gian cũ hơn 24 giờ hoặc quá 5 phút trong tương lai. (Nguồn là IP hộp vẫn là INV-3.) `TestIngestDropsLinesNoConnectionToATrapCouldMake`.
 - **INV-19** (rà WP-14) **IP bẫy thuộc về hộp** (câu hỏi mở 2 đã chốt): `Service.DecoyIPs(ctx)` trả các IP đã giao cho host ở lần `Apply` gần nhất (IP phụ + decoy đang bật được host nhận; đọc từ bản ghi `applied`, đúng ngay sau khởi động lại; IP có thiết bị/host từ chối thì không nằm trong đó). `cmd/vedette` nối nó vào `inventory.Config.BoxOwnedIPs`: kho **không bao giờ tạo hay cập nhật thiết bị** từ quan sát có IP đó (trả lời ARP của chính bẫy; đếm `BoxOwnedSkipped`), và `ProtectedIPs` (nên cả `sensor-active`) liệt kê chúng. `TestDecoyIPsAreTheAddressesTheHostHolds`, `TestBoxOwnedAddressIsNoDevice` (inventory), `TestHoneypotDecoyAddressesAreNotDevices` (cmd/vedette).
+
+- **INV-20** (D-102) **Mạng của container `honeypot` là namespace `vedette-hp` do `vedette-host` sở hữu.** Unit Quadlet có `Network=ns:/run/netns/vedette-hp` và chỉ thế: không bridge `vedette-int`, không mạng host, không đường nào tới `core` (hit đi qua tệp, D-89). Mỗi IP phụ/decoy là một link macvlan riêng với **MAC riêng** (mặc định MAC local-administered sinh bằng HMAC theo IP và khoá của bản cài; tham số tuỳ chọn `oui` của `decoy_ip.add` cho MAC mang tiền tố hãng của vai giả, `host-api.md` §6.6), nên container thấy IP mới mà không cần khởi động lại. Namespace có `ip_unprivileged_port_start=0` (sysctl theo namespace), nên container chạy `DropCapability=ALL`, không cần `NET_BIND_SERVICE` cho 22/80/445/1433/3389; cộng ruleset chặn đi ra của INV-1. Namespace được host tạo lại mỗi lần khởi động trước khi unit honeypot lên (`vedette-host.service` `Type=notify`). macvlan không chạy trên Wi-Fi và bị chính sách MAC của vSwitch VMware/Hyper-V chặn (bẫy im lặng): GUI phải nói rõ (để sau, cần story).
 
 ## Preconditions (trước khi gọi)
 - **PRE-1** `POST /honeypot/test-hit`: bẫy của dịch vụ đó đang bật và không conflict (409 `trap_off` / `ip_in_use`).
@@ -75,14 +77,22 @@
 Không route `/honeypot*`, container `honeypot` dừng, IP phụ/IP bẫy được gỡ qua `vedette-host`, không cổng nào mở. Dữ liệu `hp_*` giữ nguyên. Trigger `honeypot` trong `response` không còn sự kiện; UI báo "đang tắt" ở trang Incidents/Rules (S-CORE-1).
 
 ## Dependencies
-- **DEPENDS ON**: `core` (auth, audit, scheduler, `core/secrets` không dùng), `inventory` (tra nguồn, kiểm tra IP), `host` (dựng IP phụ).
+- **DEPENDS ON**: `core` (auth, audit, scheduler, `core/secrets` không dùng), `inventory` (tra nguồn, kiểm tra IP), `host` (`decoy_ip.add|remove`, `container.start|stop`, namespace `vedette-hp`; D-102).
 - **DEPENDED ON BY**: `response` (trigger), `notify` (cảnh báo), `logs` (SIEM kênh `honeypot`), `reports` (chưa dùng, xem câu hỏi mở), `ai` (đọc hit qua công cụ chỉ-đọc), GUI `inventory` (panel `device.panels`).
 
 ## Câu hỏi mở
-1. Phát hiện "quét cổng tới IP bẫy" (D-50): container `honeypot` (OpenCanary không log SYN) hay `sensor` (pcap) làm? Quyết định vì quyền `net_raw`.
+1. Phát hiện "quét cổng tới IP bẫy" (D-50): container `honeypot` (OpenCanary không log SYN) hay `sensor` (pcap) làm? Quyết định vì quyền `net_raw`. Hướng mới từ D-102 (để sau, `.ai/deferred/feat-host-net-containers.md`): luật nft `log` trong namespace `vedette-hp`, không cần `net_raw` trong container.
 2. ~~Có cần chặn `sensor-passive`/`inventory` lập thiết bị từ IP bẫy không?~~ **Đã chốt (rà WP-14, D-89):** có; INV-19.
 3. URL token/DNS token kích hoạt bằng cách nào khi người chạm ở ngoài LAN (cần tên miền/điểm thu của dự án)? Nếu cần thì thêm luồng ra → `PRIVACY.md` (legal.md).
 4. Hit thử có kích hoạt trigger `response` không? Hợp đồng đề xuất: không (INV-4).
+
+## Bộ chuyển `Host` phía `core` (việc của `core`, chưa có mã)
+`cmd/vedette/honeypot.go` hiện dùng `notAnAppliance`. Khi `vedette-host` có lệnh phần 3, bộ chuyển trên `host/client` phải:
+- `Status`: appliance khi `/v1/info.commands` có `decoy_ip.add` và `container.start`; socket vắng (`client.ErrUnreachable`) → không phải appliance.
+- **`AddDecoyIP`/`RemoveDecoyIP` so với `decoys` của `GET /v1/state/net`, chỉ gửi phần khác.** `Service.syncIPs` (`apply.go`) gọi `AddDecoyIP` cho **mọi** IP mong muốn ở mỗi `Apply`; host nhận 10 lệnh ghi/phút, nên 32 decoy sẽ chạm `rate_limited` ở mỗi lần áp lại. IP đã có trong `state/net` là no-op ở bộ chuyển (không gọi host); `duplicate_decoy` từ host cũng tính là thành công. Đây là việc của bộ chuyển `core`, không đổi `syncIPs`.
+- `StartContainer` → `container.start {service: "honeypot", restart: true}` khi `opencanary.conf`/`honeytokens.json` vừa đổi (băm trong bộ nhớ, INV-15), không thì không `restart`; không có `version` (bản hiện tại, `host-api.md` §6.8).
+- `StopContainer` → `container.stop {service: "honeypot", persist: true}` (module tắt hoặc không bẫy nào bật).
+- `oui`: cổng `Host` chưa có tham số; `core` chọn OUI theo vai từ bảng OUI của D-83 để sau. Tới lúc đó decoy dùng MAC local-administered mặc định.
 
 ## Giới hạn (cố hữu, ghi rõ)
 - Container `honeypot` đối mặt với kẻ tấn công và có thể bị chiếm: nó ghi được mọi thứ vào `log/`. INV-16..18 chặn việc làm treo, chuyển hướng, làm tràn hoặc bơm dòng vô lý; **một dòng giả đủ hợp lý** (nguồn là một IP bất kỳ ngoài danh sách loại, đích là IP bẫy, đúng giờ) vẫn thành hit. Mỗi poll tối đa 500 và mỗi giờ tối đa 2.000 hit mới giới hạn thiệt hại, không loại bỏ nó.

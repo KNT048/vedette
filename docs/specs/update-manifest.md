@@ -1,7 +1,7 @@
 # Update manifest: phát hành, ký, rollout, thu hồi, hoàn tác
 
 Trạng thái: bản nháp M2-0 (docs-first), 2026-11-09. Văn xuôi tiếng Việt; tên trường, định dạng, đường dẫn bằng tiếng Anh.
-Truy vết: D-12 (ký, cohort, A/B, thu hồi, SBOM; **cập nhật bởi D-55**), D-36 (GitHub chỉ phát hành bản cập nhật phần mềm ký số; gói nội dung đi kèm), D-53 (cập nhật OS, hộp là thiết bị đầu tiên), D-55 (appliance container, cosign, lô, hoàn tác bằng tag cũ, hai kiểu cài), D-54 (repo `kiennt048/vedette` riêng tư), D-16; `docs/UPDATES.md`; story S-CORE-2, S-CORE-7; GUI mock `web/src/features/core` (`UpdatesSection.tsx`, `OsUpdates.tsx`, `bundles.ts`, `contract.ts`).
+Truy vết: D-12 (ký, cohort, A/B, thu hồi, SBOM; **cập nhật bởi D-55**), D-36 (GitHub chỉ phát hành bản cập nhật phần mềm ký số; gói nội dung đi kèm), D-53 (cập nhật OS, hộp là thiết bị đầu tiên), D-55 (appliance container, cosign, lô, hoàn tác bằng tag cũ, hai kiểu cài), D-54 (repo `kiennt048/vedette` riêng tư), D-16, D-57 (3) (ghcr, cosign bằng khoá, kiểm ngoại tuyến), D-103 (kiểm chữ ký trong mã, cosign trong manifest), D-104 (kéo, khởi động, hoàn tác, thu hồi); `docs/UPDATES.md`; story S-CORE-2, S-CORE-7; GUI mock `web/src/features/core` (`UpdatesSection.tsx`, `OsUpdates.tsx`, `bundles.ts`, `contract.ts`).
 
 ## 1. Mục đích
 
@@ -57,8 +57,8 @@ Hai tài liệu JSON, cả hai có chữ ký detached minisign (`<file>.minisig`
   "rollback": { "safe": true, "min_version": "1.3.0" },
   "install_modes": ["appliance", "container"],
   "images": [
-    { "service": "core", "ref": "ghcr.io/knt048/vedette-core:1.4.0", "digest": "sha256:…", "size": 61203456, "platforms": ["linux/amd64", "linux/arm64"], "signature": "cosign" },
-    { "service": "sensor", "ref": "…", "digest": "sha256:…", "size": 0, "platforms": ["linux/amd64"], "signature": "cosign" }
+    { "service": "core", "ref": "ghcr.io/knt048/vedette-core:1.4.0", "digest": "sha256:…", "size": 61203456, "platforms": ["linux/amd64", "linux/arm64"], "cosign": { "payload": "<base64>", "signature": "<base64>" } },
+    { "service": "sensor", "ref": "ghcr.io/knt048/vedette-sensor:1.4.0", "digest": "sha256:…", "size": 0, "platforms": ["linux/amd64"], "cosign": { "payload": "<base64>", "signature": "<base64>" } }
   ],
   "host": { "version": "1.4.0", "files": [ { "name": "vedette-host_1.4.0_amd64.deb", "sha256": "…", "size": 0 } ] },
   "content": [ { "name": "mitigation-packs", "version": "2026-12-02.1", "in_image": "core", "path": "/opt/vedette/content/…", "sha256": "…" } ],
@@ -70,7 +70,10 @@ Hai tài liệu JSON, cả hai có chữ ký detached minisign (`<file>.minisig`
 
 | Trường | Ghi chú |
 |---|---|
-| `images[].digest` | **khoá tin cậy thật**: hộp kéo theo digest, không theo tag; tag chỉ để hiển thị |
+| `images[].digest` | **khoá tin cậy thật**: hộp kéo theo digest, không theo tag; tag chỉ để hiển thị. Image đa nền tảng: digest của index đa nền tảng (kiểm ở lab) |
+| `images[].ref` | phải đúng `ghcr.io/knt048/vedette-<service>:<version>`; host so với hằng biên dịch (`registry_not_allowed`) và tự dựng tham chiếu kéo `…@sha256:<digest>`, không dùng chuỗi này để kéo (D-104) |
+| `images[].size` | chỉ để kiểm chỗ trống (`low_disk`: < 2 × `size`); **không** so với số byte đã tải (D-104) |
+| `images[].cosign` | `{ "payload": base64, "signature": base64 }` (D-103): payload Simple Signing của cosign và chữ ký ECDSA P-256 (DER) trên SHA-256 của payload, sinh bằng cosign ghim phiên bản với `sign --key --new-bundle-format=false --use-signing-config=false` (định dạng cũ), cùng chữ ký đó cũng đẩy lên ghcr cho người muốn tự kiểm. Payload phải có `critical.type` = `cosign container image signature` và `critical.image.docker-manifest-digest` bằng `digest`; trường lạ và khoá trùng bị từ chối. Vì manifest đã ký minisign, chữ ký image đi cùng tài liệu đã ký, không cần đọc chữ ký từ registry |
 | `images[].service` | ∈ `core`, `sensor`, `honeypot`, `scan`, `greenbone` (D-55); mọi giá trị khác → từ chối manifest |
 | `min_upgrade_from` | nhảy phiên bản quá xa phải qua bản trung gian |
 | `db_schema`, `rollback` | hoàn tác an toàn hay cần khôi phục DB (§10) |
@@ -87,12 +90,12 @@ Quan hệ với `UpdatesState` trong mock: `components` ↔ `images[]`/`content[
 
 | Đối tượng | Công cụ | Ai xác minh | Khoá |
 |---|---|---|---|
-| `index.json`, `release-manifest.json`, tệp `host` | **minisign** (Ed25519) | `core` (để hiển thị), **và `vedette-host`** (trước khi hành động) | public key nhúng trong binary `core` và `vedette-host` |
-| Image container | **cosign** (chữ ký lưu cạnh image trong registry) | `vedette-host` khi `container.pull` | public key nhúng trong `vedette-host` (hoặc danh tính, §5.2) |
+| `index.json`, `release-manifest.json`, tệp `host` | **minisign** (Ed25519 trên BLAKE2b-512, định dạng `ED`; `Ed` cũ bị từ chối) | `core` (để hiển thị), **và `vedette-host`** (trước khi hành động) | hai public key nhúng trong binary `core` và `vedette-host`: khoá đang dùng và khoá dự phòng ngoại tuyến do kien giữ (D-103) |
+| Image container | **cosign** (ECDSA P-256, định dạng cũ; chữ ký đi **trong manifest** ở `images[].cosign`, bản sao đẩy lên ghcr cho người tự kiểm) | `vedette-host` khi `container.pull`, **trước** khi kéo | public key cosign nhúng trong `vedette-host` |
 
-`core` không phải bên xác minh duy nhất: **host tự kiểm** manifest, digest, chữ ký image (xem `host-api.md`). Nếu `core` bị chiếm, nó **không** thể bắt host chạy một image không ký, vì host chỉ chấp nhận digest có mặt trong một manifest ký đúng.
+`core` không phải bên xác minh duy nhất: **host tự kiểm** manifest, digest, chữ ký image (xem `host-api.md` §6.7). Nếu `core` bị chiếm, nó **không** thể bắt host chạy một image không ký, vì host chỉ chấp nhận digest có mặt trong một manifest ký đúng và tự dựng tham chiếu kéo từ hằng.
 
-Triển khai xác minh image cosign: dùng chính cơ chế của Podman (`policy.json` kiểu `sigstoreSigned` với khoá công khai, do `vedette-host` sinh từ mã, ships-as-code) và/hoặc thư viện Go (sigstore-go) trong `vedette-host`; chọn cái nào là chi tiết cài đặt, hợp đồng là: **kéo theo digest, chỉ chạy khi chữ ký hợp lệ**.
+Triển khai xác minh (**đã chốt, D-103**): gói `internal/release` của dự án, thuần, dùng chung cho host và `core`, chỉ dùng thư viện chuẩn (`crypto/ed25519`, `crypto/ecdsa` `VerifyASN1`) và `golang.org/x/crypto/blake2b` đã ghim. Không kiểm Rekor (kiểm ngoại tuyến, D-57 (3)); không dùng `policy.json` `sigstoreSigned` của Podman (cấu hình chung của Podman, cần `use-sigstore-attachments` trong registries.d, phụ thuộc mức hỗ trợ cosign của Podman 4.9), không dùng `sigstore-go` (79 module trong tiến trình root), không chạy CLI cosign trên hộp. JSON giải mã chặt (trường lạ, khoá trùng, khoá trùng sau gập chữ bị từ chối). Hợp đồng không đổi: **kéo theo digest, chỉ chạy khi chữ ký hợp lệ**. Rủi ro: cosign v4 sẽ bỏ định dạng cũ; trước lúc đó phải kiểm bundle mới (DSSE) trong mã.
 
 ### 5.2 Khoá hay keyless (cosign): đánh đổi
 
@@ -105,7 +108,7 @@ Triển khai xác minh image cosign: dùng chính cơ chế của Podman (`polic
 | Rò thông tin | Không | **Rekor công khai ghi danh tính/repo**: lộ tên repo riêng tư (D-54) tới khi repo công khai |
 | Kẻ có quyền ghi repo/workflow | ký được | ký được (cùng mức) |
 
-**Đề xuất của spec (chờ kien chốt):** hộp **chỉ xác minh bằng khoá cosign công khai nhúng sẵn** (offline, không phụ thuộc Sigstore, hợp mạng cách ly). Đồng thời CI **vẫn đăng chữ ký keyless** song song cho người dùng/kiểm toán muốn tự xác minh (đúng ý UPDATES §4.4 "minisign cho hộp, cosign cho người"). Hộp không đòi chữ ký keyless. Khoá cosign **tách** khỏi khoá minisign và tách khỏi mọi bí mật CI khác; xoay khoá = bản binary mới nhúng cả khoá cũ và mới trong một giai đoạn chuyển (ký bằng cả hai).
+**Đã chốt (D-57 (3), D-103):** hộp **chỉ xác minh bằng khoá cosign công khai nhúng sẵn** (offline, không phụ thuộc Sigstore, hợp mạng cách ly). Phần sau vẫn là đề xuất, chưa có quyết định: đồng thời CI **vẫn đăng chữ ký keyless** song song cho người dùng/kiểm toán muốn tự xác minh (đúng ý UPDATES §4.4 "minisign cho hộp, cosign cho người"). Hộp không đòi chữ ký keyless. Khoá cosign **tách** khỏi khoá minisign và tách khỏi mọi bí mật CI khác; xoay khoá = bản binary mới nhúng cả khoá cũ và mới trong một giai đoạn chuyển (ký bằng cả hai).
 
 ### 5.3 Quy trình xác minh của hộp (`core`, rồi `host` lặp lại)
 
@@ -115,7 +118,7 @@ Triển khai xác minh image cosign: dùng chính cơ chế của Podman (`polic
 4. Tải `release-manifest.json` theo URL trong index; kiểm `sha256` bằng `manifest_sha256` và kiểm chữ ký minisign.
 5. Kiểm manifest không bị thu hồi (§8).
 6. Hiển thị cho admin (hoặc tự động nếu chế độ `auto`).
-7. Cập nhật: `host` kéo từng image theo **digest**, kiểm chữ ký cosign, đối chiếu `size`, kiểm `platform` (§10).
+7. Cập nhật: `host` lặp lại bước 1, 2, 4, 5 với tài liệu `core` đưa, kiểm chữ ký cosign trong manifest và `platform`, rồi kéo từng image theo **digest** (không đối chiếu `size`, D-104; `host-api.md` §6.7).
 
 Mỗi lần kiểm tra ghi `core_audit` (ai, khi nào, phiên bản, sha256) như UPDATES §5.
 
@@ -140,20 +143,20 @@ sequenceDiagram
     C->>G: GET release-manifest.json + .minisig
     C->>C: verify, show "1.4.0 available"
     A->>C: Install (hoặc auto trong cửa sổ bảo trì)
-    C->>H: backup.create
-    H-->>C: backup_id
-    C->>H: container.pull {service, digest, manifest+sig}  (mỗi service)
-    H->>G: pull by digest
-    H->>H: verify minisign(manifest) + digest ∈ manifest + cosign(image)
+    C->>H: container.pull {service, version, index+sig, manifest+sig}  (mỗi service)
+    H->>H: verify minisign(index, manifest) + revocation + cosign(images[].cosign)
+    H->>G: pull ghcr.io/knt048/vedette-<service>@sha256:<digest>
     H-->>C: pulled
-    C->>H: container.start {service, tag/digest} (sensor/honeypot/scan trước, core sau cùng)
-    H-->>C: started
-    C->>C: health check (≤ 120 s)
+    C->>H: container.start {service, version} (sensor/honeypot/scan trước)
+    C->>C: chụp bản (snapshots/<id>)
+    C->>H: container.start {service: core, version, snapshot} (sau cùng)
+    H->>H: backup pre_update, ghi unit, restart, health (≤ 120 s)
     alt khoẻ
-        C->>C: ghi lịch sử, giữ tag cũ làm N-1
+        H-->>C: succeeded, bản cũ thành previous (N-1)
+        C->>C: ghi lịch sử
     else hỏng
-        C->>H: container.rollback {service}
-        H-->>C: rolled back (tag cũ)
+        H->>H: tự đặt lại unit cũ (và DB nếu rollback.safe=false)
+        H-->>C: reverted (unit_failed)
     end
 ```
 
@@ -187,21 +190,22 @@ Cập nhật OS **không** qua manifest/cohort/cosign: chữ ký là của **apt
 1. Admin vào Settings → Updates (mock `/core/updates/os*`); `core` gọi `os.check` của host → `apt-get update` + liệt kê gói nâng cấp, đánh dấu security, cần reboot (`/var/run/reboot-required`), hạn hỗ trợ bản phát hành (`OsState`).
 2. `os.install {scope: security|all}`: host **sao lưu DB trước** (`backup.create`), chạy danh sách lệnh apt cố định (SYS-1), stream tiến trình, chạy health check sau, báo cần reboot.
 3. Reboot ngay/theo cửa sổ (`os.reboot`); tự cập nhật bảo mật = `unattended-upgrades` do host cấu hình (`os.auto_security`), cửa sổ bảo trì.
-4. Nâng bản phát hành OS (Debian 12 → 13, Ubuntu LTS mới): **chỉ hướng dẫn** (`release_upgrade`), không bao giờ tự làm.
+4. Nâng bản phát hành OS (Ubuntu 24.04 → 26.04, Debian 13 → bản sau): **chỉ hướng dẫn** (`release_upgrade`), không bao giờ tự làm.
 5. Kho gói là luồng ra đã có trong PRIVACY luồng 6; người dùng có thể trỏ apt tới mirror nội bộ.
 
 Hai kiểu cài (D-55): chế độ "Chỉ container" không có luồng này.
 
 ### Cập nhật chính `vedette-host`
 
-Host là tiến trình root nhỏ; cập nhật nó là việc nhạy cảm nhất. Manifest có mục `host` (§4.2) để bản `.deb` do host/installer xử lý; **cơ chế host tự nâng cấp chưa nằm trong danh sách lệnh của `host-api.md`**; xem câu hỏi mở §14.
+Host là tiến trình root nhỏ; cập nhật nó là việc nhạy cảm nhất. Manifest có mục `host` (§4.2) để bản `.deb` do host/installer xử lý. **Đã chốt (D-57 (21))**: host tự cập nhật bằng gói `.deb` đã ký trên GitHub Release, kiểm sức khoẻ, hỏng thì về bản trước; lệnh đó chưa có trong `host-api.md` (để sau, không thuộc WP-07b phần 3).
 
 ## 10. Hoàn tác
 
-- Giữ **N−1** cho mỗi service (tag/digest cũ nằm trong kho image cục bộ) cùng bản sao lưu DB trước cập nhật. `container.rollback {service}` đưa service về tag trước; GUI nút Rollback từng thành phần (S-CORE-2).
-- **Hoàn tác phần mềm khác hoàn tác DB.** Manifest khai `db_schema` và `rollback.safe`: nếu `true`, mã bản mới chỉ thêm cột/bảng tương thích ngược nên bản cũ chạy được trên DB mới; nếu `false`, rollback **phải** kèm khôi phục DB từ bản sao lưu trước cập nhật (mất dữ liệu ghi từ lúc cập nhật; GUI nói rõ và xin xác nhận). `min_version` là phiên bản thấp nhất được rollback tới.
-- Rollback không đi qua kiểm cohort/rollout, nhưng **vẫn** phải: tag đích đã từng xác minh, không bị thu hồi, `sequence` anti-downgrade không áp dụng cho rollback người dùng chủ động tới bản N−1 đã cài (được phép), và ghi `core_audit` + lịch sử `action: rollback`.
-- Health check sau cập nhật tự kích hoạt rollback (§7). Rollback hỏng (hiếm) → `vedette-host` giữ trạng thái cuối và báo để admin xử lý tay: không vòng lặp tự động.
+- Giữ **N−1** cho mỗi service: host giữ bản đang chạy, `previous` và bản mới nhất đã kéo (tag `localhost/vedette-<service>:<version>`), gỡ bản khác bằng `podman rmi <digest>` sau mỗi lần khởi động thành công, không bao giờ `prune -a` (D-104); cùng bản sao lưu DB `pre_update` mà **host tạo trong `container.start` của `core`** từ bản chụp `core` đưa (`host-api.md` §6.8). `container.rollback {service}` đưa service về `previous`; GUI nút Rollback từng thành phần (S-CORE-2).
+- **Hoàn tác phần mềm khác hoàn tác DB.** Manifest khai `db_schema` và `rollback.safe`: nếu `true`, mã bản mới chỉ thêm cột/bảng tương thích ngược nên bản cũ chạy được trên DB mới; nếu `false`, rollback **phải** kèm khôi phục DB từ bản `pre_update` của lần cập nhật đó (mất dữ liệu ghi từ lúc cập nhật): host làm cả hai **trong cùng một run** `container.rollback` (dừng `core` → khôi phục → unit cũ → khởi động → kiểm sức khoẻ, hỏng thì đặt lại cả hai, D-104); `core` không gọi `backup.restore` riêng. GUI cảnh báo "data written since the update is lost" và chỉ gọi host khi người dùng xác nhận (`confirm_data_loss`, S-CORE-2). Bản `pre_update` không còn → `rollback_backup_missing`.
+- `rollback.min_version` là phiên bản thấp nhất được rollback tới: `previous` thấp hơn → `rollback_not_allowed`. Hạ bản bằng `container.start` luôn bị từ chối (`downgrade_not_allowed`, thứ tự SemVer); chỉ rollback về `previous` đã xác minh mới được hạ.
+- Rollback không đi qua kiểm cohort/rollout, nhưng **vẫn** phải: bản đích đã từng xác minh trên host này, không bị thu hồi theo index đã lưu (`previous_revoked`), `sequence` anti-downgrade không áp dụng cho rollback người dùng chủ động tới bản N−1 đã cài (được phép), và ghi `core_audit` + lịch sử `action: rollback`.
+- Khởi động hỏng sau cập nhật: host **tự** đặt lại unit cũ (và DB khi `rollback.safe=false`) trong chính run `container.start` (`reverted`, `unit_failed`). Rollback hỏng (hiếm) → host đặt lại bản đang chạy; nếu chính bước đó hỏng thì `vedette-host` giữ trạng thái cuối và báo để admin xử lý tay (`rollback_revert_failed`): không vòng lặp tự động. Host không bao giờ tự rollback vì thu hồi (§8: `core` quyết).
 
 ## 11. Gói offline (mạng cách ly)
 
@@ -214,12 +218,11 @@ bundle.json                 { schema, version, channel, created_at, files:[{path
 index.json  + .minisig      bản index tại lúc xuất
 release-manifest.json + .minisig
 images/<service>.oci.tar    oci-archive đúng digest trong manifest
-signatures/<service>.cosign chữ ký cosign của image (nếu lưu ngoài)
 host/*.deb                  (nếu có bản host)
 sbom.json
 ```
 
-- **Gói không có chữ ký riêng của hộp xuất**: tin cậy đến từ chữ ký phát hành có sẵn (minisign cho manifest, cosign cho image). `bundle.json` chỉ là danh sách băm để phát hiện hỏng; mọi băm và digest được đối chiếu lại với manifest ký.
+- **Gói không có chữ ký riêng của hộp xuất**: tin cậy đến từ chữ ký phát hành có sẵn (minisign cho manifest, cosign cho image; chữ ký cosign đã nằm trong manifest ở `images[].cosign`, D-103, nên bundle không cần thư mục `signatures/`). Nhập bundle vào host (`container.pull` với `source: bundle`) **chưa có** ở WP-07b phần 3: host trả `412 bundle_unsupported` (để sau). `bundle.json` chỉ là danh sách băm để phát hiện hỏng; mọi băm và digest được đối chiếu lại với manifest ký.
 - **Nhập:** (1) kiểm chữ ký manifest và index bằng khoá nhúng; (2) kiểm `sequence`, thu hồi, `min_upgrade_from`; (3) với mỗi image kiểm digest **của chính archive** (`oci-archive` tính lại) khớp manifest và chữ ký cosign; (4) mới yêu cầu host nạp (`container.pull` với `source: bundle`). Sai chữ ký ⇒ `Import rejected` (GUI mock nói "a bad signature is rejected"), không có đường bỏ qua.
 - Bundle **không** thay `expires_at` của index: index trong bundle đã hết hạn vẫn được nhập một lần (đây là đường offline) nhưng hiện cảnh báo "stale".
 - Bundle chỉ chứa **gói phần mềm + nội dung**; dữ liệu feed của máy cách ly nhập bằng bundle feed (D-37, "switch to offline bundles" ở PRIVACY luồng 1): ngoài spec này.
@@ -229,9 +232,10 @@ sbom.json
 
 | Mục | Giới hạn mặc định |
 |---|---|
-| `index.json`, `release-manifest.json` | ≤ 256 KiB |
+| `index.json`, `release-manifest.json` | ≤ 256 KiB mỗi tệp; thân `container.pull` (hai tài liệu + hai chữ ký, base64) ≤ 1 MiB (`host-api.md` §10) |
 | Số image mỗi manifest | ≤ 16 |
-| Kích thước image | theo `size` trong manifest; hộp từ chối nếu byte thực tế ≠ `size` |
+| Kích thước image | `size` chỉ để kiểm chỗ trống (≥ 2 × `size` trống); **không** so với số byte đã tải: Podman không cho biết số byte, và kéo theo digest đã bảo đảm toàn vẹn (D-104) |
+| Image giữ lại mỗi service | bản đang chạy, `previous`, bản mới nhất đã kéo (D-104) |
 | Bundle tải lên | trần cấu hình (đề xuất 8 GiB), đòi dung lượng trống ≥ 2× |
 | Tần suất kiểm tra | tối đa mỗi 6 giờ + jitter ± 30 phút (mặc định, tắt được ở Privacy → `update_check`) |
 | Hết hạn index | ≤ 14 ngày |
@@ -251,7 +255,7 @@ sbom.json
 | SYS-7 | URL tải thuộc **danh sách host cố định** khai trong PRIVACY (GitHub, registry, mirror apt); không theo redirect ra ngoài danh sách |
 | SYS-8 | AI không có đường kích hoạt cập nhật |
 
-Mối đe doạ và biện pháp: (a) chiếm kho GitHub/registry → không ký được nên hộp từ chối; (b) lộ khoá ký → thu hồi khoá trong `index.json` ký bằng khoá còn lại + binary mới (điểm yếu nếu cả hai lộ; nên có khoá gốc ngoại tuyến, câu hỏi mở); (c) rollback/replay manifest cũ có lỗ hổng → `sequence`; (d) freeze (giữ index cũ để hộp không thấy bản vá) → `expires_at` + banner; (e) đầu độc bundle → kiểm lại toàn bộ chữ ký; (f) lan rộng bản lỗi → cohort + `beta` ≥ 7 ngày + health check + rollback; (g) `core` bị chiếm → host xác minh độc lập.
+Mối đe doạ và biện pháp: (a) chiếm kho GitHub/registry → không ký được nên hộp từ chối; (b) lộ khoá ký → thu hồi khoá trong `index.json` ký bằng khoá dự phòng ngoại tuyến đã nhúng sẵn (D-103) + binary mới (điểm yếu nếu cả hai lộ); (c) rollback/replay manifest cũ có lỗ hổng → `sequence`; (d) freeze (giữ index cũ để hộp không thấy bản vá) → `expires_at` + banner; (e) đầu độc bundle → kiểm lại toàn bộ chữ ký; (f) lan rộng bản lỗi → cohort + `beta` ≥ 7 ngày + health check + rollback; (g) `core` bị chiếm → host xác minh độc lập.
 
 ## 14. Versioning
 
@@ -262,9 +266,9 @@ Mối đe doạ và biện pháp: (a) chiếm kho GitHub/registry → không ký
 
 ## 15. Câu hỏi mở
 
-1. **Cosign: khoá hay keyless** (§5.2): đề xuất khoá nhúng + keyless song song cho người. Cần kien chốt, và cần khoá gốc ngoại tuyến để xoay khoá minisign không phụ thuộc vào chính khoá bị lộ.
+1. ~~**Cosign: khoá hay keyless**~~ **Đã chốt:** hộp kiểm bằng khoá cosign nhúng, ngoại tuyến (D-57 (3)), trong mã của dự án, chữ ký đi trong manifest (D-103); khoá minisign dự phòng ngoại tuyến do kien giữ được nhúng cùng khoá đang dùng (D-103 (2)). Còn mở: CI có đăng thêm chữ ký keyless cho người dùng không. kien tạo ba khoá ngoại tuyến trước lát 3-2 (`.ai/deferred/feat-host-net-containers.md`).
 2. **Registry image và nơi lưu `index.json`**: D-36 nói GitHub chỉ để phát hành phần mềm; GHCR hợp lý nhưng chưa chốt. Hộp thử nghiệm khi repo còn riêng tư (D-54) cần token đọc (credential nằm ở đâu?). `channels.json` + mirror thứ hai của UPDATES §6 còn giữ không khi D-7 đã bỏ builder/Cloudflare cho dữ liệu?
-3. **Cập nhật chính `vedette-host`** (cuối §9): bằng `.deb` ký do chính host nâng cấp, hay installer chạy lại bằng tay? Chưa có lệnh trong allowlist; phải thêm hoặc loại.
+3. ~~**Cập nhật chính `vedette-host`**~~ **Đã chốt (D-57 (21)):** `.deb` ký trên GitHub Release, host tự nâng cấp; lệnh chưa có trong allowlist (để sau).
 4. Có nên cho nút "Install anyway" với bản chưa tới cohort (spec: không)?
 5. Khoá `K_cohort`/`install_id`: giữ chung với tín hiệu ẩn danh hay riêng để tắt tín hiệu không đổi cohort.
 6. `rollback_if_possible` tự động: bật mặc định hay luôn cần admin?

@@ -126,7 +126,8 @@ function RemoveDialog({ target, onClose }: { target: Target | null; onClose: () 
   // Ticked by default (D-79): an address the box uses but that is not the company's must not come back. Reset for every IP.
   const [ignore, setIgnore] = useState(true)
   const [seen, setSeen] = useState<string | null>(null)
-  if (target && target.id !== seen) { setSeen(target.id); setIgnore(true) }
+  // Reset when the dialog opens for an IP and when it closes, so Cancel followed by Remove on the same IP starts ticked again.
+  if ((target?.id ?? null) !== seen) { setSeen(target?.id ?? null); setIgnore(true) }
   return (
     <Dialog open={target !== null} onOpenChange={(o) => { if (!o) onClose() }}>
       {target ? (

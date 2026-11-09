@@ -510,6 +510,13 @@ describe('exposure: the Ignored list (D-79 (3))', () => {
       { option: 'ignore', shown: [/Vedette will never add this IP back/], hidden: [/it is added again as a new target/] },
     ], async (o) => { if ((box.getAttribute('aria-checked') === 'true') !== (o === 'ignore')) await userEvent.click(box) }, dlg)
     await userEvent.click(within(dlg).getByRole('button', { name: 'Cancel' }))
+    // Cancel, then Remove on the same IP: ticked again (the answer is not remembered)
+    await userEvent.click(await within(await ipTable()).findByRole('button', { name: 'Remove 198.51.100.8' }))
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('checkbox', { name: LABEL })) // untick
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
+    await userEvent.click(within(await ipTable()).getByRole('button', { name: 'Remove 198.51.100.8' }))
+    expect(within(await screen.findByRole('dialog')).getByRole('checkbox', { name: LABEL })).toBeChecked()
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
     // the next IP starts ticked again, whatever was chosen before
     await userEvent.click(within(ips).getByRole('button', { name: 'Remove 198.51.100.7' }))
     expect(within(await screen.findByRole('dialog', { name: 'Remove 198.51.100.7 from the list?' })).getByRole('checkbox', { name: LABEL })).toBeChecked()

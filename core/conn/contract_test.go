@@ -16,7 +16,8 @@ func TestOnlyCredNamesTheCredentialPurpose(t *testing.T) {
 	t.Parallel()
 	root := filepath.Join("..", "..")
 	allowed := func(rel string) bool {
-		return strings.HasPrefix(rel, "core/conn/internal/cred/") || strings.HasPrefix(rel, "core/secrets/")
+		// core/pki holds its own restricted purpose (core_sensor_ca, core INV-24); its own scan pins that file to that purpose.
+		return strings.HasPrefix(rel, "core/conn/internal/cred/") || strings.HasPrefix(rel, "core/secrets/") || rel == "core/pki/ca.go" || rel == "core/pki/authority.go"
 	}
 	needles := []string{`"core_connection"`, "secrets.Opener", ".Restrict("}
 	scanned := 0

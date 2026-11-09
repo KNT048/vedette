@@ -16,6 +16,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/core"
+	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/honeypot"
@@ -81,6 +82,7 @@ func wiredModules() []moduleWiring {
 		{ID: "notify", Migrations: notify.Migrations, Jobs: notifyJobs},
 		{ID: "sensor-passive", Migrations: sensorpassive.Migrations, Jobs: sensorPassiveJobs},
 		{ID: "response", Migrations: response.Migrations, Jobs: responseJobs}, // after notify and inventory (manifest depends)
+		{ID: "exposure", Migrations: exposure.Migrations, Jobs: exposureJobs}, // depends on core and inventory (MANIFEST)
 	}
 }
 

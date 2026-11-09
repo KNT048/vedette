@@ -1,5 +1,11 @@
 # Findings — Change Impact Map
 
+## Modifying: thư viện thuần `modules/findings` (không DB; service WP-21 bọc ngoài)
+- `MatchAsset(Asset, []Vuln, have, now) MatchResult{New, Existing}` — bộ khớp. Gọi từ service khi nhận `inventory.match.changed`/`feeds.vuln.updated`. Đổi quy tắc ⇒ đổi số finding và tin `notify`; test `Contract_INV4/5/6`.
+- `NewFinding`, `Finding.ApplyMatch`, `Finding.Apply(action, note, user, now)`, `Finding.ConfirmFromScan(evidence, now)`, `ScanClear`, `Finding.Validate` — vòng đời. Lỗi `*APIError` (`ErrBadAction`, `ErrNoteTooLong`, `ErrNoteRequired`, `ErrAlreadyOpen`, `ErrNotFound`) ánh xạ 1:1 mã lỗi API; đổi mã = đổi `findings/contract.ts` và mock.
+- `ParseCPE`, `CPE.Matches|SameProduct`, `CompareVersions`, `VersionRange.Contains` — dùng bởi bộ khớp; `feeds` phải đưa khoảng phiên bản NVD vào `Vuln.Affected` (chuỗi CPE 2.3 + `VersionRange`), `inventory` đưa `Software.KevKeys` (khoá `vendorproject|product` chữ thường) và tuỳ chọn `Software.CPE`.
+- `KevKey`/`NormalizeKevKey` phải khớp cách `feeds` chuẩn hoá khoá.
+
 ## Modifying: `findings.Service.UpsertFromMatch(ctx, assetID, cve, basis)`
 - **inventory** (qua sự kiện `inventory.match.changed`), **core/jobs** (khớp lại sau `feeds.vuln.new_kev`). Đổi quy tắc khớp/tạo/độ nghiêm trọng đổi số finding và tin `notify`.
 

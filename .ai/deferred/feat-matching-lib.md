@@ -1,0 +1,5 @@
+- [ ] Service layer: fnd_finding/fnd_finding_history tables + UQ(asset_id, cve) + CHECK, endpoints /findings*, events findings.finding.*, core_audit per mutation, cascade on inventory.asset.deleted (INV-7), KevInfo from feeds (INV-8) — library is pure logic only — WP-21
+- [ ] feeds must expose NVD cpeMatch ranges (vulnerable=true) per CVE as Vuln.Affected; today KEV has no version ranges so basis=version is never produced in M2 — feeds work package
+- [ ] Decide whether a scan match on a patched/mitigated finding reopens it (implemented per DATA_MODEL 5.2 [ĐX]; open question 12) — maintainer
+- [ ] Confirm ConfVersion = 0.7 and the severity rule (still the mock's) — maintainer
+- [ ] Update DATA_MODEL 4.3/5.2 and notify/scan/inventory/feeds/ai/core contracts for the findings split (event names, "only mitigation writes fnd_*") — maintainer, owners of those docs

@@ -260,7 +260,7 @@ Bí mật của kênh (token bot, URL webhook Slack, mật khẩu SMTP, khoá k�
 | **`exp_snapshot`** (`exp_snapshots`) | `id:id` · `target_id:id` FK→exp_target CASCADE · `date:date` · `scanned_at:ts` · `hosts:json` · `ports:json` · `admin_panels:json` · `certs:json` · `counts:json` `{subdomains, ips, ports, admin_panels, certs_expiring}` | PK(id) · UQ(target_id, date) | 365 ngày **[ĐX]** (ảnh theo ngày) | R `GET …/snapshots[/{date}]`, `…/diff`; W `POST …/scan` |
 | **`exp_attempt`** (`exp_attempts`) | `ts:ts` | IX(ts) | 24 giờ; giới hạn 10 lần xác thực/giờ (`MAX_ATTEMPTS_PER_HOUR`, mã `rate_limited`) | W `POST …/verify` |
 
-Dẫn xuất khi đọc, không lưu: `status` (verified/expired), `expires_at` (IP: `verified_at` + 90 ngày; domain NULL, kiểm lại TXT ngay trước mỗi lần quét), `validity` (`expiring` khi ≤ 14 ngày), `scannable`, `blocked_reason`, `latest` counts (từ snapshot mới nhất).
+Dẫn xuất khi đọc, không lưu: `status` (verified/expired), `expires_at` (IP: lần thấy cuối + 30 ngày, gia hạn mỗi lần dò thấy lại, D-79; domain NULL, kiểm lại TXT ngay trước mỗi lần quét), `validity` (`expiring` khi ≤ 5 ngày), `scannable`, `blocked_reason`, `latest` counts (từ snapshot mới nhất).
 
 ### 4.6 `scan` (`scan_`) — gồm `scan-credentialed`
 

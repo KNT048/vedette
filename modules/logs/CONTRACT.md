@@ -53,7 +53,7 @@
 `logs_sources`, `logs_events`, `logs_retention`, `logs_siem`, `logs_ioc_hits`. `response` đọc `logs_ioc_hits` qua interface (IMPACT), không đọc bảng trực tiếp.
 
 ## Events
-- **Phát**: `logs.batch` (sensor → server, idempotent theo `seq`, `ARCHITECTURE.md`); `logs.ioc_hit` (tên đề xuất; chưa có trong ARCHITECTURE).
+- **Phát**: `logs.batch` (sensor → server, idempotent theo `seq`, `ARCHITECTURE.md`); `logs.ioc_hit` (tên đề xuất; chưa có trong ARCHITECTURE); **`logs.anomaly.detected`** và **`logs.bad_address.detected`** cho `notify` mở incident (D-52; tên 3 đoạn `<module>.<object>.<verb>` như `core/events` đòi; payload do logs mô tả sẵn nội dung, vì chỉ logs hiểu log): `{source, target, title, what, action, severity, devices: [{id, name}]}`. `source` và `target` là khoá gộp incident (cùng loại + nguồn + đích đang mở thì chỉ tăng `count`), `title` ≤ 200 ký tự bằng tiếng Anh một câu "ai làm gì", `severity ∈ critical|high|medium|low|info`, `devices` là thiết bị inventory khớp (có thể rỗng). Mọi chuỗi là dữ liệu từ log (không tin cậy); notify cắt và hiển thị như văn bản thuần. Hai tên này thay cho `logs.anomaly` và `logs.bad_address` trong CONTRACT của `notify`.
 - **Nhận**: `inventory` (kho thiết bị để tra IP); danh sách IOC từ `feeds`; (khi bật) sự kiện `honeypot.hit`, finding, incident để chuyển SIEM.
 
 ## Khi tắt module (SYS-5)

@@ -30,8 +30,8 @@ Kích cỡ: S ≈ 1–2 phiên-ngày, M ≈ 3–5, L ≈ 6–10 (ước lượng
 ### Giai đoạn 0 — nền tảng (chạy song song ngay)
 | WP | Việc | Chủ | Cỡ | Phụ thuộc | Nhánh |
 |---|---|---|---|---|---|
-| WP-01 | Khung Go (`go.mod` ghim 1.26, layout `cmd/` `core/` `modules/`), Makefile, golangci-lint, workflow CI | Kiên | S | — | `feat/core-skeleton` |
-| WP-02 | Sinh code từ `api/openapi.json` + kiểm lệch trong CI. **Rủi ro cần thử ngày đầu:** file là OpenAPI 3.1 — chọn công cụ hỗ trợ (thử ogen, oapi-codegen), không được thì xuất 3.0 từ Zod | Kiên | M | WP-01 | `feat/core-codegen` |
+| WP-01 | Khung Go (`go.mod` ghim 1.26, layout `cmd/` `core/` `modules/`), Makefile, golangci-lint (kiểm tra trên máy, D-61) | Kiên | S | — | `feat/core-skeleton` |
+| WP-02 | Sinh code từ `api/openapi.json` + kiểm lệch (`make generate-check`). **Rủi ro cần thử ngày đầu:** file là OpenAPI 3.1 — chọn công cụ hỗ trợ (thử ogen, oapi-codegen), không được thì xuất 3.0 từ Zod | Kiên | M | WP-01 | `feat/core-codegen` |
 | WP-03 | `core/store` (SQLite WAL, goose + sqlc), `core/secrets`, `core/audit` (chuỗi hash D-57), `core/exec` (allowlist) | Kiên | M | WP-01 | `feat/core-store` |
 | WP-04 | `core/auth` (phiên, CSRF, argon2id, TOTP, mã email, RBAC, token API), module registry, job scheduler | Kiên | L | WP-03 | `feat/core-auth` |
 | WP-05 | Môi trường dev (docker compose), giao diện bật API thật **theo từng module** (mock cho module chưa có backend) | Kiên | S | WP-02 | `feat/dev-env` |
@@ -82,7 +82,7 @@ Kích cỡ: S ≈ 1–2 phiên-ngày, M ≈ 3–5, L ≈ 6–10 (ước lượng
 
 ## 5. Nhịp phối hợp
 
-- **PR nhỏ** (≤ ~400 dòng), một WP có thể nhiều PR. Người kia duyệt PR chạm hợp đồng; PR trong module của mình: tự merge khi CI xanh.
+- **PR nhỏ** (≤ ~400 dòng), một WP có thể nhiều PR. Người kia duyệt PR chạm hợp đồng; PR trong module của mình: tự merge khi `make verify` trên máy xanh (dán kết quả vào PR). **Không dùng GitHub Actions** (D-61, `rules/local-checks.md`): mọi kiểm tra chạy trên máy của người làm.
 - **Mỗi ngày 15 phút** (hoặc ghi chú trong GitHub Discussions): đang làm WP nào, bị chặn gì, hợp đồng nào sắp đổi.
 - **Thứ tự merge** theo phụ thuộc ở mục 3; `main` luôn xanh. GitHub Free không khoá được nhánh riêng tư → quy ước, không phải cơ chế.
 - **Issue** mỗi WP, nhãn `module:<id>`, `owner:kien` / `owner:emily`, `wp:<số>`; GitHub Projects một bảng Kanban.

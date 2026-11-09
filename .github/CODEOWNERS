@@ -16,6 +16,11 @@
 /docs/MODULE_CONTRACTS.md           @kiennt048
 /web/package.json                   @kiennt048
 /web/pnpm-lock.yaml                 @kiennt048
+/go.mod                             @kiennt048
+/go.sum                             @kiennt048
+/tools/                             @kiennt048
+/Makefile                           @kiennt048
+/.golangci.yml                      @kiennt048
 
 # Per-module owners (docs/TEAM_PLAN.md §2). Kiên = @kiennt048, Emily = @kiennt049.
 # Module = modules/<id>/ (Go) + web/src/features/<id>/ (UI) + web/e2e/qa/<id>.spec.ts.
@@ -46,7 +51,7 @@
 /modules/scan/                      @kiennt049
 /web/src/features/scan/             @kiennt049
 /modules/scan-credentialed/         @kiennt049
-/web/src/features/scan-credentialed/@kiennt049
+/web/src/features/scan-credentialed/ @kiennt049
 /modules/logs/                      @kiennt049
 /web/src/features/logs/             @kiennt049
 /modules/agent-intake/              @kiennt049

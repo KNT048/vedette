@@ -35,6 +35,15 @@ Build and test tools (not shipped): Vite, TypeScript, Tailwind CSS, vitest, Test
 | osquery (optional, on the user's Linux/Windows servers) | Apache-2.0 / GPL-2.0 (dual) | official release packages mirrored unmodified by the box for one-line install (D-34); license files shipped alongside |
 | NXLog Community Edition (optional, on the user's Windows machines) | NXLog Public License | installed by the user to forward Windows Event Log as syslog; Vedette only shows a config snippet |
 
+## Development and CI tools (not shipped in any image or binary)
+
+Pinned in `tools/go.mod` (Go `tool` directives), run with `go tool -modfile=tools/go.mod <tool>` by `make verify-go` and `make audit` on the developer's machine (no hosted CI, D-61). They only read the source tree; nothing from them is linked into Vedette.
+
+| Tool | Version | License | How it is used |
+|---|---|---|---|
+| golangci-lint | v2.15.0 | GPL-3.0 | linter run on the source tree in dev and CI; separate process, never distributed |
+| govulncheck (golang.org/x/vuln) | v1.9.0 | BSD-3-Clause | vulnerability scan of Go dependencies in dev and CI (daily on `main`) |
+
 ## Libraries planned for embedding (backend)
 
 | Component | License |

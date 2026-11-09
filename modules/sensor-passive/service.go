@@ -76,6 +76,12 @@ type Service struct {
 	devices   *deviceBook // devices already reported: outlives the Engines (INV-6, SYS-6)
 	failures  int         // deliveries to the inventory that failed in a row (the capture goroutine only)
 	holdUntil time.Time   // no delivery before this instant while the inventory is failing
+
+	// poison hunt (capture goroutine only): a batch that failed poisonTries times in a row is split in half until the item
+	// that makes it fail stands alone, see flush.
+	poison   batchKey
+	poisonN  int
+	batchMax int // batch size while hunting; 0 means maxSubmitBatch
 }
 
 // New returns the service.
@@ -344,6 +350,12 @@ func (s *Service) SubmitBatch(ctx context.Context, sensorID string, seq uint64, 
 	if sensorID != SensorID {
 		return false, ErrNotFound
 	}
+	return s.submit(ctx, seq, obs, true)
+}
+
+// submit is SubmitBatch for this box's sensor; ensure says whether to create the sensor row first (deliver does it once).
+func (s *Service) submit(ctx context.Context, seq uint64, obs []observe.Observation, ensure bool) (applied bool, err error) {
+	sensorID := SensorID
 	if seq == 0 || len(obs) > maxSubmitBatch {
 		return false, fmt.Errorf("%w: seq starts at 1 and a batch has at most %d observations", ErrInvalid, maxSubmitBatch)
 	}
@@ -354,8 +366,10 @@ func (s *Service) SubmitBatch(ctx context.Context, sensorID string, seq uint64, 
 	}
 	s.submitMu.Lock()
 	defer s.submitMu.Unlock()
-	if err := s.ensureSensor(ctx); err != nil {
-		return false, err
+	if ensure {
+		if err := s.ensureSensor(ctx); err != nil {
+			return false, err
+		}
 	}
 	var last int64
 	if err := s.db.Reader().QueryRowContext(ctx, `SELECT coalesce((SELECT last_seq FROM sp_seq WHERE sensor_id = ? AND epoch = ?), 0)`, sensorID, localEpoch).Scan(&last); err != nil {

@@ -11,7 +11,7 @@
 - **inventory**: quan sát `vendor` 0.4 của thiết bị mới. `make oui` ghim nguồn theo commit + SHA-256 (`scripts/oui`, hằng `pinnedCommit`/`pinnedSHA256`), làm sạch tên hãng (bỏ C0/C1, bidi, zero-width, dấu gạch nối mềm, tag), lỗi nếu hai hãng cùng một tiền tố; `TestEveryVendorIsCleanText` canh bảng. Đổi bảng (chạy lại `make oui`) đổi tên hãng hiển thị cho thiết bị mới, không sửa quan sát cũ. THIRD_PARTY_NOTICES ghi nguồn runZero/IEEE.
 
 ## Modifying: `deviceBook` (`book.go`, hạn mức MAC mới)
-- **inventory** (số thiết bị `discovered` mỗi ngày, bản ghi kiểm toán, sự kiện `asset.discovered`): đổi `maxNewMACsPerMinute/Day`, `confirmAfter` đổi tốc độ thiết bị thật xuất hiện (thiết bị chỉ nói một lần sẽ không được ghi). Tập nằm trong `Service`, không trong `Engine`.
+- **inventory** (số thiết bị `discovered` mỗi ngày, bản ghi kiểm toán, sự kiện `asset.discovered`): đổi `maxNewMACsPerMinute/Hour`, `confirmAfter`, `firstSightingTTL`, `maxFirstSightings` đổi tốc độ thiết bị thật xuất hiện và cận "ít hơn 20.000 MAC mới giữa hai khung" (CONTRACT, Giới hạn chống ngập); `maxNewValuesPerHour` đổi tốc độ một thiết bị đổi tên/model. Sổ (thiết bị, khung đầu, hãng còn nợ, hạn mức giá trị) nằm trong `Service`, không trong `Engine`. `Record` của inventory cắt còn 32 dòng mỗi (thiết bị, trường, nguồn) (INV-16): đổi hằng đó đổi độ dài lịch sử giá trị.
 
 ## Modifying: gọi `inventory.RecordObservation`
 - **inventory**: `source=passive` và thang `confidence` quyết định giá trị "đang dùng". Đổi thang tin cậy làm đổi `summary` và thứ tự hiển thị ở mọi thiết bị.

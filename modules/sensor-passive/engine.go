@@ -105,7 +105,6 @@ type Engine struct {
 	others     map[mac]time.Time
 	seen       map[mac]time.Time
 	book       *deviceBook
-	resend     map[mac]struct{} // MACs whose vendor row failed to be delivered: queued again at their next frame
 }
 
 // newEngine compiles the filters and the own-address sets.
@@ -122,10 +121,10 @@ func newEngine(cfg engineConfig) (*Engine, error) {
 		clock: clock, span: cfg.Span, extract: cfg.Extract, filt: m,
 		ownMAC: map[mac]bool{}, ownIP: map[netip.Addr]bool{},
 		flows: map[flowKey]*flowVal{}, sent: map[obsKey]time.Time{}, counters: map[string]uint64{},
-		others: map[mac]time.Time{}, seen: map[mac]time.Time{}, book: cfg.Devices, resend: map[mac]struct{}{},
+		others: map[mac]time.Time{}, seen: map[mac]time.Time{}, book: cfg.Devices,
 	}
 	if e.book == nil {
-		e.book = newDeviceBook(bookLimits{PerMinute: maxNewMACsPerMinute, PerDay: maxNewMACsPerDay})
+		e.book = newDeviceBook(bookLimits{PerMinute: maxNewMACsPerMinute, PerHour: maxNewMACsPerHour})
 	}
 	for _, s := range cfg.OwnMACs {
 		if b, ok := parseMAC(s); ok {
@@ -317,7 +316,6 @@ func (e *Engine) add(now time.Time, hintMAC mac, hintIP netip.Addr, field observ
 	switch e.book.admit(hintMAC, now) {
 	case admitKnown:
 	case admitNew:
-		e.queueVendor(now, hintMAC)
 	case admitWait:
 		e.drop("new_macs_unconfirmed")
 		return
@@ -325,8 +323,13 @@ func (e *Engine) add(now time.Time, hintMAC mac, hintIP netip.Addr, field observ
 		e.drop("new_macs_dropped")
 		return
 	}
-	if _, ok := e.resend[hintMAC]; ok {
-		delete(e.resend, hintMAC)
+	if !e.book.allowValue(hintMAC, field, value, now) {
+		e.drop("values_dropped")
+		return
+	}
+	// The vendor of a device goes out until the inventory has it: the book (the Service's, not this Engine's) remembers
+	// that it is still owed, so a capture error or a failed final flush does not lose it.
+	if e.book.vendorOwed(hintMAC) {
 		e.queueVendor(now, hintMAC)
 	}
 	e.queue(now, hintMAC, hintIP, field, value, conf)
@@ -337,10 +340,12 @@ func (e *Engine) add(now time.Time, hintMAC mac, hintIP netip.Addr, field observ
 func (e *Engine) queueVendor(now time.Time, m mac) {
 	v, ok := oui.Lookup(m)
 	if !ok {
+		e.book.vendorDone(m) // no vendor for this MAC (locally administered, group): nothing is owed
 		return
 	}
 	if len(v) > maxValue || !printable(v) {
 		e.drop("vendor_rejected")
+		e.book.vendorDone(m)
 		return
 	}
 	e.queue(now, m, netip.Addr{}, observe.Vendor, v, ConfOUIVendor)
@@ -705,16 +710,23 @@ func (e *Engine) Drain(now time.Time, final bool) ([]observe.Observation, []Meta
 	return obs, meta
 }
 
-// Unmark forgets that obs were sent, so a failed delivery is not suppressed as a repeat. A vendor row is queued
-// only once per new MAC, so the MAC is remembered and its vendor goes out again with its next frame.
+// Unmark forgets that obs were sent, so a failed delivery is not suppressed as a repeat. A vendor row stays owed in
+// the book, so it goes out again with the next frame of its MAC.
 func (e *Engine) Unmark(obs []observe.Observation) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	for _, o := range obs {
 		delete(e.sent, obsKey{o.AssetHint.MAC, o.AssetHint.IP.String(), string(o.Field), o.Value})
-		if o.Field == observe.Vendor && len(e.resend) < maxSeen {
+	}
+}
+
+// Delivered says that obs reached the inventory or were refused by it for good: the vendor rows among them are no longer
+// owed to it.
+func (e *Engine) Delivered(obs []observe.Observation) {
+	for _, o := range obs {
+		if o.Field == observe.Vendor {
 			if m, ok := parseMAC(o.AssetHint.MAC); ok {
-				e.resend[m] = struct{}{}
+				e.book.vendorDone(m)
 			}
 		}
 	}

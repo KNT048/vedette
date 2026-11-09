@@ -231,14 +231,31 @@ func (s *Service) flush(ctx context.Context, eng *Engine, final bool) {
 	obs, meta := eng.Drain(s.clock(), final)
 	for len(obs) > 0 {
 		n := min(len(obs), maxSubmitBatch)
-		if !s.deliver(ctx, eng, obs[:n]) {
-			s.holdOff(ctx, eng, obs, final)
-			break
+		if s.batchMax > 0 {
+			n = min(n, s.batchMax)
 		}
-		obs = obs[n:]
+		if s.deliver(ctx, eng, obs[:n]) {
+			obs = obs[n:]
+			continue
+		}
+		if ctx.Err() != nil { // cut by shutdown: nothing is wrong with the inventory
+			eng.Requeue(obs)
+			return
+		}
+		if !final && s.poisoned(obs[:n]) {
+			if n > 1 {
+				s.batchMax = max(1, n/2)
+			} else if s.ensureSensor(ctx) == nil { // the store takes writes: this one item is what fails
+				s.dropPoison(ctx, eng, obs[0])
+				obs = obs[1:]
+				continue
+			}
+		}
+		s.holdOff(ctx, eng, obs, final)
+		break
 	}
 	if len(obs) == 0 {
-		s.failures, s.holdUntil = 0, time.Time{}
+		s.failures, s.holdUntil, s.poisonN, s.batchMax = 0, time.Time{}, 0, 0
 	}
 	for len(meta) > 0 {
 		n := min(len(meta), maxSubmitBatch)
@@ -274,6 +291,38 @@ func (s *Service) holdOff(ctx context.Context, eng *Engine, obs []observe.Observ
 	s.log.WarnContext(ctx, "sensor-passive: the inventory did not take the observations, will retry", "count", len(obs), "retry_in", wait.String())
 }
 
+// poisonTries is how many times in a row the same batch may fail before it is split in half.
+const poisonTries = 3
+
+// batchKey tells whether the batch that failed now is the one that failed before: its size and its two ends.
+type batchKey struct {
+	n           int
+	first, last observe.Observation
+}
+
+// poisoned records a failure of batch and reports whether it is the poisonTries-th in a row of this same batch.
+func (s *Service) poisoned(batch []observe.Observation) bool {
+	k := batchKey{n: len(batch), first: batch[0], last: batch[len(batch)-1]}
+	if k != s.poison {
+		s.poison, s.poisonN = k, 0
+	}
+	s.poisonN++
+	if s.poisonN < poisonTries {
+		return false
+	}
+	s.poisonN = 0
+	return true
+}
+
+// dropPoison forgets one observation that keeps the inventory from taking whatever batch it is in, and counts it.
+func (s *Service) dropPoison(ctx context.Context, eng *Engine, o observe.Observation) {
+	eng.Unmark([]observe.Observation{o})
+	eng.Delivered([]observe.Observation{o})
+	eng.CountDrop("observation_failed")
+	s.batchMax = 0
+	s.log.WarnContext(ctx, "sensor-passive: an observation made every batch fail and was dropped", "field", o.Field)
+}
+
 // maxDeliverPause is the longest pause between two tries to hand observations to a failing inventory.
 const maxDeliverPause = time.Minute
 
@@ -284,16 +333,22 @@ const maxDeliverPause = time.Minute
 // is never recorded a second time, even when saving its number fails.
 func (s *Service) deliver(ctx context.Context, eng *Engine, batch []observe.Observation) bool {
 	seq := s.nextSeq()
+	if err := s.ensureSensor(ctx); err != nil { // once per call, not per retry: a refused item costs no write transaction
+		s.log.WarnContext(ctx, "sensor-passive: observations not recorded", "count", len(batch), "error", err)
+		return false
+	}
 	for len(batch) > 0 {
-		applied, err := s.SubmitBatch(ctx, SensorID, seq, batch)
+		applied, err := s.submit(ctx, seq, batch, false)
 		var rej *observe.ErrRejected
 		switch {
 		case applied:
 			if err != nil {
 				s.log.WarnContext(ctx, "sensor-passive: saving the batch number failed", "error", err)
 			}
+			eng.Delivered(batch)
 			return true
 		case err == nil:
+			eng.Delivered(batch)
 			return true
 		case errors.As(err, &rej) && rej.Index >= 0 && rej.Index < len(batch) && ctx.Err() == nil:
 			eng.CountDrop("observation_rejected")

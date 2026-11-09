@@ -22,6 +22,10 @@ var (
 
 const maxBatch = 5000
 
+// maxObsPerSeries is how many observation rows one (device, field, source) keeps: Record deletes the older ones in the
+// same transaction (INV-16), so one MAC that keeps changing a value cannot grow the table without limit.
+const maxObsPerSeries = 32
+
 // maxClockSkew is how far into the future a sensor's clock may be before its time is replaced by ours.
 const maxClockSkew = 5 * time.Minute
 
@@ -157,11 +161,11 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 			if !slices.Contains(touched, id) {
 				touched = append(touched, id)
 			}
-			if err := insertObs(ctx, tx, id, c.field, c.value, c.source, c.conf, c.seenAt); err != nil {
+			if err := insertPruned(ctx, tx, id, c.field, c.value, c.source, c.conf, c.seenAt); err != nil {
 				return err
 			}
 			if c.mac != "" && c.field != "mac" { // the MAC that found the device is itself an observation
-				if err := insertObs(ctx, tx, id, "mac", c.mac, c.source, c.conf, c.seenAt); err != nil {
+				if err := insertPruned(ctx, tx, id, "mac", c.mac, c.source, c.conf, c.seenAt); err != nil {
 					return err
 				}
 			}
@@ -255,13 +259,33 @@ func (s *Service) claimIP(ctx context.Context, tx *sql.Tx, id string, ip netip.A
 }
 
 // insertObs appends an observation. An exact repeat of (device, field, source, value) moves seen_at forward
-// and keeps the higher confidence; nothing else is ever changed or removed (INV-1).
+// and keeps the higher confidence; nothing else is ever changed (INV-1). Record alone deletes, by pruneObs (INV-16).
 func insertObs(ctx context.Context, tx *sql.Tx, assetID, field, value, source string, conf float64, seenAt string) error {
 	_, err := tx.ExecContext(ctx, `INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at) VALUES (?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (asset_id, field, source, value) DO UPDATE SET seen_at = max(seen_at, excluded.seen_at), confidence = max(confidence, excluded.confidence)`,
 		store.NewID("o"), assetID, field, value, source, conf, seenAt)
 	if err != nil {
 		return fmt.Errorf("inventory: record observation: %w", err)
+	}
+	return nil
+}
+
+// insertPruned is insertObs followed by pruneObs: what Record does for every observation it takes.
+func insertPruned(ctx context.Context, tx *sql.Tx, assetID, field, value, source string, conf float64, seenAt string) error {
+	if err := insertObs(ctx, tx, assetID, field, value, source, conf, seenAt); err != nil {
+		return err
+	}
+	return pruneObs(ctx, tx, assetID, field, source)
+}
+
+// pruneObs keeps the latest maxObsPerSeries rows of (device, field, source) and deletes the older ones (INV-16). The
+// unique index inv_observation_uq starts with these three columns, so the statement reads at most one series.
+func pruneObs(ctx context.Context, tx *sql.Tx, assetID, field, source string) error {
+	_, err := tx.ExecContext(ctx, `DELETE FROM inv_observation WHERE asset_id = ? AND field = ? AND source = ? AND id NOT IN
+		(SELECT id FROM inv_observation WHERE asset_id = ? AND field = ? AND source = ? ORDER BY seen_at DESC, id DESC LIMIT ?)`,
+		assetID, field, source, assetID, field, source, maxObsPerSeries)
+	if err != nil {
+		return fmt.Errorf("inventory: prune observations: %w", err)
 	}
 	return nil
 }

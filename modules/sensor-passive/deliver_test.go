@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules/core"
+	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/sensor-passive/internal/pktgen"
 )
 
@@ -261,5 +263,237 @@ func TestAcceptedBatchIsNeverRecordedTwice(t *testing.T) {
 		if n > 1 {
 			t.Errorf("%s recorded %d times", k, n)
 		}
+	}
+}
+
+// scriptedSink is a Sink whose answer the test chooses per call.
+type scriptedSink struct {
+	mu     sync.Mutex
+	calls  int
+	answer func(obs []observe.Observation) error
+	stored []observe.Observation
+}
+
+func (s *scriptedSink) Record(_ context.Context, obs []observe.Observation) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.calls++
+	if err := s.answer(obs); err != nil {
+		return err
+	}
+	s.stored = append(s.stored, obs...)
+	return nil
+}
+
+func obsOf(m string, field observe.Field, value string) observe.Observation {
+	return observe.Observation{AssetHint: observe.AssetHint{MAC: m}, Field: field, Value: value, Source: observe.Passive, Confidence: 0.5, SeenAt: pktgen.T0}
+}
+
+func arpAt(eng *Engine, at time.Duration) {
+	eng.Handle(Packet{At: pktgen.T0.Add(at), Data: arpFrom(pktgen.Laptop, pktgen.LaptopIP)})
+}
+
+func hasVendor(obs []observe.Observation) bool {
+	for _, o := range obs {
+		if o.Field == observe.Vendor {
+			return true
+		}
+	}
+	return false
+}
+
+// Claim: a refusal wrapped by another layer still names the item; only that item is dropped.
+func TestDeliverDropsOnlyTheItemANestedRejectionNames(t *testing.T) {
+	t.Parallel()
+	e := newDeliverEnv(t)
+	sink := &scriptedSink{answer: func(obs []observe.Observation) error {
+		for i, o := range obs {
+			if o.Value == "bad" {
+				return fmt.Errorf("proxy: %w", &observe.ErrRejected{Index: i, Err: errors.New("refused")})
+			}
+		}
+		return nil
+	}}
+	e.svc.sink = sink
+	batch := []observe.Observation{obsOf("00:00:0c:00:00:01", observe.Hostname, "a"), obsOf("00:00:0c:00:00:02", observe.Hostname, "bad"), obsOf("00:00:0c:00:00:03", observe.Hostname, "c")}
+	if !e.svc.deliver(t.Context(), e.eng, batch) || len(sink.stored) != 2 || sink.calls != 2 {
+		t.Errorf("calls %d stored %d", sink.calls, len(sink.stored))
+	}
+}
+
+// Claim: deliver always ends. A sink that names item 0 whatever the batch drops the batch item by item (n calls),
+// it does not loop.
+func TestDeliverEndsWhenTheSinkAlwaysNamesItemZero(t *testing.T) {
+	t.Parallel()
+	e := newDeliverEnv(t)
+	sink := &scriptedSink{answer: func([]observe.Observation) error { return &observe.ErrRejected{Index: 0, Err: errors.New("no")} }}
+	e.svc.sink = sink
+	if !e.svc.deliver(t.Context(), e.eng, goodBatch(50)) || sink.calls != 50 || e.eng.Counters()["observation_rejected"] != 50 {
+		t.Errorf("calls %d counters %v", sink.calls, e.eng.Counters())
+	}
+}
+
+// End to end with the real inventory: two items refused at its boundary (an IPv6 hint, an unknown kind) are dropped, the
+// three good ones in the same batch are recorded, the index points at the right item every time.
+func TestDeliverToTheRealInventoryDropsOnlyTheRefusedItems(t *testing.T) {
+	t.Parallel()
+	e := newDeliverEnv(t)
+	ctx := t.Context()
+	if err := store.Migrate(ctx, e.db, "inventory", inventory.Migrations); err != nil {
+		t.Fatal(err)
+	}
+	inv, err := inventory.New(inventory.Config{DB: e.db, Audit: audit.New(nil), Clock: func() time.Time { return pktgen.T0 }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.svc.sink = inv
+	v6 := obsOf("00:00:0c:00:00:02", observe.Hostname, "six")
+	v6.AssetHint.IP = netip.MustParseAddr("fe80::1")
+	batch := []observe.Observation{
+		obsOf("00:00:0c:00:00:01", observe.Hostname, "one"), v6,
+		obsOf("00:00:0c:00:00:03", observe.Hostname, "three"), obsOf("00:00:0c:00:00:04", observe.Kind, "toaster"),
+		obsOf("00:00:0c:00:00:05", observe.Hostname, "five"),
+	}
+	if !e.svc.deliver(ctx, e.eng, batch) {
+		t.Fatal("deliver failed")
+	}
+	l, err := inv.Devices(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, d := range l.Items {
+		if d.MAC != nil {
+			got[*d.MAC] = true
+		}
+	}
+	if len(got) != 3 || !got["00:00:0c:00:00:01"] || !got["00:00:0c:00:00:03"] || !got["00:00:0c:00:00:05"] || e.eng.Counters()["observation_rejected"] != 2 {
+		t.Errorf("devices %v counters %v", got, e.eng.Counters())
+	}
+}
+
+// the vendor row of a new MAC is queued once, at admission. The book outlives the Engine, but the
+// resend mark (Engine.resend) does not: Unmark only runs in the final flush, right before the Engine is thrown away,
+// and a capture error drops the Engine with its queue unflushed. Either way the next Engine sees a known MAC, never
+// queues its vendor again, and the device keeps an empty vendor until the process restarts.
+func TestVendorSurvivesANewEngine(t *testing.T) {
+	t.Parallel()
+	for name, lose := range map[string]func(e *deliverEnv, eng *Engine){
+		"final flush failed (reload or end of recording)": func(e *deliverEnv, eng *Engine) {
+			e.inv.set(func() { e.inv.fail = errors.New("database is locked") })
+			e.svc.flush(t.Context(), eng, true)
+			e.inv.set(func() { e.inv.fail = nil })
+		},
+		"capture error before the flush": func(*deliverEnv, *Engine) {},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			e := newDeliverEnv(t)
+			eng1, _ := newEngine(engineConfig{Clock: e.svc.clock, Devices: e.svc.devices}) // as session() builds it
+			arpAt(eng1, 0)
+			arpAt(eng1, 3*time.Second)
+			if !hasVendor(eng1.obs) {
+				t.Fatal("setup: no vendor queued at admission")
+			}
+			lose(e, eng1)
+			eng2, _ := newEngine(engineConfig{Clock: e.svc.clock, Devices: e.svc.devices}) // the next session
+			for _, at := range []time.Duration{time.Minute, 20 * time.Minute, 2 * time.Hour} {
+				arpAt(eng2, at)
+			}
+			e.svc.flush(t.Context(), eng2, true)
+			for k := range e.inv.stored {
+				if strings.Contains(k, "|vendor|") {
+					return
+				}
+			}
+			t.Errorf("the vendor of %s never reached the inventory after the Engine was replaced (stored %v)", pktgen.Laptop, e.inv.stored)
+		})
+	}
+}
+
+// an error that is not ErrRejected but is caused by one item (or an ErrRejected whose Index is out of
+// range) blocks the queue for good: the same batch goes back to the head every time, nothing behind it is ever sent,
+// and the queue fills to maxPending. No such item was found reachable from the real inventory today.
+func TestPoisonBatchIsSplitAndDroppedNotRetriedForever(t *testing.T) {
+	t.Parallel()
+	e := newDeliverEnv(t)
+	sink := &scriptedSink{answer: func(obs []observe.Observation) error {
+		for _, o := range obs {
+			if o.Value == "poison" {
+				return errors.New("inventory: record observation: constraint failed")
+			}
+		}
+		return nil
+	}}
+	e.svc.sink = sink
+	e.eng.Requeue([]observe.Observation{obsOf("00:00:0c:00:00:09", observe.Hostname, "poison")})
+	arpAt(e.eng, 0) // engine without strict limits: the MAC is reported at once
+	for range 30 {  // 30 tries over an hour
+		e.svc.flush(t.Context(), e.eng, false)
+		e.advance(2 * time.Minute)
+	}
+	if len(sink.stored) == 0 {
+		t.Errorf("after %d tries in an hour nothing behind the poisoned batch was delivered (%d pending)", sink.calls, e.eng.Pending())
+	}
+}
+
+// A flush interrupted by shutdown (ctx cancelled) is not an inventory failure: the Service keeps failures and holdUntil, so
+// counting it would hold back the first flushes of the next Run (module on again).
+func TestShutdownIsNotAnInventoryFailure(t *testing.T) {
+	t.Parallel()
+	e := newDeliverEnv(t)
+	sink := &scriptedSink{answer: func([]observe.Observation) error { return context.Canceled }}
+	e.svc.sink = sink
+	arpAt(e.eng, 0)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	e.svc.flush(ctx, e.eng, false)
+	if e.svc.failures != 0 || !e.svc.holdUntil.IsZero() {
+		t.Errorf("shutdown left failures=%d holdUntil=%v on the Service", e.svc.failures, e.svc.holdUntil)
+	}
+}
+
+// a device the book admitted (a real one, or one of the flood's 60/min) has no budget of its own. One
+// MAC that sends DHCP requests with a new option-12 name each time writes a new inv_observation row per frame
+// (append-only, INV-1 of inventory) at the speed of the writer: the table and the disk grow without limit, and every
+// 500 rows are a write transaction on the single SQLite writer.
+func TestOneKnownMACCannotGrowTheInventoryWithoutLimit(t *testing.T) {
+	t.Parallel()
+	e := newDeliverEnv(t)
+	ctx := t.Context()
+	if err := store.Migrate(ctx, e.db, "inventory", inventory.Migrations); err != nil {
+		t.Fatal(err)
+	}
+	inv, err := inventory.New(inventory.Config{DB: e.db, Audit: audit.New(nil), Clock: func() time.Time { return pktgen.T0.Add(time.Hour) }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.svc.sink = inv
+	eng, _ := newEngine(engineConfig{Clock: e.svc.clock, Devices: e.svc.devices, OwnMACs: own.OwnMACs, OwnIPs: own.OwnIPs})
+	dhcp := func(at time.Duration, name string) {
+		req := pktgen.DHCP(1, pktgen.PC, netip.Addr{}, netip.Addr{}, pktgen.DHCPOpts{Type: 3, Hostname: name})
+		eng.Handle(Packet{At: pktgen.T0.Add(at), Data: pktgen.UDPFrame(pktgen.Bcast, pktgen.PC, netip.MustParseAddr("0.0.0.0"), netip.MustParseAddr("255.255.255.255"), 68, 67, req)})
+	}
+	dhcp(0, "pc")
+	dhcp(3*time.Second, "pc") // admitted: two frames 3 s apart
+	const frames = 2000       // 2,000 frames in 2 s
+	for i := range frames {
+		dhcp(4*time.Second+time.Duration(i)*time.Millisecond, fmt.Sprintf("n%05d", i))
+		if eng.Pending() >= maxSubmitBatch {
+			e.svc.flush(ctx, eng, false)
+		}
+	}
+	e.svc.flush(ctx, eng, true)
+	l, err := inv.Devices(ctx)
+	if err != nil || len(l.Items) != 1 {
+		t.Fatalf("devices %+v, %v", l.Items, err)
+	}
+	det, err := inv.Detail(ctx, l.Items[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("one MAC, %d frames in 2 s: %d observation rows", frames, len(det.Observations))
+	if len(det.Observations) > 3*maxNewValuesPerHour {
+		t.Errorf("one admitted MAC wrote %d observation rows in 2 s of traffic; the per-MAC budget and the row cap should bound it", len(det.Observations))
 	}
 }

@@ -42,3 +42,11 @@ func TestErrRejectedCarriesTheIndexAndTheReason(t *testing.T) {
 		t.Errorf("message %q", rej.Error())
 	}
 }
+
+// An ErrRejected without a reason prints (sensor-passive logs every refusal it gets from a Sink).
+func TestErrRejectedWithoutReasonPrints(t *testing.T) {
+	t.Parallel()
+	if got := (&observe.ErrRejected{Index: 1}).Error(); got == "" {
+		t.Error("empty message")
+	}
+}

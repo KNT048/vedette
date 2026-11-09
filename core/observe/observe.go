@@ -7,6 +7,7 @@ package observe
 
 import (
 	"context"
+	"fmt"
 	"net/netip"
 	"time"
 )
@@ -19,7 +20,12 @@ type ErrRejected struct { //nolint:errname // the name is the API agreed with th
 	Err   error
 }
 
-func (e *ErrRejected) Error() string { return e.Err.Error() }
+func (e *ErrRejected) Error() string {
+	if e.Err == nil {
+		return fmt.Sprintf("observation %d rejected", e.Index)
+	}
+	return e.Err.Error()
+}
 
 // Unwrap lets errors.Is see the reason (inventory.ErrInvalid).
 func (e *ErrRejected) Unwrap() error { return e.Err }

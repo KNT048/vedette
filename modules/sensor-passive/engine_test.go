@@ -336,13 +336,23 @@ func TestEngineBounds(t *testing.T) {
 	cfg := spanCfg()
 	cfg.Clock = func() time.Time { return pktgen.T0 }
 	e, _ := newEngine(cfg)
-	// a flood of distinct DHCP names from one device must stop at the cap and be counted
+	// a flood of distinct DHCP names from one device stops at the per-MAC value budget and is counted
 	for i := range maxPending + 50 {
 		req := pktgen.DHCP(1, pktgen.PC, netip.Addr{}, netip.Addr{}, pktgen.DHCPOpts{Type: 1, Hostname: fmt.Sprintf("host-%d", i)})
 		e.Handle(Packet{At: pktgen.T0, Data: pktgen.UDPFrame(pktgen.Bcast, pktgen.PC, netip.MustParseAddr("0.0.0.0"), netip.MustParseAddr("255.255.255.255"), 68, 67, req)})
 	}
+	if got := e.Counters()["values_dropped"]; got != maxPending+50-maxNewValuesPerHour {
+		t.Errorf("values_dropped = %d, counters %v", got, e.Counters())
+	}
 	obs, _ := e.Drain(pktgen.T0, false)
-	if len(obs) != maxPending || e.Counters()["observations_dropped"] != 51 { // the MAC itself took one slot
+	if len(obs) > 2+maxNewValuesPerHour { // the MAC, the vendor, the names that fit the budget
+		t.Errorf("%d observations from one device in an hour", len(obs))
+	}
+	// the queue itself is bounded too
+	for i := range maxPending + 50 {
+		e.queue(pktgen.T0, mac{2, 0, 0, 0, byte(i >> 8), byte(i)}, netip.Addr{}, observe.Hostname, "x", 0.5)
+	}
+	if obs, _ := e.Drain(pktgen.T0, false); len(obs) != maxPending || e.Counters()["observations_dropped"] != 50 {
 		t.Errorf("observations %d, counters %v", len(obs), e.Counters())
 	}
 	for i := range maxFlows + 10 {

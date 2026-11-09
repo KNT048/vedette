@@ -23,7 +23,7 @@
 
 ## Postconditions (sau khi xong)
 - **POST-1** `test` thành công trả `{ok:true, endpoints}` gồm `authorization`, `token`, `jwks` đọc từ `/.well-known/openid-configuration`; không đọc được → 502 `discovery_failed` với lý do nêu rõ đường mạng từ hộp tới IdP.
-- **POST-2** Đăng nhập thành công: tạo phiên như đăng nhập mật khẩu (cookie `vedette_session`, không cookie khác, legal.md), ghi audit.
+- **POST-2** Đăng nhập thành công: tạo phiên như đăng nhập mật khẩu (cookie `__Host-vedette_session`, không cookie khác, legal.md), ghi audit.
 - **POST-3** Lưu cấu hình: lần đăng nhập kế tiếp dùng cấu hình mới; phiên đang có không bị ngắt.
 
 ## Forbidden (không bao giờ)

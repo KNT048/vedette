@@ -58,7 +58,7 @@ export function buildOpenApi() {
     servers: [{ url: '/api/v1' }],
     security: [{ session: [] }],
     components: {
-      securitySchemes: { session: { type: 'apiKey', in: 'cookie', name: 'vedette_session' } },
+      securitySchemes: { session: { type: 'apiKey', in: 'cookie', name: '__Host-vedette_session' } },
       schemas: { Error: ERROR },
     },
     tags: [...new Set(allEndpoints.map((e) => e.module))].map((name) => ({ name })),

@@ -15,9 +15,9 @@ export class ApiError extends Error {
 /** Sản phẩm chỉ có tiếng Anh (D-28); vẫn gửi header để máy chủ sinh văn bản đúng ngôn ngữ. */
 const lang = () => 'en'
 
-/** Double-submit CSRF (API_CONVENTIONS 7.2): the server sets cookie `vedette_csrf`, state-changing calls echo it in a header. The mock ignores it. */
+/** Double-submit CSRF (API_CONVENTIONS 7.2): the server sets cookie `__Host-vedette_csrf`, state-changing calls echo it in a header. The mock ignores it. */
 function csrfToken(): string | null {
-  const m = document.cookie.match(/(?:^|;\s*)vedette_csrf=([^;]*)/)
+  const m = document.cookie.match(/(?:^|;\s*)__Host-vedette_csrf=([^;]*)/)
   return m ? decodeURIComponent(m[1]!) : null
 }
 

@@ -259,7 +259,7 @@ func (a *api) route(w http.ResponseWriter, r *http.Request) {
 		}
 		r = r.WithContext(WithPrincipal(r.Context(), p))
 	}
-	a.oas.ServeHTTP(w, r)
+	a.oas.ServeHTTP(w, r.WithContext(withExchange(r.Context(), w, r)))
 }
 
 func (a *api) authenticate(r *http.Request) (Principal, *apierr.Error) {

@@ -72,6 +72,9 @@ test('authenticator app: QR and manual key, turn on, sign out, sign in with the 
   await page.goto('/account')
   await expect(page.getByRole('heading', { name: 'Two-step sign-in' })).toBeVisible()
   await shot(page, 'twofa', 'account-choose-light')
+  // D-76: the current password comes first; the buttons stay disabled without it
+  await expect(page.getByRole('button', { name: 'Set up authenticator app' })).toBeDisabled()
+  await page.getByLabel('Your current password').fill(PW)
   await page.getByRole('button', { name: 'Set up authenticator app' }).click()
 
   const qr = page.getByRole('img', { name: 'QR code for your authenticator app' })
@@ -134,6 +137,7 @@ test('email code: disabled on a clean install, then set up, sign in with the pre
 
   await addEmailChannel(page)
   await page.reload()
+  await page.getByLabel('Your current password').fill(PW)
   await expect(setupEmail).toBeEnabled()
   await expect(page.getByText('Email codes need the email alert channel')).toHaveCount(0)
   await setupEmail.click()
@@ -188,7 +192,7 @@ test('email channel off: an email-code user is refused, never signed in with the
   await finishClean(page)
   await addEmailChannel(page)
   // the administrator turns on email codes for themselves (the mock returns the code in the response; a real backend only emails it)
-  const start = await post(page, '/core/account/2fa/email/start')
+  const start = await post(page, '/core/account/2fa/email/start', { password: PW })
   expect(start.status).toBe(200)
   expect((await post(page, '/core/account/2fa/email/confirm', { code: start.body!.preview_code })).status).toBe(200)
   // remove the channel while signed in (this admin is the only user, so this locks them out: that is the case under test)
@@ -213,7 +217,7 @@ test('admin resets another user: status shows, confirm dialog, audit entry, user
   await logout(page)
   const lg = await page.evaluate(async ([e, p]) => (await fetch('/api/v1/auth/login', { method: 'POST', body: JSON.stringify({ email: e, password: p }) })).status, ['sam@testco.example', temp])
   expect(lg).toBe(200)
-  const start = await post(page, '/core/account/2fa/email/start')
+  const start = await post(page, '/core/account/2fa/email/start', { password: temp })
   expect(start.status).toBe(200)
   expect((await post(page, '/core/account/2fa/email/confirm', { code: start.body!.preview_code })).status).toBe(200)
   await logout(page)

@@ -22374,6 +22374,20 @@ func (s *CorePostCoreAccount2FAEmailStartOK) SetSentTo(val string) {
 	s.SentTo = val
 }
 
+type CorePostCoreAccount2FAEmailStartReq struct {
+	Password string `json:"password"`
+}
+
+// GetPassword returns the value of Password.
+func (s *CorePostCoreAccount2FAEmailStartReq) GetPassword() string {
+	return s.Password
+}
+
+// SetPassword sets the value of Password.
+func (s *CorePostCoreAccount2FAEmailStartReq) SetPassword(val string) {
+	s.Password = val
+}
+
 type CorePostCoreAccount2FAStartOK struct {
 	// URI otpauth://totp/Vedette:?secret=…&issuer=Vedette&algorithm=SHA1&digits=6&period=30.
 	Otpauth string `json:"otpauth"`
@@ -22399,6 +22413,20 @@ func (s *CorePostCoreAccount2FAStartOK) SetOtpauth(val string) {
 // SetSecret sets the value of Secret.
 func (s *CorePostCoreAccount2FAStartOK) SetSecret(val string) {
 	s.Secret = val
+}
+
+type CorePostCoreAccount2FAStartReq struct {
+	Password string `json:"password"`
+}
+
+// GetPassword returns the value of Password.
+func (s *CorePostCoreAccount2FAStartReq) GetPassword() string {
+	return s.Password
+}
+
+// SetPassword sets the value of Password.
+func (s *CorePostCoreAccount2FAStartReq) SetPassword(val string) {
+	s.Password = val
 }
 
 type CorePostCoreAccountPasswordOK struct {
@@ -24145,6 +24173,10 @@ type CorePostCoreSetupReq struct {
 	Org        OptString                         `json:"org"`
 	// True = use sample data and sign in as the sample administrator; other fields are ignored.
 	Sample OptBool `json:"sample"`
+	// The one-time setup code the box prints in its log while setup is open (D-75). Required to create the
+	// first administrator: missing or wrong gives 403 invalid_setup_code, 429 rate_limited after repeated
+	// wrong tries.
+	SetupCode OptString `json:"setup_code"`
 }
 
 // GetAdmin returns the value of Admin.
@@ -24182,6 +24214,11 @@ func (s *CorePostCoreSetupReq) GetSample() OptBool {
 	return s.Sample
 }
 
+// GetSetupCode returns the value of SetupCode.
+func (s *CorePostCoreSetupReq) GetSetupCode() OptString {
+	return s.SetupCode
+}
+
 // SetAdmin sets the value of Admin.
 func (s *CorePostCoreSetupReq) SetAdmin(val OptCorePostCoreSetupReqAdmin) {
 	s.Admin = val
@@ -24215,6 +24252,11 @@ func (s *CorePostCoreSetupReq) SetOrg(val OptString) {
 // SetSample sets the value of Sample.
 func (s *CorePostCoreSetupReq) SetSample(val OptBool) {
 	s.Sample = val
+}
+
+// SetSetupCode sets the value of SetupCode.
+func (s *CorePostCoreSetupReq) SetSetupCode(val OptString) {
+	s.SetupCode = val
 }
 
 type CorePostCoreSetupReqAdmin struct {

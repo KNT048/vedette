@@ -558,16 +558,17 @@ type Handler interface {
 	// CorePostCoreAccount2FAEmailStart implements core_post_core_account_2fa_email_start operation.
 	//
 	// Email code: send a 6-digit code to my own sign-in email (409 when the email channel is not ready or
-	// two-step is already on; same limits as sign-in codes).
+	// two-step is already on; same limits as sign-in codes; needs the current password, D-76).
 	//
 	// POST /core/account/2fa/email/start
-	CorePostCoreAccount2FAEmailStart(ctx context.Context) (*CorePostCoreAccount2FAEmailStartOK, error)
+	CorePostCoreAccount2FAEmailStart(ctx context.Context, req *CorePostCoreAccount2FAEmailStartReq) (*CorePostCoreAccount2FAEmailStartOK, error)
 	// CorePostCoreAccount2FAStart implements core_post_core_account_2fa_start operation.
 	//
-	// Authenticator app: create a TOTP key waiting for confirmation.
+	// Authenticator app: create a TOTP key waiting for confirmation (needs the current password, D-76;
+	// wrong password 400 wrong_password, counted like a failed sign-in).
 	//
 	// POST /core/account/2fa/start
-	CorePostCoreAccount2FAStart(ctx context.Context) (*CorePostCoreAccount2FAStartOK, error)
+	CorePostCoreAccount2FAStart(ctx context.Context, req *CorePostCoreAccount2FAStartReq) (*CorePostCoreAccount2FAStartOK, error)
 	// CorePostCoreAccountPassword implements core_post_core_account_password operation.
 	//
 	// Change password (needs the current password).

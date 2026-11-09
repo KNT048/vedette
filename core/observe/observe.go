@@ -7,9 +7,28 @@ package observe
 
 import (
 	"context"
+	"fmt"
 	"net/netip"
 	"time"
 )
+
+// ErrRejected is what a Sink returns when it refuses one observation of a batch at its boundary (before any
+// write): Index is the position in the batch, Err the reason. The caller may drop that item and send the rest;
+// any other error (a busy or failing store) says nothing about the items and is retried as a whole.
+type ErrRejected struct { //nolint:errname // the name is the API agreed with the sensors
+	Index int
+	Err   error
+}
+
+func (e *ErrRejected) Error() string {
+	if e.Err == nil {
+		return fmt.Sprintf("observation %d rejected", e.Index)
+	}
+	return e.Err.Error()
+}
+
+// Unwrap lets errors.Is see the reason (inventory.ErrInvalid).
+func (e *ErrRejected) Unwrap() error { return e.Err }
 
 // Source says who saw a value. The inventory ranks values by it (DATA_MODEL 5.1).
 type Source string

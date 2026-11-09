@@ -201,6 +201,7 @@
         "login": "Sign in",
         "logout": "Sign out",
         "login_failed": "Sign-in with wrong two-step code",
+        "reauth_failed": "Wrong password when confirming a change",
         "code_resend": "Send new two-step email code"
       },
       "module": {
@@ -619,7 +620,7 @@
     },
     "cookie": {
       "title": "Cookies",
-      "body": "One sign-in session cookie only (vedette_session). No tracking, no analytics, no resources loaded from outside servers."
+      "body": "One sign-in session cookie only (__Host-vedette_session). No tracking, no analytics, no resources loaded from outside servers."
     },
     "bugNote": {
       "title": "Report a problem",
@@ -810,6 +811,8 @@
         "resend": "Send a new code",
         "resendIn": "Send a new code in {{s}} s"
       },
+      "startPassword": "Your current password",
+      "startPasswordHint": "Needed to turn on two-step sign-in, as it is to turn it off.",
       "key": "Manual key",
       "uri": "otpauth address",
       "code": "6-digit code",
@@ -875,7 +878,10 @@
       "passwordHint": "At least {{min}} characters. A long sentence is easier to remember than random characters.",
       "passwordError": "The password needs at least {{min}} characters, it has {{count}} so far.",
       "again": "Repeat password",
-      "againError": "The two entries do not match."
+      "againError": "The two entries do not match.",
+      "code": "Setup code",
+      "codeHint": "Vedette prints a one-time code in its log each time it starts while setup is open. Run \"docker logs vedette\" or \"journalctl -u vedette\" and copy the code.",
+      "codeError": "Enter the setup code from the box's log."
     },
     "network": {
       "title": "Network to watch",

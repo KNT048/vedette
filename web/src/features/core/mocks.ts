@@ -19,6 +19,8 @@ import type { AccountSession, AdminUser, Advisory, AuditQuery, AuditRow, Managed
 const ROLES: Role[] = ['viewer', 'operator', 'admin']
 const hex = (n: number) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, '0')).join('')
 const adminOf = (u: User): AdminUser => ({ id: u.id, name: u.name, email: u.email, role: u.role, twofa: u.twofa, twofa_method: twofaMethodOf(u), disabled: !!u.disabled, created_at: u.created_at, last_login: u.last_login })
+/** Mã cài đặt một lần (D-75): hộp thật in nó vào nhật ký lúc khởi động khi chưa có quản trị viên; mock dùng một mã cố định. */
+export const MOCK_SETUP_CODE = 'setup-code-demo'
 const tempPassword = () => `${hex(3)}-${hex(3)}-${hex(3)}-${hex(2)}`
 
 // ---------- Cài đặt ban đầu ----------
@@ -38,6 +40,9 @@ const setupHandlers = [
       audit('core.setup', 'sample')
       return HttpResponse.json({ ok: true })
     }
+    // D-75: creating the first administrator needs the code the box printed in its log. It is judged before the
+    // other fields, so a wrong code learns nothing about them. The sample path above creates no account.
+    if (String(b.setup_code ?? '').trim() !== MOCK_SETUP_CODE) return fail(403, 'invalid_setup_code', 'The setup code is missing or wrong. Find it in the box\'s log: it is printed there each time Vedette starts while setup is open.')
     const org = String(b.org ?? '').trim()
     if (org.length < 2 || org.length > 80) return fail(400, 'invalid_org', 'The organization name is 2 to 80 characters.')
     const a = b.admin ?? { name: '', email: '', password: '' }
@@ -154,10 +159,12 @@ const accountHandlers = [
     audit('account.password', u.email)
     return HttpResponse.json({ ok: true })
   }),
-  http.post(`${API}/core/account/2fa/start`, () => {
+  http.post(`${API}/core/account/2fa/start`, async ({ request }) => {
     const denied = guard('viewer')
     if (denied) return denied
     const u = currentUser()!
+    // D-76: turning two-step on needs the current password, like turning it off.
+    if ((await body<{ password: string }>(request)).password !== u.password) return fail(400, 'wrong_password', 'Wrong password. The password is needed to turn on two-factor authentication.')
     if (u.twofa) return fail(409, 'already_on', 'Two-step sign-in is already on. Turn it off first to set up the other method.')
     const secret = newSecret()
     totpPending.update((p) => ({ ...p, [u.id]: secret }))
@@ -179,10 +186,11 @@ const accountHandlers = [
     audit('account.2fa_on', u.email, 'authenticator app')
     return HttpResponse.json({ ok: true })
   }),
-  http.post(`${API}/core/account/2fa/email/start`, () => {
+  http.post(`${API}/core/account/2fa/email/start`, async ({ request }) => {
     const denied = guard('viewer')
     if (denied) return denied
     const u = currentUser()!
+    if ((await body<{ password: string }>(request)).password !== u.password) return fail(400, 'wrong_password', 'Wrong password. The password is needed to turn on two-factor authentication.')
     if (u.twofa) return fail(409, 'already_on', 'Two-step sign-in is already on. Turn it off first to set up the other method.')
     if (!emailChannelReady()) return fail(409, 'email_channel_not_ready', 'Email codes need the email alert channel. An administrator has to set it up and turn it on first.')
     const sent = issueCode(u.id)

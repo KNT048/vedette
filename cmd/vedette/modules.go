@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
@@ -20,6 +21,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
+	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
 )
 
 // deps is what module constructors may take. serve builds one value and hands it to every module's
@@ -31,7 +33,9 @@ type deps struct {
 	Secrets *secrets.Store
 	Audit   *audit.Log
 	Clock   func() time.Time
-	Bus     *events.Bus // in-process event bus (core/events); modules publish after commit and subscribe here
+	Bus     *events.Bus       // in-process event bus (core/events); modules publish after commit and subscribe here
+	Auth    *auth.Service     // sessions, sign-in and two-step (core/auth)
+	Core    *core.APIHandlers // core's own operations (sign-in, account, users, setup, audit, general settings)
 
 	// Module services other modules use through their own ports (issue #38, #39). Built once in serve,
 	// after the fields above, so every handler, job and subscriber shares one instance.
@@ -39,6 +43,7 @@ type deps struct {
 	Findings           *findings.Service
 	FindingHandlers    *findings.FindingHandlers // also carries mitigation's guidance (SetGuidance) and is mitigation's Details
 	MitigationHandlers *mitigation.ActionHandlers
+	SensorPassive      *sensorpassive.Service // the capture job and the HTTP handler share it: the SPAN measurement lives in its memory
 }
 
 // moduleWiring is one module the binary carries. Adding a module = one entry in wiredModules and
@@ -60,6 +65,7 @@ func wiredModules() []moduleWiring {
 		{ID: "findings", Migrations: findings.Migrations},
 		{ID: "mitigation", Migrations: mitigation.Migrations},
 		{ID: "notify", Migrations: notify.Migrations, Jobs: notifyJobs},
+		{ID: "sensor-passive", Migrations: sensorpassive.Migrations, Jobs: sensorPassiveJobs},
 	}
 }
 

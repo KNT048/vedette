@@ -9,6 +9,40 @@ import (
 	"context"
 )
 
+const countAuditFiltered = `-- name: CountAuditFiltered :one
+SELECT count(*)
+FROM core_audit
+WHERE seq <= ?1
+  AND (?2 IS NULL OR ts >= ?2)
+  AND (?3 IS NULL OR ts <= ?3)
+  AND (?4 IS NULL OR user = ?4)
+  AND (?5 IS NULL OR substr(action, 1, instr(action, '.') - 1) = ?5)
+  AND (?6 IS NULL OR instr(lower(action || ' ' || target || ' ' || COALESCE(detail, '') || ' ' || user), ?6) > 0)
+`
+
+type CountAuditFilteredParams struct {
+	UptoSeq int64
+	FromTs  interface{}
+	ToTs    interface{}
+	Who     interface{}
+	Grp     interface{}
+	Needle  interface{}
+}
+
+func (q *Queries) CountAuditFiltered(ctx context.Context, arg CountAuditFilteredParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAuditFiltered,
+		arg.UptoSeq,
+		arg.FromTs,
+		arg.ToTs,
+		arg.Who,
+		arg.Grp,
+		arg.Needle,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getChainAnchor = `-- name: GetChainAnchor :one
 SELECT chain, last_pruned_id, last_pruned_hash, pruned_at
 FROM core_chain_anchor
@@ -112,4 +146,145 @@ func (q *Queries) ListAuditAfter(ctx context.Context, arg ListAuditAfterParams) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const listAuditFiltered = `-- name: ListAuditFiltered :many
+SELECT seq, id, ts, user, action, target, detail
+FROM core_audit
+WHERE seq < ?1
+  AND (?2 IS NULL OR ts >= ?2)
+  AND (?3 IS NULL OR ts <= ?3)
+  AND (?4 IS NULL OR user = ?4)
+  AND (?5 IS NULL OR substr(action, 1, instr(action, '.') - 1) = ?5)
+  AND (?6 IS NULL OR instr(lower(action || ' ' || target || ' ' || COALESCE(detail, '') || ' ' || user), ?6) > 0)
+ORDER BY seq DESC
+LIMIT ?7
+`
+
+type ListAuditFilteredParams struct {
+	BeforeSeq int64
+	FromTs    interface{}
+	ToTs      interface{}
+	Who       interface{}
+	Grp       interface{}
+	Needle    interface{}
+	MaxRows   int64
+}
+
+type ListAuditFilteredRow struct {
+	Seq    int64
+	ID     string
+	Ts     string
+	User   string
+	Action string
+	Target string
+	Detail *string
+}
+
+// The audit screen and its CSV export (GET /core/audit, /core/audit/export): newest first, keyset on seq
+// (seq < before_seq), every filter optional. The text filter is a case-insensitive substring over the
+// same four columns the screen shows; lower() folds ASCII only. The group is the part of the action before
+// the first dot.
+func (q *Queries) ListAuditFiltered(ctx context.Context, arg ListAuditFilteredParams) ([]ListAuditFilteredRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAuditFiltered,
+		arg.BeforeSeq,
+		arg.FromTs,
+		arg.ToTs,
+		arg.Who,
+		arg.Grp,
+		arg.Needle,
+		arg.MaxRows,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAuditFilteredRow
+	for rows.Next() {
+		var i ListAuditFilteredRow
+		if err := rows.Scan(
+			&i.Seq,
+			&i.ID,
+			&i.Ts,
+			&i.User,
+			&i.Action,
+			&i.Target,
+			&i.Detail,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAuditGroups = `-- name: ListAuditGroups :many
+SELECT DISTINCT substr(action, 1, instr(action, '.') - 1) AS grp FROM core_audit ORDER BY grp
+`
+
+func (q *Queries) ListAuditGroups(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listAuditGroups)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var grp string
+		if err := rows.Scan(&grp); err != nil {
+			return nil, err
+		}
+		items = append(items, grp)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAuditUsers = `-- name: ListAuditUsers :many
+SELECT DISTINCT user FROM core_audit ORDER BY user
+`
+
+func (q *Queries) ListAuditUsers(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listAuditUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var user string
+		if err := rows.Scan(&user); err != nil {
+			return nil, err
+		}
+		items = append(items, user)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const maxAuditSeq = `-- name: MaxAuditSeq :one
+SELECT CAST(COALESCE(MAX(seq), 0) AS INTEGER) FROM core_audit
+`
+
+func (q *Queries) MaxAuditSeq(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, maxAuditSeq)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }

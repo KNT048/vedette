@@ -27,5 +27,6 @@ pids+=($!)
 VITE_API_REAL="$real" pnpm --dir web dev --port "$port" &
 pids+=($!)
 echo "dev-api: backend http://127.0.0.1:8080, app http://localhost:$port, real modules: $real"
+echo "dev-api: first-run setup on a fresh .dev/ asks for the one-time setup code the backend logs at start (look for \"setup_code\" above); rm .dev/vedette.db to start over"
 # bash 3.2 on macOS has no `wait -n`: poll until either process is gone
 while kill -0 "${pids[0]}" 2>/dev/null && kill -0 "${pids[1]}" 2>/dev/null; do sleep 1; done

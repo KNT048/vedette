@@ -100,6 +100,9 @@ WHERE s.token_hash = ?;
 SELECT id FROM core_session
 WHERE id = ? AND user_id = ? AND revoked_at IS NULL AND expires_at > ? AND last_seen > ?;
 
+-- name: GetSessionClient :one
+SELECT device, ip FROM core_session WHERE id = ? AND user_id = ?;
+
 -- name: TouchSession :exec
 UPDATE core_session SET last_seen = ? WHERE id = ? AND revoked_at IS NULL;
 

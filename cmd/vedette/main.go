@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"net/netip"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -52,6 +54,8 @@ func main() {
 
 type options struct {
 	db, key, listen string
+	tlsCert, tlsKey string
+	hosts           string
 }
 
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
@@ -61,8 +65,11 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	var o options
 	flags.StringVar(&o.db, "db", "/var/lib/vedette/vedette.db", "path of the SQLite database (created with mode 0600)")
 	flags.StringVar(&o.key, "key", "/var/lib/vedette/vedette.key", "path of the secrets master key file (created with mode 0600 when missing)")
-	// ponytail: plain HTTP on loopback; TLS on :8443 arrives with WP-04b/WP-08, then this default changes.
-	flags.StringVar(&o.listen, "listen", "127.0.0.1:8080", "address to listen on")
+	// Plain HTTP only on loopback; any other address is served over TLS (own certificate, or a self-signed one made at first start).
+	flags.StringVar(&o.listen, "listen", "127.0.0.1:8080", "address to listen on; plain HTTP on loopback, TLS on any other address")
+	flags.StringVar(&o.tlsCert, "tls-cert", "", "PEM certificate for TLS (with -tls-key); when both are missing and -listen is not loopback, a self-signed pair is made next to the database")
+	flags.StringVar(&o.tlsKey, "tls-key", "", "PEM private key for TLS")
+	flags.StringVar(&o.hosts, "hosts", "", "comma-separated host names (a leading *. covers one label, like a wildcard certificate) and IP addresses the box answers to (Host header allowlist, 421 for others); default: the loopback names and the names of the certificate")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -73,28 +80,74 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		_, err := fmt.Fprintln(stdout, version)
 		return err
 	}
-	if err := checkLoopback(o.listen); err != nil {
+	if (o.tlsCert == "") != (o.tlsKey == "") {
+		return errors.New("-tls-cert and -tls-key go together")
+	}
+	if _, err := parseHosts(o.hosts); err != nil {
+		return err
+	}
+	if _, err := isLoopback(o.listen); err != nil {
 		return err
 	}
 	log := slog.New(slog.NewJSONHandler(stderr, nil))
 	return serve(ctx, log, o)
 }
 
-// checkLoopback refuses a -listen address that is not loopback: sessions and the API travel over
-// plain HTTP until TLS lands (WP-04b/WP-08), so the process must not be reachable from the network.
-// Only literal loopback IPs and "localhost" pass; an empty host (":8080") or any other name does not.
-func checkLoopback(addr string) error {
+// isLoopback reports whether a -listen address is loopback: a literal loopback IP or "localhost". An empty
+// host (":8080") or any other name is not (it can resolve, or bind, anywhere). The error is for an address
+// that does not parse.
+func isLoopback(addr string) (bool, error) {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
-		return fmt.Errorf("listen %q: %w", addr, err)
+		return false, fmt.Errorf("listen %q: %w", addr, err)
 	}
 	if strings.EqualFold(host, "localhost") {
-		return nil
+		return true, nil
 	}
-	if ip, err := netip.ParseAddr(host); err == nil && ip.Unmap().IsLoopback() {
-		return nil
+	ip, err := netip.ParseAddr(host)
+	return err == nil && ip.Unmap().IsLoopback(), nil
+}
+
+// transport decides how the listener speaks and which Host headers it answers to. Plain HTTP is only for
+// loopback (sessions and passwords must not cross a network in clear); anywhere else it is TLS, with the
+// certificate of -tls-cert/-tls-key or a self-signed one made next to the database on first start (names:
+// -hosts and what localNames finds). The allowlist is -hosts when given, otherwise the names of the
+// certificate in use; loopback is always allowed by core/server.HostAllowlist. hsts is true only for a
+// certificate the owner supplied: the box then tells browsers to insist on HTTPS. A self-signed pair gets
+// no HSTS, or a browser would refuse to let the owner click through its warning for a year.
+func transport(o options) (cfg *tls.Config, hosts []string, hsts bool, renew *selfSignedRenewer, err error) {
+	hosts, err = parseHosts(o.hosts)
+	flagHosts := hosts
+	if err != nil {
+		return nil, nil, false, nil, err
 	}
-	return fmt.Errorf("listen %q: refused, the address must be loopback (127.0.0.0/8, ::1 or localhost) until TLS is built in (WP-04b)", addr)
+	loop, err := isLoopback(o.listen)
+	if err != nil {
+		return nil, nil, false, nil, err
+	}
+	certPath, keyPath := o.tlsCert, o.tlsKey
+	if certPath == "" && loop {
+		return nil, hosts, false, nil, nil // plain HTTP on loopback
+	}
+	if certPath == "" {
+		dir := filepath.Dir(o.db)
+		certPath, keyPath = filepath.Join(dir, "vedette-selfsigned.crt"), filepath.Join(dir, "vedette-selfsigned.key")
+		if err := ensureCert(certPath, keyPath, hosts); err != nil {
+			return nil, nil, false, nil, err
+		}
+	}
+	cfg, names, err := loadTLS(certPath, keyPath)
+	if err != nil {
+		return nil, nil, false, nil, err
+	}
+	if o.tlsCert == "" { // the box's own pair: serve it through GetCertificate so a renewal needs no restart
+		renew = &selfSignedRenewer{certPath: certPath, keyPath: keyPath, hosts: flagHosts, now: time.Now, cert: &cfg.Certificates[0]}
+		cfg.Certificates, cfg.GetCertificate = nil, renew.GetCertificate
+	}
+	if len(hosts) == 0 {
+		hosts = names
+	}
+	return cfg, hosts, o.tlsCert != "", renew, nil
 }
 
 // serve opens everything, serves until ctx is cancelled, then shuts down in order: HTTP server,
@@ -108,6 +161,10 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		return err
 	}
 	sec, err := secrets.New(key) // fail at start, not at the first secret
+	if err != nil {
+		return err
+	}
+	tlsCfg, hosts, hsts, renew, err := transport(o)
 	if err != nil {
 		return err
 	}
@@ -133,6 +190,15 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err := buildServices(&d); err != nil {
 		return err
 	}
+	// D-75: while first-run setup is open the box prints its one-time setup code, at every start. This is the
+	// one place a secret is logged on purpose: the log is where the person who installed the box looks.
+	code, err := d.Core.EnsureSetupCode(ctx)
+	if err != nil {
+		return err
+	}
+	if code != "" {
+		log.InfoContext(ctx, "first-run setup is open: enter this one-time setup code on the setup page", "setup_code", code)
+	}
 	sched := jobs.New(log, reg, nil, jobs.WithRecorder(jobs.NewHistory(db)))
 	reg.OnChange(sched.ModuleChanged)
 	if err := addJobs(sched, d, wired); err != nil {
@@ -141,7 +207,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 
 	api, err := server.New(server.Config{
 		API:        newHandler(d),
-		Auth:       noSessions{}, // ponytail: WP-04b replaces this with sessions and CSRF
+		Auth:       d.Auth.Sessions,
 		Modules:    reg,
 		Log:        log,
 		BodyLimits: bodyLimits(wired),
@@ -150,7 +216,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		return err
 	}
 	srv := &http.Server{
-		Handler:           topHandler(log, api),
+		Handler:           topHandler(log, api, hosts, hsts),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       60 * time.Second,
 		IdleTimeout:       2 * time.Minute,
@@ -161,16 +227,38 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return fmt.Errorf("listen: %w", err)
 	}
+	if tlsCfg != nil {
+		ln = tls.NewListener(ln, tlsCfg)
+	}
+	if renew != nil {
+		tick := time.NewTicker(selfSignedCheckEvery)
+		defer tick.Stop()
+		go renew.Run(ctx, log, tick.C)
+	}
 	return serveUntilDone(ctx, log, srv, ln, sched, schedulerStopTimeout)
 }
 
-// topHandler is everything the listener answers. The Envelope (panic recovery, request id, security
+// topHandler is everything the listener answers. A Host header outside the allowlist is 421 before anything
+// else is routed (DNS rebinding). The Envelope (panic recovery, request id, security
 // headers) wraps the ServeMux too, so the mux's own answers (307 for /api/v1, //, .. and the 404 for
 // other paths) carry the headers the API's responses do.
-func topHandler(log *slog.Logger, api http.Handler) http.Handler {
+func topHandler(log *slog.Logger, api http.Handler, hosts []string, hsts bool) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle(server.Prefix+"/", api)
-	return server.Envelope(log, mux)
+	h := server.HostAllowlist(hosts, mux)
+	if hsts {
+		h = strictTransportSecurity(h)
+	}
+	return server.Envelope(log, h)
+}
+
+// strictTransportSecurity adds HSTS (one year, no includeSubDomains or preload: the box does not own the
+// owner's domain) to every response.
+func strictTransportSecurity(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+		next.ServeHTTP(w, r)
+	})
 }
 
 // serveUntilDone serves on ln and runs the scheduler until ctx is cancelled or the listener fails,

@@ -1,7 +1,7 @@
 # Vedette — lệnh chung. Máy: `make check` trước khi push (D-62); CI gọi đúng các đích ở đây (D-63, docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: help dev dev-api check verify node-version-check verify-web verify-go test test-go contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build e2e fixtures clean
+.PHONY: help oui dev dev-api check verify node-version-check verify-web verify-go test test-go contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build e2e fixtures clean
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -21,6 +21,7 @@ help:
 	@echo "make contract      go test ./modules/... -run Contract"
 	@echo "make e2e           kiểm thử đầu-cuối bằng Playwright (Chromium)"
 	@echo "make audit         quét lỗ hổng dependency: govulncheck + pnpm audit (đầu mỗi phiên)"
+	@echo "make oui          dựng lại content/oui/oui.tsv.gz từ runZero mac-tracker (cần mạng tới raw.githubusercontent.com, D-83)"
 	@echo "make fixtures      kéo dữ liệu KEV/EPSS thật cho bảng nóng"
 	@echo "make reaper-install  cài bộ dọn tiến trình test/dev mồ côi (10 phút một lần)"
 	@echo "make clean         xoá build output và báo cáo test"
@@ -110,6 +111,10 @@ e2e:
 
 fixtures:
 	pnpm --dir web fixtures
+
+# Bảng OUI→hãng (D-83): kéo macs.json của runZero mac-tracker (MIT, dựng từ 5 file CSV của IEEE) ở commit đã ghim, kiểm SHA-256, giữ tổ chức mới nhất cho mỗi tiền tố /24 /28 /36, ghi file nén có thứ tự cố định. Kết quả được commit; sản phẩm không tải gì lúc chạy.
+oui:
+	go run ./scripts/oui
 
 clean:
 	rm -rf bin .dev/bin coverage.out web/dist web/playwright-report web/test-results web/node_modules/.tmp web/node_modules/.vite

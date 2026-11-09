@@ -18,6 +18,9 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
+// only drops the renewed session of a call that returns one: these tests care about the error alone.
+func only(_ auth.Issued, err error) error { return err }
+
 func apiCode(t *testing.T, err error, status int, code string) {
 	t.Helper()
 	e, ok := apierr.As(err)
@@ -43,18 +46,18 @@ func TestContract_INV7_UserRules(t *testing.T) {
 	yes := true
 	viewer := routes.Viewer
 
-	_, err := env.Svc.UpdateUser(ctx, a1.ID, a1.Email, a1.ID, auth.UserPatch{Disabled: &yes})
+	_, err := env.Svc.UpdateUser(ctx, a1.ID, a1.Email, "", a1.ID, auth.UserPatch{Disabled: &yes})
 	apiCode(t, err, 400, "self_disable")
-	if _, err := env.Svc.UpdateUser(ctx, a1.ID, a1.Email, a2.ID, auth.UserPatch{Disabled: &yes}); err != nil {
+	if _, err := env.Svc.UpdateUser(ctx, a1.ID, a1.Email, "", a2.ID, auth.UserPatch{Disabled: &yes}); err != nil {
 		t.Fatal(err)
 	}
-	_, err = env.Svc.UpdateUser(ctx, a1.ID, a1.Email, a1.ID, auth.UserPatch{Role: &viewer})
+	_, err = env.Svc.UpdateUser(ctx, a1.ID, a1.Email, "", a1.ID, auth.UserPatch{Role: &viewer})
 	apiCode(t, err, 400, "last_admin")
 	if n := env.Count(t, "SELECT count(*) FROM core_user WHERE role = 'admin' AND disabled = 0"); n != 1 {
 		t.Fatalf("active administrators = %d, want 1", n)
 	}
 
-	apiCode(t, env.Svc.ResetTwoFA(ctx, a1.ID, a1.Email, a1.ID), 400, "self_reset")
+	apiCode(t, env.Svc.ResetTwoFA(ctx, a1.ID, a1.Email, "", a1.ID), 400, "self_reset")
 
 	if _, err := env.Login(t, v.Email, ""); err != nil {
 		t.Fatal(err)
@@ -65,7 +68,7 @@ func TestContract_INV7_UserRules(t *testing.T) {
 	if liveSessions(t, env, v.Email) != 2 {
 		t.Fatal("setup: expected two sessions")
 	}
-	temp, err := env.Svc.ResetPassword(ctx, a1.Email, v.ID)
+	temp, err := env.Svc.ResetPassword(ctx, a1.ID, a1.Email, "", v.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,10 +77,10 @@ func TestContract_INV7_UserRules(t *testing.T) {
 	}
 	// A 2FA reset also ends every session of the user; turning two-step on or off ends the other ones (INV-7).
 	home := netip.MustParseAddr("192.0.2.4")
-	if _, err := env.Svc.StartEmail2FA(ctx, v.ID); err != nil {
+	if _, err := env.Svc.StartEmail2FA(ctx, v.ID, "", temp); err != nil {
 		t.Fatal(err)
 	}
-	if err := env.Svc.ConfirmEmail2FA(ctx, v.ID, "", env.Mailer.LastCode()); err != nil {
+	if err := only(env.Svc.ConfirmEmail2FA(ctx, v.ID, "", env.Mailer.LastCode())); err != nil {
 		t.Fatal(err)
 	}
 	env.Clock.Advance(2 * time.Minute)
@@ -91,7 +94,7 @@ func TestContract_INV7_UserRules(t *testing.T) {
 	if liveSessions(t, env, v.Email) != 1 {
 		t.Fatal("setup: expected one session")
 	}
-	if err := env.Svc.ResetTwoFA(ctx, a1.ID, a1.Email, v.ID); err != nil {
+	if err := env.Svc.ResetTwoFA(ctx, a1.ID, a1.Email, "", v.ID); err != nil {
 		t.Fatal(err)
 	}
 	if liveSessions(t, env, v.Email) != 0 {
@@ -99,7 +102,7 @@ func TestContract_INV7_UserRules(t *testing.T) {
 	}
 	if res, err := env.Svc.Login(ctx, auth.LoginRequest{Email: v.Email, Password: temp, IP: home}); err != nil {
 		t.Fatal(err)
-	} else if err := env.Svc.DisableTwoFA(ctx, v.ID, res.Session.SessionID, temp); err == nil {
+	} else if err := only(env.Svc.DisableTwoFA(ctx, v.ID, res.Session.SessionID, temp)); err == nil {
 		t.Fatal("DisableTwoFA must refuse while two-step is off")
 	}
 	var hash string
@@ -126,12 +129,12 @@ func TestContract_INV8_TwoStep(t *testing.T) {
 
 	// Authenticator app.
 	app := env.User(t, "app@acme.example", routes.Viewer)
-	setup, err := env.Svc.StartTOTP(ctx, app.ID)
+	setup, err := env.Svc.StartTOTP(ctx, app.ID, "", authtest.Password)
 	if err != nil {
 		t.Fatal(err)
 	}
 	key := mustBase32(t, setup.Secret)
-	if err := env.Svc.ConfirmTOTP(ctx, app.ID, "", auth.TOTPCode(key, auth.TOTPStep(env.Clock.Now()))); err != nil {
+	if err := only(env.Svc.ConfirmTOTP(ctx, app.ID, "", auth.TOTPCode(key, auth.TOTPStep(env.Clock.Now())))); err != nil {
 		t.Fatal(err)
 	}
 	for _, code := range []string{"", "000000", "12345"} {
@@ -145,10 +148,10 @@ func TestContract_INV8_TwoStep(t *testing.T) {
 
 	// Email code.
 	em := env.User(t, "em@acme.example", routes.Viewer)
-	if _, err := env.Svc.StartEmail2FA(ctx, em.ID); err != nil {
+	if _, err := env.Svc.StartEmail2FA(ctx, em.ID, "", authtest.Password); err != nil {
 		t.Fatal(err)
 	}
-	if err := env.Svc.ConfirmEmail2FA(ctx, em.ID, "", env.Mailer.LastCode()); err != nil {
+	if err := only(env.Svc.ConfirmEmail2FA(ctx, em.ID, "", env.Mailer.LastCode())); err != nil {
 		t.Fatal(err)
 	}
 	env.Clock.Advance(2 * time.Minute)
@@ -183,10 +186,10 @@ func TestContract_INV8_TwoStep(t *testing.T) {
 
 	// Resend limits.
 	env.Clock.Advance(2 * time.Minute)
-	if _, err := env.Svc.ResendCode(ctx, em.Email, authtest.Password, netip.MustParseAddr("192.0.2.1")); err != nil {
+	if _, err := env.Svc.ResendCode(ctx, em.Email, authtest.Password, netip.MustParseAddr("192.0.2.1"), ""); err != nil {
 		t.Fatal(err)
 	}
-	_, err = env.Svc.ResendCode(ctx, em.Email, authtest.Password, netip.MustParseAddr("192.0.2.1"))
+	_, err = env.Svc.ResendCode(ctx, em.Email, authtest.Password, netip.MustParseAddr("192.0.2.1"), "")
 	apiCode(t, err, 429, "resend_too_soon")
 
 	// Dead email channel: 503 for every call, and still no session.
@@ -200,7 +203,7 @@ func TestContract_INV8_TwoStep(t *testing.T) {
 	}
 }
 
-// INV-9: the only cookies are vedette_session (HttpOnly) and vedette_csrf, both Secure and SameSite=Strict;
+// INV-9: the only cookies are __Host-vedette_session (HttpOnly) and __Host-vedette_csrf, both Secure and SameSite=Strict;
 // the server keeps only SHA-256 of their values.
 func TestContract_INV9_Cookies(t *testing.T) {
 	t.Parallel()
@@ -216,11 +219,11 @@ func TestContract_INV9_Cookies(t *testing.T) {
 		if !c.Secure || c.SameSite != http.SameSiteStrictMode || c.Path != "/" || c.Domain != "" {
 			t.Errorf("cookie %s = %+v", c.Name, c)
 		}
-		if (c.Name == "vedette_session") != c.HttpOnly {
+		if (c.Name == "__Host-vedette_session") != c.HttpOnly {
 			t.Errorf("cookie %s HttpOnly = %v", c.Name, c.HttpOnly)
 		}
 	}
-	if len(names) != 2 || !names["vedette_session"] || !names["vedette_csrf"] {
+	if len(names) != 2 || !names["__Host-vedette_session"] || !names["__Host-vedette_csrf"] {
 		t.Fatalf("cookie names = %v", names)
 	}
 	if env.Count(t, "SELECT count(*) FROM core_session WHERE instr(token_hash || csrf_hash, ?) > 0 OR instr(token_hash || csrf_hash, ?) > 0", res.Session.Token, res.Session.CSRFToken) != 0 {
@@ -233,7 +236,7 @@ func TestContract_INV6_TOTPKeyIsSealed(t *testing.T) {
 	t.Parallel()
 	env := authtest.New(t)
 	u := env.User(t, "ann@acme.example", routes.Viewer)
-	setup, err := env.Svc.StartTOTP(t.Context(), u.ID)
+	setup, err := env.Svc.StartTOTP(t.Context(), u.ID, "", authtest.Password)
 	if err != nil {
 		t.Fatal(err)
 	}

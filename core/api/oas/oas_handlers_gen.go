@@ -12087,7 +12087,7 @@ func (s *Server) handleCorePostCoreAccount2FAEmailConfirmRequest(args [0]string,
 // handleCorePostCoreAccount2FAEmailStartRequest handles core_post_core_account_2fa_email_start operation.
 //
 // Email code: send a 6-digit code to my own sign-in email (409 when the email channel is not ready or
-// two-step is already on; same limits as sign-in codes).
+// two-step is already on; same limits as sign-in codes; needs the current password, D-76).
 //
 // POST /core/account/2fa/email/start
 func (s *Server) handleCorePostCoreAccount2FAEmailStartRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -12150,22 +12150,37 @@ func (s *Server) handleCorePostCoreAccount2FAEmailStartRequest(args [0]string, a
 	}
 
 	var rawBody []byte
+	request, rawBody, close, err := s.decodeCorePostCoreAccount2FAEmailStartRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
 
 	var response *CorePostCoreAccount2FAEmailStartOK
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CorePostCoreAccount2FAEmailStartOperation,
-			OperationSummary: "Email code: send a 6-digit code to my own sign-in email (409 when the email channel is not ready or two-step is already on; same limits as sign-in codes)",
+			OperationSummary: "Email code: send a 6-digit code to my own sign-in email (409 when the email channel is not ready or two-step is already on; same limits as sign-in codes; needs the current password, D-76)",
 			OperationID:      "core_post_core_account_2fa_email_start",
-			Body:             nil,
+			Body:             request,
 			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
 
 		type (
-			Request  = struct{}
+			Request  = *CorePostCoreAccount2FAEmailStartReq
 			Params   = struct{}
 			Response = *CorePostCoreAccount2FAEmailStartOK
 		)
@@ -12178,12 +12193,12 @@ func (s *Server) handleCorePostCoreAccount2FAEmailStartRequest(args [0]string, a
 			mreq,
 			nil,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.CorePostCoreAccount2FAEmailStart(ctx)
+				response, err = s.h.CorePostCoreAccount2FAEmailStart(ctx, request)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.CorePostCoreAccount2FAEmailStart(ctx)
+		response, err = s.h.CorePostCoreAccount2FAEmailStart(ctx, request)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
@@ -12213,7 +12228,8 @@ func (s *Server) handleCorePostCoreAccount2FAEmailStartRequest(args [0]string, a
 
 // handleCorePostCoreAccount2FAStartRequest handles core_post_core_account_2fa_start operation.
 //
-// Authenticator app: create a TOTP key waiting for confirmation.
+// Authenticator app: create a TOTP key waiting for confirmation (needs the current password, D-76;
+// wrong password 400 wrong_password, counted like a failed sign-in).
 //
 // POST /core/account/2fa/start
 func (s *Server) handleCorePostCoreAccount2FAStartRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -12276,22 +12292,37 @@ func (s *Server) handleCorePostCoreAccount2FAStartRequest(args [0]string, argsEs
 	}
 
 	var rawBody []byte
+	request, rawBody, close, err := s.decodeCorePostCoreAccount2FAStartRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
 
 	var response *CorePostCoreAccount2FAStartOK
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CorePostCoreAccount2FAStartOperation,
-			OperationSummary: "Authenticator app: create a TOTP key waiting for confirmation",
+			OperationSummary: "Authenticator app: create a TOTP key waiting for confirmation (needs the current password, D-76; wrong password 400 wrong_password, counted like a failed sign-in)",
 			OperationID:      "core_post_core_account_2fa_start",
-			Body:             nil,
+			Body:             request,
 			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
 
 		type (
-			Request  = struct{}
+			Request  = *CorePostCoreAccount2FAStartReq
 			Params   = struct{}
 			Response = *CorePostCoreAccount2FAStartOK
 		)
@@ -12304,12 +12335,12 @@ func (s *Server) handleCorePostCoreAccount2FAStartRequest(args [0]string, argsEs
 			mreq,
 			nil,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.CorePostCoreAccount2FAStart(ctx)
+				response, err = s.h.CorePostCoreAccount2FAStart(ctx, request)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.CorePostCoreAccount2FAStart(ctx)
+		response, err = s.h.CorePostCoreAccount2FAStart(ctx, request)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {

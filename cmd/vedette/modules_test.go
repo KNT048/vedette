@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
+	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules"
 	"github.com/knt048/vedette/modules/inventory"
@@ -138,5 +140,49 @@ func TestInventoryEventsReachTheBus(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("no inventory.asset.updated on the bus")
+	}
+}
+
+// Every module handler embedded in handler must be built by newHandler: a nil embedded pointer compiles
+// but panics on the first request to that module (WP-11 merge nearly shipped one).
+func TestNewHandlerSetsEveryModule(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	log := slog.New(slog.DiscardHandler)
+	dir := t.TempDir()
+	keyPath := filepath.Join(dir, "k")
+	if err := ensureKey(keyPath); err != nil {
+		t.Fatal(err)
+	}
+	key, err := secrets.LoadKeyFile(keyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sec, err := secrets.New(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := store.Open(ctx, filepath.Join(dir, "v.db"), log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := migrateAll(ctx, db, wiredModules()); err != nil {
+		t.Fatal(err)
+	}
+	aud := audit.New(nil)
+	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: aud, Manifests: modules.Manifests, Version: version, Log: log})
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log)}
+	if err := buildServices(&d); err != nil {
+		t.Fatal(err)
+	}
+	h := reflect.ValueOf(newHandler(d))
+	for i := range h.NumField() {
+		if f := h.Field(i); f.Kind() == reflect.Pointer && f.IsNil() {
+			t.Errorf("newHandler leaves %s nil", h.Type().Field(i).Name)
+		}
 	}
 }

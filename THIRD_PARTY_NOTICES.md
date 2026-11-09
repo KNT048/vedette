@@ -39,7 +39,7 @@ Pure Go, no cgo. Versions pinned in `go.mod`/`go.sum`; licenses read from each m
 | github.com/mfridman/interpolate | v0.0.2 | MIT | embedded: via goose |
 | github.com/sethvargo/go-retry | v0.5.0 | Apache-2.0 | embedded: via goose |
 | go.uber.org/multierr | v1.11.0 | MIT | embedded: via goose |
-| golang.org/x/sync, golang.org/x/sys | v0.24.0, v0.49.0 | BSD-3-Clause | embedded: via goose and modernc.org/sqlite; golang.org/x/sys/unix is also used directly by `host/peer` (Linux only, `vedette-host`: `SO_PEERPIDFD` and `SO_PEERCRED` of the socket peer) |
+| golang.org/x/sync, golang.org/x/sys | v0.24.0, v0.49.0 | BSD-3-Clause | embedded: via goose and modernc.org/sqlite; golang.org/x/sys/unix is also used directly by `modules/sensor-passive` (AF_PACKET promiscuous membership, Linux) and `host/peer` (Linux only, `vedette-host`: `SO_PEERPIDFD` and `SO_PEERCRED` of the socket peer) |
 | golang.org/x/crypto (package `argon2` only, with `blake2b` and `cpu` it uses) | v0.58.0 | BSD-3-Clause | embedded: argon2id password hashing in `core/auth` (WP-04b). Already in the module graph through goose and x/net; now a direct dependency |
 | github.com/coder/websocket | v1.8.15 | ISC | embedded: outward WebSocket client for notify approvals: Slack Socket Mode (D-38) and the Zalo personal reply-code listener (D-46); no dependencies of its own. Added for issue #43; the first importer (WP-22) turns the `// indirect` mark into a direct requirement |
 
@@ -127,3 +127,12 @@ VulnCheck Community, AbuseIPDB, VirusTotal, GreyNoise, Shodan, AlienVault OTX, u
 | Library | Version | License | How it is used |
 |---|---|---|---|
 | go.yaml.in/yaml/v3 | v3.0.5 | MIT and Apache-2.0 | embedded: parses each module's `MANIFEST.yaml` (embedded in the binary by `modules/manifests.go`) when the process starts; no input from the network |
+
+### Passive sensor (`modules/sensor-passive`, WP-11)
+
+No third-party library: the pcap/pcapng readers and the ARP, DHCP, DNS/mDNS, SSDP, LLDP, TLS ClientHello and HTTP Host parsers are written in Go on the standard library (`syscall` for the Linux AF_PACKET socket).
+
+| Data | License | How it is used |
+|---|---|---|
+| runZero mac-tracker (`data/macs.json`), copyright runZero Inc., HD Moore and dutchcoders; the data is from the IEEE Registration Authority registries (oui, mam, oui36, iab, cid) | MIT (runZero's compilation); the IEEE data itself carries no copyright claim: Debian's `ieee-data` copyright file quotes "IEEE does not assert any copyright in the OUI Public Listing or attempt to restrict distribution of the listing in any way" ([source](https://metadata.ftp-master.debian.org/changelogs/main/i/ieee-data/unstable_copyright)); IEEE "strongly encourages" getting the listing from IEEE regularly, which `make oui` does indirectly (rebuilt from runZero, which tracks IEEE twice a day) | bundled: `make oui` reads it at build time, from a pinned commit whose SHA-256 is checked, and writes `content/oui/oui.tsv.gz`, embedded in the binary (D-83); the MIT notice is kept next to it in `content/oui/LICENSE.mac-tracker`. Nothing is downloaded at run time, so PRIVACY.md is unchanged. The GPL/NPSL lists of Wireshark and Nmap are not used |
+

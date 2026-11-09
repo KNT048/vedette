@@ -136,10 +136,11 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	}
 
 	api, err := server.New(server.Config{
-		API:     newHandler(d),
-		Auth:    noSessions{}, // ponytail: WP-04b replaces this with sessions and CSRF
-		Modules: reg,
-		Log:     log,
+		API:        newHandler(d),
+		Auth:       noSessions{}, // ponytail: WP-04b replaces this with sessions and CSRF
+		Modules:    reg,
+		Log:        log,
+		BodyLimits: bodyLimits(wired),
 	})
 	if err != nil {
 		return err

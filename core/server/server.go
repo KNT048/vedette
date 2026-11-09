@@ -37,14 +37,18 @@ type Config struct {
 	Modules ModuleGate
 	Log     *slog.Logger
 	MaxBody int64 // bytes; 0 = DefaultMaxBody
+	// BodyLimits raises (or lowers) the cap for single operations, by operationId, e.g. a 5 MiB
+	// sample upload (issue #39). Every other operation keeps MaxBody.
+	BodyLimits map[string]int64
 }
 
 const csp = "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
 
 type api struct {
-	cfg Config
-	oas *oas.Server
-	max int64
+	cfg     Config
+	oas     *oas.Server
+	max     int64 // cap for operations without an entry in cfg.BodyLimits
+	ceiling int64 // largest cap of all: enforced before routing, the operation's own cap after
 }
 
 // New returns the handler for URLs under Prefix. It refuses to build when the route table is
@@ -62,6 +66,13 @@ func New(cfg Config) (http.Handler, error) {
 	a := &api{cfg: cfg, max: cfg.MaxBody}
 	if a.max == 0 {
 		a.max = DefaultMaxBody
+	}
+	a.ceiling = a.max
+	for id, n := range cfg.BodyLimits {
+		if _, ok := routes.Operations[id]; !ok || n <= 0 {
+			return nil, fmt.Errorf("server: body limit %d for operation %q: unknown operation or not positive", n, id)
+		}
+		a.ceiling = max(a.ceiling, n)
 	}
 	notFound := func(w http.ResponseWriter, _ *http.Request) { apierr.Write(w, apierr.NotFound()) }
 	srv, err := oas.NewServer(cfg.API, session{},
@@ -164,16 +175,35 @@ func (a *api) secureHeaders(next http.Handler) http.Handler {
 	})
 }
 
-// limitBody refuses an oversized body up front when the length is declared and cuts the stream otherwise.
+// limitBody refuses an oversized body up front when the length is declared and cuts the stream
+// otherwise, at the largest cap of any operation; route then applies the operation's own cap.
 func (a *api) limitBody(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.ContentLength > a.max {
+		if r.ContentLength > a.ceiling {
 			apierr.Write(w, apierr.TooLarge())
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, a.max)
+		r.Body = http.MaxBytesReader(w, r.Body, a.ceiling)
 		next.ServeHTTP(w, r)
 	})
+}
+
+// opLimit narrows the body cap to the operation's own (MaxBody unless BodyLimits names it). It
+// reports false after writing 413 when the declared length is already over.
+func (a *api) opLimit(w http.ResponseWriter, r *http.Request, opID string) bool {
+	n, ok := a.cfg.BodyLimits[opID]
+	if !ok {
+		n = a.max
+	}
+	if n >= a.ceiling {
+		return true
+	}
+	if r.ContentLength > n {
+		apierr.Write(w, apierr.TooLarge())
+		return false
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, n)
+	return true
 }
 
 var safeMethods = []string{http.MethodGet, http.MethodHead, http.MethodOptions}
@@ -191,6 +221,9 @@ func (a *api) route(w http.ResponseWriter, r *http.Request) {
 	if !ok { // the contract and the table disagree: fail closed, tell the log
 		a.cfg.Log.ErrorContext(r.Context(), "operation missing from the route table", "request_id", RequestIDFrom(r.Context()), "operation", route.OperationID())
 		apierr.Write(w, apierr.Internal())
+		return
+	}
+	if !a.opLimit(w, r, route.OperationID()) {
 		return
 	}
 	mod := ModuleOf(op)

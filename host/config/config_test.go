@@ -37,37 +37,56 @@ func TestParseCoreCgroup(t *testing.T) {
 	}
 }
 
+func TestParseCoreData(t *testing.T) {
+	t.Parallel()
+	c, err := config.Parse(strings.NewReader(good + "core_data = /var/lib/vedette\n"))
+	if err != nil || c.CoreData != "/var/lib/vedette" {
+		t.Fatalf("%+v %v", c, err)
+	}
+	if c, err = config.Parse(strings.NewReader(good)); err != nil || c.CoreData != "" {
+		t.Fatalf("core_data is optional: %+v %v", c, err)
+	}
+}
+
 func TestParseRejects(t *testing.T) {
 	t.Parallel()
 	tests := map[string]string{
-		"empty":             "",
-		"missing key":       "core_uid=1\ncore_unit=a.service\nsocket=/x/y\n",
-		"unknown key":       good + "extra = 1\n",
-		"duplicate":         good + "core_uid = 5\n",
-		"root uid":          strings.Replace(good, "10001", "0", 1),
-		"negative uid":      strings.Replace(good, "10001", "-1", 1),
-		"huge uid":          strings.Replace(good, "10001", "99999999999999999999", 1),
-		"hex uid":           strings.Replace(good, "10001", "0x10", 1),
-		"unit not service":  strings.Replace(good, "vedette-core.service", "vedette-core.socket", 1),
-		"unit with slash":   strings.Replace(good, "vedette-core.service", "../x.service", 1),
-		"unit with space":   strings.Replace(good, "vedette-core.service", "a b.service", 1),
-		"relative socket":   strings.Replace(good, "/run/vedette/host.sock", "run/host.sock", 1),
-		"dotdot socket":     strings.Replace(good, "/run/vedette/host.sock", "/run/../etc/host.sock", 1),
-		"double slash":      strings.Replace(good, "/run/vedette/host.sock", "/run//host.sock", 1),
-		"trailing slash":    strings.Replace(good, "/run/vedette/host.sock", "/run/vedette/", 1),
-		"long socket":       strings.Replace(good, "/run/vedette/host.sock", "/"+strings.Repeat("a", 120), 1),
-		"no equals":         good + "garbage\n",
-		"bad key chars":     good + "Core-Uid = 1\n",
-		"too large":         good + "# " + strings.Repeat("x", config.MaxSize) + "\n",
-		"nul in value":      strings.Replace(good, "10001", "1\x0000", 1),
-		"socket is root":    strings.Replace(good, "/run/vedette/host.sock", "/", 1),
-		"empty value":       strings.Replace(good, "10001", "", 1),
-		"cgroup relative":   good + "core_cgroup = system.slice/x\n",
-		"cgroup dotdot":     good + "core_cgroup = /a/../b\n",
-		"cgroup repeated":   good + "core_cgroup = /a\ncore_cgroup = /b\n",
-		"inline comment":    strings.Replace(good, "10001", "10001 # core", 1),
-		"yaml-ish":          "core_uid: 1\n",
-		"newline in socket": strings.Replace(good, "/run/vedette/host.sock", "/run/a\rb", 1),
+		"empty":              "",
+		"missing key":        "core_uid=1\ncore_unit=a.service\nsocket=/x/y\n",
+		"unknown key":        good + "extra = 1\n",
+		"duplicate":          good + "core_uid = 5\n",
+		"root uid":           strings.Replace(good, "10001", "0", 1),
+		"negative uid":       strings.Replace(good, "10001", "-1", 1),
+		"huge uid":           strings.Replace(good, "10001", "99999999999999999999", 1),
+		"hex uid":            strings.Replace(good, "10001", "0x10", 1),
+		"unit not service":   strings.Replace(good, "vedette-core.service", "vedette-core.socket", 1),
+		"unit with slash":    strings.Replace(good, "vedette-core.service", "../x.service", 1),
+		"unit with space":    strings.Replace(good, "vedette-core.service", "a b.service", 1),
+		"relative socket":    strings.Replace(good, "/run/vedette/host.sock", "run/host.sock", 1),
+		"dotdot socket":      strings.Replace(good, "/run/vedette/host.sock", "/run/../etc/host.sock", 1),
+		"double slash":       strings.Replace(good, "/run/vedette/host.sock", "/run//host.sock", 1),
+		"trailing slash":     strings.Replace(good, "/run/vedette/host.sock", "/run/vedette/", 1),
+		"long socket":        strings.Replace(good, "/run/vedette/host.sock", "/"+strings.Repeat("a", 120), 1),
+		"no equals":          good + "garbage\n",
+		"bad key chars":      good + "Core-Uid = 1\n",
+		"too large":          good + "# " + strings.Repeat("x", config.MaxSize) + "\n",
+		"nul in value":       strings.Replace(good, "10001", "1\x0000", 1),
+		"socket is root":     strings.Replace(good, "/run/vedette/host.sock", "/", 1),
+		"empty value":        strings.Replace(good, "10001", "", 1),
+		"cgroup relative":    good + "core_cgroup = system.slice/x\n",
+		"cgroup dotdot":      good + "core_cgroup = /a/../b\n",
+		"cgroup repeated":    good + "core_cgroup = /a\ncore_cgroup = /b\n",
+		"core_data relative": good + "core_data = var/lib/vedette\n",
+		"core_data dotdot":   good + "core_data = /var/lib/../../etc\n",
+		"core_data root":     good + "core_data = /\n",
+		"core_data trailing": good + "core_data = /var/lib/vedette/\n",
+		"core_data double":   good + "core_data = /var//lib\n",
+		"core_data repeated": good + "core_data = /a\ncore_data = /b\n",
+		"core_data long":     good + "core_data = /" + strings.Repeat("a", 220) + "\n",
+		"core_data empty":    good + "core_data =\n",
+		"inline comment":     strings.Replace(good, "10001", "10001 # core", 1),
+		"yaml-ish":           "core_uid: 1\n",
+		"newline in socket":  strings.Replace(good, "/run/vedette/host.sock", "/run/a\rb", 1),
 	}
 	for name, in := range tests {
 		t.Run(name, func(t *testing.T) {

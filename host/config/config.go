@@ -9,6 +9,7 @@
 //	socket    = /run/vedette/host.sock       # absolute path, at most 100 bytes
 //	socket_gid = 990                         # gid of the group "vedette" (owns the socket, mode 0660)
 //	core_cgroup = /user.slice/user-990.slice/user@990.service/app.slice/vedette-core.service   # optional
+//	core_data = /var/lib/vedette             # optional: directory of core's database and key file (backups)
 package config
 
 import (
@@ -45,6 +46,10 @@ type Config struct {
 	// empty means /system.slice/<core_unit>. A rootless Quadlet core lives under its user manager,
 	// so the installer writes the real path (WP-08).
 	CoreCgroup string
+	// CoreData is the directory that holds core's database (vedette.db) and master key file
+	// (vedette.key). Optional: the installer (WP-08) writes it, the host never takes a path from a
+	// request. Empty means backups answer db_unreadable.
+	CoreData string
 }
 
 var (
@@ -124,6 +129,11 @@ func (c *Config) set(k, v string) error {
 			return fmt.Errorf("core_cgroup: %w", err)
 		}
 		c.CoreCgroup = v
+	case "core_data":
+		if err := ValidDataDir(v); err != nil {
+			return fmt.Errorf("core_data: %w", err)
+		}
+		c.CoreData = v
 	case "socket":
 		if err := ValidSocketPath(v); err != nil {
 			return err
@@ -154,6 +164,22 @@ func ValidSocketPath(p string) error {
 		return errors.New("socket path must be clean (no .., //, trailing /)")
 	case p == "/":
 		return errors.New("socket path must name a file")
+	}
+	return nil
+}
+
+// ValidDataDir accepts a clean absolute directory path of a sensible length (not "/", no control
+// characters, no "..", no "//", no trailing slash).
+func ValidDataDir(p string) error {
+	switch {
+	case p == "" || p[0] != '/':
+		return errors.New("path must be absolute")
+	case len(p) > 200:
+		return errors.New("path is longer than 200 bytes")
+	case strings.IndexFunc(p, func(r rune) bool { return r < 0x20 || r == 0x7f }) >= 0 || p != cleanPath(p):
+		return errors.New("path must be clean (no control characters, .., //, trailing /)")
+	case p == "/":
+		return errors.New("path must not be /")
 	}
 	return nil
 }

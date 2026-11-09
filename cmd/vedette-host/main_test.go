@@ -10,13 +10,13 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/host/peer"
-	"github.com/knt048/vedette/host/server"
 )
 
 func testEnv(t *testing.T) (environment, *[2]any) {
@@ -28,7 +28,7 @@ func testEnv(t *testing.T) (environment, *[2]any) {
 			seen[0], seen[1] = uid, unit
 			return func(net.Conn) (peer.Info, error) { return peer.Info{UID: uid, PID: 1, Unit: unit}, nil }, nil
 		},
-		registry: server.DefaultRegistry(), logger: slog.New(slog.DiscardHandler),
+		logger: slog.New(slog.DiscardHandler),
 	}, seen
 }
 
@@ -131,8 +131,21 @@ func TestServesAndStopsOnSignal(t *testing.T) {
 	for {
 		info, err := c.Info(context.Background())
 		if err == nil {
-			if info.Proto != 1 || info.HostVersion != "dev" || len(info.Commands) != 0 {
+			want := []string{"backup.create", "backup.restore", "logs.export", "os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel"}
+			if info.Proto != 1 || info.HostVersion != "dev" || !slices.Equal(info.Commands, want) {
 				t.Fatalf("info = %+v", info)
+			}
+			// The state endpoints of the system commands are wired, and the state directory holds their directories.
+			if bl, err := c.StateBackups(context.Background()); err != nil || len(bl.Backups) != 0 {
+				t.Fatalf("state/backups: %+v %v", bl, err)
+			}
+			if _, err := c.StateOS(context.Background()); !client.IsCode(err, "no_check_yet") {
+				t.Fatalf("state/os before a check: %v", err)
+			}
+			for _, d := range []string{"os", "backups", "exports"} {
+				if st, err := os.Stat(filepath.Join(dir, "state", d)); err != nil || st.Mode().Perm() != 0o700 {
+					t.Fatalf("state/%s: %v %v", d, st, err)
+				}
 			}
 			break
 		}

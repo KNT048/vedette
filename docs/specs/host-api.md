@@ -1,7 +1,7 @@
 # Host API: socket nội bộ của `vedette-host`
 
-Trạng thái: bản nháp M2-0 (docs-first), 2026-11-09; khung (framework) đã cài ở WP-07a, các điều đã chốt khi cài ở §15. Văn xuôi tiếng Việt; tên trường, lệnh, thông điệp, đường dẫn bằng tiếng Anh.
-Truy vết: D-53 (cập nhật OS, một lần chạy tại một thời điểm, sao lưu DB trước, kiểm sức khoẻ sau, tiến trình trực tiếp, kiểm toán), D-55 (appliance container, `vedette-host` thay `vedette-updater`, Podman + Quadlet, socket nội bộ với **danh sách lệnh cố định**), D-56 (cấu hình mạng, SPAN, IP phụ cho bẫy, NTP), D-50 (bẫy trên IP phụ), D-48 (xuất log), D-12/`update-manifest.md`; SYS-1…8 (`MODULE_CONTRACTS.md`); story S-CORE-2, S-CORE-7, S-CORE-6, S-HP-1.
+Trạng thái: bản nháp M2-0 (docs-first), 2026-11-09; khung (framework) đã cài ở WP-07a, lệnh OS/sao lưu/xuất log ở WP-07b phần 1 (D-85); các điều đã chốt khi cài ở §15 và §16. Văn xuôi tiếng Việt; tên trường, lệnh, thông điệp, đường dẫn bằng tiếng Anh.
+Truy vết: D-53 (cập nhật OS, một lần chạy tại một thời điểm, sao lưu DB trước, kiểm sức khoẻ sau, tiến trình trực tiếp, kiểm toán), D-55 (appliance container, `vedette-host` thay `vedette-updater`, Podman + Quadlet, socket nội bộ với **danh sách lệnh cố định**), D-56 (cấu hình mạng, SPAN, IP phụ cho bẫy, NTP), D-50 (bẫy trên IP phụ), D-48 (xuất log), D-85 (tar+gzip, không `backup.delete`, unattended-upgrades theo timer của apt, khoá `core_data`), D-12/`update-manifest.md`; SYS-1…8 (`MODULE_CONTRACTS.md`); story S-CORE-2, S-CORE-7, S-CORE-6, S-HP-1.
 
 ## 1. Mục đích
 
@@ -60,12 +60,12 @@ Mô hình đe doạ: **`core` bị coi là có thể bị chiếm.** Mọi lện
 | Endpoint | Trả về |
 |---|---|
 | `GET /v1/info` | `{ host_version, proto, commands[], runner: "podman", os: {distro, release, kernel}, arch, booted_at, time }` |
-| `GET /v1/state/os` | bản chụp cuối từ `os.check` (gói chờ, security, cần reboot, hạn hỗ trợ, reboot hẹn): đủ cho `OsState` |
+| `GET /v1/state/os` | bản chụp cuối từ `os.check` (gói chờ, security, cần reboot, hạn hỗ trợ, reboot hẹn): đủ cho `OsState`. Chưa từng kiểm → `404 no_check_yet`. Cờ cần reboot, giờ khởi động, lịch reboot và `auto_security` được đọc lại lúc gọi, không lấy từ bản chụp |
 | `GET /v1/state/net` | danh sách card (tên, MAC, trạng thái, tốc độ), cấu hình hiện tại, **thống kê SPAN thật** (gói/giây, số MAC khác hộp, lần nhận cuối; D-56), IP phụ của bẫy, NTP |
 | `GET /v1/state/containers` | từng service: image/tag/digest đang chạy, `previous`, trạng thái unit, health |
 | `GET /v1/state/backups` | danh sách sao lưu `{backup_id, kind, created_at, size, sha256, version, db_schema, includes_secrets}` |
 | `GET /v1/audit?since=…` | bản ghi kiểm toán của host (phân trang; phục vụ D-48) |
-| `GET /v1/backups/{id}/content`, `GET /v1/exports/{id}/content` | tải tệp (xem lệnh liên quan); chỉ tệp host đã tạo |
+| `GET /v1/backups/{id}/content`, `GET /v1/exports/{id}/content` | tải tệp (xem lệnh liên quan); chỉ tệp host đã tạo và ghi trong chỉ mục (`id` = 32 hex; id lạ → `404 backup_unknown` / `export_unknown`; sao lưu có khoá → `403 contains_secrets`) |
 
 ## 6. Danh sách lệnh (đầy đủ)
 
@@ -77,24 +77,25 @@ Quy ước kiểm tra: `ip` = `netip.ParseAddr` (IPv4 unicast); `cidr` = `netip.
 
 Cập nhật chỉ mục apt và tính lại danh sách gói chờ. Args: `{}`.
 Hiệu ứng: `apt-get update` rồi mô phỏng nâng cấp để liệt kê gói; đánh dấu `security` theo kho nguồn (`-security`); đọc `/var/run/reboot-required`; hạn hỗ trợ bản phát hành từ bảng tĩnh trong host (cập nhật qua bản host mới). Kết quả: `{ pending[], security_count, reboot_required, reboot_reasons[], last_check }` (khớp `OsState`).
-Idempotent: chạy lại làm mới chỉ mục. Tiến trình: stream đầu ra apt (đã lọc). Từ chối: `busy`; `dpkg_locked` (đang có `unattended-upgrades`/apt khác giữ khoá: thử lại sau 60 giây, không tự cưỡng chế); `not_appliance`. *Chính sách "tắt kiểm tra cập nhật" (Privacy) là việc của `core`: nếu tắt, `core` không gọi lệnh này (host không biết cài đặt đó).* Timeout 5 phút.
+Idempotent: chạy lại làm mới chỉ mục. Tiến trình: đầu và cuối đầu ra apt (đã lọc), ghi sau khi apt xong (`core/exec` chưa stream). Từ chối: `busy`; `dpkg_locked` (`409`, `retry_after_s: 60`: đang có `unattended-upgrades`/apt khác giữ khoá, host hỏi nhân qua `fcntl F_GETLK` trên bốn tệp khoá của apt/dpkg, **không** lấy khoá; lỗi khi hỏi tính là đang giữ; không tự cưỡng chế); `not_appliance` (`412`: bản phát hành không có trong bảng hỗ trợ). Chi tiết chốt ở §16. *Chính sách "tắt kiểm tra cập nhật" (Privacy) là việc của `core`: nếu tắt, `core` không gọi lệnh này (host không biết cài đặt đó).* Timeout 5 phút.
 
 ### 6.2 `os.install`
 
 Args: `{ "scope": "security" | "all" }`.
 Hiệu ứng, theo thứ tự (D-53): (1) kiểm điều kiện; (2) **`backup.create` nội bộ** (`kind=pre_os_update`); (3) chạy **danh sách lệnh apt cố định** (`apt-get -y install --only-upgrade …`, với danh sách gói do **host tự tính lại từ trạng thái apt**, không nhận tên gói từ client); (4) **kiểm sức khoẻ** (tất cả unit `vedette-*` đang chạy, `core` trả `/healthz`, sensor còn heartbeat); (5) báo `reboot_required`. Kết quả: `{ installed, security, backup_id, health[{name,ok}], reboot_required }` (khớp `OsRunResult`).
-Từ chối: `busy`; `dpkg_inconsistent` (`dpkg --audit` không sạch); `low_disk` (< 1 GiB trống ở `/var`, tham số); `no_check` (chưa có `os.check` trong 24 giờ: host tự chạy `os.check` trước, không từ chối; xem `stale_check` nếu apt lỗi); `not_appliance`. Không bao giờ nâng bản phát hành (`do-release-upgrade`, đổi codename trong sources): lệnh **không tồn tại** (D-53). Timeout 60 phút. Health check hỏng **không** tự gỡ gói (apt không hoàn tác được): run `failed`, giữ nguyên, báo; sao lưu DB ở bước 2 là chỗ quay về cho dữ liệu.
+Chi tiết thực hiện (§16): argv cài là `apt-get -y -q -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --no-remove install --only-upgrade <gói…>` (thêm `--no-remove` và hai tuỳ chọn conffile so với bản nháp: apt không được gỡ gói và không được hỏi); không có gói nào để cài → thành công, `installed: 0`, **không** sao lưu, **không** chạy apt; kiểm sức khoẻ ở phần 1 chỉ gồm unit `core`. Run `failed` mang `result` (số gói đã cài, `health[]`) kèm `error` (`apt_failed`, `health_check_failed`).
+Từ chối: `busy`; `dpkg_inconsistent` (`dpkg --audit` không sạch); `low_disk` (< 1 GiB trống ở `/var`, tham số); `stale_check` (chưa có `os.check` trong 24 giờ thì host tự chạy `os.check` trước, không từ chối; chỉ khi bước đó hỏng vì apt mới `failed` mã `stale_check`; `no_check` không còn là mã từ chối); `not_appliance`. Không bao giờ nâng bản phát hành (`do-release-upgrade`, đổi codename trong sources): lệnh **không tồn tại** (D-53). Timeout 60 phút. Health check hỏng **không** tự gỡ gói (apt không hoàn tác được): run `failed`, giữ nguyên, báo; sao lưu DB ở bước 2 là chỗ quay về cho dữ liệu.
 
 ### 6.3 `os.auto_security.set`
 
-Args: `{ "enabled": bool }`. Ghi `/etc/apt/apt.conf.d/52vedette-unattended` từ mẫu cố định (origin chỉ là kho security của distro hiện tại) và bật/tắt timer `apt-daily*.timer` theo `enabled`; **xác minh bằng hiệu ứng** (`apt-config dump` và trạng thái timer), không bằng exit code (rule ships-as-code). Idempotent. Từ chối: `busy`, `not_appliance`. Cửa sổ bảo trì (ngày/giờ) do `core` giữ; unattended-upgrades chạy theo timer của apt, nên **không** tôn trọng cửa sổ của Vedette (hạn chế đã biết, §14).
+Args: `{ "enabled": bool }`. Ghi `/etc/apt/apt.conf.d/52vedette-unattended` từ mẫu cố định (origin chỉ là kho security của distro hiện tại) và bật/tắt timer `apt-daily*.timer` theo `enabled`; **xác minh bằng hiệu ứng** (`apt-config dump` và trạng thái timer), không bằng exit code (rule ships-as-code). Mẫu: `#clear` rồi chỉ origin security của distro (Ubuntu: `${distro_id}:${distro_codename}-security` và hai kho ESM; Debian: `Origins-Pattern` với `label=Debian-Security`), `Automatic-Reboot "false"`, `APT::Periodic::Unattended-Upgrade` `"1"|"0"`; ghi bằng tệp tạm + `rename`, mode `0644`. **Xác minh bằng hiệu ứng**: `apt-config dump` phải cho đúng công tắc và (khi bật) mọi origin đều là security; `systemctl is-enabled` của hai timer phải in `enabled`/`disabled` (đọc đầu ra, không đọc mã thoát); sai → `failed` mã `effect_not_verified`. Idempotent. Từ chối: `busy`, `not_appliance`. Cửa sổ bảo trì (ngày/giờ) do `core` giữ; unattended-upgrades chạy theo timer của apt, nên **không** tôn trọng cửa sổ của Vedette: chấp nhận ở D-85 (hộp Ubuntu/Debian đều chạy như vậy), GUI sẽ ghi trong phần trợ giúp.
 
 ### 6.4 `os.reboot` và `os.reboot.cancel`
 
 `os.reboot` args: `{ "when": "now" | "at", "at": "<RFC3339 UTC>" }` (`at` bắt buộc khi `when=at`, tối thiểu 60 giây sau, tối đa 7 ngày sau; `core` đổi từ cửa sổ `HH:MM` cục bộ sang thời điểm tuyệt đối trước khi gọi).
 Hiệu ứng: `now` → chạy `systemctl reboot` ngay sau khi run chuyển `succeeded` (host ghi run **trước** khi reboot); `at` → lưu lịch bền, host tự đặt hẹn giờ và `systemctl reboot` lúc đó. Idempotent: một lịch reboot duy nhất; đặt lại thay lịch cũ. Sau khi máy khởi động lại, Quadlet đưa mọi container lên; host kiểm và ghi `reboot_completed`.
 `os.reboot.cancel` args `{}`: xoá lịch (không có lịch → thành công, không làm gì).
-Từ chối: `install_in_progress` (một `os.install` đang chạy); `net_pending_confirm` (không reboot khi đang chờ xác nhận mạng); `at_in_past`, `at_too_far`; `not_appliance`. Nhịp: tối đa 3 `os.reboot now`/24 giờ (mặc định; chặn vòng lặp reboot từ `core` bị chiếm).
+Từ chối: `install_in_progress` (`409`; một `os.install` đang chạy. Khoá ghi chung trả `busy` trước, nên mã này là lớp phòng thủ thứ hai); `net_pending_confirm` (`409`; không reboot khi đang chờ xác nhận mạng; chưa có lệnh `net.*` nên hàm kiểm trả `false`); `at_in_past` (`412`; `at` phải cách bây giờ ≥ 60 giây), `at_too_far` (`412`; > 7 ngày); `reboot_limit_reached` (`409`). Nhịp: tối đa 3 reboot `now`/24 giờ (mặc định; chặn vòng lặp reboot từ `core` bị chiếm); **mọi** lần host tự reboot (cả theo lịch) tính vào bộ đếm bền; đủ 3 thì `now` bị từ chối, còn lịch tới giờ thì bị bỏ (`reboot_skipped_limit`). `not_appliance` không áp dụng (không đụng apt). Chi tiết chốt ở §16.
 
 ### 6.5 `net.apply`, `net.confirm`, `net.revert`
 
@@ -168,22 +169,22 @@ Từ chối: `busy`; `no_previous`; `previous_revoked` (digest cũ nằm trong d
 ### 6.11 `backup.create`
 
 Args: `{ "kind": "manual" | "pre_update" | "pre_os_update" | "pre_restore", "include_secrets": bool, "label": string≤64 }`.
-Hiệu ứng: **sao lưu trực tuyến SQLite bằng API backup** (an toàn với WAL, không dừng `core`) của DB trong volume `core`, cộng thư mục cấu hình cần để khôi phục; nén zstd; tính SHA-256; ghi `manifest` nhỏ (`version`, `db_schema`, `created_at`, `includes_secrets`) → `/var/lib/vedette-host/backups/<backup_id>.tar.zst`. Kết quả `{ backup_id, size, sha256 }`.
+Hiệu ứng: **sao lưu trực tuyến SQLite bằng API backup** (an toàn với WAL, không dừng `core`) của DB trong volume `core`, cộng tệp khoá `core/secrets` khi `include_secrets` (không có thư mục cấu hình nào khác: mọi cấu hình của `core` nằm trong DB, `DATA_MODEL` §5); **tar + gzip của thư viện chuẩn Go** (D-85, không zstd); tính SHA-256 của tệp nén; ghi `manifest.json` nhỏ (`version`, `db_schema`, `created_at`, `includes_secrets`) → `/var/lib/vedette-host/backups/<backup_id>.tar.gz` (0600). Kết quả `{ backup_id, size, sha256 }`. Chi tiết chốt ở §16.
 `include_secrets=false` (mặc định cho `manual`): **không** chứa khoá `core/secrets` và các bí mật (khớp "backup không chứa mật khẩu hay khoá" của GUI); bản đó **tải được** (`GET /v1/backups/{id}/content`). `kind` bắt đầu bằng `pre_`: **bắt buộc** `include_secrets=true` (để khôi phục được) và **không tải được** (`403 contains_secrets`); chỉ tồn tại trên máy.
 Lưu giữ: host giữ 3 bản `pre_*` gần nhất và `manual` cho tới khi admin xoá (≤ 10, mặc định); quá thì xoá cũ nhất.
-Từ chối: `busy`; `low_disk` (< 2 × cỡ DB); `db_unreadable`; `not_appliance`. Timeout 15 phút.
+Từ chối: `busy`; `low_disk` (< 2 × cỡ DB); `db_unreadable` (cũng khi `core_data` không có trong `host.conf`); `key_unreadable` (cần khoá mà không đọc được); `not_appliance` không áp dụng (không đụng apt). Timeout 15 phút.
 
 ### 6.12 `backup.restore`
 
 Args: `{ "backup_id": hex }`.
 Hiệu ứng: kiểm `backup_id` có trong chỉ mục của host và `sha256` còn đúng; tự `backup.create kind=pre_restore` bản hiện tại; dừng `core` (đường **duy nhất** host dừng `core`, vì client đã kết thúc quyền chạy), thay DB/cấu hình, khởi động lại `core`, kiểm sức khoẻ. Hỏng → thay lại bản `pre_restore`, `status=reverted`. Kết quả `{ restored_backup_id, pre_restore_backup_id, version }`.
-Từ chối: `busy`; `backup_unknown`; `checksum_mismatch`; `schema_newer` (DB từ phiên bản mới hơn `core` đang chạy); `secrets_missing` (bản không có khoá mà DB cần chúng); `low_disk`; `not_appliance`. Lưu ý hiệu ứng: run phải **bền** vì kết nối client đứt khi `core` dừng; `core` lên lại gọi `GET /v1/runs/{id}` để biết kết quả. Khôi phục từ **tệp do người dùng tải lên**: chưa có lệnh (§14).
+Từ chối: `busy`; `backup_unknown` (`404`); `checksum_mismatch` (tệp đổi so với chỉ mục); `schema_newer` (`409`; có module mà phiên bản trong sao lưu cao hơn DB đang chạy, hoặc chỉ có trong sao lưu); `secrets_missing` (bản không có khoá, hộp cũng không có khoá, mà `core_secret` có hàng); `low_disk`; kiểm tra giải nén/chữ ký tệp hỏng → `failed` `restore_failed`. Hỏng sau khi dừng `core` → thay lại `pre_restore`, `status=reverted`, `error.code=restore_health_failed` (nếu cả bước thay lại hỏng: `failed` `restore_revert_failed`, `core` đứng yên, bản `pre_restore` còn trong chỉ mục). Chi tiết chốt ở §16. Lưu ý hiệu ứng: run phải **bền** vì kết nối client đứt khi `core` dừng; `core` lên lại gọi `GET /v1/runs/{id}` để biết kết quả. Khôi phục từ **tệp do người dùng tải lên**: chưa có lệnh (§14).
 
 ### 6.13 `logs.export`
 
 Args: `{ "units": string[], "since": datetime, "until": datetime }`; `units` ⊂ {`vedette-core`,`vedette-sensor`,`vedette-honeypot`,`vedette-scan`,`vedette-greenbone`,`vedette-host`}; `until - since ≤ 31 ngày`.
-Hiệu ứng: đọc journal bằng argv cố định (`journalctl -u <unit> --since <t> --until <t> -o json --no-pager`), **lọc bí mật** theo mẫu đã biết (`vdt_osquery_…`, đường dẫn `…/blocklist/<token>`, `xapp-…`, `xoxb-…`, `Authorization: Bearer …`, `password=`) như lớp phòng thủ phụ (SYS-4: bình thường không log bí mật), nén thành `/var/lib/vedette-host/exports/<export_id>.jsonl.zst`, trả `{ export_id, size, sha256 }`; tải bằng `GET /v1/exports/{id}/content`; tệp tự xoá sau 24 giờ.
-Từ chối: `busy`; `range_too_large`; `unit_unknown`; `output_too_large` (> 256 MiB: dừng và báo, không cắt âm thầm); `not_appliance`. Timeout 10 phút. Phục vụ D-48 (phần log nền tảng); log nghiệp vụ (kiểm toán, AI, phản ứng) do `core` xuất.
+Hiệu ứng: đọc journal bằng argv cố định (`journalctl -u <unit> --since <t> --until <t> -o json --no-pager`), **lọc bí mật** theo mẫu đã biết (`vdt_osquery_…`, đường dẫn `…/blocklist/<token>`, `xapp-…`, `xoxb-…`, `Authorization: Bearer …`, `password=`) như lớp phòng thủ phụ (SYS-4: bình thường không log bí mật), ghi từng dòng đã lọc, nén gzip (thư viện chuẩn, D-85) thành `/var/lib/vedette-host/exports/<export_id>.jsonl.gz`, trả `{ export_id, size, sha256 }`; tải bằng `GET /v1/exports/{id}/content`; tệp tự xoá sau 24 giờ.
+Từ chối: `busy`; `range_too_large` (`412`); `unit_unknown` (`412`); `output_too_large` (`412`, > 256 MiB văn bản journal: dừng và báo, không cắt âm thầm; dòng không phải JSON hoặc > 1 MiB bị thay bằng một dòng ghi chú, không bỏ im lặng). Dạng sai của `units`/`since`/`until` là `400 invalid_args`. Timeout 10 phút. Chi tiết chốt ở §16. Phục vụ D-48 (phần log nền tảng); log nghiệp vụ (kiểm toán, AI, phản ứng) do `core` xuất.
 
 ## 7. Những thứ **không** có (và sẽ bị từ chối nếu thử)
 
@@ -236,7 +237,7 @@ sequenceDiagram
 | Thân request | 512 KiB (chỉ `container.pull` cần lớn) |
 | Số request/phút từ `core` | 60; lệnh ghi 10/phút |
 | Run đồng thời (ghi) | 1 |
-| Timeout theo lệnh | `os.check` 5 ph; `os.install` 60 ph; `net.apply` 30 s + cửa sổ xác nhận ≤ 600 s; `container.pull` 30 ph; `container.start` 3 ph; `backup.create` 15 ph; `backup.restore` 30 ph; `logs.export` 10 ph |
+| Timeout theo lệnh | `os.check` 5 ph; `os.install` 60 ph; `net.apply` 30 s + cửa sổ xác nhận ≤ 600 s; `container.pull` 30 ph; `container.start` 3 ph; `os.auto_security.set` 2 ph; `os.reboot` và `os.reboot.cancel` 30 s; `backup.create` 15 ph; `backup.restore` 30 ph; `logs.export` 10 ph |
 | Dòng sự kiện/run | 10 000; mỗi dòng ≤ 2 KiB |
 | Run giữ lại | 90 ngày hoặc 500 |
 | `logs.export` | ≤ 31 ngày, ≤ 256 MiB |
@@ -253,10 +254,10 @@ Các con số trên là điểm xuất phát chưa đo (ARCH §8).
 | HTTP | Nhóm `code` |
 |---|---|
 | 400 | `invalid_args`, `invalid_request_id`, `invalid_actor` |
-| 403 | `peer_not_allowed` |
-| 404 | `unknown_command`, `run_not_found`, `backup_unknown` |
-| 409 | `busy`, `pending_confirm`, `install_in_progress`, các từ chối do trạng thái hệ thống |
-| 412 | các từ chối do điều kiện tiên quyết (`low_disk`, `dpkg_inconsistent`, `address_conflict`, `not_appliance`, `signature_invalid`…) |
+| 403 | `peer_not_allowed`, `contains_secrets` (tải sao lưu có khoá) |
+| 404 | `unknown_command`, `run_not_found`, `backup_unknown`, `no_check_yet`, `export_unknown` |
+| 409 | `busy`, `pending_confirm`, `install_in_progress`, `net_pending_confirm`, `dpkg_locked` (kèm `retry_after_s`), `reboot_limit_reached`, `schema_newer`, các từ chối do trạng thái hệ thống |
+| 412 | các từ chối do điều kiện tiên quyết (`low_disk`, `dpkg_inconsistent`, `address_conflict`, `not_appliance`, `at_in_past`, `at_too_far`, `db_unreadable`, `key_unreadable`, `checksum_mismatch`, `secrets_missing`, `unit_unknown`, `range_too_large`, `output_too_large`, `signature_invalid`…) |
 | 422 | `request_id_reuse` |
 | 429 | `rate_limited` (+ `retry_after_s`) |
 | 503 | `host_shutting_down` |
@@ -293,13 +294,13 @@ Các biện pháp "hậu quả giới hạn" khi `core` bị chiếm: nhịp l�
 4. Sao lưu: `pre_*` chứa khoá `core/secrets` (cần để khôi phục) nhưng không tải xuống được; tuy nhiên người dùng muốn **sao lưu khôi phục được trên máy khác** thì sao (cần cách bảo vệ khoá bằng mật khẩu, chưa có story). Khôi phục từ tệp tải lên cũng chưa có lệnh.
 5. `decoy_ip.add`: giả OUI theo vai (D-50 "vai giả") cần host đặt MAC theo hãng; hiện dùng MAC local-administered. Giả OUI có nên không?
 6. Cần chữ ký request ở tầng ứng dụng giữa `core` và host (HMAC theo khoá cài sẵn) ngoài `SO_PEERCRED` + cgroup, hay đủ?
-7. Cửa sổ bảo trì của Vedette không điều khiển được `unattended-upgrades` (§6.3); chấp nhận hay thêm tham số lịch.
-8. Có cần `backup.delete` và lịch sao lưu định kỳ không có story (D-22 chỉ nói sao lưu/xuất/xoá dữ liệu).
+7. ~~Cửa sổ bảo trì không điều khiển được `unattended-upgrades`~~ **Đã chốt (D-85):** chấp nhận; unattended-upgrades chạy theo timer của apt (Ubuntu và Debian đều ship như vậy); GUI ghi trong trợ giúp.
+8. ~~`backup.delete` và lịch sao lưu định kỳ~~ **Đã chốt (D-85):** chưa có story, không làm; chỉ lưu giữ tự động (§6.11).
 9. Mọi con số giới hạn (§10) là điểm xuất phát, chưa đo.
 
 ## 15. Đã chốt khi cài khung (WP-07a)
 
-Mã: `host/{api,config,peer,server,client}`, `cmd/vedette-host`; hợp đồng test ở `modules/host/contract_test.go`. Lệnh hệ thống (§6) chưa có: `DefaultRegistry()` rỗng, thêm ở WP-07b.
+Mã: `host/{api,config,peer,server,client}`, `cmd/vedette-host`; hợp đồng test ở `modules/host/contract_test.go`. Lệnh hệ thống (§6) nằm ở `host/ops` từ WP-07b (§16); `DefaultRegistry()` đã bỏ, `cmd/vedette-host` dựng registry một lần từ `ops.Commands()`.
 
 **`/etc/vedette/host.conf`** (installer sinh, WP-08). Dòng `key = value`, bỏ qua dòng trống và dòng bắt đầu bằng `#`; chặt: khoá lạ, khoá lặp, thiếu khoá, giá trị sai đều là lỗi, tối đa 4 KiB. Tệp phải là tệp thường, thuộc root, nhóm/người khác không ghi được.
 
@@ -309,6 +310,7 @@ Mã: `host/{api,config,peer,server,client}`, `cmd/vedette-host`; hợp đồng t
 | `core_unit` | tên unit systemd của `core`, dạng `vedette-core.service` |
 | `socket` | đường dẫn tuyệt đối, sạch, tối đa 100 byte (`/run/vedette/host.sock`); cờ `-socket` ghi đè |
 | `socket_gid` | gid của nhóm `vedette`: chủ nhóm của socket (0660) và thư mục chứa (0750) |
+| `core_data` | tuỳ chọn: thư mục dữ liệu của `core` (tuyệt đối, sạch, ≤ 200 byte, không `..`, không `//`, không phải `/`), chứa `vedette.db` và `vedette.key`; installer ghi (WP-08). Thiếu → sao lưu trả `db_unreadable`. Host không bao giờ nhận đường dẫn từ request (D-85) |
 | `core_cgroup` | tuỳ chọn: đường dẫn cgroup (tuyệt đối, sạch, không `..`, không ký tự điều khiển) mà tiến trình `core` phải nằm **tại hoặc dưới**; mặc định `/system.slice/<core_unit>`. Core chạy rootless (Quadlet của người dùng) nằm dưới user manager, nên installer ghi đường dẫn thật (WP-08) |
 
 Cờ khác: `-state-dir` (mặc định `/var/lib/vedette-host`), `-audit-log` (mặc định `/var/log/vedette-host/audit.jsonl`), `-version`. Tiến trình từ chối khởi động nếu không phải root hoặc không phải Linux.
@@ -321,7 +323,7 @@ Cờ khác: `-state-dir` (mặc định `/var/lib/vedette-host`), `-audit-log` (
 
 **Tiêu đề và thân.** `X-Request-Id` (uuid v4, chữ thường hay hoa đều nhận) và `X-Vedette-Actor` bắt buộc trên **mọi** `POST /v1/commands/<name>` (kể cả lệnh chỉ đọc và lệnh lạ). `X-Vedette-Host-Proto` bắt buộc trên mọi request; hiện chỉ nhận `1` (N=1, N−1 chưa có). Thiếu/sai proto hoặc `Content-Type` → `400 invalid_args` kèm `details[]` (không có mã riêng). Thân `{"args":{…}}`, trường lạ ở thân hoặc ở `args` → `400 invalid_args`; thiếu `args` hoặc thân rỗng = `{}`; `args: null` bị từ chối; thân > 512 KiB → `400 invalid_args`. Query lạ ở `GET` → `400 invalid_args`. (Go khớp tên trường JSON không phân biệt hoa thường; chấp nhận, mọi giá trị vẫn qua kiểm kiểu.)
 
-**Lệnh chỉ đọc trong bảng lệnh.** Mục bảng có cờ `write`. Lệnh chỉ đọc cũng chạy bằng `POST /v1/commands/<name>`, không lấy khoá ghi, không tính nhịp ghi, vẫn tạo run và dòng kiểm toán; `GET /v1/state/*` (§5) **chưa có** ở 07a và trả `404 unknown_command` như mọi đường dẫn lạ (§7); 07b thêm chúng làm lớp mỏng trên lệnh chỉ đọc.
+**Lệnh chỉ đọc trong bảng lệnh.** Mục bảng có cờ `write`. Lệnh chỉ đọc cũng chạy bằng `POST /v1/commands/<name>`, không lấy khoá ghi, không tính nhịp ghi, vẫn tạo run và dòng kiểm toán; `GET /v1/state/*` (§5) **chưa có** ở 07a và trả `404 unknown_command` như mọi đường dẫn lạ (§7); 07b thêm chúng làm lớp mỏng qua `server.Readers` (§16): `state/os` và `state/backups` và hai đường tải đã có từ phần 1, `state/net` và `state/containers` vẫn `404 unknown_command` tới khi lệnh của chúng có.
 
 **Run.** Mọi lệnh tạo run. Lệnh ghi: `queued` (giữ khoá, ghi đĩa) → kiểm điều kiện đồng bộ `Check` (≤ 5 giây; từ chối trả `409`/`412` theo §11, run `refused`, khoá nhả, khoá idempotency xoá để thử lại cùng id được) → `running`. Khoá ghi chỉ nhả **sau** khi run cuối cùng và dòng kiểm toán đã ghi, rồi mới phát sự kiện `state` cuối: client thấy sự kiện cuối thì khoá đã rảnh. Hết timeout (POST-4): ngữ cảnh bị huỷ; handler không trả trong 3 giây (`KillGrace`) thì client thấy run `failed` (`timeout`) nhưng **khoá ghi vẫn giữ** tới khi goroutine thật sự trả về (INV-3: không bao giờ hai lệnh ghi cùng lúc; lệnh ghi mới → `409 busy` kèm run đó). Nếu 5 phút sau đó vẫn chưa trả về, host ghi log ERROR, một dòng kiểm toán `host_wedged` và thoát với mã 70 để systemd khởi động lại (`Restart=always`, `KillMode=control-group` giết tiến trình con; run đã được ghi `failed`/`timeout` từ trước nên khôi phục không đụng tới; dòng `host_wedged` là bản ghi của sự việc). `Check` cũng có hạn (5 giây + `KillGrace`) và **chỉ được đọc, không được đổi hệ thống**: panic thành lỗi 500; một `Check` bỏ qua hạn thì run `failed` (500) nhưng khoá ghi giữ tới khi goroutine của nó trả về (cùng trần `host_wedged` như trên). Mỗi run chạy được có **hai** dòng kiểm toán: `accepted` (peer, tham số đã che, ghi trước khi chạy; sống sót qua crash) và dòng kết quả; dòng phục hồi `host_restarted` tham chiếu dòng `accepted` (`args_redacted.accepted_audit_id`). Run bị từ chối chỉ có một dòng. Khi host khởi động lại, run `queued|running|awaiting_confirm` thành `failed` mã `host_restarted` (07b phải quyết định việc `net.apply` đang `awaiting_confirm`). Idempotency áp dụng cho mọi `POST` đã chấp nhận (lệnh ghi): cùng `X-Request-Id` + lệnh + băm tham số → `200` và run cũ, kể cả sau restart; lệnh khác hoặc tham số khác → `422 request_id_reuse` (cả với lệnh chỉ đọc); bị từ chối thì **không** nhớ id.
 
@@ -334,3 +336,37 @@ Cờ khác: `-state-dir` (mặc định `/var/lib/vedette-host`), `-audit-log` (
 **Giới hạn đã biết (ponytail).** Run bị cắt theo mốc 500 kéo theo bản ghi idempotency của nó dù chưa đủ 30 ngày (chỉ xảy ra khi > 500 run trong 30 ngày). `GET /v1/audit` đọc tệp từ đầu mỗi trang (nâng cấp: chỉ mục offset). Chưa xoay vòng tệp kiểm toán.
 
 **`core/exec` Env.** `Binary.Env` chỉ nhận khoá trong danh sách cho phép (`DEBIAN_FRONTEND`); `LD_*`, `LC_*`, `PATH`, `LANG`… bị từ chối theo tên.
+
+## 16. Đã chốt khi cài lệnh OS, sao lưu, xuất log (WP-07b phần 1)
+
+Mã: `host/ops` (lệnh và đọc trạng thái), `host/ops/opstest` (máy giả cho test), `host/api/ops.go` (kiểu args/kết quả), `host/client/ops.go` (hàm gọi có kiểu). Thêm ở khung `host/server`: `Options.Readers` (các đường `GET` của §5 do lệnh cung cấp; hàm vắng → `404 unknown_command`), `Server.Note` (dòng kiểm toán do chính host làm: `actor: "system"`, `result: "ok"`, mã như `reboot_started`, `reboot_completed`), `Server.WriteActive`, `RunContext.AfterFinish` (việc chạy **sau khi** run đã ghi xong và khoá đã nhả: reboot), `Failure.Result` và `Reverted` (run `failed`/`reverted` vẫn mang `result`), `Refuse` nhận `404`, `RefuseRetry` (`retry_after_s`). `args_redacted` không che giá trị bool/số dưới khoá nhạy (`include_secrets: true` phải đọc được).
+
+**Tiến trình con.** Một `exec.Runner` duy nhất (`PATH`, `LANG=C`, `DEBIAN_FRONTEND=noninteractive`, không shell). Đường dẫn là hằng (`/usr/bin/apt-get`, `apt-config`, `dpkg`, `systemctl`, `journalctl`); chỉ test thay đường dẫn (qua `ops.NewWithDeps`, một hàm test mà hợp đồng cấm `cmd/vedette-host` và `host/server` tham chiếu), **không bao giờ** thay bộ kiểm argv. Argv hợp lệ duy nhất:
+
+| Binary | Argv |
+|---|---|
+| `apt-get` | `-q update`; `-q -s -o Debug::NoLocking=1 dist-upgrade` (chỉ mô phỏng, `dist-upgrade` chỉ đi cùng `-s`); `-y -q -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --no-remove install --only-upgrade <1..3000 tên gói>`; mỗi tên qua `^[a-z0-9][a-z0-9+.-]{1,127}(:[a-z0-9-]{2,20})?$` (ký tự đầu không thể là `-`) |
+| `apt-config` | `dump` |
+| `dpkg` | `--audit` |
+| `systemctl` | `reboot`; `stop\|start\|is-active <core_unit>`; `is-enabled apt-daily.timer\|apt-daily-upgrade.timer`; `enable\|disable --now apt-daily.timer apt-daily-upgrade.timer` |
+| `journalctl` | `-u <một trong sáu unit> --since <t UTC> --until <t UTC> -o json --no-pager` |
+
+**Bảng hỗ trợ** (tĩnh, trong mã; D-57 (1)): `ubuntu/24.04` (hết hạn chuẩn 2029-05-31, mở rộng 2034-04-30), `ubuntu/26.04` (2031-04-30, 2036-04-30), `debian/13` (2028-08-09, 2030-06-30). Bản khác → `412 not_appliance` ở `os.check`, `os.install`, `os.auto_security.set`. Ngày lấy từ lịch phát hành của hãng, cần đối chiếu lại trước khi phát hành (deferred).
+
+**`os.check`.** Chọn mô phỏng `apt-get -s dist-upgrade` thay `apt list --upgradable`: một lần đọc cho ra tên, bản cũ, bản mới và **mọi** origin (`Inst libc6 [2.39-0ubuntu8.2] (2.39-0ubuntu8.3 Ubuntu:24.04/noble-updates, Ubuntu:24.04/noble-security [amd64])`); gói không có `[bản cũ]` là phụ thuộc mới (không vào danh sách nâng cấp, `apt install` tự kéo). `security` = có origin có kho (sau `/`) kết thúc `-security` (gồm `-apps-security`, `-infra-security` của ESM). Bộ phân tích là hàm thuần (`ParseSimulation`, fuzz): dòng không khớp bị bỏ, tên/phiên bản/origin qua regex chặt, tối đa 5000 gói, dòng > 4 KiB dừng đọc và đánh dấu cắt. `mirrors` = tên host từ các dòng `Get:/Hit:/Ign:/Err:` của `apt-get update` (http/https, ≤ 20). `cves` luôn `[]` (host không biết CVE; `core` điền). Bản chụp `os/snapshot.json` (0600, ghi nguyên tử) là nguồn của `GET /v1/state/os`.
+
+**`os.install`.** Thứ tự: (1) `Check` đọc: `not_appliance`, `dpkg_locked`, `dpkg --audit`, chỗ trống `/var`; (2) trong run: bản chụp quá 24 giờ hoặc chưa có thì chạy `os.check` trước (cùng run, cùng khoá); (3) **mô phỏng lại** rồi lọc theo `scope` (security = `security: true`); (4) không có gói → xong, không sao lưu; (5) `backup.create` nội bộ `pre_os_update` (`db_unreadable` ở đây dừng trước khi apt chạy); (6) `apt-get … install --only-upgrade` với danh sách của host; (7) **xác minh bằng hiệu ứng**: mô phỏng lại, `installed` = số gói của danh sách không còn chờ (không tin mã thoát), `security` đếm trong số đó; (8) ghi lại bản chụp; (9) kiểm sức khoẻ (phần 1: unit `core` `active`); (10) `reboot_required`. Không bước nào gỡ gói hay đảo ngược: không có `apt remove|purge|autoremove`, không `--reinstall`, không `do-release-upgrade`, không sửa nguồn apt (test quét literal và argv ghi lại).
+
+**`os.reboot`.** `reboot.json` (0600): lịch duy nhất `{at, set_at, boot_id}`, các lần host đã bắt đầu reboot trong 24 giờ, lần đang chờ `{boot_id, started_at, kind}`. `now`: ghi bộ đếm và `boot_id` **trong** run, rồi `AfterFinish` chạy `systemctl reboot` **sau** khi run `succeeded` đã ghi (test đọc tệp run lúc `systemctl` nhận lệnh); `Note reboot_started` ghi trước. `at`: lưu lịch, hẹn giờ của host (`AfterFunc`); hẹn giờ tới sớm hơn `at` thì đặt lại; đang có lệnh ghi chạy (`Server.WriteActive`) hoặc `os.install` thì hoãn 1 phút; trễ hơn 24 giờ thì bỏ (`reboot_schedule_expired`). Khi host khởi động: `boot_id` của lần chờ khác `boot_id` hiện tại → `Note reboot_completed` (một lần); lần chờ cùng `boot_id` bị bỏ (reboot chưa xảy ra); lịch có `boot_id` khác bị bỏ (`reboot_schedule_dropped`, hộp đã khởi động lại rồi), lịch trễ > 5 phút bị bỏ, còn lại hẹn giờ lại. `os.reboot.cancel` không có lịch → thành công, không làm gì.
+
+**Sao lưu: định dạng và những gì bị loại.** `backups/<backup_id>.tar.gz` (`backup_id` = 32 hex ngẫu nhiên) gồm đúng ba thành viên theo thứ tự: `manifest.json`, `vedette.db`, và `vedette.key` chỉ khi `include_secrets`. Manifest: `{version: 1, db_schema, created_at, includes_secrets}`; `version` là số phiên bản **định dạng sao lưu** (host không biết phiên bản phần mềm của `core`); `db_schema` là chuỗi `module=phiên_bản` sắp xếp, phân tách bằng dấu phẩy, lấy từ các bảng goose `core_migration_<module>` (phiên bản cao nhất đã áp), rỗng khi chưa có. Chỉ mục `backups/index.json` liệt kê `{backup_id, kind, label, created_at, size, sha256, version, db_schema, includes_secrets}`; chỉ tệp có trong chỉ mục mới được tải hay khôi phục; tệp mồ côi (sập giữa `rename` và ghi chỉ mục) bị xoá lúc khởi động. **Không có khoá thì không có bí mật:** `core/secrets` chỉ lưu bí mật dạng bản mã AES-256-GCM trong `core_secret` (khoá là tệp riêng ngoài DB), và `DATA_MODEL` §5.4 quy định không cột nào chứa bí mật dạng rõ (mật khẩu là băm argon2id, token là SHA-256), nên bỏ tệp khoá là đủ để bản sao lưu vô dụng với kẻ lấy được nó; host **không** đọc hay sửa nội dung bảng. `pre_*` ép `include_secrets=true` (lưu giá trị đã ép vào args và kiểm toán), không tải được; nếu hộp chưa có tệp khoá (core chưa chạy lần nào) thì `pre_*` không có khoá và manifest ghi `false`. `manual` có `include_secrets=true` cũng không tải được. Lưu giữ: 3 bản `pre_*` mới nhất (chung một nhóm) và 10 bản `manual` mới nhất.
+
+**Sao lưu: SQLite.** Dùng API backup của SQLite qua `database/sql` `Conn.Raw` trên driver `modernc.org/sqlite` (`NewBackup`, `Step(-1)`, `Finish`): API với tới được nên không cần `VACUUM INTO`. Một bước duy nhất: giao dịch đọc trên DB WAL cho một ảnh chụp nhất quán và không chặn `core` ghi; chia từng trang sẽ khởi động lại mỗi lần `core` commit và có thể không bao giờ xong (test có writer chạy liên tục). Nguồn mở `mode=ro`; sau đó host đặt chủ và mode của `-wal`/`-shm`/`-journal` mới sinh theo tệp DB (mở DB WAL bằng root có thể sinh tệp thuộc root làm `core` không mở được DB của chính nó). Bản sao được `PRAGMA quick_check` và chuyển `journal_mode=DELETE` (một tệp tự đủ) trước khi nén.
+
+**Sao lưu: `core` không đáng tin.** Thư mục `core_data` thuộc `core`; host mở `vedette.db` và `vedette.key` bằng `O_NOFOLLOW`, chỉ nhận tệp thường (symlink → `db_unreadable`/`key_unreadable`, test), khoá ≤ 4 KiB. Khi khôi phục, tệp mới được ghi dưới tên ngẫu nhiên bằng `O_EXCL|O_NOFOLLOW` trong `core_data`, đặt chủ của tệp bị thay (hoặc của thư mục), mode 0600, `fsync`, rồi `rename` đè (rename thay symlink chứ không đi theo nó); `-wal`, `-shm`, `-journal` cũ bị xoá trước (WAL cũ áp lên DB khác làm hỏng DB). Còn lại một khe hở được chấp nhận (ponytail, deferred): giữa lúc kiểm tra và lúc SQLite mở theo đường dẫn, `core` bị chiếm có thể đổi `vedette.db` thành symlink; SQLite chỉ đọc được một DB SQLite hợp lệ khác mà root đọc được, tệp không phải SQLite bị từ chối.
+
+**Khôi phục.** Thứ tự: tra chỉ mục (`backup_unknown`) → SHA-256 và cỡ tệp so với chỉ mục (`checksum_mismatch`) → giải nén vào thư mục tạm 0700 (chỉ ba tên cố định, tên đầu tiên phải là manifest, kiểu thường, mỗi thành viên có trần cỡ, dừng đúng cỡ khai báo, không PAX/liên kết/thiết bị/thư mục/đường dẫn; archive hỏng → `restore_failed`) → `quick_check` DB trong bản sao lưu → `schema_newer` so `db_schema` với DB đang chạy → `secrets_missing` (đếm hàng `core_secret`, chỗ duy nhất host nhìn vào dữ liệu của `core`) → `backup.create pre_restore` → ghi `restore.json` → `systemctl stop` + đợi `inactive` → thay → `systemctl start` + đợi `active` và còn `active` sau thời gian ổn định → health. Hỏng ở bước thay/khởi động: dừng, thay lại `pre_restore`, khởi động; `reverted`. `restore.json` còn lại lúc host khởi động nghĩa là host chết giữa chừng: nếu `core` đang chạy chỉ xoá dấu và ghi `restore_interrupted action=none`; nếu `core` không chạy thì thay lại `pre_restore`, khởi động, ghi `action=reverted`. Bản sao lưu không có khoá khôi phục lên **khoá của chính hộp** (không đụng tệp khoá). Run bền qua việc `core` bị dừng (test mở client mới hỏi `GET /v1/runs/{id}` và phát lại cùng `X-Request-Id`).
+
+**`logs.export`.** Với mỗi unit (bỏ trùng, sắp xếp) chạy `journalctl` một lần; `until` làm tròn lên giây. Mỗi dòng: giới hạn 1 MiB, phải là đối tượng JSON, qua lọc bí mật (`RedactJournalLine`: khối PEM, `Authorization: Bearer|Basic`, `Bearer`, `vdt_…`, `/blocklist/<token>`, `xapp-`/`xoxb-`/`xoxp-`…, `sk-`/`ghp_`/`gho_`/…, `github_pat_`/`glpat-`, `AKIA…`, JWT, `password|passwd|pwd|secret|token|api_key` dạng `khoá=giá-trị` hoặc `khoá: giá-trị`). Các quy tắc không bao giờ ăn dấu `"` hay `\` nên dòng JSON hợp lệ vẫn hợp lệ (fuzz kiểm cả tính lũy đẳng). Trần 256 MiB tính trên văn bản đã lọc cộng dồn qua các unit; mỗi `journalctl` cũng bị cắt ở trần đó (cờ `Truncated` → `output_too_large`). Tệp `exports/<export_id>.jsonl.gz` (0600) + chỉ mục; xoá sau 24 giờ (khi khởi động, mỗi giờ, mỗi lần xuất, mỗi lần tải).
+
+**Giới hạn đã biết (ponytail).** `core/exec` gom đầu ra rồi mới trả, nên tiến trình apt hiện sau khi lệnh apt xong, và một export dùng tới 256 MiB RAM (nâng cấp: cho `Runner` ghi thẳng ra tệp). Kiểm sức khoẻ phần 1 chỉ có unit `core`; sensor/honeypot/scan/greenbone và `/healthz` chờ lệnh container. Hạn hỗ trợ trong bảng tĩnh cần đối chiếu. Mô hình systemd của `core` (hệ thống hay người dùng, Quadlet rootless) chưa kiểm trên máy thật.

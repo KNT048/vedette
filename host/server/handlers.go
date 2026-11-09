@@ -31,6 +31,10 @@ const (
 	routeEvents
 	routeAudit
 	routeCommand
+	routeStateOS
+	routeStateBackups
+	routeBackupContent
+	routeExportContent
 )
 
 // route maps method and path to a handler kind; anything else is not part of the API (spec section 7).
@@ -42,6 +46,18 @@ func route(method, path string) (kind routeKind, arg string) {
 		return routeRuns, ""
 	case method == http.MethodGet && path == "/v1/audit":
 		return routeAudit, ""
+	case method == http.MethodGet && path == "/v1/state/os":
+		return routeStateOS, ""
+	case method == http.MethodGet && path == "/v1/state/backups":
+		return routeStateBackups, ""
+	case method == http.MethodGet && strings.HasPrefix(path, "/v1/backups/"):
+		if id, ok := strings.CutSuffix(strings.TrimPrefix(path, "/v1/backups/"), "/content"); ok && !strings.Contains(id, "/") {
+			return routeBackupContent, id
+		}
+	case method == http.MethodGet && strings.HasPrefix(path, "/v1/exports/"):
+		if id, ok := strings.CutSuffix(strings.TrimPrefix(path, "/v1/exports/"), "/content"); ok && !strings.Contains(id, "/") {
+			return routeExportContent, id
+		}
 	case method == http.MethodGet && strings.HasPrefix(path, "/v1/runs/"):
 		rest := strings.TrimPrefix(path, "/v1/runs/")
 		if id, ok := strings.CutSuffix(rest, "/events"); ok && !strings.Contains(id, "/") {
@@ -98,6 +114,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	kind, arg := route(r.Method, r.URL.Path)
+	if !s.readerAvailable(kind) {
+		kind, arg = routeNone, ""
+	}
 	// The server has no ReadTimeout (it would cut event streams), so every request gets a body
 	// deadline here; a stream's connection is instead closed after the response when it carries a body.
 	if kind == routeEvents {
@@ -138,9 +157,29 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.handleEvents(w, r, arg)
 	case routeAudit:
 		s.handleAudit(w, r)
+	case routeStateOS, routeStateBackups, routeBackupContent, routeExportContent:
+		s.serveRead(w, r, kind, arg)
 	case routeNone, routeCommand:
 		// handled above
 	}
+}
+
+// readerAvailable is false for a state route whose Readers function is not set (it then answers like any unknown path).
+func (s *Server) readerAvailable(kind routeKind) bool {
+	rd := s.o.Readers
+	switch kind {
+	case routeStateOS:
+		return rd.OS != nil
+	case routeStateBackups:
+		return rd.Backups != nil
+	case routeBackupContent:
+		return rd.BackupContent != nil
+	case routeExportContent:
+		return rd.ExportContent != nil
+	case routeNone, routeInfo, routeRuns, routeRun, routeEvents, routeAudit, routeCommand:
+		return true
+	}
+	return true
 }
 
 func (s *Server) rateLimited(w http.ResponseWriter, p peer.Info, kind routeKind, arg string, wait time.Duration) {
@@ -456,7 +495,12 @@ func (s *Server) finishCheck(w http.ResponseWriter, lr *liveRun, cerr error, stu
 			s.runs.idemDelete(lr.sub.requestID) // a refused request may be retried with the same id
 		}
 		lr.finish(s, api.StatusRefused, nil, &api.RunError{Code: ref.Code, Message: ref.Message}, false)
-		writeError(w, ref.Status, simpleError(ref.Code, ref.Message))
+		ei := simpleError(ref.Code, ref.Message)
+		if ref.RetryAfterS > 0 {
+			ei.RetryAfterS = ref.RetryAfterS
+			w.Header().Set("Retry-After", strconv.Itoa(ref.RetryAfterS))
+		}
+		writeError(w, ref.Status, ei)
 		return
 	}
 	s.log.Error("command precondition check failed", "command", lr.sub.command, "error", cerr.Error())
@@ -694,6 +738,18 @@ func (s *Server) execute(lr *liveRun, cmd Command, args any) {
 	if !abandoned {
 		status, result, rerr := s.outcome(ctx, out.res, out.err, false)
 		lr.finish(s, status, result, rerr, false)
+		for _, fn := range rc.after {
+			s.wg.Add(1)
+			go func() {
+				defer s.wg.Done()
+				defer func() {
+					if rec := recover(); rec != nil {
+						s.log.Error("after-finish callback panicked", "command", lr.sub.command, "panic", fmt.Sprint(rec))
+					}
+				}()
+				fn(context.WithoutCancel(s.baseCtx), status)
+			}()
+		}
 		return
 	}
 	s.log.ErrorContext(ctx, "command ignored cancellation; the write lock stays held until it returns", "command", lr.sub.command, "run_id", lr.sr.Run.RunID)
@@ -726,6 +782,7 @@ func (s *Server) outcome(ctx context.Context, res any, err error, abandoned bool
 	var (
 		ref  *Refusal
 		fail *Failure
+		rev  *Reverted
 	)
 	switch {
 	case err == nil && !abandoned:
@@ -745,10 +802,26 @@ func (s *Server) outcome(ctx context.Context, res any, err error, abandoned bool
 	case errors.As(err, &ref):
 		return api.StatusRefused, nil, &api.RunError{Code: ref.Code, Message: ref.Message}
 	case errors.As(err, &fail):
-		return api.StatusFailed, nil, &api.RunError{Code: fail.Code, Message: fail.Message}
+		return api.StatusFailed, s.storeResult(ctx, fail.Result), &api.RunError{Code: fail.Code, Message: fail.Message}
+	case errors.As(err, &rev):
+		return api.StatusReverted, s.storeResult(ctx, rev.Result), &api.RunError{Code: rev.Code, Message: rev.Message}
 	}
 	s.log.WarnContext(ctx, "command failed", "error", fmt.Sprint(err))
 	return api.StatusFailed, nil, &api.RunError{Code: api.CodeCommandFailed, Message: "The command failed."}
+}
+
+// storeResult encodes the result that accompanies a failed or reverted run; nil when there is none
+// or it cannot be stored (the error still reports the outcome).
+func (s *Server) storeResult(ctx context.Context, res any) json.RawMessage {
+	if res == nil {
+		return nil
+	}
+	b, err := json.Marshal(res)
+	if err != nil || len(b) > maxResultBytes {
+		s.log.ErrorContext(ctx, "result of a failed run could not be stored")
+		return nil
+	}
+	return b
 }
 
 func (s *Server) handleInfo(w http.ResponseWriter) {

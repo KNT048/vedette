@@ -1,0 +1,166 @@
+package ops
+
+import (
+	"bytes"
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"syscall"
+)
+
+const maxStateFile = 8 << 20
+
+// randomHex returns n random bytes as 2n lowercase hex characters.
+func randomHex(n int) (string, error) {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("ops: random id: %w", err)
+	}
+	return hex.EncodeToString(b), nil
+}
+
+// privDir makes sure path is a real directory (not a symlink) owned by owner and closed to group
+// and others, creating it 0700 when absent.
+func privDir(path string, owner int) error {
+	if _, err := os.Lstat(path); errors.Is(err, os.ErrNotExist) {
+		if err := os.MkdirAll(path, 0o700); err != nil {
+			return fmt.Errorf("ops: create %s: %w", path, err)
+		}
+		if err := os.Chmod(path, 0o700); err != nil { //nolint:gosec // a directory: 0700 is the mode the state directories must have
+			return fmt.Errorf("ops: chmod %s: %w", path, err)
+		}
+	}
+	st, err := os.Lstat(path)
+	if err != nil {
+		return fmt.Errorf("ops: stat %s: %w", path, err)
+	}
+	sys, ok := st.Sys().(*syscall.Stat_t)
+	switch {
+	case !st.IsDir():
+		return fmt.Errorf("ops: %s is not a directory", path)
+	case !ok || int(sys.Uid) != owner:
+		return fmt.Errorf("ops: %s must be owned by uid %d", path, owner)
+	case st.Mode().Perm()&0o077 != 0:
+		return fmt.Errorf("ops: %s has mode %o, group and others must have no access", path, st.Mode().Perm())
+	}
+	return nil
+}
+
+// writeFileAtomic writes data to path through a temp file in the same directory (fsync, rename).
+func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	f, err := os.CreateTemp(filepath.Dir(path), ".tmp-*")
+	if err != nil {
+		return fmt.Errorf("ops: write %s: %w", filepath.Base(path), err)
+	}
+	tmp := f.Name()
+	ok := false
+	defer func() {
+		if !ok {
+			_ = f.Close()
+			_ = os.Remove(tmp)
+		}
+	}()
+	if err := f.Chmod(perm); err != nil {
+		return fmt.Errorf("ops: write %s: %w", filepath.Base(path), err)
+	}
+	if _, err := f.Write(data); err != nil {
+		return fmt.Errorf("ops: write %s: %w", filepath.Base(path), err)
+	}
+	if err := f.Sync(); err != nil {
+		return fmt.Errorf("ops: write %s: %w", filepath.Base(path), err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("ops: write %s: %w", filepath.Base(path), err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		return fmt.Errorf("ops: write %s: %w", filepath.Base(path), err)
+	}
+	ok = true
+	syncDir(filepath.Dir(path))
+	return nil
+}
+
+// syncDir makes a rename durable; failing to is not fatal.
+func syncDir(dir string) {
+	if d, err := os.Open(dir); err == nil { //nolint:gosec // a directory the host created
+		_ = d.Sync()
+		_ = d.Close()
+	}
+}
+
+// writeJSONAtomic stores v as JSON, mode 0600, through a temp file and a rename.
+func writeJSONAtomic(path string, v any) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return fmt.Errorf("ops: encode %s: %w", filepath.Base(path), err)
+	}
+	if len(b) > maxStateFile {
+		return fmt.Errorf("ops: %s is too large", filepath.Base(path))
+	}
+	return writeFileAtomic(path, b, 0o600)
+}
+
+// readJSONFile decodes one JSON value from a file the host wrote. A missing file is os.ErrNotExist.
+func readJSONFile(path string, v any) error {
+	f, err := os.Open(path) //nolint:gosec // path built from a fixed name or a validated hex id inside the state dir
+	if err != nil {
+		return err
+	}
+	defer func() { _ = f.Close() }()
+	data, err := io.ReadAll(io.LimitReader(f, maxStateFile+1))
+	if err != nil {
+		return err
+	}
+	if len(data) > maxStateFile {
+		return errors.New("file too large")
+	}
+	dec := json.NewDecoder(bytes.NewReader(data))
+	if err := dec.Decode(v); err != nil {
+		return err
+	}
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return errors.New("trailing data")
+	}
+	return nil
+}
+
+// freeBytes is the space a non-root writer could still use on the filesystem holding path.
+func freeBytes(path string) (uint64, error) {
+	var st syscall.Statfs_t
+	if err := syscall.Statfs(path, &st); err != nil {
+		return 0, fmt.Errorf("ops: statfs %s: %w", path, err)
+	}
+	return nonNegative(st.Bavail) * nonNegative(st.Bsize), nil
+}
+
+// nonNegative widens a Statfs field (its type differs per OS) to uint64, treating a negative as 0.
+func nonNegative[T ~int32 | ~int64 | ~uint32 | ~uint64](v T) uint64 {
+	if v < 0 {
+		return 0
+	}
+	return uint64(v)
+}
+
+// openRegularNoFollow opens path for reading, refusing a symlink and anything but a regular file.
+// It returns the file and its size. Used for files in core's data directory, which core controls.
+func openRegularNoFollow(path string) (*os.File, os.FileInfo, error) {
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0) //nolint:gosec // path = fixed core data dir + fixed file name
+	if err != nil {
+		return nil, nil, err
+	}
+	st, err := f.Stat()
+	if err != nil {
+		_ = f.Close()
+		return nil, nil, err
+	}
+	if !st.Mode().IsRegular() {
+		_ = f.Close()
+		return nil, nil, fmt.Errorf("ops: %s is not a regular file", filepath.Base(path))
+	}
+	return f, st, nil
+}

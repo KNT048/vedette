@@ -1,6 +1,6 @@
 # Host (`vedette-host`) Contract
 
-> Loại: **thành phần** (component), không phải module bật/tắt · Story: S-CORE-7, S-INV-5 (+ D-56) · Quyết định: D-53, D-55, D-56, D-12 · Last verified: 2026-11-09 (khung WP-07a: INV-1/2/3/4/12, POST-4, FORBID-1/2 có test; lệnh hệ thống chờ WP-07b)
+> Loại: **thành phần** (component), không phải module bật/tắt · Story: S-CORE-7, S-INV-5 (+ D-56) · Quyết định: D-53, D-55, D-56, D-12 · Last verified: 2026-11-09 (WP-07b phần 1: lệnh OS, sao lưu, xuất log và đọc trạng thái có test hợp đồng trên máy giả; net, IP phụ, container chờ các phần sau; chưa chạy trên Linux thật)
 > Thay thế `vedette-updater` của D-53 (D-55). `contract.ts`, `osMock.ts`, `locales/en/core.json` và `PRIVACY.md` luồng 6 đã đổi sang tên mới (WP-06).
 > Là phần duy nhất của hộp chạy **root**. Mọi thứ khác (core, sensor, honeypot, scan) chạy không root trong container.
 
@@ -18,7 +18,7 @@
 - **INV-11** Mạng ra của `host` chỉ gồm: kho gói apt của OS (host mirror liệt kê trong `OsInfo.mirrors`) và registry image đã khai báo (PRIVACY luồng 6); không có luồng khác (SYS-7).
 - **INV-12** Mọi lệnh ghi một dòng kết quả (lệnh chạy được còn có dòng `accepted` ghi lúc bắt đầu) có cấu trúc (lệnh, tham số đã che bí mật, thời điểm, mã, người gọi do `core` truyền); lịch sử hiển thị ở Settings → Updates qua `core` (`core_os_run`).
 
-## Lệnh (allowlist) — *bảng này là bản nháp; danh sách chốt là `docs/specs/host-api.md` §6, hiện thực ở WP-07b*
+## Lệnh (allowlist) — *bảng này là bản nháp cũ; danh sách chốt là `docs/specs/host-api.md` §6. Phần 1 của WP-07b đã cài: `os.check`, `os.install`, `os.auto_security.set`, `os.reboot`, `os.reboot.cancel`, `backup.create`, `backup.restore`, `logs.export` (xem mục "Lệnh hệ thống đã cài" bên dưới); `net.*`, `decoy_ip.*`, `container.*` chưa có (test hợp đồng liệt kê chúng là "chưa")*
 | Nhóm | Lệnh | Tham số có kiểu | Nguồn |
 |---|---|---|---|
 | OS | `os.status` | — | D-53 |
@@ -77,6 +77,25 @@ Các lỗi tìm thấy khi review bảo mật có test riêng trong `host/server
 
 Chưa kiểm được trên máy phát triển (macOS): hiệu ứng thật trên Linux (quyền socket do root, `SO_PEERCRED`, cgroup của unit thật, unit systemd); xem `.ai/deferred/feat-host-framework.md`.
 
+## Lệnh hệ thống đã cài (WP-07b phần 1)
+Mã: `host/ops`. `GET /v1/info.commands` liệt kê **đúng** tám lệnh: `backup.create`, `backup.restore`, `logs.export`, `os.auto_security.set`, `os.check`, `os.install`, `os.reboot`, `os.reboot.cancel`. Test so danh sách này và các lệnh "chưa" (`net.apply|confirm|revert`, `decoy_ip.add|remove`, `container.pull|start|stop|rollback`) với các tiêu đề §6 của `host-api.md`. Test chạy trên máy giả (`host/ops/opstest`): thư mục gốc tạm, binary giả ghi argv và môi trường, SQLite thật; không bao giờ chạy apt/dpkg/systemctl thật.
+
+| Điều | Hiện thực | Test |
+|---|---|---|
+| INV-2 (argv chặt) | một `exec.Runner`; bộ kiểm argv theo binary: `apt-get` ba dạng cố định, `apt-config dump`, `dpkg --audit`, `systemctl` vài động từ trên unit cố định, `journalctl` một dạng; tên gói qua regex gói Debian; môi trường đúng `PATH`, `LANG=C`, `DEBIAN_FRONTEND=noninteractive` | `TestContract_INV2_SystemCommandsRefuseBadArgsBeforeAnythingRuns`, `…_FORBID_ReleaseUpgradesAndSourcesAreOutOfReach`, `…OSCheck_ArgvEnvResult…`, `…OSInstall_HostRecomputes…` |
+| INV-5, POST-1 | `os.install`: danh sách gói do host tính lại, sao lưu `pre_os_update` trước, `installed` đo bằng mô phỏng lại, `health[]` thật, run `failed` mang kết quả khi apt hoặc sức khoẻ hỏng; không bao giờ gỡ gói | `TestContract_OSInstall_*` |
+| INV-6 | `os.reboot`/`os.reboot.cancel`: `now` chỉ sau khi run đã `succeeded`; lịch bền, duy nhất, sống qua restart; trần 3/24 giờ; `reboot_completed` sau boot mới | `TestContract_Reboot_*` |
+| INV-10, FORBID-5 | sao lưu: bản không có khoá không chứa khoá; `pre_*` ép có khoá và không tải được (`403 contains_secrets`); host chỉ đọc `core_data` qua `O_NOFOLLOW`; chỉ tệp trong chỉ mục được phục vụ | `TestContract_Backup_*`, `TestContract_Restore_*` |
+| POST-4 (lệnh dài) | khôi phục: run bền qua việc `core` dừng; hỏng → thay lại `pre_restore`, `reverted`; host chết giữa chừng → khôi phục lúc khởi động | `…Restore_RunIsDurableAcrossAClientRestart`, `…UnhealthyCoreIsReverted…`, `…ACutShortRestoreIsPutBackAtStart` |
+| INV-3 | mọi lệnh phần 1 là lệnh ghi dưới khoá chung | `TestContract_INV3_SystemWritesAreOneAtATime` |
+| INV-12 | mỗi lệnh `accepted` + kết quả; dòng của chính host (`actor: system`); không bí mật trong tệp kiểm toán | `TestContract_INV12_SystemCommandsAreAuditedWithoutSecrets`, `…Reboot_…` |
+| FORBID-3 | không có lệnh nâng bản phát hành; chỉ reboot do `os.reboot` hoặc lịch đã đặt | `…FORBID_ReleaseUpgradesAndSourcesAreOutOfReach` |
+| Cấm seam test ở sản xuất | `cmd/vedette-host` và `host/server` không tham chiếu `ops.NewWithDeps`, không nhập `opstest` | `TestContract_FORBID_ProductionWiringNeverUsesTheTestSeams` |
+
+Hàm thuần có fuzz (30 giây mỗi cái): `ParseSimulation`, `ParseUpdateHosts`, `ParseAptConfig`, `RedactJournalLine` (JSON hợp lệ ra JSON hợp lệ, lũy đẳng), `FilterJournal`, `ParseManifest`, `ReadArchive` (chỉ ba tên, mỗi tên một lần, không đường dẫn).
+
+Chưa kiểm được trên máy phát triển (macOS): hiệu ứng thật trên Ubuntu 24.04/Debian 13 (apt, dpkg, timer, `journalctl`, `systemctl` của unit `core`), khoá `fcntl` của apt thật; xem `.ai/deferred/feat-host-os-commands.md`.
+
 ## Khi vắng mặt / lỗi
 Không có "tắt" (không phải module). Phía `core`, `host/client` trả `client.ErrUnreachable` khi socket vắng hoặc không nối được: đó là tín hiệu "không phải appliance / host không chạy", khác với lỗi của host (`*client.Error` có mã §11). Kiểu "Chỉ container": mọi tính năng cần `host` trả `unsupported` có lý do. Appliance mà `host` không phản hồi: Settings → Updates và Box network hiện "Không liên lạc được với vedette-host" kèm trạng thái cuối cùng biết được; các module khác chạy bình thường nhưng không thay đổi được OS/mạng/image.
 
@@ -87,6 +106,6 @@ Không có "tắt" (không phải module). Phía `core`, `host/client` trả `cl
 ## Câu hỏi mở
 1. Cấu hình mạng/SPAN (D-56) chưa có story ID trong `USER_STORIES.md` và chưa có endpoint trong `contract.ts` (no-imagined-features: cần story trước khi code).
 2. Đổi card quản trị có thể cắt đứt chính kết nối quản trị: cần cơ chế tự hoàn tác sau N giây nếu `core` không xác nhận? (chưa nêu trong D-56).
-3. Tên lệnh ở bảng trên là đề xuất; chốt cùng lúc viết `host`. **Trả lời một phần (WP-07a):** dạng tên đã chốt ở khung (`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*){1,3}$`), bảng lệnh là một `Registry` đóng dựng một lần (không có hàm thêm/bớt), và nguồn chốt tên là `host-api.md` §6 (`os.check`, `os.install`, `os.auto_security.set`, `os.reboot`, `os.reboot.cancel`, `net.apply|confirm|revert`, `decoy_ip.add|remove`, `container.pull|start|stop|rollback`, `backup.create|restore`, `logs.export`; đọc trạng thái qua `GET /v1/state/*`), thay cho bảng nháp ở trên khi 07b đăng ký từng lệnh. Hiện `DefaultRegistry()` rỗng và test hợp đồng so với danh sách tài liệu.
+3. Tên lệnh ở bảng trên là đề xuất; chốt cùng lúc viết `host`. **Trả lời một phần (WP-07a, 07b phần 1):** dạng tên đã chốt ở khung (`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*){1,3}$`), bảng lệnh là một `Registry` đóng dựng một lần (không có hàm thêm/bớt), và nguồn chốt tên là `host-api.md` §6 (`os.check`, `os.install`, `os.auto_security.set`, `os.reboot`, `os.reboot.cancel`, `net.apply|confirm|revert`, `decoy_ip.add|remove`, `container.pull|start|stop|rollback`, `backup.create|restore`, `logs.export`; đọc trạng thái qua `GET /v1/state/*`), thay cho bảng nháp ở trên khi 07b đăng ký từng lệnh. `DefaultRegistry()` đã bỏ: registry dựng ở `cmd/vedette-host` từ `ops.Commands()`; test hợp đồng so danh sách đã cài và danh sách "chưa" với các tiêu đề §6 của tài liệu.
 4. ~~`vedette-updater` còn trong `contract.ts`, `osMock.ts`, `locales/en/core.json`, `PRIVACY.md` luồng 6~~ Đã đổi sang `vedette-host` (WP-06).
 5. Registry image cho phép (tên/host) và khoá cosign công khai đặt ở đâu (nhúng trong gói cài, D-12)?

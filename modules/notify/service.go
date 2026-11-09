@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -22,8 +23,8 @@ import (
 // ModuleID is the id of this module in the registry.
 const ModuleID = "notify"
 
-// defaultBaseURL is used for links when Config.BaseURL is empty (the box address is not known to notify).
-const defaultBaseURL = "https://vedette.local"
+// DefaultTimeZone is the box time zone when core does not say otherwise (the same default as the ai module).
+const DefaultTimeZone = "Asia/Ho_Chi_Minh"
 
 // Config wires a Service. DB, Secrets, Audit, Users and Log are required.
 type Config struct {
@@ -37,13 +38,21 @@ type Config struct {
 	Bus      Bus              // nil = events are dropped
 	Findings FindingDirectory // nil = finding events are logged and skipped
 	Devices  DeviceDirectory  // nil = device events show the asset id
-	Tokens   TokenRecorder    // nil = approval links cannot be sent (ErrApprovalUnavailable)
+	Tokens   TokenRecorder    // nil = email approvers get a message that says to open Vedette instead of a link
 
-	Clock    func() time.Time // nil = time.Now
-	Location *time.Location   // box local time for quiet hours; nil = time.Local
-	// BaseURL is the address people open Vedette at, e.g. https://192.168.10.2:8443 (links in messages).
-	BaseURL  string
-	BoxAddrs func() []netip.Addr // the box's own addresses: never a valid webhook target; nil = none
+	Clock func() time.Time // nil = time.Now
+	// Zone returns the IANA name of the box time zone (core_org.timezone), asked at every use so a change applies at
+	// once; nil or an empty or unknown name = DefaultTimeZone. The process time zone is never used (quiet hours
+	// and the day of the history follow the wall clock of the people, not of the server).
+	Zone func(context.Context) string
+	// Location, when set, is the box time zone and Zone is not asked (tests).
+	Location *time.Location
+	// BaseURL is the address people open Vedette at, e.g. https://192.168.10.2:8443 (links in messages). Empty: messages
+	// carry no link and say to open Vedette, and approval requests are refused (ErrApprovalUnavailable): a link that
+	// approves an action is a credential and must point at the real box.
+	BaseURL string
+	// BoxAddrs adds to the addresses of the network interfaces, which are always read: none of them is a valid webhook target.
+	BoxAddrs func() []netip.Addr
 	// HTTPClient is given to the Slack, Telegram, Zalo and webhook adapters. nil = their own clients
 	// (no redirects, timeouts, and for webhooks the connect-time address check). Tests pass a fake.
 	HTTPClient *http.Client
@@ -72,12 +81,6 @@ func New(c Config) (*Service, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	if c.Location == nil {
-		c.Location = time.Local
-	}
-	if c.BaseURL == "" {
-		c.BaseURL = defaultBaseURL
-	}
 	return &Service{cfg: c, senders: map[channel.Type]cachedSender{}}, nil
 }
 
@@ -87,14 +90,52 @@ func (s *Service) now() time.Time { return s.cfg.Clock() }
 // callers that are neither (events, other modules).
 func (s *Service) on() bool { return s.cfg.Modules == nil || s.cfg.Modules.Enabled(ModuleID) }
 
-// link makes an absolute URL inside Vedette from a path that starts with "/".
-func (s *Service) link(path string) string { return strings.TrimRight(s.cfg.BaseURL, "/") + path }
-
-func (s *Service) boxAddrs() []netip.Addr {
-	if s.cfg.BoxAddrs == nil {
-		return nil
+// link makes an absolute URL inside Vedette from a path that starts with "/". Without a BaseURL it is empty: the
+// adapters then leave the link out and tell people to open Vedette.
+func (s *Service) link(path string) string {
+	if s.cfg.BaseURL == "" {
+		return ""
 	}
-	return s.cfg.BoxAddrs()
+	return strings.TrimRight(s.cfg.BaseURL, "/") + path
+}
+
+// loc is the box time zone now.
+func (s *Service) loc(ctx context.Context) *time.Location {
+	if s.cfg.Location != nil {
+		return s.cfg.Location
+	}
+	name := ""
+	if s.cfg.Zone != nil {
+		name = s.cfg.Zone(ctx)
+	}
+	if l, err := time.LoadLocation(name); name != "" && err == nil {
+		return l
+	}
+	if l, err := time.LoadLocation(DefaultTimeZone); err == nil {
+		return l
+	}
+	return time.FixedZone("ICT", 7*3600) // no tz database on the machine; Vietnam has no daylight saving
+}
+
+// boxAddrs lists the addresses of this box: its network interfaces (read at every call, so an address it gets later
+// counts) and Config.BoxAddrs. A webhook may never connect to one of them.
+func (s *Service) boxAddrs() []netip.Addr {
+	var out []netip.Addr
+	if s.cfg.BoxAddrs != nil {
+		out = append(out, s.cfg.BoxAddrs()...)
+	}
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return out
+	}
+	for _, a := range addrs {
+		if p, ok := a.(*net.IPNet); ok {
+			if ip, ok := netip.AddrFromSlice(p.IP); ok {
+				out = append(out, ip.Unmap())
+			}
+		}
+	}
+	return out
 }
 
 // flush publishes the events of a committed transaction.
@@ -132,4 +173,13 @@ func boolInt(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+// recordTimeout bounds a write that must happen after a send even if the caller's context ended: the attempt
+// is over (INV-6: it has a record), so the record is written under a context that cannot be cancelled.
+const recordTimeout = 10 * time.Second
+
+// detached returns a context that keeps the values of ctx but ignores its cancellation, with a short deadline.
+func detached(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), recordTimeout)
 }

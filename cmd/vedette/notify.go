@@ -28,7 +28,7 @@ func (unwiredUsers) EmailCodeUsers(context.Context) (int, error) { return 0, nil
 // newNotify builds the notify service once per database, so the handlers, the deliver job, the event
 // subscriptions and the code mailer share it (the Zalo personal adapter keeps its signed-in session and its
 // sign-in pause in memory). Events go to and come from deps.Bus.
-// ponytail: no Users adapter over core/auth yet, no BaseURL (links use the default host name), no finding or
+// ponytail: no Users adapter over core/auth yet, no BaseURL (messages carry no link and approval requests are refused until it is set), no Zone (quiet hours use Asia/Ho_Chi_Minh), no finding or
 // device directory, no token recorder (response module): the service degrades without them.
 // auth.Config.Mailer = newNotify(d).CodeMailer() waits for core/auth wiring.
 func newNotify(d deps) *notify.Service {

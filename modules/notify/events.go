@@ -2,6 +2,7 @@ package notify
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -19,6 +20,7 @@ const (
 	EventFindingCreated       = "findings.finding.created"
 	EventFindingStatusChanged = "findings.finding.status_changed"
 	EventAssetDiscovered      = "inventory.asset.discovered"
+	EventNewKEV               = "feeds.vuln.new_kev"
 	EventHoneypotHit          = "honeypot.hit.created"
 	EventLogAnomaly           = "logs.anomaly.detected"
 	EventLogBadAddress        = "logs.bad_address.detected"
@@ -52,6 +54,7 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	}
 	on(EventFindingCreated, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, false) })
 	on(EventFindingStatusChanged, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, true) })
+	on(EventNewKEV, s.kevEvent)
 	on(EventAssetDiscovered, s.assetEvent)
 	on(EventHoneypotHit, s.hitEvent)
 	on(EventLogAnomaly, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentLogAnomaly) })
@@ -61,6 +64,21 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 			u()
 		}
 	}
+}
+
+// kevEvent remembers an exploited vulnerability the box has just heard of (feeds.vuln.new_kev). Until a finding
+// matches it to a device (findings.finding.created) it counts as one that matched nothing: HistoryView.suppressed.
+func (s *Service) kevEvent(ctx context.Context, data any) error {
+	var e struct {
+		CVE string `json:"cve"`
+	}
+	if err := decode(data, &e); err != nil {
+		return err
+	}
+	if kevKey(e.CVE) == "" {
+		return nil
+	}
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return markKEV(ctx, tx, []string{e.CVE}, s.now(), false) })
 }
 
 // findingEvent turns findings.finding.created, and a finding that a scan has confirmed
@@ -76,7 +94,15 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 	if err := decode(data, &e); err != nil {
 		return err
 	}
-	if e.FindingID == "" || (statusChange && e.To != "confirmed") {
+	if e.FindingID == "" {
+		return nil
+	}
+	if !statusChange && kevKey(e.CVE) != "" { // a finding exists: a device matched this CVE, so it is no longer one that matched nothing
+		if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return markKEV(ctx, tx, []string{e.CVE}, s.now(), true) }); err != nil {
+			return err
+		}
+	}
+	if statusChange && e.To != "confirmed" {
 		return nil
 	}
 	if s.cfg.Findings == nil {

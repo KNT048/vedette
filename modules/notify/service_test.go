@@ -3,6 +3,7 @@ package notify_test
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -83,8 +84,8 @@ func TestContract_INV2_NoUnmatchedCVE(t *testing.T) {
 	e := newEnv(t)
 	e.telegram(notify.Low)
 	e.plain()
-	for _, devs := range [][]string{nil, {"  "}, {""}} {
-		if err := e.svc.Publish(e.ctx(), e.vulnNotice("n-"+strings.Join(devs, "x")+"u", "QNAP", "CVE-2026-1", notify.Critical, devs...)); err != nil {
+	for i, devs := range [][]string{nil, {"  "}, {""}} {
+		if err := e.svc.Publish(e.ctx(), e.vulnNotice("n-"+strings.Join(devs, "x")+"u", "QNAP", fmt.Sprintf("CVE-2026-1%d", i), notify.Critical, devs...)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -95,6 +96,15 @@ func TestContract_INV2_NoUnmatchedCVE(t *testing.T) {
 	h, err := e.svc.History(e.ctx())
 	if err != nil || h.Suppressed.Count != 3 || h.Suppressed.Days != 7 || len(h.Items) != 0 {
 		t.Fatalf("history = %+v, %v", h, err)
+	}
+	// The same CVE again (another notice, an event delivered twice) is still one: the count is of CVEs, not of events.
+	for _, id := range []string{"again-1", "again-2"} {
+		if err := e.svc.Publish(e.ctx(), e.vulnNotice(id, "QNAP", "cve-2026-10", notify.Critical)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if h, _ := e.svc.History(e.ctx()); h.Suppressed.Count != 3 {
+		t.Fatalf("the same unmatched CVE was counted twice: %d", h.Suppressed.Count)
 	}
 	// A matched one is sent.
 	if err := e.svc.Publish(e.ctx(), e.vulnNotice("n-ok", "QNAP", "CVE-2026-2", notify.Critical, "NAS-01")); err != nil {
@@ -296,13 +306,35 @@ func TestContract_INV6_InterruptedSendIsRecordedNotRepeated(t *testing.T) {
 	if err := e.svc.Publish(e.ctx(), e.vulnNotice("s", "WordPress", "CVE-2026-22", notify.High, "WEB01")); err != nil {
 		t.Fatal(err)
 	}
+	// A run that died after it started the send (state sending): the message may or may not have gone out, so it is
+	// recorded as such and not sent again.
+	e.write(func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `UPDATE notify_pending SET state = 'sending', claimed_at = ?`, store.FormatTS(e.clock.Now().Add(-time.Hour)))
+		return err
+	})
+	e.flush()
+	h, err := e.svc.History(e.ctx())
+	if err != nil || len(h.Items) != 1 || h.Items[0].OK || !strings.Contains(h.Items[0].Error, "may or may not have been sent") || e.net.total() != 0 || e.count(`SELECT COUNT(*) FROM notify_pending`) != 0 {
+		t.Fatalf("history = %+v, %v, %d calls", h, err, e.net.total())
+	}
+}
+
+// A run that died after it claimed a row but before it tried to send it (state claimed): nothing went out, so the row is sent later
+// (alerts are at-least-once).
+func TestContract_INV6_ClaimedButNeverAttemptedIsSentLater(t *testing.T) {
+	e := newEnv(t)
+	e.telegram(notify.Low)
+	e.plain()
+	if err := e.svc.Publish(e.ctx(), e.vulnNotice("c", "WordPress", "CVE-2026-23", notify.High, "WEB01")); err != nil {
+		t.Fatal(err)
+	}
 	e.write(func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(e.ctx(), `UPDATE notify_pending SET state = 'claimed', claimed_at = ?`, store.FormatTS(e.clock.Now().Add(-time.Hour)))
 		return err
 	})
 	e.flush()
 	h, err := e.svc.History(e.ctx())
-	if err != nil || len(h.Items) != 1 || h.Items[0].OK || h.Items[0].Error == "" || e.net.total() != 0 || e.count(`SELECT COUNT(*) FROM notify_pending`) != 0 {
+	if err != nil || len(h.Items) != 1 || !h.Items[0].OK || len(e.net.to("api.telegram.org")) != 1 || e.count(`SELECT COUNT(*) FROM notify_pending`) != 0 {
 		t.Fatalf("history = %+v, %v, %d calls", h, err, e.net.total())
 	}
 }

@@ -113,15 +113,16 @@ func (u *fakeUsers) EmailCodeUsers(context.Context) (int, error) { return u.emai
 
 // fakeTokens is the TokenRecorder of the response module.
 type fakeTokens struct {
-	mu   sync.Mutex
-	recs []notify.Binding
-	ids  []notify.TokenID
+	mu    sync.Mutex
+	recs  []notify.Binding
+	ids   []notify.TokenID
+	addrs []string
 }
 
-func (f *fakeTokens) RecordToken(_ context.Context, id notify.TokenID, b notify.Binding, _ string) error {
+func (f *fakeTokens) RecordToken(_ context.Context, id notify.TokenID, b notify.Binding, _, address string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.recs, f.ids = append(f.recs, b), append(f.ids, id)
+	f.recs, f.ids, f.addrs = append(f.recs, b), append(f.ids, id), append(f.addrs, address)
 	return nil
 }
 
@@ -256,6 +257,8 @@ type fakeSMTP struct {
 	mu   sync.Mutex
 	msgs []string
 	rcpt []string
+	// rcptReply, when set, is the whole reply to RCPT (a refusal).
+	rcptReply string
 }
 
 func newFakeSMTP(t *testing.T) *fakeSMTP {
@@ -300,7 +303,12 @@ func (s *fakeSMTP) serve(c net.Conn) {
 		case strings.HasPrefix(up, "RCPT"):
 			s.mu.Lock()
 			s.rcpt = append(s.rcpt, strings.TrimSpace(line))
+			reply := s.rcptReply
 			s.mu.Unlock()
+			if reply != "" {
+				say(reply)
+				continue
+			}
 			say("250 ok")
 		case up == "DATA":
 			say("354 go")

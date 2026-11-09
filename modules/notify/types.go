@@ -234,15 +234,18 @@ type DeviceDirectory interface {
 
 // TokenRecorder stores an approval token record (spec approval-tokens.md 4.1: the record in the
 // database is the source of truth). The response module implements it; notify mints the token but
-// never keeps the record, so without a recorder approval links are not sent.
+// never keeps the record, so without a recorder email approvers get a message that says to open Vedette, not a link.
 type TokenRecorder interface {
-	RecordToken(ctx context.Context, id TokenID, b Binding, keyID string) error
+	// address is where the link was sent (the approver's email): the record carries it (spec 4.1, 4.2).
+	RecordToken(ctx context.Context, id TokenID, b Binding, keyID, address string) error
 }
 
 // Errors of the service that are not API errors.
 var (
 	// ErrInvalidNotice means a Notice or IncidentInput broke its precondition (PRE-1, PRE-2).
 	ErrInvalidNotice = errors.New("notify: invalid notice")
-	// ErrApprovalUnavailable means approval requests cannot be sent: no token recorder is wired.
-	ErrApprovalUnavailable = errors.New("notify: approval requests are not available")
+	// ErrApprovalUnavailable means approval requests cannot be sent: approval links are credentials and need the real box address.
+	ErrApprovalUnavailable = errors.New("notify: approval requests are not available: the box address (BaseURL) is not set")
+	// ErrModuleOff means the module is off: Publish, OpenIncident and SendApprovalRequest do nothing and queue nothing.
+	ErrModuleOff = errors.New("notify: the module is off")
 )

@@ -96,7 +96,9 @@ CREATE TABLE notify_send (
     error   TEXT    CHECK (error IS NULL OR length(error) <= 1000),
     what    TEXT    NOT NULL CHECK (length(what) <= 400),
     link    TEXT    NOT NULL CHECK (length(link) <= 400),
-    message TEXT    NOT NULL CHECK (json_valid(message) AND length(message) <= 16384)
+    message TEXT    NOT NULL CHECK (json_valid(message) AND length(message) <= 16384),
+    -- Who the message went to when it went to one person (an approver's address): a resend goes to the same person, not to the alert list.
+    recipient TEXT  CHECK (recipient IS NULL OR length(recipient) BETWEEN 1 AND 254)
 );
 CREATE INDEX notify_send_at_ix ON notify_send (at DESC);
 CREATE INDEX notify_send_ref_ix ON notify_send (kind, ref_id);
@@ -109,15 +111,20 @@ CREATE TABLE notify_send_notice (
 );
 CREATE INDEX notify_send_notice_ix ON notify_send_notice (notice_id);
 
--- New vulnerabilities that matched no device and so were not sent (INV-2): a count per local day.
-CREATE TABLE notify_suppressed_day (
-    day   TEXT    NOT NULL PRIMARY KEY CHECK (day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-    count INTEGER NOT NULL CHECK (count >= 1)
+-- Exploited vulnerabilities (CISA KEV) the box has heard of, and whether a finding matched a device of the
+-- customer: the ones with matched = 0 are what HistoryView.suppressed counts (INV-2). One row per CVE, so the
+-- same CVE reported twice is one. Filled from feeds.vuln.new_kev and from notices; notify reads no other module's tables.
+CREATE TABLE notify_kev (
+    cve     TEXT    NOT NULL PRIMARY KEY CHECK (length(cve) BETWEEN 1 AND 128),
+    seen_at TEXT    NOT NULL CHECK (seen_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    matched INTEGER NOT NULL DEFAULT 0 CHECK (matched IN (0, 1))
 );
+CREATE INDEX notify_kev_seen_ix ON notify_kev (seen_at);
 
--- The delivery queue: what is waiting to go out on which channel. A row is claimed (state claimed) in
--- one transaction before anything is sent, so two runs can never send the same row; after the attempt
--- the same transaction writes the notify_send row and deletes the queue row.
+-- The delivery queue: what is waiting to go out on which channel. pending -> claimed (taken by a run, in one
+-- transaction, so two runs never take the same row) -> sending (marked just before the network call) -> row
+-- deleted together with the notify_send row. A run that is interrupted puts claimed rows back to pending (never
+-- attempted: sent later) and records sending rows as "may or may not have been sent" (not sent again).
 CREATE TABLE notify_pending (
     id         TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
     channel    TEXT NOT NULL CHECK (channel IN ('telegram', 'slack', 'zalo', 'zalo-personal', 'email', 'webhook')),
@@ -125,7 +132,7 @@ CREATE TABLE notify_pending (
     notice     TEXT NOT NULL CHECK (json_valid(notice) AND length(notice) <= 65536),
     reason     TEXT NOT NULL CHECK (reason IN ('now', 'group', 'quiet')),
     due_at     TEXT NOT NULL CHECK (due_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    state      TEXT NOT NULL DEFAULT 'pending' CHECK (state IN ('pending', 'claimed')),
+    state      TEXT NOT NULL DEFAULT 'pending' CHECK (state IN ('pending', 'claimed', 'sending')),
     claimed_at TEXT CHECK (claimed_at IS NULL OR claimed_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     created_at TEXT NOT NULL CHECK (created_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
 );

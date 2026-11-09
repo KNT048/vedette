@@ -31,6 +31,9 @@ func validType(t channel.Type) bool {
 	return false
 }
 
+// errSecretUnreadable means a saved secret cannot be opened (the key file changed, the row is damaged): say so, do not print why.
+var errSecretUnreadable = errors.New("notify: the saved key cannot be read")
+
 // Purposes of the secrets (core_secret.purpose).
 const (
 	purposeSecret   = "notify_channel.secret"
@@ -235,7 +238,7 @@ func (s *Service) newSender(t channel.Type, f map[string]string, secret string, 
 		return channel.NewEmail(channel.EmailConfig{Host: f["host"], Port: port, Security: f["security"], Username: f["username"],
 			Password: sv, From: f["from"], To: to, Now: s.now})
 	case channel.Webhook:
-		return channel.NewWebhook(channel.WebhookConfig{URL: secrets.NewValue(f["url"]), SigningKey: sv, BoxAddrs: s.boxAddrs(), Client: hc, Now: s.now})
+		return channel.NewWebhook(channel.WebhookConfig{URL: secrets.NewValue(f["url"]), SigningKey: sv, BoxAddrsFunc: s.boxAddrs, Client: hc, Now: s.now})
 	}
 	return nil, fmt.Errorf("notify: unknown channel type %q", t)
 }
@@ -247,7 +250,8 @@ func (s *Service) openSecret(ctx context.Context, q dbtx, id, purpose string) (s
 	}
 	pt, err := s.cfg.Secrets.Open(ctx, q, id, purpose)
 	if err != nil {
-		return "", fmt.Errorf("notify: open %s: %w", purpose, err)
+		s.cfg.Log.WarnContext(ctx, "notify: a saved channel secret cannot be opened", "purpose", purpose, "error", err.Error())
+		return "", errSecretUnreadable
 	}
 	return string(pt), nil
 }
@@ -318,6 +322,12 @@ func (s *Service) checkApprovers(ctx context.Context, t channel.Type, in Channel
 			if list, err := channel.ParseRecipients(addr); err != nil || len(list) != 1 || list[0] != addr {
 				return badRequest("bad_approver_address", u.Email+": "+emailApproverMsg)
 			}
+			if !strings.EqualFold(addr, u.Email) { // the link is for this person: it goes to the address they sign in with
+				return badRequest("bad_approver_address", u.Email+": the approval link goes to the sign-in email of the user.")
+			}
+			if !strings.EqualFold(addr, u.Email) { // the link is for this person: it goes to the address they sign in with
+				return badRequest("bad_approver_address", u.Email+": the approval link goes to the sign-in email of the user, "+u.Email+".")
+			}
 		} else if !rule.re.MatchString(addr) {
 			return badRequest("bad_approver_address", u.Email+": "+rule.msg)
 		}
@@ -369,15 +379,17 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 			fields["to"] = strings.Join(list, ", ")
 		}
 		app, bot := strings.TrimSpace(in.AppToken), strings.TrimSpace(in.BotToken)
-		if t == channel.Slack && in.Approvals {
-			if !slackChannelIDRE.MatchString(fields["channel_id"]) {
-				return badRequest("bad_channel_id", "A Slack channel ID looks like C04ABCDEF12. Open the channel details in Slack and copy the ID at the bottom.")
-			}
+		if t == channel.Slack { // a token that is sent is checked even when approvals are off
 			if app != "" && !slackAppTokenRE.MatchString(app) {
 				return badRequest("bad_app_token", "The app-level token starts with xapp- and needs the connections:write scope. Copy it again from Basic Information.")
 			}
 			if bot != "" && !slackBotTokenRE.MatchString(bot) {
 				return badRequest("bad_bot_token", "The bot token starts with xoxb-. Copy it from OAuth & Permissions after installing the app.")
+			}
+		}
+		if t == channel.Slack && in.Approvals {
+			if !slackChannelIDRE.MatchString(fields["channel_id"]) {
+				return badRequest("bad_channel_id", "A Slack channel ID looks like C04ABCDEF12. Open the channel details in Slack and copy the ID at the bottom.")
 			}
 			if app == "" && cur.AppID == "" {
 				return badRequest("secret_required", "Enter the app-level token (xapp-…). Approving in Slack needs Socket Mode.")
@@ -455,12 +467,25 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 }
 
 // putSecret seals plaintext as a new secret, or replaces the one id. It returns the id and the last 4 characters ("" when too short to show).
+//
+// The last 4 characters are kept here, from the plaintext, not taken from core/secrets: core shows none for a short
+// secret, and the settings page shows four for every saved secret (contract.ts). The secrets notify validates are far longer than four characters.
 func (s *Service) putSecret(ctx context.Context, tx *sql.Tx, purpose, id, plaintext string) (newID, last4 string, err error) {
 	if id == "" {
-		return s.cfg.Secrets.Seal(ctx, tx, purpose, []byte(plaintext), true)
+		newID, _, err = s.cfg.Secrets.Seal(ctx, tx, purpose, []byte(plaintext), true)
+	} else {
+		_, err = s.cfg.Secrets.Replace(ctx, tx, id, purpose, []byte(plaintext), true)
+		newID = id
 	}
-	last4, err = s.cfg.Secrets.Replace(ctx, tx, id, purpose, []byte(plaintext), true)
-	return id, last4, err
+	return newID, lastFour(plaintext), err
+}
+
+func lastFour(s string) string {
+	r := []rune(s)
+	if len(r) < 4 {
+		return ""
+	}
+	return string(r[len(r)-4:])
 }
 
 // DeleteChannel removes the saved configuration and every secret of a channel, and with them a Zalo
@@ -508,14 +533,8 @@ func (s *Service) DeleteChannel(ctx context.Context, actor string, t channel.Typ
 	return nil
 }
 
-// userText is the text of err for people: a ConfigError's own message, otherwise the error (adapter errors hold no secret).
-func userText(err error) string {
-	var ce *channel.ConfigError
-	if errors.As(err, &ce) {
-		return ce.Msg
-	}
-	return err.Error()
-}
+// userText is the text of err for people (see friendlyError): never the raw error of an adapter or a server.
+func userText(err error) string { return friendlyError(err) }
 
 const testTimeout = 45 * time.Second
 
@@ -547,6 +566,8 @@ func (s *Service) TestChannel(ctx context.Context, actor string, t channel.Type)
 			res.OK, res.Detail = true, rcpt.Detail
 		}
 	}
+	ctx, stop := detached(ctx) // the result is written even when the request ended meanwhile
+	defer stop()
 	res.At = store.FormatTS(s.now())
 	lt, err := json.Marshal(res)
 	if err != nil {

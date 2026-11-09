@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/modules/findings"
+	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/notify/channel"
 )
@@ -382,8 +384,8 @@ func TestContract_PRE4_ApprovalLinks(t *testing.T) {
 	if err != nil || len(ac) != 1 || ac[0].Type != channel.Email || len(ac[0].Approvers) != 2 {
 		t.Fatalf("ApprovalChannels = %+v, %v", ac, err)
 	}
-	// Without a recorder nothing is sent.
-	e2 := newEnv(t, func(c *notify.Config) { c.Tokens = nil })
+	// Without the box address no approval request is sent: a link that approves must point at the real box.
+	e2 := newEnv(t, func(c *notify.Config) { c.BaseURL = "" })
 	if _, err := e2.svc.SendApprovalRequest(e2.ctx(), req); !errors.Is(err, notify.ErrApprovalUnavailable) {
 		t.Fatalf("err = %v", err)
 	}
@@ -422,14 +424,14 @@ func TestSubscribeTurnsEventsIntoNoticesAndIncidents(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	pub(notify.EventFindingCreated, map[string]any{"finding_id": "f-1", "asset_id": "a-1", "cve": "CVE-2026-100", "severity": "high", "basis": "product"})
-	pub(notify.EventFindingCreated, map[string]any{"finding_id": "f-1"}) // the same finding again: one notice
-	pub(notify.EventFindingCreated, map[string]any{"finding_id": "f-2"}) // matched no device: counted, not sent
-	pub(notify.EventFindingCreated, map[string]any{"finding_id": "f-9"}) // unknown finding: nothing
-	pub(notify.EventFindingStatusChanged, map[string]any{"finding_id": "f-1", "from": "suspected", "to": "patched"})
-	pub(notify.EventFindingStatusChanged, map[string]any{"finding_id": "f-1", "from": "suspected", "to": "confirmed"})
-	pub(notify.EventAssetDiscovered, map[string]any{"asset_id": "a-new", "notify": true})
-	pub(notify.EventAssetDiscovered, map[string]any{"asset_id": "a-quiet"})
+	pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: "f-1", AssetID: "a-1", CVE: "CVE-2026-100", Severity: findings.SeverityHigh, Basis: findings.BasisProduct})
+	pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: "f-1"}) // the same finding again: one notice
+	pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: "f-2"}) // matched no device: counted, not sent
+	pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: "f-9"}) // unknown finding: nothing
+	pub(notify.EventFindingStatusChanged, findings.StatusChangedEvent{FindingID: "f-1", From: findings.StatusSuspected, To: findings.StatusPatched})
+	pub(notify.EventFindingStatusChanged, findings.StatusChangedEvent{FindingID: "f-1", From: findings.StatusSuspected, To: findings.StatusConfirmed})
+	pub(notify.EventAssetDiscovered, inventory.AssetEvent{AssetID: "a-new", Notify: true})
+	pub(notify.EventAssetDiscovered, inventory.AssetEvent{AssetID: "a-quiet"})
 	pub(notify.EventHoneypotHit, map[string]any{"id": "hit-1", "ts": "2026-11-09T09:59:00Z", "kind": "service", "service": "smb", "src_ip": "192.168.10.107", "label": "FILESRV-OLD"})
 	pub(notify.EventLogBadAddress, map[string]any{"source": "192.168.10.105", "target": "185.220.101.47", "title": "PC-SALES-02 connected to 185.220.101.47", "what": "w", "action": "a", "severity": "high",
 		"devices": []map[string]string{{"id": "a-pc05", "name": "PC-SALES-02"}}})

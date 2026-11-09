@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -63,6 +62,9 @@ func dedupeKey(in IncidentInput) string {
 // channels and announced as notify.incident.created. Repeats are not sent again. It returns the
 // incident id and whether it was created.
 func (s *Service) OpenIncident(ctx context.Context, in IncidentInput) (id string, created bool, err error) {
+	if !s.on() {
+		return "", false, ErrModuleOff // nothing is recorded or queued while the module is off
+	}
 	if err := in.validate(); err != nil {
 		return "", false, err
 	}
@@ -92,18 +94,18 @@ func (s *Service) OpenIncident(ctx context.Context, in IncidentInput) (id string
 			id, string(in.Kind), strings.TrimSpace(in.Title), in.Link, string(in.Severity), in.What, in.Action, ts, ts, key); err != nil {
 			return fmt.Errorf("notify: save incident: %w", err)
 		}
-		names := make([]string, 0, len(in.Devices))
+		names, ids := make([]string, 0, len(in.Devices)), make([]string, 0, len(in.Devices))
 		for _, d := range in.Devices {
 			if _, err := tx.ExecContext(ctx, `INSERT INTO notify_incident_device (incident_id, asset_id, name) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`, id, d.ID, d.Name); err != nil {
 				return fmt.Errorf("notify: save incident device: %w", err)
 			}
-			names = append(names, d.Name)
+			names, ids = append(names, d.Name), append(ids, d.ID)
 		}
 		if err := s.record(ctx, tx, systemUser, "notify.incident_open", clip(strings.TrimSpace(in.Title), 400), string(in.Kind)); err != nil {
 			return err
 		}
 		if err := s.enqueue(ctx, tx, Notice{ID: id, Kind: KindIncident, Severity: in.Severity, Title: strings.TrimSpace(in.Title), What: in.What, Action: in.Action,
-			Devices: names, Link: s.link("/incidents/" + id), At: at}); err != nil {
+			Devices: names, DeviceIDs: ids, IncidentKind: string(in.Kind), Link: s.link("/incidents/" + id), At: at}); err != nil {
 			return err
 		}
 		ob.Add(events.Event{Name: "notify.incident.created", Data: map[string]string{"id": id, "kind": string(in.Kind), "severity": string(in.Severity)}})
@@ -179,29 +181,73 @@ func fillIncident(ctx context.Context, q dbtx, i *Incident) error {
 // Incidents lists every incident, most recently seen first (GET /notify/incidents).
 func (s *Service) Incidents(ctx context.Context) ([]Incident, error) {
 	db := s.cfg.DB.Reader()
-	rows, err := db.QueryContext(ctx, `SELECT `+incidentCols+` FROM notify_incident ORDER BY last_seen DESC, rowid DESC`)
+	rows, err := db.QueryContext(ctx, `SELECT `+incidentCols+` FROM notify_incident ORDER BY last_seen DESC, rowid DESC LIMIT ?`, incidentsLimit)
 	if err != nil {
 		return nil, fmt.Errorf("notify: list incidents: %w", err)
 	}
 	out := []Incident{}
+	at := map[string]int{}
 	for rows.Next() {
 		i, err := scanIncident(rows)
 		if err != nil {
 			_ = rows.Close()
 			return nil, fmt.Errorf("notify: list incidents: %w", err)
 		}
+		at[i.ID] = len(out)
 		out = append(out, i)
 	}
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return nil, fmt.Errorf("notify: list incidents: %w", err)
 	}
-	for k := range out {
-		if err := fillIncident(ctx, db, &out[k]); err != nil {
-			return nil, err
+	if len(out) == 0 {
+		return out, nil
+	}
+	// Two queries for all the incidents of the page, not two per incident.
+	const page = `(SELECT id FROM notify_incident ORDER BY last_seen DESC, rowid DESC LIMIT ?)`
+	drows, err := db.QueryContext(ctx, `SELECT incident_id, asset_id, name FROM notify_incident_device WHERE incident_id IN `+page+` ORDER BY rowid`, incidentsLimit)
+	if err != nil {
+		return nil, fmt.Errorf("notify: read incident devices: %w", err)
+	}
+	for drows.Next() {
+		var inc string
+		var d Device
+		if err := drows.Scan(&inc, &d.ID, &d.Name); err != nil {
+			_ = drows.Close()
+			return nil, fmt.Errorf("notify: read incident devices: %w", err)
 		}
+		if k, ok := at[inc]; ok {
+			out[k].Devices = append(out[k].Devices, d)
+		}
+	}
+	if err := errors.Join(drows.Err(), drows.Close()); err != nil {
+		return nil, fmt.Errorf("notify: read incident devices: %w", err)
+	}
+	srows, err := db.QueryContext(ctx, `SELECT ref_id, id, channel, "to", at, ok, error FROM notify_send WHERE kind = 'incident' AND ref_id IN `+page+` ORDER BY at, rowid`, incidentsLimit)
+	if err != nil {
+		return nil, fmt.Errorf("notify: read incident sends: %w", err)
+	}
+	for srows.Next() {
+		var ref, ch string
+		var v SendView
+		var e sql.NullString
+		if err := srows.Scan(&ref, &v.ID, &ch, &v.To, &v.At, &v.OK, &e); err != nil {
+			_ = srows.Close()
+			return nil, fmt.Errorf("notify: read incident sends: %w", err)
+		}
+		v.Channel, v.Error = channel.Type(ch), e.String
+		if k, ok := at[ref]; ok {
+			out[k].Sends = append(out[k].Sends, v)
+		}
+	}
+	if err := errors.Join(srows.Err(), srows.Close()); err != nil {
+		return nil, fmt.Errorf("notify: read incident sends: %w", err)
 	}
 	return out, nil
 }
+
+// incidentsLimit is the most incidents GET /notify/incidents returns, newest seen first (the page of an
+// unbounded list would grow with every trap hit).
+const incidentsLimit = 500
 
 // IncidentDetail returns one incident with what each channel received (GET /notify/incidents/{id}).
 func (s *Service) IncidentDetail(ctx context.Context, id string) (IncidentDetail, error) {
@@ -223,7 +269,12 @@ func (s *Service) incidentDetail(ctx context.Context, q dbtx, id string) (Incide
 	for _, d := range i.Devices {
 		names = append(names, d.Name)
 	}
-	msg := channel.Message{ID: i.ID, Kind: "incident", Severity: string(i.Severity), Title: i.Title, Device: joinDevices(names), What: i.What, Action: i.Action, Link: s.link("/incidents/" + i.ID)}
+	ids := make([]string, 0, len(i.Devices))
+	for _, d := range i.Devices {
+		ids = append(ids, d.ID)
+	}
+	msg := channel.Message{ID: i.ID, Kind: "incident", IncidentKind: string(i.Kind), Severity: string(i.Severity), Title: i.Title, Device: joinDevices(names),
+		Devices: deviceRefs(names, ids), What: i.What, Action: i.Action, Link: s.link("/incidents/" + i.ID)}
 	d := IncidentDetail{Incident: i, Previews: []Preview{}}
 	seen := map[channel.Type]bool{}
 	for _, sd := range i.Sends {
@@ -252,11 +303,22 @@ func (s *Service) HandleIncident(ctx context.Context, actor, id string, status I
 	}
 	var d IncidentDetail
 	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		var title string
-		if err := tx.QueryRowContext(ctx, `SELECT title FROM notify_incident WHERE id = ?`, id).Scan(&title); errors.Is(err, sql.ErrNoRows) {
+		var title, cur, key string
+		if err := tx.QueryRowContext(ctx, `SELECT title, status, dedupe_key FROM notify_incident WHERE id = ?`, id).Scan(&title, &cur, &key); errors.Is(err, sql.ErrNoRows) {
 			return notFound("No such incident.")
 		} else if err != nil {
 			return fmt.Errorf("notify: read incident: %w", err)
+		}
+		if cur == string(StatusResolved) && status != StatusResolved {
+			// Reopening: only one incident per kind, source and target may be open (INV-10). A newer one has
+			// taken its place, so the person is told which one to handle instead.
+			var open string
+			switch err := tx.QueryRowContext(ctx, `SELECT id FROM notify_incident WHERE dedupe_key = ? AND status <> 'resolved' AND id <> ?`, key, id).Scan(&open); {
+			case err == nil:
+				return apierr.New(http.StatusConflict, "already_open", "A newer incident with the same source and target is already open. Handle that one instead.").With("open_id", open)
+			case !errors.Is(err, sql.ErrNoRows):
+				return fmt.Errorf("notify: look for an open incident: %w", err)
+			}
 		}
 		var by, at, nt any
 		if status != StatusNew {
@@ -304,8 +366,8 @@ func (s *Service) History(ctx context.Context) (HistoryView, error) {
 	if err := rows.Err(); err != nil {
 		return v, fmt.Errorf("notify: read history: %w", err)
 	}
-	from := s.now().In(s.cfg.Location).AddDate(0, 0, -(historyDays - 1)).Format(time.DateOnly)
-	if err := db.QueryRowContext(ctx, `SELECT COALESCE(SUM(count), 0) FROM notify_suppressed_day WHERE day >= ?`, from).Scan(&v.Suppressed.Count); err != nil {
+	from := store.FormatTS(s.now().AddDate(0, 0, -historyDays))
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM notify_kev WHERE matched = 0 AND seen_at >= ?`, from).Scan(&v.Suppressed.Count); err != nil {
 		return v, fmt.Errorf("notify: read suppressed count: %w", err)
 	}
 	v.Suppressed.Days = historyDays
@@ -322,9 +384,10 @@ func (s *Service) Resend(ctx context.Context, actor, id string) (HistoryItem, er
 		ch              channel.Type
 		kind, ref, what string
 		link, raw       string
+		recipient       sql.NullString
 	}
 	var ch string
-	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT channel, kind, ref_id, what, link, message FROM notify_send WHERE id = ?`, id).Scan(&ch, &old.kind, &old.ref, &old.what, &old.link, &old.raw)
+	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT channel, kind, ref_id, what, link, message, recipient FROM notify_send WHERE id = ?`, id).Scan(&ch, &old.kind, &old.ref, &old.what, &old.link, &old.raw, &old.recipient)
 	if errors.Is(err, sql.ErrNoRows) {
 		return HistoryItem{}, notFound("No such message in the history.")
 	}
@@ -344,15 +407,21 @@ func (s *Service) Resend(ctx context.Context, actor, id string) (HistoryItem, er
 		return HistoryItem{}, err
 	}
 	var rec SendRecord
-	snd, err := s.savedSender(ctx, c, nil)
+	var to []string // a message that went to one person (an approver) goes to that person again, not to the alert list
+	if old.recipient.Valid {
+		to = []string{old.recipient.String}
+	}
+	snd, err := s.savedSender(ctx, c, to)
 	if err != nil {
 		rec = SendRecord{ID: store.NewID("sd"), Channel: old.ch, To: string(old.ch), At: s.now(), Error: "The channel settings cannot be used: " + userText(err)}
 	} else {
 		rec = Deliver(ctx, store.NewID("sd"), snd, msg, s.now)
 	}
+	ctx, stop := detached(ctx) // the message may have gone out: its record is written even if the request ended
+	defer stop()
 	ob := &events.Outbox{}
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if err := insertSend(ctx, tx, rec, old.kind, old.ref, old.what, old.link, msg); err != nil {
+		if err := insertSend(ctx, tx, rec, old.kind, old.ref, old.what, old.link, old.recipient.String, msg); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO notify_send_notice (send_id, notice_id) SELECT ?, notice_id FROM notify_send_notice WHERE send_id = ?`, rec.ID, id); err != nil {

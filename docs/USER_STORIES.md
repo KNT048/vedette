@@ -41,8 +41,11 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 
 ## EXP — Bề mặt ngoài
 
-**S-EXP-1** (P2) `[đạt]` — Tôi nhập domain của công ty và xác thực bằng DNS TXT; IP công cộng chỉ là IP chính hộp đang ra Internet, hộp tự xác nhận, hiệu lực 90 ngày (D-25); trước khi quét tôi tick một ô cam kết (D-26); Vedette liệt kê subdomain, IP, cổng mở, giao diện quản trị lộ ra Internet, cert sắp hết hạn.
+**S-EXP-1** (P2) `[đạt]` — Tôi nhập domain của công ty và xác thực bằng DNS TXT; IP công cộng chỉ là IP chính hộp đang ra Internet, hộp tự dò (D-25, D-79); trước khi quét tôi tick một ô cam kết (D-26); Vedette liệt kê subdomain, IP, cổng mở, giao diện quản trị lộ ra Internet, cert sắp hết hạn.
 - Chấp nhận: không quét thứ chưa xác thực sở hữu; có "ảnh chụp" theo ngày để so sánh thay đổi.
+- Chấp nhận (D-79, kien 2026-11-09): chế độ tự dò (mặc định, dò lần đầu lúc cài) và thủ công ("Detect now"); chu kỳ 1 phút–24 giờ, mặc định 60 phút, admin sửa được; IP hiệu lực 30 ngày từ lần thấy cuối, gia hạn mỗi lần thấy lại, `expiring` ≤ 5 ngày; admin gỡ được IP; không có ô nhập IP.
+- Chấp nhận (D-79): trước khi quét một IP, lượt dò gần nhất hoặc một lượt dò kỹ phải còn thấy nó; không thấy → quét IP đó tạm dừng với lý do rõ, IP vẫn trong danh sách.
+- Chấp nhận (D-79): gỡ IP hỏi "Don't add it again if detected" (mặc định bật); IP bị bỏ qua nằm trong mục Ignored, có Restore; không bao giờ được quét hay tự thêm lại; mọi thay đổi ghi kiểm toán.
 
 ## SCAN — Quét lỗ hổng
 

@@ -52,7 +52,7 @@ type Deps struct {
 	BinPaths     map[string]string // replaces the constant path of a binary by name; the validators stay
 	Now          func() time.Time
 	LockHeld     func(path string) (bool, error)                    // is a dpkg/apt lock file held by another process
-	NetPending   func() bool                                        // a network change waits for confirmation (no net commands yet)
+	NetPending   func() bool                                        // a network change waits for confirmation (default: the server has a run in awaiting_confirm)
 	AfterFunc    func(d time.Duration, f func()) (stop func() bool) // arms the scheduled-reboot and export-sweep timers
 	Installing   *atomic.Bool                                       // set while os.install runs; a test may pass its own to raise it
 	FreeBytes    func(path string) (uint64, error)                  // free space of the filesystem holding path
@@ -88,10 +88,11 @@ type Ops struct {
 }
 
 // Notifier is what Ops needs from the server once it runs: an audit line for things the host does
-// on its own, and whether some write command is running.
+// on its own, whether some write command is running, and whether a run waits for confirmation.
 type Notifier interface {
 	Note(command, code string, detail map[string]any) error
 	WriteActive() bool
+	AwaitingConfirm() bool
 }
 
 // New builds Ops for the real system.
@@ -122,9 +123,6 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 	}
 	if d.LockHeld == nil {
 		d.LockHeld = fcntlLockHeld
-	}
-	if d.NetPending == nil {
-		d.NetPending = func() bool { return false } // no net.apply yet (a later part wires the real check)
 	}
 	if d.AfterFunc == nil {
 		d.AfterFunc = func(dur time.Duration, f func()) func() bool { return time.AfterFunc(dur, f).Stop }
@@ -292,6 +290,18 @@ func (o *Ops) noteDownload(command, code string, detail map[string]any) error {
 		return errors.New("ops: the audit log is unavailable")
 	}
 	return nil
+}
+
+// netPending reports whether a network change waits for confirmation (os.reboot refuses then,
+// spec 16). Deps.NetPending replaces the server's answer in tests; before Start there is none.
+func (o *Ops) netPending() bool {
+	if o.d.NetPending != nil {
+		return o.d.NetPending()
+	}
+	o.mu.Lock()
+	n := o.notifier
+	o.mu.Unlock()
+	return n != nil && n.AwaitingConfirm()
 }
 
 func (o *Ops) writeActive() bool {

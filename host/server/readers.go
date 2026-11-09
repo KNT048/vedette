@@ -46,6 +46,8 @@ type File struct {
 type Readers struct {
 	OS            func(ctx context.Context) (any, error) // GET /v1/state/os
 	Backups       func(ctx context.Context) (any, error) // GET /v1/state/backups
+	Net           func(ctx context.Context) (any, error) // GET /v1/state/net (WP-07b part 3, slice 3-3)
+	Containers    func(ctx context.Context) (any, error) // GET /v1/state/containers (slice 3-6)
 	BackupContent func(id string) (File, error)          // GET /v1/backups/{id}/content
 	ExportContent func(id string) (File, error)          // GET /v1/exports/{id}/content
 }
@@ -61,6 +63,10 @@ func (s *Server) serveRead(w http.ResponseWriter, r *http.Request, kind routeKin
 		s.serveState(w, r, rd.OS)
 	case routeStateBackups:
 		s.serveState(w, r, rd.Backups)
+	case routeStateNet:
+		s.serveState(w, r, rd.Net)
+	case routeStateContainers:
+		s.serveState(w, r, rd.Containers)
 	case routeBackupContent:
 		s.serveFile(w, rc, rd.BackupContent, arg)
 	case routeExportContent:
@@ -143,9 +149,18 @@ func (s *Server) Note(command, code string, detail map[string]any) error {
 	})
 }
 
-// WriteActive reports whether a write command holds the global write lock right now.
+// WriteActive reports whether a write command holds the global write lock right now (a run that
+// awaits confirmation holds it too).
 func (s *Server) WriteActive() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.active != ""
+}
+
+// AwaitingConfirm reports whether a run is parked in awaiting_confirm (D-100). ops uses it as the
+// network-change-pending check of os.reboot.
+func (s *Server) AwaitingConfirm() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.waiting != nil
 }

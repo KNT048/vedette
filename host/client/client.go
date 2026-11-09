@@ -42,7 +42,7 @@ type Error struct {
 	Code        string
 	Message     string
 	Details     []api.Detail
-	RunID       string // busy: the run in progress
+	RunID       string // busy: the run in progress; pending_confirm: the run waiting for confirmation
 	RetryAfterS int    // rate_limited
 }
 

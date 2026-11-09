@@ -115,7 +115,24 @@ Hàm thuần có fuzz (30 giây mỗi cái): `ParseSimulation`, `ParseUpdateHost
 
 Chưa kiểm được trên máy phát triển (macOS): hiệu ứng thật trên Ubuntu 24.04/Debian 13 (apt, dpkg, timer, `journalctl`, `systemctl` của unit `core`), khoá `fcntl` của apt thật, `os.OpenRoot` và `fs.protected_symlinks/hardlinks` thật, phần `core` tạo bản chụp (WP-07b phần 2); xem `.ai/deferred/feat-host-os-commands.md`.
 
-## Phần 3: `net.*`, `decoy_ip.*`, `container.*` (WP-07b, chốt trên giấy ở lát 3-0, chưa có mã)
+## Khung chờ xác nhận đã cài (WP-07b phần 3, lát 3-1, D-100)
+Mã: `host/server/awaiting.go` (+ `registry.go`, `handlers.go`, `server.go`, `readers.go`), `host/api` (`pending_confirm`, `not_awaiting_confirm`). Chưa có lệnh sản xuất nào dùng (`net.apply` ở lát 3-4); test dùng lệnh chỉ có trong `_test.go`. Bất biến của khung (INV-16 là phần mạng dựa trên chúng):
+- **FW-1 Run chờ giữ khoá ghi.** Lệnh trả `server.Awaiting{RevertAt, Result}` → run `awaiting_confirm` có `revert_at`, **không** nhả khoá; mọi lệnh ghi khác → `409 pending_confirm` kèm `run_id` của run đang chờ (trước cả `Check`, nên `net_pending_confirm` của `os.reboot` chỉ là lớp thứ hai); lệnh đọc không bị khoá. Run chờ có đúng ba dòng kiểm toán: `accepted`, `awaiting_confirm`, kết quả cuối.
+- **FW-2 `Settle` đúng một lần.** `(*Server).Settle(runID, status, *RunError)` so-và-đổi trên trạng thái chờ; ghi dòng kiểm toán cuối, ghi run, nhả khoá, gửi sự kiện cuối (đúng thứ tự của mọi run). Lần gọi thứ hai, run không chờ, hay run chưa vào trạng thái chờ → `ErrNotAwaiting`, không đổi gì. Sau khi `Shutdown` bắt đầu → `ErrShuttingDown`, không đổi gì (run vẫn chờ trên đĩa); `Settle` đã qua cửa kiểm đó được `Shutdown` đợi xong trước khi đóng nhật ký kiểm toán.
+- **FW-3 `WhileAwaiting` chỉ qua cửa cho đúng run.** Lệnh có cờ này (chỉ `net.confirm`, `net.revert`; phải là lệnh ghi) chạy khi và chỉ khi `args.run_id` là run đang chờ; ngược lại `412 not_awaiting_confirm` và lệnh **không** chạy (run sai, đã `Settle`, hoặc không có run chờ). Mỗi lần chỉ một lệnh như vậy chạy (lệnh thứ hai `busy` kèm `run_id` của lệnh đang chạy). Gửi lại cùng `X-Request-Id` trả đúng run cũ, không chạy lại (idempotency).
+- **FW-4 Khởi động lại.** `recover()` (trong `New`, nên xong trước `Listen`) hỏi `Options.Resume(run)` cho mỗi run `awaiting_confirm`: `true` → run vẫn chờ và giữ khoá, sự kiện đã lưu được nối tiếp (seq không lặp); `false`, `nil`, panic, hoặc run chờ thứ hai → `failed host_restarted` như run bị cắt ngang. Người gọi dựng lại hẹn giờ **sau** `New` và kết thúc run bằng `Settle`. `Shutdown` không kết thúc run chờ.
+- **FW-5 Giới hạn thân theo lệnh.** `Spec.MaxBody` (0 = 512 KiB, tối đa 4 MiB; `NewRegistry` từ chối ngoài khoảng); vượt → `400 invalid_args` nói đúng giới hạn của lệnh đó.
+- **FW-6 Đọc.** `Readers.Net`, `Readers.Containers` nối vào `GET /v1/state/net|containers`; chưa gắn (`nil`) → `404 unknown_command` như mọi đường chưa có.
+
+| Điều | Test |
+|---|---|
+| FW-1 | `TestAwaiting_HoldsTheWriteLockAndAnswersPendingConfirm`, `…_AuditHasThreeLinesAcceptedAwaitingFinal`, `TestContract_INV16_AwaitingRunBlocksSystemWrites` (lệnh OS thật), `TestNetPendingFollowsTheServersAwaitingRun` (`host/ops`) |
+| FW-2 | `…_SettleWorksExactlyOnceUnderConcurrency` (50 goroutine + confirm qua socket), `…_SettleRejectsBadStatusWithoutConsumingTheRun`, `…_SettleRacingShutdownLeavesAConsistentRun`, `…_SettleAfterShutdownIsRefused` |
+| FW-3 | `…_WhileAwaitingGetsThroughOnlyForTheMatchingRun`, `…_OneWhileAwaitingCommandAtATime`, `…_IdempotentReplayOfConfirm`, `…_InvalidAwaitingFailsTheRunAndFreesTheLock` |
+| FW-4 | `…_RunSurvivesARestartWhenResumeSaysSo` (cả thứ tự trước `Listen`), `…_RunIsFailedHostRestartedWithoutResume`, `…_OnlyTheFirstAwaitingRunIsResumed` |
+| FW-5, FW-6 | `…_MaxBodyIsPerCommand`, `…_NetAndContainersReadersAnswerOnlyWhenWired`; `TestContract_Part1_TheCommandTableMatchesSection6OfTheSpec` (bảng "chưa có" không đổi: lát này không đăng ký lệnh nào) |
+
+## Phần 3: `net.*`, `decoy_ip.*`, `container.*` (WP-07b, chốt trên giấy ở lát 3-0; khung ở lát 3-1 đã có mã, phần còn lại chưa)
 Thiết kế: `docs/specs/host-api.md` §6.5–§6.10 và §18; quyết định D-99…D-107. Lát 3-1 (khung chờ xác nhận), 3-2 (`internal/release`), 3-3…3-5 (mạng, decoy), 3-6…3-8 (Quadlet, kéo, khởi động, hoàn tác). Test hợp đồng dự kiến cho từng bất biến mới, chạy trên máy giả (D-107: `Deps.Root`, binary giả, giả reboot bằng xoá `Root/run` và đổi `boot_id`):
 
 | Điều | Test dự kiến |

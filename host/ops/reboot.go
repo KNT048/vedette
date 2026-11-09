@@ -148,7 +148,7 @@ func (o *Ops) cmdReboot() server.Command {
 			if o.installing.Load() {
 				return refuse409(api.CodeInstallInProgress, "An operating system install is running; reboot after it ends.")
 			}
-			if o.d.NetPending() {
+			if o.netPending() {
 				return refuse409(api.CodeNetPendingConfirm, "A network change is waiting for confirmation; do not reboot until it is confirmed or reverted.")
 			}
 			now := o.d.Now()

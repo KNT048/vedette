@@ -55,15 +55,20 @@ const (
 	CodeUnknownCommand   = "unknown_command"
 	CodeRunNotFound      = "run_not_found"
 	CodeBusy             = "busy"
-	CodeRequestIDReuse   = "request_id_reuse"
-	CodeRateLimited      = "rate_limited"
-	CodeShuttingDown     = "host_shutting_down"
-	CodeAuditUnavailable = "audit_unavailable"
-	CodeHostRestarted    = "host_restarted"
-	CodeTimeout          = "timeout"
-	CodeCommandFailed    = "command_failed"
-	CodeInternal         = "internal"
-	CodeHostWedged       = "host_wedged"
+	// CodePendingConfirm is 409: a run is awaiting confirmation and holds the write lock (spec 4,
+	// D-100); the error carries that run's id. CodeNotAwaitingConfirm is 412: the run id of a
+	// net.confirm or net.revert is not the run that is waiting (finished, expired or unknown).
+	CodePendingConfirm     = "pending_confirm"
+	CodeNotAwaitingConfirm = "not_awaiting_confirm"
+	CodeRequestIDReuse     = "request_id_reuse"
+	CodeRateLimited        = "rate_limited"
+	CodeShuttingDown       = "host_shutting_down"
+	CodeAuditUnavailable   = "audit_unavailable"
+	CodeHostRestarted      = "host_restarted"
+	CodeTimeout            = "timeout"
+	CodeCommandFailed      = "command_failed"
+	CodeInternal           = "internal"
+	CodeHostWedged         = "host_wedged"
 )
 
 // Detail points at one bad field.
@@ -77,7 +82,8 @@ type ErrorBody struct {
 	Error ErrorInfo `json:"error"`
 }
 
-// ErrorInfo is the error object. RunID is set for busy (the run in progress); RetryAfterS for rate_limited.
+// ErrorInfo is the error object. RunID is set for busy (the run in progress) and for pending_confirm
+// (the run that is waiting for confirmation); RetryAfterS for rate_limited.
 type ErrorInfo struct {
 	Code        string   `json:"code"`
 	Message     string   `json:"message"`

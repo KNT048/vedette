@@ -34,7 +34,7 @@ Tên endpoint, mã lỗi, tên trường giữ tiếng Anh; văn xuôi tiếng V
 | 401 | Chưa đăng nhập / phiên hết hạn (`unauthenticated`), hoặc cần mã 2 bước (`twofa_required` ở `POST /auth/login`, kèm `method`) | |
 | 403 | Đủ phiên nhưng không đủ quyền hoặc bị cấm theo trạng thái (`forbidden`, `disabled`, `tool_not_allowed`, `token_expired`, `approver_not_listed`…) | |
 | 404 | Không có đối tượng (`not_found`, 51 endpoint) hoặc liên kết sai (`unknown`) | Không phân biệt "không tồn tại" và "không được xem" với token công khai |
-| 409 | Trạng thái hiện tại không cho phép (62 mã: `already_*`, `busy`, `expired`, `not_pending`, `ip_in_use`…) | Thao tác có thể thành công sau khi người dùng sửa trạng thái |
+| 409 | Trạng thái hiện tại không cho phép (63 mã: `already_*`, `busy`, `expired`, `not_pending`, `ip_in_use`…) | Thao tác có thể thành công sau khi người dùng sửa trạng thái |
 | 413 | Tệp/thân quá lớn (`too_large` ở `POST /feeds/parse-test`) | Mock còn trả 400 `too_large` ở 3 endpoint tải tệp: thống nhất về 413 **[ĐX]** |
 | 422 | Dịch vụ ngoài từ chối thông tin hợp lệ về hình thức (`wazuh_auth`) | Hiện đúng 1 chỗ; dùng cho "đúng dạng nhưng bên kia từ chối" |
 | 429 | Giới hạn tần suất / trần (`rate_limited`, `resend_too_soon`, `too_many_codes`, `daily_cap`) | Kèm `Retry-After` (mục 8) |
@@ -338,7 +338,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (62 mã)
+#### HTTP 409 (63 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -404,6 +404,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `not_appliance` | 409 | This install has no operating system helper (container-only install), so Vedette cannot update or back up the operating system from here. Backend [ĐX] (D-55): không có socket `vedette-host`, hoặc bản phát hành OS ngoài bảng hỗ trợ của host; chưa có trong mock. | `GET /core/updates/os`; `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup` |
 | `reboot_limit_reached` | 409 | The box has already rebooted three times in 24 hours. Wait before rebooting again. Backend [ĐX]: host `reboot_limit_reached`. | `POST /core/updates/os/reboot` |
 | `rebooting` | 409 | The box is rebooting. Wait for it to come back, then try again. Backend [ĐX]: host `rebooting`. | `GET /core/updates/os`; `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup` |
+| `pending_confirm` | 409 | A network change is waiting for confirmation. Confirm or cancel it in Settings, Box network, then try again. Backend [ĐX] (D-100): host `pending_confirm` (khoá ghi do run `awaiting_confirm` giữ) hoặc `net_pending_confirm`; id run của host không ra ngoài. | `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup` |
 
 #### HTTP 421 (1 mã)
 

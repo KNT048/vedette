@@ -1,0 +1,12 @@
+{
+  "query_status": "ok",
+  "data": [
+    {"ioc": "185.220.101.47", "type": "ip", "score": 92, "first_seen": "2026-09-12 10:22:01"},
+    {"ioc": "update-dsm-synology.com", "type": "domain", "score": 88, "first_seen": "2026-10-29 03:10:44"},
+    {"ioc": "https://cdn-telemetry-sync.net/payload.bin", "type": "url", "score": 70, "first_seen": "2026-10-02 18:05:00"},
+    {"ioc": "44d88612fea8a8f36de82e1278abb02f", "type": "md5_hash", "score": 95, "first_seen": "2026-10-21 07:00:00"},
+    {"ioc": "999.1.1.1", "type": "ip", "score": 40, "first_seen": "2026-10-25 11:00:00"},
+    {"ioc": "example.org", "type": "mailbox", "score": 30, "first_seen": "2026-10-26 11:00:00"},
+    {"ioc": "103.75.190.12", "type": "ip", "score": "high", "first_seen": "2026-10-30 12:00:00"}
+  ]
+}

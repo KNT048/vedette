@@ -1,0 +1,45 @@
+{
+  "records": [
+    {
+      "confidence": null,
+      "first_seen": null,
+      "indicator": "185.220.101.47",
+      "kind": "ip"
+    },
+    {
+      "confidence": null,
+      "first_seen": null,
+      "indicator": "45.148.10.95",
+      "kind": "ip"
+    },
+    {
+      "confidence": null,
+      "first_seen": null,
+      "indicator": "103.75.190.12",
+      "kind": "ip"
+    }
+  ],
+  "accepted": 3,
+  "rejected": 2,
+  "reasons": [
+    {
+      "reason": "indicator: \"…\" is not a valid indicator",
+      "count": 1
+    },
+    {
+      "reason": "indicator: \"…\" is a private, reserved or special-purpose address",
+      "count": 1
+    }
+  ],
+  "rejects": [
+    {
+      "row": 4,
+      "reason": "indicator: \"this\" is not a valid indicator"
+    },
+    {
+      "row": 5,
+      "reason": "indicator: \"198.51.100.23\" is a private, reserved or special-purpose address"
+    }
+  ],
+  "truncated": false
+}

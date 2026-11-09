@@ -1479,6 +1479,12 @@ func encodeCorePutCoreOidcResponse(response *CorePutCoreOidcOK, w http.ResponseW
 	return nil
 }
 
+func encodeExposureDeleteExposureBoxIPIgnoredIPResponse(response *ExposureDeleteExposureBoxIPIgnoredIPNoContent, w http.ResponseWriter) error {
+	w.WriteHeader(204)
+
+	return nil
+}
+
 func encodeExposureDeleteExposureTargetsIDResponse(response *ExposureDeleteExposureTargetsIDNoContent, w http.ResponseWriter) error {
 	w.WriteHeader(204)
 

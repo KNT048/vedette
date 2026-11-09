@@ -141,6 +141,7 @@ var Operations = map[string]Operation{
 	"core_put_core_network_ntp":                             {Method: "PUT", Path: "/core/network/ntp", MinRole: Admin, Tag: "core"},
 	"core_put_core_network_span":                            {Method: "PUT", Path: "/core/network/span", MinRole: Admin, Tag: "core"},
 	"core_put_core_oidc":                                    {Method: "PUT", Path: "/core/oidc", MinRole: Admin, Tag: "core"},
+	"exposure_delete_exposure_box_ip_ignored_ip":            {Method: "DELETE", Path: "/exposure/box-ip/ignored/{ip}", MinRole: Admin, Tag: "exposure"},
 	"exposure_delete_exposure_targets_id":                   {Method: "DELETE", Path: "/exposure/targets/{id}", MinRole: Admin, Tag: "exposure"},
 	"exposure_get_exposure_targets":                         {Method: "GET", Path: "/exposure/targets", MinRole: Viewer, Tag: "exposure"},
 	"exposure_get_exposure_targets_id":                      {Method: "GET", Path: "/exposure/targets/{id}", MinRole: Viewer, Tag: "exposure"},

@@ -726,10 +726,20 @@ type Handler interface {
 	//
 	// PUT /core/oidc
 	CorePutCoreOidc(ctx context.Context, req *CorePutCoreOidcReq) (*CorePutCoreOidcOK, error)
+	// ExposureDeleteExposureBoxIPIgnoredIP implements exposure_delete_exposure_box_ip_ignored_ip operation.
+	//
+	// Restore an IP from the Ignored list: detection may add it again the next time the box sees it. It is
+	// not added by this call and is not scannable by itself (it still needs ownership proof and the
+	// commitment). 404 when the IP is not on the list.
+	//
+	// DELETE /exposure/box-ip/ignored/{ip}
+	ExposureDeleteExposureBoxIPIgnoredIP(ctx context.Context, params ExposureDeleteExposureBoxIPIgnoredIPParams) error
 	// ExposureDeleteExposureTargetsID implements exposure_delete_exposure_targets_id operation.
 	//
 	// Delete a target with its snapshots and commitment. For a public IP this removes it from the list;
-	// with auto-detect on it comes back (as a new target) the next time the box sees it.
+	// with ignore=true it also goes on the Ignored list and is never added again or scanned (ignore is
+	// only for IPs, else 400 bad_value); without it, auto-detect brings it back (as a new target) the next
+	// time the box sees it.
 	//
 	// DELETE /exposure/targets/{id}
 	ExposureDeleteExposureTargetsID(ctx context.Context, params ExposureDeleteExposureTargetsIDParams) error
@@ -767,11 +777,12 @@ type Handler interface {
 	// ExposurePostExposureBoxIPVerify implements exposure_post_exposure_box_ip_verify operation.
 	//
 	// "Detect now": the box asks three public "what is my IP" services (checkip.amazonaws.com,
-	// icanhazip.com, api.ipify.org) over several rounds of new connections, accepts an IP only when at
+	// icanhazip.com, ifconfig.me/ip) over several rounds of new connections, accepts an IP only when at
 	// least two of the three agree in a round, and adds or renews (30 days from now) every IP that passed,
-	// so several egress IPs behind a load balancer are all found. Takes no IP input; refuses private,
-	// reserved and CGNAT results (400 not_public when none is public); 502 unreachable when no round gave
-	// an IP (no service answered, or they did not agree); rate limited to 10 attempts per hour.
+	// except those on the Ignored list, so several egress IPs behind a load balancer are all found. Takes
+	// no IP input; refuses private, reserved and CGNAT results (400 not_public when none is public); 502
+	// unreachable when no round gave an IP (no service answered, or they did not agree); rate limited to
+	// 10 attempts per hour.
 	//
 	// POST /exposure/box-ip/verify
 	ExposurePostExposureBoxIPVerify(ctx context.Context) (*ExposurePostExposureBoxIPVerifyOK, error)
@@ -791,7 +802,9 @@ type Handler interface {
 	// ExposurePostExposureTargetsIDScan implements exposure_post_exposure_targets_id_scan operation.
 	//
 	// Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked
-	// right before the scan); 400 commitment_required when the commitment is missing.
+	// right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through
+	// (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required
+	// when the commitment is missing.
 	//
 	// POST /exposure/targets/{id}/scan
 	ExposurePostExposureTargetsIDScan(ctx context.Context, params ExposurePostExposureTargetsIDScanParams) (*ExposurePostExposureTargetsIDScanOK, error)

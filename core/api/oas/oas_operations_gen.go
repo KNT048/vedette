@@ -123,6 +123,7 @@ const (
 	CorePutCoreNetworkNtpOperation                          OperationName = "CorePutCoreNetworkNtp"
 	CorePutCoreNetworkSpanOperation                         OperationName = "CorePutCoreNetworkSpan"
 	CorePutCoreOidcOperation                                OperationName = "CorePutCoreOidc"
+	ExposureDeleteExposureBoxIPIgnoredIPOperation           OperationName = "ExposureDeleteExposureBoxIPIgnoredIP"
 	ExposureDeleteExposureTargetsIDOperation                OperationName = "ExposureDeleteExposureTargetsID"
 	ExposureGetExposureTargetsOperation                     OperationName = "ExposureGetExposureTargets"
 	ExposureGetExposureTargetsIDOperation                   OperationName = "ExposureGetExposureTargetsID"

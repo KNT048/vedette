@@ -141,6 +141,7 @@ var contractRoutes = map[string][]string{
 		"PUT /core/general",
 	},
 	"exposure": {
+		"DELETE /exposure/box-ip/ignored/{ip}",
 		"DELETE /exposure/targets/{id}",
 		"GET /exposure/targets",
 		"GET /exposure/targets/{id}",

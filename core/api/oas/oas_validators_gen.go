@@ -18692,6 +18692,17 @@ func (s CorePutCoreOidcReqRoleMapItemRole) Validate() error {
 	}
 }
 
+func (s ExposureDeleteExposureTargetsIDIgnore) Validate() error {
+	switch s {
+	case "true":
+		return nil
+	case "false":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *ExposureGetExposureTargetsIDDiffOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -19780,6 +19791,17 @@ func (s *ExposureGetExposureTargetsOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "box_ip",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Ignored == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ignored",
 			Error: err,
 		})
 	}

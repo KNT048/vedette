@@ -33345,6 +33345,50 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 	s.Response = val
 }
 
+// ExposureDeleteExposureBoxIPIgnoredIPNoContent is response for ExposureDeleteExposureBoxIPIgnoredIP operation.
+type ExposureDeleteExposureBoxIPIgnoredIPNoContent struct{}
+
+type ExposureDeleteExposureTargetsIDIgnore string
+
+const (
+	ExposureDeleteExposureTargetsIDIgnoreTrue  ExposureDeleteExposureTargetsIDIgnore = "true"
+	ExposureDeleteExposureTargetsIDIgnoreFalse ExposureDeleteExposureTargetsIDIgnore = "false"
+)
+
+// AllValues returns all ExposureDeleteExposureTargetsIDIgnore values.
+func (ExposureDeleteExposureTargetsIDIgnore) AllValues() []ExposureDeleteExposureTargetsIDIgnore {
+	return []ExposureDeleteExposureTargetsIDIgnore{
+		ExposureDeleteExposureTargetsIDIgnoreTrue,
+		ExposureDeleteExposureTargetsIDIgnoreFalse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTargetsIDIgnore) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTargetsIDIgnoreTrue:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDIgnoreFalse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTargetsIDIgnore) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTargetsIDIgnore(data) {
+	case ExposureDeleteExposureTargetsIDIgnoreTrue:
+		*s = ExposureDeleteExposureTargetsIDIgnoreTrue
+		return nil
+	case ExposureDeleteExposureTargetsIDIgnoreFalse:
+		*s = ExposureDeleteExposureTargetsIDIgnoreFalse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // ExposureDeleteExposureTargetsIDNoContent is response for ExposureDeleteExposureTargetsID operation.
 type ExposureDeleteExposureTargetsIDNoContent struct{}
 
@@ -34751,13 +34795,20 @@ func (s *ExposureGetExposureTargetsIDSnapshotsOKItemsItemCounts) SetSubdomains(v
 }
 
 type ExposureGetExposureTargetsOK struct {
-	BoxIP ExposureGetExposureTargetsOKBoxIP       `json:"box_ip"`
-	Items []ExposureGetExposureTargetsOKItemsItem `json:"items"`
+	BoxIP ExposureGetExposureTargetsOKBoxIP `json:"box_ip"`
+	// The Ignored list, newest first.
+	Ignored []ExposureGetExposureTargetsOKIgnoredItem `json:"ignored"`
+	Items   []ExposureGetExposureTargetsOKItemsItem   `json:"items"`
 }
 
 // GetBoxIP returns the value of BoxIP.
 func (s *ExposureGetExposureTargetsOK) GetBoxIP() ExposureGetExposureTargetsOKBoxIP {
 	return s.BoxIP
+}
+
+// GetIgnored returns the value of Ignored.
+func (s *ExposureGetExposureTargetsOK) GetIgnored() []ExposureGetExposureTargetsOKIgnoredItem {
+	return s.Ignored
 }
 
 // GetItems returns the value of Items.
@@ -34768,6 +34819,11 @@ func (s *ExposureGetExposureTargetsOK) GetItems() []ExposureGetExposureTargetsOK
 // SetBoxIP sets the value of BoxIP.
 func (s *ExposureGetExposureTargetsOK) SetBoxIP(val ExposureGetExposureTargetsOKBoxIP) {
 	s.BoxIP = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *ExposureGetExposureTargetsOK) SetIgnored(val []ExposureGetExposureTargetsOKIgnoredItem) {
+	s.Ignored = val
 }
 
 // SetItems sets the value of Items.
@@ -34850,6 +34906,43 @@ func (s *ExposureGetExposureTargetsOKBoxIPLastRun) SetMessage(val string) {
 // SetOk sets the value of Ok.
 func (s *ExposureGetExposureTargetsOKBoxIPLastRun) SetOk(val bool) {
 	s.Ok = val
+}
+
+type ExposureGetExposureTargetsOKIgnoredItem struct {
+	IgnoredAt time.Time `json:"ignored_at"`
+	IgnoredBy string    `json:"ignored_by"`
+	// A public IPv4 address.
+	Value string `json:"value"`
+}
+
+// GetIgnoredAt returns the value of IgnoredAt.
+func (s *ExposureGetExposureTargetsOKIgnoredItem) GetIgnoredAt() time.Time {
+	return s.IgnoredAt
+}
+
+// GetIgnoredBy returns the value of IgnoredBy.
+func (s *ExposureGetExposureTargetsOKIgnoredItem) GetIgnoredBy() string {
+	return s.IgnoredBy
+}
+
+// GetValue returns the value of Value.
+func (s *ExposureGetExposureTargetsOKIgnoredItem) GetValue() string {
+	return s.Value
+}
+
+// SetIgnoredAt sets the value of IgnoredAt.
+func (s *ExposureGetExposureTargetsOKIgnoredItem) SetIgnoredAt(val time.Time) {
+	s.IgnoredAt = val
+}
+
+// SetIgnoredBy sets the value of IgnoredBy.
+func (s *ExposureGetExposureTargetsOKIgnoredItem) SetIgnoredBy(val string) {
+	s.IgnoredBy = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposureGetExposureTargetsOKIgnoredItem) SetValue(val string) {
+	s.Value = val
 }
 
 type ExposureGetExposureTargetsOKItemsItem struct {
@@ -82673,6 +82766,52 @@ func (o OptDateTime) Get() (v time.Time, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptDateTime) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposureDeleteExposureTargetsIDIgnore returns new OptExposureDeleteExposureTargetsIDIgnore with value set to v.
+func NewOptExposureDeleteExposureTargetsIDIgnore(v ExposureDeleteExposureTargetsIDIgnore) OptExposureDeleteExposureTargetsIDIgnore {
+	return OptExposureDeleteExposureTargetsIDIgnore{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposureDeleteExposureTargetsIDIgnore is optional ExposureDeleteExposureTargetsIDIgnore.
+type OptExposureDeleteExposureTargetsIDIgnore struct {
+	Value ExposureDeleteExposureTargetsIDIgnore
+	Set   bool
+}
+
+// IsSet returns true if OptExposureDeleteExposureTargetsIDIgnore was set.
+func (o OptExposureDeleteExposureTargetsIDIgnore) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposureDeleteExposureTargetsIDIgnore) Reset() {
+	var v ExposureDeleteExposureTargetsIDIgnore
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposureDeleteExposureTargetsIDIgnore) SetTo(v ExposureDeleteExposureTargetsIDIgnore) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposureDeleteExposureTargetsIDIgnore) Get() (v ExposureDeleteExposureTargetsIDIgnore, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposureDeleteExposureTargetsIDIgnore) Or(d ExposureDeleteExposureTargetsIDIgnore) ExposureDeleteExposureTargetsIDIgnore {
 	if v, ok := o.Get(); ok {
 		return v
 	}

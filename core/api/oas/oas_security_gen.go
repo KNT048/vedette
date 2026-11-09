@@ -143,6 +143,7 @@ var operationRolesSession = map[string][]string{
 	CorePutCoreNetworkNtpOperation:                          []string{},
 	CorePutCoreNetworkSpanOperation:                         []string{},
 	CorePutCoreOidcOperation:                                []string{},
+	ExposureDeleteExposureBoxIPIgnoredIPOperation:           []string{},
 	ExposureDeleteExposureTargetsIDOperation:                []string{},
 	ExposureGetExposureTargetsOperation:                     []string{},
 	ExposureGetExposureTargetsIDOperation:                   []string{},

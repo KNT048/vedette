@@ -6,9 +6,8 @@ import (
 	"testing"
 	"time"
 )
-
-// Contract tests for modules/findings/CONTRACT.md. INV-7 (cascade on asset
-// delete), INV-8 (KevInfo from feeds), the UQ constraint, endpoints, events
+// Contract tests for modules/findings/CONTRACT.md. The pure-library ones are here; the ones that need
+// the database, the service, the endpoints and the events are in service_test.go and handlers_test.go.
 // and audit need the service layer (WP-21).
 
 func TestContract_INV1_UniquePair(t *testing.T) {

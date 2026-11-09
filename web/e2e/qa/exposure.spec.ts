@@ -183,6 +183,11 @@ test('clean install, two public IPs behind a load balancer: auto-detect finds bo
 test('clean install: Detect now refuses private and CGNAT results; a public IP gets its page, is confirmed and scanned', async ({ page, isMobile }) => {
   test.setTimeout(120_000)
   const errors = collectErrors(page)
+  // "The box cannot reach the public IP services" is answered 502 unreachable (API_CONVENTIONS section 3, 502). The browser logs every 502 as a
+  // console error, and collectErrors keeps 5xx on purpose. So this one request is expected: count its 502s, take exactly that many console
+  // entries out at the end, and leave every other error (including a surprise 502 elsewhere) fatal.
+  let detect502 = 0
+  page.on('response', (r) => { if (r.status() === 502 && r.request().method() === 'POST' && r.url().endsWith('/api/v1/exposure/box-ip/verify')) detect502++ })
   await finishClean(page)
   await page.goto('/exposure')
   const box = page.locator('#box-ip')
@@ -220,7 +225,10 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/198\.51\.100\.7: \d+ open port\(s\)/)
   await expect(page.getByRole('heading', { name: 'Subdomains' })).toHaveCount(0)
   await expectAccessible(page, 'ip target results')
-  expect(errors).toEqual([])
+  expect(detect502, 'the offline Detect now answered 502 once').toBe(1)
+  const is502 = (m: string) => /status of 502/.test(m)
+  expect(errors.filter(is502), 'one console entry per expected 502').toHaveLength(detect502)
+  expect(errors.filter((m) => !is502(m))).toEqual([])
 })
 
 test('sample: expired IP, expiring IP, missing TXT record and unverified domain cannot be scanned (button and API); the two live IPs are valid', async ({ page, isMobile }) => {
@@ -279,9 +287,10 @@ test('sample: expired IP, expiring IP, missing TXT record and unverified domain 
 })
 
 test('viewer: results are visible, every action is locked with a visible reason', async ({ page, isMobile }) => {
-  test.skip(isMobile, 'account menu is covered in app.spec')
   await sampleStart(page)
-  await page.getByRole('button', { name: 'Account' }).first().click()
+  // On a phone the account menu sits behind "Open menu" (qa/shell.spec.ts); the locks must hold there too.
+  if (isMobile) await page.getByRole('button', { name: 'Open menu' }).click()
+  await page.getByRole('button', { name: /Account/ }).first().click()
   await page.getByRole('menuitem', { name: 'Sign out' }).click()
   await page.getByLabel('Email').fill('director@acme.example')
   await page.getByLabel('Password').fill('vedette-demo')

@@ -33,6 +33,8 @@ export function BoxIpPanel({ items, settings }: { items: Target[]; settings: Box
   const options = PRESETS.includes(settings.interval_min) ? PRESETS : [...PRESETS, settings.interval_min].sort((a, b) => a - b)
   const locked = !can ? t('common:needRole', { role: t('common:role.admin') }) : undefined
   const run = settings.last_run
+  // The dialog state lives here, not in a table cell: `columns` is rebuilt on every render, which remounts the cells and would close an open dialog on any refetch.
+  const [removing, setRemoving] = useState<Target | null>(null)
 
   const setAuto = (auto: boolean) =>
     save.mutate({ auto, interval_min: settings.interval_min }, { onSuccess: () => toast.success(auto ? t('boxIp.toastOn') : t('boxIp.toastOff')), onError: (e) => toast.error(errMsg(e)) })
@@ -46,7 +48,7 @@ export function BoxIpPanel({ items, settings }: { items: Target[]; settings: Box
     { id: 'seen', header: t('boxIp.col.seen'), accessorFn: (r) => r.verified_at ?? '', cell: ({ row }) => <span title={fmtDateTime(row.original.verified_at)}>{fmtRelative(row.original.verified_at)}</span> },
     { id: 'expires', header: t('boxIp.col.expires'), accessorFn: (r) => r.expires_at ?? '', cell: ({ row }) => <span>{fmtDate(row.original.expires_at)}</span> },
     { id: 'scan', header: t('boxIp.col.scan'), enableSorting: false, cell: ({ row }) => (row.original.blocked_reason ? <span className="text-[13px] text-warn">{t(`blocked.${row.original.blocked_reason}`)}</span> : <span className="text-[13px]">{t('targets.ready')}</span>) },
-    { id: 'remove', header: t('boxIp.col.remove'), enableSorting: false, cell: ({ row }) => <RemoveIp target={row.original} /> },
+    { id: 'remove', header: t('boxIp.col.remove'), enableSorting: false, cell: ({ row }) => <RemoveButton target={row.original} onRemove={setRemoving} /> },
   ]
 
   return (
@@ -93,7 +95,7 @@ export function BoxIpPanel({ items, settings }: { items: Target[]; settings: Box
             <div className="grid gap-1.5">
               <div className="flex items-center justify-between gap-2">
                 <Link className="break-all font-medium text-accent underline-offset-4 hover:underline" to={`/exposure/${r.id}`}>{r.value}</Link>
-                <RemoveIp target={r} />
+                <RemoveButton target={r} onRemove={setRemoving} />
               </div>
               <div className="flex flex-wrap items-center gap-2"><OwnerChip target={r} /></div>
               <p className="text-[13px] text-muted">{t('boxIp.col.seen')}: {fmtRelative(r.verified_at)}. {t('boxIp.col.expires')}: {fmtDate(r.expires_at)}.</p>
@@ -103,27 +105,31 @@ export function BoxIpPanel({ items, settings }: { items: Target[]; settings: Box
           empty={<EmptyState title={t('boxIp.empty.title')}>{settings.auto ? t('boxIp.empty.on', { every: every(settings.interval_min) }) : t('boxIp.empty.off')}</EmptyState>} />
         <p className="max-w-3xl text-[13px] text-muted">{t('boxIp.comeBack')}</p>
       </div>
+      <RemoveDialog target={removing} onClose={() => setRemoving(null)} />
     </Section>
   )
 }
 
-function RemoveIp({ target }: { target: Target }) {
+function RemoveButton({ target, onRemove }: { target: Target; onRemove: (t: Target) => void }) {
   const { t } = useTranslation('exposure')
   const can = useCan('admin')
+  return <Button onClick={() => onRemove(target)} disabled={!can} aria-label={t('boxIp.removeLabel', { value: target.value })} title={can ? undefined : t('common:needRole', { role: t('common:role.admin') })}><Trash2 />{t('boxIp.col.remove')}</Button>
+}
+
+function RemoveDialog({ target, onClose }: { target: Target | null; onClose: () => void }) {
+  const { t } = useTranslation('exposure')
   const del = useDeleteTarget()
-  const [open, setOpen] = useState(false)
   return (
-    <>
-      <Button onClick={() => setOpen(true)} disabled={!can} aria-label={t('boxIp.removeLabel', { value: target.value })} title={can ? undefined : t('common:needRole', { role: t('common:role.admin') })}><Trash2 />{t('boxIp.col.remove')}</Button>
-      <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={target !== null} onOpenChange={(o) => { if (!o) onClose() }}>
+      {target ? (
         <DialogContent title={t('boxIp.remove.title', { value: target.value })} description={t('boxIp.remove.body')}>
           <p className="text-sm">{t('boxIp.comeBack')}</p>
           <DialogFooter>
-            <Button onClick={() => setOpen(false)}>{t('common:cancel')}</Button>
-            <Button variant="danger" disabled={del.isPending} onClick={() => { del.mutateAsync(target.id).then(() => { toast.success(t('boxIp.remove.toast', { value: target.value })); setOpen(false) }, (e: unknown) => toast.error(errMsg(e))) }}>{t('boxIp.remove.confirm')}</Button>
+            <Button onClick={onClose}>{t('common:cancel')}</Button>
+            <Button variant="danger" disabled={del.isPending} onClick={() => { del.mutateAsync(target.id).then(() => { toast.success(t('boxIp.remove.toast', { value: target.value })); onClose() }, (e: unknown) => toast.error(errMsg(e))) }}>{t('boxIp.remove.confirm')}</Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
-    </>
+      ) : null}
+    </Dialog>
   )
 }

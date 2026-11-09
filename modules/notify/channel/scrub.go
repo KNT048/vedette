@@ -1,51 +1,25 @@
 package channel
 
 import (
-	"fmt"
-	"log/slog"
 	"net/url"
 	"strings"
+
+	"github.com/kiennt048/vedette/core/secrets"
 )
 
 const redacted = "[redacted]"
 
-// Secret holds a channel credential (bot token, SMTP password, webhook URL,
-// signing key, OA access token). It never prints its value: String, Format,
-// GoString, slog and JSON all yield "[redacted]". Reveal is the only way out and
-// is meant for the single place that builds the outgoing request.
-type Secret struct{ v string }
-
-// NewSecret wraps a credential.
-func NewSecret(v string) Secret { return Secret{v: v} }
-
-// Reveal returns the plain value.
-func (s Secret) Reveal() string { return s.v }
-
-// IsZero reports whether no value is set.
-func (s Secret) IsZero() bool { return s.v == "" }
-
-// String returns the placeholder.
-func (s Secret) String() string { return redacted }
-
-// GoString returns the placeholder.
-func (s Secret) GoString() string { return redacted }
-
-// Format makes every fmt verb (%v %+v %#v %s %q %x) print the placeholder.
-func (s Secret) Format(f fmt.State, _ rune) { _, _ = f.Write([]byte(redacted)) }
-
-// LogValue implements slog.LogValuer.
-func (s Secret) LogValue() slog.Value { return slog.StringValue(redacted) }
-
-// MarshalText keeps JSON and other text encoders from leaking the value.
-func (s Secret) MarshalText() ([]byte, error) { return []byte(redacted), nil }
+// isSet reports whether v holds a value (core/secrets.Value has no IsSet).
+func isSet(v secrets.Value) bool { return v.Reveal() != "" }
 
 // scrub removes every secret value from s. It is the last line of defence for
 // error text; values shorter than 4 bytes are ignored (they would mangle text).
-// For a URL-shaped secret (Slack webhook) the path and each path segment are
-// removed too, because a server may echo only the path.
-func scrub(s string, secrets ...Secret) string {
-	for _, sec := range secrets {
-		for _, v := range pieces(sec.v) {
+// For a URL-shaped secret (Slack or webhook URL) the path, the query and each
+// path segment and query value are removed too, because a server may echo only
+// part of the URL.
+func scrub(s string, hide ...secrets.Value) string {
+	for _, sec := range hide {
+		for _, v := range pieces(sec.Reveal()) {
 			s = strings.ReplaceAll(s, v, redacted)
 		}
 	}

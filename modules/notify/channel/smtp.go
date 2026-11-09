@@ -16,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kiennt048/vedette/core/secrets"
 )
 
 // SMTP security modes, spelled as in contract.ts.
@@ -32,7 +34,7 @@ type EmailConfig struct {
 	Port     int            // 587 goes with starttls, 465 with ssl
 	Security string         // starttls | ssl | none
 	Username string         // required unless Security is none
-	Password Secret         // required unless Security is none
+	Password secrets.Value  // required unless Security is none
 	From     string         // sender address
 	To       []string       // recipients, at least one; see ParseRecipients
 	RootCAs  *x509.CertPool // nil = system roots; tests add their own CA
@@ -104,7 +106,7 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 		if !validHeaderText(cfg.Username) {
 			return nil, cfgErr("bad_username", "Enter the SMTP username (usually the email address).")
 		}
-		if cfg.Password.IsZero() {
+		if !isSet(cfg.Password) {
 			return nil, cfgErr("secret_required", "Enter the SMTP password. This channel has no saved key yet.")
 		}
 	}
@@ -238,7 +240,7 @@ func buildMIME(from string, to []string, m Message, link string, now time.Time) 
 func (e *emailSender) deliver(ctx context.Context, raw []byte) error {
 	ctx, cancel := context.WithTimeout(ctx, emailTimeout)
 	defer cancel()
-	sec := []Secret{e.cfg.Password}
+	sec := []secrets.Value{e.cfg.Password}
 	fail := func(stage string, err error) error {
 		var te *textproto.Error
 		if errors.As(err, &te) {

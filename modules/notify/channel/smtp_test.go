@@ -11,11 +11,13 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/kiennt048/vedette/core/secrets"
 )
 
 func emailCfg(f *fakeSMTP, security string) EmailConfig {
 	return EmailConfig{
-		Host: "127.0.0.1", Port: f.port(), Security: security, Username: f.user, Password: NewSecret(f.pass),
+		Host: "127.0.0.1", Port: f.port(), Security: security, Username: f.user, Password: secrets.NewValue(f.pass),
 		From: "alerts@acme.example", To: []string{"it@acme.example", "director@acme.example"}, RootCAs: f.roots,
 		Now: func() time.Time { return time.Date(2026, 11, 9, 10, 0, 0, 0, time.UTC) },
 	}
@@ -23,7 +25,7 @@ func emailCfg(f *fakeSMTP, security string) EmailConfig {
 
 func TestContract_INV8_SMTPConfig(t *testing.T) {
 	t.Parallel()
-	ok := EmailConfig{Host: "smtp.acme.example", Port: 587, Security: SecurityStartTLS, Username: "alerts@acme.example", Password: NewSecret("pw-1234"), From: "alerts@acme.example", To: []string{"it@acme.example"}}
+	ok := EmailConfig{Host: "smtp.acme.example", Port: 587, Security: SecurityStartTLS, Username: "alerts@acme.example", Password: secrets.NewValue("pw-1234"), From: "alerts@acme.example", To: []string{"it@acme.example"}}
 	if _, err := NewEmail(ok); err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +46,7 @@ func TestContract_INV8_SMTPConfig(t *testing.T) {
 		"none external":  {func(c *EmailConfig) { c.Security, c.Port = SecurityNone, 25 }, "insecure_smtp"},
 		"no username":    {func(c *EmailConfig) { c.Username = "" }, "bad_username"},
 		"username lf":    {func(c *EmailConfig) { c.Username = "a\nb" }, "bad_username"},
-		"no password":    {func(c *EmailConfig) { c.Password = Secret{} }, "secret_required"},
+		"no password":    {func(c *EmailConfig) { c.Password = secrets.Value{} }, "secret_required"},
 		"bad from":       {func(c *EmailConfig) { c.From = "Name <a@acme.example>" }, "bad_from"},
 		"from injection": {func(c *EmailConfig) { c.From = "a@acme.example\r\nBcc: x@y.zz" }, "bad_from"},
 		"no recipients":  {func(c *EmailConfig) { c.To = nil }, "bad_to"},
@@ -61,9 +63,9 @@ func TestContract_INV8_SMTPConfig(t *testing.T) {
 		mustNot(t, errString(err), "pw-1234")
 	}
 	for _, c := range []EmailConfig{
-		{Host: "smtp.acme.example", Port: 465, Security: SecuritySSL, Username: "u", Password: NewSecret("p"), From: "a@acme.example", To: []string{"b@acme.example"}},
+		{Host: "smtp.acme.example", Port: 465, Security: SecuritySSL, Username: "u", Password: secrets.NewValue("p"), From: "a@acme.example", To: []string{"b@acme.example"}},
 		{Host: "mail.lan", Port: 25, Security: SecurityNone, From: "a@acme.example", To: []string{"b@acme.example"}}, // internal relay, no auth
-		{Host: "192.168.1.5", Port: 2525, Security: SecurityStartTLS, Username: "u", Password: NewSecret("p"), From: "a@acme.example", To: []string{"b@acme.example"}},
+		{Host: "192.168.1.5", Port: 2525, Security: SecurityStartTLS, Username: "u", Password: secrets.NewValue("p"), From: "a@acme.example", To: []string{"b@acme.example"}},
 	} {
 		if _, err := NewEmail(c); err != nil {
 			t.Errorf("%s:%d %s rejected: %v", c.Host, c.Port, c.Security, err)
@@ -215,7 +217,7 @@ func TestContract_FORBID2_SMTPBadLoginErrorHasNoPassword(t *testing.T) {
 	t.Parallel()
 	f := startFakeSMTP(t, &fakeSMTP{implicit: true})
 	cfg := emailCfg(f, SecuritySSL)
-	cfg.Password = NewSecret("wrong-Password-1")
+	cfg.Password = secrets.NewValue("wrong-Password-1")
 	s, _ := NewEmail(cfg)
 	_, err := s.Send(context.Background(), sample)
 	var se *StatusError

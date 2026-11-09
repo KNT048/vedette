@@ -18,15 +18,17 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/kiennt048/vedette/core/secrets"
 )
 
 // WebhookConfig configures the generic webhook channel.
 type WebhookConfig struct {
 	// URL is a secret: its path or query often carries a token. https; http only for internal hosts.
-	URL        Secret
-	SigningKey Secret       // at least 16 bytes; signs every request
-	BoxAddrs   []netip.Addr // this box's own addresses: never a valid target
-	Client     *http.Client // nil = a client whose dialer refuses forbidden addresses (see dialControl)
+	URL        secrets.Value
+	SigningKey secrets.Value // at least 16 bytes; signs every request
+	BoxAddrs   []netip.Addr  // this box's own addresses: never a valid target
+	Client     *http.Client  // nil = a client whose dialer refuses forbidden addresses (see dialControl)
 	Now        func() time.Time
 }
 
@@ -42,9 +44,9 @@ const (
 
 type webhookSender struct {
 	noPrint
-	url    Secret
+	url    secrets.Value
 	to     string // scheme://host only
-	key    Secret
+	key    secrets.Value
 	client *http.Client
 	now    func() time.Time
 }
@@ -145,7 +147,7 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 			return nil, blocked
 		}
 	}
-	if cfg.SigningKey.IsZero() {
+	if !isSet(cfg.SigningKey) {
 		return nil, cfgErr("secret_required", "Enter the webhook signing key.")
 	}
 	if len(cfg.SigningKey.Reveal()) < minSigningKey {
@@ -159,7 +161,7 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 	if client == nil {
 		client = webhookClient(!https, cfg.BoxAddrs)
 	}
-	return &webhookSender{url: NewSecret(u.String()), to: u.Scheme + "://" + u.Host, key: cfg.SigningKey, client: clientOrDefault(client), now: now}, nil
+	return &webhookSender{url: secrets.NewValue(u.String()), to: u.Scheme + "://" + u.Host, key: cfg.SigningKey, client: clientOrDefault(client), now: now}, nil
 }
 
 func (*webhookSender) Type() Type { return Webhook }
@@ -177,7 +179,7 @@ type webhookPayload struct {
 }
 
 // sign returns the signature header value for body at timestamp ts.
-func sign(key Secret, ts string, body []byte) string {
+func sign(key secrets.Value, ts string, body []byte) string {
 	mac := hmac.New(sha256.New, []byte(key.Reveal()))
 	mac.Write([]byte(ts))
 	mac.Write([]byte("."))
@@ -195,22 +197,22 @@ func (w *webhookSender) Send(ctx context.Context, m Message) (Receipt, error) {
 	if err != nil {
 		return Receipt{}, fmt.Errorf("notify: webhook: encode message: %w", err)
 	}
-	secrets := []Secret{w.url, w.key}
+	hide := []secrets.Value{w.url, w.key}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, w.url.Reveal(), bytes.NewReader(body))
 	if err != nil {
-		return Receipt{}, fmt.Errorf("notify: webhook: build request: %s", transportReason(err, secrets))
+		return Receipt{}, fmt.Errorf("notify: webhook: build request: %s", transportReason(err, hide))
 	}
 	ts := strconv.FormatInt(w.now().Unix(), 10)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "Vedette-notify")
 	req.Header.Set(WebhookTimestampHeader, ts)
 	req.Header.Set(WebhookSignatureHeader, sign(w.key, ts, body))
-	code, ans, err := do(w.client, Webhook, req, secrets...)
+	code, ans, err := do(w.client, Webhook, req, hide...)
 	if err != nil {
 		return Receipt{}, err
 	}
 	if code < 200 || code > 299 {
-		return Receipt{}, statusErr(Webhook, code, ans, secrets...)
+		return Receipt{}, statusErr(Webhook, code, ans, hide...)
 	}
 	return Receipt{To: w.to, Detail: fmt.Sprintf("The webhook returned HTTP %d.", code)}, nil
 }

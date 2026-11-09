@@ -8,14 +8,16 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+
+	"github.com/kiennt048/vedette/core/secrets"
 )
 
 // ZaloConfig configures an official Zalo OA channel (customer-service message to a follower).
 type ZaloConfig struct {
-	OAID   string       // Official Account ID, 6 to 20 digits
-	UserID string       // recipient: the Zalo user_id of a person who followed or messaged the OA
-	Token  Secret       // OA access token from Zalo Developers
-	Client *http.Client // nil = NewHTTPClient()
+	OAID   string        // Official Account ID, 6 to 20 digits
+	UserID string        // recipient: the Zalo user_id of a person who followed or messaged the OA
+	Token  secrets.Value // OA access token from Zalo Developers
+	Client *http.Client  // nil = NewHTTPClient()
 }
 
 var (
@@ -33,7 +35,7 @@ const (
 type zaloSender struct {
 	noPrint
 	oa, user string
-	token    Secret
+	token    secrets.Value
 	endpoint string
 	client   *http.Client
 }
@@ -59,7 +61,7 @@ func NewZalo(cfg ZaloConfig) (Sender, error) {
 			return nil, cfgErr("bad_token", "The Zalo access token has a character that is not allowed. Copy it again without spaces.")
 		}
 	}
-	return &zaloSender{oa: oa, user: user, token: NewSecret(tok), endpoint: zaloAPI + zaloSendPath, client: clientOrDefault(cfg.Client)}, nil
+	return &zaloSender{oa: oa, user: user, token: secrets.NewValue(tok), endpoint: zaloAPI + zaloSendPath, client: clientOrDefault(cfg.Client)}, nil
 }
 
 func (*zaloSender) Type() Type { return Zalo }
@@ -78,7 +80,7 @@ func (z *zaloSender) Send(ctx context.Context, m Message) (Receipt, error) {
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, z.endpoint, bytes.NewReader(body))
 	if err != nil {
-		return Receipt{}, fmt.Errorf("notify: zalo: build request: %s", transportReason(err, []Secret{z.token}))
+		return Receipt{}, fmt.Errorf("notify: zalo: build request: %s", transportReason(err, []secrets.Value{z.token}))
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("access_token", z.token.Reveal())

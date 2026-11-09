@@ -9,13 +9,15 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/kiennt048/vedette/core/secrets"
 )
 
 // TelegramConfig configures a Telegram bot channel.
 type TelegramConfig struct {
-	Token  Secret       // bot token from @BotFather: 123456789:AAH…
-	ChatID string       // number (groups look like -1001234567890) or a public @channel_name
-	Client *http.Client // nil = NewHTTPClient()
+	Token  secrets.Value // bot token from @BotFather: 123456789:AAH…
+	ChatID string        // number (groups look like -1001234567890) or a public @channel_name
+	Client *http.Client  // nil = NewHTTPClient()
 }
 
 var (
@@ -30,7 +32,7 @@ const (
 
 type telegramSender struct {
 	noPrint
-	token  Secret
+	token  secrets.Value
 	chat   string
 	base   string // official API; tests replace it inside the package (never configurable: it would ship the token anywhere)
 	client *http.Client
@@ -49,7 +51,7 @@ func NewTelegram(cfg TelegramConfig) (Sender, error) {
 	if !telegramChatRE.MatchString(chat) {
 		return nil, cfgErr("bad_chat_id", "Chat ID is a number (groups look like -1001234567890) or a public @channel_name.")
 	}
-	return &telegramSender{token: NewSecret(tok), chat: chat, base: telegramAPI, client: clientOrDefault(cfg.Client)}, nil
+	return &telegramSender{token: secrets.NewValue(tok), chat: chat, base: telegramAPI, client: clientOrDefault(cfg.Client)}, nil
 }
 
 func (*telegramSender) Type() Type { return Telegram }
@@ -89,7 +91,7 @@ func (t *telegramSender) Send(ctx context.Context, m Message) (Receipt, error) {
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, t.base+"/bot"+t.token.Reveal()+"/sendMessage", bytes.NewReader(body))
 	if err != nil {
-		return Receipt{}, fmt.Errorf("notify: telegram: build request: %s", transportReason(err, []Secret{t.token}))
+		return Receipt{}, fmt.Errorf("notify: telegram: build request: %s", transportReason(err, []secrets.Value{t.token}))
 	}
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	code, ans, err := do(t.client, Telegram, req, t.token)

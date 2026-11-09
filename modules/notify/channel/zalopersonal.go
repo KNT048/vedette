@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/kiennt048/vedette/core/secrets"
 )
 
 // ZaloPersonalConfig is the stored configuration of the unofficial Zalo personal
@@ -12,7 +14,7 @@ import (
 // scanning the QR code, which is the secret.
 type ZaloPersonalConfig struct {
 	UserID  string
-	Session Secret
+	Session secrets.Value
 }
 
 var zaloPersonalUserRE = regexp.MustCompile(`^\d{6,25}$`)
@@ -31,7 +33,7 @@ func NewZaloPersonal(cfg ZaloPersonalConfig) (Sender, error) {
 	if !zaloPersonalUserRE.MatchString(user) {
 		return nil, cfgErr("bad_user_id", "The recipient is the numeric Zalo ID of a user or a group (6 to 25 digits).")
 	}
-	if cfg.Session.IsZero() {
+	if !isSet(cfg.Session) {
 		return nil, cfgErr("secret_required", "Scan the QR code with the Zalo app first. This channel has no saved session yet.")
 	}
 	return &zaloPersonalSender{user: user}, nil

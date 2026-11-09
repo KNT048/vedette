@@ -10,13 +10,15 @@ import (
 	"strings"
 	"testing"
 	"unicode/utf8"
+
+	"github.com/kiennt048/vedette/core/secrets"
 )
 
 const zaloToken = "zalo-access-token-0123456789abcdef" //nolint:gosec // fake token for tests
 
 func TestZaloConfig(t *testing.T) {
 	t.Parallel()
-	ok := ZaloConfig{OAID: "1234567890", UserID: "987654321", Token: NewSecret(zaloToken)}
+	ok := ZaloConfig{OAID: "1234567890", UserID: "987654321", Token: secrets.NewValue(zaloToken)}
 	if _, err := NewZalo(ok); err != nil {
 		t.Fatal(err)
 	}
@@ -28,10 +30,10 @@ func TestZaloConfig(t *testing.T) {
 		"oa short":     {func(c *ZaloConfig) { c.OAID = "12345" }, "bad_oa_id"},
 		"user letters": {func(c *ZaloConfig) { c.UserID = "12345x" }, "bad_user_id"},
 		"user long":    {func(c *ZaloConfig) { c.UserID = strings.Repeat("1", 26) }, "bad_user_id"},
-		"no token":     {func(c *ZaloConfig) { c.Token = Secret{} }, "secret_required"},
-		"short token":  {func(c *ZaloConfig) { c.Token = NewSecret("short") }, "bad_token"},
-		"token space":  {func(c *ZaloConfig) { c.Token = NewSecret(zaloToken + " x") }, "bad_token"},
-		"token lf":     {func(c *ZaloConfig) { c.Token = NewSecret(zaloToken + "\nX-A: b") }, "bad_token"},
+		"no token":     {func(c *ZaloConfig) { c.Token = secrets.Value{} }, "secret_required"},
+		"short token":  {func(c *ZaloConfig) { c.Token = secrets.NewValue("short") }, "bad_token"},
+		"token space":  {func(c *ZaloConfig) { c.Token = secrets.NewValue(zaloToken + " x") }, "bad_token"},
+		"token lf":     {func(c *ZaloConfig) { c.Token = secrets.NewValue(zaloToken + "\nX-A: b") }, "bad_token"},
 	} {
 		cfg := ok
 		c.mod(&cfg)
@@ -63,7 +65,7 @@ func TestZaloSend(t *testing.T) {
 		_, _ = io.WriteString(w, `{"error":0,"message":"Success","data":{"message_id":"m1"}}`)
 	}))
 	t.Cleanup(srv.Close)
-	s, err := newZaloAt(srv.URL+"/", ZaloConfig{OAID: "1234567890", UserID: "987654321", Token: NewSecret(zaloToken), Client: srv.Client()})
+	s, err := newZaloAt(srv.URL+"/", ZaloConfig{OAID: "1234567890", UserID: "987654321", Token: secrets.NewValue(zaloToken), Client: srv.Client()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +91,7 @@ func TestContract_FORBID2_ZaloErrorsNeverContainToken(t *testing.T) {
 		_, _ = io.WriteString(w, answer)
 	}))
 	t.Cleanup(srv.Close)
-	s, _ := newZaloAt(srv.URL, ZaloConfig{OAID: "1234567890", UserID: "987654321", Token: NewSecret(zaloToken), Client: srv.Client()})
+	s, _ := newZaloAt(srv.URL, ZaloConfig{OAID: "1234567890", UserID: "987654321", Token: secrets.NewValue(zaloToken), Client: srv.Client()})
 	for name, c := range map[string]struct {
 		status   int
 		body     string
@@ -126,15 +128,15 @@ func TestContract_FORBID2_ZaloErrorsNeverContainToken(t *testing.T) {
 func TestContract_D46_ZaloPersonalValidatesButDoesNotSend(t *testing.T) {
 	t.Parallel()
 	for name, cfg := range map[string]ZaloPersonalConfig{
-		"no user":    {UserID: "", Session: NewSecret("sess")},
-		"letters":    {UserID: "abc", Session: NewSecret("sess")},
+		"no user":    {UserID: "", Session: secrets.NewValue("sess")},
+		"letters":    {UserID: "abc", Session: secrets.NewValue("sess")},
 		"no session": {UserID: "123456789"},
 	} {
 		if _, err := NewZaloPersonal(cfg); !errors.Is(err, ErrInvalidConfig) {
 			t.Errorf("%s: err = %v", name, err)
 		}
 	}
-	s, err := NewZaloPersonal(ZaloPersonalConfig{UserID: "123456789", Session: NewSecret("zl-session-secret-value")})
+	s, err := NewZaloPersonal(ZaloPersonalConfig{UserID: "123456789", Session: secrets.NewValue("zl-session-secret-value")})
 	if err != nil {
 		t.Fatal(err)
 	}

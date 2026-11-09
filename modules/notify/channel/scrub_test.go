@@ -6,25 +6,27 @@ import (
 	"fmt"
 	"log/slog"
 	"testing"
+
+	"github.com/kiennt048/vedette/core/secrets"
 )
 
-func TestContract_INV1_SecretNeverPrints(t *testing.T) {
+func TestContract_INV1_ChannelSecretsNeverPrint(t *testing.T) {
 	t.Parallel()
 	const v = "super-secret-value-123"
 	type holder struct {
-		Token Secret
+		Token secrets.Value
 		Name  string
 	}
-	h := holder{Token: NewSecret(v), Name: "x"}
+	h := holder{Token: secrets.NewValue(v), Name: "x"}
 	for _, got := range []string{
 		fmt.Sprint(h.Token), fmt.Sprintf("%v %+v %#v %s %q %x %d", h.Token, h.Token, h.Token, h.Token, h.Token, h.Token, h.Token),
-		fmt.Sprintf("%v %+v %#v", h, h, h), fmt.Sprintf("%v", &h), fmt.Sprintf("%v", []Secret{h.Token}),
-		fmt.Sprintf("%v", map[string]Secret{"k": h.Token}),
+		fmt.Sprintf("%v %+v %#v", h, h, h), fmt.Sprintf("%v", &h), fmt.Sprintf("%v", []secrets.Value{h.Token}),
+		fmt.Sprintf("%v", map[string]secrets.Value{"k": h.Token}),
 	} {
 		mustNot(t, got, v, "secret-value")
 	}
-	if h.Token.Reveal() != v || h.Token.IsZero() || !NewSecret("").IsZero() {
-		t.Fatal("Reveal/IsZero broken")
+	if h.Token.Reveal() != v || !isSet(h.Token) || isSet(secrets.NewValue("")) {
+		t.Fatal("Reveal/isSet broken")
 	}
 
 	var buf bytes.Buffer
@@ -44,7 +46,7 @@ func TestContract_INV1_SecretNeverPrints(t *testing.T) {
 
 func TestScrubKeepsShortValues(t *testing.T) {
 	t.Parallel()
-	if got := scrub("abc abcdef", NewSecret("abc"), NewSecret("abcdef")); got != "abc [redacted]" {
+	if got := scrub("abc abcdef", secrets.NewValue("abc"), secrets.NewValue("abcdef")); got != "abc [redacted]" {
 		t.Errorf("scrub = %q", got)
 	}
 }

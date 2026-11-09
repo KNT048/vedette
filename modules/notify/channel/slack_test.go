@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/kiennt048/vedette/core/secrets"
 )
 
 const slackHook = "https://hooks.slack.com/services/T0EXAMPLE1/B0EXAMPLE2/XyzSecretPathToken123"
@@ -32,7 +34,7 @@ func TestContract_INV8_SlackWebhookShape(t *testing.T) {
 		"https://hooks.slack.com/services/../services/T1/B2/X3": "bad_webhook",
 		"not a url": "bad_webhook",
 	} {
-		_, err := NewSlack(SlackConfig{Webhook: NewSecret(in)})
+		_, err := NewSlack(SlackConfig{Webhook: secrets.NewValue(in)})
 		if code == "" {
 			if err != nil {
 				t.Errorf("NewSlack(%q): %v", in, err)
@@ -45,7 +47,7 @@ func TestContract_INV8_SlackWebhookShape(t *testing.T) {
 		}
 		mustNot(t, errString(err), "Token123", "T1/B2")
 	}
-	if _, err := NewSlack(SlackConfig{Webhook: NewSecret(slackHook), Label: strings.Repeat("x", 81)}); err == nil {
+	if _, err := NewSlack(SlackConfig{Webhook: secrets.NewValue(slackHook), Label: strings.Repeat("x", 81)}); err == nil {
 		t.Error("81-char label accepted")
 	}
 }
@@ -70,7 +72,7 @@ func TestSlackSendEscapesAndPosts(t *testing.T) {
 		_, _ = io.WriteString(w, "ok")
 	}))
 	t.Cleanup(srv.Close)
-	s, err := NewSlack(SlackConfig{Webhook: NewSecret(slackHook), Label: "#it-alerts", Client: clientTo(t, srv.URL)})
+	s, err := NewSlack(SlackConfig{Webhook: secrets.NewValue(slackHook), Label: "#it-alerts", Client: clientTo(t, srv.URL)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +107,7 @@ func TestContract_FORBID2_SlackErrorsNeverContainSecret(t *testing.T) {
 		_, _ = io.WriteString(w, "no_service "+r.URL.Path+" "+strings.Repeat("A", 1<<20)) //nolint:gosec // test server echoing the request on purpose
 	}))
 	t.Cleanup(srv.Close)
-	s, _ := NewSlack(SlackConfig{Webhook: NewSecret(slackHook), Client: clientTo(t, srv.URL)})
+	s, _ := NewSlack(SlackConfig{Webhook: secrets.NewValue(slackHook), Client: clientTo(t, srv.URL)})
 	_, err := s.Send(context.Background(), sample)
 	var se *StatusError
 	if !errors.As(err, &se) || se.Code != 404 || se.Channel != Slack {
@@ -122,7 +124,7 @@ func TestContract_FORBID2_SlackTransportErrorHasNoURL(t *testing.T) {
 	srv := httptest.NewServer(http.NotFoundHandler())
 	dead := srv.URL
 	srv.Close() // connection refused
-	s, _ := NewSlack(SlackConfig{Webhook: NewSecret(slackHook), Client: clientTo(t, dead)})
+	s, _ := NewSlack(SlackConfig{Webhook: secrets.NewValue(slackHook), Client: clientTo(t, dead)})
 	_, err := s.Send(context.Background(), sample)
 	if err == nil {
 		t.Fatal("expected error")
@@ -135,7 +137,7 @@ func TestSlackContextDeadline(t *testing.T) {
 	release := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { <-release }))
 	t.Cleanup(func() { close(release); srv.Close() })
-	s, _ := NewSlack(SlackConfig{Webhook: NewSecret(slackHook), Client: clientTo(t, srv.URL)})
+	s, _ := NewSlack(SlackConfig{Webhook: secrets.NewValue(slackHook), Client: clientTo(t, srv.URL)})
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 	_, err := s.Send(ctx, sample)
@@ -146,7 +148,7 @@ func TestSlackContextDeadline(t *testing.T) {
 
 func TestSendRejectsBadMessage(t *testing.T) {
 	t.Parallel()
-	s, _ := NewSlack(SlackConfig{Webhook: NewSecret(slackHook)})
+	s, _ := NewSlack(SlackConfig{Webhook: secrets.NewValue(slackHook)})
 	for name, mod := range map[string]func(*Message){
 		"severity": func(m *Message) { m.Severity = "urgent" },
 		"title":    func(m *Message) { m.Title = " \u200b\n" },

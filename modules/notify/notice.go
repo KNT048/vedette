@@ -97,7 +97,7 @@ const held = 366 * 24 * time.Hour
 // grouping enabled, vulnerability notices for the same product whose time is
 // within WindowMin of the first notice of the batch become one batch;
 // everything else is a batch of its own. A critical notice is never grouped: it
-// is always its own batch, due at its own time (D-59, INV-6). Batches come out
+// is always its own batch, due at its own time (D-62, INV-6). Batches come out
 // in the order of their first notice. An invalid window groups nothing.
 func Group(ns []Notice, g Grouping, floor Severity) []Batch {
 	if !g.Enabled || g.Validate() != nil {

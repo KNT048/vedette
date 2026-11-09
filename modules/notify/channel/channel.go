@@ -14,6 +14,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/kiennt048/vedette/core/secrets"
 )
 
 // Type is a channel type, spelled as in contract.ts.
@@ -144,7 +146,7 @@ func clientOrDefault(c *http.Client) *http.Client {
 
 // noPrint is embedded in every sender. Its String and GoString are promoted to
 // the sender, so printing a sender (or a slice of them) with any verb never
-// walks its fields: fmt cannot call Secret's Format on unexported fields and
+// walks its fields: fmt cannot call a secret's Format on unexported fields and
 // would print the raw value.
 type noPrint struct{}
 
@@ -187,22 +189,22 @@ func safeLink(link string) (string, error) {
 // do sends req through c, reads at most maxResponseBody bytes of the answer,
 // closes the body, and turns transport failures into errors that contain no URL
 // and none of the secrets.
-func do(c *http.Client, ch Type, req *http.Request, secrets ...Secret) (status int, body []byte, err error) {
+func do(c *http.Client, ch Type, req *http.Request, hide ...secrets.Value) (status int, body []byte, err error) {
 	resp, err := c.Do(req)
 	if err != nil {
-		return 0, nil, fmt.Errorf("notify: %s: send failed: %s", ch, transportReason(err, secrets))
+		return 0, nil, fmt.Errorf("notify: %s: send failed: %s", ch, transportReason(err, hide))
 	}
 	defer func() { _ = resp.Body.Close() }()
 	body, err = io.ReadAll(io.LimitReader(resp.Body, maxResponseBody))
 	if err != nil {
-		return resp.StatusCode, nil, fmt.Errorf("notify: %s: read answer: %s", ch, transportReason(err, secrets))
+		return resp.StatusCode, nil, fmt.Errorf("notify: %s: read answer: %s", ch, transportReason(err, hide))
 	}
 	return resp.StatusCode, body, nil
 }
 
 // transportReason strips the URL from *url.Error (it can carry a bot token) and
 // scrubs secrets from what is left.
-func transportReason(err error, secrets []Secret) string {
+func transportReason(err error, hide []secrets.Value) string {
 	var ue *url.Error
 	if errors.As(err, &ue) {
 		err = ue.Err
@@ -213,17 +215,17 @@ func transportReason(err error, secrets []Secret) string {
 	case errors.Is(err, context.Canceled):
 		return "cancelled"
 	}
-	return truncRunes(scrub(clean(err.Error(), false), secrets...), 160)
+	return truncRunes(scrub(clean(err.Error(), false), hide...), 160)
 }
 
 // reasonFrom turns an untrusted provider answer into a short, printable,
 // secret-free reason.
-func reasonFrom(body []byte, secrets ...Secret) string {
+func reasonFrom(body []byte, hide ...secrets.Value) string {
 	s := strings.Join(strings.Fields(clean(string(body), false)), " ")
-	return truncRunes(scrub(s, secrets...), 120)
+	return truncRunes(scrub(s, hide...), 120)
 }
 
 // statusErr builds the typed error for a non-2xx answer.
-func statusErr(ch Type, code int, body []byte, secrets ...Secret) error {
-	return &StatusError{Channel: ch, Code: code, Reason: reasonFrom(body, secrets...)}
+func statusErr(ch Type, code int, body []byte, hide ...secrets.Value) error {
+	return &StatusError{Channel: ch, Code: code, Reason: reasonFrom(body, hide...)}
 }

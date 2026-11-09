@@ -16,6 +16,8 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/kiennt048/vedette/core/secrets"
 )
 
 // streamServer accepts connections and, after an optional greeting, sends
@@ -75,7 +77,7 @@ func TestContract_SYS6_SMTPServerResponsesAreBounded(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			port, roots := streamServer(t, c.implicit, c.greeted)
-			s, err := NewEmail(EmailConfig{Host: "127.0.0.1", Port: port, Security: c.security, Username: "u", Password: NewSecret("p"),
+			s, err := NewEmail(EmailConfig{Host: "127.0.0.1", Port: port, Security: c.security, Username: "u", Password: secrets.NewValue("p"),
 				From: "alerts@acme.example", To: []string{"it@acme.example"}, RootCAs: roots})
 			if err != nil {
 				t.Fatal(err)
@@ -123,19 +125,21 @@ func TestContract_FORBID2_SendersNeverPrintSecrets(t *testing.T) {
 		sess = "PrintLeakZaloSession"
 	)
 	mk := map[string]func() (Sender, error){
-		"slack":    func() (Sender, error) { return NewSlack(SlackConfig{Webhook: NewSecret(hook)}) },
-		"telegram": func() (Sender, error) { return NewTelegram(TelegramConfig{Token: NewSecret(tgt), ChatID: "12345"}) },
+		"slack": func() (Sender, error) { return NewSlack(SlackConfig{Webhook: secrets.NewValue(hook)}) },
+		"telegram": func() (Sender, error) {
+			return NewTelegram(TelegramConfig{Token: secrets.NewValue(tgt), ChatID: "12345"})
+		},
 		"zalo": func() (Sender, error) {
-			return NewZalo(ZaloConfig{OAID: "1234567890", UserID: "987654321", Token: NewSecret(zt)})
+			return NewZalo(ZaloConfig{OAID: "1234567890", UserID: "987654321", Token: secrets.NewValue(zt)})
 		},
 		"email": func() (Sender, error) {
-			return NewEmail(EmailConfig{Host: "smtp.acme.example", Port: 587, Security: SecurityStartTLS, Username: "u", Password: NewSecret(pw), From: "a@acme.example", To: []string{"b@acme.example"}})
+			return NewEmail(EmailConfig{Host: "smtp.acme.example", Port: 587, Security: SecurityStartTLS, Username: "u", Password: secrets.NewValue(pw), From: "a@acme.example", To: []string{"b@acme.example"}})
 		},
 		"webhook": func() (Sender, error) {
-			return NewWebhook(WebhookConfig{URL: NewSecret(wu), SigningKey: NewSecret(wk)})
+			return NewWebhook(WebhookConfig{URL: secrets.NewValue(wu), SigningKey: secrets.NewValue(wk)})
 		},
 		"zalo-personal": func() (Sender, error) {
-			return NewZaloPersonal(ZaloPersonalConfig{UserID: "123456789", Session: NewSecret(sess)})
+			return NewZaloPersonal(ZaloPersonalConfig{UserID: "123456789", Session: secrets.NewValue(sess)})
 		},
 	}
 	for name, f := range mk {

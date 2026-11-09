@@ -16,12 +16,14 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/kiennt048/vedette/core/secrets"
 )
 
 const whKey = "0123456789abcdef0123"
 
 func wh(u string) WebhookConfig {
-	return WebhookConfig{URL: NewSecret(u), SigningKey: NewSecret(whKey)}
+	return WebhookConfig{URL: secrets.NewValue(u), SigningKey: secrets.NewValue(whKey)}
 }
 
 func TestContract_INV8_WebhookSchemeRules(t *testing.T) {
@@ -95,10 +97,10 @@ func TestContract_INV8_WebhookSchemeRules(t *testing.T) {
 			t.Errorf("NewWebhook(%q) = %v, want %s", in, err, code)
 		}
 	}
-	if _, err := NewWebhook(WebhookConfig{URL: NewSecret("https://h.example.com/x")}); err == nil {
+	if _, err := NewWebhook(WebhookConfig{URL: secrets.NewValue("https://h.example.com/x")}); err == nil {
 		t.Error("missing key accepted")
 	}
-	if _, err := NewWebhook(WebhookConfig{URL: NewSecret("https://h.example.com/x"), SigningKey: NewSecret("short")}); err == nil {
+	if _, err := NewWebhook(WebhookConfig{URL: secrets.NewValue("https://h.example.com/x"), SigningKey: secrets.NewValue("short")}); err == nil {
 		t.Error("short key accepted")
 	}
 }

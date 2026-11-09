@@ -10,21 +10,23 @@ import (
 	"strings"
 	"testing"
 	"unicode/utf8"
+
+	"github.com/kiennt048/vedette/core/secrets"
 )
 
 const tgToken = "123456789:AAHexampleExampleExampleExample_0123456789"
 
 func TestTelegramConfig(t *testing.T) {
 	t.Parallel()
-	ok := TelegramConfig{Token: NewSecret(tgToken), ChatID: "-1002145678901"}
+	ok := TelegramConfig{Token: secrets.NewValue(tgToken), ChatID: "-1002145678901"}
 	if _, err := NewTelegram(ok); err != nil {
 		t.Fatal(err)
 	}
 	for name, mod := range map[string]func(*TelegramConfig){
-		"empty token":   func(c *TelegramConfig) { c.Token = Secret{} },
-		"short token":   func(c *TelegramConfig) { c.Token = NewSecret("123:abc") },
-		"token slash":   func(c *TelegramConfig) { c.Token = NewSecret(tgToken + "/../x") },
-		"token newline": func(c *TelegramConfig) { c.Token = NewSecret(tgToken + "\nX") },
+		"empty token":   func(c *TelegramConfig) { c.Token = secrets.Value{} },
+		"short token":   func(c *TelegramConfig) { c.Token = secrets.NewValue("123:abc") },
+		"token slash":   func(c *TelegramConfig) { c.Token = secrets.NewValue(tgToken + "/../x") },
+		"token newline": func(c *TelegramConfig) { c.Token = secrets.NewValue(tgToken + "\nX") },
 		"chat letters":  func(c *TelegramConfig) { c.ChatID = "abc" },
 		"chat short":    func(c *TelegramConfig) { c.ChatID = "@ab" },
 	} {
@@ -36,7 +38,7 @@ func TestTelegramConfig(t *testing.T) {
 		}
 		mustNot(t, errString(err), "AAHexample")
 	}
-	if _, err := NewTelegram(TelegramConfig{Token: NewSecret(tgToken), ChatID: "@vedette_alerts"}); err != nil {
+	if _, err := NewTelegram(TelegramConfig{Token: secrets.NewValue(tgToken), ChatID: "@vedette_alerts"}); err != nil {
 		t.Errorf("public channel name rejected: %v", err)
 	}
 }
@@ -52,7 +54,7 @@ func TestTelegramSend(t *testing.T) {
 		_, _ = io.WriteString(w, `{"ok":true,"result":{}}`)
 	}))
 	t.Cleanup(srv.Close)
-	s, err := newTelegramAt(srv.URL+"/", TelegramConfig{Token: NewSecret(tgToken), ChatID: "-1002145678901", Client: srv.Client()})
+	s, err := newTelegramAt(srv.URL+"/", TelegramConfig{Token: secrets.NewValue(tgToken), ChatID: "-1002145678901", Client: srv.Client()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +88,7 @@ func TestTelegramLongTextKeepsLink(t *testing.T) {
 		_, _ = io.WriteString(w, `{"ok":true}`)
 	}))
 	t.Cleanup(srv.Close)
-	s, _ := newTelegramAt(srv.URL, TelegramConfig{Token: NewSecret(tgToken), ChatID: "12345", Client: srv.Client()})
+	s, _ := newTelegramAt(srv.URL, TelegramConfig{Token: secrets.NewValue(tgToken), ChatID: "12345", Client: srv.Client()})
 	m := sample
 	m.What, m.Action = strings.Repeat("w", 5000), strings.Repeat("a", 5000)
 	for range 30 {
@@ -108,7 +110,7 @@ func TestContract_FORBID2_TelegramErrorsNeverContainToken(t *testing.T) {
 		_, _ = io.WriteString(w, `{"ok":false,"error_code":401,"description":"Unauthorized (`+r.URL.Path+`)"}`) //nolint:gosec // test server echoing the request on purpose
 	}))
 	t.Cleanup(srv.Close)
-	s, _ := newTelegramAt(srv.URL, TelegramConfig{Token: NewSecret(tgToken), ChatID: "12345", Client: srv.Client()})
+	s, _ := newTelegramAt(srv.URL, TelegramConfig{Token: secrets.NewValue(tgToken), ChatID: "12345", Client: srv.Client()})
 	_, err := s.Send(context.Background(), sample)
 	var se *StatusError
 	if !errors.As(err, &se) || se.Code != 401 {
@@ -120,7 +122,7 @@ func TestContract_FORBID2_TelegramErrorsNeverContainToken(t *testing.T) {
 	dead := httptest.NewServer(http.NotFoundHandler())
 	base := dead.URL
 	dead.Close()
-	s2, _ := newTelegramAt(base, TelegramConfig{Token: NewSecret(tgToken), ChatID: "12345"})
+	s2, _ := newTelegramAt(base, TelegramConfig{Token: secrets.NewValue(tgToken), ChatID: "12345"})
 	_, err = s2.Send(context.Background(), sample)
 	if err == nil {
 		t.Fatal("expected a connection error")
@@ -136,7 +138,7 @@ func TestTelegramRejectsUnconfirmedOK(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, `{"ok":false}`) }))
 	t.Cleanup(srv.Close)
-	s, _ := newTelegramAt(srv.URL, TelegramConfig{Token: NewSecret(tgToken), ChatID: "12345", Client: srv.Client()})
+	s, _ := newTelegramAt(srv.URL, TelegramConfig{Token: secrets.NewValue(tgToken), ChatID: "12345", Client: srv.Client()})
 	if _, err := s.Send(context.Background(), sample); err == nil {
 		t.Fatal("ok:false accepted")
 	}

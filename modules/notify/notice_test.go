@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kiennt048/vedette/core/secrets"
 	"github.com/kiennt048/vedette/modules/notify/channel"
 )
 
@@ -126,7 +127,7 @@ func TestBatchDueAt(t *testing.T) {
 	}
 }
 
-// D-59: critical is never delayed by grouping, so INV-6 (60 minutes) holds for it
+// D-62: critical is never delayed by grouping, so INV-6 (60 minutes) holds for it
 // whatever window is configured.
 func TestContract_INV6_CriticalIsNeverGrouped(t *testing.T) {
 	t.Parallel()
@@ -286,7 +287,7 @@ func TestBatchMessageThroughAdapters(t *testing.T) {
 		_, _ = io.WriteString(w, `{"ok":true}`)
 	}))
 	t.Cleanup(srv.Close)
-	tg, err := channel.NewTelegram(channel.TelegramConfig{Token: channel.NewSecret("123456789:AAHexampleExampleExampleExample_0123456789"), ChatID: "-1002145678901",
+	tg, err := channel.NewTelegram(channel.TelegramConfig{Token: secrets.NewValue("123456789:AAHexampleExampleExampleExample_0123456789"), ChatID: "-1002145678901",
 		Client: &http.Client{Transport: rewriteTo{host: strings.TrimPrefix(srv.URL, "http://")}}})
 	if err != nil {
 		t.Fatal(err)

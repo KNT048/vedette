@@ -23,6 +23,26 @@ type CoreChainAnchor struct {
 	PrunedAt       string
 }
 
+type CoreChainHead struct {
+	Chain     string
+	LastHash  string
+	Count     int64
+	UpdatedAt string
+}
+
+type CoreEmailCode struct {
+	UserID    string
+	CodeHash  string
+	ExpiresAt string
+	Tries     int64
+	SentAt    string
+}
+
+type CoreEmailCodeSend struct {
+	UserID string
+	SentAt string
+}
+
 type CoreJobRun struct {
 	ID         string
 	Module     string
@@ -41,6 +61,15 @@ type CoreModule struct {
 	Version    string
 }
 
+type CoreOrg struct {
+	ID            int64
+	Name          string
+	Timezone      string
+	SetupComplete int64
+	DataMode      string
+	InstallID     string
+}
+
 type CoreSecret struct {
 	ID         string
 	Purpose    string
@@ -50,4 +79,45 @@ type CoreSecret struct {
 	Last4      *string
 	CreatedAt  string
 	RotatedAt  *string
+}
+
+type CoreSession struct {
+	ID        string
+	UserID    string
+	TokenHash string
+	CsrfHash  string
+	Device    string
+	Ip        string
+	StartedAt string
+	LastSeen  string
+	ExpiresAt string
+	RevokedAt *string
+}
+
+type CoreSetting struct {
+	Key       string
+	Value     string
+	UpdatedAt string
+	UpdatedBy string
+}
+
+type CoreUser struct {
+	ID           string
+	Name         string
+	Email        string
+	Role         string
+	PasswordHash string
+	CredVersion  int64
+	TwofaMethod  *string
+	Disabled     int64
+	CreatedAt    string
+	LastLogin    *string
+}
+
+type CoreUserTotp struct {
+	UserID    string
+	SecretID  string
+	Confirmed int64
+	LastStep  *int64
+	CreatedAt string
 }

@@ -497,3 +497,56 @@ func TestSchemaRejectsBadNonceAndCiphertext(t *testing.T) {
 		}
 	}
 }
+
+func TestOpenOrCreateMakesOneKeyPerPurpose(t *testing.T) {
+	t.Parallel()
+	s, db := newStore(t)
+	ctx := t.Context()
+	const purpose = "core_email_code.hmac_key"
+
+	// Many callers racing on first use must end up with one row and the same bytes.
+	keys := make(chan []byte, 8)
+	errs := make(chan error, 8)
+	for range 8 {
+		go func() {
+			k, err := s.OpenOrCreate(ctx, db, purpose, 32)
+			keys <- k
+			errs <- err
+		}()
+	}
+	var first []byte
+	for range 8 {
+		k, err := <-keys, <-errs
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(k) != 32 || bytes.Equal(k, make([]byte, 32)) {
+			t.Fatalf("key = %x", k)
+		}
+		if first == nil {
+			first = k
+		} else if !bytes.Equal(first, k) {
+			t.Fatal("two callers got different keys")
+		}
+	}
+	var n int
+	if err := db.Reader().QueryRowContext(ctx, "SELECT count(*) FROM core_secret WHERE purpose = ?", purpose).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("rows = %d, %v; want 1", n, err)
+	}
+	// Stored encrypted, not in the clear.
+	var ct []byte
+	if err := db.Reader().QueryRowContext(ctx, "SELECT ciphertext FROM core_secret WHERE purpose = ?", purpose).Scan(&ct); err != nil || bytes.Contains(ct, first) {
+		t.Fatalf("key stored in the clear: %v", err)
+	}
+	// Another purpose gets another key; a bad purpose or size is refused.
+	other, err := s.OpenOrCreate(ctx, db, "core_other.key", 32)
+	if err != nil || bytes.Equal(other, first) {
+		t.Fatalf("other purpose: %x, %v", other, err)
+	}
+	if _, err := s.OpenOrCreate(ctx, db, "Bad Purpose", 32); !errors.Is(err, secrets.ErrInvalid) {
+		t.Fatalf("bad purpose: %v", err)
+	}
+	if _, err := s.OpenOrCreate(ctx, db, "core_tiny.key", 8); !errors.Is(err, secrets.ErrInvalid) {
+		t.Fatalf("size 8: %v", err)
+	}
+}

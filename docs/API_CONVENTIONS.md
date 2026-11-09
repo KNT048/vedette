@@ -38,7 +38,7 @@ Tên endpoint, mã lỗi, tên trường giữ tiếng Anh; văn xuôi tiếng V
 | 413 | Tệp/thân quá lớn (`too_large` ở `POST /feeds/parse-test`) | Mock còn trả 400 `too_large` ở 3 endpoint tải tệp: thống nhất về 413 **[ĐX]** |
 | 422 | Dịch vụ ngoài từ chối thông tin hợp lệ về hình thức (`wazuh_auth`) | Hiện đúng 1 chỗ; dùng cho "đúng dạng nhưng bên kia từ chối" |
 | 429 | Giới hạn tần suất / trần (`rate_limited`, `resend_too_soon`, `too_many_codes`, `daily_cap`) | Kèm `Retry-After` (mục 8) |
-| 502 / 503 | Hệ thống ngoài không tới được / kênh cần thiết đang hỏng (`unreachable`, `discovery_failed`, `wazuh_unreachable`, `twofa_email_unavailable`) | |
+| 502 / 503 | Hệ thống ngoài không tới được / kênh cần thiết đang hỏng (`unreachable`, `discovery_failed`, `wazuh_unreachable`, `twofa_email_unavailable`, `server_busy`) | `server_busy` kèm `Retry-After` (mục 8) |
 
 **Bất biến:** (1) mọi mutation ghi `core_audit` (SYS-3); (2) thân phản hồi của PUT/PATCH/POST-hành-động là **tài nguyên sau khi đổi**, để client không phải gọi lại GET (ngoại lệ có sẵn: `PATCH /core/account` và vài POST trả `{ok:true}`; giữ nguyên); (3) `GET` không bao giờ ghi, trừ `last_fetch` của danh sách chặn (mục 11.3).
 
@@ -418,10 +418,11 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 |---|---|---|---|
 | `not_implemented` | 501 | This part of the box is not built yet. | thao tác có trong hợp đồng nhưng module chưa có backend (`oas.UnimplementedHandler`; giao diện dùng mock cho module đó, WP-05) |
 
-#### HTTP 503 (1 mã)
+#### HTTP 503 (2 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
+| `server_busy` | 503 | The box is busy checking other sign-ins. Try again in a few seconds. | `POST /auth/login`; `POST /auth/login/resend-code`; mọi thao tác phải băm hoặc kiểm mật khẩu (`POST /core/users`, `/core/users/{id}/reset-password`, `/core/account/password`, `/core/account/2fa/disable`, `/core/setup`). Mã mới **[ĐX]** (WP-04b rà soát bảo mật): ít nhất một lần chờ quá 2 giây hoặc hàng đợi băm đầy. Kèm `retry_after` (giây) trong `error` và `Retry-After`. Không phải `busy` (409, cập nhật hệ điều hành). Lần thử bị từ chối vì bận **không** tính vào giới hạn đăng nhập sai |
 | `twofa_email_unavailable` | 503 | The email channel cannot send two-step codes now. | `POST /auth/login`; `POST /auth/login/resend-code` |
 
 ## 4. Phân trang, lọc, sắp xếp
@@ -488,8 +489,8 @@ Hai người quản trị sửa cùng một cấu hình không được âm th�
 |---|---|
 | Cookie | `vedette_session` (khai trong `components.securitySchemes.session`): giá trị ngẫu nhiên ≥ 32 byte (base64url), `HttpOnly; Secure; SameSite=Strict; Path=/`. Máy chủ chỉ lưu SHA-256 (`core_session.token_hash`). Không có tiền tố miền, không `Domain`. |
 | Đăng nhập | `POST /auth/login` `{email, password, code?}` (công khai). Sai email/mật khẩu → 400 `invalid_credentials` (cùng thông điệp cho "không có tài khoản" và "sai mật khẩu"). Tài khoản có 2 bước mà thiếu `code` → **401 `twofa_required`** kèm `method` (`app`\|`email`; với `email`: `sent_to`, `resend_after`, và máy chủ đã gửi mã). `code` sai → 400 `invalid_code` (app) / `wrong_code` / `too_many_tries` / `code_expired` (email). Tài khoản bị khoá → 403 `disabled`. Kênh email hỏng → 503 `twofa_email_unavailable` (**không bao giờ** lùi về chỉ-mật-khẩu, D-35). Đăng nhập thành công: tạo `core_session`, ghi `auth.login`. |
-| Hết phiên | Phiên hết hạn/thu hồi → 401 `unauthenticated` ở mọi endpoint không công khai; SPA về trang đăng nhập. Thời hạn idle/tuyệt đối: câu hỏi mở 4. |
-| Thu hồi | `DELETE /core/account/sessions/{id}`, `POST /core/account/sessions/revoke-others`; không thu hồi chính phiên đang dùng (400 `current_session`, dùng `POST /auth/logout`). Đổi mật khẩu hoặc đặt lại 2 bước thu hồi các phiên khác **[ĐX]**. |
+| Hết phiên | Phiên hết hạn/thu hồi → 401 `unauthenticated` ở mọi endpoint không công khai; SPA về trang đăng nhập. Hết hạn: **4 giờ không hoạt động hoặc 7 ngày kể từ lúc đăng nhập**, cái nào tới trước (D-71; `auth.IdleTimeout`, `auth.AbsoluteTimeout`); `last_seen` làm mới tối đa mỗi phút. |
+| Thu hồi | `DELETE /core/account/sessions/{id}`, `POST /core/account/sessions/revoke-others`; không thu hồi chính phiên đang dùng (400 `current_session`, dùng `POST /auth/logout`). Thu hồi phiên khi đổi bảo mật (WP-04b, đã cài trong `core/auth`; quy tắc, không còn là đề xuất): đổi mật khẩu → các phiên khác của người đó kết thúc; quản trị viên đặt lại mật khẩu hoặc đặt lại 2 bước → **mọi** phiên của người đó kết thúc trong cùng giao dịch; chính người dùng bật hoặc tắt 2 bước → các phiên khác của họ kết thúc (phiên đang dùng được giữ). Đổi mật khẩu, tắt 2 bước, bật 2 bước: trong giao dịch ghi, tài khoản bị khoá → 403 `disabled`, phiên đang dùng đã bị thu hồi hoặc hết hạn → 401 `unauthenticated`, mật khẩu đã bị đổi/đặt lại kể từ lúc được kiểm (`cred_version` đổi) → 400 `wrong_password` (mã đã có trong §3.3; "mật khẩu bạn vừa chứng minh không còn là mật khẩu hiện tại"). Một lần đăng nhập đang chạy mà mật khẩu (`cred_version`), trạng thái khoá hoặc kiểu 2 bước đổi trước khi nó ghi bị từ chối (400 `invalid_credentials`, hoặc 403 `disabled`), không tạo phiên. |
 | Đăng xuất | `POST /auth/logout` công khai (không lỗi khi phiên đã hết), xoá cookie, 204. |
 | Thiết lập lần đầu | `GET /setup` (công khai) cho biết `complete`; `POST /core/setup` chỉ chạy khi chưa thiết lập (sau đó 409 `already_setup`); tạo quản trị viên đầu tiên. |
 | SSO | `GET /core/auth-options` (công khai) `{oidc:boolean}`; `POST /core/sso/login` (công khai) bắt đầu OIDC. Đường gọi lại của nhà cung cấp OIDC chưa có trong hợp đồng (câu hỏi mở 5). |
@@ -539,11 +540,12 @@ Mock chỉ có giới hạn **nghiệp vụ** (bảng dưới); chưa có giới
 | Xác thực đích ngoài | 10 lần/giờ (`MAX_ATTEMPTS_PER_HOUR`), tối đa 20 đích (D-25) | `exposure/mocks.ts` | 429 `rate_limited`; 400 `too_many` |
 | Token AI mỗi ngày | `daily_cap` theo hồ sơ và theo cấu hình chung | `ai/mocks.ts` | 429 `daily_cap` |
 | Phản hồi: hành động thiết bị | `max_per_hour` (mặc định 3); cầu dao `breaker_max_per_hour` (20); `multi_target_max` (5); `max_per_hour` mỗi quy tắc (≤ 100); ngân sách AI `budget_hour` 2 / `budget_day` 5 | `response/state.ts` | 409/403 qua `refuse()` (ghi `resp_log` loại `refused`/`breaker`) |
-| Đăng nhập sai | ARCH §6 "rate limit đăng nhập"; chưa có số **[ĐX]** 10 lần sai / 15 phút theo cặp (IP, email), tăng dần thời gian chờ | | 429 `rate_limited`, `Retry-After` |
+| Đăng nhập sai | ARCH §6 "rate limit đăng nhập"; chưa có số **[ĐX]** 10 lần sai / 15 phút theo cặp (IP, email), tăng dần thời gian chờ. Lượt thử được tính ngay khi bắt đầu và trả lại khi đúng mật khẩu (các lượt song song không lọt qua nhau). IPv6 tính hai lần: theo từng địa chỉ (10, như IPv4) và theo cặp (/64, email) với trần 100, nên một máy xoay trong /64 vẫn bị chặn nhưng không khoá được cả /64 chỉ bằng 10 lần đoán; IPv4 theo địa chỉ. Hết thời gian chờ rồi gõ đúng mật khẩu không kéo dài thêm thời gian chờ. Mã 2 bước có bộ đếm riêng **theo tài khoản** (không theo IP): 10 lần sai / 15 phút → 429 | `core/auth` | 429 `rate_limited`, `Retry-After` |
+| Băm/kiểm mật khẩu (argon2, 64 MiB mỗi lần) | tối đa `min(GOMAXPROCS/2, GOMEMLIMIT/4/64 MiB)` lần cùng lúc, ít nhất 1 (`auth.Config.MaxHashing`; GOMAXPROCS theo hạn mức của container); chờ tối đa 2 s (`HashWait`), hàng đợi 4 lần số khe; quá thì từ chối | `core/auth` | 503 `server_busy`, `Retry-After: 3` |
 | API đã xác thực | **[ĐX]** 600 yêu cầu/phút mỗi phiên (token bucket); SSE không tính | | 429 `rate_limited` |
 | Điểm công khai | **[ĐX]** 60 yêu cầu/phút mỗi IP cho `/auth/*`, `/response/approve/*`, `/response/blocklist/*`, `/install/*`, `/intake/*` | | 429 |
 
-Phản hồi 429 luôn có `Retry-After: <giây>`, thân chuẩn mục 3.1 (và `retry_after` trong `error` khi có), cộng `RateLimit-Limit/Remaining/Reset` trên endpoint giới hạn **[ĐX]**. Giới hạn **ra ngoài** (tốc độ quét `rate` 1–20 req/s, `inv_setting.active.rate`) là cấu hình quét, không phải giới hạn API.
+Phản hồi 429 (và 503 `server_busy`) luôn có `Retry-After: <giây>`, thân chuẩn mục 3.1 (và `retry_after` trong `error` khi có), cộng `RateLimit-Limit/Remaining/Reset` trên endpoint giới hạn **[ĐX]**. Giới hạn **ra ngoài** (tốc độ quét `rate` 1–20 req/s, `inv_setting.active.rate`) là cấu hình quét, không phải giới hạn API.
 
 ## 9. Phiên bản và ngừng hỗ trợ
 

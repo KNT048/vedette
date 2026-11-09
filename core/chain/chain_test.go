@@ -303,3 +303,48 @@ func intify(v any) (any, error) {
 		return v, nil
 	}
 }
+
+func TestVerifierWithHead(t *testing.T) {
+	t.Parallel()
+	good := func(v *chain.Verifier) {
+		v.Add("1", chain.Genesis, "h1", "h1")
+		v.Add("2", "h1", "h2", "h2")
+		v.Add("3", "h2", "h3", "h3")
+	}
+	tests := []struct {
+		name string
+		head *chain.Head
+		feed func(*chain.Verifier)
+		want chain.Result
+	}{
+		{"matches", &chain.Head{Hash: "h3", Count: 3}, good, chain.Result{OK: true, Count: 3}},
+		{"empty chain, no head", nil, func(*chain.Verifier) {}, chain.Result{OK: true}},
+		{"empty chain, head of zero rows", &chain.Head{Hash: "h3", Count: 0}, func(*chain.Verifier) {}, chain.Result{OK: true}},
+		{"newest rows deleted", &chain.Head{Hash: "h3", Count: 3}, func(v *chain.Verifier) {
+			v.Add("1", chain.Genesis, "h1", "h1")
+		}, chain.Result{Count: 1, BrokenAt: 2}},
+		{"every row deleted", &chain.Head{Hash: "h3", Count: 3}, func(*chain.Verifier) {}, chain.Result{BrokenAt: 1}},
+		{"row appended without the head", &chain.Head{Hash: "h2", Count: 2}, good, chain.Result{Count: 3, BrokenAt: 3, EntryID: "3"}},
+		{"newest row replaced", &chain.Head{Hash: "other", Count: 3}, good, chain.Result{Count: 3, BrokenAt: 3, EntryID: "3"}},
+		{"rows but no head", nil, good, chain.Result{Count: 3, BrokenAt: 3, EntryID: "3"}},
+		{"earlier break wins", &chain.Head{Hash: "h3", Count: 3}, func(v *chain.Verifier) {
+			v.Add("1", chain.Genesis, "h1", "bad")
+		}, chain.Result{Count: 1, BrokenAt: 1, EntryID: "1"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			v := chain.NewVerifierWithHead("", tc.head)
+			tc.feed(v)
+			if got := v.Result(); got != tc.want {
+				t.Fatalf("Result = %+v, want %+v", got, tc.want)
+			}
+		})
+	}
+	// A verifier built without a head never looks at one.
+	v := chain.NewVerifier("")
+	v.Add("1", chain.Genesis, "h1", "h1")
+	if got := v.Result(); !got.OK {
+		t.Fatalf("NewVerifier ignores the head: %+v", got)
+	}
+}

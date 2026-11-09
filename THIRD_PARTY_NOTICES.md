@@ -40,6 +40,7 @@ Pure Go, no cgo. Versions pinned in `go.mod`/`go.sum`; licenses read from each m
 | github.com/sethvargo/go-retry | v0.5.0 | Apache-2.0 | embedded: via goose |
 | go.uber.org/multierr | v1.11.0 | MIT | embedded: via goose |
 | golang.org/x/sync, golang.org/x/sys | v0.24.0, v0.49.0 | BSD-3-Clause | embedded: via goose and modernc.org/sqlite |
+| golang.org/x/crypto (package `argon2` only, with `blake2b` and `cpu` it uses) | v0.58.0 | BSD-3-Clause | embedded: argon2id password hashing in `core/auth` (WP-04b). Already in the module graph through goose and x/net; now a direct dependency |
 
 ### Generated API server (`core/api/oas`, ogen, D-60)
 

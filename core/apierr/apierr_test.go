@@ -140,3 +140,30 @@ func TestCodesAreCatalogued(t *testing.T) {
 		}
 	}
 }
+
+func TestWriteSetsRetryAfterOn429And503(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		err  *apierr.Error
+		want string
+	}{
+		{"429 with retry_after", apierr.New(429, "rate_limited", "Slow down.").With("retry_after", 30), "30"},
+		{"429 without it", apierr.New(429, "rate_limited", "Slow down."), ""},
+		{"429 with zero", apierr.New(429, "rate_limited", "Slow down.").With("retry_after", 0), ""},
+		{"429 with a string", apierr.New(429, "rate_limited", "Slow down.").With("retry_after", "30"), ""},
+		{"503 with retry_after", apierr.New(503, "server_busy", "Busy.").With("retry_after", 3), "3"},
+		{"503 without it", apierr.New(503, "server_busy", "Busy."), ""},
+		{"other status", apierr.New(409, "busy", "Busy.").With("retry_after", 30), ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			rec := httptest.NewRecorder()
+			apierr.Write(rec, tc.err)
+			if got := rec.Header().Get("Retry-After"); got != tc.want {
+				t.Fatalf("Retry-After = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

@@ -170,13 +170,18 @@ type Result struct {
 }
 
 // Verifier checks rows fed in seq order. Rows after the first break are still counted.
+// Built with NewVerifierWithHead it also checks the chain head (see Head).
 type Verifier struct {
 	expectPrev string
 	res        Result
+	checkHead  bool
+	head       *Head
+	lastID     string // id of the newest row seen
+	afterHead  string // id of the row after the head's count, "" when there is none
 }
 
-// NewVerifier starts a verification. anchor is the last pruned hash from
-// core_chain_anchor, or "" for a chain that starts at Genesis.
+// NewVerifier starts a verification that does not look at the chain head. anchor is the last pruned
+// hash from core_chain_anchor, or "" for a chain that starts at Genesis.
 func NewVerifier(anchor string) *Verifier {
 	if anchor == "" {
 		anchor = Genesis
@@ -184,7 +189,16 @@ func NewVerifier(anchor string) *Verifier {
 	return &Verifier{expectPrev: anchor, res: Result{OK: true}}
 }
 
-// Add feeds the next row: its stored prev_hash and hash, and the hash recomputed from its columns.
+// NewVerifierWithHead is NewVerifier plus the head read from core_chain_head (nil when the table has no
+// row for the chain). Result then also fails when the newest row is not the head, the row count differs from
+// the head's, or rows exist but the head is missing: deleting the newest rows no longer goes unnoticed.
+func NewVerifierWithHead(anchor string, head *Head) *Verifier {
+	v := NewVerifier(anchor)
+	v.checkHead, v.head = true, head
+	return v
+}
+
+// Add feeds the next row: its stored id, prev_hash and hash, and the hash recomputed from its columns.
 func (v *Verifier) Add(id, prevHash, storedHash, recomputedHash string) {
 	v.res.Count++
 	if v.res.OK && (prevHash != v.expectPrev || storedHash != recomputedHash) {
@@ -193,7 +207,35 @@ func (v *Verifier) Add(id, prevHash, storedHash, recomputedHash string) {
 		v.res.EntryID = id
 	}
 	v.expectPrev = storedHash
+	v.lastID = id
+	if v.head != nil && int64(v.res.Count) == v.head.Count+1 {
+		v.afterHead = id
+	}
 }
 
-// Result returns the verdict so far.
-func (v *Verifier) Result() Result { return v.res }
+// Result returns the verdict so far. A head mismatch is reported (when no row is broken before it) as:
+//   - fewer rows than the head says: BrokenAt = Count+1 (the first missing row), EntryID empty;
+//   - more rows than the head says: BrokenAt = head.Count+1, EntryID of that row (appended without the head);
+//   - same count but another newest hash, or rows with no head at all: BrokenAt = Count, EntryID of the newest row.
+func (v *Verifier) Result() Result {
+	r := v.res
+	if !r.OK || !v.checkHead {
+		return r
+	}
+	n := int64(r.Count)
+	switch {
+	case v.head == nil && n == 0:
+		return r
+	case v.head == nil:
+		return Result{Count: r.Count, BrokenAt: r.Count, EntryID: v.lastID}
+	case n < v.head.Count:
+		return Result{Count: r.Count, BrokenAt: r.Count + 1}
+	case n > v.head.Count:
+		return Result{Count: r.Count, BrokenAt: int(v.head.Count) + 1, EntryID: v.afterHead}
+	case n == 0:
+		return r
+	case v.expectPrev != v.head.Hash:
+		return Result{Count: r.Count, BrokenAt: r.Count, EntryID: v.lastID}
+	}
+	return r
+}

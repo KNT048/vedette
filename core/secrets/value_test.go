@@ -2,6 +2,7 @@ package secrets_test
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding"
 	"encoding/json"
 	"fmt"
@@ -103,6 +104,55 @@ func TestValueSlog(t *testing.T) {
 		out := buf.String()
 		if strings.Contains(out, "hunter") || !strings.Contains(out, "[redacted]") {
 			t.Errorf("%s handler output: %s", name, out)
+		}
+	}
+}
+
+func TestValueIsSetAndLast4(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		v     secrets.Value
+		isSet bool
+		last4 string
+	}{
+		{"zero value", secrets.Value{}, false, ""},
+		{"empty", secrets.NewValue(""), false, ""},
+		{"one character", secrets.NewValue("x"), true, ""},
+		{"seven characters stay hidden", secrets.NewValue("1234567"), true, ""},
+		{"eight characters show four", secrets.NewValue("12345678"), true, "5678"},
+		{"long key", secrets.NewValue("sk-live-abcdefgh1234"), true, "1234"},
+		{"counts characters, not bytes", secrets.NewValue("ấấấấấấấấ"), true, "ấấấấ"},
+		{"seven multi-byte characters", secrets.NewValue("ấấấấấấấ"), true, ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := tc.v.IsSet(); got != tc.isSet {
+				t.Errorf("IsSet = %v, want %v", got, tc.isSet)
+			}
+			if got := tc.v.Last4(); got != tc.last4 {
+				t.Errorf("Last4 = %q, want %q", got, tc.last4)
+			}
+		})
+	}
+}
+
+// Last4 agrees with the last4 the store keeps for the same plaintext.
+func TestValueLast4MatchesStore(t *testing.T) {
+	t.Parallel()
+	s, db := newStore(t)
+	for _, plaintext := range []string{"1234567", "12345678", "sk-live-abcdefgh1234", "ấấấấấấấấấ"} {
+		var last4 string
+		err := db.Write(t.Context(), func(tx *sql.Tx) (err error) {
+			_, last4, err = s.Seal(t.Context(), tx, "ai_profile.api_key", []byte(plaintext), true)
+			return err
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := secrets.NewValue(plaintext).Last4(); got != last4 {
+			t.Errorf("%q: Value.Last4 = %q, store last4 = %q", plaintext, got, last4)
 		}
 	}
 }

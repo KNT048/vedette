@@ -53,6 +53,8 @@ Không route `/findings*`; không finding mới/cập nhật; `notify` không c�
 S-MIT-1 (danh sách, trạng thái), S-INV-2, S-SCAN-3, S-ALERT-1. D-3 không chặn; D-52 Findings ≠ Incidents; D-57(6) tách module; D-57(13) `confidence` thang 0–1.
 
 ## Không khớp / câu hỏi mở
+- `fnd_finding_history` chỉ chặn UPDATE bằng trigger (chỉ thêm, không sửa); DELETE không bị chặn vì xoá finding (INV-7) cần cascade xoá history. Chỉ có `findings.Service` xoá finding.
+- `GET /findings/{id}` thêm mỗi mục "Đã áp dụng" của `mitigation` vào `history` dưới dạng dòng `applied:<item>` (như mock, sắp theo `ts`, ổn định); `GET /findings` thì không (chỉ history đã lưu).
 - `fnd_finding.asset_id` chưa có FK tới `inv_asset` (inventory chưa có): INV-7 do `Service.OnAssetDeleted` đảm nhiệm. Khi `inventory` có bảng thì thêm FK bằng migration mới.
 - `bad_action` và `note_too_long` (khi vượt 500 ký tự ngay trong thân) bị schema OpenAPI chặn trước handler (400 `invalid` chung của ogen): mã riêng chỉ còn tới được qua service, và `note_too_long` qua HTTP chỉ khi ghi chú ≤ 500 ký tự Unicode nhưng > 500 đơn vị UTF-16.
 - ARCHITECTURE §4 đặt bảng `inv_finding`; hợp đồng này dùng `fnd_finding` (khớp DATA_MODEL). DATA_MODEL §4.3 và §5.2 còn ghi "chỉ `mitigation` ghi bảng" và `mitigation.finding.*`: cần sửa theo hợp đồng này.

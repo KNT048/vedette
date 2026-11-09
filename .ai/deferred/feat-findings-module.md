@@ -7,3 +7,5 @@
 - [ ] When inventory has inv_asset, add the FK fnd_finding.asset_id -> inv_asset ON DELETE CASCADE in a new findings migration (INV-7 then holds in the database too)
 - [ ] Real shipped packs: the loader reads JSON, the maintainers' tool (vedette-author, S-MIT-4) must write the same format; web/src/features/findings/packs.ts stays mock content
 - [ ] Open: ConfirmFromScan for a pair without a finding returns ErrNotFound; decide with scan whether scan should create one
+- [ ] GET /findings (list) shows only stored history; the "applied:<item>" rows are composed on GET /findings/{id} only (the mock shows them in both). Add them to the list only if a screen needs it: it costs a Guidance call per row
+- [ ] Real Verifier must sign Update.Version and the bytes of every Docs[].Data (see the Verifier comment in mitigation/ports.go); core/updates owns it

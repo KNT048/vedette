@@ -3,6 +3,9 @@
 ## Modifying: `mitigation.Provider.Guidance(ctx, findings.Row)` (phần "What to do" của `GET /findings/{id}`)
 - **findings** (`FindingHandlers.SetGuidance`; bị bỏ qua khi mitigation tắt) (gộp vào `FindingDetail`), SPA trang finding. Đổi `FindingDetail.pack|compromise|recheck|ai|applied` phải sửa `findings/contract.ts` (nguồn OpenAPI).
 
+## Modifying: `{IP}`/`{HOST}` (deviceReplacer)
+- Khi không có thiết bị hoặc IP không hợp lệ, văn bản có `<IP>`/`<HOST>` (mock dùng `<IP-NAS>`/IP). Dán nhầm vào shell thì vô hại: `<` là chuyển hướng nhập từ một tệp không tồn tại nên lệnh lỗi, không chạy gì. Khi tên máy không an toàn hoặc vắng thì `{HOST}` là IP thiết bị, đúng như mock (`hostname ?? ip`).
+
 ## Modifying: các interface `Verifier`, `AI`, `Vendors` (mitigation/ports.go)
 - **core/updates** (cài `Verifier`: chữ ký của bản cập nhật; thiếu = từ chối mọi gói), **ai** (cài `AI`: `Available`, `Run` qua RunJob), **inventory** (cài `Vendors.HasFirewallVendor`). Đổi chữ ký = đổi chỗ nối trong `cmd/vedette`.
 

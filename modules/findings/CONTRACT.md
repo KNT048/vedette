@@ -1,0 +1,57 @@
+# Findings Contract
+
+> Tier: standard · Story: S-MIT-1 (danh sách, vòng đời), S-INV-2, S-SCAN-3, S-ALERT-1 · Last verified: 2026-11-09 (docs-first, chưa có code)
+
+Tách từ `mitigation` theo D-57(6): phát hiện (finding) là module riêng, tắt `mitigation` không làm mất phát hiện hay cảnh báo (S-ALERT-1). GUI là `web/src/features/findings/` (danh sách, trang finding, panel Devices). Nguồn hành vi: `findings/{contract,mocks,basis}.ts` (phần `Finding`, `FindingRow`, `/findings`, `/findings/{id}/status`), `web/src/mocks/match.ts`. Phần "What to do" (gói, đã áp dụng, AI) thuộc `mitigation`.
+
+## Invariants
+- **INV-1**: Finding = cặp `(asset_id, cve)` duy nhất; không có hai finding cho cùng cặp. `TestContract_INV1_UniquePair`
+- **INV-2**: `status ∈ {confirmed, suspected, mitigated, patched, false_positive, not_relevant}`; `basis ∈ {scan, version, product}`; `confidence` ∈ [0,1]. `confirmed` chỉ khi `basis=scan` và có `evidence` (template + `checked_at`); khớp chỉ theo kho thiết bị cho `suspected` với `basis ∈ {version, product}`. `basis` chỉ nâng `product → version → scan`, không hạ.
+- **INV-3**: Đổi trạng thái qua `POST /findings/{id}/status` với `action ∈ {patched, mitigated, false_positive, not_relevant, reopen}`; `note` ≤ 500 (400 `note_too_long`); `false_positive` và `not_relevant` cần note ≥ 3 ký tự (400 `note_required`); `reopen` trên finding đang mở → 409 `already_open`; action lạ → 400 `bad_action`. Mỗi lần đổi thêm một dòng `history {ts, user, action, note}` (chỉ thêm) và `core_audit`.
+- **INV-4**: Bộ khớp so khoá KEV `vendorproject|product` (chữ thường, cắt khoảng trắng, đúng cách chuẩn hoá của `feeds`); KEV ghi "Multiple products" khớp theo hãng (`basis=product`, confidence thấp hơn). Khi `feeds` có khoảng phiên bản/CPE cho CVE: phiên bản đã biết **nằm ngoài mọi khoảng bị ảnh hưởng ⇒ không tạo finding**; nằm trong khoảng ⇒ `basis=version`; không so sánh được (thiếu hoặc lạ) ⇒ không đoán "bị" hay "không bị", rơi về `basis=product` (chưa biết phiên bản). `TestContract_INV4_*`
+- **INV-5**: Độ nghiêm trọng lúc tạo: `critical` khi `ransomware` hoặc `epss ≥ 0.5`, ngược lại `high` (⚠ lấy từ mock `match.ts`, chưa có quyết định).
+- **INV-6**: Tạo finding là idempotent theo `(asset_id, cve)`: nhận `inventory.match.changed` hoặc `scan.finding.confirmed`; cặp đã có (kể cả đã đóng) không bị tạo lại hay mở lại âm thầm; bộ khớp chỉ thêm, không bao giờ xoá.
+- **INV-7**: Xoá thiết bị xoá finding của nó (nhận `inventory.asset.deleted`).
+- **INV-8**: `FindingRow.kev` đọc từ `feeds`, không từ gói khuyến nghị của `mitigation`.
+
+## Preconditions / Postconditions
+- **PRE-1** (`UpsertFromMatch(assetID, cve, basis)`): `cve` khớp `^CVE-\d{4}-\d{4,}$`, tài sản tồn tại. **POST-1**: finding tạo, hoặc cập nhật `last_seen`; chỉ phát `findings.finding.created` khi mới.
+- **PRE-2** (`ConfirmFromScan(assetID, cve, evidence)`): `evidence` đã rút gọn và gồm `template`. **POST-2**: finding đang mở → `status=confirmed`, `basis=scan`; finding đã `false_positive|not_relevant` không tự mở lại, phát `findings.finding.status_changed` để người dùng quyết; finding đã `patched|mitigated` → `confirmed` kèm history `reopened` (ghi chú scan) và `status_changed` (**[ĐX]** DATA_MODEL §5.2, chưa chốt). Quét không còn khớp chỉ ghi history `rescan_clear`, không đổi trạng thái.
+- **PRE-3** (`GET /findings/{id}`): id 1…64 ký tự. **POST-3**: trả `FindingDetail`; id lạ → 404. Các trường "What to do" (`pack`, `compromise`, `recheck`, `ai`, `ai_available`, `applied`) do `mitigation` cấp; khi `mitigation` tắt trả rỗng/`null`.
+- **PRE-4** (`POST …/status`): `operator`. **POST-4**: trả `FindingDetail` mới; thất bại không đổi gì.
+
+## Forbidden
+- **FORBID-1**: Ghi lên thiết bị hoặc firewall của khách, chặn traffic (D-3). Thực thi hành động thuộc `response`.
+- **FORBID-2**: Tự đóng finding mà không có hành động người dùng (`patched` do người xác nhận); quét không còn khớp cũng không tự đóng.
+- **FORBID-3**: Tạo loại "lỗ hổng" trong Incidents (D-52).
+- **FORBID-4**: Khẳng định bị ảnh hưởng hoặc không bị ảnh hưởng khi phiên bản không so sánh được.
+- **FORBID-5**: Module khác ghi `fnd_*` trực tiếp; đọc qua interface của `findings`.
+
+## Dependencies
+- **DEPENDS ON**: `core`, `feeds` (KevInfo, khoảng phiên bản), `inventory` (tài sản, phần mềm, sự kiện khớp). Tuỳ chọn: `scan` (xác nhận), `notify` (người được báo).
+- **DEPENDED ON BY**: `mitigation` (gói theo finding), `notify` (tin lỗ hổng), `scan` (nối `finding_id`), `scan-credentialed`, `response`, `reports`, `ai` (giải thích finding), `mcp-server` (`get_finding`), SPA Devices (panel `device.panels`).
+
+## Endpoints owned (role tối thiểu)
+| Route | Vai |
+|---|---|
+| `GET /findings`, `GET /findings/{id}` | viewer |
+| `POST /findings/{id}/status` | operator |
+
+## Tables owned (`fnd_`)
+`fnd_finding`, `fnd_finding_history`.
+
+## Events
+- **Phát**: `findings.finding.created {finding_id, asset_id, cve, severity, basis}`, `findings.finding.status_changed {finding_id, from, to}`.
+- **Nhận**: `inventory.match.changed`, `inventory.asset.deleted`, `scan.finding.confirmed`, `feeds.vuln.updated` (làm tươi KevInfo, khớp lại).
+
+## Behaviour khi tắt
+Không route `/findings*`; không finding mới/cập nhật; `notify` không có gì để gửi cho S-ALERT-1; kết quả `scan` có `finding_id=null`; Devices mất panel finding; `reports` thiếu mục lỗ hổng; `mitigation` mất đầu vào (phụ thuộc, báo `affected`). Bảng giữ nguyên.
+
+## Story và quyết định
+S-MIT-1 (danh sách, trạng thái), S-INV-2, S-SCAN-3, S-ALERT-1. D-3 không chặn; D-52 Findings ≠ Incidents; D-57(6) tách module; D-57(13) `confidence` thang 0–1.
+
+## Không khớp / câu hỏi mở
+- ARCHITECTURE §4 đặt bảng `inv_finding`; hợp đồng này dùng `fnd_finding` (khớp DATA_MODEL). DATA_MODEL §4.3 và §5.2 còn ghi "chỉ `mitigation` ghi bảng" và `mitigation.finding.*`: cần sửa theo hợp đồng này.
+- `GET /findings/{id}` gộp dữ liệu của `mitigation` (shape `FindingDetail` giữ nguyên, GUI-first). Khi `mitigation` tắt, `pack:null` giống hệt "chưa có khuyến nghị đã xác nhận": GUI chưa phân biệt được (S-CORE-1 yêu cầu nói rõ vì module tắt). Cần quyết: thêm cờ vào `FindingDetail` (đổi GUI = story mới) hay ẩn panel.
+- `basis=version` chưa có trong mock (`feeds_vuln` chưa có khoảng phiên bản); `confidence` cho `version` là **[ĐX]** 0.7 (DATA_MODEL §5.2 ghi "≥ 0.7").
+- Basis của kết quả credentialed (Greenbone) chưa định nghĩa (chỉ `scan|version|product`).

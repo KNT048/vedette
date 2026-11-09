@@ -42,6 +42,9 @@ type Binary struct {
 	Path      string                    // absolute path; PATH is never searched
 	Validate  func(args []string) error // must accept the whole argv before the process starts
 	MaxOutput int64                     // per-stream capture limit in bytes; 0 = DefaultMaxOutput
+	// Env adds KEY=value entries after the fixed PATH and LANG. Only keys on the allowlist
+	// (DEBIAN_FRONTEND) are accepted; the parent environment is never inherited.
+	Env []string
 }
 
 // Result is what a finished process produced.
@@ -88,6 +91,9 @@ func NewRunner(log *slog.Logger, bins ...Binary) (*Runner, error) {
 		case b.MaxOutput < 0:
 			return nil, fmt.Errorf("exec: binary %q: negative MaxOutput", b.Name)
 		}
+		if err := checkEnv(b.Env); err != nil {
+			return nil, fmt.Errorf("exec: binary %q: %w", b.Name, err)
+		}
 		if _, dup := r.bins[b.Name]; dup {
 			return nil, fmt.Errorf("exec: binary %q listed twice", b.Name)
 		}
@@ -97,6 +103,29 @@ func NewRunner(log *slog.Logger, bins ...Binary) (*Runner, error) {
 		r.bins[b.Name] = b
 	}
 	return r, nil
+}
+
+// allowedEnv is the whole list of keys a binary may add to the fixed environment: only what
+// vedette-host needs. Everything else (LD_*, LC_*, PATH, LANG, PYTHON*, ...) is refused by name,
+// so a typo or a hostile caller cannot reshape how the child loads code or localises output.
+var allowedEnv = map[string]bool{"DEBIAN_FRONTEND": true}
+
+// checkEnv accepts KEY=value entries whose key is on allowedEnv, once each, without NUL.
+func checkEnv(env []string) error {
+	seen := make(map[string]bool, len(env))
+	for _, e := range env {
+		k, v, ok := strings.Cut(e, "=")
+		switch {
+		case !ok || !allowedEnv[k]:
+			return fmt.Errorf("env key %q is not allowed", k)
+		case strings.ContainsRune(v, 0):
+			return fmt.Errorf("env value of %s contains NUL", k)
+		case seen[k]:
+			return fmt.Errorf("env key %s listed twice", k)
+		}
+		seen[k] = true
+	}
+	return nil
 }
 
 // capped keeps the first max bytes and silently drops the rest, so the child never blocks on a full pipe.
@@ -136,7 +165,7 @@ func (r *Runner) Run(ctx context.Context, name string, args []string, stdin io.R
 	}
 
 	cmd := osexec.CommandContext(ctx, bin.Path, args...) //nolint:gosec // path from the allowlist, argv validated, no shell
-	cmd.Env = []string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C"}
+	cmd.Env = append([]string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C"}, bin.Env...)
 	cmd.Dir = "/"
 	cmd.Stdin = stdin
 	stdout, stderr := &capped{max: bin.MaxOutput}, &capped{max: bin.MaxOutput}

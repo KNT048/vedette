@@ -22,6 +22,7 @@ type handler struct {
 	server.Fallback
 	*core.ModuleHandlers
 	*core.APIHandlers
+	*core.OSHandlers
 	*inventory.Handlers
 	*feeds.FeedHandlers
 	*findings.FindingHandlers
@@ -39,6 +40,7 @@ func newHandler(d deps) handler {
 		Fallback:       server.Fallback{Log: d.Log},
 		ModuleHandlers: core.NewModuleHandlers(d.DB, d.Reg),
 		APIHandlers:    d.Core,
+		OSHandlers:     d.OS,
 		Handlers:       inventory.NewHandlers(d.Inventory),
 		FeedHandlers:   feedsHandlers(d),
 

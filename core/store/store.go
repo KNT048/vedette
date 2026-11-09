@@ -25,9 +25,10 @@ import (
 
 // DB is the application database: one writer connection and a pool of read-only connections.
 type DB struct {
-	w   *sql.DB
-	r   *sql.DB
-	log *slog.Logger
+	w    *sql.DB
+	r    *sql.DB
+	path string // absolute path of the database file
+	log  *slog.Logger
 }
 
 // Open opens the database at path. A missing file is created with mode 0600; an existing file
@@ -66,7 +67,7 @@ func Open(ctx context.Context, path string, log *slog.Logger) (*DB, error) {
 		_ = r.Close()
 		return nil, fmt.Errorf("store: ping reader: %w", err)
 	}
-	return &DB{w: w, r: r, log: log}, nil
+	return &DB{w: w, r: r, path: abs, log: log}, nil
 }
 
 // ensurePrivateFile creates path with mode 0600 if it does not exist, and otherwise refuses a
@@ -202,6 +203,92 @@ func (db *DB) Check(ctx context.Context) error {
 		return fmt.Errorf("store: foreign_key_check: %d violating rows", violations)
 	}
 	return nil
+}
+
+// SnapshotTo writes a consistent, self-contained copy of the database to path with VACUUM INTO: one file, no
+// -wal or -shm (the copy is one read transaction, so the data is one moment). It runs on its own short-lived
+// connection, opened read-only at the file level but without query_only (VACUUM INTO only reads the source),
+// so on the WAL database the copy is a reader and writes made by others go on while it runs. path is created
+// here with mode 0600 and must not exist; the caller owns the directory around it.
+func (db *DB) SnapshotTo(ctx context.Context, path string) error {
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600) //nolint:gosec // path is built by the caller from its own data directory
+	if err != nil {
+		return fmt.Errorf("store: snapshot: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("store: snapshot: %w", err)
+	}
+	q := url.Values{}
+	q.Set("mode", "ro")
+	q.Add("_pragma", "busy_timeout(5000)")
+	src, err := sql.Open("sqlite", (&url.URL{Scheme: "file", Path: db.path, RawQuery: q.Encode()}).String())
+	if err != nil {
+		_ = os.Remove(path)
+		return fmt.Errorf("store: snapshot: %w", err)
+	}
+	defer func() { _ = src.Close() }()
+	src.SetMaxOpenConns(1)
+	if _, err := src.ExecContext(ctx, "VACUUM INTO ?", path); err != nil {
+		_ = os.Remove(path)
+		return fmt.Errorf("store: snapshot: %w", err)
+	}
+	return nil
+}
+
+// Size is the space the database takes on disk: the main file and the write-ahead log. A VACUUM INTO copy is
+// never bigger than this.
+func (db *DB) Size() (int64, error) {
+	var total int64
+	for _, name := range []string{db.path, db.path + "-wal"} {
+		info, err := os.Stat(name)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return 0, fmt.Errorf("store: size: %w", err)
+		}
+		total += info.Size()
+	}
+	return total, nil
+}
+
+var migrationTableRE = regexp.MustCompile(`^core_migration_[a-z][a-z0-9_]{0,40}$`)
+
+// SchemaVersions reports the highest applied migration of every module as "module=version,..." sorted by
+// module, in the grammar of the backup manifest (docs/specs/host-api.md 6.11): the module is the part of the
+// goose table name after core_migration_ (a module id has hyphens, the table has underscores).
+func (db *DB) SchemaVersions(ctx context.Context) (string, error) {
+	rows, err := db.r.QueryContext(ctx, "SELECT name FROM sqlite_master WHERE type = 'table' AND name GLOB 'core_migration_*' ORDER BY name")
+	if err != nil {
+		return "", fmt.Errorf("store: list migration tables: %w", err)
+	}
+	var tables []string
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			_ = rows.Close()
+			return "", fmt.Errorf("store: list migration tables: %w", err)
+		}
+		tables = append(tables, n)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return "", fmt.Errorf("store: list migration tables: %w", err)
+	}
+	var pairs []string
+	for _, t := range tables {
+		if !migrationTableRE.MatchString(t) {
+			continue // not a goose table of ours
+		}
+		var v sql.NullInt64
+		// t matched migrationTableRE: lower-case letters, digits and underscores, safe to quote as an identifier.
+		if err := db.r.QueryRowContext(ctx, `SELECT max(version_id) FROM "`+t+`" WHERE is_applied`).Scan(&v); err != nil {
+			return "", fmt.Errorf("store: read %s: %w", t, err)
+		}
+		if v.Valid && v.Int64 > 0 {
+			pairs = append(pairs, fmt.Sprintf("%s=%d", strings.TrimPrefix(t, "core_migration_"), v.Int64))
+		}
+	}
+	return strings.Join(pairs, ","), nil
 }
 
 var moduleRE = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)

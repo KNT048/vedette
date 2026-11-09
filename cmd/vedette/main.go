@@ -56,6 +56,7 @@ type options struct {
 	db, key, listen string
 	tlsCert, tlsKey string
 	hosts           string
+	hostSocket      string
 	honeypotDir     string
 }
 
@@ -68,6 +69,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	flags.StringVar(&o.key, "key", "/var/lib/vedette/vedette.key", "path of the secrets master key file (created with mode 0600 when missing)")
 	flags.StringVar(&o.honeypotDir, "honeypot-dir", "/var/lib/vedette/honeypot", "parent of the two folders shared with the honeypot container: config/ (core writes opencanary.conf; the container mounts it read-only) and log/ (the container writes the trap log, core reads it) (D-89)")
 	// Plain HTTP only on loopback; any other address is served over TLS (own certificate, or a self-signed one made at first start).
+	flags.StringVar(&o.hostSocket, "host-socket", "/run/vedette/host.sock", "unix socket of vedette-host (operating system updates and backups); empty, or a missing socket file, means a container-only install and those endpoints answer 409 not_appliance. The database and key files must be <dir>/vedette.db and <dir>/vedette.key, where <dir> is the host's core_data")
 	flags.StringVar(&o.listen, "listen", "127.0.0.1:8080", "address to listen on; plain HTTP on loopback, TLS on any other address")
 	flags.StringVar(&o.tlsCert, "tls-cert", "", "PEM certificate for TLS (with -tls-key); when both are missing and -listen is not loopback, a self-signed pair is made next to the database")
 	flags.StringVar(&o.tlsKey, "tls-key", "", "PEM private key for TLS")
@@ -188,9 +190,14 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return err
 	}
-	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), BaseURL: baseURL(hosts, o.listen), HoneypotDir: o.honeypotDir}
+	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), BaseURL: baseURL(hosts, o.listen),
+		HostSocket: o.hostSocket, DataDir: filepath.Dir(o.db), KeyPath: o.key, HoneypotDir: o.honeypotDir}
 	if err := buildServices(&d); err != nil {
 		return err
+	}
+	defer d.OS.Close()
+	if o.hostSocket != "" && (filepath.Base(o.db) != "vedette.db" || filepath.Base(o.key) != "vedette.key" || filepath.Dir(o.key) != filepath.Dir(o.db)) {
+		log.WarnContext(ctx, "backup restore through vedette-host needs the database and key at <core_data>/vedette.db and <core_data>/vedette.key", "db", o.db, "key", o.key)
 	}
 	// D-75: while first-run setup is open the box prints its one-time setup code, at every start. This is the
 	// one place a secret is logged on purpose: the log is where the person who installed the box looks.

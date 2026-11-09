@@ -4,13 +4,8 @@ import { http, HttpResponse } from 'msw'
 import { API, audit, fail, guard } from '@/mocks/http'
 import { peek } from '@/mocks/db'
 import { auditStore } from '@/mocks/stores'
+import { LOG_CATEGORIES, type LogCategory } from './logCategories'
 
-export const LOG_CATEGORIES = [
-  { id: 'audit', key: 'core_audit' }, { id: 'ai_activity', key: 'ai_activity', chained: true }, { id: 'response', key: 'resp_log' },
-  { id: 'scan_probes', key: 'scan_probes' }, { id: 'alerts', key: 'notify_alerts' }, { id: 'device_logs', key: 'logs_events' },
-  { id: 'known_bad', key: 'logs_ioc_hits' }, { id: 'honeypot', key: 'hp_hits' },
-] as const
-export type LogCategory = (typeof LOG_CATEGORIES)[number]['id']
 export const CHAIN_NOTE = 'Hash-chained categories: hash = SHA-256(prev_hash + canonical JSON of the entry without hash, keys sorted). The first entry is the anchor.'
 
 const SECRET_KEY = /^(password|passwd|secret|token|api_?key|key|private_?key|passphrase|credential|credentials|webhook|webhook_url|authorization)$|(_secret|_password|_token|_api_key|_webhook(_url)?|_credential)$/i

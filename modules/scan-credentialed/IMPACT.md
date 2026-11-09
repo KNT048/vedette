@@ -12,8 +12,8 @@
 ## Modifying: gọi `inventory.InScope` và `scan` (cửa sổ, Stop now)
 - **inventory**, **scan**: nới phạm vi ở đó làm rộng phạm vi quét có tài khoản.
 
-## Modifying: kết quả → `mitigation` (`basis`)
-- **mitigation**: cần thêm giá trị `basis` nếu credentialed tạo finding; đổi enum `basis` là đổi `findings/contract.ts`.
+## Modifying: kết quả → `findings` (`basis`)
+- **findings**: cần thêm giá trị `basis` nếu credentialed tạo finding; đổi enum `basis` là đổi `findings/contract.ts`.
 
 ## Disabling this module
 - Tab Credentialed của Scans báo "off"; container greenbone dừng; không kết nối SSH.

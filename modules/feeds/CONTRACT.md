@@ -35,7 +35,7 @@ Nguồn hành vi: `web/src/features/feeds/{contract,defaults,parsers,sourcesMock
 
 ## Dependencies
 - **DEPENDS ON**: `core` (jobs, secrets, audit). Tuỳ chọn: `inventory` (`you_have`, "I have it").
-- **DEPENDED ON BY**: `inventory` (danh mục KEV, khớp), `mitigation` (KevInfo), `scan` (`has_template`, KEV mới), `notify` (qua `mitigation`), `reports`, `ai` (slot `cve.panels`), `mcp-server` (`lookup_cve`, `lookup_ioc`), `honeypot`/`logs`/`response` (IOC, nhóm B).
+- **DEPENDED ON BY**: `inventory` (danh mục KEV, khớp), `findings` (KevInfo), `mitigation` (gói theo CVE), `scan` (`has_template`, KEV mới), `notify` (qua `findings`), `reports`, `ai` (slot `cve.panels`), `mcp-server` (`lookup_cve`, `lookup_ioc`), `honeypot`/`logs`/`response` (IOC, nhóm B).
 
 ## Endpoints owned (role tối thiểu)
 | Route | Vai |

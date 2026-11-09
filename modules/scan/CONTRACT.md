@@ -12,7 +12,7 @@ Nguồn hành vi: `web/src/features/scan/{contract,mocks}.ts`. Phần `/scans/cr
 - **INV-5**: Cấu hình: `window.days ∈ 0..6` (0=Chủ Nhật) ít nhất một ngày, `from/to` HH:MM; `rate ∈ 1..20` request/giây; `exclusions` ≤ 200 IP/CIDR; `unresponsive_after ∈ 2..20`; `schedule {enabled, frequency daily|weekly, weekday, at}`. Sai → 400 `invalid_config`.
 - **INV-6**: Tự dừng: khi `stop_on_unresponsive` và một thiết bị không phản hồi `unresponsive_after` lần liên tiếp, lượt quét chuyển `auto_stopped` với `stop_reason`; thiết bị đó không bị tiếp tục dồn request. "Stop now": trạng thái `stopping` rồi `stopped` trong ≤ 5 giây; dừng lượt đã kết thúc → 409 `not_running`.
 - **INV-7**: Mỗi request thăm dò ghi `ProbeEntry {ts, run_id, ip, label, template, request, result}`, giữ ≥ 90 ngày (`retention_days`), tải được dạng CSV; ghi cả khi bị dừng.
-- **INV-8**: Kết quả mỗi thiết bị thuộc `matched | not_matched | not_applicable | no_template | no_response | skipped`. "Xác nhận có" (`matched`) tách khỏi "nghi theo phiên bản": chỉ `matched` gọi `mitigation.ConfirmFromScan` và mang `finding_id`, bằng chứng rút gọn (request/response), `confidence`, cách tự kiểm tra lại (S-SCAN-3).
+- **INV-8**: Kết quả mỗi thiết bị thuộc `matched | not_matched | not_applicable | no_template | no_response | skipped`. "Xác nhận có" (`matched`) tách khỏi "nghi theo phiên bản": chỉ `matched` gọi `findings.ConfirmFromScan` và mang `finding_id`, bằng chứng rút gọn (request/response), `confidence`, cách tự kiểm tra lại (S-SCAN-3).
 - **INV-9**: Quét lại theo KEV (S-SCAN-2): khi `feeds.vuln.new_kev` có `has_template`, chỉ quét tài sản liên quan trong ≤ 60 phút nếu `auto_rescan=true`; mỗi sự kiện ghi `RescanEvent {cve, product, devices, latency_min, run_id, result ∈ matched|clear|skipped_off|no_match}`. `auto_rescan=false` ⇒ ghi `skipped_off`, không quét.
 - **INV-10**: Phản hồi từ thiết bị ngoài/trong là dữ liệu không tin cậy (SYS-6): bằng chứng cắt ngắn theo trần cố định, lưu như văn bản, escape khi hiển thị.
 - **INV-11**: `scope.commitment` chỉ đọc từ `inventory`; `scan` không tự ghi cam kết.
@@ -31,7 +31,7 @@ Nguồn hành vi: `web/src/features/scan/{contract,mocks}.ts`. Phần `/scans/cr
 - **FORBID-5**: Gửi kết quả quét ra ngoài hộp.
 
 ## Dependencies
-- **DEPENDS ON**: `core`, `inventory` (phạm vi, chính sách), `feeds` (`has_template`, KEV mới). Tuỳ chọn: `exposure` (mục tiêu ngoài), `mitigation` (finding), `notify` (qua `mitigation`).
+- **DEPENDS ON**: `core`, `inventory` (phạm vi, chính sách), `feeds` (`has_template`, KEV mới). Tuỳ chọn: `exposure` (mục tiêu ngoài), `findings` (finding), `notify` (qua `findings`).
 - **DEPENDED ON BY**: `scan-credentialed` (cửa sổ/phạm vi), `mitigation` (xác nhận), `reports`.
 
 ## Endpoints owned (role tối thiểu)

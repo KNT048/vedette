@@ -85,7 +85,7 @@ func TestRegress_RequestAndAuthNeverShowTheSecret(t *testing.T) {
 	}
 	req := Request{URL: "https://example.com/x?token=abc", Auth: Auth{Type: AuthHeader, HeaderName: "X-Api-Key", Secret: sec}, ETag: `"e1"`}
 	for _, s := range []string{
-		fmt.Sprintf("%v", req), fmt.Sprintf("%+v", req), fmt.Sprintf("%#v", req), fmt.Sprintf("%s", req.Auth), //nolint:gosec // probing the formatter
+		fmt.Sprintf("%v", req), fmt.Sprintf("%+v", req), fmt.Sprintf("%#v", req), fmt.Sprintf("%s", req.Auth),
 		fmt.Sprintf("%x", req.Auth.Secret), fmt.Sprintf("%q", req.Auth), fmt.Sprintf("%d", req.Auth.Secret),
 	} {
 		if strings.Contains(s, "s3cr3t") || strings.Contains(s, fmt.Sprintf("%x", raw)) {

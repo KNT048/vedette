@@ -412,7 +412,8 @@ func (s *Server) submit(w http.ResponseWriter, sub submission, cmd Command, args
 		writeError(w, http.StatusInternalServerError, simpleError(api.CodeInternal, "The host could not process the request."))
 		return
 	}
-	now := s.now().UTC()
+	started := s.now() // keeps the monotonic reading: enterAwaiting measures the 660 s bound with it
+	now := started.UTC()
 	run := api.Run{RunID: runID, Command: sub.command, Status: api.StatusQueued, StartedAt: now, Actor: sub.actor, RequestID: sub.requestID, AuditID: auditID}
 
 	s.mu.Lock()
@@ -475,7 +476,7 @@ func (s *Server) submit(w http.ResponseWriter, sub submission, cmd Command, args
 		}
 	}
 
-	lr := &liveRun{sr: storedRun{Run: run, ArgsDigest: sub.digest, Write: cmd.write}, sub: sub, ev: newEventLog(s.now)}
+	lr := &liveRun{sr: storedRun{Run: run, ArgsDigest: sub.digest, Write: cmd.write}, sub: sub, ev: newEventLog(s.now), started: started}
 	s.mu.Lock()
 	s.live[runID] = lr.ev
 	s.mu.Unlock()
@@ -596,6 +597,9 @@ type liveRun struct {
 	sub   submission
 	ev    *eventLog
 	after []func(context.Context, api.Status) // AfterFinish callbacks of a run parked in awaiting_confirm
+	// started is s.now() at the start of the run, with its monotonic reading when the clock has one:
+	// the wall clock may step while the command runs, and the 660 s bound must not move with it.
+	started time.Time
 }
 
 // finish records the end of the run in the required order: audit line, run file, then the write

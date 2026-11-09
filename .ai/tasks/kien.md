@@ -1,6 +1,6 @@
 # Việc của Kiên — đọc cùng docs/TEAM_PLAN.md
 
-Cập nhật: 2026-11-09 (phiên AI lead). Sở hữu: core, host, đóng gói/phát hành, inventory, sensor-passive, sensor-active, response, honeypot, rà bảo mật; **cộng mọi việc chồng lấn/dùng chung (D-65)**.
+Cập nhật: 2026-11-09 tối (phiên AI lead). Sở hữu: core, host, đóng gói/phát hành, inventory, sensor-passive, sensor-active, response, honeypot, rà bảo mật; **cộng mọi việc chồng lấn/dùng chung (D-65)**.
 File này là **file handoff duy nhất** của phiên AI làm việc cho Kiên: sau compact/restart đọc lại trước khi làm tiếp.
 
 ## Repo và quy trình (đọc trước)
@@ -10,24 +10,27 @@ File này là **file handoff duy nhất** của phiên AI làm việc cho Kiên:
 - Emily (Mlee) nhường mọi chỗ chồng lấn cho phía Kiên, mở issue `owner:kien` (D-65). Quyết định của Emily: phía Kiên chép vào DECISIONS.
 
 ## Đã merge
-WP-01 (#7), WP-02 ogen (#11), WP-03 store/secrets/audit/exec (#12), #14 (đổi tham chiếu findings), #18 (hợp đồng core), #19 (make check, CI public, D-62..D-65), #20 (module path), #22 (orphan reaper), #23 (pnpm node-version, issue #21), #24 (findings trong enum module), WP-04a server/registry/jobs (#25), WP-06 giao diện khớp hợp đồng (#26), D-67..D-70 (#27), issue #29 (#31), WP-05 giao diện gọi API thật theo module (#32), issue #33 nối module trong `cmd/vedette` (PR này).
+WP-01 (#7), WP-02 ogen (#11), WP-03 store/secrets/audit/exec (#12), #14, #18 (hợp đồng core), #19 (make check, CI, D-62..D-65), #20, #22 (orphan reaper), #23, #24, WP-04a server/registry/jobs (#25), WP-06 (#26), D-67..D-70 (#27), #31, WP-05 (#32), #34 (nối module, issue #33), #35 (reaper báo issue), WP-04b phần 1 core/auth + events (#36, đóng #17), D-74..D-76 (#37), WP-10 inventory (#40), giới hạn thân theo thao tác (#41), #45 (đóng #43), `deps.Bus` + inventory dùng chung (#47), #48, giám sát WP-23 (#49), D-81/D-82 (#51, #53), WP-07a khung vedette-host (#52), #54 (gỡ binary lỡ commit), nối inventory/feeds/findings/mitigation qua cổng và bus + D-78 (#56, issue #38, #39). Của Emily: #42, #44, #46, #55, #59, notify WP-22 (#60).
 
 ## Nối một module vào binary (issue #33)
-`cmd/vedette/modules.go`: thêm một dòng vào `wiredModules()` (id, `Migrations`, `Jobs func(deps) []jobs.Job`), theo thứ tự phụ thuộc (test `TestWiredModulesFollowDependencies`); handler của module nhúng vào struct `handler` trong `handler.go`, dựng từ `deps` (Log, DB, Reg, Secrets, Audit, Clock). Không sửa `main.go` khi thêm module.
+`cmd/vedette/modules.go`: một dòng trong `wiredModules()` (id, `Migrations`, `Jobs func(deps) []jobs.Job`, `BodyLimits`), theo thứ tự phụ thuộc (`TestWiredModulesFollowDependencies`); handler nhúng vào struct `handler` trong `handler.go`; dịch vụ module dựng **một lần** trong `buildServices` (`cmd/vedette/wiring.go`) và đặt vào `deps`; adapter giữa module nằm trong `cmd/vedette` (module không import nhau); sự kiện qua `deps.Bus`, handler chỉ chạy khi module bật. `TestNewHandlerSetsEveryModule` bắt handler nhúng bị nil.
 
-## Đang làm
-| Việc | Nhánh / worktree | Trạng thái |
+## Đang làm (2026-11-09 tối)
+| Việc | PR / worktree | Trạng thái |
 |---|---|---|
-| WP-04b phần 1: core/auth (argon2id, phiên, CSRF, TOTP chống dùng lại, mã email, giới hạn đăng nhập), core/events, issue #17 (head chuỗi hash, secrets.Value.Last4/IsSet) | `feat/core-auth` (`../vedette-wt/core-auth`) | rà bảo mật (Opus) tìm 12 lỗi (H1 argon2 DoS đồng thời, M1–M5, L1–L6, mã email HMAC); agent đang sửa → `make check`, PR đóng #17, merge khi CI xanh |
-| WP-10 inventory (+ `core/observe` Sink cho sensor) | `feat/inventory` (`../vedette-wt/inventory`) | đang làm (Sonnet); sau #33 dùng `wiredModules()` + `deps` |
-| Reaper báo issue mới `owner:kien` | `feat/reaper-issues` (`../vedette-wt/reaper-issues`) | xong, chờ PR; sau merge chạy lại `scripts/dev/reaper-install.sh` |
+| WP-04b phần 2: API core (đăng nhập, cài đặt lần đầu, tài khoản, 2FA, người dùng, kiểm toán, cài đặt chung), TLS + allowlist Host, D-75/76/77 | PR #58 nháp, `../vedette-wt/core-auth-api` | rà Opus (0 Critical/High, 3 Medium, 9 Low) đã sửa; đang kiểm lại lần cuối → sẵn sàng → merge = **xong đường găng** |
+| WP-11 sensor-passive + bảng OUI (D-80, D-83) | PR #57 nháp, `../vedette-wt/sensor-passive` | rà 2 vòng đã sửa; đang kiểm lại lần cuối |
+| WP-12 sensor-active (D-84) | `../vedette-wt/sensor-active` (chưa PR) | rà Opus (2 High, 6 Medium) đang sửa |
+| WP-07b phần 1: lệnh OS, sao lưu, xuất log của vedette-host (D-85) | `../vedette-wt/host-os` (chưa PR) | đang làm |
+| D-86 (quyết định notify của Emily) + DATA_MODEL/API_CONVENTIONS | `docs/notify-d86` | PR tài liệu |
 
 ## Kế tiếp (thứ tự TEAM_PLAN §3)
-1. WP-04b phần 2: HTTP handler cho /auth/*, /me, /setup, /core/setup, account, users, audit (list/export), general; TLS tự ký trên 8443 + allowlist Host (DNS rebinding); rà bảo mật mô hình mạnh.
-2. WP-11 sensor-passive (cần `core/observe`) → giao thức sensor mTLS (WP core riêng, `docs/specs/sensor-protocol.md`) → WP-12 sensor-active → WP-07 host (rà Opus) → WP-13 response (rà Opus), WP-14 honeypot → WP-08 đóng gói → WP-30 E2E backend thật module của Kiên → WP-31 rà bảo mật SYS-1..8 + D-41 → WP-32 RUNBOOK.
+1. Sau #58: nối `Config.Users` (core/auth) + `Zone` (`core_org.timezone`) cho notify, và múi giờ tổ chức cho cửa sổ quét của sensor-active.
+2. WP-07b phần 2: endpoint `/core/updates/os*` của core + lệnh `container.*` (manifest ký); phần 3: `net.*` + `decoy_ip.*` (D-56).
+3. Giao thức sensor mTLS (đưa capture/nmap ra khỏi tiến trình core) → WP-13 response (rà Opus) → WP-14 honeypot → WP-08 đóng gói (Quadlet `Restart=always`, `KillMode=control-group`, `core_cgroup`, `core_data`, TZ + `time/tzdata`, GOMEMLIMIT) → WP-30 E2E backend thật → WP-31 rà SYS-1..8 + D-41 → WP-32 RUNBOOK.
 
 ## Số quyết định
-D-59 khung Go · D-60 ogen · D-61 không Actions (đã thay) · D-62 make check · D-63 repo public + CI · D-64 e2e chỉ tính năng mới · D-65 chồng lấn → Kiên · D-66 tín hiệu ẩn danh ≥ 2 thiết bị · D-67..D-70 quyết định của Emily (notify, feeds, findings, ai) · D-71 thời hạn phiên idle 4 h / tuyệt đối 7 ngày + giới hạn đăng nhập (nhánh core-auth). D-72, D-73 (nhánh inventory: xuất dữ liệu ghi audit; lỗi schema trả `invalid` kèm đường dẫn trường) · D-74 phân vân → top-tier · D-75 mã cài đặt một lần · D-76 bật 2FA nhập lại mật khẩu. Tiếp theo: **D-77**.
+… D-74 phân vân → top-tier · D-75 mã cài đặt một lần (sửa 2026-11-09: đếm theo địa chỉ client) · D-76 bật 2FA nhập lại mật khẩu · D-77 cookie thiết bị (PR #58) · D-78 đường cơ sở KEV · D-79 giữ cho Emily (exposure) · D-80 sensor-passive, D-83 bảng OUI (PR #57) · D-81 không máy chủ dự án ngoài GitHub · D-82 không gửi tín hiệu ẩn danh · D-84 sensor-active (nhánh WP-12) · D-85 lệnh OS của host (nhánh WP-07b) · D-86 notify (Emily). Tiếp theo: **D-87**.
 
 ## Giám sát WP-23: tự phát hiện IP công cộng (việc của Emily, phía Kiên chỉ giám sát)
 kien 2026-11-09 (đã chuyển cho Emily): "tôi muốn box có thêm chế độ tự detect ip public để bỏ vào kho. ví dụ KH có nhiều ip public và load balance, chỉ cần bật chế độ tự detect là được, trong 1 số trường hợp, khách hàng muốn chủ động detect thì manual cũng ok. tự detect lần đầu lúc mới cài, 60p 1 lần recheck, cho KH sửa nếu muốn. kho ip public cho phép sử dụng cũng expire time 30 ngày thay cho 90 ngày hiện tại. nhưng chỉ trong trường hợp không renew được mới phải chạy". Phía Kiên **không chủ động làm**; khi PR của Emily tới, kiểm:
@@ -54,6 +57,11 @@ kien 2026-11-09 (đã chuyển cho Emily): "tôi muốn box có thêm chế đ�
 ## Bẫy kỹ thuật đã gặp
 - Agent để lại Playwright/Chromium mồ côi khi lệnh hết giờ → máy tải 150–200, test timeout giả. Reaper xử lý; vẫn giới hạn 2 việc nặng.
 - vitest dưới tải nặng: `findBy…` timeout hàng loạt; CI là thẩm quyền.
+- Đừng `go build ./cmd/vedette` ở gốc repo (sinh `./vedette`, từng lỡ commit ở #47); dùng `go vet`/`go build -o /dev/null`, xem `git status` trước `git add -A`.
+- Nhánh đã push: merge `origin/main` vào, không rebase (force-push bị chặn).
+- `gh pr checks --watch` trả về ngay khi check chưa đăng ký: lặp tới khi có check rồi mới watch.
+- Tệp `*_linux.go` không được lint trên macOS: `GOOS=linux $(go tool -n -modfile=tools/go.mod golangci-lint) run ./pkg/...` (CI lint trên Linux).
+- Test đo thời gian thực hỏng khi máy tải cao: chặn dưới theo thời gian (tải chỉ làm chậm hơn), không chặn trên.
 - Bộ kiểm an toàn của Claude Code chặn lệnh Bash gộp có heredoc phức tạp/`$$(…)`: tách lệnh, sửa file bằng công cụ Edit/Write.
 - `TestCodesAreCatalogued` (core/apierr) đọc API_CONVENTIONS §3.3: mã mới phải vào bảng, danh sách "proposed" trong test phải rỗng khi đã vào.
 - ogen: thao tác tạo trả 201 → tên kiểu Go đổi khi hợp đồng đổi `status`; sinh lại (`make generate-api`) sau mỗi rebase có đổi `api/openapi.json`.

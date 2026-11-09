@@ -13,10 +13,10 @@ import { RISK_PHRASE } from './contract'
 import { TRIGGERS } from './data'
 import { TEMPLATES } from './templates'
 import { checkRule, events, eventView, rulesStore, runRules, simulate, templates } from './engine'
-import { isCidr, isDomain, isIpv4, TOKEN_RE } from './logic'
+import { isCidr, isDomain, isIpv4, TOKEN_RE, type Tpl } from './logic'
 import {
   actionsStore, actionsView, allowStore, approve, approversOf, catalogStore, catById, catView, checkCatalog, chanLabel, chanList, chanReady, connById, connView, doneStore, findAction, isObj, isResp, logStore, notFound,
-  newRequest, OFF_MSG, oneLine, previewBuild, rawChans, readyChan, refuse, reject, rollbackRequest, settings, settingsStore, settingsView, step, sweep, tokensStore, unavailable, userCanApprove, who,
+  newRequest, OFF_MSG, oneLine, previewBuild, rawChans, readyChan, refuse, reject, rollbackRequest, settings, settingsStore, settingsView, step, sweep, tokensStore, unavailable, userCanApprove, who, writeToolsOf,
   type Allow, type CatErr, randomToken, reversible, TEXT_RE,
 } from './state'
 import type { ActionRequest, ApprovalView, BlockEntry, Plan, Proposal, RequestItem, Rule, RuleInput, StoredProposal } from './types'
@@ -40,13 +40,19 @@ function draft(f: Finding): StoredPlan | null {
   steps.push({ kind: 'patch', title: `Patch ${f.cve}`, detail: 'Install the vendor fix, then rescan to confirm. Turn the virtual IP back on only after the fixed version is running.', proposal: null })
   return { id: `plan-${f.id}`, finding_id: f.id, cve: f.cve, asset_id: asset.id, asset_name: name, generated_at: nowIso(), model: profile?.model ?? 'claude-sonnet-5-5', profile: profile?.name ?? 'Claude Sonnet', path, reads, steps }
 }
-/** The catalog action that carries out an AI plan proposal: the same connection and write tool. */
-const aiCat = (p: StoredProposal) => catalogStore.get().find((c) => c.kind === 'device' && c.connection_id === p.connector_id && c.tool === p.tool)
+/** The catalog action that carries out an AI plan proposal: the same connection and write tool. The sample connection names MCP-style tools although it is an HTTP one, and a built-in HTTP action has no tool (D-94), so the sample plan names the action by hand. */
+const SAMPLE_TOOL_ACTION: Record<string, string> = { disable_virtual_ip: 'fgt_vip_disable' }
+const aiCat = (p: StoredProposal) => catalogStore.get().find((c) => c.kind === 'device' && c.connection_id === p.connector_id && (c.tool === p.tool || c.id === SAMPLE_TOOL_ACTION[p.tool]))
+/** Why the proposal cannot be carried out now: the action's own reason, or its sample write tool being off. */
+const proposalProblem = (p: StoredProposal, cat: NonNullable<ReturnType<typeof aiCat>>): string | null => {
+  const conn = connById(p.connector_id)
+  return unavailable(cat) ?? (conn && !writeToolsOf(conn).includes(p.tool) ? `The write tool ${p.tool} on ${conn.name} is turned off or missing.` : null)
+}
 function proposalView(p: StoredProposal): Proposal {
   const s = settings()
   const open = actionsStore.get().find((a) => a.proposal_id === p.id && (a.status === 'pending' || a.status === 'approved' || a.status === 'executed'))
   const cat = aiCat(p)
-  const state: Proposal['state'] = !s.execution ? 'execution_off' : !cat || !cat.enabled ? 'tool_not_allowed' : unavailable(cat) ? 'tool_unavailable' : 'ready'
+  const state: Proposal['state'] = !s.execution ? 'execution_off' : !cat || !cat.enabled ? 'tool_not_allowed' : proposalProblem(p, cat) ? 'tool_unavailable' : 'ready'
   return { ...p, state, request_id: open?.id ?? null }
 }
 const planView = (p: StoredPlan): Plan => ({ ...p, steps: p.steps.map((s) => ({ ...s, proposal: s.proposal ? proposalView(s.proposal) : null })), sent_to: chanList().map(chanLabel) })
@@ -116,7 +122,8 @@ export const handlers = [
     if (!settings().execution) return refuse(409, 'execution_off', OFF_MSG, pid)
     const cat = aiCat(prop)
     if (!cat || !cat.enabled) return refuse(403, 'tool_not_allowed', `The action "${cat?.name ?? prop.tool}" is not enabled in the action catalog (Settings, AI response).`, pid)
-    if (unavailable(cat)) return refuse(409, 'tool_unavailable', unavailable(cat)!, pid)
+    const problem = proposalProblem(prop, cat)
+    if (problem) return refuse(409, 'tool_unavailable', problem, pid)
     if (actionsStore.get().some((a) => a.proposal_id === pid && (a.status === 'pending' || a.status === 'executed'))) return refuse(409, 'already_requested', 'This action already has an open request or has already been carried out.', pid)
     const item: RequestItem = { id: newId('it'), action_id: cat.id, title: prop.title, risk: cat.risk, reversible: reversible(cat), connector_id: prop.connector_id, connection: prop.connection, tool: prop.tool, targets: 1, change: prop.change,
       ttl_min: null, status: 'pending', executed_at: null, remove_at: null, rolled_back_at: null, result: null, verified: null }
@@ -390,7 +397,11 @@ export const handlers = [
   // ---- Action catalog (S-RESP-4) ----
   http.get(`${API}/response/catalog`, () => {
     const denied = guard('viewer'); if (denied) return denied
-    return HttpResponse.json({ items: catalogStore.get().map(catView), connections: connectorsStore.get().map(connView) })
+    // D-88 (26): the header lines of a template can carry an authorisation value, so only an admin sees the values; others see the names
+    const admin = currentUser()?.role === 'admin'
+    const hide = (t: Tpl): Tpl => (admin ? t : { ...t, headers: t.headers.split('\n').filter(Boolean).map((l) => `${l.split(':')[0]}: (hidden)`).join('\n') })
+    const items = catalogStore.get().map(catView).map((a) => ({ ...a, run: hide(a.run), rollback: hide(a.rollback), verify: hide(a.verify), precheck: hide(a.precheck) }))
+    return HttpResponse.json({ items, connections: connectorsStore.get().map(connView) })
   }),
   http.post(`${API}/response/catalog`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied

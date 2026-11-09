@@ -1,0 +1,10 @@
+{
+  "notice": "Command lines a template may not contain (data, D-58; action-templates 9.3). A line is lowercased, runs of spaces are collapsed, and it is refused when it starts with one of the patterns; * matches any text. 'everywhere' applies to every command line of a custom action (run, rollback, check before, read-back); 'read_only_steps' also applies to the check before and the read-back of every action, which must not change anything.",
+  "everywhere": [
+    "reload", "reboot", "erase", "write erase", "format", "delete", "factory*", "no username", "username", "enable secret", "crypto key",
+    "copy * tftp:*", "copy * ftp:*", "copy * sftp:*", "copy * scp:*", "copy * http:*", "copy * https:*"
+  ],
+  "read_only_steps": [
+    "configure", "config", "conf", "copy", "write", "clear", "shutdown", "no shutdown", "set", "edit", "append", "unselect", "interface"
+  ]
+}

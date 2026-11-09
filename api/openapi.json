@@ -39671,7 +39671,19 @@
                                     },
                                     "verify": {
                                       "type": "string",
-                                      "description": "How Vedette reads the result back after running the change (empty when the action cannot be read back)"
+                                      "description": "How Vedette reads the result back after running the change: the exact call (method and URL) or command lines (empty when the action cannot be read back)"
+                                    },
+                                    "precheck": {
+                                      "type": "string",
+                                      "description": "The check Vedette runs right before the change: the exact call or command lines (empty when there is none)"
+                                    },
+                                    "precheck_rules": {
+                                      "type": "string",
+                                      "description": "When the check refuses the change, in plain words (empty when there is no check)"
+                                    },
+                                    "verify_rule": {
+                                      "type": "string",
+                                      "description": "What the read-back must contain after the change and must not contain after the undo (empty when there is none)"
                                     }
                                   },
                                   "required": [
@@ -39680,7 +39692,10 @@
                                     "cli",
                                     "rest",
                                     "rollback",
-                                    "verify"
+                                    "verify",
+                                    "precheck",
+                                    "precheck_rules",
+                                    "verify_rule"
                                   ],
                                   "additionalProperties": false
                                 },
@@ -40376,7 +40391,19 @@
                               },
                               "verify": {
                                 "type": "string",
-                                "description": "How Vedette reads the result back after running the change (empty when the action cannot be read back)"
+                                "description": "How Vedette reads the result back after running the change: the exact call (method and URL) or command lines (empty when the action cannot be read back)"
+                              },
+                              "precheck": {
+                                "type": "string",
+                                "description": "The check Vedette runs right before the change: the exact call or command lines (empty when there is none)"
+                              },
+                              "precheck_rules": {
+                                "type": "string",
+                                "description": "When the check refuses the change, in plain words (empty when there is no check)"
+                              },
+                              "verify_rule": {
+                                "type": "string",
+                                "description": "What the read-back must contain after the change and must not contain after the undo (empty when there is none)"
                               }
                             },
                             "required": [
@@ -40385,7 +40412,10 @@
                               "cli",
                               "rest",
                               "rollback",
-                              "verify"
+                              "verify",
+                              "precheck",
+                              "precheck_rules",
+                              "verify_rule"
                             ],
                             "additionalProperties": false
                           },
@@ -41089,7 +41119,19 @@
                               },
                               "verify": {
                                 "type": "string",
-                                "description": "How Vedette reads the result back after running the change (empty when the action cannot be read back)"
+                                "description": "How Vedette reads the result back after running the change: the exact call (method and URL) or command lines (empty when the action cannot be read back)"
+                              },
+                              "precheck": {
+                                "type": "string",
+                                "description": "The check Vedette runs right before the change: the exact call or command lines (empty when there is none)"
+                              },
+                              "precheck_rules": {
+                                "type": "string",
+                                "description": "When the check refuses the change, in plain words (empty when there is no check)"
+                              },
+                              "verify_rule": {
+                                "type": "string",
+                                "description": "What the read-back must contain after the change and must not contain after the undo (empty when there is none)"
                               }
                             },
                             "required": [
@@ -41098,7 +41140,10 @@
                               "cli",
                               "rest",
                               "rollback",
-                              "verify"
+                              "verify",
+                              "precheck",
+                              "precheck_rules",
+                              "verify_rule"
                             ],
                             "additionalProperties": false
                           },
@@ -41790,7 +41835,19 @@
                               },
                               "verify": {
                                 "type": "string",
-                                "description": "How Vedette reads the result back after running the change (empty when the action cannot be read back)"
+                                "description": "How Vedette reads the result back after running the change: the exact call (method and URL) or command lines (empty when the action cannot be read back)"
+                              },
+                              "precheck": {
+                                "type": "string",
+                                "description": "The check Vedette runs right before the change: the exact call or command lines (empty when there is none)"
+                              },
+                              "precheck_rules": {
+                                "type": "string",
+                                "description": "When the check refuses the change, in plain words (empty when there is no check)"
+                              },
+                              "verify_rule": {
+                                "type": "string",
+                                "description": "What the read-back must contain after the change and must not contain after the undo (empty when there is none)"
                               }
                             },
                             "required": [
@@ -41799,7 +41856,10 @@
                               "cli",
                               "rest",
                               "rollback",
-                              "verify"
+                              "verify",
+                              "precheck",
+                              "precheck_rules",
+                              "verify_rule"
                             ],
                             "additionalProperties": false
                           },
@@ -42466,7 +42526,19 @@
                               },
                               "verify": {
                                 "type": "string",
-                                "description": "How Vedette reads the result back after running the change (empty when the action cannot be read back)"
+                                "description": "How Vedette reads the result back after running the change: the exact call (method and URL) or command lines (empty when the action cannot be read back)"
+                              },
+                              "precheck": {
+                                "type": "string",
+                                "description": "The check Vedette runs right before the change: the exact call or command lines (empty when there is none)"
+                              },
+                              "precheck_rules": {
+                                "type": "string",
+                                "description": "When the check refuses the change, in plain words (empty when there is no check)"
+                              },
+                              "verify_rule": {
+                                "type": "string",
+                                "description": "What the read-back must contain after the change and must not contain after the undo (empty when there is none)"
                               }
                             },
                             "required": [
@@ -42475,7 +42547,10 @@
                               "cli",
                               "rest",
                               "rollback",
-                              "verify"
+                              "verify",
+                              "precheck",
+                              "precheck_rules",
+                              "verify_rule"
                             ],
                             "additionalProperties": false
                           },
@@ -43158,7 +43233,7 @@
     "/response/ai/proposals": {
       "post": {
         "operationId": "response_post_response_ai_proposals",
-        "summary": "The AI agent sends a request. Server-side gates: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an approval request was created, 200 for a suggestion note or a digest (the generated file documents 200)",
+        "summary": "Preview build only (D-97): on a real box the AI sends its requests inside the process and this route answers 404. The gates it applies: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an approval request was created, 200 for a suggestion note or a digest (the generated file documents 200)",
         "tags": [
           "response"
         ],
@@ -43505,7 +43580,19 @@
                                       },
                                       "verify": {
                                         "type": "string",
-                                        "description": "How Vedette reads the result back after running the change (empty when the action cannot be read back)"
+                                        "description": "How Vedette reads the result back after running the change: the exact call (method and URL) or command lines (empty when the action cannot be read back)"
+                                      },
+                                      "precheck": {
+                                        "type": "string",
+                                        "description": "The check Vedette runs right before the change: the exact call or command lines (empty when there is none)"
+                                      },
+                                      "precheck_rules": {
+                                        "type": "string",
+                                        "description": "When the check refuses the change, in plain words (empty when there is no check)"
+                                      },
+                                      "verify_rule": {
+                                        "type": "string",
+                                        "description": "What the read-back must contain after the change and must not contain after the undo (empty when there is none)"
                                       }
                                     },
                                     "required": [
@@ -43514,7 +43601,10 @@
                                       "cli",
                                       "rest",
                                       "rollback",
-                                      "verify"
+                                      "verify",
+                                      "precheck",
+                                      "precheck_rules",
+                                      "verify_rule"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -44537,7 +44627,19 @@
                               },
                               "verify": {
                                 "type": "string",
-                                "description": "How Vedette reads the result back after running the change (empty when the action cannot be read back)"
+                                "description": "How Vedette reads the result back after running the change: the exact call (method and URL) or command lines (empty when the action cannot be read back)"
+                              },
+                              "precheck": {
+                                "type": "string",
+                                "description": "The check Vedette runs right before the change: the exact call or command lines (empty when there is none)"
+                              },
+                              "precheck_rules": {
+                                "type": "string",
+                                "description": "When the check refuses the change, in plain words (empty when there is no check)"
+                              },
+                              "verify_rule": {
+                                "type": "string",
+                                "description": "What the read-back must contain after the change and must not contain after the undo (empty when there is none)"
                               }
                             },
                             "required": [
@@ -44546,7 +44648,10 @@
                               "cli",
                               "rest",
                               "rollback",
-                              "verify"
+                              "verify",
+                              "precheck",
+                              "precheck_rules",
+                              "verify_rule"
                             ],
                             "additionalProperties": false
                           }
@@ -44934,7 +45039,19 @@
                               },
                               "verify": {
                                 "type": "string",
-                                "description": "How Vedette reads the result back after running the change (empty when the action cannot be read back)"
+                                "description": "How Vedette reads the result back after running the change: the exact call (method and URL) or command lines (empty when the action cannot be read back)"
+                              },
+                              "precheck": {
+                                "type": "string",
+                                "description": "The check Vedette runs right before the change: the exact call or command lines (empty when there is none)"
+                              },
+                              "precheck_rules": {
+                                "type": "string",
+                                "description": "When the check refuses the change, in plain words (empty when there is no check)"
+                              },
+                              "verify_rule": {
+                                "type": "string",
+                                "description": "What the read-back must contain after the change and must not contain after the undo (empty when there is none)"
                               }
                             },
                             "required": [
@@ -44943,7 +45060,10 @@
                               "cli",
                               "rest",
                               "rollback",
-                              "verify"
+                              "verify",
+                              "precheck",
+                              "precheck_rules",
+                              "verify_rule"
                             ],
                             "additionalProperties": false
                           },
@@ -45998,7 +46118,12 @@
                               "headers": {
                                 "type": "string",
                                 "maxLength": 600,
-                                "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                                "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                              },
+                              "expect": {
+                                "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                                "type": "string",
+                                "maxLength": 200
                               }
                             },
                             "required": [
@@ -46042,7 +46167,12 @@
                               "headers": {
                                 "type": "string",
                                 "maxLength": 600,
-                                "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                                "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                              },
+                              "expect": {
+                                "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                                "type": "string",
+                                "maxLength": 200
                               }
                             },
                             "required": [
@@ -46086,7 +46216,12 @@
                               "headers": {
                                 "type": "string",
                                 "maxLength": 600,
-                                "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                                "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                              },
+                              "expect": {
+                                "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                                "type": "string",
+                                "maxLength": 200
                               }
                             },
                             "required": [
@@ -46097,6 +46232,71 @@
                               "headers"
                             ],
                             "additionalProperties": false
+                          },
+                          "precheck": {
+                            "type": "object",
+                            "properties": {
+                              "cli": {
+                                "type": "string",
+                                "maxLength": 2000,
+                                "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
+                              },
+                              "method": {
+                                "type": "string",
+                                "enum": [
+                                  "",
+                                  "GET",
+                                  "PUT",
+                                  "PATCH",
+                                  "POST",
+                                  "DELETE"
+                                ]
+                              },
+                              "path": {
+                                "type": "string",
+                                "maxLength": 300,
+                                "description": "API path under the connection address, starts with /"
+                              },
+                              "body": {
+                                "type": "string",
+                                "maxLength": 2000,
+                                "description": "JSON body (for an MCP server: the tool arguments as JSON), may be empty"
+                              },
+                              "headers": {
+                                "type": "string",
+                                "maxLength": 600,
+                                "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                              },
+                              "expect": {
+                                "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                                "type": "string",
+                                "maxLength": 200
+                              }
+                            },
+                            "required": [
+                              "cli",
+                              "method",
+                              "path",
+                              "body",
+                              "headers"
+                            ],
+                            "additionalProperties": false,
+                            "description": "Check before: a read-only command or GET that runs right before the action; empty when there is none"
+                          },
+                          "precheck_refuse": {
+                            "maxItems": 8,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "description": "Texts that make the check before refuse: when its output contains one, nothing is written. Needed (at least one) for any device action that can name a port: {interface}, and in a custom action {port}, {id} or {name} in a command or path"
+                          },
+                          "precheck_expect": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "description": "Text the output of the check before must contain, or nothing is written (printable ASCII, case-sensitive). Empty = none. An empty output always refuses"
                           },
                           "params": {
                             "type": "array",
@@ -46165,6 +46365,9 @@
                           "run",
                           "rollback",
                           "verify",
+                          "precheck",
+                          "precheck_refuse",
+                          "precheck_expect",
                           "params",
                           "risk",
                           "enabled",
@@ -46320,7 +46523,12 @@
                       "headers": {
                         "type": "string",
                         "maxLength": 600,
-                        "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                        "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                      },
+                      "expect": {
+                        "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                        "type": "string",
+                        "maxLength": 200
                       }
                     },
                     "required": [
@@ -46364,7 +46572,12 @@
                       "headers": {
                         "type": "string",
                         "maxLength": 600,
-                        "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                        "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                      },
+                      "expect": {
+                        "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                        "type": "string",
+                        "maxLength": 200
                       }
                     },
                     "required": [
@@ -46408,7 +46621,12 @@
                       "headers": {
                         "type": "string",
                         "maxLength": 600,
-                        "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                        "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                      },
+                      "expect": {
+                        "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                        "type": "string",
+                        "maxLength": 200
                       }
                     },
                     "required": [
@@ -46419,6 +46637,70 @@
                       "headers"
                     ],
                     "additionalProperties": false
+                  },
+                  "precheck": {
+                    "type": "object",
+                    "properties": {
+                      "cli": {
+                        "type": "string",
+                        "maxLength": 2000,
+                        "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
+                      },
+                      "method": {
+                        "type": "string",
+                        "enum": [
+                          "",
+                          "GET",
+                          "PUT",
+                          "PATCH",
+                          "POST",
+                          "DELETE"
+                        ]
+                      },
+                      "path": {
+                        "type": "string",
+                        "maxLength": 300,
+                        "description": "API path under the connection address, starts with /"
+                      },
+                      "body": {
+                        "type": "string",
+                        "maxLength": 2000,
+                        "description": "JSON body (for an MCP server: the tool arguments as JSON), may be empty"
+                      },
+                      "headers": {
+                        "type": "string",
+                        "maxLength": 600,
+                        "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                      },
+                      "expect": {
+                        "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                        "type": "string",
+                        "maxLength": 200
+                      }
+                    },
+                    "required": [
+                      "cli",
+                      "method",
+                      "path",
+                      "body",
+                      "headers"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "precheck_refuse": {
+                    "maxItems": 8,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    "description": "Texts that make the check before refuse: when its output contains one, nothing is written. Needed (at least one) for any device action that can name a port: {interface}, and in a custom action {port}, {id} or {name} in a command or path"
+                  },
+                  "precheck_expect": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "description": "Text the output of the check before must contain, or nothing is written (printable ASCII, case-sensitive). Empty = none. An empty output always refuses"
                   },
                   "risk": {
                     "type": "string",
@@ -46554,7 +46836,12 @@
                         "headers": {
                           "type": "string",
                           "maxLength": 600,
-                          "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                          "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                        },
+                        "expect": {
+                          "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                          "type": "string",
+                          "maxLength": 200
                         }
                       },
                       "required": [
@@ -46598,7 +46885,12 @@
                         "headers": {
                           "type": "string",
                           "maxLength": 600,
-                          "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                          "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                        },
+                        "expect": {
+                          "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                          "type": "string",
+                          "maxLength": 200
                         }
                       },
                       "required": [
@@ -46642,7 +46934,12 @@
                         "headers": {
                           "type": "string",
                           "maxLength": 600,
-                          "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                          "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                        },
+                        "expect": {
+                          "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                          "type": "string",
+                          "maxLength": 200
                         }
                       },
                       "required": [
@@ -46653,6 +46950,71 @@
                         "headers"
                       ],
                       "additionalProperties": false
+                    },
+                    "precheck": {
+                      "type": "object",
+                      "properties": {
+                        "cli": {
+                          "type": "string",
+                          "maxLength": 2000,
+                          "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
+                        },
+                        "method": {
+                          "type": "string",
+                          "enum": [
+                            "",
+                            "GET",
+                            "PUT",
+                            "PATCH",
+                            "POST",
+                            "DELETE"
+                          ]
+                        },
+                        "path": {
+                          "type": "string",
+                          "maxLength": 300,
+                          "description": "API path under the connection address, starts with /"
+                        },
+                        "body": {
+                          "type": "string",
+                          "maxLength": 2000,
+                          "description": "JSON body (for an MCP server: the tool arguments as JSON), may be empty"
+                        },
+                        "headers": {
+                          "type": "string",
+                          "maxLength": 600,
+                          "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                        },
+                        "expect": {
+                          "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "cli",
+                        "method",
+                        "path",
+                        "body",
+                        "headers"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Check before: a read-only command or GET that runs right before the action; empty when there is none"
+                    },
+                    "precheck_refuse": {
+                      "maxItems": 8,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      "description": "Texts that make the check before refuse: when its output contains one, nothing is written. Needed (at least one) for any device action that can name a port: {interface}, and in a custom action {port}, {id} or {name} in a command or path"
+                    },
+                    "precheck_expect": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "description": "Text the output of the check before must contain, or nothing is written (printable ASCII, case-sensitive). Empty = none. An empty output always refuses"
                     },
                     "params": {
                       "type": "array",
@@ -46721,6 +47083,9 @@
                     "run",
                     "rollback",
                     "verify",
+                    "precheck",
+                    "precheck_refuse",
+                    "precheck_expect",
                     "params",
                     "risk",
                     "enabled",
@@ -46870,7 +47235,12 @@
                       "headers": {
                         "type": "string",
                         "maxLength": 600,
-                        "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                        "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                      },
+                      "expect": {
+                        "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                        "type": "string",
+                        "maxLength": 200
                       }
                     },
                     "required": [
@@ -46914,7 +47284,12 @@
                       "headers": {
                         "type": "string",
                         "maxLength": 600,
-                        "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                        "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                      },
+                      "expect": {
+                        "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                        "type": "string",
+                        "maxLength": 200
                       }
                     },
                     "required": [
@@ -46958,7 +47333,12 @@
                       "headers": {
                         "type": "string",
                         "maxLength": 600,
-                        "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                        "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                      },
+                      "expect": {
+                        "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                        "type": "string",
+                        "maxLength": 200
                       }
                     },
                     "required": [
@@ -46969,6 +47349,70 @@
                       "headers"
                     ],
                     "additionalProperties": false
+                  },
+                  "precheck": {
+                    "type": "object",
+                    "properties": {
+                      "cli": {
+                        "type": "string",
+                        "maxLength": 2000,
+                        "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
+                      },
+                      "method": {
+                        "type": "string",
+                        "enum": [
+                          "",
+                          "GET",
+                          "PUT",
+                          "PATCH",
+                          "POST",
+                          "DELETE"
+                        ]
+                      },
+                      "path": {
+                        "type": "string",
+                        "maxLength": 300,
+                        "description": "API path under the connection address, starts with /"
+                      },
+                      "body": {
+                        "type": "string",
+                        "maxLength": 2000,
+                        "description": "JSON body (for an MCP server: the tool arguments as JSON), may be empty"
+                      },
+                      "headers": {
+                        "type": "string",
+                        "maxLength": 600,
+                        "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                      },
+                      "expect": {
+                        "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                        "type": "string",
+                        "maxLength": 200
+                      }
+                    },
+                    "required": [
+                      "cli",
+                      "method",
+                      "path",
+                      "body",
+                      "headers"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "precheck_refuse": {
+                    "maxItems": 8,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    "description": "Texts that make the check before refuse: when its output contains one, nothing is written. Needed (at least one) for any device action that can name a port: {interface}, and in a custom action {port}, {id} or {name} in a command or path"
+                  },
+                  "precheck_expect": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "description": "Text the output of the check before must contain, or nothing is written (printable ASCII, case-sensitive). Empty = none. An empty output always refuses"
                   },
                   "risk": {
                     "type": "string",
@@ -47092,7 +47536,12 @@
                         "headers": {
                           "type": "string",
                           "maxLength": 600,
-                          "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                          "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                        },
+                        "expect": {
+                          "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                          "type": "string",
+                          "maxLength": 200
                         }
                       },
                       "required": [
@@ -47136,7 +47585,12 @@
                         "headers": {
                           "type": "string",
                           "maxLength": 600,
-                          "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                          "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                        },
+                        "expect": {
+                          "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                          "type": "string",
+                          "maxLength": 200
                         }
                       },
                       "required": [
@@ -47180,7 +47634,12 @@
                         "headers": {
                           "type": "string",
                           "maxLength": 600,
-                          "description": "HTTP headers, one \"Name: value\" per line, may be empty"
+                          "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                        },
+                        "expect": {
+                          "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                          "type": "string",
+                          "maxLength": 200
                         }
                       },
                       "required": [
@@ -47191,6 +47650,71 @@
                         "headers"
                       ],
                       "additionalProperties": false
+                    },
+                    "precheck": {
+                      "type": "object",
+                      "properties": {
+                        "cli": {
+                          "type": "string",
+                          "maxLength": 2000,
+                          "description": "Command text with typed placeholders such as {ip}, {cidr}, {domain}, {port}, {mac}, {vlan}, {interface}, {id}, {name} ({text} only for message actions); shell characters are refused. Values Vedette reads or derives when it runs (such as {seq}, {previous_vlan}, {found_id}, {expiry_s}, {timeout}, {rules_before}) are shown as <seq> and so on"
+                        },
+                        "method": {
+                          "type": "string",
+                          "enum": [
+                            "",
+                            "GET",
+                            "PUT",
+                            "PATCH",
+                            "POST",
+                            "DELETE"
+                          ]
+                        },
+                        "path": {
+                          "type": "string",
+                          "maxLength": 300,
+                          "description": "API path under the connection address, starts with /"
+                        },
+                        "body": {
+                          "type": "string",
+                          "maxLength": 2000,
+                          "description": "JSON body (for an MCP server: the tool arguments as JSON), may be empty"
+                        },
+                        "headers": {
+                          "type": "string",
+                          "maxLength": 600,
+                          "description": "HTTP headers, one \"Name: value\" per line, may be empty. Authorization, Cookie, Host, Proxy-*, hop-by-hop, Forwarded, X-Forwarded*, Via, X-Real-IP, X-Original-URL, X-Rewrite-URL and the method override headers are refused: the connection sets them or they change what the call means"
+                        },
+                        "expect": {
+                          "description": "Read-back only (empty elsewhere): text the read-back output must contain after the action and must not contain after the undo. Typed placeholders allowed. Without it the action is \"not checked\" (verified is null)",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "cli",
+                        "method",
+                        "path",
+                        "body",
+                        "headers"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Check before: a read-only command or GET that runs right before the action; empty when there is none"
+                    },
+                    "precheck_refuse": {
+                      "maxItems": 8,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      "description": "Texts that make the check before refuse: when its output contains one, nothing is written. Needed (at least one) for any device action that can name a port: {interface}, and in a custom action {port}, {id} or {name} in a command or path"
+                    },
+                    "precheck_expect": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "description": "Text the output of the check before must contain, or nothing is written (printable ASCII, case-sensitive). Empty = none. An empty output always refuses"
                     },
                     "params": {
                       "type": "array",
@@ -47259,6 +47783,9 @@
                     "run",
                     "rollback",
                     "verify",
+                    "precheck",
+                    "precheck_refuse",
+                    "precheck_expect",
                     "params",
                     "risk",
                     "enabled",
@@ -48268,7 +48795,19 @@
                                             },
                                             "verify": {
                                               "type": "string",
-                                              "description": "How Vedette reads the result back after running the change (empty when the action cannot be read back)"
+                                              "description": "How Vedette reads the result back after running the change: the exact call (method and URL) or command lines (empty when the action cannot be read back)"
+                                            },
+                                            "precheck": {
+                                              "type": "string",
+                                              "description": "The check Vedette runs right before the change: the exact call or command lines (empty when there is none)"
+                                            },
+                                            "precheck_rules": {
+                                              "type": "string",
+                                              "description": "When the check refuses the change, in plain words (empty when there is no check)"
+                                            },
+                                            "verify_rule": {
+                                              "type": "string",
+                                              "description": "What the read-back must contain after the change and must not contain after the undo (empty when there is none)"
                                             }
                                           },
                                           "required": [
@@ -48277,7 +48816,10 @@
                                             "cli",
                                             "rest",
                                             "rollback",
-                                            "verify"
+                                            "verify",
+                                            "precheck",
+                                            "precheck_rules",
+                                            "verify_rule"
                                           ],
                                           "additionalProperties": false
                                         },
@@ -48648,7 +49190,19 @@
                               },
                               "verify": {
                                 "type": "string",
-                                "description": "How Vedette reads the result back after running the change (empty when the action cannot be read back)"
+                                "description": "How Vedette reads the result back after running the change: the exact call (method and URL) or command lines (empty when the action cannot be read back)"
+                              },
+                              "precheck": {
+                                "type": "string",
+                                "description": "The check Vedette runs right before the change: the exact call or command lines (empty when there is none)"
+                              },
+                              "precheck_rules": {
+                                "type": "string",
+                                "description": "When the check refuses the change, in plain words (empty when there is no check)"
+                              },
+                              "verify_rule": {
+                                "type": "string",
+                                "description": "What the read-back must contain after the change and must not contain after the undo (empty when there is none)"
                               }
                             },
                             "required": [
@@ -48657,7 +49211,10 @@
                               "cli",
                               "rest",
                               "rollback",
-                              "verify"
+                              "verify",
+                              "precheck",
+                              "precheck_rules",
+                              "verify_rule"
                             ],
                             "additionalProperties": false
                           },
@@ -50826,7 +51383,19 @@
                                   },
                                   "verify": {
                                     "type": "string",
-                                    "description": "How Vedette reads the result back after running the change (empty when the action cannot be read back)"
+                                    "description": "How Vedette reads the result back after running the change: the exact call (method and URL) or command lines (empty when the action cannot be read back)"
+                                  },
+                                  "precheck": {
+                                    "type": "string",
+                                    "description": "The check Vedette runs right before the change: the exact call or command lines (empty when there is none)"
+                                  },
+                                  "precheck_rules": {
+                                    "type": "string",
+                                    "description": "When the check refuses the change, in plain words (empty when there is no check)"
+                                  },
+                                  "verify_rule": {
+                                    "type": "string",
+                                    "description": "What the read-back must contain after the change and must not contain after the undo (empty when there is none)"
                                   }
                                 },
                                 "required": [
@@ -50835,7 +51404,10 @@
                                   "cli",
                                   "rest",
                                   "rollback",
-                                  "verify"
+                                  "verify",
+                                  "precheck",
+                                  "precheck_rules",
+                                  "verify_rule"
                                 ],
                                 "additionalProperties": false
                               },

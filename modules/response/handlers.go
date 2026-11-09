@@ -17,10 +17,11 @@ import (
 // composite handler of cmd/vedette. The role of each route comes from the route table, so nothing here checks roles.
 //
 // Not implemented here, and so answered 501 not_implemented by server.Fallback (part 13b): GET and POST
-// /response/approve/{token}, GET /response/ai, POST /response/ai/proposals, POST /response/ai/resume.
+// /response/approve/{token}, GET /response/ai, POST /response/ai/resume.
 //
-// The two preview-only operations, POST /response/rules/run and POST /response/actions/{id}/chat-decision, are implemented
-// only to answer 404 like an unknown route: they must not exist in the real build (FORBID-5).
+// The three preview-only operations, POST /response/rules/run, POST /response/actions/{id}/chat-decision and POST
+// /response/ai/proposals (D-97), are implemented only to answer 404 like an unknown route: they must not exist in the real
+// build (FORBID-5).
 //
 // ogen generates a separate struct per operation for the same schema, so answers are built from the domain types (their
 // JSON names are the wire names) and decoded into the generated ones; request bodies go the other way.
@@ -148,6 +149,12 @@ func (h *ResponseHandlers) ResponsePostResponseActionsIDChatDecision(context.Con
 
 // ResponsePostResponseRulesRun answers 404: the operation exists only in the preview build (FORBID-5).
 func (h *ResponseHandlers) ResponsePostResponseRulesRun(context.Context) (*oas.ResponsePostResponseRulesRunOK, error) {
+	return nil, errPreviewOnly()
+}
+
+// ResponsePostResponseAiProposals answers 404: the operation exists only in the preview build (FORBID-5, D-97). On a real box the AI
+// calls the Go port of the service as a service identity; there is no HTTP route a person or a token could use to send a proposal.
+func (h *ResponseHandlers) ResponsePostResponseAiProposals(context.Context, *oas.ResponsePostResponseAiProposalsReq) (*oas.ResponsePostResponseAiProposalsOK, error) {
 	return nil, errPreviewOnly()
 }
 

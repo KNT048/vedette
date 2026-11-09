@@ -105,11 +105,58 @@ func unavailable(c catRow, cs conns) string {
 	case c.Tool != "" && !slices.Contains(conn.WriteTools, c.Tool):
 		return "The write tool " + c.Tool + " on " + conn.Name + " is turned off or missing."
 	}
-	return fits(c, conn)
+	if why := fits(c, conn); why != "" {
+		return why
+	}
+	if r := c.needsDeviceRead(); r != "" {
+		return "Not available yet: this action needs a value that is read from the device while it runs ({" + r + "}), and Vedette cannot read that yet."
+	}
+	if needsPrecheck(c.Run, c.Rollback, c.Verify, c.Precheck, c.PrecheckRefuse, !c.Builtin) {
+		return "Not available: an action that can name a port needs a check before it, with at least one text that makes it refuse (so a trunk or uplink port is never touched)."
+	}
+	if isMCP(conn.Kind) && (!c.Precheck.Empty() || !c.Verify.Empty()) {
+		return "Not available yet: the check before and the read-back of this action need a read tool, and Vedette cannot name one for " + conn.Name + " yet."
+	}
+	if why := stepFits(c.Precheck, conn, "check before"); why != "" {
+		return why
+	}
+	return ""
+}
+
+// stepFits is "" when the step (a template) has a form that the connection kind can run: a command for SSH, an API call for the HTTP
+// kinds. An empty step needs nothing. An action that carries both forms (as the FortiGate ones do) fits both kinds.
+func stepFits(t Tpl, conn ConnectionInfo, what string) string {
+	if t.Empty() || isMCP(conn.Kind) {
+		return ""
+	}
+	if conn.Kind == "ssh" && strings.TrimSpace(t.CLI) == "" {
+		return "Not available: the " + what + " of this action is an API call, and " + conn.Name + " is an SSH connection."
+	}
+	if conn.Kind != "ssh" && (t.Method == "" || t.Path == "") {
+		return "Not available: the " + what + " of this action is a command, and " + conn.Name + " is an API connection."
+	}
+	return ""
+}
+
+// needsDeviceRead is the first value a template uses that only the device can give while the action runs ({seq}, {previous_vlan},
+// {found_id}, {rules_before}, {timeout}), or "". Reading it from the output is a later version (13c, action-templates 12.1); until then
+// the action is not available. {expiry_s}, the time to live, is worked out without the device.
+func (c catRow) needsDeviceRead() string {
+	for _, r := range RuntimeValues {
+		if r == "expiry_s" {
+			continue
+		}
+		for _, t := range []Tpl{c.Run, c.Rollback, c.Verify, c.Precheck} {
+			if slices.ContainsFunc([]string{t.CLI, t.Path, t.Body, t.Headers, t.Expect}, func(x string) bool { return strings.Contains(x, "{"+r+"}") }) {
+				return r
+			}
+		}
+	}
+	return ""
 }
 
 func (c catRow) view(cs conns) CatalogAction {
-	v := CatalogAction{ID: c.ID, Builtin: c.Builtin, Pack: c.Pack, Name: c.Name, Description: c.Description, Run: c.Run, Rollback: c.Rollback, Verify: c.Verify,
+	v := CatalogAction{ID: c.ID, Builtin: c.Builtin, Pack: c.Pack, Name: c.Name, Description: c.Description, Run: c.Run, Rollback: c.Rollback, Verify: c.Verify, Precheck: c.Precheck, PrecheckRefuse: nonNilStrings(c.PrecheckRefuse), PrecheckExpect: c.PrecheckExpect,
 		Params: c.params(), Risk: c.Risk, Enabled: c.Enabled, Reversible: c.reversible(), AIMayPropose: c.AIMayPropose, Device: c.device(),
 		ConnectionID: ptrOrNil(c.ConnectionID), Tool: ptrOrNil(c.Tool), RollbackTool: ptrOrNil(c.RollbackTool)}
 	if conn, ok := cs.get(c.ConnectionID); ok {
@@ -147,11 +194,23 @@ func checkCatalog(in CatalogInput, cs conns) (catRow, error) {
 	if _, known := kindFields[conn.Kind]; !known {
 		return bad("Unknown connection kind.")
 	}
+	refuse := nonNilStrings(in.PrecheckRefuse)
+	for _, t := range []struct {
+		what string
+		t    Tpl
+	}{{"Action", in.Run}, {"Rollback", in.Rollback}, {"Check before", in.Precheck}} {
+		if t.t.Expect != "" {
+			return bad(t.what + ": the text to look for belongs to the read-back only.")
+		}
+	}
+	if in.Verify.Empty() && in.Verify.Expect != "" {
+		return bad("Read-back: give the read-back command or API call before the text to look for.")
+	}
 	for _, t := range []struct {
 		what string
 		t    Tpl
 		opt  bool
-	}{{"Action", in.Run, false}, {"Rollback", in.Rollback, false}, {"Read-back", in.Verify, true}} {
+	}{{"Action", in.Run, false}, {"Rollback", in.Rollback, false}, {"Read-back", in.Verify, true}, {"Check before", in.Precheck, true}} {
 		if t.opt && t.t.Empty() {
 			continue
 		}
@@ -159,8 +218,8 @@ func checkCatalog(in CatalogInput, cs conns) (catRow, error) {
 			return bad(p)
 		}
 	}
-	c := catRow{Name: in.Name, Description: in.Description, ConnectionID: conn.ID, Run: in.Run, Rollback: in.Rollback, Verify: in.Verify, Risk: in.Risk, Enabled: in.Enabled,
-		AIMayPropose: in.AIMayPropose, Pack: "generic", Kind: "device"}
+	c := catRow{Name: in.Name, Description: in.Description, ConnectionID: conn.ID, Run: in.Run, Rollback: in.Rollback, Verify: in.Verify, Precheck: in.Precheck, PrecheckRefuse: refuse, PrecheckExpect: in.PrecheckExpect,
+		Risk: in.Risk, Enabled: in.Enabled, AIMayPropose: in.AIMayPropose, Pack: "generic", Kind: "device"}
 	if isMCP(conn.Kind) {
 		c.Tool, c.RollbackTool = deref2(in.Tool), deref2(in.RollbackTool)
 		if c.Tool == "" || !slices.Contains(conn.WriteTools, c.Tool) {
@@ -178,6 +237,9 @@ func checkCatalog(in CatalogInput, cs conns) (catRow, error) {
 		if !in.Verify.Empty() {
 			return bad("Read-back: not available for MCP servers.")
 		}
+		if !in.Precheck.Empty() || len(refuse) > 0 || in.PrecheckExpect != "" {
+			return bad("Check before: not available for MCP servers.")
+		}
 	} else {
 		if in.Tool != nil && *in.Tool != "" {
 			return bad("A tool is only chosen for an MCP server.")
@@ -194,15 +256,30 @@ func checkCatalog(in CatalogInput, cs conns) (catRow, error) {
 				return bad(why)
 			}
 		}
+		if why := readBackProblem(in.Verify); why != "" {
+			return bad(why)
+		}
+		if why := precheckProblem(in.Precheck, refuse, in.PrecheckExpect); why != "" {
+			return bad(why)
+		}
+	}
+	if why := cliProblem(stepSet{in.Run, in.Rollback, in.Verify, in.Precheck}, true); why != "" {
+		return bad(why)
 	}
 	used := tplParams(in.Run)
 	if len(used) == 0 {
 		return bad("Action: use at least one placeholder, for example {ip}, {domain} or {interface}.")
 	}
-	for _, p := range tplParams(in.Rollback, in.Verify) {
+	for _, p := range tplParams(in.Rollback, in.Verify, in.Precheck) {
 		if !slices.Contains(used, p) {
-			return bad("Rollback or read-back uses {" + string(p) + "}, which the action does not have, so it could not be filled in.")
+			return bad("Rollback, read-back or check before uses {" + string(p) + "}, which the action does not have, so it could not be filled in.")
 		}
+	}
+	if needsPrecheck(in.Run, in.Rollback, in.Verify, in.Precheck, refuse, true) {
+		if isMCP(conn.Kind) {
+			return bad("Action: {interface} needs a check before it, and an MCP server cannot run one yet.")
+		}
+		return bad("Action: a command or API path that uses {interface}, {port}, {id} or {name} can name a port, so it needs a check before it, with at least one text that makes it refuse (a trunk or uplink port must never be touched). {interface} is the placeholder for a port name; {port} is a TCP or UDP number, {id} a whole number and {name} a free name, and they cannot be told apart from a port in a command.")
 	}
 	return c, nil
 }
@@ -217,7 +294,7 @@ func deref2(p *string) string {
 // inputOf turns a stored custom action back into the input shape, so an update is validated like a create.
 func inputOf(c catRow) CatalogInput {
 	return CatalogInput{Name: c.Name, Description: c.Description, ConnectionID: c.ConnectionID, Tool: ptrOrNil(c.Tool), RollbackTool: ptrOrNil(c.RollbackTool),
-		Run: c.Run, Rollback: c.Rollback, Verify: c.Verify, Risk: c.Risk, Enabled: c.Enabled, AIMayPropose: c.AIMayPropose}
+		Run: c.Run, Rollback: c.Rollback, Verify: c.Verify, Precheck: c.Precheck, PrecheckRefuse: c.PrecheckRefuse, PrecheckExpect: c.PrecheckExpect, Risk: c.Risk, Enabled: c.Enabled, AIMayPropose: c.AIMayPropose}
 }
 
 // ---- reads and writes of the catalog (admin) ----
@@ -240,7 +317,7 @@ func (s *Service) Catalog(ctx context.Context, full bool) (Catalog, error) {
 	for i, r := range rows {
 		out.Items[i] = r.view(cs)
 		if !full {
-			out.Items[i].Run.Headers, out.Items[i].Rollback.Headers, out.Items[i].Verify.Headers = maskHeaders(r.Run.Headers), maskHeaders(r.Rollback.Headers), maskHeaders(r.Verify.Headers)
+			out.Items[i].Run.Headers, out.Items[i].Rollback.Headers, out.Items[i].Verify.Headers, out.Items[i].Precheck.Headers = maskHeaders(r.Run.Headers), maskHeaders(r.Rollback.Headers), maskHeaders(r.Verify.Headers), maskHeaders(r.Precheck.Headers)
 		}
 	}
 	for i, c := range cs.list {
@@ -386,6 +463,15 @@ func (s *Service) ChangeAction(ctx context.Context, who Actor, id string, u Cata
 			if u.Verify != nil {
 				in.Verify = *u.Verify
 			}
+			if u.Precheck != nil {
+				in.Precheck = *u.Precheck
+			}
+			if u.PrecheckRefuse != nil {
+				in.PrecheckRefuse = *u.PrecheckRefuse
+			}
+			if u.PrecheckExpect != nil {
+				in.PrecheckExpect = *u.PrecheckExpect
+			}
 			if u.Risk != nil {
 				in.Risk = *u.Risk
 			}
@@ -405,7 +491,7 @@ func (s *Service) ChangeAction(ctx context.Context, who Actor, id string, u Cata
 		if err := saveCat(ctx, tx, n, 0); err != nil {
 			return err
 		}
-		if !old.Builtin && (old.Run != n.Run || old.Rollback != n.Rollback || old.Verify != n.Verify || old.Risk != n.Risk || old.Tool != n.Tool || old.RollbackTool != n.RollbackTool) {
+		if !old.Builtin && (old.Run != n.Run || old.Rollback != n.Rollback || old.Verify != n.Verify || old.Precheck != n.Precheck || !slices.Equal(old.PrecheckRefuse, n.PrecheckRefuse) || old.PrecheckExpect != n.PrecheckExpect || old.Risk != n.Risk || old.Tool != n.Tool || old.RollbackTool != n.RollbackTool) {
 			if err := s.revokePreApprovals(ctx, tx, n, who.Email); err != nil {
 				return err
 			}
@@ -575,16 +661,19 @@ func (s *Service) buildChange(c catRow, vals Values, conn *ConnectionInfo, why s
 		return Change{}, err
 	}
 	ch := Change{CLI: cli, Rest: rest}
-	if c.Verify.Method != "" && c.Verify.Path != "" && conn != nil && isHTTPKind(conn.Kind) {
-		p, err := Fill(c.Verify.Path, vals, TURL)
+	if ch.Verify, err = readStepText(c.Verify, conn, vals); err != nil {
+		return Change{}, err
+	}
+	if ch.Precheck, err = readStepText(c.Precheck, conn, vals); err != nil {
+		return Change{}, err
+	}
+	ch.PrecheckRules = precheckRules(c)
+	if c.Verify.Expect != "" {
+		e, err := Fill(c.Verify.Expect, vals, TCLI)
 		if err != nil {
 			return Change{}, err
 		}
-		ch.Verify = "GET " + conn.Target + p
-	} else if c.Verify.CLI != "" {
-		if ch.Verify, err = Fill(c.Verify.CLI, vals, TCLI); err != nil {
-			return Change{}, err
-		}
+		ch.VerifyRule = "After the change the read-back must contain \"" + oneLine(e, 200) + "\"; after the undo it must not."
 	}
 	switch {
 	case c.ID == "blocklist_add":
@@ -608,6 +697,45 @@ func (s *Service) buildChange(c catRow, vals Values, conn *ConnectionInfo, why s
 		ch.Rollback = RollbackChange{Title: "Undo: " + c.Name + " (" + w + ")", CLI: rb, Rest: rr}
 	}
 	return ch, nil
+}
+
+// readStepText is the exact read-only step as the approver sees it: the stored method and URL of an API call, or the command lines.
+// Empty when the action has no such step.
+func readStepText(t Tpl, conn *ConnectionInfo, vals Values) (string, error) {
+	if t.Empty() {
+		return "", nil
+	}
+	if t.Method != "" && t.Path != "" && conn != nil && isHTTPKind(conn.Kind) {
+		p, err := Fill(t.Path, vals, TURL)
+		if err != nil {
+			return "", err
+		}
+		return t.Method + " " + conn.Target + p, nil
+	}
+	if strings.TrimSpace(t.CLI) == "" {
+		return "", nil
+	}
+	return Fill(t.CLI, vals, TCLI)
+}
+
+// precheckRules says in plain words when the check before refuses the action.
+func precheckRules(c catRow) string {
+	if c.Precheck.Empty() {
+		return ""
+	}
+	var parts []string
+	if len(c.PrecheckRefuse) > 0 {
+		q := make([]string, len(c.PrecheckRefuse))
+		for i, r := range c.PrecheckRefuse {
+			q[i] = "\"" + r + "\""
+		}
+		parts = append(parts, "Nothing is changed if its output contains "+strings.Join(q, ", "))
+	}
+	if c.PrecheckExpect != "" {
+		parts = append(parts, "nothing is changed unless its output contains \""+c.PrecheckExpect+"\"")
+	}
+	parts = append(parts, "nothing is changed if it prints nothing")
+	return strings.Join(parts, "; ") + "."
 }
 
 func callText(rest *RestCall, cli string) string {

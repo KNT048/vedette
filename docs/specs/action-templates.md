@@ -581,7 +581,7 @@ Hành động tuỳ chỉnh do khách thêm cũng bắt buộc cùng quy tắc n
 - Chỉ HTTPS, kiểm chứng chỉ bật, cho phép ghim CA/vân tay. HTTP thường chỉ ở "kết nối phòng thí nghiệm" được quản trị viên đánh dấu và hiện cảnh báo.
 - Scheme, host, cổng lấy **từ kết nối**, không từ mẫu hay tham số. Mẫu chỉ có phần đường dẫn (có tham số ở đoạn riêng, `url.PathEscape`), query (`url.Values`), thân JSON.
 - Phương thức: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`. Không cho `CONNECT`, `TRACE`, phương thức lạ.
-- Header: danh sách cho phép (`Content-Type`, `Accept`, header xác thực do kết nối đặt); từ chối `\r`, `\n` trong giá trị; không tham số trong tên header.
+- Header: danh sách cho phép (`Content-Type`, `Accept`, header xác thực do kết nối đặt); **bổ sung sau rà soát 13b-2 (2026-11-10)**: ngoài `Authorization`, `Cookie`, `Host`, `Proxy-*`, hop-by-hop, `Forwarded`, `X-Forwarded*`, còn cấm `Via`, `X-Real-IP`, `X-Original-URL`, `X-Rewrite-URL` và các header ghi đè phương thức (`X-HTTP-Method-Override`, `X-HTTP-Method`, `X-Method-Override`) vì chúng đổi nghĩa của lời gọi hay giả danh máy gọi; từ chối `\r`, `\n` trong giá trị; không tham số trong tên header.
 - Thân: bắt buộc JSON hợp lệ; thay giá trị trên cây JSON, không nối chuỗi. Kích thước thân và phản hồi giới hạn (đề xuất 64 KB / 1 MB).
 - Không theo chuyển hướng (30x) trừ cùng host; timeout 15 giây (kết nối 5 giây); tối đa 1 lần thử lại cho `GET`, không thử lại `POST`/`PUT`/`DELETE` tự động (kết quả mơ hồ nên đọc lại bằng `verify` thay vì gửi lại).
 - Phản hồi coi là dữ liệu không tin cậy: parser giới hạn độ sâu và kích thước, không đưa nguyên văn vào lời nhắc AI hay HTML.
@@ -658,7 +658,11 @@ Danh mục hiện tại ở `web/src/features/response/data.ts`:
 10. Kiểu tham số: thiếu `id` (policyid) và `name`; `{text}` đang lẫn vào mẫu thiết bị.
 11. Thiếu hành động `cisco_save_config` (5.5) và `fgt_ebl_setup`/`opn_urltable_setup`/`adguard_add_url` (thiết lập một lần, kéo) dưới dạng hướng dẫn.
 
-### 12.1 Sửa dữ liệu ở lát 13b-2 (D-94, D-95; 13b-0 chốt)
+### 12.1 Sửa dữ liệu ở lát 13b-2 (D-94, D-95; 13b-0 chốt) — **đã làm ở 13b-2**
+
+**Sửa sau rà soát 13b-2 (2026-11-10):** ArubaOS-Switch **bị gỡ khỏi mẫu dựng sẵn** (mục 6.2 nói không đưa vào cho tới khi lab xác nhận; ba hành động `arubasw_*` chỉ còn làm được như hành động tuỳ chỉnh); `cisco_port_shut` đọc thêm `show interfaces {interface}` và từ chối `administratively down`, `aoscx_port_shut` từ chối `Admin state is down` (hoàn tác `no shutdown` sẽ bật lại cổng mà người quản trị đã tắt); hai hành động cổng Cisco đòi `Administrative Mode: static access` (`precheck_expect`) và từ chối `Mode: trunk`, `Mode: dynamic`, `Mode: private-vlan trunk`, `Mode: tunnel`, `Switchport: Disabled`; `fgt_policy_disable` có kiểm trước đọc chính sách và từ chối `"action":"deny"` (sau khi nén JSON) hoặc `set action deny`. Chuỗi từ chối của AOS-CX và `show full-configuration firewall policy {id}` của FortiOS chưa thử trên máy; AOS-CX chưa có `precheck_expect` (cần lab xác nhận dòng `VLAN Mode: access`).
+
+**Trạng thái (13b-2):** cả sáu mục dưới đây đã nằm trong dữ liệu và có test (Go: `TestContract_INV14c_LibraryDataFixes`, `TestBuiltinActionsNeedingADeviceReadAreNotAvailableYet`; GUI: `templates.test.ts` §12.1). Mục 5 được cài ở `unavailable()` (tính từ mẫu, không có cờ trong dữ liệu). Các dòng lệnh, chuỗi từ chối và `expect` vẫn mang nhãn chưa thử trên máy; chưa có mã nào chạy chúng (13b-6).
 
 Áp dụng cho cả `modules/response/data/action-templates.json` và bản mock `web/src/features/response/templates/action-templates.sample.json` (test lệch thư viện phải xanh). Nhãn "chưa xác minh" giữ nguyên như các mục trên.
 
@@ -672,7 +676,7 @@ Danh mục hiện tại ở `web/src/features/response/data.ts`:
 | ArubaOS-Switch | `no page` | `configure` … `end` | chưa xác minh |
 
    Ví dụ `cisco_port_shut`: `run` = `terminal length 0` / `configure terminal` / `interface {interface}` / `shutdown` / `end`; `rollback` như vậy với `no shutdown`; `verify` = `terminal length 0` / `show interfaces {interface} status`. `cisco_save_config`: `run` = `terminal length 0` / `write memory`; `verify` = `terminal length 0` / `show startup-config` (thiếu dòng đầu thì phiên dừng ở `--More--` tới hết 20 s).
-3. **Kiểm trước và chuỗi từ chối cho hành động cổng** (D-95 (3); đóng M4 của rà WP-13a: không đụng cổng trunk/uplink):
+3. **Kiểm trước và chuỗi từ chối cho hành động cổng** (bảng dưới là bản ban đầu 13b-0; chuỗi hiện hành sau rà soát nằm ở đoạn "Sửa sau rà soát" phía trên) (D-95 (3); đóng M4 của rà WP-13a: không đụng cổng trunk/uplink):
 
 | Hành động | `precheck` | `precheck_refuse` | Nhãn |
 |---|---|---|---|

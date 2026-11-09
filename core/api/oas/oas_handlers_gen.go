@@ -33149,11 +33149,11 @@ func (s *Server) handleResponsePostResponseActionsIDRollbackRequest(args [1]stri
 
 // handleResponsePostResponseAiProposalsRequest handles response_post_response_ai_proposals operation.
 //
-// The AI agent sends a request. Server-side gates: allowed trigger, action flagged for AI, real
-// evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a
-// rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an
-// approval request was created, 200 for a suggestion note or a digest (the generated file documents
-// 200).
+// Preview build only (D-97): on a real box the AI sends its requests inside the process and this route
+// answers 404. The gates it applies: allowed trigger, action flagged for AI, real evidence, confidence
+// of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily
+// budget, quality breaker, second checker for high risk. 201 when an approval request was created, 200
+// for a suggestion note or a digest (the generated file documents 200).
 //
 // POST /response/ai/proposals
 func (s *Server) handleResponsePostResponseAiProposalsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -33237,7 +33237,7 @@ func (s *Server) handleResponsePostResponseAiProposalsRequest(args [0]string, ar
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ResponsePostResponseAiProposalsOperation,
-			OperationSummary: "The AI agent sends a request. Server-side gates: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an approval request was created, 200 for a suggestion note or a digest (the generated file documents 200)",
+			OperationSummary: "Preview build only (D-97): on a real box the AI sends its requests inside the process and this route answers 404. The gates it applies: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an approval request was created, 200 for a suggestion note or a digest (the generated file documents 200)",
 			OperationID:      "response_post_response_ai_proposals",
 			Body:             request,
 			RawBody:          rawBody,

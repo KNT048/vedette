@@ -3,15 +3,17 @@
 // files. The real box loads the same shape from a signed library shipped with updates (customers add and edit their own).
 import { z } from 'zod'
 import type { Risk, RuleInput } from '../types'
+import { EMPTY_TPL, type Tpl as TplT } from '../logic'
 import type { StoredCat, TemplateDef } from '../data'
 import library from './action-templates.sample.json'
 import ruleLibrary from './rule-templates.sample.json'
+import banLibrary from './cli-ban.sample.json'
 
-const Tpl = z.object({ cli: z.string(), method: z.enum(['', 'GET', 'PUT', 'PATCH', 'POST', 'DELETE']), path: z.string(), body: z.string(), headers: z.string() })
+const Tpl = z.object({ cli: z.string(), method: z.enum(['', 'GET', 'PUT', 'PATCH', 'POST', 'DELETE']), path: z.string(), body: z.string(), headers: z.string(), expect: z.string().max(200).optional() })
 const ActionTemplate = z.object({
   id: z.string().regex(/^[a-z0-9_]{2,48}$/), pack: z.string().min(1).max(60), kind: z.enum(['box', 'device']), name: z.string().min(1).max(100), description: z.string().min(1),
   connection_id: z.string().nullable().describe('Sample binding to a sample connection; null = the customer picks one'), tool: z.string().nullable(), rollback_tool: z.string().nullable(),
-  run: Tpl, rollback: Tpl, verify: Tpl, risk: z.enum(['low', 'medium', 'high']), enabled: z.boolean(), ai_may_propose: z.boolean(),
+  run: Tpl, rollback: Tpl, verify: Tpl, precheck: Tpl.optional(), precheck_refuse: z.array(z.string().min(1).max(80)).max(8).optional(), precheck_expect: z.string().max(80).optional(), risk: z.enum(['low', 'medium', 'high']), enabled: z.boolean(), ai_may_propose: z.boolean(),
   unverified: z.boolean().describe('The vendor documentation or a device test has not confirmed it yet: the description then says so'),
 })
 const Library = z.object({ library: z.string(), notice: z.string(), unverified_note: z.string(), actions: z.array(ActionTemplate).min(1) })
@@ -22,8 +24,9 @@ if (new Set(ids).size !== ids.length) throw new Error('action-templates.sample.j
 
 /** The unverified marking is part of the description the user reads (and the AI sees), never only a flag. */
 export const UNVERIFIED_NOTE = lib.unverified_note
+const withExpect = (t: { cli: string; method: TplT['method']; path: string; body: string; headers: string; expect?: string | undefined }): TplT => ({ ...t, expect: t.expect ?? '' })
 export const seedCatalog = (): StoredCat[] => lib.actions.map(({ unverified, description, ...a }) => ({
-  ...a, builtin: true, risk: a.risk as Risk, description: unverified ? `${description} ${lib.unverified_note}.` : description,
+  ...a, run: withExpect(a.run), rollback: withExpect(a.rollback), verify: withExpect(a.verify), precheck: withExpect(a.precheck ?? EMPTY_TPL), precheck_refuse: a.precheck_refuse ?? [], precheck_expect: a.precheck_expect ?? '', builtin: true, risk: a.risk as Risk, description: unverified ? `${description} ${lib.unverified_note}.` : description,
 }))
 
 const RuleShape = z.object({ field: z.string(), op: z.string(), value: z.string(), n: z.number().nullable(), window_min: z.number().nullable() })
@@ -48,3 +51,6 @@ export const TEMPLATES: TemplateDef[] = rules.templates.map((t) => ({
 }))
 /** Seed rules of the trial build that use a template action (the ones that use only generic box actions stay in the engine). */
 export const SEED_RULES = rules.seed_rules
+
+/** The command lines a template may not contain (data, D-58; action-templates 9.3). */
+export const CLI_BAN = z.object({ notice: z.string(), everywhere: z.array(z.string().min(1)).min(1), read_only_steps: z.array(z.string().min(1)).min(1) }).parse(banLibrary)

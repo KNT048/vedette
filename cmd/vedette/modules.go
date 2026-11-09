@@ -56,10 +56,10 @@ func wiredModules() []moduleWiring {
 	return []moduleWiring{
 		{ID: "core", Migrations: core.Migrations},
 		{ID: "feeds", Migrations: feeds.Migrations, Jobs: feedsJobs},
-		{ID: "notify", Migrations: notify.Migrations, Jobs: notifyJobs},
 		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},
 		{ID: "findings", Migrations: findings.Migrations},
 		{ID: "mitigation", Migrations: mitigation.Migrations},
+		{ID: "notify", Migrations: notify.Migrations, Jobs: notifyJobs},
 	}
 }
 

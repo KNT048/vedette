@@ -52,6 +52,32 @@ function fakeHash(seed: string, len: number, hex = false) {
 const bad = (code: string, message: string, field: string) => fail(400, code, message, { field })
 
 // ---- Address policy (D-94): the box never connects to itself, to loopback, link-local (cloud metadata), multicast or unspecified addresses.
+/** The 8 groups of an IPv6 address (`::` expanded, a dotted IPv4 tail read as two groups), or null when it is not one. */
+function v6groups(h: string): number[] | null {
+  let s = h.split('%')[0]!
+  const dotted = /(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(s)
+  if (dotted) {
+    const p = dotted.slice(1).map(Number)
+    if (p.some((x) => x > 255)) return null
+    s = `${s.slice(0, dotted.index)}${((p[0]! << 8) | p[1]!).toString(16)}:${((p[2]! << 8) | p[3]!).toString(16)}`
+  }
+  const halves = s.split('::')
+  if (halves.length > 2) return null
+  const side = (t: string) => (t === '' ? [] : t.split(':'))
+  const head = side(halves[0]!), tail = halves.length === 2 ? side(halves[1]!) : []
+  if (halves.length === 1 && head.length !== 8) return null
+  const fill = 8 - head.length - tail.length
+  if (fill < (halves.length === 2 ? 1 : 0)) return null
+  const all = [...head, ...Array<string>(fill).fill('0'), ...tail]
+  return all.every((g) => /^[0-9a-f]{1,4}$/.test(g)) ? all.map((g) => parseInt(g, 16)) : null
+}
+const EMBEDDED_V4 = 'Vedette does not connect to IPv6 addresses that carry an IPv4 address; use the IPv4 address.'
+/** IPv6 forms that carry an IPv4 address: mapped, NAT64 64:ff9b::/96, 6to4 2002::/16, compatible ::/96, translated ::ffff:0:0:0/96, Teredo 2001::/32. */
+function carriesV4(g: number[]): boolean {
+  const zero = (a: number, b: number) => g.slice(a, b).every((x) => x === 0)
+  return (zero(0, 5) && g[5] === 0xffff) || (g[0] === 0x64 && g[1] === 0xff9b && zero(2, 6)) || g[0] === 0x2002 || zero(0, 6) || (zero(0, 4) && g[4] === 0xffff && g[5] === 0) || (g[0] === 0x2001 && g[1] === 0)
+}
+
 const NUMERIC_HOST = /^(0x[0-9a-f]+|\d+)(\.(0x[0-9a-f]+|\d+))*$/i
 const canonicalV4 = (h: string): number[] | null => {
   const p = h.split('.')
@@ -59,14 +85,17 @@ const canonicalV4 = (h: string): number[] | null => {
 }
 /** Why the host is refused (in plain words), or null when it may be used. */
 export function refusedHost(raw: string): string | null {
-  const h = raw.trim().toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '')
+  const h = raw.trim().toLowerCase().replace(/^\[|\]$/g, '').replace(/\.+$/, '')
   if (h === 'localhost' || h.endsWith('.localhost')) return 'a loopback address'
   if (h.includes(':')) {
     if (h === '::1') return 'a loopback address'
     if (h === '::') return 'an unspecified address'
     if (/^fe[89ab]/.test(h)) return 'a link-local address'
     if (/^ff/.test(h)) return 'a multicast address'
-    if (h.startsWith('::ffff:')) return 'an IPv4 address written inside an IPv6 one'
+    const g = v6groups(h)
+    if (!g) return 'an address that is not valid'
+    if (g.slice(0, 7).every((x) => x === 0) && g[7]! <= 1) return g[7] === 1 ? 'a loopback address' : 'an unspecified address'
+    if (carriesV4(g)) return EMBEDDED_V4
     return null
   }
   if (NUMERIC_HOST.test(h)) {
@@ -82,6 +111,7 @@ export function refusedHost(raw: string): string | null {
 }
 const typedHost = (target: string, ssh: boolean) => (ssh ? target.replace(/:\d{1,5}$/, '') : /^[a-z][a-z0-9+.-]*:\/\/(?:[^/@?#]*@)?(\[[^\]]*\]|[^/:?#]*)/i.exec(target)?.[1] ?? '')
 const under = (entry: string, target: string) => {
+  if (entry.includes('\\') || /%(2f|5c|2e)/i.test(entry)) return false // a backslash or an encoded slash, backslash or dot may be read as a separator or a dot segment further on
   try {
     const e = new URL(entry), b = new URL(target), bp = b.pathname.replace(/\/+$/, '')
     return e.origin === b.origin && (e.pathname === bp || e.pathname === `${bp}/` || e.pathname.startsWith(`${bp}/`))
@@ -108,22 +138,28 @@ export const hasSecret = (c: Pick<Connector, 'auth'>) => c.auth.last4 !== null |
 type Checked = { input: ConnectorInput; allow: string[]; last4: string | null; username: string | null; secret: string | null; retarget: boolean; moved: boolean }
 function check(b: Partial<ConnectorInput>, existing?: Connector): Response | Checked {
   const name = TIDY(String(b.name ?? ''))
-  if (name.length < 1 || name.length > 40) return bad('invalid_name', 'Give the connection a name of 1 to 40 characters, for example "Office firewall API".', 'name')
+  if ([...name].length < 1 || [...name].length > 40) return bad('invalid_name', 'Give the connection a name of 1 to 40 characters, for example "Office firewall API".', 'name')
   if (connectorsStore.get().some((c) => c.id !== existing?.id && c.name.toLowerCase() === name.toLowerCase())) return bad('duplicate_name', 'Another connection already has this name. Pick a different one.', 'name')
   if (!b.kind || !KINDS.includes(b.kind)) return bad('invalid_kind', 'Pick a kind: HTTP API, SSH / CLI, NETCONF / RESTCONF, automation platform or MCP server.', 'kind')
   if (b.kind === 'mcp-stdio') return bad('kind_unsupported', 'An MCP server that Vedette starts as a command is not supported. Use an MCP server that has a web address (kind "MCP server (URL)").', 'kind')
   const ssh = b.kind === 'ssh'
   const target = String(b.target ?? '').trim()
-  if (ssh) { if (!/^[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}(:\d{1,5})?$/.test(target)) return bad('invalid_target', 'Enter the SSH server as host or host:port, for example 192.168.10.30:22.', 'target') }
+  if ([...target].length > 2048) return bad('invalid_target', 'The address is too long: at most 2048 characters.', 'target')
+  if (ssh) {
+    const hostOnly = target.replace(/:\d{1,5}$/, '').replace(/\.+$/, '')
+    const port = /:(\d{1,5})$/.exec(target)
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}(:\d{1,5})?$/.test(target) || !/^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$/.test(hostOnly) || (port && (Number(port[1]) < 1 || Number(port[1]) > 65535))) return bad('invalid_target', 'Enter the SSH server as host or host:port, for example 192.168.10.30:22.', 'target')
+  }
   else {
     let u: URL
     try { u = new URL(target) } catch { return bad('invalid_target', 'The address is not valid. Enter it in full, for example https://192.168.10.1.', 'target') }
     if (u.protocol !== 'https:') return bad('invalid_target', 'The address must start with https://. Vedette sends sign-in details and changes only over HTTPS.', 'target')
     if (u.username || u.password) return bad('invalid_target', 'The address must not contain a user name or password. Enter the secret in its own field.', 'target')
+    if (/[?#]/.test(target)) return bad('invalid_target', 'The address must not include ? or #.', 'target')
   }
   // The policy is applied to the host as typed and to the host after the URL parser normalised it (2130706433 becomes 127.0.0.1).
   const why = refusedHost(typedHost(target, ssh)) ?? (ssh ? null : refusedHost(new URL(target).hostname))
-  if (why) return bad('invalid_target', `Vedette never connects to ${why}. Enter the address of the device or service itself.`, 'target')
+  if (why) return bad('invalid_target', why === EMBEDDED_V4 ? why : `Vedette never connects to ${why}. Enter the address of the device or service itself.`, 'target')
   const auth = b.auth_type ?? 'none'
   if (!AUTHS.includes(auth)) return bad('invalid_auth', 'Pick how the box signs in: none, token, user and password, or SSH key.', 'auth_type')
   if (!CONNECTOR_AUTH[b.kind].includes(auth)) return bad('invalid_auth', `${ssh ? 'An SSH server' : 'This kind of connection'} cannot sign in that way. Pick one of the options the form offers.`, 'auth_type')
@@ -132,7 +168,7 @@ function check(b: Partial<ConnectorInput>, existing?: Connector): Response | Che
   if (needsUser && !username) return bad('username_required', 'Enter the user name the box signs in with.', 'username')
   if (username && !USER_RE.test(username)) return bad('invalid', 'The user name is 1 to 64 characters, with no spaces, colons or control characters.', 'username')
   const secret = b.secret === undefined || b.secret === '' ? null : String(b.secret)
-  if (secret !== null && secret.length < 8) return bad('invalid_secret', 'The secret is too short. Copy the whole token, password or key again.', 'secret')
+  if (secret !== null && [...secret].length < 8) return bad('invalid_secret', 'The secret is too short. Copy the whole token, password or key again.', 'secret')
   if (secret !== null && auth === 'ssh-key' && encryptedKey(secret)) return bad('invalid_secret', 'This private key is protected by a passphrase, which Vedette cannot type. Save a copy without one and paste that.', 'secret')
   const sameKind = !!existing && existing.kind === b.kind
   const moved = sameKind && hostPort(existing.kind, existing.target) !== hostPort(b.kind, target)
@@ -144,7 +180,7 @@ function check(b: Partial<ConnectorInput>, existing?: Connector): Response | Che
   }
   const allow = [...new Set((b.allow ?? []).map((a) => a.trim()).filter(Boolean))]
   if (allow.length === 0) return bad('allow_required', 'Add at least one entry to the allow-list. Only hosts, addresses or commands on this list may be used.', 'allow')
-  if (allow.length > 30 || allow.some((a) => a.length > 200 || /[\n\r]/.test(a))) return bad('invalid_allow', 'The allow-list holds up to 30 entries of 200 characters each, one per line.', 'allow')
+  if (allow.length > 30 || allow.some((a) => [...a].length > 200 || /[\n\r]/.test(a))) return bad('invalid_allow', 'The allow-list holds up to 30 entries of 200 characters each, one per line.', 'allow')
   if (!ssh && allow.some((a) => /\s/.test(a))) return bad('invalid_allow', 'A host or address in the allow-list cannot contain spaces.', 'allow')
   if (!ssh && !allow.every((a) => under(a, target))) { const t = target.replace(/\/+$/, ''); return bad('invalid_allow', `Each allow-list entry must be an address under ${t}, for example ${t}/api/.`, 'allow') }
   if (b.asset_id && !assetsStore.get().some((a) => a.id === b.asset_id)) return bad('unknown_asset', 'The device you linked is not in the inventory.', 'asset_id')

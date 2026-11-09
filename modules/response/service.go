@@ -2,9 +2,7 @@ package response
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -17,6 +15,7 @@ import (
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/chain"
 	"github.com/knt048/vedette/core/chain/chainhead"
+	"github.com/knt048/vedette/core/conn"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
@@ -121,10 +120,24 @@ type ConnectionInfo struct {
 	UpdatedAt string
 }
 
-// connFP is the fingerprint of a connection as a request saw it: the same connection is the same fingerprint.
-func connFP(c ConnectionInfo) string {
-	h := sha256.Sum256([]byte(c.ID + "\x00" + c.Kind + "\x00" + c.Target + "\x00" + c.UpdatedAt))
-	return hex.EncodeToString(h[:16])
+// connFP is the fingerprint of a connection as a request saw it: the same connection is the same fingerprint (conn.Fingerprint,
+// D-93: id, kind, address and the moment a security field of the connection last changed).
+func connFP(c ConnectionInfo) string { return conn.Fingerprint(c.ID, c.Kind, c.Target, c.UpdatedAt) }
+
+// ChangesInForce says whether a change made through the connection may still be in force on a device: an item that was carried
+// out and not rolled back, one that was sent and whose outcome is not known yet (running), and one the sweep or the step deadline
+// failed as "state unknown" (itemRec.StateUnknown). core/conn asks before it deletes a connection (409 in_use, D-93 (4)).
+func (s *Service) ChangesInForce(ctx context.Context, connectionID string) (bool, error) {
+	var n int
+	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM resp_actions a, json_each(a.items) i
+		WHERE json_extract(i.value, '$.connector_id') = ?1
+		AND (json_extract(i.value, '$.status') = 'executed'
+			OR json_extract(i.value, '$.state_unknown') = 1
+			OR (json_extract(i.value, '$.status') = 'pending' AND coalesce(json_extract(i.value, '$.running_at'), '') <> '')))`, connectionID).Scan(&n)
+	if err != nil {
+		return false, fmt.Errorf("response: changes in force: %w", err)
+	}
+	return n == 1, nil
 }
 
 // Connections lists the connections to devices. nil = none exist.

@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/net/publicsuffix"
 )
 
 // ---------- dates
@@ -148,7 +150,7 @@ func validIndicatorURL(v string) bool {
 		return false
 	}
 	u, err := url.Parse(v)
-	return err == nil && u.Hostname() != ""
+	return err == nil && u.Hostname() != "" && u.User == nil
 }
 
 // validLink is the vulnerability `link` rule: http(s)://, then non-space characters only.
@@ -174,4 +176,117 @@ func detectKind(v string) string {
 		return "domain"
 	}
 	return ""
+}
+
+// ---------- special-purpose addresses and local names (INV-12)
+
+var specialPrefixes = func() []netip.Prefix {
+	var out []netip.Prefix
+	for _, p := range []string{
+		// IPv4: this network, private, shared (CGNAT), loopback, link-local, IETF protocol, TEST-NETs,
+		// benchmarking, multicast, reserved and the limited broadcast.
+		"0.0.0.0/8", "10.0.0.0/8", "100.64.0.0/10", "127.0.0.0/8", "169.254.0.0/16", "172.16.0.0/12",
+		"192.0.0.0/24", "192.0.2.0/24", "192.168.0.0/16", "198.18.0.0/15", "198.51.100.0/24", "203.0.113.0/24",
+		"224.0.0.0/4", "240.0.0.0/4",
+		// IPv6: unspecified, loopback and IPv4-compatible, NAT64, discard, documentation, 6to4, unique local, link-local, multicast.
+		"::/96", "64:ff9b::/96", "100::/64", "2001:db8::/32", "2002::/16", "fc00::/7", "fe80::/10", "ff00::/8",
+	} {
+		out = append(out, netip.MustParsePrefix(p))
+	}
+	return out
+}()
+
+// isSpecialAddr reports an address that is not a public, global unicast one.
+// IPv4-mapped IPv6 addresses are judged as the IPv4 address they carry.
+func isSpecialAddr(a netip.Addr) bool {
+	a = a.Unmap()
+	if !a.IsValid() || !a.IsGlobalUnicast() {
+		return true
+	}
+	for _, p := range specialPrefixes {
+		if p.Contains(a) {
+			return true
+		}
+	}
+	return false
+}
+
+var reservedTLDs = map[string]bool{
+	"local": true, "lan": true, "internal": true, "localhost": true, "arpa": true, "test": true, "invalid": true, "example": true,
+}
+
+// reservedName reports a single-label name or one under a reserved top-level label.
+func reservedName(name string) bool {
+	i := strings.LastIndexByte(name, '.')
+	return i < 0 || reservedTLDs[name[i+1:]]
+}
+
+// localName reports a name that is not a public registrable domain: a
+// reserved or local top-level label, or a name that is itself a public suffix
+// ("com.vn", "co.uk", "github.io"). domain must be a valid lower-case name.
+func localName(domain string) bool {
+	if reservedName(domain) {
+		return true
+	}
+	suffix, _ := publicsuffix.PublicSuffix(domain)
+	return suffix == domain
+}
+
+// emptyFileHashes are the digests of zero bytes: they match every empty file.
+var emptyFileHashes = map[string]bool{
+	"d41d8cd98f00b204e9800998ecf8427e":                                 true,
+	"da39a3ee5e6b4b0d3255bfef95601890afd80709":                         true,
+	"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855": true,
+}
+
+// publicHost: an IP literal must be public, a name must not be local.
+func publicHost(host string) bool {
+	h := strings.ToLower(strings.TrimSuffix(strings.TrimPrefix(host, "["), "]"))
+	if a, err := netip.ParseAddr(h); err == nil {
+		return !isSpecialAddr(a)
+	}
+	return validDomain(h) && !reservedName(h)
+}
+
+// normaliseIOC validates and canonicalises one IOC value of a kind. A rejection
+// template starts with the %s for the value.
+func normaliseIOC(kind, value string) (string, rej) {
+	switch kind {
+	case "ip":
+		c, ok := canonicalIP(value)
+		if !ok {
+			return "", rj("%s is not a valid ip")
+		}
+		if a, _ := netip.ParseAddr(c); isSpecialAddr(a) {
+			return "", rj("%s is a private, reserved or special-purpose address")
+		}
+		return c, rej{}
+	case "domain":
+		if !validDomain(value) {
+			return "", rj("%s is not a valid domain")
+		}
+		d := strings.ToLower(value)
+		if localName(d) {
+			return "", rj("%s is a local, reserved or public-suffix name")
+		}
+		return d, rej{}
+	case "url":
+		if !validIndicatorURL(value) {
+			return "", rj("%s is not a valid url")
+		}
+		if u, err := url.Parse(value); err != nil || !publicHost(u.Hostname()) {
+			return "", rj("%s points at a local or private host")
+		}
+		return value, rej{}
+	case "hash":
+		if !hashRE.MatchString(value) {
+			return "", rj("%s is not a valid hash")
+		}
+		h := strings.ToLower(value)
+		if emptyFileHashes[h] {
+			return "", rj("%s is the hash of an empty file")
+		}
+		return h, rej{}
+	}
+	return "", rj("%s is not a valid indicator")
 }

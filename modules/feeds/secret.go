@@ -1,49 +1,36 @@
 package feeds
 
 import (
-	"log/slog"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/knt048/vedette/core/secrets"
 )
 
-const redacted = "[redacted]"
-
-// Secret holds a feed credential. It never prints, logs or marshals its value;
-// Reveal is the only way out and is meant for the fetcher and core/secrets.
-// The value sits behind a pointer so that even fmt printing a struct with an
-// unexported Secret field shows an address, not the text.
-type Secret struct{ p *string }
+// Secret is a feed credential: a core/secrets.Value (which redacts itself in
+// fmt, slog, JSON and text, and is read only through Reveal, SYS-4) plus the
+// INV-6 validation and the 4-character hint the UI may show.
+type Secret struct{ secrets.Value }
 
 // NewSecret validates INV-6: 8..500 chars, no whitespace or control characters.
 func NewSecret(s string) (Secret, error) {
 	if err := CheckSecret(s); err != nil {
 		return Secret{}, err
 	}
-	return Secret{p: &s}, nil
+	return Secret{secrets.NewValue(s)}, nil
 }
 
 // CheckSecret is the INV-6 rule on its own (for API validation).
 func CheckSecret(s string) error {
 	n := utf8.RuneCountInString(s)
-	if n < 8 || n > 500 {
-		return fail(ErrInvalidSecret, "The secret must be 8 to 500 characters with no spaces.")
-	}
-	if strings.ContainsFunc(s, jsIsSpace) || hasControl(s) || !utf8.ValidString(s) {
+	if n < 8 || n > 500 || !utf8.ValidString(s) || strings.ContainsFunc(s, jsIsSpace) || hasControl(s) {
 		return fail(ErrInvalidSecret, "The secret must be 8 to 500 characters with no spaces.")
 	}
 	return nil
 }
 
-// Reveal returns the plain value; only the fetcher and core/secrets should call it.
-func (s Secret) Reveal() string {
-	if s.p == nil {
-		return ""
-	}
-	return *s.p
-}
-
 // IsSet reports whether a value is held.
-func (s Secret) IsSet() bool { return s.p != nil }
+func (s Secret) IsSet() bool { return s.Reveal() != "" }
 
 // Last4 is what the UI may show (secret_last4).
 func (s Secret) Last4() string {
@@ -53,18 +40,3 @@ func (s Secret) Last4() string {
 	}
 	return string(r)
 }
-
-// String never shows the value.
-func (Secret) String() string { return redacted }
-
-// GoString never shows the value (%#v).
-func (Secret) GoString() string { return redacted }
-
-// LogValue redacts the value in slog output.
-func (Secret) LogValue() slog.Value { return slog.StringValue(redacted) }
-
-// MarshalText redacts the value in text encodings.
-func (Secret) MarshalText() ([]byte, error) { return []byte(redacted), nil }
-
-// MarshalJSON redacts the value in JSON.
-func (Secret) MarshalJSON() ([]byte, error) { return []byte(`"` + redacted + `"`), nil }

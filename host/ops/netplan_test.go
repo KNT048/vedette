@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"log/slog"
@@ -10,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	vexec "github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/host/api"
@@ -246,7 +248,9 @@ func TestNetplanGenerateAcceptsTheRenderedYAML(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(dir, netplanName), text, 0o600); err != nil {
 				t.Fatal(err)
 			}
-			res, err := runner.Run(t.Context(), binNetplan, []string{"generate", "--root-dir", root}, nil)
+			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second) // core/exec refuses a context without a deadline
+			defer cancel()
+			res, err := runner.Run(ctx, binNetplan, []string{"generate", "--root-dir", root}, nil)
 			if err != nil {
 				t.Fatalf("netplan generate: %v\n%s\n%s\n%s", err, res.Stdout, res.Stderr, text)
 			}

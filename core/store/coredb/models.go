@@ -41,6 +41,7 @@ type CoreEmailCode struct {
 type CoreEmailCodeSend struct {
 	UserID string
 	SentAt string
+	Kind   string
 }
 
 type CoreJobRun struct {

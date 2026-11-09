@@ -74,6 +74,14 @@ type CodeMailer interface {
 	SendCode(ctx context.Context, to, code string) error
 }
 
+// StepUpMailer is the optional second interface of a CodeMailer: it mails a step-up code (VerifyTwoStep) with a
+// summary of what is being approved, so the message cannot be mistaken for a sign-in code (OWASP Transaction
+// Authorization). A mailer without it cannot serve email step-up: VerifyTwoStep answers 503
+// twofa_email_unavailable. summary is one line built by the server, never user text; the implementation must not log the code.
+type StepUpMailer interface {
+	SendStepUpCode(ctx context.Context, to, code, summary string) error
+}
+
 // Config wires a Service.
 type Config struct {
 	DB      *store.DB

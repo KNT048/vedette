@@ -218,7 +218,9 @@ func (a Attr) Literal() (string, bool) {
 	for i := 0; i < len(a.Value); i++ {
 		switch b := a.Value[i]; b {
 		case '\\':
-			i++
+			if i++; i >= len(a.Value) {
+				return "", false // malformed hand-built value: dangling backslash
+			}
 			sb.WriteByte(a.Value[i])
 		case '*', '?':
 			return "", false
@@ -282,7 +284,9 @@ func wildMatch(pattern, text string) bool {
 	for i := 0; i < len(pattern); i++ {
 		switch b := pattern[i]; b {
 		case '\\':
-			i++
+			if i+1 < len(pattern) { // a dangling backslash (hand-built value) stays literal
+				i++
+			}
 			p = append(p, tok{b: pattern[i]})
 		case '*', '?':
 			p = append(p, tok{kind: b})
@@ -292,7 +296,7 @@ func wildMatch(pattern, text string) bool {
 	}
 	var t []byte
 	for i := 0; i < len(text); i++ {
-		if text[i] == '\\' {
+		if text[i] == '\\' && i+1 < len(text) {
 			i++
 		}
 		t = append(t, text[i])

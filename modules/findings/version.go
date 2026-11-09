@@ -2,6 +2,7 @@ package findings
 
 import (
 	"cmp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -43,8 +44,9 @@ type qual struct {
 }
 
 type version struct {
-	rel []uint64
-	q   qual
+	rel  []uint64
+	q    qual
+	tail string // ignored for ordering, see compareTail
 }
 
 var preRelease = map[string]int{
@@ -112,36 +114,41 @@ func parseVersion(s string) (version, bool) {
 		}
 		break
 	}
-	q, ok := parseQual(s[i:])
+	q, tail, ok := parseQual(s[i:])
 	if !ok {
 		return version{}, false
 	}
-	return version{rel: rel, q: q}, true
+	return version{rel: rel, q: q, tail: tail}, true
 }
 
-func parseQual(tail string) (qual, bool) {
+// parseQual reads what follows the numeric release. It returns the ordering
+// qualifier and the ignored tail (build number, distro revision, metadata), kept
+// so that range decisions at a boundary can tell "7.0.0 build 1234" from "7.0.0".
+func parseQual(tail string) (qual, string, bool) {
 	rest := strings.TrimLeft(tail, sepChars)
 	if rest == "" {
-		return qual{}, true
+		return qual{}, "", true
 	}
 	var sep byte
 	if rest != tail {
 		sep = tail[0]
 	}
 	if sep == '+' || isDigit(rest[0]) { // build metadata, distro revision, build number
-		return qual{}, true
+		return qual{}, rest, true
 	}
 	k := 0
 	for k < len(rest) && isLower(rest[k]) {
 		k++
 	}
 	if k == 0 {
-		return qual{}, false
+		return qual{}, "", false
 	}
 	w, after := rest[:k], rest[k:]
+	// num reads the number of a qualifier ("rc1", "beta.2", "sp 3"); no number is 0.
 	num := func() (uint64, string, bool) {
+		s := strings.TrimLeft(after, ".-_ ")
 		j := 0
-		for j < len(after) && isDigit(after[j]) {
+		for j < len(s) && isDigit(s[j]) {
 			j++
 		}
 		if j == 0 {
@@ -150,8 +157,12 @@ func parseQual(tail string) (qual, bool) {
 		if j > maxSegDigits {
 			return 0, "", false
 		}
-		n, err := strconv.ParseUint(after[:j], 10, 64)
-		return n, after[j:], err == nil
+		n, err := strconv.ParseUint(s[:j], 10, 64)
+		return n, s[j:], err == nil
+	}
+	withTail := func(q qual, left string, ok bool) (qual, string, bool) {
+		t, tok := tailOK(left)
+		return q, t, ok && tok
 	}
 	switch {
 	case len(w) == 1 && (w == "a" || w == "b") && after != "" && isDigit(after[0]):
@@ -160,31 +171,75 @@ func parseQual(tail string) (qual, bool) {
 		if w == "b" {
 			rank = 3
 		}
-		return qual{-1, rank, n}, ok && tailOK(left)
+		return withTail(qual{-1, rank, n}, left, ok)
 	case preRelease[w] != 0:
 		n, left, ok := num()
-		return qual{-1, preRelease[w], n}, ok && tailOK(left)
+		return withTail(qual{-1, preRelease[w], n}, left, ok)
 	case len(w) == 1 && sep == 0 && after == "": // OpenSSL style 1.1.1w
-		return qual{1, 1, uint64(w[0]-'a') + 1}, true
+		return qual{1, 1, uint64(w[0]-'a') + 1}, "", true
 	case postRelease[w]:
 		n, left, ok := num()
-		return qual{1, 0, n}, ok && tailOK(left)
-	case w == "build":
-		return qual{}, tailOK(after)
-	case releaseWord[w]:
-		return qual{}, tailOK(after)
+		return withTail(qual{1, 0, n}, left, ok)
+	case w == "build" || releaseWord[w]:
+		t, ok := tailOK(after)
+		return qual{}, w + t, ok
 	}
-	return qual{}, false
+	return qual{}, "", false
 }
 
 // tailOK accepts what may follow a qualifier: nothing, build metadata, a number
-// (build or revision) or the word "build".
-func tailOK(t string) bool {
-	if strings.HasPrefix(t, "+") {
-		return true
-	}
+// (build or revision) or the word "build". It returns the normalised tail.
+func tailOK(t string) (string, bool) {
+	plus := strings.HasPrefix(t, "+")
 	t = strings.TrimLeft(t, sepChars)
-	return t == "" || isDigit(t[0]) || strings.HasPrefix(t, "build")
+	return t, plus || t == "" || isDigit(t[0]) || strings.HasPrefix(t, "build")
+}
+
+// buildOf splits an ignored tail into its leading word ("", "build") and its
+// numbers: "48.47" gives (""; 48, 47), "build 1234" gives ("build"; 1234). ok is
+// false for anything else (words, letters mixed with digits), which is opaque.
+func buildOf(t string) (kind string, nums []uint64, ok bool) {
+	i := 0
+	for i < len(t) && isLower(t[i]) {
+		i++
+	}
+	kind, rest := t[:i], t[i:]
+	for {
+		rest = strings.TrimLeft(rest, sepChars)
+		if rest == "" {
+			break
+		}
+		j := 0
+		for j < len(rest) && isDigit(rest[j]) {
+			j++
+		}
+		if j == 0 || j > maxSegDigits || len(nums) >= maxVersionSegs {
+			return "", nil, false
+		}
+		n, err := strconv.ParseUint(rest[:j], 10, 64)
+		if err != nil {
+			return "", nil, false
+		}
+		nums = append(nums, n)
+		rest = rest[j:]
+	}
+	return kind, nums, len(nums) > 0
+}
+
+// compareTail orders two ignored tails: identical tails are equal; two numeric
+// tails of the same shape ("-48.47" and "-49.15", "build 1234" and "build 1300",
+// "_351" and "_361", "-10-12" and "-10-13") are compared number by number. Any
+// other pair (one side empty, different shapes, opaque text) is not decidable.
+func compareTail(a, b string) (int, bool) {
+	if a == b {
+		return 0, true
+	}
+	ka, na, okA := buildOf(a)
+	kb, nb, okB := buildOf(b)
+	if !okA || !okB || ka != kb || len(na) != len(nb) {
+		return 0, false
+	}
+	return slices.Compare(na, nb), true
 }
 
 func (v version) compare(o version) int {
@@ -212,7 +267,8 @@ func (v version) compare(o version) int {
 
 // CompareVersions orders two vendor version strings (-1, 0, 1). ok is false when either
 // cannot be parsed; then order is meaningless. Build metadata and distro revisions
-// are ignored, so "7.0.0 build 1234" equals "7.0.0" and "7.2" equals "7.2.0".
+// are ignored for this order, so "7.0.0 build 1234" equals "7.0.0" and "7.2" equals
+// "7.2.0". Range decisions use a stricter comparison (VersionRange.Contains).
 func CompareVersions(a, b string) (order int, ok bool) {
 	va, okA := parseVersion(a)
 	vb, okB := parseVersion(b)
@@ -220,6 +276,45 @@ func CompareVersions(a, b string) (order int, ok bool) {
 		return 0, false
 	}
 	return va.compare(vb), true
+}
+
+// compareBound is CompareVersions for range decisions: when the releases and
+// qualifiers are equal, the ignored tails decide, and tails that cannot be
+// compared make the answer undecidable instead of "equal".
+func compareBound(a, b string) (int, bool) {
+	va, okA := parseVersion(a)
+	vb, okB := parseVersion(b)
+	if !okA || !okB {
+		return 0, false
+	}
+	if c := va.compare(vb); c != 0 {
+		return c, true
+	}
+	return compareTail(va.tail, vb.tail)
+}
+
+// isPlaceholder reports whether s is an all-zero version ("0", "0.0.0"): agents
+// and appliances use it for "unknown", so it is never evidence of a real version.
+func isPlaceholder(s string) bool {
+	v, ok := parseVersion(s)
+	if !ok {
+		return false
+	}
+	for _, n := range v.rel {
+		if n != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// relString renders the numeric release of a parsed version ("8.9").
+func relString(v version) string {
+	parts := make([]string, len(v.rel))
+	for i, n := range v.rel {
+		parts[i] = strconv.FormatUint(n, 10)
+	}
+	return strings.Join(parts, ".")
 }
 
 // VersionRange is an NVD cpeMatch range. Empty bounds are absent; no bounds at
@@ -233,17 +328,22 @@ func (r VersionRange) IsZero() bool { return r == VersionRange{} }
 
 // Contains says whether version v lies inside the range. A bound that is
 // violated for sure gives No even if another bound cannot be compared; if no
-// bound is violated but one cannot be compared, the answer is Unknown.
+// bound is violated but one cannot be compared, the answer is Unknown. Versions
+// that differ only in an ignored build tail, and placeholder versions ("0"), are
+// Unknown at a bound. With no bounds every version is inside, known or not.
 func (r VersionRange) Contains(v string) Tri {
 	if r.IsZero() {
 		return Yes
+	}
+	if isPlaceholder(v) {
+		return Unknown
 	}
 	unknown := false
 	check := func(bound string, ok func(c int) bool) bool {
 		if bound == "" {
 			return true
 		}
-		c, known := CompareVersions(v, bound)
+		c, known := compareBound(v, bound)
 		if !known {
 			unknown = true
 			return true

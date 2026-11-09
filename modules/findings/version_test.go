@@ -164,3 +164,85 @@ func FuzzCompareVersions(f *testing.F) {
 		}
 	})
 }
+
+// Regression: an ignored build/revision tail must never turn "cannot tell" into
+// "equal" at a range boundary (review of WP-21a, bug 1).
+func TestVersionRange_Contains_TailsAtBoundary(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		r    VersionRange
+		v    string
+		want Tri
+	}{
+		{"citrix bleed shape fixed build", VersionRange{EndExcl: "13.1-49.15"}, "13.1-49.15", No},
+		{"citrix bleed shape older build", VersionRange{EndExcl: "13.1-49.15"}, "13.1-48.47", Yes},
+		{"citrix bleed shape newer build", VersionRange{EndExcl: "13.1-49.15"}, "13.1-50.1", No},
+		{"citrix bleed vs plain bound", VersionRange{EndExcl: "13.1"}, "13.1-48.47", Unknown},
+		{"synology revision vs longer revision", VersionRange{EndExcl: "7.1.1-42962-5"}, "DSM 7.1.1-42962", Unknown},
+		{"synology older revision", VersionRange{EndExcl: "7.1.1-42962"}, "DSM 7.1.1-42900", Yes},
+		{"synology same revision", VersionRange{EndExcl: "7.1.1-42962"}, "DSM 7.1.1-42962", No},
+		{"java update older", VersionRange{EndExcl: "1.8.0_361"}, "1.8.0_351", Yes},
+		{"java update same", VersionRange{EndExcl: "1.8.0_361"}, "1.8.0_361", No},
+		{"java update newer", VersionRange{EndExcl: "1.8.0_361"}, "1.8.0_371", No},
+		{"build number older", VersionRange{EndExcl: "7.0.0 build 1300"}, "7.0.0 build 1234", Yes},
+		{"build number same", VersionRange{EndExcl: "7.0.0 build 1234"}, "7.0.0 build 1234", No},
+		{"build number vs plain end incl", VersionRange{EndIncl: "7.0.0"}, "7.0.0 build 1234", Unknown},
+		{"build number vs plain start incl", VersionRange{StartIncl: "7.0.0"}, "7.0.0 build 1234", Unknown},
+		{"build number below release bound is still decided", VersionRange{EndExcl: "7.0.1"}, "7.0.0 build 1234", Yes},
+		{"date older", VersionRange{EndExcl: "2023-10-13"}, "2023-10-12", Yes},
+		{"date same", VersionRange{EndExcl: "2023-10-12"}, "2023-10-12", No},
+		{"opaque revision vs same revision", VersionRange{EndIncl: "1.2.3-4ubuntu1"}, "1.2.3-4ubuntu1", Yes},
+		{"opaque revision vs other revision", VersionRange{EndIncl: "1.2.3-4ubuntu1"}, "1.2.3-5ubuntu1", Unknown},
+		{"ga word vs plain", VersionRange{EndExcl: "1.2.3"}, "1.2.3 GA", Unknown},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := tt.r.Contains(tt.v); got != tt.want {
+				t.Fatalf("%+v.Contains(%q) = %v, want %v", tt.r, tt.v, got, tt.want)
+			}
+		})
+	}
+	// the plain order still ignores tails (and stays transitive)
+	if c, ok := CompareVersions("7.0.0 build 1234", "7.0.0"); !ok || c != 0 {
+		t.Fatalf("CompareVersions with build tail = %d,%v", c, ok)
+	}
+}
+
+// Regression: digits after a separator belong to the qualifier (bug 3).
+func TestCompareVersions_QualifierNumbersAfterSeparator(t *testing.T) {
+	t.Parallel()
+	for _, p := range [][2]string{
+		{"2.0.0-beta.1", "2.0.0-beta.2"}, {"2.0.0-rc.1", "2.0.0-rc.2"}, {"2.0.0-rc-1", "2.0.0-rc-2"},
+		{"2.0.0-rc 1", "2.0.0-rc 2"}, {"2.0.0_rc_1", "2.0.0_rc_2"}, {"2.0 sp 1", "2.0 sp 2"}, {"2.0.0-rc.9", "2.0.0-rc.10"},
+	} {
+		if c, ok := CompareVersions(p[0], p[1]); !ok || c != -1 {
+			t.Errorf("CompareVersions(%q,%q) = %d,%v want -1", p[0], p[1], c, ok)
+		}
+	}
+	if c, _ := CompareVersions("2.0.0-rc.1", "2.0.0-rc1"); c != 0 {
+		t.Errorf("rc.1 and rc1 differ: %d", c)
+	}
+}
+
+// Regression: "0" and "0.0.0" are placeholders, not versions (bug 5).
+func TestVersionRange_Contains_PlaceholderIsUnknown(t *testing.T) {
+	t.Parallel()
+	for _, v := range []string{"0", "0.0", "0.0.0", "v0.0.0.0", "0.0.0 build 12"} {
+		for _, r := range []VersionRange{{EndExcl: "6.1.2"}, {StartIncl: "6.0"}, {StartIncl: "0", EndExcl: "1"}} {
+			if got := r.Contains(v); got != Unknown {
+				t.Errorf("%+v.Contains(%q) = %v, want unknown", r, v, got)
+			}
+		}
+	}
+	if got := (VersionRange{StartIncl: "0", EndExcl: "6.1.2"}).Contains("5"); got != Yes {
+		t.Errorf("a zero bound must still work: %v", got)
+	}
+	if got := (VersionRange{}).Contains("0"); got != Yes {
+		t.Errorf("all versions: %v", got)
+	}
+	if c, ok := CompareVersions("0", "1"); !ok || c != -1 {
+		t.Errorf("plain order of 0: %d,%v", c, ok)
+	}
+}

@@ -168,3 +168,22 @@ func FuzzParseCPE(f *testing.F) {
 		_ = c.SameProduct(back)
 	})
 }
+
+// Regression: hand-built Attr values must not panic (review nit).
+func TestAttr_MalformedHandBuiltValuesDoNotPanic(t *testing.T) {
+	t.Parallel()
+	bad := Attr{Kind: Value, Value: "a\\"}
+	if _, ok := bad.Literal(); ok {
+		t.Error("Literal accepted a dangling backslash")
+	}
+	if attrMatch(bad, Attr{Kind: Value, Value: "a"}) {
+		t.Error("dangling backslash matched")
+	}
+	if !attrMatch(bad, bad) || attrMatch(Attr{Kind: Value, Value: "a*"}, Attr{Kind: Value, Value: "b\\"}) {
+		t.Error("unexpected result for malformed values")
+	}
+	c := CPE{Part: Attr{Kind: Value, Value: "a"}, Vendor: bad, Product: bad}
+	_ = c.String()
+	_ = c.Matches(c)
+	_ = c.SameProduct(c)
+}

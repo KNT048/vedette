@@ -69,6 +69,8 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 		recipient string          // the approver's address, for a message to one person
 	}
 	var plan []outgoing
+	type skipped struct{ user, reason string }
+	var skips []skipped // approvers who no longer qualify: no link is minted and nothing is mailed to them
 	linkOK := s.cfg.Tokens != nil && ApprovalViaChannelAllowed("email", req.Risk) == nil
 	for _, ac := range chans {
 		c, err := loadChannel(ctx, s.cfg.DB.Reader(), ac.Type)
@@ -90,6 +92,10 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 			}
 		}
 		for _, a := range ac.Approvers {
+			if why := s.approverProblem(ctx, a); why != "" {
+				skips = append(skips, skipped{a.UserID, why})
+				continue
+			}
 			m := base // high risk, or no recorder: this message only says to open Vedette
 			if linkOK {
 				b := Binding{RequestID: req.ID, UserID: a.UserID, Channel: "email", ExpiresAt: ApprovalExpiry(now, req.Expires)}
@@ -118,7 +124,7 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 		recs = append(recs, Deliver(ctx, store.NewID("sd"), p.snd, p.msg, s.now))
 		to = append(to, p.recipient)
 	}
-	if len(recs) == 0 {
+	if len(recs) == 0 && len(skips) == 0 {
 		return nil, ctx.Err()
 	}
 	wctx, stop := detached(ctx) // the messages went out (or failed): the records are written even if the request ended
@@ -128,6 +134,14 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 	err = s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
 		out = nil
 		ob = &events.Outbox{}
+		for _, k := range skips {
+			if err := s.record(wctx, tx, systemUser, "notify.approval_skipped", clip(k.user, 128), clip(req.ID+": "+k.reason, 400)); err != nil {
+				return err
+			}
+		}
+		if len(recs) == 0 {
+			return nil
+		}
 		for i, r := range recs {
 			if err := insertSend(wctx, tx, r, "approval", req.ID, req.Title, "/response", to[i], base); err != nil { // base: no token is ever stored
 				return err
@@ -141,5 +155,28 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 		return nil, err
 	}
 	s.flush(wctx, ob)
+	for _, k := range skips {
+		s.cfg.Log.WarnContext(ctx, "approval request: approver skipped", "user", k.user, "reason", k.reason)
+	}
 	return out, nil
+}
+
+// approverProblem re-checks an approver before a link is minted for them (the saved list may be old): the user must still
+// exist, be active and be an operator or administrator, and the saved address must still be their sign-in email.
+// It returns why not, or "" when the approver is fine. A directory that cannot answer counts as not fine (fail closed).
+func (s *Service) approverProblem(ctx context.Context, a Approver) string {
+	u, found, err := s.cfg.Users.Lookup(ctx, a.UserID)
+	switch {
+	case err != nil:
+		return "the user directory could not be read"
+	case !found:
+		return "the user no longer exists"
+	case !u.Active:
+		return "the user is disabled"
+	case u.Role != "operator" && u.Role != "admin":
+		return "the user is no longer an operator or administrator"
+	case !strings.EqualFold(strings.TrimSpace(a.Address), u.Email):
+		return "the saved address is no longer the sign-in email of the user"
+	}
+	return ""
 }

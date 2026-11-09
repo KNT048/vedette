@@ -105,11 +105,17 @@ func TestIsBaseline(t *testing.T) {
 func TestIsBaselineInEitherHandlerOrder(t *testing.T) {
 	bus := events.NewBus(slog.New(slog.DiscardHandler))
 	var before, after []bool
-	bus.Subscribe("findings.finding.created", func(ctx context.Context, _ events.Event) error { before = append(before, notify.IsBaseline(ctx)); return nil })
+	bus.Subscribe("findings.finding.created", func(ctx context.Context, _ events.Event) error {
+		before = append(before, notify.IsBaseline(ctx))
+		return nil
+	})
 	// the notify handler sits in the middle
 	e := newEnv(t, func(c *notify.Config) { c.Bus = bus })
 	e.svc.Subscribe(bus)
-	bus.Subscribe("findings.finding.created", func(ctx context.Context, _ events.Event) error { after = append(after, notify.IsBaseline(ctx)); return nil })
+	bus.Subscribe("findings.finding.created", func(ctx context.Context, _ events.Event) error {
+		after = append(after, notify.IsBaseline(ctx))
+		return nil
+	})
 	for _, c := range []context.Context{notify.WithBaseline(t.Context()), t.Context()} {
 		if err := bus.Publish(c, events.Event{Name: "findings.finding.created", Data: created("f-x", "CVE-2026-1")}); err != nil {
 			t.Fatal(err)

@@ -22,15 +22,6 @@ import (
 // Channel types in the order the API lists them.
 var channelTypes = []channel.Type{channel.Telegram, channel.Slack, channel.Zalo, channel.ZaloPersonal, channel.Email, channel.Webhook}
 
-func validType(t channel.Type) bool {
-	for _, c := range channelTypes {
-		if c == t {
-			return true
-		}
-	}
-	return false
-}
-
 // errSecretUnreadable means a saved secret cannot be opened (the key file changed, the row is damaged): say so, do not print why.
 var errSecretUnreadable = errors.New("notify: the saved key cannot be read")
 
@@ -238,7 +229,7 @@ func (s *Service) newSender(t channel.Type, f map[string]string, secret string, 
 		return channel.NewEmail(channel.EmailConfig{Host: f["host"], Port: port, Security: f["security"], Username: f["username"],
 			Password: sv, From: f["from"], To: to, Now: s.now})
 	case channel.Webhook:
-		return channel.NewWebhook(channel.WebhookConfig{URL: secrets.NewValue(f["url"]), SigningKey: sv, BoxAddrsFunc: s.boxAddrs, Client: hc, Now: s.now})
+		return channel.NewWebhook(channel.WebhookConfig{URL: secrets.NewValue(f["url"]), SigningKey: sv, BoxAddrsFunc: s.boxAddrs, Client: s.webhookClient, Now: s.now})
 	}
 	return nil, fmt.Errorf("notify: unknown channel type %q", t)
 }
@@ -323,9 +314,6 @@ func (s *Service) checkApprovers(ctx context.Context, t channel.Type, in Channel
 				return badRequest("bad_approver_address", u.Email+": "+emailApproverMsg)
 			}
 			if !strings.EqualFold(addr, u.Email) { // the link is for this person: it goes to the address they sign in with
-				return badRequest("bad_approver_address", u.Email+": the approval link goes to the sign-in email of the user.")
-			}
-			if !strings.EqualFold(addr, u.Email) { // the link is for this person: it goes to the address they sign in with
 				return badRequest("bad_approver_address", u.Email+": the approval link goes to the sign-in email of the user, "+u.Email+".")
 			}
 		} else if !rule.re.MatchString(addr) {
@@ -338,9 +326,6 @@ func (s *Service) checkApprovers(ctx context.Context, t channel.Type, in Channel
 // SaveChannel stores the configuration of one channel (PUT /notify/channels/{type}, PRE-3, INV-1, INV-7, INV-8).
 // An empty Secret, AppToken or BotToken keeps the saved one. Errors are *apierr.Error.
 func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type, in ChannelInput) (Channel, error) {
-	if !validType(t) {
-		return Channel{}, apierr.NotFound()
-	}
 	if !in.MinSeverity.Valid() || in.MinSeverity == Info {
 		return Channel{}, badRequest("bad_severity", "Choose a minimum severity: Critical, High, Medium or Low.")
 	}
@@ -491,9 +476,6 @@ func lastFour(s string) string {
 // DeleteChannel removes the saved configuration and every secret of a channel, and with them a Zalo
 // personal session (INV-12). The row stays, blank, so the API still lists six channels.
 func (s *Service) DeleteChannel(ctx context.Context, actor string, t channel.Type) error {
-	if !validType(t) {
-		return apierr.NotFound()
-	}
 	ob := &events.Outbox{}
 	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		cur, err := loadChannel(ctx, tx, t)
@@ -541,9 +523,6 @@ const testTimeout = 45 * time.Second
 // TestChannel sends a test message through the saved channel and records the result as last_test (INV-11).
 // The result is not a history row: History lists incidents, vulnerabilities and approvals only.
 func (s *Service) TestChannel(ctx context.Context, actor string, t channel.Type) (TestResult, error) {
-	if !validType(t) {
-		return TestResult{}, apierr.NotFound()
-	}
 	c, err := loadChannel(ctx, s.cfg.DB.Reader(), t)
 	if err != nil {
 		return TestResult{}, err

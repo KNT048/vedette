@@ -37,7 +37,6 @@ type Notice struct {
 	// fields of the webhook payload (kind, devices[]); the text channels do not use them.
 	IncidentKind string
 	DeviceIDs    []string
-
 }
 
 // Sendable implements INV-2: a vulnerability notice needs at least one matched

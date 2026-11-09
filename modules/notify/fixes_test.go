@@ -379,6 +379,7 @@ func TestWebhookCannotPointAtTheBoxOrLoopback(t *testing.T) {
 
 func TestWebhookTestButtonDoesNotReportRawStatus(t *testing.T) {
 	e := newEnv(t)
+	e.svc.SetWebhookClientForTest(&http.Client{Transport: e.net})
 	e.net.mu.Lock()
 	e.net.status = map[string]int{"hooks.company.com": 404}
 	e.net.mu.Unlock()
@@ -391,6 +392,7 @@ func TestWebhookTestButtonDoesNotReportRawStatus(t *testing.T) {
 
 func TestWebhookPreviewMatchesTheMock(t *testing.T) {
 	e := newEnv(t)
+	e.svc.SetWebhookClientForTest(&http.Client{Transport: e.net})
 	e.save(channel.Webhook, notify.ChannelInput{Enabled: true, Fields: map[string]string{"url": "https://hooks.company.com/vedette"}, Secret: "0123456789abcdef0123", MinSeverity: notify.Low})
 	id, _, err := e.svc.OpenIncident(e.ctx(), notify.IncidentInput{Kind: notify.IncidentTrap, Source: "s", Target: "t", Title: "PC-HR-01 touched the SMB trap", Severity: notify.Critical, What: "w", Action: "a",
 		Link: "/honeypot/hits/h1", Devices: []notify.Device{{ID: "a-pc07", Name: "PC-HR-01"}}})

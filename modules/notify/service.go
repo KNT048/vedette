@@ -53,8 +53,8 @@ type Config struct {
 	BaseURL string
 	// BoxAddrs adds to the addresses of the network interfaces, which are always read: none of them is a valid webhook target.
 	BoxAddrs func() []netip.Addr
-	// HTTPClient is given to the Slack, Telegram, Zalo and webhook adapters. nil = their own clients
-	// (no redirects, timeouts, and for webhooks the connect-time address check). Tests pass a fake.
+	// HTTPClient is given to the Slack, Telegram and Zalo adapters (not to webhooks: their client always checks the
+	// address at connect time). nil = their own clients (no redirects, timeouts). Tests pass a fake.
 	HTTPClient *http.Client
 }
 
@@ -66,6 +66,9 @@ type Service struct {
 	mu        sync.Mutex
 	senders   map[channel.Type]cachedSender
 	lastPrune time.Time
+	// webhookClient replaces the webhook adapter's own guarded client. Only export_test.go sets it: a client from Config
+	// would skip the connect-time address check, so no configuration can reach a webhook.
+	webhookClient *http.Client
 }
 
 type cachedSender struct {

@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -34,6 +35,8 @@ const (
 	routeCommand
 	routeStateOS
 	routeStateBackups
+	routeStateNet
+	routeStateContainers
 	routeBackupContent
 	routeExportContent
 )
@@ -51,6 +54,10 @@ func route(method, path string) (kind routeKind, arg string) {
 		return routeStateOS, ""
 	case method == http.MethodGet && path == "/v1/state/backups":
 		return routeStateBackups, ""
+	case method == http.MethodGet && path == "/v1/state/net":
+		return routeStateNet, ""
+	case method == http.MethodGet && path == "/v1/state/containers":
+		return routeStateContainers, ""
 	case method == http.MethodGet && strings.HasPrefix(path, "/v1/backups/"):
 		if id, ok := strings.CutSuffix(strings.TrimPrefix(path, "/v1/backups/"), "/content"); ok && !strings.Contains(id, "/") {
 			return routeBackupContent, id
@@ -158,7 +165,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.handleEvents(w, r, arg)
 	case routeAudit:
 		s.handleAudit(w, r)
-	case routeStateOS, routeStateBackups, routeBackupContent, routeExportContent:
+	case routeStateOS, routeStateBackups, routeStateNet, routeStateContainers, routeBackupContent, routeExportContent:
 		s.serveRead(w, r, kind, arg)
 	case routeNone, routeCommand:
 		// handled above
@@ -173,6 +180,10 @@ func (s *Server) readerAvailable(kind routeKind) bool {
 		return rd.OS != nil
 	case routeStateBackups:
 		return rd.Backups != nil
+	case routeStateNet:
+		return rd.Net != nil
+	case routeStateContainers:
+		return rd.Containers != nil
 	case routeBackupContent:
 		return rd.BackupContent != nil
 	case routeExportContent:
@@ -336,12 +347,13 @@ func (s *Server) handleCommand(w http.ResponseWriter, r *http.Request, p peer.In
 		}
 	}
 
-	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxBodyBytes))
+	limit := cmd.bodyLimit()
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, limit))
 	if err != nil {
 		var tooBig *http.MaxBytesError
 		reason := "the body could not be read"
 		if errors.As(err, &tooBig) {
-			reason = fmt.Sprintf("the body is larger than %d KiB", maxBodyBytes>>10)
+			reason = fmt.Sprintf("the body is larger than %d KiB", limit>>10)
 		}
 		sub.digest = digestRaw(nil)
 		s.refuse(w, sub, http.StatusBadRequest, api.ErrorInfo{Code: api.CodeInvalidArgs, Message: "The request body is not acceptable.", Details: []api.Detail{{Field: "body", Reason: reason}}})
@@ -425,22 +437,30 @@ func (s *Server) submit(w http.ResponseWriter, sub submission, cmd Command, args
 				return
 			}
 		}
-		if s.active != "" {
-			busy := s.active
+		lockless, ref, refStatus := s.gateWhileAwaiting(cmd, args, runID)
+		if ref != nil {
 			s.mu.Unlock()
-			s.refuse(w, sub, http.StatusConflict, api.ErrorInfo{Code: api.CodeBusy, Message: "Another write command is already running.", RunID: busy})
+			s.refuse(w, sub, refStatus, *ref)
 			return
 		}
-		s.active = runID
+		if !lockless { // a WhileAwaiting command runs under the lock the awaiting run already holds
+			if s.active != "" || s.inflight != "" {
+				busy := cmp.Or(s.inflight, s.active)
+				s.mu.Unlock()
+				s.refuse(w, sub, http.StatusConflict, api.ErrorInfo{Code: api.CodeBusy, Message: "Another write command is already running.", RunID: busy})
+				return
+			}
+			s.active = runID
+		}
 		if err := s.runs.put(storedRun{Run: run, ArgsDigest: sub.digest, Write: true}); err != nil {
-			s.active = ""
+			s.releaseLocked(runID)
 			s.mu.Unlock()
 			s.log.Error("could not record a run", "command", sub.command)
 			writeError(w, http.StatusInternalServerError, simpleError(api.CodeInternal, "The host could not record the request."))
 			return
 		}
 		if err := s.runs.idemPut(idemRecord{RequestID: sub.requestID, Command: sub.command, ArgsDigest: sub.digest, RunID: runID, At: now}); err != nil {
-			s.active = ""
+			s.releaseLocked(runID)
 			s.mu.Unlock()
 			s.log.Error("could not record an idempotency key", "command", sub.command)
 			writeError(w, http.StatusInternalServerError, simpleError(api.CodeInternal, "The host could not record the request."))
@@ -572,9 +592,10 @@ func (s *Server) auditOnly(p peer.Info, command, code string) {
 
 // liveRun is a run in progress: its stored form, who asked, and its event stream.
 type liveRun struct {
-	sr  storedRun
-	sub submission
-	ev  *eventLog
+	sr    storedRun
+	sub   submission
+	ev    *eventLog
+	after []func(context.Context, api.Status) // AfterFinish callbacks of a run parked in awaiting_confirm
 }
 
 // finish records the end of the run in the required order: audit line, run file, then the write
@@ -616,7 +637,7 @@ func (lr *liveRun) finish(s *Server, status api.Status, result json.RawMessage, 
 	}
 	lr.ev.add(api.Event{Kind: api.KindState, Status: status, Line: line})
 	lr.ev.finish()
-	if err := writeJSONAtomic(s.runs.eventsPath(run.RunID), lr.ev.snapshot()); err != nil {
+	if err := lr.ev.save(s.runs.eventsPath(run.RunID)); err != nil {
 		s.log.Error("could not save run events", "run_id", run.RunID)
 	}
 	s.mu.Lock()
@@ -639,13 +660,24 @@ func auditResult(st api.Status) string {
 	return resultFailed
 }
 
-// releaseWrite frees the write lock if runID holds it.
+// releaseWrite frees the write lock if runID holds it, or the WhileAwaiting slot if it holds that.
 func (s *Server) releaseWrite(runID string) {
 	s.mu.Lock()
-	if s.active == runID {
-		s.active = ""
-	}
+	s.releaseLocked(runID)
 	s.mu.Unlock()
+}
+
+// releaseLocked frees what runID holds. When the awaiting run releases the lock while a
+// WhileAwaiting command is still running (the timer settled the run, or the command settled it
+// itself and has work left), the lock is handed to that command: it frees it when it ends, so
+// there is never a moment when a write is running and the lock looks free.
+func (s *Server) releaseLocked(runID string) {
+	if s.inflight == runID {
+		s.inflight = ""
+	}
+	if s.active == runID {
+		s.active = s.inflight
+	}
 }
 
 // runCheck runs the synchronous precondition check bounded by CheckTimeout (plus KillGrace for a
@@ -748,20 +780,18 @@ func (s *Server) execute(lr *liveRun, cmd Command, args any) {
 		}
 	}
 	if !abandoned {
+		if aw, ok := asAwaiting(out.res); ok {
+			if out.err == nil && s.enterAwaiting(lr, cmd, aw, rc) {
+				return // parked: Settle ends the run and releases the lock
+			}
+			if out.err == nil { // an invalid Awaiting is a bug of the command
+				out.err = errors.New("invalid Awaiting")
+			}
+			out.res = nil
+		}
 		status, result, rerr := s.outcome(ctx, out.res, out.err, false)
 		lr.finish(s, status, result, rerr, false)
-		for _, fn := range rc.after {
-			s.wg.Add(1)
-			go func() {
-				defer s.wg.Done()
-				defer func() {
-					if rec := recover(); rec != nil {
-						s.log.Error("after-finish callback panicked", "command", lr.sub.command, "panic", fmt.Sprint(rec))
-					}
-				}()
-				fn(context.WithoutCancel(s.baseCtx), status)
-			}()
-		}
+		s.runAfter(lr.sub.command, rc.after, status)
 		return
 	}
 	s.log.ErrorContext(ctx, "command ignored cancellation; the write lock stays held until it returns", "command", lr.sub.command, "run_id", lr.sr.Run.RunID)

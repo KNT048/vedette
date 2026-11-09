@@ -364,6 +364,11 @@ type eventLog struct {
 	wake    chan struct{}
 	done    bool
 	now     func() time.Time
+	// persist, when set (while a run awaits confirmation), saves the log after every event so a
+	// restart resumes from the true last seq. saveMu orders the writes: the last write is always
+	// the newest snapshot, so a late save can never overwrite the final one with an older one.
+	persist func()
+	saveMu  sync.Mutex
 }
 
 func newEventLog(now func() time.Time) *eventLog {
@@ -379,6 +384,9 @@ type eventsFile struct {
 
 func (l *eventLog) add(ev api.Event) {
 	l.mu.Lock()
+	if p := l.persist; p != nil && !l.done {
+		defer p() // runs after the unlock below (defers run last-in first-out)
+	}
 	defer l.mu.Unlock()
 	if l.done {
 		return
@@ -396,6 +404,28 @@ func (l *eventLog) add(ev api.Event) {
 	}
 	close(l.wake)
 	l.wake = make(chan struct{})
+}
+
+// save writes the log to path; calls are serialised and each writes the log as it is at that moment.
+func (l *eventLog) save(path string) error {
+	l.saveMu.Lock()
+	defer l.saveMu.Unlock()
+	return writeJSONAtomic(path, l.snapshot())
+}
+
+// setPersist turns saving after every event on (path != "") or off.
+func (l *eventLog) setPersist(path string, log func(error)) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if path == "" {
+		l.persist = nil
+		return
+	}
+	l.persist = func() {
+		if err := l.save(path); err != nil {
+			log(err)
+		}
+	}
 }
 
 // finish marks the stream complete and wakes every reader.

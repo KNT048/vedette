@@ -33,6 +33,8 @@ type raceNotifier struct {
 
 func (r *raceNotifier) Note(c, code string, d map[string]any) error { return r.inner.Note(c, code, d) }
 
+func (r *raceNotifier) AwaitingConfirm() bool { return r.inner.AwaitingConfirm() }
+
 func (r *raceNotifier) WriteActive() bool {
 	v := r.inner.WriteActive()
 	if !v && r.armed.Load() {

@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"maps"
+	"net/netip"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
@@ -48,6 +49,11 @@ type deps struct {
 	// HostSocket is the unix socket of vedette-host ("" = this install has none: every OS endpoint answers 409 not_appliance).
 	// DataDir is core_data, the directory of the database file; KeyPath the master key file: both feed the snapshots of host-api 6.11.
 	HostSocket, DataDir, KeyPath string
+	// Hosts are the names and addresses the box answers to (-hosts or the certificate): the IP literals among them are the box itself
+	// for core/conn (D-94). HostNet asks vedette-host for the appliance's management and IPv6 addresses (host-api state/net); nil until the
+	// host client has that call (host module slice 3-3) or when this install has no host.
+	Hosts   []string
+	HostNet func(ctx context.Context) ([]netip.Prefix, error)
 
 	// Module services other modules use through their own ports (issue #38, #39). Built once in serve,
 	// after the fields above, so every handler, job and subscriber shares one instance.

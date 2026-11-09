@@ -324,14 +324,14 @@ func (privacyFacts) AIConfigured(context.Context) bool   { return false }
 func (privacyFacts) NTPPublic(context.Context) bool      { return true }
 func (privacyFacts) OIDCConfigured(context.Context) bool { return false }
 
-// ConnectionsConfigured: flow 12 is on while an enabled connection exists (D-93). An unreadable store counts as none: the page
-// shows the flow as off rather than failing.
+// ConnectionsConfigured: flow 12 is on while an enabled connection exists (D-93). A store that cannot be read counts as "on": the
+// Privacy page must never say that nothing leaves the box when it does not know.
 func (p privacyFacts) ConnectionsConfigured(ctx context.Context) bool {
 	if p.conns == nil {
 		return false
 	}
 	on, err := p.conns.HasEnabled(ctx)
-	return err == nil && on
+	return err != nil || on
 }
 
 // newOSHandlers wires the OS update and backup handlers. The host client is built from the socket path and

@@ -3,11 +3,13 @@
 -- private key lives in core_secret (purpose core_connection); the connection row owns it and both go in one transaction.
 -- Forward-only (DATA_MODEL 6, rule 1): there is deliberately no Down section.
 -- key_fp (an addition to DATA_MODEL) holds the SHA-256 fingerprint of the PUBLIC half of an SSH key, so a list never decrypts anything.
+-- name_key (also an addition) is the name lower-cased in Go; SQLite's NOCASE folds ASCII only.
 -- pos (also an addition) keeps the tools in the order the kind offers them.
 
 CREATE TABLE core_connection (
     id         TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
-    name       TEXT    NOT NULL UNIQUE COLLATE NOCASE CHECK (length(name) BETWEEN 1 AND 40),
+    name       TEXT    NOT NULL CHECK (length(name) BETWEEN 1 AND 40),
+    name_key   TEXT    NOT NULL UNIQUE CHECK (length(name_key) BETWEEN 1 AND 160), -- the name in lower case for every script: names are unique in any letter case
     kind       TEXT    NOT NULL CHECK (kind IN ('http', 'ssh', 'netconf-restconf', 'automation', 'mcp-http')),
     target     TEXT    NOT NULL CHECK (length(target) BETWEEN 1 AND 2048),
     asset_id   TEXT    CHECK (asset_id IS NULL OR length(asset_id) BETWEEN 1 AND 96),

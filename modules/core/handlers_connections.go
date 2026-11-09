@@ -9,25 +9,42 @@ import (
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/conn"
+	"github.com/knt048/vedette/core/secrets"
 )
 
 // Connections (D-93, D-94; S-AI-7, S-RESP-4): the endpoints of Settings → Connections, admin only. The rules, the credential
 // store and the audit rows live in core/conn; the handlers only move values between the generated types and conn. A secret
 // never appears in an answer: conn.Connection has no field for it.
 
+// wireSecret reads the secret of a request into a value that prints, formats and marshals as a placeholder, so no log line or
+// error that shows the request can show the secret.
+type wireSecret struct{ secrets.Value }
+
+func (w *wireSecret) UnmarshalJSON(b []byte) error {
+	if string(b) == "null" {
+		return nil
+	}
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	w.Value = secrets.NewValue(s)
+	return nil
+}
+
 // wireInput is the body of POST and PUT /core/connections. The generated request types differ only in the names of their
 // enums, so both are read through their JSON form.
 type wireInput struct {
-	Name     string   `json:"name"`
-	Kind     string   `json:"kind"`
-	Target   string   `json:"target"`
-	AssetID  *string  `json:"asset_id"`
-	AuthType string   `json:"auth_type"`
-	Secret   *string  `json:"secret"`
-	Username *string  `json:"username"`
-	ClearPin *bool    `json:"clear_pin"`
-	Allow    []string `json:"allow"`
-	Enabled  bool     `json:"enabled"`
+	Name     string     `json:"name"`
+	Kind     string     `json:"kind"`
+	Target   string     `json:"target"`
+	AssetID  *string    `json:"asset_id"`
+	AuthType string     `json:"auth_type"`
+	Secret   wireSecret `json:"secret"`
+	Username *string    `json:"username"`
+	ClearPin *bool      `json:"clear_pin"`
+	Allow    []string   `json:"allow"`
+	Enabled  bool       `json:"enabled"`
 	Tools    []struct {
 		Name    string  `json:"name"`
 		Enabled bool    `json:"enabled"`
@@ -44,7 +61,7 @@ func connInput(req json.Marshaler) (conn.Input, error) {
 	if err := json.Unmarshal(raw, &w); err != nil {
 		return conn.Input{}, fmt.Errorf("core: read connection request: %w", err)
 	}
-	in := conn.Input{Name: w.Name, Kind: w.Kind, Target: w.Target, AssetID: w.AssetID, AuthType: w.AuthType, Secret: w.Secret,
+	in := conn.Input{Name: w.Name, Kind: w.Kind, Target: w.Target, AssetID: w.AssetID, AuthType: w.AuthType, Secret: w.Secret.Value,
 		Username: w.Username, ClearPin: w.ClearPin != nil && *w.ClearPin, Allow: w.Allow, Enabled: w.Enabled}
 	for _, t := range w.Tools {
 		in.Tools = append(in.Tools, conn.ToolInput{Name: t.Name, Enabled: t.Enabled, Access: t.Access})

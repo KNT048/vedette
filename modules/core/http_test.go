@@ -66,7 +66,7 @@ func newWorld(t *testing.T, modify ...func(*auth.Config)) *world {
 	w := &world{t: t, env: env, logs: logs}
 	conns, err := conn.New(conn.Config{DB: env.DB, Secrets: env.Secrets, Audit: env.Audit, Clock: env.Clock.Now,
 		InUse:       func(context.Context, string) (bool, error) { return w.inUse.Load(), nil },
-		BoxAddrs:    func(context.Context) []netip.Addr { return []netip.Addr{netip.MustParseAddr(boxAddress)} },
+		BoxAddrs:    func(context.Context) []netip.Prefix { return []netip.Prefix{netip.MustParsePrefix(boxAddress + "/32")} },
 		AssetExists: func(_ context.Context, id string) (bool, error) { return id == knownAsset, nil },
 	})
 	if err != nil {

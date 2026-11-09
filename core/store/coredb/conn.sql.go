@@ -21,16 +21,16 @@ func (q *Queries) AnyEnabledConnection(ctx context.Context) (bool, error) {
 }
 
 const connectionNameTaken = `-- name: ConnectionNameTaken :one
-SELECT EXISTS (SELECT 1 FROM core_connection WHERE name = ? COLLATE NOCASE AND id <> ?)
+SELECT EXISTS (SELECT 1 FROM core_connection WHERE name_key = ? AND id <> ?)
 `
 
 type ConnectionNameTakenParams struct {
-	Name string
-	ID   string
+	NameKey string
+	ID      string
 }
 
 func (q *Queries) ConnectionNameTaken(ctx context.Context, arg ConnectionNameTakenParams) (bool, error) {
-	row := q.db.QueryRowContext(ctx, connectionNameTaken, arg.Name, arg.ID)
+	row := q.db.QueryRowContext(ctx, connectionNameTaken, arg.NameKey, arg.ID)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -120,13 +120,14 @@ func (q *Queries) GetConnection(ctx context.Context, id string) (GetConnectionRo
 }
 
 const insertConnection = `-- name: InsertConnection :exec
-INSERT INTO core_connection (id, name, kind, target, asset_id, auth_type, username, secret_id, key_fp, pin, pin_seen, allow, enabled, status, last_test, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO core_connection (id, name, name_key, kind, target, asset_id, auth_type, username, secret_id, key_fp, pin, pin_seen, allow, enabled, status, last_test, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertConnectionParams struct {
 	ID        string
 	Name      string
+	NameKey   string
 	Kind      string
 	Target    string
 	AssetID   *string
@@ -147,6 +148,7 @@ func (q *Queries) InsertConnection(ctx context.Context, arg InsertConnectionPara
 	_, err := q.db.ExecContext(ctx, insertConnection,
 		arg.ID,
 		arg.Name,
+		arg.NameKey,
 		arg.Kind,
 		arg.Target,
 		arg.AssetID,
@@ -327,12 +329,13 @@ func (q *Queries) ListToolsOfConnection(ctx context.Context, connectionID string
 
 const updateConnection = `-- name: UpdateConnection :execrows
 UPDATE core_connection
-SET name = ?, kind = ?, target = ?, asset_id = ?, auth_type = ?, username = ?, secret_id = ?, key_fp = ?, pin = ?, pin_seen = ?, allow = ?, enabled = ?, status = ?, last_test = ?, updated_at = ?
+SET name = ?, name_key = ?, kind = ?, target = ?, asset_id = ?, auth_type = ?, username = ?, secret_id = ?, key_fp = ?, pin = ?, pin_seen = ?, allow = ?, enabled = ?, status = ?, last_test = ?, updated_at = ?
 WHERE id = ?
 `
 
 type UpdateConnectionParams struct {
 	Name      string
+	NameKey   string
 	Kind      string
 	Target    string
 	AssetID   *string
@@ -353,6 +356,7 @@ type UpdateConnectionParams struct {
 func (q *Queries) UpdateConnection(ctx context.Context, arg UpdateConnectionParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, updateConnection,
 		arg.Name,
+		arg.NameKey,
 		arg.Kind,
 		arg.Target,
 		arg.AssetID,

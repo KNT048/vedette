@@ -21,13 +21,11 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/conn/internal/cred"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/coredb"
 )
-
-// SecretPurpose is the core_secret purpose of a connection's token, password or SSH private key.
-const SecretPurpose = "core_connection"
 
 // Connection is a saved connection as the API shows it (web/src/features/core/contract.ts Connector).
 type Connection struct {
@@ -83,7 +81,7 @@ type Input struct {
 	Target   string
 	AssetID  *string
 	AuthType string
-	Secret   *string // nil or "" on an edit keeps the saved one
+	Secret   secrets.Value // unset on an edit keeps the saved one; prints, formats and marshals as a placeholder
 	Username *string
 	ClearPin bool
 	Allow    []string
@@ -107,16 +105,18 @@ type Config struct {
 	// InUse says whether a change made through the connection is still in force on a device (response.ChangesInForce); a
 	// connection in that state cannot be deleted. nil: nothing is ever in force.
 	InUse func(ctx context.Context, id string) (bool, error)
-	// BoxAddrs lists the addresses of the box itself, which no connection may point at (D-94). nil: none known.
-	BoxAddrs func(ctx context.Context) []netip.Addr
+	// BoxAddrs lists the addresses of the box itself and the subnets that only the box lives in (a /32 or /128 is one address), which
+	// no connection may point at (D-94). cmd/vedette builds it from several sources; slice 13b-5 asks it again at dial time. nil: none known.
+	BoxAddrs func(ctx context.Context) []netip.Prefix
 	// AssetExists says whether an inventory device exists, for the asset a connection is linked to. nil: not checked.
 	AssetExists func(ctx context.Context, id string) (bool, error)
 }
 
 // Service reads and writes connections.
 type Service struct {
-	cfg Config
-	now func() time.Time
+	cfg   Config
+	now   func() time.Time
+	vault *cred.Vault
 }
 
 // New returns the Service.
@@ -124,7 +124,12 @@ func New(c Config) (*Service, error) {
 	if c.DB == nil || c.Secrets == nil || c.Audit == nil {
 		return nil, errors.New("conn: Config needs DB, Secrets and Audit")
 	}
-	s := &Service{cfg: c, now: c.Clock}
+	// The credential purpose is restricted in c.Secrets: from here on only the vault, which only this package holds, reads it.
+	v, err := cred.New(c.Secrets)
+	if err != nil {
+		return nil, fmt.Errorf("conn: restrict credential purpose: %w", err)
+	}
+	s := &Service{cfg: c, now: c.Clock, vault: v}
 	if s.now == nil {
 		s.now = time.Now
 	}
@@ -193,7 +198,7 @@ func (s *Service) env(ctx context.Context, q *coredb.Queries, selfID string) (ch
 	var first error
 	e := checkEnv{
 		nameTaken: func(name string) bool {
-			taken, err := q.ConnectionNameTaken(ctx, coredb.ConnectionNameTakenParams{Name: name, ID: selfID})
+			taken, err := q.ConnectionNameTaken(ctx, coredb.ConnectionNameTakenParams{NameKey: nameKey(name), ID: selfID})
 			if err != nil && first == nil {
 				first = err
 			}
@@ -235,12 +240,12 @@ func (s *Service) Create(ctx context.Context, tx *sql.Tx, actor string, in Input
 		return Connection{}, apierr.New(400, "too_many", fmt.Sprintf("A box holds up to %d connections. Delete one you no longer use.", MaxConnections))
 	}
 	row := coredb.InsertConnectionParams{
-		ID: store.NewID("cn"), Name: chk.name, Kind: chk.kind, Target: chk.target, AssetID: chk.assetID, AuthType: chk.authType,
+		ID: store.NewID("cn"), Name: chk.name, NameKey: nameKey(chk.name), Kind: chk.kind, Target: chk.target, AssetID: chk.assetID, AuthType: chk.authType,
 		Username: chk.username, KeyFp: chk.keyFP, Allow: encodeAllow(chk.allow), Enabled: chk.enabled, Status: "untested",
 		UpdatedAt: store.FormatTS(s.now()),
 	}
-	if chk.secret != nil {
-		id, _, err := s.cfg.Secrets.Seal(ctx, tx, SecretPurpose, []byte(*chk.secret), chk.authType != AuthKey)
+	if chk.secret.IsSet() {
+		id, err := s.vault.Seal(ctx, tx, []byte(chk.secret.Reveal()), chk.authType != AuthKey)
 		if err != nil {
 			return Connection{}, fmt.Errorf("conn: seal secret: %w", err)
 		}
@@ -257,7 +262,7 @@ func (s *Service) Create(ctx context.Context, tx *sql.Tx, actor string, in Input
 		return Connection{}, err
 	}
 	detail := fmt.Sprintf("%s, %d write tools on", chk.kind, len(WriteTools(Connection{Tools: tools})))
-	if chk.secret != nil {
+	if chk.secret.IsSet() {
 		detail += ", credential set"
 	}
 	if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: actor, Action: "connection.create", Target: chk.name, Detail: detail}); err != nil {
@@ -310,14 +315,14 @@ func (s *Service) Update(ctx context.Context, tx *sql.Tx, actor, id string, in I
 			secretChanged, dropSecret = true, cur.secretID
 		}
 		next.secretID, next.Auth.KeyFingerprint = nil, nil
-	case chk.secret != nil:
+	case chk.secret.IsSet():
 		keep := chk.authType != AuthKey
 		if cur.secretID != nil {
-			if _, err := s.cfg.Secrets.Replace(ctx, tx, *cur.secretID, SecretPurpose, []byte(*chk.secret), keep); err != nil {
+			if err := s.vault.Replace(ctx, tx, *cur.secretID, []byte(chk.secret.Reveal()), keep); err != nil {
 				return Connection{}, fmt.Errorf("conn: replace secret: %w", err)
 			}
 		} else {
-			sid, _, err := s.cfg.Secrets.Seal(ctx, tx, SecretPurpose, []byte(*chk.secret), keep)
+			sid, err := s.vault.Seal(ctx, tx, []byte(chk.secret.Reveal()), keep)
 			if err != nil {
 				return Connection{}, fmt.Errorf("conn: seal secret: %w", err)
 			}
@@ -343,7 +348,7 @@ func (s *Service) Update(ctx context.Context, tx *sql.Tx, actor, id string, in I
 		return Connection{}, notFound()
 	}
 	if dropSecret != nil {
-		if err := s.cfg.Secrets.Delete(ctx, tx, *dropSecret); err != nil {
+		if err := s.vault.Delete(ctx, tx, *dropSecret); err != nil {
 			return Connection{}, fmt.Errorf("conn: delete secret: %w", err)
 		}
 	}
@@ -390,7 +395,7 @@ func changedSecurityFields(a, b Connection, secretChanged bool) []string {
 	add(a.Auth.Type != b.Auth.Type, "auth_type")
 	add(deref(a.Username) != deref(b.Username), "username")
 	add(secretChanged, "secret")
-	add((a.Pin == nil) != (b.Pin == nil), "pin")
+	add(pinValue(a.Pin) != pinValue(b.Pin), "pin") // the value, not only whether there is one: a pin that changed is another server
 	add(!slices.Equal(a.Allow, b.Allow), "allow")
 	add(!slices.Equal(a.Tools, b.Tools), "tools")
 	return out
@@ -420,9 +425,20 @@ func (s *Service) Delete(ctx context.Context, tx *sql.Tx, actor, id string) erro
 		return fmt.Errorf("conn: delete: %w", err)
 	}
 	if cur.secretID != nil {
-		if err := s.cfg.Secrets.Delete(ctx, tx, *cur.secretID); err != nil {
+		if err := s.vault.Delete(ctx, tx, *cur.secretID); err != nil {
 			return fmt.Errorf("conn: delete secret: %w", err)
 		}
 	}
 	return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: actor, Action: "connection.delete", Target: cur.Name, Detail: cur.Kind})
 }
+
+func pinValue(p *Pin) string {
+	if p == nil {
+		return ""
+	}
+	return p.Kind + ":" + p.Value
+}
+
+// nameKey is what two names are compared by: the name in lower case for every script (Unicode, not only ASCII), so "Ärger API" and
+// "ärger API" are one name.
+func nameKey(name string) string { return strings.ToLower(name) }

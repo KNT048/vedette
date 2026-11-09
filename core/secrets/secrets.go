@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -38,6 +39,8 @@ var (
 	ErrDecrypt = errors.New("secrets: cannot decrypt")
 	// ErrInvalid is wrapped by input validation failures.
 	ErrInvalid = errors.New("secrets: invalid input")
+	// ErrRestricted is returned by Store.Open for a purpose whose reading was handed to one holder with Restrict.
+	ErrRestricted = errors.New("secrets: this purpose can only be read by its holder")
 )
 
 var purposeRE = regexp.MustCompile(`^[a-z][a-z0-9_.]{0,63}$`)
@@ -117,6 +120,39 @@ func LoadKeyFile(path string) ([]byte, error) {
 type Store struct {
 	aead cipher.AEAD
 	now  func() time.Time
+
+	mu         sync.RWMutex
+	restricted map[string]bool // purposes only their Opener may decrypt
+}
+
+// Opener decrypts one restricted purpose. Whoever holds it is the only reader of that purpose.
+type Opener struct {
+	s       *Store
+	purpose string
+}
+
+// Restrict makes purpose readable only through the returned Opener: from now on Store.Open(purpose) answers ErrRestricted. It is
+// for secrets that a single package must be the only one to decrypt (the credentials of device connections, D-93); sealing,
+// replacing and deleting stay open to every caller. A purpose can be restricted once, so there is exactly one holder.
+func (s *Store) Restrict(purpose string) (*Opener, error) {
+	if err := checkPurpose(purpose); err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.restricted[purpose] {
+		return nil, fmt.Errorf("%w: purpose %q is already restricted", ErrInvalid, purpose)
+	}
+	if s.restricted == nil {
+		s.restricted = map[string]bool{}
+	}
+	s.restricted[purpose] = true
+	return &Opener{s: s, purpose: purpose}, nil
+}
+
+// Open decrypts secret id of the opener's purpose.
+func (o *Opener) Open(ctx context.Context, q coredb.DBTX, id string) ([]byte, error) {
+	return o.s.open(ctx, q, id, o.purpose)
 }
 
 // New builds a Store from a 32-byte master key.
@@ -190,8 +226,19 @@ func (s *Store) Seal(ctx context.Context, tx *sql.Tx, purpose string, plaintext 
 	return id, last4, nil
 }
 
-// Open decrypts the secret id. purpose must be the one it was sealed with.
+// Open decrypts the secret id. purpose must be the one it was sealed with, and not one that was handed to a single holder with
+// Restrict (ErrRestricted).
 func (s *Store) Open(ctx context.Context, q coredb.DBTX, id, purpose string) ([]byte, error) {
+	s.mu.RLock()
+	locked := s.restricted[purpose]
+	s.mu.RUnlock()
+	if locked {
+		return nil, fmt.Errorf("%w: %s", ErrRestricted, purpose)
+	}
+	return s.open(ctx, q, id, purpose)
+}
+
+func (s *Store) open(ctx context.Context, q coredb.DBTX, id, purpose string) ([]byte, error) {
 	if err := checkPurpose(purpose); err != nil {
 		return nil, err
 	}

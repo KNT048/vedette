@@ -1122,6 +1122,581 @@
    }
   },
   {
+   "name": "a target over 2048 characters",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Long",
+    "kind": "http",
+    "target": "https://192.168.10.60/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "The address is too long: at most 2048 characters."
+   }
+  },
+  {
+   "name": "a query or fragment in the address 0",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Query 0",
+    "kind": "http",
+    "target": "https://192.168.10.60/?a=b",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "The address must not include ? or #."
+   }
+  },
+  {
+   "name": "a query or fragment in the address 1",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Query 1",
+    "kind": "http",
+    "target": "https://192.168.10.60/api#top",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "The address must not include ? or #."
+   }
+  },
+  {
+   "name": "a query or fragment in the address 2",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Query 2",
+    "kind": "http",
+    "target": "https://192.168.10.60?",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "The address must not include ? or #."
+   }
+  },
+  {
+   "name": "0.0.0.0/8 is an unspecified address",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Zero net",
+    "kind": "http",
+    "target": "https://0.1.2.3",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://0.1.2.3/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "Vedette never connects to an unspecified address. Enter the address of the device or service itself."
+   }
+  },
+  {
+   "name": "SSH 0.0.0.0/8",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Zero ssh",
+    "kind": "ssh",
+    "target": "0.255.255.255",
+    "auth_type": "ssh-key",
+    "username": "vedette",
+    "secret": "$KEY_PLAIN",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "Vedette never connects to an unspecified address. Enter the address of the device or service itself."
+   }
+  },
+  {
+   "name": "SSH host with trailing dots localhost..:22",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Dots 0",
+    "kind": "ssh",
+    "target": "localhost..:22",
+    "auth_type": "ssh-key",
+    "username": "vedette",
+    "secret": "$KEY_PLAIN",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "SSH host with trailing dots 127.0.0.1..:22",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Dots 1",
+    "kind": "ssh",
+    "target": "127.0.0.1..:22",
+    "auth_type": "ssh-key",
+    "username": "vedette",
+    "secret": "$KEY_PLAIN",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "SSH host with trailing dots api.localhost..:22",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Dots 2",
+    "kind": "ssh",
+    "target": "api.localhost..:22",
+    "auth_type": "ssh-key",
+    "username": "vedette",
+    "secret": "$KEY_PLAIN",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target"
+   },
+   "matchesMessage": "^Vedette never connects to .+\\. Enter the address of the device or service itself\\.$"
+  },
+  {
+   "name": "IPv6 that carries an IPv4 address [64:ff9b::7f00:1]",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "V6 0",
+    "kind": "http",
+    "target": "https://[64:ff9b::7f00:1]",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://[64:ff9b::7f00:1]/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "Vedette does not connect to IPv6 addresses that carry an IPv4 address; use the IPv4 address."
+   }
+  },
+  {
+   "name": "IPv6 that carries an IPv4 address [64:ff9b::a9fe:a9fe]",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "V6 1",
+    "kind": "http",
+    "target": "https://[64:ff9b::a9fe:a9fe]",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://[64:ff9b::a9fe:a9fe]/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "Vedette does not connect to IPv6 addresses that carry an IPv4 address; use the IPv4 address."
+   }
+  },
+  {
+   "name": "IPv6 that carries an IPv4 address [2002:7f00:1::]",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "V6 2",
+    "kind": "http",
+    "target": "https://[2002:7f00:1::]",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://[2002:7f00:1::]/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "Vedette does not connect to IPv6 addresses that carry an IPv4 address; use the IPv4 address."
+   }
+  },
+  {
+   "name": "IPv6 that carries an IPv4 address [::7f00:1]",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "V6 3",
+    "kind": "http",
+    "target": "https://[::7f00:1]",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://[::7f00:1]/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "Vedette does not connect to IPv6 addresses that carry an IPv4 address; use the IPv4 address."
+   }
+  },
+  {
+   "name": "IPv6 that carries an IPv4 address [::192.168.10.1]",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "V6 4",
+    "kind": "http",
+    "target": "https://[::192.168.10.1]",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://[::192.168.10.1]/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "Vedette does not connect to IPv6 addresses that carry an IPv4 address; use the IPv4 address."
+   }
+  },
+  {
+   "name": "IPv6 that carries an IPv4 address [::ffff:0:7f00:1]",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "V6 5",
+    "kind": "http",
+    "target": "https://[::ffff:0:7f00:1]",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://[::ffff:0:7f00:1]/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "Vedette does not connect to IPv6 addresses that carry an IPv4 address; use the IPv4 address."
+   }
+  },
+  {
+   "name": "IPv6 that carries an IPv4 address [2001:0:4136:e378:8000:63bf:3fff:fdd2]",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "V6 6",
+    "kind": "http",
+    "target": "https://[2001:0:4136:e378:8000:63bf:3fff:fdd2]",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://[2001:0:4136:e378:8000:63bf:3fff:fdd2]/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "Vedette does not connect to IPv6 addresses that carry an IPv4 address; use the IPv4 address."
+   }
+  },
+  {
+   "name": "IPv6 that carries an IPv4 address [::ffff:127.0.0.1]",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "V6 7",
+    "kind": "http",
+    "target": "https://[::ffff:127.0.0.1]",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://[::ffff:127.0.0.1]/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "Vedette does not connect to IPv6 addresses that carry an IPv4 address; use the IPv4 address."
+   }
+  },
+  {
+   "name": "IPv6 that carries an IPv4 address [::ffff:192.168.10.1]",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "V6 8",
+    "kind": "http",
+    "target": "https://[::ffff:192.168.10.1]",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://[::ffff:192.168.10.1]/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "Vedette does not connect to IPv6 addresses that carry an IPv4 address; use the IPv4 address."
+   }
+  },
+  {
+   "name": "0:0:0:0:0:0:0:1 is loopback",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "V6 lo",
+    "kind": "http",
+    "target": "https://[0:0:0:0:0:0:0:1]",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://[0:0:0:0:0:0:0:1]/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_target",
+    "field": "target",
+    "message": "Vedette never connects to a loopback address. Enter the address of the device or service itself."
+   }
+  },
+  {
+   "name": "an allow-list entry with a backslash",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Backslash",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/api/..\\admin"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_allow",
+    "field": "allow",
+    "message": "Each allow-list entry must be an address under https://192.168.10.60, for example https://192.168.10.60/api/."
+   }
+  },
+  {
+   "name": "an allow-list entry with an encoded dot",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Encoded",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/api/%2e%2e/admin"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_allow",
+    "field": "allow",
+    "message": "Each allow-list entry must be an address under https://192.168.10.60, for example https://192.168.10.60/api/."
+   }
+  },
+  {
+   "name": "a name of 41 code points",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00",
+    "kind": "http",
+    "target": "https://192.168.10.60",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.60/api/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_name",
+    "field": "name",
+    "message": "Give the connection a name of 1 to 40 characters, for example \"Office firewall API\"."
+   },
+   "real": {
+    "error": {
+     "code": "invalid",
+     "field": "name"
+    }
+   }
+  },
+  {
+   "name": "a name of 40 code points is fine",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00",
+    "kind": "http",
+    "target": "https://192.168.10.66",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.66/"
+    ],
+    "enabled": true
+   },
+   "status": 201
+  },
+  {
+   "name": "a name with a capital outside ASCII",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "\u00c4rger API",
+    "kind": "http",
+    "target": "https://192.168.10.67",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.67/"
+    ],
+    "enabled": true
+   },
+   "status": 201
+  },
+  {
+   "name": "the same name in lower case outside ASCII",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "\u00e4rger API",
+    "kind": "http",
+    "target": "https://192.168.10.68",
+    "auth_type": "token",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "https://192.168.10.68/"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "duplicate_name",
+    "field": "name",
+    "message": "Another connection already has this name. Pick a different one."
+   }
+  },
+  {
    "name": "a loopback address is named",
    "role": "admin",
    "method": "POST",

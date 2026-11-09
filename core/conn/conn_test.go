@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log/slog"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -17,14 +19,15 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/auth/authtest"
 	"github.com/knt048/vedette/core/conn"
-	"github.com/knt048/vedette/core/conn/internal/cred"
+	"github.com/knt048/vedette/core/secrets"
 )
 
 const (
-	admin   = "admin@acme.example"
-	boxAddr = "192.168.10.250" // the management address of the mock, so both sides refuse the same host
-	secret1 = "tok-0123456789-abcdef"
-	secret2 = "tok-9876543210-zyxwvu"
+	admin     = "admin@acme.example"
+	boxSubnet = "10.88.0.0/16"   // a container bridge network: refused whole
+	boxAddr   = "192.168.10.250" // the management address of the mock, so both sides refuse the same host
+	secret1   = "tok-0123456789-abcdef"
+	secret2   = "tok-9876543210-zyxwvu"
 )
 
 type rig struct {
@@ -39,8 +42,10 @@ func newRig(t *testing.T) *rig {
 	r := &rig{t: t, env: authtest.New(t)}
 	svc, err := conn.New(conn.Config{
 		DB: r.env.DB, Secrets: r.env.Secrets, Audit: r.env.Audit, Clock: r.env.Clock.Now,
-		InUse:       func(context.Context, string) (bool, error) { return r.inUse.Load(), nil },
-		BoxAddrs:    func(context.Context) []netip.Addr { return []netip.Addr{netip.MustParseAddr(boxAddr)} },
+		InUse: func(context.Context, string) (bool, error) { return r.inUse.Load(), nil },
+		BoxAddrs: func(context.Context) []netip.Prefix {
+			return []netip.Prefix{netip.MustParsePrefix(boxAddr + "/32"), netip.MustParsePrefix(boxSubnet)}
+		},
 		AssetExists: func(_ context.Context, id string) (bool, error) { return id == "a-fw01", nil },
 	})
 	if err != nil {
@@ -87,11 +92,11 @@ func (r *rig) exec(q string, args ...any) {
 func str(s string) *string { return &s }
 
 func httpIn(name string) conn.Input {
-	return conn.Input{Name: name, Kind: "http", Target: "https://192.168.10.50", AuthType: "token", Secret: str(secret1), Allow: []string{"https://192.168.10.50/api/"}, Enabled: true}
+	return conn.Input{Name: name, Kind: "http", Target: "https://192.168.10.50", AuthType: "token", Secret: secrets.NewValue(secret1), Allow: []string{"https://192.168.10.50/api/"}, Enabled: true}
 }
 
 func sshIn(name string, key string) conn.Input {
-	return conn.Input{Name: name, Kind: "ssh", Target: "192.168.10.51:22", AuthType: "ssh-key", Username: str("vedette"), Secret: str(key), Allow: []string{"show version"}, Enabled: true}
+	return conn.Input{Name: name, Kind: "ssh", Target: "192.168.10.51:22", AuthType: "ssh-key", Username: str("vedette"), Secret: secrets.NewValue(key), Allow: []string{"show version"}, Enabled: true}
 }
 
 func key(t *testing.T, name string) string {
@@ -151,7 +156,7 @@ func TestUpdatedAtMovesOnSecurityFieldsOnly(t *testing.T) {
 	}
 	edit := func(f func(in *conn.Input)) (conn.Connection, error) {
 		in := httpIn("Office API")
-		in.Secret = nil
+		in.Secret = secrets.Value{}
 		f(&in)
 		return r.update(base.ID, in)
 	}
@@ -181,7 +186,7 @@ func TestUpdatedAtMovesOnSecurityFieldsOnly(t *testing.T) {
 
 	// Security fields, one at a time.
 	back := func(in *conn.Input) { in.Name = "Renamed API"; in.Enabled = false; in.AssetID = str("a-fw01") }
-	c, err = edit(func(in *conn.Input) { back(in); in.Secret = str(secret2) })
+	c, err = edit(func(in *conn.Input) { back(in); in.Secret = secrets.NewValue(secret2) })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,13 +216,13 @@ func TestUpdatedAtMovesOnSecurityFieldsOnly(t *testing.T) {
 		in.Allow = []string{"https://192.168.10.50/api/", "https://192.168.10.50/v2/"}
 		in.Tools = []conn.ToolInput{{Name: "send_request", Enabled: true}}
 		in.AuthType, in.Username = "basic", str("ops")
-		in.Secret = str(secret1)
+		in.Secret = secrets.NewValue(secret1)
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	moved("another sign-in", c)
-	c, err = r.update(base.ID, conn.Input{Name: "Renamed API", Kind: "http", Target: "https://192.168.10.50:8443", AuthType: "basic", Username: str("ops"), Secret: str(secret1),
+	c, err = r.update(base.ID, conn.Input{Name: "Renamed API", Kind: "http", Target: "https://192.168.10.50:8443", AuthType: "basic", Username: str("ops"), Secret: secrets.NewValue(secret1),
 		Allow: []string{"https://192.168.10.50:8443/api/"}, Enabled: false, Tools: []conn.ToolInput{{Name: "send_request", Enabled: true}}})
 	if err != nil {
 		t.Fatal(err)
@@ -254,7 +259,7 @@ func TestUpdatedAtIsStrictlyLater(t *testing.T) {
 	r := newRig(t)
 	c := r.must(httpIn("Office API"))
 	in := httpIn("Office API")
-	in.Secret = str(secret2)
+	in.Secret = secrets.NewValue(secret2)
 	c2, err := r.update(c.ID, in) // the fake clock did not move
 	if err != nil {
 		t.Fatal(err)
@@ -272,7 +277,7 @@ func TestSecretsNeverLeave(t *testing.T) {
 	h := r.must(httpIn("Office API"))
 	s := r.must(sshIn("File server", k))
 	in := httpIn("Office API")
-	in.Secret = str(secret2)
+	in.Secret = secrets.NewValue(secret2)
 	if _, err := r.update(h.ID, in); err != nil {
 		t.Fatal(err)
 	}
@@ -334,7 +339,7 @@ func TestSecretsNeverLeave(t *testing.T) {
 	if strings.Contains(string(ct), secret2) {
 		t.Error("the secret is stored in clear")
 	}
-	v, err := cred.Open(t.Context(), r.env.Secrets, r.env.DB.Reader(), sid)
+	v, err := r.svc.VaultForTest().Open(t.Context(), r.env.DB.Reader(), sid)
 	if err != nil || v.Reveal() != secret2 {
 		t.Fatalf("cred.Open = %v", err)
 	}
@@ -408,15 +413,15 @@ func TestToolsPerKind(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
 	k := key(t, "ed25519")
-	mk := func(kind, target, auth string, allow []string, user *string, secret *string) conn.Connection {
+	mk := func(kind, target, auth string, allow []string, user *string, secret secrets.Value) conn.Connection {
 		return r.must(conn.Input{Name: "k-" + kind, Kind: kind, Target: target, AuthType: auth, Username: user, Secret: secret, Allow: allow, Enabled: true})
 	}
 	got := map[string]conn.Connection{
-		"http":     mk("http", "https://192.168.10.1", "token", []string{"https://192.168.10.1/api/"}, nil, str(secret1)),
-		"ssh":      mk("ssh", "192.168.10.2:22", "ssh-key", []string{"uname -a"}, str("ops"), str(k)),
-		"restconf": mk("netconf-restconf", "https://192.168.10.3", "basic", []string{"https://192.168.10.3/restconf/"}, str("admin"), str(secret1)),
-		"auto":     mk("automation", "https://automation.example.local", "token", []string{"https://automation.example.local/api/"}, nil, str(secret1)),
-		"mcp":      mk("mcp-http", "https://mcp.example.local/mcp", "none", []string{"https://mcp.example.local/mcp"}, nil, nil),
+		"http":     mk("http", "https://192.168.10.1", "token", []string{"https://192.168.10.1/api/"}, nil, secrets.NewValue(secret1)),
+		"ssh":      mk("ssh", "192.168.10.2:22", "ssh-key", []string{"uname -a"}, str("ops"), secrets.NewValue(k)),
+		"restconf": mk("netconf-restconf", "https://192.168.10.3", "basic", []string{"https://192.168.10.3/restconf/"}, str("admin"), secrets.NewValue(secret1)),
+		"auto":     mk("automation", "https://automation.example.local", "token", []string{"https://automation.example.local/api/"}, nil, secrets.NewValue(secret1)),
+		"mcp":      mk("mcp-http", "https://mcp.example.local/mcp", "none", []string{"https://mcp.example.local/mcp"}, nil, secrets.Value{}),
 	}
 	wantTools := map[string][]string{
 		"http": {"fetch_url:read:on", "send_request:write:off"}, "ssh": {"run_allowed_command:read:on", "run_approved_command:write:off"},
@@ -477,12 +482,14 @@ func TestPinIsForgottenOnClearPinKindOrServerOnly(t *testing.T) {
 	}
 	edit := func(f func(in *conn.Input)) (conn.Connection, error) {
 		in := httpIn("Office API")
-		in.Secret = nil
+		in.Secret = secrets.Value{}
 		f(&in)
 		return r.update(c.ID, in)
 	}
 	pin()
-	got, err := edit(func(in *conn.Input) { in.AuthType, in.Username, in.Secret = "basic", str("ops"), str(secret2) })
+	got, err := edit(func(in *conn.Input) {
+		in.AuthType, in.Username, in.Secret = "basic", str("ops"), secrets.NewValue(secret2)
+	})
 	if err != nil || got.Pin == nil || got.Pin.Kind != "tls_sha256" || got.Pin.Value != strings.Repeat("0f", 32) || got.Pin.FirstSeen != "2026-11-09T09:00:00.000Z" {
 		t.Fatalf("changing the sign-in lost the pin: %+v %v", got.Pin, err)
 	}
@@ -510,7 +517,7 @@ func TestPinIsForgottenOnClearPinKindOrServerOnly(t *testing.T) {
 		t.Fatal("a refused edit forgot the pin")
 	}
 	got, err = edit(func(in *conn.Input) {
-		in.AuthType, in.Username, in.Target, in.Allow, in.Secret = "basic", str("ops"), "https://192.168.10.51", []string{"https://192.168.10.51/"}, str(secret2)
+		in.AuthType, in.Username, in.Target, in.Allow, in.Secret = "basic", str("ops"), "https://192.168.10.51", []string{"https://192.168.10.51/"}, secrets.NewValue(secret2)
 	})
 	if err != nil || got.Pin != nil || got.Status != "untested" {
 		t.Fatalf("another server kept the pin or the test result: %+v %v", got, err)
@@ -533,7 +540,7 @@ func TestPinIsForgottenOnClearPinKindOrServerOnly(t *testing.T) {
 	}
 	pin()
 	in := httpIn("Office API")
-	in.Secret = nil
+	in.Secret = secrets.Value{}
 	_, err = r.update(c.ID, in) // back to HTTP: another kind, so the saved key is not offered to it
 	_ = want(t, err, 400, "secret_required", "secret")
 }
@@ -544,7 +551,7 @@ func TestStatusGoesBackToUntestedOnlyWhenTheTargetOrKindChanges(t *testing.T) {
 	c := r.must(httpIn("Office API"))
 	r.exec(`UPDATE core_connection SET status = 'ok', last_test = '2026-11-09T09:00:00.000Z' WHERE id = ?`, c.ID)
 	in := httpIn("Office API")
-	in.Secret = nil
+	in.Secret = secrets.Value{}
 	in.Allow = []string{"https://192.168.10.50/api/", "https://192.168.10.50/b/"}
 	g, err := r.update(c.ID, in)
 	if err != nil || g.Status != "ok" || g.LastTest == nil {
@@ -583,7 +590,7 @@ func TestListAndCountsAndNames(t *testing.T) {
 		t.Errorf("message = %q", ae.Message)
 	}
 	in := httpIn("CONN B")
-	in.Secret = nil
+	in.Secret = secrets.Value{}
 	if _, err := r.update(list[1].ID, in); err != nil { // its own name in another case is its own
 		t.Fatal(err)
 	}
@@ -634,6 +641,9 @@ func TestTargetPolicy(t *testing.T) {
 		in.Target, in.Allow = target, []string{target + "/"}
 		_, err := r.create(in)
 		ae := want(t, err, 400, "invalid_target", "target")
+		if ae.Message == "Vedette does not connect to IPv6 addresses that carry an IPv4 address; use the IPv4 address." {
+			continue // the whole sentence of the IPv6 forms that carry an IPv4 address
+		}
 		if !strings.HasPrefix(ae.Message, "Vedette never connects to ") || !strings.HasSuffix(ae.Message, ". Enter the address of the device or service itself.") {
 			t.Errorf("%s: message = %q", target, ae.Message)
 		}
@@ -780,7 +790,7 @@ func TestFieldRules(t *testing.T) {
 			in.Kind = "mcp-stdio"
 			in.Target = "npx some-mcp-server"
 			in.AuthType = "none"
-			in.Secret = nil
+			in.Secret = secrets.Value{}
 		}, "kind_unsupported", "kind",
 			`An MCP server that Vedette starts as a command is not supported. Use an MCP server that has a web address (kind "MCP server (URL)").`, true},
 		{"unknown sign-in", func(in *conn.Input) { in.AuthType = "oauth" }, "invalid_auth", "auth_type", "Pick how the box signs in: none, token, user and password, or SSH key.", true},
@@ -790,8 +800,8 @@ func TestFieldRules(t *testing.T) {
 		{"colon in the user", func(in *conn.Input) { in.AuthType, in.Username = "basic", str("a:b") }, "invalid", "username", "", true},
 		{"zero-width in the user", func(in *conn.Input) { in.AuthType, in.Username = "basic", str("zero\u200bwidth") }, "invalid", "username", "", true},
 		{"long user", func(in *conn.Input) { in.AuthType, in.Username = "basic", str(strings.Repeat("u", 65)) }, "invalid", "username", "", true},
-		{"short secret", func(in *conn.Input) { in.Secret = str("short") }, "invalid_secret", "secret", "The secret is too short. Copy the whole token, password or key again.", true},
-		{"no secret", func(in *conn.Input) { in.Secret = nil }, "secret_required", "secret", "Enter the secret. It stays on this box and is encrypted; only the last 4 characters are shown afterwards.", true},
+		{"short secret", func(in *conn.Input) { in.Secret = secrets.NewValue("short") }, "invalid_secret", "secret", "The secret is too short. Copy the whole token, password or key again.", true},
+		{"no secret", func(in *conn.Input) { in.Secret = secrets.Value{} }, "secret_required", "secret", "Enter the secret. It stays on this box and is encrypted; only the last 4 characters are shown afterwards.", true},
 		{"unknown asset", func(in *conn.Input) { in.AssetID = str("a-nope") }, "unknown_asset", "asset_id", "The device you linked is not in the inventory.", true},
 	} {
 		in := httpIn("Field rules")
@@ -870,13 +880,13 @@ func TestSSHKeys(t *testing.T) {
 	_ = want(t, err, 400, "invalid_secret", "secret")
 	// A password works for SSH too, with its last 4 characters.
 	in = sshIn("Password ssh", "")
-	in.AuthType, in.Secret = "basic", str(secret1)
+	in.AuthType, in.Secret = "basic", secrets.NewValue(secret1)
 	if c, err := r.create(in); err != nil || c.Auth.Last4 == nil || c.Auth.KeyFingerprint != nil {
 		t.Errorf("ssh password = %+v %v", c.Auth, err)
 	}
 	// Replacing the key moves the fingerprint; keeping it (blank secret) keeps it.
 	keep := sshIn("File server", "")
-	keep.Secret = nil
+	keep.Secret = secrets.Value{}
 	if k, err := r.update(c.ID, keep); err != nil || *k.Auth.KeyFingerprint != keygen {
 		t.Fatalf("a blank secret changed the key: %+v %v", k.Auth, err)
 	}
@@ -921,4 +931,117 @@ func TestMigrationKeepsOneSecretPerConnection(t *testing.T) {
 		t.Error("the table accepted a secret with no sign-in")
 	}
 	_ = b
+}
+
+// The column holds 2048 characters: a longer target is a 400 naming the field, not an internal error from the CHECK.
+func TestTargetLongerThanTheColumnIs400NotAnInternalError(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	in := httpIn("Long target")
+	in.Target = "https://192.168.10.50/" + strings.Repeat("a", 2100)
+	in.Allow = []string{"https://192.168.10.50/"}
+	_, err := r.create(in)
+	ae := want(t, err, 400, "invalid_target", "target")
+	if ae.Message != "The address is too long: at most 2048 characters." {
+		t.Errorf("message = %q", ae.Message)
+	}
+	in.Target = "https://192.168.10.50/?q=" + strings.Repeat("a", 2100)
+	_, err = r.create(in)
+	_ = want(t, err, 400, "invalid_target", "target")
+}
+
+// A name is unique in any letter case of any script (the mock compares with Unicode lower case), and the case-folded key follows a rename.
+func TestDuplicateNameIgnoresCaseBeyondASCII(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	first := r.must(httpIn("Ärger API"))
+	for _, name := range []string{"ärger API", "ÄRGER api", "ärger  API"} {
+		_, err := r.create(httpIn(name))
+		_ = want(t, err, 400, "duplicate_name", "name")
+	}
+	r.must(httpIn("Другая"))
+	_, err := r.create(httpIn("другая"))
+	_ = want(t, err, 400, "duplicate_name", "name")
+	// A rename frees the old name and takes the new one.
+	in := httpIn("Renamed")
+	in.Secret = secrets.Value{}
+	if _, err := r.update(first.ID, in); err != nil {
+		t.Fatal(err)
+	}
+	r.must(httpIn("ärger API"))
+	_, err = r.create(httpIn("RENAMED"))
+	_ = want(t, err, 400, "duplicate_name", "name")
+}
+
+// Names are counted in code points, not bytes or UTF-16 units: 40 emoji fit, 41 do not.
+func TestNameLengthIsCodePoints(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	if _, err := r.create(httpIn(strings.Repeat("😀", 40))); err != nil {
+		t.Fatalf("40 code points: %v", err)
+	}
+	_, err := r.create(httpIn(strings.Repeat("😀", 41)))
+	_ = want(t, err, 400, "invalid_name", "name")
+}
+
+// The secret of an input prints, formats and marshals as a placeholder: no log line or error that shows the input can show it.
+func TestInputSecretIsRedactedWhenFormatted(t *testing.T) {
+	t.Parallel()
+	in := httpIn("Office API")
+	for _, got := range []string{fmt.Sprintf("%v", in), fmt.Sprintf("%+v", in), fmt.Sprintf("%#v", in), fmt.Sprint(in.Secret), fmt.Sprintf("%s", in.Secret), fmt.Sprintf("%q", in.Secret)} { //nolint:gosec,staticcheck // the point
+		if strings.Contains(got, secret1) || strings.Contains(got, secret1[:10]) {
+			t.Errorf("a formatted input shows the secret: %s", got)
+		}
+	}
+	b, err := json.Marshal(in)
+	if err != nil || strings.Contains(string(b), secret1) {
+		t.Errorf("json.Marshal(input) = %s %v", b, err)
+	}
+	logs := &strings.Builder{}
+	slog.New(slog.NewTextHandler(logs, nil)).Info("create", "input", in, "secret", in.Secret)
+	if strings.Contains(logs.String(), secret1) {
+		t.Errorf("slog shows the secret: %s", logs)
+	}
+}
+
+// Only the vault reads a credential: secrets.Store.Open refuses the purpose once conn.New restricted it, so another package that
+// shares the Store (cmd/vedette hands one to response, auth, notify and core) cannot decrypt a connection's token or key.
+func TestOnlyTheVaultDecryptsAConnectionCredential(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.must(httpIn("Office API"))
+	var sid string
+	if err := r.env.DB.Reader().QueryRowContext(t.Context(), `SELECT secret_id FROM core_connection`).Scan(&sid); err != nil {
+		t.Fatal(err)
+	}
+	pt, err := r.env.Secrets.Open(t.Context(), r.env.DB.Reader(), sid, "core_connection")
+	if !errors.Is(err, secrets.ErrRestricted) || len(pt) != 0 {
+		t.Fatalf("Store.Open of a connection credential = %q, %v; want ErrRestricted", pt, err)
+	}
+	if v, err := r.svc.VaultForTest().Open(t.Context(), r.env.DB.Reader(), sid); err != nil || v.Reveal() != secret1 {
+		t.Fatalf("the vault does not read it: %v", err)
+	}
+	// One holder: a second service on the same Store cannot take the purpose.
+	_, err = conn.New(conn.Config{DB: r.env.DB, Secrets: r.env.Secrets, Audit: r.env.Audit})
+	if err == nil {
+		t.Fatal("a second conn.New on one secrets.Store was accepted: two holders")
+	}
+}
+
+// A pin that changes value is another server: updated_at moves, not only when a pin appears or goes.
+func TestChangedPinValueMovesUpdatedAt(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	c := r.must(httpIn("Office API"))
+	r.exec(`UPDATE core_connection SET pin = 'tls-sha256:`+strings.Repeat("0f", 32)+`', pin_seen = '2026-11-09T09:00:00.000Z' WHERE id = ?`, c.ID)
+	pinned, _ := r.svc.Get(t.Context(), c.ID)
+	if pinned.UpdatedAt != c.UpdatedAt {
+		t.Fatal("the test of a pin moved updated_at by itself")
+	}
+	if !conn.PinChangedForTest(pinned, strings.Repeat("a1", 32)) {
+		t.Error("a pin with another value is not counted as a security change")
+	}
+	if conn.PinChangedForTest(pinned, strings.Repeat("0f", 32)) {
+		t.Error("the same pin value is counted as a change")
+	}
 }

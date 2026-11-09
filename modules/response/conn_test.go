@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/conn"
@@ -37,14 +38,14 @@ func TestContract_INV9_EditingTheSecretAfterTheRequestIsConnectionChanged(t *tes
 	late.svc, err = conn.New(conn.Config{DB: e.db, Secrets: sec, Audit: audit.New(e.clock.Now), Clock: e.clock.Now})
 	e.must(err)
 	tok := "tok-0123456789-abcdef"
-	in := conn.Input{Name: "Office firewall", Kind: "http", Target: "https://fw.lan", AuthType: "token", Secret: &tok, Allow: []string{"https://fw.lan/api/"}, Enabled: true,
+	in := conn.Input{Name: "Office firewall", Kind: "http", Target: "https://fw.lan", AuthType: "token", Secret: secrets.NewValue(tok), Allow: []string{"https://fw.lan/api/"}, Enabled: true,
 		Tools: []conn.ToolInput{{Name: "send_request", Enabled: true}}}
 	var c conn.Connection
 	e.must(e.db.Write(e.ctx(), func(tx *sql.Tx) (err error) { c, err = late.svc.Create(e.ctx(), tx, "admin@acme.example", in); return }))
 	update := func(f func(in *conn.Input)) {
 		e.t.Helper()
 		next := in
-		next.Secret = nil
+		next.Secret = secrets.Value{}
 		f(&next)
 		e.must(e.db.Write(e.ctx(), func(tx *sql.Tx) error {
 			_, err := late.svc.Update(e.ctx(), tx, "admin@acme.example", c.ID, next)
@@ -72,7 +73,7 @@ func TestContract_INV9_EditingTheSecretAfterTheRequestIsConnectionChanged(t *tes
 
 	// A new secret is another version of the connection: nothing is sent.
 	newTok := "tok-9876543210-zyxwvu"
-	update(func(in *conn.Input) { in.Name = "Office firewall (HQ)"; in.Secret = &newTok })
+	update(func(in *conn.Input) { in.Name = "Office firewall (HQ)"; in.Secret = secrets.NewValue(newTok) })
 	before := e.exec.count()
 	_, err = e.svc.Approve(e.ctx(), oper, l[0].ID, nil, "")
 	wantCode(t, err, 409, "connection_changed")
@@ -113,5 +114,56 @@ func TestChangesInForce(t *testing.T) {
 	add(5, `{"id":"i","connector_id":"cn-1","status":"pending","running_at":"2026-11-09T10:00:00.000Z"}`)
 	if !inForce("cn-1") {
 		t.Fatal("an item that was sent, with no known outcome, does not count")
+	}
+}
+
+// A step that was sent and not answered in time is recorded as failed with "State unknown", but its change may be in force: the
+// item carries an explicit flag (not the text) and ChangesInForce counts it, so core/conn does not delete the connection while the
+// late result of the step can still arrive and turn the item into an executed change on it.
+func TestChangesInForceCountsAnItemWhoseOutcomeIsUnknown(t *testing.T) {
+	var se *slowExec
+	e, _, id := banEnv(t, func(c *response.Config) {
+		se = &slowExec{fakeExecutor: &fakeExecutor{}}
+		c.Executor = se
+	})
+	var during bool
+	var derr error
+	se.inFlight = func() {
+		e.clock.Advance(5 * time.Minute)
+		if err := e.svc.SweepStuckForTest(context.Background()); err != nil {
+			t.Error(err)
+		}
+		during, derr = e.svc.ChangesInForce(context.Background(), "cn-fw")
+	}
+	got, err := e.svc.Approve(e.ctx(), oper, id, nil, "")
+	e.must(err)
+	e.must(derr)
+	it := got.Items[0]
+	if it.Status != response.ItemExecuted {
+		t.Fatalf("the late result did not correct the sweep (item %s %q)", it.Status, resultOf(it))
+	}
+	if !during {
+		t.Error("while the step was in flight and recorded as state unknown, ChangesInForce was false: the connection could be deleted under it")
+	}
+	// The late result cleared the flag; the item is executed now, which counts by itself.
+	if n := e.count(`SELECT COUNT(*) FROM resp_actions WHERE items LIKE '%state_unknown%'`); n != 0 {
+		t.Errorf("%d requests still carry the state-unknown flag after the late result", n)
+	}
+	if v, err := e.svc.ChangesInForce(e.ctx(), "cn-fw"); err != nil || !v {
+		t.Errorf("an executed item after the correction: %v %v", v, err)
+	}
+
+	// The record alone: the flag counts, the text of a result does not.
+	insert := func(id, items string) {
+		e.exec1(`INSERT INTO resp_actions (id, source, proposal_id, asset_name, title, risk, status, requested_at, expires_at, requires_approvals, items)
+			VALUES (?, 'rule', 'p', 'FW', 'Block', 'low', 'failed', '2026-11-09T10:00:00.000Z', '2026-11-10T10:00:00.000Z', 1, ?)`, id, items)
+	}
+	insert("act-flag", `[{"id":"i","connector_id":"cn-flagged","status":"failed","state_unknown":true,"result":"x"}]`)
+	insert("act-text", `[{"id":"i","connector_id":"cn-texty","status":"failed","result":"The connection did not answer in time. State unknown: check the device."}]`)
+	if v, _ := e.svc.ChangesInForce(e.ctx(), "cn-flagged"); !v {
+		t.Error("a failed item with the state-unknown flag is not a change in force")
+	}
+	if v, _ := e.svc.ChangesInForce(e.ctx(), "cn-texty"); v {
+		t.Error("the words of a result decide whether a change is in force; only the flag may")
 	}
 }

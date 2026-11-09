@@ -124,14 +124,16 @@ type ConnectionInfo struct {
 // D-93: id, kind, address and the moment a security field of the connection last changed).
 func connFP(c ConnectionInfo) string { return conn.Fingerprint(c.ID, c.Kind, c.Target, c.UpdatedAt) }
 
-// ChangesInForce says whether a change made through the connection is still in force on a device: an item that was carried
-// out and not rolled back, or one that was sent and whose outcome is not known yet. core/conn asks before it deletes a
-// connection (409 in_use, D-93 (4)).
+// ChangesInForce says whether a change made through the connection may still be in force on a device: an item that was carried
+// out and not rolled back, one that was sent and whose outcome is not known yet (running), and one the sweep or the step deadline
+// failed as "state unknown" (itemRec.StateUnknown). core/conn asks before it deletes a connection (409 in_use, D-93 (4)).
 func (s *Service) ChangesInForce(ctx context.Context, connectionID string) (bool, error) {
 	var n int
 	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM resp_actions a, json_each(a.items) i
 		WHERE json_extract(i.value, '$.connector_id') = ?1
-		AND (json_extract(i.value, '$.status') = 'executed' OR (json_extract(i.value, '$.status') = 'pending' AND coalesce(json_extract(i.value, '$.running_at'), '') <> '')))`, connectionID).Scan(&n)
+		AND (json_extract(i.value, '$.status') = 'executed'
+			OR json_extract(i.value, '$.state_unknown') = 1
+			OR (json_extract(i.value, '$.status') = 'pending' AND coalesce(json_extract(i.value, '$.running_at'), '') <> '')))`, connectionID).Scan(&n)
 	if err != nil {
 		return false, fmt.Errorf("response: changes in force: %w", err)
 	}

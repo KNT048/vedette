@@ -16,6 +16,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/secrets"
 )
 
 // The checks of a connection before it is saved. They answer exactly like the mock API of the GUI
@@ -45,16 +46,20 @@ var kindAuth = map[string][]string{
 	KindAutomation: {AuthToken, AuthBasic}, KindMCP: {AuthNone, AuthToken, AuthBasic},
 }
 
+// MaxTargetLen is the longest address (characters), the limit of the column.
+const MaxTargetLen = 2048
+
 // MaxConnections is how many connections a box holds.
 const MaxConnections = 20
 
 var (
-	userRE       = regexp.MustCompile(`^[^\s\p{Z}:\p{Cc}\p{Cf}]{1,64}$`)
-	sshTargetRE  = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}(:\d{1,5})?$`)
-	hostNameRE   = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$`)
-	numericHost  = regexp.MustCompile(`(?i)^(0x[0-9a-f]+|\d+)(\.(0x[0-9a-f]+|\d+))*$`)
-	typedHostRE  = regexp.MustCompile(`(?i)^[a-z][a-z0-9+.-]*://(?:[^/@?#]*@)?(\[[^\]]*\]|[^/:?#]*)`)
-	sshPortSufRE = regexp.MustCompile(`:\d{1,5}$`)
+	userRE          = regexp.MustCompile(`^[^\s\p{Z}:\p{Cc}\p{Cf}]{1,64}$`)
+	sshTargetRE     = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}(:\d{1,5})?$`)
+	hostNameRE      = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$`)
+	numericHost     = regexp.MustCompile(`(?i)^(0x[0-9a-f]+|\d+)(\.(0x[0-9a-f]+|\d+))*$`)
+	typedHostRE     = regexp.MustCompile(`(?i)^[a-z][a-z0-9+.-]*://(?:[^/@?#]*@)?(\[[^\]]*\]|[^/:?#]*)`)
+	sshPortSufRE    = regexp.MustCompile(`:\d{1,5}$`)
+	encodedSlashDot = regexp.MustCompile(`(?i)%(2f|5c|2e)`)
 )
 
 func bad(code, message, field string) *apierr.Error {
@@ -68,8 +73,8 @@ func tidy(s string) string { return strings.Join(strings.Fields(s), " ") }
 type checked struct {
 	name, kind, target, authType string
 	username                     *string
-	secret                       *string // a new secret to store; nil = none given
-	keyFP                        *string // fingerprint of the new SSH key
+	secret                       secrets.Value // a new secret to store; unset = none given
+	keyFP                        *string       // fingerprint of the new SSH key
 	assetID                      *string
 	allow                        []string
 	enabled, clearPin            bool
@@ -80,7 +85,7 @@ type checked struct {
 
 // checkEnv is what a check needs from the rest of the box. The callbacks answer from the database; a nil one skips its check.
 type checkEnv struct {
-	box          []netip.Addr
+	box          []netip.Prefix
 	nameTaken    func(name string) bool
 	assetUnknown func(id string) bool
 }
@@ -133,29 +138,26 @@ func check(in Input, existing *Connection, env checkEnv) (*checked, *apierr.Erro
 		}
 		username = &u
 	}
-	var secret *string
-	if in.Secret != nil && *in.Secret != "" {
-		secret = in.Secret
-	}
-	if secret != nil && utf8.RuneCountInString(*secret) < 8 {
+	secret := in.Secret
+	if secret.IsSet() && utf8.RuneCountInString(secret.Reveal()) < 8 {
 		return nil, bad("invalid_secret", "The secret is too short. Copy the whole token, password or key again.", "secret")
 	}
 	var keyFP *string
-	if secret != nil && auth == AuthKey {
-		fp, e := checkKey(*secret)
+	if secret.IsSet() && auth == AuthKey {
+		fp, e := checkKey(secret.Reveal())
 		if e != nil {
 			return nil, e
 		}
 		keyFP = &fp
 	}
 	if auth == AuthNone {
-		secret, keyFP = nil, nil // a connection with no sign-in holds no secret
+		secret, keyFP = secrets.Value{}, nil // a connection with no sign-in holds no secret
 	}
 	sameKind := existing != nil && existing.Kind == in.Kind
 	moved := sameKind && HostPort(existing.Kind, existing.Target) != HostPort(in.Kind, target)
 	hadSecret := existing != nil && existing.hasSecret()
 	keep := sameKind && !moved && hadSecret && existing.Auth.Type == auth
-	if auth != AuthNone && secret == nil && !keep {
+	if auth != AuthNone && !secret.IsSet() && !keep {
 		if moved && hadSecret && existing.Auth.Type == auth {
 			return nil, bad("secret_required", "Enter the secret again: the address changed, and a saved secret is only sent to the address it was saved for.", "secret")
 		}
@@ -204,8 +206,11 @@ func deref(s *string) string {
 
 // checkTarget applies the form of the address (HTTPS URL, or host[:port] for SSH) and the address policy of D-94 to the
 // host as typed and to the host after the URL parser normalised it.
-func checkTarget(target string, ssh bool, box []netip.Addr) *apierr.Error {
+func checkTarget(target string, ssh bool, box []netip.Prefix) *apierr.Error {
 	const notValid = "The address is not valid. Enter it in full, for example https://192.168.10.1."
+	if utf8.RuneCountInString(target) > MaxTargetLen {
+		return bad("invalid_target", "The address is too long: at most 2048 characters.", "target")
+	}
 	var host string
 	if ssh {
 		if !sshTargetRE.MatchString(target) {
@@ -217,6 +222,9 @@ func checkTarget(target string, ssh bool, box []netip.Addr) *apierr.Error {
 			}
 		}
 		host = typedHost(target, true)
+		if trimmed := strings.TrimRight(host, "."); !hostNameRE.MatchString(trimmed) {
+			return bad("invalid_target", "Enter the SSH server as host or host:port, for example 192.168.10.30:22.", "target")
+		}
 	} else {
 		u, err := url.Parse(target)
 		if err != nil || u.Scheme == "" || u.Host == "" || u.Opaque != "" {
@@ -236,6 +244,9 @@ func checkTarget(target string, ssh bool, box []netip.Addr) *apierr.Error {
 				return bad("invalid_target", notValid, "target")
 			}
 		}
+		if strings.ContainsAny(target, "?#") {
+			return bad("invalid_target", "The address must not include ? or #.", "target")
+		}
 		host = typedHost(target, false)
 		if why := refusedHost(host, box); why != "" {
 			return refusal(why)
@@ -253,6 +264,9 @@ func checkTarget(target string, ssh bool, box []netip.Addr) *apierr.Error {
 }
 
 func refusal(why string) *apierr.Error {
+	if why == embeddedWhy {
+		return bad("invalid_target", embeddedWhy, "target")
+	}
 	return bad("invalid_target", "Vedette never connects to "+why+". Enter the address of the device or service itself.", "target")
 }
 
@@ -271,8 +285,8 @@ func typedHost(target string, ssh bool) string {
 // the cloud metadata address, multicast, unspecified, localhost, numeric names written in a non-standard way, the box
 // itself). A private range is fine, and so is a public name: the administrator declared it (privacy flow 12). The same
 // rules are applied again to the resolved address when a connection is dialled (slice 13b-5).
-func refusedHost(raw string, box []netip.Addr) string {
-	h := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(raw)), ".")
+func refusedHost(raw string, box []netip.Prefix) string {
+	h := strings.TrimRight(strings.ToLower(strings.TrimSpace(raw)), ".")
 	h = strings.TrimSuffix(strings.TrimPrefix(h, "["), "]")
 	if h == "localhost" || strings.HasSuffix(h, ".localhost") {
 		return "a loopback address"
@@ -282,10 +296,11 @@ func refusedHost(raw string, box []netip.Addr) string {
 		if err != nil {
 			return "an address that is not valid"
 		}
-		if a.Is4In6() {
-			return "an IPv4 address written inside an IPv6 one"
+		a = a.WithZone("")
+		if a.Is4In6() || (!a.IsLoopback() && !a.IsUnspecified() && inPrefixes(embeddedV4, a)) {
+			return embeddedWhy
 		}
-		return refusedAddr(a.WithZone(""), box)
+		return refusedAddr(a, box)
 	}
 	if numericHost.MatchString(h) {
 		a, err := netip.ParseAddr(h)
@@ -297,11 +312,41 @@ func refusedHost(raw string, box []netip.Addr) string {
 	return ""
 }
 
-func refusedAddr(a netip.Addr, box []netip.Addr) string {
+// embeddedWhy is the reason for an IPv6 address that carries an IPv4 address; it is the whole sentence of the message.
+const embeddedWhy = "Vedette does not connect to IPv6 addresses that carry an IPv4 address; use the IPv4 address."
+
+// embeddedV4 are the IPv6 forms that carry an IPv4 address: IPv4-mapped (checked with Is4In6), NAT64, 6to4, IPv4-compatible,
+// IPv4-translated and Teredo. Writing 127.0.0.1 or 169.254.169.254 in one of them must not get past the address policy.
+var embeddedV4 = []netip.Prefix{
+	netip.MustParsePrefix("64:ff9b::/96"), netip.MustParsePrefix("2002::/16"), netip.MustParsePrefix("::/96"),
+	netip.MustParsePrefix("::ffff:0:0:0/96"), netip.MustParsePrefix("2001::/32"),
+}
+
+func inPrefixes(l []netip.Prefix, a netip.Addr) bool {
+	for _, p := range l {
+		if p.Contains(a) {
+			return true
+		}
+	}
+	return false
+}
+
+// RefusedAddr says why a resolved address may never be a connection's target, or "" when it may: the policy applied to an IP
+// (loopback, unspecified including all of 0.0.0.0/8, link-local, multicast, IPv6 forms that carry an IPv4 address, and the
+// box itself with its whole subnets). The save-time check and the dial-time check (slice 13b-5) both use it.
+func RefusedAddr(a netip.Addr, box []netip.Prefix) string {
+	a = a.WithZone("")
+	if a.Is4In6() || (a.Is6() && !a.IsLoopback() && !a.IsUnspecified() && inPrefixes(embeddedV4, a)) {
+		return embeddedWhy
+	}
+	return refusedAddr(a, box)
+}
+
+func refusedAddr(a netip.Addr, box []netip.Prefix) string {
 	switch {
 	case a.IsLoopback():
 		return "a loopback address"
-	case a.IsUnspecified():
+	case a.IsUnspecified() || (a.Is4() && a.As4()[0] == 0):
 		return "an unspecified address"
 	case a.IsLinkLocalUnicast():
 		if a.Is4() {
@@ -312,7 +357,7 @@ func refusedAddr(a netip.Addr, box []netip.Addr) string {
 		return "a multicast address"
 	}
 	for _, b := range box {
-		if b.Unmap().WithZone("") == a {
+		if b.Contains(a) || b.Contains(a.Unmap()) {
 			return "the box itself"
 		}
 	}
@@ -379,6 +424,9 @@ func checkAllow(in []string, target string, ssh bool) ([]string, *apierr.Error) 
 // under reports whether the allow-list entry is an address under the target: the same scheme, host and port, and a path
 // at or below the target's. Dot segments are resolved first, so an entry cannot climb out of the target.
 func under(entry, target string) bool {
+	if strings.Contains(entry, `\`) || encodedSlashDot.MatchString(entry) {
+		return false // a backslash or an encoded slash, backslash or dot may be read as a path separator or a dot segment further on
+	}
 	e, err1 := url.Parse(entry)
 	b, err2 := url.Parse(target)
 	if err1 != nil || err2 != nil {

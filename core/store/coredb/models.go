@@ -33,6 +33,7 @@ type CoreChainHead struct {
 type CoreConnection struct {
 	ID        string
 	Name      string
+	NameKey   string
 	Kind      string
 	Target    string
 	AssetID   *string

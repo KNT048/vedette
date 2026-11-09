@@ -123,7 +123,7 @@ func list(ctx context.Context, q *coredb.Queries) ([]Connection, error) {
 func updateParams(c Connection) coredb.UpdateConnectionParams {
 	pin, seen := encodePin(c.Pin)
 	return coredb.UpdateConnectionParams{
-		ID: c.ID, Name: c.Name, Kind: c.Kind, Target: c.Target, AssetID: c.AssetID, AuthType: c.Auth.Type, Username: c.Username,
+		ID: c.ID, Name: c.Name, NameKey: nameKey(c.Name), Kind: c.Kind, Target: c.Target, AssetID: c.AssetID, AuthType: c.Auth.Type, Username: c.Username,
 		SecretID: c.secretID, KeyFp: c.Auth.KeyFingerprint, Pin: pin, PinSeen: seen, Allow: encodeAllow(c.Allow), Enabled: c.Enabled,
 		Status: c.Status, LastTest: c.LastTest, UpdatedAt: c.UpdatedAt,
 	}

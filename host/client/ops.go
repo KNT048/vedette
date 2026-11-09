@@ -58,6 +58,22 @@ func (c *Client) LogsExport(ctx context.Context, args api.LogsExportArgs, reques
 	return c.Run(ctx, api.CmdLogsExport, args, requestID, actor)
 }
 
+// NetApply runs net.apply: the whole desired state of the network part Vedette manages. A change
+// of the management part leaves the run in awaiting_confirm until NetConfirm or NetRevert.
+func (c *Client) NetApply(ctx context.Context, args api.NetApplyArgs, requestID, actor string) (api.Run, error) {
+	return c.Run(ctx, api.CmdNetApply, args, requestID, actor)
+}
+
+// NetConfirm runs net.confirm for the awaiting net.apply run runID.
+func (c *Client) NetConfirm(ctx context.Context, runID, requestID, actor string) (api.Run, error) {
+	return c.Run(ctx, api.CmdNetConfirm, api.NetRunArgs{RunID: runID}, requestID, actor)
+}
+
+// NetRevert runs net.revert for the awaiting net.apply run runID.
+func (c *Client) NetRevert(ctx context.Context, runID, requestID, actor string) (api.Run, error) {
+	return c.Run(ctx, api.CmdNetRevert, api.NetRunArgs{RunID: runID}, requestID, actor)
+}
+
 // StateOS returns GET /v1/state/os. A host that has never checked answers 404 no_check_yet.
 func (c *Client) StateOS(ctx context.Context) (api.OSState, error) {
 	var out api.OSState

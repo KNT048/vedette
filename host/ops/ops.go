@@ -1,7 +1,8 @@
 // Package ops implements the system commands of vedette-host (docs/specs/host-api.md section 6)
 // that WP-07b part 1 delivers: os.check, os.install, os.auto_security.set, os.reboot,
 // os.reboot.cancel, backup.create, backup.restore and logs.export, plus the read-only state
-// endpoints that belong to them. Container and network commands come in later parts.
+// endpoints that belong to them, and (part 3) net.apply, net.confirm, net.revert and the NTP
+// sources. Container commands and decoy addresses come in later slices.
 //
 // Every child process goes through one core/exec Runner: absolute binary paths, argv validated by a
 // per-binary validator, PATH, LANG=C and DEBIAN_FRONTEND=noninteractive only, no shell. Nothing in
@@ -68,6 +69,10 @@ type Deps struct {
 	// the ARP side of the network commands (default: the real packet socket, Linux only).
 	Interfaces func() ([]HostIface, error)
 	Probe      Prober
+	// NetPoll and NetWait are how often and how long the effect checks of the network commands look
+	// (address on the card, chrony sources): default 1 s and 15 s (D-100, D-106).
+	NetPoll time.Duration
+	NetWait time.Duration
 }
 
 // Ops holds the state of the system commands.
@@ -87,6 +92,10 @@ type Ops struct {
 	stopTick func() bool
 	gate     atomic.Pointer[rebootGate] // set while a reboot the host started has not completed (WriteGate); never taken under rbMu
 
+	netMu   sync.Mutex // guards the confirm-window timer and the run Resume kept
+	netStop func() bool
+	resumed string // the net.apply run Resume kept; Start reads and clears it
+
 	bkMu sync.Mutex // guards backups/index.json
 	exMu sync.Mutex // guards exports/index.json
 }
@@ -97,6 +106,9 @@ type Notifier interface {
 	Note(command, code string, detail map[string]any) error
 	WriteActive() bool
 	AwaitingConfirm() bool
+	// Claim takes the right to end the awaiting run (server.Claim): confirm, revert and the timer
+	// race through it before any effect.
+	Claim(runID string) (*server.Claimed, error)
 }
 
 // New builds Ops for the real system.
@@ -155,12 +167,18 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 	if d.Probe == nil {
 		d.Probe = newARPProber()
 	}
+	if d.NetPoll <= 0 {
+		d.NetPoll = time.Second
+	}
+	if d.NetWait <= 0 {
+		d.NetWait = 15 * time.Second
+	}
 	runner, err := newRunner(cfg.Logger, cfg.CoreUnit, d.BinPaths, min(d.ExportLimit, maxJournalStream))
 	if err != nil {
 		return nil, fmt.Errorf("ops: %w", err)
 	}
 	o := &Ops{cfg: cfg, d: d, log: cfg.Logger, runner: runner, installing: d.Installing}
-	for _, dir := range []string{"os", "backups", "exports", "tmp"} {
+	for _, dir := range []string{"os", "backups", "exports", "tmp", "net"} {
 		if err := privDir(filepath.Join(cfg.StateDir, dir), cfg.OwnerUID); err != nil {
 			return nil, err
 		}
@@ -173,6 +191,7 @@ func (o *Ops) Commands() []server.Command {
 	return []server.Command{
 		o.cmdOSCheck(), o.cmdOSInstall(), o.cmdAutoSecurity(), o.cmdReboot(), o.cmdRebootCancel(),
 		o.cmdBackupCreate(), o.cmdBackupRestore(), o.cmdLogsExport(),
+		o.cmdNetApply(), o.cmdNetConfirm(), o.cmdNetRevert(),
 	}
 }
 
@@ -250,6 +269,7 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.mu.Lock()
 	o.notifier = n
 	o.mu.Unlock()
+	o.recoverNet(ctx)
 	o.sweepBackups()
 	o.checkCoreAtStart()
 	o.recoverRestore(ctx)
@@ -260,6 +280,7 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 
 // Close stops the timers (the host is shutting down).
 func (o *Ops) Close() {
+	o.stopNetTimer() // an awaiting run stays awaiting on disk; the next start asks Resume
 	o.rbMu.Lock()
 	if o.stopTick != nil {
 		o.stopTick()

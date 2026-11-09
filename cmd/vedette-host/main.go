@@ -108,7 +108,7 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 	}
 	srv, err := server.New(server.Options{
 		SocketPath: cfg.Socket, SocketGID: cfg.SocketGID, StateDir: *stateDir, AuditPath: *auditLog, OwnerUID: env.configOwner,
-		Registry: registry, Readers: sys.Readers(), WriteGate: sys.WriteGate, PeerCheck: check, Version: version, Logger: env.logger,
+		Registry: registry, Readers: sys.Readers(), WriteGate: sys.WriteGate, Resume: sys.Resume, PeerCheck: check, Version: version, Logger: env.logger,
 	})
 	if err != nil {
 		return err

@@ -84,7 +84,7 @@ func (f *fakePub) named(name string) []any {
 
 type composite struct {
 	server.Fallback
-	*Handlers
+	*FeedHandlers
 }
 
 // failingTransport proves a code path never touches the network.

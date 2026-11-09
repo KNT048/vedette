@@ -79,7 +79,7 @@ type Deps struct {
 }
 
 // Service is the module: the pull logic, the jobs and the data the handlers read. Build it with NewService,
-// call Seed once after the migrations, then hand Handlers(s) to the composite handler and Jobs() to the scheduler.
+// call Seed once after the migrations, then hand FeedHandlers(s) to the composite handler and Jobs() to the scheduler.
 type Service struct {
 	Deps
 	st *Store

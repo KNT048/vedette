@@ -20,7 +20,7 @@ func noSuchFeed() error { return apierr.New(http.StatusNotFound, apierr.CodeNotF
 // ---------- S-FEED-4: the list of feeds and their settings
 
 // FeedsGetFeedsSources implements GET /feeds/sources: the built-in feeds in display order, then the custom ones.
-func (h *Handlers) FeedsGetFeedsSources(ctx context.Context) (*oas.FeedsGetFeedsSourcesOK, error) {
+func (h *FeedHandlers) FeedsGetFeedsSources(ctx context.Context) (*oas.FeedsGetFeedsSourcesOK, error) {
 	rows, err := h.s.st.sources(ctx)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func (h *Handlers) FeedsGetFeedsSources(ctx context.Context) (*oas.FeedsGetFeeds
 
 // FeedsPutFeedsSourcesID implements PUT /feeds/sources/{id}: on or off, the schedule, a mirror address. A
 // built-in feed with an empty url goes back to its default address.
-func (h *Handlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.FeedsPutFeedsSourcesIDReq, params oas.FeedsPutFeedsSourcesIDParams) (*oas.FeedsPutFeedsSourcesIDOK, error) {
+func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.FeedsPutFeedsSourcesIDReq, params oas.FeedsPutFeedsSourcesIDParams) (*oas.FeedsPutFeedsSourcesIDOK, error) {
 	p, err := actor(ctx)
 	if err != nil {
 		return nil, err
@@ -178,7 +178,7 @@ func (s *Service) saveSecret(ctx context.Context, tx *sql.Tx, prev *sourceRow, i
 }
 
 // FeedsPostFeedsCustom implements POST /feeds/custom (PRE-5, POST-5).
-func (h *Handlers) FeedsPostFeedsCustom(ctx context.Context, req *oas.FeedsPostFeedsCustomReq) (*oas.FeedsPostFeedsCustomCreated, error) {
+func (h *FeedHandlers) FeedsPostFeedsCustom(ctx context.Context, req *oas.FeedsPostFeedsCustomReq) (*oas.FeedsPostFeedsCustomCreated, error) {
 	p, err := actor(ctx)
 	if err != nil {
 		return nil, err
@@ -208,7 +208,7 @@ func (h *Handlers) FeedsPostFeedsCustom(ctx context.Context, req *oas.FeedsPostF
 }
 
 // FeedsPutFeedsCustomID implements PUT /feeds/custom/{id}. Changing the kind removes what the feed loaded.
-func (h *Handlers) FeedsPutFeedsCustomID(ctx context.Context, req *oas.FeedsPutFeedsCustomIDReq, params oas.FeedsPutFeedsCustomIDParams) (*oas.FeedsPutFeedsCustomIDOK, error) {
+func (h *FeedHandlers) FeedsPutFeedsCustomID(ctx context.Context, req *oas.FeedsPutFeedsCustomIDReq, params oas.FeedsPutFeedsCustomIDParams) (*oas.FeedsPutFeedsCustomIDOK, error) {
 	p, err := actor(ctx)
 	if err != nil {
 		return nil, err
@@ -264,7 +264,7 @@ func (h *Handlers) FeedsPutFeedsCustomID(ctx context.Context, req *oas.FeedsPutF
 
 // FeedsDeleteFeedsCustomID implements DELETE /feeds/custom/{id} (INV-4): the feed, its secret and everything it
 // loaded go. A built-in feed answers 404, like the GUI mock.
-func (h *Handlers) FeedsDeleteFeedsCustomID(ctx context.Context, params oas.FeedsDeleteFeedsCustomIDParams) error {
+func (h *FeedHandlers) FeedsDeleteFeedsCustomID(ctx context.Context, params oas.FeedsDeleteFeedsCustomIDParams) error {
 	p, err := actor(ctx)
 	if err != nil {
 		return err
@@ -291,7 +291,7 @@ func (h *Handlers) FeedsDeleteFeedsCustomID(ctx context.Context, params oas.Feed
 
 // FeedsPostFeedsParseTest implements POST /feeds/parse-test (S-FEED-5, INV-7): the rules run on the caller's
 // sample, or on the built-in sample of the format. It reads and writes nothing: no database, no network.
-func (h *Handlers) FeedsPostFeedsParseTest(ctx context.Context, req *oas.FeedsPostFeedsParseTestReq) (*oas.FeedsPostFeedsParseTestOK, error) {
+func (h *FeedHandlers) FeedsPostFeedsParseTest(ctx context.Context, req *oas.FeedsPostFeedsParseTestReq) (*oas.FeedsPostFeedsParseTestOK, error) {
 	var in struct {
 		Kind   Kind    `json:"kind"`
 		Parser Parser  `json:"parser"`
@@ -330,7 +330,7 @@ func (h *Handlers) FeedsPostFeedsParseTest(ctx context.Context, req *oas.FeedsPo
 
 // FeedsPostFeedsSourcesIDFetch implements POST /feeds/sources/{id}/fetch (INV-8): pull the feed now, straight from
 // its source. A feed that is off is 409 feed_disabled; a pull that fails is a 200 with status error on the feed.
-func (h *Handlers) FeedsPostFeedsSourcesIDFetch(ctx context.Context, params oas.FeedsPostFeedsSourcesIDFetchParams) (*oas.FeedsPostFeedsSourcesIDFetchOK, error) {
+func (h *FeedHandlers) FeedsPostFeedsSourcesIDFetch(ctx context.Context, params oas.FeedsPostFeedsSourcesIDFetchParams) (*oas.FeedsPostFeedsSourcesIDFetchOK, error) {
 	p, err := actor(ctx)
 	if err != nil {
 		return nil, err

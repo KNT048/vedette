@@ -18,13 +18,13 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// Handlers implements the operations of the feeds module (S-FEED-1..5) of oas.Handler. Embed it in the
+// FeedHandlers implements the operations of the feeds module (S-FEED-1..5) of oas.Handler. Embed it in the
 // composite handler (cmd/vedette/handler.go); it implements no other operation. Roles, the module gate, CSRF
 // and schema validation run before these methods (core/server), so no handler checks a role.
-type Handlers struct{ s *Service }
+type FeedHandlers struct{ s *Service }
 
 // NewHandlers returns the handlers of a service.
-func NewHandlers(s *Service) *Handlers { return &Handlers{s: s} }
+func NewHandlers(s *Service) *FeedHandlers { return &FeedHandlers{s: s} }
 
 func actor(ctx context.Context) (server.Principal, error) {
 	p, ok := server.PrincipalFrom(ctx)
@@ -37,7 +37,7 @@ func actor(ctx context.Context) (server.Principal, error) {
 // ---------- S-FEED-1: status and the hot board
 
 // FeedsGetFeedsStatus implements GET /feeds/status: when the data was pulled and from where.
-func (h *Handlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFeedsStatusOK, error) {
+func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFeedsStatusOK, error) {
 	rows, err := h.s.st.sources(ctx)
 	if err != nil {
 		return nil, err
@@ -111,7 +111,7 @@ func (s *Service) matchOf(ctx context.Context, products []Product) (map[string][
 
 // FeedsGetFeedsHot implements GET /feeds/hot (S-FEED-1, PRE-2, POST-2): the vulnerabilities added in the
 // window, grouped by product; rows are ordered you_have=yes first, then the number of CVEs, then the top EPSS.
-func (h *Handlers) FeedsGetFeedsHot(ctx context.Context, params oas.FeedsGetFeedsHotParams) (*oas.FeedsGetFeedsHotOK, error) {
+func (h *FeedHandlers) FeedsGetFeedsHot(ctx context.Context, params oas.FeedsGetFeedsHotParams) (*oas.FeedsGetFeedsHotOK, error) {
 	window, hours := string(params.Window), 24
 	switch window {
 	case "24h":
@@ -254,7 +254,7 @@ func (s *Service) weekly(ctx context.Context) ([]weeklyItem, []VulnRow, error) {
 }
 
 // FeedsGetFeedsWeekly implements GET /feeds/weekly.
-func (h *Handlers) FeedsGetFeedsWeekly(ctx context.Context) (*oas.FeedsGetFeedsWeeklyOK, error) {
+func (h *FeedHandlers) FeedsGetFeedsWeekly(ctx context.Context) (*oas.FeedsGetFeedsWeeklyOK, error) {
 	items, _, err := h.s.weekly(ctx)
 	if err != nil {
 		return nil, err
@@ -265,7 +265,7 @@ func (h *Handlers) FeedsGetFeedsWeekly(ctx context.Context) (*oas.FeedsGetFeedsW
 // FeedsPostFeedsWeeklyID implements POST /feeds/weekly/{id}: "I have it" or "Not relevant" (INV-14). "I have it"
 // declares one manual device through the inventory (once per product) when the inventory is on; with the
 // inventory off only the answer is stored, as in the GUI mock.
-func (h *Handlers) FeedsPostFeedsWeeklyID(ctx context.Context, req *oas.FeedsPostFeedsWeeklyIDReq, params oas.FeedsPostFeedsWeeklyIDParams) (*oas.FeedsPostFeedsWeeklyIDOK, error) {
+func (h *FeedHandlers) FeedsPostFeedsWeeklyID(ctx context.Context, req *oas.FeedsPostFeedsWeeklyIDReq, params oas.FeedsPostFeedsWeeklyIDParams) (*oas.FeedsPostFeedsWeeklyIDOK, error) {
 	p, err := actor(ctx)
 	if err != nil {
 		return nil, err
@@ -317,7 +317,7 @@ ON CONFLICT(key) DO UPDATE SET answer = excluded.answer, user_id = excluded.user
 // ---------- S-FEED-1/3: one CVE, and lookup
 
 // FeedsGetFeedsCveID implements GET /feeds/cve/{id} (PRE-3, POST-3).
-func (h *Handlers) FeedsGetFeedsCveID(ctx context.Context, params oas.FeedsGetFeedsCveIDParams) (*oas.FeedsGetFeedsCveIDOK, error) {
+func (h *FeedHandlers) FeedsGetFeedsCveID(ctx context.Context, params oas.FeedsGetFeedsCveIDParams) (*oas.FeedsGetFeedsCveIDOK, error) {
 	v, found, err := h.s.st.VulnByCVE(ctx, strings.ToUpper(params.ID))
 	if err != nil {
 		return nil, err
@@ -408,7 +408,7 @@ func iocHit(rec IOCRecord) map[string]any {
 
 // FeedsGetFeedsSearch implements GET /feeds/search (S-FEED-3, PRE-4, POST-4): one of cve, ioc or text, answered
 // from the data on the box, never from the network.
-func (h *Handlers) FeedsGetFeedsSearch(ctx context.Context, params oas.FeedsGetFeedsSearchParams) (oas.FeedsGetFeedsSearchOK, error) {
+func (h *FeedHandlers) FeedsGetFeedsSearch(ctx context.Context, params oas.FeedsGetFeedsSearchParams) (oas.FeedsGetFeedsSearchOK, error) {
 	var zero oas.FeedsGetFeedsSearchOK
 	q := strings.TrimSpace(params.Q)
 	if len([]rune(q)) > 200 {

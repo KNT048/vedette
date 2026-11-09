@@ -1,0 +1,56 @@
+# CI on GitHub's runners (D-63): free for this public repo, and it keeps the heavy full
+# suites (vitest, govulncheck) off the developers' machines. Every job calls make only.
+# No Playwright e2e here (D-64): the full e2e suite runs only when the product is production-ready.
+# Local gate before pushing stays `make check` (D-62). Third-party actions pinned by commit SHA.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 2 * * *" # daily audit on main (SECURITY.md)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/go.sum"
+      - name: Build, vet, generated code, test -race, contract, golangci-lint, govulncheck
+        if: github.event_name != 'schedule'
+        run: make verify-go
+      - name: Daily vulnerability scan (Go)
+        if: github.event_name == 'schedule'
+        run: make vuln
+
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: web/package.json
+      - name: Typecheck, lint, unit, contract drift, build
+        if: github.event_name != 'schedule'
+        run: make verify-web
+      - name: Daily vulnerability scan (web)
+        if: github.event_name == 'schedule'
+        run: pnpm --dir web install --frozen-lockfile && pnpm --dir web audit --prod

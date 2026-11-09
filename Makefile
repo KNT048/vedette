@@ -1,12 +1,18 @@
-# Vedette — lệnh chung. Không có CI (D-61): mọi kiểm tra chạy trên máy bằng các đích ở đây (docs/ENGINEERING.md §7).
+# Vedette — lệnh chung. Máy: `make check` trước khi push (D-62); CI gọi đúng các đích ở đây (D-63, docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: help dev verify verify-web verify-go test test-go contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build e2e fixtures clean
+.PHONY: help dev check verify verify-web verify-go test test-go contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build e2e fixtures clean
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
+# Chỉ dựng/kiểm trên Linux hoặc macOS (sản phẩm chạy Linux; test dùng syscall Unix). Windows: dùng WSL2 (D-62).
+ifeq ($(OS),Windows_NT)
+$(error Vedette builds and checks run on Linux or macOS only. On Windows, run make inside WSL2 (Ubuntu), from the WSL file system, not /mnt/c)
+endif
+
 help:
 	@echo "make dev           chạy giao diện với dữ liệu mẫu tại http://localhost:5173"
+	@echo "make check         kiểm nhanh phần đã đổi so với origin/main (cổng PR); đổi file dùng chung thì chạy verify"
 	@echo "make verify        web + Go: gõ kiểu, lint, test, kiểm lệch hợp đồng, build (rồi dọn)"
 	@echo "make verify-web    chỉ phần giao diện"
 	@echo "make verify-go     chỉ phần Go: build, vet, generate-check, test -race, contract, golangci-lint, govulncheck"
@@ -20,6 +26,10 @@ help:
 dev:
 	pnpm --dir web install --frozen-lockfile
 	pnpm --dir web dev
+
+# Cổng PR (D-62): chỉ phần đã đổi; file dùng chung đổi thì tự chuyển sang verify đầy đủ.
+check:
+	scripts/check.sh
 
 verify: verify-web verify-go
 
@@ -78,7 +88,7 @@ lint-go:
 vuln:
 	$(GO_TOOL) govulncheck ./...
 
-# Quét định kỳ thay lịch CI (rules/local-checks.md): đầu mỗi phiên làm việc và trước phát hành.
+# Quét lỗ hổng dependency: đầu mỗi phiên làm việc (CI cũng quét hằng ngày trên main).
 audit: vuln
 	pnpm --dir web audit --prod
 

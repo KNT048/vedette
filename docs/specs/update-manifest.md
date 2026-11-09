@@ -57,7 +57,7 @@ Hai tài liệu JSON, cả hai có chữ ký detached minisign (`<file>.minisig`
   "rollback": { "safe": true, "min_version": "1.3.0" },
   "install_modes": ["appliance", "container"],
   "images": [
-    { "service": "core", "ref": "ghcr.io/kiennt048/vedette-core:1.4.0", "digest": "sha256:…", "size": 61203456, "platforms": ["linux/amd64", "linux/arm64"], "signature": "cosign" },
+    { "service": "core", "ref": "ghcr.io/knt048/vedette-core:1.4.0", "digest": "sha256:…", "size": 61203456, "platforms": ["linux/amd64", "linux/arm64"], "signature": "cosign" },
     { "service": "sensor", "ref": "…", "digest": "sha256:…", "size": 0, "platforms": ["linux/amd64"], "signature": "cosign" }
   ],
   "host": { "version": "1.4.0", "files": [ { "name": "vedette-host_1.4.0_amd64.deb", "sha256": "…", "size": 0 } ] },

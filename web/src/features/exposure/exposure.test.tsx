@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
+import { eachOption } from '@/test/formMatrix'
 import { auditStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { feature } from './index'
 
@@ -281,5 +282,20 @@ describe('exposure: delete and roles', () => {
     expect(await screen.findByRole('button', { name: 'Scan now' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Delete target' })).toBeDisabled()
     expect(screen.getByText(/You have view-only access/)).toBeInTheDocument()
+  })
+})
+
+describe('exposure: add target form matrix (docs/QA.md §2)', () => {
+  it('a domain is typed in; an IP has its own button with no input, so the Add dialog never offers an IP field, and it can be cancelled', async () => {
+    renderApp('/exposure')
+    await userEvent.click(await screen.findByRole('button', { name: 'Add domain' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Add a domain' })
+    await eachOption([{ option: 'domain', shown: ['Domain', 'Add', 'Cancel'], hidden: ['IP address', 'Public IP', 'Type'] }], () => undefined, dlg)
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: "Verify this box's public IP" }))
+    const ip = await screen.findByRole('dialog')
+    expect(within(ip).queryByRole('textbox')).toBeNull()
+    expect(within(ip).getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
   })
 })

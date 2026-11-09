@@ -195,6 +195,7 @@
     "chip": "Approvals",
     "listTitle": "Who can approve",
     "empty": "No approvers yet. Add at least one operator or administrator.",
+    "noneLeft": "Everyone who can approve is already listed",
     "addLabel": "Add approver",
     "add": "Add",
     "remove": "Remove {{who}}",

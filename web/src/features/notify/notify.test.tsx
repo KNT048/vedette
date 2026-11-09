@@ -8,6 +8,7 @@ import { Toaster } from 'sonner'
 import { makeQueryClient } from '@/app/App'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
+import { eachOption } from '@/test/formMatrix'
 import { auditStore, modulesStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
 import type { Role } from '@/lib/session'
 import ChannelsSettings from './ChannelsSettings'
@@ -359,3 +360,83 @@ async function getJsonAfterLogin(path: string) {
   sessionStore.set({ userId: 'u-admin' })
   return getJson(path)
 }
+
+describe('notify: channel form matrix (docs/QA.md §2)', () => {
+  const ALL = ['Chat ID', 'Bot token', 'OA ID', 'Access token', 'Recipient ID (user_id)', 'SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password', 'Webhook URL', 'Signing key', 'Channel label (optional)', 'Incoming Webhook URL', 'Channel ID', 'App-level token (xapp-…)', 'Bot token (xoxb-…)', 'Recipient (user or group ID)']
+  const only = (...keep: string[]) => ALL.filter((x) => !keep.includes(x))
+  const APPROVE = 'Approve actions from this channel'
+  const LINK_ONLY = /This channel cannot take approvals/
+
+  it('each channel type shows only its own fields, and approvals only where the channel can take them', async () => {
+    renderChannels()
+    await screen.findByRole('table')
+    const open = async (type: string) => {
+      const prev = screen.queryByRole('dialog')
+      if (prev) { await userEvent.click(within(prev).getByRole('button', { name: 'Cancel' })); await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull()) }
+      await press(new RegExp(`^(Set up|Edit) ${type}$`))
+      await screen.findByRole('dialog')
+    }
+    await eachOption([
+      { option: 'Telegram', shown: ['Chat ID', 'Bot token', APPROVE], hidden: [...only('Chat ID', 'Bot token'), LINK_ONLY] },
+      { option: 'Slack', shown: ['Channel label (optional)', 'Incoming Webhook URL', APPROVE], hidden: [...only('Channel label (optional)', 'Incoming Webhook URL', 'Channel ID', 'App-level token (xapp-…)', 'Bot token (xoxb-…)'), LINK_ONLY] },
+      { option: 'Zalo OA', shown: ['OA ID', 'Access token', 'Recipient ID (user_id)', LINK_ONLY], hidden: [...only('OA ID', 'Access token', 'Recipient ID (user_id)'), APPROVE] },
+      { option: 'Zalo personal', shown: ['Recipient (user or group ID)', 'Zalo login', APPROVE, /Unofficial/], hidden: [...only('Recipient (user or group ID)'), LINK_ONLY, 'Bot token'] },
+      { option: 'Email', shown: ['SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password', APPROVE], hidden: [...only('SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password'), LINK_ONLY] },
+      { option: 'Webhook', shown: ['Webhook URL', 'Signing key', 'Generate random', LINK_ONLY], hidden: [...only('Webhook URL', 'Signing key'), APPROVE] },
+      { option: 'Telegram', shown: ['Chat ID', 'Bot token'], hidden: [...only('Chat ID', 'Bot token')] }, // going back restores the same fields
+    ], open)
+  })
+
+  it('Slack: the channel ID and app tokens appear only with approvals; turning approvals off sends none of them', async () => {
+    renderChannels()
+    await screen.findByRole('table')
+    await press(/^Edit Slack$/)
+    const dlg = await screen.findByRole('dialog')
+    expect(within(dlg).getByLabelText('Channel ID')).toHaveValue('C04VEDETTE1')
+    await userEvent.click(within(dlg).getByRole('switch', { name: 'Approve actions from this channel' }))
+    expect(within(dlg).queryByLabelText('Channel ID')).toBeNull()
+    expect(within(dlg).queryByLabelText('App-level token (xapp-…)')).toBeNull()
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    const slack = (await getJson('/notify/channels') as { channels: { type: string; approvals: boolean; fields: Record<string, string> }[] }).channels.find((c) => c.type === 'slack')!
+    expect(slack.approvals).toBe(false)
+    expect(slack.fields.channel_id).toBeUndefined()
+  })
+
+  it('the server refuses approvals on a channel that only sends a link, and a viewer as approver', async () => {
+    renderChannels()
+    await screen.findByRole('table')
+    const put = (type: string, b: unknown) => fetch(`${location.origin}/api/v1/notify/channels/${type}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
+    const base = { enabled: true, min_severity: 'high', approvals: true, approvers: [{ user_id: 'u-admin', address: 'x' }] }
+    expect((await put('webhook', { ...base, fields: { url: 'https://hooks.example.com/x' }, secret: 'abcdefgh-1234' })).status).toBe(400)
+    expect((await put('zalo', { ...base, fields: { oa_id: '1234567890', user_id: '987654' }, secret: 'abcdefgh-1234' })).status).toBe(400)
+    expect((await put('telegram', { ...base, fields: { chat_id: '-100123' }, approvers: [{ user_id: 'u-view', address: '123456' }] })).status).toBe(400)
+  })
+
+  it('Zalo personal: sign in by QR, turn approvals on, add two approvers, each with their own Zalo ID', async () => {
+    renderChannels()
+    await screen.findByRole('table')
+    await press(/^Set up Zalo personal$/)
+    const dlg = await screen.findByRole('dialog')
+    await userEvent.type(within(dlg).getByLabelText('Recipient (user or group ID)'), '8412345678901')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Show QR code' }))
+    await userEvent.click(within(dlg).getByRole('button', { name: 'I scanned it' }))
+    expect(within(dlg).getByText(/Signed in/)).toBeInTheDocument()
+    await userEvent.click(within(dlg).getByRole('switch', { name: APPROVE_LABEL }))
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Add' }))
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Add' }))
+    const ids = within(dlg).getAllByLabelText('Zalo user ID or phone')
+    expect(ids).toHaveLength(2)
+    await userEvent.type(ids[0]!, '0912345678')
+    await userEvent.type(ids[1]!, 'not a number')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
+    expect(await within(dlg).findByRole('alert')).toHaveTextContent(/Zalo user ID/)
+    await userEvent.clear(ids[1]!); await userEvent.type(ids[1]!, '84987654321')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    const z = (await getJson('/notify/channels') as { channels: { type: string; approvals: boolean; approvers: unknown[] }[] }).channels.find((c) => c.type === 'zalo-personal')!
+    expect(z.approvals).toBe(true)
+    expect(z.approvers).toHaveLength(2)
+  })
+})
+const APPROVE_LABEL = 'Approve actions from this channel'

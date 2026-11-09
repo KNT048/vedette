@@ -54,7 +54,9 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
     // Turning the email channel off stops two-step email codes too (D-35): say who is affected before doing it.
     if (type === 'email' && channel.enabled && !enabled && codeUsers > 0 && !confirmed) { setWarn(thenTest); return }
     const canApprove = APPROVAL_CHANNELS.includes(type)
-    save.mutate({ type, enabled, fields, secret: secret || undefined, min_severity: min, ...(canApprove ? { approvals, approvers: approvals ? approvers : [] } : {}), ...(type === 'slack' && approvals ? { app_token: appToken || undefined, bot_token: botToken || undefined } : {}) }, {
+    // Slack's channel ID and app tokens only belong to approvals: with approvals off they are not sent.
+    const sent = type === 'slack' && !approvals ? Object.fromEntries(Object.entries(fields).filter(([k]) => k !== 'channel_id')) : fields
+    save.mutate({ type, enabled, fields: sent, secret: secret || undefined, min_severity: min, ...(canApprove ? { approvals, approvers: approvals ? approvers : [] } : {}), ...(type === 'slack' && approvals ? { app_token: appToken || undefined, bot_token: botToken || undefined } : {}) }, {
       onSuccess: () => {
         toast.success(t('channels.saved', { name }))
         onSaved(thenTest)
@@ -150,6 +152,7 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
                     <div className="flex flex-wrap items-end gap-2">
                       <Field label={t('approve.addLabel')} htmlFor={`ap-${type}-add`}>
                         <Select id={`ap-${type}-add`} value={pick || free[0]?.id || ''} disabled={free.length === 0} onChange={(e) => setPick(e.target.value)}>
+                          {free.length === 0 ? <option value="">{t('approve.noneLeft')}</option> : null}
                           {free.map((u) => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
                         </Select>
                       </Field>

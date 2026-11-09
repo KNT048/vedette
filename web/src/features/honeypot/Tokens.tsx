@@ -53,7 +53,7 @@ function Inner({ items }: { items: Token[] }) {
       <Panel className="p-4">
         <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.2fr_auto] lg:items-start" noValidate>
           <Field label={t('token.form.type')} htmlFor="tk-type" hint={t(`token.what.${type}`)}>
-            <Select id="tk-type" value={type} disabled={!admin} onChange={(e) => setType(e.target.value as TokenType)}>
+            <Select id="tk-type" value={type} disabled={!admin} onChange={(e) => { setType(e.target.value as TokenType); setName(''); setPlant(''); setError(null) }}>
               {TOKEN_TYPES.map((x) => <option key={x} value={x}>{t(`token.type.${x}`)}</option>)}
             </Select>
           </Field>

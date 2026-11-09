@@ -24,12 +24,12 @@ export function DialogContent({ className, children, title, description, wide, o
         className={cn('fixed left-1/2 top-1/2 z-50 grid max-h-[90vh] w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-md border border-rule bg-surface p-6 shadow-lg', wide ? 'max-w-3xl' : 'max-w-lg', className)}
         {...props}
       >
-        <div className="grid gap-1 pr-8">
+        <div className="grid gap-1 pr-10">
           <DialogPrimitive.Title className="text-base font-semibold">{title}</DialogPrimitive.Title>
           {description ? <DialogPrimitive.Description className="text-sm text-muted">{description}</DialogPrimitive.Description> : <DialogPrimitive.Description className="sr-only">{title}</DialogPrimitive.Description>}
         </div>
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-md p-1 text-muted hover:bg-sunken hover:text-ink" aria-label={t('close')}>
+        <DialogPrimitive.Close className="absolute right-2 top-2 grid size-10 place-items-center rounded-md text-muted hover:bg-sunken hover:text-ink sm:right-3 sm:top-3 sm:size-8" aria-label={t('close')}>
           <X className="size-4" />
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>

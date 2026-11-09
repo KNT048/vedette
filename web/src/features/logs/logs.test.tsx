@@ -370,3 +370,39 @@ describe('logs: SIEM forwarding (S-LOG-3)', () => {
     expect(res.status).toBe(403)
   })
 })
+
+describe('logs: Add log source form matrix (docs/QA.md §2)', () => {
+  it('for every one of the device types: only its own protocols are offered, and the port follows the protocol', async () => {
+    renderApp('/logs')
+    await userEvent.click(await screen.findByRole('button', { name: 'Add log source' }))
+    const form = await screen.findByRole('dialog', { name: 'Add log source' })
+    const proto = () => within(form).getByLabelText('Protocol') as HTMLSelectElement
+    const port = () => within(form).getByLabelText('Port the box listens on') as HTMLInputElement
+    const choose = async (name: string) => {
+      const b = within(form).getAllByRole('button').find((x) => x.querySelector('span')?.textContent === name)
+      expect(b, `device type "${name}" is in the list`).toBeDefined()
+      await userEvent.click(b!)
+    }
+    // a TLS choice first, so a kind without TLS must move it away
+    await choose(CATALOG.fortigate.name)
+    await userEvent.selectOptions(proto(), 'tls')
+    expect(port().value).toBe('6514')
+    for (const e of ENTRIES) {
+      await userEvent.click(within(form).getByRole('button', { name: 'Change device type' }))
+      await choose(e.name)
+      const offered = [...proto().options].map((o) => o.value)
+      expect(offered, e.name).toEqual(e.protos)
+      expect(e.protos, `${e.name}: selected protocol is one it offers`).toContain(proto().value)
+      expect(port().value, `${e.name}: port follows the protocol`).toBe(proto().value === 'tls' ? '6514' : '514')
+    }
+  })
+
+  it('the server refuses a protocol the device type cannot send, and a name or IP that is not valid', async () => {
+    const only = ENTRIES.find((e) => !e.protos.includes('tls'))!
+    renderSiem()
+    const post = (b: unknown) => fetch(`${location.origin}/api/v1/logs/sources`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
+    expect((await post({ kind: only.id, name: 'TLS-ONLY', sender_ip: '192.168.10.77', proto: 'tls', port: 6514 })).status).toBe(400)
+    expect((await post({ kind: only.id, name: 'bad name!', sender_ip: '192.168.10.77', proto: only.protos[0], port: 514 })).status).toBe(400)
+    expect((await post({ kind: only.id, name: 'OK-1', sender_ip: '999.1.1.1', proto: only.protos[0], port: 514 })).status).toBe(400)
+  })
+})

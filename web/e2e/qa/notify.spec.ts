@@ -1,156 +1,119 @@
 import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
+import { finishClean, sampleStart } from './clean'
 
-// QA như người dùng thật cho module notify (S-ALERT-1, S-NOT-1). Giao diện chỉ có tiếng Anh (D-28). Mỗi test tự dựng dữ liệu, không phụ thuộc thứ tự.
-// Không có tin gộp nhiều site/MSP (quyết định của chủ dự án).
-// Máy dev dùng chung với agent khác (HMR có thể tải lại trang giữa chừng): cho thử lại một lần.
+// QA as a real user for the notify module: Incidents (D-52, S-ALERT-3), Alert channels with per-channel approvers and Zalo personal (D-46, S-NOT-1) and the History section.
+// The UI is English only (D-28). Every test builds its own data and does not depend on the order. No multi-site or MSP digests (owner decision).
+// The shared dev machine runs HMR for other agents, which can reload the page mid-test: retry once.
 test.describe.configure({ retries: 1 })
 const VI = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i
 const TOKEN = '123456789:EXAMPLE_not_a_real_token_0000000000'
 
-async function resetStorage(page: Page) {
-  for (let i = 0; i < 3; i++) {
-    try {
-      await page.goto('/setup')
-      await page.waitForLoadState('load')
-      await page.evaluate(() => localStorage.clear())
-      await page.goto('/setup')
-      return
-    } catch (e) {
-      if (i === 2) throw e
-    }
-  }
-}
-async function startWithSample(page: Page) {
-  await resetStorage(page)
-  await page.getByRole('button', { name: 'Use sample data' }).click()
-  await expect(page).not.toHaveURL(/\/setup/)
-  await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
-}
-async function cleanInstall(page: Page) {
-  await resetStorage(page)
-  await page.getByLabel('Organization name').fill('Test Company')
-  await page.getByLabel('Administrator name').fill('Test Admin')
-  await page.getByLabel('Sign-in email').fill('admin@test-company.example')
-  await page.getByLabel('Password', { exact: true }).fill('a-long-test-password-123')
-  await page.getByLabel('Repeat password').fill('a-long-test-password-123')
-  await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByRole('textbox', { name: 'Range 1' }).fill('192.168.10.0/24')
-  await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByRole('button', { name: 'Skip and finish' }).click()
-  await expect(page).not.toHaveURL(/\/setup/)
-  await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
-}
-/** Đổi phiên mock sang tài khoản khác (u-view = chỉ xem; u-op = vận hành). */
+/** Switch the mock session to another account (u-view = read only, u-op = operator). */
 async function asUser(page: Page, userId: string) {
-  await page.evaluate((u) => {
-    const k = 'vedette-mock-db-v3'
-    const db = JSON.parse(localStorage.getItem(k) ?? '{}')
-    db.core_session = { userId: u }
-    localStorage.setItem(k, JSON.stringify(db))
+  await page.addInitScript((u) => {
+    try {
+      const k = 'vedette-mock-db-v3'
+      const raw = localStorage.getItem(k)
+      if (raw) { const db = JSON.parse(raw); db.core_session = { userId: u }; localStorage.setItem(k, JSON.stringify(db)) }
+    } catch { /* ignore */ }
   }, userId)
   await page.reload()
 }
+const startWithSample = sampleStart
 const noHorizontalScroll = async (page: Page) => expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1)
 const visible = (l: ReturnType<Page['locator']>) => l.locator('visible=true').first()
+const APPROVE = 'Approve actions from this channel'
 
-test.describe('notify: alerts (S-ALERT-1)', () => {
-  test('list, filter by status and kind, open the detail, come back with Back', async ({ page }) => {
+test.describe('notify: incidents (S-ALERT-3, D-52)', () => {
+  test('list, filter by kind and status, open the detail, come back with Back', async ({ page }) => {
     const errors = collectErrors(page)
     await startWithSample(page)
-    await page.goto('/alerts')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('4 unhandled alerts')
+    await page.goto('/incidents')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('3 new incidents')
+    await expect(page.locator('main')).not.toContainText('QNAP Photo Station') // vulnerabilities live in Findings, not here
     await page.getByRole('button', { name: 'All', exact: true }).click()
-    await expect(visible(page.getByText('Microsoft Windows Server'))).toBeVisible()
+    await expect(visible(page.getByText('192.168.10.157 touched the RDP trap on FILESRV-OLD'))).toBeVisible()
     await page.getByRole('button', { name: 'Trap touches' }).click()
-    await expect(page.getByText('QNAP Photo Station')).toHaveCount(0)
-    await expect(visible(page.getByRole('link', { name: 'SMB trap on FILESRV-OLD' }))).toBeVisible()
-    await page.getByRole('button', { name: 'Bad IPs, domains' }).click()
-    await expect(visible(page.getByRole('link', { name: '185.220.101.47' }))).toBeVisible()
+    await expect(visible(page.getByRole('link', { name: 'PC-HR-01 touched the SMB trap on FILESRV-OLD' }))).toBeVisible()
+    await expect(page.getByText('185.220.101.47')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Bad addresses' }).click()
+    await expect(visible(page.getByRole('link', { name: /185\.220\.101\.47/ }))).toBeVisible()
     await page.getByRole('button', { name: 'All kinds' }).click()
-    await visible(page.getByRole('link', { name: 'QNAP Photo Station' })).click()
-    await expect(page).toHaveURL(/\/alerts\/al-1/)
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('QNAP Photo Station is being exploited on')
+    await visible(page.getByRole('link', { name: 'PC-HR-01 touched the SMB trap on FILESRV-OLD' })).click()
+    await expect(page).toHaveURL(/\/incidents\/al-4/)
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('PC-HR-01 touched the SMB trap on FILESRV-OLD')
     await page.goBack()
-    await expect(page).toHaveURL(/\/alerts$/)
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('unhandled alerts')
+    await expect(page).toHaveURL(/\/incidents$/)
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('new incidents')
     await noHorizontalScroll(page)
     expect(errors).toEqual([])
   })
 
-  test('handle: note, mark handled, still handled after reload, reopen, mark not relevant', async ({ page }) => {
-    const errors = collectErrors(page)
+  test('detail: what happened, who responded, the text sent per channel, the delivery log, Respond and source links', async ({ page }) => {
     await startWithSample(page)
-    await page.goto('/alerts/al-1')
-    await page.getByLabel('Note (optional)').fill('Updated to version 5.2.1 at 9 am')
-    await page.getByRole('button', { name: 'Mark as handled' }).click()
-    await expect(page.getByText('Alert updated.').first()).toBeVisible()
-    await expect(page.getByText(/Handled by admin@acme\.example/)).toBeVisible()
-    await expect(page.getByText('Updated to version 5.2.1 at 9 am').first()).toBeVisible()
-    await page.reload()
-    await expect(page.getByText(/Handled by admin@acme\.example/)).toBeVisible()
-    await page.goto('/alerts')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('3 unhandled alerts')
-    await page.goto('/alerts/al-1')
-    await page.getByRole('button', { name: 'Reopen' }).click()
-    await expect(page.getByLabel('Note (optional)')).toBeVisible()
-    await page.getByRole('button', { name: 'Mark as not relevant' }).click()
-    await expect(page.getByText(/Not relevant by admin@acme\.example/)).toBeVisible()
-    await expect(page.getByText(/does not change the finding status/)).toBeVisible()
-    expect(errors).toEqual([])
-  })
-
-  test('detail for vulnerability, trap and bad-IP alerts: title, text sent per channel, link to the source', async ({ page }) => {
-    await startWithSample(page)
-    await page.goto('/alerts/al-1')
-    await expect(page.getByRole('tab', { name: 'Telegram' })).toBeVisible()
-    await page.getByRole('tab', { name: 'Email' }).click()
-    await expect(page.getByText(/Subject: \[Vedette\] Critical: QNAP Photo Station is being exploited/)).toBeVisible()
-    await expect(page.getByRole('link', { name: 'View finding CVE-2022-27593' })).toHaveAttribute('href', '/findings/f-1')
-    await page.goto('/alerts/al-4')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('just touched: SMB trap on FILESRV-OLD')
+    await page.goto('/incidents/al-4')
+    await expect(page.getByRole('link', { name: 'Respond' })).toHaveAttribute('href', '/response?incident=al-4')
     await expect(page.getByRole('link', { name: 'Open trap touch' })).toHaveAttribute('href', '/honeypot/hits/hit-seed-1')
-    await expect(page.getByText('Machine that touched the trap:').first()).toBeVisible()
-    await page.goto('/alerts/al-6')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('just connected to 185.220.101.47')
+    const tg = page.getByRole('figure', { name: 'Telegram' })
+    await expect(tg).toContainText('Critical: PC-HR-01 touched the SMB trap on FILESRV-OLD')
+    await expect(tg).toContainText('What to do first')
+    await expect(page.getByRole('table', { name: 'Delivery log of the incident' })).toBeVisible()
+    await page.goto('/incidents/al-6')
     await expect(page.getByRole('link', { name: 'Open related logs' })).toHaveAttribute('href', '/logs')
-    await expect(page.getByText('Machine that made the connection:').first()).toBeVisible()
-    await expectAccessible(page, 'bad-IP alert detail')
-    await page.getByRole('link', { name: 'PC-SALES-02' }).first().click()
-    await expect(page).toHaveURL(/\/devices\/a-pc05/)
+    await expect(page.getByRole('table', { name: 'Delivery log of the incident' })).toContainText('The SMTP server rejected the login')
+    await page.getByRole('tab', { name: 'Email' }).click()
+    await expect(page.getByRole('figure', { name: 'Email' })).toContainText('Subject: [Vedette] High: PC-SALES-02 connected to 185.220.101.47')
   })
 
-  test('send again on a failed channel: the email channel works, so it succeeds', async ({ page }) => {
-    const errors = collectErrors(page)
+  test('acknowledge, resolve with a note, still resolved after reload, reopen', async ({ page }) => {
     await startWithSample(page)
-    await page.goto('/alerts/al-2')
-    await expect(page.getByText(/The SMTP server rejected the login/)).toBeVisible()
-    await page.getByRole('button', { name: 'Send again via Email' }).click()
-    await expect(page.getByText('Sent again via Email.').first()).toBeVisible()
-    expect(errors).toEqual([])
+    await page.goto('/incidents/al-4')
+    await page.getByRole('button', { name: 'Acknowledge' }).click()
+    await expect(page.getByText(/Acknowledged by admin@acme\.example/)).toBeVisible()
+    await page.getByLabel('Note (optional)').fill('Machine is clean')
+    await page.getByRole('button', { name: 'Resolve' }).click()
+    await expect(page.getByText(/Resolved by admin@acme\.example/)).toBeVisible()
+    await page.reload()
+    await expect(page.getByText(/Resolved by admin@acme\.example/)).toBeVisible()
+    await expect(page.getByText(/Note: Machine is clean/)).toBeVisible()
+    await page.getByRole('button', { name: 'Reopen' }).click()
+    await expect(page.getByRole('button', { name: 'Acknowledge' })).toBeVisible()
+    await page.goto('/incidents')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('3 new incidents')
   })
 
-  test('send again after the channel was removed: the error says how to fix it', async ({ page }) => {
+  test('a viewer reads but cannot acknowledge or resolve; the buttons say why', async ({ page }) => {
+    await startWithSample(page)
+    await asUser(page, 'u-view')
+    await page.goto('/incidents/al-4')
+    await expect(page.getByRole('button', { name: 'Acknowledge' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Resolve' })).toBeDisabled()
+  })
+
+  test('old /alerts links still work and an unknown incident says so', async ({ page }) => {
+    await startWithSample(page)
+    await page.goto('/alerts')
+    await expect(page).toHaveURL(/\/incidents/)
+    await page.goto('/alerts/al-4')
+    await expect(page).toHaveURL(/\/incidents\/al-4/)
+    await page.goto('/incidents/al-zzz')
+    await expect(page.getByText(/No such incident/)).toBeVisible()
+  })
+
+  test('History: every message of every kind, and Send again on a failed email adds a row', async ({ page }) => {
     await startWithSample(page)
     await page.goto('/settings/channels')
-    await page.getByRole('button', { name: /Remove channel Email/ }).click()
-    await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
-    await expect(page.getByText('Channel Email and its saved key were removed.').first()).toBeVisible()
-    await page.goto('/alerts/al-2')
-    await page.getByRole('button', { name: 'Send again via Email' }).click()
-    await expect(page.getByText(/not set up or is turned off/).first()).toBeVisible()
-  })
-
-  test('unknown alert says so; a viewer sees locked buttons with a reason', async ({ page }) => {
-    await startWithSample(page)
-    await page.goto('/alerts/no-such-alert')
-    await expect(page.getByText(/No such alert/).first()).toBeVisible()
-    await asUser(page, 'u-view')
-    await page.goto('/alerts/al-1')
-    const b = page.getByRole('button', { name: 'Mark as handled' })
-    await expect(b).toBeDisabled()
-    await expect(b).toHaveAttribute('title', /Operator/)
+    const table = page.getByRole('table', { name: 'Sent messages' })
+    await expect(table).toBeVisible()
+    await expect(table.getByText('Incident').first()).toBeVisible()
+    await expect(table.getByText('Vulnerability').first()).toBeVisible()
+    await expect(table.getByText('Approval request').first()).toBeVisible()
+    await expect(page.getByText(/Vedette only alerts for products you own/)).toBeVisible()
+    const rows = await table.getByRole('row').count()
+    await table.getByRole('button', { name: 'Send again via Email' }).first().click()
+    await expect(page.getByText('Sent again via Email.').first()).toBeVisible()
+    await expect(table.getByRole('row')).toHaveCount(rows + 1)
   })
 })
 
@@ -294,41 +257,116 @@ test.describe('notify: alert channels (S-NOT-1)', () => {
   })
 })
 
-test.describe('notify: clean install', () => {
-  test('alerts and channels say what to do first, with no sample data', async ({ page }) => {
+
+test.describe('notify: approvers per channel and Zalo personal (D-46)', () => {
+  test('each channel type shows its own fields; Zalo OA and webhook say they only send a link', async ({ page }) => {
+    await startWithSample(page)
+    await page.goto('/settings/channels')
+    await page.getByRole('button', { name: 'Set up Zalo OA' }).click()
+    let d = page.getByRole('dialog')
+    await expect(d.getByText(/This channel cannot take approvals/)).toBeVisible()
+    await expect(d.getByRole('switch', { name: APPROVE })).toHaveCount(0)
+    await expect(d.getByLabel('SMTP server')).toHaveCount(0)
+    await d.getByRole('button', { name: 'Cancel' }).click()
+    await page.getByRole('button', { name: 'Set up Webhook' }).click()
+    d = page.getByRole('dialog')
+    await expect(d.getByText(/This channel cannot take approvals/)).toBeVisible()
+    await expect(d.getByLabel('Chat ID')).toHaveCount(0)
+    await d.getByRole('button', { name: 'Cancel' }).click()
+    await page.getByRole('button', { name: 'Edit Slack' }).click()
+    d = page.getByRole('dialog')
+    await expect(d.getByLabel('Channel ID')).toBeVisible()
+    await d.getByRole('switch', { name: APPROVE }).click()
+    await expect(d.getByLabel('Channel ID')).toHaveCount(0) // Slack's channel ID and tokens belong to approvals only
+    await expect(d.getByLabel('App-level token (xapp-…)')).toHaveCount(0)
+  })
+
+  test('Zalo personal: warning, sign in by QR, approvals on, two approvers with their own Zalo IDs, a bad ID is refused at the field', async ({ page }) => {
     const errors = collectErrors(page)
-    await cleanInstall(page)
-    await page.goto('/alerts')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('No unhandled alerts')
+    await startWithSample(page)
+    await page.goto('/settings/channels')
+    await page.getByRole('button', { name: 'Set up Zalo personal' }).click()
+    const d = page.getByRole('dialog')
+    await expect(d.getByText(/Unofficial/)).toBeVisible()
+    await expect(d.getByText('Not signed in yet.')).toBeVisible()
+    await d.getByLabel('Recipient (user or group ID)').fill('8412345678901')
+    await d.getByRole('button', { name: 'Show QR code' }).click()
+    await expect(d.getByRole('img', { name: /QR code/ })).toBeVisible()
+    await d.getByRole('button', { name: 'I scanned it' }).click()
+    await expect(d.getByText(/Signed in/)).toBeVisible()
+    await d.getByRole('switch', { name: APPROVE }).click()
+    await d.getByRole('button', { name: 'Add', exact: true }).click()
+    await expect(d.getByRole('button', { name: 'Add', exact: true })).toBeVisible()
+    await d.getByRole('button', { name: 'Add', exact: true }).click()
+    const ids = d.getByLabel('Zalo user ID or phone')
+    await expect(ids).toHaveCount(2)
+    await ids.nth(0).fill('0912345678')
+    await ids.nth(1).fill('not a number')
+    await d.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(d.getByRole('alert')).toContainText('Zalo user ID')
+    await ids.nth(1).fill('84987654321')
+    await d.getByRole('button', { name: 'Save and send test' }).click()
+    await expect(page.getByText('Channel Zalo personal saved.').first()).toBeVisible()
+    await expect(visible(page.getByText('Approvals').first())).toBeVisible()
+    await page.reload()
+    await page.getByRole('button', { name: 'Edit Zalo personal' }).click()
+    await expect(page.getByRole('dialog').getByLabel('Zalo user ID or phone')).toHaveCount(2)
+    expect(errors).toEqual([])
+  })
+
+  test('Slack: approvals need at least one approver, and a viewer cannot be added', async ({ page }) => {
+    await startWithSample(page)
+    await page.goto('/settings/channels')
+    await page.getByRole('button', { name: 'Edit Slack' }).click()
+    const d = page.getByRole('dialog')
+    await expect(d.getByLabel('Slack member ID')).toHaveCount(2)
+    await d.getByRole('button', { name: /^Remove / }).first().click()
+    await d.getByRole('button', { name: /^Remove / }).first().click()
+    await expect(d.getByLabel('Slack member ID')).toHaveCount(0)
+    await d.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(d.getByRole('alert')).toContainText('Add at least one approver')
+    const options = await d.getByLabel('Add approver').locator('option').allTextContents()
+    expect(options.join(' ')).not.toMatch(/viewer/i)
+  })
+})
+
+test.describe('notify: clean install', () => {
+  test('incidents, channels and history say what to do first, with no sample data', async ({ page }) => {
+    const errors = collectErrors(page)
+    await finishClean(page)
+    await page.goto('/incidents')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('No new incidents')
     await expect(page.getByRole('link', { name: 'Set up alert channels' })).toBeVisible()
     await expect(page.locator('main')).not.toContainText(/QNAP|FILESRV-OLD|185\.220|NAS-PHOTOS/)
-    await shot(page, 'notify', 'clean-alerts')
-    await expectAccessible(page, 'alerts clean')
+    await shot(page, 'notify', 'clean-incidents')
+    await expectAccessible(page, 'incidents clean')
     await page.getByRole('link', { name: 'Set up alert channels' }).click()
     await expect(page).toHaveURL(/\/settings\/channels/)
-    await expect(page.getByRole('button', { name: /^Set up (Telegram|Zalo OA|Email|Webhook)$/ })).toHaveCount(4)
+    await expect(page.getByRole('button', { name: /^Set up (Telegram|Slack|Zalo OA|Zalo personal|Email|Webhook)$/ })).toHaveCount(6)
     await expect(page.locator('main')).not.toContainText(/acme\.example|-1002145678901/)
+    await expect(page.getByText('Nothing sent yet')).toBeVisible()
     await shot(page, 'notify', 'clean-channels')
     await expectAccessible(page, 'channels clean')
     await page.getByRole('button', { name: 'Set up Telegram' }).click()
     const d = page.getByRole('dialog')
+    await d.getByRole('switch', { name: APPROVE }).click()
+    await expect(d.getByText(/Add at least one approver|Who can approve/).first()).toBeVisible()
     await d.getByLabel('Chat ID').fill('-1001234567890')
     await d.getByLabel('Bot token').fill(TOKEN)
+    await d.getByRole('switch', { name: APPROVE }).click() // back off: no approver needed
     await d.getByRole('button', { name: 'Save', exact: true }).click()
     await expect(page.getByText('Channel Telegram saved.').first()).toBeVisible()
-    await page.goto('/alerts')
-    await expect(page.getByText(/new vulnerabilit(y|ies) in the last 7 days/).first()).toBeVisible()
     expect(errors).toEqual([])
   })
 })
 
 test.describe('notify: look and feel', () => {
   for (const scheme of ['light', 'dark'] as const) {
-    test(`alerts, details and channels ${scheme}: no errors, no horizontal scroll, accessible, English only`, async ({ page }, info) => {
+    test(`incidents, details and channels ${scheme}: no errors, no horizontal scroll, accessible, English only`, async ({ page }, info) => {
       const errors = collectErrors(page)
       await page.emulateMedia({ colorScheme: scheme })
       await startWithSample(page)
-      for (const [name, path] of [['alerts', '/alerts'], ['detail-vuln', '/alerts/al-2'], ['detail-honeypot', '/alerts/al-4'], ['detail-ioc', '/alerts/al-6'], ['channels', '/settings/channels']] as const) {
+      for (const [name, path] of [['incidents', '/incidents'], ['detail-trap', '/incidents/al-4'], ['detail-ioc', '/incidents/al-6'], ['channels', '/settings/channels']] as const) {
         await page.goto(path)
         await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
         await expect(page.getByRole('status').filter({ hasText: /^Loading$/ })).toHaveCount(0)
@@ -347,14 +385,19 @@ test.describe('notify: look and feel', () => {
     test.skip(!isMobile, 'phone only')
     await startWithSample(page)
     await page.goto('/settings/channels')
-    await page.getByRole('button', { name: 'Edit Email' }).click()
-    const box = await page.getByRole('dialog').boundingBox()
-    expect(box!.x).toBeGreaterThanOrEqual(0)
-    expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1)
-    for (const b of await page.getByRole('dialog').getByRole('button').all()) {
-      const bb = await b.boundingBox()
-      if (bb) expect(bb.height, await b.innerText()).toBeGreaterThanOrEqual(30)
+    for (const name of ['Edit Email', 'Edit Slack']) {
+      await page.getByRole('button', { name }).click()
+      const box = await page.getByRole('dialog').boundingBox()
+      expect(box!.x).toBeGreaterThanOrEqual(0)
+      expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1)
+      await noHorizontalScroll(page)
+      for (const b of await page.getByRole('dialog').locator('button:not([role=switch]):not([role=combobox]):not([role=checkbox])').all()) { // switches and checkboxes have a larger invisible tap area
+        if (!(await b.isVisible())) continue
+        const bb = await b.boundingBox()
+        if (bb) expect(bb.height, await b.innerText()).toBeGreaterThanOrEqual(30)
+      }
+      await shot(page, 'notify', `dialog-${name.slice(5).toLowerCase()}-mobile`)
+      await page.keyboard.press('Escape')
     }
-    await shot(page, 'notify', 'dialog-email-mobile')
   })
 })

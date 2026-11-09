@@ -103,6 +103,10 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
       auth: { type: auth, header_name: auth === 'header' ? header : null, username: auth === 'basic' ? user.trim() : null, secret: secret || undefined }, parser },
     { onSuccess: () => { toast.success(feed ? t('dialog.saved', { name: name.trim() }) : t('dialog.added', { name: name.trim() })); onClose() } })
   }
+  // The sign-in error shows under the field that is wrong, not always under the secret.
+  const authErr = err('auth')
+  const badHeader = !!authErr && auth === 'header' && !/^[A-Za-z0-9-]{1,80}$/.test(header)
+  const badUser = !!authErr && auth === 'basic' && !user.trim()
   const aria = (k: 'name' | 'url' | 'auth') => ({ 'aria-invalid': err(k) ? true : undefined, 'aria-describedby': err(k) ? `cf-${k}-error` : undefined })
   const title = feed ? t('dialog.editTitle', { name: feed.name }) : t('dialog.addTitle')
   return (
@@ -125,11 +129,11 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
             <Field label={t('dialog.auth')} htmlFor="cf-auth">
               <Select id="cf-auth" value={auth} onChange={(e) => { setAuth(e.target.value as FeedAuthType); setSecret(''); clear('auth') }}>{(['none', 'header', 'bearer', 'basic'] as const).map((a) => <option key={a} value={a}>{t(`dialog.authType.${a}`)}</option>)}</Select>
             </Field>
-            {auth === 'header' ? <Field label={t('dialog.headerName')} htmlFor="cf-header"><Input id="cf-header" value={header} onChange={(e) => { setHeader(e.target.value); clear('auth') }} autoComplete="off" spellCheck={false} /></Field> : null}
-            {auth === 'basic' ? <Field label={t('dialog.username')} htmlFor="cf-user"><Input id="cf-user" value={user} onChange={(e) => { setUser(e.target.value); clear('auth') }} autoComplete="off" /></Field> : null}
+            {auth === 'header' ? <Field label={t('dialog.headerName')} htmlFor="cf-header" error={badHeader ? authErr : undefined}><Input id="cf-header" aria-invalid={badHeader ? true : undefined} value={header} onChange={(e) => { setHeader(e.target.value); clear('auth') }} autoComplete="off" spellCheck={false} /></Field> : null}
+            {auth === 'basic' ? <Field label={t('dialog.username')} htmlFor="cf-user" error={badUser ? authErr : undefined}><Input id="cf-user" aria-invalid={badUser ? true : undefined} value={user} onChange={(e) => { setUser(e.target.value); clear('auth') }} autoComplete="off" /></Field> : null}
             {auth !== 'none' ? (
-              <Field label={auth === 'basic' ? t('dialog.password') : t('dialog.secret')} htmlFor="cf-secret" error={err('auth')} hint={hadSecret ? t('dialog.secretSaved', { last4 }) : t('dialog.secretHint')}>
-                <Input id="cf-secret" type="password" value={secret} onChange={(e) => { setSecret(e.target.value); clear('auth') }} autoComplete="off" placeholder={hadSecret ? `••••${last4}` : ''} {...aria('auth')} />
+              <Field label={auth === 'basic' ? t('dialog.password') : t('dialog.secret')} htmlFor="cf-secret" error={badHeader || badUser ? undefined : authErr} hint={hadSecret ? t('dialog.secretSaved', { last4 }) : t('dialog.secretHint')}>
+                <Input id="cf-secret" type="password" value={secret} onChange={(e) => { setSecret(e.target.value); clear('auth') }} autoComplete="off" placeholder={hadSecret ? `••••${last4}` : ''} {...(badHeader || badUser ? {} : aria('auth'))} />
               </Field>
             ) : null}
           </div>

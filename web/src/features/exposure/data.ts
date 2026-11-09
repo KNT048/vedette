@@ -1,6 +1,6 @@
 // Sample data and scan-result generator of the exposure mock. 203.0.113.0/24 is the documentation range (RFC 5737), not real IPs.
 import { daysAgo } from '@/mocks/db'
-import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type Counts, type HostRow, type PortRow, type Snapshot, type Target, type TargetKind } from './types'
+import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type Counts, type HostRow, type IgnoredIp, type PortRow, type Snapshot, type Target, type TargetKind } from './types'
 
 export const BOX_EGRESS_IP = '203.0.113.10'
 /** The sample company has two public IPs behind a load balancer: the box leaves through both. */
@@ -120,6 +120,11 @@ export function seedTargets(): StoredTarget[] {
 /** Sample auto-detect state: on, every 60 minutes, the last check saw both IPs. */
 export function seedBoxIp(): BoxIpSettings {
   return { auto: true, interval_min: DEFAULT_INTERVAL, last_run: { at: daysAgo(0, 0.7), ok: true, message: `The box reaches the Internet via 2 public IPs: ${BOX_EGRESS_IP}, ${BOX_EGRESS_IP_2}.` } }
+}
+
+/** Sample Ignored list: the address of a mobile backup line that the box sometimes uses; it is the carrier's, not the company's (D-79). */
+export function seedIgnored(): IgnoredIp[] {
+  return [{ value: '203.0.113.77', ignored_by: 'admin@acme.example', ignored_at: daysAgo(3) }]
 }
 
 export function seedSnapshots(): Record<string, Snapshot[]> {

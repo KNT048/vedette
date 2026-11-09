@@ -289,7 +289,7 @@
       "remove": "Remove"
     },
     "removeLabel": "Remove {{value}}",
-    "comeBack": "Removed IPs come back if the box keeps using them while auto-detect is on.",
+    "comeBack": "Removed IPs come back if the box keeps using them while auto-detect is on, unless you chose not to add them again.",
     "empty": {
       "title": "No public IP yet",
       "on": "The box looks for its public IPs when it starts and then {{every}}. Select Detect now to look right away.",
@@ -299,11 +299,26 @@
       "title": "Remove {{value}} from the list?",
       "body": "Its scan results and your confirmation for it are deleted too. The audit log is kept.",
       "confirm": "Remove",
-      "toast": "Removed {{value}}"
+      "toast": "Removed {{value}}. Auto-detect adds it again if the box keeps using it.",
+      "toastIgnored": "Removed {{value}}. It is on the Ignored list and will not be added again.",
+      "ignoreLabel": "Don't add it again if detected",
+      "ignoreOn": "Vedette will never add this IP back and never scan it. Leave this on for an address that is not your company's, for example a security gateway or VPN exit, or a mobile backup line. You can restore it later under Ignored IPs.",
+      "ignoreOff": "If the box keeps using this IP while auto-detect is on, it is added again as a new target, with no confirmation and no scan results."
+    },
+    "ignored": {
+      "title": "Ignored IPs",
+      "description": "IPs you removed and chose not to add again. The box never adds them back and never scans them. Restore lets detection add one again; it does not make it scannable: it still needs ownership proof and your confirmation.",
+      "caption": "IPs on the Ignored list",
+      "col": { "ip": "IP", "by": "Ignored by", "at": "Ignored on", "restore": "Restore" },
+      "restore": "Restore",
+      "restoreLabel": "Restore {{value}}",
+      "emptyTitle": "No ignored IPs",
+      "emptyBody": "When you remove an IP, you can choose not to add it again. It then shows up here.",
+      "toast": "Restored {{value}}. Auto-detect may add it again."
     },
     "help": {
       "summary": "How the box finds its IPs",
-      "how": "The box asks three public \"what is my IP\" services over HTTPS: checkip.amazonaws.com (Amazon), icanhazip.com (Cloudflare) and api.ipify.org (ipify). It accepts an IP only when at least two of them return the same one, so one wrong answer is not enough. A full check repeats this several times on new connections, so several IPs behind a load balancer all show up.",
+      "how": "The box asks three public \"what is my IP\" services over HTTPS: checkip.amazonaws.com (AWS), icanhazip.com (Cloudflare) and ifconfig.me/ip (Google Cloud). It accepts an IP only when at least two of them return the same one, so one wrong answer is not enough. A full check repeats this several times on new connections, so several IPs behind a load balancer all show up.",
       "result": "Each IP the box sees is added or renewed for 30 days from that moment. An IP expires only when the box has not seen it for 30 days.",
       "why": "You cannot type an IP. Only an address the box really uses proves it belongs to your network, so nobody can verify someone else's address.",
       "refuse": "Private, reserved and shared carrier (CGNAT, 100.64.0.0/10) addresses are refused, because scanning them could hit other people.",

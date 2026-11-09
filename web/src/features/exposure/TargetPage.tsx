@@ -85,7 +85,7 @@ function DeleteTarget({ target }: { target: Target }) {
           {target.kind === 'ip' ? <p className="text-sm">{t('boxIp.comeBack')}</p> : null}
           <DialogFooter>
             <Button onClick={() => setOpen(false)}>{t('common:cancel')}</Button>
-            <Button variant="danger" disabled={del.isPending} onClick={() => { del.mutateAsync(target.id).then(() => { toast.success(t('delete.toast', { value: target.value })); void nav('/exposure') }, (e: unknown) => toast.error(errMsg(e))) }}>{t('delete.confirm')}</Button>
+            <Button variant="danger" disabled={del.isPending} onClick={() => { del.mutateAsync({ id: target.id }).then(() => { toast.success(t('delete.toast', { value: target.value })); void nav('/exposure') }, (e: unknown) => toast.error(errMsg(e))) }}>{t('delete.confirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

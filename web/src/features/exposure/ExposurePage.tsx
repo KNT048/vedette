@@ -43,7 +43,7 @@ export default function ExposurePage() {
             <Section id="targets" title={t('targets.title')} description={t('targets.description')}>
               <TargetsTable items={d.items.filter((x) => x.kind === 'domain')} />
             </Section>
-            <BoxIpPanel items={d.items.filter((x) => x.kind === 'ip')} settings={d.box_ip} />
+            <BoxIpPanel items={d.items.filter((x) => x.kind === 'ip')} settings={d.box_ip} ignored={d.ignored} />
           </>
         )}
       </QueryState>

@@ -74,7 +74,7 @@ describe('exposure: list (S-EXP-1)', () => {
   })
 
   it('empty list guides the first steps', async () => {
-    server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [], box_ip: { auto: true, interval_min: 60, last_run: null } })))
+    server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [], box_ip: { auto: true, interval_min: 60, last_run: null }, ignored: [] })))
     renderApp('/exposure')
     expect(await screen.findByRole('heading', { level: 1, name: 'No domain or verified public IP yet' })).toBeInTheDocument()
     expect(screen.getAllByText(/Select Detect now to look right away/).length).toBeGreaterThan(0)
@@ -411,7 +411,7 @@ describe('exposure: auto-detect of the box public IPs (kien 2026-11-09)', () => 
     const ips = await ipTable()
     for (const col of ['Public IP', 'Status', 'Last seen', 'Expires', 'Scan', 'Remove']) expect(within(ips).getByRole('columnheader', { name: col })).toBeInTheDocument()
     expect(within(ips).getByRole('button', { name: 'Remove 203.0.113.11' })).toBeInTheDocument()
-    expect(screen.getByText('Removed IPs come back if the box keeps using them while auto-detect is on.')).toBeInTheDocument()
+    expect(screen.getByText('Removed IPs come back if the box keeps using them while auto-detect is on, unless you chose not to add them again.')).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: /IP/ })).toBeNull()
     await expectNoA11yViolations()
   })
@@ -449,11 +449,13 @@ describe('exposure: auto-detect of the box public IPs (kien 2026-11-09)', () => 
     expect(within(ips).getByRole('link', { name: '198.51.100.7' })).toBeInTheDocument()
     await userEvent.click(within(ips).getByRole('button', { name: 'Remove 198.51.100.8' }))
     const dlg = await screen.findByRole('dialog', { name: 'Remove 198.51.100.8 from the list?' })
-    expect(within(dlg).getByText('Removed IPs come back if the box keeps using them while auto-detect is on.')).toBeInTheDocument()
+    expect(within(dlg).getByRole('checkbox', { name: "Don't add it again if detected" })).toBeChecked() // D-79: on by default
     await userEvent.click(within(dlg).getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('dialog')).toBeNull()
     await userEvent.click(within(ips).getByRole('button', { name: 'Remove 198.51.100.8' }))
-    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Remove' }))
+    const again = await screen.findByRole('dialog')
+    await userEvent.click(within(again).getByRole('checkbox', { name: "Don't add it again if detected" })) // untick: this one may come back
+    await userEvent.click(within(again).getByRole('button', { name: 'Remove' }))
     await waitFor(() => expect(within(screen.getByRole('table', { name: 'Public IPs of this box' })).queryByRole('link', { name: '198.51.100.8' })).toBeNull())
     await userEvent.click(screen.getByRole('button', { name: 'Detect now' }))
     expect(await within(await ipTable()).findByRole('link', { name: '198.51.100.8' })).toBeInTheDocument()
@@ -468,6 +470,145 @@ describe('exposure: auto-detect of the box public IPs (kien 2026-11-09)', () => 
     expect(screen.getAllByText('Requires Admin role').length).toBeGreaterThan(0)
   })
 })
+
+describe('exposure: the Ignored list (D-79 (3))', () => {
+  const clean = async () => {
+    const { setDataMode } = await import('@/mocks/db')
+    const { usersStore } = await import('@/mocks/stores')
+    setDataMode('clean')
+    usersStore.set((Object.entries(USER) as ['admin' | 'operator' | 'viewer', string][]).map(([role, id]) => ({ id, name: role, email: `${role}@x.example`, role, password: 'x', twofa: false, created_at: new Date().toISOString(), last_login: null })))
+  }
+  type List = { items: { id: string; value: string; kind: string }[]; ignored: { value: string; ignored_by: string; ignored_at: string }[] }
+  const list = async () => (await call('GET', '/exposure/targets')).json as List
+  const idOf = async (ip: string) => (await list()).items.find((t) => t.value === ip)!.id
+  const LABEL = "Don't add it again if detected"
+  const actions = () => auditStore.get().map((a) => `${a.action} ${a.target}`)
+
+  it('the sample shows an Ignored section with a Restore button; the list only blocks, it is never an input', async () => {
+    renderApp('/exposure')
+    const section = (await screen.findByRole('heading', { name: 'Ignored IPs' })).closest('section')!
+    const table = within(section).getByRole('table', { name: 'IPs on the Ignored list' })
+    expect(within(table).getByText('203.0.113.77')).toBeInTheDocument()
+    expect(within(table).getByRole('button', { name: 'Restore 203.0.113.77' })).toBeEnabled()
+    expect(within(section).queryByRole('textbox')).toBeNull() // an IP is never typed in, here either
+    expect(within(section).getByText(/it still needs ownership proof and your confirmation/)).toBeInTheDocument()
+    await expectNoA11yViolations()
+  })
+
+  it('removing an IP: the box "Don\'t add it again if detected" is ticked by default, comes back for the next IP, and the hint follows it (form matrix, QA.md section 2)', async () => {
+    await clean()
+    setEgress('198.51.100.7,198.51.100.8')
+    renderApp('/exposure')
+    const ips = await ipTable()
+    await userEvent.click(await within(ips).findByRole('button', { name: 'Remove 198.51.100.8' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Remove 198.51.100.8 from the list?' })
+    const box = within(dlg).getByRole('checkbox', { name: LABEL })
+    expect(box).toBeChecked()
+    await eachOption([
+      { option: 'ignore', shown: [LABEL, /Vedette will never add this IP back and never scan it/], hidden: [/it is added again as a new target/] },
+      { option: 'allow', shown: [LABEL, /it is added again as a new target, with no confirmation/], hidden: [/Vedette will never add this IP back/] },
+      { option: 'ignore', shown: [/Vedette will never add this IP back/], hidden: [/it is added again as a new target/] },
+    ], async (o) => { if ((box.getAttribute('aria-checked') === 'true') !== (o === 'ignore')) await userEvent.click(box) }, dlg)
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Cancel' }))
+    // the next IP starts ticked again, whatever was chosen before
+    await userEvent.click(within(ips).getByRole('button', { name: 'Remove 198.51.100.7' }))
+    expect(within(await screen.findByRole('dialog', { name: 'Remove 198.51.100.7 from the list?' })).getByRole('checkbox', { name: LABEL })).toBeChecked()
+  })
+
+  it('remove with the box ticked, Detect now does not add it back, Restore lets Detect now add it again', async () => {
+    await clean()
+    setEgress('198.51.100.7,198.51.100.8')
+    renderApp('/exposure')
+    const ips = await ipTable()
+    await userEvent.click(await within(ips).findByRole('button', { name: 'Remove 198.51.100.8' }))
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Remove' }))
+    const ignored = async () => within(await screen.findByRole('table', { name: 'IPs on the Ignored list' }))
+    expect(await (await ignored()).findByText('198.51.100.8')).toBeInTheDocument()
+    expect(within(await ipTable()).queryByRole('link', { name: '198.51.100.8' })).toBeNull()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Detect now' }))
+    expect((await screen.findAllByText(/Not added, on your Ignored list: 198\.51\.100\.8\./)).length).toBeGreaterThan(0) // the toast and the last-check panel
+    expect(within(await ipTable()).queryByRole('link', { name: '198.51.100.8' })).toBeNull()
+    expect(within(await ipTable()).getByRole('link', { name: '198.51.100.7' })).toBeInTheDocument()
+
+    await userEvent.click((await ignored()).getByRole('button', { name: 'Restore 198.51.100.8' }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Restore 198.51.100.8' })).toBeNull())
+    expect(screen.getByText('No ignored IPs')).toBeInTheDocument()
+    // restoring adds nothing by itself: the IP is still not in the list until detection sees it
+    expect((await list()).items.map((t) => t.value)).not.toContain('198.51.100.8')
+    await userEvent.click(screen.getByRole('button', { name: 'Detect now' }))
+    expect(await within(await ipTable()).findByRole('link', { name: '198.51.100.8' })).toBeInTheDocument()
+    expect(actions()).toEqual(expect.arrayContaining(['exposure.ip_ignore 198.51.100.8', 'exposure.ip_restore 198.51.100.8']))
+  })
+
+  it('automatic checks never add an ignored IP either, and a check that sees only ignored IPs says so and is not a failure', async () => {
+    await clean()
+    setEgress('198.51.100.8')
+    const first = await list()
+    const id = first.items.find((t) => t.value === '198.51.100.8')!.id
+    expect((await call('DELETE', `/exposure/targets/${id}?ignore=true`)).status).toBe(204)
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(Date.now() + 61 * 60_000) // the next automatic check is due
+    const s = (await call('GET', '/exposure/targets')).json as List & { box_ip: { last_run: { ok: boolean; message: string } } }
+    expect(s.items.filter((t) => t.kind === 'ip')).toEqual([])
+    expect(s.box_ip.last_run).toMatchObject({ ok: true })
+    expect(s.box_ip.last_run.message).toMatch(/198\.51\.100\.8, which is on your Ignored list, so nothing was added/)
+    vi.useRealTimers()
+  })
+
+  it('API: ignore needs an IP, restore needs the list, both need an admin; an ignored IP is not a target so it cannot be scanned', async () => {
+    const domain = (await call('GET', '/exposure/targets')).json.items.find((t: { kind: string }) => t.kind === 'domain') as { id: string }
+    const bad = await call('DELETE', `/exposure/targets/${domain.id}?ignore=true`)
+    expect(bad.status).toBe(400)
+    expect(bad.json.error.code).toBe('bad_value')
+    expect((await list()).items.some((t) => t.id === domain.id)).toBe(true) // a refused removal removes nothing
+
+    expect((await call('DELETE', '/exposure/box-ip/ignored/198.51.100.99')).status).toBe(404)
+    expect((await call('DELETE', '/exposure/box-ip/ignored/not-an-ip')).json.error.code).toBe('bad_value')
+    expect((await call('DELETE', '/exposure/box-ip/ignored/203.0.113.77', undefined, 'operator')).status).toBe(403)
+    expect((await call('DELETE', '/exposure/box-ip/ignored/203.0.113.77', undefined, 'viewer')).status).toBe(403)
+    expect((await call('DELETE', `/exposure/targets/${await idOf('203.0.113.11')}?ignore=true`, undefined, 'operator')).status).toBe(403)
+
+    const id = await idOf('203.0.113.11')
+    expect((await call('DELETE', `/exposure/targets/${id}?ignore=true`)).status).toBe(204)
+    expect((await call('POST', `/exposure/targets/${id}/scan`)).status).toBe(404)
+    expect((await list()).ignored.map((x) => x.value)).toContain('203.0.113.11')
+    expect((await call('DELETE', '/exposure/box-ip/ignored/203.0.113.11')).status).toBe(204)
+    expect((await call('DELETE', '/exposure/box-ip/ignored/203.0.113.11')).status).toBe(404) // already restored
+  })
+
+  it('a viewer sees the Ignored list, but Restore is locked with a visible reason', async () => {
+    renderApp('/exposure', { role: 'viewer' })
+    expect(await screen.findByRole('button', { name: 'Restore 203.0.113.77' })).toBeDisabled()
+  })
+})
+
+describe('exposure: scan-time check of an IP (D-79 (2), INV-13)', () => {
+  it('an IP is scanned while the box still goes out through it; otherwise the scan is paused, the IP stays in the list, and it works again when the box is back', async () => {
+    expect((await call('POST', '/exposure/targets/xt-2/scan')).status).toBe(200) // the sample box goes out through 203.0.113.10
+    setEgress('198.51.100.50') // the modem rebooted and the address went elsewhere
+    const paused = await call('POST', '/exposure/targets/xt-2/scan')
+    expect(paused.status).toBe(409)
+    expect(paused.json.error.code).toBe('ip_not_current')
+    expect(paused.json.error.message).toMatch(/^This box no longer reaches the Internet through 203\.0\.113\.10; it was last seen \d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC\. Scans of it are paused until the box uses it again\.$/)
+    expect((await call('GET', '/exposure/targets/xt-2')).json).toMatchObject({ value: '203.0.113.10', status: 'verified' }) // still in the list
+    for (const down of ['offline', 'disagree']) {
+      setEgress(down)
+      expect((await call('POST', '/exposure/targets/xt-2/scan')).json.error.code).toBe('ip_not_current') // fail closed
+    }
+    setEgress('203.0.113.10,203.0.113.11') // a load balancer: every IP is seen, so every IP is scannable
+    expect((await call('POST', '/exposure/targets/xt-2/scan')).status).toBe(200)
+  })
+
+  it('the commitment is asked first, without a check of the network', async () => {
+    setEgress('198.51.100.50')
+    await call('POST', '/exposure/box-ip/verify') // adds 198.51.100.50 as a new target, no commitment yet
+    const id = (await call('GET', '/exposure/targets')).json.items.find((t: { value: string }) => t.value === '198.51.100.50').id
+    setEgress('198.51.100.51')
+    expect((await call('POST', `/exposure/targets/${id}/scan`)).json.error.code).toBe('commitment_required')
+  })
+})
+
 
 describe('exposure: the commitment replaces signed documents', () => {
   it('has no consent form, template or file upload', async () => {

@@ -3,10 +3,12 @@
 // the domain's DNS TXT record is still present (re-checked right before each scan) and the commitment is recorded.
 // Domain ownership = a DNS TXT record, as other providers do (Google Workspace: host @, up to 72 hours, keep the record).
 // IP ownership = only the public IPs the box itself uses to reach the Internet. No endpoint takes an IP as input.
-// Auto-detect (kien 2026-11-09, D-81): on by default; the box asks three public "what is my IP" services (checkip.amazonaws.com, icanhazip.com, api.ipify.org),
+// Auto-detect (kien 2026-11-09, D-81): on by default; the box asks three public "what is my IP" services (checkip.amazonaws.com, icanhazip.com, ifconfig.me/ip),
 // accepts an IP only when at least two agree in a round, over several rounds of new connections, at first start and then
-// every interval_min minutes (default 60, 1 to 1440), and adds or renews (30 days from the sighting) every distinct public IP that passed. The mock runs
-// the check when GET /exposure/targets finds it due. Removing an IP is DELETE; while auto-detect is on, an IP the box still uses comes back.
+// every interval_min minutes (default 60, 1 to 1440), and adds or renews (30 days from the sighting) every distinct public IP that passed, except those on the Ignored list. The mock runs
+// the check when GET /exposure/targets finds it due. Removing an IP is DELETE; the person decides whether it goes on the Ignored list (D-79, ?ignore=true: never added again, never scanned;
+// Restore lets detection add it again); otherwise, while auto-detect is on, an IP the box still uses comes back. Scan-time check (D-79, INV-13): an IP is scanned only while the box still goes out through it (the mock reads the same
+// localStorage egress as a fresh full check would see); else 409 ip_not_current, and the IP stays in the list.
 // DNS simulation: the first TXT check of a new domain says "not found" (DNS not updated yet), from the second check it is found.
 // Box egress simulation: localStorage key "vedette-mock-egress" holds the public IPs the box currently egresses through, comma separated
 // (default: the two sample IPs, i.e. a load balancer), "offline" when no public IP service answers, or "disagree" when they never agree.
@@ -15,8 +17,8 @@ import { API, audit, body, currentUser, DOMAIN_RE, fail, guard, IPV4_RE } from '
 import { auditStore } from '@/mocks/stores'
 import { canonHash, GENESIS } from '@/lib/chain'
 import { collection, newId, nowIso, type Collection } from '@/mocks/db'
-import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, DEFAULT_INTERVAL, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedSnapshots, seedTargets, VERIFY_DAYS, type StoredTarget } from './data'
-import type { BoxIpSettings, Commitment, Diff, DiffChange, DiffItem, Snapshot, Target } from './types'
+import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, DEFAULT_INTERVAL, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedIgnored, seedSnapshots, seedTargets, VERIFY_DAYS, type StoredTarget } from './data'
+import type { BoxIpSettings, Commitment, Diff, DiffChange, DiffItem, IgnoredIp, Snapshot, Target } from './types'
 
 const targets = collection<StoredTarget[]>('exp_targets', seedTargets, () => [])
 const snapshots = collection<Record<string, Snapshot[]>>('exp_snapshots', seedSnapshots, () => ({}))
@@ -34,7 +36,11 @@ const attempts = collection<string[]>('exp_attempts', () => [], () => [])
 /** Auto-detect settings. Same defaults on a clean install; only the sample has a last check. */
 const boxIp = collection<BoxIpSettings>('exp_settings', seedBoxIp, () => ({ auto: true, interval_min: DEFAULT_INTERVAL, last_run: null }))
 
+/** The Ignored list (D-79): IPs removed with "Don't add it again if detected". It only blocks: detection never adds them, and restoring one only lets detection add it again. */
+const ignored = collection<IgnoredIp[]>('exp_ignored', seedIgnored, () => [])
+
 const MAX_TARGETS = 20
+const MAX_IGNORED = 200
 const MAX_ATTEMPTS_PER_HOUR = 10
 /** Turning auto-detect on checks straight away, unless it checked within the last 5 minutes (no probe spam by toggling). */
 const MIN_GAP_MS = 5 * 60_000
@@ -124,7 +130,7 @@ function diff(a: Snapshot, b: Snapshot): Diff {
 }
 
 // ---------- detecting the box's public IPs ----------
-const OFFLINE = 'The box could not reach the public IP services (checkip.amazonaws.com, icanhazip.com, api.ipify.org). Check that this box can make outgoing HTTPS connections, then try again.'
+const OFFLINE = 'The box could not reach the public IP services (checkip.amazonaws.com, icanhazip.com, ifconfig.me/ip). Check that this box can make outgoing HTTPS connections, then try again.'
 const DISAGREE = "The public IP services did not agree on the box's IP (at least two of the three must return the same address), so nothing was added. Try again in a few minutes."
 const list = (ips: string[]) => ips.join(', ')
 function notPublicMessage(ips: string[]) {
@@ -164,7 +170,9 @@ function detect(who: 'user' | 'system'): Detected {
   const seen: StoredTarget[] = []
   const skipped: string[] = []
   const added: string[] = []
-  for (const ip of pub) {
+  const blockedIps = ignored.get().map((x) => x.value)
+  const onIgnored = pub.filter((ip) => blockedIps.includes(ip))
+  for (const ip of pub.filter((x) => !blockedIps.includes(x))) {
     const msg = `The box reaches the Internet via ${ip}. Verified until ${until}.`
     const existing = targets.get().find((x) => x.kind === 'ip' && x.value === ip)
     if (existing) {
@@ -183,6 +191,12 @@ function detect(who: 'user' | 'system'): Detected {
       seen.push(next)
     }
   }
+  if (seen.length === 0 && skipped.length === 0 && onIgnored.length > 0) {
+    // Every address the box uses is on the Ignored list: nothing to add, and that is a normal result.
+    const message = `The box reaches the Internet via ${list(onIgnored)}, which ${onIgnored.length === 1 ? 'is' : 'are'} on your Ignored list, so nothing was added.`
+    record(true, message)
+    return { kind: 'ok', seen, message }
+  }
   if (seen.length === 0) {
     record(false, tooMany())
     if (who === 'system') auditSystem('exposure.auto_detect', 'box', `not added: ${list(skipped)} (limit of ${MAX_TARGETS} targets)`)
@@ -191,6 +205,7 @@ function detect(who: 'user' | 'system'): Detected {
   const via = seen.length === 1 ? seen[0]!.value : `${seen.length} public IPs: ${list(seen.map((x) => x.value))}`
   const message = `The box reaches the Internet via ${via}. ${seen.length === 1 ? 'Verified' : 'Each is verified'} until ${until}.`
     + (refused.length ? ` Ignored, not public: ${list(refused)}.` : '') + (skipped.length ? ` Not added, the list holds at most ${MAX_TARGETS} targets: ${list(skipped)}.` : '')
+    + (onIgnored.length ? ` Not added, on your Ignored list: ${list(onIgnored)}.` : '')
   record(skipped.length === 0, message)
   if (who === 'system') auditSystem('exposure.auto_detect', 'box', `seen: ${list(seen.map((x) => x.value))}${added.length ? `; added: ${list(added)}` : ''}${skipped.length ? `; not added: ${list(skipped)}` : ''}`)
   return { kind: 'ok', seen, message }
@@ -206,7 +221,7 @@ export const handlers = [
   http.get(`${API}/exposure/targets`, () => {
     const denied = guard('viewer'); if (denied) return denied
     autoDetectIfDue()
-    return HttpResponse.json({ items: targets.get().map(view), box_ip: boxIp.get() })
+    return HttpResponse.json({ items: targets.get().map(view), box_ip: boxIp.get(), ignored: ignored.get().slice().sort((a, b) => b.ignored_at.localeCompare(a.ignored_at)) })
   }),
 
   // Auto-detect on or off and the interval. Turning it on checks at once (not when it checked in the last 5 minutes). Never takes an IP.
@@ -253,20 +268,39 @@ export const handlers = [
     return HttpResponse.json({ items: r.seen.map(view), message: r.message })
   }),
 
+  // Restore: only lets detection add the IP again. The list blocks and never allows (D-25): nothing is added here and the IP is not scannable by itself.
+  http.delete(`${API}/exposure/box-ip/ignored/:ip`, ({ params }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const ip = String(params.ip)
+    if (!IPV4_RE.test(ip)) return fail(400, 'bad_value', 'Not a valid IPv4 address.')
+    if (!ignored.get().some((x) => x.value === ip)) return fail(404, 'not_found', 'This IP is not on the Ignored list.')
+    ignored.update((l) => l.filter((x) => x.value !== ip))
+    audit('exposure.ip_restore', ip, 'detection may add it again')
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   http.get(`${API}/exposure/targets/:id`, ({ params }) => {
     const denied = guard('viewer'); if (denied) return denied
     const t = find(params.id)
     return t ? HttpResponse.json(view(t)) : notFound()
   }),
 
-  http.delete(`${API}/exposure/targets/:id`, ({ params }) => {
+  // Removing a target. For an IP, ?ignore=true also puts it on the Ignored list (D-79): detection never adds it again and it is never scanned.
+  http.delete(`${API}/exposure/targets/:id`, ({ params, request }) => {
     const denied = guard('admin'); if (denied) return denied
     const t = find(params.id)
     if (!t) return notFound()
+    const ignore = new URL(request.url).searchParams.get('ignore') === 'true'
+    if (ignore && t.kind !== 'ip') return fail(400, 'bad_value', 'Only a public IP can go on the Ignored list.')
+    if (ignore && ignored.get().length >= MAX_IGNORED) return fail(400, 'too_many', `At most ${MAX_IGNORED} ignored IPs. Restore the ones you no longer need to block.`)
     targets.update((l) => l.filter((x) => x.id !== t.id))
     snapshots.update((m) => { const { [t.id]: _gone, ...rest } = m; void _gone; return rest })
     commitments.update((m) => { const { [t.id]: _gone, ...rest } = m; void _gone; return rest })
     audit('exposure.target_delete', t.value)
+    if (ignore) {
+      ignored.update((l) => [{ value: t.value, ignored_by: currentUser()?.email ?? 'system', ignored_at: nowIso() }, ...l.filter((x) => x.value !== t.value)])
+      audit('exposure.ip_ignore', t.value, 'removed; detection will not add it again and it will not be scanned')
+    }
     return new HttpResponse(null, { status: 204 })
   }),
 
@@ -332,6 +366,12 @@ export const handlers = [
       return fail(409, 'txt_missing', `The DNS TXT record vedette-verify=${t.token} is no longer on ${t.value}, so it cannot be scanned. Add the record back, then check again.`)
     }
     if (!v.commitment) return fail(400, 'commitment_required', `You have not confirmed that your company owns ${t.value} and you are authorized to scan it. Confirm it first.`)
+    // An IP is scanned only while the box still goes out through it (a fresh full check just before the scan sees it). Not seen, or no answer = paused, fail closed; the IP stays in the list.
+    if (t.kind === 'ip') {
+      const observed = egressIps()
+      if (!Array.isArray(observed) || !observed.includes(t.value)) return fail(409, 'ip_not_current', `This box no longer reaches the Internet through ${t.value}; it was last seen ${new Date(t.verified_at!).toISOString().slice(0, 16).replace('T', ' ')} UTC. Scans of it are paused until the box uses it again.`)
+      targets.update((l) => l.map((x) => (x.id === t.id ? { ...x, verified_at: nowIso(), expires_at: plus(nowIso(), VERIFY_DAYS) } : x)))
+    }
     const at = nowIso()
     const content = scanContent(t)
     const snap = makeSnapshot(newId('sn'), at, content, t.kind === 'ip' ? t.value : undefined)

@@ -9,13 +9,14 @@ import { Chip } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Field, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { OwnerChip } from './OwnerChip'
-import { useDeleteTarget, useDetectBoxIp, useSaveBoxIpSettings } from './api'
-import type { BoxIpSettings, Target } from './types'
+import { useDeleteTarget, useDetectBoxIp, useRestoreIgnored, useSaveBoxIpSettings } from './api'
+import type { BoxIpSettings, IgnoredIp, Target } from './types'
 
 const PRESETS = [1, 5, 10, 15, 30, 60, 120, 360, 720, 1440]
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -24,7 +25,7 @@ const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
  * S-EXP-1, public IPs of this box. The box finds its own public IPs (first at start, then every interval, three probes each) and renews each one it
  * sees for 30 days. The customer can turn auto-detect off, change the interval, run a check now and remove an IP. No IP is ever typed in.
  */
-export function BoxIpPanel({ items, settings }: { items: Target[]; settings: BoxIpSettings }) {
+export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; settings: BoxIpSettings; ignored: IgnoredIp[] }) {
   const { t } = useTranslation('exposure')
   const can = useCan('admin')
   const save = useSaveBoxIpSettings()
@@ -52,6 +53,7 @@ export function BoxIpPanel({ items, settings }: { items: Target[]; settings: Box
   ]
 
   return (
+    <>
     <Section id="box-ip" title={t('boxIp.title')} description={t('boxIp.description')}>
       <div className="grid gap-4">
         <Panel className="grid gap-4 p-4">
@@ -107,6 +109,8 @@ export function BoxIpPanel({ items, settings }: { items: Target[]; settings: Box
       </div>
       <RemoveDialog target={removing} onClose={() => setRemoving(null)} />
     </Section>
+    <IgnoredList ignored={ignored} />
+    </>
   )
 }
 
@@ -119,17 +123,54 @@ function RemoveButton({ target, onRemove }: { target: Target; onRemove: (t: Targ
 function RemoveDialog({ target, onClose }: { target: Target | null; onClose: () => void }) {
   const { t } = useTranslation('exposure')
   const del = useDeleteTarget()
+  // Ticked by default (D-79): an address the box uses but that is not the company's must not come back. Reset for every IP.
+  const [ignore, setIgnore] = useState(true)
+  const [seen, setSeen] = useState<string | null>(null)
+  if (target && target.id !== seen) { setSeen(target.id); setIgnore(true) }
   return (
     <Dialog open={target !== null} onOpenChange={(o) => { if (!o) onClose() }}>
       {target ? (
         <DialogContent title={t('boxIp.remove.title', { value: target.value })} description={t('boxIp.remove.body')}>
-          <p className="text-sm">{t('boxIp.comeBack')}</p>
+          <div className="flex items-start gap-3">
+            <Checkbox id="box-ignore" checked={ignore} onCheckedChange={(v) => setIgnore(v === true)} className="mt-0.5" aria-describedby="box-ignore-hint" />
+            <div className="grid gap-1">
+              <Label htmlFor="box-ignore" className="font-normal">{t('boxIp.remove.ignoreLabel')}</Label>
+              <p id="box-ignore-hint" className="text-[13px] text-muted">{ignore ? t('boxIp.remove.ignoreOn') : t('boxIp.remove.ignoreOff')}</p>
+            </div>
+          </div>
           <DialogFooter>
             <Button onClick={onClose}>{t('common:cancel')}</Button>
-            <Button variant="danger" disabled={del.isPending} onClick={() => { del.mutateAsync(target.id).then(() => { toast.success(t('boxIp.remove.toast', { value: target.value })); onClose() }, (e: unknown) => toast.error(errMsg(e))) }}>{t('boxIp.remove.confirm')}</Button>
+            <Button variant="danger" disabled={del.isPending} onClick={() => { del.mutateAsync({ id: target.id, ignore }).then(() => { toast.success(t(ignore ? 'boxIp.remove.toastIgnored' : 'boxIp.remove.toast', { value: target.value })); onClose() }, (e: unknown) => toast.error(errMsg(e))) }}>{t('boxIp.remove.confirm')}</Button>
           </DialogFooter>
         </DialogContent>
       ) : null}
     </Dialog>
+  )
+}
+
+/** The Ignored list (D-79). It only blocks: Restore lets detection add the IP again, it never adds or allows anything itself. */
+function IgnoredList({ ignored }: { ignored: IgnoredIp[] }) {
+  const { t } = useTranslation('exposure')
+  const can = useCan('admin')
+  const restore = useRestoreIgnored()
+  const go = (ip: string) => restore.mutate(ip, { onSuccess: () => toast.success(t('boxIp.ignored.toast', { value: ip })), onError: (e) => toast.error(errMsg(e)) })
+  const btn = (r: IgnoredIp) => <Button onClick={() => go(r.value)} disabled={!can || restore.isPending} aria-label={t('boxIp.ignored.restoreLabel', { value: r.value })} title={can ? undefined : t('common:needRole', { role: t('common:role.admin') })}>{t('boxIp.ignored.restore')}</Button>
+  const columns: ColumnDef<IgnoredIp>[] = [
+    { id: 'ip', header: t('boxIp.ignored.col.ip'), accessorFn: (r) => r.value, cell: ({ row }) => <span className="font-medium">{row.original.value}</span> },
+    { id: 'by', header: t('boxIp.ignored.col.by'), accessorFn: (r) => r.ignored_by },
+    { id: 'at', header: t('boxIp.ignored.col.at'), accessorFn: (r) => r.ignored_at, cell: ({ row }) => <span title={fmtDateTime(row.original.ignored_at)}>{fmtDate(row.original.ignored_at)}</span> },
+    { id: 'restore', header: t('boxIp.ignored.col.restore'), enableSorting: false, cell: ({ row }) => btn(row.original) },
+  ]
+  return (
+    <Section id="box-ignored" title={t('boxIp.ignored.title')} description={t('boxIp.ignored.description')}>
+      <DataTable caption={t('boxIp.ignored.caption')} data={ignored} columns={columns} pageSize={20}
+        mobileRow={(r) => (
+          <div className="grid gap-1.5">
+            <div className="flex items-center justify-between gap-2"><span className="font-medium">{r.value}</span>{btn(r)}</div>
+            <p className="text-[13px] text-muted">{t('boxIp.ignored.col.by')}: {r.ignored_by}. {t('boxIp.ignored.col.at')}: {fmtDate(r.ignored_at)}.</p>
+          </div>
+        )}
+        empty={<EmptyState title={t('boxIp.ignored.emptyTitle')}>{t('boxIp.ignored.emptyBody')}</EmptyState>} />
+    </Section>
   )
 }

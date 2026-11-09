@@ -22,13 +22,19 @@ export function useAddTarget() {
 export function useDeleteTarget() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.del<void>(`/exposure/targets/${encodeURIComponent(id)}`),
+    // ignore: an IP also goes on the Ignored list (D-79).
+    mutationFn: ({ id, ignore }: { id: string; ignore?: boolean }) => api.del<void>(`/exposure/targets/${encodeURIComponent(id)}${ignore ? '?ignore=true' : ''}`),
     // Bỏ cache của mục tiêu vừa xoá (không tải lại: tải lại sẽ ra 404 ngay trước khi chuyển trang), chỉ làm mới danh sách.
-    onSuccess: (_d, id) => {
+    onSuccess: (_d, { id }) => {
       qc.removeQueries({ predicate: (q) => q.queryKey[0] === 'exposure' && q.queryKey[1] !== 'targets' && q.queryKey.includes(id) })
       return qc.invalidateQueries({ queryKey: ['exposure', 'targets'] })
     },
   })
+}
+/** Restore an IP from the Ignored list: detection may add it again. Nothing is added by this call. */
+export function useRestoreIgnored() {
+  const inv = useInvalidate()
+  return useMutation({ mutationFn: (ip: string) => api.del<void>(`/exposure/box-ip/ignored/${encodeURIComponent(ip)}`), onSuccess: inv })
 }
 export function useVerify() {
   const inv = useInvalidate()

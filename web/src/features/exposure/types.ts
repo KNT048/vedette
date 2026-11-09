@@ -24,3 +24,4 @@ export type BoxIpRun = z.infer<typeof C.BoxIpRun>
 export type BoxIpSettings = z.infer<typeof C.BoxIpSettings>
 export type TargetList = z.infer<typeof C.TargetList>
 export type BoxIpDetectResult = z.infer<typeof C.BoxIpDetectResult>
+export type IgnoredIp = z.infer<typeof C.IgnoredIp>

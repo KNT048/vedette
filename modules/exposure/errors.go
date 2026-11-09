@@ -42,7 +42,7 @@ var (
 
 // Messages that are shared by a response and the stored result of a check.
 const (
-	msgOffline  = "The box could not reach the public IP services (checkip.amazonaws.com, icanhazip.com, api.ipify.org). Check that this box can make outgoing HTTPS connections, then try again."
+	msgOffline  = "The box could not reach the public IP services (checkip.amazonaws.com, icanhazip.com, ifconfig.me/ip). Check that this box can make outgoing HTTPS connections, then try again."
 	msgDisagree = "The public IP services did not agree on the box's IP (at least two of the three must return the same address), so nothing was added. Try again in a few minutes."
 )
 

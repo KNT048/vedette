@@ -15,12 +15,12 @@ import (
 )
 
 // DefaultServices are the three independent public "what is my IP" services the box asks (D-81, PRIVACY
-// flow 9): Amazon, Cloudflare and ipify. They are fixed in code: never typed in by a user, never read
+// flow 9), run by three different operators: AWS, Cloudflare and Google Cloud. They are fixed in code: never typed in by a user, never read
 // from a feed. No server of the project is involved.
 var DefaultServices = []string{
 	"https://checkip.amazonaws.com",
 	"https://icanhazip.com",
-	"https://api.ipify.org",
+	"https://ifconfig.me/ip", // the /ip path: the root page returns HTML to user agents that are not curl
 }
 
 const (

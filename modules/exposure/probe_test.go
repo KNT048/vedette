@@ -227,7 +227,7 @@ func TestProbe_Constructor(t *testing.T) {
 	if _, err := NewPublicServiceProber(good, nil, 0); err != nil {
 		t.Fatal(err)
 	}
-	if p, err := NewPublicServiceProber(nil, nil, 0); err != nil || len(p.urls) != 3 || p.urls[0] != "https://checkip.amazonaws.com" || p.urls[1] != "https://icanhazip.com" || p.urls[2] != "https://api.ipify.org" {
+	if p, err := NewPublicServiceProber(nil, nil, 0); err != nil || len(p.urls) != 3 || p.urls[0] != "https://checkip.amazonaws.com" || p.urls[1] != "https://icanhazip.com" || p.urls[2] != "https://ifconfig.me/ip" {
 		t.Fatalf("defaults = %+v %v", p, err)
 	}
 	for _, bad := range [][]string{

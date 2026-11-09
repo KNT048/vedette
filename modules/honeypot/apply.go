@@ -370,6 +370,9 @@ func (s *Service) Run(ctx context.Context) error {
 		}
 	}
 	if err := s.restoreTail(ctx); err != nil {
+		if ctx.Err() != nil { // stopped while starting: a clean shutdown, not a failure
+			return nil
+		}
 		return err
 	}
 	poll := time.NewTicker(s.cfg.PollEvery)

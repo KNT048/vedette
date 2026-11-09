@@ -346,3 +346,199 @@ func TestVerifyOfAnIPWaitsForTheDetectionInProgress(t *testing.T) {
 		t.Fatal("Verify never probed")
 	}
 }
+
+// ---- H2 (INV-13): an IP the box no longer uses is not scanned ----
+
+const scanModule = "scan@acme.example"
+
+func (e *env) committedIP(ip string) TargetView {
+	e.t.Helper()
+	var v TargetView
+	for _, x := range e.detect(ip) {
+		if x.Value == ip {
+			v = x
+		}
+	}
+	v, err := e.svc.Commit(e.ctx(), "admin@acme.example", v.ID, true)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return v
+}
+
+func (e *env) scannable(id string) (bool, BlockedReason) {
+	e.t.Helper()
+	ok, why, err := e.svc.CheckScannable(e.ctx(), scanModule, id)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return ok, why
+}
+
+// A dynamic IP changes (modem reboot) and is given to somebody else. The IP stays in the list for 30 days (kien's rule),
+// but the scan-time check, the counterpart of the TXT re-check, refuses it while the box does not use it.
+func TestContract_INV13_IPThatIsNoLongerUsedIsNotScanned(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	run := &fakeRunner{content: sampleContent()}
+	e.svc.SetRunner(run)
+	a := e.committedIP(ipA)
+
+	// the box still goes out through it: the check that just ran saw it, so nothing is probed
+	calls := e.prober.count()
+	if ok, why := e.scannable(a.ID); !ok || why != "" {
+		t.Fatalf("a current IP: %v %q", ok, why)
+	}
+	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", a.ID); err != nil || e.prober.count() != calls {
+		t.Fatalf("scan of a current IP: %v, probes %d", err, e.prober.count()-calls)
+	}
+
+	// the modem reboots: the box now exits through B only
+	e.advance(time.Minute)
+	e.detect(ipB)
+	calls = e.prober.count()
+	ok, why := e.scannable(a.ID)
+	if ok || why != BlockedNotCurrent {
+		t.Fatalf("A after the box moved to B: %v %q", ok, why)
+	}
+	_, err := e.svc.Scan(e.ctx(), "operator@acme.example", a.ID)
+	wantAPI(t, err, 409, "ip_not_current")
+	var ae *APIError
+	if !errors.As(err, &ae) || !strings.Contains(ae.Message, ipA) || !strings.Contains(ae.Message, "last seen 2026-11-09 10:00 UTC") || !strings.Contains(ae.Message, "paused") {
+		t.Fatalf("message = %v", err)
+	}
+	if run.calls != 1 {
+		t.Fatal("the runner ran for an IP the box no longer uses")
+	}
+	if e.prober.count() != calls {
+		t.Fatal("a check ran again inside the 5 minutes: the result of the last full check is reused")
+	}
+	// the 30-day rule is untouched: still in the list, still verified
+	if got := e.target(a.ID); got.Status != "verified" || str(got.Validity) != "valid" {
+		t.Fatalf("A in the list = %+v", got)
+	}
+
+	// after 5 minutes one full check runs (not more than one per 5 minutes), still not seen: refused
+	e.advance(6 * time.Minute)
+	if ok, why := e.scannable(a.ID); ok || why != BlockedNotCurrent {
+		t.Fatalf("A after a fresh check: %v %q", ok, why)
+	}
+	if got := e.prober.count() - calls; got != DeepRounds {
+		t.Fatalf("%d rounds for the scan-time check, want %d", got, DeepRounds)
+	}
+	for range 3 {
+		e.scannable(a.ID)
+	}
+	if got := e.prober.count() - calls; got != DeepRounds {
+		t.Fatalf("%d rounds after repeated asks inside the window", got)
+	}
+	if n := e.count(`SELECT COUNT(*) FROM exp_attempt`); n != 0 {
+		t.Fatalf("the scan-time check used %d of the person's 10 attempts an hour", n)
+	}
+
+	// the box goes out through A again: the next check sees it and the scan runs
+	e.prober.set(ipA)
+	e.advance(6 * time.Minute)
+	if ok, why := e.scannable(a.ID); !ok || why != "" {
+		t.Fatalf("A after the box came back: %v %q", ok, why)
+	}
+	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", a.ID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A load balancer gives each new connection one of several IPs: a one-round check sees only one of them, so the scan-time
+// check is a full one and both stay scannable.
+func TestContract_INV13_LoadBalancedEgressStaysScannable(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	a := e.committedIP(ipA)
+	b := e.committedIP(ipB) // prober alternates A, B, A, B, ...
+	e.prober.set(ipA, ipB)
+	e.advance(6 * time.Minute)
+	calls := e.prober.count()
+	for _, id := range []string{a.ID, b.ID} {
+		if ok, why := e.scannable(id); !ok || why != "" {
+			t.Fatalf("%s: %v %q", id, ok, why)
+		}
+	}
+	if got := e.prober.count() - calls; got != DeepRounds {
+		t.Fatalf("%d rounds for two IPs, want one full check (%d)", got, DeepRounds)
+	}
+}
+
+// A failed probe (no two of three agree, or the services are down) is not a yes.
+func TestContract_INV13_FailedProbeRefuses(t *testing.T) {
+	t.Parallel()
+	for name, set := range map[string]func(*fakeProber){"down": func(p *fakeProber) { p.offline() }, "no agreement": func(p *fakeProber) { p.set("~") }} {
+		e := newEnv(t)
+		run := &fakeRunner{content: sampleContent()}
+		e.svc.SetRunner(run)
+		a := e.committedIP(ipA)
+		e.advance(6 * time.Minute)
+		set(e.prober)
+		if ok, why := e.scannable(a.ID); ok || why != BlockedNotCurrent {
+			t.Fatalf("%s: %v %q", name, ok, why)
+		}
+		_, err := e.svc.Scan(e.ctx(), "operator@acme.example", a.ID)
+		wantAPI(t, err, 409, "ip_not_current")
+		if run.calls != 0 {
+			t.Fatalf("%s: the runner ran", name)
+		}
+	}
+}
+
+// An IP that still lacks the commitment is refused for that reason, without a probe.
+func TestContract_INV13_NoProbeBeforeTheOtherConditions(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	v := e.detect(ipA)[0]
+	e.advance(6 * time.Minute)
+	calls := e.prober.count()
+	if ok, why := e.scannable(v.ID); ok || why != BlockedNoCommitment {
+		t.Fatalf("%v %q", ok, why)
+	}
+	if e.prober.count() != calls {
+		t.Fatal("probed for an IP that cannot be scanned anyway")
+	}
+}
+
+// L5: the TXT re-check before a scan is recorded as the person (or module) that asked, and only when it changes something.
+func TestContract_INV1_TXTRecheckIsAttributedAndAuditedOnChange(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	v := e.committedDomain()
+	count := func() (n int, last auditRow) {
+		for _, a := range e.audits() {
+			if a.Target == v.Value && strings.HasPrefix(a.Detail, "dns_txt, right before a scan") {
+				n, last = n+1, a
+			}
+		}
+		return
+	}
+	for range 4 {
+		if ok, _ := e.scannable(v.ID); !ok {
+			t.Fatal("not scannable")
+		}
+	}
+	if n, _ := count(); n != 0 {
+		t.Fatalf("%d audit rows for 4 re-checks that changed nothing", n)
+	}
+	e.dns.put(v.Value) // the record is gone
+	for range 3 {
+		if ok, why := e.scannable(v.ID); ok || why != BlockedTxtMissing {
+			t.Fatalf("%v %q", ok, why)
+		}
+	}
+	n, last := count()
+	if n != 1 || last.User != scanModule || last.Action != "exposure.verify_fail" {
+		t.Fatalf("%d rows, last %+v", n, last)
+	}
+	e.dns.put(v.Value, txtRecord(v.Token))
+	if ok, _ := e.scannable(v.ID); !ok {
+		t.Fatal("not scannable after the record came back")
+	}
+	if n, last = count(); n != 2 || last.Action != "exposure.verify_ok" || last.User != scanModule {
+		t.Fatalf("%d rows, last %+v", n, last)
+	}
+}

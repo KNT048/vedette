@@ -39,6 +39,9 @@ const (
 	BlockedExpired      BlockedReason = "expired"
 	BlockedTxtMissing   BlockedReason = "txt_missing"
 	BlockedNoCommitment BlockedReason = "no_commitment"
+	// BlockedNotCurrent is answered by CheckScannable and Scan only (never a Target.blocked_reason): the box no longer
+	// reaches the Internet through this IP (INV-13).
+	BlockedNotCurrent BlockedReason = "ip_not_current"
 )
 
 const (

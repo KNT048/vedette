@@ -52,7 +52,7 @@ func TestContract_INV1_NoScanWithoutProof(t *testing.T) {
 	}
 	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", v.ID)
 	wantAPI(t, err, 409, "not_verified")
-	if ok, why, err := e.svc.CheckScannable(e.ctx(), v.ID); err != nil || ok || why != BlockedUnverified {
+	if ok, why, err := e.svc.CheckScannable(e.ctx(), "scan@acme.example", v.ID); err != nil || ok || why != BlockedUnverified {
 		t.Fatalf("CheckScannable = %v %v %v", ok, why, err)
 	}
 
@@ -63,7 +63,7 @@ func TestContract_INV1_NoScanWithoutProof(t *testing.T) {
 	}
 	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", v.ID)
 	wantAPI(t, err, 400, "commitment_required")
-	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "ext:"+v.ID); ok || why != BlockedNoCommitment { // the scan module's id form
+	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "scan@acme.example", "ext:"+v.ID); ok || why != BlockedNoCommitment { // the scan module's id form
 		t.Fatalf("CheckScannable(ext:) = %v %v", ok, why)
 	}
 	if _, err := e.svc.Commit(e.ctx(), "admin@acme.example", v.ID, true); err != nil {
@@ -91,11 +91,11 @@ func TestContract_INV1_NoScanWithoutProof(t *testing.T) {
 	// a lookup that fails is not a yes (fail closed)
 	e.dns.put("acme.example", txtRecord(v.Token))
 	e.dns.err = errors.New("dns down")
-	if ok, why, _ := e.svc.CheckScannable(e.ctx(), v.ID); ok || why != BlockedTxtMissing {
+	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "scan@acme.example", v.ID); ok || why != BlockedTxtMissing {
 		t.Fatalf("CheckScannable with DNS down = %v %v", ok, why)
 	}
 	e.dns.err = nil
-	if ok, _, _ := e.svc.CheckScannable(e.ctx(), v.ID); !ok {
+	if ok, _, _ := e.svc.CheckScannable(e.ctx(), "scan@acme.example", v.ID); !ok {
 		t.Fatal("not scannable although the record is back")
 	}
 
@@ -112,10 +112,10 @@ func TestContract_INV1_NoScanWithoutProof(t *testing.T) {
 	e.advance(31 * day)
 	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", ip.ID)
 	wantAPI(t, err, 409, "expired")
-	if ok, why, _ := e.svc.CheckScannable(e.ctx(), ip.ID); ok || why != BlockedExpired {
+	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "scan@acme.example", ip.ID); ok || why != BlockedExpired {
 		t.Fatalf("CheckScannable(expired IP) = %v %v", ok, why)
 	}
-	if _, _, err := e.svc.CheckScannable(e.ctx(), "xt-nope"); !errors.Is(err, ErrNotFound) {
+	if _, _, err := e.svc.CheckScannable(e.ctx(), "scan@acme.example", "xt-nope"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("unknown target: %v", err)
 	}
 }
@@ -624,7 +624,8 @@ func TestSYS3_EveryMutationIsAudited(t *testing.T) {
 	if err := e.svc.Delete(e.ctx(), "admin@acme.example", d.ID); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"exposure.target_add", "exposure.verify_ok", "exposure.commitment", "exposure.verify_ok", "exposure.scan", "exposure.verify_ok", "exposure.box_ip_settings", "exposure.target_delete"}
+	// the TXT re-check before the scan found the record as before: nothing changed, so it is not a row (L5)
+	want := []string{"exposure.target_add", "exposure.verify_ok", "exposure.commitment", "exposure.scan", "exposure.verify_ok", "exposure.box_ip_settings", "exposure.target_delete"}
 	if got := e.auditActions(); !slices.Equal(got, want) {
 		t.Fatalf("audit actions = %v\nwant %v", got, want)
 	}

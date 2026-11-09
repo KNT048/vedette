@@ -14,18 +14,35 @@ import (
 // ScanIDPrefix is how the scan module names an external target ("ext:<id>").
 const ScanIDPrefix = "ext:"
 
-// gate decides whether a target may be scanned now (INV-1). A domain's TXT record is looked up again
-// here, right before the scan, and the result is kept as the target's last check; a lookup that fails
-// counts as "record missing" (fail closed).
-func (s *Service) gate(ctx context.Context, id string) (Target, BlockedReason, error) {
+// CurrentFor is how long a sighting of an IP, and the result of a full check, count as "the box uses this IP now" for the
+// scan-time check (INV-13). It is also the least time between two full checks that scans cause.
+const CurrentFor = 5 * time.Minute
+
+// gate decides whether a target may be scanned now (INV-1, INV-13). A domain's TXT record is looked up again here,
+// right before the scan, and the result is kept as the target's last check; a lookup that fails counts as "record
+// missing" (fail closed). An IP that would otherwise be scannable is checked against the network too: the box must
+// still be going out through it. actor is who asked (a person, or the scan module on behalf of a schedule); the audit
+// trail names it.
+func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedReason, error) {
 	t, err := loadTarget(ctx, s.cfg.DB.Reader(), id)
 	if err != nil {
 		return Target{}, "", err
 	}
-	if r := t.blocked(s.clock()); r == BlockedUnverified || r == BlockedExpired {
+	switch r := t.blocked(s.clock()); {
+	case r == BlockedUnverified || r == BlockedExpired:
 		return t, r, nil
-	}
-	if t.Kind == KindDomain {
+	case t.Kind == KindIP && r == "":
+		current, err := s.stillCurrent(ctx, actor, t)
+		if err != nil {
+			return Target{}, "", err
+		}
+		if !current {
+			if t, err = loadTarget(ctx, s.cfg.DB.Reader(), id); err != nil {
+				return Target{}, "", err
+			}
+			return t, BlockedNotCurrent, nil
+		}
+	case t.Kind == KindDomain:
 		found, failure := s.lookupTXT(ctx, t)
 		err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
 			now := s.clock()
@@ -39,7 +56,10 @@ func (s *Service) gate(ctx context.Context, id string) (Target, BlockedReason, e
 			if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: found, Message: msg}, time.Time{}, ""); err != nil {
 				return err
 			}
-			return s.audit(ctx, tx, SystemUser, action, t.Value, "dns_txt, right before a scan")
+			if t.LastCheck != nil && t.LastCheck.OK == found { // nothing changed: the check is not a row of its own (L5)
+				return nil
+			}
+			return s.audit(ctx, tx, actor, action, t.Value, "dns_txt, right before a scan")
 		})
 		if err != nil {
 			return Target{}, "", fmt.Errorf("recording the TXT check: %w", err)
@@ -51,11 +71,66 @@ func (s *Service) gate(ctx context.Context, id string) (Target, BlockedReason, e
 	return t, t.blocked(s.clock()), nil
 }
 
+// stillCurrent says whether the box is going out through this IP now (INV-13), the counterpart of the TXT re-check of a
+// domain. The IP stays in the list for 30 days from the last sighting (INV-4); this only decides whether it may be
+// scanned now. It is true when the latest check, or the latest full check, ran within CurrentFor and saw the IP.
+// Otherwise one full check runs (all its rounds, so every IP of a load balancer is seen), as the actor, and not more
+// than once in CurrentFor: inside that window the last full check's answer is reused, a "not seen" included. A
+// check that cannot tell (services down, no agreement) is "not current": fail closed. It takes no attempt of the
+// person's ten an hour.
+func (s *Service) stillCurrent(ctx context.Context, actor string, t Target) (bool, error) {
+	s.detectMu.Lock()
+	defer s.detectMu.Unlock()
+	db := s.cfg.DB.Reader()
+	cur, err := loadTarget(ctx, db, t.ID) // a detection that ran while we waited for the lock may have seen it
+	if err != nil {
+		return false, err
+	}
+	box, err := loadBoxIP(ctx, db)
+	if err != nil {
+		return false, fmt.Errorf("exposure: reading auto-detect settings: %w", err)
+	}
+	lastDeep, err := loadLastDeep(ctx, db)
+	if err != nil {
+		return false, err
+	}
+	now := s.clock()
+	// sawIt: the run at time at was recent and renewed this IP (a renewal sets verified_at to the time of its run).
+	sawIt := func(at time.Time) bool {
+		return !at.IsZero() && !at.After(now.Add(clockSlack)) && now.Sub(at) <= CurrentFor && !cur.VerifiedAt.Before(at)
+	}
+	fresh := func(at time.Time) bool {
+		return !at.IsZero() && !at.After(now.Add(clockSlack)) && now.Sub(at) <= CurrentFor
+	}
+	var lastRun time.Time
+	if box.LastRun != nil {
+		if lastRun, err = parseTS(box.LastRun.At); err != nil {
+			lastRun = time.Time{}
+		}
+	}
+	if sawIt(lastRun) || sawIt(lastDeep) {
+		return true, nil
+	}
+	if fresh(lastDeep) {
+		return false, nil // a full check ran moments ago and did not see it: the answer stands, nothing is probed again
+	}
+	res, err := s.detectLocked(ctx, actor, true)
+	if err != nil && !isOutcome(err) {
+		return false, err
+	}
+	for _, v := range res.Items {
+		if v.ID == t.ID {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // CheckScannable is what the scan module calls right before it scans an external target (PRE-3, INV-1,
 // INV-12). id is the target id, with or without the "ext:" prefix. An unknown target is an error
 // wrapping ErrNotFound; otherwise ok says whether it may be scanned, and reason why not.
-func (s *Service) CheckScannable(ctx context.Context, id string) (ok bool, reason BlockedReason, err error) {
-	_, reason, err = s.gate(ctx, strings.TrimPrefix(id, ScanIDPrefix))
+func (s *Service) CheckScannable(ctx context.Context, actor, id string) (ok bool, reason BlockedReason, err error) {
+	_, reason, err = s.gate(ctx, actor, strings.TrimPrefix(id, ScanIDPrefix))
 	if err != nil {
 		return false, "", fmt.Errorf("exposure: checking whether %s may be scanned: %w", id, err)
 	}
@@ -73,6 +148,8 @@ func refusal(t Target, r BlockedReason, now time.Time) error {
 		return apiErr(409, "txt_missing", "The DNS TXT record %s is no longer on %s, so it cannot be scanned. Add the record back, then check again.", txtRecord(t.Token), t.Value)
 	case BlockedNoCommitment:
 		return apiErr(400, "commitment_required", "You have not confirmed that your company owns %s and you are authorized to scan it. Confirm it first.", t.Value)
+	case BlockedNotCurrent:
+		return apiErr(409, "ip_not_current", "This box no longer reaches the Internet through %s; it was last seen %s. Scans of it are paused until the box uses it again.", t.Value, t.VerifiedAt.UTC().Format("2006-01-02 15:04 UTC"))
 	}
 	return nil
 }
@@ -80,7 +157,7 @@ func refusal(t Target, r BlockedReason, now time.Time) error {
 // Scan scans one target now (POST …/scan, PRE-1, INV-1): the gate first, then the runner the scan module
 // registered, then one snapshot for the day. Without a runner the answer is 501 after the gate.
 func (s *Service) Scan(ctx context.Context, user, id string) (Snapshot, error) {
-	t, reason, err := s.gate(ctx, id)
+	t, reason, err := s.gate(ctx, user, id)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("exposure: scanning: %w", err)
 	}

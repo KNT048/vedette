@@ -75,7 +75,9 @@ type ConfigError struct {
 	Msg  string
 }
 
-func (e *ConfigError) Error() string        { return "notify: " + e.Code + ": " + e.Msg }
+func (e *ConfigError) Error() string { return "notify: " + e.Code + ": " + e.Msg }
+
+// Is makes errors.Is(err, ErrInvalidConfig) true for every ConfigError.
 func (e *ConfigError) Is(target error) bool { return target == ErrInvalidConfig }
 
 func cfgErr(code, msg string) error { return &ConfigError{Code: code, Msg: msg} }

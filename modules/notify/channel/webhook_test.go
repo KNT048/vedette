@@ -138,7 +138,7 @@ func TestContract_FORBID2_WebhookErrorHasNoKey(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = io.WriteString(w, "boom "+whKey+" "+r.Header.Get(WebhookSignatureHeader))
+		_, _ = io.WriteString(w, "boom "+whKey+" "+r.Header.Get(WebhookSignatureHeader)) //nolint:gosec // test server echoing the request on purpose
 	}))
 	t.Cleanup(srv.Close)
 	s, _ := NewWebhook(WebhookConfig{URL: srv.URL, SigningKey: NewSecret(whKey)})

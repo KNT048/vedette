@@ -2,6 +2,7 @@ package channel
 
 import (
 	"bufio"
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -67,7 +68,7 @@ func newTLSMaterial(t *testing.T) (tls.Certificate, *x509.CertPool) {
 func startFakeSMTP(t *testing.T, f *fakeSMTP) *fakeSMTP {
 	t.Helper()
 	f.cert, f.roots = newTLSMaterial(t)
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +105,7 @@ func (f *fakeSMTP) serve(raw net.Conn) {
 	f.mu.Lock()
 	f.sessions++
 	f.mu.Unlock()
-	var conn net.Conn = raw
+	conn := net.Conn(raw)
 	encrypted := false
 	if f.implicit {
 		conn, encrypted = tls.Server(raw, f.tlsConfig()), true

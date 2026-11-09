@@ -46,8 +46,8 @@ func (s Severity) Valid() bool { return s.rank() >= 0 }
 // is at least the channel's min_severity (critical|high|medium|low). An invalid
 // severity or minimum never passes (fail closed), and "info" is below every
 // possible minimum, so it is never sent to a channel.
-func MeetsMin(sev, min Severity) bool {
-	return sev.Valid() && min != Info && min.Valid() && sev.rank() >= min.rank()
+func MeetsMin(sev, floor Severity) bool {
+	return sev.Valid() && floor != Info && floor.Valid() && sev.rank() >= floor.rank()
 }
 
 // Quiet is the quiet-hours rule (contract.ts Quiet). From and To are "HH:MM" in the box's local time.
@@ -71,7 +71,7 @@ func minutes(s string) (int, error) {
 	m1, ok3 := d(s[3])
 	m2, ok4 := d(s[4])
 	h, m := h1*10+h2, m1*10+m2
-	if !(ok1 && ok2 && ok3 && ok4) || h > 23 || m > 59 {
+	if !ok1 || !ok2 || !ok3 || !ok4 || h > 23 || m > 59 {
 		return 0, fmt.Errorf("%w: %q is not HH:MM", ErrBadQuiet, s)
 	}
 	return h*60 + m, nil
@@ -143,7 +143,7 @@ func Decide(now time.Time, minSev Severity, q Quiet, sev Severity) (Verdict, tim
 	if !MeetsMin(sev, minSev) {
 		return Skip, time.Time{}
 	}
-	if q.Active(now) && !(q.AllowCritical && sev == Critical) {
+	if q.Active(now) && (!q.AllowCritical || sev != Critical) {
 		return Hold, q.EndsAt(now)
 	}
 	return Send, time.Time{}

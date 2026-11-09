@@ -17,8 +17,8 @@ func TestClean(t *testing.T) {
 		{"a\r\nb", true, "a\nb"},
 		{"a\r\nb", false, "a b"},
 		{"a\tb\x00c\x1bd", false, "a bcd"},
-		{"x‮ty", false, "xty"}, // bidi override dropped
-		{"x​y", false, "xy"},   // zero-width space dropped
+		{"x\xe2\x80\xaety", false, "xty"}, // bidi override dropped
+		{"x\xe2\x80\x8by", false, "xy"},   // zero-width space dropped
 		{"a b", true, "a\nb"},
 		{"bad\xffbyte", false, "bad�byte"},
 		{"Cảnh báo: máy chủ", false, "Cảnh báo: máy chủ"},
@@ -73,7 +73,7 @@ func TestSafeLink(t *testing.T) {
 // FuzzNorm: whatever the feed sends, normalised text has no control or format characters, valid UTF-8, bounded size.
 func FuzzNorm(f *testing.F) {
 	f.Add("Title", "what\r\nmore", "do <!channel> & *this*", "item")
-	f.Add("‮evil", "\x00\x01", "\xff\xfe", strings.Repeat("é", 5000))
+	f.Add("\xe2\x80\xaeevil", "\x00\x01", "\xff\xfe", strings.Repeat("é", 5000))
 	f.Fuzz(func(t *testing.T, title, what, action, item string) {
 		n := Message{ID: title, Kind: what, Severity: "high", Title: title, Device: what, What: what, Action: action, Items: []string{item, action}, Link: "https://h/x"}.norm()
 		all := append([]string{n.ID, n.Kind, n.Title, n.Device, n.What, n.Action}, n.Items...)

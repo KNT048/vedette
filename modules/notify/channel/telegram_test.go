@@ -107,7 +107,7 @@ func TestContract_FORBID2_TelegramErrorsNeverContainToken(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		_, _ = io.WriteString(w, `{"ok":false,"error_code":401,"description":"Unauthorized (`+r.URL.Path+`)"}`)
+		_, _ = io.WriteString(w, `{"ok":false,"error_code":401,"description":"Unauthorized (`+r.URL.Path+`)"}`) //nolint:gosec // test server echoing the request on purpose
 	}))
 	t.Cleanup(srv.Close)
 	s, _ := NewTelegram(TelegramConfig{Token: NewSecret(tgToken), ChatID: "12345", BaseURL: srv.URL, Client: srv.Client()})
@@ -146,7 +146,7 @@ func TestTelegramRejectsUnconfirmedOK(t *testing.T) {
 
 func FuzzTelegramText(f *testing.F) {
 	f.Add("t", "w", "a", "i")
-	f.Add(strings.Repeat("é", 3000), strings.Repeat("‮", 10), "\x00", strings.Repeat("x", 9000))
+	f.Add(strings.Repeat("é", 3000), strings.Repeat("\xe2\x80\xae", 10), "\x00", strings.Repeat("x", 9000))
 	f.Fuzz(func(t *testing.T, title, what, action, item string) {
 		n := Message{Severity: "medium", Title: title, What: what, Action: action, Items: []string{item}, Link: "https://h/x"}.norm()
 		out := telegramText(n, "https://h/x")

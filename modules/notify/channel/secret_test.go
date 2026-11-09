@@ -29,7 +29,7 @@ func TestContract_INV1_SecretNeverPrints(t *testing.T) {
 
 	var buf bytes.Buffer
 	l := slog.New(slog.NewJSONHandler(&buf, nil))
-	l.Info("config", "token", h.Token, slog.Any("holder", h), slog.Group("g", slog.Any("t", h.Token)))
+	l.Info("config", slog.Any("token", h.Token), slog.Any("holder", h), slog.Group("g", slog.Any("t", h.Token)))
 	mustNot(t, buf.String(), v)
 	if !bytes.Contains(buf.Bytes(), []byte("[redacted]")) {
 		t.Errorf("slog output has no placeholder: %s", buf.String())

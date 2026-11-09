@@ -12,7 +12,7 @@ import (
 	"unicode/utf8"
 )
 
-const zaloToken = "zalo-access-token-0123456789abcdef"
+const zaloToken = "zalo-access-token-0123456789abcdef" //nolint:gosec // fake token for tests
 
 func TestZaloConfig(t *testing.T) {
 	t.Parallel()
@@ -136,7 +136,7 @@ func TestContract_D46_ZaloPersonalValidatesButDoesNotSend(t *testing.T) {
 
 func FuzzZaloText(f *testing.F) {
 	f.Add("t", "w", "a")
-	f.Add(strings.Repeat("é", 4000), "‮\x00", strings.Repeat("x", 9000))
+	f.Add(strings.Repeat("é", 4000), "\xe2\x80\xae\x00", strings.Repeat("x", 9000))
 	f.Fuzz(func(t *testing.T, title, what, action string) {
 		out := fit(Message{Severity: "low", Title: title, What: what, Action: action, Items: []string{what}, Link: "https://h/x"}.norm().lines("https://h/x"), zaloTextMax)
 		if !utf8.ValidString(out) || utf8.RuneCountInString(out) > zaloTextMax || !strings.HasSuffix(out, "Details: https://h/x") {

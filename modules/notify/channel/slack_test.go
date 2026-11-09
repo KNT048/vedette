@@ -102,7 +102,7 @@ func TestContract_FORBID2_SlackErrorsNeverContainSecret(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		// A hostile or buggy server echoing the request path, plus a huge body.
-		_, _ = io.WriteString(w, "no_service "+r.URL.Path+" "+strings.Repeat("A", 1<<20))
+		_, _ = io.WriteString(w, "no_service "+r.URL.Path+" "+strings.Repeat("A", 1<<20)) //nolint:gosec // test server echoing the request on purpose
 	}))
 	t.Cleanup(srv.Close)
 	s, _ := NewSlack(SlackConfig{Webhook: NewSecret(slackHook), Client: clientTo(t, srv.URL)})
@@ -175,7 +175,7 @@ func FuzzSlackText(f *testing.F) {
 			t.Fatalf("unescaped angle bracket: %q", out)
 		}
 		for i := 0; i+1 < len(body); i++ {
-			if body[i] == '&' && !(strings.HasPrefix(body[i:], "&amp;") || strings.HasPrefix(body[i:], "&lt;") || strings.HasPrefix(body[i:], "&gt;")) {
+			if body[i] == '&' && !strings.HasPrefix(body[i:], "&amp;") && !strings.HasPrefix(body[i:], "&lt;") && !strings.HasPrefix(body[i:], "&gt;") {
 				t.Fatalf("unescaped ampersand at %d: %q", i, body)
 			}
 		}

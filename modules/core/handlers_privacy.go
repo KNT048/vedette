@@ -116,6 +116,12 @@ func (h *APIHandlers) CorePatchCorePrivacy(ctx context.Context, req *oas.CorePat
 		if err != nil {
 			return err
 		}
+		_, hasT := req.Telemetry.Get()
+		_, hasU := req.UpdateCheck.Get()
+		if !hasT && !hasU { // nothing to change: no write, no audit row
+			p = cur
+			return nil
+		}
 		onOff := map[bool]string{true: "on", false: "off"}
 		if v, ok := req.Telemetry.Get(); ok {
 			cur.Telemetry = &v

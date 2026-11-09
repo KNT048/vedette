@@ -3,8 +3,10 @@
 // real, the mock layer asks the real backend who is signed in (GET /api/v1/me, sent past MSW with bypass()) and
 // takes the user and role from that: role checks keep working, nobody is granted admin.
 //
-// The answer is kept for a few seconds and dropped when a request that can change it (any write to a real
-// module: sign-in, sign-out, setup, a role change) goes by. A signed-out answer is never kept.
+// The answer is kept for a few seconds. Every write to a real module (sign-in, sign-out, setup, a role change) is
+// sent to the backend by this layer itself; when the backend has answered, a generation counter is bumped and the
+// held answer dropped. A /me read is stored only if no write finished since it started (otherwise it is read
+// again), so an answer read before a sign-out never outlives it. A signed-out answer is never kept.
 import { bypass, http, type HttpHandler } from 'msw'
 import { moduleOf } from '@/lib/apiModules'
 import type { Role } from '@/lib/session'
@@ -17,6 +19,10 @@ type FetchMe = () => Promise<unknown>
 
 let enabled = false
 let fetchMe: FetchMe = defaultFetchMe
+type Send = (request: Request) => Promise<Response>
+
+let send: Send = (request) => fetch(bypass(request))
+let gen = 0 // bumped after every write to a real module
 let cached: { user: User; at: number } | null = null
 let inflight: Promise<void> | null = null
 
@@ -26,9 +32,11 @@ async function defaultFetchMe(): Promise<unknown> {
 }
 
 /** Turn the real-session lookup on (core is real) or off. `fetcher` replaces the network call (tests). */
-export function setRealSession(on: boolean, fetcher: FetchMe = defaultFetchMe) {
+export function setRealSession(on: boolean, fetcher: FetchMe = defaultFetchMe, sender?: Send) {
   enabled = on
   fetchMe = fetcher
+  send = sender ?? ((request) => fetch(bypass(request)))
+  gen++
   cached = null
   inflight = null
 }
@@ -51,10 +59,13 @@ export async function syncRealSession(): Promise<void> {
   if (!enabled || realUser()) return
   inflight ??= (async () => {
     try {
-      const u = toUser(await fetchMe())
-      cached = u ? { user: u, at: Date.now() } : null
-    } catch {
-      cached = null
+      let u: User | null = null
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const started = gen
+        try { u = toUser(await fetchMe()) } catch { u = null }
+        if (started === gen) { cached = u ? { user: u, at: Date.now() } : null; return }
+      }
+      cached = null // writes kept coming: keep nothing, the next request reads again
     } finally {
       inflight = null
     }
@@ -66,12 +77,16 @@ function modulePath(url: string): string {
   return new URL(url).pathname.replace(/^\/api\/v1/, '')
 }
 
-/** First MSW handler: before a mocked module answers, fetch who is signed in; a write to a real module forgets the answer. It returns nothing, so the request goes on to the next handler (or to the network). */
+/** First MSW handler: before a mocked module answers, fetch who is signed in; a write to a real module is sent on by this handler and forgets the answer once the backend has answered. A read of a real module, and every request after the lookup, returns nothing, so it goes on to the next handler (or to the network). */
 export function realSessionHandler(isReal: (module: string) => boolean): HttpHandler {
   return http.all('*/api/v1/*', async ({ request }) => {
     if (isReal(moduleOf(modulePath(request.url)))) {
-      if (request.method !== 'GET' && request.method !== 'HEAD') { cached = null }
-      return
+      if (request.method === 'GET' || request.method === 'HEAD') return
+      // Send the write ourselves so the held answer is dropped after the backend acted, not before.
+      const res = await send(request)
+      gen++
+      cached = null
+      return res
     }
     await syncRealSession()
   })

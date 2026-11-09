@@ -2,7 +2,12 @@ package core_test
 
 import (
 	"context"
+	"io"
 	"log/slog"
+	"net/http"
+	"slices"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/knt048/vedette/modules/core"
@@ -61,16 +66,16 @@ func TestPrivacy_PatchIsPartialAuditedAndFollowsModules(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t)
 	admin := w.setupAdmin()
+	wantOK(t, admin.patch("/core/privacy", map[string]any{"update_check": false}), 200)
 	r := admin.patch("/core/privacy", map[string]any{"telemetry": false})
 	wantOK(t, r, 200)
 	tel := r.JSON["telemetry"].(map[string]any)
-	if tel["enabled"] != false || tel["last_sent"] != nil || len(tel["payload"].(map[string]any)) != 0 || r.JSON["update_check"] != true {
+	if tel["enabled"] != false || tel["last_sent"] != nil || len(tel["payload"].(map[string]any)) != 0 || r.JSON["update_check"] != false {
 		t.Fatalf("patch = %s", r.Raw)
 	}
-	if f := flowsOf(t, r); f[2].state != "off" || f[6].state != "on" {
+	if f := flowsOf(t, r); f[2].state != "off" || f[6].state != "off" {
 		t.Fatalf("flows = %+v", f)
 	}
-	wantOK(t, admin.patch("/core/privacy", map[string]any{"update_check": false}), 200)
 	g := admin.get("/core/privacy") // both stick: the second patch did not touch the first switch
 	if g.JSON["update_check"] != false || g.JSON["telemetry"].(map[string]any)["enabled"] != false {
 		t.Fatalf("get = %s", g.Raw)
@@ -184,4 +189,153 @@ func TestPrivacy_FactsPort(t *testing.T) {
 	if s, _ := state(mk(nil), 10); s != "on" { // no port: default NTP servers, public
 		t.Errorf("flow 10 without a port = %s", s)
 	}
+}
+
+// rawPatch sends PATCH /core/privacy with a body as written (nil = no body at all).
+func rawPatch(c *client, body *string) reply {
+	c.w.t.Helper()
+	return c.request("PATCH", "/core/privacy", nil, func(r *http.Request) {
+		r.Header.Set("Content-Type", "application/json")
+		if body != nil {
+			r.Body = io.NopCloser(strings.NewReader(*body))
+			r.ContentLength = int64(len(*body))
+		}
+	})
+}
+
+func storedPrivacy(t *testing.T, w *world) (value, by string, ok bool) {
+	t.Helper()
+	err := w.env.DB.Reader().QueryRowContext(t.Context(), "SELECT value, updated_by FROM core_setting WHERE key = 'core_privacy'").Scan(&value, &by)
+	if err != nil {
+		return "", "", false
+	}
+	return value, by, true
+}
+
+// A PATCH of telemetry alone must keep an update_check that is OFF. (The branch's own test only shows that an
+// update_check that is on by default stays on, which a wipe to "absent = on" would also give.)
+func TestPrivacy_PatchOfOneSwitchKeepsTheOtherOff(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin := w.setupAdmin()
+	wantOK(t, admin.patch("/core/privacy", map[string]any{"update_check": false}), 200)
+	for _, v := range []bool{false, true, false} {
+		r := admin.patch("/core/privacy", map[string]any{"telemetry": v})
+		wantOK(t, r, 200)
+		if r.JSON["update_check"] != false {
+			t.Fatalf("PATCH telemetry=%v turned update_check back on: %s", v, r.Raw)
+		}
+		if g := admin.get("/core/privacy"); g.JSON["update_check"] != false || g.JSON["telemetry"].(map[string]any)["enabled"] != v {
+			t.Fatalf("GET after PATCH telemetry=%v = %s", v, g.Raw)
+		}
+	}
+	val, _, ok := storedPrivacy(t, w)
+	if !ok || val != `{"update_check":false,"telemetry":false}` {
+		t.Fatalf("stored core_privacy = %q", val)
+	}
+}
+
+// Two admins turning different switches at the same moment: neither change is lost (read-modify-write runs in
+// the single writer).
+func TestPrivacy_ConcurrentPatchesOfDifferentSwitchesLoseNothing(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin := w.setupAdmin()
+	for i := range 15 {
+		wantOK(t, admin.patch("/core/privacy", map[string]any{"telemetry": true, "update_check": true}), 200)
+		var wg sync.WaitGroup
+		for _, f := range []string{"telemetry", "update_check"} {
+			wg.Go(func() { wantOK(t, admin.patch("/core/privacy", map[string]any{f: false}), 200) })
+		}
+		wg.Wait()
+		g := admin.get("/core/privacy")
+		if g.JSON["update_check"] != false || g.JSON["telemetry"].(map[string]any)["enabled"] != false {
+			t.Fatalf("round %d: a concurrent PATCH was lost: %s", i, g.Raw)
+		}
+	}
+}
+
+// Every malformed body is refused with 400 invalid and changes nothing (no setting row, no audit row).
+func TestPrivacy_PatchRefusesMalformedBodiesAndChangesNothing(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin := w.setupAdmin()
+	s := func(v string) *string { return &v }
+	for _, body := range []*string{nil, s(""), s("null"), s("[]"), s("true"), s(`"x"`), s(`{"telemetry":false,"x":1}`),
+		s(`{"telemetry":"false"}`), s(`{"telemetry":0}`), s(`{"update_check":null}`), s(`{"telemetry":false}{}`), s(`{"telemetry":false`)} {
+		r := rawPatch(admin, body)
+		label := "<no body>"
+		if body != nil {
+			label = *body
+		}
+		if r.Code != 400 || r.code() != "invalid" {
+			t.Errorf("%s = %d %s", label, r.Code, r.Raw)
+		}
+	}
+	if _, _, ok := storedPrivacy(t, w); ok {
+		t.Error("a refused PATCH wrote core_privacy")
+	}
+	if n := w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action LIKE 'privacy.%'"); n != 0 {
+		t.Errorf("a refused PATCH left %d audit rows", n)
+	}
+}
+
+// An empty PATCH changes no switch, so it must not rewrite the setting either (INV-2: a write without an audit
+// row). Today it upserts core_privacy and sets updated_by to the caller.
+func TestPrivacy_EmptyPatchWritesNothingAndAuditsNothing(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin := w.setupAdmin()
+	wantOK(t, admin.patch("/core/privacy", map[string]any{}), 200)
+	if v, by, ok := storedPrivacy(t, w); ok {
+		t.Fatalf("an empty PATCH wrote core_privacy = %q by %s, with no audit row", v, by)
+	}
+}
+
+// GET and PATCH answers have exactly the keys of the OpenAPI schema (additionalProperties: false, required).
+func TestPrivacy_AnswersHaveExactlyTheSchemaKeys(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin := w.setupAdmin()
+	keys := func(m map[string]any) []string {
+		var k []string
+		for x := range m {
+			k = append(k, x)
+		}
+		slices.Sort(k)
+		return k
+	}
+	check := func(name string, r reply) {
+		t.Helper()
+		if got := keys(r.JSON); !slices.Equal(got, []string{"flows", "telemetry", "update_check"}) {
+			t.Errorf("%s keys = %v", name, got)
+		}
+		tel, _ := r.JSON["telemetry"].(map[string]any)
+		if got := keys(tel); !slices.Equal(got, []string{"enabled", "last_sent", "payload"}) {
+			t.Errorf("%s telemetry keys = %v", name, got)
+		}
+		if _, ok := r.JSON["update_check"].(bool); !ok {
+			t.Errorf("%s update_check = %v", name, r.JSON["update_check"])
+		}
+		flows, _ := r.JSON["flows"].([]any)
+		if len(flows) != 11 {
+			t.Fatalf("%s flows = %d", name, len(flows))
+		}
+		for i, f := range flows {
+			m := f.(map[string]any)
+			for k := range m {
+				if !slices.Contains([]string{"id", "state", "control", "configured"}, k) {
+					t.Errorf("%s flow %d has key %q", name, i+1, k)
+				}
+			}
+			if m["id"] != float64(i+1) || !slices.Contains([]any{"on", "off", "conditional"}, m["state"]) || !slices.Contains([]any{"switch", "reason"}, m["control"]) {
+				t.Errorf("%s flow %d = %v", name, i+1, m)
+			}
+			if _, has := m["configured"]; has != (i+1 == 3) {
+				t.Errorf("%s flow %d configured present = %v", name, i+1, has)
+			}
+		}
+	}
+	check("GET", admin.get("/core/privacy"))
+	check("PATCH", admin.patch("/core/privacy", map[string]any{"telemetry": false}))
 }

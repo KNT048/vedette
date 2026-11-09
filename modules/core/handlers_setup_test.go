@@ -463,3 +463,46 @@ func TestSetup_SignsTheAdministratorInLikeASignIn(t *testing.T) {
 		t.Errorf("core.setup rows = %d", n)
 	}
 }
+
+// Session fixation: cookies the browser already holds when it finishes setup are replaced, never adopted.
+func TestSetup_DoesNotAdoptAPlantedSession(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	code := w.openSetup()
+	c := w.client()
+	c.jar[auth.CookieSession] = &http.Cookie{Name: auth.CookieSession, Value: "planted-session-token-planted-session-token", Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode}
+	c.jar[auth.CookieCSRF] = &http.Cookie{Name: auth.CookieCSRF, Value: "planted-csrf-token-planted-csrf-token", Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode}
+	logStart := w.logs.Len()
+	wantOK(t, c.post("/core/setup", setupBody(code)), 200)
+	sess, csrf := c.cookie(auth.CookieSession), c.cookie(auth.CookieCSRF)
+	if sess == nil || csrf == nil || strings.HasPrefix(sess.Value, "planted") || strings.HasPrefix(csrf.Value, "planted") {
+		t.Fatalf("setup kept a planted cookie: %v %v", sess, csrf)
+	}
+	attacker := w.client()
+	attacker.jar[auth.CookieSession] = &http.Cookie{Name: auth.CookieSession, Value: "planted-session-token-planted-session-token", Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode}
+	wantStatus(t, attacker.get("/me"), 401, "unauthenticated")
+	if n := w.env.Count(t, "SELECT count(*) FROM core_session"); n != 1 {
+		t.Errorf("sessions after setup = %d", n)
+	}
+	// The setup code is single-use: gone from core_secret in the same transaction.
+	if n := w.env.Count(t, "SELECT count(*) FROM core_secret WHERE purpose = 'core_setup_code'"); n != 0 {
+		t.Errorf("setup code rows after setup = %d", n)
+	}
+	// Nothing secret reaches the log during setup.
+	logged := w.logs.String()[logStart:]
+	for _, s := range []string{authtest.Password, code, sess.Value, csrf.Value} {
+		if strings.Contains(logged, s) {
+			t.Errorf("setup logged a secret (%q...)", s[:4])
+		}
+	}
+	// The setup code cannot be reused for a second administrator.
+	r := w.client().post("/core/setup", func() map[string]any {
+		b := setupBody(code)
+		b["admin"] = map[string]any{"name": "Eve", "email": "eve@acme.example", "password": authtest.Password}
+		return b
+	}())
+	wantStatus(t, r, 409, "already_setup")
+	if n := w.env.Count(t, "SELECT count(*) FROM core_user"); n != 1 {
+		t.Errorf("users = %d", n)
+	}
+}

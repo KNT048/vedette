@@ -31,7 +31,7 @@ func newConn(d *deps) (*conn.Service, error) {
 			return d.Response.ChangesInForce(ctx, id)
 		},
 		BoxAddrs: (&boxSources{
-			ifaces: containerAddrs, gateway: procGateway, hosts: d.Hosts, hostNet: d.HostNet, now: d.Clock,
+			ifaces: containerAddrs, gateway: procGateway, hosts: d.Hosts, hostCache: d.HostNet, now: d.Clock,
 			decoys: func(ctx context.Context) []netip.Addr {
 				if d.Honeypot == nil {
 					return nil
@@ -61,20 +61,28 @@ type boxSources struct {
 	gateway func() (netip.Addr, bool)
 	// hosts are the names and addresses the box answers to (-hosts); the IP literals among them are the box.
 	hosts []string
-	// hostNet asks vedette-host for the management address and the IPv6 addresses of the appliance (state/net); nil when this
-	// install has no host. Its answer is cached for hostNetTTL because it is a socket call.
-	hostNet func(ctx context.Context) ([]netip.Prefix, error)
+	// hostCache is the shared provider of the addresses vedette-host reports for every interface of the appliance and for its
+	// decoys (state/net); nil when this install has no host. hostNet is the raw fetch a test can give instead: boxSources then
+	// builds its own cache over it. Either way the answer is cached (hostNetTTL) because it is a socket call.
+	hostCache *hostNetCache
+	hostNet   func(ctx context.Context) ([]netip.Prefix, error)
 	// decoys are the addresses the honeypot answers on (the traps are the box too).
 	decoys func(ctx context.Context) []netip.Addr
 
 	now func() time.Time
 
-	mu       sync.Mutex
-	hostAt   time.Time
-	hostLast []netip.Prefix
+	once sync.Once
 }
 
-const hostNetTTL = 30 * time.Second
+// cache is the provider of the host's addresses: the shared one, or one built over a raw fetch.
+func (b *boxSources) cache() *hostNetCache {
+	b.once.Do(func() {
+		if b.hostCache == nil {
+			b.hostCache = newHostNetCache(b.hostNet, b.now)
+		}
+	})
+	return b.hostCache
+}
 
 // BoxAddrs is the union of every source: addresses as /32 or /128, interface subnets as they are. It is the one function that
 // answers "is this the box" for the save-time check of core/conn and, from slice 13b-5, for the check of every resolved address at
@@ -105,34 +113,13 @@ func (b *boxSources) BoxAddrs(ctx context.Context) []netip.Prefix {
 			one(a)
 		}
 	}
-	out = append(out, b.fromHost(ctx)...)
+	out = append(out, b.cache().Get(ctx)...)
 	if b.decoys != nil {
 		for _, a := range b.decoys(ctx) {
 			one(a)
 		}
 	}
 	return out
-}
-
-func (b *boxSources) fromHost(ctx context.Context) []netip.Prefix {
-	if b.hostNet == nil {
-		return nil
-	}
-	now := time.Now
-	if b.now != nil {
-		now = b.now
-	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if !b.hostAt.IsZero() && now().Sub(b.hostAt) < hostNetTTL {
-		return b.hostLast
-	}
-	l, err := b.hostNet(ctx)
-	if err != nil {
-		return b.hostLast // keep the last answer: a host that does not answer right now is still the same box
-	}
-	b.hostAt, b.hostLast = now(), l
-	return l
 }
 
 // containerAddrs is ifaces for the real box: every address of every interface of this container, with its mask.

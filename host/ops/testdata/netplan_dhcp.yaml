@@ -1,0 +1,7 @@
+# Written by vedette-host. Do not edit: the host rewrites this file.
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    ens3:
+      dhcp4: true

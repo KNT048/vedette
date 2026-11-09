@@ -40,3 +40,13 @@ func ParseSnapshotMeta(b []byte) (created time.Time, schema string, includesKey 
 	m, err := parseSnapshotMeta(b)
 	return m.created, m.DBSchema, m.IncludesKey, err
 }
+
+// ValidateNetplan is the validator of the netplan binary.
+func ValidateNetplan(args []string) error { return validateNetplan(args) }
+
+// ParseARP validates one ARP frame (exactly 42 bytes) and reports its opcode, sender MAC and sender IP.
+// The fuzz targets and the contract tests call it; the host's own code calls parseARP.
+func ParseARP(b []byte) (op uint16, senderMAC [6]byte, senderIP [4]byte, err error) {
+	p, err := parseARP(b)
+	return p.Op, p.SenderMAC, p.SenderIP.As4(), err
+}

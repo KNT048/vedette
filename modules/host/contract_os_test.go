@@ -316,7 +316,7 @@ func TestContract_Part1_TheCommandTableMatchesSection6OfTheSpec(t *testing.T) {
 			t.Errorf("%s: %v", name, err)
 		}
 	}
-	for _, p := range []string{"/v1/state/net", "/v1/state/containers", "/v1/state/nope", "/v1/backups/x/y/content"} {
+	for _, p := range []string{"/v1/state/containers", "/v1/state/nope", "/v1/backups/x/y/content"} {
 		if st, b := rawGet(t, e.h, p); st != http.StatusNotFound || errCode(b) != api.CodeUnknownCommand {
 			t.Errorf("GET %s: %d %s", p, st, b)
 		}

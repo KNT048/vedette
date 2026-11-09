@@ -346,8 +346,12 @@ func TestContract_INV6_EveryAttemptHasRecord(t *testing.T) {
 	} {
 		f := &fakeSender{typ: channel.Email, to: "it@acme.example", err: err}
 		r := Deliver(context.Background(), "sd-2", f, m, now)
-		if r.OK || r.Error == "" || r.To != "it@acme.example" || r.Channel != channel.Email || f.seen != 1 || len([]rune(r.Error)) > maxRecordError {
+		if r.OK || r.Error == "" || r.To != "it@acme.example" || r.Channel != channel.Email || f.seen != 1 || len([]rune(r.Error)) > 300 {
 			t.Errorf("%s: record %+v", name, r)
+		}
+		mustNotContain(t, r.Error, "bad login") // what the other side wrote never reaches the GUI
+		if name == "status" && (!strings.Contains(r.Error, "SMTP code 535") || strings.Contains(r.Error, "HTTP")) {
+			t.Errorf("an SMTP refusal must show the SMTP code and never be called HTTP: %q", r.Error)
 		}
 	}
 }
@@ -405,4 +409,32 @@ func FuzzBatchMessage(f *testing.F) {
 			}
 		}
 	})
+}
+
+func TestFriendlyErrorNeverRepeatsTheOtherSide(t *testing.T) {
+	t.Parallel()
+	for name, c := range map[string]struct {
+		err  error
+		want string
+	}{
+		"smtp":     {&channel.StatusError{Channel: channel.Email, Code: 550, Reason: "mx.internal.corp says no"}, "The mail server refused the message (SMTP code 550)."},
+		"telegram": {&channel.StatusError{Channel: channel.Telegram, Code: 403, Reason: "bot was blocked"}, "Telegram refused the message (HTTP 403)."},
+		"webhook":  {&channel.StatusError{Channel: channel.Webhook, Code: 404, Reason: "no such path /internal"}, "The webhook server answered with an error, so it did not accept the message."},
+		"provider": {&channel.ProviderError{Channel: channel.Zalo, Code: -216, Reason: "secret detail"}, "Zalo refused the message (code -216)."},
+		"timeout":  {errors.New("notify: slack: send failed: timed out"), "The server did not answer in time."},
+		"other":    {errors.New("notify: slack: send failed: dial tcp 10.1.1.1:443: connect: connection refused"), "The message could not be sent. The server could not be reached or answered something unexpected."},
+	} {
+		if got := friendlyError(c.err); got != c.want {
+			t.Errorf("%s: %q, want %q", name, got, c.want)
+		}
+	}
+}
+
+func TestLastFour(t *testing.T) {
+	t.Parallel()
+	for in, want := range map[string]string{"": "", "abc": "", "abcd": "abcd", "0123456789abcdef": "cdef", "ключ-секрет": "крет"} {
+		if got := lastFour(in); got != want {
+			t.Errorf("lastFour(%q) = %q, want %q", in, got, want)
+		}
+	}
 }

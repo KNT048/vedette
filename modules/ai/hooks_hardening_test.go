@@ -7,9 +7,24 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
+
+// expiringCtx reports context.DeadlineExceeded from its left+1-th Err call on and counts the calls.
+type expiringCtx struct {
+	context.Context
+	left  int64
+	calls atomic.Int64
+}
+
+func (c *expiringCtx) Err() error {
+	if c.calls.Add(1) > c.left {
+		return context.DeadlineExceeded
+	}
+	return nil
+}
 
 func zw(s string) string { return strings.ReplaceAll(s, "<ZW>", string(rune(0x200B))) } // zero-width space
 
@@ -172,11 +187,23 @@ func TestContract_INV12_RegexTimeBound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	long := strings.Repeat("aé1 ", 1<<18)[:MaxHookInputBytes]
+	// The abort is asserted without the wall clock (a time bound under -race on a loaded machine flaked, #50): the
+	// context reports its deadline after a few checks, and the scan must return that error and stop asking.
+	const checksBeforeDeadline = 5
+	ex := &expiringCtx{Context: bg, left: checksBeforeDeadline}
+	if _, err := r.Run(ex, BeforeAI, long); !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("scan past the deadline: %v", err)
+	}
+	if n := ex.calls.Load(); n > checksBeforeDeadline+2 {
+		t.Errorf("the scan kept reading after the deadline: %d context checks", n)
+	}
+	// A real timer ends the same way; only a generous ceiling on time, to catch a scan that ignores it entirely.
 	ctx, cancel := context.WithTimeout(bg, 100*time.Millisecond)
 	defer cancel()
 	start := time.Now()
-	_, err = r.Run(ctx, BeforeAI, strings.Repeat("aé1 ", 1<<18)[:MaxHookInputBytes])
-	if d := time.Since(start); d > 600*time.Millisecond {
+	_, err = r.Run(ctx, BeforeAI, long)
+	if d := time.Since(start); d > 30*time.Second {
 		t.Errorf("Run took %v on 1 MiB with a 100 ms deadline (err %v)", d, err)
 	}
 	if err != nil && !errors.Is(err, context.DeadlineExceeded) {

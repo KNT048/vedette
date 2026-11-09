@@ -7,6 +7,7 @@ import (
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/mitigation"
+	"github.com/knt048/vedette/modules/notify"
 )
 
 // handler is the composite of oas.Handler: server.Fallback answers 501 for every operation and gives
@@ -22,6 +23,7 @@ type handler struct {
 	*feeds.FeedHandlers
 	*findings.FindingHandlers
 	*mitigation.ActionHandlers
+	*notify.NotifyHandlers
 }
 
 // newHandler builds every module's handlers from the shared deps. Adding a module = one field above
@@ -36,5 +38,6 @@ func newHandler(d deps) handler {
 
 		FindingHandlers: d.FindingHandlers,
 		ActionHandlers:  d.MitigationHandlers,
+		NotifyHandlers:  notify.NewNotifyHandlers(newNotify(d)),
 	}
 }

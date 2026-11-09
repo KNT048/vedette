@@ -24,12 +24,19 @@ type Notice struct {
 	Severity Severity
 	Product  string   // vulnerability: grouping key, e.g. "QNAP Photo Station"
 	CVEs     []string // vulnerability
-	Devices  []string // names of the matched devices (vulnerability: at least one)
-	Title    string   // one plain sentence
-	What     string   // what happened and how urgent
-	Action   string   // what to do first
-	Link     string   // absolute URL of the finding or incident in Vedette
-	At       time.Time
+	// FindingIDs are the findings this notice is about (vulnerability); they let the finding page list who was told.
+	FindingIDs []string
+	Devices    []string // names of the matched devices (vulnerability: at least one)
+	Title      string   // one plain sentence
+	What       string   // what happened and how urgent
+	Action     string   // what to do first
+	Link       string   // absolute URL of the finding or incident in Vedette
+	At         time.Time
+
+	// IncidentKind (incidents) and DeviceIDs (parallel to Devices, when the ids are known) only feed the structured
+	// fields of the webhook payload (kind, devices[]); the text channels do not use them.
+	IncidentKind string
+	DeviceIDs    []string
 }
 
 // Sendable implements INV-2: a vulnerability notice needs at least one matched
@@ -62,8 +69,8 @@ func SplitSendable(ns []Notice) (send []Notice, suppressed int) {
 
 // Grouping is the batching rule (contract.ts Grouping).
 type Grouping struct {
-	Enabled   bool
-	WindowMin int // 15, 60 or 240
+	Enabled   bool `json:"enabled"`
+	WindowMin int  `json:"window_min"` // 15, 60 or 240
 }
 
 // ErrBadGrouping means the batching rule is malformed.
@@ -178,8 +185,8 @@ func (b Batch) Message() (channel.Message, error) {
 	}
 	first := b.Notices[0]
 	if len(b.Notices) == 1 {
-		m := channel.Message{ID: first.ID, Kind: first.Kind, Severity: string(first.Severity), Title: first.Title, Device: joinDevices(first.Devices),
-			What: first.What, Action: first.Action, Link: first.Link}
+		m := channel.Message{ID: first.ID, Kind: first.Kind, IncidentKind: first.IncidentKind, Severity: string(first.Severity), Title: first.Title, Device: joinDevices(first.Devices),
+			Devices: deviceRefs(first.Devices, first.DeviceIDs), What: first.What, Action: first.Action, Link: first.Link}
 		if first.Kind == KindVuln {
 			m.Items = slices.Clone(first.CVEs)
 		}
@@ -204,10 +211,26 @@ func (b Batch) Message() (channel.Message, error) {
 	return channel.Message{
 		ID: first.ID, Kind: first.Kind, Severity: string(b.Severity()),
 		Title:  fmt.Sprintf("%s: %d vulnerabilities are being exploited", first.Product, len(b.Notices)),
-		Device: joinDevices(devices),
+		Device: joinDevices(devices), Devices: deviceRefs(devices, nil),
 		What:   fmt.Sprintf("%d vulnerabilities in %s are being exploited and match your devices.", len(b.Notices), first.Product),
 		Action: first.Action, Items: items, Link: first.Link,
 	}, nil
+}
+
+// deviceRefs pairs device names with their ids (ids may be missing).
+func deviceRefs(names, ids []string) []channel.DeviceRef {
+	var out []channel.DeviceRef
+	for i, n := range names {
+		if strings.TrimSpace(n) == "" {
+			continue
+		}
+		r := channel.DeviceRef{Name: n}
+		if i < len(ids) {
+			r.ID = ids[i]
+		}
+		out = append(out, r)
+	}
+	return out
 }
 
 func joinDevices(all []string) string {

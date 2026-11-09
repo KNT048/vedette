@@ -429,7 +429,7 @@ func TestWiringInventoryUsesTheFeedsKEV(t *testing.T) {
 func TestWiredModulesIncludeFindingsAndMitigationInOrder(t *testing.T) {
 	t.Parallel()
 	got := strings.Join(ids(wiredModules()), ",")
-	if got != "core,feeds,inventory,findings,mitigation" {
+	if got != "core,feeds,inventory,findings,mitigation,notify" {
 		t.Errorf("wired modules: %s", got)
 	}
 }

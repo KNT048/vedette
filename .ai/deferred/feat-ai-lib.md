@@ -1,0 +1,7 @@
+- [ ] Move the hash-chain helper (modules/ai/chain.go: Genesis, Canonical, ChainHash, HashContent) and testdata/chain_vectors.json to core/chain; make core_audit and resp_log import it — core does not exist yet — WP-01/WP-03 (Kien), then WP-25
+- [ ] RunJob pipeline: hooks -> prompt -> Router.Call -> after_ai/before_tool hooks -> one ActivityEntry per call (INV-17), ai_runs, token meter Seed from ai_activity at start — needs DB, core jobs, endpoints — WP-25
+- [ ] Endpoints, tables and migrations for ai_* (profiles, assignments, rules, memory, hooks, activity), core_audit on every mutation (INV-20), POST-4 profile delete clearing assignments — needs core and DB — WP-25
+- [ ] RAG index and knowledge base (INV-10), memory suggestion storage and accept/reject (INV-8 storage side), activity retention and prune with core_chain_anchor (INV-19) — needs DB/FTS5 — WP-25
+- [ ] Connector execution and the allow-list checks (INV-11, SYS-1, SYS-7): ssh/process only through core/exec — needs core/exec — WP-25 and WP-27 (response)
+- [ ] Digest POST-3 (empty log events: no AI call, no tokens) and explain/news result shapes (POST-2) live in the job handlers — need logs/feeds data — WP-25
+- [ ] Decide the anthropic-version header default: 2023-06-01 is used (Config.AnthropicVersion overrides); the Claude API docs now show 2026-10-21 — maintainer to confirm before first live run — WP-25

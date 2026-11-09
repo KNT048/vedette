@@ -1,0 +1,89 @@
+{
+  "formula": "hash = sha256_hex(prev_hash + \"\n\" + canonical(entry without hash))",
+  "genesis": "0000000000000000000000000000000000000000000000000000000000000000",
+  "rows": [
+    {
+      "entry": {
+        "id": "act-0001",
+        "ts": "2026-11-09T05:00:00.000Z",
+        "job": "ask-my-data",
+        "profile": "Claude Sonnet",
+        "model": "claude-sonnet-5-5",
+        "trigger": "user:it@acme.example",
+        "hooks": [],
+        "tools": [
+          {
+            "name": "list_assets",
+            "access": "read",
+            "args": "filter=service:rdp"
+          }
+        ],
+        "input_hash": "6880054f6deaf4aa04fc54f4e5f83594fe6344e32baddbad2eb3e3e70275eb3b",
+        "output_hash": "9da831c9710b8fe4069ff9cbdcbd83ee241ffa5a0f2513839f5ba24c1860ddc0",
+        "summary": "Listed machines that expose RDP: 3 found",
+        "tokens_in": 1180,
+        "tokens_out": 310,
+        "result": "ok",
+        "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "hash": "6a526c1db822d1471294ca6e0dd22d3bef23032f4aa69d1cbacc599ea1fd8a95"
+      },
+      "canonical": "{\"hooks\":[],\"id\":\"act-0001\",\"input_hash\":\"6880054f6deaf4aa04fc54f4e5f83594fe6344e32baddbad2eb3e3e70275eb3b\",\"job\":\"ask-my-data\",\"model\":\"claude-sonnet-5-5\",\"output_hash\":\"9da831c9710b8fe4069ff9cbdcbd83ee241ffa5a0f2513839f5ba24c1860ddc0\",\"prev_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"profile\":\"Claude Sonnet\",\"result\":\"ok\",\"summary\":\"Listed machines that expose RDP: 3 found\",\"tokens_in\":1180,\"tokens_out\":310,\"tools\":[{\"access\":\"read\",\"args\":\"filter=service:rdp\",\"name\":\"list_assets\"}],\"trigger\":\"user:it@acme.example\",\"ts\":\"2026-11-09T05:00:00.000Z\"}"
+    },
+    {
+      "entry": {
+        "id": "act-0002",
+        "ts": "2026-11-09T05:01:02.003Z",
+        "job": "ask-my-data",
+        "profile": "",
+        "model": "",
+        "trigger": "user:it@acme.example",
+        "hooks": [
+          "Block personal data"
+        ],
+        "tools": [],
+        "input_hash": "948a8b7b15e0a36b360fb25a9cb4c26033d036c1ff445003c3a3c8bf6982f783",
+        "output_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "summary": "Refused: \u003ccó dữ liệu\u003e \u0026 \"cá nhân\"\n\ttab\u2028\u001f",
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "result": "blocked_by_hook",
+        "prev_hash": "6a526c1db822d1471294ca6e0dd22d3bef23032f4aa69d1cbacc599ea1fd8a95",
+        "hash": "a547bb65a8dd8bc903b06771f76566b7dfb750fef2e6262c26b6f19eb9692e26"
+      },
+      "canonical": "{\"hooks\":[\"Block personal data\"],\"id\":\"act-0002\",\"input_hash\":\"948a8b7b15e0a36b360fb25a9cb4c26033d036c1ff445003c3a3c8bf6982f783\",\"job\":\"ask-my-data\",\"model\":\"\",\"output_hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"prev_hash\":\"6a526c1db822d1471294ca6e0dd22d3bef23032f4aa69d1cbacc599ea1fd8a95\",\"profile\":\"\",\"result\":\"blocked_by_hook\",\"summary\":\"Refused: \u003ccó dữ liệu\u003e \u0026 \\\"cá nhân\\\"\\n\\ttab\u2028\\u001f\",\"tokens_in\":0,\"tokens_out\":0,\"tools\":[],\"trigger\":\"user:it@acme.example\",\"ts\":\"2026-11-09T05:01:02.003Z\"}"
+    },
+    {
+      "entry": {
+        "id": "act-0003",
+        "ts": "2026-11-09T05:02:00.000Z",
+        "job": "response-plan",
+        "profile": "Company Ollama server",
+        "model": "qwen3:8b",
+        "trigger": "system:schedule",
+        "hooks": [],
+        "tools": [
+          {
+            "name": "lookup_cve",
+            "access": "read",
+            "args": "{\"api_key\":\"[redacted]\",\"id\":\"CVE-2022-27593\"}"
+          }
+        ],
+        "input_hash": "64879f7d6b960a01909762d911a32d4582c20010c5641ee90278b644a9e3b525",
+        "output_hash": "b7595e2a863957fc6c225ed540d335dd1e859dd3032451c2e11bceb0329defa6",
+        "summary": "Plan drafted on the fallback profile",
+        "tokens_in": 4100,
+        "tokens_out": 700,
+        "result": "fallback_used",
+        "links": [
+          {
+            "kind": "proposal",
+            "id": "prop-7"
+          }
+        ],
+        "prev_hash": "a547bb65a8dd8bc903b06771f76566b7dfb750fef2e6262c26b6f19eb9692e26",
+        "hash": "7000f23d3e74576864340f01574cfcf11857e20d2572c0e26b9dcc1bd992f169"
+      },
+      "canonical": "{\"hooks\":[],\"id\":\"act-0003\",\"input_hash\":\"64879f7d6b960a01909762d911a32d4582c20010c5641ee90278b644a9e3b525\",\"job\":\"response-plan\",\"links\":[{\"id\":\"prop-7\",\"kind\":\"proposal\"}],\"model\":\"qwen3:8b\",\"output_hash\":\"b7595e2a863957fc6c225ed540d335dd1e859dd3032451c2e11bceb0329defa6\",\"prev_hash\":\"a547bb65a8dd8bc903b06771f76566b7dfb750fef2e6262c26b6f19eb9692e26\",\"profile\":\"Company Ollama server\",\"result\":\"fallback_used\",\"summary\":\"Plan drafted on the fallback profile\",\"tokens_in\":4100,\"tokens_out\":700,\"tools\":[{\"access\":\"read\",\"args\":\"{\\\"api_key\\\":\\\"[redacted]\\\",\\\"id\\\":\\\"CVE-2022-27593\\\"}\",\"name\":\"lookup_cve\"}],\"trigger\":\"system:schedule\",\"ts\":\"2026-11-09T05:02:00.000Z\"}"
+    }
+  ]
+}

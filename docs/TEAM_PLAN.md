@@ -5,9 +5,10 @@ Lập 2026-11-09. Nhóm: **Kiên** (`@kiennt048`, người duy trì) và **Emily
 ## 1. Nguyên tắc chia việc
 
 1. **Chia theo module, không chia theo lớp.** Mỗi người sở hữu trọn module: backend Go + test hợp đồng + chuyển giao diện module đó từ mock sang API thật. Ranh giới là `modules/<id>/CONTRACT.md`; hai người gần như không sửa chung file.
-2. **Hợp đồng trước, code sau.** Đổi `contract.ts`, `api/openapi.json`, `modules/*/CONTRACT.md`, `docs/DATA_MODEL.md` → PR nhãn `contract`, **người kia duyệt**. Mọi thứ khác: chủ module tự quyết.
+2. **Hợp đồng trước, code sau — không chờ nhau duyệt (D-65).** Đổi `contract.ts`, `api/openapi.json`, `modules/*/CONTRACT.md`, `docs/DATA_MODEL.md`, `docs/API_CONVENTIONS.md` → PR nhãn `contract` và nhắc người kia (@) **để thông báo**, không chờ duyệt: CI xanh thì merge.
 3. **Không ai chờ ai.** Trong lúc nền tảng (core) chưa xong, Emily viết các **thư viện lá** không cần core (parser feed, bộ khớp lỗ hổng, adapter kênh, adapter AI, bộ chạy hook) với test riêng; cắm vào core khi registry sẵn.
 4. **Một module — một phiên AI đang ghi.** Không bao giờ hai phiên cùng sửa một module. Phiên nhận việc bằng cách tự gán issue của gói việc (WP) và ghi tên phiên vào issue.
+5. **Chồng lấn thì Kiên làm hết, Emily chỉ thông báo (kien, D-65).** Việc nào đụng phần của Kiên hoặc phần dùng chung (`core/`, `cmd/`, Makefile, `go.mod`, `tools/`, `scripts/`, `.github/`, `web/src/lib`, `web/src/mocks`, `docs/DECISIONS.md`, hợp đồng chung `DATA_MODEL`/`API_CONVENTIONS`/`MODULE_CONTRACTS`), hoặc đang có phiên khác sửa cùng chỗ: Emily **dừng phần đó** và mở issue nhãn `owner:kien` (nhánh, đã làm gì, còn gì, cần gì) rồi làm việc khác; phiên AI của Kiên nhận và làm. Không bàn qua lại. PR của Kiên chạm module Emily cũng chỉ thông báo, không chờ duyệt.
 5. **Lõi không gắn hãng thiết bị (D-58).** Không nhánh code riêng cho hãng nào.
 6. **QA theo `docs/QA.md`** cho mọi màn hình chạm tới; người làm ≠ người kiểm.
 
@@ -82,7 +83,7 @@ Kích cỡ: S ≈ 1–2 phiên-ngày, M ≈ 3–5, L ≈ 6–10 (ước lượng
 
 ## 5. Nhịp phối hợp
 
-- **PR nhỏ** (≤ ~400 dòng), một WP có thể nhiều PR. Người kia duyệt PR chạm hợp đồng; PR trong module của mình: tự merge khi CI xanh, sau `make check` trên máy (dán kết quả vào PR; `rules/local-checks.md`, D-62, D-63).
+- **PR nhỏ** (≤ ~400 dòng), một WP có thể nhiều PR. Mọi PR (kể cả nhãn `contract`): tự merge khi CI xanh, sau `make check` trên máy (dán kết quả vào PR; `rules/local-checks.md`, D-62, D-63); PR chạm phần người kia thì @ họ để thông báo, không chờ (D-65).
 - **Mỗi ngày 15 phút** (hoặc ghi chú trong GitHub Discussions): đang làm WP nào, bị chặn gì, hợp đồng nào sắp đổi.
 - **Thứ tự merge** theo phụ thuộc ở mục 3; `main` luôn xanh. GitHub Free không khoá được nhánh riêng tư → quy ước, không phải cơ chế.
 - **Issue** mỗi WP, nhãn `module:<id>`, `owner:kien` / `owner:emily`, `wp:<số>`; GitHub Projects một bảng Kanban.

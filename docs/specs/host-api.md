@@ -1,7 +1,7 @@
 # Host API: socket nội bộ của `vedette-host`
 
-Trạng thái: bản nháp M2-0 (docs-first), 2026-11-09; khung (framework) đã cài ở WP-07a, lệnh OS/sao lưu/xuất log ở WP-07b phần 1 (D-85, D-87: host không mở DB của `core`); các điều đã chốt khi cài ở §15 và §16. Văn xuôi tiếng Việt; tên trường, lệnh, thông điệp, đường dẫn bằng tiếng Anh.
-Truy vết: D-53 (cập nhật OS, một lần chạy tại một thời điểm, sao lưu DB trước, kiểm sức khoẻ sau, tiến trình trực tiếp, kiểm toán), D-55 (appliance container, `vedette-host` thay `vedette-updater`, Podman + Quadlet, socket nội bộ với **danh sách lệnh cố định**), D-56 (cấu hình mạng, SPAN, IP phụ cho bẫy, NTP), D-50 (bẫy trên IP phụ), D-48 (xuất log), D-85 (tar+gzip, không `backup.delete`, unattended-upgrades theo timer của apt, khoá `core_data`), D-12/`update-manifest.md`; SYS-1…8 (`MODULE_CONTRACTS.md`); story S-CORE-2, S-CORE-7, S-CORE-6, S-HP-1.
+Trạng thái: bản nháp M2-0 (docs-first), 2026-11-09; khung (framework) đã cài ở WP-07a, lệnh OS/sao lưu/xuất log ở WP-07b phần 1 (D-85, D-87: host không mở DB của `core`); các điều đã chốt khi cài ở §15 và §16; `net.*`, `decoy_ip.*`, `container.*` chốt trên giấy ở WP-07b phần 3, lát 3-0 (D-99…D-107, §18), 2026-11-10. Văn xuôi tiếng Việt; tên trường, lệnh, thông điệp, đường dẫn bằng tiếng Anh.
+Truy vết: D-53 (cập nhật OS, một lần chạy tại một thời điểm, sao lưu DB trước, kiểm sức khoẻ sau, tiến trình trực tiếp, kiểm toán), D-55 (appliance container, `vedette-host` thay `vedette-updater`, Podman + Quadlet, socket nội bộ với **danh sách lệnh cố định**), D-56 (cấu hình mạng, SPAN, IP phụ cho bẫy, NTP), D-50 (bẫy trên IP phụ), D-48 (xuất log), D-85 (tar+gzip, không `backup.delete`, unattended-upgrades theo timer của apt, khoá `core_data`), D-99 (netplan + networkd), D-100 (lớp phủ `/run` cho cửa sổ xác nhận), D-101 (root chỉ gửi/đọc khung ARP), D-102 (namespace `vedette-hp`), D-103 (minisign và cosign kiểm trong mã), D-104 (kéo/khởi động/hoàn tác/thu hồi), D-105 (unit Quadlet là mã), D-106 (chrony), D-107 (seam test), D-12/`update-manifest.md`; SYS-1…8 (`MODULE_CONTRACTS.md`); story S-CORE-2, S-CORE-7, S-CORE-6, S-CORE-8, S-HP-1, S-HP-2.
 
 ## 1. Mục đích
 
@@ -50,7 +50,7 @@ Mô hình đe doạ: **`core` bị coi là có thể bị chiếm.** Mọi lện
 | `audit_id` | string | khoá bản ghi kiểm toán của host (§9) |
 
 - `GET /v1/runs/{id}`, `GET /v1/runs?limit=…`: trạng thái; **run bền** (ghi đĩa `/var/lib/vedette-host/runs/`), sống qua restart của host và của `core`. Giữ 90 ngày hoặc 500 run.
-- **Một lần chạy ghi tại một thời điểm** (D-53): lệnh ghi thứ hai khi đang có run `queued|running|awaiting_confirm` → `409 busy` kèm `{ "run_id": "<đang chạy>" }`. Lệnh chỉ đọc không bị khoá.
+- **Một lần chạy ghi tại một thời điểm** (D-53): lệnh ghi thứ hai khi đang có run `queued|running` → `409 busy` kèm `{ "run_id": "<đang chạy>" }`; khi run `awaiting_confirm` của `net.apply` giữ khoá → `409 pending_confirm` kèm `run_id` đó, chỉ `net.confirm`/`net.revert` mang đúng `run_id` đi qua (D-100, §6.5). Lệnh chỉ đọc không bị khoá.
 - **Idempotency:** cùng `X-Request-Id` + cùng `command` + cùng `args` (so sánh băm) → trả lại **đúng run đó** (`200`, không chạy lại). Cùng `X-Request-Id` nhưng khác lệnh/tham số → `422 request_id_reuse`. Bản ghi giữ 30 ngày.
 - Tiến trình: `GET /v1/runs/{id}/events` là **SSE** (`text/event-stream`). Mỗi sự kiện: `{ "seq": n, "ts": …, "kind": "log"|"progress"|"state", "line": string≤2 KiB?, "percent": 0-100?, "status": …? }`. Hỗ trợ `Last-Event-ID` để nối lại. Giữ tối đa 10 000 dòng/run (dòng cũ nhất bị bỏ, `truncated: true`). `core` chuyển tiếp ra GUI qua SSE của chính nó (khớp `OsRun.lines`).
 - Mọi đường dẫn tệp mà host đọc/ghi do **host quyết định** theo `id` kiểu hex; không lệnh nào nhận đường dẫn từ client (ngoại lệ không có).
@@ -61,8 +61,8 @@ Mô hình đe doạ: **`core` bị coi là có thể bị chiếm.** Mọi lện
 |---|---|
 | `GET /v1/info` | `{ host_version, proto, commands[], runner: "podman", os: {distro, release, kernel}, arch, booted_at, time }` |
 | `GET /v1/state/os` | bản chụp cuối từ `os.check` (gói chờ, security, cần reboot, hạn hỗ trợ, reboot hẹn): đủ cho `OsState`. Chưa từng kiểm → `404 no_check_yet`. Cờ cần reboot, giờ khởi động, lịch reboot và `auto_security` được đọc lại lúc gọi, không lấy từ bản chụp |
-| `GET /v1/state/net` | danh sách card (tên, MAC, trạng thái, tốc độ), cấu hình hiện tại, **thống kê SPAN thật** (gói/giây, số MAC khác hộp, lần nhận cuối; D-56), IP phụ của bẫy, NTP |
-| `GET /v1/state/containers` | từng service: image/tag/digest đang chạy, `previous`, trạng thái unit, health |
+| `GET /v1/state/net` | danh sách card (tên, MAC, trạng thái, tốc độ, **bộ đếm** gói/byte/lỗi của giao diện từ `/sys/class/net/*`; card SPAN: chế độ nghe, có IP hay không), cấu hình đang chạy (quản trị, SPAN, DNS, gateway từ `/proc/net/route`, NTP), run đang chờ xác nhận (`pending: {run_id, revert_at}` hoặc `null`), decoy `[{ip, mac}]` (D-102). **Không** có số MAC khác hộp hay lần nhận gói cuối: root không đọc lưu lượng (D-101); hai số đó do container `sensor` đo (`sensor-passive` `SpanStats()`) và `core` gộp vào `span_status` |
+| `GET /v1/state/containers` | từng service: `version` và `digest` đang chạy, `previous {version, digest}`, bản mới nhất đã kéo, `enabled` (unit có `[Install] WantedBy=`, D-105), trạng thái unit, health |
 | `GET /v1/state/backups` | danh sách sao lưu `{backup_id, kind, created_at, size, sha256, version, db_schema, includes_secrets}` |
 | `GET /v1/audit?since=…` | bản ghi kiểm toán của host (phân trang; phục vụ D-48) |
 | `GET /v1/backups/{id}/content`, `GET /v1/exports/{id}/content` | tải tệp (xem lệnh liên quan); chỉ tệp host đã tạo và ghi trong chỉ mục (`id` = 32 hex; id lạ → `404 backup_unknown` / `export_unknown`; sao lưu có khoá → `403 contains_secrets`) |
@@ -95,7 +95,7 @@ Args: `{ "enabled": bool }`. Ghi `/etc/apt/apt.conf.d/52vedette-unattended` từ
 `os.reboot` args: `{ "when": "now" | "at", "at": "<RFC3339 UTC>" }` (`at` bắt buộc khi `when=at`, tối thiểu 60 giây sau, tối đa 7 ngày sau; `core` đổi từ cửa sổ `HH:MM` cục bộ sang thời điểm tuyệt đối trước khi gọi).
 Hiệu ứng: `now` → chạy `systemctl reboot` ngay sau khi run chuyển `succeeded` (host ghi run **trước** khi reboot); `at` → lưu lịch bền, host tự đặt hẹn giờ và `systemctl reboot` lúc đó. Idempotent: một lịch reboot duy nhất; đặt lại thay lịch cũ. Sau khi máy khởi động lại, Quadlet đưa mọi container lên; host kiểm và ghi `reboot_completed`.
 `os.reboot.cancel` args `{}`: xoá lịch (không có lịch → thành công, không làm gì).
-Từ chối: `install_in_progress` (`409`; một `os.install` đang chạy. Khoá ghi chung trả `busy` trước, nên mã này là lớp phòng thủ thứ hai); `net_pending_confirm` (`409`; không reboot khi đang chờ xác nhận mạng; chưa có lệnh `net.*` nên hàm kiểm trả `false`); `at_in_past` (`412`; `at` phải cách bây giờ ≥ 60 giây), `at_too_far` (`412`; > 7 ngày); `reboot_limit_reached` (`409`). Nhịp: tối đa 3 reboot `now`/24 giờ (mặc định; chặn vòng lặp reboot từ `core` bị chiếm); **mọi** lần host tự reboot (cả theo lịch) tính vào bộ đếm bền; đủ 3 thì `now` bị từ chối, còn lịch tới giờ thì bị bỏ (`reboot_skipped_limit`). `not_appliance` không áp dụng (không đụng apt). Chi tiết chốt ở §16.
+Từ chối: `install_in_progress` (`409`; một `os.install` đang chạy. Khoá ghi chung trả `busy` trước, nên mã này là lớp phòng thủ thứ hai); `net_pending_confirm` (`409`; không reboot khi đang chờ xác nhận mạng; phần 1 chưa có lệnh `net.*` nên hàm kiểm trả `false`, phần 3 nối `Deps.NetPending` vào trạng thái chờ thật, D-100; khoá ghi chung của run đang chờ trả `pending_confirm` trước, nên mã này là lớp thứ hai); `at_in_past` (`412`; `at` phải cách bây giờ ≥ 60 giây), `at_too_far` (`412`; > 7 ngày); `reboot_limit_reached` (`409`). Nhịp: tối đa 3 reboot `now`/24 giờ (mặc định; chặn vòng lặp reboot từ `core` bị chiếm); **mọi** lần host tự reboot (cả theo lịch) tính vào bộ đếm bền; đủ 3 thì `now` bị từ chối, còn lịch tới giờ thì bị bỏ (`reboot_skipped_limit`). `not_appliance` không áp dụng (không đụng apt). Chi tiết chốt ở §16.
 
 ### 6.5 `net.apply`, `net.confirm`, `net.revert`
 
@@ -109,28 +109,35 @@ Từ chối: `install_in_progress` (`409`; một `os.install` đang chạy. Kho�
 | `mgmt.gateway` | ip | trong cùng mạng với `address` |
 | `mgmt.dns` | ip[≤ 3] | unicast; không loopback |
 | `span.iface` | iface \| null | khác `mgmt.iface`; card không có IP, chế độ nghe (promisc), không giữ IPv6 |
-| `ntp` | string[≤ 4] | IPv4 hoặc tên theo regex tên (`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`) |
+| `ntp` | string[≤ 4] | IPv4 hoặc tên theo regex tên (`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`); rỗng = `pool.ntp.org` (D-106) |
 | `confirm_timeout_s` | int | 30–600, mặc định 120 |
 
-Hiệu ứng: ghi cấu hình mạng cho **backend phát hiện được** (câu hỏi mở §14: Ubuntu dùng netplan, Debian 12 mặc định ifupdown/systemd-networkd), áp dụng, rồi vào **chế độ tự hoàn tác**:
+`net.confirm` và `net.revert` args: `{ "run_id": "rn_<16 hex>" }`.
 
-1. Host **chụp** cấu hình cũ (tệp sinh + trạng thái chạy).
-2. Áp cấu hình mới.
-3. Tự kiểm kết nối (tới gateway mới bằng ARP/ICMP trong 15 giây). Hỏng → **hoàn tác ngay** (`status=reverted`, `error.code=connectivity_check_failed`).
-4. Qua tự kiểm: `status=awaiting_confirm`, `revert_at = now + confirm_timeout_s`. Hẹn giờ hoàn tác **bền** (systemd transient timer), sống qua restart host/`core`/reboot.
-5. Nếu admin đến được hộp ở địa chỉ mới qua GUI, `core` gọi `net.confirm {run_id}` → `status=succeeded`, huỷ hẹn giờ. Hết giờ mà chưa confirm → host **tự hoàn tác** về cấu hình đã chụp (`status=reverted`, `error.code=not_confirmed`).
-`net.revert {run_id}` huỷ sớm và hoàn tác ngay (admin bấm "Cancel").
+Hiệu ứng (D-99, D-100): host dựng `/etc/netplan/90-vedette.yaml` (renderer `networkd`; **tệp netplan duy nhất** trên hộp, 0600) từ struct có kiểu, không ghép chuỗi; NTP không nằm trong netplan mà ghi vào `/etc/chrony/sources.d/vedette.sources` (D-106). Chỉ khi **phần quản trị** đổi (`mgmt.iface`, `mgmt.mode`, `mgmt.address` gồm tiền tố, `mgmt.gateway`) mới vào **chế độ tự hoàn tác**:
 
-Idempotent: áp cùng trạng thái đang chạy → `succeeded` không đổi gì, **không** vào chế độ chờ xác nhận. IP phụ của bẫy (§6.6) được **áp lại** sau mỗi `net.apply` hoặc revert.
-Từ chối: `busy`; `pending_confirm` (đang có run chờ xác nhận); `iface_unknown`; `same_iface` (mgmt = span); `address_conflict` (phát hiện địa chỉ trùng bằng ARP probe, DAD cho IPv4); `gateway_outside_subnet`; `invalid_args` với `details[]`; `last_mgmt_removed` (kết quả sẽ không còn card quản trị); `not_appliance`. Timeout áp dụng 30 giây (+ cửa sổ xác nhận).
+1. `Check` (chỉ đọc): card có thật, `same_iface`, `gateway_outside_subnet`, không có run đang chờ (`pending_confirm`), backend dùng được (`net_backend_unsupported`).
+2. Trong run: ARP probe địa chỉ tĩnh mới theo RFC 5227 (D-101, khoảng 4 giây); có máy trả lời → run `refused` mã `address_conflict`.
+3. Ghi bản mới vào `/run/netplan/90-vedette.yaml` (tmpfs; netplan cho tệp ở `/run` che hoàn toàn tệp cùng tên ở `/etc`) và `net/pending.json` `{run_id, revert_at, boot_id, old_sha, new_sha}` (0600, ghi nguyên tử). **Trên đĩa vẫn là cấu hình cũ.**
+4. `netplan apply`, rồi **kiểm hiệu ứng**: địa chỉ có trên card (DHCP: có IPv4 trong 15 giây) và gateway trả lời ARP trong 15 giây (thử lại mỗi giây). Hỏng → **hoàn tác ngay** (`status=reverted`, `error.code=connectivity_check_failed`).
+5. Áp lại decoy (§6.6). Qua: `status=awaiting_confirm`, `revert_at = now + confirm_timeout_s`. Run **giữ khoá ghi** suốt cửa sổ: lệnh ghi khác → `409 pending_confirm` kèm `run_id`; chỉ `net.confirm`/`net.revert` mang đúng `run_id` đó đi qua. Hẹn giờ hoàn tác chạy trong tiến trình host (không dùng systemd transient timer).
+6. Admin đến được hộp ở địa chỉ mới qua GUI, `core` gọi `net.confirm {run_id}`: host ghi `/etc/netplan/90-vedette.yaml` nguyên tử, xoá bản ở `/run` (cấu hình đang chạy không đổi), xoá `pending.json` → `status=succeeded`. Hết giờ mà chưa confirm → host **tự hoàn tác**: xoá bản ở `/run`, `netplan apply`, áp lại decoy, kiểm hiệu ứng → `status=reverted`, `error.code=not_confirmed`.
+
+`net.revert {run_id}` huỷ sớm và hoàn tác ngay (admin bấm "Cancel"): `status=reverted`, `error.code=cancelled`. Hoàn tác mà `netplan apply` hỏng → `status=failed`, `error.code=revert_failed`: tệp trên đĩa vẫn là cấu hình cũ nên khởi động lại hộp sẽ đưa nó về; GUI nói vậy.
+
+**Reboot và host sập.** Reboot trong cửa sổ: `/run` là tmpfs nên hộp lên lại với cấu hình cũ trên đĩa; host thấy `pending.json` mang `boot_id` khác → run `reverted`, mã `reverted_by_reboot`. Host sập (cùng `boot_id`): lúc khởi động, trước khi nghe socket, host đặt lại hẹn giờ cho run đang chờ, hoặc hoàn tác ngay nếu đã qua `revert_at`. GUI nói trước: "If the box restarts before you confirm, it comes back on the old address." (S-CORE-8).
+
+**Không cần xác nhận:** chỉ đổi `mgmt.dns`, `span.iface` hay `ntp` → ghi thẳng `/etc` (và chrony), `succeeded` ngay (khớp GUI "DNS-only changes apply at once"). Idempotent: áp cùng trạng thái đang chạy → `succeeded` không đổi gì, **không** vào chế độ chờ xác nhận. IP phụ của bẫy (§6.6) được **áp lại** sau mỗi `net.apply` hoặc hoàn tác.
+Từ chối: `busy`; `pending_confirm` (`409`, kèm `run_id` của run đang chờ); `iface_unknown`; `same_iface` (mgmt = span); `address_conflict` (`412`, trả từ run sau ARP probe); `gateway_outside_subnet`; `net_backend_unsupported` (`412`: có tệp netplan khác tệp của host ở `/etc/netplan`, `/run/netplan` hoặc `/lib/netplan`, hoặc thiếu `/usr/sbin/netplan`; installer phải giao netplan độc quyền cho host, D-99); `invalid_args` với `details[]`; `last_mgmt_removed` (kết quả sẽ không còn card quản trị); `not_appliance`. `net.confirm`/`net.revert`: `run_id` không phải run đang chờ (đã kết thúc hoặc không tồn tại) → `412 not_awaiting_confirm` (GUI: "409 when none is pending or it expired"). Timeout `net.apply` 60 giây (+ cửa sổ xác nhận); `net.confirm`, `net.revert` 60 giây.
 
 ### 6.6 `decoy_ip.add` và `decoy_ip.remove`
 
-IP phụ cho bẫy (D-50, D-55: OpenCanary trên IP phụ, macvlan). Args: `{ "ip": ip }` (`add` thêm `"iface"` tuỳ chọn, mặc định `mgmt.iface`).
-Hiệu ứng: gán địa chỉ cho network macvlan của container `honeypot` trên card quản trị; lưu vào trạng thái bền của host (áp lại sau `net.apply`/reboot); MAC là **địa chỉ local-administered** do host sinh ổn định từ IP (câu hỏi mở §14: giả OUI hãng cho "vai giả").
-Từ chối (`add`): `ip_not_in_mgmt_subnet`; `ip_is_gateway|ip_is_host|ip_is_network|ip_is_broadcast`; `ip_in_use` (ARP probe thấy ai trả lời trong 3 giây); `duplicate_decoy`; `limit_reached` (tối đa 32, mặc định); `not_appliance`. Việc chặn trùng với **thiết bị trong kho** là của `core` (honeypot module từ chối trước); host kiểm lại **mạng thật** bằng ARP.
+IP phụ cho bẫy (D-50, D-55, D-102). Args `add`: `{ "ip": ip, "oui": hex6? }`; `remove`: `{ "ip": ip }`. Không có tham số card: card cha luôn là card quản trị (`mgmt.iface`), vì decoy phải nằm trong subnet quản trị.
+Hiệu ứng (D-102): host giữ network namespace **`vedette-hp`** (tạo lúc host khởi động, trước unit honeypot; `/run/netns` là tmpfs). Mỗi decoy là một link macvlan `vdh<8 hex của IP>` (`mode bridge`) trên card quản trị, chuyển vào `vedette-hp`, có địa chỉ, bảng định tuyến riêng (subnet + `default via <gateway>`) và `ip rule from <ip>`. Container `honeypot` vào namespace đó bằng `Network=ns:/run/netns/vedette-hp` (Quadlet, D-105) nên thấy decoy mới mà không phải khởi động lại. Namespace có sysctl hằng `arp_ignore=1`, `arp_announce=2`, `rp_filter=2`, `ip_unprivileged_port_start=0` (container không cần `NET_BIND_SERVICE`) và ruleset nft hằng chặn mọi kết nối **mới** đi ra (`ct state established,related accept; ct state new drop` ở hook output): bẫy chỉ trả lời kết nối vào. Trạng thái bền `hp/decoys.json`; áp lại sau `net.apply`, hoàn tác và mỗi lần host khởi động; decoy rơi ra ngoài subnet quản trị hiện tại bị gỡ và báo (honeypot hiện `conflict`).
+**MAC** (trả lời §14.5): mặc định 6 byte đầu của `HMAC-SHA256(hp/mac.key, ip)` (khoá 32 byte riêng mỗi bản cài, 0600), bit local-administered bật, bit multicast tắt: ổn định theo IP, khác nhau giữa các hộp. Có `oui` (6 hex; unicast, quản lý toàn cầu: hai bit thấp của byte đầu bằng 0) thì MAC = OUI + 3 byte HMAC, để decoy giống hãng của vai giả; `core` lấy OUI từ bảng OUI của D-83. Kết quả `{ ip, mac }`.
+Từ chối (`add`): `ip_not_in_mgmt_subnet`; `ip_is_gateway|ip_is_host|ip_is_network|ip_is_broadcast`; `ip_in_use` (ARP probe theo RFC 5227: 3 probe cách nhau 1 giây, nghe tới 2 giây sau probe cuối, khoảng 4 giây; có máy trả lời, D-101); `duplicate_decoy` (IP đã là decoy, kể cả khác `oui`: gỡ rồi thêm lại); `limit_reached` (tối đa 32, mặc định); `invalid_args` (`oui` không đúng 6 hex, là multicast hoặc local-administered); `not_appliance`. Việc chặn trùng với **thiết bị trong kho** là của `core` (honeypot module từ chối trước); host kiểm lại **mạng thật** bằng ARP.
 `remove`: IP không có → thành công, không làm gì (idempotent). Host không tắt container `honeypot`; `core` gọi `container.start`/cấu hình honeypot theo DB sau đó.
-Không có lệnh nhận danh sách tuỳ ý, chỉ từng IP một.
+Không có lệnh nhận danh sách tuỳ ý, chỉ từng IP một. Với nhịp 10 lệnh ghi/phút, 32 decoy mất từ 3 phút: `core` chỉ gửi phần khác nhau giữa DB và `decoys` của `GET /v1/state/net`, không gửi lại mọi IP (honeypot CONTRACT). Timeout 30 giây mỗi lệnh.
 
 ### 6.7 `container.pull`
 
@@ -139,32 +146,44 @@ Args:
 | Trường | Kiểu | Ghi chú |
 |---|---|---|
 | `service` | service | |
-| `version` | semver | phải trùng `release-manifest.version` |
-| `source` | `registry` \| `bundle` | |
-| `bundle_id` | hex(32) | bắt buộc nếu `source=bundle`; thư mục `import/<bundle_id>/` do host biết |
-| `index`, `index_sig` | base64 | `index.json` và `.minisig` (≤ 256 KiB mỗi tệp) |
-| `manifest`, `manifest_sig` | base64 | `release-manifest.json` và `.minisig` |
+| `version` | semver | phải trùng `release-manifest.version` (khác → `412 manifest_mismatch`) |
+| `source` | `registry` \| `bundle` | `bundle` chưa có ở phần 3 → `412 bundle_unsupported` (để sau, `.ai/deferred/feat-host-net-containers.md`) |
+| `bundle_id` | hex(32) | chỉ khi `source=bundle` (để sau) |
+| `index`, `index_sig` | base64 | `index.json` và `.minisig` (≤ 256 KiB mỗi tệp); **bắt buộc ở mọi lần kéo** (D-104) |
+| `manifest`, `manifest_sig` | base64 | `release-manifest.json` và `.minisig` (≤ 256 KiB mỗi tệp); chữ ký cosign của image nằm **trong** manifest (`images[].cosign`, `update-manifest.md` §4.2) |
 
-Hiệu ứng (`update-manifest.md` §5): host **tự xác minh** (không tin `core`): minisign `index` và `manifest` bằng khoá nhúng trong host; khoá không bị thu hồi; `index.sequence ≥` giá trị cao nhất host đã lưu; `service` có trong `manifest.images` và `digest` khớp; bản không bị thu hồi; `platform` khớp CPU; ref nằm trong **namespace registry cố định của host** (biên dịch/cấu hình khi cài, không do client); kéo **theo digest** (`registry` hoặc nạp `oci-archive` từ bundle); xác minh chữ ký cosign; đối chiếu `size`; gán tên cục bộ `vedette-<service>:<version>`. Kết quả: `{ digest, size, verified: ["minisign","cosign"] }`.
-Idempotent: image đã có đúng digest → `succeeded` ngay. Từ chối: `busy`; `signature_invalid`; `key_revoked`; `release_revoked`; `digest_not_in_manifest`; `registry_not_allowed`; `sequence_regress`; `platform_mismatch`; `bundle_missing`; `low_disk` (< 2 × `size`); `not_appliance`. Timeout 30 phút. Không có lệnh kéo image theo tên/tag tuỳ ý.
+Thân request của lệnh này tới **1 MiB** (lệnh khác 512 KiB, §10): hai tài liệu và hai chữ ký ở dạng base64 tới khoảng 700 KiB.
+Hiệu ứng (`update-manifest.md` §5, D-103, D-104): host **tự xác minh** (không tin `core`), bằng gói `internal/release`, **trước** khi kéo:
+1. JSON giải mã chặt (trường lạ, khoá trùng, khoá trùng sau gập chữ → `signature_invalid` hoặc `invalid_args`).
+2. Index: minisign định dạng `ED` (từ chối `Ed` cũ), `key_id` là một khoá nhúng chưa bị index đã lưu thu hồi (`key_revoked`); `sequence ≥` giá trị host đã lưu (bằng được; nhỏ hơn → `sequence_regress`); index mới hơn được lưu và là **nguồn thu hồi duy nhất** của host; hết hạn chỉ cảnh báo.
+3. Manifest: minisign như trên; `version` trùng args; bản và digest không bị thu hồi (`release_revoked`); `install_modes` có `appliance` và `platforms` có `linux/<GOARCH>` (`platform_mismatch`); `service` có trong `images` (`digest_not_in_manifest`); `images[].ref` phải đúng `ghcr.io/knt048/vedette-<service>:<version>` (`registry_not_allowed`). Không cần là bản mới nhất của kênh (kéo lại được bản cũ).
+4. Cosign: `images[].cosign.signature` là ECDSA P-256 trên SHA-256 của `images[].cosign.payload`, kiểm bằng khoá cosign nhúng; payload có `critical.type` = `cosign container image signature` và `critical.image.docker-manifest-digest` bằng `images[].digest` (`signature_invalid`). Không kiểm Rekor (ngoại tuyến, D-57 (3)).
+5. `podman pull -q ghcr.io/knt048/vedette-<service>@sha256:<64 hex>`: tham chiếu dựng từ **hằng biên dịch** và digest đã kiểm, không bao giờ từ chuỗi của request; `podman image inspect` xác nhận digest; gắn tag `localhost/vedette-<service>:<version>`; lưu bản đã kéo `{version, digest, key_id, manifest}`.
+Không so số byte với `size` (Podman không cho biết số byte đã tải; digest ghim đã bảo đảm toàn vẹn); `size` chỉ dùng cho `low_disk`. Kết quả: `{ digest, size, verified: ["minisign","cosign"] }`.
+Idempotent: image đã có đúng digest → `succeeded` ngay (vẫn kiểm chữ ký; index được lưu chỉ khi mới hơn). Từ chối: `busy`; `signature_invalid`; `key_revoked`; `release_revoked`; `digest_not_in_manifest`; `registry_not_allowed`; `sequence_regress`; `platform_mismatch`; `manifest_mismatch`; `bundle_unsupported`; `low_disk` (< 2 × `size`); `not_appliance`. Timeout 30 phút. Không có lệnh kéo image theo tên/tag tuỳ ý.
 
 ### 6.8 `container.start`
 
-Args: `{ "service": service, "version": semver }`.
-Hiệu ứng: `version` phải đã được `container.pull` **và** xác minh thành công trên host này; ghi drop-in Quadlet chọn digest đó; lưu digest đang chạy làm `previous`; `systemctl restart vedette-<service>.service` (tên unit sinh từ enum); chờ `active` + healthcheck (mặc định 120 giây). Kết quả: `{ digest, previous_digest, healthy }`. Cũng dùng để bật service đang tắt (`greenbone`, `honeypot` khi module bật, SYS-5): khi đó `previous` không đổi.
-Idempotent: đang chạy đúng digest và khoẻ → `succeeded`, không restart.
-Từ chối: `busy`; `not_pulled`; `release_revoked`; `downgrade_not_allowed` (hạ phiên bản phải đi bằng `container.rollback`); `unit_failed` (khởi động hỏng → host **tự đưa về `previous`** và báo `reverted`); `not_appliance`. Thứ tự khuyến nghị cho `core`: `sensor`/`honeypot`/`scan` trước, **`core` sau cùng** (host giữ run bền nên tiếp tục khi `core` lên lại). `greenbone` chỉ khi đã bật tuỳ chọn.
+Args: `{ "service": service, "version": semver?, "restart": bool?, "snapshot": hex32? }`.
+- `version` **tuỳ chọn**: bỏ = bật và khởi động bản hiện tại (bật service đang tắt: `greenbone`, `honeypot` khi module bật, SYS-5; `previous` không đổi); có = chuyển sang bản đó.
+- `restart` **tuỳ chọn** (mặc định `false`): khởi động lại cả khi đang chạy đúng digest (honeypot nạp lại `opencanary.conf` mà `core` vừa ghi).
+- `snapshot` **bắt buộc khi `service=core`** (hợp đồng bản chụp §6.11): khi digest đổi, host tạo bản sao lưu `pre_update` từ bản chụp đó **trong run**, trước khi đổi unit (cùng mã D-87 của `backup.create`); thiếu → `400 invalid_args`, bản chụp thiếu/quá cũ/sai hợp đồng → `412 snapshot_required|snapshot_invalid` ở bước kiểm. Với service khác, có `snapshot` → `400 invalid_args`.
+
+Hiệu ứng (D-104, D-105): khi có `version`, bản đó phải đã được `container.pull` **và** xác minh thành công trên host này (`not_pulled`); kiểm lại khoá và thu hồi theo index đã lưu (`key_revoked`, `release_revoked`); thấp hơn bản đang chạy theo thứ tự SemVer → `downgrade_not_allowed` (hạ phiên bản phải đi bằng `container.rollback`); bản đang chạy thấp hơn `min_upgrade_from` của manifest đích → `upgrade_path_required`. Rồi: ghi nhật ký chuyển `containers/transition.json` → (`core`) bản `pre_update` → host dựng **toàn bộ** unit `/etc/containers/systemd/vedette-<service>.container` từ mẫu hằng (chỉ điền digest, dòng `[Install] WantedBy=multi-user.target`, và `core_uid`/`core_gid` cho `core`; không drop-in), ghi an toàn (D-105), giữ byte cũ ở `containers/units/<service>.prev` → `systemctl daemon-reload` → `systemctl restart vedette-<service>.service` (tên unit sinh từ enum) → **kiểm hiệu ứng**: `podman container inspect` cho đúng `ImageDigest` và health `healthy` trong 120 giây (hỏi lặp). Đổi bản thành công: bản đang chạy trước đó thành `previous`; ảnh ngoài bản đang chạy, `previous` và bản mới nhất đã kéo bị gỡ (`podman rmi <digest>`, không bao giờ `prune -a`). Kết quả: `{ version, digest, previous_digest, healthy, backup_id? }`.
+Idempotent: đang chạy đúng digest, khoẻ và không `restart` → `succeeded`, không restart, không sao lưu.
+Hỏng: unit cũ được ghi lại và khởi động lại (với `core` mà manifest đích có `rollback.safe=false`, kèm khôi phục bản `pre_update` vừa tạo như §6.10) → `status=reverted`, `error.code=unit_failed`; host chết giữa chừng → lúc khởi động host đọc `transition.json` và đặt lại lần đổi dở dang không khoẻ (như `restore.json`).
+Từ chối: `busy`; `not_pulled`; `key_revoked`; `release_revoked`; `downgrade_not_allowed`; `upgrade_path_required`; `snapshot_required`/`snapshot_invalid` (`core`); `low_disk` (`core`, như §6.11); `not_appliance`. Thứ tự khuyến nghị cho `core`: `sensor`/`honeypot`/`scan` trước, **`core` sau cùng** (host giữ run bền nên tiếp tục khi `core` lên lại; `core` hỏi lại `GET /v1/runs/{id}`). `greenbone` chỉ khi đã bật tuỳ chọn. Timeout 3 phút; `core` 15 phút (sao lưu + khởi động + có thể khôi phục).
 
 ### 6.9 `container.stop`
 
-Args: `{ "service": service, "persist": bool }`. `persist=false`: `systemctl stop` (tự lên lại sau reboot); `persist=true`: dừng và `systemctl disable` (module tắt, SYS-5; `container.start` bật lại).
-Từ chối: **`cannot_stop_core`** (`service=core`: lệnh sẽ giết chính bên gọi; dừng `core` chỉ có thể qua `os.reboot`, `container.start` (restart có kiểm soát) hoặc `backup.restore`); `busy`; `not_appliance`. Idempotent: đã dừng → thành công.
+Args: `{ "service": service, "persist": bool }`. `persist=false`: `systemctl stop` (unit giữ `[Install]`, tự lên lại sau reboot); `persist=true` (module tắt, SYS-5): host dựng lại unit **không có** dòng `[Install] WantedBy=` (unit do Quadlet sinh không `systemctl enable`/`disable` được; bộ sinh áp `[Install]` lúc `daemon-reload`, D-105), `systemctl daemon-reload`, rồi `systemctl stop`; `container.start` dựng lại có `[Install]`. Kiểm hiệu ứng: `systemctl is-active` in `inactive` (đọc đầu ra, không đọc mã thoát).
+Từ chối: **`cannot_stop_core`** (`service=core`: lệnh sẽ giết chính bên gọi; dừng `core` chỉ có thể qua `os.reboot`, `container.start` (restart có kiểm soát), `container.rollback` hoặc `backup.restore`); `busy`; `not_appliance`. Idempotent: đã dừng (và đúng trạng thái `[Install]`) → thành công. Timeout 2 phút.
 
 ### 6.10 `container.rollback`
 
 Args: `{ "service": service }`.
-Hiệu ứng: đổi drop-in Quadlet về `previous` đã lưu và restart; kiểm sức khoẻ; sau rollback `previous` trở thành bản vừa gỡ (rollback hai lần = quay lại). Kết quả `{ digest, from_digest }`.
-Từ chối: `busy`; `no_previous`; `previous_revoked` (digest cũ nằm trong danh sách thu hồi đã lưu); `unit_failed` (rollback cũng hỏng: host **dừng ở trạng thái cuối và báo**, không vòng lặp); `not_appliance`. Hoàn tác phần mềm **không** hoàn tác DB: `core` phải gọi `backup.restore` nếu manifest khai `rollback.safe=false` (`update-manifest.md` §10).
+Hiệu ứng (D-104, D-105): chỉ về `previous` đã lưu (đã xác minh lúc kéo); kiểm lại theo index đã lưu (`previous_revoked`: bản hoặc digest cũ đã bị thu hồi, hay khoá ký của nó) và theo `rollback.min_version` của manifest **đang chạy** (`previous` thấp hơn → `rollback_not_allowed`); ghi `containers/transition.json`; dựng lại unit với digest của `previous` như §6.8 và restart; kiểm hiệu ứng (digest, health trong 120 giây); sau rollback `previous` trở thành bản vừa gỡ (rollback hai lần = quay lại). **`core` mà manifest đang chạy có `rollback.safe=false`**: trong **cùng một run**, host dừng `core` → khôi phục bản `pre_update` của lần chuyển sang bản đang chạy (cùng mã thay tệp qua tay cầm của §6.12, D-87) → ghi unit của `previous` → khởi động → kiểm sức khoẻ; hỏng thì đặt lại cả DB lẫn unit của bản đang chạy (`status=reverted`). Thay câu cũ "`core` gọi `backup.restore`": cả hai bước đều dừng `core`, và khôi phục dưới image mới sẽ chạy lại migration. GUI cảnh báo "data written since the update is lost" và xin xác nhận trước khi `core` gọi lệnh (S-CORE-2). Host không bao giờ tự rollback vì thu hồi; `core` quyết (`update-manifest.md` §8). Kết quả `{ digest, from_digest, restored_backup_id? }`.
+Từ chối: `busy`; `no_previous`; `previous_revoked`; `rollback_not_allowed`; `rollback_backup_missing` (`412`: `rollback.safe=false` mà bản `pre_update` của lần chuyển đó không còn trong chỉ mục, ví dụ đã bị lưu giữ xoá); `unit_failed` (rollback hỏng: đặt lại bản đang chạy, `reverted`; nếu chính bước đặt lại hỏng → `failed` `rollback_revert_failed`, host **dừng ở trạng thái cuối và báo**, không vòng lặp); `not_appliance`. Timeout 3 phút; `core` 30 phút (như `backup.restore`).
 
 ### 6.11 `backup.create`
 
@@ -205,7 +224,7 @@ SYS-1 áp dụng triệt để. API này **không** có và không bao giờ nh�
 - `apt install|remove|purge` gói tuỳ chọn, thêm/sửa nguồn apt, nâng cấp bản phát hành OS;
 - điều khiển `systemd` tuỳ chọn (chỉ unit `vedette-*` theo `service` enum, chỉ qua các lệnh container);
 - tham số `podman` tuỳ chọn, `--privileged`, `--cap-add`, mount, mạng host, pull image theo tên tuỳ ý;
-- thay đổi `sysctl`, tường lửa (UFW/nft), người dùng, SSH, khoá, chứng chỉ hệ điều hành.
+- thay đổi `sysctl`, tường lửa (UFW/nft), người dùng, SSH, khoá, chứng chỉ hệ điều hành. Ngoại lệ duy nhất: các sysctl và ruleset nft **hằng** bên trong namespace `vedette-hp` của §6.6 (D-102), không tham số nào từ request.
 
 Gọi tới đường dẫn/lệnh không có trong §5–§6: `404 unknown_command`. Đây là hợp đồng kiểm được: test hợp đồng liệt kê `GET /v1/info.commands` và so với bảng này; thêm một lệnh phải sửa tài liệu này, `CONTRACT.md` và test cùng lúc.
 
@@ -218,20 +237,23 @@ sequenceDiagram
     participant H as vedette-host
     A->>C: Save Box network
     C->>H: POST /v1/commands/net.apply (X-Request-Id, args)
-    H->>H: validate (iface, cidr, gateway, ARP probe)
-    H->>H: chụp cấu hình cũ, áp cấu hình mới
-    H->>H: tự kiểm gateway (15 s)
+    H->>H: Check (iface, cidr, gateway, backend, không có run chờ)
+    H->>H: ARP probe địa chỉ mới (RFC 5227, ~4 s)
+    H->>H: ghi /run/netplan/90-vedette.yaml + net/pending.json, netplan apply
+    H->>H: kiểm địa chỉ và gateway (ARP, 15 s)
     alt hỏng
-        H->>H: hoàn tác ngay
+        H->>H: xoá bản /run, netplan apply (hoàn tác ngay)
         H-->>C: Run status=reverted (connectivity_check_failed)
     else qua
-        H-->>C: 202 Run status=awaiting_confirm, revert_at=T
+        H-->>C: Run status=awaiting_confirm, revert_at=T (giữ khoá ghi)
         C-->>A: "Reconnect at the new address within 120 s"
         A->>C: mở https://<địa chỉ mới>:8443, bấm Confirm
         C->>H: POST net.confirm {run_id}
+        H->>H: ghi /etc/netplan/90-vedette.yaml, xoá bản /run
         H-->>C: Run status=succeeded
     end
     Note over H: không confirm tới T: tự hoàn tác,<br/>Run status=reverted (not_confirmed)
+    Note over H: reboot trước T: /run là tmpfs, hộp lên với cấu hình cũ,<br/>Run status=reverted (reverted_by_reboot)
 ```
 
 ## 9. Kiểm toán (SYS-3)
@@ -244,10 +266,13 @@ sequenceDiagram
 
 | Mục | Giới hạn mặc định |
 |---|---|
-| Thân request | 512 KiB (chỉ `container.pull` cần lớn) |
+| Thân request | 512 KiB; riêng `container.pull` 1 MiB (giới hạn theo lệnh, `Spec.MaxBody`, D-103) |
 | Số request/phút từ `core` | 60; lệnh ghi 10/phút |
-| Run đồng thời (ghi) | 1 |
-| Timeout theo lệnh | `os.check` 5 ph; `os.install` 60 ph; `net.apply` 30 s + cửa sổ xác nhận ≤ 600 s; `container.pull` 30 ph; `container.start` 3 ph; `os.auto_security.set` 2 ph; `os.reboot` và `os.reboot.cancel` 30 s; `backup.create` 15 ph; `backup.restore` 30 ph; `logs.export` 10 ph |
+| Run đồng thời (ghi) | 1 (run `awaiting_confirm` vẫn giữ khoá, D-100) |
+| Timeout theo lệnh | `os.check` 5 ph; `os.install` 60 ph; `net.apply` 60 s + cửa sổ xác nhận ≤ 600 s; `net.confirm`, `net.revert` 60 s; `decoy_ip.add`, `decoy_ip.remove` 30 s; `container.pull` 30 ph; `container.start` 3 ph (`core` 15 ph); `container.stop` 2 ph; `container.rollback` 3 ph (`core` 30 ph); `os.auto_security.set` 2 ph; `os.reboot` và `os.reboot.cancel` 30 s; `backup.create` 15 ph; `backup.restore` 30 ph; `logs.export` 10 ph |
+| ARP | probe ≈ 4 s (3 probe cách 1 s + nghe 2 s, RFC 5227); kiểm gateway ≤ 15 s; khung đúng 42 byte (D-101) |
+| Kiểm sức khoẻ container | `healthy` trong 120 s (hỏi lặp, D-105) |
+| Image giữ lại mỗi service | bản đang chạy, `previous`, bản mới nhất đã kéo (D-104) |
 | Dòng sự kiện/run | 10 000; mỗi dòng ≤ 2 KiB |
 | Run giữ lại | 90 ngày hoặc 500 |
 | `logs.export` | ≤ 31 ngày, ≤ 256 MiB |
@@ -266,12 +291,13 @@ Các con số trên là điểm xuất phát chưa đo (ARCH §8).
 | 400 | `invalid_args`, `invalid_request_id`, `invalid_actor` |
 | 403 | `peer_not_allowed`, `contains_secrets` (tải sao lưu có khoá) |
 | 404 | `unknown_command`, `run_not_found`, `backup_unknown`, `no_check_yet`, `export_unknown` |
-| 409 | `busy`, `pending_confirm`, `install_in_progress`, `net_pending_confirm`, `dpkg_locked` (kèm `retry_after_s`), `reboot_limit_reached`, `rebooting` (host đã bắt đầu reboot: mọi lệnh ghi bị từ chối tới khi `boot_id` đổi, tối đa 10 phút), `schema_newer`, các từ chối do trạng thái hệ thống |
-| 412 | các từ chối do điều kiện tiên quyết (`low_disk`, `dpkg_inconsistent`, `address_conflict`, `not_appliance`, `at_in_past`, `at_too_far`, `db_unreadable`, `key_unreadable`, `snapshot_required`, `snapshot_invalid`, `checksum_mismatch`, `secrets_missing`, `unit_unknown`, `range_too_large`, `output_too_large`, `signature_invalid`…) |
+| 409 | `busy`, `pending_confirm` (kèm `run_id` của run đang chờ xác nhận mạng, D-100), `install_in_progress`, `net_pending_confirm`, `dpkg_locked` (kèm `retry_after_s`), `reboot_limit_reached`, `rebooting` (host đã bắt đầu reboot: mọi lệnh ghi bị từ chối tới khi `boot_id` đổi, tối đa 10 phút), `schema_newer`, các từ chối do trạng thái hệ thống |
+| 412 | các từ chối do điều kiện tiên quyết (`low_disk`, `dpkg_inconsistent`, `address_conflict`, `not_appliance`, `at_in_past`, `at_too_far`, `db_unreadable`, `key_unreadable`, `snapshot_required`, `snapshot_invalid`, `checksum_mismatch`, `secrets_missing`, `unit_unknown`, `range_too_large`, `output_too_large`, `signature_invalid`…). Phần 3 thêm: mạng `iface_unknown`, `same_iface`, `gateway_outside_subnet`, `last_mgmt_removed`, `net_backend_unsupported`, `not_awaiting_confirm`; decoy `ip_not_in_mgmt_subnet`, `ip_is_gateway`, `ip_is_host`, `ip_is_network`, `ip_is_broadcast`, `ip_in_use`, `duplicate_decoy`, `limit_reached`; image `key_revoked`, `release_revoked`, `digest_not_in_manifest`, `registry_not_allowed`, `sequence_regress`, `platform_mismatch`, `manifest_mismatch`, `bundle_unsupported`, `not_pulled`, `downgrade_not_allowed`, `upgrade_path_required`, `cannot_stop_core`, `no_previous`, `previous_revoked`, `rollback_not_allowed`, `rollback_backup_missing` |
 | 422 | `request_id_reuse` |
 | 429 | `rate_limited` (+ `retry_after_s`) |
 | 503 | `host_shutting_down` |
 
+Mã kết thúc của run (trong `error.code`, không phải từ chối HTTP) do phần 3 thêm: `connectivity_check_failed`, `not_confirmed`, `cancelled`, `reverted_by_reboot` (đều `reverted`), `revert_failed` (`failed`), `unit_failed` (`reverted`), `rollback_revert_failed` (`failed`).
 Từ chối (`status=refused`) vẫn **tạo run** và bản ghi kiểm toán, để GUI thấy lý do. Khi mất kết nối giữa chừng, `core` hỏi lại `GET /v1/runs/{id}` (nhờ `X-Request-Id` biết run nào) thay vì gửi lại lệnh.
 
 ## 12. Cân nhắc bảo mật (ánh xạ SYS)
@@ -284,25 +310,25 @@ Từ chối (`status=refused`) vẫn **tạo run** và bản ghi kiểm toán, �
 | SYS-4 | Host không nhận bí mật qua API; `include_secrets` chỉ cho sao lưu cục bộ; log được lọc; khoá nằm trong `core/secrets` |
 | SYS-5 | `container.stop persist=true` thực hiện "tắt module = không cổng, không job"; dữ liệu giữ nguyên |
 | SYS-6 | Mọi manifest/bundle/log là dữ liệu không tin cậy: host tự xác minh chữ ký, giới hạn kích thước, fail-closed; log lọc |
-| SYS-7 | Host chỉ nói chuyện ra các host cố định (registry, GitHub, mirror apt) và ARP/ICMP trong LAN cho kiểm tra mạng |
+| SYS-7 | Host chỉ nói chuyện ra các host cố định (registry `ghcr.io` qua `podman pull`, mirror apt) và ARP trong LAN cho kiểm tra mạng (D-101; không ICMP); index và manifest do `core` tải từ GitHub rồi đưa cho host kiểm. Đồng hồ do chrony giữ (D-106), không phải host |
 | SYS-8 | AI không có đường tới socket (không bind vào các container khác `core`; `core` không chuyển lệnh do AI sinh) |
 
-Các biện pháp "hậu quả giới hạn" khi `core` bị chiếm: nhịp lệnh (reboot, ghi), cửa sổ xác nhận tự hoàn tác cho mạng, mọi lệnh đảo ngược/được sao lưu (`pre_*`), host tự xác minh chữ ký (không thể ép chạy image lạ), `cannot_stop_core`, không có đường đọc tệp tuỳ ý. Rủi ro còn lại: `core` bị chiếm vẫn có thể gây gián đoạn (dừng `sensor`, reboot theo nhịp); chấp nhận vì không có đường leo thang quyền hay thực thi.
+Các biện pháp "hậu quả giới hạn" khi `core` bị chiếm: nhịp lệnh (reboot, ghi), cửa sổ xác nhận tự hoàn tác cho mạng (cấu hình mới chỉ ghi bền khi xác nhận, D-100), mọi lệnh đảo ngược/được sao lưu (`pre_*`), host tự xác minh chữ ký và dựng tham chiếu kéo từ hằng (không thể ép chạy image lạ, D-103, D-104), không hạ bản ngoài `previous` đã xác minh, `cannot_stop_core`, không có đường đọc tệp tuỳ ý, root không phân tích lưu lượng bắt được (D-101). Rủi ro còn lại: `core` bị chiếm vẫn có thể gây gián đoạn (dừng `sensor`, reboot theo nhịp); chấp nhận vì không có đường leo thang quyền hay thực thi.
 
 ## 13. Versioning
 
 - `X-Vedette-Host-Proto` là số nguyên; `GET /v1/info` trả `proto` và `commands[]` (khả năng). Đường dẫn `/v1`.
-- Host hỗ trợ proto **N và N−1**. Khi appliance cập nhật, `core` và `host` có thể lệch trong thời gian ngắn (cập nhật host là câu hỏi mở của `update-manifest.md`): `core` chỉ gọi lệnh có trong `commands[]`, thiếu → coi tính năng đó không có (hiển thị rõ), không đoán.
+- Host hỗ trợ proto **N và N−1**. Khi appliance cập nhật, `core` và `host` có thể lệch trong thời gian ngắn (host tự cập nhật bằng `.deb` ký theo D-57 (21), chưa có lệnh, §14.2): `core` chỉ gọi lệnh có trong `commands[]`, thiếu → coi tính năng đó không có (hiển thị rõ), không đoán.
 - Thêm lệnh = bản mới (minor); đổi nghĩa/xoá tham số = `v2`.
 - Tên unit, thư mục, hằng cố định sinh bởi installer (ships-as-code) và ghi trong `/etc/vedette/host.conf`.
 
 ## 14. Câu hỏi mở
 
 1. **Ai mở cổng vào (UFW)?** D-55 nhắc UFW nhưng allowlist không có lệnh tường lửa: cổng 8443 (UI/API), syslog, cổng sensor, cổng bẫy trên IP phụ cần được mở do installer lúc cài và do host khi module bật. Cần quyết (thêm lệnh `firewall.*` bị chặt, hay installer mở sẵn theo cấu hình và host chỉ đổi theo module).
-2. **Cập nhật chính `vedette-host`** (cũng ở `update-manifest.md`): chưa có lệnh `host.self_update`; phải thêm một lệnh có xác minh chữ ký, hoặc để installer/apt.
-3. Backend mạng: netplan (Ubuntu) / ifupdown hoặc systemd-networkd (Debian 12): host hỗ trợ cái nào, hay chuẩn hoá một cái khi cài.
+2. ~~**Cập nhật chính `vedette-host`**~~ **Đã chốt (D-57 (21)):** host tự cập nhật bằng gói `.deb` đã ký trên GitHub Release, kiểm sức khoẻ, hỏng thì về bản trước. Lệnh `host.self_update` **không** có ở phần 3; để sau (`.ai/deferred/feat-host-net-containers.md`).
+3. ~~Backend mạng~~ **Đã chốt (D-99):** netplan với renderer `networkd` trên Ubuntu 24.04, Ubuntu 26.04 và Debian 13; installer giao netplan độc quyền cho host (thay nửa Debian của D-57 (22)).
 4. Sao lưu: `pre_*` chứa khoá `core/secrets` (cần để khôi phục) nhưng không tải xuống được; tuy nhiên người dùng muốn **sao lưu khôi phục được trên máy khác** thì sao (cần cách bảo vệ khoá bằng mật khẩu, chưa có story). Khôi phục từ tệp tải lên cũng chưa có lệnh.
-5. `decoy_ip.add`: giả OUI theo vai (D-50 "vai giả") cần host đặt MAC theo hãng; hiện dùng MAC local-administered. Giả OUI có nên không?
+5. ~~`decoy_ip.add`: giả OUI theo vai?~~ **Đã chốt (D-102):** có, tuỳ chọn: tham số `oui`; mặc định vẫn là MAC local-administered sinh bằng HMAC (§6.6). Việc `core` chọn OUI theo vai để sau.
 6. Cần chữ ký request ở tầng ứng dụng giữa `core` và host (HMAC theo khoá cài sẵn) ngoài `SO_PEERCRED` + cgroup, hay đủ?
 7. ~~Cửa sổ bảo trì không điều khiển được `unattended-upgrades`~~ **Đã chốt (D-85):** chấp nhận; unattended-upgrades chạy theo timer của apt (Ubuntu và Debian đều ship như vậy); GUI ghi trong trợ giúp.
 8. ~~`backup.delete` và lịch sao lưu định kỳ~~ **Đã chốt (D-85):** chưa có story, không làm; chỉ lưu giữ tự động (§6.11).
@@ -322,7 +348,7 @@ Mã: `host/{api,config,peer,server,client}`, `cmd/vedette-host`; hợp đồng t
 | `socket` | đường dẫn tuyệt đối, sạch, tối đa 100 byte (`/run/vedette/host.sock`); cờ `-socket` ghi đè |
 | `socket_gid` | gid của nhóm `vedette`: chủ nhóm của socket (0660) và thư mục chứa (0750) |
 | `core_data` | tuỳ chọn: thư mục dữ liệu của `core` (tuyệt đối, sạch, ≤ 200 byte, không `..`, không `//`, không phải `/`), chứa `vedette.db`, `vedette.key` và `snapshots/`; installer ghi (WP-08). Host mở **một lần mỗi lệnh** bằng `os.OpenRoot` sau khi kiểm (lúc khởi động và mỗi lệnh) rằng nó là thư mục thật (không symlink), thuộc `core_uid` hoặc root, và **mọi thư mục cha thuộc root, nhóm/người khác không ghi được** (như sshd `StrictModes`, không có ngoại lệ cho bit sticky: trong thư mục sticky chủ của một mục vẫn đổi tên được nó, mà `core` là chủ của `core_data`; `/tmp` không được làm cha. Installer (WP-08) đặt `core_data` dưới `/var/lib/vedette` hoặc tương đương, root sở hữu, 0755). Thiếu hoặc không an toàn → sao lưu trả `db_unreadable`. Host không bao giờ nhận đường dẫn từ request (D-85, D-87) |
-| `core_cgroup` | tuỳ chọn: đường dẫn cgroup (tuyệt đối, sạch, không `..`, không ký tự điều khiển) mà tiến trình `core` phải nằm **tại hoặc dưới**; mặc định `/system.slice/<core_unit>`. Core chạy rootless (Quadlet của người dùng) nằm dưới user manager, nên installer ghi đường dẫn thật (WP-08) |
+| `core_cgroup` | tuỳ chọn: đường dẫn cgroup (tuyệt đối, sạch, không `..`, không ký tự điều khiển) mà tiến trình `core` phải nằm **tại hoặc dưới**; mặc định `/system.slice/<core_unit>`. Core chạy rootless (Quadlet của người dùng) nằm dưới user manager, nên installer ghi đường dẫn thật (WP-08). *D-105 chốt `core` là unit Quadlet **hệ thống**, rootful, `User=<core_uid>:<core_gid>` cố định, nên mặc định là đúng; khoá giữ lại cho cài đặt khác* |
 
 Cờ khác: `-state-dir` (mặc định `/var/lib/vedette-host`), `-audit-log` (mặc định `/var/log/vedette-host/audit.jsonl`), `-version`. Tiến trình từ chối khởi động nếu không phải root hoặc không phải Linux.
 
@@ -336,7 +362,7 @@ Cờ khác: `-state-dir` (mặc định `/var/lib/vedette-host`), `-audit-log` (
 
 **Lệnh chỉ đọc trong bảng lệnh.** Mục bảng có cờ `write`. Lệnh chỉ đọc cũng chạy bằng `POST /v1/commands/<name>`, không lấy khoá ghi, không tính nhịp ghi, vẫn tạo run và dòng kiểm toán; `GET /v1/state/*` (§5) **chưa có** ở 07a và trả `404 unknown_command` như mọi đường dẫn lạ (§7); 07b thêm chúng làm lớp mỏng qua `server.Readers` (§16): `state/os` và `state/backups` và hai đường tải đã có từ phần 1, `state/net` và `state/containers` vẫn `404 unknown_command` tới khi lệnh của chúng có.
 
-**Run.** Mọi lệnh tạo run. Lệnh ghi: `queued` (giữ khoá, ghi đĩa) → kiểm điều kiện đồng bộ `Check` (≤ 5 giây; từ chối trả `409`/`412` theo §11, run `refused`, khoá nhả, khoá idempotency xoá để thử lại cùng id được) → `running`. Khoá ghi chỉ nhả **sau** khi run cuối cùng và dòng kiểm toán đã ghi, rồi mới phát sự kiện `state` cuối: client thấy sự kiện cuối thì khoá đã rảnh. Hết timeout (POST-4): ngữ cảnh bị huỷ; handler không trả trong 3 giây (`KillGrace`) thì client thấy run `failed` (`timeout`) nhưng **khoá ghi vẫn giữ** tới khi goroutine thật sự trả về (INV-3: không bao giờ hai lệnh ghi cùng lúc; lệnh ghi mới → `409 busy` kèm run đó). Nếu 5 phút sau đó vẫn chưa trả về, host ghi log ERROR, một dòng kiểm toán `host_wedged` và thoát với mã 70 để systemd khởi động lại (`Restart=always`, `KillMode=control-group` giết tiến trình con; run đã được ghi `failed`/`timeout` từ trước nên khôi phục không đụng tới; dòng `host_wedged` là bản ghi của sự việc). `Check` cũng có hạn (5 giây + `KillGrace`) và **chỉ được đọc, không được đổi hệ thống**: panic thành lỗi 500; một `Check` bỏ qua hạn thì run `failed` (500) nhưng khoá ghi giữ tới khi goroutine của nó trả về (cùng trần `host_wedged` như trên). Mỗi run chạy được có **hai** dòng kiểm toán: `accepted` (peer, tham số đã che, ghi trước khi chạy; sống sót qua crash) và dòng kết quả; dòng phục hồi `host_restarted` tham chiếu dòng `accepted` (`args_redacted.accepted_audit_id`). Run bị từ chối chỉ có một dòng. Khi host khởi động lại, run `queued|running|awaiting_confirm` thành `failed` mã `host_restarted` (07b phải quyết định việc `net.apply` đang `awaiting_confirm`). Idempotency áp dụng cho mọi `POST` đã chấp nhận (lệnh ghi): cùng `X-Request-Id` + lệnh + băm tham số → `200` và run cũ, kể cả sau restart; lệnh khác hoặc tham số khác → `422 request_id_reuse` (cả với lệnh chỉ đọc); bị từ chối thì **không** nhớ id.
+**Run.** Mọi lệnh tạo run. Lệnh ghi: `queued` (giữ khoá, ghi đĩa) → kiểm điều kiện đồng bộ `Check` (≤ 5 giây; từ chối trả `409`/`412` theo §11, run `refused`, khoá nhả, khoá idempotency xoá để thử lại cùng id được) → `running`. Khoá ghi chỉ nhả **sau** khi run cuối cùng và dòng kiểm toán đã ghi, rồi mới phát sự kiện `state` cuối: client thấy sự kiện cuối thì khoá đã rảnh. Hết timeout (POST-4): ngữ cảnh bị huỷ; handler không trả trong 3 giây (`KillGrace`) thì client thấy run `failed` (`timeout`) nhưng **khoá ghi vẫn giữ** tới khi goroutine thật sự trả về (INV-3: không bao giờ hai lệnh ghi cùng lúc; lệnh ghi mới → `409 busy` kèm run đó). Nếu 5 phút sau đó vẫn chưa trả về, host ghi log ERROR, một dòng kiểm toán `host_wedged` và thoát với mã 70 để systemd khởi động lại (`Restart=always`, `KillMode=control-group` giết tiến trình con; run đã được ghi `failed`/`timeout` từ trước nên khôi phục không đụng tới; dòng `host_wedged` là bản ghi của sự việc). `Check` cũng có hạn (5 giây + `KillGrace`) và **chỉ được đọc, không được đổi hệ thống**: panic thành lỗi 500; một `Check` bỏ qua hạn thì run `failed` (500) nhưng khoá ghi giữ tới khi goroutine của nó trả về (cùng trần `host_wedged` như trên). Mỗi run chạy được có **hai** dòng kiểm toán: `accepted` (peer, tham số đã che, ghi trước khi chạy; sống sót qua crash) và dòng kết quả; dòng phục hồi `host_restarted` tham chiếu dòng `accepted` (`args_redacted.accepted_audit_id`). Run bị từ chối chỉ có một dòng. Khi host khởi động lại, run `queued|running|awaiting_confirm` thành `failed` mã `host_restarted` (07b phải quyết định việc `net.apply` đang `awaiting_confirm`; **đã quyết ở D-100**: run chờ được `Options.Resume` giữ lại hoặc hoàn tác, §6.5, §18). Idempotency áp dụng cho mọi `POST` đã chấp nhận (lệnh ghi): cùng `X-Request-Id` + lệnh + băm tham số → `200` và run cũ, kể cả sau restart; lệnh khác hoặc tham số khác → `422 request_id_reuse` (cả với lệnh chỉ đọc); bị từ chối thì **không** nhớ id.
 
 **Lỗi bổ sung (§11).** `503 audit_unavailable` (chuỗi kiểm toán hỏng hoặc không ghi được: chặn mọi `POST`, vẫn đọc được), `500 internal` (host không ghi được run), mã run `timeout`, `host_restarted`, `command_failed` (lỗi chung, không lộ nội dung), `host_shutting_down`. Đối tượng `error` có thêm `run_id` (khi `busy`: run đang giữ khoá) và `retry_after_s` (khi `rate_limited`, kèm tiêu đề `Retry-After`). Nhịp 60/phút tính **mọi** request đã qua xác thực (kể cả `GET`, mở SSE và đường dẫn lạ): `core` phải dùng SSE thay vì hỏi `GET /v1/runs/{id}` mỗi giây.
 
@@ -380,7 +406,7 @@ Mã: `host/ops` (lệnh và đọc trạng thái), `host/ops/opstest` (máy gi�
 
 **`logs.export`.** Với mỗi unit (bỏ trùng, sắp xếp) chạy `journalctl` một lần; `until` làm tròn lên giây. Mỗi dòng: giới hạn 1 MiB, phải là đối tượng JSON, qua lọc bí mật (`RedactJournalLine`: khối PEM, `Authorization: Bearer|Basic`, `Bearer`, `vdt_…`, `/blocklist/<token>`, `xapp-`/`xoxb-`/`xoxp-`…, `sk-`/`ghp_`/`gho_`/…, `github_pat_`/`glpat-`, `AKIA…`, JWT, `password|passwd|pwd|secret|token|api_key` dạng `khoá=giá-trị` hoặc `khoá: giá-trị`). Các quy tắc không bao giờ ăn dấu `"` hay `\` nên dòng JSON hợp lệ vẫn hợp lệ (fuzz kiểm cả tính lũy đẳng). Trần 256 MiB tính trên văn bản đã lọc cộng dồn qua các unit; mỗi `journalctl` bị cắt ở **64 MiB** (cờ `Truncated` → `output_too_large`: `core/exec` giữ đầu ra trong bộ nhớ, nên một export không bao giờ giữ quá cỡ đó; đường nâng cấp: cho `Runner` ghi thẳng ra bộ lọc). Trước khi chạy: `low_disk` nếu chỗ trống < 2 × 256 MiB. Dòng JSON có trường là **mảng số** (journald in trường chứa TAB, ESC, CR hoặc UTF-8 sai thành mảng byte) được giải mã thành byte, lọc bí mật ở dạng văn bản rồi mã hoá lại thành mảng; rồi các quy tắc chạy trên cả dòng; mảng được nhận ở bất kỳ vị trí nào trong dòng (cả `"F":["text",[…]]` và `"F":[[…],[…]]` của trường xuất hiện hai lần). Các trường `COREDUMP_*` và `_COREDUMP*` của systemd-coredump (ngăn xếp, môi trường của tiến trình sập) bị bỏ khỏi bản xuất. Tệp `exports/<export_id>.jsonl.gz` (0600) + chỉ mục; xoá sau 24 giờ (khi khởi động, mỗi giờ, mỗi lần xuất, mỗi lần tải); giữ tối đa 3 bản và 512 MiB tổng (bản mới nhất luôn giữ, xoá cũ nhất trước); mỗi lần tải sao lưu hay xuất log ghi một dòng kiểm toán của host (`backup.download`, `logs.download`; không ghi được dòng thì không phục vụ tệp).
 
-**Giới hạn đã biết (ponytail).** `core/exec` gom đầu ra rồi mới trả, nên tiến trình apt hiện sau khi lệnh apt xong, và một unit của export dùng tới 64 MiB RAM (nâng cấp: cho `Runner` ghi thẳng ra tệp). Kiểm sức khoẻ phần 1 chỉ có unit `core`; sensor/honeypot/scan/greenbone và `/healthz` chờ lệnh container. Hạn hỗ trợ trong bảng tĩnh cần đối chiếu. Mô hình systemd của `core` (hệ thống hay người dùng, Quadlet rootless) chưa kiểm trên máy thật. Gói có tên kết thúc bằng `+` hoặc `-` (ví dụ `g++`) không qua được quy tắc tên gói (apt đọc chúng là bộ sửa đổi) nên không bao giờ được host nâng cấp. Phía `core` của hợp đồng bản chụp (tạo `snapshots/<id>/`) đã cài ở WP-07b phần 2 (§17). Tệp nhị phân `vedette-host` vẫn **liên kết** `modernc.org/sqlite` một cách gián tiếp (qua `core/chain` → `core/store`, host chỉ dùng công thức băm của `core/chain`); mã đó không được gọi, nhưng tách công thức băm ra gói không phụ thuộc SQL là việc để sau (deferred).
+**Giới hạn đã biết (ponytail).** `core/exec` gom đầu ra rồi mới trả, nên tiến trình apt hiện sau khi lệnh apt xong, và một unit của export dùng tới 64 MiB RAM (nâng cấp: cho `Runner` ghi thẳng ra tệp). Kiểm sức khoẻ phần 1 chỉ có unit `core`; sensor/honeypot/scan/greenbone và `/healthz` chờ lệnh container. Hạn hỗ trợ trong bảng tĩnh cần đối chiếu. Mô hình systemd của `core` (hệ thống hay người dùng, Quadlet rootless) chưa kiểm trên máy thật (D-105 đã chọn unit hệ thống rootful; kiểm lab vẫn còn). Gói có tên kết thúc bằng `+` hoặc `-` (ví dụ `g++`) không qua được quy tắc tên gói (apt đọc chúng là bộ sửa đổi) nên không bao giờ được host nâng cấp. Phía `core` của hợp đồng bản chụp (tạo `snapshots/<id>/`) đã cài ở WP-07b phần 2 (§17). Tệp nhị phân `vedette-host` vẫn **liên kết** `modernc.org/sqlite` một cách gián tiếp (qua `core/chain` → `core/store`, host chỉ dùng công thức băm của `core/chain`); mã đó không được gọi, nhưng tách công thức băm ra gói không phụ thuộc SQL là việc để sau (deferred).
 
 ## 17. Đã chốt khi cài phía `core` (WP-07b phần 2)
 
@@ -394,3 +420,38 @@ Mã: `modules/core/{snapshot,handlers_os,oshost,osrun,osview,osmaint}.go`, `core
 - **Idempotency và nhãn.** Mỗi lời gọi một `X-Request-Id` UUID v4 mới (người dùng bấm hai lần là hai lệnh; hai lần thật sự cùng lúc thì lệnh thứ hai nhận `busy`). `X-Vedette-Actor` là email người dùng nếu khớp `^[a-zA-Z0-9_.@:-]{1,64}$`, không thì `user:<id>`.
 - **Giờ reboot.** `core` đổi `window`/`custom` thành một thời điểm UTC trong khoảng từ 2 phút đến 7 ngày trừ 1 phút kể từ giờ của `core` (biên an toàn cho khoảng 60 giây đến 7 ngày của host, §6.4); múi giờ là múi của tổ chức, không bao giờ múi của máy.
 
+## 18. Đã chốt cho phần 3 (WP-07b phần 3: `net.*`, `decoy_ip.*`, `container.*`)
+
+Chốt trên giấy ở lát 3-0 (2026-11-10, D-99…D-107) trước khi viết mã; mã theo các lát 3-1…3-8, mỗi lát một PR. Mã dự kiến: `host/server` (run chờ xác nhận, `Settle`, giới hạn thân theo lệnh, `Readers.Net`/`Readers.Containers`), `internal/release` (minisign, cosign, index, manifest, SemVer, thu hồi; thuần, dùng chung với `core`), `host/ops/{netstate,netplan,arpframe,arp_linux,arp_other,net,netpending,ntp,decoy,hpns,mac,quadlet,units,containers,pull}.go`, `cmd/vedette-host` (`-bootstrap`).
+
+**Khung: run chờ xác nhận (D-100).** Handler trả `server.Awaiting{RevertAt, Result}` → run `awaiting_confirm`, một dòng kiểm toán `awaiting_confirm`, một sự kiện `state`; **khoá ghi vẫn giữ**. `(*Server).Settle(runID, status, *RunError)` kết thúc run chờ đúng một lần (so-và-đổi: xác nhận chạy đua với hẹn giờ thì một bên thắng, bên kia nhận `not_awaiting_confirm`), ghi run, dòng kiểm toán kết quả và sự kiện cuối, rồi mới nhả khoá. `Spec.WhileAwaiting` (chỉ `net.confirm`, `net.revert`) cho lệnh đi qua khoá khi và chỉ khi `args.run_id` là run đang chờ; mọi lệnh ghi khác → `409 pending_confirm` kèm `run_id`. `Options.Resume func(api.Run) bool`: `recover()` hỏi trước khi biến run `awaiting_confirm` thành `host_restarted`; `Ops.Start` (trước `Listen`) dựng lại hẹn giờ từ `net/pending.json` hoặc hoàn tác (§6.5). Gửi lại `net.confirm` cùng `X-Request-Id` trả run cũ (§4). `Spec.MaxBody`: giới hạn thân theo lệnh (mặc định 512 KiB; `container.pull` 1 MiB). `GET /v1/state/net` và `GET /v1/state/containers` có từ lát 3-3 và 3-6.
+
+**Tệp hệ thống host ghi (không gì khác):** `/etc/netplan/90-vedette.yaml` (0600) và bản phủ `/run/netplan/90-vedette.yaml`; `/etc/chrony/sources.d/vedette.sources`; `/etc/containers/systemd/vedette-<service>.container` (0644); namespace `/run/netns/vedette-hp` cùng link `vdh<8 hex>` của nó. Mọi tệp ghi qua `os.Root`, tệp tạm `O_CREATE|O_EXCL|O_NOFOLLOW`, `fsync`, rename, `fsync` thư mục; mọi thư mục cha thuộc root, nhóm/người khác không ghi được (D-105). Trạng thái riêng dưới `-state-dir` (0600, ghi nguyên tử): `net/pending.json`, `hp/decoys.json`, `hp/mac.key`, `containers/units/<service>.prev`, `containers/transition.json`, index đã lưu và bản đã kéo của từng service.
+
+**Tiến trình con (thêm vào bảng argv của §16).** Đường dẫn binary là hằng (chỉ test thay, `Deps.BinPaths`, D-107); mọi giá trị đi qua kiểu đã kiểm; văn phạm chi tiết nằm trong bộ kiểm argv của từng binary và có fuzz.
+
+| Binary | Argv |
+|---|---|
+| `netplan` | `apply` (và `generate --root-dir <tmp>` chỉ trong test trên CI Linux) |
+| `ip` | `netns add vedette-hp`; `link add link <mgmt> name vdh<8 hex> address <mac> type macvlan mode bridge`; `link set vdh<8 hex> netns vedette-hp`; `-n vedette-hp` với `addr`, `link set … up`, `route` (subnet và `default via <gw>`, bảng 100–131), `rule from <ip> lookup <bảng>`, `link del`; `netns exec vedette-hp` + đường dẫn tuyệt đối của `sysctl` hoặc `nft` |
+| `sysctl` | `-w` bốn khoá hằng của §6.6 với giá trị hằng, chỉ trong `vedette-hp` |
+| `nft` | nạp ruleset hằng của §6.6; `list ruleset` để kiểm hiệu ứng; chỉ trong `vedette-hp` |
+| `chronyc` | `reload sources`; `-N -c sources` |
+| `podman` | `pull -q ghcr.io/knt048/vedette-<service>@sha256:<64 hex>`; `image inspect --format json <digest>`; `tag <digest> localhost/vedette-<service>:<version>`; `rmi <digest>`; `container inspect vedette-<service>` |
+| `systemctl` | thêm `daemon-reload`; `restart\|stop\|is-active vedette-<service>.service` (tên từ enum `service`) |
+
+**Mạng (D-99, D-100, D-106).** Host không bao giờ đọc hay phân tích tệp netplan nó không viết: thấy tệp lạ là `net_backend_unsupported`. Installer (WP-08) cài `netplan.io` trên Debian, tắt mạng của cloud-init (`/etc/cloud/cloud.cfg.d/99-vedette-network.cfg`), dời tệp netplan khác, không để ifupdown/NetworkManager quản card, và sở hữu `chrony.conf` (`sourcedir /etc/chrony/sources.d`, không pool của distro). `netplan apply` có thể làm các card khác chớp lại (rủi ro ghi nhận; kiểm ở lab).
+
+**ARP (D-101).** Socket `AF_PACKET` qua `golang.org/x/sys/unix`; khung dựng và đọc bằng hàm thuần, đúng 42 byte, fuzz; chỉ khung ARP có IP người gửi bằng địa chỉ đang thăm dò mới là xung đột, khung từ MAC của chính hộp bị bỏ. Root không đếm MAC, không đọc gói nào khác (INV-18 của host CONTRACT). `vedette-host.service` thêm `AF_PACKET` vào `RestrictAddressFamilies` (`DEPLOYMENT.md` §12).
+
+**Decoy (D-102).** `vedette-host.service` là `Type=notify`: host tạo `vedette-hp` (sysctl, ruleset nft) và áp lại decoy trong `Ops.Start`, rồi gửi `READY=1`, nên unit honeypot (`After=vedette-host.service`) không bao giờ vào một namespace chưa có. Decoy ngoài subnet quản trị sau `net.apply` bị gỡ và báo; `core` hiện `conflict`. macvlan không chạy trên Wi-Fi và bị chặn bởi chính sách MAC của vSwitch VMware/Hyper-V (decoy im lặng): GUI phải nói, lab phải kiểm.
+
+**Chữ ký, kéo, khởi động, hoàn tác (D-103, D-104).** Gốc tin cậy nhúng trong binary: khoá minisign đang dùng, khoá minisign dự phòng ngoại tuyến, khoá cosign; kien tạo cả ba ngoại tuyến (phần riêng không bao giờ vào repo hay hộp), lát 3-2 nhúng phần công khai. Test dùng gốc tin cậy riêng qua `Deps.Keys` (D-107; sản xuất không được tham chiếu). Không có đường nào cho `core` đặt registry, tag hay tham chiếu tuỳ ý. Multi-arch: `images[].digest` phải là digest của index đa nền tảng (kiểm ở lab). `source=bundle` để sau (`bundle_unsupported`).
+
+**Unit Quadlet (D-105).** Mẫu theo service (test hợp đồng trên unit đã dựng): `core`: bridge `vedette-int`, `PublishPort=8443:8443` (không kèm IP) và `127.0.0.1:8444:8444`, `User=<core_uid>:<core_gid>`, không `UserNS=auto`, `DropCapability=ALL`; `sensor`: `Network=host`, `NET_RAW` + `NET_BIND_SERVICE`; `scan`: `Network=host`, `NET_RAW`; `honeypot`: `Network=ns:/run/netns/vedette-hp`, `DropCapability=ALL`; `greenbone`: `vedette-int`, theo upstream. Không unit nào có `--privileged`, `PodmanArgs` tự do hay mount ngoài bảng. Trường của `podman inspect` khác nhau giữa 4.9 và 5.4: bộ đọc chịu cả hai, kiểm ở lab. `Notify=healthy` để sau khi mọi distro hỗ trợ có Podman ≥ 5.
+
+**Khởi động lần đầu.** `vedette-host -bootstrap` (lát 3-8) kiểm một index + manifest + chữ ký cosign y như `container.pull` rồi ghi các unit đầu tiên; dành cho `install.sh` (WP-08, installer không phải `core` nên không qua được kiểm peer của socket); không có đường nào tới nó qua socket.
+
+**Phía `core` (không thuộc host, ghi để nối):** màn hình mạng gộp mỗi `PUT` thành trạng thái mong muốn đầy đủ rồi gọi `net.apply`, nhớ `run_id` chờ xác nhận và dựng lại từ `ListRuns` lúc khởi động, gộp `span_status` từ bộ đếm của host và số đo của `sensor`, sau xác nhận làm mới IP của "This box"; bộ chuyển honeypot (thay `notAnAppliance`) đọc `/v1/info.commands`, so `decoys` của `GET /v1/state/net` với DB và chỉ thêm/gỡ phần khác, khởi động với `restart` khi cấu hình đổi, dừng với `persist`, truyền `oui`; cập nhật phần mềm kiểm index/manifest bằng `internal/release`, chụp bản rồi `container.pull` từng service → `container.start` (`core` sau cùng, kèm `snapshot`), rollback qua `container.rollback` sau khi người dùng xác nhận mất dữ liệu khi `rollback.safe=false`. Bảng ánh xạ mã host → mã API thêm vào `modules/core/CONTRACT.md` như INV-21.
+
+**Còn để sau** (`.ai/deferred/feat-host-net-containers.md`): bundle, `host.self_update`, IPv6 quản trị, `core` chọn `oui`, phát hiện quét cổng trên decoy bằng `log` của nft trong `vedette-hp`, `firewall.*` (§14.1), logind inhibitor, `Notify=healthy`, và toàn bộ kiểm lab trên Ubuntu 24.04, Ubuntu 26.04, Debian 13.

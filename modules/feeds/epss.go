@@ -1,186 +1,184 @@
 package feeds
 
 import (
-	"bufio"
-	"bytes"
-	"compress/gzip"
-	"errors"
-	"io"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
 
-// Limits for the EPSS bulk file. It is about 3 MB gzipped and 10+ MB as text,
-// and has ~260k rows, so INV-2's 50,000-row cap does not fit; these are the
-// zip-bomb and memory guards instead.
-const (
-	MaxEPSSDecompressed = 64 << 20
-	MaxEPSSRows         = 1_000_000
-	maxEPSSLine         = 64 << 10
-)
+// EPSSBatchSize is how many CVE ids one api.first.org request may ask for.
+const EPSSBatchSize = 100
 
-// EPSSScore is one row of the FIRST EPSS file.
+// EPSSScore is one row of the FIRST EPSS API.
 type EPSSScore struct {
 	CVE        string  `json:"cve"`
 	Score      float64 `json:"epss"`
 	Percentile float64 `json:"percentile"`
+	Date       string  `json:"date"` // YYYY-MM-DD the score is for, "" when the API gave none
 }
 
-// EPSSData is a parsed EPSS file. Scores holds only the rows `keep` selected;
-// Accepted counts every valid row.
+// EPSSData is a parsed EPSS API answer.
 type EPSSData struct {
-	ModelVersion string // from the "#model_version:..." comment, "" when odd
-	ScoreDate    string // YYYY-MM-DD from "score_date:...", "" when odd
-	Scores       []EPSSScore
+	Scores []EPSSScore
 	Stats
 }
 
-// capReader fails with ErrTooLarge once more than max bytes were read, so a
-// decompression bomb or an endless body stops at a hard ceiling.
-type capReader struct {
-	r    io.Reader
-	left int64
+// EPSSDate is the YYYY-MM-DD (UTC) of the day daysAgo days before now: pass 7
+// for the "7 days ago" score that gives the delta.
+func EPSSDate(now time.Time, daysAgo int) string {
+	return now.UTC().AddDate(0, 0, -daysAgo).Format("2006-01-02")
 }
 
-func newCapReader(r io.Reader, limit int64) *capReader { return &capReader{r: r, left: limit} }
-
-func (c *capReader) Read(p []byte) (int, error) {
-	if c.left < 0 {
-		return 0, ErrTooLarge
+// EPSSBatchURLs builds the requests that fetch the scores of cves from the API
+// at base (the built-in source address), at most EPSSBatchSize ids each:
+// base?cve=A,B,...[&date=YYYY-MM-DD]. date may be empty (latest). Ids are
+// validated, upper-cased and de-duplicated.
+func EPSSBatchURLs(base string, cves []string, date string) ([]string, error) {
+	if err := CheckURL(base); err != nil {
+		return nil, err
 	}
-	if int64(len(p)) > c.left+1 {
-		p = p[:c.left+1]
+	if strings.ContainsAny(base, "?#") {
+		return nil, fail(ErrInvalidURL, "The EPSS address must not carry a query string.")
 	}
-	n, err := c.r.Read(p)
-	c.left -= int64(n)
-	if c.left < 0 {
-		return 0, ErrTooLarge
-	}
-	return n, err
-}
-
-var (
-	epssCVE   = regexp.MustCompile(`^CVE-[0-9]{4}-[0-9]{4,}$`)
-	epssNum   = regexp.MustCompile(`^[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?$`)
-	modelRE   = regexp.MustCompile(`^[0-9A-Za-z._-]{1,40}$`)
-	epssWords = "cve,epss,percentile"
-)
-
-func unitFloat(s string) (float64, bool) {
-	if !epssNum.MatchString(s) {
-		return 0, false
-	}
-	f, err := strconv.ParseFloat(s, 64)
-	if err != nil || f < 0 || f > 1 {
-		return 0, false
-	}
-	return f, true
-}
-
-// ParseEPSS reads the FIRST EPSS CSV, gzip-compressed (as published) or plain.
-// The decompressed size is capped at MaxEPSSDecompressed (ErrTooLarge). The
-// "#model_version" comment line is read for metadata; the header must be
-// "cve,epss,percentile". Bad rows are rejected and counted. Any stream error
-// (truncated gzip, bad checksum, a line over 64 KB) fails the whole parse so
-// the caller keeps its previous scores. keep may be nil to keep every row.
-func ParseEPSS(data []byte, keep func(cve string) bool) (EPSSData, error) {
-	if len(data) > MaxBodyBytes {
-		return EPSSData{}, fail(ErrTooLarge, "The EPSS file is larger than %d MB; Vedette would skip it.", MaxBodyBytes/1_000_000)
-	}
-	var src io.Reader = bytes.NewReader(data)
-	if len(data) >= 2 && data[0] == 0x1f && data[1] == 0x8b {
-		gz, err := gzip.NewReader(src)
-		if err != nil {
-			return EPSSData{}, fail(ErrBadSample, "The EPSS file is not valid gzip.")
-		}
-		defer func() { _ = gz.Close() }()
-		src = gz
-	}
-	sc := bufio.NewScanner(newCapReader(src, MaxEPSSDecompressed))
-	sc.Buffer(make([]byte, 0, 4096), maxEPSSLine)
-	out := EPSSData{Scores: []EPSSScore{}}
-	tl := newTally()
-	headerSeen := false
-	row := 0
-	for sc.Scan() {
-		line := jsTrim(strings.ToValidUTF8(sc.Text(), "�"))
-		if line == "" {
-			continue
-		}
-		if strings.HasPrefix(line, "#") {
-			if !headerSeen {
-				epssMeta(line, &out)
-			}
-			continue
-		}
-		if !headerSeen {
-			if !strings.EqualFold(line, epssWords) {
-				return EPSSData{}, fail(ErrBadSample, "This is not an EPSS file: the header must be %s.", epssWords)
-			}
-			headerSeen = true
-			continue
-		}
-		if row == MaxEPSSRows {
-			tl.Truncated = true
-			break
-		}
-		row++
-		cols := strings.Split(line, ",")
-		if len(cols) != 3 {
-			tl.reject(row, "row: expected 3 columns")
-			continue
-		}
-		cve := strings.ToUpper(cols[0])
-		score, ok1 := unitFloat(cols[1])
-		pct, ok2 := unitFloat(cols[2])
-		switch {
-		case !epssCVE.MatchString(cve):
-			tl.reject(row, `cve: "`+jsSlice(cols[0], 30)+`" is not a CVE ID`)
-		case !ok1:
-			tl.reject(row, `epss: "`+jsSlice(cols[1], 20)+`" is not a number from 0 to 1`)
-		case !ok2:
-			tl.reject(row, `percentile: "`+jsSlice(cols[2], 20)+`" is not a number from 0 to 1`)
-		default:
-			tl.Accepted++
-			if keep == nil || keep(cve) {
-				out.Scores = append(out.Scores, EPSSScore{cve, score, pct})
-			}
+	if date != "" {
+		if _, ok := normDate(date, DateAuto); !ok || !strictDateRE.MatchString(date) {
+			return nil, fail(ErrBadConfig, "The EPSS date must be YYYY-MM-DD.")
 		}
 	}
-	if err := sc.Err(); err != nil {
-		switch {
-		case errors.Is(err, ErrTooLarge):
-			return EPSSData{}, fail(ErrTooLarge, "The EPSS file expands to more than %d MB; Vedette would skip it.", MaxEPSSDecompressed>>20)
-		case errors.Is(err, bufio.ErrTooLong):
-			return EPSSData{}, fail(ErrBadSample, "The EPSS file has a line that is far too long.")
+	seen := map[string]bool{}
+	var ids []string
+	for _, c := range cves {
+		id := strings.ToUpper(jsTrim(c))
+		if !cveRE.MatchString(id) {
+			return nil, fail(ErrBadConfig, "%s is not a CVE ID.", quoteVal(c))
 		}
-		return EPSSData{}, fail(ErrBadSample, "The EPSS file is damaged or cut off.")
+		if !seen[id] {
+			seen[id] = true
+			ids = append(ids, id)
+		}
 	}
-	if !headerSeen {
-		return EPSSData{}, fail(ErrBadSample, "This is not an EPSS file: the header is missing.")
+	var out []string
+	for i := 0; i < len(ids); i += EPSSBatchSize {
+		end := min(i+EPSSBatchSize, len(ids))
+		q := url.Values{"cve": {strings.Join(ids[i:end], ",")}}
+		if date != "" {
+			q.Set("date", date)
+		}
+		out = append(out, strings.TrimSpace(base)+"?"+q.Encode())
 	}
-	out.Stats = tl.stats()
 	return out, nil
 }
 
-// epssMeta reads "#model_version:v2025.03.14,score_date:2025-03-14T12:55:00Z".
-func epssMeta(line string, out *EPSSData) {
-	for _, part := range strings.Split(strings.TrimPrefix(line, "#"), ",") {
-		k, v, ok := strings.Cut(part, ":")
-		if !ok {
+// EPSSURLMaxLen is the longest request address the fetcher accepts for these batches.
+const EPSSURLMaxLen = 2048
+
+var epssNum = regexp.MustCompile(`^[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?$`)
+
+// unitValue reads a probability the API sends as a number or a numeric string.
+func unitValue(n *jnode) (float64, bool) {
+	if n == nil {
+		return 0, false
+	}
+	var f float64
+	var err error
+	switch n.k {
+	case jNum:
+		f, err = strconv.ParseFloat(n.s, 64)
+	case jStr:
+		if !epssNum.MatchString(n.s) {
+			return 0, false
+		}
+		f, err = strconv.ParseFloat(n.s, 64)
+	default:
+		return 0, false
+	}
+	return f, err == nil && f >= 0 && f <= 1
+}
+
+func shown(n *jnode) string {
+	if n == nil {
+		return ""
+	}
+	return jsString(n)
+}
+
+// ParseEPSS reads an api.first.org EPSS answer: {"status":"OK","total":N,
+// "data":[{"cve","epss","percentile","date"}]}, with epss and percentile as
+// numbers or strings. Rows are validated (CVE id, 0..1, date) and bad ones
+// rejected and counted. A damaged answer or an error status fails the parse so
+// the caller keeps its previous scores. Truncated is set when the API says it
+// has more rows than it returned.
+func ParseEPSS(data []byte) (EPSSData, error) {
+	if len(data) > MaxBodyBytes {
+		return EPSSData{}, fail(ErrTooLarge, "The EPSS answer is larger than %d MB; Vedette would skip it.", MaxBodyBytes/1_000_000)
+	}
+	root, err := decodeJSON(cleanText(data))
+	if err != nil || root.k != jObj {
+		return EPSSData{}, fail(ErrBadSample, "The EPSS answer is not valid JSON.")
+	}
+	if st, ok := root.get("status"); ok && (st.k != jStr || st.s != "OK") {
+		return EPSSData{}, fail(ErrBadSample, "The EPSS source reported an error.")
+	}
+	list, _ := root.get("data")
+	if list == nil || list.k != jArr {
+		return EPSSData{}, fail(ErrBadSample, `The EPSS answer has no "data" list.`)
+	}
+	out := EPSSData{Scores: []EPSSScore{}}
+	tl := newTally()
+	for i, n := range list.children() {
+		if i == MaxRows {
+			tl.Truncated = true
+			break
+		}
+		row := i + 1
+		if n.k != jObj {
+			tl.reject(row, "entry is not an object")
 			continue
 		}
-		switch strings.TrimSpace(k) {
-		case "model_version":
-			if v = strings.TrimSpace(v); modelRE.MatchString(v) {
-				out.ModelVersion = v
+		cveN, _ := n.get("cve")
+		epssN, _ := n.get("epss")
+		pctN, _ := n.get("percentile")
+		dateN, hasDate := n.get("date")
+		cve := ""
+		if cveN != nil && cveN.k == jStr {
+			cve = strings.ToUpper(jsTrim(cveN.s))
+		}
+		score, ok1 := unitValue(epssN)
+		pct, ok2 := unitValue(pctN)
+		date := ""
+		okDate := true
+		if hasDate && dateN.k != jNull {
+			d := ""
+			if dateN.k == jStr {
+				d = jsTrim(dateN.s)
 			}
-		case "score_date":
-			if t, err := time.Parse(time.RFC3339, strings.TrimSpace(v)); err == nil {
-				out.ScoreDate = t.UTC().Format("2006-01-02")
+			if _, ok := normDate(d, DateAuto); ok && strictDateRE.MatchString(d) {
+				date = d
+			} else {
+				okDate = false
 			}
 		}
+		switch {
+		case !cveRE.MatchString(cve):
+			tl.reject(row, "cve: %s is not a CVE ID", cve)
+		case !ok1:
+			tl.reject(row, "epss: %s is not a number from 0 to 1", shown(epssN))
+		case !ok2:
+			tl.reject(row, "percentile: %s is not a number from 0 to 1", shown(pctN))
+		case !okDate:
+			tl.reject(row, "date: %s is not a date", shown(dateN))
+		default:
+			tl.Accepted++
+			out.Scores = append(out.Scores, EPSSScore{cve, score, pct, date})
+		}
 	}
+	if t, ok := root.get("total"); ok && t.k == jNum {
+		if total, err := strconv.ParseFloat(t.s, 64); err == nil && total > float64(len(list.children())) {
+			tl.Truncated = true
+		}
+	}
+	out.Stats = tl.stats()
+	return out, nil
 }

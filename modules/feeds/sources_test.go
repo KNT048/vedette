@@ -7,10 +7,9 @@ import (
 
 func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 	t.Parallel()
-	// Hosts listed in PRIVACY.md flow 1, plus the EPSS bulk file host (see the
-	// report: PRIVACY.md and THIRD_PARTY_NOTICES.md need that host added).
+	// Exactly the hosts listed in PRIVACY.md flow 1.
 	allowed := map[string]bool{
-		"www.cisa.gov": true, "epss.empiricalsecurity.com": true, "raw.githubusercontent.com": true,
+		"www.cisa.gov": true, "api.first.org": true, "raw.githubusercontent.com": true,
 		"rules.emergingthreats.net": true, "feodotracker.abuse.ch": true, "sslbl.abuse.ch": true, "check.torproject.org": true,
 	}
 	seenID, seenName := map[string]bool{}, map[string]bool{}

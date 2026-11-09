@@ -1,0 +1,9 @@
+{"status":"OK","status-code":200,"version":"1.0","access":"public","total":7,"offset":0,"limit":100,"data":[
+{"cve":"CVE-2026-10001","epss":"0.94321","percentile":"0.99876","date":"2026-11-08"},
+{"cve":"cve-2026-10002","epss":0.00043,"percentile":0.08812,"date":"2026-11-08"},
+{"cve":"CVE-2026-10003","epss":"1","percentile":"1","date":"2026-11-08"},
+{"cve":"CVE-2026-10004","epss":"1.5","percentile":"0.9","date":"2026-11-08"},
+{"cve":"not-a-cve","epss":"0.1","percentile":"0.1","date":"2026-11-08"},
+{"cve":"CVE-2026-10005","epss":"abc","percentile":"0.1","date":"2026-11-08"},
+{"cve":"CVE-2026-10006","epss":"0.1","percentile":"0.2","date":"yesterday"}
+]}

@@ -9,7 +9,7 @@ type Decoder string
 const (
 	DecoderParser Decoder = "parser" // the generic custom-format parser with Source.Parser
 	DecoderKEV    Decoder = "kev"    // ParseKEV
-	DecoderEPSS   Decoder = "epss"   // ParseEPSS (gzip CSV)
+	DecoderEPSS   Decoder = "epss"   // EPSSBatchURLs and ParseEPSS (api.first.org JSON)
 	DecoderNuclei Decoder = "nuclei" // ParseNucleiCVEs
 )
 
@@ -25,6 +25,22 @@ type Source struct {
 	IntervalHours int // default schedule: 24 for vulnerabilities, 6 for IOC
 	Decoder       Decoder
 	Parser        *Parser // set when Decoder == DecoderParser
+	MaxRows       int     // row limit of this source; 0 means MaxRows (50,000)
+
+	// Aggregate: the list is itself a merge of other lists (IPsum, hagezi TIF).
+	// It never reaches block alone, and counts with one of its Upstreams as one source.
+	Aggregate bool
+	Upstreams []string // ids of built-in feeds an aggregate is known to include
+	// Informational: the list says what an address is, not that it is malicious
+	// (Tor exit nodes). It never counts toward block.
+	Informational bool
+}
+
+func (s Source) rowLimit() int {
+	if s.MaxRows > 0 {
+		return s.MaxRows
+	}
+	return MaxRows
 }
 
 // BlockClass reports a CC0 IOC list: one such source is enough for `block`
@@ -49,14 +65,14 @@ func sslblParser() *Parser {
 // list in PRIVACY.md (INV-13) except where the report says otherwise.
 var builtinSources = []Source{
 	{ID: "cisa-kev", Name: "CISA KEV", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", License: "CC0", IntervalHours: 24, Decoder: DecoderKEV},
-	{ID: "first-epss", Name: "FIRST EPSS", Kind: KindVulnerabilities, Format: FormatCSV, URL: "https://epss.empiricalsecurity.com/epss_scores-current.csv.gz", License: "Attribution: EPSS by FIRST", IntervalHours: 24, Decoder: DecoderEPSS},
+	{ID: "first-epss", Name: "FIRST EPSS", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://api.first.org/data/v1/epss", License: "Attribution: EPSS by FIRST", IntervalHours: 24, Decoder: DecoderEPSS},
 	{ID: "nuclei-templates", Name: "nuclei-templates", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://raw.githubusercontent.com/projectdiscovery/nuclei-templates/main/cves.json", License: "MIT", IntervalHours: 24, Decoder: DecoderNuclei},
-	{ID: "ipsum", Name: "IPsum", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/stamparm/ipsum/master/ipsum.txt", License: "Unlicense", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser()},
+	{ID: "ipsum", Name: "IPsum", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt", License: "Unlicense", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Aggregate: true, Upstreams: []string{"et-open", "abusech-feodo", "abusech-sslbl"}},
 	{ID: "et-open", Name: "ET Open compromised IPs", Kind: KindIOC, Format: FormatLines, URL: "https://rules.emergingthreats.net/blockrules/compromised-ips.txt", License: "BSD", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser()},
 	{ID: "abusech-feodo", Name: "abuse.ch Feodo Tracker", Kind: KindIOC, Format: FormatLines, URL: "https://feodotracker.abuse.ch/downloads/ipblocklist.txt", License: "CC0", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser()},
 	{ID: "abusech-sslbl", Name: "abuse.ch SSLBL", Kind: KindIOC, Format: FormatCSV, URL: "https://sslbl.abuse.ch/blacklist/sslipblacklist.csv", License: "CC0", IntervalHours: 6, Decoder: DecoderParser, Parser: sslblParser()},
-	{ID: "tor-exit", Name: "Tor exit list", Kind: KindIOC, Format: FormatLines, URL: "https://check.torproject.org/torbulkexitlist", License: "Attribution: torproject", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser()},
-	{ID: "hagezi-tif", Name: "hagezi TIF", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/tif.txt", License: "GPL-3.0, unmodified", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser()},
+	{ID: "tor-exit", Name: "Tor exit list", Kind: KindIOC, Format: FormatLines, URL: "https://check.torproject.org/torbulkexitlist", License: "Attribution: torproject", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Informational: true},
+	{ID: "hagezi-tif", Name: "hagezi TIF", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/tif.mini.txt", License: "GPL-3.0, unmodified", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), MaxRows: 100_000, Aggregate: true},
 }
 
 // BuiltinSources returns the built-in feeds in display order. The slice is a

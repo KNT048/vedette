@@ -1,7 +1,8 @@
-{"ID":"CVE-2026-10001","Info":{"Name":"Synology DSM auth bypass","Severity":"critical"},"file_path":"http/cves/2026/CVE-2026-10001.yaml"}
-{"ID":"CVE-2026-10003","Info":{"Name":"QNAP Photo Station","Severity":"high"},"file_path":"http/cves/2026/CVE-2026-10003.yaml"}
-{"ID":"cve-2026-10001","file_path":"duplicate.yaml"}
+{"ID":"CVE-2026-10001","Info":{"Name":"Synology DSM authentication bypass","Severity":"critical","Description":"Authentication bypass in the web interface.\n","Classification":{"CVSSScore":"9.8"}},"file_path":"http/cves/2026/CVE-2026-10001.yaml"}
+{"ID":"CVE-2026-10003","Info":{"Name":"QNAP Photo Station path traversal","Severity":"medium","Description":"Path traversal.\n","Classification":{"CVSSScore":"5.3"}},"file_path":"http/cves/2026/CVE-2026-10003.yaml"}
+{"ID":"cve-2026-10001","Info":{"Name":"duplicate","Severity":"low","Description":"","Classification":{"CVSSScore":"0"}},"file_path":"http/cves/2026/duplicate.yaml"}
 
 {"ID":"not-a-cve"}
 {"ID":42}
+{"id":"CVE-2026-10009","file_path":"lowercase-key.yaml"}
 this is not json

@@ -580,8 +580,8 @@
       },
       "9": {
         "name": "External exposure",
-        "what": "Your verified domain names, to find subdomains in public certificate-transparency logs; and an HTTPS request to a fixed Vedette endpoint so the box can see its own public IP for IP verification.",
-        "to": "Certificate-transparency search services; the Vedette project's endpoint on Cloudflare",
+        "what": "Your verified domain names, to find subdomains in public certificate-transparency logs; and HTTPS requests to public \"what is my IP\" services so the box can see its own public IP. The services see only that IP; an IP counts only when at least two of them agree.",
+        "to": "Certificate-transparency search services; checkip.amazonaws.com (Amazon), icanhazip.com (Cloudflare), api.ipify.org (ipify). No Vedette-run server",
         "control": "Turn off the External exposure module.",
         "link": "Open modules"
       },

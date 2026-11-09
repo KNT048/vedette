@@ -39,7 +39,7 @@ kien 2026-11-09 (đã chuyển cho Emily): "tôi muốn box có thêm chế đ�
   - [ ] Chu kỳ kiểm lại do khách chọn, từ 1 phút tới tối đa 24 giờ (ví dụ 1, 5, 10, 15, 30 phút, 1, 6, 12, 24 giờ; mặc định 60 phút), chỉ admin, có audit; ngoài khoảng → 400.
   - [ ] Xoá được từng IP đã lấy (admin, có audit).
   - [ ] Giới hạn 10 lần/giờ của INV-5 không chặn lịch tự động ngắn (tách lần chạy theo lịch khỏi lần bấm tay).
-  - [ ] Chi phí endpoint của dự án (lead đề xuất, D-74): ở chu kỳ ngắn mỗi lần chỉ mở 1–2 kết nối; lần quét đủ nhiều kết nối (tìm mọi IP sau load balancer) tối đa mỗi giờ một lần. Lý do: 16 kết nối mỗi phút ≈ 23.000 request/ngày cho một hộp, trong khi gói miễn phí Cloudflare Workers chỉ 100.000/ngày cho cả dự án.
+  - [ ] Dò IP theo **D-81**: không endpoint của dự án; HTTPS tới `checkip.amazonaws.com`, `icanhazip.com`, `api.ipify.org`, nhận IP khi ≥ 2 dịch vụ trùng; tìm IP sau load balancer bằng nhiều kết nối mới mỗi lần dò. Lịch ngắn (1 phút) vẫn nên nhẹ: ở chu kỳ ngắn mỗi dịch vụ một kết nối, lượt dò nhiều kết nối tối đa mỗi giờ một lần (lịch sự với dịch vụ miễn phí của người khác, tránh bị chặn).
 - [ ] Đi đúng thứ tự GUI trước: story S-EXP-1 cập nhật, `contract.ts` + mock + màn hình trước backend; CONTRACT/IMPACT/DATA_MODEL cập nhật; e2e cho tính năng mới (D-64).
 - [ ] Pháp lý: PRIVACY luồng 9 + chữ ở Settings → Privacy ghi tần suất mới (60 phút, nhiều kết nối mỗi lần) cùng commit (rules/legal.md).
 - [ ] Quyết định ghi vào DECISIONS (số **D-79** để dành cho việc này).

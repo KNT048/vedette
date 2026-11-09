@@ -197,17 +197,20 @@ func (aiOff) Run(context.Context, mitigation.AIRequest) (mitigation.AIOutput, er
 // subscribes the cross-module reactions. serve calls it after deps has its base fields; the handlers, jobs and
 // subscribers all share these instances.
 func buildServices(d *deps) error {
-	// core's own services first. No mailer until the notify module provides one: email two-step accounts get 503
-	// twofa_email_unavailable (INV-8, never password-only) and GET /core/account says the email method is not
-	// available.
+	// Order: inventory and notify first, then auth with notify's code mailer, then core. notify needs the user
+	// directory, the time zone and the device names, which come from auth, core and inventory: its adapters
+	// (notifyUsers, orgZone, notifyDevices) read d.Auth and d.Core when asked, so one instance of each service
+	// exists and no setter is needed. Without the notify module on, the mailer says it is not available and email
+	// two-step accounts get 503 twofa_email_unavailable (INV-8, never password-only).
 	var err error
-	if d.Auth, err = auth.New(auth.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Mailer: nil, Clock: d.Clock, Log: d.Log}); err != nil {
+	d.Inventory = newInventory(d) // before feeds: feeds takes the inventory (feeds.Inventory)
+	notifySvc := newNotify(d)
+	if d.Auth, err = auth.New(auth.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Mailer: notifySvc.CodeMailer(), Clock: d.Clock, Log: d.Log}); err != nil {
 		return fmt.Errorf("auth: %w", err)
 	}
 	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock}); err != nil {
 		return fmt.Errorf("core: %w", err)
 	}
-	d.Inventory = newInventory(d) // before feeds: feeds takes the inventory (feeds.Inventory)
 	sp, err := newSensorPassive(*d)
 	if err != nil {
 		return fmt.Errorf("sensor-passive: %w", err)

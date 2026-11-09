@@ -36,7 +36,7 @@ func TestSensorActiveDeviceChangeStopsTheRunningScan(t *testing.T) {
 				t.Fatal(err)
 			}
 			d := *s.d
-			d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, time.Local) } // Monday 02:00, inside 01:00-05:00
+			d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone) } // Monday 02:00, inside 01:00-05:00
 			svc, err := newSensorActive(d, nmap)
 			if err != nil {
 				t.Fatal(err)

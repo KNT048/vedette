@@ -24,7 +24,7 @@ func (anyFinding) Finding(context.Context, string) (notify.FindingInfo, bool, er
 func TestWiringBaselinePullQueuesNoNotice(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
-	svc, err := notify.New(notify.Config{DB: s.d.DB, Secrets: s.d.Secrets, Audit: s.d.Audit, Users: unwiredUsers{}, Log: s.d.Log, Modules: s.d.Reg, Bus: s.d.Bus, Findings: anyFinding{}, Clock: s.d.Clock})
+	svc, err := notify.New(notify.Config{DB: s.d.DB, Secrets: s.d.Secrets, Audit: s.d.Audit, Users: notifyUsers{s.d}, Log: s.d.Log, Modules: s.d.Reg, Bus: s.d.Bus, Findings: anyFinding{}, Clock: s.d.Clock})
 	if err != nil {
 		t.Fatal(err)
 	}

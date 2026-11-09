@@ -42,7 +42,7 @@ func newHandler(d deps) handler {
 
 		FindingHandlers:  d.FindingHandlers,
 		ActionHandlers:   d.MitigationHandlers,
-		NotifyHandlers:   notify.NewNotifyHandlers(newNotify(d)),
+		NotifyHandlers:   notify.NewNotifyHandlers(newNotify(&d)),
 		ResponseHandlers: response.NewResponseHandlers(d.Response),
 		SensorHandlers:   sensorpassive.NewSensorHandlers(d.SensorPassive),
 	}

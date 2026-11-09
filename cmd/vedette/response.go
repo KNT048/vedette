@@ -119,7 +119,7 @@ func (r responseDirectory) Finding(ctx context.Context, id string) (response.Fin
 // inventory, findings). Devices cannot be changed yet: no connections and no device executor are wired (part 13b), so every
 // device action is unavailable and the box actions (block list, message, webhook) are all that runs.
 func newResponse(d *deps) (*response.Service, error) {
-	n := newNotify(*d)
+	n := newNotify(d)
 	cfg := response.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: responseUsers{d}, Log: d.Log, Clock: d.Clock,
 		Notifier: responseNotifier{n: n, now: d.Clock}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings}}
 	if d.Reg != nil {

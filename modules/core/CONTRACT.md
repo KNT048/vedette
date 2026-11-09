@@ -1,6 +1,6 @@
 # Core Contract
 
-> Tier: core · Story: S-CORE-1…7 (S-CORE-3 một phần: OIDC thuộc `auth-oidc`) · Last verified: 2026-11-09 (WP-04b phần 2: handler HTTP của đăng nhập, tài khoản, người dùng, thiết lập lần đầu, audit, general; TLS và danh sách Host; mã cài đặt D-75, mật khẩu khi bật 2 bước D-76, cookie thiết bị D-77. Phần 1: `core/auth`, `core/events`, chain head)
+> Tier: core · Story: S-CORE-1…7 (S-CORE-3 một phần: OIDC thuộc `auth-oidc`) · Last verified: 2026-11-09 (wiring-2: `OrgTimeZone` cho notify và sensor-active; WP-04b phần 2: handler HTTP của đăng nhập, tài khoản, người dùng, thiết lập lần đầu, audit, general; TLS và danh sách Host; mã cài đặt D-75, mật khẩu khi bật 2 bước D-76, cookie thiết bị D-77. Phần 1: `core/auth`, `core/events`, chain head)
 
 Nguồn hành vi: `web/src/features/core/contract.ts` + `web/src/mocks/core.ts`. Đường dẫn dưới đây không có tiền tố `/api/v1`.
 
@@ -43,6 +43,7 @@ Nguồn hành vi: `web/src/features/core/contract.ts` + `web/src/mocks/core.ts`.
 - **FORBID-3**: Log hoặc trả về bí mật; trả `preview_code`.
 - **FORBID-4**: Gửi dữ liệu ra ngoài ngoài 9 luồng của PRIVACY.md; "Báo lỗi" (S-CORE-5) không gửi gì: gói chẩn đoán dựng và tải ở trình duyệt (D-42).
 - **FORBID-5**: Module khác ghi vào bảng `core_*` (qua interface của `core/*`).
+- **POST (đọc múi giờ)**: `(*APIHandlers).OrgTimeZone(ctx) (string, error)` trả tên IANA của `core_org.timezone` (chưa có hàng org: `Asia/Ho_Chi_Minh`, mặc định của cột); không module nào khác đọc `core_org`, `cmd/vedette` đưa giá trị này cho notify (`Config.Zone`) và sensor-active (`Config.Location`, `orgLocation`); test `TestWiringScanWindowFollowsTheOrganizationTimeZone`. Test cmd: `TestWiringQuietHoursFollowTheOrganizationTimeZone`.
 
 ## Dependencies
 - **DEPENDS ON**: không (ngoài `vedette-host` ở ngoài process).

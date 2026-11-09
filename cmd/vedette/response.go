@@ -32,6 +32,16 @@ func (u responseUsers) Lookup(ctx context.Context, id string) (response.User, bo
 	return response.User{ID: got.ID, Name: got.Name, Email: got.Email, Role: string(got.Role), TwoStep: got.TwofaMethod != "", Disabled: got.Disabled}, true, nil
 }
 
+// ---- core/auth -> response.TwoStep ----
+
+// responseTwoStep checks the two-step code of the person approving (core/auth.VerifyTwoStep, D-98); its errors pass through unchanged.
+type responseTwoStep struct{ d *deps }
+
+func (t responseTwoStep) Verify(ctx context.Context, userID, code, purpose, summary string) error {
+	_, err := t.d.Auth.VerifyTwoStep(ctx, userID, code, purpose, summary)
+	return err
+}
+
 // ---- notify -> response.Notifier and response.Webhooks ----
 
 type responseNotifier struct {
@@ -178,7 +188,7 @@ func newResponse(d *deps) (*response.Service, error) {
 // responseConfig is the configuration of the response service: every port wired to the module that provides it.
 func responseConfig(d *deps) (response.Config, error) {
 	n := newNotify(d)
-	cfg := response.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: responseUsers{d}, Log: d.Log, Clock: d.Clock,
+	cfg := response.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: responseUsers{d}, TwoStep: responseTwoStep{d}, Log: d.Log, Clock: d.Clock,
 		Notifier: responseNotifier{n: n, now: d.Clock}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings}}
 	if d.Conn != nil { // a nil *conn.Service inside the interface would not compare equal to nil
 		cfg.Connections = responseConnections{d.Conn}

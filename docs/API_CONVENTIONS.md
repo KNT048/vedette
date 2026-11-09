@@ -34,7 +34,7 @@ Tên endpoint, mã lỗi, tên trường giữ tiếng Anh; văn xuôi tiếng V
 | 401 | Chưa đăng nhập / phiên hết hạn (`unauthenticated`), hoặc cần mã 2 bước (`twofa_required` ở `POST /auth/login`, kèm `method`) | |
 | 403 | Đủ phiên nhưng không đủ quyền hoặc bị cấm theo trạng thái (`forbidden`, `disabled`, `tool_not_allowed`, `token_expired`, `approver_not_listed`…) | |
 | 404 | Không có đối tượng (`not_found`, 51 endpoint) hoặc liên kết sai (`unknown`) | Không phân biệt "không tồn tại" và "không được xem" với token công khai |
-| 409 | Trạng thái hiện tại không cho phép (63 mã: `already_*`, `busy`, `expired`, `not_pending`, `ip_in_use`…) | Thao tác có thể thành công sau khi người dùng sửa trạng thái |
+| 409 | Trạng thái hiện tại không cho phép (64 mã: `already_*`, `busy`, `expired`, `not_pending`, `ip_in_use`…) | Thao tác có thể thành công sau khi người dùng sửa trạng thái |
 | 413 | Tệp/thân quá lớn (`too_large` ở `POST /feeds/parse-test`) | Mock còn trả 400 `too_large` ở 3 endpoint tải tệp: thống nhất về 413 **[ĐX]** |
 | 422 | Dịch vụ ngoài từ chối thông tin hợp lệ về hình thức (`wazuh_auth`) | Hiện đúng 1 chỗ; dùng cho "đúng dạng nhưng bên kia từ chối" |
 | 429 | Giới hạn tần suất / trần (`rate_limited`, `resend_too_soon`, `too_many_codes`, `daily_cap`) | Kèm `Retry-After` (mục 8) |
@@ -85,7 +85,7 @@ Danh sách trả đối tượng, không phải mảng trần (cho phép thêm `
 
 ### 3.3 Danh mục mọi mã lỗi đang dùng
 
-Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, code}` trong `web/src/features/*/mocks.ts`, `*/state.ts`, `*/osMock.ts`, `*/sourcesMock.ts`, `*/harness-mocks.ts`, `*/emailCode.ts`, `*/logExport.ts`, `*/activity.ts` và `web/src/mocks/*.ts` (2026-11-09): **293 mã** (từ mock), cộng 5 mã chỉ backend thêm ở WP-04b phần 2 (`invalid_setup_code`, `sample_unavailable`, `invalid_from`, `invalid_to`, `misdirected_request`) và 14 mã chỉ backend thêm ở WP-07b phần 2 (lỗi của `vedette-host` và của việc core ghi snapshot: `not_appliance`, `host_unreachable`, `host_error`, `no_check_yet`, `dpkg_locked`, `dpkg_inconsistent`, `low_disk`, `rebooting`, `reboot_limit_reached`, `snapshot_rejected`, `snapshot_failed`, `apt_failed`, `health_check_failed`, `effect_not_verified`; bảng ánh xạ mã host → mã API ở `modules/core/CONTRACT.md` INV-18): 312. Cột "Endpoint dùng" là handler gần nhất chứa lời gọi; với mã sinh từ hàm kiểm tra dùng chung, ghi `module <tên> (validator dùng chung)` (đó là hạn chế của cách trích tĩnh) (mục 12 đề xuất khai `errors` trong `contract.ts` để bảng này sinh tự động). Thông điệp là bản mẫu tiếng Anh trong mock.
+Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, code}` trong `web/src/features/*/mocks.ts`, `*/state.ts`, `*/osMock.ts`, `*/sourcesMock.ts`, `*/harness-mocks.ts`, `*/emailCode.ts`, `*/logExport.ts`, `*/activity.ts` và `web/src/mocks/*.ts` (2026-11-09): **293 mã** (từ mock), cộng 5 mã chỉ backend thêm ở WP-04b phần 2 (`invalid_setup_code`, `sample_unavailable`, `invalid_from`, `invalid_to`, `misdirected_request`) và 14 mã chỉ backend thêm ở WP-07b phần 2 (lỗi của `vedette-host` và của việc core ghi snapshot: `not_appliance`, `host_unreachable`, `host_error`, `no_check_yet`, `dpkg_locked`, `dpkg_inconsistent`, `low_disk`, `rebooting`, `reboot_limit_reached`, `snapshot_rejected`, `snapshot_failed`, `apt_failed`, `health_check_failed`, `effect_not_verified`; bảng ánh xạ mã host → mã API ở `modules/core/CONTRACT.md` INV-18) và 1 mã chỉ backend thêm ở WP-13b lát 13b-9 (`ai_paused`: cổng tạm dừng của đề xuất AI; mock có từ `response/ai.ts`, tệp này nằm ngoài danh sách trích): 313. Cột "Endpoint dùng" là handler gần nhất chứa lời gọi; với mã sinh từ hàm kiểm tra dùng chung, ghi `module <tên> (validator dùng chung)` (đó là hạn chế của cách trích tĩnh) (mục 12 đề xuất khai `errors` trong `contract.ts` để bảng này sinh tự động). Thông điệp là bản mẫu tiếng Anh trong mock.
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
@@ -188,7 +188,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_categories` | 400 | Unknown or empty log category in the download request. | `GET /core/logs/export` |
 | `invalid_channel` | 400 | The channel is stable or beta. | `PATCH /core/updates` |
 | `invalid_client` | 400 | Enter the Client ID (at most 200 characters). | `PUT /core/oidc` |
-| `invalid_code` | 400 | The code is 6 digits. | `POST /auth/login`; `POST /core/account/2fa/confirm` |
+| `invalid_code` | 400 | The code is 6 digits. | `POST /auth/login`; `POST /core/account/2fa/confirm`; `POST /response/actions/{id}/approve` (từ `VerifyTwoStep`, trả nguyên, D-98) |
 | `invalid_config` | 400 | The scan configuration is not valid. | `PUT /scans/config` |
 | `invalid_contact` | 400 | Enter the name of the person in charge of data protection. | module reports (validator dùng chung) |
 | `invalid_credentials` | 400 | Wrong email or password. | `POST /auth/login`; `POST /auth/login/resend-code` |
@@ -301,7 +301,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `username_required` | 400 | Enter the user name the box signs in with. | `POST /core/connections`; `PUT /core/connections/{id}` (SSH and Basic sign-in) |
 | `viewer_not_allowed` | 400 | A viewer cannot be an approver. | module notify (validator dùng chung) |
 | `weak_password` | 400 | The password needs at least ${MIN_PASSWORD} characters. A long sentence is easier to remember than random characters. | `POST /core/account/password`; `POST /core/setup` |
-| `wrong_code` | 400 | Wrong code. ${left} ${left === 1 ? 'try' : 'tries'} left. | `POST /core/account/2fa/confirm` |
+| `wrong_code` | 400 | Wrong code. ${left} ${left === 1 ? 'try' : 'tries'} left. | `POST /core/account/2fa/confirm`; `POST /response/actions/{id}/approve` (email, từ `VerifyTwoStep`, trả nguyên, D-98) |
 | `wrong_password` | 400 | The current password is wrong. | `POST /core/account/2fa/disable`; `POST /core/account/password`; `POST /core/account/2fa/start`; `POST /core/account/2fa/email/start` (D-76: bật 2 bước cũng cần mật khẩu hiện tại, thông điệp "The password is needed to turn on two-factor authentication."; sai tính vào bộ đếm xác thực lại theo tài khoản, riêng với bộ đếm đăng nhập sai nhưng cùng mức 10 lần / 15 phút và cùng cách tăng thời gian chờ, và ghi `auth.reauth_failed`). Cũng là mã khi mật khẩu vừa chứng minh đã bị đổi giữa lúc kiểm và lúc ghi |
 | `wrong_kind` | 400 | This action is an SSH command. Choose an SSH connection. | `PUT /response/catalog/{id}` |
 
@@ -338,10 +338,11 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (63 mã)
+#### HTTP 409 (64 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
+| `ai_paused` | 409 | AI request: AI proposals are paused (${reason}). An admin can resume them. | cổng của đề xuất AI (13b-10 gọi `checkAIPaused`; đặt bởi cầu dao chất lượng, gỡ bởi `POST /response/ai/resume`, 13b-9) |
 | `ai_unavailable` | 409 | The AI assistant module is off. Turn it on in Settings, Modules. | `POST /findings/{id}/ai` |
 | `already_on` | 409 | Two-step sign-in is already on. Turn it off first to set up the other method. | `POST /core/account/2fa/email/confirm`; `POST /core/account/2fa/email/start`; `POST /core/account/2fa/start` |
 | `already_open` | 409 | This finding is already open. | `POST /findings/{id}/status` |
@@ -757,7 +758,7 @@ Thêm khi có Go **[ĐX]**, đều chạy trong `make verify` và workflow CI đ
 | # | Câu hỏi | Gợi ý / ảnh hưởng |
 |---|---|---|
 | 1 | ~~**POST tạo trả 201 nhưng hợp đồng khai 200** (16 chỗ)~~ Đã làm ở WP-06: `status` trong `Endpoint`, `openapi.json` sinh lại. Còn lại: hai endpoint trả 201/200 tuỳ trường hợp chưa biểu diễn được. | |
-| 2 | **Khai mã lỗi theo thao tác** (`errors: [...]`) để bảng 3.3 sinh tự động thay vì trích tĩnh bằng regex (hạn chế: nhiều mã gắn "validator dùng chung"). Có làm không? | Giảm công bảo trì bảng 312 mã; cần sửa toàn bộ `contract.ts` |
+| 2 | **Khai mã lỗi theo thao tác** (`errors: [...]`) để bảng 3.3 sinh tự động thay vì trích tĩnh bằng regex (hạn chế: nhiều mã gắn "validator dùng chung"). Có làm không? | Giảm công bảo trì bảng 313 mã; cần sửa toàn bộ `contract.ts` |
 | 3 | **Phân trang `GET /inventory/devices`, `/findings`:** SPA tải toàn bộ và lọc ở client. Chuyển sang phân trang/ lọc ở máy chủ ở M2 hay giữ tới khi vượt ngưỡng? | Mục tiêu 1.000 thiết bị vẫn chạy được không phân trang; cần xác nhận |
 | 4 | **Hạn phiên** (idle, tuyệt đối), khoá đăng nhập sai, chính sách "ghi nhớ thiết bị": mock chưa có. Giá trị mặc định? | Cũng là câu hỏi mở số 7 của DATA_MODEL |
 | 5 | **Đường gọi lại OIDC** (`/core/sso/callback` hoặc tương đương) và đăng xuất SSO chưa có trong `contract.ts` dù `core_oidc` có `POST /core/oidc/test` và `POST /core/sso/login`. Thêm endpoint nào, thuộc story nào? | Cần trước khi xây `auth-oidc` |

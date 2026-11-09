@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"math"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/kiennt048/vedette/core/chain"
 )
 
 func entry(n string) ActivityEntry {
@@ -30,129 +31,67 @@ func chainOf(t *testing.T, n int) []ActivityEntry {
 	return l.Entries()
 }
 
-// vectors is the shared test vector for core_audit and resp_log (D-57 item 14): another implementation, in
-// any language, must reproduce `canonical` and `hash` for every row.
-type vectors struct {
-	Genesis string `json:"genesis"`
-	Rows    []struct {
-		Entry     ActivityEntry `json:"entry"`
-		Canonical string        `json:"canonical"`
-	} `json:"rows"`
+func headOf(es []ActivityEntry) *ChainHead {
+	h := ChainHead{Hash: Genesis, Count: len(es)}
+	if len(es) > 0 {
+		h.Hash = es[len(es)-1].Hash
+	}
+	return &h
 }
 
-func TestGoldenChainVectors(t *testing.T) {
+// The shared vectors of core/chain (D-57 item 14): the ai_activity rows must hash to the same values here as in
+// core and in the TypeScript mock, through the ActivityEntry -> map conversion this package owns.
+func TestChainVectorsSharedWithCore(t *testing.T) {
 	t.Parallel()
-	raw, err := os.ReadFile("testdata/chain_vectors.json")
+	raw, err := os.ReadFile("../core/testdata/chain_vectors.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	var v vectors
+	var v struct {
+		Vectors []struct {
+			Chain string          `json:"chain"`
+			Prev  string          `json:"prev"`
+			Entry json.RawMessage `json:"entry"`
+			Hash  string          `json:"hash"`
+		} `json:"vectors"`
+	}
 	if err := json.Unmarshal(raw, &v); err != nil {
 		t.Fatal(err)
 	}
-	if v.Genesis != Genesis || len(v.Rows) != 3 {
-		t.Fatalf("vector file: %+v", v)
-	}
-	// Hand-computed with sha256sum over prev_hash + "\n" + canonical, independent of this code.
-	if v.Rows[0].Entry.Hash != "6a526c1db822d1471294ca6e0dd22d3bef23032f4aa69d1cbacc599ea1fd8a95" {
-		t.Fatalf("row 1 hash changed: %s", v.Rows[0].Entry.Hash)
-	}
-	var entries []ActivityEntry
-	prev := Genesis
-	for i, r := range v.Rows {
-		got, err := canonical(r.Entry, "hash")
-		if err != nil || string(got) != r.Canonical {
-			t.Fatalf("row %d canonical:\n got %s\nwant %s (%v)", i+1, got, r.Canonical, err)
+	var rows []ActivityEntry
+	for _, row := range v.Vectors {
+		if row.Chain != "ai_activity" {
+			continue
 		}
-		if h := HashContent(prev + "\n" + r.Canonical); h != r.Entry.Hash {
-			t.Fatalf("row %d: sha256(prev + LF + canonical) = %s, vector says %s", i+1, h, r.Entry.Hash)
+		var e ActivityEntry
+		dec := json.NewDecoder(bytes.NewReader(row.Entry))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&e); err != nil {
+			// A row with extra columns (the vectors also exercise core's canon of unknown fields) is not an
+			// ActivityEntry; the rows after it would not link, so stop here.
+			break
 		}
-		if h, err := ChainHash(prev, r.Entry); err != nil || h != r.Entry.Hash {
-			t.Fatalf("row %d ChainHash: %s %v", i+1, h, err)
+		e = e.normalized()
+		if e.PrevHash != row.Prev {
+			t.Fatalf("%s: vector prev", e.ID)
 		}
-		prev = r.Entry.Hash
-		entries = append(entries, r.Entry)
+		if got, err := entryHash(e); err != nil || got != row.Hash {
+			t.Errorf("%s: entryHash %s (%v), vector %s", e.ID, got, err, row.Hash)
+		}
+		// Sealing the same content after the same previous hash gives the same hash.
+		bare := e
+		bare.PrevHash, bare.Hash = "", ""
+		if s, err := Seal(row.Prev, bare); err != nil || s.Hash != row.Hash {
+			t.Errorf("%s: Seal %s (%v)", e.ID, s.Hash, err)
+		}
+		e.Hash = row.Hash
+		rows = append(rows, e)
 	}
-	if res := VerifyChain(entries, Genesis); !res.OK || res.Count != 3 {
+	if len(rows) < 2 {
+		t.Fatalf("expected ai_activity rows in the vector file, got %d", len(rows))
+	}
+	if res := VerifyChain(rows, "", headOf(rows)); !res.OK || res.Count != len(rows) {
 		t.Fatalf("%+v", res)
-	}
-	// The strange characters of row 2 are escaped like JSON.stringify: raw <, >, &, U+2028; \n \t \u001f escaped.
-	c := v.Rows[1].Canonical
-	for _, want := range []string{"<có dữ liệu> & ", `\"cá nhân\"\n\ttab`, string(rune(0x2028)), "\\" + "u001f"} {
-		if !strings.Contains(c, want) {
-			t.Errorf("canonical row 2 lacks %q", want)
-		}
-	}
-}
-
-func TestCanonicalForm(t *testing.T) {
-	t.Parallel()
-	type inner struct {
-		Z int  `json:"z"`
-		A bool `json:"a"`
-	}
-	cases := []struct {
-		name string
-		in   any
-		want string
-	}{
-		{"keys sorted at every level", map[string]any{"b": 1, "a": map[string]any{"d": 1, "c": 2}}, `{"a":{"c":2,"d":1},"b":1}`},
-		{"struct", inner{1, true}, `{"a":true,"z":1}`},
-		{"null kept, empty list kept", map[string]any{"n": nil, "l": []string{}, "m": []int(nil)}, `{"l":[],"m":null,"n":null}`},
-		{"order of arrays kept", []any{3, 1, "b", "a"}, `[3,1,"b","a"]`},
-		{"escapes like JSON.stringify", "q\" b\\ \b\f\n\r\t \x01\x1f \x7f <>& é \u2028 \U0001F600", "\"q\\\" b\\\\ \\b\\f\\n\\r\\t \\" + "u0001\\" + "u001f \x7f <>& é \u2028 \U0001F600\""},
-		{"numbers", []any{0, -7, 9007199254740991, -9007199254740991, 12.0}, `[0,-7,9007199254740991,-9007199254740991,12]`},
-		{"key order is by byte", map[string]any{"b": 1, "B": 2, "a": 3, "_": 4}, `{"B":2,"_":4,"a":3,"b":1}`},
-	}
-	for _, c := range cases {
-		got, err := Canonical(c.in)
-		if err != nil || string(got) != c.want {
-			t.Errorf("%s:\n got %s (%v)\nwant %s", c.name, got, err, c.want)
-		}
-	}
-	for _, bad := range []any{1.5, math.Pow(2, 53), -math.Pow(2, 53), 1e21, []any{map[string]any{"x": 0.1}}, make(chan int)} {
-		if _, err := Canonical(bad); err == nil {
-			t.Errorf("%v accepted", bad)
-		}
-	}
-	if _, err := Canonical(1.5); !errors.Is(err, ErrCanonical) {
-		t.Error("non-integer must be ErrCanonical")
-	}
-}
-
-func TestChainHashRules(t *testing.T) {
-	t.Parallel()
-	e := entry("a")
-	e.Hooks, e.Tools = []string{}, []ActivityTool{}
-	e.PrevHash = Genesis
-	h1, err := ChainHash(Genesis, e)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// The hash field is ignored; a map with the same keys gives the same hash; the formula includes the LF.
-	e.Hash = "ignored"
-	h2, _ := ChainHash(Genesis, e)
-	var m map[string]any
-	b, _ := json.Marshal(e)
-	_ = json.Unmarshal(b, &m)
-	h3, _ := ChainHash(Genesis, m)
-	if h1 != h2 || h1 != h3 {
-		t.Fatalf("%s %s %s", h1, h2, h3)
-	}
-	canon, _ := canonical(e, "hash")
-	if h1 == HashContent(Genesis+string(canon)) || h1 != HashContent(Genesis+"\n"+string(canon)) {
-		t.Fatal("formula must be prev + LF + canonical (D-57)")
-	}
-	for name, prev := range map[string]string{"short": "abc", "upper": strings.Repeat("A", 64), "other link": strings.Repeat("1", 64), "empty": ""} {
-		if _, err := ChainHash(prev, e); !errors.Is(err, ErrChainLink) {
-			t.Errorf("%s: %v", name, err)
-		}
-	}
-	if _, err := ChainHash(Genesis, map[string]any{"id": "x"}); !errors.Is(err, ErrChainLink) {
-		t.Errorf("entry without prev_hash: %v", err)
-	}
-	if _, err := ChainHash(Genesis, []int{1}); !errors.Is(err, ErrCanonical) {
-		t.Errorf("non-object entry: %v", err)
 	}
 }
 
@@ -226,17 +165,45 @@ func TestContract_INV17_EntryShapeAndNoContent(t *testing.T) {
 
 func mustJSON(v any) []byte { b, _ := json.Marshal(v); return b }
 
-func TestSummarizeArgsAndTools(t *testing.T) {
+// F12 / item 9: secrets do not survive the summary, wherever they sit in the arguments.
+func TestContract_INV17_SummarizeArgsRemovesSecrets(t *testing.T) {
 	t.Parallel()
-	cases := map[string]string{ //nolint:gosec // test inputs are fake secrets used to prove redaction
-		`{"ip":"10.0.0.1"}`: `{"ip":"10.0.0.1"}`,
-		`{"b":2,"a":1}`:     `{"a":1,"b":2}`,
-		`{"user":"a","password":"x","nested":{"api_key":"k","ok":1},"list":[{"Authorization":"Bearer t"}]}`: `{"list":[{"Authorization":"[redacted]"}],"nested":{"api_key":"[redacted]","ok":1},"password":"[redacted]","user":"a"}`,
-		`{"ratio":0.5}`:                   `{"ratio":0.5}`,
-		"filter=service:rdp":              "filter=service:rdp",
-		"since=24h token=abc123 host=x":   "since=24h token=[redacted] host=x",
-		`password: "my secret pass" next`: `password=[redacted] next`,
-		"":                                "",
+	leaks := []string{
+		`{"command":"mysql -u root --password=hunter2 db"}`,
+		`{"cmd":["curl","-H","Authorization: Bearer abc123secret","https://x"]}`,
+		`curl -H "Authorization: Bearer abc123secret" https://x`,
+		`curl -H "Authorization: Basic dXNlcjpodW50ZXIy" https://x`,
+		`{"url":"https://admin:hunter2@10.0.0.1/api"}`,
+		`GET https://admin:hunter2@10.0.0.1/api`,
+		`{"nested":{"deep":[{"note":"export API_TOKEN=hunter2 && run"}]}}`,
+		`{"Authorization":"Bearer abc123secret"}`,
+		`{"query":"password: \"hunter2 hunter3\""}`,
+		`since=24h token=hunter2 host=x`,
+		`{"headers":"X-Api-Key: hunter2"}`,
+		`ssh://root:hunter2@host`,
+	}
+	for _, in := range leaks {
+		out := SummarizeArgs(in)
+		for _, secret := range []string{"hunter2", "hunter3", "abc123secret", "dXNlcjpodW50ZXIy"} {
+			if strings.Contains(out, secret) {
+				t.Errorf("%s -> %s", in, out)
+			}
+		}
+	}
+	// A secret beyond the 120-character cut is scrubbed before the cut, not after.
+	far := SummarizeArgs(`{"note":"` + strings.Repeat("x", 118) + ` --password=hunter2"}`)
+	if strings.Contains(far, "hunter2") || len([]rune(far)) > 120 {
+		t.Errorf("%q", far)
+	}
+	// Ordinary arguments stay readable.
+	cases := map[string]string{
+		`{"ip":"10.0.0.1"}`:  `{"ip":"10.0.0.1"}`,
+		`{"b":2,"a":1}`:      `{"a":1,"b":2}`,
+		`{"ratio":0.5}`:      `{"ratio":0.5}`,
+		`{"q":"a<b & c>d"}`:  `{"q":"a<b & c>d"}`,
+		"filter=service:rdp": "filter=service:rdp",
+		"":                   "",
+		`{"user":"a","password":"x","nested":{"api_key":"k","ok":1},"list":[{"Authorization":"Bearer t"}]}`: `{"list":[{"Authorization":"[redacted]"}],"nested":{"api_key":"[redacted]","ok":1},"password":"[redacted]","user":"a"}`, //nolint:gosec // test inputs are fake secrets used to prove redaction
 	}
 	for in, want := range cases {
 		if got := SummarizeArgs(in); got != want {
@@ -245,7 +212,7 @@ func TestSummarizeArgsAndTools(t *testing.T) {
 	}
 	long := SummarizeArgs(`{"q":"` + strings.Repeat("é", 500) + `"}`)
 	if n := len([]rune(long)); n != 120 || !strings.HasSuffix(long, "...") {
-		t.Errorf("long args: %d %q", n, long[len(long)-10:])
+		t.Errorf("long args: %d", n)
 	}
 	if got := NewActivityTool("x", "", "a=1"); got.Access != AccessWrite {
 		t.Errorf("unknown access must be recorded as write: %+v", got)
@@ -255,16 +222,88 @@ func TestSummarizeArgsAndTools(t *testing.T) {
 	}
 }
 
+// F10 / item 10: deleting the newest entries is caught when the head record says otherwise.
+func TestContract_INV18_TailTruncationIsDetectedWithTheHead(t *testing.T) {
+	t.Parallel()
+	good := chainOf(t, 4)
+	head := headOf(good)
+	if res := VerifyChain(good, "", head); !res.OK {
+		t.Fatalf("%+v", res)
+	}
+	for keep := range 4 {
+		res := VerifyChain(good[:keep], "", head)
+		if res.OK || res.BrokenAt != keep+1 || res.EntryID != "" || res.Count != keep {
+			t.Errorf("keeping %d of 4: %+v", keep, res)
+		}
+	}
+	// A head hash that is not the last entry.
+	if res := VerifyChain(good, "", &ChainHead{Hash: good[2].Hash, Count: 4}); res.OK || res.BrokenAt != 5 {
+		t.Errorf("wrong head hash: %+v", res)
+	}
+	// An empty chain whose head says empty is fine, with or without pruning.
+	if res := VerifyChain(nil, "", &ChainHead{Hash: Genesis, Count: 0}); !res.OK {
+		t.Errorf("%+v", res)
+	}
+	if res := VerifyChain(nil, good[1].Hash, &ChainHead{Hash: good[1].Hash, Count: 0}); !res.OK {
+		t.Errorf("pruned to empty: %+v", res)
+	}
+	// Without a head the cut stays invisible (documented): the caller must pass the head.
+	if res := VerifyChain(good[:2], "", nil); !res.OK {
+		t.Errorf("%+v", res)
+	}
+	// A break inside the chain is still reported at its position, not at the tail.
+	c := append([]ActivityEntry(nil), good...)
+	c[1].Summary = "changed"
+	if res := VerifyChain(c, "", head); res.OK || res.BrokenAt != 2 || res.EntryID != c[1].ID {
+		t.Errorf("%+v", res)
+	}
+}
+
+// F11 / item 15: invalid UTF-8 is refused instead of collapsing to U+FFFD, so two different rows never hash alike.
+func TestContract_INV18_InvalidUTF8IsRefused(t *testing.T) {
+	t.Parallel()
+	for _, bad := range []string{"x\xff", "x\xfe", "\xc3(", "a\xed\xa0\x80b"} {
+		e := entry("a")
+		e.Summary = bad
+		if _, err := Seal(Genesis, e); !errors.Is(err, chain.ErrCanon) {
+			t.Errorf("summary %q: %v", bad, err)
+		}
+	}
+	for field, mut := range map[string]func(*ActivityEntry){
+		"profile": func(e *ActivityEntry) { e.Profile = "p\xff" },
+		"hooks":   func(e *ActivityEntry) { e.Hooks = []string{"h\xff"} },
+		"tool":    func(e *ActivityEntry) { e.Tools = []ActivityTool{{Name: "t", Access: AccessRead, Args: "a\xfe"}} },
+	} {
+		e := entry("b")
+		mut(&e)
+		if _, err := Seal(Genesis, e); !errors.Is(err, chain.ErrCanon) {
+			t.Errorf("%s: %v", field, err)
+		}
+	}
+	// A real U+FFFD is valid.
+	e := entry("c")
+	e.Summary = "x\ufffd"
+	if _, err := Seal(Genesis, e); err != nil {
+		t.Errorf("valid U+FFFD refused: %v", err)
+	}
+	// A stored row with invalid UTF-8 fails verification instead of passing.
+	good := chainOf(t, 2)
+	good[1].Summary = "x\xff"
+	if res := VerifyChain(good, "", headOf(good)); res.OK || res.BrokenAt != 2 {
+		t.Errorf("%+v", res)
+	}
+}
+
 func TestContract_INV18_ChainHashAndVerify(t *testing.T) {
 	t.Parallel()
 	good := chainOf(t, 4)
 	if good[0].PrevHash != Genesis || good[1].PrevHash != good[0].Hash || good[3].PrevHash != good[2].Hash {
 		t.Fatal("chain is not linked")
 	}
-	if res := VerifyChain(good, Genesis); !res.OK || res.Count != 4 || res.BrokenAt != 0 || res.EntryID != "" {
+	if res := VerifyChain(good, "", headOf(good)); !res.OK || res.Count != 4 || res.BrokenAt != 0 || res.EntryID != "" {
 		t.Fatalf("%+v", res)
 	}
-	if res := VerifyChain(nil, Genesis); !res.OK || res.Count != 0 {
+	if res := VerifyChain(nil, "", nil); !res.OK || res.Count != 0 {
 		t.Fatalf("empty chain: %+v", res)
 	}
 	clone := func() []ActivityEntry { return append([]ActivityEntry(nil), good...) }
@@ -281,42 +320,40 @@ func TestContract_INV18_ChainHashAndVerify(t *testing.T) {
 		for pos := range good {
 			c := clone()
 			edit(&c[pos])
-			res := VerifyChain(c, Genesis)
+			res := VerifyChain(c, "", headOf(good))
 			if res.OK || res.BrokenAt != pos+1 || res.EntryID != c[pos].ID {
 				t.Errorf("edit %q at %d: %+v", name, pos+1, res)
 			}
 		}
 	}
 	// Removing, swapping or inserting entries breaks the chain at the first affected position.
-	if res := VerifyChain(append(clone()[:1], clone()[2:]...), Genesis); res.OK || res.BrokenAt != 2 {
+	if res := VerifyChain(append(clone()[:1], clone()[2:]...), "", nil); res.OK || res.BrokenAt != 2 {
 		t.Errorf("removed: %+v", res)
 	}
 	sw := clone()
 	sw[1], sw[2] = sw[2], sw[1]
-	if res := VerifyChain(sw, Genesis); res.OK || res.BrokenAt != 2 {
+	if res := VerifyChain(sw, "", nil); res.OK || res.BrokenAt != 2 {
 		t.Errorf("swapped: %+v", res)
 	}
-	if res := VerifyChain(clone()[1:], Genesis); res.OK || res.BrokenAt != 1 {
+	if res := VerifyChain(clone()[1:], "", nil); res.OK || res.BrokenAt != 1 {
 		t.Errorf("head removed without an anchor: %+v", res)
 	}
-	// After retention pruning the first kept entry is checked against the anchor (the last pruned hash).
-	if res := VerifyChain(clone()[1:], good[0].Hash); !res.OK {
-		t.Errorf("pruned chain with its anchor: %+v", res)
+	// After retention pruning the first kept entry is checked against the anchor (the last pruned hash), and the
+	// head's count follows the prune.
+	pruned := clone()[1:]
+	if res := VerifyChain(pruned, good[0].Hash, headOf(pruned)); !res.OK {
+		t.Errorf("pruned chain with its anchor and head: %+v", res)
 	}
-	if res := VerifyChain(clone()[1:], strings.Repeat("2", 64)); res.OK || res.BrokenAt != 1 {
+	if res := VerifyChain(pruned, good[0].Hash, headOf(good)); res.OK {
+		t.Errorf("a head that still counts the pruned entry must not verify: %+v", res)
+	}
+	if res := VerifyChain(pruned, strings.Repeat("2", 64), nil); res.OK || res.BrokenAt != 1 {
 		t.Errorf("wrong anchor: %+v", res)
-	}
-	if res := VerifyChain(clone()[1:], ""); !res.OK {
-		t.Errorf("no anchor trusts the first link: %+v", res)
-	}
-	// Known limit (docs/DATA_MODEL.md 5.3): cutting off the tail is invisible without an outside head hash.
-	if res := VerifyChain(clone()[:2], Genesis); !res.OK {
-		t.Errorf("tail cut is not detectable here by design: %+v", res)
 	}
 	// A log that came back from a database with null instead of [] still verifies.
 	c := clone()
 	c[0].Hooks = nil
-	if res := VerifyChain(c, Genesis); !res.OK {
+	if res := VerifyChain(c, "", headOf(good)); !res.OK {
 		t.Errorf("nil hooks: %+v", res)
 	}
 }
@@ -326,6 +363,9 @@ func TestActivityLogAppendOnly(t *testing.T) {
 	var l ActivityLog
 	if r := l.Verify(); !r.OK || r.Count != 0 {
 		t.Fatalf("%+v", r)
+	}
+	if h := l.Head(); h.Count != 0 || h.Hash != Genesis {
+		t.Fatalf("%+v", h)
 	}
 	a, err := l.Append(entry("a"))
 	if err != nil || a.PrevHash != Genesis || a.Hash == "" {
@@ -337,6 +377,9 @@ func TestActivityLogAppendOnly(t *testing.T) {
 	b, _ := l.Append(entry("b"))
 	if b.PrevHash != a.Hash {
 		t.Fatal("not chained to the previous entry")
+	}
+	if h := l.Head(); h.Count != 2 || h.Hash != b.Hash {
+		t.Fatalf("%+v", h)
 	}
 	got := l.Entries()
 	got[0].Summary = "tampered" // the caller holds a copy; the log is unchanged
@@ -356,37 +399,36 @@ func TestActivityLogAppendOnly(t *testing.T) {
 	}
 }
 
-func FuzzCanonical(f *testing.F) {
-	for _, s := range []string{`{"b":1,"a":[1,2,{"c":null}]}`, `"x\u2028<>&\u0000"`, `[1.5]`, `{"":{"":[]}}`, `-0`, `1e3`, `{"a":"\ud800"}`, ``} {
-		f.Add([]byte(s))
+func FuzzActivityEntryHash(f *testing.F) {
+	for _, s := range []string{"", "plain", "x\xff", "\u2028<>&\"\\\n", "tiếng Việt 😀", "\x00\x1f"} {
+		f.Add(s, s, 1180)
 	}
-	f.Fuzz(func(t *testing.T, data []byte) {
-		dec := json.NewDecoder(bytes.NewReader(data))
-		dec.UseNumber()
-		var x any
-		if dec.Decode(&x) != nil {
-			return
-		}
-		c1, err := Canonical(x)
+	f.Fuzz(func(t *testing.T, summary, arg string, tokens int) {
+		e := entry("f")
+		e.Summary, e.TokensIn = summary, tokens
+		e.Tools = []ActivityTool{{Name: "t", Access: AccessRead, Args: arg}}
+		s, err := Seal(Genesis, e)
 		if err != nil {
-			if !errors.Is(err, ErrCanonical) {
-				t.Fatalf("unexpected error: %v", err)
+			// Refused: invalid UTF-8 or a shape the entry rules forbid. Never a panic, never a hash.
+			if s.Hash != "" {
+				t.Fatal("a refused entry carries a hash")
 			}
 			return
 		}
-		if !json.Valid(c1) || bytes.ContainsAny(c1, "\n\r\t") || bytes.Contains(c1, []byte(`": `)) || bytes.Contains(c1, []byte(`, "`)) {
-			t.Fatalf("not compact valid JSON: %q", c1)
+		if !hashRE.MatchString(s.Hash) {
+			t.Fatalf("hash %q", s.Hash)
 		}
-		// Canonical form is a fixed point: reading it back and writing it again gives the same bytes.
-		var y any
-		d2 := json.NewDecoder(bytes.NewReader(c1))
-		d2.UseNumber()
-		if err := d2.Decode(&y); err != nil {
-			t.Fatal(err)
+		if res := VerifyChain([]ActivityEntry{s}, "", &ChainHead{Hash: s.Hash, Count: 1}); !res.OK {
+			t.Fatalf("%+v", res)
 		}
-		c2, err := Canonical(y)
-		if err != nil || !bytes.Equal(c1, c2) {
-			t.Fatalf("not idempotent:\n%s\n%s (%v)", c1, c2, err)
+		again, _ := Seal(Genesis, e)
+		if again.Hash != s.Hash {
+			t.Fatal("hash is not deterministic")
+		}
+		other := e
+		other.Summary = summary + "x"
+		if o, err := Seal(Genesis, other); err == nil && o.Hash == s.Hash {
+			t.Fatal("different entries hashed alike")
 		}
 	})
 }

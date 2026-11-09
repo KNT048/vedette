@@ -316,7 +316,7 @@ func (s *Service) detectLocked(ctx context.Context, user string, deep bool) (Det
 		if err := run(nowOK, message); err != nil {
 			return err
 		}
-		if !auto || !(changed || switched(nowOK)) {
+		if !auto || (!changed && !switched(nowOK)) {
 			return nil
 		}
 		summary := "seen: " + strings.Join(seen, ", ")

@@ -18,7 +18,7 @@ import (
 // listener counts the connections made to it and closes them at once. It stands in for a proxy.
 func listener(t *testing.T) (addr string, accepted *atomic.Int32) {
 	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}

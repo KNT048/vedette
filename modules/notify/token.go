@@ -55,7 +55,8 @@ var (
 // TokenID identifies a token record (the database stores its hash).
 type TokenID [tokenIDLen]byte
 
-// String is the lowercase hex form, handy as a map or log key. It is not the token.
+// String is the lowercase hex form, for in-memory keys and database lookups.
+// Never log it: it identifies a live token record.
 func (id TokenID) String() string { return fmt.Sprintf("%x", id[:]) }
 
 // Binding is what a token is bound to.
@@ -97,10 +98,11 @@ const (
 )
 
 // ApprovalViaChannelAllowed reports whether a request of the given risk may be
-// approved from channel (D-57 item 20): high risk never by email. An unknown
-// risk is treated as high. Core calls it again when the decision arrives (spec §3.5).
+// approved from channel (D-57 item 20): high risk never over a link channel
+// (email, zalo), because a link is a bearer credential. An unknown risk is
+// treated as high. Core calls it again when the decision arrives (spec §3.5).
 func ApprovalViaChannelAllowed(channel string, risk Risk) error {
-	if channel == "email" && risk != RiskLow && risk != RiskMedium {
+	if (channel == "email" || channel == "zalo") && risk != RiskLow && risk != RiskMedium {
 		return ErrHighRiskViaEmail
 	}
 	return nil

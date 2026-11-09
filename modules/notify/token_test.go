@@ -205,7 +205,11 @@ func TestContract_INV7_SingleUse(t *testing.T) {
 	}
 }
 
-func TestContract_INV7_ConcurrentPostsOneWinner(t *testing.T) {
+// Atomicity of "first use wins" belongs to the NonceStore (the database does it
+// with a conditional UPDATE). This test pins the contract the store must meet
+// and checks that ConsumeApprovalToken maps it to exactly one success and
+// ErrTokenUsed for every other concurrent POST; memNonce is the in-memory model.
+func TestContract_INV7_NonceStoreContractGivesOneWinner(t *testing.T) {
 	t.Parallel()
 	now := at(10, 0)
 	b := binding(now)
@@ -258,6 +262,15 @@ func TestContract_FORBID3_HighRiskNeverByEmail(t *testing.T) {
 	zalo.Channel = "zalo"
 	if _, _, err := MintApprovalToken(key, zalo, RiskMedium, now); err != nil {
 		t.Errorf("zalo link token: %v", err)
+	}
+	// A Zalo OA link is a bearer credential like an email link: high and unknown risk are refused too.
+	for _, r := range []Risk{RiskHigh, "", "critical"} {
+		if _, _, err := MintApprovalToken(key, zalo, r, now); !errors.Is(err, ErrHighRiskViaEmail) {
+			t.Errorf("zalo token minted for risk %q: %v", r, err)
+		}
+		if ApprovalViaChannelAllowed("zalo", r) == nil {
+			t.Errorf("risk %q allowed by zalo", r)
+		}
 	}
 	bad := b
 	bad.Channel = "slack" // chat channels use buttons, not link tokens

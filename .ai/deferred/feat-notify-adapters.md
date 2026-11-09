@@ -1,7 +1,7 @@
 - [ ] Zalo personal Send (reverse-engineered QR login and request signing) — NewZaloPersonal only validates, Send returns ErrUnsupported; porting needs a legal/ToS and effort decision (D-46) — WP-22 / Emily + Kien
-- [ ] Zalo OA access token refresh (the Open API token expires and needs the refresh token and app secret, which contract.ts does not store) — adapter sends with the one saved token — WP-22 / contract change
+- [ ] Zalo OA token refresh: OA access tokens expire (about 25 h) and need refresh_token plus the app secret_key; contract.ts stores one secret, so WP-22 needs a contract.ts change (extra secrets, token store) and the refresh flow; the adapter sends with the one saved token and fails with a Zalo error once it expires — WP-22 / contract change
 - [ ] Slack Socket Mode (needs a WebSocket client library = new dependency and a THIRD_PARTY_NOTICES entry) — not started — WP-22 / maintainer decision
 - [ ] Telegram long-polling approval loop, Slack/Telegram button callbacks, Zalo personal reply codes — need core jobs and the response module — WP-22
 - [ ] Endpoints, DB tables, history persistence, incidents (INV-10), 2FA email wiring (INV-9), resend/test endpoints (INV-11), channel config persistence via core/secrets (INV-1 storage) — need core and DB — WP-22
-- [ ] Held-notice scheduler (release grouped at quiet-hours end) and the INV-6 60-minute bound versus grouping window 240 — pure rules exist (Decide, GroupHeld, DueAt); scheduling needs jobs — WP-22
-- [ ] Verify Zalo OA endpoint /v3.0/oa/message/cs and header access_token against the live docs (written from memory, no network access) — WP-22 / Emily
+- [ ] Scheduler: send each batch at Batch.DueAt (critical is due at its own time, D-59) and release held batches grouped at quiet-hours end; the pure rules exist (Decide, Group, GroupHeld, DueAt), running them needs jobs — WP-22
+- [ ] Verify the Zalo OA endpoint /v3.0/oa/message/cs, the access_token header and the error codes against the live docs (written from memory, the docs could not be read from here) — WP-22 / Emily

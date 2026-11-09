@@ -100,18 +100,25 @@ func TestContract_INV5_QuietHours(t *testing.T) {
 	}
 }
 
-func TestQuietAcrossDSTChange(t *testing.T) {
+func TestQuietEndsAtIsWallClockAcrossFallBack(t *testing.T) {
 	t.Parallel()
 	ny, err := time.LoadLocation("America/New_York")
 	if err != nil {
 		t.Skip("no tz database")
 	}
 	q := Quiet{Enabled: true, From: "22:00", To: "06:30"}
-	// 2026-11-01 is the end of DST in New York: the clock goes back an hour at 02:00.
+	// 2026-11-01 is the end of DST in New York: 01:00-02:00 happens twice, so the
+	// night from 23:00 to 06:30 is 7h30 on the wall clock but 8h30 for real.
 	now := time.Date(2026, 10, 31, 23, 0, 0, 0, ny)
 	end := q.EndsAt(now)
-	if end.Hour() != 6 || end.Minute() != 30 || end.Day() != 1 {
-		t.Errorf("EndsAt = %v", end)
+	if end.Hour() != 6 || end.Minute() != 30 || end.Day() != 1 || end.Month() != time.November {
+		t.Errorf("EndsAt = %v, want 06:30 on 1 November", end)
+	}
+	if d := end.Sub(now); d != 8*time.Hour+30*time.Minute {
+		t.Errorf("window lasts %v, want 8h30m of real time", d)
+	}
+	if !q.Active(time.Date(2026, 11, 1, 1, 30, 0, 0, ny)) {
+		t.Error("01:30 must be inside the window")
 	}
 }
 

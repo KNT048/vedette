@@ -21,11 +21,18 @@ type SendRecord struct {
 const maxRecordError = 300
 
 // Deliver makes one attempt through s and always returns its record (INV-6:
-// there is no attempt without a record). Now is the injected clock. Whether to
-// try at all (min_severity, quiet hours, grouping) is decided before, by Decide
-// and Group.
-func Deliver(ctx context.Context, id string, s channel.Sender, m channel.Message, now func() time.Time) SendRecord {
-	rec := SendRecord{ID: id, Channel: s.Type(), To: s.Dest()}
+// there is no attempt without a record), even when the sender panics: that is
+// recorded as a failure with the error "internal error". Now is the injected
+// clock. Whether to try at all (min_severity, quiet hours, grouping) is decided
+// before, by Decide and Group.
+func Deliver(ctx context.Context, id string, s channel.Sender, m channel.Message, now func() time.Time) (rec SendRecord) {
+	rec.ID = id
+	defer func() {
+		if p := recover(); p != nil {
+			rec.At, rec.OK, rec.Error = now(), false, "internal error"
+		}
+	}()
+	rec.Channel, rec.To = s.Type(), s.Dest()
 	r, err := s.Send(ctx, m)
 	rec.At = now()
 	if r.To != "" {

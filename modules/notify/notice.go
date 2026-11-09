@@ -32,9 +32,20 @@ type Notice struct {
 	At       time.Time
 }
 
-// Sendable implements INV-2: a vulnerability notice without a matched device is
-// never sent (FORBID-1). Other kinds are always sendable.
-func (n Notice) Sendable() bool { return n.Kind != KindVuln || len(n.Devices) > 0 }
+// Sendable implements INV-2: a vulnerability notice needs at least one matched
+// device with a name (FORBID-1); blank names do not count. Other kinds are
+// always sendable. Group, GroupHeld and Batch.Message enforce it themselves.
+func (n Notice) Sendable() bool {
+	if n.Kind != KindVuln {
+		return true
+	}
+	for _, d := range n.Devices {
+		if strings.TrimSpace(d) != "" {
+			return true
+		}
+	}
+	return false
+}
 
 // SplitSendable separates the notices that may be sent from the count of
 // vulnerability notices dropped for matching no device (HistoryResponse.suppressed).
@@ -66,56 +77,75 @@ func (g Grouping) Validate() error {
 	return nil
 }
 
-// Batch is a set of notices that go out as one message.
-type Batch struct{ Notices []Notice }
+// Batch is a set of notices that go out as one message on one channel. Build it
+// with Group or GroupHeld: they filter by the channel's min_severity and by
+// sendability, and Message refuses a batch that was not built that way.
+type Batch struct {
+	Notices []Notice
+	min     Severity // the channel's min_severity; the zero value passes nothing
+}
+
+// ErrUnsendable means a batch holds a notice that must not go to its channel (FORBID-1, INV-4).
+var ErrUnsendable = errors.New("notify: batch holds a notice that must not be sent")
 
 // held is the window used when quiet hours end: everything held for one product goes out together.
 const held = 366 * 24 * time.Hour
 
-// Group implements INV-3. With grouping enabled, vulnerability notices for the
-// same product whose time is within WindowMin of the first notice of the batch
-// become one batch; everything else is a batch of its own. Batches come out in
-// the order of their first notice. An invalid window groups nothing.
-func Group(ns []Notice, g Grouping) []Batch {
+// Group implements INV-3 for one channel (floor is its min_severity). Notices
+// that are not sendable (FORBID-1) or below floor (INV-4) are dropped first, so
+// a low notice can never ride in a batch to a high-only channel. Then, with
+// grouping enabled, vulnerability notices for the same product whose time is
+// within WindowMin of the first notice of the batch become one batch;
+// everything else is a batch of its own. A critical notice is never grouped: it
+// is always its own batch, due at its own time (D-59, INV-6). Batches come out
+// in the order of their first notice. An invalid window groups nothing.
+func Group(ns []Notice, g Grouping, floor Severity) []Batch {
 	if !g.Enabled || g.Validate() != nil {
-		return group(ns, 0)
+		return group(ns, 0, floor)
 	}
-	return group(ns, time.Duration(g.WindowMin)*time.Minute)
+	return group(ns, time.Duration(g.WindowMin)*time.Minute, floor)
 }
 
 // GroupHeld groups the notices kept during quiet hours (D-57 item 8): one batch
 // per product, whatever the window setting, so people get one message when the
-// window ends rather than one per notice.
-func GroupHeld(ns []Notice) []Batch { return group(ns, held) }
+// window ends rather than one per notice. Same filtering as Group; a critical
+// notice still stays a batch of its own.
+func GroupHeld(ns []Notice, floor Severity) []Batch { return group(ns, held, floor) }
 
-func group(ns []Notice, window time.Duration) []Batch {
-	sorted := slices.Clone(ns)
+func group(ns []Notice, window time.Duration, floor Severity) []Batch {
+	sorted := make([]Notice, 0, len(ns))
+	for _, n := range ns {
+		if n.Sendable() && MeetsMin(n.Severity, floor) {
+			sorted = append(sorted, n)
+		}
+	}
 	slices.SortStableFunc(sorted, func(a, b Notice) int { return a.At.Compare(b.At) })
 	var out []Batch
 	open := map[string]int{} // product key -> index in out of the batch still accepting notices
 	for _, n := range sorted {
 		key := strings.ToLower(strings.TrimSpace(n.Product))
-		if window > 0 && n.Kind == KindVuln && key != "" {
+		if window > 0 && n.Kind == KindVuln && key != "" && n.Severity != Critical {
 			if i, ok := open[key]; ok && n.At.Sub(out[i].Notices[0].At) <= window {
 				out[i].Notices = append(out[i].Notices, n)
 				continue
 			}
 			open[key] = len(out)
 		}
-		out = append(out, Batch{Notices: []Notice{n}})
+		out = append(out, Batch{Notices: []Notice{n}, min: floor})
 	}
 	return out
 }
 
 // DueAt is when a batch opened by its first notice must be sent at the latest
-// under the grouping rule: the first notice time plus the window. Callers
-// compare it with the 60-minute bound of INV-6.
+// under the grouping rule: the first notice time plus the window. A critical or
+// non-vulnerability notice is due at its own time. Callers compare it with the
+// 60-minute bound of INV-6.
 func (b Batch) DueAt(g Grouping) time.Time {
-	first := b.Notices[0].At
-	if !g.Enabled || g.Validate() != nil || b.Notices[0].Kind != KindVuln {
-		return first
+	first := b.Notices[0]
+	if !g.Enabled || g.Validate() != nil || first.Kind != KindVuln || first.Severity == Critical {
+		return first.At
 	}
-	return first.Add(time.Duration(g.WindowMin) * time.Minute)
+	return first.At.Add(time.Duration(g.WindowMin) * time.Minute)
 }
 
 // Severity is the highest severity in the batch.
@@ -135,7 +165,17 @@ const maxBatchDevices = 5
 // first, link; S-ALERT-1). A single notice is passed through; several notices of
 // one product become "N vulnerabilities in <product> ...", with one detail line
 // per notice. Strings stay unescaped: each adapter escapes for its own target.
-func (b Batch) Message() channel.Message {
+// It returns ErrUnsendable for an empty batch, a notice that is not sendable
+// or below the channel's min_severity, or a batch not built by Group.
+func (b Batch) Message() (channel.Message, error) {
+	if len(b.Notices) == 0 {
+		return channel.Message{}, ErrUnsendable
+	}
+	for _, n := range b.Notices {
+		if !n.Sendable() || !MeetsMin(n.Severity, b.min) {
+			return channel.Message{}, ErrUnsendable
+		}
+	}
 	first := b.Notices[0]
 	if len(b.Notices) == 1 {
 		m := channel.Message{ID: first.ID, Kind: first.Kind, Severity: string(first.Severity), Title: first.Title, Device: joinDevices(first.Devices),
@@ -143,22 +183,21 @@ func (b Batch) Message() channel.Message {
 		if first.Kind == KindVuln {
 			m.Items = slices.Clone(first.CVEs)
 		}
-		return m
+		return m, nil
 	}
 	var devices, items []string
 	for _, n := range b.Notices {
 		for _, d := range n.Devices {
-			if !slices.Contains(devices, d) {
+			if strings.TrimSpace(d) != "" && !slices.Contains(devices, d) {
 				devices = append(devices, d)
 			}
 		}
-		cves := dedupe(n.CVEs)
-		line := strings.Join(cves, ", ")
+		line := strings.Join(dedupe(n.CVEs), ", ")
 		if line == "" {
 			line = n.Title
 		}
-		if len(n.Devices) > 0 {
-			line += " on " + joinDevices(n.Devices)
+		if d := joinDevices(n.Devices); d != "" {
+			line += " on " + d
 		}
 		items = append(items, line)
 	}
@@ -168,10 +207,16 @@ func (b Batch) Message() channel.Message {
 		Device: joinDevices(devices),
 		What:   fmt.Sprintf("%d vulnerabilities in %s are being exploited and match your devices.", len(b.Notices), first.Product),
 		Action: first.Action, Items: items, Link: first.Link,
-	}
+	}, nil
 }
 
-func joinDevices(ds []string) string {
+func joinDevices(all []string) string {
+	var ds []string
+	for _, d := range all {
+		if strings.TrimSpace(d) != "" {
+			ds = append(ds, d)
+		}
+	}
 	if len(ds) > maxBatchDevices {
 		return strings.Join(ds[:maxBatchDevices], ", ") + fmt.Sprintf(" and %d more", len(ds)-maxBatchDevices)
 	}

@@ -123,6 +123,12 @@ func (e *env) setNow(t time.Time) {
 // log, the generated server with the module gate, and fakes for inventory, events and the network.
 func newEnv(t *testing.T) *env {
 	t.Helper()
+	return newEnvFetcher(t, Fetcher{Client: &http.Client{Transport: failingTransport{t}}})
+}
+
+// newEnvFetcher is newEnv with the given fetcher (pull tests point it at an httptest server).
+func newEnvFetcher(t *testing.T, f Fetcher) *env {
+	t.Helper()
 	_, db := newStore(t)
 	key := make([]byte, secrets.KeySize)
 	sec, err := secrets.New(key)
@@ -132,7 +138,7 @@ func newEnv(t *testing.T) *env {
 	e := &env{t: t, db: db, gate: servertest.NewGate(), inv: &fakeInv{matches: map[string][]MatchedAsset{}}, pub: &fakePub{}, now: time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC)}
 	log := slog.New(slog.DiscardHandler)
 	e.svc, err = NewService(Deps{DB: db, Secrets: sec, Audit: audit.New(e.clock), Modules: e.gate, Log: log, Inventory: e.inv, Events: e.pub, Clock: e.clock,
-		Fetcher: Fetcher{Client: &http.Client{Transport: failingTransport{t}}}})
+		Fetcher: f})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -327,3 +327,22 @@ func (h *Handlers) FeedsPostFeedsParseTest(ctx context.Context, req *oas.FeedsPo
 		"accepted": res.Accepted, "rejected": res.Rejected, "reasons": res.Reasons, "rejects": res.Rejects, "truncated": res.Truncated,
 	})
 }
+
+// FeedsPostFeedsSourcesIDFetch implements POST /feeds/sources/{id}/fetch (INV-8): pull the feed now, straight from
+// its source. A feed that is off is 409 feed_disabled; a pull that fails is a 200 with status error on the feed.
+func (h *Handlers) FeedsPostFeedsSourcesIDFetch(ctx context.Context, params oas.FeedsPostFeedsSourcesIDFetchParams) (*oas.FeedsPostFeedsSourcesIDFetchOK, error) {
+	p, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	row, _, err := h.s.pull(ctx, params.ID, p.Email)
+	switch {
+	case errors.Is(err, ErrNotFound):
+		return nil, noSuchFeed()
+	case errors.Is(err, ErrFeedDisabled):
+		return nil, apierr.New(http.StatusConflict, "feed_disabled", "Turn the feed on before fetching it.")
+	case err != nil:
+		return nil, err
+	}
+	return convert[oas.FeedsPostFeedsSourcesIDFetchOK](toFeedDTO(row))
+}

@@ -107,7 +107,11 @@ func (g *gemini) encode(r Request) (map[string]any, error) {
 	return body, nil
 }
 
+// geminiRefusals are the finishReason values that mean the model declined for safety or policy reasons.
+var geminiRefusals = map[string]bool{"SAFETY": true, "BLOCKLIST": true, "PROHIBITED_CONTENT": true, "SPII": true, "IMAGE_SAFETY": true}
+
 // decodeGemini turns a generateContent body into a Response; anything unexpected is ErrBadResponse.
+// A safety finish or a blocked prompt is ErrRefused (category from the finish or block reason), content dropped.
 func decodeGemini(data []byte) (Response, error) {
 	var w struct {
 		Candidates []struct {
@@ -133,18 +137,30 @@ func decodeGemini(data []byte) (Response, error) {
 	if len(w.Error) > 0 && string(w.Error) != "null" {
 		return Response{}, badResponse("the provider sent an error inside a successful answer")
 	}
+	// Each part is range-checked before the output (candidates plus billed thinking) is summed, so the sum cannot overflow.
+	out := w.Usage.Out
+	var u Usage
+	usageOK := false
+	if w.Usage.In != nil {
+		if o, ok := usage(w.Usage.In, &out); ok && w.Usage.Thought >= 0 && w.Usage.Thought <= MaxUsageTokens {
+			u, usageOK = Usage{o.InputTokens, o.OutputTokens + w.Usage.Thought}, true
+		}
+	}
 	if len(w.Candidates) == 0 {
 		if w.Feedback.Block != "" {
-			return Response{}, badResponse("the prompt was blocked by the provider: " + w.Feedback.Block)
+			return Response{}, refusal(w.Feedback.Block, u) // usage is whatever was reported; a block may report none
 		}
 		return Response{}, badResponse("no candidates")
 	}
-	if w.Usage.In == nil || *w.Usage.In < 0 || w.Usage.Out < 0 || w.Usage.Thought < 0 {
-		return Response{}, badResponse("missing or negative token usage")
-	}
 	c := w.Candidates[0]
+	if geminiRefusals[c.Finish] {
+		return Response{}, refusal(c.Finish, u)
+	}
+	if !usageOK {
+		return Response{}, badResponse("missing or out-of-range token usage")
+	}
 	// Thinking tokens are billed as output.
-	res := Response{Model: w.Model, Usage: Usage{*w.Usage.In, w.Usage.Out + w.Usage.Thought}}
+	res := Response{Model: w.Model, Usage: u}
 	var text strings.Builder
 	for i, p := range c.Content.Parts {
 		switch {

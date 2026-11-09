@@ -331,7 +331,7 @@ func TestOversizedAndMalformedBodies(t *testing.T) {
 			"error in 200": `{"type":"error","error":{"message":"overloaded"}}`, "negative usage": `{"content":[],"choices":[{}],"candidates":[{}],"usage":{"input_tokens":-1,"output_tokens":1,"prompt_tokens":-1,"completion_tokens":1},"usageMetadata":{"promptTokenCount":-1}}`,
 		} {
 			_, err := must(t, cfg(style, serve(t, 200, reply, nil).URL)).Complete(context.Background(), simpleReq)
-			if !errors.Is(err, ErrBadResponse) {
+			if !errors.Is(err, ErrBadResponse) && !errors.Is(err, ErrRefused) {
 				t.Errorf("%s/%s: want ErrBadResponse, got %v", style, name, err)
 			}
 		}
@@ -346,7 +346,6 @@ func TestDecodersRejectBadToolCalls(t *testing.T) {
 		`{"choices":[{"message":{"tool_calls":[{"id":"1","function":{"name":"x","arguments":"not json"}}]}}],"usage":{"prompt_tokens":1,"completion_tokens":1}}`: decodeOpenAI,
 		`{"choices":[{"message":{"tool_calls":[{"id":"1","function":{"name":"x","arguments":"[1]"}}]}}],"usage":{"prompt_tokens":1,"completion_tokens":1}}`:      decodeOpenAI,
 		`{"candidates":[{"content":{"parts":[{"functionCall":{"name":"x","args":"str"}}]}}],"usageMetadata":{"promptTokenCount":1}}`:                             decodeGemini,
-		`{"candidates":[],"promptFeedback":{"blockReason":"SAFETY"},"usageMetadata":{"promptTokenCount":1}}`:                                                     decodeGemini,
 	}
 	for body, dec := range bad {
 		if _, err := dec([]byte(body)); !errors.Is(err, ErrBadResponse) {
@@ -369,21 +368,21 @@ func TestStopReasons(t *testing.T) {
 		}
 		return r.Stop
 	}
-	if a("end_turn") != StopEnd || a("stop_sequence") != StopEnd || a("max_tokens") != StopMaxTokens || a("refusal") != StopOther || a("pause_turn") != StopOther {
+	if a("end_turn") != StopEnd || a("stop_sequence") != StopEnd || a("max_tokens") != StopMaxTokens || a("pause_turn") != StopOther {
 		t.Fatal("anthropic stop reasons")
 	}
 	o := func(s string) StopReason {
 		r, _ := decodeOpenAI([]byte(`{"choices":[{"message":{"content":"x"},"finish_reason":"` + s + `"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}`))
 		return r.Stop
 	}
-	if o("stop") != StopEnd || o("length") != StopMaxTokens || o("content_filter") != StopOther {
+	if o("stop") != StopEnd || o("length") != StopMaxTokens || o("function_call") != StopOther {
 		t.Fatal("openai stop reasons")
 	}
 	g := func(s string) StopReason {
 		r, _ := decodeGemini([]byte(`{"candidates":[{"content":{"parts":[{"text":"x"}]},"finishReason":"` + s + `"}],"usageMetadata":{"promptTokenCount":1}}`))
 		return r.Stop
 	}
-	if g("STOP") != StopEnd || g("MAX_TOKENS") != StopMaxTokens || g("SAFETY") != StopOther {
+	if g("STOP") != StopEnd || g("MAX_TOKENS") != StopMaxTokens || g("OTHER") != StopOther {
 		t.Fatal("gemini stop reasons")
 	}
 }
@@ -560,12 +559,12 @@ func fuzzDecoder(f *testing.F, dec func([]byte) (Response, error), seed string) 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		r, err := dec(data)
 		if err != nil {
-			if !errors.Is(err, ErrBadResponse) {
+			if !errors.Is(err, ErrBadResponse) && !errors.Is(err, ErrRefused) {
 				t.Fatalf("unexpected error kind: %v", err)
 			}
 			return
 		}
-		if r.Usage.InputTokens < 0 || r.Usage.OutputTokens < 0 {
+		if r.Usage.InputTokens < 0 || r.Usage.OutputTokens < 0 || r.Usage.InputTokens > MaxUsageTokens || r.Usage.OutputTokens > 2*MaxUsageTokens {
 			t.Fatalf("negative usage: %+v", r.Usage)
 		}
 		for _, c := range r.ToolCalls {

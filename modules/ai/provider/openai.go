@@ -105,12 +105,14 @@ func (o *openAI) encode(r Request) (map[string]any, error) {
 }
 
 // decodeOpenAI turns a Chat Completions body into a Response; anything unexpected is ErrBadResponse.
+// message.refusal and finish_reason content_filter are refusals: ErrRefused, content dropped.
 func decodeOpenAI(data []byte) (Response, error) {
 	var w struct {
 		Model   string `json:"model"`
 		Choices []struct {
 			Message struct {
 				Content   *string       `json:"content"`
+				Refusal   *string       `json:"refusal"`
 				ToolCalls []oaiToolCall `json:"tool_calls"`
 			} `json:"message"`
 			Finish string `json:"finish_reason"`
@@ -130,11 +132,18 @@ func decodeOpenAI(data []byte) (Response, error) {
 	if len(w.Choices) == 0 {
 		return Response{}, badResponse("no choices")
 	}
-	if w.Usage.In == nil || w.Usage.Out == nil || *w.Usage.In < 0 || *w.Usage.Out < 0 {
-		return Response{}, badResponse("missing or negative token usage")
+	u, ok := usage(w.Usage.In, w.Usage.Out)
+	if !ok {
+		return Response{}, badResponse("missing or out-of-range token usage")
 	}
 	c := w.Choices[0]
-	res := Response{Model: w.Model, Usage: Usage{*w.Usage.In, *w.Usage.Out}}
+	if c.Message.Refusal != nil && *c.Message.Refusal != "" {
+		return Response{}, refusal("refusal", u)
+	}
+	if c.Finish == "content_filter" {
+		return Response{}, refusal("content_filter", u)
+	}
+	res := Response{Model: w.Model, Usage: u}
 	if c.Message.Content != nil {
 		res.Text = *c.Message.Content
 	}

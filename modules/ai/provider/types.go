@@ -44,6 +44,10 @@ type Message struct {
 	Text        string
 	ToolCalls   []ToolCall
 	ToolResults []ToolResult
+	// Raw is the provider's own content of an assistant turn (Anthropic: the array of content blocks, which
+	// includes thinking blocks). When set, the Anthropic adapter replays it unchanged instead of rebuilding
+	// the turn from Text and ToolCalls; other adapters ignore it. It must be a JSON array.
+	Raw json.RawMessage
 }
 
 // ToolDef describes a read-only tool offered to the model. Which tools may be offered is decided by the
@@ -93,6 +97,8 @@ const (
 	StopMaxTokens StopReason = "max_tokens"
 	StopToolUse   StopReason = "tool_use"
 	StopOther     StopReason = "other"
+	// StopRefusal never appears in a successful Response: a refusal is returned as an error (ErrRefused).
+	StopRefusal StopReason = "refusal"
 )
 
 // Usage counts tokens as reported by the provider.
@@ -105,6 +111,8 @@ type Response struct {
 	Usage     Usage
 	Stop      StopReason
 	Model     string
+	// Raw is the assistant content as the provider sent it (Anthropic only); pass it back in Message.Raw.
+	Raw json.RawMessage
 }
 
 // Secret holds an API key. It never prints, logs or marshals its value; only Reveal returns it.
@@ -158,6 +166,8 @@ var (
 	ErrTooLarge    = errors.New("provider response is too large")
 	ErrBadResponse = errors.New("provider response is not valid")
 	ErrNetwork     = errors.New("provider is unreachable")
+	// ErrRefused: the model declined (safety refusal). The content is discarded; Error.Category says why.
+	ErrRefused = errors.New("the model declined the request")
 )
 
 // Error wraps a sentinel with the HTTP status and a short, scrubbed message from the provider.
@@ -165,12 +175,19 @@ type Error struct {
 	Kind    error
 	Status  int
 	Message string
+	// Category is set for ErrRefused: a short lowercase label such as cyber or safety (never provider free text).
+	Category string
+	// Usage is what the provider reported for a call that produced no answer (a refusal); zero otherwise.
+	Usage Usage
 }
 
 func (e *Error) Error() string {
 	s := "provider: " + e.Kind.Error()
 	if e.Status != 0 {
 		s += fmt.Sprintf(" (HTTP %d)", e.Status)
+	}
+	if e.Category != "" {
+		s += " (" + e.Category + ")"
 	}
 	if e.Message != "" {
 		s += ": " + e.Message
@@ -183,13 +200,80 @@ func newErr(kind error, status int, msg string, key Secret) *Error {
 	return &Error{Kind: kind, Status: status, Message: scrub(msg, key)}
 }
 
+var categoryRE = regexp.MustCompile(`^[a-z][a-z0-9_]{0,39}$`)
+
+// refusal builds the error for a model refusal. The category comes from the provider, so it is accepted only
+// if it looks like a label; anything else becomes "refusal".
+func refusal(category string, u Usage) error {
+	c := strings.ToLower(category)
+	if !categoryRE.MatchString(c) {
+		c = "refusal"
+	}
+	return &Error{Kind: ErrRefused, Category: c, Usage: u}
+}
+
+// MaxUsageTokens is the largest token count accepted from a provider for one call; more is a bad response.
+const MaxUsageTokens = 10_000_000
+
+// usage checks the counts of a response. A missing or out-of-range count is not usable.
+func usage(in, out *int) (Usage, bool) {
+	if in == nil || out == nil || *in < 0 || *out < 0 || *in > MaxUsageTokens || *out > MaxUsageTokens {
+		return Usage{}, false
+	}
+	return Usage{*in, *out}, true
+}
+
 // keyShaped matches the beginning of common API keys, which providers sometimes echo back in error text.
 var keyShaped = regexp.MustCompile(`\b(?:sk|AIza|gsk|xai)[-_A-Za-z0-9*.]{6,}`)
 
-// scrub removes the key and anything key-shaped from a provider message and shortens it.
+const keyWindow = 12
+
+func isTokenByte(b byte) bool {
+	return b == '_' || b == '-' || b == '+' || b == '/' || b == '=' || b == '.' || b == '*' || b == '~' ||
+		(b >= '0' && b <= '9') || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
+}
+
+// redactKeyRuns replaces every run of key-like characters that contains a 12-character window of the key, so a
+// provider that echoes the key with a change, or only a slice of it, still reveals nothing usable.
+func redactKeyRuns(msg, key string) string {
+	if len(key) < keyWindow {
+		return msg
+	}
+	windows := make(map[string]struct{}, len(key))
+	for i := 0; i+keyWindow <= len(key); i++ {
+		windows[key[i:i+keyWindow]] = struct{}{}
+	}
+	var b strings.Builder
+	for i := 0; i < len(msg); {
+		if !isTokenByte(msg[i]) {
+			b.WriteByte(msg[i])
+			i++
+			continue
+		}
+		j := i
+		for j < len(msg) && isTokenByte(msg[j]) {
+			j++
+		}
+		hit := false
+		for k := i; k+keyWindow <= j && !hit; k++ {
+			_, hit = windows[msg[k:k+keyWindow]]
+		}
+		if hit {
+			b.WriteString("[redacted]")
+		} else {
+			b.WriteString(msg[i:j])
+		}
+		i = j
+	}
+	return b.String()
+}
+
+// scrub removes the key, any fragment of it and anything key-shaped from a provider message, then shortens it.
+// The whole text is scrubbed before it is cut, so a key that starts late in a long body cannot survive the cut.
 func scrub(msg string, key Secret) string {
-	if key.IsSet() {
-		msg = strings.ReplaceAll(msg, key.Reveal(), "[redacted]")
+	if k := key.Reveal(); k != "" {
+		msg = strings.ReplaceAll(msg, k, "[redacted]")
+		msg = redactKeyRuns(msg, k)
 	}
 	msg = keyShaped.ReplaceAllString(msg, "[redacted]")
 	msg = strings.Map(func(r rune) rune {

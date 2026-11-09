@@ -9,16 +9,18 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 )
 
 const (
-	defaultTimeout   = 60 * time.Second
-	defaultMaxBody   = 4 << 20 // response cap: a model answer is far below this
-	maxErrBodyInText = 512
+	defaultTimeout = 60 * time.Second
+	defaultMaxBody = 4 << 20 // response cap: a model answer is far below this
+
 )
 
 var modelRE = regexp.MustCompile(`^[\w.:/-]{1,80}$`)
@@ -32,6 +34,10 @@ type Config struct {
 	APIKey  Secret
 	// CompatMode sends max_tokens instead of max_completion_tokens (Ollama, vLLM, gateways). OpenAI style only.
 	CompatMode bool
+	// InternalOnly marks a profile with location=internal: the connection may only reach private addresses
+	// (loopback, RFC 1918, link-local, unique-local, CGNAT), checked on the resolved address at dial time, and
+	// the environment proxy is not used. This is what makes "internal" more than a label (INV-3).
+	InternalOnly bool
 	// AnthropicVersion overrides the anthropic-version header. Empty = DefaultAnthropicVersion.
 	AnthropicVersion string
 	// Timeout bounds one call. Zero = 60 s. The caller's context can only make it shorter.
@@ -40,8 +46,8 @@ type Config struct {
 	MaxResponseBytes int64
 }
 
-// DefaultAnthropicVersion is the stable Messages API version header value.
-const DefaultAnthropicVersion = "2023-06-01"
+// DefaultAnthropicVersion is the anthropic-version header value sent unless Config.AnthropicVersion says otherwise.
+const DefaultAnthropicVersion = "2026-10-21"
 
 // DefaultBaseURL returns the public endpoint of a native API, or "" for kinds that always need a base URL.
 func DefaultBaseURL(kind string) string {
@@ -96,7 +102,7 @@ func New(c Config) (Provider, error) {
 	h := &httpClient{
 		base: base, key: c.APIKey, timeout: c.Timeout, maxBody: c.MaxResponseBytes,
 		// Never follow redirects: a custom header such as x-api-key would travel to the new host.
-		c: &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
+		c: &http.Client{Transport: newTransport(c.InternalOnly), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
 	switch c.Style {
 	case StyleAnthropic:
@@ -185,6 +191,9 @@ func (h *httpClient) transportErr(ctx context.Context, err error) error {
 	if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout()) {
 		return newErr(ErrTimeout, 0, "", h.key)
 	}
+	if errors.Is(err, errPublicDestination) {
+		return newErr(ErrNetwork, 0, "this profile is marked internal, but the server is at a public address; check the address or change where the profile runs", h.key)
+	}
 	// The text of a dial error names the address (and a url.Error the whole URL), so none of it is kept.
 	return newErr(ErrNetwork, 0, "connection failed", h.key)
 }
@@ -207,9 +216,6 @@ func statusErr(status int, body []byte, key Secret) *Error {
 // errorText pulls a message out of the common error shapes ({"error":{"message":..}}, {"error":"..."}),
 // falling back to the start of the raw body.
 func errorText(body []byte) string {
-	if len(body) > maxErrBodyInText {
-		body = body[:maxErrBodyInText]
-	}
 	var e struct {
 		Error json.RawMessage `json:"error"`
 	}
@@ -229,6 +235,11 @@ func errorText(body []byte) string {
 }
 
 func checkRequest(r Request) error {
+	for _, m := range r.Messages {
+		if len(m.Raw) > 0 && (!json.Valid(m.Raw) || bytes.TrimSpace(m.Raw)[0] != '[') {
+			return errors.New("provider: the raw content of a message must be a JSON array")
+		}
+	}
 	if r.MaxTokens <= 0 {
 		return errors.New("provider: max tokens must be positive")
 	}
@@ -267,3 +278,40 @@ func object(raw json.RawMessage) (json.RawMessage, bool) {
 }
 
 func badResponse(msg string) error { return &Error{Kind: ErrBadResponse, Message: msg} }
+
+var errPublicDestination = errors.New("destination is not an internal address")
+
+var cgnat = netip.MustParsePrefix("100.64.0.0/10")
+
+// IsInternalAddr reports whether ip is a private address: loopback, RFC 1918, link-local, unique-local
+// (fc00::/7) or carrier-grade NAT (100.64.0.0/10). IPv4-mapped IPv6 is treated as the IPv4 address.
+func IsInternalAddr(ip netip.Addr) bool {
+	ip = ip.Unmap().WithZone("")
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || cgnat.Contains(ip)
+}
+
+// internalOnlyControl is a net.Dialer.Control: it runs on the resolved address just before connect, so a
+// public destination is refused whatever the name was (DNS rebinding included) and without sending a packet.
+func internalOnlyControl(_, address string, _ syscall.RawConn) error {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return errPublicDestination
+	}
+	ip, err := netip.ParseAddr(host)
+	if err != nil || !IsInternalAddr(ip) {
+		return errPublicDestination
+	}
+	return nil
+}
+
+// newTransport returns the HTTP transport of one provider. An internal profile gets an explicit transport:
+// no proxy, and a dialer that refuses public addresses. A cloud profile keeps the environment proxy.
+func newTransport(internal bool) *http.Transport {
+	if !internal {
+		return http.DefaultTransport.(*http.Transport).Clone() //nolint:forcetypeassert // the default transport is an *http.Transport
+	}
+	d := &net.Dialer{Timeout: 10 * time.Second, Control: internalOnlyControl}
+	return &http.Transport{
+		Proxy: nil, DialContext: d.DialContext, MaxIdleConns: 4, IdleConnTimeout: 30 * time.Second, TLSHandshakeTimeout: 10 * time.Second,
+	}
+}

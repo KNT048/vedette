@@ -55,6 +55,10 @@ func (a *anthropic) encode(r Request) (map[string]any, error) {
 		case RoleUser:
 			msgs = append(msgs, anMessage{"user", m.Text})
 		case RoleAssistant:
+			if len(m.Raw) > 0 { // replay the provider's own blocks unchanged, thinking blocks included
+				msgs = append(msgs, anMessage{"assistant", m.Raw})
+				continue
+			}
 			if len(m.ToolCalls) == 0 {
 				msgs = append(msgs, anMessage{"assistant", m.Text})
 				continue
@@ -99,13 +103,17 @@ func (a *anthropic) encode(r Request) (map[string]any, error) {
 }
 
 // decodeAnthropic turns a Messages API body into a Response. It fails closed: anything unexpected is ErrBadResponse.
+// A refusal (stop_reason "refusal") is returned as ErrRefused with the category and the usage; its content is dropped.
 func decodeAnthropic(data []byte) (Response, error) {
 	var w struct {
-		Type    string          `json:"type"`
-		Content json.RawMessage `json:"content"`
-		Stop    string          `json:"stop_reason"`
-		Model   string          `json:"model"`
-		Usage   struct {
+		Type        string          `json:"type"`
+		Content     json.RawMessage `json:"content"`
+		Stop        string          `json:"stop_reason"`
+		StopDetails *struct {
+			Category string `json:"category"`
+		} `json:"stop_details"`
+		Model string `json:"model"`
+		Usage struct {
 			In  *int `json:"input_tokens"`
 			Out *int `json:"output_tokens"`
 		} `json:"usage"`
@@ -123,10 +131,18 @@ func decodeAnthropic(data []byte) (Response, error) {
 	if w.Content == nil || json.Unmarshal(w.Content, &blocks) != nil {
 		return Response{}, badResponse("missing content")
 	}
-	if w.Usage.In == nil || w.Usage.Out == nil || *w.Usage.In < 0 || *w.Usage.Out < 0 {
-		return Response{}, badResponse("missing or negative token usage")
+	u, ok := usage(w.Usage.In, w.Usage.Out)
+	if !ok {
+		return Response{}, badResponse("missing or out-of-range token usage")
 	}
-	res := Response{Model: w.Model, Usage: Usage{*w.Usage.In, *w.Usage.Out}}
+	if w.Stop == "refusal" {
+		cat := ""
+		if w.StopDetails != nil {
+			cat = w.StopDetails.Category
+		}
+		return Response{}, refusal(cat, u)
+	}
+	res := Response{Model: w.Model, Usage: u, Raw: append(json.RawMessage(nil), w.Content...)}
 	var text strings.Builder
 	for _, b := range blocks {
 		switch b.Type {

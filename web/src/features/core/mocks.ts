@@ -635,7 +635,7 @@ function privacyView() {
     { id: 9, state: isOn('exposure') ? 'on' : 'off', control: 'reason' },
     { id: 10, state: ntpPublic() ? 'on' : 'off', control: 'reason' },
     { id: 11, state: isOn('auth-oidc') && !!oidcStore.get().issuer ? 'conditional' : 'off', control: 'reason' },
-    { id: 12, state: connectorsStore.get().some((c) => c.enabled) ? 'on' : 'off', control: 'reason' },
+    { id: 12, state: connectorsStore.get().some((c) => c.enabled && c.kind !== 'mcp-stdio') ? 'on' : 'off', control: 'reason' },
   ]
   return { flows, telemetry: { enabled: p.telemetry, last_sent: p.last_sent, payload: telemetryPayload() }, update_check: p.update_check }
 }

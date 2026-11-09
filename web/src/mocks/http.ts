@@ -6,8 +6,9 @@ import type { Role } from '@/lib/session'
 
 export const API = '*/api/v1'
 
-export function fail(status: number, code: string, message: string) {
-  return HttpResponse.json({ error: { code, message } }, { status })
+/** `extra` is spread into `error` next to `code` and `message`, so `field` (D-73) or any other detail reaches the client. */
+export function fail(status: number, code: string, message: string, extra: Record<string, unknown> = {}) {
+  return HttpResponse.json({ error: { code, message, ...extra } }, { status })
 }
 
 const rank: Record<Role, number> = { viewer: 0, operator: 1, admin: 2 }

@@ -12850,9 +12850,18 @@ func (s *CoreGetCoreConnectionsOKItemsItem) SetUsername(val NilString) {
 }
 
 type CoreGetCoreConnectionsOKItemsItemAuth struct {
-	// Last 4 characters of the secret; the full secret is never returned (SYS-4).
+	// SSH key only: SHA256: fingerprint of the saved private key, like GitHub shows for a key. The mock
+	// uses a hash of the key body; the backend computes the public-key fingerprint.
+	KeyFingerprint NilString `json:"key_fingerprint"`
+	// Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is
+	// never returned (SYS-4).
 	Last4 NilString                                 `json:"last4"`
 	Type  CoreGetCoreConnectionsOKItemsItemAuthType `json:"type"`
+}
+
+// GetKeyFingerprint returns the value of KeyFingerprint.
+func (s *CoreGetCoreConnectionsOKItemsItemAuth) GetKeyFingerprint() NilString {
+	return s.KeyFingerprint
 }
 
 // GetLast4 returns the value of Last4.
@@ -12863,6 +12872,11 @@ func (s *CoreGetCoreConnectionsOKItemsItemAuth) GetLast4() NilString {
 // GetType returns the value of Type.
 func (s *CoreGetCoreConnectionsOKItemsItemAuth) GetType() CoreGetCoreConnectionsOKItemsItemAuthType {
 	return s.Type
+}
+
+// SetKeyFingerprint sets the value of KeyFingerprint.
+func (s *CoreGetCoreConnectionsOKItemsItemAuth) SetKeyFingerprint(val NilString) {
+	s.KeyFingerprint = val
 }
 
 // SetLast4 sets the value of Last4.
@@ -20952,9 +20966,18 @@ func (s *CorePostCoreConnectionsCreated) SetUsername(val NilString) {
 }
 
 type CorePostCoreConnectionsCreatedAuth struct {
-	// Last 4 characters of the secret; the full secret is never returned (SYS-4).
+	// SSH key only: SHA256: fingerprint of the saved private key, like GitHub shows for a key. The mock
+	// uses a hash of the key body; the backend computes the public-key fingerprint.
+	KeyFingerprint NilString `json:"key_fingerprint"`
+	// Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is
+	// never returned (SYS-4).
 	Last4 NilString                              `json:"last4"`
 	Type  CorePostCoreConnectionsCreatedAuthType `json:"type"`
+}
+
+// GetKeyFingerprint returns the value of KeyFingerprint.
+func (s *CorePostCoreConnectionsCreatedAuth) GetKeyFingerprint() NilString {
+	return s.KeyFingerprint
 }
 
 // GetLast4 returns the value of Last4.
@@ -20965,6 +20988,11 @@ func (s *CorePostCoreConnectionsCreatedAuth) GetLast4() NilString {
 // GetType returns the value of Type.
 func (s *CorePostCoreConnectionsCreatedAuth) GetType() CorePostCoreConnectionsCreatedAuthType {
 	return s.Type
+}
+
+// SetKeyFingerprint sets the value of KeyFingerprint.
+func (s *CorePostCoreConnectionsCreatedAuth) SetKeyFingerprint(val NilString) {
+	s.KeyFingerprint = val
 }
 
 // SetLast4 sets the value of Last4.
@@ -21530,9 +21558,18 @@ func (s *CorePostCoreConnectionsIDTestOKConnector) SetUsername(val NilString) {
 }
 
 type CorePostCoreConnectionsIDTestOKConnectorAuth struct {
-	// Last 4 characters of the secret; the full secret is never returned (SYS-4).
+	// SSH key only: SHA256: fingerprint of the saved private key, like GitHub shows for a key. The mock
+	// uses a hash of the key body; the backend computes the public-key fingerprint.
+	KeyFingerprint NilString `json:"key_fingerprint"`
+	// Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is
+	// never returned (SYS-4).
 	Last4 NilString                                        `json:"last4"`
 	Type  CorePostCoreConnectionsIDTestOKConnectorAuthType `json:"type"`
+}
+
+// GetKeyFingerprint returns the value of KeyFingerprint.
+func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) GetKeyFingerprint() NilString {
+	return s.KeyFingerprint
 }
 
 // GetLast4 returns the value of Last4.
@@ -21543,6 +21580,11 @@ func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) GetLast4() NilString {
 // GetType returns the value of Type.
 func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) GetType() CorePostCoreConnectionsIDTestOKConnectorAuthType {
 	return s.Type
+}
+
+// SetKeyFingerprint sets the value of KeyFingerprint.
+func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) SetKeyFingerprint(val NilString) {
+	s.KeyFingerprint = val
 }
 
 // SetLast4 sets the value of Last4.
@@ -21903,8 +21945,9 @@ type CorePostCoreConnectionsReq struct {
 	Allow    []string                           `json:"allow"`
 	AssetID  OptNilString                       `json:"asset_id"`
 	AuthType CorePostCoreConnectionsReqAuthType `json:"auth_type"`
-	// True = forget the pinned certificate or host key; the next Test pins again. A changed target, kind
-	// or sign-in forgets it too.
+	// True = forget the pinned certificate or host key; the next Test pins again. It is also forgotten
+	// when the kind changes or the host or port changes (a trailing slash or path does not count); a
+	// change of sign-in keeps it.
 	ClearPin OptBool                        `json:"clear_pin"`
 	Enabled  bool                           `json:"enabled"`
 	Kind     CorePostCoreConnectionsReqKind `json:"kind"`
@@ -21914,7 +21957,8 @@ type CorePostCoreConnectionsReq struct {
 	Target string    `json:"target"`
 	// Per-tool enable; tools not listed keep their state.
 	Tools []CorePostCoreConnectionsReqToolsItem `json:"tools"`
-	// Required for SSH and for Basic sign-in; ignored for the other sign-ins.
+	// Required for SSH and for Basic sign-in (400 username_required); 1 to 64 characters without spaces,
+	// colons or control characters; ignored for the other sign-ins.
 	Username OptNilString `json:"username"`
 }
 
@@ -22153,8 +22197,16 @@ func (s *CorePostCoreConnectionsReqKind) UnmarshalText(data []byte) error {
 }
 
 type CorePostCoreConnectionsReqToolsItem struct {
-	Enabled bool   `json:"enabled"`
-	Name    string `json:"name"`
+	// Only for an MCP server (mcp-http): other kinds answer 400 invalid_tool_access, their tools are
+	// fixed. A tool found on an MCP server starts as write and off.
+	Access  OptCorePostCoreConnectionsReqToolsItemAccess `json:"access"`
+	Enabled bool                                         `json:"enabled"`
+	Name    string                                       `json:"name"`
+}
+
+// GetAccess returns the value of Access.
+func (s *CorePostCoreConnectionsReqToolsItem) GetAccess() OptCorePostCoreConnectionsReqToolsItemAccess {
+	return s.Access
 }
 
 // GetEnabled returns the value of Enabled.
@@ -22167,6 +22219,11 @@ func (s *CorePostCoreConnectionsReqToolsItem) GetName() string {
 	return s.Name
 }
 
+// SetAccess sets the value of Access.
+func (s *CorePostCoreConnectionsReqToolsItem) SetAccess(val OptCorePostCoreConnectionsReqToolsItemAccess) {
+	s.Access = val
+}
+
 // SetEnabled sets the value of Enabled.
 func (s *CorePostCoreConnectionsReqToolsItem) SetEnabled(val bool) {
 	s.Enabled = val
@@ -22175,6 +22232,49 @@ func (s *CorePostCoreConnectionsReqToolsItem) SetEnabled(val bool) {
 // SetName sets the value of Name.
 func (s *CorePostCoreConnectionsReqToolsItem) SetName(val string) {
 	s.Name = val
+}
+
+// Only for an MCP server (mcp-http): other kinds answer 400 invalid_tool_access, their tools are
+// fixed. A tool found on an MCP server starts as write and off.
+type CorePostCoreConnectionsReqToolsItemAccess string
+
+const (
+	CorePostCoreConnectionsReqToolsItemAccessRead  CorePostCoreConnectionsReqToolsItemAccess = "read"
+	CorePostCoreConnectionsReqToolsItemAccessWrite CorePostCoreConnectionsReqToolsItemAccess = "write"
+)
+
+// AllValues returns all CorePostCoreConnectionsReqToolsItemAccess values.
+func (CorePostCoreConnectionsReqToolsItemAccess) AllValues() []CorePostCoreConnectionsReqToolsItemAccess {
+	return []CorePostCoreConnectionsReqToolsItemAccess{
+		CorePostCoreConnectionsReqToolsItemAccessRead,
+		CorePostCoreConnectionsReqToolsItemAccessWrite,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreConnectionsReqToolsItemAccess) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreConnectionsReqToolsItemAccessRead:
+		return []byte(s), nil
+	case CorePostCoreConnectionsReqToolsItemAccessWrite:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreConnectionsReqToolsItemAccess) UnmarshalText(data []byte) error {
+	switch CorePostCoreConnectionsReqToolsItemAccess(data) {
+	case CorePostCoreConnectionsReqToolsItemAccessRead:
+		*s = CorePostCoreConnectionsReqToolsItemAccessRead
+		return nil
+	case CorePostCoreConnectionsReqToolsItemAccessWrite:
+		*s = CorePostCoreConnectionsReqToolsItemAccessWrite
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type CorePostCoreDataPurgeOK struct {
@@ -29367,9 +29467,18 @@ func (s *CorePutCoreConnectionsIDOK) SetUsername(val NilString) {
 }
 
 type CorePutCoreConnectionsIDOKAuth struct {
-	// Last 4 characters of the secret; the full secret is never returned (SYS-4).
+	// SSH key only: SHA256: fingerprint of the saved private key, like GitHub shows for a key. The mock
+	// uses a hash of the key body; the backend computes the public-key fingerprint.
+	KeyFingerprint NilString `json:"key_fingerprint"`
+	// Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is
+	// never returned (SYS-4).
 	Last4 NilString                          `json:"last4"`
 	Type  CorePutCoreConnectionsIDOKAuthType `json:"type"`
+}
+
+// GetKeyFingerprint returns the value of KeyFingerprint.
+func (s *CorePutCoreConnectionsIDOKAuth) GetKeyFingerprint() NilString {
+	return s.KeyFingerprint
 }
 
 // GetLast4 returns the value of Last4.
@@ -29380,6 +29489,11 @@ func (s *CorePutCoreConnectionsIDOKAuth) GetLast4() NilString {
 // GetType returns the value of Type.
 func (s *CorePutCoreConnectionsIDOKAuth) GetType() CorePutCoreConnectionsIDOKAuthType {
 	return s.Type
+}
+
+// SetKeyFingerprint sets the value of KeyFingerprint.
+func (s *CorePutCoreConnectionsIDOKAuth) SetKeyFingerprint(val NilString) {
+	s.KeyFingerprint = val
 }
 
 // SetLast4 sets the value of Last4.
@@ -29740,8 +29854,9 @@ type CorePutCoreConnectionsIDReq struct {
 	Allow    []string                            `json:"allow"`
 	AssetID  OptNilString                        `json:"asset_id"`
 	AuthType CorePutCoreConnectionsIDReqAuthType `json:"auth_type"`
-	// True = forget the pinned certificate or host key; the next Test pins again. A changed target, kind
-	// or sign-in forgets it too.
+	// True = forget the pinned certificate or host key; the next Test pins again. It is also forgotten
+	// when the kind changes or the host or port changes (a trailing slash or path does not count); a
+	// change of sign-in keeps it.
 	ClearPin OptBool                         `json:"clear_pin"`
 	Enabled  bool                            `json:"enabled"`
 	Kind     CorePutCoreConnectionsIDReqKind `json:"kind"`
@@ -29751,7 +29866,8 @@ type CorePutCoreConnectionsIDReq struct {
 	Target string    `json:"target"`
 	// Per-tool enable; tools not listed keep their state.
 	Tools []CorePutCoreConnectionsIDReqToolsItem `json:"tools"`
-	// Required for SSH and for Basic sign-in; ignored for the other sign-ins.
+	// Required for SSH and for Basic sign-in (400 username_required); 1 to 64 characters without spaces,
+	// colons or control characters; ignored for the other sign-ins.
 	Username OptNilString `json:"username"`
 }
 
@@ -29990,8 +30106,16 @@ func (s *CorePutCoreConnectionsIDReqKind) UnmarshalText(data []byte) error {
 }
 
 type CorePutCoreConnectionsIDReqToolsItem struct {
-	Enabled bool   `json:"enabled"`
-	Name    string `json:"name"`
+	// Only for an MCP server (mcp-http): other kinds answer 400 invalid_tool_access, their tools are
+	// fixed. A tool found on an MCP server starts as write and off.
+	Access  OptCorePutCoreConnectionsIDReqToolsItemAccess `json:"access"`
+	Enabled bool                                          `json:"enabled"`
+	Name    string                                        `json:"name"`
+}
+
+// GetAccess returns the value of Access.
+func (s *CorePutCoreConnectionsIDReqToolsItem) GetAccess() OptCorePutCoreConnectionsIDReqToolsItemAccess {
+	return s.Access
 }
 
 // GetEnabled returns the value of Enabled.
@@ -30004,6 +30128,11 @@ func (s *CorePutCoreConnectionsIDReqToolsItem) GetName() string {
 	return s.Name
 }
 
+// SetAccess sets the value of Access.
+func (s *CorePutCoreConnectionsIDReqToolsItem) SetAccess(val OptCorePutCoreConnectionsIDReqToolsItemAccess) {
+	s.Access = val
+}
+
 // SetEnabled sets the value of Enabled.
 func (s *CorePutCoreConnectionsIDReqToolsItem) SetEnabled(val bool) {
 	s.Enabled = val
@@ -30012,6 +30141,49 @@ func (s *CorePutCoreConnectionsIDReqToolsItem) SetEnabled(val bool) {
 // SetName sets the value of Name.
 func (s *CorePutCoreConnectionsIDReqToolsItem) SetName(val string) {
 	s.Name = val
+}
+
+// Only for an MCP server (mcp-http): other kinds answer 400 invalid_tool_access, their tools are
+// fixed. A tool found on an MCP server starts as write and off.
+type CorePutCoreConnectionsIDReqToolsItemAccess string
+
+const (
+	CorePutCoreConnectionsIDReqToolsItemAccessRead  CorePutCoreConnectionsIDReqToolsItemAccess = "read"
+	CorePutCoreConnectionsIDReqToolsItemAccessWrite CorePutCoreConnectionsIDReqToolsItemAccess = "write"
+)
+
+// AllValues returns all CorePutCoreConnectionsIDReqToolsItemAccess values.
+func (CorePutCoreConnectionsIDReqToolsItemAccess) AllValues() []CorePutCoreConnectionsIDReqToolsItemAccess {
+	return []CorePutCoreConnectionsIDReqToolsItemAccess{
+		CorePutCoreConnectionsIDReqToolsItemAccessRead,
+		CorePutCoreConnectionsIDReqToolsItemAccessWrite,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutCoreConnectionsIDReqToolsItemAccess) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutCoreConnectionsIDReqToolsItemAccessRead:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDReqToolsItemAccessWrite:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutCoreConnectionsIDReqToolsItemAccess) UnmarshalText(data []byte) error {
+	switch CorePutCoreConnectionsIDReqToolsItemAccess(data) {
+	case CorePutCoreConnectionsIDReqToolsItemAccessRead:
+		*s = CorePutCoreConnectionsIDReqToolsItemAccessRead
+		return nil
+	case CorePutCoreConnectionsIDReqToolsItemAccessWrite:
+		*s = CorePutCoreConnectionsIDReqToolsItemAccessWrite
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type CorePutCoreGeneralOK struct {
@@ -82891,6 +83063,52 @@ func (o OptCorePatchCoreUsersIDReqRole) Or(d CorePatchCoreUsersIDReqRole) CorePa
 	return d
 }
 
+// NewOptCorePostCoreConnectionsReqToolsItemAccess returns new OptCorePostCoreConnectionsReqToolsItemAccess with value set to v.
+func NewOptCorePostCoreConnectionsReqToolsItemAccess(v CorePostCoreConnectionsReqToolsItemAccess) OptCorePostCoreConnectionsReqToolsItemAccess {
+	return OptCorePostCoreConnectionsReqToolsItemAccess{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCorePostCoreConnectionsReqToolsItemAccess is optional CorePostCoreConnectionsReqToolsItemAccess.
+type OptCorePostCoreConnectionsReqToolsItemAccess struct {
+	Value CorePostCoreConnectionsReqToolsItemAccess
+	Set   bool
+}
+
+// IsSet returns true if OptCorePostCoreConnectionsReqToolsItemAccess was set.
+func (o OptCorePostCoreConnectionsReqToolsItemAccess) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCorePostCoreConnectionsReqToolsItemAccess) Reset() {
+	var v CorePostCoreConnectionsReqToolsItemAccess
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCorePostCoreConnectionsReqToolsItemAccess) SetTo(v CorePostCoreConnectionsReqToolsItemAccess) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCorePostCoreConnectionsReqToolsItemAccess) Get() (v CorePostCoreConnectionsReqToolsItemAccess, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCorePostCoreConnectionsReqToolsItemAccess) Or(d CorePostCoreConnectionsReqToolsItemAccess) CorePostCoreConnectionsReqToolsItemAccess {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptCorePostCoreSetupReqAdmin returns new OptCorePostCoreSetupReqAdmin with value set to v.
 func NewOptCorePostCoreSetupReqAdmin(v CorePostCoreSetupReqAdmin) OptCorePostCoreSetupReqAdmin {
 	return OptCorePostCoreSetupReqAdmin{
@@ -82977,6 +83195,52 @@ func (o OptCorePostCoreSetupReqBundle) Get() (v CorePostCoreSetupReqBundle, ok b
 
 // Or returns value if set, or given parameter if does not.
 func (o OptCorePostCoreSetupReqBundle) Or(d CorePostCoreSetupReqBundle) CorePostCoreSetupReqBundle {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCorePutCoreConnectionsIDReqToolsItemAccess returns new OptCorePutCoreConnectionsIDReqToolsItemAccess with value set to v.
+func NewOptCorePutCoreConnectionsIDReqToolsItemAccess(v CorePutCoreConnectionsIDReqToolsItemAccess) OptCorePutCoreConnectionsIDReqToolsItemAccess {
+	return OptCorePutCoreConnectionsIDReqToolsItemAccess{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCorePutCoreConnectionsIDReqToolsItemAccess is optional CorePutCoreConnectionsIDReqToolsItemAccess.
+type OptCorePutCoreConnectionsIDReqToolsItemAccess struct {
+	Value CorePutCoreConnectionsIDReqToolsItemAccess
+	Set   bool
+}
+
+// IsSet returns true if OptCorePutCoreConnectionsIDReqToolsItemAccess was set.
+func (o OptCorePutCoreConnectionsIDReqToolsItemAccess) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCorePutCoreConnectionsIDReqToolsItemAccess) Reset() {
+	var v CorePutCoreConnectionsIDReqToolsItemAccess
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCorePutCoreConnectionsIDReqToolsItemAccess) SetTo(v CorePutCoreConnectionsIDReqToolsItemAccess) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCorePutCoreConnectionsIDReqToolsItemAccess) Get() (v CorePutCoreConnectionsIDReqToolsItemAccess, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCorePutCoreConnectionsIDReqToolsItemAccess) Or(d CorePutCoreConnectionsIDReqToolsItemAccess) CorePutCoreConnectionsIDReqToolsItemAccess {
 	if v, ok := o.Get(); ok {
 		return v
 	}

@@ -565,9 +565,7 @@
       "deleted": "Hook deleted"
     },
     "conn": {
-      "moved": "Connections moved to",
-      "movedLink": "Settings → Connections",
-      "movedAfter": "."
+      "moved": "Connections moved to <go>Settings → Connections</go>."
     }
   },
   "activity": {

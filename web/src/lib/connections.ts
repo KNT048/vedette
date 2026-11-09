@@ -27,3 +27,10 @@ export const isHttpKind = (k: string | null | undefined): boolean => HTTP_KINDS.
 export const isMcpKind = (k: string | null | undefined): boolean => k === 'mcp-http' || k === 'mcp-stdio'
 /** Sign-in that carries a user name: SSH always, and Basic on any kind (D-94). */
 export const usesUsername = (kind: string, auth: string): boolean => kind === 'ssh' || auth === 'basic'
+/** The identity of the server a connection talks to: host and port after normalisation (a path, a trailing slash or letter case do not count). Its pin and its saved secret belong to it. */
+export const hostPort = (kind: string, target: string): string => {
+  try {
+    if (kind === 'ssh') { const m = /^(.*?)(?::(\d{1,5}))?$/.exec(target.trim().toLowerCase())!; return `${m[1]}:${m[2] ?? '22'}` }
+    return new URL(target).host.toLowerCase()
+  } catch { return target.trim().toLowerCase() }
+}

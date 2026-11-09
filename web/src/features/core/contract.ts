@@ -135,7 +135,10 @@ export const ConnectorPin = z.object({
 }).describe('Pinned at the first successful Test (trust on first use, D-94). A changed certificate or host key is refused until an administrator forgets the pin')
 export const Connector = z.object({
   id: z.string(), name: z.string(), kind: ConnectorKind, target: z.string().describe('Base URL or host:port. "mcp-stdio" rows are not supported (D-94)'), asset_id: z.string().nullable(),
-  auth: z.object({ type: ConnectorAuthType, last4: z.string().nullable().describe('Last 4 characters of the secret; the full secret is never returned (SYS-4)') }),
+  auth: z.object({
+    type: ConnectorAuthType, last4: z.string().nullable().describe('Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is never returned (SYS-4)'),
+    key_fingerprint: z.string().nullable().describe('SSH key only: SHA256:<base64> fingerprint of the saved private key, like GitHub shows for a key. The mock uses a hash of the key body; the backend computes the public-key fingerprint'),
+  }),
   username: z.string().nullable().describe('User name for SSH and for Basic sign-in; null for the other sign-ins'),
   pin: ConnectorPin.nullable().describe('Read-only. null until the first Test, or after the pin was forgotten'),
   allow: z.array(z.string()).describe('Hosts, URL prefixes or commands that may be used through this connection'),
@@ -144,9 +147,9 @@ export const Connector = z.object({
 export const ConnectorInput = z.object({
   name: z.string().min(1).max(40), kind: ConnectorKind, target: z.string(), asset_id: z.string().nullable().optional(),
   auth_type: ConnectorAuthType, secret: z.string().optional().describe('Leave blank when editing to keep the old secret'),
-  username: z.string().max(64).nullable().optional().describe('Required for SSH and for Basic sign-in; ignored for the other sign-ins'),
-  clear_pin: z.boolean().optional().describe('true = forget the pinned certificate or host key; the next Test pins again. A changed target, kind or sign-in forgets it too'),
-  allow: z.array(z.string()), enabled: z.boolean(), tools: z.array(z.object({ name: z.string(), enabled: z.boolean() })).optional().describe('Per-tool enable; tools not listed keep their state'),
+  username: z.string().regex(/^[^\s:\p{Cc}\p{Cf}]{1,64}$/u).nullable().optional().describe('Required for SSH and for Basic sign-in (400 username_required); 1 to 64 characters without spaces, colons or control characters; ignored for the other sign-ins'),
+  clear_pin: z.boolean().optional().describe('true = forget the pinned certificate or host key; the next Test pins again. It is also forgotten when the kind changes or the host or port changes (a trailing slash or path does not count); a change of sign-in keeps it'),
+  allow: z.array(z.string()), enabled: z.boolean(), tools: z.array(z.object({ name: z.string(), enabled: z.boolean(), access: z.enum(['read', 'write']).optional().describe('Only for an MCP server (mcp-http): other kinds answer 400 invalid_tool_access, their tools are fixed. A tool found on an MCP server starts as write and off') })).optional().describe('Per-tool enable; tools not listed keep their state'),
 })
 export const ConnectorTestResult = z.object({ ok: z.literal(true), latency_ms: z.number(), tools_found: z.number().int(), message: z.string(), connector: Connector })
 

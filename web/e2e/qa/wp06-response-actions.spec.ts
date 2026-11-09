@@ -19,7 +19,8 @@ async function addConnection(page: Page, kind: string) {
   const d = page.getByRole('dialog')
   await d.locator('#cn-name').fill(`QA ${kind}`)
   await d.locator('#cn-kind').selectOption(kind)
-  const t = await d.locator('#cn-target').inputValue()
+  const t = { http: 'https://192.168.10.1', ssh: '192.168.10.30:22', 'netconf-restconf': 'https://192.168.10.2', automation: 'https://automation.example.local', 'mcp-http': 'https://mcp.example.local/mcp' }[kind]!
+  await d.locator('#cn-target').fill(t)
   if ((await d.locator('#cn-auth').inputValue()) !== 'none') await d.locator('#cn-secret').fill('secret-value-9z9z')
   if (await d.locator('#cn-username').count()) await d.locator('#cn-username').fill('ops')
   await d.locator('#cn-allow').fill(kind === 'ssh' ? 'uname -a' : t)

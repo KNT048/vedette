@@ -5,11 +5,11 @@ import { begin, BRANDS, noHScroll, stepper, THEMES } from './wp06-shared'
 // WP-06 independent check, area 1: "As the admin I add a connection of each kind so the AI (and response actions) can reach my equipment."
 // Settings -> Connections (core, D-93). D-58: generic kinds, no vendor kinds or defaults. The command-started MCP kind is not supported (D-94): its option is locked.
 const KINDS = [
-  { label: 'HTTP API', value: 'http', auth: ['none', 'token', 'basic'], target: /^https:\/\/192\.168/ },
-  { label: 'SSH / CLI', value: 'ssh', auth: ['ssh-key', 'basic'], target: /:22$/ },
-  { label: 'NETCONF / RESTCONF', value: 'netconf-restconf', auth: ['basic', 'token'], target: /^https:\/\// },
-  { label: 'Automation platform', value: 'automation', auth: ['token', 'basic'], target: /^https:\/\// },
-  { label: 'MCP server (URL)', value: 'mcp-http', auth: ['none', 'token', 'basic'], target: /\/mcp$/ },
+  { label: 'HTTP API', value: 'http', auth: ['none', 'token', 'basic'], target: 'https://192.168.10.1' },
+  { label: 'SSH / CLI', value: 'ssh', auth: ['ssh-key', 'basic'], target: '192.168.10.30:22' },
+  { label: 'NETCONF / RESTCONF', value: 'netconf-restconf', auth: ['basic', 'token'], target: 'https://192.168.10.2' },
+  { label: 'Automation platform', value: 'automation', auth: ['token', 'basic'], target: 'https://automation.example.local' },
+  { label: 'MCP server (URL)', value: 'mcp-http', auth: ['none', 'token', 'basic'], target: 'https://mcp.example.local/mcp' },
 ]
 
 for (const theme of THEMES) {
@@ -37,7 +37,7 @@ for (const theme of THEMES) {
       const text = await dlg.innerText()
       expect(text, `${k.value}: brand in dialog text`).not.toMatch(BRANDS)
       expect(text, `${k.value}: vendor path/command in dialog`).not.toMatch(/\/api\/v2|config firewall|ip access-list|FortiGate|pfSense/i)
-      await expect(dlg.locator('#cn-target')).toHaveValue(k.target)
+      await expect(dlg.locator('#cn-target'), `${k.value}: no sample address in the field`).toHaveValue('')
       // sign-in options: only the kind's own are enabled
       const enabled = await dlg.locator('#cn-auth option:not([disabled])').evaluateAll((os) => os.map((o) => (o as HTMLOptionElement).value))
       expect(enabled.sort(), `${k.value}: enabled auth types`).toEqual([...k.auth].sort())
@@ -68,7 +68,7 @@ for (const theme of THEMES) {
     await dlg.locator('#cn-username').fill('ops')
     await dlg.locator('#cn-allow').fill('uname -a')
     await dlg.locator('#cn-kind').selectOption('http')
-    await expect(dlg.locator('#cn-target')).not.toHaveValue('10.0.0.5:22')
+    await expect(dlg.locator('#cn-target')).toHaveValue('')
     await expect(dlg.locator('#cn-allow')).toHaveValue('')
     if (await dlg.locator('#cn-secret').count()) await expect(dlg.locator('#cn-secret')).toHaveValue('')
     await dlg.locator('#cn-kind').selectOption('ssh')
@@ -85,7 +85,8 @@ for (const theme of THEMES) {
       if (!(await dlg.isVisible())) { await page.getByRole('button', { name: /Add (a )?connection/i }).first().click() }
       await dlg.locator('#cn-name').fill(`QA ${k.value}`)
       await dlg.locator('#cn-kind').selectOption(k.value)
-      const t = await dlg.locator('#cn-target').inputValue()
+      const t = k.target
+      await dlg.locator('#cn-target').fill(t)
       const auth = await dlg.locator('#cn-auth').inputValue()
       if (auth !== 'none') await dlg.locator('#cn-secret').fill('secret-value-9z9z')
       if (await dlg.locator('#cn-username').count()) await dlg.locator('#cn-username').fill('ops')

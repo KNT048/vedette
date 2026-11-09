@@ -5,9 +5,10 @@ import { http, HttpResponse } from 'msw'
 import { API, audit, body, fail, guard } from '@/mocks/http'
 import { newId, nowIso } from '@/mocks/db'
 import { assetsStore } from '@/mocks/stores'
+import { networkStore } from '@/mocks/network'
 import { connectorsStore, type Connector, type ConnectorKind, type ConnectorTool } from '@/mocks/connectors'
 import { actionsStore } from '@/features/response/state'
-import { CONNECTION_KINDS, usesUsername } from '@/lib/connections'
+import { CONNECTION_KINDS, hostPort, usesUsername } from '@/lib/connections'
 import { CONNECTOR_AUTH } from './contract'
 import type { ConnectorInput, ConnectorPin } from './types'
 
@@ -16,7 +17,7 @@ const notFound = () => fail(404, 'not_found', 'This connection no longer exists.
 const TIDY = (s: string) => s.replace(/\s+/g, ' ').trim()
 const KINDS: readonly string[] = CONNECTION_KINDS
 const AUTHS = ['none', 'token', 'basic', 'ssh-key']
-const USER_RE = /^[^\s:\p{Cc}]{1,64}$/u
+export const USER_RE = /^[^\s:\p{Cc}\p{Cf}]{1,64}$/u
 
 const T = (name: string, access: ConnectorTool['access'], description: string): ConnectorTool => ({ name, access, description, enabled: true })
 // Tools a new connection offers by kind. Generic only (D-58): what a particular device can do is described by the action templates.
@@ -28,7 +29,8 @@ function discover(kind: ConnectorKind): ConnectorTool[] {
     case 'http': return [T('fetch_url', 'read', 'Fetch a page from an allowed address and return its text'), W('send_request', 'Send one API request that an approved action defines')]
     case 'netconf-restconf': return [T('get_config', 'read', 'Read configuration or status data'), W('apply_config', 'Apply one configuration change that an approved action defines')]
     case 'automation': return [T('list_jobs', 'read', 'List the jobs or workflows the platform offers'), W('launch_job', 'Start one job or workflow that an approved action defines')]
-    default: return [T('list_resources', 'read', 'List what the MCP server offers'), T('search_docs', 'read', 'Search the documentation the server holds'), W('run_action', 'Run an action the server defines')]
+    // D-94 (3): a tool found on an MCP server is a write tool and starts off; an administrator may mark it read (the input's `access`) and turn it on.
+    default: return [W('list_resources', 'List what the MCP server offers'), W('search_docs', 'Search the documentation the server holds'), W('run_action', 'Run an action the server defines')]
   }
 }
 
@@ -47,39 +49,116 @@ function fakeHash(seed: string, len: number, hex = false) {
   return out
 }
 
-type Checked = { input: ConnectorInput; allow: string[]; last4: string | null; username: string | null }
+const bad = (code: string, message: string, field: string) => fail(400, code, message, { field })
+
+// ---- Address policy (D-94): the box never connects to itself, to loopback, link-local (cloud metadata), multicast or unspecified addresses.
+const NUMERIC_HOST = /^(0x[0-9a-f]+|\d+)(\.(0x[0-9a-f]+|\d+))*$/i
+const canonicalV4 = (h: string): number[] | null => {
+  const p = h.split('.')
+  return p.length === 4 && p.every((x) => /^(0|[1-9]\d{0,2})$/.test(x) && Number(x) <= 255) ? p.map(Number) : null
+}
+/** Why the host is refused (in plain words), or null when it may be used. */
+export function refusedHost(raw: string): string | null {
+  const h = raw.trim().toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '')
+  if (h === 'localhost' || h.endsWith('.localhost')) return 'a loopback address'
+  if (h.includes(':')) {
+    if (h === '::1') return 'a loopback address'
+    if (h === '::') return 'an unspecified address'
+    if (/^fe[89ab]/.test(h)) return 'a link-local address'
+    if (/^ff/.test(h)) return 'a multicast address'
+    if (h.startsWith('::ffff:')) return 'an IPv4 address written inside an IPv6 one'
+    return null
+  }
+  if (NUMERIC_HOST.test(h)) {
+    const v = canonicalV4(h)
+    if (!v) return 'a numeric host name written in a non-standard way (use the usual dotted form, like 192.168.10.1)'
+    if (v[0] === 127) return 'a loopback address'
+    if (v[0] === 0) return 'an unspecified address'
+    if (v[0] === 169 && v[1] === 254) return 'a link-local address (the cloud metadata service lives there)'
+    if (v[0]! >= 224 && v[0]! <= 239) return 'a multicast address'
+    if (h === networkStore.get().mgmt.address) return 'the box itself'
+  }
+  return null
+}
+const typedHost = (target: string, ssh: boolean) => (ssh ? target.replace(/:\d{1,5}$/, '') : /^[a-z][a-z0-9+.-]*:\/\/(?:[^/@?#]*@)?(\[[^\]]*\]|[^/:?#]*)/i.exec(target)?.[1] ?? '')
+const under = (entry: string, target: string) => {
+  try {
+    const e = new URL(entry), b = new URL(target), bp = b.pathname.replace(/\/+$/, '')
+    return e.origin === b.origin && (e.pathname === bp || e.pathname === `${bp}/` || e.pathname.startsWith(`${bp}/`))
+  } catch { return false }
+}
+
+/** A private key protected by a passphrase cannot be used: Vedette has nobody to type the passphrase. */
+function encryptedKey(k: string): boolean {
+  if (/Proc-Type:\s*4,ENCRYPTED|BEGIN ENCRYPTED PRIVATE KEY/.test(k)) return true
+  const m = /-----BEGIN OPENSSH PRIVATE KEY-----([\s\S]*?)-----END OPENSSH PRIVATE KEY-----/.exec(k)
+  if (!m) return false
+  try { return atob(m[1]!.replace(/\s+/g, '')).slice(19, 23) !== 'none' } catch { return false }
+}
+/** Mock stand-in for the public-key fingerprint the backend computes in 13b-4: SHA-256 of the key body, base64 without padding. */
+export async function keyFingerprint(secret: string): Promise<string> {
+  const body = secret.replace(/-----(BEGIN|END)[^-]*-----/g, '').replace(/\s+/g, '')
+  let bytes: Uint8Array
+  try { bytes = Uint8Array.from(atob(body), (c) => c.charCodeAt(0)) } catch { bytes = new TextEncoder().encode(secret) }
+  const d = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as BufferSource))
+  return `SHA256:${btoa(String.fromCharCode(...d)).replace(/=+$/, '')}`
+}
+export const hasSecret = (c: Pick<Connector, 'auth'>) => c.auth.last4 !== null || c.auth.key_fingerprint !== null
+
+type Checked = { input: ConnectorInput; allow: string[]; last4: string | null; username: string | null; secret: string | null; retarget: boolean; moved: boolean }
 function check(b: Partial<ConnectorInput>, existing?: Connector): Response | Checked {
   const name = TIDY(String(b.name ?? ''))
-  if (name.length < 1 || name.length > 40) return fail(400, 'invalid_name', 'Give the connection a name of 1 to 40 characters, for example "Office firewall API".')
-  if (connectorsStore.get().some((c) => c.id !== existing?.id && c.name.toLowerCase() === name.toLowerCase())) return fail(400, 'duplicate_name', 'Another connection already has this name. Pick a different one.')
-  if (!b.kind || !KINDS.includes(b.kind)) return fail(400, 'invalid_kind', 'Pick a kind: HTTP API, SSH / CLI, NETCONF / RESTCONF, automation platform or MCP server.')
-  if (b.kind === 'mcp-stdio') return fail(400, 'kind_unsupported', 'An MCP server that Vedette starts as a command is not supported. Use an MCP server that has a web address (kind "MCP server (URL)").')
+  if (name.length < 1 || name.length > 40) return bad('invalid_name', 'Give the connection a name of 1 to 40 characters, for example "Office firewall API".', 'name')
+  if (connectorsStore.get().some((c) => c.id !== existing?.id && c.name.toLowerCase() === name.toLowerCase())) return bad('duplicate_name', 'Another connection already has this name. Pick a different one.', 'name')
+  if (!b.kind || !KINDS.includes(b.kind)) return bad('invalid_kind', 'Pick a kind: HTTP API, SSH / CLI, NETCONF / RESTCONF, automation platform or MCP server.', 'kind')
+  if (b.kind === 'mcp-stdio') return bad('kind_unsupported', 'An MCP server that Vedette starts as a command is not supported. Use an MCP server that has a web address (kind "MCP server (URL)").', 'kind')
+  const ssh = b.kind === 'ssh'
   const target = String(b.target ?? '').trim()
-  if (b.kind === 'ssh') { if (!/^[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}(:\d{1,5})?$/.test(target)) return fail(400, 'invalid_target', 'Enter the SSH server as host or host:port, for example 192.168.10.30:22.') }
+  if (ssh) { if (!/^[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}(:\d{1,5})?$/.test(target)) return bad('invalid_target', 'Enter the SSH server as host or host:port, for example 192.168.10.30:22.', 'target') }
   else {
     let u: URL
-    try { u = new URL(target) } catch { return fail(400, 'invalid_target', 'The address is not valid. Enter it in full, for example https://192.168.10.1.') }
-    if (u.protocol !== 'https:' && u.protocol !== 'http:') return fail(400, 'invalid_target', 'The address must start with https:// or http://.')
-    if (u.username || u.password) return fail(400, 'invalid_target', 'The address must not contain a user name or password. Enter the secret in its own field.')
+    try { u = new URL(target) } catch { return bad('invalid_target', 'The address is not valid. Enter it in full, for example https://192.168.10.1.', 'target') }
+    if (u.protocol !== 'https:') return bad('invalid_target', 'The address must start with https://. Vedette sends sign-in details and changes only over HTTPS.', 'target')
+    if (u.username || u.password) return bad('invalid_target', 'The address must not contain a user name or password. Enter the secret in its own field.', 'target')
   }
+  // The policy is applied to the host as typed and to the host after the URL parser normalised it (2130706433 becomes 127.0.0.1).
+  const why = refusedHost(typedHost(target, ssh)) ?? (ssh ? null : refusedHost(new URL(target).hostname))
+  if (why) return bad('invalid_target', `Vedette never connects to ${why}. Enter the address of the device or service itself.`, 'target')
   const auth = b.auth_type ?? 'none'
-  if (!AUTHS.includes(auth)) return fail(400, 'invalid_auth', 'Pick how the box signs in: none, token, user and password, or SSH key.')
-  if (!CONNECTOR_AUTH[b.kind].includes(auth)) return fail(400, 'invalid_auth', `${b.kind === 'ssh' ? 'An SSH server' : 'This kind of connection'} cannot sign in that way. Pick one of the options the form offers.`)
-  const username = usesUsername(b.kind, auth) ? TIDY(String(b.username ?? '')) : ''
-  if (usesUsername(b.kind, auth) && !username) return fail(400, 'username_required', 'Enter the user name the box signs in with.')
-  if (username && !USER_RE.test(username)) return fail(400, 'invalid_username', 'The user name is 1 to 64 characters, with no spaces or colons.')
+  if (!AUTHS.includes(auth)) return bad('invalid_auth', 'Pick how the box signs in: none, token, user and password, or SSH key.', 'auth_type')
+  if (!CONNECTOR_AUTH[b.kind].includes(auth)) return bad('invalid_auth', `${ssh ? 'An SSH server' : 'This kind of connection'} cannot sign in that way. Pick one of the options the form offers.`, 'auth_type')
+  const needsUser = usesUsername(b.kind, auth)
+  const username = needsUser ? TIDY(String(b.username ?? '')) : ''
+  if (needsUser && !username) return bad('username_required', 'Enter the user name the box signs in with.', 'username')
+  if (username && !USER_RE.test(username)) return bad('invalid', 'The user name is 1 to 64 characters, with no spaces, colons or control characters.', 'username')
   const secret = b.secret === undefined || b.secret === '' ? null : String(b.secret)
-  if (secret !== null && secret.length < 8) return fail(400, 'invalid_secret', 'The secret is too short. Copy the whole token, password or key again.')
-  const keep = !!existing && existing.auth.last4 !== null && existing.auth.type === auth && existing.kind === b.kind
-  if (auth !== 'none' && secret === null && !keep) return fail(400, 'secret_required', 'Enter the secret. It stays on this box and is encrypted; only the last 4 characters are shown afterwards.')
+  if (secret !== null && secret.length < 8) return bad('invalid_secret', 'The secret is too short. Copy the whole token, password or key again.', 'secret')
+  if (secret !== null && auth === 'ssh-key' && encryptedKey(secret)) return bad('invalid_secret', 'This private key is protected by a passphrase, which Vedette cannot type. Save a copy without one and paste that.', 'secret')
+  const sameKind = !!existing && existing.kind === b.kind
+  const moved = sameKind && hostPort(existing.kind, existing.target) !== hostPort(b.kind, target)
+  const keep = sameKind && !moved && !!existing && hasSecret(existing) && existing.auth.type === auth
+  if (auth !== 'none' && secret === null && !keep) {
+    return moved && existing && hasSecret(existing) && existing.auth.type === auth
+      ? bad('secret_required', 'Enter the secret again: the address changed, and a saved secret is only sent to the address it was saved for.', 'secret')
+      : bad('secret_required', 'Enter the secret. It stays on this box and is encrypted; only the last 4 characters are shown afterwards.', 'secret')
+  }
   const allow = [...new Set((b.allow ?? []).map((a) => a.trim()).filter(Boolean))]
-  if (allow.length === 0) return fail(400, 'allow_required', 'Add at least one entry to the allow-list. Only hosts, addresses or commands on this list may be used.')
-  if (allow.length > 30 || allow.some((a) => a.length > 200 || /[\n\r]/.test(a))) return fail(400, 'invalid_allow', 'The allow-list holds up to 30 entries of 200 characters each, one per line.')
-  if (b.kind !== 'ssh' && allow.some((a) => /\s/.test(a))) return fail(400, 'invalid_allow', 'A host or address in the allow-list cannot contain spaces.')
-  if (b.asset_id && !assetsStore.get().some((a) => a.id === b.asset_id)) return fail(400, 'unknown_asset', 'The device you linked is not in the inventory.')
-  if (b.clear_pin !== undefined && typeof b.clear_pin !== 'boolean') return fail(400, 'invalid', 'Send clear_pin as true or false.')
-  return { input: { ...b, name, target, auth_type: auth, allow, enabled: b.enabled !== false } as ConnectorInput, allow, username: username || null, last4: auth === 'none' ? null : secret ? secret.slice(-4) : existing!.auth.last4 }
+  if (allow.length === 0) return bad('allow_required', 'Add at least one entry to the allow-list. Only hosts, addresses or commands on this list may be used.', 'allow')
+  if (allow.length > 30 || allow.some((a) => a.length > 200 || /[\n\r]/.test(a))) return bad('invalid_allow', 'The allow-list holds up to 30 entries of 200 characters each, one per line.', 'allow')
+  if (!ssh && allow.some((a) => /\s/.test(a))) return bad('invalid_allow', 'A host or address in the allow-list cannot contain spaces.', 'allow')
+  if (!ssh && !allow.every((a) => under(a, target))) { const t = target.replace(/\/+$/, ''); return bad('invalid_allow', `Each allow-list entry must be an address under ${t}, for example ${t}/api/.`, 'allow') }
+  if (b.asset_id && !assetsStore.get().some((a) => a.id === b.asset_id)) return bad('unknown_asset', 'The device you linked is not in the inventory.', 'asset_id')
+  if (b.clear_pin !== undefined && typeof b.clear_pin !== 'boolean') return bad('invalid', 'Send clear_pin as true or false.', 'clear_pin')
+  if (b.kind !== 'mcp-http' && (b.tools ?? []).some((x) => x.access !== undefined)) return bad('invalid_tool_access', 'Only tools of an MCP server can be marked read or write; the built-in tools of this kind are fixed.', 'tools')
+  return { input: { ...b, name, target, auth_type: auth, allow, enabled: b.enabled !== false } as ConnectorInput, allow, username: username || null, secret, last4: auth === 'none' || auth === 'ssh-key' ? null : secret ? secret.slice(-4) : existing!.auth.last4, retarget: !!existing && (existing.kind !== b.kind || existing.target !== target), moved: !sameKind || moved }
 }
+/** The auth block of a saved connection: an SSH key is told apart by its fingerprint, anything else by its last 4 characters. */
+async function authOf(r: Checked, existing?: Connector): Promise<Connector['auth']> {
+  const keyFp = r.input.auth_type !== 'ssh-key' ? null : r.secret ? await keyFingerprint(r.secret) : existing?.auth.key_fingerprint ?? null
+  return { type: r.input.auth_type, last4: r.last4, key_fingerprint: keyFp }
+}
+const toolsOf = (base: ConnectorTool[], input: ConnectorInput['tools'], mcp: boolean): ConnectorTool[] =>
+  base.map((t) => { const x = input?.find((y) => y.name === t.name); return { ...t, enabled: x?.enabled ?? t.enabled, access: mcp && x?.access ? x.access : t.access } })
 
 /** A response change made through the connection is still in force (an executed item that was not rolled back). The real box asks the response module through a port (D-93). */
 const inForce = (id: string) => actionsStore.get().some((a) => a.items.some((i) => i.connector_id === id && i.status === 'executed'))
@@ -90,9 +169,9 @@ export const connectionsHandlers = [
     const denied = guard('admin'); if (denied) return denied
     const r = check(await body<ConnectorInput>(request)); if (r instanceof Response) return r
     if (connectorsStore.get().length >= 20) return fail(400, 'too_many', 'A box holds up to 20 connections. Delete one you no longer use.')
-    const tools = discover(r.input.kind).map((t) => ({ ...t, enabled: r.input.tools?.find((x) => x.name === t.name)?.enabled ?? t.enabled }))
-    const c: Connector = { id: newId('cn'), name: r.input.name, kind: r.input.kind, target: r.input.target, asset_id: r.input.asset_id ?? null, auth: { type: r.input.auth_type, last4: r.last4 }, username: r.username, pin: null, allow: r.allow, tools, enabled: r.input.enabled, status: 'untested', last_test: null }
-    connectorsStore.update((l) => [...l, c]); audit('core.connection.add', c.name, `${c.kind}, ${c.tools.filter((t) => t.access === 'write').length} write tools${r.last4 ? ', secret set' : ''}`)
+    const tools = toolsOf(discover(r.input.kind), r.input.tools, r.input.kind === 'mcp-http')
+    const c: Connector = { id: newId('cn'), name: r.input.name, kind: r.input.kind, target: r.input.target, asset_id: r.input.asset_id ?? null, auth: await authOf(r), username: r.username, pin: null, allow: r.allow, tools, enabled: r.input.enabled, status: 'untested', last_test: null }
+    connectorsStore.update((l) => [...l, c]); audit('core.connection.add', c.name, `${c.kind}, ${c.tools.filter((t) => t.access === 'write').length} write tools${r.secret ? ', secret set' : ''}`)
     return HttpResponse.json(c, { status: 201 })
   }),
   http.post(`${API}/core/connections/:id/test`, ({ params }) => {
@@ -100,6 +179,8 @@ export const connectionsHandlers = [
     const cur = connectorsStore.get().find((c) => c.id === params.id)
     if (!cur) return notFound()
     if (cur.kind === 'mcp-stdio') return fail(400, 'kind_unsupported', 'This kind of connection is not supported, so it cannot be tested. Delete it and add an MCP server with a web address.')
+    // Privacy flow 12: nothing is sent to a connection that is off, and a Test is a request.
+    if (!cur.enabled) return fail(409, 'connection_off', 'This connection is turned off, so nothing is sent to it. Turn it on, then test it.')
     const stamp = (patch: Partial<Connector>) => connectorsStore.update((l) => l.map((c) => (c.id === cur.id ? { ...c, ...patch } : c)))
     if (/unreachable/i.test(cur.target)) {
       stamp({ status: 'error', last_test: nowIso() })
@@ -108,7 +189,7 @@ export const connectionsHandlers = [
     // A pinned certificate or host key that no longer matches is refused before any credential is sent (D-94).
     if (cur.pin && /changed/i.test(cur.target)) {
       stamp({ status: 'error', last_test: nowIso() })
-      return fail(502, 'pin_mismatch', `${cur.pin.kind === 'ssh_hostkey' ? 'The SSH host key' : 'The certificate'} of ${cur.target} is not the one pinned at the first test. Nothing was sent. If you changed the device, edit this connection and tick "Forget pinned key", then test again.`)
+      return fail(502, 'pin_mismatch', `${cur.pin.kind === 'ssh_hostkey' ? 'The SSH host key' : 'The certificate'} of ${cur.target} is not the one pinned at the first test. Nothing was sent. If you changed the device, edit this connection, turn on "Forget pinned key", save, then test again.`)
     }
     const found = discover(cur.kind)
     const pin = cur.pin ?? (() => { const p = pinFor(cur); return p ? { ...p, first_seen: nowIso() } : null })()
@@ -120,13 +201,18 @@ export const connectionsHandlers = [
     const denied = guard('admin'); if (denied) return denied
     const cur = connectorsStore.get().find((c) => c.id === params.id)
     if (!cur) return notFound()
-    const r = check(await body<ConnectorInput>(request), cur); if (r instanceof Response) return r
-    const retarget = r.input.kind !== cur.kind || r.input.target !== cur.target
-    // The pin belongs to the address and the way of signing in: another address, kind or sign-in starts without one, and so does "Forget pinned key".
-    const forget = r.input.clear_pin === true || retarget || r.input.auth_type !== cur.auth.type
-    const base = r.input.kind === cur.kind ? cur.tools : discover(r.input.kind)
-    const tools = base.map((t) => ({ ...t, enabled: r.input.tools?.find((x) => x.name === t.name)?.enabled ?? t.enabled }))
-    const c: Connector = { ...cur, name: r.input.name, kind: r.input.kind, target: r.input.target, asset_id: r.input.asset_id ?? null, auth: { type: r.input.auth_type, last4: r.last4 }, username: r.username, pin: forget ? null : cur.pin, allow: r.allow, tools, enabled: r.input.enabled, status: retarget ? 'untested' : cur.status }
+    const b = await body<ConnectorInput>(request)
+    // An old row of the unsupported kind can still be turned off, and nothing else about it can change.
+    if (cur.kind === 'mcp-stdio' && b.kind === 'mcp-stdio' && b.enabled === false) {
+      const off: Connector = { ...cur, enabled: false }
+      connectorsStore.update((l) => l.map((x) => (x.id === off.id ? off : x))); audit('core.connection.edit', off.name, 'turned off')
+      return HttpResponse.json(off)
+    }
+    const r = check(b, cur); if (r instanceof Response) return r
+    // The pin is the identity of the server (D-94): forgotten on clear_pin, on another kind, or on another host or port; never because the sign-in changed.
+    const forget = r.input.clear_pin === true || r.moved
+    const tools = toolsOf(r.input.kind === cur.kind ? cur.tools : discover(r.input.kind), r.input.tools, r.input.kind === 'mcp-http')
+    const c: Connector = { ...cur, name: r.input.name, kind: r.input.kind, target: r.input.target, asset_id: r.input.asset_id ?? null, auth: await authOf(r, cur), username: r.username, pin: forget ? null : cur.pin, allow: r.allow, tools, enabled: r.input.enabled, status: r.retarget ? 'untested' : cur.status }
     connectorsStore.update((l) => l.map((x) => (x.id === c.id ? c : x))); audit('core.connection.edit', c.name, cur.pin && !c.pin ? 'pin forgotten' : undefined)
     return HttpResponse.json(c)
   }),

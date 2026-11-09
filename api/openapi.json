@@ -7516,7 +7516,14 @@
                                 ]
                               },
                               "last4": {
-                                "description": "Last 4 characters of the secret; the full secret is never returned (SYS-4)",
+                                "description": "Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is never returned (SYS-4)",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "key_fingerprint": {
+                                "description": "SSH key only: SHA256:<base64> fingerprint of the saved private key, like GitHub shows for a key. The mock uses a hash of the key body; the backend computes the public-key fingerprint",
                                 "type": [
                                   "string",
                                   "null"
@@ -7525,7 +7532,8 @@
                             },
                             "required": [
                               "type",
-                              "last4"
+                              "last4",
+                              "key_fingerprint"
                             ],
                             "additionalProperties": false
                           },
@@ -7731,11 +7739,11 @@
                     "type": "string"
                   },
                   "username": {
-                    "description": "Required for SSH and for Basic sign-in; ignored for the other sign-ins",
+                    "description": "Required for SSH and for Basic sign-in (400 username_required); 1 to 64 characters without spaces, colons or control characters; ignored for the other sign-ins",
                     "anyOf": [
                       {
                         "type": "string",
-                        "maxLength": 64
+                        "pattern": "^[^\\s:\\p{Cc}\\p{Cf}]{1,64}$"
                       },
                       {
                         "type": "null"
@@ -7743,7 +7751,7 @@
                     ]
                   },
                   "clear_pin": {
-                    "description": "true = forget the pinned certificate or host key; the next Test pins again. A changed target, kind or sign-in forgets it too",
+                    "description": "true = forget the pinned certificate or host key; the next Test pins again. It is also forgotten when the kind changes or the host or port changes (a trailing slash or path does not count); a change of sign-in keeps it",
                     "type": "boolean"
                   },
                   "allow": {
@@ -7766,6 +7774,14 @@
                         },
                         "enabled": {
                           "type": "boolean"
+                        },
+                        "access": {
+                          "description": "Only for an MCP server (mcp-http): other kinds answer 400 invalid_tool_access, their tools are fixed. A tool found on an MCP server starts as write and off",
+                          "type": "string",
+                          "enum": [
+                            "read",
+                            "write"
+                          ]
                         }
                       },
                       "required": [
@@ -7837,7 +7853,14 @@
                           ]
                         },
                         "last4": {
-                          "description": "Last 4 characters of the secret; the full secret is never returned (SYS-4)",
+                          "description": "Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is never returned (SYS-4)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "key_fingerprint": {
+                          "description": "SSH key only: SHA256:<base64> fingerprint of the saved private key, like GitHub shows for a key. The mock uses a hash of the key body; the backend computes the public-key fingerprint",
                           "type": [
                             "string",
                             "null"
@@ -7846,7 +7869,8 @@
                       },
                       "required": [
                         "type",
-                        "last4"
+                        "last4",
+                        "key_fingerprint"
                       ],
                       "additionalProperties": false
                     },
@@ -8094,11 +8118,11 @@
                     "type": "string"
                   },
                   "username": {
-                    "description": "Required for SSH and for Basic sign-in; ignored for the other sign-ins",
+                    "description": "Required for SSH and for Basic sign-in (400 username_required); 1 to 64 characters without spaces, colons or control characters; ignored for the other sign-ins",
                     "anyOf": [
                       {
                         "type": "string",
-                        "maxLength": 64
+                        "pattern": "^[^\\s:\\p{Cc}\\p{Cf}]{1,64}$"
                       },
                       {
                         "type": "null"
@@ -8106,7 +8130,7 @@
                     ]
                   },
                   "clear_pin": {
-                    "description": "true = forget the pinned certificate or host key; the next Test pins again. A changed target, kind or sign-in forgets it too",
+                    "description": "true = forget the pinned certificate or host key; the next Test pins again. It is also forgotten when the kind changes or the host or port changes (a trailing slash or path does not count); a change of sign-in keeps it",
                     "type": "boolean"
                   },
                   "allow": {
@@ -8129,6 +8153,14 @@
                         },
                         "enabled": {
                           "type": "boolean"
+                        },
+                        "access": {
+                          "description": "Only for an MCP server (mcp-http): other kinds answer 400 invalid_tool_access, their tools are fixed. A tool found on an MCP server starts as write and off",
+                          "type": "string",
+                          "enum": [
+                            "read",
+                            "write"
+                          ]
                         }
                       },
                       "required": [
@@ -8200,7 +8232,14 @@
                           ]
                         },
                         "last4": {
-                          "description": "Last 4 characters of the secret; the full secret is never returned (SYS-4)",
+                          "description": "Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is never returned (SYS-4)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "key_fingerprint": {
+                          "description": "SSH key only: SHA256:<base64> fingerprint of the saved private key, like GitHub shows for a key. The mock uses a hash of the key body; the backend computes the public-key fingerprint",
                           "type": [
                             "string",
                             "null"
@@ -8209,7 +8248,8 @@
                       },
                       "required": [
                         "type",
-                        "last4"
+                        "last4",
+                        "key_fingerprint"
                       ],
                       "additionalProperties": false
                     },
@@ -8440,7 +8480,14 @@
                               ]
                             },
                             "last4": {
-                              "description": "Last 4 characters of the secret; the full secret is never returned (SYS-4)",
+                              "description": "Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is never returned (SYS-4)",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "key_fingerprint": {
+                              "description": "SSH key only: SHA256:<base64> fingerprint of the saved private key, like GitHub shows for a key. The mock uses a hash of the key body; the backend computes the public-key fingerprint",
                               "type": [
                                 "string",
                                 "null"
@@ -8449,7 +8496,8 @@
                           },
                           "required": [
                             "type",
-                            "last4"
+                            "last4",
+                            "key_fingerprint"
                           ],
                           "additionalProperties": false
                         },

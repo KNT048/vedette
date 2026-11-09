@@ -1,0 +1,2 @@
+- [ ] Docker Compose for the full container set (`docker compose --profile dev up`): waits for the images of WP-08; `make dev-api` runs the backend natively until then.
+- [ ] Preview-only UI hints keyed on `VITE_API_MOCK !== 'off'` (LoginPage mock note, response TryProposal, core preview_code) still show under `make dev-api`; make them follow "module is mocked" once more modules go real.

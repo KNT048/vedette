@@ -113,3 +113,9 @@ Real data in the current build (`web/src/mocks/fixtures/`, `make fixtures`): CIS
 ## Data each box fetches with the user's own key (never through the project)
 
 VulnCheck Community, AbuseIPDB, VirusTotal, GreyNoise, Shodan, AlienVault OTX, urlscan, OpenPhish, Censys, abuse.ch ThreatFox/URLhaus — under the terms of the user's own accounts.
+
+### Module registry (`core/modreg`, WP-04a)
+
+| Library | Version | License | How it is used |
+|---|---|---|---|
+| go.yaml.in/yaml/v3 | v3.0.5 | MIT and Apache-2.0 | embedded: parses each module's `MANIFEST.yaml` (embedded in the binary by `modules/manifests.go`) when the process starts; no input from the network |

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/auth"
+	"github.com/knt048/vedette/core/conn"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/server"
 	hostclient "github.com/knt048/vedette/host/client"
@@ -209,7 +210,10 @@ func buildServices(d *deps) error {
 	if d.Auth, err = auth.New(auth.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Mailer: notifySvc.CodeMailer(), Clock: d.Clock, Log: d.Log}); err != nil {
 		return fmt.Errorf("auth: %w", err)
 	}
-	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock, Facts: privacyFacts{}}); err != nil {
+	if d.Conn, err = newConn(d); err != nil {
+		return fmt.Errorf("connections: %w", err)
+	}
+	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock, Facts: privacyFacts{conns: d.Conn}, Conns: d.Conn}); err != nil {
 		return fmt.Errorf("core: %w", err)
 	}
 	if d.OS, err = newOSHandlers(*d); err != nil {
@@ -314,14 +318,21 @@ func subscribe(d deps) {
 // privacyFacts answers what the Privacy page asks of modules that have no backend yet, with what is true today:
 // no AI provider (aiOff), the NTP servers are the default ones (the host module is not built), no OIDC issuer
 // (auth-oidc is not built). Each answer moves to its module's service when that module gets a backend.
-type privacyFacts struct{}
+type privacyFacts struct{ conns *conn.Service }
 
 func (privacyFacts) AIConfigured(context.Context) bool   { return false }
 func (privacyFacts) NTPPublic(context.Context) bool      { return true }
 func (privacyFacts) OIDCConfigured(context.Context) bool { return false }
 
-// ConnectionsConfigured: no connection can be saved yet (slice 13b-4 adds the store), so flow 12 is off.
-func (privacyFacts) ConnectionsConfigured(context.Context) bool { return false }
+// ConnectionsConfigured: flow 12 is on while an enabled connection exists (D-93). A store that cannot be read counts as "on": the
+// Privacy page must never say that nothing leaves the box when it does not know.
+func (p privacyFacts) ConnectionsConfigured(ctx context.Context) bool {
+	if p.conns == nil {
+		return false
+	}
+	on, err := p.conns.HasEnabled(ctx)
+	return err != nil || on
+}
 
 // newOSHandlers wires the OS update and backup handlers. The host client is built from the socket path and
 // connects on each call, so a box whose vedette-host starts later, or an install that has none, needs no

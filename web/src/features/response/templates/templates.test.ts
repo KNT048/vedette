@@ -1,6 +1,6 @@
 // The action template library is data (D-58) and carries the fixes of action-templates.md §12. These tests read the JSON through the loader.
 import { describe, expect, it } from 'vitest'
-import { PARAM_TYPES, RUNTIME_VALUES, tplParams, validateTpl, type Tpl } from '../logic'
+import { needsPrecheck, PARAM_TYPES, RUNTIME_VALUES, tplParams, validatePrecheck, validateTpl, type Tpl } from '../logic'
 import { guides } from './guides'
 import { seedCatalog, SEED_RULES, TEMPLATES, UNVERIFIED_NOTE } from './index'
 
@@ -20,7 +20,7 @@ describe('action template library (data, D-58)', () => {
 
   it('what the docs still call unverified says so in the description the user reads (§0)', () => {
     expect(UNVERIFIED_NOTE).toBe('Not verified on a device yet — test in a lab first')
-    for (const id of ['fgt_ban_ip', 'fgt_vip_disable', 'fgt_policy_disable', 'fgt_addrgrp_add', 'mt_addrlist_add', 'pf_alias_add', 'cisco_acl_deny', 'cisco_port_vlan_quarantine', 'aoscx_acl_deny', 'arubasw_acl_deny', 'adguard_block', 'pihole_block']) {
+    for (const id of ['fgt_ban_ip', 'fgt_vip_disable', 'fgt_policy_disable', 'fgt_addrgrp_add', 'mt_addrlist_add', 'pf_alias_add', 'cisco_acl_deny', 'cisco_port_vlan_quarantine', 'aoscx_acl_deny', 'adguard_block', 'pihole_block']) {
       expect(get(id).description, id).toContain(UNVERIFIED_NOTE)
     }
     expect(get('opn_alias_add').description).not.toContain(UNVERIFIED_NOTE) // the OPNsense calls were read in the official documentation
@@ -64,21 +64,19 @@ describe('action template library (data, D-58)', () => {
 
   it('§12 (7)(8) one action per switch family; ACLs insert by sequence number and undo by it; the VLAN is restored from the port, not removed', () => {
     for (const id of ['sw_acl_deny', 'sw_port_shut', 'sw_vlan_quarantine']) expect(cat.some((a) => a.id === id), id).toBe(false)
-    for (const id of ['cisco_acl_deny', 'aoscx_acl_deny', 'arubasw_acl_deny']) {
+    for (const id of ['cisco_acl_deny', 'aoscx_acl_deny']) {
       expect(get(id).run.cli, id).toContain('{seq} deny')
       expect(get(id).rollback.cli, id).toContain('no {seq}')
     }
     expect(get('cisco_acl_deny').description).toMatch(/permit ip any any/)
     expect(get('aoscx_acl_deny').run.cli).toContain('deny any {ip}/32 any')
-    expect(get('arubasw_acl_deny').run.cli).toContain('deny ip {ip} 0.0.0.0 any')
-    for (const id of ['cisco_port_vlan_quarantine', 'aoscx_vlan_quarantine', 'arubasw_vlan_quarantine']) {
+    for (const id of ['cisco_port_vlan_quarantine', 'aoscx_vlan_quarantine']) {
       expect(get(id).rollback.cli, id).toContain('{previous_vlan}')
-      expect(get(id).rollback.cli, id).not.toMatch(/\bno\b/)
+      expect(get(id).rollback.cli, id).not.toMatch(/^no (?!page)/m)
       expect(get(id).risk).toBe('high')
     }
     expect(get('cisco_port_vlan_quarantine').run.cli).toContain('switchport access vlan {vlan}')
     expect(get('aoscx_vlan_quarantine').run.cli).toContain('vlan access {vlan}')
-    expect(get('arubasw_vlan_quarantine').run.cli).toContain('untagged {interface}')
   })
 
   it('§12 (9) AdGuard Home is its own action (read, change, write back); the Pi-hole text no longer sends people to copy it', () => {
@@ -99,7 +97,7 @@ describe('action template library (data, D-58)', () => {
   it('§12 (11) the one-time pull setups are guides (FortiGate, OPNsense, AdGuard Home); saving the configuration is a separate action', () => {
     const ids = guides('https://box/list').map((g) => g.id)
     for (const id of ['fortigate', 'opnsense', 'adguard']) expect(ids).toContain(id)
-    expect(get('cisco_save_config').run.cli).toBe('write memory')
+    expect(get('cisco_save_config').run.cli).toBe('terminal length 0\nwrite memory')
     expect(get('cisco_save_config').enabled).toBe(false)
     for (const a of cat.filter((x) => x.id !== 'cisco_save_config')) expect(shape(a.run).toLowerCase(), a.id).not.toContain('write memory')
   })
@@ -115,6 +113,79 @@ describe('action template library (data, D-58)', () => {
     const by = (id: string) => TEMPLATES.find((x) => x.id === id)!
     for (const id of ['tpl-trap-fgt', 'tpl-vpn-ban', 'tpl-nat-vip', 'tpl-sweep-vlan', 'tpl-trap-mikrotik', 'tpl-ioc-pfsense', 'tpl-iot-shut', 'tpl-ssh-acl', 'tpl-manual-ban', 'tpl-ioc-pihole']) expect(by(id).description, id).toContain(UNVERIFIED_NOTE)
     for (const id of ['tpl-ioc-blocklist', 'tpl-kev-msg', 'tpl-unknown-msg', 'tpl-newport-msg', 'tpl-weekly-digest']) expect(by(id).description, id).not.toContain(UNVERIFIED_NOTE)
+  })
+
+  // ---- §12.1 (13b-2): data fixes, check before, read-back text ----
+  it('§12.1 (1) only MCP connections use a tool: the HTTP built-ins carry none', () => {
+    for (const id of ['fgt_addrgrp_add', 'fgt_vip_disable', 'fgt_policy_disable']) expect(get(id).tool, id).toBeNull()
+    expect(cat.filter((a) => a.tool !== null).map((a) => a.id)).toEqual([]) // the library has no MCP action
+  })
+
+  it('§12.1 (2) every SSH step is its own session: paging off first, configure terminal ... end around a change', () => {
+    const first: Record<string, string> = { cisco_: 'terminal length 0', aoscx_: 'no page' }
+    const enter: Record<string, string> = { cisco_: 'configure terminal', aoscx_: 'configure terminal' }
+    for (const a of cat.filter((x) => /^(cisco_|aoscx_)/.test(x.id))) {
+      const p = Object.keys(first).find((k) => a.id.startsWith(k))!
+      for (const step of ['run', 'rollback', 'verify', 'precheck'] as const) {
+        const lines = a[step].cli.split('\n').filter(Boolean)
+        if (!lines.length) continue
+        expect(lines[0], `${a.id} ${step}`).toBe(first[p])
+        if (step === 'run' || step === 'rollback') {
+          if (a.id === 'cisco_save_config') continue
+          expect(lines[1], `${a.id} ${step}`).toBe(enter[p])
+          expect(lines.at(-1), `${a.id} ${step}`).toBe('end')
+        } else {
+          expect(lines, `${a.id} ${step} is read-only`).not.toContain('end')
+        }
+      }
+    }
+    expect(get('cisco_port_shut').run.cli).toBe('terminal length 0\nconfigure terminal\ninterface {interface}\nshutdown\nend')
+    expect(get('cisco_port_shut').rollback.cli).toBe('terminal length 0\nconfigure terminal\ninterface {interface}\nno shutdown\nend')
+    expect(get('cisco_port_shut').verify.cli).toBe('terminal length 0\nshow interfaces {interface} status')
+    expect(get('cisco_save_config').verify.cli).toMatch(/^terminal length 0\nshow startup-config/)
+  })
+
+  it('§12.1 (3) every port action has a read-only check before and the refusal texts of its platform; the library is valid by the customer rules', () => {
+    const cisco = ['Mode: trunk', 'Mode: dynamic', 'Mode: private-vlan trunk', 'Mode: tunnel', 'Switchport: Disabled']
+    const want: Record<string, string[]> = {
+      cisco_port_shut: [...cisco, 'administratively down'], cisco_port_vlan_quarantine: cisco,
+      aoscx_port_shut: ['VLAN Mode: trunk', 'VLAN Mode: native-untagged', 'VLAN Mode: native-tagged', 'Admin state is down'], aoscx_vlan_quarantine: ['VLAN Mode: trunk', 'VLAN Mode: native-untagged', 'VLAN Mode: native-tagged'],
+    }
+    for (const [id, refuse] of Object.entries(want)) {
+      expect(get(id).precheck_refuse, id).toEqual(refuse)
+      expect(get(id).precheck.cli, id).toMatch(/\{interface\}/)
+      expect(validatePrecheck(get(id).precheck, get(id).precheck_refuse, 'ssh'), id).toBeNull()
+    }
+    expect(get('cisco_port_shut').precheck.cli).toBe('terminal length 0\nshow interfaces {interface} switchport\nshow interfaces {interface}')
+    expect(get('cisco_port_vlan_quarantine').precheck.cli).toBe('terminal length 0\nshow interfaces {interface} switchport')
+    // the rule that closes M4: anything that names {interface} has the check with at least one refusal
+    for (const a of cat.filter((x) => x.kind === 'device')) expect(needsPrecheck(a.run, a.rollback, a.verify, a.precheck, a.precheck_refuse), a.id).toBe(false)
+    for (const a of cat) {
+      if (!a.precheck_refuse.length) continue
+      expect(a.precheck_refuse.length, a.id).toBeLessThanOrEqual(8)
+      for (const r of a.precheck_refuse) expect(r.length, a.id).toBeLessThanOrEqual(80)
+    }
+  })
+
+  it('§12.1 (4) read-back text per action; none where the read-back cannot be judged', () => {
+    const want: Record<string, string> = {
+      fgt_addrgrp_add: '"vedette-{ip}"', fgt_ban_ip: '{ip}', fgt_vip_disable: '"status":"disable"', fgt_policy_disable: '"status":"disable"', opn_alias_add: '"{ip}"', pihole_block: '"domain":"{domain}"',
+      cisco_port_shut: 'disabled', aoscx_port_shut: 'Admin state is down', cisco_acl_deny: 'deny ip host {ip} any', cisco_port_vlan_quarantine: 'Access Mode VLAN: {vlan} ',
+    }
+    for (const [id, text] of Object.entries(want)) expect(get(id).verify.expect, id).toBe(text)
+    for (const id of ['cisco_save_config', 'pf_alias_add']) expect(get(id).verify.expect ?? '', id).toBe('')
+    for (const a of cat) {
+      expect([a.run.expect, a.rollback.expect, a.precheck.expect].filter(Boolean), `${a.id}: the text to look for is only on the read-back`).toEqual([])
+      expect((a.verify.expect ?? '').length).toBeLessThanOrEqual(200)
+      if (a.verify.expect) expect(validateTpl({ ...a.verify, cli: a.verify.cli || 'x', method: a.verify.method }, a.id), a.id).toBeNull()
+    }
+  })
+
+  it('§12.1 (5)(6) runtime-value actions are named; the unverified FortiGate built-ins ship switched off', () => {
+    const needs = cat.filter((a) => [a.run, a.rollback, a.verify, a.precheck].some((t) => /\{(seq|previous_vlan|found_id|rules_before|timeout)\}/.test(shape(t)))).map((a) => a.id).sort()
+    expect(needs).toEqual(['adguard_block', 'aoscx_acl_deny', 'aoscx_vlan_quarantine', 'cisco_acl_deny', 'cisco_port_vlan_quarantine', 'mt_addrlist_add'])
+    for (const id of ['fgt_addrgrp_add', 'fgt_ban_ip', 'fgt_vip_disable']) expect(get(id).enabled, id).toBe(false)
+    expect(get('blocklist_add').enabled).toBe(true)
   })
 
   it('rule templates and seed rules use only actions of the library', () => {

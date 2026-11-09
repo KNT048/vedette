@@ -15,6 +15,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/auth"
+	"github.com/knt048/vedette/core/conn"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/server"
@@ -33,7 +34,8 @@ type APIHandlers struct {
 	secrets *secrets.Store
 	log     *slog.Logger
 	now     func() time.Time
-	facts   PrivacyFacts // nil: the answers of today (see PrivacyFacts)
+	facts   PrivacyFacts  // nil: the answers of today (see PrivacyFacts)
+	conns   *conn.Service // nil: the connection routes answer 501
 }
 
 // HandlersConfig wires APIHandlers; every field but Clock and Facts is required.
@@ -45,6 +47,7 @@ type HandlersConfig struct {
 	Secrets *secrets.Store
 	Log     *slog.Logger
 	Facts   PrivacyFacts     // optional
+	Conns   *conn.Service    // optional: without it /core/connections answers 501 not_implemented
 	Clock   func() time.Time // nil: time.Now
 }
 
@@ -56,7 +59,7 @@ func NewAPIHandlers(c HandlersConfig) (*APIHandlers, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	return &APIHandlers{db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts}, nil
+	return &APIHandlers{db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts, conns: c.Conns}, nil
 }
 
 // caller is who a signed-in request acts as.

@@ -37,7 +37,7 @@ export function sampleContainment(f: Finding, asset: Asset, name: string): { rea
       cli: `config firewall vip\n    edit "${vip.name}"\n        set status disable\n    next\nend`,
       rest: { method: 'PUT', url, body: '{"status":"disable"}' },
       rollback: { title: `Turn virtual IP ${vip.name} back on`, cli: `config firewall vip\n    edit "${vip.name}"\n        set status enable\n    next\nend`, rest: { method: 'PUT', url, body: '{"status":"enable"}' } },
-      verify: `GET ${url}`,
+      verify: `GET ${url}`, precheck: '', precheck_rules: '', verify_rule: '',
     }
     return { reads, path, contain: { kind: 'contain', title: `Turn off virtual IP ${vip.name} on ${fw}`, detail: `Stops the Internet from reaching ${name} while you patch. Existing LAN access is not affected. Side effect: anyone using the published address ${vip.extip}:${vip.extport} loses access until you turn it back on.`,
       proposal: { id: `pr-${f.id}-${vip.name}`.toLowerCase(), title: `Turn off virtual IP ${vip.name} on ${fw}`, tool_key: `${conn.id}/${write.name}`, tool: write.name, connector_id: conn.id, connection: conn.name, asset_id: conn.asset_id ?? '', asset_name: fw, change } } }

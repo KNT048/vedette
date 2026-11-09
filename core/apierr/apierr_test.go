@@ -129,7 +129,7 @@ func TestCodesAreCatalogued(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	proposed := map[string]bool{"csrf_invalid": true, "not_implemented": true, "internal": true}
+	proposed := map[string]bool{} // codes used here but not yet in §3.3; empty since #18 catalogued csrf_invalid, internal, not_implemented
 	for _, code := range []string{
 		apierr.CodeUnauthenticated, apierr.CodeForbidden, apierr.CodeNotFound, apierr.CodeInvalid, apierr.CodeTooLarge,
 		apierr.CodeCoreModule, apierr.CodeMissingDeps, apierr.CodeCSRFInvalid, apierr.CodeNotImplemented, apierr.CodeInternal,

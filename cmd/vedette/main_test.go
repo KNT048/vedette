@@ -270,14 +270,14 @@ func TestServeFailureStopsTheScheduler(t *testing.T) {
 			}}); err != nil {
 				t.Fatal(err)
 			}
-			real, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
+			inner, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer func() { _ = real.Close() }()
+			defer func() { _ = inner.Close() }()
 			done := make(chan error, 1)
 			go func() {
-				done <- serveUntilDone(t.Context(), log, &http.Server{ReadHeaderTimeout: time.Second}, failingListener{real}, sched, 300*time.Millisecond)
+				done <- serveUntilDone(t.Context(), log, &http.Server{ReadHeaderTimeout: time.Second}, failingListener{inner}, sched, 300*time.Millisecond)
 			}()
 			select {
 			case err := <-done:
@@ -297,7 +297,8 @@ func TestServeFailureStopsTheScheduler(t *testing.T) {
 }
 
 // rawGet sends a request line exactly as written, so the client does not tidy the path first.
-func (in *instance) rawGet(t *testing.T, target string) *http.Response {
+// rawGet sends a raw GET (no client-side path cleaning) and returns the status and headers.
+func (in *instance) rawGet(t *testing.T, target string) (int, http.Header) {
 	t.Helper()
 	conn, err := new(net.Dialer).DialContext(t.Context(), "tcp", in.addr)
 	if err != nil {
@@ -313,7 +314,7 @@ func (in *instance) rawGet(t *testing.T, target string) *http.Response {
 		t.Fatalf("GET %s: %v", target, err)
 	}
 	_ = resp.Body.Close()
-	return resp
+	return resp.StatusCode, resp.Header
 }
 
 // Responses the ServeMux makes itself (redirects, 404 for other paths) carry the API's headers and a request id.
@@ -331,9 +332,9 @@ func TestHeadersOnResponsesOutsideTheAPIHandler(t *testing.T) {
 		"/api/v1/modules":        http.StatusUnauthorized, // inside the API: the same headers
 		"/api/v1/does-not-exist": http.StatusNotFound,
 	} {
-		resp := in.rawGet(t, target)
-		if resp.StatusCode != status {
-			t.Errorf("GET %s = %d, want %d", target, resp.StatusCode, status)
+		code, header := in.rawGet(t, target)
+		if code != status {
+			t.Errorf("GET %s = %d, want %d", target, code, status)
 		}
 		for h, want := range map[string]string{
 			"Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'",
@@ -341,12 +342,12 @@ func TestHeadersOnResponsesOutsideTheAPIHandler(t *testing.T) {
 			"Referrer-Policy":         "no-referrer",
 			"Cache-Control":           "no-store",
 		} {
-			if got := resp.Header.Get(h); got != want {
+			if got := header.Get(h); got != want {
 				t.Errorf("GET %s: %s = %q, want %q", target, h, got, want)
 			}
 		}
-		if !strings.HasPrefix(resp.Header.Get("X-Request-Id"), "req-") {
-			t.Errorf("GET %s: X-Request-Id = %q", target, resp.Header.Get("X-Request-Id"))
+		if !strings.HasPrefix(header.Get("X-Request-Id"), "req-") {
+			t.Errorf("GET %s: X-Request-Id = %q", target, header.Get("X-Request-Id"))
 		}
 	}
 }

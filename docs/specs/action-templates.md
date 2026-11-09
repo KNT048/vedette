@@ -576,6 +576,8 @@ Hành động tuỳ chỉnh do khách thêm cũng bắt buộc cùng quy tắc n
 
 ### 9.2 HTTP tuỳ chỉnh
 
+> **D-94 (2026-11-09) thay các điểm sau của mục này**: chỉ HTTPS, không có "kết nối phòng thí nghiệm" HTTP thường (để sau); chứng chỉ không qua kho gốc hệ thống thì ghim SHA-256 chứng chỉ lá ở lần Test đầu; **không theo chuyển hướng nào** (kể cả cùng host); **không thử lại**, kể cả `GET`; header bị cấm: `Authorization`, `Cookie`, `Host`, `Proxy-*`, hop-by-hop, `Forwarded`, `X-Forwarded-*`. Các số 64 KB / 1 MB, 5 s / 15 s giữ nguyên.
+
 - Chỉ HTTPS, kiểm chứng chỉ bật, cho phép ghim CA/vân tay. HTTP thường chỉ ở "kết nối phòng thí nghiệm" được quản trị viên đánh dấu và hiện cảnh báo.
 - Scheme, host, cổng lấy **từ kết nối**, không từ mẫu hay tham số. Mẫu chỉ có phần đường dẫn (có tham số ở đoạn riêng, `url.PathEscape`), query (`url.Values`), thân JSON.
 - Phương thức: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`. Không cho `CONNECT`, `TRACE`, phương thức lạ.
@@ -587,6 +589,8 @@ Hành động tuỳ chỉnh do khách thêm cũng bắt buộc cùng quy tắc n
 - Giới hạn tốc độ theo kết nối (mặc định 30 yêu cầu/phút) và một yêu cầu đồng thời.
 
 ### 9.3 SSH tuỳ chỉnh
+
+> **D-94 (2026-11-09) thay**: hết giờ **20 giây mỗi dòng, 60 giây mỗi phiên** (thay 30 giây và 2 phút), cả item tối đa 90 giây; đầu ra thiết bị **không** ghi vào kiểm toán (chỉ một dòng đã làm sạch ≤ 200 ký tự trong kết quả item), không còn "ghi log đầu ra sau khi lọc bí mật"; khoá máy chủ đổi bị từ chối trước khi gửi thông tin xác thực; chỉ thuật toán mặc định của `x/crypto/ssh`.
 
 - Dùng thư viện SSH của Go; không gọi `ssh` qua shell của hộp (`core/exec` allowlist, security.md). Khoá máy chủ ghim, đổi khoá thì dừng.
 - Thiết bị mạng dùng phiên tương tác có PTY; mỗi dòng lệnh gửi **riêng**, chờ dấu nhắc, có timeout mỗi dòng (30 giây) và tổng (2 phút). Mẫu lưu theo từng dòng; tham số thay vào một dòng không bao giờ làm tăng số dòng (kiểm sau thay thế).
@@ -653,6 +657,47 @@ Danh mục hiện tại ở `web/src/features/response/data.ts`:
 9. `pihole_block`: mô tả nói "AdGuard Home người dùng sao chép và đổi lệnh API", nhưng AdGuard khác bản chất (đọc-sửa-ghi toàn bộ luật, 8.2); nên là hành động riêng.
 10. Kiểu tham số: thiếu `id` (policyid) và `name`; `{text}` đang lẫn vào mẫu thiết bị.
 11. Thiếu hành động `cisco_save_config` (5.5) và `fgt_ebl_setup`/`opn_urltable_setup`/`adguard_add_url` (thiết lập một lần, kéo) dưới dạng hướng dẫn.
+
+### 12.1 Sửa dữ liệu ở lát 13b-2 (D-94, D-95; 13b-0 chốt)
+
+Áp dụng cho cả `modules/response/data/action-templates.json` và bản mock `web/src/features/response/templates/action-templates.sample.json` (test lệch thư viện phải xanh). Nhãn "chưa xác minh" giữ nguyên như các mục trên.
+
+1. **`tool` chỉ dành cho kết nối MCP** (D-94). `fgt_addrgrp_add` (`block_address`), `fgt_vip_disable` (`disable_virtual_ip`), `fgt_policy_disable` (`disable_firewall_policy`) đổi thành `tool: null`. Kiểu HTTP và SSH dùng công cụ cố định của loại kết nối (`send_request`, `run_approved_command`, `apply_config`, `launch_job`); giữ tên kiểu MCP trên hành động HTTP thì hành động bị coi là không khả dụng trên kết nối HTTP thật.
+2. **Chuỗi dòng SSH đầy đủ.** Lõi không biết lệnh của hãng (D-58), nên tắt phân trang và vào/ra chế độ cấu hình nằm trong dữ liệu. Mỗi bước (`precheck`, `run`, `rollback`, `verify`) là một phiên riêng:
+
+| Nền | Dòng đầu của mọi bước | Bọc `run`/`rollback` | Nhãn |
+|---|---|---|---|
+| Cisco IOS/IOS-XE | `terminal length 0` | `configure terminal` … `end` | lệnh chuẩn IOS (5.1), chưa thử trên máy |
+| Aruba AOS-CX | `no page` | `configure terminal` … `end` | chưa xác minh |
+| ArubaOS-Switch | `no page` | `configure` … `end` | chưa xác minh |
+
+   Ví dụ `cisco_port_shut`: `run` = `terminal length 0` / `configure terminal` / `interface {interface}` / `shutdown` / `end`; `rollback` như vậy với `no shutdown`; `verify` = `terminal length 0` / `show interfaces {interface} status`. `cisco_save_config`: `run` = `terminal length 0` / `write memory`; `verify` = `terminal length 0` / `show startup-config` (thiếu dòng đầu thì phiên dừng ở `--More--` tới hết 20 s).
+3. **Kiểm trước và chuỗi từ chối cho hành động cổng** (D-95 (3); đóng M4 của rà WP-13a: không đụng cổng trunk/uplink):
+
+| Hành động | `precheck` | `precheck_refuse` | Nhãn |
+|---|---|---|---|
+| `cisco_port_shut`, `cisco_port_vlan_quarantine` | `terminal length 0` / `show interfaces {interface} switchport` | `Administrative Mode: trunk`, `Operational Mode: trunk`, `Administrative Mode: dynamic` | dạng dòng theo 5.4 (`Administrative Mode: static access`); chưa thử trên máy |
+| `aoscx_port_shut`, `aoscx_vlan_quarantine` | `no page` / `show interface {interface}` | `VLAN Mode: trunk`, `VLAN Mode: native-untagged`, `VLAN Mode: native-tagged` | chưa xác minh |
+| `arubasw_port_shut`, `arubasw_vlan_quarantine` | `no page` / `show vlans ports {interface} detail` | `Tagged` (phân biệt hoa thường, không khớp `Untagged`) | chưa xác minh |
+
+   Uplink ở chế độ access không bị chuỗi trên bắt: vẫn phải khai trong danh sách không bao giờ đụng (INV-10).
+4. **`expect` ở `verify`** (D-95 (2); so chuỗi con, JSON đã nén, sau hoàn tác chuỗi phải mất):
+
+| Hành động | `verify.expect` | Ghi chú |
+|---|---|---|
+| `fgt_addrgrp_add` | `"vedette-{ip}"` | dấu nháy để `1.2.3.4` không khớp `vedette-1.2.3.45`; đúng cho cả JSON và `show firewall addrgrp` |
+| `fgt_ban_ip` | `{ip}` | khớp cả IP dài hơn cùng tiền tố (chấp nhận: `verified` là thông tin, không phải cổng) |
+| `fgt_vip_disable`, `fgt_policy_disable` | `"status":"disable"` | chỉ đường API (`verify.cli` rỗng) |
+| `opn_alias_add` | `"{ip}"` | |
+| `pihole_block` | `"domain":"{domain}"` | |
+| `cisco_port_shut` | `disabled` | cột Status của `show interfaces status` |
+| `aoscx_port_shut` | `Admin state is down` | chưa xác minh |
+| `cisco_acl_deny` | `deny ip host {ip} any` | chưa khả dụng (mục 5) |
+| `cisco_port_vlan_quarantine` | `Access Mode VLAN: {vlan} ` (dấu cách cuối) | chưa khả dụng (mục 5) |
+| `cisco_save_config`, `pf_alias_add`, ArubaOS-Switch | không đặt | `verified = null` ("not checked") |
+
+5. **Giá trị lúc chạy chưa có tới 13c** (D-94 (4)): mẫu còn `{seq}`, `{previous_vlan}`, `{found_id}`, `{rules_before}` hoặc `{timeout}` là "không khả dụng" kèm lý do: `cisco_acl_deny`, `aoscx_acl_deny`, `arubasw_acl_deny`, `cisco_port_vlan_quarantine`, `aoscx_vlan_quarantine`, `arubasw_vlan_quarantine`, `mt_addrlist_add`, `adguard_block`. Chỉ `{expiry_s}` = `ttl_min` × 60 được tính ở 13b-6 (`fgt_ban_ip`; item không có TTL thì hành động này không khả dụng).
+6. **Mẫu dựng sẵn chưa thử trên máy thì tắt mặc định** (rủi ro của kế hoạch WP-13b): `fgt_addrgrp_add`, `fgt_ban_ip`, `fgt_vip_disable` đang `enabled: true` dù `unverified: true`; đổi `enabled: false` cho bản cài mới (`enabled` của hộp đã cài vẫn là của người dùng, D-88 (1)).
 
 ## 13. Câu hỏi mở
 

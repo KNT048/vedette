@@ -1,6 +1,6 @@
 # Approval tokens: duyệt hành động từ email, Slack, Telegram, Zalo
 
-Trạng thái: bản nháp M2-0 (docs-first), 2026-11-09. Văn xuôi tiếng Việt; tên trường, thông điệp, đường dẫn bằng tiếng Anh.
+Trạng thái: bản nháp M2-0 (docs-first), 2026-11-09; cập nhật 13b-0 (D-96, D-97, D-98): §7.1 băm mã trả lời và vector kiểm thử, §14 trả lời các câu hỏi mở. Văn xuôi tiếng Việt; tên trường, thông điệp, đường dẫn bằng tiếng Anh.
 Truy vết: D-41 (người duyệt, hết hạn, một hành động mỗi lần duyệt), D-46 (duyệt trong từng kênh), D-38 (Slack Socket Mode, Telegram long polling), D-51 (mọi hành động cần duyệt, 2 người cho rủi ro cao, rủi ro cao AI phải duyệt trong app có mã hai bước), D-35 (hai bước), D-48 (nhật ký hash); story S-RESP-2, S-NOT-2; GUI mock `web/src/features/response` (`ApprovePage.tsx`, `state.ts`, `mocks.ts`) và `web/src/features/notify` (`Approver`, `ChannelInput`).
 
 ## 1. Mục đích
@@ -62,6 +62,7 @@ Token gắn với đúng bộ bốn: **yêu cầu** (`request_id`), **người d
 - Chỉ **POST quyết định** mới đốt token: `used_at` đặt trong cùng giao dịch DB với việc ghi quyết định (cập nhật có điều kiện `WHERE used_at IS NULL`). Hai POST đồng thời: một thắng, một nhận `409 used`.
 - Xem trang (GET) **không** đốt token và **không** thay đổi gì (khớp mock: "opening the link never approves").
 - Từ chối (`reject`) cũng đốt token.
+- **Quyết định bị cổng từ chối không đốt token** (D-96): `403 approver_not_listed`, `403 in_app_required`, `409 execution_off`… để nguyên `used_at`; chỉ một quyết định đã ghi mới đốt.
 - Khi yêu cầu đã được quyết định bằng đường khác (người khác duyệt trong Slack, huỷ trong app) token còn lại thành `decided`, GET/POST đều không đổi gì.
 
 ### 4.4 Trang xác nhận: chỉ POST mới duyệt
@@ -127,6 +128,21 @@ Duyệt bằng mã trả lời (Zalo cá nhân):
 - Mã trả lời đã dùng/hết hạn → hộp trả lời "expired/used".
 - Vì kênh không chính thức, độ tin cậy danh tính thấp hơn Slack/Telegram: **mặc định không dùng cho rủi ro cao** (câu hỏi mở §13), và rủi ro cao AI vẫn chỉ duyệt trong app.
 - Phiên Zalo cá nhân là bí mật (quét QR một lần); xoá kênh xoá phiên (PRIVACY luồng 5).
+
+### 7.1 Băm mã trả lời (D-96; lát 13b-8, `notify` tạo, `response` lưu và kiểm)
+
+- **Bảng chữ** `23456789ABCDEFGHJKLMNPQRSTUVWXYZ` (32 ký tự, không `0 1 I O`). Mã = tiền tố `A-` (duyệt) hoặc `R-` (từ chối) + 6 ký tự, mỗi ký tự lấy một byte CSPRNG `& 31` (256 chia hết cho 32 nên không lệch): 30 bit. Mỗi người duyệt nhận hai mã riêng cho mỗi yêu cầu.
+- **Chuẩn hoá** (lúc tạo và lúc nhận): bỏ khoảng trắng ASCII hai đầu, đổi chữ ASCII thường thành hoa; sau đó phải khớp `^[AR]-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}$`, không thì tin không phải mã và bị bỏ qua. `decision` = `approve` với tiền tố `A`, `reject` với `R`.
+- **Công thức**: `code_hash = hex chữ thường của SHA-256("vedette-reply-code-v1" LF request_id LF user_id LF decision LF code)`; LF là byte `0x0A`; các trường là byte UTF-8 đúng như lưu; không có LF cuối, không byte nào khác.
+- **Lưu**: `notify` tính `code_hash` rồi gọi `TokenRecorder.RecordReplyCode(ctx, ReplyCode{RequestID, UserID, Address, Approve, CodeHash, ExpiresAt})` **trước khi** gửi tin; `response` ghi `resp_tokens` (`kind=code`, `channel=zalo-personal`, `address` = Zalo ID của người duyệt, `decision`, `expires_at` = hạn yêu cầu, tối đa 30 phút). Mã rõ không được lưu hay ghi log ở đâu.
+- **Kiểm**: listener gọi `Decide(Decision{Channel: zalo-personal, ExternalID: <ID người gửi>, RequestID: "", Approve, Code})`; `response` lấy các bản ghi `kind=code` chưa dùng, chưa hết hạn của **đúng** `(channel, address = ExternalID)`, tính băm với `request_id`, `user_id`, `decision` của từng bản ghi và so hằng thời gian. Khớp → các cổng của INV-3 (`response`) → đốt trong giao dịch quyết định (`used_at IS NULL`), cùng lúc đốt mã còn lại của người đó cho yêu cầu đó. Mã đúng gửi từ tài khoản khác không khớp bản ghi nào của người gửi đó: bỏ, ghi `refused`.
+- **Vì sao SHA-256 không khoá**: mã chỉ có tác dụng khi gửi từ đúng Zalo ID của người duyệt, sống ≤ 30 phút, một lần; băm gắn `request_id` + `user_id` nên không có bảng tra chung; HMAC sẽ cần chia một khoá giữa `notify` và `response` (ponytail). Mã 2 bước qua email dùng HMAC vì riêng mã đó (10^6 giá trị) đã là bằng chứng.
+- **Vector kiểm thử** (test của `notify` và `response` cùng ghim):
+  - `request_id` = `req-20261109-0001`, `user_id` = `u-lan`, `decision` = `approve`, `code` = `A-7KQ2MX`.
+  - Byte vào (62 byte, hex): `766564657474652d7265706c792d636f64652d76310a7265712d32303236313130392d303030310a752d6c616e0a617070726f76650a412d374b51324d58`.
+  - `code_hash` = `1f16413d45bce5c596496fc0a4d169a0c09ade7bb044335507f4020e15060fa0`.
+  - Nhận ` a-7kq2mx ` → chuẩn hoá `A-7KQ2MX` → cùng `code_hash`.
+  - Mã từ chối `R-7KQ2MX`, cùng `request_id`/`user_id`, `decision` = `reject` → `560dd02a99d9bc0e022a7b7c50a9d6834cc2c8ab8587c50089bda4ce7077b671`.
 
 ## 8. Ánh xạ danh tính tổng hợp
 
@@ -213,12 +229,13 @@ Thông điệp tiếng Anh, ngắn (D-28); lỗi `409` trả kèm `ActionRequest
 - API `/api/v1/response/approve/{token}`; thêm trường `ApprovalView` là tương thích tiến.
 - Quy tắc kênh (Slack action_id, tiền tố mã Zalo) đổi → ghi trong CONTRACT của `response`.
 
-## 14. Câu hỏi mở
+## 14. Câu hỏi mở (đã trả lời ở 13b-0, 2026-11-09)
 
-1. **Email quá yếu cho rủi ro cao?** Hiện tại link + một lần bấm là đủ cho rủi ro thấp/trung bình. Có nên bắt nhập mã hai bước trên trang `/approve` (như duyệt trong app) khi chọn duyệt bằng email cho rủi ro cao, hay cấm email với rủi ro cao? D-46/D-51 chưa nói rõ phần này.
-2. **Tạo yêu cầu và duyệt cùng một người**: có cho người tạo thủ công tự duyệt không (D-51 "người duyệt thứ hai" cho rủi ro cao)? Cần quyết.
-3. **Đổi `TOKEN_RE` và route FE** từ `^[a-f0-9]{32}$` sang định dạng ký `v1.…`: đây là thay đổi hợp đồng ở M2, kéo theo đổi `ApprovePage` và test.
-4. Zalo cá nhân có được duyệt hành động rủi ro trung bình hay chỉ thấp (hiện suy ra: không dùng cho rủi ro cao; D-46 không nêu)?
-5. Link duyệt chỉ tới được trong LAN: người duyệt đang ngoài văn phòng (qua email trên điện thoại) không mở được. Hướng dẫn VPN hay reverse proxy tự dựng do khách; Vedette không cung cấp tunnel (D-15).
-6. Hạn yêu cầu mặc định 15 hay 30 phút khi quy tắc không đặt (D-41 nói 15, D-51 nói 15–30).
-7. Mức độ giới hạn: số người duyệt mỗi kênh, rate limit (chưa đo).
+1. ~~Email quá yếu cho rủi ro cao?~~ **Cấm** (D-57 (20), D-96): liên kết chỉ cho rủi ro thấp/trung bình; yêu cầu rủi ro cao → thư không có liên kết duyệt, POST trên liên kết cũ → `403 in_app_required`. Không thêm bước nhập mã hai bước trên trang `/approve`.
+2. ~~Người tạo thủ công tự duyệt~~ **Theo D-57 (20) và INV-2 của `response`**: rủi ro cao cần hai `user_id` khác nhau, nên người khởi động lần chạy tay chỉ là tối đa một trong hai; rủi ro thấp/trung bình người đó được tự duyệt (một người là đủ). Không thêm quy tắc mới.
+3. ~~Đổi `TOKEN_RE` và route FE~~ **Lát 13b-2**: `TOKEN_RE` theo định dạng `v1.<22 base64url>.<22 base64url>`, token trong mock đổi thành token ký; route `/approve/:token` giữ nguyên.
+4. ~~Zalo cá nhân có được duyệt rủi ro trung bình?~~ **Có** (D-96): thấp và trung bình; cao → `403 channel_not_allowed`; yêu cầu `in_app_only` → `403 in_app_required`.
+5. Link duyệt chỉ tới được trong LAN: **không đổi** (D-15: Vedette không cung cấp tunnel; khách tự dùng VPN/reverse proxy). Chưa có việc gì.
+6. ~~Hạn yêu cầu mặc định~~ **15 phút** (`resp_settings.expiry_min` mặc định 15, khoảng 15–30, INV-6 của `response`); token sống `min(30 phút, hạn yêu cầu)`.
+7. ~~Mức giới hạn~~ **POST `approve`: 10 lần/phút/IP và 20 token sai/phút/IP** (429 `rate_limited`, D-96, như §11). Số người duyệt mỗi kênh: `notify` không áp trần; không thêm khi chưa có story (ponytail), "tối đa 10" ở §11 chỉ là gợi ý cũ.
+8. (thêm ở 13b-0) Chống trang khác ép trình duyệt POST: handler từ chối `Sec-Fetch-Site` khác `same-origin`/`none` (403), cộng `Content-Type: application/json` như §4.4 (D-96).

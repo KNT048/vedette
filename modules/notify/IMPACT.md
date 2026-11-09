@@ -12,6 +12,14 @@
 ## Modifying: `notify.Service.SendApprovalRequest`, sự kiện `notify.approval.decided`
 - **response** (người duyệt, hết hạn 15–30 phút, 2 người cho rủi ro cao). Đổi payload quyết định = phá luồng duyệt; `notify` không biết ngữ nghĩa hành động.
 
+## Giao diện với `response` cho WP-13b (D-96; kế hoạch, chưa có mã)
+Người gọi duy nhất ở mọi mục là `response` (qua adapter ở `cmd/vedette`). Dưới D-65 Kiên có thể viết (1), (2) rồi báo Emily; (3)–(5) là việc của Emily.
+1. **`VerifyApprovalLink(ctx, token, Binding, keyID) (TokenID, error)`** (13b-7): kiểm MAC theo `keyID` của bản ghi, không ghi gì, **không bao giờ tạo khoá**. Đổi = mọi liên kết duyệt đang mở hỏng (`404 unknown`).
+2. **`ApprovalRequest.Channels []channel.Type` (rỗng = không gửi gì) và `ApprovalRequest.InAppOnly bool`** (13b-7): `response` lọc kênh theo `approval_channels`; `InAppOnly` → không nút, không liên kết, không mã. Bỏ qua `Channels` = gửi yêu cầu tới kênh người dùng đã tắt cho duyệt; bỏ qua `InAppOnly` = phá INV-16 của `response`.
+3. **Cổng `Config.Decisions`: `Decide(ctx, Decision{Channel, ExternalID, RequestID, Approve, Code}) (DecisionResult{Status, Message}, error)`** (13b-8): listener xác thực nền tảng rồi gọi, phát `notify.approval.decided` khi quyết định đã ghi. `notify` không giữ danh sách ai được duyệt ngoài cấu hình kênh; mọi cổng ở `response`.
+4. **`TokenRecorder.RecordReplyCode(ctx, ReplyCode{RequestID, UserID, Address, Approve, CodeHash, ExpiresAt})`** (13b-8): gọi trước khi gửi mã Zalo cá nhân; băm theo `docs/specs/approval-tokens.md` §7 (vector cố định trong spec, test hai bên cùng dùng). Đổi công thức băm = mọi mã đang mở không khớp.
+5. **Đăng ký `response.decision.made`** (13b-8): gỡ nút/sửa tin trong Slack/Telegram. Bỏ việc "subscribe `response.approval.requested`" (`.ai/deferred/feat-notify-module.md`): `response` gọi thẳng `SendApprovalRequest` sau commit.
+
 ## Modifying: `GET /notify/channels` `approvals`, `approvers`
 - **SPA** `ChannelsSettings`; module khác đọc cấu hình duyệt qua interface `ApprovalChannels()`, không đọc bảng `notify_*`.
 

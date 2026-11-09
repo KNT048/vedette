@@ -4,8 +4,8 @@ summary: { vi: "Quy tắc KHI-NẾU-THÌ và đề xuất của AI dẫn tới h
 tier: optional
 default: off           # công tắc thực thi lên thiết bị là công tắc riêng, cũng TẮT mặc định (D-41)
 risk: high             # chức năng nguy hiểm, khách tự chịu trách nhiệm (D-41)
-depends: [core, notify, inventory]   # notify: kênh duyệt và thông báo; inventory: thiết bị, ngữ cảnh. `ai` (kết nối ngoài ai_connectors + việc response-plan) chuyển xuống soft_depends ở WP-13a (D-88): phần 1 chạy khi ai tắt; phần 13b có kết nối thì hành động lên thiết bị chỉ khả dụng khi ai bật
-soft_depends: [ai, findings, honeypot, logs, exposure, scan, sensor-passive]   # ai: kết nối ngoài + kế hoạch; còn lại là nguồn trigger; thiếu thì trigger tương ứng không có sự kiện
+depends: [core, notify, inventory]   # notify: kênh duyệt và thông báo; inventory: thiết bị, ngữ cảnh. Kết nối tới thiết bị thuộc core (core/conn, D-93), nên hành động lên thiết bị chạy cả khi ai tắt; `ai` ở soft_depends từ WP-13a (D-88 (12))
+soft_depends: [ai, findings, honeypot, logs, exposure, scan, sensor-passive]   # ai: đề xuất (cổng Propose, D-97) + kế hoạch; còn lại là nguồn trigger; thiếu thì trigger tương ứng không có sự kiện
 permissions: ["outbound:lan"]          # SSH/HTTP API tới thiết bị trong scope khách khai (SYS-7); không root, không docker
 ports: []              # route công khai nằm trên cổng 8443 của core: /response/approve/{token}, /response/blocklist/{token}.txt
 container: core        # D-55

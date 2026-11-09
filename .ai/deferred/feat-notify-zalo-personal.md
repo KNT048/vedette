@@ -1,0 +1,5 @@
+- [ ] Zalo personal listener (reply-code approvals): needs a websocket client library in go.mod (same need as Slack Socket Mode, D-38); protocol note is in modules/notify/IMPACT.md ("Zalo cá nhân") — WP-22
+- [ ] Zalo personal session creation: the GUI's QR sign-in is a mock and produces a string that is not the JSON session `NewZaloPersonal` now requires (imei, userAgent, cookie); decide between paste (as the n8n node) and porting zca-js loginQR; the GUI/mock/contract.ts change is not mine — WP-22 / Kiên
+- [ ] Zalo personal group recipient: contract.ts has only `user_id`, the adapter needs to know user vs group (`ZaloPersonalConfig.Group`) — WP-22 / contract change
+- [ ] Zalo personal cookie rotation: cookies Zalo sets are kept in memory only; persisting a rotated session back through core/secrets needs the store — WP-22
+- [ ] Verify the whole Zalo personal send against a real throwaway Zalo account (nothing was sent to Zalo; protocol read from zca-js v2.2.0 source only) and re-check client version 685 / type 30 are still accepted — Emily, once a throwaway account exists

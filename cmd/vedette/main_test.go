@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -13,6 +15,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/jobs"
 )
 
 func TestVersionAndFlags(t *testing.T) {
@@ -209,4 +213,140 @@ func TestRunRefusesBadSetup(t *testing.T) {
 			t.Fatalf("err = %v", err)
 		}
 	})
+}
+
+func TestListenMustBeLoopback(t *testing.T) {
+	t.Parallel()
+	for addr, ok := range map[string]bool{
+		"127.0.0.1:8080": true, "127.1.2.3:0": true, "[::1]:8080": true, "localhost:8080": true, "LOCALHOST:1": true,
+		"[::ffff:127.0.0.1]:80": true,
+		"0.0.0.0:8080":          false, "[::]:8080": false, ":8080": false, "192.168.1.10:8080": false,
+		"10.0.0.1:80": false, "example.com:80": false, "127.0.0.1.example.com:80": false, "8080": false, "": false,
+	} {
+		err := checkLoopback(addr)
+		if (err == nil) != ok {
+			t.Errorf("checkLoopback(%q) = %v, want ok=%v", addr, err, ok)
+		}
+	}
+	// run refuses before it opens any file.
+	dir := t.TempDir()
+	err := run(t.Context(), []string{"-db", filepath.Join(dir, "v.db"), "-key", filepath.Join(dir, "v.key"), "-listen", "0.0.0.0:0"}, io.Discard, io.Discard)
+	if err == nil || !strings.Contains(err.Error(), "loopback") {
+		t.Fatalf("run with a public address: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "v.key")); err == nil {
+		t.Fatal("the key file was created before the address was refused")
+	}
+}
+
+// failingListener makes srv.Serve return at once.
+type failingListener struct{ net.Listener }
+
+func (failingListener) Accept() (net.Conn, error) { return nil, errors.New("accept failed on purpose") }
+
+type allOn struct{}
+
+func (allOn) Enabled(string) bool { return true }
+
+// The listener failing must not leave run waiting for a scheduler nobody cancelled.
+func TestServeFailureStopsTheScheduler(t *testing.T) {
+	t.Parallel()
+	log := slog.New(slog.DiscardHandler)
+	for name, ignoresCtx := range map[string]bool{"job honours ctx": false, "job ignores ctx": true} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			sched := jobs.New(log, allOn{}, nil)
+			started := make(chan struct{})
+			release := make(chan struct{})
+			t.Cleanup(func() { close(release) })
+			if err := sched.Add(jobs.Job{Module: "core", Name: "slow", Every: time.Hour, Run: func(ctx context.Context) error {
+				close(started)
+				if ignoresCtx {
+					<-release
+				} else {
+					<-ctx.Done()
+				}
+				return nil
+			}}); err != nil {
+				t.Fatal(err)
+			}
+			real, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = real.Close() }()
+			done := make(chan error, 1)
+			go func() {
+				done <- serveUntilDone(t.Context(), log, &http.Server{ReadHeaderTimeout: time.Second}, failingListener{real}, sched, 300*time.Millisecond)
+			}()
+			select {
+			case err := <-done:
+				if err == nil || !strings.Contains(err.Error(), "serve:") {
+					t.Fatalf("err = %v, want a serve error", err)
+				}
+			case <-time.After(10 * time.Second):
+				t.Fatal("serveUntilDone did not return after the listener failed")
+			}
+			select {
+			case <-started:
+			default:
+				t.Log("the job never started (the listener failed first); the scheduler still had to be stopped")
+			}
+		})
+	}
+}
+
+// rawGet sends a request line exactly as written, so the client does not tidy the path first.
+func (in *instance) rawGet(t *testing.T, target string) *http.Response {
+	t.Helper()
+	conn, err := new(net.Dialer).DialContext(t.Context(), "tcp", in.addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
+	if _, err := io.WriteString(conn, "GET "+target+" HTTP/1.1\r\nHost: "+in.addr+"\r\nConnection: close\r\n\r\n"); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatalf("GET %s: %v", target, err)
+	}
+	_ = resp.Body.Close()
+	return resp
+}
+
+// Responses the ServeMux makes itself (redirects, 404 for other paths) carry the API's headers and a request id.
+func TestHeadersOnResponsesOutsideTheAPIHandler(t *testing.T) {
+	t.Parallel()
+	in := start(t)
+	for target, status := range map[string]int{
+		"/api/v1":                http.StatusTemporaryRedirect, // ServeMux adds the trailing slash
+		"//":                     http.StatusTemporaryRedirect, // cleaned path
+		"/api/v1/../x":           http.StatusTemporaryRedirect,
+		"/api//v1/modules":       http.StatusTemporaryRedirect,
+		"/elsewhere":             http.StatusNotFound,
+		"/":                      http.StatusNotFound,
+		"/api/v1x/modules":       http.StatusNotFound,
+		"/api/v1/modules":        http.StatusUnauthorized, // inside the API: the same headers
+		"/api/v1/does-not-exist": http.StatusNotFound,
+	} {
+		resp := in.rawGet(t, target)
+		if resp.StatusCode != status {
+			t.Errorf("GET %s = %d, want %d", target, resp.StatusCode, status)
+		}
+		for h, want := range map[string]string{
+			"Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'",
+			"X-Content-Type-Options":  "nosniff",
+			"Referrer-Policy":         "no-referrer",
+			"Cache-Control":           "no-store",
+		} {
+			if got := resp.Header.Get(h); got != want {
+				t.Errorf("GET %s: %s = %q, want %q", target, h, got, want)
+			}
+		}
+		if !strings.HasPrefix(resp.Header.Get("X-Request-Id"), "req-") {
+			t.Errorf("GET %s: X-Request-Id = %q", target, resp.Header.Get("X-Request-Id"))
+		}
+	}
 }

@@ -1,5 +1,5 @@
 // Package server builds the http.Handler of /api/v1: panic recovery, request id, security headers,
-// body cap, then the route table of the contract drives module gating, authentication, role checks
+// Origin check, body cap, then the route table of the contract drives module gating, authentication, role checks
 // and CSRF before the request reaches the generated ogen server. The checks are generated from the
 // contract tables (core/api/routes), not written per handler (API_CONVENTIONS 7.4).
 package server
@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"runtime/debug"
 	"slices"
+	"strings"
 
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/api/routes"
@@ -73,7 +74,37 @@ func New(cfg Config) (http.Handler, error) {
 		return nil, fmt.Errorf("server: build api: %w", err)
 	}
 	a.oas = srv
-	return a.recoverPanic(a.requestID(a.secureHeaders(a.limitBody(http.HandlerFunc(a.route))))), nil
+	return Envelope(cfg.Log, a.checkOrigin(a.limitBody(http.HandlerFunc(a.route)))), nil
+}
+
+// Envelope is the outermost layer of every response the process produces: panic recovery, a fresh
+// request id and the security headers. New applies it to the API; cmd/vedette applies it again around
+// the whole top-level handler so responses made outside the API (the ServeMux redirects, 404 for other
+// paths) carry the same headers and id. The request id is kept when an outer Envelope already set it.
+func Envelope(log *slog.Logger, next http.Handler) http.Handler {
+	a := &api{cfg: Config{Log: log}}
+	return a.recoverPanic(a.requestID(a.secureHeaders(next)))
+}
+
+// checkOrigin refuses a state-changing request, public ones included, whose Origin header names
+// another site: scheme and host must equal the request's own. A request without Origin (curl,
+// agents, osquery) passes; browsers always send Origin on cross-site POST, so the CSRF token is the
+// second line, not the only one. It runs before routing so the answer says nothing about which
+// routes or modules exist. The scheme is what this process serves (TLS or not), never a forwarded header.
+func (a *api) checkOrigin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if o := r.Header.Values("Origin"); len(o) > 0 && !slices.Contains(safeMethods, r.Method) {
+			scheme := "http"
+			if r.TLS != nil {
+				scheme = "https"
+			}
+			if len(o) != 1 || !strings.EqualFold(o[0], scheme+"://"+r.Host) {
+				apierr.Write(w, apierr.CSRFInvalid())
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // validateRoutes is INV-5 at start-up.
@@ -113,7 +144,10 @@ func (a *api) recoverPanic(next http.Handler) http.Handler {
 // requestID gives every request a fresh id; an id sent by the client is ignored (it would go into logs).
 func (a *api) requestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id := store.NewID("req")
+		id := RequestIDFrom(r.Context())
+		if id == "" {
+			id = store.NewID("req")
+		}
 		w.Header().Set("X-Request-Id", id)
 		next.ServeHTTP(w, r.WithContext(contextWithRequestID(r.Context(), id)))
 	})
@@ -144,8 +178,9 @@ func (a *api) limitBody(next http.Handler) http.Handler {
 
 var safeMethods = []string{http.MethodGet, http.MethodHead, http.MethodOptions}
 
-// route is the contract-driven gate: unknown route and off module are both 404 not_found with the
-// same body (SYS-5), then authentication (401), role (403), CSRF (403), then the generated server.
+// route is the contract-driven gate. Unknown route and off module are both 404 not_found with the
+// same body (SYS-5). Non-public operations: authentication (401), module gate (404), role (403), CSRF
+// (403). Public operations: module gate (404) first. Then the generated server.
 func (a *api) route(w http.ResponseWriter, r *http.Request) {
 	route, ok := a.oas.FindPath(r.Method, r.URL)
 	if !ok {
@@ -158,14 +193,21 @@ func (a *api) route(w http.ResponseWriter, r *http.Request) {
 		apierr.Write(w, apierr.Internal())
 		return
 	}
-	if !a.cfg.Modules.Enabled(ModuleOf(op)) {
-		apierr.Write(w, apierr.NotFound())
-		return
-	}
-	if op.MinRole != routes.Public {
+	mod := ModuleOf(op)
+	if op.MinRole == routes.Public {
+		if !a.cfg.Modules.Enabled(mod) {
+			apierr.Write(w, apierr.NotFound())
+			return
+		}
+	} else {
+		// Authenticate first: an off module must not tell an anonymous client that its routes exist.
 		p, aerr := a.authenticate(r)
 		if aerr != nil {
 			apierr.Write(w, aerr)
+			return
+		}
+		if !a.cfg.Modules.Enabled(mod) {
+			apierr.Write(w, apierr.NotFound())
 			return
 		}
 		if rank(p.Role) < rank(op.MinRole) {

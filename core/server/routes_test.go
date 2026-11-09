@@ -58,15 +58,14 @@ func TestEveryOperationHasAValidRole(t *testing.T) {
 	}
 }
 
-// Every operation maps to a module that has a MANIFEST.yaml, except findings, whose folder arrives
-// with WP-21 (D-57 (6)); it is allowed explicitly so a typo in the mapping cannot hide behind it.
+// Every operation maps to a module that has a MANIFEST.yaml (findings has one since D-57 (6)).
 func TestEveryOperationMapsToAModuleWithAManifest(t *testing.T) {
 	t.Parallel()
 	ms, err := modreg.Load(os.DirFS("../../modules"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	known := map[string]bool{"findings": true}
+	known := map[string]bool{}
 	for _, m := range ms {
 		known[m.ID] = true
 	}
@@ -84,7 +83,7 @@ func TestEveryOperationMapsToAModuleWithAManifest(t *testing.T) {
 	}
 	sort.Strings(names)
 	t.Logf("operations per module: %v", used)
-	for _, m := range []string{"findings", "scan", "agent-intake", "sensor-passive", "host", "mcp-server", "auth-oidc", "core"} {
+	for _, m := range []string{"findings", "scan", "agent-intake", "sensor-passive", "host", "mcp-server", "auth-oidc", "core", "scan-credentialed", "mitigation"} {
 		if used[m] == 0 {
 			t.Errorf("no operation maps to %q: an override is dead or the contract changed", m)
 		}
@@ -100,6 +99,12 @@ func TestModuleOfOverrides(t *testing.T) {
 		{"/findings/{id}/status", "findings", "findings"},
 		{"/scans/runs", "scan", "scan"},
 		{"/scans", "scan", "scan"},
+		{"/scans/credentialed", "scan", "scan-credentialed"},
+		{"/scans/credentialed/{id}/test", "scan", "scan-credentialed"},
+		{"/scans/credentialedx", "scan", "scan"},
+		{"/findings/{id}/applied", "findings", "mitigation"},
+		{"/findings/{id}/ai", "findings", "mitigation"},
+		{"/findings/{id}/aix", "findings", "findings"},
 		{"/core/oidc", "core", "auth-oidc"},
 		{"/core/sso/login", "core", "auth-oidc"},
 		{"/core/mcp/tokens", "core", "mcp-server"},

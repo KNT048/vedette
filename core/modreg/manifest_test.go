@@ -39,6 +39,8 @@ func TestLoadRejects(t *testing.T) {
 		{"bad default", map[string]string{"core": coreYAML, "a": "id: a\ntier: optional\ndefault: maybe\n"}, "default"},
 		{"bad kind", map[string]string{"core": coreYAML, "a": "id: a\ntier: optional\nkind: widget\n"}, "kind"},
 		{"depends on a component", map[string]string{"core": coreYAML, "host": "id: host\nkind: component\ntier: core\n", "a": "id: a\ntier: optional\ndepends: [host]\n"}, "component"},
+		{"default-on needs a default-off dependency", map[string]string{"core": coreYAML, "a": "id: a\ntier: optional\n", "b": "id: b\ntier: standard\ndefault: on\ndepends: [a]\n"}, "off by default"},
+		{"core depends on a non-core module", map[string]string{"core": "id: core\ntier: core\ndepends: [a]\n", "a": "id: a\ntier: standard\ndefault: on\n"}, "core cannot need"},
 		{"not yaml", map[string]string{"core": coreYAML, "a": "id: [unclosed\n"}, "parse"},
 		{"bad id", map[string]string{"core": coreYAML, "A": "id: A\ntier: optional\n"}, "must match"},
 	}

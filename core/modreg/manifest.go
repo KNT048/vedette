@@ -49,7 +49,8 @@ type rawManifest struct {
 var ErrManifest = errors.New("modreg: invalid manifest")
 
 // Load reads every <dir>/MANIFEST.yaml in fsys and validates the set: the id equals the folder name,
-// tiers are known, dependencies exist, there are no cycles, and exactly one module has tier core.
+// tiers are known, dependencies exist, there are no cycles, exactly one module has tier core, the core
+// depends on nothing outside tier core, and no default-on module depends on a default-off one.
 // Folders whose name starts with "_" (the module template) are skipped.
 func Load(fsys fs.FS) ([]Manifest, error) {
 	files, err := fs.Glob(fsys, "*/MANIFEST.yaml")
@@ -164,6 +165,10 @@ func validateSet(ms []Manifest) error {
 				return fmt.Errorf("module %q depends on %q, which is a component, not a module", m.ID, d)
 			case m.Component:
 				return fmt.Errorf("component %q cannot depend on modules", m.ID)
+			case m.Tier == TierCore && dep.Tier != TierCore:
+				return fmt.Errorf("core module %q depends on %q (tier %s): the core cannot need a module that can be off", m.ID, d, dep.Tier)
+			case m.Default && !dep.Default:
+				return fmt.Errorf("module %q is on by default but depends on %q, which is off by default", m.ID, d)
 			}
 		}
 	}

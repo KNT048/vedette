@@ -6,5 +6,6 @@
 - [ ] Mã lỗi mới `csrf_invalid`, `not_implemented`, `internal` và `too_large` → 413 (§3.3 ghi 400/413) chưa có trong `docs/API_CONVENTIONS.md` §3.3 → PR của chủ hợp đồng.
 - [ ] `docs/DATA_MODEL.md` §3/§5.6: thêm bảng `core_job_run`, cột `core_module.disabled_at`/`version` đã có, ghi `enabled_at` = NULL khi tắt → PR của chủ hợp đồng.
 - [ ] `modules/core/CONTRACT.md`: PRE/POST-1 nhắc `Init`+`Routes`+`Jobs`; thực tế là cổng module ở `core/server` + `jobs.ModuleChanged` (interface `module.Module` chưa có) → cập nhật khi viết `module.Module`.
-- [ ] Cổng module của `findings`: `Enabled("findings")` = false tới khi WP-21 thêm `modules/findings/MANIFEST.yaml` (`/findings/*` trả 404 trong lúc đó).
+- [ ] Host allowlist (chống DNS rebinding: từ chối `Host` lạ) → WP-04b, cùng `Authenticator` và TLS.
+- [ ] Enum module id của `api/openapi.json`/`contract.ts` chưa có `findings` → `GET /modules` không mã hoá được hàng `findings`; PR hợp đồng WP-06 phải thêm; sau đó cập nhật `spaModuleIDs` trong `modules/core/contract_modules_test.go`.
 - [ ] Mỗi module còn lại chưa có `Migrations`; `cmd/vedette` chỉ migrate core → thêm vào vòng lặp khi module có migration.

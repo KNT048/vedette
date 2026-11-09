@@ -12,8 +12,10 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -30,8 +32,13 @@ import (
 // version is set at build time: -ldflags "-X main.version=v0.1.0".
 var version = "dev"
 
-// shutdownTimeout is how long in-flight requests get after SIGINT or SIGTERM.
-const shutdownTimeout = 10 * time.Second
+// shutdownTimeout is how long in-flight requests get after SIGINT or SIGTERM; schedulerStopTimeout is
+// how long the scheduler gets to stop its jobs before the process gives up waiting for jobs that
+// ignore their context (and closes the database anyway).
+const (
+	shutdownTimeout      = 10 * time.Second
+	schedulerStopTimeout = 10 * time.Second
+)
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -66,8 +73,28 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		_, err := fmt.Fprintln(stdout, version)
 		return err
 	}
+	if err := checkLoopback(o.listen); err != nil {
+		return err
+	}
 	log := slog.New(slog.NewJSONHandler(stderr, nil))
 	return serve(ctx, log, o)
+}
+
+// checkLoopback refuses a -listen address that is not loopback: sessions and the API travel over
+// plain HTTP until TLS lands (WP-04b/WP-08), so the process must not be reachable from the network.
+// Only literal loopback IPs and "localhost" pass; an empty host (":8080") or any other name does not.
+func checkLoopback(addr string) error {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return fmt.Errorf("listen %q: %w", addr, err)
+	}
+	if strings.EqualFold(host, "localhost") {
+		return nil
+	}
+	if ip, err := netip.ParseAddr(host); err == nil && ip.Unmap().IsLoopback() {
+		return nil
+	}
+	return fmt.Errorf("listen %q: refused, the address must be loopback (127.0.0.0/8, ::1 or localhost) until TLS is built in (WP-04b)", addr)
 }
 
 // serve opens everything, serves until ctx is cancelled, then shuts down in order: HTTP server,
@@ -112,10 +139,8 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return err
 	}
-	mux := http.NewServeMux()
-	mux.Handle(server.Prefix+"/", api)
 	srv := &http.Server{
-		Handler:           mux,
+		Handler:           topHandler(log, api),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       60 * time.Second,
 		IdleTimeout:       2 * time.Minute,
@@ -126,16 +151,42 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return fmt.Errorf("listen: %w", err)
 	}
+	return serveUntilDone(ctx, log, srv, ln, sched, schedulerStopTimeout)
+}
 
+// topHandler is everything the listener answers. The Envelope (panic recovery, request id, security
+// headers) wraps the ServeMux too, so the mux's own answers (307 for /api/v1, //, .. and the 404 for
+// other paths) carry the headers the API's responses do.
+func topHandler(log *slog.Logger, api http.Handler) http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle(server.Prefix+"/", api)
+	return server.Envelope(log, mux)
+}
+
+// serveUntilDone serves on ln and runs the scheduler until ctx is cancelled or the listener fails,
+// then stops in order: HTTP server, scheduler, return (the caller closes the database). The scheduler
+// runs on a child context that is cancelled on every exit path, and the wait for it is bounded by
+// stopWait so a job that ignores its context cannot hang the shutdown.
+func serveUntilDone(ctx context.Context, log *slog.Logger, srv *http.Server, ln net.Listener, sched *jobs.Scheduler, stopWait time.Duration) error {
+	schedCtx, cancelSched := context.WithCancel(ctx)
 	schedDone := make(chan struct{})
-	go func() { defer close(schedDone); sched.Run(ctx) }()
+	go func() { defer close(schedDone); sched.Run(schedCtx) }()
+	stopSched := func() {
+		cancelSched()
+		select {
+		case <-schedDone:
+		case <-time.After(stopWait):
+			log.ErrorContext(ctx, "scheduler did not stop in time: a job ignores its context", "waited", stopWait.String())
+		}
+	}
+	defer stopSched()
+
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(ln) }()
 	log.InfoContext(ctx, "listening", "addr", ln.Addr().String(), "version", version)
 
 	select {
-	case err := <-serveErr: // the listener failed: nothing left to wait for but the scheduler
-		<-schedDone
+	case err := <-serveErr: // the listener failed: stop the scheduler (deferred) and report
 		return fmt.Errorf("serve: %w", err)
 	case <-ctx.Done():
 	}
@@ -143,7 +194,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownTimeout)
 	defer cancel()
 	shutdownErr := srv.Shutdown(sctx)
-	<-schedDone
+	stopSched()
 	if err := <-serveErr; err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("serve: %w", err)
 	}

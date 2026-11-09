@@ -266,8 +266,9 @@ func TestOffModuleLooksLikeUnknownRoute(t *testing.T) {
 	if off.Body.String() != unknown.Body.String() {
 		t.Fatalf("off module body differs from an unknown route:\n%s\n%s", off.Body, unknown.Body)
 	}
-	// Even without a session: no 401 that would reveal the route exists.
-	wantError(t, r.do(t, req{method: "GET", path: "/feeds/status"}), 404, "not_found")
+	// A route that needs a session answers 401 to an anonymous client whether the module is on or off:
+	// the layer order is authenticate, module gate, role, so on/off is not visible without a session.
+	wantError(t, r.do(t, req{method: "GET", path: "/feeds/status"}), 401, "unauthenticated")
 	// No restart needed: turning it back on opens the route.
 	r.gate.Set("feeds", true)
 	if rec := r.do(t, req{method: "GET", path: "/feeds/status", user: "admin"}); rec.Code != 200 {
@@ -275,6 +276,113 @@ func TestOffModuleLooksLikeUnknownRoute(t *testing.T) {
 	}
 	r.gate.Set("feeds", false)
 	wantError(t, r.do(t, req{method: "GET", path: "/feeds/status", user: "admin"}), 404, "not_found")
+}
+
+// The leak this order closes: with no session, an off module and an on module look the same (401).
+func TestModuleStateDoesNotLeakToAnonymousClients(t *testing.T) {
+	t.Parallel()
+	r := newRig(t, "feeds")
+	off := r.do(t, req{method: "GET", path: "/feeds/status"})
+	wantError(t, off, 401, "unauthenticated")
+	r.gate.Set("feeds", true)
+	on := r.do(t, req{method: "GET", path: "/feeds/status"})
+	wantError(t, on, 401, "unauthenticated")
+	if off.Body.String() != on.Body.String() {
+		t.Fatalf("bodies differ:\n%s\n%s", off.Body, on.Body)
+	}
+	// A wrong cookie is anonymous too; and a state-changing request without a session is 401, not 404.
+	r.gate.Set("feeds", false)
+	wantError(t, r.do(t, req{method: "POST", path: "/feeds/weekly/x", csrf: true}), 401, "unauthenticated")
+	// Public operations have no session to wait for: the gate answers first.
+	r2 := newRig(t, "core")
+	wantError(t, r2.do(t, req{method: "GET", path: "/setup"}), 404, "not_found")
+	// For a signed-in user the order after authentication is gate (404) before role (403).
+	wantError(t, r.do(t, req{method: "PUT", path: "/feeds/sources/x", user: "viewer", csrf: true, body: "{}"}), 404, "not_found")
+	r.gate.Set("feeds", true)
+	wantError(t, r.do(t, req{method: "PUT", path: "/feeds/sources/x", user: "viewer", csrf: true, body: "{}"}), 403, "forbidden")
+}
+
+// The two routes the first mapping got wrong: /scans/credentialed belongs to scan-credentialed and
+// POST /findings/{id}/applied|ai to mitigation. Turning the owner off closes the route; turning the
+// neighbour off (scan, findings) does not.
+func TestOverriddenRoutesFollowTheirOwnModule(t *testing.T) {
+	t.Parallel()
+	t.Run("scan-credentialed off", func(t *testing.T) {
+		t.Parallel()
+		r := newRig(t, "scan-credentialed")
+		wantError(t, r.do(t, req{method: "GET", path: "/scans/credentialed", user: "admin"}), 404, "not_found")
+		wantError(t, r.do(t, req{method: "POST", path: "/scans/credentialed/x/test", user: "admin", csrf: true}), 404, "not_found")
+		wantError(t, r.do(t, req{method: "GET", path: "/scans/config", user: "admin"}), 501, "not_implemented") // scan is on
+	})
+	t.Run("scan off leaves scan-credentialed", func(t *testing.T) {
+		t.Parallel()
+		r := newRig(t, "scan")
+		wantError(t, r.do(t, req{method: "GET", path: "/scans/credentialed", user: "admin"}), 501, "not_implemented")
+		wantError(t, r.do(t, req{method: "GET", path: "/scans/config", user: "admin"}), 404, "not_found")
+	})
+	t.Run("mitigation off", func(t *testing.T) {
+		t.Parallel()
+		r := newRig(t, "mitigation")
+		wantError(t, r.do(t, req{method: "POST", path: "/findings/f1/applied", user: "operator", csrf: true, body: "{}"}), 404, "not_found")
+		wantError(t, r.do(t, req{method: "POST", path: "/findings/f1/ai", user: "operator", csrf: true, body: "{}"}), 404, "not_found")
+		wantError(t, r.do(t, req{method: "GET", path: "/findings/f1", user: "viewer"}), 501, "not_implemented") // findings is on
+	})
+	t.Run("findings off leaves mitigation", func(t *testing.T) {
+		t.Parallel()
+		r := newRig(t, "findings")
+		wantError(t, r.do(t, req{method: "GET", path: "/findings/f1", user: "viewer"}), 404, "not_found")
+		if rec := r.do(t, req{method: "POST", path: "/findings/f1/applied", user: "operator", csrf: true, body: "{}"}); rec.Code == 404 {
+			t.Fatalf("POST /findings/f1/applied is 404 with only findings off: %s", rec.Body)
+		}
+	})
+}
+
+func TestOriginMustMatchOnStateChangingRequests(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	own := "http://example.com" // httptest requests are plain HTTP to example.com
+	body := `{"name":"Acme","timezone":"UTC"}`
+	put := func(origin string) *httptest.ResponseRecorder {
+		q := req{method: "PUT", path: "/core/general", user: "admin", csrf: true, body: body}
+		if origin != "" {
+			q.header = map[string]string{"Origin": origin}
+		}
+		return r.do(t, q)
+	}
+	if rec := put(""); rec.Code != 200 {
+		t.Fatalf("no Origin (non-browser client): %d %s", rec.Code, rec.Body)
+	}
+	if rec := put(own); rec.Code != 200 {
+		t.Fatalf("same origin: %d %s", rec.Code, rec.Body)
+	}
+	if rec := put("HTTP://EXAMPLE.COM"); rec.Code != 200 {
+		t.Fatalf("same origin, other case: %d %s", rec.Code, rec.Body)
+	}
+	for _, bad := range []string{"http://evil.example", "https://example.com", "http://example.com:81", "http://example.com.evil.example", "null", own + "/", ""} {
+		if bad == "" {
+			continue
+		}
+		wantError(t, put(bad), 403, "csrf_invalid")
+	}
+	// Public POSTs are covered too, and the check runs before authentication and routing.
+	evil := map[string]string{"Origin": "http://evil.example"}
+	wantError(t, r.do(t, req{method: "POST", path: "/auth/logout", header: evil}), 403, "csrf_invalid")
+	wantError(t, r.do(t, req{method: "POST", path: "/nope", header: evil}), 403, "csrf_invalid")
+	wantError(t, r.do(t, req{method: "DELETE", path: "/feeds/custom/x", header: evil}), 403, "csrf_invalid")
+	if rec := r.do(t, req{method: "POST", path: "/auth/logout", header: map[string]string{"Origin": own}}); rec.Code != 204 {
+		t.Fatalf("same-origin public POST: %d", rec.Code)
+	}
+	// Reads are not state-changing: a foreign Origin on GET is not this check's business.
+	if rec := r.do(t, req{method: "GET", path: "/setup", header: evil}); rec.Code != 200 {
+		t.Fatalf("GET with a foreign Origin: %d", rec.Code)
+	}
+	// Two Origin headers are never legitimate.
+	hr := httptest.NewRequestWithContext(t.Context(), "POST", server.Prefix+"/auth/logout", nil)
+	hr.Header.Add("Origin", own)
+	hr.Header.Add("Origin", own)
+	rec := httptest.NewRecorder()
+	r.h.ServeHTTP(rec, hr)
+	wantError(t, rec, 403, "csrf_invalid")
 }
 
 func TestPrincipalAndRequestIDReachTheHandler(t *testing.T) {

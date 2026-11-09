@@ -94,8 +94,10 @@ func checkNeverTransmits(t *testing.T) {
 			t.Errorf("%s has methods %v, want exactly %v: no capture type may have a write or send method", name, got, want)
 		}
 	}
-	allowedSyscall := []string{"AF_PACKET", "SOCK_RAW", "SOCK_CLOEXEC", "ETH_P_ALL", "Socket", "Bind", "SockaddrLinklayer", "SOL_PACKET", "PACKET_ADD_MEMBERSHIP",
-		"SYS_SETSOCKOPT", "Syscall6", "SOL_SOCKET", "SO_RCVTIMEO", "NsecToTimeval", "SetsockoptTimeval", "Recvfrom", "EAGAIN", "EINTR", "Close"}
+	allowedSyscall := []string{"AF_PACKET", "SOCK_RAW", "SOCK_CLOEXEC", "ETH_P_ALL", "Socket", "Bind", "SockaddrLinklayer",
+		"SOL_SOCKET", "SO_RCVTIMEO", "NsecToTimeval", "SetsockoptTimeval", "Recvfrom", "EAGAIN", "EINTR", "Close"}
+	// x/sys/unix only for the promiscuous membership (a receive-side socket option), so no unsafe pointer is needed
+	allowedUnix := []string{"PacketMreq", "PACKET_MR_PROMISC", "SetsockoptPacketMreq", "SOL_PACKET", "PACKET_ADD_MEMBERSHIP"}
 	for name, af := range sources(t) {
 		for _, imp := range af.Imports {
 			switch path := strings.Trim(imp.Path.Value, `"`); path {
@@ -109,7 +111,9 @@ func checkNeverTransmits(t *testing.T) {
 			}
 		}
 		for _, s := range selectors(af, "unix") {
-			t.Errorf("%s uses unix.%s: use only the audited syscall calls of afpacket_linux.go", name, s)
+			if !slices.Contains(allowedUnix, s) {
+				t.Errorf("%s uses unix.%s: only the audited receive-side calls are allowed", name, s)
+			}
 		}
 		for _, s := range selectors(af, "net") {
 			if s != "InterfaceByName" {
@@ -679,9 +683,19 @@ func TestContract_DropSummaryIsLoggedOnceWhileUnchanged(t *testing.T) {
 	e.setInterface("eth1", true)
 	e.run()
 	waitFor(t, "the summary", func() bool { return strings.Contains(buf.String(), "packets dropped or ignored") })
-	pause(t, 200*time.Millisecond) // ten more intervals with the same counters
-	if n := strings.Count(buf.String(), "packets dropped or ignored"); n != 1 {
-		t.Errorf("%d summaries, want 1:\n%s", n, buf.String())
+	// A slow machine can spread the frames over several intervals (one summary per change): wait until the
+	// counters stop moving, then ten more intervals with the same counters must log nothing.
+	last, stable := buf.String(), time.Now()
+	waitFor(t, "stable counters", func() bool {
+		if cur := buf.String(); cur != last {
+			last, stable = cur, time.Now()
+		}
+		return time.Since(stable) > 100*time.Millisecond
+	})
+	n := strings.Count(buf.String(), "packets dropped or ignored")
+	pause(t, 200*time.Millisecond)
+	if m := strings.Count(buf.String(), "packets dropped or ignored"); m != n {
+		t.Errorf("%d summaries after the counters stopped changing, want %d:\n%s", m, n, buf.String())
 	}
 	if !strings.Contains(buf.String(), "malformed_arp") {
 		t.Errorf("the summary has no counters:\n%s", buf.String())

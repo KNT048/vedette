@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
-	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
@@ -30,7 +29,6 @@ import (
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules"
-	"github.com/knt048/vedette/modules/core"
 )
 
 // version is set at build time: -ldflags "-X main.version=v0.1.0".
@@ -188,23 +186,13 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return err
 	}
-	// No mailer until the notify module provides one: email two-step accounts get 503 twofa_email_unavailable
-	// (INV-8, never password-only) and GET /core/account says the email method is not available.
-	authSvc, err := auth.New(auth.Config{DB: db, Secrets: sec, Audit: aud, Mailer: nil, Clock: time.Now, Log: log})
-	if err != nil {
-		return err
-	}
-	coreHandlers, err := core.NewAPIHandlers(core.HandlersConfig{DB: db, Auth: authSvc, Reg: reg, Audit: aud, Secrets: sec, Log: log, Clock: time.Now})
-	if err != nil {
-		return err
-	}
-	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Auth: authSvc, Core: coreHandlers}
+	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log)}
 	if err := buildServices(&d); err != nil {
 		return err
 	}
 	// D-75: while first-run setup is open the box prints its one-time setup code, at every start. This is the
 	// one place a secret is logged on purpose: the log is where the person who installed the box looks.
-	code, err := coreHandlers.EnsureSetupCode(ctx)
+	code, err := d.Core.EnsureSetupCode(ctx)
 	if err != nil {
 		return err
 	}
@@ -219,7 +207,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 
 	api, err := server.New(server.Config{
 		API:        newHandler(d),
-		Auth:       authSvc.Sessions,
+		Auth:       d.Auth.Sessions,
 		Modules:    reg,
 		Log:        log,
 		BodyLimits: bodyLimits(wired),

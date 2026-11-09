@@ -170,14 +170,23 @@ func TestContract_INV3_NoPayloadStored(t *testing.T) {
 	e.host.setFilters()
 	e.setInterface("eth1", true)
 	stop := e.run()
-	waitFor(t, "metadata", func() bool { return len(e.meta.all()) > 0 && e.sink.count() > 0 })
+	want := []sp.MetaKind{sp.MetaDNS, sp.MetaSNI, sp.MetaHTTP, sp.MetaFlow}
+	kindsOf := func(items []sp.MetaItem) map[sp.MetaKind]bool {
+		k := map[sp.MetaKind]bool{}
+		for _, it := range items {
+			k[it.Kind] = true
+		}
+		return k
+	}
+	// Wait for every kind, not for the first item: a slow machine delivers the recording in several flushes.
+	waitFor(t, "metadata of every kind", func() bool {
+		k := kindsOf(e.meta.all())
+		return e.sink.count() > 0 && k[sp.MetaDNS] && k[sp.MetaSNI] && k[sp.MetaHTTP] && k[sp.MetaFlow]
+	})
 	stop()
 	items := e.meta.all()
-	kinds := map[sp.MetaKind]bool{}
-	for _, it := range items {
-		kinds[it.Kind] = true
-	}
-	for _, k := range []sp.MetaKind{sp.MetaDNS, sp.MetaSNI, sp.MetaHTTP, sp.MetaFlow} {
+	kinds := kindsOf(items)
+	for _, k := range want {
 		if !kinds[k] {
 			t.Errorf("no %s item in %d items", k, len(items))
 		}

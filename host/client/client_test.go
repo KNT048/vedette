@@ -229,3 +229,28 @@ func TestEventLargerThan64KiBIsRefused(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestStateNet(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	// A host without the reader answers 404 unknown_command.
+	h := servertest.Start(t, nil)
+	if _, err := h.Client.StateNet(ctx); !client.IsCode(err, api.CodeUnknownCommand) {
+		t.Fatalf("no reader: %v", err)
+	}
+	want := api.NetState{
+		Interfaces:   []api.NetInterface{{Name: "eth0", MAC: "02:00:00:00:00:01", State: "up", Role: api.NetRoleManagement, Addresses: []string{"10.0.0.2/24"}}},
+		DefaultRoute: &api.NetRoute{Iface: "eth0", Gateway: "10.0.0.1"},
+		Decoys:       []api.NetDecoy{},
+	}
+	h2 := servertest.Start(t, nil, func(o *server.Options) {
+		o.Readers.Net = func(context.Context) (any, error) { return want, nil }
+	})
+	got, err := h2.Client.StateNet(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Interfaces) != 1 || got.Interfaces[0].Addresses[0] != "10.0.0.2/24" || got.DefaultRoute == nil || got.DefaultRoute.Gateway != "10.0.0.1" {
+		t.Fatalf("%+v", got)
+	}
+}

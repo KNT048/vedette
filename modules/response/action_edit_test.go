@@ -62,7 +62,7 @@ func TestContract_INV9_ActionFingerprintMismatchRefusesTheRun(t *testing.T) {
 	if got.Items[0].Status != response.ItemExecuted {
 		t.Fatalf("an unchanged action did not run: %s %q", got.Items[0].Status, resultOf(got.Items[0]))
 	}
-	if e.exec.count() == 0 || !strings.Contains(e.exec.steps[0].Rest.URL, "/q/") {
+	if e.exec.count() == 0 || !strings.Contains(e.exec.steps[0].URL, "/q/") {
 		t.Fatalf("steps: %+v", e.exec.steps)
 	}
 }

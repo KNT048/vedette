@@ -15,6 +15,7 @@ import type { Role } from '@/lib/session'
 import type { ActionRequest, AiState, Blocklist, Catalog, LogEntry, PlanList, ProposeResult, Rule, RuleInput, RunSummary, SettingsView, Simulation } from './types'
 import ResponseSettings from './ResponseSettings'
 import { ActionDialog } from './CatalogEditor'
+import { RequestCard } from './RequestCard'
 import { RuleDialog } from './RuleEditor'
 import { buildChange, catalogStore } from './state'
 
@@ -879,6 +880,37 @@ describe('response: action catalog (S-RESP-4)', () => {
     expect(ac.precheck_rules).toMatch(/"action":"deny"/)
     expect(ac.verify).toBe('GET https://fw.lan/api/v2/cmdb/firewall/policy/7')
     expect(buildChange(catalogStore.get().find((x) => x.id === 'blocklist_add')!, { ip: '1.2.3.4' }, undefined, 'r').precheck).toBe('')
+  })
+
+  it('the approver sees the headers with their typed values, and {expiry_s} as the number that will be sent (13b-6 review M3)', () => {
+    const conn = { kind: 'http', target: 'https://fw.lan' } as never
+    const ban = catalogStore.get().find((x) => x.id === 'fgt_ban_ip')!
+    const withHeaders = { ...ban, run: { ...ban.run, headers: 'X-Block-Scope: {ip}\nX-Commit: now' } }
+    const ch = buildChange(withHeaders, { ip: '198.51.100.7' }, conn, 'r', 30)
+    expect(ch.rest?.headers).toEqual({ 'X-Block-Scope': '198.51.100.7', 'X-Commit': 'now' })
+    expect(ch.rest?.body).toContain('"expiry":1800')
+    expect(ch.rest?.body).not.toContain('<expiry_s>')
+    expect(buildChange(ban, { ip: '198.51.100.7' }, conn, 'r', 30).rest?.headers).toEqual({})
+  })
+
+  it('an item whose outcome is not known can be undone, and the card says why (13b-6 review M2)', async () => {
+    await turnOn()
+    const a = await request()
+    expect((await call('operator', 'POST', `/response/actions/${a.json.id}/approve`)).status).toBe(200)
+    actionsDb.update((l) => l.map((x) => (x.id === a.json.id ? { ...x, status: 'failed' as const, items: x.items.map((i) => ({ ...i, status: 'failed' as const, state_unknown: true, remove_at: null, result: 'State unknown: check the device.' })) } : x)))
+    const card = (await call<{ items: ActionRequest[] }>('operator', 'GET', '/response/actions')).json.items.find((x) => x.id === a.json.id)!
+    renderUi(<RequestCard a={card} />, 'operator')
+    expect(screen.getByRole('note')).toHaveTextContent('The result of this change is unknown. Undo it to be sure it is not in force.')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Roll back' })).toBeEnabled())
+    const rb = await call<ActionRequest>('operator', 'POST', `/response/actions/${a.json.id}/rollback`)
+    expect(rb.status).toBe(200)
+    expect(rb.json.items[0]).toMatchObject({ status: 'rolled_back', state_unknown: false })
+    expect(rb.json.items[0]!.result).toContain('earlier outcome was not known')
+    // A plain failed item (nothing was changed) has nothing to undo.
+    const b = await request()
+    expect((await call('operator', 'POST', `/response/actions/${b.json.id}/approve`)).status).toBe(200)
+    actionsDb.update((l) => l.map((x) => (x.id === b.json.id ? { ...x, status: 'failed' as const, items: x.items.map((i) => ({ ...i, status: 'failed' as const, remove_at: null })) } : x)))
+    expect((await call('operator', 'POST', `/response/actions/${b.json.id}/rollback`)).code).toBe('not_executed')
   })
 
   it('custom actions: add, edit, delete; unsafe templates are refused; built-ins cannot be deleted; a rule in use blocks delete', async () => {

@@ -231,7 +231,7 @@ func TestHoneypotDecoyAddressesAreNotDevices(t *testing.T) {
 	if after := devices(); after != before {
 		t.Fatalf("the answer of the trap itself became a device (%d devices, %d before)", after, before)
 	}
-	prot, err := sensorInventory{s.d.Inventory}.ProtectedIPs(t.Context())
+	prot, err := sensorInventory{inv: s.d.Inventory}.ProtectedIPs(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -273,7 +273,7 @@ func TestHoneypotInventoryAdapter(t *testing.T) {
 	s := newStack(t)
 	s.saveScope(t)
 	id := s.seen(t, "192.168.10.30", "aa:bb:cc:00:00:30", "nas")
-	a := honeypotInventory{s.d.Inventory}
+	a := honeypotInventory{inv: s.d.Inventory}
 	devs, err := a.Devices(t.Context())
 	if err != nil {
 		t.Fatal(err)

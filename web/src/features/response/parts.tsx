@@ -18,7 +18,7 @@ const ITEM_TONE: Record<ItemStatus, Tone> = { pending: 'warn', skipped: 'off', e
 export const ItemTag = ({ status }: { status: ItemStatus }) => { const { t } = useTranslation('response'); return <Chip tone={ITEM_TONE[status]}>{t(`item.${status}`)}</Chip> }
 export const StatusTag = ({ status }: { status: ActionStatus }) => { const { t } = useTranslation('response'); return <Chip tone={TONE[status]}>{t(`status.${status}`)}</Chip> }
 
-const restText = (r: NonNullable<Change['rest']>) => `${r.method} ${r.url}${r.body ? `\n${r.body}` : ''}`
+const restText = (r: NonNullable<Change['rest']>) => `${r.method} ${r.url}${Object.entries(r.headers).map(([k, v]) => `\n${k}: ${v}`).join('')}${r.body ? `\n\n${r.body}` : ''}`
 
 export function ChangeView({ change }: { change: Change }) {
   const { t } = useTranslation('response')

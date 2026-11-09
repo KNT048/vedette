@@ -280,12 +280,15 @@ func TestContract_INV2_TwoApprovers(t *testing.T) {
 	if done.Status != response.StatusExecuted || done.Items[0].Status != response.ItemExecuted || done.Items[1].Status != response.ItemSkipped || len(done.Approvals) != 2 {
 		t.Fatalf("after the second approval: %+v", done)
 	}
-	if got := e.exec.phases(); len(got) != 1 || got[0] != "run" {
+	if got := e.exec.phases(); strings.Join(got, ",") != "precheck,run,verify" {
 		t.Fatalf("executor steps = %v", got)
 	}
-	st := e.exec.steps[0]
-	if st.ConnectionID != "cn-fw" || st.Rest == nil || st.Rest.URL != "https://fw.lan/api/v2/cmdb/firewall/policy/12" || st.CLI != "" {
-		t.Fatalf("the step is not the stored template rendered: %+v %+v", st, st.Rest)
+	st := e.exec.steps[1]
+	if st.ConnectionID != "cn-fw" || st.Method != "PUT" || st.URL != "https://fw.lan/api/v2/cmdb/firewall/policy/12" || len(st.Lines) != 0 || st.Body != `{"status":"disable"}` {
+		t.Fatalf("the step is not the stored template rendered: %+v", st)
+	}
+	if pre := e.exec.steps[0]; pre.Method != "GET" || pre.URL != "https://fw.lan/api/v2/cmdb/firewall/policy/12" || pre.Body != "" {
+		t.Fatalf("the check before: %+v", pre)
 	}
 }
 
@@ -616,6 +619,7 @@ func TestContract_INV13_DeviceRollbackNeedsExecution(t *testing.T) {
 	e.rule("Ban", "honeypot", []response.RuleAction{{ActionID: "fgt_ban_ip", Params: map[string]string{"ip": "{{trigger.source_ip}}"}, TTLMin: intp(30)}}, nil)
 	e.fire(e.trap("h1", "192.168.10.157"))
 	a := e.only()
+	e.exec.present = `{"results":["192.168.10.157"]}`
 	got, err := e.svc.Approve(e.ctx(), oper, a.ID, nil, "")
 	e.must(err)
 	if got.Items[0].Verified == nil || !got.Items[0].Verified.OK {
@@ -625,13 +629,13 @@ func TestContract_INV13_DeviceRollbackNeedsExecution(t *testing.T) {
 	e.must(err)
 	_, err = e.svc.Rollback(e.ctx(), oper, a.ID)
 	wantCode(t, err, 409, "execution_off")
-	if got := e.exec.phases(); len(got) != 1 {
+	if got := e.exec.phases(); strings.Join(got, ",") != "run,verify" {
 		t.Fatalf("steps = %v", got)
 	}
 	// Removing the change at the end of its undo time is the safe direction: it does not wait for the switch.
 	e.clock.Advance(31 * time.Minute)
 	e.must(e.svc.Sweep(e.ctx()))
-	if got := e.exec.phases(); len(got) != 2 || got[1] != "rollback" || e.only().Status != response.StatusRolledBack {
+	if got := e.exec.phases(); strings.Join(got, ",") != "run,verify,rollback,verify" || e.only().Status != response.StatusRolledBack {
 		t.Fatalf("steps = %v, request %+v", got, e.only())
 	}
 }

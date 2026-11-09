@@ -10,7 +10,7 @@ import { RISK_PHRASE } from './contract'
 import type { StoredCat } from './data'
 import { CLI_BAN, seedCatalog } from './templates'
 import {
-  approvalToken, EMPTY_TPL, fill, GENESIS, isMcp, KIND_FIELDS, kindProblem, logHashSync, needsPrecheck, oneLine, randomToken, readBackProblem, cliProblem, READ_ONLY, RUNTIME_VALUES, tplEmpty, tplParams, TOKEN_RE, validatePrecheck, validateTpl, verifyChain,
+  approvalToken, EMPTY_TPL, fill as fillTyped, type Transport, GENESIS, isMcp, KIND_FIELDS, kindProblem, logHashSync, needsPrecheck, oneLine, randomToken, readBackProblem, cliProblem, READ_ONLY, RUNTIME_VALUES, tplEmpty, tplParams, TOKEN_RE, validatePrecheck, validateTpl, verifyChain,
   type ConnKind, type ParamType, type Tpl,
 } from './logic'
 import type { ActionRequest, CatalogAction, Change, Connection, LogEntry, RequestItem, Risk, Settings, SettingsView, Trigger } from './types'
@@ -194,10 +194,13 @@ export function checkCatalog(b: Record<string, unknown>): CatErr | CatClean {
 }
 
 /** Exact change for one catalog action and validated values. Each value is escaped for the place it lands in. */
-export function buildChange(c: StoredCat, values: Partial<Record<ParamType, string>>, conn: Connector | undefined, why: string): Change {
+/** `ttlMin` is the undo time of the item: {expiry_s} is shown as the number of seconds that will be sent (the real server fills it the same way). */
+export function buildChange(c: StoredCat, values: Partial<Record<ParamType, string>>, conn: Connector | undefined, why: string, ttlMin: number | null = null): Change {
   const api = conn && isHttpKind(conn.kind)
   const mcp = conn && isMcp(conn.kind)
-  const call = (t: Tpl) => (api && t.method && t.path ? { method: t.method as 'GET' | 'PUT' | 'PATCH' | 'POST' | 'DELETE', url: `${conn.target}${fill(t.path, values, 'url')}`, body: t.body ? fill(t.body, values, 'json') : null } : null)
+  const fill = (text: string, v: Partial<Record<ParamType, string>>, transport: Transport) => { const out = fillTyped(text, v, transport); return ttlMin === null ? out : out.replaceAll('<expiry_s>', String(ttlMin * 60)) }
+  const headersOf = (t: Tpl) => Object.fromEntries(t.headers.split('\n').filter((l) => l.trim()).map((l) => { const i = l.indexOf(':'); return [l.slice(0, i).trim(), fill(l.slice(i + 1).trim(), values, 'header')] as const }))
+  const call = (t: Tpl) => (api && t.method && t.path ? { method: t.method as 'GET' | 'PUT' | 'PATCH' | 'POST' | 'DELETE', url: `${conn.target}${fill(t.path, values, 'url')}`, body: t.body ? fill(t.body, values, 'json') : null, headers: headersOf(t) } : null)
   const cli = (t: Tpl, tool: string | null) => (mcp ? `${tool ?? ''}(${t.body ? fill(t.body, values, 'json') : ''})` : conn?.kind === 'ssh' || !conn ? fill(t.cli, values, 'cli') : api && t.method && t.path ? '' : fill(t.cli, values, 'cli'))
   const what = Object.entries(values).filter(([k]) => paramsOf(c).includes(k as ParamType)).map(([k, v]) => `${k} ${v}`).join(', ')
   /** The exact read-only step: the stored method and URL of an API call, or the command lines. */
@@ -222,8 +225,8 @@ export interface SeedBits { id: string; source: 'ai' | 'rule'; rule_id?: string;
 const catItem = (catId: string, values: Partial<Record<ParamType, string>>, why: string, o: Partial<RequestItem> & { ttl: number | null }): RequestItem => {
   const c = catById(catId)!, conn = connById(c.connection_id)
   return { id: newId('it'), action_id: c.id, title: c.kind === 'box' && c.id === 'blocklist_add' ? `Add ${values.ip} to the block list` : c.id === 'msg_send' ? 'Send a message to your alert channels' : `${c.name}: ${Object.values(values)[0]}`, risk: c.risk, reversible: reversible(c),
-    connector_id: c.kind === 'device' ? c.connection_id : null, connection: c.kind === 'device' ? conn?.name ?? null : null, tool: c.tool ?? c.id, targets: 1, change: buildChange(c, values, conn, why),
-    ttl_min: o.ttl, status: 'pending', executed_at: null, remove_at: null, rolled_back_at: null, result: null, verified: null, ...o }
+    connector_id: c.kind === 'device' ? c.connection_id : null, connection: c.kind === 'device' ? conn?.name ?? null : null, tool: c.tool ?? c.id, targets: 1, change: buildChange(c, values, conn, why, o.ttl),
+    ttl_min: o.ttl, status: 'pending', executed_at: null, remove_at: null, rolled_back_at: null, result: null, verified: null, state_unknown: false, ...o }
 }
 const done = (at: string, ttl: number, verified = true): Partial<RequestItem> => ({ status: 'executed', executed_at: at, remove_at: new Date(Date.parse(at) + ttl * 60e3).toISOString(), result: 'Added to the block list. Your firewall picks it up on its next fetch.', verified: { ok: verified, detail: 'Read back from the block list: the entry is present.' } })
 const person = (id: string, name: string, email: string, via: ActionRequest['approvals'][number]['via'], at: string, items: RequestItem[]) => ({ user_id: id, name, email, via, at, items: items.map((i) => i.id) })
@@ -427,13 +430,16 @@ export function reject(a: ActionRequest, w: Who, note: string): Response | Actio
   return patchAction(a.id, (x) => ({ ...x, status: 'rejected', decided_at: nowIso(), note, items: x.items.map((i) => ({ ...i, status: 'skipped' as const })) }))
 }
 
+/** An item that can be undone: in force, or failed with an outcome that is not known (undo it to be sure it is not in force). */
+export const undoable = (i: Pick<RequestItem, 'status' | 'state_unknown'>) => i.status === 'executed' || (i.status === 'failed' && i.state_unknown)
+
 export function rollbackRequest(a: ActionRequest): Response | ActionRequest {
-  const run = a.items.filter((i) => i.status === 'executed')
+  const run = a.items.filter(undoable)
   if (!run.length) return refuse(409, 'not_executed', 'Only an executed action can be rolled back.', a.id)
   for (const i of run) { const blocked = gate(a, i); if (blocked) return blocked }
   for (const i of run) {
     step('response.rollback', a.id, 'rolled_back', `${i.change.rollback.title}; ${callText(i.change.rollback.rest, i.change.rollback.cli)}`)
-    patchItem(a, i.id, { status: 'rolled_back', rolled_back_at: nowIso(), result: i.change.rollback.rest ? `${i.change.rollback.rest.method} ${i.change.rollback.rest.url} answered 200 {"status":"success"}` : 'Removed.' })
+    patchItem(a, i.id, { status: 'rolled_back', rolled_back_at: nowIso(), state_unknown: false, result: (i.state_unknown ? 'Its earlier outcome was not known. ' : '') + (i.change.rollback.rest ? `${i.change.rollback.rest.method} ${i.change.rollback.rest.url} answered 200 {"status":"success"}` : 'Removed.') })
   }
   return patchAction(a.id, (x) => ({ ...x, status: 'rolled_back' }))
 }

@@ -126,7 +126,7 @@ export const handlers = [
     if (problem) return refuse(409, 'tool_unavailable', problem, pid)
     if (actionsStore.get().some((a) => a.proposal_id === pid && (a.status === 'pending' || a.status === 'executed'))) return refuse(409, 'already_requested', 'This action already has an open request or has already been carried out.', pid)
     const item: RequestItem = { id: newId('it'), action_id: cat.id, title: prop.title, risk: cat.risk, reversible: reversible(cat), connector_id: prop.connector_id, connection: prop.connection, tool: prop.tool, targets: 1, change: prop.change,
-      ttl_min: null, status: 'pending', executed_at: null, remove_at: null, rolled_back_at: null, result: null, verified: null }
+      ttl_min: null, status: 'pending', executed_at: null, remove_at: null, rolled_back_at: null, result: null, verified: null, state_unknown: false }
     const a = newRequestFromPlan(plan, prop, item)
     return HttpResponse.json(a, { status: 201 })
   }),

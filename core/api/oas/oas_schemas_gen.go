@@ -92881,14 +92881,17 @@ type ResponseGetResponseActionsOKItemsItemItemsItem struct {
 	Change     ResponseGetResponseActionsOKItemsItemItemsItemChange `json:"change"`
 	Connection NilString                                            `json:"connection"`
 	// Null = the action does not change another device (block list, message).
-	ConnectorID  NilString                                            `json:"connector_id"`
-	ExecutedAt   NilDateTime                                          `json:"executed_at"`
-	ID           string                                               `json:"id"`
-	RemoveAt     NilDateTime                                          `json:"remove_at"`
-	Result       NilString                                            `json:"result"`
-	Reversible   bool                                                 `json:"reversible"`
-	Risk         ResponseGetResponseActionsOKItemsItemItemsItemRisk   `json:"risk"`
-	RolledBackAt NilDateTime                                          `json:"rolled_back_at"`
+	ConnectorID  NilString                                          `json:"connector_id"`
+	ExecutedAt   NilDateTime                                        `json:"executed_at"`
+	ID           string                                             `json:"id"`
+	RemoveAt     NilDateTime                                        `json:"remove_at"`
+	Result       NilString                                          `json:"result"`
+	Reversible   bool                                               `json:"reversible"`
+	Risk         ResponseGetResponseActionsOKItemsItemItemsItemRisk `json:"risk"`
+	RolledBackAt NilDateTime                                        `json:"rolled_back_at"`
+	// A failed item whose step was sent and whose outcome is not known: it may be in force, so it can be
+	// undone to be sure.
+	StateUnknown bool                                                 `json:"state_unknown"`
 	Status       ResponseGetResponseActionsOKItemsItemItemsItemStatus `json:"status"`
 	// How many addresses or objects the action touches.
 	Targets int    `json:"targets"`
@@ -92953,6 +92956,11 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItem) GetRisk() ResponseGetRe
 // GetRolledBackAt returns the value of RolledBackAt.
 func (s *ResponseGetResponseActionsOKItemsItemItemsItem) GetRolledBackAt() NilDateTime {
 	return s.RolledBackAt
+}
+
+// GetStateUnknown returns the value of StateUnknown.
+func (s *ResponseGetResponseActionsOKItemsItemItemsItem) GetStateUnknown() bool {
+	return s.StateUnknown
 }
 
 // GetStatus returns the value of Status.
@@ -93038,6 +93046,11 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItem) SetRisk(val ResponseGet
 // SetRolledBackAt sets the value of RolledBackAt.
 func (s *ResponseGetResponseActionsOKItemsItemItemsItem) SetRolledBackAt(val NilDateTime) {
 	s.RolledBackAt = val
+}
+
+// SetStateUnknown sets the value of StateUnknown.
+func (s *ResponseGetResponseActionsOKItemsItemItemsItem) SetStateUnknown(val bool) {
+	s.StateUnknown = val
 }
 
 // SetStatus sets the value of Status.
@@ -93184,14 +93197,22 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChange) SetVerifyRule(val
 }
 
 type ResponseGetResponseActionsOKItemsItemItemsItemChangeRest struct {
-	Body   NilString                                                      `json:"body"`
-	Method ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethod `json:"method"`
-	URL    string                                                         `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponseGetResponseActionsOKItemsItemItemsItemChangeRestHeaders `json:"headers"`
+	Method  ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethod  `json:"method"`
+	URL     string                                                          `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRest) GetHeaders() ResponseGetResponseActionsOKItemsItemItemsItemChangeRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -93209,6 +93230,11 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRest) SetBody(val N
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRest) SetHeaders(val ResponseGetResponseActionsOKItemsItemItemsItemChangeRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRest) SetMethod(val ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethod) {
 	s.Method = val
@@ -93217,6 +93243,19 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRest) SetMethod(val
 // SetURL sets the value of URL.
 func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponseGetResponseActionsOKItemsItemItemsItemChangeRestHeaders map[string]string
+
+func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRestHeaders) init() ResponseGetResponseActionsOKItemsItemItemsItemChangeRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponseGetResponseActionsOKItemsItemItemsItemChangeRestMethod string
@@ -93319,14 +93358,22 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRollback) SetTitle(
 }
 
 type ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRest struct {
-	Body   NilString                                                              `json:"body"`
-	Method ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethod `json:"method"`
-	URL    string                                                                 `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestHeaders `json:"headers"`
+	Method  ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethod  `json:"method"`
+	URL     string                                                                  `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRest) GetHeaders() ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -93344,6 +93391,11 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRest) SetBo
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRest) SetHeaders(val ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRest) SetMethod(val ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethod) {
 	s.Method = val
@@ -93352,6 +93404,19 @@ func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRest) SetMe
 // SetURL sets the value of URL.
 func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestHeaders map[string]string
+
+func (s *ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestHeaders) init() ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponseGetResponseActionsOKItemsItemItemsItemChangeRollbackRestMethod string
@@ -94693,14 +94758,22 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChange) SetVerifyRule(val str
 }
 
 type ResponseGetResponseApproveTokenOKItemsItemChangeRest struct {
-	Body   NilString                                                  `json:"body"`
-	Method ResponseGetResponseApproveTokenOKItemsItemChangeRestMethod `json:"method"`
-	URL    string                                                     `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponseGetResponseApproveTokenOKItemsItemChangeRestHeaders `json:"headers"`
+	Method  ResponseGetResponseApproveTokenOKItemsItemChangeRestMethod  `json:"method"`
+	URL     string                                                      `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRest) GetHeaders() ResponseGetResponseApproveTokenOKItemsItemChangeRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -94718,6 +94791,11 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRest) SetBody(val NilSt
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRest) SetHeaders(val ResponseGetResponseApproveTokenOKItemsItemChangeRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRest) SetMethod(val ResponseGetResponseApproveTokenOKItemsItemChangeRestMethod) {
 	s.Method = val
@@ -94726,6 +94804,19 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRest) SetMethod(val Res
 // SetURL sets the value of URL.
 func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponseGetResponseApproveTokenOKItemsItemChangeRestHeaders map[string]string
+
+func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRestHeaders) init() ResponseGetResponseApproveTokenOKItemsItemChangeRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponseGetResponseApproveTokenOKItemsItemChangeRestMethod string
@@ -94828,14 +94919,22 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRollback) SetTitle(val 
 }
 
 type ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRest struct {
-	Body   NilString                                                          `json:"body"`
-	Method ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethod `json:"method"`
-	URL    string                                                             `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestHeaders `json:"headers"`
+	Method  ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethod  `json:"method"`
+	URL     string                                                              `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRest) GetHeaders() ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -94853,6 +94952,11 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRest) SetBody(v
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRest) SetHeaders(val ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRest) SetMethod(val ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethod) {
 	s.Method = val
@@ -94861,6 +94965,19 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRest) SetMethod
 // SetURL sets the value of URL.
 func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestHeaders map[string]string
+
+func (s *ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestHeaders) init() ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponseGetResponseApproveTokenOKItemsItemChangeRollbackRestMethod string
@@ -97823,14 +97940,22 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChange) SetVerifyRu
 }
 
 type ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRest struct {
-	Body   NilString                                                            `json:"body"`
-	Method ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethod `json:"method"`
-	URL    string                                                               `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestHeaders `json:"headers"`
+	Method  ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethod  `json:"method"`
+	URL     string                                                                `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRest) GetHeaders() ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -97848,6 +97973,11 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRest) SetBody
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRest) SetHeaders(val ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRest) SetMethod(val ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethod) {
 	s.Method = val
@@ -97856,6 +97986,19 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRest) SetMeth
 // SetURL sets the value of URL.
 func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestHeaders map[string]string
+
+func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestHeaders) init() ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRestMethod string
@@ -97958,14 +98101,22 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollback) Set
 }
 
 type ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRest struct {
-	Body   NilString                                                                    `json:"body"`
-	Method ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethod `json:"method"`
-	URL    string                                                                       `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestHeaders `json:"headers"`
+	Method  ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethod  `json:"method"`
+	URL     string                                                                        `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRest) GetHeaders() ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -97983,6 +98134,11 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRest)
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRest) SetHeaders(val ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRest) SetMethod(val ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethod) {
 	s.Method = val
@@ -97991,6 +98147,19 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRest)
 // SetURL sets the value of URL.
 func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestHeaders map[string]string
+
+func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestHeaders) init() ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestMethod string
@@ -100659,14 +100828,17 @@ type ResponsePostResponseActionsIDApproveOKItemsItem struct {
 	Change     ResponsePostResponseActionsIDApproveOKItemsItemChange `json:"change"`
 	Connection NilString                                             `json:"connection"`
 	// Null = the action does not change another device (block list, message).
-	ConnectorID  NilString                                             `json:"connector_id"`
-	ExecutedAt   NilDateTime                                           `json:"executed_at"`
-	ID           string                                                `json:"id"`
-	RemoveAt     NilDateTime                                           `json:"remove_at"`
-	Result       NilString                                             `json:"result"`
-	Reversible   bool                                                  `json:"reversible"`
-	Risk         ResponsePostResponseActionsIDApproveOKItemsItemRisk   `json:"risk"`
-	RolledBackAt NilDateTime                                           `json:"rolled_back_at"`
+	ConnectorID  NilString                                           `json:"connector_id"`
+	ExecutedAt   NilDateTime                                         `json:"executed_at"`
+	ID           string                                              `json:"id"`
+	RemoveAt     NilDateTime                                         `json:"remove_at"`
+	Result       NilString                                           `json:"result"`
+	Reversible   bool                                                `json:"reversible"`
+	Risk         ResponsePostResponseActionsIDApproveOKItemsItemRisk `json:"risk"`
+	RolledBackAt NilDateTime                                         `json:"rolled_back_at"`
+	// A failed item whose step was sent and whose outcome is not known: it may be in force, so it can be
+	// undone to be sure.
+	StateUnknown bool                                                  `json:"state_unknown"`
 	Status       ResponsePostResponseActionsIDApproveOKItemsItemStatus `json:"status"`
 	// How many addresses or objects the action touches.
 	Targets int    `json:"targets"`
@@ -100731,6 +100903,11 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItem) GetRisk() ResponsePost
 // GetRolledBackAt returns the value of RolledBackAt.
 func (s *ResponsePostResponseActionsIDApproveOKItemsItem) GetRolledBackAt() NilDateTime {
 	return s.RolledBackAt
+}
+
+// GetStateUnknown returns the value of StateUnknown.
+func (s *ResponsePostResponseActionsIDApproveOKItemsItem) GetStateUnknown() bool {
+	return s.StateUnknown
 }
 
 // GetStatus returns the value of Status.
@@ -100816,6 +100993,11 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItem) SetRisk(val ResponsePo
 // SetRolledBackAt sets the value of RolledBackAt.
 func (s *ResponsePostResponseActionsIDApproveOKItemsItem) SetRolledBackAt(val NilDateTime) {
 	s.RolledBackAt = val
+}
+
+// SetStateUnknown sets the value of StateUnknown.
+func (s *ResponsePostResponseActionsIDApproveOKItemsItem) SetStateUnknown(val bool) {
+	s.StateUnknown = val
 }
 
 // SetStatus sets the value of Status.
@@ -100962,14 +101144,22 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChange) SetVerifyRule(va
 }
 
 type ResponsePostResponseActionsIDApproveOKItemsItemChangeRest struct {
-	Body   NilString                                                       `json:"body"`
-	Method ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethod `json:"method"`
-	URL    string                                                          `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponsePostResponseActionsIDApproveOKItemsItemChangeRestHeaders `json:"headers"`
+	Method  ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethod  `json:"method"`
+	URL     string                                                           `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRest) GetHeaders() ResponsePostResponseActionsIDApproveOKItemsItemChangeRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -100987,6 +101177,11 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRest) SetBody(val 
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRest) SetHeaders(val ResponsePostResponseActionsIDApproveOKItemsItemChangeRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRest) SetMethod(val ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethod) {
 	s.Method = val
@@ -100995,6 +101190,19 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRest) SetMethod(va
 // SetURL sets the value of URL.
 func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponsePostResponseActionsIDApproveOKItemsItemChangeRestHeaders map[string]string
+
+func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRestHeaders) init() ResponsePostResponseActionsIDApproveOKItemsItemChangeRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponsePostResponseActionsIDApproveOKItemsItemChangeRestMethod string
@@ -101097,14 +101305,22 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRollback) SetTitle
 }
 
 type ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRest struct {
-	Body   NilString                                                               `json:"body"`
-	Method ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethod `json:"method"`
-	URL    string                                                                  `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestHeaders `json:"headers"`
+	Method  ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethod  `json:"method"`
+	URL     string                                                                   `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRest) GetHeaders() ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -101122,6 +101338,11 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRest) SetB
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRest) SetHeaders(val ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRest) SetMethod(val ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethod) {
 	s.Method = val
@@ -101130,6 +101351,19 @@ func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRest) SetM
 // SetURL sets the value of URL.
 func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestHeaders map[string]string
+
+func (s *ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestHeaders) init() ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponsePostResponseActionsIDApproveOKItemsItemChangeRollbackRestMethod string
@@ -102275,14 +102509,17 @@ type ResponsePostResponseActionsIDChatDecisionOKItemsItem struct {
 	Change     ResponsePostResponseActionsIDChatDecisionOKItemsItemChange `json:"change"`
 	Connection NilString                                                  `json:"connection"`
 	// Null = the action does not change another device (block list, message).
-	ConnectorID  NilString                                                  `json:"connector_id"`
-	ExecutedAt   NilDateTime                                                `json:"executed_at"`
-	ID           string                                                     `json:"id"`
-	RemoveAt     NilDateTime                                                `json:"remove_at"`
-	Result       NilString                                                  `json:"result"`
-	Reversible   bool                                                       `json:"reversible"`
-	Risk         ResponsePostResponseActionsIDChatDecisionOKItemsItemRisk   `json:"risk"`
-	RolledBackAt NilDateTime                                                `json:"rolled_back_at"`
+	ConnectorID  NilString                                                `json:"connector_id"`
+	ExecutedAt   NilDateTime                                              `json:"executed_at"`
+	ID           string                                                   `json:"id"`
+	RemoveAt     NilDateTime                                              `json:"remove_at"`
+	Result       NilString                                                `json:"result"`
+	Reversible   bool                                                     `json:"reversible"`
+	Risk         ResponsePostResponseActionsIDChatDecisionOKItemsItemRisk `json:"risk"`
+	RolledBackAt NilDateTime                                              `json:"rolled_back_at"`
+	// A failed item whose step was sent and whose outcome is not known: it may be in force, so it can be
+	// undone to be sure.
+	StateUnknown bool                                                       `json:"state_unknown"`
 	Status       ResponsePostResponseActionsIDChatDecisionOKItemsItemStatus `json:"status"`
 	// How many addresses or objects the action touches.
 	Targets int    `json:"targets"`
@@ -102347,6 +102584,11 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItem) GetRisk() Respons
 // GetRolledBackAt returns the value of RolledBackAt.
 func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItem) GetRolledBackAt() NilDateTime {
 	return s.RolledBackAt
+}
+
+// GetStateUnknown returns the value of StateUnknown.
+func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItem) GetStateUnknown() bool {
+	return s.StateUnknown
 }
 
 // GetStatus returns the value of Status.
@@ -102432,6 +102674,11 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItem) SetRisk(val Respo
 // SetRolledBackAt sets the value of RolledBackAt.
 func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItem) SetRolledBackAt(val NilDateTime) {
 	s.RolledBackAt = val
+}
+
+// SetStateUnknown sets the value of StateUnknown.
+func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItem) SetStateUnknown(val bool) {
+	s.StateUnknown = val
 }
 
 // SetStatus sets the value of Status.
@@ -102578,14 +102825,22 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChange) SetVerifyRu
 }
 
 type ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRest struct {
-	Body   NilString                                                            `json:"body"`
-	Method ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethod `json:"method"`
-	URL    string                                                               `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestHeaders `json:"headers"`
+	Method  ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethod  `json:"method"`
+	URL     string                                                                `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRest) GetHeaders() ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -102603,6 +102858,11 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRest) SetBody
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRest) SetHeaders(val ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRest) SetMethod(val ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethod) {
 	s.Method = val
@@ -102611,6 +102871,19 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRest) SetMeth
 // SetURL sets the value of URL.
 func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestHeaders map[string]string
+
+func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestHeaders) init() ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRestMethod string
@@ -102713,14 +102986,22 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollback) Set
 }
 
 type ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRest struct {
-	Body   NilString                                                                    `json:"body"`
-	Method ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethod `json:"method"`
-	URL    string                                                                       `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestHeaders `json:"headers"`
+	Method  ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethod  `json:"method"`
+	URL     string                                                                        `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRest) GetHeaders() ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -102738,6 +103019,11 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRest)
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRest) SetHeaders(val ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRest) SetMethod(val ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethod) {
 	s.Method = val
@@ -102746,6 +103032,19 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRest)
 // SetURL sets the value of URL.
 func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestHeaders map[string]string
+
+func (s *ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestHeaders) init() ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponsePostResponseActionsIDChatDecisionOKItemsItemChangeRollbackRestMethod string
@@ -103991,14 +104290,17 @@ type ResponsePostResponseActionsIDRejectOKItemsItem struct {
 	Change     ResponsePostResponseActionsIDRejectOKItemsItemChange `json:"change"`
 	Connection NilString                                            `json:"connection"`
 	// Null = the action does not change another device (block list, message).
-	ConnectorID  NilString                                            `json:"connector_id"`
-	ExecutedAt   NilDateTime                                          `json:"executed_at"`
-	ID           string                                               `json:"id"`
-	RemoveAt     NilDateTime                                          `json:"remove_at"`
-	Result       NilString                                            `json:"result"`
-	Reversible   bool                                                 `json:"reversible"`
-	Risk         ResponsePostResponseActionsIDRejectOKItemsItemRisk   `json:"risk"`
-	RolledBackAt NilDateTime                                          `json:"rolled_back_at"`
+	ConnectorID  NilString                                          `json:"connector_id"`
+	ExecutedAt   NilDateTime                                        `json:"executed_at"`
+	ID           string                                             `json:"id"`
+	RemoveAt     NilDateTime                                        `json:"remove_at"`
+	Result       NilString                                          `json:"result"`
+	Reversible   bool                                               `json:"reversible"`
+	Risk         ResponsePostResponseActionsIDRejectOKItemsItemRisk `json:"risk"`
+	RolledBackAt NilDateTime                                        `json:"rolled_back_at"`
+	// A failed item whose step was sent and whose outcome is not known: it may be in force, so it can be
+	// undone to be sure.
+	StateUnknown bool                                                 `json:"state_unknown"`
 	Status       ResponsePostResponseActionsIDRejectOKItemsItemStatus `json:"status"`
 	// How many addresses or objects the action touches.
 	Targets int    `json:"targets"`
@@ -104063,6 +104365,11 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItem) GetRisk() ResponsePostR
 // GetRolledBackAt returns the value of RolledBackAt.
 func (s *ResponsePostResponseActionsIDRejectOKItemsItem) GetRolledBackAt() NilDateTime {
 	return s.RolledBackAt
+}
+
+// GetStateUnknown returns the value of StateUnknown.
+func (s *ResponsePostResponseActionsIDRejectOKItemsItem) GetStateUnknown() bool {
+	return s.StateUnknown
 }
 
 // GetStatus returns the value of Status.
@@ -104148,6 +104455,11 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItem) SetRisk(val ResponsePos
 // SetRolledBackAt sets the value of RolledBackAt.
 func (s *ResponsePostResponseActionsIDRejectOKItemsItem) SetRolledBackAt(val NilDateTime) {
 	s.RolledBackAt = val
+}
+
+// SetStateUnknown sets the value of StateUnknown.
+func (s *ResponsePostResponseActionsIDRejectOKItemsItem) SetStateUnknown(val bool) {
+	s.StateUnknown = val
 }
 
 // SetStatus sets the value of Status.
@@ -104294,14 +104606,22 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChange) SetVerifyRule(val
 }
 
 type ResponsePostResponseActionsIDRejectOKItemsItemChangeRest struct {
-	Body   NilString                                                      `json:"body"`
-	Method ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethod `json:"method"`
-	URL    string                                                         `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponsePostResponseActionsIDRejectOKItemsItemChangeRestHeaders `json:"headers"`
+	Method  ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethod  `json:"method"`
+	URL     string                                                          `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRest) GetHeaders() ResponsePostResponseActionsIDRejectOKItemsItemChangeRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -104319,6 +104639,11 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRest) SetBody(val N
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRest) SetHeaders(val ResponsePostResponseActionsIDRejectOKItemsItemChangeRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRest) SetMethod(val ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethod) {
 	s.Method = val
@@ -104327,6 +104652,19 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRest) SetMethod(val
 // SetURL sets the value of URL.
 func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponsePostResponseActionsIDRejectOKItemsItemChangeRestHeaders map[string]string
+
+func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRestHeaders) init() ResponsePostResponseActionsIDRejectOKItemsItemChangeRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponsePostResponseActionsIDRejectOKItemsItemChangeRestMethod string
@@ -104429,14 +104767,22 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRollback) SetTitle(
 }
 
 type ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRest struct {
-	Body   NilString                                                              `json:"body"`
-	Method ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethod `json:"method"`
-	URL    string                                                                 `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestHeaders `json:"headers"`
+	Method  ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethod  `json:"method"`
+	URL     string                                                                  `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRest) GetHeaders() ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -104454,6 +104800,11 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRest) SetBo
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRest) SetHeaders(val ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRest) SetMethod(val ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethod) {
 	s.Method = val
@@ -104462,6 +104813,19 @@ func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRest) SetMe
 // SetURL sets the value of URL.
 func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestHeaders map[string]string
+
+func (s *ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestHeaders) init() ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponsePostResponseActionsIDRejectOKItemsItemChangeRollbackRestMethod string
@@ -105655,14 +106019,17 @@ type ResponsePostResponseActionsIDRollbackOKItemsItem struct {
 	Change     ResponsePostResponseActionsIDRollbackOKItemsItemChange `json:"change"`
 	Connection NilString                                              `json:"connection"`
 	// Null = the action does not change another device (block list, message).
-	ConnectorID  NilString                                              `json:"connector_id"`
-	ExecutedAt   NilDateTime                                            `json:"executed_at"`
-	ID           string                                                 `json:"id"`
-	RemoveAt     NilDateTime                                            `json:"remove_at"`
-	Result       NilString                                              `json:"result"`
-	Reversible   bool                                                   `json:"reversible"`
-	Risk         ResponsePostResponseActionsIDRollbackOKItemsItemRisk   `json:"risk"`
-	RolledBackAt NilDateTime                                            `json:"rolled_back_at"`
+	ConnectorID  NilString                                            `json:"connector_id"`
+	ExecutedAt   NilDateTime                                          `json:"executed_at"`
+	ID           string                                               `json:"id"`
+	RemoveAt     NilDateTime                                          `json:"remove_at"`
+	Result       NilString                                            `json:"result"`
+	Reversible   bool                                                 `json:"reversible"`
+	Risk         ResponsePostResponseActionsIDRollbackOKItemsItemRisk `json:"risk"`
+	RolledBackAt NilDateTime                                          `json:"rolled_back_at"`
+	// A failed item whose step was sent and whose outcome is not known: it may be in force, so it can be
+	// undone to be sure.
+	StateUnknown bool                                                   `json:"state_unknown"`
 	Status       ResponsePostResponseActionsIDRollbackOKItemsItemStatus `json:"status"`
 	// How many addresses or objects the action touches.
 	Targets int    `json:"targets"`
@@ -105727,6 +106094,11 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItem) GetRisk() ResponsePos
 // GetRolledBackAt returns the value of RolledBackAt.
 func (s *ResponsePostResponseActionsIDRollbackOKItemsItem) GetRolledBackAt() NilDateTime {
 	return s.RolledBackAt
+}
+
+// GetStateUnknown returns the value of StateUnknown.
+func (s *ResponsePostResponseActionsIDRollbackOKItemsItem) GetStateUnknown() bool {
+	return s.StateUnknown
 }
 
 // GetStatus returns the value of Status.
@@ -105812,6 +106184,11 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItem) SetRisk(val ResponseP
 // SetRolledBackAt sets the value of RolledBackAt.
 func (s *ResponsePostResponseActionsIDRollbackOKItemsItem) SetRolledBackAt(val NilDateTime) {
 	s.RolledBackAt = val
+}
+
+// SetStateUnknown sets the value of StateUnknown.
+func (s *ResponsePostResponseActionsIDRollbackOKItemsItem) SetStateUnknown(val bool) {
+	s.StateUnknown = val
 }
 
 // SetStatus sets the value of Status.
@@ -105958,14 +106335,22 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChange) SetVerifyRule(v
 }
 
 type ResponsePostResponseActionsIDRollbackOKItemsItemChangeRest struct {
-	Body   NilString                                                        `json:"body"`
-	Method ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethod `json:"method"`
-	URL    string                                                           `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestHeaders `json:"headers"`
+	Method  ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethod  `json:"method"`
+	URL     string                                                            `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRest) GetHeaders() ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -105983,6 +106368,11 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRest) SetBody(val
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRest) SetHeaders(val ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRest) SetMethod(val ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethod) {
 	s.Method = val
@@ -105991,6 +106381,19 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRest) SetMethod(v
 // SetURL sets the value of URL.
 func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestHeaders map[string]string
+
+func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestHeaders) init() ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponsePostResponseActionsIDRollbackOKItemsItemChangeRestMethod string
@@ -106093,14 +106496,22 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollback) SetTitl
 }
 
 type ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRest struct {
-	Body   NilString                                                                `json:"body"`
-	Method ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethod `json:"method"`
-	URL    string                                                                   `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestHeaders `json:"headers"`
+	Method  ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethod  `json:"method"`
+	URL     string                                                                    `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRest) GetHeaders() ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -106118,6 +106529,11 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRest) Set
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRest) SetHeaders(val ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRest) SetMethod(val ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethod) {
 	s.Method = val
@@ -106126,6 +106542,19 @@ func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRest) Set
 // SetURL sets the value of URL.
 func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestHeaders map[string]string
+
+func (s *ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestHeaders) init() ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponsePostResponseActionsIDRollbackOKItemsItemChangeRollbackRestMethod string
@@ -107330,14 +107759,17 @@ type ResponsePostResponseAiProposalsOKRequestItemsItem struct {
 	Change     ResponsePostResponseAiProposalsOKRequestItemsItemChange `json:"change"`
 	Connection NilString                                               `json:"connection"`
 	// Null = the action does not change another device (block list, message).
-	ConnectorID  NilString                                               `json:"connector_id"`
-	ExecutedAt   NilDateTime                                             `json:"executed_at"`
-	ID           string                                                  `json:"id"`
-	RemoveAt     NilDateTime                                             `json:"remove_at"`
-	Result       NilString                                               `json:"result"`
-	Reversible   bool                                                    `json:"reversible"`
-	Risk         ResponsePostResponseAiProposalsOKRequestItemsItemRisk   `json:"risk"`
-	RolledBackAt NilDateTime                                             `json:"rolled_back_at"`
+	ConnectorID  NilString                                             `json:"connector_id"`
+	ExecutedAt   NilDateTime                                           `json:"executed_at"`
+	ID           string                                                `json:"id"`
+	RemoveAt     NilDateTime                                           `json:"remove_at"`
+	Result       NilString                                             `json:"result"`
+	Reversible   bool                                                  `json:"reversible"`
+	Risk         ResponsePostResponseAiProposalsOKRequestItemsItemRisk `json:"risk"`
+	RolledBackAt NilDateTime                                           `json:"rolled_back_at"`
+	// A failed item whose step was sent and whose outcome is not known: it may be in force, so it can be
+	// undone to be sure.
+	StateUnknown bool                                                    `json:"state_unknown"`
 	Status       ResponsePostResponseAiProposalsOKRequestItemsItemStatus `json:"status"`
 	// How many addresses or objects the action touches.
 	Targets int    `json:"targets"`
@@ -107402,6 +107834,11 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItem) GetRisk() ResponsePo
 // GetRolledBackAt returns the value of RolledBackAt.
 func (s *ResponsePostResponseAiProposalsOKRequestItemsItem) GetRolledBackAt() NilDateTime {
 	return s.RolledBackAt
+}
+
+// GetStateUnknown returns the value of StateUnknown.
+func (s *ResponsePostResponseAiProposalsOKRequestItemsItem) GetStateUnknown() bool {
+	return s.StateUnknown
 }
 
 // GetStatus returns the value of Status.
@@ -107487,6 +107924,11 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItem) SetRisk(val Response
 // SetRolledBackAt sets the value of RolledBackAt.
 func (s *ResponsePostResponseAiProposalsOKRequestItemsItem) SetRolledBackAt(val NilDateTime) {
 	s.RolledBackAt = val
+}
+
+// SetStateUnknown sets the value of StateUnknown.
+func (s *ResponsePostResponseAiProposalsOKRequestItemsItem) SetStateUnknown(val bool) {
+	s.StateUnknown = val
 }
 
 // SetStatus sets the value of Status.
@@ -107633,14 +108075,22 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChange) SetVerifyRule(
 }
 
 type ResponsePostResponseAiProposalsOKRequestItemsItemChangeRest struct {
-	Body   NilString                                                         `json:"body"`
-	Method ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethod `json:"method"`
-	URL    string                                                            `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestHeaders `json:"headers"`
+	Method  ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethod  `json:"method"`
+	URL     string                                                             `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRest) GetHeaders() ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -107658,6 +108108,11 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRest) SetBody(va
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRest) SetHeaders(val ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRest) SetMethod(val ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethod) {
 	s.Method = val
@@ -107666,6 +108121,19 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRest) SetMethod(
 // SetURL sets the value of URL.
 func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestHeaders map[string]string
+
+func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestHeaders) init() ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponsePostResponseAiProposalsOKRequestItemsItemChangeRestMethod string
@@ -107768,14 +108236,22 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollback) SetTit
 }
 
 type ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRest struct {
-	Body   NilString                                                                 `json:"body"`
-	Method ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethod `json:"method"`
-	URL    string                                                                    `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestHeaders `json:"headers"`
+	Method  ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethod  `json:"method"`
+	URL     string                                                                     `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRest) GetHeaders() ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -107793,6 +108269,11 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRest) Se
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRest) SetHeaders(val ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRest) SetMethod(val ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethod) {
 	s.Method = val
@@ -107801,6 +108282,19 @@ func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRest) Se
 // SetURL sets the value of URL.
 func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestHeaders map[string]string
+
+func (s *ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestHeaders) init() ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponsePostResponseAiProposalsOKRequestItemsItemChangeRollbackRestMethod string
@@ -109771,14 +110265,17 @@ type ResponsePostResponseApproveTokenOKItemsItem struct {
 	Change     ResponsePostResponseApproveTokenOKItemsItemChange `json:"change"`
 	Connection NilString                                         `json:"connection"`
 	// Null = the action does not change another device (block list, message).
-	ConnectorID  NilString                                         `json:"connector_id"`
-	ExecutedAt   NilDateTime                                       `json:"executed_at"`
-	ID           string                                            `json:"id"`
-	RemoveAt     NilDateTime                                       `json:"remove_at"`
-	Result       NilString                                         `json:"result"`
-	Reversible   bool                                              `json:"reversible"`
-	Risk         ResponsePostResponseApproveTokenOKItemsItemRisk   `json:"risk"`
-	RolledBackAt NilDateTime                                       `json:"rolled_back_at"`
+	ConnectorID  NilString                                       `json:"connector_id"`
+	ExecutedAt   NilDateTime                                     `json:"executed_at"`
+	ID           string                                          `json:"id"`
+	RemoveAt     NilDateTime                                     `json:"remove_at"`
+	Result       NilString                                       `json:"result"`
+	Reversible   bool                                            `json:"reversible"`
+	Risk         ResponsePostResponseApproveTokenOKItemsItemRisk `json:"risk"`
+	RolledBackAt NilDateTime                                     `json:"rolled_back_at"`
+	// A failed item whose step was sent and whose outcome is not known: it may be in force, so it can be
+	// undone to be sure.
+	StateUnknown bool                                              `json:"state_unknown"`
 	Status       ResponsePostResponseApproveTokenOKItemsItemStatus `json:"status"`
 	// How many addresses or objects the action touches.
 	Targets int    `json:"targets"`
@@ -109843,6 +110340,11 @@ func (s *ResponsePostResponseApproveTokenOKItemsItem) GetRisk() ResponsePostResp
 // GetRolledBackAt returns the value of RolledBackAt.
 func (s *ResponsePostResponseApproveTokenOKItemsItem) GetRolledBackAt() NilDateTime {
 	return s.RolledBackAt
+}
+
+// GetStateUnknown returns the value of StateUnknown.
+func (s *ResponsePostResponseApproveTokenOKItemsItem) GetStateUnknown() bool {
+	return s.StateUnknown
 }
 
 // GetStatus returns the value of Status.
@@ -109928,6 +110430,11 @@ func (s *ResponsePostResponseApproveTokenOKItemsItem) SetRisk(val ResponsePostRe
 // SetRolledBackAt sets the value of RolledBackAt.
 func (s *ResponsePostResponseApproveTokenOKItemsItem) SetRolledBackAt(val NilDateTime) {
 	s.RolledBackAt = val
+}
+
+// SetStateUnknown sets the value of StateUnknown.
+func (s *ResponsePostResponseApproveTokenOKItemsItem) SetStateUnknown(val bool) {
+	s.StateUnknown = val
 }
 
 // SetStatus sets the value of Status.
@@ -110074,14 +110581,22 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChange) SetVerifyRule(val st
 }
 
 type ResponsePostResponseApproveTokenOKItemsItemChangeRest struct {
-	Body   NilString                                                   `json:"body"`
-	Method ResponsePostResponseApproveTokenOKItemsItemChangeRestMethod `json:"method"`
-	URL    string                                                      `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponsePostResponseApproveTokenOKItemsItemChangeRestHeaders `json:"headers"`
+	Method  ResponsePostResponseApproveTokenOKItemsItemChangeRestMethod  `json:"method"`
+	URL     string                                                       `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRest) GetHeaders() ResponsePostResponseApproveTokenOKItemsItemChangeRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -110099,6 +110614,11 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRest) SetBody(val NilS
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRest) SetHeaders(val ResponsePostResponseApproveTokenOKItemsItemChangeRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRest) SetMethod(val ResponsePostResponseApproveTokenOKItemsItemChangeRestMethod) {
 	s.Method = val
@@ -110107,6 +110627,19 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRest) SetMethod(val Re
 // SetURL sets the value of URL.
 func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponsePostResponseApproveTokenOKItemsItemChangeRestHeaders map[string]string
+
+func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRestHeaders) init() ResponsePostResponseApproveTokenOKItemsItemChangeRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponsePostResponseApproveTokenOKItemsItemChangeRestMethod string
@@ -110209,14 +110742,22 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRollback) SetTitle(val
 }
 
 type ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRest struct {
-	Body   NilString                                                           `json:"body"`
-	Method ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethod `json:"method"`
-	URL    string                                                              `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestHeaders `json:"headers"`
+	Method  ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethod  `json:"method"`
+	URL     string                                                               `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRest) GetHeaders() ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -110234,6 +110775,11 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRest) SetBody(
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRest) SetHeaders(val ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRest) SetMethod(val ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethod) {
 	s.Method = val
@@ -110242,6 +110788,19 @@ func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRest) SetMetho
 // SetURL sets the value of URL.
 func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestHeaders map[string]string
+
+func (s *ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestHeaders) init() ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponsePostResponseApproveTokenOKItemsItemChangeRollbackRestMethod string
@@ -114298,14 +114857,17 @@ type ResponsePostResponseProposalsIDRequestCreatedItemsItem struct {
 	Change     ResponsePostResponseProposalsIDRequestCreatedItemsItemChange `json:"change"`
 	Connection NilString                                                    `json:"connection"`
 	// Null = the action does not change another device (block list, message).
-	ConnectorID  NilString                                                    `json:"connector_id"`
-	ExecutedAt   NilDateTime                                                  `json:"executed_at"`
-	ID           string                                                       `json:"id"`
-	RemoveAt     NilDateTime                                                  `json:"remove_at"`
-	Result       NilString                                                    `json:"result"`
-	Reversible   bool                                                         `json:"reversible"`
-	Risk         ResponsePostResponseProposalsIDRequestCreatedItemsItemRisk   `json:"risk"`
-	RolledBackAt NilDateTime                                                  `json:"rolled_back_at"`
+	ConnectorID  NilString                                                  `json:"connector_id"`
+	ExecutedAt   NilDateTime                                                `json:"executed_at"`
+	ID           string                                                     `json:"id"`
+	RemoveAt     NilDateTime                                                `json:"remove_at"`
+	Result       NilString                                                  `json:"result"`
+	Reversible   bool                                                       `json:"reversible"`
+	Risk         ResponsePostResponseProposalsIDRequestCreatedItemsItemRisk `json:"risk"`
+	RolledBackAt NilDateTime                                                `json:"rolled_back_at"`
+	// A failed item whose step was sent and whose outcome is not known: it may be in force, so it can be
+	// undone to be sure.
+	StateUnknown bool                                                         `json:"state_unknown"`
 	Status       ResponsePostResponseProposalsIDRequestCreatedItemsItemStatus `json:"status"`
 	// How many addresses or objects the action touches.
 	Targets int    `json:"targets"`
@@ -114370,6 +114932,11 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetRisk() Respo
 // GetRolledBackAt returns the value of RolledBackAt.
 func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetRolledBackAt() NilDateTime {
 	return s.RolledBackAt
+}
+
+// GetStateUnknown returns the value of StateUnknown.
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) GetStateUnknown() bool {
+	return s.StateUnknown
 }
 
 // GetStatus returns the value of Status.
@@ -114455,6 +115022,11 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetRisk(val Res
 // SetRolledBackAt sets the value of RolledBackAt.
 func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetRolledBackAt(val NilDateTime) {
 	s.RolledBackAt = val
+}
+
+// SetStateUnknown sets the value of StateUnknown.
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItem) SetStateUnknown(val bool) {
+	s.StateUnknown = val
 }
 
 // SetStatus sets the value of Status.
@@ -114601,14 +115173,22 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChange) SetVerify
 }
 
 type ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest struct {
-	Body   NilString                                                              `json:"body"`
-	Method ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod `json:"method"`
-	URL    string                                                                 `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestHeaders `json:"headers"`
+	Method  ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod  `json:"method"`
+	URL     string                                                                  `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) GetHeaders() ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -114626,6 +115206,11 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) SetBo
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) SetHeaders(val ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) SetMethod(val ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod) {
 	s.Method = val
@@ -114634,6 +115219,19 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) SetMe
 // SetURL sets the value of URL.
 func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestHeaders map[string]string
+
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestHeaders) init() ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRestMethod string
@@ -114736,14 +115334,22 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollback) S
 }
 
 type ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest struct {
-	Body   NilString                                                                      `json:"body"`
-	Method ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod `json:"method"`
-	URL    string                                                                         `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestHeaders `json:"headers"`
+	Method  ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod  `json:"method"`
+	URL     string                                                                          `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) GetHeaders() ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -114761,6 +115367,11 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRes
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) SetHeaders(val ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) SetMethod(val ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod) {
 	s.Method = val
@@ -114769,6 +115380,19 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRes
 // SetURL sets the value of URL.
 func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestHeaders map[string]string
+
+func (s *ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestHeaders) init() ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponsePostResponseProposalsIDRequestCreatedItemsItemChangeRollbackRestMethod string
@@ -116726,14 +117350,22 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChange) SetVerifyRule(val s
 }
 
 type ResponsePostResponseRulesSimulateOKStepsItemChangeRest struct {
-	Body   NilString                                                    `json:"body"`
-	Method ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethod `json:"method"`
-	URL    string                                                       `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponsePostResponseRulesSimulateOKStepsItemChangeRestHeaders `json:"headers"`
+	Method  ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethod  `json:"method"`
+	URL     string                                                        `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRest) GetHeaders() ResponsePostResponseRulesSimulateOKStepsItemChangeRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -116751,6 +117383,11 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRest) SetBody(val Nil
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRest) SetHeaders(val ResponsePostResponseRulesSimulateOKStepsItemChangeRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRest) SetMethod(val ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethod) {
 	s.Method = val
@@ -116759,6 +117396,19 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRest) SetMethod(val R
 // SetURL sets the value of URL.
 func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponsePostResponseRulesSimulateOKStepsItemChangeRestHeaders map[string]string
+
+func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRestHeaders) init() ResponsePostResponseRulesSimulateOKStepsItemChangeRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponsePostResponseRulesSimulateOKStepsItemChangeRestMethod string
@@ -116861,14 +117511,22 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRollback) SetTitle(va
 }
 
 type ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRest struct {
-	Body   NilString                                                            `json:"body"`
-	Method ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethod `json:"method"`
-	URL    string                                                               `json:"url"`
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestHeaders `json:"headers"`
+	Method  ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethod  `json:"method"`
+	URL     string                                                                `json:"url"`
 }
 
 // GetBody returns the value of Body.
 func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRest) GetBody() NilString {
 	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRest) GetHeaders() ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestHeaders {
+	return s.Headers
 }
 
 // GetMethod returns the value of Method.
@@ -116886,6 +117544,11 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRest) SetBody
 	s.Body = val
 }
 
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRest) SetHeaders(val ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestHeaders) {
+	s.Headers = val
+}
+
 // SetMethod sets the value of Method.
 func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRest) SetMethod(val ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethod) {
 	s.Method = val
@@ -116894,6 +117557,19 @@ func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRest) SetMeth
 // SetURL sets the value of URL.
 func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRest) SetURL(val string) {
 	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestHeaders map[string]string
+
+func (s *ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestHeaders) init() ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type ResponsePostResponseRulesSimulateOKStepsItemChangeRollbackRestMethod string

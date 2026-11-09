@@ -85,7 +85,7 @@ func (h hookExec) Execute(ctx context.Context, s response.DeviceStep) (response.
 			return response.DeviceResult{}, err
 		}
 	}
-	return response.DeviceResult{Detail: s.Phase + " done"}, nil
+	return response.DeviceResult{Status: response.StepOK, Detail: s.Phase + " done"}, nil
 }
 
 // banAndBlock is a rule with one device action and one box action: two items in one request.
@@ -211,7 +211,7 @@ type cancelExec struct {
 func (c *cancelExec) Execute(ctx context.Context, s response.DeviceStep) (response.DeviceResult, error) {
 	c.steps = append(c.steps, s)
 	c.cancel()
-	return response.DeviceResult{Detail: "done"}, ctx.Err()
+	return response.DeviceResult{Status: response.StepOK, Detail: "done"}, ctx.Err()
 }
 
 // INV-19: the approval is committed, so every item runs to the end and is recorded, whether or not the approver is still
@@ -320,8 +320,10 @@ func TestContract_INV19_SweepFailsStuckItems(t *testing.T) {
 	if got.Items[0].Status != response.ItemFailed || !strings.Contains(*got.Items[0].Result, "did not start") || !e.logHas("failed", "did not start") {
 		t.Fatalf("an item that never started: %+v", got.Items[0])
 	}
-	if e.exec.count() != steps {
-		t.Fatal("the sweep sent a step to a device")
+	for _, st := range e.exec.steps[steps:] { // the sweep may read a device back to settle an unclear outcome; it never writes
+		if st.Phase == "run" || st.Phase == "rollback" {
+			t.Fatalf("the sweep sent a %s step to a device", st.Phase)
+		}
 	}
 }
 
@@ -828,7 +830,7 @@ func TestContract_INV9_ConnectionChangedAfterTheRequestIsRefused(t *testing.T) {
 	e.conns.list[0].Target = "https://new-fw.lan"
 	_, err = e.svc.Rollback(e.ctx(), oper, l[0].ID)
 	wantCode(t, err, 409, "connection_changed")
-	if got := e.exec.phases(); len(got) != 1 {
+	if got := e.exec.phases(); strings.Join(got, ",") != "run,verify" {
 		t.Fatalf("steps = %v", got)
 	}
 }
@@ -853,7 +855,7 @@ func TestContract_INV13_RollbackAllowedAfterTheActionWasDisabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rollback of an executed change refused after the action was disabled: %v", err)
 	}
-	if got.Status != response.StatusRolledBack || strings.Join(e.exec.phases(), ",") != "run,rollback" {
+	if got.Status != response.StatusRolledBack || strings.Join(e.exec.phases(), ",") != "run,verify,rollback,verify" {
 		t.Fatalf("status %s, steps %v", got.Status, e.exec.phases())
 	}
 }
@@ -868,14 +870,14 @@ func TestContract_INV13_ReadsNeverUndoOnlyTheSweepDoes(t *testing.T) {
 	_, err := e.svc.Approve(e.ctx(), oper, e.only().ID, nil, "")
 	e.must(err)
 	e.clock.Advance(2 * time.Hour)
-	if got := e.only(); got.Items[0].Status != response.ItemExecuted || e.exec.count() != 1 {
+	if got := e.only(); got.Items[0].Status != response.ItemExecuted || e.exec.count() != 2 {
 		t.Fatalf("a read undid a change: %+v, steps %v", got.Items[0], e.exec.phases())
 	}
-	if _, err := e.svc.Metrics(e.ctx()); err != nil || e.exec.count() != 1 {
+	if _, err := e.svc.Metrics(e.ctx()); err != nil || e.exec.count() != 2 {
 		t.Fatalf("metrics: %v, steps %v", err, e.exec.phases())
 	}
 	e.must(e.svc.Sweep(e.ctx()))
-	if got := e.only(); got.Status != response.StatusRolledBack || strings.Join(e.exec.phases(), ",") != "run,rollback" {
+	if got := e.only(); got.Status != response.StatusRolledBack || strings.Join(e.exec.phases(), ",") != "run,verify,rollback,verify" {
 		t.Fatalf("the sweep did not undo: %+v, steps %v", got.Status, e.exec.phases())
 	}
 }

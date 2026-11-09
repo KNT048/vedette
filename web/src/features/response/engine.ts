@@ -183,12 +183,12 @@ export function planAction(a: RuleAction, ev: Det, why: string): Plan1 {
   const conn = connById(cat.connection_id)
   const why2 = unavailable(cat)
   if (why2 && cat.kind === 'device') return { ok: false, code: 'tool_unavailable', error: why2, title }
-  const change = buildChange(cat, values, conn, why)
+  const change = buildChange(cat, values, conn, why, a.ttl_min)
   const first = Object.values(values)[0]
   const item: Omit<RequestItem, 'id'> = {
     action_id: cat.id, title: cat.id === 'blocklist_add' ? `Add ${values.ip} to the block list` : cat.id === 'msg_send' ? 'Send a message to your alert channels' : `${cat.name}: ${first}`, risk: cat.risk, reversible: reversible(cat),
     connector_id: cat.kind === 'device' ? cat.connection_id : null, connection: cat.kind === 'device' ? conn?.name ?? null : null, tool: cat.tool ?? cat.id,
-    targets: targetCount(values), change, ttl_min: a.ttl_min, status: 'pending', executed_at: null, remove_at: null, rolled_back_at: null, result: null, verified: null,
+    targets: targetCount(values), change, ttl_min: a.ttl_min, status: 'pending', executed_at: null, remove_at: null, rolled_back_at: null, result: null, verified: null, state_unknown: false,
   }
   return { ok: true, p: { action: a, cat, values, item, key: `${cat.id}|${Object.values(values).join('|')}` } }
 }

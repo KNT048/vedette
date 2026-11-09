@@ -43,7 +43,7 @@ func TestLoginSuccess(t *testing.T) {
 			t.Errorf("cookie %s value is %d characters, want 43 (32 bytes base64url)", c.Name, len(c.Value))
 		}
 	}
-	if cs[0].Name != "vedette_session" || cs[1].Name != "vedette_csrf" || cs[0].Value == cs[1].Value {
+	if cs[0].Name != "__Host-vedette_session" || cs[1].Name != "__Host-vedette_csrf" || cs[0].Value == cs[1].Value {
 		t.Fatalf("cookies = %v", cs)
 	}
 
@@ -109,7 +109,7 @@ func TestLoginDisabledAccount(t *testing.T) {
 	admin := env.User(t, "root@acme.example", routes.Admin)
 	u := env.User(t, "ann@acme.example", routes.Viewer)
 	off := true
-	if _, err := env.Svc.UpdateUser(t.Context(), admin.ID, admin.Email, u.ID, auth.UserPatch{Disabled: &off}); err != nil {
+	if _, err := env.Svc.UpdateUser(t.Context(), admin.ID, admin.Email, "", u.ID, auth.UserPatch{Disabled: &off}); err != nil {
 		t.Fatal(err)
 	}
 	// Right password: 403 disabled, no session. Wrong password: indistinguishable from any other account.
@@ -289,7 +289,7 @@ func TestLoginEmailChannelDownNeverFallsBackToPassword(t *testing.T) {
 		t.Fatalf("audit rows for the refusals = %d", n)
 	}
 	// A mailer that is nil behaves the same.
-	_, err = env.Svc.ResendCode(t.Context(), u.Email, authtest.Password, ip("192.0.2.1"))
+	_, err = env.Svc.ResendCode(t.Context(), u.Email, authtest.Password, ip("192.0.2.1"), "")
 	wantAPI(t, err, 503, "twofa_email_unavailable")
 
 	// Back up: sign-in works again, and a mail that fails to send is the same 503 and does not burn a send.
@@ -309,12 +309,12 @@ func TestResendCode(t *testing.T) {
 	u := emailUser(t, env, "ann@acme.example")
 	app := env.User(t, "bob@acme.example", routes.Viewer)
 	resend := func() (auth.Sent, error) {
-		return env.Svc.ResendCode(t.Context(), u.Email, authtest.Password, ip("192.0.2.1"))
+		return env.Svc.ResendCode(t.Context(), u.Email, authtest.Password, ip("192.0.2.1"), "")
 	}
 
-	_, err := env.Svc.ResendCode(t.Context(), u.Email, "wrong password here", ip("192.0.2.1"))
+	_, err := env.Svc.ResendCode(t.Context(), u.Email, "wrong password here", ip("192.0.2.1"), "")
 	wantAPI(t, err, 400, "invalid_credentials")
-	_, err = env.Svc.ResendCode(t.Context(), app.Email, authtest.Password, ip("192.0.2.1"))
+	_, err = env.Svc.ResendCode(t.Context(), app.Email, authtest.Password, ip("192.0.2.1"), "")
 	wantAPI(t, err, 409, "not_email_method")
 
 	// The helper left the clock 2 minutes after the enrolment code. Sends in the last hour so far: 1.

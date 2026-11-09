@@ -1,8 +1,6 @@
 package main
 
 import (
-	"net/http"
-
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/feeds"
@@ -21,6 +19,7 @@ import (
 type handler struct {
 	server.Fallback
 	*core.ModuleHandlers
+	*core.APIHandlers
 	*inventory.Handlers
 	*feeds.FeedHandlers
 	*findings.FindingHandlers
@@ -35,6 +34,7 @@ func newHandler(d deps) handler {
 	return handler{
 		Fallback:       server.Fallback{Log: d.Log},
 		ModuleHandlers: core.NewModuleHandlers(d.DB, d.Reg),
+		APIHandlers:    d.Core,
 		Handlers:       inventory.NewHandlers(d.Inventory),
 		FeedHandlers:   feedsHandlers(d),
 
@@ -44,14 +44,3 @@ func newHandler(d deps) handler {
 		SensorHandlers:  sensorpassive.NewSensorHandlers(d.SensorPassive),
 	}
 }
-
-// noSessions refuses every request that needs a session. It is the safe stand-in until WP-04b
-// brings the session authenticator: public operations work (the ones that are implemented),
-// everything else is 401.
-type noSessions struct{}
-
-func (noSessions) Authenticate(*http.Request) (server.Principal, error) {
-	return server.Principal{}, server.ErrNoSession
-}
-
-func (noSessions) CheckCSRF(*http.Request, server.Principal) error { return server.ErrNoSession }

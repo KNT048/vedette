@@ -8,6 +8,7 @@ import { server } from '@/test/server'
 import { assetsStore, auditStore, modulesStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
 import { encode } from 'uqr'
 import { totpAt } from './totp'
+import { MOCK_SETUP_CODE } from './mocks'
 import { emailCodes } from './emailCode'
 import { mockSign } from './mocks'
 import { nav, compareVersion, toBase64 } from './util'
@@ -31,6 +32,9 @@ describe('core: cài đặt ban đầu', () => {
     await u.type(screen.getByLabelText('Repeat password'), 'ngan')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     expect(await screen.findByText(/The password needs at least 12 characters, it has 4 so far/)).toBeInTheDocument()
+    // D-75: the one-time setup code from the box's log is asked for on the first step
+    expect(screen.getByText("Enter the setup code from the box's log.")).toBeInTheDocument()
+    await u.type(screen.getByLabelText('Setup code'), MOCK_SETUP_CODE)
     await u.clear(screen.getByLabelText('Password'))
     await u.clear(screen.getByLabelText('Repeat password'))
     await u.type(screen.getByLabelText('Password'), 'mot-cau-mat-khau-dai')
@@ -87,7 +91,8 @@ describe('core: cài đặt ban đầu', () => {
   it('bước kênh lưu qua module thông báo; token sai báo lỗi và thử lại được', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
-    await u.type(await screen.findByLabelText('Organization name'), 'XYZ Company')
+    await u.type(await screen.findByLabelText('Setup code'), MOCK_SETUP_CODE)
+    await u.type(screen.getByLabelText('Organization name'), 'XYZ Company')
     await u.type(screen.getByLabelText('Administrator name'), 'Nam')
     await u.type(screen.getByLabelText('Sign-in email'), 'nam@xyz.vn')
     await u.type(screen.getByLabelText('Password'), 'mot-cau-mat-khau-dai')
@@ -124,6 +129,50 @@ describe('core: cài đặt ban đầu', () => {
     expect(inv.active.enabled).toBe(false) // không tick xác nhận: chỉ nghe thụ động
   })
 
+  it('D-75: a wrong setup code sends you back to the first step with the error on the code field; nothing is created', async () => {
+    const u = user()
+    renderApp('/setup', { role: null, setupComplete: false })
+    await u.type(await screen.findByLabelText('Setup code'), 'not-the-code')
+    await u.type(screen.getByLabelText('Organization name'), 'XYZ Company')
+    await u.type(screen.getByLabelText('Administrator name'), 'Nam')
+    await u.type(screen.getByLabelText('Sign-in email'), 'nam@xyz.vn')
+    await u.type(screen.getByLabelText('Password'), 'mot-cau-mat-khau-dai')
+    await u.type(screen.getByLabelText('Repeat password'), 'mot-cau-mat-khau-dai')
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    await u.type(await screen.findByLabelText('Range 1'), '10.0.0.0/24')
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    await u.click(await screen.findByRole('button', { name: 'Continue' }))
+    await u.click(await screen.findByRole('button', { name: 'Skip and finish' }))
+    expect(await screen.findByRole('heading', { level: 2, name: 'Organization and administrator account' })).toBeInTheDocument()
+    expect(screen.getByText(/The setup code is missing or wrong/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Setup code')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText('Setup code')).toHaveValue('not-the-code')
+    expect(orgStore.get().setup_complete).toBe(false)
+    expect(usersStore.get().some((x) => x.email === 'nam@xyz.vn')).toBe(false)
+    // fixing the code is enough: the other fields were kept
+    await u.clear(screen.getByLabelText('Setup code'))
+    await u.type(screen.getByLabelText('Setup code'), MOCK_SETUP_CODE)
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    await u.click(await screen.findByRole('button', { name: 'Continue' }))
+    await u.click(await screen.findByRole('button', { name: 'Continue' }))
+    await u.click(await screen.findByRole('button', { name: 'Skip and finish' }))
+    expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
+    expect(orgStore.get().setup_complete).toBe(true)
+  })
+
+  it('D-75 API: the code is judged before every other field and never needed for the sample path', async () => {
+    orgStore.update((o) => ({ ...o, setup_complete: false }))
+    const post = (b: object) => fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
+    for (const body of [{}, { setup_code: '' }, { setup_code: 'wrong' }, { setup_code: 'wrong', org: '' }]) {
+      const r = await post(body)
+      expect(r.status).toBe(403)
+      expect(((await r.json()) as { error: { code: string } }).error.code).toBe('invalid_setup_code')
+    }
+    const bad = await post({ setup_code: MOCK_SETUP_CODE, org: '' })
+    expect(((await bad.json()) as { error: { code: string } }).error.code).toBe('invalid_org')
+    expect(orgStore.get().setup_complete).toBe(false)
+  })
+
   it('sample data signs in the sample administrator at once', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
@@ -135,7 +184,7 @@ describe('core: cài đặt ban đầu', () => {
 
   it('the LAN range typed in setup is stored where Devices → Scope keeps ranges, and the commitment with it', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: false }))
-    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.18.0/24', '10.1.0.0/16'], bundle: 'smb', commitment: true }) })
+    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.18.0/24', '10.1.0.0/16'], bundle: 'smb', commitment: true }) })
     expect(res.status).toBe(200)
     const st = (await (await fetch(`${location.origin}/api/v1/inventory/settings`)).json()) as { lan_ranges: string[]; scope_confirmed_at: string | null; scope_confirmed_by: string | null }
     expect(st.lan_ranges).toEqual(['192.168.18.0/24', '10.1.0.0/16'])
@@ -321,7 +370,7 @@ describe('core: đăng nhập hai lớp', () => {
     localStorage.clear()
     // bật 2FA bằng khoá cố định qua API thật của mock
     sessionStore.set({ userId: 'u-admin' })
-    const st = (await (await fetch(`${location.origin}/api/v1/core/account/2fa/start`, { method: 'POST', body: '{}' })).json()) as { secret: string }
+    const st = (await (await fetch(`${location.origin}/api/v1/core/account/2fa/start`, { method: 'POST', body: JSON.stringify({ password: 'vedette-demo' }) })).json()) as { secret: string }
     const ok = await fetch(`${location.origin}/api/v1/core/account/2fa/confirm`, { method: 'POST', body: JSON.stringify({ code: await totpAt(st.secret, Date.now()) }) })
     expect(ok.status).toBe(200)
     expect(secret).toBeTruthy()
@@ -555,7 +604,17 @@ describe('core: tài khoản', () => {
   it('bật 2FA bằng mã TOTP thật, sai mã bị từ chối, rồi tắt bằng mật khẩu', async () => {
     const u = user()
     renderApp('/account')
-    await u.click(await screen.findByRole('button', { name: 'Set up authenticator app' }))
+    const start = await screen.findByRole('button', { name: 'Set up authenticator app' })
+    // D-76: the current password comes first; without it neither method can be started
+    expect(start).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Set up email code' })).toBeDisabled()
+    await u.type(screen.getByLabelText('Your current password'), 'wrong password here')
+    await u.click(start)
+    expect(await screen.findByText(/The password is needed to turn on two-factor authentication/)).toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'QR code for your authenticator app' })).not.toBeInTheDocument()
+    await u.clear(screen.getByLabelText('Your current password'))
+    await u.type(screen.getByLabelText('Your current password'), 'vedette-demo')
+    await u.click(start)
     const key = (await screen.findByText(/^[A-Z2-7]{32}$/)).textContent!
     const otpauth = screen.getByText(/^otpauth:\/\/totp\/Vedette:/).textContent!
     // QR drawn locally: black modules on white with a 4-module quiet zone, own accessible name
@@ -598,12 +657,31 @@ const errCode = async (r: Response) => ((await r.json()) as { error: { code: str
 const setUser = (id: string, patch: object) => usersStore.update((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)))
 const slot = (id: string) => emailCodes.get()[id]!
 const ageCode = (id: string, ms: number) => emailCodes.update((all) => ({ ...all, [id]: { ...all[id]!, pending: all[id]!.pending && { ...all[id]!.pending!, sent_at: all[id]!.pending!.sent_at - ms, expires: all[id]!.pending!.expires - ms }, sends: all[id]!.sends } }))
+const startEmail = (password = 'vedette-demo') => call('/core/account/2fa/email/start', 'POST', { password })
+const startApp = (password = 'vedette-demo') => call('/core/account/2fa/start', 'POST', { password })
 const loginAs = (email: string, extra: object = {}) => call('/auth/login', 'POST', { email, password: 'vedette-demo', ...extra })
+
+describe('core: turning two-step on needs the current password (D-76)', () => {
+  it('both start calls refuse a wrong or missing password and create nothing', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    for (const body of [{}, { password: '' }, { password: 'wrong' }]) {
+      expect(await errCode(await call('/core/account/2fa/start', 'POST', body))).toBe('wrong_password')
+      expect(await errCode(await call('/core/account/2fa/email/start', 'POST', body))).toBe('wrong_password')
+    }
+    expect(emailCodes.get()['u-admin']).toBeUndefined() // no code was issued
+    expect(await errCode(await call('/core/account/2fa/confirm', 'POST', { code: '123456' }))).toBe('no_pending') // no key was made
+    expect((await startApp()).status).toBe(200)
+    expect((await startEmail()).status).toBe(200)
+  })
+})
 
 describe('core: two-step sign-in, email code method (D-35)', () => {
   it('account: both methods are offered; email is enabled when the email channel is on', async () => {
+    const u = user()
     renderApp('/account')
-    expect(await screen.findByRole('button', { name: 'Set up authenticator app' })).toBeEnabled()
+    expect(await screen.findByRole('button', { name: 'Set up authenticator app' })).toBeDisabled() // until the password is typed (D-76)
+    await u.type(screen.getByLabelText('Your current password'), 'vedette-demo')
+    expect(screen.getByRole('button', { name: 'Set up authenticator app' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Set up email code' })).toBeEnabled()
     expect(screen.getByText(/emails a 6-digit code to your sign-in address, a•••@acme\.example/)).toBeInTheDocument()
     await expectNoA11yViolations()
@@ -615,9 +693,11 @@ describe('core: two-step sign-in, email code method (D-35)', () => {
     const { unmount } = renderApp('/account')
     const btn = await screen.findByRole('button', { name: 'Set up email code' })
     expect(btn).toBeDisabled()
+    await user().type(screen.getByLabelText('Your current password'), 'vedette-demo')
+    expect(btn).toBeDisabled() // the password alone does not enable it: the channel is missing
     expect(screen.getByText(/the email alert channel, which is not set up or is turned off/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Open alert channels' })).toHaveAttribute('href', '/settings/channels')
-    expect((await call('/core/account/2fa/email/start')).status).toBe(409)
+    expect((await startEmail()).status).toBe(409)
     expect(screen.getByRole('button', { name: 'Set up authenticator app' })).toBeEnabled()
     unmount()
     renderApp('/account', { role: 'viewer' })
@@ -635,6 +715,7 @@ describe('core: two-step sign-in, email code method (D-35)', () => {
   it('setup: code goes to the masked sign-in email, wrong tries are counted, 5 wrong cancel the code, the right code turns it on', async () => {
     const u = user()
     renderApp('/account')
+    await u.type(await screen.findByLabelText('Your current password'), 'vedette-demo')
     await u.click(await screen.findByRole('button', { name: 'Set up email code' }))
     expect(await screen.findByText(/We sent a 6-digit code to a•••@acme\.example/)).toBeInTheDocument()
     const code = slot('u-admin').pending!.code
@@ -660,7 +741,7 @@ describe('core: two-step sign-in, email code method (D-35)', () => {
     expect(await screen.findByText('No code is waiting. Ask for a new code.')).toBeInTheDocument()
     // a new code after the cooldown works
     ageCode('u-admin', 61_000)
-    expect((await call('/core/account/2fa/email/start')).status).toBe(200)
+    expect((await startEmail()).status).toBe(200)
     const fresh = slot('u-admin').pending!.code
     await u.clear(field)
     await u.type(field, fresh)
@@ -671,16 +752,16 @@ describe('core: two-step sign-in, email code method (D-35)', () => {
     expect(await screen.findByText('On: Email code')).toBeInTheDocument()
     expect(auditStore.get().some((r) => r.action === 'account.2fa_on' && r.detail === 'email code')).toBe(true)
     // switching: a second method cannot be started while one is on
-    expect((await call('/core/account/2fa/start')).status).toBe(409)
-    expect((await call('/core/account/2fa/email/start')).status).toBe(409)
+    expect((await startApp()).status).toBe(409)
+    expect((await startEmail()).status).toBe(409)
   })
 
   it('codes: expire after 10 minutes, single use, 60 s resend wait, 5 sends per hour', async () => {
     sessionStore.set({ userId: 'u-admin' })
-    expect((await call('/core/account/2fa/email/start')).status).toBe(200)
+    expect((await startEmail()).status).toBe(200)
     const first = slot('u-admin').pending!
     expect(first.expires - first.sent_at).toBe(10 * 60_000)
-    const soon = await call('/core/account/2fa/email/start')
+    const soon = await startEmail()
     expect(soon.status).toBe(429)
     const body = (await soon.json()) as { error: { code: string; message: string; retry_after: number } }
     expect(body.error).toMatchObject({ code: 'resend_too_soon' })
@@ -692,9 +773,9 @@ describe('core: two-step sign-in, email code method (D-35)', () => {
     expect(late.status).toBe(400)
     expect(await late.json()).toMatchObject({ error: { code: 'code_expired', message: 'This code has expired. Ask for a new code.' } })
     // 5 sends per hour: sends 2..5 pass (aging only the cooldown), the 6th is refused
-    for (let i = 0; i < 4; i += 1) { ageCode('u-admin', 61_000); expect((await call('/core/account/2fa/email/start')).status).toBe(200) }
+    for (let i = 0; i < 4; i += 1) { ageCode('u-admin', 61_000); expect((await startEmail()).status).toBe(200) }
     ageCode('u-admin', 61_000)
-    const many = await call('/core/account/2fa/email/start')
+    const many = await startEmail()
     expect(many.status).toBe(429)
     expect(await many.json()).toMatchObject({ error: { code: 'too_many_codes', message: 'Too many codes were sent in the last hour. Try again later.' } })
   })
@@ -1123,6 +1204,7 @@ describe('core: two-step setup form matrix (docs/QA.md §2)', () => {
     renderApp('/account')
     const APP = 'Set up authenticator app', EMAIL = 'Set up email code'
     const QR = 'QR code for your authenticator app', RESEND = /^Send a new code/
+    await u.type(await screen.findByLabelText('Your current password'), 'vedette-demo')
     await eachOption([
       { option: 'choice', shown: [APP, EMAIL], hidden: [QR, RESEND, '6-digit code'] },
       { option: 'app', shown: [QR, '6-digit code', 'Confirm and turn on'], hidden: [RESEND, APP, EMAIL, /We sent a 6-digit code/] },

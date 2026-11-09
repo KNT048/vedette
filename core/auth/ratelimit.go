@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"net/netip"
 	"slices"
 	"strings"
 	"sync"
@@ -33,6 +34,8 @@ const (
 	// password a signed-in user types for a sensitive change.
 	twofaKey   = "twofa"
 	accountKey = "account"
+	// deviceKeyPrefix starts the "IP" part of a limiter key that belongs to one device cookie (D-77).
+	deviceKeyPrefix = "dev:"
 	// netKeySuffix marks a per-/64 key (made by ipLimitKeys); it gets the higher limit.
 	netKeySuffix = "/64"
 )
@@ -68,7 +71,7 @@ func limiterKey(ip, email string) string {
 }
 
 func (l *limiter) mapFor(ip string) map[string]*failures {
-	if ip == twofaKey || ip == accountKey {
+	if isAcct(ip) {
 		return l.acct
 	}
 	return l.m
@@ -269,4 +272,21 @@ func humanWait(secs int) string {
 		return "1 minute"
 	}
 	return fmt.Sprintf("%d minutes", m)
+}
+
+// BeginSetupAttempt counts one guess of the first-run setup code (D-75) before it is judged: per client
+// address like a sign-in (the address, and for IPv6 its /64, with the same limits and growing wait). There
+// is deliberately no counter for the whole box: any shared ceiling is a lever a stranger with a few dozen
+// addresses (ten IPv6 /64s, a hundred IPv4 addresses) pulls to keep setup closed for the owner, and a 100-bit
+// code needs none to resist guessing. It returns a refund to call when the guess was right (or never
+// judged), or 429 rate_limited.
+func (s *Service) BeginSetupAttempt(ip netip.Addr) (refund func(), err error) {
+	if !ip.IsValid() {
+		return nil, errNoIP()
+	}
+	as, e := s.limit.beginAll("code", ipLimitKeys(ip))
+	if e != nil {
+		return nil, e
+	}
+	return func() { refundAll(as) }, nil
 }

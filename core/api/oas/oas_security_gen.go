@@ -319,7 +319,7 @@ func GetRolesForSession(operation string) []string {
 
 func (s *Server) securitySession(ctx context.Context, operationName OperationName, req *http.Request) (context.Context, bool, error) {
 	var t Session
-	const parameterName = "vedette_session"
+	const parameterName = "__Host-vedette_session"
 	var value string
 	switch cookie, err := req.Cookie(parameterName); {
 	case err == nil: // if NO error

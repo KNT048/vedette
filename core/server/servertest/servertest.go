@@ -11,7 +11,7 @@ import (
 )
 
 // CookieName is the session cookie the ogen server insists on seeing for non-public operations.
-const CookieName = "vedette_session"
+const CookieName = "__Host-vedette_session"
 
 // CSRFHeader and CSRFValue are what Auth.CheckCSRF accepts.
 const (

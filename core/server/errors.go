@@ -119,6 +119,7 @@ func (f Fallback) NewError(ctx context.Context, err error) *oas.ErrorStatusCode 
 	if own {
 		f.Log.ErrorContext(ctx, "request failed", "request_id", RequestIDFrom(ctx), "error", err)
 	}
+	setRetryAfter(ctx, e)
 	return toOAS(e, f.Log)
 }
 

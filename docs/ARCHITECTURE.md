@@ -165,7 +165,7 @@ Ngoại lệ không mở rộng sang `vedette-host`: AI không bao giờ gọi `
 
 | Ranh giới | Bên kia | Kiểm soát chính |
 |---|---|---|
-| TB-1 trình duyệt ↔ core | người dùng trong LAN | TLS, cookie `vedette_session` (Secure/HttpOnly/SameSite=Strict) + CSRF, 2FA (D-35), RBAC, CSP không inline, rate limit |
+| TB-1 trình duyệt ↔ core | người dùng trong LAN | TLS (chứng chỉ riêng hoặc tự ký lúc khởi động đầu, `-tls-cert`/`-tls-key`; HTTP thuần chỉ trên loopback), danh sách Host cho phép (421, `-hosts`), cookie `__Host-vedette_session` (Secure/HttpOnly/SameSite=Strict) + CSRF + cookie thiết bị `__Secure-vedette_device` (D-77), 2FA (D-35), RBAC, CSP không inline, rate limit |
 | TB-2 core ↔ nguồn feed | dữ liệu Internet | HTTPS, giới hạn size/time, parser fail-closed, kiểm tra an toàn |
 | TB-3 hộp ↔ thiết bị LAN | thiết bị có thể bị chiếm | banner/syslog/agent không tin cậy; quét chỉ đọc trong phạm vi |
 | TB-4 harness ↔ provider AI | dịch vụ ngoài | chỉ khi cấu hình; che PII; hồ sơ nội bộ; output theo schema |
@@ -190,7 +190,7 @@ Ngoại lệ không mở rộng sang `vedette-host`: AI không bao giờ gọi `
 - REST JSON `/api/v1`, OpenAPI 3.1 **spec-first** (D-18): hợp đồng sinh từ schema Zod của mock, hiện là `api/openapi.json` (D-18 ghi `.yaml`; tên file chốt trong `API_CONVENTIONS.md`). Go sinh type/handler; CI so khớp. SSE `/api/v1/events`. Lỗi chuẩn `{"error": {"code","message"}}`.
 - 3 vai: viewer / operator / admin; quyền thật luôn kiểm ở máy chủ (GUI chỉ ẩn nút). Bật thực thi phản ứng: chỉ admin + 2FA.
 - Mật khẩu argon2id (tối thiểu 12 ký tự); 2FA TOTP hoặc mã email (D-35); OIDC tuỳ chọn (`auth-oidc`); token API chỉ đọc, scoped; MCP chỉ đọc, mặc định localhost.
-- Secret: `core/secrets` AES-256-GCM, UI chỉ hiện 4 ký tự cuối. Header: CSP nghiêm, không tài nguyên CDN ngoài, một cookie phiên, không analytics (`rules/legal.md`).
+- Secret: `core/secrets` AES-256-GCM, UI chỉ hiện 4 ký tự cuối. Header: CSP nghiêm, không tài nguyên CDN ngoài, chỉ ba cookie đăng nhập (phiên, CSRF, thiết bị), không analytics (`rules/legal.md`).
 
 ## 8. Harness AI (D-39, D-29, D-48)
 

@@ -85,22 +85,26 @@ function TwoFactor({ a }: { a: Account }) {
   const [askOff, setAskOff] = useState(false)
   const [pw, setPw] = useState('')
   const [pwErr, setPwErr] = useState<string | null>(null)
+  // D-76: the current password, asked once on the choice screen and sent with either start call (and with "send a new code").
+  const [startPw, setStartPw] = useState('')
+  const [startPwErr, setStartPwErr] = useState<string | null>(null)
   const cooldown = useCountdown()
   const method = a.user.twofa_method
   const email = a.twofa_email
 
   async function startApp() {
-    try { setSetup({ kind: 'app', start: await m.start2fa.mutateAsync() }); setCode(''); setCodeErr(null) } catch (e) { toast.error(errMsg(e, t)) }
+    setStartPwErr(null)
+    try { setSetup({ kind: 'app', start: await m.start2fa.mutateAsync(startPw) }); setCode(''); setCodeErr(null) } catch (e) { setStartPwErr(errMsg(e, t)) }
   }
   async function sendEmail() {
     try {
-      const r = await m.startEmail2fa.mutateAsync()
+      setStartPwErr(null)
+      const r = await m.startEmail2fa.mutateAsync(startPw)
       setSetup({ kind: 'email', sentTo: r.sent_to, preview: (r as { preview_code?: string }).preview_code }); setCode(''); setCodeErr(null); cooldown.start(r.resend_after)
     } catch (e) {
       // 429 resend_too_soon: the code already sent is still valid, so keep the form and just show the wait
       if (e instanceof ApiError && e.code === 'resend_too_soon') cooldown.start(Number(e.details.retry_after ?? 60))
-      setCodeErr(errMsg(e, t))
-      if (!setup) toast.error(errMsg(e, t))
+      if (setup) setCodeErr(errMsg(e, t)); else setStartPwErr(errMsg(e, t))
     }
   }
   async function confirm(e: React.FormEvent) {
@@ -108,7 +112,7 @@ function TwoFactor({ a }: { a: Account }) {
     setCodeErr(null)
     try {
       if (setup?.kind === 'email') await m.confirmEmail2fa.mutateAsync(code.trim()); else await m.confirm2fa.mutateAsync(code.trim())
-      setSetup(null)
+      setSetup(null); setStartPw('')
       toast.success(t('account.twofa.enabled'))
     } catch (err) { setCodeErr(errMsg(err, t)) }
   }
@@ -151,11 +155,15 @@ function TwoFactor({ a }: { a: Account }) {
           </div>
         </form>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4">
+          <Field label={t('account.twofa.startPassword')} hint={t('account.twofa.startPasswordHint')} htmlFor="twofa-start-pw" error={startPwErr ?? undefined}>
+            <Input id="twofa-start-pw" type="password" autoComplete="current-password" value={startPw} aria-invalid={!!startPwErr} onChange={(e) => setStartPw(e.target.value)} className="max-w-sm" />
+          </Field>
+          <div className="grid gap-4 md:grid-cols-2">
           <div className="grid content-start gap-3 rounded-md border border-rule bg-surface p-4">
             <h3 className="text-sm font-semibold">{t('account.twofa.method.app')}</h3>
             <p className="text-[13px] text-muted">{t('account.twofa.app.desc')}</p>
-            <div><Button variant="primary" onClick={() => void startApp()} disabled={m.start2fa.isPending}>{t('account.twofa.app.setup')}</Button></div>
+            <div><Button variant="primary" onClick={() => void startApp()} disabled={!startPw || m.start2fa.isPending}>{t('account.twofa.app.setup')}</Button></div>
           </div>
           <div className="grid content-start gap-3 rounded-md border border-rule bg-surface p-4">
             <h3 className="text-sm font-semibold">{t('account.twofa.method.email')}</h3>
@@ -168,7 +176,8 @@ function TwoFactor({ a }: { a: Account }) {
                   : t('account.twofa.email.askAdmin')}
               </p>
             )}
-            <div><Button variant="primary" disabled={!email.available || m.startEmail2fa.isPending} aria-describedby={email.available ? undefined : 'twofa-email-why'} onClick={() => void sendEmail()}>{t('account.twofa.email.setup')}</Button></div>
+            <div><Button variant="primary" disabled={!startPw || !email.available || m.startEmail2fa.isPending} aria-describedby={email.available ? undefined : 'twofa-email-why'} onClick={() => void sendEmail()}>{t('account.twofa.email.setup')}</Button></div>
+          </div>
           </div>
         </div>
       )}

@@ -31,12 +31,16 @@ type LoginRequest struct {
 	Code      string // the two-step code, empty on the first call
 	IP        netip.Addr
 	UserAgent string
+	// DeviceCookie is the value of the __Secure-vedette_device cookie the browser sent, "" when it sent none (D-77).
+	DeviceCookie string
 }
 
 // LoginResult is a successful sign-in: the handler sets Session.Cookies() and answers 200.
 type LoginResult struct {
 	Session Issued
 	User    User
+	// Device is the value of the device cookie to set with DeviceCookie (D-77); "" when none could be made.
+	Device string
 }
 
 func invalidCredentials() *apierr.Error {
@@ -130,7 +134,8 @@ func disabledError() *apierr.Error {
 // Login runs the sign-in flow of core INV-8:
 //
 //  1. the (IP, email) rate limit (IPv6 by /64): the attempt is counted up front, 429 rate_limited while
-//     blocked, before any password work;
+//     blocked, before any password work. A valid device cookie of that account (D-77, device.go) swaps the
+//     address keys for its own counter;
 //  2. the password (always one argon2 run, under the concurrency cap: 503 server_busy when the box is
 //     swamped): 400 invalid_credentials, identical for an unknown email and a wrong password; a disabled
 //     account that gave the right password is 403 disabled;
@@ -150,7 +155,11 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResult, err
 	if !req.IP.IsValid() {
 		return LoginResult{}, errNoIP()
 	}
-	email, lims := normalizeEmail(req.Email), ipLimitKeys(req.IP)
+	email := normalizeEmail(req.Email)
+	lims, err := s.limitKeys(ctx, email, req.IP, req.DeviceCookie)
+	if err != nil {
+		return LoginResult{}, err
+	}
 	row, rehash, err := s.checkPassword(ctx, email, req.Password, lims)
 	if err != nil {
 		return LoginResult{}, err
@@ -265,6 +274,7 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResult, err
 	}
 	s.limit.resetAll(email, lims)
 	s.limit.reset(twofaKey, row.Email)
+	res.Device = s.deviceFor(ctx, row.ID, row.CredVersion)
 	return res, nil
 }
 
@@ -368,12 +378,16 @@ const totpPurpose = "core_user_totp"
 // ResendCode is POST /auth/login/resend-code: it needs the password again, so a stranger cannot make the
 // box mail codes to someone else's mailbox. Errors: the rate limit, invalid_credentials, 403 disabled,
 // 409 not_email_method, 503 twofa_email_unavailable, and the send limits of EmailCodes.Send.
-func (s *Service) ResendCode(ctx context.Context, email, password string, ip netip.Addr) (Sent, error) {
+func (s *Service) ResendCode(ctx context.Context, email, password string, ip netip.Addr, deviceCookie string) (Sent, error) {
 	if !ip.IsValid() {
 		return Sent{}, errNoIP()
 	}
 	email = normalizeEmail(email)
-	row, _, err := s.checkPassword(ctx, email, password, ipLimitKeys(ip))
+	lims, err := s.limitKeys(ctx, email, ip, deviceCookie)
+	if err != nil {
+		return Sent{}, err
+	}
+	row, _, err := s.checkPassword(ctx, email, password, lims)
 	if err != nil {
 		return Sent{}, err
 	}

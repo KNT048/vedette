@@ -111,6 +111,11 @@ type Service struct {
 	auditKeyMu sync.Mutex
 	auditKey   []byte // HMAC key of the unknown-email audit target, read from core_secret on first use
 
+	deviceKeyMu sync.Mutex
+	deviceKeyV  []byte // HMAC key of the device cookies (D-77), read from core_secret on first use
+
+	pendingTries pendingTries // wrong codes of the pending authenticator key (twofa.go)
+
 	probe func(delta int) // tests only (export_test.go): +1 when an argon2 run starts, -1 when it ends
 }
 

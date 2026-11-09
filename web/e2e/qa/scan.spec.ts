@@ -20,6 +20,7 @@ async function clean(page: Page, commit = false) {
   await page.goto('/setup')
   await page.evaluate(() => localStorage.clear())
   await page.goto('/setup')
+  await page.getByLabel('Setup code').fill('setup-code-demo') // D-75: the code the mock accepts
   await page.getByLabel('Organization name').fill('Test Company')
   await page.getByLabel('Administrator name').fill('Test Admin')
   await page.getByLabel('Sign-in email').fill('admin@test.example')

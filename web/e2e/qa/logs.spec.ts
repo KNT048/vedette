@@ -30,6 +30,7 @@ async function startWithSample(page: Page) {
 /** Cài sạch đi hết các bước, chọn gói "Mid-size business" (có logs), bỏ qua kênh. */
 async function cleanInstall(page: Page, lan = '192.168.10.0/24') {
   await resetStorage(page)
+  await page.getByLabel('Setup code').fill('setup-code-demo') // D-75: the code the mock accepts
   await page.getByLabel('Organization name').fill('Test Company')
   await page.getByLabel('Administrator name').fill('Test Admin')
   await page.getByLabel('Sign-in email').fill('admin@test-company.example')

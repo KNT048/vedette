@@ -63,7 +63,7 @@ func TestUpdateUserGuards(t *testing.T) {
 	yes, no := true, false
 	viewer, admin := routes.Viewer, routes.Admin
 	upd := func(actor auth.User, target string, p auth.UserPatch) (auth.User, error) {
-		return env.Svc.UpdateUser(t.Context(), actor.ID, actor.Email, target, p)
+		return env.Svc.UpdateUser(t.Context(), actor.ID, actor.Email, "", target, p)
 	}
 
 	// You cannot disable yourself, even with another admin around.
@@ -81,8 +81,8 @@ func TestUpdateUserGuards(t *testing.T) {
 	}
 	_, err = upd(a1, a1.ID, auth.UserPatch{Role: &viewer}) // demoting the last active admin
 	wantAPI(t, err, 400, "last_admin")
-	_, err = upd(a2, a1.ID, auth.UserPatch{Disabled: &yes}) // a disabled admin does not count
-	wantAPI(t, err, 400, "last_admin")
+	_, err = upd(a2, a1.ID, auth.UserPatch{Disabled: &yes}) // a disabled admin may do nothing (the actor is re-checked in the write)
+	wantAPI(t, err, 403, "disabled")
 	if got, _ := env.Svc.GetUser(t.Context(), a1.ID); got.Role != routes.Admin || got.Disabled {
 		t.Fatalf("a refused change changed the user: %+v", got)
 	}
@@ -112,7 +112,7 @@ func TestDisablingEndsSessions(t *testing.T) {
 	_, _ = env.Login(t, u.Email, "")
 	_, _ = env.Login(t, u.Email, "")
 	yes := true
-	if _, err := env.Svc.UpdateUser(t.Context(), admin.ID, admin.Email, u.ID, auth.UserPatch{Disabled: &yes}); err != nil {
+	if _, err := env.Svc.UpdateUser(t.Context(), admin.ID, admin.Email, "", u.ID, auth.UserPatch{Disabled: &yes}); err != nil {
 		t.Fatal(err)
 	}
 	if n := env.Count(t, "SELECT count(*) FROM core_session WHERE user_id = ? AND revoked_at IS NULL", u.ID); n != 0 {
@@ -129,7 +129,7 @@ func TestResetPassword(t *testing.T) {
 	s2, _ := env.Login(t, u.Email, "")
 	adminSession, _ := env.Login(t, admin.Email, "")
 
-	temp, err := env.Svc.ResetPassword(t.Context(), admin.Email, u.ID)
+	temp, err := env.Svc.ResetPassword(t.Context(), admin.ID, admin.Email, "", u.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,11 +160,11 @@ func TestResetPassword(t *testing.T) {
 	if strings.Contains(env.Logs.String(), temp) {
 		t.Fatal("temporary password in the logs")
 	}
-	temp2, _ := env.Svc.ResetPassword(t.Context(), admin.Email, u.ID)
+	temp2, _ := env.Svc.ResetPassword(t.Context(), admin.ID, admin.Email, "", u.ID)
 	if temp2 == temp {
 		t.Fatal("two resets gave the same password")
 	}
-	_, err = env.Svc.ResetPassword(t.Context(), admin.Email, "u-nope")
+	_, err = env.Svc.ResetPassword(t.Context(), admin.ID, admin.Email, "", "u-nope")
 	wantAPI(t, err, 404, "not_found")
 }
 
@@ -174,24 +174,29 @@ func TestChangeOwnPassword(t *testing.T) {
 	u := env.User(t, "ann@acme.example", routes.Viewer)
 	keep, _ := env.Login(t, u.Email, "")
 	other, _ := env.Login(t, u.Email, "")
-	change := func(cur, next string) error {
+	change := func(cur, next string) (auth.Issued, error) {
 		return env.Svc.ChangeOwnPassword(t.Context(), u.ID, keep.Session.SessionID, cur, next)
 	}
 
-	wantAPI(t, change("not my password", "a brand new password"), 400, "wrong_password")
-	wantAPI(t, change(authtest.Password, "short"), 400, "weak_password")
-	wantAPI(t, change(authtest.Password, "ann@acme.example"), 400, "weak_password")
-	wantAPI(t, change(authtest.Password, authtest.Password), 400, "same_password")
-	if err := change(authtest.Password, "a brand new password"); err != nil {
+	wantAPI(t, only(change("not my password", "a brand new password")), 400, "wrong_password")
+	wantAPI(t, only(change(authtest.Password, "short")), 400, "weak_password")
+	wantAPI(t, only(change(authtest.Password, "ann@acme.example")), 400, "weak_password")
+	wantAPI(t, only(change(authtest.Password, authtest.Password)), 400, "same_password")
+	fresh, err := change(authtest.Password, "a brand new password")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := env.Svc.Sessions.Authenticate(reqWith(keep, "GET", "")); err != nil {
-		t.Fatalf("the current session ended: %v", err)
+	// The current session is renewed: its old token ends, the new one works.
+	if _, err := env.Svc.Sessions.Authenticate(reqWith(keep, "GET", "")); err == nil {
+		t.Fatal("the old token of the current session survived a password change")
+	}
+	if _, err := env.Svc.Sessions.Authenticate(reqWith(auth.LoginResult{Session: fresh}, "GET", "")); err != nil {
+		t.Fatalf("the renewed session does not work: %v", err)
 	}
 	if _, err := env.Svc.Sessions.Authenticate(reqWith(other, "GET", "")); err == nil {
 		t.Fatal("another session survived a password change")
 	}
-	_, err := env.Login(t, u.Email, "")
+	_, err = env.Login(t, u.Email, "")
 	wantAPI(t, err, 400, "invalid_credentials")
 	if _, err := env.Svc.Login(t.Context(), auth.LoginRequest{Email: u.Email, Password: "a brand new password", IP: ip("192.0.2.1")}); err != nil {
 		t.Fatal(err)
@@ -206,12 +211,151 @@ func TestOwnPasswordGuessesAreRateLimited(t *testing.T) {
 	env := authtest.New(t)
 	u := env.User(t, "ann@acme.example", routes.Viewer)
 	for range 10 {
-		wantAPI(t, env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", "guess guess guess", "a brand new password"), 400, "wrong_password")
+		wantAPI(t, only(env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", "guess guess guess", "a brand new password")), 400, "wrong_password")
 	}
-	wantAPI(t, env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", authtest.Password, "a brand new password"), 429, "rate_limited")
-	wantAPI(t, env.Svc.DisableTwoFA(t.Context(), u.ID, "", authtest.Password), 429, "rate_limited")
+	wantAPI(t, only(env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", authtest.Password, "a brand new password")), 429, "rate_limited")
+	wantAPI(t, only(env.Svc.DisableTwoFA(t.Context(), u.ID, "", authtest.Password)), 429, "rate_limited")
 	env.Clock.Advance(31 * time.Second)
-	if err := env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", authtest.Password, "a brand new password"); err != nil {
+	if err := only(env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", authtest.Password, "a brand new password")); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// Review of WP-04b part 2 (M1): the renewed session is the same browser (device text and address) with new
+// tokens, and it lives a full lifetime from now, like a new sign-in (the user has just proved the password).
+func TestRenewedSessionKeepsTheBrowserAndChangesEveryToken(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	u := env.User(t, "ann@acme.example", routes.Viewer)
+	res, err := env.Svc.Login(t.Context(), auth.LoginRequest{Email: u.Email, Password: authtest.Password, IP: ip("192.0.2.77"), UserAgent: "Firefox on a desk"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh, err := env.Svc.ChangeOwnPassword(t.Context(), u.ID, res.Session.SessionID, authtest.Password, "a brand new password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fresh.SessionID == res.Session.SessionID || fresh.Token == res.Session.Token || fresh.CSRFToken == res.Session.CSRFToken {
+		t.Fatalf("the renewed session shares something with the old one: %+v / %+v", fresh, res.Session)
+	}
+	list, err := env.Svc.Sessions.List(t.Context(), u.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].ID != fresh.SessionID || list[0].Device != "Firefox on a desk" || list[0].IP != "192.0.2.77" {
+		t.Fatalf("sessions after the change = %+v, want only the renewed one for the same browser", list)
+	}
+	// No current session (a caller without one): every session ends and nothing new is made.
+	none, err := env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", "a brand new password", "yet another long password")
+	if err != nil || none != (auth.Issued{}) {
+		t.Fatalf("with no current session: %+v, %v", none, err)
+	}
+}
+
+// Review of WP-04b part 2 (L5): a wrong password typed to change the password or turn two-step on or off is
+// a guess, and leaves an auth.reauth_failed row like a wrong sign-in password leaves auth.login_failed.
+func TestWrongReauthPasswordIsAudited(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	u := env.User(t, "ann@acme.example", routes.Viewer)
+	wantAPI(t, only(env.Svc.ChangeOwnPassword(t.Context(), u.ID, "", "guess guess guess", "a brand new password")), 400, "wrong_password")
+	_, err := env.Svc.StartTOTP(t.Context(), u.ID, "", "guess guess guess")
+	wantAPI(t, err, 400, "wrong_password")
+	wantAPI(t, only(env.Svc.DisableTwoFA(t.Context(), u.ID, "", "guess guess guess")), 400, "wrong_password")
+	if n := env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'auth.reauth_failed' AND target = 'ann@acme.example' AND detail = 'wrong password'"); n != 3 {
+		t.Fatalf("%d auth.reauth_failed rows, want 3", n)
+	}
+	if env.Count(t, "SELECT count(*) FROM core_audit WHERE detail LIKE '%guess%'") != 0 {
+		t.Fatal("a guessed password reached the audit log")
+	}
+	// The right password writes no such row.
+	if _, err := env.Svc.StartTOTP(t.Context(), u.ID, "", authtest.Password); err != nil {
+		t.Fatal(err)
+	}
+	if n := env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'auth.reauth_failed'"); n != 3 {
+		t.Fatalf("a right password wrote auth.reauth_failed (%d rows)", n)
+	}
+}
+
+// Review of WP-04b part 2 (L7): names refuse invisible format characters (category Cf) as well as control
+// characters: a bidirectional override makes a name read as another, a zero-width space makes one that cannot be
+// typed back.
+func TestNamesRefuseInvisibleFormatCharacters(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	u := env.User(t, "ann@acme.example", routes.Viewer)
+	for name, bad := range map[string]string{
+		"right-to-left override": "Ann\u202Enimda", "zero width space": "Bo\u200Bb", "soft hyphen": "An\u00ADn",
+		"byte order mark": "\uFEFFAnn", "word joiner": "A\u2060nn", "tag character": "Ann\U000E0041", "control": "Ann\u0007",
+	} {
+		if !auth.HasInvisible(bad) {
+			t.Errorf("%s: HasInvisible = false", name)
+		}
+		if _, e := auth.ValidateUserFields(bad, "bob@acme.example", routes.Viewer); e == nil || e.Code != "invalid_name" {
+			t.Errorf("%s: new user name accepted (%v)", name, e)
+		}
+		wantAPI(t, env.Svc.UpdateOwnName(t.Context(), u.ID, "", bad), 400, "invalid_name")
+	}
+	for _, ok := range []string{"Nguyễn Văn An", "Zoë O'Brien-Smith", "田中 太郎"} {
+		if auth.HasInvisible(ok) {
+			t.Errorf("%q refused", ok)
+		}
+		if _, e := auth.ValidateUserFields(ok, "bob@acme.example", routes.Viewer); e != nil {
+			t.Errorf("%q: %v", ok, e)
+		}
+	}
+}
+
+// Review 2 (L7): the Default_Ignorable_Code_Point characters outside Cf (hangul fillers, combining grapheme
+// joiner, variation selectors, ...) and the braille blank are refused too, at both ends of every range of
+// the table; ZWNJ and ZWJ are allowed only between two letters.
+func TestNamesRefuseDefaultIgnorableCharacters(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	for _, r := range []rune{
+		0x3164, 0x115F, 0x1160, 0xFFA0, 0x034F, 0x2800, 0x180B, 0x180C, 0x180D, 0x180E, 0x180F, 0x061C, 0x17B4, 0x17B5,
+		0xFE00, 0xFE0F, 0xE0000, 0xE0100, 0xE0FFF, 0x1BCA0, 0x1BCA3, 0x1D173, 0x1D17A, 0xFFF0, 0xFFF8, 0x2060, 0x206F,
+	} {
+		for _, name := range []string{"Kien" + string(r), string(r) + "Kien", "Ki" + string(r) + "en"} {
+			if !auth.HasInvisible(name) {
+				t.Errorf("U+%04X in %q: HasInvisible = false", r, name)
+			}
+			if _, e := auth.ValidateUserFields(name, "x@acme.example", routes.Viewer); e == nil || e.Code != "invalid_name" {
+				t.Errorf("U+%04X in %q: name accepted (%v)", r, name, e)
+			}
+		}
+	}
+	// The character just outside a range is an ordinary one.
+	for _, r := range []rune{0x00AC, 0x00AE, 0x034E, 0x0350, 0x1161, 0x3165, 0xFFA1, 0x2801, 0xFE10, 0xE1000} {
+		if auth.HasInvisible("Ki" + string(r) + "en") {
+			t.Errorf("U+%04X refused", r)
+		}
+	}
+	u := env.User(t, "ann@acme.example", routes.Viewer)
+	wantAPI(t, env.Svc.UpdateOwnName(t.Context(), u.ID, "", "Kien\u3164"), 400, "invalid_name")
+}
+
+func TestNamesAllowZWNJAndZWJOnlyBetweenLetters(t *testing.T) {
+	t.Parallel()
+	alireza := "\u0639\u0644\u06cc\u200c\u0631\u0636\u0627" // Persian, written with ZWNJ
+	for name, want := range map[string]bool{
+		alireza:                                false,
+		"\u0645\u06cc\u200c\u062e\u0648":       false,
+		"a\u200db":                             false,
+		"\u0d95\u0dca\u200d\u0dbb\u0dd2":       true, // ZWJ after a virama (not a letter): the rule is letter + joiner + letter
+		"\u200c\u0639\u0644\u06cc":             true, // at the start
+		"\u0639\u0644\u06cc\u200c":             true, // at the end
+		"\u0639\u0644\u06cc\u200c\u200c\u0631": true, // two in a row
+		"Ann \u200cbob":                        true, // after a space
+		"Ann\u200c bob":                        true, // before a space
+		"Ann\u200c1":                           true, // before a digit
+		"Ann\u200bbob":                         true, // zero width space is never allowed
+	} {
+		if got := auth.HasInvisible(name); got != want {
+			t.Errorf("HasInvisible(%+q) = %v, want %v", name, got, want)
+		}
+	}
+	if _, e := auth.ValidateUserFields(alireza, "x@acme.example", routes.Viewer); e != nil {
+		t.Errorf("a correctly written Persian name is refused: %v", e)
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
@@ -32,7 +33,9 @@ type deps struct {
 	Secrets *secrets.Store
 	Audit   *audit.Log
 	Clock   func() time.Time
-	Bus     *events.Bus // in-process event bus (core/events); modules publish after commit and subscribe here
+	Bus     *events.Bus       // in-process event bus (core/events); modules publish after commit and subscribe here
+	Auth    *auth.Service     // sessions, sign-in and two-step (core/auth)
+	Core    *core.APIHandlers // core's own operations (sign-in, account, users, setup, audit, general settings)
 
 	// Module services other modules use through their own ports (issue #38, #39). Built once in serve,
 	// after the fields above, so every handler, job and subscriber shares one instance.

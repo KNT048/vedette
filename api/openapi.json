@@ -20,7 +20,7 @@
       "session": {
         "type": "apiKey",
         "in": "cookie",
-        "name": "vedette_session"
+        "name": "__Host-vedette_session"
       }
     },
     "schemas": {
@@ -7829,7 +7829,7 @@
     "/core/account/2fa/email/start": {
       "post": {
         "operationId": "core_post_core_account_2fa_email_start",
-        "summary": "Email code: send a 6-digit code to my own sign-in email (409 when the email channel is not ready or two-step is already on; same limits as sign-in codes)",
+        "summary": "Email code: send a 6-digit code to my own sign-in email (409 when the email channel is not ready or two-step is already on; same limits as sign-in codes; needs the current password, D-76)",
         "tags": [
           "core"
         ],
@@ -7837,6 +7837,25 @@
           "S-CORE-3"
         ],
         "x-min-role": "viewer",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "password"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -7881,7 +7900,7 @@
     "/core/account/2fa/start": {
       "post": {
         "operationId": "core_post_core_account_2fa_start",
-        "summary": "Authenticator app: create a TOTP key waiting for confirmation",
+        "summary": "Authenticator app: create a TOTP key waiting for confirmation (needs the current password, D-76; wrong password 400 wrong_password, counted like a failed sign-in)",
         "tags": [
           "core"
         ],
@@ -7889,6 +7908,25 @@
           "S-CORE-3"
         ],
         "x-min-role": "viewer",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "password"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -12435,6 +12473,10 @@
                         "response"
                       ]
                     }
+                  },
+                  "setup_code": {
+                    "description": "The one-time setup code the box prints in its log while setup is open (D-75). Required to create the first administrator: missing or wrong gives 403 invalid_setup_code, 429 rate_limited after repeated wrong tries",
+                    "type": "string"
                   }
                 },
                 "additionalProperties": false

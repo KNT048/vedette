@@ -29,6 +29,8 @@ const (
 	CodeCSRFInvalid    = "csrf_invalid"
 	CodeNotImplemented = "not_implemented"
 	CodeInternal       = "internal"
+	// CodeMisdirected (421) answers a request whose Host header the box does not serve (WP-04b part 2).
+	CodeMisdirected = "misdirected_request"
 )
 
 var codeRE = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)

@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"encoding/base64"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -15,6 +16,8 @@ func CleanLine(s string, redact ...string) string {
 	for _, r := range redact {
 		if len(r) >= 4 {
 			s = strings.ReplaceAll(s, r, "***")
+			// A device that echoes the Authorization header shows a token in clear but a Basic credential in base64.
+			s = strings.ReplaceAll(s, base64.StdEncoding.EncodeToString([]byte(r)), "***")
 		}
 	}
 	var b strings.Builder
@@ -23,6 +26,8 @@ func CleanLine(s string, redact ...string) string {
 		switch {
 		case unicode.IsControl(r) || unicode.IsSpace(r) || r == utf8.RuneError:
 			space = b.Len() > 0
+		case unicode.Is(unicode.Cf, r): // bidi overrides and zero-width characters make a line read differently from what it holds
+			continue
 		default:
 			if space {
 				b.WriteByte(' ')

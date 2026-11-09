@@ -19,6 +19,9 @@ import type { Connector, ConnectorInput, ConnectorKind } from './types'
 
 const KINDS: ConnectorKind[] = [...CONNECTION_KINDS]
 const AUTHS = ['none', 'token', 'basic', 'ssh-key'] as const
+// How each kind of pin reads: the line on the card and the label in the edit form.
+const PIN_LINE = { tls_sha256: 'connections.pinLineTls', tls_roots: 'connections.pinLineRoots', ssh_hostkey: 'connections.pinLineSsh' } as const
+const PIN_LABEL = { tls_sha256: 'connections.f.pinTls', tls_roots: 'connections.f.pinRoots', ssh_hostkey: 'connections.f.pinSsh' } as const
 const hasSecret = (c: Connector) => c.auth.last4 !== null || c.auth.key_fingerprint !== null
 const asInput = (c: Connector, over: Partial<ConnectorInput> = {}): ConnectorInput => ({ name: c.name, kind: c.kind, target: c.target, asset_id: c.asset_id, auth_type: c.auth.type, username: c.username, allow: c.allow, enabled: c.enabled, ...over })
 
@@ -75,7 +78,7 @@ export default function ConnectionsSection() {
                           ...(c.username ? [t('connections.asUser', { user: c.username })] : []),
                           c.last_test ? t('connections.tested', { when: fmtRelative(c.last_test) }) : t('connections.neverTested'),
                         ]} />
-                        {c.pin ? <p className="text-[13px] text-muted"><Trans t={t} i18nKey={c.pin.kind === 'ssh_hostkey' ? 'connections.pinLineSsh' : 'connections.pinLineTls'} values={{ value: c.pin.value, when: fmtRelative(c.pin.first_seen) }} components={{ code: <code className="break-all font-mono text-[12px] text-ink" /> }} /></p> : null}
+                        {c.pin ? <p className="text-[13px] text-muted"><Trans t={t} i18nKey={PIN_LINE[c.pin.kind]} values={{ value: c.pin.value, when: fmtRelative(c.pin.first_seen) }} components={{ code: <code className="break-all font-mono text-[12px] text-ink" /> }} /></p> : unsupported ? null : <p className="text-[13px] text-muted">{t('connections.firstTestNote')}</p>}
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <Switch checked={c.enabled} disabled={unsupported && !c.enabled} aria-label={t('connections.enable', { name: c.name })} onCheckedChange={(enabled) => save.mutate({ id: c.id, ...asInput(c, { enabled }) }, { onError: fail })} />
@@ -222,8 +225,8 @@ function ConnDialog({ conn, onClose, onSaved }: { conn: Connector | null; onClos
             <div className="grid gap-2 rounded-md border border-rule bg-sunken px-3 py-3 text-sm">
               <div role="group" aria-label={t('connections.f.pin')} className="grid gap-0.5">
                 <span className="text-[13px] font-medium" aria-hidden>{t('connections.f.pin')}</span>
-                <span className="text-[13px] text-muted">{pin.kind === 'ssh_hostkey' ? t('connections.f.pinSsh') : t('connections.f.pinTls')}</span>
-                <code className="break-all font-mono text-[12px]">{pin.value}</code>
+                <span className="text-[13px] text-muted">{t(PIN_LABEL[pin.kind])}</span>
+                {pin.kind === 'tls_roots' ? null : <code className="break-all font-mono text-[12px]">{pin.value}</code>}
                 <span className="text-[13px] text-muted">{t('connections.f.pinSeen', { when: fmtRelative(pin.first_seen) })}</span>
               </div>
               <div className="flex items-center gap-3"><Switch id="cn-forget" checked={forget} onCheckedChange={setForget} aria-describedby="cn-forget-hint" /><Label htmlFor="cn-forget" className="font-normal">{t('connections.f.forget')}</Label></div>

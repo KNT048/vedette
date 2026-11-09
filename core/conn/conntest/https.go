@@ -2,6 +2,7 @@ package conntest
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"crypto/tls"
 	"crypto/x509"
 	"io"
@@ -82,13 +83,20 @@ func (s *HTTPS) Requests() []Req {
 	return append([]Req(nil), s.reqs...)
 }
 
-// LeafSHA256 is the pin of the certificate the server shows now.
-func (s *HTTPS) LeafSHA256() string { return LeafSHA256(*s.cert.Load()) }
+// SPKISHA256 is the pin of the certificate the server shows now.
+func (s *HTTPS) SPKISHA256() string { return SPKISHA256(*s.cert.Load()) }
 
 // Rotate gives the server a new certificate: the pin of the old one no longer matches.
 func (s *HTTPS) Rotate(t testing.TB) {
 	t.Helper()
 	c := NewCert(t, s.Host)
+	s.cert.Store(&c)
+}
+
+// Reissue gives the server a new certificate for the same key: the pin of the public key still matches.
+func (s *HTTPS) Reissue(t testing.TB) {
+	t.Helper()
+	c := certFor(t, s.cert.Load().PrivateKey.(*ecdsa.PrivateKey), s.Host)
 	s.cert.Store(&c)
 }
 

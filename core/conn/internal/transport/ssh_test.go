@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"unicode"
 
 	"golang.org/x/crypto/ssh"
 
@@ -171,3 +172,42 @@ func TestSSHCapsTheOutput(t *testing.T) {
 
 // encode is the PEM text of a block returned by ssh.MarshalPrivateKey.
 func encode(b *pem.Block) []byte { return pem.EncodeToMemory(b) }
+
+// M1. Run must refuse every control character, not only \r and \n: the line goes to a PTY whose line editor acts on other control
+// characters: Ctrl-Z applies the line and ends config mode on IOS, Ctrl-O is accept-line in bash/readline, Ctrl-V quotes the next key
+// (a literal newline), Ctrl-U kills what the template put before a parameter, Ctrl-C/ESC/DEL/TAB edit or abort. A parameter that
+// carries one of them turns "one approved line" into another command, or two. INV-23 (3): "một dòng một lần".
+func TestSSHRunRefusesControlCharacters(t *testing.T) {
+	t.Parallel()
+	f := conntest.NewSSH(t, conntest.SSHOpts{})
+	for name, line := range map[string]string{
+		"ctrl-z": "show clock\x1aconfigure terminal",
+		"ctrl-o": "true\x0fid",
+		"ctrl-v": "echo a\x16b",
+		"ctrl-u": "show interface \x15reload",
+		"ctrl-c": "show run\x03",
+		"escape": "show \x1b[A",
+		"del":    "show x\x7f",
+		"tab":    "sh\tver",
+		"nul":    "show\x00 run",
+		"c1 csi": "show \u009b2J",
+		"nel c1": "show\u0085reload",
+		"ctrl-d": "show\x04",
+	} {
+		t.Run(name, func(t *testing.T) {
+			s, err := transport.DialSSH(context.Background(), f.Addr, sshCfg())
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer s.Close()
+			if _, err := s.Run(context.Background(), line); err == nil {
+				t.Errorf("Run sent a line with a control character: %q", line)
+			}
+		})
+	}
+	for _, l := range f.Lines() {
+		if strings.ContainsFunc(l, unicode.IsControl) {
+			t.Errorf("the device received a control character in %q", l)
+		}
+	}
+}

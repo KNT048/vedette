@@ -264,7 +264,7 @@ func (m *MCP) call(ctx context.Context, method string, params any) (json.RawMess
 		return nil, nil, deviceErr("the server did not answer the request")
 	}
 	if reply.Error != nil {
-		return nil, nil, deviceErr("the server reported an error (%d): %s", reply.Error.Code, reply.Error.Message)
+		return nil, nil, deviceErrAuth(m.auth, "the server reported an error (%d): %s", reply.Error.Code, reply.Error.Message)
 	}
 	return reply.Result, s.Header, nil
 }

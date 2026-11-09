@@ -2,12 +2,15 @@ package transport
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"net"
 	"net/netip"
 	"strings"
 	"sync/atomic"
 	"testing"
+
+	"github.com/knt048/vedette/core/secrets"
 )
 
 // refuseLikeConn is the policy of core/conn for the tests of this package: loopback, link-local (the cloud metadata address), and
@@ -166,5 +169,34 @@ func TestCleanLine(t *testing.T) {
 	got := CleanLine("  Error:\x1b[31m token abcdefgh1234\r\n\tsecond line "+strings.Repeat("x", 400), "abcdefgh1234")
 	if strings.Contains(got, "abcdefgh1234") || strings.ContainsAny(got, "\r\n\t\x1b") || len([]rune(got)) > MaxLine {
 		t.Fatalf("CleanLine = %q", got)
+	}
+}
+
+// L1, L2, L7. Device text is cleaned in this order: the credentials (and their base64) go first, then the line is cut; format
+// characters (bidi overrides, zero-width) go with the control characters.
+func TestCleanLineRemovesCredentialsBeforeCuttingAndFormatCharacters(t *testing.T) {
+	t.Parallel()
+	basic := base64.StdEncoding.EncodeToString([]byte("opsadmin:pw-0123456789-abcdef"))
+	for name, in := range map[string]string{
+		"basic header":   "rejected Basic " + basic,
+		"password alone": "echo " + base64.StdEncoding.EncodeToString([]byte("pw-0123456789-abcdef")),
+		"plain":          "echo pw-0123456789-abcdef",
+	} {
+		got := CleanLine(in, "pw-0123456789-abcdef", "opsadmin", basic)
+		if strings.Contains(got, "pw-0123456789") || strings.Contains(got, basic[:20]) {
+			t.Errorf("%s: %q", name, got)
+		}
+	}
+	cut := strings.Repeat("x", 190) + "pw-0123456789-abcdef"
+	if got := CleanLine(cut, "pw-0123456789-abcdef"); strings.Contains(got, "pw-0") || strings.Contains(got, "123456789") {
+		t.Errorf("a secret at the cut survived: %q", got)
+	}
+	if got := CleanLine("a\u202eb\u200bc\u2066d"); got != "abcd" {
+		t.Errorf("format characters survived: %q", got)
+	}
+	a := Auth{Type: "basic", Username: "opsadmin", Secret: secrets.NewValue("pw-0123456789-abcdef")}
+	e := deviceErrAuth(a, "error: %s", strings.Repeat("y", 150)+"Basic "+basic)
+	if strings.Contains(e.Msg, basic[:20]) || strings.Contains(e.Msg, "Basic QW") {
+		t.Errorf("deviceErrAuth kept the Basic credential: %q", e.Msg)
 	}
 }

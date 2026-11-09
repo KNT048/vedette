@@ -10,6 +10,7 @@ package conn
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/x509"
 	"database/sql"
 	"encoding/hex"
 	"errors"
@@ -57,8 +58,11 @@ type Auth struct {
 	KeyFingerprint *string `json:"key_fingerprint"`
 }
 
-// Pin is what the first Test trusted (D-94): the leaf certificate of an HTTPS server that no public authority vouches for
-// (Kind tls_sha256, Value 64 hex characters), or the host key of an SSH server (Kind ssh_hostkey, Value "<type> SHA256:...").
+// Pin is what the first Test trusted (D-94): the public key of the leaf certificate of an HTTPS server that no public authority
+// vouches for (Kind tls_sha256, Value the SHA-256 of its SubjectPublicKeyInfo, 64 hex characters), the fact that a public authority
+// did vouch for it (Kind tls_roots, Value "system roots": every later Test requires a valid chain, and a self-signed certificate is
+// refused), or the host key of an SSH server (Kind ssh_hostkey, Value "<type> SHA256:..."). Trust on first use happens only while
+// there is no pin; "Forget pinned key" (clear_pin) is the way back to a first use.
 type Pin struct {
 	Kind      string `json:"kind"`
 	Value     string `json:"value"`
@@ -117,6 +121,10 @@ type Service struct {
 	cfg   Config
 	now   func() time.Time
 	vault *cred.Vault
+	// testBudget replaces the time a whole Test may take; tests shorten it. 0 is testBudget(kind).
+	testBudget time.Duration
+	// roots replaces the system roots in tests (a test cannot add to them); nil in the product.
+	roots *x509.CertPool
 }
 
 // New returns the Service.

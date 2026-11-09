@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/api/routes"
 	"github.com/knt048/vedette/core/conn/conntest"
@@ -109,7 +110,7 @@ func TestConnections_TestReachesTheDevice(t *testing.T) {
 	if r.Code != 200 || r.JSON["ok"] != true || r.JSON["tools_found"] != float64(2) {
 		t.Fatalf("test of a connection that is on = %d %s", r.Code, r.Raw)
 	}
-	if r.str("connector", "status") != "ok" || r.str("connector", "pin", "kind") != "tls_sha256" || r.str("connector", "pin", "value") != f.LeafSHA256() {
+	if r.str("connector", "status") != "ok" || r.str("connector", "pin", "kind") != "tls_sha256" || r.str("connector", "pin", "value") != f.SPKISHA256() {
 		t.Errorf("the connector in the answer: %s", r.Raw)
 	}
 	if !regexp.MustCompile(`^Connected\. 2 tools found \(1 can change something\)\. The certificate is now pinned\.$`).MatchString(r.str("message")) {
@@ -231,6 +232,13 @@ type matrixStep struct {
 	Absent         []string          `json:"absent"`
 	ListHas        []string          `json:"listHas"`
 	ListLacks      []string          `json:"listLacks"`
+	// During is a request sent while this step's request is still being answered by a device that is slow.
+	During *struct {
+		Method string `json:"method"`
+		Path   string `json:"path"`
+		Body   any    `json:"body"`
+		Status int    `json:"status"`
+	} `json:"during"`
 	// Real is what the backend answers where it deliberately differs from the mock.
 	Real *struct {
 		Status int `json:"status"`
@@ -318,6 +326,22 @@ func TestConnections_AnswerLikeTheMock(t *testing.T) {
 	}
 	// The script's connections are saved with LAN addresses; the dial of the Test step goes to an in-process fake instead.
 	conntest.NewHTTPS(t, nil).Redirect(t, "192.168.10.64:443")
+	// The failure steps type names; the names reach fakes (or, for "rebound", loopback, which the policy refuses at dial time).
+	conntest.ResolveName(t, "rebound.device.test", "127.0.0.1")
+	conntest.ResolveName(t, "denied.device.test", "192.168.10.91")
+	conntest.NewHTTPS(t, http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) { rw.WriteHeader(http.StatusUnauthorized) })).Redirect(t, "192.168.10.91:443")
+	conntest.ResolveName(t, "slow.device.test", "192.168.10.92")
+	arrived, release := make(chan struct{}, 8), make(chan struct{})
+	conntest.NewHTTPS(t, http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+		select {
+		case arrived <- struct{}{}:
+		default:
+		}
+		<-release // the device answers when the script has made its edit
+		_, _ = io.WriteString(rw, "{}")
+	})).Redirect(t, "192.168.10.92:443")
+	var released bool
+	meanwhile, _ := w.signIn("meanwhile@acme.example", "admin")
 	clients := map[string]*client{"": w.client()}
 	for _, role := range []string{"admin", "operator", "viewer"} {
 		clients[role], _ = w.signIn(role+"@acme.example", role)
@@ -335,7 +359,32 @@ func TestConnections_AnswerLikeTheMock(t *testing.T) {
 		if s.Body != nil {
 			body = fillKeys(s.Body, keys)
 		}
-		r := clients[s.Role].request(s.Method, path, body)
+		var r reply
+		if s.During == nil {
+			r = clients[s.Role].request(s.Method, path, body)
+		} else {
+			done := make(chan reply, 1)
+			go func() { done <- clients[s.Role].request(s.Method, path, body) }()
+			select {
+			case <-arrived:
+			case <-time.After(10 * time.Second):
+				t.Fatalf("step %s: the device was never reached", s.Name)
+			}
+			dpath := placeholder.ReplaceAllStringFunc(s.During.Path, func(p string) string {
+				if id, ok := kept[p[1:len(p)-1]]; ok {
+					return id
+				}
+				return p
+			})
+			if d := meanwhile.request(s.During.Method, dpath, fillKeys(s.During.Body, keys)); d.Code != s.During.Status {
+				t.Errorf("step %s: the request made meanwhile = %d %s, want %d", s.Name, d.Code, d.Raw, s.During.Status)
+			}
+			if !released {
+				close(release)
+				released = true
+			}
+			r = <-done
+		}
 		status, errWant := s.Status, s.Error
 		if s.Real != nil {
 			status, errWant = s.Real.Status, nil

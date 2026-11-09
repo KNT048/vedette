@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -35,6 +36,22 @@ func deviceErr(format string, args ...any) *DeviceError {
 	return &DeviceError{Msg: CleanLine(fmt.Sprintf(format, args...))}
 }
 
+// deviceErrAuth is deviceErr for a message that holds the device's own words: the credentials are removed before the line is cut to
+// its length, or the first characters of a credential cut in half would survive.
+func deviceErrAuth(a Auth, format string, args ...any) *DeviceError {
+	return &DeviceError{Msg: CleanLine(fmt.Sprintf(format, args...), a.redactions()...)}
+}
+
+// redactions are the strings of this credential that must not appear in any text: the secret, the user name, and the Basic form
+// (base64 of user:secret). CleanLine adds the base64 of each of them alone.
+func (a Auth) redactions() []string {
+	r := []string{a.Secret.Reveal(), a.Username}
+	if a.Type == "basic" {
+		r = append(r, base64.StdEncoding.EncodeToString([]byte(a.Username+":"+a.Secret.Reveal())))
+	}
+	return r
+}
+
 // Auth is how the box signs in to an HTTP server (D-94 (1)). The secret is read from the vault by the caller.
 type Auth struct {
 	Type     string // none, token or basic
@@ -45,8 +62,8 @@ type Auth struct {
 // HTTPSConfig configures a Client.
 type HTTPSConfig struct {
 	Dialer *Dialer
-	// Pin is the hex SHA-256 of the pinned leaf certificate. With a pin, the certificate must be that one and nothing else counts,
-	// public authorities included.
+	// Pin is the hex SHA-256 of the SubjectPublicKeyInfo of the pinned leaf certificate. With a pin, the key must be that one and
+	// nothing else counts, public authorities included.
 	Pin string
 	// TOFU lets a certificate that no public authority vouches for through when there is no pin, and reports it in Seen: the
 	// first Test pins it (trust on first use). Without it, such a certificate is refused: ErrUnverified.
@@ -57,7 +74,7 @@ type HTTPSConfig struct {
 
 // Seen is what the last handshake showed.
 type Seen struct {
-	LeafSHA256    string // hex, "" until a handshake completed
+	SPKISHA256    string // hex SHA-256 of the leaf's public key, "" until a handshake completed
 	SystemTrusted bool   // a public authority vouches for the certificate and the name
 }
 
@@ -127,7 +144,9 @@ func (c *Client) verify(host string, cs tls.ConnectionState) error {
 		return errors.New("the server sent no certificate")
 	}
 	leaf := cs.PeerCertificates[0]
-	sum := sha256.Sum256(leaf.Raw)
+	// The pin is the hash of the public key (SubjectPublicKeyInfo), like an SSH host key pin: a certificate re-issued for the
+	// same key keeps it.
+	sum := sha256.Sum256(leaf.RawSubjectPublicKeyInfo)
 	hash := hex.EncodeToString(sum[:])
 	trusted := false
 	inter := x509.NewCertPool()
@@ -137,19 +156,24 @@ func (c *Client) verify(host string, cs tls.ConnectionState) error {
 	if _, err := leaf.Verify(x509.VerifyOptions{DNSName: host, Roots: c.cfg.Roots, Intermediates: inter}); err == nil {
 		trusted = true
 	}
-	c.mu.Lock()
-	c.seen = Seen{LeafSHA256: hash, SystemTrusted: trusted}
-	c.mu.Unlock()
 	switch {
 	case c.cfg.Pin != "":
 		if !strings.EqualFold(hash, c.cfg.Pin) {
 			return ErrPinMismatch
 		}
-		return nil
 	case trusted, c.cfg.TOFU:
-		return nil
+	default:
+		return ErrUnverified
 	}
-	return ErrUnverified
+	// One client is one trust decision (one Test): every handshake after the first must show the same key, or the credential would
+	// go to whoever answers the second request.
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.seen.SPKISHA256 != "" && c.seen.SPKISHA256 != hash {
+		return ErrPinMismatch
+	}
+	c.seen = Seen{SPKISHA256: hash, SystemTrusted: trusted}
+	return nil
 }
 
 // ForbiddenHeader reports whether a template may not set a header (D-94 (1)): the sign-in is the connection's, the route is the
@@ -279,7 +303,7 @@ func cleanTransportError(err error, a Auth) error {
 	if errors.As(err, &ne) && ne.Timeout() {
 		return errors.New("timed out")
 	}
-	return errors.New(CleanLine(unwrapURL(err), a.Secret.Reveal(), a.Username))
+	return errors.New(CleanLine(unwrapURL(err), a.redactions()...))
 }
 
 func unwrapURL(err error) string {

@@ -42,11 +42,11 @@ func TestHTTPSPinTOFUThenMismatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	seen := first.Seen()
-	if seen.SystemTrusted || seen.LeafSHA256 != f.LeafSHA256() {
-		t.Fatalf("seen %+v, want the leaf %s and no public trust", seen, f.LeafSHA256())
+	if seen.SystemTrusted || seen.SPKISHA256 != f.SPKISHA256() {
+		t.Fatalf("seen %+v, want the leaf %s and no public trust", seen, f.SPKISHA256())
 	}
 
-	pinned := transport.NewHTTPS(transport.HTTPSConfig{Dialer: dialer(), Pin: seen.LeafSHA256})
+	pinned := transport.NewHTTPS(transport.HTTPSConfig{Dialer: dialer(), Pin: seen.SPKISHA256})
 	if _, err := get(pinned, f.URL+"/b"); err != nil {
 		t.Fatalf("with the pin: %v", err)
 	}
@@ -61,7 +61,7 @@ func TestHTTPSPinTOFUThenMismatch(t *testing.T) {
 		t.Fatalf("%d requests reached a server whose certificate changed", n-before)
 	}
 	// Even a first-use client with the pin set refuses it: TOFU only applies when there is no pin.
-	both := transport.NewHTTPS(transport.HTTPSConfig{Dialer: dialer(), Pin: seen.LeafSHA256, TOFU: true})
+	both := transport.NewHTTPS(transport.HTTPSConfig{Dialer: dialer(), Pin: seen.SPKISHA256, TOFU: true})
 	if _, err := get(both, f.URL); !errors.Is(err, transport.ErrPinMismatch) {
 		t.Fatalf("pin + TOFU = %v, want ErrPinMismatch", err)
 	}
@@ -224,5 +224,52 @@ func TestHTTPSSignsInAndRefusesForbiddenHeaders(t *testing.T) {
 		if transport.ForbiddenHeader(h) {
 			t.Errorf("ForbiddenHeader(%s) = true", h)
 		}
+	}
+}
+
+// M2. One client is one trust decision: after its first handshake every later handshake must show the same public key, or the
+// credential would go to whoever answers the second request.
+func TestHTTPSOneClientTrustsOneKey(t *testing.T) {
+	t.Parallel()
+	f := conntest.NewHTTPS(t, nil)
+	c := transport.NewHTTPS(transport.HTTPSConfig{Dialer: dialer(), TOFU: true})
+	if _, err := get(c, f.URL); err != nil {
+		t.Fatal(err)
+	}
+	first := c.Seen().SPKISHA256
+	f.Reissue(t) // another certificate for the same key is the same server
+	if _, err := get(c, f.URL); err != nil {
+		t.Fatalf("a certificate re-issued for the same key was refused: %v", err)
+	}
+	f.Rotate(t)
+	n := len(f.Requests())
+	if _, err := get(c, f.URL); !errors.Is(err, transport.ErrPinMismatch) {
+		t.Fatalf("a new key in the middle of one test = %v, want ErrPinMismatch", err)
+	}
+	if len(f.Requests()) != n || c.Seen().SPKISHA256 != first {
+		t.Fatal("a request went to the new key, or the first key was forgotten")
+	}
+	// A new client (the next Test) starts again.
+	if _, err := get(transport.NewHTTPS(transport.HTTPSConfig{Dialer: dialer(), TOFU: true}), f.URL); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// The pin is the SHA-256 of the SubjectPublicKeyInfo: it survives a re-issue with the same key and does not survive a new key.
+func TestHTTPSPinIsThePublicKey(t *testing.T) {
+	t.Parallel()
+	f := conntest.NewHTTPS(t, nil)
+	pin := f.SPKISHA256()
+	c := transport.NewHTTPS(transport.HTTPSConfig{Dialer: dialer(), Pin: pin})
+	f.Reissue(t)
+	if f.SPKISHA256() != pin {
+		t.Fatal("the fake changed the key on a re-issue")
+	}
+	if _, err := get(c, f.URL); err != nil {
+		t.Fatalf("pinned key, re-issued certificate: %v", err)
+	}
+	f.Rotate(t)
+	if _, err := get(transport.NewHTTPS(transport.HTTPSConfig{Dialer: dialer(), Pin: pin}), f.URL); !errors.Is(err, transport.ErrPinMismatch) {
+		t.Fatalf("a new key = %v, want ErrPinMismatch", err)
 	}
 }

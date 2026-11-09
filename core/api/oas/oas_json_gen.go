@@ -27356,6 +27356,8 @@ func (s *CoreGetCoreConnectionsOKItemsItemPinKind) Decode(d *jx.Decoder) error {
 	switch CoreGetCoreConnectionsOKItemsItemPinKind(v) {
 	case CoreGetCoreConnectionsOKItemsItemPinKindTLSSHA256:
 		*s = CoreGetCoreConnectionsOKItemsItemPinKindTLSSHA256
+	case CoreGetCoreConnectionsOKItemsItemPinKindTLSRoots:
+		*s = CoreGetCoreConnectionsOKItemsItemPinKindTLSRoots
 	case CoreGetCoreConnectionsOKItemsItemPinKindSSHHostkey:
 		*s = CoreGetCoreConnectionsOKItemsItemPinKindSSHHostkey
 	default:
@@ -43940,6 +43942,8 @@ func (s *CorePostCoreConnectionsCreatedPinKind) Decode(d *jx.Decoder) error {
 	switch CorePostCoreConnectionsCreatedPinKind(v) {
 	case CorePostCoreConnectionsCreatedPinKindTLSSHA256:
 		*s = CorePostCoreConnectionsCreatedPinKindTLSSHA256
+	case CorePostCoreConnectionsCreatedPinKindTLSRoots:
+		*s = CorePostCoreConnectionsCreatedPinKindTLSRoots
 	case CorePostCoreConnectionsCreatedPinKindSSHHostkey:
 		*s = CorePostCoreConnectionsCreatedPinKindSSHHostkey
 	default:
@@ -45022,6 +45026,8 @@ func (s *CorePostCoreConnectionsIDTestOKConnectorPinKind) Decode(d *jx.Decoder) 
 	switch CorePostCoreConnectionsIDTestOKConnectorPinKind(v) {
 	case CorePostCoreConnectionsIDTestOKConnectorPinKindTLSSHA256:
 		*s = CorePostCoreConnectionsIDTestOKConnectorPinKindTLSSHA256
+	case CorePostCoreConnectionsIDTestOKConnectorPinKindTLSRoots:
+		*s = CorePostCoreConnectionsIDTestOKConnectorPinKindTLSRoots
 	case CorePostCoreConnectionsIDTestOKConnectorPinKindSSHHostkey:
 		*s = CorePostCoreConnectionsIDTestOKConnectorPinKindSSHHostkey
 	default:
@@ -61467,6 +61473,8 @@ func (s *CorePutCoreConnectionsIDOKPinKind) Decode(d *jx.Decoder) error {
 	switch CorePutCoreConnectionsIDOKPinKind(v) {
 	case CorePutCoreConnectionsIDOKPinKindTLSSHA256:
 		*s = CorePutCoreConnectionsIDOKPinKindTLSSHA256
+	case CorePutCoreConnectionsIDOKPinKindTLSRoots:
+		*s = CorePutCoreConnectionsIDOKPinKindTLSRoots
 	case CorePutCoreConnectionsIDOKPinKindSSHHostkey:
 		*s = CorePutCoreConnectionsIDOKPinKindSSHHostkey
 	default:

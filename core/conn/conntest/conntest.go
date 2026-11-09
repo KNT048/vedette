@@ -40,13 +40,19 @@ func AllowLoopback(t testing.TB, ln net.Listener) string {
 	return name
 }
 
-// NewCert makes a self-signed certificate for the names and 127.0.0.1: one that no public authority vouches for.
+// NewCert makes a self-signed certificate for the names and 127.0.0.1, with a new key: one that no public authority vouches for.
 func NewCert(t testing.TB, dns ...string) tls.Certificate {
 	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
+	return certFor(t, key, dns...)
+}
+
+// certFor signs a new certificate (new serial) for an existing key.
+func certFor(t testing.TB, key *ecdsa.PrivateKey, dns ...string) tls.Certificate {
+	t.Helper()
 	serial, _ := rand.Int(rand.Reader, big.NewInt(1<<62))
 	tpl := &x509.Certificate{
 		SerialNumber: serial, Subject: pkix.Name{CommonName: "vedette test device"},
@@ -61,9 +67,13 @@ func NewCert(t testing.TB, dns ...string) tls.Certificate {
 	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}
 }
 
-// LeafSHA256 is the hex SHA-256 of a certificate: the value of a TLS pin.
-func LeafSHA256(c tls.Certificate) string {
-	sum := sha256.Sum256(c.Certificate[0])
+// SPKISHA256 is the hex SHA-256 of the public key of a certificate: the value of a TLS pin.
+func SPKISHA256(c tls.Certificate) string {
+	leaf, err := x509.ParseCertificate(c.Certificate[0])
+	if err != nil {
+		panic(err) // a certificate this package made
+	}
+	sum := sha256.Sum256(leaf.RawSubjectPublicKeyInfo)
 	return hex.EncodeToString(sum[:])
 }
 
@@ -78,4 +88,14 @@ func ResolveTo(t testing.TB, ip string) string {
 	name := fmt.Sprintf("dev%d.device.test", names.Add(1))
 	t.Cleanup(transport.ResolveForTest(name, a))
 	return name
+}
+
+// ResolveName is ResolveTo with a name of the caller's choosing: a script that types the address (a parity script) names the fake.
+func ResolveName(t testing.TB, name, ip string) {
+	t.Helper()
+	a, err := netip.ParseAddr(ip)
+	if err != nil {
+		t.Fatalf("conntest: %v", err)
+	}
+	t.Cleanup(transport.ResolveForTest(name, a))
 }

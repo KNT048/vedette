@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"golang.org/x/crypto/ssh"
 
@@ -28,7 +29,12 @@ type SSHConfig struct {
 	// TOFU accepts the host key of a server with no pin and reports it in SSH.HostKey (trust on first use, like OpenSSH's
 	// StrictHostKeyChecking accept-new). Without a pin and without TOFU nothing is accepted.
 	TOFU bool
+	// SetupTimeout bounds opening the session, the terminal and the shell once the sign-in is done; 0 is 10 seconds.
+	SetupTimeout time.Duration
 }
+
+// SetupTimeout is the default of SSHConfig.SetupTimeout: the whole session budget is 60 seconds and one line gets 20.
+const SetupTimeout = 10 * time.Second
 
 // The algorithms are the library's list of those without a known weakness: no ssh-rsa with SHA-1, no CBC or RC4 ciphers, no
 // Diffie-Hellman group 1 or SHA-1 key exchange. The library's default list is wider, because it still has to talk to old gear.
@@ -55,12 +61,15 @@ type SSH struct {
 	stdin    io.WriteCloser
 	deadline time.Time
 
+	wmu    sync.Mutex // serialises writes to the session with its close (the library does not)
 	mu     sync.Mutex
 	cond   *sync.Cond
 	buf    []byte
 	total  int
 	rdErr  error
 	closed bool
+	over   bool     // the device sent more than MaxOutput: the reader stopped and the session was closed
+	redact []string // the credentials, removed from any line of device text that is kept
 }
 
 // promptRE is what a device prints when it waits for a command: a short last line that ends in #, >, $ or % (Cisco-like "Switch#",
@@ -79,7 +88,7 @@ func DialSSH(ctx context.Context, hostport string, cfg SSHConfig) (*SSH, error) 
 	if err != nil {
 		return nil, err
 	}
-	s := &SSH{deadline: time.Now().Add(SessionTimeout)}
+	s := &SSH{deadline: time.Now().Add(SessionTimeout), redact: []string{cfg.Password.Reveal(), cfg.Username}}
 	s.cond = sync.NewCond(&s.mu)
 	fail := func(err error) (*SSH, error) {
 		_ = raw.Close()
@@ -92,6 +101,10 @@ func DialSSH(ctx context.Context, hostport string, cfg SSHConfig) (*SSH, error) 
 		signer, err := ssh.ParsePrivateKey([]byte(cfg.Key.Reveal()))
 		if err != nil {
 			return fail(deviceErr("the saved SSH key could not be read"))
+		}
+		signer, err = sha2Only(signer)
+		if err != nil {
+			return fail(deviceErr("the saved SSH key could not be used"))
 		}
 		auth = append(auth, ssh.PublicKeys(signer))
 	case cfg.Password.IsSet():
@@ -139,6 +152,14 @@ func DialSSH(ctx context.Context, hostport string, cfg SSHConfig) (*SSH, error) 
 		return nil, sshError(err, cfg)
 	}
 	_ = raw.SetDeadline(time.Time{})
+	// The sign-in is done, but a device may still never answer the request to open a session, a terminal or a shell: that wait is
+	// bounded too, by closing the connection under it.
+	setup := cfg.SetupTimeout
+	if setup <= 0 {
+		setup = SetupTimeout
+	}
+	setupTimer := time.AfterFunc(setup, func() { _ = raw.Close() })
+	defer setupTimer.Stop()
 	s.client = ssh.NewClient(cc, chans, reqs)
 	closeOnErr := func(err error) (*SSH, error) {
 		s.Close()
@@ -162,6 +183,9 @@ func DialSSH(ctx context.Context, hostport string, cfg SSHConfig) (*SSH, error) 
 	if err := sess.Shell(); err != nil {
 		return closeOnErr(deviceErr("the server did not start a shell"))
 	}
+	if !setupTimer.Stop() { // it fired: the connection is already closed
+		return closeOnErr(errors.New("timed out"))
+	}
 	go s.read(out)
 	if _, err := s.waitPrompt(ctx, LineTimeout); err != nil {
 		return closeOnErr(err)
@@ -177,13 +201,13 @@ func sshError(err error, cfg SSHConfig) error {
 	case strings.Contains(msg, "unable to authenticate"), strings.Contains(msg, "no supported methods remain"):
 		return deviceErr("the device refused the sign-in")
 	case strings.Contains(msg, "no common algorithm"):
-		return deviceErr("the device offers only SSH algorithms that Vedette does not use (%s)", CleanLine(msg, cfg.Password.Reveal()))
+		return deviceErr("the device offers only SSH algorithms that Vedette does not use (%s)", CleanLine(msg, cfg.Password.Reveal(), cfg.Username))
 	}
 	var ne net.Error
 	if errors.As(err, &ne) && ne.Timeout() {
 		return errors.New("timed out")
 	}
-	return errors.New(CleanLine(msg, cfg.Password.Reveal()))
+	return errors.New(CleanLine(msg, cfg.Password.Reveal(), cfg.Username))
 }
 
 func (s *SSH) read(r io.Reader) {
@@ -192,14 +216,24 @@ func (s *SSH) read(r io.Reader) {
 		n, err := r.Read(b)
 		s.mu.Lock()
 		if n > 0 {
-			s.buf = append(s.buf, b[:n]...)
 			s.total += n
+			if s.total > MaxOutput {
+				// Past the cap nothing more is kept or read: a device that floods while nobody waits must not grow the buffer.
+				s.over, s.buf = true, s.buf[:0]
+			} else {
+				s.buf = append(s.buf, b[:n]...)
+			}
 		}
 		if err != nil {
 			s.rdErr = err
 		}
+		over := s.over
 		s.mu.Unlock()
 		s.cond.Broadcast()
+		if over {
+			s.Close()
+			return
+		}
 		if err != nil {
 			return
 		}
@@ -224,7 +258,7 @@ func (s *SSH) waitPrompt(ctx context.Context, limit time.Duration) (string, erro
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for {
-		if s.total > MaxOutput {
+		if s.over {
 			return "", deviceErr("the device sent more than %d MB", MaxOutput>>20)
 		}
 		if isPrompt(s.buf) {
@@ -273,13 +307,25 @@ var errorMarkers = []string{"%", "Error", "Invalid", "Unknown command"}
 // line of the output that begins like an error ends the session: the error is a DeviceError with that one line, cleaned, and the
 // session is closed.
 func (s *SSH) Run(ctx context.Context, line string) (string, error) {
-	if strings.ContainsAny(line, "\r\n") {
-		return "", errors.New("a command is one line")
+	// A terminal acts on more than the line break: Ctrl-Z ends configuration mode, Ctrl-U kills what the template put before a
+	// parameter, Ctrl-V quotes the next key, ESC and the C1 controls start escape sequences. One approved line stays one line.
+	if strings.ContainsFunc(line, unicode.IsControl) {
+		return "", errors.New("a command is one line of printable characters")
 	}
 	s.mu.Lock()
+	over, closed := s.over, s.closed
 	s.buf = s.buf[:0]
 	s.mu.Unlock()
-	if _, err := io.WriteString(s.stdin, line+"\r"); err != nil {
+	if over {
+		return "", deviceErr("the device sent more than %d MB", MaxOutput>>20)
+	}
+	if closed {
+		return "", deviceErr("the device closed the session")
+	}
+	s.wmu.Lock()
+	_, err := io.WriteString(s.stdin, line+"\r")
+	s.wmu.Unlock()
+	if err != nil {
 		s.Close()
 		return "", deviceErr("the device closed the session")
 	}
@@ -299,7 +345,7 @@ func (s *SSH) Run(ctx context.Context, line string) (string, error) {
 		for _, m := range errorMarkers { // at the start of the line: command output is indented, a device's own message is not
 			if strings.HasPrefix(l, m) {
 				s.Close()
-				return "", deviceErr("the device refused a command: %s", CleanLine(l))
+				return "", deviceErr("the device refused a command: %s", CleanLine(l, s.redact...))
 			}
 		}
 	}
@@ -316,7 +362,9 @@ func (s *SSH) Close() {
 	s.closed = true
 	s.mu.Unlock()
 	if s.stdin != nil {
+		s.wmu.Lock()
 		_ = s.stdin.Close()
+		s.wmu.Unlock()
 	}
 	if s.session != nil {
 		_ = s.session.Close()
@@ -324,4 +372,16 @@ func (s *SSH) Close() {
 	if s.client != nil {
 		_ = s.client.Close()
 	}
+}
+
+// sha2Only restricts an RSA key to the SHA-2 signatures: a library signer would otherwise fall back to ssh-rsa with SHA-1.
+func sha2Only(sg ssh.Signer) (ssh.Signer, error) {
+	if sg.PublicKey().Type() != ssh.KeyAlgoRSA {
+		return sg, nil
+	}
+	as, ok := sg.(ssh.AlgorithmSigner)
+	if !ok {
+		return nil, errors.New("the key cannot sign with SHA-2")
+	}
+	return ssh.NewSignerWithAlgorithms(as, []string{ssh.KeyAlgoRSASHA512, ssh.KeyAlgoRSASHA256})
 }

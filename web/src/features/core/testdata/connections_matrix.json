@@ -2332,6 +2332,146 @@
    ]
   },
   {
+   "name": "create a connection to rebound.device.test for the Test failures",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Rebound API",
+    "kind": "http",
+    "target": "https://rebound.device.test",
+    "auth_type": "token",
+    "secret": "reb-0123456789-abcd",
+    "allow": [
+     "https://rebound.device.test/api/"
+    ],
+    "enabled": true
+   },
+   "status": 201,
+   "keep": "rebound"
+  },
+  {
+   "name": "Test: a name that now points at loopback is not dialled (address_refused)",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections/{rebound}/test",
+   "status": 502,
+   "error": {
+    "code": "address_refused",
+    "message": "https://rebound.device.test now points to a loopback address, so Vedette did not connect. Check the name in your DNS."
+   }
+  },
+  {
+   "name": "create a connection to denied.device.test for the Test failures",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Denied API",
+    "kind": "http",
+    "target": "https://denied.device.test",
+    "auth_type": "token",
+    "secret": "den-0123456789-abcd",
+    "allow": [
+     "https://denied.device.test/api/"
+    ],
+    "enabled": true
+   },
+   "status": 201,
+   "keep": "denied"
+  },
+  {
+   "name": "Test: the device answers and says no (device_error)",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections/{denied}/test",
+   "status": 502,
+   "error": {
+    "code": "device_error",
+    "message": "https://denied.device.test was reached, but the device refused the sign-in (HTTP 401)."
+   }
+  },
+  {
+   "name": "create a connection to slow.device.test for the Test failures",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Slow API",
+    "kind": "http",
+    "target": "https://slow.device.test",
+    "auth_type": "token",
+    "secret": "slo-0123456789-abcd",
+    "allow": [
+     "https://slow.device.test/api/"
+    ],
+    "enabled": true
+   },
+   "status": 201,
+   "keep": "slow"
+  },
+  {
+   "name": "Test: the connection is edited while the test runs (connection_changed), nothing is saved",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections/{slow}/test",
+   "status": 409,
+   "during": {
+    "method": "PUT",
+    "path": "/core/connections/{slow}",
+    "body": {
+     "name": "Slow API",
+     "kind": "http",
+     "target": "https://slow.device.test",
+     "auth_type": "token",
+     "secret": "slo-9876543210-wxyz",
+     "allow": [
+      "https://slow.device.test/api/"
+     ],
+     "enabled": true
+    },
+    "status": 200
+   },
+   "error": {
+    "code": "connection_changed",
+    "message": "This connection was edited while the test ran, so the result was not saved. Test it again."
+   }
+  },
+  {
+   "name": "Test again after the edit works",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections/{slow}/test",
+   "status": 200,
+   "expect": {
+    "ok": true,
+    "connector": {
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "name": "delete the rebound connection",
+   "role": "admin",
+   "method": "DELETE",
+   "path": "/core/connections/{rebound}",
+   "status": 204
+  },
+  {
+   "name": "delete the denied connection",
+   "role": "admin",
+   "method": "DELETE",
+   "path": "/core/connections/{denied}",
+   "status": 204
+  },
+  {
+   "name": "delete the slow connection",
+   "role": "admin",
+   "method": "DELETE",
+   "path": "/core/connections/{slow}",
+   "status": 204
+  },
+  {
    "name": "delete",
    "role": "admin",
    "method": "DELETE",

@@ -45,6 +45,8 @@ type Dialer struct {
 	// Refuse says why an address may never be dialled, or "" when it may. It is core/conn's policy (conn.RefusedAddr with the
 	// addresses of the box), asked afresh on every dial. nil refuses nothing and is for tests of other packages only.
 	Refuse func(ctx context.Context, a netip.Addr) string
+	// Timeout is the whole dial, shared between the resolved addresses; 0 is ConnectTimeout. Tests shorten it.
+	Timeout time.Duration
 
 	// lookup and raw are seams for the tests of this package; nil uses the system resolver and a real socket.
 	lookup func(ctx context.Context, host string) ([]netip.Addr, error)
@@ -72,7 +74,11 @@ func (d *Dialer) DialContext(ctx context.Context, hostport string) (net.Conn, er
 	if err != nil {
 		return nil, fmt.Errorf("the port %q is not valid", CleanLine(ps))
 	}
-	ctx, cancel := context.WithTimeout(ctx, ConnectTimeout)
+	budget := d.Timeout
+	if budget <= 0 {
+		budget = ConnectTimeout
+	}
+	ctx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
 
 	addrs, err := d.resolve(ctx, strings.Trim(host, "[]"))
@@ -88,7 +94,11 @@ func (d *Dialer) DialContext(ctx context.Context, hostport string) (net.Conn, er
 	var last error
 	for _, a := range addrs {
 		ap := netip.AddrPortFrom(a, uint16(port)) //nolint:gosec // LookupPort returns 0..65535
-		c, err := d.dialOne(ctx, ap)
+		// Each address gets its own share of the budget: one that does not answer (an AAAA record on a box whose IPv6 goes nowhere)
+		// must not use it all up before the next is tried.
+		actx, acancel := context.WithTimeout(ctx, budget/time.Duration(len(addrs)))
+		c, err := d.dialOne(actx, ap)
+		acancel()
 		if err == nil {
 			return c, nil
 		}
@@ -120,6 +130,11 @@ func (d *Dialer) resolve(ctx context.Context, host string) ([]netip.Addr, error)
 	addrs, err := lookup(ctx, host)
 	if err != nil || len(addrs) == 0 {
 		return nil, errors.New("the name " + CleanLine(host) + " does not resolve")
+	}
+	// The resolver answers an IPv4 address from the hosts file as ::ffff:a.b.c.d; it is a plain IPv4 address, and the policy refuses
+	// the mapped form for what it hides. An address typed by the administrator is not unmapped: it is checked as typed.
+	for i := range addrs {
+		addrs[i] = addrs[i].Unmap()
 	}
 	return addrs, nil
 }

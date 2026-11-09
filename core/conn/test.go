@@ -3,6 +3,7 @@ package conn
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -82,8 +83,16 @@ func (s *Service) Test(ctx context.Context, actor, id string, guard func(ctx con
 		}
 	}
 
+	// The whole Test has a budget of its own, whatever the request's context says: a device that answers one byte at a time cannot
+	// hold the administrator's request, a goroutine and a socket for ever.
+	budget := testBudget(cur.Kind)
+	if s.testBudget > 0 {
+		budget = s.testBudget
+	}
+	pctx, pcancel := context.WithTimeout(ctx, budget)
+	defer pcancel()
 	start := s.now()
-	out, perr := s.probe(ctx, cur, secret)
+	out, perr := s.probe(pctx, cur, secret)
 	latency := int(s.now().Sub(start) / time.Millisecond)
 	if perr != nil && ctx.Err() != nil {
 		return TestResult{}, ctx.Err() // the caller went away: nothing to save
@@ -168,6 +177,14 @@ func (s *Service) Test(ctx context.Context, actor, id string, guard func(ctx con
 	return res, nil
 }
 
+// testBudget is how long a Test may take in all, connecting, signing in and reading included.
+func testBudget(kind string) time.Duration {
+	if kind == KindMCP {
+		return 45 * time.Second // three requests and the pages of the tool list
+	}
+	return 30 * time.Second
+}
+
 func connOff() *apierr.Error {
 	return apierr.New(409, "connection_off", "This connection is turned off, so nothing is sent to it. Turn it on, then test it.")
 }
@@ -183,8 +200,11 @@ func (s *Service) guardReadOnly(ctx context.Context, guard func(ctx context.Cont
 }
 
 func pinWord(kind string) string {
-	if kind == "ssh_hostkey" {
+	switch kind {
+	case "ssh_hostkey":
 		return "host key"
+	case "tls_roots":
+		return "public trust"
 	}
 	return "certificate"
 }
@@ -203,9 +223,12 @@ func message(c Connection, pinnedNow bool) string {
 	}
 	msg := fmt.Sprintf("Connected. %d %s found (%d can change something).", n, noun, w)
 	if pinnedNow {
-		if c.Pin.Kind == "ssh_hostkey" {
+		switch c.Pin.Kind {
+		case "ssh_hostkey":
 			msg += " The host key is now pinned."
-		} else {
+		case "tls_roots":
+			msg += " Later tests require a certificate that a public authority vouches for."
+		default:
 			msg += " The certificate is now pinned."
 		}
 	}
@@ -218,16 +241,30 @@ func describe(c Connection, err error, secret secrets.Value) *apierr.Error {
 	var re *transport.RefusedError
 	var de *transport.DeviceError
 	switch {
-	case errors.Is(err, transport.ErrPinMismatch):
-		what := "The certificate"
-		if c.Pin != nil && c.Pin.Kind == "ssh_hostkey" {
-			what = "The SSH host key"
+	case errors.Is(err, transport.ErrPinMismatch), errors.Is(err, transport.ErrUnverified):
+		if c.Pin == nil { // there is nothing pinned: the server changed its key between two requests of this one Test
+			return apierr.New(502, "pin_mismatch", fmt.Sprintf("The certificate of %s changed while the test ran, so nothing more was sent and nothing was pinned. Test again; if it keeps changing, something between the box and the device is answering.", c.Target))
 		}
-		return apierr.New(502, "pin_mismatch", fmt.Sprintf(`%s of %s is not the one pinned at the first test. Nothing was sent. If you changed the device, edit this connection, turn on "Forget pinned key", save, then test again.`, what, c.Target))
+		what, rest := "The certificate", "is not the one pinned at the first test"
+		switch {
+		case c.Pin != nil && c.Pin.Kind == "ssh_hostkey":
+			what = "The SSH host key"
+		case c.Pin != nil && c.Pin.Kind == "tls_roots":
+			rest = "is not one that a public certificate authority vouches for, as it was at the first test"
+		}
+		return apierr.New(502, "pin_mismatch", fmt.Sprintf(`%s of %s %s. Nothing was sent. If you changed the device, edit this connection, turn on "Forget pinned key", save, then test again.`, what, c.Target, rest))
 	case errors.As(err, &re):
-		return apierr.New(502, "address_refused", fmt.Sprintf("%s now points to %s, so Vedette did not connect. Check the name in your DNS.", c.Target, re.Why))
+		why := re.Why
+		if why == embeddedWhy { // a whole sentence in the save-time message; here it is a noun phrase
+			why = "an IPv6 address that carries an IPv4 address"
+		}
+		return apierr.New(502, "address_refused", fmt.Sprintf("%s now points to %s, so Vedette did not connect. Check the name in your DNS.", c.Target, why))
 	case errors.As(err, &de):
-		msg := transport.CleanLine(de.Msg, secret.Reveal(), deref(c.Username))
+		redact := []string{secret.Reveal(), deref(c.Username)}
+		if c.Auth.Type == AuthBasic {
+			redact = append(redact, base64.StdEncoding.EncodeToString([]byte(deref(c.Username)+":"+secret.Reveal())))
+		}
+		msg := transport.CleanLine(de.Msg, redact...)
 		return apierr.New(502, "device_error", fmt.Sprintf("%s was reached, but %s.", c.Target, strings.TrimRight(msg, ". ")))
 	}
 	return apierr.New(502, "unreachable", fmt.Sprintf("Could not connect to %s. Check the address, the box's network and the firewall.", c.Target))
@@ -238,7 +275,9 @@ func (s *Service) probe(ctx context.Context, c Connection, secret secrets.Value)
 	if c.Kind == KindSSH {
 		return s.probeSSH(ctx, c, secret)
 	}
-	cl := transport.NewHTTPS(transport.HTTPSConfig{Dialer: s.dialer(), Pin: tlsPin(c.Pin), TOFU: true})
+	// Trust on first use is for the first Test only: with any pin (a key, or "a public authority vouches for it") a certificate that
+	// does not fit is refused. The first success records which of the two it was.
+	cl := transport.NewHTTPS(transport.HTTPSConfig{Dialer: s.dialer(), Pin: tlsPin(c.Pin), TOFU: c.Pin == nil, Roots: s.roots})
 	auth := transport.Auth{Type: c.Auth.Type, Username: deref(c.Username), Secret: secret}
 	var out outcome
 	switch c.Kind {
@@ -266,8 +305,12 @@ func (s *Service) probe(ctx context.Context, c Connection, secret secrets.Value)
 			return out, err
 		}
 	}
-	if seen := cl.Seen(); c.Pin == nil && seen.LeafSHA256 != "" && !seen.SystemTrusted {
-		out.pin = &Pin{Kind: "tls_sha256", Value: seen.LeafSHA256}
+	if seen := cl.Seen(); c.Pin == nil && seen.SPKISHA256 != "" {
+		if seen.SystemTrusted {
+			out.pin = &Pin{Kind: "tls_roots", Value: "system roots"}
+		} else {
+			out.pin = &Pin{Kind: "tls_sha256", Value: seen.SPKISHA256}
+		}
 	}
 	return out, nil
 }
@@ -342,13 +385,24 @@ func discovered(found []transport.MCPTool) []Tool {
 	return out
 }
 
-// mergeFound keeps the tools the connection has, with their switches, and adds the ones found for the first time.
+// mergeFound is the tool list after a Test of an MCP server: the tools the server lists now, in its order, at most maxTools. A tool
+// the connection already had keeps what the administrator set (on, read or write); one it did not have is new (write, off); one the
+// server no longer lists is gone, so a server that renames its tools cannot make the list grow from Test to Test.
 func mergeFound(have, found []Tool) []Tool {
-	out := slices.Clone(have)
+	out := make([]Tool, 0, len(found))
 	for _, f := range found {
-		if !slices.ContainsFunc(out, func(t Tool) bool { return t.Name == f.Name }) {
-			out = append(out, f)
+		if len(out) >= maxTools {
+			break
 		}
+		if i := slices.IndexFunc(have, func(t Tool) bool { return t.Name == f.Name }); i >= 0 {
+			kept := have[i]
+			kept.Description = f.Description
+			f = kept
+		}
+		out = append(out, f)
 	}
 	return out
 }
+
+// maxTools is how many tools a connection holds.
+const maxTools = 100

@@ -38,7 +38,7 @@ Tên endpoint, mã lỗi, tên trường giữ tiếng Anh; văn xuôi tiếng V
 | 413 | Tệp/thân quá lớn (`too_large` ở `POST /feeds/parse-test`) | Mock còn trả 400 `too_large` ở 3 endpoint tải tệp: thống nhất về 413 **[ĐX]** |
 | 422 | Dịch vụ ngoài từ chối thông tin hợp lệ về hình thức (`wazuh_auth`) | Hiện đúng 1 chỗ; dùng cho "đúng dạng nhưng bên kia từ chối" |
 | 429 | Giới hạn tần suất / trần (`rate_limited`, `resend_too_soon`, `too_many_codes`, `daily_cap`) | Kèm `Retry-After` (mục 8) |
-| 502 / 503 | Hệ thống ngoài không tới được / kênh cần thiết đang hỏng (`unreachable`, `discovery_failed`, `wazuh_unreachable`, `twofa_email_unavailable`, `server_busy`) | `server_busy` kèm `Retry-After` (mục 8) |
+| 502 / 503 | Hệ thống ngoài không tới được / kênh cần thiết đang hỏng (`unreachable`, `address_refused`, `device_error`, `pin_mismatch`, `discovery_failed`, `wazuh_unreachable`, `twofa_email_unavailable`, `server_busy`) | `server_busy` kèm `Retry-After` (mục 8) |
 
 **Bất biến:** (1) mọi mutation ghi `core_audit` (SYS-3); (2) thân phản hồi của PUT/PATCH/POST-hành-động là **tài nguyên sau khi đổi**, để client không phải gọi lại GET (ngoại lệ có sẵn: `PATCH /core/account` và vài POST trả `{ok:true}`; giữ nguyên); (3) `GET` không bao giờ ghi, trừ `last_fetch` của danh sách chặn (mục 11.3) và các GET xuất dữ liệu (`…/export*`) ghi một dòng `core_audit` không chứa dữ liệu (D-72).
 
@@ -350,7 +350,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `already_setup` | 409 | This box is already set up. Sign in with the administrator account. | `POST /core/setup` |
 | `box_device` | 409 | This is the Vedette box itself, so it cannot be deleted. It is always the first device in the list. Its packages come fr | `DELETE /inventory/devices/{id}` |
 | `circuit_open` | 409 | The circuit breaker is open: too many actions in one hour, so everything is paused. An admin can resume it in Settings, AI response. | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/proposals/{id}/request`; rule runs (resp_log); the emergency stop opens it too (D-88 amendment 2026-11-09) |
-| `connection_changed` | 409 | The connection "…" was changed after the request was made. Nothing was changed. Ask again. (another connection, address or version than the one the request was rendered against) | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/actions/{id}/rollback` |
+| `connection_changed` | 409 | The connection "…" was changed after the request was made. Nothing was changed. Ask again. (another connection, address or version than the one the request was rendered against) | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/actions/{id}/rollback`; `POST /core/connections/{id}/test` (the connection was edited while the test ran, so the result was not saved) |
 | `builtin` | 409 | Built-in actions cannot be deleted. Disable it instead. | `DELETE /response/catalog/{id}` |
 | `busy` | 409 | An update run is in progress. Wait for it to finish, then check again. | `POST /core/updates/os/check`; `POST /core/updates/os/install`; `POST /core/updates/os/reboot`; `GET /core/data/backup` (cũng khi một lần tải khác đang chạy) |
 | `channel_not_ready` | 409 | This channel is not set up or is turned off. An administrator can turn it on in Settings, Alert channels. | `POST /notify/history/{id}/resend` |
@@ -426,10 +426,12 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `resend_too_soon` | 429 | Wait ${wait} seconds before asking for a new code. | module core (validator dùng chung) |
 | `too_many_codes` | 429 | Too many codes were sent in the last hour. Try again later. | module core (validator dùng chung) |
 
-#### HTTP 502 (10 mã)
+#### HTTP 502 (12 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
+| `address_refused` | 502 | ${cur.target} now points to a loopback address, so Vedette did not connect. Check the name in your DNS. (the address policy of D-94 at dial time: loopback, link-local including the metadata address, multicast, unspecified, the box itself, IPv6 forms that carry an IPv4 address) | `POST /core/connections/{id}/test` |
+| `device_error` | 502 | ${cur.target} was reached, but the device refused the sign-in (HTTP 401). (the device answered and said no: refused sign-in, an HTTP status, an answer over the cap, a CLI error line, an MCP error; one cleaned line, never a secret) | `POST /core/connections/{id}/test` |
 | `discovery_failed` | 502 | Cannot read ${c.issuer}/.well-known/openid-configuration. Check the issuer and the network path from the box to the IdP. | `POST /core/oidc/test` |
 | `pin_mismatch` | 502 | The certificate of ${cur.target} is not the one pinned at the first test. Nothing was sent. If you changed the device, edit this connection, turn on "Forget pinned key", save, then test again. | `POST /core/connections/{id}/test` (D-94) |
 | `unreachable` | 502 | Could not connect to ${cur.target}. Check the address, the box's network and the firewall. | `POST /core/connections/{id}/test` (trước là `POST /ai/connections/{id}/test`, D-93); `POST /ai/profiles/test` |

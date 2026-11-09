@@ -25,6 +25,8 @@ interface Step {
   absent?: string[]
   listHas?: string[]
   listLacks?: string[]
+  /** A request sent while this step's request is still being answered (a device that is slow to answer, and an edit meanwhile). */
+  during?: { method: string; path: string; body?: unknown; status: number }
 }
 const USER = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' } as const
 const KEYS: Record<string, string> = { $KEY_PLAIN: keyPlain, $KEY_LOCKED: keyLocked }
@@ -50,7 +52,13 @@ describe('Connections: the script the backend must answer the same way (src/feat
     for (const s of matrix.steps) {
       sessionStore.set({ userId: s.role ? USER[s.role] : null })
       const path = s.path.replace(/\{(\w+)\}/g, (_, k: string) => kept[k] ?? `{${k}}`)
-      const r = await fetch(`${location.origin}/api/v1${path}`, { method: s.method, headers: { 'Content-Type': 'application/json' }, body: s.body === undefined ? undefined : JSON.stringify(fill(s.body)) })
+      const send = (method: string, p: string, b?: unknown) => fetch(`${location.origin}/api/v1${p.replace(/\{(\w+)\}/g, (_, k: string) => kept[k] ?? `{${k}}`)}`, { method, headers: { 'Content-Type': 'application/json' }, body: b === undefined ? undefined : JSON.stringify(fill(b)) })
+      const pending = send(s.method, path, s.body)
+      if (s.during) {
+        await new Promise((res) => setTimeout(res, 15))
+        expect((await send(s.during.method, s.during.path, s.during.body)).status, `step "${s.name}": the request made meanwhile`).toBe(s.during.status)
+      }
+      const r = await pending
       const text = await r.text()
       const body = text ? (JSON.parse(text) as Record<string, any>) : null // eslint-disable-line @typescript-eslint/no-explicit-any
       const at = `step "${s.name}"`

@@ -1,6 +1,6 @@
 # Deferred: feat/connections-gui (slice 13b-1)
 
-- [ ] Mock vs real Test (13b-5 landed the real one): the mock pins only LAN-like hosts and invents a host key, the backend pins whenever no public authority vouches for the certificate (and the SSH host key always); the mock does not know the codes `address_refused` and `device_error` (502; the GUI shows only `message`) nor `connection_changed` (409), and answers `unreachable`/`pin_mismatch` by words in the target, which the backend cannot imitate, so the parity script has no failure steps for Test (they are `core/conn/test_test.go`). Teach the mock the three codes and align the pin rules.
+- [ ] Mock vs real Test: the mock invents the SSH host key and a LAN/public split by host name (LAN-like hosts get `tls_sha256`, others `tls_roots`), while the backend decides by the certificate chain; the failure codes and `tls_roots` are now in the mock and the parity script, but `pin_mismatch` and `unreachable` steps exist only in the mock (they are triggered by words in the target) and are tested for the backend in `core/conn/test_test.go`.
 - [ ] `modules/ai` CONTRACT/MANIFEST still mention `ai_connectors` and the 5 `/ai/connections*` endpoints: handled by PR #84 (13b-0); check after it merges. Emily's ai contract loses the 5 endpoints.
 
 # Deferred: feat/core-conn (slice 13b-4)

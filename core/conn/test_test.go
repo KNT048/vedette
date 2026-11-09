@@ -84,7 +84,7 @@ func TestTestHTTPPinsOnFirstUseThenHoldsIt(t *testing.T) {
 		t.Fatalf("message %q, want %q", res.Message, want)
 	}
 	got := r.get(c.ID)
-	if got.Status != "ok" || got.LastTest == nil || got.Pin == nil || got.Pin.Kind != "tls_sha256" || got.Pin.Value != f.LeafSHA256() || got.Pin.FirstSeen == "" {
+	if got.Status != "ok" || got.LastTest == nil || got.Pin == nil || got.Pin.Kind != "tls_sha256" || got.Pin.Value != f.SPKISHA256() || got.Pin.FirstSeen == "" {
 		t.Fatalf("saved %+v pin %+v", got, got.Pin)
 	}
 	if res.Connection.Pin == nil || res.ToolsFound != 2 || res.LatencyMS < 0 {
@@ -135,7 +135,7 @@ func TestTestHTTPPinsOnFirstUseThenHoldsIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	res, err = r.test(c.ID)
-	if err != nil || !strings.HasSuffix(res.Message, "The certificate is now pinned.") || r.get(c.ID).Pin.Value != f.LeafSHA256() {
+	if err != nil || !strings.HasSuffix(res.Message, "The certificate is now pinned.") || r.get(c.ID).Pin.Value != f.SPKISHA256() {
 		t.Fatalf("re-pin: %v %q", err, res.Message)
 	}
 }
@@ -494,31 +494,36 @@ func TestTestResultIsNotSavedForAConnectionEditedMeanwhile(t *testing.T) {
 
 func pemEncode(b *pem.Block) []byte { return pem.EncodeToMemory(b) }
 
-// scanTree calls fn with the path (slash-separated, relative to the repository) and the text of every non-test Go source file.
+// scanTree calls fn with the path (slash-separated, relative to the repository) and the text of every non-test Go source file in the
+// repository: every top-level directory (core, modules, cmd, host, internal, content, scripts, tools, whatever holds Go files).
 func scanTree(t *testing.T, fn func(rel, src string)) {
 	t.Helper()
 	root := filepath.Join("..", "..")
 	n := 0
-	for _, top := range []string{"core", "modules", "cmd", "host", "internal"} {
-		err := filepath.WalkDir(filepath.Join(root, top), func(p string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if d.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			b, err := os.ReadFile(p) //nolint:gosec // walking our own source tree
-			if err != nil {
-				return err
-			}
-			rel, _ := filepath.Rel(root, p)
-			fn(filepath.ToSlash(rel), string(b))
-			n++
-			return nil
-		})
+	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
-			t.Fatal(err)
+			return err
 		}
+		if d.IsDir() {
+			if name := d.Name(); p != root && (strings.HasPrefix(name, ".") || name == "node_modules" || name == "dist") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
+			return nil
+		}
+		b, err := os.ReadFile(p) //nolint:gosec // walking our own source tree
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(root, p)
+		fn(filepath.ToSlash(rel), string(b))
+		n++
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 	if n < 100 {
 		t.Fatalf("the scan saw %d files: the walk is broken", n)
@@ -530,7 +535,9 @@ func scanTree(t *testing.T, fn func(rel, src string)) {
 func TestConntestIsOnlyImportedByTests(t *testing.T) {
 	t.Parallel()
 	sawConntest := false
+	sawTop := map[string]bool{}
 	scanTree(t, func(rel, src string) {
+		sawTop[strings.SplitN(rel, "/", 2)[0]] = true
 		if strings.HasPrefix(rel, "core/conn/conntest/") {
 			sawConntest = true
 			return
@@ -544,6 +551,9 @@ func TestConntestIsOnlyImportedByTests(t *testing.T) {
 			}
 		}
 	})
+	if !sawTop["content"] || !sawTop["scripts"] || !sawTop["cmd"] {
+		t.Fatalf("the scan did not reach every top-level directory with Go files: %v", sawTop)
+	}
 	if !sawConntest {
 		t.Fatal("the scan did not see conntest: the check would pass vacuously")
 	}

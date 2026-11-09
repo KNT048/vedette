@@ -1,0 +1,7 @@
+{"ID":"CVE-2026-10001","Info":{"Name":"Synology DSM auth bypass","Severity":"critical"},"file_path":"http/cves/2026/CVE-2026-10001.yaml"}
+{"ID":"CVE-2026-10003","Info":{"Name":"QNAP Photo Station","Severity":"high"},"file_path":"http/cves/2026/CVE-2026-10003.yaml"}
+{"ID":"cve-2026-10001","file_path":"duplicate.yaml"}
+
+{"ID":"not-a-cve"}
+{"ID":42}
+this is not json

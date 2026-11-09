@@ -1,0 +1,70 @@
+{
+  "title": "CISA Catalog of Known Exploited Vulnerabilities",
+  "catalogVersion": "2026.11.04",
+  "dateReleased": "2026-11-04T14:20:11.1234Z",
+  "count": 7,
+  "vulnerabilities": [
+    {
+      "cveID": "CVE-2026-10001",
+      "vendorProject": "Synology",
+      "product": "DiskStation Manager",
+      "vulnerabilityName": "Synology DSM Authentication Bypass Vulnerability",
+      "dateAdded": "2026-11-03",
+      "shortDescription": "Synology DSM contains an authentication bypass vulnerability.",
+      "requiredAction": "Apply mitigations per vendor instructions or discontinue use of the product if mitigations are unavailable.",
+      "dueDate": "2026-11-24",
+      "knownRansomwareCampaignUse": "Known",
+      "notes": "https://example.com/advisory/1 ; https://nvd.nist.gov/vuln/detail/CVE-2026-10001",
+      "cwes": ["CWE-287"]
+    },
+    {
+      "cveID": "cve-2026-10002",
+      "vendorProject": "Fortinet",
+      "product": "FortiOS",
+      "vulnerabilityName": "Fortinet FortiOS Out-of-Bounds Write Vulnerability",
+      "dateAdded": "2026-11-02",
+      "shortDescription": "Heap overflow in the SSL VPN daemon.",
+      "requiredAction": "Apply updates per vendor instructions.",
+      "dueDate": "",
+      "knownRansomwareCampaignUse": "Unknown",
+      "notes": "javascript:alert(1); https://fortiguard.example.com/psirt/FG-IR-26-402",
+      "cwes": []
+    },
+    {
+      "cveID": "CVE-2026-10003",
+      "vendorProject": "QNAP",
+      "product": "Photo Station",
+      "vulnerabilityName": "QNAP Photo Station Path Traversal",
+      "dateAdded": "2026-10-30",
+      "shortDescription": "Path traversal.",
+      "requiredAction": "Apply updates.",
+      "dueDate": "2026-11-20",
+      "knownRansomwareCampaignUse": "Unknown",
+      "notes": ""
+    },
+    {
+      "cveID": "TBD",
+      "vendorProject": "Acme",
+      "product": "Thing",
+      "dateAdded": "2026-10-29"
+    },
+    {
+      "cveID": "CVE-2026-10004",
+      "vendorProject": "Acme",
+      "product": "Thing",
+      "dateAdded": "31/13/2026"
+    },
+    {
+      "cveID": "CVE-2026-10005",
+      "vendorProject": "Acme",
+      "product": "Thing",
+      "dateAdded": 20261029
+    },
+    {
+      "cveID": "CVE-2026-10001",
+      "vendorProject": "Synology",
+      "product": "DiskStation Manager",
+      "dateAdded": "2026-11-03"
+    }
+  ]
+}

@@ -133,3 +133,87 @@ func FuzzParseSTIX(f *testing.F) {
 func FuzzParseLines(f *testing.F) {
 	fuzzFormat(f, KindIOC, FormatLines, "1.2.3.4\t5\r\n#c\n\n  2001:db8::1  \n", "\x00\xff", "a b c")
 }
+
+func FuzzParseKEV(f *testing.F) {
+	f.Add(fixture(f, "kev.json"))
+	f.Add([]byte(`{"vulnerabilities":[{"cveID":1}]}`))
+	f.Add([]byte(`{"vulnerabilities":[`))
+	f.Fuzz(func(t *testing.T, data []byte) {
+		c, err := ParseKEV(data)
+		if err != nil {
+			if !errors.Is(err, ErrBadSample) && !errors.Is(err, ErrTooLarge) {
+				t.Fatalf("unclassified error: %v", err)
+			}
+			return
+		}
+		if c.Accepted != len(c.Vulns) || c.Accepted+c.Rejected > MaxRows {
+			t.Fatalf("accounting: %+v", c.Stats)
+		}
+		seen := map[string]bool{}
+		for _, v := range c.Vulns {
+			if !cveRE.MatchString(v.CVE) || seen[v.CVE] || v.Vendor == "" || v.Product == "" || !strictDateRE.MatchString(v.DateAdded) || v.Links == nil {
+				t.Fatalf("bad entry accepted: %+v", v)
+			}
+			seen[v.CVE] = true
+			for _, l := range v.Links {
+				if !validIndicatorURL(l) {
+					t.Fatalf("bad link %q", l)
+				}
+			}
+			for _, s := range []string{v.Vendor, v.Product, v.Name, v.Description, v.RequiredAction} {
+				if !utf8.ValidString(s) || hasControl(s) {
+					t.Fatalf("unsafe text %q", s)
+				}
+			}
+		}
+		if _, err := json.Marshal(c.Vulns); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+func FuzzParseEPSS(f *testing.F) {
+	plain := fixture(f, "epss.csv")
+	f.Add(plain)
+	f.Add(gz(f, plain))
+	f.Add(append([]byte{0x1f, 0x8b}, plain...))
+	f.Fuzz(func(t *testing.T, data []byte) {
+		d, err := ParseEPSS(data, nil)
+		if err != nil {
+			if !errors.Is(err, ErrBadSample) && !errors.Is(err, ErrTooLarge) {
+				t.Fatalf("unclassified error: %v", err)
+			}
+			return
+		}
+		if d.Accepted != len(d.Scores) || len(d.Rejects) > MaxRejects {
+			t.Fatalf("accounting: %+v", d.Stats)
+		}
+		for _, s := range d.Scores {
+			if !cveRE.MatchString(s.CVE) || s.Score < 0 || s.Score > 1 || s.Percentile < 0 || s.Percentile > 1 {
+				t.Fatalf("bad score accepted: %+v", s)
+			}
+		}
+	})
+}
+
+func FuzzParseNucleiCVEs(f *testing.F) {
+	f.Add(fixture(f, "nuclei-cves.jsonl"))
+	f.Add([]byte(`[{"ID":"CVE-2026-1234"}]`))
+	f.Fuzz(func(t *testing.T, data []byte) {
+		r, err := ParseNucleiCVEs(data)
+		if err != nil {
+			if !errors.Is(err, ErrBadSample) && !errors.Is(err, ErrTooLarge) {
+				t.Fatalf("unclassified error: %v", err)
+			}
+			return
+		}
+		if r.Accepted != len(r.CVEs) {
+			t.Fatalf("accounting: %+v", r.Stats)
+		}
+		for _, c := range r.CVEs {
+			if !cveRE.MatchString(c) {
+				t.Fatalf("bad CVE %q", c)
+			}
+		}
+	})
+}

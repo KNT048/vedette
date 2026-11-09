@@ -9,6 +9,7 @@ import { Field, Input, Select } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { Segmented } from '@/components/ui/segmented'
 import type { ModuleId } from '@/lib/modules'
+import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { saveInventoryScope, saveNotifyChannel, useSetupModules, useSetupStatus, useSubmitSetup } from './api'
 import { BUNDLES, closure, without } from './bundles'
@@ -20,13 +21,13 @@ const STEPS = ['account', 'network', 'modules', 'channel'] as const
 type Step = (typeof STEPS)[number]
 
 interface State {
-  org: string; name: string; email: string; password: string; again: string
+  org: string; name: string; email: string; password: string; again: string; code: string
   lan: string[]; commitment: boolean; notes: { to: string; text: string }[]
   bundle: BundleId; picked: Set<ModuleId>
   chType: ChannelType; ch: Record<string, string>; chSecret: string
 }
 const INIT: State = {
-  org: '', name: '', email: '', password: '', again: '', lan: [''], commitment: false, notes: [],
+  org: '', name: '', email: '', password: '', again: '', code: '', lan: [''], commitment: false, notes: [],
   bundle: 'smb', picked: new Set<ModuleId>(['core']), chType: 'telegram', ch: { port: '587', security: 'starttls' }, chSecret: '',
 }
 const CH_FIELDS: Record<ChannelType, string[]> = { telegram: ['chat_id'], zalo: ['oa_id', 'user_id'], email: ['host', 'port', 'username', 'from', 'to'] }
@@ -55,6 +56,7 @@ export default function SetupPage() {
   function validate(which: Step): boolean {
     const e: Record<string, string> = {}
     if (which === 'account') {
+      if (!s.code.trim()) e.code = t('setup.account.codeError')
       if (s.org.trim().length < 2) e.org = t('setup.account.orgError')
       if (!s.name.trim()) e.name = t('setup.account.nameError')
       if (!EMAIL_RE.test(s.email.trim())) e.email = t('setup.account.emailError')
@@ -117,8 +119,14 @@ export default function SetupPage() {
         commitment: s.commitment,
         bundle: s.bundle,
         modules: s.bundle === 'custom' ? [...s.picked] : undefined,
+        setup_code: s.code.trim(),
       }
-      try { await submit.mutateAsync(p) } catch (err) { setFinished(false); setFormError(errMsg(err, t)); return }
+      try { await submit.mutateAsync(p) } catch (err) {
+        setFinished(false)
+        // A wrong setup code belongs on the first step, next to its field.
+        if (err instanceof ApiError && err.code === 'invalid_setup_code') { setErrors({ code: errMsg(err, t) }); setStep('account'); return }
+        setFormError(errMsg(err, t)); return
+      }
       setSetupDone(true)
       // Đã đăng nhập bằng tài khoản quản trị: ghi phạm vi quét vào module kiểm kê (nơi lưu xác nhận phạm vi và người xác nhận).
       try {
@@ -172,6 +180,7 @@ export default function SetupPage() {
 
         {step === 'account' ? (
           <div className="mt-4 grid gap-4">
+            <Field label={t('setup.account.code')} hint={t('setup.account.codeHint')} htmlFor="s-code" error={errors.code}><Input id="s-code" autoComplete="off" spellCheck={false} value={s.code} aria-invalid={!!errors.code} onChange={(e) => set({ code: e.target.value })} /></Field>
             <Field label={t('setup.account.org')} htmlFor="s-org" error={errors.org}><Input id="s-org" autoComplete="organization" value={s.org} aria-invalid={!!errors.org} onChange={(e) => set({ org: e.target.value })} /></Field>
             <Field label={t('setup.account.name')} htmlFor="s-name" error={errors.name}><Input id="s-name" autoComplete="name" value={s.name} aria-invalid={!!errors.name} onChange={(e) => set({ name: e.target.value })} /></Field>
             <Field label={t('setup.account.email')} htmlFor="s-email" error={errors.email}><Input id="s-email" type="email" autoComplete="username" value={s.email} aria-invalid={!!errors.email} onChange={(e) => set({ email: e.target.value })} /></Field>

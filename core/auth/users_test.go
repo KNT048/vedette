@@ -63,7 +63,7 @@ func TestUpdateUserGuards(t *testing.T) {
 	yes, no := true, false
 	viewer, admin := routes.Viewer, routes.Admin
 	upd := func(actor auth.User, target string, p auth.UserPatch) (auth.User, error) {
-		return env.Svc.UpdateUser(t.Context(), actor.ID, actor.Email, target, p)
+		return env.Svc.UpdateUser(t.Context(), actor.ID, actor.Email, "", target, p)
 	}
 
 	// You cannot disable yourself, even with another admin around.
@@ -81,8 +81,8 @@ func TestUpdateUserGuards(t *testing.T) {
 	}
 	_, err = upd(a1, a1.ID, auth.UserPatch{Role: &viewer}) // demoting the last active admin
 	wantAPI(t, err, 400, "last_admin")
-	_, err = upd(a2, a1.ID, auth.UserPatch{Disabled: &yes}) // a disabled admin does not count
-	wantAPI(t, err, 400, "last_admin")
+	_, err = upd(a2, a1.ID, auth.UserPatch{Disabled: &yes}) // a disabled admin may do nothing (the actor is re-checked in the write)
+	wantAPI(t, err, 403, "disabled")
 	if got, _ := env.Svc.GetUser(t.Context(), a1.ID); got.Role != routes.Admin || got.Disabled {
 		t.Fatalf("a refused change changed the user: %+v", got)
 	}
@@ -112,7 +112,7 @@ func TestDisablingEndsSessions(t *testing.T) {
 	_, _ = env.Login(t, u.Email, "")
 	_, _ = env.Login(t, u.Email, "")
 	yes := true
-	if _, err := env.Svc.UpdateUser(t.Context(), admin.ID, admin.Email, u.ID, auth.UserPatch{Disabled: &yes}); err != nil {
+	if _, err := env.Svc.UpdateUser(t.Context(), admin.ID, admin.Email, "", u.ID, auth.UserPatch{Disabled: &yes}); err != nil {
 		t.Fatal(err)
 	}
 	if n := env.Count(t, "SELECT count(*) FROM core_session WHERE user_id = ? AND revoked_at IS NULL", u.ID); n != 0 {
@@ -129,7 +129,7 @@ func TestResetPassword(t *testing.T) {
 	s2, _ := env.Login(t, u.Email, "")
 	adminSession, _ := env.Login(t, admin.Email, "")
 
-	temp, err := env.Svc.ResetPassword(t.Context(), admin.Email, u.ID)
+	temp, err := env.Svc.ResetPassword(t.Context(), admin.ID, admin.Email, "", u.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,11 +160,11 @@ func TestResetPassword(t *testing.T) {
 	if strings.Contains(env.Logs.String(), temp) {
 		t.Fatal("temporary password in the logs")
 	}
-	temp2, _ := env.Svc.ResetPassword(t.Context(), admin.Email, u.ID)
+	temp2, _ := env.Svc.ResetPassword(t.Context(), admin.ID, admin.Email, "", u.ID)
 	if temp2 == temp {
 		t.Fatal("two resets gave the same password")
 	}
-	_, err = env.Svc.ResetPassword(t.Context(), admin.Email, "u-nope")
+	_, err = env.Svc.ResetPassword(t.Context(), admin.ID, admin.Email, "", "u-nope")
 	wantAPI(t, err, 404, "not_found")
 }
 

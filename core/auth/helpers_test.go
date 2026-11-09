@@ -40,7 +40,7 @@ func apiErr(t *testing.T, err error, status int, code string) *apierr.Error {
 func appUser(t *testing.T, env *authtest.Env) []byte {
 	t.Helper()
 	u := env.User(t, "ann@acme.example", routes.Viewer)
-	setup, err := env.Svc.StartTOTP(t.Context(), u.ID)
+	setup, err := env.Svc.StartTOTP(t.Context(), u.ID, "", authtest.Password)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func appUser(t *testing.T, env *authtest.Env) []byte {
 func emailUser(t *testing.T, env *authtest.Env, email string) auth.User {
 	t.Helper()
 	u := env.User(t, email, routes.Viewer)
-	if _, err := env.Svc.StartEmail2FA(t.Context(), u.ID); err != nil {
+	if _, err := env.Svc.StartEmail2FA(t.Context(), u.ID, "", authtest.Password); err != nil {
 		t.Fatal(err)
 	}
 	if err := env.Svc.ConfirmEmail2FA(t.Context(), u.ID, "", env.Mailer.LastCode()); err != nil {

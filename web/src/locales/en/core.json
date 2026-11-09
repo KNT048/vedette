@@ -810,6 +810,8 @@
         "resend": "Send a new code",
         "resendIn": "Send a new code in {{s}} s"
       },
+      "startPassword": "Your current password",
+      "startPasswordHint": "Needed to turn on two-step sign-in, as it is to turn it off.",
       "key": "Manual key",
       "uri": "otpauth address",
       "code": "6-digit code",
@@ -875,7 +877,10 @@
       "passwordHint": "At least {{min}} characters. A long sentence is easier to remember than random characters.",
       "passwordError": "The password needs at least {{min}} characters, it has {{count}} so far.",
       "again": "Repeat password",
-      "againError": "The two entries do not match."
+      "againError": "The two entries do not match.",
+      "code": "Setup code",
+      "codeHint": "Vedette prints a one-time code in its log each time it starts while setup is open. Run \"docker logs vedette\" or \"journalctl -u vedette\" and copy the code.",
+      "codeError": "Enter the setup code from the box's log."
     },
     "network": {
       "title": "Network to watch",

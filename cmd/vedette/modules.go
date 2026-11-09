@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/secrets"
@@ -24,6 +25,8 @@ type deps struct {
 	Secrets *secrets.Store
 	Audit   *audit.Log
 	Clock   func() time.Time
+	Auth    *auth.Service
+	Core    *core.Handlers
 }
 
 // moduleWiring is one module the binary carries. Adding a module = one entry in wiredModules and

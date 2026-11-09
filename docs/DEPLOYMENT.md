@@ -446,7 +446,7 @@ Kiểu Appliance, `deploy/install.sh` (idempotent; chạy lại không đổi g�
 | 7 | Thiết bị đầu tiên "This box" xuất hiện trong kho (D-53, S-INV-5) | danh sách gói dpkg có, không xoá được |
 | 8 | Kéo feed lần đầu | `feeds` báo thành công cho nguồn bật; ≤ 5 MB/giờ sau đó |
 
-Chứng chỉ TLS cho 8443: sinh tự ký lúc cài, cho phép tải chứng chỉ của khách lên (đề xuất, câu hỏi B3). Cookie `Secure` nên yêu cầu TLS luôn bật.
+Chứng chỉ TLS cho 8443: sinh tự ký lúc cài, cho phép tải chứng chỉ của khách lên (đề xuất, câu hỏi B3). Cookie `Secure` nên yêu cầu TLS luôn bật. Đã có trong `cmd/vedette` (WP-04b phần 2): `-tls-cert`/`-tls-key` dùng cặp của khách; thiếu mà `-listen` khác loopback thì tự sinh cặp P-256 10 năm (`vedette-selfsigned.crt/.key`, mode 0600) cạnh file DB lúc khởi động đầu, SAN gồm `-hosts`, tên loopback, tên máy và địa chỉ giao diện; HTTP thuần chỉ trên loopback; `-hosts` là danh sách `Host` được trả lời (421 cho tên khác, chống DNS rebinding).
 
 ## 9. Nâng cấp và hoàn tác
 

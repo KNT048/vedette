@@ -85,11 +85,11 @@ Danh sách trả đối tượng, không phải mảng trần (cho phép thêm `
 
 ### 3.3 Danh mục mọi mã lỗi đang dùng
 
-Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, code}` trong `web/src/features/*/mocks.ts`, `*/state.ts`, `*/osMock.ts`, `*/sourcesMock.ts`, `*/harness-mocks.ts`, `*/emailCode.ts`, `*/logExport.ts`, `*/activity.ts` và `web/src/mocks/*.ts` (2026-11-09): **278 mã**. Cột "Endpoint dùng" là handler gần nhất chứa lời gọi; với mã sinh từ hàm kiểm tra dùng chung, ghi `module <tên> (validator dùng chung)` (đó là hạn chế của cách trích tĩnh) (mục 12 đề xuất khai `errors` trong `contract.ts` để bảng này sinh tự động). Thông điệp là bản mẫu tiếng Anh trong mock.
+Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, code}` trong `web/src/features/*/mocks.ts`, `*/state.ts`, `*/osMock.ts`, `*/sourcesMock.ts`, `*/harness-mocks.ts`, `*/emailCode.ts`, `*/logExport.ts`, `*/activity.ts` và `web/src/mocks/*.ts` (2026-11-09): **278 mã** (từ mock), cộng 5 mã chỉ backend thêm ở WP-04b phần 2 (`invalid_setup_code`, `sample_unavailable`, `invalid_from`, `invalid_to`, `misdirected_request`): 283. Cột "Endpoint dùng" là handler gần nhất chứa lời gọi; với mã sinh từ hàm kiểm tra dùng chung, ghi `module <tên> (validator dùng chung)` (đó là hạn chế của cách trích tĩnh) (mục 12 đề xuất khai `errors` trong `contract.ts` để bảng này sinh tự động). Thông điệp là bản mẫu tiếng Anh trong mock.
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (205 mã)
+#### HTTP 400 (208 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -197,6 +197,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_email` | 400 | The email is not valid, for example name@company.com. | `POST /core/setup`; `POST /core/users` |
 | `invalid_employees` | 400 | Headcount is a whole number from 0 to 1,000,000. | module reports (validator dùng chung) |
 | `invalid_format` | 400 | Choose JSON or CSV. | `GET /core/logs/export`; `POST /feeds/parse-test` |
+| `invalid_from` | 400 | The start of the range must be a date like 2026-11-09 or a UTC time ending in Z, like 2026-11-09T00:00:00Z. | `GET /core/audit`; `GET /core/audit/export`. Mã mới của backend [ĐX]: không dùng `bad_from` vì nó đã nghĩa là "email người gửi sai" ở notify (§3.2 mục 5). Ngày `YYYY-MM-DD` tính theo múi giờ của tổ chức; thời điểm phải tận cùng `Z` (độ lệch như `+07:00` bị từ chối) |
 | `invalid_hour` | 400 | The send hour must be 0 to 23. | module reports (validator dùng chung) |
 | `invalid_issuer` | 400 | The issuer must be an https address, for example https://sso.example.com/realms/main. | `PUT /core/oidc` |
 | `invalid_items` | 400 | Pick at least one action of this request. | module response (validator dùng chung) |
@@ -234,6 +235,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_tier` | 400 | Pick a tier: minimum, medium or maximum. | `PUT /ai/config` |
 | `invalid_time` | 400 | Enter the start and end as hours and minutes, for example 02:00. | `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot` |
 | `invalid_timezone` | 400 | The time zone is not in the list. | `PUT /core/general` |
+| `invalid_to` | 400 | The end of the range must be a date like 2026-11-09 or a UTC time ending in Z, like 2026-11-09T23:59:59Z. | `GET /core/audit`; `GET /core/audit/export`. Như `invalid_from` |
 | `invalid_type` | 400 | Only PDF, MD, TXT and DOCX files can be added. | `POST /ai/knowledge` |
 | `invalid_url` | 400 | Use an https:// address (http:// is only allowed for internal addresses). | `PUT /feeds/sources/{id}` |
 | `invalid_volume` | 400 | Pick how many people\ | module reports (validator dùng chung) |
@@ -279,6 +281,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `same_date` | 400 | Pick two different days to compare. | `GET /exposure/targets/{id}/diff` |
 | `same_password` | 400 | The new password must differ from the current one. | `POST /core/account/password` |
 | `same_profile` | 400 | The fallback for ${JOB_NAME[j.id]} must be a different profile from the primary. | module ai (validator dùng chung) |
+| `sample_unavailable` | 400 | This build has no sample data. Fill in the setup form instead. | `POST /core/setup`. Mã mới của backend [ĐX] (INV-15): `sample:true` chỉ hợp lệ ở bản `data_mode=sample`; bản backend hiện chưa có dữ liệu mẫu |
 | `scope_not_confirmed` | 400 | Tick the confirmation that these network ranges belong to your company and you are allowed to scan them. Vedette only sc | `PUT /inventory/settings` |
 | `secret_required` | 400 | Enter the secret. It stays on this box and is encrypted; only the last 4 characters are shown afterwards. | module ai, notify (validator dùng chung) |
 | `self_disable` | 400 | You cannot disable the account you are using. Ask another administrator. | `PATCH /core/users/{id}` |
@@ -296,7 +299,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `viewer_not_allowed` | 400 | A viewer cannot be an approver. | module notify (validator dùng chung) |
 | `weak_password` | 400 | The password needs at least ${MIN_PASSWORD} characters. A long sentence is easier to remember than random characters. | `POST /core/account/password`; `POST /core/setup` |
 | `wrong_code` | 400 | Wrong code. ${left} ${left === 1 ? 'try' : 'tries'} left. | `POST /core/account/2fa/confirm` |
-| `wrong_password` | 400 | The current password is wrong. | `POST /core/account/2fa/disable`; `POST /core/account/password` |
+| `wrong_password` | 400 | The current password is wrong. | `POST /core/account/2fa/disable`; `POST /core/account/password`; `POST /core/account/2fa/start`; `POST /core/account/2fa/email/start` (D-76: bật 2 bước cũng cần mật khẩu hiện tại, thông điệp "The password is needed to turn on two-factor authentication."; sai tính vào cùng bộ đếm với đăng nhập sai). Cũng là mã khi mật khẩu vừa chứng minh đã bị đổi giữa lúc kiểm và lúc ghi |
 
 #### HTTP 401 (3 mã)
 
@@ -304,19 +307,20 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 |---|---|---|---|
 | `key_rejected` | 401 | The provider rejected the key (HTTP 401). Check the key has not expired and belongs to this provider. | `POST /ai/profiles/test` |
 | `twofa_required` | 401/409 | Turn on two-step sign-in for your account first (My account), then try again. | `POST /auth/login`; `POST /response/execution` |
-| `unauthenticated` | 401 | Not signed in. | `GET /me` |
+| `unauthenticated` | 401 | Not signed in. | `GET /me`; mọi endpoint không công khai khi không có phiên, phiên hết hạn hoặc bị thu hồi; ở các thao tác ghi, phiên bị thu hồi **giữa chừng** cũng là 401 và không ghi gì: `/core/account/password`, `/core/account/2fa/{start,confirm,email/start,email/confirm,disable}`, `PATCH /core/account`, `POST /core/users`, `PATCH /core/users/{id}`, `/core/users/{id}/reset-password`, `/core/users/{id}/2fa/reset`, `PUT /core/general`, `GET /core/audit/export` |
 
-#### HTTP 403 (9 mã)
+#### HTTP 403 (10 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `approver_not_listed` | 403 | Not counted: this ${b.channel} address is not on the approver list of that channel, or its user is not an operator or ad | `POST /response/actions/{id}/chat-decision`; `POST /response/approve/{token}` |
 | `channel_not_allowed` | 403 | Approvals from ${b.channel} are not turned on for response. | `POST /response/actions/{id}/chat-decision` |
 | `csrf_invalid` | 403 | The request could not be verified. Reload the page and try again. | mọi POST/PUT/PATCH/DELETE đã xác thực (`core/server`, §7.2; WP-04a) |
-| `disabled` | 403 | This account has been disabled. | `POST /core/sso/login` |
+| `disabled` | 403 | This account has been disabled. | `POST /core/sso/login`; `POST /auth/login`; `POST /auth/login/resend-code`; mọi yêu cầu có phiên của tài khoản bị khoá; ở các thao tác ghi, tài khoản bị khoá giữa chừng cũng là 403 và không ghi gì: `/core/account/password`, `/core/account/2fa/{start,confirm,email/start,email/confirm,disable}`, `PATCH /core/account`, `POST /core/users`, `PATCH /core/users/{id}`, `/core/users/{id}/reset-password`, `/core/users/{id}/2fa/reset`, `PUT /core/general`, `GET /core/audit/export` (quản trị viên đang thực hiện bị khoá) |
 | `forbidden` | 403 | Your account is not allowed to do this. | module core (validator dùng chung) |
 | `in_app_required` | 403 | A high-risk AI request can only be approved in the app with your two-step code, not from chat or email. | module response (validator dùng chung) |
 | `invalid_token` | 403 | This enrollment token is not valid. Create a new one in Vedette. | `POST /intake/osquery/status` |
+| `invalid_setup_code` | 403 | The setup code is missing or wrong. Find it in the box's log: it is printed there each time Vedette starts while setup is open. | `POST /core/setup`. Mã mới của backend [ĐX] (D-75). Mã sai tính vào bộ đếm chung (10 lần, rồi `rate_limited` 30 s nhân đôi tới 10 phút) |
 | `token_expired` | 403 | This enrollment token has expired. Create a new one in Vedette. | `POST /intake/osquery/status`; `POST /inventory/agents/tokens/{id}/sample-data` |
 | `tool_not_allowed` | 403 | The action "${cat?.name ?? prop.tool}" is not enabled in the action catalog (Settings, AI response). | `POST /response/proposals/{id}/request` |
 
@@ -383,6 +387,12 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `trap_off` | 409 | The ${LABEL[service]} trap is off. Turn it on before testing. | `POST /honeypot/test-hit` |
 | `txt_missing` | 409 | The DNS TXT record vedette-verify=${t.token} is no longer on ${t.value}, so it cannot be scanned. Add the record back, t | `POST /exposure/targets/{id}/scan` |
 
+#### HTTP 421 (1 mã)
+
+| Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
+|---|---|---|---|
+| `misdirected_request` | 421 | This address is not one Vedette answers to. Open it with the name or address it was set up with. | mọi yêu cầu có tiêu đề `Host` ngoài danh sách cho phép (cờ `-hosts`, mặc định tên loopback và tên trong chứng chỉ), trả **trước** khi định tuyến, kể cả đường dẫn ngoài `/api/v1`. Mã mới của backend [ĐX]: chống DNS rebinding |
+
 #### HTTP 422 (1 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
@@ -394,7 +404,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `daily_cap` | 429 | The AI daily token cap is reached; the call is not made. | module ai (validator dùng chung) |
-| `rate_limited` | 429 | Too many verification attempts (limit ${MAX_ATTEMPTS_PER_HOUR} per hour). Try again in about ${wait} minute${wait === 1  | module exposure, response (validator dùng chung) |
+| `rate_limited` | 429 | Too many verification attempts (limit ${MAX_ATTEMPTS_PER_HOUR} per hour). Try again in about ${wait} minute${wait === 1  | module exposure, response (validator dùng chung) ; `POST /auth/login`; `POST /auth/login/resend-code` (kèm `retry_after` và `Retry-After`); `POST /core/setup` (sai mã cài đặt, D-75); mật khẩu của người đã đăng nhập (`/core/account/password`, `/core/account/2fa/{start,email/start,disable}`) |
 | `resend_too_soon` | 429 | Wait ${wait} seconds before asking for a new code. | module core (validator dùng chung) |
 | `too_many_codes` | 429 | Too many codes were sent in the last hour. Try again later. | module core (validator dùng chung) |
 
@@ -487,12 +497,12 @@ Hai người quản trị sửa cùng một cấu hình không được âm th�
 
 | Mục | Quy tắc |
 |---|---|
-| Cookie | `vedette_session` (khai trong `components.securitySchemes.session`): giá trị ngẫu nhiên ≥ 32 byte (base64url), `HttpOnly; Secure; SameSite=Strict; Path=/`. Máy chủ chỉ lưu SHA-256 (`core_session.token_hash`). Không có tiền tố miền, không `Domain`. |
-| Đăng nhập | `POST /auth/login` `{email, password, code?}` (công khai). Sai email/mật khẩu → 400 `invalid_credentials` (cùng thông điệp cho "không có tài khoản" và "sai mật khẩu"). Tài khoản có 2 bước mà thiếu `code` → **401 `twofa_required`** kèm `method` (`app`\|`email`; với `email`: `sent_to`, `resend_after`, và máy chủ đã gửi mã). `code` sai → 400 `invalid_code` (app) / `wrong_code` / `too_many_tries` / `code_expired` (email). Tài khoản bị khoá → 403 `disabled`. Kênh email hỏng → 503 `twofa_email_unavailable` (**không bao giờ** lùi về chỉ-mật-khẩu, D-35). Đăng nhập thành công: tạo `core_session`, ghi `auth.login`. |
+| Cookie | `vedette_session` (khai trong `components.securitySchemes.session`): giá trị ngẫu nhiên ≥ 32 byte (base64url), `HttpOnly; Secure; SameSite=Strict; Path=/`. Máy chủ chỉ lưu SHA-256 (`core_session.token_hash`). Không có tiền tố miền, không `Domain`. Cùng lúc đặt `vedette_csrf` (§7.2). Sau một lần đăng nhập thành công còn đặt **cookie thiết bị tin cậy `vedette_device`** (D-77): giá trị ký HMAC-SHA-256 (khoá của hộp trong `core_secret`) gồm id người dùng, `cred_version`, nonce và hạn 90 ngày; `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth/` (chỉ các endpoint đăng nhập nhận được). Đây là cookie thứ ba và cuối cùng của Vedette, **cần thiết cho bảo mật đăng nhập** (không theo dõi, không rời hộp); đổi hoặc đặt lại mật khẩu làm mọi cookie thiết bị của tài khoản vô hiệu. |
+| Đăng nhập | `POST /auth/login` `{email, password, code?}` (công khai). Sai email/mật khẩu → 400 `invalid_credentials` (cùng thông điệp cho "không có tài khoản" và "sai mật khẩu"). Tài khoản có 2 bước mà thiếu `code` → **401 `twofa_required`** kèm `method` (`app`\|`email`; với `email`: `sent_to`, `resend_after`, và máy chủ đã gửi mã). `code` sai → 400 `invalid_code` (app) / `wrong_code` / `too_many_tries` / `code_expired` (email). Tài khoản bị khoá → 403 `disabled`. Kênh email hỏng → 503 `twofa_email_unavailable` (**không bao giờ** lùi về chỉ-mật-khẩu, D-35). Đăng nhập thành công: tạo `core_session`, ghi `auth.login`, đặt `vedette_session`, `vedette_csrf` và `vedette_device`. Yêu cầu mang `vedette_device` hợp lệ của **đúng tài khoản đó** được đếm theo cookie (10 lần sai / 15 phút, tăng dần thời gian chờ) và **không** tính vào, cũng không bị chặn bởi, bộ đếm theo địa chỉ và /64 (D-77); cookie thiếu, sai chữ ký, hết hạn hoặc của người khác không được miễn. |
 | Hết phiên | Phiên hết hạn/thu hồi → 401 `unauthenticated` ở mọi endpoint không công khai; SPA về trang đăng nhập. Hết hạn: **4 giờ không hoạt động hoặc 7 ngày kể từ lúc đăng nhập**, cái nào tới trước (D-71; `auth.IdleTimeout`, `auth.AbsoluteTimeout`); `last_seen` làm mới tối đa mỗi phút. |
 | Thu hồi | `DELETE /core/account/sessions/{id}`, `POST /core/account/sessions/revoke-others`; không thu hồi chính phiên đang dùng (400 `current_session`, dùng `POST /auth/logout`). Thu hồi phiên khi đổi bảo mật (WP-04b, đã cài trong `core/auth`; quy tắc, không còn là đề xuất): đổi mật khẩu → các phiên khác của người đó kết thúc; quản trị viên đặt lại mật khẩu hoặc đặt lại 2 bước → **mọi** phiên của người đó kết thúc trong cùng giao dịch; chính người dùng bật hoặc tắt 2 bước → các phiên khác của họ kết thúc (phiên đang dùng được giữ). Đổi mật khẩu, tắt 2 bước, bật 2 bước: trong giao dịch ghi, tài khoản bị khoá → 403 `disabled`, phiên đang dùng đã bị thu hồi hoặc hết hạn → 401 `unauthenticated`, mật khẩu đã bị đổi/đặt lại kể từ lúc được kiểm (`cred_version` đổi) → 400 `wrong_password` (mã đã có trong §3.3; "mật khẩu bạn vừa chứng minh không còn là mật khẩu hiện tại"). Một lần đăng nhập đang chạy mà mật khẩu (`cred_version`), trạng thái khoá hoặc kiểu 2 bước đổi trước khi nó ghi bị từ chối (400 `invalid_credentials`, hoặc 403 `disabled`), không tạo phiên. |
 | Đăng xuất | `POST /auth/logout` công khai (không lỗi khi phiên đã hết), xoá cookie, 204. |
-| Thiết lập lần đầu | `GET /setup` (công khai) cho biết `complete`; `POST /core/setup` chỉ chạy khi chưa thiết lập (sau đó 409 `already_setup`); tạo quản trị viên đầu tiên. |
+| Thiết lập lần đầu | `GET /setup` (công khai) cho biết `complete`; `POST /core/setup` chỉ chạy khi chưa thiết lập (sau đó 409 `already_setup`); tạo tổ chức, quản trị viên đầu tiên và một phiên cho họ (đặt `vedette_session` + `vedette_csrf`), bật gói module đã chọn, ghi `core_audit`, tất cả trong một giao dịch. **Mã cài đặt một lần (D-75)**: khi chưa có quản trị viên, hộp sinh một mã ngẫu nhiên (100 bit, dạng `XXXXX-XXXXX-XXXXX-XXXXX`), lưu qua `core/secrets`, in vào nhật ký của core mỗi lần khởi động còn mở cài đặt và xoá trong giao dịch tạo quản trị viên; thiếu hoặc sai mã → 403 `invalid_setup_code`, mã được xét **trước** mọi trường khác, so sánh thời gian hằng, mỗi lần đoán tính vào một bộ đếm chung (10 lần rồi 429 `rate_limited`). |
 | SSO | `GET /core/auth-options` (công khai) `{oidc:boolean}`; `POST /core/sso/login` (công khai) bắt đầu OIDC. Đường gọi lại của nhà cung cấp OIDC chưa có trong hợp đồng (câu hỏi mở 5). |
 
 ### 7.2 CSRF
@@ -540,7 +550,7 @@ Mock chỉ có giới hạn **nghiệp vụ** (bảng dưới); chưa có giới
 | Xác thực đích ngoài | 10 lần/giờ (`MAX_ATTEMPTS_PER_HOUR`), tối đa 20 đích (D-25) | `exposure/mocks.ts` | 429 `rate_limited`; 400 `too_many` |
 | Token AI mỗi ngày | `daily_cap` theo hồ sơ và theo cấu hình chung | `ai/mocks.ts` | 429 `daily_cap` |
 | Phản hồi: hành động thiết bị | `max_per_hour` (mặc định 3); cầu dao `breaker_max_per_hour` (20); `multi_target_max` (5); `max_per_hour` mỗi quy tắc (≤ 100); ngân sách AI `budget_hour` 2 / `budget_day` 5 | `response/state.ts` | 409/403 qua `refuse()` (ghi `resp_log` loại `refused`/`breaker`) |
-| Đăng nhập sai | ARCH §6 "rate limit đăng nhập"; chưa có số **[ĐX]** 10 lần sai / 15 phút theo cặp (IP, email), tăng dần thời gian chờ. Lượt thử được tính ngay khi bắt đầu và trả lại khi đúng mật khẩu (các lượt song song không lọt qua nhau). IPv6 tính hai lần: theo từng địa chỉ (10, như IPv4) và theo cặp (/64, email) với trần 100, nên một máy xoay trong /64 vẫn bị chặn nhưng không khoá được cả /64 chỉ bằng 10 lần đoán; IPv4 theo địa chỉ. Hết thời gian chờ rồi gõ đúng mật khẩu không kéo dài thêm thời gian chờ. Mã 2 bước có bộ đếm riêng **theo tài khoản** (không theo IP): 10 lần sai / 15 phút → 429 | `core/auth` | 429 `rate_limited`, `Retry-After` |
+| Đăng nhập sai | ARCH §6 "rate limit đăng nhập"; chưa có số **[ĐX]** 10 lần sai / 15 phút theo cặp (IP, email), tăng dần thời gian chờ. Lượt thử được tính ngay khi bắt đầu và trả lại khi đúng mật khẩu (các lượt song song không lọt qua nhau). IPv6 tính hai lần: theo từng địa chỉ (10, như IPv4) và theo cặp (/64, email) với trần 100, nên một máy xoay trong /64 vẫn bị chặn nhưng không khoá được cả /64 chỉ bằng 10 lần đoán; IPv4 theo địa chỉ. Hết thời gian chờ rồi gõ đúng mật khẩu không kéo dài thêm thời gian chờ. Mã 2 bước có bộ đếm riêng **theo tài khoản** (không theo IP): 10 lần sai / 15 phút → 429. **Cookie thiết bị (D-77)**: một yêu cầu mang cookie thiết bị hợp lệ của tài khoản được đếm theo cookie (10 lần sai / 15 phút, cùng cách tăng thời gian chờ), không theo địa chỉ, nên một người cùng /64 đoán 100 lần không khoá được chủ tài khoản đã có cookie; cookie bị đánh cắp vẫn chỉ được 10 lần / 15 phút | `core/auth` | 429 `rate_limited`, `Retry-After` |
 | Băm/kiểm mật khẩu (argon2, 64 MiB mỗi lần) | tối đa `min(GOMAXPROCS/2, GOMEMLIMIT/4/64 MiB)` lần cùng lúc, ít nhất 1 (`auth.Config.MaxHashing`; GOMAXPROCS theo hạn mức của container); chờ tối đa 2 s (`HashWait`), hàng đợi 4 lần số khe; quá thì từ chối | `core/auth` | 503 `server_busy`, `Retry-After: 3` |
 | API đã xác thực | **[ĐX]** 600 yêu cầu/phút mỗi phiên (token bucket); SSE không tính | | 429 `rate_limited` |
 | Điểm công khai | **[ĐX]** 60 yêu cầu/phút mỗi IP cho `/auth/*`, `/response/approve/*`, `/response/blocklist/*`, `/install/*`, `/intake/*` | | 429 |

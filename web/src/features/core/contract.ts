@@ -33,6 +33,7 @@ export const SetupPayload = z.object({
   commitment: z.boolean().optional().describe('true = the user confirms the ranges belong to their company and they may scan them actively'),
   bundle: BundleId.optional(),
   modules: z.array(ModuleId).optional(),
+  setup_code: z.string().optional().describe('The one-time setup code the box prints in its log while setup is open (D-75). Required to create the first administrator: missing or wrong gives 403 invalid_setup_code, 429 rate_limited after repeated wrong tries'),
 })
 
 // ---- chung ----
@@ -175,9 +176,9 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/core/account', summary: 'My profile and sign-in sessions', stories: ['S-CORE-3'], role: 'viewer', response: Account },
   { method: 'patch', path: '/core/account', summary: 'Change display name', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ name: z.string() }), response: Ok },
   { method: 'post', path: '/core/account/password', summary: 'Change password (needs the current password)', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ current: z.string(), next: z.string() }), response: Ok },
-  { method: 'post', path: '/core/account/2fa/start', summary: 'Authenticator app: create a TOTP key waiting for confirmation', stories: ['S-CORE-3'], role: 'viewer', response: TotpStart },
+  { method: 'post', path: '/core/account/2fa/start', summary: 'Authenticator app: create a TOTP key waiting for confirmation (needs the current password, D-76; wrong password 400 wrong_password, counted like a failed sign-in)', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ password: z.string() }), response: TotpStart },
   { method: 'post', path: '/core/account/2fa/confirm', summary: 'Authenticator app: confirm the TOTP key with a 6-digit code to turn on two-step sign-in', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ code: z.string() }), response: Ok },
-  { method: 'post', path: '/core/account/2fa/email/start', summary: 'Email code: send a 6-digit code to my own sign-in email (409 when the email channel is not ready or two-step is already on; same limits as sign-in codes)', stories: ['S-CORE-3'], role: 'viewer', response: EmailCodeSent },
+  { method: 'post', path: '/core/account/2fa/email/start', summary: 'Email code: send a 6-digit code to my own sign-in email (409 when the email channel is not ready or two-step is already on; same limits as sign-in codes; needs the current password, D-76)', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ password: z.string() }), response: EmailCodeSent },
   { method: 'post', path: '/core/account/2fa/email/confirm', summary: 'Email code: enter the code to prove the mailbox works and turn on two-step sign-in (expires in 10 min, single use, 5 wrong tries cancel it)', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ code: z.string() }), response: Ok },
   { method: 'post', path: '/core/account/2fa/disable', summary: 'Turn off two-step sign-in (needs the password)', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ password: z.string() }), response: Ok },
   { method: 'delete', path: '/core/account/sessions/{id}', summary: 'End one of my other sessions', stories: ['S-CORE-3'], role: 'viewer', params: id, response: null },

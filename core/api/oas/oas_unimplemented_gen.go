@@ -833,19 +833,20 @@ func (UnimplementedHandler) CorePostCoreAccount2FAEmailConfirm(ctx context.Conte
 // CorePostCoreAccount2FAEmailStart implements core_post_core_account_2fa_email_start operation.
 //
 // Email code: send a 6-digit code to my own sign-in email (409 when the email channel is not ready or
-// two-step is already on; same limits as sign-in codes).
+// two-step is already on; same limits as sign-in codes; needs the current password, D-76).
 //
 // POST /core/account/2fa/email/start
-func (UnimplementedHandler) CorePostCoreAccount2FAEmailStart(ctx context.Context) (r *CorePostCoreAccount2FAEmailStartOK, _ error) {
+func (UnimplementedHandler) CorePostCoreAccount2FAEmailStart(ctx context.Context, req *CorePostCoreAccount2FAEmailStartReq) (r *CorePostCoreAccount2FAEmailStartOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // CorePostCoreAccount2FAStart implements core_post_core_account_2fa_start operation.
 //
-// Authenticator app: create a TOTP key waiting for confirmation.
+// Authenticator app: create a TOTP key waiting for confirmation (needs the current password, D-76;
+// wrong password 400 wrong_password, counted like a failed sign-in).
 //
 // POST /core/account/2fa/start
-func (UnimplementedHandler) CorePostCoreAccount2FAStart(ctx context.Context) (r *CorePostCoreAccount2FAStartOK, _ error) {
+func (UnimplementedHandler) CorePostCoreAccount2FAStart(ctx context.Context, req *CorePostCoreAccount2FAStartReq) (r *CorePostCoreAccount2FAStartOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

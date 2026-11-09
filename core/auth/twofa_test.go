@@ -28,7 +28,7 @@ func TestTOTPEnrolment(t *testing.T) {
 	ctx := t.Context()
 
 	wantAPI(t, env.Svc.ConfirmTOTP(ctx, u.ID, "", "123456"), 409, "no_pending")
-	setup, err := env.Svc.StartTOTP(ctx, u.ID)
+	setup, err := env.Svc.StartTOTP(ctx, u.ID, "", authtest.Password)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestTOTPEnrolment(t *testing.T) {
 	wantAPI(t, env.Svc.ConfirmTOTP(ctx, u.ID, "", auth.TOTPCode(secret, cur+5)), 400, "wrong_code")
 
 	// A second Start replaces the first key (and does not leave the old sealed key behind).
-	setup2, err := env.Svc.StartTOTP(ctx, u.ID)
+	setup2, err := env.Svc.StartTOTP(ctx, u.ID, "", authtest.Password)
 	if err != nil || setup2.Secret == setup.Secret {
 		t.Fatalf("restart: %+v, %v", setup2, err)
 	}
@@ -60,7 +60,7 @@ func TestTOTPEnrolment(t *testing.T) {
 	secret2 := b32(t, setup2.Secret)
 	wantAPI(t, env.Svc.ConfirmTOTP(ctx, u.ID, "", auth.TOTPCode(secret2, auth.TOTPStep(env.Clock.Now()))), 409, "no_pending")
 
-	setup3, _ := env.Svc.StartTOTP(ctx, u.ID)
+	setup3, _ := env.Svc.StartTOTP(ctx, u.ID, "", authtest.Password)
 	secret3 := b32(t, setup3.Secret)
 	if err := env.Svc.ConfirmTOTP(ctx, u.ID, "", " "+auth.TOTPCode(secret3, auth.TOTPStep(env.Clock.Now()))+" "); err != nil {
 		t.Fatal(err)
@@ -78,9 +78,9 @@ func TestTOTPEnrolment(t *testing.T) {
 		t.Fatal("the TOTP key is stored in the clear")
 	}
 	// Both methods are refused while one is on.
-	_, err = env.Svc.StartTOTP(ctx, u.ID)
+	_, err = env.Svc.StartTOTP(ctx, u.ID, "", authtest.Password)
 	wantAPI(t, err, 409, "already_on")
-	_, err = env.Svc.StartEmail2FA(ctx, u.ID)
+	_, err = env.Svc.StartEmail2FA(ctx, u.ID, "", authtest.Password)
 	wantAPI(t, err, 409, "already_on")
 	wantAPI(t, env.Svc.ConfirmTOTP(ctx, u.ID, "", "123456"), 409, "already_on")
 	for _, a := range []string{"account.2fa_start", "account.2fa_on"} {
@@ -97,17 +97,17 @@ func TestEmailEnrolment(t *testing.T) {
 	ctx := t.Context()
 
 	env.Mailer.SetAvailable(false)
-	_, err := env.Svc.StartEmail2FA(ctx, u.ID)
+	_, err := env.Svc.StartEmail2FA(ctx, u.ID, "", authtest.Password)
 	wantAPI(t, err, 409, "email_channel_not_ready")
 	wantAPI(t, env.Svc.ConfirmEmail2FA(ctx, u.ID, "", "123456"), 409, "email_channel_not_ready")
 	env.Mailer.SetAvailable(true)
 
 	wantAPI(t, env.Svc.ConfirmEmail2FA(ctx, u.ID, "", "123456"), 400, "no_code")
-	sent, err := env.Svc.StartEmail2FA(ctx, u.ID)
+	sent, err := env.Svc.StartEmail2FA(ctx, u.ID, "", authtest.Password)
 	if err != nil || sent.SentTo != "a•••@acme.example" || sent.ResendAfter != 60 {
 		t.Fatalf("start = %+v, %v", sent, err)
 	}
-	_, err = env.Svc.StartEmail2FA(ctx, u.ID)
+	_, err = env.Svc.StartEmail2FA(ctx, u.ID, "", authtest.Password)
 	wantAPI(t, err, 429, "resend_too_soon")
 	wrong := "000000"
 	if env.Mailer.LastCode() == wrong {
@@ -153,16 +153,16 @@ func TestDisableAndResetTwoFA(t *testing.T) {
 	}
 
 	// Reset by an admin: not for yourself, not when off, clears a pending email code too.
-	wantAPI(t, env.Svc.ResetTwoFA(ctx, admin.ID, admin.Email, admin.ID), 400, "self_reset")
-	wantAPI(t, env.Svc.ResetTwoFA(ctx, admin.ID, admin.Email, ann.ID), 409, "not_on")
-	wantAPI(t, env.Svc.ResetTwoFA(ctx, admin.ID, admin.Email, "u-nope"), 404, "not_found")
+	wantAPI(t, env.Svc.ResetTwoFA(ctx, admin.ID, admin.Email, "", admin.ID), 400, "self_reset")
+	wantAPI(t, env.Svc.ResetTwoFA(ctx, admin.ID, admin.Email, "", ann.ID), 409, "not_on")
+	wantAPI(t, env.Svc.ResetTwoFA(ctx, admin.ID, admin.Email, "", "u-nope"), 404, "not_found")
 	if _, err := env.Login(t, em.Email, ""); err == nil { // leaves a pending code
 		t.Fatal("expected twofa_required")
 	}
 	if env.Count(t, "SELECT count(*) FROM core_email_code WHERE user_id = ?", em.ID) != 1 {
 		t.Fatal("no pending code")
 	}
-	if err := env.Svc.ResetTwoFA(ctx, admin.ID, admin.Email, em.ID); err != nil {
+	if err := env.Svc.ResetTwoFA(ctx, admin.ID, admin.Email, "", em.ID); err != nil {
 		t.Fatal(err)
 	}
 	if env.Count(t, "SELECT count(*) FROM core_email_code WHERE user_id = ?", em.ID) != 0 {

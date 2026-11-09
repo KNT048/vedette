@@ -49,11 +49,20 @@ func (s *Service) user(ctx context.Context, id string) (coredb.CoreUser, error) 
 	return t, nil
 }
 
+// enableWrongPassword is the message of a wrong password when two-step sign-in is being turned on (D-76).
+const enableWrongPassword = "Wrong password. The password is needed to turn on two-factor authentication."
+
 // StartTOTP creates a new unconfirmed key for the user (replacing an earlier unconfirmed one) and returns it.
-// 409 already_on when two-step sign-in is already on. Nothing changes for sign-in until ConfirmTOTP.
-func (s *Service) StartTOTP(ctx context.Context, userID string) (TOTPSetup, error) {
+// Turning two-step on needs the current password, like turning it off (D-76): 400 wrong_password, counted by
+// the same account limiter as a wrong sign-in password. 409 already_on when two-step sign-in is already on.
+// Nothing changes for sign-in until ConfirmTOTP. keepSessionID is the caller's session: when it has ended
+// by the time the key is written, nothing is written (401).
+func (s *Service) StartTOTP(ctx context.Context, userID, keepSessionID, password string) (TOTPSetup, error) {
 	t, err := s.user(ctx, userID)
 	if err != nil {
+		return TOTPSetup{}, err
+	}
+	if err := s.checkOwnPassword(ctx, t, password, enableWrongPassword); err != nil {
 		return TOTPSetup{}, err
 	}
 	if t.TwofaMethod != nil {
@@ -65,8 +74,13 @@ func (s *Service) StartTOTP(ctx context.Context, userID string) (TOTPSetup, erro
 	}
 	_, err = write(ctx, s.db, func(tx *sql.Tx) (struct{}, *apierr.Error, error) {
 		q := coredb.New(tx)
+		if refusal, err := s.callerRefusal(ctx, q, t.ID, keepSessionID); refusal != nil || err != nil {
+			return struct{}{}, refusal, err
+		}
 		if cur, err := q.GetUserByID(ctx, t.ID); err != nil {
 			return struct{}{}, nil, fmt.Errorf("auth: read user: %w", err)
+		} else if cur.CredVersion != t.CredVersion { // the password proof is stale
+			return struct{}{}, passwordMoved(), nil
 		} else if cur.TwofaMethod != nil { // turned on by another request since the check above
 			return struct{}{}, alreadyOn(), nil
 		}
@@ -155,11 +169,22 @@ func (s *Service) ConfirmTOTP(ctx context.Context, userID, keepSessionID, code s
 }
 
 // StartEmail2FA mails a code to the user's address so they can prove the mailbox works before email-code
-// sign-in turns on. 409 already_on; 409 email_channel_not_ready when the email channel cannot send;
-// the send limits of EmailCodes.Send (resend_too_soon, too_many_codes).
-func (s *Service) StartEmail2FA(ctx context.Context, userID string) (Sent, error) {
+// sign-in turns on. It needs the current password (D-76: 400 wrong_password, counted like a wrong sign-in
+// password). 409 already_on; 409 email_channel_not_ready when the email channel cannot send; the send
+// limits of EmailCodes.Send (resend_too_soon, too_many_codes). A caller whose account or session is gone
+// (keepSessionID) gets nothing sent.
+func (s *Service) StartEmail2FA(ctx context.Context, userID, keepSessionID, password string) (Sent, error) {
 	t, err := s.user(ctx, userID)
 	if err != nil {
+		return Sent{}, err
+	}
+	if err := s.checkOwnPassword(ctx, t, password, enableWrongPassword); err != nil {
+		return Sent{}, err
+	}
+	if refusal, err := s.callerRefusal(ctx, coredb.New(s.db.Reader()), t.ID, keepSessionID); refusal != nil || err != nil {
+		if refusal != nil {
+			return Sent{}, refusal
+		}
 		return Sent{}, err
 	}
 	if t.TwofaMethod != nil {
@@ -227,13 +252,14 @@ func (s *Service) DisableTwoFA(ctx context.Context, userID, keepSessionID, passw
 		if err != nil {
 			return struct{}{}, nil, fmt.Errorf("auth: read user: %w", err)
 		}
-		// The password was checked outside this transaction: when it has been changed or reset since,
-		// that proof is stale. Same for a caller whose account or session is gone.
-		if cur.CredVersion != t.CredVersion {
-			return struct{}{}, passwordMoved(), nil
-		}
+		// A caller whose account or session is gone is refused first (the same order as ChangeOwnPassword: a
+		// dead session is 401 whatever else is stale). The password was checked outside this transaction:
+		// when it has been changed or reset since, that proof is stale.
 		if refusal, err := s.callerRefusal(ctx, coredb.New(tx), t.ID, keepSessionID); refusal != nil || err != nil {
 			return struct{}{}, refusal, err
+		}
+		if cur.CredVersion != t.CredVersion {
+			return struct{}{}, passwordMoved(), nil
 		}
 		if cur.TwofaMethod == nil {
 			return struct{}{}, apierr.New(409, CodeNotOn, "Two-step sign-in is already off."), nil
@@ -253,11 +279,14 @@ func (s *Service) DisableTwoFA(ctx context.Context, userID, keepSessionID, passw
 // someone who lost their phone. An administrator cannot reset their own (400 self_reset: use DisableTwoFA,
 // which asks for the password); 404 not_found; 409 not_on. Every session of that user ends in the same
 // transaction (INV-7): whoever held the lost phone, or the stolen password, is signed out with it.
-func (s *Service) ResetTwoFA(ctx context.Context, actorID, actorEmail, targetID string) error {
+func (s *Service) ResetTwoFA(ctx context.Context, actorID, actorEmail, actorSessionID, targetID string) error {
 	if targetID == actorID {
 		return apierr.New(400, CodeSelfReset, "You cannot reset your own two-step sign-in here. Use My account instead.")
 	}
 	_, err := write(ctx, s.db, func(tx *sql.Tx) (struct{}, *apierr.Error, error) {
+		if refusal, err := s.adminRefusal(ctx, coredb.New(tx), actorID, actorSessionID); refusal != nil || err != nil {
+			return struct{}{}, refusal, err
+		}
 		t, err := coredb.New(tx).GetUserByID(ctx, targetID)
 		if errors.Is(err, sql.ErrNoRows) {
 			return struct{}{}, notFound(), nil

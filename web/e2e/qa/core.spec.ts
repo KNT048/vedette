@@ -35,6 +35,7 @@ async function startClean(page: Page, org = 'Test Company') {
   await page.goto('/')
   await page.evaluate(() => localStorage.clear())
   await page.goto('/setup')
+  await page.getByLabel('Setup code').fill('setup-code-demo') // D-75: the code the mock accepts
   await page.getByLabel('Organization name').fill(org)
   await page.getByLabel('Administrator name').fill('Alex Admin')
   await page.getByLabel('Sign-in email').fill(LOGIN.email)
@@ -100,6 +101,7 @@ test.describe('first-run setup', () => {
     // step 1: empty, weak password, mismatch, bad email
     await next(page)
     await expect(page.getByText('Enter the organization name (at least 2 characters).')).toBeVisible()
+    await page.getByLabel('Setup code').fill('setup-code-demo') // D-75: the code the mock accepts
     await page.getByLabel('Organization name').fill('QA Company')
     await page.getByLabel('Administrator name').fill('QA Admin')
     await page.getByLabel('Sign-in email').fill('not-an-email')
@@ -226,7 +228,12 @@ test.describe('sign-in and two-step', () => {
     test.setTimeout(120_000)
     await startSample(page)
     await page.goto('/account')
-    await page.getByRole('button', { name: 'Turn on two-step sign-in' }).click()
+    // D-76: turning two-step on needs the current password, as turning it off does
+    await page.getByLabel('Your current password').fill('wrong')
+    await page.getByRole('button', { name: 'Set up authenticator app' }).click()
+    await expect(page.getByText(/The password is needed to turn on two-factor authentication/)).toBeVisible()
+    await page.getByLabel('Your current password').fill(SAMPLE.password)
+    await page.getByRole('button', { name: 'Set up authenticator app' }).click()
     const key = (await page.getByLabel('Manual key').innerText()).trim()
     const uri = (await page.getByLabel('otpauth address').innerText()).trim()
     expect(key).toMatch(/^[A-Z2-7]{32}$/)
@@ -273,7 +280,7 @@ test.describe('sign-in and two-step', () => {
     await page.getByRole('dialog').getByLabel('Current password').fill(SAMPLE.password)
     await page.getByRole('button', { name: 'Turn off', exact: true }).click()
     await expect(page.getByText('Two-step sign-in is off.').first()).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Turn on two-step sign-in' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Set up authenticator app' })).toBeVisible()
   })
 })
 

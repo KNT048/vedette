@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 
@@ -37,17 +38,11 @@ type NewUser struct {
 // *apierr.Error: invalid_name (1 to 80 characters), invalid_email, invalid_role, 409 duplicate.
 // The caller (the admin handler, or first-run setup) owns the transaction; the actor is "system" during setup.
 func (s *Service) CreateUser(ctx context.Context, tx *sql.Tx, actor string, in NewUser) (User, error) {
+	email, verr := ValidateUserFields(in.Name, in.Email, in.Role)
+	if verr != nil {
+		return User{}, verr
+	}
 	name := in.Name
-	if n := utf8.RuneCountInString(name); n < 1 || n > 80 || !utf8.ValidString(name) || hasControl(name) {
-		return User{}, apierr.New(400, CodeInvalidName, "Enter the user's name (at most 80 characters).")
-	}
-	email := normalizeEmail(in.Email)
-	if !emailRE.MatchString(email) || len(email) > 320 || hasControl(email) {
-		return User{}, apierr.New(400, CodeInvalidEmail, "The email is not valid, for example name@company.com.")
-	}
-	if !validRole(in.Role) {
-		return User{}, apierr.New(400, CodeInvalidRole, "Choose a role: view only, operator or administrator.")
-	}
 	q := coredb.New(tx)
 	if _, err := q.GetUserByEmail(ctx, email); err == nil {
 		return User{}, apierr.New(409, CodeDuplicate, "This email already has an account.")
@@ -67,6 +62,23 @@ func (s *Service) CreateUser(ctx context.Context, tx *sql.Tx, actor string, in N
 		return User{}, err
 	}
 	return User{ID: id, Name: name, Email: email, Role: in.Role, CreatedAt: now}, nil
+}
+
+// ValidateUserFields applies the rules of a new account's name, email and role and returns the email as it
+// is stored (trimmed, lowercase). Handlers that must refuse in a fixed order call it before the work
+// (hashing) that CreateUser would otherwise follow.
+func ValidateUserFields(name, rawEmail string, role routes.Role) (string, *apierr.Error) {
+	if n := utf8.RuneCountInString(name); n < 1 || n > 80 || !utf8.ValidString(name) || hasControl(name) {
+		return "", apierr.New(400, CodeInvalidName, "Enter the user's name (at most 80 characters).")
+	}
+	email := normalizeEmail(rawEmail)
+	if !emailRE.MatchString(email) || len(email) > 320 || hasControl(email) {
+		return "", apierr.New(400, CodeInvalidEmail, "The email is not valid, for example name@company.com.")
+	}
+	if !validRole(role) {
+		return "", apierr.New(400, CodeInvalidRole, "Choose a role: view only, operator or administrator.")
+	}
+	return email, nil
 }
 
 // hasControl reports whether s has a control character (C0, DEL, C1): none belongs in a name or an email.
@@ -90,12 +102,15 @@ type UserPatch struct {
 // an active administrator (400 last_admin) - checked on the state after the change, so demoting or
 // disabling the last one is refused. Disabling ends all of the account's sessions. 404 not_found for an
 // unknown id; 400 invalid_role.
-func (s *Service) UpdateUser(ctx context.Context, actorID, actorEmail, targetID string, p UserPatch) (User, error) {
+func (s *Service) UpdateUser(ctx context.Context, actorID, actorEmail, actorSessionID, targetID string, p UserPatch) (User, error) {
 	if p.Role != nil && !validRole(*p.Role) {
 		return User{}, apierr.New(400, CodeInvalidRole, "Choose a role: view only, operator or administrator.")
 	}
 	return write(ctx, s.db, func(tx *sql.Tx) (User, *apierr.Error, error) {
 		q := coredb.New(tx)
+		if refusal, err := s.adminRefusal(ctx, q, actorID, actorSessionID); refusal != nil || err != nil {
+			return User{}, refusal, err
+		}
 		t, err := q.GetUserByID(ctx, targetID)
 		if errors.Is(err, sql.ErrNoRows) {
 			return User{}, notFound(), nil
@@ -161,7 +176,7 @@ func (s *Service) UpdateUser(ctx context.Context, actorID, actorEmail, targetID 
 // ResetPassword is POST /core/users/{id}/reset-password (admin): it sets a new random temporary password,
 // ends every session of that user (INV-7) and returns the password. It is returned this once and never
 // stored in the clear: the handler passes it on in the response and nowhere else.
-func (s *Service) ResetPassword(ctx context.Context, actorEmail, targetID string) (string, error) {
+func (s *Service) ResetPassword(ctx context.Context, actorID, actorEmail, actorSessionID, targetID string) (string, error) {
 	t, err := coredb.New(s.db.Reader()).GetUserByID(ctx, targetID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", notFound()
@@ -178,6 +193,11 @@ func (s *Service) ResetPassword(ctx context.Context, actorEmail, targetID string
 		return "", err
 	}
 	_, err = write(ctx, s.db, func(tx *sql.Tx) (struct{}, *apierr.Error, error) {
+		// The acting administrator is checked here, in the transaction that writes: a demoted or disabled
+		// administrator, or one whose session ended while the hash was computed, changes nothing.
+		if refusal, err := s.adminRefusal(ctx, coredb.New(tx), actorID, actorSessionID); refusal != nil || err != nil {
+			return struct{}{}, refusal, err
+		}
 		if n, err := coredb.New(tx).UpdateUserPassword(ctx, coredb.UpdateUserPasswordParams{PasswordHash: hash, ID: t.ID}); err != nil || n == 0 {
 			if err == nil {
 				return struct{}{}, notFound(), nil
@@ -279,6 +299,36 @@ func (s *Service) callerRefusal(ctx context.Context, q *coredb.Queries, userID, 
 	return nil, nil
 }
 
+// adminRefusal is callerRefusal for an administrator's action on someone else's account: besides the
+// account not being disabled and the session being alive, the actor must still be an administrator (a role
+// change that committed meanwhile wins). Nothing has been written when it returns a refusal.
+func (s *Service) adminRefusal(ctx context.Context, q *coredb.Queries, actorID, actorSessionID string) (*apierr.Error, error) {
+	if refusal, err := s.callerRefusal(ctx, q, actorID, actorSessionID); refusal != nil || err != nil {
+		return refusal, err
+	}
+	cur, err := q.GetUserByID(ctx, actorID)
+	if err != nil {
+		return nil, fmt.Errorf("auth: read user: %w", err)
+	}
+	if routes.Role(cur.Role) != routes.Admin {
+		return apierr.Forbidden(), nil
+	}
+	return nil, nil
+}
+
+// CheckAdmin is adminRefusal inside the caller's transaction, for the operations that write through
+// their own transaction (creating a user): it returns the refusal as an error, nil when the actor may go on.
+func (s *Service) CheckAdmin(ctx context.Context, tx *sql.Tx, actorID, actorSessionID string) error {
+	refusal, err := s.adminRefusal(ctx, coredb.New(tx), actorID, actorSessionID)
+	if err != nil {
+		return err
+	}
+	if refusal != nil {
+		return refusal
+	}
+	return nil
+}
+
 // checkOwnPassword verifies the password of a signed-in user for a sensitive change. Wrong guesses share the
 // sign-in rate limit (keyed by account, since a signed-in caller's IP is not the point); a guess is counted
 // before it is checked so parallel guesses cannot all pass, and the count goes away on the right password.
@@ -300,4 +350,57 @@ func (s *Service) checkOwnPassword(ctx context.Context, t coredb.CoreUser, passw
 	}
 	s.limit.reset(accountKey, t.Email)
 	return nil
+}
+
+// ListUsers returns every account, oldest first (GET /core/users, admin).
+func (s *Service) ListUsers(ctx context.Context) ([]User, error) {
+	rows, err := coredb.New(s.db.Reader()).ListUsers(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("auth: list users: %w", err)
+	}
+	out := make([]User, len(rows))
+	for i, r := range rows {
+		out[i] = userFrom(r)
+	}
+	return out, nil
+}
+
+// UpdateOwnName changes the display name of the signed-in user (PATCH /core/account): 1 to 80 characters,
+// no control characters (400 invalid_name). The account must not be disabled and the session (keepSessionID)
+// must still be live when the name is written.
+func (s *Service) UpdateOwnName(ctx context.Context, userID, keepSessionID, name string) error {
+	name = strings.TrimSpace(name)
+	if n := utf8.RuneCountInString(name); n < 1 || n > 80 || !utf8.ValidString(name) || hasControl(name) {
+		return apierr.New(400, CodeInvalidName, "Enter a display name (at most 80 characters).")
+	}
+	_, err := write(ctx, s.db, func(tx *sql.Tx) (struct{}, *apierr.Error, error) {
+		q := coredb.New(tx)
+		if refusal, err := s.callerRefusal(ctx, q, userID, keepSessionID); refusal != nil || err != nil {
+			return struct{}{}, refusal, err
+		}
+		t, err := q.GetUserByID(ctx, userID)
+		if err != nil {
+			return struct{}{}, nil, fmt.Errorf("auth: read user: %w", err)
+		}
+		if _, err := q.UpdateUserName(ctx, coredb.UpdateUserNameParams{Name: name, ID: userID}); err != nil {
+			return struct{}{}, nil, fmt.Errorf("auth: set name: %w", err)
+		}
+		return struct{}{}, nil, s.audit.Append(ctx, tx, audit.Entry{User: t.Email, Action: "account.profile", Target: t.Email, Detail: "display name changed"})
+	})
+	return err
+}
+
+// NewTempCredential makes a random temporary password for an account an administrator creates, and its
+// hash (computed under the argon2 concurrency cap, outside any transaction). The caller shows the password
+// once and stores only the hash.
+func (s *Service) NewTempCredential(ctx context.Context) (password, hash string, err error) {
+	password, err = NewTempPassword()
+	if err != nil {
+		return "", "", err
+	}
+	hash, err = s.hashPassword(ctx, password)
+	if err != nil {
+		return "", "", err
+	}
+	return password, hash, nil
 }

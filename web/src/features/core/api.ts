@@ -63,8 +63,8 @@ export function useAccountMutations() {
   return {
     rename: useMutation({ mutationFn: (name: string) => api.patch('/core/account', { name }), onSuccess: refresh }),
     password: useMutation({ mutationFn: (v: { current: string; next: string }) => api.post('/core/account/password', v) }),
-    start2fa: useMutation({ mutationFn: () => api.post<TotpStart>('/core/account/2fa/start') }),
-    startEmail2fa: useMutation({ mutationFn: () => api.post<EmailCodeSent>('/core/account/2fa/email/start') }),
+    start2fa: useMutation({ mutationFn: (password: string) => api.post<TotpStart>('/core/account/2fa/start', { password }) }),
+    startEmail2fa: useMutation({ mutationFn: (password: string) => api.post<EmailCodeSent>('/core/account/2fa/email/start', { password }) }),
     confirmEmail2fa: useMutation({ mutationFn: (code: string) => api.post('/core/account/2fa/email/confirm', { code }), onSuccess: refresh }),
     confirm2fa: useMutation({ mutationFn: (code: string) => api.post('/core/account/2fa/confirm', { code }), onSuccess: refresh }),
     disable2fa: useMutation({ mutationFn: (password: string) => api.post('/core/account/2fa/disable', { password }), onSuccess: refresh }),

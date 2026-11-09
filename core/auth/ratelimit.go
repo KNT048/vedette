@@ -33,6 +33,10 @@ const (
 	// password a signed-in user types for a sensitive change.
 	twofaKey   = "twofa"
 	accountKey = "account"
+	// setupKey is the one shared counter of guesses of the first-run setup code (D-75): no IP part, never evicted.
+	setupKey = "setup"
+	// deviceKeyPrefix starts the "IP" part of a limiter key that belongs to one device cookie (D-77).
+	deviceKeyPrefix = "dev:"
 	// netKeySuffix marks a per-/64 key (made by ipLimitKeys); it gets the higher limit.
 	netKeySuffix = "/64"
 )
@@ -68,7 +72,7 @@ func limiterKey(ip, email string) string {
 }
 
 func (l *limiter) mapFor(ip string) map[string]*failures {
-	if ip == twofaKey || ip == accountKey {
+	if isAcct(ip) {
 		return l.acct
 	}
 	return l.m
@@ -205,7 +209,7 @@ func (l *limiter) failLocked(ip, email string) time.Time {
 	return time.Time{}
 }
 
-func isAcct(ip string) bool { return ip == twofaKey || ip == accountKey }
+func isAcct(ip string) bool { return ip == twofaKey || ip == accountKey || ip == setupKey }
 
 // reset forgets the pair after a successful sign-in.
 func (l *limiter) reset(ip, email string) {
@@ -269,4 +273,16 @@ func humanWait(secs int) string {
 		return "1 minute"
 	}
 	return fmt.Sprintf("%d minutes", m)
+}
+
+// BeginSetupAttempt counts one guess of the first-run setup code (D-75) before it is judged, against one
+// counter shared by everyone (a 100-bit code cannot be guessed at 10 tries per window, and the box has no
+// stranger-proof way to tell clients apart before an administrator exists). It returns a refund to call when
+// the guess was right, or 429 rate_limited with the growing wait.
+func (s *Service) BeginSetupAttempt() (refund func(), err error) {
+	a, e := s.limit.begin(setupKey, "code")
+	if e != nil {
+		return nil, e
+	}
+	return a.refund, nil
 }

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"net/http"
-
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/modules/core"
 )
@@ -15,6 +13,7 @@ import (
 type handler struct {
 	server.Fallback
 	*core.ModuleHandlers
+	*core.Handlers
 }
 
 // newHandler builds every module's handlers from the shared deps. Adding a module = one field above
@@ -23,16 +22,6 @@ func newHandler(d deps) handler {
 	return handler{
 		Fallback:       server.Fallback{Log: d.Log},
 		ModuleHandlers: core.NewModuleHandlers(d.DB, d.Reg),
+		Handlers:       d.Core,
 	}
 }
-
-// noSessions refuses every request that needs a session. It is the safe stand-in until WP-04b
-// brings the session authenticator: public operations work (the ones that are implemented),
-// everything else is 401.
-type noSessions struct{}
-
-func (noSessions) Authenticate(*http.Request) (server.Principal, error) {
-	return server.Principal{}, server.ErrNoSession
-}
-
-func (noSessions) CheckCSRF(*http.Request, server.Principal) error { return server.ErrNoSession }

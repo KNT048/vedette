@@ -582,9 +582,9 @@
       },
       "9": {
         "name": "External exposure",
-        "what": "Your verified domain names, to find subdomains in public certificate-transparency logs; and HTTPS requests to public \"what is my IP\" services so the box can see its own public IP. The services see only that IP; an IP counts only when at least two of them agree.",
-        "to": "Certificate-transparency search services; checkip.amazonaws.com (Amazon), icanhazip.com (Cloudflare), api.ipify.org (ipify). No Vedette-run server",
-        "control": "Turn off the External exposure module.",
+        "what": "Your verified domain names, to find subdomains in public certificate-transparency logs; and HTTPS requests to public \"what is my IP\" services so the box can see its own public IP. The services see only that IP; the requests carry no product name or identifier. An IP counts only when at least two of the three agree. The first check after install is a full check of 15 requests. Then auto-detect (on by default) asks each service once every recheck interval (60 minutes by default, 1 minute to 24 hours). A full check also runs at most once an hour by itself, when you select Detect now, when you turn auto-detect on, when you verify a public IP again, and just before a scan of a public IP (at most one every 5 minutes).",
+        "to": "Certificate-transparency search services; checkip.amazonaws.com (AWS), icanhazip.com (Cloudflare), ifconfig.me/ip (Google Cloud). No Vedette-run server",
+        "control": "Turn off auto-detect under External exposure (then it is sent only when you select Detect now), or turn off the External exposure module.",
         "link": "Open modules"
       },
       "10": {

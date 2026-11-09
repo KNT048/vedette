@@ -1,14 +1,21 @@
 // Sample data and scan-result generator of the exposure mock. 203.0.113.0/24 is the documentation range (RFC 5737), not real IPs.
 import { daysAgo } from '@/mocks/db'
-import { CERT_WARN_DAYS, type AdminRow, type CertRow, type Counts, type HostRow, type PortRow, type Snapshot, type Target, type TargetKind } from './types'
+import { dateText } from './dates'
+import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type Counts, type HostRow, type IgnoredIp, type PortRow, type Snapshot, type Target, type TargetKind } from './types'
 
 export const BOX_EGRESS_IP = '203.0.113.10'
+/** The sample company has two public IPs behind a load balancer: the box leaves through both. */
+export const BOX_EGRESS_IP_2 = '203.0.113.11'
 
 export interface Content { hosts: HostRow[]; ports: PortRow[]; admin_panels: AdminRow[]; certs: CertRow[] }
-/** txt_ok = the DNS TXT record is currently present (domains). expires_at = verified_at + 90 days (IPs). The scan module reads this shape. */
+/** txt_ok = the DNS TXT record is currently present (domains). expires_at = verified_at + 30 days (IPs; verified_at is the last time the box saw the IP). The scan module reads this shape. */
 export interface StoredTarget { id: string; kind: TargetKind; value: string; token: string; method: Target['method']; verified_at: string | null; expires_at: string | null; txt_ok: boolean; checks: number; last_check: Target['last_check']; created_at: string; last_scan_at: string | null }
-export const VERIFY_DAYS = 90
-export const EXPIRING_DAYS = 14
+export const VERIFY_DAYS = 30
+export const EXPIRING_DAYS = 5
+/** Auto-detect (kien 2026-11-09): check interval bounds and default, in minutes. */
+export const MIN_INTERVAL = 1
+export const MAX_INTERVAL = 1440
+export const DEFAULT_INTERVAL = 60
 
 // Snapshot day in local time: a scan at 01:00 (default scan window 22:00-05:00) still belongs to the day the user sees.
 export function dateOf(iso: string) {
@@ -92,17 +99,33 @@ const plusDays = (iso: string, d: number) => new Date(Date.parse(iso) + d * 864e
 
 export function seedTargets(): StoredTarget[] {
   const ok = (value: string, at: string) => ({ at, ok: true, message: `Found the TXT record on ${value}.` })
-  const v1 = daysAgo(21), v2 = daysAgo(78), v4 = daysAgo(100), v5 = daysAgo(40)
+  const ipOk = (ip: string, at: string) => ({ at, ok: true, message: `The box reaches the Internet via ${ip}. Verified until ${dateText(plusDays(at, VERIFY_DAYS))}.` })
+  const v1 = daysAgo(21), v4 = daysAgo(40), v5 = daysAgo(40)
+  const seen = daysAgo(0, 0.7) // the box saw its two IPs 40 minutes ago (auto-detect, every 60 minutes)
+  const standby = daysAgo(26) // an old failover link: not seen for 26 days
   return [
     { id: 'xt-1', kind: 'domain', value: 'acme.example', token: 'a3f9c2e17b4d8a60', method: 'dns_txt', verified_at: v1, expires_at: null, txt_ok: true, checks: 2, last_check: ok('acme.example', v1), created_at: daysAgo(21, 1), last_scan_at: daysAgo(1) },
-    // Verified 78 days ago: expires in 12 days, so it shows the "expiring" state.
-    { id: 'xt-2', kind: 'ip', value: BOX_EGRESS_IP, token: '', method: 'box_egress', verified_at: v2, expires_at: plusDays(v2, VERIFY_DAYS), txt_ok: false, checks: 1, last_check: { at: v2, ok: true, message: `The box reaches the Internet via ${BOX_EGRESS_IP}. Verified for ${VERIFY_DAYS} days.` }, created_at: v2, last_scan_at: null },
+    // The two public IPs of the sample company (behind a load balancer): both seen 40 minutes ago, so both are valid for 30 days from then.
+    { id: 'xt-2', kind: 'ip', value: BOX_EGRESS_IP, token: '', method: 'box_egress', verified_at: seen, expires_at: plusDays(seen, VERIFY_DAYS), txt_ok: false, checks: 1, last_check: ipOk(BOX_EGRESS_IP, seen), created_at: daysAgo(30), last_scan_at: null },
     { id: 'xt-3', kind: 'domain', value: 'acme-demo.example', token: '9be41c0a77d2e358', method: 'dns_txt', verified_at: null, expires_at: null, txt_ok: false, checks: 0, last_check: null, created_at: daysAgo(0, 2), last_scan_at: null },
-    // Verified 100 days ago and never renewed: expired, cannot be scanned until verified again.
-    { id: 'xt-4', kind: 'ip', value: '203.0.113.55', token: '', method: 'box_egress', verified_at: v4, expires_at: plusDays(v4, VERIFY_DAYS), txt_ok: false, checks: 1, last_check: { at: v4, ok: true, message: 'The box reaches the Internet via 203.0.113.55. Verified for 90 days.' }, created_at: v4, last_scan_at: null },
+    // Last seen 40 days ago, never renewed since: expired (30 days), cannot be scanned until the box uses it again.
+    { id: 'xt-4', kind: 'ip', value: '203.0.113.55', token: '', method: 'box_egress', verified_at: v4, expires_at: plusDays(v4, VERIFY_DAYS), txt_ok: false, checks: 1, last_check: ipOk('203.0.113.55', v4), created_at: daysAgo(70), last_scan_at: null },
     // Verified before, but the TXT record has since been removed: scanning is blocked.
     { id: 'xt-5', kind: 'domain', value: 'old-site.example', token: '4c77d1e09ab2f538', method: 'dns_txt', verified_at: v5, expires_at: null, txt_ok: false, checks: 1, last_check: { at: daysAgo(0, 3), ok: false, message: 'The TXT record vedette-verify=4c77d1e09ab2f538 was not found on old-site.example.' }, created_at: v5, last_scan_at: null },
+    { id: 'xt-6', kind: 'ip', value: BOX_EGRESS_IP_2, token: '', method: 'box_egress', verified_at: seen, expires_at: plusDays(seen, VERIFY_DAYS), txt_ok: false, checks: 1, last_check: ipOk(BOX_EGRESS_IP_2, seen), created_at: daysAgo(2), last_scan_at: null },
+    // Last seen 26 days ago: 4 days left, so it shows the "expiring" state. If the box keeps not using it, it expires.
+    { id: 'xt-7', kind: 'ip', value: '203.0.113.12', token: '', method: 'box_egress', verified_at: standby, expires_at: plusDays(standby, VERIFY_DAYS), txt_ok: false, checks: 1, last_check: ipOk('203.0.113.12', standby), created_at: daysAgo(60), last_scan_at: null },
   ]
+}
+
+/** Sample auto-detect state: on, every 60 minutes, the last check saw both IPs. */
+export function seedBoxIp(): Omit<BoxIpSettings, 'retry_in_min'> {
+  return { auto: true, interval_min: DEFAULT_INTERVAL, last_run: { at: daysAgo(0, 0.7), ok: true, message: `The box reaches the Internet via 2 public IPs: ${BOX_EGRESS_IP}, ${BOX_EGRESS_IP_2}.` } }
+}
+
+/** Sample Ignored list: the address of a mobile backup line that the box sometimes uses; it is the carrier's, not the company's (D-79). */
+export function seedIgnored(): IgnoredIp[] {
+  return [{ value: '203.0.113.77', ignored_by: 'admin@acme.example', ignored_at: daysAgo(3) }]
 }
 
 export function seedSnapshots(): Record<string, Snapshot[]> {

@@ -1086,9 +1086,23 @@ func (UnimplementedHandler) CorePutCoreOidc(ctx context.Context, req *CorePutCor
 	return r, ht.ErrNotImplemented
 }
 
+// ExposureDeleteExposureBoxIPIgnoredIP implements exposure_delete_exposure_box_ip_ignored_ip operation.
+//
+// Restore an IP from the Ignored list: detection may add it again the next time the box sees it. It is
+// not added by this call and is not scannable by itself (it still needs ownership proof and the
+// commitment). 404 when the IP is not on the list.
+//
+// DELETE /exposure/box-ip/ignored/{ip}
+func (UnimplementedHandler) ExposureDeleteExposureBoxIPIgnoredIP(ctx context.Context, params ExposureDeleteExposureBoxIPIgnoredIPParams) error {
+	return ht.ErrNotImplemented
+}
+
 // ExposureDeleteExposureTargetsID implements exposure_delete_exposure_targets_id operation.
 //
-// Delete a target with its snapshots and commitment.
+// Delete a target with its snapshots and commitment. For a public IP this removes it from the list;
+// with ignore=true it also goes on the Ignored list and is never added again or scanned (ignore is
+// only for IPs, else 400 bad_value); without it, auto-detect brings it back (as a new target) the next
+// time the box sees it.
 //
 // DELETE /exposure/targets/{id}
 func (UnimplementedHandler) ExposureDeleteExposureTargetsID(ctx context.Context, params ExposureDeleteExposureTargetsIDParams) error {
@@ -1097,7 +1111,8 @@ func (UnimplementedHandler) ExposureDeleteExposureTargetsID(ctx context.Context,
 
 // ExposureGetExposureTargets implements exposure_get_exposure_targets operation.
 //
-// Domains and verified public IPs with ownership status, expiry, commitment and latest result.
+// Domains and verified public IPs with ownership status, expiry, commitment and latest result, plus
+// the box-IP auto-detect settings.
 //
 // GET /exposure/targets
 func (UnimplementedHandler) ExposureGetExposureTargets(ctx context.Context) (r *ExposureGetExposureTargetsOK, _ error) {
@@ -1142,10 +1157,13 @@ func (UnimplementedHandler) ExposureGetExposureTargetsIDSnapshotsDate(ctx contex
 
 // ExposurePostExposureBoxIPVerify implements exposure_post_exposure_box_ip_verify operation.
 //
-// The box detects the public IP it uses to reach the Internet (TLS to a fixed endpoint) and verifies
-// it for 90 days. Takes no IP input; refuses private, reserved and CGNAT results; rate limited to 10
-// attempts per hour. 201 when the IP is new in the list, 200 when it was already there (the generated
-// file documents 200).
+// "Detect now": the box asks three public "what is my IP" services (checkip.amazonaws.com,
+// icanhazip.com, ifconfig.me/ip) over several rounds of new connections, accepts an IP only when at
+// least two of the three agree in a round, and adds or renews (30 days from now) every IP that passed,
+// except those on the Ignored list, so several egress IPs behind a load balancer are all found. Takes
+// no IP input; refuses private, reserved and CGNAT results (400 not_public when none is public); 502
+// unreachable when no round gave an IP (no service answered, or they did not agree); rate limited to
+// 10 attempts per hour.
 //
 // POST /exposure/box-ip/verify
 func (UnimplementedHandler) ExposurePostExposureBoxIPVerify(ctx context.Context) (r *ExposurePostExposureBoxIPVerifyOK, _ error) {
@@ -1174,7 +1192,9 @@ func (UnimplementedHandler) ExposurePostExposureTargetsIDCommitment(ctx context.
 // ExposurePostExposureTargetsIDScan implements exposure_post_exposure_targets_id_scan operation.
 //
 // Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked
-// right before the scan); 400 commitment_required when the commitment is missing.
+// right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through
+// (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required
+// when the commitment is missing.
 //
 // POST /exposure/targets/{id}/scan
 func (UnimplementedHandler) ExposurePostExposureTargetsIDScan(ctx context.Context, params ExposurePostExposureTargetsIDScanParams) (r *ExposurePostExposureTargetsIDScanOK, _ error) {
@@ -1184,10 +1204,21 @@ func (UnimplementedHandler) ExposurePostExposureTargetsIDScan(ctx context.Contex
 // ExposurePostExposureTargetsIDVerify implements exposure_post_exposure_targets_id_verify operation.
 //
 // Re-check ownership: domain = DNS TXT record; IP = the box must currently egress through this same IP
-// (renews 90 days). Not found is a normal answer (verified:false). Rate limited.
+// (renews it for 30 days). Not found is a normal answer (verified:false). Rate limited.
 //
 // POST /exposure/targets/{id}/verify
 func (UnimplementedHandler) ExposurePostExposureTargetsIDVerify(ctx context.Context, params ExposurePostExposureTargetsIDVerifyParams) (r *ExposurePostExposureTargetsIDVerifyOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ExposurePutExposureBoxIPSettings implements exposure_put_exposure_box_ip_settings operation.
+//
+// Turn auto-detect on or off and set the check interval (1 to 1440 minutes, else 400 bad_interval).
+// Turning it on checks at once. The IP list is kept when it is turned off. Typing an IP is not
+// possible here either.
+//
+// PUT /exposure/box-ip/settings
+func (UnimplementedHandler) ExposurePutExposureBoxIPSettings(ctx context.Context, req *ExposurePutExposureBoxIPSettingsReq) (r *ExposurePutExposureBoxIPSettingsOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2491,8 +2522,8 @@ func (UnimplementedHandler) ScanGetScansRuns(ctx context.Context) (r *ScanGetSca
 
 // ScanGetScansTargets implements scan_get_scans_targets operation.
 //
-// Scannable targets and why others are not (unapproved device, out of scope, external IP whose 90-day
-// verification expired).
+// Scannable targets and why others are not (unapproved device, out of scope, external IP the box has
+// not seen for 30 days).
 //
 // GET /scans/targets
 func (UnimplementedHandler) ScanGetScansTargets(ctx context.Context) (r *ScanGetScansTargetsOK, _ error) {

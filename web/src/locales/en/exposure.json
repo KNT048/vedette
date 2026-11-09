@@ -18,7 +18,7 @@
     "certs_other": "{{count}} certificates are about to expire.",
     "rule": "Only what you have proven you own and confirmed is scanned."
   },
-  "rule": "Scanning your external surface is active scanning, so Vedette sets two conditions. First, you prove ownership: a domain with a DNS TXT record (re-checked right before every scan), a public IP only when this box itself reaches the Internet through it (valid for 90 days). Second, you confirm that your company owns it and you are authorized to scan it. Without both, the scan button stays locked. Every verification and scan is written to the audit log.",
+  "rule": "Scanning your external surface is active scanning, so Vedette sets two conditions. First, you prove ownership: a domain with a DNS TXT record (re-checked right before every scan), a public IP only when this box itself reaches the Internet through it (the box finds it by itself and renews it each time it sees it; 30 days after it last saw it, it expires). Second, you confirm that your company owns it and you are authorized to scan it. Without both, the scan button stays locked. Every verification and scan is written to the audit log.",
   "kind": {
     "domain": "Domain",
     "ip": "Public IP (this box)"
@@ -36,18 +36,20 @@
     "unverified": "Needs ownership proof",
     "expired": "Verification expired",
     "txt_missing": "TXT record missing",
+    "ip_not_current": "Paused",
     "no_commitment": "Needs your confirmation",
     "reasonLong": {
       "unverified": "Cannot scan yet: {{value}} has no ownership proof. Do step 1 below first.",
       "expired": "Cannot scan yet: the verification of {{value}} has expired. Verify it again in step 1 below.",
       "txt_missing": "Cannot scan yet: Vedette no longer finds the DNS TXT record on {{value}}. Add it back in step 1 below, then check again.",
+      "ip_not_current": "Cannot scan right now: the box no longer goes out through {{value}}. Step 1 below says how to check again.",
       "no_commitment": "Cannot scan yet: you have not confirmed that your company owns {{value}} and you are authorized to scan it. Do step 2 below first."
     }
   },
   "targets": {
-    "title": "Domains and public IPs",
+    "title": "Domains",
     "description": "Select a name to verify it, confirm your authorization and read scan results.",
-    "caption": "Declared domains and verified public IPs",
+    "caption": "Declared domains",
     "col": {
       "target": "Target",
       "owner": "Ownership",
@@ -59,15 +61,15 @@
     "ready": "Ready to scan",
     "latest": "{{admin}} admin interfaces, {{ports}} open ports, {{certs}} certificates expiring",
     "noResult": "No result yet",
-    "emptyTitle": "No domain or public IP yet",
-    "emptyBody": "Select Add domain and follow the DNS TXT steps, or select Verify this box's public IP. Then confirm your authorization and scan."
+    "emptyTitle": "No domain yet",
+    "emptyBody": "Select Add domain and follow the DNS TXT steps. Then confirm your authorization and scan. Public IPs are found by the box itself, further down."
   },
   "add": {
     "button": "Add domain",
     "title": "Add a domain",
     "description": "Only enter a domain your company owns. After adding it you will prove ownership with a DNS TXT record and confirm your authorization before any scan.",
     "label": "Domain",
-    "hint": "For example example.com. Do not type http:// or a path. Public IPs cannot be typed in: use Verify this box's public IP.",
+    "hint": "For example example.com. Do not type http:// or a path. Public IPs cannot be typed in: the box finds its own, under Public IPs of this box.",
     "empty": "Enter a domain, for example example.com.",
     "submit": "Add",
     "toast": "Added {{value}}. Next step: verify ownership."
@@ -78,6 +80,7 @@
       "unverified": "{{value}} cannot be scanned yet: awaiting ownership proof",
       "expired": "{{value}} cannot be scanned yet: verification expired",
       "txt_missing": "{{value}} cannot be scanned yet: DNS TXT record missing",
+      "ip_not_current": "{{value}} is paused: the box no longer goes out through it",
       "no_commitment": "{{value}} cannot be scanned yet: needs your confirmation",
       "result": "{{value}}: {{subs}} subdomain(s), {{admin}} admin interface(s) exposed to the Internet",
       "resultIp": "{{value}}: {{ports}} open port(s), {{admin}} admin interface(s) exposed to the Internet",
@@ -95,7 +98,7 @@
   "step": {
     "verify": "Step 1. Verify ownership",
     "verifyHintDomain": "Prove the domain is yours with a DNS TXT record, so nobody can enter someone else's domain.",
-    "verifyHintIp": "This IP is verified because this box reaches the Internet through it. Verification lasts 90 days.",
+    "verifyHintIp": "This IP is verified because this box reaches the Internet through it. It stays valid for 30 days after the box last saw it, and every sighting renews it.",
     "commit": "Step 2. Confirm your authorization",
     "commitHint": "One confirmation per target. Vedette records who confirmed it and when."
   },
@@ -119,14 +122,15 @@
     "doneDomain": "Verified with a DNS TXT record on {{time}}. Vedette re-checks the record right before every scan.",
     "keepRecord": "Keep the TXT record in DNS: if it disappears, scanning is blocked until you add it back.",
     "txtMissing": "Vedette could not find the TXT record at the last check, so scanning is blocked. Add the record back, then select Check again.",
-    "ipIntro": "This IP was verified because the box reaches the Internet through it.",
+    "paused": "Scans paused: the box no longer reaches the Internet through this IP (last seen {{time}}). Scanning resumes when the box goes out through it again. Select Verify again to check now.",
+    "pausedChip": "Paused",
     "ipStatus": "Status",
     "valid": "Valid",
-    "verifiedOn": "Last verified",
+    "verifiedOn": "Last seen by the box",
     "expiresOn": "Expires on",
-    "ipExpired": "Verification expired, so this IP cannot be scanned. Route the box through this IP again (for example switch WAN), then verify again.",
+    "ipExpired": "The box has not seen this IP for 30 days, so it cannot be scanned. It becomes valid again once the box goes out through it: turn on auto-detect, or route the box through this IP (for example switch WAN) and verify again.",
     "ipRecheck": "Verify again",
-    "ipRecheckHint": "Works only while this box currently reaches the Internet through {{value}}. With several public IPs, route the box through this one first.",
+    "ipRecheckHint": "Works only while this box currently reaches the Internet through {{value}}. Verify again runs a full check: the box asks checkip.amazonaws.com, icanhazip.com and ifconfig.me/ip over 5 rounds on new connections (15 requests), so any IP behind a load balancer is found. It renews the IP for 30 days and uses one of the 10 attempts an hour.",
     "found": "Found",
     "notFound": "Not found",
     "checkedAt": "Checked {{time}}",
@@ -231,18 +235,101 @@
     "toast": "Deleted {{value}}"
   },
   "boxIp": {
-    "button": "Verify this box's public IP",
-    "title": "Verify this box's public IP",
-    "description": "Vedette verifies a public IP only when this box itself reaches the Internet through it.",
-    "how": "The box connects to a fixed endpoint over TLS (Cloudflare /cdn-cgi/trace) and reads the IP address it uses to reach the Internet.",
-    "result": "That IP is added as verified for 90 days. Verify it again before it expires.",
-    "why": "You cannot type an IP. Only an address the box really uses proves it belongs to your network, so nobody can verify someone else's address.",
-    "refuse": "Private, reserved and shared carrier (CGNAT, 100.64.0.0/10) addresses are refused, because scanning them could hit other people.",
-    "limit": "At most 10 verification attempts per hour, and every attempt is written to the audit log.",
-    "multi": "Several public IPs? Route the box through each one in turn (for example switch WAN) and verify each.",
-    "submit": "Detect and verify",
-    "running": "Detecting",
-    "toast": "Verified {{ip}} until {{date}}."
+    "title": "Public IPs of this box",
+    "description": "The box finds its own public IPs. You cannot type one in, so nobody can verify an address that is not theirs.",
+    "caption": "Public IPs of this box",
+    "state": {
+      "on": "Auto-detect is on: the box checks its public IPs {{every}}.",
+      "off": "Auto-detect is off: the box checks only when you select Detect now."
+    },
+    "every": {
+      "1": "every minute",
+      "5": "every 5 minutes",
+      "10": "every 10 minutes",
+      "15": "every 15 minutes",
+      "30": "every 30 minutes",
+      "60": "every hour",
+      "120": "every 2 hours",
+      "360": "every 6 hours",
+      "720": "every 12 hours",
+      "1440": "every 24 hours",
+      "other": "every {{count}} minutes"
+    },
+    "option": {
+      "1": "1 minute",
+      "5": "5 minutes",
+      "10": "10 minutes",
+      "15": "15 minutes",
+      "30": "30 minutes",
+      "60": "1 hour",
+      "120": "2 hours",
+      "360": "6 hours",
+      "720": "12 hours",
+      "1440": "24 hours",
+      "other": "{{count}} minutes"
+    },
+    "switch": "Detect the box's public IPs automatically",
+    "switchHint": "Turn it off to add IPs only when you select Detect now. The list below stays as it is.",
+    "interval": "Check every",
+    "detect": "Detect now",
+    "detecting": "Detecting",
+    "toast": "{{message}}",
+    "retry_one": "Try again in about {{count}} minute. The 10 attempts an hour are used up.",
+    "retry_other": "Try again in about {{count}} minutes. The 10 attempts an hour are used up.",
+    "toastOn": "Auto-detect is on.",
+    "toastOff": "Auto-detect is off. The list is kept.",
+    "toastInterval": "The box will check {{every}}.",
+    "last": {
+      "title": "Last check",
+      "ok": "Succeeded",
+      "failed": "Failed",
+      "at": "{{time}}",
+      "never": "No check yet. The first check is a full check (15 requests to checkip.amazonaws.com, icanhazip.com and ifconfig.me/ip). It runs when the box starts, or when you select Detect now."
+    },
+    "col": {
+      "ip": "Public IP",
+      "status": "Status",
+      "seen": "Last seen",
+      "expires": "Expires",
+      "scan": "Scan",
+      "remove": "Remove"
+    },
+    "removeLabel": "Remove {{value}}",
+    "comeBack": "Removed IPs come back if the box keeps using them while auto-detect is on, unless you chose not to add them again.",
+    "empty": {
+      "title": "No public IP yet",
+      "on": "The box looks for its public IPs when it starts and then {{every}}. Select Detect now to look right away.",
+      "off": "Auto-detect is off. Turn it on, or select Detect now."
+    },
+    "remove": {
+      "title": "Remove {{value}} from the list?",
+      "body": "Its scan results and your confirmation for it are deleted too. The audit log is kept.",
+      "confirm": "Remove",
+      "toast": "Removed {{value}}. Auto-detect adds it again if the box keeps using it.",
+      "toastIgnored": "Removed {{value}}. It is on the Ignored list and will not be added again.",
+      "ignoreLabel": "Don't add it again if detected",
+      "ignoreOn": "Vedette will never add this IP back and never scan it. Leave this on for an address that is not your company's, for example a security gateway or VPN exit, or a mobile backup line. You can restore it later under Ignored IPs.",
+      "ignoreOff": "If the box keeps using this IP while auto-detect is on, it is added again as a new target, with no confirmation and no scan results."
+    },
+    "ignored": {
+      "title": "Ignored IPs",
+      "description": "IPs you removed and chose not to add again. The box never adds them back and never scans them. Restore lets detection add one again; it does not make it scannable: it still needs ownership proof and your confirmation.",
+      "caption": "IPs on the Ignored list",
+      "col": { "ip": "IP", "by": "Ignored by", "at": "Ignored on", "restore": "Restore" },
+      "restore": "Restore",
+      "restoreLabel": "Restore {{value}}",
+      "emptyTitle": "No ignored IPs",
+      "emptyBody": "When you remove an IP, you can choose not to add it again. It then shows up here.",
+      "toast": "Restored {{value}}. Auto-detect may add it again."
+    },
+    "help": {
+      "summary": "How the box finds its IPs",
+      "how": "The box asks three public \"what is my IP\" services over HTTPS: checkip.amazonaws.com (AWS), icanhazip.com (Cloudflare) and ifconfig.me/ip (Google Cloud). It accepts an IP only when at least two of them return the same one, so one wrong answer is not enough. A full check does this in 5 rounds on new connections (15 requests), so several IPs behind a load balancer all show up. The first check after install, Detect now and Verify again are full checks. The automatic checks after that ask each service once (3 requests).",
+      "result": "Each IP the box sees is added or renewed for 30 days from that moment. An IP expires only when the box has not seen it for 30 days.",
+      "why": "You cannot type an IP. Only an address the box really uses proves it belongs to your network, so nobody can verify someone else's address.",
+      "refuse": "Private, reserved and shared carrier (CGNAT, 100.64.0.0/10) addresses are refused, because scanning them could hit other people.",
+      "limit": "Detect now, Verify again and the DNS Check of a domain share 10 attempts per hour. Automatic checks do not use them: they can run as often as every minute, and a full check runs at most once an hour by itself. Every change is written to the audit log."
+    }
   },
   "commit": {
     "waitVerify": "Finish step 1 first. You can confirm only after ownership is verified.",

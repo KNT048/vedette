@@ -33999,6 +33999,50 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 	s.Response = val
 }
 
+// ExposureDeleteExposureBoxIPIgnoredIPNoContent is response for ExposureDeleteExposureBoxIPIgnoredIP operation.
+type ExposureDeleteExposureBoxIPIgnoredIPNoContent struct{}
+
+type ExposureDeleteExposureTargetsIDIgnore string
+
+const (
+	ExposureDeleteExposureTargetsIDIgnoreTrue  ExposureDeleteExposureTargetsIDIgnore = "true"
+	ExposureDeleteExposureTargetsIDIgnoreFalse ExposureDeleteExposureTargetsIDIgnore = "false"
+)
+
+// AllValues returns all ExposureDeleteExposureTargetsIDIgnore values.
+func (ExposureDeleteExposureTargetsIDIgnore) AllValues() []ExposureDeleteExposureTargetsIDIgnore {
+	return []ExposureDeleteExposureTargetsIDIgnore{
+		ExposureDeleteExposureTargetsIDIgnoreTrue,
+		ExposureDeleteExposureTargetsIDIgnoreFalse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTargetsIDIgnore) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTargetsIDIgnoreTrue:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDIgnoreFalse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTargetsIDIgnore) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTargetsIDIgnore(data) {
+	case ExposureDeleteExposureTargetsIDIgnoreTrue:
+		*s = ExposureDeleteExposureTargetsIDIgnoreTrue
+		return nil
+	case ExposureDeleteExposureTargetsIDIgnoreFalse:
+		*s = ExposureDeleteExposureTargetsIDIgnoreFalse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // ExposureDeleteExposureTargetsIDNoContent is response for ExposureDeleteExposureTargetsID operation.
 type ExposureDeleteExposureTargetsIDNoContent struct{}
 
@@ -34389,12 +34433,14 @@ func (s *ExposureGetExposureTargetsIDDiffOKRemovedItemKind) UnmarshalText(data [
 }
 
 type ExposureGetExposureTargetsIDOK struct {
-	// Why it cannot be scanned yet; null = can be scanned.
+	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
+	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
+	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
 	BlockedReason NilExposureGetExposureTargetsIDOKBlockedReason `json:"blocked_reason"`
 	// Who ticked "my company owns it and I am authorized to scan it", and when.
 	Commitment NilExposureGetExposureTargetsIDOKCommitment `json:"commitment"`
 	CreatedAt  time.Time                                   `json:"created_at"`
-	// IP: verified_at + 90 days. Domain: null (the TXT record is re-checked right before every scan).
+	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
 	ExpiresAt  NilDateTime                                `json:"expires_at"`
 	ID         string                                     `json:"id"`
 	Kind       ExposureGetExposureTargetsIDOKKind         `json:"kind"`
@@ -34403,15 +34449,16 @@ type ExposureGetExposureTargetsIDOK struct {
 	Latest     NilExposureGetExposureTargetsIDOKLatest    `json:"latest"`
 	Method     NilExposureGetExposureTargetsIDOKMethod    `json:"method"`
 	Scannable  bool                                       `json:"scannable"`
-	// Expired only exists for IPs: more than 90 days since the last verification.
+	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsIDOKStatus `json:"status"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
 	Token string `json:"token"`
-	// IPs only: expiring = 14 days or less left.
+	// IPs only: expiring = 5 days or less left.
 	Validity NilExposureGetExposureTargetsIDOKValidity `json:"validity"`
 	Value    string                                    `json:"value"`
-	// Last successful verification.
+	// Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews
+	// it).
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
@@ -34582,6 +34629,7 @@ const (
 	ExposureGetExposureTargetsIDOKBlockedReasonExpired      ExposureGetExposureTargetsIDOKBlockedReason = "expired"
 	ExposureGetExposureTargetsIDOKBlockedReasonTxtMissing   ExposureGetExposureTargetsIDOKBlockedReason = "txt_missing"
 	ExposureGetExposureTargetsIDOKBlockedReasonNoCommitment ExposureGetExposureTargetsIDOKBlockedReason = "no_commitment"
+	ExposureGetExposureTargetsIDOKBlockedReasonIPNotCurrent ExposureGetExposureTargetsIDOKBlockedReason = "ip_not_current"
 )
 
 // AllValues returns all ExposureGetExposureTargetsIDOKBlockedReason values.
@@ -34591,6 +34639,7 @@ func (ExposureGetExposureTargetsIDOKBlockedReason) AllValues() []ExposureGetExpo
 		ExposureGetExposureTargetsIDOKBlockedReasonExpired,
 		ExposureGetExposureTargetsIDOKBlockedReasonTxtMissing,
 		ExposureGetExposureTargetsIDOKBlockedReasonNoCommitment,
+		ExposureGetExposureTargetsIDOKBlockedReasonIPNotCurrent,
 	}
 }
 
@@ -34604,6 +34653,8 @@ func (s ExposureGetExposureTargetsIDOKBlockedReason) MarshalText() ([]byte, erro
 	case ExposureGetExposureTargetsIDOKBlockedReasonTxtMissing:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDOKBlockedReasonNoCommitment:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKBlockedReasonIPNotCurrent:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -34624,6 +34675,9 @@ func (s *ExposureGetExposureTargetsIDOKBlockedReason) UnmarshalText(data []byte)
 		return nil
 	case ExposureGetExposureTargetsIDOKBlockedReasonNoCommitment:
 		*s = ExposureGetExposureTargetsIDOKBlockedReasonNoCommitment
+		return nil
+	case ExposureGetExposureTargetsIDOKBlockedReasonIPNotCurrent:
+		*s = ExposureGetExposureTargetsIDOKBlockedReasonIPNotCurrent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -34831,7 +34885,7 @@ func (s *ExposureGetExposureTargetsIDOKMethod) UnmarshalText(data []byte) error 
 	}
 }
 
-// Expired only exists for IPs: more than 90 days since the last verification.
+// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 type ExposureGetExposureTargetsIDOKStatus string
 
 const (
@@ -35404,7 +35458,20 @@ func (s *ExposureGetExposureTargetsIDSnapshotsOKItemsItemCounts) SetSubdomains(v
 }
 
 type ExposureGetExposureTargetsOK struct {
-	Items []ExposureGetExposureTargetsOKItemsItem `json:"items"`
+	BoxIP ExposureGetExposureTargetsOKBoxIP `json:"box_ip"`
+	// The Ignored list, newest first.
+	Ignored []ExposureGetExposureTargetsOKIgnoredItem `json:"ignored"`
+	Items   []ExposureGetExposureTargetsOKItemsItem   `json:"items"`
+}
+
+// GetBoxIP returns the value of BoxIP.
+func (s *ExposureGetExposureTargetsOK) GetBoxIP() ExposureGetExposureTargetsOKBoxIP {
+	return s.BoxIP
+}
+
+// GetIgnored returns the value of Ignored.
+func (s *ExposureGetExposureTargetsOK) GetIgnored() []ExposureGetExposureTargetsOKIgnoredItem {
+	return s.Ignored
 }
 
 // GetItems returns the value of Items.
@@ -35412,18 +35479,157 @@ func (s *ExposureGetExposureTargetsOK) GetItems() []ExposureGetExposureTargetsOK
 	return s.Items
 }
 
+// SetBoxIP sets the value of BoxIP.
+func (s *ExposureGetExposureTargetsOK) SetBoxIP(val ExposureGetExposureTargetsOKBoxIP) {
+	s.BoxIP = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *ExposureGetExposureTargetsOK) SetIgnored(val []ExposureGetExposureTargetsOKIgnoredItem) {
+	s.Ignored = val
+}
+
 // SetItems sets the value of Items.
 func (s *ExposureGetExposureTargetsOK) SetItems(val []ExposureGetExposureTargetsOKItemsItem) {
 	s.Items = val
 }
 
+type ExposureGetExposureTargetsOKBoxIP struct {
+	// On: the box detects its public IPs at first start and then every interval_min minutes. Off: only
+	// "Detect now". Default on.
+	Auto bool `json:"auto"`
+	// Minutes between automatic checks, 1 to 1440. Default 60.
+	IntervalMin int `json:"interval_min"`
+	// The last automatic or manual detection; null before the first one.
+	LastRun NilExposureGetExposureTargetsOKBoxIPLastRun `json:"last_run"`
+	// Null while attempts are left. When the 10 attempts an hour (shared by Detect now, Verify again and
+	// the DNS Check of a domain) are used up: minutes until the next one is possible, 1 or more.
+	RetryInMin NilInt `json:"retry_in_min"`
+}
+
+// GetAuto returns the value of Auto.
+func (s *ExposureGetExposureTargetsOKBoxIP) GetAuto() bool {
+	return s.Auto
+}
+
+// GetIntervalMin returns the value of IntervalMin.
+func (s *ExposureGetExposureTargetsOKBoxIP) GetIntervalMin() int {
+	return s.IntervalMin
+}
+
+// GetLastRun returns the value of LastRun.
+func (s *ExposureGetExposureTargetsOKBoxIP) GetLastRun() NilExposureGetExposureTargetsOKBoxIPLastRun {
+	return s.LastRun
+}
+
+// GetRetryInMin returns the value of RetryInMin.
+func (s *ExposureGetExposureTargetsOKBoxIP) GetRetryInMin() NilInt {
+	return s.RetryInMin
+}
+
+// SetAuto sets the value of Auto.
+func (s *ExposureGetExposureTargetsOKBoxIP) SetAuto(val bool) {
+	s.Auto = val
+}
+
+// SetIntervalMin sets the value of IntervalMin.
+func (s *ExposureGetExposureTargetsOKBoxIP) SetIntervalMin(val int) {
+	s.IntervalMin = val
+}
+
+// SetLastRun sets the value of LastRun.
+func (s *ExposureGetExposureTargetsOKBoxIP) SetLastRun(val NilExposureGetExposureTargetsOKBoxIPLastRun) {
+	s.LastRun = val
+}
+
+// SetRetryInMin sets the value of RetryInMin.
+func (s *ExposureGetExposureTargetsOKBoxIP) SetRetryInMin(val NilInt) {
+	s.RetryInMin = val
+}
+
+type ExposureGetExposureTargetsOKBoxIPLastRun struct {
+	At time.Time `json:"at"`
+	// What the last check saw, or why it failed.
+	Message string `json:"message"`
+	Ok      bool   `json:"ok"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureGetExposureTargetsOKBoxIPLastRun) GetAt() time.Time {
+	return s.At
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposureGetExposureTargetsOKBoxIPLastRun) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposureGetExposureTargetsOKBoxIPLastRun) GetOk() bool {
+	return s.Ok
+}
+
+// SetAt sets the value of At.
+func (s *ExposureGetExposureTargetsOKBoxIPLastRun) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposureGetExposureTargetsOKBoxIPLastRun) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposureGetExposureTargetsOKBoxIPLastRun) SetOk(val bool) {
+	s.Ok = val
+}
+
+type ExposureGetExposureTargetsOKIgnoredItem struct {
+	IgnoredAt time.Time `json:"ignored_at"`
+	IgnoredBy string    `json:"ignored_by"`
+	// A public IPv4 address.
+	Value string `json:"value"`
+}
+
+// GetIgnoredAt returns the value of IgnoredAt.
+func (s *ExposureGetExposureTargetsOKIgnoredItem) GetIgnoredAt() time.Time {
+	return s.IgnoredAt
+}
+
+// GetIgnoredBy returns the value of IgnoredBy.
+func (s *ExposureGetExposureTargetsOKIgnoredItem) GetIgnoredBy() string {
+	return s.IgnoredBy
+}
+
+// GetValue returns the value of Value.
+func (s *ExposureGetExposureTargetsOKIgnoredItem) GetValue() string {
+	return s.Value
+}
+
+// SetIgnoredAt sets the value of IgnoredAt.
+func (s *ExposureGetExposureTargetsOKIgnoredItem) SetIgnoredAt(val time.Time) {
+	s.IgnoredAt = val
+}
+
+// SetIgnoredBy sets the value of IgnoredBy.
+func (s *ExposureGetExposureTargetsOKIgnoredItem) SetIgnoredBy(val string) {
+	s.IgnoredBy = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposureGetExposureTargetsOKIgnoredItem) SetValue(val string) {
+	s.Value = val
+}
+
 type ExposureGetExposureTargetsOKItemsItem struct {
-	// Why it cannot be scanned yet; null = can be scanned.
+	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
+	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
+	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
 	BlockedReason NilExposureGetExposureTargetsOKItemsItemBlockedReason `json:"blocked_reason"`
 	// Who ticked "my company owns it and I am authorized to scan it", and when.
 	Commitment NilExposureGetExposureTargetsOKItemsItemCommitment `json:"commitment"`
 	CreatedAt  time.Time                                          `json:"created_at"`
-	// IP: verified_at + 90 days. Domain: null (the TXT record is re-checked right before every scan).
+	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
 	ExpiresAt  NilDateTime                                       `json:"expires_at"`
 	ID         string                                            `json:"id"`
 	Kind       ExposureGetExposureTargetsOKItemsItemKind         `json:"kind"`
@@ -35432,15 +35638,16 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	Latest     NilExposureGetExposureTargetsOKItemsItemLatest    `json:"latest"`
 	Method     NilExposureGetExposureTargetsOKItemsItemMethod    `json:"method"`
 	Scannable  bool                                              `json:"scannable"`
-	// Expired only exists for IPs: more than 90 days since the last verification.
+	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsOKItemsItemStatus `json:"status"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
 	Token string `json:"token"`
-	// IPs only: expiring = 14 days or less left.
+	// IPs only: expiring = 5 days or less left.
 	Validity NilExposureGetExposureTargetsOKItemsItemValidity `json:"validity"`
 	Value    string                                           `json:"value"`
-	// Last successful verification.
+	// Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews
+	// it).
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
@@ -35611,6 +35818,7 @@ const (
 	ExposureGetExposureTargetsOKItemsItemBlockedReasonExpired      ExposureGetExposureTargetsOKItemsItemBlockedReason = "expired"
 	ExposureGetExposureTargetsOKItemsItemBlockedReasonTxtMissing   ExposureGetExposureTargetsOKItemsItemBlockedReason = "txt_missing"
 	ExposureGetExposureTargetsOKItemsItemBlockedReasonNoCommitment ExposureGetExposureTargetsOKItemsItemBlockedReason = "no_commitment"
+	ExposureGetExposureTargetsOKItemsItemBlockedReasonIPNotCurrent ExposureGetExposureTargetsOKItemsItemBlockedReason = "ip_not_current"
 )
 
 // AllValues returns all ExposureGetExposureTargetsOKItemsItemBlockedReason values.
@@ -35620,6 +35828,7 @@ func (ExposureGetExposureTargetsOKItemsItemBlockedReason) AllValues() []Exposure
 		ExposureGetExposureTargetsOKItemsItemBlockedReasonExpired,
 		ExposureGetExposureTargetsOKItemsItemBlockedReasonTxtMissing,
 		ExposureGetExposureTargetsOKItemsItemBlockedReasonNoCommitment,
+		ExposureGetExposureTargetsOKItemsItemBlockedReasonIPNotCurrent,
 	}
 }
 
@@ -35633,6 +35842,8 @@ func (s ExposureGetExposureTargetsOKItemsItemBlockedReason) MarshalText() ([]byt
 	case ExposureGetExposureTargetsOKItemsItemBlockedReasonTxtMissing:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsOKItemsItemBlockedReasonNoCommitment:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemBlockedReasonIPNotCurrent:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -35653,6 +35864,9 @@ func (s *ExposureGetExposureTargetsOKItemsItemBlockedReason) UnmarshalText(data 
 		return nil
 	case ExposureGetExposureTargetsOKItemsItemBlockedReasonNoCommitment:
 		*s = ExposureGetExposureTargetsOKItemsItemBlockedReasonNoCommitment
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemBlockedReasonIPNotCurrent:
+		*s = ExposureGetExposureTargetsOKItemsItemBlockedReasonIPNotCurrent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -35860,7 +36074,7 @@ func (s *ExposureGetExposureTargetsOKItemsItemMethod) UnmarshalText(data []byte)
 	}
 }
 
-// Expired only exists for IPs: more than 90 days since the last verification.
+// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 type ExposureGetExposureTargetsOKItemsItemStatus string
 
 const (
@@ -35958,221 +36172,254 @@ func (s *ExposureGetExposureTargetsOKItemsItemValidity) UnmarshalText(data []byt
 }
 
 type ExposurePostExposureBoxIPVerifyOK struct {
-	// Why it cannot be scanned yet; null = can be scanned.
-	BlockedReason NilExposurePostExposureBoxIPVerifyOKBlockedReason `json:"blocked_reason"`
+	// The public IPs the box saw this time, each added or renewed.
+	Items   []ExposurePostExposureBoxIPVerifyOKItemsItem `json:"items"`
+	Message string                                       `json:"message"`
+}
+
+// GetItems returns the value of Items.
+func (s *ExposurePostExposureBoxIPVerifyOK) GetItems() []ExposurePostExposureBoxIPVerifyOKItemsItem {
+	return s.Items
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposurePostExposureBoxIPVerifyOK) GetMessage() string {
+	return s.Message
+}
+
+// SetItems sets the value of Items.
+func (s *ExposurePostExposureBoxIPVerifyOK) SetItems(val []ExposurePostExposureBoxIPVerifyOKItemsItem) {
+	s.Items = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposurePostExposureBoxIPVerifyOK) SetMessage(val string) {
+	s.Message = val
+}
+
+type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
+	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
+	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
+	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
+	BlockedReason NilExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason `json:"blocked_reason"`
 	// Who ticked "my company owns it and I am authorized to scan it", and when.
-	Commitment NilExposurePostExposureBoxIPVerifyOKCommitment `json:"commitment"`
-	CreatedAt  time.Time                                      `json:"created_at"`
-	// IP: verified_at + 90 days. Domain: null (the TXT record is re-checked right before every scan).
-	ExpiresAt  NilDateTime                                   `json:"expires_at"`
-	ID         string                                        `json:"id"`
-	Kind       ExposurePostExposureBoxIPVerifyOKKind         `json:"kind"`
-	LastCheck  NilExposurePostExposureBoxIPVerifyOKLastCheck `json:"last_check"`
-	LastScanAt NilDateTime                                   `json:"last_scan_at"`
-	Latest     NilExposurePostExposureBoxIPVerifyOKLatest    `json:"latest"`
-	Method     NilExposurePostExposureBoxIPVerifyOKMethod    `json:"method"`
-	Scannable  bool                                          `json:"scannable"`
-	// Expired only exists for IPs: more than 90 days since the last verification.
-	Status ExposurePostExposureBoxIPVerifyOKStatus `json:"status"`
+	Commitment NilExposurePostExposureBoxIPVerifyOKItemsItemCommitment `json:"commitment"`
+	CreatedAt  time.Time                                               `json:"created_at"`
+	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
+	ExpiresAt  NilDateTime                                            `json:"expires_at"`
+	ID         string                                                 `json:"id"`
+	Kind       ExposurePostExposureBoxIPVerifyOKItemsItemKind         `json:"kind"`
+	LastCheck  NilExposurePostExposureBoxIPVerifyOKItemsItemLastCheck `json:"last_check"`
+	LastScanAt NilDateTime                                            `json:"last_scan_at"`
+	Latest     NilExposurePostExposureBoxIPVerifyOKItemsItemLatest    `json:"latest"`
+	Method     NilExposurePostExposureBoxIPVerifyOKItemsItemMethod    `json:"method"`
+	Scannable  bool                                                   `json:"scannable"`
+	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+	Status ExposurePostExposureBoxIPVerifyOKItemsItemStatus `json:"status"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
 	Token string `json:"token"`
-	// IPs only: expiring = 14 days or less left.
-	Validity NilExposurePostExposureBoxIPVerifyOKValidity `json:"validity"`
-	Value    string                                       `json:"value"`
-	// Last successful verification.
+	// IPs only: expiring = 5 days or less left.
+	Validity NilExposurePostExposureBoxIPVerifyOKItemsItemValidity `json:"validity"`
+	Value    string                                                `json:"value"`
+	// Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews
+	// it).
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
 // GetBlockedReason returns the value of BlockedReason.
-func (s *ExposurePostExposureBoxIPVerifyOK) GetBlockedReason() NilExposurePostExposureBoxIPVerifyOKBlockedReason {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetBlockedReason() NilExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason {
 	return s.BlockedReason
 }
 
 // GetCommitment returns the value of Commitment.
-func (s *ExposurePostExposureBoxIPVerifyOK) GetCommitment() NilExposurePostExposureBoxIPVerifyOKCommitment {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetCommitment() NilExposurePostExposureBoxIPVerifyOKItemsItemCommitment {
 	return s.Commitment
 }
 
 // GetCreatedAt returns the value of CreatedAt.
-func (s *ExposurePostExposureBoxIPVerifyOK) GetCreatedAt() time.Time {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetCreatedAt() time.Time {
 	return s.CreatedAt
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
-func (s *ExposurePostExposureBoxIPVerifyOK) GetExpiresAt() NilDateTime {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetExpiresAt() NilDateTime {
 	return s.ExpiresAt
 }
 
 // GetID returns the value of ID.
-func (s *ExposurePostExposureBoxIPVerifyOK) GetID() string {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetID() string {
 	return s.ID
 }
 
 // GetKind returns the value of Kind.
-func (s *ExposurePostExposureBoxIPVerifyOK) GetKind() ExposurePostExposureBoxIPVerifyOKKind {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetKind() ExposurePostExposureBoxIPVerifyOKItemsItemKind {
 	return s.Kind
 }
 
 // GetLastCheck returns the value of LastCheck.
-func (s *ExposurePostExposureBoxIPVerifyOK) GetLastCheck() NilExposurePostExposureBoxIPVerifyOKLastCheck {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetLastCheck() NilExposurePostExposureBoxIPVerifyOKItemsItemLastCheck {
 	return s.LastCheck
 }
 
 // GetLastScanAt returns the value of LastScanAt.
-func (s *ExposurePostExposureBoxIPVerifyOK) GetLastScanAt() NilDateTime {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetLastScanAt() NilDateTime {
 	return s.LastScanAt
 }
 
 // GetLatest returns the value of Latest.
-func (s *ExposurePostExposureBoxIPVerifyOK) GetLatest() NilExposurePostExposureBoxIPVerifyOKLatest {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetLatest() NilExposurePostExposureBoxIPVerifyOKItemsItemLatest {
 	return s.Latest
 }
 
 // GetMethod returns the value of Method.
-func (s *ExposurePostExposureBoxIPVerifyOK) GetMethod() NilExposurePostExposureBoxIPVerifyOKMethod {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetMethod() NilExposurePostExposureBoxIPVerifyOKItemsItemMethod {
 	return s.Method
 }
 
 // GetScannable returns the value of Scannable.
-func (s *ExposurePostExposureBoxIPVerifyOK) GetScannable() bool {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetScannable() bool {
 	return s.Scannable
 }
 
 // GetStatus returns the value of Status.
-func (s *ExposurePostExposureBoxIPVerifyOK) GetStatus() ExposurePostExposureBoxIPVerifyOKStatus {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetStatus() ExposurePostExposureBoxIPVerifyOKItemsItemStatus {
 	return s.Status
 }
 
 // GetToken returns the value of Token.
-func (s *ExposurePostExposureBoxIPVerifyOK) GetToken() string {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetToken() string {
 	return s.Token
 }
 
 // GetValidity returns the value of Validity.
-func (s *ExposurePostExposureBoxIPVerifyOK) GetValidity() NilExposurePostExposureBoxIPVerifyOKValidity {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetValidity() NilExposurePostExposureBoxIPVerifyOKItemsItemValidity {
 	return s.Validity
 }
 
 // GetValue returns the value of Value.
-func (s *ExposurePostExposureBoxIPVerifyOK) GetValue() string {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetValue() string {
 	return s.Value
 }
 
 // GetVerifiedAt returns the value of VerifiedAt.
-func (s *ExposurePostExposureBoxIPVerifyOK) GetVerifiedAt() NilDateTime {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetVerifiedAt() NilDateTime {
 	return s.VerifiedAt
 }
 
 // SetBlockedReason sets the value of BlockedReason.
-func (s *ExposurePostExposureBoxIPVerifyOK) SetBlockedReason(val NilExposurePostExposureBoxIPVerifyOKBlockedReason) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetBlockedReason(val NilExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) {
 	s.BlockedReason = val
 }
 
 // SetCommitment sets the value of Commitment.
-func (s *ExposurePostExposureBoxIPVerifyOK) SetCommitment(val NilExposurePostExposureBoxIPVerifyOKCommitment) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetCommitment(val NilExposurePostExposureBoxIPVerifyOKItemsItemCommitment) {
 	s.Commitment = val
 }
 
 // SetCreatedAt sets the value of CreatedAt.
-func (s *ExposurePostExposureBoxIPVerifyOK) SetCreatedAt(val time.Time) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
 }
 
 // SetExpiresAt sets the value of ExpiresAt.
-func (s *ExposurePostExposureBoxIPVerifyOK) SetExpiresAt(val NilDateTime) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetExpiresAt(val NilDateTime) {
 	s.ExpiresAt = val
 }
 
 // SetID sets the value of ID.
-func (s *ExposurePostExposureBoxIPVerifyOK) SetID(val string) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetID(val string) {
 	s.ID = val
 }
 
 // SetKind sets the value of Kind.
-func (s *ExposurePostExposureBoxIPVerifyOK) SetKind(val ExposurePostExposureBoxIPVerifyOKKind) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetKind(val ExposurePostExposureBoxIPVerifyOKItemsItemKind) {
 	s.Kind = val
 }
 
 // SetLastCheck sets the value of LastCheck.
-func (s *ExposurePostExposureBoxIPVerifyOK) SetLastCheck(val NilExposurePostExposureBoxIPVerifyOKLastCheck) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetLastCheck(val NilExposurePostExposureBoxIPVerifyOKItemsItemLastCheck) {
 	s.LastCheck = val
 }
 
 // SetLastScanAt sets the value of LastScanAt.
-func (s *ExposurePostExposureBoxIPVerifyOK) SetLastScanAt(val NilDateTime) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetLastScanAt(val NilDateTime) {
 	s.LastScanAt = val
 }
 
 // SetLatest sets the value of Latest.
-func (s *ExposurePostExposureBoxIPVerifyOK) SetLatest(val NilExposurePostExposureBoxIPVerifyOKLatest) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetLatest(val NilExposurePostExposureBoxIPVerifyOKItemsItemLatest) {
 	s.Latest = val
 }
 
 // SetMethod sets the value of Method.
-func (s *ExposurePostExposureBoxIPVerifyOK) SetMethod(val NilExposurePostExposureBoxIPVerifyOKMethod) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetMethod(val NilExposurePostExposureBoxIPVerifyOKItemsItemMethod) {
 	s.Method = val
 }
 
 // SetScannable sets the value of Scannable.
-func (s *ExposurePostExposureBoxIPVerifyOK) SetScannable(val bool) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetScannable(val bool) {
 	s.Scannable = val
 }
 
 // SetStatus sets the value of Status.
-func (s *ExposurePostExposureBoxIPVerifyOK) SetStatus(val ExposurePostExposureBoxIPVerifyOKStatus) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetStatus(val ExposurePostExposureBoxIPVerifyOKItemsItemStatus) {
 	s.Status = val
 }
 
 // SetToken sets the value of Token.
-func (s *ExposurePostExposureBoxIPVerifyOK) SetToken(val string) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetToken(val string) {
 	s.Token = val
 }
 
 // SetValidity sets the value of Validity.
-func (s *ExposurePostExposureBoxIPVerifyOK) SetValidity(val NilExposurePostExposureBoxIPVerifyOKValidity) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetValidity(val NilExposurePostExposureBoxIPVerifyOKItemsItemValidity) {
 	s.Validity = val
 }
 
 // SetValue sets the value of Value.
-func (s *ExposurePostExposureBoxIPVerifyOK) SetValue(val string) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetValue(val string) {
 	s.Value = val
 }
 
 // SetVerifiedAt sets the value of VerifiedAt.
-func (s *ExposurePostExposureBoxIPVerifyOK) SetVerifiedAt(val NilDateTime) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetVerifiedAt(val NilDateTime) {
 	s.VerifiedAt = val
 }
 
-type ExposurePostExposureBoxIPVerifyOKBlockedReason string
+type ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason string
 
 const (
-	ExposurePostExposureBoxIPVerifyOKBlockedReasonUnverified   ExposurePostExposureBoxIPVerifyOKBlockedReason = "unverified"
-	ExposurePostExposureBoxIPVerifyOKBlockedReasonExpired      ExposurePostExposureBoxIPVerifyOKBlockedReason = "expired"
-	ExposurePostExposureBoxIPVerifyOKBlockedReasonTxtMissing   ExposurePostExposureBoxIPVerifyOKBlockedReason = "txt_missing"
-	ExposurePostExposureBoxIPVerifyOKBlockedReasonNoCommitment ExposurePostExposureBoxIPVerifyOKBlockedReason = "no_commitment"
+	ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonUnverified   ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason = "unverified"
+	ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonExpired      ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason = "expired"
+	ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonTxtMissing   ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason = "txt_missing"
+	ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonNoCommitment ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason = "no_commitment"
+	ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonIPNotCurrent ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason = "ip_not_current"
 )
 
-// AllValues returns all ExposurePostExposureBoxIPVerifyOKBlockedReason values.
-func (ExposurePostExposureBoxIPVerifyOKBlockedReason) AllValues() []ExposurePostExposureBoxIPVerifyOKBlockedReason {
-	return []ExposurePostExposureBoxIPVerifyOKBlockedReason{
-		ExposurePostExposureBoxIPVerifyOKBlockedReasonUnverified,
-		ExposurePostExposureBoxIPVerifyOKBlockedReasonExpired,
-		ExposurePostExposureBoxIPVerifyOKBlockedReasonTxtMissing,
-		ExposurePostExposureBoxIPVerifyOKBlockedReasonNoCommitment,
+// AllValues returns all ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason values.
+func (ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) AllValues() []ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason {
+	return []ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason{
+		ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonUnverified,
+		ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonExpired,
+		ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonTxtMissing,
+		ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonNoCommitment,
+		ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonIPNotCurrent,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ExposurePostExposureBoxIPVerifyOKBlockedReason) MarshalText() ([]byte, error) {
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) MarshalText() ([]byte, error) {
 	switch s {
-	case ExposurePostExposureBoxIPVerifyOKBlockedReasonUnverified:
+	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonUnverified:
 		return []byte(s), nil
-	case ExposurePostExposureBoxIPVerifyOKBlockedReasonExpired:
+	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonExpired:
 		return []byte(s), nil
-	case ExposurePostExposureBoxIPVerifyOKBlockedReasonTxtMissing:
+	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonTxtMissing:
 		return []byte(s), nil
-	case ExposurePostExposureBoxIPVerifyOKBlockedReasonNoCommitment:
+	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonNoCommitment:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonIPNotCurrent:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -36180,71 +36427,74 @@ func (s ExposurePostExposureBoxIPVerifyOKBlockedReason) MarshalText() ([]byte, e
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePostExposureBoxIPVerifyOKBlockedReason) UnmarshalText(data []byte) error {
-	switch ExposurePostExposureBoxIPVerifyOKBlockedReason(data) {
-	case ExposurePostExposureBoxIPVerifyOKBlockedReasonUnverified:
-		*s = ExposurePostExposureBoxIPVerifyOKBlockedReasonUnverified
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason(data) {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonUnverified:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonUnverified
 		return nil
-	case ExposurePostExposureBoxIPVerifyOKBlockedReasonExpired:
-		*s = ExposurePostExposureBoxIPVerifyOKBlockedReasonExpired
+	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonExpired:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonExpired
 		return nil
-	case ExposurePostExposureBoxIPVerifyOKBlockedReasonTxtMissing:
-		*s = ExposurePostExposureBoxIPVerifyOKBlockedReasonTxtMissing
+	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonTxtMissing:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonTxtMissing
 		return nil
-	case ExposurePostExposureBoxIPVerifyOKBlockedReasonNoCommitment:
-		*s = ExposurePostExposureBoxIPVerifyOKBlockedReasonNoCommitment
+	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonNoCommitment:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonNoCommitment
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonIPNotCurrent:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonIPNotCurrent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type ExposurePostExposureBoxIPVerifyOKCommitment struct {
+type ExposurePostExposureBoxIPVerifyOKItemsItemCommitment struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
 }
 
 // GetAt returns the value of At.
-func (s *ExposurePostExposureBoxIPVerifyOKCommitment) GetAt() time.Time {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemCommitment) GetAt() time.Time {
 	return s.At
 }
 
 // GetBy returns the value of By.
-func (s *ExposurePostExposureBoxIPVerifyOKCommitment) GetBy() string {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemCommitment) GetBy() string {
 	return s.By
 }
 
 // SetAt sets the value of At.
-func (s *ExposurePostExposureBoxIPVerifyOKCommitment) SetAt(val time.Time) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemCommitment) SetAt(val time.Time) {
 	s.At = val
 }
 
 // SetBy sets the value of By.
-func (s *ExposurePostExposureBoxIPVerifyOKCommitment) SetBy(val string) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemCommitment) SetBy(val string) {
 	s.By = val
 }
 
-type ExposurePostExposureBoxIPVerifyOKKind string
+type ExposurePostExposureBoxIPVerifyOKItemsItemKind string
 
 const (
-	ExposurePostExposureBoxIPVerifyOKKindDomain ExposurePostExposureBoxIPVerifyOKKind = "domain"
-	ExposurePostExposureBoxIPVerifyOKKindIP     ExposurePostExposureBoxIPVerifyOKKind = "ip"
+	ExposurePostExposureBoxIPVerifyOKItemsItemKindDomain ExposurePostExposureBoxIPVerifyOKItemsItemKind = "domain"
+	ExposurePostExposureBoxIPVerifyOKItemsItemKindIP     ExposurePostExposureBoxIPVerifyOKItemsItemKind = "ip"
 )
 
-// AllValues returns all ExposurePostExposureBoxIPVerifyOKKind values.
-func (ExposurePostExposureBoxIPVerifyOKKind) AllValues() []ExposurePostExposureBoxIPVerifyOKKind {
-	return []ExposurePostExposureBoxIPVerifyOKKind{
-		ExposurePostExposureBoxIPVerifyOKKindDomain,
-		ExposurePostExposureBoxIPVerifyOKKindIP,
+// AllValues returns all ExposurePostExposureBoxIPVerifyOKItemsItemKind values.
+func (ExposurePostExposureBoxIPVerifyOKItemsItemKind) AllValues() []ExposurePostExposureBoxIPVerifyOKItemsItemKind {
+	return []ExposurePostExposureBoxIPVerifyOKItemsItemKind{
+		ExposurePostExposureBoxIPVerifyOKItemsItemKindDomain,
+		ExposurePostExposureBoxIPVerifyOKItemsItemKindIP,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ExposurePostExposureBoxIPVerifyOKKind) MarshalText() ([]byte, error) {
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemKind) MarshalText() ([]byte, error) {
 	switch s {
-	case ExposurePostExposureBoxIPVerifyOKKindDomain:
+	case ExposurePostExposureBoxIPVerifyOKItemsItemKindDomain:
 		return []byte(s), nil
-	case ExposurePostExposureBoxIPVerifyOKKindIP:
+	case ExposurePostExposureBoxIPVerifyOKItemsItemKindIP:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -36252,56 +36502,56 @@ func (s ExposurePostExposureBoxIPVerifyOKKind) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePostExposureBoxIPVerifyOKKind) UnmarshalText(data []byte) error {
-	switch ExposurePostExposureBoxIPVerifyOKKind(data) {
-	case ExposurePostExposureBoxIPVerifyOKKindDomain:
-		*s = ExposurePostExposureBoxIPVerifyOKKindDomain
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemKind) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureBoxIPVerifyOKItemsItemKind(data) {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemKindDomain:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemKindDomain
 		return nil
-	case ExposurePostExposureBoxIPVerifyOKKindIP:
-		*s = ExposurePostExposureBoxIPVerifyOKKindIP
+	case ExposurePostExposureBoxIPVerifyOKItemsItemKindIP:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemKindIP
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type ExposurePostExposureBoxIPVerifyOKLastCheck struct {
+type ExposurePostExposureBoxIPVerifyOKItemsItemLastCheck struct {
 	At      time.Time `json:"at"`
 	Message string    `json:"message"`
 	Ok      bool      `json:"ok"`
 }
 
 // GetAt returns the value of At.
-func (s *ExposurePostExposureBoxIPVerifyOKLastCheck) GetAt() time.Time {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemLastCheck) GetAt() time.Time {
 	return s.At
 }
 
 // GetMessage returns the value of Message.
-func (s *ExposurePostExposureBoxIPVerifyOKLastCheck) GetMessage() string {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemLastCheck) GetMessage() string {
 	return s.Message
 }
 
 // GetOk returns the value of Ok.
-func (s *ExposurePostExposureBoxIPVerifyOKLastCheck) GetOk() bool {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemLastCheck) GetOk() bool {
 	return s.Ok
 }
 
 // SetAt sets the value of At.
-func (s *ExposurePostExposureBoxIPVerifyOKLastCheck) SetAt(val time.Time) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemLastCheck) SetAt(val time.Time) {
 	s.At = val
 }
 
 // SetMessage sets the value of Message.
-func (s *ExposurePostExposureBoxIPVerifyOKLastCheck) SetMessage(val string) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemLastCheck) SetMessage(val string) {
 	s.Message = val
 }
 
 // SetOk sets the value of Ok.
-func (s *ExposurePostExposureBoxIPVerifyOKLastCheck) SetOk(val bool) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemLastCheck) SetOk(val bool) {
 	s.Ok = val
 }
 
-type ExposurePostExposureBoxIPVerifyOKLatest struct {
+type ExposurePostExposureBoxIPVerifyOKItemsItemLatest struct {
 	AdminPanels   int `json:"admin_panels"`
 	CertsExpiring int `json:"certs_expiring"`
 	Ips           int `json:"ips"`
@@ -36310,76 +36560,76 @@ type ExposurePostExposureBoxIPVerifyOKLatest struct {
 }
 
 // GetAdminPanels returns the value of AdminPanels.
-func (s *ExposurePostExposureBoxIPVerifyOKLatest) GetAdminPanels() int {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemLatest) GetAdminPanels() int {
 	return s.AdminPanels
 }
 
 // GetCertsExpiring returns the value of CertsExpiring.
-func (s *ExposurePostExposureBoxIPVerifyOKLatest) GetCertsExpiring() int {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemLatest) GetCertsExpiring() int {
 	return s.CertsExpiring
 }
 
 // GetIps returns the value of Ips.
-func (s *ExposurePostExposureBoxIPVerifyOKLatest) GetIps() int {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemLatest) GetIps() int {
 	return s.Ips
 }
 
 // GetPorts returns the value of Ports.
-func (s *ExposurePostExposureBoxIPVerifyOKLatest) GetPorts() int {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemLatest) GetPorts() int {
 	return s.Ports
 }
 
 // GetSubdomains returns the value of Subdomains.
-func (s *ExposurePostExposureBoxIPVerifyOKLatest) GetSubdomains() int {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemLatest) GetSubdomains() int {
 	return s.Subdomains
 }
 
 // SetAdminPanels sets the value of AdminPanels.
-func (s *ExposurePostExposureBoxIPVerifyOKLatest) SetAdminPanels(val int) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemLatest) SetAdminPanels(val int) {
 	s.AdminPanels = val
 }
 
 // SetCertsExpiring sets the value of CertsExpiring.
-func (s *ExposurePostExposureBoxIPVerifyOKLatest) SetCertsExpiring(val int) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemLatest) SetCertsExpiring(val int) {
 	s.CertsExpiring = val
 }
 
 // SetIps sets the value of Ips.
-func (s *ExposurePostExposureBoxIPVerifyOKLatest) SetIps(val int) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemLatest) SetIps(val int) {
 	s.Ips = val
 }
 
 // SetPorts sets the value of Ports.
-func (s *ExposurePostExposureBoxIPVerifyOKLatest) SetPorts(val int) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemLatest) SetPorts(val int) {
 	s.Ports = val
 }
 
 // SetSubdomains sets the value of Subdomains.
-func (s *ExposurePostExposureBoxIPVerifyOKLatest) SetSubdomains(val int) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemLatest) SetSubdomains(val int) {
 	s.Subdomains = val
 }
 
-type ExposurePostExposureBoxIPVerifyOKMethod string
+type ExposurePostExposureBoxIPVerifyOKItemsItemMethod string
 
 const (
-	ExposurePostExposureBoxIPVerifyOKMethodDNSTxt    ExposurePostExposureBoxIPVerifyOKMethod = "dns_txt"
-	ExposurePostExposureBoxIPVerifyOKMethodBoxEgress ExposurePostExposureBoxIPVerifyOKMethod = "box_egress"
+	ExposurePostExposureBoxIPVerifyOKItemsItemMethodDNSTxt    ExposurePostExposureBoxIPVerifyOKItemsItemMethod = "dns_txt"
+	ExposurePostExposureBoxIPVerifyOKItemsItemMethodBoxEgress ExposurePostExposureBoxIPVerifyOKItemsItemMethod = "box_egress"
 )
 
-// AllValues returns all ExposurePostExposureBoxIPVerifyOKMethod values.
-func (ExposurePostExposureBoxIPVerifyOKMethod) AllValues() []ExposurePostExposureBoxIPVerifyOKMethod {
-	return []ExposurePostExposureBoxIPVerifyOKMethod{
-		ExposurePostExposureBoxIPVerifyOKMethodDNSTxt,
-		ExposurePostExposureBoxIPVerifyOKMethodBoxEgress,
+// AllValues returns all ExposurePostExposureBoxIPVerifyOKItemsItemMethod values.
+func (ExposurePostExposureBoxIPVerifyOKItemsItemMethod) AllValues() []ExposurePostExposureBoxIPVerifyOKItemsItemMethod {
+	return []ExposurePostExposureBoxIPVerifyOKItemsItemMethod{
+		ExposurePostExposureBoxIPVerifyOKItemsItemMethodDNSTxt,
+		ExposurePostExposureBoxIPVerifyOKItemsItemMethodBoxEgress,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ExposurePostExposureBoxIPVerifyOKMethod) MarshalText() ([]byte, error) {
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemMethod) MarshalText() ([]byte, error) {
 	switch s {
-	case ExposurePostExposureBoxIPVerifyOKMethodDNSTxt:
+	case ExposurePostExposureBoxIPVerifyOKItemsItemMethodDNSTxt:
 		return []byte(s), nil
-	case ExposurePostExposureBoxIPVerifyOKMethodBoxEgress:
+	case ExposurePostExposureBoxIPVerifyOKItemsItemMethodBoxEgress:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -36387,45 +36637,45 @@ func (s ExposurePostExposureBoxIPVerifyOKMethod) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePostExposureBoxIPVerifyOKMethod) UnmarshalText(data []byte) error {
-	switch ExposurePostExposureBoxIPVerifyOKMethod(data) {
-	case ExposurePostExposureBoxIPVerifyOKMethodDNSTxt:
-		*s = ExposurePostExposureBoxIPVerifyOKMethodDNSTxt
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemMethod) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureBoxIPVerifyOKItemsItemMethod(data) {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemMethodDNSTxt:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemMethodDNSTxt
 		return nil
-	case ExposurePostExposureBoxIPVerifyOKMethodBoxEgress:
-		*s = ExposurePostExposureBoxIPVerifyOKMethodBoxEgress
+	case ExposurePostExposureBoxIPVerifyOKItemsItemMethodBoxEgress:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemMethodBoxEgress
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-// Expired only exists for IPs: more than 90 days since the last verification.
-type ExposurePostExposureBoxIPVerifyOKStatus string
+// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+type ExposurePostExposureBoxIPVerifyOKItemsItemStatus string
 
 const (
-	ExposurePostExposureBoxIPVerifyOKStatusUnverified ExposurePostExposureBoxIPVerifyOKStatus = "unverified"
-	ExposurePostExposureBoxIPVerifyOKStatusVerified   ExposurePostExposureBoxIPVerifyOKStatus = "verified"
-	ExposurePostExposureBoxIPVerifyOKStatusExpired    ExposurePostExposureBoxIPVerifyOKStatus = "expired"
+	ExposurePostExposureBoxIPVerifyOKItemsItemStatusUnverified ExposurePostExposureBoxIPVerifyOKItemsItemStatus = "unverified"
+	ExposurePostExposureBoxIPVerifyOKItemsItemStatusVerified   ExposurePostExposureBoxIPVerifyOKItemsItemStatus = "verified"
+	ExposurePostExposureBoxIPVerifyOKItemsItemStatusExpired    ExposurePostExposureBoxIPVerifyOKItemsItemStatus = "expired"
 )
 
-// AllValues returns all ExposurePostExposureBoxIPVerifyOKStatus values.
-func (ExposurePostExposureBoxIPVerifyOKStatus) AllValues() []ExposurePostExposureBoxIPVerifyOKStatus {
-	return []ExposurePostExposureBoxIPVerifyOKStatus{
-		ExposurePostExposureBoxIPVerifyOKStatusUnverified,
-		ExposurePostExposureBoxIPVerifyOKStatusVerified,
-		ExposurePostExposureBoxIPVerifyOKStatusExpired,
+// AllValues returns all ExposurePostExposureBoxIPVerifyOKItemsItemStatus values.
+func (ExposurePostExposureBoxIPVerifyOKItemsItemStatus) AllValues() []ExposurePostExposureBoxIPVerifyOKItemsItemStatus {
+	return []ExposurePostExposureBoxIPVerifyOKItemsItemStatus{
+		ExposurePostExposureBoxIPVerifyOKItemsItemStatusUnverified,
+		ExposurePostExposureBoxIPVerifyOKItemsItemStatusVerified,
+		ExposurePostExposureBoxIPVerifyOKItemsItemStatusExpired,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ExposurePostExposureBoxIPVerifyOKStatus) MarshalText() ([]byte, error) {
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemStatus) MarshalText() ([]byte, error) {
 	switch s {
-	case ExposurePostExposureBoxIPVerifyOKStatusUnverified:
+	case ExposurePostExposureBoxIPVerifyOKItemsItemStatusUnverified:
 		return []byte(s), nil
-	case ExposurePostExposureBoxIPVerifyOKStatusVerified:
+	case ExposurePostExposureBoxIPVerifyOKItemsItemStatusVerified:
 		return []byte(s), nil
-	case ExposurePostExposureBoxIPVerifyOKStatusExpired:
+	case ExposurePostExposureBoxIPVerifyOKItemsItemStatusExpired:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -36433,47 +36683,47 @@ func (s ExposurePostExposureBoxIPVerifyOKStatus) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePostExposureBoxIPVerifyOKStatus) UnmarshalText(data []byte) error {
-	switch ExposurePostExposureBoxIPVerifyOKStatus(data) {
-	case ExposurePostExposureBoxIPVerifyOKStatusUnverified:
-		*s = ExposurePostExposureBoxIPVerifyOKStatusUnverified
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemStatus) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureBoxIPVerifyOKItemsItemStatus(data) {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemStatusUnverified:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemStatusUnverified
 		return nil
-	case ExposurePostExposureBoxIPVerifyOKStatusVerified:
-		*s = ExposurePostExposureBoxIPVerifyOKStatusVerified
+	case ExposurePostExposureBoxIPVerifyOKItemsItemStatusVerified:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemStatusVerified
 		return nil
-	case ExposurePostExposureBoxIPVerifyOKStatusExpired:
-		*s = ExposurePostExposureBoxIPVerifyOKStatusExpired
+	case ExposurePostExposureBoxIPVerifyOKItemsItemStatusExpired:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemStatusExpired
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type ExposurePostExposureBoxIPVerifyOKValidity string
+type ExposurePostExposureBoxIPVerifyOKItemsItemValidity string
 
 const (
-	ExposurePostExposureBoxIPVerifyOKValidityValid    ExposurePostExposureBoxIPVerifyOKValidity = "valid"
-	ExposurePostExposureBoxIPVerifyOKValidityExpiring ExposurePostExposureBoxIPVerifyOKValidity = "expiring"
-	ExposurePostExposureBoxIPVerifyOKValidityExpired  ExposurePostExposureBoxIPVerifyOKValidity = "expired"
+	ExposurePostExposureBoxIPVerifyOKItemsItemValidityValid    ExposurePostExposureBoxIPVerifyOKItemsItemValidity = "valid"
+	ExposurePostExposureBoxIPVerifyOKItemsItemValidityExpiring ExposurePostExposureBoxIPVerifyOKItemsItemValidity = "expiring"
+	ExposurePostExposureBoxIPVerifyOKItemsItemValidityExpired  ExposurePostExposureBoxIPVerifyOKItemsItemValidity = "expired"
 )
 
-// AllValues returns all ExposurePostExposureBoxIPVerifyOKValidity values.
-func (ExposurePostExposureBoxIPVerifyOKValidity) AllValues() []ExposurePostExposureBoxIPVerifyOKValidity {
-	return []ExposurePostExposureBoxIPVerifyOKValidity{
-		ExposurePostExposureBoxIPVerifyOKValidityValid,
-		ExposurePostExposureBoxIPVerifyOKValidityExpiring,
-		ExposurePostExposureBoxIPVerifyOKValidityExpired,
+// AllValues returns all ExposurePostExposureBoxIPVerifyOKItemsItemValidity values.
+func (ExposurePostExposureBoxIPVerifyOKItemsItemValidity) AllValues() []ExposurePostExposureBoxIPVerifyOKItemsItemValidity {
+	return []ExposurePostExposureBoxIPVerifyOKItemsItemValidity{
+		ExposurePostExposureBoxIPVerifyOKItemsItemValidityValid,
+		ExposurePostExposureBoxIPVerifyOKItemsItemValidityExpiring,
+		ExposurePostExposureBoxIPVerifyOKItemsItemValidityExpired,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ExposurePostExposureBoxIPVerifyOKValidity) MarshalText() ([]byte, error) {
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemValidity) MarshalText() ([]byte, error) {
 	switch s {
-	case ExposurePostExposureBoxIPVerifyOKValidityValid:
+	case ExposurePostExposureBoxIPVerifyOKItemsItemValidityValid:
 		return []byte(s), nil
-	case ExposurePostExposureBoxIPVerifyOKValidityExpiring:
+	case ExposurePostExposureBoxIPVerifyOKItemsItemValidityExpiring:
 		return []byte(s), nil
-	case ExposurePostExposureBoxIPVerifyOKValidityExpired:
+	case ExposurePostExposureBoxIPVerifyOKItemsItemValidityExpired:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -36481,16 +36731,16 @@ func (s ExposurePostExposureBoxIPVerifyOKValidity) MarshalText() ([]byte, error)
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePostExposureBoxIPVerifyOKValidity) UnmarshalText(data []byte) error {
-	switch ExposurePostExposureBoxIPVerifyOKValidity(data) {
-	case ExposurePostExposureBoxIPVerifyOKValidityValid:
-		*s = ExposurePostExposureBoxIPVerifyOKValidityValid
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemValidity) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureBoxIPVerifyOKItemsItemValidity(data) {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemValidityValid:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemValidityValid
 		return nil
-	case ExposurePostExposureBoxIPVerifyOKValidityExpiring:
-		*s = ExposurePostExposureBoxIPVerifyOKValidityExpiring
+	case ExposurePostExposureBoxIPVerifyOKItemsItemValidityExpiring:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemValidityExpiring
 		return nil
-	case ExposurePostExposureBoxIPVerifyOKValidityExpired:
-		*s = ExposurePostExposureBoxIPVerifyOKValidityExpired
+	case ExposurePostExposureBoxIPVerifyOKItemsItemValidityExpired:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemValidityExpired
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -36498,12 +36748,14 @@ func (s *ExposurePostExposureBoxIPVerifyOKValidity) UnmarshalText(data []byte) e
 }
 
 type ExposurePostExposureTargetsCreated struct {
-	// Why it cannot be scanned yet; null = can be scanned.
+	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
+	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
+	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
 	BlockedReason NilExposurePostExposureTargetsCreatedBlockedReason `json:"blocked_reason"`
 	// Who ticked "my company owns it and I am authorized to scan it", and when.
 	Commitment NilExposurePostExposureTargetsCreatedCommitment `json:"commitment"`
 	CreatedAt  time.Time                                       `json:"created_at"`
-	// IP: verified_at + 90 days. Domain: null (the TXT record is re-checked right before every scan).
+	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
 	ExpiresAt  NilDateTime                                    `json:"expires_at"`
 	ID         string                                         `json:"id"`
 	Kind       ExposurePostExposureTargetsCreatedKind         `json:"kind"`
@@ -36512,15 +36764,16 @@ type ExposurePostExposureTargetsCreated struct {
 	Latest     NilExposurePostExposureTargetsCreatedLatest    `json:"latest"`
 	Method     NilExposurePostExposureTargetsCreatedMethod    `json:"method"`
 	Scannable  bool                                           `json:"scannable"`
-	// Expired only exists for IPs: more than 90 days since the last verification.
+	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsCreatedStatus `json:"status"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
 	Token string `json:"token"`
-	// IPs only: expiring = 14 days or less left.
+	// IPs only: expiring = 5 days or less left.
 	Validity NilExposurePostExposureTargetsCreatedValidity `json:"validity"`
 	Value    string                                        `json:"value"`
-	// Last successful verification.
+	// Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews
+	// it).
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
@@ -36691,6 +36944,7 @@ const (
 	ExposurePostExposureTargetsCreatedBlockedReasonExpired      ExposurePostExposureTargetsCreatedBlockedReason = "expired"
 	ExposurePostExposureTargetsCreatedBlockedReasonTxtMissing   ExposurePostExposureTargetsCreatedBlockedReason = "txt_missing"
 	ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment ExposurePostExposureTargetsCreatedBlockedReason = "no_commitment"
+	ExposurePostExposureTargetsCreatedBlockedReasonIPNotCurrent ExposurePostExposureTargetsCreatedBlockedReason = "ip_not_current"
 )
 
 // AllValues returns all ExposurePostExposureTargetsCreatedBlockedReason values.
@@ -36700,6 +36954,7 @@ func (ExposurePostExposureTargetsCreatedBlockedReason) AllValues() []ExposurePos
 		ExposurePostExposureTargetsCreatedBlockedReasonExpired,
 		ExposurePostExposureTargetsCreatedBlockedReasonTxtMissing,
 		ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment,
+		ExposurePostExposureTargetsCreatedBlockedReasonIPNotCurrent,
 	}
 }
 
@@ -36713,6 +36968,8 @@ func (s ExposurePostExposureTargetsCreatedBlockedReason) MarshalText() ([]byte, 
 	case ExposurePostExposureTargetsCreatedBlockedReasonTxtMissing:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedBlockedReasonIPNotCurrent:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -36733,6 +36990,9 @@ func (s *ExposurePostExposureTargetsCreatedBlockedReason) UnmarshalText(data []b
 		return nil
 	case ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment:
 		*s = ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment
+		return nil
+	case ExposurePostExposureTargetsCreatedBlockedReasonIPNotCurrent:
+		*s = ExposurePostExposureTargetsCreatedBlockedReasonIPNotCurrent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -36940,7 +37200,7 @@ func (s *ExposurePostExposureTargetsCreatedMethod) UnmarshalText(data []byte) er
 	}
 }
 
-// Expired only exists for IPs: more than 90 days since the last verification.
+// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 type ExposurePostExposureTargetsCreatedStatus string
 
 const (
@@ -37038,12 +37298,14 @@ func (s *ExposurePostExposureTargetsCreatedValidity) UnmarshalText(data []byte) 
 }
 
 type ExposurePostExposureTargetsIDCommitmentOK struct {
-	// Why it cannot be scanned yet; null = can be scanned.
+	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
+	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
+	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
 	BlockedReason NilExposurePostExposureTargetsIDCommitmentOKBlockedReason `json:"blocked_reason"`
 	// Who ticked "my company owns it and I am authorized to scan it", and when.
 	Commitment NilExposurePostExposureTargetsIDCommitmentOKCommitment `json:"commitment"`
 	CreatedAt  time.Time                                              `json:"created_at"`
-	// IP: verified_at + 90 days. Domain: null (the TXT record is re-checked right before every scan).
+	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
 	ExpiresAt  NilDateTime                                           `json:"expires_at"`
 	ID         string                                                `json:"id"`
 	Kind       ExposurePostExposureTargetsIDCommitmentOKKind         `json:"kind"`
@@ -37052,15 +37314,16 @@ type ExposurePostExposureTargetsIDCommitmentOK struct {
 	Latest     NilExposurePostExposureTargetsIDCommitmentOKLatest    `json:"latest"`
 	Method     NilExposurePostExposureTargetsIDCommitmentOKMethod    `json:"method"`
 	Scannable  bool                                                  `json:"scannable"`
-	// Expired only exists for IPs: more than 90 days since the last verification.
+	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsIDCommitmentOKStatus `json:"status"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
 	Token string `json:"token"`
-	// IPs only: expiring = 14 days or less left.
+	// IPs only: expiring = 5 days or less left.
 	Validity NilExposurePostExposureTargetsIDCommitmentOKValidity `json:"validity"`
 	Value    string                                               `json:"value"`
-	// Last successful verification.
+	// Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews
+	// it).
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
@@ -37231,6 +37494,7 @@ const (
 	ExposurePostExposureTargetsIDCommitmentOKBlockedReasonExpired      ExposurePostExposureTargetsIDCommitmentOKBlockedReason = "expired"
 	ExposurePostExposureTargetsIDCommitmentOKBlockedReasonTxtMissing   ExposurePostExposureTargetsIDCommitmentOKBlockedReason = "txt_missing"
 	ExposurePostExposureTargetsIDCommitmentOKBlockedReasonNoCommitment ExposurePostExposureTargetsIDCommitmentOKBlockedReason = "no_commitment"
+	ExposurePostExposureTargetsIDCommitmentOKBlockedReasonIPNotCurrent ExposurePostExposureTargetsIDCommitmentOKBlockedReason = "ip_not_current"
 )
 
 // AllValues returns all ExposurePostExposureTargetsIDCommitmentOKBlockedReason values.
@@ -37240,6 +37504,7 @@ func (ExposurePostExposureTargetsIDCommitmentOKBlockedReason) AllValues() []Expo
 		ExposurePostExposureTargetsIDCommitmentOKBlockedReasonExpired,
 		ExposurePostExposureTargetsIDCommitmentOKBlockedReasonTxtMissing,
 		ExposurePostExposureTargetsIDCommitmentOKBlockedReasonNoCommitment,
+		ExposurePostExposureTargetsIDCommitmentOKBlockedReasonIPNotCurrent,
 	}
 }
 
@@ -37253,6 +37518,8 @@ func (s ExposurePostExposureTargetsIDCommitmentOKBlockedReason) MarshalText() ([
 	case ExposurePostExposureTargetsIDCommitmentOKBlockedReasonTxtMissing:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsIDCommitmentOKBlockedReasonNoCommitment:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDCommitmentOKBlockedReasonIPNotCurrent:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -37273,6 +37540,9 @@ func (s *ExposurePostExposureTargetsIDCommitmentOKBlockedReason) UnmarshalText(d
 		return nil
 	case ExposurePostExposureTargetsIDCommitmentOKBlockedReasonNoCommitment:
 		*s = ExposurePostExposureTargetsIDCommitmentOKBlockedReasonNoCommitment
+		return nil
+	case ExposurePostExposureTargetsIDCommitmentOKBlockedReasonIPNotCurrent:
+		*s = ExposurePostExposureTargetsIDCommitmentOKBlockedReasonIPNotCurrent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -37480,7 +37750,7 @@ func (s *ExposurePostExposureTargetsIDCommitmentOKMethod) UnmarshalText(data []b
 	}
 }
 
-// Expired only exists for IPs: more than 90 days since the last verification.
+// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 type ExposurePostExposureTargetsIDCommitmentOKStatus string
 
 const (
@@ -37984,12 +38254,14 @@ func (s *ExposurePostExposureTargetsIDVerifyOK) SetVerified(val bool) {
 }
 
 type ExposurePostExposureTargetsIDVerifyOKTarget struct {
-	// Why it cannot be scanned yet; null = can be scanned.
+	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
+	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
+	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
 	BlockedReason NilExposurePostExposureTargetsIDVerifyOKTargetBlockedReason `json:"blocked_reason"`
 	// Who ticked "my company owns it and I am authorized to scan it", and when.
 	Commitment NilExposurePostExposureTargetsIDVerifyOKTargetCommitment `json:"commitment"`
 	CreatedAt  time.Time                                                `json:"created_at"`
-	// IP: verified_at + 90 days. Domain: null (the TXT record is re-checked right before every scan).
+	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
 	ExpiresAt  NilDateTime                                             `json:"expires_at"`
 	ID         string                                                  `json:"id"`
 	Kind       ExposurePostExposureTargetsIDVerifyOKTargetKind         `json:"kind"`
@@ -37998,15 +38270,16 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	Latest     NilExposurePostExposureTargetsIDVerifyOKTargetLatest    `json:"latest"`
 	Method     NilExposurePostExposureTargetsIDVerifyOKTargetMethod    `json:"method"`
 	Scannable  bool                                                    `json:"scannable"`
-	// Expired only exists for IPs: more than 90 days since the last verification.
+	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsIDVerifyOKTargetStatus `json:"status"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
 	Token string `json:"token"`
-	// IPs only: expiring = 14 days or less left.
+	// IPs only: expiring = 5 days or less left.
 	Validity NilExposurePostExposureTargetsIDVerifyOKTargetValidity `json:"validity"`
 	Value    string                                                 `json:"value"`
-	// Last successful verification.
+	// Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews
+	// it).
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
@@ -38177,6 +38450,7 @@ const (
 	ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonExpired      ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason = "expired"
 	ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonTxtMissing   ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason = "txt_missing"
 	ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonNoCommitment ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason = "no_commitment"
+	ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonIPNotCurrent ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason = "ip_not_current"
 )
 
 // AllValues returns all ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason values.
@@ -38186,6 +38460,7 @@ func (ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason) AllValues() []Ex
 		ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonExpired,
 		ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonTxtMissing,
 		ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonNoCommitment,
+		ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonIPNotCurrent,
 	}
 }
 
@@ -38199,6 +38474,8 @@ func (s ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason) MarshalText() 
 	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonTxtMissing:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonNoCommitment:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonIPNotCurrent:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -38219,6 +38496,9 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason) UnmarshalText
 		return nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonNoCommitment:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonNoCommitment
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonIPNotCurrent:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonIPNotCurrent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -38426,7 +38706,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetMethod) UnmarshalText(data [
 	}
 }
 
-// Expired only exists for IPs: more than 90 days since the last verification.
+// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 type ExposurePostExposureTargetsIDVerifyOKTargetStatus string
 
 const (
@@ -38535,6 +38815,121 @@ func (s *ExposurePostExposureTargetsReq) GetValue() string {
 // SetValue sets the value of Value.
 func (s *ExposurePostExposureTargetsReq) SetValue(val string) {
 	s.Value = val
+}
+
+type ExposurePutExposureBoxIPSettingsOK struct {
+	// On: the box detects its public IPs at first start and then every interval_min minutes. Off: only
+	// "Detect now". Default on.
+	Auto bool `json:"auto"`
+	// Minutes between automatic checks, 1 to 1440. Default 60.
+	IntervalMin int `json:"interval_min"`
+	// The last automatic or manual detection; null before the first one.
+	LastRun NilExposurePutExposureBoxIPSettingsOKLastRun `json:"last_run"`
+	// Null while attempts are left. When the 10 attempts an hour (shared by Detect now, Verify again and
+	// the DNS Check of a domain) are used up: minutes until the next one is possible, 1 or more.
+	RetryInMin NilInt `json:"retry_in_min"`
+}
+
+// GetAuto returns the value of Auto.
+func (s *ExposurePutExposureBoxIPSettingsOK) GetAuto() bool {
+	return s.Auto
+}
+
+// GetIntervalMin returns the value of IntervalMin.
+func (s *ExposurePutExposureBoxIPSettingsOK) GetIntervalMin() int {
+	return s.IntervalMin
+}
+
+// GetLastRun returns the value of LastRun.
+func (s *ExposurePutExposureBoxIPSettingsOK) GetLastRun() NilExposurePutExposureBoxIPSettingsOKLastRun {
+	return s.LastRun
+}
+
+// GetRetryInMin returns the value of RetryInMin.
+func (s *ExposurePutExposureBoxIPSettingsOK) GetRetryInMin() NilInt {
+	return s.RetryInMin
+}
+
+// SetAuto sets the value of Auto.
+func (s *ExposurePutExposureBoxIPSettingsOK) SetAuto(val bool) {
+	s.Auto = val
+}
+
+// SetIntervalMin sets the value of IntervalMin.
+func (s *ExposurePutExposureBoxIPSettingsOK) SetIntervalMin(val int) {
+	s.IntervalMin = val
+}
+
+// SetLastRun sets the value of LastRun.
+func (s *ExposurePutExposureBoxIPSettingsOK) SetLastRun(val NilExposurePutExposureBoxIPSettingsOKLastRun) {
+	s.LastRun = val
+}
+
+// SetRetryInMin sets the value of RetryInMin.
+func (s *ExposurePutExposureBoxIPSettingsOK) SetRetryInMin(val NilInt) {
+	s.RetryInMin = val
+}
+
+type ExposurePutExposureBoxIPSettingsOKLastRun struct {
+	At time.Time `json:"at"`
+	// What the last check saw, or why it failed.
+	Message string `json:"message"`
+	Ok      bool   `json:"ok"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePutExposureBoxIPSettingsOKLastRun) GetAt() time.Time {
+	return s.At
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposurePutExposureBoxIPSettingsOKLastRun) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposurePutExposureBoxIPSettingsOKLastRun) GetOk() bool {
+	return s.Ok
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePutExposureBoxIPSettingsOKLastRun) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposurePutExposureBoxIPSettingsOKLastRun) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposurePutExposureBoxIPSettingsOKLastRun) SetOk(val bool) {
+	s.Ok = val
+}
+
+type ExposurePutExposureBoxIPSettingsReq struct {
+	Auto        bool `json:"auto"`
+	IntervalMin int  `json:"interval_min"`
+}
+
+// GetAuto returns the value of Auto.
+func (s *ExposurePutExposureBoxIPSettingsReq) GetAuto() bool {
+	return s.Auto
+}
+
+// GetIntervalMin returns the value of IntervalMin.
+func (s *ExposurePutExposureBoxIPSettingsReq) GetIntervalMin() int {
+	return s.IntervalMin
+}
+
+// SetAuto sets the value of Auto.
+func (s *ExposurePutExposureBoxIPSettingsReq) SetAuto(val bool) {
+	s.Auto = val
+}
+
+// SetIntervalMin sets the value of IntervalMin.
+func (s *ExposurePutExposureBoxIPSettingsReq) SetIntervalMin(val int) {
+	s.IntervalMin = val
 }
 
 // FeedsDeleteFeedsCustomIDNoContent is response for FeedsDeleteFeedsCustomID operation.
@@ -70809,6 +71204,51 @@ func (o NilExposureGetExposureTargetsIDOKValidity) Or(d ExposureGetExposureTarge
 	return d
 }
 
+// NewNilExposureGetExposureTargetsOKBoxIPLastRun returns new NilExposureGetExposureTargetsOKBoxIPLastRun with value set to v.
+func NewNilExposureGetExposureTargetsOKBoxIPLastRun(v ExposureGetExposureTargetsOKBoxIPLastRun) NilExposureGetExposureTargetsOKBoxIPLastRun {
+	return NilExposureGetExposureTargetsOKBoxIPLastRun{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTargetsOKBoxIPLastRun is nullable ExposureGetExposureTargetsOKBoxIPLastRun.
+type NilExposureGetExposureTargetsOKBoxIPLastRun struct {
+	Value ExposureGetExposureTargetsOKBoxIPLastRun
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTargetsOKBoxIPLastRun) SetTo(v ExposureGetExposureTargetsOKBoxIPLastRun) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTargetsOKBoxIPLastRun) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTargetsOKBoxIPLastRun) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTargetsOKBoxIPLastRun
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTargetsOKBoxIPLastRun) Get() (v ExposureGetExposureTargetsOKBoxIPLastRun, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTargetsOKBoxIPLastRun) Or(d ExposureGetExposureTargetsOKBoxIPLastRun) ExposureGetExposureTargetsOKBoxIPLastRun {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureGetExposureTargetsOKItemsItemBlockedReason returns new NilExposureGetExposureTargetsOKItemsItemBlockedReason with value set to v.
 func NewNilExposureGetExposureTargetsOKItemsItemBlockedReason(v ExposureGetExposureTargetsOKItemsItemBlockedReason) NilExposureGetExposureTargetsOKItemsItemBlockedReason {
 	return NilExposureGetExposureTargetsOKItemsItemBlockedReason{
@@ -71079,37 +71519,37 @@ func (o NilExposureGetExposureTargetsOKItemsItemValidity) Or(d ExposureGetExposu
 	return d
 }
 
-// NewNilExposurePostExposureBoxIPVerifyOKBlockedReason returns new NilExposurePostExposureBoxIPVerifyOKBlockedReason with value set to v.
-func NewNilExposurePostExposureBoxIPVerifyOKBlockedReason(v ExposurePostExposureBoxIPVerifyOKBlockedReason) NilExposurePostExposureBoxIPVerifyOKBlockedReason {
-	return NilExposurePostExposureBoxIPVerifyOKBlockedReason{
+// NewNilExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason returns new NilExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason with value set to v.
+func NewNilExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason(v ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) NilExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason {
+	return NilExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason{
 		Value: v,
 	}
 }
 
-// NilExposurePostExposureBoxIPVerifyOKBlockedReason is nullable ExposurePostExposureBoxIPVerifyOKBlockedReason.
-type NilExposurePostExposureBoxIPVerifyOKBlockedReason struct {
-	Value ExposurePostExposureBoxIPVerifyOKBlockedReason
+// NilExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason is nullable ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason.
+type NilExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason struct {
+	Value ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason
 	Null  bool
 }
 
 // SetTo sets value to v.
-func (o *NilExposurePostExposureBoxIPVerifyOKBlockedReason) SetTo(v ExposurePostExposureBoxIPVerifyOKBlockedReason) {
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) SetTo(v ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) {
 	o.Null = false
 	o.Value = v
 }
 
 // IsNull returns true if value is Null.
-func (o NilExposurePostExposureBoxIPVerifyOKBlockedReason) IsNull() bool { return o.Null }
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) IsNull() bool { return o.Null }
 
 // SetToNull sets value to null.
-func (o *NilExposurePostExposureBoxIPVerifyOKBlockedReason) SetToNull() {
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) SetToNull() {
 	o.Null = true
-	var v ExposurePostExposureBoxIPVerifyOKBlockedReason
+	var v ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePostExposureBoxIPVerifyOKBlockedReason) Get() (v ExposurePostExposureBoxIPVerifyOKBlockedReason, ok bool) {
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) Get() (v ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason, ok bool) {
 	if o.Null {
 		return v, false
 	}
@@ -71117,44 +71557,44 @@ func (o NilExposurePostExposureBoxIPVerifyOKBlockedReason) Get() (v ExposurePost
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o NilExposurePostExposureBoxIPVerifyOKBlockedReason) Or(d ExposurePostExposureBoxIPVerifyOKBlockedReason) ExposurePostExposureBoxIPVerifyOKBlockedReason {
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) Or(d ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason {
 	if v, ok := o.Get(); ok {
 		return v
 	}
 	return d
 }
 
-// NewNilExposurePostExposureBoxIPVerifyOKCommitment returns new NilExposurePostExposureBoxIPVerifyOKCommitment with value set to v.
-func NewNilExposurePostExposureBoxIPVerifyOKCommitment(v ExposurePostExposureBoxIPVerifyOKCommitment) NilExposurePostExposureBoxIPVerifyOKCommitment {
-	return NilExposurePostExposureBoxIPVerifyOKCommitment{
+// NewNilExposurePostExposureBoxIPVerifyOKItemsItemCommitment returns new NilExposurePostExposureBoxIPVerifyOKItemsItemCommitment with value set to v.
+func NewNilExposurePostExposureBoxIPVerifyOKItemsItemCommitment(v ExposurePostExposureBoxIPVerifyOKItemsItemCommitment) NilExposurePostExposureBoxIPVerifyOKItemsItemCommitment {
+	return NilExposurePostExposureBoxIPVerifyOKItemsItemCommitment{
 		Value: v,
 	}
 }
 
-// NilExposurePostExposureBoxIPVerifyOKCommitment is nullable ExposurePostExposureBoxIPVerifyOKCommitment.
-type NilExposurePostExposureBoxIPVerifyOKCommitment struct {
-	Value ExposurePostExposureBoxIPVerifyOKCommitment
+// NilExposurePostExposureBoxIPVerifyOKItemsItemCommitment is nullable ExposurePostExposureBoxIPVerifyOKItemsItemCommitment.
+type NilExposurePostExposureBoxIPVerifyOKItemsItemCommitment struct {
+	Value ExposurePostExposureBoxIPVerifyOKItemsItemCommitment
 	Null  bool
 }
 
 // SetTo sets value to v.
-func (o *NilExposurePostExposureBoxIPVerifyOKCommitment) SetTo(v ExposurePostExposureBoxIPVerifyOKCommitment) {
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemCommitment) SetTo(v ExposurePostExposureBoxIPVerifyOKItemsItemCommitment) {
 	o.Null = false
 	o.Value = v
 }
 
 // IsNull returns true if value is Null.
-func (o NilExposurePostExposureBoxIPVerifyOKCommitment) IsNull() bool { return o.Null }
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemCommitment) IsNull() bool { return o.Null }
 
 // SetToNull sets value to null.
-func (o *NilExposurePostExposureBoxIPVerifyOKCommitment) SetToNull() {
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemCommitment) SetToNull() {
 	o.Null = true
-	var v ExposurePostExposureBoxIPVerifyOKCommitment
+	var v ExposurePostExposureBoxIPVerifyOKItemsItemCommitment
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePostExposureBoxIPVerifyOKCommitment) Get() (v ExposurePostExposureBoxIPVerifyOKCommitment, ok bool) {
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemCommitment) Get() (v ExposurePostExposureBoxIPVerifyOKItemsItemCommitment, ok bool) {
 	if o.Null {
 		return v, false
 	}
@@ -71162,44 +71602,44 @@ func (o NilExposurePostExposureBoxIPVerifyOKCommitment) Get() (v ExposurePostExp
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o NilExposurePostExposureBoxIPVerifyOKCommitment) Or(d ExposurePostExposureBoxIPVerifyOKCommitment) ExposurePostExposureBoxIPVerifyOKCommitment {
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemCommitment) Or(d ExposurePostExposureBoxIPVerifyOKItemsItemCommitment) ExposurePostExposureBoxIPVerifyOKItemsItemCommitment {
 	if v, ok := o.Get(); ok {
 		return v
 	}
 	return d
 }
 
-// NewNilExposurePostExposureBoxIPVerifyOKLastCheck returns new NilExposurePostExposureBoxIPVerifyOKLastCheck with value set to v.
-func NewNilExposurePostExposureBoxIPVerifyOKLastCheck(v ExposurePostExposureBoxIPVerifyOKLastCheck) NilExposurePostExposureBoxIPVerifyOKLastCheck {
-	return NilExposurePostExposureBoxIPVerifyOKLastCheck{
+// NewNilExposurePostExposureBoxIPVerifyOKItemsItemLastCheck returns new NilExposurePostExposureBoxIPVerifyOKItemsItemLastCheck with value set to v.
+func NewNilExposurePostExposureBoxIPVerifyOKItemsItemLastCheck(v ExposurePostExposureBoxIPVerifyOKItemsItemLastCheck) NilExposurePostExposureBoxIPVerifyOKItemsItemLastCheck {
+	return NilExposurePostExposureBoxIPVerifyOKItemsItemLastCheck{
 		Value: v,
 	}
 }
 
-// NilExposurePostExposureBoxIPVerifyOKLastCheck is nullable ExposurePostExposureBoxIPVerifyOKLastCheck.
-type NilExposurePostExposureBoxIPVerifyOKLastCheck struct {
-	Value ExposurePostExposureBoxIPVerifyOKLastCheck
+// NilExposurePostExposureBoxIPVerifyOKItemsItemLastCheck is nullable ExposurePostExposureBoxIPVerifyOKItemsItemLastCheck.
+type NilExposurePostExposureBoxIPVerifyOKItemsItemLastCheck struct {
+	Value ExposurePostExposureBoxIPVerifyOKItemsItemLastCheck
 	Null  bool
 }
 
 // SetTo sets value to v.
-func (o *NilExposurePostExposureBoxIPVerifyOKLastCheck) SetTo(v ExposurePostExposureBoxIPVerifyOKLastCheck) {
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemLastCheck) SetTo(v ExposurePostExposureBoxIPVerifyOKItemsItemLastCheck) {
 	o.Null = false
 	o.Value = v
 }
 
 // IsNull returns true if value is Null.
-func (o NilExposurePostExposureBoxIPVerifyOKLastCheck) IsNull() bool { return o.Null }
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemLastCheck) IsNull() bool { return o.Null }
 
 // SetToNull sets value to null.
-func (o *NilExposurePostExposureBoxIPVerifyOKLastCheck) SetToNull() {
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemLastCheck) SetToNull() {
 	o.Null = true
-	var v ExposurePostExposureBoxIPVerifyOKLastCheck
+	var v ExposurePostExposureBoxIPVerifyOKItemsItemLastCheck
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePostExposureBoxIPVerifyOKLastCheck) Get() (v ExposurePostExposureBoxIPVerifyOKLastCheck, ok bool) {
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemLastCheck) Get() (v ExposurePostExposureBoxIPVerifyOKItemsItemLastCheck, ok bool) {
 	if o.Null {
 		return v, false
 	}
@@ -71207,44 +71647,44 @@ func (o NilExposurePostExposureBoxIPVerifyOKLastCheck) Get() (v ExposurePostExpo
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o NilExposurePostExposureBoxIPVerifyOKLastCheck) Or(d ExposurePostExposureBoxIPVerifyOKLastCheck) ExposurePostExposureBoxIPVerifyOKLastCheck {
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemLastCheck) Or(d ExposurePostExposureBoxIPVerifyOKItemsItemLastCheck) ExposurePostExposureBoxIPVerifyOKItemsItemLastCheck {
 	if v, ok := o.Get(); ok {
 		return v
 	}
 	return d
 }
 
-// NewNilExposurePostExposureBoxIPVerifyOKLatest returns new NilExposurePostExposureBoxIPVerifyOKLatest with value set to v.
-func NewNilExposurePostExposureBoxIPVerifyOKLatest(v ExposurePostExposureBoxIPVerifyOKLatest) NilExposurePostExposureBoxIPVerifyOKLatest {
-	return NilExposurePostExposureBoxIPVerifyOKLatest{
+// NewNilExposurePostExposureBoxIPVerifyOKItemsItemLatest returns new NilExposurePostExposureBoxIPVerifyOKItemsItemLatest with value set to v.
+func NewNilExposurePostExposureBoxIPVerifyOKItemsItemLatest(v ExposurePostExposureBoxIPVerifyOKItemsItemLatest) NilExposurePostExposureBoxIPVerifyOKItemsItemLatest {
+	return NilExposurePostExposureBoxIPVerifyOKItemsItemLatest{
 		Value: v,
 	}
 }
 
-// NilExposurePostExposureBoxIPVerifyOKLatest is nullable ExposurePostExposureBoxIPVerifyOKLatest.
-type NilExposurePostExposureBoxIPVerifyOKLatest struct {
-	Value ExposurePostExposureBoxIPVerifyOKLatest
+// NilExposurePostExposureBoxIPVerifyOKItemsItemLatest is nullable ExposurePostExposureBoxIPVerifyOKItemsItemLatest.
+type NilExposurePostExposureBoxIPVerifyOKItemsItemLatest struct {
+	Value ExposurePostExposureBoxIPVerifyOKItemsItemLatest
 	Null  bool
 }
 
 // SetTo sets value to v.
-func (o *NilExposurePostExposureBoxIPVerifyOKLatest) SetTo(v ExposurePostExposureBoxIPVerifyOKLatest) {
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemLatest) SetTo(v ExposurePostExposureBoxIPVerifyOKItemsItemLatest) {
 	o.Null = false
 	o.Value = v
 }
 
 // IsNull returns true if value is Null.
-func (o NilExposurePostExposureBoxIPVerifyOKLatest) IsNull() bool { return o.Null }
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemLatest) IsNull() bool { return o.Null }
 
 // SetToNull sets value to null.
-func (o *NilExposurePostExposureBoxIPVerifyOKLatest) SetToNull() {
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemLatest) SetToNull() {
 	o.Null = true
-	var v ExposurePostExposureBoxIPVerifyOKLatest
+	var v ExposurePostExposureBoxIPVerifyOKItemsItemLatest
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePostExposureBoxIPVerifyOKLatest) Get() (v ExposurePostExposureBoxIPVerifyOKLatest, ok bool) {
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemLatest) Get() (v ExposurePostExposureBoxIPVerifyOKItemsItemLatest, ok bool) {
 	if o.Null {
 		return v, false
 	}
@@ -71252,44 +71692,44 @@ func (o NilExposurePostExposureBoxIPVerifyOKLatest) Get() (v ExposurePostExposur
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o NilExposurePostExposureBoxIPVerifyOKLatest) Or(d ExposurePostExposureBoxIPVerifyOKLatest) ExposurePostExposureBoxIPVerifyOKLatest {
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemLatest) Or(d ExposurePostExposureBoxIPVerifyOKItemsItemLatest) ExposurePostExposureBoxIPVerifyOKItemsItemLatest {
 	if v, ok := o.Get(); ok {
 		return v
 	}
 	return d
 }
 
-// NewNilExposurePostExposureBoxIPVerifyOKMethod returns new NilExposurePostExposureBoxIPVerifyOKMethod with value set to v.
-func NewNilExposurePostExposureBoxIPVerifyOKMethod(v ExposurePostExposureBoxIPVerifyOKMethod) NilExposurePostExposureBoxIPVerifyOKMethod {
-	return NilExposurePostExposureBoxIPVerifyOKMethod{
+// NewNilExposurePostExposureBoxIPVerifyOKItemsItemMethod returns new NilExposurePostExposureBoxIPVerifyOKItemsItemMethod with value set to v.
+func NewNilExposurePostExposureBoxIPVerifyOKItemsItemMethod(v ExposurePostExposureBoxIPVerifyOKItemsItemMethod) NilExposurePostExposureBoxIPVerifyOKItemsItemMethod {
+	return NilExposurePostExposureBoxIPVerifyOKItemsItemMethod{
 		Value: v,
 	}
 }
 
-// NilExposurePostExposureBoxIPVerifyOKMethod is nullable ExposurePostExposureBoxIPVerifyOKMethod.
-type NilExposurePostExposureBoxIPVerifyOKMethod struct {
-	Value ExposurePostExposureBoxIPVerifyOKMethod
+// NilExposurePostExposureBoxIPVerifyOKItemsItemMethod is nullable ExposurePostExposureBoxIPVerifyOKItemsItemMethod.
+type NilExposurePostExposureBoxIPVerifyOKItemsItemMethod struct {
+	Value ExposurePostExposureBoxIPVerifyOKItemsItemMethod
 	Null  bool
 }
 
 // SetTo sets value to v.
-func (o *NilExposurePostExposureBoxIPVerifyOKMethod) SetTo(v ExposurePostExposureBoxIPVerifyOKMethod) {
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemMethod) SetTo(v ExposurePostExposureBoxIPVerifyOKItemsItemMethod) {
 	o.Null = false
 	o.Value = v
 }
 
 // IsNull returns true if value is Null.
-func (o NilExposurePostExposureBoxIPVerifyOKMethod) IsNull() bool { return o.Null }
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemMethod) IsNull() bool { return o.Null }
 
 // SetToNull sets value to null.
-func (o *NilExposurePostExposureBoxIPVerifyOKMethod) SetToNull() {
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemMethod) SetToNull() {
 	o.Null = true
-	var v ExposurePostExposureBoxIPVerifyOKMethod
+	var v ExposurePostExposureBoxIPVerifyOKItemsItemMethod
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePostExposureBoxIPVerifyOKMethod) Get() (v ExposurePostExposureBoxIPVerifyOKMethod, ok bool) {
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemMethod) Get() (v ExposurePostExposureBoxIPVerifyOKItemsItemMethod, ok bool) {
 	if o.Null {
 		return v, false
 	}
@@ -71297,44 +71737,44 @@ func (o NilExposurePostExposureBoxIPVerifyOKMethod) Get() (v ExposurePostExposur
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o NilExposurePostExposureBoxIPVerifyOKMethod) Or(d ExposurePostExposureBoxIPVerifyOKMethod) ExposurePostExposureBoxIPVerifyOKMethod {
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemMethod) Or(d ExposurePostExposureBoxIPVerifyOKItemsItemMethod) ExposurePostExposureBoxIPVerifyOKItemsItemMethod {
 	if v, ok := o.Get(); ok {
 		return v
 	}
 	return d
 }
 
-// NewNilExposurePostExposureBoxIPVerifyOKValidity returns new NilExposurePostExposureBoxIPVerifyOKValidity with value set to v.
-func NewNilExposurePostExposureBoxIPVerifyOKValidity(v ExposurePostExposureBoxIPVerifyOKValidity) NilExposurePostExposureBoxIPVerifyOKValidity {
-	return NilExposurePostExposureBoxIPVerifyOKValidity{
+// NewNilExposurePostExposureBoxIPVerifyOKItemsItemValidity returns new NilExposurePostExposureBoxIPVerifyOKItemsItemValidity with value set to v.
+func NewNilExposurePostExposureBoxIPVerifyOKItemsItemValidity(v ExposurePostExposureBoxIPVerifyOKItemsItemValidity) NilExposurePostExposureBoxIPVerifyOKItemsItemValidity {
+	return NilExposurePostExposureBoxIPVerifyOKItemsItemValidity{
 		Value: v,
 	}
 }
 
-// NilExposurePostExposureBoxIPVerifyOKValidity is nullable ExposurePostExposureBoxIPVerifyOKValidity.
-type NilExposurePostExposureBoxIPVerifyOKValidity struct {
-	Value ExposurePostExposureBoxIPVerifyOKValidity
+// NilExposurePostExposureBoxIPVerifyOKItemsItemValidity is nullable ExposurePostExposureBoxIPVerifyOKItemsItemValidity.
+type NilExposurePostExposureBoxIPVerifyOKItemsItemValidity struct {
+	Value ExposurePostExposureBoxIPVerifyOKItemsItemValidity
 	Null  bool
 }
 
 // SetTo sets value to v.
-func (o *NilExposurePostExposureBoxIPVerifyOKValidity) SetTo(v ExposurePostExposureBoxIPVerifyOKValidity) {
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemValidity) SetTo(v ExposurePostExposureBoxIPVerifyOKItemsItemValidity) {
 	o.Null = false
 	o.Value = v
 }
 
 // IsNull returns true if value is Null.
-func (o NilExposurePostExposureBoxIPVerifyOKValidity) IsNull() bool { return o.Null }
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemValidity) IsNull() bool { return o.Null }
 
 // SetToNull sets value to null.
-func (o *NilExposurePostExposureBoxIPVerifyOKValidity) SetToNull() {
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemValidity) SetToNull() {
 	o.Null = true
-	var v ExposurePostExposureBoxIPVerifyOKValidity
+	var v ExposurePostExposureBoxIPVerifyOKItemsItemValidity
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePostExposureBoxIPVerifyOKValidity) Get() (v ExposurePostExposureBoxIPVerifyOKValidity, ok bool) {
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemValidity) Get() (v ExposurePostExposureBoxIPVerifyOKItemsItemValidity, ok bool) {
 	if o.Null {
 		return v, false
 	}
@@ -71342,7 +71782,7 @@ func (o NilExposurePostExposureBoxIPVerifyOKValidity) Get() (v ExposurePostExpos
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o NilExposurePostExposureBoxIPVerifyOKValidity) Or(d ExposurePostExposureBoxIPVerifyOKValidity) ExposurePostExposureBoxIPVerifyOKValidity {
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemValidity) Or(d ExposurePostExposureBoxIPVerifyOKItemsItemValidity) ExposurePostExposureBoxIPVerifyOKItemsItemValidity {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -72153,6 +72593,51 @@ func (o NilExposurePostExposureTargetsIDVerifyOKTargetValidity) Get() (v Exposur
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposurePostExposureTargetsIDVerifyOKTargetValidity) Or(d ExposurePostExposureTargetsIDVerifyOKTargetValidity) ExposurePostExposureTargetsIDVerifyOKTargetValidity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureBoxIPSettingsOKLastRun returns new NilExposurePutExposureBoxIPSettingsOKLastRun with value set to v.
+func NewNilExposurePutExposureBoxIPSettingsOKLastRun(v ExposurePutExposureBoxIPSettingsOKLastRun) NilExposurePutExposureBoxIPSettingsOKLastRun {
+	return NilExposurePutExposureBoxIPSettingsOKLastRun{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureBoxIPSettingsOKLastRun is nullable ExposurePutExposureBoxIPSettingsOKLastRun.
+type NilExposurePutExposureBoxIPSettingsOKLastRun struct {
+	Value ExposurePutExposureBoxIPSettingsOKLastRun
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureBoxIPSettingsOKLastRun) SetTo(v ExposurePutExposureBoxIPSettingsOKLastRun) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureBoxIPSettingsOKLastRun) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureBoxIPSettingsOKLastRun) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureBoxIPSettingsOKLastRun
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureBoxIPSettingsOKLastRun) Get() (v ExposurePutExposureBoxIPSettingsOKLastRun, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureBoxIPSettingsOKLastRun) Or(d ExposurePutExposureBoxIPSettingsOKLastRun) ExposurePutExposureBoxIPSettingsOKLastRun {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -83287,6 +83772,52 @@ func (o OptDateTime) Get() (v time.Time, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptDateTime) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposureDeleteExposureTargetsIDIgnore returns new OptExposureDeleteExposureTargetsIDIgnore with value set to v.
+func NewOptExposureDeleteExposureTargetsIDIgnore(v ExposureDeleteExposureTargetsIDIgnore) OptExposureDeleteExposureTargetsIDIgnore {
+	return OptExposureDeleteExposureTargetsIDIgnore{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposureDeleteExposureTargetsIDIgnore is optional ExposureDeleteExposureTargetsIDIgnore.
+type OptExposureDeleteExposureTargetsIDIgnore struct {
+	Value ExposureDeleteExposureTargetsIDIgnore
+	Set   bool
+}
+
+// IsSet returns true if OptExposureDeleteExposureTargetsIDIgnore was set.
+func (o OptExposureDeleteExposureTargetsIDIgnore) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposureDeleteExposureTargetsIDIgnore) Reset() {
+	var v ExposureDeleteExposureTargetsIDIgnore
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposureDeleteExposureTargetsIDIgnore) SetTo(v ExposureDeleteExposureTargetsIDIgnore) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposureDeleteExposureTargetsIDIgnore) Get() (v ExposureDeleteExposureTargetsIDIgnore, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposureDeleteExposureTargetsIDIgnore) Or(d ExposureDeleteExposureTargetsIDIgnore) ExposureDeleteExposureTargetsIDIgnore {
 	if v, ok := o.Get(); ok {
 		return v
 	}

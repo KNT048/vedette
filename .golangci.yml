@@ -35,6 +35,7 @@ linters:
         core-no-modules:
           files:
             - "**/core/**"
+            - "!**/modules/**" # modules/core is the core *module* and may import itself
           deny:
             - pkg: github.com/kiennt048/vedette/modules
               desc: "core must not import modules (dependency direction is module -> core)"

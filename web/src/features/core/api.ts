@@ -5,7 +5,7 @@ import type { Role } from '@/lib/session'
 import type {
   Account, AdminUser, AuditQuery, AuditResult, AuthOptions, GeneralSettings, McpState, McpTokenCreated, OidcConfig, PrivacyState, SetupModule, SetupPayload, SetupStatus, TotpStart, EmailCodeSent,
   UpdateChannel, UpdatesState, MaintenanceWindow, OsRebootBody, OsRun, OsState,
-  NetworkState, IfaceRole, ManagementBody, SpanConfig, SpanStatus, NtpConfig,
+  NetworkState, IfaceRole, ManagementBody, SpanConfig, SpanStatus, NtpConfig, Connector, ConnectorInput, ConnectorTestResult,
 } from './types'
 
 const qs = (q: Partial<AuditQuery>) => {
@@ -137,6 +137,17 @@ export function useSavePrivacy() {
   const qc = useQueryClient()
   return useMutation({ mutationFn: (v: { telemetry?: boolean; update_check?: boolean }) => api.patch<PrivacyState>('/core/privacy', v), onSuccess: (d) => { qc.setQueryData(['core', 'privacy'], d); void qc.invalidateQueries({ queryKey: ['core', 'updates'] }) } })
 }
+
+// ---- kết nối tới thiết bị (D-93) ----
+/** Every change refreshes the list and the Privacy page: flow 12 is on while a connection is enabled. */
+function useConnectionWrite<A, R = unknown>(fn: (a: A) => Promise<R>) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: fn, onSettled: () => { void qc.invalidateQueries({ queryKey: ['core', 'connections'] }); void qc.invalidateQueries({ queryKey: ['core', 'privacy'] }); void qc.invalidateQueries({ queryKey: ['response'] }) } })
+}
+export const useConnections = () => useQuery({ queryKey: ['core', 'connections'], queryFn: () => api.get<{ items: Connector[] }>('/core/connections') })
+export const useSaveConnection = () => useConnectionWrite(({ id, ...b }: ConnectorInput & { id?: string }) => (id ? api.put<Connector>(`/core/connections/${encodeURIComponent(id)}`, b) : api.post<Connector>('/core/connections', b)))
+export const useRemoveConnection = () => useConnectionWrite((id: string) => api.del(`/core/connections/${encodeURIComponent(id)}`))
+export const useTestConnection = () => useConnectionWrite((id: string) => api.post<ConnectorTestResult>(`/core/connections/${encodeURIComponent(id)}/test`))
 
 // ---- MCP ----
 export const useMcp = () => useQuery({ queryKey: ['core', 'mcp'], queryFn: () => api.get<McpState>('/core/mcp') })

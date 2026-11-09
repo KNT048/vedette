@@ -1,7 +1,6 @@
 // Hợp đồng API module ai (D-18). Kiểu UI suy ra từ schema ở đây (types.ts).
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
-import { ConnectionKind, KIND_AUTH } from '@/lib/connections'
 
 export const AiTier = z.enum(['min', 'med', 'max'])
 const iso = z.iso.datetime()
@@ -83,7 +82,7 @@ export const LogDigest = z.object({
   empty: z.boolean().describe('true = no log events to summarize yet; AI not called, no tokens spent'),
 })
 
-// ---- AI harness (D-39, S-AI-7): rules, memory, skills, knowledge, connections, hooks
+// ---- AI harness (D-39, S-AI-7): rules, memory, skills, knowledge, hooks (connections moved to core, D-93)
 export const BuiltinRule = z.object({ id: z.string(), text: z.string() })
 export const Rule = z.object({ id: z.string(), text: z.string(), jobs: z.array(AiJob).describe('Empty = applies to every job'), enabled: z.boolean() })
 export const RuleInput = z.object({ text: z.string().min(3).max(300), jobs: z.array(AiJob), enabled: z.boolean() })
@@ -103,23 +102,6 @@ export const KnowledgeView = z.object({ index_profile: z.string().nullable().des
 export const KnowledgeInput = z.object({ name: z.string().min(1).max(120), size: z.number().int().min(1).describe('Bytes; 10 MB at most. PDF, MD, TXT or DOCX'), jobs: z.array(AiJob).optional() })
 export const KnowledgeSettings = z.object({ index_profile: z.string().nullable() })
 export const KnowledgePatch = z.object({ jobs: z.array(AiJob) })
-
-// Generic kinds only (D-58): src/lib/connections.ts. No vendor field: brand knowledge is template data.
-export const ConnectorKind = ConnectionKind
-export const CONNECTOR_AUTH = KIND_AUTH
-export const ConnectorTool = z.object({ name: z.string(), access: z.enum(['read', 'write']), description: z.string(), enabled: z.boolean() })
-export const Connector = z.object({
-  id: z.string(), name: z.string(), kind: ConnectorKind, target: z.string().describe('Base URL, host:port, or the MCP command'), asset_id: z.string().nullable(),
-  auth: z.object({ type: z.enum(['none', 'token', 'basic', 'ssh-key']), last4: z.string().nullable().describe('Last 4 characters of the secret; the full secret is never returned (SYS-4)') }),
-  allow: z.array(z.string()).describe('Hosts, URL prefixes or commands the AI may use through this connection'),
-  tools: z.array(ConnectorTool), enabled: z.boolean(), status: z.enum(['ok', 'error', 'untested']), last_test: iso.nullable(),
-})
-export const ConnectorInput = z.object({
-  name: z.string().min(1).max(40), kind: ConnectorKind, target: z.string(), asset_id: z.string().nullable().optional(),
-  auth_type: z.enum(['none', 'token', 'basic', 'ssh-key']), secret: z.string().optional().describe('Leave blank when editing to keep the old secret'),
-  allow: z.array(z.string()), enabled: z.boolean(), tools: z.array(z.object({ name: z.string(), enabled: z.boolean() })).optional().describe('Per-tool enable; tools not listed keep their state'),
-})
-export const ConnectorTestResult = z.object({ ok: z.literal(true), latency_ms: z.number(), tools_found: z.number().int(), message: z.string(), connector: Connector })
 
 export const BuiltinHook = z.object({ id: z.string(), name: z.string(), description: z.string(), enabled: z.boolean(), locked: z.boolean().describe('true = always on, cannot be turned off') })
 export const HookMatch = z.object({ type: z.enum(['keywords', 'regex']), pattern: z.string().min(1).max(200).describe('keywords: comma-separated words; regex: JavaScript regular expression') })
@@ -170,11 +152,6 @@ export const endpoints = defineEndpoints([
   { method: 'put', path: '/ai/knowledge/settings', summary: 'Choose the AI profile that builds the index', stories: ['S-AI-7'], role: 'admin', body: KnowledgeSettings, response: KnowledgeView },
   { method: 'put', path: '/ai/knowledge/{id}', summary: 'Choose which jobs may use a document', stories: ['S-AI-7'], role: 'admin', params: z.object({ id: z.string() }), body: KnowledgePatch, response: KnowledgeDoc },
   { method: 'delete', path: '/ai/knowledge/{id}', summary: 'Delete a document and its index', stories: ['S-AI-7'], role: 'admin', params: z.object({ id: z.string() }), response: null },
-  { method: 'get', path: '/ai/connections', summary: 'Outside connections the AI may use: device API, SSH, HTTP, MCP server', stories: ['S-AI-7'], role: 'admin', response: z.object({ items: z.array(Connector) }) },
-  { method: 'post', path: '/ai/connections', summary: 'Add a connection with its allow-list; write tools are only used through approved response actions', stories: ['S-AI-7'], role: 'admin', body: ConnectorInput, response: Connector },
-  { method: 'put', path: '/ai/connections/{id}', summary: 'Edit a connection, its allow-list and per-tool enable (blank secret = keep the old one)', stories: ['S-AI-7'], role: 'admin', params: z.object({ id: z.string() }), body: ConnectorInput, response: Connector },
-  { method: 'delete', path: '/ai/connections/{id}', summary: 'Delete a connection', stories: ['S-AI-7'], role: 'admin', params: z.object({ id: z.string() }), response: null },
-  { method: 'post', path: '/ai/connections/{id}/test', summary: 'Test a connection and refresh its tool list', stories: ['S-AI-7'], role: 'admin', params: z.object({ id: z.string() }), response: ConnectorTestResult },
   { method: 'get', path: '/ai/hooks', summary: 'Checks that run before and after every AI call: built-in and custom', stories: ['S-AI-7'], role: 'admin', response: HooksView },
   { method: 'put', path: '/ai/hooks/builtin/{id}', summary: 'Turn a built-in hook on or off; "write tools need approval" is locked on', stories: ['S-AI-7'], role: 'admin', params: z.object({ id: z.string() }), body: z.object({ enabled: z.boolean() }), response: BuiltinHook },
   { method: 'post', path: '/ai/hooks/test', summary: 'Try a sample text against one draft hook or every enabled hook', stories: ['S-AI-7'], role: 'admin', body: HookTestInput, response: HookTestResult },

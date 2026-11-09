@@ -112,7 +112,7 @@ export function unavailable(c: StoredCat): string | null {
   if (c.kind === 'box') return null
   const conn = connById(c.connection_id)
   if (!conn) return 'No connection is chosen for this action.'
-  if (!conn.enabled) return `The connection ${conn.name} is turned off in Settings, AI assistant.`
+  if (!conn.enabled) return `The connection ${conn.name} is turned off in Settings → Connections.`
   if (!writeToolsOf(conn).length) return `${conn.name}: ${READ_ONLY}.`
   if (c.tool && !writeToolsOf(conn).includes(c.tool)) return `The write tool ${c.tool} on ${conn.name} is turned off or missing.`
   return fits(c, conn)
@@ -136,7 +136,7 @@ export function checkCatalog(b: Record<string, unknown>): CatErr | CatClean {
   if (typeof b.enabled !== 'boolean') return bad('Send enabled as true or false.')
   if (typeof b.ai_may_propose !== 'boolean') return bad('Send ai_may_propose as true or false.')
   const conn = typeof b.connection_id === 'string' ? connById(b.connection_id) : undefined
-  if (!conn) return bad('Choose one of your connections (Settings, AI assistant).')
+  if (!conn) return bad('Choose one of your connections (Settings → Connections).')
   if (!writeToolsOf(conn).length) return bad(`${conn.name}: ${READ_ONLY}.`, 'read_only')
   const kind = conn.kind as ConnKind
   const run = tpl(b.run), rollback = tpl(b.rollback), verify = tpl(b.verify)

@@ -50,7 +50,7 @@ describe('openapi.json', () => {
 
 // API_CONVENTIONS §12: an endpoint whose mock always answers 201 (create) or 202 (accepted) declares it with `status`, and openapi.json says so.
 describe('status of successful responses', () => {
-  const sources = import.meta.glob<string>('../features/*/{mocks,sourcesMock,osMock}.ts', { query: '?raw', import: 'default', eager: true })
+  const sources = import.meta.glob<string>('../features/*/{mocks,sourcesMock,osMock,connectionsMock}.ts', { query: '?raw', import: 'default', eager: true })
   const fromMocks = new Map<string, number>()
   for (const src of Object.values(sources)) {
     for (const seg of src.split(/(?=\bhttp\.(?:get|post|put|patch|delete)\()/)) {

@@ -43,6 +43,17 @@ func (q *Queries) GetSecret(ctx context.Context, id string) (CoreSecret, error) 
 	return i, err
 }
 
+const getSecretIDByPurpose = `-- name: GetSecretIDByPurpose :one
+SELECT id FROM core_secret WHERE purpose = ? ORDER BY created_at, id LIMIT 1
+`
+
+func (q *Queries) GetSecretIDByPurpose(ctx context.Context, purpose string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getSecretIDByPurpose, purpose)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
 const insertSecret = `-- name: InsertSecret :exec
 INSERT INTO core_secret (id, purpose, nonce, ciphertext, key_version, last4, created_at)
 VALUES (?, ?, ?, ?, ?, ?, ?)

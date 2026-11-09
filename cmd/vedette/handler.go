@@ -1,13 +1,11 @@
 package main
 
 import (
-	"log/slog"
 	"net/http"
 
-	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/server"
-	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/core"
+	"github.com/knt048/vedette/modules/inventory"
 )
 
 // handler is the composite of oas.Handler: server.Fallback answers 501 for every operation and gives
@@ -18,12 +16,16 @@ import (
 type handler struct {
 	server.Fallback
 	*core.ModuleHandlers
+	*inventory.Handlers
 }
 
-func newHandler(log *slog.Logger, db *store.DB, reg *modreg.Registry) handler {
+// newHandler builds every module's handlers from the shared deps. Adding a module = one field above
+// and one line here (issue #33).
+func newHandler(d deps) handler {
 	return handler{
-		Fallback:       server.Fallback{Log: log},
-		ModuleHandlers: core.NewModuleHandlers(db, reg),
+		Fallback:       server.Fallback{Log: d.Log},
+		ModuleHandlers: core.NewModuleHandlers(d.DB, d.Reg),
+		Handlers:       inventory.NewHandlers(newInventory(d)),
 	}
 }
 

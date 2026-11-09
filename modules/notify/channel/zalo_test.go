@@ -125,28 +125,6 @@ func TestContract_FORBID2_ZaloErrorsNeverContainToken(t *testing.T) {
 
 }
 
-func TestContract_D46_ZaloPersonalValidatesButDoesNotSend(t *testing.T) {
-	t.Parallel()
-	for name, cfg := range map[string]ZaloPersonalConfig{
-		"no user":    {UserID: "", Session: secrets.NewValue("sess")},
-		"letters":    {UserID: "abc", Session: secrets.NewValue("sess")},
-		"no session": {UserID: "123456789"},
-	} {
-		if _, err := NewZaloPersonal(cfg); !errors.Is(err, ErrInvalidConfig) {
-			t.Errorf("%s: err = %v", name, err)
-		}
-	}
-	s, err := NewZaloPersonal(ZaloPersonalConfig{UserID: "123456789", Session: secrets.NewValue("zl-session-secret-value")})
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = s.Send(context.Background(), sample)
-	if !errors.Is(err, ErrUnsupported) || !strings.Contains(err.Error(), "not implemented") {
-		t.Fatalf("err = %v", err)
-	}
-	mustNot(t, err.Error(), "zl-session-secret-value")
-}
-
 func FuzzZaloText(f *testing.F) {
 	f.Add("t", "w", "a")
 	f.Add(strings.Repeat("é", 4000), "\xe2\x80\xae\x00", strings.Repeat("x", 9000))

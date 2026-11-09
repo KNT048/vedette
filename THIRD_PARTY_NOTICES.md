@@ -40,6 +40,8 @@ Pure Go, no cgo. Versions pinned in `go.mod`/`go.sum`; licenses read from each m
 | github.com/sethvargo/go-retry | v0.5.0 | Apache-2.0 | embedded: via goose |
 | go.uber.org/multierr | v1.11.0 | MIT | embedded: via goose |
 | golang.org/x/sync, golang.org/x/sys | v0.24.0, v0.49.0 | BSD-3-Clause | embedded: via goose and modernc.org/sqlite; golang.org/x/sys/unix is also used directly by `host/peer` (Linux only, `vedette-host`: `SO_PEERPIDFD` and `SO_PEERCRED` of the socket peer) |
+| golang.org/x/crypto (package `argon2` only, with `blake2b` and `cpu` it uses) | v0.58.0 | BSD-3-Clause | embedded: argon2id password hashing in `core/auth` (WP-04b). Already in the module graph through goose and x/net; now a direct dependency |
+| github.com/coder/websocket | v1.8.15 | ISC | embedded: outward WebSocket client for notify approvals: Slack Socket Mode (D-38) and the Zalo personal reply-code listener (D-46); no dependencies of its own. Added for issue #43; the first importer (WP-22) turns the `// indirect` mark into a direct requirement |
 
 ### Generated API server (`core/api/oas`, ogen, D-60)
 
@@ -60,6 +62,12 @@ Pinned in `go.mod` and `go.sum`; licenses checked from the `LICENSE` files of ea
 | github.com/fatih/color, github.com/mattn/go-colorable, github.com/mattn/go-isatty | v1.19.0, v0.1.14, v0.0.24 | MIT | terminal colour in ogen's logger (linked, not used at run time) |
 | go.uber.org/zap, go.uber.org/multierr | v1.28.0, v1.11.0 | MIT | logging inside ogen's spec packages (linked, not used at run time) |
 | golang.org/x/net, golang.org/x/text, golang.org/x/sys, golang.org/x/sync, golang.org/x/exp | v0.62.0, v0.43.0, v0.49.0, v0.24.0, 2023-07-25 | BSD-3-Clause | HTTP header and IDNA checks, Unicode tables, system calls, errgroup, generic helpers; `golang.org/x/net/publicsuffix` (embedded Public Suffix List) refuses IOC domains that are public suffixes such as `com.vn` or `github.io` (`modules/feeds`, issue #29) |
+
+## Protocol knowledge re-implemented in Go (no third-party code linked)
+
+| Source | License | How it is used |
+|---|---|---|
+| zca-js v2.2.0 (github.com/RFS-ADRENO/zca-js, copyright 2024-2025 RFS-ADRENO, truong9c2208, JustKemForFun) | MIT | The unofficial Zalo personal-account protocol (sign-in request, parameter encryption and signature, message send, and the WebSocket listener notes in `modules/notify/IMPACT.md`) was read from its source and re-implemented in Go in `modules/notify/channel/zalopersonal*.go` (D-46), the same protocol the n8n Zalo community node uses through that library. Not a dependency: no code or package is linked, the logic is rewritten with the Go standard library. The test vectors were produced by running its algorithms on crypto-js 4.2.0 (MIT) outside the repository. |
 
 ## Tools run as separate processes (not embedded, not redistributed)
 

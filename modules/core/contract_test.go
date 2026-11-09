@@ -366,12 +366,14 @@ func TestContract_Migrations(t *testing.T) {
 			"table|core_secret|", "table|core_audit|", "table|core_chain_anchor|", "index|core_audit_ts_idx|",
 			"trigger|core_audit_no_update|", "trigger|core_audit_no_delete|", "table|core_migration_core|",
 			"table|core_module|", "table|core_job_run|", "index|core_job_run_job_idx|",
+			"table|core_user|", "table|core_user_totp|", "table|core_email_code|", "table|core_email_code_send|", "table|core_session|",
+			"table|core_org|", "table|core_setting|", "table|core_chain_head|", "index|core_session_user_idx|",
 		} {
 			if !strings.Contains(after, want) {
 				t.Errorf("schema lacks %s", want)
 			}
 		}
-		for _, v := range []int{1, 2} {
+		for _, v := range []int{1, 2, 3, 4} {
 			if n := count(t, db, fmt.Sprintf("SELECT count(*) FROM core_migration_core WHERE version_id = %d AND is_applied = 1", v)); n != 1 {
 				t.Errorf("version rows for %04d = %d, want 1", v, n)
 			}

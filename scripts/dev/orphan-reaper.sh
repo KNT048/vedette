@@ -13,6 +13,8 @@
 # Each stop: SIGTERM to the process and its children, SIGKILL after 5 s. Logged; macOS
 # also shows a notification. `--dry-run` only prints what it would stop.
 set -u
+# launchd starts jobs with a minimal PATH; gh lives under Homebrew on macOS.
+PATH="$PATH:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin"
 
 dry=0
 [ "${1:-}" = "--dry-run" ] && dry=1
@@ -49,6 +51,35 @@ descendants() {
 	done
 }
 
+# New GitHub issues for this developer (kien, 2026-11-09: a teammate's request must never wait).
+# Notifies once per new open issue with VEDETTE_ISSUE_LABEL (default owner:kien) in VEDETTE_REPO
+# (default KNT048/vedette). Needs `gh` signed in; silently skipped otherwise or with VEDETTE_REAPER_ISSUES=0.
+check_issues() {
+	[ "${VEDETTE_REAPER_ISSUES:-1}" = "1" ] || return 0
+	command -v gh >/dev/null 2>&1 || return 0
+	local repo label seen list new
+	repo=${VEDETTE_REPO:-KNT048/vedette}
+	label=${VEDETTE_ISSUE_LABEL:-owner:kien}
+	seen="$(dirname "$log")/vedette-issues-seen.txt"
+	touch "$seen"
+	# perl alarm = a timeout that exists on stock macOS (no coreutils `timeout` there).
+	list=$(perl -e 'alarm 20; exec @ARGV' gh issue list -R "$repo" --state open --label "$label" \
+		--json number,title --jq '.[] | "\(.number)\t\(.title)"' 2>/dev/null) || return 0
+	new=""
+	while IFS="$(printf '\t')" read -r num title; do
+		[ -n "$num" ] || continue
+		grep -qx "$num" "$seen" && continue
+		echo "$num" >>"$seen"
+		new="$new #$num $title;"
+		echo "$(date '+%Y-%m-%d %H:%M:%S') new issue #$num ($label): $title" >>"$log"
+	done <<ISSUES
+$list
+ISSUES
+	if [ -n "$new" ] && [ "$(uname)" = "Darwin" ] && [ "${VEDETTE_REAPER_NOTIFY:-1}" = "1" ]; then
+		osascript -e "display notification \"$(echo "$new" | tr -d '\042\134' | cut -c1-200)\" with title \"Vedette: new issue for you\"" >/dev/null 2>&1 || true
+	fi
+}
+
 victims=""
 reasons=""
 while read -r pid ppid etime cmd; do
@@ -69,6 +100,8 @@ $pid | $reason | $(echo "$cmd" | cut -c1-160)"
 done <<EOF
 $(ps -U "$(id -u)" -o pid=,ppid=,etime=,command=)
 EOF
+
+[ "$dry" = "1" ] || check_issues
 
 [ -n "$victims" ] || exit 0
 

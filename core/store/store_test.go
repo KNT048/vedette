@@ -535,3 +535,34 @@ func TestWriteTakesTheWriteLockImmediately(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestIsUniqueViolation(t *testing.T) {
+	t.Parallel()
+	db := storetest.New(t)
+	ctx := t.Context()
+	err := db.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, "CREATE TABLE u (id TEXT PRIMARY KEY, email TEXT UNIQUE, n INTEGER CHECK (n > 0))")
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	try := func(q string) error {
+		return db.Write(ctx, func(tx *sql.Tx) error { _, err := tx.ExecContext(ctx, q); return err })
+	}
+	if err := try("INSERT INTO u VALUES ('a', 'x@y.z', 1)"); err != nil {
+		t.Fatal(err)
+	}
+	if err := try("INSERT INTO u VALUES ('b', 'x@y.z', 1)"); !store.IsUniqueViolation(err) {
+		t.Fatalf("duplicate UNIQUE column: %v", err)
+	}
+	if err := try("INSERT INTO u VALUES ('a', 'q@y.z', 1)"); !store.IsUniqueViolation(err) {
+		t.Fatalf("duplicate primary key: %v", err)
+	}
+	if err := try("INSERT INTO u VALUES ('c', 'c@y.z', 0)"); err == nil || store.IsUniqueViolation(err) {
+		t.Fatalf("a CHECK failure is not a unique violation: %v", err)
+	}
+	if store.IsUniqueViolation(nil) || store.IsUniqueViolation(errors.New("UNIQUE constraint failed")) {
+		t.Fatal("only driver errors count")
+	}
+}

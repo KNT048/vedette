@@ -6,8 +6,9 @@ import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
 import { assetsStore, auditStore, findingsStore, modulesStore, sessionStore, usersStore } from '@/mocks/stores'
-import kevProducts from '@/mocks/fixtures/kev-products.json'
+import kevProducts from '../../../../content/catalog/kev-products.json'
 import { linuxOneLiner, OSQUERY_SCHEDULE, osquerySteps, wazuhReaderSteps, windowsOneLiner } from './agentConfig'
+import { catalogPath, CATALOG_Q_MAX } from './api'
 import { CATALOG, customEntry, findCatalog, searchCatalog } from './catalog'
 import { sha256Hex } from './kinds'
 import { BOX_ID, compareObs, ensureBox, inventorySettingsStore, markCurrent, type StoredObs } from './mocks'
@@ -544,6 +545,18 @@ describe('inventory: add-device API (catalog id and free entry)', () => {
     const r = await call('POST', '/devices/a-pc01/software', { vendor: 'Fortinet', product: 'FortiClient' })
     expect(r.status).toBe(201)
     expect(find('a-pc01').software.some((s) => s.product === 'FortiClient')).toBe(true)
+  })
+})
+
+describe('inventory: catalog request', () => {
+  it('clips a pasted long query to the 80 characters the contract allows, so the backend never answers 400', () => {
+    const long = `  ${'forti '.repeat(60)}  `
+    const q = decodeURIComponent(catalogPath(long).split('q=')[1] ?? '')
+    expect(q.length).toBeLessThanOrEqual(CATALOG_Q_MAX)
+    expect(q.startsWith('forti forti')).toBe(true)
+    expect(q).toBe(q.trim())
+    expect(catalogPath('  FortiGate ')).toBe('/inventory/catalog?q=FortiGate')
+    expect(catalogPath('a'.repeat(200)).split('q=')[1]).toHaveLength(CATALOG_Q_MAX)
   })
 })
 

@@ -554,3 +554,36 @@ func TestNewRefusesIncompleteConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// One operation may take a bigger body (issue #39: a 5 MB feed sample); every other keeps MaxBody,
+// including bodies between MaxBody and the raised cap.
+func TestBodyLimitsPerOperation(t *testing.T) {
+	t.Parallel()
+	log := slog.New(slog.DiscardHandler)
+	sn := &seen{}
+	h, err := server.New(server.Config{
+		API:  composite{Fallback: server.Fallback{Log: log}, feedsHandler: feedsHandler{sn}, coreHandler: coreHandler{sn}},
+		Auth: &servertest.Auth{Users: servertest.StandardUsers()}, Modules: servertest.NewGate(), Log: log,
+		BodyLimits: map[string]int64{"core_put_core_general": 3 << 20},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := &rig{h: h, seen: sn}
+	twoMiB := `{"name":"` + strings.Repeat("a", 2<<20) + `","timezone":"UTC"}`
+	if rec := r.do(t, req{method: "PUT", path: "/core/general", user: "admin", csrf: true, body: twoMiB}); rec.Code == 413 {
+		t.Fatalf("raised operation refused a 2 MiB body: %s", rec.Body)
+	}
+	wantError(t, r.do(t, req{method: "PATCH", path: "/core/account", user: "admin", csrf: true, body: twoMiB}), 413, "too_large")
+	fourMiB := `{"name":"` + strings.Repeat("a", 4<<20) + `","timezone":"UTC"}`
+	wantError(t, r.do(t, req{method: "PUT", path: "/core/general", user: "admin", csrf: true, body: fourMiB}), 413, "too_large")
+
+	for name, lim := range map[string]map[string]int64{
+		"unknown operation": {"no_such_op": 1 << 20},
+		"zero":              {"core_put_core_general": 0},
+	} {
+		if _, err := server.New(server.Config{API: composite{Fallback: server.Fallback{Log: log}}, Auth: &servertest.Auth{}, Modules: servertest.NewGate(), Log: log, BodyLimits: lim}); err == nil {
+			t.Errorf("%s: New accepted body limits %v", name, lim)
+		}
+	}
+}

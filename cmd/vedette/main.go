@@ -26,7 +26,6 @@ import (
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules"
-	"github.com/knt048/vedette/modules/core"
 )
 
 // version is set at build time: -ldflags "-X main.version=v0.1.0".
@@ -107,7 +106,8 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return err
 	}
-	if _, err := secrets.New(key); err != nil { // fail at start, not at the first secret
+	sec, err := secrets.New(key) // fail at start, not at the first secret
+	if err != nil {
 		return err
 	}
 	db, err := store.Open(ctx, o.db, log)
@@ -119,22 +119,28 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 			log.ErrorContext(ctx, "closing the database failed", "error", err)
 		}
 	}()
-	// Every module's migrations, in dependency order. Core only for now: the other modules have none yet.
-	if err := store.Migrate(ctx, db, "core", core.Migrations); err != nil {
+	wired := wiredModules()
+	if err := migrateAll(ctx, db, wired); err != nil {
 		return err
 	}
-	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: audit.New(nil), Manifests: modules.Manifests, Version: version, Log: log})
+	aud := audit.New(nil)
+	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: aud, Manifests: modules.Manifests, Version: version, Log: log})
 	if err != nil {
 		return err
 	}
+	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now}
 	sched := jobs.New(log, reg, nil, jobs.WithRecorder(jobs.NewHistory(db)))
 	reg.OnChange(sched.ModuleChanged)
+	if err := addJobs(sched, d, wired); err != nil {
+		return err
+	}
 
 	api, err := server.New(server.Config{
-		API:     newHandler(log, db, reg),
-		Auth:    noSessions{}, // ponytail: WP-04b replaces this with sessions and CSRF
-		Modules: reg,
-		Log:     log,
+		API:        newHandler(d),
+		Auth:       noSessions{}, // ponytail: WP-04b replaces this with sessions and CSRF
+		Modules:    reg,
+		Log:        log,
+		BodyLimits: bodyLimits(wired),
 	})
 	if err != nil {
 		return err

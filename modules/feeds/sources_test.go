@@ -80,7 +80,7 @@ func TestDefaultParserShape(t *testing.T) {
 				t.Errorf("%s/%s: bad default parser %+v", k, f, p)
 			}
 			for id, fmap := range p.Fields {
-				if !fmap.Trim || fmap.DateFormat != DateAuto && !(id == "date" && fmap.DateFormat == DateDMY) {
+				if !fmap.Trim || fmap.DateFormat != DateAuto && (id != "date" || fmap.DateFormat != DateDMY) {
 					t.Errorf("%s/%s/%s: unexpected field map %+v", k, f, id, fmap)
 				}
 			}

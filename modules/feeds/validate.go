@@ -103,6 +103,7 @@ func CheckName(name string, others []string) error {
 // AuthType is how a feed authenticates.
 type AuthType string
 
+// Authentication types.
 const (
 	AuthNone   AuthType = "none"
 	AuthHeader AuthType = "header"

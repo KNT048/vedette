@@ -224,9 +224,10 @@ func evalPath(root *jnode, toks []tok) []*jnode {
 		for _, v := range cur {
 			switch {
 			case t.star:
-				if v.k == jArr {
+				switch v.k {
+				case jArr:
 					next = append(next, v.arr...)
-				} else if v.k == jObj {
+				case jObj:
 					next = append(next, v.values()...)
 				}
 			case t.isIx:

@@ -44,7 +44,7 @@ type capReader struct {
 	left int64
 }
 
-func newCapReader(r io.Reader, max int64) *capReader { return &capReader{r: r, left: max} }
+func newCapReader(r io.Reader, limit int64) *capReader { return &capReader{r: r, left: limit} }
 
 func (c *capReader) Read(p []byte) (int, error) {
 	if c.left < 0 {
@@ -95,7 +95,7 @@ func ParseEPSS(data []byte, keep func(cve string) bool) (EPSSData, error) {
 		if err != nil {
 			return EPSSData{}, fail(ErrBadSample, "The EPSS file is not valid gzip.")
 		}
-		defer gz.Close()
+		defer func() { _ = gz.Close() }()
 		src = gz
 	}
 	sc := bufio.NewScanner(newCapReader(src, MaxEPSSDecompressed))

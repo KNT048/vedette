@@ -14,7 +14,7 @@ import (
 
 func fixture(t testing.TB, name string) []byte {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join("testdata", name))
+	b, err := os.ReadFile(filepath.Join("testdata", name)) //nolint:gosec // fixed fixture names under testdata
 	if err != nil {
 		t.Fatal(err)
 	}

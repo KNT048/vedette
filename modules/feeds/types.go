@@ -3,6 +3,7 @@ package feeds
 // Kind is what a feed carries.
 type Kind string
 
+// Kinds of feed.
 const (
 	KindVulnerabilities Kind = "vulnerabilities"
 	KindIOC             Kind = "ioc"
@@ -11,6 +12,7 @@ const (
 // Format is how a custom feed is encoded (D-37).
 type Format string
 
+// Formats of a custom feed.
 const (
 	FormatJSON  Format = "json"
 	FormatCSV   Format = "csv"
@@ -22,6 +24,7 @@ const (
 // DateFormat tells the date normaliser how to read a date field.
 type DateFormat string
 
+// Date formats of a date field.
 const (
 	DateAuto  DateFormat = "auto"
 	DateDMY   DateFormat = "dmy"

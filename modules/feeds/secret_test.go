@@ -27,7 +27,7 @@ func TestSecretNeverLeaks(t *testing.T) {
 		"%v":        fmt.Sprintf("%v", s),
 		"%+v":       fmt.Sprintf("%+v", s),
 		"%#v":       fmt.Sprintf("%#v", s),
-		"%s":        fmt.Sprintf("%s", s), //nolint:gosec // testing the Stringer
+		"%s":        fmt.Sprintf("[%s]", s),
 		"%q":        fmt.Sprintf("%q", s),
 		"Sprint":    fmt.Sprint(s),
 		"ptr":       fmt.Sprintf("%v", &s),
@@ -42,8 +42,8 @@ func TestSecretNeverLeaks(t *testing.T) {
 	outputs["json auth"] = string(hj)
 
 	var text, js bytes.Buffer
-	slog.New(slog.NewTextHandler(&text, nil)).Info("x", "secret", s, "auth", Auth{Type: AuthBasic, Username: "u", Secret: s}, slog.Any("h", h))
-	slog.New(slog.NewJSONHandler(&js, nil)).Info("x", "secret", s, "auth", Auth{Type: AuthBasic, Username: "u", Secret: s})
+	slog.New(slog.NewTextHandler(&text, nil)).Info("x", slog.Any("secret", s), slog.Any("auth", Auth{Type: AuthBasic, Username: "u", Secret: s}), slog.Any("h", h))
+	slog.New(slog.NewJSONHandler(&js, nil)).Info("x", slog.Any("secret", s), slog.Any("auth", Auth{Type: AuthBasic, Username: "u", Secret: s}))
 	outputs["slog text"] = text.String()
 	outputs["slog json"] = js.String()
 

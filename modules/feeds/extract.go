@@ -113,7 +113,7 @@ func parseCSV(text string, delim rune) [][]string {
 				i++
 			}
 			push()
-			if !(len(row) == 1 && row[0] == "") && !strings.HasPrefix(row[0], "#") {
+			if (len(row) != 1 || row[0] != "") && !strings.HasPrefix(row[0], "#") {
 				rows = append(rows, row)
 			}
 			row = nil

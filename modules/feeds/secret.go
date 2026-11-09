@@ -34,6 +34,7 @@ func CheckSecret(s string) error {
 	return nil
 }
 
+// Reveal returns the plain value; only the fetcher and core/secrets should call it.
 func (s Secret) Reveal() string {
 	if s.p == nil {
 		return ""
@@ -53,8 +54,17 @@ func (s Secret) Last4() string {
 	return string(r)
 }
 
-func (Secret) String() string               { return redacted }
-func (Secret) GoString() string             { return redacted }
-func (Secret) LogValue() slog.Value         { return slog.StringValue(redacted) }
+// String never shows the value.
+func (Secret) String() string { return redacted }
+
+// GoString never shows the value (%#v).
+func (Secret) GoString() string { return redacted }
+
+// LogValue redacts the value in slog output.
+func (Secret) LogValue() slog.Value { return slog.StringValue(redacted) }
+
+// MarshalText redacts the value in text encodings.
 func (Secret) MarshalText() ([]byte, error) { return []byte(redacted), nil }
+
+// MarshalJSON redacts the value in JSON.
 func (Secret) MarshalJSON() ([]byte, error) { return []byte(`"` + redacted + `"`), nil }

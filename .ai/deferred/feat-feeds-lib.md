@@ -1,0 +1,7 @@
+- [ ] EPSS default URL: Go list uses https://epss.empiricalsecurity.com/epss_scores-current.csv.gz (the bulk gzip CSV); PRIVACY.md flow 1 and THIRD_PARTY_NOTICES.md list api.first.org and the mock DEFS must change to match — host not in PRIVACY.md yet — maintainer (docs) with WP-20
+- [ ] Built-in feeds larger than INV-2 caps (hagezi TIF ~440k domains and IPsum exceed 50,000 rows / 5 MB and would be truncated) — decide per-source limits or smaller lists (e.g. tif.mini) — maintainer + WP-20
+- [ ] INV-9 wording (data <= 60 min old) vs default 24 h / 6 h intervals: IsStale uses interval + 60 min — confirm the intended meaning — maintainer
+- [ ] Verify the nuclei-templates cves.json line format against the real file (parser accepts JSON lines or a JSON array with "ID") — needs network, none allowed in this WP — WP-20
+- [ ] INV-4/6/7/8/10/11/13/14, POST-1..5, PRE-2..5 need HTTP endpoints, DB, events, inventory or Privacy listing — WP-20
+- [ ] Web parsers.ts differences to align (web/ is read-only here): rejects[] 10 vs 20, lenient IPv6/leading-zero IPv4, no lowercasing of domain/hash, local-time date fallback — web owner
+- [ ] Redirects: only same-host redirects are followed; relax per source only if a real mirror needs it — WP-20

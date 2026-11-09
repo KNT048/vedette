@@ -395,14 +395,14 @@ func TestGoldenOutputs(t *testing.T) {
 			b = append(b, '\n')
 			path := filepath.Join("testdata", "golden", name)
 			if *update {
-				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 					t.Fatal(err)
 				}
-				if err := os.WriteFile(path, b, 0o644); err != nil {
+				if err := os.WriteFile(path, b, 0o600); err != nil {
 					t.Fatal(err)
 				}
 			}
-			want, err := os.ReadFile(path)
+			want, err := os.ReadFile(path) //nolint:gosec // path built from fixed kinds and formats
 			if err != nil {
 				t.Fatalf("%v (run go test -run Golden -update)", err)
 			}

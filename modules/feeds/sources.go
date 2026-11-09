@@ -5,6 +5,7 @@ import "strings"
 // Decoder says which parser a built-in feed needs.
 type Decoder string
 
+// Built-in decoders.
 const (
 	DecoderParser Decoder = "parser" // the generic custom-format parser with Source.Parser
 	DecoderKEV    Decoder = "kev"    // ParseKEV

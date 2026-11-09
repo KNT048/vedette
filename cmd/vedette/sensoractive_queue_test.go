@@ -20,7 +20,7 @@ func TestScanningOffDuringDrainKeepsTheQueue(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	nm := newFakeNmap(t)
-	clock := func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, time.Local) } // Monday 02:00, inside 01:00-05:00
+	clock := func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone) } // Monday 02:00, inside 01:00-05:00
 	s.saveScope(t)
 	var ids []string
 	for i, ip := range []string{"192.168.10.20", "192.168.10.21", "192.168.10.22"} {

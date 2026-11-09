@@ -50,8 +50,7 @@ func newSensorActive(d deps, path string) (*sensoractive.Service, error) {
 		return nil, errors.New("sensor-active needs the inventory service")
 	}
 	cfg := sensoractive.Config{DB: d.DB, Inventory: sensorInventory{d.Inventory}, Observe: d.Inventory, Software: d.Inventory, NmapPath: path, Clock: d.Clock, Log: d.Log,
-		// ponytail: the box zone for now; the organization time zone of the core general settings replaces it (deferred)
-		Location: func() *time.Location { return time.Local }}
+		Location: orgLocation(d)}
 	if d.Bus != nil {
 		cfg.Events = sensoractive.PublisherFunc(func(ctx context.Context, e sensoractive.Event) error {
 			return d.Bus.Publish(ctx, events.Event{Name: e.Name, Data: e.Data})
@@ -97,6 +96,28 @@ func newSensorActive(d deps, path string) (*sensoractive.Service, error) {
 		return svc.SettingsChanged(ctx)
 	}))
 	return svc, nil
+}
+
+// orgLocation is sensor-active's Config.Location: the organization time zone of core's general settings, read at
+// every use so a change applies to the next window check without a restart (INV-3). nil (module falls back to
+// the process zone) when core is not built or the read fails or names an unknown zone.
+func orgLocation(d deps) func() *time.Location {
+	return func() *time.Location {
+		if d.Core == nil {
+			return nil
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		name, err := d.Core.OrgTimeZone(ctx)
+		if err != nil {
+			return nil
+		}
+		loc, err := time.LoadLocation(name)
+		if err != nil {
+			return nil
+		}
+		return loc
+	}
 }
 
 // sensorActiveJobs is the Jobs func of the sensor-active entry in wiredModules: the window tick every minute and

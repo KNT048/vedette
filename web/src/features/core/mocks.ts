@@ -81,6 +81,9 @@ const setupHandlers = [
     // The LAN ranges asked for here are the ranges of Devices → Scope and sensors (and what Scan reads); the commitment ticked here is that page's commitment.
     inventorySettingsStore.update((st) => ({ ...st, lan_ranges: [...new Set(lan)], scope_confirmed_at: b.commitment ? nowIso() : null, scope_confirmed_by: b.commitment ? email : null }))
     sessionStore.set({ userId: user.id })
+    // Same rows, same order as the backend: the administrator, the sign-in, then the setup itself.
+    audit('user.create', email, 'role admin')
+    audit('auth.login', email)
     audit('core.setup', org, `bundle ${b.bundle}, ${lan.length} ranges${b.commitment ? ', active-scan commitment confirmed' : ''}`)
     return HttpResponse.json({ ok: true })
   }),

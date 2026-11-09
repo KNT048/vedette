@@ -1,6 +1,7 @@
 // Tiện ích chung cho handler mock: lỗi chuẩn {error:{code,message}}, kiểm tra quyền, validate ở biên (SYS-2).
 import { HttpResponse } from 'msw'
-import { sessionStore, usersStore } from './stores'
+import { sessionStore, usersStore, type User } from './stores'
+import { realSessionOn, realUser } from './realSession'
 import type { Role } from '@/lib/session'
 
 export const API = '*/api/v1'
@@ -11,18 +12,19 @@ export function fail(status: number, code: string, message: string) {
 
 const rank: Record<Role, number> = { viewer: 0, operator: 1, admin: 2 }
 
+/** Người đang đăng nhập: phiên của mock, hoặc (khi core chạy thật trong `make dev-api`) người dùng của backend thật (`mocks/realSession.ts`). */
+export function currentUser(): User | undefined {
+  if (realSessionOn()) return realUser()
+  const s = sessionStore.get()
+  return s.userId ? usersStore.get().find((x) => x.id === s.userId) : undefined
+}
+
 /** Trả về lỗi 401/403 nếu thiếu quyền, hoặc null nếu được phép. */
 export function guard(min: Role) {
-  const s = sessionStore.get()
-  const u = s.userId ? usersStore.get().find((x) => x.id === s.userId) : undefined
+  const u = currentUser()
   if (!u) return fail(401, 'unauthenticated', 'Your session has ended. Sign in again.')
   if (rank[u.role] < rank[min]) return fail(403, 'forbidden', 'Your account is not allowed to do this.')
   return null
-}
-
-export function currentUser() {
-  const s = sessionStore.get()
-  return s.userId ? usersStore.get().find((x) => x.id === s.userId) : undefined
 }
 
 export async function body<T>(req: Request): Promise<Partial<T>> {

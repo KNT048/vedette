@@ -13,8 +13,9 @@ import (
 
 // The pin is stored as one text (DATA_MODEL core_connection.pin) and shown as {kind, value, first_seen}.
 const (
-	pinTLSPrefix = "tls-sha256:"
-	pinSSHPrefix = "ssh:"
+	pinTLSPrefix   = "tls-sha256:"
+	pinRootsPrefix = "tls-roots:"
+	pinSSHPrefix   = "ssh:"
 )
 
 func decodePin(pin, seen *string) *Pin {
@@ -23,6 +24,8 @@ func decodePin(pin, seen *string) *Pin {
 	}
 	p := &Pin{FirstSeen: deref(seen)}
 	switch {
+	case strings.HasPrefix(*pin, pinRootsPrefix):
+		p.Kind, p.Value = "tls_roots", strings.TrimPrefix(*pin, pinRootsPrefix)
 	case strings.HasPrefix(*pin, pinTLSPrefix):
 		p.Kind, p.Value = "tls_sha256", strings.TrimPrefix(*pin, pinTLSPrefix)
 	case strings.HasPrefix(*pin, pinSSHPrefix):
@@ -38,8 +41,11 @@ func encodePin(p *Pin) (pin, seen *string) {
 		return nil, nil
 	}
 	prefix := pinTLSPrefix
-	if p.Kind == "ssh_hostkey" {
+	switch p.Kind {
+	case "ssh_hostkey":
 		prefix = pinSSHPrefix
+	case "tls_roots":
+		prefix = pinRootsPrefix
 	}
 	v, s := prefix+p.Value, p.FirstSeen
 	return &v, &s

@@ -7553,13 +7553,14 @@
                                     "type": "string",
                                     "enum": [
                                       "tls_sha256",
+                                      "tls_roots",
                                       "ssh_hostkey"
                                     ],
-                                    "description": "tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system roots); ssh_hostkey = the SSH server host key"
+                                    "description": "tls_sha256 = SHA-256 of the public key (SubjectPublicKeyInfo) of the HTTPS leaf certificate, when no public authority vouches for the chain; tls_roots = a public authority vouched for the chain at the first test, and every later test requires that again (a self-signed certificate is refused); ssh_hostkey = the SSH server host key"
                                   },
                                   "value": {
                                     "type": "string",
-                                    "description": "tls_sha256: 64 hex characters; ssh_hostkey: key type and SHA256 fingerprint"
+                                    "description": "tls_sha256: 64 hex characters; tls_roots: \"system roots\"; ssh_hostkey: key type and SHA256 fingerprint"
                                   },
                                   "first_seen": {
                                     "type": "string",
@@ -7890,13 +7891,14 @@
                               "type": "string",
                               "enum": [
                                 "tls_sha256",
+                                "tls_roots",
                                 "ssh_hostkey"
                               ],
-                              "description": "tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system roots); ssh_hostkey = the SSH server host key"
+                              "description": "tls_sha256 = SHA-256 of the public key (SubjectPublicKeyInfo) of the HTTPS leaf certificate, when no public authority vouches for the chain; tls_roots = a public authority vouched for the chain at the first test, and every later test requires that again (a self-signed certificate is refused); ssh_hostkey = the SSH server host key"
                             },
                             "value": {
                               "type": "string",
-                              "description": "tls_sha256: 64 hex characters; ssh_hostkey: key type and SHA256 fingerprint"
+                              "description": "tls_sha256: 64 hex characters; tls_roots: \"system roots\"; ssh_hostkey: key type and SHA256 fingerprint"
                             },
                             "first_seen": {
                               "type": "string",
@@ -8269,13 +8271,14 @@
                               "type": "string",
                               "enum": [
                                 "tls_sha256",
+                                "tls_roots",
                                 "ssh_hostkey"
                               ],
-                              "description": "tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system roots); ssh_hostkey = the SSH server host key"
+                              "description": "tls_sha256 = SHA-256 of the public key (SubjectPublicKeyInfo) of the HTTPS leaf certificate, when no public authority vouches for the chain; tls_roots = a public authority vouched for the chain at the first test, and every later test requires that again (a self-signed certificate is refused); ssh_hostkey = the SSH server host key"
                             },
                             "value": {
                               "type": "string",
-                              "description": "tls_sha256: 64 hex characters; ssh_hostkey: key type and SHA256 fingerprint"
+                              "description": "tls_sha256: 64 hex characters; tls_roots: \"system roots\"; ssh_hostkey: key type and SHA256 fingerprint"
                             },
                             "first_seen": {
                               "type": "string",
@@ -8517,13 +8520,14 @@
                                   "type": "string",
                                   "enum": [
                                     "tls_sha256",
+                                    "tls_roots",
                                     "ssh_hostkey"
                                   ],
-                                  "description": "tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system roots); ssh_hostkey = the SSH server host key"
+                                  "description": "tls_sha256 = SHA-256 of the public key (SubjectPublicKeyInfo) of the HTTPS leaf certificate, when no public authority vouches for the chain; tls_roots = a public authority vouched for the chain at the first test, and every later test requires that again (a self-signed certificate is refused); ssh_hostkey = the SSH server host key"
                                 },
                                 "value": {
                                   "type": "string",
-                                  "description": "tls_sha256: 64 hex characters; ssh_hostkey: key type and SHA256 fingerprint"
+                                  "description": "tls_sha256: 64 hex characters; tls_roots: \"system roots\"; ssh_hostkey: key type and SHA256 fingerprint"
                                 },
                                 "first_seen": {
                                   "type": "string",

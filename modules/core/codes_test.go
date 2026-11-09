@@ -19,7 +19,7 @@ func TestEveryErrorCodeOfCoreIsCatalogued(t *testing.T) {
 	constRE := regexp.MustCompile(`\bCode\w*\s*=\s*"([a-z][a-z0-9_]*)"`)
 	newRE := regexp.MustCompile(`apierr\.New\(\s*(?:\d{3}|http\.\w+),\s*"([a-z][a-z0-9_]*)"`)
 	found := map[string]string{}
-	for _, dir := range []string{"../../core/auth", ".", "../../core/server", "../../core/apierr"} {
+	for _, dir := range []string{"../../core/auth", ".", "../../core/server", "../../core/apierr", "../../core/conn"} {
 		files, _ := filepath.Glob(filepath.Join(dir, "*.go"))
 		for _, f := range files {
 			if strings.HasSuffix(f, "_test.go") {
@@ -42,6 +42,19 @@ func TestEveryErrorCodeOfCoreIsCatalogued(t *testing.T) {
 	for code, file := range found {
 		if !regexp.MustCompile("(?m)^\\| `" + regexp.QuoteMeta(code) + "` \\|").Match(doc) {
 			t.Errorf("code %q (%s) is not in API_CONVENTIONS 3.3", code, file)
+		}
+	}
+	for _, code := range []string{"address_refused", "device_error", "connection_changed", "pin_mismatch", "unreachable"} {
+		if f, ok := found[code]; !ok || !strings.Contains(f, "core/conn") {
+			t.Errorf("the scan did not find %q in core/conn: it must read that package too", code)
+		}
+	}
+	// The codes of Test are answered by POST /core/connections/{id}/test: every row names it (a row that names only the response
+	// endpoints for connection_changed hides that a Test returns it).
+	for _, code := range []string{"address_refused", "device_error", "connection_changed", "pin_mismatch", "unreachable", "connection_off"} {
+		row := regexp.MustCompile("(?m)^\\| `" + code + "` \\|.*$").FindString(string(doc))
+		if !strings.Contains(row, "POST /core/connections/{id}/test") {
+			t.Errorf("the row of %s does not name POST /core/connections/{id}/test, which returns it: %q", code, row)
 		}
 	}
 	for _, code := range []string{"invalid_setup_code", "sample_unavailable", "invalid_from", "invalid_to", "misdirected_request", "current_session", "invalid_timezone"} {

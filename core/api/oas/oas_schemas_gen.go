@@ -13017,10 +13017,13 @@ func (s *CoreGetCoreConnectionsOKItemsItemKind) UnmarshalText(data []byte) error
 // refused until an administrator forgets the pin.
 type CoreGetCoreConnectionsOKItemsItemPin struct {
 	FirstSeen time.Time `json:"first_seen"`
-	// Tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system
-	// roots); ssh_hostkey = the SSH server host key.
+	// Tls_sha256 = SHA-256 of the public key (SubjectPublicKeyInfo) of the HTTPS leaf certificate, when no
+	// public authority vouches for the chain; tls_roots = a public authority vouched for the chain at the
+	// first test, and every later test requires that again (a self-signed certificate is refused);
+	// ssh_hostkey = the SSH server host key.
 	Kind CoreGetCoreConnectionsOKItemsItemPinKind `json:"kind"`
-	// Tls_sha256: 64 hex characters; ssh_hostkey: key type and SHA256 fingerprint.
+	// Tls_sha256: 64 hex characters; tls_roots: "system roots"; ssh_hostkey: key type and SHA256
+	// fingerprint.
 	Value string `json:"value"`
 }
 
@@ -13054,12 +13057,15 @@ func (s *CoreGetCoreConnectionsOKItemsItemPin) SetValue(val string) {
 	s.Value = val
 }
 
-// Tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system
-// roots); ssh_hostkey = the SSH server host key.
+// Tls_sha256 = SHA-256 of the public key (SubjectPublicKeyInfo) of the HTTPS leaf certificate, when no
+// public authority vouches for the chain; tls_roots = a public authority vouched for the chain at the
+// first test, and every later test requires that again (a self-signed certificate is refused);
+// ssh_hostkey = the SSH server host key.
 type CoreGetCoreConnectionsOKItemsItemPinKind string
 
 const (
 	CoreGetCoreConnectionsOKItemsItemPinKindTLSSHA256  CoreGetCoreConnectionsOKItemsItemPinKind = "tls_sha256"
+	CoreGetCoreConnectionsOKItemsItemPinKindTLSRoots   CoreGetCoreConnectionsOKItemsItemPinKind = "tls_roots"
 	CoreGetCoreConnectionsOKItemsItemPinKindSSHHostkey CoreGetCoreConnectionsOKItemsItemPinKind = "ssh_hostkey"
 )
 
@@ -13067,6 +13073,7 @@ const (
 func (CoreGetCoreConnectionsOKItemsItemPinKind) AllValues() []CoreGetCoreConnectionsOKItemsItemPinKind {
 	return []CoreGetCoreConnectionsOKItemsItemPinKind{
 		CoreGetCoreConnectionsOKItemsItemPinKindTLSSHA256,
+		CoreGetCoreConnectionsOKItemsItemPinKindTLSRoots,
 		CoreGetCoreConnectionsOKItemsItemPinKindSSHHostkey,
 	}
 }
@@ -13075,6 +13082,8 @@ func (CoreGetCoreConnectionsOKItemsItemPinKind) AllValues() []CoreGetCoreConnect
 func (s CoreGetCoreConnectionsOKItemsItemPinKind) MarshalText() ([]byte, error) {
 	switch s {
 	case CoreGetCoreConnectionsOKItemsItemPinKindTLSSHA256:
+		return []byte(s), nil
+	case CoreGetCoreConnectionsOKItemsItemPinKindTLSRoots:
 		return []byte(s), nil
 	case CoreGetCoreConnectionsOKItemsItemPinKindSSHHostkey:
 		return []byte(s), nil
@@ -13088,6 +13097,9 @@ func (s *CoreGetCoreConnectionsOKItemsItemPinKind) UnmarshalText(data []byte) er
 	switch CoreGetCoreConnectionsOKItemsItemPinKind(data) {
 	case CoreGetCoreConnectionsOKItemsItemPinKindTLSSHA256:
 		*s = CoreGetCoreConnectionsOKItemsItemPinKindTLSSHA256
+		return nil
+	case CoreGetCoreConnectionsOKItemsItemPinKindTLSRoots:
+		*s = CoreGetCoreConnectionsOKItemsItemPinKindTLSRoots
 		return nil
 	case CoreGetCoreConnectionsOKItemsItemPinKindSSHHostkey:
 		*s = CoreGetCoreConnectionsOKItemsItemPinKindSSHHostkey
@@ -21133,10 +21145,13 @@ func (s *CorePostCoreConnectionsCreatedKind) UnmarshalText(data []byte) error {
 // refused until an administrator forgets the pin.
 type CorePostCoreConnectionsCreatedPin struct {
 	FirstSeen time.Time `json:"first_seen"`
-	// Tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system
-	// roots); ssh_hostkey = the SSH server host key.
+	// Tls_sha256 = SHA-256 of the public key (SubjectPublicKeyInfo) of the HTTPS leaf certificate, when no
+	// public authority vouches for the chain; tls_roots = a public authority vouched for the chain at the
+	// first test, and every later test requires that again (a self-signed certificate is refused);
+	// ssh_hostkey = the SSH server host key.
 	Kind CorePostCoreConnectionsCreatedPinKind `json:"kind"`
-	// Tls_sha256: 64 hex characters; ssh_hostkey: key type and SHA256 fingerprint.
+	// Tls_sha256: 64 hex characters; tls_roots: "system roots"; ssh_hostkey: key type and SHA256
+	// fingerprint.
 	Value string `json:"value"`
 }
 
@@ -21170,12 +21185,15 @@ func (s *CorePostCoreConnectionsCreatedPin) SetValue(val string) {
 	s.Value = val
 }
 
-// Tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system
-// roots); ssh_hostkey = the SSH server host key.
+// Tls_sha256 = SHA-256 of the public key (SubjectPublicKeyInfo) of the HTTPS leaf certificate, when no
+// public authority vouches for the chain; tls_roots = a public authority vouched for the chain at the
+// first test, and every later test requires that again (a self-signed certificate is refused);
+// ssh_hostkey = the SSH server host key.
 type CorePostCoreConnectionsCreatedPinKind string
 
 const (
 	CorePostCoreConnectionsCreatedPinKindTLSSHA256  CorePostCoreConnectionsCreatedPinKind = "tls_sha256"
+	CorePostCoreConnectionsCreatedPinKindTLSRoots   CorePostCoreConnectionsCreatedPinKind = "tls_roots"
 	CorePostCoreConnectionsCreatedPinKindSSHHostkey CorePostCoreConnectionsCreatedPinKind = "ssh_hostkey"
 )
 
@@ -21183,6 +21201,7 @@ const (
 func (CorePostCoreConnectionsCreatedPinKind) AllValues() []CorePostCoreConnectionsCreatedPinKind {
 	return []CorePostCoreConnectionsCreatedPinKind{
 		CorePostCoreConnectionsCreatedPinKindTLSSHA256,
+		CorePostCoreConnectionsCreatedPinKindTLSRoots,
 		CorePostCoreConnectionsCreatedPinKindSSHHostkey,
 	}
 }
@@ -21191,6 +21210,8 @@ func (CorePostCoreConnectionsCreatedPinKind) AllValues() []CorePostCoreConnectio
 func (s CorePostCoreConnectionsCreatedPinKind) MarshalText() ([]byte, error) {
 	switch s {
 	case CorePostCoreConnectionsCreatedPinKindTLSSHA256:
+		return []byte(s), nil
+	case CorePostCoreConnectionsCreatedPinKindTLSRoots:
 		return []byte(s), nil
 	case CorePostCoreConnectionsCreatedPinKindSSHHostkey:
 		return []byte(s), nil
@@ -21204,6 +21225,9 @@ func (s *CorePostCoreConnectionsCreatedPinKind) UnmarshalText(data []byte) error
 	switch CorePostCoreConnectionsCreatedPinKind(data) {
 	case CorePostCoreConnectionsCreatedPinKindTLSSHA256:
 		*s = CorePostCoreConnectionsCreatedPinKindTLSSHA256
+		return nil
+	case CorePostCoreConnectionsCreatedPinKindTLSRoots:
+		*s = CorePostCoreConnectionsCreatedPinKindTLSRoots
 		return nil
 	case CorePostCoreConnectionsCreatedPinKindSSHHostkey:
 		*s = CorePostCoreConnectionsCreatedPinKindSSHHostkey
@@ -21725,10 +21749,13 @@ func (s *CorePostCoreConnectionsIDTestOKConnectorKind) UnmarshalText(data []byte
 // refused until an administrator forgets the pin.
 type CorePostCoreConnectionsIDTestOKConnectorPin struct {
 	FirstSeen time.Time `json:"first_seen"`
-	// Tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system
-	// roots); ssh_hostkey = the SSH server host key.
+	// Tls_sha256 = SHA-256 of the public key (SubjectPublicKeyInfo) of the HTTPS leaf certificate, when no
+	// public authority vouches for the chain; tls_roots = a public authority vouched for the chain at the
+	// first test, and every later test requires that again (a self-signed certificate is refused);
+	// ssh_hostkey = the SSH server host key.
 	Kind CorePostCoreConnectionsIDTestOKConnectorPinKind `json:"kind"`
-	// Tls_sha256: 64 hex characters; ssh_hostkey: key type and SHA256 fingerprint.
+	// Tls_sha256: 64 hex characters; tls_roots: "system roots"; ssh_hostkey: key type and SHA256
+	// fingerprint.
 	Value string `json:"value"`
 }
 
@@ -21762,12 +21789,15 @@ func (s *CorePostCoreConnectionsIDTestOKConnectorPin) SetValue(val string) {
 	s.Value = val
 }
 
-// Tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system
-// roots); ssh_hostkey = the SSH server host key.
+// Tls_sha256 = SHA-256 of the public key (SubjectPublicKeyInfo) of the HTTPS leaf certificate, when no
+// public authority vouches for the chain; tls_roots = a public authority vouched for the chain at the
+// first test, and every later test requires that again (a self-signed certificate is refused);
+// ssh_hostkey = the SSH server host key.
 type CorePostCoreConnectionsIDTestOKConnectorPinKind string
 
 const (
 	CorePostCoreConnectionsIDTestOKConnectorPinKindTLSSHA256  CorePostCoreConnectionsIDTestOKConnectorPinKind = "tls_sha256"
+	CorePostCoreConnectionsIDTestOKConnectorPinKindTLSRoots   CorePostCoreConnectionsIDTestOKConnectorPinKind = "tls_roots"
 	CorePostCoreConnectionsIDTestOKConnectorPinKindSSHHostkey CorePostCoreConnectionsIDTestOKConnectorPinKind = "ssh_hostkey"
 )
 
@@ -21775,6 +21805,7 @@ const (
 func (CorePostCoreConnectionsIDTestOKConnectorPinKind) AllValues() []CorePostCoreConnectionsIDTestOKConnectorPinKind {
 	return []CorePostCoreConnectionsIDTestOKConnectorPinKind{
 		CorePostCoreConnectionsIDTestOKConnectorPinKindTLSSHA256,
+		CorePostCoreConnectionsIDTestOKConnectorPinKindTLSRoots,
 		CorePostCoreConnectionsIDTestOKConnectorPinKindSSHHostkey,
 	}
 }
@@ -21783,6 +21814,8 @@ func (CorePostCoreConnectionsIDTestOKConnectorPinKind) AllValues() []CorePostCor
 func (s CorePostCoreConnectionsIDTestOKConnectorPinKind) MarshalText() ([]byte, error) {
 	switch s {
 	case CorePostCoreConnectionsIDTestOKConnectorPinKindTLSSHA256:
+		return []byte(s), nil
+	case CorePostCoreConnectionsIDTestOKConnectorPinKindTLSRoots:
 		return []byte(s), nil
 	case CorePostCoreConnectionsIDTestOKConnectorPinKindSSHHostkey:
 		return []byte(s), nil
@@ -21796,6 +21829,9 @@ func (s *CorePostCoreConnectionsIDTestOKConnectorPinKind) UnmarshalText(data []b
 	switch CorePostCoreConnectionsIDTestOKConnectorPinKind(data) {
 	case CorePostCoreConnectionsIDTestOKConnectorPinKindTLSSHA256:
 		*s = CorePostCoreConnectionsIDTestOKConnectorPinKindTLSSHA256
+		return nil
+	case CorePostCoreConnectionsIDTestOKConnectorPinKindTLSRoots:
+		*s = CorePostCoreConnectionsIDTestOKConnectorPinKindTLSRoots
 		return nil
 	case CorePostCoreConnectionsIDTestOKConnectorPinKindSSHHostkey:
 		*s = CorePostCoreConnectionsIDTestOKConnectorPinKindSSHHostkey
@@ -29634,10 +29670,13 @@ func (s *CorePutCoreConnectionsIDOKKind) UnmarshalText(data []byte) error {
 // refused until an administrator forgets the pin.
 type CorePutCoreConnectionsIDOKPin struct {
 	FirstSeen time.Time `json:"first_seen"`
-	// Tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system
-	// roots); ssh_hostkey = the SSH server host key.
+	// Tls_sha256 = SHA-256 of the public key (SubjectPublicKeyInfo) of the HTTPS leaf certificate, when no
+	// public authority vouches for the chain; tls_roots = a public authority vouched for the chain at the
+	// first test, and every later test requires that again (a self-signed certificate is refused);
+	// ssh_hostkey = the SSH server host key.
 	Kind CorePutCoreConnectionsIDOKPinKind `json:"kind"`
-	// Tls_sha256: 64 hex characters; ssh_hostkey: key type and SHA256 fingerprint.
+	// Tls_sha256: 64 hex characters; tls_roots: "system roots"; ssh_hostkey: key type and SHA256
+	// fingerprint.
 	Value string `json:"value"`
 }
 
@@ -29671,12 +29710,15 @@ func (s *CorePutCoreConnectionsIDOKPin) SetValue(val string) {
 	s.Value = val
 }
 
-// Tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system
-// roots); ssh_hostkey = the SSH server host key.
+// Tls_sha256 = SHA-256 of the public key (SubjectPublicKeyInfo) of the HTTPS leaf certificate, when no
+// public authority vouches for the chain; tls_roots = a public authority vouched for the chain at the
+// first test, and every later test requires that again (a self-signed certificate is refused);
+// ssh_hostkey = the SSH server host key.
 type CorePutCoreConnectionsIDOKPinKind string
 
 const (
 	CorePutCoreConnectionsIDOKPinKindTLSSHA256  CorePutCoreConnectionsIDOKPinKind = "tls_sha256"
+	CorePutCoreConnectionsIDOKPinKindTLSRoots   CorePutCoreConnectionsIDOKPinKind = "tls_roots"
 	CorePutCoreConnectionsIDOKPinKindSSHHostkey CorePutCoreConnectionsIDOKPinKind = "ssh_hostkey"
 )
 
@@ -29684,6 +29726,7 @@ const (
 func (CorePutCoreConnectionsIDOKPinKind) AllValues() []CorePutCoreConnectionsIDOKPinKind {
 	return []CorePutCoreConnectionsIDOKPinKind{
 		CorePutCoreConnectionsIDOKPinKindTLSSHA256,
+		CorePutCoreConnectionsIDOKPinKindTLSRoots,
 		CorePutCoreConnectionsIDOKPinKindSSHHostkey,
 	}
 }
@@ -29692,6 +29735,8 @@ func (CorePutCoreConnectionsIDOKPinKind) AllValues() []CorePutCoreConnectionsIDO
 func (s CorePutCoreConnectionsIDOKPinKind) MarshalText() ([]byte, error) {
 	switch s {
 	case CorePutCoreConnectionsIDOKPinKindTLSSHA256:
+		return []byte(s), nil
+	case CorePutCoreConnectionsIDOKPinKindTLSRoots:
 		return []byte(s), nil
 	case CorePutCoreConnectionsIDOKPinKindSSHHostkey:
 		return []byte(s), nil
@@ -29705,6 +29750,9 @@ func (s *CorePutCoreConnectionsIDOKPinKind) UnmarshalText(data []byte) error {
 	switch CorePutCoreConnectionsIDOKPinKind(data) {
 	case CorePutCoreConnectionsIDOKPinKindTLSSHA256:
 		*s = CorePutCoreConnectionsIDOKPinKindTLSSHA256
+		return nil
+	case CorePutCoreConnectionsIDOKPinKindTLSRoots:
+		*s = CorePutCoreConnectionsIDOKPinKindTLSRoots
 		return nil
 	case CorePutCoreConnectionsIDOKPinKindSSHHostkey:
 		*s = CorePutCoreConnectionsIDOKPinKindSSHHostkey

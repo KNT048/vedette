@@ -11,6 +11,7 @@ import (
 	"github.com/knt048/vedette/core/api/routes"
 	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/auth/authtest"
+	"github.com/knt048/vedette/core/conn/conntest"
 	"github.com/knt048/vedette/modules/core"
 )
 
@@ -193,6 +194,8 @@ func TestContract_INV2_EveryCoreMutationIsAudited(t *testing.T) {
 	if err := only(w.env.Svc.ConfirmTOTP(t.Context(), cy.ID, "", auth.TOTPCode(decodeBase32(t, cySetup.Secret), auth.TOTPStep(w.env.Clock.Now())))); err != nil {
 		t.Fatal(err)
 	}
+	// The connection of the script has a LAN address; its Test goes to an in-process fake instead.
+	conntest.NewHTTPS(t, nil).Redirect(t, "192.168.10.63:443")
 	// The first-run setup needs a box of its own.
 	w2 := newWorld(t)
 	code2 := w2.openSetup()
@@ -242,13 +245,14 @@ func TestContract_INV2_EveryCoreMutationIsAudited(t *testing.T) {
 			return admin.post("/core/account/2fa/email/confirm", map[string]any{"code": w.env.Mailer.LastCode()})
 		}},
 		{"core_post_core_connections", nil, func() reply {
-			r := admin.post("/core/connections", connBody("Lab firewall", nil))
+			r := admin.post("/core/connections", connBody("Lab firewall", lanAt("192.168.10.63")))
 			connID, _ = r.JSON["id"].(string)
 			return r
 		}},
 		{"core_put_core_connections_id", nil, func() reply {
-			return admin.put("/core/connections/"+connID, connBody("Lab firewall 2", map[string]any{"secret": "a-new-long-secret-value"})) //nolint:gosec // a test value
+			return admin.put("/core/connections/"+connID, connBody("Lab firewall 2", map[string]any{"secret": "a-new-long-secret-value", "target": "https://192.168.10.63", "allow": []string{"https://192.168.10.63/api/"}})) //nolint:gosec // a test value
 		}},
+		{"core_post_core_connections_id_test", nil, func() reply { return admin.post("/core/connections/"+connID+"/test", nil) }},
 		{"core_delete_core_connections_id", nil, func() reply { return admin.delete("/core/connections/" + connID) }},
 		{"core_post_auth_login_resend_code", nil, func() reply {
 			w.env.Clock.Advance(2 * time.Minute) // past the resend wait of the code mailed above
@@ -267,9 +271,6 @@ func TestContract_INV2_EveryCoreMutationIsAudited(t *testing.T) {
 		byOp[st.op] = true
 	}
 	implemented := implementedCoreMutations(t, w)
-	// Implemented only to answer a refusal before the 501: nothing changes, so no row. Remove the entry when 13b-5 makes it a real test.
-	notYet := map[string]bool{"core_post_core_connections_id_test": true}
-	implemented = slices.DeleteFunc(implemented, func(op string) bool { return notYet[op] })
 	for _, op := range implemented {
 		if !byOp[op] {
 			t.Errorf("%s is implemented and changes state, and has no step here: add one that shows it writes core_audit", op)

@@ -129,8 +129,8 @@ export const CONNECTOR_AUTH = KIND_AUTH
 const ConnectorAuthType = z.enum(['none', 'token', 'basic', 'ssh-key'])
 export const ConnectorTool = z.object({ name: z.string(), access: z.enum(['read', 'write']), description: z.string(), enabled: z.boolean() })
 export const ConnectorPin = z.object({
-  kind: z.enum(['tls_sha256', 'ssh_hostkey']).describe('tls_sha256 = SHA-256 of the HTTPS leaf certificate (only when the chain is not trusted by the system roots); ssh_hostkey = the SSH server host key'),
-  value: z.string().describe('tls_sha256: 64 hex characters; ssh_hostkey: key type and SHA256 fingerprint'),
+  kind: z.enum(['tls_sha256', 'tls_roots', 'ssh_hostkey']).describe('tls_sha256 = SHA-256 of the public key (SubjectPublicKeyInfo) of the HTTPS leaf certificate, when no public authority vouches for the chain; tls_roots = a public authority vouched for the chain at the first test, and every later test requires that again (a self-signed certificate is refused); ssh_hostkey = the SSH server host key'),
+  value: z.string().describe('tls_sha256: 64 hex characters; tls_roots: "system roots"; ssh_hostkey: key type and SHA256 fingerprint'),
   first_seen: ts,
 }).describe('Pinned at the first successful Test (trust on first use, D-94). A changed certificate or host key is refused until an administrator forgets the pin')
 export const Connector = z.object({

@@ -1,0 +1,1 @@
+{"critical":{"identity":{"docker-reference":"example.com/test/image"},"image":{"docker-manifest-digest":"sha256:d34db33fd34db33fd34db33fd34db33fd34db33fd34db33fd34db33fd34db33f"},"type":"cosign container image signature"},"optional":null}

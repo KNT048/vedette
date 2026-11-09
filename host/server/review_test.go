@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -497,5 +498,30 @@ func TestReviewInfo_ABodyThatNeverArrivesIsCutOff(t *testing.T) {
 			}
 			return
 		}
+	}
+}
+
+// A number that overflows float64 must not hide a repeated key (jsonstrict L1), and a body nested too
+// deep is refused with a message that says so; malformed JSON keeps its usual answer.
+func TestJSONStrictOverflowAndDepth(t *testing.T) {
+	t.Parallel()
+	h, f := start(t)
+	deep := `{"args":{"name":"x","n":` + strings.Repeat("[", 40) + strings.Repeat("]", 40) + `}}`
+	for name, tc := range map[string]struct{ body, msg string }{
+		"repeat after overflow": {`{"args":{"pad":1e400,"name":"a","name":"b"}}`, "repeat"},
+		"nested too deep":       {deep, "nested too deep"},
+		"malformed":             {`{"args":{"name":`, "with no other fields"},
+	} {
+		st, eb := post(t, h, "test.echo", goodHeaders(rid1), tc.body)
+		if st != http.StatusBadRequest || eb.Error.Code != api.CodeInvalidArgs {
+			t.Errorf("%s: %d %+v", name, st, eb)
+			continue
+		}
+		if !strings.Contains(fmt.Sprintf("%+v", eb), tc.msg) {
+			t.Errorf("%s: message does not say %q: %+v", name, tc.msg, eb)
+		}
+	}
+	if f.ran.Load() != 0 {
+		t.Fatal("a refused request ran")
 	}
 }

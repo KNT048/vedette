@@ -19,6 +19,7 @@ import (
 
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/peer"
+	"github.com/knt048/vedette/internal/jsonstrict"
 )
 
 type routeKind int
@@ -347,9 +348,13 @@ func (s *Server) handleCommand(w http.ResponseWriter, r *http.Request, p peer.In
 		return
 	}
 	var req api.CommandRequest
-	if len(bytes.TrimSpace(body)) > 0 && ambiguousKeys(body) != "" {
+	if why := ambiguousKeys(body); len(bytes.TrimSpace(body)) > 0 && why != "" {
+		reason := "an object has keys that differ only by case or repeat"
+		if why == jsonstrict.WhyDeep {
+			reason = "the body is nested too deep"
+		}
 		sub.digest = digestRaw(body)
-		s.refuse(w, sub, http.StatusBadRequest, api.ErrorInfo{Code: api.CodeInvalidArgs, Message: "The request body is not valid.", Details: []api.Detail{{Field: "body", Reason: "an object has keys that differ only by case or repeat"}}})
+		s.refuse(w, sub, http.StatusBadRequest, api.ErrorInfo{Code: api.CodeInvalidArgs, Message: "The request body is not valid.", Details: []api.Detail{{Field: "body", Reason: reason}}})
 		return
 	}
 	if len(bytes.TrimSpace(body)) > 0 {

@@ -58,6 +58,9 @@ type Clock struct {
 	t  time.Time
 }
 
+// NewClock returns a clock that starts at t.
+func NewClock(t time.Time) *Clock { return &Clock{t: t} }
+
 // Now implements the Options.Now function.
 func (c *Clock) Now() time.Time {
 	c.mu.Lock()

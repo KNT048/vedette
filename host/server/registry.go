@@ -123,16 +123,6 @@ func (r *Registry) Names() []string {
 	return n
 }
 
-// DefaultRegistry is the table of the real system commands. It is empty in WP-07a (the
-// framework); WP-07b adds the commands of spec section 6 here and nowhere else.
-func DefaultRegistry() *Registry {
-	r, err := NewRegistry()
-	if err != nil {
-		panic(err) // an empty table cannot fail
-	}
-	return r
-}
-
 // ArgsError is a validation failure of a command's args.
 type ArgsError struct{ Details []api.Detail }
 
@@ -147,30 +137,52 @@ func Invalid(field, reason string) *ArgsError {
 }
 
 // Refusal makes a run end as refused. Status is the HTTP status (409 for a state conflict,
-// 412 for a failed precondition, spec section 11).
+// 412 for a failed precondition, 404 for an id the host does not know, spec section 11).
 type Refusal struct {
 	Status  int
 	Code    string
 	Message string
+	// RetryAfterS, when positive, is the hint "try again in this many seconds" (also sent as Retry-After).
+	RetryAfterS int
 }
 
 func (e *Refusal) Error() string { return "refused: " + e.Code }
 
-// Refuse builds a Refusal. Programming error (panic) if the status is not 409 or 412 or the code is not snake_case.
+// Refuse builds a Refusal. Programming error (panic) if the status is not 404, 409 or 412 or the code is not snake_case.
 func Refuse(status int, code, message string) *Refusal {
-	if (status != http.StatusConflict && status != http.StatusPreconditionFailed) || !codeRE.MatchString(code) {
+	if (status != http.StatusConflict && status != http.StatusPreconditionFailed && status != http.StatusNotFound) || !codeRE.MatchString(code) {
 		panic(fmt.Sprintf("host: bad refusal %d %q", status, code))
 	}
 	return &Refusal{Status: status, Code: code, Message: message}
 }
 
-// Failure makes a run end as failed with a specific code and a message safe to show.
+// RefuseRetry is Refuse with a retry hint in seconds.
+func RefuseRetry(status int, code, message string, retryAfterS int) *Refusal {
+	r := Refuse(status, code, message)
+	r.RetryAfterS = retryAfterS
+	return r
+}
+
+// Failure makes a run end as failed with a specific code and a message safe to show. Result, when
+// not nil, is stored as the run's result next to the error (for example the health checks of a
+// run that installed packages but left the box unhealthy).
 type Failure struct {
 	Code    string
 	Message string
+	Result  any
 }
 
 func (e *Failure) Error() string { return "failed: " + e.Code }
+
+// Reverted makes a run end with status reverted: the command changed the system, it did not
+// work, and the command put the previous state back. Result is stored like Failure.Result.
+type Reverted struct {
+	Code    string
+	Message string
+	Result  any
+}
+
+func (e *Reverted) Error() string { return "reverted: " + e.Code }
 
 var codeRE = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 
@@ -180,6 +192,18 @@ type RunContext struct {
 	Actor string
 	log   func(line string)
 	prog  func(percent int)
+	after []func(context.Context, api.Status)
+}
+
+// AfterFinish registers fn to run once the run is recorded as final: audit line and run file
+// written, write lock released, final event sent. fn gets the final status and a context that
+// outlives the run and the server's shutdown (it is only ever cancelled by nothing: the callback
+// is short and must finish its work). It runs on its own goroutine, and only when the command
+// returned (a command that ignored its deadline gets no callbacks). Use it for effects that must
+// not be part of the run, such as rebooting the machine after the run is recorded as succeeded.
+// Call it from the command's Run goroutine only.
+func (rc *RunContext) AfterFinish(fn func(ctx context.Context, st api.Status)) {
+	rc.after = append(rc.after, fn)
 }
 
 // Log appends one line (cut to 2 KiB, control characters removed) to the run's event stream.

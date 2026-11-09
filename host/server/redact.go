@@ -150,7 +150,7 @@ func redactValue(v any, depth int) any {
 			if looksSecret(k) { // a key can carry the secret too
 				ck = fmt.Sprintf("[redacted-key-%d]", i)
 			}
-			if sensitiveKeyRE.MatchString(k) && !isEmpty(x[k]) {
+			if sensitiveKeyRE.MatchString(k) && !isPlain(x[k]) {
 				out[ck] = redactedMarker
 				continue
 			}
@@ -161,9 +161,11 @@ func redactValue(v any, depth int) any {
 	return "[unsupported]"
 }
 
-func isEmpty(v any) bool {
+// isPlain reports a value that cannot hold a secret: nothing, an empty string, a boolean or a
+// number. A flag such as include_secrets must stay readable in the audit line.
+func isPlain(v any) bool {
 	switch x := v.(type) {
-	case nil:
+	case nil, bool, json.Number:
 		return true
 	case string:
 		return x == ""

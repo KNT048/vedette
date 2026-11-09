@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/chain"
+	"github.com/knt048/vedette/core/chain/chainhead"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/coredb"
 )
@@ -138,7 +139,7 @@ func (l *Log) Append(ctx context.Context, tx *sql.Tx, e Entry) error {
 		return fmt.Errorf("audit: insert: %w", err)
 	}
 	// The head moves in the same transaction, so deleting the newest rows later is detectable (issue #17).
-	return chain.AdvanceHead(ctx, tx, chainName, hash, l.now())
+	return chainhead.Advance(ctx, tx, chainName, hash, l.now())
 }
 
 // Verify walks core_audit in seq order, a page at a time, and returns the chain verdict.
@@ -166,7 +167,7 @@ func verify(ctx context.Context, db *sql.DB, page int64, afterPage func()) (chai
 	default:
 		anchor = a.LastPrunedHash
 	}
-	head, err := chain.LoadHead(ctx, tx, chainName)
+	head, err := chainhead.Load(ctx, tx, chainName)
 	if err != nil {
 		return chain.Result{}, err
 	}

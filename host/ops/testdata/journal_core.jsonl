@@ -1,0 +1,8 @@
+{"__REALTIME_TIMESTAMP":"1762689600000000","_SYSTEMD_UNIT":"vedette-core.service","MESSAGE":"listening on :8443"}
+{"__REALTIME_TIMESTAMP":"1762689601000000","_SYSTEMD_UNIT":"vedette-core.service","MESSAGE":"sensor registered with token vdt_osquery_aB3dE5gH7jK9mN1pQ3sU5wY"}
+{"__REALTIME_TIMESTAMP":"1762689602000000","_SYSTEMD_UNIT":"vedette-core.service","MESSAGE":"GET /blocklist/Zk3Jh8Pq9Rt2Vw5Xy7 200"}
+{"__REALTIME_TIMESTAMP":"1762689603000000","_SYSTEMD_UNIT":"vedette-core.service","MESSAGE":"Authorization: Bearer abcdef0123456789abcdef"}
+{"__REALTIME_TIMESTAMP":"1762689604000000","_SYSTEMD_UNIT":"vedette-core.service","MESSAGE":"smtp password=hunter2 for user x"}
+{"__REALTIME_TIMESTAMP":"1762689605000000","_SYSTEMD_UNIT":"vedette-core.service","MESSAGE":"slack xoxb-1234567890-abcdefghijk and xapp-1-A0123-4567-abcdef"}
+this line is not json
+{"__REALTIME_TIMESTAMP":"1762689606000000","_SYSTEMD_UNIT":"vedette-core.service","MESSAGE":"plain line"}

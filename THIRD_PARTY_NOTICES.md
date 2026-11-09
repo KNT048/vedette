@@ -37,13 +37,12 @@ Build and test tools (not shipped): Vite, TypeScript, Tailwind CSS, vitest, Test
 
 ## Development and CI tools (not shipped in any image or binary)
 
-Pinned in `tools/go.mod` (Go `tool` directives), run with `go tool -modfile=tools/go.mod <tool>` by `make verify-go` and CI. They only read the source tree; nothing from them is linked into Vedette.
+Pinned in `tools/go.mod` (Go `tool` directives), run with `go tool -modfile=tools/go.mod <tool>` by `make verify-go` and `make audit` on the developer's machine (no hosted CI, D-61). They only read the source tree; nothing from them is linked into Vedette.
 
 | Tool | Version | License | How it is used |
 |---|---|---|---|
 | golangci-lint | v2.15.0 | GPL-3.0 | linter run on the source tree in dev and CI; separate process, never distributed |
 | govulncheck (golang.org/x/vuln) | v1.9.0 | BSD-3-Clause | vulnerability scan of Go dependencies in dev and CI (daily on `main`) |
-| GitHub Actions: actions/checkout, actions/setup-go, actions/upload-artifact, pnpm/action-setup | pinned by commit SHA in `.github/workflows/ci.yml` | MIT | CI runner steps; not distributed |
 
 ## Libraries planned for embedding (backend)
 

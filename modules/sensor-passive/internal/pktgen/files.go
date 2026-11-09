@@ -112,6 +112,8 @@ func LANDiscovery() []Frame {
 	add(12, UDPFrame(netipMcastMAC, Router, RouterIP, netipSSDP, 1900, 1900, []byte("M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 1\r\nST: ssdp:all\r\n\r\n")))
 	// the switch speaks LLDP
 	add(20, LLDP(Switch, LLDPInfo{Chassis: Switch, Port: "Gi1/0/7", SysName: "SW-CORE-01", SysDesc: "Example Switch OS 4.2, 24 ports", Caps: 1<<2 | 1<<4}))
+	// a laptop with a registered vendor prefix says hello
+	add(25, ARP(Bcast, 1, Laptop, LaptopIP, MAC{}, RouterIP))
 	// a phone only asks for DHCP, no name
 	add(30, UDPFrame(Bcast, Phone, netipZero, netipBcast, 68, 67, DHCP(1, Phone, netipInvalid, netipInvalid, DHCPOpts{Type: 1})))
 	// ordinary IP traffic carries no discovery in a non-SPAN recording

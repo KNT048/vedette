@@ -3,6 +3,7 @@ package sensorpassive
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -68,7 +69,7 @@ func TestLANDiscoveryFixture(t *testing.T) {
 		t.Fatalf("discovery without SPAN produced metadata: %+v", meta)
 	}
 	got := obsSet(obs)
-	pc, router, printer, sw, phone := pktgen.PC.String(), pktgen.Router.String(), pktgen.Printer.String(), pktgen.Switch.String(), pktgen.Phone.String()
+	pc, router, printer, sw, phone, laptop := pktgen.PC.String(), pktgen.Router.String(), pktgen.Printer.String(), pktgen.Switch.String(), pktgen.Phone.String(), pktgen.Laptop.String()
 	want := []string{
 		pc + " hostname=PC-ACCOUNTING-01 @ 0.6",
 		pc + " mac=" + pc + " @ 0.9",
@@ -84,6 +85,8 @@ func TestLANDiscoveryFixture(t *testing.T) {
 		sw + " model=Example Switch OS 4.2, 24 ports @ 0.5",
 		sw + " kind=switch @ 0.6",
 		phone + " mac=" + phone + " @ 0.9",
+		laptop + " mac=" + laptop + " @192.168.10.24 0.9",
+		laptop + " vendor=Apple, Inc. @ 0.4",
 	}
 	for _, w := range want {
 		if !got[w] {
@@ -333,20 +336,48 @@ func TestEngineBounds(t *testing.T) {
 	cfg := spanCfg()
 	cfg.Clock = func() time.Time { return pktgen.T0 }
 	e, _ := newEngine(cfg)
-	// a flood of distinct ARP senders and distinct flows must stop at the caps and be counted
+	// a flood of distinct DHCP names from one device must stop at the cap and be counted
 	for i := range maxPending + 50 {
-		m := pktgen.MAC{0xaa, 0, 0, byte(i >> 16), byte(i >> 8), byte(i)}
-		e.Handle(Packet{At: pktgen.T0, Data: pktgen.ARP(pktgen.Bcast, 1, m, netip.AddrFrom4([4]byte{10, 0, byte(i >> 8), byte(i)}), pktgen.MAC{}, pktgen.RouterIP)})
+		req := pktgen.DHCP(1, pktgen.PC, netip.Addr{}, netip.Addr{}, pktgen.DHCPOpts{Type: 1, Hostname: fmt.Sprintf("host-%d", i)})
+		e.Handle(Packet{At: pktgen.T0, Data: pktgen.UDPFrame(pktgen.Bcast, pktgen.PC, netip.MustParseAddr("0.0.0.0"), netip.MustParseAddr("255.255.255.255"), 68, 67, req)})
 	}
 	obs, _ := e.Drain(pktgen.T0, false)
-	if len(obs) != maxPending || e.Counters()["observations_dropped"] != 50 {
+	if len(obs) != maxPending || e.Counters()["observations_dropped"] != 51 { // the MAC itself took one slot
 		t.Errorf("observations %d, counters %v", len(obs), e.Counters())
 	}
 	for i := range maxFlows + 10 {
 		e.Handle(Packet{At: pktgen.T0, Data: pktgen.UDPFrame(pktgen.Router, pktgen.PC, pktgen.PCIP, pktgen.WebIP, uint16(1+i%60000), uint16(1+i/60000), nil)})
 	}
-	if _, meta := e.Drain(pktgen.T0, true); len(metaOf(meta, MetaFlow)) != maxFlows || e.Counters()["flows_dropped"] != 10 {
+	if _, meta := e.Drain(pktgen.T0, true); len(metaOf(meta, MetaFlow)) != maxFlows || e.Counters()["flows_dropped"] != 11 { // the DHCP flood above holds one flow
 		t.Errorf("flows %d, counters %v", len(meta), e.Counters())
+	}
+}
+
+// M1: an ARP flood from random MACs adds at most maxNewMACsPerMinute devices a minute; devices already
+// reported are not affected, and the budget comes back with the next minute.
+func TestNewMACsAreRateLimited(t *testing.T) {
+	t.Parallel()
+	e, _ := newEngine(engineConfig{})
+	flood := func(at time.Time, from, n uint32) {
+		for i := from; i < from+n; i++ {
+			b := binary.BigEndian.AppendUint32(nil, i)
+			m := pktgen.MAC{0xaa, 0, 0, b[1], b[2], b[3]}
+			e.Handle(Packet{At: at, Data: pktgen.ARP(pktgen.Bcast, 1, m, netip.AddrFrom4([4]byte{10, 0, b[2], b[3]}), pktgen.MAC{}, pktgen.RouterIP)})
+		}
+	}
+	flood(pktgen.T0, 0, 1000)
+	obs, _ := e.Drain(pktgen.T0, false)
+	if len(obs) != maxNewMACsPerMinute || e.Counters()["new_macs_dropped"] != 1000-maxNewMACsPerMinute {
+		t.Fatalf("%d observations, counters %v", len(obs), e.Counters())
+	}
+	flood(pktgen.T0.Add(time.Second), 0, 1) // device 0 is known: a new address for it still goes through
+	e.Handle(Packet{At: pktgen.T0.Add(time.Second), Data: pktgen.ARP(pktgen.Bcast, 1, pktgen.MAC{0xaa, 0, 0, 0, 0, 0}, netip.MustParseAddr("10.9.9.9"), pktgen.MAC{}, pktgen.RouterIP)})
+	if obs, _ := e.Drain(pktgen.T0, false); len(obs) != 1 {
+		t.Fatalf("a known device was refused: %d", len(obs))
+	}
+	flood(pktgen.T0.Add(time.Minute+time.Second), 1000, 1000)
+	if obs, _ := e.Drain(pktgen.T0, false); len(obs) != maxNewMACsPerMinute {
+		t.Fatalf("next minute: %d observations", len(obs))
 	}
 }
 
@@ -452,6 +483,13 @@ func TestFileSourceFormats(t *testing.T) {
 	if p, err := s.Next(context.Background()); err != nil || !bytes.Equal(p.Data, frames[0].Data) {
 		t.Fatalf("after the oversize record: %v", err)
 	}
+	// hostile 32-bit lengths in a pcapng packet block: an error, never a panic or a wrap
+	ng := pktgen.WritePCAPNG(frames[:1])
+	for _, off := range []int{len(ng) - 12 - len(frames[0].Data) - 8, len(ng) - 12 - len(frames[0].Data) - 20} { // capLen and interface id of the packet block
+		bad := append([]byte(nil), ng...)
+		copy(bad[off:], []byte{0xff, 0xff, 0xff, 0xff})
+		_, _ = read(bad)
+	}
 	// a cancelled context stops the replay
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -470,5 +508,198 @@ func unwrapPath(err error) error {
 			return err
 		}
 		err = u.Unwrap()
+	}
+}
+
+func frameDHCP(src mac4, dst mac4, srcIP, dstIP netip.Addr, sport, dport uint16, d []byte) Packet {
+	return Packet{At: pktgen.T0, Data: pktgen.UDPFrame(pktgen.MAC(dst), pktgen.MAC(src), srcIP, dstIP, sport, dport, d)}
+}
+
+type mac4 = pktgen.MAC
+
+var (
+	zeroIP  = netip.MustParseAddr("0.0.0.0")
+	bcastIP = netip.MustParseAddr("255.255.255.255")
+)
+
+// H1: a host name longer than the inventory accepts (200) is cut, not passed on to poison the batch
+// (sensor-protocol 5.3: free text is cut, never refused).
+func TestLongValuesAreCutToWhatTheInventoryAccepts(t *testing.T) {
+	t.Parallel()
+	long := strings.Repeat("a", 63) + "." + strings.Repeat("b", 63) + "." + strings.Repeat("c", 63) + "." + strings.Repeat("d", 20)
+	e, _ := newEngine(own)
+	req := pktgen.DHCP(1, pktgen.Phone, netip.Addr{}, netip.Addr{}, pktgen.DHCPOpts{Type: 1, Hostname: long})
+	e.Handle(frameDHCP(pktgen.Phone, pktgen.Bcast, zeroIP, bcastIP, 68, 67, req))
+	e.Handle(Packet{At: pktgen.T0, Data: pktgen.LLDP(pktgen.Switch, pktgen.LLDPInfo{Chassis: pktgen.Switch, Port: "1", SysName: strings.Repeat("S", 230), SysDesc: strings.Repeat("é", 120)})})
+	obs, _ := e.Drain(pktgen.T0, true)
+	cut := 0
+	for _, o := range obs {
+		if len(o.Value) > maxValue || !printable(o.Value) {
+			t.Errorf("value of %d bytes for %s: %q", len(o.Value), o.Field, o.Value)
+		}
+		if strings.HasSuffix(o.Value, ".") {
+			t.Errorf("a cut name ends with a separator: %q", o.Value)
+		}
+		if o.Field == observe.Hostname && strings.HasPrefix(o.Value, "aaaa") {
+			cut++
+		}
+	}
+	if cut != 1 || e.Counters()["value_truncated"] != 2 {
+		t.Errorf("cut %d, counters %v", cut, e.Counters())
+	}
+}
+
+// H2: INV-7 covers the addresses inside DHCP: ciaddr, yiaddr and option 50 of an excluded host.
+func TestDHCPAddressesAreFiltered(t *testing.T) {
+	t.Parallel()
+	ex := pktgen.PhoneIP
+	for name, send := range map[string]func(e *Engine){
+		"option 50 (INIT-REBOOT request)": func(e *Engine) {
+			req := pktgen.DHCP(1, pktgen.Phone, netip.Addr{}, netip.Addr{}, pktgen.DHCPOpts{Type: 3, Hostname: "bobs-phone", Requested: ex})
+			e.Handle(frameDHCP(pktgen.Phone, pktgen.Bcast, zeroIP, bcastIP, 68, 67, req))
+		},
+		"ciaddr (renewal)": func(e *Engine) {
+			req := pktgen.DHCP(1, pktgen.Phone, ex, netip.Addr{}, pktgen.DHCPOpts{Type: 3, Hostname: "bobs-phone"})
+			e.Handle(frameDHCP(pktgen.Phone, pktgen.Router, zeroIP, pktgen.RouterIP, 68, 67, req))
+		},
+		"yiaddr (the router's ACK)": func(e *Engine) {
+			ack := pktgen.DHCP(2, pktgen.Phone, netip.Addr{}, ex, pktgen.DHCPOpts{Type: 5})
+			e.Handle(frameDHCP(pktgen.Router, pktgen.Bcast, pktgen.RouterIP, bcastIP, 67, 68, ack))
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			e, err := newEngine(spanCfg(Filter{"host", ex.String()}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			send(e)
+			if obs, _ := e.Drain(pktgen.T0, true); len(obs) != 0 {
+				t.Errorf("%d observations about an excluded host: %+v", len(obs), obs)
+			}
+			if e.Counters()["excluded"] == 0 {
+				t.Error("not counted as excluded")
+			}
+		})
+	}
+}
+
+// LLDP carries no IP address, so an IP, range or port exclusion cannot apply to it (CONTRACT INV-7).
+func TestLLDPHasNoIPSoIPFiltersCannotApply(t *testing.T) {
+	t.Parallel()
+	e, _ := newEngine(spanCfg(Filter{"cidr", "0.0.0.0/0"}))
+	e.Handle(Packet{At: pktgen.T0, Data: pktgen.LLDP(pktgen.Switch, pktgen.LLDPInfo{Chassis: pktgen.Switch, Port: "1", SysName: "sw"})})
+	if obs, _ := e.Drain(pktgen.T0, true); len(obs) == 0 {
+		t.Error("LLDP was filtered by an IP rule: the documented limit changed")
+	}
+}
+
+// M2: replies to the box and broadcasts reach a mirror of the box's own port; they do not make other devices.
+func TestOwnOnlyIgnoresRepliesToTheBoxAndBroadcasts(t *testing.T) {
+	t.Parallel()
+	e, err := newEngine(spanCfg())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range pktgen.SpanOwnOnly() {
+		e.Handle(Packet{At: f.At, Data: f.Data})
+	}
+	at := pktgen.T0.Add(5 * time.Second)
+	e.Handle(Packet{At: at, Data: pktgen.UDPFrame(pktgen.Box, pktgen.Router, pktgen.DNSIP, pktgen.BoxIP, 53, 40010, pktgen.DNSMessage(1, true, nil, nil))})
+	e.Handle(Packet{At: at, Data: pktgen.ARP(pktgen.Bcast, 1, pktgen.PC, pktgen.PCIP, pktgen.MAC{}, pktgen.BoxIP)})
+	if _, others, _ := e.Stats(at); others != 0 {
+		t.Errorf("other_macs = %d, want 0: only unicast frames between two hosts that are not the box count", others)
+	}
+	e.Handle(Packet{At: at, Data: pktgen.UDPFrame(pktgen.Router, pktgen.PC, pktgen.PCIP, pktgen.DNSIP, 1, 2, nil)})
+	if _, others, _ := e.Stats(at); others != 1 {
+		t.Errorf("a frame between two other hosts: other_macs = %d, want 1", others)
+	}
+}
+
+// Traffic to the box creates neither metadata nor flows (CONTRACT INV-6).
+func TestTrafficToTheBoxCreatesNoMetadata(t *testing.T) {
+	t.Parallel()
+	e, _ := newEngine(spanCfg())
+	e.Handle(Packet{At: pktgen.T0, Data: pktgen.TCPFrame(pktgen.Box, pktgen.PC, pktgen.PCIP, pktgen.BoxIP, 50000, 80, pktgen.HTTPRequest("GET", "/", "vedette.lan", nil, ""))})
+	e.Handle(Packet{At: pktgen.T0, Data: pktgen.UDPFrame(pktgen.Box, pktgen.PC, pktgen.PCIP, pktgen.BoxIP, 4000, 53, pktgen.DNSMessage(1, false, [][2]any{{"vedette.lan", uint16(1)}}, nil))})
+	e.Handle(Packet{At: pktgen.T0, Data: pktgen.TCPFrame(pktgen.Box, pktgen.PC, pktgen.PCIP, pktgen.BoxIP, 50001, 443, pktgen.ClientHello("vedette.lan"))})
+	if _, meta := e.Drain(pktgen.T0, true); len(meta) != 0 {
+		t.Errorf("metadata about traffic to the box: %+v", meta)
+	}
+}
+
+// A fragment that is not the first has no ports: with a port rule it is skipped rather than read.
+func TestFragmentsFailClosedWithPortFilters(t *testing.T) {
+	t.Parallel()
+	frag := func() Packet {
+		ip := pktgen.IPv4(pktgen.PCIP, pktgen.WebIP, 6, bytes.Repeat([]byte{1}, 40))
+		binary.BigEndian.PutUint16(ip[6:8], 100) // offset 800: not the first fragment
+		return Packet{At: pktgen.T0, Data: pktgen.Eth(pktgen.Router, pktgen.PC, 0x0800, ip)}
+	}
+	withPort, _ := newEngine(spanCfg(Filter{"port", "443"}))
+	withPort.Handle(frag())
+	if _, meta := withPort.Drain(pktgen.T0, true); len(meta) != 0 || withPort.Counters()["fragment_skipped"] != 1 {
+		t.Errorf("with a port rule: %+v %v", meta, withPort.Counters())
+	}
+	noPort, _ := newEngine(spanCfg(Filter{"cidr", "10.0.0.0/8"}))
+	noPort.Handle(frag())
+	if _, meta := noPort.Drain(pktgen.T0, true); len(metaOf(meta, MetaFlow)) != 1 {
+		t.Errorf("without a port rule the fragment is counted in a flow: %+v", meta)
+	}
+}
+
+// Addresses that are not unicast hosts never reach the sink; the observation keeps its MAC.
+func TestNonUnicastIPsNeverReachTheSink(t *testing.T) {
+	t.Parallel()
+	e, _ := newEngine(engineConfig{})
+	for i, bad := range []string{"255.255.255.255", "224.0.0.251", "127.0.0.1"} {
+		m := pktgen.MAC{0xaa, 0, 0, 0, 0, byte(i + 1)}
+		e.Handle(Packet{At: pktgen.T0, Data: pktgen.ARP(pktgen.Bcast, 1, m, netip.MustParseAddr(bad), pktgen.MAC{}, pktgen.RouterIP)})
+	}
+	ack := pktgen.DHCP(2, pktgen.Phone, netip.Addr{}, netip.MustParseAddr("239.1.1.1"), pktgen.DHCPOpts{Type: 5})
+	e.Handle(frameDHCP(pktgen.Router, pktgen.Bcast, pktgen.RouterIP, bcastIP, 67, 68, ack))
+	obs, _ := e.Drain(pktgen.T0, true)
+	if len(obs) != 4 {
+		t.Fatalf("%d observations, want 4 (the MACs are real)", len(obs))
+	}
+	for _, o := range obs {
+		if o.AssetHint.IP.IsValid() {
+			t.Errorf("a non-unicast address reached the sink: %+v", o)
+		}
+	}
+	if e.Counters()["non_unicast_ip"] != 4 {
+		t.Errorf("counters %v", e.Counters())
+	}
+}
+
+// DHCP: only the client speaks for its MAC; an ACK must go to that MAC or to everybody.
+func TestDHCPClientMACMustMatchTheEthernetFrame(t *testing.T) {
+	t.Parallel()
+	e, _ := newEngine(engineConfig{})
+	forged := pktgen.DHCP(1, pktgen.Printer, netip.Addr{}, netip.Addr{}, pktgen.DHCPOpts{Type: 1, Hostname: "forged"})
+	e.Handle(frameDHCP(pktgen.PC, pktgen.Bcast, zeroIP, bcastIP, 68, 67, forged)) // PC claims to be the printer
+	ack := pktgen.DHCP(2, pktgen.Printer, netip.Addr{}, pktgen.PrinterIP, pktgen.DHCPOpts{Type: 5})
+	e.Handle(frameDHCP(pktgen.Router, pktgen.PC, pktgen.RouterIP, pktgen.PCIP, 67, 68, ack)) // unicast to somebody else
+	if obs, _ := e.Drain(pktgen.T0, true); len(obs) != 0 || e.Counters()["dhcp_mac_mismatch"] != 2 {
+		t.Errorf("observations %+v counters %v", obs, e.Counters())
+	}
+}
+
+func TestVendorFromTheOUITable(t *testing.T) {
+	t.Parallel()
+	e, _ := newEngine(engineConfig{})
+	e.Handle(Packet{At: pktgen.T0, Data: pktgen.ARP(pktgen.Bcast, 1, pktgen.Laptop, pktgen.LaptopIP, pktgen.MAC{}, pktgen.RouterIP)})
+	e.Handle(Packet{At: pktgen.T0, Data: pktgen.ARP(pktgen.Bcast, 1, pktgen.PC, pktgen.PCIP, pktgen.MAC{}, pktgen.RouterIP)}) // locally administered
+	vendors := map[string]string{}
+	for _, o := range func() []observe.Observation { o, _ := e.Drain(pktgen.T0, true); return o }() {
+		if o.Field == observe.Vendor {
+			vendors[o.AssetHint.MAC] = o.Value
+			if o.Confidence != 0.4 || o.AssetHint.IP.IsValid() {
+				t.Errorf("vendor observation %+v", o)
+			}
+		}
+	}
+	if len(vendors) != 1 || vendors[pktgen.Laptop.String()] != "Apple, Inc." {
+		t.Errorf("vendors %v", vendors)
 	}
 }

@@ -114,7 +114,7 @@ func (s *FileSource) Next(ctx context.Context) (Packet, error) {
 	if s.nano {
 		unit = time.Nanosecond
 	}
-	data, err := s.take(int(capLen))
+	data, err := s.take(capLen)
 	if err != nil {
 		return Packet{}, err
 	}
@@ -124,15 +124,16 @@ func (s *FileSource) Next(ctx context.Context) (Packet, error) {
 	return Packet{At: time.Unix(int64(sec), int64(frac)*int64(unit)).UTC(), Data: data}, nil
 }
 
-// take reads n bytes; a length over maxRecord is skipped (nil, nil).
-func (s *FileSource) take(n int) ([]byte, error) {
-	if n < 0 || n > maxRecord {
+// take reads n bytes; a length over maxRecord is skipped (nil, nil). n stays unsigned until it is checked, so a
+// hostile 32-bit length cannot wrap on a 32-bit system.
+func (s *FileSource) take(n uint32) ([]byte, error) {
+	if n > maxRecord {
 		if _, err := io.CopyN(io.Discard, s.r, int64(n)); err != nil {
 			return nil, eofOr(err, "pcap record body")
 		}
 		return nil, nil
 	}
-	b := make([]byte, n)
+	b := make([]byte, int(n))
 	if _, err := io.ReadFull(s.r, b); err != nil {
 		return nil, fmt.Errorf("sensorpassive: recording is cut short: %w", err)
 	}
@@ -175,7 +176,7 @@ func (s *FileSource) nextNG() (Packet, error) {
 		} else if s.order == nil {
 			return Packet{}, errors.New("sensorpassive: pcapng must start with a section header")
 		}
-		total := int(order.Uint32(h[4:8]))
+		total := order.Uint32(h[4:8])
 		if total < 12 || total%4 != 0 || total > maxRecord+64 {
 			return Packet{}, errors.New("sensorpassive: pcapng block length")
 		}
@@ -208,8 +209,8 @@ func (s *FileSource) nextNG() (Packet, error) {
 			if len(body) < 20 {
 				return Packet{}, errors.New("sensorpassive: pcapng packet block")
 			}
-			id, capLen := int(order.Uint32(body[0:4])), int(order.Uint32(body[12:16]))
-			if id >= len(s.ifaces) || capLen < 0 || 20+capLen > len(body) {
+			id, capLen := order.Uint32(body[0:4]), order.Uint32(body[12:16])
+			if int64(id) >= int64(len(s.ifaces)) || int64(20)+int64(capLen) > int64(len(body)) {
 				return Packet{}, errors.New("sensorpassive: pcapng packet block length")
 			}
 			if !s.ifaces[id].ethernet {
@@ -217,12 +218,12 @@ func (s *FileSource) nextNG() (Packet, error) {
 			}
 			ticks := uint64(order.Uint32(body[4:8]))<<32 | uint64(order.Uint32(body[8:12]))
 			at := time.Unix(0, 0).UTC().Add(time.Duration(ticks) * s.ifaces[id].unit) //nolint:gosec // a hostile 64-bit tick count wraps to an odd timestamp, nothing more
-			return Packet{At: at, Data: append([]byte(nil), body[20:20+capLen]...)}, nil
+			return Packet{At: at, Data: append([]byte(nil), body[20:20+int(capLen)]...)}, nil
 		case ngSPB:
 			if len(s.ifaces) == 0 || len(body) < 4 {
 				return Packet{}, errors.New("sensorpassive: pcapng simple packet block")
 			}
-			n := min(int(order.Uint32(body[0:4])), len(body)-4)
+			n := int(min(int64(order.Uint32(body[0:4])), int64(len(body)-4)))
 			if !s.ifaces[0].ethernet {
 				return Packet{}, ErrDropped
 			}

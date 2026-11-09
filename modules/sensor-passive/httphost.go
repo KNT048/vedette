@@ -52,6 +52,9 @@ func parseHTTPHost(b []byte) (string, error) {
 // cleanHost turns a Host header value into a host name or an IPv4 address without a port.
 func cleanHost(v string) (string, error) {
 	v = strings.ToLower(strings.TrimSpace(v))
+	if strings.ContainsAny(v, "@/\\?#") { // userinfo (user:password@host) or a path: not a Host header
+		return "", malformed("http: Host with userinfo or path")
+	}
 	if strings.HasPrefix(v, "[") { // IPv6 literal: not read (IPv4 only)
 		return "", errIgnore
 	}

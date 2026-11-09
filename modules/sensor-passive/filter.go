@@ -49,6 +49,9 @@ func compileFilters(fs []Filter) (*matcher, error) {
 	return m, nil
 }
 
+// hasPorts reports whether any port rule exists.
+func (m *matcher) hasPorts() bool { return len(m.ports) > 0 }
+
 // excludes reports whether traffic between src and dst (zero addresses and port 0 mean "not present") is
 // excluded: either end in a listed range or host, or either port in a listed port.
 func (m *matcher) excludes(src, dst netip.Addr, sport, dport uint16) bool {

@@ -130,4 +130,9 @@ VulnCheck Community, AbuseIPDB, VirusTotal, GreyNoise, Shodan, AlienVault OTX, u
 
 ### Passive sensor (`modules/sensor-passive`, WP-11)
 
-No third-party library: the pcap/pcapng readers and the ARP, DHCP, DNS/mDNS, SSDP, LLDP, TLS ClientHello and HTTP Host parsers are written in Go on the standard library (`syscall` for the Linux AF_PACKET socket). The IEEE OUI registry is **not** shipped: its public page states no redistribution licence (D-80).
+No third-party library: the pcap/pcapng readers and the ARP, DHCP, DNS/mDNS, SSDP, LLDP, TLS ClientHello and HTTP Host parsers are written in Go on the standard library (`syscall` for the Linux AF_PACKET socket).
+
+| Data | License | How it is used |
+|---|---|---|
+| runZero mac-tracker (`data/macs.json`), copyright runZero Inc., HD Moore and dutchcoders; the data is from the IEEE Registration Authority registries (oui, mam, oui36, iab, cid) | MIT | bundled: `make oui` reads it at build time and writes `content/oui/oui.tsv.gz`, embedded in the binary (D-83); the MIT notice is kept next to it in `content/oui/LICENSE.mac-tracker`. Nothing is downloaded at run time, so PRIVACY.md is unchanged. The GPL/NPSL lists of Wireshark and Nmap are not used |
+

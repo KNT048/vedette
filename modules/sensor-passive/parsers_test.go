@@ -5,6 +5,7 @@ import (
 	"net/netip"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/modules/sensor-passive/internal/pktgen"
 )
@@ -266,6 +267,7 @@ func TestParseHTTPHost(t *testing.T) {
 	}
 	for name, in := range map[string][]byte{
 		"no version": []byte("GET /\x00\x01 garbage\r\nHost: a\r\n\r\n"), "odd host": req("bad host!"),
+		"userinfo (a password) in Host": req("alice:s3cret@example.org"), "path in Host": req("example.org/x"),
 	} {
 		if _, err := parseHTTPHost(in); !errors.Is(err, errMalformed) {
 			t.Errorf("%s: want malformed, got %v", name, err)
@@ -327,10 +329,32 @@ func TestCleanTextAndHostname(t *testing.T) {
 	if _, ok := cleanText("a\x00b", 200); ok {
 		t.Error("control characters accepted")
 	}
+	for _, s := range []string{"a\u0085b", "a\u009fb", "evil\u202egpj.exe", "a\u2066b", "a\u2069b", "a\u200fb", "a\u2028b"} {
+		if printable(s) {
+			t.Errorf("%q accepted: C1 controls and bidirectional marks must be refused", s)
+		}
+	}
+	if !printable("Müller-PC 日本") {
+		t.Error("ordinary Unicode text must stay allowed")
+	}
 	if v, _ := cleanText("hé", 2); v != "h" {
 		t.Errorf("cut inside a rune: %q", v)
 	}
 	if got := truncate("héllo", 2); got != "h" {
 		t.Errorf("truncate inside a rune: %q", got)
+	}
+}
+
+func TestBackoffGrowsToTenMinutes(t *testing.T) {
+	t.Parallel()
+	base := 5 * time.Second
+	want := []time.Duration{5 * time.Second, 10 * time.Second, 20 * time.Second, 40 * time.Second, 80 * time.Second, 160 * time.Second, 320 * time.Second, 10 * time.Minute, 10 * time.Minute}
+	for i, w := range want {
+		if got := backoff(base, i+1); got != w {
+			t.Errorf("failure %d: %v, want %v", i+1, got, w)
+		}
+	}
+	if backoff(base, 0) != base || backoff(base, 1000) != maxBackoff {
+		t.Error("edges")
 	}
 }

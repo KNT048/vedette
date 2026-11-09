@@ -8,6 +8,7 @@ import (
 	"go/parser"
 	"go/token"
 	"log/slog"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -502,17 +503,17 @@ func TestContract_POST4_SpanStatsAreMeasured(t *testing.T) {
 	var st sp.SpanStats
 	waitFor(t, "measurement", func() bool {
 		st, _ = e.svc.SpanStats(ctx)
-		return st.Verdict == sp.VerdictOK && st.OtherMACs == 4 && st.LastPacket.Equal(pktgen.T0.Add(10*time.Second))
+		return st.Verdict == sp.VerdictOK && st.OtherMACs == 3 && st.LastPacket.Equal(pktgen.T0.Add(10*time.Second))
 	})
-	// the fixture has 13 frames in 10 s of the 13 s window, from PC, Router, Phone, Printer and the box: others = 4
-	if st.OtherMACs != 4 || st.PPS < 1 || !st.LastPacket.Equal(pktgen.T0.Add(10*time.Second)) {
+	// the fixture has 13 frames in 10 s of the 13 s window, from PC, Router, Phone, Printer and the box; the printer's ARP is a broadcast, so others = PC, Router, Phone = 3
+	if st.OtherMACs != 3 || st.PPS < 1 || !st.LastPacket.Equal(pktgen.T0.Add(10*time.Second)) {
 		t.Errorf("stats %+v", st)
 	}
 	waitFor(t, "stats saved", func() bool {
-		return e.count(`SELECT count(*) FROM sp_span_stat WHERE other_macs = 4 AND last_packet_at IS NOT NULL`) == 1
+		return e.count(`SELECT count(*) FROM sp_span_stat WHERE other_macs = 3 AND last_packet_at IS NOT NULL`) == 1
 	})
 	list, _ := e.svc.Status(ctx)
-	if list[0].SpanStatus.Verdict != "ok" || list[0].SpanStatus.OtherMACs != 4 {
+	if list[0].SpanStatus.Verdict != "ok" || list[0].SpanStatus.OtherMACs != 3 {
 		t.Errorf("sensor card: %+v", list[0].SpanStatus)
 	}
 	e.setClock(func() time.Time { return pktgen.T0.Add(5 * time.Minute) }) // five quiet minutes later
@@ -527,7 +528,6 @@ func TestContract_CaptureFollowsTheModuleSwitch(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, frames(), true)
 	e.setInterface("eth0", false)
-	before := runtime.NumGoroutine()
 	gate := &switchGate{on: map[string]bool{}}
 	sched := jobs.New(nopLog(), gate, nil)
 	if err := sched.Add(jobs.Job{Module: "sensor-passive", Name: "capture", Every: 20 * time.Millisecond, Run: e.svc.Run}); err != nil {
@@ -540,10 +540,10 @@ func TestContract_CaptureFollowsTheModuleSwitch(t *testing.T) {
 	if len(e.src.opens()) != 0 {
 		t.Fatal("capture started while the module was off")
 	}
-	gate.set("sensor-passive", true)
+	gate.set(true)
 	sched.ModuleChanged("sensor-passive", true)
 	waitFor(t, fmt.Sprintf("capture to start (opens %v sink %d)", e.src.opens(), e.sink.count()), func() bool { return len(e.src.opens()) == 1 && e.sink.count() > 0 })
-	gate.set("sensor-passive", false)
+	gate.set(false)
 	sched.ModuleChanged("sensor-passive", false)
 	waitFor(t, "the source to close", func() bool { return e.src.closes() == 1 })
 	n := e.sink.count()
@@ -556,7 +556,6 @@ func TestContract_CaptureFollowsTheModuleSwitch(t *testing.T) {
 	}
 	cancel()
 	<-done
-	waitFor(t, "goroutines to end", func() bool { return runtime.NumGoroutine() <= before+1 })
 }
 
 type switchGate struct {
@@ -565,11 +564,142 @@ type switchGate struct {
 }
 
 func (g *switchGate) Enabled(id string) bool { g.mu.Lock(); defer g.mu.Unlock(); return g.on[id] }
-func (g *switchGate) set(id string, v bool)  { g.mu.Lock(); defer g.mu.Unlock(); g.on[id] = v }
+func (g *switchGate) set(v bool)             { g.mu.Lock(); defer g.mu.Unlock(); g.on["sensor-passive"] = v }
 
 func nopLog() *slog.Logger { return slog.New(slog.DiscardHandler) }
 
 // MigrationsUsePrefix: DATA_MODEL rule, checked by effect.
 func TestMigrationsUsePrefix(t *testing.T) {
 	storetest.AssertMigrationsUsePrefix(t, "sensor-passive", sp.Migrations, "sp_", storetest.Migration{Module: "core", FS: core.Migrations})
+}
+
+// SYS-5: turning the module off and on many times, and moving the capture, leaves no goroutine behind. Not
+// parallel: runtime.NumGoroutine counts the whole process.
+func TestContract_NoGoroutineLeakAcrossSwitches(t *testing.T) {
+	e := newEnv(t, frames(), true)
+	e.setInterface("eth0", false)
+	gate := &switchGate{on: map[string]bool{}}
+	sched := jobs.New(nopLog(), gate, nil)
+	if err := sched.Add(jobs.Job{Module: "sensor-passive", Name: "capture", Every: 10 * time.Millisecond, Run: e.svc.Run}); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() { defer close(done); sched.Run(ctx) }()
+	pause(t, 50*time.Millisecond)
+	base := runtime.NumGoroutine()
+	for i := range 20 {
+		prev := len(e.src.opens())
+		gate.set(true)
+		sched.ModuleChanged("sensor-passive", true)
+		waitFor(t, "open", func() bool { return len(e.src.opens()) > prev })
+		if i%3 == 0 {
+			e.setInterface("eth1", true)
+			waitFor(t, "reopen 1", func() bool { return len(e.src.opens()) > prev+1 })
+			e.setInterface("eth0", false)
+			waitFor(t, "reopen 2", func() bool { return len(e.src.opens()) > prev+2 })
+		}
+		gate.set(false)
+		start := time.Now()
+		sched.ModuleChanged("sensor-passive", false)
+		waitFor(t, "close", func() bool { return e.src.closes() == len(e.src.opens()) })
+		if d := time.Since(start); d > time.Second {
+			t.Errorf("stop took %v", d)
+		}
+	}
+	pause(t, 100*time.Millisecond)
+	runtime.GC()
+	if after := runtime.NumGoroutine(); after > base+1 {
+		buf := make([]byte, 1<<16)
+		t.Errorf("leak: %d -> %d\n%s", base, after, buf[:runtime.Stack(buf, true)])
+	}
+	cancel()
+	<-done
+}
+
+// H1: one valid but over-long host name must not stop the others from being recorded.
+func TestContract_LongHostnameDoesNotPoisonTheBatch(t *testing.T) {
+	t.Parallel()
+	long := strings.Repeat("a", 63) + "." + strings.Repeat("b", 63) + "." + strings.Repeat("c", 63) + "." + strings.Repeat("d", 20)
+	zero, bcast := netip.MustParseAddr("0.0.0.0"), netip.MustParseAddr("255.255.255.255")
+	fr := []pktgen.Frame{
+		{At: pktgen.T0, Data: pktgen.ARP(pktgen.Bcast, 1, pktgen.PC, pktgen.PCIP, pktgen.MAC{}, pktgen.RouterIP)},
+		{At: pktgen.T0, Data: pktgen.ARP(pktgen.Bcast, 1, pktgen.Printer, pktgen.PrinterIP, pktgen.MAC{}, pktgen.RouterIP)},
+		{At: pktgen.T0, Data: pktgen.UDPFrame(pktgen.Bcast, pktgen.Phone, zero, bcast, 68, 67,
+			pktgen.DHCP(1, pktgen.Phone, netip.Addr{}, netip.Addr{}, pktgen.DHCPOpts{Type: 1, Hostname: long}))},
+	}
+	e := newEnv(t, map[string][]pktgen.Frame{"eth0": fr}, true)
+	e.setInterface("eth0", false)
+	e.run()
+	waitFor(t, "all three devices", func() bool { return len(e.devices()) == 3 })
+	if d := e.device(pktgen.Phone.String()); d == nil || d.Hostname == nil || len(*d.Hostname) > 200 {
+		t.Errorf("the phone: %+v", d)
+	}
+}
+
+// sensor-protocol 5.5: an item the inventory refuses is dropped alone; the rest of its batch is recorded.
+func TestContract_OneRefusedItemDoesNotBlindTheBatch(t *testing.T) {
+	t.Parallel()
+	zero, bcast := netip.MustParseAddr("0.0.0.0"), netip.MustParseAddr("255.255.255.255")
+	fr := []pktgen.Frame{
+		{At: pktgen.T0, Data: pktgen.ARP(pktgen.Bcast, 1, pktgen.PC, pktgen.PCIP, pktgen.MAC{}, pktgen.RouterIP)},
+		{At: pktgen.T0, Data: pktgen.UDPFrame(pktgen.Bcast, pktgen.Phone, zero, bcast, 68, 67,
+			pktgen.DHCP(1, pktgen.Phone, netip.Addr{}, netip.Addr{}, pktgen.DHCPOpts{Type: 1, Hostname: "refused-name"}))},
+		{At: pktgen.T0, Data: pktgen.ARP(pktgen.Bcast, 1, pktgen.Printer, pktgen.PrinterIP, pktgen.MAC{}, pktgen.RouterIP)},
+	}
+	e := newEnv(t, map[string][]pktgen.Frame{"eth0": fr}, true, withReject("refused-name"))
+	e.setInterface("eth0", false)
+	e.run()
+	waitFor(t, "the two good devices and the phone's MAC", func() bool { return len(e.devices()) == 3 })
+	for _, o := range e.observations() {
+		if o.Value == "refused-name" {
+			t.Error("the refused observation was recorded")
+		}
+	}
+}
+
+type syncBuffer struct {
+	mu sync.Mutex
+	b  strings.Builder
+}
+
+func (s *syncBuffer) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+func (s *syncBuffer) String() string { s.mu.Lock(); defer s.mu.Unlock(); return s.b.String() }
+
+// Dropped packets are summarised in the log, once while the numbers do not change (no spam).
+func TestContract_DropSummaryIsLoggedOnceWhileUnchanged(t *testing.T) {
+	t.Parallel()
+	var buf syncBuffer
+	e := newEnv(t, map[string][]pktgen.Frame{"eth1": pktgen.Malformed()}, true,
+		withLog(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo})), withSummaryEvery(20*time.Millisecond))
+	e.setInterface("eth1", true)
+	e.run()
+	waitFor(t, "the summary", func() bool { return strings.Contains(buf.String(), "packets dropped or ignored") })
+	pause(t, 200*time.Millisecond) // ten more intervals with the same counters
+	if n := strings.Count(buf.String(), "packets dropped or ignored"); n != 1 {
+		t.Errorf("%d summaries, want 1:\n%s", n, buf.String())
+	}
+	if !strings.Contains(buf.String(), "malformed_arp") {
+		t.Errorf("the summary has no counters:\n%s", buf.String())
+	}
+}
+
+// A capture that cannot be opened is retried with a growing pause, not every few seconds forever.
+func TestContract_FailingOpenBacksOff(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, nil, true)
+	e.src.fail = true
+	e.setInterface("eth0", false)
+	e.run()
+	pause(t, 400*time.Millisecond) // RetryEvery is 20 ms: a constant pause would try about 20 times
+	e.src.mu.Lock()
+	tries := e.src.tries
+	e.src.mu.Unlock()
+	if tries < 3 || tries > 7 {
+		t.Errorf("%d attempts in 400 ms, want 3 to 7 (20, 40, 80, 160 ms pauses)", tries)
+	}
 }

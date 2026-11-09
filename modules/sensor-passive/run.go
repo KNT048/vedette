@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/netip"
 	"time"
 
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -22,6 +24,7 @@ func (s *Service) Run(ctx context.Context) error {
 	if err := s.ensureSensor(ctx); err != nil {
 		return ignoreStop(ctx, err)
 	}
+	failures := 0
 	for ctx.Err() == nil {
 		select { // a change made before this look is already in what we read next
 		case <-s.reload:
@@ -37,17 +40,39 @@ func (s *Service) Run(ctx context.Context) error {
 		}
 		switch err := s.session(ctx, st); {
 		case err == nil || errors.Is(err, errReload):
+			failures = 0
 			if errors.Is(err, errReload) {
 				continue // new settings: start over now
 			}
 			s.wait(ctx, 24*time.Hour) // the recording ended: nothing more until the settings change
 		case ctx.Err() != nil:
 		default:
-			s.log.WarnContext(ctx, "sensor-passive: capture stopped, will retry", "interface", st.Interface, "error", err)
-			s.wait(ctx, s.retryEvery)
+			failures++
+			wait := backoff(s.retryEvery, failures)
+			s.log.WarnContext(ctx, "sensor-passive: capture stopped, will retry", "interface", st.Interface, "retry_in", wait.String(), "error", err)
+			s.wait(ctx, wait)
 		}
 	}
 	return nil
+}
+
+// maxBackoff is the longest pause between two attempts to open a capture that keeps failing.
+const maxBackoff = 10 * time.Minute
+
+// backoff is the pause after the n-th failure in a row: base, 2*base, 4*base ... up to ten minutes. A card
+// that is gone must not fill the log every few seconds.
+func backoff(base time.Duration, n int) time.Duration {
+	if n < 1 {
+		n = 1
+	}
+	d := base
+	for range min(n-1, 20) {
+		d *= 2
+		if d >= maxBackoff {
+			return maxBackoff
+		}
+	}
+	return min(d, maxBackoff)
 }
 
 // ignoreStop turns the error of a stop request (module off) into a clean return.
@@ -152,7 +177,8 @@ func (s *Service) setEngine(e *Engine) {
 
 func (s *Service) capture(ctx context.Context, src Source, eng *Engine) error {
 	now := s.clock()
-	lastFlush, lastBeat := now, time.Time{}
+	lastFlush, lastBeat, lastSummary := now, time.Time{}, now
+	var logged map[string]uint64
 	for ctx.Err() == nil {
 		p, err := src.Next(ctx)
 		switch {
@@ -175,6 +201,13 @@ func (s *Service) capture(ctx context.Context, src Source, eng *Engine) error {
 			s.heartbeat(ctx, eng)
 			lastBeat = now
 		}
+		if now.Sub(lastSummary) >= s.summaryEvery {
+			lastSummary = now
+			if c := eng.Counters(); len(c) > 0 && !maps.Equal(c, logged) { // only when something changed
+				s.log.InfoContext(ctx, "sensor-passive: packets dropped or ignored since the capture started", "counters", c)
+				logged = c
+			}
+		}
 	}
 	return nil
 }
@@ -186,13 +219,8 @@ func (s *Service) flush(ctx context.Context, eng *Engine, final bool) {
 	obs, meta := eng.Drain(s.clock(), final)
 	for len(obs) > 0 {
 		n := min(len(obs), maxSubmitBatch)
-		batch := obs[:n]
+		s.deliver(ctx, eng, obs[:n])
 		obs = obs[n:]
-		if _, err := s.SubmitBatch(ctx, SensorID, s.nextSeq(), batch); err != nil {
-			eng.Unmark(batch)
-			eng.CountDrop("submit_failed")
-			s.log.WarnContext(ctx, "sensor-passive: observations not recorded", "count", len(batch), "error", err)
-		}
 	}
 	for len(meta) > 0 {
 		n := min(len(meta), maxSubmitBatch)
@@ -207,6 +235,36 @@ func (s *Service) flush(ctx context.Context, eng *Engine, final bool) {
 		if err := s.advance(ctx, seq); err != nil {
 			s.log.WarnContext(ctx, "sensor-passive: saving the batch number failed", "error", err)
 		}
+	}
+}
+
+// deliver records one batch. If the inventory refuses it, the observations are offered one by one, so a single
+// bad item never blinds the rest of the batch (sensor-protocol 5.5); the ones refused alone are dropped,
+// counted, and forgotten by the repeat filter. The batch number is used up either way.
+func (s *Service) deliver(ctx context.Context, eng *Engine, batch []observe.Observation) {
+	seq := s.nextSeq()
+	_, err := s.SubmitBatch(ctx, SensorID, seq, batch)
+	if err == nil {
+		return
+	}
+	if len(batch) == 1 || ctx.Err() != nil {
+		eng.Unmark(batch)
+		eng.CountDrop("observation_rejected")
+		s.log.WarnContext(ctx, "sensor-passive: observations not recorded", "count", len(batch), "error", err)
+		return
+	}
+	rejected := 0
+	for _, o := range batch {
+		one := []observe.Observation{o}
+		if err := s.sink.Record(ctx, one); err != nil {
+			eng.Unmark(one)
+			eng.CountDrop("observation_rejected")
+			rejected++
+		}
+	}
+	s.log.WarnContext(ctx, "sensor-passive: a batch was refused and recorded item by item", "count", len(batch), "rejected", rejected, "error", err)
+	if err := s.advance(ctx, seq); err != nil {
+		s.log.WarnContext(ctx, "sensor-passive: saving the batch number failed", "error", err)
 	}
 }
 

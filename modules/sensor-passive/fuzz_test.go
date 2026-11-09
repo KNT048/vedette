@@ -173,7 +173,7 @@ func FuzzEngineHandle(f *testing.F) {
 		e.Handle(Packet{At: pktgen.T0, Data: b})
 		obs, meta := e.Drain(pktgen.T0, true)
 		for _, o := range obs {
-			if _, ok := parseMAC(o.AssetHint.MAC); !ok || len(o.Value) > 253 || !printable(o.Value) || o.Confidence <= 0 || o.Confidence > 1 {
+			if _, ok := parseMAC(o.AssetHint.MAC); !ok || len(o.Value) > maxValue || !printable(o.Value) || o.Confidence <= 0 || o.Confidence > 1 {
 				t.Fatalf("bad observation %+v", o)
 			}
 		}

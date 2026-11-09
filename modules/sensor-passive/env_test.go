@@ -2,6 +2,7 @@ package sensorpassive_test
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/netip"
@@ -91,12 +92,18 @@ type openSource struct {
 	closed int
 	files  map[string][]pktgen.Frame // interface → frames
 	hold   bool
+	fail   bool // every open fails, like a card that vanished
+	tries  int
 }
 
 func (o *openSource) open(iface string) (sp.Source, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	o.opened = append(o.opened, iface)
+	o.tries++
+	if o.fail {
+		return nil, errors.New("no such card")
+	}
 	return &replaySource{owner: o, frames: o.files[iface], hold: o.hold}, nil
 }
 
@@ -157,15 +164,21 @@ type env struct {
 
 // countingSink wraps the inventory so tests can see what was recorded and when.
 type countingSink struct {
-	inner observe.Sink
-	mu    sync.Mutex
-	got   []observe.Observation
+	inner  observe.Sink
+	reject string // a value the "inventory" refuses (the whole batch it is in, like the real one)
+	mu     sync.Mutex
+	got    []observe.Observation
 }
 
 func (c *countingSink) Record(ctx context.Context, obs []observe.Observation) error {
 	c.mu.Lock()
 	c.got = append(c.got, obs...)
 	c.mu.Unlock()
+	for _, o := range obs {
+		if c.reject != "" && o.Value == c.reject {
+			return errors.New("refused")
+		}
+	}
 	return c.inner.Record(ctx, obs)
 }
 
@@ -175,6 +188,14 @@ type option func(*sp.Config, *env)
 
 // withClock starts the test clock at base; it then runs with real time, so the loop's flush and heartbeat
 // timers fire while the time stays near base.
+func withLog(h slog.Handler) option { return func(c *sp.Config, _ *env) { c.Log = slog.New(h) } }
+
+func withReject(value string) option { return func(_ *sp.Config, e *env) { e.sink.reject = value } }
+
+func withSummaryEvery(d time.Duration) option {
+	return func(c *sp.Config, _ *env) { c.SummaryEvery = d }
+}
+
 func withClock(base time.Time) option {
 	return func(_ *sp.Config, e *env) { e.now = elapsedFrom(base) }
 }

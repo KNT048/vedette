@@ -8,6 +8,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/knt048/vedette/content/oui"
 	"github.com/knt048/vedette/core/observe"
 )
 
@@ -26,21 +27,24 @@ const (
 	ConfMDNSKind    = 0.5 // mDNS service type that only one kind of device advertises
 	ConfSSDPKind    = 0.5 // SSDP device type InternetGatewayDevice
 	ConfMDNSIotKind = 0.3
+	ConfOUIVendor   = 0.4 // vendor from the IEEE OUI table (D-83): says who made the card, not what the device is
 )
 
 // Bounds on what one Engine holds between two drains (SYS-6: the network is untrusted, a flood must not
 // grow memory without limit). Overflow is counted, never silent.
 const (
-	maxPending  = 5000
-	maxMeta     = 20000
-	maxFlows    = 20000
-	maxSent     = 50000
-	maxOthers   = 4096
-	maxSeen     = 50000
-	repeatAfter = 15 * time.Minute // the same observation is sent again at most this often
-	macWindow   = 5 * time.Minute  // "other MACs" counts sources seen within this window
-	seenWindow  = 24 * time.Hour   // devices_seen counts MACs seen within this window
-	flowWindow  = time.Minute      // flows are summed over this window, then handed out
+	maxPending          = 5000
+	maxMeta             = 20000
+	maxFlows            = 20000
+	maxSent             = 50000
+	maxOthers           = 4096
+	maxSeen             = 50000
+	maxValue            = 200              // the inventory refuses longer values (inventory PRE-1); sensor-protocol 5.3 says free text is cut
+	maxNewMACsPerMinute = 60               // new devices one minute may add: a flood of random MACs must not fill the inventory
+	repeatAfter         = 15 * time.Minute // the same observation is sent again at most this often
+	macWindow           = 5 * time.Minute  // "other MACs" counts sources seen within this window
+	seenWindow          = 24 * time.Hour   // devices_seen counts MACs seen within this window
+	flowWindow          = time.Minute      // flows are summed over this window, then handed out
 )
 
 var mdnsKinds = map[string]struct {
@@ -101,6 +105,9 @@ type Engine struct {
 	lastPacket time.Time
 	others     map[mac]time.Time
 	seen       map[mac]time.Time
+	known      map[mac]struct{} // MACs this engine already reported (new ones are rate limited)
+	newWindow  time.Time
+	newCount   int
 }
 
 // newEngine compiles the filters and the own-address sets.
@@ -117,7 +124,7 @@ func newEngine(cfg engineConfig) (*Engine, error) {
 		clock: clock, span: cfg.Span, extract: cfg.Extract, filt: m,
 		ownMAC: map[mac]bool{}, ownIP: map[netip.Addr]bool{},
 		flows: map[flowKey]*flowVal{}, sent: map[obsKey]time.Time{}, counters: map[string]uint64{},
-		others: map[mac]time.Time{}, seen: map[mac]time.Time{},
+		others: map[mac]time.Time{}, seen: map[mac]time.Time{}, known: map[mac]struct{}{},
 	}
 	for _, s := range cfg.OwnMACs {
 		if b, ok := parseMAC(s); ok {
@@ -196,7 +203,9 @@ func (e *Engine) Handle(p Packet) {
 		}
 		return
 	}
-	if f.src.usable() && !e.ownMAC[f.src] {
+	// "other MACs" counts unicast frames between two hosts that are not the box: broadcasts and the replies to the
+	// box arrive on a mirror of the box's own port too, and would hide that nothing else is mirrored (INV-9).
+	if f.src.usable() && !e.ownMAC[f.src] && !e.ownMAC[f.dst] && f.dst[0]&1 == 0 {
 		e.noteOther(f.src, now)
 	}
 	switch f.ethType {
@@ -285,17 +294,56 @@ func (e *Engine) own(m mac, ip netip.Addr) bool {
 	return e.ownMAC[m] || (ip.IsValid() && e.ownIP[ip])
 }
 
-// add queues an observation unless the same one went out recently (INV-6: nothing about the box itself).
+// add queues an observation unless it is about the box itself (INV-6), repeats one sent recently, or would add
+// a new device beyond the per-minute budget. An address that is not a unicast host address never reaches the
+// sink: the observation is kept without it.
 func (e *Engine) add(now time.Time, hintMAC mac, hintIP netip.Addr, field observe.Field, value string, conf float64) {
 	if e.own(hintMAC, hintIP) {
 		return
 	}
-	if len(e.obs) >= maxPending {
-		e.drop("observations_dropped")
-		return
+	if hintIP.IsValid() && !unicastIP(hintIP) {
+		e.drop("non_unicast_ip")
+		hintIP = netip.Addr{}
 	}
+	if len(value) > maxValue {
+		value = fit(value)
+		e.drop("value_truncated")
+	}
+	if _, ok := e.known[hintMAC]; !ok {
+		if !e.takeNewMAC(now) {
+			e.drop("new_macs_dropped")
+			return
+		}
+		if len(e.known) >= maxSeen {
+			clear(e.known)
+		}
+		e.known[hintMAC] = struct{}{}
+		if v, ok := oui.Lookup(hintMAC); ok {
+			e.queue(now, hintMAC, netip.Addr{}, observe.Vendor, v, ConfOUIVendor)
+		}
+	}
+	e.queue(now, hintMAC, hintIP, field, value, conf)
+}
+
+// takeNewMAC spends one unit of the budget of new devices for the current minute.
+func (e *Engine) takeNewMAC(now time.Time) bool {
+	if now.Sub(e.newWindow) >= time.Minute || now.Before(e.newWindow) {
+		e.newWindow, e.newCount = now, 0
+	}
+	if e.newCount >= maxNewMACsPerMinute {
+		return false
+	}
+	e.newCount++
+	return true
+}
+
+func (e *Engine) queue(now time.Time, hintMAC mac, hintIP netip.Addr, field observe.Field, value string, conf float64) {
 	k := obsKey{hintMAC.String(), hintIP.String(), string(field), value}
 	if t, ok := e.sent[k]; ok && now.Sub(t) < repeatAfter {
+		return
+	}
+	if len(e.obs) >= maxPending {
+		e.drop("observations_dropped")
 		return
 	}
 	if len(e.sent) >= maxSent {
@@ -306,6 +354,17 @@ func (e *Engine) add(now time.Time, hintMAC mac, hintIP netip.Addr, field observ
 		AssetHint: observe.AssetHint{IP: hintIP, MAC: hintMAC.String()},
 		Field:     field, Value: value, Source: observe.Passive, Confidence: conf, SeenAt: now,
 	})
+}
+
+// fit cuts a value to maxValue bytes on a character boundary and drops the separators the cut leaves at the end.
+func fit(s string) string {
+	s = truncate(s, maxValue)
+	return strings.TrimRight(s, ". -_")
+}
+
+// unicastIP reports whether a is an address a host can have: not unspecified, loopback, multicast or broadcast.
+func unicastIP(a netip.Addr) bool {
+	return a.IsValid() && !a.IsUnspecified() && !a.IsLoopback() && !a.IsMulticast() && a != netip.AddrFrom4([4]byte{255, 255, 255, 255})
 }
 
 func (e *Engine) handleARP(f frame, now time.Time) {
@@ -394,6 +453,10 @@ func (e *Engine) handleIP(f frame, now time.Time) {
 			sport, dport = tcp.sport, tcp.dport
 		}
 	}
+	if !ip.firstFrg && e.filt.hasPorts() { // no ports to compare: fail closed rather than read what may be excluded
+		e.drop("fragment_skipped")
+		return
+	}
 	if e.excluded(ip.src, ip.dst, sport, dport) {
 		return
 	}
@@ -403,35 +466,36 @@ func (e *Engine) handleIP(f frame, now time.Time) {
 	if f.src.usable() {
 		e.noteDevice(f.src, now)
 	}
-	if e.span && e.extract.Flows {
+	toBox := e.ownIP[ip.dst] || e.ownMAC[f.dst] // traffic to the box is the box's business, not a device's (INV-6)
+	if e.span && e.extract.Flows && !toBox {
 		e.countFlow(ip, sport, dport, now)
 	}
 	switch ip.proto {
 	case protoUDP:
 		if ip.firstFrg {
-			e.handleUDP(f, ip, udp, now)
+			e.handleUDP(f, ip, udp, now, toBox)
 		}
 	case protoTCP:
-		if ip.firstFrg && e.span {
+		if ip.firstFrg && e.span && !toBox {
 			e.handleTCP(f, ip, tcp, now)
 		}
 	}
 }
 
-func (e *Engine) handleUDP(f frame, ip ipv4, u udpDatagram, now time.Time) {
+func (e *Engine) handleUDP(f frame, ip ipv4, u udpDatagram, now time.Time, toBox bool) {
 	switch {
 	case (u.sport == 68 && u.dport == 67) || (u.sport == 67 && u.dport == 68):
-		e.handleDHCP(u.payload, now)
+		e.handleDHCP(f, u.payload, now)
 	case u.sport == 5353 || u.dport == 5353:
 		e.handleMDNS(f, ip, u.payload, now)
 	case u.sport == 1900 || u.dport == 1900:
 		e.handleSSDP(f, ip, u.payload, now)
-	case u.dport == 53 && e.span && e.extract.DNS:
+	case u.dport == 53 && e.span && e.extract.DNS && !toBox:
 		e.handleDNSQuery(f, ip, u.payload, now)
 	}
 }
 
-func (e *Engine) handleDHCP(b []byte, now time.Time) {
+func (e *Engine) handleDHCP(f frame, b []byte, now time.Time) {
 	m, err := parseDHCP(b)
 	if err != nil {
 		e.drop("malformed_dhcp")
@@ -440,14 +504,28 @@ func (e *Engine) handleDHCP(b []byte, now time.Time) {
 	if !m.clientMAC.usable() {
 		return
 	}
+	// the addresses inside the message are as much "the host" as the IP header: INV-7 applies to them too
+	for _, a := range []netip.Addr{m.clientIP, m.yourIP, m.requestedIP} {
+		if a.IsValid() && e.excluded(a, netip.Addr{}, 0, 0) {
+			return
+		}
+	}
 	switch m.op {
-	case 1: // a client asks: it exists, and it may give its name
+	case 1: // a client asks: it exists, and it may give its name. Only the client itself may speak for its MAC.
+		if m.clientMAC != f.src {
+			e.drop("dhcp_mac_mismatch")
+			return
+		}
 		e.noteDevice(m.clientMAC, now)
 		e.add(now, m.clientMAC, m.clientIP, observe.MAC, m.clientMAC.String(), ConfMACBinding)
 		if m.hostname != "" {
 			e.add(now, m.clientMAC, m.clientIP, observe.Hostname, m.hostname, ConfDHCPName)
 		}
-	case 2: // a server answers: the ACK binds an address to a MAC
+	case 2: // a server answers: the ACK binds an address to a MAC, and goes to that MAC (or to everybody)
+		if m.clientMAC != f.dst && f.dst != (mac{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}) {
+			e.drop("dhcp_mac_mismatch")
+			return
+		}
 		if m.msgType == 5 && m.yourIP.IsValid() {
 			e.add(now, m.clientMAC, m.yourIP, observe.MAC, m.clientMAC.String(), ConfMACBinding)
 		}

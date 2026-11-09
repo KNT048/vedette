@@ -1,7 +1,6 @@
 # Deferred: feat/sensor-passive (WP-11)
 
 - [ ] Live AF_PACKET capture (`afpacket_linux.go`) is compiled and source-audited only; verify by effect on the lab VM: socket opens with only CAP_NET_RAW, `tx_packets` of the card does not change, frames arrive, stops on module off.
-- [ ] OUI vendor lookup: IEEE oui.csv page states no redistribution licence (D-80 (6)); get a clear licence or a licensed source, then add `vendor` observations at confidence 0.4 and a THIRD_PARTY_NOTICES row.
 - [ ] Fingerbank (INV-10): not in this WP; needs BYOK key, default off, PRIVACY.md row. DHCP vendor class (opt 60) and client id (opt 61) are parsed but not yet used; Fingerbank is their consumer.
 - [ ] `PATCH /inventory/sensors/{id}` (CONTRACT INV-9) has no operation in contract.ts/OpenAPI/mock; `Service.SetInterface` is ready. When the host module (Box network, `PUT /core/network/span`) lands, call it and decide whether the route is still needed; fix CONTRACT.md accordingly.
 - [ ] Host stand-in `netHost` (cmd/vedette/sensorpassive.go): replace with the host module (interfaces, SPAN extract switches, exclusion filters). Until then no interface is chosen and the capture idles.
@@ -11,3 +10,7 @@
 - [ ] TLS SNI is read from the first segment only (no TCP reassembly); a ClientHello split over segments is missed.
 - [ ] Remote sensor (mTLS transport, `/sensor/v1/events`) is a separate WP; `SubmitBatch` is its in-process half.
 - [ ] CI fuzz time for INV-4 (60 s per parser) is not wired in CI yet; local runs were 35 s each.
+
+- [ ] Capture runs inside the main vedette process, so the API process would need CAP_NET_RAW. Before release, run capture in the sensor container (D-55: host network, CAP_NET_RAW only) and talk to the core over the sensor protocol; keep the main process unprivileged.
+- [ ] Drop counters (`new_macs_dropped`, `excluded`, `malformed_*` ...) are only logged every 5 minutes when they change; show them on the Sensors card once contract.ts has a field.
+- [ ] LLDP cannot be excluded by IP rules (no IP in the frame); add MAC exclusions to the SPAN filter model (contract.ts SpanFilter) if admins need it.

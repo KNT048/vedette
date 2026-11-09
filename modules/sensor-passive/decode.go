@@ -178,14 +178,18 @@ func hostnameOK(s string) bool {
 	return labelLen > 0 // no trailing dot: callers trim it first
 }
 
-// printable reports whether s is text a person can read: valid UTF-8, no control characters.
+// printable reports whether s is text a person can read: valid UTF-8, no control characters (C0 or C1) and
+// no bidirectional override or separator.
 func printable(s string) bool {
 	if !utf8.ValidString(s) {
 		return false
 	}
 	for _, r := range s {
-		if r < 0x20 || r == 0x7f {
+		switch {
+		case r < 0x20, r >= 0x7f && r <= 0x9f: // C0, DEL and C1 controls
 			return false
+		case r >= 0x202a && r <= 0x202e, r >= 0x2066 && r <= 0x2069, r == 0x200e, r == 0x200f, r == 0x061c, r == 0x2028, r == 0x2029:
+			return false // bidirectional overrides and separators: they make a name read as another name
 		}
 	}
 	return true

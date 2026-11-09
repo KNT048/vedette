@@ -47,8 +47,8 @@ type Config struct {
 
 	// Open opens a Source for an interface name; default OpenLive. Tests pass a replay of a fixture.
 	Open func(iface string) (Source, error)
-	// FlushEvery, HeartbeatEvery and RetryEvery set the loop's pace; zero means 5 s, 30 s and 5 s.
-	FlushEvery, HeartbeatEvery, RetryEvery time.Duration
+	// FlushEvery, HeartbeatEvery and RetryEvery set the loop's pace; zero means 5 s, 30 s and 5 s (the retry grows to 10 min while a capture keeps failing); SummaryEvery is how often a changed drop summary is logged, 5 min.
+	FlushEvery, HeartbeatEvery, RetryEvery, SummaryEvery time.Duration
 }
 
 // Service is the passive sensor of this box. Create it with New.
@@ -64,7 +64,7 @@ type Service struct {
 	name    string
 	open    func(string) (Source, error)
 
-	flushEvery, beatEvery, retryEvery time.Duration
+	flushEvery, beatEvery, retryEvery, summaryEvery time.Duration
 
 	submitMu sync.Mutex    // one batch at a time, so the same seq cannot be applied twice
 	reload   chan struct{} // capacity 1: "the settings changed, reopen the capture"
@@ -81,7 +81,7 @@ func New(cfg Config) (*Service, error) {
 	}
 	s := &Service{db: cfg.DB, audit: cfg.Audit, sink: cfg.Sink, meta: cfg.Meta, host: cfg.Host, clock: cfg.Clock, log: cfg.Log,
 		version: cfg.Version, name: cfg.Name, open: cfg.Open, flushEvery: cfg.FlushEvery, beatEvery: cfg.HeartbeatEvery,
-		retryEvery: cfg.RetryEvery, reload: make(chan struct{}, 1)}
+		retryEvery: cfg.RetryEvery, summaryEvery: cfg.SummaryEvery, reload: make(chan struct{}, 1)}
 	if s.meta == nil {
 		s.meta = NoMetadata{}
 	}
@@ -107,6 +107,7 @@ func New(cfg Config) (*Service, error) {
 	s.flushEvery = orDefault(s.flushEvery, 5*time.Second)
 	s.beatEvery = orDefault(s.beatEvery, 30*time.Second)
 	s.retryEvery = orDefault(s.retryEvery, 5*time.Second)
+	s.summaryEvery = orDefault(s.summaryEvery, 5*time.Minute)
 	return s, nil
 }
 

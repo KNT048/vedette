@@ -112,7 +112,7 @@ Thiết bị mới (khai tay, CSV, osquery, quét) được đối chiếu ngay 
 
 **5.2 Kho thiết bị (S-INV-1…5)**: nguồn quan sát (manual > agent > snmp > nmap > passive) ghi vào `inv_observation` (chỉ thêm), thiết bị là view hợp nhất. Thụ động: DHCP/ARP/mDNS/SSDP/LLDP + SPAN metadata (DNS query, TLS SNI, HTTP Host, luồng IP; **không lưu payload**, D-43). Chủ động: nmap chỉ trong `inv_scope` đã xác nhận (CIDR bắt buộc có tiền tố, D-32), thiết bị mong manh quét nhẹ một lần rồi chỉ nghe (D-45). Agent: osquery (hộp là máy chủ TLS, D-33/D-34) hoặc Wazuh API chỉ đọc. **"This box"** là thiết bị đầu tiên, danh sách gói từ dpkg qua `vedette-host` (D-53, S-INV-5).
 
-**5.3 Quét xác nhận (S-SCAN-1…4)**: `core` đặt việc → `scan` poll nhận → nuclei (tag an toàn) / nmap → bằng chứng rút gọn → `core`. Mục tiêu ngoài chỉ khi đã xác thực: domain bằng DNS TXT kiểm lại ngay trước mỗi lần quét; IP chỉ là IP mà chính hộp dùng ra Internet, hiệu lực 90 ngày (D-25). Mỗi probe ghi log (SYS-7).
+**5.3 Quét xác nhận (S-SCAN-1…4)**: `core` đặt việc → `scan` poll nhận → nuclei (tag an toàn) / nmap → bằng chứng rút gọn → `core`. Mục tiêu ngoài chỉ khi đã xác thực: domain bằng DNS TXT kiểm lại ngay trước mỗi lần quét; IP chỉ là IP mà chính hộp dùng ra Internet, hộp tự dò mỗi 60 phút và tự gia hạn, hiệu lực 30 ngày kể từ lần thấy cuối (D-25). Mỗi probe ghi log (SYS-7).
 
 **5.4 Log / SPAN → IOC → incident (S-LOG-1…4)**: `sensor` nhận syslog (hoặc đọc SPAN) → gửi lô `logs.batch` / quan sát → `core` gộp theo cửa sổ, baseline 7 ngày, khớp IOC → incident (D-52). Không lưu log thô dài hạn.
 

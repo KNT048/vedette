@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Network, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { PageHeader, Section, Panel } from '@/components/common/PageHeader'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
@@ -10,10 +10,11 @@ import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogTrigger } from '@/components/ui/dialog'
 import { Field, Input } from '@/components/ui/input'
-import { fmtDate, fmtRelative } from '@/lib/format'
+import { fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
+import { BoxIpPanel } from './BoxIpPanel'
 import { OwnerChip } from './OwnerChip'
-import { useAddTarget, useTargets, useVerifyBoxIp } from './api'
+import { useAddTarget, useTargets } from './api'
 import type { Target } from './types'
 
 export default function ExposurePage() {
@@ -34,13 +35,16 @@ export default function ExposurePage() {
     : t('title.clean')
   return (
     <RequireModule module="exposure">
-      <PageHeader title={title} stories={['S-EXP-1']} actions={<><AddTarget /><VerifyBoxIp /></>}
-        meta={<span className="flex flex-wrap items-center gap-2"><SampleDataNote />{certs > 0 ? t('meta.certs', { count: certs }) : null}{t('meta.rule')}</span>} />
+      <PageHeader title={title} stories={['S-EXP-1']} actions={<AddTarget />}
+        meta={<span className="flex flex-wrap items-center gap-2"><SampleDataNote />{certs > 0 ? `${t('meta.certs', { count: certs })} ` : null}{t('meta.rule')}</span>} />
       <QueryState query={{ data, error, isPending, refetch }}>
         {(d) => (
-          <Section id="targets" title={t('targets.title')} description={t('targets.description')}>
-            <TargetsTable items={d.items} />
-          </Section>
+          <>
+            <Section id="targets" title={t('targets.title')} description={t('targets.description')}>
+              <TargetsTable items={d.items.filter((x) => x.kind === 'domain')} />
+            </Section>
+            <BoxIpPanel items={d.items.filter((x) => x.kind === 'ip')} settings={d.box_ip} ignored={d.ignored} />
+          </>
         )}
       </QueryState>
       <Panel className="max-w-3xl p-4 text-[13px] text-muted">{t('rule')}</Panel>
@@ -78,39 +82,6 @@ function TargetsTable({ items }: { items: Target[] }) {
       </div>
     )}
     empty={<EmptyState title={t('targets.emptyTitle')}>{t('targets.emptyBody')}</EmptyState>} />
-}
-
-function VerifyBoxIp() {
-  const { t } = useTranslation('exposure')
-  const can = useCan('admin')
-  const verify = useVerifyBoxIp()
-  const nav = useNavigate()
-  const [open, setOpen] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  function run() {
-    setError(null)
-    verify.mutate(undefined, {
-      onSuccess: (tg) => { toast.success(t('boxIp.toast', { ip: tg.value, date: fmtDate(tg.expires_at) })); setOpen(false); void nav(`/exposure/${tg.id}`) },
-      onError: (er) => setError(er instanceof Error ? er.message : String(er)),
-    })
-  }
-  return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setError(null) }}>
-      <DialogTrigger asChild>
-        <Button disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.admin') })}><Network />{t('boxIp.button')}</Button>
-      </DialogTrigger>
-      <DialogContent title={t('boxIp.title')} description={t('boxIp.description')}>
-        <ul className="grid list-disc gap-1.5 pl-5 text-sm">
-          <li>{t('boxIp.how')}</li><li>{t('boxIp.result')}</li><li>{t('boxIp.why')}</li><li>{t('boxIp.refuse')}</li><li>{t('boxIp.limit')}</li><li>{t('boxIp.multi')}</li>
-        </ul>
-        {error ? <p role="alert" className="text-sm text-danger">{error}</p> : null}
-        <DialogFooter>
-          <Button onClick={() => setOpen(false)}>{t('common:cancel')}</Button>
-          <Button variant="primary" onClick={run} disabled={verify.isPending}>{verify.isPending ? t('boxIp.running') : t('boxIp.submit')}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
 }
 
 function AddTarget() {

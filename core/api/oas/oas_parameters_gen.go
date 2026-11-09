@@ -2809,9 +2809,75 @@ func decodeCorePostCoreUsersIDResetPasswordParams(args [1]string, argsEscaped bo
 	return params, nil
 }
 
+// ExposureDeleteExposureBoxIPIgnoredIPParams is parameters of exposure_delete_exposure_box_ip_ignored_ip operation.
+type ExposureDeleteExposureBoxIPIgnoredIPParams struct {
+	IP string
+}
+
+func unpackExposureDeleteExposureBoxIPIgnoredIPParams(packed middleware.Parameters) (params ExposureDeleteExposureBoxIPIgnoredIPParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "ip",
+			In:   "path",
+		}
+		params.IP = packed[key].(string)
+	}
+	return params
+}
+
+func decodeExposureDeleteExposureBoxIPIgnoredIPParams(args [1]string, argsEscaped bool, r *http.Request) (params ExposureDeleteExposureBoxIPIgnoredIPParams, _ error) {
+	// Decode path: ip.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "ip",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.IP = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "ip",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // ExposureDeleteExposureTargetsIDParams is parameters of exposure_delete_exposure_targets_id operation.
 type ExposureDeleteExposureTargetsIDParams struct {
-	ID string
+	ID     string
+	Ignore OptExposureDeleteExposureTargetsIDIgnore `json:",omitempty,omitzero"`
 }
 
 func unpackExposureDeleteExposureTargetsIDParams(packed middleware.Parameters) (params ExposureDeleteExposureTargetsIDParams) {
@@ -2822,10 +2888,20 @@ func unpackExposureDeleteExposureTargetsIDParams(packed middleware.Parameters) (
 		}
 		params.ID = packed[key].(string)
 	}
+	{
+		key := middleware.ParameterKey{
+			Name: "ignore",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Ignore = v.(OptExposureDeleteExposureTargetsIDIgnore)
+		}
+	}
 	return params
 }
 
 func decodeExposureDeleteExposureTargetsIDParams(args [1]string, argsEscaped bool, r *http.Request) (params ExposureDeleteExposureTargetsIDParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]
@@ -2868,6 +2944,62 @@ func decodeExposureDeleteExposureTargetsIDParams(args [1]string, argsEscaped boo
 		return params, &ogenerrors.DecodeParamError{
 			Name: "id",
 			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode query: ignore.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "ignore",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotIgnoreVal ExposureDeleteExposureTargetsIDIgnore
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIgnoreVal = ExposureDeleteExposureTargetsIDIgnore(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Ignore.SetTo(paramsDotIgnoreVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Ignore.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "ignore",
+			In:   "query",
 			Err:  err,
 		}
 	}

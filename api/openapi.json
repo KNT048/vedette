@@ -16675,10 +16675,10 @@
         }
       }
     },
-    "/exposure/box-ip/verify": {
-      "post": {
-        "operationId": "exposure_post_exposure_box_ip_verify",
-        "summary": "The box detects the public IP it uses to reach the Internet (TLS to a fixed endpoint) and verifies it for 90 days. Takes no IP input; refuses private, reserved and CGNAT results; rate limited to 10 attempts per hour. 201 when the IP is new in the list, 200 when it was already there (the generated file documents 200)",
+    "/exposure/box-ip/ignored/{ip}": {
+      "delete": {
+        "operationId": "exposure_delete_exposure_box_ip_ignored_ip",
+        "summary": "Restore an IP from the Ignored list: detection may add it again the next time the box sees it. It is not added by this call and is not scannable by itself (it still needs ownership proof and the commitment). 404 when the IP is not on the list",
         "tags": [
           "exposure"
         ],
@@ -16686,6 +16686,69 @@
           "S-EXP-1"
         ],
         "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "ip",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done, no content"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/exposure/box-ip/settings": {
+      "put": {
+        "operationId": "exposure_put_exposure_box_ip_settings",
+        "summary": "Turn auto-detect on or off and set the check interval (1 to 1440 minutes, else 400 bad_interval). Turning it on checks at once. The IP list is kept when it is turned off. Typing an IP is not possible here either",
+        "tags": [
+          "exposure"
+        ],
+        "x-stories": [
+          "S-EXP-1"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "auto": {
+                    "type": "boolean"
+                  },
+                  "interval_min": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "auto",
+                  "interval_min"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -16694,89 +16757,17 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "id": {
-                      "type": "string"
+                    "auto": {
+                      "type": "boolean",
+                      "description": "On: the box detects its public IPs at first start and then every interval_min minutes. Off: only \"Detect now\". Default on"
                     },
-                    "kind": {
-                      "type": "string",
-                      "enum": [
-                        "domain",
-                        "ip"
-                      ]
+                    "interval_min": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Minutes between automatic checks, 1 to 1440. Default 60"
                     },
-                    "value": {
-                      "type": "string"
-                    },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "unverified",
-                        "verified",
-                        "expired"
-                      ],
-                      "description": "expired only exists for IPs: more than 90 days since the last verification"
-                    },
-                    "method": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": [
-                            "dns_txt",
-                            "box_egress"
-                          ]
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "token": {
-                      "type": "string",
-                      "description": "Domain: the token in the TXT record vedette-verify=<token> (not secret, it is public in DNS). IP: empty string"
-                    },
-                    "verified_at": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "Last successful verification"
-                    },
-                    "expires_at": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "IP: verified_at + 90 days. Domain: null (the TXT record is re-checked right before every scan)"
-                    },
-                    "validity": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": [
-                            "valid",
-                            "expiring",
-                            "expired"
-                          ]
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "IPs only: expiring = 14 days or less left"
-                    },
-                    "last_check": {
+                    "last_run": {
                       "anyOf": [
                         {
                           "type": "object",
@@ -16790,7 +16781,8 @@
                               "type": "boolean"
                             },
                             "message": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "What the last check saw, or why it failed"
                             }
                           },
                           "required": [
@@ -16803,134 +16795,28 @@
                         {
                           "type": "null"
                         }
-                      ]
+                      ],
+                      "description": "The last automatic or manual detection; null before the first one"
                     },
-                    "commitment": {
+                    "retry_in_min": {
                       "anyOf": [
                         {
-                          "type": "object",
-                          "properties": {
-                            "by": {
-                              "type": "string"
-                            },
-                            "at": {
-                              "type": "string",
-                              "format": "date-time",
-                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                            }
-                          },
-                          "required": [
-                            "by",
-                            "at"
-                          ],
-                          "additionalProperties": false
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
                         },
                         {
                           "type": "null"
                         }
                       ],
-                      "description": "Who ticked \"my company owns it and I am authorized to scan it\", and when"
-                    },
-                    "scannable": {
-                      "type": "boolean"
-                    },
-                    "blocked_reason": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": [
-                            "unverified",
-                            "expired",
-                            "txt_missing",
-                            "no_commitment"
-                          ]
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "Why it cannot be scanned yet; null = can be scanned"
-                    },
-                    "created_at": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    },
-                    "last_scan_at": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "latest": {
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "subdomains": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "ips": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "ports": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "admin_panels": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "certs_expiring": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            }
-                          },
-                          "required": [
-                            "subdomains",
-                            "ips",
-                            "ports",
-                            "admin_panels",
-                            "certs_expiring"
-                          ],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
+                      "description": "null while attempts are left. When the 10 attempts an hour (shared by Detect now, Verify again and the DNS Check of a domain) are used up: minutes until the next one is possible, 1 or more"
                     }
                   },
                   "required": [
-                    "id",
-                    "kind",
-                    "value",
-                    "status",
-                    "method",
-                    "token",
-                    "verified_at",
-                    "expires_at",
-                    "validity",
-                    "last_check",
-                    "commitment",
-                    "scannable",
-                    "blocked_reason",
-                    "created_at",
-                    "last_scan_at",
-                    "latest"
+                    "auto",
+                    "interval_min",
+                    "last_run",
+                    "retry_in_min"
                   ],
                   "additionalProperties": false
                 }
@@ -16950,17 +16836,17 @@
         }
       }
     },
-    "/exposure/targets": {
-      "get": {
-        "operationId": "exposure_get_exposure_targets",
-        "summary": "Domains and verified public IPs with ownership status, expiry, commitment and latest result",
+    "/exposure/box-ip/verify": {
+      "post": {
+        "operationId": "exposure_post_exposure_box_ip_verify",
+        "summary": "\"Detect now\": the box asks three public \"what is my IP\" services (checkip.amazonaws.com, icanhazip.com, ifconfig.me/ip) over several rounds of new connections, accepts an IP only when at least two of the three agree in a round, and adds or renews (30 days from now) every IP that passed, except those on the Ignored list, so several egress IPs behind a load balancer are all found. Takes no IP input; refuses private, reserved and CGNAT results (400 not_public when none is public); 502 unreachable when no round gave an IP (no service answered, or they did not agree); rate limited to 10 attempts per hour",
         "tags": [
           "exposure"
         ],
         "x-stories": [
           "S-EXP-1"
         ],
-        "x-min-role": "viewer",
+        "x-min-role": "admin",
         "responses": {
           "200": {
             "description": "OK",
@@ -16994,7 +16880,7 @@
                               "verified",
                               "expired"
                             ],
-                            "description": "expired only exists for IPs: more than 90 days since the last verification"
+                            "description": "expired only exists for IPs: the box has not seen this IP for more than 30 days"
                           },
                           "method": {
                             "anyOf": [
@@ -17025,7 +16911,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "Last successful verification"
+                            "description": "Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews it)"
                           },
                           "expires_at": {
                             "anyOf": [
@@ -17038,7 +16924,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "IP: verified_at + 90 days. Domain: null (the TXT record is re-checked right before every scan)"
+                            "description": "IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan)"
                           },
                           "validity": {
                             "anyOf": [
@@ -17054,7 +16940,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "IPs only: expiring = 14 days or less left"
+                            "description": "IPs only: expiring = 5 days or less left"
                           },
                           "last_check": {
                             "anyOf": [
@@ -17122,14 +17008,308 @@
                                   "unverified",
                                   "expired",
                                   "txt_missing",
-                                  "no_commitment"
+                                  "no_commitment",
+                                  "ip_not_current"
                                 ]
                               },
                               {
                                 "type": "null"
                               }
                             ],
-                            "description": "Why it cannot be scanned yet; null = can be scanned"
+                            "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "last_scan_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "latest": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "subdomains": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "ips": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "ports": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "admin_panels": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "certs_expiring": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "subdomains",
+                                  "ips",
+                                  "ports",
+                                  "admin_panels",
+                                  "certs_expiring"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "value",
+                          "status",
+                          "method",
+                          "token",
+                          "verified_at",
+                          "expires_at",
+                          "validity",
+                          "last_check",
+                          "commitment",
+                          "scannable",
+                          "blocked_reason",
+                          "created_at",
+                          "last_scan_at",
+                          "latest"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "The public IPs the box saw this time, each added or renewed"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/exposure/targets": {
+      "get": {
+        "operationId": "exposure_get_exposure_targets",
+        "summary": "Domains and verified public IPs with ownership status, expiry, commitment and latest result, plus the box-IP auto-detect settings",
+        "tags": [
+          "exposure"
+        ],
+        "x-stories": [
+          "S-EXP-1"
+        ],
+        "x-min-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "domain",
+                              "ip"
+                            ]
+                          },
+                          "value": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "unverified",
+                              "verified",
+                              "expired"
+                            ],
+                            "description": "expired only exists for IPs: the box has not seen this IP for more than 30 days"
+                          },
+                          "method": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "dns_txt",
+                                  "box_egress"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "token": {
+                            "type": "string",
+                            "description": "Domain: the token in the TXT record vedette-verify=<token> (not secret, it is public in DNS). IP: empty string"
+                          },
+                          "verified_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews it)"
+                          },
+                          "expires_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan)"
+                          },
+                          "validity": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "valid",
+                                  "expiring",
+                                  "expired"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "IPs only: expiring = 5 days or less left"
+                          },
+                          "last_check": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "ok": {
+                                    "type": "boolean"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "at",
+                                  "ok",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "commitment": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "by": {
+                                    "type": "string"
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  }
+                                },
+                                "required": [
+                                  "by",
+                                  "at"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Who ticked \"my company owns it and I am authorized to scan it\", and when"
+                          },
+                          "scannable": {
+                            "type": "boolean"
+                          },
+                          "blocked_reason": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "unverified",
+                                  "expired",
+                                  "txt_missing",
+                                  "no_commitment",
+                                  "ip_not_current"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
                           },
                           "created_at": {
                             "type": "string",
@@ -17214,10 +17394,105 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "box_ip": {
+                      "type": "object",
+                      "properties": {
+                        "auto": {
+                          "type": "boolean",
+                          "description": "On: the box detects its public IPs at first start and then every interval_min minutes. Off: only \"Detect now\". Default on"
+                        },
+                        "interval_min": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Minutes between automatic checks, 1 to 1440. Default 60"
+                        },
+                        "last_run": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "ok": {
+                                  "type": "boolean"
+                                },
+                                "message": {
+                                  "type": "string",
+                                  "description": "What the last check saw, or why it failed"
+                                }
+                              },
+                              "required": [
+                                "at",
+                                "ok",
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "The last automatic or manual detection; null before the first one"
+                        },
+                        "retry_in_min": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "null while attempts are left. When the 10 attempts an hour (shared by Detect now, Verify again and the DNS Check of a domain) are used up: minutes until the next one is possible, 1 or more"
+                        }
+                      },
+                      "required": [
+                        "auto",
+                        "interval_min",
+                        "last_run",
+                        "retry_in_min"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "ignored": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "value": {
+                            "type": "string",
+                            "description": "A public IPv4 address"
+                          },
+                          "ignored_by": {
+                            "type": "string"
+                          },
+                          "ignored_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "value",
+                          "ignored_by",
+                          "ignored_at"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "The Ignored list, newest first"
                     }
                   },
                   "required": [
-                    "items"
+                    "items",
+                    "box_ip",
+                    "ignored"
                   ],
                   "additionalProperties": false
                 }
@@ -17293,7 +17568,7 @@
                         "verified",
                         "expired"
                       ],
-                      "description": "expired only exists for IPs: more than 90 days since the last verification"
+                      "description": "expired only exists for IPs: the box has not seen this IP for more than 30 days"
                     },
                     "method": {
                       "anyOf": [
@@ -17324,7 +17599,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Last successful verification"
+                      "description": "Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews it)"
                     },
                     "expires_at": {
                       "anyOf": [
@@ -17337,7 +17612,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "IP: verified_at + 90 days. Domain: null (the TXT record is re-checked right before every scan)"
+                      "description": "IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan)"
                     },
                     "validity": {
                       "anyOf": [
@@ -17353,7 +17628,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "IPs only: expiring = 14 days or less left"
+                      "description": "IPs only: expiring = 5 days or less left"
                     },
                     "last_check": {
                       "anyOf": [
@@ -17421,14 +17696,15 @@
                             "unverified",
                             "expired",
                             "txt_missing",
-                            "no_commitment"
+                            "no_commitment",
+                            "ip_not_current"
                           ]
                         },
                         {
                           "type": "null"
                         }
                       ],
-                      "description": "Why it cannot be scanned yet; null = can be scanned"
+                      "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
                     },
                     "created_at": {
                       "type": "string",
@@ -17532,7 +17808,7 @@
     "/exposure/targets/{id}": {
       "delete": {
         "operationId": "exposure_delete_exposure_targets_id",
-        "summary": "Delete a target with its snapshots and commitment",
+        "summary": "Delete a target with its snapshots and commitment. For a public IP this removes it from the list; with ignore=true it also goes on the Ignored list and is never added again or scanned (ignore is only for IPs, else 400 bad_value); without it, auto-detect brings it back (as a new target) the next time the box sees it",
         "tags": [
           "exposure"
         ],
@@ -17547,6 +17823,18 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "ignore",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           }
         ],
@@ -17614,7 +17902,7 @@
                         "verified",
                         "expired"
                       ],
-                      "description": "expired only exists for IPs: more than 90 days since the last verification"
+                      "description": "expired only exists for IPs: the box has not seen this IP for more than 30 days"
                     },
                     "method": {
                       "anyOf": [
@@ -17645,7 +17933,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Last successful verification"
+                      "description": "Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews it)"
                     },
                     "expires_at": {
                       "anyOf": [
@@ -17658,7 +17946,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "IP: verified_at + 90 days. Domain: null (the TXT record is re-checked right before every scan)"
+                      "description": "IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan)"
                     },
                     "validity": {
                       "anyOf": [
@@ -17674,7 +17962,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "IPs only: expiring = 14 days or less left"
+                      "description": "IPs only: expiring = 5 days or less left"
                     },
                     "last_check": {
                       "anyOf": [
@@ -17742,14 +18030,15 @@
                             "unverified",
                             "expired",
                             "txt_missing",
-                            "no_commitment"
+                            "no_commitment",
+                            "ip_not_current"
                           ]
                         },
                         {
                           "type": "null"
                         }
                       ],
-                      "description": "Why it cannot be scanned yet; null = can be scanned"
+                      "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
                     },
                     "created_at": {
                       "type": "string",
@@ -17919,7 +18208,7 @@
                         "verified",
                         "expired"
                       ],
-                      "description": "expired only exists for IPs: more than 90 days since the last verification"
+                      "description": "expired only exists for IPs: the box has not seen this IP for more than 30 days"
                     },
                     "method": {
                       "anyOf": [
@@ -17950,7 +18239,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Last successful verification"
+                      "description": "Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews it)"
                     },
                     "expires_at": {
                       "anyOf": [
@@ -17963,7 +18252,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "IP: verified_at + 90 days. Domain: null (the TXT record is re-checked right before every scan)"
+                      "description": "IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan)"
                     },
                     "validity": {
                       "anyOf": [
@@ -17979,7 +18268,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "IPs only: expiring = 14 days or less left"
+                      "description": "IPs only: expiring = 5 days or less left"
                     },
                     "last_check": {
                       "anyOf": [
@@ -18047,14 +18336,15 @@
                             "unverified",
                             "expired",
                             "txt_missing",
-                            "no_commitment"
+                            "no_commitment",
+                            "ip_not_current"
                           ]
                         },
                         {
                           "type": "null"
                         }
                       ],
-                      "description": "Why it cannot be scanned yet; null = can be scanned"
+                      "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
                     },
                     "created_at": {
                       "type": "string",
@@ -18346,7 +18636,7 @@
     "/exposure/targets/{id}/scan": {
       "post": {
         "operationId": "exposure_post_exposure_targets_id_scan",
-        "summary": "Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 400 commitment_required when the commitment is missing",
+        "summary": "Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing",
         "tags": [
           "exposure"
         ],
@@ -18905,7 +19195,7 @@
     "/exposure/targets/{id}/verify": {
       "post": {
         "operationId": "exposure_post_exposure_targets_id_verify",
-        "summary": "Re-check ownership: domain = DNS TXT record; IP = the box must currently egress through this same IP (renews 90 days). Not found is a normal answer (verified:false). Rate limited",
+        "summary": "Re-check ownership: domain = DNS TXT record; IP = the box must currently egress through this same IP (renews it for 30 days). Not found is a normal answer (verified:false). Rate limited",
         "tags": [
           "exposure"
         ],
@@ -18960,7 +19250,7 @@
                             "verified",
                             "expired"
                           ],
-                          "description": "expired only exists for IPs: more than 90 days since the last verification"
+                          "description": "expired only exists for IPs: the box has not seen this IP for more than 30 days"
                         },
                         "method": {
                           "anyOf": [
@@ -18991,7 +19281,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "Last successful verification"
+                          "description": "Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews it)"
                         },
                         "expires_at": {
                           "anyOf": [
@@ -19004,7 +19294,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "IP: verified_at + 90 days. Domain: null (the TXT record is re-checked right before every scan)"
+                          "description": "IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan)"
                         },
                         "validity": {
                           "anyOf": [
@@ -19020,7 +19310,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "IPs only: expiring = 14 days or less left"
+                          "description": "IPs only: expiring = 5 days or less left"
                         },
                         "last_check": {
                           "anyOf": [
@@ -19088,14 +19378,15 @@
                                 "unverified",
                                 "expired",
                                 "txt_missing",
-                                "no_commitment"
+                                "no_commitment",
+                                "ip_not_current"
                               ]
                             },
                             {
                               "type": "null"
                             }
                           ],
-                          "description": "Why it cannot be scanned yet; null = can be scanned"
+                          "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
                         },
                         "created_at": {
                           "type": "string",
@@ -53440,7 +53731,7 @@
     "/scans/targets": {
       "get": {
         "operationId": "scan_get_scans_targets",
-        "summary": "Scannable targets and why others are not (unapproved device, out of scope, external IP whose 90-day verification expired)",
+        "summary": "Scannable targets and why others are not (unapproved device, out of scope, external IP the box has not seen for 30 days)",
         "tags": [
           "scan"
         ],

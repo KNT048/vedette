@@ -18692,6 +18692,17 @@ func (s CorePutCoreOidcReqRoleMapItemRole) Validate() error {
 	}
 }
 
+func (s ExposureDeleteExposureTargetsIDIgnore) Validate() error {
+	switch s {
+	case "true":
+		return nil
+	case "false":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *ExposureGetExposureTargetsIDDiffOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -19063,6 +19074,8 @@ func (s ExposureGetExposureTargetsIDOKBlockedReason) Validate() error {
 	case "txt_missing":
 		return nil
 	case "no_commitment":
+		return nil
+	case "ip_not_current":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -19773,6 +19786,28 @@ func (s *ExposureGetExposureTargetsOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.BoxIP.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "box_ip",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Ignored == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ignored",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Items == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -19797,6 +19832,67 @@ func (s *ExposureGetExposureTargetsOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "items",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ExposureGetExposureTargetsOKBoxIP) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.IntervalMin)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "interval_min",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.RetryInMin.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "retry_in_min",
 			Error: err,
 		})
 	}
@@ -19921,6 +20017,8 @@ func (s ExposureGetExposureTargetsOKItemsItemBlockedReason) Validate() error {
 	case "txt_missing":
 		return nil
 	case "no_commitment":
+		return nil
+	case "ip_not_current":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -20099,6 +20197,46 @@ func (s *ExposurePostExposureBoxIPVerifyOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if s.Items == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Items {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "items",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
 		if value, ok := s.BlockedReason.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -20198,7 +20336,7 @@ func (s *ExposurePostExposureBoxIPVerifyOK) Validate() error {
 	return nil
 }
 
-func (s ExposurePostExposureBoxIPVerifyOKBlockedReason) Validate() error {
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) Validate() error {
 	switch s {
 	case "unverified":
 		return nil
@@ -20208,12 +20346,14 @@ func (s ExposurePostExposureBoxIPVerifyOKBlockedReason) Validate() error {
 		return nil
 	case "no_commitment":
 		return nil
+	case "ip_not_current":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
 }
 
-func (s ExposurePostExposureBoxIPVerifyOKKind) Validate() error {
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemKind) Validate() error {
 	switch s {
 	case "domain":
 		return nil
@@ -20224,7 +20364,7 @@ func (s ExposurePostExposureBoxIPVerifyOKKind) Validate() error {
 	}
 }
 
-func (s *ExposurePostExposureBoxIPVerifyOKLatest) Validate() error {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemLatest) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -20341,7 +20481,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKLatest) Validate() error {
 	return nil
 }
 
-func (s ExposurePostExposureBoxIPVerifyOKMethod) Validate() error {
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemMethod) Validate() error {
 	switch s {
 	case "dns_txt":
 		return nil
@@ -20352,7 +20492,7 @@ func (s ExposurePostExposureBoxIPVerifyOKMethod) Validate() error {
 	}
 }
 
-func (s ExposurePostExposureBoxIPVerifyOKStatus) Validate() error {
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemStatus) Validate() error {
 	switch s {
 	case "unverified":
 		return nil
@@ -20365,7 +20505,7 @@ func (s ExposurePostExposureBoxIPVerifyOKStatus) Validate() error {
 	}
 }
 
-func (s ExposurePostExposureBoxIPVerifyOKValidity) Validate() error {
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemValidity) Validate() error {
 	switch s {
 	case "valid":
 		return nil
@@ -20493,6 +20633,8 @@ func (s ExposurePostExposureTargetsCreatedBlockedReason) Validate() error {
 	case "txt_missing":
 		return nil
 	case "no_commitment":
+		return nil
+	case "ip_not_current":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -20779,6 +20921,8 @@ func (s ExposurePostExposureTargetsIDCommitmentOKBlockedReason) Validate() error
 	case "txt_missing":
 		return nil
 	case "no_commitment":
+		return nil
+	case "ip_not_current":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -21418,6 +21562,8 @@ func (s ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason) Validate() err
 		return nil
 	case "no_commitment":
 		return nil
+	case "ip_not_current":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -21586,6 +21732,100 @@ func (s ExposurePostExposureTargetsIDVerifyOKTargetValidity) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *ExposurePutExposureBoxIPSettingsOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.IntervalMin)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "interval_min",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.RetryInMin.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "retry_in_min",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ExposurePutExposureBoxIPSettingsReq) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.IntervalMin)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "interval_min",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *FeedsGetFeedsCveIDOK) Validate() error {

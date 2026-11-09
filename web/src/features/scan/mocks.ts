@@ -7,7 +7,7 @@ import { collection, daysAgo, dataMode, newId, nowIso } from '@/mocks/db'
 import { assetsStore, findingsStore, isOn } from '@/mocks/stores'
 import type { Asset, Finding } from '@/lib/types'
 import { inventorySettingsStore } from '@/features/inventory/mocks'
-import { exposureSnapshotsStore, exposureTargetsStore } from '@/features/exposure/mocks'
+import { exposureIpPaused, exposureSnapshotsStore, exposureTargetsStore } from '@/features/exposure/mocks'
 import type { CredTarget, ProbeEntry, RescanEvent, RunResultRow, ScanConfig, ScanConfigResponse, ScanRun, ScanScope, ScanTarget } from './types'
 
 
@@ -27,10 +27,10 @@ type StoredRow = RunResultRow
 interface StoredRun extends ScanRun { target_ids: string[]; stop_requested_at: string | null }
 const row = (t: ScanTarget, template: string | null, result: RunResultRow['result'], finding_id: string | null, note: string): StoredRow => ({ target_id: t.id, label: t.label, ip: t.ip, template, result, finding_id, note })
 interface ExternalTarget { id: string; value: string; ip: string; verified: boolean; expired: boolean }
-const VERIFY_DAYS = 90
+const VERIFY_DAYS = 30
 
 // Phạm vi trong = dải LAN ở Thiết bị → Phạm vi và cảm biến (inventory) + ô cam kết đã đánh dấu ở đó (scope_confirmed_at). Không còn văn bản đồng ý.
-// Mục tiêu ngoài (exposure): chỉ IP mà chính hộp đi ra Internet bằng và đã xác nhận trong 90 ngày (quá hạn = không quét, cần xác nhận lại); tên miền xác thực bằng DNS TXT không hết hạn. LEGAL §3.
+// Mục tiêu ngoài (exposure): chỉ IP mà chính hộp đi ra Internet bằng và hộp còn thấy trong 30 ngày qua (hộp tự dò và gia hạn; quá hạn = không quét); tên miền xác thực bằng DNS TXT không hết hạn. LEGAL §3.
 const scope = {
   get(): ScanScope {
     const s = inventorySettingsStore.get()
@@ -41,7 +41,7 @@ const external = {
   get(): ExternalTarget[] {
     const snaps = exposureSnapshotsStore.get()
     return exposureTargetsStore.get().map((t) => {
-      // exposure sẽ có expires_at; chưa có thì tính verified_at + 90 ngày.
+      // exposure sẽ có expires_at; chưa có thì tính verified_at + 30 ngày.
       const exp = (t as { expires_at?: string | null }).expires_at ?? (t.verified_at ? new Date(Date.parse(t.verified_at) + VERIFY_DAYS * 864e5).toISOString() : null)
       return {
         id: `ext:${t.id}`, value: t.value,
@@ -343,6 +343,12 @@ export const handlers = [
       const t = all.find((x) => x.id === id)
       if (!t) return fail(400, 'unknown_target', `There is no target "${id.slice(0, 40)}" in the scan list.`)
       if (!t.selectable) return fail(400, 'out_of_scope', `${t.label} (${t.ip}) ${reasonOf(t.reason)}, so it cannot be scanned.`)
+    }
+    // CheckScannable of exposure (INV-13): right before a scan, an external IP must still be one the box goes out through (a check or full check of the last 5 minutes is reused). Not seen = paused, 409 ip_not_current.
+    for (const id of ids) {
+      const ip = id.startsWith('ext:') ? exposureTargetsStore.get().find((x) => `ext:${x.id}` === id && x.kind === 'ip') : undefined
+      const paused = ip ? exposureIpPaused(ip) : null
+      if (paused) return paused
     }
     const r = startRun(ids, 'manual', null, who())
     audit('scan.start', r.id, `${ids.length} targets`)

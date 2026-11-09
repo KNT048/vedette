@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { Diff, Snapshot, SnapshotMeta, Target, VerifyResult } from './types'
+import type { BoxIpDetectResult, BoxIpSettings, Diff, Snapshot, SnapshotMeta, Target, TargetList, VerifyResult } from './types'
 
-export const useTargets = () => useQuery({ queryKey: ['exposure', 'targets'], queryFn: () => api.get<{ items: Target[] }>('/exposure/targets') })
+export const useTargets = () => useQuery({ queryKey: ['exposure', 'targets'], queryFn: () => api.get<TargetList>('/exposure/targets') })
 export const useTarget = (id: string) => useQuery({ queryKey: ['exposure', 'target', id], queryFn: () => api.get<Target>(`/exposure/targets/${encodeURIComponent(id)}`), retry: false })
 export const useSnapshots = (id: string) => useQuery({ queryKey: ['exposure', 'snapshots', id], queryFn: () => api.get<{ items: SnapshotMeta[] }>(`/exposure/targets/${encodeURIComponent(id)}/snapshots`) })
 export const useSnapshot = (id: string, date: string | null) =>
@@ -22,22 +22,33 @@ export function useAddTarget() {
 export function useDeleteTarget() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.del<void>(`/exposure/targets/${encodeURIComponent(id)}`),
+    // ignore: an IP also goes on the Ignored list (D-79).
+    mutationFn: ({ id, ignore }: { id: string; ignore?: boolean }) => api.del<void>(`/exposure/targets/${encodeURIComponent(id)}${ignore ? '?ignore=true' : ''}`),
     // Bỏ cache của mục tiêu vừa xoá (không tải lại: tải lại sẽ ra 404 ngay trước khi chuyển trang), chỉ làm mới danh sách.
-    onSuccess: (_d, id) => {
+    onSuccess: (_d, { id }) => {
       qc.removeQueries({ predicate: (q) => q.queryKey[0] === 'exposure' && q.queryKey[1] !== 'targets' && q.queryKey.includes(id) })
       return qc.invalidateQueries({ queryKey: ['exposure', 'targets'] })
     },
   })
 }
+/** Restore an IP from the Ignored list: detection may add it again. Nothing is added by this call. */
+export function useRestoreIgnored() {
+  const inv = useInvalidate()
+  return useMutation({ mutationFn: (ip: string) => api.del<void>(`/exposure/box-ip/ignored/${encodeURIComponent(ip)}`), onSuccess: inv })
+}
 export function useVerify() {
   const inv = useInvalidate()
   return useMutation({ mutationFn: (id: string) => api.post<VerifyResult>(`/exposure/targets/${encodeURIComponent(id)}/verify`), onSuccess: inv })
 }
-/** The box detects its own public IP and verifies it for 90 days. No IP is sent. */
-export function useVerifyBoxIp() {
+/** "Detect now": the box probes its own public IPs and adds or renews each one for 30 days. No IP is sent. */
+export function useDetectBoxIp() {
   const inv = useInvalidate()
-  return useMutation({ mutationFn: () => api.post<Target>('/exposure/box-ip/verify'), onSuccess: inv })
+  return useMutation({ mutationFn: () => api.post<BoxIpDetectResult>('/exposure/box-ip/verify'), onSuccess: inv, onError: inv })
+}
+/** Auto-detect on or off and the check interval (1 to 1440 minutes). */
+export function useSaveBoxIpSettings() {
+  const inv = useInvalidate()
+  return useMutation({ mutationFn: (s: Pick<BoxIpSettings, 'auto' | 'interval_min'>) => api.put<BoxIpSettings>('/exposure/box-ip/settings', s), onSuccess: inv })
 }
 export function useCommit() {
   const inv = useInvalidate()
@@ -45,5 +56,6 @@ export function useCommit() {
 }
 export function useScan() {
   const inv = useInvalidate()
-  return useMutation({ mutationFn: (id: string) => api.post<Snapshot>(`/exposure/targets/${encodeURIComponent(id)}/scan`), onSuccess: inv })
+  // onError too: a refused scan may have found the IP paused, and the page must then show it (the answer is a state of the target).
+  return useMutation({ mutationFn: (id: string) => api.post<Snapshot>(`/exposure/targets/${encodeURIComponent(id)}/scan`), onSuccess: inv, onError: inv })
 }

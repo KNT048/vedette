@@ -1479,6 +1479,12 @@ func encodeCorePutCoreOidcResponse(response *CorePutCoreOidcOK, w http.ResponseW
 	return nil
 }
 
+func encodeExposureDeleteExposureBoxIPIgnoredIPResponse(response *ExposureDeleteExposureBoxIPIgnoredIPNoContent, w http.ResponseWriter) error {
+	w.WriteHeader(204)
+
+	return nil
+}
+
 func encodeExposureDeleteExposureTargetsIDResponse(response *ExposureDeleteExposureTargetsIDNoContent, w http.ResponseWriter) error {
 	w.WriteHeader(204)
 
@@ -1603,6 +1609,19 @@ func encodeExposurePostExposureTargetsIDScanResponse(response *ExposurePostExpos
 }
 
 func encodeExposurePostExposureTargetsIDVerifyResponse(response *ExposurePostExposureTargetsIDVerifyOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeExposurePutExposureBoxIPSettingsResponse(response *ExposurePutExposureBoxIPSettingsOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

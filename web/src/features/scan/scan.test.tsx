@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
@@ -15,7 +15,7 @@ const json = (method: string, b: unknown) => ({ method, headers: { 'Content-Type
 const getRuns = async () => ((await (await fetch(`${base()}/scans/runs`)).json()) as { items: ScanRun[] }).items
 const postRun = (targets: string[]) => fetch(`${base()}/scans/runs`, json('POST', { targets }))
 
-afterEach(() => { timing.stepMs = 2000; timing.stopMs = 1000 })
+afterEach(() => { timing.stepMs = 2000; timing.stopMs = 1000; vi.useRealTimers(); localStorage.removeItem('vedette-mock-egress') })
 
 async function onlyTarget(label: RegExp) {
   await userEvent.click(await screen.findByRole('button', { name: 'Clear selection' }))
@@ -45,7 +45,7 @@ describe('scan: trang chính và chọn mục tiêu (S-SCAN-1)', () => {
     expect(screen.getByRole('checkbox', { name: /acme-demo\.example/ })).toBeDisabled()
     expect(screen.getByText('Ownership not verified, so not scanned')).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: /^acme\.example / })).toBeEnabled()
-    // IP ngoài đã hết hạn xác nhận 90 ngày thì không quét được
+    // IP ngoài hộp không thấy quá 30 ngày thì không quét được
     expect(screen.getByRole('checkbox', { name: /203\.0\.113\.55/ })).toBeDisabled()
     expect(screen.getAllByText('Verification expired, verify again, so not scanned').length).toBeGreaterThan(0)
     expect(screen.getByRole('link', { name: 'Open External exposure' })).toHaveAttribute('href', '/exposure')
@@ -115,6 +115,27 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
     const again = await postRun(['a-web01'])
     expect(again.status).toBe(409)
     expect((await again.json()).error.code).toBe('already_running')
+  })
+
+  it('IP ngoài mà hộp không còn ra Internet bằng nó thì bị tạm dừng (INV-13 của exposure): 409 ip_not_current, kết quả lượt dò đầy đủ được dùng lại 5 phút, đến hạn thì dò lại', async () => {
+    renderApp('/scans')
+    await screen.findByRole('checkbox', { name: /NAS-PHOTOS/ })
+    as('u-op')
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(Date.now() + 10 * 60_000) // the sample's last check is old, so the scan asks the network
+    localStorage.setItem('vedette-mock-egress', '198.51.100.50') // the box went out through another address
+    const paused = await postRun(['ext:xt-2'])
+    expect(paused.status).toBe(409)
+    const err = (await paused.json()).error
+    expect(err.code).toBe('ip_not_current')
+    expect(err.message).toMatch(/^This box no longer reaches the Internet through 203\.0\.113\.10; it was last seen \d{1,2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2}\. Scans of it are paused until the box uses it again\.$/)
+    expect((await getRuns()).filter((r) => !r.id.startsWith('run-seed'))).toHaveLength(0)
+    localStorage.removeItem('vedette-mock-egress') // the box is back, but the answer of the full check of a minute ago still stands
+    vi.setSystemTime(Date.now() + 2 * 60_000)
+    expect((await postRun(['ext:xt-2'])).status).toBe(409)
+    vi.setSystemTime(Date.now() + 4 * 60_000) // 5 minutes passed: the box is asked again and sees the IP
+    timing.stepMs = 60_000
+    expect((await postRun(['ext:xt-2'])).status).toBe(201)
   })
 
   it('thiết bị nằm trong loại trừ cũng bị từ chối khi gọi thẳng API', async () => {

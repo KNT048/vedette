@@ -118,6 +118,7 @@ test.describe('scan: IT operator', () => {
   test('"Stop now": Stopping then Stopped within 5 seconds, unscanned devices untouched, one scan at a time', async ({ page }) => {
     await page.goto('/scans')
     await page.getByRole('button', { name: 'Select all' }).click()
+    await page.getByRole('checkbox', { name: /^203\.0\.113\.12 / }).uncheck() // the standby line: the box does not go out through it now, so a run that holds it is refused (ip_not_current)
     await page.getByRole('button', { name: /Scan now/ }).click()
     await expect(page.getByRole('button', { name: 'Stop now' })).toBeVisible()
     await expect(page.getByRole('button', { name: /Scan now/ })).toBeDisabled()
@@ -137,6 +138,7 @@ test.describe('scan: IT operator', () => {
   test('reload in the middle of a scan still shows progress and Stop now', async ({ page }) => {
     await page.goto('/scans')
     await page.getByRole('button', { name: 'Select all' }).click()
+    await page.getByRole('checkbox', { name: /^203\.0\.113\.12 / }).uncheck() // the standby line (see above): a run that holds it is refused
     await page.getByRole('button', { name: /Scan now/ }).click()
     await expect(page.getByRole('button', { name: 'Stop now' })).toBeVisible()
     await page.reload()
@@ -189,10 +191,10 @@ test.describe('scan: admin sets safety', () => {
     await save.click()
     await expect(page.getByRole('alert')).toContainText('is outside')
     await page.locator('#sch-at').fill('23:00')
-    for (const d of [1, 2, 3, 4, 5, 6, 0]) await page.locator(`#day-${d}`).click()
+    for (const d of [1, 2, 3, 4, 5, 6, 7]) await page.locator(`#day-${d}`).click()
     await save.click()
     await expect(page.getByRole('alert')).toContainText('at least one day')
-    for (const d of [1, 2, 3, 4, 5, 6, 0]) await page.locator(`#day-${d}`).click()
+    for (const d of [1, 2, 3, 4, 5, 6, 7]) await page.locator(`#day-${d}`).click()
     await page.locator('#rate').selectOption('10')
     await save.click()
     await expect(page.getByText('Scan settings saved').first()).toBeVisible()
@@ -261,14 +263,17 @@ test.describe('scan: director (viewer)', () => {
 })
 
 test.describe('scan: clean install', () => {
-  test('no history or sample numbers; the page says what to set up first: scope on the Devices setup page, approved devices', async ({ page }) => {
+  test('no history or sample numbers; the page says what to set up first: the scope on the Devices setup page (the box itself is already the first approved device, D-53)', async ({ page }) => {
     const errors = collectErrors(page)
     await clean(page)
     await page.goto('/scans')
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cannot scan yet: confirm the scan scope first')
     await expect(page.getByText('What to set up before scanning')).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open Scope and sensors' })).toHaveAttribute('href', '/devices/setup')
-    await expect(page.getByRole('link', { name: 'Open Devices' })).toHaveAttribute('href', '/devices')
+    // The box is the first device of every inventory (D-53, S-INV-5), approved and inside the range, so step 2 is already done.
+    await expect(page.getByText(/2\. At least one approved device inside the scope \(Done\)/)).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Open Devices' })).toHaveCount(0)
+    await expect(page.getByRole('checkbox', { name: /^vedette 10\.20\.0\./ })).toBeVisible()
     await expect(page.getByRole('button', { name: /Scan now/ })).toBeDisabled()
     await expect(page.getByText('No scans yet.').first()).toBeVisible()
     for (const tab of ['runs', 'safety', 'auto', 'probes']) {
@@ -283,13 +288,33 @@ test.describe('scan: clean install', () => {
     expect(errors).toEqual([])
   })
 
-  test('with the commitment ticked but no devices yet: only the devices step is left', async ({ page }) => {
+  test('with the commitment ticked, the box itself is the first device: no setup step is left and Scan now is ready', async ({ page }) => {
     await clean(page, true)
     await page.goto('/scans')
-    await expect(page.getByText('What to set up before scanning')).toBeVisible()
+    await expect(page.getByText('What to set up before scanning')).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Open Scope and sensors' })).toHaveCount(0)
-    await expect(page.getByText(/There are no devices yet/)).toBeVisible()
-    await expect(page.getByRole('button', { name: /Scan now/ })).toBeDisabled()
+    await expect(page.getByRole('checkbox', { name: /^vedette 10\.20\.0\./ })).toBeChecked()
+    await expect(page.getByRole('button', { name: /Scan now/ })).toBeEnabled()
+  })
+
+  test('an external IP the box no longer goes out through is paused with the reason (INV-13 of exposure, 5-minute window); it can be scanned again when the box is back', async ({ page }) => {
+    await page.clock.install() // time flows, but the test can jump 6 minutes past the 5-minute window
+    await clean(page, true)
+    await page.goto('/scans')
+    const ip = page.getByRole('checkbox', { name: /^203\.0\.113\.10 / })
+    await expect(ip).toBeEnabled() // the first start of the box found its public IPs by itself
+    await page.getByRole('button', { name: 'Clear selection' }).click()
+    await ip.check()
+    await page.evaluate(() => localStorage.setItem('vedette-mock-egress', '198.51.100.50')) // the box now goes out through another address
+    await page.clock.fastForward('06:00')
+    await page.getByRole('button', { name: /Scan now/ }).click()
+    await expect(page.getByText(/no longer reaches the Internet through 203\.0\.113\.10/).first()).toBeVisible()
+    await expect(page.getByText(/Scans of it are paused until the box uses it again/).first()).toBeVisible()
+    await page.evaluate(() => localStorage.removeItem('vedette-mock-egress'))
+    await page.clock.fastForward('06:00')
+    await page.getByRole('button', { name: /Scan now/ }).click()
+    await expect(page.getByText(/no longer reaches the Internet/)).toHaveCount(0)
+    await expect(page.getByText('Scan started').first()).toBeVisible()
   })
 })
 

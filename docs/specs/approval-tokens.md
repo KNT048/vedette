@@ -27,7 +27,7 @@ Ngoài phạm vi: nội dung/cơ chế của hành động (`action-packs.md`), 
 
 1. **Một yêu cầu = một gói** hành động (D-51, một yêu cầu gộp mỗi lần chạy). Người duyệt duyệt/từ chối **cả gói**; thay đổi trước/sau (`change`) luôn hiện đủ trước khi nhận quyết định.
 2. **Hết hạn**: yêu cầu hết hạn sau 15 phút (D-41) tới 30 phút (D-51 cho quy tắc; mặc định trong `response_settings.expiry_min = 15`). **Token email/Zalo OA sống 30 phút (D-46)** nhưng **không bao giờ sống lâu hơn yêu cầu**: `token.expires_at = min(now + 30 phút, request.expires_at)`.
-3. **Số người duyệt**: 1, hoặc 2 người **khác nhau** cho rủi ro cao (D-51). Hai lần duyệt của cùng một người dùng chỉ tính một. Người **tạo** quy tắc/yêu cầu thủ công không được tính là người duyệt thứ hai của chính nó (câu hỏi mở §13).
+3. **Số người duyệt**: 1, hoặc 2 người **khác nhau** cho rủi ro cao (D-51). Hai lần duyệt của cùng một người dùng chỉ tính một. Người **tạo** quy tắc/yêu cầu thủ công không được tính là người duyệt thứ hai của chính nó (câu hỏi mở §14).
 4. **Rủi ro cao do AI gửi** chỉ duyệt **trong app bằng mã hai bước** (D-51); kênh chat/email với yêu cầu này nhận tin "mở Vedette để duyệt", không có nút duyệt (khớp `in_app_required` trong mock).
 5. **Kiểm lại lúc duyệt**: dù token/nút hợp lệ, core kiểm tại thời điểm POST/callback: người duyệt vẫn trong danh sách của kênh, vẫn là người dùng đang hoạt động vai ≥ operator, kênh vẫn bật "Approve actions from this channel", yêu cầu vẫn `pending`, module `response` còn bật và `execution` còn bật. Sai → từ chối `403 approver_not_listed` (khớp mock).
 6. Duyệt xong core đặt trạng thái; thực thi sau khi đủ số người; **dừng khẩn cấp và cầu dao** (D-51) có thể chặn ngay cả yêu cầu đã duyệt đủ, không do token quyết định.
@@ -51,7 +51,7 @@ mac      = HMAC-SHA256(K_approval, "vedette-approval-v1\n" token_id "\n" request
 - **HMAC không phải thứ duy nhất bảo vệ.** Bản ghi `response_tokens` (DB) là nguồn chân lý: `{token_id (băm), request_id, user_id, address, channel, key_id, expires_at, used_at}`. HMAC chỉ để từ chối nhanh token làm giả mà **không cần truy DB** và để chống dò token_id. Trạng thái dùng/hết hạn lấy từ DB, không từ token.
 - Độ dài token ~ 3 + 22 + 1 + 22 = ~48 ký tự, ASCII URL-safe, so sánh bằng hằng thời gian.
 
-Mock hiện dùng token ngẫu nhiên 32 hex không ký (`TOKEN_RE = /^[a-f0-9]{32}$/`). **Định dạng ở trên thay thế regex đó**; đổi `TOKEN_RE` ở FE và route `approve/:token` là việc của M2 (câu hỏi mở §13).
+Mock hiện dùng token ngẫu nhiên 32 hex không ký (`TOKEN_RE = /^[a-f0-9]{32}$/`). **Định dạng ở trên thay thế regex đó**; đổi `TOKEN_RE` ở FE và route `approve/:token` là việc của M2 (câu hỏi mở §14).
 
 ### 4.2 Gắn với hành động và người nhận
 
@@ -84,7 +84,7 @@ Thêm cho chống tự động hoá: phản hồi trang có `Cache-Control: no-s
 
 | Rủi ro | Biện pháp | Rủi ro còn lại |
 |---|---|---|
-| Thư bị chuyển tiếp, ai có link đều duyệt được | token gắn người duyệt nhưng **người cầm token vẫn duyệt được** nếu không có yếu tố thứ hai; giảm bằng hạn 30 phút, một lần, gộp một gói, rủi ro cao cần 2 người, rủi ro cao AI không duyệt bằng email | **Chấp nhận**: email là kênh yếu; GUI nêu rõ. Có thể thêm bước nhập mã hai bước (câu hỏi mở §13) |
+| Thư bị chuyển tiếp, ai có link đều duyệt được | token gắn người duyệt nhưng **người cầm token vẫn duyệt được** nếu không có yếu tố thứ hai; giảm bằng hạn 30 phút, một lần, gộp một gói, rủi ro cao cần 2 người, rủi ro cao AI không duyệt bằng email | **Chấp nhận**: email là kênh yếu; GUI nêu rõ. Có thể thêm bước nhập mã hai bước (câu hỏi mở §14) |
 | Phát lại sau khi dùng | `used_at` + `409 used` | không |
 | Phát lại sau hạn | `expires_at` + `409 expired` | không |
 | Thư trong hộp thư bị chiếm | như chuyển tiếp | cần bảo vệ hộp thư |
@@ -126,7 +126,7 @@ Duyệt bằng mã trả lời (Zalo cá nhân):
 - Hộp gửi tin với mã duyệt riêng cho **từng người duyệt**: `A-<6 ký tự>` (duyệt) và `R-<6 ký tự>` (từ chối), bảng chữ không gây nhầm (không `0/O/1/I`), tạo bằng CSPRNG; lưu băm, gắn `request_id`, `user_id`, hạn bằng hạn yêu cầu (tối đa 30 phút), **một lần**.
 - Người duyệt trả lời đúng mã. Hộp (qua phiên Zalo cá nhân của kênh) nhận tin vào, so với bản ghi mã: **gửi từ `Approver.address`** (Zalo user ID) mới được chấp nhận; mã đúng nhưng người gửi khác → bỏ và ghi `refused`.
 - Mã trả lời đã dùng/hết hạn → hộp trả lời "expired/used".
-- Vì kênh không chính thức, độ tin cậy danh tính thấp hơn Slack/Telegram: **mặc định không dùng cho rủi ro cao** (câu hỏi mở §13), và rủi ro cao AI vẫn chỉ duyệt trong app.
+- Vì kênh không chính thức, độ tin cậy danh tính thấp hơn Slack/Telegram: **mặc định không dùng cho rủi ro cao** (câu hỏi mở §14), và rủi ro cao AI vẫn chỉ duyệt trong app.
 - Phiên Zalo cá nhân là bí mật (quét QR một lần); xoá kênh xoá phiên (PRIVACY luồng 5).
 
 ### 7.1 Băm mã trả lời (D-96; lát 13b-8, `notify` tạo, `response` lưu và kiểm)

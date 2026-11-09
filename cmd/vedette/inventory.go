@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"net/netip"
 	"os"
 	"time"
 
@@ -21,7 +22,15 @@ func newInventory(d *deps) *inventory.Service {
 			return d.Bus.Publish(ctx, events.Event{Name: e.Name, Data: e.Data})
 		})
 	}
-	svc, err := inventory.New(inventory.Config{DB: d.DB, Audit: d.Audit, Modules: d.Reg, Clock: d.Clock, Log: d.Log, Events: pub, KEV: feedsKEV{d}})
+	// The decoy addresses of the honeypot are the box, not devices (honeypot CONTRACT, open question 2). The honeypot is built
+	// after the inventory, so the list is looked up when asked.
+	owned := func(ctx context.Context) []netip.Addr {
+		if d.Honeypot == nil {
+			return nil
+		}
+		return d.Honeypot.DecoyIPs(ctx)
+	}
+	svc, err := inventory.New(inventory.Config{DB: d.DB, Audit: d.Audit, Modules: d.Reg, Clock: d.Clock, Log: d.Log, Events: pub, KEV: feedsKEV{d}, BoxOwnedIPs: owned})
 	if err != nil { // only a missing DB or audit log: a programming error in serve
 		panic("vedette: " + err.Error())
 	}

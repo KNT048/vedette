@@ -252,6 +252,10 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 	if err != nil {
 		return err
 	}
+	if ip.IsValid() && s.ownedIPs(ctx)[ip] { // a box-owned address is no device (Config.BoxOwnedIPs)
+		s.ownedHit.Add(1)
+		return nil
+	}
 	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		now := s.seen(s.clock())
 		id, isNew, err := s.resolve(ctx, tx, cleanObs{ip: ip, mac: mac, seenAt: now})

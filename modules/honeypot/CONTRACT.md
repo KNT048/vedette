@@ -1,23 +1,29 @@
 # Honeypot Contract
 
+> Cài đặt: WP-14 (2026-11-09, D-89, D-90). Mọi điểm lệch/chốt thêm nằm ở D-90; sửa sau rà soát độc lập (hai thư mục, giới hạn ngập, dòng không thể có thật, IP bẫy thuộc hộp) ở mục "Sửa 2026-11-09 (rà WP-14)" của D-89 và D-90.
 > Tier: tuỳ chọn (tắt mặc định) · Story: S-HP-1, S-HP-2 · Quyết định: D-10, D-18, D-43, D-50, D-55, D-56 · Last verified: 2026-11-09
 > Nguồn hành vi thực tế: `web/src/features/honeypot/{contract,types,mocks}.ts`. OpenAPI sinh từ `contract.ts` (D-18); mọi khác biệt dưới đây là lỗi của một trong hai bên.
 
 ## Invariants (luôn đúng)
-- **INV-1** Bẫy chỉ nghe và ghi log, không bao giờ chủ động kết nối ngược về nguồn và không chạy dịch vụ thật (LEGAL §3, S-HP-2). Test: `TestContract_INV1_NoOutboundToSource` (bắt gói ra từ container `honeypot` tới IP nguồn = 0).
+- **INV-1** Bẫy chỉ nghe và ghi log, không bao giờ chủ động kết nối ngược về nguồn và không chạy dịch vụ thật (LEGAL §3, S-HP-2). Test: phía mã `TestContract_INV1_NoDialer` (module không import `net`/`os/exec`/`net/http`; `syscall` chỉ trong `tail.go` và chỉ cho hai cờ mở tệp `O_NOFOLLOW`, `O_NONBLOCK`); phía gói tin `TestContract_INV1_NoOutboundToSource` (bắt gói ra từ container `honeypot` tới IP nguồn = 0) thuộc WP-08.
 - **INV-2** Cổng cố định theo dịch vụ: smb 445, rdp 3389, ssh 22, mssql 1433, http 80. Chỉ 5 dịch vụ trong enum `HpService`.
-- **INV-3** Kết nối của chính máy quét Vedette (IP của hộp) bị loại trừ: không tạo `hp_hits`, không cảnh báo, chỉ tăng `ignored_7d`. Broadcast không tạo hit.
+- **INV-3** Kết nối của chính máy quét Vedette (IP của hộp) bị loại trừ: không tạo `hp_hits`, không cảnh báo, chỉ tăng `ignored_7d` (đếm đúng một lần, kể cả khi một lô ghi hỏng và đọc lại). Broadcast không tạo hit.
 - **INV-4** Hit thử (`is_test=true`: test-hit, test-scan, tokens/{id}/test) không vào `summary`, `hits_7d`, `last_hit_at`, tín hiệu ẩn danh; không gửi cảnh báo.
-- **INV-5** IP phụ (`secondary_ip`) và IP bẫy (`decoys[].ip`) phải: là IPv4 hợp lệ không số 0 đứng đầu; nằm trong dải mạng của hộp (`HpOverview.lan`), không phải địa chỉ mạng/broadcast; khác IP của hộp; không trùng thiết bị nào trong kho (409 `ip_in_use`); không trùng nhau. `lan = null` (cài mới chưa khai dải) → từ chối đặt IP.
+- **INV-5** IP phụ (`secondary_ip`) và IP bẫy (`decoys[].ip`) phải: là IPv4 hợp lệ không số 0 đứng đầu; nằm trong dải mạng của hộp (`HpOverview.lan`), không phải địa chỉ mạng/broadcast; khác IP của hộp; không trùng thiết bị nào trong kho (409 `ip_in_use`); không trùng nhau. `lan = null` (cài mới chưa khai dải) → từ chối đặt IP. **Kiểm lại sau khi đã nhận** (rà WP-14): trạng thái đổi được (hộp được cấp đúng IP đó, dải LAN đổi, thiết bị chiếm IP), nên `desired`, `SetTrap` và `Overview` coi IP phụ hoặc IP decoy trùng IP hộp, ra ngoài dải LAN hiện tại hoặc trùng thiết bị là `conflict`: không bao giờ giao cho host, `SetTrap(enabled)` trả 409 `ip_is_box`/`ip_outside_lan`/`ip_in_use`. Tổng IP giao cho host ≤ 32 (host-api 6.6), **IP phụ tính vào đó**: tối đa 31 decoy khi đã có IP phụ (409 `limit_reached`), đặt IP phụ khi đã đủ 32 decoy cũng bị từ chối; kiểm trong giao dịch ghi, nên hai yêu cầu song song không cùng lọt. IP vượt 32 trong DB (hàng cũ) bị bỏ ra khỏi host kèm lý do.
 - **INV-6** Bật bẫy (`PATCH /honeypot/traps/{service}` enabled=true) cần có `secondary_ip` (409 `no_secondary_ip`) và không đụng thiết bị trong kho (409 `ip_in_use`). Nếu IP phụ về sau trùng thiết bị mới nhập kho, `Trap.state = conflict` và bẫy không lắng nghe.
-- **INV-7** `Trap.state` ∈ {off, listening, conflict}; `listening` ⇔ enabled ∧ không conflict ∧ container `honeypot` đang nghe cổng đó.
+- **INV-7** `Trap.state` ∈ {off, listening, conflict}; `listening` ⇔ enabled ∧ không conflict ∧ container `honeypot` đã được **khởi động** với cấu hình có dịch vụ đó trên một host là thiết bị (appliance). Không có nghĩa cổng đã được thăm dò: hộp không bao giờ tự kết nối vào bẫy của mình (INV-1, FORBID-3), nên `listening` là "đã giao IP và bật container", không phải "cổng đã mở". `conflict` khi IP phụ có vấn đề (thiết bị, IP hộp, ngoài LAN) hoặc host từ chối IP phụ; lý do từng IP bị loại có ở `Service.TrapConflicts()` và log (GUI chưa có trường).
 - **INV-8** Thiết bị nguồn (`src_asset_id`, `src_name`) tra từ kho tại lúc đọc; `src_name = null` ⇔ IP không có trong kho. Hàng lưu `hp_hits` có thêm `source_ip` = `src_ip` (cho `response` đọc qua interface, xem IMPACT).
 - **INV-9** `GET /honeypot/hits` trả mới nhất trước; `HitDetail.events` là các sự kiện log trong khoảng `window_minutes` (60) quanh hit; `mark=true` đúng một dòng là hit.
-- **INV-10** `Token.password` chỉ có khi `type=credential`, còn lại `null`. `HitKind=token` chỉ sinh từ token còn tồn tại; xoá token → bản đã rải không còn sinh hit.
+- **INV-10** `Token.password` chỉ có khi `type=credential`, còn lại `null` (cả khi một mật khẩu đã lưu không giải mã được: token vẫn được liệt kê, lỗi vào log, các token khác không bị che). `HitKind=token` chỉ sinh từ token còn tồn tại; xoá token → bản đã rải không còn sinh hit. **Tên tài khoản mồi do hệ thống sinh** (`svc_` + 6 chữ cái ngẫu nhiên), không lấy từ tên hiển thị của token, nên dò mật khẩu thường trên `admin` không bắn token; chỉ danh sách tài khoản bị đánh cắp mới bắn.
 - **INV-11** Gợi ý vai giả (`DecoySuggestion`) chỉ gồm loại thiết bị có thật trong kho; vai ∈ {windows_fs, nas, printer, camera, linux}.
-- **INV-12** `excerpt`, `label`, `src_*` đến từ kẻ chạm bẫy: không tin cậy (SYS-6): cắt độ dài, không diễn giải thành lệnh, hiển thị dạng text.
+- **INV-12** `excerpt`, `label`, `src_*` đến từ kẻ chạm bẫy: không tin cậy (SYS-6): cắt độ dài, không diễn giải thành lệnh, hiển thị dạng text; bỏ ký tự điều khiển (Cc → khoảng trắng) và ký tự vô hình/đảo chiều (Cf: bidi, rộng-bằng-không, BOM, soft hyphen, ký tự thẻ Unicode dùng để tiêm lệnh vô hình vào `ai`; Zl, Zp), cùng quy tắc với `sensor-active/xml.go` và `sensor-passive/decode.go`.
 - **INV-13** Mọi mutation (config, bật/tắt bẫy, decoy, token) ghi `core_audit` (SYS-3).
 - **INV-14** Tín hiệu ẩn danh (PRIVACY luồng 2) chỉ nhận từ module này **số lần chạm theo loại**; không IP, không tên thiết bị, không nội dung.
+- **INV-15** (rà WP-14) **Hai thư mục** dưới `-honeypot-dir`: `config/` (`Config.ConfigDir`) của `core`, container gắn **chỉ đọc**; `log/` (`Config.LogDir`) container ghi được, `core` chỉ đọc. `core` ghi `opencanary.conf`, `honeytokens.json` qua `os.OpenRoot(ConfigDir)` + tệp tạm `O_EXCL` + rename, **không bao giờ đọc lại** thứ gì trong `config/` (so với băm trong bộ nhớ của lần ghi trước). Ghi tệp hỏng (đầy đĩa, quyền) **không** chặn đối soát host: IP không còn muốn bị gỡ, container dừng khi không bẫy nào được bật (FORBID-1, POST-5); chỉ việc thêm IP và khởi động container chờ cấu hình đã ghi. `TestApplyNeverReadsWhatIsInTheConfigFolder`, `TestApplyReconcilesTheHostWhenTheFilesCannotBeWritten`.
+- **INV-16** (rà WP-14) **Đọc log không bao giờ chặn, không bị chuyển hướng, không bị quá tải.** Mở `opencanary.jsonl` qua `os.OpenRoot(LogDir)` với `O_RDONLY|O_NOFOLLOW|O_NONBLOCK`, `fstat` phải là tệp thường, ngược lại bỏ qua và đếm (`Stats.NotRegular`, log tối đa mỗi phút một lần); symlink bị từ chối. Chậm hơn 64 MiB → nhảy tới cuối, đếm `Stats.SkippedBytes`, bỏ nốt dòng đang dở. Log do container sinh được xoay (`RotatingFileHandler`, 10 MiB × 3). Mỗi lô dòng được lưu **cùng vị trí đọc trong một giao dịch** rồi phát sự kiện của lô đó ngay sau commit: một lô hỏng không làm mất cảnh báo của các lô trước và không phát hai lần. `TestTailFIFOAtTheLogNameDoesNotBlockPoll`, `TestTailRefusesASymlinkAtTheLogName`, `TestTailJumpsToTheEndWhenFarBehind`, `TestIngestFailedBatchKeepsTheAlertsOfTheBatchesBeforeIt`.
+- **INV-17** (rà WP-14) **Chặn ngập cảnh báo.** Một hit cho mỗi (IP nguồn, dịch vụ, IP bẫy) mỗi cửa sổ 10 phút; kết nối sau trong cửa sổ tăng `conn_count` và thêm dòng vào `events` của hit đó (tối đa 20), không thêm hàng và không phát sự kiện. Mỗi poll tối đa 500 hit mới, mỗi giờ đồng hồ tối đa 2.000; vượt thì đếm `Stats.Suppressed` và ghi log (tối đa mỗi phút một lần), không lưu, không phát. Tối đa 200 dòng của một nguồn được xử lý mỗi poll (`Stats.Flooded`). `TestIngestOneSourceStaysOneHitAcrossPolls`, `TestIngestCapsNewHitsPerPollAndPerHour`.
+- **INV-18** (rà WP-14) **Dòng không thể do một kết nối tới bẫy sinh ra thì bị bỏ và đếm** (`Stats.Implausible`), không thành hit: nguồn là loopback, IP của bẫy, địa chỉ mạng của LAN; đích không phải IP bẫy đang giao cho host; bẫy của dịch vụ đó đang tắt; thời gian cũ hơn 24 giờ hoặc quá 5 phút trong tương lai. (Nguồn là IP hộp vẫn là INV-3.) `TestIngestDropsLinesNoConnectionToATrapCouldMake`.
+- **INV-19** (rà WP-14) **IP bẫy thuộc về hộp** (câu hỏi mở 2 đã chốt): `Service.DecoyIPs(ctx)` trả các IP đã giao cho host ở lần `Apply` gần nhất (IP phụ + decoy đang bật được host nhận; đọc từ bản ghi `applied`, đúng ngay sau khởi động lại; IP có thiết bị/host từ chối thì không nằm trong đó). `cmd/vedette` nối nó vào `inventory.Config.BoxOwnedIPs`: kho **không bao giờ tạo hay cập nhật thiết bị** từ quan sát có IP đó (trả lời ARP của chính bẫy; đếm `BoxOwnedSkipped`), và `ProtectedIPs` (nên cả `sensor-active`) liệt kê chúng. `TestDecoyIPsAreTheAddressesTheHostHolds`, `TestBoxOwnedAddressIsNoDevice` (inventory), `TestHoneypotDecoyAddressesAreNotDevices` (cmd/vedette).
 
 ## Preconditions (trước khi gọi)
 - **PRE-1** `POST /honeypot/test-hit`: bẫy của dịch vụ đó đang bật và không conflict (409 `trap_off` / `ip_in_use`).
@@ -25,7 +31,7 @@
 - **PRE-3** Module `honeypot` bật, `inventory` bật.
 
 ## Postconditions (sau khi xong)
-- **POST-1** Một kết nối thật vào bẫy đang `listening`: sinh đúng một `hp_hits` (kind=service), phát `honeypot.hit`, và trong ≤ 60 s `notify` có cảnh báo kèm IP nguồn, thiết bị nguồn, 1 giờ sự kiện quanh đó (S-HP-1).
+- **POST-1** Kết nối thật đầu tiên của một nguồn vào bẫy đang `listening` trong cửa sổ 10 phút: sinh đúng một `hp_hits` (kind=service), phát `honeypot.hit.created`, và trong ≤ 60 s `notify` có cảnh báo kèm IP nguồn, thiết bị nguồn, 1 giờ sự kiện quanh đó (S-HP-1). Các kết nối sau của cùng nguồn/dịch vụ/IP bẫy trong cửa sổ đó vào cùng hit (INV-17).
 - **POST-2** Chạm honey token / quét cổng tới IP bẫy: sinh hit kind=token / scan với `label` nêu cái bị chạm (S-HP-2).
 - **POST-3** Hit thật là nguồn của trigger `honeypot` trong `response` (D-50): trường `source_ip`, `source_device`, `decoy`, `kind`.
 - **POST-4** Tạo token loại `file` với `ext` (docx|xlsx) trả `value` là tên tệp để rải; `plant_at` do chủ hộp ghi.
@@ -61,8 +67,9 @@
 `hp_config` (IP phụ, hostname, trạng thái bẫy, `ignored_7d`), `hp_hits` (+ `kind`, `source_ip`, `token_id`), `hp_decoys`, `hp_tokens`. Không module nào khác đọc trực tiếp (modules.md); `response` đọc `hp_hits` qua interface (IMPACT).
 
 ## Events
-- **Phát**: `honeypot.hit` (đã có tên trong `ARCHITECTURE.md` §Sensor/Server, idempotent theo `seq` khi sensor ≠ server). Trường: `id, ts, kind, service, port, src_ip, label`.
-- **Nhận**: không. Đọc kho (`inventory`) qua interface để tra nguồn và kiểm tra trùng IP.
+- **Phát**: `honeypot.hit.created` (tên 3 đoạn theo `core/events`, issue #62; `notify` đã nghe tên này). Chỉ cho hit thật **mới** (không phải mỗi kết nối), ngay sau khi commit của lô chứa nó; hit thử không phát gì (INV-4). Trường: `id, ts, kind, service, port, src_ip, label`.
+- **Nhận**: `inventory.asset.discovered|updated` (gợi ý: áp lại trạng thái lên host, thiết bị mới trùng IP phụ/IP bẫy → `conflict`). Đọc kho (`inventory`) qua cổng `Inventory` để tra nguồn và kiểm tra trùng IP.
+- **Đường vào của hit (D-89)**: tệp JSON-lines `opencanary.jsonl` trong `log/` dưới `-honeypot-dir`, core chỉ đọc; không cổng mạng nào vào core. Core ghi cấu hình vào `config/` (container gắn chỉ đọc), INV-15.
 
 ## Khi tắt module (SYS-5)
 Không route `/honeypot*`, container `honeypot` dừng, IP phụ/IP bẫy được gỡ qua `vedette-host`, không cổng nào mở. Dữ liệu `hp_*` giữ nguyên. Trigger `honeypot` trong `response` không còn sự kiện; UI báo "đang tắt" ở trang Incidents/Rules (S-CORE-1).
@@ -73,6 +80,12 @@ Không route `/honeypot*`, container `honeypot` dừng, IP phụ/IP bẫy đư�
 
 ## Câu hỏi mở
 1. Phát hiện "quét cổng tới IP bẫy" (D-50): container `honeypot` (OpenCanary không log SYN) hay `sensor` (pcap) làm? Quyết định vì quyền `net_raw`.
-2. Có cần chặn `sensor-passive`/`inventory` lập thiết bị từ IP bẫy không? GUI mock chưa nói.
+2. ~~Có cần chặn `sensor-passive`/`inventory` lập thiết bị từ IP bẫy không?~~ **Đã chốt (rà WP-14, D-89):** có; INV-19.
 3. URL token/DNS token kích hoạt bằng cách nào khi người chạm ở ngoài LAN (cần tên miền/điểm thu của dự án)? Nếu cần thì thêm luồng ra → `PRIVACY.md` (legal.md).
 4. Hit thử có kích hoạt trigger `response` không? Hợp đồng đề xuất: không (INV-4).
+
+## Giới hạn (cố hữu, ghi rõ)
+- Container `honeypot` đối mặt với kẻ tấn công và có thể bị chiếm: nó ghi được mọi thứ vào `log/`. INV-16..18 chặn việc làm treo, chuyển hướng, làm tràn hoặc bơm dòng vô lý; **một dòng giả đủ hợp lý** (nguồn là một IP bất kỳ ngoài danh sách loại, đích là IP bẫy, đúng giờ) vẫn thành hit. Mỗi poll tối đa 500 và mỗi giờ tối đa 2.000 hit mới giới hạn thiệt hại, không loại bỏ nó.
+- Vì vậy `response` **không bao giờ được hành động lên IP của hộp, gateway, DNS hay các IP bẫy** dựa trên hit này: danh sách không bao giờ đụng của nó (`response` INV-10: gateway, DNS, domain controller, chính hộp, IP quản trị) áp cho `source_ip` của hit, và IP bẫy (`Service.DecoyIPs`) phải nằm trong danh sách đó; hit giả có thể đặt nguồn là bất kỳ địa chỉ nào.
+- Cửa sổ 24 giờ: nếu `core` ngừng hơn 24 giờ trong lúc container vẫn ghi, các dòng cũ hơn bị bỏ khi đọc lại (đếm `Implausible`); và quá 64 MiB chưa đọc thì phần chưa đọc bị nhảy qua (`SkippedBytes`).
+- Hạn mức ổ đĩa cho `log/` thuộc WP-08 (volume quota); `RotatingFileHandler` chỉ chặn một tệp log (≈ 40 MiB gồm bản xoay).

@@ -5,6 +5,7 @@ import (
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
+	"github.com/knt048/vedette/modules/honeypot"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
@@ -25,6 +26,7 @@ type handler struct {
 	*findings.FindingHandlers
 	*mitigation.ActionHandlers
 	*notify.NotifyHandlers
+	*honeypot.HoneypotHandlers
 	*sensorpassive.SensorHandlers
 }
 
@@ -42,5 +44,7 @@ func newHandler(d deps) handler {
 		ActionHandlers:  d.MitigationHandlers,
 		NotifyHandlers:  notify.NewNotifyHandlers(newNotify(&d)),
 		SensorHandlers:  sensorpassive.NewSensorHandlers(d.SensorPassive),
+
+		HoneypotHandlers: honeypot.NewHoneypotHandlers(d.Honeypot),
 	}
 }

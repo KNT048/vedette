@@ -3,7 +3,7 @@
 > Chưa có mã Go; chữ ký là kế hoạch (package `modules/response`). Module **rủi ro cao**: mọi thay đổi ở cổng chặn (INV-1…16) cần test hợp đồng và ghi rõ trong commit.
 
 ## Modifying: `Engine.Evaluate(ctx, Event) error` (khớp quy tắc, dựng yêu cầu) — 6 nguồn sự kiện
-- **honeypot** (`Hits`/`honeypot.hit`), **logs** (`IocHits`), **core/findings**, **inventory** (thiết bị chưa duyệt), **exposure** (cổng mới), **scheduler** (lịch): đổi tên/kiểu trường trigger → điều kiện và tham số `{{trigger.field}}` của quy tắc đang có không còn khớp, quy tắc im lặng. Danh mục trường (`/response/triggers`) là hợp đồng với GUI.
+- **honeypot** (`Hits`/`honeypot.hit`), **logs** (`IocHits`), **findings** (`findings.finding.created|status_changed`, D-57 (6)), **inventory** (thiết bị chưa duyệt), **exposure** (cổng mới), **scheduler** (lịch): đổi tên/kiểu trường trigger → điều kiện và tham số `{{trigger.field}}` của quy tắc đang có không còn khớp, quy tắc im lặng. Danh mục trường (`/response/triggers`) là hợp đồng với GUI.
 
 ## Modifying: `Approve(ctx, reqID, Approver, items, code) (Request, error)` — 4 người gọi
 - **HTTP** `/response/actions/{id}/approve` (app); **kênh chat** (Slack Socket Mode, Telegram long polling, Zalo cá nhân) qua `notify`; **liên kết email/Zalo OA** `/response/approve/{token}`; **rule engine** (`via=auto`, chỉ INV-5). Đổi thứ tự cổng (INV-9) hoặc điều kiện hai người → thay đổi ai có thể gây thay đổi trên thiết bị; test `TestContract_INV2_*`, `INV16_*` bắt buộc.

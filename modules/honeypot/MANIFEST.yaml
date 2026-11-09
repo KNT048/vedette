@@ -9,6 +9,6 @@ permissions: [net_bind_low, "host:net.decoy_ip"]   # cổng 22/80/445/1433/3389 
 ports: ["tcp/445", "tcp/3389", "tcp/22", "tcp/1433", "tcp/80"]   # chỉ trên IP phụ/IP bẫy, không trên IP quản trị của hộp
 container: honeypot    # D-55: OpenCanary (BSD-3) trong container riêng, macvlan trên IP phụ; API + bảng nằm trong `core`
 tables_prefix: hp_
-tables: [hp_config, hp_hits, hp_decoys, hp_tokens]
+tables: [hp_config, hp_trap, hp_hits, hp_decoys, hp_tokens, hp_ignored_day]
 stories: [S-HP-1, S-HP-2]
 milestone: M5

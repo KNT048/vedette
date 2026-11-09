@@ -1,10 +1,11 @@
 # Honeypot Contract
 
+> Cài đặt: WP-14 (2026-11-09, D-89, D-90). Mọi điểm lệch/chốt thêm nằm ở D-90.
 > Tier: tuỳ chọn (tắt mặc định) · Story: S-HP-1, S-HP-2 · Quyết định: D-10, D-18, D-43, D-50, D-55, D-56 · Last verified: 2026-11-09
 > Nguồn hành vi thực tế: `web/src/features/honeypot/{contract,types,mocks}.ts`. OpenAPI sinh từ `contract.ts` (D-18); mọi khác biệt dưới đây là lỗi của một trong hai bên.
 
 ## Invariants (luôn đúng)
-- **INV-1** Bẫy chỉ nghe và ghi log, không bao giờ chủ động kết nối ngược về nguồn và không chạy dịch vụ thật (LEGAL §3, S-HP-2). Test: `TestContract_INV1_NoOutboundToSource` (bắt gói ra từ container `honeypot` tới IP nguồn = 0).
+- **INV-1** Bẫy chỉ nghe và ghi log, không bao giờ chủ động kết nối ngược về nguồn và không chạy dịch vụ thật (LEGAL §3, S-HP-2). Test: phía mã `TestContract_INV1_NoDialer` (module không import `net` dial/`os/exec`/`net/http`); phía gói tin `TestContract_INV1_NoOutboundToSource` (bắt gói ra từ container `honeypot` tới IP nguồn = 0) thuộc WP-08.
 - **INV-2** Cổng cố định theo dịch vụ: smb 445, rdp 3389, ssh 22, mssql 1433, http 80. Chỉ 5 dịch vụ trong enum `HpService`.
 - **INV-3** Kết nối của chính máy quét Vedette (IP của hộp) bị loại trừ: không tạo `hp_hits`, không cảnh báo, chỉ tăng `ignored_7d`. Broadcast không tạo hit.
 - **INV-4** Hit thử (`is_test=true`: test-hit, test-scan, tokens/{id}/test) không vào `summary`, `hits_7d`, `last_hit_at`, tín hiệu ẩn danh; không gửi cảnh báo.
@@ -25,7 +26,7 @@
 - **PRE-3** Module `honeypot` bật, `inventory` bật.
 
 ## Postconditions (sau khi xong)
-- **POST-1** Một kết nối thật vào bẫy đang `listening`: sinh đúng một `hp_hits` (kind=service), phát `honeypot.hit`, và trong ≤ 60 s `notify` có cảnh báo kèm IP nguồn, thiết bị nguồn, 1 giờ sự kiện quanh đó (S-HP-1).
+- **POST-1** Một kết nối thật vào bẫy đang `listening`: sinh đúng một `hp_hits` (kind=service), phát `honeypot.hit.created`, và trong ≤ 60 s `notify` có cảnh báo kèm IP nguồn, thiết bị nguồn, 1 giờ sự kiện quanh đó (S-HP-1).
 - **POST-2** Chạm honey token / quét cổng tới IP bẫy: sinh hit kind=token / scan với `label` nêu cái bị chạm (S-HP-2).
 - **POST-3** Hit thật là nguồn của trigger `honeypot` trong `response` (D-50): trường `source_ip`, `source_device`, `decoy`, `kind`.
 - **POST-4** Tạo token loại `file` với `ext` (docx|xlsx) trả `value` là tên tệp để rải; `plant_at` do chủ hộp ghi.
@@ -61,8 +62,9 @@
 `hp_config` (IP phụ, hostname, trạng thái bẫy, `ignored_7d`), `hp_hits` (+ `kind`, `source_ip`, `token_id`), `hp_decoys`, `hp_tokens`. Không module nào khác đọc trực tiếp (modules.md); `response` đọc `hp_hits` qua interface (IMPACT).
 
 ## Events
-- **Phát**: `honeypot.hit` (đã có tên trong `ARCHITECTURE.md` §Sensor/Server, idempotent theo `seq` khi sensor ≠ server). Trường: `id, ts, kind, service, port, src_ip, label`.
-- **Nhận**: không. Đọc kho (`inventory`) qua interface để tra nguồn và kiểm tra trùng IP.
+- **Phát**: `honeypot.hit.created` (tên 3 đoạn theo `core/events`, issue #62; `notify` đã nghe tên này). Chỉ cho hit thật, sau khi commit; hit thử không phát gì (INV-4). Trường: `id, ts, kind, service, port, src_ip, label`.
+- **Nhận**: `inventory.asset.discovered|updated` (gợi ý: áp lại trạng thái lên host, thiết bị mới trùng IP phụ/IP bẫy → `conflict`). Đọc kho (`inventory`) qua cổng `Inventory` để tra nguồn và kiểm tra trùng IP.
+- **Đường vào của hit (D-89)**: tệp JSON-lines `opencanary.jsonl` trên volume dùng chung (`-honeypot-dir`), core chỉ đọc; không cổng mạng nào vào core.
 
 ## Khi tắt module (SYS-5)
 Không route `/honeypot*`, container `honeypot` dừng, IP phụ/IP bẫy được gỡ qua `vedette-host`, không cổng nào mở. Dữ liệu `hp_*` giữ nguyên. Trigger `honeypot` trong `response` không còn sự kiện; UI báo "đang tắt" ở trang Incidents/Rules (S-CORE-1).

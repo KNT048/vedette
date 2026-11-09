@@ -1,0 +1,50 @@
+{
+  "device.listen_addr": "",
+  "device.node_id": "vedette-honeypot",
+  "ftp.enabled": false,
+  "git.enabled": false,
+  "http.banner": "Apache/2.4.52 (Ubuntu)",
+  "http.enabled": true,
+  "http.port": 80,
+  "http.skin": "nasLogin",
+  "httpproxy.enabled": false,
+  "ip.ignorelist": [],
+  "llmnr.enabled": false,
+  "logger": {
+    "class": "PyLogger",
+    "kwargs": {
+      "formatters": {
+        "plain": {
+          "format": "%(message)s"
+        }
+      },
+      "handlers": {
+        "file": {
+          "class": "logging.FileHandler",
+          "filename": "/vol/opencanary.jsonl",
+          "formatter": "plain"
+        }
+      }
+    }
+  },
+  "mssql.enabled": false,
+  "mssql.port": 1433,
+  "mssql.version": "2012",
+  "mysql.enabled": false,
+  "ntp.enabled": false,
+  "portscan.enabled": false,
+  "rdp.enabled": false,
+  "rdp.port": 3389,
+  "redis.enabled": false,
+  "sip.enabled": false,
+  "smb.auditfile": "/var/log/samba-audit.log",
+  "smb.enabled": true,
+  "snmp.enabled": false,
+  "ssh.enabled": true,
+  "ssh.port": 22,
+  "ssh.version": "SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.10",
+  "tcpbanner.enabled": false,
+  "telnet.enabled": false,
+  "tftp.enabled": false,
+  "vnc.enabled": false
+}

@@ -20,6 +20,7 @@ var regexMap = map[string]ogenregex.Regexp{
 	"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$":                                    ogenregex.MustCompile("^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"),
 	"^[a-z_][a-z0-9_-]{0,31}$":                                             ogenregex.MustCompile("^[a-z_][a-z0-9_-]{0,31}$"),
 	"^\\d{4}-\\d{2}-\\d{2}$":                                               ogenregex.MustCompile("^\\d{4}-\\d{2}-\\d{2}$"),
+	"^https?:\\/\\/":                                                       ogenregex.MustCompile("^https?:\\/\\/"),
 }
 
 type (

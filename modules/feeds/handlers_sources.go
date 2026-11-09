@@ -344,7 +344,7 @@ func (h *FeedHandlers) FeedsPostFeedsSourcesIDFetch(ctx context.Context, params 
 	if err != nil {
 		return nil, err
 	}
-	row, _, err := h.s.pull(ctx, params.ID, p.Email)
+	row, err := h.s.pull(ctx, params.ID, p.Email)
 	switch {
 	case errors.Is(err, ErrNotFound):
 		return nil, noSuchFeed()

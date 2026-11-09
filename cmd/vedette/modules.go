@@ -72,7 +72,7 @@ type moduleWiring struct {
 func wiredModules() []moduleWiring {
 	return []moduleWiring{
 		{ID: "core", Migrations: core.Migrations},
-		{ID: "feeds", Migrations: feeds.Migrations, Jobs: feedsJobs},
+		{ID: "feeds", Migrations: feeds.Migrations, Jobs: feedsJobs, BodyLimits: feeds.BodyLimits},
 		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},
 		{ID: "sensor-active", Migrations: sensoractive.Migrations, Jobs: sensorActiveJobs},
 		{ID: "honeypot", Migrations: honeypot.Migrations, Jobs: honeypotJobs},

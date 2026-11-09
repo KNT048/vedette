@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strconv"
 
 	"github.com/knt048/vedette/core/exec"
@@ -25,26 +26,62 @@ const MaxBatch = 64
 const maxOutput = 8 << 20
 
 const (
-	flagPrivileged = "--privileged" // use raw sockets granted by CAP_NET_RAW instead of checking for uid 0 (D-84 (8))
-	flagNoDNS      = "-n"           // never resolve names: no packet may reach a resolver outside the scope (INV-1)
-	flagMaxRate    = "--max-rate"
-	flagTopPorts   = "--top-ports"
-	flagVersionInt = "--version-intensity"
-	flagMaxRetries = "--max-retries"
-	flagTiming     = "-T2"
-	flagXML        = "-oX"
+	flagPrivileged  = "--privileged" // use raw sockets granted by CAP_NET_RAW instead of checking for uid 0 (D-84 (8))
+	flagNoDNS       = "-n"           // never resolve names: no packet may reach a resolver outside the scope (INV-1)
+	flagMaxRate     = "--max-rate"   // limits port scanning and host discovery only; OS and version detection time themselves
+	flagTopPorts    = "--top-ports"
+	flagMaxRetries  = "--max-retries"
+	flagTiming      = "-T2"
+	flagHostTimeout = "--host-timeout" // bounds the time one host may take, which --max-rate does not
+	flagXML         = "-oX"
 )
 
-// plainFlags are the flags that take no value. -O and -sV are the only detection options; no NSE script flag,
-// no -A, no -sC is in the grammar (FORBID-3, FORBID-6).
-var plainFlags = map[string]bool{"-sn": true, "-sS": true, "-sV": true, "-O": true, flagNoDNS: true, flagTiming: true, flagPrivileged: true}
+// Host time limits (D-84 (7)): a gentle scan is slow by design, a normal one has -sV and -O to finish.
+const (
+	gentleHostTimeout = "15m"
+	normalHostTimeout = "30m"
+)
 
-// valuedFlags are the flags followed by one value, and the values each accepts.
-var valuedFlags = map[string]func(string) bool{
-	flagMaxRate:    func(v string) bool { n, ok := atoi(v); return ok && n >= 1 && n <= 1000 },
-	flagTopPorts:   func(v string) bool { return v == "100" || v == "1000" },
-	flagVersionInt: func(v string) bool { return v == "0" },
-	flagMaxRetries: func(v string) bool { return v == "1" },
+// name is the short template id stored in sa_probe.shape.
+func (k scanKind) name() string {
+	switch k {
+	case kindSweep:
+		return "sweep"
+	case kindNormal:
+		return "normal"
+	case kindGentle:
+		return "gentle"
+	}
+	return ""
+}
+
+func kindByName(n string) (scanKind, bool) {
+	for _, k := range []scanKind{kindSweep, kindNormal, kindGentle} {
+		if k.name() == n {
+			return k, true
+		}
+	}
+	return 0, false
+}
+
+// flagsFor is the whole flag part of the command line of a kind: the only three shapes nmap is ever run with.
+// -sV makes nmap run the scripts of its "version" category (and nothing else), -O has its own timing; no
+// script flag, no -A and no -sC exists (FORBID-3, FORBID-6). The gentle shape has neither -sV nor -O: on a
+// fragile device even the version scripts are too much (PLC protocol probes).
+func flagsFor(kind scanKind, rate int) ([]string, error) {
+	if rate < 1 || rate > 1000 {
+		return nil, fmt.Errorf("sensoractive: rate %d is outside 1..1000", rate)
+	}
+	r := strconv.Itoa(rate)
+	switch kind {
+	case kindSweep:
+		return []string{flagPrivileged, "-sn", flagNoDNS, flagMaxRate, r}, nil
+	case kindNormal:
+		return []string{flagPrivileged, "-sS", "-sV", "-O", flagNoDNS, flagMaxRate, r, flagTopPorts, "1000", flagHostTimeout, normalHostTimeout}, nil
+	case kindGentle:
+		return []string{flagPrivileged, "-sS", flagNoDNS, flagTiming, flagMaxRetries, "1", flagMaxRate, "1", flagHostTimeout, gentleHostTimeout, flagTopPorts, "100"}, nil
+	}
+	return nil, errors.New("sensoractive: unknown scan kind")
 }
 
 // atoi accepts only plain decimal digits (no sign, no spaces, no leading zero).
@@ -61,30 +98,25 @@ func atoi(s string) (int, bool) {
 	return n, err == nil
 }
 
-// buildNmapArgs builds an nmap command line only from IPv4 addresses, an integer rate and the fixed flags
-// above (INV-4, FORBID-3). The shape is: --privileged, the scan flags, -oX -, then the targets.
+// validTarget: a LAN range can only hold private unicast IPv4 addresses (RFC 1918), so nothing else may ever
+// be named, whatever the caller says (0/8, 127/8, 169.254/16, 100.64/10, multicast, reserved and broadcast
+// are all outside 10/8, 172.16/12 and 192.168/16).
+func validTarget(a netip.Addr) bool { return a.IsValid() && a.Is4() && a.Zone() == "" && a.IsPrivate() }
+
+// buildNmapArgs builds an nmap command line only from private IPv4 addresses, an integer rate and the fixed
+// flags above (INV-4, FORBID-3). The shape is: the flags of the kind, -oX -, then the targets.
 func buildNmapArgs(kind scanKind, rate int, targets []netip.Addr) ([]string, error) {
 	if len(targets) == 0 || len(targets) > MaxBatch {
 		return nil, fmt.Errorf("sensoractive: a run needs 1 to %d targets, got %d", MaxBatch, len(targets))
 	}
-	if rate < 1 || rate > 1000 {
-		return nil, fmt.Errorf("sensoractive: rate %d is outside 1..1000", rate)
-	}
-	var args []string
-	switch kind {
-	case kindSweep:
-		args = []string{flagPrivileged, "-sn", flagNoDNS, flagMaxRate, strconv.Itoa(rate)}
-	case kindNormal:
-		args = []string{flagPrivileged, "-sS", "-sV", "-O", flagNoDNS, flagMaxRate, strconv.Itoa(rate), flagTopPorts, "1000"}
-	case kindGentle:
-		args = []string{flagPrivileged, "-sS", "-sV", flagVersionInt, "0", flagNoDNS, flagTiming, flagMaxRetries, "1", flagMaxRate, "1", flagTopPorts, "100"}
-	default:
-		return nil, errors.New("sensoractive: unknown scan kind")
+	args, err := flagsFor(kind, rate)
+	if err != nil {
+		return nil, err
 	}
 	args = append(args, flagXML, "-")
 	for _, t := range targets {
-		if !t.IsValid() || !t.Is4() || t.Zone() != "" {
-			return nil, fmt.Errorf("sensoractive: target %q is not an IPv4 address", t)
+		if !validTarget(t) {
+			return nil, fmt.Errorf("sensoractive: target %q is not a private IPv4 address", t)
 		}
 		args = append(args, t.String())
 	}
@@ -92,40 +124,26 @@ func buildNmapArgs(kind scanKind, rate int, targets []netip.Addr) ([]string, err
 }
 
 // ValidateNmapArgs is the Validate func of the nmap Binary: it re-checks the whole argv before the process
-// starts, independently of how buildNmapArgs made it (SYS-2). It accepts exactly: --privileged first, then
-// flags from the allowlist (each at most once, a valued flag followed by an accepted value), then "-oX -",
-// then 1 to MaxBatch canonical IPv4 addresses, each at most once. -sn excludes the other scan types.
+// starts, independently of how buildNmapArgs made it (SYS-2). It accepts exactly the three shapes of flagsFor
+// (sweep, normal, gentle), where only the rate of sweep and normal varies, then "-oX -", then 1 to MaxBatch
+// canonical, unique, private IPv4 addresses. Everything else is rejected.
 func ValidateNmapArgs(args []string) error {
-	if len(args) == 0 || args[0] != flagPrivileged {
-		return errors.New("argv must start with " + flagPrivileged)
-	}
-	seen := map[string]bool{flagPrivileged: true}
-	i := 1
-	for ; i < len(args) && args[i] != flagXML; i++ {
-		a := args[i]
-		if seen[a] {
-			return fmt.Errorf("flag %q listed twice", a)
-		}
-		switch ok := valuedFlags[a]; {
-		case plainFlags[a]:
-		case ok != nil:
-			if i+1 >= len(args) || !ok(args[i+1]) {
-				return fmt.Errorf("flag %q has no accepted value", a)
-			}
-			i++
-		default:
-			return fmt.Errorf("token %q is not allowed", a)
-		}
-		seen[a] = true
-	}
-	if i+1 >= len(args) || args[i] != flagXML || args[i+1] != "-" {
+	i := slices.Index(args, flagXML)
+	if i < 0 || i+1 >= len(args) || args[i+1] != "-" {
 		return errors.New("argv must contain -oX -")
 	}
-	if seen["-sn"] && (seen["-sS"] || seen["-sV"] || seen["-O"]) {
-		return errors.New("-sn cannot be combined with other scan types")
+	flags := args[:i]
+	rate := 1
+	if j := slices.Index(flags, flagMaxRate); j >= 0 && j+1 < len(flags) {
+		if n, ok := atoi(flags[j+1]); ok {
+			rate = n
+		}
 	}
-	if !seen["-sn"] && !seen["-sS"] {
-		return errors.New("argv names no scan type")
+	if !slices.ContainsFunc([]scanKind{kindSweep, kindNormal, kindGentle}, func(k scanKind) bool {
+		want, err := flagsFor(k, rate)
+		return err == nil && slices.Equal(flags, want)
+	}) {
+		return fmt.Errorf("flags %q are not one of the three allowed command shapes", flags)
 	}
 	targets := args[i+2:]
 	if len(targets) == 0 || len(targets) > MaxBatch {
@@ -134,8 +152,8 @@ func ValidateNmapArgs(args []string) error {
 	uniq := make(map[string]bool, len(targets))
 	for _, t := range targets {
 		a, err := netip.ParseAddr(t)
-		if err != nil || !a.Is4() || a.String() != t || uniq[t] {
-			return fmt.Errorf("target %q is not a canonical, unique IPv4 address", t)
+		if err != nil || !validTarget(a) || a.String() != t || uniq[t] {
+			return fmt.Errorf("target %q is not a canonical, unique, private IPv4 address", t)
 		}
 		uniq[t] = true
 	}

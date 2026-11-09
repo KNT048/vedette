@@ -14,7 +14,7 @@ type Settings struct {
 	LANRanges      []string // CIDR
 	Exclusions     []string // IPv4 or CIDR
 	Days           []int    // 1 = Monday ... 7 = Sunday
-	From, To       string   // HH:MM in the box's local time zone; To before From crosses midnight
+	From, To       string   // HH:MM in the organization's time zone; To before From crosses midnight
 	Rate           int      // packets per second
 }
 
@@ -42,6 +42,10 @@ type Inventory interface {
 	MarkFirstScan(ctx context.Context, assetID string) error
 	Asset(ctx context.Context, assetID string) (Asset, error)     // ErrNotFound when unknown
 	Addresses(ctx context.Context) (map[netip.Addr]string, error) // IP -> device id of every known device
+	// ProtectedIPs lists the addresses a sweep must not probe: devices declared by hand, devices set to
+	// regular_scan=never, fragile or unclassified devices after their one gentle scan, and the box itself. It
+	// is by IP, so a new MAC at a protected address does not make it fair game.
+	ProtectedIPs(ctx context.Context) ([]netip.Addr, error)
 }
 
 // Event is what Service publishes after a transaction commits; cmd/vedette adapts it to core/events.
@@ -112,15 +116,23 @@ var (
 	ErrStopped           = errors.New("sensoractive: the run was stopped")             // PRE-3
 )
 
-// Health is the module's state for the status page (INV-6): "ok", or "unavailable" with a message.
+// Health is the module's state for the status page (INV-6): "ok", or "unavailable" with a message. Zone is
+// the time zone the windows are read in (INV-3). Warning is set while a full sweep cannot fit in one window at
+// the configured rate (an estimate: addresses divided by the rate); the sweep then takes several days.
 type Health struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
+	Zone    string `json:"zone"`
+	Warning string `json:"warning,omitempty"`
 }
 
-// Probe is one row of the probe log (INV-9).
+// Probe is one row of the probe log (INV-9). Argv is the flag part of the command line that was approved, up
+// to and including "-oX -"; the addresses it was run on are in Target ("a.b.c.d" or "first..last (N hosts)").
+// Shape is the template (sweep, normal or gentle) and Rate the --max-rate of it.
 type Probe struct {
 	Time   string   `json:"time"`
+	Shape  string   `json:"shape"`
+	Rate   int      `json:"rate"`
 	Target string   `json:"target"`
 	Argv   []string `json:"argv"`
 	Result string   `json:"result"`

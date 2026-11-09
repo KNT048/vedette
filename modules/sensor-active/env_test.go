@@ -58,7 +58,7 @@ if [ %d -gt 0 ] && [ "$((n + 1))" -ge %d ]; then sleep 30; fi
 	} else {
 		body += fmt.Sprintf(`case " $* " in
   *" -sn "*) cat %q;;
-  *" --version-intensity "*) cat %q;;
+  *" --max-retries "*) cat %q;;
   *) cat %q;;
 esac
 `, fx("sweep.xml"), fx("fragile.xml"), fx("device.xml"))
@@ -111,6 +111,8 @@ type fakeInv struct {
 	marked   []string
 	addrs    map[netip.Addr]string
 	checked  []netip.Addr
+	// protected is what ProtectedIPs lists (a device by hand, never, fragile after its gentle scan, the box)
+	protected []netip.Addr
 }
 
 func (f *fakeInv) Settings(context.Context) (sa.Settings, error) {
@@ -183,6 +185,12 @@ func (f *fakeInv) Addresses(context.Context) (map[netip.Addr]string, error) {
 		out[k] = v
 	}
 	return out, nil
+}
+
+func (f *fakeInv) ProtectedIPs(context.Context) ([]netip.Addr, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.protected), nil
 }
 
 func (f *fakeInv) markedIDs() []string {
@@ -263,6 +271,7 @@ type env struct {
 	svc  *sa.Service
 	base time.Time
 	t0   time.Time
+	loc  func() *time.Location // the organization time zone; nil: the box's
 }
 
 // local builds a time in the box's local zone (the zone the window is read in). 9 Nov 2026 is a Monday.
@@ -302,7 +311,7 @@ func (e *env) clock() time.Time { return e.base.Add(time.Since(e.t0)) }
 
 func (e *env) build() {
 	e.t.Helper()
-	svc, err := sa.New(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Events: e.ev, NmapPath: e.nm.path, Clock: e.clock})
+	svc, err := sa.New(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Events: e.ev, NmapPath: e.nm.path, Clock: e.clock, Location: e.loc})
 	if err != nil {
 		e.t.Fatal(err)
 	}

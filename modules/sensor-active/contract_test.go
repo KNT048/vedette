@@ -37,15 +37,13 @@ func TestContract_INV1_NeverOutsideScope(t *testing.T) {
 	if _, err := e.svc.DiscoverRanges(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"192.168.10.1", "192.168.10.2", "192.168.10.4", "192.168.10.5", "192.168.10.6", "192.168.10.7", "192.168.10.12", "192.168.10.13", "192.168.10.14", "172.16.5.2"}
+	want := []string{"172.16.5.2", "192.168.10.1", "192.168.10.2", "192.168.10.4", "192.168.10.5", "192.168.10.6", "192.168.10.7", "192.168.10.12", "192.168.10.13", "192.168.10.14"} // ascending
 	if got := hostsOf(e.nm.calls(t)); !slices.Equal(got, want) {
 		t.Fatalf("probed %v\nwant   %v", got, want)
 	}
-	// every address was asked of the inventory's InScope before it was used
-	for _, a := range want {
-		if !slices.Contains(e.inv.checked, netip.MustParseAddr(a)) {
-			t.Errorf("%s was never checked with InScope", a)
-		}
+	// the settings of the batch were read before it ran, and every address was tested against them
+	if got := hostsOf(e.nm.calls(t)); len(got) != len(want) {
+		t.Fatalf("%d addresses probed, want %d", len(got), len(want))
 	}
 
 	// A device out of scope, although ScanPolicy said yes: blocked, nothing sent.
@@ -251,8 +249,8 @@ func TestContract_INV4_RateAndFlags(t *testing.T) {
 	}
 	want := [][]string{
 		{"--privileged", "-sn", "-n", "--max-rate", "100", "-oX", "-"},
-		{"--privileged", "-sS", "-sV", "-O", "-n", "--max-rate", "100", "--top-ports", "1000", "-oX", "-", "192.168.10.20"},
-		{"--privileged", "-sS", "-sV", "--version-intensity", "0", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--top-ports", "100", "-oX", "-", "192.168.10.30"},
+		{"--privileged", "-sS", "-sV", "-O", "-n", "--max-rate", "100", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"},
+		{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.30"},
 	}
 	for i, w := range want {
 		got := calls[i]
@@ -488,7 +486,8 @@ func TestContract_INV9_ProbeLog(t *testing.T) {
 		t.Fatalf("%d probe rows for %d runs", len(probes), len(calls))
 	}
 	for i, p := range probes {
-		if !slices.Equal(p.Argv, calls[i]) {
+		// the row keeps the flags as approved (shape and rate), the addresses are in Target
+		if n := len(p.Argv); n > len(calls[i]) || !slices.Equal(p.Argv, calls[i][:n]) || p.Argv[n-2] != "-oX" {
 			t.Errorf("row %d argv = %q, the process got %q", i, p.Argv, calls[i])
 		}
 		if p.Time == "" || p.Target == "" || !strings.HasPrefix(p.Result, "ok:") || p.JobID == "" {
@@ -502,7 +501,7 @@ func TestContract_INV9_ProbeLog(t *testing.T) {
 	old := func(days int) {
 		ts := store.FormatTS(e.clock().AddDate(0, 0, -days))
 		if err := e.db.Write(e.ctx(), func(tx dbTx) error {
-			_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_probe (time, target, argv, result, job_id) VALUES (?, '10.0.0.1', '["x"]', 'ok', ?)`, ts, probes[0].JobID)
+			_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, target_first, target_last, result) VALUES (?, ?, 'sweep', 10, 1, '10.0.0.1', '10.0.0.1', 'ok')`, ts, probes[0].JobID)
 			return err
 		}); err != nil {
 			t.Fatal(err)

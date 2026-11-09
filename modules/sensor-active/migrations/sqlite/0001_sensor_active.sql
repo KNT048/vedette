@@ -16,16 +16,31 @@ CREATE TABLE sa_job (
 );
 CREATE INDEX sa_job_started_ix ON sa_job (kind, started_at);
 
--- The probe log (INV-9, legal.md): one row per nmap run, with the argv exactly as it was approved.
+-- The probe log (INV-9, legal.md): one compact row per nmap run. The command line is not stored whole: shape
+-- (sweep, normal or gentle) and rate give its flags exactly (flagsFor), the targets are counted and bounded by
+-- first and last (a sweep batch is up to 64 consecutive in-scope addresses; a device scan has one).
 CREATE TABLE sa_probe (
-    id     INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    time   TEXT    NOT NULL CHECK (time GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    target TEXT    NOT NULL CHECK (length(target) BETWEEN 1 AND 200),
-    argv   TEXT    NOT NULL CHECK (json_valid(argv) AND json_type(argv) = 'array'),
-    result TEXT    NOT NULL CHECK (length(result) <= 200),
-    job_id TEXT    NOT NULL REFERENCES sa_job (id)
+    id           INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    time         TEXT    NOT NULL CHECK (time GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    job_id       TEXT    NOT NULL REFERENCES sa_job (id),
+    shape        TEXT    NOT NULL CHECK (shape IN ('sweep', 'normal', 'gentle')),
+    rate         INTEGER NOT NULL CHECK (rate BETWEEN 1 AND 1000),
+    hosts        INTEGER NOT NULL CHECK (hosts BETWEEN 1 AND 64),
+    target_first TEXT    NOT NULL CHECK (length(target_first) BETWEEN 7 AND 15),
+    target_last  TEXT    NOT NULL CHECK (length(target_last) BETWEEN 7 AND 15),
+    result       TEXT    NOT NULL CHECK (length(result) <= 200)
 );
 CREATE INDEX sa_probe_time_ix ON sa_probe (time);
+CREATE INDEX sa_probe_job_ix ON sa_probe (job_id);
+
+-- Where the sweep of the confirmed ranges stands (one row): the last address of the last batch finished, or
+-- NULL when no pass is in progress. A window that cuts a pass is continued from here the next day; when the
+-- pass reaches the end of the ranges the cursor is cleared and the next pass starts from the first address.
+CREATE TABLE sa_sweep (
+    id         INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+    cursor     TEXT    CHECK (cursor IS NULL OR length(cursor) BETWEEN 7 AND 15),
+    updated_at TEXT    NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
+);
 
 -- Devices waiting for their scan inside a window; kept here so a restart does not lose them.
 CREATE TABLE sa_queue (

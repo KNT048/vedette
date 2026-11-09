@@ -175,3 +175,21 @@ func TestKindOf(t *testing.T) {
 		}
 	}
 }
+
+// INV-7: a string is stored only as printable text. C0 and C1 controls, bidi overrides and isolates, zero-width
+// characters, the byte order mark, the soft hyphen and the line separators are refused: a device can put them in
+// a banner nmap copies into product, version or hostname, where they reorder or hide text in the UI and in a
+// CSV export.
+func TestTextRefusesInvisibleAndBidiControls(t *testing.T) {
+	t.Parallel()
+	for _, s := range []string{"evil\u202egnp.exe", "a\u0085b", "zero\u200bwidth", "\u2066isolate", "bom\ufeff", "soft\u00adhyphen", "tag\U000e0041", "line\u2028break", "tab\there", "nul\x00", "del\x7f", "\xff\xfe"} {
+		if got := text(s); got != "" {
+			t.Errorf("text(%q) = %q, want refused", s, got)
+		}
+	}
+	for _, s := range []string{"Apache httpd", "Cámara IP", "ルーター", "a b", "x"} {
+		if got := text(s); got != s {
+			t.Errorf("text(%q) = %q, want it kept", s, got)
+		}
+	}
+}

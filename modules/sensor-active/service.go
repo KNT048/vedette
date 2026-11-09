@@ -3,7 +3,6 @@ package sensoractive
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -11,6 +10,7 @@ import (
 	"os"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/knt048/vedette/core/exec"
@@ -39,6 +39,9 @@ type Config struct {
 	NmapPath  string // absolute path of the OS package's nmap; the module builds its own core/exec Runner around it
 	Clock     func() time.Time
 	Log       *slog.Logger
+	// Location is the organization's time zone, the one the windows are read in (INV-3). Nil, or a nil result,
+	// means the box's own zone (time.Local).
+	Location func() *time.Location
 }
 
 // Service runs active discovery. Create it with New. It is the only writer of the sa_* tables.
@@ -52,8 +55,11 @@ type Service struct {
 	runner *exec.Runner
 	clock  func() time.Time
 	log    *slog.Logger
+	loc    func() *time.Location
 
 	runMu sync.Mutex // one nmap job at a time on the box
+
+	ver atomic.Uint64 // bumped by every SettingsChanged; a run that sees it move before nmap starts stops
 
 	mu  sync.Mutex
 	cur *running // the job holding runMu, for SettingsChanged
@@ -61,7 +67,8 @@ type Service struct {
 
 type running struct {
 	cancel  context.CancelFunc
-	targets []netip.Addr // the run in progress
+	targets []netip.Addr // the run in progress, published before it is checked
+	rate    int          // the packets per second of the run
 }
 
 // New returns the service.
@@ -69,7 +76,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.DB == nil || cfg.Inventory == nil || cfg.Observe == nil || cfg.Software == nil {
 		return nil, errors.New("sensoractive: New needs DB, Inventory, Observe and Software")
 	}
-	s := &Service{db: cfg.DB, inv: cfg.Inventory, obs: cfg.Observe, sw: cfg.Software, events: cfg.Events, path: cfg.NmapPath, clock: cfg.Clock, log: cfg.Log}
+	s := &Service{db: cfg.DB, inv: cfg.Inventory, obs: cfg.Observe, sw: cfg.Software, events: cfg.Events, path: cfg.NmapPath, clock: cfg.Clock, log: cfg.Log, loc: cfg.Location}
 	if s.clock == nil {
 		s.clock = time.Now
 	}
@@ -84,8 +91,18 @@ func New(cfg Config) (*Service, error) {
 	return s, nil
 }
 
-func (s *Service) now() string      { return store.FormatTS(s.clock()) }
-func (s *Service) local() time.Time { return s.clock().In(time.Local) }
+func (s *Service) now() string { return store.FormatTS(s.clock()) }
+
+func (s *Service) zone() *time.Location {
+	if s.loc != nil {
+		if l := s.loc(); l != nil {
+			return l
+		}
+	}
+	return time.Local
+}
+
+func (s *Service) local() time.Time { return s.clock().In(s.zone()) }
 
 func (s *Service) publish(ctx context.Context, name string, data any) {
 	if s.events == nil {
@@ -96,16 +113,36 @@ func (s *Service) publish(ctx context.Context, name string, data any) {
 	}
 }
 
-// Health reports INV-6: nmap is the OS package, and without it the module has no way to work.
-func (s *Service) Health(context.Context) Health {
+// Health reports INV-6: nmap is the OS package, and without it the module has no way to work. It also names
+// the time zone of the windows, and warns while a full sweep cannot fit in one window.
+func (s *Service) Health(ctx context.Context) Health {
+	h := Health{Status: "ok", Zone: s.zone().String()}
 	fi, err := os.Stat(s.path)
 	switch {
 	case err != nil:
-		return Health{Status: "unavailable", Message: "nmap is not installed at " + s.path + "; active discovery cannot run until it is installed"}
+		h.Status, h.Message = "unavailable", "nmap is not installed at "+s.path+"; active discovery cannot run until it is installed"
 	case !fi.Mode().IsRegular() || fi.Mode().Perm()&0o111 == 0:
-		return Health{Status: "unavailable", Message: s.path + " is not an executable file; active discovery cannot run"}
+		h.Status, h.Message = "unavailable", s.path+" is not an executable file; active discovery cannot run"
 	}
-	return Health{Status: "ok"}
+	if st, err := s.inv.Settings(ctx); err == nil {
+		h.Warning = st.sweepWarning()
+	}
+	return h
+}
+
+// sweepWarning is set when the addresses of the scope divided by the rate take longer than one window: the
+// sweep then needs several days, resuming each day where the window cut it (an estimate: one packet per
+// address, while -sn sends up to four to a host outside the segment).
+func (st Settings) sweepWarning() string {
+	if st.allowed() != nil || st.Rate < 1 {
+		return ""
+	}
+	n := newScope(st).count()
+	need := time.Duration(n) * time.Second / time.Duration(st.Rate)
+	if have := st.windowLength(); have > 0 && need > have {
+		return fmt.Sprintf("a sweep of about %d addresses at %d packets/s needs about %s but a window lasts %s; one pass will take several days", n, st.Rate, need.Round(time.Minute), have)
+	}
+	return ""
 }
 
 func (s *Service) available(ctx context.Context) error {
@@ -116,23 +153,22 @@ func (s *Service) available(ctx context.Context) error {
 }
 
 // permit is the gate of every run (INV-2, INV-3, INV-6): the settings now, the window now, nmap present. It
-// returns the settings and the end of the current window.
-func (s *Service) permit(ctx context.Context) (Settings, time.Time, error) {
+// returns the settings it read.
+func (s *Service) permit(ctx context.Context) (Settings, error) {
 	st, err := s.inv.Settings(ctx)
 	if err != nil {
-		return Settings{}, time.Time{}, err
+		return Settings{}, err
 	}
 	if err := st.allowed(); err != nil {
-		return st, time.Time{}, err
+		return st, err
 	}
-	_, end, ok := st.window(s.local())
-	if !ok {
-		return st, time.Time{}, ErrOutsideWindow
+	if _, _, ok := st.window(s.local()); !ok {
+		return st, ErrOutsideWindow
 	}
 	if err := s.available(ctx); err != nil {
-		return st, time.Time{}, err
+		return st, err
 	}
-	return st, end, nil
+	return st, nil
 }
 
 // reasonOf is the text of sensor.scan.blocked for a refusal of INV-2.
@@ -196,8 +232,16 @@ func clip(s string, n int) string {
 	return s
 }
 
-// failInterrupted closes jobs a restart left "running" (nothing runs now: the caller holds runMu).
+// failInterrupted closes jobs a restart left "running" (nothing runs now: the caller holds runMu). It writes
+// only when there is something to close, since Tick calls it every minute.
 func (s *Service) failInterrupted(ctx context.Context) error {
+	var n int
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM sa_job WHERE status = 'running'`).Scan(&n); err != nil {
+		return fmt.Errorf("sensoractive: read jobs: %w", err)
+	}
+	if n == 0 {
+		return nil
+	}
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, `UPDATE sa_job SET status = 'stopped', finished_at = ?, error = 'interrupted by a restart' WHERE status = 'running'`, s.now())
 		return err
@@ -206,25 +250,56 @@ func (s *Service) failInterrupted(ctx context.Context) error {
 
 // ---- the run of nmap ----
 
-// probe runs one nmap command over targets and returns the hosts that answered. It writes the probe row
-// before the process starts (INV-9: no packet without a log line) and its result after. The deadline is the
+// errDeadline is ErrStopped for a run cut by its own deadline (the end of the window or maxRun), as opposed to
+// a stop for a change of settings: the queue counts it as an attempt (M4).
+var errDeadline = fmt.Errorf("%w: its deadline passed", ErrStopped)
+
+// probe runs one nmap command over targets and returns the hosts that answered. Order matters (INV-1, INV-2,
+// INV-3): the run's targets are published first, so SettingsChanged can see them; then the settings, the
+// window and the scope are read again for every target; only then the probe row is written (INV-9: no packet
+// without a log line) and nmap started, unless a SettingsChanged arrived in between. The deadline is the
 // window's end or maxRun; when it passes, or ctx is cancelled, exec kills the process group and the batch is
 // dropped (PRE-3, POST-3).
-func (s *Service) probe(ctx context.Context, jobID string, kind scanKind, rate int, targets []netip.Addr, end time.Time) ([]host, error) {
+func (s *Service) probe(ctx context.Context, jobID string, kind scanKind, rate int, targets []netip.Addr) ([]host, error) {
+	if _, err := buildNmapArgs(kind, rate, targets); err != nil {
+		return nil, err
+	}
+	v0 := s.ver.Load()
+	s.setTargets(targets, rate)
+	defer s.setTargets(nil, 0)
+
+	st, err := s.inv.Settings(ctx)
+	if err == nil {
+		err = st.allowed()
+	}
+	if err != nil {
+		return nil, s.stopFor(err)
+	}
+	_, end, ok := st.window(s.local())
+	if !ok {
+		return nil, ErrStopped
+	}
+	sc := newScope(st)
+	if slices.ContainsFunc(targets, func(t netip.Addr) bool { return !sc.contains(t) }) {
+		return nil, ErrStopped
+	}
+	rate = min(rate, st.Rate)
 	args, err := buildNmapArgs(kind, rate, targets)
 	if err != nil {
 		return nil, err
 	}
 	timeout := min(end.Sub(s.clock()), maxRun)
-	if timeout <= 0 {
+	if timeout <= 0 || ctx.Err() != nil {
 		return nil, ErrStopped
 	}
-	probeID, err := s.insertProbe(ctx, jobID, targets, args)
+	probeID, err := s.insertProbe(ctx, jobID, kind, rate, targets)
 	if err != nil {
 		return nil, err
 	}
-	s.setTargets(targets)
-	defer s.setTargets(nil)
+	if ctx.Err() != nil || s.ver.Load() != v0 {
+		s.finishProbe(ctx, probeID, stoppedText)
+		return nil, ErrStopped
+	}
 
 	rctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -234,7 +309,10 @@ func (s *Service) probe(ctx context.Context, jobID string, kind scanKind, rate i
 	var result string
 	switch {
 	case rctx.Err() != nil || ctx.Err() != nil:
-		result, err = "stopped: the window closed, the scope changed or the module was turned off", ErrStopped
+		result, err = stoppedText, ErrStopped
+		if ctx.Err() == nil && errors.Is(rctx.Err(), context.DeadlineExceeded) {
+			err = errDeadline
+		}
 	case runErr != nil:
 		var ee *exec.ExitError
 		if errors.As(runErr, &ee) {
@@ -261,29 +339,40 @@ func (s *Service) probe(ctx context.Context, jobID string, kind scanKind, rate i
 	return hosts, nil
 }
 
-func (s *Service) setTargets(t []netip.Addr) {
+const stoppedText = "stopped: the window closed, the scope changed or the module was turned off"
+
+// stopFor turns a refusal found while checking a run into the error of the caller: a read failure stays one,
+// a settings refusal (scanning off, scope not confirmed, no ranges) is a stop.
+func (s *Service) stopFor(err error) error {
+	if errors.Is(err, ErrScanningOff) || errors.Is(err, ErrScopeNotConfirmed) || errors.Is(err, ErrNoRanges) {
+		return ErrStopped
+	}
+	return err
+}
+
+func (s *Service) setTargets(t []netip.Addr, rate int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.cur != nil {
-		s.cur.targets = t
+		s.cur.targets, s.cur.rate = t, rate
 	}
 }
 
-func targetText(t []netip.Addr) string {
-	if len(t) == 1 {
-		return t[0].String()
+func targetText(first, last netip.Addr, n int) string {
+	if n == 1 {
+		return first.String()
 	}
-	return fmt.Sprintf("%s..%s (%d hosts)", t[0], t[len(t)-1], len(t))
+	return fmt.Sprintf("%s..%s (%d hosts)", first, last, n)
 }
 
-func (s *Service) insertProbe(ctx context.Context, jobID string, targets []netip.Addr, args []string) (int64, error) {
-	argv, err := json.Marshal(args)
-	if err != nil {
-		return 0, err
+func (s *Service) insertProbe(ctx context.Context, jobID string, kind scanKind, rate int, targets []netip.Addr) (int64, error) {
+	if kind == kindGentle {
+		rate = 1
 	}
 	var id int64
-	err = s.db.Write(ctx, func(tx *sql.Tx) error {
-		res, err := tx.ExecContext(ctx, `INSERT INTO sa_probe (time, target, argv, result, job_id) VALUES (?, ?, ?, 'started', ?)`, s.now(), targetText(targets), string(argv), jobID)
+	err := s.db.Write(ctx, func(tx *sql.Tx) error {
+		res, err := tx.ExecContext(ctx, `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, target_first, target_last, result) VALUES (?, ?, ?, ?, ?, ?, ?, 'started')`,
+			s.now(), jobID, kind.name(), rate, len(targets), targets[0].String(), targets[len(targets)-1].String())
 		if err != nil {
 			return err
 		}
@@ -309,9 +398,10 @@ func (s *Service) finishProbe(ctx context.Context, id int64, result string) {
 }
 
 // Probes returns the probe log from since on, oldest first, at most limit rows (INV-9). The future
-// scan_probes export category of /core/logs/export reads it.
+// scan_probes export category of /core/logs/export reads it. Argv is rebuilt from the row's shape and rate, so
+// it is exactly what was approved.
 func (s *Service) Probes(ctx context.Context, since time.Time, limit int) ([]Probe, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT time, target, argv, result, job_id FROM sa_probe WHERE time >= ? ORDER BY id LIMIT ?`, store.FormatTS(since), clamp(limit, 1, 100000))
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT time, shape, rate, hosts, target_first, target_last, result, job_id FROM sa_probe WHERE time >= ? ORDER BY id LIMIT ?`, store.FormatTS(since), clamp(limit, 1, 100000))
 	if err != nil {
 		return nil, fmt.Errorf("sensoractive: read probes: %w", err)
 	}
@@ -319,27 +409,42 @@ func (s *Service) Probes(ctx context.Context, since time.Time, limit int) ([]Pro
 	var out []Probe
 	for rows.Next() {
 		var p Probe
-		var argv string
-		if err := rows.Scan(&p.Time, &p.Target, &argv, &p.Result, &p.JobID); err != nil {
+		var n int
+		var first, last string
+		if err := rows.Scan(&p.Time, &p.Shape, &p.Rate, &n, &first, &last, &p.Result, &p.JobID); err != nil {
 			return nil, fmt.Errorf("sensoractive: read probes: %w", err)
 		}
-		if err := json.Unmarshal([]byte(argv), &p.Argv); err != nil {
+		a, err1 := netip.ParseAddr(first)
+		b, err2 := netip.ParseAddr(last)
+		kind, ok := kindByName(p.Shape)
+		if err1 != nil || err2 != nil || !ok {
+			return nil, errors.New("sensoractive: read probes: a row is not valid")
+		}
+		flags, err := flagsFor(kind, p.Rate)
+		if err != nil {
 			return nil, fmt.Errorf("sensoractive: read probes: %w", err)
 		}
+		p.Argv = append(flags, flagXML, "-")
+		p.Target = targetText(a, b, n)
 		out = append(out, p)
 	}
 	return out, rows.Err()
 }
 
-// Prune deletes probe rows older than ProbeRetention and returns how many (D-84 (9)).
+// Prune deletes probe rows older than ProbeRetention and the jobs that no longer have any probe row, and
+// returns how many probe rows went (D-84 (9)).
 func (s *Service) Prune(ctx context.Context) (int, error) {
 	var n int64
+	cutoff := store.FormatTS(s.clock().Add(-ProbeRetention))
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		res, err := tx.ExecContext(ctx, `DELETE FROM sa_probe WHERE time < ?`, store.FormatTS(s.clock().Add(-ProbeRetention)))
+		res, err := tx.ExecContext(ctx, `DELETE FROM sa_probe WHERE time < ?`, cutoff)
 		if err != nil {
 			return err
 		}
-		n, err = res.RowsAffected()
+		if n, err = res.RowsAffected(); err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, `DELETE FROM sa_job WHERE started_at < ? AND status <> 'running' AND id NOT IN (SELECT job_id FROM sa_probe)`, cutoff)
 		return err
 	})
 	return int(n), err
@@ -355,20 +460,27 @@ type Result struct {
 	Status     string
 }
 
-// nextBatch takes up to MaxBatch addresses from w, each checked with the inventory's InScope immediately
-// before it is accepted (INV-1). It returns fewer only when the ranges are used up.
-func (s *Service) nextBatch(ctx context.Context, w *walker) ([]netip.Addr, error) {
+// nextBatch takes up to MaxBatch addresses from w that the settings snapshot st puts in scope and the
+// inventory does not protect (INV-1; a device declared by hand, set to never, fragile after its gentle scan, or
+// the box itself). The test is made in memory against st, so an address costs no storage read. It returns
+// fewer only when the ranges are used up.
+func (s *Service) nextBatch(ctx context.Context, st Settings, w *walker) ([]netip.Addr, error) {
+	prot, err := s.inv.ProtectedIPs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	skip := make(map[netip.Addr]bool, len(prot))
+	for _, a := range prot {
+		skip[a.Unmap()] = true
+	}
+	sc := newScope(st)
 	var batch []netip.Addr
 	for len(batch) < MaxBatch {
 		a, ok := w.next()
 		if !ok {
 			break
 		}
-		in, err := s.inv.InScope(ctx, a)
-		if err != nil {
-			return nil, err
-		}
-		if in {
+		if sc.contains(a) && !skip[a] {
 			batch = append(batch, a)
 		}
 	}
@@ -377,22 +489,60 @@ func (s *Service) nextBatch(ctx context.Context, w *walker) ([]netip.Addr, error
 
 func rangeSize(ps []netip.Prefix) int {
 	n := 0
-	for _, p := range ps {
-		n += 1 << (32 - p.Bits())
+	for _, p := range mergePrefixes(ps) {
+		n += prefixSize(p)
 	}
 	return n
 }
 
-// DiscoverRanges sweeps the confirmed ranges once with nmap host discovery (PRE-1): every address of
-// lan_ranges outside the exclusions is probed at most once, in batches of MaxBatch. The settings and the window
-// are read again before every batch, so a change takes effect at the next one (and SettingsChanged stops the
-// batch in progress). A batch cut off by the window or a stop is dropped, finished batches stay stored, and the
-// job is "stopped" (POST-3). Hosts found are recorded in the inventory by MAC; devices that are new there
-// reach the queue through inventory.asset.discovered.
+// cursor reads where the current sweep pass stands (invalid: no pass in progress).
+func (s *Service) cursor(ctx context.Context) (netip.Addr, error) {
+	var c sql.NullString
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT cursor FROM sa_sweep WHERE id = 1`).Scan(&c)
+	if errors.Is(err, sql.ErrNoRows) {
+		return netip.Addr{}, nil
+	}
+	if err != nil {
+		return netip.Addr{}, fmt.Errorf("sensoractive: read sweep cursor: %w", err)
+	}
+	a, _ := netip.ParseAddr(c.String) // NULL or junk: start the pass over
+	return a, nil
+}
+
+// setCursor stores the last address of a finished batch; the zero Addr ends the pass.
+func (s *Service) setCursor(ctx context.Context, a netip.Addr) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
+	defer cancel()
+	var v any
+	if a.IsValid() {
+		v = a.String()
+	}
+	err := s.db.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `INSERT INTO sa_sweep (id, cursor, updated_at) VALUES (1, ?, ?)
+			ON CONFLICT (id) DO UPDATE SET cursor = excluded.cursor, updated_at = excluded.updated_at`, v, s.now())
+		return err
+	})
+	if err != nil {
+		s.log.WarnContext(ctx, "sensoractive: storing the sweep cursor failed; the batch may be probed again", "error", err)
+	}
+}
+
+// DiscoverRanges continues the sweep of the confirmed ranges with nmap host discovery (PRE-1). A pass probes
+// every address of lan_ranges outside the exclusions and the protected devices at most once, in ascending
+// order and in batches of MaxBatch; the cursor of the pass is stored after every batch, so a window that
+// cuts it is continued the next day where it stopped, and only a pass that reached the end is followed by a
+// new one. The settings are read again before every batch (and again inside probe), and SettingsChanged stops
+// the batch in progress. A batch cut off by the window or a stop is dropped, finished batches stay stored,
+// and the job is "stopped" (POST-3). Hosts found are recorded in the inventory by MAC; devices that are new
+// there reach the queue through inventory.asset.discovered.
 func (s *Service) DiscoverRanges(ctx context.Context) (Result, error) {
 	s.runMu.Lock()
 	defer s.runMu.Unlock()
-	st, _, err := s.permit(ctx)
+	jctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	s.setCur(&running{cancel: cancel})
+	defer s.setCur(nil)
+	st, err := s.permit(jctx)
 	if err != nil {
 		return Result{}, err
 	}
@@ -400,10 +550,13 @@ func (s *Service) DiscoverRanges(ctx context.Context) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	jctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	s.setCur(&running{cancel: cancel})
-	defer s.setCur(nil)
+	after, err := s.cursor(ctx)
+	if err != nil {
+		return Result{}, err
+	}
+	if w := st.sweepWarning(); w != "" {
+		s.log.WarnContext(ctx, "sensoractive: a full sweep does not fit one window", "estimate", w)
+	}
 
 	ps := prefixes(st.LANRanges)
 	id, err := s.startJob(ctx, KindSweep, "", rangeSize(ps))
@@ -411,11 +564,10 @@ func (s *Service) DiscoverRanges(ctx context.Context) (Result, error) {
 		return Result{}, err
 	}
 	res := Result{JobID: id}
-	var end time.Time // the end of the window, read again before every batch
 	var failed int
 	var firstErr string
 	status := StatusDone
-	w := newWalker(ps)
+	w := newWalker(ps, after)
 loop:
 	for {
 		if st, err = s.inv.Settings(jctx); err == nil {
@@ -425,12 +577,11 @@ loop:
 			status, firstErr = StatusStopped, "stopped: "+err.Error()
 			break
 		}
-		var ok bool
-		if _, end, ok = st.window(s.local()); !ok {
+		if _, _, ok := st.window(s.local()); !ok {
 			status, firstErr = StatusStopped, "stopped: the window closed"
 			break
 		}
-		batch, err := s.nextBatch(jctx, w)
+		batch, err := s.nextBatch(jctx, st, w)
 		if err != nil {
 			status, firstErr = StatusFailed, "reading the scope failed"
 			if jctx.Err() != nil {
@@ -439,18 +590,20 @@ loop:
 			break
 		}
 		if len(batch) == 0 {
+			s.setCursor(ctx, netip.Addr{}) // the pass reached the end of the ranges
 			break
 		}
-		hosts, err := s.probe(jctx, id, kindSweep, st.Rate, batch, end)
+		hosts, err := s.probe(jctx, id, kindSweep, st.Rate, batch)
 		switch {
 		case errors.Is(err, ErrStopped):
-			status, firstErr = StatusStopped, "stopped: the window closed, the scope changed or the module was turned off"
+			status, firstErr = StatusStopped, stoppedText
 			break loop
 		case err == nil:
 			var n int
 			if n, err = s.recordSweep(ctx, hosts, batch, known); err == nil {
 				res.Targets += len(batch)
 				res.NewDevices += n
+				s.setCursor(ctx, batch[len(batch)-1])
 				continue
 			}
 			fallthrough
@@ -459,6 +612,7 @@ loop:
 			if firstErr == "" {
 				firstErr = err.Error()
 			}
+			s.setCursor(ctx, batch[len(batch)-1])
 			s.log.WarnContext(ctx, "sensoractive: a sweep batch failed", "job", id, "error", err)
 		}
 	}
@@ -512,13 +666,19 @@ func (s *Service) setCur(r *running) {
 // ---- one device ----
 
 // ScanDevice identifies one device with nmap (PRE-2): the inventory's ScanPolicy must allow it, the window
-// must be open (D-84 (1): even the one gentle scan of a fragile device waits for it), and the device's address
-// must be in scope immediately before the command line is built (INV-1). A refusal by policy or scope
-// publishes sensor.scan.blocked and sends nothing. reason says why it was asked ("discovered", ...).
+// must be open (D-84 (1): even the one gentle scan of a device that is fragile or not yet classified waits for
+// it), and the device's address must be in scope immediately before the command line is built (INV-1). The run
+// is registered before the checks and its address published as soon as it is known, so a SettingsChanged that
+// arrives while it is still checking reaches it (H2). A refusal by policy or scope publishes
+// sensor.scan.blocked and sends nothing. reason says why it was asked ("discovered", ...).
 func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error {
 	s.runMu.Lock()
 	defer s.runMu.Unlock()
-	dec, err := s.inv.ScanPolicy(ctx, assetID)
+	jctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	s.setCur(&running{cancel: cancel})
+	defer s.setCur(nil)
+	dec, err := s.inv.ScanPolicy(jctx, assetID)
 	if err != nil {
 		return err
 	}
@@ -526,7 +686,7 @@ func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error 
 		s.blocked(ctx, assetID, dec.Reason)
 		return fmt.Errorf("%w: %s", ErrBlocked, dec.Reason)
 	}
-	st, end, err := s.permit(ctx)
+	st, err := s.permit(jctx)
 	switch {
 	case errors.Is(err, ErrScanningOff), errors.Is(err, ErrScopeNotConfirmed), errors.Is(err, ErrNoRanges):
 		s.blocked(ctx, assetID, reasonOf(err))
@@ -534,13 +694,14 @@ func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error 
 	case err != nil:
 		return err
 	}
-	asset, err := s.inv.Asset(ctx, assetID)
+	asset, err := s.inv.Asset(jctx, assetID)
 	if err != nil {
 		return err
 	}
 	in := false
 	if asset.IP.IsValid() {
-		if in, err = s.inv.InScope(ctx, asset.IP); err != nil {
+		s.setTargets([]netip.Addr{asset.IP}, st.Rate)
+		if in, err = s.inv.InScope(jctx, asset.IP); err != nil {
 			return err
 		}
 	}
@@ -556,26 +717,24 @@ func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error 
 		kind, rate = kindGentle, 1
 	}
 
-	jctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	s.setCur(&running{cancel: cancel})
-	defer s.setCur(nil)
 	id, err := s.startJob(ctx, KindDevice, reason, 1)
 	if err != nil {
 		return err
 	}
-	hosts, err := s.probe(jctx, id, kind, rate, []netip.Addr{asset.IP}, end)
+	hosts, err := s.probe(jctx, id, kind, rate, []netip.Addr{asset.IP})
 	if err == nil {
-		err = s.recordDevice(ctx, asset.IP, hosts)
-	}
-	if err == nil && dec.FirstGentle {
-		err = s.inv.MarkFirstScan(context.WithoutCancel(ctx), assetID)
+		// nmap finished: the gentle scan happened, whatever becomes of recording its results (D-45, L2)
+		var markErr error
+		if dec.FirstGentle {
+			markErr = s.inv.MarkFirstScan(context.WithoutCancel(ctx), assetID)
+		}
+		err = errors.Join(markErr, s.recordDevice(ctx, asset.IP, hosts))
 	}
 	switch {
 	case err == nil:
 		s.finishJob(ctx, id, StatusDone, 1, 0, "")
 	case errors.Is(err, ErrStopped):
-		s.finishJob(ctx, id, StatusStopped, 0, 0, "stopped: the window closed, the scope changed or the module was turned off")
+		s.finishJob(ctx, id, StatusStopped, 0, 0, stoppedText)
 	default:
 		s.finishJob(ctx, id, StatusFailed, 0, 0, err.Error())
 	}
@@ -648,10 +807,12 @@ func (s *Service) QueueLen(ctx context.Context) (int, error) {
 	return n, err
 }
 
+// leave takes a device out of the queue; failed counts an attempt and, if the device has attempts left, moves
+// it to the back of the queue so one device that cannot finish never blocks the ones behind it (M4).
 func (s *Service) leave(ctx context.Context, id string, failed bool) {
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
 		if failed {
-			if _, err := tx.ExecContext(ctx, `UPDATE sa_queue SET attempts = attempts + 1 WHERE asset_id = ?`, id); err != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE sa_queue SET attempts = attempts + 1, queued_at = ? WHERE asset_id = ?`, s.now(), id); err != nil {
 				return err
 			}
 			_, err := tx.ExecContext(ctx, `DELETE FROM sa_queue WHERE asset_id = ? AND attempts >= ?`, id, maxAttempts)
@@ -714,6 +875,8 @@ func (s *Service) drain(ctx context.Context) error {
 		switch {
 		case err == nil, errors.Is(err, ErrBlocked), errors.Is(err, ErrNotFound):
 			s.leave(ctx, q.id, false)
+		case errors.Is(err, errDeadline):
+			s.leave(ctx, q.id, true) // an attempt, and to the back; the next device finds the window closed itself
 		case errors.Is(err, ErrOutsideWindow), errors.Is(err, ErrStopped), errors.Is(err, ErrUnavailable),
 			errors.Is(err, ErrScanningOff), errors.Is(err, ErrScopeNotConfirmed), errors.Is(err, ErrNoRanges):
 			return nil // the rest waits for the next window
@@ -725,15 +888,18 @@ func (s *Service) drain(ctx context.Context) error {
 	return nil
 }
 
-// SettingsChanged reacts to inventory.settings.changed: if a run is in progress and the settings no longer
-// allow it (scanning off, scope unconfirmed, outside the window, the run's addresses out of scope), it is
-// stopped now. The next batch reads the new settings by itself.
+// SettingsChanged reacts to inventory.settings.changed: it bumps the settings version (a run that has not
+// started nmap yet sees it and stops), and if a run is registered and the settings no longer allow it (scanning
+// off, scope unconfirmed, outside the window, a lower rate, an address of the run out of scope), it is stopped
+// now. The next batch reads the new settings by itself.
 func (s *Service) SettingsChanged(ctx context.Context) error {
+	s.ver.Add(1)
 	s.mu.Lock()
 	cur := s.cur
 	var targets []netip.Addr
+	var rate int
 	if cur != nil {
-		targets = slices.Clone(cur.targets)
+		targets, rate = slices.Clone(cur.targets), cur.rate
 	}
 	s.mu.Unlock()
 	if cur == nil {
@@ -744,15 +910,13 @@ func (s *Service) SettingsChanged(ctx context.Context) error {
 		cur.cancel() // fail closed
 		return err
 	}
-	if _, _, ok := st.window(s.local()); !ok {
+	if _, _, ok := st.window(s.local()); !ok || st.Rate < rate {
 		cur.cancel()
 		return nil
 	}
-	for _, t := range targets {
-		if in, err := s.inv.InScope(ctx, t); err != nil || !in {
-			cur.cancel()
-			return err
-		}
+	sc := newScope(st)
+	if slices.ContainsFunc(targets, func(t netip.Addr) bool { return !sc.contains(t) }) {
+		cur.cancel()
 	}
 	return nil
 }

@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/netip"
 	"sync"
 	"time"
+	_ "time/tzdata" // zone names resolve in a container with no OS zone data (the windows are read in a named zone)
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
@@ -47,7 +49,9 @@ func newSensorActive(d deps, path string) (*sensoractive.Service, error) {
 	if d.Inventory == nil {
 		return nil, errors.New("sensor-active needs the inventory service")
 	}
-	cfg := sensoractive.Config{DB: d.DB, Inventory: sensorInventory{d.Inventory}, Observe: d.Inventory, Software: d.Inventory, NmapPath: path, Clock: d.Clock, Log: d.Log}
+	cfg := sensoractive.Config{DB: d.DB, Inventory: sensorInventory{d.Inventory}, Observe: d.Inventory, Software: d.Inventory, NmapPath: path, Clock: d.Clock, Log: d.Log,
+		// ponytail: the box zone for now; the organization time zone of the core general settings replaces it (deferred)
+		Location: func() *time.Location { return time.Local }}
 	if d.Bus != nil {
 		cfg.Events = sensoractive.PublisherFunc(func(ctx context.Context, e sensoractive.Event) error {
 			return d.Bus.Publish(ctx, events.Event{Name: e.Name, Data: e.Data})
@@ -163,6 +167,25 @@ func (a sensorInventory) Addresses(ctx context.Context) (map[netip.Addr]string, 
 	for _, d := range l.Items {
 		if ip, err := netip.ParseAddr(d.IP); err == nil {
 			out[ip] = d.ID
+		}
+	}
+	return out, nil
+}
+
+// ProtectedIPs is the inventory's list plus the box's own interface addresses: the sweep must not probe the
+// machine it runs on either (M2).
+func (a sensorInventory) ProtectedIPs(ctx context.Context) ([]netip.Addr, error) {
+	out, err := a.inv.ProtectedIPs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return nil, fmt.Errorf("sensor-active: read the box addresses: %w", err)
+	}
+	for _, x := range addrs {
+		if p, err := netip.ParsePrefix(x.String()); err == nil && p.Addr().Is4() {
+			out = append(out, p.Addr())
 		}
 	}
 	return out, nil

@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -63,10 +64,18 @@ type osClass struct {
 	cpes                     []string
 }
 
+// unprintable is true for what a banner nmap copies must not carry into the inventory: control characters
+// (C0, DEL and C1), format characters (bidi overrides and isolates, zero-width characters, the byte order mark,
+// the soft hyphen, tag characters) and the line and paragraph separators. They reorder or hide text in the UI
+// and in a CSV export (INV-7).
+func unprintable(r rune) bool {
+	return unicode.In(r, unicode.Cc, unicode.Cf, unicode.Zl, unicode.Zp)
+}
+
 // text accepts a string from nmap only if it is printable UTF-8 of 1..maxText runes; otherwise it is "" (absent).
 func text(s string) string {
 	n := utf8.RuneCountInString(s)
-	if n < 1 || n > maxText || !utf8.ValidString(s) || strings.ContainsFunc(s, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
+	if n < 1 || n > maxText || !utf8.ValidString(s) || strings.ContainsFunc(s, unprintable) {
 		return ""
 	}
 	return s

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -31,7 +33,7 @@ func newFakeNmap(t *testing.T) *fakeNmapBin {
 		return p
 	}
 	log := filepath.Join(dir, "argv.log")
-	body := fmt.Sprintf("#!/bin/sh\nprintf '%%s\\n' \"$@\" >> %q\necho '--' >> %q\ncase \" $* \" in\n  *\" -sn \"*) cat %q;;\n  *\" --version-intensity \"*) cat %q;;\n  *) cat %q;;\nesac\n",
+	body := fmt.Sprintf("#!/bin/sh\nprintf '%%s\\n' \"$@\" >> %q\necho '--' >> %q\ncase \" $* \" in\n  *\" -sn \"*) cat %q;;\n  *\" --max-retries \"*) cat %q;;\n  *) cat %q;;\nesac\n",
 		log, log, fx("sweep.xml"), fx("fragile.xml"), fx("device.xml"))
 	path := filepath.Join(dir, "nmap")
 	if err := os.WriteFile(path, []byte(body), 0o700); err != nil { //nolint:gosec // the fake nmap must be executable
@@ -98,6 +100,11 @@ func (s *stack) seen(t *testing.T, ip, mac string, kind string) string {
 	if err := s.d.Inventory.Record(t.Context(), obs); err != nil {
 		t.Fatal(err)
 	}
+	return s.idByIP(t, ip)
+}
+
+func (s *stack) idByIP(t *testing.T, ip string) string {
+	t.Helper()
 	l, err := s.d.Inventory.Devices(t.Context())
 	if err != nil {
 		t.Fatal(err)
@@ -124,7 +131,7 @@ func TestSensorActiveScansADiscoveredDevice(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.saveScope(t)
-	id := s.seen(t, "192.168.10.20", "aa:bb:cc:00:00:20", "")
+	id := s.seen(t, "192.168.10.20", "aa:bb:cc:00:00:20", "server") // classified by the passive sensor: not fragile
 	if n, _ := svc.QueueLen(t.Context()); n != 1 {
 		t.Fatalf("queue = %d, the discovered event did not queue the device", n)
 	}
@@ -132,7 +139,7 @@ func TestSensorActiveScansADiscoveredDevice(t *testing.T) {
 		t.Fatal(err)
 	}
 	calls := nm.calls(t)
-	want := []string{"--privileged", "-sS", "-sV", "-O", "-n", "--max-rate", "100", "--top-ports", "1000", "-oX", "-", "192.168.10.20"}
+	want := []string{"--privileged", "-sS", "-sV", "-O", "-n", "--max-rate", "100", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}
 	if got := scanTargets(calls, "192.168.10.20"); len(got) != 1 || !slices.Equal(got[0], want) {
 		t.Fatalf("device scans = %q\nwant %q", got, want)
 	}
@@ -201,7 +208,7 @@ func TestSensorActiveFragileDevicePolicy(t *testing.T) {
 	if err := svc.ScanDevice(t.Context(), id, "discovered"); err != nil {
 		t.Fatal(err)
 	}
-	gentle := []string{"--privileged", "-sS", "-sV", "--version-intensity", "0", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--top-ports", "100", "-oX", "-", "192.168.10.30"}
+	gentle := []string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.30"}
 	if got := scanTargets(nm.calls(t), "192.168.10.30"); len(got) != 1 || !slices.Equal(got[0], gentle) {
 		t.Fatalf("scans = %q, want one gentle scan %q", got, gentle)
 	}
@@ -296,4 +303,134 @@ func mustAddr(t *testing.T, s string) netip.Addr {
 		t.Fatal(err)
 	}
 	return a
+}
+
+// D-45 "afterwards passive only", inventory INV-5 "never scanned", M2: the daily sweep (-sn) skips the addresses of
+// a fragile device that already had its one gentle scan (and is marked regular_scan=never), of a device declared
+// by hand and of the box itself, though they are inside the scope; their neighbours are still swept.
+func TestSensorActiveSweepSkipsProtectedAddresses(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	nm := newFakeNmap(t)
+	s.d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, time.Local) }
+	svc, err := newSensorActive(*s.d, nm.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.saveScope(t, "printer")
+	printer := s.seen(t, "192.168.10.30", "aa:bb:cc:00:00:30", "printer")
+	if err := svc.ScanDevice(t.Context(), printer, "discovered"); err != nil { // the one gentle scan
+		t.Fatal(err)
+	}
+	never := "never"
+	if err := s.d.Inventory.PatchDevice(t.Context(), "it@acme.example", printer, inventory.Patch{RegularScan: &never}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.d.Inventory.AddDevice(t.Context(), "it@acme.example", inventory.AddInput{CatalogID: "fortigate", IP: "192.168.10.40"}); err != nil {
+		t.Fatal(err)
+	}
+	before := len(nm.calls(t))
+	if _, err := svc.DiscoverRanges(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	var swept []string
+	for _, c := range nm.calls(t)[before:] {
+		swept = append(swept, c[slices.Index(c, "-oX")+2:]...)
+	}
+	for _, ip := range []string{"192.168.10.30", "192.168.10.40"} {
+		if slices.Contains(swept, ip) {
+			t.Errorf("the sweep probed %s, a device the inventory protects", ip)
+		}
+	}
+	if !slices.Contains(swept, "192.168.10.29") || !slices.Contains(swept, "192.168.10.41") {
+		t.Errorf("the neighbours of the protected addresses are not swept: %d addresses", len(swept))
+	}
+	prot, err := sensorInventory{s.d.Inventory}.ProtectedIPs(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ifaces, _ := net.InterfaceAddrs(); len(ifaces) > 0 {
+		for _, x := range ifaces {
+			if p, err := netip.ParsePrefix(x.String()); err == nil && p.Addr().Is4() && !slices.Contains(prot, p.Addr()) {
+				t.Errorf("the box's own address %s is not protected", p.Addr())
+			}
+		}
+	}
+}
+
+// H1 / D-45: the first active scan of a device whose kind is unknown (everything a sweep finds) is the gentle one,
+// never -O or the 1000-port list; it is not scanned any heavier until a person or passive data classifies it.
+func TestSensorActiveFirstScanOfAnUnclassifiedDeviceIsGentle(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	nm := newFakeNmap(t)
+	s.d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, time.Local) }
+	svc, err := newSensorActive(*s.d, nm.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.saveScope(t, "printer", "camera", "nvr", "nas", "ap", "iot")
+	if err := svc.Tick(t.Context()); err != nil { // the sweep finds .2 and .5 (kind unknown), then the queue is drained
+		t.Fatal(err)
+	}
+	for _, ip := range []string{"192.168.10.2", "192.168.10.5"} {
+		got := scanTargets(nm.calls(t), ip)
+		if len(got) != 1 {
+			t.Fatalf("%s: %d device scans, want the one gentle scan", ip, len(got))
+		}
+		for _, bad := range []string{"-O", "-sV", "1000", "--version-intensity"} {
+			if slices.Contains(got[0], bad) {
+				t.Errorf("first scan of %s (kind unknown) was %q, not the gentle one", ip, got[0])
+			}
+		}
+		if !slices.Contains(got[0], "-T2") || !slices.Contains(got[0], "--host-timeout") {
+			t.Errorf("first scan of %s = %q", ip, got[0])
+		}
+	}
+	// still unclassified after its gentle scan: passive only, blocked with its own reason
+	id := s.idByIP(t, "192.168.10.2")
+	if err := svc.ScanDevice(t.Context(), id, "again"); !errors.Is(err, sensoractive.ErrBlocked) || !strings.Contains(err.Error(), inventory.ReasonUnclassifiedPassiveOnly) {
+		t.Fatalf("second scan of an unclassified device: %v", err)
+	}
+	// a person classifies it as not fragile: the normal scan is allowed
+	server := "server"
+	if err := s.d.Inventory.PatchDevice(t.Context(), "it@acme.example", id, inventory.Patch{Kind: &server}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.ScanDevice(t.Context(), id, "classified"); err != nil {
+		t.Fatalf("classified as server: %v", err)
+	}
+	if got := scanTargets(nm.calls(t), "192.168.10.2"); len(got) != 2 || !slices.Contains(got[1], "-O") {
+		t.Fatalf("scans = %q, want the second to be a normal one", got)
+	}
+}
+
+// SYS-7: the scope rule sensor-active applies in memory is the inventory's InScope, address for address.
+func TestSensorActiveScopeRuleMatchesTheInventory(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	_, err := s.d.Inventory.SaveSettings(t.Context(), "admin@acme.example", inventory.SettingsInput{
+		Settings: inventory.Settings{
+			LANRanges: []string{"192.168.10.0/24", "10.1.0.0/20", "172.16.5.0/30"},
+			Active:    inventory.ActiveWindow{Enabled: true, Days: []int{1}, From: "01:00", To: "05:00", Rate: 100, Exclusions: []string{"192.168.10.0/28", "192.168.10.200", "10.1.4.0/22", "172.16.5.1"}},
+		},
+		ScopeConfirmed: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := sensorInventory{s.d.Inventory}.Settings(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ip := range []string{"192.168.10.1", "192.168.10.16", "192.168.10.200", "192.168.10.255", "192.168.11.1", "10.1.0.1", "10.1.3.255", "10.1.4.0", "10.1.7.255", "10.1.8.0", "10.1.15.255", "10.1.16.0", "172.16.5.0", "172.16.5.1", "172.16.5.2", "8.8.8.8", "::ffff:192.168.10.20"} {
+		a := netip.MustParseAddr(ip)
+		want, err := s.d.Inventory.InScope(t.Context(), a)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := st.InScope(a); got != want {
+			t.Errorf("%s: sensor-active says %v, the inventory %v", ip, got, want)
+		}
+	}
 }

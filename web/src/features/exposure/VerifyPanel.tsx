@@ -13,7 +13,7 @@ import type { Target } from './types'
 /**
  * Step 1: prove ownership.
  * Domain: a DNS TXT record (like other providers). Vedette re-checks it right before every scan.
- * IP: only the public IP this box really uses to reach the Internet; it is verified for 90 days and re-verified here.
+ * IP: only the public IP this box really uses to reach the Internet; the box renews it for 30 days each time it sees it (auto-detect, or Verify again here).
  */
 export function VerifyPanel({ target }: { target: Target }) {
   const { t } = useTranslation('exposure')

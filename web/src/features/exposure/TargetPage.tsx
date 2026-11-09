@@ -82,6 +82,7 @@ function DeleteTarget({ target }: { target: Target }) {
       <Button onClick={() => setOpen(true)} disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.admin') })}><Trash2 />{t('delete.button')}</Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent title={t('delete.title', { value: target.value })} description={t('delete.body')}>
+          {target.kind === 'ip' ? <p className="text-sm">{t('boxIp.comeBack')}</p> : null}
           <DialogFooter>
             <Button onClick={() => setOpen(false)}>{t('common:cancel')}</Button>
             <Button variant="danger" disabled={del.isPending} onClick={() => { del.mutateAsync(target.id).then(() => { toast.success(t('delete.toast', { value: target.value })); void nav('/exposure') }, (e: unknown) => toast.error(errMsg(e))) }}>{t('delete.confirm')}</Button>

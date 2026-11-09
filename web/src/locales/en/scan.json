@@ -72,7 +72,7 @@
     "internal": "Devices in the inventory",
     "external": "Verified external targets",
     "noExternal": "No public domain or IP yet.",
-    "externalHint": "Only domains verified with a DNS TXT record, and IPs this box itself goes out to the Internet with, verified within 90 days, are scanned.",
+    "externalHint": "Only domains verified with a DNS TXT record, and IPs this box itself goes out to the Internet with, seen by the box within the last 30 days, are scanned.",
     "openExposure": "Open External exposure",
     "findings_one": "{{count}} finding",
     "findings_other": "{{count}} findings",

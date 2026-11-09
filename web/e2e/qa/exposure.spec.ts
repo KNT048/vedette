@@ -13,14 +13,14 @@ const visible = (page: Page, text: string | RegExp) => page.getByText(text).loca
 const ASIS = 'Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.'
 const COMMIT = 'I confirm my company owns this domain/IP and I am authorized to scan it.'
 
-test('clean install: no sample targets; a domain goes through TXT verification, the commitment, a scan and deletion', async ({ page, isMobile }) => {
+test('clean install: no sample targets, the box finds its two IPs by itself; a domain goes through TXT verification, the commitment, a scan and deletion', async ({ page, isMobile }) => {
   test.setTimeout(120_000)
   const errors = collectErrors(page)
   await finishClean(page)
   await page.goto('/exposure')
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/No domain or verified public IP yet/)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/2 items cannot be scanned yet/)
   await expect(page.getByText('acme.example')).toHaveCount(0)
-  await expect(visible(page, /select Verify this box's public IP/)).toBeVisible()
+  await expect(page.locator('#box-ip').getByRole('link', { name: '203.0.113.10' })).toBeVisible() // found at first start, nothing was clicked
   await shot(page, 'exposure', `clean-empty-${isMobile ? 'mobile' : 'desktop'}`)
   await expectAccessible(page, 'exposure empty')
 
@@ -106,24 +106,104 @@ test('clean install: no sample targets; a domain goes through TXT verification, 
   expect(errors).toEqual([])
 })
 
-test('clean install: verify this box public IP; private and CGNAT results are refused; confirm and scan', async ({ page, isMobile }) => {
+// kien 2026-11-09: "KH co nhieu IP public va load balance, chi can bat che do tu detect". The company uses two public IPs behind a load balancer.
+// Walk: first start finds both IPs without a click; auto-detect off keeps the list and hides the interval; on again; change the interval; remove one IP
+// (the confirmation says it comes back); Detect now brings it back. Light first, then dark; desktop and phone (the pane is a list on a phone).
+test('clean install, two public IPs behind a load balancer: auto-detect finds both, remove one, Detect now brings it back', async ({ page, isMobile }) => {
+  test.setTimeout(120_000)
+  const errors = collectErrors(page)
+  const size = isMobile ? 'mobile' : 'desktop'
+  await finishClean(page)
+  await setEgress(page, '198.51.100.7,198.51.100.8')
+  await page.goto('/exposure')
+  const box = page.locator('#box-ip')
+  const link = (ip: string) => box.getByRole('link', { name: ip })
+  const toggle = page.getByRole('switch', { name: "Detect the box's public IPs automatically" })
+
+  // First start: nothing was clicked, both IPs are in the list and the last check says so.
+  await expect(box.getByText('Auto-detect is on: the box checks its public IPs every hour.')).toBeVisible()
+  await expect(link('198.51.100.7')).toBeVisible()
+  await expect(link('198.51.100.8')).toBeVisible()
+  await expect(box.getByRole('status')).toContainText('The box reaches the Internet via 2 public IPs: 198.51.100.7, 198.51.100.8.')
+  await expect(box.getByText('Removed IPs come back if the box keeps using them while auto-detect is on.')).toBeVisible()
+  await expect(box.getByRole('textbox')).toHaveCount(0) // an IP is never typed in
+  await shot(page, 'exposure', `box-ip-two-ips-${size}`)
+  await expectAccessible(page, 'exposure box ips')
+
+  // Manual mode: the interval goes away, the list and Detect now stay.
+  await toggle.click()
+  await expect(box.getByText('Auto-detect is off: the box checks only when you select Detect now.')).toBeVisible()
+  await expect(box.getByRole('combobox', { name: 'Check every' })).toHaveCount(0)
+  await expect(box.getByRole('button', { name: 'Detect now' })).toBeEnabled()
+  await expect(link('198.51.100.8')).toBeVisible()
+  await shot(page, 'exposure', `box-ip-auto-off-${size}`)
+  await toggle.click()
+  await expect(box.getByRole('combobox', { name: 'Check every' })).toHaveValue('60')
+  await box.getByRole('combobox', { name: 'Check every' }).selectOption('15')
+  await expect(box.getByText('Auto-detect is on: the box checks its public IPs every 15 minutes.')).toBeVisible()
+  await page.reload()
+  await expect(box.getByRole('combobox', { name: 'Check every' })).toHaveValue('15') // saved
+
+  // Remove one IP: the confirmation says what is lost and that it can come back; Cancel keeps it.
+  await box.getByRole('button', { name: 'Remove 198.51.100.8' }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toContainText('Remove 198.51.100.8 from the list?')
+  await expect(dialog).toContainText('Removed IPs come back if the box keeps using them while auto-detect is on.')
+  await shot(page, 'exposure', `box-ip-remove-${size}`)
+  await dialog.getByRole('button', { name: 'Cancel' }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(link('198.51.100.8')).toBeVisible()
+  await box.getByRole('button', { name: 'Remove 198.51.100.8' }).click()
+  await dialog.getByRole('button', { name: 'Remove', exact: true }).click()
+  await expect(link('198.51.100.8')).toHaveCount(0)
+  await expect(link('198.51.100.7')).toBeVisible()
+
+  // Detect now: the box still goes out through it, so it is back (as a new target).
+  await box.getByRole('button', { name: 'Detect now' }).click()
+  await expect(link('198.51.100.8')).toBeVisible()
+  await expect(page.getByText('The box reaches the Internet via 2 public IPs: 198.51.100.7, 198.51.100.8. Each is verified until').first()).toBeVisible()
+
+  // Both audited: the first start by the box itself ("system"), the removal and the click by the person.
+  const audit = JSON.stringify((await api(page, 'GET', '/core/audit')).body)
+  expect(audit).toContain('exposure.auto_detect')
+  expect(audit).toContain('"user":"system"')
+  expect(audit).toContain('exposure.target_delete')
+  // Typing an IP is still refused by the server.
+  expect((await api(page, 'POST', '/exposure/targets', { value: '198.51.100.9' })).body.error.code).toBe('ip_not_allowed')
+  expect((await api(page, 'PUT', '/exposure/box-ip/settings', { auto: true, interval_min: 5 })).body.error.code).toBe('bad_interval')
+
+  // Dark: same page, same answer, readable.
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await expect(link('198.51.100.8')).toBeVisible()
+  await shot(page, 'exposure', `box-ip-two-ips-dark-${size}`)
+  await expectAccessible(page, 'exposure box ips dark')
+  expect(errors).toEqual([])
+})
+
+test('clean install: Detect now refuses private and CGNAT results; a public IP gets its page, is confirmed and scanned', async ({ page, isMobile }) => {
   test.setTimeout(120_000)
   const errors = collectErrors(page)
   await finishClean(page)
   await page.goto('/exposure')
-  await page.getByRole('button', { name: "Verify this box's public IP" }).click()
-  const dialog = page.getByRole('dialog')
-  for (const t of [/You cannot type an IP/, /Private, reserved and shared carrier \(CGNAT/, /At most 10 verification attempts per hour/]) await expect(dialog.getByText(t)).toBeVisible()
-  await expect(dialog.locator('input')).toHaveCount(0)
+  const box = page.locator('#box-ip')
+  await box.getByRole('button', { name: 'Detect now' }).waitFor()
+  await box.getByText('How the box finds its IPs').click()
+  for (const t of [/You cannot type an IP/, /Private, reserved and shared carrier \(CGNAT/, /Detect now is limited to 10 attempts per hour/]) await expect(box.getByText(t)).toBeVisible()
   await setEgress(page, '100.64.20.7')
-  await dialog.getByRole('button', { name: 'Detect and verify' }).click()
-  await expect(dialog.getByRole('alert')).toContainText('private, reserved or shared carrier (CGNAT) address')
+  await box.getByRole('button', { name: 'Detect now' }).click()
+  await expect(box.getByRole('status')).toContainText('private, reserved or shared carrier (CGNAT) address')
+  await expect(box.getByRole('status')).toContainText('Failed')
   await shot(page, 'exposure', `box-ip-refused-${isMobile ? 'mobile' : 'desktop'}`)
+  await setEgress(page, 'offline')
+  await box.getByRole('button', { name: 'Detect now' }).click()
+  await expect(box.getByRole('status')).toContainText('could not reach the Vedette endpoint')
   await setEgress(page, '198.51.100.7')
-  await dialog.getByRole('button', { name: 'Detect and verify' }).click()
+  await box.getByRole('button', { name: 'Detect now' }).click()
+  await expect(box.getByRole('status')).toContainText('The box reaches the Internet via 198.51.100.7. Verified until')
+  await box.getByRole('link', { name: '198.51.100.7' }).click()
   await expect(page).toHaveURL(/\/exposure\/xt-/)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/198\.51\.100\.7 cannot be scanned yet: needs your confirmation/)
-  await expect(page.getByText('Last verified')).toBeVisible()
+  await expect(page.getByText('Last seen by the box')).toBeVisible()
   await expect(page.getByText('Expires on')).toBeVisible()
   await expect(page.getByText('Valid', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Scan now' })).toBeDisabled()
@@ -143,12 +223,14 @@ test('clean install: verify this box public IP; private and CGNAT results are re
   expect(errors).toEqual([])
 })
 
-test('sample: expired IP, expiring IP, missing TXT record and unverified domain cannot be scanned (button and API)', async ({ page, isMobile }) => {
+test('sample: expired IP, expiring IP, missing TXT record and unverified domain cannot be scanned (button and API); the two live IPs are valid', async ({ page, isMobile }) => {
   test.setTimeout(120_000)
   const errors = collectErrors(page)
   await sampleStart(page)
   await page.goto('/exposure')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/2 admin interfaces are exposed to the Internet/)
+  await expect(page.locator('#box-ip').getByText('Auto-detect is on: the box checks its public IPs every hour.')).toBeVisible()
+  await expect(page.locator('#box-ip').getByRole('link', { name: '203.0.113.11' })).toBeVisible() // the sample company has two live IPs behind a load balancer
   await expect(visible(page, /Expires in \d+ days/)).toBeVisible()
   await shot(page, 'exposure', `list-${isMobile ? 'mobile' : 'desktop'}`)
   await expectAccessible(page, 'exposure list')
@@ -211,14 +293,17 @@ test('viewer: results are visible, every action is locked with a visible reason'
   await expect(page.getByText(/You have view-only access/)).toBeVisible()
   await page.goto('/exposure')
   await expect(page.getByRole('button', { name: 'Add domain' }).first()).toBeDisabled()
-  await expect(page.getByRole('button', { name: "Verify this box's public IP" })).toBeDisabled()
+  await expect(page.getByRole('switch', { name: "Detect the box's public IPs automatically" })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Detect now' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Remove 203.0.113.11' })).toBeDisabled()
+  await expect(page.getByText('Requires Admin role').first()).toBeVisible()
 })
 
 test('English only and dark mode: no Vietnamese in any exposure page, no console errors', async ({ page }) => {
   const errors = collectErrors(page)
   await sampleStart(page)
   await page.emulateMedia({ colorScheme: 'dark' })
-  for (const path of ['/exposure', '/exposure/xt-1', '/exposure/xt-2', '/exposure/xt-3', '/exposure/xt-4', '/exposure/xt-5']) {
+  for (const path of ['/exposure', '/exposure/xt-1', '/exposure/xt-2', '/exposure/xt-3', '/exposure/xt-4', '/exposure/xt-5', '/exposure/xt-6', '/exposure/xt-7']) {
     await page.goto(path)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     await expect(page.getByRole('status').filter({ hasText: /^Loading$/ })).toHaveCount(0)

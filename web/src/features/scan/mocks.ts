@@ -27,10 +27,10 @@ type StoredRow = RunResultRow
 interface StoredRun extends ScanRun { target_ids: string[]; stop_requested_at: string | null }
 const row = (t: ScanTarget, template: string | null, result: RunResultRow['result'], finding_id: string | null, note: string): StoredRow => ({ target_id: t.id, label: t.label, ip: t.ip, template, result, finding_id, note })
 interface ExternalTarget { id: string; value: string; ip: string; verified: boolean; expired: boolean }
-const VERIFY_DAYS = 90
+const VERIFY_DAYS = 30
 
 // Phạm vi trong = dải LAN ở Thiết bị → Phạm vi và cảm biến (inventory) + ô cam kết đã đánh dấu ở đó (scope_confirmed_at). Không còn văn bản đồng ý.
-// Mục tiêu ngoài (exposure): chỉ IP mà chính hộp đi ra Internet bằng và đã xác nhận trong 90 ngày (quá hạn = không quét, cần xác nhận lại); tên miền xác thực bằng DNS TXT không hết hạn. LEGAL §3.
+// Mục tiêu ngoài (exposure): chỉ IP mà chính hộp đi ra Internet bằng và hộp còn thấy trong 30 ngày qua (hộp tự dò và gia hạn; quá hạn = không quét); tên miền xác thực bằng DNS TXT không hết hạn. LEGAL §3.
 const scope = {
   get(): ScanScope {
     const s = inventorySettingsStore.get()
@@ -41,7 +41,7 @@ const external = {
   get(): ExternalTarget[] {
     const snaps = exposureSnapshotsStore.get()
     return exposureTargetsStore.get().map((t) => {
-      // exposure sẽ có expires_at; chưa có thì tính verified_at + 90 ngày.
+      // exposure sẽ có expires_at; chưa có thì tính verified_at + 30 ngày.
       const exp = (t as { expires_at?: string | null }).expires_at ?? (t.verified_at ? new Date(Date.parse(t.verified_at) + VERIFY_DAYS * 864e5).toISOString() : null)
       return {
         id: `ext:${t.id}`, value: t.value,

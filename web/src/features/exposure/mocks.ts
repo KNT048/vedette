@@ -1,15 +1,21 @@
-// Mock API of module exposure (S-EXP-1). Tables: exp_targets, exp_snapshots, exp_commitments, exp_attempts.
-// Hard rule (LEGAL §3), enforced in the API and not only on the button: no scan unless ownership is verified (IPs: within 90 days),
+// Mock API of module exposure (S-EXP-1). Tables: exp_targets, exp_snapshots, exp_commitments, exp_attempts, exp_settings.
+// Hard rule (LEGAL §3), enforced in the API and not only on the button: no scan unless ownership is verified (IPs: seen by the box within 30 days),
 // the domain's DNS TXT record is still present (re-checked right before each scan) and the commitment is recorded.
 // Domain ownership = a DNS TXT record, as other providers do (Google Workspace: host @, up to 72 hours, keep the record).
-// IP ownership = only the public IP the box itself uses to reach the Internet. The endpoint takes no IP input.
+// IP ownership = only the public IPs the box itself uses to reach the Internet. No endpoint takes an IP as input.
+// Auto-detect (kien 2026-11-09): on by default; the box probes the fixed project endpoint three times (separate connections) at first start and then
+// every interval_min minutes (default 60, 15 to 1440), and adds or renews (30 days from the sighting) every distinct public IP it sees. The mock runs
+// the check when GET /exposure/targets finds it due. Removing an IP is DELETE; while auto-detect is on, an IP the box still uses comes back.
 // DNS simulation: the first TXT check of a new domain says "not found" (DNS not updated yet), from the second check it is found.
-// Box egress simulation: localStorage key "vedette-mock-egress" holds the IP the box currently egresses through (default BOX_EGRESS_IP).
+// Box egress simulation: localStorage key "vedette-mock-egress" holds the public IPs the box currently egresses through, comma separated
+// (default: the two sample IPs, i.e. a load balancer), or "offline" when the box cannot reach the project endpoint.
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, currentUser, DOMAIN_RE, fail, guard, IPV4_RE } from '@/mocks/http'
-import { collection, newId, nowIso } from '@/mocks/db'
-import { BOX_EGRESS_IP, EXPIRING_DAYS, makeSnapshot, randomToken, scanContent, seedSnapshots, seedTargets, VERIFY_DAYS, type StoredTarget } from './data'
-import type { Commitment, Diff, DiffChange, DiffItem, Snapshot, Target } from './types'
+import { auditStore } from '@/mocks/stores'
+import { canonHash, GENESIS } from '@/lib/chain'
+import { collection, newId, nowIso, type Collection } from '@/mocks/db'
+import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, DEFAULT_INTERVAL, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedSnapshots, seedTargets, VERIFY_DAYS, type StoredTarget } from './data'
+import type { BoxIpSettings, Commitment, Diff, DiffChange, DiffItem, Snapshot, Target } from './types'
 
 const targets = collection<StoredTarget[]>('exp_targets', seedTargets, () => [])
 const snapshots = collection<Record<string, Snapshot[]>>('exp_snapshots', seedSnapshots, () => ({}))
@@ -17,19 +23,28 @@ const commitments = collection<Record<string, Commitment>>('exp_commitments', ()
   const at = (d: number) => new Date(Date.now() - d * 864e5).toISOString()
   return {
     'xt-1': { by: 'admin@acme.example', at: at(20) },
-    'xt-2': { by: 'admin@acme.example', at: at(77) },
-    'xt-4': { by: 'admin@acme.example', at: at(99) },
+    'xt-2': { by: 'admin@acme.example', at: at(20) },
+    'xt-4': { by: 'admin@acme.example', at: at(60) },
     'xt-5': { by: 'admin@acme.example', at: at(39) },
   }
 }, () => ({}))
 /** Timestamps of verification attempts in the last hour (rate limit, anti-abuse). */
 const attempts = collection<string[]>('exp_attempts', () => [], () => [])
+/** Auto-detect settings. Same defaults on a clean install; only the sample has a last check. */
+const boxIp = collection<BoxIpSettings>('exp_settings', seedBoxIp, () => ({ auto: true, interval_min: DEFAULT_INTERVAL, last_run: null }))
 
 const MAX_TARGETS = 20
 const MAX_ATTEMPTS_PER_HOUR = 10
+/** Turning auto-detect on checks straight away, unless it checked within the last MIN_INTERVAL minutes (no probe spam by toggling). */
+const MIN_GAP_MS = MIN_INTERVAL * 60_000
 
-function egressIp() {
-  try { return localStorage.getItem('vedette-mock-egress')?.trim() || BOX_EGRESS_IP } catch { return BOX_EGRESS_IP }
+/** The public IPs the box leaves through now, or null when the project endpoint cannot be reached. Three probes, so a load balancer shows every IP. */
+function egressIps(): string[] | null {
+  let raw: string | null = null
+  try { raw = localStorage.getItem('vedette-mock-egress')?.trim() || null } catch { raw = null }
+  if (raw === null) return [BOX_EGRESS_IP, BOX_EGRESS_IP_2]
+  if (raw === 'offline') return null
+  return [...new Set(raw.split(',').map((x) => x.trim()).filter(Boolean))]
 }
 
 // Private, loopback, link-local, CGNAT (100.64.0.0/10), multicast and reserved. 203.0.113.0/24 (documentation range) is allowed because the sample data uses it.
@@ -54,6 +69,14 @@ function rateLimit() {
   }
   attempts.set([...recent, nowIso()])
   return null
+}
+
+/** SYS-3 for work the box does by itself: the same hash chain as audit(), with the actor "system". */
+function auditSystem(action: string, target: string, detail: string) {
+  auditStore.update((l) => {
+    const core = { id: newId('au'), ts: nowIso(), user: 'system', action, target, detail, prev_hash: l[0]?.hash ?? GENESIS }
+    return [{ ...core, hash: canonHash(core) }, ...l].slice(0, 1000)
+  })
 }
 
 const dayLeft = (iso: string) => Math.ceil((Date.parse(iso) - Date.now()) / 864e5)
@@ -100,10 +123,102 @@ function diff(a: Snapshot, b: Snapshot): Diff {
   return { from: a.date, to: b.date, added, removed, changed }
 }
 
+// ---------- detecting the box's public IPs ----------
+const OFFLINE = 'The box could not reach the Vedette endpoint to read its public IP. Check that this box can make outgoing HTTPS connections, then try again.'
+const list = (ips: string[]) => ips.join(', ')
+function notPublicMessage(ips: string[]) {
+  const one = ips.length === 1
+  return `The box reaches the Internet via ${list(ips)}, which ${one ? 'is a' : 'are'} private, reserved or shared carrier (CGNAT) address${one ? '' : 'es'}. Scanning ${one ? 'it' : 'them'} could hit other people's devices, so Vedette will not verify ${one ? 'it' : 'them'}. Ask your admin to give the box a public IP that belongs to your company, then try again.`
+}
+const tooMany = () => `At most ${MAX_TARGETS} targets. Delete ones you no longer use.`
+
+type Detected = { kind: 'offline' } | { kind: 'not_public'; ips: string[] } | { kind: 'too_many' } | { kind: 'ok'; seen: StoredTarget[]; message: string }
+
+/**
+ * One detection: three probes show every public IP the box leaves through; each is added (new) or renewed (seen again, 30 days from now).
+ * Private, reserved and CGNAT addresses are never stored. `who` decides how it is audited: a person's click, or the box by itself ("system").
+ */
+function detect(who: 'user' | 'system'): Detected {
+  const at = nowIso()
+  const log = (action: string, target: string, detail: string) => (who === 'system' ? auditSystem(action, target, detail) : audit(action, target, detail))
+  const record = (ok: boolean, message: string) => boxIp.update((s) => ({ ...s, last_run: { at, ok, message } }))
+  const observed = egressIps()
+  if (observed === null) {
+    record(false, OFFLINE)
+    if (who === 'system') auditSystem('exposure.auto_detect', 'box', 'failed: the project endpoint is not reachable')
+    return { kind: 'offline' }
+  }
+  const isPublic = (ip: string) => IPV4_RE.test(ip) && isPublicIp(ip)
+  const pub = observed.filter(isPublic)
+  const refused = observed.filter((ip) => !isPublic(ip))
+  for (const ip of refused) log('exposure.verify_fail', ip, 'box_egress: not a public address')
+  if (pub.length === 0) {
+    const message = notPublicMessage(refused)
+    record(false, message)
+    if (who === 'system') auditSystem('exposure.auto_detect', 'box', `refused: ${list(refused)} (not public)`)
+    return { kind: 'not_public', ips: refused }
+  }
+  const until = fmt(plus(at, VERIFY_DAYS))
+  const seen: StoredTarget[] = []
+  const skipped: string[] = []
+  const added: string[] = []
+  for (const ip of pub) {
+    const msg = `The box reaches the Internet via ${ip}. Verified until ${until}.`
+    const existing = targets.get().find((x) => x.kind === 'ip' && x.value === ip)
+    if (existing) {
+      const was = view(existing).validity
+      const next: StoredTarget = { ...existing, verified_at: at, expires_at: plus(at, VERIFY_DAYS), last_check: { at, ok: true, message: msg } }
+      targets.update((l) => l.map((x) => (x.id === next.id ? next : x)))
+      if (who === 'user' || was !== 'valid') log('exposure.verify_renew', ip, 'box_egress')
+      seen.push(next)
+    } else if (targets.get().length >= MAX_TARGETS) {
+      skipped.push(ip)
+    } else {
+      const next: StoredTarget = { id: newId('xt'), kind: 'ip', value: ip, token: '', method: 'box_egress', verified_at: at, expires_at: plus(at, VERIFY_DAYS), txt_ok: false, checks: 1, last_check: { at, ok: true, message: msg }, created_at: at, last_scan_at: null }
+      targets.update((l) => [...l, next])
+      log('exposure.verify_ok', ip, who === 'system' ? 'box_egress, auto-detect' : 'box_egress')
+      added.push(ip)
+      seen.push(next)
+    }
+  }
+  if (seen.length === 0) {
+    record(false, tooMany())
+    if (who === 'system') auditSystem('exposure.auto_detect', 'box', `not added: ${list(skipped)} (limit of ${MAX_TARGETS} targets)`)
+    return { kind: 'too_many' }
+  }
+  const via = seen.length === 1 ? seen[0]!.value : `${seen.length} public IPs: ${list(seen.map((x) => x.value))}`
+  const message = `The box reaches the Internet via ${via}. ${seen.length === 1 ? 'Verified' : 'Each is verified'} until ${until}.`
+    + (refused.length ? ` Ignored, not public: ${list(refused)}.` : '') + (skipped.length ? ` Not added, the list holds at most ${MAX_TARGETS} targets: ${list(skipped)}.` : '')
+  record(skipped.length === 0, message)
+  if (who === 'system') auditSystem('exposure.auto_detect', 'box', `seen: ${list(seen.map((x) => x.value))}${added.length ? `; added: ${list(added)}` : ''}${skipped.length ? `; not added: ${list(skipped)}` : ''}`)
+  return { kind: 'ok', seen, message }
+}
+
+/** The check the box runs by itself: due when auto-detect is on and the last check is older than the interval (or there was none: first start). */
+function autoDetectIfDue() {
+  const s = boxIp.get()
+  if (s.auto && (!s.last_run || Date.now() >= Date.parse(s.last_run.at) + s.interval_min * 60_000)) detect('system')
+}
+
 export const handlers = [
   http.get(`${API}/exposure/targets`, () => {
     const denied = guard('viewer'); if (denied) return denied
-    return HttpResponse.json({ items: targets.get().map(view) })
+    autoDetectIfDue()
+    return HttpResponse.json({ items: targets.get().map(view), box_ip: boxIp.get() })
+  }),
+
+  // Auto-detect on or off and the interval. Turning it on checks at once (not when it checked in the last 15 minutes). Never takes an IP.
+  http.put(`${API}/exposure/box-ip/settings`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<{ auto: boolean; interval_min: number }>(request)
+    if (typeof b.auto !== 'boolean') return fail(400, 'invalid_setting', 'Say whether auto-detect is on or off.')
+    const n = b.interval_min
+    if (typeof n !== 'number' || !Number.isInteger(n) || n < MIN_INTERVAL || n > MAX_INTERVAL) return fail(400, 'bad_interval', `Choose how often to check: every ${MIN_INTERVAL} minutes up to every 24 hours (${MAX_INTERVAL} minutes).`)
+    const before = boxIp.get()
+    boxIp.set({ ...before, auto: b.auto, interval_min: n })
+    audit('exposure.box_ip_settings', 'box', `auto-detect ${b.auto ? 'on' : 'off'}, every ${n} minutes`)
+    if (b.auto && !before.auto && (!before.last_run || Date.now() - Date.parse(before.last_run.at) >= MIN_GAP_MS)) detect('user')
+    return HttpResponse.json(boxIp.get())
   }),
 
   // Adding a target changes the scan scope, so admin. Domains only: a public IP is never typed in.
@@ -113,7 +228,7 @@ export const handlers = [
     const value = String(b.value ?? '').trim().toLowerCase()
     if (!value) return fail(400, 'empty', 'Enter a domain, for example example.com.')
     if (/[/:@\s]/.test(value)) return fail(400, 'bad_value', 'Enter only a domain name, without http://, a path, a port or spaces. Example: example.com.')
-    if (IPV4_RE.test(value)) return fail(400, 'ip_not_allowed', 'Public IPs are not typed in. Select "Verify this box\'s public IP": the box detects the IP it uses to reach the Internet and verifies that one.')
+    if (IPV4_RE.test(value)) return fail(400, 'ip_not_allowed', 'Public IPs are not typed in. The box finds its own public IPs: turn on auto-detect or select "Detect now" under Public IPs of this box.')
     if (!DOMAIN_RE.test(value)) return fail(400, 'bad_value', 'Not a valid domain. Example: example.com.')
     if (targets.get().some((t) => t.value === value)) return fail(409, 'duplicate', `${value} is already in the list.`)
     if (targets.get().length >= MAX_TARGETS) return fail(400, 'too_many', `At most ${MAX_TARGETS} targets. Delete ones you no longer use.`)
@@ -123,26 +238,16 @@ export const handlers = [
     return HttpResponse.json(view(t), { status: 201 })
   }),
 
-  // "Verify this box's public IP": the box finds the IP it uses to reach the Internet (TLS to a fixed endpoint, e.g. Cloudflare /cdn-cgi/trace).
-  // No IP input. Refuses private/reserved/CGNAT. Adds the IP as verified for 90 days, or renews it.
+  // "Detect now": the same check the box runs by itself (three probes of the fixed project endpoint, e.g. Cloudflare /cdn-cgi/trace).
+  // No IP input. Refuses private/reserved/CGNAT. Adds every public IP it sees as verified for 30 days, or renews it. Counts as one attempt.
   http.post(`${API}/exposure/box-ip/verify`, () => {
     const denied = guard('admin'); if (denied) return denied
     const limited = rateLimit(); if (limited) return limited
-    const ip = egressIp()
-    if (!IPV4_RE.test(ip) || !isPublicIp(ip)) {
-      audit('exposure.verify_fail', ip, 'box_egress: not a public address')
-      return fail(400, 'not_public', `The box reaches the Internet via ${ip}, which is a private, reserved or shared carrier (CGNAT) address. Scanning it could hit other people's devices, so Vedette will not verify it. Ask your admin to give the box a public IP that belongs to your company, then try again.`)
-    }
-    const at = nowIso()
-    const message = `The box reaches the Internet via ${ip}. Verified until ${fmt(plus(at, VERIFY_DAYS))}.`
-    const existing = targets.get().find((x) => x.kind === 'ip' && x.value === ip)
-    const next: StoredTarget = existing
-      ? { ...existing, verified_at: at, expires_at: plus(at, VERIFY_DAYS), last_check: { at, ok: true, message } }
-      : { id: newId('xt'), kind: 'ip', value: ip, token: '', method: 'box_egress', verified_at: at, expires_at: plus(at, VERIFY_DAYS), txt_ok: false, checks: 1, last_check: { at, ok: true, message }, created_at: at, last_scan_at: null }
-    if (!existing && targets.get().length >= MAX_TARGETS) return fail(400, 'too_many', `At most ${MAX_TARGETS} targets. Delete ones you no longer use.`)
-    targets.update((l) => (existing ? l.map((x) => (x.id === next.id ? next : x)) : [...l, next]))
-    audit(existing ? 'exposure.verify_renew' : 'exposure.verify_ok', ip, 'box_egress')
-    return HttpResponse.json(view(next), { status: existing ? 200 : 201 })
+    const r = detect('user')
+    if (r.kind === 'offline') return fail(502, 'unreachable', OFFLINE)
+    if (r.kind === 'not_public') return fail(400, 'not_public', notPublicMessage(r.ips))
+    if (r.kind === 'too_many') return fail(400, 'too_many', tooMany())
+    return HttpResponse.json({ items: r.seen.map(view), message: r.message })
   }),
 
   http.get(`${API}/exposure/targets/:id`, ({ params }) => {
@@ -180,11 +285,14 @@ export const handlers = [
         : `The TXT record vedette-verify=${t.token} was not found on ${t.value}. DNS usually updates within minutes and can take up to 72 hours. Check again later, and make sure the value was pasted without extra quotes and that the Name field is just @ (some providers append the domain automatically).`
       next = { ...t, checks, txt_ok: ok, last_check: { at, ok, message }, verified_at: ok ? (t.verified_at ?? at) : t.verified_at }
     } else {
-      const ip = egressIp()
-      ok = ip === t.value && isPublicIp(ip)
+      // One check = three probes: the IP is verified when the box leaves through it now (any of several IPs behind a load balancer). It renews for 30 days.
+      const observed = egressIps()
+      ok = !!observed && observed.includes(t.value) && isPublicIp(t.value)
       message = ok
         ? `The box reaches the Internet via ${t.value}. Verified until ${fmt(plus(at, VERIFY_DAYS))}.`
-        : `This box currently reaches the Internet via ${ip}, not ${t.value}. Ask your admin to route the box through ${t.value} (for example switch WAN), then verify again.`
+        : !observed
+          ? OFFLINE
+          : `This box currently reaches the Internet via ${list(observed)}, not ${t.value}. Ask your admin to route the box through ${t.value} (for example switch WAN), then verify again.`
       next = { ...t, checks, last_check: { at, ok, message }, verified_at: ok ? at : t.verified_at, expires_at: ok ? plus(at, VERIFY_DAYS) : t.expires_at }
     }
     targets.update((l) => l.map((x) => (x.id === t.id ? next : x)))
@@ -254,5 +362,7 @@ export const handlers = [
   }),
 ]
 
-// Shared inside the mock layer (supervisor): the scan module only scans external targets that are verified (IPs: within 90 days).
-export { targets as exposureTargetsStore, snapshots as exposureSnapshotsStore, commitments as exposureCommitmentsStore }
+// Shared inside the mock layer (supervisor): the scan module only scans external targets that are verified (IPs: seen by the box within 30 days).
+// Reading the targets also runs the automatic check when it is due, as the box's job would have by now, so the scan page of a clean install lists the IPs the box found.
+export const exposureTargetsStore: Collection<StoredTarget[]> = { get: () => { autoDetectIfDue(); return targets.get() }, set: (v) => targets.set(v), update: (fn) => targets.update(fn) }
+export { snapshots as exposureSnapshotsStore, commitments as exposureCommitmentsStore }

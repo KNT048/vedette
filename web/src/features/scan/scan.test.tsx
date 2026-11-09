@@ -45,7 +45,7 @@ describe('scan: trang chính và chọn mục tiêu (S-SCAN-1)', () => {
     expect(screen.getByRole('checkbox', { name: /acme-demo\.example/ })).toBeDisabled()
     expect(screen.getByText('Ownership not verified, so not scanned')).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: /^acme\.example / })).toBeEnabled()
-    // IP ngoài đã hết hạn xác nhận 90 ngày thì không quét được
+    // IP ngoài hộp không thấy quá 30 ngày thì không quét được
     expect(screen.getByRole('checkbox', { name: /203\.0\.113\.55/ })).toBeDisabled()
     expect(screen.getAllByText('Verification expired, verify again, so not scanned').length).toBeGreaterThan(0)
     expect(screen.getByRole('link', { name: 'Open External exposure' })).toHaveAttribute('href', '/exposure')

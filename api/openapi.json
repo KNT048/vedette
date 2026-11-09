@@ -20335,6 +20335,13 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "answered_by": {
+                      "description": "The CISA list only: which address answered the last good pull, \"CISA\" or \"CISA GitHub mirror\" (D-91); null for every other feed and before the first good pull",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -20353,7 +20360,8 @@
                     "records",
                     "status",
                     "error",
-                    "license"
+                    "license",
+                    "answered_by"
                   ],
                   "additionalProperties": false
                 }
@@ -20831,6 +20839,13 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "answered_by": {
+                      "description": "The CISA list only: which address answered the last good pull, \"CISA\" or \"CISA GitHub mirror\" (D-91); null for every other feed and before the first good pull",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -20849,7 +20864,8 @@
                     "records",
                     "status",
                     "error",
-                    "license"
+                    "license",
+                    "answered_by"
                   ],
                   "additionalProperties": false
                 }
@@ -22030,6 +22046,13 @@
                               "string",
                               "null"
                             ]
+                          },
+                          "answered_by": {
+                            "description": "The CISA list only: which address answered the last good pull, \"CISA\" or \"CISA GitHub mirror\" (D-91); null for every other feed and before the first good pull",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
                           }
                         },
                         "required": [
@@ -22048,7 +22071,8 @@
                           "records",
                           "status",
                           "error",
-                          "license"
+                          "license",
+                          "answered_by"
                         ],
                         "additionalProperties": false
                       }
@@ -22347,6 +22371,13 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "answered_by": {
+                      "description": "The CISA list only: which address answered the last good pull, \"CISA\" or \"CISA GitHub mirror\" (D-91); null for every other feed and before the first good pull",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -22365,7 +22396,8 @@
                     "records",
                     "status",
                     "error",
-                    "license"
+                    "license",
+                    "answered_by"
                   ],
                   "additionalProperties": false
                 }
@@ -22631,6 +22663,13 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "answered_by": {
+                      "description": "The CISA list only: which address answered the last good pull, \"CISA\" or \"CISA GitHub mirror\" (D-91); null for every other feed and before the first good pull",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -22649,7 +22688,8 @@
                     "records",
                     "status",
                     "error",
-                    "license"
+                    "license",
+                    "answered_by"
                   ],
                   "additionalProperties": false
                 }

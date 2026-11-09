@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { screen, waitFor, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
@@ -246,5 +246,18 @@ describe('feeds: plain words for what is not a CVE, and dates that mean one thin
     renderApp('/cve/CVE-2024-27834')
     expect(await screen.findByText(/Added to exploited list 4 Nov 2026/)).toBeInTheDocument()
     expect(document.body.textContent).not.toMatch(/\b\d{2}\/\d{2}\/20\d\d\b/)
+  })
+})
+
+describe('feeds: which address answered the CISA list (D-91)', () => {
+  it('Settings -> Feeds says who answered; the CISA GitHub mirror is named as such', async () => {
+    renderApp('/settings/feeds')
+    expect(await screen.findAllByText('Answered by CISA')).toHaveLength(1) // the mock's own list: only the CISA list has an answer
+    const feed = { id: 'cisa-kev', builtin: true, name: 'CISA KEV', kind: 'vulnerabilities', format: 'json', url: 'https://www.cisa.gov/x.json', default_url: 'https://www.cisa.gov/x.json', enabled: true, interval_hours: 24,
+      auth: { type: 'none', header_name: null, username: null, secret_last4: null }, parser: null, last_fetch: '2026-11-09T10:00:00Z', records: 1769, status: 'ok', error: null, license: 'CC0', answered_by: 'CISA GitHub mirror' }
+    server.use(http.get('*/api/v1/feeds/sources', () => HttpResponse.json({ items: [feed] })))
+    cleanup()
+    renderApp('/settings/feeds')
+    expect(await screen.findByText('Answered by CISA GitHub mirror')).toBeInTheDocument()
   })
 })

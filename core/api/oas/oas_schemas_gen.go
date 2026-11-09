@@ -40498,8 +40498,11 @@ func (s *FeedsGetFeedsSourcesOK) SetItems(val []FeedsGetFeedsSourcesOKItemsItem)
 }
 
 type FeedsGetFeedsSourcesOKItemsItem struct {
-	Auth    FeedsGetFeedsSourcesOKItemsItemAuth `json:"auth"`
-	Builtin bool                                `json:"builtin"`
+	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
+	// (D-91); null for every other feed and before the first good pull.
+	AnsweredBy NilString                           `json:"answered_by"`
+	Auth       FeedsGetFeedsSourcesOKItemsItemAuth `json:"auth"`
+	Builtin    bool                                `json:"builtin"`
 	// Built-in feeds only; used by "Reset to default".
 	DefaultURL    NilString                             `json:"default_url"`
 	Enabled       bool                                  `json:"enabled"`
@@ -40516,6 +40519,11 @@ type FeedsGetFeedsSourcesOKItemsItem struct {
 	Records NilInt                                   `json:"records"`
 	Status  FeedsGetFeedsSourcesOKItemsItemStatus    `json:"status"`
 	URL     string                                   `json:"url"`
+}
+
+// GetAnsweredBy returns the value of AnsweredBy.
+func (s *FeedsGetFeedsSourcesOKItemsItem) GetAnsweredBy() NilString {
+	return s.AnsweredBy
 }
 
 // GetAuth returns the value of Auth.
@@ -40596,6 +40604,11 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) GetStatus() FeedsGetFeedsSourcesOKItem
 // GetURL returns the value of URL.
 func (s *FeedsGetFeedsSourcesOKItemsItem) GetURL() string {
 	return s.URL
+}
+
+// SetAnsweredBy sets the value of AnsweredBy.
+func (s *FeedsGetFeedsSourcesOKItemsItem) SetAnsweredBy(val NilString) {
+	s.AnsweredBy = val
 }
 
 // SetAuth sets the value of Auth.
@@ -41402,8 +41415,11 @@ func (s *FeedsGetFeedsWeeklyOKItemsItemAnswer) UnmarshalText(data []byte) error 
 }
 
 type FeedsPostFeedsCustomCreated struct {
-	Auth    FeedsPostFeedsCustomCreatedAuth `json:"auth"`
-	Builtin bool                            `json:"builtin"`
+	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
+	// (D-91); null for every other feed and before the first good pull.
+	AnsweredBy NilString                       `json:"answered_by"`
+	Auth       FeedsPostFeedsCustomCreatedAuth `json:"auth"`
+	Builtin    bool                            `json:"builtin"`
 	// Built-in feeds only; used by "Reset to default".
 	DefaultURL    NilString                         `json:"default_url"`
 	Enabled       bool                              `json:"enabled"`
@@ -41420,6 +41436,11 @@ type FeedsPostFeedsCustomCreated struct {
 	Records NilInt                               `json:"records"`
 	Status  FeedsPostFeedsCustomCreatedStatus    `json:"status"`
 	URL     string                               `json:"url"`
+}
+
+// GetAnsweredBy returns the value of AnsweredBy.
+func (s *FeedsPostFeedsCustomCreated) GetAnsweredBy() NilString {
+	return s.AnsweredBy
 }
 
 // GetAuth returns the value of Auth.
@@ -41500,6 +41521,11 @@ func (s *FeedsPostFeedsCustomCreated) GetStatus() FeedsPostFeedsCustomCreatedSta
 // GetURL returns the value of URL.
 func (s *FeedsPostFeedsCustomCreated) GetURL() string {
 	return s.URL
+}
+
+// SetAnsweredBy sets the value of AnsweredBy.
+func (s *FeedsPostFeedsCustomCreated) SetAnsweredBy(val NilString) {
+	s.AnsweredBy = val
 }
 
 // SetAuth sets the value of Auth.
@@ -43155,8 +43181,11 @@ func (s *FeedsPostFeedsParseTestReqParserFormat) UnmarshalText(data []byte) erro
 }
 
 type FeedsPostFeedsSourcesIDFetchOK struct {
-	Auth    FeedsPostFeedsSourcesIDFetchOKAuth `json:"auth"`
-	Builtin bool                               `json:"builtin"`
+	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
+	// (D-91); null for every other feed and before the first good pull.
+	AnsweredBy NilString                          `json:"answered_by"`
+	Auth       FeedsPostFeedsSourcesIDFetchOKAuth `json:"auth"`
+	Builtin    bool                               `json:"builtin"`
 	// Built-in feeds only; used by "Reset to default".
 	DefaultURL    NilString                            `json:"default_url"`
 	Enabled       bool                                 `json:"enabled"`
@@ -43173,6 +43202,11 @@ type FeedsPostFeedsSourcesIDFetchOK struct {
 	Records NilInt                                  `json:"records"`
 	Status  FeedsPostFeedsSourcesIDFetchOKStatus    `json:"status"`
 	URL     string                                  `json:"url"`
+}
+
+// GetAnsweredBy returns the value of AnsweredBy.
+func (s *FeedsPostFeedsSourcesIDFetchOK) GetAnsweredBy() NilString {
+	return s.AnsweredBy
 }
 
 // GetAuth returns the value of Auth.
@@ -43253,6 +43287,11 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) GetStatus() FeedsPostFeedsSourcesIDFetc
 // GetURL returns the value of URL.
 func (s *FeedsPostFeedsSourcesIDFetchOK) GetURL() string {
 	return s.URL
+}
+
+// SetAnsweredBy sets the value of AnsweredBy.
+func (s *FeedsPostFeedsSourcesIDFetchOK) SetAnsweredBy(val NilString) {
+	s.AnsweredBy = val
 }
 
 // SetAuth sets the value of Auth.
@@ -44020,8 +44059,11 @@ func (s *FeedsPostFeedsWeeklyIDReqAnswer) UnmarshalText(data []byte) error {
 }
 
 type FeedsPutFeedsCustomIDOK struct {
-	Auth    FeedsPutFeedsCustomIDOKAuth `json:"auth"`
-	Builtin bool                        `json:"builtin"`
+	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
+	// (D-91); null for every other feed and before the first good pull.
+	AnsweredBy NilString                   `json:"answered_by"`
+	Auth       FeedsPutFeedsCustomIDOKAuth `json:"auth"`
+	Builtin    bool                        `json:"builtin"`
 	// Built-in feeds only; used by "Reset to default".
 	DefaultURL    NilString                     `json:"default_url"`
 	Enabled       bool                          `json:"enabled"`
@@ -44038,6 +44080,11 @@ type FeedsPutFeedsCustomIDOK struct {
 	Records NilInt                           `json:"records"`
 	Status  FeedsPutFeedsCustomIDOKStatus    `json:"status"`
 	URL     string                           `json:"url"`
+}
+
+// GetAnsweredBy returns the value of AnsweredBy.
+func (s *FeedsPutFeedsCustomIDOK) GetAnsweredBy() NilString {
+	return s.AnsweredBy
 }
 
 // GetAuth returns the value of Auth.
@@ -44118,6 +44165,11 @@ func (s *FeedsPutFeedsCustomIDOK) GetStatus() FeedsPutFeedsCustomIDOKStatus {
 // GetURL returns the value of URL.
 func (s *FeedsPutFeedsCustomIDOK) GetURL() string {
 	return s.URL
+}
+
+// SetAnsweredBy sets the value of AnsweredBy.
+func (s *FeedsPutFeedsCustomIDOK) SetAnsweredBy(val NilString) {
+	s.AnsweredBy = val
 }
 
 // SetAuth sets the value of Auth.
@@ -45181,8 +45233,11 @@ func (s *FeedsPutFeedsCustomIDReqParserFormat) UnmarshalText(data []byte) error 
 }
 
 type FeedsPutFeedsSourcesIDOK struct {
-	Auth    FeedsPutFeedsSourcesIDOKAuth `json:"auth"`
-	Builtin bool                         `json:"builtin"`
+	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
+	// (D-91); null for every other feed and before the first good pull.
+	AnsweredBy NilString                    `json:"answered_by"`
+	Auth       FeedsPutFeedsSourcesIDOKAuth `json:"auth"`
+	Builtin    bool                         `json:"builtin"`
 	// Built-in feeds only; used by "Reset to default".
 	DefaultURL    NilString                      `json:"default_url"`
 	Enabled       bool                           `json:"enabled"`
@@ -45199,6 +45254,11 @@ type FeedsPutFeedsSourcesIDOK struct {
 	Records NilInt                            `json:"records"`
 	Status  FeedsPutFeedsSourcesIDOKStatus    `json:"status"`
 	URL     string                            `json:"url"`
+}
+
+// GetAnsweredBy returns the value of AnsweredBy.
+func (s *FeedsPutFeedsSourcesIDOK) GetAnsweredBy() NilString {
+	return s.AnsweredBy
 }
 
 // GetAuth returns the value of Auth.
@@ -45279,6 +45339,11 @@ func (s *FeedsPutFeedsSourcesIDOK) GetStatus() FeedsPutFeedsSourcesIDOKStatus {
 // GetURL returns the value of URL.
 func (s *FeedsPutFeedsSourcesIDOK) GetURL() string {
 	return s.URL
+}
+
+// SetAnsweredBy sets the value of AnsweredBy.
+func (s *FeedsPutFeedsSourcesIDOK) SetAnsweredBy(val NilString) {
+	s.AnsweredBy = val
 }
 
 // SetAuth sets the value of Auth.

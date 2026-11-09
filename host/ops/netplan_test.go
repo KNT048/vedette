@@ -230,14 +230,14 @@ func TestNetplanGenerateAcceptsTheRenderedYAML(t *testing.T) {
 		t.Skip("netplan is not installed here")
 	}
 	// Through the same runner and grammar the host uses (SYS-1): the grammar is what this test exercises.
-	runner, err := vexec.NewRunner(slog.New(slog.DiscardHandler), vexec.Binary{Name: binNetplan, Path: bin, Validate: validateNetplan})
+	runner, err := vexec.NewRunner(slog.New(slog.DiscardHandler), vexec.Binary{Name: binNetplan, Path: bin, Validate: validateNetplanGenerate})
 	if err != nil {
 		t.Fatal(err)
 	}
 	for name, cfg := range goldenCases() {
 		t.Run(name, func(t *testing.T) {
 			root := t.TempDir()
-			if err := validateNetplan([]string{"generate", "--root-dir", root}); err != nil {
+			if err := validateNetplanGenerate([]string{"generate", "--root-dir", root}); err != nil {
 				t.Fatalf("the argv grammar refuses the test's own root %q: %v", root, err)
 			}
 			text, _ := renderNetplan(cfg)
@@ -273,7 +273,7 @@ func TestValidateNetplanArgv(t *testing.T) {
 	t.Parallel()
 	ok := [][]string{{"generate", "--root-dir", "/tmp/x"}, {"generate", "--root-dir", "/private/tmp/a-b_c.d/root"}}
 	for _, a := range ok {
-		if err := validateNetplan(a); err != nil {
+		if err := validateNetplanGenerate(a); err != nil {
 			t.Errorf("%v: %v", a, err)
 		}
 	}
@@ -287,6 +287,19 @@ func TestValidateNetplanArgv(t *testing.T) {
 		{"generate", "--root-dir", "/tmp/" + strings.Repeat("a", 300)},
 	}
 	for _, a := range no {
+		if err := validateNetplanGenerate(a); err == nil {
+			t.Errorf("%q was accepted", a)
+		}
+	}
+}
+
+// The production grammar is "apply" and nothing else.
+func TestValidateNetplanProductionArgv(t *testing.T) {
+	t.Parallel()
+	if err := validateNetplan([]string{"apply"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range [][]string{nil, {}, {"apply", ""}, {"apply", "--root-dir", "/tmp/x/y"}, {"generate"}, {"generate", "--root-dir", "/tmp/x/y"}, {"try"}, {"get"}, {"set", "a=b"}, {"APPLY"}, {" apply"}, {"apply\n"}, {"--debug", "apply"}} {
 		if err := validateNetplan(a); err == nil {
 			t.Errorf("%q was accepted", a)
 		}
@@ -424,8 +437,8 @@ func TestCheckBackend(t *testing.T) {
 }
 
 // netplan generate is not in the production runner (slice 3-3 review): the grammar checks the --root-dir string only, and a path that is
-// a symlink to "/" passes it. Slice 3-4 brings it back with a directory the host creates itself; until then no production argv names netplan.
-func TestProductionRunnerHasNoNetplan(t *testing.T) {
+// a symlink to "/" passes it. Slice 3-4 needs none: netplan apply validates the file itself. The production runner knows netplan for "apply" only.
+func TestProductionRunnerOnlyAppliesNetplan(t *testing.T) {
 	t.Parallel()
 	o, _ := newNetOps(t)
 	dir := t.TempDir()
@@ -438,7 +451,7 @@ func TestProductionRunnerHasNoNetplan(t *testing.T) {
 			t.Fatalf("the production runner ran netplan generate --root-dir %s", root)
 		}
 	}
-	if _, ok := prodPaths[binNetplan]; ok {
-		t.Fatal("prodPaths names a netplan binary")
+	if prodPaths[binNetplan] != "/usr/sbin/netplan" || prodPaths[binChronyc] != "/usr/bin/chronyc" {
+		t.Fatalf("netplan and chronyc paths: %v", prodPaths)
 	}
 }

@@ -176,6 +176,7 @@ func TestNetStateMarksTheCardsOfTheHostsNetplanFile(t *testing.T) {
 func TestNetStateRunOverlayWinsAndForeignFilesAreNotReported(t *testing.T) {
 	t.Parallel()
 	o, root := netOps(t, withIfaces(HostIface{Name: "eth0"}, HostIface{Name: "eth1"}))
+	o.d.NetPending = func() bool { return true } // a run awaits confirmation: the overlay is its
 	card(t, root, "eth0", stats("1", "1"), true)
 	card(t, root, "eth1", stats("1", "1"), true)
 	etc, _ := renderNetplan(NetplanConfig{Mgmt: NetplanMgmt{Iface: "eth0", Mode: api.NetModeDHCP}})
@@ -548,5 +549,28 @@ func TestNetStateManagementCardIsFirstAndNeverCut(t *testing.T) {
 	st := readState(t, o)
 	if len(st.Interfaces) != maxNetIfaces || st.Interfaces[0].Name != "zz9" || st.Interfaces[0].Role != api.NetRoleManagement {
 		t.Fatalf("%d interfaces, first %q: the management card was cut or not first", len(st.Interfaces), st.Interfaces[0].Name)
+	}
+}
+
+// An overlay that no awaiting run owns (an unwatched leftover) is never "the current configuration":
+// it is reported as unknown, and /etc is not reported either, because netplan runs the overlay
+// (review of slice 3-4, H-1 (c)).
+func TestNetStateAnOverlayWithoutAnAwaitingRunIsForeign(t *testing.T) {
+	t.Parallel()
+	o, root := netOps(t, withIfaces(HostIface{Name: "eth0"}, HostIface{Name: "eth1"}))
+	card(t, root, "eth0", stats("1", "1"), true)
+	etc, _ := renderNetplan(NetplanConfig{Mgmt: NetplanMgmt{Iface: "eth0", Mode: api.NetModeDHCP}})
+	run, _ := renderNetplan(NetplanConfig{Mgmt: NetplanMgmt{Iface: "eth1", Mode: api.NetModeDHCP}})
+	put(t, root, "etc/netplan/90-vedette.yaml", string(etc))
+	put(t, root, "run/netplan/90-vedette.yaml", string(run))
+	if cfg, ok := o.readNetplanConfig(); ok {
+		t.Fatalf("an overlay with no awaiting run became the current configuration: %+v", cfg)
+	}
+	if m := readState(t, o).Config.Mgmt; m != nil {
+		t.Fatalf("state/net reports %+v", m)
+	}
+	o.d.NetPending = func() bool { return true }
+	if cfg, ok := o.readNetplanConfig(); !ok || cfg.Mgmt.Iface != "eth1" {
+		t.Fatalf("with an awaiting run the overlay is the configuration: %+v %v", cfg, ok)
 	}
 }

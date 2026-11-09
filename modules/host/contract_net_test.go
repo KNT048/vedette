@@ -153,15 +153,25 @@ func filepathWalkGo(root string, f func(path, src string)) error {
 	})
 }
 
-// The grammar for netplan is "generate --root-dir <dir>" and nothing else; production registers no netplan argv at all in this
-// slice (TestProductionRunnerHasNoNetplan in host/ops), and "apply" joins with slice 3-4.
-func TestContract_Net_NetplanArgvIsTheFixedGrammar(t *testing.T) {
+// The grammar for netplan is "apply" and nothing else: "generate --root-dir" checks a string, so no production argv has it
+// (TestProductionRunnerOnlyAppliesNetplan in host/ops). chronyc has two argv shapes (D-106).
+func TestContract_Net_NetplanAndChronycArgvAreTheFixedGrammar(t *testing.T) {
 	t.Parallel()
-	if err := ops.ValidateNetplan([]string{"generate", "--root-dir", "/tmp/x/y"}); err != nil {
+	if err := ops.ValidateNetplan([]string{"apply"}); err != nil {
 		t.Fatal(err)
 	}
-	for _, a := range [][]string{{"apply"}, {"try"}, {"generate"}, {"generate", "--root-dir", "/"}, {"get"}, {"set", "x=y"}, {"ip", "leases", "eth0"}} {
+	for _, a := range [][]string{{"generate", "--root-dir", "/tmp/x/y"}, {"try"}, {"generate"}, {"apply", "--debug"}, {"apply", "extra"}, {"get"}, {"set", "x=y"}, {"ip", "leases", "eth0"}, nil} {
 		if err := ops.ValidateNetplan(a); err == nil {
+			t.Errorf("%v was accepted", a)
+		}
+	}
+	for _, a := range [][]string{{"reload", "sources"}, {"-N", "-" + "c", "sources"}} {
+		if err := ops.ValidateChronyc(a); err != nil {
+			t.Errorf("%v: %v", a, err)
+		}
+	}
+	for _, a := range [][]string{nil, {"reload"}, {"reload", "sources", "x"}, {"add", "server", "x"}, {"makestep"}, {"sources"}, {"-N", "sources"}, {"-" + "c", "sources"}, {"waitsync"}, {"-a", "reload", "sources"}} {
+		if err := ops.ValidateChronyc(a); err == nil {
 			t.Errorf("%v was accepted", a)
 		}
 	}

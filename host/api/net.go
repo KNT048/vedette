@@ -64,7 +64,7 @@ type NetMgmt struct {
 type NetConfig struct {
 	Mgmt *NetMgmt `json:"mgmt"`
 	SPAN *string  `json:"span"` // name of the SPAN card, or null
-	NTP  []string `json:"ntp"`  // empty until the NTP command exists (slice 3-4)
+	NTP  []string `json:"ntp"`  // the servers of vedette.sources; empty for the default pool.ntp.org
 }
 
 // NetRoute is the default route the kernel has, from /proc/net/route.
@@ -73,10 +73,13 @@ type NetRoute struct {
 	Gateway string `json:"gateway"`
 }
 
-// NetPending is a network change that waits for confirmation (D-100). Null until slice 3-4.
+// NetPending is a network change that waits for confirmation (D-100). Null when none waits.
 type NetPending struct {
 	RunID    string    `json:"run_id"`
 	RevertAt time.Time `json:"revert_at"`
+	// RebootAt is set when a revert could not be applied: the host has scheduled a reboot at this
+	// time, because the saved configuration on disk is the old one (D-100 (8)). Not set otherwise.
+	RebootAt *time.Time `json:"reboot_at,omitempty"`
 }
 
 // NetDecoy is a secondary address the honeypot answers on (D-102). Empty until slice 3-5.
@@ -92,4 +95,73 @@ type NetState struct {
 	DefaultRoute *NetRoute      `json:"default_route"`
 	Pending      *NetPending    `json:"pending"`
 	Decoys       []NetDecoy     `json:"decoys"`
+}
+
+// Commands of the network part (spec 6.5).
+const (
+	CmdNetApply   = "net.apply"
+	CmdNetConfirm = "net.confirm"
+	CmdNetRevert  = "net.revert"
+)
+
+// Refusal codes (HTTP 412) and run-ending codes of the network commands (spec 11).
+const (
+	CodeAddressConflict       = "address_conflict"
+	CodeGatewayOutsideSubnet  = "gateway_outside_subnet"
+	CodeSameIface             = "same_iface"
+	CodeIfaceUnknown          = "iface_unknown"
+	CodeNetBackendUnsupported = "net_backend_unsupported"
+	CodeConnectivityCheckFail = "connectivity_check_failed"
+	CodeSPANHasAddress        = "span_has_address"
+	CodeSPANNotPhysical       = "span_not_physical"
+	CodeNotConfirmed          = "not_confirmed"
+	CodeCancelled             = "cancelled"
+	CodeRevertedByReboot      = "reverted_by_reboot"
+	CodeRevertFailed          = "revert_failed"
+	CodeNetplanApplyFailed    = "netplan_apply_failed"
+	CodeNTPNotApplied         = "ntp_not_applied"
+	CodePendingInvalid        = "pending_invalid"
+	CodeConfirmFailed         = "confirm_failed"
+	CodeARPProbeFailed        = "arp_probe_failed"
+	CodeBootIDUnreadable      = "boot_id_unreadable"
+	DefaultConfirmTimeoutS    = 120
+	MinConfirmTimeoutS        = 30
+	MaxConfirmTimeoutS        = 600
+	MaxNTPServers             = 4
+)
+
+// NetApplyMgmt is the management card of net.apply.
+type NetApplyMgmt struct {
+	Iface   string   `json:"iface"`
+	Mode    string   `json:"mode"`    // "dhcp" | "static"
+	Address string   `json:"address"` // CIDR; required with static
+	Gateway string   `json:"gateway"` // optional with static
+	DNS     []string `json:"dns"`
+}
+
+// NetApplySPAN is the SPAN card of net.apply; Iface null (or the whole object absent) means none.
+type NetApplySPAN struct {
+	Iface *string `json:"iface"`
+}
+
+// NetApplyArgs is the desired state of the part Vedette manages (spec 6.5): every call carries the
+// whole state, so a field left out means "none", never "keep".
+type NetApplyArgs struct {
+	Mgmt NetApplyMgmt `json:"mgmt"`
+	SPAN NetApplySPAN `json:"span"`
+	// NTP holds up to four IPv4 addresses or names; empty means the default pool.ntp.org (D-106).
+	NTP []string `json:"ntp"`
+	// ConfirmTimeoutS is the confirm window of a management change, 30 to 600; 0 means 120.
+	ConfirmTimeoutS int `json:"confirm_timeout_s"`
+}
+
+// NetRunArgs are the args of net.confirm and net.revert: the run that waits.
+type NetRunArgs struct {
+	RunID string `json:"run_id"`
+}
+
+// NetApplyResult is the result of net.apply. Confirm is true when the run waits for net.confirm.
+type NetApplyResult struct {
+	Changed bool `json:"changed"`
+	Confirm bool `json:"confirm"`
 }

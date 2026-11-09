@@ -19,6 +19,7 @@ import (
 
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/ops"
+	"github.com/knt048/vedette/host/server"
 )
 
 // raceNotifier is the server's Notifier; once armed, the first time the host asks "is a write
@@ -34,6 +35,8 @@ type raceNotifier struct {
 func (r *raceNotifier) Note(c, code string, d map[string]any) error { return r.inner.Note(c, code, d) }
 
 func (r *raceNotifier) AwaitingConfirm() bool { return r.inner.AwaitingConfirm() }
+
+func (r *raceNotifier) Claim(id string) (*server.Claimed, error) { return r.inner.Claim(id) }
 
 func (r *raceNotifier) WriteActive() bool {
 	v := r.inner.WriteActive()

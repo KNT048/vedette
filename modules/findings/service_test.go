@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
@@ -559,7 +560,8 @@ func TestContract_INV3_SetStatusRefusesAnInvalidUser(t *testing.T) {
 		if !errors.Is(err, ErrInvalidUser) {
 			t.Errorf("user %q: err = %v", u, err)
 		}
-		if got := ToAPIError(err); got == err {
+		var ae *apierr.Error
+		if !errors.As(ToAPIError(err), &ae) || ae.Status != 400 {
 			t.Errorf("user %q: not mapped to an API error", u)
 		}
 	}

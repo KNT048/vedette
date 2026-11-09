@@ -220,6 +220,7 @@ type Config struct {
 	Connections Connections // nil = no connection
 	Executor    Executor    // nil = no device can be changed
 	Webhooks    Webhooks    // nil = no webhook
+	TwoStep     TwoStep     // nil = no code can be checked: a high-risk AI request cannot be approved (403 twofa_required)
 
 	Clock func() time.Time
 	// BoxAddrs adds to the addresses of the network interfaces, which always count as never-touch and as forbidden webhook targets.

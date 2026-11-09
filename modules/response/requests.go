@@ -104,8 +104,10 @@ func (s *Service) approve(ctx context.Context, who Actor, id string, pick []stri
 	if err := s.ensureSeeded(ctx); err != nil {
 		return ActionRequest{}, err
 	}
-	_ = code            // the two-step code belongs to high-risk AI requests (part 13b); a request with AI data is refused below
-	pick = dedupe(pick) // a repeated id must not pass for a different selection
+	pick = dedupe(pick)                                          // a repeated id must not pass for a different selection
+	if err := s.aiStepUp(ctx, who, id, pick, code); err != nil { // INV-16: before the transaction, so a refused code is not a half approval
+		return ActionRequest{}, s.refuse(ctx, err, id, who.Email)
+	}
 	s.mu.Lock()
 	var refusal error
 	var final bool
@@ -162,10 +164,6 @@ func (s *Service) approve(ctx context.Context, who Actor, id string, pick []stri
 			refusal = fail(http.StatusBadRequest, "invalid_items", "Pick at least one action of this request.")
 		}
 		if refusal != nil {
-			return nil
-		}
-		if a.AI != nil { // part 13b: high-risk AI requests need the in-app two-step code
-			refusal = apierr.NotImplemented()
 			return nil
 		}
 		st, err := loadSettings(ctx, tx)
@@ -252,7 +250,13 @@ func (s *Service) approve(ctx context.Context, who Actor, id string, pick []stri
 		} else {
 			fx.ob.Add(events.Event{Name: EventDecisionMade, Data: DecisionEvent{RequestID: a.ID, Decision: "approved", By: who.Email}})
 		}
-		return updateReq(ctx, tx, r)
+		if err := updateReq(ctx, tx, r); err != nil {
+			return err
+		}
+		if final && a.AI != nil { // a decision on an AI request moves the quality window (INV-15 (8))
+			return s.checkAIQuality(ctx, tx, &fx)
+		}
+		return nil
 	})
 	s.mu.Unlock()
 	if err != nil {
@@ -821,9 +825,15 @@ func (s *Service) failStuck(ctx context.Context) error {
 
 // ---- rejecting ----
 
-// Reject is POST /response/actions/{id}/reject. remember (AI hints) is part 13b: a rule request has nothing to learn.
-func (s *Service) Reject(ctx context.Context, who Actor, id, reason string) (ActionRequest, error) {
+// Reject is POST /response/actions/{id}/reject. For an AI request, remember (none, rule or memory) keeps the reason as a hint (INV-18)
+// and the quality breaker looks at the decisions again (INV-15 (8)); a rule request has nothing to learn, so remember is ignored.
+func (s *Service) Reject(ctx context.Context, who Actor, id, reason, remember string) (ActionRequest, error) {
 	who.Via = ViaApp
+	switch remember {
+	case "", RememberNone, RememberRule, RememberMemory:
+	default:
+		return ActionRequest{}, fail(http.StatusBadRequest, "invalid", "Remember must be none, rule or memory.")
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var refusal error
@@ -864,7 +874,18 @@ func (s *Service) Reject(ctx context.Context, who Actor, id, reason string) (Act
 			r.recs[i].Status = ItemSkipped
 		}
 		fx.ob.Add(events.Event{Name: EventDecisionMade, Data: DecisionEvent{RequestID: r.ID, Decision: "rejected", By: who.Email, Final: true}})
-		return updateReq(ctx, tx, r)
+		if err := updateReq(ctx, tx, r); err != nil {
+			return err
+		}
+		if r.Source != "ai" || r.AI == nil {
+			return nil
+		}
+		if remember == RememberRule || remember == RememberMemory {
+			if err := s.keepHint(ctx, tx, r, remember, reason); err != nil {
+				return err
+			}
+		}
+		return s.checkAIQuality(ctx, tx, &fx)
 	})
 	if err != nil {
 		return ActionRequest{}, err

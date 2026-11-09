@@ -17,7 +17,7 @@ import (
 // composite handler of cmd/vedette. The role of each route comes from the route table, so nothing here checks roles.
 //
 // Not implemented here, and so answered 501 not_implemented by server.Fallback (part 13b): GET and POST
-// /response/approve/{token}, GET /response/ai, POST /response/ai/resume.
+// /response/approve/{token}.
 //
 // The three preview-only operations, POST /response/rules/run, POST /response/actions/{id}/chat-decision and POST
 // /response/ai/proposals (D-97), are implemented only to answer 404 like an unknown route: they must not exist in the real
@@ -122,11 +122,33 @@ func (h *ResponseHandlers) ResponsePostResponseActionsIDReject(ctx context.Conte
 	if err != nil {
 		return nil, err
 	}
-	r, err := h.svc.Reject(ctx, who, params.ID, req.Reason.Or(""))
+	r, err := h.svc.Reject(ctx, who, params.ID, req.Reason.Or(""), string(req.Remember.Or(oas.ResponsePostResponseActionsIDRejectReqRememberNone)))
 	if err != nil {
 		return nil, err
 	}
 	return convert[oas.ResponsePostResponseActionsIDRejectOK](r)
+}
+
+// ResponseGetResponseAi implements GET /response/ai (viewer).
+func (h *ResponseHandlers) ResponseGetResponseAi(ctx context.Context) (*oas.ResponseGetResponseAiOK, error) {
+	v, err := h.svc.AIState(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.ResponseGetResponseAiOK](v)
+}
+
+// ResponsePostResponseAiResume implements POST /response/ai/resume (admin).
+func (h *ResponseHandlers) ResponsePostResponseAiResume(ctx context.Context) (*oas.ResponsePostResponseAiResumeOK, error) {
+	who, err := h.actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.ResumeAI(ctx, who)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.ResponsePostResponseAiResumeOK](v)
 }
 
 // ResponsePostResponseActionsIDRollback implements POST /response/actions/{id}/rollback (operator).

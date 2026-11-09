@@ -1,11 +1,11 @@
 # Mitigation Contract
 
-> Tier: standard · Story: S-MIT-1 (phần "What to do"), S-MIT-3, S-MIT-4, S-AI-2 · Last verified: 2026-11-09 (docs-first, chưa có code)
+> Tier: standard · Story: S-MIT-1 (phần "What to do"), S-MIT-3, S-MIT-4, S-AI-2 · Last verified: 2026-11-09 (docs-first, tách từ findings; chưa có code)
 
 Mitigation là phần **"What to do"** của một finding: gói giảm thiểu đã xác nhận, "Đã áp dụng", dấu hiệu "Tôi đã bị chưa?", giải thích AI. Finding (khớp, trạng thái, vòng đời) thuộc module `findings` (D-57(6)); `mitigation` phụ thuộc `findings`, tắt `mitigation` không mất phát hiện hay cảnh báo. GUI: `web/src/features/findings/{Recommendation.tsx,packs.ts}` và phần `pack`/`ai`/`applied` của trang finding. Nguồn hành vi: `findings/{contract,mocks,packs}.ts`.
 
 ## Invariants
-- **INV-1**: "Đã áp dụng" chỉ ghi nhận cho CVE có gói đã xác nhận (400 `no_pack`), thêm `AppliedEntry {item, ts, user}` (mỗi item một lần), **không** đổi `status` của finding. `TestContract_INV1_AppliedNoStatusChange`
+- **INV-1**: "Đã áp dụng" chỉ ghi nhận cho CVE có gói đã xác nhận (400 `no_pack`), thêm `AppliedEntry {item, ts, user}` (mỗi item một lần), **không** đổi `status` của finding. (test ở WP-21, cần DB)
 - **INV-2**: Gói đáng tin (D-21): chỉ hiện "Vedette confirmed" khi gói có `status: confirmed`, `confirmed_by`, `confirmed_at`, `drafted_with`, `sources[]` và chữ ký hợp lệ của bản cập nhật; bộ nạp từ chối gói `draft` hoặc không ký. CVE không có gói ⇒ `pack:null` và UI hiện "no confirmed recommendation yet" + thông tin gốc KEV + nút "Ask my AI" chỉ khi AI dùng được.
 - **INV-3**: Kết quả AI luôn mang nhãn "AI generated", ghi `model`, `profile`, `tokens`, `citations`; không bao giờ hiện như khuyến nghị đã xác nhận (S-AI-6). `POST /findings/{id}/ai` khi chưa gán hồ sơ AI cho việc đó hoặc `ai` tắt → 409 `ai_unavailable`. `mitigation` không có công cụ ghi cho AI (SYS-8).
 - **INV-4**: Mỗi `CodeStep` có `side_effect` phải hiện trước khi người dùng sao chép lệnh; `{IP}`/`{HOST}` thay bằng giá trị thiết bị, đã escape (giá trị thiết bị là dữ liệu không tin cậy).
@@ -17,7 +17,7 @@ Mitigation là phần **"What to do"** của một finding: gói giảm thiểu 
 - **PRE-2** (`POST /findings/{id}/applied`, `…/ai`): `operator`. **POST-2**: trả `FindingDetail` mới; thất bại không đổi gì.
 
 ## Forbidden
-- **FORBID-1**: Ghi lên thiết bị hoặc firewall của khách, chặn traffic (D-3). Thực thi hành động thuộc `response`.
+- **FORBID-1**: Chạy lệnh hoặc ghi cấu hình lên thiết bị/firewall của khách: chỉ hiện văn bản (lệnh, cấu hình) để người dùng tự dán (D-3). Thực thi hành động thuộc `response`. (Giữ ở cả `findings` vì hai module cùng chạm thiết bị theo hai cách: phát hiện và nội dung hướng dẫn.)
 - **FORBID-2**: Hiện nội dung AI như "Vedette confirmed" hoặc gộp vào gói đã xác nhận.
 - **FORBID-3**: Nạp gói chưa `confirmed` hoặc chưa ký.
 - **FORBID-4**: Gói rule "vá ảo" Suricata/CRS/CrowdSec/nftables (S-MIT-2, D-31).
@@ -32,7 +32,7 @@ Mitigation là phần **"What to do"** của một finding: gói giảm thiểu 
 |---|---|
 | `POST /findings/{id}/applied`, `/findings/{id}/ai` | operator |
 
-`GET /findings/{id}` do `findings` phục vụ; phần "What to do" của nó do `mitigation` cấp (PRE-1).
+`GET /findings/{id}` do `findings` phục vụ; phần "What to do" của nó do `mitigation` cấp (PRE-1) bằng cách đăng ký một nhà cung cấp "What to do" (interface trong `core`) qua module registry của `core`; `findings` không phụ thuộc `mitigation`. `POST /findings/{id}/applied|ai` do `mitigation` định tuyến dưới tiền tố `/findings` và mất khi `mitigation` tắt (nhà cung cấp vắng, các trường "What to do" là `null`/rỗng).
 
 ## Tables owned (`mit_`)
 `mit_applied`, `mit_ai_output`, `mit_pack` (chỉ mục gói đã nạp từ bản cập nhật; nội dung là tệp ký, không phải dữ liệu khách). FK tới `fnd_finding` (cascade).

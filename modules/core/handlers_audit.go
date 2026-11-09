@@ -302,6 +302,20 @@ func (h *APIHandlers) CoreGetCoreGeneral(ctx context.Context) (*oas.CoreGetCoreG
 	return &oas.CoreGetCoreGeneralOK{Name: org.Name, Timezone: org.Timezone}, nil
 }
 
+// OrgTimeZone returns the IANA name of the organization time zone (core_org.timezone; the column default
+// before first-run setup has made the row). It is the neutral read other modules reach through cmd/vedette
+// (notify quiet hours, the scan window of sensor-active); nobody else reads core_org.
+func (h *APIHandlers) OrgTimeZone(ctx context.Context) (string, error) {
+	org, err := coredb.New(h.db.Reader()).GetOrg(ctx)
+	if isNoRows(err) {
+		return defaultTimezone, nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("core: read org: %w", err)
+	}
+	return org.Timezone, nil
+}
+
 // validTimezone accepts an IANA zone name this box knows (the compiled-in list of time/tzdata).
 func validTimezone(s string) bool {
 	if s == "" || len(s) > 64 || s == "Local" {

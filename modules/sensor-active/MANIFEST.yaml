@@ -6,8 +6,8 @@ default: true
 depends: [core, inventory]
 permissions: [net_raw, "exec:nmap"]   # nmap cài từ repo OS vào image `scan`, không ship (D-4); -O cần raw socket
 ports: []
-container: scan                       # D-55: nmap chạy theo việc trong container `scan`
-tables_prefix: sa_                    # ⚠ MODULES.md ghi `inv_*`
+container: scan                       # D-55: đích; ở WP-12 nmap chạy qua core/exec từ tiến trình core, chuyển vào `scan` ở WP-08 (D-84 (5))
+tables_prefix: sa_                    # D-84 (4): sa_; MODULES.md đã sửa
 stories: [S-INV-1, S-SCAN-4]          # S-SCAN-4 phần cửa sổ giờ/tốc độ của khám phá
-decisions: [D-4, D-26, D-32, D-45, D-55]
+decisions: [D-4, D-26, D-32, D-45, D-55, D-84]
 milestone: M3

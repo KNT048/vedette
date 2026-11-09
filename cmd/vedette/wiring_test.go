@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -35,7 +36,10 @@ type stack struct {
 	got map[string]int // events seen on the bus, by name
 }
 
-func newStack(t *testing.T) *stack {
+func newStack(t *testing.T) *stack { return newStackWith(t, nil) }
+
+// newStackWith is newStack with a hook that changes deps (the clock, BaseURL) before the services are built.
+func newStackWith(t *testing.T, tune func(*deps)) *stack {
 	t.Helper()
 	ctx := t.Context()
 	log := slog.New(slog.DiscardHandler)
@@ -58,6 +62,9 @@ func newStack(t *testing.T) *stack {
 		t.Fatal(err)
 	}
 	d := &deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log)}
+	if tune != nil {
+		tune(d)
+	}
 	if err := buildServices(d); err != nil {
 		t.Fatal(err)
 	}
@@ -428,8 +435,14 @@ func TestWiringInventoryUsesTheFeedsKEV(t *testing.T) {
 // TestWiredModulesFollowDependencies); this pins the four the wiring added together. Later modules follow them.
 func TestWiredModulesIncludeFindingsAndMitigationInOrder(t *testing.T) {
 	t.Parallel()
-	got := strings.Join(ids(wiredModules()), ",")
-	if got != "core,feeds,inventory,findings,mitigation" && !strings.HasPrefix(got, "core,feeds,inventory,findings,mitigation,") {
+	var pinned []string // other modules wired between them (sensors) do not change this order
+	for _, id := range ids(wiredModules()) {
+		if slices.Contains([]string{"core", "feeds", "inventory", "findings", "mitigation"}, id) {
+			pinned = append(pinned, id)
+		}
+	}
+	got := strings.Join(pinned, ",")
+	if got != "core,feeds,inventory,findings,mitigation" {
 		t.Errorf("wired modules: %s", got)
 	}
 }

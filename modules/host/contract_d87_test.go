@@ -9,12 +9,12 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/parser"
 	"go/token"
 	"io/fs"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -83,26 +83,39 @@ func TestContract_INV13_RootNeverImportsASQLDriver(t *testing.T) {
 }
 
 // INV-13 (D-87), the whole binary: the direct-import check above misses a dependency of a dependency (core/chain
-// once pulled in core/store and with it the SQLite driver). The linked package list of vedette-host, for the
-// OS it runs on, must hold no SQL package at all.
+// once pulled in core/store and with it the SQLite driver). Walk the import graph of vedette-host inside this
+// module, as built for Linux, and refuse any SQL package anywhere in it. Packages outside the module (the
+// standard library, golang.org/x/sys) are leaves here: none of them imports a SQL driver, and an import of one
+// from inside the module is what this test catches.
 func TestContract_INV13_RootBinaryLinksNoSQL(t *testing.T) {
 	t.Parallel()
-	goBin, err := exec.LookPath("go")
-	if err != nil {
-		t.Fatalf("go toolchain not found: %v", err)
-	}
-	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, goBin, "list", "-deps", "github.com/knt048/vedette/cmd/vedette-host")
-	cmd.Env = append(os.Environ(), "GOOS=linux")
-	out, err := cmd.Output()
-	if err != nil {
-		t.Fatalf("go list: %v", err)
-	}
-	for _, p := range strings.Fields(string(out)) {
-		if p == "database/sql" || strings.Contains(p, "sqlite") || strings.HasPrefix(p, "github.com/knt048/vedette/core/store") || strings.HasPrefix(p, "github.com/pressly/goose") {
-			t.Errorf("vedette-host links %s: the root host must not carry SQL code (D-87)", p)
+	const mod = "github.com/knt048/vedette"
+	bctx := build.Default
+	bctx.GOOS = "linux"
+	seen := map[string]bool{}
+	var walk func(pkg string)
+	walk = func(pkg string) {
+		if seen[pkg] {
+			return
 		}
+		seen[pkg] = true
+		dir := filepath.Join("../..", strings.TrimPrefix(pkg, mod))
+		bp, err := bctx.ImportDir(dir, 0)
+		if err != nil {
+			t.Fatalf("%s: %v", pkg, err)
+		}
+		for _, imp := range bp.Imports {
+			if imp == "database/sql" || strings.Contains(imp, "sqlite") || strings.HasPrefix(imp, mod+"/core/store") || strings.HasPrefix(imp, "github.com/pressly/goose") {
+				t.Errorf("%s imports %s: vedette-host must not carry SQL code (D-87)", pkg, imp)
+			}
+			if strings.HasPrefix(imp, mod+"/") {
+				walk(imp)
+			}
+		}
+	}
+	walk(mod + "/cmd/vedette-host")
+	if len(seen) < 5 {
+		t.Fatalf("walked only %d packages: wrong working directory?", len(seen))
 	}
 }
 

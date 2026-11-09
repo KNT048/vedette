@@ -6,8 +6,8 @@
 - Khoá khớp KEV (`vendorproject|product`, chữ thường) trong `inv_software_kev` là cái `findings` đọc để tạo finding: đổi cách tạo khoá làm lệch "Do you have it?" và finding.
 - `UpsertSoftware`/`ReplaceSoftware` thay **cả danh sách của một nguồn**: agent phải gửi danh sách đầy đủ, không gửi phần chênh.
 
-## Modifying: `inventory.Service.ScanPolicy(ctx, assetID)` và `InScope(netip.Addr)`
-- **sensor-active** (mọi probe nmap/SNMP), **scan** (chọn mục tiêu, `reason`), **scan-credentialed**. Đây là rào chắn SYS-7 phía LAN: đổi/nới phải sửa CONTRACT + test của cả ba module.
+## Modifying: `inventory.Service.ScanPolicy(ctx, assetID)`, `ProtectedIPs(ctx)` và `InScope(netip.Addr)`
+- **sensor-active** (mọi probe nmap/SNMP; `ProtectedIPs` là danh sách địa chỉ quét dò bỏ qua, đi qua adapter `sensorInventory` ở `cmd/vedette/sensoractive.go`; sensor-active còn kiểm phạm vi trong bộ nhớ theo `Settings` bằng quy tắc riêng, `TestSensorActiveScopeRuleMatchesTheInventory` giữ hai nơi khớp nhau), **scan** (chọn mục tiêu, `reason`), **scan-credentialed**. Đây là rào chắn SYS-7 phía LAN: đổi/nới phải sửa CONTRACT + test của cả ba module. Lý do `scanning_off`/`scope_not_confirmed` được `sensor-active` coi là trạng thái của hộp (thiết bị ở lại hàng đợi), các lý do khác là của thiết bị (rời hàng đợi); `first_gentle_scan` chỉ cho quét nhẹ: `scan` phải coi nó là từ chối.
 
 ## Modifying: `inventory.Service.Settings()` (dải, cửa sổ, loại mong manh, `scope_confirmed_at`)
 - **sensor-active**, **scan** (`scope.commitment`, `can_scan`), **SPA** (`NetworkForm`, Scan → Safety). Ngày 1..7 (Thứ Hai=1) dùng chung với `scan` (D-57 (9)); đổi phải đồng bộ.

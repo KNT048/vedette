@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<?xml-stylesheet href="file:///usr/share/nmap/nmap.xsl" type="text/xsl"?>
+<!-- hand-written fixture shaped after the nmap DTD; no live network was scanned -->
+<nmaprun scanner="nmap" args="nmap --privileged -sn -n -oX -" start="1762650000" version="7.94" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="0" services=""/>
+<verbose level="0"/>
+<debugging level="0"/>
+<host starttime="1762650001" endtime="1762650001"><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="192.168.10.2" addrtype="ipv4"/>
+<address addr="AA:BB:CC:00:00:02" addrtype="mac" vendor="Acme Networks"/>
+<hostnames></hostnames>
+<times srtt="1200" rttvar="5000" to="100000"/>
+</host>
+<host starttime="1762650001" endtime="1762650001"><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="192.168.10.5" addrtype="ipv4"/>
+<address addr="AA:BB:CC:00:00:05" addrtype="mac"/>
+<hostnames></hostnames>
+</host>
+<host starttime="1762650001" endtime="1762650001"><status state="down" reason="no-response" reason_ttl="0"/>
+<address addr="192.168.10.6" addrtype="ipv4"/>
+</host>
+<host starttime="1762650001" endtime="1762650001"><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="203.0.113.9" addrtype="ipv4"/>
+<address addr="AA:BB:CC:00:00:99" addrtype="mac"/>
+</host>
+<runstats><finished time="1762650002" timestr="Sun Nov  9 00:00:02 2026" elapsed="1.00" summary="Nmap done" exit="success"/><hosts up="3" down="1" total="4"/></runstats>
+</nmaprun>

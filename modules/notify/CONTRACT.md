@@ -1,6 +1,6 @@
 # Notify Contract
 
-> Tier: standard · Story: S-NOT-1, S-NOT-2, S-ALERT-1, S-ALERT-3, S-RESP-2 (phần kênh duyệt) · Last verified: 2026-11-09 (WP-22: dịch vụ, endpoint, job, sự kiện đã nối vào cmd/vedette; chưa nối người dùng/2FA email/người duyệt của core, xem IMPACT)
+> Tier: standard · Story: S-NOT-1, S-NOT-2, S-ALERT-1, S-ALERT-3, S-RESP-2 (phần kênh duyệt) · Last verified: 2026-11-09 (WP-22: dịch vụ, endpoint, job, sự kiện đã nối vào cmd/vedette; người dùng, mã 2FA email, `BaseURL`, múi giờ tổ chức và tên thiết bị đã nối ở wiring-2 (#62), xem IMPACT; còn thiếu `Findings`, `Tokens`, `BoxAddrs`)
 
 Nguồn hành vi: `web/src/features/notify/{contract,mocks}.ts`. Luồng dữ liệu: `PRIVACY.md` luồng 5.
 

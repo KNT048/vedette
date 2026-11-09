@@ -21,6 +21,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
+	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
 )
 
@@ -33,8 +34,10 @@ type deps struct {
 	Secrets *secrets.Store
 	Audit   *audit.Log
 	Clock   func() time.Time
-	Bus     *events.Bus       // in-process event bus (core/events); modules publish after commit and subscribe here
-	Auth    *auth.Service     // sessions, sign-in and two-step (core/auth)
+	Bus     *events.Bus   // in-process event bus (core/events); modules publish after commit and subscribe here
+	Auth    *auth.Service // sessions, sign-in and two-step (core/auth)
+	// BaseURL is the address people open Vedette at (links in notify messages); empty on loopback, see baseURL.
+	BaseURL string
 	Core    *core.APIHandlers // core's own operations (sign-in, account, users, setup, audit, general settings)
 
 	// Module services other modules use through their own ports (issue #38, #39). Built once in serve,
@@ -62,6 +65,7 @@ func wiredModules() []moduleWiring {
 		{ID: "core", Migrations: core.Migrations},
 		{ID: "feeds", Migrations: feeds.Migrations, Jobs: feedsJobs},
 		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},
+		{ID: "sensor-active", Migrations: sensoractive.Migrations, Jobs: sensorActiveJobs},
 		{ID: "findings", Migrations: findings.Migrations},
 		{ID: "mitigation", Migrations: mitigation.Migrations},
 		{ID: "notify", Migrations: notify.Migrations, Jobs: notifyJobs},

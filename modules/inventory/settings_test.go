@@ -393,3 +393,100 @@ func TestSettingsIgnoreTheClientsAttestationFields(t *testing.T) {
 		t.Fatalf("confirmed: %+v, %v", got.Settings, err)
 	}
 }
+
+// D-45, D-84 (H1): a device whose kind is unknown may be fragile, so its first scan is the gentle one; after it
+// the device stays passive-only until its kind is set, then it follows the rules of its kind.
+func TestContract_INV8_UnclassifiedDevicesAreScannedOnceGently(t *testing.T) {
+	e := newEnv(t)
+	e.confirmScope("192.168.10.0/24")
+	e.record(obs(netip.MustParseAddr("192.168.10.50"), macA, observe.Vendor, "Acme", observe.Passive, 0.5))
+	id := e.idByMAC(macA)
+	if k := e.detail(id).Asset.Kind; k != "unknown" {
+		t.Fatalf("kind = %q, the test needs an unclassified device", k)
+	}
+	policy := func() inventory.ScanDecision {
+		t.Helper()
+		d, err := e.svc.ScanPolicy(e.ctx(), id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	if d := policy(); !d.Allowed || d.Rate != 1 || d.Reason != inventory.ReasonFirstGentleScan {
+		t.Fatalf("an unclassified device the first time = %+v", d)
+	}
+	if err := e.svc.MarkFirstScan(e.ctx(), id); err != nil {
+		t.Fatal(err)
+	}
+	if d := policy(); d.Allowed || d.Reason != inventory.ReasonUnclassifiedPassiveOnly {
+		t.Fatalf("an unclassified device after its gentle scan = %+v", d)
+	}
+	pc := "pc"
+	if err := e.svc.PatchDevice(e.ctx(), "it@acme.example", id, inventory.Patch{Kind: &pc}); err != nil {
+		t.Fatal(err)
+	}
+	// "pc" is in allKinds of okSettings, so it is fragile by type; take it out so the person's classification
+	// means "not fragile"
+	in := okSettings("192.168.10.0/24")
+	in.Active.Enabled, in.ScopeConfirmed = true, true
+	in.FragileKinds = []string{"printer"}
+	if _, err := e.svc.SaveSettings(e.ctx(), "admin@acme.example", in); err != nil {
+		t.Fatal(err)
+	}
+	if d := policy(); !d.Allowed || d.Rate != 50 || d.Reason != inventory.ReasonOK {
+		t.Fatalf("classified as not fragile = %+v", d)
+	}
+	allow := "allow"
+	e.record(obs(netip.MustParseAddr("192.168.10.51"), macB, observe.Vendor, "Acme", observe.Passive, 0.5))
+	other := e.idByMAC(macB)
+	if err := e.svc.MarkFirstScan(e.ctx(), other); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.PatchDevice(e.ctx(), "it@acme.example", other, inventory.Patch{RegularScan: &allow}); err != nil {
+		t.Fatal(err)
+	}
+	if d, _ := e.svc.ScanPolicy(e.ctx(), other); !d.Allowed || d.Reason != inventory.ReasonOK {
+		t.Fatalf("regular_scan=allow on an unclassified device = %+v", d)
+	}
+}
+
+// M2: ProtectedIPs lists, by address, what a sweep must not probe: the box, devices declared by hand, devices
+// with regular_scan=never, and fragile or unclassified devices after their gentle scan; not a fragile device that
+// has not had its gentle scan, nor an ordinary device.
+func TestContract_INV8_ProtectedIPs(t *testing.T) {
+	e := newEnv(t)
+	e.confirmScope("192.168.10.0/24")
+	ip := netip.MustParseAddr
+	if _, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "vedette-hq", IP: "192.168.10.2"}); err != nil {
+		t.Fatal(err)
+	}
+	e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "192.168.10.3"})
+	e.record(obs(ip("192.168.10.40"), macA, observe.Kind, "nas", observe.Agent, 0.9)) // fragile, gentle scan done
+	e.record(obs(ip("192.168.10.41"), macB, observe.Kind, "nas", observe.Agent, 0.9)) // fragile, not scanned yet
+	e.record(obs(ip("192.168.10.42"), "aa:bb:cc:00:00:42", observe.Kind, "pc", observe.Agent, 0.9))
+	e.record(obs(ip("192.168.10.43"), "aa:bb:cc:00:00:43", observe.Kind, "pc", observe.Agent, 0.9))       // regular_scan=never
+	e.record(obs(ip("192.168.10.44"), "aa:bb:cc:00:00:44", observe.Vendor, "Acme", observe.Passive, 0.5)) // unclassified, gentle scan done
+	e.record(obs(ip("192.168.10.45"), "aa:bb:cc:00:00:45", observe.Vendor, "Acme", observe.Passive, 0.5)) // unclassified, not scanned yet
+	for _, id := range []string{e.idByMAC(macA), e.idByMAC("aa:bb:cc:00:00:44")} {
+		if err := e.svc.MarkFirstScan(e.ctx(), id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	never := "never"
+	if err := e.svc.PatchDevice(e.ctx(), "it@acme.example", e.idByMAC("aa:bb:cc:00:00:43"), inventory.Patch{RegularScan: &never}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := e.svc.ProtectedIPs(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var have []string
+	for _, a := range got {
+		have = append(have, a.String())
+	}
+	slices.Sort(have)
+	want := []string{"192.168.10.2", "192.168.10.3", "192.168.10.40", "192.168.10.43", "192.168.10.44"}
+	if !slices.Equal(have, want) {
+		t.Fatalf("protected = %v\nwant       %v", have, want)
+	}
+}

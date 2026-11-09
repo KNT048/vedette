@@ -1,6 +1,6 @@
 # Mitigation Contract
 
-> Tier: standard · Story: S-MIT-1 (phần "What to do"), S-MIT-3, S-MIT-4, S-AI-2 · Last verified: 2026-11-09 (docs-first, tách từ findings; chưa có code)
+> Tier: standard · Story: S-MIT-1 (phần "What to do"), S-MIT-3, S-MIT-4, S-AI-2 · Last verified: 2026-11-09 (WP-21: bộ nạp gói, nhà cung cấp "What to do", `applied|ai`, migration `mit_*`, có test; chưa nối vào `cmd/vedette`: thiếu `Verifier` chữ ký (core/updates), `AI`, `Vendors` (inventory))
 
 Mitigation là phần **"What to do"** của một finding: gói giảm thiểu đã xác nhận, "Đã áp dụng", dấu hiệu "Tôi đã bị chưa?", giải thích AI. Finding (khớp, trạng thái, vòng đời) thuộc module `findings` (D-57(6)); `mitigation` phụ thuộc `findings`, tắt `mitigation` không mất phát hiện hay cảnh báo. GUI: `web/src/features/findings/{Recommendation.tsx,packs.ts}` và phần `pack`/`ai`/`applied` của trang finding. Nguồn hành vi: `findings/{contract,mocks,packs}.ts`.
 
@@ -46,6 +46,13 @@ Không route `POST /findings/{id}/applied|ai`; trang finding mất panel "What t
 
 ## Story và quyết định
 S-MIT-1 (phần "What to do"), S-MIT-3, S-MIT-4, S-AI-2. D-3 không chặn; D-21 gói xác nhận qua PR; D-29 hồ sơ AI theo việc; D-31 bỏ vá ảo; D-57(6) tách `findings`.
+
+## Cài đặt (WP-21)
+- Định dạng tệp gói: JSON (`status`, `cve`, `confirmed_by`, `confirmed_at`, `drafted_with`, `sources[]`, `patch`, `workaround`, `firewall[]`, `checklist`, tuỳ chọn `recheck{steps,code}` và `compromise`), trường lạ bị từ chối. `recheck` theo gói thay cho nhánh riêng CVE-2022-27593 trong mock; thiếu thì dùng văn bản chung. `firewall[].detected` trong tệp bị bỏ qua.
+- `Loader.Install(ctx, Update)`: `Verifier` vắng hoặc chữ ký sai ⇒ từ chối cả bản cập nhật, không đổi gì (fail closed). Từng tệp không đạt INV-2 bị loại riêng và liệt kê; gói vắng trong bản mới bị rút. Thay toàn bộ `mit_pack` trong một giao dịch + `core_audit`.
+- INV-4: `{IP}`/`{HOST}` chỉ nhận IP phân tích được (không zone) và tên máy khớp `^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`; giá trị khác thay bằng `<IP>`/`<HOST>`, không escape vào văn bản, thay một lượt.
+- Bản cập nhật: không có gói hợp lệ nào (không tài liệu, hoặc tất cả bị loại) ⇒ `ErrNoValidPack`, không xoá gói đang nạp, kết quả vẫn trả lý do từng tài liệu; phiên bản không mới hơn phiên bản đã cài, hoặc không so sánh được ⇒ `ErrReplay` (bảng `mit_pack_state`, một hàng). Bản bị từ chối không dùng hết phiên bản của nó. `Verifier` phải ký ràng buộc `Version` và byte của mọi `Docs[].Data`.
+- Kết quả AI: cắt độ dài, giới hạn số mục, chỉ giữ link `http(s)`; lưu trong `mit_ai_output` (nhãn "AI generated").
 
 ## Không khớp / câu hỏi mở
 - S-MIT-1 liệt kê 8 hãng firewall; GUI/gói mẫu chỉ có `fortigate`, `mikrotik`, `generic`.

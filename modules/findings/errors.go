@@ -1,6 +1,11 @@
 package findings
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"strings"
+	"unicode/utf8"
+)
 
 // APIError is a sentinel that maps 1:1 to an API error code of the findings
 // endpoints (web/src/features/findings/contract.ts, mocks.ts). Callers wrap it
@@ -29,3 +34,18 @@ var (
 	// ErrInvalidEvidence: scan evidence lacks a template or time, or a field is too large (PRE-2).
 	ErrInvalidEvidence = errors.New("invalid scan evidence")
 )
+
+// ErrUnknownAsset means the device does not exist in the inventory (PRE-1 of UpsertFromMatch).
+var ErrUnknownAsset = errors.New("unknown asset")
+
+// ErrInvalidUser means the acting user is not 1 to 320 bytes of valid text (an email address or "system").
+var ErrInvalidUser = errors.New("invalid user")
+
+// ValidUser checks a history and audit user: 1 to 320 bytes of UTF-8 without NUL, the limits of
+// core_audit and of the history table.
+func ValidUser(u string) error {
+	if u == "" || len(u) > 320 || !utf8.ValidString(u) || strings.ContainsRune(u, 0) {
+		return fmt.Errorf("findings: checking the acting user: %w", ErrInvalidUser)
+	}
+	return nil
+}

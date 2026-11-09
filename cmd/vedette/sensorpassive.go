@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
 	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
 )
@@ -27,7 +28,11 @@ func newSensorPassive(d deps) *sensorpassive.Service {
 	if s, ok := sensorServices[d.DB]; ok {
 		return s
 	}
-	s, err := sensorpassive.New(sensorpassive.Config{DB: d.DB, Audit: d.Audit, Sink: newInventory(d), Host: netHost{}, Clock: d.Clock, Log: d.Log, Version: version})
+	var sink observe.Sink // a nil *inventory.Service must stay a nil interface so New reports it
+	if d.Inventory != nil {
+		sink = d.Inventory
+	}
+	s, err := sensorpassive.New(sensorpassive.Config{DB: d.DB, Audit: d.Audit, Sink: sink, Host: netHost{}, Clock: d.Clock, Log: d.Log, Version: version})
 	if err != nil { // only a missing dependency: a programming error in serve
 		panic("vedette: " + err.Error())
 	}

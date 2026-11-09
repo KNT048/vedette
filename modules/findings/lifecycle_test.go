@@ -337,3 +337,23 @@ func TestFinding_Apply_NoteLengthIsUTF16LikeTheGUI(t *testing.T) {
 		t.Fatalf("U+0085 counts as a character in JS: %v", err)
 	}
 }
+
+func TestContract_PRE2_ScanEvidenceMustBeText(t *testing.T) {
+	t.Parallel()
+	f, _ := NewFinding(Match{Basis: BasisProduct, SoftwareDisplay: "X"}, t0)
+	for name, edit := range map[string]func(*Evidence){
+		"nul template": func(e *Evidence) { e.Template = "a\x00b" },
+		"bad template": func(e *Evidence) { e.Template = "a\xffb" },
+		"nul summary":  func(e *Evidence) { e.Summary = "a\x00b" },
+		"bad summary":  func(e *Evidence) { e.Summary = "\xc3\x28" },
+		"nul request":  func(e *Evidence) { e.Request = "GET\x00/" },
+		"bad response": func(e *Evidence) { e.Response = "\xff" },
+	} {
+		ev := scanEvidence()
+		edit(&ev)
+		out, err := f.ConfirmFromScan(ev, t0)
+		if !errors.Is(err, ErrInvalidEvidence) || out.Finding.Status != StatusSuspected || len(out.History) != 0 {
+			t.Errorf("%s: err=%v out=%+v", name, err, out)
+		}
+	}
+}

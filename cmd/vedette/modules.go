@@ -9,11 +9,13 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/core"
+	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/inventory"
 	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
 )
@@ -27,6 +29,11 @@ type deps struct {
 	Secrets *secrets.Store
 	Audit   *audit.Log
 	Clock   func() time.Time
+	Bus     *events.Bus // in-process event bus (core/events); modules publish after commit and subscribe here
+
+	// Module services other modules use through their own ports (issue #38, #39). Built once in serve,
+	// after the fields above, so every handler, job and subscriber shares one instance.
+	Inventory *inventory.Service
 }
 
 // moduleWiring is one module the binary carries. Adding a module = one entry in wiredModules and
@@ -43,7 +50,7 @@ type moduleWiring struct {
 func wiredModules() []moduleWiring {
 	return []moduleWiring{
 		{ID: "core", Migrations: core.Migrations},
-		{ID: "feeds"}, // no tables or jobs yet (WP-20); listed because inventory depends on it
+		{ID: "feeds", Migrations: feeds.Migrations, Jobs: feedsJobs},
 		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},
 		{ID: "sensor-passive", Migrations: sensorpassive.Migrations, Jobs: sensorPassiveJobs},
 	}

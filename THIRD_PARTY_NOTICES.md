@@ -62,6 +62,12 @@ Pinned in `go.mod` and `go.sum`; licenses checked from the `LICENSE` files of ea
 | go.uber.org/zap, go.uber.org/multierr | v1.28.0, v1.11.0 | MIT | logging inside ogen's spec packages (linked, not used at run time) |
 | golang.org/x/net, golang.org/x/text, golang.org/x/sys, golang.org/x/sync, golang.org/x/exp | v0.62.0, v0.43.0, v0.49.0, v0.24.0, 2023-07-25 | BSD-3-Clause | HTTP header and IDNA checks, Unicode tables, system calls, errgroup, generic helpers; `golang.org/x/net/publicsuffix` (embedded Public Suffix List) refuses IOC domains that are public suffixes such as `com.vn` or `github.io` (`modules/feeds`, issue #29) |
 
+## Protocol knowledge re-implemented in Go (no third-party code linked)
+
+| Source | License | How it is used |
+|---|---|---|
+| zca-js v2.2.0 (github.com/RFS-ADRENO/zca-js, copyright 2024-2025 RFS-ADRENO, truong9c2208, JustKemForFun) | MIT | The unofficial Zalo personal-account protocol (sign-in request, parameter encryption and signature, message send, and the WebSocket listener notes in `modules/notify/IMPACT.md`) was read from its source and re-implemented in Go in `modules/notify/channel/zalopersonal*.go` (D-46), the same protocol the n8n Zalo community node uses through that library. Not a dependency: no code or package is linked, the logic is rewritten with the Go standard library. The test vectors were produced by running its algorithms on crypto-js 4.2.0 (MIT) outside the repository. |
+
 ## Tools run as separate processes (not embedded, not redistributed)
 
 | Component | License | How it is used |

@@ -340,9 +340,9 @@ func TestContract_INV6_EveryAttemptHasRecord(t *testing.T) {
 	}
 	long := strings.Repeat("é", 1000)
 	for name, err := range map[string]error{
-		"status":      &channel.StatusError{Channel: channel.Email, Code: 535, Reason: "bad login"},
-		"unsupported": channel.ErrUnsupported,
-		"long":        errors.New(long),
+		"status":   &channel.StatusError{Channel: channel.Email, Code: 535, Reason: "bad login"},
+		"provider": &channel.ProviderError{Channel: channel.ZaloPersonal, Code: -216, Reason: "refused"},
+		"long":     errors.New(long),
 	} {
 		f := &fakeSender{typ: channel.Email, to: "it@acme.example", err: err}
 		r := Deliver(context.Background(), "sd-2", f, m, now)

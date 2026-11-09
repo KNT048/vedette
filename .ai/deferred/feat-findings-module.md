@@ -1,0 +1,9 @@
+- [ ] Wire findings and mitigation into cmd/vedette (wiredModules entries and FindingHandlers/MitigationHandlers in handler.go): blocked, TestWiredModulesFollowDependencies wants feeds and inventory wired before findings, and nothing implements findings.Inventory, findings.Feeds, mitigation.Vendors, mitigation.AI or mitigation.Verifier yet. Order when ready: core, inventory, feeds, findings, mitigation; then fh.SetGuidance(mitigation.NewProvider(...)) and mitigation.NewMitigationHandlers(db, aud, findingsSvc, fh, ai, clock)
+- [ ] findings.Feeds (KevInfo for FindingRow.kev, Vulns with NVD affected ranges for the matcher) provided by the feeds module over feeds_vuln: WP-20 (supersedes the cpeMatch line of feat-matching-lib.md)
+- [ ] findings.Inventory (Assets view for rows, MatchInput with software and KevKeys) and mitigation.Vendors (HasFirewallVendor, kinds firewall/router): inventory module, Kien's
+- [ ] Event wiring: subscribe OnMatchChanged to inventory.match.changed, OnAssetDeleted to inventory.asset.deleted, ConfirmFromScan/RescanClear to scan.finding.confirmed, and a Publisher over core/events: WP-04b events bus
+- [ ] mitigation.Verifier over core/updates (signature of the update) and a call of Loader.Install on core.update.applied: Kien's core/updates
+- [ ] mitigation.AI over the ai module RunJob (explain-finding, mitigation-config): WP-25
+- [ ] When inventory has inv_asset, add the FK fnd_finding.asset_id -> inv_asset ON DELETE CASCADE in a new findings migration (INV-7 then holds in the database too)
+- [ ] Real shipped packs: the loader reads JSON, the maintainers' tool (vedette-author, S-MIT-4) must write the same format; web/src/features/findings/packs.ts stays mock content
+- [ ] Open: ConfirmFromScan for a pair without a finding returns ErrNotFound; decide with scan whether scan should create one

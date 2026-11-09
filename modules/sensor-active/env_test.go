@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/exec/exectest"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
@@ -67,9 +68,7 @@ esac
 		body += fmt.Sprintf("exit %d\n", o.exitCode)
 	}
 	path := filepath.Join(dir, "nmap")
-	if err := os.WriteFile(path, []byte(body), 0o700); err != nil { //nolint:gosec // the fake nmap must be executable
-		t.Fatal(err)
-	}
+	exectest.WriteScript(t, path, body)
 	return &fakeNmap{path: path, log: log}
 }
 

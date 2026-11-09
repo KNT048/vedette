@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/exec/exectest"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/inventory"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
@@ -36,9 +37,7 @@ func newFakeNmap(t *testing.T) *fakeNmapBin {
 	body := fmt.Sprintf("#!/bin/sh\nprintf '%%s\\n' \"$@\" >> %q\necho '--' >> %q\ncase \" $* \" in\n  *\" -sn \"*) cat %q;;\n  *\" --max-retries \"*) cat %q;;\n  *) cat %q;;\nesac\n",
 		log, log, fx("sweep.xml"), fx("fragile.xml"), fx("device.xml"))
 	path := filepath.Join(dir, "nmap")
-	if err := os.WriteFile(path, []byte(body), 0o700); err != nil { //nolint:gosec // the fake nmap must be executable
-		t.Fatal(err)
-	}
+	exectest.WriteScript(t, path, body)
 	return &fakeNmapBin{path: path, log: log}
 }
 

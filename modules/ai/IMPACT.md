@@ -46,5 +46,12 @@
 - `PromptBuilder.Build(PromptInput) (Prompt, error)`, `BuiltinRules()`, `Rule.Validate`: luật dựng sẵn luôn đi đầu; dữ liệu không tin cậy chỉ vào `PromptInput.Data` (hàng rào ngẫu nhiên mỗi lần gọi).
 
 ### `modules/ai` — nhật ký chuỗi hash
-- `Canonical`, `ChainHash(prev, entry)`, `HashContent`, `Genesis` (**công thức chung D-57(14)**: `SHA-256(prev_hash + "\n" + JSON chuẩn hoá bỏ trường hash)`), `Seal(prev, entry)`, `VerifyChain(entries, anchor)`, `ActivityLog`, `NewActivityTool`, `SummarizeArgs`, `FormatTS`.
-- Đổi công thức hoặc dạng chuẩn → mọi chuỗi cũ không kiểm lại được (`core_audit`, `resp_log`, `ai_activity`); vector chung nằm ở `modules/ai/testdata/chain_vectors.json` (nên chuyển sang `core` khi core có).
+- Công thức băm và JSON chuẩn hoá **không còn ở đây**: dùng `core/chain` (`HashCanonical`, `NewVerifier`; D-57 mục 14). Còn lại ở `ai`: `HashContent`, `Genesis` (= `chain.Genesis`), `Seal(prev, entry)` (đổi `ActivityEntry` thành map để băm; UTF-8 sai bị `core/chain` từ chối), `VerifyChain(entries, anchor, head *ChainHead)`, `ChainHead{Hash, Count}`, `ActivityLog`, `NewActivityTool`, `SummarizeArgs`, `FormatTS`.
+- Đổi `entryMap` (thêm/bớt cột của `ai_activity`) → đổi hash của mọi entry cũ; vector chung ở `modules/core/testdata/chain_vectors.json`, test `TestChainVectorsSharedWithCore`. `ChainHead` do `core` ghi cùng giao dịch với mỗi lần ghi/prune; không có thì không phát hiện được việc xoá các mục mới nhất.
+
+### Sau review bảo mật (WP-25a, vòng 2) — hàm mới hoặc đổi chữ ký
+- `Router.SetConfig(profiles, assignments)`, `Router.Probe(ctx, profile, now)`; `NewRouter` kiểm lại mọi hồ sơ; mỗi lần thử trong `Call` đọc lại cài đặt hiện hành. WP-25 gọi `SetConfig` sau mỗi thay đổi hồ sơ/phân việc/`internal_only`.
+- `Meter.Reserve(profileID, profileCap, estimate) (*Reservation, error)` + `Reservation.Settle/Cancel`; `Meter.Record` chỉ còn cho lần gọi không giữ chỗ.
+- `Profile.AnthropicVersion`; `provider.Config.InternalOnly`, `provider.IsInternalAddr`; `provider.ErrRefused` (+ `Error.Category`, `Error.Usage`), `Response.Raw`/`Message.Raw` (nội dung assistant của Anthropic, phát lại nguyên văn).
+- `Tool.Public`, `Tool.ConnectorID`; `Offered` trả đúng công cụ `ForModel` đã đưa ra (có `ConnectorID`).
+- `HookRunner.RunPersonalData`, `WrapToolResult(ctx, hooks, prompt, tool, content)`, `PromptInput.WithTools`, `MaxCustomHooks`, `MaxRegexProgram`.

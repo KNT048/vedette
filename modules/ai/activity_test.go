@@ -196,14 +196,14 @@ func TestContract_INV17_SummarizeArgsRemovesSecrets(t *testing.T) {
 		t.Errorf("%q", far)
 	}
 	// Ordinary arguments stay readable.
-	cases := map[string]string{
+	cases := map[string]string{ //nolint:gosec // test inputs are fake secrets used to prove redaction
 		`{"ip":"10.0.0.1"}`:  `{"ip":"10.0.0.1"}`,
 		`{"b":2,"a":1}`:      `{"a":1,"b":2}`,
 		`{"ratio":0.5}`:      `{"ratio":0.5}`,
 		`{"q":"a<b & c>d"}`:  `{"q":"a<b & c>d"}`,
 		"filter=service:rdp": "filter=service:rdp",
 		"":                   "",
-		`{"user":"a","password":"x","nested":{"api_key":"k","ok":1},"list":[{"Authorization":"Bearer t"}]}`: `{"list":[{"Authorization":"[redacted]"}],"nested":{"api_key":"[redacted]","ok":1},"password":"[redacted]","user":"a"}`, //nolint:gosec // test inputs are fake secrets used to prove redaction
+		`{"user":"a","password":"x","nested":{"api_key":"k","ok":1},"list":[{"Authorization":"Bearer t"}]}`: `{"list":[{"Authorization":"[redacted]"}],"nested":{"api_key":"[redacted]","ok":1},"password":"[redacted]","user":"a"}`,
 	}
 	for in, want := range cases {
 		if got := SummarizeArgs(in); got != want {

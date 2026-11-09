@@ -73,8 +73,8 @@ func (t *scanText) normalized() string {
 		n := utf8.RuneLen(r)
 		b.WriteRune(r)
 		for range n {
-			t.start = append(t.start, int32(from)) //nolint:gosec // bounded by MaxHookInputBytes (1 MiB)
-			t.end = append(t.end, int32(to))       //nolint:gosec // bounded by MaxHookInputBytes (1 MiB)
+			t.start = append(t.start, int32(from))
+			t.end = append(t.end, int32(to)) //nolint:gosec // bounded by MaxHookInputBytes (1 MiB)
 		}
 	}
 	t.norm = b.String()
@@ -110,8 +110,8 @@ func digitValue(r rune) rune {
 		}
 	}
 	for _, rg := range unicode.Nd.R32 {
-		if r >= rune(rg.Lo) && r <= rune(rg.Hi) {
-			return (r - rune(rg.Lo)) % 10
+		if r >= rune(rg.Lo) && r <= rune(rg.Hi) { //nolint:gosec // Unicode code points are below 0x110000
+			return (r - rune(rg.Lo)) % 10 //nolint:gosec // Unicode code points are below 0x110000
 		}
 	}
 	return 0

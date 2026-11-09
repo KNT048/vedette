@@ -77,3 +77,11 @@ func ToAPIError(err error) error {
 	}
 	return err
 }
+
+// The API errors of the Ignored list (D-79 (3)).
+var (
+	ErrOnlyIPCanBeIgnored = apiErr(400, "bad_value", "Only a public IP can go on the Ignored list.")
+	ErrIgnoredFull        = apiErr(400, "too_many", "At most %d ignored IPs. Restore the ones you no longer need to block.", MaxIgnored)
+	ErrBadIP              = apiErr(400, "bad_value", "Not a valid IPv4 address.")
+	ErrNotIgnored         = apiErr(404, "not_found", "This IP is not on the Ignored list.")
+)

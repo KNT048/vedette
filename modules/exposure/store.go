@@ -385,3 +385,61 @@ func loadLastDeep(ctx context.Context, q querier) (time.Time, error) {
 	}
 	return optTS(s)
 }
+
+// ---- the Ignored list (D-79 (3), INV-14) ----
+
+// loadIgnored returns the Ignored list, newest first.
+func loadIgnored(ctx context.Context, q querier) ([]IgnoredIP, error) {
+	rows, err := q.QueryContext(ctx, `SELECT value, ignored_by, ignored_at FROM exp_ignored ORDER BY ignored_at DESC, value`)
+	if err != nil {
+		return nil, fmt.Errorf("ignored list: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := []IgnoredIP{}
+	for rows.Next() {
+		var x IgnoredIP
+		if err := rows.Scan(&x.Value, &x.IgnoredBy, &x.IgnoredAt); err != nil {
+			return nil, fmt.Errorf("ignored list: %w", err)
+		}
+		out = append(out, x)
+	}
+	return out, rows.Err()
+}
+
+// ignoredSet is the Ignored list as a set of addresses.
+func ignoredSet(ctx context.Context, q querier) (map[string]bool, error) {
+	l, err := loadIgnored(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	set := make(map[string]bool, len(l))
+	for _, x := range l {
+		set[x.Value] = true
+	}
+	return set, nil
+}
+
+func countIgnored(ctx context.Context, q querier) (int, error) {
+	var n int
+	if err := q.QueryRowContext(ctx, `SELECT count(*) FROM exp_ignored`).Scan(&n); err != nil {
+		return 0, fmt.Errorf("counting ignored IPs: %w", err)
+	}
+	return n, nil
+}
+
+func insertIgnored(ctx context.Context, tx *sql.Tx, ip, by string, at time.Time) error {
+	if _, err := tx.ExecContext(ctx, `INSERT OR REPLACE INTO exp_ignored (value, ignored_by, ignored_at) VALUES (?, ?, ?)`, ip, by, store.FormatTS(at)); err != nil {
+		return fmt.Errorf("ignoring %s: %w", ip, err)
+	}
+	return nil
+}
+
+// deleteIgnored removes an IP from the list; false when it was not there.
+func deleteIgnored(ctx context.Context, tx *sql.Tx, ip string) (bool, error) {
+	res, err := tx.ExecContext(ctx, `DELETE FROM exp_ignored WHERE value = ?`, ip)
+	if err != nil {
+		return false, fmt.Errorf("restoring %s: %w", ip, err)
+	}
+	n, _ := res.RowsAffected()
+	return n > 0, nil
+}

@@ -221,3 +221,13 @@ type Diff struct {
 	Removed []DiffItem   `json:"removed"`
 	Changed []DiffChange `json:"changed"`
 }
+
+// MaxIgnored is the most IPs the Ignored list holds (D-79 (3)); a full list refuses to take one more (400 too_many).
+const MaxIgnored = 200
+
+// IgnoredIP is one entry of the Ignored list (contract.ts IgnoredIp).
+type IgnoredIP struct {
+	Value     string `json:"value"`
+	IgnoredBy string `json:"ignored_by"`
+	IgnoredAt string `json:"ignored_at"`
+}

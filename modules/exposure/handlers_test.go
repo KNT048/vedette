@@ -93,6 +93,7 @@ func TestContract_PRE4_Roles(t *testing.T) {
 		{"POST", "/exposure/box-ip/verify", "", "admin"},
 		{"PUT", "/exposure/box-ip/settings", `{"auto":true,"interval_min":60}`, "admin"},
 		{"POST", "/exposure/targets/" + d.ID + "/commitment", `{"confirm":true}`, "admin"},
+		{"DELETE", "/exposure/box-ip/ignored/" + ipC, "", "admin"},
 		{"DELETE", "/exposure/targets/" + d.ID, "", "admin"},
 	}
 	rank := map[string]int{"viewer": 0, "operator": 1, "admin": 2}

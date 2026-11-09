@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"sync"
 	"time"
 
@@ -290,17 +291,43 @@ func (s *Service) AddDomain(ctx context.Context, user, raw string) (TargetView, 
 }
 
 // Delete removes a target with its snapshots and its commitment; the audit log stays (INV-7). For an
-// IP it is how a customer takes it out of the inventory (INV-11).
+// IP it is how a customer takes it out of the inventory (INV-11); auto-detect adds it again when the box still uses it.
 func (s *Service) Delete(ctx context.Context, user, id string) error {
+	return s.Remove(ctx, user, id, false)
+}
+
+// Remove is Delete, and with ignore an IP also goes on the Ignored list in the same transaction (DELETE …?ignore=true,
+// INV-14): detection never adds it again and nothing scans it, until somebody restores it. Only an IP can be ignored; a
+// full list (MaxIgnored) refuses. Both changes are audited as the person.
+func (s *Service) Remove(ctx context.Context, user, id string, ignore bool) error {
 	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
 		t, err := loadTarget(ctx, tx, id)
 		if err != nil {
 			return err
 		}
+		if ignore {
+			if t.Kind != KindIP {
+				return ErrOnlyIPCanBeIgnored
+			}
+			if n, err := countIgnored(ctx, tx); err != nil {
+				return err
+			} else if n >= MaxIgnored {
+				return ErrIgnoredFull
+			}
+		}
 		if err := deleteTarget(ctx, tx, id); err != nil {
 			return err
 		}
-		return s.audit(ctx, tx, user, "exposure.target_delete", t.Value, "")
+		if err := s.audit(ctx, tx, user, "exposure.target_delete", t.Value, ""); err != nil {
+			return err
+		}
+		if !ignore {
+			return nil
+		}
+		if err := insertIgnored(ctx, tx, t.Value, user, s.clock()); err != nil {
+			return err
+		}
+		return s.audit(ctx, tx, user, "exposure.ip_ignore", t.Value, "removed; detection will not add it again and it will not be scanned")
 	})
 	if err != nil {
 		return fmt.Errorf("exposure: deleting target: %w", err)
@@ -334,4 +361,38 @@ func (s *Service) Commit(ctx context.Context, user, id string, confirm bool) (Ta
 		return TargetView{}, fmt.Errorf("exposure: recording commitment: %w", err)
 	}
 	return s.Target(ctx, id)
+}
+
+// Ignored returns the Ignored list, newest first (GET /exposure/targets, ignored).
+func (s *Service) Ignored(ctx context.Context) ([]IgnoredIP, error) {
+	l, err := loadIgnored(ctx, s.cfg.DB.Reader())
+	if err != nil {
+		return nil, fmt.Errorf("exposure: reading the ignored list: %w", err)
+	}
+	return l, nil
+}
+
+// Restore takes an IP off the Ignored list (DELETE /exposure/box-ip/ignored/{ip}, INV-14). It only lets detection add the
+// IP again: nothing is added here, and the list never allows anything (D-25), so a restored IP that the box sees comes back
+// as a new target that needs its commitment. ip must be a canonical IPv4 address (400 bad_value); one that is not on the
+// list is 404.
+func (s *Service) Restore(ctx context.Context, user, ip string) error {
+	a, err := netip.ParseAddr(ip)
+	if err != nil || !a.Is4() || a.String() != ip {
+		return fmt.Errorf("exposure: restoring an ignored IP: %w", ErrBadIP)
+	}
+	err = s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
+		ok, err := deleteIgnored(ctx, tx, ip)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return ErrNotIgnored
+		}
+		return s.audit(ctx, tx, user, "exposure.ip_restore", ip, "detection may add it again")
+	})
+	if err != nil {
+		return fmt.Errorf("exposure: restoring an ignored IP: %w", err)
+	}
+	return nil
 }

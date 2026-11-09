@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// ExposureHandlers implements the 12 exposure operations (modules/exposure/CONTRACT.md). Embed it in the
+// ExposureHandlers implements the 13 exposure operations (modules/exposure/CONTRACT.md). Embed it in the
 // composite handler. Roles are enforced by the server pipeline before a handler runs, never here.
 //
 //nolint:revive // the name is distinct on purpose: it is embedded in cmd/vedette next to inventory.Handlers
@@ -58,10 +58,15 @@ func (h *ExposureHandlers) ExposureGetExposureTargets(ctx context.Context) (*oas
 	if err != nil {
 		return nil, err
 	}
+	ignored, err := h.svc.Ignored(ctx)
+	if err != nil {
+		return nil, err
+	}
 	return into[oas.ExposureGetExposureTargetsOK](struct {
-		Items []TargetView `json:"items"`
-		BoxIP BoxIP        `json:"box_ip"`
-	}{items, box})
+		Items   []TargetView `json:"items"`
+		BoxIP   BoxIP        `json:"box_ip"`
+		Ignored []IgnoredIP  `json:"ignored"`
+	}{items, box, ignored})
 }
 
 // ExposurePostExposureTargets implements exposure_post_exposure_targets: add a domain (admin).
@@ -118,12 +123,24 @@ func (h *ExposureHandlers) ExposureGetExposureTargetsID(ctx context.Context, par
 
 // ExposureDeleteExposureTargetsID implements exposure_delete_exposure_targets_id (admin). It is also how an
 // IP leaves the inventory.
+// With ?ignore=true an IP also goes on the Ignored list (D-79 (3)).
 func (h *ExposureHandlers) ExposureDeleteExposureTargetsID(ctx context.Context, params oas.ExposureDeleteExposureTargetsIDParams) error {
 	user, err := actor(ctx)
 	if err != nil {
 		return err
 	}
-	return ToAPIError(h.svc.Delete(ctx, user, params.ID))
+	ignore := params.Ignore.Set && params.Ignore.Value == oas.ExposureDeleteExposureTargetsIDIgnoreTrue
+	return ToAPIError(h.svc.Remove(ctx, user, params.ID, ignore))
+}
+
+// ExposureDeleteExposureBoxIPIgnoredIP implements exposure_delete_exposure_box_ip_ignored_ip: Restore (admin). It only
+// lets detection add the IP again.
+func (h *ExposureHandlers) ExposureDeleteExposureBoxIPIgnoredIP(ctx context.Context, params oas.ExposureDeleteExposureBoxIPIgnoredIPParams) error {
+	user, err := actor(ctx)
+	if err != nil {
+		return err
+	}
+	return ToAPIError(h.svc.Restore(ctx, user, params.IP))
 }
 
 // ExposurePostExposureTargetsIDVerify implements exposure_post_exposure_targets_id_verify (operator).

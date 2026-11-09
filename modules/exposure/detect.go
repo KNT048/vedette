@@ -224,10 +224,18 @@ func (s *Service) detectLocked(ctx context.Context, user string, deep bool) (Det
 		if err != nil {
 			return err
 		}
-		var seen, added, skipped []string
+		blocked, err := ignoredSet(ctx, tx) // the Ignored list only blocks (INV-14)
+		if err != nil {
+			return err
+		}
+		var seen, added, skipped, onIgnored []string
 		changed := false // something the audit trail of a run of the box must show
 		for _, a := range public {
 			ip := a.String()
+			if blocked[ip] {
+				onIgnored = append(onIgnored, ip)
+				continue
+			}
 			msg := fmt.Sprintf("The box reaches the Internet via %s. Verified until %s.", ip, until)
 			t, exists, err := loadTargetByValue(ctx, tx, ip)
 			if err != nil {
@@ -271,6 +279,21 @@ func (s *Service) detectLocked(ctx context.Context, user string, deep bool) (Det
 				ids, seen, added = append(ids, id), append(seen, ip), append(added, ip)
 			}
 		}
+		if len(seen) == 0 && len(skipped) == 0 {
+			// Every address the box uses is on the Ignored list: nothing to add, and that is a normal result, not a failure.
+			is := "is"
+			if len(onIgnored) > 1 {
+				is = "are"
+			}
+			message = fmt.Sprintf("The box reaches the Internet via %s, which %s on your Ignored list, so nothing was added.", strings.Join(onIgnored, ", "), is)
+			if err := run(true, message); err != nil {
+				return err
+			}
+			if auto && switched(true) {
+				return log("exposure.auto_detect", "box", "seen: "+strings.Join(onIgnored, ", ")+"; not added (Ignored list)")
+			}
+			return nil
+		}
 		if len(seen) == 0 {
 			return fail(ErrTooMany, "not added: "+strings.Join(skipped, ", ")+fmt.Sprintf(" (limit of %d targets)", MaxTargets))
 		}
@@ -285,6 +308,9 @@ func (s *Service) detectLocked(ctx context.Context, user string, deep bool) (Det
 		}
 		if len(skipped) > 0 {
 			message += fmt.Sprintf(" Not added, the list holds at most %d targets: %s.", MaxTargets, strings.Join(skipped, ", "))
+		}
+		if len(onIgnored) > 0 {
+			message += fmt.Sprintf(" Not added, on your Ignored list: %s.", strings.Join(onIgnored, ", "))
 		}
 		nowOK := len(skipped) == 0
 		if err := run(nowOK, message); err != nil {

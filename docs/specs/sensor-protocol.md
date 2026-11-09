@@ -1,6 +1,6 @@
 # Sensor protocol: `sensor`/`scan` ↔ `core` (hồ sơ appliance)
 
-Trạng thái: **chốt trên giấy ở lát SP-0** (2026-11-10, D-109…D-116), chưa có mã; thay bản nháp M2-0 (2026-11-09). Văn xuôi tiếng Việt (D-28 cho tài liệu nội bộ); tên trường, mã lỗi, đường dẫn bằng tiếng Anh.
+Trạng thái: **chốt trên giấy ở lát SP-0** (2026-11-10, D-109…D-116), **mã của SP-1** (`core/pki`, `core/sensorlink`; chưa nối module) làm rõ vài chỗ, đánh dấu "SP-1" dưới đây; thay bản nháp M2-0 (2026-11-09). Văn xuôi tiếng Việt (D-28 cho tài liệu nội bộ); tên trường, mã lỗi, đường dẫn bằng tiếng Anh.
 Truy vết: D-24, D-26, D-43, D-55, D-56, D-57 (2)(5)(18), D-80, D-84, D-89, D-105, D-109…D-116; `ARCHITECTURE.md` §2, §6, TB-9; `DEPLOYMENT.md` §2.2, §2.4, §6.1; story S-INV-1, S-INV-3, S-SCAN-4.
 
 ## 1. Mục đích và phạm vi
@@ -34,6 +34,7 @@ Mô hình tin cậy: sensor là **máy bị tấn công được** (nằm trên 
 - Tiền tố `/sensor/v1/`. Mọi request mang `X-Vedette-Proto: 1`.
 - `ReadHeaderTimeout` 5 s, `WriteTimeout` 35 s (long-poll giữ tối đa 30 s).
 - Thân: `http.MaxBytesReader` theo trần của route (§9) **trước** khi giải mã; giải mã bằng `internal/jsonstrict` (trường lạ, khoá trùng, khoá trùng sau gập chữ, độ sâu > 32 → `400 invalid_request`). Query lạ → `400 invalid_request`.
+- SP-1 (làm rõ): thân POST phải có `Content-Type: application/json` (thiếu hoặc khác → `400 invalid_request`); thân đọc tối đa **10 s** (đồng hồ ổ cắm, không phải seam) và kết nối bị đóng khi thân dừng giữa chừng hoặc vượt trần (net/http không có hạn đọc thân nào mà không làm hỏng long-poll); `IdleTimeout` 2 phút; `MaxHeaderBytes` 16 KiB. `If-None-Match` phải có dạng `"<1…64 ký tự [A-Za-z0-9._:-]>"`, không thì `400`. `wait` là một số nguyên 0…30 (một giá trị, không lặp); `running` là 32 hex hoặc rỗng.
 - Sensor đọc phản hồi của `core` cũng có trần (config ≤ 64 KiB, jobs ≤ 64 KiB, phản hồi khác ≤ 16 KiB) và giải mã chặt như `core`.
 
 ## 4. Chứng chỉ và danh tính (D-110)
@@ -47,6 +48,8 @@ Mô hình tin cậy: sensor là **máy bị tấn công được** (nằm trên 
 | Giao khoá | lúc khởi động, **trước khi nghe**, và mỗi lần xoay: `core` sinh khoá, ghi **một** bó PEM (khoá, lá, CA) vào `<creds>/<role>/sensor.pem` qua `os.OpenRoot`, tệp tạm `O_EXCL\|O_NOFOLLOW`, fsync, `Rename`; mode `0640`, chủ `core_uid:sensor_gid`. `core` **không bao giờ đọc lại** tệp (mẫu D-89) |
 | Phía sensor | gắn volume khoá của đúng vai **chỉ đọc** (D-114 (4)); đọc lại bó trong `GetClientCertificate` khi mtime đổi; sau khi đổi, đóng kết nối rảnh. Bó hỏng hoặc đang ghi dở → giữ bó cũ trong bộ nhớ, thử lại sau 5 s |
 | Phía sensor kiểm máy chủ | chuỗi tới CA trong bó, EKU `serverAuth`, tên `127.0.0.1` (hoặc `core` ở compose) |
+
+**SP-1 (làm rõ).** `core` luôn cấp lá mới cho máy chủ và hai vai ở lúc khởi động (`Authority.Start`), vì nó không bao giờ đọc lại bó nên không có khoá của lá lần trước; serial trước đó vẫn sống (là "ngay trước"). Việc hằng ngày (`Authority.Renew`) chỉ thay lá còn ≤ 1/3 thời hạn. Bó cấp rồi mà ghi không được (volume lỗi, thư mục vai bị đặt symlink) được giữ trong bộ nhớ và ghi lại ở lần `Renew` kế, không cấp lại. `NotBefore` lùi 1 phút so với giờ `core`. Handshake và mỗi request kiểm EKU **đúng** `[clientAuth]`, đúng một URI SAN, lá không phải CA; mỗi request còn kiểm `NotBefore ≤ giờ ≤ NotAfter` của lá (kết nối keep-alive sống lâu hơn chứng chỉ) → `403 cert_retired`.
 
 **Kiểm của `core`** (thứ tự):
 1. Handshake: chuỗi tới CA sensor (hạn, chữ ký), EKU `clientAuth`, đúng một URI SAN thuộc hai vai, serial là serial **hiện hành hoặc ngay trước** của vai đó. Sai bất kỳ → handshake hỏng (không có phản hồi HTTP). `VerifyConnection` chạy cả trên kết nối nối lại (TLS 1.3 resumption).
@@ -110,7 +113,7 @@ Fail-closed (D-80 (3)): `core` không đọc được bộ lọc → `interface:
 | `items[].field` | ∈ `observe.Field`: `hostname`, `mac`, `vendor`, `model`, `os`, `kind` |
 | `items[].value` | 1 … 200 byte, văn bản sạch (§5) |
 | `items[].confidence` | 0 … 1; `core` kẹp theo trần của thang thụ động cho từng trường (sensor-passive CONTRACT, "Thang tin cậy") |
-| `items[].seen_at` | trong khoảng 24 giờ trước tới 5 phút sau giờ `core` |
+| `items[].seen_at` | RFC 3339 (sai định dạng hoặc kiểu → `400` cả lô, SP-1); trong khoảng 24 giờ trước tới 5 phút sau giờ `core` (ngoài → `out_of_window` từng mục) |
 | (không có) `source` | `core` đặt `passive` theo vai; trường `source` trong thân → `400 invalid_request` (trường lạ) |
 
 **Epoch và seq** (D-112 (2)). `core` giữ `sp_seq(sensor_id, epoch, last_seq)` với `sensor_id = sn-local` (sensor của chính hộp) và chỉ **2 epoch mới nhất** (epoch thứ ba xoá cái cũ nhất). Lô có `seq ≤ last_seq` của epoch đó → `200`, `ack_seq = seq`, `rejected: []`, không ghi lại (POST-3). Không có `seq_gap`: seq chỉ chống phát lại, khoảng trống là bình thường (lô bị bỏ).
@@ -212,7 +215,7 @@ Trên dây **không** có argv, cờ, đường dẫn, URL hay phạm vi (D-111 
 | `reason` | `""` hoặc một trong `invalid_job`, `busy`, `nmap_missing`, `exec_failed`, `deadline`, `cancelled` |
 | `exit_code` | −1 … 255 (−1 = không chạy hoặc bị giết) |
 | `truncated` | stdout chạm trần 8 MiB |
-| `xml_b64` | base64 chuẩn của stdout nmap; sau giải mã ≤ 8 MiB; rỗng khi không phải `done` |
+| `xml_b64` | base64 chuẩn của stdout nmap; sau giải mã ≤ 8 MiB; rỗng khi không phải `done` (khác → `400`) |
 
 `{id}` phải là job **đang chạy** do chính `core` này giao cho vai `active`; còn lại (id lạ, job đã xong, gửi lại lần hai) → `404 unknown_job`. Thân > 11 MiB hoặc XML giải mã > 8 MiB → `413 payload_too_large` và probe `failed`. Trả `204`.
 
@@ -237,6 +240,8 @@ Trên dây **không** có argv, cờ, đường dẫn, URL hay phạm vi (D-111 
 | 503 | `store_busy` | kho của `core` bận | chờ `Retry-After`, gửi lại **cùng** lô |
 | 500 | `internal` | lỗi khác của `core` | bỏ lô, đếm (OTLP: không thử lại) |
 | — | (không có phản hồi) | lỗi kết nối, `core` đang khởi động lại | gửi lại cùng lô sau quãng lùi 1 → 60 s có jitter (`holdOff`); quá trần hàng đợi trong bộ nhớ thì bỏ cũ nhất và đếm |
+
+SP-1 (làm rõ): chỉ request qua được bước 1 đến 3 (kể cả `module_off`) mới tiêu một token của nhịp; `Retry-After` của `429` là số giây tới token kế (làm tròn lên, ít nhất 1). Mọi mã trong bảng do `core/sensorlink/errors.go` (`codes`) định nghĩa; thân lỗi có thông điệp cố định theo mã. Bảng này **không** vào `API_CONVENTIONS` §3.3 (đó là API công khai của GUI; dây sensor là nội bộ).
 
 Thứ tự kiểm ở `core` cho mỗi request: serial (`cert_retired`) → `X-Vedette-Proto` (`426`) → route theo vai (`403`) → module (`409 module_off`) → nhịp (`429`) → long-poll duy nhất (`409 poll_in_progress`) → trần thân (`413`) → giải mã chặt (`400`) → handler.
 

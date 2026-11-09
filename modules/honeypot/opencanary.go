@@ -2,16 +2,18 @@ package honeypot
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
 )
 
-// Names of the files in the shared volume (Config.ConfigDir). The honeypot container reads the first two; core reads
-// the log (D-89). Nothing here holds a secret: the files are readable by the container.
+// Names of the files: the first two are written by core into Config.ConfigDir (mounted read-only into the honeypot
+// container), the log is written by the container into Config.LogDir and only read by core (D-89). Nothing here holds a
+// secret: the files are readable by the container.
 const (
 	ConfFile       = "opencanary.conf"
 	TokensFile     = "honeytokens.json"
@@ -19,10 +21,16 @@ const (
 	sambaAuditFile = "/var/log/samba-audit.log"
 )
 
+// The size bound of the trap log written by the container: logMaxBytes per file, logBackups rotated copies kept.
+const (
+	logMaxBytes = 10 << 20
+	logBackups  = 3
+)
+
 // ConfigInput is the state the OpenCanary configuration is made from.
 type ConfigInput struct {
 	Enabled   []ServiceName // services whose trap is on and may listen (INV-6, INV-7)
-	LogPath   string        // JSON-lines file the container writes (the shared volume)
+	LogPath   string        // JSON-lines file the container writes (inside its writable log folder)
 	NASDecoy  bool          // a decoy with the NAS personality exists: the web trap shows a NAS login page
 	FileNames []string      // names of the file tokens, for the container to plant in the share
 }
@@ -59,8 +67,11 @@ func RenderConfig(in ConfigInput) ([]byte, error) {
 			"class": "PyLogger",
 			"kwargs": map[string]any{
 				"formatters": map[string]any{"plain": map[string]any{"format": "%(message)s"}},
+				// A bounded log: a flood of connections cannot fill the file system of the database. The tailer follows the
+				// name, so it notices the rotation (tail.go).
 				"handlers": map[string]any{"file": map[string]any{
-					"class": "logging.FileHandler", "formatter": "plain", "filename": in.LogPath,
+					"class": "logging.handlers.RotatingFileHandler", "formatter": "plain", "filename": in.LogPath,
+					"maxBytes": logMaxBytes, "backupCount": logBackups,
 				}},
 			},
 		},
@@ -93,42 +104,46 @@ func marshalStable(v any) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-// writeAtomic replaces dir/name with data unless it already holds exactly that: temp file in the same directory,
-// fsync, rename, fsync of the directory. It reports whether the file changed.
-func writeAtomic(dir, name string, data []byte) (bool, error) {
-	path := filepath.Join(dir, name)
-	if old, err := os.ReadFile(path); err == nil && bytes.Equal(old, data) { //nolint:gosec // path is the operator-set config directory plus a constant name
-		return false, nil
-	}
+// writeInRoot replaces dir/name with data: a new file with a random name (O_EXCL) created through os.Root, so no path
+// component can leave dir, then fsync, rename over name and fsync of the directory. The directory belongs to core and
+// the container mounts it read-only (D-89, amendment of the WP-14 review); core never reads back what it wrote, it
+// compares against the hash it keeps in memory (Service.written), so nothing a hostile container leaves is ever opened.
+func writeInRoot(dir, name string, data []byte) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil { //nolint:gosec // the container reads the directory; no secret in it
-		return false, fmt.Errorf("honeypot: config dir: %w", err)
+		return fmt.Errorf("honeypot: config dir: %w", err)
 	}
-	tmp, err := os.CreateTemp(dir, "."+name+".*")
+	root, err := os.OpenRoot(dir)
 	if err != nil {
-		return false, fmt.Errorf("honeypot: write %s: %w", name, err)
+		return fmt.Errorf("honeypot: open config dir: %w", err)
 	}
-	defer func() { _ = os.Remove(tmp.Name()) }() // a no-op once renamed
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		return false, fmt.Errorf("honeypot: write %s: %w", name, err)
+	defer func() { _ = root.Close() }()
+	var rnd [8]byte
+	if _, err := rand.Read(rnd[:]); err != nil {
+		return fmt.Errorf("honeypot: random: %w", err)
 	}
-	if err := tmp.Chmod(0o644); err != nil {
-		_ = tmp.Close()
-		return false, fmt.Errorf("honeypot: write %s: %w", name, err)
+	tmp := "." + name + "." + hex.EncodeToString(rnd[:])
+	f, err := root.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return fmt.Errorf("honeypot: write %s: %w", name, err)
 	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		return false, fmt.Errorf("honeypot: write %s: %w", name, err)
+	defer func() { _ = root.Remove(tmp) }() // a no-op once renamed
+	if _, err := f.Write(data); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("honeypot: write %s: %w", name, err)
 	}
-	if err := tmp.Close(); err != nil {
-		return false, fmt.Errorf("honeypot: write %s: %w", name, err)
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("honeypot: write %s: %w", name, err)
 	}
-	if err := os.Rename(tmp.Name(), path); err != nil {
-		return false, fmt.Errorf("honeypot: write %s: %w", name, err)
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("honeypot: write %s: %w", name, err)
 	}
-	if d, err := os.Open(dir); err == nil { //nolint:gosec // the operator-set config directory
+	if err := root.Rename(tmp, name); err != nil {
+		return fmt.Errorf("honeypot: write %s: %w", name, err)
+	}
+	if d, err := root.Open("."); err == nil {
 		_ = d.Sync()
 		_ = d.Close()
 	}
-	return true, nil
+	return nil
 }

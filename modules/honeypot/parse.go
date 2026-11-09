@@ -142,8 +142,10 @@ func ipv4Of(s string) (netip.Addr, bool) {
 	return a, true
 }
 
-// clean makes attacker text safe to store and show: valid UTF-8, no control or direction-changing characters, at most
-// n characters (INV-12). It is data; nothing reads it as a command.
+// clean makes attacker text safe to store and show: valid UTF-8, no control character (Cc, replaced by a space so words
+// stay apart), none of the invisible or reordering ones (Cf: bidi marks, zero-width characters, the byte order mark, the
+// soft hyphen, Unicode tag characters; Zl, Zp: line and paragraph separators; dropped), at most n characters (INV-12).
+// The same rule as sensor-active/xml.go and sensor-passive/decode.go. It is data; nothing reads it as a command.
 func clean(s string, n int) string {
 	s = strings.ToValidUTF8(s, "?")
 	var b strings.Builder
@@ -152,8 +154,11 @@ func clean(s string, n int) string {
 		if count >= n {
 			break
 		}
-		if unicode.IsControl(r) || r >= 0x200B && r <= 0x200F || r >= 0x202A && r <= 0x202E || r >= 0x2066 && r <= 0x2069 || r == utf8.RuneError {
+		switch {
+		case unicode.Is(unicode.Cc, r) || r == utf8.RuneError:
 			r = ' '
+		case unicode.In(r, unicode.Cf, unicode.Zl, unicode.Zp):
+			continue
 		}
 		b.WriteRune(r)
 		count++

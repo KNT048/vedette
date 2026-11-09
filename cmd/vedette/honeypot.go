@@ -7,12 +7,20 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/modules/honeypot"
 	"github.com/knt048/vedette/modules/inventory"
+)
+
+// The two folders under -honeypot-dir: core writes ConfigDir (opencanary.conf, honeytokens.json; WP-08 mounts it read-only
+// into the honeypot container), the container writes LogDir (opencanary.jsonl; core only reads it).
+const (
+	HoneypotConfigDir = "config"
+	HoneypotLogDir    = "log"
 )
 
 // newHoneypot builds the honeypot service once, in buildServices (deps.Honeypot): the job, the HTTP handler and the
@@ -22,7 +30,10 @@ func newHoneypot(d *deps) (*honeypot.Service, error) {
 		return nil, errors.New("honeypot needs the inventory service")
 	}
 	cfg := honeypot.Config{DB: d.DB, Audit: d.Audit, Secrets: d.Secrets, Inventory: honeypotInventory{d.Inventory}, Host: notAnAppliance{},
-		ConfigDir: d.HoneypotDir, Clock: d.Clock, Log: d.Log, Location: orgLocationAt(*d)}
+		Clock: d.Clock, Log: d.Log, Location: orgLocationAt(*d)}
+	if d.HoneypotDir != "" { // two folders (D-89, WP-14 review): core writes config/ (the container mounts it read-only), the container writes log/
+		cfg.ConfigDir, cfg.LogDir = filepath.Join(d.HoneypotDir, HoneypotConfigDir), filepath.Join(d.HoneypotDir, HoneypotLogDir)
+	}
 	if d.Reg != nil {
 		cfg.Modules = d.Reg
 	}

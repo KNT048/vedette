@@ -210,7 +210,7 @@ func newEnv(t *testing.T, opts ...option) *env {
 				dev("a-prn", "192.168.10.31", "PRN-LOBBY", "printer"),
 			}}}
 	e.cfg = honeypot.Config{DB: db, Audit: audit.New(func() time.Time { return e.now }), Secrets: sec, Inventory: e.inv, Host: e.host, Events: e.pub, Modules: e.gate,
-		ConfigDir: filepath.Join(e.dir, "vol"), Clock: func() time.Time { return e.now }, Log: slog.New(slog.DiscardHandler), Location: func(context.Context) *time.Location { return time.UTC }}
+		ConfigDir: filepath.Join(e.dir, "config"), LogDir: filepath.Join(e.dir, "log"), Clock: func() time.Time { return e.now }, Log: slog.New(slog.DiscardHandler), Location: func(context.Context) *time.Location { return time.UTC }}
 	for _, o := range opts {
 		o(e)
 	}
@@ -223,7 +223,9 @@ func newEnv(t *testing.T, opts ...option) *env {
 
 func (e *env) ctx() context.Context { return e.t.Context() }
 
-func (e *env) logPath() string { return filepath.Join(e.dir, "vol", "opencanary.jsonl") }
+func (e *env) confPath() string { return filepath.Join(e.dir, "config", honeypot.ConfFile) }
+
+func (e *env) logPath() string { return filepath.Join(e.dir, "log", "opencanary.jsonl") }
 
 // setup puts the usual state in: secondary IP, hostname, and the SSH and SMB traps on.
 func (e *env) setup() {

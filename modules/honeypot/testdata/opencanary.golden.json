@@ -20,9 +20,11 @@
       },
       "handlers": {
         "file": {
-          "class": "logging.FileHandler",
+          "backupCount": 3,
+          "class": "logging.handlers.RotatingFileHandler",
           "filename": "/vol/opencanary.jsonl",
-          "formatter": "plain"
+          "formatter": "plain",
+          "maxBytes": 10485760
         }
       }
     }

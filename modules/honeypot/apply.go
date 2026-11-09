@@ -2,10 +2,13 @@ package honeypot
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
+	"maps"
 	"net/netip"
+	"path/filepath"
 	"slices"
 	"sort"
 	"time"
@@ -20,12 +23,33 @@ type hostCache struct {
 	running   bool
 	reason    string
 	services  map[ServiceName]bool // the services of the configuration the container was started with
+	// conflicts are the trap addresses that were not handed to the host and why: the core found a problem (a device or
+	// the box has the address, it left the LAN, it is past the host's 32) or the host refused it.
+	conflicts map[netip.Addr]string
 }
 
+// listening reports that the container was started with a configuration that has this service on, on a host that is an
+// appliance. It does not mean the port was probed: the box never connects to its own trap (INV-1, FORBID-3).
 func (s *Service) listening(svc ServiceName) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.host.available && s.host.running && s.host.services[svc]
+}
+
+// refused is the reason the last Apply did not hand ip to the host, "" when it did or never tried.
+func (s *Service) refused(ip netip.Addr) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.host.conflicts[ip]
+}
+
+// TrapConflicts lists the secondary or decoy addresses the last Apply left out of the host and why (a device or the box
+// has the address, it is outside the LAN now, the host refused it or is full). The API has no field for it: the trap
+// shows state "conflict" when the secondary IP is among them, the reasons are here and in the log.
+func (s *Service) TrapConflicts() map[netip.Addr]string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return maps.Clone(s.host.conflicts)
 }
 
 // HostStatus says whether the traps can listen and, when they cannot, why. The API has no field for it: a trap that is
@@ -36,32 +60,110 @@ func (s *Service) HostStatus() (listening bool, reason string) {
 	return s.host.available && s.host.running, s.host.reason
 }
 
-// desired is what the host should look like, from the database and the inventory (D-55: configuration comes from the
-// database, never edited by hand). A secondary IP or decoy IP that a device now has is left out (INV-6, FORBID-1).
-func (w *world) desired() (ips []netip.Addr, services []ServiceName) {
-	if w.secIP.IsValid() && w.deviceAt(w.secIP) == nil {
-		for _, svc := range Services {
-			if w.traps[svc].enabled {
-				services = append(services, svc)
-			}
+// DecoyIPs are the addresses the traps own: the ones handed to the host at the last Apply (the secondary IP and the enabled
+// decoys the host accepted). The inventory must not make a device of them (CONTRACT, open question 2: the answers to ARP
+// that the trap itself gives are no device) and the active sensor must not probe them. The set is read from the stored
+// "applied" record, so it is right right after a restart too.
+func (s *Service) DecoyIPs(ctx context.Context) []netip.Addr {
+	var applied []string
+	if err := loadJSON(ctx, s.db.Reader(), "applied", &applied); err != nil {
+		s.cfg.Log.WarnContext(ctx, "honeypot: read applied addresses", "error", err)
+		return nil
+	}
+	out := make([]netip.Addr, 0, len(applied))
+	for _, a := range applied {
+		if ip, err := netip.ParseAddr(a); err == nil {
+			out = append(out, ip)
 		}
-		if len(services) > 0 {
-			ips = append(ips, w.secIP)
+	}
+	return out
+}
+
+// desired is what the host should look like, from the database and the inventory (D-55: configuration comes from the
+// database, never edited by hand). An address that is the box's own, outside the LAN now, or a device's is left out and
+// listed in conflicts (INV-5, INV-6, FORBID-1); so is whatever passes the host's 32 addresses, the secondary IP first.
+func (w *world) desired() (ips []netip.Addr, services []ServiceName, conflicts map[netip.Addr]string) {
+	conflicts = map[netip.Addr]string{}
+	if w.secIP.IsValid() {
+		if why := w.ipProblem(w.secIP); why != "" {
+			conflicts[w.secIP] = why
+		} else {
+			for _, svc := range Services {
+				if w.traps[svc].enabled {
+					services = append(services, svc)
+				}
+			}
+			if len(services) > 0 {
+				ips = append(ips, w.secIP)
+			}
 		}
 	}
 	if len(services) > 0 {
 		for _, d := range w.decoys {
-			if d.Enabled && d.ip.IsValid() && w.deviceAt(d.ip) == nil && d.ip != w.box.IP && !slices.Contains(ips, d.ip) {
-				ips = append(ips, d.ip)
+			if !d.Enabled || !d.ip.IsValid() || slices.Contains(ips, d.ip) {
+				continue
 			}
+			if why := w.ipProblem(d.ip); why != "" {
+				conflicts[d.ip] = why
+				continue
+			}
+			if len(ips) >= maxHostIPs {
+				conflicts[d.ip] = fmt.Sprintf("the host holds at most %d addresses", maxHostIPs)
+				continue
+			}
+			ips = append(ips, d.ip)
 		}
 	}
-	return ips, services
+	return ips, services, conflicts
+}
+
+// writeFiles renders opencanary.conf and honeytokens.json and writes the ones that differ from what this process wrote
+// last. Nothing in ConfigDir is ever read: the container could have left anything there (it mounts the folder read-only
+// in the real setup, this is the second line of defence).
+func (s *Service) writeFiles(ctx context.Context, w *world, services []ServiceName) error {
+	toks, err := s.loadTokens(ctx, s.db.Reader())
+	if err != nil {
+		return err
+	}
+	var files []string
+	for _, t := range toks {
+		if t.Type == TokenFile {
+			files = append(files, t.Value)
+		}
+	}
+	nas := false
+	for _, d := range w.decoys {
+		nas = nas || d.Enabled && d.Personality == NAS
+	}
+	conf, err := RenderConfig(ConfigInput{Enabled: services, LogPath: filepath.Join(s.cfg.LogDir, defaultLogFile), NASDecoy: nas})
+	if err != nil {
+		return err
+	}
+	tok, err := RenderTokens(files)
+	if err != nil {
+		return err
+	}
+	for _, f := range []struct {
+		name string
+		data []byte
+	}{{ConfFile, conf}, {TokensFile, tok}} {
+		sum := sha256.Sum256(f.data)
+		if old, ok := s.written[f.name]; ok && old == sum {
+			continue
+		}
+		if err := writeInRoot(s.cfg.ConfigDir, f.name, f.data); err != nil {
+			return err
+		}
+		s.written[f.name] = sum
+	}
+	return nil
 }
 
 // Apply makes the host match the database: writes opencanary.conf and honeytokens.json (atomically, only when they
 // changed), then, if the host is an appliance, hands it the decoy IPs and starts or stops the container. It is
-// idempotent and safe to call at any time.
+// idempotent and safe to call at any time. The host is reconciled even when the files cannot be written: addresses that
+// must go are removed and the container is stopped when nothing may listen (FORBID-1, POST-5); only the starting of
+// addresses and of the container waits for a configuration that was written.
 func (s *Service) Apply(ctx context.Context) error {
 	s.applyMu.Lock()
 	defer s.applyMu.Unlock()
@@ -69,43 +171,19 @@ func (s *Service) Apply(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	ips, services := w.desired()
+	ips, services, conflicts := w.desired()
+	var errs []error
+	filesOK := true
 	if s.cfg.ConfigDir != "" {
-		var files []string
-		toks, err := s.loadTokens(ctx, s.db.Reader())
-		if err != nil {
-			return err
-		}
-		for _, t := range toks {
-			if t.Type == TokenFile {
-				files = append(files, t.Value)
-			}
-		}
-		nas := false
-		for _, d := range w.decoys {
-			nas = nas || d.Enabled && d.Personality == NAS
-		}
-		conf, err := RenderConfig(ConfigInput{Enabled: services, LogPath: s.cfg.LogPath, NASDecoy: nas})
-		if err != nil {
-			return err
-		}
-		tok, err := RenderTokens(files)
-		if err != nil {
-			return err
-		}
-		for _, f := range []struct {
-			name string
-			data []byte
-		}{{ConfFile, conf}, {TokensFile, tok}} {
-			if _, err := writeAtomic(s.cfg.ConfigDir, f.name, f.data); err != nil {
-				return err
-			}
+		if err := s.writeFiles(ctx, w, services); err != nil {
+			filesOK = false
+			errs = append(errs, err)
 		}
 	}
 	st, err := s.cfg.Host.Status(ctx)
 	if err != nil {
 		s.setHost(hostCache{reason: "the host does not answer"})
-		return fmt.Errorf("honeypot: host status: %w", err)
+		return errors.Join(append(errs, fmt.Errorf("honeypot: host status: %w", err))...)
 	}
 	if s.cfg.ConfigDir == "" {
 		st = HostStatus{Reason: "the honeypot volume is not configured"}
@@ -115,31 +193,47 @@ func (s *Service) Apply(ctx context.Context) error {
 		if reason == "" {
 			reason = "this machine is not an appliance"
 		}
-		s.setHost(hostCache{reason: reason})
+		s.setHost(hostCache{reason: reason, conflicts: conflicts})
 		s.cfg.Log.InfoContext(ctx, "honeypot: traps cannot listen", "reason", reason)
-		return nil
+		return errors.Join(errs...)
 	}
-	if err := s.syncIPs(ctx, ips); err != nil {
-		s.setHost(hostCache{available: true, reason: "the decoy IPs could not be set"})
-		return err
+	placed, refused, err := s.syncIPs(ctx, ips, filesOK)
+	if err != nil {
+		errs = append(errs, err)
 	}
-	if len(services) == 0 || len(ips) == 0 {
-		if err := s.cfg.Host.StopContainer(ctx); err != nil {
-			return fmt.Errorf("honeypot: stop container: %w", err)
+	for ip, why := range refused {
+		conflicts[ip] = why
+		if s.due("refused " + ip.String()) {
+			s.cfg.Log.WarnContext(ctx, "honeypot: the host did not take a decoy address; the other traps go on", "ip", ip.String(), "reason", why)
 		}
-		s.setHost(hostCache{available: true, reason: "no trap is on"})
-		return nil
 	}
-	if err := s.cfg.Host.StartContainer(ctx); err != nil {
-		s.setHost(hostCache{available: true, reason: "the honeypot container did not start"})
-		return fmt.Errorf("honeypot: start container: %w", err)
+	switch {
+	case len(services) == 0 || len(ips) == 0:
+		if err := s.cfg.Host.StopContainer(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("honeypot: stop container: %w", err))
+		}
+		s.setHost(hostCache{available: true, reason: "no trap is on", conflicts: conflicts})
+	case len(placed) == 0:
+		if err := s.cfg.Host.StopContainer(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("honeypot: stop container: %w", err))
+		}
+		s.setHost(hostCache{available: true, reason: "the host did not take any decoy address", conflicts: conflicts})
+		errs = append(errs, errors.New("honeypot: the host did not take any decoy address"))
+	case !filesOK:
+		s.setHost(hostCache{available: true, reason: "the trap configuration could not be written", conflicts: conflicts})
+	default:
+		if err := s.cfg.Host.StartContainer(ctx); err != nil {
+			s.setHost(hostCache{available: true, reason: "the honeypot container did not start", conflicts: conflicts})
+			errs = append(errs, fmt.Errorf("honeypot: start container: %w", err))
+			break
+		}
+		m := map[ServiceName]bool{}
+		for _, svc := range services {
+			m[svc] = true
+		}
+		s.setHost(hostCache{available: true, running: true, services: m, conflicts: conflicts})
 	}
-	m := map[ServiceName]bool{}
-	for _, svc := range services {
-		m[svc] = true
-	}
-	s.setHost(hostCache{available: true, running: true, services: m})
-	return nil
+	return errors.Join(errs...)
 }
 
 func (s *Service) setHost(h hostCache) {
@@ -148,23 +242,29 @@ func (s *Service) setHost(h hostCache) {
 	s.mu.Unlock()
 }
 
-// syncIPs adds the wanted decoy IPs, removes the ones handed over earlier that are no longer wanted, and remembers the
-// set (hp_config "applied") so a restart can still remove a stale one.
-func (s *Service) syncIPs(ctx context.Context, want []netip.Addr) error {
+// syncIPs adds the wanted decoy IPs (when add is true), removes the ones handed over earlier that are no longer wanted,
+// and remembers the set (hp_config "applied") so a restart can still remove a stale one. An address the host refuses is
+// returned in refused with the reason, it does not stop the others; placed is what the host holds of the wanted ones.
+// err carries what went wrong besides refusals (a removal, the database).
+func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, add bool) (placed []netip.Addr, refused map[netip.Addr]string, err error) {
 	var prev []string
 	if err := loadJSON(ctx, s.db.Reader(), "applied", &prev); err != nil {
-		return err
+		return nil, nil, err
 	}
 	have := map[netip.Addr]bool{}
 	var errs []error
+	refused = map[netip.Addr]string{}
 	for _, p := range prev {
 		if a, err := netip.ParseAddr(p); err == nil {
 			have[a] = true
 		}
 	}
 	for _, ip := range want {
+		if !add { // no configuration was written: nothing new is handed over
+			continue
+		}
 		if err := s.cfg.Host.AddDecoyIP(ctx, ip); err != nil {
-			errs = append(errs, fmt.Errorf("honeypot: add decoy IP %s: %w", ip, err))
+			refused[ip] = err.Error()
 			continue
 		}
 		have[ip] = true
@@ -178,6 +278,11 @@ func (s *Service) syncIPs(ctx context.Context, want []netip.Addr) error {
 			delete(have, ip)
 		}
 	}
+	for _, ip := range want {
+		if have[ip] {
+			placed = append(placed, ip)
+		}
+	}
 	now := make([]string, 0, len(have))
 	for ip := range have {
 		now = append(now, ip.String())
@@ -189,7 +294,7 @@ func (s *Service) syncIPs(ctx context.Context, want []netip.Addr) error {
 			errs = append(errs, err)
 		}
 	}
-	return errors.Join(errs...)
+	return placed, refused, errors.Join(errs...)
 }
 
 // Disable is what the module does when it is switched off (SYS-5): the container stops, the decoy IPs go, nothing
@@ -204,7 +309,8 @@ func (s *Service) Disable(ctx context.Context) error {
 	if err := s.cfg.Host.StopContainer(ctx); err != nil {
 		errs = append(errs, err)
 	}
-	errs = append(errs, s.syncIPs(ctx, nil))
+	_, _, err = s.syncIPs(ctx, nil, false)
+	errs = append(errs, err)
 	s.setHost(hostCache{available: true, reason: "the module is off"})
 	return errors.Join(errs...)
 }
@@ -251,7 +357,9 @@ func (s *Service) Run(ctx context.Context) error {
 		}
 	}()
 	if err := s.Apply(ctx); err != nil && ctx.Err() == nil {
-		s.cfg.Log.WarnContext(ctx, "honeypot: apply", "error", err)
+		if s.due("apply") {
+			s.cfg.Log.WarnContext(ctx, "honeypot: apply", "error", err)
+		}
 	}
 	if err := s.restoreTail(ctx); err != nil {
 		return err
@@ -266,15 +374,21 @@ func (s *Service) Run(ctx context.Context) error {
 			return nil
 		case <-s.kick:
 			if err := s.Apply(ctx); err != nil && ctx.Err() == nil {
-				s.cfg.Log.WarnContext(ctx, "honeypot: apply", "error", err)
+				if s.due("apply") {
+					s.cfg.Log.WarnContext(ctx, "honeypot: apply", "error", err)
+				}
 			}
 		case <-again.C:
 			if err := s.Apply(ctx); err != nil && ctx.Err() == nil {
-				s.cfg.Log.WarnContext(ctx, "honeypot: apply", "error", err)
+				if s.due("apply") {
+					s.cfg.Log.WarnContext(ctx, "honeypot: apply", "error", err)
+				}
 			}
 		case <-poll.C:
 			if err := s.Poll(ctx); err != nil && ctx.Err() == nil {
-				s.cfg.Log.WarnContext(ctx, "honeypot: read the trap log", "error", err)
+				if s.due("poll") {
+					s.cfg.Log.WarnContext(ctx, "honeypot: read the trap log", "error", err)
+				}
 			}
 		}
 	}

@@ -165,7 +165,9 @@ func TestTailResumesAfterRestartWithoutReplay(t *testing.T) {
 	}
 }
 
-func TestIngestCapsOneSourceFlood(t *testing.T) {
+// One source, one service, one trap IP, one 10-minute window: one hit, however many connections (a new source port each).
+// The connections raise conn_count and add lines to the hit; at most 200 lines of one source are taken per poll.
+func TestIngestOneSourceIsOneHitPerWindow(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.setup()
@@ -176,11 +178,21 @@ func TestIngestCapsOneSourceFlood(t *testing.T) {
 	lines = append(lines, sshNew("192.168.10.158", 1, t0).json())
 	e.appendLog(lines...)
 	e.poll()
-	if n := e.hitCount(); n != 201 {
-		t.Fatalf("%d hits", n)
+	if n := e.hitCount(); n != 2 || len(e.pub.all()) != 2 {
+		t.Fatalf("%d hits, %d events: one per new hit, not one per connection", n, len(e.pub.all()))
+	}
+	if n := e.count(`SELECT conn_count FROM hp_hits WHERE src_ip = '192.168.10.157'`); n != 200 {
+		t.Fatalf("conn_count %d, want the 200 lines taken", n)
 	}
 	if e.svc.Stats().Flooded != 300 {
 		t.Fatalf("%+v", e.svc.Stats())
+	}
+	// A later window is a new hit.
+	e.now = t0.Add(11 * time.Minute)
+	e.appendLog(sshNew("192.168.10.157", 9000, e.now).json())
+	e.poll()
+	if n := e.hitCount(); n != 3 {
+		t.Fatalf("%d hits after a connection 11 minutes later", n)
 	}
 }
 
@@ -188,6 +200,14 @@ func TestIngestSkipsLogtypesItDoesNotMap(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.setup()
+	for _, svc := range []honeypot.ServiceName{honeypot.RDP, honeypot.MSSQL, honeypot.HTTP} {
+		if _, err := e.svc.SetTrap(e.ctx(), "a", svc, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := e.svc.AddDecoy(e.ctx(), "a", honeypot.DecoyInput{Personality: honeypot.NAS, Name: "NAS-OLD", IP: "192.168.10.241"}); err != nil {
+		t.Fatal(err)
+	}
 	e.appendLog(
 		`{"logtype":1001,"src_host":"","dst_host":"","logdata":{"msg":"boot"}}`,
 		ln{LogType: 1004, Src: "192.168.10.157", At: t0}.json(),
@@ -243,7 +263,7 @@ func TestRunAppliesPollsAndSwitchesOff(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitFor(t, "kick applied", func() bool {
-		b, _ := os.ReadFile(filepath.Join(e.dir, "vol", honeypot.ConfFile))
+		b, _ := os.ReadFile(filepath.Join(e.dir, "config", honeypot.ConfFile))
 		return strings.Contains(string(b), `"rdp.enabled": true`)
 	})
 	e.gate.set(true) // the module is switched off, then the scheduler cancels the job

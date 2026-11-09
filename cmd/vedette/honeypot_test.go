@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/honeypot"
 )
 
@@ -155,13 +157,19 @@ func TestHoneypotReadsTheLogOfTheContainer(t *testing.T) {
 	if code, _ := s.do("PUT", "/honeypot/config", "admin", `{"secondary_ip":"192.168.10.240","hostname":"FILESRV-OLD"}`); code != 200 {
 		t.Fatal(code)
 	}
+	if code, _ := s.do("PATCH", "/honeypot/traps/ssh", "admin", `{"enabled":true}`); code != 200 {
+		t.Fatal(code)
+	}
 	if err := s.d.Honeypot.Apply(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "opencanary.conf")); err != nil {
-		t.Fatalf("no configuration written: %v", err)
+	if _, err := os.Stat(filepath.Join(dir, HoneypotConfigDir, "opencanary.conf")); err != nil {
+		t.Fatalf("no configuration written in the folder of core: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "opencanary.jsonl"), []byte(hpLine(4000, "192.168.10.107", 40000, time.Now(), map[string]any{})+hpLine(4000, "192.168.10.108", 40001, time.Now(), nil)), 0o600); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, HoneypotLogDir), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, HoneypotLogDir, "opencanary.jsonl"), []byte(hpLine(4000, "192.168.10.107", 40000, time.Now(), map[string]any{})+hpLine(4000, "192.168.10.108", 40001, time.Now(), nil)), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.d.Honeypot.Poll(t.Context()); err != nil {
@@ -180,6 +188,55 @@ func TestHoneypotReadsTheLogOfTheContainer(t *testing.T) {
 	slices.Sort(names)
 	if len(items) != 2 || names[0] != "" || names[1] == "" {
 		t.Fatalf("%v: only the known device has a name", names)
+	}
+}
+
+// The decoy addresses the honeypot handed to the host are the box, not devices: the inventory ignores what the sensors
+// see there (the trap answers ARP itself) and the active sensor must not probe them (WP-14 review, CONTRACT open question 2).
+func TestHoneypotDecoyAddressesAreNotDevices(t *testing.T) {
+	t.Parallel()
+	s := newStackWith(t, func(d *deps) { d.HoneypotDir = t.TempDir() })
+	s.saveScope(t)
+	owned := func() bool {
+		for _, a := range s.d.Honeypot.DecoyIPs(t.Context()) {
+			if a.String() == "192.168.10.240" {
+				return true
+			}
+		}
+		return false
+	}
+	if owned() {
+		t.Fatal("setup: the address is owned before the host has it")
+	}
+	s.seen(t, "192.168.10.240", "aa:bb:cc:00:02:40", "pc") // a real device on the address before the traps: a device
+	devices := func() int {
+		l, err := s.d.Inventory.Devices(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(l.Items)
+	}
+	before := devices()
+	// The state the honeypot keeps once the host took the address (a fake host is not wired in cmd/vedette).
+	if err := s.d.DB.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO hp_config (key, value, updated_at, updated_by) VALUES ('applied', '["192.168.10.241"]', '2026-11-09T10:00:00.000Z', 'system')`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	obs := []observe.Observation{{AssetHint: observe.AssetHint{IP: mustAddr(t, "192.168.10.241"), MAC: "02:00:00:00:02:41"}, Field: observe.MAC, Value: "02:00:00:00:02:41", Source: observe.Passive, Confidence: 0.9}}
+	if err := s.d.Inventory.Record(t.Context(), obs); err != nil {
+		t.Fatal(err)
+	}
+	if after := devices(); after != before {
+		t.Fatalf("the answer of the trap itself became a device (%d devices, %d before)", after, before)
+	}
+	prot, err := sensorInventory{s.d.Inventory}.ProtectedIPs(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(prot, mustAddr(t, "192.168.10.241")) {
+		t.Fatalf("a sweep could probe the decoy address: %v", prot)
 	}
 }
 

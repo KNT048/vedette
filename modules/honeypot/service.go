@@ -2,12 +2,12 @@ package honeypot
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/netip"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -27,11 +27,14 @@ type Config struct {
 	Events    Publisher // optional: nil publishes nothing
 	Modules   ModuleGate
 
-	// ConfigDir is the shared volume: opencanary.conf and honeytokens.json go in, the JSON-lines log comes out (D-89).
-	// Empty means the module is not wired to a container: nothing is written, nothing is read, no trap can listen.
+	// ConfigDir is the folder core writes opencanary.conf and honeytokens.json into. It belongs to core: the honeypot
+	// container mounts it read-only (WP-08), and core never reads a file back from it (D-89, amendment of the WP-14 review).
+	// Empty means the module is not wired to a container: nothing is written, no trap can listen.
 	ConfigDir string
-	// LogPath is the OpenCanary log; default ConfigDir/opencanary.jsonl.
-	LogPath string
+	// LogDir is the folder the container writes the JSON-lines log opencanary.jsonl into (writable for the container,
+	// read-only use for core). Everything in it is hostile: core opens the log through os.Root, without following
+	// symlinks and without blocking. Empty means no log is read.
+	LogDir string
 
 	Clock    func() time.Time
 	Log      *slog.Logger
@@ -48,13 +51,17 @@ type Service struct {
 
 	kick chan struct{} // capacity 1: "the state changed, apply it to the host"
 
-	mu   sync.Mutex // guards host and tl
-	host hostCache
-	tl   *tailer
+	mu        sync.Mutex // guards host, tl's counters (copied into stats), stats, lastWarn, hourStart, hourNew
+	host      hostCache
+	tl        *tailer
+	stats     Stats
+	lastWarn  map[string]time.Time
+	hourStart time.Time // the clock hour hourNew counts
+	hourNew   int       // new hits stored in that hour (per-hour cap, ingest.go)
 
-	applyMu sync.Mutex // one Apply at a time
-	pollMu  sync.Mutex // one Poll at a time
-	stats   Stats      // guarded by mu
+	applyMu sync.Mutex                   // one Apply at a time
+	written map[string][sha256.Size]byte // hash of what Apply last wrote to ConfigDir, by file name (guarded by applyMu)
+	pollMu  sync.Mutex                   // one Poll at a time
 }
 
 // New returns the service.
@@ -68,16 +75,13 @@ func New(cfg Config) (*Service, error) {
 	if cfg.Log == nil {
 		cfg.Log = slog.New(slog.DiscardHandler)
 	}
-	if cfg.LogPath == "" && cfg.ConfigDir != "" {
-		cfg.LogPath = filepath.Join(cfg.ConfigDir, defaultLogFile)
-	}
 	if cfg.PollEvery <= 0 {
 		cfg.PollEvery = time.Second
 	}
 	if cfg.MaxLine <= 0 || cfg.MaxLine > MaxLine {
 		cfg.MaxLine = MaxLine
 	}
-	s := &Service{cfg: cfg, db: cfg.DB, kick: make(chan struct{}, 1)}
+	s := &Service{cfg: cfg, db: cfg.DB, kick: make(chan struct{}, 1), written: map[string][sha256.Size]byte{}}
 	s.host.reason = "the host has not been asked yet"
 	return s, nil
 }
@@ -129,6 +133,8 @@ type configRow struct {
 	SecondaryIP string `json:"secondary_ip"`
 	Hostname    string `json:"hostname"`
 }
+
+func (c configRow) has() bool { return c.SecondaryIP != "" }
 
 func loadJSON(ctx context.Context, q querier, key string, out any) error {
 	var raw string
@@ -293,6 +299,25 @@ func (w *world) byIP(ip string) *Device {
 	return w.deviceAt(a)
 }
 
+// ipProblem says why the box must not hand this secondary or decoy address to the host now, "" when it may (INV-5,
+// FORBID-1). The state can change after the address was accepted: a device took it, the box got it, the LAN range
+// changed.
+func (w *world) ipProblem(ip netip.Addr) string {
+	switch {
+	case !ip.IsValid():
+		return "no address"
+	case ip == w.box.IP:
+		return "this is the address of the Vedette box itself"
+	case !w.lan.IsValid():
+		return "no LAN range is declared any more"
+	case !usable(w.lan, ip):
+		return "the address is no longer inside the box's network (" + w.lan.String() + ")"
+	case w.deviceAt(ip) != nil:
+		return "a device of the inventory has this address"
+	}
+	return ""
+}
+
 func (w *world) usedIPs() map[netip.Addr]bool {
 	used := map[netip.Addr]bool{w.secIP: true, w.box.IP: true}
 	for _, d := range w.devices {
@@ -345,6 +370,7 @@ func (s *Service) overview(ctx context.Context, w *world) (Overview, error) {
 		return Overview{}, fmt.Errorf("honeypot: count hits: %w", err)
 	}
 	conflict := w.deviceAt(w.secIP)
+	secConflict := w.secIP.IsValid() && (w.ipProblem(w.secIP) != "" || s.refused(w.secIP) != "")
 	out := Overview{Hostname: w.cfg.Hostname, UpdatedAt: store.FormatTS(now), Traps: make([]Trap, 0, len(Services))}
 	if w.secIP.IsValid() {
 		out.SecondaryIP = ptr(w.secIP.String())
@@ -368,7 +394,7 @@ func (s *Service) overview(ctx context.Context, w *world) (Overview, error) {
 		switch {
 		case !tr.enabled:
 			t.State = StateOff
-		case conflict != nil:
+		case secConflict:
 			t.State = StateConflict
 		case s.listening(svc):
 			t.State = StateListening

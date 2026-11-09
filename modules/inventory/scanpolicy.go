@@ -100,7 +100,8 @@ func afterScope(st Settings, kind string, fragile bool, regular string, hadFirst
 // ProtectedIPs lists the addresses a sweep must not probe, whatever MAC shows up there: the box itself,
 // devices declared by hand, devices with regular_scan=never, and devices that already had their gentle scan and
 // are fragile or unclassified without permission for regular scans (D-45, INV-5; D-84 (M2)). A fragile or
-// unclassified device that has not had its gentle scan yet is not listed: its one gentle scan is the policy's.
+// unclassified device that has not had its gentle scan yet is not listed: its one gentle scan is the policy's. The
+// addresses of Config.BoxOwnedIPs (the decoys of the honeypot) are listed too: they are the box.
 func (s *Service) ProtectedIPs(ctx context.Context) ([]netip.Addr, error) {
 	db := s.db.Reader()
 	st, err := loadSettings(ctx, db)
@@ -127,7 +128,18 @@ func (s *Service) ProtectedIPs(ctx context.Context) ([]netip.Addr, error) {
 			out = append(out, addr)
 		}
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	// The addresses the box answers on besides its own device (the honeypot's decoys) are the box too.
+	if s.boxOwned != nil {
+		for _, a := range s.boxOwned(ctx) {
+			if !slices.Contains(out, a) {
+				out = append(out, a)
+			}
+		}
+	}
+	return out, nil
 }
 
 // MarkFirstScan records that the one gentle scan of a device happened (D-45); later calls change nothing.

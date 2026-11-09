@@ -48,19 +48,26 @@ func TestMigrationsUsePrefix(t *testing.T) {
 	storetest.AssertMigrationsUsePrefix(t, "honeypot", honeypot.Migrations, "hp_", storetest.Migration{Module: "core", FS: core.Migrations})
 }
 
-// INV-1 (code side): the module cannot connect anywhere. It imports no dialer (net, net/http, os/exec, syscall) and never
-// calls Dial; the host is a port. The packet-level proof (no packet leaves the container towards a source) is WP-08's.
+// INV-1 (code side): the module cannot connect anywhere. It imports no dialer (net, net/http, os/exec) and never
+// calls Dial; the host is a port. syscall is imported by tail.go alone, for the open flags O_NOFOLLOW and O_NONBLOCK of
+// the log (the log folder belongs to the container), and nothing else of it is used. The packet-level proof (no packet leaves the container towards a source) is WP-08's.
 // INV-14 / D-82: no signal is sent either: that would need a connection.
 func TestContract_INV1_NoDialer(t *testing.T) {
 	t.Parallel()
-	banned := map[string]bool{"net": true, "net/http": true, "os/exec": true, "syscall": true, "crypto/tls": true, "net/smtp": true}
+	banned := map[string]bool{"net": true, "net/http": true, "os/exec": true, "crypto/tls": true, "net/smtp": true}
 	for name, f := range sources(t) {
 		for _, im := range f.Imports {
-			if p := strings.Trim(im.Path.Value, `"`); banned[p] {
+			p := strings.Trim(im.Path.Value, `"`)
+			if banned[p] || p == "syscall" && name != "tail.go" {
 				t.Errorf("%s imports %s", name, p)
 			}
 		}
 		ast.Inspect(f, func(n ast.Node) bool {
+			if se, ok := n.(*ast.SelectorExpr); ok {
+				if id, ok := se.X.(*ast.Ident); ok && id.Name == "syscall" && se.Sel.Name != "O_NOFOLLOW" && se.Sel.Name != "O_NONBLOCK" {
+					t.Errorf("%s uses syscall.%s", name, se.Sel.Name)
+				}
+			}
 			if c, ok := n.(*ast.CallExpr); ok {
 				if s, ok := c.Fun.(*ast.SelectorExpr); ok && strings.HasPrefix(s.Sel.Name, "Dial") {
 					t.Errorf("%s calls %s", name, s.Sel.Name)
@@ -148,6 +155,30 @@ func checkGolden(t *testing.T, name string, got []byte) {
 	}
 }
 
+// The trap log is bounded: the container rotates it (10 MiB, 3 copies), so a flood of connections cannot fill the file
+// system of the database; the tailer follows the name and notices the rotation.
+func TestRenderConfigBoundsTheTrapLog(t *testing.T) {
+	t.Parallel()
+	b, err := honeypot.RenderConfig(honeypot.ConfigInput{Enabled: []honeypot.ServiceName{honeypot.HTTP}, LogPath: "/x/opencanary.jsonl"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var c struct {
+		Logger struct {
+			Kwargs struct {
+				Handlers map[string]map[string]any `json:"handlers"`
+			} `json:"kwargs"`
+		} `json:"logger"`
+	}
+	if err := json.Unmarshal(b, &c); err != nil {
+		t.Fatal(err)
+	}
+	h := c.Logger.Kwargs.Handlers["file"]
+	if h["class"] != "logging.handlers.RotatingFileHandler" || h["maxBytes"] != float64(10<<20) || h["backupCount"] != float64(3) || h["filename"] != "/x/opencanary.jsonl" {
+		t.Fatalf("trap log handler %v: not a bounded rotating file", h)
+	}
+}
+
 // FORBID-2: the configuration holds no banner of the box itself (host name, box IP, OS) and no secret.
 func TestContract_FORBID2_NoBoxBannerNoSecret(t *testing.T) {
 	t.Parallel()
@@ -161,7 +192,7 @@ func TestContract_FORBID2_NoBoxBannerNoSecret(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, f := range []string{honeypot.ConfFile, honeypot.TokensFile} {
-		b, err := os.ReadFile(filepath.Join(e.dir, "vol", f)) //nolint:gosec // a file of the test directory
+		b, err := os.ReadFile(filepath.Join(e.dir, "config", f)) //nolint:gosec // a file of the test directory
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -372,7 +403,7 @@ func TestContract_INV6_INV7_ConflictStopsListening(t *testing.T) {
 	if !e.host.running || !e.host.ips[addr("192.168.10.240")] {
 		t.Fatalf("host %v %v", e.host.running, e.host.ips)
 	}
-	conf, _ := os.ReadFile(filepath.Join(e.dir, "vol", honeypot.ConfFile))
+	conf, _ := os.ReadFile(filepath.Join(e.dir, "config", honeypot.ConfFile))
 	if !strings.Contains(string(conf), `"ssh.enabled": true`) || !strings.Contains(string(conf), `"rdp.enabled": false`) {
 		t.Fatalf("conf: %s", conf)
 	}
@@ -393,7 +424,7 @@ func TestContract_INV6_INV7_ConflictStopsListening(t *testing.T) {
 	if e.host.running || e.host.ips[addr("192.168.10.240")] {
 		t.Fatalf("still listening on a device's IP: %v %v", e.host.running, e.host.ips)
 	}
-	conf, _ = os.ReadFile(filepath.Join(e.dir, "vol", honeypot.ConfFile))
+	conf, _ = os.ReadFile(filepath.Join(e.dir, "config", honeypot.ConfFile))
 	if strings.Contains(string(conf), `": true`) {
 		t.Fatalf("config enables a service on a device IP: %s", conf)
 	}
@@ -427,7 +458,7 @@ func TestContract_INV7_NotAnApplianceNeverListens(t *testing.T) {
 		t.Fatalf("host was asked to act: %v", calls)
 	}
 	// the files are still made from the database
-	if _, err := os.Stat(filepath.Join(e.dir, "vol", honeypot.ConfFile)); err != nil {
+	if _, err := os.Stat(filepath.Join(e.dir, "config", honeypot.ConfFile)); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -585,8 +616,8 @@ func TestContract_INV10_POST2_POST4_Tokens(t *testing.T) {
 	e := newEnv(t)
 	e.setup()
 	cred, err := e.svc.AddToken(e.ctx(), "a", honeypot.TokenInput{Type: honeypot.TokenCredential, Name: "svc-backup-old", PlantAt: "Password manager"})
-	if err != nil || cred.Password == nil || *cred.Password == "" || cred.Value != "svc-backup-old" {
-		t.Fatalf("%+v %v", cred, err)
+	if err != nil || cred.Password == nil || *cred.Password == "" || !regexp.MustCompile(`^svc_[a-z]{6}$`).MatchString(cred.Value) {
+		t.Fatalf("%+v %v: the bait account is generated (svc_ and six letters), not the display name of the token", cred, err)
 	}
 	file, err := e.svc.AddToken(e.ctx(), "a", honeypot.TokenInput{Type: honeypot.TokenFile, Name: "Payroll 2026", PlantAt: `\\SRV\HR`, Ext: "xlsx"})
 	if err != nil || file.Password != nil || file.Value != "Payroll-2026.xlsx" {
@@ -612,7 +643,7 @@ func TestContract_INV10_POST2_POST4_Tokens(t *testing.T) {
 	src := "192.168.10.157"
 	e.appendLog(
 		sshNew(src, 5000, t0).json(),
-		sshLogin(src, 5000, t0.Add(time.Second), "SVC-Backup-Old").json(),
+		sshLogin(src, 5000, t0.Add(time.Second), strings.ToUpper(cred.Value)).json(),
 		ln{LogType: 5000, Src: src, Dst: "192.168.10.240", DstPort: 445, At: t0.Add(time.Minute), Data: map[string]any{"FILENAME": `HR\Payroll-2026.xlsx`, "USER": "x"}}.json(),
 	)
 	e.poll()
@@ -647,7 +678,8 @@ func TestContract_INV10_POST2_POST4_Tokens(t *testing.T) {
 	if e.count(`SELECT count(*) FROM core_secret WHERE purpose = 'hp_token.password'`) != 0 {
 		t.Fatal("secret kept")
 	}
-	e.appendLog(sshLogin(src, 6000, t0.Add(time.Hour), "svc-backup-old").json())
+	e.now = t0.Add(time.Hour)
+	e.appendLog(sshLogin(src, 6000, e.now, cred.Value).json())
 	e.poll()
 	if n := e.count(`SELECT count(*) FROM hp_hits WHERE kind = 'token'`); n != 2 {
 		t.Fatalf("%d token hits after delete, want the 2 old ones", n)

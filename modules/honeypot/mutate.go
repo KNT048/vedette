@@ -15,8 +15,9 @@ import (
 
 const secretPurpose = "hp_token.password"
 
-// maxDecoys is the limit of the host (host-api 6.6): a decoy past it could not get its IP.
-const maxDecoys = 32
+// maxHostIPs is the limit of the host (host-api 6.6): it holds at most this many decoy addresses, the secondary IP
+// among them, so the decoys can be 31 when the secondary IP is set.
+const maxHostIPs = 32
 
 func bad(code, msg string) error         { return apierr.New(400, code, msg) }
 func conflictErr(code, msg string) error { return apierr.New(409, code, msg) }
@@ -104,6 +105,15 @@ func (s *Service) SetConfig(ctx context.Context, actor, ipRaw, hostname string) 
 		if n > 0 {
 			return conflictErr("ip_in_use", fmt.Sprintf("IP %s is already used by a decoy.", ip))
 		}
+		var cur configRow
+		if err := loadJSON(ctx, tx, "config", &cur); err != nil {
+			return err
+		}
+		if !cur.has() { // the secondary IP is new: it takes one of the host's addresses
+			if err := checkHostLimit(ctx, tx, 1); err != nil {
+				return err
+			}
+		}
 		if err := s.saveJSON(ctx, tx, "config", configRow{SecondaryIP: ip.String(), Hostname: hostname}, actor); err != nil {
 			return err
 		}
@@ -131,6 +141,10 @@ func (s *Service) SetTrap(ctx context.Context, actor string, svc ServiceName, en
 		}
 		if d := w.deviceAt(w.secIP); d != nil {
 			return Overview{}, conflictErr("ip_in_use", fmt.Sprintf("The secondary IP %s clashes with device %s. Change the secondary IP before turning a trap on.", w.secIP, d.Name))
+		}
+		// The box may have taken the address, or the LAN range changed, since the IP was accepted (INV-5, FORBID-1).
+		if _, err := checkIP(w, w.secIP.String(), secondary); err != nil {
+			return Overview{}, err
 		}
 	}
 	action := "honeypot.trap_disable"
@@ -183,14 +197,6 @@ func (s *Service) AddDecoy(ctx context.Context, actor string, in DecoyInput) (De
 	if err != nil {
 		return Decoy{}, err
 	}
-	if ip == w.secIP {
-		return Decoy{}, conflictErr("ip_in_use", fmt.Sprintf("IP %s is already used by another decoy.", ip))
-	}
-	for _, d := range w.decoys {
-		if d.ip == ip {
-			return Decoy{}, conflictErr("ip_in_use", fmt.Sprintf("IP %s is already used by another decoy.", ip))
-		}
-	}
 	name := strings.TrimSpace(in.Name)
 	if !validHostname(name) {
 		return Decoy{}, bad("bad_hostname", "The decoy name may only contain letters, digits and hyphens, up to 15 characters, not all digits, and must not start or end with a hyphen. Example PRN-FLOOR2.")
@@ -202,11 +208,19 @@ func (s *Service) AddDecoy(ctx context.Context, actor string, in DecoyInput) (De
 	if taken {
 		return Decoy{}, conflictErr("hostname_in_use", fmt.Sprintf("The name %s is already used by a device or another decoy.", name))
 	}
-	if len(w.decoys) >= maxDecoys {
-		return Decoy{}, conflictErr("limit_reached", fmt.Sprintf("The box can hold %d decoys. Delete one before adding another.", maxDecoys))
-	}
 	d := Decoy{ID: store.NewID("dec"), Personality: in.Personality, Name: name, IP: ip.String(), Enabled: true, CreatedAt: store.FormatTS(s.now()), Services: personalityServices(in.Personality)}
 	err = s.db.Write(ctx, func(tx *sql.Tx) error {
+		// The checks that depend on the stored state run in the transaction that writes, so two requests cannot both pass.
+		var cur configRow
+		if err := loadJSON(ctx, tx, "config", &cur); err != nil {
+			return err
+		}
+		if cur.SecondaryIP == ip.String() {
+			return conflictErr("ip_in_use", fmt.Sprintf("IP %s is already used by another decoy.", ip))
+		}
+		if err := checkHostLimit(ctx, tx, 1); err != nil {
+			return err
+		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO hp_decoys (id, personality, name, ip, enabled, created_at) VALUES (?, ?, ?, ?, 1, ?)`,
 			d.ID, string(d.Personality), d.Name, d.IP, d.CreatedAt); err != nil {
 			if store.IsUniqueViolation(err) {
@@ -221,6 +235,26 @@ func (s *Service) AddDecoy(ctx context.Context, actor string, in DecoyInput) (De
 	}
 	s.Kick()
 	return d, nil
+}
+
+// checkHostLimit refuses when adding add more addresses (secondary IP and decoys together) would pass what the host
+// holds (host-api 6.6: 32). It reads the stored state through q, a transaction when called before a write.
+func checkHostLimit(ctx context.Context, q querier, add int) error {
+	var cfg configRow
+	if err := loadJSON(ctx, q, "config", &cfg); err != nil {
+		return err
+	}
+	var n int
+	if err := q.QueryRowContext(ctx, `SELECT count(*) FROM hp_decoys`).Scan(&n); err != nil {
+		return fmt.Errorf("honeypot: count decoys: %w", err)
+	}
+	if cfg.has() {
+		n++
+	}
+	if n+add > maxHostIPs {
+		return conflictErr("limit_reached", fmt.Sprintf("The box can hold %d addresses for traps, the secondary IP included. Delete a decoy before adding another.", maxHostIPs))
+	}
+	return nil
 }
 
 // SetDecoyEnabled is PATCH /honeypot/decoys/{id}.
@@ -290,8 +324,9 @@ func randText(n int, alphabet string) (string, error) {
 }
 
 const (
-	lower = "abcdefghijklmnopqrstuvwxyz0123456789"
-	upper = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	letters = "abcdefghijklmnopqrstuvwxyz"
+	lower   = "abcdefghijklmnopqrstuvwxyz0123456789"
+	upper   = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 )
 
 type tokenRow struct {
@@ -335,10 +370,11 @@ func (s *Service) Tokens(ctx context.Context) ([]Token, error) {
 		t := r.Token
 		if r.secretID != "" {
 			pw, err := s.cfg.Secrets.Open(ctx, s.db.Reader(), r.secretID, secretPurpose)
-			if err != nil {
-				return nil, fmt.Errorf("honeypot: open bait password: %w", err)
+			if err != nil { // one stored secret that cannot be opened (wrong key, damaged row) must not hide the other tokens
+				s.cfg.Log.ErrorContext(ctx, "honeypot: open bait password", "token", r.ID, "error", err)
+			} else {
+				t.Password = ptr(string(pw))
 			}
-			t.Password = ptr(string(pw))
 		}
 		out = append(out, t)
 	}
@@ -388,7 +424,13 @@ func (s *Service) AddToken(ctx context.Context, actor string, in TokenInput) (To
 	case TokenFile:
 		value = strings.Join(strings.Fields(name), "-") + "." + in.Ext
 	case TokenCredential:
-		value = strings.ToLower(strings.Join(strings.Fields(name), "-"))
+		// The bait account is a generated, plausible service account (svc_ plus six letters), never the display name of the
+		// token and never a common one like admin: ordinary brute force does not fire it, only a stolen list does (D-90 (3)).
+		acct, err := randText(6, letters)
+		if err != nil {
+			return Token{}, err
+		}
+		value = "svc_" + acct
 		a, err1 := randText(4, lower)
 		b, err2 := randText(6, upper)
 		if err := errors.Join(err1, err2); err != nil {

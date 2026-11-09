@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"log/slog"
 	"maps"
-	"net/netip"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
@@ -50,10 +49,11 @@ type deps struct {
 	// DataDir is core_data, the directory of the database file; KeyPath the master key file: both feed the snapshots of host-api 6.11.
 	HostSocket, DataDir, KeyPath string
 	// Hosts are the names and addresses the box answers to (-hosts or the certificate): the IP literals among them are the box itself
-	// for core/conn (D-94). HostNet asks vedette-host for every address of the appliance's cards and its decoys (host-api state/net,
-	// as single-address prefixes); nil when this install has no host. conn, sensor-active and the honeypot's box address share it.
+	// for core/conn (D-94). HostNet is the one cached provider of every address vedette-host reports for the appliance's interfaces and its decoys
+	// (host-api state/net, as single-address prefixes); nil when this install has no host. conn, sensor-active and the honeypot's box
+	// address share it, so they agree and a host that blinks does not make the box vanish from one of them.
 	Hosts   []string
-	HostNet func(ctx context.Context) ([]netip.Prefix, error)
+	HostNet *hostNetCache
 
 	// Module services other modules use through their own ports (issue #38, #39). Built once in serve,
 	// after the fields above, so every handler, job and subscriber shares one instance.

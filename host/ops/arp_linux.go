@@ -39,7 +39,9 @@ func dialARP(iface string) (arpSocket, error) {
 	if len(ifc.HardwareAddr) != 6 {
 		return nil, fmt.Errorf("ops: interface %s has no Ethernet address", iface)
 	}
-	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_CLOEXEC, int(htons(unix.ETH_P_ARP)))
+	// Protocol 0: the socket receives nothing until bind sets the protocol and the card in one step, so no
+	// frame of any other card (the SPAN card mirrors a whole network) is queued before it is bound.
+	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_CLOEXEC, 0)
 	if err != nil {
 		return nil, fmt.Errorf("ops: open packet socket: %w", err)
 	}
@@ -73,7 +75,7 @@ func (s *packetARP) Recv(wait time.Duration) ([]byte, error) {
 	if err := unix.SetsockoptTimeval(s.fd, unix.SOL_SOCKET, unix.SO_RCVTIMEO, &tv); err != nil {
 		return nil, err
 	}
-	buf := make([]byte, 2*arpWireMax) // a longer frame arrives longer than arpWireMax and is refused by arpFrameOf
+	buf := make([]byte, arpReadBuf) // a longer frame is cut by the kernel; arpFrameOf reads its first 42 bytes only
 	n, from, err := unix.Recvfrom(s.fd, buf, 0)
 	switch {
 	case errors.Is(err, unix.EAGAIN), errors.Is(err, unix.EINTR):
@@ -81,8 +83,9 @@ func (s *packetARP) Recv(wait time.Duration) ([]byte, error) {
 	case err != nil:
 		return nil, err
 	}
-	if ll, ok := from.(*unix.SockaddrLinklayer); ok && ll.Pkttype == unix.PACKET_OUTGOING {
-		return nil, nil // our own frame, looped back by the packet socket
+	ll, ok := from.(*unix.SockaddrLinklayer)
+	if !ok || !arpFromCard(ll.Ifindex, s.index, ll.Pkttype == unix.PACKET_OUTGOING) {
+		return nil, nil // our own frame looped back, or a frame of another card: ignored
 	}
 	return buf[:n], nil
 }

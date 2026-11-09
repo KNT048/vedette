@@ -121,9 +121,16 @@ func TestContract_INV18_OnlyTheARPSocketTouchesTheWire(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(src)
-	if strings.Count(s, "unix.Socket(") != 1 || !strings.Contains(s, "unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_CLOEXEC, int(htons(unix.ETH_P_ARP))") ||
+	// The socket is created with protocol 0, so nothing is queued before bind sets the protocol and the card in one step (a SPAN card
+	// mirrors a whole network's ARP), and every frame is checked again against the card's index.
+	if strings.Count(s, "unix.Socket(") != 1 || !strings.Contains(s, "unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_CLOEXEC, 0)") ||
 		!strings.Contains(s, "Protocol: htons(unix.ETH_P_ARP), Ifindex: ifc.Index") {
-		t.Fatal("arp_linux.go must open exactly one packet socket, bound to ETH_P_ARP and to one interface")
+		t.Fatal("arp_linux.go must open exactly one packet socket with protocol 0 and bind it to ETH_P_ARP and one interface")
+	}
+	recv := s[strings.Index(s, "func (s *packetARP) Recv"):]
+	recv = recv[:strings.Index(recv, "\n}\n")]
+	if !strings.Contains(recv, "arpFromCard(ll.Ifindex, s.index") {
+		t.Fatal("Recv must drop every frame whose Ifindex is not the card's")
 	}
 	for _, bad := range []string{"SetsockoptPacketMreq", "PACKET_MR_PROMISC", "SO_ATTACH", "ETH_P_ALL"} {
 		if strings.Contains(s, bad) {
@@ -146,7 +153,8 @@ func filepathWalkGo(root string, f func(path, src string)) error {
 	})
 }
 
-// The netplan binary of the runner takes one argv shape in this slice, and "apply" is not it (slice 3-4).
+// The grammar for netplan is "generate --root-dir <dir>" and nothing else; production registers no netplan argv at all in this
+// slice (TestProductionRunnerHasNoNetplan in host/ops), and "apply" joins with slice 3-4.
 func TestContract_Net_NetplanArgvIsTheFixedGrammar(t *testing.T) {
 	t.Parallel()
 	if err := ops.ValidateNetplan([]string{"generate", "--root-dir", "/tmp/x/y"}); err != nil {

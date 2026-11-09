@@ -130,15 +130,99 @@ func TestProbeConflictOnAnyARPFromTheAddress(t *testing.T) {
 func TestProbeIgnoresOurOwnMACAndOtherHostsAndGarbage(t *testing.T) {
 	t.Parallel()
 	s := &fakeSock{mac: macA}
-	s.push(reply(macA, probed, gwIP))                                                                                          // our own frame looped back
-	s.push(reply(macB, gwIP, probed))                                                                                          // another host, another address
-	s.push(encodeARP(macB, arpPacket{Op: arpOpRequest, SenderMAC: macB, SenderIP: netip.IPv4Unspecified(), TargetIP: probed})) // someone else probing: not an answer
-	s.push([]byte{1, 2, 3})                                                                                                    // junk
-	s.push(nil)                                                                                                                // a frame the socket said to ignore
-	s.push(append(reply(macB, probed, gwIP), make([]byte, 100)...))                                                            // too long
+	s.push(reply(macA, probed, gwIP)) // our own frame looped back
+	s.push(reply(macB, gwIP, probed)) // another host, another address
+	s.push([]byte{1, 2, 3})           // junk
+	s.push(nil)                       // a frame the socket said to ignore
 	res, err := fastProber(s).Probe(context.Background(), "eth0", probed)
 	if err != nil || res.Conflict {
 		t.Fatalf("%+v %v", res, err)
+	}
+}
+
+// A conflicting host whose card delivers a longer frame (FCS kept, a trailer) is still seen: refusing long frames
+// would make the probe say "free" for an address in use.
+func TestProbeSeesAConflictInALongerFrame(t *testing.T) {
+	t.Parallel()
+	for _, extra := range []int{22, 100, 1000} {
+		s := &fakeSock{mac: macA}
+		s.push(append(reply(macB, probed, gwIP), make([]byte, extra)...))
+		res, err := fastProber(s).Probe(context.Background(), "eth0", probed)
+		if err != nil || !res.Conflict {
+			t.Fatalf("a %d-byte ARP reply from the probed address was ignored: %+v %v", 42+extra, res, err)
+		}
+	}
+}
+
+// RFC 5227 2.1.1: another host probing the same address during our probe is a conflict too.
+func TestProbeConflictWhenAnotherHostProbesTheSameAddress(t *testing.T) {
+	t.Parallel()
+	s := &fakeSock{mac: macA}
+	s.push(probeFrame(macB, probed))
+	res, err := fastProber(s).Probe(context.Background(), "eth0", probed)
+	if err != nil || !res.Conflict || res.MAC != "02:00:00:00:00:0b" {
+		t.Fatalf("%+v %v", res, err)
+	}
+}
+
+func TestProbeConflictDecision(t *testing.T) {
+	t.Parallel()
+	other := netip.MustParseAddr("192.168.10.77")
+	cases := []struct {
+		name string
+		k    arpPacket
+		want bool
+	}{
+		{"reply from the address", arpPacket{Op: arpOpReply, SenderMAC: macB, SenderIP: probed, TargetIP: other}, true},
+		{"request from the address", arpPacket{Op: arpOpRequest, SenderMAC: macB, SenderIP: probed, TargetIP: other}, true},
+		{"another host probes the address", arpPacket{Op: arpOpRequest, SenderMAC: macB, SenderIP: netip.IPv4Unspecified(), TargetIP: probed}, true},
+		{"our own probe looped back", arpPacket{Op: arpOpRequest, SenderMAC: macA, SenderIP: netip.IPv4Unspecified(), TargetIP: probed}, false},
+		{"another host probes another address", arpPacket{Op: arpOpRequest, SenderMAC: macB, SenderIP: netip.IPv4Unspecified(), TargetIP: other}, false},
+		{"a reply to a 0.0.0.0 probe is not a probe", arpPacket{Op: arpOpReply, SenderMAC: macB, SenderIP: netip.IPv4Unspecified(), TargetIP: probed}, false},
+		{"another address talking", arpPacket{Op: arpOpRequest, SenderMAC: macB, SenderIP: other, TargetIP: probed}, false},
+	}
+	for _, c := range cases {
+		if got := probeConflict(c.k, macA, probed); got != c.want {
+			t.Errorf("%s: %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+// Only a reply from the gateway's address, addressed to our source address, answers the gateway check.
+func TestGatewayCheckAcceptsOnlyAReplyToUs(t *testing.T) {
+	t.Parallel()
+	other := netip.MustParseAddr("192.168.10.77")
+	for name, f := range map[string][]byte{
+		"the gateway's own request":     encodeARP(macB, arpPacket{Op: arpOpRequest, SenderMAC: macB, SenderIP: gwIP, TargetIP: other}),
+		"the gateway's reply to a peer": reply(macB, gwIP, other),
+		"a gratuitous request":          encodeARP(macB, arpPacket{Op: arpOpRequest, SenderMAC: macB, SenderIP: gwIP, TargetIP: gwIP}),
+		"a reply from our own MAC":      reply(macA, gwIP, probed),
+		"a reply from another address":  reply(macB, other, probed),
+	} {
+		s := &fakeSock{mac: macA}
+		s.push(f)
+		if err := fastProber(s).GatewayCheck(context.Background(), "eth0", probed, gwIP); !errors.Is(err, ErrGatewaySilent) {
+			t.Errorf("%s answered the gateway check: %v", name, err)
+		}
+	}
+	s := &fakeSock{mac: macA}
+	s.push(reply(macB, gwIP, probed))
+	if err := fastProber(s).GatewayCheck(context.Background(), "eth0", probed, gwIP); err != nil {
+		t.Fatalf("the gateway's reply to us was refused: %v", err)
+	}
+}
+
+// The socket is bound to one card; a frame that arrives on another card's index, or one we sent, is dropped.
+func TestARPFromCard(t *testing.T) {
+	t.Parallel()
+	if !arpFromCard(3, 3, false) {
+		t.Error("a frame of our card was dropped")
+	}
+	if arpFromCard(4, 3, false) {
+		t.Error("a frame of another card (the SPAN mirror) was kept")
+	}
+	if arpFromCard(3, 3, true) {
+		t.Error("our own outgoing frame was kept")
 	}
 }
 

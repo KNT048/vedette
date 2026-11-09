@@ -1,11 +1,11 @@
 package ops
 
-// Independent security review of slice 3-3 (feat/host-net-read). These tests pass while the netplan
-// renderer is sound and fail on a real defect: a value that changes the YAML structure, a scalar a
-// YAML reader takes for another type, or a configuration that does not read back as itself.
+// Properties of the netplan renderer: a value never changes the YAML structure, a scalar a YAML reader takes for
+// another type is quoted, and every configuration reads back as itself.
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"math/rand/v2"
 	"net/netip"
@@ -21,7 +21,7 @@ import (
 )
 
 // Names that a YAML 1.1 or 1.2 reader resolves to something other than a string when they are plain.
-var reviewTrickyNames = []string{
+var trickyNames = []string{
 	"on", "off", "yes", "no", "y", "n", "Y", "N", "ON", "Off", "NO", "true", "False", "null", "Null", "NULL",
 	"0755", "0o17", "0b101", "0x1F", "1_000", "1e3", "1E3", "1.5", "1.", "123", "0", "00", "nan", "NaN", "inf", "Inf",
 	"Infinity", "2001-12-14", "2001-12-14t21", "1-2", "a.b", "a@b", "a_b", "x..", "eth0@if5",
@@ -29,9 +29,9 @@ var reviewTrickyNames = []string{
 
 // Every tricky name, as an interface, a SPAN card and a search domain, is quoted so that a generic YAML
 // decoder sees the same string, and the file reads back as exactly the typed configuration.
-func TestReviewNetplanQuotesEveryYAML11Scalar(t *testing.T) {
+func TestNetplanQuotesEveryYAML11Scalar(t *testing.T) {
 	t.Parallel()
-	for _, n := range reviewTrickyNames {
+	for _, n := range trickyNames {
 		c := staticCfg()
 		c.Mgmt.Iface = n
 		c.SPAN = "span0"
@@ -46,7 +46,7 @@ func TestReviewNetplanQuotesEveryYAML11Scalar(t *testing.T) {
 			}
 			continue
 		}
-		reviewGenericShape(t, out, c)
+		genericShape(t, out, c)
 		back, err := parseNetplan(out)
 		if err != nil {
 			t.Errorf("%q: not read back: %v\n%s", n, err, out)
@@ -58,9 +58,9 @@ func TestReviewNetplanQuotesEveryYAML11Scalar(t *testing.T) {
 	}
 }
 
-// reviewGenericShape decodes the rendered text into untyped YAML and checks the structure: exactly the
+// genericShape decodes the rendered text into untyped YAML and checks the structure: exactly the
 // keys the host meant, every interface key a string equal to the name, every search domain a string.
-func reviewGenericShape(t *testing.T, out []byte, c NetplanConfig) {
+func genericShape(t *testing.T, out []byte, c NetplanConfig) {
 	t.Helper()
 	var n yaml.Node
 	if err := yaml.Unmarshal(out, &n); err != nil {
@@ -117,7 +117,7 @@ func reviewGenericShape(t *testing.T, out []byte, c NetplanConfig) {
 }
 
 // Unicode separators, BOM, NEL, invalid UTF-8, control bytes and over-long values never render.
-func TestReviewNetplanRefusesUnicodeAndLongValues(t *testing.T) {
+func TestNetplanRefusesUnicodeAndLongValues(t *testing.T) {
 	t.Parallel()
 	evil := []string{
 		"eth0\u2028x", "eth0\u2029x", "eth0\u0085x", "\ufeffeth0", "eth0\ufeff", "eth\u00a0", "eth0\x7f", "eth0\x1b",
@@ -140,24 +140,30 @@ func TestReviewNetplanRefusesUnicodeAndLongValues(t *testing.T) {
 
 // Round-trip property: random valid configurations render, read back to the same typed values, and
 // re-render to the same bytes; the generic YAML shape matches the typed values.
-func TestReviewNetplanRoundTripProperty(t *testing.T) {
+func TestNetplanRoundTripProperty(t *testing.T) {
 	t.Parallel()
-	r := rand.New(rand.NewPCG(3, 3))
+	r := rand.New(rand.NewPCG(3, 3)) //nolint:gosec // a fixed seed: a reproducible test, not a secret
 	alpha := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	tail := alpha + "_.@-"
-	name := func(max int) string {
+	name := func(maxLen int) string {
 		if r.IntN(4) == 0 {
-			return reviewTrickyNames[r.IntN(len(reviewTrickyNames))]
+			return trickyNames[r.IntN(len(trickyNames))]
 		}
 		b := []byte{alpha[r.IntN(len(alpha))]}
-		for range r.IntN(max) {
+		for range r.IntN(maxLen) {
 			b = append(b, tail[r.IntN(len(tail))])
 		}
 		return string(b)
 	}
+	rbytes := func() (b [16]byte) {
+		binary.LittleEndian.PutUint64(b[:8], r.Uint64())
+		binary.LittleEndian.PutUint64(b[8:], r.Uint64())
+		return b
+	}
 	addr4 := func() netip.Addr {
 		for {
-			a := netip.AddrFrom4([4]byte{byte(1 + r.IntN(222)), byte(r.IntN(256)), byte(r.IntN(256)), byte(r.IntN(256))})
+			rb := rbytes()
+			a := netip.AddrFrom4([4]byte{1 + rb[0]%222, rb[1], rb[2], rb[3]})
 			if unicast4(a) {
 				return a
 			}
@@ -174,7 +180,7 @@ func TestReviewNetplanRoundTripProperty(t *testing.T) {
 			c.Mgmt.Address = netip.PrefixFrom(addr4(), 8+r.IntN(23))
 			if r.IntN(2) == 0 {
 				m := c.Mgmt.Address.Masked().Addr().As4()
-				m[3] |= byte(1 + r.IntN(2)) // usually a host address of the subnet
+				m[3] |= 1 + rbytes()[0]%2 // usually a host address of the subnet
 				c.Mgmt.Gateway = netip.AddrFrom4(m)
 			}
 		}
@@ -182,11 +188,8 @@ func TestReviewNetplanRoundTripProperty(t *testing.T) {
 			if r.IntN(2) == 0 {
 				c.Mgmt.DNS = append(c.Mgmt.DNS, addr4())
 			} else {
-				var b [16]byte
+				b := rbytes()
 				b[0] = 0x20
-				for i := 1; i < 16; i++ {
-					b[i] = byte(r.IntN(256))
-				}
 				c.Mgmt.DNS = append(c.Mgmt.DNS, netip.AddrFrom16(b))
 			}
 		}
@@ -205,7 +208,7 @@ func TestReviewNetplanRoundTripProperty(t *testing.T) {
 			continue // invalid by the rules (gateway outside the subnet, same card twice...)
 		}
 		tried++
-		reviewGenericShape(t, out, c)
+		genericShape(t, out, c)
 		back, err := parseNetplan(out)
 		if err != nil {
 			t.Fatalf("rendered text not read back: %v\n%+v\n%s", err, c, out)
@@ -242,7 +245,7 @@ func TestReviewNetplanRoundTripProperty(t *testing.T) {
 
 // parseNetplan's read path is bounded before the read: a file far over the cap is not read whole.
 // (readNetplanFile reads through LimitReader(maxNetplan+1); this pins that a 10 MiB file is refused.)
-func TestReviewReadNetplanFileIsBounded(t *testing.T) {
+func TestReadNetplanFileIsBounded(t *testing.T) {
 	t.Parallel()
 	o, root := newNetOps(t)
 	good, _ := renderNetplan(staticCfg())

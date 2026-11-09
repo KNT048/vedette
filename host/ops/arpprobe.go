@@ -48,6 +48,13 @@ type arpSocket interface {
 
 var errRecvTimeout = errors.New("ops: arp receive timeout")
 
+// arpFromCard reports whether a frame read from a packet socket belongs to the card the socket is
+// for: not one the host sent itself (looped back by the packet socket) and received on that card's
+// index. The socket is bound to one card, but this is checked again for every frame.
+func arpFromCard(gotIndex, wantIndex int, outgoing bool) bool {
+	return !outgoing && gotIndex == wantIndex
+}
+
 // recvSlice bounds one blocking read, so a cancelled context is noticed within this time.
 const recvSlice = 250 * time.Millisecond
 
@@ -105,8 +112,18 @@ func (p *arpProber) open(iface string) (arpSocket, error) {
 	return p.dial(iface)
 }
 
-// Probe implements Prober. Any ARP frame whose sender IP is the probed address, from a MAC other
-// than the box's own, is a conflict.
+// probeConflict is the RFC 5227 test of one frame during our probe: another host (not our MAC)
+// that uses the address as its sender IP, or that is itself probing it (sender 0.0.0.0, a request
+// whose target is the address, section 2.1.1).
+func probeConflict(k arpPacket, mine [6]byte, ip netip.Addr) bool {
+	if k.SenderMAC == mine {
+		return false
+	}
+	return k.SenderIP == ip || (k.Op == arpOpRequest && k.SenderIP.IsUnspecified() && k.TargetIP == ip)
+}
+
+// Probe implements Prober. Any ARP frame whose sender IP is the probed address, or a probe of the
+// same address, from a MAC other than the box's own, is a conflict.
 func (p *arpProber) Probe(ctx context.Context, iface string, ip netip.Addr) (ProbeResult, error) {
 	if !ip.Is4() {
 		return ProbeResult{}, errors.New("ops: only IPv4 addresses are probed")
@@ -129,7 +146,7 @@ func (p *arpProber) Probe(ctx context.Context, iface string, ip netip.Addr) (Pro
 		if i == p.probes-1 {
 			wait = p.wait
 		}
-		pk, hit, err := p.listen(ctx, s, wait, func(k arpPacket) bool { return k.SenderIP == ip && k.SenderMAC != mac })
+		pk, hit, err := p.listen(ctx, s, wait, func(k arpPacket) bool { return probeConflict(k, mac, ip) })
 		if err != nil {
 			return ProbeResult{}, err
 		}
@@ -140,8 +157,9 @@ func (p *arpProber) Probe(ctx context.Context, iface string, ip netip.Addr) (Pro
 	return ProbeResult{}, nil
 }
 
-// GatewayCheck implements Prober: any ARP frame from the gateway's address (not from the box's own
-// MAC) answers, whether a reply to our request or its own.
+// GatewayCheck implements Prober: only an ARP reply from the gateway's address, addressed to our
+// source address and not from the box's own MAC, answers. A request or an announcement from the
+// gateway, or a reply meant for another host, proves nothing about our own path.
 func (p *arpProber) GatewayCheck(ctx context.Context, iface string, src, gw netip.Addr) error {
 	if !src.Is4() || !gw.Is4() {
 		return errors.New("ops: the gateway check is IPv4 only")
@@ -161,7 +179,9 @@ func (p *arpProber) GatewayCheck(ctx context.Context, iface string, src, gw neti
 		if err := s.Send(frame); err != nil {
 			return fmt.Errorf("ops: send ARP request: %w", err)
 		}
-		_, hit, err := p.listen(ctx, s, min(p.gwEvery, time.Until(end)), func(k arpPacket) bool { return k.SenderIP == gw && k.SenderMAC != mac })
+		_, hit, err := p.listen(ctx, s, min(p.gwEvery, time.Until(end)), func(k arpPacket) bool {
+			return k.Op == arpOpReply && k.SenderIP == gw && k.TargetIP == src && k.SenderMAC != mac
+		})
 		if err != nil {
 			return err
 		}

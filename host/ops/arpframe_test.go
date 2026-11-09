@@ -77,21 +77,22 @@ func TestParseARPRefusesEveryOtherShape(t *testing.T) {
 	}
 }
 
-func TestARPFrameOfAcceptsWirePadding(t *testing.T) {
+// A frame of 42 bytes or more is read from its first 42 bytes: Ethernet padding to 60, an FCS the card keeps
+// (64 bytes), a vendor trailer. The rest is never looked at, and the cut never depends on what it holds.
+func TestARPFrameOfReadsOnlyTheFirst42BytesOfAnyLongerFrame(t *testing.T) {
 	t.Parallel()
 	good := requestFrame(macA, netip.MustParseAddr("10.0.0.2"), netip.MustParseAddr("10.0.0.1"))
-	padded := append(bytes.Clone(good), bytes.Repeat([]byte{0xAA}, 18)...) // 60 bytes: the Ethernet minimum, padding with leaked bytes
-	f, ok := arpFrameOf(padded)
-	if !ok || !bytes.Equal(f, good) {
-		t.Fatalf("a padded frame was not cut to the 42 bytes: %v %x", ok, f)
+	for _, n := range []int{42, 46, 60, 64, 100, 1500, arpReadBuf} {
+		raw := append(bytes.Clone(good), bytes.Repeat([]byte{0xAA}, n-42)...)
+		f, ok := arpFrameOf(raw)
+		if !ok || !bytes.Equal(f, good) {
+			t.Errorf("a %d-byte frame was not cut to its 42 bytes: %v %x", n, ok, f)
+		}
 	}
-	for _, n := range []int{0, 1, 41, 61, 100, 1500} {
+	for _, n := range []int{0, 1, 41} {
 		if _, ok := arpFrameOf(make([]byte, n)); ok {
 			t.Errorf("a %d-byte frame was accepted", n)
 		}
-	}
-	if f, ok := arpFrameOf(good); !ok || len(f) != 42 {
-		t.Error("an exact 42-byte frame was refused")
 	}
 }
 
@@ -102,8 +103,11 @@ func FuzzParseARP(f *testing.F) {
 	f.Add([]byte{})
 	f.Add(make([]byte, 60))
 	f.Fuzz(func(t *testing.T, b []byte) {
-		if fr, ok := arpFrameOf(b); ok && len(fr) != arpFrameLen {
+		if fr, ok := arpFrameOf(b); ok && (len(fr) != arpFrameLen || !bytes.Equal(fr, b[:arpFrameLen])) {
 			t.Fatalf("arpFrameOf returned %d bytes", len(fr))
+		}
+		if _, ok := arpFrameOf(b); ok != (len(b) >= arpFrameLen) {
+			t.Fatalf("arpFrameOf(%d bytes) = %v", len(b), ok)
 		}
 		p, err := parseARP(b)
 		if err != nil {

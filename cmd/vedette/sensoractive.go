@@ -142,7 +142,7 @@ func sensorActiveJobs(d deps) []jobs.Job {
 type sensorInventory struct {
 	inv *inventory.Service
 	// hostNet is deps.HostNet: the addresses of the appliance's cards, which core's container cannot see. nil without a host.
-	hostNet func(context.Context) ([]netip.Prefix, error)
+	hostNet *hostNetCache
 }
 
 func (a sensorInventory) Settings(ctx context.Context) (sensoractive.Settings, error) {

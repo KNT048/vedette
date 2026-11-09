@@ -418,3 +418,23 @@ func TestCheckBackend(t *testing.T) {
 		want(t, o, true) // would fail with a permission error, not a refusal, if it were opened
 	})
 }
+
+// netplan generate is not in the production runner (slice 3-3 review): the grammar checks the --root-dir string only, and a path that is
+// a symlink to "/" passes it. Slice 3-4 brings it back with a directory the host creates itself; until then no production argv names netplan.
+func TestProductionRunnerHasNoNetplan(t *testing.T) {
+	t.Parallel()
+	o, _ := newNetOps(t)
+	dir := t.TempDir()
+	link := filepath.Join(dir, "root")
+	if err := os.Symlink("/", link); err != nil {
+		t.Fatal(err)
+	}
+	for _, root := range []string{link, "/tmp/x/y"} {
+		if _, err := o.runner.Run(t.Context(), binNetplan, []string{"generate", "--root-dir", root}, nil); err == nil {
+			t.Fatalf("the production runner ran netplan generate --root-dir %s", root)
+		}
+	}
+	if _, ok := prodPaths[binNetplan]; ok {
+		t.Fatal("prodPaths names a netplan binary")
+	}
+}

@@ -1,11 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
 	"net/netip"
 	"path/filepath"
 	"slices"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -37,7 +42,7 @@ func lanBox() *fakeNet {
 
 func TestHostNetSourceGivesSingleAddressPrefixes(t *testing.T) {
 	t.Parallel()
-	got, err := hostNetSource(lanBox())(t.Context())
+	got, err := hostNetSource(lanBox(), nil)(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,11 +63,11 @@ func TestHostNetSourceGivesSingleAddressPrefixes(t *testing.T) {
 
 func TestHostNetSourceIsNilSafeAndPassesErrors(t *testing.T) {
 	t.Parallel()
-	if hostNetSource(nil) != nil || hostSocketNet("") != nil {
+	if hostNetSource(nil, nil) != nil || hostSocketNet("", nil) != nil {
 		t.Fatal("a missing host must give a nil source")
 	}
 	// A socket path with no host behind it: a source that fails, never one that panics or hangs.
-	src := hostSocketNet(filepath.Join(t.TempDir(), "absent.sock"))
+	src := hostSocketNet(filepath.Join(t.TempDir(), "absent.sock"), nil)
 	if src == nil {
 		t.Fatal("a configured socket must give a source")
 	}
@@ -70,21 +75,21 @@ func TestHostNetSourceIsNilSafeAndPassesErrors(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 	bad := &fakeNet{err: errors.New("unreachable")}
-	if _, err := hostNetSource(bad)(t.Context()); err == nil {
+	if _, err := hostNetSource(bad, nil)(t.Context()); err == nil {
 		t.Fatal("an unreachable host was reported as an empty box")
 	}
 	// A reply with odd text is skipped, not fatal.
 	odd := &fakeNet{st: api.NetState{Interfaces: []api.NetInterface{{Addresses: []string{"nonsense", "10.0.0.9/24"}}}, Decoys: []api.NetDecoy{{IP: "x"}}}}
-	if got, err := hostNetSource(odd)(t.Context()); err != nil || len(got) != 1 {
+	if got, err := hostNetSource(odd, nil)(t.Context()); err != nil || len(got) != 1 {
 		t.Fatalf("%v %v", got, err)
 	}
-	if hostIPv4s(t.Context(), nil) != nil {
+	if hostIPv4s(t.Context(), nil) != nil || newHostNetCache(nil, nil) != nil {
 		t.Fatal("no source, some addresses")
 	}
-	if hostIPv4s(t.Context(), hostNetSource(bad)) != nil {
+	if hostIPv4s(t.Context(), newHostNetCache(hostNetSource(bad, nil), nil)) != nil {
 		t.Fatal("a failing host gave addresses")
 	}
-	if got := hostIPv4s(t.Context(), hostNetSource(lanBox())); !slices.Equal(got, []netip.Addr{netip.MustParseAddr("192.168.10.250"), netip.MustParseAddr("192.168.10.201")}) {
+	if got := hostIPv4s(t.Context(), newHostNetCache(hostNetSource(lanBox(), nil), nil)); !slices.Equal(got, []netip.Addr{netip.MustParseAddr("192.168.10.250"), netip.MustParseAddr("192.168.10.201")}) {
 		t.Fatalf("%v", got)
 	}
 }
@@ -94,7 +99,7 @@ func TestBoxSourcesUseTheHostsAddresses(t *testing.T) {
 	t.Parallel()
 	f := lanBox()
 	now := time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC)
-	b := &boxSources{hostNet: hostNetSource(f), now: func() time.Time { return now }}
+	b := &boxSources{hostNet: hostNetSource(f, nil), now: func() time.Time { return now }}
 	got := b.BoxAddrs(t.Context())
 	for _, a := range []string{"192.168.10.250", "fd00:1::5", "192.168.10.201"} {
 		if !contains(got, a) {
@@ -113,7 +118,7 @@ func TestBoxSourcesUseTheHostsAddresses(t *testing.T) {
 		t.Fatalf("after expiry with a dead host: %d calls, %v", f.calls, got)
 	}
 	// No host: nothing from it, no panic.
-	if got := (&boxSources{hostNet: hostNetSource(nil)}).BoxAddrs(t.Context()); len(got) != 0 {
+	if got := (&boxSources{hostNet: hostNetSource(nil, nil)}).BoxAddrs(t.Context()); len(got) != 0 {
 		t.Fatalf("%v", got)
 	}
 }
@@ -122,7 +127,7 @@ func TestBoxSourcesUseTheHostsAddresses(t *testing.T) {
 func TestSensorProtectedIPsIncludeTheHostsAddresses(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
-	prot, err := sensorInventory{inv: s.d.Inventory, hostNet: hostNetSource(lanBox())}.ProtectedIPs(t.Context())
+	prot, err := sensorInventory{inv: s.d.Inventory, hostNet: newHostNetCache(hostNetSource(lanBox(), nil), nil)}.ProtectedIPs(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +140,7 @@ func TestSensorProtectedIPsIncludeTheHostsAddresses(t *testing.T) {
 		t.Error("an IPv6 address in an IPv4 list")
 	}
 	// A dead host does not break the sweep's own list.
-	if _, err := (sensorInventory{inv: s.d.Inventory, hostNet: hostNetSource(&fakeNet{err: errors.New("x")})}).ProtectedIPs(t.Context()); err != nil {
+	if _, err := (sensorInventory{inv: s.d.Inventory, hostNet: newHostNetCache(hostNetSource(&fakeNet{err: errors.New("x")}, nil), nil)}).ProtectedIPs(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -145,12 +150,255 @@ func TestHoneypotBoxFallsBackToTheHostsAddress(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	s.saveScope(t)
-	a := honeypotInventory{inv: s.d.Inventory, hostNet: hostNetSource(lanBox())}
+	a := honeypotInventory{inv: s.d.Inventory, hostNet: newHostNetCache(hostNetSource(lanBox(), nil), nil)}
 	b, err := a.Box(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if b.IP != netip.MustParseAddr("192.168.10.250") {
 		t.Fatalf("box IP %v, want the host's address inside the declared range", b.IP)
+	}
+}
+
+// The honeypot's box address is never one of its own decoys, even when the host reports the decoy among the addresses it holds.
+func TestHoneypotBoxIsNeverADecoyAddress(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	s.saveScope(t)
+	f := &fakeNet{st: api.NetState{
+		Interfaces: []api.NetInterface{{Name: "eth0", Addresses: []string{"192.168.10.201/24"}}}, // the only address inside the declared range is a decoy
+		Decoys:     []api.NetDecoy{{IP: "192.168.10.201"}},
+	}}
+	decoys := func(context.Context) []netip.Addr { return []netip.Addr{netip.MustParseAddr("192.168.10.201")} }
+	a := honeypotInventory{inv: s.d.Inventory, hostNet: newHostNetCache(hostNetSource(f, nil), nil), decoys: decoys}
+	b, err := a.Box(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.IP == netip.MustParseAddr("192.168.10.201") {
+		t.Fatal("the honeypot's box address is its own decoy")
+	}
+}
+
+// --- the shared provider (hostNetCache) ----------------------------------------------------------------
+
+// One failed state/net call (the host restarting) must not take the appliance's LAN address out of the sweep's protected list: the
+// same provider as boxSources keeps the last good answer.
+func TestProtectedIPsKeepTheBoxWhenTheHostBlinks(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	f := lanBox()
+	now := time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC)
+	cache := newHostNetCache(hostNetSource(f, nil), func() time.Time { return now })
+	inv := sensorInventory{inv: s.d.Inventory, hostNet: cache}
+	first, err := inv.ProtectedIPs(t.Context())
+	if err != nil || !slices.Contains(first, netip.MustParseAddr("192.168.10.250")) {
+		t.Fatalf("baseline: %v %v", first, err)
+	}
+	f.err = errors.New("host restarting")
+	now = now.Add(hostNetTTL + time.Second)
+	second, err := inv.ProtectedIPs(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(second, netip.MustParseAddr("192.168.10.250")) {
+		t.Fatalf("one failed state/net call removed the box's LAN address from the sweep's protected list: %v", second)
+	}
+}
+
+// slowFailNet answers once, then fails slowly (a hung or overloaded host): every later call takes delay.
+type slowFailNet struct {
+	mu    sync.Mutex
+	calls int
+	delay time.Duration
+}
+
+func (f *slowFailNet) StateNet(ctx context.Context) (api.NetState, error) {
+	f.mu.Lock()
+	f.calls++
+	n := f.calls
+	f.mu.Unlock()
+	if n == 1 {
+		return lanBox().st, nil
+	}
+	select {
+	case <-time.After(f.delay):
+	case <-ctx.Done():
+	}
+	return api.NetState{}, errors.New("timeout")
+}
+
+// After the TTL a failing host is asked once for everybody, not once per caller, and nobody queues behind the socket call.
+func TestBoxAddrsDoesNotQueueOnAFailingHost(t *testing.T) {
+	t.Parallel()
+	f := &slowFailNet{delay: 150 * time.Millisecond}
+	var mu sync.Mutex
+	now := time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC)
+	clock := func() time.Time { mu.Lock(); defer mu.Unlock(); return now }
+	b := &boxSources{hostNet: hostNetSource(f, nil), now: clock}
+	if got := b.BoxAddrs(t.Context()); !contains(got, "192.168.10.250") {
+		t.Fatalf("baseline %v", got)
+	}
+	mu.Lock()
+	now = now.Add(hostNetTTL + time.Second)
+	mu.Unlock()
+	start := time.Now()
+	var wg sync.WaitGroup
+	for range 6 {
+		wg.Go(func() {
+			if got := b.BoxAddrs(t.Context()); !contains(got, "192.168.10.250") {
+				t.Errorf("last answer lost: %v", got)
+			}
+		})
+	}
+	wg.Wait()
+	took := time.Since(start)
+	f.mu.Lock()
+	calls := f.calls - 1
+	f.mu.Unlock()
+	if calls > 1 || took > 3*f.delay {
+		t.Fatalf("6 concurrent BoxAddrs calls against a failing host made %d host calls and took %v (one call takes %v): they queue", calls, took, f.delay)
+	}
+}
+
+// A failed refresh is remembered for hostNetBackoff: the dead host is not asked again by every caller, and the last good answer is served meanwhile.
+func TestHostNetCacheRemembersAFailureForTenSeconds(t *testing.T) {
+	t.Parallel()
+	f := lanBox()
+	now := time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC)
+	c := newHostNetCache(hostNetSource(f, nil), func() time.Time { return now })
+	if got := c.Get(t.Context()); len(got) == 0 || f.calls != 1 {
+		t.Fatalf("first: %v %d", got, f.calls)
+	}
+	now = now.Add(hostNetTTL + time.Second)
+	f.err = errors.New("down")
+	for range 5 {
+		if got := c.Get(t.Context()); !contains(got, "192.168.10.250") {
+			t.Fatalf("the last good answer was lost: %v", got)
+		}
+	}
+	if f.calls != 2 {
+		t.Fatalf("%d calls: one failed refresh, then none for the backoff", f.calls)
+	}
+	now = now.Add(hostNetBackoff - time.Second)
+	c.Get(t.Context())
+	if f.calls != 2 {
+		t.Fatalf("asked again inside the backoff: %d calls", f.calls)
+	}
+	now = now.Add(2 * time.Second)
+	f.err = nil
+	if got := c.Get(t.Context()); f.calls != 3 || !contains(got, "192.168.10.201") {
+		t.Fatalf("after the backoff the host was not asked again: %d calls %v", f.calls, got)
+	}
+	// A host that never answered gives nothing, and is not asked again at once either.
+	dead := &fakeNet{err: errors.New("never")}
+	d := newHostNetCache(hostNetSource(dead, nil), func() time.Time { return now })
+	for range 4 {
+		if got := d.Get(t.Context()); got != nil {
+			t.Fatalf("%v", got)
+		}
+	}
+	if dead.calls != 1 {
+		t.Fatalf("%d calls to a host that never answered inside the backoff", dead.calls)
+	}
+}
+
+// Concurrent first calls share one socket call (nobody has an answer to serve yet), and a caller that gives up its context does not stop the call.
+func TestHostNetCacheSharesOneCallAndSurvivesACancelledCaller(t *testing.T) {
+	t.Parallel()
+	release := make(chan struct{})
+	started := make(chan struct{})
+	var once sync.Once
+	var mu sync.Mutex
+	calls := 0
+	c := newHostNetCache(func(context.Context) ([]netip.Prefix, error) {
+		mu.Lock()
+		calls++
+		mu.Unlock()
+		once.Do(func() { close(started) })
+		<-release
+		return []netip.Prefix{netip.MustParsePrefix("192.168.10.250/32")}, nil
+	}, nil)
+	var wg sync.WaitGroup
+	results := make([][]netip.Prefix, 5)
+	for i := range results {
+		wg.Go(func() { results[i] = c.Get(t.Context()) })
+	}
+	<-started // the call is in flight: the next callers wait for it
+	cctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if got := c.Get(cctx); got != nil { // a waiter whose context is already done returns at once
+		t.Errorf("cancelled waiter got %v", got)
+	}
+	time.AfterFunc(100*time.Millisecond, func() { close(release) })
+	wg.Wait()
+	mu.Lock()
+	defer mu.Unlock()
+	if calls != 1 {
+		t.Fatalf("%d socket calls for concurrent callers", calls)
+	}
+	for i, r := range results {
+		if len(r) != 1 {
+			t.Errorf("caller %d got %v", i, r)
+		}
+	}
+}
+
+// The cache never holds its lock across the socket call: a caller that has a good answer is served at once while a refresh is in flight.
+func TestHostNetCacheServesTheLastAnswerWhileRefreshing(t *testing.T) {
+	t.Parallel()
+	release := make(chan struct{})
+	entered := make(chan struct{})
+	first := true
+	now := time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC)
+	var mu sync.Mutex
+	clock := func() time.Time { mu.Lock(); defer mu.Unlock(); return now }
+	c := newHostNetCache(func(context.Context) ([]netip.Prefix, error) {
+		if first {
+			first = false
+			return []netip.Prefix{netip.MustParsePrefix("192.168.10.250/32")}, nil
+		}
+		close(entered)
+		<-release
+		return nil, errors.New("slow and failed")
+	}, clock)
+	c.Get(t.Context())
+	mu.Lock()
+	now = now.Add(hostNetTTL + time.Second)
+	mu.Unlock()
+	go c.Get(t.Context()) // the leader of the refresh, stuck in the socket call
+	<-entered
+	done := make(chan []netip.Prefix)
+	go func() { done <- c.Get(t.Context()) }()
+	select {
+	case got := <-done:
+		if !contains(got, "192.168.10.250") {
+			t.Fatalf("%v", got)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("a caller with a good answer queued behind the refresh")
+	}
+	close(release)
+}
+
+// More than 2048 addresses are cut on core's side, with a warning.
+func TestHostNetSourceCapsWhatCoreAccepts(t *testing.T) {
+	t.Parallel()
+	var addrs []string
+	for i := range 3000 {
+		addrs = append(addrs, fmt.Sprintf("10.%d.%d.1/24", i/250, i%250))
+	}
+	f := &fakeNet{st: api.NetState{Interfaces: []api.NetInterface{{Name: "eth0", Addresses: addrs}}}}
+	var buf bytes.Buffer
+	got, err := hostNetSource(f, slog.New(slog.NewTextHandler(&buf, nil)))(t.Context())
+	if err != nil || len(got) != maxHostPrefixes {
+		t.Fatalf("%d prefixes, %v", len(got), err)
+	}
+	if !strings.Contains(buf.String(), "more addresses than core accepts") {
+		t.Fatalf("no warning: %q", buf.String())
+	}
+	buf.Reset()
+	if got, _ := hostNetSource(lanBox(), slog.New(slog.NewTextHandler(&buf, nil)))(t.Context()); len(got) == 0 || buf.Len() != 0 {
+		t.Fatalf("a normal answer warned or was empty: %q", buf.String())
 	}
 }

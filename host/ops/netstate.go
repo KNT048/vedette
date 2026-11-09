@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/knt048/vedette/host/api"
 )
@@ -22,8 +23,8 @@ import (
 // route and the configuration the host wrote itself. Nothing here runs a program or opens a socket.
 
 const (
-	maxNetIfaces   = 32
-	maxIfaceAddrs  = 16
+	maxNetIfaces   = 64
+	maxIfaceAddrs  = 64
 	maxRouteLines  = 4096
 	maxRouteBytes  = 1 << 20
 	maxSysfsFile   = 64
@@ -213,47 +214,87 @@ func (o *Ops) defaultRoute() *api.NetRoute {
 	return r
 }
 
-// readNetplanConfig returns what the host wrote: the overlay in /run when there is one (it is
-// what netplan runs), else the file in /etc. Each is opened inside its directory with os.Root and
-// must be a regular file the host would have rendered; anything else counts as "not written".
+// readNetplanConfig returns what the host wrote. netplan runs the file in /run when there is one
+// (the same name there hides the one in /etc completely), so an overlay that exists but is not
+// the byte-exact file the host renders makes the answer "unknown", never the /etc file. Only when
+// there is no overlay is the /etc file read.
 func (o *Ops) readNetplanConfig() (NetplanConfig, bool) {
 	for _, dir := range []string{"run/netplan", "etc/netplan"} {
-		if cfg, ok := o.readNetplanFile(dir); ok {
+		cfg, st := o.readNetplanFile(dir)
+		switch st {
+		case netplanOurs:
 			return cfg, true
+		case netplanBroken:
+			return NetplanConfig{}, false
 		}
 	}
 	return NetplanConfig{}, false
 }
 
-func (o *Ops) readNetplanFile(dir string) (NetplanConfig, bool) {
+type netplanFileState int
+
+const (
+	netplanAbsent netplanFileState = iota // no entry of our name
+	netplanOurs                           // a regular file the host renders
+	netplanBroken                         // an entry of our name that is anything else
+)
+
+// readNetplanFile looks at dir/90-vedette.yaml inside an os.Root on dir. The entry must be a
+// regular file (a symlink, directory or FIFO is "broken", and a FIFO is never opened: the open
+// uses O_NONBLOCK and O_NOFOLLOW and the descriptor is checked again, so a swap between the check
+// and the open cannot make the host block or follow a link).
+func (o *Ops) readNetplanFile(dir string) (NetplanConfig, netplanFileState) {
 	r, err := os.OpenRoot(o.path(dir))
 	if err != nil {
-		return NetplanConfig{}, false
+		return NetplanConfig{}, netplanAbsent
 	}
 	defer func() { _ = r.Close() }()
-	if st, err := r.Lstat(netplanName); err != nil || !st.Mode().IsRegular() {
-		return NetplanConfig{}, false
-	}
-	f, err := r.Open(netplanName)
+	st, err := r.Lstat(netplanName)
 	if err != nil {
-		return NetplanConfig{}, false
+		if errors.Is(err, os.ErrNotExist) {
+			return NetplanConfig{}, netplanAbsent
+		}
+		return NetplanConfig{}, netplanBroken
+	}
+	if !st.Mode().IsRegular() {
+		return NetplanConfig{}, netplanBroken
+	}
+	f, err := r.OpenFile(netplanName, os.O_RDONLY|syscall.O_NONBLOCK|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return NetplanConfig{}, netplanBroken
 	}
 	defer func() { _ = f.Close() }()
+	if fi, err := f.Stat(); err != nil || !fi.Mode().IsRegular() {
+		return NetplanConfig{}, netplanBroken
+	}
 	b, err := io.ReadAll(io.LimitReader(f, maxNetplan+1))
 	if err != nil {
-		return NetplanConfig{}, false
+		return NetplanConfig{}, netplanBroken
 	}
 	cfg, err := parseNetplan(b)
 	if err != nil {
 		o.log.Debug("the host's netplan file is not one the host rendered; it is not reported", "dir", dir)
-		return NetplanConfig{}, false
+		return NetplanConfig{}, netplanBroken
 	}
-	return cfg, true
+	return cfg, netplanOurs
 }
 
+// prefixStrings lists addresses, global ones before link-local, IPv4 before IPv6, and cuts the list
+// at the cap from the end: a global address is never dropped while a link-local one is kept.
 func prefixStrings(ps []netip.Prefix) []string {
+	rank := func(p netip.Prefix) int {
+		a := p.Addr()
+		r := 0
+		if a.IsLinkLocalUnicast() || a.IsLinkLocalMulticast() {
+			r += 2
+		}
+		if a.Is6() {
+			r++
+		}
+		return r
+	}
 	slices.SortFunc(ps, func(a, b netip.Prefix) int {
-		if c := a.Addr().BitLen() - b.Addr().BitLen(); c != 0 {
+		if c := rank(a) - rank(b); c != 0 {
 			return c
 		}
 		return strings.Compare(a.String(), b.String())
@@ -309,16 +350,43 @@ func (o *Ops) readNet(context.Context) (any, error) {
 
 	sys := openSysfs(o.d.Root)
 	defer sys.close()
+	type cand struct {
+		h        HostIface
+		group    int // 0 management, 1 physical card, 2 anything else that holds an address
+		physical bool
+	}
+	var cands []cand
 	for _, h := range ifaces {
 		if h.Loopback || !validIfaceName(h.Name) {
 			continue
 		}
-		if !sys.physical(h.Name) && h.Name != mgmtName && h.Name != spanName {
+		phys := sys.physical(h.Name)
+		named := h.Name == mgmtName || h.Name == spanName
+		// Every address of the box must reach core (it decides what "the box" is): a VLAN, bond, bridge,
+		// WireGuard link or container bridge that holds an address is listed as well as the cards.
+		if !phys && !named && len(h.Addrs) == 0 {
 			continue
 		}
-		if len(st.Interfaces) == maxNetIfaces {
-			break
+		g := 2
+		switch {
+		case h.Name == mgmtName:
+			g = 0
+		case phys || named:
+			g = 1
 		}
+		cands = append(cands, cand{h, g, phys})
+	}
+	slices.SortStableFunc(cands, func(a, b cand) int {
+		if a.group != b.group {
+			return a.group - b.group
+		}
+		return strings.Compare(a.h.Name, b.h.Name)
+	})
+	if len(cands) > maxNetIfaces {
+		cands = cands[:maxNetIfaces] // the sort put the management card first: it is never the one dropped
+	}
+	for _, c := range cands {
+		h := c.h
 		ni := api.NetInterface{
 			Name: h.Name, State: sys.state(h.Name), SpeedMbps: sys.speed(h.Name), Promisc: sys.promisc(h.Name),
 			Addresses: prefixStrings(h.Addrs), Counters: sys.counters(h.Name),
@@ -334,6 +402,5 @@ func (o *Ops) readNet(context.Context) (any, error) {
 		}
 		st.Interfaces = append(st.Interfaces, ni)
 	}
-	slices.SortFunc(st.Interfaces, func(a, b api.NetInterface) int { return strings.Compare(a.Name, b.Name) })
 	return st, nil
 }

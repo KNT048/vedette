@@ -13,10 +13,10 @@ import (
 
 const (
 	arpFrameLen = 42
-	// arpWireMax is the longest frame the reader accepts: Ethernet pads a short frame to 60 bytes
-	// and many cards deliver the padding. Only the first 42 bytes are looked at; the padding is
-	// never interpreted (it can carry leaked memory of the sender).
-	arpWireMax = 60
+	// arpReadBuf is the size of the buffer one read gets. A frame is longer than 42 bytes when Ethernet
+	// padded it to 60, or when the card keeps the FCS or a vendor trailer; only the first 42 bytes
+	// are ever looked at and the rest is never interpreted (it can carry leaked memory of the sender).
+	arpReadBuf = 2048
 
 	arpOpRequest = 1
 	arpOpReply   = 2
@@ -85,10 +85,12 @@ func parseARP(b []byte) (arpPacket, error) {
 	return p, nil
 }
 
-// arpFrameOf cuts what the socket delivered down to the 42 bytes parseARP reads: a frame shorter
-// than 42 or longer than the 60-byte Ethernet minimum is not ours to read.
+// arpFrameOf cuts what the socket delivered down to the 42 bytes parseARP reads: a frame of 42
+// bytes or more is cut to its first 42 (padding, FCS and trailers are never read), a shorter one
+// is not a frame. Refusing long frames would make the checks fail open: a host whose card delivers
+// a trailer would never be seen.
 func arpFrameOf(raw []byte) ([]byte, bool) {
-	if len(raw) < arpFrameLen || len(raw) > arpWireMax {
+	if len(raw) < arpFrameLen {
 		return nil, false
 	}
 	return raw[:arpFrameLen], true

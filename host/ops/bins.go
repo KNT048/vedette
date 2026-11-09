@@ -19,8 +19,12 @@ const (
 	binDpkg      = "dpkg"
 	binSystemctl = "systemctl"
 	binJournal   = "journalctl"
-	binNetplan   = "netplan"
 )
+
+// binNetplan names the netplan grammar of validateNetplan. It is NOT in the production runner
+// (D-87 style review of slice 3-3): netplan generate returns with slice 3-4 and a directory the host
+// creates itself. Only a CI test builds a runner with it.
+const binNetplan = "netplan"
 
 var prodPaths = map[string]string{
 	binAptGet:    "/usr/bin/apt-get",
@@ -28,7 +32,6 @@ var prodPaths = map[string]string{
 	binDpkg:      "/usr/bin/dpkg",
 	binSystemctl: "/usr/bin/systemctl",
 	binJournal:   "/usr/bin/journalctl",
-	binNetplan:   "/usr/sbin/netplan",
 }
 
 // The fixed timers of unattended security updates (spec 6.3).
@@ -119,7 +122,9 @@ func validateSystemctl(coreUnit string) func([]string) error {
 // netplanRootDirRE is the directory netplan generate may be pointed at: absolute, clean, made of plain
 // characters, at least two levels deep and not under a system directory. "generate" without
 // --root-dir, or with "/", would regenerate the real network configuration, so those are refused.
-// Only a CI test runs it, on a temporary directory.
+// The grammar checks the string only: a path that is a symlink to "/" passes it. That is why no
+// production runner has it (slice 3-4 creates the directory itself, root-owned and opened without
+// following links); only a CI test runs it, on a directory of its own.
 var netplanRootDirRE = regexp.MustCompile(`^(/[A-Za-z0-9_.-]+){2,16}$`)
 
 var systemTopDirs = []string{"bin", "boot", "dev", "etc", "lib", "lib64", "proc", "root", "run", "sbin", "sys", "usr", "var"}
@@ -155,7 +160,6 @@ func newRunner(log logger, coreUnit string, paths map[string]string, streamLimit
 		vexec.Binary{Name: binDpkg, Path: p(binDpkg), Validate: exactly("--audit")},
 		vexec.Binary{Name: binSystemctl, Path: p(binSystemctl), Validate: validateSystemctl(coreUnit)},
 		vexec.Binary{Name: binJournal, Path: p(binJournal), Validate: validateJournal, MaxOutput: streamLimit + 1},
-		vexec.Binary{Name: binNetplan, Path: p(binNetplan), Validate: validateNetplan},
 	)
 }
 

@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/knt048/vedette/core/events"
@@ -29,7 +30,12 @@ func newHoneypot(d *deps) (*honeypot.Service, error) {
 	if d.Inventory == nil {
 		return nil, errors.New("honeypot needs the inventory service")
 	}
-	cfg := honeypot.Config{DB: d.DB, Audit: d.Audit, Secrets: d.Secrets, Inventory: honeypotInventory{inv: d.Inventory, hostNet: d.HostNet}, Host: notAnAppliance{},
+	cfg := honeypot.Config{DB: d.DB, Audit: d.Audit, Secrets: d.Secrets, Inventory: honeypotInventory{inv: d.Inventory, hostNet: d.HostNet, decoys: func(ctx context.Context) []netip.Addr {
+		if d.Honeypot == nil {
+			return nil
+		}
+		return d.Honeypot.DecoyIPs(ctx)
+	}}, Host: notAnAppliance{},
 		Clock: d.Clock, Log: d.Log, Location: orgLocationAt(*d)}
 	if d.HoneypotDir != "" { // two folders (D-89, WP-14 review): core writes config/ (the container mounts it read-only), the container writes log/
 		cfg.ConfigDir, cfg.LogDir = filepath.Join(d.HoneypotDir, HoneypotConfigDir), filepath.Join(d.HoneypotDir, HoneypotLogDir)
@@ -88,7 +94,9 @@ func (notAnAppliance) StopContainer(context.Context) error             { return 
 type honeypotInventory struct {
 	inv *inventory.Service
 	// hostNet is deps.HostNet: the appliance's own addresses from vedette-host (nil without a host).
-	hostNet func(context.Context) ([]netip.Prefix, error)
+	hostNet *hostNetCache
+	// decoys are the addresses the traps answer on: the host reports them among the box's addresses, but a decoy is never the box's own address.
+	decoys func(context.Context) []netip.Addr
 }
 
 func (a honeypotInventory) Devices(ctx context.Context) ([]honeypot.Device, error) {
@@ -158,7 +166,16 @@ func (a honeypotInventory) Box(ctx context.Context) (honeypot.Box, error) {
 		return b, err
 	}
 	// The appliance's own cards (vedette-host) come first: core's container only sees its bridge.
-	cand := hostIPv4s(ctx, a.hostNet)
+	var cand []netip.Addr
+	var decoys []netip.Addr
+	if a.decoys != nil {
+		decoys = a.decoys(ctx)
+	}
+	for _, ip := range hostIPv4s(ctx, a.hostNet) {
+		if !slices.Contains(decoys, ip) {
+			cand = append(cand, ip)
+		}
+	}
 	addrs, err := net.InterfaceAddrs()
 	if err != nil && len(cand) == 0 {
 		return b, fmt.Errorf("honeypot: read the box addresses: %w", err)

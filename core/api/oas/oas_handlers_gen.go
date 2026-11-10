@@ -15139,8 +15139,8 @@ func (s *Server) handleCorePutCoreNetworkInterfacesRequest(args [0]string, argsE
 
 // handleCorePutCoreNetworkManagementRequest handles core_put_core_network_management operation.
 //
-// Management interface: DHCP or static. An address change applies for 2 minutes and reverts unless
-// confirmed from the new address.
+// Management interface: DHCP or static. An address change applies for 5 minutes and reverts unless
+// confirmed from the new address (you sign in again there).
 //
 // PUT /core/network/management
 func (s *Server) handleCorePutCoreNetworkManagementRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -15224,7 +15224,7 @@ func (s *Server) handleCorePutCoreNetworkManagementRequest(args [0]string, argsE
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CorePutCoreNetworkManagementOperation,
-			OperationSummary: "Management interface: DHCP or static. An address change applies for 2 minutes and reverts unless confirmed from the new address",
+			OperationSummary: "Management interface: DHCP or static. An address change applies for 5 minutes and reverts unless confirmed from the new address (you sign in again there)",
 			OperationID:      "core_put_core_network_management",
 			Body:             request,
 			RawBody:          rawBody,

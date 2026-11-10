@@ -63,8 +63,7 @@ func TestWiringResponseModule(t *testing.T) {
 		}
 	}
 	// Part 13b: 501 not_implemented.
-	for _, r := range [][3]string{{"GET", "/response/ai", ""}, {"POST", "/response/ai/resume", ""},
-		{"GET", "/response/approve/" + strings.Repeat("a", 32), ""}, {"POST", "/response/approve/" + strings.Repeat("a", 32), `{"decision":"approve"}`}} {
+	for _, r := range [][3]string{{"GET", "/response/approve/" + strings.Repeat("a", 32), ""}, {"POST", "/response/approve/" + strings.Repeat("a", 32), `{"decision":"approve"}`}} {
 		if c, v := s.do(r[0], r[1], "admin", r[2]); c != 501 || at(v, "error", "code") != "not_implemented" {
 			t.Errorf("%s %s: %d %v", r[0], r[1], c, v)
 		}

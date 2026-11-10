@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/modules/core"
 	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
 )
 
@@ -19,7 +21,7 @@ func newSensorPassive(d deps) (*sensorpassive.Service, error) {
 	if d.Inventory != nil {
 		sink = d.Inventory
 	}
-	return sensorpassive.New(sensorpassive.Config{DB: d.DB, Audit: d.Audit, Sink: sink, Host: netHost{}, Clock: d.Clock, Log: d.Log, Version: version})
+	return sensorpassive.New(sensorpassive.Config{DB: d.DB, Audit: d.Audit, Sink: sink, Host: netHost{box: d.Network}, Clock: d.Clock, Log: d.Log, Version: version})
 }
 
 // sensorPassiveJobs runs the capture loop while the module is on (SYS-5). Run blocks until the module is turned
@@ -28,12 +30,33 @@ func sensorPassiveJobs(d deps) []jobs.Job {
 	return []jobs.Job{{Module: "sensor-passive", Name: "capture", Every: 15 * time.Second, Run: d.SensorPassive.Run}}
 }
 
-// netHost is the stand-in for the host module (Box network, D-56): it lists the box's cards from the
-// operating system and uses the default SPAN extraction with no exclusion filters. The host module replaces
-// it with the admin's settings (deferred: .ai/deferred/feat-sensor-passive.md).
-type netHost struct{}
+// netHost is the host module's answer to sensor-passive (Box network, D-56). The cards come from vedette-host
+// (core runs in a container and cannot see them); the extraction switches and exclusion filters are the admin's
+// settings of Settings, Box network. An install without a host reads the interfaces of the operating system it runs on.
+type netHost struct{ box *core.NetworkHandlers }
 
-func (netHost) Interfaces(context.Context) ([]sensorpassive.HostInterface, error) {
+func (n netHost) Interfaces(ctx context.Context) ([]sensorpassive.HostInterface, error) {
+	cards, ok, err := n.box.Cards(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		out := make([]sensorpassive.HostInterface, 0, len(cards))
+		for _, c := range cards {
+			h := sensorpassive.HostInterface{Name: c.Name, MAC: c.MAC, Link: c.Link}
+			for _, a := range c.Addresses {
+				if a.Is4() {
+					h.Addresses = append(h.Addresses, a)
+				}
+			}
+			out = append(out, h)
+		}
+		return out, nil
+	}
+	return osInterfaces()
+}
+
+func osInterfaces() ([]sensorpassive.HostInterface, error) {
 	all, err := net.Interfaces()
 	if err != nil {
 		return nil, err
@@ -56,6 +79,40 @@ func (netHost) Interfaces(context.Context) ([]sensorpassive.HostInterface, error
 	return out, nil
 }
 
-func (netHost) SpanOptions(context.Context) (sensorpassive.Extract, []sensorpassive.Filter, error) {
-	return sensorpassive.Extract{DNS: true, TLSSNI: true, HTTPHost: true, Flows: true}, nil, nil
+func (n netHost) SpanOptions(ctx context.Context) (sensorpassive.Extract, []sensorpassive.Filter, error) {
+	s, err := n.box.SpanSettings(ctx)
+	if err != nil {
+		return sensorpassive.Extract{}, nil, err
+	}
+	x := sensorpassive.Extract{DNS: s.Extract.DNS, TLSSNI: s.Extract.TLSSNI, HTTPHost: s.Extract.HTTPHost, Flows: s.Extract.Flows}
+	f := make([]sensorpassive.Filter, len(s.Filters))
+	for i, v := range s.Filters {
+		f[i] = sensorpassive.Filter{Type: v.Type, Value: v.Value}
+	}
+	return x, f, nil
+}
+
+// spanSensor is core.SpanSensor on the passive sensor: what the Box network page needs of it. svc is set once the
+// sensor exists; before that, and while the module is off, nothing is measured.
+type spanSensor struct {
+	reg *modreg.Registry
+	svc *sensorpassive.Service
+}
+
+func (s *spanSensor) SpanStats(ctx context.Context) (core.SpanMeasure, error) {
+	if s.svc == nil || !s.reg.Enabled("sensor-passive") {
+		return core.SpanMeasure{}, core.ErrNoSensor
+	}
+	m, err := s.svc.SpanStats(ctx)
+	if err != nil {
+		return core.SpanMeasure{}, err
+	}
+	return core.SpanMeasure{Verdict: m.Verdict, PPS: m.PPS, OtherMACs: m.OtherMACs, LastPacket: m.LastPacket}, nil
+}
+
+func (s *spanSensor) SetSpanPort(ctx context.Context, actor, iface string, span bool) error {
+	if s.svc == nil {
+		return core.ErrNoSensor
+	}
+	return s.svc.SetInterface(ctx, actor, sensorpassive.SensorID, iface, span)
 }

@@ -3,33 +3,39 @@ import { isBareIp, normaliseCidr } from './util'
 
 export type FilterType = 'cidr' | 'host' | 'port'
 export const FILTER_TYPES: FilterType[] = ['cidr', 'host', 'port']
-export const HOST_RE = /^(?=.{1,253}$)[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
+export const HOST_RE = /^(?=.{1,64}$)[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
 
 export const ipInt = (ip: string) => ip.split('.').reduce((n, o) => n * 256 + Number(o), 0)
 const mask = (prefix: number) => (prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0)
 export const sameSubnet = (a: string, b: string, prefix: number) => ((ipInt(a) & mask(prefix)) >>> 0) === ((ipInt(b) & mask(prefix)) >>> 0)
-const isUsable = (ip: string, prefix: number) => {
-  const n = ipInt(ip)
-  const first = ip.split('.').map(Number)[0] ?? 0
-  if (first === 0 || first === 127 || first >= 224) return false
-  const net = (n & mask(prefix)) >>> 0
-  return n !== net && n !== (net | (~mask(prefix) >>> 0)) >>> 0
-}
+const octets = (ip: string) => ip.split('.').map(Number)
+/** The host's rule for an address of the box, a gateway or an NTP server: not 0/8, loopback, link-local (169.254/16), multicast and above. */
+const isUnicast = (ip: string) => { const [a = 0, b = 0] = octets(ip); return a !== 0 && a !== 127 && a < 224 && !(a === 169 && b === 254) }
+/** A host address of its range: neither the network nor the broadcast address. */
+const isHostIn = (ip: string, prefix: number) => { const n = ipInt(ip); const net = (n & mask(prefix)) >>> 0; return n !== net && n !== ((net | (~mask(prefix) >>> 0)) >>> 0) }
+const isUsable = (ip: string, prefix: number) => isUnicast(ip) && isHostIn(ip, prefix)
+/** A DNS server: global unicast (not 0.0.0.0, loopback, link-local, multicast or 255.255.255.255). */
+const isDnsServer = (ip: string) => { const [a = 0, b = 0] = octets(ip); return ip !== '0.0.0.0' && a !== 127 && a < 224 && !(a === 169 && b === 254) }
 
 export interface StaticInput { address?: unknown; prefix?: unknown; gateway?: unknown; dns?: unknown }
-/** Problem with a static management configuration, as a sentence, or null. */
-export function staticProblem(v: StaticInput): string | null {
-  if (typeof v.address !== 'string' || !isBareIp(v.address)) return 'The IP address must be an IPv4 address like 192.168.10.250.'
+/** What is wrong with a static management configuration: the API code, and a sentence for the person. */
+export interface StaticProblem { code: 'invalid_static' | 'gateway_outside_subnet' | 'gateway_not_host'; message: string }
+const bad = (message: string): StaticProblem => ({ code: 'invalid_static', message })
+/** Problem with a static management configuration, or null. The gateway outside the range is its own code (D-100). */
+export function staticProblem(v: StaticInput): StaticProblem | null {
+  if (typeof v.address !== 'string' || !isBareIp(v.address)) return bad('The IP address must be an IPv4 address like 192.168.10.250.')
   const prefix = typeof v.prefix === 'number' ? v.prefix : Number(v.prefix)
-  if (!Number.isInteger(prefix) || prefix < 8 || prefix > 30) return 'The prefix length must be a whole number from 8 to 30 (24 means 255.255.255.0).'
-  if (!isUsable(v.address, prefix)) return 'That address is the network or broadcast address of its range, or a reserved address. Pick a host address.'
-  if (typeof v.gateway !== 'string' || !isBareIp(v.gateway)) return 'The gateway must be an IPv4 address like 192.168.10.1.'
-  if (v.gateway === v.address) return 'The gateway cannot be the same as the box address.'
-  if (!sameSubnet(v.address, v.gateway, prefix)) return `The gateway ${v.gateway} is outside ${v.address}/${prefix}. The gateway must be in the same range as the box.`
+  if (!Number.isInteger(prefix) || prefix < 8 || prefix > 30) return bad('The prefix length must be a whole number from 8 to 30 (24 means 255.255.255.0).')
+  if (!isUsable(v.address, prefix)) return bad('That address is the network or broadcast address of its range, or a reserved address. Pick a host address.')
+  if (typeof v.gateway !== 'string' || !isBareIp(v.gateway)) return bad('The gateway must be an IPv4 address like 192.168.10.1.')
+  if (v.gateway === v.address) return bad('The gateway cannot be the same as the box address.')
+  if (!sameSubnet(v.address, v.gateway, prefix)) return { code: 'gateway_outside_subnet', message: 'The gateway must be inside the address range you entered.' }
+  if (!isHostIn(v.gateway, prefix)) return { code: 'gateway_not_host', message: 'The gateway cannot be the network or broadcast address of the range. Use the address of your router.' }
   const dns = Array.isArray(v.dns) ? v.dns : null
-  if (!dns || dns.length < 1 || dns.length > 3) return 'Give 1 to 3 DNS servers.'
-  if (dns.some((d) => typeof d !== 'string' || !isBareIp(d))) return 'Each DNS server must be an IPv4 address.'
-  if (new Set(dns).size !== dns.length) return 'A DNS server is listed twice.'
+  if (!dns || dns.length < 1 || dns.length > 3) return bad('Give 1 to 3 DNS servers.')
+  if (dns.some((d) => typeof d !== 'string' || !isBareIp(d))) return bad('Each DNS server must be an IPv4 address.')
+  if (dns.some((d) => !isDnsServer(d as string))) return bad('A DNS server cannot be a loopback, link-local (169.254.x.x) or multicast address.')
+  if (new Set(dns).size !== dns.length) return bad('A DNS server is listed twice.')
   return null
 }
 
@@ -51,7 +57,9 @@ export const normaliseFilter = (type: FilterType, value: string) => (type === 'c
 /** NTP servers: 1 to 4 hostnames or IPv4 addresses. */
 export function ntpProblem(servers: unknown): string | null {
   if (!Array.isArray(servers) || servers.length < 1 || servers.length > 4) return 'Give 1 to 4 NTP servers.'
-  for (const s of servers) if (typeof s !== 'string' || (!isBareIp(s) && !HOST_RE.test(s))) return `"${String(s)}" is not a server name or IPv4 address.`
+  // A name whose every part is a number (1.2.3, 0x7f) is read as an address by the resolver: the box refuses it.
+  const numeric = (s: string) => s.split('.').every((l) => /^(\d+|0[xX][0-9a-fA-F]*)$/.test(l))
+  for (const s of servers) if (typeof s !== 'string' || (isBareIp(s) ? !isUnicast(s) : (!HOST_RE.test(s) || numeric(s)))) return `"${String(s)}" is not a server name or IPv4 address.`
   if (new Set(servers).size !== servers.length) return 'An NTP server is listed twice.'
   return null
 }

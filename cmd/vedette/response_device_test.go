@@ -124,7 +124,7 @@ func newDevEnv(t *testing.T) *devEnv {
 	if cfg.Executor == nil || cfg.Connections == nil {
 		t.Fatal("the wiring has no executor or no connections")
 	}
-	cfg.Users = devUsers{"u-admin": {ID: "u-admin", Name: "Admin", Email: "admin@acme.example", Role: "admin", TwoStep: true}}
+	cfg.Users = devUsers{"u-admin": {ID: "u-admin", Name: "Admin", Email: "admin@acme.example", Role: "admin", TwoStep: true}, "u-op": {ID: "u-op", Name: "IT Operator", Email: "it@acme.example", Role: "operator", TwoStep: true}}
 	e := &devEnv{t: t, s: s, clock: clock, conns: &devConns{inner: cfg.Connections}, exec: &devExec{inner: cfg.Executor}}
 	cfg.Connections, cfg.Executor = e.conns, e.exec
 	if e.svc, err = response.New(cfg); err != nil {

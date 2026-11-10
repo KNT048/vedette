@@ -10107,7 +10107,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "PUT":
 									r.name = CorePutCoreNetworkManagementOperation
-									r.summary = "Management interface: DHCP or static. An address change applies for 2 minutes and reverts unless confirmed from the new address"
+									r.summary = "Management interface: DHCP or static. An address change applies for 5 minutes and reverts unless confirmed from the new address (you sign in again there)"
 									r.operationID = "core_put_core_network_management"
 									r.operationGroup = ""
 									r.pathPattern = "/core/network/management"

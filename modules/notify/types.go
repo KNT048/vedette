@@ -238,6 +238,44 @@ type DeviceDirectory interface {
 type TokenRecorder interface {
 	// address is where the link was sent (the approver's email): the record carries it (spec 4.1, 4.2).
 	RecordToken(ctx context.Context, id TokenID, b Binding, keyID, address string) error
+	// RecordReplyCode stores the hash of one Zalo personal reply code (spec approval-tokens.md 7.1) before the message
+	// that carries the code is sent; without a recorder no code is sent. The plain code is never stored or logged.
+	RecordReplyCode(ctx context.Context, c ReplyCode) error
+}
+
+// ReplyCode is one reply code of one approver for one request: CodeHash is the lowercase hex SHA-256 of spec 7.1,
+// Address the approver's Zalo user id, Approve false for the "R-" (reject) code. ExpiresAt is never after the request ends
+// and at most 30 minutes after the code is made.
+type ReplyCode struct {
+	RequestID string
+	UserID    string
+	Address   string
+	Approve   bool
+	CodeHash  string
+	ExpiresAt time.Time
+}
+
+// Decision is what a chat listener passes to Decisions after it has checked the platform (Slack team and channel,
+// Telegram chat, Zalo session): ExternalID is the sender on the platform, RequestID comes from the button (empty for a
+// Zalo personal reply code), Code is the text the approver typed (reply codes only).
+type Decision struct {
+	Channel    channel.Type
+	ExternalID string
+	RequestID  string
+	Approve    bool
+	Code       string
+}
+
+// DecisionResult is the answer of the response module: Status says what was recorded (the module response owns the
+// values), Message is the short private reply for the person who pressed the button.
+type DecisionResult struct {
+	Status  string
+	Message string
+}
+
+// Decisions is the port of the response module that takes decisions made in chat (PRE-8). notify decides nothing itself.
+type Decisions interface {
+	Decide(ctx context.Context, d Decision) (DecisionResult, error)
 }
 
 // Errors of the service that are not API errors.
@@ -246,6 +284,9 @@ var (
 	ErrInvalidNotice = errors.New("notify: invalid notice")
 	// ErrApprovalUnavailable means approval requests cannot be sent: approval links are credentials and need the real box address.
 	ErrApprovalUnavailable = errors.New("notify: approval requests are not available: the box address (BaseURL) is not set")
+	// ErrApprovalKeyUnavailable means the approval key (K_approval) does not exist or cannot be opened, so no link can be
+	// checked. VerifyApprovalLink never makes a key.
+	ErrApprovalKeyUnavailable = errors.New("notify: the approval key is not available")
 	// ErrModuleOff means the module is off: Publish, OpenIncident and SendApprovalRequest do nothing and queue nothing.
 	ErrModuleOff = errors.New("notify: the module is off")
 )

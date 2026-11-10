@@ -135,6 +135,9 @@ func mapHostCode(ctx context.Context, log *slog.Logger, code, hostMsg string, re
 	case api.CodeShuttingDown:
 		return apierr.New(503, CodeHostUnreachable, "The operating system helper is restarting. Try again in a minute.")
 	}
+	if e := mapNetCode(code); e != nil { // the network commands (S-CORE-8, D-99, D-100)
+		return e
+	}
 	log.ErrorContext(ctx, "vedette-host refused or failed a call", "code", code, "message", hostMsg)
 	return apierr.New(502, CodeHostError, "The operating system helper could not do this. The details are in the box log.")
 }
@@ -164,10 +167,25 @@ func newRequestID() (string, error) {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
 }
 
+// runWaiter is what following a run needs of the host (Host and NetHost both have it).
+type runWaiter interface {
+	GetRun(ctx context.Context, runID string) (api.Run, error)
+	Events(ctx context.Context, runID string, after uint64) *client.Stream
+}
+
 // waitRun follows a run to its end (the stream carries only a few events for the short commands) and returns
 // the finished run; a run that did not end well is the API error its code maps to.
-func waitRun(ctx context.Context, log *slog.Logger, h Host, run api.Run, limit time.Duration) (api.Run, error) {
-	if !run.Status.Terminal() {
+func waitRun(ctx context.Context, log *slog.Logger, h runWaiter, run api.Run, limit time.Duration) (api.Run, error) {
+	return waitRunTo(ctx, log, h, run, limit, false)
+}
+
+// waitRunTo is waitRun that may also stop at awaiting_confirm (a net.apply that changed the management address
+// waits there for net.confirm, D-100): the run is then returned as it is, with no error.
+func waitRunTo(ctx context.Context, log *slog.Logger, h runWaiter, run api.Run, limit time.Duration, stopAtAwaiting bool) (api.Run, error) {
+	done := func(r api.Run) bool {
+		return r.Status.Terminal() || (stopAtAwaiting && r.Status == api.StatusAwaitingConfirm)
+	}
+	if !done(run) {
 		parent := ctx
 		ctx, cancel := context.WithTimeout(ctx, limit)
 		defer cancel()
@@ -180,11 +198,15 @@ func waitRun(ctx context.Context, log *slog.Logger, h Host, run api.Run, limit t
 		st := h.Events(ctx, run.RunID, 0)
 		defer st.Close()
 		for {
-			if _, err := st.Next(); err != nil {
+			ev, err := st.Next()
+			if err != nil {
 				if errors.Is(err, io.EOF) {
 					break
 				}
 				return api.Run{}, fail(err)
+			}
+			if stopAtAwaiting && ev.Kind == api.KindState && ev.Status == api.StatusAwaitingConfirm {
+				break
 			}
 		}
 		var err error
@@ -192,7 +214,7 @@ func waitRun(ctx context.Context, log *slog.Logger, h Host, run api.Run, limit t
 			return api.Run{}, fail(err)
 		}
 	}
-	if run.Status == api.StatusSucceeded {
+	if run.Status == api.StatusSucceeded || (stopAtAwaiting && run.Status == api.StatusAwaitingConfirm) {
 		return run, nil
 	}
 	if run.Error != nil {

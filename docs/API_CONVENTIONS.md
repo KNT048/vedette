@@ -34,7 +34,7 @@ Tên endpoint, mã lỗi, tên trường giữ tiếng Anh; văn xuôi tiếng V
 | 401 | Chưa đăng nhập / phiên hết hạn (`unauthenticated`), hoặc cần mã 2 bước (`twofa_required` ở `POST /auth/login`, kèm `method`) | |
 | 403 | Đủ phiên nhưng không đủ quyền hoặc bị cấm theo trạng thái (`forbidden`, `disabled`, `tool_not_allowed`, `token_expired`, `approver_not_listed`…) | |
 | 404 | Không có đối tượng (`not_found`, 51 endpoint) hoặc liên kết sai (`unknown`) | Không phân biệt "không tồn tại" và "không được xem" với token công khai |
-| 409 | Trạng thái hiện tại không cho phép (63 mã: `already_*`, `busy`, `expired`, `not_pending`, `ip_in_use`…) | Thao tác có thể thành công sau khi người dùng sửa trạng thái |
+| 409 | Trạng thái hiện tại không cho phép (64 mã: `already_*`, `busy`, `expired`, `not_pending`, `ip_in_use`…) | Thao tác có thể thành công sau khi người dùng sửa trạng thái |
 | 413 | Tệp/thân quá lớn (`too_large` ở `POST /feeds/parse-test`) | Mock còn trả 400 `too_large` ở 3 endpoint tải tệp: thống nhất về 413 **[ĐX]** |
 | 422 | Dịch vụ ngoài từ chối thông tin hợp lệ về hình thức (`wazuh_auth`) | Hiện đúng 1 chỗ; dùng cho "đúng dạng nhưng bên kia từ chối" |
 | 429 | Giới hạn tần suất / trần (`rate_limited`, `resend_too_soon`, `too_many_codes`, `daily_cap`) | Kèm `Retry-After` (mục 8) |
@@ -85,11 +85,11 @@ Danh sách trả đối tượng, không phải mảng trần (cho phép thêm `
 
 ### 3.3 Danh mục mọi mã lỗi đang dùng
 
-Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, code}` trong `web/src/features/*/mocks.ts`, `*/state.ts`, `*/osMock.ts`, `*/sourcesMock.ts`, `*/harness-mocks.ts`, `*/emailCode.ts`, `*/logExport.ts`, `*/activity.ts` và `web/src/mocks/*.ts` (2026-11-09): **293 mã** (từ mock), cộng 5 mã chỉ backend thêm ở WP-04b phần 2 (`invalid_setup_code`, `sample_unavailable`, `invalid_from`, `invalid_to`, `misdirected_request`) và 14 mã chỉ backend thêm ở WP-07b phần 2 (lỗi của `vedette-host` và của việc core ghi snapshot: `not_appliance`, `host_unreachable`, `host_error`, `no_check_yet`, `dpkg_locked`, `dpkg_inconsistent`, `low_disk`, `rebooting`, `reboot_limit_reached`, `snapshot_rejected`, `snapshot_failed`, `apt_failed`, `health_check_failed`, `effect_not_verified`; bảng ánh xạ mã host → mã API ở `modules/core/CONTRACT.md` INV-18): 312. Cột "Endpoint dùng" là handler gần nhất chứa lời gọi; với mã sinh từ hàm kiểm tra dùng chung, ghi `module <tên> (validator dùng chung)` (đó là hạn chế của cách trích tĩnh) (mục 12 đề xuất khai `errors` trong `contract.ts` để bảng này sinh tự động). Thông điệp là bản mẫu tiếng Anh trong mock.
+Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, code}` trong `web/src/features/*/mocks.ts`, `*/state.ts`, `*/osMock.ts`, `*/sourcesMock.ts`, `*/harness-mocks.ts`, `*/emailCode.ts`, `*/logExport.ts`, `*/activity.ts` và `web/src/mocks/*.ts` (2026-11-09): **293 mã** (từ mock), cộng 5 mã chỉ backend thêm ở WP-04b phần 2 (`invalid_setup_code`, `sample_unavailable`, `invalid_from`, `invalid_to`, `misdirected_request`) và 14 mã chỉ backend thêm ở WP-07b phần 2 (lỗi của `vedette-host` và của việc core ghi snapshot: `not_appliance`, `host_unreachable`, `host_error`, `no_check_yet`, `dpkg_locked`, `dpkg_inconsistent`, `low_disk`, `rebooting`, `reboot_limit_reached`, `snapshot_rejected`, `snapshot_failed`, `apt_failed`, `health_check_failed`, `effect_not_verified`; bảng ánh xạ mã host → mã API ở `modules/core/CONTRACT.md` INV-18) và 1 mã chỉ backend thêm ở WP-13b lát 13b-9 (`ai_paused`: cổng tạm dừng của đề xuất AI; mock có từ `response/ai.ts`, tệp này nằm ngoài danh sách trích): 313. Màn hình Box network (S-CORE-8, 2026-11-10): `networkMock.ts` không nằm trong danh sách tệp trích tĩnh ở trên nên 21 mã của nó chưa có trong bảng, được thêm ở đây (`management_count`, `management_fixed`, `span_count`, `span_on_management`, `change_pending`, `confirm_required`, `nothing_pending`, `address_conflict`, `net_backend_unsupported`, `invalid_roles`, `invalid_static`, `dhcp_no_static`, `gateway_outside_subnet`, `gateway_not_host`, `invalid_span`, `no_interface`, `nothing_selected`, `bad_filter`, `bad_limit`, `default_no_servers`, `bad_ntp`), cùng 11 mã chỉ backend thêm ở lát `core` của màn hình đó (`span_has_address`, `span_not_physical`, `connectivity_check_failed`, `reverted_by_reboot`, `management_not_set`, `revert_failed`, `netplan_apply_failed`, `ntp_not_applied`, `arp_probe_failed`, `pending_invalid`, `confirm_failed`; bảng ánh xạ mã host → mã API ở `modules/core/CONTRACT.md` INV-21 và INV-25): **345**. Cột "Endpoint dùng" là handler gần nhất chứa lời gọi; với mã sinh từ hàm kiểm tra dùng chung, ghi `module <tên> (validator dùng chung)` (đó là hạn chế của cách trích tĩnh) (mục 12 đề xuất khai `errors` trong `contract.ts` để bảng này sinh tự động). Thông điệp là bản mẫu tiếng Anh trong mock.
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (211 mã)
+#### HTTP 400 (223 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -119,7 +119,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_header` | 400 | The first row must be column headers with at least a name or product column. Download the template to see the format. | `POST /inventory/import` |
 | `bad_host` | 400 | The SIEM server must be an IP address or a domain name, for example 192.168.10.50 or siem.company.com. | module logs, notify (validator dùng chung) |
 | `bad_hostname` | 400 | Enter a fake hostname, for example FILESRV-OLD. Pick a name that looks like an old file server in your company. | `POST /honeypot/decoys`; `PUT /honeypot/config` |
-| `bad_interface` | 400 | Network interface must be one of: ${s.interfaces.join(', ')}. | `PATCH /inventory/sensors/{id}` |
+| `bad_interface` | 400 | Network interface must be one of: ${s.interfaces.join(', ')}. Backend [ĐX]: cũng host `iface_unknown`. | `PATCH /inventory/sensors/{id}`; `PUT /core/network/span` |
 | `bad_interval` | 400 | Choose how often to sync: every 5, 15, 60, 360 or 1440 minutes. | module inventory (validator dùng chung) |
 | `bad_ip` | 400 | Enter a secondary IP for the decoy, for example 192.168.10.240. Pick an address no device uses. | `POST /honeypot/decoys`; `PUT /honeypot/config` |
 | `bad_item` | 400 | Invalid item to apply. | `POST /findings/{id}/applied` |
@@ -188,7 +188,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_categories` | 400 | Unknown or empty log category in the download request. | `GET /core/logs/export` |
 | `invalid_channel` | 400 | The channel is stable or beta. | `PATCH /core/updates` |
 | `invalid_client` | 400 | Enter the Client ID (at most 200 characters). | `PUT /core/oidc` |
-| `invalid_code` | 400 | The code is 6 digits. | `POST /auth/login`; `POST /core/account/2fa/confirm` |
+| `invalid_code` | 400 | The code is 6 digits. | `POST /auth/login`; `POST /core/account/2fa/confirm`; `POST /response/actions/{id}/approve` (từ `VerifyTwoStep`, trả nguyên, D-98) |
 | `invalid_config` | 400 | The scan configuration is not valid. | `PUT /scans/config` |
 | `invalid_contact` | 400 | Enter the name of the person in charge of data protection. | module reports (validator dùng chung) |
 | `invalid_credentials` | 400 | Wrong email or password. | `POST /auth/login`; `POST /auth/login/resend-code` |
@@ -210,7 +210,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_match` | 400 | Enter the words (comma-separated) or the regular expression to look for, 200 characters at most. | module ai (validator dùng chung) |
 | `invalid_memory` | 400 | Write what the AI should remember in 3 to 300 characters, for example "NAS-PHOTOS is reachable from the Internet". | `POST /ai/memory`; `PUT /ai/memory/{id}` |
 | `invalid_message` | 400 | Write the message people will see, 3 to 200 characters. | module ai (validator dùng chung) |
-| `invalid_mode` | 400 | The mode is automatic or manual. | `PATCH /core/updates` |
+| `invalid_mode` | 400 | The mode is automatic or manual. | `PATCH /core/updates`; `PUT /core/network/management`; `PUT /core/network/ntp` |
 | `invalid_model` | 400 | The model name may only contain letters, digits, dots, dashes, colons and slashes (80 characters at most), for example c | module ai (validator dùng chung) |
 | `invalid_module` | 400 | No module "${unknown}". | `POST /core/setup` |
 | `invalid_name` | 400 | Give the connection a name of 1 to 40 characters, for example "Office FortiGate API". | 5 endpoint (/ai, /core) |
@@ -301,9 +301,21 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `username_required` | 400 | Enter the user name the box signs in with. | `POST /core/connections`; `PUT /core/connections/{id}` (SSH and Basic sign-in) |
 | `viewer_not_allowed` | 400 | A viewer cannot be an approver. | module notify (validator dùng chung) |
 | `weak_password` | 400 | The password needs at least ${MIN_PASSWORD} characters. A long sentence is easier to remember than random characters. | `POST /core/account/password`; `POST /core/setup` |
-| `wrong_code` | 400 | Wrong code. ${left} ${left === 1 ? 'try' : 'tries'} left. | `POST /core/account/2fa/confirm` |
+| `wrong_code` | 400 | Wrong code. ${left} ${left === 1 ? 'try' : 'tries'} left. | `POST /core/account/2fa/confirm`; `POST /response/actions/{id}/approve` (email, từ `VerifyTwoStep`, trả nguyên, D-98) |
 | `wrong_password` | 400 | The current password is wrong. | `POST /core/account/2fa/disable`; `POST /core/account/password`; `POST /core/account/2fa/start`; `POST /core/account/2fa/email/start` (D-76: bật 2 bước cũng cần mật khẩu hiện tại, thông điệp "The password is needed to turn on two-factor authentication."; sai tính vào bộ đếm xác thực lại theo tài khoản, riêng với bộ đếm đăng nhập sai nhưng cùng mức 10 lần / 15 phút và cùng cách tăng thời gian chờ, và ghi `auth.reauth_failed`). Cũng là mã khi mật khẩu vừa chứng minh đã bị đổi giữa lúc kiểm và lúc ghi |
 | `wrong_kind` | 400 | This action is an SSH command. Choose an SSH connection. | `PUT /response/catalog/{id}` |
+| `dhcp_no_static` | 400 | With DHCP the address, gateway and DNS come from your DHCP server. Remove the static fields. | `PUT /core/network/management` |
+| `gateway_outside_subnet` | 400 | The gateway must be inside the address range you entered. Backend [ĐX] (D-100): kiểm của `core` trước, và host `gateway_outside_subnet` (412). | `PUT /core/network/management` |
+| `gateway_not_host` | 400 | The gateway cannot be the network or broadcast address of the range. Use the address of your router. | `PUT /core/network/management` |
+| `invalid_static` | 400 | The IP address must be an IPv4 address like 192.168.10.250. (cùng nhóm: tiền tố 8 đến 30, địa chỉ mạng/broadcast/dành riêng/link-local 169.254, gateway trùng địa chỉ, 1 đến 3 DNS, DNS loopback/link-local/multicast hoặc trùng; luật của host `unicast4`/`hostInSubnet`/`IsGlobalUnicast`; host `invalid_args` → 400 `invalid`) | `PUT /core/network/management` |
+| `invalid_roles` | 400 | Give a role (management, span or unused) for every interface. | `PUT /core/network/interfaces` |
+| `invalid_span` | 400 | The SPAN settings are incomplete. (backend: giản đồ OpenAPI từ chối trước, mã chung `invalid`) | `PUT /core/network/span` |
+| `no_interface` | 400 | Choose the port that receives the mirrored traffic before turning SPAN on. | `PUT /core/network/span` |
+| `nothing_selected` | 400 | Choose at least one thing to read from the mirrored traffic, or turn SPAN off. | `PUT /core/network/span` |
+| `bad_filter` | 400 | "${v}" is not a network range. Write it like 10.0.5.0/24, with the prefix length. (cùng nhóm: loại lọc, giá trị rỗng, dải lớn hơn /8, máy, cổng, trùng, quá 50) | `PUT /core/network/span` |
+| `bad_limit` | 400 | The CPU cap must be a whole number from 5 to 50 percent. (backend: giản đồ OpenAPI từ chối trước, mã chung `invalid`) | `PUT /core/network/span` |
+| `default_no_servers` | 400 | The default pool takes no server list. Choose "your own servers" to enter some. | `PUT /core/network/ntp` |
+| `bad_ntp` | 400 | Give 1 to 4 NTP servers. (cùng nhóm: tên hoặc IPv4 sai, trùng; backend: tên chỉ gồm số như `1.2.3` bị từ chối, host cũng từ chối) | `PUT /core/network/ntp` |
 
 #### HTTP 401 (3 mã)
 
@@ -338,10 +350,11 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (63 mã)
+#### HTTP 409 (78 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
+| `ai_paused` | 409 | AI request: AI proposals are paused (${reason}). An admin can resume them. | cổng của đề xuất AI (13b-10 gọi `checkAIPaused`; đặt bởi cầu dao chất lượng, gỡ bởi `POST /response/ai/resume`, 13b-9) |
 | `ai_unavailable` | 409 | The AI assistant module is off. Turn it on in Settings, Modules. | `POST /findings/{id}/ai` |
 | `already_on` | 409 | Two-step sign-in is already on. Turn it off first to set up the other method. | `POST /core/account/2fa/email/confirm`; `POST /core/account/2fa/email/start`; `POST /core/account/2fa/start` |
 | `already_open` | 409 | This finding is already open. | `POST /findings/{id}/status` |
@@ -367,7 +380,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `finding_closed` | 409 | The finding is no longer an open critical finding. | `POST /response/proposals/{id}/request` |
 | `hostname_in_use` | 409 | The name ${hostname} belongs to device ${hostClash.ip} in the inventory. Pick another name. | `POST /honeypot/decoys`; `PUT /honeypot/config` |
 | `in_use` | 409 | The rule "${user.name}" uses this action. Change or delete the rule first. / A change made through ${name} is still in force. Roll it back in Response, or wait until it expires, then delete the connection. | `DELETE /response/catalog/{id}`; `DELETE /core/connections/{id}` |
-| `ip_in_use` | 409 | IP ${ip} belongs to device ${assetName(clash)} in the inventory. Pick an unused IP. | 4 endpoint (/honeypot) |
+| `ip_in_use` | 409 | IP ${ip} belongs to device ${assetName(clash)} in the inventory. Pick an unused IP. | 4 endpoint (/honeypot); `PUT /core/network/management` ("… is already used by a device in the inventory or by a decoy. Pick a free address.") |
 | `limit` | 409 | Up to 30 rules. | `POST /response/catalog`; `POST /response/rules`; `POST /response/templates/{id}/clone`; `POST /response/actions/{id}/approve` (a `blocklist_add` item refused when the block list already holds 10 000 entries) |
 | `module_off` | 409 | Turn on the MCP server before creating a token. | `POST /core/mcp/tokens` |
 | `limit_reached` | 409 | The box can hold 32 decoys. Delete one before adding another. | `POST /honeypot/decoys` |
@@ -405,6 +418,20 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `reboot_limit_reached` | 409 | The box has already rebooted three times in 24 hours. Wait before rebooting again. Backend [ĐX]: host `reboot_limit_reached`. | `POST /core/updates/os/reboot` |
 | `rebooting` | 409 | The box is rebooting. Wait for it to come back, then try again. Backend [ĐX]: host `rebooting`. | `GET /core/updates/os`; `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup` |
 | `pending_confirm` | 409 | A network change is waiting for confirmation. Confirm or cancel it in Settings, Box network, then try again. Backend [ĐX] (D-100): host `pending_confirm` (khoá ghi do run `awaiting_confirm` giữ) hoặc `net_pending_confirm`; id run của host không ra ngoài. | `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup` |
+| `management_count` | 409 | Exactly one interface must be the management interface; you set ${n}. The management interface is the one you reach this page through. | `PUT /core/network/interfaces` |
+| `management_fixed` | 409 | ${cur.name} is the management interface and you are using this page through it. It cannot be changed here; set the management address instead. | `PUT /core/network/interfaces` |
+| `span_count` | 409 | Only one interface can capture mirrored traffic. Set the others to unused. | `PUT /core/network/interfaces` |
+| `span_on_management` | 409 | ${iface.name} is the management interface. SPAN needs its own port: it listens with no IP address, and mirrored packets would reach your management network. Backend [ĐX]: cũng host `same_iface`. | `PUT /core/network/span` |
+| `change_pending` | 409 | A change is waiting for confirmation. Confirm it from the new address or cancel it first. Backend [ĐX] (D-100): host `pending_confirm` khi khoá ghi do run `awaiting_confirm` giữ; id run của host không ra ngoài (các đường khác của `core` nhận cùng mã host dưới tên `pending_confirm`). | `PUT /core/network/management`; `PUT /core/network/span`; `PUT /core/network/ntp`; `PUT /core/network/interfaces` |
+| `confirm_required` | 409 | This changes the address you use to reach the box. Open https://${ip}:8443 within 5 minutes and confirm, or the box returns to the old settings. You will need to sign in again at the new address. Thân có `new_ip` (null với DHCP: máy chủ DHCP chọn địa chỉ, câu nói "Find the new address your DHCP server gives the box, open it on port 8443…"). Cùng kiểu dùng cho `POST /core/updates/rollback` (D-104). | `PUT /core/network/management` |
+| `nothing_pending` | 409 | No management change is waiting for confirmation. (hết giờ: "The time to confirm ran out and the box went back to the old settings. Make the change again.") Backend [ĐX]: host `not_awaiting_confirm`, `not_confirmed`. | `POST /core/network/management/confirm`; `POST /core/network/management/revert` |
+| `address_conflict` | 409 | Another device already uses this address. Backend [ĐX] (D-101): host `address_conflict`, trả từ run sau ARP probe; không có gì chờ xác nhận. | `PUT /core/network/management` |
+| `net_backend_unsupported` | 409 | This box's network files were not set up by the Vedette installer, so Vedette cannot change them. Reinstall with the installer or change the network on the box itself. Backend [ĐX] (D-99): host `net_backend_unsupported`. | mọi thay đổi `PUT /core/network/*` |
+| `span_has_address` | 409 | That port has an IP address, and a SPAN port must have none. Remove the address from that port first, or choose another port. Chỉ backend (host `span_has_address`). | `PUT /core/network/span`; `PUT /core/network/interfaces` |
+| `span_not_physical` | 409 | Only a physical network card can be the SPAN port, not a VLAN, bridge, bond or virtual interface. Chỉ backend (host `span_not_physical`). | `PUT /core/network/span`; `PUT /core/network/interfaces` |
+| `connectivity_check_failed` | 409 | The box could not reach the network with the new settings, so it went back to the old ones. Check the address, prefix length and gateway, then try again. Chỉ backend (run `reverted`, D-100). | `PUT /core/network/management` |
+| `reverted_by_reboot` | 409 | The box restarted before the change was confirmed, so it came back on the old address. Chỉ backend (run `reverted`). | `POST /core/network/management/confirm` |
+| `management_not_set` | 409 | Vedette has not set up this box's network yet. Save the management address first, then change the other settings. Chỉ backend: host chưa ghi cấu hình nào nên không có gì để gộp. | `PUT /core/network/span`; `PUT /core/network/ntp`; `PUT /core/network/interfaces` |
 
 #### HTTP 421 (1 mã)
 
@@ -427,7 +454,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `resend_too_soon` | 429 | Wait ${wait} seconds before asking for a new code. | module core (validator dùng chung) |
 | `too_many_codes` | 429 | Too many codes were sent in the last hour. Try again later. | module core (validator dùng chung) |
 
-#### HTTP 502 (12 mã)
+#### HTTP 502 (18 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -443,6 +470,12 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `host_error` | 502 | The operating system helper could not do this. The details are in the box log. Backend [ĐX]: mọi mã host còn lại (`internal`, `timeout`, `command_failed`, `backup_unknown`, ...) hoặc câu trả lời không dùng được; chi tiết chỉ ở log. | `GET /core/updates/os`; `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup` |
 | `snapshot_rejected` | 502 | The helper could not take over a copy of the box's data. Check the box clock and the permissions of the data folder, then try again. Backend [ĐX]: host `snapshot_required`, `snapshot_invalid`, `db_unreadable`, `key_unreadable` (lỗi triển khai hoặc lệch đồng hồ, không phải lỗi người dùng). | `POST /core/updates/os/install`; `GET /core/data/backup` |
 | `snapshot_failed` | 502 | Vedette could not write a copy of its data to the box's data folder. Check that the folder is writable and the disk is healthy, then try again. Backend [ĐX]: core không ghi được snapshot (thư mục `snapshots/` không ghi được, tệp khoá không đọc được, lỗi I/O); đĩa đầy hoặc ít chỗ trống hơn cỡ cơ sở dữ liệu thì là `low_disk` (409). Không bao giờ là 500. | `POST /core/updates/os/install`; `GET /core/data/backup` |
+| `revert_failed` | 502 | The box could not go back to the old network settings by itself. The settings saved on the box are the old ones, so it comes back on the old address when it restarts, and it restarts by itself in about a minute. Chỉ backend (D-100 (8)); `pending.reboot_at` cho GUI. | `POST /core/network/management/revert`; `POST /core/network/management/confirm` |
+| `netplan_apply_failed` | 502 | The operating system could not apply the network settings. If anything was changed it was put back; the details are in the box log. Chỉ backend. | `PUT /core/network/*` |
+| `ntp_not_applied` | 502 | The time service did not take the new NTP servers. The old list was kept. Chỉ backend (D-106). | `PUT /core/network/ntp`; `PUT /core/network/management` |
+| `arp_probe_failed` | 502 | The box could not check whether the new address is free, so nothing was changed. Try again. Chỉ backend (D-101). | `PUT /core/network/management` |
+| `pending_invalid` | 502 | The box could not trust its record of the waiting change, so it went back to the old settings. Make the change again. Chỉ backend. | `POST /core/network/management/confirm` |
+| `confirm_failed` | 502 | The box could not save the new settings, so it went back to the old ones. Make the change again. Chỉ backend. | `POST /core/network/management/confirm` |
 
 #### HTTP 500 (1 mã)
 
@@ -757,7 +790,7 @@ Thêm khi có Go **[ĐX]**, đều chạy trong `make verify` và workflow CI đ
 | # | Câu hỏi | Gợi ý / ảnh hưởng |
 |---|---|---|
 | 1 | ~~**POST tạo trả 201 nhưng hợp đồng khai 200** (16 chỗ)~~ Đã làm ở WP-06: `status` trong `Endpoint`, `openapi.json` sinh lại. Còn lại: hai endpoint trả 201/200 tuỳ trường hợp chưa biểu diễn được. | |
-| 2 | **Khai mã lỗi theo thao tác** (`errors: [...]`) để bảng 3.3 sinh tự động thay vì trích tĩnh bằng regex (hạn chế: nhiều mã gắn "validator dùng chung"). Có làm không? | Giảm công bảo trì bảng 312 mã; cần sửa toàn bộ `contract.ts` |
+| 2 | **Khai mã lỗi theo thao tác** (`errors: [...]`) để bảng 3.3 sinh tự động thay vì trích tĩnh bằng regex (hạn chế: nhiều mã gắn "validator dùng chung"). Có làm không? | Giảm công bảo trì bảng 313 mã; cần sửa toàn bộ `contract.ts` |
 | 3 | **Phân trang `GET /inventory/devices`, `/findings`:** SPA tải toàn bộ và lọc ở client. Chuyển sang phân trang/ lọc ở máy chủ ở M2 hay giữ tới khi vượt ngưỡng? | Mục tiêu 1.000 thiết bị vẫn chạy được không phân trang; cần xác nhận |
 | 4 | **Hạn phiên** (idle, tuyệt đối), khoá đăng nhập sai, chính sách "ghi nhớ thiết bị": mock chưa có. Giá trị mặc định? | Cũng là câu hỏi mở số 7 của DATA_MODEL |
 | 5 | **Đường gọi lại OIDC** (`/core/sso/callback` hoặc tương đương) và đăng xuất SSO chưa có trong `contract.ts` dù `core_oidc` có `POST /core/oidc/test` và `POST /core/sso/login`. Thêm endpoint nào, thuộc story nào? | Cần trước khi xây `auth-oidc` |

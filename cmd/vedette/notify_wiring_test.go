@@ -263,7 +263,7 @@ func TestWiringApprovalLinkCarriesBaseURL(t *testing.T) {
 			sink := newSMTPSink(t)
 			s.email(sink, notify.Approver{UserID: op.ID, Address: "op@acme.example"})
 			_, err := newNotify(s.d).SendApprovalRequest(t.Context(), notify.ApprovalRequest{ID: "req-1", Title: "Block 203.0.113.9", What: "w", Action: "a",
-				Severity: notify.High, Expires: time.Now().Add(time.Hour)})
+				Severity: notify.High, Expires: time.Now().Add(time.Hour), Channels: []channel.Type{channel.Email}})
 			if tc.base == "" {
 				if !errors.Is(err, notify.ErrApprovalUnavailable) {
 					t.Fatalf("without a BaseURL: %v, want ErrApprovalUnavailable", err)
@@ -278,6 +278,32 @@ func TestWiringApprovalLinkCarriesBaseURL(t *testing.T) {
 				t.Fatalf("the approval mail has no link to %s:\n%v", tc.base, msgs)
 			}
 		})
+	}
+}
+
+// (c2) The mailer given to core/auth is the one of notify and it can mail step-up codes (D-98): a mailer without
+// SendStepUpCode would make email two-step approval answer 503 twofa_email_unavailable. Without an email channel
+// it is not available and refuses to send, so a step-up never falls back to nothing.
+func TestWiringCodeMailerIsAStepUpMailer(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	s.enableNotify()
+	m := newNotify(s.d).CodeMailer()
+	var _ auth.CodeMailer = m
+	sm, ok := any(m).(auth.StepUpMailer)
+	if !ok {
+		t.Fatal("the notify code mailer does not implement auth.StepUpMailer")
+	}
+	if m.Available(t.Context()) || sm.SendStepUpCode(t.Context(), "op@acme.example", "123456", "Approve x") == nil {
+		t.Fatal("a step-up code was sent without an email channel")
+	}
+	sink := newSMTPSink(t)
+	s.email(sink)
+	if err := sm.SendStepUpCode(t.Context(), "op@acme.example", "123456", "Approve x"); err != nil {
+		t.Fatal(err)
+	}
+	if msgs := sink.messages(); len(msgs) != 1 || !strings.Contains(msgs[0], "123456") || !strings.Contains(msgs[0], "Approve x") {
+		t.Fatalf("step-up mail: %v", msgs)
 	}
 }
 

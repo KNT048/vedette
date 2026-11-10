@@ -75,6 +75,7 @@ Pinned in `go.mod` and `go.sum`; licenses checked from the `LICENSE` files of ea
 | Component | License | How it is used |
 |---|---|---|
 | nmap | NPSL 0.95 | installed from the OS repository by the installer; invoked as a binary |
+| nuclei (projectdiscovery) and the safe nuclei-templates pack (`kev,vkev`, D-125) | MIT | planned (scan module, sensor protocol SP-5): a binary pinned by version and SHA-256 in the signed `vedette-scan` image, run as its own process in the `scan` container; the template pack is built at release time and shipped inside the same image. Not linked into any Vedette binary |
 | OpenCanary | BSD-3 | installed by the installer; separate process |
 | Zeek / Suricata (optional) | BSD / GPL-2 | separate processes |
 | Greenbone CE (optional) | GPL-2 / AGPL-3 | separate container, unmodified |
@@ -105,7 +106,7 @@ Release signing tools (maintainer's machine only, not in `tools/go.mod`, never s
 
 | Component | License |
 |---|---|
-| nuclei, httpx, naabu, subfinder, dnsx, nuclei-templates | MIT |
+| httpx, naabu, subfinder, dnsx | MIT |
 | recog / recog-go | BSD-2 |
 
 ## Data redistributed by the project's feed builder

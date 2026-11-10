@@ -62,6 +62,9 @@ type triggerDef struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	Fields      []TriggerField `json:"fields"`
+	// AIEvidence are the kinds of evidence that prove the trigger to the AI (finding, ioc_hit, config_read). None = no evidence can show it
+	// happened, so the AI may not use the trigger (D-119).
+	AIEvidence []string `json:"ai_evidence"`
 }
 
 type templateDef struct {

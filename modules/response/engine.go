@@ -87,7 +87,7 @@ func (s *Service) planAction(a RuleAction, ev Det, why string, cats map[string]c
 		acted = dedupe(append(acted, subjectOf(ev.Fields)...))
 	}
 	if e, hit := firstTouched(never, acted); hit {
-		return planned{}, &planFail{"never_touch", strings.Join(acted, " / ") + " matches the never-touch list (" + e.Label + ", " + e.Value + "). Nothing was changed.", title}
+		return planned{}, &planFail{"never_touch", cleanLine(strings.Join(acted, " / ")+" matches the never-touch list ("+e.Label+", "+e.Value+").") + " Nothing was changed.", title}
 	}
 	if why2 := unavailable(cat, cs); why2 != "" {
 		return planned{}, &planFail{"tool_unavailable", why2, title}

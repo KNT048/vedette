@@ -169,7 +169,7 @@ func TestContract_INV5_FirstScanIsMarkedWhenNmapFinishedEvenIfRecordingFails(t *
 		return sa.Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true}, true
 	}
 	sw := &failingSoftware{sink: e.sink, fail: errors.New("database is locked")}
-	svc, err := sa.New(sa.Config{DB: e.db, Inventory: h, Observe: e.sink, Software: sw, Events: e.ev, NmapPath: e.nm.path, Clock: e.clock})
+	svc, err := sa.New(sa.Config{DB: e.db, Inventory: h, Observe: e.sink, Software: sw, Events: e.ev, NmapPath: e.nm.path, Prober: e.prober(), Clock: e.clock})
 	if err != nil {
 		t.Fatal(err)
 	}

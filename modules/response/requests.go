@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"slices"
 	"sort"
@@ -28,10 +29,10 @@ const offMsg = "Execution is off. Turn it on in Settings, AI response (high risk
 
 // reqInit is what a creator gives createRequest.
 type reqInit struct {
-	Source, ProposalID, RuleID, RuleName, Trigger, TriggerSummary, FindingID, CVE, AssetID, AssetName, Title string
-	Recs                                                                                                     []itemRec
-	AI                                                                                                       *AiMeta
-	Held                                                                                                     string // why a pre-approval was not used, for the log line
+	Source, Actor, ProposalID, RuleID, RuleName, Trigger, TriggerSummary, FindingID, CVE, AssetID, AssetName, Title string
+	Recs                                                                                                            []itemRec
+	AI                                                                                                              *AiMeta
+	Held                                                                                                            string // why a pre-approval was not used, for the log line
 }
 
 // createRequest writes a pending request and its log line inside tx.
@@ -52,9 +53,11 @@ func (s *Service) createRequest(ctx context.Context, tx *sql.Tx, st Settings, in
 	for _, i := range in.Recs {
 		calls = append(calls, callText(i.Change.Rest, i.Change.CLI))
 	}
-	actor := "ai:response"
+	actor := in.Actor // who asked: the person of RequestProposal, or ai:response
 	if in.Source == "rule" {
 		actor = "rule:" + oneLine(in.RuleName, 80)
+	} else if actor == "" {
+		actor = AIActor
 	}
 	detail := in.Title + ": " + strings.Join(calls, " | ") + "; expires " + a.ExpiresAt + "; needs " + itoa(need) + " approver" + plural(need) + "; sent to the app only" + in.Held
 	if err := s.step(ctx, tx, "response.request", a.ID, LogRequest, detail, actor); err != nil {
@@ -1317,6 +1320,11 @@ func (s *Service) Metrics(ctx context.Context) (Metrics, error) {
 		rejected = rejected[:20]
 	}
 	m := Metrics{AI: stat(ai), Rules: stat(rules), Rejected: []RejectedRow{}}
+	for kind, n := range map[string]*int{"suggestion": &m.Suggestions, "digest": &m.Digested} {
+		if err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT count(*) FROM resp_ai_notes WHERE kind = ?`, kind).Scan(n); err != nil {
+			return Metrics{}, fmt.Errorf("response: count the AI notes: %w", err)
+		}
+	}
 	for _, r := range rejected {
 		reason := "No reason given"
 		if r.Note != nil {

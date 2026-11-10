@@ -17,7 +17,7 @@ import (
 // WP-13b slice 13b-9 (D-97, D-98, INV-15 (8), INV-16, INV-18): approving a high-risk AI request with the two-step code, the hints a
 // rejection can leave, the quality breaker and the AI state.
 
-// AI thresholds of the contract (INV-15). 13b-10 reads them for the proposal gates.
+// AI thresholds of the contract (INV-15). Propose reads them for the proposal gates.
 const (
 	AIMinConfidence = 0.8 // AI_MIN_CONFIDENCE
 	AIRepeatDays    = 7   // AI_REPEAT_DAYS
@@ -51,7 +51,7 @@ type Hint struct {
 	FromRequest string `json:"from_request"`
 }
 
-// AiNote is a suggestion or digest line the AI left instead of a request (13b-10 writes them).
+// AiNote is a suggestion or digest line the AI left instead of a request (Propose writes them, propose.go).
 type AiNote struct {
 	ID         string     `json:"id"`
 	TS         string     `json:"ts"`
@@ -234,12 +234,17 @@ func (s *Service) keepHint(ctx context.Context, tx *sql.Tx, r request, kind, rea
 	return s.step(ctx, tx, "response.ai_hint", r.ID, LogAINote, "Rejection reason saved as "+label+": "+truncRunes(text, 200), "system")
 }
 
+// byPersonSQL keeps a request out of the AI's record unless somebody really decided it: a rejection counts only when a person wrote it
+// (the server words that note "Rejected by <name>"). A cancellation (an action edited, the emergency stop) is also status rejected but is
+// no verdict on the AI: it counts for neither the quality breaker nor the 7-day repeat rule (D-119).
+const byPersonSQL = `(status <> 'rejected' OR note LIKE 'Rejected by %')`
+
 // decidedStatuses are the statuses of a request somebody decided (not pending, not expired).
 const decidedStatuses = `('approved', 'executed', 'failed', 'rolled_back', 'rejected')`
 
 // aiQuality looks at the last 10 decided AI requests.
 func aiQuality(ctx context.Context, q dbq, paused bool) (AiQuality, error) {
-	rs, err := loadReqs(ctx, q, `WHERE source = 'ai' AND decided_at IS NOT NULL AND status IN `+decidedStatuses+` ORDER BY decided_at DESC, seq DESC LIMIT ?`, qualityWindow)
+	rs, err := loadReqs(ctx, q, `WHERE source = 'ai' AND decided_at IS NOT NULL AND status IN `+decidedStatuses+` AND `+byPersonSQL+` ORDER BY decided_at DESC, seq DESC LIMIT ?`, qualityWindow)
 	if err != nil {
 		return AiQuality{}, err
 	}
@@ -280,7 +285,7 @@ func (s *Service) checkAIQuality(ctx context.Context, tx *sql.Tx, fx *effects) e
 	return nil
 }
 
-// checkAIPaused is the pause gate of a new AI proposal: 13b-10 calls it, with the settings it already read, among its gates (after the
+// checkAIPaused is the pause gate of a new AI proposal: Propose calls it, with the settings it already read, among its gates (after the
 // circuit breaker, before the trigger check, in the order of the mock).
 func checkAIPaused(st Settings) error {
 	if st.AI.PausedAt == nil {
@@ -316,7 +321,7 @@ func (s *Service) AIState(ctx context.Context) (AiState, error) {
 			return AiState{}, fmt.Errorf("response: count the AI requests: %w", err)
 		}
 	}
-	rows, err := rd.QueryContext(ctx, `SELECT id, ts, kind, title, why, confidence, action_id, target, evidence FROM resp_ai_notes ORDER BY ts DESC, rowid DESC LIMIT 50`)
+	rows, err := rd.QueryContext(ctx, `SELECT id, ts, kind, title, why, confidence, action_id, target, evidence FROM resp_ai_notes ORDER BY ts DESC, rowid DESC LIMIT 100`)
 	if err != nil {
 		return AiState{}, fmt.Errorf("response: read the AI notes: %w", err)
 	}

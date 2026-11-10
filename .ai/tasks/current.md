@@ -2,6 +2,8 @@
 
 Cập nhật: 2026-11-10. Repo: `KNT048/vedette` (public từ 2026-11-09, D-63; CI GitHub Actions miễn phí). Nhóm: Kiên (`@kiennt048`) và Emily / Mlee (`@kiennt049`).
 
+> **Bàn giao 2026-11-10:** phần của Kiên chuyển cho anh Trưởng — `.ai/handoff/README.md`.
+
 ## Đọc theo thứ tự
 1. `CLAUDE.md` — luật làm việc.
 2. `docs/TEAM_PLAN.md` — ai làm gì, gói việc (WP), thứ tự, cách chạy nhiều phiên AI.

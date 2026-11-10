@@ -1,5 +1,7 @@
 # Việc của Kiên — đọc cùng docs/TEAM_PLAN.md
 
+> **Bàn giao 2026-11-10:** anh Trưởng làm tiếp phần của Kiên. Điểm bắt đầu, việc còn lại theo thứ tự tới khi xong, công cụ: `.ai/handoff/README.md`.
+
 Cập nhật: 2026-11-10 chiều (phiên AI lead; `origin/main` = 6389e36). Sở hữu: core, host, đóng gói/phát hành, inventory, sensor-passive, sensor-active, response, honeypot, rà bảo mật; **cộng mọi việc chồng lấn/dùng chung (D-65)**.
 File này là **file handoff duy nhất** của phiên AI làm việc cho Kiên: sau compact/restart đọc lại trước khi làm tiếp. Bản sao trạng thái sống của lead (brief, worktree, job chờ merge) ở `../vedette-wt/LEAD-STATE.md` trên máy Kiên; file này là bản trong repo.
 
@@ -32,12 +34,12 @@ File này là **file handoff duy nhất** của phiên AI làm việc cho Kiên:
 ## PR đang mở (2026-11-10)
 | PR | Của ai | Nội dung | Trạng thái |
 |---|---|---|---|
-| #137 | Kiên | `GET /core/logs/export`, registry nguồn, chuỗi kiểm được ngoại tuyến, spool có giới hạn (S-CORE-6, #114, D-132) | job merge đang chờ; thứ tự: #137 → #139 → #140 |
+| #137 | Kiên | xuất log core (D-132) | **đã merge** 683126a |
+| #143 | Kiên | 13b-8 duyệt qua chat (D-135) | merge-step sau #142 |
 | #139 | Kiên | docs D-136 gói lá nuclei của scan (cho #138 của Emily) | chờ sau #137 |
 | #140 | Kiên | host `container.pull`: kiểm index, manifest và cosign rồi mới kéo digest ghim (lát 3-7, D-130) | chờ sau #139 |
 | #138 | Emily | scan S2: nuclei argv, JSONL, gói template (WP-23 phần 2) | Emily giữ để sửa theo review của chính cô; SP-3b chờ PR này |
 | #123 | Emily | `ai` lát 1: profile, khoá, gán, token (WP-25, S-AI-1; D-129 đã vào main) | Emily giữ để sửa; yêu cầu của Kiên: lỗi `newAI` khi dựng không được làm hộp dừng |
-| #141 | Emily | docs: handoff của Emily sau đợt merge giai đoạn 1 | không có gì cho phía Kiên |
 
 Worktree còn mở (trên máy Kiên): `resp-chat` (13b-8, nhánh `feat/response-chat`, 8c781b2; agent đang sửa review: bảng giới hạn tốc độ riêng cho chat, ghi từ chối một lần mỗi cửa sổ, tách Decide khỏi vòng chạy, các mục L1-L7, test còn thiếu), `logexport`, `docs-d136`, `host-pull`. Khi 13b-8 xong: đẩy, mở PR, báo Emily (listener, nonce Telegram, `notify_approver` UNIQUE, địa chỉ Zalo = user ID), merge-step.
 

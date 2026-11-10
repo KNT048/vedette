@@ -92,6 +92,7 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 		snd       channel.Sender
 		msg       channel.Message // what is sent (may hold a token)
 		recipient string          // the approver's address, for a message to one person
+		tgChat    string          // Telegram with buttons: the chat, so the buttons can be removed later (tgbuttons.go)
 	}
 	var plan []outgoing
 	type skipped struct{ user, reason string }
@@ -107,13 +108,16 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 			if err != nil {
 				return nil, fmt.Errorf("notify: approval request: %s", userText(err))
 			}
-			m := base
+			m, tgChat := base, ""
 			if ac.Type == channel.Telegram { // Approve/Reject buttons; their nonce is kept before the message goes out (spec 6)
 				if m.Buttons, err = s.telegramButtons(ctx, req, c.Fields); err != nil {
 					return nil, err
 				}
+				if len(m.Buttons) > 0 {
+					tgChat = strings.TrimSpace(c.Fields["chat_id"])
+				}
 			}
-			plan = append(plan, outgoing{snd: snd, msg: m})
+			plan = append(plan, outgoing{snd: snd, msg: m, tgChat: tgChat})
 			continue
 		}
 		var key []byte
@@ -147,13 +151,13 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 		}
 	}
 	var recs []SendRecord
-	var to []string
+	var to, tgChats []string
 	for _, p := range plan {
 		if ctx.Err() != nil {
 			break // not started: nothing was sent, so there is nothing to record
 		}
 		recs = append(recs, Deliver(ctx, store.NewID("sd"), p.snd, p.msg, s.now))
-		to = append(to, p.recipient)
+		to, tgChats = append(to, p.recipient), append(tgChats, p.tgChat)
 	}
 	if len(recs) == 0 && len(skips) == 0 {
 		return nil, ctx.Err()
@@ -176,6 +180,11 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 		for i, r := range recs {
 			if err := insertSend(wctx, tx, r, "approval", req.ID, req.Title, "/response", to[i], base); err != nil { // base: no token is ever stored
 				return err
+			}
+			if tgChats[i] != "" && r.OK && r.MessageID > 0 {
+				if err := buttonsShown(wctx, tx, req.ID, tgChats[i], r.MessageID); err != nil {
+					return err
+				}
 			}
 			out = append(out, SendView{ID: r.ID, Channel: r.Channel, To: r.To, At: store.FormatTS(r.At), OK: r.OK, Error: r.Error})
 		}

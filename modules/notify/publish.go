@@ -272,6 +272,9 @@ func (s *Service) Flush(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return errors.Join(append(errs, err)...)
 	}
+	if err := s.clearButtons(ctx, now); err != nil {
+		errs = append(errs, err)
+	}
 	if err := s.prune(ctx, now); err != nil {
 		errs = append(errs, err)
 	}

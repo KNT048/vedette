@@ -89,7 +89,8 @@ func (s *Service) telegramButtons(ctx context.Context, req ApprovalRequest, fiel
 	nonce := base64.RawURLEncoding.EncodeToString(b)
 	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, `INSERT INTO notify_tg_button (request_id, nonce_hash, expires_at) VALUES (?, ?, ?)
-			ON CONFLICT (request_id) DO UPDATE SET nonce_hash = excluded.nonce_hash, expires_at = excluded.expires_at`,
+			ON CONFLICT (request_id) DO UPDATE SET nonce_hash = excluded.nonce_hash, expires_at = excluded.expires_at,
+				message_id = NULL, chat_id = NULL, state = 'none', tries = 0`,
 			req.ID, hashNonce(nonce), store.FormatTS(req.Expires))
 		return err
 	})

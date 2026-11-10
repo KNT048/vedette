@@ -18,6 +18,8 @@ type SendRecord struct {
 	At      time.Time
 	OK      bool
 	Error   string // for people: short, friendly, secret-free (see friendlyError); empty when OK
+	// MessageID is the provider's id of the sent message (Telegram), 0 when unknown; kept only to remove approval buttons later.
+	MessageID int64
 }
 
 // Deliver makes one attempt through s and always returns its record (INV-6:
@@ -43,7 +45,7 @@ func Deliver(ctx context.Context, id string, s channel.Sender, m channel.Message
 		rec.Error = friendlyError(err)
 		return rec
 	}
-	rec.OK = true
+	rec.OK, rec.MessageID = true, r.MessageID
 	return rec
 }
 

@@ -1,0 +1,28 @@
+[Unit]
+Description=Vedette honeypot (all decoys, namespace vedette-hp)
+After=vedette-host.service
+Requires=vedette-host.service
+
+[Container]
+ContainerName=vedette-honeypot
+Image=ghcr.io/knt048/vedette-honeypot@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+Network=ns:/run/netns/vedette-hp
+DropCapability=ALL
+NoNewPrivileges=true
+ReadOnly=true
+Tmpfs=/tmp
+UserNS=auto
+Volume=/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config:ro
+Volume=/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log
+LogDriver=journald
+PodmanArgs=--memory=256m --memory-swap=256m --cpus=0.5 --pids-limit=128
+HealthCmd=/vedette honeypot healthcheck
+HealthInterval=30s
+HealthStartPeriod=30s
+HealthRetries=3
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -96,7 +96,7 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 	// place the registry is built: a closed list, frozen here.
 	sys, err := ops.New(ops.Config{
 		StateDir: *stateDir, CoreData: cfg.CoreData, CoreUnit: cfg.CoreUnit, Version: version,
-		CoreUID: cfg.CoreUID, CoreGID: cfg.CoreGID, OwnerUID: env.configOwner, Logger: env.logger,
+		CoreUID: cfg.CoreUID, CoreGID: cfg.CoreGID, SensorUID: cfg.SensorUID, SensorGID: cfg.SensorGID, OwnerUID: env.configOwner, Logger: env.logger,
 	})
 	if err != nil {
 		return err

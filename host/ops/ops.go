@@ -2,8 +2,9 @@
 // that WP-07b part 1 delivers: os.check, os.install, os.auto_security.set, os.reboot,
 // os.reboot.cancel, backup.create, backup.restore and logs.export, plus the read-only state
 // endpoints that belong to them, and (part 3) net.apply, net.confirm, net.revert and the NTP
-// sources, and (slice 3-5) decoy_ip.add and decoy_ip.remove with the honeypot namespace. Container
-// commands come in later slices.
+// sources, (slice 3-5) decoy_ip.add and decoy_ip.remove with the honeypot namespace, and (slice 3-6)
+// the Quadlet units with container.start (the current image) and container.stop. container.pull,
+// container.rollback and the start of another version come in later slices.
 //
 // Every child process goes through one core/exec Runner: absolute binary paths, argv validated by a
 // per-binary validator, PATH, LANG=C and DEBIAN_FRONTEND=noninteractive only, no shell. Nothing in
@@ -45,8 +46,13 @@ type Config struct {
 	Version  string
 	CoreUID  int // host.conf core_uid: the owner every file read from core's tree must have
 	CoreGID  int // host.conf core_gid: the group restored files get (with core_uid, mode 0600)
-	OwnerUID int
-	Logger   *slog.Logger
+	// SensorUID and SensorGID are host.conf's sensor_uid and sensor_gid: the user of the sensor and
+	// scan units and the group core's unit adds (D-114). 0 means host.conf did not give them: the
+	// container commands then refuse the units that need them (host_conf_incomplete).
+	SensorUID int
+	SensorGID int
+	OwnerUID  int
+	Logger    *slog.Logger
 }
 
 // Deps are the seams of tests. The binary calls New, which fills the production values; a request
@@ -83,6 +89,13 @@ type Deps struct {
 	// (default: nsfs, NS_GET_NSTYPE and the identity of /proc/self/ns/net; Linux only). Tests, which
 	// have no namespaces, answer for it.
 	IsNetNS func(*os.File) (bool, error)
+	// HealthWait and HealthPoll are how long and how often the container commands look for a healthy
+	// container after a restart: 120 s and 2 s (spec 6.8, D-105 (3)). Sleep waits between two looks
+	// and reports whether it did (default: a timer that the context cuts short); tests give a Sleep that
+	// does not wait, so the 120 s run in no time. The wait counts the sleeps, not the clock.
+	HealthWait time.Duration
+	HealthPoll time.Duration
+	Sleep      func(ctx context.Context, d time.Duration) bool
 }
 
 // Ops holds the state of the system commands.
@@ -110,6 +123,9 @@ type Ops struct {
 	hpConfigured atomic.Bool // the sysctls, lo and ruleset were set and read back since this host started
 	hpOK         atomic.Bool // the last ensureHP proved the namespace (state/net lists decoys only then)
 	hpDirErr     error       // hp/ is not a usable directory: decoys are off (D-121)
+
+	// Container commands run one at a time under the server's write lock; Start runs before the
+	// server listens. Nothing else touches containers/ (no mutex of its own).
 
 	bkMu sync.Mutex // guards backups/index.json
 	exMu sync.Mutex // guards exports/index.json
@@ -194,12 +210,21 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 	if d.IsNetNS == nil {
 		d.IsNetNS = isNetNS
 	}
+	if d.HealthWait <= 0 {
+		d.HealthWait = 2 * time.Minute
+	}
+	if d.HealthPoll <= 0 {
+		d.HealthPoll = 2 * time.Second
+	}
+	if d.Sleep == nil {
+		d.Sleep = sleepCtx
+	}
 	runner, err := newRunner(cfg.Logger, cfg.CoreUnit, d.BinPaths, min(d.ExportLimit, maxJournalStream))
 	if err != nil {
 		return nil, fmt.Errorf("ops: %w", err)
 	}
 	o := &Ops{cfg: cfg, d: d, log: cfg.Logger, runner: runner, installing: d.Installing}
-	for _, dir := range []string{"os", "backups", "exports", "tmp", "net"} {
+	for _, dir := range []string{"os", "backups", "exports", "tmp", "net", "containers", "containers/units"} {
 		if err := privDir(filepath.Join(cfg.StateDir, dir), cfg.OwnerUID); err != nil {
 			return nil, err
 		}
@@ -220,13 +245,14 @@ func (o *Ops) Commands() []server.Command {
 		o.cmdBackupCreate(), o.cmdBackupRestore(), o.cmdLogsExport(),
 		o.cmdNetApply(), o.cmdNetConfirm(), o.cmdNetRevert(),
 		o.cmdDecoyAdd(), o.cmdDecoyRemove(),
+		o.cmdContainerStart(), o.cmdContainerStop(),
 	}
 }
 
 // Readers are the state endpoints of this part, for server.Options.Readers.
 func (o *Ops) Readers() server.Readers {
 	return server.Readers{
-		OS: o.readOS, Backups: o.readBackups, Net: o.readNet, BackupContent: o.backupContent, ExportContent: o.exportContent,
+		OS: o.readOS, Backups: o.readBackups, Net: o.readNet, Containers: o.readContainers, BackupContent: o.backupContent, ExportContent: o.exportContent,
 	}
 }
 
@@ -313,6 +339,7 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.sweepBackups()
 	o.checkCoreAtStart()
 	o.recoverRestore(ctx)
+	o.recoverTransition(ctx) // a unit change the host died in the middle of (D-105 (7))
 	o.startReboot()
 	o.sweepExports()
 	o.armSweep()

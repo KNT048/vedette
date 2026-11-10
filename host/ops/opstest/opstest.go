@@ -11,6 +11,7 @@
 package opstest
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -26,7 +27,7 @@ import (
 )
 
 // Bins are the binary names of the command runner.
-var Bins = []string{"apt-get", "apt-config", "dpkg", "systemctl", "journalctl", "netplan", "chronyc", ops.BinIP}
+var Bins = []string{"apt-get", "apt-config", "dpkg", "systemctl", "journalctl", "netplan", "chronyc", ops.BinIP, "podman"}
 
 // BootID is the boot id a fresh machine has.
 const BootID = "11111111-2222-4333-8444-555555555555"
@@ -357,7 +358,8 @@ func (m *Machine) RunsAtReboot() string {
 func (m *Machine) Config() ops.Config {
 	return ops.Config{
 		StateDir: m.State, CoreData: m.CoreData, CoreUnit: "vedette-core.service", Version: "test",
-		CoreUID: os.Getuid(), CoreGID: os.Getgid(), OwnerUID: os.Getuid(), Logger: slog.New(slog.DiscardHandler),
+		CoreUID: os.Getuid(), CoreGID: os.Getgid(), SensorUID: SensorUID, SensorGID: SensorGID,
+		OwnerUID: os.Getuid(), Logger: slog.New(slog.DiscardHandler),
 	}
 }
 
@@ -371,6 +373,9 @@ func (m *Machine) Deps(now func() time.Time) ops.Deps {
 		Interfaces: func() ([]ops.HostIface, error) { return nil, nil },
 		// The fake namespace file is a plain file; there is no nsfs in a test.
 		IsNetNS: func(*os.File) (bool, error) { return true, nil },
+		// The waits between two looks at a container take no time; they are still counted, so the
+		// 120 s of the health wait are 60 looks.
+		Sleep: func(ctx context.Context, _ time.Duration) bool { return ctx.Err() == nil },
 	}
 }
 

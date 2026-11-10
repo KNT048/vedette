@@ -1,0 +1,33 @@
+[Unit]
+Description=Vedette core
+After=network-online.target vedette-host.service
+Wants=network-online.target
+
+[Container]
+ContainerName=vedette-core
+Image=ghcr.io/knt048/vedette-core@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+Network=vedette-int.network
+PublishPort=8443:8443
+PublishPort=127.0.0.1:8444:8444
+Volume=vedette-data.volume:/var/lib/vedette
+Volume=/var/lib/vedette-honeypot:/var/lib/vedette/honeypot
+Volume=/etc/vedette/master.key:/run/secrets/master.key:ro
+Volume=/run/vedette/host.sock:/run/vedette/host.sock
+Volume=vedette-creds-passive.volume:/var/lib/vedette-creds/passive
+Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active
+ReadOnly=true
+Tmpfs=/tmp
+NoNewPrivileges=true
+DropCapability=ALL
+User=10001:10002
+LogDriver=journald
+PodmanArgs=--memory=2g --memory-swap=2g --cpus=2 --pids-limit=512 --group-add=10004
+HealthCmd=/vedette healthcheck
+HealthInterval=30s
+HealthStartPeriod=60s
+HealthRetries=3
+Exec=serve
+
+[Service]
+Restart=always
+TimeoutStartSec=300

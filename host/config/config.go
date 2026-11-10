@@ -6,6 +6,8 @@
 //
 //	core_uid  = 10001                        # uid that runs core (never 0)
 //	core_gid  = 10001                        # gid of core: restored files get core_uid:core_gid
+//	sensor_uid = 10002                       # uid of the sensor and scan containers (never 0, not core_uid)
+//	sensor_gid = 10002                       # gid of the same (never 0, not core_gid, not socket_gid)
 //	core_unit = vedette-core.service         # systemd unit whose cgroup core's processes are in
 //	socket    = /run/vedette/host.sock       # absolute path, at most 100 bytes
 //	socket_gid = 990                         # gid of the group "vedette" (owns the socket, mode 0660)
@@ -39,8 +41,12 @@ var ErrInvalid = errors.New("host config: invalid")
 
 // Config is the parsed file.
 type Config struct {
-	CoreUID   int
-	CoreGID   int // group that restored files in core_data get (never taken from a file in core's tree)
+	CoreUID int
+	CoreGID int // group that restored files in core_data get (never taken from a file in core's tree)
+	// SensorUID and SensorGID run the sensor and scan containers (D-114): User=<sensor_uid>:<sensor_gid>
+	// in their units, and --group-add=<sensor_gid> in core's.
+	SensorUID int
+	SensorGID int
 	CoreUnit  string
 	Socket    string
 	SocketGID int
@@ -96,10 +102,16 @@ func Parse(r io.Reader) (Config, error) {
 	if err := sc.Err(); err != nil {
 		return Config{}, fmt.Errorf("%w: %w", ErrInvalid, err)
 	}
-	for _, k := range []string{"core_uid", "core_gid", "core_unit", "socket", "socket_gid"} {
+	for _, k := range []string{"core_uid", "core_gid", "core_unit", "socket", "socket_gid", "sensor_uid", "sensor_gid"} {
 		if !seen[k] {
 			return Config{}, fmt.Errorf("%w: %s is required", ErrInvalid, k)
 		}
+	}
+	switch {
+	case c.SensorUID == c.CoreUID:
+		return Config{}, fmt.Errorf("%w: sensor_uid must differ from core_uid", ErrInvalid)
+	case c.SensorGID == c.CoreGID || c.SensorGID == c.SocketGID:
+		return Config{}, fmt.Errorf("%w: sensor_gid must differ from core_gid and socket_gid", ErrInvalid)
 	}
 	return c, nil
 }
@@ -115,6 +127,24 @@ func (c *Config) set(k, v string) error {
 			return errors.New("core_uid must not be 0: core never runs as root")
 		}
 		c.CoreUID = n
+	case "sensor_uid":
+		n, err := id(v)
+		if err != nil {
+			return fmt.Errorf("sensor_uid: %w", err)
+		}
+		if n == 0 {
+			return errors.New("sensor_uid must not be 0: the sensor never runs as root")
+		}
+		c.SensorUID = n
+	case "sensor_gid":
+		n, err := id(v)
+		if err != nil {
+			return fmt.Errorf("sensor_gid: %w", err)
+		}
+		if n == 0 {
+			return errors.New("sensor_gid must not be 0")
+		}
+		c.SensorGID = n
 	case "core_gid":
 		n, err := id(v)
 		if err != nil {

@@ -13,6 +13,8 @@ import (
 const good = `# written by the installer
 core_uid = 10001
 core_gid = 10002
+sensor_uid = 10003
+sensor_gid = 10004
 core_unit = vedette-core.service
 socket = /run/vedette/host.sock
 socket_gid=990
@@ -24,7 +26,7 @@ func TestParse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := config.Config{CoreUID: 10001, CoreGID: 10002, CoreUnit: "vedette-core.service", Socket: "/run/vedette/host.sock", SocketGID: 990}
+	want := config.Config{CoreUID: 10001, CoreGID: 10002, SensorUID: 10003, SensorGID: 10004, CoreUnit: "vedette-core.service", Socket: "/run/vedette/host.sock", SocketGID: 990}
 	if c != want {
 		t.Fatalf("got %+v, want %+v", c, want)
 	}
@@ -54,6 +56,15 @@ func TestParseRejects(t *testing.T) {
 	tests := map[string]string{
 		"empty":              "",
 		"missing key":        "core_uid=1\ncore_gid=1\ncore_unit=a.service\nsocket=/x/y\n",
+		"missing sensor_uid": strings.Replace(good, "sensor_uid = 10003\n", "", 1),
+		"missing sensor_gid": strings.Replace(good, "sensor_gid = 10004\n", "", 1),
+		"sensor_uid is 0":    strings.Replace(good, "10003", "0", 1),
+		"sensor_gid is 0":    strings.Replace(good, "10004", "0", 1),
+		"sensor_uid is core": strings.Replace(good, "10003", "10001", 1),
+		"sensor_gid is core": strings.Replace(good, "10004", "10002", 1),
+		"sensor_gid is sock": strings.Replace(good, "10004", "990", 1),
+		"hex sensor_uid":     strings.Replace(good, "10003", "0x10", 1),
+		"sensor_uid repeats": good + "sensor_uid = 5\n",
 		"missing core_gid":   strings.Replace(good, "core_gid = 10002\n", "", 1),
 		"core_gid repeated":  good + "core_gid = 5\n",
 		"negative core_gid":  strings.Replace(good, "10002", "-1", 1),

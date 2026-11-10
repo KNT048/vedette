@@ -264,15 +264,15 @@ func assertEnvClean(t *testing.T, envs [][]string) {
 
 // --- the command table matches the spec ----------------------------------------------------------
 
-// documentedCommandsPart1 are the commands WP-07b has implemented so far (parts 1, 3-4 and 3-5).
+// documentedCommandsPart1 are the commands WP-07b has implemented so far (parts 1, 3-4, 3-5 and 3-6).
 var documentedCommandsPart1 = []string{
-	"backup.create", "backup.restore", "decoy_ip.add", "decoy_ip.remove", "logs.export", "net.apply", "net.confirm", "net.revert",
+	"backup.create", "backup.restore", "container.start", "container.stop", "decoy_ip.add", "decoy_ip.remove", "logs.export", "net.apply", "net.confirm", "net.revert",
 	"os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel",
 }
 
 // notYetImplemented are the commands of spec section 6 that later slices bring (containers).
 var notYetImplemented = []string{
-	"container.pull", "container.rollback", "container.start", "container.stop",
+	"container.pull", "container.rollback",
 }
 
 func TestContract_Part1_TheCommandTableMatchesSection6OfTheSpec(t *testing.T) {
@@ -316,7 +316,7 @@ func TestContract_Part1_TheCommandTableMatchesSection6OfTheSpec(t *testing.T) {
 			t.Errorf("%s: %v", name, err)
 		}
 	}
-	for _, p := range []string{"/v1/state/containers", "/v1/state/nope", "/v1/backups/x/y/content"} {
+	for _, p := range []string{"/v1/state/nope", "/v1/backups/x/y/content"} {
 		if st, b := rawGet(t, e.h, p); st != http.StatusNotFound || errCode(b) != api.CodeUnknownCommand {
 			t.Errorf("GET %s: %d %s", p, st, b)
 		}
@@ -2288,8 +2288,8 @@ func TestContract_FORBID_ReleaseUpgradesAndSourcesAreOutOfReach(t *testing.T) {
 			t.Errorf("rejected %q: %v", args, err)
 		}
 	}
-	for _, args := range [][]string{{"poweroff"}, {"halt"}, {"stop", "sshd.service"}, {"stop", "vedette-sensor.service"}, {"disable", "vedette-core.service"}, {"mask", "vedette-core.service"},
-		{"reboot", "--force"}, {"start", "vedette-core.service", "x"}, {"enable", "--now", "ssh.service"}, {"is-enabled", "ssh.service"}, {"daemon-reload"}, {"kill", "vedette-core.service"}, {}} {
+	for _, args := range [][]string{{"poweroff"}, {"halt"}, {"stop", "sshd.service"}, {"stop", "vedette-host.service"}, {"disable", "vedette-core.service"}, {"mask", "vedette-core.service"},
+		{"reboot", "--force"}, {"start", "vedette-core.service", "x"}, {"enable", "--now", "ssh.service"}, {"is-enabled", "ssh.service"}, {"daemon-reload", "x"}, {"kill", "vedette-core.service"}, {}} {
 		if err := vs(args); err == nil {
 			t.Errorf("accepted systemctl %q", args)
 		}

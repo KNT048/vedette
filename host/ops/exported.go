@@ -63,3 +63,6 @@ func (o *Ops) ReapplyDecoys(ctx context.Context) error { return o.reapplyDecoys(
 
 // ValidateIP is the grammar of ip (decoy commands), for the contract tests.
 func ValidateIP(args []string) error { return validateIP(args) }
+
+// ValidatePodman is the validator of the podman binary: "container inspect vedette-<service>" only.
+func ValidatePodman(args []string) error { return validatePodman(args) }

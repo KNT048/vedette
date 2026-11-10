@@ -74,6 +74,23 @@ func (c *Client) NetRevert(ctx context.Context, runID, requestID, actor string) 
 	return c.Run(ctx, api.CmdNetRevert, api.NetRunArgs{RunID: runID}, requestID, actor)
 }
 
+// ContainerStart runs container.start for the current image of a service (slice 3-6: no version).
+func (c *Client) ContainerStart(ctx context.Context, args api.ContainerStartArgs, requestID, actor string) (api.Run, error) {
+	return c.Run(ctx, api.CmdContainerStart, args, requestID, actor)
+}
+
+// ContainerStop runs container.stop; persist keeps the service down after a reboot.
+func (c *Client) ContainerStop(ctx context.Context, service string, persist bool, requestID, actor string) (api.Run, error) {
+	return c.Run(ctx, api.CmdContainerStop, api.ContainerStopArgs{Service: service, Persist: persist}, requestID, actor)
+}
+
+// StateContainers returns GET /v1/state/containers.
+func (c *Client) StateContainers(ctx context.Context) (api.ContainersState, error) {
+	var out api.ContainersState
+	err := c.getJSON(ctx, "/v1/state/containers", &out)
+	return out, err
+}
+
 // StateOS returns GET /v1/state/os. A host that has never checked answers 404 no_check_yet.
 func (c *Client) StateOS(ctx context.Context) (api.OSState, error) {
 	var out api.OSState

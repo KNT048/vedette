@@ -154,6 +154,9 @@ type bsStep struct {
 	write   bool   // the unit file is to be written
 	versOK  bool   // versions already say current = this digest
 	reason  string // why a unit is replaced, for the line printed
+	// late: the image the unit pins does not exist yet (scan: it is built on the box after the pull, D-147), so the rest of the decision
+	// is made again, with the image's ID, after the pulls and before anything is written.
+	late bool
 }
 
 // Bootstrap is the whole first install (see above). logf receives one line per step.
@@ -229,6 +232,15 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 	if _, _, err := o.unitDirChain(); err != nil {
 		return bsErr(api.CodeUnitUnsafe, "the Quadlet directory is not safe to write as root")
 	}
+	// The credential .volume units are written with the first unit of core, sensor or scan: a link or odd file at their names is refused
+	// now, before any unit of any service is written (INV-22).
+	if slices.ContainsFunc(steps, func(s *bsStep) bool { return s.plan.service != api.ServiceHoneypot }) {
+		for _, role := range credsRoles {
+			if _, st := o.readNoFollowIn(unitsRel, volumeFileName(role), maxUnitSize); st == fileBroken {
+				return bsErr(api.CodeUnitUnsafe, volumeFileName(role)+" is not a regular file the host can trust")
+			}
+		}
+	}
 	if err := o.bootstrapSpace(ctx, steps); err != nil {
 		return err
 	}
@@ -236,25 +248,58 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 		return err
 	}
 
-	// 2. Pull every image (nothing that is already pulled and tagged is touched).
+	// 2. Pull every image (nothing that is already pulled and tagged is touched). The scan image is built on the box from its base
+	// (D-147), which needs the Debian package mirror: a box that cannot reach it must still get core, sensor and honeypot, so a failed
+	// build skips scan (no unit, no version, no record) and a later container.pull of scan tries again. Any other failure stops here.
+	var skipped []string
+	var skipErr error
+	kept := steps[:0:0]
 	for _, s := range steps {
 		if o.pulledAndTagged(ctx, s.plan) {
 			logf("image of " + s.plan.service + " is already on this machine")
+			kept = append(kept, s)
 			continue
 		}
 		if err := o.pullAndRecord(ctx, logf, s.plan); err != nil {
+			var fl *server.Failure
+			if errors.As(err, &fl) && fl.Code == api.CodeScanBuildFailed && s.plan.service == api.ServiceScan {
+				logf("skipped scan: " + fl.Message + " No unit was written for it; run container.pull for scan again once the box reaches deb.debian.org.")
+				skipped = append(skipped, s.plan.service)
+				skipErr = err
+				o.note("bootstrap", "service_skipped", map[string]any{"service": s.plan.service, "version": s.plan.version, "code": fl.Code})
+				continue
+			}
 			return err
+		}
+		kept = append(kept, s)
+	}
+	steps = kept
+	if len(steps) == 0 && skipErr != nil {
+		return skipErr // everything that was asked for was skipped: nothing was installed, so this is a failure (scan_build_failed)
+	}
+
+	// 3a. The decisions that needed an image that did not exist before the pulls (scan's ID), all of them before the first write.
+	for _, s := range steps {
+		if s.late {
+			ns, err := o.bootstrapDecide(s.plan.service, s.plan, a.ForceUnits) // the image now exists: the same refusals as for any service
+			if err != nil {
+				return err
+			}
+			*s = *ns
 		}
 	}
 
-	// 3. Only now the units and the versions.
+	// 3b. Only now the units and the versions.
 	for _, s := range steps {
 		svc := s.plan.service
 		if s.write {
 			if s.replace {
 				logf(fmt.Sprintf("replacing %s (%s); the old bytes are kept as containers/units/%s", unitFileName(svc), s.reason, o.prevName(svc)))
 			}
-			if err := o.writeUnit(svc, s.want, true); err != nil {
+			if err := o.writeUnitForStart(svc, s.want); err != nil {
+				if errors.Is(err, errBadFill) {
+					return bsErr(api.CodeHostConfIncomplete, "host.conf does not give the uid and gid the credential volumes need")
+				}
 				if errors.Is(err, errUnitUnsafe) {
 					return bsErr(api.CodeUnitUnsafe, "the Quadlet directory or the unit of "+svc+" is not safe to write as root")
 				}
@@ -264,7 +309,7 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 		}
 		if !s.versOK {
 			rec, ok := o.loadPulled(svc)
-			if !ok || rec.Digest != s.plan.digest {
+			if !ok || rec.Digest != s.plan.unitDigest() {
 				return bsErr(BootstrapFailed, "the record of the pulled version of "+svc+" is missing")
 			}
 			if err := o.saveVersions(versionState{Service: svc, Current: &versionRecord{pulledRecord: rec}}); err != nil {
@@ -273,10 +318,17 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 			logf("recorded " + svc + " " + rec.Version + " as the running version")
 		}
 		if s.write || !s.versOK {
-			o.note("bootstrap", "installed", map[string]any{"service": svc, "version": s.plan.version, "digest": s.plan.digest, "unit_written": s.write, "unit_replaced": s.replace})
+			o.note("bootstrap", "installed", map[string]any{"service": svc, "version": s.plan.version, "digest": s.plan.unitDigest(), "unit_written": s.write, "unit_replaced": s.replace})
 		}
 	}
+	if len(skipped) > 0 {
+		logf("skipped: " + strings.Join(skipped, ", ") + " (not installed; see above)")
+	}
 	if !slices.ContainsFunc(steps, func(s *bsStep) bool { return s.write || !s.versOK }) {
+		if len(skipped) > 0 {
+			logf("nothing more to install: the rest of this release is already installed; " + strings.Join(skipped, ", ") + " was skipped")
+			return nil
+		}
 		logf("nothing to do: this release is already installed")
 		return nil
 	}
@@ -306,7 +358,7 @@ func bootstrapServices(in []string) ([]string, error) {
 
 // bootstrapDecide settles, without writing, what the bootstrap does for one service.
 func (o *Ops) bootstrapDecide(svc string, plan *pullPlan, force bool) (*bsStep, error) {
-	want, err := o.renderUnitFor(svc, plan.digest) // core_data itself is vetted (or made) by ensureCoreData next
+	want, err := o.renderUnitFor(svc, plan.unitDigest()) // core_data itself is vetted (or made) by ensureCoreData next
 	if err != nil {
 		return nil, err // host_conf_incomplete or unit_unknown
 	}
@@ -314,9 +366,27 @@ func (o *Ops) bootstrapDecide(svc string, plan *pullPlan, force bool) (*bsStep, 
 		return nil, refuse412(api.CodeTransitionPending, "An earlier change of the unit of "+svc+" was never settled; this is not a first install.")
 	}
 	s := &bsStep{plan: plan, want: want, write: true}
+	if services[svc].byID && plan.pin == "" {
+		// Before the pull the render above only proved that host.conf fits; the pin comes with the build, so the comparison with the
+		// image of a unit or a version waits for it (late). Everything that does not need the pin is refused here, before any pull
+		// or write (INV-22): a different release already recorded, a unit that is not a regular file or not ours without -force-units.
+		if vs := o.loadVersions(svc); vs.Current != nil && vs.Current.Version != plan.version {
+			return nil, bsErr(BootstrapAlreadyInstalled, svc+" already runs release "+vs.Current.Version+"; upgrades go through container.pull and container.start")
+		}
+		switch text, fs := o.readUnit(svc); fs {
+		case fileBroken:
+			return nil, bsErr(api.CodeUnitUnsafe, "the unit of "+svc+" is not a regular file the host can trust")
+		case fileOK:
+			if _, _, perr := o.ourUnit(svc, text); perr != nil && !force {
+				return nil, bsErr(BootstrapUnitForeign, "the unit of "+svc+" is not what this host writes; remove it or pass -force-units")
+			}
+		}
+		s.late = true
+		return s, nil
+	}
 	vs := o.loadVersions(svc)
 	if vs.Current != nil {
-		if vs.Current.Digest != plan.digest {
+		if vs.Current.Digest != plan.unitDigest() {
 			return nil, bsErr(BootstrapAlreadyInstalled, svc+" already runs release "+vs.Current.Version+"; upgrades go through container.pull and container.start")
 		}
 		s.versOK = true
@@ -330,9 +400,13 @@ func (o *Ops) bootstrapDecide(svc string, plan *pullPlan, force bool) (*bsStep, 
 	}
 	digest, _, perr := o.ourUnit(svc, text)
 	switch {
-	case perr == nil && digest == plan.digest:
+	case perr == nil && digest == plan.unitDigest():
 		s.write = false // the unit is ours and pins this image: left as it is (it may have lost [Install] by a stop with persist)
 	case !force && perr == nil:
+		if s.plan.pin != "" && services[svc].byID {
+			// The image was just built, so its ID is new: the unit pins an older build (for example one that was pruned and rebuilt).
+			return nil, bsErr(BootstrapAlreadyInstalled, "the unit of "+svc+" pins another build of the image (a rebuilt image has a new ID); run the bootstrap again with -force-units to replace the unit, or use container.start with the version to switch to the new image")
+		}
 		return nil, bsErr(BootstrapAlreadyInstalled, "the unit of "+svc+" already pins another image; upgrades go through container.pull and container.start")
 	case !force:
 		return nil, bsErr(BootstrapUnitForeign, "the unit of "+svc+" is not what this host writes; remove it or pass -force-units")
@@ -350,8 +424,16 @@ func (o *Ops) bootstrapDecide(svc string, plan *pullPlan, force bool) (*bsStep, 
 // the pulled version is this one: then the pull has nothing left to do.
 func (o *Ops) pulledAndTagged(ctx context.Context, p *pullPlan) bool {
 	rec, ok := o.loadPulled(p.service)
-	if !ok || rec.Digest != p.digest || rec.Version != p.version {
+	if !ok || rec.manifestDigest() != p.digest || rec.Version != p.version {
 		return false
+	}
+	if p.service == api.ServiceScan {
+		// The image that runs is the one built on this machine: it must still be there under the ID the record names.
+		if ref, err := localRef(p.service, rec.Digest); err != nil || !o.imageIs(ctx, ref, p.service, rec.Digest) {
+			return false
+		}
+		p.pin = rec.Digest
+		return true
 	}
 	tag, err := localTag(p.service, p.version)
 	return err == nil && o.imageIs(ctx, tag, p.service, p.digest)

@@ -4,6 +4,7 @@ import (
 	"io"
 	"net"
 	"path"
+	"slices"
 	"strings"
 	"testing"
 
@@ -70,6 +71,32 @@ func TestCoreUnitExecParsesWithTheRealFlagsAndAgreesWithItsMounts(t *testing.T) 
 	}
 	if !has(path.Dir(o.key)) {
 		t.Errorf("-key %q is not under a mount target of the unit: %v", o.key, volumes)
+	}
+	// D-147: the sensor link. The unit gives core both sensor flags (without them core would not listen on 8444), the port is the container
+	// side of the one published port that is bound to loopback only, and each role's credential folder is mounted at <creds>/<role> (never the
+	// whole directory in one volume, so a sensor container sees only its own role's bundle).
+	if o.sensorListen == "" || o.sensorCreds == "" || !path.IsAbs(o.sensorCreds) {
+		t.Fatalf("Exec=%q must carry -sensor-listen and an absolute -sensor-creds", execLine)
+	}
+	_, sport, err := net.SplitHostPort(o.sensorListen)
+	if err != nil {
+		t.Fatalf("-sensor-listen %q: %v", o.sensorListen, err)
+	}
+	if !slices.Contains(publish, "127.0.0.1:"+sport+":"+sport) {
+		t.Errorf("-sensor-listen port %q has no loopback-only PublishPort in %v", sport, publish)
+	}
+	for _, p := range publish {
+		if strings.HasSuffix(p, ":"+sport) && !strings.HasPrefix(p, "127.0.0.1:") {
+			t.Errorf("the sensor port is published beyond loopback: %q", p)
+		}
+	}
+	for _, role := range []string{"passive", "active"} {
+		if v, ok := targets[path.Join(o.sensorCreds, role)]; !ok || !strings.HasPrefix(v, "vedette-creds-"+role+".volume:") || strings.HasSuffix(v, ":ro") {
+			t.Errorf("the %s credential folder is not a read-write volume at %s/%s: %v", role, o.sensorCreds, role, volumes)
+		}
+	}
+	if has(o.sensorCreds) {
+		t.Errorf("the whole credential directory %q is one mount: %v", o.sensorCreds, volumes)
 	}
 	for _, sub := range []string{"config", "log"} {
 		if !has(path.Join(o.honeypotDir, sub)) {

@@ -60,6 +60,10 @@ const (
 	CodeNoTrustedKeys       = "no_trusted_keys"        // this build embeds no release keys: it refuses everything (D-130)
 	CodeReleaseStateInvalid = "release_state_invalid"  // the stored index is damaged: the host will not guess (D-130)
 	CodePullFailed          = "pull_failed"            // run ended failed: podman could not pull or tag
+	// CodeScanBuildFailed ends a container.pull of scan as failed: the signed base image was pulled and verified, but the image with
+	// nmap that the host builds on the box from it was not (no package mirror, a build error, or nmap below the floor). The previous
+	// localhost/vedette-scan-nmap image, if any, is untouched and the previous unit keeps running (D-147).
+	CodeScanBuildFailed = "scan_build_failed"
 
 	// Refusals of container.start with a version and of container.rollback (spec 6.8, 6.10, D-104, D-138).
 	CodeDowngradeNotAllowed   = "downgrade_not_allowed"   // the version is lower than the running one: going back is container.rollback

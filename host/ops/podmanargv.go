@@ -46,6 +46,20 @@ func pullRef(service, digest string) (string, error) {
 	return release.PullRef(service, digest)
 }
 
+// localRef is how the host asks podman about an image it holds, given the digest it keeps for it (the "digest" of units, versions and
+// records): the pull reference by digest, except for scan, whose image is built on the box and has no registry digest: its "digest" is
+// "sha256:" + the image ID and it is asked about by that bare ID (D-147).
+func localRef(service, digest string) (string, error) {
+	if service == api.ServiceScan {
+		id, ok := strings.CutPrefix(digest, "sha256:")
+		if !ok || !imageIDRE.MatchString(id) {
+			return "", errPodmanArgs
+		}
+		return id, nil
+	}
+	return pullRef(service, digest)
+}
+
 // localTag is localhost/vedette-<service>:<version>.
 func localTag(service, version string) (string, error) {
 	if !knownService(service) || len(version) > 64 || !tagVersionRE.MatchString(version) {
@@ -115,9 +129,99 @@ func isLocalTag(s string) bool {
 	return ok && knownService(svc) && len(version) <= 64 && tagVersionRE.MatchString(version)
 }
 
-// validatePodman is the validator of the podman binary: the six shapes above.
+// The build of the scan image on the box (D-147) adds four shapes (podman builds as root, so each is as closed as the rest):
+//
+//	build --pull=never --no-cache --iidfile <context dir>/iid --build-arg BASE_IMAGE=<pull ref of scan> --build-arg NMAP_MIN_VERSION=<floor> --tag localhost/vedette-scan-nmap:<version> <context dir>
+//	run --rm --pull=never --network none --cap-drop ALL --read-only --security-opt no-new-privileges --memory=256m --pids-limit=64 --entrypoint nmap <image id> --version
+//	tag <image id> localhost/vedette-scan-nmap:<version>      puts the previous image back under its tag after a build that failed the check
+//	image inspect --format json <image id>                    (also a shape of the list above: ref is an ID)
+//
+// The base reference is the pull reference of the digest that was verified, the floor is a constant, the tag is built from a version that
+// passed tagVersionRE, the context is a directory the host made (a plain absolute path), and the Containerfile in it is a constant of the
+// binary. Nothing a request carried is text in any of them. --no-cache because a cached apt layer would never see a newer nmap.
+
+const (
+	nmapTagPrefix = "localhost/vedette-scan-nmap:"
+	// nmapFloor is NMAP_MIN_VERSION of deploy/containers/pins.env (a test keeps the two equal): the oldest nmap the build accepts.
+	nmapFloor = "7.95"
+)
+
+// buildDirRE is the context directory of a build: absolute, plain characters, no empty, "." or ".." segment (checked apart).
+var buildDirRE = regexp.MustCompile(`^(/[A-Za-z0-9_][A-Za-z0-9._-]*){1,16}$`)
+
+func validBuildDir(p string) bool {
+	return len(p) <= 240 && buildDirRE.MatchString(p) && !strings.Contains(p, "/.")
+}
+
+// nmapTag is localhost/vedette-scan-nmap:<version>.
+func nmapTag(version string) (string, error) {
+	if len(version) > 64 || !tagVersionRE.MatchString(version) {
+		return "", errPodmanArgs
+	}
+	return nmapTagPrefix + version, nil
+}
+
+func isNmapTag(s string) bool {
+	v, ok := strings.CutPrefix(s, nmapTagPrefix)
+	return ok && len(v) <= 64 && tagVersionRE.MatchString(v)
+}
+
+func buildArgv(digest, version, dir string) ([]string, error) {
+	ref, err := pullRef(api.ServiceScan, digest)
+	if err != nil {
+		return nil, err
+	}
+	tag, err := nmapTag(version)
+	if err != nil || !validBuildDir(dir) {
+		return nil, errPodmanArgs
+	}
+	return []string{"build", "--pull=never", "--no-cache", "--iidfile", dir + "/" + iidName, "--build-arg", "BASE_IMAGE=" + ref, "--build-arg", "NMAP_MIN_VERSION=" + nmapFloor, "--tag", tag, dir}, nil
+}
+
+// iidName is the file in the build context directory where podman writes the ID of the image it built.
+const iidName = "iid"
+
+func nmapCheckArgv(id string) ([]string, error) {
+	if !imageIDRE.MatchString(id) {
+		return nil, errPodmanArgs
+	}
+	return []string{"run", "--rm", "--pull=never", "--network", "none", "--cap-drop", "ALL", "--read-only", "--security-opt", "no-new-privileges", "--memory=256m", "--pids-limit=64", "--entrypoint", "nmap", id, "--version"}, nil
+}
+
+func tagIDArgv(id, version string) ([]string, error) {
+	tag, err := nmapTag(version)
+	if err != nil || !imageIDRE.MatchString(id) {
+		return nil, errPodmanArgs
+	}
+	return []string{"tag", id, tag}, nil
+}
+
+func isBuildArgv(a []string) bool {
+	if len(a) != 12 || a[0] != "build" || a[1] != "--pull=never" || a[2] != "--no-cache" || a[3] != "--iidfile" || a[5] != "--build-arg" || a[7] != "--build-arg" ||
+		a[8] != "NMAP_MIN_VERSION="+nmapFloor || a[9] != "--tag" || !isNmapTag(a[10]) || !validBuildDir(a[11]) || a[4] != a[11]+"/"+iidName {
+		return false
+	}
+	ref, ok := strings.CutPrefix(a[6], "BASE_IMAGE=")
+	return ok && isPullRef(ref) && strings.HasPrefix(ref, release.RegistryPrefix+api.ServiceScan+"@")
+}
+
+func isNmapCheckArgv(a []string) bool {
+	if len(a) != 16 || !imageIDRE.MatchString(a[14]) {
+		return false
+	}
+	want, err := nmapCheckArgv(a[14])
+	return err == nil && slices.Equal(a, want)
+}
+
+// validatePodman is the validator of the podman binary: the shapes above.
 func validatePodman(args []string) error {
 	switch {
+	case isBuildArgv(args), isNmapCheckArgv(args):
+		return nil
+	case len(args) == 3 && args[0] == "tag" && imageIDRE.MatchString(args[1]) && isNmapTag(args[2]):
+		return nil
+	case len(args) == 5 && args[0] == "image" && args[1] == "inspect" && args[2] == "--format" && args[3] == "json" && (imageIDRE.MatchString(args[4]) || isNmapTag(args[4])):
+		return nil
 	case len(args) == 3 && args[0] == "container" && args[1] == "inspect" && slices.ContainsFunc(api.Services, func(s string) bool { return args[2] == containerName(s) }):
 		return nil
 	case len(args) == 3 && args[0] == "pull" && args[1] == "-q" && isPullRef(args[2]):

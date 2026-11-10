@@ -528,11 +528,22 @@ func (w *Worker) nmapVersion(ctx context.Context) (present bool, version string)
 	if err != nil {
 		return false, ""
 	}
-	line, _, _ := strings.Cut(string(res.Stdout), "\n")
-	if f := strings.Fields(line); len(f) >= 3 && f[0] == "Nmap" && f[1] == "version" && validVersion(f[2]) {
-		return true, f[2]
+	return true, versionOf(res.Stdout)
+}
+
+// versionOf reads the version from the first non-empty line of the output of `nmap --version`; "" when that line is not nmap's.
+func versionOf(out []byte) string {
+	line := ""
+	for l := range strings.SplitSeq(string(out), "\n") {
+		if strings.TrimSpace(l) != "" {
+			line = l
+			break
+		}
 	}
-	return true, ""
+	if f := strings.Fields(line); len(f) >= 3 && f[0] == "Nmap" && f[1] == "version" && validVersion(f[2]) {
+		return f[2]
+	}
+	return ""
 }
 
 func validVersion(s string) bool {

@@ -15,13 +15,22 @@ import (
 
 const purpose = "core_connection"
 
-// Key is the proof of being inside core/conn: it has an unexported field of an unexported type, so no other package can make a value of it (a
-// struct{}{} literal is not assignable to it either), and
-// the methods of conn.Service that hand out a credential or the dialer of the writer ask for one. Anything that merely holds a
-// *conn.Service cannot call them.
-type Key struct{ _ key }
+// Key is the proof of being inside core/conn. It holds a pointer that must be the one unexported sentinel of this package: only Grant
+// returns it, and Grant can be called only by packages under core/conn (Go's internal rule). A zero Key, new(Key), a Key made with
+// reflect.Zero or any copy that did not come from Grant fails Valid, so code that merely holds a *conn.Service, or can name the type
+// through a method signature, cannot make one. The methods of conn.Service that hand out a credential, the dialer or the connection
+// lock check it at runtime and refuse with no secret.
+type Key struct{ p *proof }
 
-type key struct{}
+type proof struct{ _ byte } // not zero-size: every pointer to it is distinct
+
+var sentinel = &proof{}
+
+// Grant returns the one valid Key.
+func Grant() Key { return Key{p: sentinel} }
+
+// Valid reports whether k came from Grant.
+func (k Key) Valid() bool { return k.p != nil && k.p == sentinel }
 
 // Vault seals, replaces and decrypts the credentials of connections.
 type Vault struct {

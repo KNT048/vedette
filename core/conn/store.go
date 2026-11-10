@@ -97,7 +97,7 @@ func get(ctx context.Context, q *coredb.Queries, id string) (Connection, error) 
 	}
 	tools := make([]Tool, len(rows))
 	for i, t := range rows {
-		tools[i] = Tool{Name: t.Name, Access: t.Access, Description: t.Description, Enabled: t.Enabled}
+		tools[i] = Tool{Name: t.Name, Access: t.Access, Description: t.Description, Enabled: t.Enabled, Ident: t.Ident}
 	}
 	return fromRow(r, tools)
 }
@@ -113,7 +113,7 @@ func list(ctx context.Context, q *coredb.Queries) ([]Connection, error) {
 	}
 	byConn := map[string][]Tool{}
 	for _, t := range trs {
-		byConn[t.ConnectionID] = append(byConn[t.ConnectionID], Tool{Name: t.Name, Access: t.Access, Description: t.Description, Enabled: t.Enabled})
+		byConn[t.ConnectionID] = append(byConn[t.ConnectionID], Tool{Name: t.Name, Access: t.Access, Description: t.Description, Enabled: t.Enabled, Ident: t.Ident})
 	}
 	out := make([]Connection, 0, len(rows))
 	for _, r := range rows {
@@ -138,7 +138,7 @@ func updateParams(c Connection) coredb.UpdateConnectionParams {
 func writeTools(ctx context.Context, q *coredb.Queries, id string, tools []Tool) error {
 	for i, t := range tools {
 		err := q.InsertConnectionTool(ctx, coredb.InsertConnectionToolParams{
-			ConnectionID: id, Name: t.Name, Pos: int64(i), Access: t.Access, Description: t.Description, Enabled: t.Enabled,
+			ConnectionID: id, Name: t.Name, Pos: int64(i), Access: t.Access, Description: t.Description, Enabled: t.Enabled, Ident: t.Ident,
 		})
 		if err != nil {
 			return fmt.Errorf("conn: insert tool: %w", err)
@@ -152,8 +152,10 @@ func writeTools(ctx context.Context, q *coredb.Queries, id string, tools []Tool)
 // a response action that people approve. The tools of an MCP server are found by the first Test (slice 13b-5), as write tools
 // that start off (D-94 (3)); until then there are none.
 func builtinTools(kind string) []Tool {
+	// A read tool of an HTTP kind starts off: some devices change state on a GET (reboot, configuration), so an administrator turns it
+	// on for read-only endpoints only (D-127, H1). An SSH read tool is an exact entry of the allow-list and stays on.
 	r := func(name, desc string) Tool {
-		return Tool{Name: name, Access: "read", Description: desc, Enabled: true}
+		return Tool{Name: name, Access: "read", Description: desc, Enabled: kind == KindSSH}
 	}
 	w := func(name, desc string) Tool { return Tool{Name: name, Access: "write", Description: desc} }
 	switch kind {

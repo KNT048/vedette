@@ -11,6 +11,7 @@ import (
 
 	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/conn"
+	"github.com/knt048/vedette/core/conn/read"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/server"
 	hostclient "github.com/knt048/vedette/host/client"
@@ -215,6 +216,9 @@ func buildServices(d *deps) error {
 	}
 	if d.Conn, err = newConn(d); err != nil {
 		return fmt.Errorf("connections: %w", err)
+	}
+	if d.ConnReader, err = read.New(read.Config{Conns: d.Conn, Log: d.Log}); err != nil {
+		return fmt.Errorf("connection reader: %w", err)
 	}
 	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock, Facts: privacyFacts{conns: d.Conn}, Conns: d.Conn}); err != nil {
 		return fmt.Errorf("core: %w", err)

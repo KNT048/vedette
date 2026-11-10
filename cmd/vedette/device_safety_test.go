@@ -28,23 +28,44 @@ import (
 // compiling once Key gets an unexported field (then struct{}{} is no longer assignable and the test passes).
 func TestWiringCredKeyCannotBeMadeOutsideCoreConn(t *testing.T) {
 	t.Parallel()
-	m, ok := reflect.TypeFor[*conn.Service]().MethodByName("OpenCredential")
+	svc := reflect.TypeFor[*conn.Service]()
+	m, ok := svc.MethodByName("OpenCredential")
 	if !ok {
-		t.Skip("OpenCredential is gone")
+		t.Fatal("OpenCredential is gone: this test would pass vacuously")
 	}
 	keyT := m.Type.In(2) // receiver, ctx, key, connection
-	if !reflect.TypeFor[struct{}]().AssignableTo(keyT) {
-		return // only code that can name the key's unexported parts can make one
+	if reflect.TypeFor[struct{}]().AssignableTo(keyT) {
+		t.Logf("struct{}{} is assignable to %s", keyT)
 	}
-	t.Logf("struct{}{} is assignable to %s", keyT)
 	s := newStack(t)
 	f := conntest.NewHTTPS(t, nil)
 	c := s.connCreate(conn.Input{Name: "Office firewall", Kind: "http", Target: f.URL, AuthType: "token", Secret: secrets.NewValue("tok-0123456789-abcdef"),
 		Allow: []string{f.URL + "/api/"}, Enabled: true})
-	out := reflect.ValueOf(s.d.Conn).MethodByName("OpenCredential").Call([]reflect.Value{reflect.ValueOf(context.Background()), reflect.ValueOf(struct{}{}), reflect.ValueOf(c)})
-	v, _ := out[0].Interface().(secrets.Value)
-	if v.Reveal() == "tok-0123456789-abcdef" {
-		t.Fatalf("package main (outside core/conn) passed struct{}{} as %s and decrypted the connection's credential; WriteAccess(struct{}{}) hands out the writer's dialer the same way", keyT)
+	// Every key a package outside core/conn can make through reflection: the zero value, new(K), reflect.Zero, a struct{}{} when that
+	// is assignable. Each must be refused at runtime: no secret, no dialer, no lock.
+	keys := map[string]reflect.Value{
+		"zero value":   reflect.New(keyT).Elem(),
+		"reflect.Zero": reflect.Zero(keyT),
+		"new(K) deref": reflect.New(keyT).Elem(),
+	}
+	if reflect.TypeFor[struct{}]().AssignableTo(keyT) {
+		keys["struct{}{}"] = reflect.ValueOf(struct{}{})
+	}
+	for name, k := range keys {
+		sv := reflect.ValueOf(s.d.Conn)
+		out := sv.MethodByName("OpenCredential").Call([]reflect.Value{reflect.ValueOf(context.Background()), k, reflect.ValueOf(c)})
+		v, _ := out[0].Interface().(secrets.Value)
+		if v.Reveal() != "" || out[1].IsNil() {
+			t.Errorf("%s: OpenCredential gave a credential (%v) or no error", name, out[1])
+		}
+		acc := sv.MethodByName("WriteAccess").Call([]reflect.Value{k})[0].Interface().(conn.WriteAccess)
+		if acc.Dialer != nil {
+			t.Errorf("%s: WriteAccess handed out the writer's dialer", name)
+		}
+		lk := sv.MethodByName("LockConn").Call([]reflect.Value{reflect.ValueOf(context.Background()), k, reflect.ValueOf(c.ID)})
+		if lk[1].Bool() {
+			t.Errorf("%s: LockConn gave the connection's turn", name)
+		}
 	}
 }
 

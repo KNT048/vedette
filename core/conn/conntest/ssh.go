@@ -30,6 +30,11 @@ type SSHOpts struct {
 	// StallInput makes the shell stop reading what it is sent after the first prompt: the window of the channel closes once about 2 MB
 	// are in flight, and a write of more than that blocks for as long as the device wishes (a device that never grants window).
 	StallInput bool
+	// Pages answers a line with pages of output: after each page but the last the device prints PagerText and waits for one key
+	// (a space), as a switch with a pager does. nil: no paging.
+	Pages func(line string) []string
+	// PagerText is the pager prompt; "" is "--More--".
+	PagerText string
 }
 
 // SSH is an SSH server on loopback that records what it is sent.
@@ -250,6 +255,26 @@ func (s *SSH) shell(ch ssh.Channel) {
 			suffix = "#"
 		case "configure terminal":
 			suffix = "(config)#"
+		}
+		if s.opts.Pages != nil {
+			if pages := s.opts.Pages(line); pages != nil {
+				pager := s.opts.PagerText
+				if pager == "" {
+					pager = "--More--"
+				}
+				for i, p := range pages {
+					_, _ = ch.Write([]byte(strings.ReplaceAll(p, "\n", "\r\n") + "\r\n"))
+					if i < len(pages)-1 {
+						_, _ = ch.Write([]byte(pager))
+						if _, err := rd.ReadByte(); err != nil { // the key that moves on
+							return
+						}
+						_, _ = ch.Write([]byte(strings.Repeat("\x08", len(pager)) + strings.Repeat(" ", len(pager)) + strings.Repeat("\x08", len(pager))))
+					}
+				}
+				prompt()
+				continue
+			}
 		}
 		out := ""
 		if s.opts.Respond != nil {

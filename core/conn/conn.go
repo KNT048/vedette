@@ -76,6 +76,9 @@ type Tool struct {
 	Access      string `json:"access"`
 	Description string `json:"description"`
 	Enabled     bool   `json:"enabled"`
+	// Ident is what the first Test saw of an MCP tool, as a hash of its description and input schema (ToolIdent). It is part of the
+	// tool, so a change of it moves updated_at; it is never shown.
+	Ident string `json:"-"`
 }
 
 // Input is what an administrator sends to add or change a connection.
@@ -125,6 +128,8 @@ type Service struct {
 	testBudget time.Duration
 	// roots replaces the system roots in tests (a test cannot add to them); nil in the product.
 	roots *x509.CertPool
+	// locks gives one call at a time on a connection, to the writer and to the reader alike (access.go, LockConn).
+	locks connLocks
 }
 
 // New returns the Service.
@@ -137,7 +142,7 @@ func New(c Config) (*Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("conn: restrict credential purpose: %w", err)
 	}
-	s := &Service{cfg: c, now: c.Clock, vault: v}
+	s := &Service{cfg: c, now: c.Clock, vault: v, locks: connLocks{m: map[string]chan struct{}{}}}
 	if s.now == nil {
 		s.now = time.Now
 	}

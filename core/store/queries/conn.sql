@@ -30,13 +30,13 @@ FROM core_connection c LEFT JOIN core_secret s ON s.id = c.secret_id
 ORDER BY c.rowid;
 
 -- name: InsertConnectionTool :exec
-INSERT INTO core_connection_tool (connection_id, name, pos, access, description, enabled) VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO core_connection_tool (connection_id, name, pos, access, description, enabled, ident) VALUES (?, ?, ?, ?, ?, ?, ?);
 
 -- name: DeleteConnectionTools :exec
 DELETE FROM core_connection_tool WHERE connection_id = ?;
 
 -- name: ListConnectionTools :many
-SELECT connection_id, name, pos, access, description, enabled FROM core_connection_tool ORDER BY connection_id, pos;
+SELECT connection_id, name, pos, access, description, enabled, ident FROM core_connection_tool ORDER BY connection_id, pos;
 
 -- name: ListToolsOfConnection :many
-SELECT connection_id, name, pos, access, description, enabled FROM core_connection_tool WHERE connection_id = ? ORDER BY pos;
+SELECT connection_id, name, pos, access, description, enabled, ident FROM core_connection_tool WHERE connection_id = ? ORDER BY pos;

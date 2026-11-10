@@ -119,14 +119,22 @@ type clock struct {
 
 func (c *clock) Now() time.Time { c.mu.Lock(); defer c.mu.Unlock(); return c.t.Add(0) }
 
+// Add moves the clock of the box, forward or back.
+func (c *clock) Add(d time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.t = c.t.Add(d)
+}
+
 type env struct {
-	t     *testing.T
-	db    *store.DB
-	sec   *secrets.Store
-	fake  *fakeProviders
-	clock *clock
-	svc   *ai.Service
-	facts *fakeFacts
+	t      *testing.T
+	db     *store.DB
+	sec    *secrets.Store
+	fake   *fakeProviders
+	clock  *clock
+	svc    *ai.Service
+	facts  *fakeFacts
+	pruner *fakePruner
 }
 
 func (e *env) ctx() context.Context { return e.t.Context() }
@@ -145,7 +153,7 @@ func newEnv(t *testing.T) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e := &env{t: t, db: db, sec: sec, fake: &fakeProviders{fail: map[string]error{}, tools: true, structd: true}, clock: &clock{t: time.Date(2026, 11, 10, 3, 0, 0, 0, time.UTC)}, facts: newFacts()}
+	e := &env{t: t, db: db, sec: sec, fake: &fakeProviders{fail: map[string]error{}, tools: true, structd: true}, clock: &clock{t: time.Date(2026, 11, 10, 3, 0, 0, 0, time.UTC)}, facts: newFacts(), pruner: &fakePruner{}}
 	e.svc = e.newService()
 	return e
 }
@@ -153,7 +161,7 @@ func newEnv(t *testing.T) *env {
 // newService builds a service over the same database, as a restart does.
 func (e *env) newService() *ai.Service {
 	e.t.Helper()
-	svc, err := ai.New(e.ctx(), ai.Config{DB: e.db, Secrets: e.sec, Audit: audit.New(e.clock.Now), Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Factory: e.fake.factory, Facts: e.facts})
+	svc, err := ai.New(e.ctx(), ai.Config{DB: e.db, Secrets: e.sec, Audit: audit.New(e.clock.Now), Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Factory: e.fake.factory, Facts: e.facts, ChainPruner: e.pruner})
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -361,4 +369,36 @@ func newFacts() *fakeFacts {
 			RequiredAction: "Apply updates per vendor instructions.", DateAdded: "2022-09-08", Links: []string{"https://www.qnap.com/en/security-advisory/qsa-22-24", "javascript:alert(1)", "ftp://files.example.com/patch.txt", "https://nvd.nist.gov/vuln/detail/CVE-2022-27593", "https://example.com/third"}, Ransomware: true}},
 		assets: map[string][]ai.AssetFact{"CVE-2022-27593": {{Name: "NAS-PHOTOS", IP: "192.168.10.40", Kind: "nas", Basis: "product", Status: "open"}}},
 	}
+}
+
+// fakePruner stands for core's chainhead.Prune (issue #194): in the same transaction it records where the pruned chain starts and
+// lowers the head. It is a test double, the only place that touches core's chain tables for this purpose.
+type fakePruner struct {
+	mu    sync.Mutex
+	fail  error
+	calls int
+}
+
+func (p *fakePruner) Prune(ctx context.Context, tx *sql.Tx, chain, lastPrunedID, lastPrunedHash string, removed int64, now time.Time) error {
+	p.mu.Lock()
+	fail := p.fail
+	p.calls++
+	p.mu.Unlock()
+	if fail != nil {
+		return fail
+	}
+	at := store.FormatTS(now)
+	if _, err := tx.ExecContext(ctx, `INSERT INTO core_chain_anchor (chain, last_pruned_id, last_pruned_hash, pruned_at) VALUES (?, ?, ?, ?)
+		ON CONFLICT (chain) DO UPDATE SET last_pruned_id = excluded.last_pruned_id, last_pruned_hash = excluded.last_pruned_hash, pruned_at = excluded.pruned_at`, chain, lastPrunedID, lastPrunedHash, at); err != nil {
+		return err
+	}
+	_, err := tx.ExecContext(ctx, `UPDATE core_chain_head SET count = count - ?, last_hash = CASE WHEN count - ? = 0 THEN ? ELSE last_hash END, updated_at = ? WHERE chain = ?`,
+		removed, removed, lastPrunedHash, at, chain)
+	return err
+}
+
+func (p *fakePruner) failWith(err error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.fail = err
 }

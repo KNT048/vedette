@@ -653,7 +653,7 @@ func TestContract_NoGoroutineLeakAcrossSwitches(t *testing.T) {
 		start := time.Now()
 		sched.ModuleChanged("sensor-passive", false)
 		waitFor(t, "close", func() bool { return e.src.closes() == len(e.src.opens()) })
-		if d := time.Since(start); d > time.Second {
+		if d := time.Since(start); d > waitBound {
 			t.Errorf("stop took %v", d)
 		}
 	}

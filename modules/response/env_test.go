@@ -144,9 +144,20 @@ type fakeExecutor struct {
 	present string                         // output of the read-back after a run (what the read-back is looked at for)
 	after   string                         // output of the read-back after an undo (a device that still shows the change holds the text here)
 	last    string                         // the last write phase seen
+	hold    chan struct{}                  // a "run" step waits for it to close (or for its context to end): a device that is slow to answer
 }
 
-func (f *fakeExecutor) Execute(_ context.Context, s response.DeviceStep) (response.DeviceResult, error) {
+func (f *fakeExecutor) Execute(ctx context.Context, s response.DeviceStep) (response.DeviceResult, error) {
+	f.mu.Lock()
+	hold := f.hold
+	f.mu.Unlock()
+	if hold != nil && s.Phase == "run" {
+		select {
+		case <-hold:
+		case <-ctx.Done():
+			return response.DeviceResult{}, ctx.Err()
+		}
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.steps = append(f.steps, s)
@@ -288,6 +299,10 @@ func newEnv(t *testing.T, opts ...func(*response.Config)) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Registered after storetest.New, so it runs first: background sends and detached runs finish before the
+	// database closes and t.TempDir is removed ("TempDir RemoveAll cleanup: directory not empty" otherwise).
+	svc := e.svc
+	t.Cleanup(svc.Close)
 	return e
 }
 

@@ -1,0 +1,9 @@
+{
+  "version": "2026.11.1",
+  "sha256": "5d41402abc4b2a76b9719d911017c5925d41402abc4b2a76b9719d911017c592",
+  "templates": [
+    {"id": "CVE-2022-27593", "cve": "CVE-2022-27593", "path": "http/cves/2022/CVE-2022-27593.yaml", "sha256": "1f3870be274f6c49b3e31a0c6728957f1f3870be274f6c49b3e31a0c6728957f", "tags": ["cve", "cve2022", "qnap", "kev"], "request": "GET /photo/p/api/video.php HTTP/1.1"},
+    {"id": "CVE-2024-3400", "cve": "CVE-2024-3400", "path": "http/cves/2024/CVE-2024-3400.yaml", "sha256": "c4ca4238a0b923820dcc509a6f75849bc4ca4238a0b923820dcc509a6f75849b", "tags": ["cve", "cve2024", "panos", "kev", "vkev"], "request": "GET /global-protect/login.esp HTTP/1.1"},
+    {"id": "CVE-2023-46805", "cve": "CVE-2023-46805", "path": "http/cves/2023/CVE-2023-46805.yaml", "sha256": "c81e728d9d4c2f636f067f89cc14862cc81e728d9d4c2f636f067f89cc14862c", "tags": ["cve", "ivanti", "vkev"], "request": "GET /api/v1/totp/user-backup-code/../../system/system-information HTTP/1.1"}
+  ]
+}

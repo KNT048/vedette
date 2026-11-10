@@ -268,6 +268,12 @@ type Service struct {
 	proposeLoggedAt time.Time
 	fetchTimes      map[string][]time.Time // block list pulls per source address (per /64 for IPv6), for the rate limit
 	linkTimes       map[string][]time.Time // approval link calls per source address (the whole address), for their own rate limit
+	chatTimes       map[string]*chatEntry  // chat decisions per channel identity, a table of its own (D-135 (7))
+	chatNotes       map[string]*chatNote   // refusals of chat senders: one log line per window per identity (D-135 (8))
+	chatMax         int                    // identities the chat table remembers (maxFetchKeys; only export_test.go changes it)
+	chatFullAt      time.Time              // when "chat rate table full" was last logged
+	chatNoteWin     time.Time              // start of the window of the global budget of refusal lines
+	chatNoteN       int
 
 	// Sending approval requests runs in the background (sendApproval): bg ends it at shutdown (Close), sendSem lets two run at once.
 	bg           context.Context
@@ -306,7 +312,7 @@ func New(c Config) (*Service, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	s := &Service{cfg: c, fetchTimes: map[string][]time.Time{}, linkTimes: map[string][]time.Time{}, maxBacklog: maxEventBacklog, stepLimit: stepTimeout, sendSem: make(chan struct{}, maxSends), budget: sendBudget}
+	s := &Service{cfg: c, fetchTimes: map[string][]time.Time{}, linkTimes: map[string][]time.Time{}, chatTimes: map[string]*chatEntry{}, chatNotes: map[string]*chatNote{}, chatMax: maxFetchKeys, maxBacklog: maxEventBacklog, stepLimit: stepTimeout, sendSem: make(chan struct{}, maxSends), budget: sendBudget}
 	s.bg, s.stopBG = context.WithCancel(context.Background())
 	if err := s.loadData(); err != nil {
 		return nil, err
@@ -399,6 +405,28 @@ type Actor struct {
 	Name  string
 	Email string
 	Via   Via
+	Chat  string // a decision made in chat: the sender's id on that platform (INV-3), part of the actor text in the log
+}
+
+// logActor is the actor of an approval or rejection in resp_log and core_audit: "<name> via <channel> (<ExternalID>)" for chat (D-96 (5)),
+// "<email> (<via>)" for the rest.
+func (a Actor) logActor() string {
+	if a.Chat == "" {
+		return a.Email + " (" + string(a.Via) + ")"
+	}
+	name := truncRunes(cleanLine(a.Name), 80)
+	if name == "" {
+		name = truncRunes(cleanLine(a.Email), 80)
+	}
+	return name + " via " + string(a.Via) + " (" + truncRunes(cleanLine(a.Chat), 64) + ")"
+}
+
+// refuseActor is the actor of a refusal: the same text as an approval for chat, the email for the rest.
+func (a Actor) refuseActor() string {
+	if a.Chat == "" {
+		return a.Email
+	}
+	return a.logActor()
 }
 
 // System is the actor of what the box does by itself.

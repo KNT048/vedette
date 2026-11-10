@@ -17,11 +17,15 @@ var (
 	logsServices = map[*store.DB]*logs.Service{}
 )
 
-// logsService builds the logs service once per database, so the handlers, the purge job and the log export share it.
+// logsService builds the logs service once per database, so the handlers, the purge job and the log export share it
+// (nil without a logs.db: a test that builds deps by hand; serve always opens it).
 // The volume (lines and counters) is deps.LogsDB, a file of its own next to the main database, so that a flood of syslog
 // never waits for the writer of the main one. ponytail: no listener yet (L2), so nothing arrives except through
 // Service.Ingest.
 func logsService(d deps) *logs.Service {
+	if d.LogsDB == nil { // only a test that builds deps by hand: serve always opens logs.db (run in main.go)
+		return nil
+	}
 	logsMu.Lock()
 	defer logsMu.Unlock()
 	if s := logsServices[d.DB]; s != nil {
@@ -36,7 +40,13 @@ func logsService(d deps) *logs.Service {
 }
 
 // logsJobs is the Jobs func of the logs entry in wiredModules.
-func logsJobs(d deps) []jobs.Job { return logs.Jobs(logsService(d)) }
+func logsJobs(d deps) []jobs.Job {
+	svc := logsService(d)
+	if svc == nil {
+		return nil
+	}
+	return logs.Jobs(svc)
+}
 
 // logsInventory answers "which device has this IP" for the sources list. inventory has no read by IP, so it lists every
 // device with DevicesOfKind (no row cap, a read error is an error) and picks the addresses asked for; the list is small.

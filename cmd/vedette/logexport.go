@@ -18,7 +18,9 @@ import (
 //   - known_bad: the logs module adds it with the IOC matching (WP-24 L4).
 func registerLogSources(d *deps) {
 	d.Logs.Register("response", d.Response.ExportLog)
-	d.Logs.Register("device_logs", logsService(*d).ExportDeviceLogs)
+	if svc := logsService(*d); svc != nil {
+		d.Logs.Register("device_logs", svc.ExportDeviceLogs)
+	}
 	d.Logs.Register("honeypot", d.Honeypot.ExportHits)
 	d.Logs.Register("scan_probes", func(ctx context.Context, from, to time.Time, w io.Writer) error {
 		return sensoractive.ExportProbes(ctx, d.DB, from, to, w)

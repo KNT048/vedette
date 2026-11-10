@@ -3,11 +3,11 @@
 import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, CIDR_RE, currentUser, fail, guard, IPV4_RE } from '@/mocks/http'
-import { collection, daysAgo, dataMode, newId, nowIso } from '@/mocks/db'
+import { collection, daysAgo, dataMode, newId, nowIso, peek } from '@/mocks/db'
 import { assetsStore, findingsStore, isOn } from '@/mocks/stores'
 import type { Asset, Finding } from '@/lib/types'
-import { inventorySettingsStore } from '@/features/inventory/mocks'
-import { exposureIpPaused, exposureSnapshotsStore, exposureTargetsStore } from '@/features/exposure/mocks'
+import { BOX_ID, inventorySettingsStore } from '@/features/inventory/mocks'
+import { exposureSnapshotsStore, exposureTargetsStore } from '@/features/exposure/mocks'
 import type { CredTarget, ProbeEntry, RescanEvent, RunResultRow, ScanConfig, ScanConfigResponse, ScanRun, ScanScope, ScanTarget } from './types'
 
 
@@ -103,6 +103,7 @@ function seedRuns(): StoredRun[] {
 const SKIPPED = 'Not scanned because the scan was stopped. This device was not touched.'
 const NO_RESP = 'No response; scanning stopped so the device is not hung.'
 const STOP_NOW = 'You pressed Stop now.'
+const STOPPED_MID = 'Stopped while this device was being scanned: no result. The requests on their way are in the probe log as stopped.'
 
 function seedEvents(): RescanEvent[] {
   // Từ KEV thật: CVE có mẫu quét, khớp phần mềm trong kiểm kê mẫu.
@@ -148,20 +149,31 @@ function targets(): ScanTarget[] {
   const c = config.get()
   const sc = scope.get()
   const findings = findingsStore.get()
+  // D-126 (inventory VulnScanPolicy): the box and a device set to "never scan" are never scanned. Picking a device by hand is the consent for it,
+  // so fragile, unclassified and hand-declared devices can be picked (fragile and unclassified at a quarter of the speed); schedule and KEV rescans skip them.
+  const meta = peek<Record<string, { regular_scan?: string }>>('inv_meta') ?? {}
   const internal = assetsStore.get().map((a: Asset): ScanTarget => {
-    const reason = !a.approved ? 'unapproved' : c.exclusions.some((e) => inCidr(a.ip, e)) ? 'excluded' : !sc.networks.some((n) => inCidr(a.ip, n)) ? 'out_of_scope' : null
-    return { id: a.id, kind: 'internal', device_kind: a.kind, label: a.hostname ?? a.ip, ip: a.ip, fragile: a.fragile, findings: findings.filter((f) => f.asset_id === a.id && (f.status === 'confirmed' || f.status === 'suspected')).length, selectable: reason === null, reason }
+    const reason = a.id === BOX_ID ? 'box' : meta[a.id]?.regular_scan === 'never' ? 'regular_scan_never' : !a.approved ? 'unapproved' : c.exclusions.some((e) => inCidr(a.ip, e)) ? 'excluded' : !sc.networks.some((n) => inCidr(a.ip, n)) ? 'out_of_scope' : null
+    return { id: a.id, kind: 'internal', device_kind: a.kind, label: a.hostname ?? a.ip, ip: a.ip, fragile: a.fragile || a.kind === 'unknown', findings: findings.filter((f) => f.asset_id === a.id && (f.status === 'confirmed' || f.status === 'suspected')).length, selectable: reason === null, reason }
   })
-  const ext = external.get().map((e): ScanTarget => ({ id: e.id, kind: 'external', device_kind: null, label: e.value, ip: e.ip, fragile: false, findings: 0, selectable: e.verified && !e.expired && !!sc.commitment, reason: !e.verified ? 'unverified' : e.expired ? 'expired' : null }))
+  // External targets are listed but not scanned by this version yet (the GUI says so); ownership problems are named first, since they are what the user can fix.
+  const ext = external.get().map((e): ScanTarget => ({ id: e.id, kind: 'external', device_kind: null, label: e.value, ip: e.ip, fragile: false, findings: 0, selectable: false, reason: !e.verified ? 'unverified' : e.expired ? 'expired' : 'not_supported' }))
   return [...internal, ...ext]
 }
+
+/** Whether the scanner of the scan container answers (heartbeat, nuclei present). Tests and e2e flip it to see the 503. */
+export const scannerStore = collection<{ available: boolean }>('scan_scanner', () => ({ available: true }))
+const SCANNER_DOWN = "The vulnerability scanner is not available: the scan container or its scanner is missing. Check the box's services, then try again."
 
 const REASON: Record<NonNullable<ScanTarget['reason']>, string> = {
   unapproved: 'has not been approved in the inventory',
   excluded: 'is on the exclusion list',
   out_of_scope: 'is outside the confirmed network range',
+  box: 'is the Vedette box itself, which is never scanned',
+  regular_scan_never: 'is set to never be scanned in the inventory; change that setting first',
   unverified: 'has no verified ownership (do it on the External exposure page)',
   expired: 'verification expired, verify again (on the External exposure page)',
+  not_supported: 'is an external target, and this version does not scan external targets yet',
 }
 const reasonOf = (r: ScanTarget['reason']) => REASON[r ?? 'out_of_scope']
 
@@ -215,6 +227,12 @@ function finalize(r: StoredRun, status: ScanRun['status'], reason: string | null
     const t = all.find((x) => x.id === id)
     if (!t) return
     if (status === 'auto_stopped' && i === r.done) { rows.push(row(t, null, 'no_response', null, NO_RESP)); return }
+    // Stop now while a device was being scanned: its requests on the way are logged as stopped, it has no result.
+    if (status === 'stopped' && i === r.done) {
+      rows.push(row(t, null, 'skipped', null, STOPPED_MID))
+      newProbes.push(...scanOne(t, false).probes.map((p) => ({ ...p, id: newId('pr'), run_id: r.id, result: 'stopped' as const })))
+      return
+    }
     if (i >= r.done) { rows.push(row(t, null, 'skipped', null, SKIPPED)); return }
     const s = scanOne(t, config.get().stop_on_unresponsive)
     if (s.unresponsive) { rows.push(row(t, null, 'no_response', null, NO_RESP)); return }
@@ -287,7 +305,9 @@ function validateConfig(c: ScanConfig): string | null {
 function configResponse(): ScanConfigResponse {
   const sc = scope.get()
   const c = config.get()
-  return { config: c, next_run: nextRun(c), scope: sc, can_scan: !!sc.commitment, block_reason: sc.commitment ? null : 'The scan scope commitment is not ticked yet. Do it under Devices, Scope and sensors.', dangerous_checks: false }
+  const up = scannerStore.get().available
+  const block = !sc.commitment ? 'The scan scope commitment is not ticked yet. Do it under Devices, Scope and sensors.' : !up ? SCANNER_DOWN : null
+  return { config: c, next_run: nextRun(c), scope: sc, can_scan: block === null, block_reason: block, dangerous_checks: false }
 }
 
 // ---- khoá SSH (S-SCAN-5) ----
@@ -344,12 +364,8 @@ export const handlers = [
       if (!t) return fail(400, 'unknown_target', `There is no target "${id.slice(0, 40)}" in the scan list.`)
       if (!t.selectable) return fail(400, 'out_of_scope', `${t.label} (${t.ip}) ${reasonOf(t.reason)}, so it cannot be scanned.`)
     }
-    // CheckScannable of exposure (INV-13): right before a scan, an external IP must still be one the box goes out through (a check or full check of the last 5 minutes is reused). Not seen = paused, 409 ip_not_current.
-    for (const id of ids) {
-      const ip = id.startsWith('ext:') ? exposureTargetsStore.get().find((x) => `ext:${x.id}` === id && x.kind === 'ip') : undefined
-      const paused = ip ? exposureIpPaused(ip) : null
-      if (paused) return paused
-    }
+    // External targets are not scanned yet (not_supported above). When they are, exposure's CheckScannable (INV-13, 409 ip_not_current) runs here, right before the scan.
+    if (!scannerStore.get().available) return fail(503, 'scanner_unavailable', SCANNER_DOWN)
     const r = startRun(ids, 'manual', null, who())
     audit('scan.start', r.id, `${ids.length} targets`)
     return HttpResponse.json(strip(r), { status: 201 })
@@ -371,8 +387,9 @@ export const handlers = [
 
   http.get(`${API}/scans/probes.csv`, () => {
     const d = guard('viewer'); if (d) return d
-    const esc = (s: string) => `"${s.replaceAll('"', '""')}"`
-    const text = ['time,target,name,template,request,result', ...probes.get().map((p) => [p.ts, p.ip, esc(p.label), p.template, esc(p.request), p.result].join(','))].join('\n')
+    // Names come from the network (DHCP, mDNS): a cell a spreadsheet would read as a formula gets a leading quote (OWASP CSV injection).
+    const esc = (s: string) => `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replaceAll('"', '""')}"`
+    const text = ['time,target,name,template,request,result', ...probes.get().map((p) => [p.ts, p.ip, esc(p.label), esc(p.template), esc(p.request), p.result].join(','))].join('\n')
     return new HttpResponse(text, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename=vedette-probe-log.csv' } })
   }),
 

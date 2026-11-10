@@ -111,7 +111,7 @@ func New(cfg Config) (*Runner, error) {
 		r.version = "0.0.0-dev"
 	}
 	r.flushEvery = orDefault(r.flushEvery, 5*time.Second)
-	r.beatEvery = orDefault(r.beatEvery, 30*time.Second)
+	r.beatEvery = orDefault(r.beatEvery, DefaultHeartbeatEvery)
 	r.retryEvery = orDefault(r.retryEvery, 5*time.Second)
 	r.summaryEvery = orDefault(r.summaryEvery, 5*time.Minute)
 	r.configWait = orDefault(r.configWait, sensorlink.DefaultWait)
@@ -280,6 +280,9 @@ func (r *Runner) sleep(ctx context.Context, d time.Duration) {
 	case <-t.C:
 	}
 }
+
+// DefaultHeartbeatEvery is the heartbeat period when Config.HeartbeatEvery is zero; cmd/vedette-sensor's health check is tied to it.
+const DefaultHeartbeatEvery = 30 * time.Second
 
 // maxBackoff is the longest pause between two attempts to open a capture that keeps failing.
 const maxBackoff = 10 * time.Minute

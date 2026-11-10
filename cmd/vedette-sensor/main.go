@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/sensor-active/worker"
@@ -34,18 +35,23 @@ func main() {
 
 func run(ctx context.Context, args []string, stdout io.Writer, logger *slog.Logger) error {
 	if len(args) == 0 {
-		return errors.New("usage: vedette-sensor passive|active --core URL --creds FILE [--nmap PATH]")
+		return errors.New("usage: vedette-sensor passive|active|healthcheck --core URL --creds FILE [--nmap PATH]")
 	}
 	switch args[0] {
 	case "passive":
 		return runPassive(ctx, args[1:], stdout, logger.With("module", "sensor-passive"))
 	case "active":
 		return runActive(ctx, args[1:], stdout, logger.With("module", "sensor-active"))
+	case "healthcheck": // the HealthCmd= of the sensor and scan units: no arguments, nothing to configure (health.go)
+		if len(args) != 1 {
+			return errors.New("healthcheck takes no arguments")
+		}
+		return checkHeartbeat(heartbeatPath, time.Now())
 	case "-version", "--version":
 		_, err := fmt.Fprintln(stdout, version)
 		return err
 	}
-	return fmt.Errorf("unknown command %q (known: passive, active)", args[0])
+	return fmt.Errorf("unknown command %q (known: passive, active, healthcheck)", args[0])
 }
 
 // activeFlags are the options of `vedette-sensor active`.
@@ -73,11 +79,11 @@ func runActive(ctx context.Context, args []string, stdout io.Writer, logger *slo
 	if fs.NArg() != 0 {
 		return fmt.Errorf("unexpected argument %q", fs.Arg(0))
 	}
-	link, err := sensorlink.NewClient(sensorlink.ClientOptions{BaseURL: *coreURL, CredsPath: *creds})
+	client, err := sensorlink.NewClient(sensorlink.ClientOptions{BaseURL: *coreURL, CredsPath: *creds})
 	if err != nil {
 		return err
 	}
-	w, err := worker.New(worker.Config{Link: link, NmapPath: *nmap, Version: version, Log: logger})
+	w, err := worker.New(worker.Config{Link: withBeat(client, heartbeatPath, logger), NmapPath: *nmap, Version: version, Log: logger})
 	if err != nil {
 		return err
 	}

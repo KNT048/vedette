@@ -183,7 +183,7 @@ func TestContract_INV4_OnlyPackTemplatesForTheDevicesCVEs(t *testing.T) {
 	v := r.start("a-web01", "a-srv")
 	r.wait()
 	jobs := r.eng.sent()
-	if len(jobs) != 1 || !slices.Equal(jobs[0].Templates, []string{"CVE-2024-3400"}) {
+	if len(jobs) != 1 || !slices.Equal(jobs[0].Templates, []string{"http/cves/2024/CVE-2024-3400.yaml"}) {
 		t.Fatalf("jobs: %+v", jobs)
 	}
 	if !slices.Equal(jobs[0].Targets, []nucleiargv.Target{{Host: "192.168.10.12", Port: 443, Scheme: "https"}}) {
@@ -339,7 +339,7 @@ func TestContract_INV8_ResultsBecomeFindings(t *testing.T) {
 func TestContract_INV10_UntrustedOutputFailsClosed(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
-	r.eng.reply = func(j nucleiargv.Job) (Output, error) {
+	r.eng.reply = func(nucleiargv.Job) (Output, error) {
 		return Output{JSONL: []byte(`{"template-id":"CVE-2022-27593","host":"http://192.168.10.99:80","matcher-status":true}`)}, nil // a host the job did not name
 	}
 	v := r.start("a-nas02")
@@ -428,5 +428,22 @@ func TestHandlers_RunEndpoints(t *testing.T) {
 		t.Fatalf("scanner down: %d %v", code, b)
 	} else if c, _ := errOf(b); c != "scanner_unavailable" {
 		t.Fatalf("code %s", c)
+	}
+}
+
+// L7, S-SCAN-3: the "check it yourself" line names the job's own target that matched, never a field of the output.
+func TestContract_INV8_RecheckLineIsTheJobsTarget(t *testing.T) {
+	t.Parallel()
+	r := newRunEnv(t)
+	r.eng.reply = func(j nucleiargv.Job) (Output, error) { // the NAS answers on its second target, ssh port 22
+		return Output{JSONL: []byte(`{"template-id":"CVE-2022-27593","host":"` + j.Targets[1].Input() + `","matcher-status":true,"curl-command":"curl http://attacker.example"}` + "\n")}, nil
+	}
+	r.start("a-nas02")
+	r.wait()
+	if len(r.findings.confirmed) != 1 {
+		t.Fatalf("confirmed: %v", r.findings.confirms)
+	}
+	if s := r.findings.confirmed[0].Summary; !strings.HasSuffix(s, "-u 192.168.10.21:22") || strings.Contains(s, "attacker") {
+		t.Fatalf("summary: %q", s)
 	}
 }

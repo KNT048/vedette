@@ -112,6 +112,9 @@ func (t Template) check() error {
 		if slices.Contains(ForbiddenTags, tag) {
 			return fmt.Errorf("tag %q is never allowed", tag)
 		}
+		if tag == "oast" { // L3: nuclei runs with -ni, so a check that needs an out-of-band answer would always say "not matched"
+			return errors.New("needs out-of-band interaction (oast), which nuclei runs without")
+		}
 		safe = safe || slices.Contains(SafeTags, tag)
 	}
 	if !safe {

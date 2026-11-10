@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"path"
 	"slices"
 	"strings"
 	"sync"
@@ -169,12 +170,16 @@ func (f *runEngine) sent() []nucleiargv.Job {
 	return slices.Clone(f.jobs)
 }
 
+// idOf is the template id of a pack path in the test pack (the file is named after its id).
+func idOf(p string) string { return strings.TrimSuffix(path.Base(p), ".yaml") }
+
 // lines answers every template of the job on its first target: matched for the ids in hit, an error for every
 // template when dead, not matched otherwise.
 func lines(hit ...string) func(j nucleiargv.Job) (Output, error) {
 	return func(j nucleiargv.Job) (Output, error) {
 		var b strings.Builder
-		for _, id := range j.Templates {
+		for _, p := range j.Templates {
+			id := idOf(p)
 			m := slices.Contains(hit, id)
 			b.WriteString(`{"template-id":"` + id + `","host":"` + j.Targets[0].Input() + `","matcher-status":`)
 			if m {
@@ -190,8 +195,8 @@ func lines(hit ...string) func(j nucleiargv.Job) (Output, error) {
 
 func dead(j nucleiargv.Job) (Output, error) {
 	var b strings.Builder
-	for _, id := range j.Templates {
-		b.WriteString(`{"template-id":"` + id + `","host":"` + j.Targets[0].Input() + `","matcher-status":false,"error":"context deadline exceeded"}` + "\n")
+	for _, p := range j.Templates {
+		b.WriteString(`{"template-id":"` + idOf(p) + `","host":"` + j.Targets[0].Input() + `","matcher-status":false,"error":"context deadline exceeded"}` + "\n")
 	}
 	return Output{JSONL: []byte(b.String())}, nil
 }

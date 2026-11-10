@@ -58,6 +58,7 @@ func TestParse_Refuses(t *testing.T) {
 		"dos tag":             entry(func(e map[string]any) { e["tags"] = []string{"kev", "dos"} }),
 		"intrusive tag":       entry(func(e map[string]any) { e["tags"] = []string{"vkev", "intrusive"} }),
 		"fuzz tag":            entry(func(e map[string]any) { e["tags"] = []string{"kev", "fuzz"} }),
+		"oast tag":            entry(func(e map[string]any) { e["tags"] = []string{"kev", "oast"} }),
 		"bad tag":             entry(func(e map[string]any) { e["tags"] = []string{"kev", "Bad Tag"} }),
 		"no tags":             entry(func(e map[string]any) { e["tags"] = []string{} }),
 		"bad cve":             entry(func(e map[string]any) { e["cve"] = "CVE-22-1" }),

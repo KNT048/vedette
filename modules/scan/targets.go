@@ -53,7 +53,7 @@ var reasonText = map[string]string{
 
 // skipNote is the note of a result row when a device is not scanned at the moment it is reached (INV-1: every
 // target is checked again right before its job leaves core).
-var skipNote = map[string]string{
+var skipNote = map[string]string{ //nolint:gosec // G101: notes shown to the user, not credentials
 	"unapproved":                "Not approved in the inventory any more; not scanned.",
 	"excluded":                  "On the exclusion list; not scanned.",
 	"out_of_scope":              "Outside the confirmed scope now; not scanned.",

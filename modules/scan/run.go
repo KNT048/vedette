@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -496,9 +497,11 @@ func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Set
 		return rows, ""
 	}
 	job := nucleiargv.Job{Targets: endpoints(d), Rate: rate, MaxHostErrors: st.UnresponsiveAfter}
+	var ids []string
 	for _, c := range checks {
 		for _, t := range c.tpls {
-			job.Templates = append(job.Templates, t.ID)
+			job.Templates = append(job.Templates, t.Path) // the file of the verified index, never the whole directory (M2)
+			ids = append(ids, t.ID)
 		}
 	}
 	if _, err := nucleiargv.Build(job); err != nil { // the same check the worker makes: never hand over a job it would refuse
@@ -518,7 +521,7 @@ func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Set
 		err = errors.New("the output was over the cap")
 	}
 	if err == nil {
-		res, err = nucleiout.Parse(out.JSONL, job.Templates, []string{d.IP})
+		res, err = nucleiout.Parse(out.JSONL, ids, hostPorts(job.Targets))
 	}
 	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		s.cfg.Log.ErrorContext(ctx, "scan: the scanner failed on a device", "asset", d.ID, "run", runID, "error", err)
@@ -538,7 +541,7 @@ func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Set
 	}
 	byTemplate := map[string]string{}
 	for _, c := range checks {
-		row := s.conclude(ctx, d, c, res, job.Targets[0].Input())
+		row := s.conclude(ctx, d, c, res, job.Targets)
 		rows = append(rows, row)
 		for _, t := range c.tpls {
 			byTemplate[t.ID] = templateResult(t.ID, res)
@@ -546,6 +549,26 @@ func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Set
 	}
 	s.closeProbes(ctx, probes, func(tpl string) string { return byTemplate[tpl] })
 	return rows, ""
+}
+
+// hostPorts are the job's targets as nucleiout matches them (L2).
+func hostPorts(ts []nucleiargv.Target) []string {
+	out := make([]string, len(ts))
+	for i, t := range ts {
+		out[i] = t.Host + ":" + strconv.Itoa(t.Port)
+	}
+	return out
+}
+
+// recheckInput is the -u of the "check it yourself" line: the job's own target that matched, never a field of the
+// output (L7).
+func recheckInput(ts []nucleiargv.Target, hostPort string) string {
+	for _, t := range ts {
+		if t.Host+":"+strconv.Itoa(t.Port) == hostPort {
+			return t.Input()
+		}
+	}
+	return ts[0].Input() // unreachable: nucleiout returns only the job's targets
 }
 
 // runJob runs the job on the engine, bounded by the device timeout; after Stop now it waits at most stopGrace.
@@ -600,7 +623,9 @@ func templateResult(id string, res []nucleiout.Result) string {
 }
 
 // conclude turns the lines of one CVE into its result row and tells the findings module (INV-8, S-SCAN-3).
-func (s *Service) conclude(ctx context.Context, d Device, c check, res []nucleiout.Result, input string) RunRow {
+// One matched line is enough for a template on a device (L3): a template that needs an out-of-band answer is refused by
+// the pack (oast), so a "not matched" never stands for a check nuclei could not make with -ni.
+func (s *Service) conclude(ctx context.Context, d Device, c check, res []nucleiout.Result, targets []nucleiargv.Target) RunRow {
 	cve := c.finding.CVE
 	row := RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Template: ptr(c.tpls[0].Path), FindingID: ptr(c.finding.ID)}
 	var hit *nucleiout.Result
@@ -620,6 +645,7 @@ func (s *Service) conclude(ctx context.Context, d Device, c check, res []nucleio
 		tpl := c.tpls[slices.IndexFunc(c.tpls, func(t pack.Template) bool { return t.ID == hit.Template })]
 		row.Template = ptr(tpl.Path)
 		row.Result, row.Note = "matched", cve+": the scan template matches, the flaw is still there."
+		input := recheckInput(targets, hit.Target)
 		ev := Evidence{
 			Summary:  fmt.Sprintf("Safe scan template %s matched on %s (%s). To check it yourself, run: nuclei -t %s -u %s", tpl.Path, d.Label, d.IP, tpl.Path, input),
 			Template: tpl.Path, Request: hit.Request, Response: hit.Response, CheckedAt: s.now().UTC(),

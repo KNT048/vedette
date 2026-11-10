@@ -76,7 +76,7 @@ func (o *Ops) checkNSFile() (present bool, err error) {
 func sameDevice(a, b os.FileInfo) bool {
 	x, ok1 := a.Sys().(*syscall.Stat_t)
 	y, ok2 := b.Sys().(*syscall.Stat_t)
-	return ok1 && ok2 && uint64(x.Dev) == uint64(y.Dev) //nolint:unconvert // Dev is int32 or uint64 by OS; only equality matters
+	return ok1 && ok2 && x.Dev == y.Dev
 }
 
 // removeStaleNS unlinks the leftover file through the directory's descriptor, once it is seen to be

@@ -661,7 +661,9 @@ func (s *Service) conclude(ctx context.Context, d Device, c check, res []nucleio
 		row.Result, row.Note = "matched", cve+": the scan template matches, the flaw is still there."
 		input := recheckInput(targets, hit.Target)
 		ev := Evidence{
-			Summary:  fmt.Sprintf("Safe scan template %s matched on %s (%s). To check it yourself, run: nuclei -t %s -u %s", tpl.Path, d.Label, d.IP, tpl.Path, input),
+			// Review M3: only validated parts: the pack path, the address that passed the argv grammar and the job's input.
+			// The device name comes from the network (DHCP, mDNS) and could plant a fake command; it is never in here.
+			Summary:  fmt.Sprintf("Safe scan template %s matched on %s. To check it yourself, run: nuclei -t %s -u %s", tpl.Path, d.IP, tpl.Path, input),
 			Template: tpl.Path, Request: hit.Request, Response: hit.Response, CheckedAt: s.now().UTC(),
 		}
 		if id, err := s.cfg.Findings.ConfirmFromScan(ctx, d.ID, cve, ev); err != nil {

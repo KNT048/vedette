@@ -25,7 +25,8 @@ async function onlyTarget(label: RegExp) {
 describe('scan: trang chính và chọn mục tiêu (S-SCAN-1)', () => {
   it('câu đầu nêu lần quét gần nhất, có phạm vi, không lỗi a11y', async () => {
     renderApp('/scans')
-    expect(await screen.findByRole('heading', { level: 1, name: /Last scan .*: \d+ devices checked, 1 device matches a vulnerability/ })).toBeInTheDocument()
+    // the seeded scheduled run checks only devices allowed without a pick (D-126 (2)), so its match count follows the seed
+    expect(await screen.findByRole('heading', { level: 1, name: /Last scan .*: \d+ devices checked/ })).toBeInTheDocument()
     expect(await screen.findByText(/Only scans inside the confirmed scope: 192\.168\.10\.0\/24, 192\.168\.20\.0\/24/)).toBeInTheDocument()
     expect(await screen.findByText(/Scan scope commitment ticked on/)).toBeInTheDocument()
     await expectNoA11yViolations()
@@ -345,6 +346,19 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect(screen.getAllByText('Requires Operator role').length).toBeGreaterThan(0)
     const res = await postRun(['a-nas02'])
     expect(res.status).toBe(403)
+  })
+
+  it('D-126 (2): the seeded scheduled and KEV runs, and the seeded rescan matches, never touch a device that needs a hand pick', async () => {
+    renderApp('/scans')
+    await screen.findByRole('table', { name: 'History of scans' })
+    const targets = (await (await fetch(`${base()}/scans/targets`)).json()).items as { id: string; label: string; pick_only: boolean }[]
+    const pick = targets.filter((x) => x.pick_only)
+    expect(pick.length).toBeGreaterThan(0)
+    const auto = (await getRuns()).filter((r) => r.trigger !== 'manual')
+    expect(auto.map((r) => r.trigger).sort()).toEqual(['new_kev', 'schedule'])
+    for (const r of auto) expect(r.results.map((x) => x.target_id).filter((id) => pick.some((p) => p.id === id)), r.id).toEqual([])
+    const events = ((await (await fetch(`${base()}/scans/events`)).json()) as { items: { result: string; devices: string[] }[] }).items
+    for (const e of events.filter((x) => x.result === 'matched')) expect(e.devices.filter((d) => pick.some((p) => p.label === d))).toEqual([])
   })
 
   it('lịch sử liệt kê lần quét theo lịch, theo KEV mới và lần đã dừng', async () => {

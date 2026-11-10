@@ -16,6 +16,7 @@ import (
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/modreg"
+	"github.com/knt048/vedette/core/pki"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/ai"
@@ -74,9 +75,14 @@ type deps struct {
 	MitigationHandlers *mitigation.ActionHandlers
 	Honeypot           *honeypot.Service      // the run job, the HTTP handler and the inventory subscription share it
 	HoneypotDir        string                 // shared volume with the honeypot container (-honeypot-dir); empty = no container wired
-	SensorPassive      *sensorpassive.Service // the capture job and the HTTP handler share it: the SPAN measurement lives in its memory
-	Response           *response.Service      // the only module that may change another device (D-41): handler, jobs and bus subscriptions share it
-	AI                 *ai.Service            // profiles, keys, assignments and token settings (S-AI-1); one instance holds the router and the meter
+	SensorPassive      *sensorpassive.Service // the sensor link and the HTTP handler share it: the SPAN measurement lives in its memory
+	// SensorDispatcher is the Prober of sensor-active and the active half of the sensor link's Backend (D-113): one instance, so the
+	// job the service queues is the job the worker polls. Authority and SensorCreds exist only when -sensor-listen is set (D-141).
+	SensorDispatcher *sensoractive.Dispatcher
+	Authority        *pki.Authority
+	SensorCreds      string
+	Response         *response.Service // the only module that may change another device (D-41): handler, jobs and bus subscriptions share it
+	AI               *ai.Service       // profiles, keys, assignments and token settings (S-AI-1); one instance holds the router and the meter
 }
 
 // moduleWiring is one module the binary carries. Adding a module = one entry in wiredModules and
@@ -92,7 +98,7 @@ type moduleWiring struct {
 // (core first). TestWiredModulesFollowDependencies checks the order against the manifests.
 func wiredModules() []moduleWiring {
 	return []moduleWiring{
-		{ID: "core", Migrations: core.Migrations},
+		{ID: "core", Migrations: core.Migrations, Jobs: coreJobs},
 		{ID: "feeds", Migrations: feeds.Migrations, Jobs: feedsJobs, BodyLimits: feeds.BodyLimits},
 		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},
 		{ID: "sensor-active", Migrations: sensoractive.Migrations, Jobs: sensorActiveJobs},
@@ -100,7 +106,7 @@ func wiredModules() []moduleWiring {
 		{ID: "findings", Migrations: findings.Migrations},
 		{ID: "mitigation", Migrations: mitigation.Migrations},
 		{ID: "notify", Migrations: notify.Migrations, Jobs: notifyJobs},
-		{ID: "sensor-passive", Migrations: sensorpassive.Migrations, Jobs: sensorPassiveJobs},
+		{ID: "sensor-passive", Migrations: sensorpassive.Migrations},          // no capture job: packets are read in the sensor container only (D-141)
 		{ID: "response", Migrations: response.Migrations, Jobs: responseJobs}, // after notify and inventory (manifest depends)
 		{ID: "exposure", Migrations: exposure.Migrations, Jobs: exposureJobs}, // depends on core and inventory (MANIFEST)
 		{ID: "scan", Migrations: scan.Migrations, Jobs: scanJobs},             // depends on core, inventory and feeds (MANIFEST)

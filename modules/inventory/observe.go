@@ -158,6 +158,15 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 		created := map[string]bool{}
 		touched := []string{}
 		for _, c := range clean {
+			if c.source != string(observe.Agent) {
+				about, err := aboutBox(ctx, tx, c)
+				if err != nil {
+					return err
+				}
+				if about { // only an agent describes the box; a sensor's view of its MAC or address is not the box
+					continue
+				}
+			}
 			id, isNew, err := s.resolve(ctx, tx, c)
 			if err != nil {
 				return err
@@ -199,6 +208,21 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 	})
 }
 
+// aboutBox reports whether the observation names the MAC or the address of the box device.
+func aboutBox(ctx context.Context, tx *sql.Tx, c cleanObs) (bool, error) {
+	var n int
+	ip := ""
+	if c.ip.IsValid() {
+		ip = c.ip.String()
+	}
+	err := tx.QueryRowContext(ctx, `SELECT count(*) FROM inv_asset WHERE is_box = 1 AND ((? <> '' AND mac = ?) OR (? <> '' AND ip = ?))`,
+		c.mac, c.mac, ip, ip).Scan(&n)
+	if err != nil {
+		return false, fmt.Errorf("inventory: check the box: %w", err)
+	}
+	return n > 0, nil
+}
+
 // target names the device a hint points to, for the audit row.
 func (c cleanObs) target() string {
 	if c.mac != "" {
@@ -214,7 +238,7 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, c cleanObs) (id strin
 	if c.mac != "" {
 		switch err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE mac = ?`, c.mac).Scan(&id); {
 		case err == nil:
-			return id, false, s.claimIP(ctx, tx, id, c.ip)
+			return id, false, s.claimIP(ctx, tx, id, c.ip, c.source)
 		case !errors.Is(err, sql.ErrNoRows):
 			return "", false, fmt.Errorf("inventory: find device by MAC: %w", err)
 		}
@@ -243,13 +267,24 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, c cleanObs) (id strin
 	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_asset (id, mac, kind, origin, approved, fragile, first_seen, last_seen) VALUES (?, ?, 'unknown', 'discovered', 0, 0, ?, ?)`, id, nullStr(c.mac), now, now); err != nil {
 		return "", false, fmt.Errorf("inventory: create device: %w", err)
 	}
-	return id, true, s.claimIP(ctx, tx, id, c.ip)
+	return id, true, s.claimIP(ctx, tx, id, c.ip, c.source)
 }
 
-// claimIP gives ip to the device when it has none or when a discovered device holds it.
-func (s *Service) claimIP(ctx context.Context, tx *sql.Tx, id string, ip netip.Addr) error {
+// claimIP gives ip to the device when it has none or when a discovered device holds it. A device that a person declared
+// (origin manual) or the box itself keeps its address against anything but an agent: what a sensor sees on the wire does not
+// move them (L10 of the SP-4 review).
+func (s *Service) claimIP(ctx context.Context, tx *sql.Tx, id string, ip netip.Addr, source string) error {
 	if !ip.IsValid() {
 		return nil
+	}
+	if source != string(observe.Agent) {
+		var held bool
+		if err := tx.QueryRowContext(ctx, `SELECT origin = 'manual' OR is_box = 1 FROM inv_asset WHERE id = ?`, id).Scan(&held); err != nil {
+			return fmt.Errorf("inventory: read device: %w", err)
+		}
+		if held {
+			return nil
+		}
 	}
 	var cur sql.NullString
 	if err := tx.QueryRowContext(ctx, `SELECT ip FROM inv_asset WHERE id = ?`, id).Scan(&cur); err != nil {
@@ -322,6 +357,13 @@ func (s *Service) RecomputeAsset(ctx context.Context, tx *sql.Tx, assetID string
 	}
 	if err := rows.Close(); err != nil {
 		return false, err
+	}
+	var isBox bool
+	if err := tx.QueryRowContext(ctx, `SELECT is_box FROM inv_asset WHERE id = ?`, assetID).Scan(&isBox); err != nil {
+		return false, fmt.Errorf("inventory: read device: %w", err)
+	}
+	if isBox { // the box's MAC is what an agent says; no sensor can set it
+		list = slices.DeleteFunc(list, func(o obs) bool { return o.field == "mac" && o.source != string(observe.Agent) })
 	}
 	best := winners(list)
 	// A MAC another device already owns cannot become this device's MAC: take the best one that is free.

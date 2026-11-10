@@ -1,6 +1,6 @@
 //go:build linux
 
-package sensorpassive
+package capture
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 )
 
 // ErrNoLiveCapture is returned by OpenLive where there is no AF_PACKET. On Linux it is never returned.
-var ErrNoLiveCapture = errors.New("sensorpassive: live capture needs Linux (AF_PACKET); replay a recording instead")
+var ErrNoLiveCapture = errors.New("capture: live capture needs Linux (AF_PACKET); replay a recording instead")
 
 // liveSource is a read-only AF_PACKET socket on one interface (INV-1, INV-2). Receiving needs only
 // CAP_NET_RAW. The type has no write method and no code path in this file calls send, sendto, sendmsg or
@@ -33,15 +33,15 @@ type liveSource struct {
 func OpenLive(iface string) (Source, error) {
 	ifc, err := net.InterfaceByName(iface)
 	if err != nil {
-		return nil, fmt.Errorf("sensorpassive: interface %q: %w", iface, err)
+		return nil, fmt.Errorf("capture: interface %q: %w", iface, err)
 	}
 	fd, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_RAW|syscall.SOCK_CLOEXEC, 0) // protocol 0: nothing is queued before bind
 	if err != nil {
-		return nil, fmt.Errorf("sensorpassive: open capture socket (needs CAP_NET_RAW): %w", err)
+		return nil, fmt.Errorf("capture: open capture socket (needs CAP_NET_RAW): %w", err)
 	}
 	fail := func(what string, err error) (Source, error) {
 		_ = syscall.Close(fd)
-		return nil, fmt.Errorf("sensorpassive: %s on %q: %w", what, iface, err)
+		return nil, fmt.Errorf("capture: %s on %q: %w", what, iface, err)
 	}
 	// bind with ETH_P_ALL starts delivery from this interface only
 	if err := syscall.Bind(fd, &syscall.SockaddrLinklayer{Protocol: htons(syscall.ETH_P_ALL), Ifindex: ifc.Index}); err != nil {
@@ -76,7 +76,7 @@ func (s *liveSource) Next(ctx context.Context) (Packet, error) {
 	case errors.Is(err, syscall.EAGAIN), errors.Is(err, syscall.EINTR):
 		return Packet{}, ErrIdle
 	default:
-		return Packet{}, fmt.Errorf("sensorpassive: receive: %w", err)
+		return Packet{}, fmt.Errorf("capture: receive: %w", err)
 	}
 }
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"io"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -51,16 +52,37 @@ func TestScanUnitExecParsesWithTheRealFlagsAndAgreesWithItsMount(t *testing.T) {
 	}
 }
 
-// The sensor unit runs `passive`, which this binary does not have yet (SP-4). While it does not, its Exec=
-// follows the sensor protocol spec and cannot be parsed; the day `passive` exists this test fails until the
-// unit is checked against its flags too (gate before slice 3-8 and WP-08).
-func TestSensorUnitNeedsAFlagGateOncePassiveExists(t *testing.T) {
+// The sensor unit runs `passive`: its Exec= parses with the real flags, -creds is under the unit's read-only keys volume, and
+// -core is the address core's own unit publishes (127.0.0.1:8444 only).
+func TestSensorUnitExecParsesWithTheRealFlagsAndAgreesWithItsMountAndCore(t *testing.T) {
 	t.Parallel()
-	execLine, _ := unitLines(t, "sensor")
-	if !strings.HasPrefix(execLine, "passive ") {
-		t.Fatalf("Exec=%q", execLine)
+	execLine, volumes := unitLines(t, "sensor")
+	args := strings.Fields(execLine)
+	if len(args) == 0 || args[0] != "passive" {
+		t.Fatalf("Exec=%q: the sensor unit runs the passive subcommand", execLine)
 	}
-	if err := run(t.Context(), []string{"passive"}, io.Discard, nil); err == nil || !strings.Contains(err.Error(), "unknown command") {
-		t.Fatalf("`passive` now exists (%v): parse the sensor unit's Exec= with its flag set, as the scan test does", err)
+	fs, f := newPassiveFlags(io.Discard)
+	if err := fs.Parse(args[1:]); err != nil || fs.NArg() != 0 {
+		t.Fatalf("Exec=%q does not parse with the real flags: %v %v", execLine, err, fs.Args())
+	}
+	if len(volumes) != 1 || !strings.HasSuffix(volumes[0], ":ro") || !strings.HasPrefix(*f.creds, strings.Split(volumes[0], ":")[1]+"/") {
+		t.Errorf("-creds %q is not under the read-only keys volume %v", *f.creds, volumes)
+	}
+	u, err := url.Parse(*f.core)
+	if err != nil || u.Scheme != "https" {
+		t.Fatalf("-core %q is not an https address: %v", *f.core, err)
+	}
+	coreText, err := ops.RenderUnit("core", "sha256:"+strings.Repeat("a", 64), true, 10001, 10002, 10003, 10004)
+	if err != nil {
+		t.Fatal(err)
+	}
+	published := false
+	for _, l := range strings.Split(string(coreText), "\n") {
+		if v, ok := strings.CutPrefix(l, "PublishPort="); ok && v == u.Host+":"+u.Port() { // host:hostport:containerport on the same address and port
+			published = true
+		}
+	}
+	if !published {
+		t.Errorf("-core %q is not a port the core unit publishes", *f.core)
 	}
 }

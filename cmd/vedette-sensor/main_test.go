@@ -88,8 +88,67 @@ func TestActiveSubcommandTalksToCore(t *testing.T) {
 	}
 }
 
-// The scan container holds no database, no secrets and no consent (D-113, D-114): its binary must not link database/sql, SQLite,
-// the generated API or any module but the leaf packages below, and no third-party code at all. The test walks the imports of
+// passiveCore is core's passive half for the subcommand test: an empty configuration (do not capture) and a record of the heartbeats.
+type passiveCore struct {
+	beats chan sensorlink.PassiveHeartbeat
+}
+
+func (passiveCore) Config(ctx context.Context, wait time.Duration, etag string) (sensorlink.ConfigReply, error) {
+	if etag == "" {
+		return sensorlink.ConfigReply{ETag: `"e1"`, Config: sensorlink.Config{Filters: []sensorlink.Filter{}}}, nil
+	}
+	select {
+	case <-time.After(wait):
+	case <-ctx.Done():
+	}
+	return sensorlink.ConfigReply{NotModified: true, ETag: etag}, nil
+}
+
+func (passiveCore) Observations(_ context.Context, req *sensorlink.ObservationsRequest) (sensorlink.ObservationsReply, error) {
+	return sensorlink.ObservationsReply{AckSeq: req.Seq}, nil
+}
+
+func (c passiveCore) PassiveHeartbeat(_ context.Context, hb *sensorlink.PassiveHeartbeat) (string, error) {
+	select {
+	case c.beats <- *hb:
+	default:
+	}
+	return strings.Repeat("c", 32), nil
+}
+
+// `vedette-sensor passive` connects with the bundle core wrote, says hello with its version and the cards of this machine, and stops
+// when it is told to.
+func TestPassiveSubcommandTalksToCore(t *testing.T) {
+	t.Parallel()
+	core := passiveCore{beats: make(chan sensorlink.PassiveHeartbeat, 4)}
+	link := linktest.New(t, linktest.Passive(core))
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() {
+		done <- run(ctx, []string{"passive", "--core", link.URL, "--creds", link.CredsPath(sensorlink.Passive)}, &bytes.Buffer{}, slog.New(slog.DiscardHandler))
+	}()
+	select {
+	case hb := <-core.beats:
+		if hb.Version != version || hb.Interfaces == nil || hb.Drops == nil {
+			t.Fatalf("heartbeat = %+v", hb)
+		}
+	case <-time.After(15 * time.Second):
+		t.Fatal("no heartbeat")
+	}
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil && !errors.Is(err, context.Canceled) {
+			t.Fatalf("run: %v", err)
+		}
+	case <-time.After(15 * time.Second):
+		t.Fatal("the capture did not stop")
+	}
+}
+
+// The sensor and scan containers hold no database, no secrets and no consent (D-113, D-114): the binary must not link database/sql, SQLite,
+// the generated API, core's store, audit, secrets or PKI, or any module but the leaf packages below, and no third-party code
+// but x/sys/unix. The test walks the imports of
 // the packages of this module from the binary down (go/build, once for the build host and once for Linux, where the binary
 // runs): every import of every one of them is either standard library outside database/sql, or on the allowed list.
 func TestBinaryDependencies(t *testing.T) {
@@ -97,12 +156,18 @@ func TestBinaryDependencies(t *testing.T) {
 	const mod = "github.com/knt048/vedette/"
 	allowed := []string{
 		"cmd/vedette-sensor",
+		"content/oui",
 		"core/exec",
+		"core/observe",
 		"core/sensorlink",
 		"internal/jsonstrict",
 		"modules/sensor-active/nmapargv",
 		"modules/sensor-active/worker",
+		"modules/sensor-passive/capture",
 	}
+	// The only code from outside the standard library and this module: the raw socket of the capture (afpacket_linux.go) uses
+	// one receive-side option that package syscall lacks. It is already pinned in go.mod and imports nothing else.
+	thirdParty := []string{"golang.org/x/sys/unix"}
 	for _, goos := range []string{runtime.GOOS, "linux"} {
 		t.Run(goos, func(t *testing.T) {
 			t.Parallel()
@@ -131,6 +196,7 @@ func TestBinaryDependencies(t *testing.T) {
 							continue
 						}
 						walk(rel)
+					case slices.Contains(thirdParty, imp):
 					case strings.Contains(strings.SplitN(imp, "/", 2)[0], "."):
 						t.Errorf("%s links the third-party package %s", pkg, imp)
 					}
@@ -149,7 +215,8 @@ func TestBinaryDependencies(t *testing.T) {
 func TestUsageAndUnknownCommand(t *testing.T) {
 	t.Parallel()
 	log := slog.New(slog.DiscardHandler)
-	for _, args := range [][]string{nil, {"passive"}, {"healthcheck"}, {"active", "stray"}, {"active", "--creds", "/nonexistent/sensor.pem"}} {
+	for _, args := range [][]string{nil, {"passive"}, {"healthcheck"}, {"active", "stray"}, {"active", "--creds", "/nonexistent/sensor.pem"},
+		{"passive", "stray"}, {"passive", "--bogus"}, {"passive", "--creds", "/nonexistent/sensor.pem"}, {"passive", "--nmap", "/usr/bin/nmap"}} {
 		if err := run(t.Context(), args, &bytes.Buffer{}, log); err == nil {
 			t.Errorf("run(%q) succeeded", args)
 		}
@@ -157,5 +224,19 @@ func TestUsageAndUnknownCommand(t *testing.T) {
 	var out bytes.Buffer
 	if err := run(t.Context(), []string{"--version"}, &out, log); err != nil || strings.TrimSpace(out.String()) != version {
 		t.Errorf("--version = %q, %v", out.String(), err)
+	}
+}
+
+// L8: the sensor does not offer virtual links (bridges, veths, bonds, VLANs) as cards, by the same rule as the Box network page.
+func TestVirtualLinksAreNotCards(t *testing.T) {
+	t.Parallel()
+	for name, virtual := range map[string]bool{
+		"eth0": false, "enp2s0": false, "eno1": false, "wlan0": false, "ens18": false,
+		"veth1a2b": true, "br0": true, "virbr0": true, "docker0": true, "podman1": true, "bond0": true, "tun0": true, "wg0": true,
+		"eth0.20": true, "enp2s0@if3": true, "lo": true, "vnet3": true, "dummy0": true,
+	} {
+		if got := virtualName.MatchString(name); got != virtual {
+			t.Errorf("%s: virtual = %v, want %v", name, got, virtual)
+		}
 	}
 }

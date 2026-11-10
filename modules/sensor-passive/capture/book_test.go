@@ -1,4 +1,4 @@
-package sensorpassive
+package capture
 
 // Limits on new devices (SYS-6): the source MAC of every frame is chosen by whoever is on the wire, and every new MAC
 // the sensor reports becomes an unapproved device, an audit row and an event.

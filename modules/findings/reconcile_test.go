@@ -184,14 +184,14 @@ func TestContract_INV9_ReconcileJobRunsOnlyWhileFindingsIsOn(t *testing.T) {
 		if runs.Load() != 1 {
 			t.Fatalf("runs after the module came on = %d, want 1 (at once)", runs.Load())
 		}
-		time.Sleep(time.Hour)
+		<-time.After(time.Hour) // the bubble's fake clock
 		synctest.Wait()
 		if runs.Load() != 2 {
 			t.Fatalf("runs after an hour = %d, want 2", runs.Load())
 		}
 		g.set(false)
 		s.ModuleChanged("findings", false)
-		time.Sleep(3 * time.Hour)
+		<-time.After(3 * time.Hour)
 		synctest.Wait()
 		if runs.Load() != 2 {
 			t.Fatalf("the job ran %d times, it must not run while the module is off", runs.Load())

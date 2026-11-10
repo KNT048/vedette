@@ -25,3 +25,9 @@
 
 ## Modifying: `scan_setting` / `Service.SaveConfig` (S1)
 - **SPA** Schedule and safety tab, **jobs** of S4 (window, schedule, auto rescan, rate, exclusions). INV-5 is checked twice: in `Settings.validate` (with the mock's words) and by the CHECKs of `0001_scan_setting.sql`.
+
+## Modifying: the ports `Inventory.Devices/VulnScanPolicy`, `Findings`, `External` (S3)
+- **inventory** (`VulnScanPolicy`, D-126; `consent` in `targets.go` is the one place that folds it with `approved` and the scan exclusions), **findings** (`List`, `ConfirmFromScan`, `RescanClear`; INV-8), **exposure** (`Targets`, listed only: not scanned yet). Adapters in `cmd/vedette/scan.go`. Loosening `consent` widens what leaves the box (SYS-7): change CONTRACT INV-1 and its tests with it.
+
+## Modifying: `nucleiargv`, `nucleiout`, `pack` (S2)
+- Shared with the worker of the `scan` container (D-125): a change to the argv grammar or the job limits is a sensor-protocol change (proto number, worker, `docs/specs/sensor-protocol.md` §9). `nucleiout` is the trust boundary for what devices answered: keep it fail-closed and fuzzed.

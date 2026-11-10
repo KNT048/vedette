@@ -25,7 +25,7 @@ func TestContract_INV3_InternalLabelIsEnforced(t *testing.T) {
 	for base, ok := range map[string]bool{
 		"http://203.0.113.10:8000/v1": false, "https://8.8.8.8/v1": false, "http://[2001:db8::1]/v1": false, "http://100.128.0.1/v1": false,
 		"http://10.0.0.5:11434/v1": true, "http://172.16.1.1/v1": true, "http://192.168.1.20/v1": true, "http://100.64.0.9/v1": true,
-		"http://127.0.0.1:8000/v1": true, "http://[::1]:8000/v1": true, "http://[fd00::5]/v1": true, "http://169.254.1.1/v1": true, "http://[fe80::1]/v1": true,
+		"http://127.0.0.1:8000/v1": true, "http://[::1]:8000/v1": true, "http://[fd00::5]/v1": true, "http://169.254.1.1/v1": false, "http://[fe80::1]/v1": false, "http://169.254.169.254/v1": false, "http://[fd00:ec2::254]/v1": false, "http://224.0.0.1/v1": false, "http://0.0.0.0/v1": false,
 		// A name is allowed (an Ollama box on a LAN name is normal): the dialer checks where it resolves.
 		"http://ollama.lan:11434/v1": true, "http://ollama/v1": true, "https://llm.corp.example.com/v1": true,
 	} {
@@ -245,7 +245,7 @@ func TestFailedCallsAndProbeAreMetered(t *testing.T) {
 
 	// The connection test goes through the meter.
 	before := r.meter.Used()
-	pr, err := r.Probe(context.Background(), internal("i1"), time.Now)
+	pr, _, err := r.Probe(context.Background(), internal("i1"), time.Now)
 	if err != nil || !pr.Tools || pr.TokensIn != 100 {
 		t.Fatalf("%+v %v", pr, err)
 	}

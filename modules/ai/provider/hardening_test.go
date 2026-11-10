@@ -231,7 +231,7 @@ func TestInternalDialControl(t *testing.T) {
 	t.Parallel()
 	for addr, ok := range map[string]bool{
 		"127.0.0.1:80": true, "[::1]:80": true, "10.1.2.3:443": true, "172.16.0.1:1": true, "172.31.255.255:1": true, "192.168.1.1:1": true,
-		"169.254.10.10:1": true, "[fe80::1]:1": true, "[fc00::1]:1": true, "[fd12:3456::1]:1": true, "100.64.0.1:1": true, "100.127.255.255:1": true,
+		"169.254.10.10:1": false, "[fe80::1]:1": false, "[fc00::1]:1": true, "[fd12:3456::1]:1": true, "100.64.0.1:1": true, "100.127.255.255:1": true,
 		"[::ffff:10.0.0.1]:1": true,
 		"8.8.8.8:443":         false, "1.1.1.1:80": false, "172.32.0.1:1": false, "100.128.0.1:1": false, "100.63.255.255:1": false, "192.169.0.1:1": false,
 		"[2001:db8::1]:1": false, "[2606:4700::1111]:443": false, "[::ffff:8.8.8.8]:1": false, "203.0.113.10:8000": false, "0.0.0.0:1": false, "not an address": false,
@@ -246,10 +246,10 @@ func TestInternalDialControl(t *testing.T) {
 			t.Errorf("IsInternalAddr(%s) != %v", s, want)
 		}
 	}
-	if newTransport(true).Proxy != nil {
+	if newTransport(true, nil).Proxy != nil {
 		t.Error("an internal profile must not use the environment proxy")
 	}
-	if newTransport(false).Proxy == nil {
+	if newTransport(false, nil).Proxy == nil {
 		t.Error("a cloud profile keeps the environment proxy")
 	}
 	// End to end, without touching the network: the dial is refused before any packet is sent.
@@ -264,7 +264,7 @@ func TestInternalDialControl(t *testing.T) {
 		t.Fatal(err)
 	}
 	// net.Dialer.Control is what enforces it: check it is wired on the internal transport.
-	if newTransport(true).DialContext == nil {
+	if newTransport(true, nil).DialContext == nil {
 		t.Error("no dialer")
 	}
 }

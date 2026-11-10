@@ -299,6 +299,33 @@ describe('ai: settings, profiles (S-AI-1)', () => {
     await waitFor(() => expect(aiProfilesStore.get().find((p) => p.id === 'p-haiku')!.key_last4).toBe('4242'))
   })
 
+  it('a stored key goes only to the address it was saved for: another address needs the key again (message on the key field), the same origin keeps it', async () => {
+    const v = renderUi(<AiSettings />)
+    await v.ready
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit Claude Haiku' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Edit Claude Haiku' })
+    const url = within(dlg).getByLabelText('Server address')
+    await userEvent.clear(url)
+    await userEvent.type(url, 'https://evil.example.com')
+    await userEvent.click(within(dlg).getByRole('checkbox', { name: /I understand/ }))
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
+    expect(await within(dlg).findByText('Changing the address needs the API key entered again.')).toBeInTheDocument()
+    expect(within(dlg).getByLabelText('API key')).toHaveAccessibleDescription(/Changing the address needs the API key entered again\./)
+    expect(aiProfilesStore.get().find((p) => p.id === 'p-haiku')).toMatchObject({ base_url: 'https://api.anthropic.com', key_last4: '7Qk2' })
+    // the same origin (another path) still keeps the key
+    await userEvent.clear(url)
+    await userEvent.type(url, 'https://api.anthropic.com/v1')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(aiProfilesStore.get().find((p) => p.id === 'p-haiku')).toMatchObject({ base_url: 'https://api.anthropic.com/v1', key_last4: '7Qk2' })
+    // the server (mock) enforces it for the connection test too, whatever the form does
+    const test = await api('/ai/profiles/test', { method: 'POST', body: JSON.stringify({ id: 'p-haiku', kind: 'anthropic', api_style: 'anthropic', base_url: 'https://evil.example.com', model: 'claude-haiku-5-5', location: 'cloud' }) })
+    expect(test.status).toBe(400)
+    expect(((await test.json()) as { error: { code: string; message: string } }).error).toMatchObject({ code: 'key_required', message: 'Changing the address needs the API key entered again.' })
+    const same = await api('/ai/profiles/test', { method: 'POST', body: JSON.stringify({ id: 'p-haiku', kind: 'anthropic', api_style: 'anthropic', base_url: 'https://api.anthropic.com/v1', model: 'claude-haiku-5-5', location: 'cloud' }) })
+    expect(same.status).toBe(200)
+  })
+
   it('tests a saved profile: success is recorded as a run; a rejected key and an unreachable server each say how to fix', async () => {
     const v = renderUi(<AiSettings />)
     await v.ready

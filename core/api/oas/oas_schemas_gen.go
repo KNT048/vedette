@@ -7989,7 +7989,9 @@ type AiPostAiProfilesReq struct {
 	APIStyle AiPostAiProfilesReqAPIStyle `json:"api_style"`
 	BaseURL  string                      `json:"base_url"`
 	DailyCap int                         `json:"daily_cap"`
-	// Present when editing or testing a saved profile: leave the key blank to keep the old key.
+	// Present when editing or testing a saved profile: leave the key blank to keep the old key, only while
+	// the provider type and the server address (scheme, host and port) stay the same; another address
+	// needs the key entered again.
 	ID   OptString               `json:"id"`
 	Kind AiPostAiProfilesReqKind `json:"kind"`
 	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
@@ -8330,7 +8332,9 @@ type AiPostAiProfilesTestReq struct {
 	APIStyle AiPostAiProfilesTestReqAPIStyle `json:"api_style"`
 	BaseURL  string                          `json:"base_url"`
 	DailyCap OptInt                          `json:"daily_cap"`
-	// Present when editing or testing a saved profile: leave the key blank to keep the old key.
+	// Present when editing or testing a saved profile: leave the key blank to keep the old key, only while
+	// the provider type and the server address (scheme, host and port) stay the same; another address
+	// needs the key entered again.
 	ID   OptString                   `json:"id"`
 	Kind AiPostAiProfilesTestReqKind `json:"kind"`
 	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
@@ -11037,7 +11041,9 @@ type AiPutAiProfilesIDReq struct {
 	APIStyle AiPutAiProfilesIDReqAPIStyle `json:"api_style"`
 	BaseURL  string                       `json:"base_url"`
 	DailyCap int                          `json:"daily_cap"`
-	// Present when editing or testing a saved profile: leave the key blank to keep the old key.
+	// Present when editing or testing a saved profile: leave the key blank to keep the old key, only while
+	// the provider type and the server address (scheme, host and port) stay the same; another address
+	// needs the key entered again.
 	ID   OptString                `json:"id"`
 	Kind AiPutAiProfilesIDReqKind `json:"kind"`
 	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.

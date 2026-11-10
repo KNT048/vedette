@@ -18,7 +18,7 @@ export const AiProfile = z.object({
   usable: z.boolean(), used_today: z.number().int(),
 })
 export const ProfileInput = z.object({
-  id: z.string().optional().describe('Present when editing or testing a saved profile: leave the key blank to keep the old key'),
+  id: z.string().optional().describe('Present when editing or testing a saved profile: leave the key blank to keep the old key, only while the provider type and the server address (scheme, host and port) stay the same; another address needs the key entered again'),
   name: z.string().min(1).max(40), kind: ProfileKind, api_style: ApiStyle, base_url: z.string(), model: z.string(),
   api_key: z.string().optional(), location: Location, daily_cap: z.number().int().min(1000).max(5_000_000),
 })

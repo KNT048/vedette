@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -41,10 +42,46 @@ func (f *fakeUsers) Lookup(_ context.Context, id string) (response.User, bool, e
 }
 
 type fakeNotifier struct {
-	mu   sync.Mutex
-	chs  []response.NotifyChannel
-	msgs []string
-	fail bool
+	mu        sync.Mutex
+	chs       []response.NotifyChannel
+	msgs      []string
+	fail      bool
+	approvers map[string][]response.Approver // by channel type
+	asked     []response.ApprovalMessage     // every RequestApproval call
+	sendSent  []string                       // what RequestApproval answers
+	sendErr   error                          // and the error it answers
+	onSend    func()                         // runs inside RequestApproval (what is open while a send runs)
+	block     chan struct{}                  // RequestApproval waits for it to close (or for its context to end)
+}
+
+func (f *fakeNotifier) Approvers(_ context.Context, ch string) ([]response.Approver, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.approvers[ch], nil
+}
+
+func (f *fakeNotifier) RequestApproval(ctx context.Context, m response.ApprovalMessage) ([]string, error) {
+	f.mu.Lock()
+	f.asked = append(f.asked, m)
+	hook, sent, err, block := f.onSend, f.sendSent, f.sendErr, f.block
+	f.mu.Unlock()
+	if hook != nil {
+		hook()
+	}
+	if block != nil { // a mail server that does not answer: wait until released, or until the budget or the shutdown ends the context
+		select {
+		case <-block:
+		case <-ctx.Done():
+			return sent, ctx.Err()
+		}
+	}
+	return sent, err
+}
+
+func (f *fakeNotifier) requests() []response.ApprovalMessage {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.asked)
 }
 
 func (f *fakeNotifier) Channels(context.Context) ([]response.NotifyChannel, error) { return f.chs, nil }
@@ -349,7 +386,17 @@ func (e *env) iocEvent(id, destIP string) response.Det {
 		Fields: map[string]string{"src_ip": "192.168.10.105", "device": "PC-SALES-02", "dest": destIP, "dest_kind": "ip", "dest_ip": destIP, "dest_domain": "", "feeds": "IPsum", "confidence": "0.92", "switch_port": ""}}
 }
 
+// fire stores an event, evaluates it and waits for the approval requests it sent in the background, so a test that reads
+// resp_log afterwards sees every line the run will write.
 func (e *env) fire(d response.Det) response.RunSummary {
+	e.t.Helper()
+	sum := e.fireNoWait(d)
+	e.svc.WaitSendsForTest()
+	return sum
+}
+
+// fireNoWait is fire without waiting for the background sends (tests of the send queue itself).
+func (e *env) fireNoWait(d response.Det) response.RunSummary {
 	e.t.Helper()
 	e.must(e.svc.StoreEvent(e.ctx(), d))
 	sum, err := e.svc.Evaluate(e.ctx())

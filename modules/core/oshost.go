@@ -195,23 +195,37 @@ func waitRunTo(ctx context.Context, log *slog.Logger, h runWaiter, run api.Run, 
 			}
 			return hostErr(parent, log, err)
 		}
-		st := h.Events(ctx, run.RunID, 0)
-		defer st.Close()
+		// The stream ending (or showing awaiting_confirm) does not prove the stored run has caught up: on a loaded box the
+		// stream can end first, and GetRun then still reads "running". Look again until the stored run is done or the
+		// time limit ends, opening the stream again so a run that is still going is followed, not polled blindly.
 		for {
-			ev, err := st.Next()
-			if err != nil {
-				if errors.Is(err, io.EOF) {
+			st := h.Events(ctx, run.RunID, 0)
+			for {
+				ev, err := st.Next()
+				if err != nil {
+					if errors.Is(err, io.EOF) {
+						break
+					}
+					st.Close()
+					return api.Run{}, fail(err)
+				}
+				if stopAtAwaiting && ev.Kind == api.KindState && ev.Status == api.StatusAwaitingConfirm {
 					break
 				}
+			}
+			st.Close()
+			var err error
+			if run, err = h.GetRun(ctx, run.RunID); err != nil {
 				return api.Run{}, fail(err)
 			}
-			if stopAtAwaiting && ev.Kind == api.KindState && ev.Status == api.StatusAwaitingConfirm {
+			if done(run) {
 				break
 			}
-		}
-		var err error
-		if run, err = h.GetRun(ctx, run.RunID); err != nil {
-			return api.Run{}, fail(err)
+			select {
+			case <-ctx.Done():
+				return api.Run{}, fail(ctx.Err())
+			case <-time.After(100 * time.Millisecond):
+			}
 		}
 	}
 	if run.Status == api.StatusSucceeded || (stopAtAwaiting && run.Status == api.StatusAwaitingConfirm) {

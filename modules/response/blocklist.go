@@ -330,10 +330,20 @@ func (s *Service) FetchBlocklist(ctx context.Context, token, from string) ([]byt
 // allowFetch is a sliding one-minute window per key: it reports whether another event still fits; record adds one. The
 // table holds at most maxFetchKeys sources: when it is full a source it does not know yet is refused (429) until old ones age out.
 func (s *Service) allowFetch(key string, limit int, record bool) bool {
+	return s.allowIn(s.fetchTimes, key, limit, record)
+}
+
+// allowLink is the same window for the approval link routes, in a table of its own and keyed by the whole address (a /128 for IPv6,
+// linkKey): the block list limit is per /64 and a link flood must not eat it, nor the other way round.
+func (s *Service) allowLink(key string, limit int, record bool) bool {
+	return s.allowIn(s.linkTimes, key, limit, record)
+}
+
+func (s *Service) allowIn(table map[string][]time.Time, key string, limit int, record bool) bool {
 	s.limitMu.Lock()
 	defer s.limitMu.Unlock()
 	now := s.now()
-	times, known := s.fetchTimes[key]
+	times, known := table[key]
 	keep := times[:0]
 	for _, t := range times {
 		if now.Sub(t) < time.Minute {
@@ -341,31 +351,31 @@ func (s *Service) allowFetch(key string, limit int, record bool) bool {
 		}
 	}
 	if len(keep) >= limit {
-		s.fetchTimes[key] = keep
+		table[key] = keep
 		return false
 	}
 	if record {
-		if !known && len(s.fetchTimes) >= maxFetchKeys {
-			s.purgeFetch(now)
-			if len(s.fetchTimes) >= maxFetchKeys {
+		if !known && len(table) >= maxFetchKeys {
+			purgeWindow(table, now)
+			if len(table) >= maxFetchKeys {
 				return false
 			}
 		}
 		keep = append(keep, now)
 	}
 	if len(keep) == 0 {
-		delete(s.fetchTimes, key)
+		delete(table, key)
 	} else {
-		s.fetchTimes[key] = keep
+		table[key] = keep
 	}
 	return true
 }
 
-// purgeFetch forgets the sources with nothing in the last minute. The caller holds limitMu.
-func (s *Service) purgeFetch(now time.Time) {
-	for k, l := range s.fetchTimes {
+// purgeWindow forgets the sources with nothing in the last minute. The caller holds limitMu.
+func purgeWindow(table map[string][]time.Time, now time.Time) {
+	for k, l := range table {
 		if len(l) == 0 || now.Sub(l[len(l)-1]) >= time.Minute {
-			delete(s.fetchTimes, k)
+			delete(table, k)
 		}
 	}
 }

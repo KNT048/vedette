@@ -68,7 +68,8 @@ func (m *Machine) Deadlocked() []string {
 // StatefulContainers makes the fake systemctl and podman remember what the container commands do
 // (opt-in: the other tests keep the plain fakes). "systemctl restart vedette-<svc>.service" copies
 // the unit file as the container's own record (the digest it runs) and marks the service active;
-// "stop" clears that; "is-active" prints active (exit 0) or inactive (exit 3). "podman container
+// "stop" clears that and "start" does what restart does (marker "start-fails": exit 1; slice 3-8b, the restore of
+// backup.restore); "is-active" prints active (exit 0) or inactive (exit 3). "podman container
 // inspect vedette-<svc>" prints the JSON of a container with the digest of that record, running, and
 // the health word from SetHealth (default healthy), or "unhealthy" when the digest is one BadImage
 // named. Rules added with Rule fire first and can make a call fail or lie. Markers: "restart-fails"
@@ -102,6 +103,12 @@ case "$1" in
     ;;
   stop)
     rm -f "$S/$svc.running" "$S/$svc.active"
+    ;;
+  start)
+    # backup.restore stops core and starts it again (a unit change restarts instead)
+    [ -e "$REC/mark.start-fails" ] && exit 1
+    cp "$ROOT/etc/containers/systemd/vedette-$svc.container" "$S/$svc.unit" 2>/dev/null
+    : > "$S/$svc.running"; : > "$S/$svc.active"
     ;;
   is-active)
     if [ -e "$S/$svc.active" ]; then echo active; exit 0; fi

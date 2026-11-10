@@ -37,7 +37,7 @@ func (o *Ops) cmdBackupRestore() server.Command {
 			return nil
 		},
 		Check: func(_ context.Context, a api.BackupRestoreArgs) error {
-			if err := o.coreFree(); err != nil {
+			if err := o.coreFreeForRestore(); err != nil {
 				return err
 			}
 			if _, ok := o.lookupBackup(a.BackupID); !ok {
@@ -203,6 +203,7 @@ func (o *Ops) restore(ctx context.Context, rc *server.RunContext, id, snapshot s
 	}
 	defer func() { _ = os.RemoveAll(tmp) }()
 
+	recovering := o.coreUnrecoverable() // asked again here: it is the state the swap acts on
 	rc.Log("Checking the backup")
 	ex, err := o.extract(rec, tmp)
 	if err != nil {
@@ -265,8 +266,33 @@ func (o *Ops) restore(ctx context.Context, rc *server.RunContext, id, snapshot s
 			Result: api.BackupRestoreResult{RestoredBackupID: id, PreRestoreBackupID: pre.BackupID, Version: rec.Version, Health: health},
 		}
 	}
+	if recovering {
+		// The way out of core_data_unrecoverable (D-142, D-138 (9)): core's data is now a backup's and core is
+		// healthy on it, so the journal that kept core's commands refused has nothing left to guard.
+		o.removeJournal(api.ServiceCore)
+		o.forgetRecoveryNotes(api.ServiceCore)
+		o.note(api.CmdBackupRestore, "core_data_recovered", map[string]any{"run_id": rc.RunID, "restored_backup_id": id, "pre_restore_backup_id": pre.BackupID})
+		rc.Log("The journal of the unrecoverable change was removed")
+	}
 	rc.Progress(100)
 	return api.BackupRestoreResult{RestoredBackupID: id, PreRestoreBackupID: pre.BackupID, Version: ex.Manifest.Version, Health: health}, nil
+}
+
+// coreFreeForRestore is coreFree for backup.restore: the one journal it lets through is core's own when it
+// says the host gave up putting core's data back (Unrecoverable). Nothing retries then, core is left as
+// it is, and restoring a backup is how a person gets out (D-142). A journal still being worked on, an
+// invalid one or an unreadable one keeps refusing: a restore must not run on a half-swapped core.
+func (o *Ops) coreFreeForRestore() error {
+	if o.coreUnrecoverable() {
+		return nil
+	}
+	return o.coreFree()
+}
+
+// coreUnrecoverable says core's journal is valid and marked unrecoverable.
+func (o *Ops) coreUnrecoverable() bool {
+	t, st, _ := o.loadJournal(api.ServiceCore)
+	return st == jOK && t.Unrecoverable
 }
 
 // snapshotMeta opens core's tree and the snapshot just long enough to read its metadata.

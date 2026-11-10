@@ -17,7 +17,9 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/host/client"
+	"github.com/knt048/vedette/host/ops"
 	"github.com/knt048/vedette/host/peer"
+	"github.com/knt048/vedette/host/server"
 )
 
 func testEnv(t *testing.T) (environment, *[2]any) {
@@ -179,5 +181,108 @@ func TestServesAndStopsOnSignal(t *testing.T) {
 	}
 	if _, err := os.Stat(sock); !os.IsNotExist(err) {
 		t.Fatalf("socket file left behind: %v", err)
+	}
+}
+
+func bootArgs(conf, sock string, more ...string) []string {
+	return append([]string{"-config", conf, "-socket", sock, "-bootstrap", "-index", "/x/i", "-index-sig", "/x/is", "-manifest", "/x/m", "-manifest-sig", "/x/ms"}, more...)
+}
+
+// vedette-host -bootstrap (D-142): one shot, never beside a running daemon, flags that belong to it only with it.
+func TestBootstrapRefusesWhileTheDaemonRuns(t *testing.T) {
+	t.Parallel()
+	dir, err := os.MkdirTemp("", "vm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	sock := filepath.Join(dir, "h.sock")
+	conf := writeConf(t, dir, sock)
+	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+	env, _ := testEnv(t)
+	err = run(context.Background(), bootArgs(conf, sock), io.Discard, env)
+	var ee *exitError
+	if !errors.As(err, &ee) || ee.code != exitDaemonRunning || !strings.HasPrefix(ee.line, "vedette-host: bootstrap: daemon_running: ") || strings.Contains(ee.line, "\n") {
+		t.Fatalf("err = %v", err)
+	}
+	// A socket nobody listens on (a stale file) is not a running daemon: the next refusal is about the documents.
+	_ = ln.Close()
+	err = run(context.Background(), bootArgs(conf, sock), io.Discard, env)
+	if !errors.As(err, &ee) || ee.code != exitUsage || !strings.Contains(ee.line, "-index") {
+		t.Fatalf("after the daemon stopped: %v", err)
+	}
+}
+
+func TestBootstrapFlagsAndFiles(t *testing.T) {
+	t.Parallel()
+	dir, err := os.MkdirTemp("", "vm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	sock := filepath.Join(dir, "h.sock")
+	conf := writeConf(t, dir, sock)
+	env, _ := testEnv(t)
+	// The bootstrap flags without -bootstrap would start the daemon: refused.
+	for _, f := range [][]string{{"-index", "x"}, {"-index-sig", "x"}, {"-manifest", "x"}, {"-manifest-sig", "x"}, {"-services", "core"}, {"-force-units"}} {
+		err := run(context.Background(), append([]string{"-config", conf, "-socket", sock}, f...), io.Discard, env)
+		if err == nil || !strings.Contains(err.Error(), "belong to -bootstrap") {
+			t.Errorf("%v: %v", f, err)
+		}
+	}
+	// -bootstrap needs all four documents; each must be a regular file.
+	var ee *exitError
+	err = run(context.Background(), []string{"-config", conf, "-socket", sock, "-bootstrap", "-index", "x"}, io.Discard, env)
+	if !errors.As(err, &ee) || ee.code != exitUsage {
+		t.Fatalf("missing flags: %v", err)
+	}
+	link := filepath.Join(dir, "link")
+	if err := os.WriteFile(filepath.Join(dir, "real"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(dir, "real"), link); err != nil {
+		t.Fatal(err)
+	}
+	for name, p := range map[string]string{"missing": filepath.Join(dir, "nope"), "link": link, "directory": dir} {
+		a := []string{"-config", conf, "-socket", sock, "-bootstrap", "-index", p, "-index-sig", p, "-manifest", p, "-manifest-sig", p}
+		if err := run(context.Background(), a, io.Discard, env); !errors.As(err, &ee) || ee.code != exitUsage || !strings.Contains(ee.line, "-index") {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	big := filepath.Join(dir, "big")
+	if err := os.WriteFile(big, make([]byte, 300<<10), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	a := []string{"-config", conf, "-socket", sock, "-bootstrap", "-index", big, "-index-sig", big, "-manifest", big, "-manifest-sig", big}
+	if err := run(context.Background(), a, io.Discard, env); !errors.As(err, &ee) || ee.code != exitUsage {
+		t.Errorf("over the limit: %v", err)
+	}
+}
+
+func TestBootstrapExitCodes(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		err  error
+		code int
+		word string
+	}{
+		{&ops.BootstrapError{Code: ops.BootstrapAlreadyInstalled, Message: "core already runs 1.0.0"}, exitAlreadyInstalled, "already_installed"},
+		{&ops.BootstrapError{Code: ops.BootstrapUnitForeign, Message: "x"}, exitUnit, "unit_foreign"},
+		{&ops.BootstrapError{Code: "unit_unsafe", Message: "x"}, exitUnit, "unit_unsafe"},
+		{&ops.BootstrapError{Code: ops.BootstrapBadArgs, Message: "x"}, exitUsage, "invalid_args"},
+		{&ops.BootstrapError{Code: ops.BootstrapFailed, Message: "x"}, exitFailed, "bootstrap_failed"},
+		{server.Refuse(412, "signature_invalid", "The manifest\ndoes not verify."), exitRefused, "signature_invalid"},
+		{server.Refuse(412, "not_appliance", "x"), exitRefused, "not_appliance"},
+		{&server.Failure{Code: "pull_failed", Message: "Podman could not pull the image."}, exitFailed, "pull_failed"},
+		{errors.New("secret detail"), exitFailed, "bootstrap_failed"},
+	} {
+		ee := exitFor(c.err)
+		if ee.code != c.code || !strings.HasPrefix(ee.line, "vedette-host: bootstrap: "+c.word+": ") || strings.Contains(ee.line, "\n") || strings.Contains(ee.line, "secret") {
+			t.Errorf("%v: %d %q", c.err, ee.code, ee.line)
+		}
 	}
 }

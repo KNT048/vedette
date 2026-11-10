@@ -5,8 +5,9 @@
 // sources, (slice 3-5) decoy_ip.add and decoy_ip.remove with the honeypot namespace, and (slice 3-6)
 // the Quadlet units with container.start (the current image) and container.stop, and (slice 3-7)
 // container.pull, which verifies a signed release itself before it pulls an image by digest, and (slice
-// 3-8a) container.start with a version, container.rollback and the retention of images. The bootstrap
-// that writes the first units is slice 3-8b.
+// 3-8a) container.start with a version, container.rollback and the retention of images, and (slice 3-8b)
+// the bootstrap that writes the first units (Bootstrap, run by vedette-host -bootstrap, never from the
+// socket) and the way out of core_data_unrecoverable through backup.restore.
 //
 // Every child process goes through one core/exec Runner: absolute binary paths, argv validated by a
 // per-binary validator, PATH, LANG=C and DEBIAN_FRONTEND=noninteractive only, no shell. Nothing in

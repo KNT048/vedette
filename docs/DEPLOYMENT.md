@@ -64,6 +64,8 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 | Health check | `vedette healthcheck` (D-137): `GET https://127.0.0.1:8443/api/v1/setup` (route công khai có sẵn, đọc hàng `org` nên 200 nghĩa là máy chủ, router, kiểm Host và DB cùng trả lời) phải 200 trong 3 s; ghim đúng chứng chỉ của hộp ở `/var/lib/vedette/vedette-selfsigned.crt` nếu đọc được, không đọc được thì bỏ kiểm chứng chỉ (chỉ loopback, không gửi gì ngoài một GET không thông tin đăng nhập); không proxy, không mở DB, không cần khoá chủ. Chu kỳ 30 s, start-period 60 s, 3 lần hỏng thì unhealthy |
 | Phụ thuộc | không (khởi động đầu tiên) |
 
+**Chỗ khoá chủ (D-142, đóng D-123 L3).** Khoá chủ ở **`<core_data>/vedette.key`**, nơi `backup.*` của host đọc và `backup.restore` ghi lại; `core_data` (`host.conf`) là đường dẫn trên máy của volume `vedette-data` (installer dựng `vedette-data.volume` gắn đúng thư mục đó, ví dụ `Driver=local`, `Type=none`, `Options=bind`, `Device=<core_data>`), nên trong container khoá là `/var/lib/vedette/vedette.key` (mặc định của cờ `-key`) và `-db` là `/var/lib/vedette/vedette.db`. `vedette-host -bootstrap` tạo `core_data` (0700, `core_uid:core_gid`) nếu thiếu; `core` tạo khoá ở lần chạy đầu. **Mẫu unit hôm nay chưa theo**: nó còn gắn `/etc/vedette/master.key` ở `/run/secrets/master.key` (`Exec=... -key /run/secrets/master.key`), một khoá mà `backup.*` không thấy. Đổi mẫu (bỏ dòng `Volume=/etc/vedette/master.key`, `-key /var/lib/vedette/vedette.key`, sửa golden và `cmd/vedette/quadlet_exec_test.go`) là dòng deferred "mẫu unit theo chỗ khoá"; tới khi đó installer không được coi `/etc/vedette/master.key` là khoá mà bản sao lưu có thể khôi phục.
+
 ### 2.2 sensor
 
 | Mục | Giá trị |
@@ -144,7 +146,7 @@ Bất biến (kiểm bằng test hợp đồng ở `modules/core/`):
 
 ## 4. Ma trận hỗ trợ OS và phần cứng
 
-Quy tắc: OS ngoài bảng thì `install.sh` dừng và báo rõ (không cài dở).
+Quy tắc: OS ngoài bảng thì `install.sh` dừng và báo rõ (không cài dở). `vedette-host` và `vedette-host -bootstrap` chỉ chạy trên Debian/Ubuntu của bảng này (Linux, root): OS khác → từ chối `not_appliance` (mã thoát 3), không ghi gì (D-142).
 
 | Hệ điều hành | Kiến trúc | Trạng thái | Ghi chú |
 |---|---|---|---|
@@ -485,8 +487,8 @@ Kiểu Appliance, `deploy/install.sh` (idempotent; chạy lại không đổi g�
 |---|---|---|
 | 1 | Preflight: OS/phiên bản/kiến trúc trong §4, Podman ≥ 4.4, ≥ 1 NIC có IP, giờ đồng bộ, đủ RAM/đĩa | sai OS thì dừng và in lý do; không cài dở |
 | 2 | Cài gói ghim phiên bản (Podman, netavark, UFW nếu thiếu; `netplan.io` trên Debian, chrony, iproute2, nftables); giao netplan độc quyền cho host (§4, D-99); cài `vedette-host` (gói/binary đã xác minh chữ ký) | `vedette-host` active (`Type=notify` đã báo sẵn sàng); socket tồn tại, quyền 0660 `root:vedette`; `/etc/netplan` chỉ còn `90-vedette.yaml`; `chronyc -N -c sources` có nguồn |
-| 3 | Tạo user hệ thống `vedette`, thư mục, khoá bí mật 0600 (`/etc/vedette/master.key`); khoá công khai minisign và cosign **nhúng trong `vedette-host`**, không có `policy.json` (D-103) | `vedette-host -bootstrap` từ chối manifest hay chữ ký cosign sai |
-| 4 | `vedette-host -bootstrap` (không qua socket) kiểm index, manifest, chữ ký cosign, kéo image theo digest và ghi các unit Quadlet đầu tiên; khởi động `core` | `core` healthy trong 300 s; 8443 nghe trên IP quản trị (địa chỉ LAN duy nhất của hộp) |
+| 3 | Tạo user hệ thống `vedette`, thư mục (`/etc/vedette/host.conf` có `core_data`, `core_uid/gid`, `sensor_uid/gid`; `/etc/containers/systemd`, `vedette-int.network`, các `.volume`, `/var/lib/vedette-honeypot/{config,log}`); khoá chủ của `core` ở **`<core_data>/vedette.key`** (0600, `core` tự tạo ở lần chạy đầu; D-142); khoá công khai minisign và cosign **nhúng trong `vedette-host`**, không có `policy.json` (D-103) | `vedette-host -bootstrap` từ chối manifest hay chữ ký cosign sai |
+| 4 | `vedette-host -bootstrap -index index.json -index-sig index.json.minisig -manifest release-manifest.json -manifest-sig release-manifest.json.minisig` (daemon **chưa** chạy; không qua socket; D-142) kiểm index, manifest, chữ ký cosign trong manifest bằng đúng mã của `container.pull`, kéo image theo digest, tạo `core_data` (0700, của `core`) nếu thiếu, rồi ghi các unit Quadlet đầu tiên và `versions-<service>.json`; **không khởi động gì**: installer chạy `systemctl daemon-reload`, `systemctl start` các unit và kiểm sức khoẻ của `core`. Mã thoát: 0 xong (chạy lại là no-op); 1 hỏng (chạy lại sau khi sửa); 2 dùng sai; 3 bị từ chối bởi kiểm tra (mã trên dòng stderr `vedette-host: bootstrap: <mã>: …`); 4 `already_installed`; 5 `unit_foreign` (chỉ `-force-units` mới ghi đè, mỗi tệp được báo); 6 `daemon_running` | `core` healthy trong 300 s; 8443 nghe trên IP quản trị (địa chỉ LAN duy nhất của hộp) |
 | 5 | In `https://<IP>:8443` và **mã cài đặt một lần** trên console | endpoint `/setup` từ chối khi thiếu mã (D-75) |
 | 6 | Trình hướng dẫn trên web (D-22, không SSH): tổ chức, quản trị viên + 2FA, dải LAN có **tiền tố** (D-32), ô cam kết quét (D-26), gói module (nhỏ/vừa/đầy đủ/tuỳ chọn), kênh thông báo, AI (tuỳ chọn), Box network (D-56) | mỗi bước ghi `core_audit`; module tắt không có container chạy |
 | 7 | Thiết bị đầu tiên "This box" xuất hiện trong kho (D-53, S-INV-5) | danh sách gói dpkg có, không xoá được |

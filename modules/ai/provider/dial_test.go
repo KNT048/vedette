@@ -83,8 +83,9 @@ func TestForbiddenCarriesIPv4(t *testing.T) {
 		"64:ff9b::7f00:1": true, "64:ff9b::a9fe:a9fe": true, "64:ff9b::a00:1": true, "64:ff9b::808:808": true, "64:ff9b:1::1": true,
 		"2002:7f00:1::1": true, "2002:a9fe:a9fe::": true, "2002:808:808::1": true,
 		"::7f00:1": true, "::a9fe:a9fe": true, "::a00:1": true,
-		"2001:0:4136:e378:8000:63bf:3fff:fdd2": true, // Teredo
-		"::1":                                  false, "2606:4700::1111": false, "2001:db8::1": false, "fd12:3456::1": false, "::ffff:8.8.8.8": false,
+		"2001:0:4136:e378:8000:63bf:3fff:fdd2": true,                             // Teredo
+		"::ffff:0:7f00:1":                      true, "::ffff:0:a9fe:a9fe": true, // IPv4-translated (SIIT), forbidden by D-94 too
+		"::1": false, "2606:4700::1111": false, "2001:db8::1": false, "fd12:3456::1": false, "::ffff:8.8.8.8": false,
 	} {
 		ip := netip.MustParseAddr(s)
 		if got := Forbidden(ip); got != want {

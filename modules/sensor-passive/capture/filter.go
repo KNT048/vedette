@@ -1,4 +1,4 @@
-package sensorpassive
+package capture
 
 import (
 	"fmt"
@@ -22,13 +22,13 @@ func compileFilters(fs []Filter) (*matcher, error) {
 		case "cidr":
 			p, err := netip.ParsePrefix(f.Value)
 			if err != nil || !p.Addr().Is4() {
-				return nil, fmt.Errorf("sensorpassive: filter cidr %q: not an IPv4 range", f.Value)
+				return nil, fmt.Errorf("capture: filter cidr %q: not an IPv4 range", f.Value)
 			}
 			m.prefixes = append(m.prefixes, p.Masked())
 		case "host":
 			a, err := netip.ParseAddr(f.Value)
 			if err != nil || !a.Is4() {
-				return nil, fmt.Errorf("sensorpassive: filter host %q: not an IPv4 address", f.Value)
+				return nil, fmt.Errorf("capture: filter host %q: not an IPv4 address", f.Value)
 			}
 			m.prefixes = append(m.prefixes, netip.PrefixFrom(a, 32))
 		case "port":
@@ -39,11 +39,11 @@ func compileFilters(fs []Filter) (*matcher, error) {
 			a, err1 := strconv.ParseUint(lo, 10, 16)
 			b, err2 := strconv.ParseUint(hi, 10, 16)
 			if err1 != nil || err2 != nil || a == 0 || b < a {
-				return nil, fmt.Errorf("sensorpassive: filter port %q: want 1-65535 or a-b", f.Value)
+				return nil, fmt.Errorf("capture: filter port %q: want 1-65535 or a-b", f.Value)
 			}
 			m.ports = append(m.ports, [2]uint16{uint16(a), uint16(b)})
 		default:
-			return nil, fmt.Errorf("sensorpassive: filter type %q is unknown", f.Type)
+			return nil, fmt.Errorf("capture: filter type %q is unknown", f.Type)
 		}
 	}
 	return m, nil

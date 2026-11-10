@@ -8,7 +8,8 @@ export function RunStatusChip({ run }: { run: ScanRun }) {
   return <Chip tone={tone}>{t(`runStatus.${run.status}`)}</Chip>
 }
 
-const resultTone: Record<RunResultKind, 'danger' | 'ok' | 'off' | 'warn'> = { matched: 'danger', not_matched: 'ok', not_applicable: 'off', no_template: 'warn', no_response: 'warn', skipped: 'off' }
+// not_matched is neutral, not green: nuclei reports matches only, so it means "no match reported", not "safe" (D-133 (5)).
+const resultTone: Record<RunResultKind, 'danger' | 'ok' | 'off' | 'warn'> = { matched: 'danger', not_matched: 'off', not_applicable: 'off', no_template: 'warn', no_response: 'warn', skipped: 'off' }
 export function ResultChip({ kind }: { kind: RunResultKind }) {
   const { t } = useTranslation('scan')
   return <Chip tone={resultTone[kind]}>{t(`result.${kind}`)}</Chip>

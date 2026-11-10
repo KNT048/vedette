@@ -154,10 +154,10 @@ function targets(): ScanTarget[] {
   const meta = peek<Record<string, { regular_scan?: string }>>('inv_meta') ?? {}
   const internal = assetsStore.get().map((a: Asset): ScanTarget => {
     const reason = a.id === BOX_ID ? 'box' : meta[a.id]?.regular_scan === 'never' ? 'regular_scan_never' : !a.approved ? 'unapproved' : c.exclusions.some((e) => inCidr(a.ip, e)) ? 'excluded' : !sc.networks.some((n) => inCidr(a.ip, n)) ? 'out_of_scope' : null
-    return { id: a.id, kind: 'internal', device_kind: a.kind, label: a.hostname ?? a.ip, ip: a.ip, fragile: a.fragile || a.kind === 'unknown', findings: findings.filter((f) => f.asset_id === a.id && (f.status === 'confirmed' || f.status === 'suspected')).length, selectable: reason === null, reason }
+    return { id: a.id, kind: 'internal', device_kind: a.kind, label: a.hostname ?? a.ip, ip: a.ip, fragile: a.fragile || a.kind === 'unknown', findings: findings.filter((f) => f.asset_id === a.id && (f.status === 'confirmed' || f.status === 'suspected')).length, selectable: reason === null, pick_only: reason === null && (a.fragile || a.kind === 'unknown' || a.origin === 'manual'), reason }
   })
   // External targets are listed but not scanned by this version yet (the GUI says so); ownership problems are named first, since they are what the user can fix.
-  const ext = external.get().map((e): ScanTarget => ({ id: e.id, kind: 'external', device_kind: null, label: e.value, ip: e.ip, fragile: false, findings: 0, selectable: false, reason: !e.verified ? 'unverified' : e.expired ? 'expired' : 'not_supported' }))
+  const ext = external.get().map((e): ScanTarget => ({ id: e.id, kind: 'external', device_kind: null, label: e.value, ip: e.ip, fragile: false, findings: 0, selectable: false, pick_only: false, reason: !e.verified ? 'unverified' : e.expired ? 'expired' : 'not_supported' }))
   return [...internal, ...ext]
 }
 
@@ -195,7 +195,7 @@ function scanOne(t: ScanTarget, stopOnSlow: boolean): { rows: StoredRow[]; probe
       continue
     }
     const still = f.status === 'confirmed' || f.status === 'suspected'
-    rows.push(row(t, templateName(f.cve), still ? 'matched' : 'not_matched', f.id, still ? `${f.cve}: the scan template matches, the flaw is still there.` : `${f.cve}: the scan template no longer matches.`))
+    rows.push(row(t, templateName(f.cve), still ? 'matched' : 'not_matched', f.id, still ? `${f.cve}: the scan template matches, the flaw is still there.` : `${f.cve}: no match reported by the scan template.`))
     out.push({ ts, ip: t.ip, label: t.label, template: templateName(f.cve), request: 'GET /photo/ HTTP/1.1', result: still ? 'matched' : 'not_matched' })
   }
   if (!rows.length) rows.push(row(t, null, 'not_applicable', null, 'No scan template applies to the software on this device.'))
@@ -203,19 +203,15 @@ function scanOne(t: ScanTarget, stopOnSlow: boolean): { rows: StoredRow[]; probe
   return { rows, probes: out, unresponsive: false }
 }
 
-/** Ghi kết quả vào phát hiện dùng chung: khớp → xác nhận; hết khớp sau khi đã vá/giảm thiểu → ghi lịch sử. */
+/** Ghi kết quả vào phát hiện dùng chung: chỉ khớp → xác nhận. Không khớp chỉ là "không báo khớp" (nuclei chỉ in dòng khớp, D-133 (5)): không bao giờ đóng, hạ hay ghi gì lên phát hiện. */
 function applyToFindings(rows: StoredRow[]) {
   const ts = nowIso()
   findingsStore.update((l) => l.map((f: Finding) => {
     const r = rows.find((x) => x.finding_id === f.id && x.template)
-    if (!r) return f
-    if (r.result === 'matched') {
-      const was = f.status
-      return { ...f, status: 'confirmed', basis: 'scan', confidence: Math.max(f.confidence, 0.95), last_seen: ts,
-        evidence: { ...(f.evidence ?? { summary: '' }), summary: f.evidence?.summary || `Safe scan template ${r.template} matched on ${r.label}.`, template: r.template ?? undefined, checked_at: ts },
-        history: [...f.history, { ts, user: 'system', action: was === 'confirmed' ? 'rescanned' : 'confirmed', note: `Scan of ${r.label}: template matches` }] }
-    }
-    return { ...f, history: [...f.history, { ts, user: 'system', action: 'rescan_clear', note: `Scan of ${r.label}: template no longer matches` }] }
+    if (!r || r.result !== 'matched') return f
+    return { ...f, status: 'confirmed', basis: 'scan', confidence: Math.max(f.confidence, 0.95), last_seen: ts,
+      evidence: { ...(f.evidence ?? { summary: '' }), summary: f.evidence?.summary || `Safe scan template ${r.template} matched on ${r.label}.`, template: r.template ?? undefined, checked_at: ts },
+      history: [...f.history, { ts, user: 'system', action: f.status === 'confirmed' ? 'rescanned' : 'confirmed', note: `Scan of ${r.label}: template matches` }] }
   }))
 }
 

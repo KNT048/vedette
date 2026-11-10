@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Check, Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 /** Đoạn cấu hình/lệnh: mono, nút sao chép. Mono CHỈ dùng ở đây và cho log (FRONTEND §3). */
-export function CodeBlock({ code, label }: { code: string; label?: string }) {
+/** wrapOnPhone: on a phone a long line wraps (the IP stays visible) instead of scrolling sideways; from sm up it scrolls as before. */
+export function CodeBlock({ code, label, wrapOnPhone }: { code: string; label?: string; wrapOnPhone?: boolean }) {
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
   async function copy() {
@@ -24,7 +26,7 @@ export function CodeBlock({ code, label }: { code: string; label?: string }) {
         </Button>
       </div>
       {/* tabIndex: khối cuộn ngang phải dùng được bằng bàn phím (WCAG 2.1.1) */}
-      <pre tabIndex={0} aria-label={label || t('codeBlock')} className="overflow-x-auto p-3 font-mono text-[12.5px] leading-relaxed"><code>{code}</code></pre>
+      <pre tabIndex={0} aria-label={label || t('codeBlock')} className={cn('overflow-x-auto p-3 font-mono text-[12.5px] leading-relaxed', wrapOnPhone && 'whitespace-pre-wrap [overflow-wrap:anywhere] sm:whitespace-pre sm:[overflow-wrap:normal]')}><code>{code}</code></pre>
     </div>
   )
 }

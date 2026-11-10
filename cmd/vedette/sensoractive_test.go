@@ -21,6 +21,30 @@ import (
 // These tests never run a real nmap or touch a network: nmap is a script in t.TempDir() that records its argv and
 // prints a hand-written fixture of modules/sensor-active/testdata.
 
+// newLocalSensorActive is newSensorActive over the module's own local Prober on a fake nmap script, so a command finishes with no worker.
+// Production never builds one (TestProductionRunsNoCaptureAndNoLocalNmap).
+func newLocalSensorActive(d deps, path string) (*sensoractive.Service, error) {
+	p, err := sensoractive.NewLocalProber(d.Log, path)
+	if err != nil {
+		return nil, err
+	}
+	return newSensorActive(d, nmapHealth{p, path})
+}
+
+// nmapHealth is a local Prober that says what Health says of a local nmap (the file exists and is executable): the service reads the
+// health of a Prober that has a NmapHealth method, so no production parameter is needed to set the path.
+type nmapHealth struct {
+	sensoractive.Prober
+	path string
+}
+
+func (h nmapHealth) NmapHealth() string {
+	if fi, err := os.Stat(h.path); err != nil || !fi.Mode().IsRegular() || fi.Mode().Perm()&0o111 == 0 {
+		return "nmap is not an executable file at " + h.path
+	}
+	return ""
+}
+
 type fakeNmapBin struct{ path, log string }
 
 func newFakeNmap(t *testing.T) *fakeNmapBin {
@@ -125,7 +149,7 @@ func TestSensorActiveScansADiscoveredDevice(t *testing.T) {
 	s := newStack(t)
 	nm := newFakeNmap(t)
 	s.d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone) } // Monday 02:00, inside 01:00-05:00
-	svc, err := newSensorActive(*s.d, nm.path)
+	svc, err := newLocalSensorActive(*s.d, nm.path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +221,7 @@ func TestSensorActiveFragileDevicePolicy(t *testing.T) {
 	s := newStack(t)
 	nm := newFakeNmap(t)
 	s.d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone) }
-	svc, err := newSensorActive(*s.d, nm.path)
+	svc, err := newLocalSensorActive(*s.d, nm.path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +275,7 @@ func TestSensorActiveOffDoesNothing(t *testing.T) {
 	s := newStack(t)
 	nm := newFakeNmap(t)
 	s.d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone) }
-	svc, err := newSensorActive(*s.d, nm.path)
+	svc, err := newLocalSensorActive(*s.d, nm.path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -312,7 +336,7 @@ func TestSensorActiveSweepSkipsProtectedAddresses(t *testing.T) {
 	s := newStack(t)
 	nm := newFakeNmap(t)
 	s.d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone) }
-	svc, err := newSensorActive(*s.d, nm.path)
+	svc, err := newLocalSensorActive(*s.d, nm.path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -364,7 +388,7 @@ func TestSensorActiveFirstScanOfAnUnclassifiedDeviceIsGentle(t *testing.T) {
 	s := newStack(t)
 	nm := newFakeNmap(t)
 	s.d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone) }
-	svc, err := newSensorActive(*s.d, nm.path)
+	svc, err := newLocalSensorActive(*s.d, nm.path)
 	if err != nil {
 		t.Fatal(err)
 	}

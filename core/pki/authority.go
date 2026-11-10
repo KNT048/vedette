@@ -224,7 +224,7 @@ func (a *Authority) Start(ctx context.Context, dir string) error {
 
 // Renew is the daily job (and the start-up check): it replaces the server leaf and the leaf of a role when a third of the
 // lifetime or less is left, and writes again a bundle that could not be written before. Nothing happens when nothing is due.
-// ponytail: called from a job once core wires the listener (SP-5); until then nothing calls it.
+// cmd/vedette calls it from the daily job "sensor-cert-renew" of module core (D-141).
 func (a *Authority) Renew(ctx context.Context, dir string) error {
 	a.run.Lock()
 	defer a.run.Unlock()

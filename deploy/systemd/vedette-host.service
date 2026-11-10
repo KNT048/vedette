@@ -2,6 +2,8 @@
 Description=Vedette host helper
 After=network-online.target
 Wants=network-online.target
+# The package enables the unit but the installer writes host.conf: without the file the unit is skipped at boot (not failed, no crash loop); the installer starts it after writing it (D-155)
+ConditionPathExists=/etc/vedette/host.conf
 # Restart=always would hit the default start limit (5 starts in 10 s) in a crash loop and stay down; the helper must come back, so no limit, and RestartSteps below slows the loop (D-150)
 StartLimitIntervalSec=0
 

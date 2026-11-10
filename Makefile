@@ -218,12 +218,14 @@ scan-image: scan-base-image
 # The vedette-host package (WP-08g, D-155): a static binary (the version flag like the core image's) and nfpm. VERSION is SemVer without a v.
 # The binary goes to dist/host-deb/<arch>/, the package to dist/ (both removed by `make clean`).
 ARCH ?= amd64
+DEB_OUT ?= dist
 host-deb:
 	@printf '%s' "$(VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$$' || { echo "host-deb: VERSION must be SemVer without v (VERSION=0.1.0), got '$(VERSION)'" >&2; exit 1; }
 	@case "$(ARCH)" in amd64|arm64) ;; *) echo "host-deb: ARCH must be amd64 or arm64, got '$(ARCH)'" >&2; exit 1;; esac
-	mkdir -p dist/host-deb/$(ARCH)
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o dist/host-deb/$(ARCH)/vedette-host ./cmd/vedette-host
-	VERSION=$(VERSION) ARCH=$(ARCH) BINARY=dist/host-deb/$(ARCH)/vedette-host $(GO_TOOL) nfpm pkg --packager deb --config deploy/deb/nfpm.yaml --target dist/
+	mkdir -p $(DEB_OUT)/host-deb/$(ARCH)
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o $(DEB_OUT)/host-deb/$(ARCH)/vedette-host ./cmd/vedette-host
+	go run ./scripts/hostlicenses -goos linux -goarch $(ARCH) -out $(DEB_OUT)/host-deb/$(ARCH)/third-party-licenses
+	VERSION=$(VERSION) ARCH=$(ARCH) BINARY=$(DEB_OUT)/host-deb/$(ARCH)/vedette-host LICENSES=$(DEB_OUT)/host-deb/$(ARCH)/third-party-licenses $(GO_TOOL) nfpm pkg --packager deb --config deploy/deb/nfpm.yaml --target $(DEB_OUT)/
 
 # Installs the package twice in a systemd container per target OS (Debian 13, Ubuntu 24.04, pinned by digest in deploy/deb/check-pins.env)
 # and checks the effects (scripts/dev/host-deb-check.sh). Pulls images and runs apt in them: opt-in, not in `make check` or CI.

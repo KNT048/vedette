@@ -1,5 +1,5 @@
 # The vedette-host .deb (WP-08g, D-155). Built by `make host-deb VERSION=x.y.z [ARCH=amd64|arm64]` with
-# `go tool -modfile=tools/go.mod nfpm pkg`; run from the repository root. VERSION, ARCH and BINARY come from the environment.
+# `go tool -modfile=tools/go.mod nfpm pkg`; run from the repository root. VERSION, ARCH, BINARY and LICENSES come from the environment.
 # Nothing here is edited by hand on a box: the package installs the helper and its unit, creates the users and directories the
 # helper expects, and enables the unit without starting it. The installer (WP-08h) writes /etc/vedette/host.conf and starts it.
 name: vedette-host
@@ -62,6 +62,14 @@ contents:
       group: root
   - src: NOTICE
     dst: /usr/share/doc/vedette-host/NOTICE
+    file_info:
+      mode: 0644
+      owner: root
+      group: root
+  # generated at build time by scripts/hostlicenses (the Go license and the license of every module linked into the binary), never committed
+  - src: ${LICENSES}
+    dst: /usr/share/doc/vedette-host/third-party-licenses
+    expand: true
     file_info:
       mode: 0644
       owner: root

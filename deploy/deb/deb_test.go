@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"debug/elf"
 	"errors"
 	"io"
 	"os"
@@ -61,7 +62,14 @@ func build(t *testing.T, version, arch string) pkg {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, goBin, "tool", "-modfile=tools/go.mod", "nfpm", "pkg", "--packager", "deb", "--config", "deploy/deb/nfpm.yaml", "--target", out) //nolint:gosec // test: fixed argv
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), "VERSION="+version, "ARCH="+arch, "BINARY="+bin)
+	// the license file is generated like `make host-deb` does it
+	lic := filepath.Join(dir, "third-party-licenses")
+	gen := exec.CommandContext(ctx, goBin, "run", "./scripts/hostlicenses", "-goos", "linux", "-goarch", arch, "-out", lic) //nolint:gosec // test: fixed argv
+	gen.Dir = root
+	if b, err := gen.CombinedOutput(); err != nil {
+		t.Fatalf("hostlicenses: %v\n%s", err, b)
+	}
+	cmd.Env = append(os.Environ(), "VERSION="+version, "ARCH="+arch, "BINARY="+bin, "LICENSES="+lic)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("nfpm: %v\n%s", err, b)
 	}
@@ -227,10 +235,11 @@ func TestPackage_Depends(t *testing.T) {
 func TestPackage_Files(t *testing.T) {
 	p := build(t, "0.1.0", "amd64")
 	want := map[string]int64{
-		"usr/lib/vedette/vedette-host":                0o755,
-		"usr/lib/systemd/system/vedette-host.service": 0o644,
-		"usr/share/doc/vedette-host/copyright":        0o644,
-		"usr/share/doc/vedette-host/NOTICE":           0o644,
+		"usr/lib/vedette/vedette-host":                    0o755,
+		"usr/lib/systemd/system/vedette-host.service":     0o644,
+		"usr/share/doc/vedette-host/copyright":            0o644,
+		"usr/share/doc/vedette-host/NOTICE":               0o644,
+		"usr/share/doc/vedette-host/third-party-licenses": 0o644,
 	}
 	for path, f := range p.files {
 		if f.isDir {
@@ -271,6 +280,35 @@ func TestPackage_UnitIsTheRepoFileByteForByte(t *testing.T) {
 	}
 	if c := p.files["usr/share/doc/vedette-host/copyright"].data; !bytes.Contains(c, []byte("Apache License")) || !bytes.Contains(c, []byte("Version 2.0")) {
 		t.Error("the copyright file is not the Apache License 2.0 text")
+	}
+	tp := string(p.files["usr/share/doc/vedette-host/third-party-licenses"].data)
+	if !strings.Contains(tp, "== Go standard library and runtime (LICENSE)") || !strings.Contains(tp, "== golang.org/x/sys ") {
+		t.Error("third-party-licenses lacks the Go license or a linked module (scripts/hostlicenses tests the full list)")
+	}
+	if n := string(p.files["usr/share/doc/vedette-host/NOTICE"].data); !strings.Contains(n, "third-party-licenses") {
+		t.Error("NOTICE does not point at third-party-licenses")
+	}
+}
+
+// Opt-in (host-deb-check sets VEDETTE_HOST_BINARY to the binary `make host-deb` built): the binary is static, with no program
+// interpreter, so it runs on every supported distribution whatever libc it has.
+func TestBinaryIsStatic(t *testing.T) {
+	path := os.Getenv("VEDETTE_HOST_BINARY")
+	if path == "" {
+		t.Skip("VEDETTE_HOST_BINARY is not set (opt-in, make host-deb-check)")
+	}
+	f, err := elf.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+	for _, p := range f.Progs {
+		if p.Type == elf.PT_INTERP {
+			t.Error("the binary has a PT_INTERP: it is dynamically linked")
+		}
+	}
+	if libs, _ := f.ImportedLibraries(); len(libs) != 0 {
+		t.Errorf("the binary needs shared libraries: %v", libs)
 	}
 }
 
@@ -330,7 +368,7 @@ func TestScripts_Rules(t *testing.T) {
 	if !regexp.MustCompile(`useradd --system --gid "\$1" `).MatchString(post) {
 		t.Error("postinst must create users with useradd --system and no fixed --uid (ids are allocated by the system; the installer reads them with getent)")
 	}
-	for _, need := range []string{"groupadd --system", "containers:2147483647:2147483648", "daemon-reload", "was-enabled", "install -d -m 0700 -o \"$CORE\" -g \"$CORE\" /var/lib/vedette"} {
+	for _, need := range []string{"groupadd --system", "containers:2147483647:2147483648", "daemon-reload", "was-enabled", "once 700 \"$CORE\" /var/lib/vedette", "once 750 \"$CORE\" /var/lib/vedette-honeypot/log", "check_account", "check_dirs", "check_subid", "SYS_UID_MIN", "[ ! -L"} {
 		if !strings.Contains(post, need) {
 			t.Errorf("postinst lacks %q", need)
 		}

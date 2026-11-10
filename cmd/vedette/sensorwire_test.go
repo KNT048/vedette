@@ -9,6 +9,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/netip"
@@ -20,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/pki"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/host/api"
@@ -256,14 +258,75 @@ func TestProductionRunsNoCaptureAndNoLocalNmap(t *testing.T) {
 			t.Fatal(err)
 		}
 		ast.Inspect(af, func(n ast.Node) bool {
-			if id, ok := n.(*ast.Ident); ok && (id.Name == "NewLocalProber" || id.Name == "NmapPath") {
-				t.Errorf("%s: %s is used in production wiring (D-141: nmap runs in the scan container)", fset.Position(id.Pos()), id.Name)
+			if id, ok := n.(*ast.Ident); ok && (id.Name == "NewLocalProber" || id.Name == "NmapPath" || id.Name == "OpenLive") {
+				t.Errorf("%s: %s is used in production wiring (D-141: nmap and packet capture run in the scan and sensor containers)", fset.Position(id.Pos()), id.Name)
+			}
+			// d.SensorPassive.Run (the in-process capture loop) must not be started from core, however it is spelled.
+			if sel, ok := n.(*ast.SelectorExpr); ok && sel.Sel.Name == "Run" {
+				if x, ok := sel.X.(*ast.SelectorExpr); ok && x.Sel.Name == "SensorPassive" {
+					t.Errorf("%s: SensorPassive.Run starts the capture loop inside core", fset.Position(sel.Pos()))
+				}
 			}
 			return true
 		})
 	}
 	if _, err := newSensorActive(*s.d, nil); err == nil {
 		t.Error("newSensorActive accepted a nil Prober: the module would start nmap in this process")
+	}
+}
+
+// A failed PKI start says which folder it could not write (and nothing secret), so a person can fix the volume.
+func TestSensorLinkFailureNamesTheCredsFolder(t *testing.T) {
+	t.Parallel()
+	var buf syncBuffer
+	s := newStackWith(t, func(d *deps) { d.Log = slog.New(slog.NewJSONHandler(&buf, nil)) })
+	file := filepath.Join(t.TempDir(), "a-file")
+	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(file, "creds")
+	if _, err := openSensorLink(t.Context(), s.d, "127.0.0.1:0", dir); err == nil {
+		t.Fatal("a creds folder under a file was accepted")
+	}
+	if out := buf.String(); !strings.Contains(out, `"dir":"`+dir+`"`) || !strings.Contains(out, "sensor link") {
+		t.Fatalf("the log does not name the folder %q: %s", dir, out)
+	}
+}
+
+type syncBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (s *syncBuffer) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+func (s *syncBuffer) String() string { s.mu.Lock(); defer s.mu.Unlock(); return s.b.String() }
+
+// The sensor link failing stops the 8443 server too, in the order of a normal shutdown, before the error is returned.
+func TestSensorLinkFailureShutsDownTheMainServer(t *testing.T) {
+	t.Parallel()
+	log := slog.New(slog.DiscardHandler)
+	sched := jobs.New(log, allOn{}, nil)
+	main, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = other.Close() }()
+	bad := &sensorLink{srv: &http.Server{ReadHeaderTimeout: time.Second}, ln: other} // ServeTLS has no certificate: it returns at once
+	err = serveUntilDone(t.Context(), log, &http.Server{ReadHeaderTimeout: time.Second}, main, bad, sched, time.Second)
+	if err == nil || !strings.Contains(err.Error(), "sensor link") {
+		t.Fatalf("err = %v, want the sensor link failure", err)
+	}
+	if c, err := new(net.Dialer).DialContext(t.Context(), "tcp", main.Addr().String()); err == nil {
+		_ = c.Close()
+		t.Fatal("the 8443 server still accepts connections after the sensor link failed")
 	}
 }
 
@@ -321,7 +384,7 @@ func TestRenewJobIsScheduledAndRenews(t *testing.T) {
 // box address, core/conn's refusals and notify's webhook guard; a host that stops answering leaves the last set in place.
 func TestBoxAddressProviderFeedsEveryConsumer(t *testing.T) {
 	t.Parallel()
-	host := &fakeNet{st: api.NetState{Interfaces: []api.NetInterface{{Name: "eno1", Addresses: []string{"192.168.77.5/24"}}}}}
+	host := &lockedNet{st: api.NetState{Interfaces: []api.NetInterface{{Name: "eno1", Addresses: []string{"192.168.77.5/24"}}}}}
 	s := newStackWith(t, func(d *deps) { d.HostNet = newHostNetCache(hostNetSource(host, nil), time.Now) })
 	box := netip.MustParseAddr("192.168.77.5")
 	check := func(when string) {
@@ -342,12 +405,30 @@ func TestBoxAddressProviderFeedsEveryConsumer(t *testing.T) {
 		}
 	}
 	check("host answering")
-	host.err = errors.New("host socket gone")
+	host.setErr(errors.New("host socket gone"))
 	s.d.HostNet.Invalidate() // the next read asks again, fails, and serves the previous set
 	check("host unreachable")
-	if host.calls < 2 {
-		t.Fatalf("the host was asked %d times: the failure was not exercised", host.calls)
+	if n := host.count(); n < 2 {
+		t.Fatalf("the host was asked %d times: the failure was not exercised", n)
 	}
+}
+
+// lockedNet is fakeNet for a test whose cache is also read from a background refresh (notify's Snapshot).
+type lockedNet struct {
+	mu    sync.Mutex
+	st    api.NetState
+	err   error
+	calls int
+}
+
+func (f *lockedNet) setErr(err error) { f.mu.Lock(); f.err = err; f.mu.Unlock() }
+func (f *lockedNet) count() int       { f.mu.Lock(); defer f.mu.Unlock(); return f.calls }
+
+func (f *lockedNet) StateNet(context.Context) (api.NetState, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls++
+	return f.st, f.err
 }
 
 // The two flags go together, and the credentials directory is an absolute path (the unit mounts it at a fixed place).

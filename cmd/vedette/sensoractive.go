@@ -48,8 +48,9 @@ func sensorActiveService(d deps) (*sensoractive.Service, error) {
 // subscribes its reactions on d.Bus. A subscription acts only while the module is on (SYS-5); a handler error is
 // logged by the bus and never reaches the publisher.
 //
-// tune is for tests only (production passes none): the one thing they change is NmapPath, which Health reads for a local Prober.
-func newSensorActive(d deps, prober sensoractive.Prober, tune ...func(*sensoractive.Config)) (*sensoractive.Service, error) {
+// Production passes the Dispatcher (sensorActiveService, the only non-test caller); the parameter exists so the tests can pass a
+// local Prober on a fake nmap. nil is refused: Config would then fall back to starting nmap in this process.
+func newSensorActive(d deps, prober sensoractive.Prober) (*sensoractive.Service, error) {
 	if d.Inventory == nil {
 		return nil, errors.New("sensor-active needs the inventory service")
 	}
@@ -62,9 +63,6 @@ func newSensorActive(d deps, prober sensoractive.Prober, tune ...func(*sensoract
 		cfg.Events = sensoractive.PublisherFunc(func(ctx context.Context, e sensoractive.Event) error {
 			return d.Bus.Publish(ctx, events.Event{Name: e.Name, Data: e.Data})
 		})
-	}
-	for _, t := range tune {
-		t(&cfg)
 	}
 	svc, err := sensoractive.New(cfg)
 	if err != nil {

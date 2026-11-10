@@ -56,6 +56,7 @@ func openSensorLink(ctx context.Context, d *deps, addr, creds string) (*sensorLi
 		return nil, fmt.Errorf("sensor link: %w", err)
 	}
 	if err := auth.Start(ctx, creds); err != nil {
+		d.Log.ErrorContext(ctx, "sensor link: the credentials folder could not be written; check the volume and its owner", "dir", creds, "error", err)
 		return nil, fmt.Errorf("sensor link: credentials for the sensors: %w", err)
 	}
 	d.Authority, d.SensorCreds = auth, creds

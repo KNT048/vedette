@@ -63,7 +63,7 @@ type Config struct {
 	// announced to it, a SetInterface is.
 	ConfigRecheck time.Duration
 
-	// The rest is for the capture job that still runs inside core (Run) until SP-5, and for tests: it is handed to capture.Config.
+	// The rest is for Service.Run, which production no longer starts (D-141): only the test harness uses it. It is handed to capture.Config.
 	// Open opens a Source for an interface name; default capture.OpenLive.
 	Open func(iface string) (capture.Source, error)
 	// FlushEvery, HeartbeatEvery and RetryEvery set the loop's pace; zero means 5 s, 30 s and 5 s. SummaryEvery is how often a

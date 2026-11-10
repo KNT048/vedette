@@ -26,6 +26,8 @@ func TestPodmanGrammarOfThePullCommand(t *testing.T) {
 			{"image", "inspect", "--format", "json", ref},
 			{"image", "inspect", "--format", "json", tag},
 			{"tag", ref, tag},
+			{"rmi", strings.Repeat("1", 64)},
+			{"image", "ls", "--format", "json"},
 		} {
 			if err := validatePodman(a); err != nil {
 				t.Errorf("%q: %v", a, err)
@@ -68,8 +70,21 @@ func TestPodmanGrammarOfThePullCommand(t *testing.T) {
 		"tag latest":              {"tag", good, "localhost/vedette-core:latest"},
 		"tag extra":               {"tag", good, tag, "x"},
 		"tag from tag":            {"tag", "localhost/vedette-core:1.0.0", tag},
-		"rmi":                     {"rmi", dg1},
 		"rmi force":               {"rmi", "-f", good},
+		"rmi by name":             {"rmi", good},
+		"rmi by tag":              {"rmi", tag},
+		"rmi by digest":           {"rmi", dg1},
+		"rmi two":                 {"rmi", strings.Repeat("1", 64), strings.Repeat("2", 64)},
+		"rmi force id":            {"rmi", "-f", strings.Repeat("1", 64)},
+		"rmi all":                 {"rmi", "-a"},
+		"rmi no digest":           {"rmi"},
+		"rmi short id":            {"rmi", "abc"},
+		"rmi newline":             {"rmi", strings.Repeat("1", 64) + "\n"},
+		"image ls other format":   {"image", "ls", "--format", "{{.ID}}"},
+		"image ls all":            {"image", "ls", "-a", "--format", "json"},
+		"image ls filter":         {"image", "ls", "--format", "json", "--filter", "dangling=true"},
+		"image ls bare":           {"image", "ls"},
+		"system prune":            {"system", "prune", "-a"},
 		"image prune":             {"image", "prune", "-a"},
 		"images":                  {"images"},
 		"run":                     {"run", "--privileged", good},
@@ -145,6 +160,9 @@ func FuzzValidatePodmanPull(f *testing.F) {
 	f.Add("pull", "-q", "ghcr.io/knt048/vedette-core@"+dg1, "")
 	f.Add("tag", "ghcr.io/knt048/vedette-core@"+dg1, "localhost/vedette-core:1.4.0", "")
 	f.Add("image", "inspect", "--format", "json")
+	f.Add("rmi", dg1, "", "")
+	f.Add("rmi", "-f", dg1, "")
+	f.Add("image", "ls", "--format", "json")
 	f.Add("pull", "-q", "ghcr.io/knt048/vedette-core@"+dg1+"\n", "")
 	f.Fuzz(func(t *testing.T, a, b, c, d string) {
 		args := []string{a, b, c}
@@ -169,7 +187,13 @@ func FuzzValidatePodmanPull(f *testing.F) {
 				t.Fatalf("accepted %q", args)
 			}
 		case "image":
-			if len(args) != 5 || args[1] != "inspect" || args[2] != "--format" || args[3] != "json" {
+			inspect := len(args) == 5 && args[1] == "inspect" && args[2] == "--format" && args[3] == "json"
+			ls := len(args) == 4 && args[1] == "ls" && args[2] == "--format" && args[3] == "json"
+			if !inspect && !ls {
+				t.Fatalf("accepted %q", args)
+			}
+		case "rmi":
+			if len(args) != 2 || !imageIDRE.MatchString(args[1]) {
 				t.Fatalf("accepted %q", args)
 			}
 		case "tag":

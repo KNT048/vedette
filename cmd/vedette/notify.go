@@ -8,7 +8,6 @@ import (
 	"net/netip"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/jobs"
@@ -161,14 +160,14 @@ func newNotify(d *deps) *notify.Service {
 	return svc
 }
 
-// notifyBoxAddrs is notify's Config.BoxAddrs over the shared cache of what vedette-host reports. The cache never errors: a host that does not
-// answer leaves the previous set in place. Without a host (nil cache) it is empty and the service reads the container's own interfaces only.
+// notifyBoxAddrs is notify's Config.BoxAddrs over the shared cache of what vedette-host reports. It reads the last known set and never
+// waits for the host (notify asks at every webhook connection and save); a stale set is refreshed in the background, and a host that does
+// not answer leaves the previous set in place. Before the first answer, and without a host (nil cache), the set is empty and notify reads
+// the container's own interfaces only: fail-open, noted in .ai/deferred/feat-sensor-protocol.md (notify has no "unknown" signal).
 func notifyBoxAddrs(c *hostNetCache) func() []netip.Addr {
 	return func() []netip.Addr {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
 		var out []netip.Addr
-		for _, p := range c.Get(ctx) {
+		for _, p := range c.Snapshot() {
 			out = append(out, p.Addr())
 		}
 		return out

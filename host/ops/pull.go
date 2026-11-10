@@ -35,8 +35,8 @@ import (
 // only then is the pulled version recorded. A failure leaves no record. A half-pulled image is
 // not removed (no rmi): a pull by digest creates the image only when its content matched the digest,
 // so what may be left is verified content that a retry finds at once (idempotency), and an image
-// that a running container uses must never be removed by a failed pull; the retention of slice 3-8
-// removes images that nothing keeps.
+// that a running container uses must never be removed by a failed pull; the retention that follows
+// a successful start or rollback (retain.go, slice 3-8a) removes images that nothing keeps.
 //
 // The refusals are all decided in Check, so core gets them as 412 at once and no run starts. Check
 // also stores a newer verified index even when the manifest is then refused: a revocation must not be
@@ -191,11 +191,9 @@ func (o *Ops) verifyPull(a api.ContainerPullArgs) (*pullPlan, error) {
 	if err != nil {
 		return nil, refusePull(err, "index")
 	}
-	stored, err := o.loadIndex(trust)
+	stored, err := o.loadStoredIndex(trust)
 	if err != nil {
-		o.log.Error("the stored release index cannot be used; every pull is refused until it is dealt with", "error", err.Error())
-		return nil, refuse412(api.CodeReleaseStateInvalid, "The index the host stored earlier is damaged or no longer verifies, so the host will not pull. An operator must remove "+
-			filepath.Join(o.cfg.StateDir, "releases", indexStateFile)+" (the host then forgets its replay and revocation memory).")
+		return nil, err
 	}
 	idx, err := release.VerifyIndex(idxRaw, idxSig, trust, stored)
 	if err != nil {

@@ -28,7 +28,21 @@ func newLocalSensorActive(d deps, path string) (*sensoractive.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newSensorActive(d, p, func(c *sensoractive.Config) { c.NmapPath = path })
+	return newSensorActive(d, nmapHealth{p, path})
+}
+
+// nmapHealth is a local Prober that says what Health says of a local nmap (the file exists and is executable): the service reads the
+// health of a Prober that has a NmapHealth method, so no production parameter is needed to set the path.
+type nmapHealth struct {
+	sensoractive.Prober
+	path string
+}
+
+func (h nmapHealth) NmapHealth() string {
+	if fi, err := os.Stat(h.path); err != nil || !fi.Mode().IsRegular() || fi.Mode().Perm()&0o111 == 0 {
+		return "nmap is not an executable file at " + h.path
+	}
+	return ""
 }
 
 type fakeNmapBin struct{ path, log string }

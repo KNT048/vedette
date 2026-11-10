@@ -4,8 +4,9 @@
 // endpoints that belong to them, and (part 3) net.apply, net.confirm, net.revert and the NTP
 // sources, (slice 3-5) decoy_ip.add and decoy_ip.remove with the honeypot namespace, and (slice 3-6)
 // the Quadlet units with container.start (the current image) and container.stop, and (slice 3-7)
-// container.pull, which verifies a signed release itself before it pulls an image by digest.
-// container.rollback and the start of another version come in later slices.
+// container.pull, which verifies a signed release itself before it pulls an image by digest, and (slice
+// 3-8a) container.start with a version, container.rollback and the retention of images. The bootstrap
+// that writes the first units is slice 3-8b.
 //
 // Every child process goes through one core/exec Runner: absolute binary paths, argv validated by a
 // per-binary validator, PATH, LANG=C and DEBIAN_FRONTEND=noninteractive only, no shell. Nothing in
@@ -101,6 +102,10 @@ type Deps struct {
 	// Keys is the root of trust of container.pull (D-107, D-130): default release.Embedded, the keys
 	// compiled into the binary. A build without real keys refuses every pull. Only tests replace it.
 	Keys func() (release.Trust, error)
+	// JournalFault, when set, is asked before every write of a transition journal with the service and the
+	// phase about to be written, and a non-nil answer makes that write fail (a test seam for the durability of
+	// the verified phase, D-138 N3). Nil in production.
+	JournalFault func(service, phase string) error
 	// Arch is the architecture container.pull asks the manifest for, as in "linux/<Arch>" (default
 	// runtime.GOARCH).
 	Arch string
@@ -135,6 +140,15 @@ type Ops struct {
 	// restorePending lists the services whose unit bytes Start put back and whose state AfterReady still
 	// restores; Start sets it before the server listens, AfterReady reads it afterwards.
 	restorePending []string
+
+	// afterCtx and afterL are what AfterReady was given (guarded by mu): a run that fails to put core's data
+	// back restarts the retry loop with them once it has released the write lock (D-138 N2). kicking keeps it
+	// to one loop; recNote is when each service last audited a recovery failure (guarded by mu), so a loop
+	// that fails again and again writes one line, then at most one an hour (N5).
+	afterCtx context.Context //nolint:containedctx // the process's own context, kept to restart a retry loop
+	afterL   Locker
+	kicking  atomic.Bool
+	recNote  map[string]time.Time
 
 	// Container commands run one at a time under the server's write lock; Start runs before the
 	// server listens. Nothing else touches containers/ (no mutex of its own).
@@ -257,7 +271,7 @@ func (o *Ops) Commands() []server.Command {
 		o.cmdBackupCreate(), o.cmdBackupRestore(), o.cmdLogsExport(),
 		o.cmdNetApply(), o.cmdNetConfirm(), o.cmdNetRevert(),
 		o.cmdDecoyAdd(), o.cmdDecoyRemove(),
-		o.cmdContainerStart(), o.cmdContainerStop(), o.cmdContainerPull(),
+		o.cmdContainerStart(), o.cmdContainerStop(), o.cmdContainerPull(), o.cmdContainerRollback(),
 	}
 }
 

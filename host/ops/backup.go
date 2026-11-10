@@ -103,6 +103,9 @@ func (o *Ops) cmdBackupCreate() server.Command {
 			return nil
 		},
 		Check: func(_ context.Context, a api.BackupCreateArgs) error {
+			if err := o.coreFree(); err != nil {
+				return err
+			}
 			return o.backupPreflight(a.Snapshot, a.IncludeSecrets, isPreKind(a.Kind))
 		},
 		Run: func(ctx context.Context, rc *server.RunContext, a api.BackupCreateArgs) (any, error) {

@@ -89,6 +89,7 @@ const (
 type hostNetCache struct {
 	fetch func(ctx context.Context) ([]netip.Prefix, error)
 	now   func() time.Time
+	bg    context.Context // the base of the refreshes Snapshot starts: no caller waits for them
 
 	mu       sync.Mutex
 	okAt     time.Time // when the last good answer was fetched; zero before the first
@@ -106,7 +107,7 @@ func newHostNetCache(fetch func(ctx context.Context) ([]netip.Prefix, error), no
 	if now == nil {
 		now = time.Now
 	}
-	return &hostNetCache{fetch: fetch, now: now}
+	return &hostNetCache{fetch: fetch, now: now, bg: context.Background()}
 }
 
 // Invalidate drops the answer in memory: the box's addresses may have changed (Box network applied, confirmed or
@@ -164,8 +165,9 @@ func (c *hostNetCache) Get(ctx context.Context) []netip.Prefix {
 	gen := c.gen
 	c.mu.Unlock()
 
-	// One call for everybody: it must not die with the first caller's context.
-	cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), hostNetTimeout)
+	// The lookup this caller started ends at this caller's deadline (or hostNetTimeout, whichever is first); callers that wait for it keep
+	// their own deadlines, and one that finds it cut short is served the last set.
+	cctx, cancel := context.WithTimeout(ctx, hostNetTimeout)
 	l, err := c.fetch(cctx)
 	cancel()
 
@@ -174,7 +176,9 @@ func (c *hostNetCache) Get(ctx context.Context) []netip.Prefix {
 	c.flight = nil
 	close(done)
 	if err != nil {
-		c.failedAt = c.now()
+		if ctx.Err() == nil { // a deadline that was the caller's own says nothing about the host: no backoff
+			c.failedAt = c.now()
+		}
 		return c.last
 	}
 	c.last = l
@@ -182,6 +186,27 @@ func (c *hostNetCache) Get(ctx context.Context) []netip.Prefix {
 		c.okAt, c.failedAt = c.now(), time.Time{}
 	}
 	return l
+}
+
+// Snapshot is the last known set, returned at once: a caller on a request path (a webhook delivery or save) must never wait for
+// the host. When the set is stale and nobody is asking the host, a refresh starts in the background (it ends at hostNetTimeout).
+// Before the first answer the set is nil: a host that has never answered is unknown, not empty, and the caller decides what that means.
+// Safe on nil.
+func (c *hostNetCache) Snapshot() []netip.Prefix {
+	if c == nil {
+		return nil
+	}
+	c.mu.Lock()
+	now := c.now()
+	last := c.last
+	stale := c.okAt.IsZero() || now.Sub(c.okAt) >= hostNetTTL
+	backoff := !c.failedAt.IsZero() && now.Sub(c.failedAt) < hostNetBackoff
+	start := stale && !backoff && c.flight == nil
+	c.mu.Unlock()
+	if start {
+		go c.Get(c.bg)
+	}
+	return last
 }
 
 // hostIPv4s is the IPv4 addresses vedette-host reports for the box, best effort (nothing without a host).

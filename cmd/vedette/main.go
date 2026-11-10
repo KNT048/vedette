@@ -263,7 +263,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	}
 
 	api, err := server.New(server.Config{
-		API:        newHandler(d), //nolint:contextcheck // notify's BoxAddrs has no context in its signature; it bounds its own host call
+		API:        newHandler(d),
 		Auth:       d.Auth.Sessions,
 		Modules:    reg,
 		Log:        log,
@@ -355,14 +355,18 @@ func serveUntilDone(ctx context.Context, log *slog.Logger, srv *http.Server, ln 
 		defer func() { _ = link.close() }() // the listener failing below must not leave the sensor link open
 	}
 
+	// A listener failing is shut down after exactly like a stop: the other listener and the scheduler are stopped in order, then the error is returned.
+	var failure error
 	select {
-	case err := <-serveErr: // the listener failed: stop the scheduler (deferred) and report
-		return fmt.Errorf("serve: %w", err)
+	case err := <-serveErr:
+		failure = fmt.Errorf("serve: %w", err)
 	case err := <-linkErr:
-		return fmt.Errorf("serve sensor link: %w", err)
+		failure = fmt.Errorf("serve sensor link: %w", err)
 	case <-ctx.Done():
 	}
-	log.InfoContext(ctx, "shutting down")
+	if failure == nil {
+		log.InfoContext(ctx, "shutting down")
+	}
 	if link != nil {
 		_ = link.close()
 	}
@@ -370,6 +374,9 @@ func serveUntilDone(ctx context.Context, log *slog.Logger, srv *http.Server, ln 
 	defer cancel()
 	shutdownErr := srv.Shutdown(sctx)
 	stopSched()
+	if failure != nil {
+		return failure
+	}
 	if err := <-serveErr; err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("serve: %w", err)
 	}

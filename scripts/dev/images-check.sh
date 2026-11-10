@@ -54,3 +54,29 @@ got=$($c run --rm --entrypoint nmap "localhost/vedette-scan-nmap:$tag" --version
 have=$(echo "$got" | sed -n 's/^Nmap version \([0-9][0-9]*\.[0-9][0-9]*\).*/\1/p')
 [ -n "$have" ] && [ "$(printf '%s\n%s\n' "$NMAP_MIN_VERSION" "$have" | sort -V | head -1)" = "$NMAP_MIN_VERSION" ] || fail "nmap --version '$got' is below the floor $NMAP_MIN_VERSION"
 ok "on-box image: $got (floor $NMAP_MIN_VERSION)"
+
+# core (D-149): the image embeds the interface. Run it with a tmpfs data folder and check by effect: GET / is HTML with the root element, and
+# an asset that index.html names is 200 with an immutable cache header and a JavaScript type; an unknown asset is 404, not HTML.
+mk core-image
+cn=vedette-core-check-$$
+trap 'cleanup; $c rm -f "$cn" >/dev/null 2>&1 || true; $c rmi -f "localhost/vedette-core:$tag" >/dev/null 2>&1 || true' EXIT
+$c run -d --name "$cn" -p 127.0.0.1::8443 --tmpfs /var/lib/vedette:rw,mode=1777"localhost/vedette-core:$tag" -listen 0.0.0.0:8443 -host-socket "" >/dev/null
+port=$($c port "$cn" 8443/tcp | head -1 | sed 's/.*://')
+cget() { curl -sk --max-time 5 --resolve "localhost:$port:127.0.0.1" "$@"; }
+page=
+for _ in $(seq 1 30); do
+	page=$(cget "https://localhost:$port/") && [ -n "$page" ] && break
+	sleep 1
+done
+echo "$page" | grep -q '<div id="root"></div>' || fail "core: GET / is not the interface: $(echo "$page" | head -c 200)"
+ok "core: GET / answers HTML with the root element"
+asset=$(echo "$page" | grep -o '/assets/[A-Za-z0-9._-]*\.js' | head -1)
+[ -n "$asset" ] || fail "core: index.html names no /assets/*.js"
+hdr=$(cget -o /dev/null -D - "https://localhost:$port$asset" | tr -d '\r')
+echo "$hdr" | head -1 | grep -q ' 200' || fail "core: $asset is not 200: $(echo "$hdr" | head -1)"
+echo "$hdr" | grep -iq '^cache-control: public, max-age=31536000, immutable$' || fail "core: $asset has no immutable cache header: $hdr"
+echo "$hdr" | grep -iq '^content-type: text/javascript' || fail "core: $asset is not served as JavaScript: $hdr"
+ok "core: $asset is 200, immutable, text/javascript"
+code=$(cget -o /dev/null -w '%{http_code}' "https://localhost:$port/assets/does-not-exist.js")
+[ "$code" = 404 ] || fail "core: a missing asset answered $code, want 404"
+ok "core: a missing asset is 404, not index.html"

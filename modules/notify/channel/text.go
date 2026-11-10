@@ -42,6 +42,10 @@ func clean(s string, multiline bool) string {
 	return b.String()
 }
 
+// Line cleans untrusted text into one line of at most n runes with the cleaner the adapters use (control and bidi
+// characters dropped, line breaks become spaces, ends trimmed).
+func Line(s string, n int) string { return truncRunes(strings.TrimSpace(clean(s, false)), n) }
+
 // truncRunes cuts s to at most n runes, ending with an ellipsis when it cut.
 func truncRunes(s string, n int) string {
 	if n <= 0 || utf8.RuneCountInString(s) <= n {

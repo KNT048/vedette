@@ -3,12 +3,15 @@ package notify
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/store/coredb"
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
@@ -22,6 +25,12 @@ type ApprovalRequest struct {
 	Severity Severity
 	Risk     Risk
 	Expires  time.Time
+	// Channels are the channels the response module allows for this request; empty sends nothing (PRE-4, D-96). Only
+	// a channel that is in the list and has approvals on receives a message.
+	Channels []channel.Type
+	// InAppOnly is a high-risk request from the AI (INV-16 of response): every channel only gets a message that says
+	// to open Vedette. No approval link, no button, no reply code, and no token is made or recorded.
+	InAppOnly bool
 }
 
 const (
@@ -57,12 +66,27 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 	if s.cfg.BaseURL == "" {
 		return nil, ErrApprovalUnavailable
 	}
-	chans, err := s.ApprovalChannels(ctx)
-	if err != nil || len(chans) == 0 {
+	if len(req.Channels) == 0 {
+		return nil, nil // response allows no channel: nothing is sent, nothing is made
+	}
+	all, err := s.ApprovalChannels(ctx)
+	if err != nil {
 		return nil, err
+	}
+	var chans []ApprovalChannel
+	for _, ac := range all {
+		if slices.Contains(req.Channels, ac.Type) {
+			chans = append(chans, ac)
+		}
+	}
+	if len(chans) == 0 {
+		return nil, nil
 	}
 	appLink := s.link("/response")
 	base := channel.Message{ID: req.ID, Kind: "approval", Severity: string(req.Severity), Title: req.Title, What: req.What, Action: req.Action, Link: appLink}
+	if req.InAppOnly {
+		base.Action = "Open Vedette and approve it in the app with your two-step code."
+	}
 	type outgoing struct {
 		snd       channel.Sender
 		msg       channel.Message // what is sent (may hold a token)
@@ -71,7 +95,7 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 	var plan []outgoing
 	type skipped struct{ user, reason string }
 	var skips []skipped // approvers who no longer qualify: no link is minted and nothing is mailed to them
-	linkOK := s.cfg.Tokens != nil && ApprovalViaChannelAllowed("email", req.Risk) == nil
+	linkOK := s.cfg.Tokens != nil && !req.InAppOnly && ApprovalViaChannelAllowed("email", req.Risk) == nil
 	for _, ac := range chans {
 		c, err := loadChannel(ctx, s.cfg.DB.Reader(), ac.Type)
 		if err != nil {
@@ -159,6 +183,32 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 		s.cfg.Log.WarnContext(ctx, "approval request: approver skipped", "user", k.user, "reason", k.reason)
 	}
 	return out, nil
+}
+
+// VerifyApprovalLink checks the format and the MAC of an approval link token against the binding stored with it and the key
+// named by keyID (PRE-7, spec approval-tokens.md 4). It writes nothing and burns nothing: reading the confirmation page
+// calls it, and the module response burns the token in the transaction of the decision. It never creates the key: a
+// missing key is ErrApprovalKeyUnavailable, never a new key (a new key could not have signed any link). A token that
+// is malformed (any length), a binding that differs in any field and an unknown keyID are ErrTokenInvalid, refused before
+// the key store is read. Expiry is not checked here: the record knows it, and response answers expired, not unknown.
+func (s *Service) VerifyApprovalLink(ctx context.Context, token string, b Binding, keyID string) (TokenID, error) {
+	// Cheap checks first, so junk of any size never costs a database read.
+	id, err := ParseApprovalToken(token)
+	if err != nil || b.check() != nil || keyID != approvalKeyID {
+		return id, ErrTokenInvalid
+	}
+	secretID, err := coredb.New(s.cfg.DB.Reader()).GetSecretIDByPurpose(ctx, approvalKeyPurpose)
+	if errors.Is(err, sql.ErrNoRows) {
+		return id, ErrApprovalKeyUnavailable
+	}
+	if err != nil {
+		return id, fmt.Errorf("notify: find approval key: %w", err)
+	}
+	key, err := s.cfg.Secrets.Open(ctx, s.cfg.DB.Reader(), secretID, approvalKeyPurpose)
+	if err != nil {
+		return id, fmt.Errorf("%w: %w", ErrApprovalKeyUnavailable, err)
+	}
+	return verifyMAC(key, token, b)
 }
 
 // approverProblem re-checks an approver before a link is minted for them (the saved list may be old): the user must still

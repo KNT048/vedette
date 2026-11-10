@@ -48,7 +48,7 @@ func TestApprovalSkipsApproversWhoNoLongerQualify(t *testing.T) {
 			c.change(&u)
 			e.users.users["u-op"] = u
 			e.users.mu.Unlock()
-			sv, err := e.svc.SendApprovalRequest(e.ctx(), notify.ApprovalRequest{ID: "req-1", Title: "Block x", Severity: notify.High, Risk: notify.RiskLow, Expires: e.clock.Now().Add(15 * time.Minute)})
+			sv, err := e.svc.SendApprovalRequest(e.ctx(), notify.ApprovalRequest{ID: "req-1", Title: "Block x", Severity: notify.High, Risk: notify.RiskLow, Expires: e.clock.Now().Add(15 * time.Minute), Channels: allApprovalChannels})
 			if err != nil || len(sv) != 1 {
 				t.Fatalf("sends = %+v, %v", sv, err)
 			}

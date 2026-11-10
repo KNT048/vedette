@@ -68,11 +68,44 @@ func (m CodeMailer) SendCode(ctx context.Context, to, code string) error {
 	if err != nil {
 		return errCodeSettings
 	}
-	cctx, cancel := context.WithTimeout(ctx, codeSendTimeout)
-	defer cancel()
-	_, err = snd.Send(cctx, channel.Message{ID: store.NewID("code"), Kind: "test", Severity: string(Info), Title: "Your Vedette sign-in code",
+	return m.send(ctx, snd, channel.Message{ID: store.NewID("code"), Kind: "test", Severity: string(Info), Title: "Your Vedette sign-in code",
 		What: "Your sign-in code is " + code + ". It expires in 10 minutes. If you did not try to sign in, tell your administrator.",
 		Link: s.link("/login")})
+}
+
+// SendStepUpCode mails a step-up code (core/auth.StepUpMailer, D-98): the same SMTP path, the same availability and the same
+// fixed errors as SendCode, but the message says what is being approved so it cannot be taken for a sign-in code.
+// summary is one line built by the server; it still goes through the line cleaner of the channel package (control and bidi
+// characters, line breaks). There is no link in the message and nothing in it but the code. The code is not logged or stored.
+func (m CodeMailer) SendStepUpCode(ctx context.Context, to, code, summary string) error {
+	s := m.s
+	if ok, _ := s.EmailReady(ctx); !ok {
+		return ErrEmailNotReady
+	}
+	rcpt, err := channel.ParseRecipients(to)
+	if err != nil || len(rcpt) != 1 {
+		return errCodeAddress
+	}
+	c, err := loadChannel(ctx, s.cfg.DB.Reader(), channel.Email)
+	if err != nil {
+		return errCodeSettings
+	}
+	snd, err := s.savedSender(ctx, c, rcpt)
+	if err != nil {
+		return errCodeSettings
+	}
+	what := channel.Line(summary, 300)
+	if what == "" {
+		what = "an action in Vedette"
+	}
+	return m.send(ctx, snd, channel.Message{ID: store.NewID("code"), Kind: "test", Severity: string(Info), Title: "Your Vedette approval code",
+		What: "You are asked to approve: " + what + "\n\nYour approval code is " + code + ". It expires in 10 minutes.\nIf this was not you, do not share the code."})
+}
+
+func (m CodeMailer) send(ctx context.Context, snd channel.Sender, msg channel.Message) error {
+	cctx, cancel := context.WithTimeout(ctx, codeSendTimeout)
+	defer cancel()
+	_, err := snd.Send(cctx, msg)
 	if err != nil {
 		var se *channel.StatusError
 		if errors.As(err, &se) {

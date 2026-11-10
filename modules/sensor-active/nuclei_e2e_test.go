@@ -128,7 +128,7 @@ func TestEndToEndAnotherPackIsRefusedAndNothingRuns(t *testing.T) {
 	q := e.req()
 	q.PackSHA256 = strings.Repeat("0", 64)
 	_, err := e.d.RunNuclei(t.Context(), q)
-	if !errors.Is(err, sa.ErrPackMismatch) || !errors.Is(err, sa.ErrScannerUnavailable) {
+	if !errors.Is(err, sa.ErrPackMismatch) || errors.Is(err, sa.ErrScannerUnavailable) {
 		t.Fatalf("err = %v", err)
 	}
 	if e.nu.Argv() != "" {

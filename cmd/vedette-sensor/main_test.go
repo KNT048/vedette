@@ -242,3 +242,17 @@ func TestVirtualLinksAreNotCards(t *testing.T) {
 		}
 	}
 }
+
+// The worker empties -nuclei-home before every run: "/" and paths that are not clean are refused when the flags are parsed.
+func TestNucleiHomeFlagIsRefusedWhenDangerous(t *testing.T) {
+	t.Parallel()
+	for _, h := range []string{"/", "", "relative", "/tmp/../", "/tmp/a/..", "/tmp//x", "/tmp/x/", "/tmp/./x"} {
+		err := run(t.Context(), []string{"active", "--nuclei-home", h, "--creds", "/nonexistent/sensor.pem"}, &bytes.Buffer{}, slog.New(slog.DiscardHandler))
+		if err == nil || !strings.Contains(err.Error(), "-nuclei-home") {
+			t.Errorf("-nuclei-home %q: %v", h, err)
+		}
+	}
+	if err := validNucleiHome("/tmp/vedette-nuclei"); err != nil {
+		t.Errorf("the default is refused: %v", err)
+	}
+}

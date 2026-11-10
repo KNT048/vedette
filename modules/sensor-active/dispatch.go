@@ -75,6 +75,9 @@ type Dispatcher struct {
 	haveBeat bool
 	nmap     sensorlink.HeartbeatNmap
 	nuclei   sensorlink.HeartbeatNuclei
+
+	packInvalid    bool   // the worker found the image's pack damaged (pack_invalid): not trusted until the image holds another pack
+	packInvalidSHA string // the pack hash the heartbeat reported when it happened
 }
 
 // slot is the state of one kind of job. At most one job of the kind is handed to the worker at a time.
@@ -174,21 +177,29 @@ func (d *Dispatcher) NmapHealth() string {
 		return "the scan worker has not reported for 90 seconds; active discovery cannot run until it does"
 	case d.nmapSlot.overrun != "":
 		return "the scan worker ran a job past its time limit; core has told it to stop, and active discovery waits until it has"
+	case len(d.orphans) > 0:
+		return orphanMessage("active discovery")
 	case !d.nmap.Present:
 		return "nmap is not installed in the scan container; active discovery cannot run until the scan image is rebuilt"
 	}
 	return ""
 }
 
+// orphanMessage is what both health messages say while the worker names a job core does not know (one it gave up, or one of a
+// core that restarted): it has been told to stop it, and no job of either kind goes out until it has.
+func orphanMessage(what string) string {
+	return "the scan worker is still running a job that core does not know; core has told it to stop, and " + what + " waits until it has"
+}
+
 // NucleiHealth is "" when the worker can run nuclei with a template pack, otherwise what the status page says (D-125 (5)):
 // no heartbeat for 90 s, nuclei missing, or no pack in the image.
 func (d *Dispatcher) NucleiHealth() string {
-	msg, _ := d.nucleiProblem()
+	msg, _ := d.nucleiProblem(true)
 	return msg
 }
 
 // nucleiProblem is NucleiHealth with the error that goes with the message (nil base when there is no problem).
-func (d *Dispatcher) nucleiProblem() (msg string, base error) {
+func (d *Dispatcher) nucleiProblem(forHealth bool) (msg string, base error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	now := d.now()
@@ -198,6 +209,10 @@ func (d *Dispatcher) nucleiProblem() (msg string, base error) {
 		return "the scan worker has not reported for 90 seconds; vulnerability scanning cannot run until it does", ErrScanWorkerUnavailable
 	case d.nucSlot.overrun != "":
 		return "the scan worker ran a nuclei job past its time limit; core has told it to stop, and vulnerability scanning waits until it has", ErrScannerUnavailable
+	case forHealth && len(d.orphans) > 0: // a status message only: a request still queues and waits for the worker to be free
+		return orphanMessage("vulnerability scanning"), ErrScannerUnavailable
+	case d.packInvalid && d.nuclei.Pack.SHA256 == d.packInvalidSHA:
+		return "ERROR: the template pack in the scan image failed its integrity check (a changed file, or a link or special file in it); vulnerability scanning is off until the scan image is replaced", ErrPackInvalid
 	case !d.nuclei.Present:
 		return "nuclei is not installed in the scan container; vulnerability scanning cannot run until the scan image is rebuilt", ErrNucleiMissing
 	case d.nuclei.Pack.SHA256 == "":
@@ -391,6 +406,7 @@ func (d *Dispatcher) pollLocked(running []string) (rep sensorlink.JobsReply, rea
 			d.finishLocked(s, j, nil, ErrWorkerLost)
 		}
 	}
+	answerNow := false
 	var blocked [2]bool // a slot whose kind the worker is not free for: it still names a job core cannot place in the other slot
 	for _, id := range running {
 		var owner *slot
@@ -418,8 +434,7 @@ func (d *Dispatcher) pollLocked(running []string) (rep sensorlink.JobsReply, rea
 			// hand and the next job does not wait for a long poll to run out.
 			blocked[slices.Index(slots[:], owner)] = true
 			if !owner.doneSent {
-				owner.doneSent = true
-				return rep, true
+				owner.doneSent, answerNow = true, true // the rest of the ids of this poll are still handled below
 			}
 		default:
 			j := owner.running
@@ -441,6 +456,9 @@ func (d *Dispatcher) pollLocked(running []string) (rep sensorlink.JobsReply, rea
 		if s.overrun != "" && !slices.Contains(running, s.overrun) {
 			s.overrun = "" // the worker is free of it
 		}
+	}
+	if answerNow {
+		return rep, true
 	}
 	for i, s := range slots {
 		if j := s.pending; j != nil {

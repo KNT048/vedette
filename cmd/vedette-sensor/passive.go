@@ -40,11 +40,11 @@ func runPassive(ctx context.Context, args []string, stdout io.Writer, logger *sl
 	if fs.NArg() != 0 {
 		return fmt.Errorf("unexpected argument %q", fs.Arg(0))
 	}
-	link, err := sensorlink.NewClient(sensorlink.ClientOptions{BaseURL: *coreURL, CredsPath: *creds})
+	client, err := sensorlink.NewClient(sensorlink.ClientOptions{BaseURL: *coreURL, CredsPath: *creds})
 	if err != nil {
 		return err
 	}
-	r, err := capture.New(capture.Config{Link: link, Interfaces: osInterfaces, Version: version, Log: logger})
+	r, err := capture.New(capture.Config{Link: withBeat(client, heartbeatPath, logger), Interfaces: osInterfaces, Version: version, Log: logger})
 	if err != nil {
 		return err
 	}

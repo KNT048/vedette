@@ -16,7 +16,7 @@
 - `host/config`: thêm khoá tuỳ chọn `core_data`, `ValidDataDir`; khoá bắt buộc `core_gid` (D-87: chủ tệp khôi phục là `core_uid:core_gid`).
 - `host/api`: `ops.go` (args, kết quả, mã lỗi của lệnh hệ thống); `host/client`: `OSCheck`, `OSInstall` (nhận `snapshot`), `OSAutoSecuritySet`, `OSReboot`, `OSRebootCancel`, `BackupCreate`, `BackupRestore` (nhận `snapshot`), `LogsExport`, `StateOS`, `StateBackups`, `DownloadBackup`, `DownloadExport`, `ResultOf[T]`.
 - `host/client`: `New(socket)`, `Info`, `Run(ctx, command, args, requestID, actor)`, `GetRun`, `ListRuns`, `Audit`, `Events(ctx, runID, after)` (`Stream.Next` nối lại bằng `Last-Event-ID`), `ErrUnreachable`, `ErrDenied`, `ErrStreamLost`, `ErrEventTooLarge`, `*Error`, `IsCode`.
-- `core/exec`: thêm `Binary.Env` (KEY=value bổ sung sau `PATH`/`LANG`; chỉ khoá `DEBIAN_FRONTEND` được phép; không thừa hưởng môi trường cha).
+- `core/exec`: thêm `Binary.Env` (KEY=value bổ sung sau `PATH`/`LANG`; chỉ khoá `DEBIAN_FRONTEND` và `HOME` (đường dẫn tuyệt đối, sạch, khác `/`; cho nuclei trong `scan`, D-133) được phép; `Binary.MaxStderr` tuỳ chọn cho stderr một trần riêng không đặt `Truncated`; không thừa hưởng môi trường cha).
 - `host/config`: thêm khoá tuỳ chọn `core_cgroup`; `golang.org/x/sys` thành phụ thuộc trực tiếp (Linux).
 - `cmd/vedette-host`: cờ `-config -socket -state-dir -audit-log -version`.
 

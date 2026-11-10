@@ -554,3 +554,14 @@ func TestKindlessJobStillRunsAsNmap(t *testing.T) {
 		t.Fatalf("result = %+v", got.res)
 	}
 }
+
+// Truncated means stdout: a flood on stderr (kept to 64 KiB in memory, never posted) does not make a good run "truncated".
+func TestNucleiStderrFloodDoesNotMeanTruncated(t *testing.T) {
+	t.Parallel()
+	r := startNuclei(t, "head -c 5242880 /dev/zero >&2\n"+printJSONL)
+	r.core.push(r.job(id1))
+	got := r.core.next(t)
+	if got.res.Status != "done" || got.res.Truncated || string(got.res.JSONL()) != jsonlLine {
+		t.Fatalf("result = %+v", got.res)
+	}
+}

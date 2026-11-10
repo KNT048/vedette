@@ -81,7 +81,7 @@ Thu hồi chủ động không có giao diện (D-115); thu hồi = xoay vòng (
 | `passive` | `GET /sensor/v1/config?wait=<0..30>` | — | `200` cấu hình + `ETag`, hoặc `304` |
 | `passive` | `POST /sensor/v1/observations` | ≤ 1 MiB | `200 {ack_seq, rejected[]}` |
 | `passive`, `active` | `POST /sensor/v1/heartbeat` | ≤ 64 KiB | `200 {instance}` |
-| `active` | `GET /sensor/v1/jobs?wait=<0..30>&running=<id\|>` | — | `200 {instance, jobs[], cancel[]}` |
+| `active` | `GET /sensor/v1/jobs?wait=<0..30>&running=<id[,id]>` (`running` rỗng hoặc bỏ trống khi rảnh; ≤ 2 id, bản 2) | — | `200 {instance, jobs[], cancel[]}` |
 | `active` | `POST /sensor/v1/jobs/{id}/result` | ≤ 11 MiB | `204` |
 
 Mọi cặp (method, đường dẫn) khác, kể cả route của vai kia → `403 forbidden_route`, kiểm **trước khi đọc thân**. Mỗi vai tối đa **một** long-poll đang mở; cái thứ hai → `409 poll_in_progress`. Module của vai tắt (`sensor-passive` cho `passive`, `sensor-active` cho `active`) → mọi route của vai `409 module_off`.
@@ -205,7 +205,7 @@ Heartbeat không có trong 90 s không xoá dữ liệu nào; chỉ đổi trạ
 | `jobs[].rate` | (nmap) 1 … 1000; `gentle` luôn `1` |
 | `jobs[].targets` | (nmap) 1 … 64 IPv4 riêng (RFC 1918), chính tắc, không trùng (văn phạm `ValidateNmapArgs`) |
 | `jobs[].timeout_s` | nmap: 1 … 7200 = min(hết cửa sổ, 2 giờ); nuclei: 1 … 3600 = min(hạn của ngữ cảnh probe, 1 giờ); do `core` tính lúc giao |
-| `jobs[].pack` (nuclei) | `{version, sha256}` của gói mẫu mà `core` đã chọn mẫu theo; worker từ chối khi chỉ mục trong image khác (`pack_mismatch`) |
+| `jobs[].pack` (nuclei) | `{version, sha256}` của gói mẫu mà `core` đã chọn mẫu theo; worker từ chối khi chỉ mục trong image khác (`pack_mismatch`). `sha256` là **nhãn** do bộ dựng gói ghi trong chỉ mục (`pack.Index.SHA256`), không phải hàm băm worker tự tính; thứ được băm lại là từng tệp mẫu được chọn, so với `sha256` của mục tương ứng trong chỉ mục. `core` cũng so nhãn này với heartbeat **trước khi giao** (`ErrPackMismatch`, không thử lại); `pack_invalid` (băm lệch, link trong gói) là tín hiệu toàn vẹn: `ErrPackInvalid`, log ERROR, không thử lại |
 | `jobs[].templates` (nuclei) | 1 … 32 **id** mẫu (`^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$`), không trùng; không đường dẫn, không URL, không YAML (D-111 (3)). Worker đổi id thành đường dẫn bằng chỉ mục đã kiểm (D-136 (6)); id không có trong chỉ mục → `invalid_job` |
 | `jobs[].targets` (nuclei) | 1 … 16 `{host, port, scheme}`: `host` là IPv4 riêng RFC 1918 dạng chuẩn, không `.0`/`.255` (**không tên miền**, không IP công khai, loopback, link-local, CGNAT, benchmark, 240/4; D-136 (4)), `port` 1..65535, `scheme` `"http"` \| `"https"` \| `""` (mẫu mạng, `host:port`); không trùng |
 | `jobs[].rate` / `max_host_errors` (nuclei) | `rate` 1 … 20 (`-rl`), `max_host_errors` 2 … 20 (`-mhe`) |
@@ -225,7 +225,8 @@ Trên dây **không** có argv, cờ, đường dẫn, URL hay phạm vi (D-111 
 - Job `nuclei` (bản 2): kiểm lại bằng `nucleiargv` (số lượng, mục tiêu IPv4 riêng, `rate`, `max_host_errors`), `timeout_s` 1..3600, **gói** (`pack.version` và `pack.sha256` phải bằng chỉ mục trong image, không thì `refused`/`pack_mismatch`), từng id mẫu phải có trong chỉ mục (không thì `invalid_job`); rồi đi qua **cả cây gói** bằng `Lstat`: chỉ thư mục và tệp thường, một symlink, fifo, socket hay thiết bị ở bất cứ đâu → `refused`/`pack_invalid`; băm SHA-256 từng tệp mẫu được chọn (mở bằng `os.Root`) và so với chỉ mục (lệch → `pack_invalid`). Chạy `/usr/local/bin/nuclei` qua `core/exec` với argv của `nucleiargv.Build` (mỗi mẫu một `-t <TemplatesDir>/<đường dẫn>`, không bao giờ cả thư mục), **môi trường sạch** (chỉ `PATH`, `LANG=C` và `HOME` do `core/exec` đặt; không `*_PROXY`, `ENABLE_CLOUD_UPLOAD`, `PDCP_API_KEY`, không gì của tiến trình cha), `HOME` là thư mục rỗng mới trên tmpfs (xoá và tạo lại trước mỗi lần chạy; không có `~/.config/nuclei`), nhóm tiến trình riêng, hạn `timeout_s`, stdout trần 4 MiB (`Truncated`); **stderr không bao giờ gửi**. Thiếu binary → `failed`/`nuclei_missing`. Kết quả là JSONL thô trong `jsonl_b64`; `core` phân tích đóng khi lỗi (`nucleiout`).
 - **Huỷ**: id có trong `cancel` → giết nhóm tiến trình, kết quả `stopped` (`cancelled`).
 - **Lease**: 60 s không có lần poll `200` nào, hoặc `instance` khác `instance` lúc nhận job → giết nhóm tiến trình và **bỏ** kết quả (bên giao job đã không còn). `core` sập không để lại nmap mồ côi.
-- Trong lúc chạy vẫn long-poll liên tục với `running=<id>`.
+- Trong lúc chạy vẫn long-poll liên tục với `running=<id>` (bản 2: `running=<id>,<id>` khi cả hai khe bận).
+- Trong lúc một kết quả đang được gửi, vòng poll chờ (`waitPost`, tối đa bằng lease): khe kia không được poll trong thời gian đó, nên một job mới của nó chờ tới khi kết quả gửi xong (chấp nhận: kết quả ≤ 11 MiB, 60 s).
 
 ### 6.5 `POST /sensor/v1/jobs/{id}/result` (active)
 

@@ -58,7 +58,7 @@ func newNuclei(c Config) ([]exec.Binary, nucleiConfig, error) {
 		}
 	}
 	return []exec.Binary{
-		{Name: nucleiBin, Path: c.NucleiPath, Validate: nucleiargv.Validate, MaxOutput: nucleiargv.MaxOutput, Env: []string{"HOME=" + nc.runHome}},
+		{Name: nucleiBin, Path: c.NucleiPath, Validate: nucleiargv.Validate, MaxOutput: nucleiargv.MaxOutput, MaxStderr: 64 << 10, Env: []string{"HOME=" + nc.runHome}}, // stderr is never posted: 64 KiB of it is kept in memory, and it cannot make a run "truncated"
 		{Name: nucleiVer, Path: c.NucleiPath, Validate: validNucleiVersionArgs, MaxOutput: 64 << 10, Env: []string{"HOME=" + probeHome}},
 	}, nc, nil
 }

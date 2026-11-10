@@ -26,9 +26,13 @@ var (
 	ErrScannerUnavailable    = errors.New("sensoractive: the vulnerability scanner is not available")
 	ErrScanWorkerUnavailable = fmt.Errorf("%w: worker_unavailable", ErrScannerUnavailable)
 	ErrNucleiMissing         = fmt.Errorf("%w: nuclei_missing", ErrScannerUnavailable)
-	// ErrPackMismatch: the template pack in the scan image is not the one the job was planned against (or is not a pack that
-	// checks out). Nothing was sent.
-	ErrPackMismatch    = fmt.Errorf("%w: pack_mismatch", ErrScannerUnavailable)
+	// ErrPackMismatch: the template pack in the scan image is not the one the request was planned against. Nothing was sent, and
+	// asking again with the same request cannot succeed: it is not ErrScannerUnavailable (core's pack and the image's pack come
+	// from different releases; an update or a new plan fixes it).
+	ErrPackMismatch = errors.New("sensoractive: pack_mismatch")
+	// ErrPackInvalid: the worker found the image's template pack damaged (a file whose hash is not the index's, a link or a
+	// special file in the tree): an integrity signal, never retried, logged at ERROR; not ErrScannerUnavailable.
+	ErrPackInvalid     = errors.New("sensoractive: pack_invalid: the template pack in the scan image failed its integrity check")
 	ErrOutputTruncated = errors.New("sensoractive: nuclei printed more than the limit; its output is discarded")
 	errJSONLTooBig     = errors.New("nuclei output is larger than the limit")
 )
@@ -67,7 +71,7 @@ var (
 // Ready implements Scanner (and scan.Engine). The error says which of the reasons it is: ErrScanWorkerUnavailable,
 // ErrNucleiMissing, or ErrScannerUnavailable alone (an overrun not yet stopped, no pack); all of them wrap ErrScannerUnavailable.
 func (d *Dispatcher) Ready(context.Context) error {
-	msg, base := d.nucleiProblem()
+	msg, base := d.nucleiProblem(false)
 	if msg == "" {
 		return nil
 	}
@@ -94,12 +98,26 @@ func (r NucleiRequest) check() error {
 	return nil
 }
 
+// checkPack compares the pack the request needs with the pack of the worker's latest heartbeat, before anything is sent.
+func (d *Dispatcher) checkPack(r NucleiRequest) error {
+	d.mu.Lock()
+	have := d.nuclei.Pack
+	d.mu.Unlock()
+	if have.Version != r.PackVersion || have.SHA256 != r.PackSHA256 {
+		return fmt.Errorf("%w: the scan image has template pack %s (%.12s), the request needs %s (%.12s)", ErrPackMismatch, have.Version, have.SHA256, r.PackVersion, r.PackSHA256)
+	}
+	return nil
+}
+
 // RunNuclei implements Scanner.
 func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) ([]nucleiout.Result, error) {
 	if err := r.check(); err != nil {
 		return nil, fmt.Errorf("sensoractive: %w", err)
 	}
 	if err := d.Ready(ctx); err != nil {
+		return nil, err
+	}
+	if err := d.checkPack(r); err != nil {
 		return nil, err
 	}
 	if err := ctx.Err(); err != nil {
@@ -144,9 +162,16 @@ func (d *Dispatcher) nucleiOutcome(j *djob) ([]byte, error) {
 	}
 	res := j.res
 	switch {
-	case res.Status == "refused" && (res.Reason == "pack_mismatch" || res.Reason == "pack_invalid"):
-		d.log.Error("sensor_active_worker_refused_job", "reason", res.Reason) // the image's pack is not the pack core planned with, or is damaged
+	case res.Status == "refused" && res.Reason == "pack_mismatch":
+		d.log.Error("sensor_active_worker_refused_job", "reason", res.Reason) // the image's pack is not the pack core planned with
 		return nil, ErrPackMismatch
+	case res.Status == "refused" && res.Reason == "pack_invalid":
+		d.mu.Lock()
+		d.packInvalid, d.packInvalidSHA = true, d.nuclei.Pack.SHA256 // until the image holds another pack
+		ver := d.nuclei.Pack.Version
+		d.mu.Unlock()
+		d.log.Error("sensor_active_template_pack_failed_its_integrity_check", "pack", ver) // tampering or a damaged image
+		return nil, ErrPackInvalid
 	case res.Status == "refused":
 		d.log.Error("sensor_active_worker_refused_job", "reason", res.Reason)
 		return nil, fmt.Errorf("%w (%s)", ErrWorkerRefused, res.Reason)

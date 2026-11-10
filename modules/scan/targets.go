@@ -137,6 +137,9 @@ func (s *Service) Targets(ctx context.Context) ([]TargetView, error) {
 		if err != nil {
 			return nil, err
 		}
+		if r == ReasonGone {
+			continue
+		}
 		v := TargetView{ID: d.ID, Kind: "internal", DeviceKind: ptr(d.Kind), Label: d.Label, IP: d.IP, Fragile: d.Fragile || d.Kind == "unknown"}
 		if tr := targetReason(r); tr != "" {
 			v.Reason = ptr(tr)

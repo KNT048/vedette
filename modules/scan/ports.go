@@ -33,6 +33,9 @@ type Decision struct {
 	IP      string // the address the decision was made for
 }
 
+// ReasonGone is the policy reason of a device deleted since the device list was read (review L6): it leaves the list.
+const ReasonGone = "gone"
+
 // Policy reasons of the inventory that scan maps to its own (contract.ts ScanTarget.reason).
 const (
 	reasonBox        = "box"

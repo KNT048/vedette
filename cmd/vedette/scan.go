@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -97,6 +98,9 @@ func (s scanInventory) VulnScanPolicy(ctx context.Context, assetID string, expli
 		return scan.Decision{}, fmt.Errorf("vedette: scan: the inventory is not wired")
 	}
 	dec, err := s.inv.VulnScanPolicy(ctx, assetID, explicit)
+	if errors.Is(err, inventory.ErrNotFound) { // deleted since the device list was read: it leaves the list (scan review L6)
+		return scan.Decision{Reason: scan.ReasonGone}, nil
+	}
 	if err != nil {
 		return scan.Decision{}, err
 	}

@@ -267,18 +267,31 @@ func TestBackupPurge(t *testing.T) {
 		})
 	}
 	h := servertest.Start(t, []server.Command{purge(func() (any, error) { return api.BackupPurgeResult{Deleted: 4}, nil })})
-	n, err := h.Client.BackupPurge(ctx, "admin@example.com")
-	if err != nil || n != 4 || calls != 1 {
-		t.Fatalf("n %d calls %d err %v", n, calls, err)
+	n, id, err := h.Client.BackupPurge(ctx, rid, "admin@example.com")
+	if err != nil || n != 4 || calls != 1 || id == "" {
+		t.Fatalf("n %d calls %d id %q err %v", n, calls, id, err)
 	}
-	// A failed run is an error that names the code, not a count.
+	// The same request id is the same run: nothing runs twice.
+	if n2, id2, err := h.Client.BackupPurge(ctx, rid, "admin@example.com"); err != nil || n2 != 4 || id2 != id || calls != 1 {
+		t.Fatalf("replay: n %d id %q calls %d err %v", n2, id2, calls, err)
+	}
+	// A failed run is an error that names the code, not a count; the run id is still returned.
 	h = servertest.Start(t, []server.Command{purge(func() (any, error) { return nil, &server.Failure{Code: "purge_failed", Message: "no"} })})
-	if n, err := h.Client.BackupPurge(ctx, "admin@example.com"); err == nil || n != 0 || !strings.Contains(err.Error(), "purge_failed") {
-		t.Fatalf("n %d err %v", n, err)
+	if n, id, err := h.Client.BackupPurge(ctx, rid, "admin@example.com"); err == nil || n != 0 || id == "" || !strings.Contains(err.Error(), "purge_failed") {
+		t.Fatalf("n %d id %q err %v", n, id, err)
 	}
+	// A context that ends while the run is still going returns the run id, so the caller can ask again.
+	release := make(chan struct{})
+	h = servertest.Start(t, []server.Command{purge(func() (any, error) { <-release; return api.BackupPurgeResult{}, nil })})
+	short, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
+	defer cancel()
+	if _, id, err := h.Client.BackupPurge(short, rid, "admin@example.com"); !errors.Is(err, context.DeadlineExceeded) || id == "" {
+		t.Fatalf("id %q err %v", id, err)
+	}
+	close(release)
 	// A host without the command (older) is a typed 404.
 	h = servertest.Start(t, nil)
-	if _, err := h.Client.BackupPurge(ctx, "admin@example.com"); !client.IsCode(err, api.CodeUnknownCommand) {
+	if _, _, err := h.Client.BackupPurge(ctx, rid, "admin@example.com"); !client.IsCode(err, api.CodeUnknownCommand) {
 		t.Fatalf("err %v", err)
 	}
 }

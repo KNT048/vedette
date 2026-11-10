@@ -2,8 +2,6 @@ package client
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -164,34 +162,32 @@ func ResultOf[T any](run api.Run) (T, error) {
 }
 
 // BackupPurge runs backup.purge (D-156): the host deletes every backup archive and its index, and
-// answers how many archives went. It waits for the run (a few files: a moment). A running write
-// is a *Error with code busy; a failed run is returned as an error with the run's code.
-func (c *Client) BackupPurge(ctx context.Context, actor string) (int, error) {
-	var id [16]byte
-	if _, err := rand.Read(id[:]); err != nil {
-		return 0, err
-	}
-	id[6], id[8] = id[6]&0x0f|0x40, id[8]&0x3f|0x80
-	h := hex.EncodeToString(id[:])
-	run, err := c.Run(ctx, api.CmdBackupPurge, nil, h[0:8]+"-"+h[8:12]+"-"+h[12:16]+"-"+h[16:20]+"-"+h[20:], actor)
+// answers how many archives went. requestID is the idempotency key (a UUID v4; retry with the
+// same one). It waits for the run (a few files: a moment) and returns the run id as soon as the
+// host has accepted it, also when ctx ends or an error follows, so the caller can ask
+// GetRun(runID) later. A running write is a *Error with code busy; a failed run is an error
+// with the run's code.
+func (c *Client) BackupPurge(ctx context.Context, requestID, actor string) (deleted int, runID string, err error) {
+	run, err := c.Run(ctx, api.CmdBackupPurge, nil, requestID, actor)
+	runID = run.RunID
 	for err == nil && !run.Status.Terminal() {
 		select {
 		case <-ctx.Done():
-			return 0, ctx.Err()
+			return 0, runID, ctx.Err()
 		case <-time.After(100 * time.Millisecond):
 		}
-		run, err = c.GetRun(ctx, run.RunID)
+		run, err = c.GetRun(ctx, runID)
 	}
 	if err != nil {
-		return 0, err
+		return 0, runID, err
 	}
 	if run.Status != api.StatusSucceeded {
 		code := "command_failed"
 		if run.Error != nil {
 			code = run.Error.Code
 		}
-		return 0, fmt.Errorf("host: backup.purge %s: %s", run.Status, code)
+		return 0, runID, fmt.Errorf("host: backup.purge %s: %s", run.Status, code)
 	}
 	res, err := ResultOf[api.BackupPurgeResult](run)
-	return res.Deleted, err
+	return res.Deleted, runID, err
 }

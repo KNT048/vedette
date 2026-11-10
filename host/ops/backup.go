@@ -372,18 +372,15 @@ func (o *Ops) sweepBackups() {
 	}
 }
 
-// archiveNameRE is the name of an archive the host wrote; hostTempRE is a temp file writeFileAtomic left.
-var (
-	archiveNameRE = regexp.MustCompile(`^[0-9a-f]{32}\.tar\.gz$`)
-	hostTempRE    = regexp.MustCompile(`^\.tmp-[0-9]+$`)
-)
-
 // cmdBackupPurge is backup.purge (spec 6.11a, D-156): delete every archive and the index. There is
 // still no way to delete one archive (D-85). It is a run like every command (the framework has no
 // synchronous kind), so it holds the write lock and a second write is busy.
 func (o *Ops) cmdBackupPurge() server.Command {
 	return server.Define(server.Spec[struct{}]{
 		Name: api.CmdBackupPurge, Write: true, Timeout: time.Minute,
+		// A pending or unrecoverable core transition refuses, as backup.create does (spec 6.11): the
+		// journal may name a backup the recovery still needs.
+		Check: func(context.Context, struct{}) error { return o.coreFree() },
 		Run: func(context.Context, *server.RunContext, struct{}) (any, error) {
 			n, err := o.purgeBackups()
 			if err != nil {
@@ -396,14 +393,42 @@ func (o *Ops) cmdBackupPurge() server.Command {
 	})
 }
 
-// purgeBackups deletes the index first (so a crash never leaves an entry without its file), then
-// every archive, through an os.Root on the store: only regular files with the exact names the host
-// writes; a link or any other name is left alone and a link is never followed. It returns the
-// number of archives deleted.
+// Names the purge deletes. Each is a name the host itself writes; anything else stays.
+var (
+	archiveNameRE = regexp.MustCompile(`^[0-9a-f]{32}\.tar\.gz$`)
+	exportNameRE  = regexp.MustCompile(`^[0-9a-f]{32}\.jsonl\.gz$`)
+	hostTempRE    = regexp.MustCompile(`^\.tmp-[0-9]+$`)         // writeFileAtomic's leftover
+	runTempFileRE = regexp.MustCompile(`^ex-[0-9]+$`)            // an export's temp file
+	runTempDirRE  = regexp.MustCompile(`^(bk|rs|rb|rv)-[0-9]+$`) // a backup, restore, rollback or revert temp directory
+)
+
+// purgeBackups deletes the host's own backup store and what hangs off it, under the write lock the
+// run holds: the archives and their index, the exports and theirs, and the temp files and
+// directories of finished or interrupted runs. Deleted, not overwritten. It returns the number of
+// archives deleted. The systemd journal is not the host's and is not touched.
 func (o *Ops) purgeBackups() (int, error) {
 	o.bkMu.Lock()
 	defer o.bkMu.Unlock()
-	r, err := openRootOf(o.backupDir())
+	o.exMu.Lock()
+	defer o.exMu.Unlock()
+	n, err := purgeDir(o.backupDir(), true, archiveNameRE, archiveNameRE, hostTempRE)
+	if _, e := purgeDir(o.exportDir(), true, nil, exportNameRE, hostTempRE); err == nil {
+		err = e
+	}
+	if _, e := purgeDir(o.stateFile("tmp"), false, nil, runTempFileRE, runTempDirRE); err == nil {
+		err = e
+	}
+	return n, err
+}
+
+// purgeDir deletes from one directory of the host's state, through an os.Root on it (no path is
+// walked, no link followed). With hasIndex the index.json goes first and is synced before anything
+// else, so a crash never leaves an index entry without its file (sweepBackups removes the orphans
+// at start-up). Then every regular file whose name matches one of files, and (os.Root.RemoveAll)
+// every directory whose name matches dirs; a link or any other name stays. It returns how many
+// regular files matching count it deleted. A directory that does not exist is nothing to do.
+func purgeDir(dir string, hasIndex bool, count *regexp.Regexp, files ...*regexp.Regexp) (int, error) {
+	r, err := openRootOf(dir)
 	if errors.Is(err, os.ErrNotExist) {
 		return 0, nil
 	}
@@ -411,8 +436,11 @@ func (o *Ops) purgeBackups() (int, error) {
 		return 0, err
 	}
 	defer func() { _ = r.Close() }()
-	if err := r.Remove("index.json"); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return 0, err
+	if hasIndex {
+		if err := r.Remove("index.json"); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return 0, err
+		}
+		syncDir(dir)
 	}
 	d, err := r.Open(".")
 	if err != nil {
@@ -426,18 +454,28 @@ func (o *Ops) purgeBackups() (int, error) {
 	n := 0
 	var first error
 	for _, e := range ents {
-		if !e.Type().IsRegular() || (!archiveNameRE.MatchString(e.Name()) && !hostTempRE.MatchString(e.Name())) {
-			continue
-		}
-		switch err := r.Remove(e.Name()); {
-		case err == nil:
-			if archiveNameRE.MatchString(e.Name()) {
+		var rerr error
+		switch {
+		case e.Type().IsRegular() && matchesAny(e.Name(), files):
+			if rerr = r.Remove(e.Name()); rerr == nil && count != nil && count.MatchString(e.Name()) {
 				n++
 			}
-		case !errors.Is(err, os.ErrNotExist) && first == nil:
-			first = err
+		case e.IsDir() && e.Type()&os.ModeSymlink == 0 && matchesAny(e.Name(), files):
+			rerr = r.RemoveAll(e.Name())
+		}
+		if rerr != nil && !errors.Is(rerr, os.ErrNotExist) && first == nil {
+			first = rerr
 		}
 	}
-	syncDir(o.backupDir())
+	syncDir(dir)
 	return n, first
+}
+
+func matchesAny(name string, res []*regexp.Regexp) bool {
+	for _, re := range res {
+		if re.MatchString(name) {
+			return true
+		}
+	}
+	return false
 }

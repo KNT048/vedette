@@ -2,6 +2,7 @@ package host_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -33,8 +34,48 @@ func TestContract_BackupPurge_DeletesEveryArchiveAndTheIndexAndFollowsNoLink(t *
 			t.Fatal(err)
 		}
 	}
+	// The host's own leftovers: a writeFileAtomic temp in the store, an export with its index, a temp
+	// file of an export and temp directories of runs, plus a link with a temp name that must stay.
+	state := e.m.State
+	plant := func(rel, content string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(state, rel)), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(state, rel), []byte(content), 0o600); err != nil { //nolint:gosec // a fixed relative name in the test's temp state
+			t.Fatal(err)
+		}
+	}
+	plant("backups/.tmp-123", "x")
+	plant("exports/index.json", `{"exports":[]}`)
+	plant("exports/"+strings.Repeat("d", 32)+".jsonl.gz", "x")
+	plant("tmp/ex-777", "x")
+	plant("tmp/bk-1/archive.tar.gz", "x")
+	plant("tmp/rs-2/sub/vedette.db", "x")
+	if err := os.Symlink(filepath.Dir(outside), filepath.Join(state, "tmp", "rb-3")); err != nil {
+		t.Fatal(err)
+	}
 	coreBefore := e.m.DB()
+	keyBefore, _ := os.ReadFile(filepath.Join(e.m.CoreData, "vedette.key"))
+	snapsBefore, _ := os.ReadDir(filepath.Join(e.m.CoreData, "snapshots"))
 	r := e.ok(t, api.CmdBackupPurge, struct{}{})
+	for _, rel := range []string{"backups/.tmp-123", "exports/index.json", "exports/" + strings.Repeat("d", 32) + ".jsonl.gz", "tmp/ex-777", "tmp/bk-1", "tmp/rs-2"} {
+		if _, err := os.Lstat(filepath.Join(state, rel)); !errors.Is(err, os.ErrNotExist) {
+			t.Errorf("%s is still there (%v)", rel, err)
+		}
+	}
+	if _, err := os.Lstat(filepath.Join(state, "tmp", "rb-3")); err != nil {
+		t.Errorf("a link named like a temp directory was removed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(outside))); err != nil {
+		t.Fatalf("the link target is gone: %v", err)
+	}
+	if key, _ := os.ReadFile(filepath.Join(e.m.CoreData, "vedette.key")); string(key) != string(keyBefore) || len(keyBefore) == 0 {
+		t.Error("core's key was touched")
+	}
+	if snaps, _ := os.ReadDir(filepath.Join(e.m.CoreData, "snapshots")); len(snaps) != len(snapsBefore) || len(snaps) == 0 {
+		t.Errorf("core's snapshots/ changed: %d -> %d", len(snapsBefore), len(snaps))
+	}
 	if res := result[api.BackupPurgeResult](t, r); res.Deleted != 4 {
 		t.Fatalf("deleted %d", res.Deleted)
 	}
@@ -120,5 +161,76 @@ func TestContract_BackupPurge_ThenAnUnsafeCoreRollbackRefusesWithBackupMissing(t
 	e.untouched(t, "gone", "core", before)
 	if e.m.DB() != "db: migrated, plus data written since the update" {
 		t.Fatal("the database was touched")
+	}
+}
+
+// A core transition that is pending, or that the host gave up on (unrecoverable), may still need a
+// backup: purge refuses at Check, like backup.create, and every archive survives (H1).
+func TestContract_BackupPurge_RefusesWhileCoreHasATransitionJournal(t *testing.T) {
+	t.Parallel()
+	e := startUpd(t)
+	e.m.InstallUnit(api.ServiceCore, d1, true)
+	e.m.SetRunning(api.ServiceCore, true)
+	var ids []string
+	for _, kind := range []string{"manual", "pre_update"} {
+		e.clock.Advance(time.Minute)
+		ids = append(ids, result[api.BackupResult](t, e.ok(t, api.CmdBackupCreate, api.BackupCreateArgs{Kind: kind, Snapshot: e.snap()})).BackupID)
+	}
+	for _, unrecoverable := range []bool{false, true} {
+		e.unrecoverable(t, unrecoverable)
+		e.refused(t, api.CmdBackupPurge, struct{}{}, 412, api.CodeTransitionPending)
+		for _, id := range ids {
+			if _, err := os.Stat(filepath.Join(e.m.State, "backups", id+".tar.gz")); err != nil {
+				t.Fatalf("unrecoverable=%v: a refused purge deleted %s: %v", unrecoverable, id, err)
+			}
+		}
+		if bl, err := e.h.Client.StateBackups(context.Background()); err != nil || len(bl.Backups) != 2 {
+			t.Fatalf("unrecoverable=%v: listing %+v %v", unrecoverable, bl, err)
+		}
+	}
+	if err := os.Remove(e.m.TransitionPath("core")); err != nil {
+		t.Fatal(err)
+	}
+	if res := result[api.BackupPurgeResult](t, e.ok(t, api.CmdBackupPurge, struct{}{})); res.Deleted != 2 {
+		t.Fatalf("deleted %d once the journal was gone", res.Deleted)
+	}
+}
+
+// A crash after the index went and before the archives did leaves orphans, never an index entry
+// without its file; the host's start-up sweep removes them.
+func TestContract_BackupPurge_ACrashAfterTheIndexLeavesOrphansThatStartUpRemoves(t *testing.T) {
+	t.Parallel()
+	e := startSys(t)
+	var ids []string
+	for _, kind := range []string{"manual", "pre_os_update"} {
+		e.clock.Advance(time.Minute)
+		ids = append(ids, result[api.BackupResult](t, e.ok(t, api.CmdBackupCreate, api.BackupCreateArgs{Kind: kind, Snapshot: e.snap()})).BackupID)
+	}
+	if err := os.Remove(filepath.Join(e.m.State, "backups", "index.json")); err != nil {
+		t.Fatal(err)
+	}
+	if bl, err := e.h.Client.StateBackups(context.Background()); err != nil || len(bl.Backups) != 0 {
+		t.Fatalf("an index without entries must list nothing: %+v %v", bl, err)
+	}
+	e.o.Start(context.Background(), e.h.Server) // what the host does at start: sweepBackups
+	t.Cleanup(e.o.Close)
+	for _, id := range ids {
+		if _, err := os.Stat(filepath.Join(e.m.State, "backups", id+".tar.gz")); !errors.Is(err, os.ErrNotExist) {
+			t.Errorf("orphan %s is still there (%v)", id, err)
+		}
+	}
+}
+
+// os.install after a purge still makes its own pre_os_update backup.
+func TestContract_BackupPurge_ThenOSInstallStillMakesItsBackup(t *testing.T) {
+	t.Parallel()
+	e := startSys(t)
+	e.installRules()
+	e.ok(t, api.CmdBackupCreate, api.BackupCreateArgs{Kind: "manual", Snapshot: e.snap()})
+	e.ok(t, api.CmdBackupPurge, struct{}{})
+	res := result[api.OSRunResult](t, e.ok(t, api.CmdOSInstall, api.OSInstallArgs{Snapshot: e.snap(), Scope: "all"}))
+	bl, err := e.h.Client.StateBackups(context.Background())
+	if err != nil || len(bl.Backups) != 1 || bl.Backups[0].BackupID != res.Backup || bl.Backups[0].Kind != "pre_os_update" {
+		t.Fatalf("backups %+v %v", bl, err)
 	}
 }

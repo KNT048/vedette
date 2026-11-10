@@ -170,18 +170,23 @@ func (s *Service) rescan(ctx context.Context, ev pendingEvent) error {
 	if now.Sub(ev.ts) < rescanSettle {
 		return nil
 	}
+	expired := now.Sub(ev.ts) > pendingFor
 	if s.cfg.Pack == nil || len(s.cfg.Pack.ForCVE(ev.cve)) == 0 {
-		if now.Sub(ev.ts) > pendingFor { // the template never reached the installed pack
-			return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-				_, err := tx.ExecContext(ctx, `DELETE FROM scan_event WHERE id = ?`, ev.id)
-				return err
-			})
+		if expired {
+			return s.dropEvent(ctx, ev, "its scan template never reached the installed pack")
 		}
 		return nil
 	}
 	// Wait first, before reading every finding and device (#164 review L1): try again at the next tick, still inside
-	// the 60 minutes, or when the scanner is back.
-	if s.liveRun() != "" || !s.scannerReady(ctx) {
+	// the 60 minutes, or when the scanner is back; a scanner that never comes back drops the event like a template
+	// that never comes (#164 review L3).
+	if s.liveRun() != "" {
+		return nil
+	}
+	if !s.scannerReady(ctx) {
+		if expired {
+			return s.dropEvent(ctx, ev, "the scanner was not ready for 7 days")
+		}
 		return nil
 	}
 	ids, names, first, err := s.affected(ctx, st, ev.cve)
@@ -206,6 +211,16 @@ func (s *Service) rescan(ctx context.Context, ev pendingEvent) error {
 	}
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, `UPDATE scan_event SET run_id = ?, latency_min = ?, devices = ? WHERE id = ?`, v.ID, latency, string(b), ev.id)
+		return err
+	})
+}
+
+// dropEvent removes an event that waited pendingFor without a scan, and says why in the log. The scheduled scan still
+// covers the CVE's devices.
+func (s *Service) dropEvent(ctx context.Context, ev pendingEvent, why string) error {
+	s.cfg.Log.WarnContext(ctx, "scan: a KEV rescan was dropped after 7 days", "cve", ev.cve, "reason", why)
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `DELETE FROM scan_event WHERE id = ?`, ev.id)
 		return err
 	})
 }

@@ -247,6 +247,19 @@ func FuzzParseTelegramUpdates(f *testing.F) {
 		if next < offset {
 			t.Fatalf("offset went back: %d -> %d", offset, next)
 		}
+		// Every update with a usable id is confirmed by next (review of #172, L2): no answer is read twice.
+		var env struct {
+			Result []json.RawMessage `json:"result"`
+		}
+		_ = json.Unmarshal(body, &env)
+		for _, raw := range env.Result {
+			var u struct {
+				UpdateID *int64 `json:"update_id"`
+			}
+			if json.Unmarshal(raw, &u) == nil && u.UpdateID != nil && *u.UpdateID >= 0 && *u.UpdateID < 1<<62 && next < *u.UpdateID+1 {
+				t.Fatalf("update %d is not confirmed by next %d", *u.UpdateID, next)
+			}
+		}
 		for _, c := range cbs {
 			if !telegramQueryRE.MatchString(c.QueryID) {
 				t.Fatalf("a press without a usable query id came out: %+v", c)

@@ -100,9 +100,11 @@ func NewTelegramBot(token secrets.Value, client *http.Client) (*TelegramBot, err
 		return nil, cfgErr("bad_token", "A bot token looks like 123456789:AAH… and comes from @BotFather. Copy it again without extra spaces.")
 	}
 	if client == nil {
-		client = &http.Client{CheckRedirect: noRedirect} // no total timeout: a long poll is longer than the default; each call has a deadline
+		client = &http.Client{CheckRedirect: noRedirect}
 	}
-	return &TelegramBot{token: secrets.NewValue(tok), base: telegramAPI, client: clientOrDefault(client)}, nil
+	c := clientOrDefault(client) // a copy: the caller's client is not changed
+	c.Timeout = 0                // no total timeout: a long poll is longer than any default; each call has its own deadline
+	return &TelegramBot{token: secrets.NewValue(tok), base: telegramAPI, client: c}, nil
 }
 
 // call posts one Bot API method and returns the answer body (at most limit bytes). Errors never carry the URL or the token.
@@ -181,7 +183,8 @@ type tgUpdate struct {
 // ParseTelegramUpdates reads a getUpdates answer (fail-closed): an answer that is too big, not JSON, not ok or without a
 // result list is an error and yields nothing. Inside a good answer, an update that cannot be read or whose press has a field
 // out of its form is dropped (no decision can come from it) but still confirmed by the returned offset (max update_id + 1,
-// never below offset).
+// never below offset). An update without a usable update_id (missing, negative, 2^62 or more) cannot be confirmed: when the
+// answer has one and moves the offset nowhere, it is an error, because asking again would only return the same answer.
 func ParseTelegramUpdates(body []byte, offset int64) ([]Callback, int64, error) {
 	if len(body) > maxUpdatesBody {
 		return nil, offset, &ProviderError{Channel: Telegram, Reason: "the updates answer is too big"}
@@ -202,27 +205,31 @@ func ParseTelegramUpdates(body []byte, offset int64) ([]Callback, int64, error) 
 	}
 	next := offset
 	var out []Callback
+	unconfirmable := 0
 	for _, raw := range env.Result {
 		var u tgUpdate
 		if err := json.Unmarshal(raw, &u); err != nil {
 			var id struct { // the update may still name itself: confirm it so it is not read again
 				UpdateID *int64 `json:"update_id"`
 			}
-			if json.Unmarshal(raw, &id) == nil && id.UpdateID != nil {
-				u = tgUpdate{UpdateID: id.UpdateID}
-			} else {
-				continue
+			if json.Unmarshal(raw, &id) != nil {
+				id.UpdateID = nil
 			}
+			u = tgUpdate{UpdateID: id.UpdateID}
 		}
-		if u.UpdateID == nil || *u.UpdateID < 0 {
+		if u.UpdateID == nil || *u.UpdateID < 0 || *u.UpdateID >= 1<<62 {
+			unconfirmable++
 			continue
 		}
-		if *u.UpdateID < 1<<62 && *u.UpdateID+1 > next {
+		if *u.UpdateID+1 > next {
 			next = *u.UpdateID + 1
 		}
 		if cb, ok := checkCallback(*u.UpdateID, u); ok {
 			out = append(out, cb)
 		}
+	}
+	if unconfirmable > 0 && next == offset {
+		return nil, offset, &ProviderError{Channel: Telegram, Reason: "the updates answer has updates that cannot be confirmed"}
 	}
 	return out, next, nil
 }

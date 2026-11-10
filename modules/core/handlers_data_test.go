@@ -254,7 +254,7 @@ func TestContract_INV14_WrongNameDeletesNothing(t *testing.T) {
 	admin := w.setupAdmin()
 	gone, kept := w.plant()
 	before := w.tableCounts()
-	for _, name := range []string{"acme co", "Acme Co ", "Acme", "", "Acme Co​"} {
+	for _, name := range []string{"acme co", "Acme Co ", "Acme", "", "Acme Co\u200b"} {
 		wantStatus(t, admin.post("/core/data/purge", map[string]any{"confirm": name}), 400, "confirm_mismatch")
 	}
 	wantStatus(t, admin.post("/core/data/purge", map[string]any{}), 400, "invalid") // no field at all: the server's own check

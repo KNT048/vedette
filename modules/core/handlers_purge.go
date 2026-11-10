@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -159,7 +158,7 @@ func (h *APIHandlers) freshRows(ctx context.Context) ([]seedRow, error) {
 		return nil, fmt.Errorf("core: purge scratch dir: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(dir) }()
-	db, err := store.Open(ctx, filepath.Join(dir, "fresh.db"), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	db, err := store.Open(ctx, filepath.Join(dir, "fresh.db"), slog.New(slog.DiscardHandler))
 	if err != nil {
 		return nil, fmt.Errorf("core: purge scratch database: %w", err)
 	}
@@ -180,7 +179,7 @@ func (h *APIHandlers) freshRows(ctx context.Context) ([]seedRow, error) {
 		for i, c := range tables[name] {
 			cols[i], quoted[i] = c.Name, quoteIdent(c.Name)
 		}
-		rows, err := db.Reader().QueryContext(ctx, "SELECT "+strings.Join(quoted, ", ")+" FROM "+quoteIdent(name)) //nolint:gosec // names come from sqlite_master and are quoted
+		rows, err := db.Reader().QueryContext(ctx, "SELECT "+strings.Join(quoted, ", ")+" FROM "+quoteIdent(name))
 		if err != nil {
 			return nil, fmt.Errorf("core: purge scratch database: %w", err)
 		}

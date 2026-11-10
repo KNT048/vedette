@@ -183,7 +183,7 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 		}
 		req.Header.Set("Content-Type", "application/json")
 		for _, c := range cookies {
-			req.AddCookie(&http.Cookie{Name: c.Name, Value: c.Value})
+			req.AddCookie(c)
 		}
 		if c, ok := cookies[auth.CookieCSRF]; ok {
 			req.Header.Set(auth.HeaderCSRF, c.Value)

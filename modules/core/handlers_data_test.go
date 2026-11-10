@@ -67,11 +67,14 @@ type fakeHost struct {
 	purgeErr error
 	purged   int
 	calls    int
+	// what the purge sent with the host run
+	requestID, actor string
 }
 
 func (f *fakeHost) ListRuns(context.Context, int) ([]api.Run, error) { return f.runs, f.listErr }
-func (f *fakeHost) BackupPurge(context.Context) (int, error) {
+func (f *fakeHost) BackupPurge(_ context.Context, requestID, actor string) (int, error) {
 	f.calls++
+	f.requestID, f.actor = requestID, actor
 	return f.purged, f.purgeErr
 }
 
@@ -171,6 +174,16 @@ func (w *dataWorld) plant() (gone, kept []string) {
 		gone = append(gone, w.file(n, "log line"))
 	}
 	gone = append(gone, w.file("snapshots/0123456789abcdef0123456789abcdef/vedette.db", "old copy"), w.file("snapshots/0123456789abcdef0123456789abcdef.meta", "{}"))
+	// Old data the helper's backup purge does not know: the purge deletes these itself, by exact name, files and directories only.
+	w.file(".vedette-restore-abc123/vedette.db", "half a restored database")
+	gone = append(gone, filepath.Join(w.dir, ".vedette-restore-abc123"), w.file(".vedette-restore-key", "half a key"),
+		w.file("vedette.db.rollback", "old db"), w.file("vedette.key.rollback", "old key"), w.file("vedette.db.quarantine-20261110", "q"), w.file("tmp-notes.quarantine-1", "q"))
+	// Names that look alike but are not on the list stay, and so does a symbolic link with a listed name (it is neither followed nor moved).
+	w.file("outside-target", "must survive")
+	if err := os.Symlink(filepath.Join(w.dir, "outside-target"), filepath.Join(w.dir, ".vedette-restore-link")); err != nil {
+		w.t.Fatal(err)
+	}
+	kept = append(kept, filepath.Join(w.dir, "outside-target"), filepath.Join(w.dir, ".vedette-restore-link"), w.file("vedette.db.rollback.keep", "x"), w.file("quarantine-notes.txt", "x"), w.file("vedette.key.quarantine", "x"))
 	kept = append(kept, w.file("vedette.key", "key"), w.file("vedette-selfsigned.crt", "cert"), w.file("vedette-selfsigned.key", "certkey"), w.file("other-module.db", "x"))
 	return gone, kept
 }
@@ -220,6 +233,9 @@ func TestContract_INV14_PurgeBringsBackAFreshInstall(t *testing.T) {
 	}
 	if kept, _ := r.JSON["kept"].([]any); kept == nil || len(kept) != 0 || w.host.calls != 1 {
 		t.Errorf("a box with a helper deleted its backups and keeps nothing back: kept = %v, backup.purge calls = %d", r.JSON["kept"], w.host.calls)
+	}
+	if w.host.requestID == "" || !strings.HasPrefix(w.host.actor, "admin@acme.example") {
+		t.Errorf("backup.purge is a host run: it needs a request id and the actor, got %q %q", w.host.requestID, w.host.actor)
 	}
 	// BeforeWipe ran before anything was deleted: it saw the users.
 	if seen := <-w.wipeSeen; seen["core_user"] != 1 || seen["tm_child"] != 1 {
@@ -413,8 +429,9 @@ func TestContract_INV14_RefusalsBeforeTheWipeDeleteNothing(t *testing.T) {
 		status int
 		code   string
 	}{
-		{"helper does not answer", func(w *dataWorld) { w.host.purgeErr = fmt.Errorf("%w: down", hostclient.ErrUnreachable) }, 503, "host_unreachable"},
-		{"helper refuses the listing", func(w *dataWorld) { w.host.listErr = fmt.Errorf("%w: down", hostclient.ErrUnreachable) }, 503, "host_unreachable"},
+		{"helper does not answer", func(w *dataWorld) { w.host.purgeErr = fmt.Errorf("%w: down", hostclient.ErrUnreachable) }, 502, "host_unreachable"},
+		{"helper refuses the listing", func(w *dataWorld) { w.host.listErr = fmt.Errorf("%w: down", hostclient.ErrUnreachable) }, 502, "host_unreachable"},
+		{"update journal pending", func(w *dataWorld) { w.host.purgeErr = &hostclient.Error{Status: 412, Code: "transition_pending"} }, 412, "transition_pending"},
 		{"helper says busy", func(w *dataWorld) { w.host.purgeErr = &hostclient.Error{Status: 409, Code: api.CodeBusy} }, 409, "busy"},
 		{"a helper run is going", func(w *dataWorld) { w.host.runs = []api.Run{{RunID: "rn_1", Status: api.StatusRunning}} }, 409, "busy"},
 		{"core's own update is going", func(w *dataWorld) { w.osBusy = true }, 409, "busy"},

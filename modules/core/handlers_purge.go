@@ -99,7 +99,7 @@ func (h *APIHandlers) CorePostCoreDataPurge(ctx context.Context, req *oas.CorePo
 		return nil, apierr.New(409, codeBusy, "An update run is in progress. Wait for it to finish, then try again.")
 	}
 	var kept []oas.CorePostCoreDataPurgeOKKeptItem
-	if skipped, err := h.purgeHostBackups(ctx); err != nil { // nothing has been deleted yet: any refusal here leaves the box as it was
+	if skipped, err := h.purgeHostBackups(ctx, c); err != nil { // nothing has been deleted yet: any refusal here leaves the box as it was
 		return nil, err
 	} else if skipped {
 		kept = append(kept, oas.CorePostCoreDataPurgeOKKeptItemHostBackups)
@@ -200,20 +200,31 @@ func (h *APIHandlers) CorePostCoreDataPurge(ctx context.Context, req *oas.CorePo
 // (host command backup.purge, D-156; the host client's method may be named differently, cmd/vedette adapts it).
 type PurgeHost interface {
 	ListRuns(ctx context.Context, limit int) ([]api.Run, error)
-	BackupPurge(ctx context.Context) (deleted int, err error)
+	BackupPurge(ctx context.Context, requestID, actor string) (deleted int, err error)
 }
+
+// CodeTransitionPending is the 412 of a purge while core's update journal is pending or unrecoverable (host answer transition_pending).
+const CodeTransitionPending = "transition_pending"
 
 // purgeHostBackups asks the helper for its running commands (409 busy when one is not finished: an update or a backup would race
 // the purge) and has it delete every backup. skipped is true when this box has no helper (no socket): there is nothing to delete
 // and the answer says so. A helper that does not answer, or refuses, stops the purge before anything is deleted (503 host_unreachable
 // or the mapped error).
-func (h *APIHandlers) purgeHostBackups(ctx context.Context) (skipped bool, err error) {
+func (h *APIHandlers) purgeHostBackups(ctx context.Context, c caller) (skipped bool, err error) {
 	if h.purgeHost == nil {
 		return true, nil
 	}
 	noHelper := func(err error) (bool, error) {
-		if errors.Is(err, client.ErrUnreachable) && errors.Is(err, fs.ErrNotExist) { // no socket file: a container-only install (D-55)
+		switch {
+		case errors.Is(err, client.ErrUnreachable) && errors.Is(err, fs.ErrNotExist): // no socket file: a container-only install (D-55)
 			return true, nil
+		case errors.Is(err, client.ErrUnreachable) || errors.Is(err, client.ErrDenied):
+			h.log.WarnContext(ctx, "data purge: vedette-host does not answer", "error", err)
+			return false, apierr.New(502, CodeHostUnreachable, "The operating system helper (vedette-host) is not answering, so its backups cannot be deleted. Nothing was deleted. Try again in a minute.")
+		}
+		var he *client.Error
+		if errors.As(err, &he) && he.Code == CodeTransitionPending {
+			return false, apierr.New(412, CodeTransitionPending, "An update of Vedette is waiting to be completed or could not be recovered, so the box cannot be wiped now. Nothing was deleted. See the RUNBOOK (update journal) and finish or roll back the update first.")
 		}
 		return false, hostErr(ctx, h.log, err)
 	}
@@ -226,7 +237,11 @@ func (h *APIHandlers) purgeHostBackups(ctx context.Context) (skipped bool, err e
 			return false, apierr.New(409, codeBusy, "The operating system helper is running a command. Wait for it to finish, then try again.")
 		}
 	}
-	n, err := h.purgeHost.BackupPurge(ctx)
+	requestID, err := newRequestID()
+	if err != nil {
+		return false, err
+	}
+	n, err := h.purgeHost.BackupPurge(ctx, requestID, actorLabel(c.Email, c.ID))
 	if err != nil {
 		return noHelper(err)
 	}
@@ -467,8 +482,28 @@ func (h *APIHandlers) takeDataFiles(t *trash) error {
 			}
 		}
 	}
-	return t.take(filepath.Join(h.dataDir, snapshotsDir))
+	if err := t.take(filepath.Join(h.dataDir, snapshotsDir)); err != nil {
+		return err
+	}
+	// Old data the helper's backup purge never touches (restore and rollback leftovers, quarantined files): exact name patterns, regular
+	// files and directories only. DirEntry.Type does not follow symbolic links, so a link with such a name is neither moved nor followed.
+	entries, err := os.ReadDir(h.dataDir)
+	if err != nil {
+		return fmt.Errorf("core: purge: read the data directory: %w", err)
+	}
+	for _, e := range entries {
+		if oldDataRE.MatchString(e.Name()) && (e.Type().IsRegular() || e.IsDir()) {
+			if err := t.take(filepath.Join(h.dataDir, e.Name())); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
+
+// oldDataRE names what core_data keeps of earlier states: a partly restored database or key (.vedette-restore-*), what a rollback keeps
+// (vedette.db.rollback, vedette.key.rollback) and files quarantined by name (*.quarantine-*).
+var oldDataRE = regexp.MustCompile(`^(\.vedette-restore-[A-Za-z0-9._-]*|vedette\.db\.rollback|vedette\.key\.rollback|[A-Za-z0-9][A-Za-z0-9._-]*\.quarantine-[A-Za-z0-9._-]+)$`)
 
 // markCompactPending leaves a file that tells the next start to compact the database (VACUUM): the purge cannot, because it
 // freezes the database at its commit. Written inside the transaction, so a crash after the commit still finds it.

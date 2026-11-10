@@ -28,7 +28,7 @@ func purgeHost(d *deps) core.PurgeHost {
 // Replace this method with the client's own BackupPurge when it lands (.ai/deferred/feat-core-data-purge.md).
 type hostPurger struct{ *hostclient.Client }
 
-func (hostPurger) BackupPurge(context.Context) (int, error) {
+func (hostPurger) BackupPurge(context.Context, string, string) (int, error) {
 	return 0, fmt.Errorf("%w: the host client has no backup.purge yet (D-156)", hostclient.ErrUnreachable)
 }
 

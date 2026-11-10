@@ -193,6 +193,26 @@ func (t notifyTokens) RecordReplyCode(ctx context.Context, c notify.ReplyCode) e
 	return t.d.Response.RecordReplyCode(ctx, response.ReplyCodeRecord{RequestID: c.RequestID, UserID: c.UserID, Address: c.Address, Approve: c.Approve, CodeHash: c.CodeHash, ExpiresAt: c.ExpiresAt})
 }
 
+// responseDecisions is notify.Decisions over the response service: a chat listener of notify calls it after it checked the platform, and response
+// maps the sender and keeps every gate (D-96 (5), INV-3). d.Response is read when asked: notify is built before response. A refusal comes back as
+// a DecisionResult whose Status is the code of the refusal (approver_not_listed, in_app_required ...) and whose Message is the reply for the
+// person; only "approved", "pending" and "rejected" are decisions that were recorded (notify CONTRACT POST-8).
+type responseDecisions struct{ d *deps }
+
+func (r responseDecisions) Decide(ctx context.Context, c notify.Decision) (notify.DecisionResult, error) {
+	if r.d.Response == nil {
+		return notify.DecisionResult{}, errResponseNotReady
+	}
+	out, err := r.d.Response.DecideFromChat(ctx, response.ChatDecision{Channel: string(c.Channel), ExternalID: c.ExternalID, RequestID: c.RequestID, Approve: c.Approve, Code: c.Code})
+	if ae, ok := apierr.As(err); ok {
+		return notify.DecisionResult{Status: ae.Code, Message: ae.Message}, nil
+	}
+	if err != nil {
+		return notify.DecisionResult{}, err
+	}
+	return notify.DecisionResult{Status: out.Status, Message: out.Message}, nil
+}
+
 // Message queues a short text as an incident notice: every enabled channel whose minimum severity it meets gets it.
 func (r responseNotifier) Message(ctx context.Context, id, title, text string) error {
 	return r.n.Publish(ctx, notify.Notice{ID: id, Kind: notify.KindIncident, Severity: notify.Medium, Title: title, What: text, At: r.now()})

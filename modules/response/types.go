@@ -58,11 +58,14 @@ const (
 // Via is how an approval was given.
 type Via string
 
-// The ways to approve. Chat approvals (slack, telegram, zalo-personal) are slice 13b-8.
+// The ways to approve. Chat approvals (slack, telegram, zalo-personal) are slice 13b-8 (DecideFromChat).
 const (
-	ViaApp   Via = "app"
-	ViaAuto  Via = "auto"
-	ViaEmail Via = "email" // an approval link in an email (13b-7)
+	ViaApp          Via = "app"
+	ViaAuto         Via = "auto"
+	ViaEmail        Via = "email"         // an approval link in an email (13b-7)
+	ViaSlack        Via = "slack"         // a Slack button
+	ViaTelegram     Via = "telegram"      // a Telegram button
+	ViaZaloPersonal Via = "zalo-personal" // a reply code in a personal Zalo chat
 )
 
 // RestCall is the exact API call of a step.

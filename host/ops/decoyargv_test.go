@@ -240,7 +240,7 @@ func TestTheRulesetTextIsTheOneTheEffectCheckAccepts(t *testing.T) {
 			drop = i
 		}
 	}
-	if !(acc >= 0 && acc < lo && lo < drop) {
+	if acc < 0 || acc >= lo || lo >= drop {
 		t.Fatalf("order: established %d, lo %d, drop %d", acc, lo, drop)
 	}
 	if !strings.HasPrefix(hpRulesetText, "flush ruleset\n") || !strings.Contains(hpRulesetText, "hook forward priority 0; policy drop;") {

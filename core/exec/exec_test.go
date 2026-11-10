@@ -473,16 +473,81 @@ func TestRunExtraEnv(t *testing.T) {
 	}
 }
 
+func TestRunHomeEnv(t *testing.T) {
+	t.Setenv("HOME", "/root")
+	b := testBinary(t, nil, 0)
+	b.Env = []string{"HOME=/tmp/vedette-home"}
+	r := newRunner(t, b)
+	res, err := r.Run(deadline(t, 10*time.Second), "helper", helperArgs("env"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var env []string
+	if err := json.Unmarshal(res.Stdout, &env); err != nil {
+		t.Fatal(err)
+	}
+	home := 0
+	for _, e := range env {
+		if strings.HasPrefix(e, "HOME=") {
+			home++
+			if e != "HOME=/tmp/vedette-home" {
+				t.Errorf("HOME is %q", e)
+			}
+		}
+	}
+	if home != 1 {
+		t.Errorf("HOME entries = %d in %v", home, env)
+	}
+}
+
 func TestNewRunnerRejectsBadEnv(t *testing.T) {
 	t.Parallel()
 	for _, env := range [][]string{
 		{"PATH=/evil"}, {"LANG=en_US"}, {"lower=x"}, {"NOEQUALS"}, {"DEBIAN_FRONTEND=a\x00b"}, {"DEBIAN_FRONTEND=a", "DEBIAN_FRONTEND=b"}, {"=x"},
-		{"LD_PRELOAD=/tmp/evil.so"}, {"LD_LIBRARY_PATH=/tmp"}, {"LC_ALL=C"}, {"LC_MESSAGES=C"}, {"PYTHONPATH=/tmp"}, {"FOO=bar"}, {"BASH_ENV=/tmp/x"},
+		{"HOME=relative"}, {"HOME=/"}, {"HOME="}, {"LD_PRELOAD=/tmp/evil.so"}, {"LD_LIBRARY_PATH=/tmp"}, {"LC_ALL=C"}, {"LC_MESSAGES=C"}, {"PYTHONPATH=/tmp"}, {"FOO=bar"}, {"BASH_ENV=/tmp/x"},
 	} {
 		b := testBinary(t, nil, 0)
 		b.Env = env
 		if _, err := vexec.NewRunner(slog.New(slog.DiscardHandler), b); err == nil {
 			t.Errorf("Env %q was accepted", env)
 		}
+	}
+}
+
+// HOME must be a clean absolute path: the worker empties it, so "/a/../" and "/tmp//x" never get that far.
+func TestNewRunnerRejectsAnUncleanHome(t *testing.T) {
+	t.Parallel()
+	for _, h := range []string{"/tmp/../", "/tmp/a/..", "/tmp//x", "/tmp/x/", "/tmp/./x", "/../"} {
+		b := testBinary(t, nil, 0)
+		b.Env = []string{"HOME=" + h}
+		if _, err := vexec.NewRunner(slog.New(slog.DiscardHandler), b); err == nil {
+			t.Errorf("HOME=%q was accepted", h)
+		}
+	}
+}
+
+// MaxStderr gives stderr a cap of its own that does not count as truncation: Truncated means stdout (or, with MaxStderr 0, either).
+func TestMaxStderrKeepsTruncatedForStdout(t *testing.T) {
+	t.Parallel()
+	b := testBinary(t, nil, 100000)
+	b.MaxStderr = 1000
+	r := newRunner(t, b)
+	res, err := r.Run(deadline(t, 10*time.Second), "helper", helperArgs("flood", "5000"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Stdout) != 5000 || len(res.Stderr) != 1000 || res.Truncated {
+		t.Fatalf("stdout %d, stderr %d, truncated %v", len(res.Stdout), len(res.Stderr), res.Truncated)
+	}
+	b.MaxOutput = 2000
+	r = newRunner(t, b)
+	res, _ = r.Run(deadline(t, 10*time.Second), "helper", helperArgs("flood", "5000"), nil)
+	if len(res.Stdout) != 2000 || !res.Truncated {
+		t.Fatalf("stdout %d, truncated %v: a stdout over its cap must still say so", len(res.Stdout), res.Truncated)
+	}
+	bad := testBinary(t, nil, 0)
+	bad.MaxStderr = -1
+	if _, err := vexec.NewRunner(slog.New(slog.DiscardHandler), bad); err == nil {
+		t.Error("a negative MaxStderr was accepted")
 	}
 }

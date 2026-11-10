@@ -277,7 +277,7 @@
       "keyOptional": "A server inside your network may not need a key.",
       "keyHint": "Encrypted on this box; only the last 4 characters are shown after saving.",
       "location": "Where does it run?",
-      "location_internal": "On your own network or machine (Ollama, vLLM). Data sent to it does not leave your network.",
+      "location_internal": "On your own network or machine (Ollama, vLLM). Internal means the address is inside your network; data sent to it may leave if it forwards to a cloud provider.",
       "location_cloud": "A provider's cloud service. Data sent to it leaves your network.",
       "cloudOnly": "Anthropic, OpenAI and Gemini run in the cloud. Choose OpenAI-compatible or Custom for a server on your own network.",
       "cap": "Daily token cap for this profile",
@@ -292,6 +292,7 @@
       "https": "The address must start with https://. Only a server inside your own network may use http://.",
       "model": "Enter a model name, for example claude-haiku-5-5.",
       "keyRequired": "Enter the provider's API key. It stays on this box and is encrypted.",
+      "keyMoved": "Changing the address needs the API key entered again.",
       "keyShape": "The key is too short or contains spaces. Copy the whole key again from the provider's console.",
       "cap": "The cap must be a whole number from 1,000 to 5,000,000."
     }

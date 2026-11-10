@@ -52,7 +52,7 @@ Nguồn hành vi: `web/src/features/scan/{contract,mocks}.ts`. Phần `/scans/cr
 Không route `/scans*`, không job lịch/quét lại; không probe nào. Findings chỉ còn `suspected` (không xác nhận mới); "Scan" mất ở Devices. Cấu hình, lịch sử, nhật ký probe giữ ≥ 90 ngày.
 
 ## Story và quyết định
-S-SCAN-1…4. D-4 công cụ; D-26 cam kết; D-45 mong manh; D-55 container `scan`; D-113 giao thức job; D-125 nuclei là binary trong container `scan`; D-126 chính sách quét lỗ hổng và cửa sổ của quét lại KEV.
+S-SCAN-1…4. **Seam của máy quét (SP-3b, D-133)**: `sensoractive.Scanner` (`Ready`, `RunNuclei(ctx, NucleiRequest) ([]nucleiout.Result, error)`) do `*sensoractive.Dispatcher` hiện thực; `scan.Engine.Ready` được nó thoả nguyên văn, còn bước chạy do adapter ở `cmd/vedette` nối (S5/SP-5); `ErrScannerUnavailable` → 503 `scanner_unavailable`. D-4 công cụ; D-26 cam kết; D-45 mong manh; D-55 container `scan`; D-113 giao thức job; D-125 nuclei là binary trong container `scan`; D-126 chính sách quét lỗ hổng và cửa sổ của quét lại KEV.
 
 ## Không khớp / câu hỏi mở
 - ~~Cửa sổ giờ `scan` (ngày 0..6)~~ Đã thống nhất ngày 1..7 (Thứ Hai=1) theo D-57 (9); GUI/mock đã khớp.

@@ -38,7 +38,7 @@
 ### `modules/ai` — định tuyến và đồng hồ
 - `Profile.Validate`, `Profile.Usable`, `Profile.Provider`; `Assignments.Validate(profiles)`, `Assignments.Allowed(job, p)` (**điểm duy nhất quyết định INV-3**); `NewRouter(RouterConfig)`, `Router.Candidates(job)`, `Router.Call(ctx, job, req) (CallResult, error)`; `ErrUnavailable` (409 `ai_unavailable`), `ErrCapped` (429 `daily_cap`).
 - Sửa `Allowed` hoặc vòng lặp trong `Call` → có thể gửi dữ liệu nội bộ lên cloud: `TestContract_INV3_InternalOnlyNeverReachesCloud` bắt buộc xanh. Việc mới phải khai `CarriesInternalData()` trong `jobs.go`.
-- `NewMeter`, `Meter.Record/Seed/Tier/Used/ProfileUsed/Exhausted/SetConfig`, `LoadLocation`: ngày tính theo múi giờ của hộp (`core_org.timezone`, mặc định `Asia/Ho_Chi_Minh`); mức bị hạ chỉ kéo dài đến hết ngày địa phương. WP-25 phải `Seed` từ `ai_activity` khi khởi động và ghi `ai_downgrades` + `core_audit` từ `CallResult.Downgrade`.
+- `NewMeter`, `Meter.Record/Seed/Tier/Used/ProfileUsed/Exhausted/SetConfig`, `LoadLocation`: ngày tính theo múi giờ của hộp (`core_org.timezone`, mặc định `Asia/Ho_Chi_Minh`); mức bị hạ chỉ kéo dài đến hết ngày địa phương. WP-25 phải `Seed` từ `ai_activity` khi khởi động và ghi `ai_downgrade` + `core_audit` từ `CallResult.Downgrade`.
 
 ### `modules/ai` — harness
 - `NewHookRunner(builtinEnabled, custom)`, `HookRunner.Run(ctx, when, text)`, `HookRunner.CheckTool(ctx, access, args)`, `CustomHook.Validate`, `ValidateBuiltinToggle`, `QuestionForStorage`, `HiddenQuestion`. Mọi lỗi từ `Run` nghĩa là **không được gửi tiếp** (văn bản quá 1 MiB hoặc ngữ cảnh hết hạn). Đổi thứ tự (chặn trước che) hoặc thêm hook dựng sẵn → đổi dữ liệu rời hộp (PRIVACY luồng 3). Cú pháp regex của hook tuỳ chỉnh là RE2 (câu hỏi mở 5 đã chốt).
@@ -55,3 +55,10 @@
 - `Profile.AnthropicVersion`; `provider.Config.InternalOnly`, `provider.IsInternalAddr`; `provider.ErrRefused` (+ `Error.Category`, `Error.Usage`), `Response.Raw`/`Message.Raw` (nội dung assistant của Anthropic, phát lại nguyên văn).
 - `Tool.Public`, `Tool.ConnectorID`; `Offered` trả đúng công cụ `ForModel` đã đưa ra (có `ConnectorID`).
 - `HookRunner.RunPersonalData`, `WrapToolResult(ctx, hooks, prompt, tool, content)`, `PromptInput.WithTools`, `MaxCustomHooks`, `MaxRegexProgram`.
+
+## Service (WP-25 slice 1: profiles, keys, assignments, token settings) — chữ ký thật
+- `New(ctx, Config{DB, Secrets, Audit, Log, Clock, Zone, Factory}) (*Service, error)`: nạp `ai_profile`, `ai_assignment`, `ai_setting`, mở khoá (purpose `ai_profile.api_key`), dựng `Meter` và `Router`; trạng thái đã lưu mà luật từ chối thì **không khởi động** (đóng khi lỗi). `Zone` chỉ đọc một lần lúc khởi động.
+- `Profiles()`, `AddProfile/EditProfile(ctx, who, …)`, `DeleteProfile(ctx, who, id) []Job`, `TestProfile`, `Assignments()`, `SetAssignments`, `Suggestion(internalOnly)`, `Config()`, `SetConfig`. Mọi thay đổi: dựng trạng thái kế tiếp → kiểm bằng đúng luật của router (`snapshot.check`: `Profile.Validate` + `Assignments.Validate`) → ghi một giao dịch cùng dòng `core_audit` → `Router.SetConfig` → đổi con trỏ trạng thái. Trạng thái bị luật cấm không bao giờ được lưu hay đến router (INV-3).
+- `AIHandlers` (`NewAIHandlers`): 11 thao tác `/ai/config`, `/ai/profiles*`, `/ai/assignments*`; vai trò lấy từ bảng route, handler không kiểm vai trò.
+- Đổi chữ ký `Config`/`SetAssignments` → `cmd/vedette/ai.go`, mọi lát sau (chạy việc, hoạt động, harness) đọc `Service.snap`. Xoá hồ sơ: việc nhận lại hồ sơ dự phòng làm chính (hồ sơ đó đã hợp lệ cho việc) và `cleared_jobs` liệt kê mọi việc bị đổi; theo mock, không chọn hồ sơ khác thay.
+- Không có sự kiện nào được phát ở lát này.

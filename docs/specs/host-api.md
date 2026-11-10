@@ -409,7 +409,7 @@ Cờ khác: `-state-dir` (mặc định `/var/lib/vedette-host`), `-audit-log` (
 
 **Giới hạn đã biết (ponytail).** Run bị cắt theo mốc 500 kéo theo bản ghi idempotency của nó dù chưa đủ 30 ngày (chỉ xảy ra khi > 500 run trong 30 ngày). `GET /v1/audit` đọc tệp từ đầu mỗi trang (nâng cấp: chỉ mục offset). Chưa xoay vòng tệp kiểm toán.
 
-**`core/exec` Env.** `Binary.Env` chỉ nhận khoá trong danh sách cho phép (`DEBIAN_FRONTEND`); `LD_*`, `LC_*`, `PATH`, `LANG`… bị từ chối theo tên.
+**`core/exec` Env.** `Binary.Env` chỉ nhận khoá trong danh sách cho phép (`DEBIAN_FRONTEND`, và `HOME` với đường dẫn tuyệt đối, sạch, khác `/`: chỉ container `scan` dùng cho nuclei, D-133); `LD_*`, `LC_*`, `PATH`, `LANG`… bị từ chối theo tên.
 
 ## 16. Đã chốt khi cài lệnh OS, sao lưu, xuất log (WP-07b phần 1)
 

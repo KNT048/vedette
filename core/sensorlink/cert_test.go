@@ -111,7 +111,7 @@ func reused(t *testing.T, p *peer, base string) (int, bool, string) {
 	var re bool
 	ctx := httptrace.WithClientTrace(t.Context(), &httptrace.ClientTrace{GotConn: func(i httptrace.GotConnInfo) { re = i.Reused }})
 	req, _ := http.NewRequestWithContext(ctx, "POST", base+"/sensor/v1/heartbeat", nopBody(hbSpan))
-	req.Header.Set(sensorlink.ProtoHeader, "1")
+	req.Header.Set(sensorlink.ProtoHeader, sensorlink.ProtoVersion)
 	req.Header.Set("Content-Type", "application/json")
 	res, err := p.c.Do(req)
 	if err != nil {

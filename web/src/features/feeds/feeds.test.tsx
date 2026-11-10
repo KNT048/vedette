@@ -173,6 +173,32 @@ describe('feeds: what the real backend needs from the GUI (mock → real)', () =
     expect(await screen.findByRole('heading', { level: 1, name: /Today: 0 vulnerabilities newly exploited/ })).toBeInTheDocument()
   })
 
+  it('D-134 (4): the hot board does not read as "none" when the CISA list never loaded; it says why and links to Settings, Feeds', async () => {
+    server.use(http.get('*/api/v1/feeds/hot', () => HttpResponse.json({ window: '7d', rows: [], latest: null })))
+    server.use(http.get('*/api/v1/feeds/status', () => HttpResponse.json({ generated_at: '2026-11-09T10:00:00Z', kev_catalog_version: '', sources: [], inventory_on: true, kev: { state: 'never_loaded', error: 'cisa.gov answered HTTP 403' } })))
+    renderApp('/')
+    await screen.findByRole('heading', { level: 1, name: /The CISA list could not be fetched yet/ })
+    const hot = within(document.getElementById('hot')!)
+    expect(await hot.findByText(/The CISA list could not be fetched yet: cisa\.gov answered HTTP 403\./)).toBeInTheDocument()
+    expect(hot.getByRole('link', { name: 'See Settings → Feeds.' })).toHaveAttribute('href', '/settings/feeds')
+    expect(hot.queryByText(/No newly exploited/)).toBeNull()
+  })
+
+  it('D-134 (4): the hot board of a turned-off CISA list says so; a loaded, enabled one keeps the empty sentence', async () => {
+    server.use(http.get('*/api/v1/feeds/hot', () => HttpResponse.json({ window: '7d', rows: [], latest: null })))
+    server.use(http.get('*/api/v1/feeds/status', () => HttpResponse.json({ generated_at: '2026-11-09T10:00:00Z', kev_catalog_version: '', sources: [], inventory_on: true, kev: { state: 'off', error: null } })))
+    const first = renderApp('/')
+    await screen.findByRole('heading', { level: 1, name: /The CISA list is turned off/ })
+    const hot = within(document.getElementById('hot')!)
+    expect(await hot.findByText(/The CISA list is turned off\./)).toBeInTheDocument()
+    expect(hot.getByRole('link', { name: 'See Settings → Feeds.' })).toHaveAttribute('href', '/settings/feeds')
+    expect(hot.queryByText(/No newly exploited/)).toBeNull()
+    first.unmount()
+    server.use(http.get('*/api/v1/feeds/status', () => HttpResponse.json({ generated_at: '2026-11-09T10:00:00Z', kev_catalog_version: '', sources: [], inventory_on: true, kev: { state: 'loaded', error: null } })))
+    renderApp('/')
+    expect(await screen.findByText(/No newly exploited vulnerabilities in the last 7 days/)).toBeInTheDocument()
+  })
+
   it('the search boxes stop at 200 characters, the most the API accepts', async () => {
     renderApp('/')
     expect(await screen.findByRole('textbox', { name: 'CVE, product, IP or domain' })).toHaveAttribute('maxlength', '200')

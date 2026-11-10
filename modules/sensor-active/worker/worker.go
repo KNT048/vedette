@@ -1,11 +1,12 @@
-// Package worker is the nmap worker of the scan container (`vedette-sensor active`, D-113, sensor-protocol.md section 6.4).
-// It long-polls core for one job at a time, builds the command line itself from the job's shape, rate and targets
-// (nmapargv, the same code core used before it handed the job over), runs the OS package's nmap through core/exec in its
-// own process group and posts the result. It holds no scope and no consent: core decided before it dispatched; the worker
-// only refuses what the grammar forbids, and it kills nmap whenever core can no longer be listening for the answer.
+// Package worker is the worker of the scan container (`vedette-sensor active`, D-113, D-125, sensor-protocol.md section 6.4). It
+// long-polls core for jobs, at most one nmap job and one nuclei job at a time (two slots, D-125 (3)), builds the command line
+// itself from the job's fields (nmapargv for nmap; nucleiargv, the pack index and the pinned nuclei for nuclei: the same code
+// core used before it handed the job over), runs the program through core/exec in its own process group and posts the
+// result. It holds no scope and no consent: core decided before it dispatched; the worker only refuses what the grammar forbids,
+// and it kills the program whenever core can no longer be listening for the answer.
 //
-// The package is linked into the sensor binary: standard library, core/exec, core/sensorlink and nmapargv only, never the
-// database or the generated API (TestBinaryDependencies).
+// The package is linked into the sensor binary: standard library, core/exec, core/sensorlink, the nmapargv leaf and the
+// nucleiargv and pack leaves only, never the database or the generated API (TestBinaryDependencies).
 package worker
 
 import (
@@ -32,11 +33,15 @@ const (
 	Lease = 60 * time.Second
 	// MaxTimeout is the longest job it accepts.
 	MaxTimeout = 7200
+	// MaxNucleiTimeout is the longest nuclei job it accepts (D-125 (1)).
+	MaxNucleiTimeout = 3600
 	// HeartbeatEvery is the heartbeat period.
 	HeartbeatEvery = 30 * time.Second
 	moduleOffEvery = 60 * time.Second
 
 	versionBin = "nmap-version"
+	nucleiBin  = "nuclei"
+	nucleiVer  = "nuclei-version"
 )
 
 // Why nmap was killed; context.Cause of the job's context says which.
@@ -53,7 +58,7 @@ var (
 
 // Link is the sensor side of the protocol; *sensorlink.Client implements it.
 type Link interface {
-	Jobs(ctx context.Context, running string, wait time.Duration) (sensorlink.JobsReply, error)
+	Jobs(ctx context.Context, running []string, wait time.Duration) (sensorlink.JobsReply, error)
 	ActiveHeartbeat(ctx context.Context, hb *sensorlink.ActiveHeartbeat) (string, error)
 	PostResult(ctx context.Context, id string, res *sensorlink.JobResult) error
 }
@@ -64,6 +69,15 @@ type Config struct {
 	NmapPath string // absolute path of the OS package's nmap
 	Version  string // SemVer of this binary, for the heartbeat
 	Log      *slog.Logger
+
+	// Nuclei (all four empty: this worker does not run nuclei, and its heartbeat says so). NucleiPath is the absolute path of
+	// the pinned binary, NucleiIndex the index of the pack baked into the image, NucleiHome a directory on a tmpfs that
+	// becomes nuclei's HOME (it is emptied before every run). TemplatesDir is where the pack's files are read; it is
+	// nucleiargv.TemplatesDir except in tests (the argv always names nucleiargv.TemplatesDir).
+	NucleiPath   string
+	NucleiIndex  string
+	NucleiHome   string
+	TemplatesDir string
 
 	Now       func() time.Time // the clock of the lease
 	Sleep     func(ctx context.Context, d time.Duration) error
@@ -77,6 +91,7 @@ type Worker struct {
 	link      Link
 	runner    *exec.Runner
 	nmapPath  string
+	nucleiCfg nucleiConfig
 	version   string
 	log       *slog.Logger
 	now       func() time.Time
@@ -86,12 +101,20 @@ type Worker struct {
 	tick      time.Duration
 
 	mu     sync.Mutex
-	lastOK time.Time  // the latest successful poll
-	cur    *activeJob // the job in hand, from the poll that delivered it until its result is posted or dropped
+	lastOK time.Time            // the latest successful poll
+	cur    [numSlots]*activeJob // the job in hand of each kind, from the poll that delivered it until its result is posted or dropped
 	wg     sync.WaitGroup
 }
 
+// The slots of the worker: one job of each kind at a time.
+const (
+	slotNmap = iota
+	slotNuclei
+	numSlots
+)
+
 type activeJob struct {
+	slot     int
 	job      sensorlink.Job
 	instance string
 	kill     context.CancelCauseFunc // ends the job's context with a cause; the context itself is passed around
@@ -124,10 +147,16 @@ func New(c Config) (*Worker, error) {
 	if w.tick <= 0 {
 		w.tick = time.Second
 	}
-	r, err := exec.NewRunner(w.log,
-		exec.Binary{Name: "nmap", Path: c.NmapPath, Validate: nmapargv.Validate, MaxOutput: nmapargv.MaxOutput},
-		exec.Binary{Name: versionBin, Path: c.NmapPath, Validate: validVersionArgs, MaxOutput: 64 << 10},
-	)
+	bins := []exec.Binary{
+		{Name: "nmap", Path: c.NmapPath, Validate: nmapargv.Validate, MaxOutput: nmapargv.MaxOutput},
+		{Name: versionBin, Path: c.NmapPath, Validate: validVersionArgs, MaxOutput: 64 << 10},
+	}
+	nb, nc, err := newNuclei(c)
+	if err != nil {
+		return nil, fmt.Errorf("worker: %w", err)
+	}
+	w.nucleiCfg = nc
+	r, err := exec.NewRunner(w.log, append(bins, nb...)...)
 	if err != nil {
 		return nil, fmt.Errorf("worker: %w", err)
 	}
@@ -167,7 +196,7 @@ func (w *Worker) Run(ctx context.Context) error {
 	bo := sensorlink.NewBackoff(nil)
 	for ctx.Err() == nil {
 		w.waitPost(ctx)
-		rep, err := w.link.Jobs(ctx, w.runningID(), w.wait)
+		rep, err := w.link.Jobs(ctx, w.runningIDs(), w.wait)
 		if err != nil {
 			if ctx.Err() != nil {
 				break
@@ -197,45 +226,54 @@ func (w *Worker) Run(ctx context.Context) error {
 // waitPost holds the poll loop while the result of the job in hand is being sent: a poll that names a job whose result is on
 // its way is a poll core may answer before the result is in (L1). The wait ends with the post, which is bounded by the lease.
 func (w *Worker) waitPost(ctx context.Context) {
-	w.mu.Lock()
-	cur := w.cur
-	w.mu.Unlock()
-	if cur == nil || !cur.posting.Load() {
-		return
-	}
-	select {
-	case <-cur.postDone:
-	case <-ctx.Done():
+	for _, cur := range w.current() {
+		if !cur.posting.Load() {
+			continue
+		}
+		select {
+		case <-cur.postDone:
+		case <-ctx.Done():
+			return
+		}
 	}
 }
 
-func (w *Worker) runningID() string {
+// current returns the jobs in hand.
+func (w *Worker) current() []*activeJob {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	if w.cur == nil {
-		return ""
+	var out []*activeJob
+	for _, c := range w.cur {
+		if c != nil {
+			out = append(out, c)
+		}
 	}
-	return w.cur.job.ID
+	return out
 }
 
-// killCurrent kills nmap of the job in hand, if any, for cause.
+// runningIDs are the ids of the jobs in hand: what the next poll names.
+func (w *Worker) runningIDs() []string {
+	var ids []string
+	for _, c := range w.current() {
+		ids = append(ids, c.job.ID)
+	}
+	return ids
+}
+
+// killCurrent kills the programs of the jobs in hand, if any, for cause.
 func (w *Worker) killCurrent(cause error) {
-	w.mu.Lock()
-	cur := w.cur
-	w.mu.Unlock()
-	if cur != nil {
+	for _, cur := range w.current() {
 		cur.kill(cause)
 	}
 }
 
 // noteInstance records the nonce of core. A change while a job is in hand means core restarted: whoever was waiting for the
-// result is gone, so nmap stops now and its result is dropped (D-113 (4)).
+// result is gone, so the program stops now and its result is dropped (D-113 (4)).
 func (w *Worker) noteInstance(inst string) {
-	w.mu.Lock()
-	cur := w.cur
-	w.mu.Unlock()
-	if cur != nil && cur.instance != inst {
-		cur.kill(errInstance)
+	for _, cur := range w.current() {
+		if cur.instance != inst {
+			cur.kill(errInstance)
+		}
 	}
 }
 
@@ -249,11 +287,10 @@ func (w *Worker) apply(ctx context.Context, rep sensorlink.JobsReply) {
 	cancelled := map[string]bool{}
 	for _, id := range rep.Cancel {
 		cancelled[id] = true
-		w.mu.Lock()
-		cur := w.cur
-		w.mu.Unlock()
-		if cur != nil && cur.job.ID == id {
-			cur.kill(errCancelled)
+		for _, cur := range w.current() {
+			if cur.job.ID == id {
+				cur.kill(errCancelled)
+			}
 		}
 	}
 	for i, job := range rep.Jobs {
@@ -262,19 +299,25 @@ func (w *Worker) apply(ctx context.Context, rep sensorlink.JobsReply) {
 			w.log.ErrorContext(ctx, "sensor_active_job_with_a_bad_id_ignored")
 			continue
 		}
-		if i > 0 {
-			w.log.ErrorContext(ctx, "sensor_active_extra_job_ignored", "id", job.ID) // the protocol carries at most one
+		if i >= numSlots {
+			w.log.ErrorContext(ctx, "sensor_active_extra_job_ignored", "id", job.ID) // the protocol carries at most one job of each kind
+			continue
+		}
+		slot, ok := slotOf(job.Kind)
+		if !ok {
+			w.log.ErrorContext(ctx, "sensor_active_job_refused", "id", job.ID, "error", "unknown kind") // a core newer than this worker, or not what it should be
+			w.post(ctx, job.ID, &sensorlink.JobResult{Status: "refused", Reason: "invalid_job", ExitCode: -1})
 			continue
 		}
 		w.mu.Lock()
-		if w.cur != nil {
+		if w.cur[slot] != nil {
 			w.mu.Unlock()
 			w.post(ctx, job.ID, &sensorlink.JobResult{Status: "refused", Reason: "busy", ExitCode: -1})
 			continue
 		}
 		jctx, kill := context.WithCancelCause(ctx)
-		cur := &activeJob{job: job, instance: rep.Instance, kill: kill, postDone: make(chan struct{})}
-		w.cur = cur
+		cur := &activeJob{slot: slot, job: job, instance: rep.Instance, kill: kill, postDone: make(chan struct{})}
+		w.cur[slot] = cur
 		w.mu.Unlock()
 		if cancelled[job.ID] {
 			kill(errCancelled) // cancel racing start: the cancel came in the same reply
@@ -318,12 +361,26 @@ func (w *Worker) run(ctx, jctx context.Context, cur *activeJob) {
 		w.post(ctx, cur.job.ID, res)
 	}
 	w.mu.Lock()
-	w.cur = nil
+	w.cur[cur.slot] = nil
 	w.mu.Unlock()
+}
+
+// slotOf says which slot runs a kind of job: a job without a kind is nmap's (a core of protocol 1 sent none).
+func slotOf(kind string) (int, bool) {
+	switch kind {
+	case "", sensorlink.KindNmap:
+		return slotNmap, true
+	case sensorlink.KindNuclei:
+		return slotNuclei, true
+	}
+	return 0, false
 }
 
 // execute re-checks the job and runs it and returns the result to post.
 func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.JobResult {
+	if cur.slot == slotNuclei {
+		return w.executeNuclei(ctx, jctx, cur)
+	}
 	argv, err := argvOf(cur.job)
 	if err != nil {
 		w.log.ErrorContext(ctx, "sensor_active_job_refused", "id", cur.job.ID, "error", err) // core and worker disagree on the grammar
@@ -335,6 +392,12 @@ func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.
 	rctx, cancel := context.WithTimeout(jctx, time.Duration(cur.job.TimeoutS)*time.Second)
 	defer cancel()
 	out, err := w.runner.Run(rctx, "nmap", argv, nil)
+	return w.finish(ctx, jctx, rctx, cur, out, err, "nmap_missing", (*sensorlink.JobResult).SetXML)
+}
+
+// finish turns the end of a run into the result to post. setOut puts the program's stdout where the kind of job keeps it (xml_b64,
+// jsonl_b64); missing is the reason when the binary is not there.
+func (w *Worker) finish(ctx, jctx, rctx context.Context, cur *activeJob, out exec.Result, err error, missing string, setOut func(*sensorlink.JobResult, []byte)) *sensorlink.JobResult {
 	cause := context.Cause(jctx)
 	switch {
 	case cause != nil:
@@ -343,7 +406,7 @@ func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.
 		return &sensorlink.JobResult{Status: "stopped", Reason: "deadline", ExitCode: -1}
 	case err == nil:
 		r := &sensorlink.JobResult{Status: "done", ExitCode: 0, Truncated: out.Truncated}
-		r.SetXML(out.Stdout)
+		setOut(r, out.Stdout)
 		return r
 	}
 	var ee *exec.ExitError
@@ -351,7 +414,7 @@ func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.
 	case errors.As(err, &ee):
 		return &sensorlink.JobResult{Status: "failed", ExitCode: min(ee.ExitCode, 255), Truncated: out.Truncated}
 	case errors.Is(err, fs.ErrNotExist):
-		return &sensorlink.JobResult{Status: "failed", Reason: "nmap_missing", ExitCode: -1}
+		return &sensorlink.JobResult{Status: "failed", Reason: missing, ExitCode: -1}
 	}
 	w.log.WarnContext(ctx, "sensor_active_exec_failed", "id", cur.job.ID, "error", err)
 	return &sensorlink.JobResult{Status: "failed", Reason: "exec_failed", ExitCode: -1}
@@ -445,7 +508,8 @@ func (w *Worker) heartbeats(ctx context.Context) {
 
 func (w *Worker) beat(ctx context.Context) {
 	present, ver := w.nmapVersion(ctx)
-	inst, err := w.link.ActiveHeartbeat(ctx, &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver}})
+	hb := &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver}, Nuclei: w.nucleiStatus(ctx)}
+	inst, err := w.link.ActiveHeartbeat(ctx, hb)
 	if err != nil {
 		if ctx.Err() == nil {
 			w.log.WarnContext(ctx, "sensor_active_heartbeat_failed", "error", err)

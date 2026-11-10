@@ -35,7 +35,7 @@ func (r *rig) dial(t *testing.T, cert tls.Certificate) *rawConn {
 // post sends the headers of a POST that promises length bytes and then sends sent bytes of body (the rest never comes).
 func (rc *rawConn) post(t *testing.T, path string, length, sent int) {
 	t.Helper()
-	hdr := fmt.Sprintf("POST %s HTTP/1.1\r\nHost: core\r\nX-Vedette-Proto: 1\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n", path, length)
+	hdr := fmt.Sprintf("POST %s HTTP/1.1\r\nHost: core\r\nX-Vedette-Proto: 2\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n", path, length)
 	if _, err := rc.c.Write([]byte(hdr)); err != nil {
 		t.Fatal(err)
 	}

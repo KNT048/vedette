@@ -42,8 +42,9 @@ type Backend interface {
 	// PassiveHeartbeat and ActiveHeartbeat return the instance nonce of this core process (32 hex).
 	PassiveHeartbeat(ctx context.Context, hb *PassiveHeartbeat) (instance string, err error)
 	ActiveHeartbeat(ctx context.Context, hb *ActiveHeartbeat) (instance string, err error)
-	// Jobs holds the request open up to wait until there is a job or a cancel; running is the job the worker says it runs.
-	Jobs(ctx context.Context, wait time.Duration, running string) (JobsReply, error)
+	// Jobs holds the request open up to wait until there is a job or a cancel; running holds the jobs the worker says it runs:
+	// none, one, or two (one nmap and one nuclei, D-125 (3)), distinct ids of the form of a job id.
+	Jobs(ctx context.Context, wait time.Duration, running []string) (JobsReply, error)
 	// JobRunning says whether id is the job this core handed to the active role and has not finished. It is asked before the
 	// body of a result is read, so a result for any other job costs nothing (404 unknown_job without reading).
 	JobRunning(id string) bool
@@ -403,7 +404,7 @@ func (s *Server) dispatch(ctx context.Context, w http.ResponseWriter, r *http.Re
 
 type query struct {
 	wait    time.Duration
-	running string
+	running []string
 	etag    string
 }
 
@@ -428,10 +429,16 @@ func queryOf(r *http.Request, id routeID) (query, error) {
 		q.wait = time.Duration(n) * time.Second
 	}
 	if run := vals.Get("running"); run != "" {
-		if !jobIDRE.MatchString(run) {
+		ids := strings.Split(run, ",")
+		if len(ids) > MaxRunning {
 			return q, errInvalid
 		}
-		q.running = run
+		for i, id := range ids {
+			if !jobIDRE.MatchString(id) || slices.Contains(ids[:i], id) {
+				return q, errInvalid
+			}
+		}
+		q.running = ids
 	}
 	if id == rConfig {
 		if v := r.Header.Get("If-None-Match"); v != "" {

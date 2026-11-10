@@ -4880,7 +4880,7 @@
                 "type": "object",
                 "properties": {
                   "id": {
-                    "description": "Present when editing or testing a saved profile: leave the key blank to keep the old key",
+                    "description": "Present when editing or testing a saved profile: leave the key blank to keep the old key, only while the provider type and the server address (scheme, host and port) stay the same; another address needs the key entered again",
                     "type": "string"
                   },
                   "name": {
@@ -5140,7 +5140,7 @@
                 "type": "object",
                 "properties": {
                   "id": {
-                    "description": "Present when editing or testing a saved profile: leave the key blank to keep the old key",
+                    "description": "Present when editing or testing a saved profile: leave the key blank to keep the old key, only while the provider type and the server address (scheme, host and port) stay the same; another address needs the key entered again",
                     "type": "string"
                   },
                   "name": {
@@ -5323,7 +5323,7 @@
                 "type": "object",
                 "properties": {
                   "id": {
-                    "description": "Present when editing or testing a saved profile: leave the key blank to keep the old key",
+                    "description": "Present when editing or testing a saved profile: leave the key blank to keep the old key, only while the provider type and the server address (scheme, host and port) stay the same; another address needs the key entered again",
                     "type": "string"
                   },
                   "kind": {

@@ -79,7 +79,7 @@ func TestRolesAreSeparate(t *testing.T) {
 	wantCode(t, err, sensorlink.CodeForbiddenRoute)
 	_, err = act.PostObservations(ctx, request(epochA, 1, item(macN(1), "hostname", "x", 0.5)))
 	wantCode(t, err, sensorlink.CodeForbiddenRoute)
-	_, err = pas.Jobs(ctx, "", time.Second)
+	_, err = pas.Jobs(ctx, nil, time.Second)
 	wantCode(t, err, sensorlink.CodeForbiddenRoute)
 	wantCode(t, pas.PostResult(ctx, strings.Repeat("a", 32), &sensorlink.JobResult{Status: "done"}), sensorlink.CodeForbiddenRoute)
 	_, err = act.PassiveHeartbeat(ctx, &sensorlink.PassiveHeartbeat{Version: "1.0.0", Interfaces: []sensorlink.HeartbeatIface{}, Drops: map[string]int64{}})

@@ -300,32 +300,41 @@ func current(st *routerState, job Job, c candidate, carries bool) (Profile, bool
 	return p, st.assign.AllowedFor(carries, p)
 }
 
-// Probe tests a profile with the tiny prompts of provider.Probe and meters them like any other call, so the
-// connection test is part of the daily count (PRE-3). The prompts hold no customer data, so the privacy rule
-// does not apply.
-func (r *Router) Probe(ctx context.Context, p Profile, now func() time.Time) (provider.ProbeResult, error) {
+// probeEstimate is the share held against the caps for one connection test: three tiny requests.
+const probeEstimate = 200
+
+// Probe tests a profile with the tiny prompts of provider.Probe. Like every call it is checked against the caps before any
+// request is sent (ErrCapped, ErrProfileCapped) and counted after (INV-4, PRE-3): the tokens of all three requests, also of those
+// that failed with known usage, are settled together. It returns the downgrade if the test lowered the level, so the caller can
+// record it. The prompts hold no customer data, so the privacy rule does not apply. p.DailyCap is the cap checked for the profile.
+func (r *Router) Probe(ctx context.Context, p Profile, now func() time.Time) (provider.ProbeResult, *Downgrade, error) {
 	cl, err := r.factory(p)
 	if err != nil {
-		return provider.ProbeResult{}, err
+		return provider.ProbeResult{}, nil, err
 	}
-	return provider.Probe(ctx, meteredProvider{cl, r.meter, p.ID}, now)
+	hold, err := r.meter.Reserve(p.ID, p.DailyCap, probeEstimate)
+	if err != nil {
+		return provider.ProbeResult{}, nil, err
+	}
+	cp := &countingProvider{inner: cl}
+	res, perr := provider.Probe(ctx, cp, now)
+	return res, hold.Settle(cp.in, cp.out), perr
 }
 
-// meteredProvider counts the usage of every call, failed ones with known usage included.
-type meteredProvider struct {
+// countingProvider adds up the usage of the calls made through it, failed ones with known usage included.
+type countingProvider struct {
 	inner   provider.Provider
-	meter   *Meter
-	profile string
+	in, out int
 }
 
-func (m meteredProvider) Complete(ctx context.Context, req provider.Request) (provider.Response, error) {
-	resp, err := m.inner.Complete(ctx, req)
+func (c *countingProvider) Complete(ctx context.Context, req provider.Request) (provider.Response, error) {
+	resp, err := c.inner.Complete(ctx, req)
 	var pe *provider.Error
 	switch {
 	case err == nil:
-		m.meter.Record(m.profile, resp.Usage.InputTokens, resp.Usage.OutputTokens)
+		c.in, c.out = c.in+resp.Usage.InputTokens, c.out+resp.Usage.OutputTokens
 	case errors.As(err, &pe):
-		m.meter.Record(m.profile, pe.Usage.InputTokens, pe.Usage.OutputTokens)
+		c.in, c.out = c.in+pe.Usage.InputTokens, c.out+pe.Usage.OutputTokens
 	}
 	return resp, err
 }

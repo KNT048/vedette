@@ -1,7 +1,9 @@
 package sensorlink
 
 import (
+	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -101,14 +103,29 @@ type HeartbeatSpan struct {
 
 // ActiveHeartbeat is the heartbeat body of the active role.
 type ActiveHeartbeat struct {
-	Version string        `json:"version"`
-	Nmap    HeartbeatNmap `json:"nmap"`
+	Version string          `json:"version"`
+	Nmap    HeartbeatNmap   `json:"nmap"`
+	Nuclei  HeartbeatNuclei `json:"nuclei"`
 }
 
 // HeartbeatNmap says whether the worker can run nmap.
 type HeartbeatNmap struct {
 	Present bool   `json:"present"`
 	Version string `json:"version"`
+}
+
+// HeartbeatNuclei says whether the worker can run nuclei (D-125 (1)): Present is "the pinned binary runs -version"; Pack is
+// the version and SHA-256 of the template pack whose index the worker read from its image, both "" when there is none.
+type HeartbeatNuclei struct {
+	Present bool          `json:"present"`
+	Version string        `json:"version"`
+	Pack    HeartbeatPack `json:"pack"`
+}
+
+// HeartbeatPack names the template pack baked into the scan image.
+type HeartbeatPack struct {
+	Version string `json:"version"`
+	SHA256  string `json:"sha256"`
 }
 
 // JobsReply is the answer to GET /jobs (active).
@@ -118,13 +135,117 @@ type JobsReply struct {
 	Cancel   []string `json:"cancel"`
 }
 
-// Job is one nmap job. There is no argv, flag, path or URL on the wire (D-111 (3)): the worker builds the command itself.
+// Job kinds (protocol 2). A job that carries no kind is an nmap job: the kind is the only thing protocol 2 added to nmap's.
+const (
+	KindNmap   = "nmap"
+	KindNuclei = "nuclei"
+)
+
+// Job is one job of the worker. There is no argv, flag, path or URL on the wire (D-111 (3)): the worker builds the command
+// itself. An nmap job fills Shape, Rate and Targets; a nuclei job fills Nuclei (its fields sit at the top level on the wire:
+// pack, templates, targets, rate, max_host_errors). A kind this version does not know decodes to a Job with only ID and
+// Kind, so the worker can refuse it (invalid_job) instead of failing the whole poll; whatever else the object holds is not read.
 type Job struct {
+	ID       string
+	Kind     string // "nmap", "nuclei", or "" (= nmap, a job of a core that does not send the kind)
+	TimeoutS int
+
+	Shape   string   // nmap
+	Rate    int      // nmap
+	Targets []string // nmap
+
+	Nuclei *NucleiJob // nuclei, nil for the others
+}
+
+// NucleiJob is what a nuclei run is made of (D-125 (1), D-136 (4) and (6)): template ids, never paths; the worker maps them
+// through the index of the pack named here.
+type NucleiJob struct {
+	Pack          JobPack        `json:"pack"`
+	Templates     []string       `json:"templates"`
+	Targets       []NucleiTarget `json:"targets"`
+	Rate          int            `json:"rate"`
+	MaxHostErrors int            `json:"max_host_errors"`
+}
+
+// JobPack names the pack a job was planned against.
+type JobPack struct {
+	Version string `json:"version"`
+	SHA256  string `json:"sha256"`
+}
+
+// NucleiTarget is one place nuclei sends requests to. Scheme is "http", "https" or "" (a network template on host:port).
+type NucleiTarget struct {
+	Host   string `json:"host"`
+	Port   int    `json:"port"`
+	Scheme string `json:"scheme"`
+}
+
+type nmapWire struct {
 	ID       string   `json:"id"`
+	Kind     string   `json:"kind,omitempty"`
 	Shape    string   `json:"shape"`
 	Rate     int      `json:"rate"`
 	Targets  []string `json:"targets"`
 	TimeoutS int      `json:"timeout_s"`
+}
+
+type nucleiWire struct {
+	ID       string `json:"id"`
+	Kind     string `json:"kind"`
+	TimeoutS int    `json:"timeout_s"`
+	NucleiJob
+}
+
+// MarshalJSON writes the job in the shape of its kind.
+func (j Job) MarshalJSON() ([]byte, error) {
+	switch j.Kind {
+	case "", KindNmap:
+		return json.Marshal(nmapWire{ID: j.ID, Kind: j.Kind, Shape: j.Shape, Rate: j.Rate, Targets: j.Targets, TimeoutS: j.TimeoutS})
+	case KindNuclei:
+		if j.Nuclei == nil {
+			return nil, errors.New("sensorlink: a nuclei job without its fields")
+		}
+		return json.Marshal(nucleiWire{ID: j.ID, Kind: j.Kind, TimeoutS: j.TimeoutS, NucleiJob: *j.Nuclei})
+	}
+	return json.Marshal(struct {
+		ID   string `json:"id"`
+		Kind string `json:"kind"`
+	}{j.ID, j.Kind})
+}
+
+// UnmarshalJSON reads a job strictly (unknown fields are errors; repeated keys were already refused by the caller's
+// jsonstrict pass, which walks nested objects too), by its kind.
+func (j *Job) UnmarshalJSON(raw []byte) error {
+	var head struct {
+		ID   string `json:"id"`
+		Kind string `json:"kind"`
+	}
+	if err := json.Unmarshal(raw, &head); err != nil {
+		return err
+	}
+	strict := func(v any) error {
+		dec := json.NewDecoder(bytes.NewReader(raw))
+		dec.DisallowUnknownFields()
+		return dec.Decode(v)
+	}
+	switch head.Kind {
+	case "", KindNmap:
+		var w nmapWire
+		if err := strict(&w); err != nil {
+			return err
+		}
+		*j = Job{ID: w.ID, Kind: w.Kind, Shape: w.Shape, Rate: w.Rate, Targets: w.Targets, TimeoutS: w.TimeoutS}
+	case KindNuclei:
+		var w nucleiWire
+		if err := strict(&w); err != nil {
+			return err
+		}
+		n := w.NucleiJob
+		*j = Job{ID: w.ID, Kind: w.Kind, TimeoutS: w.TimeoutS, Nuclei: &n}
+	default:
+		*j = Job{ID: head.ID, Kind: head.Kind}
+	}
+	return nil
 }
 
 // JobResult is the body of POST /jobs/{id}/result.
@@ -133,9 +254,11 @@ type JobResult struct {
 	Reason    string `json:"reason"`
 	ExitCode  int    `json:"exit_code"`
 	Truncated bool   `json:"truncated"`
-	XMLB64    string `json:"xml_b64"`
+	XMLB64    string `json:"xml_b64"`             // nmap's stdout
+	JSONLB64  string `json:"jsonl_b64,omitempty"` // nuclei's stdout (protocol 2); a result carries at most one of the two
 
-	xml []byte // the decoded XMLB64, set by the server's decoder
+	xml   []byte // the decoded XMLB64, set by the server's decoder
+	jsonl []byte // the decoded JSONLB64
 }
 
 type instanceReply struct {
@@ -152,9 +275,11 @@ var (
 	ifaceRE    = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,14}$`)
 	macRE      = regexp.MustCompile(`^([0-9a-f]{2}:){5}[0-9a-f]{2}$`)
 	dropKeyRE  = regexp.MustCompile(`^[a-z][a-z0-9_]{0,47}$`)
+	packVerRE  = regexp.MustCompile(`^[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,4}$`)
+	sha256RE   = regexp.MustCompile(`^[0-9a-f]{64}$`)
 	nmapVerRE  = regexp.MustCompile(`^[0-9A-Za-z._+-]{0,32}$`)
 	etagRE     = regexp.MustCompile(`^"[A-Za-z0-9._:-]{1,64}"$`)
-	resultCode = map[string]bool{"": true, "invalid_job": true, "busy": true, "nmap_missing": true, "exec_failed": true, "deadline": true, "cancelled": true}
+	resultCode = map[string]bool{"": true, "invalid_job": true, "busy": true, "nmap_missing": true, "nuclei_missing": true, "pack_mismatch": true, "pack_invalid": true, "exec_failed": true, "deadline": true, "cancelled": true}
 	resultStat = map[string]bool{"done": true, "failed": true, "stopped": true, "refused": true}
 )
 
@@ -252,13 +377,17 @@ func decodeActiveHeartbeat(raw []byte) (*ActiveHeartbeat, error) {
 	if err := jsonstrict.Decode(raw, &h); err != nil {
 		return nil, fmt.Errorf("%w: %w", errInvalid, err)
 	}
-	if !versionRE.MatchString(h.Version) || len(h.Version) > 64 || !nmapVerRE.MatchString(h.Nmap.Version) {
+	if !versionRE.MatchString(h.Version) || len(h.Version) > 64 || !nmapVerRE.MatchString(h.Nmap.Version) || !nmapVerRE.MatchString(h.Nuclei.Version) {
 		return nil, invalid("version")
+	}
+	if p := h.Nuclei.Pack; p.Version != "" && !packVerRE.MatchString(p.Version) || p.SHA256 != "" && !sha256RE.MatchString(p.SHA256) || (p.Version == "") != (p.SHA256 == "") {
+		return nil, invalid("nuclei pack")
 	}
 	return &h, nil
 }
 
-// decodeJobResult checks the body of a job result. A decoded XML over 8 MiB is errTooLarge (413), not a syntax error.
+// decodeJobResult checks the body of a job result. A decoded XML over 8 MiB or JSONL over 4 MiB is errTooLarge (413), not a
+// syntax error.
 func decodeJobResult(raw []byte) (*JobResult, error) {
 	var r JobResult
 	if err := jsonstrict.Decode(raw, &r); err != nil {
@@ -267,29 +396,50 @@ func decodeJobResult(raw []byte) (*JobResult, error) {
 	if !resultStat[r.Status] || !resultCode[r.Reason] || r.ExitCode < -1 || r.ExitCode > 255 {
 		return nil, invalid("result")
 	}
-	if base64.StdEncoding.DecodedLen(len(r.XMLB64)) > MaxResultXML+3 {
-		return nil, errTooLarge
+	if r.XMLB64 != "" && r.JSONLB64 != "" {
+		return nil, invalid("xml_b64 and jsonl_b64 together")
 	}
-	if r.XMLB64 != "" {
-		if r.Status != "done" {
-			return nil, invalid("xml_b64 on a result that is not done")
-		}
-		buf := make([]byte, base64.StdEncoding.DecodedLen(len(r.XMLB64)))
-		n, err := base64.StdEncoding.Decode(buf, []byte(r.XMLB64))
-		if err != nil {
-			return nil, invalid("xml_b64")
-		}
-		if n > MaxResultXML {
-			return nil, errTooLarge
-		}
-		r.xml = buf[:n]
+	var err error
+	if r.xml, err = decodeOutput(&r, r.XMLB64, MaxResultXML, "xml_b64"); err != nil {
+		return nil, err
+	}
+	if r.jsonl, err = decodeOutput(&r, r.JSONLB64, MaxResultJSONL, "jsonl_b64"); err != nil {
+		return nil, err
 	}
 	return &r, nil
+}
+
+// decodeOutput decodes one base64 output field against its cap: "" is nothing, a field on a result that is not done is invalid.
+func decodeOutput(r *JobResult, b64 string, limit int, name string) ([]byte, error) {
+	if base64.StdEncoding.DecodedLen(len(b64)) > limit+3 {
+		return nil, errTooLarge
+	}
+	if b64 == "" {
+		return nil, nil
+	}
+	if r.Status != "done" {
+		return nil, invalid(name + " on a result that is not done")
+	}
+	buf := make([]byte, base64.StdEncoding.DecodedLen(len(b64)))
+	n, err := base64.StdEncoding.Decode(buf, []byte(b64))
+	if err != nil {
+		return nil, invalid(name)
+	}
+	if n > limit {
+		return nil, errTooLarge
+	}
+	return buf[:n], nil
 }
 
 // XML is the nmap output the server's decoder found in a result (nil when there is none). It is not set on a JobResult a
 // sensor builds; the sensor puts the bytes in XMLB64 with SetXML.
 func (r *JobResult) XML() []byte { return r.xml }
+
+// JSONL is the nuclei output the server's decoder found in a result (nil when there is none).
+func (r *JobResult) JSONL() []byte { return r.jsonl }
+
+// SetJSONL fills JSONLB64 from the raw nuclei output.
+func (r *JobResult) SetJSONL(b []byte) { r.JSONLB64 = base64.StdEncoding.EncodeToString(b) }
 
 // SetXML fills XMLB64 from the raw nmap output.
 func (r *JobResult) SetXML(b []byte) { r.XMLB64 = base64.StdEncoding.EncodeToString(b) }

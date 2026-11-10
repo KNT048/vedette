@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -287,11 +288,12 @@ func (c *Client) Config(ctx context.Context, etag string, wait time.Duration) (C
 	return ConfigReply{ETag: r.etag, Config: cfg}, nil
 }
 
-// Jobs is one long poll of GET /jobs (active); running is the id of the job the worker runs, "" when idle. Cancel ctx to stop.
-func (c *Client) Jobs(ctx context.Context, running string, wait time.Duration) (JobsReply, error) {
+// Jobs is one long poll of GET /jobs (active); running holds the ids of the jobs the worker runs (at most MaxRunning), none
+// when idle. Cancel ctx to stop.
+func (c *Client) Jobs(ctx context.Context, running []string, wait time.Duration) (JobsReply, error) {
 	q := url.Values{"wait": {strconv.Itoa(int(min(wait, MaxWait) / time.Second))}}
-	if running != "" {
-		q.Set("running", running)
+	if len(running) > 0 {
+		q.Set("running", strings.Join(running, ","))
 	}
 	var rep JobsReply
 	if _, err := c.do(ctx, http.MethodGet, PathPrefix+"/jobs", q, nil, nil, &rep, MaxJobsReply, min(wait, MaxWait)+10*time.Second); err != nil {

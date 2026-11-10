@@ -31,7 +31,7 @@ Mô hình tin cậy: sensor là **máy bị tấn công được** (nằm trên 
 
 - HTTPS, JSON (`Content-Type: application/json`), không nén (`Content-Encoding` bất kỳ → `400 invalid_request`). TLS **1.3** tối thiểu; HTTP/2 khi ALPN đề nghị, không bắt buộc.
 - Listener riêng của `core` (`:8444` trong container), tách khỏi listener UI 8443; trên appliance chỉ publish `127.0.0.1:8444` (`DEPLOYMENT.md` §6.1). `ClientAuth = RequireAndVerifyClientCert`, pool chỉ chứa CA sensor.
-- Tiền tố `/sensor/v1/`. Mọi request mang `X-Vedette-Proto: 1`.
+- Tiền tố `/sensor/v1/`. Mọi request mang `X-Vedette-Proto: 2` (bản 2: loại job `nuclei`, D-125/D-133).
 - `ReadHeaderTimeout` 5 s, `WriteTimeout` 35 s (long-poll giữ tối đa 30 s).
 - Thân: `http.MaxBytesReader` theo trần của route (§9) **trước** khi giải mã; giải mã bằng `internal/jsonstrict` (trường lạ, khoá trùng, khoá trùng sau gập chữ, độ sâu > 32 → `400 invalid_request`). Query lạ → `400 invalid_request`.
 - SP-1 (làm rõ): thân POST phải có `Content-Type: application/json` (thiếu hoặc khác → `400 invalid_request`); thân đọc tối đa **10 s** (đồng hồ ổ cắm, không phải seam) và kết nối bị đóng khi thân dừng giữa chừng hoặc vượt trần (net/http không có hạn đọc thân nào mà không làm hỏng long-poll); `IdleTimeout` 2 phút; `MaxHeaderBytes` 16 KiB. `If-None-Match` phải có dạng `"<1…64 ký tự [A-Za-z0-9._:-]>"`, không thì `400`. `wait` là một số nguyên 0…30 (một giá trị, không lặp); `running` là 32 hex hoặc rỗng.
@@ -81,7 +81,7 @@ Thu hồi chủ động không có giao diện (D-115); thu hồi = xoay vòng (
 | `passive` | `GET /sensor/v1/config?wait=<0..30>` | — | `200` cấu hình + `ETag`, hoặc `304` |
 | `passive` | `POST /sensor/v1/observations` | ≤ 1 MiB | `200 {ack_seq, rejected[]}` |
 | `passive`, `active` | `POST /sensor/v1/heartbeat` | ≤ 64 KiB | `200 {instance}` |
-| `active` | `GET /sensor/v1/jobs?wait=<0..30>&running=<id\|>` | — | `200 {instance, jobs[], cancel[]}` |
+| `active` | `GET /sensor/v1/jobs?wait=<0..30>&running=<id[,id]>` (`running` rỗng hoặc bỏ trống khi rảnh; ≤ 2 id, bản 2) | — | `200 {instance, jobs[], cancel[]}` |
 | `active` | `POST /sensor/v1/jobs/{id}/result` | ≤ 11 MiB | `204` |
 
 Mọi cặp (method, đường dẫn) khác, kể cả route của vai kia → `403 forbidden_route`, kiểm **trước khi đọc thân**. Mỗi vai tối đa **một** long-poll đang mở; cái thứ hai → `409 poll_in_progress`. Module của vai tắt (`sensor-passive` cho `passive`, `sensor-active` cho `active`) → mọi route của vai `409 module_off`.
@@ -154,7 +154,8 @@ Mỗi 30 s. Thân theo vai (giải mã chặt: trường của vai kia là trư�
 ```
 
 ```json
-{ "version": "1.4.0", "nmap": { "present": true, "version": "7.94SVN" } }
+{ "version": "1.4.0", "nmap": { "present": true, "version": "7.94SVN" },
+  "nuclei": { "present": true, "version": "v3.3.7", "pack": { "version": "2026.11.10", "sha256": "9f…(64 hex)" } } }
 ```
 
 | Trường | Quy tắc |
@@ -164,6 +165,7 @@ Mỗi 30 s. Thân theo vai (giải mã chặt: trường của vai kia là trư�
 | `drops` (passive) | ≤ 64 khoá thuộc **tập đóng** của bộ đếm bỏ trong `capture` (`malformed_*`, `excluded`, `value_empty`, `fragment_skipped`, `new_macs_unconfirmed`, `new_macs_dropped`, `values_dropped`, `observation_failed`…; 34 khoá, danh sách ở khối "SP-4" của §6 và `sensorlink.DropKeys`); giá trị ≥ 0 |
 | `devices_seen` (passive) | ≥ 0 |
 | `nmap` (active) | `present` = `/usr/bin/nmap` có và chạy được `--version`; `version` ≤ 32 byte |
+| `nuclei` (active, bản 2) | `present` = `/usr/local/bin/nuclei` có và chạy được `-version -duc` (nuclei in phiên bản ra stderr); `version` ≤ 32 byte; `pack` = `version` (`AAAA.M.N`) và `sha256` (64 hex) của chỉ mục gói mẫu nằm sẵn trong image, **cả hai rỗng** khi chưa có chỉ mục dùng được (không đọc được hoặc không qua `pack.Parse`); một rỗng một không → `400` |
 
 Trả `200 { "instance": "<32 hex>" }`: nonce sinh mỗi lần tiến trình `core` khởi động (lease của §6.4).
 
@@ -172,7 +174,8 @@ Trả `200 { "instance": "<32 hex>" }`: nonce sinh mỗi lần tiến trình `co
 - `SpanStats()` / `span_status`: `off` (cấu hình `span=false`), `no_link` (card SPAN `link=false`), `no_traffic` (`last_packet_at` cũ hơn 30 s, `null`, hoặc sensor `offline`), `own_only` (`other_macs = 0`), `ok`;
 - `SetInterface`: `interface` phải là một card trong heartbeat thụ động mới nhất (`400 bad_interface`, sensor-passive INV-9); chưa có heartbeat → `bad_interface`;
 - địa chỉ của hộp (`ProtectedIPs` của sensor-active, kiểm IP bẫy của honeypot, `conn`) **tới khi** lát host 3-3 có `GET /v1/state/net` (D-114 (5));
-- sức khoẻ `sensor-active`: `unavailable` khi 90 s không có heartbeat `active` hoặc `nmap.present=false` (INV-6).
+- sức khoẻ `sensor-active`: `unavailable` khi 90 s không có heartbeat `active` hoặc `nmap.present=false` (INV-6);
+- sức khoẻ của máy quét nuclei (`scan`, D-125 (5)): `scanner_unavailable` (503 ở API) khi 90 s không có heartbeat `active`, `nuclei.present=false`, `nuclei.pack.sha256` rỗng, hoặc một job nuclei chạy quá hạn mà worker chưa dừng được; nmap và nuclei độc lập: thiếu cái này không làm cái kia `unavailable`.
 
 Heartbeat không có trong 90 s không xoá dữ liệu nào; chỉ đổi trạng thái hiển thị.
 
@@ -182,53 +185,74 @@ Heartbeat không có trong 90 s không xoá dữ liệu nào; chỉ đổi trạ
 
 ```json
 { "instance": "9b1d…(32 hex)",
-  "jobs": [ { "id": "c0ffee…(32 hex)", "shape": "normal", "rate": 100,
-              "targets": ["192.168.10.20", "192.168.10.21"], "timeout_s": 5400 } ],
+  "jobs": [ { "id": "c0ffee…(32 hex)", "kind": "nmap", "shape": "normal", "rate": 100,
+              "targets": ["192.168.10.20", "192.168.10.21"], "timeout_s": 5400 },
+            { "id": "badc0de…(32 hex)", "kind": "nuclei", "timeout_s": 600,
+              "pack": { "version": "2026.11.10", "sha256": "9f…(64 hex)" },
+              "templates": ["CVE-2024-1234", "CVE-2023-9999"],
+              "targets": [ { "host": "192.168.10.20", "port": 8080, "scheme": "http" },
+                           { "host": "192.168.10.21", "port": 22, "scheme": "" } ],
+              "rate": 5, "max_host_errors": 3 } ],
   "cancel": [] }
 ```
 
 | Trường | Quy tắc |
 |---|---|
-| query `running` | id job worker đang chạy, rỗng khi rảnh |
-| `jobs` | 0 hoặc 1 phần tử |
-| `jobs[].shape` | `sweep` \| `normal` \| `gentle` (ba mẫu của D-84 (7)) |
-| `jobs[].rate` | 1 … 1000; `gentle` luôn `1` |
-| `jobs[].targets` | 1 … 64 IPv4 riêng (RFC 1918), chính tắc, không trùng (văn phạm `ValidateNmapArgs`) |
-| `jobs[].timeout_s` | 1 … 7200 = min(hết cửa sổ, 2 giờ), do `core` tính |
+| query `running` | id các job worker đang chạy, cách nhau bằng dấu phẩy: rỗng, một id, hoặc hai id (một nmap, một nuclei; bản 2), mỗi id 32 hex, không trùng; khác → `400` |
+| `jobs` | 0, 1 hoặc 2 phần tử, **tối đa một job mỗi loại** |
+| `jobs[].kind` | `nmap` \| `nuclei` (bản 2). Thiếu `kind` = `nmap`. Loại lạ: giải mã chỉ lấy `id` và `kind`, worker trả `refused` (`invalid_job`) mà không làm hỏng cả poll |
+| `jobs[].shape` | (nmap) `sweep` \| `normal` \| `gentle` (ba mẫu của D-84 (7)) |
+| `jobs[].rate` | (nmap) 1 … 1000; `gentle` luôn `1` |
+| `jobs[].targets` | (nmap) 1 … 64 IPv4 riêng (RFC 1918), chính tắc, không trùng (văn phạm `ValidateNmapArgs`) |
+| `jobs[].timeout_s` | nmap: 1 … 7200 = min(hết cửa sổ, 2 giờ); nuclei: 1 … 3600 = min(hạn của ngữ cảnh probe, 1 giờ); do `core` tính lúc giao |
+| `jobs[].pack` (nuclei) | `{version, sha256}` của gói mẫu mà `core` đã chọn mẫu theo; worker từ chối khi chỉ mục trong image khác (`pack_mismatch`). `sha256` là **nhãn** do bộ dựng gói ghi trong chỉ mục (`pack.Index.SHA256`), không phải hàm băm worker tự tính; thứ được băm lại là từng tệp mẫu được chọn, so với `sha256` của mục tương ứng trong chỉ mục. `core` cũng so nhãn này với heartbeat **trước khi giao** (`ErrPackMismatch`, không thử lại); `pack_invalid` (băm lệch, link trong gói) là tín hiệu toàn vẹn: `ErrPackInvalid`, log ERROR, không thử lại |
+| `jobs[].templates` (nuclei) | 1 … 32 **id** mẫu (`^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$`), không trùng; không đường dẫn, không URL, không YAML (D-111 (3)). Worker đổi id thành đường dẫn bằng chỉ mục đã kiểm (D-136 (6)); id không có trong chỉ mục → `invalid_job` |
+| `jobs[].targets` (nuclei) | 1 … 16 `{host, port, scheme}`: `host` là IPv4 riêng RFC 1918 dạng chuẩn, không `.0`/`.255` (**không tên miền**, không IP công khai, loopback, link-local, CGNAT, benchmark, 240/4; D-136 (4)), `port` 1..65535, `scheme` `"http"` \| `"https"` \| `""` (mẫu mạng, `host:port`); không trùng |
+| `jobs[].rate` / `max_host_errors` (nuclei) | `rate` 1 … 20 (`-rl`), `max_host_errors` 2 … 20 (`-mhe`) |
 | `cancel` | ≤ 8 id job phải dừng |
 
-Trên dây **không** có argv, cờ, đường dẫn, URL hay phạm vi (D-111 (3)): worker dựng argv bằng chính `buildNmapArgs` + `ValidateNmapArgs` (gói lá `modules/sensor-active/nmapargv`, D-113 (3)).
+Trên dây **không** có argv, cờ, đường dẫn, URL hay phạm vi (D-111 (3)): worker dựng argv bằng chính `buildNmapArgs` + `ValidateNmapArgs` (gói lá `modules/sensor-active/nmapargv`, D-113 (3)); với job nuclei bằng `nucleiargv.Build` + `Validate` (gói lá `modules/scan/nucleiargv`, D-125 (2), D-136).
 
 **Bộ điều phối** (`core`, trong bộ nhớ; D-113 (4)):
 - `sensoractive` gọi `Prober` **sau khi** ghi dòng `sa_probe` (INV-9 giữ nguyên thứ tự); không có heartbeat `active` trong 90 s → `ErrUnavailable` ngay, không tạo job.
-- Một job đang chạy = một nmap trên hộp. Job mới chỉ được giao khi poll báo `running` rỗng; poll còn báo `running` của job cũ thì job mới chờ (vẫn chịu hạn của nó).
+- Hai **khe** riêng, nmap và nuclei (bản 2, D-125 (3)): mỗi khe một job đang chạy = một tiến trình trên hộp; một job nmap và một job nuclei chạy cùng lúc, nên "Scan now" và quét lại KEV không chờ sau một lượt quét dò 2 giờ. Job mới của một khe chỉ được giao khi khe đó rảnh và poll không còn nêu tên job vừa xong của khe đó hay một id mà `core` không biết (id lạ giữ cả hai khe tới khi worker hết báo nó); job thứ hai của cùng một loại chờ (vẫn chịu hạn của nó). Mọi quy tắc dưới đây (lease, chờ lấy, 30 s, hủy) áp cho từng khe.
 - Job chưa được lấy trong 60 s → probe `failed` (`worker_unavailable`). Job đã giao mà poll sau đó báo `running` khác id đó và chưa có kết quả → probe `failed` (`worker_lost`: sensor khởi động lại giữa chừng hoặc phản hồi bị mất).
 - Ngữ cảnh probe kết thúc (hết cửa sổ, `SettingsChanged`, hạ `rate`, thiết bị đổi, tắt module; INV-3) → job chưa giao thì bỏ; đã giao thì `cancel:[id]` ở long-poll kế tiếp (long-poll đang mở được đánh thức). `core` coi probe là `stopped` sau tối đa 30 s dù worker chưa xác nhận; job mới vẫn chờ `running` rỗng.
 
 **Worker** (`vedette-sensor active`):
-- Kiểm lại job (văn phạm bảng trên, `ValidateNmapArgs` trên argv đã dựng, hạn ≤ 2 giờ); sai → kết quả `refused` (`invalid_job`), không chạy gì. Nhận job khi đang chạy job khác → `refused` (`busy`).
+- Kiểm lại job (văn phạm bảng trên, `ValidateNmapArgs` trên argv đã dựng, hạn ≤ 2 giờ); sai → kết quả `refused` (`invalid_job`), không chạy gì. Nhận job khi khe cùng loại đang chạy job khác → `refused` (`busy`); khe kia không bị đụng.
 - Chạy `/usr/bin/nmap` qua `core/exec` (allowlist binary + argv, không shell), nhóm tiến trình riêng, hạn `timeout_s`, stdout trần 8 MiB (`Truncated`).
+- Job `nuclei` (bản 2): kiểm lại bằng `nucleiargv` (số lượng, mục tiêu IPv4 riêng, `rate`, `max_host_errors`), `timeout_s` 1..3600, **gói** (`pack.version` và `pack.sha256` phải bằng chỉ mục trong image, không thì `refused`/`pack_mismatch`), từng id mẫu phải có trong chỉ mục (không thì `invalid_job`); rồi đi qua **cả cây gói** bằng `Lstat`: chỉ thư mục và tệp thường, một symlink, fifo, socket hay thiết bị ở bất cứ đâu → `refused`/`pack_invalid`; băm SHA-256 từng tệp mẫu được chọn (mở bằng `os.Root`) và so với chỉ mục (lệch → `pack_invalid`). Chạy `/usr/local/bin/nuclei` qua `core/exec` với argv của `nucleiargv.Build` (mỗi mẫu một `-t <TemplatesDir>/<đường dẫn>`, không bao giờ cả thư mục), **môi trường sạch** (chỉ `PATH`, `LANG=C` và `HOME` do `core/exec` đặt; không `*_PROXY`, `ENABLE_CLOUD_UPLOAD`, `PDCP_API_KEY`, không gì của tiến trình cha), `HOME` là thư mục rỗng mới trên tmpfs (xoá và tạo lại trước mỗi lần chạy; không có `~/.config/nuclei`), nhóm tiến trình riêng, hạn `timeout_s`, stdout trần 4 MiB (`Truncated`); **stderr không bao giờ gửi**. Thiếu binary → `failed`/`nuclei_missing`. Kết quả là JSONL thô trong `jsonl_b64`; `core` phân tích đóng khi lỗi (`nucleiout`).
 - **Huỷ**: id có trong `cancel` → giết nhóm tiến trình, kết quả `stopped` (`cancelled`).
 - **Lease**: 60 s không có lần poll `200` nào, hoặc `instance` khác `instance` lúc nhận job → giết nhóm tiến trình và **bỏ** kết quả (bên giao job đã không còn). `core` sập không để lại nmap mồ côi.
-- Trong lúc chạy vẫn long-poll liên tục với `running=<id>`.
+- Trong lúc chạy vẫn long-poll liên tục với `running=<id>` (bản 2: `running=<id>,<id>` khi cả hai khe bận).
+- Trong lúc một kết quả đang được gửi, vòng poll chờ (`waitPost`, tối đa bằng lease): khe kia không được poll trong thời gian đó, nên một job mới của nó chờ tới khi kết quả gửi xong (chấp nhận: kết quả ≤ 11 MiB, 60 s).
 
 ### 6.5 `POST /sensor/v1/jobs/{id}/result` (active)
 
 ```json
 { "status": "done", "reason": "", "exit_code": 0, "truncated": false, "xml_b64": "PD94bWwg…" }
+{ "status": "done", "reason": "", "exit_code": 0, "truncated": false, "xml_b64": "", "jsonl_b64": "eyJ0ZW1w…" }
 ```
 
 | Trường | Quy tắc |
 |---|---|
 | `status` | `done` \| `failed` \| `stopped` \| `refused` |
-| `reason` | `""` hoặc một trong `invalid_job`, `busy`, `nmap_missing`, `exec_failed`, `deadline`, `cancelled` |
+| `reason` | `""` hoặc một trong `invalid_job`, `busy`, `nmap_missing`, `exec_failed`, `deadline`, `cancelled`; bản 2 thêm `nuclei_missing`, `pack_mismatch`, `pack_invalid` |
 | `exit_code` | −1 … 255 (−1 = không chạy hoặc bị giết) |
-| `truncated` | stdout chạm trần 8 MiB |
-| `xml_b64` | base64 chuẩn của stdout nmap; sau giải mã ≤ 8 MiB; rỗng khi không phải `done` (khác → `400`) |
+| `truncated` | stdout chạm trần (nmap 8 MiB, nuclei 4 MiB) |
+| `xml_b64` | base64 chuẩn của stdout nmap; sau giải mã ≤ 8 MiB; rỗng khi không phải `done` (khác → `400`); luôn có mặt, rỗng ở kết quả nuclei |
+| `jsonl_b64` (bản 2) | base64 chuẩn của stdout nuclei (`-jsonl`); sau giải mã ≤ 4 MiB; chỉ khi `done`, và **không cùng `xml_b64`** (cả hai → `400`); vượt 4 MiB → `413` |
 
-`{id}` phải là job **đang chạy** do chính `core` này giao cho vai `active`; còn lại (id lạ, job đã xong, gửi lại lần hai) → `404 unknown_job`. Thân > 11 MiB hoặc XML giải mã > 8 MiB → `413 payload_too_large` và probe `failed`. Trả `204`.
+`{id}` phải là job **đang chạy** do chính `core` này giao cho vai `active`; còn lại (id lạ, job đã xong, gửi lại lần hai) → `404 unknown_job`. Thân > 11 MiB, XML giải mã > 8 MiB hoặc JSONL giải mã > 4 MiB → `413 payload_too_large` và probe `failed`. Trả `204`.
 
 `core` **không tin** `status` của worker: `done` mà `exit_code ≠ 0` hoặc `truncated` → probe `failed`, cả lô bị bỏ (INV-7); XML phân tích bằng `parseNmapXML` (đã fuzz) và `onlyTargets` trong `core`, nên quan sát và phần mềm từ nmap không bao giờ đi trên dây (D-113 (5)). `refused` → probe `failed` và log ERROR (worker và `core` bất đồng về văn phạm là lỗi hoặc bị chiếm); `nmap_missing` → sức khoẻ `unavailable` (INV-6).
+
+**SP-3b (bản 2, nuclei; mã `modules/sensor-active/{dispatch.go,nuclei.go,worker/}`, `core/sensorlink`, D-125, D-133).**
+- `Job` mang `kind`; hai khe trong `Dispatcher` (nmap, nuclei) và hai `cur` trong worker; `running` của poll là danh sách ≤ 2 id (`Backend.Jobs(ctx, wait, running []string)`, `Client.Jobs(ctx, running []string, wait)`). Một poll mà worker nêu id của một khe, id vừa xong của một khe, hay id lạ được xử lý như SP-3 nhưng theo từng khe; id lạ nhận `cancel` ngay lần đầu và giữ cả hai khe.
+- Giao hạn: nuclei `timeout_s` = min(hạn ctx còn lại, 3600); trần phía `core` `timeout_s` + 30 s như nmap, `Health` của nuclei nói "quá hạn" riêng.
+- Seam cho `scan`: `sensoractive.Scanner` (`Ready(ctx) error`, `RunNuclei(ctx, NucleiRequest) ([]nucleiout.Result, error)`), `*Dispatcher` thoả. `RunNuclei` kiểm văn phạm (như `nucleiargv.Build`) trước khi giao; trả `ErrScannerUnavailable` (và các lỗi bọc nó: `ErrScanWorkerUnavailable`, `ErrNucleiMissing`, `ErrPackMismatch`) khi máy quét không sẵn sàng (503 `scanner_unavailable`); `ErrWorkerLost`, `ErrWorkerRefused`, `ErrResultRejected` (kể cả JSONL bị `nucleiout` từ chối), `ErrOutputTruncated`, `*exec.ExitError` làm lượt chạy `failed`.
+- `core` chỉ tin mã thoát, `truncated` và các byte JSONL; mọi dòng ngoài mẫu hay đích (host:port) của job là cả lượt bị bỏ (D-136 (1), (7)). Một kết quả nuclei có `xml_b64` (hay ngược lại) bị từ chối.
 
 **SP-3 (làm rõ, mã `modules/sensor-active/{dispatch.go,worker/}`).**
 - `timeout_s` được tính lúc **giao** job (`min(hạn của ngữ cảnh probe còn lại, 7200)`, làm tròn lên), không phải lúc xếp hàng, để job chờ lấy lâu không chạy quá hạn của probe.
@@ -314,8 +338,10 @@ sequenceDiagram
 | Thân `observations` | 1 MiB; 1 … 500 mục; `value` ≤ 200 byte |
 | Cửa sổ `seen_at` | 24 giờ trước … 5 phút sau giờ `core` |
 | Thân `heartbeat` | 64 KiB; ≤ 32 card, ≤ 8 tiền tố IPv4 mỗi card, ≤ 64 khoá `drops` |
-| Thân kết quả job | 11 MiB; XML ≤ 8 MiB sau base64 |
-| Job | 1 … 64 đích, `rate` 1 … 1000, `timeout_s` 1 … 7200; một job đang chạy |
+| Thân kết quả job | 11 MiB; XML ≤ 8 MiB, JSONL ≤ 4 MiB sau giải mã base64 |
+| Job nmap | 1 … 64 đích, `rate` 1 … 1000, `timeout_s` 1 … 7200 |
+| Job nuclei (bản 2) | 1 … 32 id mẫu, 1 … 16 đích IPv4 riêng, `rate` 1 … 20, `max_host_errors` 2 … 20, `timeout_s` 1 … 3600; JSONL ≤ 1024 dòng |
+| Job chạy cùng lúc | một nmap và một nuclei (`running` ≤ 2 id); một job mỗi loại trong một reply |
 | `cancel` mỗi phản hồi | 8 |
 | Phản hồi `core` (sensor đọc) | `config`, `jobs` 64 KiB; khác 16 KiB |
 | `wait` | 0 … 30 s (mặc định 25) |
@@ -335,7 +361,7 @@ Các số là điểm xuất phát để đo lại khi có mã (ARCHITECTURE §1
 
 ## 10. Versioning
 
-- Đường dẫn `/sensor/v1`; `X-Vedette-Proto` là số nguyên, hiện `1`. `core` chỉ nhận **đúng** proto của mình. Vì giải mã chặt, mọi đổi dây (kể cả thêm trường hay thêm `shape`) tăng proto.
+- Đường dẫn `/sensor/v1`; `X-Vedette-Proto` là số nguyên, hiện `2` (bản 2: `Job.kind`, job và kết quả nuclei, heartbeat `nuclei`, `running` nhiều id). `core` chỉ nhận **đúng** proto của mình, nên worker bản 1 gặp `426` và không bao giờ nhận job nuclei (nó cũng không giải mã nổi `kind`); worker bản 2 gặp job không có `kind` thì chạy như nmap. Vì giải mã chặt, mọi đổi dây (kể cả thêm trường hay thêm `shape`) tăng proto.
 - Cập nhật appliance khởi động lại `sensor`/`scan` **trước** `core` (`host-api.md` §6.8): trong cửa sổ đó sensor mới nhận `426`, giữ hàng đợi và đợi; `core` mới lên thì nối lại. Hoàn tác riêng `core` (giữ `sensor`/`scan` mới) để sensor ở `426` và `offline` tới khi chúng cũng được `container.rollback`; đường hoàn tác của `core` phải hoàn tác cả `sensor`/`scan` khi proto khác nhau (chưa có, `.ai/deferred/feat-sensor-protocol.md`).
 - Sensor gặp `shape` hay trường không biết: `refused` (`invalid_job`) / `400` khi giải mã, không crash.
 

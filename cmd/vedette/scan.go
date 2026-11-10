@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/findings"
@@ -152,3 +153,6 @@ func (e scanExternal) Targets(ctx context.Context) ([]scan.ExternalTarget, error
 	}
 	return out, nil
 }
+
+// scanJobs is the Jobs func of the scan entry in wiredModules.
+func scanJobs(d deps) []jobs.Job { return scan.Jobs(scanService(d)) }

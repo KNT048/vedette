@@ -64,6 +64,7 @@ const (
 	noteNoApply    = "No scan template applies to the software on this device."
 	noteEngine     = "The scanner could not finish this device, so nothing was concluded. Try again later."
 	stopNow        = "You pressed Stop now."
+	stopShutdown   = "Vedette was shut down during this scan."
 	stopRestart    = "Vedette restarted during this scan, so it was stopped."
 )
 
@@ -326,13 +327,13 @@ func (s *Service) execute(ctx context.Context, runID string, ids, picked []strin
 	done, next := 0, len(ids) // devices finished; first device not touched
 	for i, id := range ids {
 		if ctx.Err() != nil {
-			status, reason, next = "stopped", stopNow, i
+			status, reason, next = "stopped", s.stopReason(), i
 			break
 		}
 		got, end := s.scanTarget(ctx, runID, id, i, slices.Contains(picked, id))
 		rows = append(rows, got...)
 		if end == "stopped" {
-			status, reason, next = "stopped", stopNow, i+1
+			status, reason, next = "stopped", s.stopReason(), i+1
 			break
 		}
 		if end != "" {

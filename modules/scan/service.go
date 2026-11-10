@@ -57,6 +57,8 @@ type Service struct {
 	// busy counts Engine.Run calls that have not returned. After Stop now the run may show stopped before the worker
 	// confirms (stopGrace), but no run starts while nuclei may still be running (POST-2, FORBID-3; review M2).
 	busy atomic.Int32
+	// closing is set by Close: a run that ends now says Vedette shut down, not that a person pressed Stop now.
+	closing atomic.Bool
 }
 
 // NewService returns the service. DB, Audit, Inventory and Log are required.

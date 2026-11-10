@@ -36,10 +36,10 @@ describe('log export (S-CORE-6)', () => {
       { id: 'c', ts: '2026-03-03T00:00:00.000Z', prev_hash: h(2), hash: h(3) },
     ])
     const all = collect(['ai_activity'], null, null)
-    expect(all.ai_activity[0]).toMatchObject({ token: 'kept-as-stored' })
+    expect(all.ai_activity?.[0]).toMatchObject({ token: 'kept-as-stored' })
     expect(chainsOf(['ai_activity'], all).ai_activity).toEqual({ anchor: '0'.repeat(64), anchor_kind: 'genesis', head_hash: h(3), count: 3, complete: true })
     const mid = collect(['ai_activity'], '2026-03-02', '2026-03-02')
-    expect(mid.ai_activity.map((r) => (r as { id: string }).id)).toEqual(['b'])
+    expect(mid.ai_activity?.map((r) => (r as { id: string }).id)).toEqual(['b'])
     expect(chainsOf(['ai_activity'], mid).ai_activity).toEqual({ anchor: h(1), anchor_kind: 'row', head_hash: h(3), count: 3, complete: false })
     expect(CHAIN_NOTE).toContain('"\\n"')
     expect(CHAIN_NOTE).not.toContain('first entry')

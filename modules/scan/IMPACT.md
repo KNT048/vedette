@@ -19,3 +19,9 @@
 - Mất trang Scans và nút quét; không xác nhận mới; không tự quét lại sau KEV mới.
 - `scan-credentialed` không chạy được (phụ thuộc); `findings` chỉ còn `suspected`; `reports` bỏ mục quét.
 - Cấu hình, lịch sử, probe log, sự kiện quét lại giữ.
+
+## Modifying: `scan.Engine` (S1, D-125)
+- Seam of the scanner: the worker of the `scan` container over the sensor protocol (S5), a fake in tests. `Ready` decides `can_scan` and the 503 `scanner_unavailable` (INV-2). No Engine wired = scanner not available: `cmd/vedette` wires none until S5, so a real box never sends a request before then.
+
+## Modifying: `scan_setting` / `Service.SaveConfig` (S1)
+- **SPA** Schedule and safety tab, **jobs** of S4 (window, schedule, auto rescan, rate, exclusions). INV-5 is checked twice: in `Settings.validate` (with the mock's words) and by the CHECKs of `0001_scan_setting.sql`.

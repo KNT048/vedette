@@ -438,6 +438,9 @@ func (r *Reader) call(ctx context.Context, connID, tool string, args map[string]
 		raw, cut, err = r.https(ctx, c, secret, req)
 	}
 	if err != nil {
+		if ctx.Err() != nil { // the budget ended: what the transport saw while its session was being closed is a timeout
+			return "", errors.New("timed out")
+		}
 		return "", failure(err, c, redact)
 	}
 	text, over := transport.CleanText(raw, MaxOutput, redact...)

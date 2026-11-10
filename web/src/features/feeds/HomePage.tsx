@@ -141,7 +141,12 @@ export default function HomePage() {
   const matched = rows.filter((r) => r.you_have === 'yes').length
   // A box that has never fetched answers generated_at = 1970-01-01 (the contract has no null there): say so instead of showing that date.
   const never = !!status.data && new Date(status.data.generated_at).getFullYear() < 2000
-  const title = !hot.data ? t('home.titleLoading') : never ? t('home.titleNone') : status.data?.inventory_on === false ? t('home.titleNoInv', { count: cves }) : t('home.title', { count: cves, matched })
+  // D-92: never say "0 newly exploited" when the CISA list is off or has never loaded; say why and where to fix it.
+  const kev = status.data?.kev
+  const kevLink = <Link to="/settings/feeds" className="text-accent underline-offset-4 hover:underline">{t('home.kevSeeFeeds')}</Link>
+  const kevTitle = kev?.state === 'off' ? <>{t('home.kevOff')} {kevLink}</>
+    : kev?.state === 'never_loaded' && !(never && !kev.error) ? <>{t('home.kevNever', { reason: kev.error ?? t('home.kevNoAttempt') })} {kevLink}</> : null
+  const title = !hot.data ? t('home.titleLoading') : kevTitle ? kevTitle : never ? t('home.titleNone') : status.data?.inventory_on === false ? t('home.titleNoInv', { count: cves }) : t('home.title', { count: cves, matched })
   return (
     <>
       <PageHeader

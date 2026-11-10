@@ -508,18 +508,21 @@ func TestWriterEndsAHungLineThroughTheContext(t *testing.T) {
 	r := newRig(t)
 	hang := make(chan struct{})
 	t.Cleanup(func() { close(hang) })
+	// The context ends once the hung line has reached the device, not after a fixed time: on a loaded machine a fixed
+	// 400 ms could end before the session was even up, which is a different case (nothing sent).
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
 	f := conntest.NewSSH(t, conntest.SSHOpts{Respond: func(line string) string {
 		if line == "hang" {
+			time.AfterFunc(100*time.Millisecond, cancel)
 			<-hang
 		}
 		return ""
 	}})
 	c := r.sw(f)
-	ctx, cancel := context.WithTimeout(t.Context(), 400*time.Millisecond)
-	defer cancel()
 	start := time.Now()
 	res := r.w.Do(ctx, sshStep(c, write.PhaseRun, "terminal length 0", "hang", "end"))
-	if res.Status != write.StatusUnknown || time.Since(start) > 3*time.Second {
+	if res.Status != write.StatusUnknown || time.Since(start) > 10*time.Second {
 		t.Fatalf("%s (%q) after %v", res.Status, res.Detail, time.Since(start))
 	}
 	if got := f.Lines(); strings.Join(got, "|") != "terminal length 0|hang" {

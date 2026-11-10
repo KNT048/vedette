@@ -393,8 +393,8 @@ func TestBoxAddressProviderFeedsEveryConsumer(t *testing.T) {
 		if err != nil || !slices.Contains(prot, box) {
 			t.Errorf("%s: ProtectedIPs lacks the box address (%v)", when, err)
 		}
-		if !slices.Contains(notifyBoxAddrs(s.d.HostNet)(), box) {
-			t.Errorf("%s: notify BoxAddrs lacks the box address", when)
+		if addrs, known := notifyBoxAddrs(s.d.HostNet)(); !known || !slices.Contains(addrs, box) {
+			t.Errorf("%s: notify BoxAddrs lacks the box address (known %v)", when, known)
 		}
 		bs := (&boxSources{hostCache: s.d.HostNet, now: time.Now}).BoxAddrs(t.Context())
 		if !slices.Contains(bs, netip.PrefixFrom(box, 32)) {

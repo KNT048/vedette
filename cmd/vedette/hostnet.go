@@ -97,6 +97,7 @@ type hostNetCache struct {
 	failedAt time.Time // when the last refresh failed; zero when it did not
 	flight   chan struct{}
 	gen      uint64 // bumped by Invalidate: a fetch that started before it must not stand for the answer after it
+	answered bool   // the host has answered at least once since start; Invalidate does not clear it (the set is still known, only stale)
 }
 
 // newHostNetCache wraps fetch; nil when there is none (no host), and every method is nil-safe.
@@ -181,7 +182,7 @@ func (c *hostNetCache) Get(ctx context.Context) []netip.Prefix {
 		}
 		return c.last
 	}
-	c.last = l
+	c.last, c.answered = l, true
 	if gen == c.gen { // an Invalidate during the call: this answer may be from before the change; ask again next time
 		c.okAt, c.failedAt = c.now(), time.Time{}
 	}
@@ -193,12 +194,20 @@ func (c *hostNetCache) Get(ctx context.Context) []netip.Prefix {
 // Before the first answer the set is nil: a host that has never answered is unknown, not empty, and the caller decides what that means.
 // Safe on nil.
 func (c *hostNetCache) Snapshot() []netip.Prefix {
+	last, _ := c.SnapshotKnown()
+	return last
+}
+
+// SnapshotKnown is Snapshot plus whether the set is known: false only while a configured vedette-host has never answered
+// since start (#157: notify then refuses webhooks instead of checking them against an empty set). No host configured (a nil
+// cache) is known: the container's own interfaces are all the box has. An Invalidate keeps it known (stale, not unknown).
+func (c *hostNetCache) SnapshotKnown() ([]netip.Prefix, bool) {
 	if c == nil {
-		return nil
+		return nil, true
 	}
 	c.mu.Lock()
 	now := c.now()
-	last := c.last
+	last, known := c.last, c.answered
 	stale := c.okAt.IsZero() || now.Sub(c.okAt) >= hostNetTTL
 	backoff := !c.failedAt.IsZero() && now.Sub(c.failedAt) < hostNetBackoff
 	start := stale && !backoff && c.flight == nil
@@ -206,7 +215,7 @@ func (c *hostNetCache) Snapshot() []netip.Prefix {
 	if start {
 		go c.Get(c.bg)
 	}
-	return last
+	return last, known
 }
 
 // hostIPv4s is the IPv4 addresses vedette-host reports for the box, best effort (nothing without a host).

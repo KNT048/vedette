@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -18,19 +19,26 @@ var mcpVersions = []string{"2025-06-18", "2025-03-26"}
 const (
 	maxMCPTools = 100
 	maxMCPPages = 10
-	maxMCPText  = 64 << 10
+	maxMCPText  = 192 << 10 // headroom over what the reader returns, so the secrets are removed before the cut
 )
 
 // MCPTool is a tool an MCP server offers, as the server described it: untrusted text.
 type MCPTool struct {
 	Name        string
 	Description string
+	// Schema is the server's inputSchema as it sent it, when it is a JSON object of at most MaxSchema bytes; nil otherwise.
+	Schema json.RawMessage
 }
+
+// MaxSchema is the longest input schema that is kept.
+const MaxSchema = 8 << 10
 
 // MCPResult is the answer of a tool call. Text is the text parts of the result, capped; it is device output and stays in memory.
 type MCPResult struct {
 	IsError bool
 	Text    string
+	// Truncated says the server sent more than maxMCPText and the rest was dropped.
+	Truncated bool
 }
 
 // MCP is a session with an MCP server over streamable HTTP and JSON-RPC (D-94 (3)): initialize, notifications/initialized,
@@ -98,8 +106,9 @@ func (m *MCP) ListTools(ctx context.Context) ([]MCPTool, error) {
 		}
 		var r struct {
 			Tools []struct {
-				Name        string `json:"name"`
-				Description string `json:"description"`
+				Name        string          `json:"name"`
+				Description string          `json:"description"`
+				InputSchema json.RawMessage `json:"inputSchema"`
 			} `json:"tools"`
 			NextCursor string `json:"nextCursor"`
 		}
@@ -110,7 +119,7 @@ func (m *MCP) ListTools(ctx context.Context) ([]MCPTool, error) {
 			if len(out) >= maxMCPTools {
 				return out, nil
 			}
-			out = append(out, MCPTool{Name: t.Name, Description: t.Description})
+			out = append(out, MCPTool{Name: t.Name, Description: t.Description, Schema: keepSchema(t.InputSchema)})
 		}
 		if r.NextCursor == "" {
 			return out, nil
@@ -118,6 +127,19 @@ func (m *MCP) ListTools(ctx context.Context) ([]MCPTool, error) {
 		cursor = r.NextCursor
 	}
 	return out, nil
+}
+
+// keepSchema is raw when it is a JSON object within MaxSchema, compacted; nil otherwise.
+func keepSchema(raw json.RawMessage) json.RawMessage {
+	var obj map[string]json.RawMessage
+	if len(raw) == 0 || len(raw) > MaxSchema || json.Unmarshal(raw, &obj) != nil || obj == nil {
+		return nil
+	}
+	var b bytes.Buffer
+	if json.Compact(&b, raw) != nil {
+		return nil
+	}
+	return b.Bytes()
 }
 
 // CallTool runs one tool. args are typed JSON values, never a command line. A tool that reports an error (isError) is an
@@ -141,17 +163,24 @@ func (m *MCP) CallTool(ctx context.Context, name string, args map[string]any) (M
 		return MCPResult{}, deviceErr("the server's answer to the call is not valid")
 	}
 	var b strings.Builder
+	cut := false
 	for _, c := range r.Content {
-		if c.Type == "text" && b.Len() < maxMCPText {
-			b.WriteString(c.Text)
-			b.WriteByte('\n')
+		if c.Type != "text" {
+			continue
 		}
+		if b.Len() >= maxMCPText {
+			cut = true
+			continue
+		}
+		b.WriteString(c.Text)
+		b.WriteByte('\n')
 	}
 	text := b.String()
+	cut = cut || len(text) > maxMCPText
 	if len(text) > maxMCPText {
 		text = text[:maxMCPText]
 	}
-	return MCPResult{IsError: r.IsError, Text: text}, nil
+	return MCPResult{IsError: r.IsError, Text: text, Truncated: cut}, nil
 }
 
 // Close ends the session on the server, as far as it lets us; the answer does not matter.

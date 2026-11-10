@@ -12,6 +12,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/conn"
 	"github.com/knt048/vedette/core/conn/conntest"
+	"github.com/knt048/vedette/core/conn/read"
 	"github.com/knt048/vedette/core/secrets"
 )
 
@@ -297,5 +298,37 @@ func TestPrivacyFlow12IsOnWhenTheStoreCannotBeRead(t *testing.T) {
 	}
 	if !(privacyFacts{conns: s.d.Conn}).ConnectionsConfigured(t.Context()) {
 		t.Error("flow 12 is off when the store cannot be read")
+	}
+}
+
+// The reader the ai module is given (D-93 (3)): built with the store, it lists the read tools of a ready connection and calls one
+// through the same dialer, with the box's own addresses refused at dial time.
+func TestWiringConnReader(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	if s.d.ConnReader == nil {
+		t.Fatal("no reader")
+	}
+	f := conntest.NewHTTPS(t, nil)
+	in := connInput("Reader", "tok-0123456789-abcdef")
+	in.Target, in.Allow = f.URL, []string{f.URL + "/api/x"}
+	in.Tools = append(in.Tools, conn.ToolInput{Name: "fetch_url", Enabled: true}) // a read tool of an HTTP kind starts off (D-127)
+	c := s.connCreate(in)
+	if tools, err := s.d.ConnReader.ListReadTools(t.Context()); err != nil || len(tools) != 0 {
+		t.Fatalf("an untested connection lists %v, %v", tools, err)
+	}
+	if _, err := s.d.Conn.Test(t.Context(), "admin@acme.example", c.ID, func(context.Context, *sql.Tx) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	tools, err := s.d.ConnReader.ListReadTools(t.Context())
+	if err != nil || len(tools) != 1 || tools[0].Name != "fetch_url" || tools[0].ConnectionID != c.ID {
+		t.Fatalf("tools %v, %v", tools, err)
+	}
+	out, err := s.d.ConnReader.CallRead(read.WithActor(t.Context(), "ai:job-1"), c.ID, "fetch_url", map[string]any{"path": "/api/x"})
+	if err != nil || out != `{"ok":true}` {
+		t.Fatalf("call = %q, %v", out, err)
+	}
+	if _, err := s.d.ConnReader.CallRead(t.Context(), c.ID, "send_request", nil); !errors.Is(err, read.ErrUnavailable) {
+		t.Errorf("a write tool = %v", err)
 	}
 }

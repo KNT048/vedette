@@ -23,12 +23,15 @@ const T = (name: string, access: ConnectorTool['access'], description: string): 
 // Tools a new connection offers by kind. Generic only (D-58): what a particular device can do is described by the action templates.
 // Every write tool starts OFF (D-41, D-51): an administrator turns it on, and it then runs only through a response action that people approve.
 const W = (name: string, description: string): ConnectorTool => ({ ...T(name, 'write', description), enabled: false })
+// A read tool of an HTTP kind starts OFF too (D-127): some devices change state on a GET (reboot, configuration), so an administrator turns it on
+// for endpoints that only read. An SSH read tool is an exact command of the allow-list and stays on.
+const R = (name: string, access: ConnectorTool['access'], description: string): ConnectorTool => ({ ...T(name, access, description), enabled: false })
 function discover(kind: ConnectorKind): ConnectorTool[] {
   switch (kind) {
     case 'ssh': return [T('run_allowed_command', 'read', 'Run one command from the allow list and return its output'), W('run_approved_command', 'Run one command that an approved action defines')]
-    case 'http': return [T('fetch_url', 'read', 'Fetch a page from an allowed address and return its text'), W('send_request', 'Send one API request that an approved action defines')]
-    case 'netconf-restconf': return [T('get_config', 'read', 'Read configuration or status data'), W('apply_config', 'Apply one configuration change that an approved action defines')]
-    case 'automation': return [T('list_jobs', 'read', 'List the jobs or workflows the platform offers'), W('launch_job', 'Start one job or workflow that an approved action defines')]
+    case 'http': return [R('fetch_url', 'read', 'Fetch a page from an allowed address and return its text'), W('send_request', 'Send one API request that an approved action defines')]
+    case 'netconf-restconf': return [R('get_config', 'read', 'Read configuration or status data'), W('apply_config', 'Apply one configuration change that an approved action defines')]
+    case 'automation': return [R('list_jobs', 'read', 'List the jobs or workflows the platform offers'), W('launch_job', 'Start one job or workflow that an approved action defines')]
     // D-94 (3): a tool found on an MCP server is a write tool and starts off; an administrator may mark it read (the input's `access`) and turn it on.
     default: return [W('list_resources', 'List what the MCP server offers'), W('search_docs', 'Search the documentation the server holds'), W('run_action', 'Run an action the server defines')]
   }

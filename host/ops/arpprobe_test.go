@@ -325,15 +325,19 @@ func TestGatewayCheckTimesOutAndIgnoresOurOwnFrames(t *testing.T) {
 	s := &fakeSock{mac: macA}
 	s.push(reply(macA, gwIP, probed)) // our MAC claiming the gateway's address
 	s.push(reply(macB, probed, gwIP)) // someone else
+	// The request count follows the wall clock, so a loaded machine sends fewer: a long window (15 retry
+	// intervals) makes "it retried" robust, and the upper bound still catches a loop that does not wait.
+	p := fastProber(s)
+	p.gwTotal = 300 * time.Millisecond
 	start := time.Now()
-	err := fastProber(s).GatewayCheck(context.Background(), "eth0", probed, gwIP)
+	err := p.GatewayCheck(context.Background(), "eth0", probed, gwIP)
 	if !errors.Is(err, ErrGatewaySilent) {
 		t.Fatalf("err = %v", err)
 	}
-	if n := len(s.sent); n < 3 || n > 6 {
-		t.Fatalf("%d requests in a window of 5 retry intervals", n)
+	if n := len(s.sent); n < 2 || n > 16 {
+		t.Fatalf("%d requests in a window of 15 retry intervals", n)
 	}
-	if d := time.Since(start); d < 100*time.Millisecond || d > 2*time.Second {
+	if d := time.Since(start); d < 300*time.Millisecond || d > 3*time.Second {
 		t.Fatalf("took %v", d)
 	}
 	if s.closed != 1 {

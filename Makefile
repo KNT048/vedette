@@ -1,7 +1,7 @@
 # Vedette — lệnh chung. Máy: `make check` trước khi push (D-62); CI gọi đúng các đích ở đây (D-63, docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: sensor-image core-image scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build e2e fixtures clean
+.PHONY: sensor-image core-image scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release e2e fixtures clean
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -59,6 +59,7 @@ verify-web: node-version-check
 	pnpm --dir web test
 	$(MAKE) openapi-check
 	pnpm --dir web build
+	$(MAKE) web-release
 	$(MAKE) clean
 
 verify-go: verify-go-static
@@ -130,6 +131,12 @@ contract:
 
 build:
 	pnpm --dir web build
+
+# Release SPA (WP-08a): VITE_API_MOCK=off build, then fail if any mock layer is in web/dist.
+# web/dist is left in place for the core embed (WP-08b); `make clean` removes it (build-artifacts rule).
+web-release:
+	VITE_API_MOCK=off pnpm --dir web build
+	pnpm --dir web exec node scripts/check-release.mjs dist
 
 lint:
 	pnpm --dir web lint

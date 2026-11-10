@@ -105,7 +105,7 @@ kien 2026-11-09 (đã chuyển cho Emily): "tôi muốn box có thêm chế đ�
 
 - [ ] D-81: ba dịch vụ dò IP công cộng (`checkip.amazonaws.com`, `icanhazip.com`, `ifconfig.me/ip`) vẫn thuộc ba nhà vận hành khác nhau: tra DNS/AS mỗi lần phát hành.
 
-- [ ] WP-08: bản build phát hành (`VITE_API_MOCK=off`) không mang lớp mock: bước build fail nếu chunk JS nào chứa `[MSW]` hoặc `mswjs`, và không ship `web/public/mockServiceWorker.js` (vite chép nguyên `public/`). #86 đã tách mock khỏi bản build; cần bước kiểm tự động ở WP-08.
+- [x] WP-08a: bản build phát hành (`VITE_API_MOCK=off`) không mang lớp mock: `make web-release` build với mock tắt (Vite bỏ nhánh `import('./mocks/browser')`, plugin `drop-mock-worker` trong `vite.config.ts` xoá `mockServiceWorker.js` khỏi output) rồi `web/scripts/check-release.mjs` fail nếu có `[MSW]`/`mswjs`/`msw/` hoặc file worker; `verify-web` chạy nó trên mỗi PR web. Còn lại: WP-08b nhúng `web/dist` vào core.
 
 - [ ] PRIVACY luồng 6 (`ghcr.io`, host kéo image) đã thêm cùng #140; luồng 12 (kết nối thiết bị) từ #92.
 

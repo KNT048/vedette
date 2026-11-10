@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
+	"strings"
 )
 
 // ScanDecision is the answer of ScanPolicy: may the box probe this device actively, and how fast.
@@ -14,6 +15,11 @@ type ScanDecision struct {
 	Allowed bool
 	Rate    int    // packets per second; 1 for the one gentle scan of a fragile device
 	Reason  string // see the Reason* constants
+	// Careful and IP are set by VulnScanPolicy only (zero from ScanPolicy). Careful: the device is fragile or its
+	// kind is still unknown, so a caller should go gently even when the decision allows the normal rate (the safe
+	// side). IP: the address the decision was made for, from the same read; zero when the decision is a refusal.
+	Careful bool
+	IP      netip.Addr
 }
 
 // Reasons of a ScanDecision.
@@ -81,33 +87,78 @@ func (s *Service) VulnScanPolicy(ctx context.Context, assetID string, explicit b
 	if err != nil {
 		return ScanDecision{}, err
 	}
+	return decideVuln(f, st, explicit), nil
+}
+
+// MaxPolicyBatch is the most ids VulnScanPolicies takes; more is refused (ErrInvalid), not truncated.
+const MaxPolicyBatch = 4096
+
+// VulnScanPolicies is VulnScanPolicy for many devices with one settings read and one device query. A device
+// that does not exist (deleted since the caller listed it) is absent from the map; it does not fail the batch.
+func (s *Service) VulnScanPolicies(ctx context.Context, assetIDs []string, explicit bool) (map[string]ScanDecision, error) {
+	if len(assetIDs) > MaxPolicyBatch {
+		return nil, invalid("at most %d devices per policy read, got %d", MaxPolicyBatch, len(assetIDs))
+	}
+	out := make(map[string]ScanDecision, len(assetIDs))
+	if len(assetIDs) == 0 {
+		return out, nil
+	}
+	db := s.db.Reader()
+	st, err := loadSettings(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	args := make([]any, len(assetIDs))
+	for i, id := range assetIDs {
+		args[i] = id
+	}
+	// only constants and "?" placeholders are concatenated; the ids are bound
+	rows, err := db.QueryContext(ctx, `SELECT id, `+scanCols+` FROM inv_asset WHERE id IN (?`+strings.Repeat(",?", len(args)-1)+`)`, args...) //nolint:gosec // G202: see above
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read devices: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var id string
+		var f scanFacts
+		if err := f.scan(rows, &id); err != nil {
+			return nil, fmt.Errorf("inventory: read devices: %w", err)
+		}
+		out[id] = decideVuln(f, st, explicit)
+	}
+	return out, rows.Err()
+}
+
+func decideVuln(f scanFacts, st Settings, explicit bool) ScanDecision {
 	switch {
 	case f.isBox:
-		return deny(ReasonBox), nil
+		return deny(ReasonBox)
 	case !f.addr.IsValid():
-		return deny(ReasonNoIP), nil
+		return deny(ReasonNoIP)
 	case st.ScopeConfirmedAt == nil:
-		return deny(ReasonScopeNotConfirmed), nil
+		return deny(ReasonScopeNotConfirmed)
 	case !st.InScope(f.addr):
-		return deny(ReasonOutOfScope), nil
+		return deny(ReasonOutOfScope)
 	case f.regular == "never":
-		return deny(ReasonRegularScanNever), nil
+		return deny(ReasonRegularScanNever)
 	}
-	normal := ScanDecision{Allowed: true, Rate: st.Active.Rate, Reason: ReasonOK}
 	unclassified := f.kind == "unknown"
 	careful := f.fragile || unclassified
+	allow := func(rate int) ScanDecision {
+		return ScanDecision{Allowed: true, Rate: rate, Reason: ReasonOK, Careful: careful, IP: f.addr}
+	}
 	permitted := f.regular == "allow" || (f.regular == "follow" && !unclassified && slices.Contains(st.RegularScanKinds, f.kind))
 	switch {
 	case f.origin == "manual" && !explicit:
-		return deny(ReasonDeclaredByHand), nil
+		return deny(ReasonDeclaredByHand)
 	case !careful, permitted:
-		return normal, nil
+		return allow(st.Active.Rate)
 	case explicit:
-		return ScanDecision{Allowed: true, Rate: max(1, st.Active.Rate/4), Reason: ReasonOK}, nil
+		return allow(max(1, st.Active.Rate/4))
 	case unclassified && !f.fragile:
-		return deny(ReasonUnclassifiedPassiveOnly), nil
+		return deny(ReasonUnclassifiedPassiveOnly)
 	}
-	return deny(ReasonFragilePassiveOnly), nil
+	return deny(ReasonFragilePassiveOnly)
 }
 
 func deny(reason string) ScanDecision { return ScanDecision{Reason: reason} }
@@ -119,19 +170,29 @@ type scanFacts struct {
 	fragile, isBox, firstScan bool
 }
 
-func (s *Service) scanFacts(ctx context.Context, assetID string) (scanFacts, Settings, error) {
-	db := s.db.Reader()
+const scanCols = `ip, origin, kind, fragile, regular_scan, first_scan_at, is_box`
+
+// scan reads scanCols, after any leading destinations (the id of a batch row).
+func (f *scanFacts) scan(r interface{ Scan(...any) error }, lead ...any) error {
 	var ip, firstScan sql.NullString
-	var f scanFacts
-	err := db.QueryRowContext(ctx, `SELECT ip, origin, kind, fragile, regular_scan, first_scan_at, is_box FROM inv_asset WHERE id = ?`, assetID).Scan(&ip, &f.origin, &f.kind, &f.fragile, &f.regular, &firstScan, &f.isBox)
-	if errors.Is(err, sql.ErrNoRows) {
-		return f, Settings{}, ErrNotFound
-	} else if err != nil {
-		return f, Settings{}, fmt.Errorf("inventory: read device: %w", err)
+	if err := r.Scan(append(lead, &ip, &f.origin, &f.kind, &f.fragile, &f.regular, &firstScan, &f.isBox)...); err != nil {
+		return err
 	}
 	f.firstScan = firstScan.Valid
 	if ip.Valid {
 		f.addr, _ = netip.ParseAddr(ip.String)
+	}
+	return nil
+}
+
+func (s *Service) scanFacts(ctx context.Context, assetID string) (scanFacts, Settings, error) {
+	db := s.db.Reader()
+	var f scanFacts
+	err := f.scan(db.QueryRowContext(ctx, `SELECT `+scanCols+` FROM inv_asset WHERE id = ?`, assetID))
+	if errors.Is(err, sql.ErrNoRows) {
+		return f, Settings{}, ErrNotFound
+	} else if err != nil {
+		return f, Settings{}, fmt.Errorf("inventory: read device: %w", err)
 	}
 	st, err := loadSettings(ctx, db)
 	return f, st, err

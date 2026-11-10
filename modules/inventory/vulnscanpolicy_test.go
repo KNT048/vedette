@@ -124,6 +124,7 @@ func TestContract_VulnScanPolicy_Rules(t *testing.T) {
 			id := c.setup(e)
 			for explicit, want := range map[bool]inventory.ScanDecision{false: c.implicit, true: c.picks} {
 				got, err := e.svc.VulnScanPolicy(e.ctx(), id, explicit)
+				got.Careful, got.IP = false, netip.Addr{} // asserted in TestContract_VulnScanPolicy_CarefulAndIP
 				if err != nil || got != want {
 					t.Errorf("explicit=%v: %+v, %v; want %+v", explicit, got, err, want)
 				}

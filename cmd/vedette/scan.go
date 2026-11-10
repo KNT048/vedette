@@ -29,7 +29,11 @@ func scanService(d deps) *scan.Service {
 	if s := scanServices[d.DB]; s != nil {
 		return s
 	}
-	cfg := scan.Config{DB: d.DB, Audit: d.Audit, Inventory: scanInventory{inv: d.Inventory}, External: scanExternal{svc: exposureService(d)}, Log: d.Log, Clock: d.Clock}
+	var inv scanInv // a nil *inventory.Service inside the interface would not compare equal to nil
+	if d.Inventory != nil {
+		inv = d.Inventory
+	}
+	cfg := scan.Config{DB: d.DB, Audit: d.Audit, Inventory: scanInventory{inv: inv}, External: scanExternal{svc: exposureService(d)}, Log: d.Log, Clock: d.Clock}
 	if d.Findings != nil {
 		cfg.Findings = scanFindings{svc: d.Findings}
 	}
@@ -45,7 +49,14 @@ func scanService(d deps) *scan.Service {
 }
 
 // scanInventory is the inventory as the scan module sees it (scan.Inventory): read only (scan INV-11).
-type scanInventory struct{ inv *inventory.Service }
+type scanInventory struct{ inv scanInv }
+
+// scanInv is the part of *inventory.Service the adapter reads (a test counts the reads).
+type scanInv interface {
+	Settings(ctx context.Context) (inventory.Settings, error)
+	Devices(ctx context.Context) (inventory.DeviceList, error)
+	VulnScanPolicy(ctx context.Context, assetID string, explicit bool) (inventory.ScanDecision, error)
+}
 
 func (s scanInventory) Scope(ctx context.Context) (scan.Scope, error) {
 	if s.inv == nil {
@@ -90,9 +101,9 @@ func (s scanInventory) Devices(ctx context.Context) ([]scan.Device, error) {
 	return out, nil
 }
 
-// VulnScanPolicy is inventory's D-126 policy. ponytail: inventory's decision carries sensor-active's rate, not
-// whether the device is fragile or unclassified; Careful is taken from the device row (a fragile or unclassified
-// device is always slowed, even one allowed regular scans: the safe side), until inventory says it (deferred).
+// VulnScanPolicy is inventory's D-126 policy; Careful (fragile or unclassified, slowed even when regular scans are
+// allowed: the safe side) and the IP come from the same read as the decision. ponytail: scan.Inventory has no
+// batch method, so this is one inventory read per device; inventory.VulnScanPolicies is there when it gets one.
 func (s scanInventory) VulnScanPolicy(ctx context.Context, assetID string, explicit bool) (scan.Decision, error) {
 	if s.inv == nil {
 		return scan.Decision{}, fmt.Errorf("vedette: scan: the inventory is not wired")
@@ -106,12 +117,7 @@ func (s scanInventory) VulnScanPolicy(ctx context.Context, assetID string, expli
 	}
 	out := scan.Decision{Allowed: dec.Allowed, Reason: dec.Reason}
 	if dec.Allowed {
-		d, err := s.inv.Device(ctx, assetID)
-		if err != nil {
-			return scan.Decision{}, err
-		}
-		out.Careful = d.Fragile || d.Kind == "unknown"
-		out.IP = d.IP // read right after the decision; ponytail: inventory could return the address it decided on (deferred)
+		out.Careful, out.IP = dec.Careful, dec.IP.String()
 	}
 	return out, nil
 }

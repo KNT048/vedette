@@ -1,0 +1,321 @@
+package ai
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+
+	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/chain/chainhead"
+	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/ai/provider"
+)
+
+// ErrBadOutput means the model answered, but not in the format the job asked for (POST-5 status schema_error). The answer is not shown
+// and not stored; the call is still logged with its tokens.
+var ErrBadOutput = errors.New("ai: the answer does not match the expected format")
+
+// JobSpec describes one call of a job. The caller supplies the job's own instructions and its data; RunJob adds everything that
+// belongs to every call: the built-in rules, the before and after hooks, the fenced untrusted data, routing with fallback, the
+// token meter, and the activity row.
+type JobSpec struct {
+	Job   Job
+	Actor string // email of the person who asked, "system" for a scheduled job
+	Task  string // the job's instructions (skill prompt)
+	// Question is what is asked, and Data the untrusted text that goes with it (feed items, device data, log lines): Data is the
+	// only way untrusted text reaches the prompt, between the per-call markers (INV-21).
+	Question  string
+	Data      []DataBlock
+	Schema    *provider.Schema
+	MaxTokens int
+	Summary   string // what the activity row says on success; no secrets, no customer data
+	// Check validates the answer before anything is stored; an error is ErrBadOutput.
+	Check func(text string) error
+	// Store runs in the same transaction as the activity row, so a result and its record commit together.
+	Store func(ctx context.Context, tx *sql.Tx, r JobResult) error
+}
+
+// JobResult is the answer of one call.
+type JobResult struct {
+	Text       string
+	Model      string
+	Profile    string
+	TokensIn   int
+	TokensOut  int
+	Fallback   bool
+	ActivityID string
+}
+
+func apiUnavailable(msg string) error { return apierr.New(http.StatusConflict, "ai_unavailable", msg) }
+
+// unavailable says why no profile can run the job, in the words of the mock (INV-3: never a silent switch to cloud).
+func (s *Service) unavailable(job Job, reasons []string) error {
+	sn := s.snap.Load()
+	usable := false
+	for _, p := range sn.profiles {
+		usable = usable || p.Usable()
+	}
+	switch {
+	case !usable:
+		return apiUnavailable("No AI profile is set up. An administrator adds one in Settings, AI assistant.")
+	case len(reasons) == 0:
+		return apiUnavailable(fmt.Sprintf("No AI profile is assigned to %s. Assign one in Settings, AI assistant.", job.Name()))
+	}
+	for _, r := range reasons {
+		if strings.Contains(r, "privacy rule") {
+			return apiUnavailable(fmt.Sprintf("This job sends internal data, but the privacy rule only allows internal AI profiles for it. Assign an internal profile for %s or switch the rule off in Settings, AI assistant.", job.Name()))
+		}
+	}
+	return apiUnavailable(fmt.Sprintf("No AI profile could answer %s (%s). Check the profiles in Settings, AI assistant, or add a fallback.", job.Name(), strings.Join(reasons, "; ")))
+}
+
+// Ready reports why a job cannot run now: nil when a profile is assigned, usable and allowed for it.
+func (s *Service) Ready(job Job) error {
+	cands, reasons := s.router.Candidates(job)
+	if len(cands) > 0 {
+		return nil
+	}
+	return s.unavailable(job, reasons)
+}
+
+// attemptReasons lists, per profile tried, why it did not answer. A provider error is named by its kind only: its own text is
+// not shown to the person who asked.
+func attemptReasons(res CallResult, ue *UnavailableError) []string {
+	var out []string
+	for _, a := range res.Attempts {
+		var pe *provider.Error
+		switch {
+		case errors.As(a.Err, &pe):
+			out = append(out, a.Profile+": "+pe.Kind.Error())
+		case a.Err != nil:
+			out = append(out, a.Profile+": "+a.Err.Error())
+		}
+	}
+	if len(out) == 0 && ue != nil {
+		out = ue.Reasons
+	}
+	return out
+}
+
+// appendActivity adds one row to ai_activity inside tx and moves the chain head (INV-17, INV-18). The caller holds the write
+// transaction, which serialises the chain.
+func (s *Service) appendActivity(ctx context.Context, tx *sql.Tx, e ActivityEntry) (ActivityEntry, error) {
+	prev := Genesis
+	err := tx.QueryRowContext(ctx, `SELECT hash FROM ai_activity ORDER BY seq DESC LIMIT 1`).Scan(&prev)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return ActivityEntry{}, fmt.Errorf("ai: read activity head: %w", err)
+	}
+	now := s.cfg.Clock()
+	e.ID, e.TS = store.NewID("act"), FormatTS(now)
+	e.Summary = clipRunes(e.Summary, 600)
+	sealed, err := Seal(prev, e)
+	if err != nil {
+		return ActivityEntry{}, err
+	}
+	hooks, _ := json.Marshal(sealed.Hooks)
+	tools, _ := json.Marshal(sealed.Tools)
+	var links any
+	if len(sealed.Links) > 0 {
+		b, _ := json.Marshal(sealed.Links)
+		links = string(b)
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO ai_activity (id, ts, job, profile, model, trigger, hooks, tools, input_hash, output_hash, summary, tokens_in, tokens_out, result, links, prev_hash, hash)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		sealed.ID, sealed.TS, sealed.Job, sealed.Profile, sealed.Model, sealed.Trigger, string(hooks), string(tools), sealed.InputHash, sealed.OutputHash, sealed.Summary,
+		sealed.TokensIn, sealed.TokensOut, string(sealed.Result), links, sealed.PrevHash, sealed.Hash); err != nil {
+		return ActivityEntry{}, fmt.Errorf("ai: write activity: %w", err)
+	}
+	if err := chainhead.Advance(ctx, tx, "ai_activity", sealed.Hash, now); err != nil {
+		return ActivityEntry{}, err
+	}
+	return sealed, nil
+}
+
+// record writes the activity row of a call that produced no stored result (blocked, capped, failed).
+func (s *Service) record(ctx context.Context, e ActivityEntry) error {
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		_, err := s.appendActivity(ctx, tx, e)
+		return err
+	})
+}
+
+// guard runs the before_ai hooks on the question and on every data block, separately, so a mask never touches the markers around
+// them. Any block, hold or failed run stops the call (fail closed): nothing is sent.
+func (s *Service) guard(ctx context.Context, spec JobSpec) (question string, data []DataBlock, names []string, stop string) {
+	run := func(text string) (string, bool) {
+		r, err := s.hooks.Run(ctx, BeforeAI, text)
+		if err != nil {
+			stop = "The text is too long to check against the hooks, so it was not sent."
+			return "", false
+		}
+		names = append(names, r.Names()...)
+		if r.Outcome == OutcomeBlocked || r.Outcome == OutcomeHeld {
+			stop = r.Text
+			return "", false
+		}
+		return r.Text, true
+	}
+	q, ok := run(spec.Question)
+	if !ok {
+		return "", nil, dedupe(names), stop
+	}
+	for _, d := range spec.Data {
+		t, ok := run(d.Text)
+		if !ok {
+			return "", nil, dedupe(names), stop
+		}
+		d.Text = t
+		data = append(data, d)
+	}
+	return q, data, dedupe(names), ""
+}
+
+func dedupe(in []string) []string {
+	out := []string{}
+	seen := map[string]bool{}
+	for _, n := range in {
+		if !seen[n] {
+			seen[n] = true
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+// RunJob runs one job call (S-AI-2, S-AI-6): hooks, prompt, routing, meter, hooks again on the answer, the format check, and one
+// activity row for the call, written with the result in one transaction. Errors that a person should see are *apierr.Error:
+// 409 ai_unavailable (also when a hook stopped the request or the answer was not usable) and 429 daily_cap.
+func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
+	if !spec.Job.Valid() || spec.Actor == "" || spec.MaxTokens <= 0 {
+		return JobResult{}, fmt.Errorf("ai: run job: invalid spec")
+	}
+	if err := s.Ready(spec.Job); err != nil {
+		return JobResult{}, err // nothing was attempted: no activity row
+	}
+	trigger := "user:" + spec.Actor
+	if spec.Actor == "system" {
+		trigger = "system:schedule"
+	}
+	entry := ActivityEntry{Job: string(spec.Job), Trigger: trigger, Hooks: []string{}, InputHash: HashContent(""), OutputHash: HashContent(""), Result: ResultError}
+
+	question, data, hooks, stop := s.guard(ctx, spec)
+	entry.Hooks = hooks
+	if stop != "" {
+		entry.Result, entry.Summary, entry.InputHash = ResultBlockedByHook, "Not sent: "+stop, HashContent(stop)
+		if err := s.record(ctx, entry); err != nil {
+			return JobResult{}, err
+		}
+		return JobResult{}, apiUnavailable("The AI was not asked: " + stop)
+	}
+	prompt, err := PromptBuilder{}.Build(PromptInput{Job: spec.Job, Task: spec.Task, Question: question, Data: data})
+	if err != nil {
+		return JobResult{}, fmt.Errorf("ai: build prompt: %w", err)
+	}
+	entry.InputHash = HashContent(prompt.System + "\n" + prompt.User)
+	req := provider.Request{System: prompt.System, Messages: []provider.Message{{Role: provider.RoleUser, Text: prompt.User}}, Schema: spec.Schema, MaxTokens: spec.MaxTokens}
+
+	res, err := s.router.Call(ctx, spec.Job, req)
+	if err != nil {
+		return JobResult{}, s.failed(ctx, spec, entry, res, err)
+	}
+	entry.Profile, entry.Model, entry.TokensIn, entry.TokensOut = res.Profile, res.Model, res.Response.Usage.InputTokens, res.Response.Usage.OutputTokens
+	entry.OutputHash = HashContent(res.Response.Text)
+	entry.Result = ResultOK
+	if res.Fallback {
+		entry.Result = ResultFallbackUsed
+	}
+
+	after, herr := s.hooks.Run(ctx, AfterAI, res.Response.Text)
+	entry.Hooks = dedupe(append(entry.Hooks, after.Names()...))
+	text := after.Text
+	var bad error
+	switch {
+	case herr != nil:
+		entry.Result, entry.Summary, bad = ResultBlockedByHook, "The answer was not used: it could not be checked against the hooks.", apiUnavailable("The AI answered, but the answer could not be checked, so it was not used.")
+	case after.Outcome == OutcomeBlocked || after.Outcome == OutcomeHeld:
+		entry.Result, entry.Summary, bad = ResultBlockedByHook, "The answer was not used: "+after.Text, apiUnavailable("The AI answered, but a rule stopped the answer: "+after.Text)
+	case spec.Check != nil && spec.Check(text) != nil:
+		entry.Result, entry.Summary, bad = ResultError, "The answer did not match the expected format and was discarded.", apiUnavailable("The AI answered, but not in the format Vedette needs, so the answer was discarded. Try again, or use a stronger model for this job.")
+	}
+	var id string
+	werr := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		if bad == nil {
+			entry.Summary = spec.Summary
+			if res.Fallback {
+				entry.Summary += " (answered by the fallback profile)"
+			}
+		}
+		sealed, err := s.appendActivity(ctx, tx, entry)
+		if err != nil {
+			return err
+		}
+		id = sealed.ID
+		if res.Downgrade != nil {
+			if err := s.writeDowngrade(ctx, tx, spec.Actor, res.Downgrade); err != nil {
+				return err
+			}
+		}
+		if bad == nil && spec.Store != nil {
+			return spec.Store(ctx, tx, JobResult{Text: text, Model: res.Model, Profile: res.Profile, TokensIn: entry.TokensIn, TokensOut: entry.TokensOut, Fallback: res.Fallback, ActivityID: id})
+		}
+		return nil
+	})
+	if werr != nil {
+		return JobResult{}, werr
+	}
+	if bad != nil {
+		return JobResult{}, bad
+	}
+	return JobResult{Text: text, Model: res.Model, Profile: res.Profile, TokensIn: entry.TokensIn, TokensOut: entry.TokensOut, Fallback: res.Fallback, ActivityID: id}, nil
+}
+
+// failed records a call that got no answer and returns the error the person sees.
+func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry, res CallResult, err error) error {
+	if ctx.Err() != nil { // the caller gave up: not an AI failure, nothing to record
+		return err
+	}
+	var ue *UnavailableError
+	switch {
+	case errors.Is(err, ErrCapped):
+		entry.Summary = "Not sent: today's token cap is used up and the level is already the minimum."
+		if rerr := s.record(ctx, entry); rerr != nil {
+			return rerr
+		}
+		return apierr.New(http.StatusTooManyRequests, "daily_cap", fmt.Sprintf("Today's %s token cap is used up and the tier is already the minimum. Raise the cap in Settings, AI assistant, or wait until tomorrow.", number(s.snap.Load().cfg.DailyCap)))
+	case errors.As(err, &ue):
+		reasons := attemptReasons(res, ue)
+		if len(res.Attempts) == 0 { // never attempted (settings changed under us): no request, no row
+			return s.unavailable(spec.Job, reasons)
+		}
+		entry.Summary = "No profile answered: " + strings.Join(reasons, "; ")
+		if res.Downgrade != nil {
+			// the failed attempts still used tokens and may have lowered the level: keep both facts
+			if rerr := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+				if _, err := s.appendActivity(ctx, tx, entry); err != nil {
+					return err
+				}
+				return s.writeDowngrade(ctx, tx, spec.Actor, res.Downgrade)
+			}); rerr != nil {
+				return rerr
+			}
+		} else if rerr := s.record(ctx, entry); rerr != nil {
+			return rerr
+		}
+		return s.unavailable(spec.Job, reasons)
+	}
+	return err
+}
+
+// writeDowngrade records an automatic drop of the token level in ai_downgrade and in the audit log (INV-4).
+func (s *Service) writeDowngrade(ctx context.Context, tx *sql.Tx, actor string, d *Downgrade) error {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO ai_downgrade (id, ts, from_tier, to_tier, reason) VALUES (?, ?, ?, ?, ?)`,
+		store.NewID("dg"), FormatTS(d.At), string(d.From), string(d.To), clipRunes(d.Reason, 300)); err != nil {
+		return fmt.Errorf("ai: write downgrade: %w", err)
+	}
+	return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: actor, Action: "ai.downgrade", Target: string(d.From) + "->" + string(d.To), Detail: clipRunes(d.Reason, 300)})
+}

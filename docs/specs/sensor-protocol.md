@@ -30,7 +30,7 @@ Mô hình tin cậy: sensor là **máy bị tấn công được** (nằm trên 
 ## 3. Transport (D-109)
 
 - HTTPS, JSON (`Content-Type: application/json`), không nén (`Content-Encoding` bất kỳ → `400 invalid_request`). TLS **1.3** tối thiểu; HTTP/2 khi ALPN đề nghị, không bắt buộc.
-- Listener riêng của `core` (`:8444` trong container), tách khỏi listener UI 8443; trên appliance chỉ publish `127.0.0.1:8444` (`DEPLOYMENT.md` §6.1). `ClientAuth = RequireAndVerifyClientCert`, pool chỉ chứa CA sensor.
+- Listener riêng của `core`, bật bằng `-sensor-listen :8444` (trong container) cùng `-sensor-creds <thư mục>` (D-141; rỗng = không nghe), tách khỏi listener UI 8443; `core` mở PKI, ghi hai bó khoá, **rồi mới** nghe, và việc `sensor-cert-renew` hằng ngày gọi `Authority.Renew`; trên appliance chỉ publish `127.0.0.1:8444` (`DEPLOYMENT.md` §6.1). `ClientAuth = RequireAndVerifyClientCert`, pool chỉ chứa CA sensor.
 - Tiền tố `/sensor/v1/`. Mọi request mang `X-Vedette-Proto: 2` (bản 2: loại job `nuclei`, D-125/D-133).
 - `ReadHeaderTimeout` 5 s, `WriteTimeout` 35 s (long-poll giữ tối đa 30 s).
 - Thân: `http.MaxBytesReader` theo trần của route (§9) **trước** khi giải mã; giải mã bằng `internal/jsonstrict` (trường lạ, khoá trùng, khoá trùng sau gập chữ, độ sâu > 32 → `400 invalid_request`). Query lạ → `400 invalid_request`.

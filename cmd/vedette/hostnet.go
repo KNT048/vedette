@@ -194,3 +194,22 @@ func hostIPv4s(ctx context.Context, c *hostNetCache) []netip.Addr {
 	}
 	return out
 }
+
+// boxOwnAddress says whether an IP literal is one of the addresses the host reports for the box right now (a
+// change that waits for confirmation included: its address is live). It is the second half of the Host allowlist
+// (core/server.HostAllowlistWith): the allowlist is fixed at start, the box's addresses are not. Without a host
+// (nil cache) nothing is known and nothing extra is accepted.
+func boxOwnAddress(c *hostNetCache) func(netip.Addr) bool {
+	if c == nil {
+		return func(netip.Addr) bool { return false }
+	}
+	return func(a netip.Addr) bool {
+		a = a.Unmap().WithZone("")
+		for _, p := range c.Get(context.Background()) {
+			if p.Addr() == a {
+				return true
+			}
+		}
+		return false
+	}
+}

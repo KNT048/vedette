@@ -706,8 +706,8 @@ type Handler interface {
 	CorePutCoreNetworkInterfaces(ctx context.Context, req *CorePutCoreNetworkInterfacesReq) (*CorePutCoreNetworkInterfacesOK, error)
 	// CorePutCoreNetworkManagement implements core_put_core_network_management operation.
 	//
-	// Management interface: DHCP or static. An address change applies for 2 minutes and reverts unless
-	// confirmed from the new address.
+	// Management interface: DHCP or static. An address change applies for 5 minutes and reverts unless
+	// confirmed from the new address (you sign in again there).
 	//
 	// PUT /core/network/management
 	CorePutCoreNetworkManagement(ctx context.Context, req *CorePutCoreNetworkManagementReq) (*CorePutCoreNetworkManagementOK, error)

@@ -113,20 +113,22 @@ describe('box network: the API (S-CORE-8, D-56)', () => {
     const first = await call('PUT', '/management', goodStatic)
     expect(first.status).toBe(409)
     expect(first.json!.error).toMatchObject({ code: 'confirm_required', new_ip: '192.168.10.200' })
-    expect(first.json!.error.message).toContain('Open https://192.168.10.200:8443 within 2 minutes and confirm, or the box returns to the old settings.')
+    expect(first.json!.error.message).toContain('Open https://192.168.10.200:8443 within 5 minutes and confirm, or the box returns to the old settings.')
+    expect(first.json!.error.message).toContain('You will need to sign in again at the new address')
     expect((await get()).management.address).toBe('192.168.10.250') // nothing applied yet
     const applied = await call('PUT', '/management', { ...goodStatic, confirm: true })
     expect(applied.status).toBe(200)
     expect(applied.json!.management.address).toBe('192.168.10.200')
     expect(applied.json!.pending.previous_address).toBe('192.168.10.250')
-    expect(Math.round((new Date(applied.json!.pending.expires_at).getTime() - Date.now()) / 1000)).toBeGreaterThan(115)
+    expect(Math.round((new Date(applied.json!.pending.expires_at).getTime() - Date.now()) / 1000)).toBeGreaterThan(295)
+    expect(applied.json!.pending.window_s).toBe(300)
     expect(code(await call('PUT', '/management', { ...goodStatic, address: '192.168.10.201', confirm: true }))).toBe('change_pending')
     expect((await call('POST', '/management/confirm')).json!.pending).toBeNull()
     expect((await get()).management.address).toBe('192.168.10.200')
     expect(code(await call('POST', '/management/confirm'))).toBe('nothing_pending')
   })
 
-  it('an unconfirmed change goes back to the old settings after 2 minutes, and so does Cancel', async () => {
+  it('an unconfirmed change goes back to the old settings after the window, and so does Cancel', async () => {
     asAdmin()
     await call('PUT', '/management', { ...goodStatic, confirm: true })
     networkStore.update((s) => ({ ...s, pending: { ...s.pending!, expires_at: new Date(Date.now() - 1000).toISOString() } }))
@@ -365,12 +367,13 @@ describe('box network: the page', () => {
     fireEvent.change(form.getByLabelText('IP address'), { target: { value: '192.168.10.200' } })
     await u.click(form.getByRole('button', { name: 'Save management settings' }))
     const dlg = await screen.findByRole('dialog', { name: 'Change the management address?' }, T)
-    expect(dlg).toHaveTextContent('You will lose this page. Open https://192.168.10.200:8443 within 2 minutes and confirm, or the box returns to the old settings.')
+    expect(dlg).toHaveTextContent('You will lose this page. Open https://192.168.10.200:8443 within 5 minutes and confirm, or the box returns to the old settings.')
+    expect(dlg).toHaveTextContent('You will need to sign in again at the new address')
     expect((await get()).management.address).toBe('192.168.10.250') // not applied until the button
-    await u.click(within(dlg).getByRole('button', { name: 'Apply and start the 2-minute timer' }))
+    await u.click(within(dlg).getByRole('button', { name: 'Apply and start the 5-minute timer' }))
     const banner = await screen.findByRole('status', undefined, T)
     expect(banner).toHaveTextContent('Waiting for you to confirm at 192.168.10.200')
-    expect(banner).toHaveTextContent(/Time left: 1:5\d|Time left: 2:00/)
+    expect(banner).toHaveTextContent(/Time left: 4:5\d|Time left: 5:00/)
     expect(form.getByLabelText('IP address')).toBeDisabled() // no second change while one is pending
     await expectNoA11yViolations()
     await u.click(within(banner).getByRole('button', { name: 'Confirm: I opened the new address' }))
@@ -471,7 +474,7 @@ describe('box network: what the host can refuse (D-99, D-100, D-101)', () => {
     const dlg = await screen.findByRole('dialog', { name: 'Change the management address?' }, T)
     expect(dlg).toHaveTextContent('Your DHCP server picks the new address')
     expect(dlg).not.toHaveTextContent('https://')
-    expect(dlg).toHaveTextContent('do nothing: after 2 minutes the box goes back to the old address by itself')
+    expect(dlg).toHaveTextContent('do nothing: after 5 minutes the box goes back to the old address by itself')
   })
 
   it('says next to the save button that a restart before the confirmation brings the old address back', async () => {
@@ -487,5 +490,36 @@ describe('box network: what the host can refuse (D-99, D-100, D-101)', () => {
     expect(alert.closest('[role="alert"]')).toHaveTextContent('The settings saved on the box are the old ones, so it comes back on 192.168.10.250.')
     expect(screen.queryByRole('button', { name: 'Cancel and go back now' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Confirm: I opened the new address' })).not.toBeInTheDocument()
+  })
+})
+
+describe('box network: the rules of the host (L1)', () => {
+  const put = (b: object) => call('PUT', '/management', b)
+  it('refuses what the host refuses: link-local and reserved addresses, a gateway that is the network or broadcast address, bad DNS servers', async () => {
+    asAdmin()
+    const cases: [object, string][] = [
+      [{ address: '169.254.5.5', gateway: '169.254.5.1' }, 'invalid_static'],
+      [{ address: '0.1.2.3', prefix: 8, gateway: '0.1.2.1' }, 'invalid_static'],
+      [{ gateway: '192.168.10.0' }, 'gateway_not_host'],
+      [{ gateway: '192.168.10.255' }, 'gateway_not_host'],
+      [{ dns: ['169.254.1.1'] }, 'invalid_static'],
+      [{ dns: ['255.255.255.255'] }, 'invalid_static'],
+      [{ dns: ['127.0.0.1'] }, 'invalid_static'],
+      [{ dns: ['0.0.0.0'] }, 'invalid_static'],
+    ]
+    for (const [bad, want] of cases) expect(code(await put({ ...goodStatic, ...bad })), JSON.stringify(bad)).toBe(want)
+    expect((await put({ ...goodStatic, gateway: '192.168.10.255' })).json!.error.message).toBe('The gateway cannot be the network or broadcast address of the range. Use the address of your router.')
+    expect(code(await put({ ...goodStatic, dns: ['10.1.1.1'] }))).toBe('confirm_required') // private DNS is fine
+  })
+  it('NTP servers: no loopback, link-local, multicast or 0/8 addresses, no all-number names', async () => {
+    asAdmin()
+    for (const ip of ['127.0.0.1', '0.1.2.3', '169.254.0.1', '224.0.0.1', '255.255.255.255', '1.2.3']) expect(code(await call('PUT', '/ntp', { mode: 'custom', servers: [ip] })), ip).toBe('bad_ntp')
+    expect((await call('PUT', '/ntp', { mode: 'custom', servers: ['10.1.1.1'] })).status).toBe(200)
+  })
+  it('the form says the previous settings, not DHCP, when the old address is unknown', async () => {
+    asAdmin()
+    networkStore.update((s) => ({ ...s, pending: { previous: { ...s.mgmt, address: null }, expires_at: new Date(Date.now() + 60_000).toISOString() } }))
+    await open()
+    expect(await screen.findByText(/the box returns to the previous settings/, undefined, T)).toBeInTheDocument()
   })
 })

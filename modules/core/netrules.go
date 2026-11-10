@@ -19,6 +19,7 @@ import (
 const (
 	CodeAddressConflict       = "address_conflict"
 	CodeGatewayOutsideSubnet  = "gateway_outside_subnet"
+	CodeGatewayNotHost        = "gateway_not_host"
 	CodeSpanOnManagement      = "span_on_management"
 	CodeBadInterface          = "bad_interface"
 	CodeSpanHasAddress        = "span_has_address"
@@ -54,7 +55,7 @@ const (
 const msgNothingPending = "No management change is waiting for confirmation."
 
 // msgRanOut is what it says when the box already went back because nobody confirmed in time.
-const msgRanOut = "The 2 minutes ran out and the box went back to the old settings. Make the change again."
+const msgRanOut = "The time to confirm ran out and the box went back to the old settings. Make the change again."
 
 // mapNetCode is the part of the host-code table (INV-21, INV-25) that belongs to the network commands; nil for
 // a code that is not one of theirs. The refusals of a call and the ending of a run both come here.
@@ -66,6 +67,8 @@ func mapNetCode(code string) *apierr.Error {
 		return apierr.New(400, CodeGatewayOutsideSubnet, "The gateway must be inside the address range you entered.")
 	case api.CodeSameIface:
 		return apierr.New(409, CodeSpanOnManagement, "The management interface cannot be the SPAN port. SPAN needs its own port: it listens with no IP address, and mirrored packets would reach your management network.")
+	case api.CodeInvalidArgs: // core checks first; this is what the host's stricter check adds (host-api 6.5)
+		return apierr.New(400, apierr.CodeInvalid, "The box did not accept these network settings. Check the address, gateway, DNS and NTP servers, then try again.")
 	case api.CodeIfaceUnknown:
 		return apierr.New(400, CodeBadInterface, "That network interface is not on this box. Reload the page and choose one from the list.")
 	case api.CodeSPANHasAddress:
@@ -117,20 +120,21 @@ func bareIPv4(s string) (netip.Addr, bool) {
 	return a, true
 }
 
-// usable says whether a is a host address of its range: not the network or broadcast address, not 0/8,
-// loopback or multicast and above.
-func usable(a netip.Addr, prefix int) bool {
-	if a.IsLoopback() || a.IsMulticast() || a.As4()[0] == 0 || a.As4()[0] >= 224 {
-		return false
-	}
-	p := netip.PrefixFrom(a, prefix)
-	if p.Masked().Addr() == a {
+// unicast4 is the host's rule for an IPv4 address of the box, a gateway or an NTP server (host/ops unicast4): a
+// global unicast address, so not 0/8, loopback, link-local (169.254/16), multicast and above, or 255.255.255.255.
+func unicast4(a netip.Addr) bool {
+	return a.Is4() && a.IsGlobalUnicast() && a.As4()[0] != 0 && a.As4()[0] < 224
+}
+
+// hostIn is the host's rule hostInSubnet: a lies in p and is neither its network nor its broadcast address.
+func hostIn(p netip.Prefix, a netip.Addr) bool {
+	if !p.Contains(a) {
 		return false
 	}
 	b := a.As4()
-	m := ^uint32(0) << (32 - prefix)
+	m := ^uint32(0) << (32 - p.Bits())
 	n := uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
-	return n|^m != n // not all host bits set: not the broadcast address
+	return n&^m != 0 && n&^m != ^m
 }
 
 // staticSettings is a checked static management configuration.
@@ -155,7 +159,7 @@ func checkStatic(address string, prefix *int, gateway string, dns []string) (sta
 	if prefix == nil || *prefix < 8 || *prefix > 30 {
 		return out, invalid(CodeInvalidStatic, "The prefix length must be a whole number from 8 to 30 (24 means 255.255.255.0).")
 	}
-	if !usable(a, *prefix) {
+	if !unicast4(a) || !hostIn(netip.PrefixFrom(a, *prefix).Masked(), a) {
 		return out, invalid(CodeInvalidStatic, "That address is the network or broadcast address of its range, or a reserved address. Pick a host address.")
 	}
 	g, ok := bareIPv4(gateway)
@@ -165,8 +169,12 @@ func checkStatic(address string, prefix *int, gateway string, dns []string) (sta
 	if g == a {
 		return out, invalid(CodeInvalidStatic, "The gateway cannot be the same as the box address.")
 	}
-	if !netip.PrefixFrom(a, *prefix).Masked().Contains(g) {
+	rng := netip.PrefixFrom(a, *prefix).Masked()
+	if !rng.Contains(g) {
 		return out, invalid(CodeGatewayOutsideSubnet, "The gateway must be inside the address range you entered.")
+	}
+	if !hostIn(rng, g) { // the network or broadcast address of the range
+		return out, invalid(CodeGatewayNotHost, "The gateway cannot be the network or broadcast address of the range. Use the address of your router.")
 	}
 	if len(dns) < 1 || len(dns) > 3 {
 		return out, invalid(CodeInvalidStatic, "Give 1 to 3 DNS servers.")
@@ -174,8 +182,11 @@ func checkStatic(address string, prefix *int, gateway string, dns []string) (sta
 	seen := map[string]bool{}
 	for _, d := range dns {
 		x, ok := bareIPv4(d)
-		if !ok || x.IsLoopback() || x.IsMulticast() || x.IsUnspecified() {
+		if !ok {
 			return out, invalid(CodeInvalidStatic, "Each DNS server must be an IPv4 address.")
+		}
+		if !x.IsGlobalUnicast() { // not loopback, link-local, multicast, 0.0.0.0 or 255.255.255.255 (host/ops)
+			return out, invalid(CodeInvalidStatic, "A DNS server cannot be a loopback, link-local (169.254.x.x) or multicast address.")
 		}
 		if seen[d] {
 			return out, invalid(CodeInvalidStatic, "A DNS server is listed twice.")
@@ -211,7 +222,7 @@ func checkNTP(servers []string) *apierr.Error {
 	}
 	seen := map[string]bool{}
 	for _, s := range servers {
-		if _, ok := bareIPv4(s); !ok && !hostName(s) {
+		if a, ok := bareIPv4(s); ok && !unicast4(a) || !ok && !hostName(s) {
 			return invalid(CodeBadNTP, "\""+cutAtRune(s, 40)+"\" is not a server name or IPv4 address.")
 		}
 		if seen[s] {

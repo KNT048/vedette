@@ -24,7 +24,7 @@ export function networkView() {
   return {
     interfaces: s.ifaces.map(({ hears: _h, ...i }) => ({ ...i, address: i.role === 'management' && m.address && m.prefix ? `${m.address}/${m.prefix}` : null })),
     management: m, span: s.span, span_status: spanStatusOf(s), ntp: s.ntp, default_ntp: 'pool.ntp.org', decoy_ips: decoyIps(),
-    pending: s.pending ? { expires_at: s.pending.expires_at, previous_address: s.pending.previous.address, reboot_at: s.pending.reboot_at ?? null } : null,
+    pending: s.pending ? { expires_at: s.pending.expires_at, previous_address: s.pending.previous.address, window_s: CONFIRM_SECONDS, reboot_at: s.pending.reboot_at ?? null } : null,
   }
 }
 const ok = () => HttpResponse.json(networkView())
@@ -82,7 +82,7 @@ export const networkHandlers = [
     if (b.confirm !== true) {
       // With DHCP the box does not know the new address until the server answers: new_ip is null and the page says where to look.
       const where = next.mode === 'static' ? `Open https://${next.address}:8443` : 'Find the new address your DHCP server gives the box, open it on port 8443'
-      return HttpResponse.json({ error: { code: 'confirm_required', message: `This changes the address you use to reach the box. ${where} within ${CONFIRM_SECONDS / 60} minutes and confirm, or the box returns to the old settings.`, new_ip: next.mode === 'static' ? next.address : null } }, { status: 409 })
+      return HttpResponse.json({ error: { code: 'confirm_required', message: `This changes the address you use to reach the box. ${where} within ${CONFIRM_SECONDS / 60} minutes and confirm, or the box returns to the old settings. You will need to sign in again at the new address.`, new_ip: next.mode === 'static' ? next.address : null } }, { status: 409 })
     }
     const refused = backendRefusal(); if (refused) return refused
     // Before it takes the address the box asks the network whether anybody answers for it (ARP probe, D-101).
@@ -96,7 +96,7 @@ export const networkHandlers = [
     const denied = guard('admin'); if (denied) return denied
     const reverted = settlePending()
     const s = networkStore.get()
-    if (!s.pending) return fail(409, 'nothing_pending', reverted ? 'The 2 minutes ran out and the box went back to the old settings. Make the change again.' : 'No management change is waiting for confirmation.')
+    if (!s.pending) return fail(409, 'nothing_pending', reverted ? 'The time to confirm ran out and the box went back to the old settings. Make the change again.' : 'No management change is waiting for confirmation.')
     networkStore.set({ ...s, pending: null })
     audit('network.management_confirmed', 'management interface', s.mgmt.address ?? 'dhcp')
     return ok()

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"net/netip"
 	"path/filepath"
 	"slices"
@@ -451,4 +453,38 @@ func (g *gatedNet) StateNet(ctx context.Context) (api.NetState, error) {
 	g.once.Do(func() { close(g.started) })
 	<-g.gate
 	return g.fakeNet.StateNet(ctx)
+}
+
+// H1: after a management change the admin opens the box at the NEW address. The Host allowlist is fixed at
+// start, so an IP literal that is one of the box's own current addresses (from the host, pending change
+// included) is accepted too; any other IP and any name off the list stay 421.
+func TestHostAllowlistAcceptsTheBoxsOwnAddressesAfterAChange(t *testing.T) {
+	t.Parallel()
+	f := lanBox()
+	cache := newHostNetCache(hostNetSource(f, nil), time.Now)
+	h := topHandler(slog.New(slog.DiscardHandler), okHandler(), []string{"box.corp.example"}, false, boxOwnAddress(cache))
+	status := func(host string) int {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/setup", nil)
+		req.Host = host
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	if got := status("192.168.10.60:8443"); got != http.StatusMisdirectedRequest {
+		t.Fatalf("an address the box does not have yet = %d", got)
+	}
+	// net.apply: the new address is live while the change waits for the confirmation.
+	f.st.Interfaces[0].Addresses = []string{"192.168.10.60/24"}
+	cache.Invalidate()
+	for host, want := range map[string]int{
+		"192.168.10.60:8443": 204, "192.168.10.60": 204, "box.corp.example": 204,
+		"192.168.10.99:8443": 421, "192.168.10.99": 421, "evil.example": 421, "other.corp.example": 421, "192.168.10.60.evil.example": 421,
+	} {
+		if got := status(host); got != want {
+			t.Errorf("Host %q = %d, want %d", host, got, want)
+		}
+	}
+	if boxOwnAddress(nil)(netip.MustParseAddr("192.168.10.60")) {
+		t.Error("an install without a host knows no addresses")
+	}
 }

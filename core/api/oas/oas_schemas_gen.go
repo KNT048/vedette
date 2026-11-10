@@ -13910,6 +13910,8 @@ type CoreGetCoreNetworkOKPending struct {
 	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
 	// saved settings on disk are the old ones (D-100).
 	RebootAt NilDateTime `json:"reboot_at"`
+	// Seconds the box waits for the confirmation (the whole window, not what is left).
+	WindowS int `json:"window_s"`
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -13927,6 +13929,11 @@ func (s *CoreGetCoreNetworkOKPending) GetRebootAt() NilDateTime {
 	return s.RebootAt
 }
 
+// GetWindowS returns the value of WindowS.
+func (s *CoreGetCoreNetworkOKPending) GetWindowS() int {
+	return s.WindowS
+}
+
 // SetExpiresAt sets the value of ExpiresAt.
 func (s *CoreGetCoreNetworkOKPending) SetExpiresAt(val time.Time) {
 	s.ExpiresAt = val
@@ -13940,6 +13947,11 @@ func (s *CoreGetCoreNetworkOKPending) SetPreviousAddress(val NilString) {
 // SetRebootAt sets the value of RebootAt.
 func (s *CoreGetCoreNetworkOKPending) SetRebootAt(val NilDateTime) {
 	s.RebootAt = val
+}
+
+// SetWindowS sets the value of WindowS.
+func (s *CoreGetCoreNetworkOKPending) SetWindowS(val int) {
+	s.WindowS = val
 }
 
 type CoreGetCoreNetworkOKSpan struct {
@@ -14139,8 +14151,9 @@ type CoreGetCoreNetworkOKSpanStatus struct {
 	// Distinct source MAC addresses other than the box's own.
 	OtherMacs   int `json:"other_macs"`
 	PacketsPerS int `json:"packets_per_s"`
-	// Own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link =
-	// no cable signal.
+	// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+	// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+	// nothing arrives; no_link = no cable signal.
 	Verdict CoreGetCoreNetworkOKSpanStatusVerdict `json:"verdict"`
 }
 
@@ -14194,16 +14207,18 @@ func (s *CoreGetCoreNetworkOKSpanStatus) SetVerdict(val CoreGetCoreNetworkOKSpan
 	s.Verdict = val
 }
 
-// Own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link =
-// no cable signal.
+// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+// nothing arrives; no_link = no cable signal.
 type CoreGetCoreNetworkOKSpanStatusVerdict string
 
 const (
-	CoreGetCoreNetworkOKSpanStatusVerdictOff       CoreGetCoreNetworkOKSpanStatusVerdict = "off"
-	CoreGetCoreNetworkOKSpanStatusVerdictOk        CoreGetCoreNetworkOKSpanStatusVerdict = "ok"
-	CoreGetCoreNetworkOKSpanStatusVerdictOwnOnly   CoreGetCoreNetworkOKSpanStatusVerdict = "own_only"
-	CoreGetCoreNetworkOKSpanStatusVerdictNoTraffic CoreGetCoreNetworkOKSpanStatusVerdict = "no_traffic"
-	CoreGetCoreNetworkOKSpanStatusVerdictNoLink    CoreGetCoreNetworkOKSpanStatusVerdict = "no_link"
+	CoreGetCoreNetworkOKSpanStatusVerdictOff               CoreGetCoreNetworkOKSpanStatusVerdict = "off"
+	CoreGetCoreNetworkOKSpanStatusVerdictOk                CoreGetCoreNetworkOKSpanStatusVerdict = "ok"
+	CoreGetCoreNetworkOKSpanStatusVerdictOwnOnly           CoreGetCoreNetworkOKSpanStatusVerdict = "own_only"
+	CoreGetCoreNetworkOKSpanStatusVerdictNoTraffic         CoreGetCoreNetworkOKSpanStatusVerdict = "no_traffic"
+	CoreGetCoreNetworkOKSpanStatusVerdictNoLink            CoreGetCoreNetworkOKSpanStatusVerdict = "no_link"
+	CoreGetCoreNetworkOKSpanStatusVerdictSensorUnreachable CoreGetCoreNetworkOKSpanStatusVerdict = "sensor_unreachable"
 )
 
 // AllValues returns all CoreGetCoreNetworkOKSpanStatusVerdict values.
@@ -14214,6 +14229,7 @@ func (CoreGetCoreNetworkOKSpanStatusVerdict) AllValues() []CoreGetCoreNetworkOKS
 		CoreGetCoreNetworkOKSpanStatusVerdictOwnOnly,
 		CoreGetCoreNetworkOKSpanStatusVerdictNoTraffic,
 		CoreGetCoreNetworkOKSpanStatusVerdictNoLink,
+		CoreGetCoreNetworkOKSpanStatusVerdictSensorUnreachable,
 	}
 }
 
@@ -14229,6 +14245,8 @@ func (s CoreGetCoreNetworkOKSpanStatusVerdict) MarshalText() ([]byte, error) {
 	case CoreGetCoreNetworkOKSpanStatusVerdictNoTraffic:
 		return []byte(s), nil
 	case CoreGetCoreNetworkOKSpanStatusVerdictNoLink:
+		return []byte(s), nil
+	case CoreGetCoreNetworkOKSpanStatusVerdictSensorUnreachable:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -14253,6 +14271,9 @@ func (s *CoreGetCoreNetworkOKSpanStatusVerdict) UnmarshalText(data []byte) error
 	case CoreGetCoreNetworkOKSpanStatusVerdictNoLink:
 		*s = CoreGetCoreNetworkOKSpanStatusVerdictNoLink
 		return nil
+	case CoreGetCoreNetworkOKSpanStatusVerdictSensorUnreachable:
+		*s = CoreGetCoreNetworkOKSpanStatusVerdictSensorUnreachable
+		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
@@ -14264,8 +14285,9 @@ type CoreGetCoreNetworkSpanStatusOK struct {
 	// Distinct source MAC addresses other than the box's own.
 	OtherMacs   int `json:"other_macs"`
 	PacketsPerS int `json:"packets_per_s"`
-	// Own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link =
-	// no cable signal.
+	// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+	// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+	// nothing arrives; no_link = no cable signal.
 	Verdict CoreGetCoreNetworkSpanStatusOKVerdict `json:"verdict"`
 }
 
@@ -14319,16 +14341,18 @@ func (s *CoreGetCoreNetworkSpanStatusOK) SetVerdict(val CoreGetCoreNetworkSpanSt
 	s.Verdict = val
 }
 
-// Own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link =
-// no cable signal.
+// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+// nothing arrives; no_link = no cable signal.
 type CoreGetCoreNetworkSpanStatusOKVerdict string
 
 const (
-	CoreGetCoreNetworkSpanStatusOKVerdictOff       CoreGetCoreNetworkSpanStatusOKVerdict = "off"
-	CoreGetCoreNetworkSpanStatusOKVerdictOk        CoreGetCoreNetworkSpanStatusOKVerdict = "ok"
-	CoreGetCoreNetworkSpanStatusOKVerdictOwnOnly   CoreGetCoreNetworkSpanStatusOKVerdict = "own_only"
-	CoreGetCoreNetworkSpanStatusOKVerdictNoTraffic CoreGetCoreNetworkSpanStatusOKVerdict = "no_traffic"
-	CoreGetCoreNetworkSpanStatusOKVerdictNoLink    CoreGetCoreNetworkSpanStatusOKVerdict = "no_link"
+	CoreGetCoreNetworkSpanStatusOKVerdictOff               CoreGetCoreNetworkSpanStatusOKVerdict = "off"
+	CoreGetCoreNetworkSpanStatusOKVerdictOk                CoreGetCoreNetworkSpanStatusOKVerdict = "ok"
+	CoreGetCoreNetworkSpanStatusOKVerdictOwnOnly           CoreGetCoreNetworkSpanStatusOKVerdict = "own_only"
+	CoreGetCoreNetworkSpanStatusOKVerdictNoTraffic         CoreGetCoreNetworkSpanStatusOKVerdict = "no_traffic"
+	CoreGetCoreNetworkSpanStatusOKVerdictNoLink            CoreGetCoreNetworkSpanStatusOKVerdict = "no_link"
+	CoreGetCoreNetworkSpanStatusOKVerdictSensorUnreachable CoreGetCoreNetworkSpanStatusOKVerdict = "sensor_unreachable"
 )
 
 // AllValues returns all CoreGetCoreNetworkSpanStatusOKVerdict values.
@@ -14339,6 +14363,7 @@ func (CoreGetCoreNetworkSpanStatusOKVerdict) AllValues() []CoreGetCoreNetworkSpa
 		CoreGetCoreNetworkSpanStatusOKVerdictOwnOnly,
 		CoreGetCoreNetworkSpanStatusOKVerdictNoTraffic,
 		CoreGetCoreNetworkSpanStatusOKVerdictNoLink,
+		CoreGetCoreNetworkSpanStatusOKVerdictSensorUnreachable,
 	}
 }
 
@@ -14354,6 +14379,8 @@ func (s CoreGetCoreNetworkSpanStatusOKVerdict) MarshalText() ([]byte, error) {
 	case CoreGetCoreNetworkSpanStatusOKVerdictNoTraffic:
 		return []byte(s), nil
 	case CoreGetCoreNetworkSpanStatusOKVerdictNoLink:
+		return []byte(s), nil
+	case CoreGetCoreNetworkSpanStatusOKVerdictSensorUnreachable:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -14377,6 +14404,9 @@ func (s *CoreGetCoreNetworkSpanStatusOKVerdict) UnmarshalText(data []byte) error
 		return nil
 	case CoreGetCoreNetworkSpanStatusOKVerdictNoLink:
 		*s = CoreGetCoreNetworkSpanStatusOKVerdictNoLink
+		return nil
+	case CoreGetCoreNetworkSpanStatusOKVerdictSensorUnreachable:
+		*s = CoreGetCoreNetworkSpanStatusOKVerdictSensorUnreachable
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -22879,6 +22909,8 @@ type CorePostCoreNetworkManagementConfirmOKPending struct {
 	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
 	// saved settings on disk are the old ones (D-100).
 	RebootAt NilDateTime `json:"reboot_at"`
+	// Seconds the box waits for the confirmation (the whole window, not what is left).
+	WindowS int `json:"window_s"`
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -22896,6 +22928,11 @@ func (s *CorePostCoreNetworkManagementConfirmOKPending) GetRebootAt() NilDateTim
 	return s.RebootAt
 }
 
+// GetWindowS returns the value of WindowS.
+func (s *CorePostCoreNetworkManagementConfirmOKPending) GetWindowS() int {
+	return s.WindowS
+}
+
 // SetExpiresAt sets the value of ExpiresAt.
 func (s *CorePostCoreNetworkManagementConfirmOKPending) SetExpiresAt(val time.Time) {
 	s.ExpiresAt = val
@@ -22909,6 +22946,11 @@ func (s *CorePostCoreNetworkManagementConfirmOKPending) SetPreviousAddress(val N
 // SetRebootAt sets the value of RebootAt.
 func (s *CorePostCoreNetworkManagementConfirmOKPending) SetRebootAt(val NilDateTime) {
 	s.RebootAt = val
+}
+
+// SetWindowS sets the value of WindowS.
+func (s *CorePostCoreNetworkManagementConfirmOKPending) SetWindowS(val int) {
+	s.WindowS = val
 }
 
 type CorePostCoreNetworkManagementConfirmOKSpan struct {
@@ -23108,8 +23150,9 @@ type CorePostCoreNetworkManagementConfirmOKSpanStatus struct {
 	// Distinct source MAC addresses other than the box's own.
 	OtherMacs   int `json:"other_macs"`
 	PacketsPerS int `json:"packets_per_s"`
-	// Own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link =
-	// no cable signal.
+	// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+	// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+	// nothing arrives; no_link = no cable signal.
 	Verdict CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict `json:"verdict"`
 }
 
@@ -23163,16 +23206,18 @@ func (s *CorePostCoreNetworkManagementConfirmOKSpanStatus) SetVerdict(val CorePo
 	s.Verdict = val
 }
 
-// Own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link =
-// no cable signal.
+// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+// nothing arrives; no_link = no cable signal.
 type CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict string
 
 const (
-	CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictOff       CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict = "off"
-	CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictOk        CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict = "ok"
-	CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictOwnOnly   CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict = "own_only"
-	CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictNoTraffic CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict = "no_traffic"
-	CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictNoLink    CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict = "no_link"
+	CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictOff               CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict = "off"
+	CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictOk                CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict = "ok"
+	CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictOwnOnly           CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict = "own_only"
+	CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictNoTraffic         CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict = "no_traffic"
+	CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictNoLink            CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict = "no_link"
+	CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictSensorUnreachable CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict = "sensor_unreachable"
 )
 
 // AllValues returns all CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict values.
@@ -23183,6 +23228,7 @@ func (CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict) AllValues() []Cor
 		CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictOwnOnly,
 		CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictNoTraffic,
 		CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictNoLink,
+		CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictSensorUnreachable,
 	}
 }
 
@@ -23198,6 +23244,8 @@ func (s CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict) MarshalText() (
 	case CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictNoTraffic:
 		return []byte(s), nil
 	case CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictNoLink:
+		return []byte(s), nil
+	case CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictSensorUnreachable:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -23221,6 +23269,9 @@ func (s *CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict) UnmarshalText(
 		return nil
 	case CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictNoLink:
 		*s = CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictNoLink
+		return nil
+	case CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictSensorUnreachable:
+		*s = CorePostCoreNetworkManagementConfirmOKSpanStatusVerdictSensorUnreachable
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -23610,6 +23661,8 @@ type CorePostCoreNetworkManagementRevertOKPending struct {
 	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
 	// saved settings on disk are the old ones (D-100).
 	RebootAt NilDateTime `json:"reboot_at"`
+	// Seconds the box waits for the confirmation (the whole window, not what is left).
+	WindowS int `json:"window_s"`
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -23627,6 +23680,11 @@ func (s *CorePostCoreNetworkManagementRevertOKPending) GetRebootAt() NilDateTime
 	return s.RebootAt
 }
 
+// GetWindowS returns the value of WindowS.
+func (s *CorePostCoreNetworkManagementRevertOKPending) GetWindowS() int {
+	return s.WindowS
+}
+
 // SetExpiresAt sets the value of ExpiresAt.
 func (s *CorePostCoreNetworkManagementRevertOKPending) SetExpiresAt(val time.Time) {
 	s.ExpiresAt = val
@@ -23640,6 +23698,11 @@ func (s *CorePostCoreNetworkManagementRevertOKPending) SetPreviousAddress(val Ni
 // SetRebootAt sets the value of RebootAt.
 func (s *CorePostCoreNetworkManagementRevertOKPending) SetRebootAt(val NilDateTime) {
 	s.RebootAt = val
+}
+
+// SetWindowS sets the value of WindowS.
+func (s *CorePostCoreNetworkManagementRevertOKPending) SetWindowS(val int) {
+	s.WindowS = val
 }
 
 type CorePostCoreNetworkManagementRevertOKSpan struct {
@@ -23839,8 +23902,9 @@ type CorePostCoreNetworkManagementRevertOKSpanStatus struct {
 	// Distinct source MAC addresses other than the box's own.
 	OtherMacs   int `json:"other_macs"`
 	PacketsPerS int `json:"packets_per_s"`
-	// Own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link =
-	// no cable signal.
+	// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+	// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+	// nothing arrives; no_link = no cable signal.
 	Verdict CorePostCoreNetworkManagementRevertOKSpanStatusVerdict `json:"verdict"`
 }
 
@@ -23894,16 +23958,18 @@ func (s *CorePostCoreNetworkManagementRevertOKSpanStatus) SetVerdict(val CorePos
 	s.Verdict = val
 }
 
-// Own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link =
-// no cable signal.
+// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+// nothing arrives; no_link = no cable signal.
 type CorePostCoreNetworkManagementRevertOKSpanStatusVerdict string
 
 const (
-	CorePostCoreNetworkManagementRevertOKSpanStatusVerdictOff       CorePostCoreNetworkManagementRevertOKSpanStatusVerdict = "off"
-	CorePostCoreNetworkManagementRevertOKSpanStatusVerdictOk        CorePostCoreNetworkManagementRevertOKSpanStatusVerdict = "ok"
-	CorePostCoreNetworkManagementRevertOKSpanStatusVerdictOwnOnly   CorePostCoreNetworkManagementRevertOKSpanStatusVerdict = "own_only"
-	CorePostCoreNetworkManagementRevertOKSpanStatusVerdictNoTraffic CorePostCoreNetworkManagementRevertOKSpanStatusVerdict = "no_traffic"
-	CorePostCoreNetworkManagementRevertOKSpanStatusVerdictNoLink    CorePostCoreNetworkManagementRevertOKSpanStatusVerdict = "no_link"
+	CorePostCoreNetworkManagementRevertOKSpanStatusVerdictOff               CorePostCoreNetworkManagementRevertOKSpanStatusVerdict = "off"
+	CorePostCoreNetworkManagementRevertOKSpanStatusVerdictOk                CorePostCoreNetworkManagementRevertOKSpanStatusVerdict = "ok"
+	CorePostCoreNetworkManagementRevertOKSpanStatusVerdictOwnOnly           CorePostCoreNetworkManagementRevertOKSpanStatusVerdict = "own_only"
+	CorePostCoreNetworkManagementRevertOKSpanStatusVerdictNoTraffic         CorePostCoreNetworkManagementRevertOKSpanStatusVerdict = "no_traffic"
+	CorePostCoreNetworkManagementRevertOKSpanStatusVerdictNoLink            CorePostCoreNetworkManagementRevertOKSpanStatusVerdict = "no_link"
+	CorePostCoreNetworkManagementRevertOKSpanStatusVerdictSensorUnreachable CorePostCoreNetworkManagementRevertOKSpanStatusVerdict = "sensor_unreachable"
 )
 
 // AllValues returns all CorePostCoreNetworkManagementRevertOKSpanStatusVerdict values.
@@ -23914,6 +23980,7 @@ func (CorePostCoreNetworkManagementRevertOKSpanStatusVerdict) AllValues() []Core
 		CorePostCoreNetworkManagementRevertOKSpanStatusVerdictOwnOnly,
 		CorePostCoreNetworkManagementRevertOKSpanStatusVerdictNoTraffic,
 		CorePostCoreNetworkManagementRevertOKSpanStatusVerdictNoLink,
+		CorePostCoreNetworkManagementRevertOKSpanStatusVerdictSensorUnreachable,
 	}
 }
 
@@ -23929,6 +23996,8 @@ func (s CorePostCoreNetworkManagementRevertOKSpanStatusVerdict) MarshalText() ([
 	case CorePostCoreNetworkManagementRevertOKSpanStatusVerdictNoTraffic:
 		return []byte(s), nil
 	case CorePostCoreNetworkManagementRevertOKSpanStatusVerdictNoLink:
+		return []byte(s), nil
+	case CorePostCoreNetworkManagementRevertOKSpanStatusVerdictSensorUnreachable:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -23952,6 +24021,9 @@ func (s *CorePostCoreNetworkManagementRevertOKSpanStatusVerdict) UnmarshalText(d
 		return nil
 	case CorePostCoreNetworkManagementRevertOKSpanStatusVerdictNoLink:
 		*s = CorePostCoreNetworkManagementRevertOKSpanStatusVerdictNoLink
+		return nil
+	case CorePostCoreNetworkManagementRevertOKSpanStatusVerdictSensorUnreachable:
+		*s = CorePostCoreNetworkManagementRevertOKSpanStatusVerdictSensorUnreachable
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -30706,6 +30778,8 @@ type CorePutCoreNetworkInterfacesOKPending struct {
 	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
 	// saved settings on disk are the old ones (D-100).
 	RebootAt NilDateTime `json:"reboot_at"`
+	// Seconds the box waits for the confirmation (the whole window, not what is left).
+	WindowS int `json:"window_s"`
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -30723,6 +30797,11 @@ func (s *CorePutCoreNetworkInterfacesOKPending) GetRebootAt() NilDateTime {
 	return s.RebootAt
 }
 
+// GetWindowS returns the value of WindowS.
+func (s *CorePutCoreNetworkInterfacesOKPending) GetWindowS() int {
+	return s.WindowS
+}
+
 // SetExpiresAt sets the value of ExpiresAt.
 func (s *CorePutCoreNetworkInterfacesOKPending) SetExpiresAt(val time.Time) {
 	s.ExpiresAt = val
@@ -30736,6 +30815,11 @@ func (s *CorePutCoreNetworkInterfacesOKPending) SetPreviousAddress(val NilString
 // SetRebootAt sets the value of RebootAt.
 func (s *CorePutCoreNetworkInterfacesOKPending) SetRebootAt(val NilDateTime) {
 	s.RebootAt = val
+}
+
+// SetWindowS sets the value of WindowS.
+func (s *CorePutCoreNetworkInterfacesOKPending) SetWindowS(val int) {
+	s.WindowS = val
 }
 
 type CorePutCoreNetworkInterfacesOKSpan struct {
@@ -30935,8 +31019,9 @@ type CorePutCoreNetworkInterfacesOKSpanStatus struct {
 	// Distinct source MAC addresses other than the box's own.
 	OtherMacs   int `json:"other_macs"`
 	PacketsPerS int `json:"packets_per_s"`
-	// Own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link =
-	// no cable signal.
+	// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+	// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+	// nothing arrives; no_link = no cable signal.
 	Verdict CorePutCoreNetworkInterfacesOKSpanStatusVerdict `json:"verdict"`
 }
 
@@ -30990,16 +31075,18 @@ func (s *CorePutCoreNetworkInterfacesOKSpanStatus) SetVerdict(val CorePutCoreNet
 	s.Verdict = val
 }
 
-// Own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link =
-// no cable signal.
+// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+// nothing arrives; no_link = no cable signal.
 type CorePutCoreNetworkInterfacesOKSpanStatusVerdict string
 
 const (
-	CorePutCoreNetworkInterfacesOKSpanStatusVerdictOff       CorePutCoreNetworkInterfacesOKSpanStatusVerdict = "off"
-	CorePutCoreNetworkInterfacesOKSpanStatusVerdictOk        CorePutCoreNetworkInterfacesOKSpanStatusVerdict = "ok"
-	CorePutCoreNetworkInterfacesOKSpanStatusVerdictOwnOnly   CorePutCoreNetworkInterfacesOKSpanStatusVerdict = "own_only"
-	CorePutCoreNetworkInterfacesOKSpanStatusVerdictNoTraffic CorePutCoreNetworkInterfacesOKSpanStatusVerdict = "no_traffic"
-	CorePutCoreNetworkInterfacesOKSpanStatusVerdictNoLink    CorePutCoreNetworkInterfacesOKSpanStatusVerdict = "no_link"
+	CorePutCoreNetworkInterfacesOKSpanStatusVerdictOff               CorePutCoreNetworkInterfacesOKSpanStatusVerdict = "off"
+	CorePutCoreNetworkInterfacesOKSpanStatusVerdictOk                CorePutCoreNetworkInterfacesOKSpanStatusVerdict = "ok"
+	CorePutCoreNetworkInterfacesOKSpanStatusVerdictOwnOnly           CorePutCoreNetworkInterfacesOKSpanStatusVerdict = "own_only"
+	CorePutCoreNetworkInterfacesOKSpanStatusVerdictNoTraffic         CorePutCoreNetworkInterfacesOKSpanStatusVerdict = "no_traffic"
+	CorePutCoreNetworkInterfacesOKSpanStatusVerdictNoLink            CorePutCoreNetworkInterfacesOKSpanStatusVerdict = "no_link"
+	CorePutCoreNetworkInterfacesOKSpanStatusVerdictSensorUnreachable CorePutCoreNetworkInterfacesOKSpanStatusVerdict = "sensor_unreachable"
 )
 
 // AllValues returns all CorePutCoreNetworkInterfacesOKSpanStatusVerdict values.
@@ -31010,6 +31097,7 @@ func (CorePutCoreNetworkInterfacesOKSpanStatusVerdict) AllValues() []CorePutCore
 		CorePutCoreNetworkInterfacesOKSpanStatusVerdictOwnOnly,
 		CorePutCoreNetworkInterfacesOKSpanStatusVerdictNoTraffic,
 		CorePutCoreNetworkInterfacesOKSpanStatusVerdictNoLink,
+		CorePutCoreNetworkInterfacesOKSpanStatusVerdictSensorUnreachable,
 	}
 }
 
@@ -31025,6 +31113,8 @@ func (s CorePutCoreNetworkInterfacesOKSpanStatusVerdict) MarshalText() ([]byte, 
 	case CorePutCoreNetworkInterfacesOKSpanStatusVerdictNoTraffic:
 		return []byte(s), nil
 	case CorePutCoreNetworkInterfacesOKSpanStatusVerdictNoLink:
+		return []byte(s), nil
+	case CorePutCoreNetworkInterfacesOKSpanStatusVerdictSensorUnreachable:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -31048,6 +31138,9 @@ func (s *CorePutCoreNetworkInterfacesOKSpanStatusVerdict) UnmarshalText(data []b
 		return nil
 	case CorePutCoreNetworkInterfacesOKSpanStatusVerdictNoLink:
 		*s = CorePutCoreNetworkInterfacesOKSpanStatusVerdictNoLink
+		return nil
+	case CorePutCoreNetworkInterfacesOKSpanStatusVerdictSensorUnreachable:
+		*s = CorePutCoreNetworkInterfacesOKSpanStatusVerdictSensorUnreachable
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -31510,6 +31603,8 @@ type CorePutCoreNetworkManagementOKPending struct {
 	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
 	// saved settings on disk are the old ones (D-100).
 	RebootAt NilDateTime `json:"reboot_at"`
+	// Seconds the box waits for the confirmation (the whole window, not what is left).
+	WindowS int `json:"window_s"`
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -31527,6 +31622,11 @@ func (s *CorePutCoreNetworkManagementOKPending) GetRebootAt() NilDateTime {
 	return s.RebootAt
 }
 
+// GetWindowS returns the value of WindowS.
+func (s *CorePutCoreNetworkManagementOKPending) GetWindowS() int {
+	return s.WindowS
+}
+
 // SetExpiresAt sets the value of ExpiresAt.
 func (s *CorePutCoreNetworkManagementOKPending) SetExpiresAt(val time.Time) {
 	s.ExpiresAt = val
@@ -31540,6 +31640,11 @@ func (s *CorePutCoreNetworkManagementOKPending) SetPreviousAddress(val NilString
 // SetRebootAt sets the value of RebootAt.
 func (s *CorePutCoreNetworkManagementOKPending) SetRebootAt(val NilDateTime) {
 	s.RebootAt = val
+}
+
+// SetWindowS sets the value of WindowS.
+func (s *CorePutCoreNetworkManagementOKPending) SetWindowS(val int) {
+	s.WindowS = val
 }
 
 type CorePutCoreNetworkManagementOKSpan struct {
@@ -31739,8 +31844,9 @@ type CorePutCoreNetworkManagementOKSpanStatus struct {
 	// Distinct source MAC addresses other than the box's own.
 	OtherMacs   int `json:"other_macs"`
 	PacketsPerS int `json:"packets_per_s"`
-	// Own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link =
-	// no cable signal.
+	// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+	// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+	// nothing arrives; no_link = no cable signal.
 	Verdict CorePutCoreNetworkManagementOKSpanStatusVerdict `json:"verdict"`
 }
 
@@ -31794,16 +31900,18 @@ func (s *CorePutCoreNetworkManagementOKSpanStatus) SetVerdict(val CorePutCoreNet
 	s.Verdict = val
 }
 
-// Own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link =
-// no cable signal.
+// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+// nothing arrives; no_link = no cable signal.
 type CorePutCoreNetworkManagementOKSpanStatusVerdict string
 
 const (
-	CorePutCoreNetworkManagementOKSpanStatusVerdictOff       CorePutCoreNetworkManagementOKSpanStatusVerdict = "off"
-	CorePutCoreNetworkManagementOKSpanStatusVerdictOk        CorePutCoreNetworkManagementOKSpanStatusVerdict = "ok"
-	CorePutCoreNetworkManagementOKSpanStatusVerdictOwnOnly   CorePutCoreNetworkManagementOKSpanStatusVerdict = "own_only"
-	CorePutCoreNetworkManagementOKSpanStatusVerdictNoTraffic CorePutCoreNetworkManagementOKSpanStatusVerdict = "no_traffic"
-	CorePutCoreNetworkManagementOKSpanStatusVerdictNoLink    CorePutCoreNetworkManagementOKSpanStatusVerdict = "no_link"
+	CorePutCoreNetworkManagementOKSpanStatusVerdictOff               CorePutCoreNetworkManagementOKSpanStatusVerdict = "off"
+	CorePutCoreNetworkManagementOKSpanStatusVerdictOk                CorePutCoreNetworkManagementOKSpanStatusVerdict = "ok"
+	CorePutCoreNetworkManagementOKSpanStatusVerdictOwnOnly           CorePutCoreNetworkManagementOKSpanStatusVerdict = "own_only"
+	CorePutCoreNetworkManagementOKSpanStatusVerdictNoTraffic         CorePutCoreNetworkManagementOKSpanStatusVerdict = "no_traffic"
+	CorePutCoreNetworkManagementOKSpanStatusVerdictNoLink            CorePutCoreNetworkManagementOKSpanStatusVerdict = "no_link"
+	CorePutCoreNetworkManagementOKSpanStatusVerdictSensorUnreachable CorePutCoreNetworkManagementOKSpanStatusVerdict = "sensor_unreachable"
 )
 
 // AllValues returns all CorePutCoreNetworkManagementOKSpanStatusVerdict values.
@@ -31814,6 +31922,7 @@ func (CorePutCoreNetworkManagementOKSpanStatusVerdict) AllValues() []CorePutCore
 		CorePutCoreNetworkManagementOKSpanStatusVerdictOwnOnly,
 		CorePutCoreNetworkManagementOKSpanStatusVerdictNoTraffic,
 		CorePutCoreNetworkManagementOKSpanStatusVerdictNoLink,
+		CorePutCoreNetworkManagementOKSpanStatusVerdictSensorUnreachable,
 	}
 }
 
@@ -31829,6 +31938,8 @@ func (s CorePutCoreNetworkManagementOKSpanStatusVerdict) MarshalText() ([]byte, 
 	case CorePutCoreNetworkManagementOKSpanStatusVerdictNoTraffic:
 		return []byte(s), nil
 	case CorePutCoreNetworkManagementOKSpanStatusVerdictNoLink:
+		return []byte(s), nil
+	case CorePutCoreNetworkManagementOKSpanStatusVerdictSensorUnreachable:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -31852,6 +31963,9 @@ func (s *CorePutCoreNetworkManagementOKSpanStatusVerdict) UnmarshalText(data []b
 		return nil
 	case CorePutCoreNetworkManagementOKSpanStatusVerdictNoLink:
 		*s = CorePutCoreNetworkManagementOKSpanStatusVerdictNoLink
+		return nil
+	case CorePutCoreNetworkManagementOKSpanStatusVerdictSensorUnreachable:
+		*s = CorePutCoreNetworkManagementOKSpanStatusVerdictSensorUnreachable
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -32354,6 +32468,8 @@ type CorePutCoreNetworkNtpOKPending struct {
 	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
 	// saved settings on disk are the old ones (D-100).
 	RebootAt NilDateTime `json:"reboot_at"`
+	// Seconds the box waits for the confirmation (the whole window, not what is left).
+	WindowS int `json:"window_s"`
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -32371,6 +32487,11 @@ func (s *CorePutCoreNetworkNtpOKPending) GetRebootAt() NilDateTime {
 	return s.RebootAt
 }
 
+// GetWindowS returns the value of WindowS.
+func (s *CorePutCoreNetworkNtpOKPending) GetWindowS() int {
+	return s.WindowS
+}
+
 // SetExpiresAt sets the value of ExpiresAt.
 func (s *CorePutCoreNetworkNtpOKPending) SetExpiresAt(val time.Time) {
 	s.ExpiresAt = val
@@ -32384,6 +32505,11 @@ func (s *CorePutCoreNetworkNtpOKPending) SetPreviousAddress(val NilString) {
 // SetRebootAt sets the value of RebootAt.
 func (s *CorePutCoreNetworkNtpOKPending) SetRebootAt(val NilDateTime) {
 	s.RebootAt = val
+}
+
+// SetWindowS sets the value of WindowS.
+func (s *CorePutCoreNetworkNtpOKPending) SetWindowS(val int) {
+	s.WindowS = val
 }
 
 type CorePutCoreNetworkNtpOKSpan struct {
@@ -32583,8 +32709,9 @@ type CorePutCoreNetworkNtpOKSpanStatus struct {
 	// Distinct source MAC addresses other than the box's own.
 	OtherMacs   int `json:"other_macs"`
 	PacketsPerS int `json:"packets_per_s"`
-	// Own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link =
-	// no cable signal.
+	// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+	// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+	// nothing arrives; no_link = no cable signal.
 	Verdict CorePutCoreNetworkNtpOKSpanStatusVerdict `json:"verdict"`
 }
 
@@ -32638,16 +32765,18 @@ func (s *CorePutCoreNetworkNtpOKSpanStatus) SetVerdict(val CorePutCoreNetworkNtp
 	s.Verdict = val
 }
 
-// Own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link =
-// no cable signal.
+// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+// nothing arrives; no_link = no cable signal.
 type CorePutCoreNetworkNtpOKSpanStatusVerdict string
 
 const (
-	CorePutCoreNetworkNtpOKSpanStatusVerdictOff       CorePutCoreNetworkNtpOKSpanStatusVerdict = "off"
-	CorePutCoreNetworkNtpOKSpanStatusVerdictOk        CorePutCoreNetworkNtpOKSpanStatusVerdict = "ok"
-	CorePutCoreNetworkNtpOKSpanStatusVerdictOwnOnly   CorePutCoreNetworkNtpOKSpanStatusVerdict = "own_only"
-	CorePutCoreNetworkNtpOKSpanStatusVerdictNoTraffic CorePutCoreNetworkNtpOKSpanStatusVerdict = "no_traffic"
-	CorePutCoreNetworkNtpOKSpanStatusVerdictNoLink    CorePutCoreNetworkNtpOKSpanStatusVerdict = "no_link"
+	CorePutCoreNetworkNtpOKSpanStatusVerdictOff               CorePutCoreNetworkNtpOKSpanStatusVerdict = "off"
+	CorePutCoreNetworkNtpOKSpanStatusVerdictOk                CorePutCoreNetworkNtpOKSpanStatusVerdict = "ok"
+	CorePutCoreNetworkNtpOKSpanStatusVerdictOwnOnly           CorePutCoreNetworkNtpOKSpanStatusVerdict = "own_only"
+	CorePutCoreNetworkNtpOKSpanStatusVerdictNoTraffic         CorePutCoreNetworkNtpOKSpanStatusVerdict = "no_traffic"
+	CorePutCoreNetworkNtpOKSpanStatusVerdictNoLink            CorePutCoreNetworkNtpOKSpanStatusVerdict = "no_link"
+	CorePutCoreNetworkNtpOKSpanStatusVerdictSensorUnreachable CorePutCoreNetworkNtpOKSpanStatusVerdict = "sensor_unreachable"
 )
 
 // AllValues returns all CorePutCoreNetworkNtpOKSpanStatusVerdict values.
@@ -32658,6 +32787,7 @@ func (CorePutCoreNetworkNtpOKSpanStatusVerdict) AllValues() []CorePutCoreNetwork
 		CorePutCoreNetworkNtpOKSpanStatusVerdictOwnOnly,
 		CorePutCoreNetworkNtpOKSpanStatusVerdictNoTraffic,
 		CorePutCoreNetworkNtpOKSpanStatusVerdictNoLink,
+		CorePutCoreNetworkNtpOKSpanStatusVerdictSensorUnreachable,
 	}
 }
 
@@ -32673,6 +32803,8 @@ func (s CorePutCoreNetworkNtpOKSpanStatusVerdict) MarshalText() ([]byte, error) 
 	case CorePutCoreNetworkNtpOKSpanStatusVerdictNoTraffic:
 		return []byte(s), nil
 	case CorePutCoreNetworkNtpOKSpanStatusVerdictNoLink:
+		return []byte(s), nil
+	case CorePutCoreNetworkNtpOKSpanStatusVerdictSensorUnreachable:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -32696,6 +32828,9 @@ func (s *CorePutCoreNetworkNtpOKSpanStatusVerdict) UnmarshalText(data []byte) er
 		return nil
 	case CorePutCoreNetworkNtpOKSpanStatusVerdictNoLink:
 		*s = CorePutCoreNetworkNtpOKSpanStatusVerdictNoLink
+		return nil
+	case CorePutCoreNetworkNtpOKSpanStatusVerdictSensorUnreachable:
+		*s = CorePutCoreNetworkNtpOKSpanStatusVerdictSensorUnreachable
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -33152,6 +33287,8 @@ type CorePutCoreNetworkSpanOKPending struct {
 	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
 	// saved settings on disk are the old ones (D-100).
 	RebootAt NilDateTime `json:"reboot_at"`
+	// Seconds the box waits for the confirmation (the whole window, not what is left).
+	WindowS int `json:"window_s"`
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -33169,6 +33306,11 @@ func (s *CorePutCoreNetworkSpanOKPending) GetRebootAt() NilDateTime {
 	return s.RebootAt
 }
 
+// GetWindowS returns the value of WindowS.
+func (s *CorePutCoreNetworkSpanOKPending) GetWindowS() int {
+	return s.WindowS
+}
+
 // SetExpiresAt sets the value of ExpiresAt.
 func (s *CorePutCoreNetworkSpanOKPending) SetExpiresAt(val time.Time) {
 	s.ExpiresAt = val
@@ -33182,6 +33324,11 @@ func (s *CorePutCoreNetworkSpanOKPending) SetPreviousAddress(val NilString) {
 // SetRebootAt sets the value of RebootAt.
 func (s *CorePutCoreNetworkSpanOKPending) SetRebootAt(val NilDateTime) {
 	s.RebootAt = val
+}
+
+// SetWindowS sets the value of WindowS.
+func (s *CorePutCoreNetworkSpanOKPending) SetWindowS(val int) {
+	s.WindowS = val
 }
 
 type CorePutCoreNetworkSpanOKSpan struct {
@@ -33381,8 +33528,9 @@ type CorePutCoreNetworkSpanOKSpanStatus struct {
 	// Distinct source MAC addresses other than the box's own.
 	OtherMacs   int `json:"other_macs"`
 	PacketsPerS int `json:"packets_per_s"`
-	// Own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link =
-	// no cable signal.
+	// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+	// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+	// nothing arrives; no_link = no cable signal.
 	Verdict CorePutCoreNetworkSpanOKSpanStatusVerdict `json:"verdict"`
 }
 
@@ -33436,16 +33584,18 @@ func (s *CorePutCoreNetworkSpanOKSpanStatus) SetVerdict(val CorePutCoreNetworkSp
 	s.Verdict = val
 }
 
-// Own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link =
-// no cable signal.
+// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+// nothing arrives; no_link = no cable signal.
 type CorePutCoreNetworkSpanOKSpanStatusVerdict string
 
 const (
-	CorePutCoreNetworkSpanOKSpanStatusVerdictOff       CorePutCoreNetworkSpanOKSpanStatusVerdict = "off"
-	CorePutCoreNetworkSpanOKSpanStatusVerdictOk        CorePutCoreNetworkSpanOKSpanStatusVerdict = "ok"
-	CorePutCoreNetworkSpanOKSpanStatusVerdictOwnOnly   CorePutCoreNetworkSpanOKSpanStatusVerdict = "own_only"
-	CorePutCoreNetworkSpanOKSpanStatusVerdictNoTraffic CorePutCoreNetworkSpanOKSpanStatusVerdict = "no_traffic"
-	CorePutCoreNetworkSpanOKSpanStatusVerdictNoLink    CorePutCoreNetworkSpanOKSpanStatusVerdict = "no_link"
+	CorePutCoreNetworkSpanOKSpanStatusVerdictOff               CorePutCoreNetworkSpanOKSpanStatusVerdict = "off"
+	CorePutCoreNetworkSpanOKSpanStatusVerdictOk                CorePutCoreNetworkSpanOKSpanStatusVerdict = "ok"
+	CorePutCoreNetworkSpanOKSpanStatusVerdictOwnOnly           CorePutCoreNetworkSpanOKSpanStatusVerdict = "own_only"
+	CorePutCoreNetworkSpanOKSpanStatusVerdictNoTraffic         CorePutCoreNetworkSpanOKSpanStatusVerdict = "no_traffic"
+	CorePutCoreNetworkSpanOKSpanStatusVerdictNoLink            CorePutCoreNetworkSpanOKSpanStatusVerdict = "no_link"
+	CorePutCoreNetworkSpanOKSpanStatusVerdictSensorUnreachable CorePutCoreNetworkSpanOKSpanStatusVerdict = "sensor_unreachable"
 )
 
 // AllValues returns all CorePutCoreNetworkSpanOKSpanStatusVerdict values.
@@ -33456,6 +33606,7 @@ func (CorePutCoreNetworkSpanOKSpanStatusVerdict) AllValues() []CorePutCoreNetwor
 		CorePutCoreNetworkSpanOKSpanStatusVerdictOwnOnly,
 		CorePutCoreNetworkSpanOKSpanStatusVerdictNoTraffic,
 		CorePutCoreNetworkSpanOKSpanStatusVerdictNoLink,
+		CorePutCoreNetworkSpanOKSpanStatusVerdictSensorUnreachable,
 	}
 }
 
@@ -33471,6 +33622,8 @@ func (s CorePutCoreNetworkSpanOKSpanStatusVerdict) MarshalText() ([]byte, error)
 	case CorePutCoreNetworkSpanOKSpanStatusVerdictNoTraffic:
 		return []byte(s), nil
 	case CorePutCoreNetworkSpanOKSpanStatusVerdictNoLink:
+		return []byte(s), nil
+	case CorePutCoreNetworkSpanOKSpanStatusVerdictSensorUnreachable:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -33494,6 +33647,9 @@ func (s *CorePutCoreNetworkSpanOKSpanStatusVerdict) UnmarshalText(data []byte) e
 		return nil
 	case CorePutCoreNetworkSpanOKSpanStatusVerdictNoLink:
 		*s = CorePutCoreNetworkSpanOKSpanStatusVerdictNoLink
+		return nil
+	case CorePutCoreNetworkSpanOKSpanStatusVerdictSensorUnreachable:
+		*s = CorePutCoreNetworkSpanOKSpanStatusVerdictSensorUnreachable
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

@@ -16,14 +16,14 @@ import { SpanCard } from './SpanCard'
 import { SpanGuides } from './SpanGuides'
 import type { IfaceRole, Management, NetInterface, NetworkState, NtpConfig } from './types'
 
-function useSecondsLeft(iso: string | null) {
+function useSecondsLeft(iso: string | null, windowS: number) {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     if (!iso) return
     const id = setInterval(() => setNow(Date.now()), 500)
     return () => clearInterval(id)
   }, [iso])
-  return iso ? Math.min(120, Math.max(0, Math.ceil((new Date(iso).getTime() - now) / 1000))) : 0
+  return iso ? Math.min(windowS, Math.max(0, Math.ceil((new Date(iso).getTime() - now) / 1000))) : 0
 }
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 const list = (v: string) => v.split(/[\s,]+/).map((x) => x.trim()).filter(Boolean)
@@ -77,7 +77,7 @@ function Interfaces({ d }: { d: NetworkState }) {
 function Pending({ d }: { d: NetworkState }) {
   const { t } = useTranslation('core')
   const { confirm, revert } = useNetworkActions()
-  const left = useSecondsLeft(d.pending?.expires_at ?? null)
+  const left = useSecondsLeft(d.pending?.expires_at ?? null, d.pending?.window_s ?? 300)
   const [error, setError] = useState<string | null>(null)
   const settled = useRef(false)
   // A pending change that disappears without us confirming or cancelling it timed out: the box went back.
@@ -94,14 +94,14 @@ function Pending({ d }: { d: NetworkState }) {
     return (
       <div role="alert" className="mb-4 grid gap-2 rounded-md border border-danger/40 bg-danger-soft px-4 py-3">
         <p className="text-sm font-medium">{t('network.pending.stuckTitle')}</p>
-        <p className="text-sm">{t('network.pending.stuckBody', { time: new Date(d.pending.reboot_at).toLocaleTimeString(), old: d.pending.previous_address ?? 'DHCP' })}</p>
+        <p className="text-sm">{t('network.pending.stuckBody', { time: new Date(d.pending.reboot_at).toLocaleTimeString(), old: d.pending.previous_address ?? t('network.pending.previousSettings') })}</p>
       </div>
     )
   }
   return (
     <div role="status" className="mb-4 grid gap-3 rounded-md border border-warn/50 bg-warn-soft px-4 py-3">
       <p className="text-sm font-medium">{t('network.pending.title', { ip })}</p>
-      <p className="text-sm">{t('network.pending.body', { ip, old: d.pending.previous_address ?? 'DHCP' })}</p>
+      <p className="text-sm">{t('network.pending.body', { ip, old: d.pending.previous_address ?? t('network.pending.previousSettings') })}</p>
       <p className="text-sm" aria-live="off">{t('network.pending.left')}: <strong className="tabular-nums">{mmss(left)}</strong></p>
       {error ? <p role="alert" className="text-sm text-danger">{error}</p> : null}
       <div className="flex flex-wrap gap-2">
@@ -171,6 +171,7 @@ function ManagementForm({ d }: { d: NetworkState }) {
         <Dialog open onOpenChange={(o) => { if (!o) setAsk(null) }}>
           <DialogContent title={t('network.confirm.title')} description={ask.ip ? t('network.confirm.body', { ip: ask.ip }) : t('network.confirm.bodyDhcp')}>
             <p className="text-sm">{t(ask.ip ? 'network.confirm.lose' : 'network.confirm.loseDhcp')}</p>
+            <p className="text-sm">{t('network.confirm.signIn')}</p>
             <DialogFooter>
               <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
               <Button variant="primary" disabled={management.isPending} onClick={() => send(true)}>{t('network.confirm.go')}</Button>

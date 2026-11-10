@@ -19,6 +19,7 @@ import (
 
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/host/api"
+	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/host/ops"
 	"github.com/knt048/vedette/host/ops/opstest"
 	hostserver "github.com/knt048/vedette/host/server"
@@ -164,6 +165,7 @@ type nwSensor struct {
 	mu      sync.Mutex
 	measure core.SpanMeasure
 	err     error
+	setErr  error // SetSpanPort fails
 	ports   []string
 }
 
@@ -176,6 +178,9 @@ func (s *nwSensor) SpanStats(context.Context) (core.SpanMeasure, error) {
 func (s *nwSensor) SetSpanPort(_ context.Context, _, iface string, span bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.setErr != nil {
+		return s.setErr
+	}
 	s.ports = append(s.ports, fmt.Sprintf("%s/%t", iface, span))
 	return nil
 }
@@ -192,13 +197,68 @@ type netEnv struct {
 	nh      *core.NetworkHandlers
 	sensor  *nwSensor
 	changed atomic.Int32
+	fault   *faultHost
+	opts    netOpts
+	afters  []func() // what the handlers asked to run later (the look after the window)
+	afterD  []time.Duration
+	afterMu sync.Mutex
 	taken   atomic.Value // netip.Addr the inventory has
 	admin   *client
 	oper    *client
 	viewer  *client
 }
 
-type netOpts struct{ noHost, noSensor bool }
+type netOpts struct {
+	noHost, noSensor bool
+	absentSocket     bool // the host is a client of a socket file that does not exist (a container-only install)
+}
+
+// faultHost is the real host with faults a test switches on: the state it reports, the errors it answers, and
+// a gate that holds the read of state/net.
+type faultHost struct {
+	core.NetHost
+	stateCalls  atomic.Int32
+	hidePending atomic.Bool  // state/net says nothing waits although the run does
+	stateErr    atomic.Value // error
+	confirmErr  atomic.Value // error
+	getRunErr   atomic.Value // error
+	gate        chan struct{}
+	onState     func() // runs inside the read of state/net
+}
+
+type errBox struct{ err error }
+
+func (f *faultHost) StateNet(ctx context.Context) (api.NetState, error) {
+	f.stateCalls.Add(1)
+	if f.gate != nil {
+		<-f.gate
+	}
+	if f.onState != nil {
+		f.onState()
+	}
+	if e, _ := f.stateErr.Load().(errBox); e.err != nil {
+		return api.NetState{}, e.err
+	}
+	st, err := f.NetHost.StateNet(ctx)
+	if f.hidePending.Load() {
+		st.Pending = nil
+	}
+	return st, err
+}
+
+func (f *faultHost) NetConfirm(ctx context.Context, runID, requestID, actor string) (api.Run, error) {
+	if e, _ := f.confirmErr.Load().(errBox); e.err != nil {
+		return api.Run{}, e.err
+	}
+	return f.NetHost.NetConfirm(ctx, runID, requestID, actor)
+}
+
+func (f *faultHost) GetRun(ctx context.Context, id string) (api.Run, error) {
+	if e, _ := f.getRunErr.Load().(errBox); e.err != nil {
+		return api.Run{}, e.err
+	}
+	return f.NetHost.GetRun(ctx, id)
+}
 
 func newNetEnv(t *testing.T, o netOpts) *netEnv {
 	t.Helper()
@@ -248,8 +308,19 @@ func (e *netEnv) newHandlers(t *testing.T, o netOpts) *core.NetworkHandlers {
 			return a == ip, nil
 		},
 	}
-	if !o.noHost {
-		cfg.Host = e.hh.NewClient(t)
+	e.opts = o
+	switch {
+	case o.noHost:
+	case o.absentSocket:
+		cfg.Host = hostclient.New(filepath.Join(t.TempDir(), "absent.sock"))
+	default:
+		e.fault = &faultHost{NetHost: e.hh.NewClient(t)}
+		cfg.Host = e.fault
+	}
+	cfg.AfterFunc = func(d time.Duration, f func()) {
+		e.afterMu.Lock()
+		e.afters, e.afterD = append(e.afters, f), append(e.afterD, d)
+		e.afterMu.Unlock()
 	}
 	if !o.noSensor {
 		cfg.Sensor = e.sensor
@@ -402,7 +473,7 @@ func TestNetworkManagementChangeWaitsForConfirmThenIsKept(t *testing.T) {
 	if ip := jstr(r, "error", "new_ip"); ip != "192.168.1.60" {
 		t.Errorf("new_ip = %q", ip)
 	}
-	if !strings.Contains(jstr(r, "error", "message"), "Open https://192.168.1.60:8443 within 2 minutes and confirm, or the box returns to the old settings.") {
+	if !strings.Contains(jstr(r, "error", "message"), "Open https://192.168.1.60:8443 within 5 minutes and confirm, or the box returns to the old settings. You will need to sign in again at the new address.") {
 		t.Errorf("message = %q", jstr(r, "error", "message"))
 	}
 	if e.probe.probes() != 0 || len(e.actions()) != 0 {
@@ -418,7 +489,7 @@ func TestNetworkManagementChangeWaitsForConfirmThenIsKept(t *testing.T) {
 		t.Errorf("reboot_at = %v", jval(r, "pending", "reboot_at"))
 	}
 	exp, err := time.Parse(time.RFC3339, jstr(r, "pending", "expires_at"))
-	if err != nil || exp.Sub(e.clock.Now()) < 110*time.Second || exp.Sub(e.clock.Now()) > 130*time.Second {
+	if err != nil || exp.Sub(e.clock.Now()) < 290*time.Second || exp.Sub(e.clock.Now()) > 310*time.Second {
 		t.Errorf("expires_at = %v (%v)", jstr(r, "pending", "expires_at"), err)
 	}
 	if e.changed.Load() == 0 {
@@ -474,7 +545,7 @@ func TestNetworkRevertAndTheTimerGoBackToTheOldSettings(t *testing.T) {
 	wantOK(t, e.admin.put("/core/network/management", change), 200)
 	e.timers.fireLast()
 	eventuallyOS(t, "the host to go back", func() bool {
-		e.clock.Advance(3 * time.Second) // the page reads the host at most every 2 seconds
+		e.clock.Advance(7 * time.Second) // the page reads the host at most every 6 seconds
 		return jval(e.admin.get("/core/network"), "pending") == nil
 	})
 	for range 2 {
@@ -493,7 +564,7 @@ func TestNetworkRevertAndTheTimerGoBackToTheOldSettings(t *testing.T) {
 	eventuallyOS(t, "the host to go back", func() bool { return e.hostPendingGone() })
 	r = e.admin.post("/core/network/management/confirm", nil)
 	wantStatus(t, r, 409, "nothing_pending")
-	if !strings.Contains(jstr(r, "error", "message"), "The 2 minutes ran out and the box went back to the old settings.") {
+	if !strings.Contains(jstr(r, "error", "message"), "The time to confirm ran out and the box went back to the old settings.") {
 		t.Errorf("message = %q", jstr(r, "error", "message"))
 	}
 }
@@ -757,22 +828,29 @@ func TestNetworkSpanStatus(t *testing.T) {
 	if v := status().str("verdict"); v != "no_traffic" {
 		t.Errorf("first look = %s", v)
 	}
-	e.clock.Advance(5 * time.Second)
+	e.clock.Advance(7 * time.Second)
 	if err := os.WriteFile(rx, []byte("1000\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	r := status()
-	if r.str("verdict") != "ok" || jval(r, "packets_per_s") != float64(200) || r.str("interface") != "eth1" {
+	if r.str("verdict") != "ok" || jval(r, "packets_per_s") != float64(143) || r.str("interface") != "eth1" {
 		t.Errorf("counters rising: %v", r.JSON)
 	}
-	e.clock.Advance(5 * time.Second)
+	if jval(r, "last_packet_at") != nil {
+		t.Errorf("the host cannot tell when the last packet came: last_packet_at = %v", jval(r, "last_packet_at"))
+	}
+	// One sample per reading of the host: looking again inside the cache gives the same number, not a reset.
+	if again := status(); jval(again, "packets_per_s") != float64(143) || again.str("verdict") != "ok" {
+		t.Errorf("a second look at the same reading: %v", again.JSON)
+	}
+	e.clock.Advance(7 * time.Second)
 	if v := status().str("verdict"); v != "no_traffic" {
 		t.Errorf("counters flat = %s", v)
 	}
 	if err := os.WriteFile(filepath.Join(e.m.Root, "sys/devices/pci0000:00/net/eth1/operstate"), []byte("down\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	e.clock.Advance(5 * time.Second) // the page reads the host at most every 2 seconds
+	e.clock.Advance(7 * time.Second) // the page reads the host at most every 6 seconds
 	if v := status().str("verdict"); v != "no_link" {
 		t.Errorf("cable out = %s", v)
 	}
@@ -871,6 +949,7 @@ func TestNetworkErrorTableOfTheHostCodes(t *testing.T) {
 		api.CodeConfirmFailed:         {502, "confirm_failed"},
 		api.CodePendingConfirm:        {409, "pending_confirm"},
 		api.CodeNetPendingConfirm:     {409, "pending_confirm"},
+		api.CodeInvalidArgs:           {400, "invalid"},
 		api.CodeBootIDUnreadable:      {502, "host_error"}, // not for the person: the details are in the log
 		"last_mgmt_removed":           {502, "host_error"},
 	}
@@ -1003,7 +1082,7 @@ func TestNetworkARevertThatCannotBeAppliedShowsTheRestart(t *testing.T) {
 		st, err := e.hh.Client.StateNet(t.Context())
 		return err == nil && st.Pending != nil && st.Pending.RebootAt != nil
 	})
-	e.clock.Advance(3 * time.Second)
+	e.clock.Advance(7 * time.Second)
 	r := e.admin.get("/core/network")
 	wantOK(t, r, 200)
 	if jstr(r, "pending", "reboot_at") == "" || jstr(r, "pending", "previous_address") != "192.168.1.60" {
@@ -1015,4 +1094,352 @@ func TestNetworkARevertThatCannotBeAppliedShowsTheRestart(t *testing.T) {
 		t.Errorf("message = %q", jstr(r, "error", "message"))
 	}
 	wantStatus(t, e.admin.put("/core/network/management", nwBody(map[string]any{"address": "192.168.1.71", "confirm": true})), 409, "change_pending")
+}
+
+// ---- the review of acc33e0 ----
+
+// M2: the host allows 60 requests a minute for all of core. Readers that arrive together share one read, and a
+// read is kept longer than the 5 s poll of the page.
+func TestNetworkConcurrentReadsMakeOneHostCall(t *testing.T) {
+	t.Parallel()
+	e := newNetEnv(t, netOpts{})
+	e.fault.gate = make(chan struct{})
+	base := e.fault.stateCalls.Load()
+	var wg sync.WaitGroup
+	for range 10 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := e.nh.CoreGetCoreNetwork(t.Context()); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	eventuallyOS(t, "a reader to reach the host", func() bool { return e.fault.stateCalls.Load() > base })
+	<-time.After(100 * time.Millisecond) // the other nine are queued behind it
+	close(e.fault.gate)
+	wg.Wait()
+	if n := e.fault.stateCalls.Load() - base; n != 1 {
+		t.Fatalf("ten readers made %d calls to the host", n)
+	}
+	e.clock.Advance(5 * time.Second) // the poll of span/status
+	wantOK(t, e.viewer.get("/core/network/span/status"), 200)
+	if n := e.fault.stateCalls.Load() - base; n != 1 {
+		t.Errorf("the next poll inside the cache read the host again: %d calls", n)
+	}
+	e.clock.Advance(2 * time.Second)
+	wantOK(t, e.viewer.get("/core/network/span/status"), 200)
+	if n := e.fault.stateCalls.Load() - base; n != 2 {
+		t.Errorf("after the cache ran out: %d calls", n)
+	}
+}
+
+// M3: a confirm that the host did not take (429, or "nothing is waiting" from a race) does not end core's record.
+// The page keeps the old address, and when the change later goes back it is audited once.
+func TestNetworkAFailedConfirmKeepsTheRecordUntilTheRunEnds(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		err    error
+		status int
+		code   string
+	}{
+		"rate limited":                   {&hostclient.Error{Status: 429, Code: api.CodeRateLimited, Message: "slow down", RetryAfterS: 5}, 429, "rate_limited"},
+		"the host says nothing waits":    {&hostclient.Error{Status: 412, Code: api.CodeNotAwaitingConfirm, Message: "no"}, 409, "nothing_pending"},
+		"a bad request of the transport": {&hostclient.Error{Status: 400, Code: api.CodeInvalidArgs, Message: "bad"}, 400, "invalid"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			e := newNetEnv(t, netOpts{})
+			wantOK(t, e.admin.put("/core/network/management", nwBody(map[string]any{"confirm": true})), 200)
+			e.fault.confirmErr.Store(errBox{tc.err})
+			wantStatus(t, e.admin.post("/core/network/management/confirm", nil), tc.status, tc.code)
+			r := e.admin.get("/core/network")
+			if jstr(r, "pending", "previous_address") != "192.168.1.50" {
+				t.Fatalf("the record was dropped: %v", r.JSON["pending"])
+			}
+			e.fault.confirmErr.Store(errBox{})
+			e.timers.fireLast()
+			eventuallyOS(t, "the host to go back", func() bool { return e.hostPendingGone() })
+			e.clock.Advance(7 * time.Second)
+			wantOK(t, e.admin.get("/core/network"), 200)
+			wantOK(t, e.admin.get("/core/network"), 200)
+			want := []string{"network.management", "network.management_confirmed", "network.management_confirmed_failed", "network.management_reverted"}
+			if got := e.actions(); !slices.Equal(got, want) {
+				t.Errorf("audit = %v, want %v", got, want)
+			}
+		})
+	}
+}
+
+// L2: only an ended run settles the record. A host that cannot be asked, or a run that is still going (a confirm
+// in progress), writes nothing and is tried again; the revert is written once, when the run has ended.
+func TestNetworkSettleWaitsForTheRunToEnd(t *testing.T) {
+	t.Parallel()
+	e := newNetEnv(t, netOpts{})
+	wantOK(t, e.admin.put("/core/network/management", nwBody(map[string]any{"confirm": true})), 200)
+	read := func() reply {
+		e.clock.Advance(7 * time.Second)
+		r := e.admin.get("/core/network")
+		wantOK(t, r, 200)
+		return r
+	}
+	e.fault.hidePending.Store(true) // the host has let go of the lock; the run itself is still awaiting
+	read()
+	e.fault.getRunErr.Store(errBox{&hostclient.Error{Status: 503, Code: api.CodeShuttingDown, Message: "restarting"}})
+	read()
+	e.fault.getRunErr.Store(errBox{})
+	read()
+	if got := e.actions(); !slices.Equal(got, []string{"network.management"}) {
+		t.Fatalf("nothing ended, nothing may be written: %v", got)
+	}
+	// The record is still there: with the lock back, the page shows the old address again.
+	e.fault.hidePending.Store(false)
+	if r := read(); jstr(r, "pending", "previous_address") != "192.168.1.50" {
+		t.Fatalf("record lost: %v", r.JSON["pending"])
+	}
+	e.timers.fireLast()
+	eventuallyOS(t, "the host to go back", func() bool { return e.hostPendingGone() })
+	read()
+	read()
+	if n := strings.Count(strings.Join(e.actions(), " "), "network.management_reverted"); n != 1 {
+		t.Errorf("one revert, one row: %v", e.actions())
+	}
+}
+
+// M1: the passive sensor reads its cards through Cards. No socket file: the operating system's interfaces (ok
+// false); a host that does not answer: the last good list, or ok false before there is one; never an error.
+func TestNetworkCardsSurviveAMissingOrFailingHost(t *testing.T) {
+	t.Parallel()
+	t.Run("socket file absent", func(t *testing.T) {
+		e := newNetEnv(t, netOpts{absentSocket: true})
+		cards, ok, err := e.nh.Cards(t.Context())
+		if ok || err != nil || cards != nil {
+			t.Fatalf("Cards = %v %v %v", cards, ok, err)
+		}
+	})
+	t.Run("host hiccup", func(t *testing.T) {
+		e := newNetEnv(t, netOpts{})
+		cards, ok, err := e.nh.Cards(t.Context())
+		if err != nil || !ok || len(cards) != 3 {
+			t.Fatalf("first = %v %v %v", cards, ok, err)
+		}
+		e.fault.stateErr.Store(errBox{&hostclient.Error{Status: 503, Code: api.CodeShuttingDown, Message: "restarting"}})
+		e.clock.Advance(7 * time.Second)
+		cards, ok, err = e.nh.Cards(t.Context())
+		if err != nil || !ok || len(cards) != 3 {
+			t.Fatalf("while the host hiccups = %v %v %v", cards, ok, err)
+		}
+		e.fault.stateErr.Store(errBox{&hostclient.Error{Status: 429, Code: api.CodeRateLimited, Message: "slow down"}})
+		e.nh = e.newHandlers(t, netOpts{}) // a restart of core while the host is busy: nothing known yet
+		e.fault.stateErr.Store(errBox{&hostclient.Error{Status: 429, Code: api.CodeRateLimited, Message: "slow down"}})
+		cards, ok, err = e.nh.Cards(t.Context())
+		if err != nil || ok || cards != nil {
+			t.Fatalf("before any good answer = %v %v %v", cards, ok, err)
+		}
+	})
+}
+
+// L3: a box with no configuration of the host's and no default route. One card with an address is the management
+// card; several are not told apart, and the message never has an empty card name.
+func TestNetworkManagementCardWithoutAConfigurationOrARoute(t *testing.T) {
+	t.Parallel()
+	e := newNetEnv(t, netOpts{})
+	e.m.RemoveRoot("proc/net/route")
+	e.clock.Advance(7 * time.Second)
+	r := e.admin.get("/core/network")
+	wantOK(t, r, 200)
+	if first := getArr(r, "interfaces")[0].(map[string]any); first["name"] != "eth0" || first["role"] != "management" {
+		t.Errorf("the only card with an address is the management card: %v", getArr(r, "interfaces"))
+	}
+	e.box.spanAddr.Store(true) // now two cards have an address
+	e.clock.Advance(7 * time.Second)
+	for _, c := range []struct {
+		m, p string
+		b    any
+	}{
+		{"PUT", "/core/network/management", nwBody(map[string]any{"confirm": true})},
+		{"PUT", "/core/network/interfaces", map[string]any{"roles": map[string]any{"eth0": "management", "eth1": "span", "eth2": "unused"}}},
+	} {
+		r := e.admin.request(c.m, c.p, c.b)
+		wantStatus(t, r, 409, "management_not_set")
+		msg := jstr(r, "error", "message")
+		if !strings.Contains(msg, "cannot tell which network card is the management card") || strings.HasPrefix(msg, " ") || strings.Contains(msg, "  ") {
+			t.Errorf("%s message = %q", c.p, msg)
+		}
+	}
+	if len(e.actions()) != 0 {
+		t.Errorf("nothing was attempted: %v", e.actions())
+	}
+}
+
+// L4: when the sensor cannot be told, the save says so (verdict sensor_unreachable), every look tries again, and a
+// sensor that says it is off is never shown as "ok" from the host's counters.
+func TestNetworkSensorThatCannotBeToldIsReported(t *testing.T) {
+	t.Parallel()
+	e := newNetEnv(t, netOpts{})
+	e.configured()
+	e.sensor.mu.Lock()
+	e.sensor.setErr = fmt.Errorf("the sensor is gone")
+	e.sensor.mu.Unlock()
+	r := e.admin.put("/core/network/span", spanBody(nil))
+	wantOK(t, r, 200)
+	if jstr(r, "span_status", "verdict") != "sensor_unreachable" {
+		t.Fatalf("the save must say it: %v", r.JSON["span_status"])
+	}
+	e.clock.Advance(7 * time.Second)
+	if v := e.viewer.get("/core/network/span/status").str("verdict"); v != "sensor_unreachable" {
+		t.Errorf("still unreachable = %s", v)
+	}
+	e.sensor.mu.Lock()
+	e.sensor.setErr = nil
+	e.sensor.mu.Unlock()
+	if v := e.viewer.get("/core/network/span/status").str("verdict"); v != "ok" { // the next look tells the sensor, then shows what it measures
+		t.Errorf("after the sensor came back = %s", v)
+	}
+	if last := e.sensor.ports[len(e.sensor.ports)-1]; last != "eth1/true" {
+		t.Errorf("the sensor was told %v", e.sensor.ports)
+	}
+	e.sensor.mu.Lock()
+	e.sensor.measure = core.SpanMeasure{Verdict: "off"}
+	e.sensor.mu.Unlock()
+	rx := filepath.Join(e.m.Root, "sys/devices/pci0000:00/net/eth1/statistics/rx_packets")
+	if err := os.WriteFile(rx, []byte("5000\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	e.clock.Advance(7 * time.Second)
+	if v := e.viewer.get("/core/network/span/status").str("verdict"); v == "ok" {
+		t.Errorf("the sensor says it is off but the page says %s", v)
+	}
+}
+
+// L5: 5 seconds after the window would run out the box's addresses are read again and the revert is settled and
+// audited, with nobody on the page.
+func TestNetworkLooksAgainAfterTheWindow(t *testing.T) {
+	t.Parallel()
+	e := newNetEnv(t, netOpts{})
+	wantOK(t, e.admin.put("/core/network/management", nwBody(map[string]any{"confirm": true})), 200)
+	e.afterMu.Lock()
+	n := len(e.afters)
+	d := e.afterD[n-1]
+	look := e.afters[n-1]
+	e.afterMu.Unlock()
+	if d < 304*time.Second || d > 306*time.Second {
+		t.Fatalf("the look is scheduled in %v, want the window plus 5 s", d)
+	}
+	e.timers.fireLast()
+	eventuallyOS(t, "the host to go back", func() bool { return e.hostPendingGone() })
+	before := e.changed.Load()
+	look()
+	if e.changed.Load() <= before {
+		t.Error("the addresses were not refreshed")
+	}
+	if got := e.actions(); !slices.Equal(got, []string{"network.management", "network.management_reverted"}) {
+		t.Errorf("the revert was not settled by the look: %v", got)
+	}
+}
+
+// L8: an NTP save that changes nothing is audited, as the mock does.
+func TestNetworkNTPSaveWithNoChangeIsAudited(t *testing.T) {
+	t.Parallel()
+	e := newNetEnv(t, netOpts{})
+	e.configured()
+	n := len(e.actions())
+	wantOK(t, e.admin.put("/core/network/ntp", map[string]any{"mode": "default", "servers": []any{}}), 200)
+	got := e.actions()
+	if len(got) != n+1 || got[len(got)-1] != "network.ntp" {
+		t.Errorf("audit = %v", got)
+	}
+}
+
+// L1: core's rules are the host's (host/ops unicast4, hostInSubnet, IsGlobalUnicast), so a person gets the sentence of
+// the form and not a refusal of the host.
+func TestNetworkRulesMatchTheHosts(t *testing.T) {
+	t.Parallel()
+	e := newNetEnv(t, netOpts{})
+	put := func(b map[string]any) reply { return e.admin.put("/core/network/management", b) }
+	for name, tc := range map[string]struct {
+		b    map[string]any
+		code string
+	}{
+		"address link-local":       {nwBody(map[string]any{"address": "169.254.5.5", "gateway": "169.254.5.1"}), "invalid_static"},
+		"address 0/8":              {nwBody(map[string]any{"address": "0.1.2.3", "prefix": 8, "gateway": "0.1.2.1"}), "invalid_static"},
+		"gateway is the network":   {nwBody(map[string]any{"gateway": "192.168.1.0"}), "gateway_not_host"},
+		"gateway is the broadcast": {nwBody(map[string]any{"gateway": "192.168.1.255"}), "gateway_not_host"},
+		"dns link-local":           {nwBody(map[string]any{"dns": []any{"169.254.1.1"}}), "invalid_static"},
+		"dns broadcast":            {nwBody(map[string]any{"dns": []any{"255.255.255.255"}}), "invalid_static"},
+		"dns loopback":             {nwBody(map[string]any{"dns": []any{"127.0.0.1"}}), "invalid_static"},
+		"dns unspecified":          {nwBody(map[string]any{"dns": []any{"0.0.0.0"}}), "invalid_static"},
+	} {
+		if r := put(tc.b); r.Code != 400 || r.code() != tc.code {
+			t.Errorf("%s = %d %q (%s), want 400 %s", name, r.Code, r.code(), r.Raw, tc.code)
+		}
+	}
+	// A private DNS server is fine, and so is a gateway that is a plain host.
+	wantStatus(t, put(nwBody(map[string]any{"dns": []any{"10.1.1.1"}})), 409, "confirm_required")
+	e.configured()
+	for _, ip := range []string{"127.0.0.1", "0.1.2.3", "169.254.0.1", "224.0.0.1", "255.255.255.255", "1.2.3"} {
+		wantStatus(t, e.admin.put("/core/network/ntp", map[string]any{"mode": "custom", "servers": []any{ip}}), 400, "bad_ntp")
+	}
+	wantOK(t, e.admin.put("/core/network/ntp", map[string]any{"mode": "custom", "servers": []any{"203.0.113.7"}}), 200)
+}
+
+// Two administrators saving at once: the changes go one after the other, so the second finds the first waiting.
+func TestNetworkConcurrentWritesAreSerialised(t *testing.T) {
+	t.Parallel()
+	e := newNetEnv(t, netOpts{})
+	other, _ := e.signIn("admin2@acme.example", "admin")
+	var wg sync.WaitGroup
+	got := make([]reply, 2)
+	for i, c := range []*client{e.admin, other} {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			got[i] = c.put("/core/network/management", nwBody(map[string]any{"address": fmt.Sprintf("192.168.1.%d", 60+i), "confirm": true}))
+		}()
+	}
+	wg.Wait()
+	ok, pending := 0, 0
+	for _, r := range got {
+		switch {
+		case r.Code == 200:
+			ok++
+		case r.Code == 409 && r.code() == "change_pending":
+			pending++
+		}
+	}
+	if ok != 1 || pending != 1 {
+		t.Fatalf("one change goes through, the other finds it waiting: %d %s / %d %s", got[0].Code, got[0].Raw, got[1].Code, got[1].Raw)
+	}
+	if n := e.probe.probes(); n != 1 {
+		t.Errorf("only the winner is probed: %d", n)
+	}
+}
+
+// INV-7 on the network routes: an administrator demoted while the request is being served is refused at the audit
+// write, before any call to the host.
+func TestNetworkDemotedAdminIsRefusedBeforeTheHostIsCalled(t *testing.T) {
+	t.Parallel()
+	e := newNetEnv(t, netOpts{})
+	second, _ := e.signIn("second@acme.example", "admin")
+	var once sync.Once
+	e.fault.onState = func() {
+		once.Do(func() {
+			err := e.env.DB.Write(context.Background(), func(tx *sql.Tx) error {
+				_, err := tx.ExecContext(context.Background(), "UPDATE core_user SET role = 'viewer' WHERE email = 'second@acme.example'")
+				return err
+			})
+			if err != nil {
+				t.Error(err)
+			}
+		})
+	}
+	r := second.put("/core/network/management", nwBody(map[string]any{"confirm": true}))
+	if r.Code != 403 {
+		t.Fatalf("demoted admin = %d %s", r.Code, r.Raw)
+	}
+	if e.probe.probes() != 0 || len(e.actions()) != 0 {
+		t.Errorf("the host was called or a row written: probes %d, audit %v", e.probe.probes(), e.actions())
+	}
+	if jval(e.admin.get("/core/network"), "pending") != nil {
+		t.Error("the refused change must not wait")
+	}
 }

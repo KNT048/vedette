@@ -76,7 +76,9 @@ type NetworkConfig struct {
 	// AddressesChanged is called after the box's own addresses may have changed (an apply, a confirm, a revert, a
 	// timeout): the caches of cmd/vedette that hold them (conn, sensor-active, honeypot) must read them again.
 	AddressesChanged func()
-	Clock            func() time.Time // nil: time.Now
+	// AfterFunc runs f after d (nil: time.AfterFunc); the tests hold it back.
+	AfterFunc func(d time.Duration, f func())
+	Clock     func() time.Time // nil: time.Now
 }
 
 // NetworkHandlers implements the Box network operations of Settings (S-CORE-8, D-56: /core/network*; the routes
@@ -99,14 +101,25 @@ type NetworkHandlers struct {
 	settleMu sync.Mutex // one settling of a finished pending change
 	cache    struct {
 		sync.Mutex
-		st api.NetState
-		at time.Time
-		ok bool
+		st     api.NetState
+		at     time.Time
+		ok     bool
+		flight *stateFlight   // the one read of the host that everybody without a fresh-read need waits for
+		gen    uint64         // bumped by every fresh read and every change of addresses: an older read must not fill the cache
+		pps    map[string]int // packets per second of each card, from the last two readings (one sample per reading)
+		prev   map[string]rxSample
 	}
-	samples struct {
-		sync.Mutex
-		m map[string]rxSample
-	}
+	cardsMu   sync.Mutex
+	lastCards []Card // the last list of cards the host gave (Cards)
+	sensorMu  sync.Mutex
+	sensorOn  string // the SPAN port the sensor was last told to use ("eth1/true", "/false"); "" before the first time
+	after     func(d time.Duration, f func())
+}
+
+type stateFlight struct {
+	done chan struct{}
+	st   api.NetState
+	err  error
 }
 
 type rxSample struct {
@@ -123,7 +136,11 @@ func NewNetworkHandlers(c NetworkConfig) (*NetworkHandlers, error) {
 		c.Clock = time.Now
 	}
 	h := &NetworkHandlers{db: c.DB, auth: c.Auth, audit: c.Audit, log: c.Log, host: c.Host, sensor: c.Sensor, taken: c.AddressInUse, changed: c.AddressesChanged, now: c.Clock}
-	h.samples.m = map[string]rxSample{}
+	h.cache.pps, h.cache.prev = map[string]int{}, map[string]rxSample{}
+	h.after = func(d time.Duration, f func()) { time.AfterFunc(d, f) }
+	if c.AfterFunc != nil {
+		h.after = c.AfterFunc
+	}
 	return h, nil
 }
 
@@ -131,11 +148,11 @@ const (
 	keyNetSpan    = "core_network_span"
 	keyNetPending = "core_network_pending"
 
-	netReadTTL      = 2 * time.Second // GET /core/network and the 5 s poll of span/status may share one read of the host
+	netReadTTL      = 6 * time.Second // longer than the 5 s poll of span/status: the host allows 60 requests a minute for all of core
 	netReadTimeout  = 15 * time.Second
 	netApplyLimit   = 150 * time.Second // host-api 10: net.apply takes up to 120 s before it waits for the confirmation
 	netConfirmLimit = 75 * time.Second  // net.confirm and net.revert: 60 s
-	confirmWindow   = 120               // seconds the person has to confirm from the new address (S-CORE-8)
+	confirmWindow   = 300               // seconds the person has to confirm from the new address, signing in again there (S-CORE-8, D-118)
 	netIfaceListMax = 64
 )
 
@@ -252,25 +269,81 @@ func loadSetting(ctx context.Context, db *store.DB, key string, into any) error 
 
 // ---- reading the host ----
 
+// state reads state/net. The host allows 60 requests a minute for all of core, and a page polls: a read is kept for
+// netReadTTL (longer than the 5 s poll) and readers that arrive during a read share it. fresh (every write, and
+// the read that decides a confirm) neither uses nor joins them. Every successful reading is one sample for the
+// packets-per-second of the cards.
 func (h *NetworkHandlers) state(ctx context.Context, fresh bool) (api.NetState, error) {
 	h.cache.Lock()
-	if !fresh && h.cache.ok && h.now().Sub(h.cache.at) < netReadTTL {
-		st := h.cache.st
-		h.cache.Unlock()
-		return st, nil
+	if !fresh {
+		if h.cache.ok && h.now().Sub(h.cache.at) < netReadTTL {
+			st := h.cache.st
+			h.cache.Unlock()
+			return st, nil
+		}
+		if f := h.cache.flight; f != nil {
+			h.cache.Unlock()
+			select {
+			case <-f.done:
+				return f.st, f.err
+			case <-ctx.Done():
+				return api.NetState{}, ctx.Err()
+			}
+		}
+	}
+	f := &stateFlight{done: make(chan struct{})}
+	if !fresh {
+		h.cache.flight = f
+	} else {
+		h.cache.gen++
 	}
 	h.cache.ok = false
+	gen := h.cache.gen
 	h.cache.Unlock()
-	rctx, cancel := context.WithTimeout(ctx, netReadTimeout)
-	defer cancel()
+
+	// One call for everybody: it must not die with the first caller's context.
+	rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), netReadTimeout)
 	st, err := h.host.StateNet(rctx)
+	cancel()
 	if err != nil {
-		return api.NetState{}, h.netErr(ctx, err)
+		err = h.netErr(ctx, err)
 	}
+
 	h.cache.Lock()
-	h.cache.st, h.cache.at, h.cache.ok = st, h.now(), true
+	if h.cache.flight == f {
+		h.cache.flight = nil
+	}
+	if err == nil && gen == h.cache.gen {
+		h.cache.st, h.cache.at, h.cache.ok = st, h.now(), true
+		h.sample(st)
+	}
 	h.cache.Unlock()
-	return st, nil
+	f.st, f.err = st, err
+	close(f.done)
+	return st, err
+}
+
+// sample records the receive counters of this reading (h.cache is held): packets per second is the rise since the
+// reading before, kept when the two are less than half a second apart.
+func (h *NetworkHandlers) sample(st api.NetState) {
+	now := h.now()
+	for _, c := range st.Interfaces {
+		prev, ok := h.cache.prev[c.Name]
+		h.cache.prev[c.Name] = rxSample{rx: c.Counters.RxPackets, at: now}
+		dt := now.Sub(prev.at).Seconds()
+		switch {
+		case !ok || c.Counters.RxPackets < prev.rx:
+			h.cache.pps[c.Name] = 0
+		case dt >= 0.5:
+			h.cache.pps[c.Name] = int(float64(c.Counters.RxPackets-prev.rx)/dt + 0.5)
+		}
+	}
+}
+
+func (h *NetworkHandlers) packetsPerSecond(c *api.NetInterface) int {
+	h.cache.Lock()
+	defer h.cache.Unlock()
+	return h.cache.pps[c.Name]
 }
 
 // virtualName is the name of a link that is not a card: container and virtual links, bridges, bonds, VLANs.
@@ -326,7 +399,17 @@ func mgmtIface(st api.NetState) string {
 	if st.DefaultRoute != nil {
 		return st.DefaultRoute.Iface
 	}
-	return ""
+	// No configuration and no default route: the one card that has an address, when there is exactly one.
+	only := ""
+	for _, c := range cardsOf(st) {
+		if _, ok := ipv4Of(&c); ok {
+			if only != "" {
+				return ""
+			}
+			only = c.Name
+		}
+	}
+	return only
 }
 
 func spanIface(st api.NetState) string {
@@ -385,6 +468,7 @@ type netNTPView struct {
 type netPendingView struct {
 	ExpiresAt       string  `json:"expires_at"`
 	PreviousAddress *string `json:"previous_address"`
+	WindowS         int     `json:"window_s"`
 	RebootAt        *string `json:"reboot_at"`
 }
 
@@ -478,7 +562,7 @@ func (h *NetworkHandlers) composeNet(st api.NetState, rec *pendingRecord, sp Spa
 		v.DecoyIPs = append(v.DecoyIPs, d.IP)
 	}
 	if p := st.Pending; p != nil {
-		pv := &netPendingView{ExpiresAt: store.FormatTS(p.RevertAt.UTC())}
+		pv := &netPendingView{ExpiresAt: store.FormatTS(p.RevertAt.UTC()), WindowS: confirmWindow}
 		if rec != nil {
 			pv.PreviousAddress = rec.PreviousAddress
 		}
@@ -530,8 +614,22 @@ func (h *NetworkHandlers) spanStatus(ctx context.Context, st api.NetState, sp Sp
 	}
 	pps := h.packetsPerSecond(card)
 	if h.sensor != nil {
+		// The sensor must be listening where the page says (a save may have failed to tell it, or it restarted):
+		// try again at every look, and say so while it cannot be done.
+		if err := h.syncSensor(ctx, "system", iface, sp, false); err != nil {
+			out.Verdict = "sensor_unreachable"
+			return out
+		}
 		m, err := h.sensor.SpanStats(ctx)
-		if err == nil && m.Verdict != "off" && m.Verdict != "no_link" {
+		if err == nil && m.Verdict == "off" { // it says it is not capturing although it was just told to
+			if err := h.syncSensor(ctx, "system", iface, sp, true); err != nil {
+				out.Verdict = "sensor_unreachable"
+				return out
+			}
+			out.Verdict = "no_traffic" // told again: the numbers come with the next look, never "ok" from the counters
+			return out
+		}
+		if err == nil && m.Verdict != "no_link" {
 			out.Verdict, out.PacketsPerS, out.OtherMACs = m.Verdict, m.PPS, m.OtherMACs
 			if !m.LastPacket.IsZero() {
 				out.LastPacketAt = refTo(store.FormatTS(m.LastPacket.UTC()))
@@ -546,23 +644,8 @@ func (h *NetworkHandlers) spanStatus(ctx context.Context, st api.NetState, sp Sp
 		out.Verdict = "no_traffic"
 		return out
 	}
-	out.Verdict, out.PacketsPerS = "ok", pps
-	out.LastPacketAt = refTo(store.FormatTS(h.now().UTC()))
+	out.Verdict, out.PacketsPerS = "ok", pps // the host cannot tell when the last packet came: last_packet_at stays null
 	return out
-}
-
-// packetsPerSecond is the rise of the card's receive counter since the last look, per second; 0 at the first look.
-func (h *NetworkHandlers) packetsPerSecond(c *api.NetInterface) int {
-	now := h.now()
-	h.samples.Lock()
-	defer h.samples.Unlock()
-	prev, ok := h.samples.m[c.Name]
-	h.samples.m[c.Name] = rxSample{rx: c.Counters.RxPackets, at: now}
-	dt := now.Sub(prev.at).Seconds()
-	if !ok || dt < 0.5 || c.Counters.RxPackets < prev.rx {
-		return 0
-	}
-	return int(float64(c.Counters.RxPackets-prev.rx)/dt + 0.5)
 }
 
 // settle ends the bookkeeping of a change that is no longer waiting at the host (confirmed from another request,
@@ -588,15 +671,25 @@ func (h *NetworkHandlers) settle(ctx context.Context, st api.NetState) (rec *pen
 	if err != nil || cur == nil || cur.RunID != rec.RunID {
 		return nil, false, err // somebody settled it meanwhile
 	}
-	why := "the host reported no change waiting"
+	// Only a run that has ended settles the record. While the run is still going (a confirm is being made right
+	// now), or when the host cannot be asked, nothing is written and the next read tries again: a failed read
+	// is never "it went back".
+	why := "the host has no record of the change any more"
 	reverted := true
-	if run, gerr := h.host.GetRun(ctx, rec.RunID); gerr == nil {
-		switch {
-		case run.Status == api.StatusSucceeded:
-			reverted = false
-		case run.Error != nil:
-			why = netEnding(run.Error.Code)
-		}
+	run, gerr := h.host.GetRun(ctx, rec.RunID)
+	var he *client.Error
+	switch {
+	case gerr == nil && !run.Status.Terminal():
+		return nil, false, nil
+	case gerr == nil && run.Status == api.StatusSucceeded:
+		reverted = false
+	case gerr == nil && run.Error != nil:
+		why = netEnding(run.Error.Code)
+	case gerr == nil:
+		why = "the box went back to the old settings"
+	case errors.As(gerr, &he) && he.Code == api.CodeRunNotFound: // pruned by the host: the record cannot be settled any other way
+	default:
+		return nil, false, nil
 	}
 	wctx := context.WithoutCancel(ctx)
 	err = h.db.Write(wctx, func(tx *sql.Tx) error {
@@ -631,6 +724,7 @@ func netEnding(code string) string {
 func (h *NetworkHandlers) addressesChanged() {
 	h.cache.Lock()
 	h.cache.ok = false
+	h.cache.gen++
 	h.cache.Unlock()
 	if h.changed != nil {
 		h.changed()
@@ -694,6 +788,12 @@ func errChangePending() *apierr.Error {
 	return apierr.New(409, CodeChangePending, "A change is waiting for confirmation. Confirm it from the new address or cancel it first.")
 }
 
+// errManagementUnknown is for a box that has no configuration of the host's, no default route and more than one
+// card with an address: there is no telling which card the person reaches the page through.
+func errManagementUnknown() *apierr.Error {
+	return apierr.New(409, CodeManagementNotSet, "Vedette cannot tell which network card is the management card: several cards have an address and the box has no default route. Give the box a default route (or reinstall with the installer), then try again.")
+}
+
 func errManagementNotSet() *apierr.Error {
 	return apierr.New(409, CodeManagementNotSet, "Vedette has not set up this box's network yet. Save the management address first, then change the other settings.")
 }
@@ -749,12 +849,31 @@ func (h *NetworkHandlers) apply(ctx context.Context, requestID, actor string, d 
 		return err // already an API error: the host's word, mapped
 	}
 	if run.Status == api.StatusAwaitingConfirm {
+		h.watchWindow(run) //nolint:contextcheck // the look after the window outlives the request
 		rec := pendingRecord{RunID: run.RunID, PreviousAddress: previous}
 		if err := h.db.Write(ctx, func(tx *sql.Tx) error { return putSettingTx(ctx, tx, keyNetPending, rec, h.now(), "system") }); err != nil {
 			h.log.ErrorContext(ctx, "core: could not store the pending network change; the page cannot show the old address", "run", run.RunID, "error", err)
 		}
 	}
 	return nil
+}
+
+// watchWindow looks at the box again 5 seconds after the change would revert by itself, whether or not anybody
+// has the page open: the addresses the other parts of the box know (conn, the sweep's protected list, the honeypot's
+// box address) must not stay on the new ones, and the revert is settled and audited.
+func (h *NetworkHandlers) watchWindow(run api.Run) {
+	d := time.Duration(confirmWindow) * time.Second
+	if run.RevertAt != nil {
+		d = max(0, run.RevertAt.Sub(h.now()))
+	}
+	h.after(d+5*time.Second, func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*netReadTimeout)
+		defer cancel()
+		if st, err := h.state(ctx, true); err == nil {
+			_, _, _ = h.settle(ctx, st)
+		}
+		h.addressesChanged()
+	})
 }
 
 // currentAddress is the management address now, bare, or nil.
@@ -785,7 +904,7 @@ func (h *NetworkHandlers) CorePutCoreNetworkManagement(ctx context.Context, req 
 	}
 	iface := mgmtIface(st)
 	if iface == "" {
-		return nil, errManagementNotSet()
+		return nil, errManagementUnknown()
 	}
 	d, _ := currentDesired(st)
 	d.mgmt.Iface = iface
@@ -874,9 +993,9 @@ func confirmRequired(next api.NetApplyMgmt) *apierr.Error {
 		if a := addrOf(next); a != nil {
 			ip = *a
 		}
-		return apierr.New(409, CodeConfirmRequired, fmt.Sprintf("This changes the address you use to reach the box. Open https://%s:8443 within %d minutes and confirm, or the box returns to the old settings.", ip, confirmWindow/60)).With("new_ip", ip)
+		return apierr.New(409, CodeConfirmRequired, fmt.Sprintf("This changes the address you use to reach the box. Open https://%s:8443 within %d minutes and confirm, or the box returns to the old settings. You will need to sign in again at the new address.", ip, confirmWindow/60)).With("new_ip", ip)
 	}
-	return apierr.New(409, CodeConfirmRequired, fmt.Sprintf("This changes the address you use to reach the box. Find the new address your DHCP server gives the box, open it on port 8443 within %d minutes and confirm, or the box returns to the old settings.", confirmWindow/60)).With("new_ip", nil)
+	return apierr.New(409, CodeConfirmRequired, fmt.Sprintf("This changes the address you use to reach the box. Find the new address your DHCP server gives the box, open it on port 8443 within %d minutes and confirm, or the box returns to the old settings. You will need to sign in again at the new address.", confirmWindow/60)).With("new_ip", nil)
 }
 
 // checkFree refuses an address that a device of the inventory or a decoy already has (the host's ARP probe, which
@@ -984,20 +1103,12 @@ func (h *NetworkHandlers) settleCall(ctx context.Context, action, what string) e
 			return h.netErr(ctx, err)
 		}
 		_, err = waitRun(ctx, h.log, h.host, run, netConfirmLimit)
-		h.cache.Lock()
-		h.cache.ok = false
-		h.cache.Unlock()
-		if err == nil || what == "confirm" && !isTrouble(err) {
+		if err == nil { // only a confirm or a revert that worked ends core's record; anything else is settled from the run (L2, M3)
 			h.dropPending(ctx)
 		}
 		h.addressesChanged()
 		return err
 	})
-}
-
-func isTrouble(err error) bool {
-	ae, ok := apierr.As(err)
-	return !ok || ae.Status >= 500
 }
 
 func (h *NetworkHandlers) dropPending(ctx context.Context) {
@@ -1052,6 +1163,9 @@ func (h *NetworkHandlers) CorePutCoreNetworkInterfaces(ctx context.Context, req 
 		}
 	}
 	cur := mgmtIface(st)
+	if cur == "" {
+		return nil, errManagementUnknown()
+	}
 	switch {
 	case len(mgmts) != 1:
 		return nil, apierr.New(409, CodeManagementCount, fmt.Sprintf("Exactly one interface must be the management interface; you set %d. The management interface is the one you reach this page through.", len(mgmts)))
@@ -1190,13 +1304,34 @@ func (h *NetworkHandlers) setSpan(ctx context.Context, c caller, st api.NetState
 		if err := h.db.Write(ctx, func(tx *sql.Tx) error { return putSettingTx(ctx, tx, keyNetSpan, sp, h.now(), c.Email) }); err != nil {
 			return err
 		}
-		if h.sensor != nil {
-			if err := h.sensor.SetSpanPort(ctx, c.Email, activeSpan(iface, sp), sp.Enabled && iface != ""); err != nil {
-				h.log.WarnContext(ctx, "core: could not tell the sensor about the SPAN port", "error", err)
-			}
+		// The settings are saved and the port is set. Telling the sensor may fail: the answer then carries the
+		// verdict sensor_unreachable (span_status) and every look at the page tries again.
+		if err := h.syncSensor(ctx, c.Email, iface, sp, true); err != nil {
+			h.log.WarnContext(ctx, "core: could not tell the sensor about the SPAN port", "error", err)
 		}
 		return nil
 	})
+}
+
+// syncSensor makes the passive sensor listen on the SPAN port the page says (and read the saved filters). It does
+// nothing when the sensor was already told the same, unless force; a failure is returned and remembered as "not told".
+func (h *NetworkHandlers) syncSensor(ctx context.Context, actor, iface string, sp SpanSettings, force bool) error {
+	if h.sensor == nil {
+		return nil
+	}
+	on := sp.Enabled && iface != ""
+	want := activeSpan(iface, sp) + "/" + strconv.FormatBool(on)
+	h.sensorMu.Lock()
+	defer h.sensorMu.Unlock()
+	if h.sensorOn == want && !force {
+		return nil
+	}
+	if err := h.sensor.SetSpanPort(ctx, actor, activeSpan(iface, sp), on); err != nil {
+		h.sensorOn = ""
+		return err
+	}
+	h.sensorOn = want
+	return nil
 }
 
 func activeSpan(iface string, sp SpanSettings) string {
@@ -1258,6 +1393,8 @@ func (h *NetworkHandlers) CorePutCoreNetworkNtp(ctx context.Context, req *oas.Co
 		if err != nil {
 			return nil, err
 		}
+	} else if err := h.record(ctx, c, true, "network.ntp", "NTP servers", detail+" (no change)"); err != nil { // the mock audits every save
+		return nil, err
 	}
 	v, err := h.view(ctx, true)
 	if err != nil {
@@ -1277,15 +1414,26 @@ type Card struct {
 	Addresses []netip.Addr
 }
 
-// Cards lists the cards the host reports. ok is false when this install has no host: the caller then reads the
-// interfaces of the operating system it runs on.
+// Cards lists the cards the host reports. ok is false when there is no host to ask (no socket configured, or its
+// file is absent: a container-only install): the caller then reads the interfaces of the operating system it
+// runs on. A host that is there but does not answer right now gives the last good list (or, before there is
+// one, ok=false): the passive sensor must not fail, or go into back-off, because the helper hiccups.
 func (h *NetworkHandlers) Cards(ctx context.Context) (cards []Card, ok bool, err error) {
 	if h == nil || h.host == nil {
 		return nil, false, nil
 	}
 	st, err := h.state(ctx, false)
 	if err != nil {
-		return nil, false, err
+		if ae, isAPI := apierr.As(err); isAPI && ae.Code == CodeNotAppliance {
+			return nil, false, nil
+		}
+		h.cardsMu.Lock()
+		last := h.lastCards
+		h.cardsMu.Unlock()
+		if last == nil {
+			h.log.WarnContext(ctx, "core: vedette-host does not answer and no list of cards is known yet; the sensor reads the operating system's interfaces", "error", err)
+		}
+		return last, last != nil, nil
 	}
 	for _, i := range cardsOf(st) {
 		c := Card{Name: i.Name, MAC: i.MAC, Link: i.State == "up"}
@@ -1296,5 +1444,8 @@ func (h *NetworkHandlers) Cards(ctx context.Context) (cards []Card, ok bool, err
 		}
 		cards = append(cards, c)
 	}
+	h.cardsMu.Lock()
+	h.lastCards = cards
+	h.cardsMu.Unlock()
 	return cards, true, nil
 }

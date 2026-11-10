@@ -7956,6 +7956,24 @@ func (s *CoreGetCoreNetworkOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.Pending.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "pending",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Span.Validate(); err != nil {
 			return err
 		}
@@ -8135,6 +8153,39 @@ func (s CoreGetCoreNetworkOKNtpMode) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *CoreGetCoreNetworkOKPending) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.WindowS)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "window_s",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *CoreGetCoreNetworkOKSpan) Validate() error {
@@ -8332,6 +8383,8 @@ func (s CoreGetCoreNetworkOKSpanStatusVerdict) Validate() error {
 		return nil
 	case "no_link":
 		return nil
+	case "sensor_unreachable":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -8413,6 +8466,8 @@ func (s CoreGetCoreNetworkSpanStatusOKVerdict) Validate() error {
 	case "no_traffic":
 		return nil
 	case "no_link":
+		return nil
+	case "sensor_unreachable":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -12710,6 +12765,24 @@ func (s *CorePostCoreNetworkManagementConfirmOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.Pending.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "pending",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Span.Validate(); err != nil {
 			return err
 		}
@@ -12889,6 +12962,39 @@ func (s CorePostCoreNetworkManagementConfirmOKNtpMode) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *CorePostCoreNetworkManagementConfirmOKPending) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.WindowS)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "window_s",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *CorePostCoreNetworkManagementConfirmOKSpan) Validate() error {
@@ -13086,6 +13192,8 @@ func (s CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict) Validate() erro
 		return nil
 	case "no_link":
 		return nil
+	case "sensor_unreachable":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -13155,6 +13263,24 @@ func (s *CorePostCoreNetworkManagementRevertOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "ntp",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Pending.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "pending",
 			Error: err,
 		})
 	}
@@ -13338,6 +13464,39 @@ func (s CorePostCoreNetworkManagementRevertOKNtpMode) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *CorePostCoreNetworkManagementRevertOKPending) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.WindowS)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "window_s",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *CorePostCoreNetworkManagementRevertOKSpan) Validate() error {
@@ -13534,6 +13693,8 @@ func (s CorePostCoreNetworkManagementRevertOKSpanStatusVerdict) Validate() error
 	case "no_traffic":
 		return nil
 	case "no_link":
+		return nil
+	case "sensor_unreachable":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -16889,6 +17050,24 @@ func (s *CorePutCoreNetworkInterfacesOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.Pending.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "pending",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Span.Validate(); err != nil {
 			return err
 		}
@@ -17068,6 +17247,39 @@ func (s CorePutCoreNetworkInterfacesOKNtpMode) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *CorePutCoreNetworkInterfacesOKPending) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.WindowS)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "window_s",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *CorePutCoreNetworkInterfacesOKSpan) Validate() error {
@@ -17265,6 +17477,8 @@ func (s CorePutCoreNetworkInterfacesOKSpanStatusVerdict) Validate() error {
 		return nil
 	case "no_link":
 		return nil
+	case "sensor_unreachable":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -17392,6 +17606,24 @@ func (s *CorePutCoreNetworkManagementOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "ntp",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Pending.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "pending",
 			Error: err,
 		})
 	}
@@ -17575,6 +17807,39 @@ func (s CorePutCoreNetworkManagementOKNtpMode) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *CorePutCoreNetworkManagementOKPending) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.WindowS)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "window_s",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *CorePutCoreNetworkManagementOKSpan) Validate() error {
@@ -17772,6 +18037,8 @@ func (s CorePutCoreNetworkManagementOKSpanStatusVerdict) Validate() error {
 		return nil
 	case "no_link":
 		return nil
+	case "sensor_unreachable":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -17903,6 +18170,24 @@ func (s *CorePutCoreNetworkNtpOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "ntp",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Pending.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "pending",
 			Error: err,
 		})
 	}
@@ -18086,6 +18371,39 @@ func (s CorePutCoreNetworkNtpOKNtpMode) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *CorePutCoreNetworkNtpOKPending) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.WindowS)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "window_s",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *CorePutCoreNetworkNtpOKSpan) Validate() error {
@@ -18283,6 +18601,8 @@ func (s CorePutCoreNetworkNtpOKSpanStatusVerdict) Validate() error {
 		return nil
 	case "no_link":
 		return nil
+	case "sensor_unreachable":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -18397,6 +18717,24 @@ func (s *CorePutCoreNetworkSpanOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "ntp",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Pending.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "pending",
 			Error: err,
 		})
 	}
@@ -18580,6 +18918,39 @@ func (s CorePutCoreNetworkSpanOKNtpMode) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *CorePutCoreNetworkSpanOKPending) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.WindowS)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "window_s",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *CorePutCoreNetworkSpanOKSpan) Validate() error {
@@ -18776,6 +19147,8 @@ func (s CorePutCoreNetworkSpanOKSpanStatusVerdict) Validate() error {
 	case "no_traffic":
 		return nil
 	case "no_link":
+		return nil
+	case "sensor_unreachable":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

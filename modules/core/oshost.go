@@ -55,7 +55,6 @@ const (
 	CodeEffectNotVerified = "effect_not_verified"
 	codeBusy              = "busy"
 	codePendingConfirm    = "pending_confirm"
-	codeNothingPending    = "nothing_pending"
 	codeRateLimited       = "rate_limited"
 )
 

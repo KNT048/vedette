@@ -541,7 +541,7 @@
       },
       "3": {
         "name": "AI assistant",
-        "what": "Data you choose to send (findings, merged logs), with your own key.",
+        "what": "Data you choose to send (findings, merged logs), with your own key. Pressing Test on a profile sends three tiny fixed requests (no data of yours) with its key to its address.",
         "to": "The AI providers you add (one or more profiles), or a model inside your network",
         "control": "No AI profile, no flow. You choose which profile handles each job and can keep logs and device data on profiles inside your network.",
         "link": "Open AI settings"

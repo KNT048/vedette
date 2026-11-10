@@ -16,6 +16,13 @@ step() {
       echo "#$n merge conflict: $c"; git -C "$w" merge --abort; return 1
     fi
   fi
+  # A merge (or resolve_decisions.py) must never delete a decision row that main has (D-143 was lost once, #156).
+  # Amending a row is fine; losing one is not: every "| D-nn |" on main must still be in the branch.
+  lost=$(comm -23 <(git -C "$w" show origin/main:docs/DECISIONS.md | grep -o '^| D-[0-9]*' | sort -u) \
+                  <(grep -o '^| D-[0-9]*' "$w/docs/DECISIONS.md" | sort -u) | tr '\n' ' ')
+  if [ -n "$lost" ]; then
+    echo "#$n DECISIONS.md would drop rows that main has: $lost— stop"; return 1
+  fi
   git -C "$w" push -q 2>/dev/null
   h=$(git -C "$w" rev-parse HEAD)
   for _ in $(seq 1 40); do

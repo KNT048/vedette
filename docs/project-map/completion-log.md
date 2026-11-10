@@ -1,5 +1,35 @@
 # Completion log — Vedette (mới nhất trước)
 
+## 2026-11-10 (tối) — WP-07b phần 3 hoàn tất; sensor nuclei, SP-5a, TLS, CI nhanh; scan S2–S4 của Emily
+
+Phiên Ubuntu của anh Trưởng. Giờ địa phương; mọi PR dưới đây đã merge vào `main` (CI go + web xanh), tới `557a84e`. Mỗi lát: Sonnet làm → Opus rà → sửa → PR → merge-step. Mỗi dòng một PR, mới nhất trước.
+
+- **#166** docs: D-145, quyết định scan S4 từ #164; duyệt kết quả quét lại `pick_only` và `stopped`.
+- **#165** `core/conn`: câu trả lời đua với hạn của người gọi là timeout, không phải thành công rỗng. Nguyên nhân gốc của "flake" `TestHTTPSDeadlineEndsAHungCall` (thấy ở #162): `net/http` ưu tiên phản hồi đua với hết giờ của ctx, `Do` không kiểm `ctx.Err`. Là lỗi sản phẩm thật.
+- **#163** host: `vedette-host -bootstrap`, khoá trong `core_data`, lối thoát khỏi `core_data_unrecoverable` (WP-07b phần 3 lát 3-8b, D-142). Opus rà ba vòng (khoá nằm sai đường dẫn: unit core chỉ bind thư mục `core_data`; `flock host.lock`; đồng bộ unit/versions khi phục hồi). **WP-07b phần 3 hoàn tất.**
+- **#162** inventory: `ScanDecision` mang `Careful` và IP đã quyết; `VulnScanPolicies` đọc theo lô (cho scan của Emily, #154); adapter `cmd/vedette/scan.go` chuyển sang dùng chúng.
+- **#161** docs: D-144, bus sự kiện vẫn best-effort, dữ liệu dẫn xuất tự đối soát theo lịch (#160).
+- **#159** (Emily) findings, mitigation: giao diện trên backend thật, conformance + Playwright, sửa điện thoại, không mất khớp khi writer bận (S-MIT-1).
+- **#158** core: link sensor nối cho production: PKI, listener 8444, một Backend, core không còn capture/nmap, một nguồn địa chỉ hộp (SP-5a, D-141). Opus rà: không High; `hostNetCache` không được chặn 15 s (hạn của người gọi + giá trị cuối cùng không chặn cho notify); cổng mở khi module tắt vẫn trả 409. Đóng #62.
+- **#156** docs: D-143 trên hàng DECISIONS riêng (hàng bị dính vào D-140 và bị bộ giải xung đột làm mất, xem lessons).
+- **#155** docs: D-143, quyết định scan S3 từ #154.
+- **#154** (Emily) scan: danh sách quét, Scan now, Stop now, log dò và kết quả vào findings (WP-23 phần 2 lát S3).
+- **#153** docs: D-134 (5)-(6), quyết định bảng nóng từ #152.
+- **#152** (Emily) feeds: bảng nóng nói rõ lý do khi danh sách CISA chưa từng tải hoặc đang tắt (D-134 (4)).
+- **#151** sensor: nuclei là một job kind, giao thức v2, hai slot, gói đã kiểm, môi trường sạch (SP-3b, D-133). Opus rà: gói lệch heartbeat, `pack_invalid` không thử lại; kết quả rỗng không có nghĩa là không dính lỗi (D-133 (4)(5)).
+- **#150** core: chứng chỉ tự ký theo địa chỉ quản lý của hộp (D-139), tự cấp lại khi host báo địa chỉ mới; ticker địa chỉ 10 phút.
+- **#149** feeds: đo đỉnh bộ nhớ ổn định trong test khuếch đại bộ nhớ (flake thấy ở #123).
+- **#148** host: `container.start(version)`, `container.rollback`, giữ image cũ (lát 3-8a, D-138). Opus rà bốn vòng: cuộn lại tới bản mới hơn bị từ chối, không `RemoveAll` trên tên của core, hỏng thì dừng thử lại thay vì kẹt mọi lệnh ghi.
+- **#147** ci: nhận biết thay đổi, job Go chạy song song, chỉ huỷ trên PR, cache golangci-lint (#146, D-140). Đo: chạy đủ 8,3 phút (trước 14,4 trung vị), chỉ Go 8,6 phút, chỉ docs 25 giây.
+- **#144** cmd: subcommand `healthcheck` cho core, sensor, honeypot (D-137). Opus rà: dạng JSON exec thay vì `/bin/sh -c`.
+- **#143** response: quyết định từ chat: cổng `DecideFromChat`, mã trả lời, giới hạn tốc độ (WP-13b lát 8, D-135).
+- **#142** docs: làm mới trạng thái 2026-11-10 (kien.md, completion log, roadmap, lessons, current) và thư mục bàn giao.
+- **#138** (Emily) scan: nuclei argv, đầu ra JSONL, gói lá template-pack (WP-23 phần 2, S2).
+- **#123** (Emily) ai: profile, khoá, gán và cài đặt token (WP-25 lát 1, S-AI-1).
+- **Đo**: CI go + web xanh trước mỗi merge. `make check` trên máy này hết giờ vài lần khi tải cao (3-8a, 3-8b), chạy lại xanh. `make verify` đầy đủ và e2e toàn bộ chưa chạy lại cho cả đợt (D-64).
+- **Đang mở lúc ghi**: #168 (flake ARP + `host_unreachable` cho `PUT /notify/channels`, issue #167); của Emily #164 (scan S4); SP-5b đang làm (D-146).
+- **Chưa làm / chưa xác minh**: mọi đường `*_linux.go` của host (Quadlet, netplan, macvlan, bootstrap, rollback, reboot trong cửa sổ xác nhận) chưa chạy trên hộp thật vì thiếu VM lab; khoá phát hành offline chưa tạo; SP-5b, SP-6, WP-08, WP-30, WP-31, WP-32, 13b-11 chưa làm.
+
 ## 2026-11-10 — M2 giai đoạn 1 và 2 của phía Kiên: đường găng 13b xong, host/sensor/response nối vào binary
 
 Giờ địa phương (UTC+7); mọi PR dưới đây đã merge vào `main` (CI go + web xanh), tới `6389e36`. Mỗi lát: Sonnet làm → Opus rà → sửa → PR → merge-step.

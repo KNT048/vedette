@@ -15,7 +15,7 @@ Người nhận: anh Trưởng, làm tiếp phần của Kiên bằng Claude Cod
 3. `.ai/tasks/current.md`, `docs/TEAM_PLAN.md` §2/§3, và `docs/project-map/lessons.md` (các dòng 2026-11-10).
 4. File này: điểm bắt đầu, danh sách việc theo thứ tự, công cụ.
 
-## 2. Đã xong tới đâu (đo trên `origin/main` lúc bàn giao)
+## 2. Đã xong tới đâu (đo trên `origin/main` lúc bàn giao; mục đã gạch ở §3 là xong sau đó)
 Phần Kiên ước khoảng **75%**. Danh sách PR chi tiết nằm trong `docs/project-map/completion-log.md`.
 
 **Đã xong:**
@@ -26,7 +26,7 @@ Phần Kiên ước khoảng **75%**. Danh sách PR chi tiết nằm trong `docs
 - giao thức sensor mTLS SP-0…SP-4;
 - core: network (S-CORE-8), bộ đọc `core/conn/read` cho AI, xuất log (#137), OS updates.
 
-**Đang bay lúc bàn giao.** Kiểm trạng thái bằng `gh pr view N -R KNT048/vedette --json state`.
+**Đang bay lúc bàn giao (nay đã merge hết: #139, #140, #142, #143, healthcheck = #144).** Kiểm trạng thái bằng `gh pr view N -R KNT048/vedette --json state`.
 
 | Việc | Ở đâu | Làm gì nếu chưa xong |
 |---|---|---|
@@ -38,6 +38,8 @@ Phần Kiên ước khoảng **75%**. Danh sách PR chi tiết nằm trong `docs
 
 Merge lần lượt từng PR (xem §4). Mỗi PR merge xong thì xoá worktree và nhánh local của nó.
 
+**Cập nhật 2026-11-10 (tối, phiên Ubuntu):** #139, #140, #142, #143 đã merge; việc 1, 2, 3 và 7 dưới đây **xong** (xem từng mục). WP-07b phần 3 **hoàn tất**. Số D trống kế tiếp là **D-147** (D-146 đặt chỗ cho SP-5b).
+
 ## 3. Việc còn lại, theo thứ tự, tới khi hoàn thành
 Mỗi lát việc đi một vòng giống nhau:
 1. Mở worktree và nhánh riêng, cắt từ `origin/main`.
@@ -46,25 +48,18 @@ Mỗi lát việc đi một vòng giống nhau:
 4. Sửa theo kết quả rà.
 5. Mở PR, chạy merge-step.
 
-Không cho hai agent làm cùng một module. Quyết định mới ghi thành D-xx, số trống tiếp theo là **D-138**.
+Không cho hai agent làm cùng một module. Quyết định mới ghi thành D-xx, số trống tiếp theo là **D-147**.
 
-1. **`healthcheck`** (D-137, brief `healthcmd-brief.md`). Cần các subcommand mà dòng `HealthCmd=` trong Quadlet gọi; thiếu chúng thì mọi `container.start` đều bị hoàn tác.
-   - Nếu nhánh `feat/healthcmd` đã có commit của agent: rà Opus → sửa → PR.
-   - Nếu chưa có: chạy brief từ đầu.
-2. **Host 3-8:** `container.start(version)`, `container.rollback`, retention, bootstrap CLI.
-   - Tài liệu: `wp07b3-plan.md` §2 lát 3-8, cùng các quyết định D-99…D-107 và D-130.
-   - Viết brief theo mẫu `healthcmd-brief.md` và `sp3b-brief.md`.
-   - Phải qua vòng rà Opus.
-3. **SP-3b:** nuclei là một job kind (D-133, brief `sp3b-brief.md`, đã cập nhật theo D-136 (4)–(7)).
-   - Chỉ bắt đầu khi PR #138 của Emily đã merge. #138 chứa các gói `modules/scan/nucleiargv`, `nucleiout` và `pack`.
-4. **SP-5:** đóng gói và địa chỉ hộp (`sensor-plan.md`, lát SP-5).
+1. ~~**`healthcheck`**~~ **XONG** (#144, D-137): subcommand `healthcheck` cho core, sensor, honeypot; HealthCmd dạng JSON exec, không qua `/bin/sh -c`. Còn để sau: adapter honeypot phải khởi động lại khi cấu hình đổi.
+2. ~~**Host 3-8**~~ **XONG, tách làm hai:** 3-8a `container.start(version)`, `container.rollback`, giữ bản cũ (#148, D-138); 3-8b `vedette-host -bootstrap`, khoá trong `core_data`, lối thoát khỏi `core_data_unrecoverable` (#163, D-142). **WP-07b phần 3 hoàn tất.** Còn để sau: `backup.restore` ngoài `core_data_unrecoverable` đã xử ở 3-8b; WP-32 ghi runbook.
+3. ~~**SP-3b**~~ **XONG** (#151, D-133): nuclei là job kind, giao thức v2, hai slot, gói ký đã kiểm, môi trường sạch. Nợ cho Emily: `nucleiout` từ chối dạng host trần; dòng lab thật chặn S5; kết quả rỗng không có nghĩa là không dính lỗi (D-133 (5)).
+4. **SP-5:** đóng gói và địa chỉ hộp (`sensor-plan.md`, lát SP-5). **Tách đôi:** 5a nối core cho production (PKI, listener 8444, một Backend, không còn capture/nmap trong core, một nguồn địa chỉ hộp) **XONG** (#158, D-141); **5b** (image scan-base, pack qua make, `bundled[]`, D-146) **đang làm** (nhánh `feat/sensor-images`, worktree `sp-pack`). `BoxAddrs`: chờ Emily thêm tín hiệu "chưa biết" (#157), rồi chỉnh `cmd/vedette/notify.go`.
    - Ghim nuclei theo version và sha256 trong scan-base.
    - Dựng pack bằng `make`; manifest có `bundled[]`.
    - Có `BoxAddrs` cho notify (issue #62, mục cuối còn mở).
 5. **SP-6:** unit trên host và build `scan` tại chỗ (`sensor-plan.md`, lát SP-6; cần host 3-6/3-7).
 6. **13b-11:** chỉ làm sau WP-25 của Emily (PR #123 và các lát sau; tài liệu `wp13b-plan.md`).
-7. **Quyết định TLS:** chứng chỉ tự ký thiếu địa chỉ IP quản trị mới (`.ai/deferred/feat-core-network.md`).
-   - Tự quyết theo D-74: xem cách top-tier làm, ghi D-xx kèm nguồn.
+7. ~~**Quyết định TLS**~~ **XONG** (#150, D-139): hộp tự cấp lại chứng chỉ tự ký của chính nó theo địa chỉ quản trị do host báo (tham khảo OPNsense, Proxmox).
 8. **WP-08 đóng gói/phát hành:** image, SBOM, ký cosign, Quadlet và cài đặt.
    - Cần kien chuẩn bị: khoá phát hành offline (minisign chính + dự phòng, cosign) và VM lab (Ubuntu 24.04/26.04, Debian 13).
    - Phần không cần khoá thì làm trước; phần cần khoá thì hỏi kien.

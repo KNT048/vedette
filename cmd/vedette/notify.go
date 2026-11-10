@@ -137,7 +137,7 @@ func newNotify(d *deps) *notify.Service {
 		return s
 	}
 	c := notify.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: notifyUsers{d}, Log: d.Log, Clock: d.Clock,
-		Zone: orgZone(d), BaseURL: d.BaseURL, Tokens: notifyTokens{d}}
+		Zone: orgZone(d), BaseURL: d.BaseURL, Tokens: notifyTokens{d}, Decisions: responseDecisions{d}}
 	if d.Inventory != nil {
 		c.Devices = notifyDevices{d.Inventory}
 	}

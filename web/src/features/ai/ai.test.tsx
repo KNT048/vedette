@@ -307,6 +307,7 @@ describe('ai: settings, profiles (S-AI-1)', () => {
     const url = within(dlg).getByLabelText('Server address')
     await userEvent.clear(url)
     await userEvent.type(url, 'https://evil.example.com')
+    await userEvent.click(within(dlg).getByRole('checkbox', { name: /I understand/ }))
     await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
     expect(await within(dlg).findByText('Changing the address needs the API key entered again.')).toBeInTheDocument()
     expect(within(dlg).getByLabelText('API key')).toHaveAccessibleDescription(/Changing the address needs the API key entered again\./)

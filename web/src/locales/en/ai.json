@@ -292,6 +292,7 @@
       "https": "The address must start with https://. Only a server inside your own network may use http://.",
       "model": "Enter a model name, for example claude-haiku-5-5.",
       "keyRequired": "Enter the provider's API key. It stays on this box and is encrypted.",
+      "keyMoved": "Changing the address needs the API key entered again.",
       "keyShape": "The key is too short or contains spaces. Copy the whole key again from the provider's console.",
       "cap": "The cap must be a whole number from 1,000 to 5,000,000."
     }

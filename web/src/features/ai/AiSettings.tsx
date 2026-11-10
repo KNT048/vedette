@@ -209,7 +209,10 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
     try { const u = new URL(baseUrl.trim()); if (u.protocol !== 'https:' && !(u.protocol === 'http:' && location === 'internal')) n.base_url = t('profiles.err.https') } catch { n.base_url = t('profiles.err.url') }
     if (!model.trim()) n.model = t('profiles.err.model')
     const hadKey = !!profile?.key_last4 && profile.kind === kind
-    if (key === '' && location === 'cloud' && !hadKey) n.key = t('profiles.err.keyRequired')
+    // The stored key follows only its own address: another origin needs the key again (the server enforces it too).
+    const moved = hadKey && (() => { try { return new URL(profile!.base_url).origin !== new URL(baseUrl.trim()).origin } catch { return false } })()
+    if (key === '' && location === 'cloud' && moved) n.key = t('profiles.err.keyMoved')
+    else if (key === '' && location === 'cloud' && !hadKey) n.key = t('profiles.err.keyRequired')
     else if (key !== '' && (key.length < 8 || /\s/.test(key))) n.key = t('profiles.err.keyShape')
     if (!forTest) { const c = Number(cap); if (!Number.isInteger(c) || c < 1000 || c > 5_000_000) n.cap = t('profiles.err.cap') }
     setErrs(n)

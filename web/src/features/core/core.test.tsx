@@ -296,24 +296,28 @@ describe('core: module (S-CORE-1)', () => {
 })
 
 describe('core: quyền riêng tư (S-CORE-4)', () => {
-  it('hiện đủ 12 luồng, payload nguyên văn và tắt được tín hiệu ẩn danh', async () => {
-    const u = user()
+  it('hiện đủ 12 luồng; tín hiệu ẩn danh ghi "không gửi", không công tắc, không payload (D-82, D-153)', async () => {
     renderApp('/settings/privacy')
     const table = await screen.findByRole('table', { name: 'Data flows that leave the box' })
     expect(within(table).getAllByRole('row')).toHaveLength(13)
     for (const n of ['Pull feeds directly from their sources', 'Anonymous signal', 'AI assistant', 'Data sources that need a key', 'Notifications', 'Update check', 'Forwarding to a SIEM', 'News about a CVE', 'External exposure', 'Time sync', 'Single sign-on', 'Connections you add']) expect(within(table).getAllByText(new RegExp(n)).length).toBeGreaterThan(0)
-    const code = document.querySelector('pre code')!.textContent!
-    const payload = JSON.parse(code) as { country: string; install_id: string; device_counts: Record<string, number> }
-    expect(payload.country).toBe('VN')
-    expect(payload.install_id).toMatch(/^ins-/)
-    expect(Object.keys(payload.device_counts).length).toBeGreaterThan(0)
-    expect(code).not.toMatch(/192\.168|hostname|Company/)
-    expect(Object.keys(payload)).toContain('cve_matches')
+    expect(screen.queryByRole('switch', { name: 'Send anonymous signal' })).toBeNull()
+    expect(document.querySelector('pre code')).toBeNull()
+    expect(screen.getByText(/Anonymous signal: not sent\. The box sends nothing to the Vedette project\./)).toBeInTheDocument()
+    const row = within(table).getByText(/2\. Anonymous signal/).closest('tr')!
+    expect(within(row).getAllByText('Not sent').length).toBeGreaterThan(0)
     expect(document.body.textContent).not.toMatch(/\bIDS\b|ids_matches/i) // there is no IDS on the box (D-43)
-    await u.click(screen.getByRole('switch', { name: 'Send anonymous signal' }))
-    expect(await screen.findByText('Off. Nothing is sent.')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('The anonymous signal is off')
     await expectNoA11yViolations()
+  })
+
+  it.each([true, false])('the title never says a signal is sent, whatever telemetry.enabled is (%s)', async (enabled) => {
+    await fetch(`${location.origin}/api/v1/core/privacy`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telemetry: enabled }) })
+    renderApp('/settings/privacy')
+    const h1 = await screen.findByRole('heading', { level: 1 })
+    expect(h1).toHaveTextContent('The box connects out only for the flows listed below')
+    expect(h1.textContent).not.toMatch(/sends an anonymous signal/i)
+    expect(screen.queryByRole('switch', { name: 'Send anonymous signal' })).toBeNull()
+    expect(screen.queryByText(/Sending every hour/)).toBeNull()
   })
 
   it('luồng 8 và 9 theo trạng thái module', async () => {
@@ -324,9 +328,9 @@ describe('core: quyền riêng tư (S-CORE-4)', () => {
     expect(within(row).getByText('Off')).toBeInTheDocument()
   })
 
-  it('vai chỉ xem xem được nhưng công tắc tắt', async () => {
+  it('vai chỉ xem xem được nhưng công tắc kiểm tra cập nhật tắt', async () => {
     renderApp('/settings/privacy', { role: 'viewer' })
-    expect(await screen.findByRole('switch', { name: 'Send anonymous signal' })).toBeDisabled()
+    expect(await screen.findByRole('switch', { name: 'Automatic update check' })).toBeDisabled()
   })
 })
 

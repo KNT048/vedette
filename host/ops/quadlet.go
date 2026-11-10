@@ -115,12 +115,13 @@ Volume=/run/vedette:/run/vedette
 Volume=vedette-creds-passive.volume:/var/lib/vedette-creds/passive
 Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active
 ReadOnly=true
-Tmpfs=/tmp
+Tmpfs=/tmp:size=64m
 NoNewPrivileges=true
 DropCapability=ALL
 User={{.CoreUID}}:{{.CoreGID}}
 LogDriver=journald
 PodmanArgs=--memory=2g --memory-swap=2g --cpus=2 --pids-limit=512 --group-add={{.SensorGID}}
+Environment=GOMEMLIMIT=1800MiB
 HealthCmd=["/vedette","healthcheck"]
 HealthInterval=30s
 HealthStartPeriod=60s

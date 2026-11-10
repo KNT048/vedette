@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -18,6 +20,30 @@ const (
 
 func goldFill(install bool) unitFill {
 	return unitFill{Digest: goldA, Install: install, CoreUID: 10001, CoreGID: 10002, SensorUID: 10003, SensorGID: 10004, DataDir: "/var/lib/vedette"}
+}
+
+// GOMEMLIMIT of core is the Go GC memory limit (D-150): it must sit below the container's --memory, or the GC never
+// reacts before the cgroup OOM-kills core.
+func TestCoreGoMemLimitIsBelowTheContainerMemory(t *testing.T) {
+	t.Parallel()
+	b, err := renderUnit(api.ServiceCore, goldFill(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(b)
+	limit := regexp.MustCompile(`(?m)^Environment=GOMEMLIMIT=(\d+)MiB$`).FindStringSubmatch(text)
+	mem := regexp.MustCompile(`--memory=(\d+)([mg])\b`).FindStringSubmatch(text)
+	if limit == nil || mem == nil {
+		t.Fatalf("core unit has no GOMEMLIMIT in MiB or no --memory:\n%s", text)
+	}
+	lim, _ := strconv.Atoi(limit[1])
+	cont, _ := strconv.Atoi(mem[1])
+	if mem[2] == "g" {
+		cont *= 1024
+	}
+	if lim <= 0 || lim >= cont {
+		t.Errorf("GOMEMLIMIT=%d MiB must be below --memory=%d MiB", lim, cont)
+	}
 }
 
 // core_data goes into one Volume= line (D-142 H1): anything that is not a plain absolute path is refused, so

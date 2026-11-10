@@ -60,7 +60,7 @@ ok "on-box image: $got (floor $NMAP_MIN_VERSION)"
 mk core-image
 cn=vedette-core-check-$$
 trap 'cleanup; $c rm -f "$cn" >/dev/null 2>&1 || true; $c rmi -f "localhost/vedette-core:$tag" >/dev/null 2>&1 || true' EXIT
-$c run -d --name "$cn" -p 127.0.0.1::8443 --tmpfs /var/lib/vedette:rw,mode=1777"localhost/vedette-core:$tag" -listen 0.0.0.0:8443 -host-socket "" >/dev/null
+$c run -d --name "$cn" -p 127.0.0.1::8443 --tmpfs /var/lib/vedette:rw,mode=1777 "localhost/vedette-core:$tag" -listen 0.0.0.0:8443 -host-socket "" >/dev/null
 port=$($c port "$cn" 8443/tcp | head -1 | sed 's/.*://')
 cget() { curl -sk --max-time 5 --resolve "localhost:$port:127.0.0.1" "$@"; }
 page=

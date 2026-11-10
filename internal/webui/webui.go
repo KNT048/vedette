@@ -5,6 +5,8 @@ package webui
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"io/fs"
 	"mime"
 	"net/http"
@@ -13,14 +15,22 @@ import (
 	"time"
 )
 
-// CSP is the Envelope's policy (core/server) plus two additions, both found by `make webui-csp-check` in a real browser on the release build (D-149):
+// CSP is the Envelope's policy (core/server) plus three additions, found by `make webui-csp-check` in a real browser on the release build (D-149):
 //   - `font-src ... data:`: Vite inlines the two smallest font files into the stylesheet as data: URIs;
-//   - `style-src 'self' 'sha256-...'`: two libraries append a <style> element at run time (sonner, react-style-singleton). Their text is fixed per
-//     library version, so each is allowed by its hash, not by 'unsafe-inline'. A library upgrade that changes the text fails the check; re-take the
-//     hash from the browser's message and replace it here.
+//   - `style-src 'self' 'unsafe-inline'`: libraries append <style> elements at run time (sonner; react-remove-scroll-bar, which Radix dialogs, menus
+//     and popovers use, writes the measured scrollbar width into its CSS), so no fixed hash can match. Scripts stay strict. CSS-based exfiltration
+//     needs a remote fetch, which default-src (img, font, connect) 'self' still blocks; GitHub makes the same trade-off;
+//   - `form-action 'self'`: a form can post only to this box.
 //
-// No unsafe-inline, no unsafe-eval, no remote origin.
-const CSP = "default-src 'self'; style-src 'self' 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=' 'sha256-StEaX+se6YS7pqjzrzMIA0KaX9zF/8zAhvQXZAe5epY='; font-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
+// No unsafe-inline or unsafe-eval for scripts, no remote origin.
+const CSP = "default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; object-src 'none'; form-action 'self'"
+
+// assetExt: a missing path with one of these extensions (or under assets/) is a missing file, 404. Any other path is a client route, even one with a
+// dot in it: an approval link is /approve/v1.<id>.<secret>, whose last segment looks like it has an extension.
+var assetExt = map[string]bool{
+	".js": true, ".mjs": true, ".css": true, ".map": true, ".woff": true, ".woff2": true, ".ttf": true, ".svg": true, ".png": true, ".jpg": true,
+	".jpeg": true, ".gif": true, ".webp": true, ".ico": true, ".json": true, ".txt": true, ".webmanifest": true,
+}
 
 const stubPage = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Vedette</title></head>
@@ -35,13 +45,27 @@ func init() {
 }
 
 // Handler serves fsys, the built interface (index.html at its root). A nil fsys is the stub build. It answers only GET and HEAD, never lists a
-// directory, and answers any other path with index.html (the router of the SPA decides), except paths under /api/ and paths that name a file
-// (a last segment with an extension): those are 404, so a missing chunk is never answered with HTML.
+// directory, and answers any other path with index.html (the router of the SPA decides), except paths under /api/ and missing paths under assets/
+// or with an asset extension (assetExt): those are 404, so a missing chunk is never answered with HTML.
+// The top-level files that are not hashed (the favicon) get an ETag from a content hash taken once, here, so that no-cache revalidates to a 304.
 func Handler(fsys fs.FS) http.Handler {
-	return handler{fsys}
+	h := handler{fsys: fsys, etag: map[string]string{}}
+	if fsys != nil {
+		ents, _ := fs.ReadDir(fsys, ".")
+		for _, e := range ents {
+			if b, ok := h.file(e.Name()); ok && e.Name() != "index.html" {
+				sum := sha256.Sum256(b)
+				h.etag[e.Name()] = `"` + hex.EncodeToString(sum[:16]) + `"`
+			}
+		}
+	}
+	return h
 }
 
-type handler struct{ fsys fs.FS }
+type handler struct {
+	fsys fs.FS
+	etag map[string]string // top-level file name -> ETag
+}
 
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	hd := w.Header()
@@ -49,6 +73,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	hd.Set("X-Content-Type-Options", "nosniff")
 	hd.Set("Referrer-Policy", "no-referrer")
 	hd.Set("X-Frame-Options", "DENY") // older browsers; frame-ancestors covers the rest
+	hd.Set("Cross-Origin-Opener-Policy", "same-origin")
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		hd.Set("Allow", "GET, HEAD")
 		hd.Set("Cache-Control", "no-store")
@@ -68,10 +93,13 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if name != "" && name != "index.html" { // index.html is the fallback itself: no-store, whichever way it was asked for
 		if body, ok := h.file(name); ok {
+			if e, ok := h.etag[name]; ok {
+				w.Header().Set("ETag", e)
+			}
 			h.serve(w, r, name, body, cacheFor(name))
 			return
 		}
-		if path.Ext(name) != "" {
+		if strings.HasPrefix(name, "assets/") || assetExt[strings.ToLower(path.Ext(name))] {
 			hd.Set("Cache-Control", "no-store")
 			http.NotFound(w, r)
 			return

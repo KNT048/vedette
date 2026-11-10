@@ -153,8 +153,8 @@ func TestSecurityHeadersOnEveryResponse(t *testing.T) {
 				t.Errorf("%s %s: CSP %q lacks %s", c.method, c.p, csp, need)
 			}
 		}
-		if strings.Contains(csp, "unsafe-") {
-			t.Errorf("%s %s: CSP %q has unsafe-*", c.method, c.p, csp)
+		if strings.Contains(csp, "unsafe-eval") || strings.Contains(csp, "script-src") {
+			t.Errorf("%s %s: CSP %q loosens scripts", c.method, c.p, csp)
 		}
 		for k, want := range map[string]string{"X-Frame-Options": "DENY", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer"} {
 			if hd.Get(k) != want {
@@ -233,5 +233,76 @@ func TestEmptyDistIs500NotPanic(t *testing.T) {
 	rec := do(t, webui.Handler(fstest.MapFS{}), http.MethodGet, "/x")
 	if rec.Code != 500 {
 		t.Errorf("no index.html: %d", rec.Code)
+	}
+}
+
+// A real approval link: v1.<22 base64url>.<22 base64url> (web TOKEN_RE). Its last segment has dots, but it is a client route, never a missing file.
+const approveToken = //nolint:gosec // a made-up value in the token format, not a credential
+"v1.AbCdEfGhIjKlMnOpQrStUv.0123456789_-abcdefghij"
+
+func TestApprovalLinkIsTheInterface(t *testing.T) {
+	t.Parallel()
+	for _, method := range []string{http.MethodGet, http.MethodHead} {
+		rec := do(t, distFS(), method, "/approve/"+approveToken)
+		hd := rec.Header()
+		if rec.Code != 200 || !strings.HasPrefix(hd.Get("Content-Type"), "text/html") || hd.Get("Cache-Control") != "no-store" {
+			t.Errorf("%s /approve/<token>: %d %q %q", method, rec.Code, hd.Get("Content-Type"), hd.Get("Cache-Control"))
+		}
+		if hd.Get("Content-Security-Policy") != webui.CSP || hd.Get("Referrer-Policy") != "no-referrer" || hd.Get("X-Frame-Options") != "DENY" {
+			t.Errorf("%s /approve/<token>: headers %v", method, hd)
+		}
+		if method == http.MethodGet && body(rec) != indexHTML {
+			t.Errorf("/approve/<token> body %q", body(rec))
+		}
+	}
+}
+
+func TestCSPShape(t *testing.T) {
+	t.Parallel()
+	rec := do(t, distFS(), http.MethodGet, "/")
+	csp := rec.Header().Get("Content-Security-Policy")
+	for _, need := range []string{"style-src 'self' 'unsafe-inline'", "form-action 'self'", "font-src 'self' data:", "default-src 'self'"} {
+		if !strings.Contains(csp, need) {
+			t.Errorf("CSP %q lacks %s", csp, need)
+		}
+	}
+	if strings.Contains(csp, "script-src") || strings.Contains(csp, "unsafe-eval") || strings.Count(csp, "unsafe-inline") != 1 {
+		t.Errorf("CSP %q: unsafe-inline is for style-src only, scripts stay on default-src 'self'", csp)
+	}
+	if got := rec.Header().Get("Cross-Origin-Opener-Policy"); got != "same-origin" {
+		t.Errorf("Cross-Origin-Opener-Policy = %q", got)
+	}
+}
+
+func TestUnhashedFilesRevalidateWithETag(t *testing.T) {
+	t.Parallel()
+	h := distFS()
+	first := do(t, h, http.MethodGet, "/favicon.svg")
+	etag := first.Header().Get("ETag")
+	if first.Code != 200 || etag == "" {
+		t.Fatalf("favicon: %d ETag %q", first.Code, etag)
+	}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/favicon.svg", nil)
+	req.Header.Set("If-None-Match", etag)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotModified || body(rec) != "" || rec.Header().Get("Cache-Control") != "no-cache" {
+		t.Errorf("revalidation: %d %q Cache-Control %q, want 304 with no body", rec.Code, body(rec), rec.Header().Get("Cache-Control"))
+	}
+	if do(t, h, http.MethodGet, "/").Header().Get("ETag") != "" {
+		t.Error("index.html must not carry an ETag (no-store)")
+	}
+}
+
+func TestMissingFilesByExtension(t *testing.T) {
+	t.Parallel()
+	h := distFS()
+	for p, want := range map[string]int{
+		"/x.webmanifest": 404, "/font.TTF": 404, "/assets/anything": 404, "/assets/dir/x": 404,
+		"/approve/" + approveToken: 200, "/report/v1.2": 200, "/a.b/c": 200,
+	} {
+		if rec := do(t, h, http.MethodGet, p); rec.Code != want {
+			t.Errorf("%s: %d, want %d", p, rec.Code, want)
+		}
 	}
 }

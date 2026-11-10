@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/knt048/vedette/core/server"
+	"github.com/knt048/vedette/internal/webui"
 )
 
 // D-149: the SPA and the API share one listener. Built without the webui tag (the default for tests) the SPA side is the stub page; its
@@ -34,13 +35,13 @@ func TestTopHandlerServesSPAAndKeepsAPI(t *testing.T) {
 	}
 
 	// Everything else is the SPA, with the security headers, and /approve/* is never cached.
-	for _, p := range []string{"/", "/findings/1", "/approve/tok"} {
+	for _, p := range []string{"/", "/findings/1", "/approve/tok", "/approve/v1.AbCdEfGhIjKlMnOpQrStUv.0123456789_-abcdefghij"} { // the last: the real token format
 		rec := get(http.MethodGet, p)
 		if rec.Code != 200 || !strings.HasPrefix(rec.Header().Get("Content-Type"), "text/html") {
 			t.Errorf("%s: %d %q", p, rec.Code, rec.Header().Get("Content-Type"))
 		}
 		hd := rec.Header()
-		if hd.Get("Cache-Control") != "no-store" || hd.Get("X-Frame-Options") != "DENY" || hd.Get("X-Content-Type-Options") != "nosniff" || hd.Get("Referrer-Policy") != "no-referrer" || !strings.Contains(hd.Get("Content-Security-Policy"), "frame-ancestors 'none'") {
+		if hd.Get("Cache-Control") != "no-store" || hd.Get("X-Frame-Options") != "DENY" || hd.Get("X-Content-Type-Options") != "nosniff" || hd.Get("Referrer-Policy") != "no-referrer" || hd.Get("Content-Security-Policy") != webui.CSP || hd.Get("Cross-Origin-Opener-Policy") != "same-origin" {
 			t.Errorf("%s: headers %v", p, hd)
 		}
 		if hd.Get("X-Request-Id") == "" {

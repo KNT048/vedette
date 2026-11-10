@@ -192,11 +192,13 @@ webui-dist: web-release
 
 # Real-browser CSP check of the embedded interface (D-149); heavy (Chromium), not part of check/verify.
 webui-csp-check: webui-dist
-	bash scripts/dev/webui-csp-check.sh
+	bash scripts/dev/webui-csp-check.sh || { $(MAKE) clean; exit 1; }
 	$(MAKE) clean
 
+# The generated web/dist and internal/webui/dist are removed on every exit path (build-artifacts rule), a failed build included.
 core-image: webui-dist
-	$(CONTAINER) build -f deploy/containers/core/Containerfile $(PIN_ARGS) -t localhost/vedette-core:$(IMAGE_TAG) .
+	$(CONTAINER) build -f deploy/containers/core/Containerfile $(PIN_ARGS) -t localhost/vedette-core:$(IMAGE_TAG) . || { rm -rf web/dist internal/webui/dist; exit 1; }
+	rm -rf web/dist internal/webui/dist
 
 # The safe template pack: pinned download of nuclei-templates, filter, index (scripts/scanpack). Rebuilt (the folder removed first) whenever pins.env or the builder changes.
 scan-pack: $(PACK_DIR)/index.json

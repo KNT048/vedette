@@ -65,7 +65,7 @@ func newStackWith(t *testing.T, tune func(*deps)) *stack {
 	if tune != nil {
 		tune(d)
 	}
-	if err := buildServices(d); err != nil {
+	if err := buildServices(t.Context(), d); err != nil {
 		t.Fatal(err)
 	}
 	api, err := server.New(server.Config{API: newHandler(*d), Auth: &servertest.Auth{Users: servertest.StandardUsers()}, Modules: reg, Log: log})

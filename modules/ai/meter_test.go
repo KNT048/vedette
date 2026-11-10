@@ -149,7 +149,7 @@ func TestProfileValidate(t *testing.T) {
 	}{
 		"empty name":        {mut(func(p *Profile) { p.Name = " " }), "invalid_name"},
 		"long name":         {mut(func(p *Profile) { p.Name = strings.Repeat("n", 41) }), "invalid_name"},
-		"bad kind":          {mut(func(p *Profile) { p.Kind = "x" }), "invalid_style"},
+		"bad kind":          {mut(func(p *Profile) { p.Kind = "x" }), "invalid_kind"},
 		"custom no style":   {mut(func(p *Profile) { p.Kind = "custom" }), "invalid_style"},
 		"bad location":      {mut(func(p *Profile) { p.Location = "moon" }), "invalid_location"},
 		"anthropic on lan":  {mut(func(p *Profile) { p.Location = LocationInternal }), "invalid_location"},

@@ -18,6 +18,7 @@ import (
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/ai"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/feeds"
@@ -75,6 +76,7 @@ type deps struct {
 	HoneypotDir        string                 // shared volume with the honeypot container (-honeypot-dir); empty = no container wired
 	SensorPassive      *sensorpassive.Service // the capture job and the HTTP handler share it: the SPAN measurement lives in its memory
 	Response           *response.Service      // the only module that may change another device (D-41): handler, jobs and bus subscriptions share it
+	AI                 *ai.Service            // profiles, keys, assignments and token settings (S-AI-1); one instance holds the router and the meter
 }
 
 // moduleWiring is one module the binary carries. Adding a module = one entry in wiredModules and
@@ -102,6 +104,7 @@ func wiredModules() []moduleWiring {
 		{ID: "response", Migrations: response.Migrations, Jobs: responseJobs}, // after notify and inventory (manifest depends)
 		{ID: "exposure", Migrations: exposure.Migrations, Jobs: exposureJobs}, // depends on core and inventory (MANIFEST)
 		{ID: "scan", Migrations: scan.Migrations},                             // depends on core, inventory and feeds (MANIFEST); jobs come with S4
+		{ID: "ai", Migrations: ai.Migrations},                                 // depends on core only (MANIFEST); last: nothing depends on it
 	}
 }
 

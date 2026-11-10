@@ -770,8 +770,16 @@ func (s *Service) finish(ctx context.Context, runID, status, reason string, rows
 			stop = &reason
 		}
 		err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-			_, err := tx.ExecContext(ctx, `UPDATE scan_run SET status = ?, ended_at = ?, current = NULL, results = ?, matched = ?, stop_reason = ?, done = ? WHERE id = ?`,
-				status, store.FormatTS(s.now()), string(b), matched, stop, done, runID)
+			if _, err := tx.ExecContext(ctx, `UPDATE scan_run SET status = ?, ended_at = ?, current = NULL, results = ?, matched = ?, stop_reason = ?, done = ? WHERE id = ?`,
+				status, store.FormatTS(s.now()), string(b), matched, stop, done, runID); err != nil {
+				return err
+			}
+			// Review L4: a probe row closeProbes could not close does not stay open for good (INV-7).
+			left := "no_response"
+			if status != "done" {
+				left = "stopped"
+			}
+			_, err := tx.ExecContext(ctx, `UPDATE scan_probe SET result = ? WHERE run_id = ? AND result IS NULL`, left, runID)
 			return err
 		})
 	}

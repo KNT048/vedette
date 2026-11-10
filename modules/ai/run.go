@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
@@ -138,10 +139,21 @@ func (s *Service) appendActivity(ctx context.Context, tx *sql.Tx, e ActivityEntr
 
 // record writes the activity row of a call that produced no stored result (blocked, capped, failed).
 func (s *Service) record(ctx context.Context, e ActivityEntry) error {
+	ctx, cancel := detached(ctx)
+	defer cancel()
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		_, err := s.appendActivity(ctx, tx, e)
 		return err
 	})
+}
+
+// writeTimeout bounds a write that must happen even though the request that caused it is gone.
+const writeTimeout = 10 * time.Second
+
+// detached returns a context that outlives the request but not by long. Once the request has reached the provider, the device
+// data has left the box and the tokens are spent, so the activity row (INV-17) is written whether or not anybody still waits.
+func detached(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), writeTimeout)
 }
 
 // guard runs the before_ai hooks on the question and on every data block, separately, so a mask never touches the markers around
@@ -230,7 +242,10 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		entry.Result = ResultFallbackUsed
 	}
 
-	after, herr := s.hooks.Run(ctx, AfterAI, res.Response.Text)
+	// The answer is here and the tokens are spent: the checks and the row that follow run even if the caller has gone.
+	wctx, wcancel := detached(ctx)
+	defer wcancel()
+	after, herr := s.hooks.Run(wctx, AfterAI, res.Response.Text)
 	entry.Hooks = dedupe(append(entry.Hooks, after.Names()...))
 	text := after.Text
 	var bad error
@@ -243,7 +258,9 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		entry.Result, entry.Summary, bad = ResultError, "The answer did not match the expected format and was discarded.", apiUnavailable("The AI answered, but not in the format Vedette needs, so the answer was discarded. Try again, or use a stronger model for this job.")
 	}
 	var id string
-	werr := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+	storeFailed := false
+	werr := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
+		ctx := wctx
 		if bad == nil {
 			entry.Summary = spec.Summary
 			if res.Fallback {
@@ -261,11 +278,20 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 			}
 		}
 		if bad == nil && spec.Store != nil {
-			return spec.Store(ctx, tx, JobResult{Text: text, Model: res.Model, Profile: res.Profile, TokensIn: entry.TokensIn, TokensOut: entry.TokensOut, Fallback: res.Fallback, ActivityID: id})
+			if err := spec.Store(ctx, tx, JobResult{Text: text, Model: res.Model, Profile: res.Profile, TokensIn: entry.TokensIn, TokensOut: entry.TokensOut, Fallback: res.Fallback, ActivityID: id}); err != nil {
+				storeFailed = true
+				return err
+			}
 		}
 		return nil
 	})
 	if werr != nil {
+		if storeFailed {
+			// The result and the row commit together, so both were rolled back; the call happened, so it still gets a row that says
+			// the answer was not kept.
+			entry.Result, entry.Summary = ResultError, "The answer was not stored: the result could not be written."
+			_ = s.record(ctx, entry)
+		}
 		return JobResult{}, werr
 	}
 	if bad != nil {
@@ -276,7 +302,15 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 
 // failed records a call that got no answer and returns the error the person sees.
 func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry, res CallResult, err error) error {
-	if ctx.Err() != nil { // the caller gave up: not an AI failure, nothing to record
+	if ctx.Err() != nil {
+		// The caller gave up (a closed tab, a timeout). If the request had reached the provider the data has left the box and tokens
+		// may be spent, so the call still gets its row; if it had not, nothing was sent and there is nothing to record.
+		if len(res.Attempts) > 0 {
+			entry.Summary = "The request was cancelled while the AI was being asked."
+			if rerr := s.record(ctx, entry); rerr != nil {
+				return rerr
+			}
+		}
 		return err
 	}
 	var ue *UnavailableError

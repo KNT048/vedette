@@ -5,8 +5,9 @@
 // sources, (slice 3-5) decoy_ip.add and decoy_ip.remove with the honeypot namespace, and (slice 3-6)
 // the Quadlet units with container.start (the current image) and container.stop, and (slice 3-7)
 // container.pull, which verifies a signed release itself before it pulls an image by digest, and (slice
-// 3-8a) container.start with a version, container.rollback and the retention of images. The bootstrap
-// that writes the first units is slice 3-8b.
+// 3-8a) container.start with a version, container.rollback and the retention of images, and (slice 3-8b)
+// the bootstrap that writes the first units (Bootstrap, run by vedette-host -bootstrap, never from the
+// socket) and the way out of core_data_unrecoverable through backup.restore.
 //
 // Every child process goes through one core/exec Runner: absolute binary paths, argv validated by a
 // per-binary validator, PATH, LANG=C and DEBIAN_FRONTEND=noninteractive only, no shell. Nothing in
@@ -55,7 +56,9 @@ type Config struct {
 	SensorUID int
 	SensorGID int
 	OwnerUID  int
-	Logger    *slog.Logger
+	// AuditDir is the directory of the audit log ("" in tests): core_data must not be, hold or sit under it.
+	AuditDir string
+	Logger   *slog.Logger
 }
 
 // Deps are the seams of tests. The binary calls New, which fills the production values; a request
@@ -122,6 +125,9 @@ type Ops struct {
 
 	mu       sync.Mutex // guards the notifier and the export sweep timer
 	notifier Notifier
+	noteOnly interface { // the audit file of the bootstrap, which runs no server (AuditTo)
+		Note(command, code string, detail map[string]any) error
+	}
 	sweepOff func() bool
 
 	rbMu     sync.Mutex // guards reboot.json and the scheduled-reboot timer
@@ -392,11 +398,18 @@ func (o *Ops) Close() {
 func (o *Ops) note(command, code string, detail map[string]any) {
 	o.mu.Lock()
 	n := o.notifier
+	nw := o.noteOnly
 	o.mu.Unlock()
-	if n == nil {
+	var err error
+	switch {
+	case n != nil:
+		err = n.Note(command, code, detail)
+	case nw != nil:
+		err = nw.Note(command, code, detail)
+	default:
 		return
 	}
-	if err := n.Note(command, code, detail); err != nil {
+	if err != nil {
 		o.log.Error("could not write an audit note", "command", command, "code", code)
 	}
 }

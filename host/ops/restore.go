@@ -37,7 +37,7 @@ func (o *Ops) cmdBackupRestore() server.Command {
 			return nil
 		},
 		Check: func(_ context.Context, a api.BackupRestoreArgs) error {
-			if err := o.coreFree(); err != nil {
+			if err := o.coreFreeForRestore(); err != nil {
 				return err
 			}
 			if _, ok := o.lookupBackup(a.BackupID); !ok {
@@ -203,6 +203,7 @@ func (o *Ops) restore(ctx context.Context, rc *server.RunContext, id, snapshot s
 	}
 	defer func() { _ = os.RemoveAll(tmp) }()
 
+	recovering := o.coreUnrecoverable() // asked again here: it is the state the swap acts on
 	rc.Log("Checking the backup")
 	ex, err := o.extract(rec, tmp)
 	if err != nil {
@@ -265,8 +266,70 @@ func (o *Ops) restore(ctx context.Context, rc *server.RunContext, id, snapshot s
 			Result: api.BackupRestoreResult{RestoredBackupID: id, PreRestoreBackupID: pre.BackupID, Version: rec.Version, Health: health},
 		}
 	}
+	if recovering {
+		// The way out of core_data_unrecoverable (D-142, D-138 (9)): core's data is now a backup's and core is
+		// healthy on it, so the journal that kept core's commands refused has nothing left to guard, provided the
+		// versions the host recorded agree with the unit core runs (the interrupted change may have left the new
+		// unit in place): else the journal stays and core's commands keep being refused.
+		if o.reconcileCoreVersion() {
+			o.removeJournal(api.ServiceCore)
+			o.forgetRecoveryNotes(api.ServiceCore)
+			o.note(api.CmdBackupRestore, "core_data_recovered", map[string]any{"run_id": rc.RunID, "restored_backup_id": id, "pre_restore_backup_id": pre.BackupID})
+			rc.Log("The journal of the unrecoverable change was removed")
+		} else {
+			rc.Log("The unit of core pins a release that the recorded versions do not explain; the journal was kept")
+		}
+	}
 	rc.Progress(100)
 	return api.BackupRestoreResult{RestoredBackupID: id, PreRestoreBackupID: pre.BackupID, Version: ex.Manifest.Version, Health: health}, nil
+}
+
+// coreFreeForRestore is coreFree for backup.restore: the one journal it lets through is core's own when it
+// says the host gave up putting core's data back (Unrecoverable). Nothing retries then, core is left as
+// it is, and restoring a backup is how a person gets out (D-142). A journal still being worked on, an
+// invalid one or an unreadable one keeps refusing: a restore must not run on a half-swapped core.
+func (o *Ops) coreFreeForRestore() error {
+	if o.coreUnrecoverable() {
+		return nil
+	}
+	return o.coreFree()
+}
+
+// reconcileCoreVersion makes the recorded versions of core agree with the unit that is installed, and says
+// whether they do. The unit is the truth of what runs (D-123 (3)): if current already is its digest, nothing to
+// do; if it is previous (the interrupted change was a switch that stayed half done) they swap, as a rollback
+// would; if the host holds the pulled record of that digest, it becomes current, as the bootstrap's adoption
+// does. A unit that is not ours, or a release the host knows nothing about while another is recorded as
+// current, is not reconciled. With no current recorded there is nothing to contradict.
+func (o *Ops) reconcileCoreVersion() bool {
+	text, st := o.readUnit(api.ServiceCore)
+	if st != fileOK {
+		return false
+	}
+	digest, _, err := o.ourUnit(api.ServiceCore, text)
+	if err != nil {
+		return false
+	}
+	vs := o.loadVersions(api.ServiceCore)
+	switch {
+	case vs.Current != nil && vs.Current.Digest == digest:
+		return true
+	case vs.Current != nil && vs.Previous != nil && vs.Previous.Digest == digest:
+		now := *vs.Previous
+		now.BackupID = "" // the backup of another point in time is not carried over (D-138 H1)
+		return o.saveVersions(versionState{Service: api.ServiceCore, Current: &now, Previous: vs.Current}) == nil
+	}
+	if rec, ok := o.loadPulled(api.ServiceCore); ok && rec.Digest == digest {
+		// The release that was recorded as current stays as previous, so a rollback has somewhere to go.
+		return o.saveVersions(versionState{Service: api.ServiceCore, Current: &versionRecord{pulledRecord: rec}, Previous: vs.Current}) == nil
+	}
+	return vs.Current == nil // nothing recorded contradicts the unit: the running version is simply unknown (D-138 M4)
+}
+
+// coreUnrecoverable says core's journal is valid and marked unrecoverable.
+func (o *Ops) coreUnrecoverable() bool {
+	t, st, _ := o.loadJournal(api.ServiceCore)
+	return st == jOK && t.Unrecoverable
 }
 
 // snapshotMeta opens core's tree and the snapshot just long enough to read its metadata.

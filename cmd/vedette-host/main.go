@@ -35,6 +35,11 @@ func main() {
 	defer stop()
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil)).With("module", "host")
 	if err := run(ctx, os.Args[1:], os.Stdout, realEnvironment(logger)); err != nil {
+		var ee *exitError
+		if errors.As(err, &ee) { // the bootstrap: one line, an exit code the installer reads
+			fmt.Fprintln(os.Stderr, ee.line)
+			os.Exit(ee.code)
+		}
 		logger.Error("vedette-host stopped", "error", err.Error())
 		fmt.Fprintln(os.Stderr, "vedette-host:", err)
 		os.Exit(1)
@@ -62,11 +67,22 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 	socket := fs.String("socket", "", "socket path (default: the socket line of the config)")
 	stateDir := fs.String("state-dir", "/var/lib/vedette-host", "directory for runs and idempotency records")
 	auditLog := fs.String("audit-log", "/var/log/vedette-host/audit.jsonl", "append-only audit log")
+	bootstrap := fs.Bool("bootstrap", false, "first install: verify a signed release, pull its images and write the first units, then exit (needs the four documents below; refuses while the daemon runs)")
+	var bf bootFlags
+	fs.StringVar(&bf.index, "index", "", "-bootstrap: index.json")
+	fs.StringVar(&bf.indexSig, "index-sig", "", "-bootstrap: index.json.minisig")
+	fs.StringVar(&bf.manifest, "manifest", "", "-bootstrap: release-manifest.json (its image signatures are inside it)")
+	fs.StringVar(&bf.manifestSig, "manifest-sig", "", "-bootstrap: release-manifest.json.minisig")
+	fs.StringVar(&bf.services, "services", "", "-bootstrap: comma-separated services to install (default core,sensor,scan,honeypot)")
+	fs.BoolVar(&bf.forceUnits, "force-units", false, "-bootstrap: replace a unit this host did not write (each file replaced is reported; the old bytes are kept)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 {
 		return fmt.Errorf("unexpected argument %q", fs.Arg(0))
+	}
+	if !*bootstrap && bf.given() {
+		return errors.New("-index, -index-sig, -manifest, -manifest-sig, -services and -force-units belong to -bootstrap")
 	}
 	if *showVersion {
 		_, err := fmt.Fprintln(stdout, version)
@@ -88,20 +104,26 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 		}
 		cfg.Socket = *socket
 	}
+	if *bootstrap {
+		return runBootstrap(ctx, cfg, bf, *stateDir, *auditLog, stdout, env)
+	}
 	check, err := env.newChecker(cfg.CoreUID, cfg.CoreUnit, cfg.CoreCgroup)
 	if err != nil {
 		return err
 	}
 	// The system commands (docs/specs/host-api.md section 6) live in host/ops. This is the one
 	// place the registry is built: a closed list, frozen here.
-	sys, err := ops.New(ops.Config{
-		StateDir: *stateDir, CoreData: cfg.CoreData, CoreUnit: cfg.CoreUnit, Version: version,
-		CoreUID: cfg.CoreUID, CoreGID: cfg.CoreGID, SensorUID: cfg.SensorUID, SensorGID: cfg.SensorGID, OwnerUID: env.configOwner, Logger: env.logger,
-	})
+	sys, err := ops.New(opsConfig(cfg, *stateDir, *auditLog, env))
 	if err != nil {
 		return err
 	}
 	defer sys.Close()
+	// One daemon per state directory, and no bootstrap beside it (D-142): the lock lives as long as the process.
+	unlock, err := sys.LockState(ctx)
+	if err != nil {
+		return fmt.Errorf("another vedette-host holds %s: %w", *stateDir, err)
+	}
+	defer unlock()
 	registry, err := server.NewRegistry(sys.Commands()...)
 	if err != nil {
 		return err

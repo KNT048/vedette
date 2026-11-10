@@ -10,10 +10,9 @@ Pull=never
 Network=vedette-int.network
 PublishPort=8443:8443
 PublishPort=127.0.0.1:8444:8444
-Volume=vedette-data.volume:/var/lib/vedette
+Volume=/var/lib/vedette:/var/lib/vedette
 Volume=/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config
 Volume=/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log:ro
-Volume=/etc/vedette/master.key:/run/secrets/master.key:ro
 Volume=/run/vedette:/run/vedette
 Volume=vedette-creds-passive.volume:/var/lib/vedette-creds/passive
 Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active
@@ -28,7 +27,7 @@ HealthCmd=["/vedette","healthcheck"]
 HealthInterval=30s
 HealthStartPeriod=60s
 HealthRetries=3
-Exec=-listen :8443 -key /run/secrets/master.key
+Exec=-listen :8443
 
 [Service]
 Restart=always

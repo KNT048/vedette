@@ -15,7 +15,7 @@ import (
 func unitText(t *testing.T, m *opstest.Machine, svc, digest string) []byte {
 	t.Helper()
 	cfg := m.Config()
-	b, err := ops.RenderUnit(svc, digest, true, cfg.CoreUID, cfg.CoreGID, cfg.SensorUID, cfg.SensorGID)
+	b, err := ops.RenderUnitIn(svc, digest, true, cfg.CoreUID, cfg.CoreGID, cfg.SensorUID, cfg.SensorGID, cfg.CoreData)
 	if err != nil {
 		t.Fatal(err)
 	}

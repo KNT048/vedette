@@ -9,6 +9,6 @@ permissions: ["outbound:https"]        # tới provider khách cấu hình; fetc
 ports: []
 container: core        # D-55
 tables_prefix: ai_
-tables: [ai_config, ai_profiles, ai_assign, ai_runs, ai_sample_runs, ai_downgrades, ai_explains, ai_news, ai_asks, ai_log_digests, ai_rules, ai_memory, ai_memory_suggestions, ai_memory_settings, ai_skills, ai_knowledge, ai_knowledge_settings, ai_hooks, ai_hooks_builtin, ai_activity, ai_activity_settings]   # kết nối ngoài: core_connection* (D-93), không phải bảng của ai
+tables: [ai_profile, ai_assignment, ai_setting, ai_result, ai_downgrade, ai_rule, ai_memory, ai_memory_suggestion, ai_skill_state, ai_knowledge_doc, ai_knowledge_chunk, ai_hook, ai_hook_state, ai_activity]   # kết nối ngoài: core_connection* (D-93), không phải bảng của ai
 stories: [S-AI-1, S-AI-2, S-AI-3, S-AI-4, S-AI-5, S-AI-6, S-AI-7, S-AI-8]
 milestone: M6

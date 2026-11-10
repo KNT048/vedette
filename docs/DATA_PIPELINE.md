@@ -56,7 +56,7 @@ Giới hạn free đo 2026-11-06: GitHub Actions không giới hạn cho repo pu
 
 ### 2b. IOC (trung tâm gộp, được phân phối lại)
 
-Spamhaus DROP (⚠ hỏi về nhúng), ET Open block/compromised (BSD), IPsum level≥3 (Unlicense), hagezi TIF mini/medium (GPL-3, kèm giấy phép), Tor exit, Cymru bogons, CINS/Blocklist.de/GreenSnow (chiều vào), abuse.ch SSLBL/Feodo (CC0), Phishing.Database (MIT), whitelist Umbrella top-1M + Majestic + dải cloud AWS/Google/Azure/Cloudflare + dải ISP VN (APNIC delegated).
+Spamhaus DROP (⚠ hỏi về nhúng), ET Open block/compromised (BSD), IPsum level≥3 (Unlicense), hagezi TIF mini/medium (GPL-3, kèm giấy phép), Tor exit, Cymru bogons, CINS/Blocklist.de/GreenSnow (chiều vào), abuse.ch Feodo (CC0), Phishing.Database (MIT), whitelist Umbrella top-1M + Majestic + dải cloud AWS/Google/Azure/Cloudflare + dải ISP VN (APNIC delegated).
 
 ### 2c. Feed BYOK (hộp tự kéo bằng key khách, không qua trung tâm)
 

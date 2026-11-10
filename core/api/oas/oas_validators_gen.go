@@ -24126,6 +24126,17 @@ func (s *FeedsGetFeedsStatusOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Kev.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kev",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Sources == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -24140,6 +24151,42 @@ func (s *FeedsGetFeedsStatusOK) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *FeedsGetFeedsStatusOKKev) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.State.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s FeedsGetFeedsStatusOKKevState) Validate() error {
+	switch s {
+	case "loaded":
+		return nil
+	case "never_loaded":
+		return nil
+	case "off":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *FeedsGetFeedsWeeklyOK) Validate() error {

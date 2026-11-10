@@ -71,6 +71,11 @@ type Notifier interface {
 	Channels(ctx context.Context) ([]NotifyChannel, error)
 	// Message sends one short text to the alert channels. It never changes a device.
 	Message(ctx context.Context, id, title, text string) error
+	// Approvers lists the people who may approve on a channel (its saved list), for the check made again when a link is used (INV-3).
+	Approvers(ctx context.Context, channel string) ([]Approver, error)
+	// RequestApproval sends an approval request to the approvers of the channels in m.Channels and returns the labels of the channels that
+	// received it (POST-5). It is called after the request committed, with a 60 second budget, and its error never fails the request.
+	RequestApproval(ctx context.Context, m ApprovalMessage) (sentTo []string, err error)
 }
 
 // WebhookTarget is where the webhook_call action posts: the URL (a secret) and the key that signs the body.
@@ -220,6 +225,7 @@ type Config struct {
 	Connections Connections   // nil = no connection
 	Executor    Executor      // nil = no device can be changed
 	Webhooks    Webhooks      // nil = no webhook
+	Links       LinkTokens    // nil = no approval link can be checked: every link is unknown (404)
 	TwoStep     TwoStep       // nil = no code can be checked: a high-risk AI request cannot be approved (403 twofa_required)
 	Evidence    EvidencePorts // a nil port means no such evidence exists: an AI proposal naming it is refused (422 evidence_invalid)
 
@@ -261,7 +267,15 @@ type Service struct {
 	proposeSkipped  int         // calls refused since the last log line
 	proposeLoggedAt time.Time
 	fetchTimes      map[string][]time.Time // block list pulls per source address (per /64 for IPv6), for the rate limit
+	linkTimes       map[string][]time.Time // approval link calls per source address (the whole address), for their own rate limit
 
+	// Sending approval requests runs in the background (sendApproval): bg ends it at shutdown (Close), sendSem lets two run at once.
+	bg           context.Context
+	stopBG       context.CancelFunc
+	sendSem      chan struct{}
+	sendWG       sync.WaitGroup
+	budget       time.Duration                // how long sending one request may take (sendBudget; only export_test.go changes it)
+	beforeLock   func()                       // only export_test.go sets it: runs just before a decision through a link takes the service lock
 	interfaceFn  func() ([]netip.Addr, error) // reads the box interfaces; only export_test.go replaces it
 	maxBacklog   int                          // unprocessed events kept; only export_test.go replaces it
 	stepLimit    time.Duration                // bound of one item; only export_test.go replaces it
@@ -292,11 +306,19 @@ func New(c Config) (*Service, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	s := &Service{cfg: c, fetchTimes: map[string][]time.Time{}, maxBacklog: maxEventBacklog, stepLimit: stepTimeout}
+	s := &Service{cfg: c, fetchTimes: map[string][]time.Time{}, linkTimes: map[string][]time.Time{}, maxBacklog: maxEventBacklog, stepLimit: stepTimeout, sendSem: make(chan struct{}, maxSends), budget: sendBudget}
+	s.bg, s.stopBG = context.WithCancel(context.Background())
 	if err := s.loadData(); err != nil {
 		return nil, err
 	}
 	return s, nil
+}
+
+// Close stops the approval requests that are being sent (their context ends, so a mail server that does not answer cannot hold the
+// shutdown) and waits for them to finish. Nothing else in the service runs in the background.
+func (s *Service) Close() {
+	s.stopBG()
+	s.sendWG.Wait()
 }
 
 // ensureSeeded writes the built-in catalog rows the first time something reads the catalog (and again after a failure), so

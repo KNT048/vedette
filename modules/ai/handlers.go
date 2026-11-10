@@ -47,6 +47,10 @@ func actor(ctx context.Context) (string, error) {
 
 // AiGetAiConfig implements GET /ai/config (viewer).
 func (h *AIHandlers) AiGetAiConfig(context.Context) (*oas.AiGetAiConfigOK, error) {
+	// When the saved settings could not be loaded, the default tier and cap are not the saved ones: say so instead of showing them.
+	if h.svc.Degraded() != "" {
+		return nil, h.svc.errDegraded()
+	}
 	return convert[oas.AiGetAiConfigOK](h.svc.Config())
 }
 

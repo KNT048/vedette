@@ -363,7 +363,6 @@ func (s *Service) DeleteProfile(ctx context.Context, who, id string) ([]Job, err
 }
 
 // probeTimeout bounds one connection test (three tiny requests).
-// probeTimeout bounds one connection test (three tiny requests).
 const probeTimeout = 60 * time.Second
 
 // auditTimeout bounds the write of the audit row of a test when the request is already gone.

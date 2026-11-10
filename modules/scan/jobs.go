@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/scan/nucleiout"
 )
 
 // Job timing.
@@ -56,12 +58,18 @@ func (s *Service) OnNewKEV(ctx context.Context, ev NewKEV) error {
 	if !ev.HasTemplate || !validCVE(ev.CVE) {
 		return nil
 	}
-	product := clip(ev.Vendor+" "+ev.Product, 300)
+	product := plainLine(ev.Vendor+" "+ev.Product, 300) // from a feed: untrusted text (SYS-6, #164 review L5)
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, `INSERT INTO scan_event (id, ts, cve, product) VALUES (?, ?, ?, ?) ON CONFLICT (cve) DO NOTHING`,
 			store.NewID("ev"), store.FormatTS(s.now()), ev.CVE, product)
 		return err
 	})
+}
+
+// plainLine is untrusted text (a feed's vendor and product) as one plain line: valid UTF-8, no control, format or bidi
+// characters (nucleiout.Clean), spaces and line breaks collapsed, at most n characters.
+func plainLine(s string, n int) string {
+	return clip(strings.Join(strings.Fields(nucleiout.Clean(s, 4*n)), " "), n)
 }
 
 func validCVE(c string) bool {

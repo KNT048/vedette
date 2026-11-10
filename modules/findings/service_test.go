@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"maps"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -21,6 +23,7 @@ type fakeInv struct {
 	mu     sync.Mutex
 	assets map[string]AssetView
 	match  map[string]Asset
+	idsErr error
 }
 
 func (f *fakeInv) Assets(_ context.Context, ids []string) (map[string]AssetView, error) {
@@ -40,6 +43,16 @@ func (f *fakeInv) MatchInput(_ context.Context, id string) (Asset, bool, error) 
 	defer f.mu.Unlock()
 	a, ok := f.match[id]
 	return a, ok, nil
+}
+
+// AssetIDs lists the devices that exist: the ones the matcher can read. idsErr makes the read fail.
+func (f *fakeInv) AssetIDs(context.Context) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.idsErr != nil {
+		return nil, f.idsErr
+	}
+	return slices.Sorted(maps.Keys(f.match)), nil
 }
 
 type fakeFeeds struct {

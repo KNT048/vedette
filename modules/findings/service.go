@@ -300,6 +300,11 @@ func (s *Service) SetStatus(ctx context.Context, id string, action Action, note,
 func (s *Service) OnAssetDeleted(ctx context.Context, assetID string) (int, error) {
 	ctx, cancel := eventContext(ctx)
 	defer cancel()
+	return s.deleteAsset(ctx, assetID)
+}
+
+// deleteAsset removes the findings of a device under the caller's context (Reconcile keeps its own cancellation).
+func (s *Service) deleteAsset(ctx context.Context, assetID string) (int, error) {
 	var n int64
 	err := s.write(ctx, func(tx *sql.Tx, _ time.Time, _ func(string, any)) error {
 		res, err := tx.ExecContext(ctx, `DELETE FROM fnd_finding WHERE asset_id = ?`, assetID)

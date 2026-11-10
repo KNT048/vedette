@@ -124,6 +124,39 @@ func TestParseManifestRejects(t *testing.T) {
 	}
 }
 
+// D-146: bundled[] lists what is inside the signed scan image (nuclei and the template pack) with version, sha256 and licence; the two
+// new fields are optional and checked when present.
+func TestManifestBundledCarriesHashAndLicence(t *testing.T) {
+	e := newEnv(t)
+	idx := e.verifiedIndex(e.active, e.indexMap(1))
+	h := strings.Repeat("c", 64)
+	x := e.manifestMap()
+	x["bundled"] = []any{
+		m{"service": "scan", "name": "nuclei", "version": "3.11.1", "sha256": h, "license": "MIT"},
+		m{"service": "scan", "name": "nuclei-templates-pack", "version": "2026.11.1", "sha256": h, "license": "MIT"},
+		m{"service": "honeypot", "name": "opencanary", "version": "0.9.4"},
+	}
+	mf := e.verifiedManifest(x, idx)
+	if len(mf.Bundled) != 3 || mf.Bundled[0].SHA256 != h || mf.Bundled[0].License != "MIT" || mf.Bundled[2].SHA256 != "" {
+		t.Fatalf("bundled = %+v", mf.Bundled)
+	}
+	for name, b := range map[string]m{
+		"sha256 upper":     {"service": "scan", "name": "nuclei", "version": "3.11.1", "sha256": strings.ToUpper(h)},
+		"sha256 short":     {"service": "scan", "name": "nuclei", "version": "3.11.1", "sha256": "abc"},
+		"licence newline":  {"service": "scan", "name": "nuclei", "version": "3.11.1", "license": "MIT\nx"},
+		"unknown field":    {"service": "scan", "name": "nuclei", "version": "3.11.1", "url": "x"},
+		"unknown service":  {"service": "shell", "name": "nuclei", "version": "3.11.1"},
+		"licence too long": {"service": "scan", "name": "nuclei", "version": "3.11.1", "license": strings.Repeat("M", 65)},
+	} {
+		bad := e.manifestMap()
+		bad["bundled"] = []any{b}
+		raw := js(t, bad)
+		if _, err := VerifyManifest(raw, e.active.sign(raw), e.trust, idx); !errors.Is(err, ErrMalformed) {
+			t.Errorf("%s: got %v, want ErrMalformed", name, err)
+		}
+	}
+}
+
 // D-104 (1): ref must be exactly ghcr.io/knt048/vedette-<service>:<version>.
 func TestManifestRefs(t *testing.T) {
 	e := newEnv(t)

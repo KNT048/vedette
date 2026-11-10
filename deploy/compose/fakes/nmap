@@ -1,0 +1,8 @@
+#!/bin/sh
+# A fake nmap for the compose dev stack (D-146): it scans nothing and sends nothing. --version answers like nmap, anything else prints a
+# canned XML result with no host up.
+if [ "$1" = "--version" ]; then
+	echo "Nmap version 7.95 ( https://nmap.org )"
+	exit 0
+fi
+echo '<?xml version="1.0"?><nmaprun scanner="nmap" args="fake" version="7.95"><runstats><finished exit="success"/><hosts up="0" down="0" total="0"/></runstats></nmaprun>'

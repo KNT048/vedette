@@ -29,7 +29,9 @@ import (
 // containers/versions-<service>.json with current = the verified record, so that the next
 // container.start with a newer version is judged against it (no current_version_unknown).
 //
-// Order: everything is verified and every refusal is decided before the first write; the images are then
+// Order: everything is verified and every refusal is decided before the first write (the one exception is
+// the release index: like container.pull, verifyPull stores a newer verified index at once, so a revocation
+// it carries is not lost when the manifest is then refused; the audit chain gets release_index_stored); the images are then
 // pulled; the units and versions are written only after the last pull worked. A failure part-way leaves
 // at most verified images and records of pulled versions, never a unit for a service that was not
 // verified, and a rerun with the same documents finishes the job. Rerunning on a finished box changes
@@ -54,7 +56,7 @@ var ErrStateLocked = errors.New("ops: the state directory is locked by another v
 // holds it for its whole life and the bootstrap for its run, so a bootstrap never runs beside a daemon or
 // beside another bootstrap (D-142). The returned function lets it go.
 func (o *Ops) LockState() (unlock func(), err error) {
-	f, err := os.OpenFile(o.stateFile("host.lock"), os.O_RDWR|os.O_CREATE|syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0o600) //nolint:gosec // a fixed name in the host's private state directory
+	f, err := os.OpenFile(o.stateFile("host.lock"), os.O_RDWR|os.O_CREATE|syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0o600)
 	if err != nil {
 		return nil, fmt.Errorf("ops: open the state lock: %w", err)
 	}

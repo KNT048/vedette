@@ -146,7 +146,7 @@ type NoteWriter struct{ a *auditLog }
 
 // OpenNoteWriter opens (creating it 0600) and verifies the audit log at path, owned by ownerUID.
 func OpenNoteWriter(path string, ownerUID int) (*NoteWriter, error) {
-	if err := ensureDir(filepath.Dir(path), 0o700, ownerUID); err != nil {
+	if err := ensureDir(filepath.Dir(path), ownerUID); err != nil {
 		return nil, err
 	}
 	a, err := openAudit(path, ownerUID, time.Now)

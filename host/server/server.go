@@ -140,10 +140,10 @@ func New(o Options) (*Server, error) {
 	if o.Exit == nil {
 		o.Exit = os.Exit
 	}
-	if err := ensureDir(o.StateDir, 0o700, o.OwnerUID); err != nil {
+	if err := ensureDir(o.StateDir, o.OwnerUID); err != nil {
 		return nil, err
 	}
-	if err := ensureDir(filepath.Dir(o.AuditPath), 0o700, o.OwnerUID); err != nil {
+	if err := ensureDir(filepath.Dir(o.AuditPath), o.OwnerUID); err != nil {
 		return nil, err
 	}
 	s := &Server{

@@ -160,17 +160,17 @@ func TestContract_Bootstrap_CoreDataIsNotMadeThroughALinkedOrMissingParent(t *te
 	t.Parallel()
 	e := startUpd(t)
 	base := filepath.Dir(e.m.CoreData)
-	real := filepath.Join(base, "real")
-	if err := os.Mkdir(real, 0o700); err != nil {
+	realDir := filepath.Join(base, "realDir")
+	if err := os.Mkdir(realDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	link := filepath.Join(base, "link")
-	if err := os.Symlink(real, link); err != nil {
+	if err := os.Symlink(realDir, link); err != nil {
 		t.Fatal(err)
 	}
 	o := e.bsOps(t, func(c *ops.Config) { c.CoreData = filepath.Join(link, "vedette") })
 	codeIs(t, "linked parent", e.bootstrapWith(o, e.bsDocs(t, 5, v1, bsDigest)), api.CodeCoreDataInvalid)
-	if _, err := os.Lstat(filepath.Join(real, "vedette")); err == nil {
+	if _, err := os.Lstat(filepath.Join(realDir, "vedette")); err == nil {
 		t.Error("core_data was made through the link")
 	}
 	m := e.bsOps(t, func(c *ops.Config) { c.CoreData = filepath.Join(base, "nothere", "vedette") })

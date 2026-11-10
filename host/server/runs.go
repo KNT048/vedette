@@ -86,7 +86,7 @@ func openRunStore(stateDir string, owner int, log *slog.Logger) (*runStore, erro
 		runs: map[string]*storedRun{}, idems: map[string]idemRecord{}, log: log,
 	}
 	for _, d := range []string{s.dir, s.idem} {
-		if err := ensureDir(d, 0o700, owner); err != nil {
+		if err := ensureDir(d, owner); err != nil {
 			return nil, err
 		}
 	}
@@ -260,9 +260,10 @@ func (s *runStore) removeRunLocked(id string) {
 // eventsPath is where a finished run's events are kept.
 func (s *runStore) eventsPath(id string) string { return filepath.Join(s.dir, id+".events.json") }
 
-// ensureDir creates path with mode if absent and insists that it is a real directory (not a
-// symlink) owned by uid owner and no more open than mode.
-func ensureDir(path string, mode os.FileMode, owner int) error {
+// ensureDir creates path with mode 0700 if absent and insists that it is a real directory (not a
+// symlink) owned by uid owner and no more open than 0700.
+func ensureDir(path string, owner int) error {
+	const mode os.FileMode = 0o700
 	if _, err := os.Lstat(path); errors.Is(err, os.ErrNotExist) {
 		if err := os.MkdirAll(path, mode); err != nil {
 			return fmt.Errorf("host: create %s: %w", path, err)

@@ -299,6 +299,10 @@ func newEnv(t *testing.T, opts ...func(*response.Config)) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Registered after storetest.New, so it runs first: background sends and detached runs finish before the
+	// database closes and t.TempDir is removed ("TempDir RemoveAll cleanup: directory not empty" otherwise).
+	svc := e.svc
+	t.Cleanup(svc.Close)
 	return e
 }
 

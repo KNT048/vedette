@@ -330,7 +330,7 @@ func (o *Ops) readNet(context.Context) (any, error) {
 	}
 	cfg, managed := o.readNetplanConfig()
 	route := o.defaultRoute()
-	st := api.NetState{Interfaces: []api.NetInterface{}, DefaultRoute: route, Decoys: []api.NetDecoy{}}
+	st := api.NetState{Interfaces: []api.NetInterface{}, DefaultRoute: route, Decoys: o.readDecoyState()}
 	st.Config.NTP = o.readNTP()
 	if p, ps := o.loadPending(); ps == pendOK && (o.netPending() || p.RebootAt != nil) {
 		st.Pending = &api.NetPending{RunID: p.RunID, RevertAt: p.RevertAt, RebootAt: p.RebootAt}

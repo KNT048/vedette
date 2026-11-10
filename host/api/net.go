@@ -82,7 +82,7 @@ type NetPending struct {
 	RebootAt *time.Time `json:"reboot_at,omitempty"`
 }
 
-// NetDecoy is a secondary address the honeypot answers on (D-102). Empty until slice 3-5.
+// NetDecoy is a secondary address the honeypot answers on (D-102): what hp/decoys.json holds.
 type NetDecoy struct {
 	IP  string `json:"ip"`
 	MAC string `json:"mac"`

@@ -131,7 +131,7 @@ func TestServesAndStopsOnSignal(t *testing.T) {
 	for {
 		info, err := c.Info(context.Background())
 		if err == nil {
-			want := []string{"backup.create", "backup.restore", "logs.export", "net.apply", "net.confirm", "net.revert", "os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel"}
+			want := []string{"backup.create", "backup.restore", "decoy_ip.add", "decoy_ip.remove", "logs.export", "net.apply", "net.confirm", "net.revert", "os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel"}
 			if info.Proto != 1 || info.HostVersion != "dev" || !slices.Equal(info.Commands, want) {
 				t.Fatalf("info = %+v", info)
 			}

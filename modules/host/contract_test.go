@@ -42,10 +42,10 @@ const (
 )
 
 // documentedCommands is the command list of docs/specs/host-api.md section 6 that is implemented.
-// WP-07b implements the OS, backup, log and network commands (contract_os_test.go checks the list
-// against the spec); the decoy IP and container commands follow in later slices. Sorted.
+// WP-07b implements the OS, backup, log and network and decoy commands (contract_os_test.go checks the list
+// against the spec); the container commands follow in later slices. Sorted.
 var documentedCommands = []string{
-	"backup.create", "backup.restore", "logs.export", "net.apply", "net.confirm", "net.revert",
+	"backup.create", "backup.restore", "decoy_ip.add", "decoy_ip.remove", "logs.export", "net.apply", "net.confirm", "net.revert",
 	"os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel",
 }
 

@@ -349,7 +349,7 @@ Description=Vedette host helper
 After=network-online.target
 
 [Service]
-# READY=1 sau khi Ops.Start xong: namespace vedette-hp, decoy, khôi phục run dở (D-102)
+# READY=1 sau khi Ops.Start xong và socket đã mở: namespace vedette-hp, decoy, khôi phục run dở (D-102)
 Type=notify
 ExecStart=/usr/lib/vedette/vedette-host
 RuntimeDirectory=vedette

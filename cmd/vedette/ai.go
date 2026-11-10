@@ -10,6 +10,7 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/chain/chainhead"
+	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/modules/ai"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
@@ -142,3 +143,6 @@ type aiChainPruner struct{}
 func (aiChainPruner) Prune(ctx context.Context, tx *sql.Tx, chain, lastPrunedID, lastPrunedHash string, removed int64, now time.Time) error {
 	return chainhead.Prune(ctx, tx, chain, lastPrunedID, lastPrunedHash, removed, now)
 }
+
+// aiJobs is the Jobs func of the ai entry in wiredModules: the "activity-prune" job.
+func aiJobs(d deps) []jobs.Job { return d.AI.Jobs() }

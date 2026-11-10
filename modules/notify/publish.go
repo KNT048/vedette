@@ -216,6 +216,12 @@ type pendingRow struct {
 // critical notices go first and at most maxBatchesPerRun messages are sent per run.
 func (s *Service) Flush(ctx context.Context) error {
 	now := s.now()
+	if s.reenabled.CompareAndSwap(true, false) {
+		if err := s.dropStale(ctx, now); err != nil {
+			s.reenabled.Store(true) // try again at the next run
+			return err
+		}
+	}
 	if err := s.sweepStale(ctx, now); err != nil {
 		return err
 	}
@@ -270,6 +276,27 @@ func (s *Service) Flush(ctx context.Context) error {
 		errs = append(errs, err)
 	}
 	return errors.Join(errs...)
+}
+
+// staleAfter is how old a queued notice may be when the module is turned on again (D-86 (7)): a notice that waited
+// days in the queue is noise, the finding is still in the interface.
+const staleAfter = 24 * time.Hour
+
+// dropStale deletes the waiting rows queued more than staleAfter ago, measured from created_at, and audits the
+// count in the same transaction. Rows being sent are left to their run. Nothing is audited when nothing is old.
+func (s *Service) dropStale(ctx context.Context, now time.Time) error {
+	cut := store.FormatTS(now.Add(-staleAfter))
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		r, err := tx.ExecContext(ctx, `DELETE FROM notify_pending WHERE state = 'pending' AND created_at < ?`, cut)
+		if err != nil {
+			return fmt.Errorf("notify: drop stale queued notices: %w", err)
+		}
+		n, _ := r.RowsAffected()
+		if n == 0 {
+			return nil
+		}
+		return s.record(ctx, tx, systemUser, "notify.stale_dropped", "notify_pending", fmt.Sprintf("%d queued notice(s) older than 24 h dropped when the module was turned on", n))
+	})
 }
 
 // release puts claimed rows that were never attempted back to pending.

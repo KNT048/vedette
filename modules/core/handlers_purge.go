@@ -2,7 +2,9 @@ package core
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -17,9 +19,12 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/auth"
+	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/coredb"
+	"github.com/knt048/vedette/host/api"
+	"github.com/knt048/vedette/host/client"
 )
 
 // POST /core/data/purge (S-CORE-1, INV-14, D-154): the box goes back to a fresh install. Every row of every table is deleted
@@ -75,8 +80,48 @@ func (h *APIHandlers) CorePostCoreDataPurge(ctx context.Context, req *oas.CorePo
 	if req.Confirm != org.Name || org.Name == "" {
 		return nil, confirmMismatch()
 	}
+	// Step-up (H2, D-76, D-98): the current password, counted against the re-auth limiter, then a fresh two-step code when it is on.
+	if err := h.auth.VerifyOwnPassword(ctx, c.ID, req.Password, "Wrong password. The password is needed to delete all data."); err != nil {
+		return nil, err
+	}
+	if u, err := h.auth.GetUser(ctx, c.ID); err != nil {
+		return nil, fmt.Errorf("core: read user: %w", err)
+	} else if u.TwofaMethod != "" {
+		if _, err := h.auth.VerifyTwoStep(ctx, c.ID, req.Code.Or(""), "core.data_purge", "Delete all data of "+cutAtRune(org.Name, 80)); err != nil {
+			return nil, err
+		}
+	}
+	// A trace that survives the data: the journal, never the database (it is about to be deleted).
+	if x, ok := server.ExchangeFrom(ctx); ok {
+		h.log.WarnContext(ctx, "data purge requested", "user_id", c.ID, "ip", x.ClientAddr().String())
+	}
+	if h.osBusy != nil && h.osBusy(ctx) { // M2: core's own OS update (INV-12)
+		return nil, apierr.New(409, codeBusy, "An update run is in progress. Wait for it to finish, then try again.")
+	}
+	var kept []oas.CorePostCoreDataPurgeOKKeptItem
+	if skipped, err := h.purgeHostBackups(ctx); err != nil { // nothing has been deleted yet: any refusal here leaves the box as it was
+		return nil, err
+	} else if skipped {
+		kept = append(kept, oas.CorePostCoreDataPurgeOKKeptItemHostBackups)
+	}
+	if h.beforeWipe != nil {
+		if err := h.beforeWipe(ctx); err != nil {
+			return nil, fmt.Errorf("core: before the purge: %w", err)
+		}
+	}
 	seeds, err := h.freshRows(ctx)
 	if err != nil {
+		return nil, err
+	}
+	stagedKey := ""
+	if h.keyPath != "" {
+		if stagedKey, err = secrets.StageKeyFile(h.keyPath); err != nil {
+			return nil, err
+		}
+	}
+	trash, err := h.newTrash()
+	if err != nil {
+		_ = os.Remove(stagedKey)
 		return nil, err
 	}
 	var removed map[string]float64
@@ -95,8 +140,12 @@ func (h *APIHandlers) CorePostCoreDataPurge(ctx context.Context, req *oas.CorePo
 		if removed, err = wipe(ctx, tx, seeds); err != nil {
 			return err
 		}
-		// The files go while the transaction is still open: a failure here rolls the rows back, so a retry finds everything.
-		if err := h.removeDataFiles(); err != nil {
+		// The files are moved into the trash while the transaction is still open and moved back when it does not commit (M3):
+		// a failure anywhere leaves rows and files as they were, so a retry finds everything.
+		if err := h.takeDataFiles(trash); err != nil {
+			return err
+		}
+		if err := h.markCompactPending(); err != nil {
 			return err
 		}
 		ch, err := h.reg.Reset(ctx, tx)
@@ -105,30 +154,84 @@ func (h *APIHandlers) CorePostCoreDataPurge(ctx context.Context, req *oas.CorePo
 		}
 		publish = func() { h.reg.Publish(ch) }
 		// No name of a person: the account is gone with the rest, and the new box's first log row says only that it was wiped.
-		return h.audit.Append(ctx, tx, audit.Entry{User: "system", Action: "data.purge", Target: "all data", Detail: "deleted by an administrator; the box is back to first-run setup"})
+		if err := h.audit.Append(ctx, tx, audit.Entry{User: "system", Action: "data.purge", Target: "all data", Detail: "deleted by an administrator; the box is back to first-run setup"}); err != nil {
+			return err
+		}
+		h.db.Freeze() // M5: from the commit on nothing can write until the process has stopped (the box starts fresh)
+		return nil
 	})
 	if err != nil {
+		h.db.Unfreeze()
+		if rerr := trash.restore(); rerr != nil {
+			h.log.ErrorContext(ctx, "purge failed and the files could not be put back", "error", rerr, "trash", trash.dir)
+		} else {
+			h.unmarkCompactPending()
+			trash.discard()
+		}
+		if stagedKey != "" {
+			_ = os.Remove(stagedKey)
+		}
 		return nil, err
 	}
 	publish()
-	if err := h.db.Compact(ctx); err != nil { // the deleted rows must not stay in the free pages or the log of the file
-		h.log.ErrorContext(ctx, "compacting the database after a purge failed", "error", err)
-	}
-	// The box is open for first-run setup again: it needs its one-time code, printed in the log like at every start (D-75).
-	if code, err := h.EnsureSetupCode(ctx); err != nil {
-		h.log.ErrorContext(ctx, "making the setup code after a purge failed", "error", err)
-	} else if code != "" {
-		h.log.InfoContext(ctx, "first-run setup is open: enter this one-time setup code on the setup page", "setup_code", code)
+	trash.discard() // the old data is gone for good
+	if stagedKey != "" {
+		// H1 (a): every old copy of the key (archives, snapshots) now opens nothing this box holds.
+		if err := secrets.PromoteKeyFile(stagedKey, h.keyPath); err != nil {
+			h.log.ErrorContext(ctx, "the purge could not replace the encryption key", "error", err)
+			kept = append(kept, oas.CorePostCoreDataPurgeOKKeptItemKeyNotReplaced)
+		}
 	}
 	if x, ok := server.ExchangeFrom(ctx); ok {
 		for _, ck := range auth.ClearCookies() {
 			x.SetCookie(ck)
 		}
 	}
-	if h.restart != nil {
+	if h.restart != nil { // the compaction and the new setup code come with the next start
 		time.AfterFunc(restartDelay, h.restart)
 	}
-	return &oas.CorePostCoreDataPurgeOK{Ok: true, Removed: oas.CorePostCoreDataPurgeOKRemoved(removed)}, nil
+	if kept == nil {
+		kept = []oas.CorePostCoreDataPurgeOKKeptItem{}
+	}
+	return &oas.CorePostCoreDataPurgeOK{Ok: true, Removed: oas.CorePostCoreDataPurgeOKRemoved(removed), Kept: kept}, nil
+}
+
+// PurgeHost is the part of vedette-host the purge needs: the runs in progress and the deletion of every backup it holds
+// (host command backup.purge, D-156; the host client's method may be named differently, cmd/vedette adapts it).
+type PurgeHost interface {
+	ListRuns(ctx context.Context, limit int) ([]api.Run, error)
+	BackupPurge(ctx context.Context) (deleted int, err error)
+}
+
+// purgeHostBackups asks the helper for its running commands (409 busy when one is not finished: an update or a backup would race
+// the purge) and has it delete every backup. skipped is true when this box has no helper (no socket): there is nothing to delete
+// and the answer says so. A helper that does not answer, or refuses, stops the purge before anything is deleted (503 host_unreachable
+// or the mapped error).
+func (h *APIHandlers) purgeHostBackups(ctx context.Context) (skipped bool, err error) {
+	if h.purgeHost == nil {
+		return true, nil
+	}
+	noHelper := func(err error) (bool, error) {
+		if errors.Is(err, client.ErrUnreachable) && errors.Is(err, fs.ErrNotExist) { // no socket file: a container-only install (D-55)
+			return true, nil
+		}
+		return false, hostErr(ctx, h.log, err)
+	}
+	runs, err := h.purgeHost.ListRuns(ctx, 50)
+	if err != nil {
+		return noHelper(err)
+	}
+	for _, r := range runs {
+		if !r.Status.Terminal() {
+			return false, apierr.New(409, codeBusy, "The operating system helper is running a command. Wait for it to finish, then try again.")
+		}
+	}
+	n, err := h.purgeHost.BackupPurge(ctx)
+	if err != nil {
+		return noHelper(err)
+	}
+	h.log.InfoContext(ctx, "data purge: backups deleted by the helper", "deleted", n)
+	return false, nil
 }
 
 func confirmMismatch() *apierr.Error {
@@ -284,22 +387,135 @@ func wipe(ctx context.Context, tx *sql.Tx, seeds []seedRow) (map[string]float64,
 	return removed, nil
 }
 
-// removeDataFiles deletes what lives next to the database and is data: the module data files that cmd/vedette named (and the
-// -wal, -shm and -journal files SQLite keeps beside them) and the snapshots of the backups (a "delete all data" must not leave
-// a copy that can be restored). The key and the certificate stay. A file that is already gone is not an error.
-func (h *APIHandlers) removeDataFiles() error {
+// The trash (M3): what the purge deletes from the disk is first moved into core_data/tmp/purge-trash-<id>/, so that a failure
+// before the commit can move it back, and deleted for good after the commit. A leftover of a crash is swept at the next start
+// (sweepPurgeLeftovers): a crash before the commit loses the module files in it, the database being untouched, which is harmless.
+const (
+	trashPrefix     = "purge-trash-"
+	freshPrefix     = "purge-fresh-"
+	compactMarker   = "purge-compact-pending"
+	stagedKeySuffix = ".new"
+	purgeScratchDir = "tmp"
+)
+
+type trash struct {
+	dir   string
+	moved [][2]string // from, to
+}
+
+// newTrash makes the trash directory (mode 0700). With no data directory it is empty and moves nothing.
+func (h *APIHandlers) newTrash() (*trash, error) {
+	if h.dataDir == "" {
+		return &trash{}, nil
+	}
+	var raw [8]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return nil, fmt.Errorf("core: purge trash id: %w", err)
+	}
+	dir := filepath.Join(h.dataDir, purgeScratchDir, trashPrefix+hex.EncodeToString(raw[:]))
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("core: purge trash: %w", err)
+	}
+	return &trash{dir: dir}, nil
+}
+
+// take moves src into the trash; a file that is not there is not an error.
+func (t *trash) take(src string) error {
+	if t.dir == "" {
+		return nil
+	}
+	if _, err := os.Lstat(src); errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	dst := filepath.Join(t.dir, fmt.Sprintf("%03d-%s", len(t.moved), filepath.Base(src)))
+	if err := os.Rename(src, dst); err != nil {
+		return fmt.Errorf("core: purge: move %s aside: %w", filepath.Base(src), err)
+	}
+	t.moved = append(t.moved, [2]string{src, dst})
+	return nil
+}
+
+// restore moves everything back, newest first. It stops at the first failure and says which.
+func (t *trash) restore() error {
+	for i := len(t.moved) - 1; i >= 0; i-- {
+		if err := os.Rename(t.moved[i][1], t.moved[i][0]); err != nil {
+			return fmt.Errorf("core: purge: put %s back: %w", filepath.Base(t.moved[i][0]), err)
+		}
+		t.moved = t.moved[:i]
+	}
+	return nil
+}
+
+// discard deletes the trash.
+func (t *trash) discard() {
+	if t.dir != "" {
+		_ = os.RemoveAll(t.dir)
+	}
+}
+
+// takeDataFiles moves what lives next to the database and is data into the trash: the module data files that cmd/vedette named
+// (and the -wal, -shm and -journal files SQLite keeps beside them) and the snapshots of the backups (a "delete all data" must not
+// leave a copy that can be restored). The key and the certificate stay (the key is replaced after the commit).
+func (h *APIHandlers) takeDataFiles(t *trash) error {
 	if h.dataDir == "" {
 		return nil
 	}
 	for _, n := range h.dataFiles {
 		for _, suf := range dataFileSuffixes {
-			if err := os.Remove(filepath.Join(h.dataDir, n+suf)); err != nil && !errors.Is(err, fs.ErrNotExist) {
-				return fmt.Errorf("core: purge: remove %s: %w", n+suf, err)
+			if err := t.take(filepath.Join(h.dataDir, n+suf)); err != nil {
+				return err
 			}
 		}
 	}
-	if err := os.RemoveAll(filepath.Join(h.dataDir, snapshotsDir)); err != nil {
-		return fmt.Errorf("core: purge: remove snapshots: %w", err)
+	return t.take(filepath.Join(h.dataDir, snapshotsDir))
+}
+
+// markCompactPending leaves a file that tells the next start to compact the database (VACUUM): the purge cannot, because it
+// freezes the database at its commit. Written inside the transaction, so a crash after the commit still finds it.
+func (h *APIHandlers) markCompactPending() error {
+	if h.dataDir == "" {
+		return nil
+	}
+	if err := os.WriteFile(filepath.Join(h.dataDir, compactMarker), []byte("compact the database at the next start\n"), 0o600); err != nil {
+		return fmt.Errorf("core: purge: compaction marker: %w", err)
 	}
 	return nil
+}
+
+func (h *APIHandlers) unmarkCompactPending() {
+	if h.dataDir != "" {
+		_ = os.Remove(filepath.Join(h.dataDir, compactMarker))
+	}
+}
+
+// CompactIfPending is called at start (cmd/vedette, before the scheduler): when a purge left its marker, the database is compacted so
+// the deleted rows are no longer in the bytes of the file or its log. The marker goes only after a success, so a failure is
+// retried at every start until it works (L4); the error is returned for the caller to log, not to stop the box.
+func CompactIfPending(ctx context.Context, db *store.DB, dataDir string) error {
+	marker := filepath.Join(dataDir, compactMarker)
+	if _, err := os.Stat(marker); err != nil {
+		return nil //nolint:nilerr // no marker: nothing to do
+	}
+	if err := db.Compact(ctx); err != nil {
+		return err //nolint:wrapcheck // already store-prefixed
+	}
+	if err := os.Remove(marker); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("core: remove compaction marker: %w", err)
+	}
+	return nil
+}
+
+// sweepPurgeLeftovers removes what an interrupted purge left: trash directories, scratch databases and a staged key.
+func sweepPurgeLeftovers(dataDir, keyPath string) {
+	dir := filepath.Join(dataDir, purgeScratchDir)
+	if entries, err := os.ReadDir(dir); err == nil {
+		for _, e := range entries {
+			if strings.HasPrefix(e.Name(), trashPrefix) || strings.HasPrefix(e.Name(), freshPrefix) {
+				_ = os.RemoveAll(filepath.Join(dir, e.Name()))
+			}
+		}
+	}
+	if keyPath != "" {
+		_ = os.Remove(keyPath + stagedKeySuffix)
+	}
 }

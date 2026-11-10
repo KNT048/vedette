@@ -1,8 +1,10 @@
 package core_test
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,6 +17,9 @@ import (
 	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/auth/authtest"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/store/storetest"
+	"github.com/knt048/vedette/host/api"
+	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/core"
 )
 
@@ -47,24 +52,69 @@ END;
 type dataWorld struct {
 	*world
 	dir      string
+	key      string // the encryption key file the purge replaces
 	restarts chan struct{}
+	host     *fakeHost
+	wipeSeen chan map[string]int // BeforeWipe hook: the row counts it saw (nil channel value = hook not called)
+	hookErr  error               // what the BeforeWipe hook returns
+	osBusy   bool
 }
 
-// newDataWorld is a box with a data directory, the schema of core and of the test module, and a restart hook.
-func newDataWorld(t *testing.T) *dataWorld {
+// fakeHost is vedette-host for the purge: the runs it reports and what backup.purge answers, and how often it was called.
+type fakeHost struct {
+	runs     []api.Run
+	listErr  error
+	purgeErr error
+	purged   int
+	calls    int
+}
+
+func (f *fakeHost) ListRuns(context.Context, int) ([]api.Run, error) { return f.runs, f.listErr }
+func (f *fakeHost) BackupPurge(context.Context) (int, error) {
+	f.calls++
+	return f.purged, f.purgeErr
+}
+
+// newDataWorld is a box with a data directory, a key file, the schema of core and of the test module, a fake host and hooks, and a
+// restart hook that behaves like a new process: it thaws the database (the purge froze it at its commit) and signals.
+func newDataWorld(t *testing.T) *dataWorld { return newDataWorldIn(t, t.TempDir(), true) }
+
+// newDataWorldIn is newDataWorld in a directory the test prepared; withHost false is a box without a helper.
+func newDataWorldIn(t *testing.T, dir string, withHost bool) *dataWorld {
 	t.Helper()
-	dir := t.TempDir()
-	restarts := make(chan struct{}, 4)
-	w := newWorldWith(t, func(hc *core.HandlersConfig) {
+	dw := &dataWorld{dir: dir, key: filepath.Join(dir, "vedette.key"), restarts: make(chan struct{}, 4), wipeSeen: make(chan map[string]int, 4)}
+	if withHost {
+		dw.host = &fakeHost{}
+	}
+	if err := os.WriteFile(dw.key, []byte("0123456789abcdef0123456789abcdef"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var w *world
+	w = newWorldWith(t, func(hc *core.HandlersConfig) {
 		hc.DataDir = dir
 		hc.DataFiles = []string{"logs.db"}
+		hc.KeyPath = dw.key
 		hc.Schema = []core.SchemaSet{{Module: "core", FS: core.Migrations}, {Module: "tm", FS: testModule}}
-		hc.Restart = func() { restarts <- struct{}{} }
+		hc.Restart = func() { w.env.DB.Unfreeze(); dw.restarts <- struct{}{} }
+		if dw.host != nil {
+			hc.Host = dw.host
+		}
+		hc.OSBusy = func(context.Context) bool { return dw.osBusy }
+		hc.BeforeWipe = func(context.Context) error {
+			dw.wipeSeen <- w.tableCounts()
+			return dw.hookErr
+		}
 	})
+	dw.world = w
 	if err := store.Migrate(t.Context(), w.env.DB, "tm", testModule); err != nil {
 		t.Fatal(err)
 	}
-	return &dataWorld{world: w, dir: dir, restarts: restarts}
+	return dw
+}
+
+// purgeBody is a purge request with the right name and the administrator's password.
+func purgeBody() map[string]any {
+	return map[string]any{"confirm": "Acme Co", "password": authtest.Password}
 }
 
 func (w *world) exec(q string, args ...any) {
@@ -160,11 +210,42 @@ func TestContract_INV14_PurgeBringsBackAFreshInstall(t *testing.T) {
 	}
 	nTriggers := w.env.Count(t, `SELECT count(*) FROM sqlite_master WHERE type = 'trigger'`)
 
-	r := admin.post("/core/data/purge", map[string]any{"confirm": "Acme Co"})
+	keyBefore, _ := os.ReadFile(w.key)
+	w.host.purged = 3
+	r := admin.post("/core/data/purge", purgeBody())
 	wantOK(t, r, 200)
 	removed, _ := r.JSON["removed"].(map[string]any)
 	if r.JSON["ok"] != true || removed["core_user"] != float64(1) || removed["tm_child"] != float64(1) || removed["tm_log"] != float64(2) {
 		t.Fatalf("purge = %s", r.Raw)
+	}
+	if kept, _ := r.JSON["kept"].([]any); kept == nil || len(kept) != 0 || w.host.calls != 1 {
+		t.Errorf("a box with a helper deleted its backups and keeps nothing back: kept = %v, backup.purge calls = %d", r.JSON["kept"], w.host.calls)
+	}
+	// BeforeWipe ran before anything was deleted: it saw the users.
+	if seen := <-w.wipeSeen; seen["core_user"] != 1 || seen["tm_child"] != 1 {
+		t.Errorf("BeforeWipe saw %v: it must run before the wipe", seen)
+	}
+	// M5: nothing can write between the commit and the restart.
+	if err := w.env.DB.Write(t.Context(), func(tx *sql.Tx) error { return nil }); !errors.Is(err, store.ErrFrozen) {
+		t.Errorf("a write after the purge = %v, want ErrFrozen", err)
+	}
+	select { // the restart hook plays the new process: it thaws the database
+	case <-w.restarts:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the process was not asked to restart")
+	}
+	// H1 (a): the key is a new one, same mode, nothing staged left.
+	if keyAfter, _ := os.ReadFile(w.key); len(keyAfter) != 32 || string(keyAfter) == string(keyBefore) {
+		t.Errorf("the key file was not replaced")
+	}
+	if info, err := os.Stat(w.key); err != nil || info.Mode().Perm() != 0o600 || exists(w.key+".new") {
+		t.Errorf("key file after the purge: %v %v", info, err)
+	}
+	if !exists(filepath.Join(w.dir, "purge-compact-pending")) {
+		t.Error("no marker for the compaction at the next start")
+	}
+	if entries, _ := os.ReadDir(filepath.Join(w.dir, "tmp")); len(entries) != 0 {
+		t.Errorf("the trash and the scratch database were not removed: %d entries in tmp", len(entries))
 	}
 	if _, has := removed["tm_seed"]; has || removed["core_migration_core"] != nil {
 		t.Fatalf("removed lists a seed or a migration table: %s", r.Raw)
@@ -172,7 +253,7 @@ func TestContract_INV14_PurgeBringsBackAFreshInstall(t *testing.T) {
 
 	// Every table: the fresh state.
 	want := map[string]int{
-		"core_audit": 1, "core_chain_head": 1, "core_secret": 1, // the purge's own row, its chain head, the new setup code
+		"core_audit": 1, "core_chain_head": 1, // the purge's own row and its chain head; no setup code: the next start makes it
 		"tm_seed":     1,
 		"core_module": 0, // set below: one row per module of the build
 	}
@@ -231,16 +312,11 @@ func TestContract_INV14_PurgeBringsBackAFreshInstall(t *testing.T) {
 	if n := w.env.Count(t, `SELECT count(*) FROM core_module WHERE enabled`); n < 1 {
 		t.Error("core is not on after the purge")
 	}
-	select {
-	case <-w.restarts:
-	case <-time.After(5 * time.Second):
-		t.Error("the process was not asked to restart")
-	}
 
 	// The one-time code is in the log and a first-run setup works on the purged box.
 	code, err := w.h.EnsureSetupCode(t.Context())
-	if err != nil || code == "" || !strings.Contains(w.logs.String(), code) {
-		t.Fatalf("setup code after the purge = %q, %v (in the log: %v)", code, err, strings.Contains(w.logs.String(), code))
+	if err != nil || code == "" { // main prints it at every start; core does not (the purge writes nothing after its commit)
+		t.Fatalf("setup code after the purge = %q, %v", code, err)
 	}
 	fresh := w.client()
 	wantOK(t, fresh.post("/core/setup", setupBody(code)), 200)
@@ -255,7 +331,7 @@ func TestContract_INV14_WrongNameDeletesNothing(t *testing.T) {
 	gone, kept := w.plant()
 	before := w.tableCounts()
 	for _, name := range []string{"acme co", "Acme Co ", "Acme", "", "Acme Co\u200b"} {
-		wantStatus(t, admin.post("/core/data/purge", map[string]any{"confirm": name}), 400, "confirm_mismatch")
+		wantStatus(t, admin.post("/core/data/purge", map[string]any{"confirm": name, "password": authtest.Password}), 400, "confirm_mismatch")
 	}
 	wantStatus(t, admin.post("/core/data/purge", map[string]any{}), 400, "invalid") // no field at all: the server's own check
 	after := w.tableCounts()
@@ -273,6 +349,9 @@ func TestContract_INV14_WrongNameDeletesNothing(t *testing.T) {
 	if entries, _ := os.ReadDir(filepath.Join(w.dir, "tmp")); len(entries) != 0 {
 		t.Errorf("a refused purge left %d entries in tmp", len(entries))
 	}
+	if w.host.calls != 0 || len(w.wipeSeen) != 0 {
+		t.Error("a purge refused for its name already called the helper or the honeypot hook")
+	}
 	select {
 	case <-w.restarts:
 		t.Error("a refused purge asked for a restart")
@@ -280,15 +359,20 @@ func TestContract_INV14_WrongNameDeletesNothing(t *testing.T) {
 	}
 }
 
-// A failure while the files go (here: a data file that is a directory with something in it) rolls every row back: the purge
-// can be tried again.
-func TestContract_INV14_FailureRollsEverythingBack(t *testing.T) {
+// M3: the files are moved into the trash before the commit and moved back when it does not happen. Here the step after the moves
+// fails (the compaction marker cannot be written because a directory has its name): every row, every file and the key are as they
+// were, the database is not frozen, and the trash and the staged key are gone.
+func TestContract_INV14_FailureAfterTheMovesPutsEverythingBack(t *testing.T) {
 	t.Parallel()
 	w := newDataWorld(t)
 	admin := w.setupAdmin()
-	w.file("logs.db/inside", "x") // os.Remove cannot remove a directory that is not empty
+	gone, kept := w.plant()
+	if err := os.Mkdir(filepath.Join(w.dir, "purge-compact-pending"), 0o700); err != nil {
+		t.Fatal(err)
+	}
 	before := w.tableCounts()
-	r := admin.post("/core/data/purge", map[string]any{"confirm": "Acme Co"})
+	keyBefore, _ := os.ReadFile(w.key)
+	r := admin.post("/core/data/purge", purgeBody())
 	if r.Code != 500 {
 		t.Fatalf("purge = %d %s, want 500", r.Code, r.Raw)
 	}
@@ -297,9 +381,196 @@ func TestContract_INV14_FailureRollsEverythingBack(t *testing.T) {
 			t.Errorf("table %s: %d rows before, %d after a failed purge", n, before[n], c)
 		}
 	}
+	for _, p := range append(gone, kept...) {
+		if !exists(p) {
+			t.Errorf("%s was not put back after the failed purge", p)
+		}
+	}
+	if b, _ := os.ReadFile(filepath.Join(w.dir, "snapshots", "0123456789abcdef0123456789abcdef", "vedette.db")); string(b) != "old copy" {
+		t.Errorf("a snapshot came back changed: %q", b)
+	}
+	if keyAfter, _ := os.ReadFile(w.key); string(keyAfter) != string(keyBefore) || exists(w.key+".new") {
+		t.Error("the key changed or a staged key is left after a failed purge")
+	}
+	if entries, _ := os.ReadDir(filepath.Join(w.dir, "tmp")); len(entries) != 0 {
+		t.Errorf("a failed purge left %d entries in tmp", len(entries))
+	}
 	wantOK(t, admin.get("/me"), 200)
+	w.exec(`UPDATE tm_seed SET v = 'still writable'`) // not frozen
 	if res, err := audit.Verify(t.Context(), w.env.DB.Reader()); err != nil || !res.OK {
 		t.Errorf("audit chain after a failed purge = %+v, %v", res, err)
+	}
+}
+
+// H1 (b): the helper's backups go first, and anything wrong there stops the purge with nothing deleted. A helper that does not answer
+// is 503 host_unreachable; one that is busy (409 busy, from the call or from a run in progress); an update of core itself (M2) too.
+// A refusal by the hook that turns the honeypot off stops it as well. No helper: the backups are not touched and kept says so.
+func TestContract_INV14_RefusalsBeforeTheWipeDeleteNothing(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		setup  func(*dataWorld)
+		status int
+		code   string
+	}{
+		{"helper does not answer", func(w *dataWorld) { w.host.purgeErr = fmt.Errorf("%w: down", hostclient.ErrUnreachable) }, 503, "host_unreachable"},
+		{"helper refuses the listing", func(w *dataWorld) { w.host.listErr = fmt.Errorf("%w: down", hostclient.ErrUnreachable) }, 503, "host_unreachable"},
+		{"helper says busy", func(w *dataWorld) { w.host.purgeErr = &hostclient.Error{Status: 409, Code: api.CodeBusy} }, 409, "busy"},
+		{"a helper run is going", func(w *dataWorld) { w.host.runs = []api.Run{{RunID: "rn_1", Status: api.StatusRunning}} }, 409, "busy"},
+		{"core's own update is going", func(w *dataWorld) { w.osBusy = true }, 409, "busy"},
+		{"the honeypot hook refuses", func(w *dataWorld) { w.hookErr = errors.New("host said no") }, 500, "internal"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			w := newDataWorld(t)
+			admin := w.setupAdmin()
+			gone, kept := w.plant()
+			tc.setup(w)
+			before := w.tableCounts()
+			keyBefore, _ := os.ReadFile(w.key)
+			wantStatus(t, admin.post("/core/data/purge", purgeBody()), tc.status, tc.code)
+			for n, c := range w.tableCounts() {
+				if before[n] != c {
+					t.Errorf("table %s: %d rows before, %d after a refused purge", n, before[n], c)
+				}
+			}
+			for _, p := range append(gone, kept...) {
+				if !exists(p) {
+					t.Errorf("%s was removed by a refused purge", p)
+				}
+			}
+			if keyAfter, _ := os.ReadFile(w.key); string(keyAfter) != string(keyBefore) {
+				t.Error("the key was replaced by a refused purge")
+			}
+			wantOK(t, admin.get("/me"), 200)
+			w.exec(`UPDATE tm_seed SET v = 'writable'`)
+			if tc.name != "the honeypot hook refuses" && len(w.wipeSeen) != 0 {
+				t.Error("the honeypot hook ran although the purge was already refused")
+			}
+		})
+	}
+}
+
+// No helper (a container-only install, or a development box): the backups are not touched, there are none to touch, and the answer says
+// so in kept so that the page can show it.
+func TestContract_INV14_NoHelperIsSaidInKept(t *testing.T) {
+	t.Parallel()
+	w := newDataWorldIn(t, t.TempDir(), false)
+	admin := w.setupAdmin()
+	r := admin.post("/core/data/purge", purgeBody())
+	wantOK(t, r, 200)
+	if kept, _ := r.JSON["kept"].([]any); len(kept) != 1 || kept[0] != "host_backups" {
+		t.Fatalf("kept = %v", r.JSON["kept"])
+	}
+	<-w.restarts
+}
+
+// H2: the current password is needed, wrong ones are counted against the re-auth limiter (429 after the limit), and a user with
+// two-step sign-in needs a fresh code. Nothing is deleted by any refusal.
+func TestContract_INV14_NeedsThePasswordAndTheTwoStepCode(t *testing.T) {
+	t.Parallel()
+	w := newDataWorld(t)
+	admin := w.setupAdmin()
+	w.plant()
+	before := w.tableCounts()
+	body := purgeBody()
+	delete(body, "password")
+	wantStatus(t, admin.post("/core/data/purge", body), 400, "invalid")
+	limited := false
+	for i := range 15 { // the limiter of the sign-in counts them: sooner or later the answer is 429
+		r := admin.post("/core/data/purge", map[string]any{"confirm": "Acme Co", "password": "wrong"})
+		if r.Code == 429 {
+			limited = i >= 3 && r.code() == "rate_limited"
+			break
+		}
+		wantStatus(t, r, 400, "wrong_password")
+	}
+	if !limited {
+		t.Fatal("wrong passwords were never limited")
+	}
+	if r := admin.post("/core/data/purge", map[string]any{"confirm": "Acme Co", "password": authtest.Password}); r.Code != 429 || r.code() != "rate_limited" {
+		t.Fatalf("when the limit is reached even the right password is %d %s, want 429 rate_limited", r.Code, r.Raw)
+	}
+	if n := w.env.Count(t, `SELECT count(*) FROM core_audit WHERE action = 'auth.reauth_failed'`); n < 4 {
+		t.Errorf("wrong passwords left %d audit rows", n)
+	}
+	for n, c := range w.tableCounts() {
+		if n != "core_audit" && before[n] != c {
+			t.Errorf("table %s changed by refused purges: %d -> %d", n, before[n], c)
+		}
+	}
+
+	// Two-step on (a second box, so that the password limiter above does not get in the way).
+	w2 := newDataWorld(t)
+	admin2 := w2.setupAdmin()
+	started := admin2.post("/core/account/2fa/start", map[string]any{"password": authtest.Password})
+	wantOK(t, started, 200)
+	key := decodeBase32(t, started.str("secret"))
+	wantOK(t, admin2.post("/core/account/2fa/confirm", map[string]any{"code": auth.TOTPCode(key, auth.TOTPStep(w2.env.Clock.Now()))}), 200)
+	w2.env.Clock.Advance(time.Minute) // a code for a later step: the one that confirmed the enrolment is used up
+	wantStatus(t, admin2.post("/core/data/purge", purgeBody()), 400, "code_required")
+	bad := purgeBody()
+	bad["code"] = "000000"
+	if r := admin2.post("/core/data/purge", bad); r.Code != 400 || r.code() == "" {
+		t.Fatalf("wrong code = %d %s", r.Code, r.Raw)
+	}
+	if w2.env.Count(t, `SELECT count(*) FROM core_user`) != 1 {
+		t.Fatal("a refused purge deleted the user")
+	}
+	good := purgeBody()
+	good["code"] = auth.TOTPCode(key, auth.TOTPStep(w2.env.Clock.Now()))
+	wantOK(t, admin2.post("/core/data/purge", good), 200)
+	<-w2.restarts
+	if w2.env.Count(t, `SELECT count(*) FROM core_user`) != 0 {
+		t.Error("the purge with the right password and code did not delete the users")
+	}
+}
+
+// Leftovers of an interrupted purge (the trash, a scratch database, a staged key) are swept when the box starts.
+func TestData_StartSweepsWhatAPurgeLeft(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	for _, p := range []string{"tmp/purge-trash-aaaa/000-logs.db", "tmp/purge-fresh-bbbb/fresh.db", "vedette.key.new", "tmp/logs-export/keep-me"} {
+		full := filepath.Join(dir, p)
+		if err := os.MkdirAll(filepath.Dir(full), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	newDataWorldIn(t, dir, true)
+	for _, p := range []string{"tmp/purge-trash-aaaa", "tmp/purge-fresh-bbbb", "vedette.key.new"} {
+		if exists(filepath.Join(dir, p)) {
+			t.Errorf("%s survived the start", p)
+		}
+	}
+	if !exists(filepath.Join(dir, "tmp/logs-export/keep-me")) || !exists(filepath.Join(dir, "vedette.key")) {
+		t.Error("the sweep removed something that is not a purge leftover")
+	}
+}
+
+// L4: the compaction a purge asked for is done at the next start, and when it fails the marker stays so the next start tries again.
+func TestData_CompactionIsRetriedUntilItWorks(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "purge-compact-pending")
+	db := storetest.New(t)
+	if err := core.CompactIfPending(t.Context(), db, dir); err != nil || exists(marker) {
+		t.Fatalf("without a marker: %v", err)
+	}
+	if err := os.WriteFile(marker, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	closed := storetest.New(t)
+	if err := closed.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := core.CompactIfPending(t.Context(), closed, dir); err == nil || !exists(marker) {
+		t.Fatalf("a failed compaction must keep the marker: %v", err)
+	}
+	if err := core.CompactIfPending(t.Context(), db, dir); err != nil || exists(marker) {
+		t.Fatalf("the retry: %v, marker still there: %v", err, exists(marker))
 	}
 }
 
@@ -378,6 +649,9 @@ func TestContract_INV26_ExportHoldsNoSecretMaterial(t *testing.T) {
 	if r.Header.Get("Cache-Control") != "no-store" {
 		t.Errorf("Cache-Control = %q", r.Header.Get("Cache-Control"))
 	}
+	if ct := r.Header.Get("Content-Type"); ct != "application/json" { // L3: the generated file encoder says octet-stream
+		t.Errorf("Content-Type = %q", ct)
+	}
 	if doc["format"] != "vedette-export/1" || doc["org"] != "Acme Co" || doc["truncated"] != false || doc["exported_at"] == nil {
 		t.Errorf("export head = %v", doc)
 	}
@@ -451,6 +725,11 @@ func TestContract_INV26_ExportHoldsNoSecretMaterial(t *testing.T) {
 func TestContract_INV26_ExportStopsAtItsCap(t *testing.T) {
 	t.Parallel()
 	w := newDataWorld(t)
+	t.Cleanup(func() {
+		if t.Failed() {
+			t.Log(w.logs.String())
+		}
+	})
 	admin := w.setupAdmin()
 	w.exec(`INSERT INTO tm_parent (id, name) VALUES ('p1', 'parent')`)
 	err := w.env.DB.Write(t.Context(), func(tx *sql.Tx) error {

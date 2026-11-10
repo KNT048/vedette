@@ -9841,7 +9841,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "GET":
 								r.name = CoreGetCoreDataExportOperation
-								r.summary = "Export my data as JSON"
+								r.summary = "Export my data as JSON (every table except secrets; 409 busy while another export runs)"
 								r.operationID = "core_get_core_data_export"
 								r.operationGroup = ""
 								r.pathPattern = "/core/data/export"
@@ -9866,7 +9866,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "POST":
 								r.name = CorePostCoreDataPurgeOperation
-								r.summary = "Delete all data back to a fresh install (type the exact organization name to confirm)"
+								r.summary = "Delete all data back to a fresh install and replace the decryption key (D-154). Needs the exact organization name (400 confirm_mismatch), the current password (400 wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a fresh code (400 code_required / invalid_code). 409 busy while a host run or an update runs; 503 host_unreachable when the helper holds backups and does not answer (nothing is deleted). kept lists what was not done (host_backups: there is no helper, so no backups to delete; key_not_replaced: the new key could not be written, replace vedette.key by hand)"
 								r.operationID = "core_post_core_data_purge"
 								r.operationGroup = ""
 								r.pathPattern = "/core/data/purge"

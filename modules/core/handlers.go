@@ -53,10 +53,14 @@ type APIHandlers struct {
 	exportCap int64       // test hook: the size cap of /core/data/export (0 = exportMaxBytes)
 
 	// The factory reset (/core/data/purge, D-154).
-	dataDir   string      // core_data: where the module data files and snapshots/ are ("" = none to remove)
-	dataFiles []string    // plain names of the module data files in dataDir (logs.db)
-	schema    []SchemaSet // migrations of every module, to learn what a fresh install holds
-	restart   func()      // asked to restart the process after a purge; nil = no restart
+	dataDir    string      // core_data: where the module data files and snapshots/ are ("" = none to remove)
+	dataFiles  []string    // plain names of the module data files in dataDir (logs.db)
+	schema     []SchemaSet // migrations of every module, to learn what a fresh install holds
+	restart    func()      // asked to restart the process after a purge; nil = no restart
+	keyPath    string      // the encryption key file the purge replaces ("" = none)
+	purgeHost  PurgeHost   // vedette-host, for the backups; nil = no helper on this box
+	osBusy     func(context.Context) bool
+	beforeWipe func(context.Context) error
 }
 
 // HandlersConfig wires APIHandlers; every field but Clock and Facts is required.
@@ -84,6 +88,14 @@ type HandlersConfig struct {
 	DataFiles []string
 	Schema    []SchemaSet
 	Restart   func()
+	// KeyPath is the encryption key file (-key): the purge replaces it with a fresh key (D-154). Host is vedette-host as far as the purge
+	// needs it (nil = no helper: backups are not deleted and the answer says so). OSBusy reports a running OS update of core itself.
+	// BeforeWipe runs before anything is deleted and may refuse the purge with an error; cmd/vedette turns the honeypot off (decoy
+	// addresses leave the host) and empties its log there. All optional.
+	KeyPath    string
+	Host       PurgeHost
+	OSBusy     func(context.Context) bool
+	BeforeWipe func(context.Context) error
 }
 
 // NewAPIHandlers returns the handlers.
@@ -105,7 +117,10 @@ func NewAPIHandlers(c HandlersConfig) (*APIHandlers, error) {
 	if err := checkDataFiles(c.DataFiles); err != nil {
 		return nil, err
 	}
-	h := &APIHandlers{dataDir: c.DataDir, dataFiles: c.DataFiles, schema: c.Schema, restart: c.Restart, logsDir: c.SpoolDir, db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts, conns: c.Conns, logs: c.Logs}
+	if c.DataDir != "" { // what an interrupted purge left behind: the old data in the trash, the scratch databases, a half-written new key
+		sweepPurgeLeftovers(c.DataDir, c.KeyPath)
+	}
+	h := &APIHandlers{dataDir: c.DataDir, dataFiles: c.DataFiles, schema: c.Schema, restart: c.Restart, keyPath: c.KeyPath, purgeHost: c.Host, osBusy: c.OSBusy, beforeWipe: c.BeforeWipe, logsDir: c.SpoolDir, db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts, conns: c.Conns, logs: c.Logs}
 	c.Logs.Register("audit", h.exportAudit)
 	return h, nil
 }

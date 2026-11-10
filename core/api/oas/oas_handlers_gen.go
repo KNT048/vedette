@@ -7868,7 +7868,7 @@ func (s *Server) handleCoreGetCoreDataBackupRequest(args [0]string, argsEscaped 
 
 // handleCoreGetCoreDataExportRequest handles core_get_core_data_export operation.
 //
-// Export my data as JSON.
+// Export my data as JSON (every table except secrets; 409 busy while another export runs).
 //
 // GET /core/data/export
 func (s *Server) handleCoreGetCoreDataExportRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -7937,7 +7937,7 @@ func (s *Server) handleCoreGetCoreDataExportRequest(args [0]string, argsEscaped 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CoreGetCoreDataExportOperation,
-			OperationSummary: "Export my data as JSON",
+			OperationSummary: "Export my data as JSON (every table except secrets; 409 busy while another export runs)",
 			OperationID:      "core_get_core_data_export",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -12487,7 +12487,13 @@ func (s *Server) handleCorePostCoreConnectionsIDTestRequest(args [1]string, args
 
 // handleCorePostCoreDataPurgeRequest handles core_post_core_data_purge operation.
 //
-// Delete all data back to a fresh install (type the exact organization name to confirm).
+// Delete all data back to a fresh install and replace the decryption key (D-154). Needs the exact
+// organization name (400 confirm_mismatch), the current password (400 wrong_password, counted like a
+// failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a fresh code (400 code_required
+// / invalid_code). 409 busy while a host run or an update runs; 503 host_unreachable when the helper
+// holds backups and does not answer (nothing is deleted). kept lists what was not done (host_backups:
+// there is no helper, so no backups to delete; key_not_replaced: the new key could not be written,
+// replace vedette.key by hand).
 //
 // POST /core/data/purge
 func (s *Server) handleCorePostCoreDataPurgeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -12571,7 +12577,7 @@ func (s *Server) handleCorePostCoreDataPurgeRequest(args [0]string, argsEscaped 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CorePostCoreDataPurgeOperation,
-			OperationSummary: "Delete all data back to a fresh install (type the exact organization name to confirm)",
+			OperationSummary: "Delete all data back to a fresh install and replace the decryption key (D-154). Needs the exact organization name (400 confirm_mismatch), the current password (400 wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a fresh code (400 code_required / invalid_code). 409 busy while a host run or an update runs; 503 host_unreachable when the helper holds backups and does not answer (nothing is deleted). kept lists what was not done (host_backups: there is no helper, so no backups to delete; key_not_replaced: the new key could not be written, replace vedette.key by hand)",
 			OperationID:      "core_post_core_data_purge",
 			Body:             request,
 			RawBody:          rawBody,

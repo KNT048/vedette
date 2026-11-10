@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/pressly/goose/v3"
@@ -29,7 +30,20 @@ type DB struct {
 	r    *sql.DB
 	path string // absolute path of the database file
 	log  *slog.Logger
+	// frozen makes every later Write fail: the factory reset sets it inside its own transaction, so nothing (a job, a request) can
+	// write between the wipe and the process stopping (D-154). It is not a lock for normal use.
+	frozen atomic.Bool
 }
+
+// ErrFrozen is what Write answers while the database is frozen.
+var ErrFrozen = errors.New("store: the database is frozen: the box is being reset")
+
+// Freeze makes every Write that starts after the current one commits fail with ErrFrozen. Call it from inside a Write callback; if
+// that transaction then fails to commit, call Unfreeze.
+func (db *DB) Freeze() { db.frozen.Store(true) }
+
+// Unfreeze undoes Freeze.
+func (db *DB) Unfreeze() { db.frozen.Store(false) }
 
 // Open opens the database at path. A missing file is created with mode 0600; an existing file
 // with any group or other permission bit is refused (it holds audit data and encrypted secrets).
@@ -140,6 +154,12 @@ func (db *DB) Write(ctx context.Context, fn func(tx *sql.Tx) error) error {
 	tx, err := db.w.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("store: begin: %w", err)
+	}
+	if db.frozen.Load() { // checked with the write lock held: a writer that queued behind the purge lands here
+		if rbErr := tx.Rollback(); rbErr != nil && !errors.Is(rbErr, sql.ErrTxDone) {
+			db.log.ErrorContext(ctx, "rollback failed", "error", rbErr)
+		}
+		return ErrFrozen
 	}
 	committed := false
 	defer func() {

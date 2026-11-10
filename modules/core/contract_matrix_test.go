@@ -215,7 +215,7 @@ func TestContract_INV2_EveryCoreMutationIsAudited(t *testing.T) {
 	}
 	steps := []auditStep{
 		{"core_post_core_setup", w2, func() reply { return w2.client().post("/core/setup", setupBody(code2)) }},
-		{"core_post_core_data_purge", w3.world, func() reply { return admin3.post("/core/data/purge", map[string]any{"confirm": "Acme Co"}) }},
+		{"core_post_core_data_purge", w3.world, func() reply { return admin3.post("/core/data/purge", purgeBody()) }},
 		{"core_post_auth_login", nil, func() reply { return w.client().login(adminEmail) }},
 		{"core_delete_core_account_sessions_id", nil, func() reply { return admin.delete("/core/account/sessions/" + c2ID) }},
 		{"core_post_auth_logout", nil, func() reply { return c4.post("/auth/logout", nil) }},

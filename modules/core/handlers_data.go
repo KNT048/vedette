@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -17,54 +17,93 @@ import (
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/store/coredb"
 )
 
 // GET /core/data/export (S-CORE-1, D-154): everything the box stores about the organization as one JSON file, except what
 // is secret. core cannot read the tables of other modules by name (MODULES rule), so the file is a dump of every table of the
-// database, with a policy that is safe by default: whole tables that only hold secrets or sign-in state are left out, and so is
-// every column whose name looks like a secret (ExportColumnSkipped) or that holds bytes. A new module's table is exported;
-// a new column that looks like a secret is not. cmd/vedette's TestExport_PolicyCoversEverySchemaColumn lists what is left out.
+// database, filtered by the explicit, fail-closed policy of export_policy.go: every column of every table is classified there
+// (export, json with secret keys dropped, url cut to scheme and host, skip), and what is not listed is not exported.
+// cmd/vedette's TestExport_PolicyClassifiesEveryColumn fails until a new table or column is classified.
 const (
 	exportFormat        = "vedette-export/1"
 	exportMaxBytes      = 256 << 20 // the largest file: over it the file ends early and says so ("truncated")
 	exportChunkDeadline = 60 * time.Second
 )
 
-// exportSkipTables hold only secrets (ciphertext), sign-in state (token and code hashes) or protocol nonces; none is "my data".
-var exportSkipTables = map[string]bool{
-	"core_secret":          true, // the ciphertext of every secret, with its nonce
-	"core_session":         true, // token and CSRF hashes of the signed-in sessions
-	"core_user_totp":       true, // the TOTP seed (as a reference to core_secret) and the last accepted step
-	"core_email_code":      true, // hashes of the one-time email codes
-	"core_email_code_send": true, // their send log, used for rate limits only
-	"core_sensor_cert":     true, // serials of issued sensor certificates: link state, not data
-	"notify_tg_button":     true, // nonce hashes of Telegram approval buttons
-	"resp_tokens":          true, // token hashes of approval links
+// exportCell turns one stored value into the JSON text of the export, by the class of its column. Bytes are never exported.
+func exportCell(class exportClass, v any) ([]byte, error) {
+	switch x := v.(type) {
+	case []byte:
+		return []byte("null"), nil
+	case string:
+		switch class {
+		case classJSON, classJSONURL:
+			clean, err := logexport.Scrub([]byte(x))
+			if err != nil || !json.Valid(clean) {
+				return []byte("null"), nil //nolint:nilerr // text that is not JSON in a JSON column is not exported: fail closed
+			}
+			if class == classJSONURL {
+				return cutURLKeys(clean), nil
+			}
+			return clean, nil
+		case classURL:
+			v = cutURL(x)
+		}
+	case nil:
+	default:
+		if class == classJSON || class == classJSONURL {
+			return []byte("null"), nil // a number in a JSON column: not the shape the schema promises
+		}
+	}
+	return json.Marshal(v) //nolint:wrapcheck // values from database/sql always marshal
 }
 
-var (
-	exportSecretColumnRE = regexp.MustCompile(`(?i)secret|passw|token|nonce|cipher|totp|csrf|salt|credential|private|api_?key|_hash$`)
-	// exportKeepColumns look like secrets by name but are public: the hash chain of the audit logs (so the file verifies offline),
-	// a reference to a honeytoken row, and the last four characters of a secret, which the interface shows too.
-	exportKeepColumns = map[string]bool{"hash": true, "prev_hash": true, "last_hash": true, "last_pruned_hash": true, "token_id": true}
-)
-
-// ExportTableSkipped reports whether a whole table stays out of the export. Exported so the binary's test can check the policy against
-// the schema of every module.
-func ExportTableSkipped(name string) bool { return exportSkipTables[name] }
-
-// ExportColumnSkipped reports whether a column stays out of the export: bytes (a nonce, a ciphertext) and every name that
-// looks like a secret, except the public ones above and "*_last4".
-func ExportColumnSkipped(name, declType string) bool {
-	if strings.Contains(strings.ToUpper(declType), "BLOB") {
-		return true
+// cutURL keeps scheme and host of an http(s) URL: the userinfo, path and query of a webhook, feed or provider address can be
+// the secret. Text that is not such a URL is returned as it is; a URL that does not parse becomes "".
+func cutURL(s string) string {
+	t := strings.TrimSpace(s)
+	if !strings.HasPrefix(strings.ToLower(t), "http://") && !strings.HasPrefix(strings.ToLower(t), "https://") {
+		return s
 	}
-	if strings.HasSuffix(name, "_last4") || exportKeepColumns[name] {
-		return false
+	u, err := url.Parse(t)
+	if err != nil || u.Host == "" {
+		return ""
 	}
-	return exportSecretColumnRE.MatchString(name)
+	return u.Scheme + "://" + u.Host
+}
+
+// cutURLKeys cuts every string value under a key named "url", at any depth, to scheme and host.
+func cutURLKeys(raw []byte) []byte {
+	var v any
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return []byte("null")
+	}
+	var walk func(any) any
+	walk = func(x any) any {
+		switch t := x.(type) {
+		case map[string]any:
+			for k, e := range t {
+				if s, ok := e.(string); ok && strings.EqualFold(k, "url") {
+					t[k] = cutURL(s)
+				} else {
+					t[k] = walk(e)
+				}
+			}
+		case []any:
+			for i, e := range t {
+				t[i] = walk(e)
+			}
+		}
+		return x
+	}
+	out, err := json.Marshal(walk(v))
+	if err != nil {
+		return []byte("null")
+	}
+	return out
 }
 
 // column is one column of a table as the schema declares it.
@@ -146,13 +185,20 @@ func (h *APIHandlers) CoreGetCoreDataExport(ctx context.Context) (oas.CoreGetCor
 		return none, err
 	}
 	pr, pw := io.Pipe()
-	go func() { pw.CloseWithError(h.writeExport(ctx, pw, h.exportLimit())) }()
+	go func() {
+		err := h.writeExport(ctx, pw, h.exportLimit())
+		if err != nil && !errors.Is(err, io.ErrClosedPipe) && !errors.Is(err, context.Canceled) {
+			h.log.ErrorContext(ctx, "data export failed", "error", err)
+		}
+		pw.CloseWithError(err)
+	}()
 	b := &exportBody{pr: pr, release: func() { h.exporting.Store(false) }}
 	started = true
 	if x, ok := server.ExchangeFrom(ctx); ok {
 		hd := x.W.Header()
 		hd.Set("Content-Disposition", fmt.Sprintf("attachment; filename=vedette-export-%s.json", h.now().UTC().Format(dateLayout)))
 		hd.Set("Cache-Control", "no-store")
+		x.SetContentType("application/json") // L3: the generated file encoder says octet-stream; this puts the right type back
 		b.rc = http.NewResponseController(x.W)
 	}
 	return oas.CoreGetCoreDataExportOK{Data: b}, nil
@@ -206,6 +252,13 @@ type capWriter struct {
 
 var errExportFull = errors.New("core: export is over its size cap")
 
+// end writes the closing text of an array or of the file: the 256 bytes kept back from the cap are for it, so it never fails for size.
+func (c *capWriter) end(s string) error {
+	c.n += int64(len(s))
+	_, err := c.w.WriteString(s)
+	return err //nolint:wrapcheck // the pipe's own error, the caller returns it as is
+}
+
 func (c *capWriter) write(b []byte) error {
 	if c.n+int64(len(b)) > c.limit {
 		return errExportFull
@@ -242,15 +295,16 @@ func (h *APIHandlers) writeExport(ctx context.Context, w io.Writer, limit int64)
 	first := true
 	for _, name := range names {
 		var cols []string
+		var classes []exportClass
 		for _, col := range tables[name] {
-			if !ExportColumnSkipped(col.Name, col.Type) {
-				cols = append(cols, col.Name)
+			if cl := exportClass(ExportColumnClass(name, col.Name)); cl != "" && cl != classSkip && !strings.Contains(strings.ToUpper(col.Type), "BLOB") {
+				cols, classes = append(cols, col.Name), append(classes, cl)
 			}
 		}
-		if ExportTableSkipped(name) || len(cols) == 0 {
+		if len(cols) == 0 { // a table or column the policy does not list is not exported (fail closed)
 			continue
 		}
-		stopped, err := h.exportTable(ctx, tx, cw, name, cols, first)
+		stopped, err := h.exportTable(ctx, tx, cw, name, cols, classes, first)
 		if err != nil {
 			return err
 		}
@@ -265,15 +319,14 @@ func (h *APIHandlers) writeExport(ctx context.Context, w io.Writer, limit int64)
 		t, _ := json.Marshal(stoppedIn)
 		tail = `},"truncated":true,"truncated_in":` + string(t) + `}`
 	}
-	cw.limit += 256
-	if err := cw.write([]byte(tail)); err != nil {
+	if err := cw.end(tail); err != nil {
 		return err
 	}
 	return cw.w.Flush()
 }
 
 // exportTable writes `"name":[row,...]`. stopped is true when the next row would not fit: the array is closed and the caller ends the file.
-func (h *APIHandlers) exportTable(ctx context.Context, tx *sql.Tx, cw *capWriter, name string, cols []string, first bool) (stopped bool, err error) {
+func (h *APIHandlers) exportTable(ctx context.Context, tx *sql.Tx, cw *capWriter, name string, cols []string, classes []exportClass, first bool) (stopped bool, err error) {
 	quoted := make([]string, len(cols))
 	keys := make([][]byte, len(cols))
 	for i, c := range cols {
@@ -292,6 +345,9 @@ func (h *APIHandlers) exportTable(ctx context.Context, tx *sql.Tx, cw *capWriter
 		open = "," + open
 	}
 	if err := cw.write([]byte(open)); err != nil {
+		if errors.Is(err, errExportFull) { // not even the name of the table fits: the file ends before it
+			return true, nil
+		}
 		return false, err
 	}
 	vals := make([]any, len(cols))
@@ -315,10 +371,7 @@ func (h *APIHandlers) exportTable(ctx context.Context, tx *sql.Tx, cw *capWriter
 			}
 			buf = append(buf, keys[i]...)
 			buf = append(buf, ':')
-			if _, ok := v.([]byte); ok { // bytes in a column the schema did not declare as a blob: never exported
-				v = nil
-			}
-			j, err := json.Marshal(v)
+			j, err := exportCell(classes[i], v)
 			if err != nil {
 				return false, fmt.Errorf("core: export %s: %w", name, err)
 			}
@@ -327,7 +380,7 @@ func (h *APIHandlers) exportTable(ctx context.Context, tx *sql.Tx, cw *capWriter
 		buf = append(buf, '}')
 		if err := cw.write(buf); err != nil {
 			if errors.Is(err, errExportFull) {
-				return true, cw.write([]byte("]"))
+				return true, cw.end("]")
 			}
 			return false, err
 		}
@@ -335,5 +388,5 @@ func (h *APIHandlers) exportTable(ctx context.Context, tx *sql.Tx, cw *capWriter
 	if err := rows.Err(); err != nil {
 		return false, fmt.Errorf("core: export %s: %w", name, err)
 	}
-	return false, cw.write([]byte("]"))
+	return false, cw.end("]")
 }

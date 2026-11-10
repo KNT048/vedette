@@ -353,6 +353,9 @@ func (h *OSHandlers) busy(ctx context.Context) bool {
 	return rs.running()
 }
 
+// Busy reports whether an operating system install run of this core is in progress (the factory reset refuses to start then).
+func (h *OSHandlers) Busy(ctx context.Context) bool { return h.busy(ctx) }
+
 func (h *OSHandlers) loadRunMeta(ctx context.Context) (osRunMeta, error) {
 	var m osRunMeta
 	raw, err := coredb.New(h.db.Reader()).GetSetting(ctx, keyOSRun)

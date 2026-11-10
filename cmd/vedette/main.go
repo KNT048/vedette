@@ -32,6 +32,7 @@ import (
 	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/internal/webui"
 	"github.com/knt048/vedette/modules"
+	"github.com/knt048/vedette/modules/core"
 )
 
 // version is set at build time: -ldflags "-X main.version=0.1.0". It must be SemVer (run refuses anything else), like the version
@@ -229,6 +230,11 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	wired := wiredModules()
 	if err := migrateAll(ctx, db, wired); err != nil {
 		return err
+	}
+	// A purge froze the database at its commit and left a marker: the compaction (VACUUM) that removes the deleted rows from the file
+	// happens here, before anything else writes. A failure is logged and retried at the next start (the marker stays).
+	if err := core.CompactIfPending(ctx, db, filepath.Dir(o.db)); err != nil {
+		log.ErrorContext(ctx, "compacting the database after a purge failed; it is tried again at the next start", "error", err)
 	}
 	aud := audit.New(nil)
 	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: aud, Manifests: modules.Manifests, Version: version, Log: log})

@@ -12579,6 +12579,34 @@ func (s *CorePostCoreDataPurgeOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if s.Kept == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Kept {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kept",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Removed.Validate(); err != nil {
 			return err
 		}
@@ -12593,6 +12621,17 @@ func (s *CorePostCoreDataPurgeOK) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s CorePostCoreDataPurgeOKKeptItem) Validate() error {
+	switch s {
+	case "host_backups":
+		return nil
+	case "key_not_replaced":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s CorePostCoreDataPurgeOKRemoved) Validate() error {

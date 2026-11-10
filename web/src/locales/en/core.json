@@ -700,20 +700,33 @@
     },
     "export": {
       "title": "Export data",
-      "desc": "Devices, findings and the log as JSON to take to another tool.",
+      "desc": "Every table of the box as JSON, to take to another tool: devices, findings, logs, settings and users with their names and email addresses. Passwords, keys, tokens and webhook addresses are never included (a webhook shows only its host).",
       "button": "Export JSON"
     },
     "purge": {
       "title": "Delete all data",
-      "desc": "Deletes everything on this box: devices, findings, the log, users, settings and every module's data. The box returns to a fresh install. This cannot be undone.",
+      "desc": "Deletes all data on this box: devices, findings, logs, users, settings, every module's data and every backup. The decryption key is replaced, so no old copy can be opened. The box restarts and returns to a fresh install. This cannot be undone.",
       "button": "Delete all data",
       "ask": {
         "title": "Delete all data on the box?",
-        "body": "Download a backup first if you still need the data. After deleting, you are signed out and the box reopens first-run setup.",
-        "removes": "Deleted: devices, findings, the log, users, alert channels, settings, every module's data.",
-        "keeps": "Nothing is kept on this box.",
+        "body": "Download an export first if you still need the data. You are signed out, the box restarts (the page is unreachable for a few seconds) and first-run setup opens again.",
+        "removes": "Deleted: all data, users and backups, including the data of every module. The decryption key is replaced.",
+        "keeps": "Kept: the TLS certificate, the system journal (the operating system rotates it; Vedette does not control it) and the box's network settings.",
         "type": "Type the organization name \"{{org}}\" to confirm",
+        "password": "Your current password",
+        "code": "Two-step code",
+        "codeApp": "The 6-digit code from your authenticator app.",
+        "codeEmail": "Click Delete everything once to get a code by email, then type it here and click again.",
         "confirm": "Delete everything"
+      },
+      "done": {
+        "title": "All data deleted",
+        "body": "The box is restarting and will open first-run setup. Not deleted:",
+        "continue": "Continue to setup",
+        "kept": {
+          "host_backups": "Backups held by the operating system helper: this box has no helper (container-only install), so there were none to delete here. Check the host that runs the container.",
+          "key_not_replaced": "The decryption key could not be replaced. Old copies of the data stay readable with it: replace the key file on the box by hand."
+        }
       }
     },
     "sample": {

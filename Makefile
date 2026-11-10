@@ -1,7 +1,7 @@
 # Vedette — lệnh chung. Máy: `make check` trước khi push (D-62); CI gọi đúng các đích ở đây (D-63, docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: help oui dev dev-api check verify node-version-check verify-web verify-go test test-go contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build e2e fixtures clean
+.PHONY: help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build e2e fixtures clean
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -17,6 +17,7 @@ help:
 	@echo "make verify        web + Go: gõ kiểu, lint, test, kiểm lệch hợp đồng, build (rồi dọn)"
 	@echo "make verify-web    chỉ phần giao diện"
 	@echo "make verify-go     chỉ phần Go: build, vet, generate-check, test -race, contract, golangci-lint, govulncheck"
+	@echo "make verify-go-static / test-go-shard SHARD=n / test-go-release   các phần của verify-go mà CI chạy song song (D-140)"
 	@echo "make generate      sinh lại mã Go: sqlc (core/store/coredb) + ogen (core/api), commit kết quả"
 	@echo "make contract      go test ./modules/... -run Contract"
 	@echo "make e2e           kiểm thử đầu-cuối bằng Playwright (Chromium)"
@@ -49,11 +50,15 @@ verify-web: node-version-check
 	pnpm --dir web build
 	$(MAKE) clean
 
-verify-go:
+verify-go: verify-go-static
+	$(MAKE) test-go vuln
+	$(MAKE) clean
+
+# CI job "go-static" (D-140): everything in verify-go except the tests and govulncheck, which run in their own jobs.
+verify-go-static:
 	go build ./...
 	go vet ./...
-	$(MAKE) generate-check test-go contract lint-go vuln
-	$(MAKE) clean
+	$(MAKE) generate-check contract lint-go test-go-shards-check
 
 # Mọi mã sinh được commit: truy vấn sqlc (DATA_MODEL §6) + server ogen (D-60). Không sửa tay.
 generate: generate-sql generate-api
@@ -85,8 +90,27 @@ test:
 # test-go also runs internal/release, and the host's pull and embedded-keys tests (real minisign and cosign vectors, end to end), with the throwaway release keys (-tags releasetestkeys, keys_testonly.go); production never passes that tag
 test-go:
 	go test -race ./...
+	$(MAKE) test-go-release
+
+test-go-release:
 	go test -race -tags releasetestkeys ./internal/release/...
 	go test -race -tags releasetestkeys -run 'Pull|Embedded' ./modules/host/
+
+# CI (D-140): the same `go test -race ./...` in SHARDS parallel jobs. `make test-go-shard SHARD=2` runs the second.
+# scripts/ci splits `go list ./...` by test-file size; every package lands in exactly one shard.
+SHARDS ?= 3
+test-go-shard:
+	@test -n "$(SHARD)" || { echo "usage: make test-go-shard SHARD=1 (of $(SHARDS))"; exit 2; }
+	go test -race $$(go run ./scripts/ci shard $(SHARD) $(SHARDS))
+
+# The shards together must be exactly `go list ./...` (no package lost, none twice).
+test-go-shards-check:
+	@want=$$(go list ./... | sort) && got=$$(for i in $$(seq 1 $(SHARDS)); do go run ./scripts/ci shard $$i $(SHARDS); done | sort) && \
+	test "$$want" = "$$got" && echo "test-go-shards-check: $(SHARDS) shards cover $$(echo "$$want" | wc -l | tr -d ' ') packages exactly" || { echo "test-go-shards-check: shards differ from go list ./..."; exit 1; }
+
+# CI change detection (D-140): prints go/web/vuln/audit switches (to $$GITHUB_OUTPUT when set) from GITHUB_EVENT_NAME and git diff HEAD^1..HEAD.
+ci-changes:
+	go run ./scripts/ci changes
 
 # Mỗi INV/POST trong modules/<id>/CONTRACT.md có một TestContract… (docs/MODULE_CONTRACTS.md).
 # Chưa có module Go nào thì bỏ qua thay vì lỗi "matched no packages".

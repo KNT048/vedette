@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/api/routes"
@@ -16,8 +17,7 @@ import (
 // ResponseHandlers implements the operations of the response module that part 1 (WP-13a) builds. Embed it in the
 // composite handler of cmd/vedette. The role of each route comes from the route table, so nothing here checks roles.
 //
-// Not implemented here, and so answered 501 not_implemented by server.Fallback (part 13b): GET and POST
-// /response/approve/{token}.
+// GET and POST /response/approve/{token} (public: the link is the credential, 13b-7) are implemented here too; they read no session.
 //
 // The three preview-only operations, POST /response/rules/run, POST /response/actions/{id}/chat-decision and POST
 // /response/ai/proposals (D-97), are implemented only to answer 404 like an unknown route: they must not exist in the real
@@ -127,6 +127,47 @@ func (h *ResponseHandlers) ResponsePostResponseActionsIDReject(ctx context.Conte
 		return nil, err
 	}
 	return convert[oas.ResponsePostResponseActionsIDRejectOK](r)
+}
+
+// linkRequest is what both link routes check first (D-96 (4), spec approval-tokens.md 14.8): a browser that says the request comes from
+// another site (Sec-Fetch-Site other than same-origin or none; no header at all is curl or an old browser, and the server already
+// refused a foreign Origin on the POST) is refused 403, so a page on another site cannot make the approver's browser decide. It returns
+// the address of the peer for the rate limit (never a forwarded header). The server already marks every answer no-store and no-referrer.
+func linkRequest(ctx context.Context) (string, error) {
+	x, ok := server.ExchangeFrom(ctx)
+	if !ok {
+		return "", apierr.Internal()
+	}
+	if v := strings.ToLower(strings.TrimSpace(x.R.Header.Get("Sec-Fetch-Site"))); v != "" && v != "same-origin" && v != "none" {
+		return "", apierr.CSRFInvalid()
+	}
+	return x.ClientAddr().String(), nil
+}
+
+// ResponseGetResponseApproveToken implements GET /response/approve/{token} (public). It only reads.
+func (h *ResponseHandlers) ResponseGetResponseApproveToken(ctx context.Context, params oas.ResponseGetResponseApproveTokenParams) (*oas.ResponseGetResponseApproveTokenOK, error) {
+	from, err := linkRequest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.LinkView(ctx, params.Token, from)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.ResponseGetResponseApproveTokenOK](v)
+}
+
+// ResponsePostResponseApproveToken implements POST /response/approve/{token} (public): the only call that decides.
+func (h *ResponseHandlers) ResponsePostResponseApproveToken(ctx context.Context, req *oas.ResponsePostResponseApproveTokenReq, params oas.ResponsePostResponseApproveTokenParams) (*oas.ResponsePostResponseApproveTokenOK, error) {
+	from, err := linkRequest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	r, err := h.svc.DecideByLink(ctx, params.Token, string(req.Decision), from)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.ResponsePostResponseApproveTokenOK](r)
 }
 
 // ResponseGetResponseAi implements GET /response/ai (viewer).

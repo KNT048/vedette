@@ -23,7 +23,7 @@ func (s *stack) pullRaw(path string) *httptest.ResponseRecorder {
 }
 
 // The response module in the real wiring: off by default (no route at all, the public ones included), the preview-only
-// endpoints do not exist in the real build (FORBID-5), part 13b answers 501, and the block list is a public route behind a token
+// endpoints do not exist in the real build (FORBID-5), the approval link routes answer for an unknown token, and the block list is a public route behind a token
 // that disappears with the module (SYS-5).
 func TestWiringResponseModule(t *testing.T) {
 	t.Parallel()
@@ -62,11 +62,14 @@ func TestWiringResponseModule(t *testing.T) {
 			t.Errorf("POST /response/ai/proposals as %s: %d %v", role, c, v)
 		}
 	}
-	// Part 13b: 501 not_implemented.
-	for _, r := range [][3]string{{"GET", "/response/approve/" + strings.Repeat("a", 32), ""}, {"POST", "/response/approve/" + strings.Repeat("a", 32), `{"decision":"approve"}`}} {
-		if c, v := s.do(r[0], r[1], "admin", r[2]); c != 501 || at(v, "error", "code") != "not_implemented" {
-			t.Errorf("%s %s: %d %v", r[0], r[1], c, v)
-		}
+	// The approval link routes are public and answer for a token the box does not know: the page reads as "unknown" (nothing of any
+	// request), the decision is 404 unknown, and neither writes anything (13b-7).
+	tok := "v1." + strings.Repeat("A", 22) + "." + strings.Repeat("B", 22)
+	if c, v := s.do("GET", "/response/approve/"+tok, "", ""); c != 200 || v["state"] != "unknown" || v["title"] != nil {
+		t.Errorf("GET /response/approve/{token}: %d %v", c, v)
+	}
+	if c, v := s.do("POST", "/response/approve/"+tok, "", `{"decision":"approve"}`); c != 404 || at(v, "error", "code") != "unknown" {
+		t.Errorf("POST /response/approve/{token}: %d %v", c, v)
 	}
 	// Execution cannot be turned on from a session whose account does not exist or has no two-step sign-in.
 	if c, _ := s.do("POST", "/response/execution", "admin", `{"enabled":true,"phrase":"I ACCEPT THE RISK"}`); c != 403 && c != 409 {

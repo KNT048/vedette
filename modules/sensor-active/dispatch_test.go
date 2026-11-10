@@ -744,14 +744,25 @@ func TestSweepStopsWhenTheWorkerIsUnavailable(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitFor(t, "the second batch to be waiting for the worker", func() bool { return e.count(`SELECT count(*) FROM sa_probe`) == 2 })
-	r.clk.Advance(61 * time.Second) // nobody fetches it
-	select {
-	case err := <-errc:
-		if !errors.Is(err, sa.ErrStopped) {
-			t.Fatalf("DiscoverRanges err = %v", err)
+	// Nobody fetches it. The second probe row is written just before the dispatcher queues the job, so on a loaded machine
+	// a single advance can land before the job's queue time is taken and never time it out: advance until the probe gives up.
+	deadline := time.After(15 * time.Second)
+	tick := time.NewTicker(100 * time.Millisecond)
+	defer tick.Stop()
+	r.clk.Advance(61 * time.Second)
+wait:
+	for {
+		select {
+		case err := <-errc:
+			if !errors.Is(err, sa.ErrStopped) {
+				t.Fatalf("DiscoverRanges err = %v", err)
+			}
+			break wait
+		case <-tick.C:
+			r.clk.Advance(61 * time.Second)
+		case <-deadline:
+			t.Fatal("DiscoverRanges did not return")
 		}
-	case <-time.After(15 * time.Second):
-		t.Fatal("DiscoverRanges did not return")
 	}
 	if n := e.count(`SELECT count(*) FROM sa_probe`); n != 2 {
 		t.Fatalf("%d probe rows: the batches that were left were probed", n)

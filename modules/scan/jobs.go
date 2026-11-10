@@ -22,6 +22,9 @@ const (
 	rescanSettle = time.Minute
 	// pendingFor is how long a KEV event waits for its template to reach the installed pack before it is dropped.
 	pendingFor = 7 * 24 * time.Hour
+	// rescanPage is how many waiting events one pass of the rescan job looks at, oldest first; the rest wait for the
+	// next minute (#164 review L1).
+	rescanPage = 100
 	// eventRetention keeps the rescan log one year (DATA_MODEL [ĐX]).
 	eventRetention = 365 * 24 * time.Hour
 	systemUser     = "system"
@@ -101,7 +104,7 @@ func (s *Service) RunRescans(ctx context.Context) error {
 }
 
 func (s *Service) pendingEvents(ctx context.Context) ([]pendingEvent, error) {
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT id, cve, coalesce(run_id, ''), ts FROM scan_event WHERE result IS NULL ORDER BY ts`)
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT id, cve, coalesce(run_id, ''), ts FROM scan_event WHERE result IS NULL ORDER BY ts LIMIT ?`, rescanPage)
 	if err != nil {
 		return nil, fmt.Errorf("scan: reading the rescan queue: %w", err)
 	}
@@ -172,15 +175,17 @@ func (s *Service) rescan(ctx context.Context, ev pendingEvent) error {
 		}
 		return nil
 	}
+	// Wait first, before reading every finding and device (#164 review L1): try again at the next tick, still inside
+	// the 60 minutes, or when the scanner is back.
+	if s.liveRun() != "" || !s.scannerReady(ctx) {
+		return nil
+	}
 	ids, names, first, err := s.affected(ctx, st, ev.cve)
 	if err != nil {
 		return err
 	}
 	if len(ids) == 0 {
 		return s.closeEvent(ctx, ev.id, "no_match", nil, nil, nil)
-	}
-	if s.liveRun() != "" || !s.scannerReady(ctx) {
-		return nil // try again at the next tick: still inside the 60 minutes, or the scanner is back
 	}
 	note := "New KEV entry with a scan template: " + ev.cve
 	v, err := s.startAuto(ctx, "new_kev", &note, ids, first, ev.cve, time.Time{})

@@ -532,14 +532,14 @@ func parseTS(s string) time.Time {
 
 func newID(prefix string) string { return store.NewID(prefix) }
 
-func joinNonEmpty(sep string, parts ...string) string {
+func joinNonEmpty(parts ...string) string {
 	var out []string
 	for _, p := range parts {
 		if p != "" {
 			out = append(out, p)
 		}
 	}
-	return strings.Join(out, sep)
+	return strings.Join(out, ", ")
 }
 
 // nonNilStrings makes a nil list an empty one, so it is stored and sent as [] and never as null.

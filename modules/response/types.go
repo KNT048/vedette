@@ -58,10 +58,11 @@ const (
 // Via is how an approval was given.
 type Via string
 
-// The ways to approve. Only app and auto exist in part 1; chat and link approvals are part 13b.
+// The ways to approve. Chat approvals (slack, telegram, zalo-personal) are slice 13b-8.
 const (
-	ViaApp  Via = "app"
-	ViaAuto Via = "auto"
+	ViaApp   Via = "app"
+	ViaAuto  Via = "auto"
+	ViaEmail Via = "email" // an approval link in an email (13b-7)
 )
 
 // RestCall is the exact API call of a step.
@@ -197,6 +198,26 @@ type EmailLink struct {
 	URL       string `json:"url"`
 	ExpiresAt string `json:"expires_at"`
 	Used      bool   `json:"used"`
+}
+
+// ApprovalView is GET /response/approve/{token}: what the link would change, never a decision. Every field about the content is empty or
+// null unless State is "ready", so a wrong, used or expired link shows nothing of the request (spec approval-tokens.md 4.4).
+type ApprovalView struct {
+	State             string         `json:"state"` // ready, expired, used, decided or unknown
+	Title             *string        `json:"title"`
+	Items             []ApprovalItem `json:"items"`
+	Approver          *string        `json:"approver"`
+	ExpiresAt         *string        `json:"expires_at"`
+	Status            *Status        `json:"status"`
+	RequiresApprovals *int           `json:"requires_approvals"`
+	ApprovedSoFar     *int           `json:"approved_so_far"`
+}
+
+// ApprovalItem is one action as the page of a link shows it.
+type ApprovalItem struct {
+	Title  string `json:"title"`
+	Risk   Risk   `json:"risk"`
+	Change Change `json:"change"`
 }
 
 // ActionRequest is a bundled request: one per rule run or AI proposal.

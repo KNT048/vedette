@@ -61,3 +61,12 @@ S-SCAN-1…4. **Seam của máy quét (SP-3b, D-133)**: `sensoractive.Scanner` (
 - ~~Thiết bị mong manh có bị quét khi chọn tay không~~ Có, ở một phần tư tốc độ; cả chưa phân loại và khai tay; lịch và KEV không (D-126 (2)).
 - Mục tiêu ngoài và `exposure.Runner` để lát sau (D-126 (4)); GUI nói rõ "chưa quét".
 - Hai nơi ghi nhật ký probe (`scan_probe`, `sa_probe`) cùng danh mục xuất `scan_probes`.
+
+## Rà soát bảo mật S3 (2026-11-10)
+- Chọn tay tính theo **từng thiết bị** (M1): chỉ id đang `pick_only` lúc `StartRun` mới mang lần chọn (`scan_run.picked`); mọi thiết bị khác của lượt được kiểm lại như lượt tự động, nên thiết bị bị đánh dấu mong manh giữa lượt "Select all" bị bỏ qua. GUI lọc lựa chọn theo danh sách mỗi lần làm mới; chỉ tick tay giữ thiết bị `pick_only`. Mỗi lần chọn là một dòng `scan.pick` trong `core_audit`; dòng `scan.start` ghi số đích, số thiết bị chọn tay và tiền tố SHA-256 của cả danh sách (L2).
+- Sau "Dừng ngay", lượt có thể hiện `stopped` trong 5 giây trước khi worker xác nhận, nhưng không lượt mới nào bắt đầu tới khi lời gọi engine trả về (M2, 409 `already_running`).
+- Bằng chứng không chứa tên thiết bị (đến từ mạng); câu tự kiểm tra chỉ dựng từ đường dẫn mẫu đã kiểm, địa chỉ qua văn phạm argv và đầu vào của job (M3).
+- Lượt bị khởi động lại bỏ dở được đóng ngay khi module chạy (job `recover`); khi Vedette tắt, `Close` dừng lượt đang chạy và chờ nó (M4).
+- Địa chỉ dùng cho job phải đúng địa chỉ inventory đã quyết định; khác → bỏ qua (L1). Một job 15 phút không được kiểm lại giữa chừng.
+- Phát hiện đã bị người đóng (`false_positive`, `not_relevant`, `patched`) không bị thăm dò lại; `mitigated` vẫn được quét lại để kiểm tra biện pháp (L3).
+- Probe còn mở khi lượt kết thúc được đóng trong `finish` (L4). Thiết bị quá 15 phút có lý do riêng (L5). Thiết bị bị xoá giữa lúc dựng danh sách thì rời danh sách (L6).

@@ -28,9 +28,15 @@ func TestReview_M2_NoNewRunWhileTheEngineIsBusy(t *testing.T) {
 	_, err := r.svc.StartRun(r.ctx(), "it@acme.example", []string{"a-web01"})
 	wantAPI(t, err, 409, "already_running")
 	close(release)
-	deadline := time.Now().Add(5 * time.Second)
-	for r.svc.engineBusy() && time.Now().Before(deadline) {
-		time.Sleep(10 * time.Millisecond)
+	tick := time.NewTicker(10 * time.Millisecond)
+	defer tick.Stop()
+	timeout := time.After(5 * time.Second)
+	for r.svc.engineBusy() {
+		select {
+		case <-tick.C:
+		case <-timeout:
+			t.Fatal("the engine stayed busy after the worker returned")
+		}
 	}
 	r.eng.mu.Lock()
 	r.eng.stubborn, r.eng.blocked = nil, false

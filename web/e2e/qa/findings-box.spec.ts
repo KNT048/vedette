@@ -167,6 +167,28 @@ test.describe('findings: What to do with a confirmed pack (S-MIT-1)', () => {
     expect(errors, errors.join('\n')).toEqual([])
   })
 
+  test('phone: every firewall vendor button is on screen without scrolling, and long commands wrap', async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'phone only')
+    await start(page, 'operator')
+    await page.goto(`/findings/${await findingId(page, 'pack')}`)
+    await expect(page.getByText('Confirmed by Vedette maintainers', { exact: true }).first()).toBeVisible()
+    const group = page.getByRole('group', { name: 'Firewall vendor' })
+    await group.scrollIntoViewIfNeeded() // the page may scroll down to the group, never sideways inside it
+    const width = page.viewportSize()!.width
+    const buttons = await group.getByRole('button').all()
+    expect(buttons.length).toBeGreaterThanOrEqual(3)
+    for (const b of buttons) { // no click first: a click would scroll the button into view and hide the defect
+      const box = (await b.boundingBox())!
+      expect(box.x, `${await b.innerText()} starts left of the screen`).toBeGreaterThanOrEqual(0)
+      expect(box.x + box.width, `${await b.innerText()} runs past the right edge`).toBeLessThanOrEqual(width)
+    }
+    await page.getByRole('button', { name: /MikroTik/ }).click()
+    for (const pre of await page.locator('section[aria-labelledby="rec-firewall"] pre').all()) {
+      const o = await pre.evaluate((e) => e.scrollWidth - e.clientWidth)
+      expect(o, `a command box scrolls sideways by ${o}px`).toBeLessThanOrEqual(1)
+    }
+  })
+
   test('a viewer reads the pack; every "Applied" button is locked and says who may use it', async ({ page }) => {
     await start(page, 'viewer')
     await page.goto(`/findings/${await findingId(page, 'pack')}`)

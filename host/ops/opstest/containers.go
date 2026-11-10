@@ -36,7 +36,7 @@ func (m *Machine) InstallUnit(service, digest string, install bool) {
 	m.t.Helper()
 	m.MakeUnitsDir()
 	cfg := m.Config()
-	text, err := ops.RenderUnit(service, digest, install, cfg.CoreUID, cfg.CoreGID, cfg.SensorUID, cfg.SensorGID)
+	text, err := ops.RenderUnitIn(service, digest, install, cfg.CoreUID, cfg.CoreGID, cfg.SensorUID, cfg.SensorGID, cfg.CoreData)
 	m.must(err)
 	m.must(os.WriteFile(filepath.Join(m.UnitsDir(), "vedette-"+service+".container"), text, 0o644)) //nolint:gosec // a unit file of the fake root, 0644 like the real ones
 }

@@ -105,7 +105,7 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 		cfg.Socket = *socket
 	}
 	if *bootstrap {
-		return runBootstrap(ctx, cfg, bf, *stateDir, stdout, env)
+		return runBootstrap(ctx, cfg, bf, *stateDir, *auditLog, stdout, env)
 	}
 	check, err := env.newChecker(cfg.CoreUID, cfg.CoreUnit, cfg.CoreCgroup)
 	if err != nil {
@@ -118,6 +118,12 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 		return err
 	}
 	defer sys.Close()
+	// One daemon per state directory, and no bootstrap beside it (D-142): the lock lives as long as the process.
+	unlock, err := sys.LockState()
+	if err != nil {
+		return fmt.Errorf("another vedette-host holds %s: %w", *stateDir, err)
+	}
+	defer unlock()
 	registry, err := server.NewRegistry(sys.Commands()...)
 	if err != nil {
 		return err

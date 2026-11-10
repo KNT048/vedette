@@ -123,6 +123,9 @@ type Ops struct {
 
 	mu       sync.Mutex // guards the notifier and the export sweep timer
 	notifier Notifier
+	noteOnly interface { // the audit file of the bootstrap, which runs no server (AuditTo)
+		Note(command, code string, detail map[string]any) error
+	}
 	sweepOff func() bool
 
 	rbMu     sync.Mutex // guards reboot.json and the scheduled-reboot timer
@@ -393,11 +396,18 @@ func (o *Ops) Close() {
 func (o *Ops) note(command, code string, detail map[string]any) {
 	o.mu.Lock()
 	n := o.notifier
+	nw := o.noteOnly
 	o.mu.Unlock()
-	if n == nil {
+	var err error
+	switch {
+	case n != nil:
+		err = n.Note(command, code, detail)
+	case nw != nil:
+		err = nw.Note(command, code, detail)
+	default:
 		return
 	}
-	if err := n.Note(command, code, detail); err != nil {
+	if err != nil {
 		o.log.Error("could not write an audit note", "command", command, "code", code)
 	}
 }

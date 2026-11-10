@@ -59,12 +59,12 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 | Nội dung | Go binary tĩnh + SPA nhúng + skill/gói khuyến nghị đã xác nhận (đi cùng bản phát hành, D-36); chạy `vedette serve` |
 | Người dùng | không root, `User=<core_uid>:<core_gid>` **cố định** từ `host.conf`, không `UserNS=auto` (uid của peer phải ổn định cho kiểm `SO_PEERCRED` và kiểm chủ sở hữu của D-87; D-105); `cap_drop=ALL`; `no-new-privileges`; rootfs chỉ đọc + tmpfs `/tmp` |
 | Mạng | bridge `vedette-int`; publish `8443:8443` **không kèm IP** (D-105): địa chỉ LAN duy nhất của hộp là địa chỉ quản trị (SPAN không IP, decoy nằm trong `vedette-hp`), nên đổi địa chỉ bằng `net.apply` không phải khởi động lại `core` và GUI tới được ở địa chỉ mới để xác nhận; `8444` (giao thức sensor, mTLS, D-109) không publish ra LAN, chỉ `127.0.0.1:8444` cho container mạng host |
-| Volume | `vedette-data` → `/var/lib/vedette` (SQLite WAL, chỉ mục RAG, tài liệu tải lên); `/etc/vedette/master.key` → `/run/secrets/master.key` (ro, 0600); `/run/vedette` (**thư mục** chứa socket `vedette-host`, không bind-mount tệp socket; D-123); `vedette-creds-passive`, `vedette-creds-active` → `/var/lib/vedette-creds/{passive,active}` (**đọc-ghi chỉ ở `core`**: bó khoá của sensor, D-110 (4), D-114 (4)); mẫu cấu hình ro. `PodmanArgs=--group-add=<sensor_gid>` hằng để `core` ghi tệp khoá `0640 core_uid:sensor_gid` |
+| Volume | `<core_data>` (thư mục của `host.conf`, bind) → `/var/lib/vedette` (SQLite WAL, **khoá chủ `vedette.key`**, chỉ mục RAG, tài liệu tải lên; D-142); `/run/vedette` (**thư mục** chứa socket `vedette-host`, không bind-mount tệp socket; D-123); `vedette-creds-passive`, `vedette-creds-active` → `/var/lib/vedette-creds/{passive,active}` (**đọc-ghi chỉ ở `core`**: bó khoá của sensor, D-110 (4), D-114 (4)); mẫu cấu hình ro. `PodmanArgs=--group-add=<sensor_gid>` hằng để `core` ghi tệp khoá `0640 core_uid:sensor_gid` |
 | Cổng | 8443/tcp (UI, API, SSE, intake osquery, script cài osquery, trang duyệt email, URL danh sách chặn) |
 | Health check | `vedette healthcheck` (D-137): `GET https://127.0.0.1:8443/api/v1/setup` (route công khai có sẵn, đọc hàng `org` nên 200 nghĩa là máy chủ, router, kiểm Host và DB cùng trả lời) phải 200 trong 3 s; ghim đúng chứng chỉ của hộp ở `/var/lib/vedette/vedette-selfsigned.crt` nếu đọc được, không đọc được thì bỏ kiểm chứng chỉ (chỉ loopback, không gửi gì ngoài một GET không thông tin đăng nhập); không proxy, không mở DB, không cần khoá chủ. Chu kỳ 30 s, start-period 60 s, 3 lần hỏng thì unhealthy |
 | Phụ thuộc | không (khởi động đầu tiên) |
 
-**Chỗ khoá chủ (D-142, đóng D-123 L3).** Khoá chủ ở **`<core_data>/vedette.key`**, nơi `backup.*` của host đọc và `backup.restore` ghi lại; `core_data` (`host.conf`) là đường dẫn trên máy của volume `vedette-data` (installer dựng `vedette-data.volume` gắn đúng thư mục đó, ví dụ `Driver=local`, `Type=none`, `Options=bind`, `Device=<core_data>`), nên trong container khoá là `/var/lib/vedette/vedette.key` (mặc định của cờ `-key`) và `-db` là `/var/lib/vedette/vedette.db`. `vedette-host -bootstrap` tạo `core_data` (0700, `core_uid:core_gid`) nếu thiếu; `core` tạo khoá ở lần chạy đầu. **Mẫu unit hôm nay chưa theo**: nó còn gắn `/etc/vedette/master.key` ở `/run/secrets/master.key` (`Exec=... -key /run/secrets/master.key`), một khoá mà `backup.*` không thấy. Đổi mẫu (bỏ dòng `Volume=/etc/vedette/master.key`, `-key /var/lib/vedette/vedette.key`, sửa golden và `cmd/vedette/quadlet_exec_test.go`) là dòng deferred "mẫu unit theo chỗ khoá"; tới khi đó installer không được coi `/etc/vedette/master.key` là khoá mà bản sao lưu có thể khôi phục.
+**Chỗ khoá chủ (D-142, đóng D-123 L3).** Khoá chủ ở **`<core_data>/vedette.key`**, nơi `backup.*` của host đọc và `backup.restore` ghi lại; Unit của `core` gắn **thư mục** `core_data` của `host.conf` (đường dẫn kiểm chặt: tuyệt đối, sạch, chỉ `[A-Za-z0-9._-]`, không `:`, khoảng trắng hay xuống dòng, nên không chèn được dòng vào unit) vào `/var/lib/vedette` và **không** có cờ `-key` hay mount khoá riêng: `core` dùng mặc định `-key /var/lib/vedette/vedette.key` và `-db /var/lib/vedette/vedette.db`, nên khoá mà `core` đọc đúng là khoá mà bản sao lưu chứa và `backup.restore` ghi lại. Không còn `vedette-data.volume` và không còn `/etc/vedette/master.key`. `vedette-host -bootstrap` tạo `core_data` (0700, `core_uid:core_gid`, dưới cha của root đã kiểm) nếu thiếu và từ chối thư mục có sẵn không đúng chủ/chế độ; `core` tạo khoá ở lần chạy đầu. Đổi `core_data` trong `host.conf` làm unit đang cài "không phải của host" (D-123 L2): chạy lại `-bootstrap -force-units` hay `container.*` sẽ từ chối.
 
 ### 2.2 sensor
 
@@ -203,12 +203,7 @@ Gateway=172.30.77.1
 # Subnet do vedette-host chọn để không đụng dải LAN (D-32)
 ```
 
-`/etc/containers/systemd/vedette-data.volume`
-
-```ini
-[Volume]
-VolumeName=vedette-data
-```
+(Không còn `vedette-data.volume` (D-142): dữ liệu của `core` là thư mục `core_data` của `host.conf`, gắn thẳng vào unit.)
 
 `/etc/containers/systemd/vedette-creds-passive.volume` (và `vedette-creds-active.volume` như vậy; D-114 (4))
 
@@ -236,10 +231,9 @@ Network=vedette-int.network
 # Không kèm IP (D-105): đổi địa chỉ quản trị bằng net.apply không phải khởi động lại core
 PublishPort=8443:8443
 PublishPort=127.0.0.1:8444:8444
-Volume=vedette-data.volume:/var/lib/vedette
+Volume=<core_data>:/var/lib/vedette
 Volume=/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config
 Volume=/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log:ro
-Volume=/etc/vedette/master.key:/run/secrets/master.key:ro
 # cả thư mục, không phải tệp socket: bind-mount một tệp giữ inode cũ và mất kết nối khi host tạo lại socket (D-123)
 Volume=/run/vedette:/run/vedette
 # bó khoá của sensor (D-110 (4)): đọc-ghi chỉ ở core
@@ -258,7 +252,7 @@ HealthCmd=["/vedette","healthcheck"]
 HealthInterval=30s
 HealthStartPeriod=60s
 HealthRetries=3
-Exec=-listen :8443 -key /run/secrets/master.key
+Exec=-listen :8443
 
 [Service]
 Restart=always

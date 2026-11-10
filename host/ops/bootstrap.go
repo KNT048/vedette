@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/server"
@@ -42,7 +43,43 @@ const (
 	BootstrapUnitForeign      = "unit_foreign"      // a unit the host did not write; -force-units replaces it
 	BootstrapBadArgs          = "invalid_args"
 	BootstrapFailed           = "bootstrap_failed"
+	BootstrapDaemonRunning    = "daemon_running" // another vedette-host or bootstrap holds the state lock
+	BootstrapMixedVersions    = "mixed_versions" // a service outside -services runs another release than this one
 )
+
+// ErrStateLocked is LockState's answer when another holder has the lock.
+var ErrStateLocked = errors.New("ops: the state directory is locked by another vedette-host")
+
+// LockState takes the one lock of the state directory (<state>/host.lock, flock, non-blocking). The daemon
+// holds it for its whole life and the bootstrap for its run, so a bootstrap never runs beside a daemon or
+// beside another bootstrap (D-142). The returned function lets it go.
+func (o *Ops) LockState() (unlock func(), err error) {
+	f, err := os.OpenFile(o.stateFile("host.lock"), os.O_RDWR|os.O_CREATE|syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0o600) //nolint:gosec // a fixed name in the host's private state directory
+	if err != nil {
+		return nil, fmt.Errorf("ops: open the state lock: %w", err)
+	}
+	if st, serr := f.Stat(); serr != nil || !st.Mode().IsRegular() {
+		_ = f.Close()
+		return nil, errors.New("ops: the state lock is not a regular file")
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		_ = f.Close()
+		if errors.Is(err, syscall.EWOULDBLOCK) {
+			return nil, ErrStateLocked
+		}
+		return nil, fmt.Errorf("ops: lock the state directory: %w", err)
+	}
+	return func() { _ = f.Close() }, nil // closing the descriptor drops the flock
+}
+
+// AuditTo gives an Ops that runs no server (the bootstrap) the audit chain to write its lines to.
+func (o *Ops) AuditTo(w interface {
+	Note(command, code string, detail map[string]any) error
+}) {
+	o.mu.Lock()
+	o.noteOnly = w
+	o.mu.Unlock()
+}
 
 // BootstrapError is a refusal or failure of the bootstrap with a stable code and a one-line message that is
 // safe to print (no file content, no secret).
@@ -96,6 +133,14 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 	if logf == nil {
 		logf = func(string) {}
 	}
+	unlock, err := o.LockState()
+	switch {
+	case errors.Is(err, ErrStateLocked):
+		return bsErr(BootstrapDaemonRunning, "another vedette-host or bootstrap holds the state directory")
+	case err != nil:
+		return bsErr(BootstrapFailed, "the state lock could not be taken")
+	}
+	defer unlock()
 	// OS assumption: Debian or Ubuntu of the support table (as every container command).
 	if _, err := o.platform(); err != nil {
 		return err
@@ -145,6 +190,15 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 		steps = append(steps, st)
 		logf(fmt.Sprintf("verified %s %s (index sequence %d, signed by %s)", svc, plan.version, plan.idx.Sequence, plan.keyID))
 	}
+	// A subset must not sit beside services that run another release: the units of one install are one release.
+	for _, other := range unitServices {
+		if slices.Contains(svcs, other) {
+			continue
+		}
+		if cur := o.loadVersions(other).Current; cur != nil && cur.Version != head.Version {
+			return bsErr(BootstrapMixedVersions, other+" runs release "+cur.Version+", not "+head.Version+"; install the same release for every service")
+		}
+	}
 	if _, _, err := o.unitDirChain(); err != nil {
 		return bsErr(api.CodeUnitUnsafe, "the Quadlet directory is not safe to write as root")
 	}
@@ -190,6 +244,9 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 				return bsErr(BootstrapFailed, "the version of "+svc+" could not be recorded")
 			}
 			logf("recorded " + svc + " " + rec.Version + " as the running version")
+		}
+		if s.write || !s.versOK {
+			o.note("bootstrap", "installed", map[string]any{"service": svc, "version": s.plan.version, "digest": s.plan.digest, "unit_written": s.write, "unit_replaced": s.replace})
 		}
 	}
 	if !slices.ContainsFunc(steps, func(s *bsStep) bool { return s.write || !s.versOK }) {
@@ -305,21 +362,86 @@ func (o *Ops) ensureCoreData(logf func(string)) error {
 		logf("host.conf has no core_data: backups and restores will refuse until the installer writes it")
 		return nil
 	}
-	if st, err := os.Lstat(dir); err == nil {
-		if !st.IsDir() {
-			return bsErr(api.CodeCoreDataInvalid, "core_data is not a directory")
-		}
-		return nil
-	} else if !errors.Is(err, os.ErrNotExist) {
+	st, err := os.Lstat(dir)
+	switch {
+	case err == nil:
+		return o.vetCoreData(dir, st, logf)
+	case !errors.Is(err, os.ErrNotExist):
 		return bsErr(BootstrapFailed, "core_data could not be looked at")
 	}
-	if err := os.MkdirAll(filepath.Dir(dir), 0o755); err != nil { //nolint:gosec // parents are root's, world-readable like /var/lib
-		return bsErr(BootstrapFailed, "the parent of core_data could not be made")
+	// Absent: its parent must be a real directory that is root's and closed (the same rule checkChain applies
+	// to every parent of core_data), and the new directory is made relative to the opened parent, so nothing
+	// along the path is followed after it was vetted.
+	parent := filepath.Dir(dir)
+	pst, err := os.Lstat(parent)
+	if err != nil {
+		return bsErr(api.CodeCoreDataInvalid, "the parent directory of core_data does not exist; the installer makes it")
 	}
-	if err := os.Mkdir(dir, 0o700); err != nil {
-		return bsErr(BootstrapFailed, "core_data could not be made")
+	if _, err := o.checkParents(dir); err != nil || pst.Mode()&os.ModeSymlink != 0 || !pst.IsDir() {
+		return bsErr(api.CodeCoreDataInvalid, "the parent of core_data is not a real directory under root-owned directories that nobody else can write")
+	}
+	if err := o.mkCoreDataIn(parent, pst, filepath.Base(dir)); err != nil {
+		return err
+	}
+	logf("made core_data (0700, owned by core)")
+	return nil
+}
+
+// vetCoreData looks at an existing core_data: checkChain (a real directory under root's closed parents, owned
+// by core or root), then through its descriptor: owned by core with mode 0700 is what core's own directory
+// is; an empty directory of anyone else is given to core; anything else is refused and left as it is.
+func (o *Ops) vetCoreData(dir string, st os.FileInfo, logf func(string)) error {
+	bad := bsErr(api.CodeCoreDataInvalid, "core_data must be a real directory owned by core with mode 0700 (or an empty one that the bootstrap gives to core), under root-owned directories")
+	if _, _, err := o.checkChain(dir); err != nil {
+		return bad
 	}
 	f, err := openDirNoFollow(dir)
+	if err != nil {
+		return bad
+	}
+	defer func() { _ = f.Close() }()
+	fst, err := f.Stat()
+	if err != nil || !os.SameFile(st, fst) {
+		return bad
+	}
+	sys, ok := fst.Sys().(*syscall.Stat_t)
+	switch {
+	case !ok:
+		return bad
+	case int(sys.Uid) == o.cfg.CoreUID && fst.Mode().Perm() == 0o700:
+		return nil
+	case int(sys.Uid) == o.cfg.CoreUID:
+		return bad
+	}
+	if names, err := f.Readdirnames(1); err != nil && !errors.Is(err, io.EOF) || len(names) != 0 {
+		return bad
+	}
+	if err := f.Chown(o.cfg.CoreUID, o.cfg.CoreGID); err != nil || f.Chmod(0o700) != nil {
+		return bsErr(BootstrapFailed, "core_data could not be given to core")
+	}
+	logf("gave the empty core_data to core (0700)")
+	return nil
+}
+
+// mkCoreDataIn makes name (0700, core_uid:core_gid) inside parent through an os.Root of parent, after checking
+// through the descriptor that it is the directory that was vetted and that nobody else can write it.
+func (o *Ops) mkCoreDataIn(parent string, vetted os.FileInfo, name string) error {
+	r, err := os.OpenRoot(parent)
+	if err != nil {
+		return bsErr(BootstrapFailed, "the parent of core_data could not be opened")
+	}
+	defer func() { _ = r.Close() }()
+	rst, err := r.Stat(".")
+	if err != nil || !os.SameFile(vetted, rst) {
+		return bsErr(api.CodeCoreDataInvalid, "the parent of core_data changed while it was opened")
+	}
+	if sys, ok := rst.Sys().(*syscall.Stat_t); !ok || (int(sys.Uid) != 0 && int(sys.Uid) != o.cfg.OwnerUID) || rst.Mode().Perm()&0o022 != 0 {
+		return bsErr(api.CodeCoreDataInvalid, "the parent of core_data is not root's or can be written by others")
+	}
+	if err := r.Mkdir(name, 0o700); err != nil {
+		return bsErr(BootstrapFailed, "core_data could not be made")
+	}
+	f, err := r.OpenFile(name, os.O_RDONLY|syscall.O_DIRECTORY|syscall.O_NOFOLLOW, 0)
 	if err != nil {
 		return bsErr(BootstrapFailed, "core_data could not be opened")
 	}
@@ -327,7 +449,6 @@ func (o *Ops) ensureCoreData(logf func(string)) error {
 	if err := f.Chown(o.cfg.CoreUID, o.cfg.CoreGID); err != nil || f.Chmod(0o700) != nil {
 		return bsErr(BootstrapFailed, "core_data could not be given to core")
 	}
-	logf("made core_data (0700, owned by core)")
 	return nil
 }
 

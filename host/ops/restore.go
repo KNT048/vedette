@@ -268,11 +268,17 @@ func (o *Ops) restore(ctx context.Context, rc *server.RunContext, id, snapshot s
 	}
 	if recovering {
 		// The way out of core_data_unrecoverable (D-142, D-138 (9)): core's data is now a backup's and core is
-		// healthy on it, so the journal that kept core's commands refused has nothing left to guard.
-		o.removeJournal(api.ServiceCore)
-		o.forgetRecoveryNotes(api.ServiceCore)
-		o.note(api.CmdBackupRestore, "core_data_recovered", map[string]any{"run_id": rc.RunID, "restored_backup_id": id, "pre_restore_backup_id": pre.BackupID})
-		rc.Log("The journal of the unrecoverable change was removed")
+		// healthy on it, so the journal that kept core's commands refused has nothing left to guard, provided the
+		// versions the host recorded agree with the unit core runs (the interrupted change may have left the new
+		// unit in place): else the journal stays and core's commands keep being refused.
+		if o.reconcileCoreVersion() {
+			o.removeJournal(api.ServiceCore)
+			o.forgetRecoveryNotes(api.ServiceCore)
+			o.note(api.CmdBackupRestore, "core_data_recovered", map[string]any{"run_id": rc.RunID, "restored_backup_id": id, "pre_restore_backup_id": pre.BackupID})
+			rc.Log("The journal of the unrecoverable change was removed")
+		} else {
+			rc.Log("The unit of core pins a release that the recorded versions do not explain; the journal was kept")
+		}
 	}
 	rc.Progress(100)
 	return api.BackupRestoreResult{RestoredBackupID: id, PreRestoreBackupID: pre.BackupID, Version: ex.Manifest.Version, Health: health}, nil
@@ -287,6 +293,36 @@ func (o *Ops) coreFreeForRestore() error {
 		return nil
 	}
 	return o.coreFree()
+}
+
+// reconcileCoreVersion makes the recorded versions of core agree with the unit that is installed, and says
+// whether they do. The unit is the truth of what runs (D-123 (3)): if current already is its digest, nothing to
+// do; if it is previous (the interrupted change was a switch that stayed half done) they swap, as a rollback
+// would; if the host holds the pulled record of that digest, it becomes current, as the bootstrap's adoption
+// does. A unit that is not ours, or a release the host knows nothing about while another is recorded as
+// current, is not reconciled. With no current recorded there is nothing to contradict.
+func (o *Ops) reconcileCoreVersion() bool {
+	text, st := o.readUnit(api.ServiceCore)
+	if st != fileOK {
+		return false
+	}
+	digest, _, err := o.ourUnit(api.ServiceCore, text)
+	if err != nil {
+		return false
+	}
+	vs := o.loadVersions(api.ServiceCore)
+	switch {
+	case vs.Current != nil && vs.Current.Digest == digest:
+		return true
+	case vs.Current != nil && vs.Previous != nil && vs.Previous.Digest == digest:
+		now := *vs.Previous
+		now.BackupID = "" // the backup of another point in time is not carried over (D-138 H1)
+		return o.saveVersions(versionState{Service: api.ServiceCore, Current: &now, Previous: vs.Current}) == nil
+	}
+	if rec, ok := o.loadPulled(api.ServiceCore); ok && rec.Digest == digest {
+		return o.saveVersions(versionState{Service: api.ServiceCore, Current: &versionRecord{pulledRecord: rec}}) == nil
+	}
+	return vs.Current == nil // nothing recorded contradicts the unit: the running version is simply unknown (D-138 M4)
 }
 
 // coreUnrecoverable says core's journal is valid and marked unrecoverable.

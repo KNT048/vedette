@@ -139,7 +139,7 @@ func (o *Ops) cmdContainerStop() server.Command {
 func (o *Ops) fillFor(digest string, install bool) unitFill {
 	return unitFill{
 		Digest: digest, Install: install, CoreUID: o.cfg.CoreUID, CoreGID: o.cfg.CoreGID,
-		SensorUID: o.cfg.SensorUID, SensorGID: o.cfg.SensorGID,
+		SensorUID: o.cfg.SensorUID, SensorGID: o.cfg.SensorGID, DataDir: o.cfg.CoreData,
 	}
 }
 

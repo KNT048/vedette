@@ -42,8 +42,8 @@ var (
 	inv14RootRacy = []string{"Chmod", "Chown", "Lchown", "Chtimes"}
 	// ensureCoreData (the bootstrap, D-142) makes core_data only when it is absent, before core has ever run: it
 	// reads no entry of core's tree, and what it makes is closed to everyone but core (0700) and checked by checkChain at the next command.
-	inv14CoreFns = []string{"openCore", "checkChain", "checkCoreAtStart", "NewWithDeps", "ensureCoreData"}
-	inv14PathFns = []string{"openCore", "checkChain"}
+	inv14CoreFns = []string{"openCore", "checkChain", "checkCoreAtStart", "NewWithDeps", "ensureCoreData", "fillFor"}
+	inv14PathFns = []string{"openCore", "checkChain", "checkParents"}
 )
 
 // inv14Violations type-checks one package and returns what breaks the three rules.

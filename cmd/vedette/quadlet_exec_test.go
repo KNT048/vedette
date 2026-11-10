@@ -60,8 +60,16 @@ func TestCoreUnitExecParsesWithTheRealFlagsAndAgreesWithItsMounts(t *testing.T) 
 		}
 	}
 	has := func(p string) bool { _, ok := targets[p]; return ok }
-	if !has(o.key) {
-		t.Errorf("-key %q is not a mount target of the unit: %v", o.key, volumes)
+	// D-142 (H1): core reads the key it always read by default, in the directory vedette-host backs up and
+	// restores: no -key flag in the unit, no separate key mount, and the key sits beside the database.
+	if strings.Contains(execLine, "-key") || strings.Contains(string(text), "master.key") {
+		t.Errorf("the unit names a key file: Exec=%q", execLine)
+	}
+	if path.Dir(o.key) != path.Dir(o.db) || path.Base(o.key) != "vedette.key" || path.Base(o.db) != "vedette.db" {
+		t.Errorf("the key %q and the database %q must be <core_data>/vedette.key and vedette.db", o.key, o.db)
+	}
+	if !has(path.Dir(o.key)) {
+		t.Errorf("-key %q is not under a mount target of the unit: %v", o.key, volumes)
 	}
 	for _, sub := range []string{"config", "log"} {
 		if !has(path.Join(o.honeypotDir, sub)) {
@@ -74,8 +82,8 @@ func TestCoreUnitExecParsesWithTheRealFlagsAndAgreesWithItsMounts(t *testing.T) 
 	if !has(path.Dir(o.db)) {
 		t.Errorf("-db %q has no mounted directory: %v", o.db, volumes)
 	}
-	// The key may be mounted read-only; the database directory and the honeypot config may not.
-	if !strings.HasSuffix(targets[o.key], ":ro") || strings.HasSuffix(targets[path.Dir(o.db)], ":ro") || strings.HasSuffix(targets[path.Join(o.honeypotDir, "config")], ":ro") {
+	// The data directory (database and key) and the honeypot config are not read-only.
+	if strings.HasSuffix(targets[path.Dir(o.db)], ":ro") || strings.HasSuffix(targets[path.Join(o.honeypotDir, "config")], ":ro") {
 		t.Errorf("mount modes: %v", targets)
 	}
 }

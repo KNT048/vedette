@@ -442,13 +442,10 @@ func TestContract_Bootstrap_MakesCoreDataWhenMissing(t *testing.T) {
 	if err != nil || !st.IsDir() || st.Mode().Perm() != 0o700 {
 		t.Fatalf("core_data: %v %v", st, err)
 	}
-	// An existing one is core's own and is left as it is.
+	// An existing one that is core's own (0700) is left as it is (the others are vetted: M2 test).
 	e2 := startUpd(t)
-	if err := os.Chmod(e2.m.CoreData, 0o750); err != nil { //nolint:gosec // test
-		t.Fatal(err)
-	}
 	e2.bootstrapOK(t, e2.bsDocs(t, 5, v1, bsDigest))
-	if st, _ := os.Stat(e2.m.CoreData); st.Mode().Perm() != 0o750 {
+	if st, _ := os.Stat(e2.m.CoreData); st.Mode().Perm() != 0o700 {
 		t.Errorf("an existing core_data was changed: %v", st.Mode())
 	}
 	// Not a directory: refused, nothing written.

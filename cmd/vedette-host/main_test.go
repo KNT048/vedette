@@ -167,6 +167,15 @@ func TestServesAndStopsOnSignal(t *testing.T) {
 		case <-time.After(10 * time.Millisecond):
 		}
 	}
+	// The daemon holds the state lock: a bootstrap (or a second daemon) on the same directory cannot take it (D-142).
+	other, err := ops.New(ops.Config{StateDir: filepath.Join(dir, "state"), CoreUnit: "vedette-core.service", OwnerUID: os.Getuid(), Logger: slog.New(slog.DiscardHandler)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := other.LockState(); !errors.Is(err, ops.ErrStateLocked) {
+		t.Fatalf("the daemon does not hold the state lock: %v", err)
+	}
+	other.Close()
 	if seen[0] != 10001 || seen[1] != "vedette-core.service" {
 		t.Fatalf("checker built with %v", *seen)
 	}
@@ -277,6 +286,10 @@ func TestBootstrapExitCodes(t *testing.T) {
 		{&ops.BootstrapError{Code: ops.BootstrapFailed, Message: "x"}, exitFailed, "bootstrap_failed"},
 		{server.Refuse(412, "signature_invalid", "The manifest\ndoes not verify."), exitRefused, "signature_invalid"},
 		{server.Refuse(412, "not_appliance", "x"), exitRefused, "not_appliance"},
+		{&ops.BootstrapError{Code: "core_data_invalid", Message: "x"}, exitRefused, "core_data_invalid"},
+		{&ops.BootstrapError{Code: ops.BootstrapMixedVersions, Message: "x"}, exitRefused, "mixed_versions"},
+		{&ops.BootstrapError{Code: "unit_unwritable", Message: "x"}, exitFailed, "unit_unwritable"},
+		{&ops.BootstrapError{Code: ops.BootstrapDaemonRunning, Message: "x"}, exitDaemonRunning, "daemon_running"},
 		{&server.Failure{Code: "pull_failed", Message: "Podman could not pull the image."}, exitFailed, "pull_failed"},
 		{errors.New("secret detail"), exitFailed, "bootstrap_failed"},
 	} {

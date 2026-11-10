@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/config"
 	"github.com/knt048/vedette/host/ops"
 	"github.com/knt048/vedette/host/server"
@@ -60,10 +61,14 @@ func exitFor(err error) *exitError {
 		return newExit(exitAlreadyInstalled, code, msg)
 	case ops.BootstrapUnitForeign, "unit_unsafe":
 		return newExit(exitUnit, code, msg)
+	case ops.BootstrapDaemonRunning:
+		return newExit(exitDaemonRunning, code, msg)
 	case ops.BootstrapBadArgs:
 		return newExit(exitUsage, code, msg)
-	case ops.BootstrapFailed:
+	case ops.BootstrapFailed, "unit_unwritable": // the host could not do what was asked: a failure, not a refusal
 		return newExit(exitFailed, code, msg)
+	case api.CodeCoreDataInvalid, ops.BootstrapMixedVersions: // refused by a check of the machine or of the release
+		return newExit(exitRefused, code, msg)
 	}
 	var rf *server.Refusal
 	if errors.As(err, &rf) {
@@ -72,7 +77,7 @@ func exitFor(err error) *exitError {
 	return newExit(exitFailed, code, msg)
 }
 
-func runBootstrap(ctx context.Context, cfg config.Config, f bootFlags, stateDir string, stdout io.Writer, env environment) error {
+func runBootstrap(ctx context.Context, cfg config.Config, f bootFlags, stateDir, auditLog string, stdout io.Writer, env environment) error {
 	if f.index == "" || f.indexSig == "" || f.manifest == "" || f.manifestSig == "" {
 		return newExit(exitUsage, ops.BootstrapBadArgs, "-index, -index-sig, -manifest and -manifest-sig are all required")
 	}
@@ -105,6 +110,13 @@ func runBootstrap(ctx context.Context, cfg config.Config, f bootFlags, stateDir 
 		return newExit(exitFailed, ops.BootstrapFailed, "the host's state could not be opened: "+err.Error())
 	}
 	defer sys.Close()
+	// The lines the host writes on its own go to the audit chain the daemon uses (release_index_stored, installed).
+	notes, err := server.OpenNoteWriter(auditLog, env.configOwner)
+	if err != nil {
+		return newExit(exitFailed, ops.BootstrapFailed, "the audit log could not be opened: "+err.Error())
+	}
+	defer func() { _ = notes.Close() }()
+	sys.AuditTo(notes)
 	if err := sys.Bootstrap(ctx, a, func(s string) { _, _ = fmt.Fprintln(stdout, "vedette-host: bootstrap: "+s) }); err != nil {
 		return exitFor(err)
 	}

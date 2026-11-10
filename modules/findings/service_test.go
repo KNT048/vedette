@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"maps"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -21,6 +23,7 @@ type fakeInv struct {
 	mu     sync.Mutex
 	assets map[string]AssetView
 	match  map[string]Asset
+	idsErr error
 }
 
 func (f *fakeInv) Assets(_ context.Context, ids []string) (map[string]AssetView, error) {
@@ -40,6 +43,16 @@ func (f *fakeInv) MatchInput(_ context.Context, id string) (Asset, bool, error) 
 	defer f.mu.Unlock()
 	a, ok := f.match[id]
 	return a, ok, nil
+}
+
+// AssetIDs lists the devices that exist: the ones the matcher can read. idsErr makes the read fail.
+func (f *fakeInv) AssetIDs(context.Context) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.idsErr != nil {
+		return nil, f.idsErr
+	}
+	return slices.Sorted(maps.Keys(f.match)), nil
 }
 
 type fakeFeeds struct {
@@ -593,4 +606,25 @@ func TestContract_INV6_ConcurrentMatchesMakeOneFinding(t *testing.T) {
 	if total != 1 || e.count(`SELECT count(*) FROM fnd_finding`) != 1 || len(e.pub.take()) != 1 {
 		t.Fatalf("created %d findings, want 1", total)
 	}
+}
+
+// matchErr makes MatchInput fail for the listed devices; assetsErr makes Assets fail.
+type failingInv struct {
+	*fakeInv
+	matchErr  map[string]error
+	assetsErr error
+}
+
+func (f failingInv) MatchInput(ctx context.Context, id string) (Asset, bool, error) {
+	if err := f.matchErr[id]; err != nil {
+		return Asset{}, false, err
+	}
+	return f.fakeInv.MatchInput(ctx, id)
+}
+
+func (f failingInv) Assets(ctx context.Context, ids []string) (map[string]AssetView, error) {
+	if f.assetsErr != nil {
+		return nil, f.assetsErr
+	}
+	return f.fakeInv.Assets(ctx, ids)
 }

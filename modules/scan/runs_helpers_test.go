@@ -107,7 +107,6 @@ type fakeFindings struct {
 	list      []FindingRef
 	confirmed []Evidence
 	confirms  []string // asset|cve
-	clears    []string
 }
 
 func (f *fakeFindings) List(_ context.Context, assetID string) ([]FindingRef, error) {
@@ -133,13 +132,6 @@ func (f *fakeFindings) ConfirmFromScan(_ context.Context, assetID, cve string, e
 		}
 	}
 	return "", errors.New("no such finding")
-}
-
-func (f *fakeFindings) RescanClear(_ context.Context, assetID, cve string) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.clears = append(f.clears, assetID+"|"+cve)
-	return nil
 }
 
 func sampleFindings() []FindingRef {

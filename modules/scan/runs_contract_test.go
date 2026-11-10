@@ -232,7 +232,7 @@ func TestContract_INV6_StopNow(t *testing.T) {
 	if len(r.eng.sent()) != 1 || r.count(`SELECT count(*) FROM scan_probe WHERE result = 'stopped'`) != 1 || r.count(`SELECT count(*) FROM scan_probe WHERE result IS NULL`) != 0 {
 		t.Fatal("probe log or jobs after Stop now")
 	}
-	if len(r.findings.confirms)+len(r.findings.clears) != 0 {
+	if len(r.findings.confirms) != 0 {
 		t.Fatal("a stopped device changed findings")
 	}
 	_, err = r.svc.StopRun(r.ctx(), "it@acme.example", v.ID)
@@ -319,11 +319,11 @@ func TestContract_INV8_ResultsBecomeFindings(t *testing.T) {
 	if m == nil || *m.FindingID != "f-1" || *m.Template != "http/cves/2022/CVE-2022-27593.yaml" || m.Note != "CVE-2022-27593: the scan template matches, the flaw is still there." || got.Matched != 1 {
 		t.Fatalf("matched: %+v", got)
 	}
-	if n := rowOf(got, "a-web01", "not_matched"); n == nil || n.Note != "CVE-2024-3400: the scan template no longer matches." {
+	if n := rowOf(got, "a-web01", "not_matched"); n == nil || n.Note != "CVE-2024-3400: no match reported by the scan template." {
 		t.Fatalf("not_matched: %+v", got.Results)
 	}
-	if !slices.Equal(r.findings.confirms, []string{"a-nas02|CVE-2022-27593"}) || !slices.Equal(r.findings.clears, []string{"a-web01|CVE-2024-3400"}) {
-		t.Fatalf("findings: %v %v", r.findings.confirms, r.findings.clears)
+	if !slices.Equal(r.findings.confirms, []string{"a-nas02|CVE-2022-27593"}) { // a no-match never reaches findings (D-133 (5))
+		t.Fatalf("findings: %v", r.findings.confirms)
 	}
 	ev := r.findings.confirmed[0]
 	if ev.Template != "http/cves/2022/CVE-2022-27593.yaml" || ev.Request != "GET /photo/p/api/video.php HTTP/1.1\nHost: x" || ev.Response != "HTTP/1.1 200 OK\n\nphoto station" ||

@@ -136,10 +136,6 @@ func (f scanFindings) ConfirmFromScan(ctx context.Context, assetID, cve string, 
 	return r.ID, err
 }
 
-func (f scanFindings) RescanClear(ctx context.Context, assetID, cve string) error {
-	return f.svc.RescanClear(ctx, assetID, cve)
-}
-
 // scanExternal lists the exposure targets for the scan list (listed, not scanned yet: D-126 (4)).
 type scanExternal struct{ svc *exposure.Service }
 

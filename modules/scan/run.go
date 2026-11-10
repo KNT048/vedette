@@ -486,7 +486,7 @@ func (s *Service) plan(ctx context.Context, d Device) (checks []check, rows []Ru
 }
 
 // dismissed is a finding a person closed (false positive, not relevant, patched): its CVE is not probed again (review
-// L3). Mitigated findings are rescanned to check the mitigation, as the mock does (RescanClear).
+// L3). Mitigated findings are rescanned: a match shows the mitigation did not hold; no match changes nothing (D-133 (5)).
 func dismissed(status string) bool {
 	return status == "false_positive" || status == "not_relevant" || status == "patched"
 }
@@ -643,16 +643,17 @@ func (s *Service) runJob(ctx context.Context, job nucleiargv.Job) (Output, error
 	}
 }
 
-// unresponsive says the device answered nothing: no line without an error (INV-6). nuclei itself stopped sending
-// after max_host_errors errors in a row (-mhe), so the device was not pushed further.
+// unresponsive says the device answered nothing: it printed lines and every one is an error (INV-6). An empty output
+// is not that: nuclei may write JSONL only for matches (D-133 (5)), so silence means "no match reported". nuclei itself
+// stops sending after max_host_errors errors in a row (-mhe), so the device is not pushed further either way.
 func unresponsive(res []nucleiout.Result) bool {
-	return !slices.ContainsFunc(res, func(r nucleiout.Result) bool { return r.Error == "" })
+	return len(res) > 0 && !slices.ContainsFunc(res, func(r nucleiout.Result) bool { return r.Error == "" })
 }
 
-// templateResult is the probe-log result of one template: matched, not_matched, or no_response when every line of
-// it was an error.
+// templateResult is the probe-log result of one template: matched; no_response when it has lines and every one is an
+// error; otherwise not_matched, which means only "no match reported" (D-133 (5)).
 func templateResult(id string, res []nucleiout.Result) string {
-	answered := false
+	seen, answered := false, false
 	for _, r := range res {
 		if r.Template != id {
 			continue
@@ -660,12 +661,12 @@ func templateResult(id string, res []nucleiout.Result) string {
 		if r.Matched {
 			return "matched"
 		}
-		answered = answered || r.Error == ""
+		seen, answered = true, answered || r.Error == ""
 	}
-	if answered {
-		return "not_matched"
+	if seen && !answered {
+		return "no_response"
 	}
-	return "no_response"
+	return "not_matched"
 }
 
 // conclude turns the lines of one CVE into its result row and tells the findings module (INV-8, S-SCAN-3).
@@ -675,7 +676,7 @@ func (s *Service) conclude(ctx context.Context, d Device, c check, res []nucleio
 	cve := c.finding.CVE
 	row := RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Template: ptr(c.tpls[0].Path), FindingID: ptr(c.finding.ID)}
 	var hit *nucleiout.Result
-	answered := false
+	seen, answered := false, false
 	for i, r := range res {
 		if !slices.ContainsFunc(c.tpls, func(t pack.Template) bool { return t.ID == r.Template }) {
 			continue
@@ -684,7 +685,7 @@ func (s *Service) conclude(ctx context.Context, d Device, c check, res []nucleio
 			hit = &res[i]
 			break
 		}
-		answered = answered || r.Error == ""
+		seen, answered = true, answered || r.Error == ""
 	}
 	switch {
 	case hit != nil:
@@ -704,13 +705,12 @@ func (s *Service) conclude(ctx context.Context, d Device, c check, res []nucleio
 			row.FindingID = ptr(id)
 		}
 		s.publish(ctx, EventFindingConfirmed, FindingConfirmedEvent{AssetID: d.ID, CVE: cve, Template: tpl.Path, Evidence: ev.Summary})
-	case answered:
-		row.Result, row.Note = "not_matched", cve+": the scan template no longer matches."
-		if err := s.cfg.Findings.RescanClear(ctx, d.ID, cve); err != nil {
-			s.cfg.Log.ErrorContext(ctx, "scan: recording a clear rescan failed", "asset", d.ID, "cve", cve, "error", err)
-		}
-	default:
+	case seen && !answered:
 		row.Result, row.Note = "no_response", cve+": no answer for this check."
+	default:
+		// D-133 (5): nuclei may report matches only, so this is "no match reported", never "not vulnerable". It never
+		// resolves, downgrades or marks the finding: nothing is sent to the findings module.
+		row.Result, row.Note = "not_matched", cve+": no match reported by the scan template."
 	}
 	return row
 }

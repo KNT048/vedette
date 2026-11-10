@@ -65,10 +65,9 @@ type Evidence struct {
 // (CONTRACT, behaviour when findings is off).
 type Findings interface {
 	List(ctx context.Context, assetID string) ([]FindingRef, error)
-	// ConfirmFromScan records a match and returns the id of the finding (INV-8).
+	// ConfirmFromScan records a match and returns the id of the finding (INV-8). It is the only call: a scan without a
+	// match is "no match reported" and never touches a finding (D-133 (5)).
 	ConfirmFromScan(ctx context.Context, assetID, cve string, ev Evidence) (string, error)
-	// RescanClear records that a rescan no longer matches; it never changes the status (findings FORBID-2).
-	RescanClear(ctx context.Context, assetID, cve string) error
 }
 
 // Publisher is the event bus as this module needs it; *events.Bus satisfies it.

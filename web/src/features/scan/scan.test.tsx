@@ -253,17 +253,23 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect(within(dlg).getByRole('link', { name: 'Open finding' })).toHaveAttribute('href', '/findings/f-1')
   })
 
-  it('đã giảm thiểu rồi quét lại: mẫu không còn khớp, ghi vào lịch sử phát hiện, không tự đổi trạng thái', async () => {
+  it('đã giảm thiểu rồi quét lại: không có khớp chỉ là "không báo khớp", không đổi gì ở phát hiện (D-133 (5))', async () => {
     timing.stepMs = 30
     findingsStore.update((l) => l.map((f) => (f.id === 'f-1' ? { ...f, status: 'mitigated' as const } : f)))
+    const before = findingsStore.get().find((x) => x.id === 'f-1')!.history.length
     renderApp('/scans?target=a-nas02')
     await userEvent.click(await screen.findByRole('checkbox', { name: /NAS-PHOTOS/ })) // fragile: the link does not tick it, the person does
     await userEvent.click(screen.getByRole('button', { name: 'Scan now (1)' }))
     await waitFor(async () => expect((await getRuns())[0]!.status).toBe('done'), { timeout: 4000 })
-    expect((await getRuns())[0]!.results[0]!.result).toBe('not_matched')
+    const res = (await getRuns())[0]!.results[0]!
+    expect(res.result).toBe('not_matched')
+    expect(res.note).toBe('CVE-2022-27593: no match reported by the scan template.')
     const f = findingsStore.get().find((x) => x.id === 'f-1')!
     expect(f.status).toBe('mitigated')
-    expect(f.history.at(-1)!.action).toBe('rescan_clear')
+    expect(f.history).toHaveLength(before) // nuclei reports matches only: "no match" never marks the finding
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /View results of the scan/ })[0]).toBeEnabled(), { timeout: 4000 })
+    await userEvent.click(screen.getAllByRole('button', { name: /View results of the scan/ })[0]!)
+    expect(within(await screen.findByRole('dialog')).getByText('No match reported')).toBeInTheDocument()
   })
 
   it('"Dừng ngay": đang chạy hiện tiến độ, bấm dừng thì thấy "Đang dừng" rồi "Đã dừng" trong 5 giây, thiết bị chưa quét không bị chạm', async () => {

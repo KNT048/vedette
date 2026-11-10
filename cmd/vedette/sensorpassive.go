@@ -9,8 +9,10 @@ import (
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/core"
 	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
+	"github.com/knt048/vedette/modules/sensor-passive/capture"
 )
 
 // newSensorPassive builds the passive sensor service once, in buildServices (deps.SensorPassive): the capture
@@ -21,7 +23,26 @@ func newSensorPassive(d deps) (*sensorpassive.Service, error) {
 	if d.Inventory != nil {
 		sink = d.Inventory
 	}
-	return sensorpassive.New(sensorpassive.Config{DB: d.DB, Audit: d.Audit, Sink: sink, Host: netHost{box: d.Network}, Clock: d.Clock, Log: d.Log, Version: version})
+	cfg := sensorpassive.Config{DB: d.DB, Audit: d.Audit, Sink: sink, Host: netHost{box: d.Network}, Clock: d.Clock, Log: d.Log, Version: version}
+	if d.Reg != nil { // SYS-5: asked again under the lock of a batch, after the listener let it in
+		cfg.Enabled = func() bool { return d.Reg.Enabled("sensor-passive") }
+	}
+	if d.Inventory != nil { // the devices that exist do not count as new ones for the budget
+		cfg.KnownMACs = func(ctx context.Context) ([]string, error) {
+			l, err := d.Inventory.Devices(ctx)
+			if err != nil {
+				return nil, err
+			}
+			var macs []string
+			for _, dev := range l.Items {
+				if dev.MAC != nil {
+					macs = append(macs, *dev.MAC)
+				}
+			}
+			return macs, nil
+		}
+	}
+	return sensorpassive.New(cfg)
 }
 
 // sensorPassiveJobs runs the capture loop while the module is on (SYS-5). Run blocks until the module is turned
@@ -35,18 +56,18 @@ func sensorPassiveJobs(d deps) []jobs.Job {
 // settings of Settings, Box network. An install without a host reads the interfaces of the operating system it runs on.
 type netHost struct{ box *core.NetworkHandlers }
 
-func (n netHost) Interfaces(ctx context.Context) ([]sensorpassive.HostInterface, error) {
+func (n netHost) Interfaces(ctx context.Context) ([]capture.Interface, error) {
 	cards, ok, err := n.box.Cards(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if ok {
-		out := make([]sensorpassive.HostInterface, 0, len(cards))
+		out := make([]capture.Interface, 0, len(cards))
 		for _, c := range cards {
-			h := sensorpassive.HostInterface{Name: c.Name, MAC: c.MAC, Link: c.Link}
+			h := capture.Interface{Name: c.Name, MAC: c.MAC, Link: c.Link}
 			for _, a := range c.Addresses {
 				if a.Is4() {
-					h.Addresses = append(h.Addresses, a)
+					h.Addresses = append(h.Addresses, netip.PrefixFrom(a, 32)) // the host module reports addresses without a mask
 				}
 			}
 			out = append(out, h)
@@ -56,21 +77,21 @@ func (n netHost) Interfaces(ctx context.Context) ([]sensorpassive.HostInterface,
 	return osInterfaces()
 }
 
-func osInterfaces() ([]sensorpassive.HostInterface, error) {
+func osInterfaces() ([]capture.Interface, error) {
 	all, err := net.Interfaces()
 	if err != nil {
 		return nil, err
 	}
-	var out []sensorpassive.HostInterface
+	var out []capture.Interface
 	for _, i := range all {
 		if i.Flags&net.FlagLoopback != 0 || len(i.HardwareAddr) != 6 {
 			continue
 		}
-		h := sensorpassive.HostInterface{Name: i.Name, MAC: i.HardwareAddr.String(), Link: i.Flags&net.FlagUp != 0 && i.Flags&net.FlagRunning != 0}
+		h := capture.Interface{Name: i.Name, MAC: i.HardwareAddr.String(), Link: i.Flags&net.FlagUp != 0 && i.Flags&net.FlagRunning != 0}
 		if addrs, err := i.Addrs(); err == nil {
 			for _, a := range addrs {
 				if p, err := netip.ParsePrefix(a.String()); err == nil && p.Addr().Is4() {
-					h.Addresses = append(h.Addresses, p.Addr())
+					h.Addresses = append(h.Addresses, p)
 				}
 			}
 		}
@@ -79,15 +100,15 @@ func osInterfaces() ([]sensorpassive.HostInterface, error) {
 	return out, nil
 }
 
-func (n netHost) SpanOptions(ctx context.Context) (sensorpassive.Extract, []sensorpassive.Filter, error) {
+func (n netHost) SpanOptions(ctx context.Context) (sensorlink.Extract, []sensorlink.Filter, error) {
 	s, err := n.box.SpanSettings(ctx)
 	if err != nil {
-		return sensorpassive.Extract{}, nil, err
+		return sensorlink.Extract{}, nil, err
 	}
-	x := sensorpassive.Extract{DNS: s.Extract.DNS, TLSSNI: s.Extract.TLSSNI, HTTPHost: s.Extract.HTTPHost, Flows: s.Extract.Flows}
-	f := make([]sensorpassive.Filter, len(s.Filters))
+	x := sensorlink.Extract{DNS: s.Extract.DNS, SNI: s.Extract.TLSSNI, HTTP: s.Extract.HTTPHost, Flows: s.Extract.Flows}
+	f := make([]sensorlink.Filter, len(s.Filters))
 	for i, v := range s.Filters {
-		f[i] = sensorpassive.Filter{Type: v.Type, Value: v.Value}
+		f[i] = sensorlink.Filter{Type: v.Type, Value: v.Value}
 	}
 	return x, f, nil
 }

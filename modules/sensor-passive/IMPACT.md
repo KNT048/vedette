@@ -31,3 +31,11 @@
 - Devices ngừng nhận thiết bị mới thụ động; "Scope and sensors" trống; S-INV-3 chỉ còn nguồn khác.
 - `logs` mất metadata SPAN; không ảnh hưởng `sensor-active`, `agent-intake`, `honeypot`.
 - Quan sát/thiết bị đã có giữ nguyên.
+
+## SP-4 xong: nửa `capture` và nửa `core` đã tách (D-122)
+- **`capture.Link`** (ba hàm: `Config`, `PostObservations`, `PassiveHeartbeat`) là chỗ nối hai nửa: `*sensorlink.Client` (sensor) và `sensorpassive.Service` (job `capture` trong `core` tới SP-5) đều thoả nó. Đổi hàm nào là đổi cả hai và `cmd/vedette-sensor passive`; đổi dây thì tăng `X-Vedette-Proto`.
+- **`Service.Observations`** là đường vào duy nhất của quan sát thụ động (không còn `SubmitBatch`): kiểm mục, `FloodBudget`, kẹp `confidence`, epoch/seq. Đổi trần tin cậy (`capture.MaxConfidence`, các hằng `Conf*`) hay hạn mức (`capture.NewMACsPerMinute`… dùng chung cho sổ của sensor và `FloodBudget` của `core`) là đổi hai lớp cùng lúc: test của `capture` và `backend_test.go` canh sự lệch.
+- **`sensorlink.DropKeys`** (34 khoá) là hợp đồng giữa bộ đếm của `capture` và heartbeat: thêm một bộ đếm mới (`drop("...")`, `CountDrop`, `count`) mà không thêm khoá thì test `TestEveryCounterIsInTheClosedSetOfTheProtocol` đỏ; thêm khoá là đổi dây (tăng proto vì `core` cũ từ chối khoá lạ).
+- **`Status`, `SpanStats`** đọc heartbeat: GUI (`SensorsSection`, `SpanCard`) thấy `interfaces` rỗng và `offline` cho tới nhịp đầu của sensor. **`SetInterface` và danh sách địa chỉ của hộp (từ chối mục về hộp) đọc `Host.Interfaces`** (host là nguồn có thẩm quyền, D-118): gỡ `Host.Interfaces` ở SP-5 phải thay bằng `GET /v1/state/net` của host, không bằng heartbeat.
+- **`modules/inventory`**: `Record` bỏ quan sát về MAC/IP của `is_box` và `claimIP` không dời IP của `manual`/`is_box` cho nguồn không phải `agent`; `RecomputeAsset` đặt MAC của hộp chỉ từ `agent`. Đổi một trong ba là đổi điều test `TestSensorsCannotChangeTheBox` canh.
+- **`cmd/vedette-sensor`**: gói `capture` vào binary; test `TestBinaryDependencies` cho phép thêm `content/oui`, `core/observe`, `modules/sensor-passive/capture` và `golang.org/x/sys/unix` (một tuỳ chọn socket nhận), cấm `database/sql`, SQLite, `core/store`, `core/audit`, `core/secrets`, `core/pki`, `modules/inventory`.

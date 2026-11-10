@@ -7,48 +7,56 @@ import (
 	"log/slog"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/inventory"
 	sp "github.com/knt048/vedette/modules/sensor-passive"
+	"github.com/knt048/vedette/modules/sensor-passive/capture"
 	"github.com/knt048/vedette/modules/sensor-passive/internal/pktgen"
 )
 
-var allExtract = sp.Extract{DNS: true, TLSSNI: true, HTTPHost: true, Flows: true}
+var allExtract = sensorlink.Extract{DNS: true, SNI: true, HTTP: true, Flows: true}
 
 // fakeHost is the box as the tests see it: a management card with an IP and a SPAN card without one.
 type fakeHost struct {
 	mu      sync.Mutex
-	ifaces  []sp.HostInterface
-	filters []sp.Filter
+	ifaces  []capture.Interface
+	filters []sensorlink.Filter
+	optErr  error // SpanOptions fails: the filters cannot be read
 }
 
 func newHost() *fakeHost {
-	return &fakeHost{ifaces: []sp.HostInterface{
-		{Name: "eth0", MAC: pktgen.Box.String(), Link: true, Addresses: []netip.Addr{pktgen.BoxIP}},
+	return &fakeHost{ifaces: []capture.Interface{
+		{Name: "eth0", MAC: pktgen.Box.String(), Link: true, Addresses: []netip.Prefix{netip.PrefixFrom(pktgen.BoxIP, 24)}},
 		{Name: "eth1", MAC: "02:00:00:00:00:02", Link: true},
 	}}
 }
 
-func (h *fakeHost) Interfaces(context.Context) ([]sp.HostInterface, error) {
+func (h *fakeHost) Interfaces(context.Context) ([]capture.Interface, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return append([]sp.HostInterface(nil), h.ifaces...), nil
+	return append([]capture.Interface(nil), h.ifaces...), nil
 }
 
-func (h *fakeHost) SpanOptions(context.Context) (sp.Extract, []sp.Filter, error) {
+func (h *fakeHost) SpanOptions(context.Context) (sensorlink.Extract, []sensorlink.Filter, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return allExtract, append([]sp.Filter(nil), h.filters...), nil
+	if h.optErr != nil {
+		return sensorlink.Extract{}, nil, h.optErr
+	}
+	return allExtract, append([]sensorlink.Filter(nil), h.filters...), nil
 }
 
-func (h *fakeHost) setFilters(f ...sp.Filter) { h.mu.Lock(); h.filters = f; h.mu.Unlock() }
+func (h *fakeHost) setOptErr(err error)               { h.mu.Lock(); h.optErr = err; h.mu.Unlock() }
+func (h *fakeHost) setFilters(f ...sensorlink.Filter) { h.mu.Lock(); h.filters = f; h.mu.Unlock() }
 func (h *fakeHost) setLink(name string, up bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -62,11 +70,11 @@ func (h *fakeHost) setLink(name string, up bool) {
 // metaRecorder keeps what was handed to the MetadataSink.
 type metaRecorder struct {
 	mu      sync.Mutex
-	batches [][]sp.MetaItem
+	batches [][]capture.MetaItem
 	seqs    []uint64
 }
 
-func (m *metaRecorder) Metadata(_ context.Context, seq uint64, items []sp.MetaItem) error {
+func (m *metaRecorder) Metadata(_ context.Context, seq uint64, items []capture.MetaItem) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.batches = append(m.batches, items)
@@ -74,10 +82,10 @@ func (m *metaRecorder) Metadata(_ context.Context, seq uint64, items []sp.MetaIt
 	return nil
 }
 
-func (m *metaRecorder) all() []sp.MetaItem {
+func (m *metaRecorder) all() []capture.MetaItem {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	var out []sp.MetaItem
+	var out []capture.MetaItem
 	for _, b := range m.batches {
 		out = append(out, b...)
 	}
@@ -97,7 +105,7 @@ type openSource struct {
 	once   bool // play the recording once (a test that looks at timestamps or counts frames)
 }
 
-func (o *openSource) open(iface string) (sp.Source, error) {
+func (o *openSource) open(iface string) (capture.Source, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	o.opened = append(o.opened, iface)
@@ -142,23 +150,23 @@ type replaySource struct {
 	i      int
 }
 
-func (r *replaySource) Next(ctx context.Context) (sp.Packet, error) {
+func (r *replaySource) Next(ctx context.Context) (capture.Packet, error) {
 	if err := ctx.Err(); err != nil {
-		return sp.Packet{}, err
+		return capture.Packet{}, err
 	}
 	if r.i < len(r.frames) {
 		f := r.frames[r.i]
 		r.i++
-		return sp.Packet{At: f.At, Data: f.Data}, nil
+		return capture.Packet{At: f.At, Data: f.Data}, nil
 	}
 	if !r.hold {
-		return sp.Packet{}, io.EOF
+		return capture.Packet{}, io.EOF
 	}
 	select {
 	case <-ctx.Done():
-		return sp.Packet{}, ctx.Err()
+		return capture.Packet{}, ctx.Err()
 	case <-time.After(5 * time.Millisecond):
-		return sp.Packet{}, sp.ErrIdle
+		return capture.Packet{}, capture.ErrIdle
 	}
 }
 
@@ -180,18 +188,40 @@ type env struct {
 	nowMu sync.Mutex
 	now   func() time.Time
 	sink  *countingSink
+	cfg   sp.Config // what New got, for the capture of a remote run (see remote_test.go)
+	rem   *remote
+	beat  sync.Once
+
+	forceRemote bool
+	sensorCards func(context.Context) ([]capture.Interface, error) // what the remote capture believes its cards are (default: the host's)
+	off         atomic.Bool                                        // the module is off: the link answers 409 module_off
 }
 
 // countingSink wraps the inventory so tests can see what was recorded and when.
 type countingSink struct {
-	inner  observe.Sink
-	reject string // a value the "inventory" refuses (the whole batch it is in, like the real one)
-	mu     sync.Mutex
-	got    []observe.Observation
+	inner     observe.Sink
+	reject    string // a value the "inventory" refuses (the whole batch it is in, like the real one)
+	poison    string // a value that makes the store fail with an error that names no item, every time
+	failFirst int    // the first calls fail like a busy store
+	mu        sync.Mutex
+	got       []observe.Observation
+	calls     int
 }
 
 func (c *countingSink) Record(ctx context.Context, obs []observe.Observation) error {
 	c.mu.Lock()
+	c.calls++
+	if c.failFirst > 0 {
+		c.failFirst--
+		c.mu.Unlock()
+		return errors.New("database is locked")
+	}
+	for _, o := range obs {
+		if c.poison != "" && o.Value == c.poison {
+			c.mu.Unlock()
+			return errors.New("constraint failed")
+		}
+	}
 	c.got = append(c.got, obs...)
 	c.mu.Unlock()
 	for i, o := range obs {
@@ -209,6 +239,14 @@ type option func(*sp.Config, *env)
 // withClock starts the test clock at base; it then runs with real time, so the loop's flush and heartbeat
 // timers fire while the time stays near base.
 func withLog(h slog.Handler) option { return func(c *sp.Config, _ *env) { c.Log = slog.New(h) } }
+
+func withPoison(value string) option { return func(_ *sp.Config, e *env) { e.sink.poison = value } }
+
+// withFlakyStore makes the first n writes to the inventory fail like a busy store.
+func withFlakyStore(n int) option { return func(_ *sp.Config, e *env) { e.sink.failFirst = n } }
+
+// withRemote runs the capture at the far end of the link whatever the environment says.
+func withRemote() option { return func(_ *sp.Config, e *env) { e.forceRemote = true } }
 
 func withReject(value string) option { return func(_ *sp.Config, e *env) { e.sink.reject = value } }
 
@@ -249,12 +287,27 @@ func newEnv(t *testing.T, files map[string][]pktgen.Frame, hold bool, opts ...op
 	}
 	e.inv = inv
 	e.sink = &countingSink{inner: inv}
-	cfg := sp.Config{DB: db, Audit: aud, Sink: e.sink, Meta: e.meta, Host: e.host, Log: slog.New(slog.DiscardHandler), Version: "test", Name: "vedette-test",
+	cfg := sp.Config{DB: db, Audit: aud, Sink: e.sink, Meta: e.meta, Host: e.host, Log: slog.New(slog.DiscardHandler), Version: "1.0.0", Name: "vedette-test",
+		Enabled: func() bool { return !e.off.Load() },
+		KnownMACs: func(ctx context.Context) ([]string, error) {
+			l, err := inv.Devices(ctx)
+			if err != nil {
+				return nil, err
+			}
+			var macs []string
+			for _, d := range l.Items {
+				if d.MAC != nil {
+					macs = append(macs, *d.MAC)
+				}
+			}
+			return macs, nil
+		},
 		Open: e.src.open, FlushEvery: 10 * time.Millisecond, HeartbeatEvery: 10 * time.Millisecond, RetryEvery: 20 * time.Millisecond}
 	for _, o := range opts {
 		o(&cfg, e)
 	}
 	cfg.Clock = func() time.Time { e.nowMu.Lock(); f := e.now; e.nowMu.Unlock(); return f() }
+	e.cfg = cfg
 	e.svc, err = sp.New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -267,7 +320,8 @@ func (e *env) run() (stop func()) {
 	e.t.Helper()
 	ctx, cancel := context.WithCancel(e.t.Context())
 	done := make(chan error, 1)
-	go func() { done <- e.svc.Run(ctx) }()
+	job := e.job()
+	go func() { done <- job(ctx) }()
 	var once sync.Once
 	stop = func() {
 		once.Do(func() {
@@ -288,9 +342,31 @@ func (e *env) run() (stop func()) {
 
 func (e *env) setInterface(iface string, span bool) {
 	e.t.Helper()
+	e.sensorBeat()
 	if err := e.svc.SetInterface(e.t.Context(), "admin@example.org", sp.SensorID, iface, span); err != nil {
 		e.t.Fatalf("SetInterface(%q, %v): %v", iface, span, err)
 	}
+}
+
+// sensorBeat is the first heartbeat of the sensor: the cards it has. An admin can choose a card only among those a sensor
+// reported (INV-9), so a test that sets the interface before the capture runs has the sensor say hello first. It is the same call
+// the sensor makes, with the cards of the test's host.
+func (e *env) sensorBeat() {
+	e.t.Helper()
+	e.beat.Do(func() {
+		cards, _ := e.host.Interfaces(e.t.Context())
+		hb := &sensorlink.PassiveHeartbeat{Version: "1.0.0", Interfaces: []sensorlink.HeartbeatIface{}, Drops: map[string]int64{}}
+		for _, c := range cards {
+			ips := []string{}
+			for _, p := range c.Addresses {
+				ips = append(ips, p.String())
+			}
+			hb.Interfaces = append(hb.Interfaces, sensorlink.HeartbeatIface{Name: c.Name, MAC: c.MAC, Link: c.Link, IPv4: ips})
+		}
+		if _, err := e.svc.PassiveHeartbeat(e.t.Context(), hb); err != nil {
+			e.t.Fatal(err)
+		}
+	})
 }
 
 func waitFor(t *testing.T, what string, cond func() bool) {

@@ -17,6 +17,7 @@ import (
 	"github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
 const (
@@ -37,9 +38,12 @@ type Config struct {
 	Observe   observe.Sink         // the inventory, through core/observe
 	Software  observe.SoftwareSink // the inventory, through core/observe
 	Events    Publisher
-	NmapPath  string // absolute path of the OS package's nmap; the module builds its own core/exec Runner around it
-	Clock     func() time.Time
-	Log       *slog.Logger
+	NmapPath  string // absolute path of the OS package's nmap; Health reads it, and the local Prober runs it
+	// Prober runs the nmap command the module has already checked. Nil means the local one, core/exec around
+	// NmapPath (NewLocalProber); SP-3 adds the one that hands the job to a worker.
+	Prober Prober
+	Clock  func() time.Time
+	Log    *slog.Logger
 	// Location is the organization's time zone, the one the windows are read in (INV-3). Nil, or a nil result,
 	// means the box's own zone (time.Local).
 	Location func() *time.Location
@@ -53,7 +57,7 @@ type Service struct {
 	sw     observe.SoftwareSink
 	events Publisher
 	path   string
-	runner *exec.Runner
+	prober Prober
 	clock  func() time.Time
 	log    *slog.Logger
 	loc    func() *time.Location
@@ -87,11 +91,14 @@ func New(cfg Config) (*Service, error) {
 	if s.log == nil {
 		s.log = slog.New(slog.DiscardHandler)
 	}
-	r, err := exec.NewRunner(s.log, NmapBinary(cfg.NmapPath))
-	if err != nil {
-		return nil, fmt.Errorf("sensoractive: %w", err)
+	s.prober = cfg.Prober
+	if s.prober == nil {
+		p, err := NewLocalProber(s.log, cfg.NmapPath)
+		if err != nil {
+			return nil, err
+		}
+		s.prober = p
 	}
-	s.runner = r
 	return s, nil
 }
 
@@ -264,8 +271,8 @@ var errDeadline = fmt.Errorf("%w: its deadline passed", ErrStopped)
 // without a log line) and nmap started, unless a SettingsChanged arrived in between. The deadline is the
 // window's end or maxRun; when it passes, or ctx is cancelled, exec kills the process group and the batch is
 // dropped (PRE-3, POST-3).
-func (s *Service) probe(ctx context.Context, jobID string, kind scanKind, rate int, targets []netip.Addr) ([]host, error) {
-	if _, err := buildNmapArgs(kind, rate, targets); err != nil {
+func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, rate int, targets []netip.Addr) ([]host, error) {
+	if _, err := nmapargv.Build(kind, rate, targets); err != nil {
 		return nil, err
 	}
 	v0 := s.ver.Load()
@@ -288,7 +295,7 @@ func (s *Service) probe(ctx context.Context, jobID string, kind scanKind, rate i
 		return nil, ErrStopped
 	}
 	rate = min(rate, st.Rate)
-	args, err := buildNmapArgs(kind, rate, targets)
+	args, err := nmapargv.Build(kind, rate, targets)
 	if err != nil {
 		return nil, err
 	}
@@ -308,7 +315,7 @@ func (s *Service) probe(ctx context.Context, jobID string, kind scanKind, rate i
 
 	rctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	res, runErr := s.runner.Run(rctx, nmapName, args, nil)
+	res, runErr := s.prober.Probe(rctx, args)
 
 	var hosts []host
 	var result string
@@ -330,7 +337,7 @@ func (s *Service) probe(ctx context.Context, jobID string, kind scanKind, rate i
 		result, err = "failed: output over the size limit, discarded", errXMLTooBig
 	default:
 		var all []host
-		if all, err = parseNmapXML(res.Stdout); err != nil {
+		if all, err = parseNmapXML(res.XML); err != nil {
 			result = "failed: output not valid, discarded"
 		} else {
 			hosts = onlyTargets(all, targets)
@@ -397,18 +404,18 @@ func compactTargets(ts []netip.Addr) string {
 	return strings.Join(parts, ",")
 }
 
-func (s *Service) insertProbe(ctx context.Context, jobID string, kind scanKind, rate int, targets []netip.Addr) (int64, error) {
-	if kind == kindGentle {
+func (s *Service) insertProbe(ctx context.Context, jobID string, kind nmapargv.Kind, rate int, targets []netip.Addr) (int64, error) {
+	if kind == nmapargv.Gentle {
 		rate = 1
 	}
-	flags, err := flagsFor(kind, rate)
+	flags, err := nmapargv.Flags(kind, rate)
 	if err != nil {
 		return 0, err
 	}
 	var id int64
 	err = s.db.Write(ctx, func(tx *sql.Tx) error {
 		res, err := tx.ExecContext(ctx, `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES (?, ?, ?, ?, ?, ?, ?, 'started')`,
-			s.now(), jobID, kind.name(), rate, len(targets), strings.Join(flags, " "), compactTargets(targets))
+			s.now(), jobID, kind.Name(), rate, len(targets), strings.Join(flags, " "), compactTargets(targets))
 		if err != nil {
 			return err
 		}
@@ -449,7 +456,7 @@ func (s *Service) Probes(ctx context.Context, since time.Time, limit int) ([]Pro
 		if err := rows.Scan(&p.Time, &p.Shape, &p.Rate, &flags, &p.Target, &p.Result, &p.JobID); err != nil {
 			return nil, fmt.Errorf("sensoractive: read probes: %w", err)
 		}
-		p.Argv = append(strings.Fields(flags), flagXML, "-")
+		p.Argv = append(strings.Fields(flags), "-oX", "-")
 		out = append(out, p)
 	}
 	return out, rows.Err()
@@ -617,7 +624,7 @@ loop:
 			s.setCursor(ctx, netip.Addr{}) // the pass reached the end of the ranges
 			break
 		}
-		hosts, err := s.probe(jctx, id, kindSweep, st.Rate, batch)
+		hosts, err := s.probe(jctx, id, nmapargv.Sweep, st.Rate, batch)
 		switch {
 		case errors.Is(err, ErrStopped):
 			status, firstErr = StatusStopped, stoppedText
@@ -766,14 +773,14 @@ func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error 
 		s.blocked(ctx, assetID, "out_of_scope")
 		return fmt.Errorf("%w: out_of_scope", ErrBlocked)
 	}
-	kind, rate := kindNormal, st.Rate
+	kind, rate := nmapargv.Normal, st.Rate
 	if dec.Rate > 0 {
 		rate = min(rate, dec.Rate)
 	}
 	if dec.FirstGentle {
-		kind, rate = kindGentle, 1
+		kind, rate = nmapargv.Gentle, 1
 	}
-	s.setGentle(kind == kindGentle)
+	s.setGentle(kind == nmapargv.Gentle)
 
 	id, err := s.startJob(ctx, KindDevice, reason, 1)
 	if err != nil {

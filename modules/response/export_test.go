@@ -50,3 +50,20 @@ func (s *Service) HandleStaleForTest(ctx context.Context, ruleID string, ev Det,
 	})
 	return handled, err
 }
+
+// ApproveViaForTest approves as who with the way of approval they came by (the public Approve is always the app; chat and email arrive in 13b-7).
+func (s *Service) ApproveViaForTest(ctx context.Context, who Actor, id string, pick []string, code string) (ActionRequest, error) {
+	return s.approve(ctx, who, id, pick, code, false)
+}
+
+// CheckAIPausedForTest runs the pause gate 13b-10 puts among its proposal gates.
+func CheckAIPausedForTest(st Settings) error { return checkAIPaused(st) }
+
+// ApproveSummaryForTest returns the line sent with a two-step code for the request.
+func (s *Service) ApproveSummaryForTest(ctx context.Context, id string, pick ...string) (string, error) {
+	r, ok, err := loadReq(ctx, s.cfg.DB.Reader(), id)
+	if err != nil || !ok {
+		return "", err
+	}
+	return approveSummary(r, pick), nil
+}

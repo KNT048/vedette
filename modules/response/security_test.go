@@ -100,7 +100,7 @@ func banAndBlock() []response.RuleAction {
 
 // INV-14: a proposal of an AI plan holds a catalog action and typed values only. The request is rendered from the catalog
 // templates, through the same planner as a rule, so text stored in the plan (a command, another host) never runs; the request
-// carries AI data, so the AI gates apply to it (501 until part 13b), and it cannot be approved yet.
+// carries AI data, so the AI gates apply to it (13b-9: a high-risk one needs the code of two people).
 func TestContract_INV14_PlanProposalIsRenderedFromTheCatalog(t *testing.T) {
 	e := planEnv(t)
 	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_vip_disable","params":{"name":"NAS-PHOTO-443"},"asset_id":"a-nas","asset_name":"NAS",`+
@@ -120,10 +120,18 @@ func TestContract_INV14_PlanProposalIsRenderedFromTheCatalog(t *testing.T) {
 	if u, err := url.Parse(it.Change.Rest.URL); err != nil || u.Host != "fw.lan" || response.HasShellChar(it.Change.CLI) || strings.Contains(it.Change.CLI, "factoryreset") {
 		t.Fatalf("the request holds text that did not come from the catalog template: %+v", it.Change)
 	}
-	_, err = e.svc.Approve(e.ctx(), oper, a.ID, nil, "")
-	wantCode(t, err, 501, "not_implemented") // the AI gates (INV-16) are part 13b: fail closed
-	if e.exec.count() != 0 {
-		t.Fatal("a step reached the device")
+	// A medium-risk AI request is not in_app_only (INV-16 is for high risk): one person approves it like any request, and what runs is the
+	// catalog template, never the text the plan held.
+	if _, err = e.svc.Approve(e.ctx(), oper, a.ID, nil, ""); err != nil {
+		t.Fatal(err)
+	}
+	if e.exec.count() == 0 {
+		t.Fatal("the approval did not reach the device")
+	}
+	for _, st := range e.exec.steps {
+		if u, err := url.Parse(st.URL); err != nil || u.Host != "fw.lan" || strings.Contains(st.Body, "factoryreset") {
+			t.Fatalf("a step holds text that did not come from the catalog template: %+v", st)
+		}
 	}
 }
 

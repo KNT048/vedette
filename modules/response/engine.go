@@ -402,7 +402,7 @@ func (s *Service) fire(ctx context.Context, tx *sql.Tx, rule Rule, ev Det, sum *
 	}
 	name := firstNonEmpty(ev.Fields["device"], ev.Fields["source_device"], ev.Fields["ip"], ev.Fields["source_ip"], "Network")
 	r, err := s.createRequest(ctx, tx, st, reqInit{Source: "rule", ProposalID: "rule:" + rule.ID + ":" + ev.ID, RuleID: rule.ID, RuleName: rule.Name, Trigger: rule.Trigger, TriggerSummary: ev.Summary,
-		FindingID: ev.FindingID, CVE: ev.CVE, AssetID: ev.AssetID, AssetName: name, Title: title, Recs: recs, Held: held}, fx)
+		FindingID: ev.FindingID, CVE: ev.CVE, AssetID: ev.AssetID, AssetName: name, Title: title, Recs: recs, Held: held, Quiet: pre}, fx)
 	if err != nil {
 		return "", err
 	}
@@ -539,7 +539,7 @@ func (s *Service) handleInTx(ctx context.Context, tx *sql.Tx, ruleID string, ev 
 // autoApprove carries out the request of a pre-approved rule (INV-5): no person, via auto. Every other gate still applies.
 func (s *Service) autoApprove(ctx context.Context, reqID string, rule Rule, sum *RunSummary) {
 	who := Actor{ID: "rule:" + rule.ID, Name: "Rule: " + rule.Name, Email: "rule@vedette", Via: ViaAuto}
-	_, err := s.approve(ctx, who, reqID, nil, "", true)
+	_, err := s.approve(ctx, who, reqID, nil, "", true, nil)
 	if err != nil {
 		sum.Refused++
 		_ = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { // the request must not stay open

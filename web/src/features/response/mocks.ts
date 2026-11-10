@@ -69,6 +69,12 @@ function blockEntries(): BlockEntry[] {
 const blockUrl = (token: string) => `https://${boxInfo().ip ?? '<box ip>'}:8443/api/v1/response/blocklist/${token}.txt`
 const blockView = () => ({ url: blockUrl(blockMeta.get().token), token_last4: blockMeta.get().token.slice(-4), entries: blockEntries(), last_fetch: blockMeta.get().last_fetch })
 
+/** The approver of a link is still valid: on the channel's list with that address, the channel ready and one of the approval channels, an active operator or admin. */
+function linkApproverValid(t: { user_id: string; channel: string; address: string }) {
+  const ch = rawChans().find((c) => c.type === t.channel)
+  return !!ch && chanReady(ch) && settings().approval_channels.includes(t.channel) && approversOf(ch).some((x) => x.user_id === t.user_id && x.address === t.address) && !!userCanApprove(t.user_id)
+}
+
 /** State of an emailed approval link. Used by the read-only GET and re-checked by the POST. */
 function tokenState(token: string) {
   const t = TOKEN_RE.test(token) ? tokensStore.get().find((x) => x.token === token) : undefined
@@ -188,7 +194,10 @@ export const handlers = [
   // Emailed link, public. GET only shows the change (link scanners cannot approve); the decision is a POST.
   http.get(`${API}/response/approve/:token`, ({ params }) => {
     sweep()
-    const { state, t, a } = tokenState(String(params.token)) as ReturnType<typeof tokenState> & { t?: { user_id: string; expires_at: string }; a?: ActionRequest }
+    const found = tokenState(String(params.token)) as ReturnType<typeof tokenState> & { t?: { user_id: string; expires_at: string; channel: string; address: string }; a?: ActionRequest }
+    // Spec 8: a link whose person may no longer approve (disabled, taken off the list, new address, channel not allowed) reads as no link at all.
+    const gone = found.t ? !linkApproverValid(found.t) : false
+    const { state, t, a } = gone ? ({ state: 'unknown' } as typeof found) : found
     const u = t ? usersStore.get().find((x) => x.id === t.user_id) : undefined
     const ready = state === 'ready'
     const view: ApprovalView = { state, title: ready ? a!.title : null, items: ready ? a!.items.map((i) => ({ title: i.title, risk: i.risk, change: i.change })) : [], approver: ready ? (u?.name ?? null) : null, expires_at: ready ? t!.expires_at : null, status: a?.status ?? null,
@@ -204,9 +213,8 @@ export const handlers = [
     if (state === 'unknown' || !t || !a) return fail(404, 'unknown', 'This link is not valid.')
     if (state !== 'ready') return refuse(409, state, state === 'used' ? 'This link was already used.' : state === 'expired' ? 'This link has expired. Ask for a new approval request.' : `This request is already ${a.status.replace('_', ' ')}.`, a.id)
     // Re-check who the link belongs to: still on this channel's approver list, still an active operator or admin.
-    const ch = rawChans().find((c) => c.type === t.channel)
     const u = userCanApprove(t.user_id)
-    if (!ch || !chanReady(ch) || !approversOf(ch).some((x) => x.user_id === t.user_id && x.address === t.address) || !u) return refuse(403, 'approver_not_listed', 'This link no longer belongs to a valid approver.', a.id)
+    if (!linkApproverValid(t) || !u) return refuse(403, 'approver_not_listed', 'This link no longer belongs to a valid approver.', a.id)
     const w = who(u, t.channel === 'zalo' ? 'zalo' : 'email', t.address)
     const r = b.decision === 'approve' ? approve(a, w) : reject(a, w, `Rejected through an emailed link by ${u.name}`)
     if (isResp(r)) return r

@@ -183,6 +183,23 @@ func TestHTTPSDeadlineEndsAHungCall(t *testing.T) {
 	}
 }
 
+// A device that ends the call as the caller's time ends answers with an empty 200 (what net/http's server sends when a handler
+// returns). net/http prefers a response that raced the context to the error, so the answer must be refused here: the outcome is
+// the same whichever side wins the race.
+func TestHTTPSAnswerAfterTheDeadlineIsATimeout(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	f := conntest.NewHTTPS(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		cancel() // the caller's time is up, and the device answers anyway
+		w.WriteHeader(http.StatusOK)
+	}))
+	c := transport.NewHTTPS(transport.HTTPSConfig{Dialer: dialer(), TOFU: true})
+	if r, err := c.Do(ctx, transport.Auth{}, transport.Request{URL: f.URL}); err == nil {
+		t.Fatalf("an answer after the end of the call = %+v, want an error", r)
+	}
+}
+
 func TestHTTPSSignsInAndRefusesForbiddenHeaders(t *testing.T) {
 	t.Parallel()
 	f := conntest.NewHTTPS(t, nil)

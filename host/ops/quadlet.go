@@ -199,6 +199,7 @@ User={{.SensorUID}}:{{.SensorGID}}
 DropCapability=ALL
 AddCapability=NET_RAW
 NoNewPrivileges=true
+RunInit=true
 ReadOnly=true
 Tmpfs=/tmp
 Volume=vedette-creds-active.volume:/var/lib/vedette-creds:ro

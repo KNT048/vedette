@@ -53,6 +53,23 @@ func TestCoreDataInTheUnitIsAStrictPath(t *testing.T) {
 	}
 }
 
+// D-146 (L5 of the sensor protocol): nmap can leave a child that setsid()ed away from the group the worker kills, and without an init
+// that child becomes a zombie of PID 1, which is the worker. The scan unit therefore runs under podman's init (Quadlet RunInit=, which
+// the generator turns into --init; checked with the quadlet generator of podman 5.7), and vedette-sensor is not made a subreaper.
+// The sensor starts no child process, so its unit has none.
+func TestScanUnitRunsUnderAnInit(t *testing.T) {
+	t.Parallel()
+	for svc, want := range map[string]bool{api.ServiceScan: true, api.ServiceSensor: false, api.ServiceCore: false, api.ServiceHoneypot: false} {
+		b, err := renderUnit(svc, goldFill(true))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := slices.Contains(strings.Split(string(b), "\n"), "RunInit=true"); got != want {
+			t.Errorf("%s: RunInit=true present = %t, want %t", svc, got, want)
+		}
+	}
+}
+
 // The golden files are the unit texts of DEPLOYMENT.md 6.1: any change to a template shows here and
 // must be made on purpose (UPDATE_GOLDEN=1 rewrites them).
 func TestUnitTemplatesMatchTheGoldenFiles(t *testing.T) {

@@ -589,7 +589,7 @@ func (s *Service) SetAllowlist(ctx context.Context, who Actor, in []AllowEntry) 
 		for i, e := range clean {
 			names[i] = e.Value
 		}
-		return s.step(ctx, tx, "response.allowlist", "response", LogSettings, "Never-touch list saved: "+joinNonEmpty(", ", names...)+onEmpty(len(clean), "empty"), who.Email)
+		return s.step(ctx, tx, "response.allowlist", "response", LogSettings, "Never-touch list saved: "+joinNonEmpty(names...)+onEmpty(len(clean), "empty"), who.Email)
 	})
 	if err != nil {
 		return nil, err

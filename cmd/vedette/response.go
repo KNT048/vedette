@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"slices"
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
@@ -11,6 +13,7 @@ import (
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/notify"
+	"github.com/knt048/vedette/modules/notify/channel"
 	"github.com/knt048/vedette/modules/response"
 )
 
@@ -58,13 +61,121 @@ func (r responseNotifier) Channels(ctx context.Context) ([]response.NotifyChanne
 	}
 	out := make([]response.NotifyChannel, 0, len(v.Channels))
 	for _, c := range v.Channels {
-		label := channelNames[string(c.Type)]
-		if c.Type == "slack" && c.Fields["label"] != "" {
-			label = "Slack " + c.Fields["label"]
-		}
-		out = append(out, response.NotifyChannel{Type: string(c.Type), Label: label, Configured: c.Configured, Enabled: c.Enabled, Approvals: c.Approvals, Approvers: len(c.Approvers)})
+		out = append(out, response.NotifyChannel{Type: string(c.Type), Label: channelLabel(c), Configured: c.Configured, Enabled: c.Enabled, Approvals: c.Approvals, Approvers: len(c.Approvers)})
 	}
 	return out, nil
+}
+
+func channelLabel(c notify.Channel) string {
+	if c.Type == "slack" && c.Fields["label"] != "" {
+		return "Slack " + c.Fields["label"]
+	}
+	return channelNames[string(c.Type)]
+}
+
+// Approvers lists the people saved as approvers on a channel (notify.ApprovalChannels: enabled, configured, approvals on).
+func (r responseNotifier) Approvers(ctx context.Context, ch string) ([]response.Approver, error) {
+	all, err := r.n.ApprovalChannels(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var out []response.Approver
+	for _, c := range all {
+		if string(c.Type) != ch {
+			continue
+		}
+		for _, a := range c.Approvers {
+			out = append(out, response.Approver{UserID: a.UserID, Address: a.Address})
+		}
+	}
+	return out, nil
+}
+
+// RequestApproval hands the request to notify.SendApprovalRequest (D-96 (2)) and returns the labels of the channels where at least one
+// message arrived. A message that failed is an error as well, so response can say so in its log line; the request itself stays open.
+func (r responseNotifier) RequestApproval(ctx context.Context, m response.ApprovalMessage) ([]string, error) {
+	types := make([]channel.Type, len(m.Channels))
+	for i, t := range m.Channels {
+		types[i] = channel.Type(t)
+	}
+	sev := notify.Medium
+	switch m.Risk {
+	case response.RiskHigh:
+		sev = notify.High
+	case response.RiskLow:
+		sev = notify.Low
+	}
+	sent, err := r.n.SendApprovalRequest(ctx, notify.ApprovalRequest{ID: m.RequestID, Title: m.Title, What: m.What, Action: "Review the change, then approve or reject it. The link works once and ends with the request.",
+		Severity: sev, Risk: notify.Risk(m.Risk), Expires: m.Expires, Channels: types, InAppOnly: m.InAppOnly})
+	if err != nil {
+		return nil, err
+	}
+	labels := map[string]string{}
+	if v, err := r.n.Channels(ctx); err == nil {
+		for _, c := range v.Channels {
+			labels[string(c.Type)] = channelLabel(c)
+		}
+	}
+	var out []string
+	failed := 0
+	for _, v := range sent {
+		if !v.OK {
+			failed++
+			continue
+		}
+		l := labels[string(v.Channel)]
+		if l == "" {
+			l = string(v.Channel)
+		}
+		if !slices.Contains(out, l) {
+			out = append(out, l)
+		}
+	}
+	if failed > 0 {
+		return out, fmt.Errorf("%d of %d message(s) could not be sent", failed, len(sent))
+	}
+	return out, nil
+}
+
+// ---- notify <-> response: approval links ----
+
+// responseLinks lets response check the links notify signed (notify.VerifyApprovalLink: MAC only, never makes a key).
+type responseLinks struct{ n *notify.Service }
+
+func (l responseLinks) ID(token string) ([]byte, error) {
+	id, err := notify.ParseApprovalToken(token)
+	if err != nil {
+		return nil, response.ErrLinkInvalid
+	}
+	return id[:], nil
+}
+
+func (l responseLinks) Verify(ctx context.Context, token string, b response.LinkBinding, keyID string) error {
+	_, err := l.n.VerifyApprovalLink(ctx, token, notify.Binding{RequestID: b.RequestID, UserID: b.UserID, Channel: b.Channel, ExpiresAt: b.ExpiresAt}, keyID)
+	if errors.Is(err, notify.ErrTokenInvalid) {
+		return response.ErrLinkInvalid
+	}
+	return err
+}
+
+// notifyTokens is notify.TokenRecorder over the response service: the record of every link and reply code is kept by response (D-96 (1)).
+// d.Response is read when asked: notify is built before response.
+type notifyTokens struct{ d *deps }
+
+var errResponseNotReady = errors.New("vedette: the response module is not ready to record approval tokens")
+
+func (t notifyTokens) RecordToken(ctx context.Context, id notify.TokenID, b notify.Binding, keyID, address string) error {
+	if t.d.Response == nil {
+		return errResponseNotReady
+	}
+	return t.d.Response.RecordLink(ctx, response.LinkRecord{ID: id[:], RequestID: b.RequestID, UserID: b.UserID, Channel: b.Channel, Address: address, KeyID: keyID, ExpiresAt: b.ExpiresAt})
+}
+
+func (t notifyTokens) RecordReplyCode(ctx context.Context, c notify.ReplyCode) error {
+	if t.d.Response == nil {
+		return errResponseNotReady
+	}
+	return t.d.Response.RecordReplyCode(ctx, response.ReplyCodeRecord{RequestID: c.RequestID, UserID: c.UserID, Address: c.Address, Approve: c.Approve, CodeHash: c.CodeHash, ExpiresAt: c.ExpiresAt})
 }
 
 // Message queues a short text as an incident notice: every enabled channel whose minimum severity it meets gets it.
@@ -189,7 +300,7 @@ func newResponse(d *deps) (*response.Service, error) {
 func responseConfig(d *deps) (response.Config, error) {
 	n := newNotify(d)
 	cfg := response.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: responseUsers{d}, TwoStep: responseTwoStep{d}, Log: d.Log, Clock: d.Clock,
-		Notifier: responseNotifier{n: n, now: d.Clock}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings}}
+		Notifier: responseNotifier{n: n, now: d.Clock}, Links: responseLinks{n}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings}}
 	if d.Conn != nil { // a nil *conn.Service inside the interface would not compare equal to nil
 		cfg.Connections = responseConnections{d.Conn}
 		// cfg.Evidence stays empty: IocHit until logs (WP-24) offers a lookup, ConfigRead until ai offers a lookup of the reads it made. An

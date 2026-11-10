@@ -71,6 +71,11 @@ type Notifier interface {
 	Channels(ctx context.Context) ([]NotifyChannel, error)
 	// Message sends one short text to the alert channels. It never changes a device.
 	Message(ctx context.Context, id, title, text string) error
+	// Approvers lists the people who may approve on a channel (its saved list), for the check made again when a link is used (INV-3).
+	Approvers(ctx context.Context, channel string) ([]Approver, error)
+	// RequestApproval sends an approval request to the approvers of the channels in m.Channels and returns the labels of the channels that
+	// received it (POST-5). It is called after the request committed, with a 60 second budget, and its error never fails the request.
+	RequestApproval(ctx context.Context, m ApprovalMessage) (sentTo []string, err error)
 }
 
 // WebhookTarget is where the webhook_call action posts: the URL (a secret) and the key that signs the body.
@@ -220,6 +225,7 @@ type Config struct {
 	Connections Connections   // nil = no connection
 	Executor    Executor      // nil = no device can be changed
 	Webhooks    Webhooks      // nil = no webhook
+	Links       LinkTokens    // nil = no approval link can be checked: every link is unknown (404)
 	TwoStep     TwoStep       // nil = no code can be checked: a high-risk AI request cannot be approved (403 twofa_required)
 	Evidence    EvidencePorts // a nil port means no such evidence exists: an AI proposal naming it is refused (422 evidence_invalid)
 

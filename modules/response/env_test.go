@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -41,10 +42,38 @@ func (f *fakeUsers) Lookup(_ context.Context, id string) (response.User, bool, e
 }
 
 type fakeNotifier struct {
-	mu   sync.Mutex
-	chs  []response.NotifyChannel
-	msgs []string
-	fail bool
+	mu        sync.Mutex
+	chs       []response.NotifyChannel
+	msgs      []string
+	fail      bool
+	approvers map[string][]response.Approver // by channel type
+	asked     []response.ApprovalMessage     // every RequestApproval call
+	sendSent  []string                       // what RequestApproval answers
+	sendErr   error                          // and the error it answers
+	onSend    func()                         // runs inside RequestApproval (what is open while a send runs)
+}
+
+func (f *fakeNotifier) Approvers(_ context.Context, ch string) ([]response.Approver, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.approvers[ch], nil
+}
+
+func (f *fakeNotifier) RequestApproval(_ context.Context, m response.ApprovalMessage) ([]string, error) {
+	f.mu.Lock()
+	f.asked = append(f.asked, m)
+	hook, sent, err := f.onSend, f.sendSent, f.sendErr
+	f.mu.Unlock()
+	if hook != nil {
+		hook()
+	}
+	return sent, err
+}
+
+func (f *fakeNotifier) requests() []response.ApprovalMessage {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.asked)
 }
 
 func (f *fakeNotifier) Channels(context.Context) ([]response.NotifyChannel, error) { return f.chs, nil }

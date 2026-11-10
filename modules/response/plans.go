@@ -201,7 +201,6 @@ func (s *Service) RequestProposal(ctx context.Context, who Actor, pid string) (A
 		return ActionRequest{}, fail(http.StatusNotFound, "not_found", "No such proposal.")
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	var refusal error
 	var out request
 	var fx effects
@@ -313,12 +312,16 @@ func (s *Service) RequestProposal(ctx context.Context, who Actor, pid string) (A
 			AssetID: assetID, AssetName: oneLine(plan.AssetName, 120), Title: item.Title, Recs: []itemRec{item}, AI: meta}, &fx)
 		return err
 	})
+	s.mu.Unlock() // sending the request to the approvers can take a while: it goes out with the lock released
 	if err != nil {
 		return ActionRequest{}, err
 	}
 	s.run(ctx, &fx)
 	if refusal != nil {
 		return ActionRequest{}, s.refuse(ctx, refusal, pid, who.Email)
+	}
+	if now, err := s.get(ctx, out.ID); err == nil { // sent_to is known once the request went out
+		return now, nil
 	}
 	return out.view(), nil
 }

@@ -33,6 +33,7 @@ type reqInit struct {
 	Recs                                                                                                            []itemRec
 	AI                                                                                                              *AiMeta
 	Held                                                                                                            string // why a pre-approval was not used, for the log line
+	Quiet                                                                                                           bool   // a pre-approved request: nobody is asked, so nothing is sent
 }
 
 // createRequest writes a pending request and its log line inside tx.
@@ -59,11 +60,14 @@ func (s *Service) createRequest(ctx context.Context, tx *sql.Tx, st Settings, in
 	} else if actor == "" {
 		actor = AIActor
 	}
-	detail := in.Title + ": " + strings.Join(calls, " | ") + "; expires " + a.ExpiresAt + "; needs " + itoa(need) + " approver" + plural(need) + "; sent to the app only" + in.Held
+	detail := in.Title + ": " + strings.Join(calls, " | ") + "; expires " + a.ExpiresAt + "; needs " + itoa(need) + " approver" + plural(need) + in.Held
 	if err := s.step(ctx, tx, "response.request", a.ID, LogRequest, detail, actor); err != nil {
 		return request{}, err
 	}
 	fx.ob.Add(events.Event{Name: EventRequestCreated, Data: RequestEvent{RequestID: a.ID, Source: a.Source, Title: a.Title, Risk: string(a.Risk), Items: len(in.Recs), ExpiresAt: a.ExpiresAt, Approvals: need}})
+	if !in.Quiet { // POST-5: tell the approvers once the request is committed, never inside this transaction
+		fx.later(func(ctx context.Context) { s.sendApproval(ctx, a.ID) })
+	}
 	return r, nil
 }
 
@@ -100,10 +104,12 @@ func (s *Service) Actions(ctx context.Context) ([]ActionRequest, error) {
 // touches more targets than the limit, needs a second, different approver who approves the same actions.
 func (s *Service) Approve(ctx context.Context, who Actor, id string, pick []string, code string) (ActionRequest, error) {
 	who.Via = ViaApp
-	return s.approve(ctx, who, id, pick, code, false)
+	return s.approve(ctx, who, id, pick, code, false, "")
 }
 
-func (s *Service) approve(ctx context.Context, who Actor, id string, pick []string, code string, auto bool) (ActionRequest, error) {
+// approve records one approval. tok is the hash of the approval link the decision came through ("" for every other way): the link is
+// checked first inside the transaction and burned right before the decision is recorded, so a refusal leaves it alive (D-96 (4)).
+func (s *Service) approve(ctx context.Context, who Actor, id string, pick []string, code string, auto bool, tok string) (ActionRequest, error) {
 	if err := s.ensureSeeded(ctx); err != nil {
 		return ActionRequest{}, err
 	}
@@ -128,6 +134,16 @@ func (s *Service) approve(ctx context.Context, who Actor, id string, pick []stri
 			return nil
 		}
 		now := s.now()
+		if tok != "" {
+			e, err := tokenGate(ctx, tx, tok, now)
+			if err != nil {
+				return err
+			}
+			if e != nil {
+				refusal = e
+				return nil
+			}
+		}
 		if r.Status == StatusPending && !parseTS(r.ExpiresAt).After(now) { // INV-6: past its time and not yet swept
 			if err := s.expire(ctx, tx, &r, &fx); err != nil {
 				return err
@@ -233,6 +249,16 @@ func (s *Service) approve(ctx context.Context, who Actor, id string, pick []stri
 			}
 		}
 		at := store2(now)
+		if tok != "" { // every gate passed: this is the decision, so the link is used up with it
+			e, err := burnToken(ctx, tx, tok, at)
+			if err != nil {
+				return err
+			}
+			if e != nil {
+				refusal = e
+				return nil
+			}
+		}
 		need, why := requiredApprovals(chosenRecs, st)
 		a.Approvals = append(a.Approvals, Approval{UserID: who.ID, Name: who.Name, Email: who.Email, Via: who.Via, At: at, Items: idsOf(chosenRecs)})
 		a.RequiresApprovals, a.TwoBecause = need, ptrOrNil(why)
@@ -857,6 +883,11 @@ func (s *Service) stillMayApprove(ctx context.Context, who Actor) (refusal error
 // and the quality breaker looks at the decisions again (INV-15 (8)); a rule request has nothing to learn, so remember is ignored.
 func (s *Service) Reject(ctx context.Context, who Actor, id, reason, remember string) (ActionRequest, error) {
 	who.Via = ViaApp
+	return s.reject(ctx, who, id, reason, remember, "")
+}
+
+// reject records a rejection; tok is the hash of the approval link it came through, as in approve.
+func (s *Service) reject(ctx context.Context, who Actor, id, reason, remember, tok string) (ActionRequest, error) {
 	switch remember {
 	case "", RememberNone, RememberRule, RememberMemory:
 	default:
@@ -876,6 +907,16 @@ func (s *Service) Reject(ctx context.Context, who Actor, id, reason, remember st
 			refusal = notFound()
 			return nil
 		}
+		if tok != "" {
+			e, err := tokenGate(ctx, tx, tok, s.now())
+			if err != nil {
+				return err
+			}
+			if e != nil {
+				refusal = e
+				return nil
+			}
+		}
 		if r.Status == StatusPending && !parseTS(r.ExpiresAt).After(s.now()) {
 			if err := s.expire(ctx, tx, &r, &fx); err != nil {
 				return err
@@ -894,7 +935,17 @@ func (s *Service) Reject(ctx context.Context, who Actor, id, reason, remember st
 		if reason = truncRunes(cleanLine(reason), 300); reason != "" {
 			note += ": " + reason
 		}
-		if err := s.step(ctx, tx, "response.reject", r.ID, LogRejected, r.Title+", rejected by "+who.Email+" via app: "+reason, who.Email+" (app)"); err != nil {
+		if tok != "" {
+			e, err := burnToken(ctx, tx, tok, s.ts())
+			if err != nil {
+				return err
+			}
+			if e != nil {
+				refusal = e
+				return nil
+			}
+		}
+		if err := s.step(ctx, tx, "response.reject", r.ID, LogRejected, r.Title+", rejected by "+who.Email+" via "+string(who.Via)+": "+reason, who.Email+" ("+string(who.Via)+")"); err != nil {
 			return err
 		}
 		r.Status, r.DecidedAt, r.Note = StatusRejected, strp(s.ts()), &note
@@ -957,7 +1008,10 @@ func (s *Service) Sweep(ctx context.Context) error {
 	if err := s.resolveUnknown(ctx); err != nil {
 		return err
 	}
-	return s.sweepTTL(ctx)
+	if err := s.sweepTTL(ctx); err != nil {
+		return err
+	}
+	return s.sweepTokens(ctx)
 }
 
 func (s *Service) sweepExpired(ctx context.Context) error {

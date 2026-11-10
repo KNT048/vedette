@@ -128,8 +128,8 @@ func hostForURL(h string) string {
 // sign-in pause in memory). Events go to and come from deps.Bus. buildServices calls it first with the real
 // *deps: Users, Zone and Devices read d.Auth, d.Core and d.Inventory when asked, so notify can exist before
 // auth, which takes notify's code mailer.
-// ponytail: no finding directory (Emily's, Config.Findings) and no token recorder (response module, WP-13), no BoxAddrs (WP-08): the
-// service degrades without them.
+// ponytail: no finding directory (Emily's, Config.Findings), no BoxAddrs (WP-08): the service degrades without them. The token recorder is
+// the response module (notifyTokens, read lazily because response is built after notify).
 func newNotify(d *deps) *notify.Service {
 	notifyMu.Lock()
 	defer notifyMu.Unlock()
@@ -137,7 +137,7 @@ func newNotify(d *deps) *notify.Service {
 		return s
 	}
 	c := notify.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: notifyUsers{d}, Log: d.Log, Modules: d.Reg, Clock: d.Clock,
-		Zone: orgZone(d), BaseURL: d.BaseURL}
+		Zone: orgZone(d), BaseURL: d.BaseURL, Tokens: notifyTokens{d}}
 	if d.Inventory != nil {
 		c.Devices = notifyDevices{d.Inventory}
 	}

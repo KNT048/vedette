@@ -53,7 +53,7 @@ func (s *Service) HandleStaleForTest(ctx context.Context, ruleID string, ev Det,
 
 // ApproveViaForTest approves as who with the way of approval they came by (the public Approve is always the app; chat and email arrive in 13b-7).
 func (s *Service) ApproveViaForTest(ctx context.Context, who Actor, id string, pick []string, code string) (ActionRequest, error) {
-	return s.approve(ctx, who, id, pick, code, false)
+	return s.approve(ctx, who, id, pick, code, false, "")
 }
 
 // CheckAIPausedForTest runs the pause gate 13b-10 puts among its proposal gates.

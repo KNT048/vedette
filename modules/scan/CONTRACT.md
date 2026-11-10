@@ -1,19 +1,19 @@
 # Scan Contract
 
-> Tier: optional · Story: S-SCAN-1…4 · Last verified: 2026-11-09 (docs-first, chưa có code)
+> Tier: optional · Story: S-SCAN-1…4 · Last verified: 2026-11-10 (WP-23 phần 2 lát S0: GUI/mock theo D-125, D-126; backend từ S1)
 
 Nguồn hành vi: `web/src/features/scan/{contract,mocks}.ts`. Phần `/scans/credentialed*` trong cùng `contract.ts` thuộc module `scan-credentialed`.
 
 ## Invariants
-- **INV-1**: Mục tiêu quét ⊆ (`inventory` `lan_ranges` ∖ `exclusions` ∖ `scan.config.exclusions`) ∪ mục tiêu `exposure` đang `scannable`. Mỗi mục tiêu được kiểm lại ngay trước khi gửi request: ngoài phạm vi → bỏ, không gửi. Lý do không chọn được: `unapproved | excluded | out_of_scope | unverified | expired`. `TestContract_INV1_TargetsInScope`
-- **INV-2**: Không quét nếu `inventory.scope_confirmed_at=null` (400 `commitment_required`; `can_scan=false`, `block_reason`). Mục tiêu ngoài: gọi `exposure.CheckScannable` ngay trước lần quét (SYS-7).
+- **INV-1**: Mục tiêu trong: `inventory` `lan_ranges` ∖ `exclusions` ∖ `scan.config.exclusions`, `approved`, và `inventory.VulnScanPolicy(asset, explicit)` (D-126; không phải `ScanPolicy` của quét dò, công tắc `scanning_off` không áp). Luôn từ chối: hộp (`box`), `regular_scan=never` (`regular_scan_never`), không IP, ngoài phạm vi. Thiết bị mong manh, chưa phân loại (`kind=unknown`) và khai tay chỉ được quét khi người dùng **chọn tay** trong "Scan now" (`explicit=true`, ghi `core_audit` kèm người bấm); mong manh và chưa phân loại chạy ở `max(1, rate/4)` (`fragile=true` trên `ScanTarget` cho cả hai); quét lịch và quét lại KEV bỏ qua chúng (dòng kết quả `skipped` kèm lý do). Mục tiêu ngoài (`exposure`) được liệt kê nhưng **chưa quét ở bản này** (`not_supported`; deferred). Mỗi mục tiêu được kiểm lại ngay trước khi gửi job: không còn đủ điều kiện → bỏ, không gửi. Lý do không chọn được: `unapproved | excluded | out_of_scope | box | regular_scan_never | unverified | expired | not_supported`. `TestContract_INV1_TargetsInScope`, `TestContract_INV1_PolicyD126`
+- **INV-2**: Không quét nếu `inventory.scope_confirmed_at=null` (400 `commitment_required`; `can_scan=false`, `block_reason`). Mục tiêu ngoài: gọi `exposure.CheckScannable` ngay trước lần quét (SYS-7). Máy quét không sẵn sàng (không heartbeat của worker `scan`, hoặc heartbeat báo thiếu nuclei hay gói mẫu; D-125 (5)): `can_scan=false` kèm `block_reason`, `POST /scans/runs` → 503 `scanner_unavailable`, job lịch và quét lại KEV không gửi gì (sự kiện ở lại chờ).
 - **INV-3**: Một lần chạy tại một thời điểm (409 `already_running`); mỗi `POST /scans/runs` có 1…200 mục tiêu (400 `no_targets`/`too_many`); id lạ 400 `unknown_target`; mục tiêu không chọn được 400 `out_of_scope`.
-- **INV-4**: An toàn: chỉ template Nuclei thuộc tập `kev,vkev` ∩ tag an toàn trong gói nội dung ký; không khai thác, không DoS. `dangerous_checks` luôn `false`; `PUT /scans/config` với `true` → 400 `dangerous_locked`.
+- **INV-4**: An toàn: chỉ template Nuclei thuộc tập `kev,vkev` ∩ tag an toàn trong gói nội dung ký; không khai thác, không DoS. `dangerous_checks` luôn `false`; `PUT /scans/config` với `true` → 400 `dangerous_locked`. nuclei là binary ghim trong image `vedette-scan`, chạy ở worker qua giao thức sensor (D-125); job chỉ mang id mẫu và hash gói, argv dựng và kiểm bởi `modules/scan/nucleiargv`.
 - **INV-5**: Cấu hình: `window.days ∈ 1..7` (1=Thứ Hai, 7=Chủ Nhật; D-57 (9)) ít nhất một ngày, `from/to` HH:MM; `rate ∈ 1..20` request/giây; `exclusions` ≤ 200 IP/CIDR; `unresponsive_after ∈ 2..20`; `schedule {enabled, frequency daily|weekly, weekday, at}`. Sai → 400 `invalid_config`.
 - **INV-6**: Tự dừng: khi `stop_on_unresponsive` và một thiết bị không phản hồi `unresponsive_after` lần liên tiếp, lượt quét chuyển `auto_stopped` với `stop_reason`; thiết bị đó không bị tiếp tục dồn request. "Stop now": trạng thái `stopping` rồi `stopped` trong ≤ 5 giây; dừng lượt đã kết thúc → 409 `not_running`.
-- **INV-7**: Mỗi request thăm dò ghi `ProbeEntry {ts, run_id, ip, label, template, request, result}`, giữ ≥ 90 ngày (`retention_days`), tải được dạng CSV; ghi cả khi bị dừng.
+- **INV-7**: Mỗi request thăm dò ghi `ProbeEntry {ts, run_id, ip, label, template, request, result}` **trước** khi job rời `core` (cùng giao dịch xếp job), `result ∈ matched|not_matched|no_response|banner|stopped` (`stopped`: đang trên đường khi bấm "Dừng ngay"), giữ ≥ 90 ngày (`retention_days`), tải được dạng CSV; ghi cả khi bị dừng.
 - **INV-8**: Kết quả mỗi thiết bị thuộc `matched | not_matched | not_applicable | no_template | no_response | skipped`. "Xác nhận có" (`matched`) tách khỏi "nghi theo phiên bản": chỉ `matched` gọi `findings.ConfirmFromScan` và mang `finding_id`, bằng chứng rút gọn (request/response), `confidence`, cách tự kiểm tra lại (S-SCAN-3).
-- **INV-9**: Quét lại theo KEV (S-SCAN-2): khi `feeds.vuln.new_kev` có `has_template`, chỉ quét tài sản liên quan trong ≤ 60 phút nếu `auto_rescan=true`; mỗi sự kiện ghi `RescanEvent {cve, product, devices, latency_min, run_id, result ∈ matched|clear|skipped_off|no_match}`. `auto_rescan=false` ⇒ ghi `skipped_off`, không quét.
+- **INV-9**: Quét lại theo KEV (S-SCAN-2): khi `feeds.vuln.new_kev` có `has_template` và mẫu có trong gói đã cài, chỉ quét tài sản liên quan trong ≤ 60 phút nếu `auto_rescan=true`; mỗi sự kiện ghi `RescanEvent {cve, product, devices, latency_min, run_id, result ∈ matched|clear|skipped_off|no_match}`. `auto_rescan=false` ⇒ ghi `skipped_off`, không quét. Không chịu cửa sổ giờ (D-126 (3)); quét theo lịch thì chịu.
 - **INV-10**: Phản hồi từ thiết bị ngoài/trong là dữ liệu không tin cậy (SYS-6): bằng chứng cắt ngắn theo trần cố định, lưu như văn bản, escape khi hiển thị.
 - **INV-11**: `scope.commitment` chỉ đọc từ `inventory`; `scan` không tự ghi cam kết.
 
@@ -52,11 +52,12 @@ Nguồn hành vi: `web/src/features/scan/{contract,mocks}.ts`. Phần `/scans/cr
 Không route `/scans*`, không job lịch/quét lại; không probe nào. Findings chỉ còn `suspected` (không xác nhận mới); "Scan" mất ở Devices. Cấu hình, lịch sử, nhật ký probe giữ ≥ 90 ngày.
 
 ## Story và quyết định
-S-SCAN-1…4. D-4 công cụ; D-26 cam kết; D-45 mong manh; D-55 container `scan`.
+S-SCAN-1…4. D-4 công cụ; D-26 cam kết; D-45 mong manh; D-55 container `scan`; D-113 giao thức job; D-125 nuclei là binary trong container `scan`; D-126 chính sách quét lỗ hổng và cửa sổ của quét lại KEV.
 
 ## Không khớp / câu hỏi mở
 - ~~Cửa sổ giờ `scan` (ngày 0..6)~~ Đã thống nhất ngày 1..7 (Thứ Hai=1) theo D-57 (9); GUI/mock đã khớp.
 - ~~`no_commitment`: `scan` 400, `exposure` 409~~ Đã thống nhất: `400 commitment_required` (D-57 (10)).
-- Quét lại theo KEV và quét theo lịch có bị ràng buộc cửa sổ giờ không (GUI chỉ nói cho lượt thủ công)?
-- Thiết bị mong manh (D-45) có bị Nuclei quét khi người dùng chọn tay không? GUI chỉ gắn cờ `fragile`.
+- ~~Quét lại theo KEV có chịu cửa sổ giờ không~~ Không (D-126 (3)); quét lịch thì chịu, "Scan now" chạy ngay.
+- ~~Thiết bị mong manh có bị quét khi chọn tay không~~ Có, ở một phần tư tốc độ; cả chưa phân loại và khai tay; lịch và KEV không (D-126 (2)).
+- Mục tiêu ngoài và `exposure.Runner` để lát sau (D-126 (4)); GUI nói rõ "chưa quét".
 - Hai nơi ghi nhật ký probe (`scan_probe`, `sa_probe`) cùng danh mục xuất `scan_probes`.

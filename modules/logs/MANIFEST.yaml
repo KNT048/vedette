@@ -9,6 +9,6 @@ permissions: [net_bind_low, "outbound:siem"]   # cổng 514; SIEM do khách khai
 ports: ["udp/514", "tcp/514", "tcp/6514"]       # 6514 = syslog TLS (defaultPort của GUI)
 container: sensor      # D-55: nghe syslog + phân tích SPAN trong `sensor` (mạng host); lưu/gộp/API trong `core`. Giả định, xem câu hỏi mở 1
 tables_prefix: logs_
-tables: [logs_sources, logs_events, logs_retention, logs_siem, logs_ioc_hits]
+tables: [logs_sources, logs_retention, logs_siem, logs_events, logs_source_buckets, logs_source_seen, logs_ioc_hits]   # config in the main database; logs_events, logs_source_*, logs_ioc_hits in logs.db (INV-12)
 stories: [S-LOG-1, S-LOG-2, S-LOG-3, S-LOG-4]
 milestone: M5

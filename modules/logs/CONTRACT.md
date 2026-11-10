@@ -1,6 +1,6 @@
 # Logs Contract
 
-> Tier: tuỳ chọn (tắt mặc định) · Story: S-LOG-1, S-LOG-2, S-LOG-3, S-LOG-4 · Quyết định: D-18, D-30, D-43, D-55, D-56 · Last verified: 2026-11-09
+> Tier: tuỳ chọn (tắt mặc định) · Story: S-LOG-1, S-LOG-2, S-LOG-3, S-LOG-4 · Quyết định: D-18, D-30, D-43, D-55, D-56 · Last verified: 2026-11-10 (WP-24 L1: nguồn, sự kiện, lưu giữ, `Ingest`, xuất `device_logs`; chưa có listener, digest đầy đủ, IOC, SIEM)
 > Nguồn hành vi thực tế: `web/src/features/logs/{contract,types,mocks,kinds,catalog}.ts`.
 
 ## Invariants (luôn đúng)
@@ -50,7 +50,16 @@
 | POST | `/logs/siem/test` | admin | S-LOG-3 |
 
 ## Tables owned
-`logs_sources`, `logs_events`, `logs_retention`, `logs_siem`, `logs_ioc_hits`. `response` đọc `logs_ioc_hits` qua interface (IMPACT), không đọc bảng trực tiếp.
+Hai cơ sở dữ liệu (INV-12). **Cơ sở chính (`vedette.db`)**: `logs_sources`, `logs_retention`, `logs_siem` (cấu hình, ghi audit cùng giao dịch, nằm trong bản sao lưu). **`logs.db`** (tệp riêng cạnh `vedette.db`, người ghi riêng): `logs_events`, `logs_source_buckets`, `logs_source_seen`, và về sau `logs_ioc_hits`, `logs_signature_daily`. `response` đọc `logs_ioc_hits` qua interface (IMPACT), không đọc bảng trực tiếp.
+
+## Lưu trữ và người ghi duy nhất (INV-12, WP-24 L1)
+- **INV-12** Khối lượng log (`logs_events` và các bộ đếm) ở `logs.db`, **không** ở cơ sở chính: mỗi `store.DB` có một người ghi, và 2.000 dòng/giây/nguồn không được chờ hay giữ người ghi của core (các sự kiện findings bị mất vì người ghi bận, #159/#160). Hai cơ sở không tham chiếu nhau: dòng chỉ gọi nguồn bằng id, và dòng sống lâu hơn nguồn (INV-4). `NewService` từ chối khi hai cơ sở là một. `Ingest` ghi tối đa một giao dịch trên `logs.db` cho mỗi lô (≤ `MaxBatch` = 500 dòng) và không bao giờ ghi cơ sở chính. Test: `TestIngestNeverWaitsForTheCoreWriter` (giữ người ghi của core, ingest vẫn xong).
+- **Làm sạch (INV-1)**: mọi dòng qua `sanitizeLine`: UTF-8 sai → U+FFFD, ký tự điều khiển trừ tab → khoảng trắng, cắt ở `MaxLineBytes` = 2.048 byte tại ranh giới ký tự và đánh dấu `...[cut]`. Fuzz: `FuzzSanitizeLine`, `FuzzNormalizeSource`.
+- **Thời gian**: `ts` là giờ nhận (giờ của thiết bị trôi, RFC 3164 không có năm); giờ ở tương lai hoặc trống = bây giờ.
+- **Dọn**: job `purge` (mỗi giờ, và khi module bật) xoá dòng quá hạn lưu giữ theo từng khúc 10.000 dòng (mỗi khúc một giao dịch, nên người ghi của `logs.db` được nhả giữa hai khúc, tôn trọng `ctx`), giữ tối đa `MaxEvents` = 20 triệu dòng dù lưu giữ thế nào (chống đầy đĩa), bỏ bộ đếm quá 2 ngày và dấu "lần nhận cuối" của nguồn đã xoá; một lượt có xoá thì ghi một dòng audit (`logs.purge`).
+- **Tìm kiếm** (`GET /logs/events`): cửa sổ ≤ lưu giữ; `q` khớp trong dòng và trong tên nguồn; 200 dòng mới nhất; `total` đếm chính xác tới `CountCap` = 100.000 (đo với 5 triệu dòng trước khi nâng).
+- **Sao lưu và xoá dữ liệu**: `logs.db` **không** nằm trong bản chụp `VACUUM INTO` của core và `POST /core/data/purge` chưa có mã để dọn nó. Khi purge được viết nó phải xoá cả `logs.db` (+ `-wal`, `-shm`); log không phải cấu hình, mất khi khôi phục là chấp nhận được, nhưng phải nói trong RUNBOOK (issue cho Kiên).
+- **Còn thiếu so với CONTRACT đầy đủ (các lát sau)**: digest chỉ có `lines_24h` (INV-6, L3), `bad_connections` (INV-7, L4), SIEM (INV-8..10, L5), listener (POST-1, L2).
 
 ## Events
 - **Phát**: `logs.batch` (sensor → server, idempotent theo `seq`, `ARCHITECTURE.md`); `logs.ioc_hit` (tên đề xuất; chưa có trong ARCHITECTURE); **`logs.anomaly.detected`** và **`logs.bad_address.detected`** cho `notify` mở incident (D-52; tên 3 đoạn `<module>.<object>.<verb>` như `core/events` đòi; payload do logs mô tả sẵn nội dung, vì chỉ logs hiểu log): `{source, target, title, what, action, severity, devices: [{id, name}]}`. `source` và `target` là khoá gộp incident (cùng loại + nguồn + đích đang mở thì chỉ tăng `count`), `title` ≤ 200 ký tự bằng tiếng Anh một câu "ai làm gì", `severity ∈ critical|high|medium|low|info`, `devices` là thiết bị inventory khớp (có thể rỗng). Mọi chuỗi là dữ liệu từ log (không tin cậy); notify cắt và hiển thị như văn bản thuần. Hai tên này thay cho `logs.anomaly` và `logs.bad_address` trong CONTRACT của `notify`.

@@ -26,6 +26,7 @@ import (
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/response"
+	"github.com/knt048/vedette/modules/scan"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
 )
@@ -96,6 +97,7 @@ func wiredModules() []moduleWiring {
 		{ID: "sensor-passive", Migrations: sensorpassive.Migrations, Jobs: sensorPassiveJobs},
 		{ID: "response", Migrations: response.Migrations, Jobs: responseJobs}, // after notify and inventory (manifest depends)
 		{ID: "exposure", Migrations: exposure.Migrations, Jobs: exposureJobs}, // depends on core and inventory (MANIFEST)
+		{ID: "scan", Migrations: scan.Migrations},                             // depends on core, inventory and feeds (MANIFEST); jobs come with S4
 	}
 }
 

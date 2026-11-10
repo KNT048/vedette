@@ -93,9 +93,13 @@ function seedRuns(): StoredRun[] {
     const rows = [...rowsOf(list.slice(0, done)), ...list.slice(done).map((x) => row(x, null, 'skipped', null, SKIPPED))]
     return { id, trigger, trigger_note: note, started_at: started, started_by: trigger === 'manual' ? 'it@acme.example' : 'system', ended_at: new Date(Date.parse(started) + mins * 60_000).toISOString(), status, total: list.length, done, current: null, results: rows, matched: rows.filter((x) => x.result === 'matched').length, stop_reason: reason, target_ids: list.map((x) => x.id), stop_requested_at: null }
   }
+  // A scheduled run and a KEV rescan never touch a device that needs a hand pick (D-126 (2)); a manual run may, it was picked.
+  const auto = t.filter((x) => !x.pick_only)
+  const kevHit = findingsStore.get().find((f) => auto.some((x) => x.id === f.asset_id) && hasTemplate(f.cve) && (f.status === 'confirmed' || f.status === 'suspected'))
+  const kevTargets = kevHit ? auto.filter((x) => x.id === kevHit.asset_id) : auto.slice(0, 1)
   return [
-    mk('run-seed-1', 'schedule', null, ts(0, 3), 41, t, t.length, 'done', null),
-    mk('run-seed-2', 'new_kev', 'New KEV entry with a scan template: CVE-2022-27593', ts(9, 0), 2, t.filter((x) => x.id === 'a-nas02'), 1, 'done', null),
+    mk('run-seed-1', 'schedule', null, ts(0, 3), 41, auto, auto.length, 'done', null),
+    mk('run-seed-2', 'new_kev', `New KEV entry with a scan template: ${kevHit?.cve ?? 'CVE-2024-3400'}`, ts(9, 0), 2, kevTargets, kevTargets.length, 'done', null),
     mk('run-seed-3', 'manual', null, ts(21, 5), 1, t, 4, 'stopped', STOP_NOW),
   ]
 }
@@ -108,14 +112,20 @@ const STOPPED_MID = 'Stopped while this device was being scanned: no result. The
 function seedEvents(): RescanEvent[] {
   // Từ KEV thật: CVE có mẫu quét, khớp phần mềm trong kiểm kê mẫu.
   const out: RescanEvent[] = []
+  // a rescan only scans devices allowed without a hand pick (D-126 (2)), so a match names only those
+  const pickOnly = new Set(targets().filter((x) => x.pick_only).map((x) => x.id))
   for (const v of vulns.filter((x) => x.has_template).slice(0, 40)) {
     const key = `${v.vendor}|${v.product}`.toLowerCase()
-    const devices = assetsStore.get().filter((a) => a.software.some((s) => s.kev.includes(key))).map((a) => a.hostname ?? a.ip)
+    const devices = assetsStore.get().filter((a) => !pickOnly.has(a.id) && a.software.some((s) => s.kev.includes(key))).map((a) => a.hostname ?? a.ip)
     if (!devices.length) continue
     out.push({ id: `ev-${v.cve}`, ts: new Date(`${v.date_added}T09:00:00Z`).toISOString(), cve: v.cve, product: `${v.vendor} ${v.product}`, devices, latency_min: 14 + out.length * 9, run_id: null, result: 'matched' })
     if (out.length >= 4) break
   }
-  out.push({ id: 'ev-nomatch', ts: daysAgo(2), cve: vulns.find((v) => v.has_template && !out.some((o) => o.cve === v.cve))?.cve ?? 'CVE-2026-0001', product: 'A product you do not use', devices: [], latency_min: null, run_id: null, result: 'no_match' })
+  const unused = () => vulns.find((v) => v.has_template && !out.some((o) => o.cve === v.cve))?.cve
+  out.push({ id: 'ev-nomatch', ts: daysAgo(2), cve: unused() ?? 'CVE-2026-0001', product: 'A product you do not use', devices: [], latency_min: null, run_id: null, result: 'no_match' })
+  // D-145 (7): every matching device may only be scanned by a hand pick (fragile, unclassified, hand-declared; D-126 (2))
+  const pick = targets().filter((x) => x.pick_only).map((x) => x.label).slice(0, 2)
+  if (pick.length) out.push({ id: 'ev-pick', ts: daysAgo(4), cve: unused() ?? 'CVE-2026-0002', product: 'A product only on devices that need a hand pick', devices: pick, latency_min: null, run_id: null, result: 'pick_only' })
   return out.sort((a, b) => b.ts.localeCompare(a.ts))
 }
 
@@ -133,13 +143,21 @@ const inTimeRange = (at: string, from: string, to: string) => (hm(from) < hm(to)
 /** ISO weekday: 1 = Monday … 7 = Sunday (D-57). */
 const isoDay = (d: Date) => d.getDay() || 7
 
+/** A slot runs when its window starts on a window day (a window that crosses midnight counts by its start day, so a slot after midnight
+ *  belongs to the window of the day before: #164 review M1) and, weekly, on the chosen weekday (the slot's own day). */
+function slotOK(c: ScanConfig, d: Date): boolean {
+  const start = new Date(d)
+  if (hm(c.window.from) > hm(c.window.to) && hm(c.schedule.at) < hm(c.window.to)) start.setDate(start.getDate() - 1)
+  return c.window.days.includes(isoDay(start)) && (c.schedule.frequency === 'daily' || isoDay(d) === c.schedule.weekday)
+}
+
 export function nextRun(c: ScanConfig, now = new Date()): string | null {
   if (!c.schedule.enabled) return null
   for (let i = 0; i < 15; i++) {
     const d = new Date(now)
     d.setDate(d.getDate() + i)
     d.setHours(hm(c.schedule.at) / 60 | 0, hm(c.schedule.at) % 60, 0, 0)
-    if (d.getTime() > now.getTime() && c.window.days.includes(isoDay(d)) && (c.schedule.frequency === 'daily' || isoDay(d) === c.schedule.weekday)) return d.toISOString()
+    if (d.getTime() > now.getTime() && slotOK(c, d)) return d.toISOString()
   }
   return null
 }

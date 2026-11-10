@@ -232,9 +232,12 @@
     "minutes_other": "{{count}} minutes",
     "result": {
       "matched": "Matches, alerted",
-      "clear": "Not affected",
+      "clear": "No match reported",
       "skipped_off": "Skipped: turned off",
-      "no_match": "Not scanned: no matching device"
+      "no_match": "Not scanned: no matching device",
+      "pick_only_one": "Not scanned automatically: {{count}} device needs a hand pick in <nav>Scan now</nav>",
+      "pick_only_other": "Not scanned automatically: {{count}} devices need a hand pick in <nav>Scan now</nav>",
+      "stopped": "Stopped before the end: <nav>see the run</nav>"
     },
     "empty": "No events yet.",
     "emptyHelp": "When a new KEV with a scan template matches your devices, the event shows up here."

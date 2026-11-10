@@ -67082,6 +67082,10 @@ func (s ScanGetScansEventsOKItemsItemResult) Validate() error {
 		return nil
 	case "no_match":
 		return nil
+	case "pick_only":
+		return nil
+	case "stopped":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}

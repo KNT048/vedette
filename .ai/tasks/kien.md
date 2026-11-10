@@ -72,7 +72,7 @@ Worktree còn mở: `sp-pack` (SP-5b, nhánh `feat/sensor-images`, brief `sp5b-b
 4. Sau khi Emily thêm tín hiệu `BoxAddrs` (#157): chỉnh `cmd/vedette/notify.go`.
 5. **WP-08** đóng gói/phát hành (Quadlet: `Restart=always`, `KillMode=control-group`, `core_cgroup` trong `host.conf`, `GOMEMLIMIT` cho core; bản build phát hành không mang mock, xem mục "Trước khi phát hành").
 6. **WP-30** E2E backend thật cho module phía Kiên → **WP-31** rà SYS-1…8 + D-41 → **WP-32** RUNBOOK (ghi cả `backup.restore` và lối thoát `core_data_unrecoverable`).
-7. **13b-11** sau WP-25 của Emily. Core còn: `/core/updates*` phần phần mềm (`container.*`, manifest ký) vẫn 501, `/core/data/export` và `/purge`, nút Khôi phục.
+7. **13b-11** sau WP-25 của Emily. Core còn: `/core/updates*` phần phần mềm (`container.*`, manifest ký) vẫn 501, `/core/data/export` và `/purge` (purge xoá cả `logs.db` + sidecar theo D-151, #187), nút Khôi phục.
 8. Việc sau khi PR Emily về: DATA_MODEL `exp_*` đã vào (#94); kiểm danh mục WP-23 ở dưới khi có PR mới. Đóng #146 sau khi đo PR chỉ web.
 
 ## Nối một module vào binary (issue #33)
@@ -105,7 +105,7 @@ kien 2026-11-09 (đã chuyển cho Emily): "tôi muốn box có thêm chế đ�
 
 - [ ] D-81: ba dịch vụ dò IP công cộng (`checkip.amazonaws.com`, `icanhazip.com`, `ifconfig.me/ip`) vẫn thuộc ba nhà vận hành khác nhau: tra DNS/AS mỗi lần phát hành.
 
-- [ ] WP-08: bản build phát hành (`VITE_API_MOCK=off`) không mang lớp mock: bước build fail nếu chunk JS nào chứa `[MSW]` hoặc `mswjs`, và không ship `web/public/mockServiceWorker.js` (vite chép nguyên `public/`). #86 đã tách mock khỏi bản build; cần bước kiểm tự động ở WP-08.
+- [x] WP-08a: bản build phát hành (`VITE_API_MOCK=off`) không mang lớp mock: `make web-release` build với mock tắt (Vite bỏ nhánh `import('./mocks/browser')`, plugin `drop-mock-worker` trong `vite.config.ts` xoá `mockServiceWorker.js` khỏi output) rồi `web/scripts/check-release.mjs` fail nếu có `[MSW]`/`mswjs`/`msw/` hoặc file worker; `verify-web` chạy nó trên mỗi PR web. Còn lại: WP-08b nhúng `web/dist` vào core.
 
 - [ ] PRIVACY luồng 6 (`ghcr.io`, host kéo image) đã thêm cùng #140; luồng 12 (kết nối thiết bị) từ #92.
 

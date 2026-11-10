@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"syscall"
 )
 
@@ -77,10 +78,35 @@ func ParseBundle(data []byte) (*Bundle, error) {
 	return &Bundle{Cert: cert, Leaf: leaf, CA: ca, Pool: pool}, nil
 }
 
-// readBundleFile reads the bundle at path without following a symlink, never blocking on a FIFO, refusing anything that is
-// not a regular file or is larger than MaxBundle. It returns the file's info, so the caller can tell when the file changed.
+// readBundleFile reads the bundle at path and refuses what the writer would never have made (D-110 (4)):
+//   - a symlink as the file, or as the directory that holds it (the volume is shared with a container that is being attacked;
+//     the file is opened through os.OpenRoot on its directory, so no component below that directory can lead out of it);
+//   - anything that is not a regular file, or is larger than MaxBundle (a FIFO is never opened blocking);
+//   - a file with a mode core does not write: core writes 0640 (owner and group read), so any bit outside 0640 (group write,
+//     any access for other, execute) is refused; 0600 and 0400 are inside it.
+//
+// It returns the file's info, so the caller can tell when the file changed.
 func readBundleFile(path string) ([]byte, os.FileInfo, error) {
-	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0) //nolint:gosec // the path is the sensor's own configuration
+	dir, name := filepath.Dir(path), filepath.Base(path) // Dir has no trailing slash: Lstat of "link/" would follow the link
+	if name == "." || name == ".." || name == string(filepath.Separator) {
+		return nil, nil, errors.New("sensorlink: credentials path names no file")
+	}
+	if di, err := os.Lstat(dir); err != nil {
+		return nil, nil, err
+	} else if di.Mode()&os.ModeSymlink != 0 || !di.IsDir() {
+		return nil, nil, errors.New("sensorlink: the credentials directory is a symlink or not a directory")
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() { _ = root.Close() }()
+	if li, err := root.Lstat(name); err != nil {
+		return nil, nil, err
+	} else if li.Mode()&os.ModeSymlink != 0 {
+		return nil, nil, errors.New("sensorlink: the credentials file is a symlink")
+	}
+	f, err := root.OpenFile(name, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -91,6 +117,9 @@ func readBundleFile(path string) ([]byte, os.FileInfo, error) {
 	}
 	if !fi.Mode().IsRegular() || fi.Size() > MaxBundle {
 		return nil, nil, errors.New("sensorlink: credentials file is not a regular file of a sane size")
+	}
+	if fi.Mode().Perm()&^0o640 != 0 {
+		return nil, nil, fmt.Errorf("sensorlink: credentials file has mode %04o: it holds a private key, and core writes it 0640", fi.Mode().Perm())
 	}
 	b, err := io.ReadAll(io.LimitReader(f, MaxBundle+1))
 	if err != nil {

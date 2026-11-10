@@ -58,14 +58,14 @@ Một codebase Go, đóng gói thành nhiều image (D-8, D-55): `core` (`cmd/ve
 
 | Lớp | Chọn | Lý do |
 |---|---|---|
-| Backend | Go (ghim trong `go.mod`), `net/http` + router nhẹ, `embed` SPA, cross-compile amd64/arm64 | D-8: nuclei/httpx/naabu/subfinder là thư viện Go; sensor I/O nhẹ; một codebase |
+| Backend | Go (ghim trong `go.mod`), `net/http` + router nhẹ, `embed` SPA, cross-compile amd64/arm64 | D-8: httpx/naabu/subfinder là thư viện Go (nuclei: binary trong container `scan`, D-125); sensor I/O nhẹ; một codebase |
 | DB | SQLite (`modernc.org/sqlite`, không cgo, WAL) mặc định; PostgreSQL tuỳ chọn qua cùng lớp `store` (sqlc); FTS5 cho RAG | Backup = chép file; Postgres để sau (M7, ngoài danh sách container D-55) |
 | Frontend | React + TypeScript + Vite + Tailwind + Radix + TanStack Query/Table + React Router; chỉ tiếng Anh | D-28; chi tiết `FRONTEND.md` |
 | Job | Trong process (`core/jobs`), có khoá + lịch sử, không message queue. `ponytail: 1 process; nâng cấp: queue trên Postgres nếu cần` | Đủ cho ≤1.000 thiết bị một site |
 | Giao tiếp sensor ↔ core | HTTPS JSON trên `net/http`/`crypto/tls` của thư viện chuẩn, mTLS bằng CA sensor riêng của `core`, quyền theo vai, **sensor long-poll core** (core không gọi vào sensor) | D-109…D-112; không mở cổng vào trên sensor; §6, `specs/sensor-protocol.md` |
 | Runtime container | **Podman + systemd Quadlet** trên appliance; Docker Compose cho dev/CI; cùng image OCI | D-55: không daemon root; không tự mở cổng vượt tường lửa như Docker |
 | Chuỗi cung ứng | Image ký **cosign**, SBOM CycloneDX, phát hành theo lô, rollback bằng tag cũ | D-12 cập nhật bởi D-55; `UPDATES.md` |
-| Discovery/Scan | nmap (tiến trình riêng, NPSL), Recog, gosnmp, Nuclei lib (tag an toàn `kev,vkev`) | D-4 |
+| Discovery/Scan | nmap (tiến trình riêng, NPSL), Recog, gosnmp, nuclei (binary ghim trong image `vedette-scan`, gói mẫu an toàn `kev,vkev` ký kèm image, D-125) | D-4 |
 | Honeypot | OpenCanary (BSD-3) tiến trình riêng, cấu hình sinh từ DB | Không viết lại honeypot |
 | AI | Adapter Anthropic / OpenAI-compatible / Gemini / tuỳ chỉnh; harness | D-29, D-39 |
 
@@ -228,7 +228,8 @@ Tham số do kẻ tấn công kiểm soát (IP, domain trong log) được kiể
 | Thành phần | Giấy phép | Cách dùng trong kiến trúc container |
 |---|---|---|
 | Mã Vedette | Apache-2.0 | |
-| nuclei, httpx, naabu, subfinder, dnsx, nuclei-templates | MIT | thư viện Go nhúng (`core`, `scan`) |
+| nuclei, nuclei-templates | MIT | tiến trình riêng trong container `scan` (binary ghim + gói mẫu ký kèm image, D-125) |
+| httpx, naabu, subfinder, dnsx | MIT | thư viện Go nhúng (`core`, `scan`) |
 | recog / recog-go | BSD-2 | nhúng |
 | nmap | NPSL 0.95 | **tiến trình riêng** trong `scan`; cài từ kho gói OS vào image `scan` do `vedette-host` dựng trên hộp, dự án không phân phối (D-4, D-57 (2), D-113 (7)) |
 | OpenCanary | BSD-3 | tiến trình riêng trong image `honeypot` |

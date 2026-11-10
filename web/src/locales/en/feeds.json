@@ -146,6 +146,7 @@
     "every_one": "Every hour",
     "every_other": "Every {{count}} hours",
     "never": "Never",
+    "answeredBy": "Answered by {{source}}",
     "records_one": "{{n}} record",
     "records_other": "{{n}} records",
     "enable": "Enable {{name}}",

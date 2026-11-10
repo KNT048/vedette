@@ -51,6 +51,13 @@ type Backend interface {
 	JobResult(ctx context.Context, id string, res *JobResult) error
 }
 
+// ResultRejector is an optional method set of a Backend: it is told when the body of a result for a running job was refused
+// before JobResult could see it (over the size cap: 413; not valid: 400), so the Backend can give that job up at once. The
+// worker never sends a result twice, so a job whose only result was refused is dead (SP-3: the probe fails).
+type ResultRejector interface {
+	JobResultRejected(id string, err *Error)
+}
+
 // Options configures a Server.
 type Options struct {
 	Identity Identity
@@ -310,6 +317,7 @@ func (s *Server) dispatch(ctx context.Context, w http.ResponseWriter, r *http.Re
 		}
 		defer release()
 		if raw, err = s.readBody(w, r, rt.max); err != nil {
+			s.rejectResult(rt, jobID, err)
 			s.fail(ctx, w, err)
 			return
 		}
@@ -380,7 +388,9 @@ func (s *Server) dispatch(ctx context.Context, w http.ResponseWriter, r *http.Re
 		s.writeJSON(ctx, w, rep, MaxJobsReply)
 	case rResult:
 		res, err := decodeJobResult(raw)
-		if err == nil {
+		if err != nil {
+			s.rejectResult(rt, jobID, err)
+		} else {
 			err = s.be.JobResult(ctx, jobID, res)
 		}
 		if err != nil {
@@ -460,6 +470,20 @@ func (s *Server) readBody(w http.ResponseWriter, r *http.Request, limit int64) (
 	}
 	_ = rc.SetReadDeadline(time.Time{}) // the long reads of the next request on this connection are not on this clock
 	return b, nil
+}
+
+// rejectResult tells a Backend that implements ResultRejector that the body of a result for a running job was refused.
+func (s *Server) rejectResult(rt route, jobID string, err error) {
+	rr, ok := s.be.(ResultRejector)
+	if !ok || rt.id != rResult {
+		return
+	}
+	switch {
+	case errors.Is(err, errTooLarge):
+		rr.JobResultRejected(jobID, NewError(CodePayloadTooLarge))
+	case errors.Is(err, errInvalid):
+		rr.JobResultRejected(jobID, NewError(CodeInvalidRequest))
+	}
 }
 
 // fail answers a decoder error or a Backend error. Nothing but a code of the table leaves this function.

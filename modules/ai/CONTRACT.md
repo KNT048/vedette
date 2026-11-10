@@ -87,7 +87,7 @@ Không route `/ai/*`, không gọi provider, không job. Nút "Giải thích", "
 
 ## Dependencies
 - **DEPENDS ON**: `core` (`core/secrets`, `core/exec`, audit, scheduler), `feeds`/`inventory`/`logs`/`scan`/`notify` (dữ liệu, mềm).
-- **DEPENDED ON BY**: `response` (`response-plan`, bằng chứng `ConfigRead`; kết nối không còn ở đây, D-93), `reports` (nhận xét AI), `mitigation` (hỏi AI khi chưa có khuyến nghị đã xác nhận), `logs` (digest AI), GUI `findings`/`cve` (panel `cve.panels`), `mcp-server` (không), `core/logs export` (`ai_activity`).
+- **DEPENDED ON BY**: `response` (`response-plan`; sẽ cung cấp tra cứu các lần đọc đã thực sự làm, `ConfigRead`, để sau, không quá 24 giờ, D-119; kết nối không còn ở đây, D-93), `reports` (nhận xét AI), `mitigation` (hỏi AI khi chưa có khuyến nghị đã xác nhận), `logs` (digest AI), GUI `findings`/`cve` (panel `cve.panels`), `mcp-server` (không), `core/logs export` (`ai_activity`).
 
 ## Câu hỏi mở
 1. README của GUI nói "9 việc" còn `contract.ts` có 10 (`response-plan`): sửa README.

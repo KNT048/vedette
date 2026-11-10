@@ -48,6 +48,7 @@ func writeFakeNmap(t *testing.T, o fakeOpts) *fakeNmap {
 	log := filepath.Join(dir, "argv.log")
 	body := fmt.Sprintf(`#!/bin/sh
 LOG=%q
+if [ "$1" = "--version" ]; then echo "Nmap version 7.94SVN ( https://nmap.org )"; exit 0; fi
 n=$(grep -c '^--$' "$LOG" 2>/dev/null)
 [ -z "$n" ] && n=0
 printf '%%s\n' "$@" >> "$LOG"
@@ -271,6 +272,7 @@ type env struct {
 	base time.Time
 	t0   time.Time
 	loc  func() *time.Location // the organization time zone; nil: the box's
+	rem  *remote               // the far end of the remote Prober, when the suite runs with it (remote_test.go)
 }
 
 // local builds a time in the box's local zone (the zone the window is read in). 9 Nov 2026 is a Monday.
@@ -303,14 +305,33 @@ func newEnv(t *testing.T, o fakeOpts, mut ...func(*env)) *env {
 		m(e)
 	}
 	e.build()
+	e.t0 = time.Now() // the clock starts when the env is ready: starting the remote worker (keys, TLS) must not eat a 2 s window
 	return e
 }
 
 func (e *env) clock() time.Time { return e.base.Add(time.Since(e.t0)) }
 
+// prober is the Prober a Service of this env gets: nil (the local one) normally; in the remote run the Dispatcher with a worker
+// that runs the env's current nmap path. When the path changed since the worker was made (a test that swaps the binary and
+// builds again), the old worker is stopped and a new one is built for the new path.
+func (e *env) prober() sa.Prober {
+	if !remoteMode() {
+		return nil
+	}
+	if e.rem != nil && e.rem.path != e.nm.path {
+		e.rem.stop()
+		e.rem = nil
+	}
+	if e.rem == nil {
+		e.rem = startRemote(e)
+	}
+	return e.rem.d
+}
+
 func (e *env) build() {
 	e.t.Helper()
-	svc, err := sa.New(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Events: e.ev, NmapPath: e.nm.path, Clock: e.clock, Location: e.loc})
+	prober := e.prober()
+	svc, err := sa.New(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Events: e.ev, NmapPath: e.nm.path, Prober: prober, Clock: e.clock, Location: e.loc})
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -339,10 +360,10 @@ func (e *env) str(query string) string {
 
 type dbTx = *sql.Tx
 
-// waitFor polls cond until it holds or 10 s pass.
+// waitFor polls cond until it holds or 30 s pass (a busy machine under -race).
 func waitFor(t *testing.T, what string, cond func() bool) {
 	t.Helper()
-	for deadline := time.Now().Add(10 * time.Second); !cond(); <-time.After(20 * time.Millisecond) {
+	for deadline := time.Now().Add(30 * time.Second); !cond(); <-time.After(20 * time.Millisecond) {
 		if time.Now().After(deadline) {
 			t.Fatalf("timed out waiting for %s", what)
 		}

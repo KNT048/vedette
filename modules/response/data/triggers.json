@@ -44,7 +44,8 @@
      "example": "Gi1/0/12",
      "choices": []
     }
-   ]
+   ],
+   "ai_evidence": []
   },
   {
    "id": "ioc_connection",
@@ -117,6 +118,9 @@
      "example": "Gi1/0/5",
      "choices": []
     }
+   ],
+   "ai_evidence": [
+    "ioc_hit"
    ]
   },
   {
@@ -184,6 +188,9 @@
      "example": "NAS-PHOTO-443",
      "choices": []
     }
+   ],
+   "ai_evidence": [
+    "finding"
    ]
   },
   {
@@ -233,7 +240,8 @@
       "unknown"
      ]
     }
-   ]
+   ],
+   "ai_evidence": []
   },
   {
    "id": "log_threshold",
@@ -275,7 +283,8 @@
      "example": "5",
      "choices": []
     }
-   ]
+   ],
+   "ai_evidence": []
   },
   {
    "id": "new_port",
@@ -310,7 +319,8 @@
      "example": "WEB-01",
      "choices": []
     }
-   ]
+   ],
+   "ai_evidence": []
   },
   {
    "id": "schedule",
@@ -331,7 +341,8 @@
      "example": "whole network",
      "choices": []
     }
-   ]
+   ],
+   "ai_evidence": []
   },
   {
    "id": "manual",
@@ -366,7 +377,8 @@
      "example": "Gi1/0/7",
      "choices": []
     }
-   ]
+   ],
+   "ai_evidence": []
   }
  ],
  "device_kinds": [

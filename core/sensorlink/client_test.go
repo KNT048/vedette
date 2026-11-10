@@ -581,6 +581,35 @@ func TestNewClientCredentials(t *testing.T) {
 		t.Fatal(err)
 	}
 	cases["a FIFO"] = fifo
+	// L7: a key another user may read is refused (0640 is what core writes: owner and group read; 0600 is fine too), and so is a
+	// path that goes through a symlink to a directory.
+	for name, mode := range map[string]os.FileMode{"readable by other": 0o644, "writable by group": 0o660, "executable": 0o740, "readable by other only": 0o604} {
+		p := mk(strings.ReplaceAll(name, " ", "_")+".pem", good)
+		if err := os.Chmod(p, mode); err != nil {
+			t.Fatal(err)
+		}
+		cases[name] = p
+	}
+	realDir := filepath.Join(dir, "real")
+	if err := os.Mkdir(realDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(realDir, "sensor.pem"), good, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(realDir, filepath.Join(dir, "linkdir")); err != nil {
+		t.Fatal(err)
+	}
+	cases["a symlinked directory"] = filepath.Join(dir, "linkdir", "sensor.pem")
+	for name, mode := range map[string]os.FileMode{"mode 0600": 0o600, "mode 0640": 0o640, "mode 0400": 0o400} {
+		p := mk(strings.ReplaceAll(name, " ", "_")+".pem", good)
+		if err := os.Chmod(p, mode); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := sensorlink.NewClient(sensorlink.ClientOptions{BaseURL: "https://127.0.0.1:8444", CredsPath: p}); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
 	for name, path := range cases {
 		done := make(chan error, 1)
 		go func() {

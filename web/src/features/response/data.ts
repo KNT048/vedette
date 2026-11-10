@@ -8,6 +8,8 @@ export const NONE: Tpl = T('')
 
 // ---- Triggers (WHEN) ----
 const F = (key: string, label: string, type: TriggerField['type'], example: string, choices: string[] = []): TriggerField => ({ key, label, type, example, choices })
+/** The kinds of evidence that prove a trigger to the AI (D-119). A trigger that is not here cannot be used by the AI: no evidence kind can show it happened. */
+export const AI_PROOF: Partial<Record<Trigger, ('finding' | 'ioc_hit' | 'config_read')[]>> = { finding: ['finding'], ioc_connection: ['ioc_hit'] }
 export const KINDS = ['firewall', 'router', 'switch', 'ap', 'nas', 'server', 'pc', 'printer', 'camera', 'nvr', 'iot', 'web', 'unknown']
 export const TRIGGERS: { id: Trigger; name: string; description: string; fields: TriggerField[] }[] = [
   { id: 'honeypot', name: 'A device touches a honeypot trap', description: 'Something on your network connected to a decoy, used a planted credential or scanned the decoys.',

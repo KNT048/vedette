@@ -363,7 +363,8 @@ func TestContract_PRE1_StartAudited(t *testing.T) {
 	v := r.start("a-nas02")
 	r.wait()
 	a := r.audits()
-	if len(a) != 1 || a[0].Action != "scan.start" || a[0].User != "it@acme.example" || a[0].Target != v.ID || a[0].Detail != "1 targets: a-nas02" {
+	if len(a) != 2 || a[0].Action != "scan.start" || a[0].User != "it@acme.example" || a[0].Target != v.ID || !strings.HasPrefix(a[0].Detail, "1 targets, 1 picked by hand, sha256 ") ||
+		a[1].Action != "scan.pick" || a[1].Target != "a-nas02" || a[1].Detail != "run "+v.ID {
 		t.Fatalf("%+v", a)
 	}
 	runs, err := r.svc.Runs(r.ctx())

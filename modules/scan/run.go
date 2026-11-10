@@ -2,7 +2,9 @@ package scan
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -224,7 +226,18 @@ VALUES (?, ?, ?, ?, ?, 'running', ?, ?, ?, ?)`, id, sp.trigger, sp.note, now, sp
 			}
 			return fmt.Errorf("scan: writing the run: %w", err)
 		}
-		return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: sp.user, Action: "scan.start", Target: id, Detail: fmt.Sprintf("%d targets: %s", len(sp.ids), clip(strings.Join(sp.ids, ", "), 900))})
+		// Review L2: the start counts and hashes the whole list; each pick, the consent of D-126 (2), is a row of its own.
+		sum := sha256.Sum256([]byte(strings.Join(sp.ids, ",")))
+		detail := fmt.Sprintf("%d targets, %d picked by hand, sha256 %s", len(sp.ids), len(sp.picked), hex.EncodeToString(sum[:8]))
+		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: sp.user, Action: "scan.start", Target: id, Detail: detail}); err != nil {
+			return err
+		}
+		for _, p := range sp.picked {
+			if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: sp.user, Action: "scan.pick", Target: p, Detail: "run " + id}); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		free()

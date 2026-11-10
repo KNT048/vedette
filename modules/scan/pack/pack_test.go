@@ -3,8 +3,11 @@ package pack
 import (
 	"encoding/json"
 	"os"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/knt048/vedette/modules/scan/nucleiargv"
 )
 
 const sha = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -99,4 +102,17 @@ func FuzzParse(f *testing.F) {
 			}
 		}
 	})
+}
+
+// L4: the tags the pack refuses are the tags nuclei is told to exclude: one list.
+func TestForbiddenTagsAreTheExcludedTags(t *testing.T) {
+	t.Parallel()
+	args, err := nucleiargv.Build(nucleiargv.Job{Templates: []string{"http/a.yaml"}, Targets: []nucleiargv.Target{{Host: "10.0.0.1", Port: 80, Scheme: "http"}}, Rate: 1, MaxHostErrors: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	i := slices.Index(args, "-etags")
+	if i < 0 || args[i+1] != strings.Join(ForbiddenTags, ",") {
+		t.Fatalf("-etags %q, pack refuses %v", args, ForbiddenTags)
+	}
 }

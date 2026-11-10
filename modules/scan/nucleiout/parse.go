@@ -1,12 +1,12 @@
 // Package nucleiout reads what the worker's nuclei run printed (-jsonl -ms) into results core can trust (D-125 (2),
 // INV-8, INV-10). The output came from a process that talked to devices an attacker may control, through a worker that
 // may be compromised (SYS-6), so the parser fails closed: one line it cannot read without doubt throws the whole run
-// away; it never returns a result for a template or a host the job did not ask for; and evidence is capped, valid
-// UTF-8, without control or bidirectional-override characters, so it can be stored and shown as plain text.
+// away; it never returns a result for a template or a target (host and port) the job did not ask for; and evidence is
+// capped, valid UTF-8, without control, format or separator characters, so it can be stored and shown as plain text.
 //
 // Unknown fields are ignored on purpose: nuclei adds fields between versions, and core reads only the few it needs.
 // Repeated keys and keys that differ only by case are refused (internal/jsonstrict), because encoding/json would pick
-// one of them silently. Standard library plus internal/jsonstrict, so the sensor binary may link it too.
+// one of them silently. Standard library plus internal/jsonstrict and nucleiargv, so the sensor binary may link it too.
 package nucleiout
 
 import (
@@ -15,20 +15,21 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/internal/jsonstrict"
+	"github.com/knt048/vedette/modules/scan/nucleiargv"
 )
 
-// Limits (sensor protocol §9, D-125 (1)).
+// Limits (sensor protocol §9, D-125 (1)); the output cap is nucleiargv.MaxOutput.
 const (
-	MaxOutput   = 4 << 20 // bytes of JSONL in one run
-	MaxLines    = 1024    // 32 templates x 16 targets is 512 lines with -ms; twice that is suspicious
-	MaxRequest  = 2048    // bytes of request kept as evidence (S-SCAN-3)
-	MaxResponse = 4096    // bytes of response kept as evidence
-	MaxError    = 256     // bytes of nuclei's error text
+	MaxLines    = 1024 // 32 templates x 16 targets is 512 lines with -ms; twice that is suspicious
+	MaxRequest  = 2048 // bytes of request kept as evidence (S-SCAN-3)
+	MaxResponse = 4096 // bytes of response kept as evidence
+	MaxError    = 256  // bytes of nuclei's error text
 )
 
 // cutMark ends a text that was cut at its cap.
@@ -37,7 +38,7 @@ const cutMark = " …(cut)"
 // Result is one line of the run: one template on one target.
 type Result struct {
 	Template string // template id, one of the job's
-	Host     string // one of the job's hosts
+	Target   string // host:port, one of the job's targets
 	Matched  bool   // the template's matchers matched: the flaw is there (INV-8)
 	Request  string // cleaned and capped
 	Response string // cleaned and capped
@@ -54,10 +55,11 @@ type line struct {
 	Error         string `json:"error"`
 }
 
-// Parse reads a whole run. templates and hosts are those of the job; anything outside them is an error.
-func Parse(out []byte, templates, hosts []string) ([]Result, error) {
-	if len(out) > MaxOutput {
-		return nil, fmt.Errorf("nucleiout: output of %d bytes is over the %d cap", len(out), MaxOutput)
+// Parse reads a whole run. templates are the job's template ids and targets its host:port pairs; anything outside
+// them is an error.
+func Parse(out []byte, templates, targets []string) ([]Result, error) {
+	if len(out) > nucleiargv.MaxOutput {
+		return nil, fmt.Errorf("nucleiout: output of %d bytes is over the %d cap", len(out), nucleiargv.MaxOutput)
 	}
 	var res []Result
 	for i, raw := range bytes.Split(out, []byte("\n")) {
@@ -68,7 +70,7 @@ func Parse(out []byte, templates, hosts []string) ([]Result, error) {
 		if len(res) == MaxLines {
 			return nil, fmt.Errorf("nucleiout: more than %d lines", MaxLines)
 		}
-		r, err := parseLine(raw, templates, hosts)
+		r, err := parseLine(raw, templates, targets)
 		if err != nil {
 			return nil, fmt.Errorf("nucleiout: line %d: %w", i+1, err)
 		}
@@ -77,7 +79,7 @@ func Parse(out []byte, templates, hosts []string) ([]Result, error) {
 	return res, nil
 }
 
-func parseLine(raw []byte, templates, hosts []string) (Result, error) {
+func parseLine(raw []byte, templates, targets []string) (Result, error) {
 	if raw[0] != '{' {
 		return Result{}, errors.New("not a JSON object")
 	}
@@ -91,9 +93,9 @@ func parseLine(raw []byte, templates, hosts []string) (Result, error) {
 	if !slices.Contains(templates, l.TemplateID) {
 		return Result{}, errors.New("a template the job did not ask for")
 	}
-	host := hostOf(l.Host)
-	if host == "" || !slices.Contains(hosts, host) {
-		return Result{}, errors.New("a host the job did not name")
+	target := hostOf(l.Host)
+	if target == "" || !slices.Contains(targets, target) {
+		return Result{}, errors.New("a target the job did not name")
 	}
 	if l.MatcherStatus == nil {
 		return Result{}, errors.New("no matcher-status")
@@ -102,39 +104,53 @@ func parseLine(raw []byte, templates, hosts []string) (Result, error) {
 		return Result{}, errors.New("a match with an error")
 	}
 	return Result{
-		Template: l.TemplateID, Host: host, Matched: *l.MatcherStatus,
+		Template: l.TemplateID, Target: target, Matched: *l.MatcherStatus,
 		Request: Clean(l.Request, MaxRequest), Response: Clean(l.Response, MaxResponse), Error: Clean(l.Error, MaxError),
 	}, nil
 }
 
-// hostOf takes the host name out of nuclei's host field, which is "host", "host:port" or "scheme://host:port/...".
-// User info, IPv6 brackets and anything else unusual give "", which no job names.
+// hostOf takes host:port out of nuclei's host field, which is "host:port" or "scheme://host[:port][/...]"; an http or
+// https URL without a port gets the scheme's default port. User info, IPv6 brackets, another scheme, a bare host and
+// anything else unusual give "", which no job names.
 func hostOf(s string) string {
-	if _, rest, ok := strings.Cut(s, "://"); ok {
-		s = rest
+	scheme, rest, hasScheme := strings.Cut(s, "://")
+	if !hasScheme {
+		rest, scheme = s, ""
 	}
-	if i := strings.IndexAny(s, "/?#"); i >= 0 {
-		s = s[:i]
+	if i := strings.IndexAny(rest, "/?#"); i >= 0 {
+		rest = rest[:i]
 	}
-	if strings.ContainsAny(s, "@[]") {
+	if rest == "" || strings.ContainsAny(rest, "@[]") {
 		return ""
 	}
-	if h, port, ok := strings.Cut(s, ":"); ok {
-		if port == "" || strings.Trim(port, "0123456789") != "" {
+	host, port, hasPort := strings.Cut(rest, ":")
+	switch {
+	case hasPort:
+		n, err := strconv.Atoi(port)
+		if err != nil || n < 1 || n > 65535 || strconv.Itoa(n) != port || host == "" {
 			return ""
 		}
-		s = h
+	case scheme == "http":
+		port = "80"
+	case scheme == "https":
+		port = "443"
+	default:
+		return ""
 	}
-	return s
+	if hasScheme && scheme != "http" && scheme != "https" {
+		return ""
+	}
+	return host + ":" + port
 }
 
-// unsafeRune is a character evidence may not hold: control characters other than newline and tab, and the
-// bidirectional controls that can make text read differently from what it is.
+// unsafeRune is a character evidence may not hold: anything of the categories Cc (controls), Cf (format: bidi
+// controls, zero-width characters, the BOM, the soft hyphen, tag characters), Zl and Zp (line and paragraph
+// separators), and the replacement character; newline and tab are kept.
 func unsafeRune(r rune) bool {
 	if r == '\n' || r == '\t' {
 		return false
 	}
-	return unicode.IsControl(r) || unicode.Is(unicode.Bidi_Control, r) || r == utf8.RuneError
+	return unicode.In(r, unicode.Cc, unicode.Cf, unicode.Zl, unicode.Zp) || r == utf8.RuneError || (r >= 0xe0000 && r <= 0xe007f) // the whole tag block, unassigned ones too
 }
 
 // Clean makes untrusted text safe to store and show as plain text: valid UTF-8, \r\n as \n, no unsafe characters,

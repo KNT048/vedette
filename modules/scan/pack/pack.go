@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
-	"strings"
 
 	"github.com/knt048/vedette/internal/jsonstrict"
 	"github.com/knt048/vedette/modules/scan/nucleiargv"
@@ -28,8 +27,8 @@ const (
 // SafeTags are the tags a template must carry one of: the KEV sets (CISA KEV, VulnCheck KEV) (INV-4).
 var SafeTags = []string{"kev", "vkev"}
 
-// ForbiddenTags may never be on a template of the pack (INV-4, FORBID-2); nucleiargv's -etags repeats them.
-var ForbiddenTags = []string{"dos", "intrusive", "fuzz"}
+// ForbiddenTags may never be on a template of the pack (INV-4, FORBID-2); nuclei is told to exclude the same list.
+var ForbiddenTags = nucleiargv.ForbiddenTags
 
 // Template is one entry of the index.
 type Template struct {
@@ -51,9 +50,9 @@ type Index struct {
 }
 
 var (
+	idRE      = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$`) // a nuclei template id: no comma, no leading dash
 	versionRE = regexp.MustCompile(`^[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,4}$`)
 	cveRE     = regexp.MustCompile(`^CVE-[0-9]{4}-[0-9]{4,7}$`)
-	pathRE    = regexp.MustCompile(`^[a-z0-9_-]+(/[A-Za-z0-9_.-]+)*\.yaml$`)
 	shaRE     = regexp.MustCompile(`^[0-9a-f]{64}$`)
 	tagRE     = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
 	requestRE = regexp.MustCompile(`^[ -~]{1,200}$`)
@@ -92,11 +91,11 @@ func Parse(raw []byte) (*Index, error) {
 
 func (t Template) check() error {
 	switch {
-	case !nucleiargv.ValidTemplate(t.ID):
+	case !idRE.MatchString(t.ID):
 		return errors.New("id is not a template id")
 	case !cveRE.MatchString(t.CVE):
 		return errors.New("cve is not a CVE id")
-	case !pathRE.MatchString(t.Path) || strings.Contains(t.Path, ".."):
+	case !nucleiargv.ValidTemplatePath(t.Path):
 		return errors.New("path is not a relative .yaml path")
 	case !shaRE.MatchString(t.SHA256):
 		return errors.New("sha256 is not a lower-case SHA-256")

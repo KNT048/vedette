@@ -1,0 +1,7 @@
+[Unit]
+Description=Vedette sensor credentials (active role)
+
+[Volume]
+VolumeName=vedette-creds-active
+User=10001
+Group=10004

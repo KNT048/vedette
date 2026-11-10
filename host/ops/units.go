@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+
+	"github.com/knt048/vedette/host/api"
 )
 
 // The root write path of the Quadlet units (D-105 (2), spec 18). Root writes into /etc/containers/systemd,
@@ -127,6 +129,11 @@ func (o *Ops) writeUnit(service string, text []byte, keepPrev bool) error {
 		return err
 	}
 	defer func() { _ = r.Close() }()
+	if service == api.ServiceCore || service == api.ServiceSensor || service == api.ServiceScan {
+		if err := o.ensureVolumeUnits(r); err != nil {
+			return err
+		}
+	}
 	name := unitFileName(service)
 	old, state := readNoFollow(r, name, maxUnitSize)
 	if state == fileBroken {
@@ -141,4 +148,28 @@ func (o *Ops) writeUnit(service string, text []byte, keepPrev bool) error {
 		}
 	}
 	return writeAtomicIn(r, name, text, 0o644)
+}
+
+// ensureVolumeUnits puts the two credential .volume units in place (constant text, host.conf ids; see renderVolume) in the opened
+// Quadlet directory. A unit that already holds the right bytes is not touched; a link or odd file at its name is refused. The text
+// never depends on a service or an image, so it needs no .prev and no journal: writing it again is always right.
+func (o *Ops) ensureVolumeUnits(r *os.Root) error {
+	for _, role := range credsRoles {
+		text, err := renderVolume(role, o.cfg.CoreUID, o.cfg.SensorGID)
+		if err != nil {
+			return fmt.Errorf("%w: %w", errUnitUnsafe, err)
+		}
+		name := volumeFileName(role)
+		old, state := readNoFollow(r, name, maxUnitSize)
+		switch {
+		case state == fileBroken:
+			return fmt.Errorf("%w: %s is a link, not a regular file, or too large", errUnitUnsafe, name)
+		case state == fileOK && bytes.Equal(old, text):
+			continue
+		}
+		if err := writeAtomicIn(r, name, text, 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
 }

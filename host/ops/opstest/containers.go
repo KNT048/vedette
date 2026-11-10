@@ -1,6 +1,7 @@
 package opstest
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -94,6 +95,7 @@ case "$1" in
       echo "$svc" >> "$S/deadlocked"; exit 1
     fi
     ud=$(sed -n 's/^Image=.*@\(sha256:[0-9a-f]*\)$/\1/p' "$ROOT/etc/containers/systemd/vedette-$svc.container" 2>/dev/null)
+    [ -n "$ud" ] || ud=$(sed -n 's/^Image=\([0-9a-f]\{64\}\)$/sha256:\1/p' "$ROOT/etc/containers/systemd/vedette-$svc.container" 2>/dev/null)
     echo "$svc backups=$(ls "$STATE"/backups/*.tar.gz 2>/dev/null | wc -l | tr -d ' ') db=$(head -n 1 "$CORE/vedette.db" 2>/dev/null) digest=$ud" >> "$S/at-restart"
     [ "$svc" = core ] && [ -e "$REC/mark.migrate-db" ] && [ "$(cat "$REC/mark.migrate-db")" = "$ud" ] && printf 'db: migrated' > "$CORE/vedette.db"
     cp "$ROOT/etc/containers/systemd/vedette-$svc.container" "$S/$svc.unit" 2>/dev/null
@@ -125,13 +127,14 @@ svc="${3#vedette-}"
 [ -e "$S/$svc.raw" ] && { cat "$S/$svc.raw"; exit 0; }
 [ -e "$S/$svc.running" ] || { echo "Error: no such container $3" >&2; exit 125; }
 digest=$(sed -n 's/^Image=.*@\(sha256:[0-9a-f]*\)$/\1/p' "$S/$svc.unit")
+[ -n "$digest" ] || digest=$(sed -n 's/^Image=\([0-9a-f]\{64\}\)$/sha256:\1/p' "$S/$svc.unit")
 health=healthy
 [ -e "$S/$svc.health" ] && health=$(cat "$S/$svc.health")
 if [ -s "$S/$svc.seq" ]; then
   health=$(head -n 1 "$S/$svc.seq"); tail -n +2 "$S/$svc.seq" > "$S/$svc.seq.tmp"; mv "$S/$svc.seq.tmp" "$S/$svc.seq"
 fi
 [ -e "$S/bad.$digest" ] && health=unhealthy
-printf '[{"Name":"%s","ImageDigest":"%s","State":{"Status":"running","Running":true,"Health":{"Status":"%s"}}}]\n' "$3" "$digest" "$health"
+printf '[{"Name":"%s","ImageDigest":"%s","Image":"%s","State":{"Status":"running","Running":true,"Health":{"Status":"%s"}}}]\n' "$3" "$digest" "${digest#sha256:}" "$health"
 `
 
 // MigratesDatabaseOn makes a restart of core with that image digest replace core's database file by
@@ -291,7 +294,7 @@ case "$1" in
           printf '"%s"' "$ref"
         done < "$S/tags" 2>/dev/null
         printf '],"RepoDigests":['
-        [ -n "$svc" ] && printf '"ghcr.io/knt048/vedette-%s@%s"' "$svc" "$d"
+        [ -n "$svc" ] && [ "$svc" != scan-nmap ] && printf '"ghcr.io/knt048/vedette-%s@%s"' "$svc" "$d"
         c=0; [ -e "$S/used.$d" ] && c=1
         printf '],"Containers":%s}' "$c"
       done
@@ -301,10 +304,13 @@ case "$1" in
     x="$5"
     case "$x" in
       *@sha256:*) d="${x#*@}" ;;
-      *) d=$(cat "$S/tag.$(key "$x")" 2>/dev/null) ;;
+      */*) d=$(cat "$S/tag.$(key "$x")" 2>/dev/null) ;;
+      *) d="sha256:$x" ;; # a bare image ID
     esac
     { [ -n "$d" ] && [ -e "$S/have.$d" ]; } || { echo "Error: no such image $x" >&2; exit 125; }
     [ -e "$S/raw" ] && { cat "$S/raw"; exit 0; }
+    # an image the fake built has its own ID; a pulled one shows the fixed one
+    iid="$id"; [ "$(cat "$S/have.$d" 2>/dev/null)" = scan-nmap ] && iid="${d#sha256:}"
     shown="$d"; [ -e "$S/lie" ] && shown=$(cat "$S/lie")
     repo="$shown"
     svc="${x#ghcr.io/knt048/vedette-}"; svc="${svc#localhost/vedette-}"; svc="${svc%%[@:]*}"
@@ -312,13 +318,51 @@ case "$1" in
       # an image index: Digest is the digest of a manifest inside it, RepoDigests names the pulled index
       shown=sha256:0000000000000000000000000000000000000000000000000000000000000000; repo="$d"
     fi
-    printf '[{"Id":"%s","Digest":"%s","RepoDigests":["ghcr.io/knt048/vedette-%s@%s"],"Architecture":"amd64","Os":"linux"}]\n' "$id" "$shown" "$svc" "$repo"
+    printf '[{"Id":"%s","Digest":"%s","RepoDigests":["ghcr.io/knt048/vedette-%s@%s"],"Architecture":"amd64","Os":"linux"}]\n' "$iid" "$shown" "$svc" "$repo"
     ;;
   tag)
     [ -e "$REC/mark.tag-fails" ] && { echo "Error: tagging failed" >&2; exit 125; }
-    d="${2#*@}"
+    case "$2" in
+      *@sha256:*) d="${2#*@}" ;;
+      *) d="sha256:$2" ;; # a bare image ID: the tag moves to it
+    esac
+    [ -e "$S/have.$d" ] || { echo "Error: no such image $2" >&2; exit 125; }
+    grep -v "^$3 " "$S/tags" > "$S/tags.tmp" 2>/dev/null; mv "$S/tags.tmp" "$S/tags" 2>/dev/null
     echo "$d" > "$S/tag.$(key "$3")"
     echo "$3 $d" >> "$S/tags"
+    ;;
+  build)
+    # the scan image built on the box (D-147): "build ... --build-arg BASE_IMAGE=<ref@digest> ... --tag <tag> <dir>"
+    echo "$*" >> "$S/builds"
+    [ -e "$REC/mark.build-fails" ] && { echo "Error: build failed" >&2; exit 125; }
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --tag) tag="$2" ;;
+        BASE_IMAGE=*) base="${1#BASE_IMAGE=}" ;;
+      esac
+      shift
+    done
+    [ -e "$S/have.${base#*@}" ] || { echo "Error: the base image is not here (--pull=never)" >&2; exit 125; }
+    n=$(cat "$S/buildn" 2>/dev/null || echo 0); n=$((n+1)); echo "$n" > "$S/buildn"
+    nid=$(printf 'b%063x' "$n")
+    echo scan-nmap > "$S/have.sha256:$nid"
+    if [ ! -e "$REC/mark.build-no-tag" ]; then
+      grep -v "^$tag " "$S/tags" > "$S/tags.tmp" 2>/dev/null; mv "$S/tags.tmp" "$S/tags" 2>/dev/null
+      echo "sha256:$nid" > "$S/tag.$(key "$tag")"
+      echo "$tag sha256:$nid" >> "$S/tags"
+    fi
+    echo "$nid"
+    ;;
+  run)
+    # "run --rm ... --entrypoint nmap <image id> --version": what the built image prints
+    echo "$*" >> "$S/runs"
+    shift 12
+    [ -e "$S/have.sha256:$1" ] || { echo "Error: no such image $1" >&2; exit 125; }
+    [ -e "$REC/mark.nmap-fails" ] && exit 125
+    if [ -e "$REC/mark.nmap-garbage" ]; then echo "not nmap at all"; exit 0; fi
+    v=7.95; [ -s "$S/nmapver" ] && v=$(cat "$S/nmapver")
+    echo "Nmap version $v ( https://nmap.org )"
+    echo "Platform: x86_64-pc-linux-gnu"
     ;;
 esac
 `
@@ -397,6 +441,49 @@ func (m *Machine) ImageLie(digest string) {
 func (m *Machine) ImageRaw(text string) {
 	m.t.Helper()
 	m.must(os.WriteFile(filepath.Join(m.img(), "raw"), []byte(text), 0o600))
+}
+
+// BuiltID is the 64-hex ID the fake podman gives the n-th image it builds (n from 1) for the scan image (D-147).
+func BuiltID(n int) string { return fmt.Sprintf("b%063x", n) }
+
+// NmapVersion makes "nmap --version" in an image the fake builds print this version.
+func (m *Machine) NmapVersion(v string) {
+	m.t.Helper()
+	m.must(os.WriteFile(filepath.Join(m.img(), "nmapver"), []byte(v), 0o600))
+}
+
+// Builds lists the argv (joined by spaces) of every "podman build" the fake saw, in order.
+func (m *Machine) Builds() []string { return m.lines(filepath.Join(m.Rec, "img", "builds")) }
+
+// NmapRuns lists the argv (joined by spaces) of every "podman run" the fake saw, in order.
+func (m *Machine) NmapRuns() []string { return m.lines(filepath.Join(m.Rec, "img", "runs")) }
+
+func (m *Machine) lines(path string) []string {
+	b, _ := os.ReadFile(path) //nolint:gosec // test support: a path under the fake rec dir
+	var out []string
+	for _, l := range strings.Split(string(b), "\n") {
+		if l = strings.TrimSpace(l); l != "" {
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
+// PresentBuilt makes the fake podman hold an image the host "built" with this 64-hex ID, tagged localhost/vedette-scan-nmap:<version>
+// (empty: no tag), as if an earlier container.pull of scan had built it. Its "digest" in units and records is "sha256:" + id.
+func (m *Machine) PresentBuilt(id, version string) {
+	m.t.Helper()
+	d := "sha256:" + id
+	m.must(os.WriteFile(filepath.Join(m.img(), "have."+d), []byte("scan-nmap\n"), 0o600))
+	if version != "" {
+		tag := "localhost/vedette-scan-nmap:" + version
+		m.must(os.WriteFile(filepath.Join(m.img(), "tag."+strings.NewReplacer("/", "_", ":", "_", "@", "_").Replace(tag)), []byte(d+"\n"), 0o600))
+		f, err := os.OpenFile(filepath.Join(m.img(), "tags"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+		m.must(err)
+		_, err = f.WriteString(tag + " " + d + "\n")
+		m.must(err)
+		m.must(f.Close())
+	}
 }
 
 // ImageRepoOnly makes image inspect show another Digest and the pulled digest only in RepoDigests, as an image index may.

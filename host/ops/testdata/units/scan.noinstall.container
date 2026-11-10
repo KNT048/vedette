@@ -5,7 +5,7 @@ Wants=vedette-core.service
 
 [Container]
 ContainerName=vedette-scan
-Image=localhost/vedette-scan-nmap@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+Image=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 Pull=never
 Network=host
 User=10003:10004

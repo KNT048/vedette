@@ -1208,6 +1208,15 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
     const row = (await screen.findByText(/^6\. Update checks/)).closest('tr')!
     for (const h of ['archive.ubuntu.com', 'security.ubuntu.com', 'deb.debian.org', 'security.debian.org', 'local mirror']) expect(row).toHaveTextContent(h)
   })
+
+  it('privacy flow 6 says the scan image build contacts deb.debian.org from inside the build container, ignoring the local mirror (D-147)', async () => {
+    renderApp('/settings/privacy')
+    const row = (await screen.findByText(/^6\. Update checks/)).closest('tr')!
+    expect(row).toHaveTextContent('builds it on this machine')
+    expect(row).toHaveTextContent(/nmap from the Debian package repository/)
+    expect(row).toHaveTextContent(/always contacts deb\.debian\.org from inside the build container, also on Ubuntu/)
+    expect(row).toHaveTextContent(/does not apply to it/)
+  })
 })
 
 describe('core: two-step setup form matrix (docs/QA.md §2)', () => {

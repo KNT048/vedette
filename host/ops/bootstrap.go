@@ -154,6 +154,9 @@ type bsStep struct {
 	write   bool   // the unit file is to be written
 	versOK  bool   // versions already say current = this digest
 	reason  string // why a unit is replaced, for the line printed
+	// late: the image the unit pins does not exist yet (scan: it is built on the box after the pull, D-147), so the rest of the decision
+	// is made again, with the image's ID, after the pulls and before anything is written.
+	late bool
 }
 
 // Bootstrap is the whole first install (see above). logf receives one line per step.
@@ -250,6 +253,13 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 	// 3. Only now the units and the versions.
 	for _, s := range steps {
 		svc := s.plan.service
+		if s.late {
+			ns, err := o.bootstrapDecide(svc, s.plan, a.ForceUnits) // the image now exists: the same refusals as for any service
+			if err != nil {
+				return err
+			}
+			*s = *ns
+		}
 		if s.write {
 			if s.replace {
 				logf(fmt.Sprintf("replacing %s (%s); the old bytes are kept as containers/units/%s", unitFileName(svc), s.reason, o.prevName(svc)))
@@ -264,7 +274,7 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 		}
 		if !s.versOK {
 			rec, ok := o.loadPulled(svc)
-			if !ok || rec.Digest != s.plan.digest {
+			if !ok || rec.Digest != s.plan.unitDigest() {
 				return bsErr(BootstrapFailed, "the record of the pulled version of "+svc+" is missing")
 			}
 			if err := o.saveVersions(versionState{Service: svc, Current: &versionRecord{pulledRecord: rec}}); err != nil {
@@ -273,7 +283,7 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 			logf("recorded " + svc + " " + rec.Version + " as the running version")
 		}
 		if s.write || !s.versOK {
-			o.note("bootstrap", "installed", map[string]any{"service": svc, "version": s.plan.version, "digest": s.plan.digest, "unit_written": s.write, "unit_replaced": s.replace})
+			o.note("bootstrap", "installed", map[string]any{"service": svc, "version": s.plan.version, "digest": s.plan.unitDigest(), "unit_written": s.write, "unit_replaced": s.replace})
 		}
 	}
 	if !slices.ContainsFunc(steps, func(s *bsStep) bool { return s.write || !s.versOK }) {
@@ -306,7 +316,7 @@ func bootstrapServices(in []string) ([]string, error) {
 
 // bootstrapDecide settles, without writing, what the bootstrap does for one service.
 func (o *Ops) bootstrapDecide(svc string, plan *pullPlan, force bool) (*bsStep, error) {
-	want, err := o.renderUnitFor(svc, plan.digest) // core_data itself is vetted (or made) by ensureCoreData next
+	want, err := o.renderUnitFor(svc, plan.unitDigest()) // core_data itself is vetted (or made) by ensureCoreData next
 	if err != nil {
 		return nil, err // host_conf_incomplete or unit_unknown
 	}
@@ -314,9 +324,13 @@ func (o *Ops) bootstrapDecide(svc string, plan *pullPlan, force bool) (*bsStep, 
 		return nil, refuse412(api.CodeTransitionPending, "An earlier change of the unit of "+svc+" was never settled; this is not a first install.")
 	}
 	s := &bsStep{plan: plan, want: want, write: true}
+	if services[svc].byID && plan.pin == "" {
+		s.late = true // before the pull the render above only proved that host.conf fits; the pin comes with the build
+		return s, nil
+	}
 	vs := o.loadVersions(svc)
 	if vs.Current != nil {
-		if vs.Current.Digest != plan.digest {
+		if vs.Current.Digest != plan.unitDigest() {
 			return nil, bsErr(BootstrapAlreadyInstalled, svc+" already runs release "+vs.Current.Version+"; upgrades go through container.pull and container.start")
 		}
 		s.versOK = true
@@ -330,7 +344,7 @@ func (o *Ops) bootstrapDecide(svc string, plan *pullPlan, force bool) (*bsStep, 
 	}
 	digest, _, perr := o.ourUnit(svc, text)
 	switch {
-	case perr == nil && digest == plan.digest:
+	case perr == nil && digest == plan.unitDigest():
 		s.write = false // the unit is ours and pins this image: left as it is (it may have lost [Install] by a stop with persist)
 	case !force && perr == nil:
 		return nil, bsErr(BootstrapAlreadyInstalled, "the unit of "+svc+" already pins another image; upgrades go through container.pull and container.start")
@@ -350,8 +364,16 @@ func (o *Ops) bootstrapDecide(svc string, plan *pullPlan, force bool) (*bsStep, 
 // the pulled version is this one: then the pull has nothing left to do.
 func (o *Ops) pulledAndTagged(ctx context.Context, p *pullPlan) bool {
 	rec, ok := o.loadPulled(p.service)
-	if !ok || rec.Digest != p.digest || rec.Version != p.version {
+	if !ok || rec.manifestDigest() != p.digest || rec.Version != p.version {
 		return false
+	}
+	if p.service == api.ServiceScan {
+		// The image that runs is the one built on this machine: it must still be there under the ID the record names.
+		if ref, err := localRef(p.service, rec.Digest); err != nil || !o.imageIs(ctx, ref, p.service, rec.Digest) {
+			return false
+		}
+		p.pin = rec.Digest
+		return true
 	}
 	tag, err := localTag(p.service, p.version)
 	return err == nil && o.imageIs(ctx, tag, p.service, p.digest)

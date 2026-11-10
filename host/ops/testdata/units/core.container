@@ -27,7 +27,7 @@ HealthCmd=["/vedette","healthcheck"]
 HealthInterval=30s
 HealthStartPeriod=60s
 HealthRetries=3
-Exec=-listen :8443
+Exec=-listen :8443 -sensor-listen :8444 -sensor-creds /var/lib/vedette-creds
 
 [Service]
 Restart=always

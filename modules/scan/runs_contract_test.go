@@ -404,7 +404,14 @@ func TestHandlers_RunEndpoints(t *testing.T) {
 	if code, _ := h.call("POST", "/scans/runs", "viewer", `{"targets":["a-nas02"]}`); code != 403 {
 		t.Fatalf("viewer POST: %d", code)
 	}
+	// The fake scanner waits until the POST has answered: without it a one-device run could end before the handler reads
+	// the run back, and the answer would say done (a test race, not a product one: a real scan takes minutes).
+	release := make(chan struct{})
+	r.eng.mu.Lock()
+	r.eng.onRun = func(nucleiargv.Job) { <-release }
+	r.eng.mu.Unlock()
 	code, b := h.call("POST", "/scans/runs", "operator", `{"targets":["a-nas02"]}`)
+	close(release)
 	if code != 201 || b["status"] != "running" || b["trigger"] != "manual" {
 		t.Fatalf("POST: %d %v", code, b)
 	}

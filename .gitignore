@@ -4,6 +4,7 @@
 /vedette-host
 /dist/
 /web/dist/
+/internal/webui/dist/
 /web/node_modules/
 *.exe
 *.test

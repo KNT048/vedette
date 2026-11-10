@@ -72,7 +72,7 @@ Worktree còn mở: `sp-pack` (SP-5b, nhánh `feat/sensor-images`, brief `sp5b-b
 4. Sau khi Emily thêm tín hiệu `BoxAddrs` (#157): chỉnh `cmd/vedette/notify.go`.
 5. **WP-08** đóng gói/phát hành (Quadlet: `Restart=always`, `KillMode=control-group`, `core_cgroup` trong `host.conf`, `GOMEMLIMIT` cho core; bản build phát hành không mang mock, xem mục "Trước khi phát hành").
 6. **WP-30** E2E backend thật cho module phía Kiên → **WP-31** rà SYS-1…8 + D-41 → **WP-32** RUNBOOK (ghi cả `backup.restore` và lối thoát `core_data_unrecoverable`).
-7. **13b-11** sau WP-25 của Emily. Core còn: `/core/updates*` phần phần mềm (`container.*`, manifest ký) vẫn 501, `/core/data/export` và `/purge`, nút Khôi phục.
+7. **13b-11** sau WP-25 của Emily. Core còn: `/core/updates*` phần phần mềm (`container.*`, manifest ký) vẫn 501, `/core/data/export` và `/purge` (purge xoá cả `logs.db` + sidecar theo D-151, #187), nút Khôi phục.
 8. Việc sau khi PR Emily về: DATA_MODEL `exp_*` đã vào (#94); kiểm danh mục WP-23 ở dưới khi có PR mới. Đóng #146 sau khi đo PR chỉ web.
 
 ## Nối một module vào binary (issue #33)
@@ -101,7 +101,9 @@ kien 2026-11-09 (đã chuyển cho Emily): "tôi muốn box có thêm chế đ�
 ## Trước khi phát hành (đợt rà WP-31/WP-32)
 - [ ] D-108: mỗi lần tăng `schema` của `index.json`/manifest, job phát hành **vẫn đăng index của schema trước** cạnh bản mới (ví dụ `index.v1.json`) ít nhất 12 tháng, để hộp cũ nhận được thu hồi (update-manifest §14); và ký image bằng `cosign sign --key … <kho>@<digest>` đúng như update-manifest §4.2 (docker-reference = kho). Payload cosign thật dùng khoá chữ thường `docker-manifest-digest` (D-103).
 
-- [ ] D-82: tín hiệu ẩn danh không được gửi (không có bộ gửi, không có nơi nhận). PRIVACY luồng 2 và mục "Anonymous signal" ở Cài đặt → Quyền riêng tư phải khớp thực tế lúc phát hành (dùng lại theo story mới, hoặc ẩn/ghi "không gửi").
+- [ ] D-82: tín hiệu ẩn danh không được gửi (không có bộ gửi, không có nơi nhận). PRIVACY luồng 2 và mục "Anonymous signal" ở Cài đặt → Quyền riêng tư phải khớp thực tế lúc phát hành (dùng lại theo story mới, hoặc ẩn/ghi "không gửi"). *Đã làm phần chữ (WP-08j, D-153: PRIVACY + màn hình ghi "không gửi"); còn lại: PATCH từ chối `telemetry: true`, xem mục D-153 dưới.*
+
+- [ ] D-153: lúc phát hành kiểm máy chủ chuyển hướng khi tải file release (hiện ghi `objects.githubusercontent.com` / `release-assets.githubusercontent.com` trong PRIVACY luồng 6, chưa xác minh); và `PATCH /core/privacy` phải từ chối `telemetry: true` (`.ai/deferred/fix-privacy-accuracy.md`).
 
 - [ ] D-81: ba dịch vụ dò IP công cộng (`checkip.amazonaws.com`, `icanhazip.com`, `ifconfig.me/ip`) vẫn thuộc ba nhà vận hành khác nhau: tra DNS/AS mỗi lần phát hành.
 

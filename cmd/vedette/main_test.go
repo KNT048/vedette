@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/internal/webui"
 )
 
 func TestVersionAndFlags(t *testing.T) {
@@ -139,8 +140,8 @@ func TestRunServesAndStops(t *testing.T) {
 	if code, body := in.get(t, "/api/v1/nowhere"); code != 404 || !strings.Contains(body, `"code":"not_found"`) {
 		t.Fatalf("unknown route = %d %s", code, body)
 	}
-	if code, _ := in.get(t, "/somewhere-else"); code != 404 {
-		t.Fatalf("path outside the API = %d", code)
+	if code, body := in.get(t, "/somewhere-else"); code != 200 || !strings.Contains(body, "no web interface") {
+		t.Fatalf("path outside the API = %d %s, want the interface (the stub page without the webui tag)", code, body)
 	}
 	// Ships as code: the files exist with the right mode, and the migration ran.
 	for _, p := range []string{in.db, in.key} {
@@ -362,9 +363,9 @@ func TestHeadersOnResponsesOutsideTheAPIHandler(t *testing.T) {
 		"//":                     http.StatusTemporaryRedirect, // cleaned path
 		"/api/v1/../x":           http.StatusTemporaryRedirect,
 		"/api//v1/modules":       http.StatusTemporaryRedirect,
-		"/elsewhere":             http.StatusNotFound,
-		"/":                      http.StatusNotFound,
-		"/api/v1x/modules":       http.StatusNotFound,
+		"/elsewhere":             http.StatusOK, // the interface (D-149; the stub page in this build)
+		"/":                      http.StatusOK,
+		"/api/v1x/modules":       http.StatusNotFound,     // under /api/ but not the API's prefix: the interface's handler refuses it, never index.html
 		"/api/v1/modules":        http.StatusUnauthorized, // inside the API: the same headers
 		"/api/v1/does-not-exist": http.StatusNotFound,
 	} {
@@ -372,8 +373,12 @@ func TestHeadersOnResponsesOutsideTheAPIHandler(t *testing.T) {
 		if code != status {
 			t.Errorf("GET %s = %d, want %d", target, code, status)
 		}
+		csp := "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
+		if status == http.StatusOK || target == "/api/v1x/modules" { // the interface's own policy: the same plus font-src for Vite's inlined fonts (D-149)
+			csp = webui.CSP
+		}
 		for h, want := range map[string]string{
-			"Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'",
+			"Content-Security-Policy": csp,
 			"X-Content-Type-Options":  "nosniff",
 			"Referrer-Policy":         "no-referrer",
 			"Cache-Control":           "no-store",

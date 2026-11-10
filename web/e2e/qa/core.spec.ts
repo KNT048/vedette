@@ -445,29 +445,18 @@ test.describe('updates', () => {
 })
 
 test.describe('privacy', () => {
-  test('12 flows, switch, verbatim payload', async ({ page, isMobile }) => {
+  test('12 flows, anonymous signal shown as not sent (D-153)', async ({ page, isMobile }) => {
     const errors = collectErrors(page)
     await cleanInstall(page)
     await page.goto('/settings/privacy')
-    await expect(h1(page)).toContainText('anonymous signal every hour')
+    await expect(h1(page)).toContainText('connects out only for the flows listed below')
     await expectAccessible(page, 'privacy')
     // table on desktop, list on a phone
     await expect(isMobile ? page.getByRole('list', { name: 'Data flows that leave the box' }).getByRole('listitem') : page.getByRole('table', { name: 'Data flows that leave the box' }).locator('tbody tr')).toHaveCount(12)
-    await expect(page.getByText("The Vedette project's server").first()).toBeVisible()
+    await expect(page.getByText(/Anonymous signal: not sent\./)).toBeVisible()
     await shot(page, 'core', 'privacy')
-    const payload = async () => JSON.parse(await page.getByLabel('JSON, exactly what would be sent').innerText()) as Record<string, unknown>
-    const p = await payload()
-    expect(Object.keys(p)).toEqual(['schema', 'install_id', 'country', 'version', 'hour', 'honeypot_touches', 'ioc_connections', 'cve_matches', 'device_counts'])
-    expect(p.ioc_connections).toBe(0)
-    expect(p.cve_matches).toEqual({})
-    expect(p.device_counts).toEqual({})
-    expect(JSON.stringify(p)).not.toMatch(/Company|admin@|192\.168/)
-    await expect(page.getByText('Never sent')).toBeVisible()
-    await page.getByRole('switch', { name: 'Send anonymous signal' }).click()
-    await expect(h1(page)).toContainText('The anonymous signal is off')
-    await expect(page.getByText('Off. Nothing is sent.')).toBeVisible()
-    await page.reload()
-    await expect(page.getByRole('switch', { name: 'Send anonymous signal' })).not.toBeChecked()
+    await expect(page.getByRole('switch', { name: 'Send anonymous signal' })).toHaveCount(0)
+    await expect(page.getByLabel('JSON, exactly what would be sent')).toHaveCount(0)
     await noVietnamese(page, 'privacy')
     noErrors(errors)
   })

@@ -30,6 +30,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/store"
 	hostclient "github.com/knt048/vedette/host/client"
+	"github.com/knt048/vedette/internal/webui"
 	"github.com/knt048/vedette/modules"
 	"github.com/knt048/vedette/modules/logs"
 )
@@ -326,6 +327,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 func topHandler(log *slog.Logger, api http.Handler, hosts []string, hsts bool, own func(netip.Addr) bool) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle(server.Prefix+"/", api)
+	mux.Handle("/", webui.Handler(webui.FS())) // the interface (D-149): anything that is not the API; paths under /api/ other than the API's are its own 404
 	h := server.HostAllowlistWith(hosts, own, mux)
 	if hsts {
 		h = strictTransportSecurity(h)

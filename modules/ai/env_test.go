@@ -40,6 +40,9 @@ type fakeProviders struct {
 	keys              []string // the API key each call carried: what would have reached the host
 	onCall            func()   // runs inside every call, before the answer (a test cancels a context here)
 	probeIn, probeOut int      // tokens of every probe call; 0 = the default 14 in and 3 out
+	answer            string   // the text of every answer that is not a probe
+	usageIn, usageOut int      // tokens of every answer that is not a probe; 0 = the default 14 in and 3 out
+	reqs              []provider.Request
 }
 
 func (f *fakeProviders) factory(p ai.Profile) (provider.Provider, error) {
@@ -78,6 +81,7 @@ func (p fakeProvider) Complete(_ context.Context, req provider.Request) (provide
 	defer p.f.mu.Unlock()
 	p.f.calls = append(p.f.calls, p.p.Name)
 	p.f.keys = append(p.f.keys, p.p.APIKey.Reveal())
+	p.f.reqs = append(p.f.reqs, req)
 	if p.f.onCall != nil {
 		p.f.onCall()
 	}
@@ -93,10 +97,17 @@ func (p fakeProvider) Complete(_ context.Context, req provider.Request) (provide
 			return provider.Response{}, &provider.Error{Kind: provider.ErrRequest, Status: 400}
 		}
 		text = `{"ok":true}`
+		if req.Schema.Name != "probe" {
+			text = p.f.answer
+		}
 	}
+	isProbe := req.Schema == nil || req.Schema.Name == "probe"
 	in, out := 14, 3
-	if p.f.probeIn > 0 && (req.Schema == nil || req.Schema.Name == "probe") {
+	switch {
+	case isProbe && p.f.probeIn > 0:
 		in, out = p.f.probeIn, p.f.probeOut
+	case !isProbe && p.f.usageIn > 0:
+		in, out = p.f.usageIn, p.f.usageOut
 	}
 	return provider.Response{Text: text, Usage: provider.Usage{InputTokens: in, OutputTokens: out}}, nil
 }
@@ -115,6 +126,7 @@ type env struct {
 	fake  *fakeProviders
 	clock *clock
 	svc   *ai.Service
+	facts *fakeFacts
 }
 
 func (e *env) ctx() context.Context { return e.t.Context() }
@@ -133,7 +145,7 @@ func newEnv(t *testing.T) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e := &env{t: t, db: db, sec: sec, fake: &fakeProviders{fail: map[string]error{}, tools: true, structd: true}, clock: &clock{t: time.Date(2026, 11, 10, 3, 0, 0, 0, time.UTC)}}
+	e := &env{t: t, db: db, sec: sec, fake: &fakeProviders{fail: map[string]error{}, tools: true, structd: true}, clock: &clock{t: time.Date(2026, 11, 10, 3, 0, 0, 0, time.UTC)}, facts: newFacts()}
 	e.svc = e.newService()
 	return e
 }
@@ -141,7 +153,7 @@ func newEnv(t *testing.T) *env {
 // newService builds a service over the same database, as a restart does.
 func (e *env) newService() *ai.Service {
 	e.t.Helper()
-	svc, err := ai.New(e.ctx(), ai.Config{DB: e.db, Secrets: e.sec, Audit: audit.New(e.clock.Now), Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Factory: e.fake.factory})
+	svc, err := ai.New(e.ctx(), ai.Config{DB: e.db, Secrets: e.sec, Audit: audit.New(e.clock.Now), Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Factory: e.fake.factory, Facts: e.facts})
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -275,10 +287,78 @@ func (e *env) newServiceWith(sec *secrets.Store) (*ai.Service, error) {
 	return ai.New(e.ctx(), ai.Config{DB: e.db, Secrets: sec, Audit: audit.New(e.clock.Now), Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Factory: e.fake.factory})
 }
 
-func (a *api) exec(q string, args ...any) error {
+func (a *api) exec(q string) error {
 	a.t.Helper()
 	return a.db.Write(a.ctx(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(a.ctx(), q, args...)
+		_, err := tx.ExecContext(a.ctx(), q)
 		return err
 	})
+}
+
+func (f *fakeProviders) setAnswer(text string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.answer = text
+}
+
+func (f *fakeProviders) setUsage(in, out int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.usageIn, f.usageOut = in, out
+}
+
+func (f *fakeProviders) called(name string) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	n := 0
+	for _, c := range f.calls {
+		if c == name {
+			n++
+		}
+	}
+	return n
+}
+
+// lastRequest returns the newest request the fake provider got that was not a connection probe.
+func (f *fakeProviders) lastRequest(t *testing.T) provider.Request {
+	t.Helper()
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i := len(f.reqs) - 1; i >= 0; i-- {
+		if f.reqs[i].Schema == nil || f.reqs[i].Schema.Name != "probe" {
+			return f.reqs[i]
+		}
+	}
+	t.Fatal("the provider got no request")
+	return provider.Request{}
+}
+
+// fakeFacts is the box's data about CVEs and devices.
+type fakeFacts struct {
+	mu     sync.Mutex
+	cves   map[string]ai.CVEFacts
+	assets map[string][]ai.AssetFact
+}
+
+func (f *fakeFacts) CVE(_ context.Context, id string) (ai.CVEFacts, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	v, ok := f.cves[id]
+	return v, ok, nil
+}
+
+func (f *fakeFacts) AffectedAssets(_ context.Context, cve string) ([]ai.AssetFact, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]ai.AssetFact(nil), f.assets[cve]...), nil
+}
+
+const goodExplain = `{"why":"NAS-PHOTOS runs the affected product.","patch_steps":["Update to the fixed build."],"temp_mitigations":["Remove the port forward."],"detection_hints":["Check the access log."]}`
+
+func newFacts() *fakeFacts {
+	return &fakeFacts{
+		cves: map[string]ai.CVEFacts{"CVE-2022-27593": {CVE: "CVE-2022-27593", Vendor: "QNAP", Product: "Photo Station", Name: "QNAP Photo Station External Reference", Description: "An externally controlled reference allows remote attackers to modify system files.",
+			RequiredAction: "Apply updates per vendor instructions.", DateAdded: "2022-09-08", Links: []string{"https://www.qnap.com/en/security-advisory/qsa-22-24", "javascript:alert(1)", "ftp://files.example.com/patch.txt", "https://nvd.nist.gov/vuln/detail/CVE-2022-27593", "https://example.com/third"}, Ransomware: true}},
+		assets: map[string][]ai.AssetFact{"CVE-2022-27593": {{Name: "NAS-PHOTOS", IP: "192.168.10.40", Kind: "nas", Basis: "product", Status: "open"}}},
+	}
 }

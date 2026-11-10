@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
@@ -42,6 +43,7 @@ func scanService(d deps) *scan.Service {
 	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
 		cfg.Publisher = d.Bus
 	}
+	cfg.KEV = scanKEV{feedsKEV{&d}} // the catch-up of new_kev the bus did not bring (S4b, D-144)
 	svc, err := scan.NewService(cfg)
 	if err != nil { // only a missing dependency: a programming error in serve
 		panic("vedette: " + err.Error())
@@ -175,4 +177,24 @@ func onNewKEVForScan(d deps) func(ctx context.Context, data any) error {
 		}
 		return scanService(d).OnNewKEV(ctx, scan.NewKEV{CVE: ev.CVE, Vendor: ev.Vendor, Product: ev.Product, HasTemplate: ev.HasTemplate})
 	}
+}
+
+// scanKEV is feeds' record of the KEV entries it announced, as scan reads it (scan.KEVFeed): nothing while feeds is
+// off, since then nothing is announced.
+type scanKEV struct{ src feedsKEV }
+
+func (k scanKEV) NewKEVSince(ctx context.Context, at time.Time, cve string, limit int) ([]scan.AnnouncedKEV, error) {
+	st, ok := k.src.store()
+	if !ok {
+		return nil, nil
+	}
+	list, err := st.NewKEVSince(ctx, at, cve, limit)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]scan.AnnouncedKEV, len(list))
+	for i, e := range list {
+		out[i] = scan.AnnouncedKEV{NewKEV: scan.NewKEV{CVE: e.CVE, Vendor: e.Vendor, Product: e.Product, HasTemplate: e.HasTemplate}, At: e.At}
+	}
+	return out, nil
 }

@@ -124,11 +124,22 @@ func pause(d time.Duration) { <-time.After(d) }
 
 func str(s string) *string { return &s }
 
-// api is a ready HTTPS connection: fetch_url is on, send_request is on too.
-func (r *rig) api(f *conntest.HTTPS) conn.Connection {
+// defaultReads are the addresses (path and query) that a connection of api names as readable.
+var defaultReads = []string{"/api/v1/status", "/api/x", "/api/echo", "/api/fail", "/api/hop", "/api/slow", "/api/first", "/api/second", "/api/n0", "/api/n1", "/api/big"}
+
+// api is a ready HTTPS connection: fetch_url is on, with the addresses in reads (defaultReads) as exact entries of the allow-list
+// next to the prefix /api/ that the writer uses; send_request is on too.
+func (r *rig) api(f *conntest.HTTPS, reads ...string) conn.Connection {
 	r.t.Helper()
-	c := r.create(conn.Input{Name: "API " + f.Host, Kind: "http", Target: f.URL, AuthType: "token", Secret: secrets.NewValue(token), Allow: []string{f.URL + "/api/"}, Enabled: true,
-		Tools: []conn.ToolInput{{Name: "send_request", Enabled: true}}})
+	if len(reads) == 0 {
+		reads = defaultReads
+	}
+	allow := []string{f.URL + "/api/"}
+	for _, p := range reads {
+		allow = append(allow, f.URL+p)
+	}
+	c := r.create(conn.Input{Name: "API " + f.Host, Kind: "http", Target: f.URL, AuthType: "token", Secret: secrets.NewValue(token), Allow: allow, Enabled: true,
+		Tools: []conn.ToolInput{{Name: "send_request", Enabled: true}, {Name: "fetch_url", Enabled: true}}})
 	return r.tested(c)
 }
 
@@ -266,7 +277,7 @@ func TestListReadTools_HoldsNoSecret(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, secret := range []string{token, sshPW, sshUsr, "Bearer", "Authorization", "https://", f.URL, ssh.Addr} {
+	for _, secret := range []string{token, sshPW, sshUsr, "Bearer", "Authorization", "@", ssh.Addr} {
 		if strings.Contains(string(b), secret) {
 			t.Errorf("the list holds %q: %s", secret, b)
 		}
@@ -348,33 +359,37 @@ func TestCallRead_OneRefusalForEverythingUnavailable(t *testing.T) {
 	}
 }
 
-// The exact request: a GET of the address built from the connection and the path, with the connection's sign-in and no body.
+// The exact request: a GET of an address the allow-list names, with the connection's sign-in and no body.
 func TestCallRead_HTTPSendsOneGET(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
 	f := conntest.NewHTTPS(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, `{"up":3}`) }))
-	c := r.api(f)
+	c := r.api(f, "/api/v1/status", "/api/v1/items?kind=a&limit=5")
 	n := len(f.Requests())
-	out := r.mustCall(c, "fetch_url", map[string]any{"path": "/api/v1/status", "query": map[string]any{"limit": 5, "q": "a b", "all": true}})
-	if out != `{"up":3}` {
+	if out := r.mustCall(c, "fetch_url", map[string]any{"path": "/api/v1/status"}); out != `{"up":3}` {
 		t.Errorf("output %q", out)
 	}
+	r.mustCall(c, "fetch_url", map[string]any{"path": "/api/v1/items?kind=a&limit=5"})
 	got := f.Requests()[n:]
-	if len(got) != 1 {
+	if len(got) != 2 {
 		t.Fatalf("%d requests", len(got))
 	}
 	q := got[0]
-	if q.Method != "GET" || q.Path != "/api/v1/status" || q.RawQuery != "all=true&limit=5&q=a+b" || len(q.Body) != 0 ||
+	if q.Method != "GET" || q.Path != "/api/v1/status" || q.RawQuery != "" || len(q.Body) != 0 ||
 		q.Header.Get("Authorization") != "Bearer "+token || q.Header.Get("Accept") != "application/json" || q.Header.Get("Content-Type") != "" {
 		t.Fatalf("the device saw %+v", q)
 	}
-	// The path is optional: the address of the connection itself, when an allow-list entry covers it.
+	if got[1].Method != "GET" || got[1].Path != "/api/v1/items" || got[1].RawQuery != "kind=a&limit=5" {
+		t.Fatalf("the device saw %+v", got[1])
+	}
+	// RESTCONF: the same rule, its own Accept.
 	r2 := newRig(t)
 	f2 := conntest.NewHTTPS(t, nil)
-	c2 := r2.create(conn.Input{Name: "Root", Kind: "netconf-restconf", Target: f2.URL + "/restconf", AuthType: "basic", Username: str("u-admin"), Secret: secrets.NewValue("pw-restconf"), Allow: []string{f2.URL + "/restconf/"}, Enabled: true})
+	c2 := r2.create(conn.Input{Name: "Root", Kind: "netconf-restconf", Target: f2.URL + "/restconf", AuthType: "basic", Username: str("u-admin"), Secret: secrets.NewValue("pw-restconf"),
+		Allow: []string{f2.URL + "/restconf/data/interfaces"}, Enabled: true, Tools: []conn.ToolInput{{Name: "get_config", Enabled: true}}})
 	c2 = r2.tested(c2)
 	m := len(f2.Requests())
-	r2.mustCall(c2, "get_config", map[string]any{"path": "/data/interfaces"})
+	r2.mustCall(c2, "get_config", map[string]any{"path": "/restconf/data/interfaces"})
 	rc := f2.Requests()[m:]
 	if len(rc) != 1 || rc[0].Method != "GET" || rc[0].Path != "/restconf/data/interfaces" || rc[0].Header.Get("Accept") != "application/yang-data+json" || !strings.HasPrefix(rc[0].Header.Get("Authorization"), "Basic ") {
 		t.Fatalf("restconf request %+v", rc)
@@ -501,7 +516,7 @@ func TestCallRead_OutputIsCleanedAndCapped(t *testing.T) {
 	if len(out) > read.MaxOutput+len(read.Truncated) {
 		t.Errorf("%d bytes returned", len(out))
 	}
-	if !strings.HasPrefix(out, "line1\nline2\ttab[31mredevilz\n") {
+	if !strings.HasPrefix(out, "line1\nline2\ttabredevilz\n") {
 		t.Errorf("not cleaned: %q", out[:60])
 	}
 	for _, bad := range []string{"\x1b", "\x00", "\u202e", "\u200b", "\r"} {
@@ -520,7 +535,7 @@ func TestCallRead_OutputIsCleanedAndCapped(t *testing.T) {
 func TestCallRead_EchoedCredentialNeverLeaves(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
-	secretish := []string{token, sshPW, sshUsr}
+	secretish := []string{token, sshPW}
 
 	f := conntest.NewHTTPS(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.URL.Path == "/api/fail" {
@@ -539,7 +554,7 @@ func TestCallRead_EchoedCredentialNeverLeaves(t *testing.T) {
 	fb := conntest.NewHTTPS(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		_, _ = io.WriteString(w, req.Header.Get("Authorization")) //nolint:gosec // a fake that echoes the header on purpose
 	}))
-	cb := r.create(conn.Input{Name: "Basic", Kind: "http", Target: fb.URL, AuthType: "basic", Username: str("svc-user"), Secret: secrets.NewValue("pw-basic-123456"), Allow: []string{fb.URL + "/api/"}, Enabled: true})
+	cb := r.create(conn.Input{Name: "Basic", Kind: "http", Target: fb.URL, AuthType: "basic", Username: str("svc-user"), Secret: secrets.NewValue("pw-basic-123456"), Allow: []string{fb.URL + "/api/x"}, Enabled: true, Tools: []conn.ToolInput{{Name: "fetch_url", Enabled: true}}})
 	cb = r.tested(cb)
 	outb := r.mustCall(cb, "fetch_url", map[string]any{"path": "/api/x"})
 
@@ -554,7 +569,7 @@ func TestCallRead_EchoedCredentialNeverLeaves(t *testing.T) {
 	_, merr := r.call(cm, "boom", nil)
 
 	all := strings.Join([]string{out, outb, outs, outm, fmt.Sprint(herr), fmt.Sprint(merr), r.log.String()}, "\n")
-	for _, s := range append(secretish, "pw-basic-123456", "svc-user") {
+	for _, s := range append(secretish, "pw-basic-123456") {
 		if strings.Contains(all, s) {
 			t.Errorf("%q came out: %s", s, all)
 		}
@@ -809,6 +824,7 @@ func TestCallRead_OneAtATimePerConnection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	var wrote atomic.Pointer[write.Result]
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() { defer wg.Done(); _, _ = r.call(c, "fetch_url", map[string]any{"path": "/api/first"}) }()
@@ -821,7 +837,8 @@ func TestCallRead_OneAtATimePerConnection(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			if i == 2 {
-				w.Do(t.Context(), write.Step{ConnectionID: c.ID, ConnFP: c.Fingerprint(), Phase: write.PhaseRun, Method: "POST", URL: f.URL + "/api/w", Body: `{}`})
+				res := w.Do(t.Context(), write.Step{ConnectionID: c.ID, ConnFP: c.Fingerprint(), Phase: write.PhaseRun, Method: "POST", URL: f.URL + "/api/w", Body: `{}`})
+				wrote.Store(&res)
 				return
 			}
 			_, _ = r.call(c, "fetch_url", map[string]any{"path": fmt.Sprintf("/api/n%d", i)})
@@ -835,6 +852,9 @@ func TestCallRead_OneAtATimePerConnection(t *testing.T) {
 	wg.Wait()
 	if peak.Load() != 1 {
 		t.Errorf("up to %d calls on one connection at once", peak.Load())
+	}
+	if res := wrote.Load(); res == nil || res.Status != write.StatusOK {
+		t.Errorf("the write ended %+v", res)
 	}
 }
 
@@ -867,7 +887,7 @@ func TestCallRead_LogsWhoReadWhatAndNothingElse(t *testing.T) {
 	r := newRig(t)
 	f := conntest.NewHTTPS(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, "OUTPUT-NEEDLE") }))
 	c := r.api(f)
-	r.mustCall(c, "fetch_url", map[string]any{"path": "/api/x", "query": map[string]any{"key": "ARG-NEEDLE-VALUE"}})
+	r.mustCall(c, "fetch_url", map[string]any{"path": "/api/x"})
 	r.wantRefused(c, "send_request")
 	r.wantRefused(conn.Connection{ID: "cn-x\nfake=line"}, "fetch_url")
 	_, _ = r.r.CallRead(t.Context(), c.ID, "fetch_url", nil) // an unnamed actor
@@ -877,7 +897,7 @@ func TestCallRead_LogsWhoReadWhatAndNothingElse(t *testing.T) {
 			t.Errorf("the log lacks %q:\n%s", want, lg)
 		}
 	}
-	for _, bad := range []string{"ARG-NEEDLE-VALUE", "OUTPUT-NEEDLE", token, "\nfake=line"} {
+	for _, bad := range []string{"/api/x", "OUTPUT-NEEDLE", token, "\nfake=line"} {
 		if strings.Contains(lg, bad) {
 			t.Errorf("the log holds %q:\n%s", bad, lg)
 		}

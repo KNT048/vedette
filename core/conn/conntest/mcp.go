@@ -39,9 +39,41 @@ type MCPCall struct {
 // MCP is an MCP server over streamable HTTP on loopback: initialize, notifications/initialized, tools/list and tools/call.
 type MCP struct {
 	*HTTPS
-	opts  MCPOpts
-	mu    sync.Mutex
-	calls []MCPCall
+	opts       MCPOpts
+	mu         sync.Mutex
+	calls      []MCPCall
+	hang       <-chan struct{} // while set, a request waits for it (or for the client to give up)
+	hangMethod string          // which: "" every request, "DELETE" the one that ends a session, or an RPC method such as "tools/call"
+}
+
+// SetTools replaces the tools the server lists from now on: a server that changed a tool, or dropped it.
+func (m *MCP) SetTools(tools ...MCPTool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.opts.Tools = tools
+}
+
+// Hang makes the server wait for release before it answers: every request when method is "", the DELETE that ends a session when it
+// is "DELETE", otherwise the requests of that RPC method (for example "tools/call").
+func (m *MCP) Hang(release <-chan struct{}, method string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.hang, m.hangMethod = release, method
+}
+
+func (m *MCP) wait(r *http.Request, method string) bool {
+	m.mu.Lock()
+	hang, only := m.hang, m.hangMethod
+	m.mu.Unlock()
+	if hang == nil || (only != "" && only != method) {
+		return true
+	}
+	select {
+	case <-hang:
+		return true
+	case <-r.Context().Done():
+		return false
+	}
 }
 
 // NewMCP starts the fake.
@@ -68,6 +100,9 @@ func (m *MCP) Calls() []MCPCall {
 func (m *MCP) serve(w http.ResponseWriter, r *http.Request) {
 	c := MCPCall{HTTPMethod: r.Method, Session: r.Header.Get("Mcp-Session-Id"), Version: r.Header.Get("MCP-Protocol-Version"), Authorization: r.Header.Get("Authorization")}
 	if r.Method == http.MethodDelete {
+		if !m.wait(r, "DELETE") {
+			return
+		}
 		m.record(c)
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -87,6 +122,9 @@ func (m *MCP) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	c.RPCMethod, c.Args = req.Method, req.Params.Arguments
 	m.record(c)
+	if !m.wait(r, req.Method) {
+		return
+	}
 	if req.Method != "initialize" && !m.opts.NoSession && c.Session != "sess-1" {
 		http.Error(w, "no session", http.StatusNotFound)
 		return
@@ -104,7 +142,10 @@ func (m *MCP) serve(w http.ResponseWriter, r *http.Request) {
 		result = map[string]any{"protocolVersion": m.opts.Version, "capabilities": map[string]any{"tools": map[string]any{}}, "serverInfo": map[string]any{"name": "fake", "version": "1"}}
 	case "tools/list":
 		tools := []map[string]any{}
-		for _, t := range m.opts.Tools {
+		m.mu.Lock()
+		list := append([]MCPTool(nil), m.opts.Tools...)
+		m.mu.Unlock()
+		for _, t := range list {
 			var schema any = map[string]any{"type": "object"}
 			if t.Schema != "" {
 				schema = json.RawMessage(t.Schema)

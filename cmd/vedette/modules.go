@@ -44,8 +44,8 @@ type deps struct {
 	// BaseURL is the address people open Vedette at (links in notify messages); empty on loopback, see baseURL.
 	BaseURL string
 	Conn    *conn.Service // connections to devices (core/conn, D-93): core's handlers, response and the Privacy page share it
-	// ConnReader is the read tools of the connections for the ai module (WP-25, D-93 (3)): list them, call one. It is the only thing of
-	// core/conn that ai is given; the writer goes to response alone. nil when there is no Conn.
+	// ConnReader lists and calls the read tools of the connections (core/conn/read, D-93 (3)). The ai module (WP-25) is given this and nothing
+	// else of core/conn: not the *conn.Service and not the writer, which only response gets. nil when there is no Conn.
 	ConnReader *read.Reader
 	Core       *core.APIHandlers     // core's own operations (sign-in, account, users, setup, audit, general settings)
 	OS         *core.OSHandlers      // operating system updates and the backup download, on top of vedette-host

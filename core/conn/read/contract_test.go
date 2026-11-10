@@ -5,7 +5,9 @@ import (
 	"go/parser"
 	gotoken "go/token"
 	"io/fs"
+	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -68,12 +70,41 @@ func TestContract_AIImportsNeitherTheWriterNorTheInternals(t *testing.T) {
 	if len(hits) > 0 {
 		t.Fatalf("modules/ai imports what only the binary may hold: %v", hits)
 	}
-	// Of core/conn the module may import the package itself (types, NotReady) and this reader, nothing else.
+	// Of core/conn the module may import this reader and nothing else: not core/conn itself (its Service holds the credential and the
+	// dialer behind methods), not conntest, not cliban.
 	others, _ := importsOf(t, "modules/ai", true, func(p string) bool {
-		return strings.HasPrefix(p, module+"/core/conn/") && p != readerPath && p != module+"/core/conn/conntest"
+		return (p == module+"/core/conn" || strings.HasPrefix(p, module+"/core/conn/")) && p != readerPath
 	})
 	if len(others) > 0 {
 		t.Fatalf("modules/ai imports a core/conn package that is not the reader: %v", others)
+	}
+}
+
+// ai does not name what holds the credential, the dialer or the connection's turn, nor the Service itself (M3).
+func TestContract_AIDoesNotNameTheServiceOrItsKeyedMethods(t *testing.T) {
+	t.Parallel()
+	re := regexp.MustCompile(`OpenCredential|WriteAccess|LockConn|conn\.Service|conn\.New\b`)
+	root := filepath.Join("..", "..", "..", "modules", "ai")
+	scanned := 0
+	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".go") {
+			return err
+		}
+		b, err := os.ReadFile(p) //nolint:gosec // a path of the walk over our own source tree
+		if err != nil {
+			return err
+		}
+		scanned++
+		if m := re.Find(b); m != nil {
+			t.Errorf("%s names %s", p, m)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if scanned < 5 {
+		t.Fatalf("the scan saw %d files of modules/ai", scanned)
 	}
 }
 

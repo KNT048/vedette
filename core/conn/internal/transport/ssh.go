@@ -90,7 +90,7 @@ func DialSSH(ctx context.Context, hostport string, cfg SSHConfig) (*SSH, error) 
 	if err != nil {
 		return nil, err
 	}
-	s := &SSH{raw: raw, deadline: time.Now().Add(SessionTimeout), redact: []string{cfg.Password.Reveal(), cfg.Username}}
+	s := &SSH{raw: raw, deadline: time.Now().Add(SessionTimeout), redact: Secrets("basic", cfg.Username, cfg.Password.Reveal())}
 	s.cond = sync.NewCond(&s.mu)
 	fail := func(err error) (*SSH, error) {
 		_ = raw.Close()
@@ -192,7 +192,7 @@ func DialSSH(ctx context.Context, hostport string, cfg SSHConfig) (*SSH, error) 
 	// blocks inside the library, where no deadline reaches it) must not outlive the step.
 	s.stopCtx = context.AfterFunc(ctx, func() { _ = raw.Close() })
 	go s.read(out)
-	if _, err := s.waitPrompt(ctx, LineTimeout); err != nil {
+	if _, _, err := s.waitPrompt(ctx, LineTimeout, false); err != nil {
 		return closeOnErr(err)
 	}
 	return s, nil
@@ -206,13 +206,13 @@ func sshError(err error, cfg SSHConfig) error {
 	case strings.Contains(msg, "unable to authenticate"), strings.Contains(msg, "no supported methods remain"):
 		return deviceErr("the device refused the sign-in")
 	case strings.Contains(msg, "no common algorithm"):
-		return deviceErr("the device offers only SSH algorithms that Vedette does not use (%s)", CleanLine(msg, cfg.Password.Reveal(), cfg.Username))
+		return deviceErr("the device offers only SSH algorithms that Vedette does not use (%s)", CleanLine(msg, Secrets("basic", cfg.Username, cfg.Password.Reveal())...))
 	}
 	var ne net.Error
 	if errors.As(err, &ne) && ne.Timeout() {
 		return errors.New("timed out")
 	}
-	return errors.New(CleanLine(msg, cfg.Password.Reveal(), cfg.Username))
+	return errors.New(CleanLine(msg, Secrets("basic", cfg.Username, cfg.Password.Reveal())...))
 }
 
 func (s *SSH) read(r io.Reader) {
@@ -247,13 +247,13 @@ func (s *SSH) read(r io.Reader) {
 
 // waitPrompt waits until the output ends in a prompt and stays still for a moment, and returns the output read before it. It
 // gives up after limit, at the end of the session, or when ctx ends.
-func (s *SSH) waitPrompt(ctx context.Context, limit time.Duration) (string, error) {
+func (s *SSH) waitPrompt(ctx context.Context, limit time.Duration, pager bool) (out string, paged bool, err error) {
 	end := time.Now().Add(limit)
 	if end.After(s.deadline) {
 		end = s.deadline
 	}
 	if time.Until(end) <= 0 {
-		return "", errors.New("timed out")
+		return "", false, errors.New("timed out")
 	}
 	wake := time.AfterFunc(time.Until(end), func() { s.cond.Broadcast() })
 	defer wake.Stop()
@@ -264,9 +264,10 @@ func (s *SSH) waitPrompt(ctx context.Context, limit time.Duration) (string, erro
 	defer s.mu.Unlock()
 	for {
 		if s.over {
-			return "", deviceErr("the device sent more than %d MB", MaxOutput>>20)
+			return "", false, deviceErr("the device sent more than %d MB", MaxOutput>>20)
 		}
-		if isPrompt(s.buf) {
+		pg := pager && isPager(s.buf)
+		if pg || isPrompt(s.buf) {
 			// A prompt that is only the end of what has come so far is not enough: a device writes in pieces. It counts once nothing
 			// follows for a moment.
 			n := len(s.buf)
@@ -281,21 +282,32 @@ func (s *SSH) waitPrompt(ctx context.Context, limit time.Duration) (string, erro
 			if len(s.buf) == n {
 				out := string(s.buf)
 				s.buf = s.buf[:0]
-				return out, nil
+				return out, pg, nil
 			}
 			continue
 		}
 		if s.rdErr != nil {
-			return "", deviceErr("the device closed the session")
+			return "", false, deviceErr("the device closed the session")
 		}
 		if ctx.Err() != nil {
-			return "", ctx.Err()
+			return "", false, ctx.Err()
 		}
 		if !time.Now().Before(end) {
-			return "", errors.New("timed out")
+			return "", false, errors.New("timed out")
 		}
 		s.cond.Wait()
 	}
+}
+
+// pagerRE is the prompt of a pager: "--More--", "-- More --", "<--- More --->", in any letter case. Nothing vendor-specific is typed to
+// avoid a pager; the reader answers one with a space.
+var pagerRE = regexp.MustCompile(`(?i)^\s*<?-+\s*more\s*-+>?\s*$`)
+
+// isPager says whether the last, unfinished line of b is a pager prompt (the erasing backspaces and spaces that follow it are ignored).
+func isPager(b []byte) bool {
+	clean := ansiRE.ReplaceAll(b, nil)
+	i := bytes.LastIndexAny(clean, "\r\n")
+	return pagerRE.Match(bytes.TrimRight(bytes.ReplaceAll(clean[i+1:], []byte{8}, nil), " "))
 }
 
 func isPrompt(b []byte) bool {
@@ -341,7 +353,7 @@ func (s *SSH) Run(ctx context.Context, line string) (string, error) {
 		s.Close()
 		return "", deviceErr("the device closed the session")
 	}
-	raw, err := s.waitPrompt(ctx, LineTimeout)
+	raw, _, err := s.waitPrompt(ctx, LineTimeout, false)
 	if err != nil {
 		s.Close()
 		return "", err
@@ -362,6 +374,78 @@ func (s *SSH) Run(ctx context.Context, line string) (string, error) {
 		}
 	}
 	return strings.Join(lines, "\n"), nil
+}
+
+// RunRead sends one line of a read and returns its whole output, following a pager by answering it with a space, until the output
+// holds limit bytes (the second result says it was cut at that point). Unlike Run, a line of the output that begins like an error
+// ("%", "Error") is output, not a failure: a read that is refused is something to read. The line is one line of printable characters.
+func (s *SSH) RunRead(ctx context.Context, line string, limit int) (string, bool, error) {
+	if strings.ContainsFunc(line, unicode.IsControl) {
+		return "", false, errors.New("a command is one line of printable characters")
+	}
+	s.mu.Lock()
+	over, closed := s.over, s.closed
+	s.buf = s.buf[:0]
+	s.mu.Unlock()
+	if over {
+		return "", false, deviceErr("the device sent more than %d MB", MaxOutput>>20)
+	}
+	if closed {
+		return "", false, deviceErr("the device closed the session")
+	}
+	if err := s.write(line + "\r"); err != nil {
+		return "", false, err
+	}
+	var out []string
+	size := 0
+	for first := true; ; first = false {
+		raw, paged, err := s.waitPrompt(ctx, LineTimeout, true)
+		if err != nil {
+			s.Close()
+			return "", false, err
+		}
+		text := strings.ReplaceAll(string(ansiRE.ReplaceAll([]byte(raw), nil)), "\r", "")
+		if !first {
+			text = strings.TrimLeft(text, "\x08 ") // what is left of the erased pager prompt
+		}
+		lines := strings.Split(text, "\n")
+		if first && len(lines) > 0 && strings.TrimSpace(lines[0]) == strings.TrimSpace(line) {
+			lines = lines[1:] // the echo
+		}
+		if len(lines) > 0 { // the prompt, or the pager prompt
+			lines = lines[:len(lines)-1]
+		}
+		seg := strings.Join(lines, "\n")
+		out = append(out, seg)
+		size += len(seg) + 1
+		if !paged {
+			return strings.Join(out, "\n"), false, nil
+		}
+		if size >= limit {
+			return strings.Join(out, "\n"), true, nil
+		}
+		if err := s.write(" "); err != nil {
+			return "", false, err
+		}
+	}
+}
+
+// write sends text to the session, which closes under it when the device does not take it in time.
+func (s *SSH) write(text string) error {
+	limit := LineTimeout
+	if left := time.Until(s.deadline); left < limit {
+		limit = left
+	}
+	stuck := time.AfterFunc(limit, func() { _ = s.raw.Close() })
+	s.wmu.Lock()
+	_, err := io.WriteString(s.stdin, text)
+	s.wmu.Unlock()
+	stuck.Stop()
+	if err != nil {
+		s.Close()
+		return deviceErr("the device closed the session")
+	}
+	return nil
 }
 
 // Close ends the session and the connection.

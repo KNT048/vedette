@@ -57,6 +57,7 @@ type CoreConnectionTool struct {
 	Access       string
 	Description  string
 	Enabled      bool
+	Ident        string
 }
 
 type CoreEmailCode struct {

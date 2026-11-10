@@ -424,8 +424,8 @@ func TestToolsPerKind(t *testing.T) {
 		"mcp":      mk("mcp-http", "https://mcp.example.local/mcp", "none", []string{"https://mcp.example.local/mcp"}, nil, secrets.Value{}),
 	}
 	wantTools := map[string][]string{
-		"http": {"fetch_url:read:on", "send_request:write:off"}, "ssh": {"run_allowed_command:read:on", "run_approved_command:write:off"},
-		"restconf": {"get_config:read:on", "apply_config:write:off"}, "auto": {"list_jobs:read:on", "launch_job:write:off"}, "mcp": {},
+		"http": {"fetch_url:read:off", "send_request:write:off"}, "ssh": {"run_allowed_command:read:on", "run_approved_command:write:off"},
+		"restconf": {"get_config:read:off", "apply_config:write:off"}, "auto": {"list_jobs:read:off", "launch_job:write:off"}, "mcp": {},
 	}
 	for name, c := range got {
 		var have []string

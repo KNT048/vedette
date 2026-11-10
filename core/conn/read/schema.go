@@ -35,6 +35,9 @@ func checkSchema(raw json.RawMessage, args map[string]any) error {
 }
 
 func checkObject(schema map[string]any, v map[string]any, depth int) error {
+	if unsupported(schema) {
+		return errUnsupported
+	}
 	props, _ := schema["properties"].(map[string]any)
 	for k := range v {
 		if _, ok := props[k]; !ok {
@@ -64,6 +67,9 @@ func checkValue(schema map[string]any, v any, depth int, name string) error {
 		return errors.New("the arguments are nested too deep")
 	}
 	name = transport.CleanLine(name)
+	if unsupported(schema) {
+		return fmt.Errorf("the argument %s uses a feature of JSON schema that Vedette does not support", name)
+	}
 	if types := typesOf(schema); len(types) > 0 && !slices.ContainsFunc(types, func(t string) bool { return isType(t, v) }) {
 		return fmt.Errorf("the argument %s is not of type %s", name, strings.Join(types, " or "))
 	}
@@ -147,4 +153,128 @@ func inEnum(enum []any, v any) bool {
 		}
 	}
 	return false
+}
+
+var errUnsupported = errors.New("the tool's schema uses a feature of JSON schema that Vedette does not support")
+
+// unsupported is a schema that says something this checker does not enforce: a composition or a reference. Such a parameter is
+// refused (and not offered), never half checked.
+func unsupported(schema map[string]any) bool {
+	for _, k := range []string{"anyOf", "oneOf", "allOf", "not", "$ref", "$defs", "definitions", "patternProperties", "if", "then", "else", "dependentSchemas", "dependencies"} {
+		if _, ok := schema[k]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+var scalarTypes = []string{"string", "integer", "number", "boolean", "array", "object", "null"}
+
+// publicSchema is what the AI is shown of an MCP tool's input schema: only what checkSchema enforces (types, enums, bounds,
+// required, nested properties and items), with no description, every string cleaned and capped at 200 characters and every secret
+// of the sign-in replaced. A schema that is missing, is not an object or is too large declares no arguments. ok is false for a tool
+// that has a required argument it cannot take (a composition, a reference): such a tool is not offered.
+func publicSchema(raw json.RawMessage, redact []string) (json.RawMessage, bool) {
+	var root map[string]any
+	if len(raw) > 0 && len(raw) <= transport.MaxSchema {
+		dec := json.NewDecoder(bytes.NewReader(raw))
+		dec.UseNumber()
+		if dec.Decode(&root) != nil {
+			root = nil
+		}
+	}
+	if root == nil {
+		return json.RawMessage(noArgs), true
+	}
+	out, ok := subset(root, 0)
+	if !ok {
+		return nil, false
+	}
+	out["type"] = "object"
+	if _, has := out["properties"]; !has {
+		out["properties"] = map[string]any{}
+	}
+	out["additionalProperties"] = false
+	b, err := json.Marshal(out)
+	if err != nil {
+		return json.RawMessage(noArgs), true
+	}
+	s := transport.Redact(string(b), redact...)
+	if !json.Valid([]byte(s)) {
+		return json.RawMessage(noArgs), true
+	}
+	return json.RawMessage(s), true
+}
+
+func subset(node map[string]any, depth int) (map[string]any, bool) {
+	if depth > maxDepth || unsupported(node) {
+		return nil, false
+	}
+	out := map[string]any{}
+	switch t := node["type"].(type) {
+	case string:
+		if slices.Contains(scalarTypes, t) {
+			out["type"] = t
+		}
+	case []any:
+		var ts []string
+		for _, e := range t {
+			if s, ok := e.(string); ok && slices.Contains(scalarTypes, s) {
+				ts = append(ts, s)
+			}
+		}
+		if len(ts) > 0 {
+			out["type"] = ts
+		}
+	}
+	if enum, ok := node["enum"].([]any); ok && len(enum) <= maxItems {
+		var vals []any
+		for _, e := range enum {
+			switch x := e.(type) {
+			case string:
+				vals = append(vals, transport.CleanLine(x))
+			case json.Number, bool:
+				vals = append(vals, x)
+			}
+		}
+		out["enum"] = vals
+	}
+	if n, ok := node["maxLength"].(json.Number); ok {
+		out["maxLength"] = n
+	}
+	if items, ok := node["items"].(map[string]any); ok {
+		sub, ok := subset(items, depth+1)
+		if !ok {
+			return nil, false
+		}
+		out["items"] = sub
+	}
+	if props, ok := node["properties"].(map[string]any); ok {
+		kept := map[string]any{}
+		for k, v := range props {
+			m, isMap := v.(map[string]any)
+			if !propNameRE.MatchString(k) || !isMap {
+				continue
+			}
+			if sub, ok := subset(m, depth+1); ok {
+				kept[k] = sub
+			}
+		}
+		var req []string
+		if r, ok := node["required"].([]any); ok {
+			for _, e := range r {
+				name, _ := e.(string)
+				if _, have := kept[name]; !have {
+					return nil, false // a required argument that cannot be taken
+				}
+				req = append(req, name)
+			}
+		}
+		out["properties"] = kept
+		if len(req) > 0 {
+			out["required"] = req
+		}
+		out["additionalProperties"] = false
+	}
+	return out, true
 }

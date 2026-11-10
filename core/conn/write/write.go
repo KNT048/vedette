@@ -13,7 +13,6 @@ package write
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -109,7 +108,8 @@ type Config struct {
 
 // Writer sends the steps.
 type Writer struct {
-	c *conn.Service
+	c               *conn.Service
+	afterCredential func() // tests edit the connection here
 }
 
 // New returns a Writer.
@@ -172,9 +172,18 @@ func (w *Writer) Do(ctx context.Context, s Step) Result {
 	if r, bad := w.check(c, s); bad {
 		return r
 	}
-	secret, err := w.c.OpenCredential(ctx, cred.Key{}, c)
+	secret, err := w.c.OpenCredential(ctx, cred.Grant(), c)
 	if err != nil {
 		return res(StatusNotSent, "the sign-in of the connection could not be read")
+	}
+	if w.afterCredential != nil {
+		w.afterCredential()
+	}
+	// The connection may have been edited while the credential was opened: what is sent is what the request was made against.
+	if now, err := w.c.Get(ctx, s.ConnectionID); err != nil {
+		return w.loadFailure(err)
+	} else if (s.ByIdentity && now.Identity() != s.ConnIdentity) || (!s.ByIdentity && now.Fingerprint() != s.ConnFP) || !now.Enabled {
+		return res(StatusConnectionChanged, "the connection was changed after the request was made")
 	}
 	redact := redactions(c, secret)
 	if c.Kind == conn.KindSSH {
@@ -192,7 +201,7 @@ func (w *Writer) loadFailure(err error) Result {
 
 // acquire takes the connection's turn (shared with the reader), or gives up when ctx ends.
 func (w *Writer) acquire(ctx context.Context, id string) (release func(), ok bool) {
-	return w.c.LockConn(ctx, cred.Key{}, id)
+	return w.c.LockConn(ctx, cred.Grant(), id)
 }
 
 // check is every refusal that stops a step before anything is sent. The second result is true when the step is refused.
@@ -371,17 +380,13 @@ func contains(l []string, s string) bool {
 	return false
 }
 
-// redactions are the strings of the sign-in that must not appear in any text.
+// redactions are the strings of the sign-in that must not appear in any text (transport.Secrets).
 func redactions(c conn.Connection, secret secrets.Value) []string {
 	user := ""
 	if c.Username != nil {
 		user = *c.Username
 	}
-	r := []string{secret.Reveal(), user}
-	if c.Auth.Type == conn.AuthBasic {
-		r = append(r, base64.StdEncoding.EncodeToString([]byte(user+":"+secret.Reveal())))
-	}
-	return r
+	return transport.Secrets(c.Auth.Type, user, secret.Reveal())
 }
 
 func tlsPin(p *conn.Pin) string {
@@ -392,7 +397,7 @@ func tlsPin(p *conn.Pin) string {
 }
 
 func (w *Writer) https(ctx context.Context, c conn.Connection, secret secrets.Value, s Step, redact []string) Result {
-	acc := w.c.WriteAccess(cred.Key{})
+	acc := w.c.WriteAccess(cred.Grant())
 	// TOFU is never on here: a certificate is trusted by the pin the first Test took, or by the system roots when that is what it recorded.
 	cl := transport.NewHTTPS(transport.HTTPSConfig{Dialer: acc.Dialer, Pin: tlsPin(c.Pin), TOFU: false, Roots: acc.Roots})
 	auth := transport.Auth{Type: c.Auth.Type, Secret: secret}
@@ -457,7 +462,7 @@ func (w *Writer) mcp(ctx context.Context, cl *transport.Client, auth transport.A
 }
 
 func (w *Writer) ssh(ctx context.Context, c conn.Connection, secret secrets.Value, s Step, redact []string) Result {
-	acc := w.c.WriteAccess(cred.Key{})
+	acc := w.c.WriteAccess(cred.Grant())
 	cfg := transport.SSHConfig{Dialer: acc.Dialer, TOFU: false}
 	if c.Username != nil {
 		cfg.Username = *c.Username

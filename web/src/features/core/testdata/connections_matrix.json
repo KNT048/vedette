@@ -193,7 +193,7 @@
       "name": "fetch_url",
       "access": "read",
       "description": "Fetch a page from an allowed address and return its text",
-      "enabled": true
+      "enabled": false
      },
      {
       "name": "send_request",
@@ -284,7 +284,8 @@
     "tools": [
      {
       "name": "get_config",
-      "access": "read"
+      "access": "read",
+      "enabled": false
      },
      {
       "name": "apply_config",
@@ -2138,7 +2139,7 @@
     "tools": [
      {
       "name": "fetch_url",
-      "enabled": true
+      "enabled": false
      },
      {
       "name": "send_request",

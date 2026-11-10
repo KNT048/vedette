@@ -76,6 +76,9 @@ type Tool struct {
 	Access      string `json:"access"`
 	Description string `json:"description"`
 	Enabled     bool   `json:"enabled"`
+	// Ident is what the first Test saw of an MCP tool, as a hash of its description and input schema (ToolIdent). It is part of the
+	// tool, so a change of it moves updated_at; it is never shown.
+	Ident string `json:"-"`
 }
 
 // Input is what an administrator sends to add or change a connection.

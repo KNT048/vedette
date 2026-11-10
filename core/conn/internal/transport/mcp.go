@@ -19,7 +19,7 @@ var mcpVersions = []string{"2025-06-18", "2025-03-26"}
 const (
 	maxMCPTools = 100
 	maxMCPPages = 10
-	maxMCPText  = 64 << 10
+	maxMCPText  = 192 << 10 // headroom over what the reader returns, so the secrets are removed before the cut
 )
 
 // MCPTool is a tool an MCP server offers, as the server described it: untrusted text.
@@ -37,6 +37,8 @@ const MaxSchema = 8 << 10
 type MCPResult struct {
 	IsError bool
 	Text    string
+	// Truncated says the server sent more than maxMCPText and the rest was dropped.
+	Truncated bool
 }
 
 // MCP is a session with an MCP server over streamable HTTP and JSON-RPC (D-94 (3)): initialize, notifications/initialized,
@@ -161,17 +163,24 @@ func (m *MCP) CallTool(ctx context.Context, name string, args map[string]any) (M
 		return MCPResult{}, deviceErr("the server's answer to the call is not valid")
 	}
 	var b strings.Builder
+	cut := false
 	for _, c := range r.Content {
-		if c.Type == "text" && b.Len() < maxMCPText {
-			b.WriteString(c.Text)
-			b.WriteByte('\n')
+		if c.Type != "text" {
+			continue
 		}
+		if b.Len() >= maxMCPText {
+			cut = true
+			continue
+		}
+		b.WriteString(c.Text)
+		b.WriteByte('\n')
 	}
 	text := b.String()
+	cut = cut || len(text) > maxMCPText
 	if len(text) > maxMCPText {
 		text = text[:maxMCPText]
 	}
-	return MCPResult{IsError: r.IsError, Text: text}, nil
+	return MCPResult{IsError: r.IsError, Text: text, Truncated: cut}, nil
 }
 
 // Close ends the session on the server, as far as it lets us; the answer does not matter.

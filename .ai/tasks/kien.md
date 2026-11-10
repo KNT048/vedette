@@ -54,7 +54,7 @@ Worktree còn mở (trên máy Kiên): `resp-chat` (13b-8, nhánh `feat/response
 - **Khoá ký phát hành offline:** minisign chính, minisign dự phòng, cosign. Phần riêng không vào repo hay hộp (D-103, D-108).
 - **Máy ảo lab:** Ubuntu 24.04, Ubuntu 26.04, Debian 13: để kiểm hộp thật (Box network qua reboot trong cửa sổ xác nhận, Quadlet, nmap, SPAN, các việc `*_linux.go` chưa chạy trên máy thật).
 - Quyết định **chứng chỉ TLS**: chứng chỉ tự ký không có IP quản trị mới trong SAN sau khi đổi địa chỉ (ghi trong `feat-core-network.md`); cần chọn làm mới chứng chỉ tự ký khi địa chỉ đổi hay chỉ hỗ trợ chứng chỉ riêng của chủ hộp.
-- AI thật khi thử: nếu chạy thử AI thật, khoá Claude của kien nằm trong Keychain (`vedette-anthropic-test`, phạm vi workspace), chỉ chạy cục bộ với `VEDETTE_LIVE_AI=1`.
+- AI thật khi thử: chỉ chạy trên máy kien với `VEDETTE_LIVE_AI=1`, khoá do kien cấp cho đúng một tiến trình test; không bao giờ trên CI, không ghi khoá vào repo hay log.
 
 ## Kế tiếp (theo thứ tự)
 1. Merge #137 → #139 → #140; gỡ worktree tương ứng.

@@ -58,3 +58,6 @@
 - `cmd/vedette/modules.go` passes `feeds.BodyLimits` (operationId → bytes) to `server.Config`; removing the entry cuts `parse-test` samples back to 1 MiB while the GUI still promises 5 MB.
 - `links` of `Vuln` are strings matching `^https?://` in contract.ts (so in `api/openapi.json` and `core/api/oas`), not `format: uri`: ogen decodes that with `ParseRequestURI` and turns `#anchor` into `%23anchor`. The backend stores only http(s) links (`kevLinks`) and `CvePage` renders only http(s) hrefs.
 - `conformance.test.ts` (`FEEDS_REAL_URL`) and `web/e2e/qa/feeds.spec.ts` (`FEEDS_REAL=1`) run against `make dev-api REAL=feeds`; changing a status or error code in the handlers means updating the script's `real:` overrides.
+## Modifying: `feeds.KEVMirrorURL`, `Deps.KEVPrimary/KEVFallback`, `fallbackWorthy`, `Feed.answered_by` (D-91)
+- `build` (pull.go) is the only place the fallback happens; `raw.githubusercontent.com` for the CISA list is in `PRIVACY.md` flow 1 and Settings → Privacy (`core.json`): a new fallback host means both, in the same commit.
+- `answered_by` is in `contract.ts` (`Feed`), the mock (`sourcesMock.ts`), `api/openapi.json` and `core/api/oas`, and the Settings → Feeds status cell. Migration `0003_feeds_answered_by.sql` adds the column (DATA_MODEL.md is Kiên's: report).

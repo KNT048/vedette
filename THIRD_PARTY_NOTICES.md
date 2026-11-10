@@ -113,7 +113,7 @@ Release signing tools (maintainer's machine only, not in `tools/go.mod`, never s
 
 | Source | License | Attribution |
 |---|---|---|
-| CISA KEV, vulnrichment | CC0 | "Source: CISA" (no logo) |
+| CISA KEV, vulnrichment | CC0 | "Source: CISA" (no logo); the same KEV file is also read from CISA's own GitHub mirror (`cisagov/kev-data`) when cisa.gov is blocked (D-91) |
 | CVE.org cvelistV5 | CVE Terms of Use | attribution |
 | FIRST EPSS | attribution | "EPSS by FIRST" |
 | GHSA | CC-BY 4.0 | attribution |

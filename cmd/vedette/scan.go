@@ -9,6 +9,7 @@ import (
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/exposure"
+	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/scan"
@@ -33,7 +34,8 @@ func scanService(d deps) *scan.Service {
 	if d.Inventory != nil {
 		inv = d.Inventory
 	}
-	cfg := scan.Config{DB: d.DB, Audit: d.Audit, Inventory: scanInventory{inv: inv}, External: scanExternal{svc: exposureService(d)}, Log: d.Log, Clock: d.Clock}
+	cfg := scan.Config{DB: d.DB, Audit: d.Audit, Inventory: scanInventory{inv: inv}, External: scanExternal{svc: exposureService(d)}, Log: d.Log, Clock: d.Clock,
+		Location: orgLocationAt(d)} // the window and the schedule are in the organization's zone (review H1); nil (no core, a failed read, an unknown name) starts nothing automated
 	if d.Findings != nil {
 		cfg.Findings = scanFindings{svc: d.Findings}
 	}
@@ -161,5 +163,16 @@ func (e scanExternal) Targets(ctx context.Context) ([]scan.ExternalTarget, error
 	return out, nil
 }
 
-// scanJobs is the Jobs func of the scan entry in wiredModules.
+// scanJobs is the Jobs func of the scan entry in wiredModules: KEV rescans, the schedule, retention, recovery (S-SCAN-2, S-SCAN-4).
 func scanJobs(d deps) []jobs.Job { return scan.Jobs(scanService(d)) }
+
+// onNewKEVForScan queues the rescan of a new KEV entry that has a scan template (scan INV-9); the job does the scan.
+func onNewKEVForScan(d deps) func(ctx context.Context, data any) error {
+	return func(ctx context.Context, data any) error {
+		ev, ok := data.(feeds.NewKEVEvent)
+		if !ok {
+			return fmt.Errorf("unexpected payload %T", data)
+		}
+		return scanService(d).OnNewKEV(ctx, scan.NewKEV{CVE: ev.CVE, Vendor: ev.Vendor, Product: ev.Product, HasTemplate: ev.HasTemplate})
+	}
+}

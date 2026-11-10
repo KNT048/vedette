@@ -341,6 +341,7 @@ func subscribe(d deps) {
 		_, err := d.Inventory.RematchCVE(ctx, ev.CVE, ev.Vendor, ev.Product)
 		return err
 	}))
+	d.Bus.Subscribe(feeds.EventNewKEV, on("scan", onNewKEVForScan(d))) // after inventory's: the findings of the new entry exist when the job looks
 	d.Bus.Subscribe(feeds.EventSyncBaseline, on("inventory", func(ctx context.Context, _ any) error {
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
 		defer cancel()

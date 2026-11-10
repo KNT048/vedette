@@ -18,8 +18,8 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// container.start (the current image: no version yet) and container.stop (spec 6.8, 6.9, D-105,
-// D-123), and the journal of the unit changes they make.
+// container.start (the current image; with a version and container.rollback: update.go), container.stop
+// (spec 6.8, 6.9, D-105, D-123, D-138), and the journal of the unit changes they make.
 //
 // A unit change is: journal it (containers/transition-<service>.json, phase "pending"), write the unit
 // (D-105 (2): units.go), systemctl daemon-reload, then restart or stop, then look at the effect: the
@@ -88,9 +88,10 @@ func rcID(rc *server.RunContext) string {
 
 func (o *Ops) cmdContainerStart() server.Command {
 	return server.Define(server.Spec[api.ContainerStartArgs]{
-		// Spec 10 says 3 minutes (core 15); one number covers the command, and a core start can wait for a
-		// restart of up to its TimeoutStartSec, then the health wait, then a revert (D-123).
-		Name: api.CmdContainerStart, Write: true, Timeout: 15 * time.Minute,
+		// One number covers the command (D-123 L6, D-138): a core start with a version makes a backup (up to
+		// backupLimit), waits for a restart of up to its TimeoutStartSec and the health, then may restore the
+		// backup and start the old release again.
+		Name: api.CmdContainerStart, Write: true, Timeout: startTimeout,
 		Validate: func(a *api.ContainerStartArgs) error {
 			if err := serviceArg(a.Service); err != nil {
 				return err
@@ -113,6 +114,16 @@ func (o *Ops) cmdContainerStart() server.Command {
 	})
 }
 
+func (o *Ops) cmdContainerRollback() server.Command {
+	return server.Define(server.Spec[api.ContainerRollbackArgs]{
+		// Spec 6.10: 3 minutes, core 30 (as backup.restore); one number for the command (D-138).
+		Name: api.CmdContainerRollback, Write: true, Timeout: rollbackTimeout,
+		Validate: func(a *api.ContainerRollbackArgs) error { return serviceArg(a.Service) },
+		Check:    o.checkContainerRollback,
+		Run:      o.runContainerRollback,
+	})
+}
+
 func (o *Ops) cmdContainerStop() server.Command {
 	return server.Define(server.Spec[api.ContainerStopArgs]{
 		Name: api.CmdContainerStop, Write: true, Timeout: 2 * time.Minute,
@@ -130,9 +141,10 @@ func (o *Ops) fillFor(digest string, install bool) unitFill {
 	}
 }
 
-// renderFor builds the unit of a service, mapping a missing host.conf value to its refusal.
-func (o *Ops) renderFor(service, digest string, install bool) ([]byte, error) {
-	b, err := renderUnit(service, o.fillFor(digest, install))
+// renderFor builds the unit of a service (with [Install]: a stopped-with-persist service is the only one
+// without it, and dropInstall renders that itself), mapping a missing host.conf value to its refusal.
+func (o *Ops) renderFor(service, digest string) ([]byte, error) {
+	b, err := renderUnit(service, o.fillFor(digest, true))
 	switch {
 	case errors.Is(err, errNoTemplate):
 		return nil, refuse412(api.CodeUnitUnknown, "That service has no unit the host can write yet.")
@@ -150,7 +162,7 @@ func (o *Ops) checkCommon(service string) error {
 	if _, err := o.platform(); err != nil {
 		return err
 	}
-	if _, err := o.renderFor(service, zeroDigest, true); err != nil {
+	if _, err := o.renderFor(service, zeroDigest); err != nil {
 		return err
 	}
 	if _, st, _ := o.loadJournal(service); st != jAbsent {
@@ -177,18 +189,30 @@ func (o *Ops) currentUnit(service string) (text []byte, digest string, err error
 	return text, digest, nil
 }
 
-func (o *Ops) checkContainerStart(_ context.Context, a api.ContainerStartArgs) error {
-	if a.Version != "" {
-		return refuse412(api.CodeNotPulled, "Switching to another version needs container.pull, which is not available yet.")
-	}
+// checkContainerStart settles every refusal before a run (D-104 (4), D-138). With a version that is
+// the stored index, the record of the pulled version and its image, the version rules and, for core, the
+// snapshot and the disk: no write call of podman, no change of any file.
+func (o *Ops) checkContainerStart(ctx context.Context, a api.ContainerStartArgs) error {
 	if err := o.checkCommon(a.Service); err != nil {
 		return err
 	}
 	if _, _, err := o.unitDirChain(); err != nil {
 		return refuse412(api.CodeUnitUnsafe, "The Quadlet directory is not safe to write as root.")
 	}
-	_, _, err := o.currentUnit(a.Service)
-	return err
+	if _, _, err := o.currentUnit(a.Service); err != nil {
+		return err
+	}
+	if a.Version == "" {
+		return nil
+	}
+	plan, err := o.planStartVersion(ctx, a)
+	if err != nil {
+		return err
+	}
+	if plan.change && a.Service == api.ServiceCore {
+		return o.backupPreflight(a.Snapshot, true, true) // snapshot_required, snapshot_invalid, low_disk, db_unreadable: as backup.create
+	}
+	return nil
 }
 
 func (o *Ops) checkContainerStop(_ context.Context, a api.ContainerStopArgs) error {
@@ -407,7 +431,7 @@ func (o *Ops) runningHealthy(ctx context.Context, service, digest string) bool {
 // and "verified" once the effect was seen (the journal is then only waiting to be deleted).
 type transition struct {
 	Service   string    `json:"service"`
-	Op        string    `json:"op"`    // "start" | "stop"
+	Op        string    `json:"op"`    // "start" | "stop" | "rollback"
 	Phase     string    `json:"phase"` // "pending" | "restored" | "verified"
 	Digest    string    `json:"digest"`
 	PrevSHA   string    `json:"prev_sha256"` // sha256 of the unit text before the change
@@ -415,11 +439,24 @@ type transition struct {
 	WasActive bool      `json:"was_active"`  // the unit was active before the change (is-active)
 	At        time.Time `json:"at"`
 	RunID     string    `json:"run_id"`
+	// A start with a version and a rollback also say (D-138): the version moved to, the digest moved
+	// from, the pre_update backup that belongs to the change, how core's database goes back when the
+	// change is undone ("backup": restore BackupID; "aside": the files moved aside come back), and
+	// whether the change took effect (Applied: the versions are then recorded, once, even after a crash).
+	Version    string `json:"version,omitempty"`
+	FromDigest string `json:"from_digest,omitempty"`
+	BackupID   string `json:"backup_id,omitempty"`
+	DBRevert   string `json:"db_revert,omitempty"`
+	Applied    bool   `json:"applied,omitempty"`
 }
 
 const (
-	opStart = "start"
-	opStop  = "stop"
+	opStart    = "start"
+	opStop     = "stop"
+	opRollback = "rollback"
+
+	dbBackup = "backup"
+	dbAside  = "aside"
 
 	phasePending  = "pending"
 	phaseRestored = "restored"
@@ -427,8 +464,11 @@ const (
 )
 
 func (t transition) command() string {
-	if t.Op == opStop {
+	switch t.Op {
+	case opStop:
 		return api.CmdContainerStop
+	case opRollback:
+		return api.CmdContainerRollback
 	}
 	return api.CmdContainerStart
 }
@@ -461,6 +501,31 @@ func (o *Ops) finishJournal(t transition) {
 	t.Phase = phaseVerified
 	_ = o.saveJournal(t)
 	o.removeJournal(t.Service)
+}
+
+// finishApplied is finishJournal for a change that took effect and has consequences beyond the unit:
+// the verified phase says "applied" first (durable), then the versions are recorded and the database
+// files moved aside are dropped (both idempotent: Start repeats them from a verified journal), and
+// only then is the journal deleted.
+func (o *Ops) finishApplied(t transition) {
+	t.Phase, t.Applied = phaseVerified, true
+	_ = o.saveJournal(t)
+	o.settleVerified(t)
+	o.removeJournal(t.Service)
+}
+
+// settleVerified is what a change that took effect leaves to do after its journal says so.
+func (o *Ops) settleVerified(t transition) {
+	if !t.Applied {
+		return
+	}
+	o.completeTransition(t)
+	if t.DBRevert == dbAside {
+		if tree, err := o.openCore(); err == nil {
+			tree.dropAside()
+			tree.close()
+		}
+	}
 }
 
 // loadJournal reads the journal of a service strictly: no unknown field, no trailing data, every
@@ -510,8 +575,10 @@ func (o *Ops) loadJournal(service string) (transition, jstate, error) {
 	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
 		return transition{}, jInvalid, nil
 	}
-	if t.Service != service || (t.Op != opStart && t.Op != opStop) || (t.Phase != phasePending && t.Phase != phaseRestored && t.Phase != phaseVerified) ||
-		!digestRE.MatchString(t.Digest) || !shaRE.MatchString(t.PrevSHA) || !shaRE.MatchString(t.NewSHA) || (t.RunID != "" && !runIDRE.MatchString(t.RunID)) {
+	if t.Service != service || (t.Op != opStart && t.Op != opStop && t.Op != opRollback) || (t.Phase != phasePending && t.Phase != phaseRestored && t.Phase != phaseVerified) ||
+		!digestRE.MatchString(t.Digest) || !shaRE.MatchString(t.PrevSHA) || !shaRE.MatchString(t.NewSHA) || (t.RunID != "" && !runIDRE.MatchString(t.RunID)) ||
+		(t.Version != "" && (len(t.Version) > 64 || !tagVersionRE.MatchString(t.Version))) || (t.FromDigest != "" && !digestRE.MatchString(t.FromDigest)) ||
+		(t.BackupID != "" && !hexIDRE.MatchString(t.BackupID)) || (t.DBRevert != "" && t.DBRevert != dbBackup && t.DBRevert != dbAside) {
 		return transition{}, jInvalid, nil
 	}
 	return t, jOK, nil
@@ -562,12 +629,40 @@ func (o *Ops) newJournal(rc *server.RunContext, op, service, digest string, prev
 // ---- container.start ----------------------------------------------------------------------------
 
 func (o *Ops) runContainerStart(ctx context.Context, rc *server.RunContext, a api.ContainerStartArgs) (any, error) {
+	if a.Version == "" {
+		return o.runStartCurrent(ctx, rc, a)
+	}
+	plan, err := o.planStartVersion(ctx, a) // the same rules as Check, on what is true now
+	if err != nil {
+		return nil, err
+	}
+	if plan.change {
+		return o.runSwitch(ctx, rc, a, plan)
+	}
+	// The unit already pins this digest: a restart or nothing, then the version is known to the host.
+	res, err := o.runStartCurrent(ctx, rc, a)
+	if err != nil {
+		return nil, err
+	}
+	if r, ok := res.(api.ContainerStartResult); ok {
+		o.adoptCurrent(plan.rec)
+		v := plan.rec.Version
+		r.Version, r.IndexExpired = &v, plan.expired
+		o.noteExpired(rc, api.CmdContainerStart, plan)
+		o.retainImages(ctx, rc, api.CmdContainerStart, a.Service)
+		return r, nil
+	}
+	return res, nil
+}
+
+// runStartCurrent is container.start of the image the unit pins now (slice 3-6, D-123).
+func (o *Ops) runStartCurrent(ctx context.Context, rc *server.RunContext, a api.ContainerStartArgs) (any, error) {
 	svc := a.Service
 	old, digest, err := o.currentUnit(svc)
 	if err != nil {
 		return nil, err
 	}
-	want, err := o.renderFor(svc, digest, true)
+	want, err := o.renderFor(svc, digest)
 	if err != nil {
 		return nil, err
 	}
@@ -761,17 +856,22 @@ func (o *Ops) recoverTransitions(ctx context.Context) {
 		detail := map[string]any{"service": svc, "op": t.Op, "run_id": t.RunID}
 		switch t.Phase {
 		case phaseVerified:
+			o.settleVerified(t) // what a change that took effect still had to do, once (D-138)
 			o.removeJournal(svc)
 			detail["action"] = "completed"
 			o.note(t.command(), "transition_interrupted", detail)
 		case phaseRestored:
 			o.restorePending = append(o.restorePending, svc)
 		default: // pending
-			if err := o.restoreBytes(t); err != nil {
+			wrote, err := o.restoreBytes(t)
+			if err != nil {
 				o.log.ErrorContext(ctx, "could not put back the unit of an interrupted change", "service", svc, "error", err.Error())
 				detail["action"] = "failed"
 				o.note(t.command(), "transition_recovery_failed", detail)
 				continue // the journal stays; commands for the service are refused
+			}
+			if !wrote && t.DBRevert == dbBackup {
+				t.DBRevert = "" // the new unit never replaced the old one: the new release never ran, the database is as it was
 			}
 			t.Phase = phaseRestored
 			if err := o.saveJournal(t); err != nil {
@@ -790,20 +890,21 @@ func (o *Ops) recoverTransitions(ctx context.Context) {
 	}
 }
 
-// restoreBytes puts the unit text from before the change back, unless it is there already.
-func (o *Ops) restoreBytes(t transition) error {
+// restoreBytes puts the unit text from before the change back, unless it is there already, and says
+// whether it had to write.
+func (o *Ops) restoreBytes(t transition) (wrote bool, err error) {
 	cur, cs := o.readUnit(t.Service)
 	if cs == fileBroken {
-		return errUnitUnsafe
+		return false, errUnitUnsafe
 	}
 	if cs == fileOK && sha256Hex(cur) == t.PrevSHA {
-		return nil
+		return false, nil
 	}
 	prev, ps := o.readPrev(t.Service)
 	if ps != fileOK || sha256Hex(prev) != t.PrevSHA {
-		return errors.New("ops: the previous unit is not kept or does not match the journal")
+		return false, errors.New("ops: the previous unit is not kept or does not match the journal")
 	}
-	return o.writeUnit(t.Service, prev, false)
+	return true, o.writeUnit(t.Service, prev, false)
 }
 
 // Locker is what AfterReady needs from the server: run a function under the global write lock, the
@@ -856,6 +957,18 @@ func (o *Ops) finishRestores(ctx context.Context) {
 			detail["action"] = "failed"
 			o.note(t.command(), "transition_recovery_failed", detail)
 			continue
+		}
+		if t.DBRevert != "" && svc == api.ServiceCore {
+			// The change moved core's database (a restore from the pre_update backup, or the files moved
+			// aside for a rollback): stop core and put it back before the old release starts (D-138).
+			if err := o.revertDatabase(rctx, t); err != nil {
+				o.log.ErrorContext(ctx, "could not put core's database back after an interrupted change", "error", err.Error())
+				detail["action"] = "failed"
+				o.note(t.command(), "transition_recovery_failed", detail)
+				continue
+			}
+			t.DBRevert = ""
+			_ = o.saveJournal(t)
 		}
 		var ok bool
 		if t.WasActive {

@@ -338,7 +338,7 @@ func TestContract_Container_StartRefusals(t *testing.T) {
 		t.Helper()
 		e.refused(t, api.CmdContainerStart, a, status, code)
 	}
-	start(api.ContainerStartArgs{Service: "honeypot", Version: "1.2.3"}, 412, api.CodeNotPulled) // switching versions is slice 3-7/3-8
+	start(api.ContainerStartArgs{Service: "honeypot", Version: "1.2.3"}, 412, api.CodeNotPulled) // no pulled record of that version
 	start(api.ContainerStartArgs{Service: "sensor"}, 412, api.CodeNotPulled)                     // no unit installed yet
 	start(api.ContainerStartArgs{Service: "greenbone"}, 412, api.CodeUnitUnknown)
 	start(api.ContainerStartArgs{Service: "nope"}, 400, api.CodeInvalidArgs)

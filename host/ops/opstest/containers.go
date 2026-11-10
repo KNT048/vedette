@@ -77,7 +77,7 @@ func (m *Machine) Deadlocked() []string {
 // vedette-host.service fails (a real one would wait for the job forever) and is listed by Deadlocked.
 func (m *Machine) StatefulContainers() {
 	m.t.Helper()
-	root := "ROOT='" + m.Root + "'; STATE='" + m.State + "'\n"
+	root := "ROOT='" + m.Root + "'; STATE='" + m.State + "'; CORE='" + m.CoreData + "'\n"
 	m.writeFakeWith("systemctl", root+`S="$REC/ctr"; mkdir -p "$S"
 svc="${2#vedette-}"; svc="${svc%.service}"
 ls "$STATE"/containers/transition-*.json >/dev/null 2>&1 && echo "$1 $2" >> "$S/withjournal"
@@ -92,6 +92,9 @@ case "$1" in
     if [ -e "$REC/mark.host-starting" ] && grep -q '^After=.*vedette-host.service' "$ROOT/etc/containers/systemd/vedette-$svc.container" 2>/dev/null; then
       echo "$svc" >> "$S/deadlocked"; exit 1
     fi
+    ud=$(sed -n 's/^Image=.*@\(sha256:[0-9a-f]*\)$/\1/p' "$ROOT/etc/containers/systemd/vedette-$svc.container" 2>/dev/null)
+    echo "$svc backups=$(ls "$STATE"/backups/*.tar.gz 2>/dev/null | wc -l | tr -d ' ') db=$(head -n 1 "$CORE/vedette.db" 2>/dev/null) digest=$ud" >> "$S/at-restart"
+    [ "$svc" = core ] && [ -e "$REC/mark.migrate-db" ] && [ "$(cat "$REC/mark.migrate-db")" = "$ud" ] && printf 'db: migrated' > "$CORE/vedette.db"
     cp "$ROOT/etc/containers/systemd/vedette-$svc.container" "$S/$svc.unit" 2>/dev/null
     : > "$S/$svc.running"; : > "$S/$svc.active"
     ;;
@@ -104,7 +107,11 @@ case "$1" in
     ;;
 esac
 `)
-	m.writeFakeWith("podman", `S="$REC/ctr"; mkdir -p "$S"
+	m.writeFakeWith("podman", containerPodman)
+}
+
+// containerPodman is the part of the fake podman that answers "container inspect".
+const containerPodman = `S="$REC/ctr"; mkdir -p "$S"
 svc="${3#vedette-}"
 [ -e "$S/$svc.raw" ] && { cat "$S/$svc.raw"; exit 0; }
 [ -e "$S/$svc.running" ] || { echo "Error: no such container $3" >&2; exit 125; }
@@ -116,7 +123,33 @@ if [ -s "$S/$svc.seq" ]; then
 fi
 [ -e "$S/bad.$digest" ] && health=unhealthy
 printf '[{"Name":"%s","ImageDigest":"%s","State":{"Status":"running","Running":true,"Health":{"Status":"%s"}}}]\n' "$3" "$digest" "$health"
-`)
+`
+
+// MigratesDatabaseOn makes a restart of core with that image digest replace core's database file by
+// "db: migrated", as a new release that migrates its schema does.
+func (m *Machine) MigratesDatabaseOn(digest string) {
+	m.t.Helper()
+	m.must(os.WriteFile(filepath.Join(m.Rec, "mark.migrate-db"), []byte(digest), 0o600))
+}
+
+// AtRestart lists, one line per restart of a unit the fake systemctl did, what the machine looked like at
+// that moment: "<service> backups=<number of backup archives> db=<first line of core's database> digest=<the
+// digest in the unit>". It proves the order of the steps of a switch.
+func (m *Machine) AtRestart() []string {
+	b, _ := os.ReadFile(filepath.Join(m.Rec, "ctr", "at-restart"))
+	var out []string
+	for _, l := range strings.Split(string(b), "\n") {
+		if l = strings.TrimSpace(l); l != "" {
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
+// RemoveImage makes the fake podman forget an image (and its tags), as if someone had removed it.
+func (m *Machine) RemoveImage(digest string) {
+	m.t.Helper()
+	_ = os.Remove(filepath.Join(m.img(), "have."+digest))
 }
 
 // SetHealth sets the health word the fake podman prints for a service ("healthy", "starting", ...).
@@ -205,17 +238,57 @@ func (m *Machine) ctr() string {
 // Present, tagged and the pull calls are read back with ImagePresent, ImageTag and Calls("podman").
 func (m *Machine) StatefulImages() {
 	m.t.Helper()
-	m.writeFakeWith("podman", `S="$REC/img"; mkdir -p "$S"
+	m.writeFakeWith("podman", imagePodman)
+}
+
+// imagePodman is the part of the fake podman that answers pull, image inspect, image ls, tag and rmi.
+const imagePodman = `S="$REC/img"; mkdir -p "$S"
 id=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 key() { echo "$1" | tr '/:@' '___'; }
 case "$1" in
   pull)
     [ -e "$REC/mark.pull-fails" ] && { echo "Error: pulling failed" >&2; exit 125; }
     ref="$3"; d="${ref#*@}"
-    : > "$S/have.$d"
+    svc="${ref#ghcr.io/knt048/vedette-}"; svc="${svc%%@*}"
+    echo "$svc" > "$S/have.$d"
     echo "$id"
     ;;
+  rmi)
+    d="$2"
+    [ -e "$REC/mark.rmi-fails" ] && { echo "Error: rmi failed" >&2; exit 125; }
+    [ -e "$S/used.$d" ] && { echo "Error: image is in use by a container" >&2; exit 2; }
+    [ -e "$S/have.$d" ] || { echo "Error: no such image $d" >&2; exit 1; }
+    rm -f "$S/have.$d"
+    for f in "$S"/tag.*; do [ -e "$f" ] && [ "$(cat "$f")" = "$d" ] && rm -f "$f"; done
+    grep -v " $d\$" "$S/tags" > "$S/tags.tmp" 2>/dev/null; mv "$S/tags.tmp" "$S/tags" 2>/dev/null
+    echo "$d" >> "$S/removed"
+    ;;
   image)
+    if [ "$2" = ls ]; then
+      : >> "$S/tags"
+      printf '['
+      first=1
+      for f in "$S"/have.*; do
+        [ -e "$f" ] || continue
+        d="${f##*/have.}"; svc=$(cat "$f")
+        [ $first = 1 ] || printf ','
+        first=0
+        printf '{"Id":"%s","Digest":"%s","Names":[' "$id" "$d"
+        n=1
+        while read -r ref dg; do
+          [ "$dg" = "$d" ] || continue
+          [ $n = 1 ] || printf ','
+          n=0
+          printf '"%s"' "$ref"
+        done < "$S/tags" 2>/dev/null
+        printf '],"RepoDigests":['
+        [ -n "$svc" ] && printf '"ghcr.io/knt048/vedette-%s@%s"' "$svc" "$d"
+        c=0; [ -e "$S/used.$d" ] && c=1
+        printf '],"Containers":%s}' "$c"
+      done
+      printf ']\n'
+      exit 0
+    fi
     x="$5"
     case "$x" in
       *@sha256:*) d="${x#*@}" ;;
@@ -236,9 +309,48 @@ case "$1" in
     [ -e "$REC/mark.tag-fails" ] && { echo "Error: tagging failed" >&2; exit 125; }
     d="${2#*@}"
     echo "$d" > "$S/tag.$(key "$3")"
+    echo "$3 $d" >> "$S/tags"
     ;;
 esac
-`)
+`
+
+// StatefulPodman makes the fake podman answer both the container looks of StatefulContainers and the
+// image calls of StatefulImages (pull, image inspect, tag, and also image ls and rmi): what a test of
+// container.start with a version needs. "image ls --format json" lists every image the fake holds with
+// its local tags and, when the service is known (a pull, or PresentImage), its pull reference; "rmi
+// <digest>" removes it and its tags and records the digest (see ImageRemoved), exit 125 and nothing
+// removed when the marker "rmi-fails" exists, exit 2 for an image MarkImageUsed named.
+func (m *Machine) StatefulPodman() {
+	m.t.Helper()
+	m.writeFakeWith("podman", "if [ \"$1\" = container ]; then\n"+containerPodman+"\nexit 0\nfi\n"+imagePodman)
+}
+
+// PresentImage makes the fake podman hold an image of that digest for the service, with the pull
+// reference and a local tag for version (empty: no tag), as if it had been pulled before.
+func (m *Machine) PresentImage(service, digest, version string) {
+	m.t.Helper()
+	m.must(os.WriteFile(filepath.Join(m.img(), "have."+digest), []byte(service+"\n"), 0o600))
+	if version != "" {
+		tag := "localhost/vedette-" + service + ":" + version
+		m.must(os.WriteFile(filepath.Join(m.img(), "tag."+strings.NewReplacer("/", "_", ":", "_", "@", "_").Replace(tag)), []byte(digest+"\n"), 0o600))
+		f, err := os.OpenFile(filepath.Join(m.img(), "tags"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+		m.must(err)
+		_, err = f.WriteString(tag + " " + digest + "\n")
+		m.must(err)
+		m.must(f.Close())
+	}
+}
+
+// MarkImageUsed makes the fake podman report a container for the image and refuse to remove it.
+func (m *Machine) MarkImageUsed(digest string) {
+	m.t.Helper()
+	m.must(os.WriteFile(filepath.Join(m.img(), "used."+digest), nil, 0o600))
+}
+
+// ImageRemoved lists the digests the fake podman removed with rmi, in order.
+func (m *Machine) ImageRemoved() []string {
+	b, _ := os.ReadFile(filepath.Join(m.Rec, "img", "removed"))
+	return strings.Fields(string(b))
 }
 
 func (m *Machine) img() string {

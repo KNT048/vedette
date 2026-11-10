@@ -445,6 +445,73 @@ func (t *coreTree) sweepRestoreTemps() {
 	}
 }
 
+// asideSuffix names the files a rollback moves out of the way while it restores a backup (D-138).
+const asideSuffix = ".rollback"
+
+// asideCandidates are the files of core's tree that a rollback moves aside: the database and its
+// sidecars, and the key when the backup brings one.
+func asideCandidates(withKey bool) []string {
+	names := []string{coreDBFile}
+	for _, sfx := range sidecars {
+		names = append(names, coreDBFile+sfx)
+	}
+	if withKey {
+		names = append(names, coreKeyFile)
+	}
+	return names
+}
+
+// setAside renames the database (and, with withKey, the key) to name+asideSuffix, so that the files a
+// failed rollback must bring back are never copies: one rename each, inside the root handle. A stale
+// aside from an earlier run is removed first. Core is stopped while this runs.
+func (t *coreTree) setAside(withKey bool) error {
+	for _, name := range asideCandidates(withKey) {
+		if err := t.root.RemoveAll(name + asideSuffix); err != nil {
+			return fmt.Errorf("ops: clear %s: %w", name+asideSuffix, err)
+		}
+		if _, err := t.root.Lstat(name); errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err := t.root.Rename(name, name+asideSuffix); err != nil {
+			return fmt.Errorf("ops: move %s aside: %w", name, err)
+		}
+	}
+	t.syncDir()
+	return nil
+}
+
+// putAsideBack undoes setAside: every file that has an aside copy is replaced by it, and the sidecars of
+// the database that was installed meanwhile go (a stale WAL must not meet the old database). Without any
+// aside file it does nothing.
+func (t *coreTree) putAsideBack() error {
+	if _, err := t.root.Lstat(coreDBFile + asideSuffix); err == nil {
+		if err := t.removeSidecars(); err != nil {
+			return err
+		}
+	}
+	for _, name := range asideCandidates(true) {
+		if _, err := t.root.Lstat(name + asideSuffix); errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err := t.root.RemoveAll(name); err != nil {
+			return fmt.Errorf("ops: clear %s: %w", name, err)
+		}
+		if err := t.root.Rename(name+asideSuffix, name); err != nil {
+			return fmt.Errorf("ops: put %s back: %w", name, err)
+		}
+	}
+	t.syncDir()
+	return nil
+}
+
+// dropAside removes the aside files once the rollback took effect.
+func (t *coreTree) dropAside() {
+	for _, name := range asideCandidates(true) {
+		_ = t.root.RemoveAll(name + asideSuffix)
+	}
+	t.syncDir()
+}
+
 // checkCoreAtStart looks at core_data once when the host starts. A bad tree is not fatal (the
 // installer may create it later); every command that needs it checks again and refuses.
 func (o *Ops) checkCoreAtStart() {

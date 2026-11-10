@@ -89,6 +89,11 @@ func (c *Client) ContainerPull(ctx context.Context, args api.ContainerPullArgs, 
 	return c.Run(ctx, api.CmdContainerPull, args, requestID, actor)
 }
 
+// ContainerRollback runs container.rollback (slice 3-8a): back to the stored previous version.
+func (c *Client) ContainerRollback(ctx context.Context, args api.ContainerRollbackArgs, requestID, actor string) (api.Run, error) {
+	return c.Run(ctx, api.CmdContainerRollback, args, requestID, actor)
+}
+
 // StateContainers returns GET /v1/state/containers.
 func (c *Client) StateContainers(ctx context.Context) (api.ContainersState, error) {
 	var out api.ContainersState

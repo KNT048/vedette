@@ -10,12 +10,14 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// The argv of podman (spec 6.7, D-104 (1), D-130). Four shapes and no others:
+// The argv of podman (spec 6.7, D-104 (1), D-130, D-138). Six shapes and no others:
 //
 //	container inspect vedette-<service>
 //	pull -q ghcr.io/knt048/vedette-<service>@sha256:<64 hex>
 //	image inspect --format json <ref>          ref: the pull reference or localhost/vedette-<service>:<version>
 //	tag <pull reference> localhost/vedette-<service>:<version>
+//	image ls --format json                     what retention reads (slice 3-8a)
+//	rmi sha256:<64 hex>                        what retention removes: a digest, never a name, never -f
 //
 // Every shape is built here from the closed service list, a digest that passed digestRE and a version
 // that passed tagVersionRE; the registry part is the compile-time constant release.RegistryPrefix. Nothing
@@ -80,6 +82,18 @@ func tagArgv(service, digest, version string) ([]string, error) {
 	return []string{"tag", ref, tag}, nil
 }
 
+// rmiArgv removes one image by digest. There is no force flag: an image a container uses is refused by
+// Podman itself, which is the last line of the rule that retention never removes what runs.
+func rmiArgv(digest string) ([]string, error) {
+	if !digestRE.MatchString(digest) {
+		return nil, errPodmanArgs
+	}
+	return []string{"rmi", digest}, nil
+}
+
+// listImagesArgv lists every image in Podman's storage as JSON (read only).
+func listImagesArgv() []string { return []string{"image", "ls", "--format", "json"} }
+
 // isPullRef says whether s is exactly release.RegistryPrefix + service + "@" + digest.
 func isPullRef(s string) bool {
 	rest, ok := strings.CutPrefix(s, release.RegistryPrefix)
@@ -100,7 +114,7 @@ func isLocalTag(s string) bool {
 	return ok && knownService(svc) && len(version) <= 64 && tagVersionRE.MatchString(version)
 }
 
-// validatePodman is the validator of the podman binary: the four shapes above.
+// validatePodman is the validator of the podman binary: the six shapes above.
 func validatePodman(args []string) error {
 	switch {
 	case len(args) == 3 && args[0] == "container" && args[1] == "inspect" && slices.ContainsFunc(api.Services, func(s string) bool { return args[2] == containerName(s) }):
@@ -110,6 +124,10 @@ func validatePodman(args []string) error {
 	case len(args) == 5 && args[0] == "image" && args[1] == "inspect" && args[2] == "--format" && args[3] == "json" && (isPullRef(args[4]) || isLocalTag(args[4])):
 		return nil
 	case len(args) == 3 && args[0] == "tag" && isPullRef(args[1]) && isLocalTag(args[2]):
+		return nil
+	case slices.Equal(args, listImagesArgv()):
+		return nil
+	case len(args) == 2 && args[0] == "rmi" && digestRE.MatchString(args[1]):
 		return nil
 	}
 	return errPodmanArgs

@@ -4,8 +4,9 @@
 // endpoints that belong to them, and (part 3) net.apply, net.confirm, net.revert and the NTP
 // sources, (slice 3-5) decoy_ip.add and decoy_ip.remove with the honeypot namespace, and (slice 3-6)
 // the Quadlet units with container.start (the current image) and container.stop, and (slice 3-7)
-// container.pull, which verifies a signed release itself before it pulls an image by digest.
-// container.rollback and the start of another version come in later slices.
+// container.pull, which verifies a signed release itself before it pulls an image by digest, and (slice
+// 3-8a) container.start with a version, container.rollback and the retention of images. The bootstrap
+// that writes the first units is slice 3-8b.
 //
 // Every child process goes through one core/exec Runner: absolute binary paths, argv validated by a
 // per-binary validator, PATH, LANG=C and DEBIAN_FRONTEND=noninteractive only, no shell. Nothing in
@@ -257,7 +258,7 @@ func (o *Ops) Commands() []server.Command {
 		o.cmdBackupCreate(), o.cmdBackupRestore(), o.cmdLogsExport(),
 		o.cmdNetApply(), o.cmdNetConfirm(), o.cmdNetRevert(),
 		o.cmdDecoyAdd(), o.cmdDecoyRemove(),
-		o.cmdContainerStart(), o.cmdContainerStop(), o.cmdContainerPull(),
+		o.cmdContainerStart(), o.cmdContainerStop(), o.cmdContainerPull(), o.cmdContainerRollback(),
 	}
 }
 

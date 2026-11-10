@@ -144,9 +144,16 @@ func TestSuiteThroughTheDispatcher(t *testing.T) {
 	}
 }
 
+// tail is what a failed child run says worth reading: its failing lines first, then the end of its output.
 func tail(b []byte, n int) string {
+	var fails []string
+	for _, l := range strings.Split(string(b), "\n") {
+		if t := strings.TrimSpace(l); strings.HasPrefix(t, "--- FAIL") || strings.Contains(t, "_test.go:") || strings.HasPrefix(t, "panic") {
+			fails = append(fails, t)
+		}
+	}
 	if len(b) > n {
 		b = b[len(b)-n:]
 	}
-	return string(b)
+	return strings.Join(fails, "\n") + "\n----\n" + string(b)
 }

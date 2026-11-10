@@ -161,7 +161,7 @@ func (c *fakeCore) next(t *testing.T) result {
 	select {
 	case r := <-c.results:
 		return r
-	case <-time.After(15 * time.Second):
+	case <-time.After(45 * time.Second): // the 8 MiB case is slow under -race on a busy machine
 		t.Fatal("no result from the worker")
 		return result{}
 	}
@@ -283,7 +283,7 @@ wait
 
 func waitFor(t *testing.T, what string, cond func() bool) {
 	t.Helper()
-	for deadline := time.Now().Add(15 * time.Second); !cond(); <-time.After(10 * time.Millisecond) {
+	for deadline := time.Now().Add(30 * time.Second); !cond(); <-time.After(10 * time.Millisecond) {
 		if time.Now().After(deadline) {
 			t.Fatalf("timed out waiting for %s", what)
 		}

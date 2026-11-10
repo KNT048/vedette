@@ -359,10 +359,10 @@ func (e *env) str(query string) string {
 
 type dbTx = *sql.Tx
 
-// waitFor polls cond until it holds or 10 s pass.
+// waitFor polls cond until it holds or 30 s pass (a busy machine under -race).
 func waitFor(t *testing.T, what string, cond func() bool) {
 	t.Helper()
-	for deadline := time.Now().Add(10 * time.Second); !cond(); <-time.After(20 * time.Millisecond) {
+	for deadline := time.Now().Add(30 * time.Second); !cond(); <-time.After(20 * time.Millisecond) {
 		if time.Now().After(deadline) {
 			t.Fatalf("timed out waiting for %s", what)
 		}

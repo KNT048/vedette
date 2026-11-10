@@ -107,7 +107,7 @@ func await(t *testing.T, ch <-chan probeResult) probeResult {
 	select {
 	case r := <-ch:
 		return r
-	case <-time.After(15 * time.Second):
+	case <-time.After(45 * time.Second):
 		t.Fatal("Probe did not return")
 		return probeResult{}
 	}

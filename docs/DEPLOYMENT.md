@@ -494,6 +494,8 @@ Kiểu Appliance, `deploy/install.sh` (idempotent; chạy lại không đổi g�
 
 Chứng chỉ TLS cho 8443: sinh tự ký lúc cài, cho phép tải chứng chỉ của khách lên (đề xuất, câu hỏi B3). Cookie `Secure` nên yêu cầu TLS luôn bật. Đã có trong `cmd/vedette` (WP-04b phần 2): `-tls-cert`/`-tls-key` dùng cặp của khách; thiếu mà `-listen` khác loopback thì tự sinh cặp P-256 10 năm (`vedette-selfsigned.crt/.key`, mode 0600) cạnh file DB lúc khởi động đầu, SAN gồm `-hosts`, tên loopback, tên máy và địa chỉ giao diện; HTTP thuần chỉ trên loopback; `-hosts` là danh sách `Host` được trả lời (421 cho tên khác, chống DNS rebinding).
 
+**Chứng chỉ đi theo địa chỉ quản trị (D-139).** Khi có `vedette-host`, `core` giữ SAN IP của cặp tự ký khớp với địa chỉ IPv4 của card quản trị mà host báo (cả địa chỉ cũ lẫn mới trong cửa sổ xác nhận `net.apply`), cấp lại cùng khoá riêng trong vài giây sau apply/confirm/revert và mỗi ngày, không khởi động lại; host im lặng thì giữ nguyên. Chứng chỉ của chủ hộp (`-tls-cert`) không bao giờ bị sửa: nếu thiếu địa chỉ quản trị thì log một cảnh báo cho mỗi thay đổi. Sau khi đổi địa chỉ, nếu trình duyệt đã ghim ngoại lệ cho chứng chỉ cũ thì khoá vẫn như cũ nhưng chứng chỉ mới là chứng chỉ khác (số serial, SAN): chấp nhận ngoại lệ một lần nữa.
+
 ## 9. Nâng cấp và hoàn tác
 
 Thay A/B slot của binary bằng **image ký** (D-55). Tổng quan kênh: `UPDATES.md`.

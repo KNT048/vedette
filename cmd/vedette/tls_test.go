@@ -641,7 +641,7 @@ func TestSelfSignedRenewerSwapsInTheRenewedCertificate(t *testing.T) {
 	now := time.Now()
 	renew.now = func() time.Time { return now }
 	first, _ := cfg.GetCertificate(nil)
-	if err := renew.Check(); err != nil {
+	if err := renew.Check(t.Context(), nil); err != nil {
 		t.Fatal(err)
 	}
 	if again, _ := cfg.GetCertificate(nil); again != first {

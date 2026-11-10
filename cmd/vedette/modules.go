@@ -62,6 +62,8 @@ type deps struct {
 	// address share it, so they agree and a host that blinks does not make the box vanish from one of them.
 	Hosts   []string
 	HostNet *hostNetCache
+	// CertKick asks the TLS certificate watcher to look at the box's addresses now (D-139); never nil in serve.
+	CertKick func()
 
 	// Module services other modules use through their own ports (issue #38, #39). Built once in serve,
 	// after the fields above, so every handler, job and subscriber shares one instance.

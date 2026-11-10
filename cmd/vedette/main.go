@@ -28,6 +28,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/store"
+	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules"
 )
 
@@ -153,7 +154,10 @@ func transport(o options) (cfg *tls.Config, hosts []string, hsts bool, renew *se
 		return nil, nil, false, nil, err
 	}
 	if o.tlsCert == "" { // the box's own pair: serve it through GetCertificate so a renewal needs no restart
-		renew = &selfSignedRenewer{certPath: certPath, keyPath: keyPath, hosts: flagHosts, now: time.Now, cert: &cfg.Certificates[0]}
+		renew = &selfSignedRenewer{certPath: certPath, keyPath: keyPath, hosts: flagHosts, now: time.Now, cert: &cfg.Certificates[0], kick: make(chan struct{}, 1)}
+		if o.hostSocket != "" {
+			renew.mgmt = hostMgmtIPv4s(hostclient.New(o.hostSocket))
+		}
 		cfg.Certificates, cfg.GetCertificate = nil, renew.GetCertificate
 	}
 	if len(hosts) == 0 {
@@ -180,6 +184,10 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return err
 	}
+	var warner *ownerCertWarner // an owner's certificate: never touched, only watched (D-139)
+	if renew == nil && o.hostSocket != "" {
+		warner = newOwnerCertWarner(tlsCfg, hostMgmtIPv4s(hostclient.New(o.hostSocket)))
+	}
 	db, err := store.Open(ctx, o.db, log)
 	if err != nil {
 		return err
@@ -198,7 +206,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return err
 	}
-	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Hosts: hosts, BaseURL: baseURL(hosts, o.listen),
+	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Hosts: hosts, BaseURL: baseURL(hosts, o.listen), CertKick: func() { renew.Kick(); warner.Kick() },
 		HostSocket: o.hostSocket, HostNet: newHostNetCache(hostSocketNet(o.hostSocket, log), time.Now), DataDir: filepath.Dir(o.db), KeyPath: o.key, HoneypotDir: o.honeypotDir}
 	if err := buildServices(&d); err != nil {
 		return err
@@ -252,6 +260,11 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		tick := time.NewTicker(selfSignedCheckEvery)
 		defer tick.Stop()
 		go renew.Run(ctx, log, tick.C)
+	}
+	if warner != nil {
+		tick := time.NewTicker(selfSignedCheckEvery)
+		defer tick.Stop()
+		go warner.Run(ctx, log, tick.C)
 	}
 	return serveUntilDone(ctx, log, srv, ln, sched, schedulerStopTimeout)
 }

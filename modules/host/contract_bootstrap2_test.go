@@ -336,7 +336,7 @@ func TestContract_Bootstrap_WritesTheAuditChain(t *testing.T) {
 		case "installed":
 			installed++
 			s, _ := r.Args["service"].(string)
-			seen[s] = r.Args["version"] == v1 && r.Args["digest"] == bsDigest[s]
+			seen[s] = r.Args["version"] == v1 && r.Args["digest"] == bsUnitDigest(s)
 		}
 	}
 	if stored != 1 || installed != 4 || len(seen) != 4 {

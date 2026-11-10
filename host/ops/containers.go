@@ -334,7 +334,10 @@ type inspectHealth struct {
 type inspectDoc struct {
 	Name        string `json:"Name"`
 	ImageDigest string `json:"ImageDigest"`
-	State       struct {
+	// Image is the ID of the image the container was made from: for scan, whose image is built on the box and has no registry digest,
+	// it is the "digest" the host compares (D-147).
+	Image string `json:"Image"`
+	State struct {
 		Running     bool           `json:"Running"`
 		Health      *inspectHealth `json:"Health"`
 		Healthcheck *inspectHealth `json:"Healthcheck"`
@@ -363,10 +366,19 @@ func parseInspect(out []byte, service string) (inspectInfo, error) {
 	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
 		return inspectInfo{}, errInspect
 	}
-	if len(docs) != 1 || docs[0].Name != containerName(service) || !digestRE.MatchString(docs[0].ImageDigest) {
+	if len(docs) != 1 || docs[0].Name != containerName(service) {
 		return inspectInfo{}, errInspect
 	}
 	d := docs[0]
+	if services[service].byID {
+		d.ImageDigest = "sha256:" + d.Image
+		if !imageIDRE.MatchString(d.Image) {
+			return inspectInfo{}, errInspect
+		}
+	}
+	if !digestRE.MatchString(d.ImageDigest) {
+		return inspectInfo{}, errInspect
+	}
 	h := d.State.Health
 	if h == nil {
 		h = d.State.Healthcheck
@@ -744,7 +756,7 @@ func (o *Ops) runStartCurrent(ctx context.Context, rc *server.RunContext, a api.
 		if err := o.saveJournal(tr); err != nil {
 			return nil, fail(api.CodeUnitUnwritable, "The host could not write its journal.")
 		}
-		if err := o.writeUnit(svc, want, true); err != nil {
+		if err := o.writeUnitForStart(svc, want); err != nil {
 			o.removeJournal(svc)
 			return nil, unitWriteFailure(err)
 		}
@@ -762,7 +774,7 @@ func (o *Ops) runStartCurrent(ctx context.Context, rc *server.RunContext, a api.
 	if err := o.saveJournal(tr); err != nil {
 		return nil, fail(api.CodeUnitUnwritable, "The host could not write its journal.")
 	}
-	if err := o.writeUnit(svc, want, true); err != nil {
+	if err := o.writeUnitForStart(svc, want); err != nil {
 		o.removeJournal(svc)
 		return nil, unitWriteFailure(err)
 	}
@@ -784,6 +796,9 @@ func (o *Ops) runStartCurrent(ctx context.Context, rc *server.RunContext, a api.
 }
 
 func unitWriteFailure(err error) error {
+	if errors.Is(err, errBadFill) {
+		return fail(api.CodeHostConfIncomplete, "host.conf does not give the uid and gid the credential volumes need.")
+	}
 	if errors.Is(err, errUnitUnsafe) {
 		return fail(api.CodeUnitUnsafe, "The Quadlet directory or the unit is not safe to write as root.")
 	}

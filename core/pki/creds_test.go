@@ -208,6 +208,40 @@ func TestWriteBundleWritesAndReplaces(t *testing.T) {
 	}
 }
 
+// SP-6 L3: the bundle gets the group of its role folder (the sensor group), not core's own group. The test needs a second group
+// that this user belongs to; without one it can only check that the file has the folder's group.
+func TestWriteBundleTakesTheGroupOfItsRoleFolder(t *testing.T) {
+	t.Parallel()
+	d := filepath.Join(t.TempDir(), "creds")
+	if err := os.MkdirAll(filepath.Join(d, "passive"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	want := os.Getgid()
+	groups, _ := os.Getgroups()
+	for _, g := range groups {
+		if g != os.Getgid() {
+			want = g
+			break
+		}
+	}
+	if err := os.Chown(filepath.Join(d, "passive"), -1, want); err != nil {
+		t.Skipf("cannot change the group of a folder: %v", err)
+	}
+	if err := pki.WriteBundle(d, sensorlink.Passive, someBundle(t)); err != nil {
+		t.Fatal(err)
+	}
+	fi, err := os.Stat(filepath.Join(d, "passive", pki.BundleName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := int(fi.Sys().(*syscall.Stat_t).Gid); got != want {
+		t.Errorf("group %d, want the folder's %d", got, want)
+	}
+	if fi.Mode().Perm() != 0o640 {
+		t.Errorf("mode %v", fi.Mode().Perm())
+	}
+}
+
 // D-110 (4): the file is replaced by a rename, so a reader that opens it at any moment sees one whole bundle, never half of
 // one (the sensor's reader tolerates a half file too, see sensorlink tests; this is the writer's side).
 func TestAHalfWrittenBundleIsNeverVisible(t *testing.T) {

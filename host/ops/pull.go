@@ -52,7 +52,8 @@ const (
 	pullBody = 1 << 20
 	// pullTimeout is the command's timeout (spec 6.7); the pull itself gets a little less so the checks
 	// after it still have time.
-	pullTimeout   = 30 * time.Minute
+	// 45 minutes: the pull (up to pullCallLimit) and, for scan, the build on the box (buildLimit) and its check (D-147).
+	pullTimeout   = 45 * time.Minute
 	pullCallLimit = 25 * time.Minute
 	// storageProbe is where Podman keeps images (its default graph root): the free space of the filesystem
 	// that holds it is what low_disk looks at. The appliance installs the default storage.conf (installer,
@@ -121,15 +122,26 @@ func validatePullArgs(a *api.ContainerPullArgs) error {
 
 // pullPlan is what verification settled: the digest to pull and what to record.
 type pullPlan struct {
-	service     string
-	version     string
-	digest      string
-	ref         string
-	size        int64
+	service string
+	version string
+	digest  string
+	ref     string
+	size    int64
+	// pin is, for scan only, the "digest" of the image built on the box ("sha256:" + its ID), set by pullAndRecord once the build passed:
+	// digest is the base image's, which the manifest signed, and pin is what the unit pins and the records hold (D-147).
+	pin         string
 	keyID       string
 	idx         *release.Index
 	manifest    []byte
 	manifestSig []byte
+}
+
+// unitDigest is the "digest" the unit pins for the plan's image: the verified digest, or for scan the ID of the image built from it.
+func (p *pullPlan) unitDigest() string {
+	if p.pin != "" {
+		return p.pin
+	}
+	return p.digest
 }
 
 // trust returns the keys this build verifies with: the embedded ones, or a test's.
@@ -408,7 +420,31 @@ func (o *Ops) imageIs(ctx context.Context, ref, service, digest string) bool {
 	if err != nil || code != 0 || res.Truncated {
 		return false
 	}
+	if service == api.ServiceScan && imageIDRE.MatchString(ref) {
+		return parseBuiltInspect(res.Stdout, digest, o.arch()) == nil
+	}
 	return parseImageInspect(res.Stdout, service, digest, o.arch()) == nil
+}
+
+// parseBuiltInspect is parseImageInspect for the image built on the box: it has no registry digest, so the answer must be exactly one
+// image whose ID is the one the unit pins (digest is "sha256:" + the ID).
+func parseBuiltInspect(out []byte, digest, arch string) error {
+	if len(out) == 0 || len(out) > maxInspectOutput {
+		return errImage
+	}
+	var docs []imageDoc
+	dec := json.NewDecoder(bytes.NewReader(out))
+	if err := dec.Decode(&docs); err != nil {
+		return errImage
+	}
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) || len(docs) != 1 {
+		return errImage
+	}
+	d := docs[0]
+	if !imageIDRE.MatchString(d.ID) || "sha256:"+d.ID != digest || (d.Os != "" && d.Os != "linux") || (d.Architecture != "" && d.Architecture != arch) {
+		return errImage
+	}
+	return nil
 }
 
 // ---- the run --------------------------------------------------------------------------------------
@@ -479,6 +515,15 @@ func (o *Ops) pullAndRecord(ctx context.Context, logf func(string), plan *pullPl
 	rec := pulledRecord{
 		Service: plan.service, Version: plan.version, Digest: plan.digest, KeyID: plan.keyID, Size: plan.size,
 		PulledAt: o.d.Now().UTC(), Manifest: base64.StdEncoding.EncodeToString(plan.manifest), ManifestSig: base64.StdEncoding.EncodeToString(plan.manifestSig),
+	}
+	if plan.service == api.ServiceScan {
+		// D-147: the base is pulled, verified and tagged; the image the unit runs is the one built from it on this machine.
+		built, err := o.buildScan(ctx, logf, plan)
+		if err != nil {
+			return err
+		}
+		plan.pin = built.digest
+		rec.Digest, rec.BaseDigest, rec.NmapVersion = built.digest, plan.digest, built.nmap
 	}
 	if err := o.savePulled(rec); err != nil {
 		return fail(api.CodePullFailed, "The image was pulled and tagged but the host could not record the version.")

@@ -137,14 +137,34 @@ type pulledRecord struct {
 	PulledAt    time.Time `json:"pulled_at"`
 	Manifest    string    `json:"manifest"`
 	ManifestSig string    `json:"manifest_sig"`
+	// BaseDigest and NmapVersion are for scan only (D-147). Digest of a scan record is the ID of the image the host built on the box
+	// ("sha256:" + the 64 hex of the ID): the unit pins it, the effect check compares the container's image ID with it, and it is the
+	// "digest" of versions, journals and retention like any other service's. The digest the manifest signed is the base image's, here.
+	// NmapVersion is the version `nmap --version` printed in the built image.
+	BaseDigest  string `json:"base_digest,omitempty"`
+	NmapVersion string `json:"nmap_version,omitempty"`
 }
 
-var keyIDRE = regexp.MustCompile(`^[0-9A-F]{16}$`)
+var (
+	keyIDRE       = regexp.MustCompile(`^[0-9A-F]{16}$`)
+	nmapVersionRE = regexp.MustCompile(`^[0-9]{1,3}\.[0-9]{1,3}(\.[0-9]{1,3})?[A-Za-z0-9.+~-]{0,16}$`)
+)
 
 func pulledName(service string) string { return "pulled-" + service + ".json" }
 
+// manifestDigest is the digest the signed manifest names for the record's service: the record's own, except for scan, whose Digest
+// is the built image's ID.
+func (r pulledRecord) manifestDigest() string {
+	if r.Service == api.ServiceScan {
+		return r.BaseDigest
+	}
+	return r.Digest
+}
+
 func (r pulledRecord) valid(service string) bool {
-	return r.Service == service && len(r.Version) <= 64 && tagVersionRE.MatchString(r.Version) && digestRE.MatchString(r.Digest) &&
+	scan := service == api.ServiceScan
+	extras := (scan && digestRE.MatchString(r.BaseDigest) && nmapVersionRE.MatchString(r.NmapVersion)) || (!scan && r.BaseDigest == "" && r.NmapVersion == "")
+	return extras && r.Service == service && len(r.Version) <= 64 && tagVersionRE.MatchString(r.Version) && digestRE.MatchString(r.Digest) &&
 		keyIDRE.MatchString(r.KeyID) && r.Size >= 0 && !r.PulledAt.IsZero() && r.Manifest != "" && r.ManifestSig != ""
 }
 

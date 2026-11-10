@@ -1,0 +1,7 @@
+[Unit]
+Description=Vedette sensor credentials (passive role)
+
+[Volume]
+VolumeName=vedette-creds-passive
+User=10001
+Group=10004

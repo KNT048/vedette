@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"time"
@@ -136,6 +137,34 @@ func (s *Server) serveFile(w http.ResponseWriter, rc *http.ResponseController, f
 // (a scheduled reboot, noticing that a reboot finished), not a request. Actor is "system", the
 // result "ok", and detail (small, no secrets) goes to args_redacted. It fails when the chain is broken.
 func (s *Server) Note(command, code string, detail map[string]any) error {
+	return noteTo(s.audit, command, code, detail)
+}
+
+// NoteWriter appends host-originated lines to the audit chain without a running server: the bootstrap
+// (D-142) writes release_index_stored and installed lines to the same file and chain the daemon uses.
+type NoteWriter struct{ a *auditLog }
+
+// OpenNoteWriter opens (creating it 0600) and verifies the audit log at path, owned by ownerUID.
+func OpenNoteWriter(path string, ownerUID int) (*NoteWriter, error) {
+	if err := ensureDir(filepath.Dir(path), ownerUID); err != nil {
+		return nil, err
+	}
+	a, err := openAudit(path, ownerUID, time.Now)
+	if err != nil {
+		return nil, err
+	}
+	return &NoteWriter{a: a}, nil
+}
+
+// Note is Server.Note.
+func (w *NoteWriter) Note(command, code string, detail map[string]any) error {
+	return noteTo(w.a, command, code, detail)
+}
+
+// Close closes the file.
+func (w *NoteWriter) Close() error { return w.a.close() }
+
+func noteTo(a *auditLog, command, code string, detail map[string]any) error {
 	id, err := newID("au_")
 	if err != nil {
 		return err
@@ -143,7 +172,7 @@ func (s *Server) Note(command, code string, detail map[string]any) error {
 	if detail == nil {
 		detail = map[string]any{}
 	}
-	return s.audit.append(auditEntry{
+	return a.append(auditEntry{
 		ID: id, Actor: "system", Command: command, ArgsDigest: digestRaw(nil),
 		ArgsRedacted: redactArgs(mustMarshal(detail)), Result: resultOK, Code: code,
 	})

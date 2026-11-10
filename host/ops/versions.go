@@ -14,9 +14,11 @@ import (
 // made when the service moved into it (core only): the rollback of a core release whose manifest says
 // rollback.safe=false restores exactly that backup.
 //
-// Until the bootstrap of slice 3-8b writes the first current record, a service installed without
-// one has an unknown running version: the first container.start with a version records it (nothing
-// can be rolled back to yet) and the downgrade and min_upgrade_from checks have nothing to compare.
+// The bootstrap (slice 3-8b, bootstrap.go) writes the first current record together with the first
+// unit. A service installed without one (by hand) has an unknown running version: the first
+// container.start with a version of the digest the unit pins records it (nothing can be rolled back
+// to yet), and any other digest is refused (current_version_unknown) because the downgrade and
+// min_upgrade_from checks would have nothing to compare.
 
 // versionRecord is a pulledRecord that ran (or runs) as the service's image.
 type versionRecord struct {

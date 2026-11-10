@@ -140,10 +140,10 @@ func New(o Options) (*Server, error) {
 	if o.Exit == nil {
 		o.Exit = os.Exit
 	}
-	if err := ensureDir(o.StateDir, 0o700, o.OwnerUID); err != nil {
+	if err := ensureDir(o.StateDir, o.OwnerUID); err != nil {
 		return nil, err
 	}
-	if err := ensureDir(filepath.Dir(o.AuditPath), 0o700, o.OwnerUID); err != nil {
+	if err := ensureDir(filepath.Dir(o.AuditPath), o.OwnerUID); err != nil {
 		return nil, err
 	}
 	s := &Server{
@@ -288,15 +288,26 @@ func removeStaleSocket(ctx context.Context, path string) error {
 	if st.Mode().Type() != os.ModeSocket {
 		return fmt.Errorf("host: %s exists and is not a socket", path)
 	}
-	d := net.Dialer{Timeout: time.Second}
-	if c, err := d.DialContext(ctx, "unix", path); err == nil {
-		_ = c.Close()
+	if SocketLive(ctx, path) {
 		return fmt.Errorf("host: another vedette-host is already listening on %s", path)
 	}
 	if err := os.Remove(path); err != nil {
 		return fmt.Errorf("host: remove stale socket: %w", err)
 	}
 	return nil
+}
+
+// SocketLive says whether something accepts connections on the unix socket at path: the host's own
+// "is a daemon running" test. A daemon takes the socket before it serves, so a bootstrap that finds it
+// live must not touch the state the daemon owns.
+func SocketLive(ctx context.Context, path string) bool {
+	d := net.Dialer{Timeout: time.Second}
+	c, err := d.DialContext(ctx, "unix", path)
+	if err != nil {
+		return false
+	}
+	_ = c.Close()
+	return true
 }
 
 // authConn carries the authenticated peer through to the request context.

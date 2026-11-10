@@ -137,7 +137,7 @@ func (e *updEnv) unit(t *testing.T, svc string) string {
 func (e *updEnv) render(t *testing.T, svc, digest string) string {
 	t.Helper()
 	cfg := e.m.Config()
-	b, err := ops.RenderUnit(svc, digest, true, cfg.CoreUID, cfg.CoreGID, cfg.SensorUID, cfg.SensorGID)
+	b, err := ops.RenderUnitIn(svc, digest, true, cfg.CoreUID, cfg.CoreGID, cfg.SensorUID, cfg.SensorGID, cfg.CoreData)
 	if err != nil {
 		t.Fatal(err)
 	}

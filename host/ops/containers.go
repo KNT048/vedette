@@ -139,21 +139,54 @@ func (o *Ops) cmdContainerStop() server.Command {
 func (o *Ops) fillFor(digest string, install bool) unitFill {
 	return unitFill{
 		Digest: digest, Install: install, CoreUID: o.cfg.CoreUID, CoreGID: o.cfg.CoreGID,
-		SensorUID: o.cfg.SensorUID, SensorGID: o.cfg.SensorGID,
+		SensorUID: o.cfg.SensorUID, SensorGID: o.cfg.SensorGID, DataDir: o.cfg.CoreData,
 	}
 }
 
 // renderFor builds the unit of a service (with [Install]: a stopped-with-persist service is the only one
 // without it, and dropInstall renders that itself), mapping a missing host.conf value to its refusal.
+// For core the daemon also vets core_data first (coreDataUsable): its unit binds that directory.
 func (o *Ops) renderFor(service, digest string) ([]byte, error) {
+	if service == api.ServiceCore {
+		if err := o.coreDataUsable(); err != nil {
+			return nil, err
+		}
+	}
+	return o.renderUnitFor(service, digest)
+}
+
+// renderUnitFor is renderFor without the look at core_data's directory (the bootstrap, which makes or vets it next).
+func (o *Ops) renderUnitFor(service, digest string) ([]byte, error) {
 	b, err := renderUnit(service, o.fillFor(digest, true))
 	switch {
 	case errors.Is(err, errNoTemplate):
 		return nil, refuse412(api.CodeUnitUnknown, "That service has no unit the host can write yet.")
+	case err != nil && service == api.ServiceCore && o.cfg.CoreData == "":
+		return nil, refuse412(api.CodeHostConfIncomplete, "host.conf does not give core_data, which core's unit binds.")
+	case err != nil && service == api.ServiceCore && !validCoreData(o.cfg.CoreData):
+		return nil, refuse412(api.CodeHostConfIncomplete, "core_data in host.conf is not a plain absolute path that a unit can carry.")
 	case err != nil:
 		return nil, refuse412(api.CodeHostConfIncomplete, "host.conf does not give the uid and gid this unit needs.")
 	}
 	return b, nil
+}
+
+// coreDataUsable is what the daemon asks before it renders core's unit: the value is one the unit can carry and
+// not a place of the host's own, and the directory is core's (checkChain: a real directory, owned by core or root,
+// under root-owned directories that nobody else can write).
+func (o *Ops) coreDataUsable() error {
+	if o.cfg.CoreData == "" || !validCoreData(o.cfg.CoreData) {
+		_, err := o.renderUnitFor(api.ServiceCore, zeroDigest)
+		return err
+	}
+	if o.coreDataForbidden(o.cfg.CoreData) {
+		return refuse412(api.CodeCoreDataInvalid, "core_data names a place the host keeps for itself (its state, the units, the audit log or a system directory).")
+	}
+	if _, _, err := o.checkChain(o.cfg.CoreData); err != nil {
+		o.log.Warn("core's data directory is not safe to bind into core's unit", "error", err.Error())
+		return refuse412(api.CodeCoreDataInvalid, "core_data is not a real directory owned by core under root-owned directories that nobody else can write.")
+	}
+	return nil
 }
 
 const zeroDigest = "sha256:0000000000000000000000000000000000000000000000000000000000000000"

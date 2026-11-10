@@ -586,16 +586,21 @@ func TestContract_INV12_EveryCommandLeavesOneChainedAuditLine(t *testing.T) {
 	if len(runs) != 8 {
 		t.Fatalf("%d runs", len(runs))
 	}
-	all := audit(t, h)
 	var recs []api.AuditRecord
 	accepted := 0
-	for _, a := range all {
-		if a.Result == "accepted" { // written when a run starts, before the result line
-			accepted++
-			continue
+	// The lines are written by the server's goroutines: wait (bounded) for all of them rather than read the file
+	// at the first instant every run is terminal (it was 4 accepted lines instead of 5 under load).
+	eventually(t, "the audit lines of the 8 commands", func() bool {
+		recs, accepted = nil, 0
+		for _, a := range audit(t, h) {
+			if a.Result == "accepted" { // written when a run starts, before the result line
+				accepted++
+				continue
+			}
+			recs = append(recs, a)
 		}
-		recs = append(recs, a)
-	}
+		return len(recs) == 8 && accepted == 5
+	})
 	// 5 commands ran (ok, fail, set, stuck, set): each has an accepted line and a result line; the 3 refusals only a result line.
 	if len(recs) != 8 || accepted != 5 {
 		t.Fatalf("%d result lines and %d accepted lines for 8 commands (5 ran)", len(recs), accepted)

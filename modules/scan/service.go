@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
@@ -52,6 +53,10 @@ type Service struct {
 
 	mu   sync.Mutex
 	live *live // the run this process executes; one at a time (INV-3)
+
+	// busy counts Engine.Run calls that have not returned. After Stop now the run may show stopped before the worker
+	// confirms (stopGrace), but no run starts while nuclei may still be running (POST-2, FORBID-3; review M2).
+	busy atomic.Int32
 }
 
 // NewService returns the service. DB, Audit, Inventory and Log are required.

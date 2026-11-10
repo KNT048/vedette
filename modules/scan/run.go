@@ -191,7 +191,7 @@ func (s *Service) start(ctx context.Context, sp runSpec) (RunView, error) {
 	l := &live{id: id, cancel: cancel, done: make(chan struct{})}
 	// The slot is taken before the row is written, so reapOrphan never mistakes this run for one a restart left behind.
 	s.mu.Lock()
-	if s.live != nil {
+	if s.live != nil || s.engineBusy() {
 		s.mu.Unlock()
 		cancel()
 		return RunView{}, errRunning
@@ -240,6 +240,9 @@ VALUES (?, ?, ?, ?, ?, 'running', ?, ?, ?, ?)`, id, sp.trigger, sp.note, now, sp
 	}()
 	return s.Run(ctx, id)
 }
+
+// engineBusy says an Engine.Run call has not returned yet (review M2).
+func (s *Service) engineBusy() bool { return s.busy.Load() > 0 }
 
 func (s *Service) liveRun() string {
 	s.mu.Lock()
@@ -589,7 +592,9 @@ func (s *Service) runJob(ctx context.Context, job nucleiargv.Job) (Output, error
 		err error
 	}
 	ch := make(chan result, 1)
+	s.busy.Add(1)
 	go func() {
+		defer s.busy.Add(-1)
 		out, err := s.cfg.Engine.Run(jctx, job)
 		ch <- result{out, err}
 	}()

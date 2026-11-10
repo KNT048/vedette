@@ -10,8 +10,9 @@ CREATE TABLE scan_run (
     started_by        TEXT NOT NULL CHECK (length(started_by) BETWEEN 1 AND 320),
     ended_at          TEXT CHECK (ended_at IS NULL OR ended_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     status            TEXT NOT NULL CHECK (status IN ('running', 'stopping', 'done', 'stopped', 'auto_stopped')),
-    -- picked by a person in Scan now: the pick is the consent for fragile, unclassified and hand-declared devices (D-126 (2))
-    explicit          INTEGER NOT NULL CHECK (explicit IN (0, 1)),
+    -- the ids a person picked in Scan now that needed the pick (pick_only when the run started): the consent of D-126 (2),
+    -- per device; every other device of the run is checked again without it
+    picked            TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(picked) AND json_type(picked) = 'array'),
     target_ids        TEXT NOT NULL CHECK (json_valid(target_ids) AND json_type(target_ids) = 'array' AND json_array_length(target_ids) BETWEEN 1 AND 200),
     total             INTEGER NOT NULL CHECK (total BETWEEN 1 AND 200),
     done              INTEGER NOT NULL DEFAULT 0 CHECK (done BETWEEN 0 AND total),

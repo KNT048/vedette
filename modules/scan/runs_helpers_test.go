@@ -75,7 +75,21 @@ func (f *runInventory) VulnScanPolicy(_ context.Context, id string, explicit boo
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.calls = append(f.calls, policyCall{id, explicit})
-	return f.policy(id, explicit), nil
+	d := f.policy(id, explicit)
+	if d.IP == "" {
+		for _, dev := range f.devices { // the address the inventory decided on: the device's current one
+			if dev.ID == id {
+				d.IP = dev.IP
+			}
+		}
+	}
+	return d, nil
+}
+
+func (f *runInventory) setPolicy(p func(id string, explicit bool) Decision) {
+	f.mu.Lock()
+	f.policy = p
+	f.mu.Unlock()
 }
 
 func (f *runInventory) edit(id string, fn func(*Device)) {
@@ -140,21 +154,27 @@ func sampleFindings() []FindingRef {
 // block makes Run wait until its context ends (a device that is being scanned when Stop now comes).
 type runEngine struct {
 	fakeEngine
-	mu      sync.Mutex
-	jobs    []nucleiargv.Job
-	reply   func(j nucleiargv.Job) (Output, error)
-	block   chan struct{} // closed: Run is blocking
-	onRun   func(j nucleiargv.Job)
-	blocked bool
+	mu       sync.Mutex
+	jobs     []nucleiargv.Job
+	reply    func(j nucleiargv.Job) (Output, error)
+	block    chan struct{} // closed: Run is blocking
+	onRun    func(j nucleiargv.Job)
+	blocked  bool
+	stubborn chan struct{} // set: Run ignores its context and returns only when this is closed (a worker that does not stop)
 }
 
 func (f *runEngine) Run(ctx context.Context, j nucleiargv.Job) (Output, error) {
 	f.mu.Lock()
 	f.jobs = append(f.jobs, j)
-	reply, onRun, blocked, ch := f.reply, f.onRun, f.blocked, f.block
+	reply, onRun, blocked, ch, stubborn := f.reply, f.onRun, f.blocked, f.block, f.stubborn
 	f.mu.Unlock()
 	if onRun != nil {
 		onRun(j)
+	}
+	if stubborn != nil {
+		close(ch)
+		<-stubborn
+		return Output{}, ctx.Err()
 	}
 	if blocked {
 		close(ch)

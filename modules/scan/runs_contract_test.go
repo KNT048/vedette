@@ -162,8 +162,8 @@ func TestContract_INV3_OneRunAndLimits(t *testing.T) {
 	wantAPI(t, err, 409, "already_running")
 	// the database refuses a second live run whatever the code does
 	err = r.db.Write(r.ctx(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(r.ctx(), `INSERT INTO scan_run (id, trigger, started_at, started_by, status, explicit, target_ids, total)
-VALUES ('run-x', 'manual', '2026-11-10T10:00:00.000Z', 'x', 'running', 1, '["a"]', 1)`)
+		_, err := tx.ExecContext(r.ctx(), `INSERT INTO scan_run (id, trigger, started_at, started_by, status, picked, target_ids, total)
+VALUES ('run-x', 'manual', '2026-11-10T10:00:00.000Z', 'x', 'running', '[]', '["a"]', 1)`)
 		return err
 	})
 	if err == nil {
@@ -377,8 +377,8 @@ func TestRun_OrphanFromARestartIsClosed(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
 	err := r.db.Write(r.ctx(), func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(r.ctx(), `INSERT INTO scan_run (id, trigger, started_at, started_by, status, explicit, target_ids, total)
-VALUES ('run-old', 'manual', '2026-11-10T09:00:00.000Z', 'x', 'running', 1, '["a-web01"]', 1)`); err != nil {
+		if _, err := tx.ExecContext(r.ctx(), `INSERT INTO scan_run (id, trigger, started_at, started_by, status, picked, target_ids, total)
+VALUES ('run-old', 'manual', '2026-11-10T09:00:00.000Z', 'x', 'running', '[]', '["a-web01"]', 1)`); err != nil {
 			return err
 		}
 		_, err := tx.ExecContext(r.ctx(), `INSERT INTO scan_probe (id, ts, run_id, ip, label, template, request) VALUES ('pr-1', '2026-11-10T09:00:00.000Z', 'run-old', '192.168.10.12', 'WEB01', 't.yaml', 'GET / HTTP/1.1')`)

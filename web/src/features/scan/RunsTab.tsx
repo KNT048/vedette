@@ -97,7 +97,7 @@ function StartPanel({ targets, cfg, live }: { targets: ScanTarget[]; cfg: ScanCo
   const start = useStartRun()
   const [params] = useSearchParams()
   const bulk = targets.filter((x) => x.selectable && !x.pick_only)
-  const [sel, setSel] = useState<Set<string>>(() => {
+  const [raw, setRaw] = useState<Set<string>>(() => {
     const want = params.get('target')
     // D-126 (2): only a person's own tick picks a fragile, unclassified or hand-declared device; the page never ticks one for them.
     const hit = want ? targets.find((x) => x.id === want && x.selectable && !x.pick_only) : undefined
@@ -106,7 +106,15 @@ function StartPanel({ targets, cfg, live }: { targets: ScanTarget[]; cfg: ScanCo
   })
   const internal = targets.filter((x) => x.kind === 'internal')
   const external = targets.filter((x) => x.kind === 'external')
-  const toggle = (id: string, v: boolean) => setSel((s) => { const n = new Set(s); if (v) n.add(id); else n.delete(id); return n })
+  // The ids the person ticked by hand: the only way a pick-only device gets in (D-126 (2)).
+  const [picks, setPicks] = useState<Set<string>>(() => new Set())
+  const flip = (s: Set<string>, id: string, v: boolean) => { const n = new Set(s); if (v) n.add(id); else n.delete(id); return n }
+  const toggle = (id: string, v: boolean) => { setRaw((s) => flip(s, id, v)); setPicks((s) => flip(s, id, v)) }
+  // Security review M1: whenever the list refreshes, a device that became pick-only leaves a selection it entered without a tick.
+  const sel = useMemo(() => new Set([...raw].filter((id) => {
+    const x = targets.find((y) => y.id === id)
+    return !!x && x.selectable && (!x.pick_only || picks.has(id))
+  })), [raw, picks, targets])
   const blocked = !cfg.can_scan ? cfg.block_reason : live ? t('start.busy') : !can ? t('common:needRole', { role: t('common:role.operator') }) : sel.size === 0 ? t('start.none') : null
   const c = cfg.config
   return (
@@ -122,9 +130,9 @@ function StartPanel({ targets, cfg, live }: { targets: ScanTarget[]; cfg: ScanCo
         <p className="text-muted">{t('start.safeNote')}</p>
       </Panel>
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={() => setSel(new Set(bulk.map((x) => x.id)))}>{t('start.selectAll')}</Button>
-        <Button size="sm" onClick={() => setSel(new Set(bulk.filter((x) => x.findings > 0).map((x) => x.id)))}>{t('start.selectFindings')}</Button>
-        <Button size="sm" onClick={() => setSel(new Set())}>{t('start.selectNone')}</Button>
+        <Button size="sm" onClick={() => setRaw(new Set(bulk.map((x) => x.id)))}>{t('start.selectAll')}</Button>
+        <Button size="sm" onClick={() => setRaw(new Set(bulk.filter((x) => x.findings > 0).map((x) => x.id)))}>{t('start.selectFindings')}</Button>
+        <Button size="sm" onClick={() => { setRaw(new Set()); setPicks(new Set()) }}>{t('start.selectNone')}</Button>
         <span className="text-[13px] text-muted" aria-live="polite">{t('start.selected', { count: sel.size })}</span>
       </div>
       <div className="max-h-96 overflow-y-auto rounded-md border border-rule bg-surface">

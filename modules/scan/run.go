@@ -147,10 +147,10 @@ func (s *Service) StartRun(ctx context.Context, user string, ids []string) (RunV
 	if err != nil {
 		return RunView{}, err
 	}
-	var picked []string
+	var chosen, picked []string
 	var first Current
 	for _, id := range ids {
-		if slices.Contains(picked, id) {
+		if slices.Contains(chosen, id) {
 			continue
 		}
 		i := slices.IndexFunc(all, func(t TargetView) bool { return t.ID == id })
@@ -160,25 +160,28 @@ func (s *Service) StartRun(ctx context.Context, user string, ids []string) (RunV
 		if !all[i].Selectable {
 			return RunView{}, refusal(all[i])
 		}
-		if len(picked) == 0 {
+		if len(chosen) == 0 {
 			first = Current{Label: all[i].Label, IP: all[i].IP}
 		}
-		picked = append(picked, id)
+		chosen = append(chosen, id)
+		if all[i].PickOnly { // M1: the pick is the consent of this device only, as it stood now
+			picked = append(picked, id)
+		}
 	}
 	if !s.scannerReady(ctx) {
 		return RunView{}, ErrScannerUnavailable
 	}
-	return s.start(ctx, runSpec{trigger: "manual", user: user, ids: picked, explicit: true, first: first})
+	return s.start(ctx, runSpec{trigger: "manual", user: user, ids: chosen, picked: picked, first: first})
 }
 
 // runSpec is what a run is started with.
 type runSpec struct {
-	trigger  string // manual | schedule | new_kev
-	note     *string
-	user     string
-	ids      []string
-	explicit bool    // a person picked the devices (D-126 (2))
-	first    Current // the device the run begins with: shown as current from the start (POST-1)
+	trigger string // manual | schedule | new_kev
+	note    *string
+	user    string
+	ids     []string
+	picked  []string // the ids picked by a person that needed the pick (D-126 (2)); empty for schedules and KEV rescans
+	first   Current  // the device the run begins with: shown as current from the start (POST-1)
 }
 
 // start writes the run row and its audit row, then runs it in the background.
@@ -202,14 +205,19 @@ func (s *Service) start(ctx context.Context, sp runSpec) (RunView, error) {
 		free()
 		return RunView{}, fmt.Errorf("scan: encoding the targets: %w", err)
 	}
+	pk, err := json.Marshal(append([]string{}, sp.picked...))
+	if err != nil {
+		free()
+		return RunView{}, fmt.Errorf("scan: encoding the picks: %w", err)
+	}
 	cur, err := json.Marshal(sp.first)
 	if err != nil {
 		free()
 		return RunView{}, fmt.Errorf("scan: encoding the current device: %w", err)
 	}
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO scan_run (id, trigger, trigger_note, started_at, started_by, status, explicit, target_ids, total, current)
-VALUES (?, ?, ?, ?, ?, 'running', ?, ?, ?, ?)`, id, sp.trigger, sp.note, now, sp.user, sp.explicit, string(tids), len(sp.ids), string(cur)); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO scan_run (id, trigger, trigger_note, started_at, started_by, status, picked, target_ids, total, current)
+VALUES (?, ?, ?, ?, ?, 'running', ?, ?, ?, ?)`, id, sp.trigger, sp.note, now, sp.user, string(pk), string(tids), len(sp.ids), string(cur)); err != nil {
 			if store.IsUniqueViolation(err) {
 				return errRunning
 			}
@@ -225,7 +233,7 @@ VALUES (?, ?, ?, ?, ?, 'running', ?, ?, ?, ?)`, id, sp.trigger, sp.note, now, sp
 	go func() {
 		defer close(l.done)
 		defer cancel()
-		s.execute(rctx, id, sp.ids, sp.explicit)
+		s.execute(rctx, id, sp.ids, sp.picked)
 		s.mu.Lock()
 		s.live = nil
 		s.mu.Unlock()
@@ -308,7 +316,8 @@ func (s *Service) StopRun(ctx context.Context, user, id string) (RunView, error)
 // execute scans the targets one device at a time. Every device is checked again right before its job leaves core
 // (INV-1); a person's Stop now or an unresponsive device (INV-6) ends the run, and the devices not reached are not
 // touched.
-func (s *Service) execute(ctx context.Context, runID string, ids []string, explicit bool) {
+// picked are the ids whose pick is their consent (M1): each other device is checked as for an automatic run.
+func (s *Service) execute(ctx context.Context, runID string, ids, picked []string) {
 	var rows []RunRow
 	status, reason := "done", ""
 	done, next := 0, len(ids) // devices finished; first device not touched
@@ -317,7 +326,7 @@ func (s *Service) execute(ctx context.Context, runID string, ids []string, expli
 			status, reason, next = "stopped", stopNow, i
 			break
 		}
-		got, end := s.scanTarget(ctx, runID, id, i, explicit)
+		got, end := s.scanTarget(ctx, runID, id, i, slices.Contains(picked, id))
 		rows = append(rows, got...)
 		if end == "stopped" {
 			status, reason, next = "stopped", stopNow, i+1

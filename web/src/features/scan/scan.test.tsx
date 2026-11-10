@@ -77,6 +77,21 @@ describe('scan: trang chính và chọn mục tiêu (S-SCAN-1)', () => {
     expect(screen.getByRole('button', { name: 'Scan now (1)' })).toBeEnabled()
   })
 
+  it('rà soát M1: danh sách làm mới thì chọn hàng loạt bỏ thiết bị vừa thành chỉ-quét-khi-tự-tick; tick tay vẫn giữ', async () => {
+    timing.stepMs = 60_000
+    renderApp('/scans')
+    await onlyTarget(/WEB01/)
+    await userEvent.click(screen.getByRole('button', { name: 'Scan now (1)' }))
+    await screen.findByRole('button', { name: 'Stop now' })
+    await userEvent.click(screen.getByRole('button', { name: 'Select all' }))
+    expect(screen.getByRole('checkbox', { name: /SRV-AD/ })).toBeChecked()
+    await userEvent.click(screen.getByRole('checkbox', { name: /NAS-PHOTOS/ })) // the person's own tick
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-srvad' ? { ...a, fragile: true } : a)))
+    await userEvent.click(screen.getByRole('button', { name: 'Stop now' })) // a mutation: the lists refresh
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: /SRV-AD/ })).not.toBeChecked())
+    expect(screen.getByRole('checkbox', { name: /NAS-PHOTOS/ })).toBeChecked()
+  })
+
   it('?target= của một thiết bị mong manh không tick sẵn nó', async () => {
     renderApp('/scans?target=a-nas02')
     expect(await screen.findByRole('checkbox', { name: /NAS-PHOTOS/ })).not.toBeChecked()

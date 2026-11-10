@@ -96,7 +96,7 @@ func (s *Service) dropStale(ctx context.Context) error {
 		}
 		q, args := `DELETE FROM logs_source_seen`, []any(nil)
 		if len(ids) > 0 {
-			q += ` WHERE source_id NOT IN (?` + strings.Repeat(", ?", len(ids)-1) + `)`
+			q += ` WHERE source_id NOT IN (?` + strings.Repeat(", ?", len(ids)-1) + `)` //nolint:gosec // the placeholders are generated; the ids are bound arguments
 			for id := range ids {
 				args = append(args, id)
 			}

@@ -67,7 +67,7 @@ func (s *Service) Events(ctx context.Context, q EventQuery) (EventsView, error) 
 	if err := vol.QueryRowContext(ctx, `SELECT count(*) FROM (SELECT 1 FROM logs_events WHERE `+where+` LIMIT `+strconv.Itoa(CountCap)+`)`, args...).Scan(&out.Total); err != nil {
 		return EventsView{}, fmt.Errorf("logs: counting lines: %w", err)
 	}
-	list, err := vol.QueryContext(ctx, `SELECT id, ts, source_id, line FROM logs_events WHERE `+where+` ORDER BY ts DESC, id DESC LIMIT `+strconv.Itoa(EventsPage), args...)
+	list, err := vol.QueryContext(ctx, `SELECT id, ts, source_id, line FROM logs_events WHERE `+where+` ORDER BY ts DESC, id DESC LIMIT `+strconv.Itoa(EventsPage), args...) //nolint:gosec // where is built from constants and ? placeholders only; every value is a bound argument
 	if err != nil {
 		return EventsView{}, fmt.Errorf("logs: searching lines: %w", err)
 	}

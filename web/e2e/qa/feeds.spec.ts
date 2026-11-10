@@ -215,6 +215,13 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
     await page.goto('/')
     await expect(h1(page)).toContainText('The CISA list is turned off.')
     await expect(h1(page)).not.toContainText(/\d+ vulnerabilit/)
+    // D-134 (4): the hot board follows the same rule: an empty window never reads as "none" while the list is off.
+    for (const win of ['24 hours', '7 days']) {
+      await page.getByRole('button', { name: win }).click()
+      await expect(page.getByRole('button', { name: win })).toHaveAttribute('aria-pressed', 'true')
+      await expect(page.locator('#hot a[href^="/cve/"]:visible').first().or(page.locator('#hot').getByText('The CISA list is turned off.'))).toBeVisible()
+      await expect(page.locator('#hot')).not.toContainText('No newly exploited')
+    }
     await h1(page).getByRole('link', { name: 'See Settings → Feeds.' }).click()
     await expect(page).toHaveURL(/\/settings\/feeds$/)
     if (was) { await expect(sw).not.toBeChecked(); await sw.click(); await expect(sw).toBeChecked() }

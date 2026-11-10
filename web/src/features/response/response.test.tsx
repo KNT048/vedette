@@ -386,7 +386,7 @@ describe('response: approval model (D-51)', () => {
     const gone = await pub('GET', `/response/approve/${token}`)
     expect(gone.json.state).toBe('unknown')
     expect(gone.json.title).toBeNull()
-    expect((await pub('POST', `/response/approve/${token}`, { decision: 'approve' })).json.error?.code).toBe('unknown')
+    expect((await pub('POST', `/response/approve/${token}`, { decision: 'approve' })).json.error?.code).toBe('approver_not_listed') // the page shows no link; the decision is refused 403, as in Go
   })
 
   it('two people, at most one by email link (D-124)', async () => {

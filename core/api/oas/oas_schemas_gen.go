@@ -41199,6 +41199,7 @@ func (s *FeedsGetFeedsSourcesOKItemsItemStatus) UnmarshalText(data []byte) error
 type FeedsGetFeedsStatusOK struct {
 	GeneratedAt       time.Time                          `json:"generated_at"`
 	InventoryOn       bool                               `json:"inventory_on"`
+	Kev               FeedsGetFeedsStatusOKKev           `json:"kev"`
 	KevCatalogVersion string                             `json:"kev_catalog_version"`
 	Sources           []FeedsGetFeedsStatusOKSourcesItem `json:"sources"`
 }
@@ -41211,6 +41212,11 @@ func (s *FeedsGetFeedsStatusOK) GetGeneratedAt() time.Time {
 // GetInventoryOn returns the value of InventoryOn.
 func (s *FeedsGetFeedsStatusOK) GetInventoryOn() bool {
 	return s.InventoryOn
+}
+
+// GetKev returns the value of Kev.
+func (s *FeedsGetFeedsStatusOK) GetKev() FeedsGetFeedsStatusOKKev {
+	return s.Kev
 }
 
 // GetKevCatalogVersion returns the value of KevCatalogVersion.
@@ -41233,6 +41239,11 @@ func (s *FeedsGetFeedsStatusOK) SetInventoryOn(val bool) {
 	s.InventoryOn = val
 }
 
+// SetKev sets the value of Kev.
+func (s *FeedsGetFeedsStatusOK) SetKev(val FeedsGetFeedsStatusOKKev) {
+	s.Kev = val
+}
+
 // SetKevCatalogVersion sets the value of KevCatalogVersion.
 func (s *FeedsGetFeedsStatusOK) SetKevCatalogVersion(val string) {
 	s.KevCatalogVersion = val
@@ -41241,6 +41252,84 @@ func (s *FeedsGetFeedsStatusOK) SetKevCatalogVersion(val string) {
 // SetSources sets the value of Sources.
 func (s *FeedsGetFeedsStatusOK) SetSources(val []FeedsGetFeedsStatusOKSourcesItem) {
 	s.Sources = val
+}
+
+type FeedsGetFeedsStatusOKKev struct {
+	// One line, cleaned: why the last pull failed; null when it has not failed or has not been tried.
+	Error NilString `json:"error"`
+	// The CISA list (cisa-kev) for the Home count (D-92): "off" when an admin turned it off, else "loaded"
+	// once a pull has ever succeeded (even if a later pull failed), else "never_loaded".
+	State FeedsGetFeedsStatusOKKevState `json:"state"`
+}
+
+// GetError returns the value of Error.
+func (s *FeedsGetFeedsStatusOKKev) GetError() NilString {
+	return s.Error
+}
+
+// GetState returns the value of State.
+func (s *FeedsGetFeedsStatusOKKev) GetState() FeedsGetFeedsStatusOKKevState {
+	return s.State
+}
+
+// SetError sets the value of Error.
+func (s *FeedsGetFeedsStatusOKKev) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetState sets the value of State.
+func (s *FeedsGetFeedsStatusOKKev) SetState(val FeedsGetFeedsStatusOKKevState) {
+	s.State = val
+}
+
+// The CISA list (cisa-kev) for the Home count (D-92): "off" when an admin turned it off, else "loaded"
+// once a pull has ever succeeded (even if a later pull failed), else "never_loaded".
+type FeedsGetFeedsStatusOKKevState string
+
+const (
+	FeedsGetFeedsStatusOKKevStateLoaded      FeedsGetFeedsStatusOKKevState = "loaded"
+	FeedsGetFeedsStatusOKKevStateNeverLoaded FeedsGetFeedsStatusOKKevState = "never_loaded"
+	FeedsGetFeedsStatusOKKevStateOff         FeedsGetFeedsStatusOKKevState = "off"
+)
+
+// AllValues returns all FeedsGetFeedsStatusOKKevState values.
+func (FeedsGetFeedsStatusOKKevState) AllValues() []FeedsGetFeedsStatusOKKevState {
+	return []FeedsGetFeedsStatusOKKevState{
+		FeedsGetFeedsStatusOKKevStateLoaded,
+		FeedsGetFeedsStatusOKKevStateNeverLoaded,
+		FeedsGetFeedsStatusOKKevStateOff,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsStatusOKKevState) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsStatusOKKevStateLoaded:
+		return []byte(s), nil
+	case FeedsGetFeedsStatusOKKevStateNeverLoaded:
+		return []byte(s), nil
+	case FeedsGetFeedsStatusOKKevStateOff:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsStatusOKKevState) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsStatusOKKevState(data) {
+	case FeedsGetFeedsStatusOKKevStateLoaded:
+		*s = FeedsGetFeedsStatusOKKevStateLoaded
+		return nil
+	case FeedsGetFeedsStatusOKKevStateNeverLoaded:
+		*s = FeedsGetFeedsStatusOKKevStateNeverLoaded
+		return nil
+	case FeedsGetFeedsStatusOKKevStateOff:
+		*s = FeedsGetFeedsStatusOKKevStateOff
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FeedsGetFeedsStatusOKSourcesItem struct {

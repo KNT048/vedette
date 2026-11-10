@@ -6,7 +6,7 @@ import { API, audit, body, DOMAIN_RE, fail, guard, IPV4_RE } from '@/mocks/http'
 import { assetsStore, isOn } from '@/mocks/stores'
 import { collection, newId, nowIso } from '@/mocks/db'
 import type { Asset, AssetKind } from '@/lib/types'
-import { sourceHandlers } from './sourcesMock'
+import { kevStatus, sourceHandlers } from './sourcesMock'
 import { displayOf, keyOf, kindOf } from './slug'
 import type { CveDetail, FeedStatus, HotRow, IocHit, MatchedAsset, SearchResult, Vuln, WeeklyItem, YouHave } from './types'
 
@@ -22,7 +22,7 @@ const IOCS: IocHit[] = [
   { value: '45.148.10.95', type: 'ip', category: 'VPN vulnerability scanner', sources: ['ET Open compromised', 'IPsum (5 sources)'], score: 0.81, first_seen: '2026-10-20', last_seen: '2026-11-04', verdict: 'block' },
   { value: '103.75.190.12', type: 'ip', category: 'RDP password guessing', sources: ['IPsum (3 sources)'], score: 0.55, first_seen: '2026-10-30', last_seen: '2026-11-05', verdict: 'alert' },
   { value: 'update-dsm-synology.com', type: 'domain', category: 'Fake NAS update page', sources: ['hagezi TIF', 'Phishing.Database'], score: 0.88, first_seen: '2026-10-29', last_seen: '2026-11-05', verdict: 'block' },
-  { value: 'cdn-telemetry-sync.net', type: 'domain', category: 'Malware command-and-control server', sources: ['abuse.ch SSLBL'], score: 0.7, first_seen: '2026-10-02', last_seen: '2026-11-01', verdict: 'alert' },
+  { value: 'cdn-telemetry-sync.net', type: 'domain', category: 'Malware command-and-control server', sources: ['hagezi TIF'], score: 0.7, first_seen: '2026-10-02', last_seen: '2026-11-01', verdict: 'alert' },
 ]
 
 function matchAssets(vendor: string, product: string): MatchedAsset[] {
@@ -88,7 +88,7 @@ export const handlers = [
   ...sourceHandlers,
   http.get(`${API}/feeds/status`, () => {
     const denied = guard('viewer'); if (denied) return denied
-    return HttpResponse.json({ generated_at: data.generated_at, kev_catalog_version: data.kev_catalog_version, sources: data.sources, inventory_on: isOn('inventory') } satisfies FeedStatus)
+    return HttpResponse.json({ generated_at: data.generated_at, kev_catalog_version: data.kev_catalog_version, sources: data.sources, inventory_on: isOn('inventory'), kev: kevStatus() } satisfies FeedStatus)
   }),
 
   http.get(`${API}/feeds/hot`, ({ request }) => {

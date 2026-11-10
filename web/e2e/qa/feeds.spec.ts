@@ -161,7 +161,7 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
     const errors = collectErrors(page)
     await start(page, 'admin', SETTINGS)
     await expect(h1(page)).toContainText('Feeds')
-    for (const n of ['CISA KEV', 'FIRST EPSS', 'nuclei-templates', 'IPsum', 'ET Open compromised IPs', 'abuse.ch Feodo Tracker', 'abuse.ch SSLBL', 'Tor exit list', 'hagezi TIF']) await expect(feedRow(page, n)).toBeVisible()
+    for (const n of ['CISA KEV', 'FIRST EPSS', 'nuclei-templates', 'IPsum', 'ET Open compromised IPs', 'abuse.ch Feodo Tracker', 'Tor exit list', 'hagezi TIF']) await expect(feedRow(page, n)).toBeVisible()
     await expect(page.getByText(/Vedette fetches each feed directly from its source/)).toBeVisible()
     await shot(page, 'feeds', `${info.project.name}-settings`)
     if (EMPTY) await expect(feedRow(page, 'IPsum')).toContainText(/Not fetched yet/)
@@ -204,6 +204,20 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
     await sw.click()
     await expect(sw).toBeChecked({ checked: was })
     expect(errors, errors.join('\n')).toEqual([])
+  })
+
+  test('D-92: with the CISA list turned off, Home does not say 0 newly exploited; its link leads back to the switch', async ({ page }) => {
+    test.skip(EMPTY, 'needs data')
+    await start(page, 'admin', SETTINGS)
+    const sw = page.getByRole('switch', { name: 'Enable CISA KEV' })
+    const was = await sw.isChecked()
+    if (was) { await sw.click(); await toast(page, /CISA KEV is off/) }
+    await page.goto('/')
+    await expect(h1(page)).toContainText('The CISA list is turned off.')
+    await expect(h1(page)).not.toContainText(/\d+ vulnerabilit/)
+    await h1(page).getByRole('link', { name: 'See Settings → Feeds.' }).click()
+    await expect(page).toHaveURL(/\/settings\/feeds$/)
+    if (was) { await expect(sw).not.toBeChecked(); await sw.click(); await expect(sw).toBeChecked() }
   })
 
   test('a viewer and an operator read the list; every button that changes something is locked and says who may use it', async ({ page }) => {

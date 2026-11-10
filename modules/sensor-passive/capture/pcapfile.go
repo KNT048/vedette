@@ -1,4 +1,4 @@
-package sensorpassive
+package capture
 
 import (
 	"bufio"
@@ -44,7 +44,7 @@ const (
 func OpenFile(path string) (*FileSource, error) {
 	f, err := os.Open(path) //nolint:gosec // dev replay: the caller names the recording
 	if err != nil {
-		return nil, fmt.Errorf("sensorpassive: open recording: %w", err)
+		return nil, fmt.Errorf("capture: open recording: %w", err)
 	}
 	s, err := NewFileSource(f)
 	if err != nil {
@@ -60,7 +60,7 @@ func NewFileSource(r io.Reader) (*FileSource, error) {
 	s := &FileSource{r: bufio.NewReaderSize(r, 64<<10)}
 	head, err := s.r.Peek(4)
 	if err != nil {
-		return nil, fmt.Errorf("sensorpassive: recording header: %w", err)
+		return nil, fmt.Errorf("capture: recording header: %w", err)
 	}
 	switch magic := binary.LittleEndian.Uint32(head); magic {
 	case ngSHB:
@@ -70,15 +70,15 @@ func NewFileSource(r io.Reader) (*FileSource, error) {
 	case swap32(pcapMagicLE), swap32(pcapMagicNS):
 		s.order, s.nano = binary.BigEndian, magic == swap32(pcapMagicNS)
 	default:
-		return nil, errors.New("sensorpassive: not a pcap or pcapng file")
+		return nil, errors.New("capture: not a pcap or pcapng file")
 	}
 	if !s.ng {
 		var h [24]byte
 		if _, err := io.ReadFull(s.r, h[:]); err != nil {
-			return nil, fmt.Errorf("sensorpassive: pcap header: %w", err)
+			return nil, fmt.Errorf("capture: pcap header: %w", err)
 		}
 		if lt := s.order.Uint32(h[20:24]); lt != 1 {
-			return nil, fmt.Errorf("sensorpassive: link type %d is not Ethernet", lt)
+			return nil, fmt.Errorf("capture: link type %d is not Ethernet", lt)
 		}
 	}
 	return s, nil
@@ -135,7 +135,7 @@ func (s *FileSource) take(n uint32) ([]byte, error) {
 	}
 	b := make([]byte, int(n))
 	if _, err := io.ReadFull(s.r, b); err != nil {
-		return nil, fmt.Errorf("sensorpassive: recording is cut short: %w", err)
+		return nil, fmt.Errorf("capture: recording is cut short: %w", err)
 	}
 	return b, nil
 }
@@ -144,7 +144,7 @@ func eofOr(err error, what string) error {
 	if errors.Is(err, io.EOF) {
 		return io.EOF
 	}
-	return fmt.Errorf("sensorpassive: %s: %w", what, err)
+	return fmt.Errorf("capture: %s: %w", what, err)
 }
 
 func (s *FileSource) nextNG() (Packet, error) {
@@ -161,7 +161,7 @@ func (s *FileSource) nextNG() (Packet, error) {
 		if typ == ngSHB { // a new section: read its byte order from the body
 			bo, err := s.r.Peek(4)
 			if err != nil {
-				return Packet{}, fmt.Errorf("sensorpassive: pcapng section header: %w", err)
+				return Packet{}, fmt.Errorf("capture: pcapng section header: %w", err)
 			}
 			switch binary.LittleEndian.Uint32(bo) {
 			case ngByteOrder:
@@ -169,16 +169,16 @@ func (s *FileSource) nextNG() (Packet, error) {
 			case swap32(ngByteOrder):
 				s.order = binary.BigEndian
 			default:
-				return Packet{}, errors.New("sensorpassive: pcapng byte-order magic")
+				return Packet{}, errors.New("capture: pcapng byte-order magic")
 			}
 			order = s.order
 			s.ifaces = s.ifaces[:0]
 		} else if s.order == nil {
-			return Packet{}, errors.New("sensorpassive: pcapng must start with a section header")
+			return Packet{}, errors.New("capture: pcapng must start with a section header")
 		}
 		total := order.Uint32(h[4:8])
 		if total < 12 || total%4 != 0 || total > maxRecord+64 {
-			return Packet{}, errors.New("sensorpassive: pcapng block length")
+			return Packet{}, errors.New("capture: pcapng block length")
 		}
 		body, err := s.take(total - 8)
 		if err != nil {
@@ -191,7 +191,7 @@ func (s *FileSource) nextNG() (Packet, error) {
 		switch typ {
 		case ngIDB:
 			if len(body) < 8 {
-				return Packet{}, errors.New("sensorpassive: pcapng interface block")
+				return Packet{}, errors.New("capture: pcapng interface block")
 			}
 			ifc := ngInterface{ethernet: order.Uint16(body[0:2]) == 1, unit: time.Microsecond}
 			for opts := body[8:]; len(opts) >= 4; {
@@ -207,11 +207,11 @@ func (s *FileSource) nextNG() (Packet, error) {
 			s.ifaces = append(s.ifaces, ifc)
 		case ngEPB:
 			if len(body) < 20 {
-				return Packet{}, errors.New("sensorpassive: pcapng packet block")
+				return Packet{}, errors.New("capture: pcapng packet block")
 			}
 			id, capLen := order.Uint32(body[0:4]), order.Uint32(body[12:16])
 			if int64(id) >= int64(len(s.ifaces)) || int64(20)+int64(capLen) > int64(len(body)) {
-				return Packet{}, errors.New("sensorpassive: pcapng packet block length")
+				return Packet{}, errors.New("capture: pcapng packet block length")
 			}
 			if !s.ifaces[id].ethernet {
 				return Packet{}, ErrDropped
@@ -221,7 +221,7 @@ func (s *FileSource) nextNG() (Packet, error) {
 			return Packet{At: at, Data: append([]byte(nil), body[20:20+int(capLen)]...)}, nil
 		case ngSPB:
 			if len(s.ifaces) == 0 || len(body) < 4 {
-				return Packet{}, errors.New("sensorpassive: pcapng simple packet block")
+				return Packet{}, errors.New("capture: pcapng simple packet block")
 			}
 			n := int(min(int64(order.Uint32(body[0:4])), int64(len(body)-4)))
 			if !s.ifaces[0].ethernet {

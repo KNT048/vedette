@@ -1,4 +1,4 @@
-package sensorpassive
+package capture
 
 import (
 	"bytes"
@@ -22,7 +22,7 @@ var own = engineConfig{OwnMACs: []string{pktgen.Box.String()}, OwnIPs: []netip.A
 // replay feeds a fixture through a fresh engine, the way the capture loop does.
 func replay(t testing.TB, name string, cfg engineConfig) *Engine {
 	t.Helper()
-	src, err := OpenFile("testdata/" + name)
+	src, err := OpenFile("../testdata/" + name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -820,8 +820,8 @@ func TestUnicastIPRefusesReservedRanges(t *testing.T) {
 		"0.1.2.3": false, "0.0.0.0": false, "240.0.0.1": false, "254.255.255.254": false, "255.255.255.255": false,
 		"127.0.0.1": false, "224.0.0.251": false, "10.0.0.1": true, "192.168.1.20": true, "169.254.1.1": true, "239.255.255.250": false,
 	} {
-		if got := unicastIP(netip.MustParseAddr(s)); got != want {
-			t.Errorf("unicastIP(%s) = %t, want %t", s, got, want)
+		if got := UnicastIP(netip.MustParseAddr(s)); got != want {
+			t.Errorf("UnicastIP(%s) = %t, want %t", s, got, want)
 		}
 	}
 	e, _ := newEngine(own)

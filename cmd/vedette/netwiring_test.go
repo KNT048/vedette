@@ -88,7 +88,7 @@ func TestWiringSensorCardsComeFromTheHost(t *testing.T) {
 	if err != nil || len(got) != 2 || got[0].Name != "eth0" || got[1].Name != "eth1" {
 		t.Fatalf("cards = %+v, %v", got, err)
 	}
-	if len(got[0].Addresses) != 1 || got[0].Addresses[0] != netip.MustParseAddr("192.168.10.250") || len(got[1].Addresses) != 0 || !got[0].Link {
+	if len(got[0].Addresses) != 1 || got[0].Addresses[0].Addr() != netip.MustParseAddr("192.168.10.250") || len(got[1].Addresses) != 0 || !got[0].Link {
 		t.Errorf("addresses = %+v", got)
 	}
 	// The host hiccups: the last list, no error (the capture loop must not go into back-off for it).
@@ -165,6 +165,35 @@ func TestWiringSpanSensorIsAbsentWhileTheModuleIsOff(t *testing.T) {
 	}
 	if err := none.SetSpanPort(ctx, "a@b.c", "eth1", true); !errors.Is(err, core.ErrNoSensor) {
 		t.Errorf("no service, set: %v", err)
+	}
+}
+
+// M1 of the SP-4 review: the SPAN card is chosen against the cards the host reports, with the module off and before any
+// heartbeat, and the choice is what the capture is told once it runs.
+func TestWiringSpanPortCanBeChosenWithTheModuleOff(t *testing.T) {
+	t.Parallel()
+	f := startFakeHost(t, boxState())
+	s := newStackWith(t, func(d *deps) {
+		d.HostSocket, d.DataDir, d.KeyPath = f.sock, t.TempDir(), filepath.Join(t.TempDir(), "vedette.key")
+	})
+	ctx := t.Context()
+	err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		change, err := s.d.Reg.Disable(ctx, tx, "admin@acme.example", "sensor-passive")
+		s.d.Reg.Publish(change)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sensor := &spanSensor{reg: s.d.Reg, svc: s.d.SensorPassive}
+	if err := sensor.SetSpanPort(ctx, "admin@acme.example", "eth1", true); err != nil {
+		t.Fatalf("a card of the host with the module off: %v", err)
+	}
+	if err := sensor.SetSpanPort(ctx, "admin@acme.example", "eth9", true); err == nil {
+		t.Error("a card the host does not have was accepted")
+	}
+	if rep, err := s.d.SensorPassive.Config(ctx, 0, ""); err != nil || rep.Config.Interface != "eth1" || !rep.Config.Span {
+		t.Errorf("config %+v %v", rep, err)
 	}
 }
 

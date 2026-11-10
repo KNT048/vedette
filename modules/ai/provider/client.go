@@ -102,7 +102,7 @@ func New(c Config) (Provider, error) {
 	h := &httpClient{
 		base: base, key: c.APIKey, timeout: c.Timeout, maxBody: c.MaxResponseBytes,
 		// Never follow redirects: a custom header such as x-api-key would travel to the new host.
-		c: &http.Client{Transport: newTransport(c.InternalOnly), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
+		c: &http.Client{Transport: newTransport(c.InternalOnly, base), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
 	switch c.Style {
 	case StyleAnthropic:
@@ -190,6 +190,12 @@ func (h *httpClient) transportErr(ctx context.Context, err error) error {
 	var ne net.Error
 	if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout()) {
 		return newErr(ErrTimeout, 0, "", h.key)
+	}
+	if errors.Is(err, errForbiddenDestination) {
+		return newErr(ErrNetwork, 0, "the server is at an address no profile may use (a metadata service, link-local, multicast or unspecified address); check the address", h.key)
+	}
+	if errors.Is(err, errPrivateForCloud) {
+		return newErr(ErrNetwork, 0, "this profile is marked as cloud, but the server is at a private address; use its public address, or mark the profile as running inside your network", h.key)
 	}
 	if errors.Is(err, errPublicDestination) {
 		return newErr(ErrNetwork, 0, "this profile is marked internal, but the server is at a public address; check the address or change where the profile runs", h.key)
@@ -279,36 +285,107 @@ func object(raw json.RawMessage) (json.RawMessage, bool) {
 
 func badResponse(msg string) error { return &Error{Kind: ErrBadResponse, Message: msg} }
 
-var errPublicDestination = errors.New("destination is not an internal address")
+var (
+	errPublicDestination    = errors.New("destination is not an internal address")
+	errForbiddenDestination = errors.New("destination is an address no profile may use")
+	errPrivateForCloud      = errors.New("destination is a private address, but the profile is cloud")
+)
 
-var cgnat = netip.MustParsePrefix("100.64.0.0/10")
+var (
+	cgnat       = netip.MustParsePrefix("100.64.0.0/10")
+	v4Broadcast = netip.MustParseAddr("255.255.255.255")
+	ec2v6Meta   = netip.MustParseAddr("fd00:ec2::254") // the AWS metadata service over IPv6; it sits inside the unique-local range
+)
 
-// IsInternalAddr reports whether ip is a private address: loopback, RFC 1918, link-local, unique-local
-// (fc00::/7) or carrier-grade NAT (100.64.0.0/10). IPv4-mapped IPv6 is treated as the IPv4 address.
-func IsInternalAddr(ip netip.Addr) bool {
+// cloudMayDialPrivate lets the tests of this package dial httptest servers on loopback for profiles that are not internal. It is
+// unexported and set only from test code, so no configuration can switch the rule off.
+var cloudMayDialPrivate = false
+
+// Forbidden reports whether ip is an address no profile may reach, whatever it is marked as: the unspecified address, multicast,
+// the limited broadcast, link-local (169.254.0.0/16, fe80::/10, which holds the 169.254.169.254 metadata service) and the IPv6
+// metadata address fd00:ec2::254. IPv4-mapped IPv6 is treated as the IPv4 address.
+func Forbidden(ip netip.Addr) bool {
 	ip = ip.Unmap().WithZone("")
-	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || cgnat.Contains(ip)
+	return ip.IsUnspecified() || ip.IsMulticast() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip == v4Broadcast || ip == ec2v6Meta
 }
 
-// internalOnlyControl is a net.Dialer.Control: it runs on the resolved address just before connect, so a
-// public destination is refused whatever the name was (DNS rebinding included) and without sending a packet.
-func internalOnlyControl(_, address string, _ syscall.RawConn) error {
+// IsInternalAddr reports whether ip is a private address a profile inside the network may use: loopback (a local Ollama), RFC 1918,
+// unique-local (fc00::/7) or carrier-grade NAT (100.64.0.0/10). Forbidden addresses are never internal. IPv4-mapped IPv6 is treated
+// as the IPv4 address.
+func IsInternalAddr(ip netip.Addr) bool {
+	ip = ip.Unmap().WithZone("")
+	return !Forbidden(ip) && (ip.IsLoopback() || ip.IsPrivate() || cgnat.Contains(ip))
+}
+
+func resolved(address string) (netip.Addr, bool) {
 	host, _, err := net.SplitHostPort(address)
 	if err != nil {
-		return errPublicDestination
+		return netip.Addr{}, false
 	}
 	ip, err := netip.ParseAddr(host)
-	if err != nil || !IsInternalAddr(ip) {
+	return ip, err == nil
+}
+
+// internalOnlyControl is a net.Dialer.Control: it runs on the resolved address just before connect, so a public destination is
+// refused whatever the name was (DNS rebinding included) and without sending a packet. Forbidden addresses are refused too.
+func internalOnlyControl(_, address string, _ syscall.RawConn) error {
+	ip, ok := resolved(address)
+	switch {
+	case !ok:
+		return errPublicDestination
+	case Forbidden(ip):
+		return errForbiddenDestination
+	case !IsInternalAddr(ip):
 		return errPublicDestination
 	}
 	return nil
 }
 
-// newTransport returns the HTTP transport of one provider. An internal profile gets an explicit transport:
-// no proxy, and a dialer that refuses public addresses. A cloud profile keeps the environment proxy.
-func newTransport(internal bool) *http.Transport {
+// cloudOnlyControl is the Control of a cloud profile that is not behind a proxy: only public addresses. A name that resolves to
+// loopback or a private range is refused at connect time, as the label "cloud" says the data goes to a provider.
+func cloudOnlyControl(_, address string, _ syscall.RawConn) error {
+	ip, ok := resolved(address)
+	switch {
+	case !ok:
+		return errPrivateForCloud
+	case Forbidden(ip):
+		return errForbiddenDestination
+	case IsInternalAddr(ip):
+		return errPrivateForCloud
+	}
+	return nil
+}
+
+// forbiddenOnlyControl refuses only the addresses nobody may use. It is the Control of a cloud profile behind a proxy: the dial
+// goes to the proxy, which may well be on a private address, so the destination is the proxy's to check.
+func forbiddenOnlyControl(_, address string, _ syscall.RawConn) error {
+	if ip, ok := resolved(address); !ok || Forbidden(ip) {
+		return errForbiddenDestination
+	}
+	return nil
+}
+
+func cloudControlFor(proxied bool) func(network, address string, c syscall.RawConn) error {
+	if proxied || cloudMayDialPrivate {
+		return forbiddenOnlyControl
+	}
+	return cloudOnlyControl
+}
+
+// newTransport returns the HTTP transport of one provider. An internal profile gets no proxy and a dialer that refuses public
+// addresses; a cloud profile keeps the environment proxy and a dialer that refuses private ones (unless a proxy is in the way).
+// Both refuse the Forbidden addresses.
+func newTransport(internal bool, base *url.URL) *http.Transport {
 	if !internal {
-		return http.DefaultTransport.(*http.Transport).Clone() //nolint:forcetypeassert // the default transport is an *http.Transport
+		t := http.DefaultTransport.(*http.Transport).Clone() //nolint:forcetypeassert // the default transport is an *http.Transport
+		proxied := false
+		if base != nil {
+			if u, err := http.ProxyFromEnvironment(&http.Request{URL: base}); err == nil && u != nil {
+				proxied = true
+			}
+		}
+		t.DialContext = (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second, Control: cloudControlFor(proxied)}).DialContext
+		return t
 	}
 	d := &net.Dialer{Timeout: 10 * time.Second, Control: internalOnlyControl}
 	return &http.Transport{

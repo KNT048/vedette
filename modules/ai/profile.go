@@ -53,6 +53,11 @@ func (p Profile) Validate() error {
 	if n := utf8.RuneCountInString(strings.TrimSpace(p.Name)); n < 1 || n > 40 {
 		return perr("invalid_name", `Give the profile a name of 1 to 40 characters, for example "Claude Sonnet".`)
 	}
+	switch p.Kind {
+	case "anthropic", "openai", "gemini", "openai-compatible", "custom":
+	default:
+		return perr("invalid_kind", "Pick a provider type: Anthropic, OpenAI, Gemini, OpenAI-compatible or Custom.")
+	}
 	_, err := provider.StyleForKind(p.Kind, p.APIStyle)
 	if err != nil {
 		return perr("invalid_style", "Pick a provider type (Anthropic, OpenAI, Gemini, OpenAI-compatible or Custom); a Custom profile also needs the API style the server speaks.")
@@ -78,8 +83,21 @@ func (p Profile) Validate() error {
 	}
 	// "internal" is only true if it is enforced: a literal IP address must be private. A name is allowed (an Ollama box
 	// on the LAN DNS is normal); where it resolves is checked on every connection by the provider's dialer.
-	if ip, err := netip.ParseAddr(u.Hostname()); err == nil && p.Location == LocationInternal && !provider.IsInternalAddr(ip) {
-		return perr("invalid_base_url", "A profile marked as running inside your network must use a private address (10.x, 172.16-31.x, 192.168.x, 100.64-127.x, link-local or loopback) or a host name. Mark it as cloud, or fix the address.")
+	// No profile may point at an address that reaches a metadata service or a neighbour on the link, and a cloud profile may not
+	// point at this machine or the private networks (the dialer checks resolved names again at connect time).
+	host := strings.ToLower(u.Hostname())
+	if ip, err := netip.ParseAddr(host); err == nil {
+		switch {
+		case provider.Forbidden(ip):
+			return perr("invalid_base_url", "That address cannot be used: it is a link-local, metadata, multicast or unspecified address.")
+		case p.Location == LocationInternal && !provider.IsInternalAddr(ip):
+			return perr("invalid_base_url", "A profile marked as running inside your network must use a private address (10.x, 172.16-31.x, 192.168.x, 100.64-127.x or loopback) or a host name. Mark it as cloud, or fix the address.")
+		case p.Location == LocationCloud && provider.IsInternalAddr(ip):
+			return perr("invalid_base_url", "A profile marked as running in the cloud must use a public address. A server on this machine or in your network is marked as running inside your network.")
+		}
+	}
+	if p.Location == LocationCloud && (host == "localhost" || strings.HasSuffix(host, ".localhost")) {
+		return perr("invalid_base_url", "A profile marked as running in the cloud must use a public address. A server on this machine or in your network is marked as running inside your network.")
 	}
 	if !modelNameRE.MatchString(p.Model) {
 		return perr("invalid_model", "The model name may only contain letters, digits, dots, dashes, colons and slashes (80 characters at most).")

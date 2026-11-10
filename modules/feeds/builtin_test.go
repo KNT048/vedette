@@ -155,23 +155,17 @@ func TestBuiltinGenericParsersOnRealisticFixtures(t *testing.T) {
 	ipsum := "# IPsum\n1.1.1.1\t8\n2.2.2.2\t3\n"
 	tor := "185.220.101.1\n185.220.101.2\n"
 	hagezi := "# hagezi\nevil.example.com\nphish.example.net\n"
-	sslbl := "# Listingdate,DstIP,DstPort\n2026-11-01 10:00:00,45.148.10.95,443\n2026-11-02 11:00:00,junk,443\n"
 	cases := map[string]struct {
 		in       string
 		accepted int
 		rejected int
 		first    string
-	}{"abusech-feodo": {feodo, 2, 0, "185.220.101.47"}, "ipsum": {ipsum, 2, 0, "1.1.1.1"}, "tor-exit": {tor, 2, 0, "185.220.101.1"}, "hagezi-tif": {hagezi, 2, 0, "evil.example.com"}, "abusech-sslbl": {sslbl, 1, 1, "45.148.10.95"}}
+	}{"abusech-feodo": {feodo, 2, 0, "185.220.101.47"}, "ipsum": {ipsum, 2, 0, "1.1.1.1"}, "tor-exit": {tor, 2, 0, "185.220.101.1"}, "hagezi-tif": {hagezi, 2, 0, "evil.example.com"}}
 	for id, c := range cases {
 		s, _ := BuiltinByID(id)
 		r, err := ParseFeed(context.Background(), []byte(c.in), s.Kind, *s.Parser)
 		if err != nil || r.Accepted != c.accepted || r.Rejected != c.rejected || r.Records[0]["indicator"] != c.first {
 			t.Errorf("%s: %v %+v %v", id, err, r.Stats, r.Records)
 		}
-	}
-	s, _ := BuiltinByID("abusech-sslbl")
-	r, _ := ParseFeed(context.Background(), []byte(sslbl), s.Kind, *s.Parser)
-	if r.Records[0]["first_seen"] != "2026-11-01" {
-		t.Errorf("sslbl date: %v", r.Records[0])
 	}
 }

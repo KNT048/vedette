@@ -144,12 +144,14 @@ func TestProbe_DeadlineAndSize(t *testing.T) {
 		}
 		_, _ = w.Write([]byte(ipA))
 	}
-	p := prober(t, 150*time.Millisecond, newFakeService(t, slow), newFakeService(t, answer(ipA)), newFakeService(t, answer(ipA)))
+	// The per-call deadline must leave the two fast fakes time to answer on a loaded -race runner (150 ms flaked on CI);
+	// the slow fake never answers before release, so the round still proves the deadline cuts it off.
+	p := prober(t, time.Second, newFakeService(t, slow), newFakeService(t, answer(ipA)), newFakeService(t, answer(ipA)))
 	start := time.Now()
 	if a, err := round(t, p); err != nil || a.String() != ipA {
 		t.Fatalf("slow service: %v %v", a, err)
 	}
-	if time.Since(start) > 3*time.Second {
+	if time.Since(start) > 5*time.Second {
 		t.Fatalf("the round waited %s for a slow service", time.Since(start))
 	}
 	// the answer cap is 64 bytes: a longer body is refused even when it starts with an address

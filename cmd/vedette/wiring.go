@@ -23,6 +23,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
+	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
 
 // Modules do not import each other. Each module declares the port it needs; the adapters below convert
@@ -211,7 +212,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	// two-step accounts get 503 twofa_email_unavailable (INV-8, never password-only).
 	var err error
 	d.Inventory = newInventory(d) // before feeds: feeds takes the inventory (feeds.Inventory)
-	notifySvc := newNotify(d)
+	notifySvc := newNotify(d)     //nolint:contextcheck // notify's BoxAddrs has no context in its signature; it bounds its own host call
 	if d.Auth, err = auth.New(auth.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Mailer: notifySvc.CodeMailer(), Clock: d.Clock, Log: d.Log}); err != nil {
 		return fmt.Errorf("auth: %w", err)
 	}
@@ -241,6 +242,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	}
 	d.SensorPassive = sp
 	sensor.svc = sp
+	d.SensorDispatcher = sensoractive.NewDispatcher(sensoractive.DispatcherOptions{Now: d.Clock, Log: d.Log})
 	fs, err := feedsService(*d)
 	if err != nil {
 		return fmt.Errorf("feeds: %w", err)
@@ -267,7 +269,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.MitigationHandlers, err = mitigation.NewActionHandlers(d.DB, d.Audit, d.Findings, d.FindingHandlers, aiOff{}, d.Clock); err != nil {
 		return err
 	}
-	if d.Response, err = newResponse(d); err != nil {
+	if d.Response, err = newResponse(d); err != nil { //nolint:contextcheck // same: notify's BoxAddrs
 		return fmt.Errorf("response: %w", err)
 	}
 	registerLogSources(d)

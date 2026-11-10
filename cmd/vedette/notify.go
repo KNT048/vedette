@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/jobs"
@@ -128,7 +129,8 @@ func hostForURL(h string) string {
 // sign-in pause in memory). Events go to and come from deps.Bus. buildServices calls it first with the real
 // *deps: Users, Zone and Devices read d.Auth, d.Core and d.Inventory when asked, so notify can exist before
 // auth, which takes notify's code mailer.
-// ponytail: no BoxAddrs (WP-08): the service degrades without it. The token recorder is the response module (notifyTokens, read lazily
+// BoxAddrs is the box-address provider (d.HostNet): the appliance's own addresses, which core's container cannot see, so no webhook can
+// point at the box (issue #62). The token recorder is the response module (notifyTokens, read lazily
 // because response is built after notify).
 func newNotify(d *deps) *notify.Service {
 	notifyMu.Lock()
@@ -137,7 +139,7 @@ func newNotify(d *deps) *notify.Service {
 		return s
 	}
 	c := notify.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: notifyUsers{d}, Log: d.Log, Clock: d.Clock,
-		Zone: orgZone(d), BaseURL: d.BaseURL, Tokens: notifyTokens{d}, Decisions: responseDecisions{d}}
+		Zone: orgZone(d), BaseURL: d.BaseURL, Tokens: notifyTokens{d}, Decisions: responseDecisions{d}, BoxAddrs: notifyBoxAddrs(d.HostNet)}
 	if d.Inventory != nil {
 		c.Devices = notifyDevices{d.Inventory}
 	}
@@ -157,6 +159,20 @@ func newNotify(d *deps) *notify.Service {
 	}
 	notifyServices[d.DB] = svc
 	return svc
+}
+
+// notifyBoxAddrs is notify's Config.BoxAddrs over the shared cache of what vedette-host reports. The cache never errors: a host that does not
+// answer leaves the previous set in place. Without a host (nil cache) it is empty and the service reads the container's own interfaces only.
+func notifyBoxAddrs(c *hostNetCache) func() []netip.Addr {
+	return func() []netip.Addr {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		var out []netip.Addr
+		for _, p := range c.Get(ctx) {
+			out = append(out, p.Addr())
+		}
+		return out
+	}
 }
 
 // notifyJobs is the Jobs func of the notify entry in wiredModules: the "deliver" job.

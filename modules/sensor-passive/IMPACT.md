@@ -5,7 +5,7 @@
 
 ## Modifying: `Engine` (parser, thang tin cậy, bộ lọc) và `MetaItem`
 - **inventory** (giá trị "đang dùng"), **logs** (trường metadata): thêm trường vào `MetaItem` = lưu thêm về lưu lượng; test `TestContract_INV3` chặn, phải sửa CONTRACT INV-3 trước. Đổi thang `Conf*` đổi thứ tự hiển thị. Thêm parser = thêm `Fuzz*` (test INV-4 kiểm danh sách).
-- **cmd/vedette** (`sensorpassive.go`): `netHost` là chỗ thay bằng module `host`; job `capture` và handler dùng chung một `Service`. Từ SP-4/SP-5 `Engine` chạy trong `cmd/vedette-sensor passive` (gói `capture`), job `capture` gỡ khỏi `core`, `netHost` thay bằng heartbeat rồi `GET /v1/state/net` của host (D-114 (5)).
+- **cmd/vedette** (`sensorpassive.go`): `netHost` là chỗ thay bằng module `host`; `sensorBackend` (`sensorwire.go`) và handler dùng chung một `Service`. `Engine` chạy trong `cmd/vedette-sensor passive` (gói `capture`); từ SP-5a (D-141) job `capture` không còn trong `core`, `netHost.Interfaces` chỉ để `SetInterface` kiểm card.
 
 ## Modifying: `content/oui` (bảng OUI) và `make oui`
 - **inventory**: quan sát `vendor` 0.4 của thiết bị mới. `make oui` ghim nguồn theo commit + SHA-256 (`scripts/oui`, hằng `pinnedCommit`/`pinnedSHA256`), làm sạch tên hãng (bỏ C0/C1, bidi, zero-width, dấu gạch nối mềm, tag), lỗi nếu hai hãng cùng một tiền tố; `TestEveryVendorIsCleanText` canh bảng. Đổi bảng (chạy lại `make oui`) đổi tên hãng hiển thị cho thiết bị mới, không sửa quan sát cũ. THIRD_PARTY_NOTICES ghi nguồn runZero/IEEE.

@@ -367,7 +367,7 @@ func TestWiringScanWindowFollowsTheOrganizationTimeZone(t *testing.T) {
 	now := time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone) // Monday
 	s := newStackWith(t, func(d *deps) { d.Clock = func() time.Time { return now } })
 	nm := newFakeNmap(t)
-	svc, err := newSensorActive(*s.d, nm.path)
+	svc, err := newLocalSensorActive(*s.d, nm.path)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -17,10 +17,6 @@ import (
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
 
-// nmapPath is the OS package's nmap (D-4: installed from the OS repository, never shipped with Vedette). The image
-// that runs it installs it and grants CAP_NET_RAW (WP-08); if it is missing the module reports unavailable (INV-6).
-const nmapPath = "/usr/bin/nmap"
-
 var (
 	saMu       sync.Mutex
 	saServices = map[*store.DB]*sensoractive.Service{}
@@ -34,7 +30,13 @@ func sensorActiveService(d deps) (*sensoractive.Service, error) {
 	if s := saServices[d.DB]; s != nil {
 		return s, nil
 	}
-	s, err := newSensorActive(d, nmapPath)
+	if d.SensorDispatcher == nil {
+		return nil, errors.New("sensor-active needs the dispatcher of the sensor link")
+	}
+	// Production never runs nmap in this process (D-113, D-141): the Dispatcher hands the command to the worker in the scan
+	// container, and the service reads nmap's health from the worker's heartbeat (the Dispatcher is the Prober itself, so its
+	// NmapHealth is found by the service's type assertion).
+	s, err := newSensorActive(d, d.SensorDispatcher)
 	if err != nil {
 		return nil, err
 	}
@@ -45,20 +47,24 @@ func sensorActiveService(d deps) (*sensoractive.Service, error) {
 // newSensorActive builds the service over the real inventory (through sensorInventory and core/observe) and
 // subscribes its reactions on d.Bus. A subscription acts only while the module is on (SYS-5); a handler error is
 // logged by the bus and never reaches the publisher.
-func newSensorActive(d deps, path string) (*sensoractive.Service, error) {
+//
+// tune is for tests only (production passes none): the one thing they change is NmapPath, which Health reads for a local Prober.
+func newSensorActive(d deps, prober sensoractive.Prober, tune ...func(*sensoractive.Config)) (*sensoractive.Service, error) {
 	if d.Inventory == nil {
 		return nil, errors.New("sensor-active needs the inventory service")
 	}
-	prober, err := sensoractive.NewLocalProber(d.Log, path)
-	if err != nil {
-		return nil, err
+	if prober == nil { // a nil Prober would make the module start nmap in this process
+		return nil, errors.New("sensor-active needs a Prober")
 	}
-	cfg := sensoractive.Config{Prober: prober, DB: d.DB, Inventory: sensorInventory{inv: d.Inventory, hostNet: d.HostNet}, Observe: d.Inventory, Software: d.Inventory, NmapPath: path, Clock: d.Clock, Log: d.Log,
+	cfg := sensoractive.Config{Prober: prober, DB: d.DB, Inventory: sensorInventory{inv: d.Inventory, hostNet: d.HostNet}, Observe: d.Inventory, Software: d.Inventory, Clock: d.Clock, Log: d.Log,
 		Location: orgLocation(d)}
 	if d.Bus != nil {
 		cfg.Events = sensoractive.PublisherFunc(func(ctx context.Context, e sensoractive.Event) error {
 			return d.Bus.Publish(ctx, events.Event{Name: e.Name, Data: e.Data})
 		})
+	}
+	for _, t := range tune {
+		t(&cfg)
 	}
 	svc, err := sensoractive.New(cfg)
 	if err != nil {

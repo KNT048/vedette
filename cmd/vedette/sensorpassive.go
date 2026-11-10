@@ -4,9 +4,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
-	"time"
 
-	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/sensorlink"
@@ -15,8 +13,8 @@ import (
 	"github.com/knt048/vedette/modules/sensor-passive/capture"
 )
 
-// newSensorPassive builds the passive sensor service once, in buildServices (deps.SensorPassive): the capture
-// job and the HTTP handler must share it. No metadata consumer yet (the `logs` module, S-LOG-4): the default
+// newSensorPassive builds the passive sensor service once, in buildServices (deps.SensorPassive): the sensor
+// link (sensorBackend) and the HTTP handler must share it. No metadata consumer yet (the `logs` module, S-LOG-4): the default
 // sink drops it.
 func newSensorPassive(d deps) (*sensorpassive.Service, error) {
 	var sink observe.Sink // a nil *inventory.Service must stay a nil interface so New reports it
@@ -45,15 +43,13 @@ func newSensorPassive(d deps) (*sensorpassive.Service, error) {
 	return sensorpassive.New(cfg)
 }
 
-// sensorPassiveJobs runs the capture loop while the module is on (SYS-5). Run blocks until the module is turned
-// off; Every only matters when it fails early (a card that vanished): the scheduler starts it again.
-func sensorPassiveJobs(d deps) []jobs.Job {
-	return []jobs.Job{{Module: "sensor-passive", Name: "capture", Every: 15 * time.Second, Run: d.SensorPassive.Run}}
-}
+// There is no capture job in core (D-111, D-141): packets are read only by the `sensor` container, which reaches
+// the Service through the sensor link (sensorBackend). The module has no jobs of its own here.
 
 // netHost is the host module's answer to sensor-passive (Box network, D-56). The cards come from vedette-host
 // (core runs in a container and cannot see them); the extraction switches and exclusion filters are the admin's
 // settings of Settings, Box network. An install without a host reads the interfaces of the operating system it runs on.
+// Interfaces only validates the card an admin picks (SetInterface, D-118): addresses are not shown from here.
 type netHost struct{ box *core.NetworkHandlers }
 
 func (n netHost) Interfaces(ctx context.Context) ([]capture.Interface, error) {

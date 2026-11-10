@@ -109,7 +109,7 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 			}
 			m := base
 			if ac.Type == channel.Telegram { // Approve/Reject buttons; their nonce is kept before the message goes out (spec 6)
-				if m.Buttons, err = s.telegramButtons(ctx, req); err != nil {
+				if m.Buttons, err = s.telegramButtons(ctx, req, c.Fields); err != nil {
 					return nil, err
 				}
 			}

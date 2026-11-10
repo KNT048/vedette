@@ -153,6 +153,8 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
   const badApprovers = checkApprovers(type, b); if (badApprovers) return badApprovers
   if (type === 'telegram') {
     if (!/^(-?\d{5,20}|@[A-Za-z0-9_]{5,32})$/.test((f.chat_id ?? '').trim())) return fail(400, 'bad_chat_id', 'Chat ID is a number (groups look like -1001234567890) or a public @channel_name. Send the bot a message, then open getUpdates to see the number.')
+    // S-NOT-1 (review of #172, L1): approvals need the numeric chat; a public @name is fine for alerts only.
+    if (b.approvals === true && !/^-?\d{5,20}$/.test((f.chat_id ?? '').trim())) return fail(400, 'bad_chat_id', 'To approve actions in Telegram, Chat ID must be the number of the chat (groups look like -1001234567890), not a public @channel_name: anyone can join a public channel, and a name that is given up can be taken by someone else.')
     if (secret && !/^\d{6,12}:[A-Za-z0-9_-]{30,}$/.test(secret)) return fail(400, 'bad_token', 'A bot token looks like 123456789:AAH… and comes from @BotFather. Copy it again without extra spaces.')
     return need('bot token')
   }

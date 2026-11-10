@@ -413,6 +413,20 @@ describe('notify: channel form matrix (docs/QA.md §2)', () => {
     expect((await put('telegram', { ...base, fields: { chat_id: '-100123' }, approvers: [{ user_id: 'u-view', address: '123456' }] })).status).toBe(400)
   })
 
+  it('Telegram: approvals need a numeric chat ID; a public @name is refused and the message says why (S-NOT-1)', async () => {
+    renderChannels()
+    await screen.findByRole('table')
+    const put = (b: unknown) => fetch(`${location.origin}/api/v1/notify/channels/telegram`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
+    const base = { enabled: true, min_severity: 'high', approvals: true, approvers: [{ user_id: 'u-admin', address: '123456789' }] }
+    const res = await put({ ...base, fields: { chat_id: '@vedette_alerts' } })
+    expect(res.status).toBe(400)
+    const body = await res.json() as { error: { code: string; message: string } }
+    expect(body.error.code).toBe('bad_chat_id')
+    expect(body.error.message).toBe('To approve actions in Telegram, Chat ID must be the number of the chat (groups look like -1001234567890), not a public @channel_name: anyone can join a public channel, and a name that is given up can be taken by someone else.')
+    expect((await put({ ...base, fields: { chat_id: '-1001234567890' } })).status).toBe(200)
+    expect((await put({ ...base, approvals: false, approvers: [], fields: { chat_id: '@vedette_alerts' } })).status).toBe(200) // a @name is fine for alerts only
+  })
+
   it('Zalo personal: sign in by QR, turn approvals on, add two approvers, each with their own Zalo ID', async () => {
     renderChannels()
     await screen.findByRole('table')

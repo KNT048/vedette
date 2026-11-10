@@ -47,25 +47,25 @@ func hostOf(raw string) string {
 // stored one only while the provider type and the origin of the address stay the same, so a stored key cannot be sent to another
 // host by changing the address (review of slice 1, M1). Otherwise a cloud profile must have its key entered again; an internal
 // profile, whose key is optional, simply has none. A profile that had no key gets none.
-func keyFor(old stored, in ProfileInput, baseURL string) (key provider.Secret, keptOld bool, err error) {
+func keyFor(old stored, in ProfileInput, baseURL string) (key provider.Secret, err error) {
 	if in.APIKey != "" {
-		return provider.NewSecret(in.APIKey), false, nil
+		return provider.NewSecret(in.APIKey), nil
 	}
 	if !old.APIKey.IsSet() {
-		return provider.Secret{}, false, nil
+		return provider.Secret{}, nil
 	}
 	moved := !sameOrigin(old.BaseURL, baseURL)
 	if old.Kind == in.Kind && !moved {
-		return old.APIKey, true, nil
+		return old.APIKey, nil
 	}
 	if in.Location == LocationCloud {
 		msg := "Changing the provider type needs the API key entered again."
 		if moved {
 			msg = "Changing the address needs the API key entered again."
 		}
-		return provider.Secret{}, false, apierr.New(http.StatusBadRequest, "key_required", msg)
+		return provider.Secret{}, apierr.New(http.StatusBadRequest, "key_required", msg)
 	}
-	return provider.Secret{}, false, nil
+	return provider.Secret{}, nil
 }
 
 // number formats n with thousands separators, like the mock does.

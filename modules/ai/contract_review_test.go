@@ -20,7 +20,7 @@ func withID(id, body string) string { return `{"id":"` + id + `",` + body[1:] }
 
 func noKey(body string) string { return strings.Replace(body, `"api_key":"`+keyA+`",`, "", 1) }
 
-func moveTo(body, from, to string) string { return strings.Replace(body, from, to, 1) }
+func moveTo(body, to string) string { return strings.Replace(body, "https://api.anthropic.com", to, 1) }
 
 func TestContract_INV1_StoredKeyGoesOnlyToTheAddressItWasSavedFor(t *testing.T) {
 	a := newAPI(t)
@@ -35,7 +35,7 @@ func TestContract_INV1_StoredKeyGoesOnlyToTheAddressItWasSavedFor(t *testing.T) 
 		"userinfo":     "https://api.anthropic.com@evil.example",
 	} {
 		before := a.fake.total()
-		got, m, raw := a.do("POST", "/ai/profiles/test", "admin", withID(id, moveTo(base, "https://api.anthropic.com", to)))
+		got, m, raw := a.do("POST", "/ai/profiles/test", "admin", withID(id, moveTo(base, to)))
 		if got != 400 {
 			t.Errorf("%s: test = %d %s", name, got, raw)
 		}
@@ -46,7 +46,7 @@ func TestContract_INV1_StoredKeyGoesOnlyToTheAddressItWasSavedFor(t *testing.T) 
 			t.Errorf("%s: the provider was called", name)
 		}
 	}
-	m := a.want("POST", "/ai/profiles/test", "admin", withID(id, moveTo(base, "https://api.anthropic.com", "https://evil.example.com")), 400, "key_required")
+	m := a.want("POST", "/ai/profiles/test", "admin", withID(id, moveTo(base, "https://evil.example.com")), 400, "key_required")
 	if msg := m["error"].(map[string]any)["message"].(string); msg != "Changing the address needs the API key entered again." {
 		t.Fatalf("message = %q", msg)
 	}
@@ -57,13 +57,13 @@ func TestContract_INV1_StoredKeyGoesOnlyToTheAddressItWasSavedFor(t *testing.T) 
 	}
 	// the same origin (another path, upper-case host, an explicit default port) still uses the stored key
 	for _, to := range []string{"https://api.anthropic.com/v1", "https://API.Anthropic.com", "https://api.anthropic.com:443"} {
-		a.want("POST", "/ai/profiles/test", "admin", withID(id, moveTo(base, "https://api.anthropic.com", to)), 200, "")
+		a.want("POST", "/ai/profiles/test", "admin", withID(id, moveTo(base, to)), 200, "")
 	}
 	if keys := a.fake.keysSeen(); len(keys) == 0 || keys[len(keys)-1] != keyA {
 		t.Fatalf("keys seen = %v", keys)
 	}
 	// a new key may go to a new address
-	a.want("POST", "/ai/profiles/test", "admin", withID(id, moveTo(cloudBody("Claude", keyB), "https://api.anthropic.com", "https://llm.example.com")), 200, "")
+	a.want("POST", "/ai/profiles/test", "admin", withID(id, moveTo(cloudBody("Claude", keyB), "https://llm.example.com")), 200, "")
 	if keys := a.fake.keysSeen(); keys[len(keys)-1] != keyB {
 		t.Fatalf("keys seen = %v", keys)
 	}
@@ -73,7 +73,7 @@ func TestContract_INV1_EditingTheAddressNeedsTheKeyAgain(t *testing.T) {
 	a := newAPI(t)
 	id := saved(a, cloudBody("Claude", keyA))
 	base := noKey(cloudBody("Claude", keyA))
-	m := a.want("PUT", "/ai/profiles/"+id, "admin", moveTo(base, "https://api.anthropic.com", "https://evil.example.com"), 400, "key_required")
+	m := a.want("PUT", "/ai/profiles/"+id, "admin", moveTo(base, "https://evil.example.com"), 400, "key_required")
 	if msg := m["error"].(map[string]any)["message"].(string); msg != "Changing the address needs the API key entered again." {
 		t.Fatalf("message = %q", msg)
 	}
@@ -82,12 +82,12 @@ func TestContract_INV1_EditingTheAddressNeedsTheKeyAgain(t *testing.T) {
 		t.Fatalf("the refused edit changed the profile: %v", p)
 	}
 	// a new key with the new address is fine; the old key is replaced, not sent anywhere
-	got := a.want("PUT", "/ai/profiles/"+id, "admin", moveTo(cloudBody("Claude", keyB), "https://api.anthropic.com", "https://llm.example.com"), 200, "")
+	got := a.want("PUT", "/ai/profiles/"+id, "admin", moveTo(cloudBody("Claude", keyB), "https://llm.example.com"), 200, "")
 	if got["base_url"] != "https://llm.example.com" || got["key_last4"] != "2222" {
 		t.Fatalf("edit = %v", got)
 	}
 	// the same origin keeps the key
-	got = a.want("PUT", "/ai/profiles/"+id, "admin", moveTo(noKey(cloudBody("Claude", keyB)), "https://api.anthropic.com", "https://llm.example.com/v2"), 200, "")
+	got = a.want("PUT", "/ai/profiles/"+id, "admin", moveTo(noKey(cloudBody("Claude", keyB)), "https://llm.example.com/v2"), 200, "")
 	if got["key_last4"] != "2222" {
 		t.Fatalf("same origin = %v", got)
 	}
@@ -105,9 +105,9 @@ func TestContract_INV1_EditingTheAddressNeedsTheKeyAgain(t *testing.T) {
 func TestContract_INV20_AuditNamesTheHost(t *testing.T) {
 	a := newAPI(t)
 	id := saved(a, cloudBody("Claude", keyA))
-	a.want("PUT", "/ai/profiles/"+id, "admin", moveTo(cloudBody("Claude", keyB), "https://api.anthropic.com", "https://user:pw@llm.example.com:8443/v1?x=1"), 400, "invalid_base_url")
-	a.want("PUT", "/ai/profiles/"+id, "admin", moveTo(cloudBody("Claude", keyB), "https://api.anthropic.com", "https://llm.example.com:8443/v1"), 200, "")
-	a.want("POST", "/ai/profiles/test", "admin", moveTo(cloudBody("Draft", keyA), "https://api.anthropic.com", "https://other.example.com"), 200, "")
+	a.want("PUT", "/ai/profiles/"+id, "admin", moveTo(cloudBody("Claude", keyB), "https://user:pw@llm.example.com:8443/v1?x=1"), 400, "invalid_base_url")
+	a.want("PUT", "/ai/profiles/"+id, "admin", moveTo(cloudBody("Claude", keyB), "https://llm.example.com:8443/v1"), 200, "")
+	a.want("POST", "/ai/profiles/test", "admin", moveTo(cloudBody("Draft", keyA), "https://other.example.com"), 200, "")
 	rows := a.auditRows()
 	want := []string{"ai.profile.add Claude anthropic, cloud, model=claude-haiku-5-5, host=api.anthropic.com, key set", "ai.profile.edit Claude anthropic, cloud, model=claude-haiku-5-5, host=llm.example.com:8443, key changed", "ai.test Draft model=claude-haiku-5-5, host=other.example.com, result=ok"}
 	if len(rows) != len(want) {
@@ -290,7 +290,7 @@ func TestContract_L2_ABadSavedStateDoesNotStopTheBox(t *testing.T) {
 			t.Fatal("not reported as degraded")
 		}
 		a.svc = svc
-		h := &api{env: a.env, h: a.env.handler(servertest.NewGate())}
+		h := &api{env: a.env, h: a.handler(servertest.NewGate())}
 		if list := h.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any); len(list) != 0 {
 			t.Fatalf("profiles = %v", list)
 		}

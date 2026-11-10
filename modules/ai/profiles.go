@@ -211,7 +211,7 @@ func (s *Service) EditProfile(ctx context.Context, who, id string, in ProfileInp
 		return ProfileView{}, profileNotFound()
 	}
 	secretID, newKey := old.secretID, in.APIKey != ""
-	key, _, kerr := keyFor(old, in, in.BaseURL)
+	key, kerr := keyFor(old, in, in.BaseURL)
 	if kerr != nil {
 		return ProfileView{}, kerr
 	}
@@ -385,7 +385,7 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 			return TestResult{}, profileNotFound()
 		}
 		var kerr error
-		if key, _, kerr = keyFor(old, in, in.BaseURL); kerr != nil {
+		if key, kerr = keyFor(old, in, in.BaseURL); kerr != nil {
 			return TestResult{}, kerr
 		}
 		id, exceptID, profileCap = old.ID, old.ID, old.DailyCap

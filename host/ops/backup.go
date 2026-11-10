@@ -397,9 +397,9 @@ func (o *Ops) cmdBackupPurge() server.Command {
 var (
 	archiveNameRE = regexp.MustCompile(`^[0-9a-f]{32}\.tar\.gz$`)
 	exportNameRE  = regexp.MustCompile(`^[0-9a-f]{32}\.jsonl\.gz$`)
-	hostTempRE    = regexp.MustCompile(`^\.tmp-[0-9]+$`)         // writeFileAtomic's leftover
-	runTempFileRE = regexp.MustCompile(`^ex-[0-9]+$`)            // an export's temp file
-	runTempDirRE  = regexp.MustCompile(`^(bk|rs|rb|rv)-[0-9]+$`) // a backup, restore, rollback or revert temp directory
+	hostTempRE    = regexp.MustCompile(`^\.tmp-[0-9]+$`)            // writeFileAtomic's leftover
+	runTempFileRE = regexp.MustCompile(`^ex-[0-9]+$`)               // an export's temp file
+	runTempDirRE  = regexp.MustCompile(`^(bk|rs|rb|rv|rl)-[0-9]+$`) // a backup, restore, rollback (rb, rl) or revert temp directory
 )
 
 // purgeBackups deletes the host's own backup store and what hangs off it, under the write lock the

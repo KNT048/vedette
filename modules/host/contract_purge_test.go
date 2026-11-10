@@ -52,6 +52,7 @@ func TestContract_BackupPurge_DeletesEveryArchiveAndTheIndexAndFollowsNoLink(t *
 	plant("tmp/ex-777", "x")
 	plant("tmp/bk-1/archive.tar.gz", "x")
 	plant("tmp/rs-2/sub/vedette.db", "x")
+	plant("tmp/rl-4/vedette.key", "x") // container.rollback unpacks pre_update here (update.go)
 	if err := os.Symlink(filepath.Dir(outside), filepath.Join(state, "tmp", "rb-3")); err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +60,7 @@ func TestContract_BackupPurge_DeletesEveryArchiveAndTheIndexAndFollowsNoLink(t *
 	keyBefore, _ := os.ReadFile(filepath.Join(e.m.CoreData, "vedette.key"))
 	snapsBefore, _ := os.ReadDir(filepath.Join(e.m.CoreData, "snapshots"))
 	r := e.ok(t, api.CmdBackupPurge, struct{}{})
-	for _, rel := range []string{"backups/.tmp-123", "exports/index.json", "exports/" + strings.Repeat("d", 32) + ".jsonl.gz", "tmp/ex-777", "tmp/bk-1", "tmp/rs-2"} {
+	for _, rel := range []string{"backups/.tmp-123", "exports/index.json", "exports/" + strings.Repeat("d", 32) + ".jsonl.gz", "tmp/ex-777", "tmp/bk-1", "tmp/rs-2", "tmp/rl-4"} {
 		if _, err := os.Lstat(filepath.Join(state, rel)); !errors.Is(err, os.ErrNotExist) {
 			t.Errorf("%s is still there (%v)", rel, err)
 		}

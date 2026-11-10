@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/chain/chainhead"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/server/servertest"
@@ -371,30 +372,21 @@ func newFacts() *fakeFacts {
 	}
 }
 
-// fakePruner stands for core's chainhead.Prune (issue #194): in the same transaction it records where the pruned chain starts and
-// lowers the head. It is a test double, the only place that touches core's chain tables for this purpose.
+// fakePruner is core's chainhead.Prune (issue #194) with a way to make it fail: the tests prune against the real helper, so the
+// anchor and the head they check are the ones core writes.
 type fakePruner struct {
-	mu    sync.Mutex
-	fail  error
-	calls int
+	mu   sync.Mutex
+	fail error
 }
 
 func (p *fakePruner) Prune(ctx context.Context, tx *sql.Tx, chain, lastPrunedID, lastPrunedHash string, removed int64, now time.Time) error {
 	p.mu.Lock()
 	fail := p.fail
-	p.calls++
 	p.mu.Unlock()
 	if fail != nil {
 		return fail
 	}
-	at := store.FormatTS(now)
-	if _, err := tx.ExecContext(ctx, `INSERT INTO core_chain_anchor (chain, last_pruned_id, last_pruned_hash, pruned_at) VALUES (?, ?, ?, ?)
-		ON CONFLICT (chain) DO UPDATE SET last_pruned_id = excluded.last_pruned_id, last_pruned_hash = excluded.last_pruned_hash, pruned_at = excluded.pruned_at`, chain, lastPrunedID, lastPrunedHash, at); err != nil {
-		return err
-	}
-	_, err := tx.ExecContext(ctx, `UPDATE core_chain_head SET count = count - ?, last_hash = CASE WHEN count - ? = 0 THEN ? ELSE last_hash END, updated_at = ? WHERE chain = ?`,
-		removed, removed, lastPrunedHash, at, chain)
-	return err
+	return chainhead.Prune(ctx, tx, chain, lastPrunedID, lastPrunedHash, removed, now)
 }
 
 func (p *fakePruner) failWith(err error) {

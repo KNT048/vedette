@@ -52,9 +52,15 @@ func TestActivityRolesAndRoutes(t *testing.T) {
 	a.want("GET", "/ai/activity/settings", "operator", "", 403, "forbidden")
 	a.want("GET", "/ai/activity/settings", "admin", "", 200, "")
 	a.want("PUT", "/ai/activity/settings", "operator", `{"retention_days":365}`, 403, "forbidden")
-	// there is no way to edit or remove an entry
-	a.want("DELETE", "/ai/activity", "admin", "", 405, "")
-	a.want("PUT", "/ai/activity", "admin", `{}`, 405, "")
+	// there is no way to edit or remove an entry: the server has no such route, whatever the role
+	for _, m := range []string{"DELETE", "PUT", "PATCH", "POST"} {
+		if status, _, body := a.do(m, "/ai/activity", "admin", `{}`); status != 404 && status != 405 {
+			t.Fatalf("%s /ai/activity = %d (%s), want no route", m, status, body)
+		}
+		if status, _, body := a.do(m, "/ai/activity/act-1", "admin", `{}`); status != 404 && status != 405 {
+			t.Fatalf("%s /ai/activity/act-1 = %d (%s), want no route", m, status, body)
+		}
+	}
 }
 
 func TestContract_INV17_ListIsNewestFirstAndFiltered(t *testing.T) {
@@ -196,28 +202,26 @@ func TestContract_INV19_PruneKeepsTheChainVerifiable(t *testing.T) {
 	if n, err := a.svc.PruneActivity(a.ctx()); err != nil || n != 0 {
 		t.Fatalf("a second prune removed %d, %v", n, err)
 	}
-	// every row ages out: the chain goes on from the anchor, not from the start
+	// every row is past the retention, but the newest stays: the head of the chain names it
 	a.ageing(400)
-	if n, err := a.svc.PruneActivity(a.ctx()); err != nil || n != 1 {
-		t.Fatalf("pruned %d, %v; want 1", n, err)
+	if n, err := a.svc.PruneActivity(a.ctx()); err != nil || n != 0 {
+		t.Fatalf("pruned %d, %v; want 0, the newest row is never removed", n, err)
 	}
-	if rows := a.activity(); len(rows) != 0 {
-		t.Fatalf("rows = %+v", rows)
-	}
-	if v := a.want("GET", "/ai/activity/verify", "operator", "", 200, ""); v["ok"] != true || v["count"] != float64(0) {
-		t.Fatalf("verify of an empty pruned log = %v", v)
-	}
+	// a new row, then the old newest one can go; the log goes on from the anchor and verifies end to end
 	a.facts.mu.Lock()
 	a.facts.assets["CVE-2022-27593"][0].Name = "NAS-3"
 	a.facts.mu.Unlock()
 	a.explain("CVE-2022-27593", 200, "")
-	after := a.activity()
-	var lastPruned string
-	if err := a.db.Reader().QueryRowContext(a.ctx(), `SELECT last_pruned_hash FROM core_chain_anchor WHERE chain = 'ai_activity'`).Scan(&lastPruned); err != nil {
-		t.Fatal(err)
+	before := a.activity()
+	if n, err := a.svc.PruneActivity(a.ctx()); err != nil || n != 1 {
+		t.Fatalf("pruned %d, %v; want 1", n, err)
 	}
-	if len(after) != 1 || after[0].PrevHash != lastPruned || after[0].PrevHash == ai.Genesis {
-		t.Fatalf("the first row after a full prune links to %q, want the anchor %q", after[0].PrevHash, lastPruned)
+	after := a.activity()
+	if len(after) != 1 || after[0].ID != before[1].ID || after[0].PrevHash != before[0].Hash {
+		t.Fatalf("rows after the second prune = %+v", after)
+	}
+	if err := a.db.Reader().QueryRowContext(a.ctx(), `SELECT last_pruned_hash, last_pruned_id FROM core_chain_anchor WHERE chain = 'ai_activity'`).Scan(&anchor, &anchorID); err != nil || anchor != before[0].Hash || anchorID != before[0].ID {
+		t.Fatalf("anchor = %q %q, %v", anchor, anchorID, err)
 	}
 	if v := a.want("GET", "/ai/activity/verify", "operator", "", 200, ""); v["ok"] != true || v["count"] != float64(1) {
 		t.Fatalf("verify = %v", v)
@@ -244,6 +248,7 @@ func TestPruneJob(t *testing.T) {
 	a := newAPI(t)
 	a.withProfile()
 	a.explain("CVE-2022-27593", 200, "")
+	a.want("POST", "/ai/profiles/test", "admin", cloudBody("Draft", keyA), 200, "")
 	a.ageing(500)
 	js := a.svc.Jobs()
 	if len(js) != 1 || js[0].Module != "ai" || js[0].Name != "activity-prune" || js[0].Every < time.Hour || js[0].Run == nil {
@@ -252,8 +257,8 @@ func TestPruneJob(t *testing.T) {
 	if err := js[0].Run(a.ctx()); err != nil {
 		t.Fatal(err)
 	}
-	if rows := a.activity(); len(rows) != 0 {
-		t.Fatalf("the job left %d rows", len(rows))
+	if rows := a.activity(); len(rows) != 1 {
+		t.Fatalf("the job left %d rows, want only the newest", len(rows))
 	}
 }
 
@@ -302,7 +307,7 @@ func TestContract_INV18_ExportSourceCarriesTheChain(t *testing.T) {
 	}
 	a.ageing(400)
 	a.want("PUT", "/ai/activity/settings", "admin", `{"retention_days":90}`, 200, "")
-	if n, err := a.svc.PruneActivity(a.ctx()); err != nil || n != 3 {
+	if n, err := a.svc.PruneActivity(a.ctx()); err != nil || n != 2 { // the newest of the three stays
 		t.Fatalf("pruned %d, %v", n, err)
 	}
 	a.facts.mu.Lock()
@@ -387,7 +392,10 @@ func TestPruneFailureLeavesTheLogAlone(t *testing.T) {
 		t.Fatalf("verify = %v", v)
 	}
 	a.pruner.failWith(nil)
-	if n, err := a.svc.PruneActivity(a.ctx()); err != nil || n != 2 {
+	if n, err := a.svc.PruneActivity(a.ctx()); err != nil || n != 1 {
 		t.Fatalf("prune = %d, %v", n, err)
+	}
+	if v := a.want("GET", "/ai/activity/verify", "operator", "", 200, ""); v["ok"] != true || v["count"] != float64(1) {
+		t.Fatalf("verify after the prune = %v", v)
 	}
 }

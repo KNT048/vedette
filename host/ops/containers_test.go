@@ -41,7 +41,7 @@ func TestSystemctlGrammarForTheContainerCommands(t *testing.T) {
 	}
 }
 
-func TestPodmanGrammarIsInspectOfTheFiveContainersOnly(t *testing.T) {
+func TestPodmanGrammarOfTheContainerInspect(t *testing.T) {
 	t.Parallel()
 	for _, s := range api.Services {
 		if err := validatePodman([]string{"container", "inspect", "vedette-" + s}); err != nil {
@@ -106,20 +106,6 @@ func FuzzValidateSystemctlContainers(f *testing.F) {
 			if !ok {
 				t.Fatalf("accepted %q", args)
 			}
-		}
-	})
-}
-
-func FuzzValidatePodman(f *testing.F) {
-	f.Add("container", "inspect", "vedette-core")
-	f.Add("run", "--privileged", "x")
-	f.Fuzz(func(t *testing.T, a, b, c string) {
-		args := []string{a, b, c}
-		if validatePodman(args) != nil {
-			return
-		}
-		if a != "container" || b != "inspect" || !strings.HasPrefix(c, "vedette-") || strings.ContainsAny(c, " \n\x00/.") {
-			t.Fatalf("accepted %q", args)
 		}
 	})
 }

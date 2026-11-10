@@ -112,6 +112,10 @@ Triển khai xác minh (**đã chốt, D-103**): gói `internal/release` của d
 
 **Đã chốt (D-57 (3), D-103):** hộp **chỉ xác minh bằng khoá cosign công khai nhúng sẵn** (offline, không phụ thuộc Sigstore, hợp mạng cách ly). Phần sau vẫn là đề xuất, chưa có quyết định: đồng thời CI **vẫn đăng chữ ký keyless** song song cho người dùng/kiểm toán muốn tự xác minh (đúng ý UPDATES §4.4 "minisign cho hộp, cosign cho người"). Hộp không đòi chữ ký keyless. Khoá cosign **tách** khỏi khoá minisign và tách khỏi mọi bí mật CI khác; xoay khoá = bản binary mới nhúng cả khoá cũ và mới trong một giai đoạn chuyển (ký bằng cả hai).
 
+**Xoay khoá minisign và index đã lưu (D-130, sửa đổi L1).** Bản dựng nhúng thêm danh sách **khoá đã nghỉ** (`Trust.Retired`, hằng `prodMinisignRetired`, rỗng tới lần xoay đầu). Khoá đã nghỉ **chỉ** dùng để xác minh lại index mà hộp đã lưu lúc khoá còn dùng (`release.VerifyStoredIndex`), nên số `sequence` và danh sách thu hồi đã lưu còn nguyên qua lần xoay; nó **không bao giờ** nhận index hay manifest mới (`VerifyIndex`, `VerifyManifest` không biết nó). Quy trình xoay: bản dựng mới có khoá mới là khoá đang dùng và khoá cũ trong `Retired`; không cần người vận hành xoá `releases/index.json`.
+
+**Sàn `sequence` lúc dựng (D-130, L2).** Khi chưa lưu index nào, host nhận index có `sequence` ≥ `release.MinSequenceText` của bản dựng (job phát hành đặt bằng `-ldflags "-X github.com/knt048/vedette/internal/release.MinSequenceText=<n>"` bằng `sequence` của index hiện hành lúc dựng; mặc định 0 là không có sàn), để một bản cài mới không bị mớm index cũ. Có index đã lưu thì số đã lưu là sàn.
+
 ### 5.3 Quy trình xác minh của hộp (`core`, rồi `host` lặp lại)
 
 1. Tải `index.json` + `.minisig`; kiểm chữ ký bằng khoá nhúng, kiểm `key_id` không bị thu hồi.

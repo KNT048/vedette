@@ -84,6 +84,11 @@ func (c *Client) ContainerStop(ctx context.Context, service string, persist bool
 	return c.Run(ctx, api.CmdContainerStop, api.ContainerStopArgs{Service: service, Persist: persist}, requestID, actor)
 }
 
+// ContainerPull runs container.pull (slice 3-7): the host verifies the signed documents itself.
+func (c *Client) ContainerPull(ctx context.Context, args api.ContainerPullArgs, requestID, actor string) (api.Run, error) {
+	return c.Run(ctx, api.CmdContainerPull, args, requestID, actor)
+}
+
 // StateContainers returns GET /v1/state/containers.
 func (c *Client) StateContainers(ctx context.Context) (api.ContainersState, error) {
 	var out api.ContainersState

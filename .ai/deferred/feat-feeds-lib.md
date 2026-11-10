@@ -3,7 +3,7 @@
 - [x] INV-9 wording — done: stale means older than `interval_hours` + 60 min; a future timestamp counts as due and stale (CONTRACT INV-9)
 - [x] nuclei `cves.json` format — done: JSON Lines only, matched exactly against the verified format
 - [x] Web `parsers.ts` differences — documented in IMPACT (rejects 20 vs 10, stricter IPs and domains in Go); still open on the SPA side — web owner
-- [ ] Verify the real nuclei, IPsum `levels/3.txt` and hagezi `tif.mini` sizes and line formats against the live files (no network allowed in this WP) — WP-20
+- [x] Verify the real nuclei, IPsum `levels/3.txt` and hagezi `tif.mini` sizes and line formats against the live files (no network allowed in this WP) — WP-20 — Moved → feat-feeds-module.md
 - [x] INV-4/6/7/8/10/11/14, POST-1..5, PRE-2..5 — done in feat/feeds-module; INV-13 (Settings -> Privacy host list) moved to feat-feeds-module.md
 - [ ] Redirects: only same-host redirects are followed; relax per source only if a real mirror needs it — WP-20
 - [ ] Dial guard: `http` to a name that resolves to a public address is refused; confirm this matches how internal mirrors are named — WP-20

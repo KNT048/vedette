@@ -13,9 +13,9 @@ var (
 	hosts     = []string{"192.168.10.21"}
 )
 
-func fixture(t *testing.T, name string) []byte {
+func fixture(t *testing.T) []byte {
 	t.Helper()
-	b, err := os.ReadFile("testdata/" + name)
+	b, err := os.ReadFile("testdata/matched.jsonl")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +25,7 @@ func fixture(t *testing.T, name string) []byte {
 // The recorded-shape fixture: one match with request and response, one non-match, one error line (-ms).
 func TestParse_Fixture(t *testing.T) {
 	t.Parallel()
-	res, err := Parse(fixture(t, "matched.jsonl"), templates, hosts)
+	res, err := Parse(fixture(t), templates, hosts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +111,7 @@ func TestParse_Limits(t *testing.T) {
 // INV-10: evidence is untrusted text: capped, valid UTF-8, no control or bidi characters; newlines and tabs stay.
 func TestParse_EvidenceIsCleanedAndCapped(t *testing.T) {
 	t.Parallel()
-	resp := "HTTP/1.1 200 OK\r\nX: \x1b[31mred\x07‮evil\r\n\r\n" + strings.Repeat("é", MaxResponse) + "\xff"
+	resp := "HTTP/1.1 200 OK\r\nX: \x1b[31mred\x07\xe2\x80\xaeevil\r\n\r\n" + strings.Repeat("é", MaxResponse) + "\xff"
 	line := `{"template-id":"CVE-2022-27593","host":"192.168.10.21","matcher-status":true,"request":"GET / HTTP/1.1\r\n\tHost: x\u0000","response":` + quote(resp) + `}`
 	res, err := Parse([]byte(line), templates, hosts)
 	if err != nil {
@@ -175,7 +175,7 @@ func quote(s string) string {
 func FuzzParse(f *testing.F) {
 	f.Add(string(fixtureBytes()))
 	f.Add(ok)
-	f.Add(`{"template-id":"CVE-2022-27593","host":"192.168.10.21","matcher-status":true,"response":"‮\u0000x"}`)
+	f.Add("{\"template-id\":\"CVE-2022-27593\",\"host\":\"192.168.10.21\",\"matcher-status\":true,\"response\":\"\xe2\x80\xae x\"}")
 	f.Add("{\"a\":" + strings.Repeat("[", 50))
 	f.Fuzz(func(t *testing.T, in string) {
 		res, err := Parse([]byte(in), templates, hosts)

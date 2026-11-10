@@ -138,8 +138,8 @@ func unsafeRune(r rune) bool {
 }
 
 // Clean makes untrusted text safe to store and show as plain text: valid UTF-8, \r\n as \n, no unsafe characters,
-// at most max bytes cut on a character boundary and marked.
-func Clean(s string, max int) string {
+// at most limit bytes cut on a character boundary and marked.
+func Clean(s string, limit int) string {
 	s = strings.ToValidUTF8(s, "")
 	s = strings.ReplaceAll(s, "\r\n", "\n")
 	s = strings.Map(func(r rune) rune {
@@ -148,10 +148,10 @@ func Clean(s string, max int) string {
 		}
 		return r
 	}, s)
-	if len(s) <= max {
+	if len(s) <= limit {
 		return s
 	}
-	cut := max
+	cut := limit
 	for cut > 0 && !utf8.RuneStart(s[cut]) {
 		cut--
 	}

@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -112,6 +113,10 @@ func writeOpen(t *testing.T, dir string) string {
 
 func TestServesAndStopsOnSignal(t *testing.T) {
 	t.Parallel()
+	if runtime.GOOS == "linux" && os.Geteuid() == 0 {
+		// run builds the real Ops, whose Start would create the real namespace vedette-hp on this machine.
+		t.Skip("not as root on Linux: Start would make a real network namespace")
+	}
 	dir, err := os.MkdirTemp("", "vm")
 	if err != nil {
 		t.Fatal(err)
@@ -131,7 +136,7 @@ func TestServesAndStopsOnSignal(t *testing.T) {
 	for {
 		info, err := c.Info(context.Background())
 		if err == nil {
-			want := []string{"backup.create", "backup.restore", "logs.export", "net.apply", "net.confirm", "net.revert", "os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel"}
+			want := []string{"backup.create", "backup.restore", "decoy_ip.add", "decoy_ip.remove", "logs.export", "net.apply", "net.confirm", "net.revert", "os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel"}
 			if info.Proto != 1 || info.HostVersion != "dev" || !slices.Equal(info.Commands, want) {
 				t.Fatalf("info = %+v", info)
 			}

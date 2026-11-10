@@ -192,6 +192,8 @@ func responseConfig(d *deps) (response.Config, error) {
 		Notifier: responseNotifier{n: n, now: d.Clock}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings}}
 	if d.Conn != nil { // a nil *conn.Service inside the interface would not compare equal to nil
 		cfg.Connections = responseConnections{d.Conn}
+		// cfg.Evidence stays empty: IocHit until logs (WP-24) offers a lookup, ConfigRead until ai offers a lookup of the reads it made. An
+		// ioc_hit or a config_read in an AI proposal is refused 422 evidence_invalid (fail closed, D-119).
 		w, err := write.New(write.Config{Conns: d.Conn})
 		if err != nil {
 			return cfg, err

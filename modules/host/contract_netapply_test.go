@@ -78,6 +78,7 @@ func (p *fakeProber) probes() []string {
 type netBox struct {
 	m      interface{ ReadRoot(string) (string, error) }
 	noAddr atomic.Bool // the new address never shows up
+	extra  []ops.HostIface
 }
 
 var addrRE = regexp.MustCompile(`\d+\.\d+\.\d+\.\d+/\d+`)
@@ -96,11 +97,11 @@ func (b *netBox) interfaces() ([]ops.HostIface, error) {
 			addrs = append(addrs, netip.MustParsePrefix("192.168.1.77/24"))
 		}
 	}
-	return []ops.HostIface{
+	return append([]ops.HostIface{
 		{Name: "lo", Loopback: true, Addrs: []netip.Prefix{netip.MustParsePrefix("127.0.0.1/8")}},
 		{Name: "eth0", MAC: "02:00:00:00:00:01", Addrs: addrs},
 		{Name: "eth1", MAC: "02:00:00:00:00:02"},
-	}, nil
+	}, b.extra...), nil
 }
 
 type netEnv struct {

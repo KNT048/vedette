@@ -126,6 +126,10 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 		return errors.Join(err, srv.Shutdown(sctx))
 	}
 	env.logger.InfoContext(ctx, "listening", "socket", cfg.Socket, "version", version)
+	// The namespace of the honeypot is ready, the decoys are back and the socket exists: say so.
+	if err := notifyReady(); err != nil {
+		env.logger.ErrorContext(ctx, "could not tell systemd that the host is ready", "error", err.Error())
+	}
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(ln) }()
 	select {

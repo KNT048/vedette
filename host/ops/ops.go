@@ -2,7 +2,8 @@
 // that WP-07b part 1 delivers: os.check, os.install, os.auto_security.set, os.reboot,
 // os.reboot.cancel, backup.create, backup.restore and logs.export, plus the read-only state
 // endpoints that belong to them, and (part 3) net.apply, net.confirm, net.revert and the NTP
-// sources. Container commands and decoy addresses come in later slices.
+// sources, and (slice 3-5) decoy_ip.add and decoy_ip.remove with the honeypot namespace. Container
+// commands come in later slices.
 //
 // Every child process goes through one core/exec Runner: absolute binary paths, argv validated by a
 // per-binary validator, PATH, LANG=C and DEBIAN_FRONTEND=noninteractive only, no shell. Nothing in
@@ -18,7 +19,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -76,6 +79,10 @@ type Deps struct {
 	// NetRetryGap is the pause between the three tries of a revert's netplan apply (default 30 s, so
 	// about 60 s in all, D-100 (8)).
 	NetRetryGap time.Duration
+	// IsNetNS says whether an open file is a bind-mounted network namespace other than the host's own
+	// (default: nsfs, NS_GET_NSTYPE and the identity of /proc/self/ns/net; Linux only). Tests, which
+	// have no namespaces, answer for it.
+	IsNetNS func(*os.File) (bool, error)
 }
 
 // Ops holds the state of the system commands.
@@ -98,6 +105,11 @@ type Ops struct {
 	netMu   sync.Mutex // guards the confirm-window timer and the run Resume kept
 	netStop func() bool
 	resumed string // the net.apply run Resume kept; Start reads and clears it
+
+	hpMu         sync.Mutex  // guards hp/decoys.json and the contents of the honeypot namespace
+	hpConfigured atomic.Bool // the sysctls, lo and ruleset were set and read back since this host started
+	hpOK         atomic.Bool // the last ensureHP proved the namespace (state/net lists decoys only then)
+	hpDirErr     error       // hp/ is not a usable directory: decoys are off (D-121)
 
 	bkMu sync.Mutex // guards backups/index.json
 	exMu sync.Mutex // guards exports/index.json
@@ -179,6 +191,9 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 	if d.NetRetryGap <= 0 {
 		d.NetRetryGap = 30 * time.Second
 	}
+	if d.IsNetNS == nil {
+		d.IsNetNS = isNetNS
+	}
 	runner, err := newRunner(cfg.Logger, cfg.CoreUnit, d.BinPaths, min(d.ExportLimit, maxJournalStream))
 	if err != nil {
 		return nil, fmt.Errorf("ops: %w", err)
@@ -189,6 +204,12 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 			return nil, err
 		}
 	}
+	// A bad hp directory (a link, another owner, open to others) turns the decoys off and nothing else:
+	// the host must still serve the network commands (D-121).
+	if err := privDir(filepath.Join(cfg.StateDir, "hp"), cfg.OwnerUID); err != nil {
+		o.hpDirErr = err
+		cfg.Logger.Error("the hp state directory is not usable; decoys are off", "error", err.Error())
+	}
 	return o, nil
 }
 
@@ -198,6 +219,7 @@ func (o *Ops) Commands() []server.Command {
 		o.cmdOSCheck(), o.cmdOSInstall(), o.cmdAutoSecurity(), o.cmdReboot(), o.cmdRebootCancel(),
 		o.cmdBackupCreate(), o.cmdBackupRestore(), o.cmdLogsExport(),
 		o.cmdNetApply(), o.cmdNetConfirm(), o.cmdNetRevert(),
+		o.cmdDecoyAdd(), o.cmdDecoyRemove(),
 	}
 }
 
@@ -218,6 +240,16 @@ func (o *Ops) stateFile(rel ...string) string {
 // anything else that went wrong is an error.
 func (o *Ops) exec(ctx context.Context, name string, args ...string) (vexec.Result, int, error) {
 	res, err := o.runner.Run(ctx, name, args, nil)
+	var ee *vexec.ExitError
+	if errors.As(err, &ee) {
+		return res, ee.ExitCode, nil
+	}
+	return res, res.ExitCode, err
+}
+
+// execIn is exec with a standard input (the nft ruleset).
+func (o *Ops) execIn(ctx context.Context, name string, stdin io.Reader, args ...string) (vexec.Result, int, error) {
+	res, err := o.runner.Run(ctx, name, args, stdin)
 	var ee *vexec.ExitError
 	if errors.As(err, &ee) {
 		return res, ee.ExitCode, nil
@@ -275,7 +307,9 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.mu.Lock()
 	o.notifier = n
 	o.mu.Unlock()
+	hpReady := o.startHP(ctx) // before recoverNet: a revert at start re-applies the decoys into it
 	o.recoverNet(ctx)
+	o.reconcileAtStart(ctx, hpReady)
 	o.sweepBackups()
 	o.checkCoreAtStart()
 	o.recoverRestore(ctx)

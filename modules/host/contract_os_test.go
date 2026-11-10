@@ -264,16 +264,15 @@ func assertEnvClean(t *testing.T, envs [][]string) {
 
 // --- the command table matches the spec ----------------------------------------------------------
 
-// documentedCommandsPart1 are the commands WP-07b has implemented so far (parts 1 and 3-4).
+// documentedCommandsPart1 are the commands WP-07b has implemented so far (parts 1, 3-4 and 3-5).
 var documentedCommandsPart1 = []string{
-	"backup.create", "backup.restore", "logs.export", "net.apply", "net.confirm", "net.revert",
+	"backup.create", "backup.restore", "decoy_ip.add", "decoy_ip.remove", "logs.export", "net.apply", "net.confirm", "net.revert",
 	"os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel",
 }
 
-// notYetImplemented are the commands of spec section 6 that later slices bring (decoy IP, containers).
+// notYetImplemented are the commands of spec section 6 that later slices bring (containers).
 var notYetImplemented = []string{
 	"container.pull", "container.rollback", "container.start", "container.stop",
-	"decoy_ip.add", "decoy_ip.remove",
 }
 
 func TestContract_Part1_TheCommandTableMatchesSection6OfTheSpec(t *testing.T) {

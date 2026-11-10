@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"io"
 	"time"
 )
@@ -53,3 +54,12 @@ func ParseARP(b []byte) (op uint16, senderMAC [6]byte, senderIP [4]byte, err err
 	p, err := parseARP(b)
 	return p.Op, p.SenderMAC, p.SenderIP.As4(), err
 }
+
+// BinIP is the name of ip in the command runner (the literal is spelled once, here).
+const BinIP = binIP
+
+// ReapplyDecoys is the re-apply hook with no configuration hint, for the contract tests.
+func (o *Ops) ReapplyDecoys(ctx context.Context) error { return o.reapplyDecoys(ctx, nil) }
+
+// ValidateIP is the grammar of ip (decoy commands), for the contract tests.
+func ValidateIP(args []string) error { return validateIP(args) }

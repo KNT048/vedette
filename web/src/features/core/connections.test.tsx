@@ -339,7 +339,7 @@ describe('Settings → Connections: form matrix (docs/QA.md §2): every kind x e
     expect(tools[3]).toEqual(['list_jobs:read', 'launch_job:write'])
     for (const r of made) for (const t of r.json.tools) if (t.access === 'write') expect(t.enabled, t.name).toBe(false)
     // D-127: a read tool of an HTTP kind starts off too (a GET can change a device); an SSH read tool is an exact command and stays on
-    expect(made.map((r) => r.json.tools[0]!.enabled)).toEqual([false, true, false, false])
+    expect(made.map((r) => r.json.tools[0]!.enabled)).toEqual([false, true, false, false, false])
     expect(made[2]!.json.username).toBe('admin')
     expect(made[0]!.json.username).toBeNull() // a token has no user name, even when one is sent
     expect(JSON.stringify(made.map((r) => r.json))).not.toMatch(/vendor|fortinet|mikrotik|pfsense|supersecret|a-long-enough/i)

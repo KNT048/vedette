@@ -311,7 +311,8 @@ func TestWiringConnReader(t *testing.T) {
 	}
 	f := conntest.NewHTTPS(t, nil)
 	in := connInput("Reader", "tok-0123456789-abcdef")
-	in.Target, in.Allow = f.URL, []string{f.URL + "/api/"}
+	in.Target, in.Allow = f.URL, []string{f.URL + "/api/x"}
+	in.Tools = append(in.Tools, conn.ToolInput{Name: "fetch_url", Enabled: true}) // a read tool of an HTTP kind starts off (D-127)
 	c := s.connCreate(in)
 	if tools, err := s.d.ConnReader.ListReadTools(t.Context()); err != nil || len(tools) != 0 {
 		t.Fatalf("an untested connection lists %v, %v", tools, err)

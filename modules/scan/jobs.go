@@ -97,7 +97,11 @@ func (s *Service) RunRescans(ctx context.Context) error {
 	}
 	for _, ev := range evs {
 		if err := s.rescan(ctx, ev); err != nil {
-			return err
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			// One bad event does not hold up the queue (#164 review L2): it is logged and tried again next minute.
+			s.cfg.Log.ErrorContext(ctx, "scan: a KEV rescan event failed", "event", ev.id, "cve", ev.cve, "error", err)
 		}
 	}
 	return nil

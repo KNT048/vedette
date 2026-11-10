@@ -46,10 +46,13 @@ type ActivityLink struct {
 // ActivityEntry is one row of `ai_activity` (INV-17). It holds hashes of what was sent and received, never the
 // content. Hash and PrevHash form the chain (INV-18); see Seal.
 type ActivityEntry struct {
-	ID         string         `json:"id"`
-	TS         string         `json:"ts"` // FormatTS
-	Job        string         `json:"job"`
-	Profile    string         `json:"profile"` // "" when no profile was reached (blocked, capped)
+	ID      string `json:"id"`
+	TS      string `json:"ts"` // FormatTS
+	Job     string `json:"job"`
+	Profile string `json:"profile"` // "" when no profile was reached (blocked, capped)
+	// ProfileID is the id of that profile. It is stored beside the row but is not part of the hash and not shown: it only lets the
+	// meter count the tokens of a profile after a restart even if the profile has been renamed.
+	ProfileID  string         `json:"-"`
 	Model      string         `json:"model"`
 	Trigger    string         `json:"trigger"` // user:<email> or system:<what>
 	Hooks      []string       `json:"hooks"`   // names of hooks that acted

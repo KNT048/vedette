@@ -179,14 +179,14 @@ func (s *Service) StartRun(ctx context.Context, user string, ids []string) (RunV
 
 // runSpec is what a run is started with.
 type runSpec struct {
-	trigger string // manual | schedule | new_kev
-	note    *string
-	user    string
-	ids     []string
-	picked  []string  // the ids picked by a person that needed the pick (D-126 (2)); empty for schedules and KEV rescans
-	first   Current   // the device the run begins with: shown as current from the start (POST-1)
-	onlyCVE string    // "": every CVE of the devices' findings; else only this one (the KEV rescan, INV-9)
-	end     time.Time // zero: none; else the run stops by itself then (the end of the window of a scheduled run)
+	trigger  string // manual | schedule | new_kev
+	note     *string
+	user     string
+	ids      []string
+	picked   []string  // the ids picked by a person that needed the pick (D-126 (2)); empty for schedules and KEV rescans
+	first    Current   // the device the run begins with: shown as current from the start (POST-1)
+	onlyCVEs []string  // nil: every CVE of the devices' findings; else only these (the KEV rescan, INV-9; a backlog in one run, S4b)
+	end      time.Time // zero: none; else the run stops by itself then (the end of the window of a scheduled run)
 	// inTx, when set, runs in the transaction that writes the run row: what the run is for (the schedule slot, the
 	// KEV event) is recorded with it or not at all (#164 review L4).
 	inTx func(ctx context.Context, tx *sql.Tx, runID string) error
@@ -432,7 +432,7 @@ func (s *Service) scanTarget(ctx context.Context, runID, id string, index int, s
 	if careful {
 		rate = max(1, st.Rate/4) // D-126 (2): fragile and unclassified devices at a quarter of the speed
 	}
-	return s.scanDevice(ctx, runID, d, st, rate, sp.onlyCVE)
+	return s.scanDevice(ctx, runID, d, st, rate, sp.onlyCVEs)
 }
 
 func (s *Service) skip(d Device, why string) RunRow {
@@ -467,7 +467,7 @@ type check struct {
 
 // plan chooses what a device is checked for: each CVE of its findings that has a template in the pack (at most
 // nucleiargv.MaxTemplates templates); a CVE without a template is a no_template row and sends nothing (INV-8).
-func (s *Service) plan(ctx context.Context, d Device, onlyCVE string) (checks []check, rows []RunRow, err error) {
+func (s *Service) plan(ctx context.Context, d Device, onlyCVEs []string) (checks []check, rows []RunRow, err error) {
 	if s.cfg.Findings == nil {
 		return nil, nil, nil
 	}
@@ -478,7 +478,7 @@ func (s *Service) plan(ctx context.Context, d Device, onlyCVE string) (checks []
 	n := 0
 	seen := map[string]bool{}
 	for _, f := range fs {
-		if dismissed(f.Status) || (onlyCVE != "" && f.CVE != onlyCVE) {
+		if dismissed(f.Status) || (onlyCVEs != nil && !slices.Contains(onlyCVEs, f.CVE)) {
 			continue
 		}
 		if seen[f.CVE] {
@@ -535,8 +535,8 @@ func endpoints(d Device) []nucleiargv.Target {
 }
 
 // scanDevice sends one job for the device and turns what nuclei printed into result rows and finding updates.
-func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Settings, rate int, onlyCVE string) ([]RunRow, string) {
-	checks, rows, err := s.plan(ctx, d, onlyCVE)
+func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Settings, rate int, onlyCVEs []string) ([]RunRow, string) {
+	checks, rows, err := s.plan(ctx, d, onlyCVEs)
 	if err != nil {
 		return s.failed(ctx, d.ID, err), ""
 	}

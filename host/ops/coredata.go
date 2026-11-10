@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"syscall"
 	"time"
@@ -461,16 +462,56 @@ func asideCandidates(withKey bool) []string {
 	return names
 }
 
-// setAside renames the database (and, with withKey, the key) to name+asideSuffix, so that the files a
-// failed rollback must bring back are never copies: one rename each, inside the root handle. A stale
-// aside from an earlier run is removed first. Core is stopped while this runs.
-func (t *coreTree) setAside(withKey bool) error {
-	for _, name := range asideCandidates(withKey) {
-		if err := t.root.RemoveAll(name + asideSuffix); err != nil {
-			return fmt.Errorf("ops: clear %s: %w", name+asideSuffix, err)
+// isAsideName says whether name is one of the files a rollback may move aside.
+func isAsideName(name string) bool { return slices.Contains(asideCandidates(true), name) }
+
+// removeRegular removes name only when it is a regular file (Lstat, never following), with Root.Remove:
+// never RemoveAll, which would walk, and could be held forever by, a directory that core planted at a
+// name the host uses (the pattern of sweepRestoreTemps). A missing name is fine; anything else is
+// reported and left alone.
+func (t *coreTree) removeRegular(name string) error {
+	st, err := t.root.Lstat(name)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("ops: look at %s: %w", name, err)
+	}
+	if !st.Mode().IsRegular() {
+		return fmt.Errorf("ops: %s is not a regular file; left alone", name)
+	}
+	if err := t.root.Remove(name); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("ops: remove %s: %w", name, err)
+	}
+	return nil
+}
+
+// planAside clears every stale aside file of an earlier run (all candidates, so none can be mistaken
+// for this run's) and returns the names that exist now and will be moved: the database and its sidecars,
+// and the key when withKey. The caller journals them before moveAside, so that a crash is undone for
+// exactly these names and no others. Core is stopped while this runs.
+func (t *coreTree) planAside(withKey bool) ([]string, error) {
+	for _, name := range asideCandidates(true) {
+		if err := t.removeRegular(name + asideSuffix); err != nil {
+			return nil, err
 		}
+	}
+	var names []string
+	for _, name := range asideCandidates(withKey) {
 		if _, err := t.root.Lstat(name); errors.Is(err, os.ErrNotExist) {
 			continue
+		}
+		names = append(names, name)
+	}
+	return names, nil
+}
+
+// moveAside renames each name to name+asideSuffix, so that the files a failed rollback must bring back
+// are never copies: one rename each, inside the root handle.
+func (t *coreTree) moveAside(names []string) error {
+	for _, name := range names {
+		if !isAsideName(name) {
+			return fmt.Errorf("ops: %q is not a file a rollback moves", name)
 		}
 		if err := t.root.Rename(name, name+asideSuffix); err != nil {
 			return fmt.Errorf("ops: move %s aside: %w", name, err)
@@ -480,21 +521,31 @@ func (t *coreTree) setAside(withKey bool) error {
 	return nil
 }
 
-// putAsideBack undoes setAside: every file that has an aside copy is replaced by it, and the sidecars of
-// the database that was installed meanwhile go (a stale WAL must not meet the old database). Without any
-// aside file it does nothing.
-func (t *coreTree) putAsideBack() error {
-	if _, err := t.root.Lstat(coreDBFile + asideSuffix); err == nil {
-		if err := t.removeSidecars(); err != nil {
-			return err
+// putAsideBack undoes moveAside for the journaled names that still have an aside copy: the copy replaces
+// the live file (rename), and the sidecars of a database that was installed meanwhile go (a stale WAL
+// must not meet the old database). Nothing else is touched.
+func (t *coreTree) putAsideBack(names []string) error {
+	if slices.Contains(names, coreDBFile) {
+		if _, err := t.root.Lstat(coreDBFile + asideSuffix); err == nil {
+			for _, sfx := range sidecars {
+				if !slices.Contains(names, coreDBFile+sfx) { // a sidecar that was moved is restored below
+					if err := t.removeRegular(coreDBFile + sfx); err != nil {
+						return err
+					}
+				}
+			}
 		}
 	}
-	for _, name := range asideCandidates(true) {
-		if _, err := t.root.Lstat(name + asideSuffix); errors.Is(err, os.ErrNotExist) {
+	for _, name := range names {
+		if !isAsideName(name) {
+			return fmt.Errorf("ops: %q is not a file a rollback moves", name)
+		}
+		st, err := t.root.Lstat(name + asideSuffix)
+		if errors.Is(err, os.ErrNotExist) {
 			continue
 		}
-		if err := t.root.RemoveAll(name); err != nil {
-			return fmt.Errorf("ops: clear %s: %w", name, err)
+		if err != nil || !st.Mode().IsRegular() {
+			return fmt.Errorf("ops: the aside copy of %s is not usable", name)
 		}
 		if err := t.root.Rename(name+asideSuffix, name); err != nil {
 			return fmt.Errorf("ops: put %s back: %w", name, err)
@@ -504,12 +555,20 @@ func (t *coreTree) putAsideBack() error {
 	return nil
 }
 
-// dropAside removes the aside files once the rollback took effect.
-func (t *coreTree) dropAside() {
-	for _, name := range asideCandidates(true) {
-		_ = t.root.RemoveAll(name + asideSuffix)
+// dropAside removes the aside files of the journaled names once the rollback took effect. Only regular
+// files go; anything else is left (and the caller logs the error).
+func (t *coreTree) dropAside(names []string) error {
+	var first error
+	for _, name := range names {
+		if !isAsideName(name) {
+			continue
+		}
+		if err := t.removeRegular(name + asideSuffix); err != nil && first == nil {
+			first = err
+		}
 	}
 	t.syncDir()
+	return first
 }
 
 // checkCoreAtStart looks at core_data once when the host starts. A bad tree is not fatal (the

@@ -53,6 +53,8 @@ const (
 	// afterReadyRetry and afterReadyGiveUp pace the wait for the write lock.
 	afterReadyRetry  = 2 * time.Second
 	afterReadyGiveUp = 10 * time.Minute
+	// afterReadyMaxBackoff caps the wait between two tries to put core's database back.
+	afterReadyMaxBackoff = 5 * time.Minute
 )
 
 // revertLimitFor bounds putting an old unit back: the write, a reload, and a restart or a stop.
@@ -448,6 +450,9 @@ type transition struct {
 	BackupID   string `json:"backup_id,omitempty"`
 	DBRevert   string `json:"db_revert,omitempty"`
 	Applied    bool   `json:"applied,omitempty"`
+	// Aside is exactly the names a rollback moved (or is about to move) to <name>.rollback in core's data
+	// directory, journaled before the moves; only these are put back or dropped.
+	Aside []string `json:"aside,omitempty"`
 }
 
 const (
@@ -507,11 +512,20 @@ func (o *Ops) finishJournal(t transition) {
 // the verified phase says "applied" first (durable), then the versions are recorded and the database
 // files moved aside are dropped (both idempotent: Start repeats them from a verified journal), and
 // only then is the journal deleted.
-func (o *Ops) finishApplied(t transition) {
+//
+// If the verified journal cannot be written nothing is settled and the error is returned: the switch took
+// effect, but the host cannot promise anything about it, and settling (versions, dropping the files moved
+// aside) without a durable journal could leave versions that a later recovery contradicts. The journal
+// stays as it was (pending), so the next start of the host puts the old release back; the run fails.
+func (o *Ops) finishApplied(t transition) error {
 	t.Phase, t.Applied = phaseVerified, true
-	_ = o.saveJournal(t)
+	if err := o.saveJournal(t); err != nil {
+		o.log.Error("could not record that a change took effect; the versions are not updated", "service", t.Service, "error", err.Error())
+		return err
+	}
 	o.settleVerified(t)
 	o.removeJournal(t.Service)
+	return nil
 }
 
 // settleVerified is what a change that took effect leaves to do after its journal says so.
@@ -522,7 +536,9 @@ func (o *Ops) settleVerified(t transition) {
 	o.completeTransition(t)
 	if t.DBRevert == dbAside {
 		if tree, err := o.openCore(); err == nil {
-			tree.dropAside()
+			if err := tree.dropAside(t.Aside); err != nil {
+				o.log.Warn("could not drop the files a rollback moved aside; they are left", "error", err.Error())
+			}
 			tree.close()
 		}
 	}
@@ -578,7 +594,8 @@ func (o *Ops) loadJournal(service string) (transition, jstate, error) {
 	if t.Service != service || (t.Op != opStart && t.Op != opStop && t.Op != opRollback) || (t.Phase != phasePending && t.Phase != phaseRestored && t.Phase != phaseVerified) ||
 		!digestRE.MatchString(t.Digest) || !shaRE.MatchString(t.PrevSHA) || !shaRE.MatchString(t.NewSHA) || (t.RunID != "" && !runIDRE.MatchString(t.RunID)) ||
 		(t.Version != "" && (len(t.Version) > 64 || !tagVersionRE.MatchString(t.Version))) || (t.FromDigest != "" && !digestRE.MatchString(t.FromDigest)) ||
-		(t.BackupID != "" && !hexIDRE.MatchString(t.BackupID)) || (t.DBRevert != "" && t.DBRevert != dbBackup && t.DBRevert != dbAside) {
+		(t.BackupID != "" && !hexIDRE.MatchString(t.BackupID)) || (t.DBRevert != "" && t.DBRevert != dbBackup && t.DBRevert != dbAside) ||
+		len(t.Aside) > 8 || slices.ContainsFunc(t.Aside, func(n string) bool { return !isAsideName(n) }) {
 		return transition{}, jInvalid, nil
 	}
 	return t, jOK, nil
@@ -925,19 +942,41 @@ func (o *Ops) AfterReady(ctx context.Context, l Locker) {
 		return
 	}
 	give := time.Now().Add(afterReadyGiveUp)
-	for ctx.Err() == nil && time.Now().Before(give) {
+	backoff := afterReadyRetry
+	for ctx.Err() == nil {
 		err := l.WithWriteLock(ctx, o.finishRestores)
-		if err == nil {
-			return
-		}
-		if !errors.Is(err, server.ErrWriteBusy) {
+		switch {
+		case err == nil:
+			if !o.dbRevertPending() {
+				return
+			}
+			// A database that has not been put back is never given up on (D-138 M2): the write gate refuses
+			// every write command meanwhile, so try again, slowly, until it works or the host stops.
+			o.log.ErrorContext(ctx, "core's database has not been put back yet; trying again", "in", backoff.String())
+			if !o.d.Sleep(ctx, backoff) {
+				return
+			}
+			backoff = min(backoff*2, afterReadyMaxBackoff)
+		case !errors.Is(err, server.ErrWriteBusy):
 			o.log.ErrorContext(ctx, "could not take the write lock to restore units", "error", err.Error())
 			return
-		}
-		if !o.d.Sleep(ctx, afterReadyRetry) {
-			return
+		default:
+			if time.Now().After(give) && !o.dbRevertPending() {
+				return
+			}
+			if !o.d.Sleep(ctx, afterReadyRetry) {
+				return
+			}
 		}
 	}
+}
+
+// dbRevertPending says whether a journal of core still has a database to put back (its pre_update backup
+// or the files moved aside): from the moment a change moved the database until it is back, every write
+// command but the one finishing it is refused (WriteGate).
+func (o *Ops) dbRevertPending() bool {
+	t, st, _ := o.loadJournal(api.ServiceCore)
+	return st == jOK && t.DBRevert != "" && t.Phase != phaseVerified
 }
 
 // finishRestores is the body of AfterReady, under the write lock.
@@ -991,5 +1030,12 @@ func (o *Ops) finishRestores(ctx context.Context) {
 		detail["action"] = "reverted"
 		o.note(t.command(), "transition_interrupted", detail)
 	}
-	o.restorePending = nil
+	// What is still waiting for its database stays on the list, so that AfterReady's next try finds it.
+	var left []string
+	for _, svc := range o.restorePending {
+		if t, st, _ := o.loadJournal(svc); st == jOK && t.DBRevert != "" && t.Phase == phaseRestored {
+			left = append(left, svc)
+		}
+	}
+	o.restorePending = left
 }

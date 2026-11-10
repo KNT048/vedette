@@ -17,7 +17,7 @@ import (
 //	image inspect --format json <ref>          ref: the pull reference or localhost/vedette-<service>:<version>
 //	tag <pull reference> localhost/vedette-<service>:<version>
 //	image ls --format json                     what retention reads (slice 3-8a)
-//	rmi sha256:<64 hex>                        what retention removes: a digest, never a name, never -f
+//	rmi <64 hex>                               what retention removes: an image ID, never a name, never -f
 //
 // Every shape is built here from the closed service list, a digest that passed digestRE and a version
 // that passed tagVersionRE; the registry part is the compile-time constant release.RegistryPrefix. Nothing
@@ -82,13 +82,14 @@ func tagArgv(service, digest, version string) ([]string, error) {
 	return []string{"tag", ref, tag}, nil
 }
 
-// rmiArgv removes one image by digest. There is no force flag: an image a container uses is refused by
-// Podman itself, which is the last line of the rule that retention never removes what runs.
-func rmiArgv(digest string) ([]string, error) {
-	if !digestRE.MatchString(digest) {
+// rmiArgv removes one image by its ID (64 lower-case hex, as "image ls" prints it). There is no force flag:
+// an image a container uses is refused by Podman itself, which is the last line of the rule that
+// retention never removes what runs.
+func rmiArgv(id string) ([]string, error) {
+	if !imageIDRE.MatchString(id) {
 		return nil, errPodmanArgs
 	}
-	return []string{"rmi", digest}, nil
+	return []string{"rmi", id}, nil
 }
 
 // listImagesArgv lists every image in Podman's storage as JSON (read only).
@@ -127,7 +128,7 @@ func validatePodman(args []string) error {
 		return nil
 	case slices.Equal(args, listImagesArgv()):
 		return nil
-	case len(args) == 2 && args[0] == "rmi" && digestRE.MatchString(args[1]):
+	case len(args) == 2 && args[0] == "rmi" && imageIDRE.MatchString(args[1]):
 		return nil
 	}
 	return errPodmanArgs

@@ -219,6 +219,10 @@ func (e *updEnv) rollback(t *testing.T, svc string) api.Run {
 	return e.ok(t, api.CmdContainerRollback, api.ContainerRollbackArgs{Service: svc})
 }
 
+// idOf is the image ID the fake podman shows for an image of that digest (the hex of the digest); retention
+// removes by this ID, not by the digest (D-138 M3).
+func idOf(digest string) string { return strings.TrimPrefix(digest, "sha256:") }
+
 func rel1(core, sensor string) relSpec { return relSpec{version: v1, core: core, sensor: sensor} }
 func rel2(core, sensor string) relSpec { return relSpec{version: v2, core: core, sensor: sensor} }
 
@@ -422,13 +426,13 @@ func TestContract_Update_SensorSwitchWritesTheUnitReloadsRestartsAndRecordsTheOl
 			t.Errorf("%s was removed", d)
 		}
 	}
-	if w := e.writes(); !slices.Equal(w, []string{"rmi " + d0}) {
+	if w := e.writes(); !slices.Equal(w, []string{"rmi " + idOf(d0)}) {
 		t.Fatalf("podman wrote %v", w)
 	}
 	if n := e.notes(t, "version_switch"); len(n) != 1 || n[0]["to_digest"] != d2 {
 		t.Fatalf("notes %v", n)
 	}
-	if n := e.notes(t, "image_removed"); len(n) != 1 || n[0]["digest"] != d0 {
+	if n := e.notes(t, "image_removed"); len(n) != 1 || n[0]["image_id"] != idOf(d0) {
 		t.Fatalf("notes %v", n)
 	}
 }
@@ -877,14 +881,54 @@ func TestContract_Update_CoreRollbackOfAnUnsafeReleaseRestoresTheBackupThenSwaps
 	if n := e.notes(t, "backup_restored"); len(n) != 1 || n[0]["backup_id"] != c.backup {
 		t.Fatalf("notes %v", n)
 	}
-	// Rolling forward again (back to 2.0.0) is no downgrade: it restores nothing and keeps the database as it is.
+	// H1: core never rolls forward. The previous version is now the newer one; going up is container.start with
+	// a version and a snapshot (a fresh pre_update backup), not a rollback with a backup of another time.
 	e.m.WriteDB("db: after the rollback")
-	res = result[api.ContainerRollbackResult](t, e.rollback(t, "core"))
-	if res.Digest != d2 || res.RestoredBackupID != nil || e.m.DB() != "db: after the rollback" {
-		t.Fatalf("%+v %q", res, e.m.DB())
+	before := e.unit(t, "core")
+	e.forget()
+	e.refused(t, api.CmdContainerRollback, api.ContainerRollbackArgs{Service: "core"}, 412, api.CodeRollbackIsUpgrade)
+	e.untouched(t, "core roll-forward", "core", before)
+	if e.m.DB() != "db: after the rollback" {
+		t.Fatal("the database was touched")
 	}
-	if e.unit(t, "core") != c.upgraded {
-		t.Fatal("two rollbacks did not return to where it started")
+	// The versions swapped without carrying a backup id onto the record it does not belong to.
+	vs, err := os.ReadFile(filepath.Join(e.m.State, "containers", "versions-core.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	type rec struct {
+		Version  string `json:"version"`
+		BackupID string `json:"backup_id"`
+	}
+	var st struct {
+		Current  rec `json:"current"`
+		Previous rec `json:"previous"`
+	}
+	if err := json.Unmarshal(vs, &st); err != nil || st.Current.Version != v1 || st.Current.BackupID != "" || st.Previous.Version != v2 || st.Previous.BackupID != c.backup {
+		t.Fatalf("%s %v", vs, err)
+	}
+	// Going up with container.start makes a fresh backup, and the next rollback uses that one.
+	res2 := result[api.ContainerStartResult](t, e.ok(t, api.CmdContainerStart, e.startArgs("core", v2)))
+	if res2.BackupID == nil || *res2.BackupID == c.backup {
+		t.Fatalf("%+v", res2)
+	}
+	res = result[api.ContainerRollbackResult](t, e.rollback(t, "core"))
+	if res.RestoredBackupID == nil || *res.RestoredBackupID != *res2.BackupID {
+		t.Fatalf("the third rollback used the backup %v, want the fresh %s", res.RestoredBackupID, *res2.BackupID)
+	}
+}
+
+func TestContract_Update_ASensorRollbackTwiceStillReturnsToTheStart(t *testing.T) {
+	t.Parallel()
+	e := startUpd(t)
+	e.adopt(t, "sensor", rel1(d1, d1))
+	e.pullRel(t, "sensor", rel2(d2, d2))
+	e.ok(t, api.CmdContainerStart, e.startArgs("sensor", v2))
+	up := e.unit(t, "sensor")
+	e.rollback(t, "sensor")
+	e.rollback(t, "sensor")
+	if e.unit(t, "sensor") != up {
+		t.Fatal("not back where it started")
 	}
 }
 
@@ -993,7 +1037,7 @@ func TestContract_Update_RetentionRemovesOnlyWhatNothingKeepsByDigestAndFailureI
 		}
 	}
 	slices.Sort(rmis)
-	if want := []string{d0, d3}; !slices.Equal(rmis, want) {
+	if want := []string{idOf(d0), idOf(d3)}; !slices.Equal(rmis, want) {
 		t.Fatalf("rmi %v, want %v", rmis, want)
 	}
 	if n := e.notes(t, "image_removal_failed"); len(n) != 2 {
@@ -1052,6 +1096,7 @@ type crashSeed struct {
 	version              string
 	fromDigest, toDigest string
 	backupID, dbRevert   string
+	aside                []string
 	applied              bool
 }
 
@@ -1075,6 +1120,9 @@ func (e *updEnv) seedCrash(t *testing.T, s crashSeed) {
 	}
 	if s.applied {
 		j["applied"] = true
+	}
+	if len(s.aside) > 0 {
+		j["aside"] = s.aside
 	}
 	b, _ := json.Marshal(j)
 	if err := os.WriteFile(e.m.TransitionPath(s.svc), b, 0o600); err != nil {
@@ -1220,7 +1268,7 @@ func TestContract_Update_AHostThatDiedInTheMiddleOfACoreRollbackBringsTheFilesMo
 		t.Fatal(err)
 	}
 	e.m.WriteDB("db: first") // the restored backup
-	e.seedCrash(t, crashSeed{op: "rollback", svc: "core", phase: "pending", oldText: oldText, newText: newText, onDisk: newText, version: v1, fromDigest: d2, toDigest: d1, backupID: c.backup, dbRevert: "aside"})
+	e.seedCrash(t, crashSeed{op: "rollback", svc: "core", phase: "pending", oldText: oldText, newText: newText, onDisk: newText, version: v1, fromDigest: d2, toDigest: d1, backupID: c.backup, dbRevert: "aside", aside: []string{"vedette.db"}})
 	e.reboot(t)
 	if e.m.DB() != "db: migrated, plus data written since the update" {
 		t.Fatalf("db %q", e.m.DB())
@@ -1243,7 +1291,7 @@ func TestContract_Update_AVerifiedRollbackJournalDropsTheAsideAndSwapsTheVersion
 		t.Fatal(err)
 	}
 	e.m.WriteDB("db: first")
-	e.seedCrash(t, crashSeed{op: "rollback", svc: "core", phase: "verified", oldText: oldText, newText: newText, onDisk: newText, version: v1, fromDigest: d2, toDigest: d1, backupID: c.backup, dbRevert: "aside", applied: true})
+	e.seedCrash(t, crashSeed{op: "rollback", svc: "core", phase: "verified", oldText: oldText, newText: newText, onDisk: newText, version: v1, fromDigest: d2, toDigest: d1, backupID: c.backup, dbRevert: "aside", aside: []string{"vedette.db"}, applied: true})
 	e.reboot(t)
 	if e.m.DB() != "db: first" || len(asides(t, e)) != 0 || e.journal("core") {
 		t.Fatalf("db %q aside %v", e.m.DB(), asides(t, e))

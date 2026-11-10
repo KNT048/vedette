@@ -11,15 +11,16 @@ import (
 
 func TestRmiArgvIsADigestAndNothingElse(t *testing.T) {
 	t.Parallel()
-	got, err := rmiArgv(dg1)
-	if err != nil || !slices.Equal(got, []string{"rmi", dg1}) {
+	id1 := strings.TrimPrefix(dg1, "sha256:")
+	got, err := rmiArgv(id1)
+	if err != nil || !slices.Equal(got, []string{"rmi", id1}) {
 		t.Fatalf("%q %v", got, err)
 	}
 	if validatePodman(got) != nil {
 		t.Fatal("the validator refuses what the builder makes")
 	}
-	for _, bad := range []string{"", "sha256:abc", "ghcr.io/knt048/vedette-core@" + dg1, "localhost/vedette-core:1.0.0", "-f", "--all", dg1 + "\n", dg1 + " ", " " + dg1,
-		strings.ToUpper(dg1), "sha256:" + strings.Repeat("g", 64), "latest"} {
+	for _, bad := range []string{"", "abc", dg1, "ghcr.io/knt048/vedette-core@" + dg1, "localhost/vedette-core:1.0.0", "-f", "--all", id1 + "\n", id1 + " ", " " + id1,
+		strings.Repeat("A", 64), strings.Repeat("g", 64), "latest", id1 + "0", id1[1:]} {
 		if a, err := rmiArgv(bad); err == nil {
 			t.Errorf("rmiArgv(%q) = %q", bad, a)
 		}
@@ -28,12 +29,14 @@ func TestRmiArgvIsADigestAndNothingElse(t *testing.T) {
 
 // FuzzRmiArgv: whatever text is given, the argv is either refused or exactly ["rmi", <a digest>].
 func FuzzRmiArgv(f *testing.F) {
+	id1 := strings.TrimPrefix(dg1, "sha256:")
+	f.Add(id1, "", "")
+	f.Add("-f", id1, "")
+	f.Add(id1, "-f", "x")
 	f.Add(dg1, "", "")
-	f.Add("-f", dg1, "")
-	f.Add(dg1, "-f", "x")
 	f.Fuzz(func(t *testing.T, a, b, c string) {
 		if got, err := rmiArgv(a); err == nil {
-			if len(got) != 2 || got[0] != "rmi" || got[1] != a || !digestRE.MatchString(a) || validatePodman(got) != nil {
+			if len(got) != 2 || got[0] != "rmi" || got[1] != a || !imageIDRE.MatchString(a) || validatePodman(got) != nil {
 				t.Fatalf("rmiArgv(%q) = %q", a, got)
 			}
 		}
@@ -42,7 +45,7 @@ func FuzzRmiArgv(f *testing.F) {
 			if validatePodman(args) != nil {
 				continue
 			}
-			okRmi := len(args) == 2 && args[0] == "rmi" && digestRE.MatchString(args[1])
+			okRmi := len(args) == 2 && args[0] == "rmi" && imageIDRE.MatchString(args[1])
 			okLs := slices.Equal(args, []string{"image", "ls", "--format", "json"})
 			okOld := len(args) == 3 || len(args) == 5
 			if !okRmi && !okLs && !okOld {
@@ -65,7 +68,7 @@ func listEntry(digest string, names []string, repoDigests []string, containers i
 		}
 		return "[" + strings.Join(o, ",") + "]"
 	}
-	return fmt.Sprintf(`{"Id":%q,"Digest":%q,"Names":%s,"RepoDigests":%s,"Containers":%d}`, strings.Repeat("a", 64), digest, q(names), q(repoDigests), containers)
+	return fmt.Sprintf(`{"Id":%q,"Digest":%q,"Names":%s,"RepoDigests":%s,"Containers":%d}`, strings.TrimPrefix(digest, "sha256:"), digest, q(names), q(repoDigests), containers)
 }
 
 func TestParseImageListKeepsOnlyImagesThatAreOnlyThisServices(t *testing.T) {
@@ -81,7 +84,11 @@ func TestParseImageListKeepsOnlyImagesThatAreOnlyThisServices(t *testing.T) {
 	prefix := listEntry("sha256:"+strings.Repeat("7", 64), []string{"localhost/vedette-core-evil:1.0.0"}, nil, 0)
 	registryOther := listEntry("sha256:"+strings.Repeat("8", 64), []string{"ghcr.io/evil/vedette-core:1.0.0"}, nil, 0)
 	got, err := ParseImageList(listJSON(mine, leftover, foreign, mixed, other, nameless, badDigest, prefix, registryOther), api.ServiceCore)
-	if err != nil || !slices.Equal(got, []string{dg1, dg2}) {
+	if err != nil || !slices.Equal(got, []string{strings.TrimPrefix(dg1, "sha256:"), strings.TrimPrefix(dg2, "sha256:")}) { // the IDs rmi is given
+		t.Fatalf("%q %v", got, err)
+	}
+	// An entry whose Id is not 64 hex digits is left alone.
+	if got, err := ParseImageList(listJSON(`{"Id":"abc","Digest":"`+dg1+`","Names":["localhost/vedette-core:1.0.0"]}`), api.ServiceCore); err != nil || len(got) != 0 {
 		t.Fatalf("%q %v", got, err)
 	}
 	imgs, _ := parseImageList(listJSON(listEntry(dg1, []string{"localhost/vedette-core:1.0.0"}, []string{core + "@" + dg2}, 1)), api.ServiceCore)
@@ -112,8 +119,8 @@ func FuzzParseImageList(f *testing.F) {
 			return
 		}
 		for _, d := range got {
-			if !digestRE.MatchString(d) {
-				t.Fatalf("digest %q", d)
+			if !imageIDRE.MatchString(d) {
+				t.Fatalf("image id %q", d)
 			}
 		}
 		if len(got) > maxListedImages {

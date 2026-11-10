@@ -26,7 +26,7 @@ func TestPodmanGrammarOfThePullCommand(t *testing.T) {
 			{"image", "inspect", "--format", "json", ref},
 			{"image", "inspect", "--format", "json", tag},
 			{"tag", ref, tag},
-			{"rmi", dg1},
+			{"rmi", strings.Repeat("1", 64)},
 			{"image", "ls", "--format", "json"},
 		} {
 			if err := validatePodman(a); err != nil {
@@ -73,12 +73,13 @@ func TestPodmanGrammarOfThePullCommand(t *testing.T) {
 		"rmi force":               {"rmi", "-f", good},
 		"rmi by name":             {"rmi", good},
 		"rmi by tag":              {"rmi", tag},
-		"rmi two":                 {"rmi", dg1, dg2},
-		"rmi force digest":        {"rmi", "-f", dg1},
+		"rmi by digest":           {"rmi", dg1},
+		"rmi two":                 {"rmi", strings.Repeat("1", 64), strings.Repeat("2", 64)},
+		"rmi force id":            {"rmi", "-f", strings.Repeat("1", 64)},
 		"rmi all":                 {"rmi", "-a"},
 		"rmi no digest":           {"rmi"},
-		"rmi short digest":        {"rmi", "sha256:abc"},
-		"rmi newline":             {"rmi", dg1 + "\n"},
+		"rmi short id":            {"rmi", "abc"},
+		"rmi newline":             {"rmi", strings.Repeat("1", 64) + "\n"},
 		"image ls other format":   {"image", "ls", "--format", "{{.ID}}"},
 		"image ls all":            {"image", "ls", "-a", "--format", "json"},
 		"image ls filter":         {"image", "ls", "--format", "json", "--filter", "dangling=true"},
@@ -192,7 +193,7 @@ func FuzzValidatePodmanPull(f *testing.F) {
 				t.Fatalf("accepted %q", args)
 			}
 		case "rmi":
-			if len(args) != 2 || !digestRE.MatchString(args[1]) {
+			if len(args) != 2 || !imageIDRE.MatchString(args[1]) {
 				t.Fatalf("accepted %q", args)
 			}
 		case "tag":

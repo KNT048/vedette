@@ -97,6 +97,7 @@ case "$1" in
     [ "$svc" = core ] && [ -e "$REC/mark.migrate-db" ] && [ "$(cat "$REC/mark.migrate-db")" = "$ud" ] && printf 'db: migrated' > "$CORE/vedette.db"
     cp "$ROOT/etc/containers/systemd/vedette-$svc.container" "$S/$svc.unit" 2>/dev/null
     : > "$S/$svc.running"; : > "$S/$svc.active"
+    [ -e "$REC/mark.lock-containers" ] && chmod 500 "$STATE/containers"
     ;;
   stop)
     rm -f "$S/$svc.running" "$S/$svc.active"
@@ -254,7 +255,7 @@ case "$1" in
     echo "$id"
     ;;
   rmi)
-    d="$2"
+    d="sha256:$2"
     [ -e "$REC/mark.rmi-fails" ] && { echo "Error: rmi failed" >&2; exit 125; }
     [ -e "$S/used.$d" ] && { echo "Error: image is in use by a container" >&2; exit 2; }
     [ -e "$S/have.$d" ] || { echo "Error: no such image $d" >&2; exit 1; }
@@ -273,7 +274,7 @@ case "$1" in
         d="${f##*/have.}"; svc=$(cat "$f")
         [ $first = 1 ] || printf ','
         first=0
-        printf '{"Id":"%s","Digest":"%s","Names":[' "$id" "$d"
+        printf '{"Id":"%s","Digest":"%s","Names":[' "${d#sha256:}" "$d"
         n=1
         while read -r ref dg; do
           [ "$dg" = "$d" ] || continue

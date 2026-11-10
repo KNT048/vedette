@@ -68,6 +68,8 @@ const (
 	CodePreviousRevoked       = "previous_revoked"        // the previous version, its image digest or its signing key is revoked
 	CodeRollbackNotAllowed    = "rollback_not_allowed"    // the previous version is below the running release's rollback.min_version
 	CodeRollbackBackupMissing = "rollback_backup_missing" // rollback.safe=false and the pre_update backup of the transition is gone
+	CodeRollbackIsUpgrade     = "rollback_is_upgrade"     // core: the previous version is higher than the running one: use container.start with a version and a snapshot
+	CodeCurrentVersionUnknown = "current_version_unknown" // the running version is not recorded (bootstrap 3-8b writes it), so a switch cannot be judged
 	// CodeRollbackRevertFailed ends a rollback as failed: it did not work and putting the running release back failed too.
 	CodeRollbackRevertFailed = "rollback_revert_failed"
 	// CodeEffectNotVerified (api/ops.go) ends a pull whose podman image inspect did not show the digest.

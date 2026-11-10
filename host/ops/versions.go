@@ -103,7 +103,12 @@ func (o *Ops) completeTransition(t transition) {
 			return
 		}
 		// Swap: the version just left becomes previous, so a second rollback goes back where it started.
-		if err := o.saveVersions(versionState{Service: t.Service, Current: s.Previous, Previous: s.Current}); err != nil {
+		// The backup id of the record that becomes current was made when the service moved into that release, at
+		// another point in time than the data it runs on now: it is not carried over (D-138 H1). The one that
+		// becomes previous keeps its own.
+		now := *s.Previous
+		now.BackupID = ""
+		if err := o.saveVersions(versionState{Service: t.Service, Current: &now, Previous: s.Current}); err != nil {
 			o.log.Error("could not record the rollback", "service", t.Service, "error", err.Error())
 		}
 		o.note(api.CmdContainerRollback, "versions_recorded", map[string]any{"service": t.Service, "version": t.Version, "digest": t.Digest})

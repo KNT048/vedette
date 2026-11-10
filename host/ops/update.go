@@ -27,14 +27,18 @@ import (
 // cosign), and nothing is believed because the host wrote it earlier.
 
 const (
-	// backupLimit bounds the pre_update backup inside a start (backup.create has 15 minutes on its own).
-	backupLimit = 10 * time.Minute
+	// backupLimit bounds the pre_update backup inside a start: at least backup.create's own 15 minutes (D-138 L2).
+	backupLimit = 15 * time.Minute
 	// dbWork covers the file work on core's database in one step (unpacking a backup, moving files).
 	dbWork = 3 * time.Minute
 
 	// startTimeout and rollbackTimeout are the Spec.Timeout of the two commands: one number each
 	// (D-138); TestTimeLimitsAreConsistent checks they cover the worst run.
-	startTimeout    = 40 * time.Minute
+	//
+	// ponytail: unpackBackup, extract and swap do not watch the run's context, so a run's timeout cuts
+	// the commands around them but not a copy in progress; their time is bounded by dbWork (3 min) in
+	// the sums below, and by the size caps of backups. Upgrade path: pass ctx to extract and swap.
+	startTimeout    = 45 * time.Minute
 	rollbackTimeout = 30 * time.Minute
 )
 
@@ -164,6 +168,12 @@ func (o *Ops) planStartVersion(ctx context.Context, a api.ContainerStartArgs) (*
 	if cur := o.loadVersions(a.Service).Current; cur != nil && cur.Digest == digest {
 		running = cur.Version
 	}
+	if running == "" {
+		// Fail closed (D-138 M4): without the running version the downgrade and min_upgrade_from rules have
+		// nothing to compare, so a replayed old release would pass. The bootstrap (3-8b) writes the first record;
+		// a start with the version of the digest the unit already pins records it (no switch).
+		return nil, refuse412(api.CodeCurrentVersionUnknown, "The host does not know which version is running, so it cannot judge this change. Start the version that is running first (container.start with its version), or reinstall.")
+	}
 	switch err := release.CheckUpgrade(man, running); {
 	case errors.Is(err, release.ErrDowngrade):
 		return nil, refuse412(api.CodeDowngradeNotAllowed, "That version is lower than the one running. Going back is container.rollback.")
@@ -217,7 +227,7 @@ func (o *Ops) revertDatabase(ctx context.Context, t transition) error {
 			return err
 		}
 		defer tree.close()
-		return tree.putAsideBack()
+		return tree.putAsideBack(t.Aside)
 	case dbBackup:
 		rec, ok := o.lookupBackup(t.BackupID)
 		if !ok {
@@ -283,7 +293,9 @@ func (o *Ops) runSwitch(ctx context.Context, rc *server.RunContext, a api.Contai
 	rcLog(rc, "unit written with the digest of "+ver+", reloading systemd and restarting "+unitOf(svc))
 	ok := o.sctl(ctx, reloadLimit, "daemon-reload") && o.sctl(ctx, restartLimitFor(svc), "restart", unitOf(svc))
 	if ok && o.waitHealthy(ctx, rc, svc, rec.Digest, o.d.HealthWait) {
-		o.finishApplied(tr)
+		if err := o.finishApplied(tr); err != nil {
+			return nil, &server.Failure{Code: api.CodeUnitUnwritable, Message: "The new version runs, but the host could not record it, so it will put the previous unit back at its next start.", Result: res}
+		}
 		o.retainImages(ctx, rc, api.CmdContainerStart, svc)
 		return res, nil
 	}
@@ -359,14 +371,20 @@ func (o *Ops) planRollback(ctx context.Context, service string) (*rollbackPlan, 
 	case err != nil:
 		return nil, refusePull(err, "manifest")
 	}
+	// core never rolls forward: the backup a roll-forward would need is the one made when the running release
+	// was installed, which belongs to another point in time (D-138 H1). Moving core up is container.start with a
+	// version and a snapshot, which makes a fresh pre_update backup. Other services keep roll-forward (no data).
+	if c, err := release.CompareVersions(p.prev.Version, p.cur.Version); service == api.ServiceCore && (err != nil || c >= 0) {
+		return nil, refuse412(api.CodeRollbackIsUpgrade, "The previous version of core is newer than the one running. Use container.start with that version and a snapshot (it makes a fresh backup first).")
+	}
 	if floor := curMan.Rollback.MinVersion; floor != "" {
 		if c, err := release.CompareVersions(p.prev.Version, floor); err != nil || c < 0 {
 			return nil, refuse412(api.CodeRollbackNotAllowed, "The previous version is below the oldest this release can be rolled back to (rollback.min_version).")
 		}
 	}
-	// Going down (not forward again to the version just left) from a core release that is not safe to roll
-	// back restores the pre_update backup made when the service moved into the running release.
-	if c, err := release.CompareVersions(p.prev.Version, p.cur.Version); err == nil && c < 0 && service == api.ServiceCore && !curMan.Rollback.Safe {
+	// Going down from a core release that is not safe to roll back restores the pre_update backup made when
+	// the service moved into the running release.
+	if service == api.ServiceCore && !curMan.Rollback.Safe {
 		p.restoreDB = true
 		rec, ok := o.lookupBackup(p.cur.BackupID)
 		if p.cur.BackupID == "" || !ok {
@@ -438,9 +456,11 @@ func (o *Ops) runContainerRollback(ctx context.Context, rc *server.RunContext, a
 			return nil, fail(api.CodeUnitFailed, "Core could not be stopped; nothing was changed.")
 		}
 	}
-	err = o.rollbackSteps(ctx, rc, p, want, ex)
+	err = o.rollbackSteps(ctx, rc, p, &tr, want, ex)
 	if err == nil {
-		o.finishApplied(tr)
+		if err := o.finishApplied(tr); err != nil {
+			return nil, &server.Failure{Code: api.CodeUnitUnwritable, Message: "The rollback worked, but the host could not record it, so it will put the running release back at its next start.", Result: res}
+		}
 		o.retainImages(ctx, rc, api.CmdContainerRollback, svc)
 		return res, nil
 	}
@@ -468,15 +488,24 @@ func (o *Ops) runContainerRollback(ctx context.Context, rc *server.RunContext, a
 
 // rollbackSteps does the swap of a rollback after core (when it has to) is stopped: move core's database
 // aside and restore the backup, then the unit with the previous digest, reload, restart and look for health.
-func (o *Ops) rollbackSteps(ctx context.Context, rc *server.RunContext, p *rollbackPlan, want []byte, ex extracted) error {
+func (o *Ops) rollbackSteps(ctx context.Context, rc *server.RunContext, p *rollbackPlan, tr *transition, want []byte, ex extracted) error {
 	if p.restoreDB {
 		tree, err := o.openCore()
 		if err != nil {
 			return err
 		}
-		err = tree.setAside(ex.HasKey)
-		tree.close()
+		defer tree.close()
+		// Clear the stale asides, journal exactly the names about to move, and only then move them (D-138 M1): a
+		// crash is undone for these names and no others.
+		names, err := tree.planAside(ex.HasKey)
 		if err != nil {
+			return err
+		}
+		tr.Aside = names
+		if err := o.saveJournal(*tr); err != nil {
+			return err
+		}
+		if err := tree.moveAside(names); err != nil {
 			return err
 		}
 		rcLog(rc, "restoring the backup into core's data")

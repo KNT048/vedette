@@ -42,7 +42,7 @@ Nguồn hành vi: `web/src/features/scan/{contract,mocks}.ts`. Phần `/scans/cr
 | `PUT /scans/config` | admin |
 
 ## Tables owned (`scan_`)
-`scan_config`, `scan_run`, `scan_result`, `scan_probe`, `scan_event`.
+`scan_setting` (một dòng, cột có CHECK như `exp_setting`), `scan_run` (kết quả từng thiết bị là JSON trong dòng, DATA_MODEL phụ lục A), `scan_probe`, `scan_event`.
 
 ## Events
 - **Phát**: `scan.run.started|finished|stopped {run_id, status, matched}`, `scan.finding.confirmed {asset_id, cve, template, evidence}`, `scan.rescan.triggered {cve, devices}`.

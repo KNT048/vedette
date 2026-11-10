@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"net/netip"
 	"path/filepath"
 	"slices"
@@ -400,5 +402,89 @@ func TestHostNetSourceCapsWhatCoreAccepts(t *testing.T) {
 	buf.Reset()
 	if got, _ := hostNetSource(lanBox(), slog.New(slog.NewTextHandler(&buf, nil)))(t.Context()); len(got) == 0 || buf.Len() != 0 {
 		t.Fatalf("a normal answer warned or was empty: %q", buf.String())
+	}
+}
+
+// After a change of the box's addresses (Box network: apply, confirm, revert) the next Get asks the host again at
+// once, and an answer that was already on its way when the change was made does not stand for the new state.
+func TestHostNetCacheInvalidateAsksAgainAndDiscardsAnAnswerInFlight(t *testing.T) {
+	t.Parallel()
+	f := lanBox()
+	now := time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC)
+	c := newHostNetCache(hostNetSource(f, nil), func() time.Time { return now })
+	c.Get(t.Context())
+	c.Get(t.Context())
+	if f.calls != 1 {
+		t.Fatalf("a fresh answer is served from memory: %d calls", f.calls)
+	}
+	c.Invalidate()
+	f.st.Interfaces[0].Addresses = []string{"192.168.10.60/24"}
+	if got := c.Get(t.Context()); !contains(got, "192.168.10.60") || contains(got, "192.168.10.250") || f.calls != 2 {
+		t.Fatalf("after Invalidate: %v, %d calls", got, f.calls)
+	}
+	// Invalidate while a fetch is in flight: that answer is used by its caller but never marked fresh.
+	gate := make(chan struct{})
+	started := make(chan struct{})
+	slow := &gatedNet{fakeNet: lanBox(), gate: gate, started: started}
+	d := newHostNetCache(hostNetSource(slow, nil), func() time.Time { return now })
+	done := make(chan []netip.Prefix)
+	go func() { done <- d.Get(t.Context()) }()
+	<-started
+	d.Invalidate()
+	close(gate)
+	<-done
+	d.Get(t.Context())
+	if slow.calls != 2 {
+		t.Fatalf("the answer that was in flight during Invalidate must not stand: %d calls", slow.calls)
+	}
+	var nilCache *hostNetCache
+	nilCache.Invalidate() // safe without a host
+}
+
+// gatedNet answers state/net only when the gate opens.
+type gatedNet struct {
+	*fakeNet
+	gate    chan struct{}
+	started chan struct{}
+	once    sync.Once
+}
+
+func (g *gatedNet) StateNet(ctx context.Context) (api.NetState, error) {
+	g.once.Do(func() { close(g.started) })
+	<-g.gate
+	return g.fakeNet.StateNet(ctx)
+}
+
+// H1: after a management change the admin opens the box at the NEW address. The Host allowlist is fixed at
+// start, so an IP literal that is one of the box's own current addresses (from the host, pending change
+// included) is accepted too; any other IP and any name off the list stay 421.
+func TestHostAllowlistAcceptsTheBoxsOwnAddressesAfterAChange(t *testing.T) {
+	t.Parallel()
+	f := lanBox()
+	cache := newHostNetCache(hostNetSource(f, nil), time.Now)
+	h := topHandler(slog.New(slog.DiscardHandler), okHandler(), []string{"box.corp.example"}, false, boxOwnAddress(cache))
+	status := func(host string) int {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/setup", nil)
+		req.Host = host
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	if got := status("192.168.10.60:8443"); got != http.StatusMisdirectedRequest {
+		t.Fatalf("an address the box does not have yet = %d", got)
+	}
+	// net.apply: the new address is live while the change waits for the confirmation.
+	f.st.Interfaces[0].Addresses = []string{"192.168.10.60/24"}
+	cache.Invalidate()
+	for host, want := range map[string]int{
+		"192.168.10.60:8443": 204, "192.168.10.60": 204, "box.corp.example": 204,
+		"192.168.10.99:8443": 421, "192.168.10.99": 421, "evil.example": 421, "other.corp.example": 421, "192.168.10.60.evil.example": 421,
+	} {
+		if got := status(host); got != want {
+			t.Errorf("Host %q = %d, want %d", host, got, want)
+		}
+	}
+	if boxOwnAddress(nil)(netip.MustParseAddr("192.168.10.60")) {
+		t.Error("an install without a host knows no addresses")
 	}
 }

@@ -175,7 +175,7 @@ export const saveNotifyChannel = (type: string, fields: Record<string, string>, 
 export const usePurge = () => useMutation({ mutationFn: (confirm: string) => api.post<{ ok: true; removed: Record<string, number> }>('/core/data/purge', { confirm }) })
 
 // ---- mạng của hộp (D-56) ----
-export const useNetwork = () => useQuery({ queryKey: ['core', 'network'], queryFn: () => api.get<NetworkState>('/core/network'), refetchInterval: (q) => (q.state.data?.pending ? 2000 : false) })
+export const useNetwork = () => useQuery({ queryKey: ['core', 'network'], queryFn: () => api.get<NetworkState>('/core/network'), refetchInterval: (q) => (q.state.data?.pending ? 10000 : false) })
 /** Polled while the page is open: the point of the card is to watch traffic arrive. */
 export const useSpanStatus = () => useQuery({ queryKey: ['core', 'network', 'span-status'], queryFn: () => api.get<SpanStatus>('/core/network/span/status'), refetchInterval: 5000 })
 export function useNetworkActions() {

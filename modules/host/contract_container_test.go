@@ -1399,7 +1399,11 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			if (svc == api.ServiceCore) != slices.Contains(u["Volume"], "/run/vedette:/run/vedette") {
 				t.Errorf("%s: the host socket directory is for core only", svc)
 			}
-			if !slices.Equal(u["Tmpfs"], []string{"/tmp"}) {
+			wantTmpfs := "/tmp"
+			if svc == api.ServiceCore {
+				wantTmpfs = "/tmp:size=64m" // D-150: a bounded tmpfs, so a runaway temp file cannot eat the 2 GiB container memory
+			}
+			if !slices.Equal(u["Tmpfs"], []string{wantTmpfs}) {
 				t.Errorf("%s: Tmpfs=%v", svc, u["Tmpfs"])
 			}
 			if w.exec == "" && len(u["Exec"]) != 0 || w.exec != "" && !slices.Equal(u["Exec"], []string{w.exec}) {
@@ -1431,11 +1435,15 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			// No key outside the ones the templates use: a new key is a decision (add it here and to the table).
 			known := []string{"Description", "After", "Wants", "Requires", "ContainerName", "Image", "Network", "PublishPort", "Volume", "ReadOnly", "Tmpfs",
 				"NoNewPrivileges", "DropCapability", "AddCapability", "User", "UserNS", "LogDriver", "PodmanArgs", "HealthCmd", "HealthInterval",
-				"HealthStartPeriod", "HealthRetries", "Exec", "Restart", "TimeoutStartSec", "WantedBy", "Pull", "RunInit"}
+				"HealthStartPeriod", "HealthRetries", "Exec", "Restart", "TimeoutStartSec", "WantedBy", "Pull", "RunInit", "Environment"}
 			for k := range u {
 				if !slices.Contains(known, k) {
 					t.Errorf("%s has the key %s", svc, k)
 				}
+			}
+			// D-150: the only environment variable is core's Go memory limit.
+			if want := []string(nil); svc != api.ServiceCore && !slices.Equal(u["Environment"], want) || svc == api.ServiceCore && !slices.Equal(u["Environment"], []string{"GOMEMLIMIT=1800MiB"}) {
+				t.Errorf("%s: Environment=%v (only core has GOMEMLIMIT=1800MiB, D-150)", svc, u["Environment"])
 			}
 			// D-146: only scan runs under an init (nmap can leave children that detach from the process group the worker kills).
 			if _, has := u["RunInit"]; has != (svc == api.ServiceScan) {

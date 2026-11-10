@@ -3,6 +3,13 @@ package auth
 import (
 	"fmt"
 	"math"
+	"os"
+	"os/exec" //nolint:depguard // the test starts its own binary again with an env var; no external program (SYS-1 is about the product)
+	"path/filepath"
+	"regexp"
+	"runtime"
+	"runtime/debug"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -155,4 +162,44 @@ func TestMaxHashingFor(t *testing.T) {
 			t.Errorf("%s: %d, want %d", tc.name, got, tc.want)
 		}
 	}
+}
+
+// The core Quadlet unit sets Environment=GOMEMLIMIT=<n>MiB (D-150). The test binary is run again with exactly that variable, so the Go runtime reads
+// it the way it does in the container; the helper reports the gate defaultMaxHashing computes: min(GOMAXPROCS/2, n MiB/4/64 MiB), at least 1.
+// n comes from the golden core unit (the rendered template), not from a second literal here.
+func TestDefaultMaxHashingUnderTheCoreUnitMemoryLimit(t *testing.T) {
+	golden, err := os.ReadFile(filepath.Join("..", "..", "host", "ops", "testdata", "units", "core.container"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := regexp.MustCompile(`(?m)^Environment=GOMEMLIMIT=(\d+)MiB$`).FindSubmatch(golden)
+	if m == nil {
+		t.Fatal("the core unit has no Environment=GOMEMLIMIT=<n>MiB")
+	}
+	mib, _ := strconv.Atoi(string(m[1]))
+	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestGateHelperProcess$") //nolint:gosec // re-runs this test binary
+	cmd.Env = append(os.Environ(), "VEDETTE_GATE_HELPER=1", "GOMEMLIMIT="+string(m[1])+"MiB")
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("helper: %v\n%s", err, out)
+	}
+	var procs, limit, gate int64
+	if _, err := fmt.Sscanf(string(regexp.MustCompile(`(?m)^gate .*$`).Find(out)), "gate procs=%d limit=%d gate=%d", &procs, &limit, &gate); err != nil {
+		t.Fatalf("helper output %q: %v", out, err)
+	}
+	if limit != int64(mib)<<20 {
+		t.Errorf("the runtime memory limit is %d with GOMEMLIMIT=%dMiB: the env var did not reach it", limit, mib)
+	}
+	memSide := int64(mib) / 4 / 64
+	if want := max(1, min(procs/2, memSide)); gate != want || gate < 1 || gate > memSide {
+		t.Errorf("gate = %d with GOMAXPROCS=%d and GOMEMLIMIT=%dMiB, want %d (1..%d)", gate, procs, mib, want, memSide)
+	}
+}
+
+// TestGateHelperProcess is the child of the test above; it does nothing in a normal run.
+func TestGateHelperProcess(t *testing.T) {
+	if os.Getenv("VEDETTE_GATE_HELPER") != "1" {
+		t.Skip("helper of TestDefaultMaxHashingUnderTheCoreUnitMemoryLimit")
+	}
+	fmt.Printf("gate procs=%d limit=%d gate=%d\n", runtime.GOMAXPROCS(0), debug.SetMemoryLimit(-1), defaultMaxHashing(DefaultParams))
 }

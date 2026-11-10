@@ -13,13 +13,7 @@ const MaxLine = 200
 // CleanLine makes text fit in a message or a log line: one line, no control characters, at most MaxLine characters. Anything that
 // came from a device or a server passes through it before it leaves this package, and every secret in redact is replaced first.
 func CleanLine(s string, redact ...string) string {
-	for _, r := range redact {
-		if len(r) >= 4 {
-			s = strings.ReplaceAll(s, r, "***")
-			// A device that echoes the Authorization header shows a token in clear but a Basic credential in base64.
-			s = strings.ReplaceAll(s, base64.StdEncoding.EncodeToString([]byte(r)), "***")
-		}
-	}
+	s = Redact(s, redact...)
 	var b strings.Builder
 	space := false
 	for _, r := range s {
@@ -41,4 +35,38 @@ func CleanLine(s string, redact ...string) string {
 		out = string([]rune(out)[:MaxLine-1]) + "…"
 	}
 	return out
+}
+
+// Redact replaces every secret in redact (of 4 characters or more) with "***", in clear and in base64.
+func Redact(s string, redact ...string) string {
+	for _, r := range redact {
+		if len(r) >= 4 {
+			s = strings.ReplaceAll(s, r, "***")
+			// A device that echoes the Authorization header shows a token in clear but a Basic credential in base64.
+			s = strings.ReplaceAll(s, base64.StdEncoding.EncodeToString([]byte(r)), "***")
+		}
+	}
+	return s
+}
+
+// CleanText is CleanLine for several lines: newline and tab stay, every other control character, bidi override and zero-width
+// character goes, a secret in redact is replaced first, and the result is cut to at most limit bytes on a character boundary. The
+// second result says it was cut. The secrets are removed from the whole text before the cut, so half of one never survives it.
+func CleanText(s string, limit int, redact ...string) (string, bool) {
+	s = Redact(s, redact...)
+	var b strings.Builder
+	cut := false
+	for _, r := range s {
+		switch {
+		case r == '\n' || r == '\t':
+		case r == '\r' || unicode.IsControl(r) || unicode.Is(unicode.Cf, r) || r == utf8.RuneError:
+			continue
+		}
+		if b.Len()+utf8.RuneLen(r) > limit {
+			cut = true
+			break
+		}
+		b.WriteRune(r)
+	}
+	return b.String(), cut
 }

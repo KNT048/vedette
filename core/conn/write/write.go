@@ -20,7 +20,6 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 	"unicode"
 
@@ -110,9 +109,7 @@ type Config struct {
 
 // Writer sends the steps.
 type Writer struct {
-	c     *conn.Service
-	mu    sync.Mutex
-	locks map[string]chan struct{} // one call at a time per connection
+	c *conn.Service
 }
 
 // New returns a Writer.
@@ -120,7 +117,7 @@ func New(c Config) (*Writer, error) {
 	if c.Conns == nil {
 		return nil, errors.New("write: Config needs Conns")
 	}
-	return &Writer{c: c.Conns, locks: map[string]chan struct{}{}}, nil
+	return &Writer{c: c.Conns}, nil
 }
 
 var (
@@ -193,21 +190,9 @@ func (w *Writer) loadFailure(err error) Result {
 	return res(StatusNotSent, "the connection could not be read")
 }
 
-// acquire takes the connection's turn, or gives up when ctx ends.
+// acquire takes the connection's turn (shared with the reader), or gives up when ctx ends.
 func (w *Writer) acquire(ctx context.Context, id string) (release func(), ok bool) {
-	w.mu.Lock()
-	ch, found := w.locks[id]
-	if !found {
-		ch = make(chan struct{}, 1)
-		w.locks[id] = ch
-	}
-	w.mu.Unlock()
-	select {
-	case ch <- struct{}{}:
-		return func() { <-ch }, true
-	case <-ctx.Done():
-		return nil, false
-	}
+	return w.c.LockConn(ctx, cred.Key{}, id)
 }
 
 // check is every refusal that stops a step before anything is sent. The second result is true when the step is refused.

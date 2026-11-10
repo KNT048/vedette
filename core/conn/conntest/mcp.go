@@ -10,8 +10,8 @@ import (
 	"testing"
 )
 
-// MCPTool is a tool the MCP fake offers.
-type MCPTool struct{ Name, Description string }
+// MCPTool is a tool the MCP fake offers. Schema is its inputSchema as JSON; "" is {"type":"object"}.
+type MCPTool struct{ Name, Description, Schema string }
 
 // MCPOpts configures the MCP fake.
 type MCPOpts struct {
@@ -24,6 +24,8 @@ type MCPOpts struct {
 	Oversize bool
 	// FailTool is a tool whose call reports isError.
 	FailTool string
+	// Respond is the text of a tool call's answer; nil is "ran <name>". authorization is the header the call came with.
+	Respond func(name string, args map[string]any, authorization string) string
 	// Version is the protocol version the server answers initialize with; "" is 2025-06-18.
 	Version string
 }
@@ -46,7 +48,7 @@ type MCP struct {
 func NewMCP(t testing.TB, o MCPOpts) *MCP {
 	t.Helper()
 	if o.Tools == nil {
-		o.Tools = []MCPTool{{"list_resources", "List what the server holds"}, {"run_action", "Run an action the server defines"}}
+		o.Tools = []MCPTool{{Name: "list_resources", Description: "List what the server holds"}, {Name: "run_action", Description: "Run an action the server defines"}}
 	}
 	if o.Version == "" {
 		o.Version = "2025-06-18"
@@ -103,15 +105,23 @@ func (m *MCP) serve(w http.ResponseWriter, r *http.Request) {
 	case "tools/list":
 		tools := []map[string]any{}
 		for _, t := range m.opts.Tools {
-			tools = append(tools, map[string]any{"name": t.Name, "description": t.Description, "inputSchema": map[string]any{"type": "object"}})
+			var schema any = map[string]any{"type": "object"}
+			if t.Schema != "" {
+				schema = json.RawMessage(t.Schema)
+			}
+			tools = append(tools, map[string]any{"name": t.Name, "description": t.Description, "inputSchema": schema})
 		}
 		if m.opts.Oversize {
 			tools = append(tools, map[string]any{"name": "big", "description": strings.Repeat("x", 2<<20)})
 		}
 		result = map[string]any{"tools": tools}
 	case "tools/call":
+		text := fmt.Sprintf("ran %s", req.Params.Name)
+		if m.opts.Respond != nil {
+			text = m.opts.Respond(req.Params.Name, req.Params.Arguments, c.Authorization)
+		}
 		result = map[string]any{
-			"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("ran %s", req.Params.Name)}},
+			"content": []map[string]any{{"type": "text", "text": text}},
 			"isError": req.Params.Name == m.opts.FailTool,
 		}
 	default:

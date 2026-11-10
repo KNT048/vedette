@@ -125,6 +125,8 @@ type Service struct {
 	testBudget time.Duration
 	// roots replaces the system roots in tests (a test cannot add to them); nil in the product.
 	roots *x509.CertPool
+	// locks gives one call at a time on a connection, to the writer and to the reader alike (access.go, LockConn).
+	locks connLocks
 }
 
 // New returns the Service.
@@ -137,7 +139,7 @@ func New(c Config) (*Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("conn: restrict credential purpose: %w", err)
 	}
-	s := &Service{cfg: c, now: c.Clock, vault: v}
+	s := &Service{cfg: c, now: c.Clock, vault: v, locks: connLocks{m: map[string]chan struct{}{}}}
 	if s.now == nil {
 		s.now = time.Now
 	}

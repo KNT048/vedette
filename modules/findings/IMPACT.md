@@ -12,6 +12,13 @@
 ## Modifying: `findings.Service.UpsertFromMatch(ctx, Asset, []Vuln)` và `OnMatchChanged(ctx, assetID)`
 - **inventory** (sự kiện `inventory.match.changed`; phải cài `findings.Inventory{Assets, MatchInput}`), **feeds** (phải cài `findings.Feeds{KevInfo, Vulns}`; `cmd/vedette/wiring.go` cài từ `feeds.Store.KevVulns/KevVulnsByCVE`, chỉ hàng `cisa-kev`, chưa có khoảng bị ảnh hưởng nên chỉ `basis=product`; `findings.Inventory` từ `inventory.DeviceRefs/MatchInput`), **core/jobs** (khớp lại sau `feeds.vuln.new_kev`). Interface do `findings` định nghĩa, `cmd/vedette` nối cài đặt thật. Đổi quy tắc khớp/tạo/độ nghiêm trọng đổi số finding và tin `notify`.
 
+## Modifying: `findings.Service.Reconcile(ctx)` và `findings.Jobs(svc)` (job `reconcile`, mỗi giờ)
+- **inventory**: phải cài `findings.Inventory.AssetIDs` (mọi id thiết bị, không giới hạn dòng, lỗi đọc là lỗi, không bao giờ trả danh sách ngắn: reconcile coi finding của thiết bị vắng là mồ côi và xoá sau khi hỏi lại `Assets`). Sửa `DevicesOfKind` hay `Kinds` (loại thiết bị mới) thì sửa adapter ở `cmd/vedette/wiring.go`, nếu không thiết bị loại mới không được khớp lại và finding của nó bị coi là mồ côi chỉ khi `Assets` cũng không thấy.
+- **cmd/vedette**: `wiredModules` có `Jobs: findingsJobs` cho `findings`; job chạy khi module bật rồi mỗi `ReconcileEvery`. Tắt module = job dừng, dữ liệu giữ.
+- **notify** (D-78): reconcile có thể phải tạo hàng loạt finding khi sự kiện đường cơ sở bị mất (findings tắt lúc kéo CISA đầu, `RematchAll` bị cắt bởi `rematchTimeout`, một thiết bị hết hạn ghi). Để không gửi một tin cho mỗi finding, finding do reconcile tạo mới được ghi dưới `ServiceConfig.Backlog` (`cmd/vedette` cài `notify.WithBaseline`; `findings` không import `notify`) **trừ** khi mục KEV được CISA thêm trong `RecentKEV` (7 ngày) gần nhất: đó là tin thật mà một sự kiện `new_kev` bị mất vẫn phải báo, và phát `findings.finding.created` không dấu. Ngày thêm không rõ (`Vuln.DateAdded` zero) coi như tồn đọng. Đổi `RecentKEV` hay bỏ `Backlog` là đổi số tin `notify` gửi sau một lần mất sự kiện. `findings.Vuln.DateAdded` do adapter `findingsFeeds.Vulns` điền từ `feeds` (`date_added`).
+- **`last_seen`** của finding nay là lần cuối bộ khớp thấy cặp đó, từ sự kiện hoặc từ reconcile (mỗi giờ), không chỉ từ sự kiện; trang finding hiện "last seen" theo nghĩa này.
+- **feeds**: `Feeds.Vulns` rỗng (chưa kéo KEV) thì không khớp gì, chỉ chạy bước dọn mồ côi.
+
 ## Modifying: `findings.Service.ConfirmFromScan(ctx, assetID, cve, Evidence)`
 - **scan** (kết quả `matched`), **scan-credentialed** (tương lai). Đổi `Evidence` hay điều kiện `confirmed` làm lệch bảng kết quả quét (`finding_id`) và trang finding.
 

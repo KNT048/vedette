@@ -200,7 +200,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	}
 	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Hosts: hosts, BaseURL: baseURL(hosts, o.listen),
 		HostSocket: o.hostSocket, HostNet: newHostNetCache(hostSocketNet(o.hostSocket, log), time.Now), DataDir: filepath.Dir(o.db), KeyPath: o.key, HoneypotDir: o.honeypotDir}
-	if err := buildServices(&d); err != nil {
+	if err := buildServices(&d); err != nil { //nolint:contextcheck // services are built at start-up with their own bounded contexts; buildServices takes no ctx (newAI loads settings under a 30 s deadline)
 		return err
 	}
 	defer d.OS.Close()

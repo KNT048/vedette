@@ -22,11 +22,11 @@ const linkClass = 'font-medium text-accent underline underline-offset-4'
 function ResultCell({ r }: { r: RescanEvent }) {
   const { t } = useTranslation('scan')
   if (r.result === 'pick_only') {
-    return <Chip tone={tone.pick_only}><Trans t={t} i18nKey="auto.result.pick_only" count={r.devices.length} components={{ link: <Link to="/scans?tab=runs" className={linkClass} /> }} /></Chip>
+    return <Chip tone={tone.pick_only}><Trans t={t} i18nKey="auto.result.pick_only" count={r.devices.length} components={{ nav: <Link to="/scans?tab=runs" className={linkClass} /> }} /></Chip>
   }
   if (r.result === 'stopped') {
     const link = r.run_id ? <Link to={`/scans?tab=runs&run=${encodeURIComponent(r.run_id)}`} className={linkClass} /> : <span />
-    return <Chip tone={tone.stopped}><Trans t={t} i18nKey="auto.result.stopped" components={{ link }} /></Chip>
+    return <Chip tone={tone.stopped}><Trans t={t} i18nKey="auto.result.stopped" components={{ nav: link }} /></Chip>
   }
   return <Chip tone={tone[r.result]}>{t(`auto.result.${r.result}`)}</Chip>
 }

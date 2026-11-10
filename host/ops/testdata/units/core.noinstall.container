@@ -24,7 +24,7 @@ DropCapability=ALL
 User=10001:10002
 LogDriver=journald
 PodmanArgs=--memory=2g --memory-swap=2g --cpus=2 --pids-limit=512 --group-add=10004
-HealthCmd=/vedette healthcheck
+HealthCmd=["/vedette","healthcheck"]
 HealthInterval=30s
 HealthStartPeriod=60s
 HealthRetries=3

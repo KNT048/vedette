@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"encoding/json"
 	"encoding/pem"
 	"net"
 	"net/http"
@@ -31,6 +33,26 @@ func healthServer(t *testing.T, h http.Handler) (addr, certFile string) {
 	return srv.Listener.Addr().String(), certFile
 }
 
+// vedetteServer is a TLS server whose certificate the box's own routine made (Organization selfSignedOrg), and its PEM file.
+func vedetteServer(t *testing.T, h http.Handler) (addr, certFile string) {
+	t.Helper()
+	dir := t.TempDir()
+	certFile = filepath.Join(dir, "box.crt")
+	keyFile := filepath.Join(dir, "box.key")
+	if err := ensureCert(certFile, keyFile, nil); err != nil {
+		t.Fatal(err)
+	}
+	pair, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewUnstartedServer(h)
+	srv.TLS = &tls.Config{Certificates: []tls.Certificate{pair}, MinVersion: tls.VersionTLS12}
+	srv.StartTLS()
+	t.Cleanup(srv.Close)
+	return srv.Listener.Addr().String(), certFile
+}
+
 func listenTCP(t *testing.T) (net.Listener, error) {
 	t.Helper()
 	return new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
@@ -51,9 +73,10 @@ func TestCoreHealthcheck(t *testing.T) {
 	addr, cert := healthServer(t, healthHandler(200))
 	missing := filepath.Join(t.TempDir(), "none.crt")
 
-	t.Run("healthy, pinned", func(t *testing.T) {
+	t.Run("healthy, the box's own certificate, pinned", func(t *testing.T) {
 		t.Parallel()
-		if err := coreHealthcheck(t.Context(), addr, cert, time.Second); err != nil {
+		a, c := vedetteServer(t, healthHandler(200))
+		if err := coreHealthcheck(t.Context(), a, c, time.Second); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -63,17 +86,31 @@ func TestCoreHealthcheck(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	t.Run("a different certificate than the box's own is refused", func(t *testing.T) {
+	t.Run("a different certificate of the box's own kind is refused", func(t *testing.T) {
 		t.Parallel()
-		// httptest serves one fixed certificate to every server, so the other one is made by the box's own routine
+		a, _ := vedetteServer(t, healthHandler(200))
 		dir := t.TempDir()
 		other := filepath.Join(dir, "other.crt")
 		if err := ensureCert(other, filepath.Join(dir, "other.key"), nil); err != nil {
 			t.Fatal(err)
 		}
-		if err := coreHealthcheck(t.Context(), addr, other, time.Second); err == nil {
-			t.Fatal("the pin must refuse another certificate")
+		if err := coreHealthcheck(t.Context(), a, other, time.Second); err == nil {
+			t.Fatal("the pin must refuse another certificate that Vedette made")
 		}
+	})
+	t.Run("an owner certificate (-tls-cert) is not pinned to the self-signed file", func(t *testing.T) {
+		t.Parallel()
+		// httptest's certificate is not one Vedette made (Organization "Acme Co"); the file next to -db holds the box's own
+		// self-signed one, which this server does not serve: the check must still pass
+		dir := t.TempDir()
+		own := filepath.Join(dir, "own.crt")
+		if err := ensureCert(own, filepath.Join(dir, "own.key"), nil); err != nil {
+			t.Fatal(err)
+		}
+		if err := coreHealthcheck(t.Context(), addr, own, time.Second); err != nil {
+			t.Fatalf("owner certificate: %v", err)
+		}
+		_ = cert
 	})
 	t.Run("a certificate file with no certificate in it is an error", func(t *testing.T) {
 		t.Parallel()
@@ -238,6 +275,9 @@ func TestHoneypotHealthcheck(t *testing.T) {
 			"junk":     writeConf(t, "not json"),
 			"array":    writeConf(t, `[1]`),
 			"badport":  writeConf(t, `{"ssh.enabled": true, "ssh.port": 70000}`),
+			"strport":  writeConf(t, `{"ssh.enabled": true, "ssh.port": "22"}`),
+			"nullport": writeConf(t, `{"ssh.enabled": true, "ssh.port": null}`),
+			"fltport":  writeConf(t, `{"ssh.enabled": true, "ssh.port": 22.5}`),
 			"toolarge": writeConf(t, `{"x": "`+strings.Repeat("a", honeypotConfMax)+`"}`),
 		} {
 			if err := honeypotHealthcheck(t.Context(), conf, time.Second); err == nil {
@@ -307,6 +347,8 @@ func TestHealthCommand(t *testing.T) {
 func TestCoreAndHoneypotUnitsHealthCmdMatchTheRealCommands(t *testing.T) {
 	t.Parallel()
 	render := func(svc string) (health []string, publish, volumes []string) {
+		t.Helper()
+		var interval, start, retries, ro, tmpfs string
 		text, err := ops.RenderUnit(svc, "sha256:"+strings.Repeat("a", 64), true, 10001, 10002, 10003, 10004)
 		if err != nil {
 			t.Fatal(err)
@@ -315,12 +357,34 @@ func TestCoreAndHoneypotUnitsHealthCmdMatchTheRealCommands(t *testing.T) {
 			k, v, _ := strings.Cut(l, "=")
 			switch k {
 			case "HealthCmd":
-				health = strings.Fields(v)
+				if err := json.Unmarshal([]byte(v), &health); err != nil {
+					t.Fatalf("%s: HealthCmd=%q must be a JSON array (exec form, not run through /bin/sh -c): %v", svc, v, err)
+				}
+			case "HealthInterval":
+				interval = v
+			case "HealthStartPeriod":
+				start = v
+			case "HealthRetries":
+				retries = v
+			case "ReadOnly":
+				ro = v
+			case "Tmpfs":
+				tmpfs = v
 			case "PublishPort":
 				publish = append(publish, v)
 			case "Volume":
 				volumes = append(volumes, v)
 			}
+		}
+		if interval != "30s" || retries != "3" {
+			t.Errorf("%s: HealthInterval=%q HealthRetries=%q, want 30s and 3", svc, interval, retries)
+		}
+		wantStart := map[string]string{"core": "60s", "honeypot": "30s"}[svc]
+		if start != wantStart {
+			t.Errorf("%s: HealthStartPeriod=%q, want %s", svc, start, wantStart)
+		}
+		if ro != "true" || tmpfs != "/tmp" {
+			t.Errorf("%s: ReadOnly=%q Tmpfs=%q, want true and /tmp", svc, ro, tmpfs)
 		}
 		return health, publish, volumes
 	}

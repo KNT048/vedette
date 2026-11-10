@@ -107,7 +107,7 @@ DropCapability=ALL
 User={{.CoreUID}}:{{.CoreGID}}
 LogDriver=journald
 PodmanArgs=--memory=2g --memory-swap=2g --cpus=2 --pids-limit=512 --group-add={{.SensorGID}}
-HealthCmd=/vedette healthcheck
+HealthCmd=["/vedette","healthcheck"]
 HealthInterval=30s
 HealthStartPeriod=60s
 HealthRetries=3
@@ -137,7 +137,7 @@ Tmpfs=/tmp
 Volume=vedette-creds-passive.volume:/var/lib/vedette-creds:ro
 LogDriver=journald
 PodmanArgs=--memory=512m --memory-swap=512m --cpus=1 --pids-limit=256
-HealthCmd=/vedette-sensor healthcheck
+HealthCmd=["/vedette-sensor","healthcheck"]
 HealthInterval=30s
 HealthStartPeriod=30s
 HealthRetries=3
@@ -166,7 +166,7 @@ Volume=` + hpHostDir + `/config:/var/lib/vedette/honeypot/config:ro
 Volume=` + hpHostDir + `/log:/var/lib/vedette/honeypot/log
 LogDriver=journald
 PodmanArgs=--memory=256m --memory-swap=256m --cpus=0.5 --pids-limit=128
-HealthCmd=/vedette honeypot healthcheck
+HealthCmd=["/vedette","honeypot","healthcheck"]
 HealthInterval=30s
 HealthStartPeriod=30s
 HealthRetries=3
@@ -194,7 +194,7 @@ Tmpfs=/tmp
 Volume=vedette-creds-active.volume:/var/lib/vedette-creds:ro
 LogDriver=journald
 PodmanArgs=--memory=1g --memory-swap=1g --cpus=2 --pids-limit=512 --cpu-shares=128
-HealthCmd=/vedette-sensor healthcheck
+HealthCmd=["/vedette-sensor","healthcheck"]
 HealthInterval=30s
 HealthStartPeriod=30s
 HealthRetries=3

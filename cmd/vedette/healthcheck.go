@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"time"
 
@@ -24,7 +25,7 @@ import (
 // HealthCmd= lines of the units in host/ops/quadlet.go. Neither takes arguments, because the unit passes none; neither opens the
 // database or reads the master key, so a check cannot hold a lock or leak a secret. Failure is one short line on stderr and exit 1
 // (main prints the error). healthCommand is the one place that decides which of them an argv is, and the gate test of the units
-// parses their HealthCmd= through it.
+// parses their HealthCmd= (a JSON array, the exec form, D-137) through it.
 const (
 	defaultHoneypotDir = "/var/lib/vedette/honeypot" // the default of -honeypot-dir, and where the honeypot unit mounts config/ and log/
 
@@ -64,9 +65,10 @@ func runHealthCommand(ctx context.Context, kind string) error {
 
 // coreHealthcheck asks core's own HTTPS listener on addr for coreHealthPath and wants a 200 within limit.
 //
-// Trust. When certFile is readable the connection is pinned to it: the leaf the server presents must be byte-for-byte the box's own
-// certificate (a self-signed pair has no CA to verify against, and the name and expiry of a pinned leaf say nothing the pin does
-// not). When it cannot be read (an install with the certificate somewhere else) verification is skipped. That is safe here
+// Trust. A leaf that Vedette made (Organization selfSignedOrg, tls.go) is pinned to certFile: it must be byte-for-byte the box's
+// own certificate (a self-signed pair has no CA to verify against, and the name and expiry of a pinned leaf say nothing the pin
+// does not). A leaf of any other organisation is one the owner supplied with -tls-cert: certFile is then not what is served, so
+// there is nothing to pin against and verification is skipped, as it is when certFile cannot be read. That is safe here
 // because the only thing sent is an unauthenticated GET with no cookie or credential, the address is loopback inside core's own
 // container (no network carries it), and the answer is used only as "up": nothing from the body is trusted or kept.
 // An unreadable certificate file is not an unhealthy box; a certificate file that is present and wrong is.
@@ -80,7 +82,14 @@ func coreHealthcheck(ctx context.Context, addr, certFile string, limit time.Dura
 	cfg := &tls.Config{MinVersion: tls.VersionTLS12, ServerName: "127.0.0.1", InsecureSkipVerify: true} //nolint:gosec // see above: loopback only, pinned when the certificate is readable; VerifyConnection below does the check
 	if pin != nil {
 		cfg.VerifyConnection = func(cs tls.ConnectionState) error { // also runs on a resumed session
-			if len(cs.PeerCertificates) == 0 || !bytes.Equal(cs.PeerCertificates[0].Raw, pin) {
+			if len(cs.PeerCertificates) == 0 {
+				return errors.New("the server presented no certificate")
+			}
+			leaf := cs.PeerCertificates[0]
+			if !slices.Contains(leaf.Subject.Organization, selfSignedOrg) {
+				return nil // an owner certificate (-tls-cert): see above
+			}
+			if !bytes.Equal(leaf.Raw, pin) {
 				return errors.New("the certificate is not the box's own")
 			}
 			return nil
@@ -188,9 +197,13 @@ func firstTrapPort(confFile string) (int, error) {
 		if json.Unmarshal(conf[string(s)+".enabled"], &on) != nil || !on {
 			continue
 		}
-		var port int
-		if json.Unmarshal(conf[string(s)+".port"], &port) != nil {
+		raw, has := conf[string(s)+".port"]
+		if !has {
 			continue // no port key: not a listener of OpenCanary's
+		}
+		var port int
+		if json.Unmarshal(raw, &port) != nil {
+			return 0, fmt.Errorf("opencanary.conf: %s.port is not an integer", s) // present but unreadable: fail closed
 		}
 		if port < 1 || port > 65535 {
 			return 0, fmt.Errorf("opencanary.conf: %s.port is %d", s, port)

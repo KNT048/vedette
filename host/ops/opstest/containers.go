@@ -98,6 +98,7 @@ case "$1" in
     cp "$ROOT/etc/containers/systemd/vedette-$svc.container" "$S/$svc.unit" 2>/dev/null
     : > "$S/$svc.running"; : > "$S/$svc.active"
     [ -e "$REC/mark.lock-containers" ] && chmod 500 "$STATE/containers"
+    [ -e "$REC/mark.plant-aside-dir" ] && { rm -f "$CORE/vedette.db.rollback"; mkdir -p "$CORE/vedette.db.rollback"; }
     ;;
   stop)
     rm -f "$S/$svc.running" "$S/$svc.active"

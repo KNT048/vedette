@@ -318,7 +318,7 @@ func (o *Ops) runSwitch(ctx context.Context, rc *server.RunContext, a api.Contai
 		o.log.ErrorContext(ctx, "could not put the previous release back", "service", svc, "error", rerr.Error())
 		// The journal stays (pending): the retry loop (started once this run has released the lock) puts the bytes
 		// back and then the database; a restart of the host does the same.
-		o.kickRestore(ctx)
+		o.afterFailedRevert(ctx, tr, rerr)
 		return nil, &server.Failure{Code: api.CodeUnitFailed, Message: "The new version did not become healthy and the previous release could not be put back.", Result: res}
 	}
 	o.finishJournal(tr)
@@ -490,7 +490,7 @@ func (o *Ops) runContainerRollback(ctx context.Context, rc *server.RunContext, a
 		// once this run has released the lock) and, failing that, the next start of the host put the unit bytes
 		// and core's database back.
 		o.log.ErrorContext(ctx, "could not put the running release back after a failed rollback", "service", svc, "error", rerr.Error())
-		o.kickRestore(ctx)
+		o.afterFailedRevert(ctx, tr, rerr)
 		return nil, &server.Failure{Code: api.CodeRollbackRevertFailed, Message: "The rollback failed and the running release could not be put back. The host stopped; look at the service and the audit log.", Result: res}
 	}
 	o.finishJournal(tr)

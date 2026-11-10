@@ -59,8 +59,9 @@ var errNotFound = errors.New("not found")
 // coreTree is core's data directory opened for one operation.
 type coreTree struct {
 	root *os.Root
-	uid  int // owner every file must have: core_uid
-	gid  int // group restored files get: core_gid
+	uid  int              // owner every file must have: core_uid
+	gid  int              // group restored files get: core_gid
+	now  func() time.Time // the host's clock (Deps.Now), which names quarantined entries
 }
 
 // fdPath is the path through which a process opens one of its own descriptors.
@@ -130,7 +131,7 @@ func (o *Ops) openCore() (*coreTree, error) {
 		_ = root.Close()
 		return nil, refuse412(api.CodeDBUnreadable, "Core's data directory changed while it was being opened.")
 	}
-	return &coreTree{root: root, uid: o.cfg.CoreUID, gid: o.cfg.CoreGID}, nil
+	return &coreTree{root: root, uid: o.cfg.CoreUID, gid: o.cfg.CoreGID, now: o.d.Now}, nil
 }
 
 // checkChain validates core_data and its parents and returns the path to open (parents resolved)
@@ -436,7 +437,11 @@ func (t *coreTree) quarantineIfNotRegular(name string) error {
 	if st.Mode().IsRegular() {
 		return nil
 	}
-	q := fmt.Sprintf("%s.quarantine-%d", name, time.Now().UnixNano())
+	stamp := time.Now
+	if t.now != nil {
+		stamp = t.now
+	}
+	q := fmt.Sprintf("%s.quarantine-%d", name, stamp().UnixNano())
 	if err := t.root.Rename(name, q); err != nil {
 		return fmt.Errorf("%w: set %s aside: %w", errUnrecoverable, name, err)
 	}

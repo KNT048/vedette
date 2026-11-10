@@ -903,8 +903,9 @@ func (o *Ops) recoverTransitions(ctx context.Context) {
 				o.log.ErrorContext(ctx, "could not put back the unit of an interrupted change", "service", svc, "error", err.Error())
 				detail["action"] = "failed"
 				o.noteRecoveryFailed(svc, t.command(), detail)
-				if svc == api.ServiceCore && t.DBRevert != "" {
-					// Core's data is half swapped and the unit cannot be put back: trying again cannot cure it (N4).
+				if svc == api.ServiceCore && t.DBRevert != "" && (errors.Is(err, errUnitUnsafe) || errors.Is(err, errPrevMissing)) {
+					// Core's data is half swapped and the unit cannot be put back, and trying again cannot cure
+					// that (N4). Any other error (I/O, a full disk) keeps the journal pending and is retried.
 					o.markUnrecoverable(t)
 				}
 				continue // the journal stays; commands for the service are refused
@@ -929,6 +930,10 @@ func (o *Ops) recoverTransitions(ctx context.Context) {
 	}
 }
 
+// errPrevMissing: the old unit text is not kept, or does not match the journal. With errUnitUnsafe it is
+// what no retry can cure; any other error of restoreBytes (an I/O error, a full disk) is retried.
+var errPrevMissing = errors.New("ops: the previous unit is not kept or does not match the journal")
+
 // restoreBytes puts the unit text from before the change back, unless it is there already, and says
 // whether it had to write.
 func (o *Ops) restoreBytes(t transition) (wrote bool, err error) {
@@ -941,7 +946,7 @@ func (o *Ops) restoreBytes(t transition) (wrote bool, err error) {
 	}
 	prev, ps := o.readPrev(t.Service)
 	if ps != fileOK || sha256Hex(prev) != t.PrevSHA {
-		return false, errors.New("ops: the previous unit is not kept or does not match the journal")
+		return false, errPrevMissing
 	}
 	return true, o.writeUnit(t.Service, prev, false)
 }
@@ -963,15 +968,46 @@ func (o *Ops) AfterReady(ctx context.Context, l Locker) {
 	o.mu.Lock()
 	o.afterCtx, o.afterL = ctx, l
 	o.mu.Unlock()
-	if len(o.restorePending) == 0 {
+	// Nothing to do when no journal waits. This reads the disk, not restorePending: that is written under the
+	// write lock by the loops, so reading it here would race (D-138 L2). It also covers a run that failed
+	// before this was called and so could not start a retry itself (kickRestore).
+	if !o.anyJournal() {
 		return
 	}
-	o.restoreLoop(ctx, l, o.finishRestores)
+	o.restoreLoop(ctx, l, o.recoverAndFinish)
+}
+
+// anyJournal says whether any service has a journal that is not given up on.
+func (o *Ops) anyJournal() bool {
+	for _, svc := range unitServices {
+		if t, st, _ := o.loadJournal(svc); st == jOK && !t.Unrecoverable {
+			return true
+		}
+	}
+	return false
+}
+
+// recoverAndFinish is one try of the loops: put back the bytes of a journal that is still "pending", then
+// the state and the database of what waits. It runs under the write lock.
+func (o *Ops) recoverAndFinish(ctx context.Context) {
+	o.recoverTransitions(ctx)
+	o.finishRestores(ctx)
+}
+
+// afterFailedRevert is what a run does when it could not put the old release back: a failure that no retry
+// can cure (errUnrecoverable) is marked at once (a retry would find the quarantined aside copy and skip the
+// sidecar cleanup, D-138 L1); anything else starts the retry loop.
+func (o *Ops) afterFailedRevert(ctx context.Context, t transition, rerr error) {
+	if errors.Is(rerr, errUnrecoverable) {
+		o.markUnrecoverable(t)
+		return
+	}
+	o.kickRestore(ctx)
 }
 
 // kickRestore starts the retry loop again after a run left core's data to be put back (its revert failed):
 // the loop waits for the write lock, so it starts working when the failed run has released it. It does
-// nothing before AfterReady was given a Locker, or while a loop is already running.
+// nothing before AfterReady was given a Locker (AfterReady then finds the journal itself), or while a loop is already running.
 //
 // The run's own context is not used (it ends with the run); the loop runs on the one AfterReady was given.
 func (o *Ops) kickRestore(_ context.Context) { //nolint:contextcheck // deliberately the process context AfterReady was given, not the ending run's
@@ -983,10 +1019,7 @@ func (o *Ops) kickRestore(_ context.Context) { //nolint:contextcheck // delibera
 	}
 	go func() {
 		defer o.kicking.Store(false)
-		o.restoreLoop(ctx, l, func(c context.Context) {
-			o.recoverTransitions(c) // the journal is still "pending": put the bytes back and list what waits
-			o.finishRestores(c)
-		})
+		o.restoreLoop(ctx, l, o.recoverAndFinish) // the journal is still "pending": put the bytes back, list what waits
 	}()
 }
 
@@ -1037,19 +1070,33 @@ func (o *Ops) dbRevertPending() bool {
 const recoveryNoteEvery = time.Hour
 
 func (o *Ops) noteRecoveryFailed(svc, command string, detail map[string]any) {
+	o.noteLimited(svc, command, "transition_recovery_failed", detail)
+}
+
+// noteLimited audits key's line the first time and then at most once an hour.
+func (o *Ops) noteLimited(key, command, code string, detail map[string]any) {
 	o.mu.Lock()
 	if o.recNote == nil {
 		o.recNote = map[string]time.Time{}
 	}
 	now := o.d.Now()
-	last, seen := o.recNote[svc]
+	last, seen := o.recNote[key]
 	if seen && now.Sub(last) < recoveryNoteEvery && now.Sub(last) >= 0 {
 		o.mu.Unlock()
 		return
 	}
-	o.recNote[svc] = now
+	o.recNote[key] = now
 	o.mu.Unlock()
-	o.note(command, "transition_recovery_failed", detail)
+	o.note(command, code, detail)
+}
+
+// forgetRecoveryNotes resets the rate limit of a service after a recovery that worked, so that its next
+// failure is audited at once.
+func (o *Ops) forgetRecoveryNotes(svc string) {
+	o.mu.Lock()
+	delete(o.recNote, svc)
+	delete(o.recNote, "unrecoverable:"+svc)
+	o.mu.Unlock()
 }
 
 // markUnrecoverable records that the host stopped trying to put core's data back: the journal says so
@@ -1061,8 +1108,9 @@ func (o *Ops) markUnrecoverable(t transition) {
 	if err := o.saveJournal(t); err != nil {
 		o.log.Error("could not record that core's data cannot be put back", "error", err.Error())
 	}
-	o.log.Error("core's data cannot be put back automatically; core is left stopped. See RUNBOOK core_data_unrecoverable", "run_id", t.RunID)
-	o.note(t.command(), "core_data_unrecoverable", map[string]any{"service": t.Service, "run_id": t.RunID, "db_revert": t.DBRevert, "aside": t.Aside, "backup_id": t.BackupID})
+	o.log.Error("core's data cannot be put back automatically; the host stopped trying and left core as it is (it may be stopped; systemd starts it again at the next boot, on whatever data is there). See RUNBOOK core_data_unrecoverable", "run_id", t.RunID)
+	// One line even if the journal cannot be saved (a full state directory) and this runs again: then at most hourly.
+	o.noteLimited("unrecoverable:"+t.Service, t.command(), "core_data_unrecoverable", map[string]any{"service": t.Service, "run_id": t.RunID, "db_revert": t.DBRevert, "aside": t.Aside, "backup_id": t.BackupID})
 }
 
 // transitionPendingText is what a 412 transition_pending says (N2).
@@ -1089,6 +1137,9 @@ func (o *Ops) coreFree() error {
 func (o *Ops) finishRestores(ctx context.Context) {
 	rctx, cancel := context.WithTimeout(ctx, afterReadyLimit)
 	defer cancel()
+	if len(o.restorePending) == 0 {
+		return
+	}
 	o.sctl(rctx, reloadLimit, "daemon-reload") // idempotent: Start may not have managed it
 	for _, svc := range o.restorePending {
 		t, st, _ := o.loadJournal(svc)
@@ -1139,6 +1190,7 @@ func (o *Ops) finishRestores(ctx context.Context) {
 			continue
 		}
 		o.finishJournal(t)
+		o.forgetRecoveryNotes(svc)
 		detail["action"] = "reverted"
 		o.note(t.command(), "transition_interrupted", detail)
 	}

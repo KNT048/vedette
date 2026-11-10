@@ -36,7 +36,7 @@ func TestSensorActiveDeviceChangeStopsTheRunningScan(t *testing.T) {
 			exectest.WriteScript(t, nmap, fmt.Sprintf("#!/bin/sh\ntouch %q\nexec sleep 30\n", started))
 			d := *s.d
 			d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone) } // Monday 02:00, inside 01:00-05:00
-			svc, err := newSensorActive(d, nmap)
+			svc, err := newLocalSensorActive(d, nmap)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -25,7 +25,7 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// version is set at build time: -ldflags "-X main.version=v0.1.0".
+// version is set at build time: -ldflags "-X main.version=0.1.0" (SemVer without a leading v, like core and vedette-sensor).
 var version = "dev"
 
 const shutdownGrace = 30 * time.Second

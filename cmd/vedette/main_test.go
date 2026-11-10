@@ -28,7 +28,7 @@ func TestVersionAndFlags(t *testing.T) {
 		wantOut string
 		wantErr bool
 	}{
-		{name: "version", args: []string{"-version"}, wantOut: "dev\n"},
+		{name: "version", args: []string{"-version"}, wantOut: "0.0.0-dev\n"},
 		{name: "unknown flag", args: []string{"-nope"}, wantErr: true},
 		{name: "stray argument", args: []string{"serve"}, wantErr: true},
 	}
@@ -43,7 +43,7 @@ func TestVersionAndFlags(t *testing.T) {
 			if tt.wantOut != "" && out.String() != tt.wantOut {
 				t.Fatalf("run(%q) output = %q, want %q", tt.args, out.String(), tt.wantOut)
 			}
-			if tt.wantErr && strings.Contains(out.String(), "dev\n") {
+			if tt.wantErr && strings.Contains(out.String(), "0.0.0-dev\n") {
 				t.Fatalf("run(%q) printed the version on error", tt.args)
 			}
 		})
@@ -313,7 +313,7 @@ func TestServeFailureStopsTheScheduler(t *testing.T) {
 			defer func() { _ = inner.Close() }()
 			done := make(chan error, 1)
 			go func() {
-				done <- serveUntilDone(t.Context(), log, &http.Server{ReadHeaderTimeout: time.Second}, failingListener{inner}, sched, 300*time.Millisecond)
+				done <- serveUntilDone(t.Context(), log, &http.Server{ReadHeaderTimeout: time.Second}, failingListener{inner}, nil, sched, 300*time.Millisecond)
 			}()
 			select {
 			case err := <-done:

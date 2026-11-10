@@ -26,14 +26,16 @@ import (
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/secrets"
+	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/store"
 	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules"
 )
 
-// version is set at build time: -ldflags "-X main.version=v0.1.0".
-var version = "dev"
+// version is set at build time: -ldflags "-X main.version=0.1.0". It must be SemVer (run refuses anything else), like the version
+// of vedette-sensor that goes into its heartbeat; an unreleased build is 0.0.0-dev.
+var version = "0.0.0-dev"
 
 // shutdownTimeout is how long in-flight requests get after SIGINT or SIGTERM; schedulerStopTimeout is
 // how long the scheduler gets to stop its jobs before the process gives up waiting for jobs that
@@ -59,6 +61,9 @@ type options struct {
 	hosts           string
 	hostSocket      string
 	honeypotDir     string
+	// sensorListen and sensorCreds are the sensor link (D-141): the mutual-TLS listener of the two sensor containers and the directory
+	// that holds their credentials, <creds>/<role>/sensor.pem. Empty sensorListen = no listener (a container-only install).
+	sensorListen, sensorCreds string
 }
 
 // newFlags builds the flag set of the server and binds it to o. The test that checks the Exec= line of core's
@@ -77,6 +82,8 @@ func newFlags(o *options, stdout io.Writer) (flags *flag.FlagSet, showVersion *b
 	flags.StringVar(&o.tlsCert, "tls-cert", "", "PEM certificate for TLS (with -tls-key); when both are missing and -listen is not loopback, a self-signed pair is made next to the database")
 	flags.StringVar(&o.tlsKey, "tls-key", "", "PEM private key for TLS")
 	flags.StringVar(&o.hosts, "hosts", "", "comma-separated host names (a leading *. covers one label, like a wildcard certificate) and IP addresses the box answers to (Host header allowlist, 421 for others); default: the loopback names and the names of the certificate")
+	flags.StringVar(&o.sensorListen, "sensor-listen", "", "address of the sensor link, a mutual-TLS listener for the sensor and scan containers (D-109), e.g. :8444 inside the container (the unit publishes 127.0.0.1:8444 only); empty = none, and the sensors cannot reach core")
+	flags.StringVar(&o.sensorCreds, "sensor-creds", "", "directory where core writes the sensors' credentials, <dir>/passive/sensor.pem and <dir>/active/sensor.pem (needed with -sensor-listen); each role's folder is a volume shared with that container only")
 	return flags, showVersion
 }
 
@@ -99,11 +106,24 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if (o.tlsCert == "") != (o.tlsKey == "") {
 		return errors.New("-tls-cert and -tls-key go together")
 	}
+	if !sensorlink.ValidVersion(version) {
+		return fmt.Errorf("the build version %q is not SemVer: build with -ldflags \"-X main.version=<major.minor.patch>\"", version)
+	}
 	if _, err := parseHosts(o.hosts); err != nil {
 		return err
 	}
 	if _, err := isLoopback(o.listen); err != nil {
 		return err
+	}
+	if o.sensorListen != "" {
+		if o.sensorCreds == "" || !filepath.IsAbs(o.sensorCreds) {
+			return errors.New("-sensor-listen needs -sensor-creds, an absolute path")
+		}
+		if _, _, err := net.SplitHostPort(o.sensorListen); err != nil {
+			return fmt.Errorf("-sensor-listen %q: %w", o.sensorListen, err)
+		}
+	} else if o.sensorCreds != "" {
+		return errors.New("-sensor-creds needs -sensor-listen")
 	}
 	log := slog.New(slog.NewJSONHandler(stderr, nil))
 	return serve(ctx, log, o)
@@ -230,6 +250,13 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if code != "" {
 		log.InfoContext(ctx, "first-run setup is open: enter this one-time setup code on the setup page", "setup_code", code)
 	}
+	var link *sensorLink // the PKI starts and writes the bundles before this listener opens (D-110 (4)); the renew job reads d.Authority
+	if o.sensorListen != "" {
+		if link, err = openSensorLink(ctx, &d, o.sensorListen, o.sensorCreds); err != nil {
+			return err
+		}
+		defer func() { _ = link.ln.Close() }() // only matters when a later step fails before serveUntilDone owns it
+	}
 	sched := jobs.New(log, reg, nil, jobs.WithRecorder(jobs.NewHistory(db)))
 	reg.OnChange(sched.ModuleChanged)
 	if err := addJobs(sched, d, wired); err != nil {
@@ -275,7 +302,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		defer addrTick.Stop()
 		go warner.Run(ctx, log, tick.C, addrTick.C)
 	}
-	return serveUntilDone(ctx, log, srv, ln, sched, schedulerStopTimeout)
+	return serveUntilDone(ctx, log, srv, ln, link, sched, schedulerStopTimeout)
 }
 
 // topHandler is everything the listener answers. A Host header outside the allowlist is 421 before anything
@@ -301,11 +328,11 @@ func strictTransportSecurity(next http.Handler) http.Handler {
 	})
 }
 
-// serveUntilDone serves on ln and runs the scheduler until ctx is cancelled or the listener fails,
-// then stops in order: HTTP server, scheduler, return (the caller closes the database). The scheduler
-// runs on a child context that is cancelled on every exit path, and the wait for it is bounded by
+// serveUntilDone serves on ln (and on the sensor link, when there is one) and runs the scheduler until ctx is cancelled or a
+// listener fails, then stops in order: sensor link, HTTP server, scheduler, return (the caller closes the database). The
+// scheduler runs on a child context that is cancelled on every exit path, and the wait for it is bounded by
 // stopWait so a job that ignores its context cannot hang the shutdown.
-func serveUntilDone(ctx context.Context, log *slog.Logger, srv *http.Server, ln net.Listener, sched *jobs.Scheduler, stopWait time.Duration) error {
+func serveUntilDone(ctx context.Context, log *slog.Logger, srv *http.Server, ln net.Listener, link *sensorLink, sched *jobs.Scheduler, stopWait time.Duration) error {
 	schedCtx, cancelSched := context.WithCancel(ctx)
 	schedDone := make(chan struct{})
 	go func() { defer close(schedDone); sched.Run(schedCtx) }()
@@ -320,19 +347,37 @@ func serveUntilDone(ctx context.Context, log *slog.Logger, srv *http.Server, ln 
 	defer stopSched()
 
 	serveErr := make(chan error, 1)
+	linkErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(ln) }()
 	log.InfoContext(ctx, "listening", "addr", ln.Addr().String(), "version", version)
+	if link != nil {
+		go func() { linkErr <- link.serve() }()
+		log.InfoContext(ctx, "sensor link listening", "addr", link.Addr())
+		defer func() { _ = link.close() }() // the listener failing below must not leave the sensor link open
+	}
 
+	// A listener failing is shut down after exactly like a stop: the other listener and the scheduler are stopped in order, then the error is returned.
+	var failure error
 	select {
-	case err := <-serveErr: // the listener failed: stop the scheduler (deferred) and report
-		return fmt.Errorf("serve: %w", err)
+	case err := <-serveErr:
+		failure = fmt.Errorf("serve: %w", err)
+	case err := <-linkErr:
+		failure = fmt.Errorf("serve sensor link: %w", err)
 	case <-ctx.Done():
 	}
-	log.InfoContext(ctx, "shutting down")
+	if failure == nil {
+		log.InfoContext(ctx, "shutting down")
+	}
+	if link != nil {
+		_ = link.close()
+	}
 	sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownTimeout)
 	defer cancel()
 	shutdownErr := srv.Shutdown(sctx)
 	stopSched()
+	if failure != nil {
+		return failure
+	}
 	if err := <-serveErr; err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("serve: %w", err)
 	}

@@ -332,6 +332,10 @@ func decodeObservations(raw []byte) (*ObservationsRequest, error) {
 	return &r, nil
 }
 
+// ValidVersion reports whether s is a SemVer of the form a heartbeat may carry. core checks its own build version with it at start
+// (the -ldflags -X main.version of a release must be SemVer, D-141), so the three binaries agree on what a version looks like.
+func ValidVersion(s string) bool { return len(s) <= 64 && versionRE.MatchString(s) }
+
 func decodePassiveHeartbeat(raw []byte) (*PassiveHeartbeat, error) {
 	var h PassiveHeartbeat
 	if err := jsonstrict.Decode(raw, &h); err != nil {

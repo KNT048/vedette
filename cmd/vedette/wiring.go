@@ -23,6 +23,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
+	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
 
 // Modules do not import each other. Each module declares the port it needs; the adapters below convert
@@ -241,6 +242,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	}
 	d.SensorPassive = sp
 	sensor.svc = sp
+	d.SensorDispatcher = sensoractive.NewDispatcher(sensoractive.DispatcherOptions{Now: d.Clock, Log: d.Log})
 	fs, err := feedsService(*d)
 	if err != nil {
 		return fmt.Errorf("feeds: %w", err)

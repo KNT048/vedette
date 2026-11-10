@@ -417,6 +417,8 @@ func probeFailure(err error, baseURL string) error {
 	switch {
 	case errors.Is(err, provider.ErrAuth):
 		return apierr.New(http.StatusUnauthorized, "key_rejected", "The provider rejected the key (HTTP 401). Check the key has not expired and belongs to this provider.")
+	case errors.Is(err, provider.ErrNoWorkspace):
+		return apierr.New(http.StatusBadGateway, "unreachable", "This Anthropic key is not tied to a workspace. Create the API key inside a workspace in the Anthropic console and use that key.")
 	case errors.Is(err, provider.ErrNetwork), errors.Is(err, provider.ErrTimeout):
 		return apierr.New(http.StatusBadGateway, "unreachable", fmt.Sprintf("Could not connect to %s. Check the address, the box's network and the firewall.", host))
 	}

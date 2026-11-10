@@ -364,3 +364,13 @@ func TestAssignmentSuggestion(t *testing.T) {
 	}
 	a.want("GET", "/ai/assignments/suggestion", "viewer", "", http.StatusBadRequest, "")
 }
+
+func TestPRE3_AnthropicKeyWithoutWorkspaceSaysWhatToDo(t *testing.T) {
+	a := newAPI(t)
+	a.fake.failWith("Draft", &provider.Error{Kind: provider.ErrNoWorkspace, Status: 400})
+	m := a.want("POST", "/ai/profiles/test", "admin", cloudBody("Draft", keyA), 502, "unreachable")
+	msg := m["error"].(map[string]any)["message"].(string)
+	if !strings.Contains(msg, "not tied to a workspace") || !strings.Contains(msg, "inside a workspace") || strings.Contains(msg, "AAAA1111") {
+		t.Fatalf("message = %q", msg)
+	}
+}

@@ -383,7 +383,13 @@ func newNetworkHandlers(d *deps, sensor core.SpanSensor) (*core.NetworkHandlers,
 		AddressInUse: func(ctx context.Context, ip netip.Addr) (bool, error) {
 			return addressInUse(ctx, d.Inventory, d.Honeypot, ip)
 		},
-		AddressesChanged: d.HostNet.Invalidate,
+		// AddressesChanged: the cached addresses are dropped and the box's certificate follows its management address (D-139).
+		AddressesChanged: func() {
+			d.HostNet.Invalidate()
+			if d.CertKick != nil {
+				d.CertKick()
+			}
+		},
 	})
 }
 

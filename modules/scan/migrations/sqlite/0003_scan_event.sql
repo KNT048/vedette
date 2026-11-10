@@ -12,7 +12,7 @@ CREATE TABLE scan_event (
     devices     TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(devices) AND json_type(devices) = 'array'),
     latency_min REAL CHECK (latency_min IS NULL OR latency_min >= 0),
     run_id      TEXT,
-    result      TEXT CHECK (result IS NULL OR result IN ('matched', 'clear', 'skipped_off', 'no_match'))
+    result      TEXT CHECK (result IS NULL OR result IN ('matched', 'clear', 'skipped_off', 'no_match', 'pick_only', 'stopped'))
 );
 CREATE INDEX scan_event_ts ON scan_event (ts);
 

@@ -160,10 +160,14 @@ func (s *Service) rescan(ctx context.Context, ev pendingEvent) error {
 		if v.Status == "running" || v.Status == "stopping" {
 			return nil
 		}
-		// "clear" means only that no match was reported (D-133 (5)), never "not affected"; it changes no finding.
+		// "clear" means only that no match was reported (D-133 (5)), never "not affected"; it changes no finding. A run
+		// stopped before every device was done is "stopped" (D-145 (7)): "clear" would hide what was not checked.
 		result := "clear"
-		if v.Matched > 0 {
+		switch {
+		case v.Matched > 0:
 			result = "matched"
+		case v.Status != "done":
+			result = "stopped"
 		}
 		return s.closeEvent(ctx, ev.id, result, labels(v.Results), nil, nil)
 	}
@@ -197,9 +201,12 @@ func (s *Service) rescan(ctx context.Context, ev pendingEvent) error {
 		}
 		return nil
 	}
-	ids, names, first, err := s.affected(ctx, st, ev.cve)
+	ids, names, pickOnly, first, err := s.affected(ctx, st, ev.cve)
 	if err != nil {
 		return err
+	}
+	if len(ids) == 0 && len(pickOnly) > 0 { // matching devices, all of them a hand pick only (D-126 (2), D-145 (7))
+		return s.closeEvent(ctx, ev.id, "pick_only", pickOnly, nil, nil)
 	}
 	if len(ids) == 0 {
 		return s.closeEvent(ctx, ev.id, "no_match", nil, nil, nil)
@@ -242,18 +249,19 @@ func (s *Service) dropEvent(ctx context.Context, ev pendingEvent, why string) er
 	})
 }
 
-// affected are the devices with an open finding for cve that may be scanned without a pick (D-126 (2)).
-func (s *Service) affected(ctx context.Context, st Settings, cve string) (ids, names []string, first Current, err error) {
+// affected are the devices with an open finding for cve that may be scanned without a pick (D-126 (2)), and the names
+// of those that may be scanned only by a hand pick (pickOnly, for the pick_only result of D-145 (7)).
+func (s *Service) affected(ctx context.Context, st Settings, cve string) (ids, names, pickOnly []string, first Current, err error) {
 	if s.cfg.Findings == nil {
-		return nil, nil, Current{}, nil
+		return nil, nil, nil, Current{}, nil
 	}
 	fs, err := s.cfg.Findings.List(ctx, "")
 	if err != nil {
-		return nil, nil, Current{}, fmt.Errorf("scan: reading the findings: %w", err)
+		return nil, nil, nil, Current{}, fmt.Errorf("scan: reading the findings: %w", err)
 	}
 	devs, err := s.devicesByID(ctx)
 	if err != nil {
-		return nil, nil, Current{}, err
+		return nil, nil, nil, Current{}, err
 	}
 	for _, f := range fs {
 		if f.CVE != cve || (f.Status != "suspected" && f.Status != "confirmed") || slices.Contains(ids, f.AssetID) {
@@ -265,9 +273,19 @@ func (s *Service) affected(ctx context.Context, st Settings, cve string) (ids, n
 		}
 		why, _, err := s.consent(ctx, st, d, false)
 		if err != nil {
-			return nil, nil, Current{}, err
+			return nil, nil, nil, Current{}, err
 		}
-		if why != "" || len(ids) == MaxRunTargets {
+		if why != "" {
+			picked, _, err := s.consent(ctx, st, d, true)
+			if err != nil {
+				return nil, nil, nil, Current{}, err
+			}
+			if picked == "" && !slices.Contains(pickOnly, d.Label) {
+				pickOnly = append(pickOnly, d.Label)
+			}
+			continue
+		}
+		if len(ids) == MaxRunTargets {
 			continue
 		}
 		if len(ids) == 0 {
@@ -275,7 +293,7 @@ func (s *Service) affected(ctx context.Context, st Settings, cve string) (ids, n
 		}
 		ids, names = append(ids, d.ID), append(names, d.Label)
 	}
-	return ids, names, first, nil
+	return ids, names, pickOnly, first, nil
 }
 
 func labels(rows []RunRow) []string {

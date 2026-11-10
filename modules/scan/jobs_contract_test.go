@@ -90,9 +90,15 @@ func TestContract_INV9_SkippedOffNoMatchAndPack(t *testing.T) {
 	for _, e := range r.events() {
 		got[e.CVE] = e.Result
 	}
-	// 27593 is only on the fragile NAS; 46805 is on no device; 44228 has no template in the pack: still waiting
-	if len(got) != 2 || got["CVE-2022-27593"] != "no_match" || got["CVE-2023-46805"] != "no_match" || len(r.eng.sent()) != 0 {
+	// 27593 is only on the fragile NAS: a hand pick only (D-145 (7)); 46805 is on no device; 44228 has no template in
+	// the pack: still waiting
+	if len(got) != 2 || got["CVE-2022-27593"] != "pick_only" || got["CVE-2023-46805"] != "no_match" || len(r.eng.sent()) != 0 {
 		t.Fatalf("events: %v, jobs %d", got, len(r.eng.sent()))
+	}
+	for _, e := range r.events() {
+		if e.CVE == "CVE-2022-27593" && !slices.Equal(e.Devices, []string{"NAS-PHOTOS"}) {
+			t.Fatalf("pick_only names the devices that need the pick: %v", e.Devices)
+		}
 	}
 	if r.count(`SELECT count(*) FROM scan_event WHERE cve = 'CVE-2020-0001'`) != 0 || r.count(`SELECT count(*) FROM scan_event WHERE cve = 'CVE-2021-44228' AND result IS NULL`) != 1 {
 		t.Fatal("an entry without a template was queued, or the one without a pack template was closed")
@@ -144,6 +150,34 @@ func TestContract_INV9_WaitsForTheRunningScan(t *testing.T) {
 	r.tick()
 	r.tick()
 	if evs := r.events(); len(evs) != 1 || evs[0].Result != "clear" || *evs[0].LatencyMin != 3 {
+		t.Fatalf("%+v", evs)
+	}
+}
+
+// INV-9, D-145 (7): a rescan run stopped before every device was done is "stopped", never "clear" (which would hide
+// the devices that were not checked).
+func TestContract_INV9_AStoppedRescanSaysSo(t *testing.T) {
+	t.Parallel()
+	r := newRunEnv(t)
+	started := r.eng.blockRuns()
+	if err := r.svc.OnNewKEV(r.ctx(), kev("CVE-2024-3400")); err != nil {
+		t.Fatal(err)
+	}
+	r.advance(2 * time.Minute)
+	if err := r.svc.RunRescans(r.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	<-started
+	var runID string
+	if err := r.db.Reader().QueryRowContext(r.ctx(), `SELECT run_id FROM scan_event`).Scan(&runID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.svc.StopRun(r.ctx(), "it@acme.example", runID); err != nil {
+		t.Fatal(err)
+	}
+	r.wait()
+	r.tick()
+	if evs := r.events(); len(evs) != 1 || evs[0].Result != "stopped" || evs[0].RunID == nil || *evs[0].RunID != runID {
 		t.Fatalf("%+v", evs)
 	}
 }

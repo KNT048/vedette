@@ -158,9 +158,6 @@ func transport(o options) (cfg *tls.Config, hosts []string, hsts bool, renew *se
 	}
 	if o.tlsCert == "" { // the box's own pair: serve it through GetCertificate so a renewal needs no restart
 		renew = &selfSignedRenewer{certPath: certPath, keyPath: keyPath, hosts: flagHosts, now: time.Now, cert: &cfg.Certificates[0], kick: make(chan struct{}, 1)}
-		if o.hostSocket != "" {
-			renew.mgmt = hostMgmtIPv4s(hostclient.New(o.hostSocket))
-		}
 		cfg.Certificates, cfg.GetCertificate = nil, renew.GetCertificate
 	}
 	if len(hosts) == 0 {
@@ -188,8 +185,12 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		return err
 	}
 	var warner *ownerCertWarner // an owner's certificate: never touched, only watched (D-139)
-	if renew == nil && o.hostSocket != "" {
-		warner = newOwnerCertWarner(tlsCfg, hostMgmtIPv4s(hostclient.New(o.hostSocket)))
+	if o.hostSocket != "" {
+		if renew != nil {
+			renew.mgmt = hostMgmtIPv4s(hostclient.New(o.hostSocket), log)
+		} else {
+			warner = newOwnerCertWarner(tlsCfg, hostMgmtIPv4s(hostclient.New(o.hostSocket), log))
+		}
 	}
 	db, err := store.Open(ctx, o.db, log)
 	if err != nil {
@@ -262,12 +263,16 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if renew != nil {
 		tick := time.NewTicker(selfSignedCheckEvery)
 		defer tick.Stop()
-		go renew.Run(ctx, log, tick.C)
+		addrTick := time.NewTicker(selfSignedAddrEvery)
+		defer addrTick.Stop()
+		go renew.Run(ctx, log, tick.C, addrTick.C)
 	}
 	if warner != nil {
 		tick := time.NewTicker(selfSignedCheckEvery)
 		defer tick.Stop()
-		go warner.Run(ctx, log, tick.C)
+		addrTick := time.NewTicker(selfSignedAddrEvery)
+		defer addrTick.Stop()
+		go warner.Run(ctx, log, tick.C, addrTick.C)
 	}
 	return serveUntilDone(ctx, log, srv, ln, sched, schedulerStopTimeout)
 }

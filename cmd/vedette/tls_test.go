@@ -651,7 +651,7 @@ func TestSelfSignedRenewerSwapsInTheRenewedCertificate(t *testing.T) {
 	tick := make(chan time.Time)
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan struct{})
-	go func() { renew.Run(ctx, slog.New(slog.DiscardHandler), tick); close(done) }()
+	go func() { renew.Run(ctx, slog.New(slog.DiscardHandler), tick, nil); close(done) }()
 	tick <- now
 	tick <- now // the second send returns only after the first Check finished
 	cancel()

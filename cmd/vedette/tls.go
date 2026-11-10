@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto"
 	"crypto/ecdsa"
@@ -179,9 +180,13 @@ type selfSignedRenewer struct {
 	hosts             []string
 	now               func() time.Time
 	// mgmt is the management addresses of the box from vedette-host (D-139); nil without a host.
-	mgmt func(ctx context.Context) ([]netip.Addr, error)
-	kick chan struct{}
-	gap  time.Duration // between two address checks started by Kick; 0 = addrSyncGap
+	mgmt  func(ctx context.Context) ([]netip.Addr, error)
+	local func() []string // localNames; a test gives another
+	kick  chan struct{}
+	gap   time.Duration // between two address checks started by Kick; 0 = addrSyncGap
+	// Used by Check only (one goroutine at a time).
+	lastMgmt map[netip.Addr]bool // the management addresses of the last answer; nil before the first
+	hostDown bool                // the last ask failed: one warning per outage
 
 	mu   sync.RWMutex
 	cert *tls.Certificate
@@ -198,14 +203,27 @@ func (r *selfSignedRenewer) GetCertificate(*tls.ClientHelloInfo) (*tls.Certifica
 // address changes are rare, a burst of triggers (apply, confirm, revert) is one change.
 const addrSyncGap = 10 * time.Second
 
+// selfSignedAddrEvery is how often a running box asks vedette-host for its management addresses besides the
+// triggers after apply/confirm/revert: a change made another way (DHCP lease, console) is seen within it.
+const selfSignedAddrEvery = 10 * time.Minute
+
+// maxMgmtAddrs bounds the management addresses taken from one host answer.
+const maxMgmtAddrs = 16
+
+// reservedV4 is 240.0.0.0/4 (reserved, and the limited broadcast address).
+var reservedV4 = netip.MustParsePrefix("240.0.0.0/4")
+
 // hostMgmtIPv4s is the IPv4 addresses vedette-host reports on the management card (state/net, role
 // "management"; never the SPAN card, never decoys, which hostNetCache also holds), without loopback and
-// link-local ones. During a network change that waits for confirmation the host reports the old and the new
-// address both. nil when there is no host.
-func hostMgmtIPv4s(r netStateReader) func(ctx context.Context) ([]netip.Addr, error) {
+// link-local ones. It is whatever the host reports at that moment (during a network change that waits for
+// confirmation that may be the new address only: the certificate follows the host, it does not remember).
+// Only private or global unicast addresses count (no multicast, 240/4 or broadcast), each once, at most
+// maxMgmtAddrs (the rest are ignored, with one warning on log; nil: none). nil when there is no host.
+func hostMgmtIPv4s(r netStateReader, log *slog.Logger) func(ctx context.Context) ([]netip.Addr, error) {
 	if r == nil {
 		return nil
 	}
+	warned := false
 	return func(ctx context.Context) ([]netip.Addr, error) {
 		ctx, cancel := context.WithTimeout(ctx, hostNetTimeout)
 		defer cancel()
@@ -214,26 +232,39 @@ func hostMgmtIPv4s(r netStateReader) func(ctx context.Context) ([]netip.Addr, er
 			return nil, err
 		}
 		var out []netip.Addr
+		seen := map[netip.Addr]bool{}
 		for _, i := range st.Interfaces {
 			if i.Role != api.NetRoleManagement {
 				continue
 			}
 			for _, s := range i.Addresses {
-				if p, err := netip.ParsePrefix(s); err == nil {
-					if a := p.Addr().Unmap(); a.Is4() && !a.IsLoopback() && !a.IsLinkLocalUnicast() && !a.IsUnspecified() && !slices.Contains(out, a) {
-						out = append(out, a)
-					}
+				p, err := netip.ParsePrefix(s)
+				if err != nil {
+					continue
 				}
+				a := p.Addr().Unmap()
+				if !a.Is4() || seen[a] || reservedV4.Contains(a) || a.IsMulticast() || (!a.IsPrivate() && !a.IsGlobalUnicast()) {
+					continue
+				}
+				seen[a] = true
+				if len(out) >= maxMgmtAddrs {
+					if !warned && log != nil {
+						warned = true
+						log.WarnContext(ctx, "vedette-host reported more management addresses than the certificate takes; the rest are ignored", "kept", maxMgmtAddrs)
+					}
+					continue
+				}
+				out = append(out, a)
 			}
 		}
 		return out, nil
 	}
 }
 
-// ipSANs is the set of IP addresses a certificate made for hosts would list (hosts plus localNames).
-func ipSANs(hosts []string) map[netip.Addr]bool {
+// ipSANs is the set of IP addresses among names.
+func ipSANs(names []string) map[netip.Addr]bool {
 	out := map[netip.Addr]bool{}
-	for _, h := range append(append([]string(nil), hosts...), localNames()...) {
+	for _, h := range names {
 		if a, err := netip.ParseAddr(h); err == nil {
 			out[a.Unmap()] = true
 		}
@@ -276,57 +307,113 @@ func (r *selfSignedRenewer) Kick() {
 // box has: -hosts, localNames and the management addresses vedette-host reports (D-139). A host that does not
 // answer, or answers nothing, never removes an address: the certificate keeps the ones it has. The new
 // certificate is loaded for new handshakes.
+//
+// The decision to re-issue for addresses compares the management addresses with those of the last answer (at
+// start: with the certificate), never the container's own addresses, which localNames adds to the certificate
+// but which are not the box's address. The new certificate is built from the new PEM and the key already in
+// memory, so a disk that cannot be read back does not keep the old certificate being served; when the pair on
+// disk was replaced by something else that loads, that is served instead.
 func (r *selfSignedRenewer) Check(ctx context.Context, log *slog.Logger) error {
 	r.mu.RLock()
-	leaf, err := x509.ParseCertificate(r.cert.Certificate[0])
+	cur := r.cert
 	r.mu.RUnlock()
+	if pair, err := tls.LoadX509KeyPair(r.certPath, r.keyPath); err == nil && !bytes.Equal(pair.Certificate[0], cur.Certificate[0]) {
+		r.mu.Lock()
+		r.cert, cur = &pair, &pair
+		r.mu.Unlock()
+		if log != nil {
+			log.InfoContext(ctx, "the certificate on disk is not the one served; serving it")
+		}
+	}
+	leaf, err := x509.ParseCertificate(cur.Certificate[0])
 	if err != nil {
 		return fmt.Errorf("tls: parse certificate: %w", err)
 	}
+	signer, ok := cur.PrivateKey.(crypto.Signer)
+	if !ok || !slices.Contains(leaf.Subject.Organization, selfSignedOrg) {
+		return nil // not a pair this program made
+	}
 	var mgmt []netip.Addr
 	if r.mgmt != nil {
-		if a, err := r.mgmt(ctx); err == nil {
+		a, err := r.mgmt(ctx)
+		switch {
+		case err != nil:
+			if !r.hostDown && log != nil {
+				log.WarnContext(ctx, "vedette-host does not answer; the certificate keeps the addresses it has", "error", err)
+			}
+			r.hostDown = true
+		default:
+			r.hostDown = false
 			mgmt = a
 		}
 	}
 	hosts := append([]string(nil), r.hosts...)
-	var want map[netip.Addr]bool // nil: no fresh answer from the host, the address set stays as it is
+	addrChange := false
+	var now map[netip.Addr]bool
 	if len(mgmt) > 0 {
+		now = map[netip.Addr]bool{}
 		for _, a := range mgmt {
 			hosts = append(hosts, a.String())
+			now[a] = true
 		}
-		want = ipSANs(hosts)
+		if r.lastMgmt == nil { // first answer since start: the certificate is the reference
+			addrChange = !maps.Equal(certIPs(leaf), ipSANs(append(hosts, r.localList()...)))
+		} else {
+			addrChange = !maps.Equal(now, r.lastMgmt)
+		}
 	} else {
-		hosts = append(hosts, addrStrings(certIPs(leaf))...)
+		hosts = append(hosts, addrStrings(certIPs(leaf))...) // no fresh answer: keep the addresses it has
 	}
-	replaced, err := reissueSelfSigned(r.certPath, r.keyPath, hosts, r.now, func(l *x509.Certificate) bool {
-		return l.NotAfter.Sub(r.now()) <= selfSignedRenewBefore || (want != nil && !maps.Equal(certIPs(l), want))
-	})
-	if err != nil || !replaced {
+	if !addrChange && leaf.NotAfter.Sub(r.now()) > selfSignedRenewBefore {
+		if now != nil {
+			r.lastMgmt = now
+		}
+		return nil
+	}
+	certPEM, err := selfSignedPEM(signer, append(hosts, r.localList()...), r.now())
+	if err != nil {
 		return err
 	}
-	pair, err := tls.LoadX509KeyPair(r.certPath, r.keyPath)
-	if err != nil {
-		return fmt.Errorf("tls: load renewed certificate: %w", err)
+	if err := writeAtomic(r.certPath, certPEM); err != nil {
+		return err
+	}
+	blk, _ := pem.Decode(certPEM)
+	if blk == nil {
+		return errors.New("tls: made a certificate that is not PEM")
 	}
 	r.mu.Lock()
-	r.cert = &pair
+	r.cert = &tls.Certificate{Certificate: [][]byte{blk.Bytes}, PrivateKey: cur.PrivateKey}
 	r.mu.Unlock()
+	if now != nil {
+		r.lastMgmt = now
+	}
 	if log != nil {
-		log.InfoContext(ctx, "the self-signed certificate was re-issued", "ip_addresses", addrStrings(ipSANs(hosts)))
+		log.InfoContext(ctx, "the self-signed certificate was re-issued", "ip_addresses", addrStrings(ipSANs(append(hosts, r.localList()...))))
 	}
 	return nil
 }
 
-// Run calls Check on every tick (the box passes a daily one), once at start and after a Kick (at most once per
-// gap) until ctx is done; a failure is logged and tried again at the next trigger.
-func (r *selfSignedRenewer) Run(ctx context.Context, log *slog.Logger, tick <-chan time.Time) {
-	syncLoop(ctx, log, tick, r.kick, r.gap, "renewing the self-signed certificate", func(ctx context.Context) error { return r.Check(ctx, log) })
+// localList is what localNames gives (a test may give another list).
+func (r *selfSignedRenewer) localList() []string {
+	if r.local != nil {
+		return r.local()
+	}
+	return localNames()
 }
 
-// syncLoop runs fn at start, on every tick, and after a kick, waiting until gap has passed since the last run
-// (kicks that arrive meanwhile are one).
-func syncLoop(ctx context.Context, log *slog.Logger, tick <-chan time.Time, kick <-chan struct{}, gap time.Duration, what string, fn func(context.Context) error) {
+// Run calls Check on every tick (the box passes a daily one and one every selfSignedAddrEvery, nil for none),
+// once at start and after a Kick (at most once per gap) until ctx is done; a failure is logged and tried again
+// at the next trigger.
+func (r *selfSignedRenewer) Run(ctx context.Context, log *slog.Logger, tick, addrTick <-chan time.Time) {
+	syncLoop(ctx, tick, addrTick, r.kick, r.gap, func(ctx context.Context) error { return r.Check(ctx, log) },
+		func(ctx context.Context, err error) {
+			log.ErrorContext(ctx, "renewing the self-signed certificate failed", "error", err)
+		})
+}
+
+// syncLoop runs fn at start, on every tick of either channel, and after a kick, waiting until gap has passed
+// since the last run (kicks that arrive meanwhile are one); onErr reports a failure.
+func syncLoop(ctx context.Context, tick, addrTick <-chan time.Time, kick <-chan struct{}, gap time.Duration, fn func(context.Context) error, onErr func(context.Context, error)) {
 	if gap <= 0 {
 		gap = addrSyncGap
 	}
@@ -334,7 +421,7 @@ func syncLoop(ctx context.Context, log *slog.Logger, tick <-chan time.Time, kick
 	run := func() {
 		last = time.Now()
 		if err := fn(ctx); err != nil {
-			log.ErrorContext(ctx, "TLS certificate address check failed", "check", what, "error", err)
+			onErr(ctx, err)
 		}
 	}
 	run()
@@ -343,6 +430,8 @@ func syncLoop(ctx context.Context, log *slog.Logger, tick <-chan time.Time, kick
 		case <-ctx.Done():
 			return
 		case <-tick:
+			run()
+		case <-addrTick:
 			run()
 		case <-kick:
 			if wait := gap - time.Since(last); wait > 0 {
@@ -417,8 +506,11 @@ func (w *ownerCertWarner) Check(ctx context.Context, log *slog.Logger) error {
 }
 
 // Run checks at start, on every tick and after a Kick (at most once per gap) until ctx is done.
-func (w *ownerCertWarner) Run(ctx context.Context, log *slog.Logger, tick <-chan time.Time) {
-	syncLoop(ctx, log, tick, w.kick, w.gap, "owner certificate coverage", func(ctx context.Context) error { return w.Check(ctx, log) })
+func (w *ownerCertWarner) Run(ctx context.Context, log *slog.Logger, tick, addrTick <-chan time.Time) {
+	syncLoop(ctx, tick, addrTick, w.kick, w.gap, func(ctx context.Context) error { return w.Check(ctx, log) },
+		func(ctx context.Context, err error) {
+			log.ErrorContext(ctx, "checking the owner's certificate failed", "error", err)
+		})
 }
 
 // selfSignedPEM makes a self-signed server certificate for key, valid selfSignedLifetime, for hosts and

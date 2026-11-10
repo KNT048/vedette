@@ -248,7 +248,7 @@ func TestContract_INV9_ReconcileKeepsBacklogSilentAndAnnouncesRecentNews(t *test
 	t.Parallel()
 	e := newEnv(t)
 	e.feeds.vulns = []Vuln{
-		kevVuln("CVE-2022-0001", t0.AddDate(-4, 0, 0)), // old: backlog, even though the device only now has the finding
+		kevVuln("CVE-2022-0001", t0.AddDate(-4, 0, 0)),  // old: backlog, even though the device only now has the finding
 		kevVuln("CVE-2026-0002", t0.Add(-48*time.Hour)), // added to KEV two days ago: real news that a lost new_kev event should still announce
 		kevVuln("CVE-2022-0003", time.Time{}),           // unknown date: treated as backlog, never as news
 	}

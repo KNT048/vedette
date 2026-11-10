@@ -212,7 +212,7 @@ func (r *rig) count(query string) int {
 
 func qnapPack(t *testing.T) []byte {
 	t.Helper()
-	b, err := os.ReadFile("testdata/" + qnapCVE + ".json")
+	b, err := os.ReadFile(testPackDir + qnapCVE + ".json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -569,7 +569,7 @@ func TestMigrationsUsePrefix(t *testing.T) {
 }
 
 func FuzzParsePack(f *testing.F) {
-	b, err := os.ReadFile("testdata/" + qnapCVE + ".json")
+	b, err := os.ReadFile(testPackDir + qnapCVE + ".json")
 	if err != nil {
 		f.Fatal(err)
 	}

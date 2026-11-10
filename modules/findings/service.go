@@ -44,6 +44,17 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 // publishTimeout bounds the delivery of the events of one committed change.
 const publishTimeout = 5 * time.Second
 
+// eventWriteTimeout bounds how long a handler of an incoming event (OnMatchChanged, OnAssetDeleted) waits for the one
+// writer. The bus gives a handler 5 s, but a long write elsewhere (the first KEV pull) holds the writer longer, and an
+// event that failed at "store: begin: context deadline exceeded" is not delivered again: the finding would never be
+// created, or the findings of a deleted device would stay. So these handlers run on their own deadline, cut loose from
+// the bus's (a caller that really goes away, on shutdown, is still cut at this bound).
+const eventWriteTimeout = time.Minute
+
+func eventContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), eventWriteTimeout)
+}
+
 type event struct {
 	name    string
 	payload any
@@ -92,6 +103,8 @@ type UpsertResult struct {
 // OnMatchChanged handles inventory.match.changed: it reads the device and the exploited list and
 // matches them (PRE-1). An unknown device is ErrUnknownAsset.
 func (s *Service) OnMatchChanged(ctx context.Context, assetID string) (UpsertResult, error) {
+	ctx, cancel := eventContext(ctx)
+	defer cancel()
 	a, ok, err := s.cfg.Inventory.MatchInput(ctx, assetID)
 	if err != nil {
 		return UpsertResult{}, fmt.Errorf("findings: reading the device to match: %w", err)
@@ -285,6 +298,8 @@ func (s *Service) SetStatus(ctx context.Context, id string, action Action, note,
 // the foreign keys of mitigation, their applied log and AI results go with it (INV-7). It returns
 // how many findings were removed.
 func (s *Service) OnAssetDeleted(ctx context.Context, assetID string) (int, error) {
+	ctx, cancel := eventContext(ctx)
+	defer cancel()
 	var n int64
 	err := s.write(ctx, func(tx *sql.Tx, _ time.Time, _ func(string, any)) error {
 		res, err := tx.ExecContext(ctx, `DELETE FROM fnd_finding WHERE asset_id = ?`, assetID)

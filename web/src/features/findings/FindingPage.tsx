@@ -83,7 +83,7 @@ function Evidence({ f }: { f: FindingDetail }) {
         <div className="grid gap-2 border-t border-rule pt-3">
           <h3 className="text-sm font-semibold">{t('evidence.recheck')}</h3>
           <ol className="grid list-decimal gap-1 pl-5 text-sm">{f.recheck.steps.map((s) => <li key={s}>{s}</li>)}</ol>
-          {f.recheck.code ? <CodeBlock code={f.recheck.code} label={t('evidence.recheckCode')} /> : null}
+          {f.recheck.code ? <CodeBlock code={f.recheck.code} label={t('evidence.recheckCode')} wrapOnPhone /> : null}
           {f.asset ? (
             <Button asChild className="w-fit"><Link to={`/scans?target=${f.asset.id}`}><ScanSearch />{t('evidence.rescan')}</Link></Button>
           ) : null}
@@ -106,7 +106,7 @@ function Compromise({ f }: { f: FindingDetail }) {
               <li key={i.title} className="grid gap-2">
                 <p className="text-sm font-medium">{i.title}</p>
                 <p className="max-w-3xl text-[13px] text-muted">{i.detail}</p>
-                {i.commands?.map((cmd) => <CodeBlock key={cmd.label} code={cmd.code} label={cmd.label} />)}
+                {i.commands?.map((cmd) => <CodeBlock key={cmd.label} code={cmd.code} label={cmd.label} wrapOnPhone />)}
               </li>
             ))}
           </ul>

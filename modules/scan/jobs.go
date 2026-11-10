@@ -144,6 +144,7 @@ func (s *Service) rescan(ctx context.Context, ev pendingEvent) error {
 		if v.Status == "running" || v.Status == "stopping" {
 			return nil
 		}
+		// "clear" means only that no match was reported (D-133 (5)), never "not affected"; it changes no finding.
 		result := "clear"
 		if v.Matched > 0 {
 			result = "matched"

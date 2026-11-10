@@ -482,6 +482,16 @@ describe('scan: tự quét lại khi có KEV mới (S-SCAN-2)', () => {
     await expectNoA11yViolations()
   })
 
+  it('a rescan with no match says "No match reported" in a neutral tone, never "Not affected" (D-133 (5))', async () => {
+    const ev = { id: 'ev-clear', ts: new Date().toISOString(), cve: 'CVE-2026-0002', product: 'Acme NAS', devices: ['nas02'], latency_min: 12, run_id: 'run-1', result: 'clear' }
+    server.use(http.get('*/api/v1/scans/events', () => HttpResponse.json({ items: [ev], auto_rescan: true })))
+    renderApp('/scans?tab=auto')
+    const table = await screen.findByRole('table', { name: 'Auto rescan event log' })
+    const chip = await within(table).findByText('No match reported')
+    expect(chip.className).toContain('text-off')
+    expect(within(table).queryByText('Not affected')).toBeNull()
+  })
+
   it('quản trị tắt được, có ghi chú giải thích; vận hành thì không', async () => {
     const view = renderApp('/scans?tab=auto')
     await userEvent.click(await screen.findByRole('switch', { name: 'Rescan automatically when a new KEV has a scan template' }))

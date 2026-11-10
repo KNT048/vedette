@@ -232,7 +232,7 @@
     "minutes_other": "{{count}} minutes",
     "result": {
       "matched": "Matches, alerted",
-      "clear": "Not affected",
+      "clear": "No match reported",
       "skipped_off": "Skipped: turned off",
       "no_match": "Not scanned: no matching device"
     },

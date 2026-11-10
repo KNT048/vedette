@@ -13,7 +13,8 @@ import { useEvents, useSaveConfig } from './api'
 import { errMsg } from './errors'
 import type { RescanEvent } from './types'
 
-const tone = { matched: 'danger', clear: 'ok', skipped_off: 'off', no_match: 'off' } as const
+// clear is only "no match reported" (D-133 (5)): neutral, never green
+const tone = { matched: 'danger', clear: 'off', skipped_off: 'off', no_match: 'off' } as const
 
 export function AutoTab() {
   const { t } = useTranslation('scan')

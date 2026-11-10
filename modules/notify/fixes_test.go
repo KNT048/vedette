@@ -360,7 +360,7 @@ func TestApprovalRequestRecordsEvenWhenTheRequestEnds(t *testing.T) {
 func TestWebhookCannotPointAtTheBoxOrLoopback(t *testing.T) {
 	e := newEnv(t, func(c *notify.Config) {
 		c.HTTPClient = nil
-		c.BoxAddrs = func() []netip.Addr { return []netip.Addr{netip.MustParseAddr("10.9.9.9")} }
+		c.BoxAddrs = func() ([]netip.Addr, bool) { return []netip.Addr{netip.MustParseAddr("10.9.9.9")}, true }
 	})
 	targets := []string{"http://127.0.0.1:8443/api/v1/core/updates/apply", "http://localhost:11434/api/generate", "https://127.0.0.1/x", "https://10.9.9.9/x"}
 	addrs, _ := net.InterfaceAddrs()

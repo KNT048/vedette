@@ -386,7 +386,17 @@ func (e *env) iocEvent(id, destIP string) response.Det {
 		Fields: map[string]string{"src_ip": "192.168.10.105", "device": "PC-SALES-02", "dest": destIP, "dest_kind": "ip", "dest_ip": destIP, "dest_domain": "", "feeds": "IPsum", "confidence": "0.92", "switch_port": ""}}
 }
 
+// fire stores an event, evaluates it and waits for the approval requests it sent in the background, so a test that reads
+// resp_log afterwards sees every line the run will write.
 func (e *env) fire(d response.Det) response.RunSummary {
+	e.t.Helper()
+	sum := e.fireNoWait(d)
+	e.svc.WaitSendsForTest()
+	return sum
+}
+
+// fireNoWait is fire without waiting for the background sends (tests of the send queue itself).
+func (e *env) fireNoWait(d response.Det) response.RunSummary {
 	e.t.Helper()
 	e.must(e.svc.StoreEvent(e.ctx(), d))
 	sum, err := e.svc.Evaluate(e.ctx())

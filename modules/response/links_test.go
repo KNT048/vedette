@@ -893,7 +893,7 @@ func TestPost5_ABlackholedMailServerDelaysNothing(t *testing.T) {
 	go func() {
 		defer close(done)
 		for i, ip := range []string{"198.51.100.7", "198.51.100.8", "198.51.100.9"} {
-			e.fire(e.iocEvent(fmt.Sprintf("e%d", i), ip))
+			e.fireNoWait(e.iocEvent(fmt.Sprintf("e%d", i), ip))
 		}
 	}()
 	select {
@@ -910,7 +910,7 @@ func TestPost5_ABlackholedMailServerDelaysNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.rule("Pre", "honeypot", []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.source_ip}}"}, TTLMin: intp(1440)}}, func(in *response.RuleInput) { in.PreApproved = true })
-	e.fire(e.trap("h1", "192.168.10.157"))
+	e.fireNoWait(e.trap("h1", "192.168.10.157"))
 	if e.count(`SELECT COUNT(*) FROM resp_actions WHERE pre_approved = 1 AND status = 'executed'`) != 1 {
 		t.Fatal("a pre-approved action waited for the mail server")
 	}

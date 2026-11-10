@@ -305,6 +305,7 @@ func newEnv(t *testing.T, o fakeOpts, mut ...func(*env)) *env {
 		m(e)
 	}
 	e.build()
+	e.t0 = time.Now() // the clock starts when the env is ready: starting the remote worker (keys, TLS) must not eat a 2 s window
 	return e
 }
 

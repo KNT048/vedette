@@ -231155,6 +231155,8 @@ func (s *ScanGetScansProbesOKItemsItemResult) Decode(d *jx.Decoder) error {
 		*s = ScanGetScansProbesOKItemsItemResultNoResponse
 	case ScanGetScansProbesOKItemsItemResultBanner:
 		*s = ScanGetScansProbesOKItemsItemResultBanner
+	case ScanGetScansProbesOKItemsItemResultStopped:
+		*s = ScanGetScansProbesOKItemsItemResultStopped
 	default:
 		*s = ScanGetScansProbesOKItemsItemResult(v)
 	}
@@ -232478,10 +232480,16 @@ func (s *ScanGetScansTargetsOKItemsItemReason) Decode(d *jx.Decoder) error {
 		*s = ScanGetScansTargetsOKItemsItemReasonExcluded
 	case ScanGetScansTargetsOKItemsItemReasonOutOfScope:
 		*s = ScanGetScansTargetsOKItemsItemReasonOutOfScope
+	case ScanGetScansTargetsOKItemsItemReasonBox:
+		*s = ScanGetScansTargetsOKItemsItemReasonBox
+	case ScanGetScansTargetsOKItemsItemReasonRegularScanNever:
+		*s = ScanGetScansTargetsOKItemsItemReasonRegularScanNever
 	case ScanGetScansTargetsOKItemsItemReasonUnverified:
 		*s = ScanGetScansTargetsOKItemsItemReasonUnverified
 	case ScanGetScansTargetsOKItemsItemReasonExpired:
 		*s = ScanGetScansTargetsOKItemsItemReasonExpired
+	case ScanGetScansTargetsOKItemsItemReasonNotSupported:
+		*s = ScanGetScansTargetsOKItemsItemReasonNotSupported
 	default:
 		*s = ScanGetScansTargetsOKItemsItemReason(v)
 	}

@@ -8,8 +8,10 @@ const day = z.number().int().min(1).max(7).describe('1 = Monday … 7 = Sunday (
 
 export const ScanTarget = z.object({
   id: z.string().describe('device id (a-nas02) or ext:<target id> for a verified external target'),
-  kind: z.enum(['internal', 'external']), device_kind: z.enum(['firewall', 'router', 'switch', 'ap', 'nas', 'server', 'pc', 'printer', 'camera', 'nvr', 'iot', 'web', 'unknown']).nullable().describe('Device type in the inventory; null for external targets'), label: z.string(), ip: z.string(), fragile: z.boolean(), findings: z.number().int(),
-  selectable: z.boolean(), reason: z.enum(['unapproved', 'excluded', 'out_of_scope', 'unverified', 'expired']).nullable().describe('null when the target can be scanned'),
+  kind: z.enum(['internal', 'external']), device_kind: z.enum(['firewall', 'router', 'switch', 'ap', 'nas', 'server', 'pc', 'printer', 'camera', 'nvr', 'iot', 'web', 'unknown']).nullable().describe('Device type in the inventory; null for external targets'), label: z.string(), ip: z.string(),
+  fragile: z.boolean().describe('Fragile, or not yet classified (kind unknown): only scanned when picked by hand, at a quarter of the speed (D-126)'), findings: z.number().int(),
+  selectable: z.boolean(), reason: z.enum(['unapproved', 'excluded', 'out_of_scope', 'box', 'regular_scan_never', 'unverified', 'expired', 'not_supported']).nullable()
+    .describe('null when the target can be scanned by picking it. box: the Vedette box itself is never scanned. regular_scan_never: a person set "never scan" on the device (D-126). not_supported: external targets are not scanned by this version yet'),
 })
 export const ScanScope = z.object({ networks: z.array(z.string()), commitment: z.object({ confirmed_at: iso, by: z.string() }).nullable().describe('The scope commitment ticked under Devices, Scope and sensors (inventory scope_confirmed_at)') })
 export const ScanConfig = z.object({
@@ -28,7 +30,8 @@ export const ScanConfigPatch = z.object({
   dangerous_checks: z.literal(false).describe('Rejected when true: no exploitation, no DoS'),
 }).partial()
 export const ScanConfigResponse = z.object({
-  config: ScanConfig, next_run: iso.nullable(), scope: ScanScope, can_scan: z.boolean(), block_reason: z.string().nullable(), dangerous_checks: z.literal(false),
+  config: ScanConfig, next_run: iso.nullable(), scope: ScanScope,
+  can_scan: z.boolean().describe('false without the scope commitment, or while the scanner in the scan container is not available'), block_reason: z.string().nullable(), dangerous_checks: z.literal(false),
 })
 
 export const RunStatus = z.enum(['running', 'stopping', 'done', 'stopped', 'auto_stopped'])
@@ -44,7 +47,7 @@ export const ScanRun = z.object({
 })
 export const ProbeEntry = z.object({
   id: z.string(), ts: iso, run_id: z.string().nullable(), ip: z.string(), label: z.string(), template: z.string(), request: z.string(),
-  result: z.enum(['matched', 'not_matched', 'no_response', 'banner']),
+  result: z.enum(['matched', 'not_matched', 'no_response', 'banner', 'stopped']).describe('stopped: the request was on its way when the scan was stopped'),
 })
 export const RescanEvent = z.object({
   id: z.string(), ts: iso, cve: z.string(), product: z.string(), devices: z.array(z.string()), latency_min: z.number().nullable(), run_id: z.string().nullable(),

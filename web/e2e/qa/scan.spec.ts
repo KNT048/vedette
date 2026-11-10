@@ -270,10 +270,10 @@ test.describe('scan: clean install', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cannot scan yet: confirm the scan scope first')
     await expect(page.getByText('What to set up before scanning')).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open Scope and sensors' })).toHaveAttribute('href', '/devices/setup')
-    // The box is the first device of every inventory (D-53, S-INV-5), approved and inside the range, so step 2 is already done.
-    await expect(page.getByText(/2\. At least one approved device inside the scope \(Done\)/)).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Open Devices' })).toHaveCount(0)
-    await expect(page.getByRole('checkbox', { name: /^vedette 10\.20\.0\./ })).toBeVisible()
+    // The box is the first device of every inventory (D-53, S-INV-5), but it is never scanned (D-126), so step 2 is still to do.
+    await expect(page.getByText(/2\. At least one approved device inside the scope \(Not done\)/)).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Open Devices' })).toBeVisible()
+    await expect(page.getByRole('checkbox', { name: /^vedette 10\.20\.0\./ })).toBeDisabled()
     await expect(page.getByRole('button', { name: /Scan now/ })).toBeDisabled()
     await expect(page.getByText('No scans yet.').first()).toBeVisible()
     for (const tab of ['runs', 'safety', 'auto', 'probes']) {
@@ -288,33 +288,33 @@ test.describe('scan: clean install', () => {
     expect(errors).toEqual([])
   })
 
-  test('with the commitment ticked, the box itself is the first device: no setup step is left and Scan now is ready', async ({ page }) => {
+  test('with the commitment ticked, only the devices step is left: the box itself is listed but never scanned (D-126)', async ({ page }) => {
     await clean(page, true)
     await page.goto('/scans')
-    await expect(page.getByText('What to set up before scanning')).toHaveCount(0)
+    await expect(page.getByText('What to set up before scanning')).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open Scope and sensors' })).toHaveCount(0)
-    await expect(page.getByRole('checkbox', { name: /^vedette 10\.20\.0\./ })).toBeChecked()
-    await expect(page.getByRole('button', { name: /Scan now/ })).toBeEnabled()
+    await expect(page.getByRole('link', { name: 'Open Devices' })).toBeVisible()
+    await expect(page.getByRole('checkbox', { name: /^vedette 10\.20\.0\./ })).toBeDisabled()
+    await expect(page.getByText('This is the Vedette box itself, never scanned').first()).toBeVisible()
+    await expect(page.getByRole('button', { name: /Scan now/ })).toBeDisabled()
   })
 
-  test('an external IP the box no longer goes out through is paused with the reason (INV-13 of exposure, 5-minute window); it can be scanned again when the box is back', async ({ page }) => {
-    await page.clock.install() // time flows, but the test can jump 6 minutes past the 5-minute window
+  test('the box public IP is listed as an external target but not scanned yet, and the page says so', async ({ page }) => {
     await clean(page, true)
     await page.goto('/scans')
     const ip = page.getByRole('checkbox', { name: /^203\.0\.113\.10 / })
-    await expect(ip).toBeEnabled() // the first start of the box found its public IPs by itself
-    await page.getByRole('button', { name: 'Clear selection' }).click()
-    await ip.check()
-    await page.evaluate(() => localStorage.setItem('vedette-mock-egress', '198.51.100.50')) // the box now goes out through another address
-    await page.clock.fastForward('06:00')
-    await page.getByRole('button', { name: /Scan now/ }).click()
-    await expect(page.getByText(/no longer reaches the Internet through 203\.0\.113\.10/).first()).toBeVisible()
-    await expect(page.getByText(/Scans of it are paused until the box uses it again/).first()).toBeVisible()
-    await page.evaluate(() => localStorage.removeItem('vedette-mock-egress'))
-    await page.clock.fastForward('06:00')
-    await page.getByRole('button', { name: /Scan now/ }).click()
-    await expect(page.getByText(/no longer reaches the Internet/)).toHaveCount(0)
-    await expect(page.getByText('Scan started').first()).toBeVisible()
+    await expect(ip).toBeVisible() // the first start of the box found its public IPs by itself
+    await expect(ip).toBeDisabled()
+    await expect(page.getByText('External targets are not scanned yet').first()).toBeVisible()
+    await expect(page.getByText(/This version does not scan external targets for vulnerabilities yet/)).toBeVisible()
+  })
+
+  test('when the scanner is not available, Scan now is locked with the reason', async ({ page }) => {
+    await clean(page, true)
+    await patchDb(page, { scan_scanner: { available: false } })
+    await page.goto('/scans')
+    await expect(page.getByRole('button', { name: /Scan now/ })).toBeDisabled()
+    await expect(page.getByText(/The vulnerability scanner is not available: the scan container or its scanner is missing/).first()).toBeVisible()
   })
 })
 

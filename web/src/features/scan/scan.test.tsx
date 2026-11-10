@@ -5,8 +5,8 @@ import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
-import { auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
-import { nextRun, timing } from './mocks'
+import { assetsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
+import { nextRun, scannerStore, timing } from './mocks'
 import type { ScanConfig, ScanRun } from './types'
 
 const base = () => `${location.origin}/api/v1`
@@ -44,7 +44,10 @@ describe('scan: trang chính và chọn mục tiêu (S-SCAN-1)', () => {
     expect(screen.getAllByText('Not approved in the inventory, so not scanned').length).toBeGreaterThan(0)
     expect(screen.getByRole('checkbox', { name: /acme-demo\.example/ })).toBeDisabled()
     expect(screen.getByText('Ownership not verified, so not scanned')).toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: /^acme\.example / })).toBeEnabled()
+    // External targets are listed but this version does not scan them yet, even when verified (deferred).
+    expect(screen.getByRole('checkbox', { name: /^acme\.example / })).toBeDisabled()
+    expect(screen.getAllByText('External targets are not scanned yet').length).toBeGreaterThan(0)
+    expect(screen.getByText(/This version does not scan external targets for vulnerabilities yet/)).toBeInTheDocument()
     // IP ngoài hộp không thấy quá 30 ngày thì không quét được
     expect(screen.getByRole('checkbox', { name: /203\.0\.113\.55/ })).toBeDisabled()
     expect(screen.getAllByText('Verification expired, verify again, so not scanned').length).toBeGreaterThan(0)
@@ -117,25 +120,58 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
     expect((await again.json()).error.code).toBe('already_running')
   })
 
-  it('IP ngoài mà hộp không còn ra Internet bằng nó thì bị tạm dừng (INV-13 của exposure): 409 ip_not_current, kết quả lượt dò đầy đủ được dùng lại 5 phút, đến hạn thì dò lại', async () => {
+  it('mục tiêu ngoài đã xác thực chưa được quét ở bản này: 400 out_of_scope nói rõ, không lượt nào bắt đầu', async () => {
     renderApp('/scans')
     await screen.findByRole('checkbox', { name: /NAS-PHOTOS/ })
     as('u-op')
-    vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(Date.now() + 10 * 60_000) // the sample's last check is old, so the scan asks the network
-    localStorage.setItem('vedette-mock-egress', '198.51.100.50') // the box went out through another address
-    const paused = await postRun(['ext:xt-2'])
-    expect(paused.status).toBe(409)
-    const err = (await paused.json()).error
-    expect(err.code).toBe('ip_not_current')
-    expect(err.message).toMatch(/^This box no longer reaches the Internet through 203\.0\.113\.10; it was last seen \d{1,2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2}\. Scans of it are paused until the box uses it again\.$/)
+    const targets = (await (await fetch(`${base()}/scans/targets`)).json()).items as { id: string; kind: string; selectable: boolean; reason: string | null }[]
+    expect(targets.filter((x) => x.kind === 'external').every((x) => !x.selectable)).toBe(true)
+    expect(targets.find((x) => x.id === 'ext:xt-2')!.reason).toBe('not_supported')
+    const res = await postRun(['ext:xt-2'])
+    expect(res.status).toBe(400)
+    const err = (await res.json()).error
+    expect(err.code).toBe('out_of_scope')
+    expect(err.message).toMatch(/is an external target, and this version does not scan external targets yet, so it cannot be scanned/)
     expect((await getRuns()).filter((r) => !r.id.startsWith('run-seed'))).toHaveLength(0)
-    localStorage.removeItem('vedette-mock-egress') // the box is back, but the answer of the full check of a minute ago still stands
-    vi.setSystemTime(Date.now() + 2 * 60_000)
-    expect((await postRun(['ext:xt-2'])).status).toBe(409)
-    vi.setSystemTime(Date.now() + 4 * 60_000) // 5 minutes passed: the box is asked again and sees the IP
-    timing.stepMs = 60_000
-    expect((await postRun(['ext:xt-2'])).status).toBe(201)
+  })
+
+  it('D-126: chọn tay là đồng ý cho thiết bị khai tay, mong manh, chưa phân loại; hộp và thiết bị "never" thì không bao giờ', async () => {
+    const { ensureBox } = await import('@/features/inventory/mocks')
+    ensureBox()
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-web01' ? { ...a, origin: 'manual' as const } : a.id === 'a-unk01' ? { ...a, approved: true } : a)))
+    as('u-admin')
+    expect((await fetch(`${base()}/inventory/devices/a-srvad`, json('PATCH', { regular_scan: 'never' }))).status).toBe(200)
+    renderApp('/scans')
+    expect(await screen.findByRole('checkbox', { name: /WEB01/ })).toBeEnabled()
+    const items = (await (await fetch(`${base()}/scans/targets`)).json()).items as { id: string; fragile: boolean; selectable: boolean; reason: string | null }[]
+    const byId = (id: string) => items.find((x) => x.id === id)!
+    expect(byId('a-web01')).toMatchObject({ selectable: true, reason: null }) // added by hand, picked by hand
+    expect(byId('a-nas02')).toMatchObject({ selectable: true, fragile: true })
+    expect(byId('a-unk01')).toMatchObject({ selectable: true, fragile: true }) // unknown kind counts as fragile: a quarter of the speed
+    expect(byId('a-box')).toMatchObject({ selectable: false, reason: 'box' })
+    expect(byId('a-srvad')).toMatchObject({ selectable: false, reason: 'regular_scan_never' }) // "never" set by a person is absolute
+    expect(screen.getAllByText('This is the Vedette box itself, never scanned').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Set to never be scanned in the inventory').length).toBeGreaterThan(0)
+    as('u-op')
+    const res = await postRun(['a-box'])
+    expect(res.status).toBe(400)
+    expect((await res.json()).error.message).toMatch(/is the Vedette box itself, which is never scanned/)
+    expect((await (await postRun(['a-srvad'])).json()).error.message).toMatch(/is set to never be scanned in the inventory; change that setting first/)
+  })
+
+  it('máy quét không sẵn sàng: can_scan=false kèm lý do, nút khoá, POST trả 503 scanner_unavailable', async () => {
+    scannerStore.set({ available: false })
+    renderApp('/scans')
+    expect(await screen.findByRole('button', { name: /Scan now/ })).toBeDisabled()
+    expect(screen.getAllByText(/The vulnerability scanner is not available: the scan container or its scanner is missing/).length).toBeGreaterThan(0)
+    const cfg = await (await fetch(`${base()}/scans/config`)).json()
+    expect(cfg.can_scan).toBe(false)
+    expect(cfg.block_reason).toMatch(/^The vulnerability scanner is not available/)
+    as('u-op')
+    const res = await postRun(['a-nas02'])
+    expect(res.status).toBe(503)
+    expect((await res.json()).error.code).toBe('scanner_unavailable')
+    expect((await getRuns()).filter((r) => !r.id.startsWith('run-seed'))).toHaveLength(0)
   })
 
   it('thiết bị nằm trong loại trừ cũng bị từ chối khi gọi thẳng API', async () => {
@@ -205,6 +241,10 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     const run = (await getRuns())[0]!
     expect(run.status).toBe('stopped')
     expect(run.results.every((r) => r.result === 'skipped')).toBe(true)
+    // the device being scanned when Stop now came: its requests on the way are in the probe log as stopped; the others have none
+    const probes = ((await (await fetch(`${base()}/scans/probes`)).json()).items as { run_id: string | null; result: string }[]).filter((p) => p.run_id === run.id)
+    expect(probes.length).toBeGreaterThan(0)
+    expect(probes.every((p) => p.result === 'stopped')).toBe(true)
     expect(findingsStore.get().find((x) => x.id === 'f-1')!.history.some((h) => h.action === 'rescanned')).toBe(false)
     expect(auditStore.get().some((a) => a.action === 'scan.stop')).toBe(true)
     expect(screen.getByRole('button', { name: /Scan now/ })).toBeEnabled()
@@ -417,6 +457,19 @@ describe('scan: nhật ký probe (S-SCAN-4)', () => {
     expect(csv.headers.get('Content-Disposition')).toContain('attachment; filename=vedette-probe-log.csv')
     expect((await csv.text()).split('\n')[0]).toBe('time,target,name,template,request,result')
     await expectNoA11yViolations()
+  })
+
+  it('CSV không để bảng tính đọc tên thiết bị như công thức (tên đến từ mạng)', async () => {
+    timing.stepMs = 30
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-nas02' ? { ...a, hostname: '=HYPERLINK("http://x","y")' } : a)))
+    renderApp('/scans')
+    await screen.findByRole('checkbox', { name: /HYPERLINK/ })
+    as('u-op')
+    await postRun(['a-nas02'])
+    await waitFor(async () => expect((await getRuns())[0]!.status).toBe('done'), { timeout: 4000 })
+    const lines = (await (await fetch(`${base()}/scans/probes.csv`)).text()).split('\n')
+    expect(lines.some((l) => l.includes(`"'=HYPERLINK(""http://x"",""y"")"`))).toBe(true)
+    expect(lines.some((l) => /,"=/.test(l))).toBe(false)
   })
 
   it('seed giữ bản ghi cũ hơn 80 ngày (không xoá trước 90 ngày)', async () => {

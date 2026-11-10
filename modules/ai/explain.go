@@ -258,14 +258,52 @@ func (s *Service) loadExplain(ctx context.Context, cve, hash string) (explainRow
 	return r, true, nil
 }
 
-// CachedCVE returns the explanation generated before for a CVE, without calling the AI (INV-6). It is the newest one, whatever
-// the inventory looked like then; the news half arrives with slice 6.
+// explainInputs is what an explanation of one CVE is made of: the feed entry and the devices it matches now, as the two data blocks of
+// the prompt, and the hash of both (the key of the cached result). found is false when the box has no data for the CVE.
+type explainInputs struct {
+	facts  CVEFacts
+	assets []AssetFact
+	feed   DataBlock
+	inv    DataBlock
+	hash   string
+}
+
+func (s *Service) explainInputs(ctx context.Context, cve string) (explainInputs, bool, error) {
+	if s.cfg.Facts == nil {
+		return explainInputs{}, false, apiUnavailable("The box has no vulnerability data to explain from. Turn on the feeds module in Settings, Modules.")
+	}
+	facts, ok, err := s.cfg.Facts.CVE(ctx, cve)
+	if err != nil {
+		return explainInputs{}, false, fmt.Errorf("ai: read CVE: %w", err)
+	}
+	if !ok {
+		return explainInputs{}, false, nil
+	}
+	assets, err := s.cfg.Facts.AffectedAssets(ctx, cve)
+	if err != nil {
+		return explainInputs{}, false, fmt.Errorf("ai: read devices: %w", err)
+	}
+	feed, inv := feedBlock(facts), inventoryBlock(assets)
+	return explainInputs{facts: facts, assets: assets, feed: feed, inv: inv, hash: HashContent("explain-v1\n" + feed.Text + "\n" + inv.Text)}, true, nil
+}
+
+// CachedCVE returns the explanation generated before for a CVE, without calling the AI (INV-6), but only one that was made from
+// the feed entry and the devices the box holds now. After a device is patched or added, or the entry changes, nothing is cached:
+// "affected" is the box's own decision and must not be served from a state that no longer exists (review M2). The news half
+// arrives with slice 6.
 func (s *Service) CachedCVE(ctx context.Context, id string) (*ExplainResult, error) {
 	cve := strings.ToUpper(id)
 	if !cveRE.MatchString(cve) {
 		return nil, apierr.New(http.StatusBadRequest, "invalid_cve", "A CVE ID looks like CVE-2022-27593.")
 	}
-	r, ok, err := s.loadExplain(ctx, cve, "")
+	if s.cfg.Facts == nil {
+		return nil, nil //nolint:nilnil // nothing cached: the box has no data to compare with
+	}
+	in, found, err := s.explainInputs(ctx, cve)
+	if err != nil || !found {
+		return nil, err
+	}
+	r, ok, err := s.loadExplain(ctx, cve, in.hash)
 	if err != nil || !ok {
 		return nil, err
 	}
@@ -286,19 +324,14 @@ func (s *Service) ExplainCVE(ctx context.Context, actor, id string) (ExplainResu
 	if s.cfg.Facts == nil {
 		return ExplainResult{}, apiUnavailable("The box has no vulnerability data to explain from. Turn on the feeds module in Settings, Modules.")
 	}
-	facts, ok, err := s.cfg.Facts.CVE(ctx, cve)
+	in, found, err := s.explainInputs(ctx, cve)
 	if err != nil {
-		return ExplainResult{}, fmt.Errorf("ai: read CVE: %w", err)
+		return ExplainResult{}, err
 	}
-	if !ok {
+	if !found {
 		return ExplainResult{}, apierr.New(http.StatusNotFound, "unknown_cve", "This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for.")
 	}
-	assets, err := s.cfg.Facts.AffectedAssets(ctx, cve)
-	if err != nil {
-		return ExplainResult{}, fmt.Errorf("ai: read devices: %w", err)
-	}
-	feed, inv := feedBlock(facts), inventoryBlock(assets)
-	hash := HashContent("explain-v1\n" + feed.Text + "\n" + inv.Text)
+	facts, assets, feed, inv, hash := in.facts, in.assets, in.feed, in.inv, in.hash
 	if r, ok, err := s.loadExplain(ctx, cve, hash); err != nil {
 		return ExplainResult{}, err
 	} else if ok {

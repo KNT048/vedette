@@ -47,6 +47,9 @@ type Inventory interface {
 	Assets(ctx context.Context, ids []string) (map[string]AssetView, error)
 	// MatchInput returns the device with its software for the matcher; ok is false when it does not exist.
 	MatchInput(ctx context.Context, assetID string) (a Asset, ok bool, err error)
+	// AssetIDs returns the id of every device, with no cap. Reconcile matches each of them and treats a finding whose
+	// device is not in the list as orphaned, so a short answer must never be returned: any read error is an error.
+	AssetIDs(ctx context.Context) ([]string, error)
 }
 
 // KevInfo is the KEV entry shown with a finding (FindingRow.kev, INV-8).

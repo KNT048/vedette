@@ -124,6 +124,7 @@ Hộp tự kéo từ nguồn và tự phân tích (không qua GitHub). Dữ li�
 | `has_template` | bool | không | 0; có mẫu nuclei (feed `nuclei-templates`) |
 | `source_id` | text | không | `cisa-kev` hoặc id feed tuỳ chỉnh loại `vulnerabilities` |
 | `updated_at` | ts | không | |
+| `kev_announced_at` | ts | có | lúc feeds phát `feeds.vuln.new_kev` cho CVE này (migration 0004); `scan` đọc lại để bù sự kiện bus bị lỡ (D-144, D-152); NULL = chưa từng phát (dòng có trước 0004) |
 
 IX `(vendor, product)`, `(date_added)`. Giữ: mãi (cỡ nghìn dòng). **EPSS chỉ lưu cho CVE đã có trong bảng** (không nạp cả ~262k bản ghi của FIRST) — **[ĐX]**, xem câu hỏi mở. R: `GET /feeds/hot`, `/feeds/cve/{id}`, `/feeds/search`, `/feeds/status`, `GET /findings*` (kev); W: job kéo feed, `POST /feeds/sources/{id}/fetch`.
 
@@ -273,7 +274,7 @@ Dẫn xuất khi đọc, không lưu: `status` (verified/expired), `expires_at` 
 
 | Bảng (mock) | Cột | Khoá / index | Giữ | R / W |
 |---|---|---|---|---|
-| **`scan_setting`** (`scan_config`) | khoá `config` → `{window:{days,from,to}, rate:1–20 req/s, exclusions[] (≤200 IP/CIDR), stop_on_unresponsive, unresponsive_after:2–20, auto_rescan, schedule:{enabled, frequency:daily\|weekly, weekday, at}}`; `dangerous_checks` luôn false, không lưu (mã `dangerous_locked`) | PK(key) | Mãi | R `GET /scans/config`; W `PUT /scans/config` |
+| **`scan_setting`** (`scan_config`) | khoá `config` → `{window:{days,from,to}, rate:1–20 req/s, exclusions[] (≤200 IP/CIDR), stop_on_unresponsive, unresponsive_after:2–20, auto_rescan, schedule:{enabled, frequency:daily\|weekly, weekday, at}}`; `dangerous_checks` luôn false, không lưu (mã `dangerous_locked`); cột `kev_read_at` (ts, NULL = từ lần phát đầu) + `kev_read_cve` (text ≤ 64, mặc định `''`) là điểm đọc của lượt bù `new_kev` (D-152) | PK(key) | Mãi | R `GET /scans/config`; W `PUT /scans/config` |
 | **`scan_run`** (`scan_runs`) | `id:id` · `trigger:enum(manual\|schedule\|new_kev)` · `trigger_note:text?` · `started_at:ts` · `started_by:text` · `ended_at:ts?` · `status:enum(running\|stopping\|done\|stopped\|auto_stopped)` · `total:int` · `done:int` · `current:json?` · `results:json` (`[{target_id,label,ip,template,result,finding_id,note}]`) · `matched:int` · `stop_reason:text?` · `stop_requested_at:ts?` | PK(id) · IX(started_at DESC) · UQ một phần `WHERE status IN ('running','stopping')` (mã `already_running`) | 1 năm **[ĐX]** | R `GET /scans/runs`; W `POST /scans/runs`, `…/{id}/stop`, bộ quét |
 | **`scan_probe`** (`scan_probes`) | `id:id` · `ts:ts` · `run_id:id?` (mềm) · `ip:ip` · `label:text` · `template:text` · `request:text` · `result:enum(matched\|not_matched\|no_response\|banner)` | PK(id) · IX(ts) | **90 ngày** (`RETENTION_DAYS`; `retention_days` trả trong `GET /scans/probes`) | R `GET /scans/probes`, `/scans/probes.csv`; W bộ quét (SYS-7: log mọi probe) |
 | **`scan_event`** (`scan_events`; quét lại theo KEV mới) | `id:id` · `ts:ts` · `cve:text` · `product:text` · `devices:json` · `latency_min:real?` · `run_id:id?` · `result:enum(matched\|clear\|skipped_off\|no_match)` | PK(id) · IX(ts) | 1 năm **[ĐX]** | R `GET /scans/events`; W bộ quét lại |

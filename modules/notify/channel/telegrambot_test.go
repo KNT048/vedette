@@ -176,12 +176,29 @@ func TestTelegramBotErrorsHideTheToken(t *testing.T) {
 
 func TestTelegramBotUpdatesStopsOnContext(t *testing.T) {
 	t.Parallel()
-	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { <-r.Context().Done() }))
+	// The fake long poll reads the body before it waits: net/http only notices that the client went away (and ends r.Context())
+	// once the request body was read, so a handler that waits without reading blocks for ever and holds srv.Close (main CI hit the
+	// 10 min alarm that way). release bounds the wait as well; it is closed before srv.Close (cleanups run last in, first out).
+	started, release := make(chan struct{}, 1), make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		started <- struct{}{}
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+	}))
 	t.Cleanup(srv.Close)
+	t.Cleanup(func() { close(release) })
 	b := newTelegramBotAt(t, srv.URL, srv.Client())
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() { _, _, err := b.Updates(ctx, 0, 25*time.Second); done <- err }()
+	select { // cancel while the poll is in progress at the server, the case the test is about
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the poll never reached the server")
+	}
 	cancel()
 	select {
 	case err := <-done:

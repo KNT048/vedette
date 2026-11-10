@@ -602,7 +602,20 @@ func TestReplayOverTheLinkGivesTheSameInventory(t *testing.T) {
 			}
 			return true
 		})
-		pause(t, 300*time.Millisecond) // the rest of the recording
+		// The rest of the recording: wait until the source has handed out its last frame and the observations stop changing
+		// (flushes are 10-40 ms apart), rather than a fixed pause that a starved runner outlasts (#193 CI: one device short).
+		waitFor(t, "the whole recording read", e.src.drained)
+		for n, deadline := -1, time.Now().Add(waitBound); ; {
+			now := len(e.observations())
+			if now == n {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("the observations never settled (%d)", now)
+			}
+			n = now
+			pause(t, 500*time.Millisecond)
+		}
 		stop()
 		out := map[string]bool{}
 		for _, o := range e.observations() {

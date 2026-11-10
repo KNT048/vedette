@@ -1,5 +1,5 @@
 # The `core` image (D-146): the server, statically linked (modernc SQLite is pure Go), on a base with no shell.
-# Build from the repository root: `make core-image`. Used by the compose dev profile now; the release job (WP-08) signs and publishes it.
+# Build from the repository root: `make core-image` (it builds the web interface first and embeds it with -tags webui, D-149; without the files the build fails). Used by the compose dev profile now; the release job (WP-08) signs and publishes it.
 # Health: the unit's HealthCmd is the exec form ["/vedette","healthcheck"].
 ARG GOLANG_IMAGE
 ARG DISTROLESS_IMAGE
@@ -10,8 +10,10 @@ WORKDIR /src
 COPY . .
 RUN set -eu; \
     printf '%s' "${VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "VERSION must be SemVer without v, got '${VERSION}'" >&2; exit 1; }; \
+    test -s internal/webui/dist/index.html || { echo "internal/webui/dist/index.html is missing: run make core-image (it runs make webui-dist first)" >&2; exit 1; }; \
+    if [ -e internal/webui/dist/mockServiceWorker.js ] || grep -rqE '\[MSW\]|mswjs' internal/webui/dist; then echo "internal/webui/dist holds the mock layer (MSW): build it with make webui-dist (VITE_API_MOCK=off)" >&2; exit 1; fi; \
     CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly \
-    go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/vedette ./cmd/vedette
+    go build -tags webui -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/vedette ./cmd/vedette
 
 FROM ${DISTROLESS_IMAGE}
 ARG VERSION

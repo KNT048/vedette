@@ -94,7 +94,7 @@ func newDB(t *testing.T) *store.DB {
 func newEnv(t *testing.T) *env {
 	t.Helper()
 	e := &env{t: t, db: newDB(t), clock: &fakeClock{now: t0}, inv: &fakeInventory{scope: confirmedScope()}, engine: &fakeEngine{}}
-	svc, err := NewService(Config{DB: e.db, Audit: audit.New(e.clock.Now), Inventory: e.inv, Engine: e.engine, Pack: testPack(t), Location: time.UTC, Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now})
+	svc, err := NewService(Config{DB: e.db, Audit: audit.New(e.clock.Now), Inventory: e.inv, Engine: e.engine, Pack: testPack(t), Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now})
 	if err != nil {
 		t.Fatal(err)
 	}

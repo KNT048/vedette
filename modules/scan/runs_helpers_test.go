@@ -107,11 +107,19 @@ type fakeFindings struct {
 	list      []FindingRef
 	confirmed []Evidence
 	confirms  []string // asset|cve
+	lists     int      // List calls
+}
+
+func (f *fakeFindings) listCalls() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.lists
 }
 
 func (f *fakeFindings) List(_ context.Context, assetID string) ([]FindingRef, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.lists++
 	var out []FindingRef
 	for _, r := range f.list {
 		if assetID == "" || r.AssetID == assetID {

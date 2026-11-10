@@ -25,6 +25,15 @@ var bsDigest = map[string]string{
 
 var bsOrder = []string{api.ServiceCore, api.ServiceSensor, api.ServiceHoneypot, api.ServiceScan}
 
+// bsUnitDigest is the digest the unit of a service pins after a first bootstrap: the manifest's, except for scan, whose unit pins the ID of
+// the image the host built from the verified base (the first build of the fake podman, D-147).
+func bsUnitDigest(s string) string {
+	if s == api.ServiceScan {
+		return "sha256:" + opstest.BuiltID(1)
+	}
+	return bsDigest[s]
+}
+
 // bsDocs builds the four documents of a release holding an image for each of the four services. shape may
 // change the unsigned documents before they are signed (and return the signing to use for the index).
 func (e *updEnv) bsDocs(t *testing.T, seq uint64, version string, digests map[string]string, shape ...func(idx, man opstest.Doc)) ops.BootstrapArgs {
@@ -110,10 +119,10 @@ func TestContract_Bootstrap_HappyPathWritesUnitsPulledAndVersions(t *testing.T) 
 			t.Fatalf("%s: %v", s, err)
 		}
 		// Golden: byte for byte what container.start would write (the D-105 writer, install=true).
-		if want := e.render(t, s, bsDigest[s]); got != want {
+		if want := e.render(t, s, bsUnitDigest(s)); got != want {
 			t.Errorf("%s: unit differs from the template:\n%s", s, got)
 		}
-		if v := e.versionsFile(t, s); v.Current == nil || v.Current.Version != v1 || v.Current.Digest != bsDigest[s] || v.Previous != nil {
+		if v := e.versionsFile(t, s); v.Current == nil || v.Current.Version != v1 || v.Current.Digest != bsUnitDigest(s) || v.Previous != nil {
 			t.Errorf("%s: versions %+v", s, v)
 		}
 		if st := e.state(t)[s]; st.LatestPulled == nil || st.LatestPulled.Version == nil || *st.LatestPulled.Version != v1 {
@@ -420,7 +429,7 @@ func TestContract_Bootstrap_AFailedPullLeavesNoUnitAndARerunFinishes(t *testing.
 	e.forget()
 	e.bootstrapOK(t, a)
 	for _, s := range bsOrder {
-		if e.unit(t, s) != e.render(t, s, bsDigest[s]) || e.versionsFile(t, s).Current == nil {
+		if e.unit(t, s) != e.render(t, s, bsUnitDigest(s)) || e.versionsFile(t, s).Current == nil {
 			t.Errorf("%s not installed after the rerun", s)
 		}
 	}

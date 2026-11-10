@@ -208,6 +208,9 @@ func (s *Service) listenTelegram(ctx context.Context) error {
 		}
 		token, err := s.openSecret(ctx, s.cfg.DB.Reader(), c.SecretID)
 		if err != nil {
+			if ctx.Err() != nil { // stopped while reading the key (it reads the database): a stop, not an unreadable key
+				return nil
+			}
 			return fmt.Errorf("notify: telegram listener: %w", err)
 		}
 		bot, err := channel.NewTelegramBot(secrets.NewValue(token), s.cfg.HTTPClient)

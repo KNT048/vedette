@@ -98,6 +98,9 @@ func parseImageList(out []byte, service string) ([]listedImage, error) {
 			continue
 		}
 		img := listedImage{ID: d.ID, Digests: []string{d.Digest}, InUse: d.Containers != 0}
+		if services[service].byID {
+			img.Digests = append(img.Digests, "sha256:"+d.ID) // the image built on the box is kept by its ID (D-147)
+		}
 		for _, rd := range d.RepoDigests {
 			if _, dg, ok := strings.Cut(rd, "@"); ok && digestRE.MatchString(dg) && !slices.Contains(img.Digests, dg) {
 				img.Digests = append(img.Digests, dg)
@@ -124,7 +127,7 @@ func ownedName(name, service string) bool {
 		}
 		repo = repo[:i]
 	}
-	return repo == release.RegistryPrefix+service || repo == localPrefix+service
+	return repo == release.RegistryPrefix+service || repo == localPrefix+service || (service == api.ServiceScan && repo == strings.TrimSuffix(nmapTagPrefix, ":"))
 }
 
 // keptDigests is every digest retention must not remove (see the head of this file).
@@ -140,10 +143,16 @@ func (o *Ops) keptDigests(ctx context.Context, service string) map[string]bool {
 		for _, r := range []*versionRecord{vs.Current, vs.Previous} {
 			if r != nil {
 				keep[r.Digest] = true
+				if r.BaseDigest != "" {
+					keep[r.BaseDigest] = true // the signed base a scan image was built from stays (D-147)
+				}
 			}
 		}
 		if r, ok := o.loadPulled(svc); ok {
 			keep[r.Digest] = true
+			if r.BaseDigest != "" {
+				keep[r.BaseDigest] = true
+			}
 		}
 	}
 	if info, err := o.inspect(ctx, service); err == nil {

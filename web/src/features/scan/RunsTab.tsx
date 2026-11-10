@@ -187,7 +187,9 @@ function ResultDialog({ run, onClose, opener }: { run: ScanRun | null; onClose: 
 
 function History({ runs }: { runs: ScanRun[] }) {
   const { t } = useTranslation('scan')
-  const [open, setOpen] = useState<string | null>(null)
+  const [params] = useSearchParams()
+  // ?run= opens that run's results: the "see the run" link of a stopped rescan (D-145 (7))
+  const [open, setOpen] = useState<string | null>(() => params.get('run'))
   const opener = useRef<HTMLElement | null>(null)
   const view = useCallback((e: React.MouseEvent<HTMLElement>, id: string) => { opener.current = e.currentTarget; setOpen(id) }, [])
   // Cột phải ổn định: cột mới mỗi lần render làm TanStack gắn lại mọi ô, nút "Xem kết quả" bị thay và mất focus khi đóng hộp thoại.

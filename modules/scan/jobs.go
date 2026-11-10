@@ -267,11 +267,11 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 		return err
 	}
 	now := s.now()
-	slot := st.lastSlot(now, s.cfg.Location)
+	slot := st.lastSlot(now, s.loc(ctx))
 	if slot == nil || (last.Valid && last.String >= store.FormatTS(*slot)) {
 		return nil
 	}
-	end, open := st.windowEnd(now, s.cfg.Location)
+	end, open := st.windowEnd(now, s.loc(ctx))
 	if !open {
 		return nil
 	}

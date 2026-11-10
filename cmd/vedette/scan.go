@@ -34,7 +34,8 @@ func scanService(d deps) *scan.Service {
 	if d.Inventory != nil {
 		inv = d.Inventory
 	}
-	cfg := scan.Config{DB: d.DB, Audit: d.Audit, Inventory: scanInventory{inv: inv}, External: scanExternal{svc: exposureService(d)}, Log: d.Log, Clock: d.Clock}
+	cfg := scan.Config{DB: d.DB, Audit: d.Audit, Inventory: scanInventory{inv: inv}, External: scanExternal{svc: exposureService(d)}, Log: d.Log, Clock: d.Clock,
+		Location: orgLocationAt(d)} // the window and the schedule are in the organization's zone (review H1)
 	if d.Findings != nil {
 		cfg.Findings = scanFindings{svc: d.Findings}
 	}

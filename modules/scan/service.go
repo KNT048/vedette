@@ -36,12 +36,12 @@ type Config struct {
 	DB        *store.DB
 	Audit     *audit.Log
 	Inventory Inventory
-	Engine    Engine         // nil: the scanner is unavailable (INV-2), nothing is ever sent
-	Pack      *pack.Index    // the safe template pack of the scan image (D-125 (4)); nil: the scanner is unavailable
-	Findings  Findings       // nil: results stay in the run, nothing is confirmed
-	External  External       // nil: the list has no external targets
-	Publisher Publisher      // nil: no events
-	Location  *time.Location // the organization's time zone for the window and the schedule (nil: time.Local)
+	Engine    Engine                                   // nil: the scanner is unavailable (INV-2), nothing is ever sent
+	Pack      *pack.Index                              // the safe template pack of the scan image (D-125 (4)); nil: the scanner is unavailable
+	Findings  Findings                                 // nil: results stay in the run, nothing is confirmed
+	External  External                                 // nil: the list has no external targets
+	Publisher Publisher                                // nil: no events
+	Location  func(ctx context.Context) *time.Location // the organization's time zone, the one the window and the schedule are read in (review H1); nil, or a nil result, means UTC
 	Log       *slog.Logger
 	Clock     func() time.Time // nil: time.Now
 }
@@ -70,10 +70,18 @@ func NewService(cfg Config) (*Service, error) {
 	if now == nil {
 		now = time.Now
 	}
-	if cfg.Location == nil {
-		cfg.Location = time.Local
-	}
 	return &Service{cfg: cfg, now: now}, nil
+}
+
+// loc is the organization's time zone, read at each use so a change in Settings applies at once (review H1). Never
+// the process's zone: that is UTC in the container, and a 02:00 run of a UTC+7 office would start at 09:00.
+func (s *Service) loc(ctx context.Context) *time.Location {
+	if s.cfg.Location != nil {
+		if l := s.cfg.Location(ctx); l != nil {
+			return l
+		}
+	}
+	return time.UTC
 }
 
 // Commitment is who ticked the scope commitment and when (contract.ts ScanScope.commitment).
@@ -134,7 +142,7 @@ func (s *Service) view(ctx context.Context, c Settings) (ConfigView, error) {
 			v.Scope.Commitment.By = "—" // the mock's placeholder for an unknown name
 		}
 	}
-	if t := c.NextRun(s.now(), s.cfg.Location); t != nil {
+	if t := c.NextRun(s.now(), s.loc(ctx)); t != nil {
 		ts := store.FormatTS(*t)
 		v.NextRun = &ts
 	}

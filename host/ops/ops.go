@@ -345,7 +345,8 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.mu.Lock()
 	o.notifier = n
 	o.mu.Unlock()
-	hpReady := o.startHP(ctx) // before recoverNet: a revert at start re-applies the decoys into it
+	o.sweepTmp("releases", "containers") // temp files of a write cut short (container.pull state)
+	hpReady := o.startHP(ctx)            // before recoverNet: a revert at start re-applies the decoys into it
 	o.recoverNet(ctx)
 	o.reconcileAtStart(ctx, hpReady)
 	o.sweepBackups()

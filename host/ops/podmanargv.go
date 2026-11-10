@@ -24,7 +24,9 @@ import (
 
 var (
 	// tagVersionRE is a release version as a Podman tag: digits first, so it cannot look like an option,
-	// and no "+" (a tag may not hold one; release versions have no build metadata).
+	// and no "+" (a tag may not hold one; release versions have no build metadata). A prerelease is at most
+	// 32 characters here; a longer one is a valid release version that container.pull refuses as
+	// invalid_args (the local tag is a Podman reference, whose length the host bounds itself).
 	tagVersionRE = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]{1,32})?$`)
 
 	errPodmanArgs = errors.New("not one of the fixed podman command lines")

@@ -116,6 +116,9 @@ type ContainerPullResult struct {
 	Digest   string   `json:"digest"`
 	Size     int64    `json:"size"`
 	Verified []string `json:"verified"` // ["minisign","cosign"]
+	// IndexExpired says the index this pull was verified with is past its expires_at. An old index only
+	// warns (D-104); the caller shows it (D-130).
+	IndexExpired bool `json:"index_expired"`
 }
 
 // ContainerStopResult is the result of container.stop. Changed is false when the service was

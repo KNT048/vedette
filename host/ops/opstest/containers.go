@@ -224,7 +224,13 @@ case "$1" in
     { [ -n "$d" ] && [ -e "$S/have.$d" ]; } || { echo "Error: no such image $x" >&2; exit 125; }
     [ -e "$S/raw" ] && { cat "$S/raw"; exit 0; }
     shown="$d"; [ -e "$S/lie" ] && shown=$(cat "$S/lie")
-    printf '[{"Id":"%s","Digest":"%s","RepoDigests":["ghcr.io/knt048/vedette-x@%s"],"Architecture":"amd64","Os":"linux"}]\n' "$id" "$shown" "$shown"
+    repo="$shown"
+    svc="${x#ghcr.io/knt048/vedette-}"; svc="${svc#localhost/vedette-}"; svc="${svc%%[@:]*}"
+    if [ -e "$S/repoonly" ]; then
+      # an image index: Digest is the digest of a manifest inside it, RepoDigests names the pulled index
+      shown=sha256:0000000000000000000000000000000000000000000000000000000000000000; repo="$d"
+    fi
+    printf '[{"Id":"%s","Digest":"%s","RepoDigests":["ghcr.io/knt048/vedette-%s@%s"],"Architecture":"amd64","Os":"linux"}]\n' "$id" "$shown" "$svc" "$repo"
     ;;
   tag)
     [ -e "$REC/mark.tag-fails" ] && { echo "Error: tagging failed" >&2; exit 125; }
@@ -270,4 +276,10 @@ func (m *Machine) ImageLie(digest string) {
 func (m *Machine) ImageRaw(text string) {
 	m.t.Helper()
 	m.must(os.WriteFile(filepath.Join(m.img(), "raw"), []byte(text), 0o600))
+}
+
+// ImageRepoOnly makes image inspect show another Digest and the pulled digest only in RepoDigests, as an image index may.
+func (m *Machine) ImageRepoOnly() {
+	m.t.Helper()
+	m.must(os.WriteFile(filepath.Join(m.img(), "repoonly"), nil, 0o600))
 }

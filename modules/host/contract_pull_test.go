@@ -8,12 +8,15 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 
 	"github.com/knt048/vedette/host/api"
@@ -38,16 +41,16 @@ var coreRef = "ghcr.io/knt048/vedette-core@" + digA
 type pullEnv struct {
 	*sysEnv
 	rel  *opstest.Release
-	keys atomic.Pointer[opstest.Release] // the keys the host trusts now; a test may swap them
+	keys atomic.Pointer[release.Trust] // the keys the host trusts now; a test may swap them
 }
 
 func startPull(t *testing.T, muts ...mut) *pullEnv {
 	t.Helper()
 	rel := opstest.NewRelease(t)
 	pe := &pullEnv{rel: rel}
-	pe.keys.Store(rel)
+	pe.keys.Store(&rel.Trust)
 	e := startSys(t, append([]mut{func(_ *ops.Config, d *ops.Deps) {
-		d.Keys = func() (release.Trust, error) { return pe.keys.Load().Trust, nil }
+		d.Keys = func() (release.Trust, error) { return *pe.keys.Load(), nil }
 	}}, muts...)...)
 	e.m.StatefulImages()
 	pe.sysEnv = e
@@ -170,7 +173,8 @@ func TestContract_Pull_VerifiesThenPullsByDigestTagsAndRecords(t *testing.T) {
 	}
 	const tag = "localhost/vedette-core:1.4.0"
 	want := [][]string{
-		{"image", "inspect", "--format", "json", coreRef}, // is it here already? (no)
+		{"image", "inspect", "--format", "json", coreRef}, // Check: is it here already, for the disk check? (no)
+		{"image", "inspect", "--format", "json", coreRef}, // Run: the same look
 		{"pull", "-q", coreRef},
 		{"image", "inspect", "--format", "json", coreRef}, // what podman says is not believed: the digest is read back
 		{"tag", coreRef, tag},
@@ -503,7 +507,12 @@ func TestContract_Pull_LowDiskIsTwiceTheSizeOfTheImageMeasuredWhereImagesLive(t 
 			return free, nil
 		}
 	})
-	e.refuse(t, "low disk", e.std(t, 5), api.CodeLowDisk)
+	e.refused(t, api.CmdContainerPull, e.std(t, 5), 412, api.CodeLowDisk)
+	for _, c := range e.podman() { // the one look "is it here already?" and nothing that changes anything
+		if c[0] != "image" {
+			t.Fatalf("a refused pull ran %v", c)
+		}
+	}
 	mu.Lock()
 	free = 2 * coreSize // exactly twice the size is enough
 	mu.Unlock()
@@ -810,7 +819,7 @@ func TestContract_Pull_AStoredIndexSignedByAKeyThisBuildDoesNotTrustIsNotBelieve
 	// The same state under a host whose keys are others: it must not read the stored index as "none"
 	// (that would forget the replay and revocation memory), it refuses until an operator decides.
 	other := opstest.NewRelease(t)
-	e.keys.Store(other)
+	e.keys.Store(&other.Trust)
 	idx, man := other.IndexDoc(9), other.ManifestDoc(pullVersion, opstest.Img{Service: "core", Digest: digA, Size: coreSize})
 	n := len(e.podman())
 	e.refused(t, api.CmdContainerPull, other.Args("core", pullVersion, opstest.JSON(t, idx), opstest.JSON(t, man)), 412, api.CodeReleaseStateInvalid)
@@ -903,7 +912,9 @@ func TestContract_Pull_TheEmbeddedKeysOfThisBuild(t *testing.T) {
 	if res.Digest != vectorCore {
 		t.Fatalf("%+v", res)
 	}
-	if got := e.m.Calls("podman"); len(got) < 2 || !slices.Equal(got[1], []string{"pull", "-q", "ghcr.io/knt048/vedette-core@" + vectorCore}) {
+	if got := e.m.Calls("podman"); !slices.ContainsFunc(got, func(c []string) bool {
+		return slices.Equal(c, []string{"pull", "-q", "ghcr.io/knt048/vedette-core@" + vectorCore})
+	}) {
 		t.Fatalf("podman calls %v", got)
 	}
 	// A bit flipped in a vector is refused, with the committed signatures.
@@ -929,4 +940,289 @@ func TestContract_Pull_TheIndexDirectoryIsPrivateAndTheCommandIsInTheTable(t *te
 	idx["channels"].(opstest.Doc)["stable"].(opstest.Doc)["latest"] = pullVersion
 	idx["channels"].(opstest.Doc)["stable"].(opstest.Doc)["manifest_sha256"] = hex.EncodeToString(sum[:])
 	e.pull(t, e.argsFor(t, api.ServiceCore, pullVersion, idx, man))
+}
+
+// --- review fixes of slice 3-7 (D-130 amendments) -----------------------------------------------------
+
+type syncBuf struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (s *syncBuf) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *syncBuf) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
+}
+
+// startAudit starts the host side that audits what the host does on its own (production: Ops.Start with the server).
+func (e *pullEnv) startAudit(t *testing.T) {
+	t.Helper()
+	e.o.Start(context.Background(), e.h.Server)
+	t.Cleanup(e.o.Close)
+}
+
+func (e *pullEnv) notes(t *testing.T, code string) []map[string]any {
+	t.Helper()
+	var out []map[string]any
+	for _, r := range audit(t, e.h) {
+		if r.Code != nil && *r.Code == code && r.Actor == "system" {
+			var m map[string]any
+			if err := json.Unmarshal(r.ArgsRedacted, &m); err != nil {
+				t.Fatal(err)
+			}
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+func logTo(buf *syncBuf) mut {
+	return func(c *ops.Config, _ *ops.Deps) { c.Logger = slog.New(slog.NewTextHandler(buf, nil)) }
+}
+
+// M2: a refused pull can change what the host knows (the stored index); it leaves a warning and an audit line.
+func TestContract_Pull_AStoredNewerIndexLeavesALogAndAnAuditLineEvenWhenTheManifestIsRefused(t *testing.T) {
+	t.Parallel()
+	var buf syncBuf
+	e := startPull(t, logTo(&buf))
+	e.startAudit(t)
+	e.pull(t, e.std(t, 5))
+	idx6, man := e.docs(6, pullVersion)
+	idx6["revoked"] = []any{opstest.Revocation("release", pullVersion)}
+	e.refused(t, api.CmdContainerPull, e.argsFor(t, api.ServiceCore, pullVersion, idx6, man), 412, api.CodeReleaseRevoked)
+	// A recovery index signed by the backup key, lower sequence, revoking the active key: stored, audited.
+	idx3, _ := e.docs(3, pullVersion)
+	idx3["revoked"] = []any{opstest.Revocation("key", e.rel.ActiveKeyID())}
+	raw := opstest.JSON(t, idx3)
+	manRaw := opstest.JSON(t, man)
+	e.pull(t, e.rel.ArgsSig("core", pullVersion, raw, e.rel.SignBackup(raw), manRaw, e.rel.SignBackup(manRaw))) // its own list is authoritative
+
+	notes := e.notes(t, "release_index_stored")
+	if len(notes) != 3 {
+		t.Fatalf("%d audit lines: %v", len(notes), notes)
+	}
+	first, second, third := notes[0], notes[1], notes[2]
+	if first["old_sequence"] != float64(0) || first["new_sequence"] != float64(5) || first["signer"] != e.rel.ActiveKeyID() || first["backup_signed"] != false {
+		t.Errorf("first: %v", first)
+	}
+	if second["old_sequence"] != float64(5) || second["new_sequence"] != float64(6) || second["backup_signed"] != false ||
+		!slices.Equal(anyStrings(second["revoked_added"]), []string{"release:" + pullVersion}) {
+		t.Errorf("second: %v", second)
+	}
+	if third["old_sequence"] != float64(6) || third["new_sequence"] != float64(3) || third["signer"] != e.rel.BackupKeyID() || third["backup_signed"] != true ||
+		!slices.Contains(anyStrings(third["revoked_added"]), "key:"+e.rel.ActiveKeyID()) {
+		t.Errorf("third: %v", third)
+	}
+	if log := buf.String(); strings.Count(log, "release index stored") != 3 || !strings.Contains(log, "level=WARN") {
+		t.Errorf("log:\n%s", log)
+	}
+	// The same index again (same bytes, same signer) stores nothing and is not audited again.
+	e.pull(t, e.rel.ArgsSig("core", pullVersion, raw, e.rel.SignBackup(raw), manRaw, e.rel.SignBackup(manRaw)))
+	if n := e.notes(t, "release_index_stored"); len(n) != 3 {
+		t.Errorf("%d audit lines after an index that changed nothing", len(n))
+	}
+}
+
+func anyStrings(v any) []string {
+	var out []string
+	l, _ := v.([]any)
+	for _, x := range l {
+		out = append(out, x.(string))
+	}
+	return out
+}
+
+// L1: a retired minisign key only re-verifies the stored index; it never accepts a new one.
+func TestContract_Pull_AStoredIndexSignedByARetiredKeyStillLoadsAndHoldsItsFloorAndRevocations(t *testing.T) {
+	t.Parallel()
+	e := startPull(t)
+	idx, man := e.docs(5, "1.4.1")
+	idx["revoked"] = []any{opstest.Revocation("release", "1.4.1")}
+	e.refused(t, api.CmdContainerPull, e.argsFor(t, api.ServiceCore, "1.4.1", idx, man), 412, api.CodeReleaseRevoked) // stored, signed by the old active key
+	// The build rotates: a new active key, the old one retired.
+	next := opstest.NewRelease(t)
+	tr := e.rel.Trust
+	tr.Active, tr.Retired = next.Trust.Active, []release.MinisignKey{e.rel.Trust.Active}
+	e.keys.Store(&tr)
+	sign := func(idx, man opstest.Doc, version string) api.ContainerPullArgs {
+		return next.Args("core", version, opstest.JSON(t, idx), opstest.JSON(t, man))
+	}
+	// The floor holds (5): a lower index by the new key is a replay, a higher one is fine.
+	i4, m := e.docs(4, pullVersion)
+	e.refused(t, api.CmdContainerPull, sign(i4, m, pullVersion), 412, api.CodeSequenceRegress)
+	// The revocation holds: 1.4.1 is still revoked under an index of the new key that forgot it.
+	i6, m61 := e.docs(6, "1.4.1")
+	e.refused(t, api.CmdContainerPull, sign(i6, m61, "1.4.1"), 412, api.CodeReleaseRevoked)
+	i7, m7 := e.docs(7, pullVersion)
+	e.pull(t, sign(i7, m7, pullVersion))
+	// The retired key accepts nothing new: not an index, not a manifest.
+	i8, m8 := e.docs(8, pullVersion)
+	e.refused(t, api.CmdContainerPull, e.argsFor(t, api.ServiceCore, pullVersion, i8, m8), 412, api.CodeSignatureInvalid)
+	i9, m9 := e.docs(9, pullVersion)
+	raw, mraw := opstest.JSON(t, i9), opstest.JSON(t, m9)
+	e.refused(t, api.CmdContainerPull, e.rel.ArgsSig("core", pullVersion, raw, next.Sign(raw), mraw, e.rel.Sign(mraw)), 412, api.CodeSignatureInvalid)
+}
+
+// L2: a build-time floor when nothing is stored, and an expired index is visible.
+func TestContract_Pull_TheBuildsMinimumSequenceIsTheFloorWhenNothingIsStored(t *testing.T) {
+	t.Parallel()
+	e := startPull(t)
+	tr := e.rel.Trust
+	tr.MinSequence = 10
+	e.keys.Store(&tr)
+	e.refuse(t, "below the floor", e.std(t, 9), api.CodeSequenceRegress)
+	e.noIndexStored(t)
+	e.pull(t, e.std(t, 10))
+	// Once something is stored the stored sequence is the floor (10 here, not the build's).
+	e.refused(t, api.CmdContainerPull, e.std(t, 9), 412, api.CodeSequenceRegress)
+}
+
+func TestContract_Pull_AnExpiredIndexIsInTheResultAndInTheAudit(t *testing.T) {
+	t.Parallel()
+	e := startPull(t)
+	e.startAudit(t)
+	res := result[api.ContainerPullResult](t, e.pull(t, e.std(t, 5)))
+	if res.IndexExpired {
+		t.Error("a fresh index was reported expired")
+	}
+	idx, man := e.docs(6, pullVersion)
+	idx["generated_at"], idx["expires_at"] = "2026-10-01T00:00:00Z", "2026-10-10T00:00:00Z"
+	res = result[api.ContainerPullResult](t, e.pull(t, e.argsFor(t, api.ServiceCore, pullVersion, idx, man)))
+	if !res.IndexExpired {
+		t.Fatalf("%+v", res)
+	}
+	if n := e.notes(t, "index_expired"); len(n) != 1 || n[0]["sequence"] != float64(6) {
+		t.Fatalf("audit %v", n)
+	}
+}
+
+// L3: the manifest hash is compared with every channel whose latest is this version.
+func TestContract_Pull_TheManifestHashIsCheckedAgainstEveryChannelThatNamesTheVersion(t *testing.T) {
+	t.Parallel()
+	e := startPull(t)
+	idx, man := e.docs(5, pullVersion)
+	sum := sha256.Sum256(opstest.JSON(t, man))
+	stable := idx["channels"].(opstest.Doc)["stable"].(opstest.Doc)
+	stable["latest"], stable["manifest_sha256"] = pullVersion, hex.EncodeToString(sum[:])
+	beta := opstest.Doc{}
+	for k, v := range stable {
+		beta[k] = v
+	}
+	beta["manifest_sha256"] = strings.Repeat("0", 64)
+	idx["channels"].(opstest.Doc)["beta"] = beta
+	e.refuse(t, "beta names another hash", e.argsFor(t, api.ServiceCore, pullVersion, idx, man), api.CodeManifestMismatch)
+	beta["manifest_sha256"] = stable["manifest_sha256"]
+	beta["manifest_sha256"] = stable["manifest_sha256"]
+	idx["sequence"] = 6 // the refused index was stored; the corrected one is a newer one
+	e.pull(t, e.argsFor(t, api.ServiceCore, pullVersion, idx, man))
+}
+
+// L4: only a path that is not there sends the disk check to its parent; a present image needs no space.
+func TestContract_Pull_OnlyAMissingPathSendsTheDiskCheckToItsParent(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var probed []string
+	e := startPull(t, func(_ *ops.Config, d *ops.Deps) {
+		d.FreeBytes = func(p string) (uint64, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			probed = append(probed, p)
+			return 0, fmt.Errorf("statfs %s: %w", p, syscall.EACCES)
+		}
+	})
+	e.refused(t, api.CmdContainerPull, e.std(t, 5), 412, api.CodeLowDisk)
+	mu.Lock()
+	defer mu.Unlock()
+	if len(probed) != 1 {
+		t.Fatalf("a permission error walked up: %v", probed)
+	}
+}
+
+func TestContract_Pull_AnImageThatIsAlreadyHereNeedsNoFreeSpace(t *testing.T) {
+	t.Parallel()
+	e := startPull(t, func(_ *ops.Config, d *ops.Deps) { d.FreeBytes = func(string) (uint64, error) { return 0, nil } })
+	e.m.SetImagePresent(digA)
+	e.pull(t, e.std(t, 5))
+	if e.pulls() != 0 || e.m.ImageTag("localhost/vedette-core:1.4.0") != digA {
+		t.Fatalf("%v", e.podman())
+	}
+}
+
+// L5: podman may show the pull reference in RepoDigests with another Digest (an image index); that is enough.
+func TestContract_Pull_ARepoDigestsOnlyAnswerIsEnough(t *testing.T) {
+	t.Parallel()
+	e := startPull(t)
+	e.m.ImageRepoOnly()
+	e.pull(t, e.std(t, 5))
+	if e.m.ImageTag("localhost/vedette-core:1.4.0") != digA {
+		t.Fatal("not tagged")
+	}
+}
+
+// L5: the recovery index: signed by the backup key, revokes the signer of the stored index, a lower sequence.
+func TestContract_Pull_ABackupSignedRecoveryIndexWithALowerSequenceIsStoredAndReloaded(t *testing.T) {
+	t.Parallel()
+	e := startPull(t)
+	e.pull(t, e.std(t, 9))
+	recovery := func(seq uint64) api.ContainerPullArgs {
+		idx, man := e.docs(seq, pullVersion)
+		idx["revoked"] = []any{opstest.Revocation("key", e.rel.ActiveKeyID())}
+		raw, mraw := opstest.JSON(t, idx), opstest.JSON(t, man)
+		return e.rel.ArgsSig("core", pullVersion, raw, e.rel.SignBackup(raw), mraw, e.rel.SignBackup(mraw))
+	}
+	e.pull(t, recovery(3))
+	if e.storedSequence(t) != 3 {
+		t.Fatalf("stored %d", e.storedSequence(t))
+	}
+	// Reloaded from disk by the next call: its sequence is the floor, its revocation of the old key holds.
+	e.refused(t, api.CmdContainerPull, recovery(2), 412, api.CodeSequenceRegress)
+	e.pull(t, recovery(4))
+	e.refused(t, api.CmdContainerPull, e.std(t, 10), 412, api.CodeKeyRevoked) // the leaked active key signs nothing again
+	if e.storedSequence(t) != 4 {
+		t.Fatalf("stored %d", e.storedSequence(t))
+	}
+}
+
+// Nits: temp files of a cut-short write in releases/ are cleaned at Start; the carried-revocation cap has its own message.
+func TestContract_Pull_StartCleansTheTempFilesOfACutShortWrite(t *testing.T) {
+	t.Parallel()
+	e := startPull(t)
+	junk := []string{filepath.Join(e.m.State, "releases", ".tmp-123"), filepath.Join(e.m.State, "containers", ".tmp-456")}
+	keep := filepath.Join(e.m.State, "releases", "not-a-temp")
+	for _, p := range append(junk, keep) {
+		if err := os.WriteFile(p, []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	e.startAudit(t)
+	for _, p := range junk {
+		if _, err := os.Stat(p); err == nil {
+			t.Errorf("%s was left", p)
+		}
+	}
+	if _, err := os.Stat(keep); err != nil {
+		t.Error("a file that is not a temp file was removed")
+	}
+}
+
+func TestContract_Pull_TooManyCarriedRevocationsSaysSo(t *testing.T) {
+	t.Parallel()
+	var buf syncBuf
+	e := startPull(t, logTo(&buf))
+	rev := `{"kind":"release","id":"1.0.0","reason":"x","since":"2026-01-01T00:00:00Z","action":"block_install"}`
+	body := `{"index":"aGk=","sig":"aGk=","carried":[` + strings.TrimSuffix(strings.Repeat(rev+",", 4097), ",") + `]}`
+	if err := os.WriteFile(e.indexFile(), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	e.refused(t, api.CmdContainerPull, e.std(t, 5), 412, api.CodeReleaseStateInvalid)
+	if !strings.Contains(buf.String(), "more than 4096 revocations") {
+		t.Errorf("log: %s", buf.String())
+	}
 }

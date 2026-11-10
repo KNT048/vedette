@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/host/api"
@@ -70,6 +71,22 @@ func readStrict(path string, v any) (exists bool, err error) {
 	return true, nil
 }
 
+// sweepTmp removes the temp files (".tmp-*") that a write cut short left in a state directory; the
+// directory is the host's own and private, and only plain files and links are removed, never followed.
+func (o *Ops) sweepTmp(dirs ...string) {
+	for _, d := range dirs {
+		ents, err := os.ReadDir(o.stateFile(d))
+		if err != nil {
+			continue
+		}
+		for _, e := range ents {
+			if strings.HasPrefix(e.Name(), ".tmp-") && !e.IsDir() {
+				_ = os.Remove(o.stateFile(d, e.Name()))
+			}
+		}
+	}
+}
+
 // loadIndex returns the stored index, verified again; nil when none was ever stored.
 func (o *Ops) loadIndex(trust release.Trust) (*release.Index, error) {
 	var st indexState
@@ -80,12 +97,16 @@ func (o *Ops) loadIndex(trust release.Trust) (*release.Index, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(st.Carried) > maxCarried {
+		return nil, fmt.Errorf("ops: the stored index carries more than %d revocations", maxCarried)
+	}
 	raw, err1 := decodeDoc(st.Index, release.MaxDocBytes)
-	sig, err2 := decodeDoc(st.Sig, release.MaxDocBytes)
-	if err := errors.Join(err1, err2); err != nil || len(st.Carried) > maxCarried {
+	sig, err2 := decodeDoc(st.Sig, release.MaxSigBytes)
+	if err := errors.Join(err1, err2); err != nil {
 		return nil, errors.New("ops: the stored index is not usable")
 	}
-	idx, err := release.VerifyIndex(raw, sig, trust, &release.Index{Revoked: st.Carried})
+	// Retired keys of the build may have signed it (a key rotation keeps the floor and revocations).
+	idx, err := release.VerifyStoredIndex(raw, sig, trust, st.Carried)
 	if err != nil {
 		return nil, fmt.Errorf("ops: the stored index does not verify: %w", err)
 	}

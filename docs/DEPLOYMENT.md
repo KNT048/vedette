@@ -50,7 +50,7 @@ Tóm tắt (chi tiết từng container ở §2.1–§2.4, giới hạn tài ngu
 | `scan` | `localhost/vedette-scan-nmap:<version>` dựng trên hộp từ image nền `ghcr.io/knt048/vedette-scan` đã ký (D-113 (7)) | host | chỉ `NET_RAW` (ambient, `User=<sensor_uid>`, D-114) | khi `sensor-active` bật (sau: `scan`/`exposure`) |
 | `greenbone` | upstream Greenbone Community Containers, ghim digest | bridge `vedette-int` | theo upstream | khi `scan-credentialed` bật |
 
-Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 (3), D-104; câu hỏi A3 đã đóng); `ghcr.io` đã có trong `PRIVACY.md` luồng 6 (lát 3-7).
+Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 (3), D-104; câu hỏi A3 đã đóng); `ghcr.io` đã có trong `PRIVACY.md` luồng 6 (lát 3-7). Hộp qua proxy HTTP(S): đặt `[engine] env = ["https_proxy=…", "no_proxy=…"]` trong `/etc/containers/containers.conf` (hoặc `containers.conf.d/`); `vedette-host` chạy `podman pull` với môi trường tối thiểu nên không thừa hưởng biến proxy của shell.
 
 ### 2.1 core
 

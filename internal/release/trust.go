@@ -17,6 +17,14 @@ type Trust struct {
 	Active, Backup MinisignKey        // the signing key and the offline recovery key
 	Cosign         []*ecdsa.PublicKey // one key, or two during a rotation (update-manifest.md §5.2)
 	TestOnly       bool               // set by a build with the releasetestkeys tag; callers should refuse it in production
+	// Retired are minisign keys that no longer sign. They are used only by VerifyStoredIndex, to
+	// re-verify the index the box stored while the keys were active (so a key rotation does not make
+	// the box forget its sequence floor and revocations); they never accept a new index or manifest
+	// (update-manifest.md §5.2, D-130).
+	Retired []MinisignKey
+	// MinSequence is the lowest index sequence a box with nothing stored accepts: the release job
+	// raises it at build time (MinSequenceText) so a fresh install cannot be fed an old index.
+	MinSequence uint64
 }
 
 func (t Trust) validate() error {
@@ -25,6 +33,11 @@ func (t Trust) validate() error {
 	}
 	if t.Active.ID == t.Backup.ID || bytes.Equal(t.Active.Key, t.Backup.Key) {
 		return errors.New("the two minisign keys are the same key")
+	}
+	for _, k := range t.Retired {
+		if len(k.Key) != 32 || k.ID == t.Active.ID || k.ID == t.Backup.ID {
+			return errors.New("a retired minisign key is malformed or is a current key")
+		}
 	}
 	if len(t.Cosign) == 0 || len(t.Cosign) > 2 {
 		return errors.New("need one or two cosign keys")

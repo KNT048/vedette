@@ -8,11 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"slices"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/knt048/vedette/host/api"
@@ -41,8 +43,10 @@ import (
 // lost because the same index is the reason for the refusal (D-130).
 
 const (
-	// maxPullDoc caps each of the four documents once decoded (spec 6.7).
+	// maxPullDoc caps each of the two documents once decoded (spec 6.7); a minisign signature file is at
+	// most release.MaxSigBytes.
 	maxPullDoc = release.MaxDocBytes
+	maxPullSig = release.MaxSigBytes
 	// pullBody is the request body limit of container.pull: two documents and two signatures as base64
 	// come to about 700 KiB (spec 6.7).
 	pullBody = 1 << 20
@@ -102,11 +106,14 @@ func validatePullArgs(a *api.ContainerPullArgs) error {
 	if a.BundleID != "" {
 		return server.Invalid("bundle_id", "only a bundle source takes a bundle id")
 	}
-	for _, f := range []struct{ name, v string }{
-		{"index", a.Index}, {"index_sig", a.IndexSig}, {"manifest", a.Manifest}, {"manifest_sig", a.ManifestSig},
+	for _, f := range []struct {
+		name, v string
+		limit   int
+	}{
+		{"index", a.Index, maxPullDoc}, {"index_sig", a.IndexSig, maxPullSig}, {"manifest", a.Manifest, maxPullDoc}, {"manifest_sig", a.ManifestSig, maxPullSig},
 	} {
-		if _, err := decodeDoc(f.v, maxPullDoc); err != nil {
-			return server.Invalid(f.name, "must be base64 of 1 byte to 256 KiB")
+		if _, err := decodeDoc(f.v, f.limit); err != nil {
+			return server.Invalid(f.name, fmt.Sprintf("must be base64 of 1 byte to %d KiB", f.limit>>10))
 		}
 	}
 	return nil
@@ -174,9 +181,9 @@ func refusePull(err error, what string) error {
 // plain error for what the host itself could not do (a state file it could not write).
 func (o *Ops) verifyPull(a api.ContainerPullArgs) (*pullPlan, error) {
 	idxRaw, e1 := decodeDoc(a.Index, maxPullDoc)
-	idxSig, e2 := decodeDoc(a.IndexSig, maxPullDoc)
+	idxSig, e2 := decodeDoc(a.IndexSig, maxPullSig)
 	manRaw, e3 := decodeDoc(a.Manifest, maxPullDoc)
-	manSig, e4 := decodeDoc(a.ManifestSig, maxPullDoc)
+	manSig, e4 := decodeDoc(a.ManifestSig, maxPullSig)
 	if err := errors.Join(e1, e2, e3, e4); err != nil {
 		return nil, refuse412(api.CodeSignatureInvalid, "A document or signature is not valid base64.")
 	}
@@ -198,6 +205,7 @@ func (o *Ops) verifyPull(a api.ContainerPullArgs) (*pullPlan, error) {
 		if err := o.saveIndex(idxRaw, idxSig, idx); err != nil {
 			return nil, fmt.Errorf("ops: could not store the index: %w", err)
 		}
+		o.noteIndexStored(trust, stored, idx)
 	}
 	man, err := release.VerifyManifest(manRaw, manSig, trust, idx)
 	if err != nil {
@@ -206,8 +214,14 @@ func (o *Ops) verifyPull(a api.ContainerPullArgs) (*pullPlan, error) {
 	if man.Version != a.Version {
 		return nil, refuse412(api.CodeManifestMismatch, "The manifest is for another version than the one asked for.")
 	}
-	if c, ok := idx.Channels[man.Channel]; ok && c.Latest == man.Version {
-		if err := release.CheckManifestSHA256(idx, man.Channel, manRaw); err != nil {
+	// Every channel that names this version as its latest names this manifest's hash (§5.3 step 4). A
+	// manifest that is no channel's latest has no hash to compare: a superseded manifest is stopped by
+	// revoking its image digest (kind image_digest), not by the hash.
+	for name, c := range idx.Channels {
+		if c.Latest != man.Version {
+			continue
+		}
+		if err := release.CheckManifestSHA256(idx, name, manRaw); err != nil {
 			return nil, refusePull(err, "manifest")
 		}
 	}
@@ -234,8 +248,59 @@ func (o *Ops) verifyPull(a api.ContainerPullArgs) (*pullPlan, error) {
 	}, nil
 }
 
-// freeForImages is the free space of the filesystem that holds Podman's storage: the nearest
-// existing parent of storageProbe, through the FreeBytes seam.
+// noteIndexStored leaves the trail of a change of what the host knows about releases: a warning in
+// the log and an audit line with the old and new sequence, the signer, whether the backup key signed
+// it, and the revocations added and dropped (at most 16 of each are named). Check calls this, so it
+// happens even when the pull is then refused (D-130).
+func (o *Ops) noteIndexStored(trust release.Trust, old, idx *release.Index) {
+	var oldSeq uint64
+	var before []release.Revocation
+	if old != nil {
+		oldSeq, before = old.Sequence, old.Revoked
+	}
+	added, dropped := revocationDiff(before, idx.Revoked)
+	detail := map[string]any{
+		"old_sequence": oldSeq, "new_sequence": idx.Sequence, "signer": idx.KeyID, "backup_signed": idx.KeyID == trust.Backup.KeyID(),
+		"revoked_added": clipNames(added), "revoked_dropped": clipNames(dropped), "revoked_added_count": len(added), "revoked_dropped_count": len(dropped),
+	}
+	o.log.Warn("release index stored", "old_sequence", oldSeq, "new_sequence", idx.Sequence, "signer", idx.KeyID,
+		"backup_signed", detail["backup_signed"], "revoked_added", len(added), "revoked_dropped", len(dropped))
+	o.note(api.CmdContainerPull, "release_index_stored", detail)
+}
+
+// revocationDiff names ("kind:id") what after has and before lacks, and the reverse.
+func revocationDiff(before, after []release.Revocation) (added, dropped []string) {
+	key := func(r release.Revocation) string { return r.Kind + ":" + r.ID }
+	had, has := map[string]bool{}, map[string]bool{}
+	for _, r := range before {
+		had[key(r)] = true
+	}
+	for _, r := range after {
+		has[key(r)] = true
+		if !had[key(r)] {
+			added = append(added, key(r))
+		}
+	}
+	for _, r := range before {
+		if !has[key(r)] {
+			dropped = append(dropped, key(r))
+		}
+	}
+	slices.Sort(added)
+	slices.Sort(dropped)
+	return added, dropped
+}
+
+func clipNames(l []string) []string {
+	if len(l) > 16 {
+		l = l[:16]
+	}
+	return append([]string{}, l...)
+}
+
+// freeForImages is the free space of the filesystem that holds Podman's storage: storageProbe, or
+// its nearest parent when a path is not there (ENOENT, ENOTDIR only: any other error is a failure to
+// measure, not a reason to measure something else), through the FreeBytes seam.
 func (o *Ops) freeForImages() (uint64, error) {
 	p := o.path(storageProbe)
 	for {
@@ -244,14 +309,14 @@ func (o *Ops) freeForImages() (uint64, error) {
 			return free, nil
 		}
 		parent := filepath.Dir(p)
-		if parent == p {
+		if parent == p || (!errors.Is(err, fs.ErrNotExist) && !errors.Is(err, syscall.ENOTDIR)) {
 			return 0, err
 		}
 		p = parent
 	}
 }
 
-func (o *Ops) checkContainerPull(_ context.Context, a api.ContainerPullArgs) error {
+func (o *Ops) checkContainerPull(ctx context.Context, a api.ContainerPullArgs) error {
 	if _, err := o.platform(); err != nil {
 		return err
 	}
@@ -261,6 +326,9 @@ func (o *Ops) checkContainerPull(_ context.Context, a api.ContainerPullArgs) err
 	plan, err := o.verifyPull(a)
 	if err != nil {
 		return err
+	}
+	if o.imageIs(ctx, plan.ref, plan.service, plan.digest) {
+		return nil // already here: it needs no space (the run finds it again and pulls nothing)
 	}
 	free, err := o.freeForImages()
 	if err != nil {
@@ -356,11 +424,13 @@ func (o *Ops) runContainerPull(ctx context.Context, rc *server.RunContext, a api
 		}
 		return nil, fail(api.CodePullFailed, "The host could not store the release index.")
 	}
-	if plan.idx.Expired(o.d.Now()) {
+	expired := plan.idx.Expired(o.d.Now())
+	if expired {
 		rcLog(rc, "the index is past its expiry; going on, an old index only warns (D-104)")
+		o.note(api.CmdContainerPull, "index_expired", map[string]any{"sequence": plan.idx.Sequence, "expires_at": plan.idx.ExpiresAt.UTC().Format(time.RFC3339)})
 	}
 	rcLog(rc, fmt.Sprintf("verified: index sequence %d, manifest %s signed by %s, cosign signature of %s", plan.idx.Sequence, plan.version, plan.keyID, plan.service))
-	res := api.ContainerPullResult{Digest: plan.digest, Size: plan.size, Verified: slices.Clone(pullVerified)}
+	res := api.ContainerPullResult{Digest: plan.digest, Size: plan.size, Verified: slices.Clone(pullVerified), IndexExpired: expired}
 
 	if o.imageIs(ctx, plan.ref, plan.service, plan.digest) {
 		rcLog(rc, "the image is already on this machine; nothing to pull")

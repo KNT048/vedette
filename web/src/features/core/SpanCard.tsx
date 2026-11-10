@@ -13,7 +13,7 @@ import { errMsg, useGate } from './parts'
 import { FILTER_TYPES, filterProblem, normaliseFilter, type FilterType } from './networkRules'
 import type { NetworkState, SpanConfig, SpanStatus } from './types'
 
-const TONE: Record<SpanStatus['verdict'], Tone> = { off: 'off', ok: 'ok', own_only: 'warn', no_traffic: 'warn', no_link: 'warn' }
+const TONE: Record<SpanStatus['verdict'], Tone> = { off: 'off', ok: 'ok', own_only: 'warn', no_traffic: 'warn', no_link: 'warn', sensor_unreachable: 'warn' }
 const EXTRACT = ['dns', 'tls_sni', 'http_host', 'flows'] as const
 
 /** Live health of the mirrored traffic with plain advice. Refreshes every 5 seconds. */

@@ -1050,8 +1050,8 @@ func (UnimplementedHandler) CorePutCoreNetworkInterfaces(ctx context.Context, re
 
 // CorePutCoreNetworkManagement implements core_put_core_network_management operation.
 //
-// Management interface: DHCP or static. An address change applies for 2 minutes and reverts unless
-// confirmed from the new address.
+// Management interface: DHCP or static. An address change applies for 5 minutes and reverts unless
+// confirmed from the new address (you sign in again there).
 //
 // PUT /core/network/management
 func (UnimplementedHandler) CorePutCoreNetworkManagement(ctx context.Context, req *CorePutCoreNetworkManagementReq) (r *CorePutCoreNetworkManagementOK, _ error) {

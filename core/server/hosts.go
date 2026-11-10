@@ -20,6 +20,14 @@ import (
 // parses -hosts). *.co.uk is accepted: no public-suffix list is shipped. "localhost", 127.0.0.1 and ::1 are always allowed: that is how a
 // developer, and the box's own health check, reach it.
 func HostAllowlist(allowed []string, next http.Handler) http.Handler {
+	return HostAllowlistWith(allowed, nil, next)
+}
+
+// HostAllowlistWith is HostAllowlist that also accepts a Host that is an IP literal (port optional) for which own
+// returns true: the addresses the box itself has right now. After a change of the management address the admin
+// opens the box at the new one, which the list fixed at start cannot know; names stay pinned to the list. A DNS
+// rebinding page is reached by name, never by one of the box's own addresses. own may be nil.
+func HostAllowlistWith(allowed []string, own func(netip.Addr) bool, next http.Handler) http.Handler {
 	set := map[string]bool{"localhost": true, "127.0.0.1": true, "::1": true}
 	var wild []string // the part after "*", ".corp.example"
 	for _, h := range allowed {
@@ -43,8 +51,8 @@ func HostAllowlist(allowed []string, next http.Handler) http.Handler {
 		if k == "" || strings.Contains(k, "*") {
 			return false
 		}
-		if _, err := netip.ParseAddr(k); err == nil { // a wildcard never matches an IP literal
-			return false
+		if a, err := netip.ParseAddr(k); err == nil { // a wildcard never matches an IP literal
+			return own != nil && own(a)
 		}
 		for _, suffix := range wild {
 			if label, ok := strings.CutSuffix(k, suffix); ok && label != "" && !strings.Contains(label, ".") {

@@ -1032,13 +1032,17 @@
       "dnsHint": "One to three addresses, separated by commas.",
       "save": "Save management settings",
       "saved": "Management settings saved.",
+      "restartNote": "If the box restarts before you confirm, it comes back on the old address.",
       "reverted": "The change was not confirmed in time, so the box went back to the old settings."
     },
     "confirm": {
       "title": "Change the management address?",
-      "body": "You will lose this page. Open https://{{ip}}:8443 within 2 minutes and confirm, or the box returns to the old settings.",
-      "lose": "If the new address is wrong or unreachable from your computer, do nothing: after 2 minutes the box goes back to the old address by itself.",
-      "go": "Apply and start the 2-minute timer"
+      "body": "You will lose this page. Open https://{{ip}}:8443 within 5 minutes and confirm, or the box returns to the old settings.",
+      "lose": "If the new address is wrong or unreachable from your computer, do nothing: after 5 minutes the box goes back to the old address by itself.",
+      "signIn": "You will need to sign in again at the new address (two-step code included): it is a different address for your browser.",
+      "bodyDhcp": "You will lose this page. Your DHCP server picks the new address: find it there (or in your router's client list), open it on port 8443 within 5 minutes and confirm, or the box returns to the old settings.",
+      "loseDhcp": "If you cannot find the new address, do nothing: after 5 minutes the box goes back to the old address by itself.",
+      "go": "Apply and start the 5-minute timer"
     },
     "pending": {
       "title": "Waiting for you to confirm at {{ip}}",
@@ -1046,7 +1050,10 @@
       "left": "Time left",
       "confirm": "Confirm: I opened the new address",
       "revert": "Cancel and go back now",
-      "confirmed": "New address confirmed."
+      "confirmed": "New address confirmed.",
+      "previousSettings": "the previous settings",
+      "stuckTitle": "The box could not go back to the old network settings by itself",
+      "stuckBody": "It restarts at {{time}}. The settings saved on the box are the old ones, so it comes back on {{old}}. Wait a few minutes, then open Vedette at that address."
     },
     "span": {
       "title": "SPAN capture",
@@ -1133,6 +1140,10 @@
         "no_traffic": {
           "title": "Nothing is arriving",
           "advice": "The link is up on {{iface}} but no packets arrive. Check the mirror session on the switch: is it enabled, is the destination the right port, and is the cable in that port?"
+        },
+        "sensor_unreachable": {
+          "title": "The listener did not start",
+          "advice": "Vedette saved the port but could not tell the passive sensor to listen on {{iface}}. It tries again every few seconds; if this stays, turn the passive sensor module off and on in Settings, Modules."
         },
         "no_link": {
           "title": "No cable signal",

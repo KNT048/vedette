@@ -108,7 +108,7 @@ func TestContract_PRE4_ApprovalMailsGoToTheApproverNotTheAlertList(t *testing.T)
 		in.Approvals = true
 		in.Approvers = []notify.Approver{{UserID: "u-admin", Address: "admin@acme.example"}}
 	})
-	req := notify.ApprovalRequest{ID: "req-h", Title: "Block x", Severity: notify.High, Risk: notify.RiskHigh, Expires: e.clock.Now().Add(15 * time.Minute)}
+	req := notify.ApprovalRequest{ID: "req-h", Title: "Block x", Severity: notify.High, Risk: notify.RiskHigh, Expires: e.clock.Now().Add(15 * time.Minute), Channels: allApprovalChannels}
 	sv, err := e.svc.SendApprovalRequest(e.ctx(), req)
 	if err != nil || len(sv) != 1 {
 		t.Fatalf("sends = %+v, %v", sv, err)
@@ -151,7 +151,7 @@ func TestContract_PRE4_TokenRecordCarriesTheAddress(t *testing.T) {
 		in.Approvals = true
 		in.Approvers = []notify.Approver{{UserID: "u-op", Address: "it@acme.example"}, {UserID: "u-admin", Address: "admin@acme.example"}}
 	})
-	if _, err := e.svc.SendApprovalRequest(e.ctx(), notify.ApprovalRequest{ID: "req-1", Title: "t", Severity: notify.High, Risk: notify.RiskLow, Expires: e.clock.Now().Add(15 * time.Minute)}); err != nil {
+	if _, err := e.svc.SendApprovalRequest(e.ctx(), notify.ApprovalRequest{ID: "req-1", Title: "t", Severity: notify.High, Risk: notify.RiskLow, Expires: e.clock.Now().Add(15 * time.Minute), Channels: allApprovalChannels}); err != nil {
 		t.Fatal(err)
 	}
 	if got := strings.Join(e.tokens.addrs, ","); got != "it@acme.example,admin@acme.example" {
@@ -168,7 +168,7 @@ func TestApprovalWithoutRecorderStillTellsEveryone(t *testing.T) {
 	})
 	e.save(channel.Telegram, notify.ChannelInput{Enabled: true, Fields: map[string]string{"chat_id": "-1002145678901"}, Secret: tgToken, MinSeverity: notify.Low,
 		Approvals: true, Approvers: []notify.Approver{{UserID: "u-admin", Address: "123456789"}}})
-	sv, err := e.svc.SendApprovalRequest(e.ctx(), notify.ApprovalRequest{ID: "req-1", Title: "t", Severity: notify.High, Risk: notify.RiskLow, Expires: e.clock.Now().Add(15 * time.Minute)})
+	sv, err := e.svc.SendApprovalRequest(e.ctx(), notify.ApprovalRequest{ID: "req-1", Title: "t", Severity: notify.High, Risk: notify.RiskLow, Expires: e.clock.Now().Add(15 * time.Minute), Channels: allApprovalChannels})
 	if err != nil || len(sv) != 2 {
 		t.Fatalf("sends = %+v, %v", sv, err)
 	}
@@ -349,7 +349,7 @@ func TestApprovalRequestRecordsEvenWhenTheRequestEnds(t *testing.T) {
 		Approvals: true, Approvers: []notify.Approver{{UserID: "u-admin", Address: "123456789"}}})
 	ctx, c := context.WithCancel(e.ctx())
 	cancel = c
-	sv, err := e.svc.SendApprovalRequest(ctx, notify.ApprovalRequest{ID: "req-1", Title: "t", Severity: notify.High, Risk: notify.RiskLow, Expires: e.clock.Now().Add(15 * time.Minute)})
+	sv, err := e.svc.SendApprovalRequest(ctx, notify.ApprovalRequest{ID: "req-1", Title: "t", Severity: notify.High, Risk: notify.RiskLow, Expires: e.clock.Now().Add(15 * time.Minute), Channels: allApprovalChannels})
 	if err != nil || len(sv) != 1 || e.count(`SELECT COUNT(*) FROM notify_send WHERE kind = 'approval'`) != 1 {
 		t.Fatalf("sends = %+v, %v", sv, err)
 	}

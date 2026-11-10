@@ -225,7 +225,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		return err
 	}
 	srv := &http.Server{
-		Handler:           topHandler(log, api, hosts, hsts),
+		Handler:           topHandler(log, api, hosts, hsts, boxOwnAddress(d.HostNet)), //nolint:contextcheck // the Host check runs per request, with no context to pass
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       60 * time.Second,
 		IdleTimeout:       2 * time.Minute,
@@ -251,10 +251,10 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 // else is routed (DNS rebinding). The Envelope (panic recovery, request id, security
 // headers) wraps the ServeMux too, so the mux's own answers (307 for /api/v1, //, .. and the 404 for
 // other paths) carry the headers the API's responses do.
-func topHandler(log *slog.Logger, api http.Handler, hosts []string, hsts bool) http.Handler {
+func topHandler(log *slog.Logger, api http.Handler, hosts []string, hsts bool, own func(netip.Addr) bool) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle(server.Prefix+"/", api)
-	h := server.HostAllowlist(hosts, mux)
+	h := server.HostAllowlistWith(hosts, own, mux)
 	if hsts {
 		h = strictTransportSecurity(h)
 	}

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -252,5 +253,32 @@ func TestStateNet(t *testing.T) {
 	}
 	if len(got.Interfaces) != 1 || got.Interfaces[0].Addresses[0] != "10.0.0.2/24" || got.DefaultRoute == nil || got.DefaultRoute.Gateway != "10.0.0.1" {
 		t.Fatalf("%+v", got)
+	}
+}
+
+func TestBackupPurge(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	var calls int
+	purge := func(run func() (any, error)) server.Command {
+		return server.Define(server.Spec[struct{}]{
+			Name: api.CmdBackupPurge, Write: true, Timeout: time.Minute,
+			Run: func(context.Context, *server.RunContext, struct{}) (any, error) { calls++; return run() },
+		})
+	}
+	h := servertest.Start(t, []server.Command{purge(func() (any, error) { return api.BackupPurgeResult{Deleted: 4}, nil })})
+	n, err := h.Client.BackupPurge(ctx, "admin@example.com")
+	if err != nil || n != 4 || calls != 1 {
+		t.Fatalf("n %d calls %d err %v", n, calls, err)
+	}
+	// A failed run is an error that names the code, not a count.
+	h = servertest.Start(t, []server.Command{purge(func() (any, error) { return nil, &server.Failure{Code: "purge_failed", Message: "no"} })})
+	if n, err := h.Client.BackupPurge(ctx, "admin@example.com"); err == nil || n != 0 || !strings.Contains(err.Error(), "purge_failed") {
+		t.Fatalf("n %d err %v", n, err)
+	}
+	// A host without the command (older) is a typed 404.
+	h = servertest.Start(t, nil)
+	if _, err := h.Client.BackupPurge(ctx, "admin@example.com"); !client.IsCode(err, api.CodeUnknownCommand) {
+		t.Fatalf("err %v", err)
 	}
 }

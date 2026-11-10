@@ -371,3 +371,73 @@ func (o *Ops) sweepBackups() {
 		}
 	}
 }
+
+// archiveNameRE is the name of an archive the host wrote; hostTempRE is a temp file writeFileAtomic left.
+var (
+	archiveNameRE = regexp.MustCompile(`^[0-9a-f]{32}\.tar\.gz$`)
+	hostTempRE    = regexp.MustCompile(`^\.tmp-[0-9]+$`)
+)
+
+// cmdBackupPurge is backup.purge (spec 6.11a, D-156): delete every archive and the index. There is
+// still no way to delete one archive (D-85). It is a run like every command (the framework has no
+// synchronous kind), so it holds the write lock and a second write is busy.
+func (o *Ops) cmdBackupPurge() server.Command {
+	return server.Define(server.Spec[struct{}]{
+		Name: api.CmdBackupPurge, Write: true, Timeout: time.Minute,
+		Run: func(context.Context, *server.RunContext, struct{}) (any, error) {
+			n, err := o.purgeBackups()
+			if err != nil {
+				o.log.Warn("could not purge the backups", "error", err.Error())
+				return nil, fail("purge_failed", "The backups could not all be deleted.")
+			}
+			o.note(api.CmdBackupPurge, "backups_purged", map[string]any{"deleted": n})
+			return api.BackupPurgeResult{Deleted: n}, nil
+		},
+	})
+}
+
+// purgeBackups deletes the index first (so a crash never leaves an entry without its file), then
+// every archive, through an os.Root on the store: only regular files with the exact names the host
+// writes; a link or any other name is left alone and a link is never followed. It returns the
+// number of archives deleted.
+func (o *Ops) purgeBackups() (int, error) {
+	o.bkMu.Lock()
+	defer o.bkMu.Unlock()
+	r, err := openRootOf(o.backupDir())
+	if errors.Is(err, os.ErrNotExist) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = r.Close() }()
+	if err := r.Remove("index.json"); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return 0, err
+	}
+	d, err := r.Open(".")
+	if err != nil {
+		return 0, err
+	}
+	ents, err := d.ReadDir(-1)
+	_ = d.Close()
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	var first error
+	for _, e := range ents {
+		if !e.Type().IsRegular() || (!archiveNameRE.MatchString(e.Name()) && !hostTempRE.MatchString(e.Name())) {
+			continue
+		}
+		switch err := r.Remove(e.Name()); {
+		case err == nil:
+			if archiveNameRE.MatchString(e.Name()) {
+				n++
+			}
+		case !errors.Is(err, os.ErrNotExist) && first == nil:
+			first = err
+		}
+	}
+	syncDir(o.backupDir())
+	return n, first
+}

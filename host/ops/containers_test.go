@@ -237,9 +237,20 @@ func TestTimeLimitsAreConsistent(t *testing.T) {
 	if recoverLimit < reloadLimit+fileSlack {
 		t.Errorf("recoverLimit %v is under one reload plus the file work", recoverLimit)
 	}
-	// The whole of a start that waits for the health and then reverts fits in the command's timeout (15 minutes).
-	worst := reloadLimit + restartLimitFor(api.ServiceCore) + 2*time.Minute + revertLimitFor(api.ServiceCore)
-	if worst > 15*time.Minute {
-		t.Errorf("a core start can take %v, over the 15 minutes of the command", worst)
+	// The commands' timeouts cover the worst run (D-138): a core start makes the backup, restarts, waits for
+	// the health and then restores the database and starts the old release again; a core rollback unpacks the
+	// backup, moves files, restarts, waits, and puts the database and the old release back.
+	o := &Ops{d: Deps{CoreWait: 2 * time.Minute, HealthWait: 2 * time.Minute}}
+	wait := o.d.HealthWait + probeLimit
+	worstStart := backupLimit + reloadLimit + restartLimitFor(api.ServiceCore) + wait + o.dbRevertLimit()
+	if worstStart > startTimeout {
+		t.Errorf("a core start can take %v, over the %v of the command", worstStart, startTimeout)
+	}
+	worstRollback := dbWork + o.d.CoreWait + reloadLimit + restartLimitFor(api.ServiceCore) + wait + o.dbRevertLimit()
+	if worstRollback > rollbackTimeout {
+		t.Errorf("a core rollback can take %v, over the %v of the command", worstRollback, rollbackTimeout)
+	}
+	if o.dbRevertLimit() < o.d.CoreWait+dbWork+revertLimitFor(api.ServiceCore)+wait-probeLimit {
+		t.Error("the limit of putting the database back is under its parts")
 	}
 }

@@ -18,8 +18,8 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// container.start (the current image: no version yet) and container.stop (spec 6.8, 6.9, D-105,
-// D-123), and the journal of the unit changes they make.
+// container.start (the current image; with a version and container.rollback: update.go), container.stop
+// (spec 6.8, 6.9, D-105, D-123, D-138), and the journal of the unit changes they make.
 //
 // A unit change is: journal it (containers/transition-<service>.json, phase "pending"), write the unit
 // (D-105 (2): units.go), systemctl daemon-reload, then restart or stop, then look at the effect: the
@@ -53,6 +53,8 @@ const (
 	// afterReadyRetry and afterReadyGiveUp pace the wait for the write lock.
 	afterReadyRetry  = 2 * time.Second
 	afterReadyGiveUp = 10 * time.Minute
+	// afterReadyMaxBackoff caps the wait between two tries to put core's database back.
+	afterReadyMaxBackoff = 5 * time.Minute
 )
 
 // revertLimitFor bounds putting an old unit back: the write, a reload, and a restart or a stop.
@@ -88,9 +90,10 @@ func rcID(rc *server.RunContext) string {
 
 func (o *Ops) cmdContainerStart() server.Command {
 	return server.Define(server.Spec[api.ContainerStartArgs]{
-		// Spec 10 says 3 minutes (core 15); one number covers the command, and a core start can wait for a
-		// restart of up to its TimeoutStartSec, then the health wait, then a revert (D-123).
-		Name: api.CmdContainerStart, Write: true, Timeout: 15 * time.Minute,
+		// One number covers the command (D-123 L6, D-138): a core start with a version makes a backup (up to
+		// backupLimit), waits for a restart of up to its TimeoutStartSec and the health, then may restore the
+		// backup and start the old release again.
+		Name: api.CmdContainerStart, Write: true, Timeout: startTimeout,
 		Validate: func(a *api.ContainerStartArgs) error {
 			if err := serviceArg(a.Service); err != nil {
 				return err
@@ -113,6 +116,16 @@ func (o *Ops) cmdContainerStart() server.Command {
 	})
 }
 
+func (o *Ops) cmdContainerRollback() server.Command {
+	return server.Define(server.Spec[api.ContainerRollbackArgs]{
+		// Spec 6.10: 3 minutes, core 30 (as backup.restore); one number for the command (D-138).
+		Name: api.CmdContainerRollback, Write: true, Timeout: rollbackTimeout,
+		Validate: func(a *api.ContainerRollbackArgs) error { return serviceArg(a.Service) },
+		Check:    o.checkContainerRollback,
+		Run:      o.runContainerRollback,
+	})
+}
+
 func (o *Ops) cmdContainerStop() server.Command {
 	return server.Define(server.Spec[api.ContainerStopArgs]{
 		Name: api.CmdContainerStop, Write: true, Timeout: 2 * time.Minute,
@@ -130,9 +143,10 @@ func (o *Ops) fillFor(digest string, install bool) unitFill {
 	}
 }
 
-// renderFor builds the unit of a service, mapping a missing host.conf value to its refusal.
-func (o *Ops) renderFor(service, digest string, install bool) ([]byte, error) {
-	b, err := renderUnit(service, o.fillFor(digest, install))
+// renderFor builds the unit of a service (with [Install]: a stopped-with-persist service is the only one
+// without it, and dropInstall renders that itself), mapping a missing host.conf value to its refusal.
+func (o *Ops) renderFor(service, digest string) ([]byte, error) {
+	b, err := renderUnit(service, o.fillFor(digest, true))
 	switch {
 	case errors.Is(err, errNoTemplate):
 		return nil, refuse412(api.CodeUnitUnknown, "That service has no unit the host can write yet.")
@@ -150,11 +164,11 @@ func (o *Ops) checkCommon(service string) error {
 	if _, err := o.platform(); err != nil {
 		return err
 	}
-	if _, err := o.renderFor(service, zeroDigest, true); err != nil {
+	if _, err := o.renderFor(service, zeroDigest); err != nil {
 		return err
 	}
-	if _, st, _ := o.loadJournal(service); st != jAbsent {
-		return refuse412(api.CodeTransitionPending, "An earlier change of that unit has not been recovered yet; the host does that when it starts.")
+	if t, st, _ := o.loadJournal(service); st != jAbsent {
+		return refuse412(api.CodeTransitionPending, transitionPendingText(t, st == jOK))
 	}
 	return nil
 }
@@ -177,18 +191,30 @@ func (o *Ops) currentUnit(service string) (text []byte, digest string, err error
 	return text, digest, nil
 }
 
-func (o *Ops) checkContainerStart(_ context.Context, a api.ContainerStartArgs) error {
-	if a.Version != "" {
-		return refuse412(api.CodeNotPulled, "Switching to another version needs container.pull, which is not available yet.")
-	}
+// checkContainerStart settles every refusal before a run (D-104 (4), D-138). With a version that is
+// the stored index, the record of the pulled version and its image, the version rules and, for core, the
+// snapshot and the disk: no write call of podman, no change of any file.
+func (o *Ops) checkContainerStart(ctx context.Context, a api.ContainerStartArgs) error {
 	if err := o.checkCommon(a.Service); err != nil {
 		return err
 	}
 	if _, _, err := o.unitDirChain(); err != nil {
 		return refuse412(api.CodeUnitUnsafe, "The Quadlet directory is not safe to write as root.")
 	}
-	_, _, err := o.currentUnit(a.Service)
-	return err
+	if _, _, err := o.currentUnit(a.Service); err != nil {
+		return err
+	}
+	if a.Version == "" {
+		return nil
+	}
+	plan, err := o.planStartVersion(ctx, a)
+	if err != nil {
+		return err
+	}
+	if plan.change && a.Service == api.ServiceCore {
+		return o.backupPreflight(a.Snapshot, true, true) // snapshot_required, snapshot_invalid, low_disk, db_unreadable: as backup.create
+	}
+	return nil
 }
 
 func (o *Ops) checkContainerStop(_ context.Context, a api.ContainerStopArgs) error {
@@ -407,7 +433,7 @@ func (o *Ops) runningHealthy(ctx context.Context, service, digest string) bool {
 // and "verified" once the effect was seen (the journal is then only waiting to be deleted).
 type transition struct {
 	Service   string    `json:"service"`
-	Op        string    `json:"op"`    // "start" | "stop"
+	Op        string    `json:"op"`    // "start" | "stop" | "rollback"
 	Phase     string    `json:"phase"` // "pending" | "restored" | "verified"
 	Digest    string    `json:"digest"`
 	PrevSHA   string    `json:"prev_sha256"` // sha256 of the unit text before the change
@@ -415,11 +441,30 @@ type transition struct {
 	WasActive bool      `json:"was_active"`  // the unit was active before the change (is-active)
 	At        time.Time `json:"at"`
 	RunID     string    `json:"run_id"`
+	// A start with a version and a rollback also say (D-138): the version moved to, the digest moved
+	// from, the pre_update backup that belongs to the change, how core's database goes back when the
+	// change is undone ("backup": restore BackupID; "aside": the files moved aside come back), and
+	// whether the change took effect (Applied: the versions are then recorded, once, even after a crash).
+	Version    string `json:"version,omitempty"`
+	FromDigest string `json:"from_digest,omitempty"`
+	BackupID   string `json:"backup_id,omitempty"`
+	DBRevert   string `json:"db_revert,omitempty"`
+	Applied    bool   `json:"applied,omitempty"`
+	// Aside is exactly the names a rollback moved (or is about to move) to <name>.rollback in core's data
+	// directory, journaled before the moves; only these are put back or dropped.
+	Aside []string `json:"aside,omitempty"`
+	// Unrecoverable says the host gave up putting core's data back (errUnrecoverable): the journal stays so
+	// that commands for core keep refusing, but nothing retries and core is left as it is (D-138 N1).
+	Unrecoverable bool `json:"unrecoverable,omitempty"`
 }
 
 const (
-	opStart = "start"
-	opStop  = "stop"
+	opStart    = "start"
+	opStop     = "stop"
+	opRollback = "rollback"
+
+	dbBackup = "backup"
+	dbAside  = "aside"
 
 	phasePending  = "pending"
 	phaseRestored = "restored"
@@ -427,8 +472,11 @@ const (
 )
 
 func (t transition) command() string {
-	if t.Op == opStop {
+	switch t.Op {
+	case opStop:
 		return api.CmdContainerStop
+	case opRollback:
+		return api.CmdContainerRollback
 	}
 	return api.CmdContainerStart
 }
@@ -446,6 +494,11 @@ const (
 )
 
 func (o *Ops) saveJournal(t transition) error {
+	if f := o.d.JournalFault; f != nil {
+		if err := f(t.Service, t.Phase); err != nil {
+			return err
+		}
+	}
 	return writeJSONAtomic(o.stateFile("containers", journalName(t.Service)), t)
 }
 
@@ -461,6 +514,49 @@ func (o *Ops) finishJournal(t transition) {
 	t.Phase = phaseVerified
 	_ = o.saveJournal(t)
 	o.removeJournal(t.Service)
+}
+
+// finishApplied is finishJournal for a change that took effect and has consequences beyond the unit:
+// the verified phase says "applied" first (durable), then the versions are recorded and the database
+// files moved aside are dropped (both idempotent: Start repeats them from a verified journal), and
+// only then is the journal deleted.
+//
+// If the verified journal cannot be written, the host tries to delete the (pending) journal instead
+// (N3): with no journal a later start has nothing to undo, so the switch that worked stays and is settled
+// normally. Only when the journal can be neither updated nor removed is nothing settled and the error
+// returned: the pending journal would make the next start put the old release back, and settling versions
+// against that would contradict it; the run fails.
+func (o *Ops) finishApplied(t transition) error {
+	t.Phase, t.Applied = phaseVerified, true
+	if err := o.saveJournal(t); err != nil {
+		o.removeJournal(t.Service)
+		if _, st, _ := o.loadJournal(t.Service); st != jAbsent {
+			o.log.Error("could not record that a change took effect, nor remove its journal; the versions are not updated", "service", t.Service, "error", err.Error())
+			return err
+		}
+		o.log.Warn("could not write the verified journal; removed it instead, the change stands", "service", t.Service, "error", err.Error())
+		o.settleVerified(t)
+		return nil
+	}
+	o.settleVerified(t)
+	o.removeJournal(t.Service)
+	return nil
+}
+
+// settleVerified is what a change that took effect leaves to do after its journal says so.
+func (o *Ops) settleVerified(t transition) {
+	if !t.Applied {
+		return
+	}
+	o.completeTransition(t)
+	if t.DBRevert == dbAside {
+		if tree, err := o.openCore(); err == nil {
+			if err := tree.dropAside(t.Aside); err != nil {
+				o.log.Warn("could not drop the files a rollback moved aside; they are left", "error", err.Error())
+			}
+			tree.close()
+		}
+	}
 }
 
 // loadJournal reads the journal of a service strictly: no unknown field, no trailing data, every
@@ -510,8 +606,11 @@ func (o *Ops) loadJournal(service string) (transition, jstate, error) {
 	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
 		return transition{}, jInvalid, nil
 	}
-	if t.Service != service || (t.Op != opStart && t.Op != opStop) || (t.Phase != phasePending && t.Phase != phaseRestored && t.Phase != phaseVerified) ||
-		!digestRE.MatchString(t.Digest) || !shaRE.MatchString(t.PrevSHA) || !shaRE.MatchString(t.NewSHA) || (t.RunID != "" && !runIDRE.MatchString(t.RunID)) {
+	if t.Service != service || (t.Op != opStart && t.Op != opStop && t.Op != opRollback) || (t.Phase != phasePending && t.Phase != phaseRestored && t.Phase != phaseVerified) ||
+		!digestRE.MatchString(t.Digest) || !shaRE.MatchString(t.PrevSHA) || !shaRE.MatchString(t.NewSHA) || (t.RunID != "" && !runIDRE.MatchString(t.RunID)) ||
+		(t.Version != "" && (len(t.Version) > 64 || !tagVersionRE.MatchString(t.Version))) || (t.FromDigest != "" && !digestRE.MatchString(t.FromDigest)) ||
+		(t.BackupID != "" && !hexIDRE.MatchString(t.BackupID)) || (t.DBRevert != "" && t.DBRevert != dbBackup && t.DBRevert != dbAside) ||
+		len(t.Aside) > 8 || slices.ContainsFunc(t.Aside, func(n string) bool { return !isAsideName(n) }) {
 		return transition{}, jInvalid, nil
 	}
 	return t, jOK, nil
@@ -562,12 +661,40 @@ func (o *Ops) newJournal(rc *server.RunContext, op, service, digest string, prev
 // ---- container.start ----------------------------------------------------------------------------
 
 func (o *Ops) runContainerStart(ctx context.Context, rc *server.RunContext, a api.ContainerStartArgs) (any, error) {
+	if a.Version == "" {
+		return o.runStartCurrent(ctx, rc, a)
+	}
+	plan, err := o.planStartVersion(ctx, a) // the same rules as Check, on what is true now
+	if err != nil {
+		return nil, err
+	}
+	if plan.change {
+		return o.runSwitch(ctx, rc, a, plan)
+	}
+	// The unit already pins this digest: a restart or nothing, then the version is known to the host.
+	res, err := o.runStartCurrent(ctx, rc, a)
+	if err != nil {
+		return nil, err
+	}
+	if r, ok := res.(api.ContainerStartResult); ok {
+		o.adoptCurrent(plan.rec)
+		v := plan.rec.Version
+		r.Version, r.IndexExpired = &v, plan.expired
+		o.noteExpired(rc, api.CmdContainerStart, plan)
+		o.retainImages(ctx, rc, api.CmdContainerStart, a.Service)
+		return r, nil
+	}
+	return res, nil
+}
+
+// runStartCurrent is container.start of the image the unit pins now (slice 3-6, D-123).
+func (o *Ops) runStartCurrent(ctx context.Context, rc *server.RunContext, a api.ContainerStartArgs) (any, error) {
 	svc := a.Service
 	old, digest, err := o.currentUnit(svc)
 	if err != nil {
 		return nil, err
 	}
-	want, err := o.renderFor(svc, digest, true)
+	want, err := o.renderFor(svc, digest)
 	if err != nil {
 		return nil, err
 	}
@@ -759,24 +886,37 @@ func (o *Ops) recoverTransitions(ctx context.Context) {
 		case jOK:
 		}
 		detail := map[string]any{"service": svc, "op": t.Op, "run_id": t.RunID}
+		if t.Unrecoverable {
+			continue // the host gave up on this one (N1): nothing is retried, commands for the service keep refusing
+		}
 		switch t.Phase {
 		case phaseVerified:
+			o.settleVerified(t) // what a change that took effect still had to do, once (D-138)
 			o.removeJournal(svc)
 			detail["action"] = "completed"
 			o.note(t.command(), "transition_interrupted", detail)
 		case phaseRestored:
 			o.restorePending = append(o.restorePending, svc)
 		default: // pending
-			if err := o.restoreBytes(t); err != nil {
+			wrote, err := o.restoreBytes(t)
+			if err != nil {
 				o.log.ErrorContext(ctx, "could not put back the unit of an interrupted change", "service", svc, "error", err.Error())
 				detail["action"] = "failed"
-				o.note(t.command(), "transition_recovery_failed", detail)
+				o.noteRecoveryFailed(svc, t.command(), detail)
+				if svc == api.ServiceCore && t.DBRevert != "" && (errors.Is(err, errUnitUnsafe) || errors.Is(err, errPrevMissing)) {
+					// Core's data is half swapped and the unit cannot be put back, and trying again cannot cure
+					// that (N4). Any other error (I/O, a full disk) keeps the journal pending and is retried.
+					o.markUnrecoverable(t)
+				}
 				continue // the journal stays; commands for the service are refused
+			}
+			if !wrote && t.DBRevert == dbBackup {
+				t.DBRevert = "" // the new unit never replaced the old one: the new release never ran, the database is as it was
 			}
 			t.Phase = phaseRestored
 			if err := o.saveJournal(t); err != nil {
 				detail["action"] = "failed"
-				o.note(t.command(), "transition_recovery_failed", detail)
+				o.noteRecoveryFailed(svc, t.command(), detail)
 				continue
 			}
 			changed = true
@@ -790,20 +930,25 @@ func (o *Ops) recoverTransitions(ctx context.Context) {
 	}
 }
 
-// restoreBytes puts the unit text from before the change back, unless it is there already.
-func (o *Ops) restoreBytes(t transition) error {
+// errPrevMissing: the old unit text is not kept, or does not match the journal. With errUnitUnsafe it is
+// what no retry can cure; any other error of restoreBytes (an I/O error, a full disk) is retried.
+var errPrevMissing = errors.New("ops: the previous unit is not kept or does not match the journal")
+
+// restoreBytes puts the unit text from before the change back, unless it is there already, and says
+// whether it had to write.
+func (o *Ops) restoreBytes(t transition) (wrote bool, err error) {
 	cur, cs := o.readUnit(t.Service)
 	if cs == fileBroken {
-		return errUnitUnsafe
+		return false, errUnitUnsafe
 	}
 	if cs == fileOK && sha256Hex(cur) == t.PrevSHA {
-		return nil
+		return false, nil
 	}
 	prev, ps := o.readPrev(t.Service)
 	if ps != fileOK || sha256Hex(prev) != t.PrevSHA {
-		return errors.New("ops: the previous unit is not kept or does not match the journal")
+		return false, errPrevMissing
 	}
-	return o.writeUnit(t.Service, prev, false)
+	return true, o.writeUnit(t.Service, prev, false)
 }
 
 // Locker is what AfterReady needs from the server: run a function under the global write lock, the
@@ -820,29 +965,181 @@ type Locker interface {
 // start job, and no --no-block is needed. A journal that cannot be completed stays (phase restored) and
 // the next start tries again.
 func (o *Ops) AfterReady(ctx context.Context, l Locker) {
-	if len(o.restorePending) == 0 {
+	o.mu.Lock()
+	o.afterCtx, o.afterL = ctx, l
+	o.mu.Unlock()
+	// Nothing to do when no journal waits. This reads the disk, not restorePending: that is written under the
+	// write lock by the loops, so reading it here would race (D-138 L2). It also covers a run that failed
+	// before this was called and so could not start a retry itself (kickRestore).
+	if !o.anyJournal() {
 		return
 	}
-	give := time.Now().Add(afterReadyGiveUp)
-	for ctx.Err() == nil && time.Now().Before(give) {
-		err := l.WithWriteLock(ctx, o.finishRestores)
-		if err == nil {
-			return
-		}
-		if !errors.Is(err, server.ErrWriteBusy) {
-			o.log.ErrorContext(ctx, "could not take the write lock to restore units", "error", err.Error())
-			return
-		}
-		if !o.d.Sleep(ctx, afterReadyRetry) {
-			return
+	o.restoreLoop(ctx, l, o.recoverAndFinish)
+}
+
+// anyJournal says whether any service has a journal that is not given up on.
+func (o *Ops) anyJournal() bool {
+	for _, svc := range unitServices {
+		if t, st, _ := o.loadJournal(svc); st == jOK && !t.Unrecoverable {
+			return true
 		}
 	}
+	return false
+}
+
+// recoverAndFinish is one try of the loops: put back the bytes of a journal that is still "pending", then
+// the state and the database of what waits. It runs under the write lock.
+func (o *Ops) recoverAndFinish(ctx context.Context) {
+	o.recoverTransitions(ctx)
+	o.finishRestores(ctx)
+}
+
+// afterFailedRevert is what a run does when it could not put the old release back: a failure that no retry
+// can cure (errUnrecoverable) is marked at once (a retry would find the quarantined aside copy and skip the
+// sidecar cleanup, D-138 L1); anything else starts the retry loop.
+func (o *Ops) afterFailedRevert(ctx context.Context, t transition, rerr error) {
+	if errors.Is(rerr, errUnrecoverable) {
+		o.markUnrecoverable(t)
+		return
+	}
+	o.kickRestore(ctx)
+}
+
+// kickRestore starts the retry loop again after a run left core's data to be put back (its revert failed):
+// the loop waits for the write lock, so it starts working when the failed run has released it. It does
+// nothing before AfterReady was given a Locker (AfterReady then finds the journal itself), or while a loop is already running.
+//
+// The run's own context is not used (it ends with the run); the loop runs on the one AfterReady was given.
+func (o *Ops) kickRestore(_ context.Context) { //nolint:contextcheck // deliberately the process context AfterReady was given, not the ending run's
+	o.mu.Lock()
+	ctx, l := o.afterCtx, o.afterL
+	o.mu.Unlock()
+	if l == nil || !o.kicking.CompareAndSwap(false, true) {
+		return
+	}
+	go func() {
+		defer o.kicking.Store(false)
+		o.restoreLoop(ctx, l, o.recoverAndFinish) // the journal is still "pending": put the bytes back, list what waits
+	}()
+}
+
+// restoreLoop runs body under the write lock until nothing waits for core's database any more. A
+// database that has not been put back is retried slowly and never given up on, unless the failure cannot
+// be cured by trying again (errUnrecoverable), which marks the journal and stops the loop (D-138 M2, N1).
+func (o *Ops) restoreLoop(ctx context.Context, l Locker, body func(context.Context)) {
+	give := time.Now().Add(afterReadyGiveUp)
+	backoff := afterReadyRetry
+	for ctx.Err() == nil {
+		err := l.WithWriteLock(ctx, body)
+		switch {
+		case err == nil:
+			if !o.dbRevertPending() {
+				return
+			}
+			// A database that has not been put back is never given up on (D-138 M2): the write gate refuses
+			// every write command meanwhile, so try again, slowly, until it works or the host stops.
+			o.log.ErrorContext(ctx, "core's database has not been put back yet; trying again", "in", backoff.String())
+			if !o.d.Sleep(ctx, backoff) {
+				return
+			}
+			backoff = min(backoff*2, afterReadyMaxBackoff)
+		case !errors.Is(err, server.ErrWriteBusy):
+			o.log.ErrorContext(ctx, "could not take the write lock to restore units", "error", err.Error())
+			return
+		default:
+			if time.Now().After(give) && !o.dbRevertPending() {
+				return
+			}
+			if !o.d.Sleep(ctx, afterReadyRetry) {
+				return
+			}
+		}
+	}
+}
+
+// dbRevertPending says whether a journal of core still has a database to put back (its pre_update backup
+// or the files moved aside) and can still be retried. Until it is back, the commands that touch core
+// (container.* of core, backup.*) are refused with transition_pending (coreFree); the others run.
+func (o *Ops) dbRevertPending() bool {
+	t, st, _ := o.loadJournal(api.ServiceCore)
+	return st == jOK && t.DBRevert != "" && t.Phase != phaseVerified && !t.Unrecoverable
+}
+
+// recoveryNoteEvery is how often a failing recovery of one service audits itself: the first failure, then
+// at most once an hour (N5), so a retry loop does not flood the chain.
+const recoveryNoteEvery = time.Hour
+
+func (o *Ops) noteRecoveryFailed(svc, command string, detail map[string]any) {
+	o.noteLimited(svc, command, "transition_recovery_failed", detail)
+}
+
+// noteLimited audits key's line the first time and then at most once an hour.
+func (o *Ops) noteLimited(key, command, code string, detail map[string]any) {
+	o.mu.Lock()
+	if o.recNote == nil {
+		o.recNote = map[string]time.Time{}
+	}
+	now := o.d.Now()
+	last, seen := o.recNote[key]
+	if seen && now.Sub(last) < recoveryNoteEvery && now.Sub(last) >= 0 {
+		o.mu.Unlock()
+		return
+	}
+	o.recNote[key] = now
+	o.mu.Unlock()
+	o.note(command, code, detail)
+}
+
+// forgetRecoveryNotes resets the rate limit of a service after a recovery that worked, so that its next
+// failure is audited at once.
+func (o *Ops) forgetRecoveryNotes(svc string) {
+	o.mu.Lock()
+	delete(o.recNote, svc)
+	delete(o.recNote, "unrecoverable:"+svc)
+	o.mu.Unlock()
+}
+
+// markUnrecoverable records that the host stopped trying to put core's data back: the journal says so
+// (it stays, so commands for core keep refusing, and nothing retries), core is left as it is, and one audit
+// line names what is wrong (names only, never paths of core's data or its content). An operator follows
+// the RUNBOOK entry core_data_unrecoverable (WP-32).
+func (o *Ops) markUnrecoverable(t transition) {
+	t.Unrecoverable = true
+	if err := o.saveJournal(t); err != nil {
+		o.log.Error("could not record that core's data cannot be put back", "error", err.Error())
+	}
+	o.log.Error("core's data cannot be put back automatically; the host stopped trying and left core as it is (it may be stopped; systemd starts it again at the next boot, on whatever data is there). See RUNBOOK core_data_unrecoverable", "run_id", t.RunID)
+	// One line even if the journal cannot be saved (a full state directory) and this runs again: then at most hourly.
+	o.noteLimited("unrecoverable:"+t.Service, t.command(), "core_data_unrecoverable", map[string]any{"service": t.Service, "run_id": t.RunID, "db_revert": t.DBRevert, "aside": t.Aside, "backup_id": t.BackupID})
+}
+
+// transitionPendingText is what a 412 transition_pending says (N2).
+func transitionPendingText(t transition, valid bool) string {
+	switch {
+	case valid && t.Unrecoverable:
+		return "Core's data could not be put back automatically after an interrupted change, and core is left stopped. See the RUNBOOK entry core_data_unrecoverable; the audit log names the files."
+	case valid && t.DBRevert != "":
+		return "Core's database is being put back after an interrupted or failed change; the host keeps trying. Try again later."
+	}
+	return "An earlier change of that unit is still being put right (the host does that at its start, or retries by itself). Try again later."
+}
+
+// coreFree refuses with transition_pending while core's journal is waiting for recovery: backups and
+// restores must not run on a half-swapped core.
+func (o *Ops) coreFree() error {
+	if t, st, _ := o.loadJournal(api.ServiceCore); st != jAbsent {
+		return refuse412(api.CodeTransitionPending, transitionPendingText(t, st == jOK))
+	}
+	return nil
 }
 
 // finishRestores is the body of AfterReady, under the write lock.
 func (o *Ops) finishRestores(ctx context.Context) {
 	rctx, cancel := context.WithTimeout(ctx, afterReadyLimit)
 	defer cancel()
+	if len(o.restorePending) == 0 {
+		return
+	}
 	o.sctl(rctx, reloadLimit, "daemon-reload") // idempotent: Start may not have managed it
 	for _, svc := range o.restorePending {
 		t, st, _ := o.loadJournal(svc)
@@ -854,8 +1151,26 @@ func (o *Ops) finishRestores(ctx context.Context) {
 		digest, _, err := parseUnit(svc, text)
 		if fs != fileOK || err != nil {
 			detail["action"] = "failed"
-			o.note(t.command(), "transition_recovery_failed", detail)
+			o.noteRecoveryFailed(svc, t.command(), detail)
 			continue
+		}
+		if t.Unrecoverable {
+			continue // given up on; nothing retries, core stays as it is
+		}
+		if t.DBRevert != "" && svc == api.ServiceCore {
+			// The change moved core's database (a restore from the pre_update backup, or the files moved
+			// aside for a rollback): stop core and put it back before the old release starts (D-138).
+			if err := o.revertDatabase(rctx, t); err != nil {
+				o.log.ErrorContext(ctx, "could not put core's database back after an interrupted change", "error", err.Error())
+				detail["action"] = "failed"
+				o.noteRecoveryFailed(svc, t.command(), detail)
+				if errors.Is(err, errUnrecoverable) {
+					o.markUnrecoverable(t) // no retry can cure it: stop, leave core stopped, say so (N1)
+				}
+				continue
+			}
+			t.DBRevert = ""
+			_ = o.saveJournal(t)
 		}
 		var ok bool
 		if t.WasActive {
@@ -871,12 +1186,20 @@ func (o *Ops) finishRestores(ctx context.Context) {
 		}
 		if !ok {
 			detail["action"] = "failed"
-			o.note(t.command(), "transition_recovery_failed", detail)
+			o.noteRecoveryFailed(svc, t.command(), detail)
 			continue
 		}
 		o.finishJournal(t)
+		o.forgetRecoveryNotes(svc)
 		detail["action"] = "reverted"
 		o.note(t.command(), "transition_interrupted", detail)
 	}
-	o.restorePending = nil
+	// What is still waiting for its database stays on the list, so that AfterReady's next try finds it.
+	var left []string
+	for _, svc := range o.restorePending {
+		if t, st, _ := o.loadJournal(svc); st == jOK && t.DBRevert != "" && t.Phase == phaseRestored && !t.Unrecoverable {
+			left = append(left, svc)
+		}
+	}
+	o.restorePending = left
 }

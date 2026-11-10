@@ -3,11 +3,13 @@ package api
 // container.start, container.stop and GET /v1/state/containers (docs/specs/host-api.md sections 5,
 // 6.8 and 6.9, D-104, D-105, D-123).
 
-// Commands of the container part (slice 3-6 start and stop, slice 3-7 pull; container.rollback comes later).
+// Commands of the container part (slice 3-6 start and stop, slice 3-7 pull, slice 3-8a start with a
+// version and rollback).
 const (
-	CmdContainerStart = "container.start"
-	CmdContainerStop  = "container.stop"
-	CmdContainerPull  = "container.pull"
+	CmdContainerStart    = "container.start"
+	CmdContainerStop     = "container.stop"
+	CmdContainerPull     = "container.pull"
+	CmdContainerRollback = "container.rollback"
 )
 
 // The services (spec section 6): the closed set a service argument may name.
@@ -58,13 +60,26 @@ const (
 	CodeNoTrustedKeys       = "no_trusted_keys"        // this build embeds no release keys: it refuses everything (D-130)
 	CodeReleaseStateInvalid = "release_state_invalid"  // the stored index is damaged: the host will not guess (D-130)
 	CodePullFailed          = "pull_failed"            // run ended failed: podman could not pull or tag
+
+	// Refusals of container.start with a version and of container.rollback (spec 6.8, 6.10, D-104, D-138).
+	CodeDowngradeNotAllowed   = "downgrade_not_allowed"   // the version is lower than the running one: going back is container.rollback
+	CodeUpgradePathRequired   = "upgrade_path_required"   // the running version is below the target's min_upgrade_from
+	CodeNoPrevious            = "no_previous"             // nothing to roll back to (or its image is gone)
+	CodePreviousRevoked       = "previous_revoked"        // the previous version, its image digest or its signing key is revoked
+	CodeRollbackNotAllowed    = "rollback_not_allowed"    // the previous version is below the running release's rollback.min_version
+	CodeRollbackBackupMissing = "rollback_backup_missing" // rollback.safe=false and the pre_update backup of the transition is gone
+	CodeRollbackIsUpgrade     = "rollback_is_upgrade"     // core: the previous version is higher than the running one: use container.start with a version and a snapshot
+	CodeCoreDataInvalid       = "core_data_invalid"       // an entry of core's data directory that a rollback would move is not a regular file
+	CodeCurrentVersionUnknown = "current_version_unknown" // the running version is not recorded (bootstrap 3-8b writes it), so a switch cannot be judged
+	// CodeRollbackRevertFailed ends a rollback as failed: it did not work and putting the running release back failed too.
+	CodeRollbackRevertFailed = "rollback_revert_failed"
 	// CodeEffectNotVerified (api/ops.go) ends a pull whose podman image inspect did not show the digest.
 )
 
-// ContainerStartArgs are the args of container.start. Version is semver and names a pulled image:
-// until container.pull exists (slice 3-7) a start with a version is refused with not_pulled.
-// Snapshot is the id of a snapshot core wrote; it only matters when the digest changes, which a
-// start without a version never does, so it is accepted for core and refused for the others.
+// ContainerStartArgs are the args of container.start. Version is semver and names an image that
+// container.pull verified on this host (without it: the current image). Snapshot is the id of a
+// snapshot core wrote: core must send one with a version (the host makes the pre_update backup from
+// it when the digest changes), and no other service may.
 type ContainerStartArgs struct {
 	Service  string `json:"service"`
 	Version  string `json:"version,omitempty"`
@@ -79,8 +94,11 @@ type ContainerStopArgs struct {
 	Persist bool   `json:"persist"`
 }
 
-// ContainerStartResult is the result of container.start. Version is null until container.pull
-// records versions; Restarted is false when the service already ran the right image and was healthy.
+// ContainerStartResult is the result of container.start. Version is null for a start without a
+// version; Restarted is false when the service already ran the right image and was healthy.
+// PreviousDigest is the digest the service ran before a switch. BackupID is the pre_update backup
+// core's switch made. IndexExpired says the index the version was checked against is past its
+// expires_at: the caller shows it (D-130).
 type ContainerStartResult struct {
 	Service        string  `json:"service"`
 	Version        *string `json:"version"`
@@ -88,6 +106,22 @@ type ContainerStartResult struct {
 	PreviousDigest *string `json:"previous_digest"`
 	Healthy        bool    `json:"healthy"`
 	Restarted      bool    `json:"restarted"`
+	BackupID       *string `json:"backup_id,omitempty"`
+	IndexExpired   bool    `json:"index_expired,omitempty"`
+}
+
+// ContainerRollbackArgs are the args of container.rollback: only the service. The target is always the
+// stored previous version.
+type ContainerRollbackArgs struct {
+	Service string `json:"service"`
+}
+
+// ContainerRollbackResult is the result of container.rollback. RestoredBackupID is the pre_update
+// backup that was restored (core, when the release it left says rollback.safe=false).
+type ContainerRollbackResult struct {
+	Digest           string  `json:"digest"`
+	FromDigest       string  `json:"from_digest"`
+	RestoredBackupID *string `json:"restored_backup_id,omitempty"`
 }
 
 // ContainerPullArgs are the args of container.pull (spec 6.7). Index and Manifest are the signed
@@ -153,7 +187,8 @@ type ContainerVersion struct {
 // ContainerState is one service in GET /v1/state/containers. Installed says a unit with a pinned
 // digest exists; ConfiguredDigest is the digest in that unit and Digest the one the running
 // container reports (null when no container exists), so a unit that was changed but not restarted
-// shows. Previous and LatestPulled are null until container.pull and container.rollback exist.
+// shows. Version and Previous come from the versions the host recorded (null when it knows none);
+// LatestPulled is the version container.pull verified last.
 type ContainerState struct {
 	Service          string            `json:"service"`
 	Installed        bool              `json:"installed"`

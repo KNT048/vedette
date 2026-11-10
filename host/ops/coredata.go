@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"syscall"
 	"time"
@@ -58,8 +59,9 @@ var errNotFound = errors.New("not found")
 // coreTree is core's data directory opened for one operation.
 type coreTree struct {
 	root *os.Root
-	uid  int // owner every file must have: core_uid
-	gid  int // group restored files get: core_gid
+	uid  int              // owner every file must have: core_uid
+	gid  int              // group restored files get: core_gid
+	now  func() time.Time // the host's clock (Deps.Now), which names quarantined entries
 }
 
 // fdPath is the path through which a process opens one of its own descriptors.
@@ -129,7 +131,7 @@ func (o *Ops) openCore() (*coreTree, error) {
 		_ = root.Close()
 		return nil, refuse412(api.CodeDBUnreadable, "Core's data directory changed while it was being opened.")
 	}
-	return &coreTree{root: root, uid: o.cfg.CoreUID, gid: o.cfg.CoreGID}, nil
+	return &coreTree{root: root, uid: o.cfg.CoreUID, gid: o.cfg.CoreGID, now: o.d.Now}, nil
 }
 
 // checkChain validates core_data and its parents and returns the path to open (parents resolved)
@@ -389,10 +391,10 @@ func (t *coreTree) install(in io.Reader, name string) error {
 	if err := out.Close(); err != nil {
 		return fmt.Errorf("ops: close %s: %w", name, err)
 	}
-	if st, err := t.root.Lstat(name); err == nil && st.IsDir() {
-		if err := t.root.RemoveAll(name); err != nil {
-			return fmt.Errorf("ops: clear %s: %w", name, err)
-		}
+	// Something that is not a regular file at the target (a directory core planted) is renamed away, never
+	// walked or removed (D-138 H2): rename over a directory would fail, and RemoveAll could be held forever.
+	if err := t.quarantineIfNotRegular(name); err != nil {
+		return err
 	}
 	if err := t.root.Rename(tmp, name); err != nil {
 		return fmt.Errorf("ops: replace %s: %w", name, err)
@@ -404,10 +406,73 @@ func (t *coreTree) install(in io.Reader, name string) error {
 
 // removeSidecars deletes the -wal, -shm and -journal files of a database that is about to be
 // replaced: a stale WAL applied to a different database file would corrupt it.
+// A sidecar that is not a regular file is renamed away like any other hostile entry (never walked).
 func (t *coreTree) removeSidecars() error {
 	for _, suffix := range sidecars {
-		if err := t.root.RemoveAll(coreDBFile + suffix); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("ops: remove %s: %w", coreDBFile+suffix, err)
+		if err := t.removeOrQuarantine(coreDBFile + suffix); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// errUnrecoverable marks a failure that trying again cannot cure: an entry of core's tree that the host
+// cannot put right by itself. The caller stops retrying, leaves core as it is, and audits it (D-138 N1).
+var errUnrecoverable = errors.New("ops: core's data cannot be put back automatically")
+
+// errCoreDataInvalid is a name in core's tree that is not what the host may move or replace (a directory,
+// a link or a device where a database file belongs): refused before anything is stopped.
+var errCoreDataInvalid = errors.New("ops: an entry of core's data directory is not a regular file")
+
+// quarantineIfNotRegular renames name to <name>.quarantine-<unix nano> when it exists and is not a regular file: one
+// rename (O(1), nothing walked), the entry stays for an operator, the name is free.
+func (t *coreTree) quarantineIfNotRegular(name string) error {
+	st, err := t.root.Lstat(name)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("%w: look at %s: %w", errUnrecoverable, name, err)
+	}
+	if st.Mode().IsRegular() {
+		return nil
+	}
+	stamp := time.Now
+	if t.now != nil {
+		stamp = t.now
+	}
+	q := fmt.Sprintf("%s.quarantine-%d", name, stamp().UnixNano())
+	if err := t.root.Rename(name, q); err != nil {
+		return fmt.Errorf("%w: set %s aside: %w", errUnrecoverable, name, err)
+	}
+	return nil
+}
+
+// removeOrQuarantine removes a regular file (or a link), and renames anything else away (quarantineIfNotRegular).
+// A symbolic link is removed as itself (Root.Remove never follows it): that is what a restore always did.
+func (t *coreTree) removeOrQuarantine(name string) error {
+	if st, err := t.root.Lstat(name); err == nil && !st.Mode().IsRegular() && st.Mode()&os.ModeSymlink == 0 {
+		return t.quarantineIfNotRegular(name)
+	}
+	if err := t.root.Remove(name); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("ops: remove %s: %w", name, err)
+	}
+	return nil
+}
+
+// checkAsidable refuses (errCoreDataInvalid) when any file a rollback would move, or any aside name it would
+// clear, exists and is not a regular file. It runs before core is stopped, so a hostile tree is a refusal
+// and not a half-done rollback.
+func (t *coreTree) checkAsidable() error {
+	for _, name := range asideCandidates(true) {
+		for _, n := range []string{name, name + asideSuffix} {
+			st, err := t.root.Lstat(n)
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			if err != nil || !st.Mode().IsRegular() {
+				return errCoreDataInvalid
+			}
 		}
 	}
 	return nil
@@ -443,6 +508,137 @@ func (t *coreTree) sweepRestoreTemps() {
 			_ = t.root.Remove(e.Name())
 		}
 	}
+}
+
+// asideSuffix names the files a rollback moves out of the way while it restores a backup (D-138).
+const asideSuffix = ".rollback"
+
+// asideCandidates are the files of core's tree that a rollback moves aside: the database and its
+// sidecars, and the key when the backup brings one.
+func asideCandidates(withKey bool) []string {
+	names := []string{coreDBFile}
+	for _, sfx := range sidecars {
+		names = append(names, coreDBFile+sfx)
+	}
+	if withKey {
+		names = append(names, coreKeyFile)
+	}
+	return names
+}
+
+// isAsideName says whether name is one of the files a rollback may move aside.
+func isAsideName(name string) bool { return slices.Contains(asideCandidates(true), name) }
+
+// removeRegular removes name only when it is a regular file (Lstat, never following), with Root.Remove:
+// never RemoveAll, which would walk, and could be held forever by, a directory that core planted at a
+// name the host uses (the pattern of sweepRestoreTemps). A missing name is fine; anything else is
+// reported and left alone.
+func (t *coreTree) removeRegular(name string) error {
+	st, err := t.root.Lstat(name)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("ops: look at %s: %w", name, err)
+	}
+	if !st.Mode().IsRegular() {
+		return fmt.Errorf("ops: %s is not a regular file; left alone", name)
+	}
+	if err := t.root.Remove(name); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("ops: remove %s: %w", name, err)
+	}
+	return nil
+}
+
+// planAside clears every stale aside file of an earlier run (all candidates, so none can be mistaken
+// for this run's) and returns the names that exist now and will be moved: the database and its sidecars,
+// and the key when withKey. The caller journals them before moveAside, so that a crash is undone for
+// exactly these names and no others. Core is stopped while this runs.
+func (t *coreTree) planAside(withKey bool) ([]string, error) {
+	for _, name := range asideCandidates(true) {
+		if err := t.removeRegular(name + asideSuffix); err != nil {
+			return nil, err
+		}
+	}
+	var names []string
+	for _, name := range asideCandidates(withKey) {
+		if _, err := t.root.Lstat(name); errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		names = append(names, name)
+	}
+	return names, nil
+}
+
+// moveAside renames each name to name+asideSuffix, so that the files a failed rollback must bring back
+// are never copies: one rename each, inside the root handle.
+func (t *coreTree) moveAside(names []string) error {
+	for _, name := range names {
+		if !isAsideName(name) {
+			return fmt.Errorf("ops: %q is not a file a rollback moves", name)
+		}
+		if err := t.root.Rename(name, name+asideSuffix); err != nil {
+			return fmt.Errorf("ops: move %s aside: %w", name, err)
+		}
+	}
+	t.syncDir()
+	return nil
+}
+
+// putAsideBack undoes moveAside for the journaled names that still have an aside copy: the copy replaces
+// the live file (rename), and the sidecars of a database that was installed meanwhile go (a stale WAL
+// must not meet the old database). Nothing else is touched.
+func (t *coreTree) putAsideBack(names []string) error {
+	if slices.Contains(names, coreDBFile) {
+		if _, err := t.root.Lstat(coreDBFile + asideSuffix); err == nil {
+			for _, sfx := range sidecars {
+				if !slices.Contains(names, coreDBFile+sfx) { // a sidecar that was moved is restored below
+					if err := t.removeOrQuarantine(coreDBFile + sfx); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+	for _, name := range names {
+		if !isAsideName(name) {
+			return fmt.Errorf("ops: %q is not a file a rollback moves", name)
+		}
+		st, err := t.root.Lstat(name + asideSuffix)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil || !st.Mode().IsRegular() {
+			// The copy the host kept is gone or swapped for something else: nothing can bring the file back.
+			_ = t.quarantineIfNotRegular(name + asideSuffix)
+			return fmt.Errorf("%w: the aside copy of %s is not usable", errUnrecoverable, name)
+		}
+		// Whatever core put at the live name meanwhile (a directory) is renamed away, not walked, and the put-back goes on.
+		if err := t.quarantineIfNotRegular(name); err != nil {
+			return err
+		}
+		if err := t.root.Rename(name+asideSuffix, name); err != nil {
+			return fmt.Errorf("%w: put %s back: %w", errUnrecoverable, name, err)
+		}
+	}
+	t.syncDir()
+	return nil
+}
+
+// dropAside removes the aside files of the journaled names once the rollback took effect. Only regular
+// files go; anything else is left (and the caller logs the error).
+func (t *coreTree) dropAside(names []string) error {
+	var first error
+	for _, name := range names {
+		if !isAsideName(name) {
+			continue
+		}
+		if err := t.removeRegular(name + asideSuffix); err != nil && first == nil {
+			first = err
+		}
+	}
+	t.syncDir()
+	return first
 }
 
 // checkCoreAtStart looks at core_data once when the host starts. A bad tree is not fatal (the

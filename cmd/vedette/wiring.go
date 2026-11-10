@@ -271,6 +271,10 @@ func buildServices(d *deps) error {
 		return fmt.Errorf("response: %w", err)
 	}
 	registerLogSources(d)
+	d.AI, err = newAI(d)
+	if err != nil {
+		return fmt.Errorf("ai: %w", err)
+	}
 	subscribe(*d)
 	return nil
 }

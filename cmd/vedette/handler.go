@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/knt048/vedette/core/server"
+	"github.com/knt048/vedette/modules/ai"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/feeds"
@@ -36,6 +37,7 @@ type handler struct {
 	*sensorpassive.SensorHandlers
 	*exposure.ExposureHandlers
 	*scan.ScanHandlers
+	*ai.AIHandlers
 }
 
 // newHandler builds every module's handlers from the shared deps. Adding a module = one field above
@@ -58,5 +60,6 @@ func newHandler(d deps) handler {
 		HoneypotHandlers: honeypot.NewHoneypotHandlers(d.Honeypot),
 		ExposureHandlers: exposure.NewExposureHandlers(exposureService(d)),
 		ScanHandlers:     scan.NewScanHandlers(scanService(d)),
+		AIHandlers:       ai.NewAIHandlers(d.AI),
 	}
 }

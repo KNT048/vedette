@@ -119,7 +119,7 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 	}
 	defer sys.Close()
 	// One daemon per state directory, and no bootstrap beside it (D-142): the lock lives as long as the process.
-	unlock, err := sys.LockState()
+	unlock, err := sys.LockState(ctx)
 	if err != nil {
 		return fmt.Errorf("another vedette-host holds %s: %w", *stateDir, err)
 	}

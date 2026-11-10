@@ -112,7 +112,7 @@ func runBootstrap(ctx context.Context, cfg config.Config, f bootFlags, stateDir,
 	}
 	defer sys.Close()
 	// The state lock first: the audit chain is read (its head) only while nobody else can append to it.
-	unlock, err := sys.LockState()
+	unlock, err := sys.LockState(ctx)
 	if err != nil {
 		return exitFor(ops.LockError(err))
 	}

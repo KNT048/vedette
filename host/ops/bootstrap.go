@@ -61,7 +61,7 @@ var ErrStateLocked = errors.New("ops: the state directory is locked by another v
 // LockState takes the one lock of the state directory (<state>/host.lock, flock, non-blocking). The daemon
 // holds it for its whole life and the bootstrap for its run, so a bootstrap never runs beside a daemon or
 // beside another bootstrap (D-142). The returned function lets it go.
-func (o *Ops) LockState() (unlock func(), err error) {
+func (o *Ops) LockState(ctx context.Context) (unlock func(), err error) {
 	f, err := os.OpenFile(o.stateFile("host.lock"), os.O_RDWR|os.O_CREATE|syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0o600)
 	if err != nil {
 		return nil, fmt.Errorf("ops: open the state lock: %w", err)
@@ -81,11 +81,10 @@ func (o *Ops) LockState() (unlock func(), err error) {
 			_ = f.Close()
 			return nil, fmt.Errorf("ops: lock the state directory: %w", err)
 		}
-		if time.Now().After(deadline) {
+		if time.Now().After(deadline) || !sleepCtx(ctx, stateLockPoll) {
 			_ = f.Close()
 			return nil, ErrStateLocked
 		}
-		sleepCtx(context.Background(), stateLockPoll)
 	}
 	return func() { _ = f.Close() }, nil // closing the descriptor drops the flock
 }
@@ -163,7 +162,7 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 		logf = func(string) {}
 	}
 	if !a.LockHeld {
-		unlock, err := o.LockState()
+		unlock, err := o.LockState(ctx)
 		if err != nil {
 			return LockError(err)
 		}

@@ -189,14 +189,14 @@ func TestContract_Bootstrap_OneHolderOfTheStateLockAtATime(t *testing.T) {
 	t.Parallel()
 	e := startUpd(t)
 	holder := e.bsOps(t, nil)
-	unlock, err := holder.LockState()
+	unlock, err := holder.LockState(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 	a := e.bsDocs(t, 5, v1, bsDigest)
 	other := e.bsOps(t, nil)
 	codeIs(t, "a second bootstrap", e.bootstrapWith(other, a), ops.BootstrapDaemonRunning)
-	if _, err := other.LockState(); !errors.Is(err, ops.ErrStateLocked) {
+	if _, err := other.LockState(context.Background()); !errors.Is(err, ops.ErrStateLocked) {
 		t.Errorf("a second lock: %v", err)
 	}
 	e.bsUntouched(t, "locked")
@@ -205,7 +205,7 @@ func TestContract_Bootstrap_OneHolderOfTheStateLockAtATime(t *testing.T) {
 		t.Fatalf("after the lock was released: %v", err)
 	}
 	// The bootstrap let go of it: a daemon can take it now.
-	if u, err := holder.LockState(); err != nil {
+	if u, err := holder.LockState(context.Background()); err != nil {
 		t.Errorf("the bootstrap kept the lock: %v", err)
 	} else {
 		u()
@@ -260,7 +260,7 @@ func TestContract_Bootstrap_LockStateWaitsBrieflyForALateRelease(t *testing.T) {
 	t.Parallel()
 	e := startUpd(t)
 	holder, other := e.bsOps(t, nil), e.bsOps(t, nil)
-	unlock, err := holder.LockState()
+	unlock, err := holder.LockState(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -269,7 +269,7 @@ func TestContract_Bootstrap_LockStateWaitsBrieflyForALateRelease(t *testing.T) {
 		<-timer.C
 		unlock()
 	}()
-	u, err := other.LockState()
+	u, err := other.LockState(context.Background())
 	if err != nil {
 		t.Fatalf("a lock released after 300 ms was not waited for: %v", err)
 	}
@@ -281,7 +281,7 @@ func TestContract_Bootstrap_ACallerThatHoldsTheLockSaysSo(t *testing.T) {
 	t.Parallel()
 	e := startUpd(t)
 	o := e.bsOps(t, nil)
-	unlock, err := o.LockState()
+	unlock, err := o.LockState(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

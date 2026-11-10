@@ -172,7 +172,7 @@ func TestServesAndStopsOnSignal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := other.LockState(); !errors.Is(err, ops.ErrStateLocked) {
+	if _, err := other.LockState(context.Background()); !errors.Is(err, ops.ErrStateLocked) {
 		t.Fatalf("the daemon does not hold the state lock: %v", err)
 	}
 	other.Close()

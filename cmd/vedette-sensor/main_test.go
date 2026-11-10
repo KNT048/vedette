@@ -43,7 +43,7 @@ func (c heartbeatCore) ActiveHeartbeat(_ context.Context, hb *sensorlink.ActiveH
 	return strings.Repeat("c", 32), nil
 }
 
-func (heartbeatCore) Jobs(ctx context.Context, wait time.Duration, _ string) (sensorlink.JobsReply, error) {
+func (heartbeatCore) Jobs(ctx context.Context, wait time.Duration, _ []string) (sensorlink.JobsReply, error) {
 	select {
 	case <-time.After(wait):
 	case <-ctx.Done():
@@ -161,6 +161,8 @@ func TestBinaryDependencies(t *testing.T) {
 		"core/observe",
 		"core/sensorlink",
 		"internal/jsonstrict",
+		"modules/scan/nucleiargv", // the leaves of scan the worker shares with core (D-125 (2), D-136 (3))
+		"modules/scan/pack",
 		"modules/sensor-active/nmapargv",
 		"modules/sensor-active/worker",
 		"modules/sensor-passive/capture",

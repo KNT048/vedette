@@ -43,7 +43,7 @@ type Binary struct {
 	Validate  func(args []string) error // must accept the whole argv before the process starts
 	MaxOutput int64                     // per-stream capture limit in bytes; 0 = DefaultMaxOutput
 	// Env adds KEY=value entries after the fixed PATH and LANG. Only keys on the allowlist
-	// (DEBIAN_FRONTEND) are accepted; the parent environment is never inherited.
+	// (DEBIAN_FRONTEND, and HOME with an absolute path) are accepted; the parent environment is never inherited.
 	Env []string
 }
 
@@ -105,10 +105,11 @@ func NewRunner(log *slog.Logger, bins ...Binary) (*Runner, error) {
 	return r, nil
 }
 
-// allowedEnv is the whole list of keys a binary may add to the fixed environment: only what
-// vedette-host needs. Everything else (LD_*, LC_*, PATH, LANG, PYTHON*, ...) is refused by name,
+// allowedEnv is the whole list of keys a binary may add to the fixed environment: what vedette-host needs, and HOME for the
+// scan container's nuclei (an absolute path on a tmpfs, so that no ~/.config of the image is read: D-125 (2), D-136 (5)).
+// Everything else (LD_*, LC_*, PATH, LANG, PYTHON*, ...) is refused by name,
 // so a typo or a hostile caller cannot reshape how the child loads code or localises output.
-var allowedEnv = map[string]bool{"DEBIAN_FRONTEND": true}
+var allowedEnv = map[string]bool{"DEBIAN_FRONTEND": true, "HOME": true}
 
 // checkEnv accepts KEY=value entries whose key is on allowedEnv, once each, without NUL.
 func checkEnv(env []string) error {
@@ -120,6 +121,8 @@ func checkEnv(env []string) error {
 			return fmt.Errorf("env key %q is not allowed", k)
 		case strings.ContainsRune(v, 0):
 			return fmt.Errorf("env value of %s contains NUL", k)
+		case k == "HOME" && (!filepath.IsAbs(v) || v == "/"):
+			return fmt.Errorf("env value of HOME must be an absolute path other than /")
 		case seen[k]:
 			return fmt.Errorf("env key %s listed twice", k)
 		}

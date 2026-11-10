@@ -98,8 +98,13 @@ func FuzzQuery(f *testing.F) {
 		if err != nil {
 			return
 		}
-		if q.wait < 0 || q.wait > MaxWait || q.running != "" && !jobIDRE.MatchString(q.running) || q.etag != "" && !etagRE.MatchString(q.etag) {
+		if q.wait < 0 || q.wait > MaxWait || len(q.running) > MaxRunning || q.etag != "" && !etagRE.MatchString(q.etag) {
 			t.Fatalf("accepted %+v", q)
+		}
+		for _, id := range q.running {
+			if !jobIDRE.MatchString(id) {
+				t.Fatalf("accepted running id %q", id)
+			}
 		}
 	})
 }
@@ -119,5 +124,11 @@ func FuzzParseBundle(f *testing.F) {
 
 func newReq() *http.Request {
 	r, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/sensor/v1/x", nil)
+	return r
+}
+
+func newReq2(rawQuery string) *http.Request {
+	r := newReq()
+	r.URL.RawQuery = rawQuery
 	return r
 }

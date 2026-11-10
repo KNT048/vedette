@@ -119,7 +119,7 @@ func TestProtoHeader(t *testing.T) {
 	t.Parallel()
 	r := newRig(t, rigOpt{})
 	p := r.good(t)
-	for _, v := range []string{"", "0", "2", "1.0", "11"} {
+	for _, v := range []string{"", "0", "1", "3", "1.0", "11"} {
 		hdr := map[string]string{sensorlink.ProtoHeader: v}
 		if v == "" {
 			hdr[sensorlink.ProtoHeader] = "" // removes it
@@ -129,7 +129,7 @@ func TestProtoHeader(t *testing.T) {
 			t.Errorf("proto %q: %d %s, want 426", v, got.status, got.body)
 		}
 	}
-	got := mustCall(t, p, r.url(), "GET", "/sensor/v1/jobs", nil, map[string]string{sensorlink.ProtoHeader: "2"})
+	got := mustCall(t, p, r.url(), "GET", "/sensor/v1/jobs", nil, map[string]string{sensorlink.ProtoHeader: "1"})
 	if got.status != 426 {
 		t.Errorf("a forbidden route with a wrong proto = %d, want 426 first (sensor-protocol section 7 order)", got.status)
 	}
@@ -160,7 +160,7 @@ func TestBodyCaps(t *testing.T) {
 	// A body without a Content-Length (chunked) is cut at the cap as well.
 	req, _ := http.NewRequestWithContext(t.Context(), "POST", r.url()+"/sensor/v1/observations", bytes.NewReader(big(obsBody, 1<<20)))
 	req.ContentLength = -1
-	req.Header.Set(sensorlink.ProtoHeader, "1")
+	req.Header.Set(sensorlink.ProtoHeader, sensorlink.ProtoVersion)
 	req.Header.Set("Content-Type", "application/json")
 	res, err := pass.c.Do(req)
 	if err != nil {
@@ -321,7 +321,7 @@ func TestOneLongPollPerRole(t *testing.T) {
 		}
 		return sensorlink.ConfigReply{ETag: `"e2"`}, nil
 	}
-	r.be.jobs = func(ctx context.Context, _ time.Duration, _ string) (sensorlink.JobsReply, error) {
+	r.be.jobs = func(ctx context.Context, _ time.Duration, _ []string) (sensorlink.JobsReply, error) {
 		inside <- struct{}{}
 		select {
 		case <-release:
@@ -377,7 +377,7 @@ func TestLongPollEndsWhenTheClientLeaves(t *testing.T) {
 	p := r.good(t)
 	ctx, cancel := context.WithCancel(t.Context())
 	req, _ := http.NewRequestWithContext(ctx, "GET", r.url()+"/sensor/v1/config?wait=30", nil)
-	req.Header.Set(sensorlink.ProtoHeader, "1")
+	req.Header.Set(sensorlink.ProtoHeader, sensorlink.ProtoVersion)
 	done := make(chan struct{})
 	go func() {
 		if res, err := p.c.Do(req); err == nil {
@@ -520,14 +520,14 @@ func TestSlowlorisTimeouts(t *testing.T) {
 	}
 	t.Run("headers", func(t *testing.T) {
 		c := dial()
-		_, _ = c.Write([]byte("GET /sensor/v1/config HTTP/1.1\r\nHost: x\r\nX-Vedette-Proto: 1\r\n")) // never finished
+		_, _ = c.Write([]byte("GET /sensor/v1/config HTTP/1.1\r\nHost: x\r\nX-Vedette-Proto: 2\r\n")) // never finished
 		if _, closed := readsUntilClosed(c, 3*time.Second); !closed {
 			t.Error("a request with unfinished headers was not cut")
 		}
 	})
 	t.Run("body", func(t *testing.T) {
 		c := dial()
-		_, _ = c.Write([]byte("POST /sensor/v1/observations HTTP/1.1\r\nHost: x\r\nX-Vedette-Proto: 1\r\nContent-Type: application/json\r\nContent-Length: 500\r\n\r\n{\"epoch\":"))
+		_, _ = c.Write([]byte("POST /sensor/v1/observations HTTP/1.1\r\nHost: x\r\nX-Vedette-Proto: 2\r\nContent-Type: application/json\r\nContent-Length: 500\r\n\r\n{\"epoch\":"))
 		out, closed := readsUntilClosed(c, 3*time.Second)
 		if !closed {
 			t.Error("a body that stalls was not cut")

@@ -473,11 +473,38 @@ func TestRunExtraEnv(t *testing.T) {
 	}
 }
 
+func TestRunHomeEnv(t *testing.T) {
+	t.Setenv("HOME", "/root")
+	b := testBinary(t, nil, 0)
+	b.Env = []string{"HOME=/tmp/vedette-home"}
+	r := newRunner(t, b)
+	res, err := r.Run(deadline(t, 10*time.Second), "helper", helperArgs("env"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var env []string
+	if err := json.Unmarshal(res.Stdout, &env); err != nil {
+		t.Fatal(err)
+	}
+	home := 0
+	for _, e := range env {
+		if strings.HasPrefix(e, "HOME=") {
+			home++
+			if e != "HOME=/tmp/vedette-home" {
+				t.Errorf("HOME is %q", e)
+			}
+		}
+	}
+	if home != 1 {
+		t.Errorf("HOME entries = %d in %v", home, env)
+	}
+}
+
 func TestNewRunnerRejectsBadEnv(t *testing.T) {
 	t.Parallel()
 	for _, env := range [][]string{
 		{"PATH=/evil"}, {"LANG=en_US"}, {"lower=x"}, {"NOEQUALS"}, {"DEBIAN_FRONTEND=a\x00b"}, {"DEBIAN_FRONTEND=a", "DEBIAN_FRONTEND=b"}, {"=x"},
-		{"LD_PRELOAD=/tmp/evil.so"}, {"LD_LIBRARY_PATH=/tmp"}, {"LC_ALL=C"}, {"LC_MESSAGES=C"}, {"PYTHONPATH=/tmp"}, {"FOO=bar"}, {"BASH_ENV=/tmp/x"},
+		{"HOME=relative"}, {"HOME=/"}, {"HOME="}, {"LD_PRELOAD=/tmp/evil.so"}, {"LD_LIBRARY_PATH=/tmp"}, {"LC_ALL=C"}, {"LC_MESSAGES=C"}, {"PYTHONPATH=/tmp"}, {"FOO=bar"}, {"BASH_ENV=/tmp/x"},
 	} {
 		b := testBinary(t, nil, 0)
 		b.Env = env

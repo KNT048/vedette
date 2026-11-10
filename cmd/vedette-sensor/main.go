@@ -1,6 +1,6 @@
 // Command vedette-sensor is the binary of the sensor and scan containers on the appliance (D-114). `passive` is the packet capture
-// of the sensor container (the capture half of sensor-passive, SP-4), `active` the nmap worker of the scan container (D-113,
-// SP-3). Both talk to core over the mutual-TLS sensor link (docs/specs/sensor-protocol.md), hold no database and no consent, and
+// of the sensor container (the capture half of sensor-passive, SP-4), `active` the worker of the scan container: nmap (D-113,
+// SP-3) and nuclei (D-125, SP-3b). Both talk to core over the mutual-TLS sensor link (docs/specs/sensor-protocol.md), hold no database and no consent, and
 // link neither database/sql, SQLite nor the generated API (main_test.go checks).
 package main
 
@@ -49,7 +49,7 @@ func run(ctx context.Context, args []string, stdout io.Writer, logger *slog.Logg
 }
 
 // activeFlags are the options of `vedette-sensor active`.
-type activeFlags struct{ core, creds, nmap *string }
+type activeFlags struct{ core, creds, nmap, nuclei, nucleiIndex, nucleiHome *string }
 
 // newActiveFlags builds the flag set of `active`. The test that checks the Exec= line of the scan Quadlet unit
 // (host/ops owns the unit text, D-123) parses it with this same constructor, so a flag renamed here without the
@@ -61,6 +61,11 @@ func newActiveFlags(stdout io.Writer) (*flag.FlagSet, activeFlags) {
 		core:  fs.String("core", "https://127.0.0.1:8444", "address of core's sensor listener"),
 		creds: fs.String("creds", "/var/lib/vedette-creds/sensor.pem", "credentials bundle written by core (read only)"),
 		nmap:  fs.String("nmap", "/usr/bin/nmap", "the OS package's nmap"),
+		// nuclei is the pinned binary of the scan image (D-125 (4)); its home is a directory on the unit's tmpfs, emptied before
+		// every run, so the read-only root file system is never written and no ~/.config of the image is read (D-136 (5)).
+		nuclei:      fs.String("nuclei", "/usr/local/bin/nuclei", "the pinned nuclei of the scan image"),
+		nucleiIndex: fs.String("nuclei-index", "/usr/local/share/vedette/nuclei-pack/index.json", "the index of the template pack baked into the scan image"),
+		nucleiHome:  fs.String("nuclei-home", "/tmp/vedette-nuclei", "a directory on a tmpfs that becomes nuclei's HOME"),
 	}
 }
 
@@ -77,7 +82,10 @@ func runActive(ctx context.Context, args []string, stdout io.Writer, logger *slo
 	if err != nil {
 		return err
 	}
-	w, err := worker.New(worker.Config{Link: link, NmapPath: *nmap, Version: version, Log: logger})
+	w, err := worker.New(worker.Config{
+		Link: link, NmapPath: *nmap, Version: version, Log: logger,
+		NucleiPath: *f.nuclei, NucleiIndex: *f.nucleiIndex, NucleiHome: *f.nucleiHome,
+	})
 	if err != nil {
 		return err
 	}

@@ -22,6 +22,11 @@
 - Kết quả đi về dạng XML thô (`xml_b64`) và được phân tích trong `core`: chuyển phân tích sang worker (đường nâng cấp bị bỏ ở D-113) thêm một schema dây mà `core` phải kiểm lại.
 - Sức khoẻ (`Health`) từ SP-3 lấy từ heartbeat vai `active`; không có heartbeat 90 s → `unavailable`.
 
+## Modifying: job nuclei, hai khe, `Scanner` và `worker/nuclei.go` (D-125, D-133, giao thức bản 2)
+- **scan** (người gọi `Scanner.RunNuclei`/`Ready`; adapter ở `cmd/vedette` do SP-5 nối; `nucleiargv`, `nucleiout`, `pack` là gói lá của `scan` mà `core` và worker dùng chung: đổi văn phạm ở đó = đổi cả hai bên cùng bản phát hành), **core/sensorlink** (`Job`, `NucleiJob`, `JobResult.JSONLB64`, `ActiveHeartbeat.Nuclei`, `Backend.Jobs(…, running []string)`: đổi trường dây = tăng `X-Vedette-Proto`), **core/exec** (khoá `HOME` của `Binary.Env`), **host** (unit `scan`: `Tmpfs=/tmp` phải còn, vì `--nuclei-home` mặc định `/tmp/vedette-nuclei`; test `TestScanUnitLeavesNucleiToItsDefaultsOnItsTmpfs`), **release/SP-5** (image `scan-base` đặt `/usr/local/bin/nuclei` ghim phiên bản và sha256, `/usr/share/vedette/nuclei-templates` và `/usr/local/share/vedette/nuclei-pack/index.json`; thiếu cái nào thì heartbeat báo `present=false` hay `pack` rỗng và `scan` không sẵn sàng).
+- Đổi trần JSONL (4 MiB) là đổi `nucleiargv.MaxOutput`, `sensorlink.MaxResultJSONL` (`TestNucleiOutputCapsAgree`) và spec §9. Đổi số khe hay thêm loại job thứ ba là đổi `running` trên dây, `pollLocked` và worker `slotOf`. Đổi cách worker kiểm gói (`Lstat` cả cây, băm tệp được chọn) đụng INV-4 của `scan`.
+- Worker không đọc `~/.config/nuclei` và không kế thừa môi trường: thêm biến cho nuclei = đổi `core/exec` allowlist (`allowedEnv`) và CONTRACT `scan` INV-4.
+
 ## Disabling this module
 - Devices không còn OS/dịch vụ/phiên bản mới; thiết bị mong manh mới không được quét lần đầu.
 - `inventory`, `scan`, `findings` chạy với dữ liệu cũ; số finding theo phiên bản giảm dần theo thời gian. Bảng `sa_*` giữ nguyên.

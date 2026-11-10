@@ -14,6 +14,12 @@ import (
 // it names is the container side of the unit's own read-only keys volume.
 func unitLines(t *testing.T, svc string) (execLine string, volumes []string) {
 	t.Helper()
+	execLine, volumes, _ = unitLinesTmpfs(t, svc)
+	return execLine, volumes
+}
+
+func unitLinesTmpfs(t *testing.T, svc string) (execLine string, volumes, tmpfs []string) {
+	t.Helper()
 	text, err := ops.RenderUnit(svc, "sha256:"+strings.Repeat("a", 64), true, 10001, 10002, 10003, 10004)
 	if err != nil {
 		t.Fatal(err)
@@ -25,9 +31,11 @@ func unitLines(t *testing.T, svc string) (execLine string, volumes []string) {
 			execLine = v
 		case "Volume":
 			volumes = append(volumes, v)
+		case "Tmpfs":
+			tmpfs = append(tmpfs, v)
 		}
 	}
-	return execLine, volumes
+	return execLine, volumes, tmpfs
 }
 
 func TestScanUnitExecParsesWithTheRealFlagsAndAgreesWithItsMount(t *testing.T) {
@@ -49,6 +57,35 @@ func TestScanUnitExecParsesWithTheRealFlagsAndAgreesWithItsMount(t *testing.T) {
 	}
 	if *f.nmap != "/usr/bin/nmap" {
 		t.Errorf("-nmap %q: the unit leaves the OS package's path alone", *f.nmap)
+	}
+}
+
+// D-125 (2), D-136 (5): the unit's root file system is read-only, so nuclei's HOME (the worker empties it before every run) must be
+// on the unit's tmpfs; the binary and the pack index are paths of the image, not of a volume. The unit needs no flag for them: the
+// defaults are the paths the scan image is built with (SP-5).
+func TestScanUnitLeavesNucleiToItsDefaultsOnItsTmpfs(t *testing.T) {
+	t.Parallel()
+	execLine, _, tmpfs := unitLinesTmpfs(t, "scan")
+	for _, a := range strings.Fields(execLine) {
+		if strings.Contains(a, "nuclei") {
+			t.Errorf("Exec=%q names a nuclei option; the defaults are the contract with the image", execLine)
+		}
+	}
+	fs, f := newActiveFlags(io.Discard)
+	if err := fs.Parse(strings.Fields(execLine)[1:]); err != nil {
+		t.Fatal(err)
+	}
+	if *f.nuclei != "/usr/local/bin/nuclei" || !strings.HasPrefix(*f.nucleiIndex, "/usr/local/share/vedette/nuclei-pack/") {
+		t.Errorf("-nuclei %q, -nuclei-index %q", *f.nuclei, *f.nucleiIndex)
+	}
+	onTmpfs := false
+	for _, m := range tmpfs {
+		if strings.HasPrefix(*f.nucleiHome, strings.TrimSuffix(strings.Split(m, ":")[0], "/")+"/") {
+			onTmpfs = true
+		}
+	}
+	if !onTmpfs {
+		t.Errorf("-nuclei-home %q is not under a Tmpfs of the unit %v: nuclei could not write its HOME on a read-only root", *f.nucleiHome, tmpfs)
 	}
 }
 

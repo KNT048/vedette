@@ -1,0 +1,168 @@
+package sensoractive
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"regexp"
+	"slices"
+	"strconv"
+
+	"github.com/knt048/vedette/core/exec"
+	"github.com/knt048/vedette/core/sensorlink"
+	"github.com/knt048/vedette/modules/scan/nucleiargv"
+	"github.com/knt048/vedette/modules/scan/nucleiout"
+)
+
+// Nuclei as a second kind of job (D-125, sensor-protocol.md section 6.4 and 6.5, protocol 2). The scan module is the only
+// caller: it has decided the scope, the consent, the window and the templates and has written the probe rows (scan INV-1..7)
+// before it calls RunNuclei. The Dispatcher hands the job to the worker in the scan container through the nuclei slot, and
+// parses what comes back here, in core, fail closed (nucleiout): the worker is a process that talked to devices an attacker
+// may control, and may itself be compromised (SYS-6).
+
+// Errors of the nuclei path. ErrScannerUnavailable (and what wraps it) is "keep the targets, try again later, tell the user
+// the scanner is down" (503 scanner_unavailable, D-125 (5)); the others fail the run.
+var (
+	ErrScannerUnavailable    = errors.New("sensoractive: the vulnerability scanner is not available")
+	ErrScanWorkerUnavailable = fmt.Errorf("%w: worker_unavailable", ErrScannerUnavailable)
+	ErrNucleiMissing         = fmt.Errorf("%w: nuclei_missing", ErrScannerUnavailable)
+	// ErrPackMismatch: the template pack in the scan image is not the one the job was planned against (or is not a pack that
+	// checks out). Nothing was sent.
+	ErrPackMismatch    = fmt.Errorf("%w: pack_mismatch", ErrScannerUnavailable)
+	ErrOutputTruncated = errors.New("sensoractive: nuclei printed more than the limit; its output is discarded")
+	errJSONLTooBig     = errors.New("nuclei output is larger than the limit")
+)
+
+// NucleiRequest is one nuclei run (D-125 (1), D-136 (4) and (6)): template ids from the pack index, never paths; targets that
+// are canonical private IPv4 literals with a port. The grammar is nucleiargv's; Dispatcher.RunNuclei checks it again before
+// the job leaves, and the worker checks it a third time.
+type NucleiRequest struct {
+	PackVersion, PackSHA256 string
+	Templates               []string // template ids, 1..nucleiargv.MaxTemplates
+	Targets                 []nucleiargv.Target
+	Rate                    int // requests per second, 1..nucleiargv.MaxRate
+	MaxHostErrors           int // nucleiargv.MinHostErrors..MaxHostErrors
+}
+
+// Scanner is the seam the scan module calls (the smallest one: scan's own Engine asks only Ready, and the run is what S5 adds).
+// *Dispatcher implements it. A nil Scanner in scan means the scanner is unavailable and nothing is ever sent.
+type Scanner interface {
+	// Ready returns nil when a job can be sent now: the worker has a fresh heartbeat and says nuclei runs and its image holds a
+	// template pack; otherwise it says why (NucleiHealth).
+	Ready(ctx context.Context) error
+	// RunNuclei sends the job and returns one Result per line nuclei printed, after the output was parsed fail closed: one line
+	// that is not what the job asked for makes the whole run an error. ctx carries the deadline (at most one hour reaches the
+	// worker) and cancelling it stops the run: the worker kills nuclei within seconds.
+	RunNuclei(ctx context.Context, r NucleiRequest) ([]nucleiout.Result, error)
+}
+
+var _ Scanner = (*Dispatcher)(nil)
+
+var (
+	templateIDRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$`) // the template id of the pack index
+	packVersion  = regexp.MustCompile(`^[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,4}$`)
+	packSHA      = regexp.MustCompile(`^[0-9a-f]{64}$`)
+)
+
+// Ready implements Scanner (and scan.Engine). The error says which of the reasons it is: ErrScanWorkerUnavailable,
+// ErrNucleiMissing, or ErrScannerUnavailable alone (an overrun not yet stopped, no pack); all of them wrap ErrScannerUnavailable.
+func (d *Dispatcher) Ready(context.Context) error {
+	msg, base := d.nucleiProblem()
+	if msg == "" {
+		return nil
+	}
+	return fmt.Errorf("%w: %s", base, msg)
+}
+
+// check is the grammar of a nuclei job as core applies it before dispatch: the one of nucleiargv (Build refuses every target,
+// rate and count outside it) with each template id stood in for by a path of its own, since core knows ids and the worker's
+// index knows paths.
+func (r NucleiRequest) check() error {
+	if !packVersion.MatchString(r.PackVersion) || !packSHA.MatchString(r.PackSHA256) {
+		return errors.New("the pack has no valid version or hash")
+	}
+	paths := make([]string, len(r.Templates))
+	for i, id := range r.Templates {
+		if !templateIDRE.MatchString(id) || slices.Contains(r.Templates[:i], id) {
+			return fmt.Errorf("template id %q is not valid or is repeated", id)
+		}
+		paths[i] = "t" + strconv.Itoa(i) + ".yaml"
+	}
+	if _, err := nucleiargv.Build(nucleiargv.Job{Templates: paths, Targets: r.Targets, Rate: r.Rate, MaxHostErrors: r.MaxHostErrors}); err != nil {
+		return err
+	}
+	return nil
+}
+
+// RunNuclei implements Scanner.
+func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) ([]nucleiout.Result, error) {
+	if err := r.check(); err != nil {
+		return nil, fmt.Errorf("sensoractive: %w", err)
+	}
+	if err := d.Ready(ctx); err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	spec := sensorlink.Job{ID: randomHex(), Kind: sensorlink.KindNuclei, Nuclei: &sensorlink.NucleiJob{
+		Pack:          sensorlink.JobPack{Version: r.PackVersion, SHA256: r.PackSHA256},
+		Templates:     slices.Clone(r.Templates),
+		Targets:       make([]sensorlink.NucleiTarget, len(r.Targets)),
+		Rate:          r.Rate,
+		MaxHostErrors: r.MaxHostErrors,
+	}}
+	hostPort := make([]string, len(r.Targets))
+	for i, t := range r.Targets {
+		spec.Nuclei.Targets[i] = sensorlink.NucleiTarget{Host: t.Host, Port: t.Port, Scheme: t.Scheme}
+		hostPort[i] = t.Host + ":" + strconv.Itoa(t.Port)
+	}
+	j := &djob{spec: spec}
+	if err := d.await(ctx, d.nucSlot, j); err != nil {
+		if errors.Is(err, ErrWorkerUnavailable) {
+			return nil, ErrScanWorkerUnavailable
+		}
+		return nil, err
+	}
+	out, err := d.nucleiOutcome(j)
+	if err != nil {
+		return nil, err
+	}
+	res, err := nucleiout.Parse(out, r.Templates, hostPort)
+	if err != nil {
+		d.log.WarnContext(ctx, "sensor_active_nuclei_output_rejected", "error", err) // the text is built from nuclei's bytes: the log gets the parser's own words only
+		return nil, fmt.Errorf("%w: %w", ErrResultRejected, err)
+	}
+	return res, nil
+}
+
+// nucleiOutcome turns a finished nuclei job into its stdout. Like nmap's, only the exit code, the truncation and the
+// bytes count; the status and the reason of the worker explain a failure and never excuse one.
+func (d *Dispatcher) nucleiOutcome(j *djob) ([]byte, error) {
+	if j.err != nil {
+		return nil, j.err
+	}
+	res := j.res
+	switch {
+	case res.Status == "refused" && (res.Reason == "pack_mismatch" || res.Reason == "pack_invalid"):
+		d.log.Error("sensor_active_worker_refused_job", "reason", res.Reason) // the image's pack is not the pack core planned with, or is damaged
+		return nil, ErrPackMismatch
+	case res.Status == "refused":
+		d.log.Error("sensor_active_worker_refused_job", "reason", res.Reason)
+		return nil, fmt.Errorf("%w (%s)", ErrWorkerRefused, res.Reason)
+	case res.XML() != nil || res.XMLB64 != "":
+		return nil, fmt.Errorf("%w: nmap output on a nuclei job", ErrResultRejected)
+	case res.Reason == "nuclei_missing":
+		d.mu.Lock()
+		d.nuclei.Present = false // until the next heartbeat says otherwise
+		d.mu.Unlock()
+		return nil, ErrNucleiMissing
+	case res.ExitCode > 0:
+		return nil, &exec.ExitError{Name: "nuclei", ExitCode: res.ExitCode}
+	case res.ExitCode < 0 || res.Status != "done":
+		return nil, fmt.Errorf("sensoractive: the worker reported %s (%s), exit %d", res.Status, res.Reason, res.ExitCode)
+	case res.Truncated:
+		return nil, ErrOutputTruncated
+	}
+	return res.JSONL(), nil
+}

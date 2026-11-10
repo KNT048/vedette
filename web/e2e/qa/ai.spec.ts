@@ -115,7 +115,7 @@ test.describe('ai: clean install', () => {
     await kind.selectOption({ label: 'OpenAI-compatible (Ollama, vLLM, LM Studio)' })
     await expect(dlg.getByLabel('Server address')).toHaveValue('http://localhost:11434/v1')
     await expect(dlg.getByRole('radio', { name: /Inside your network/ })).toBeChecked()
-    await expect(dlg.getByText(/does not leave your network/)).toBeVisible()
+    await expect(dlg.getByText(/may leave if it forwards to a cloud provider/)).toBeVisible()
     await expect(dlg.getByRole('checkbox', { name: /I understand/ })).toHaveCount(0) // nội bộ: không cần xác nhận gửi ra ngoài
     await dlg.getByRole('button', { name: 'Test connection' }).click() // không cần khoá
     await expect(dlg.getByText('Connected')).toBeVisible()

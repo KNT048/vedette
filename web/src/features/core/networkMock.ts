@@ -3,7 +3,7 @@ import { http, HttpResponse } from 'msw'
 import { API, audit, body, fail, guard } from '@/mocks/http'
 import { assetsStore } from '@/mocks/stores'
 import { dataMode, peek } from '@/mocks/db'
-import { CONFIRM_SECONDS, networkStore, settlePending, spanStatusOf, type IfaceRole, type Management, type NetStore, type SpanConfig } from '@/mocks/network'
+import { CONFIRM_SECONDS, networkStore, SILENT_DEVICES, settlePending, spanStatusOf, type IfaceRole, type Management, type NetStore, type SpanConfig } from '@/mocks/network'
 import { filterProblem, normaliseFilter, ntpProblem, staticProblem, type FilterType } from './networkRules'
 
 const ROLES: IfaceRole[] = ['management', 'span', 'unused']
@@ -24,11 +24,14 @@ export function networkView() {
   return {
     interfaces: s.ifaces.map(({ hears: _h, ...i }) => ({ ...i, address: i.role === 'management' && m.address && m.prefix ? `${m.address}/${m.prefix}` : null })),
     management: m, span: s.span, span_status: spanStatusOf(s), ntp: s.ntp, default_ntp: 'pool.ntp.org', decoy_ips: decoyIps(),
-    pending: s.pending ? { expires_at: s.pending.expires_at, previous_address: s.pending.previous.address } : null,
+    pending: s.pending ? { expires_at: s.pending.expires_at, previous_address: s.pending.previous.address, window_s: CONFIRM_SECONDS, reboot_at: s.pending.reboot_at ?? null } : null,
   }
 }
 const ok = () => HttpResponse.json(networkView())
 const guardRead = () => { const d = guard('viewer'); if (d) return d; if (settlePending()) audit('network.management_reverted', 'management interface', 'not confirmed in time'); return null }
+const UNSUPPORTED = 'This box\'s network files were not set up by the Vedette installer, so Vedette cannot change them. Reinstall with the installer or change the network on the box itself.'
+/** Every change goes through the host's network backend; a box the installer did not set up refuses all of them (D-99). */
+const backendRefusal = () => (networkStore.get().unsupported ? fail(409, 'net_backend_unsupported', UNSUPPORTED) : null)
 const lease = (m: Management) => (m.address ? m.address.replace(/\d+$/, '131') : '192.168.1.131')
 
 type Body = { roles: Record<string, IfaceRole> }
@@ -50,6 +53,7 @@ export const networkHandlers = [
     const spans = s.ifaces.filter((i) => roles[i.name] === 'span')
     if (spans.length > 1) return fail(409, 'span_count', 'Only one interface can capture mirrored traffic. Set the others to unused.')
     const spanName = spans[0]?.name ?? null
+    if (spanName !== s.span.interface) { const refused = backendRefusal(); if (refused) return refused }
     const next: NetStore = { ...s, ifaces: s.ifaces.map((i) => ({ ...i, role: roles[i.name]! })), span: { ...s.span, interface: spanName, enabled: spanName ? s.span.enabled : false } }
     networkStore.set(next)
     audit('network.interfaces', 'interface roles', s.ifaces.map((i) => `${i.name}=${roles[i.name]}`).join(', '))
@@ -67,17 +71,22 @@ export const networkHandlers = [
       next = s.mgmt.mode === 'dhcp' ? s.mgmt : { mode: 'dhcp', address: lease(s.mgmt), prefix: s.mgmt.prefix ?? 24, gateway: s.mgmt.gateway, dns: s.mgmt.dns }
     } else if (b.mode === 'static') {
       const problem = staticProblem(b)
-      if (problem) return fail(400, 'invalid_static', problem)
+      if (problem) return fail(400, problem.code, problem.message)
       const ip = b.address!
       if (ip !== s.mgmt.address && (assetsStore.get().some((a) => a.ip === ip) || decoyIps().includes(ip))) return fail(409, 'ip_in_use', `${ip} is already used by a device in the inventory or by a decoy. Pick a free address.`)
       next = { mode: 'static', address: ip, prefix: Number(b.prefix), gateway: b.gateway!, dns: b.dns! }
     } else return fail(400, 'invalid_mode', 'The mode must be dhcp or static.')
     const m = s.mgmt
     const moves = next.mode !== m.mode || next.address !== m.address || next.prefix !== m.prefix || next.gateway !== m.gateway
-    if (!moves) { networkStore.set({ ...s, mgmt: next }); if (next.dns.join() !== m.dns.join()) audit('network.dns', 'management interface', next.dns.join(', ')); return ok() }
+    if (!moves) { if (next.dns.join() !== m.dns.join()) { const refused = backendRefusal(); if (refused) return refused } networkStore.set({ ...s, mgmt: next }); if (next.dns.join() !== m.dns.join()) audit('network.dns', 'management interface', next.dns.join(', ')); return ok() }
     if (b.confirm !== true) {
-      return HttpResponse.json({ error: { code: 'confirm_required', message: `This changes the address you use to reach the box. Open https://${next.address}:8443 within ${CONFIRM_SECONDS / 60} minutes and confirm, or the box returns to the old settings.`, new_ip: next.address } }, { status: 409 })
+      // With DHCP the box does not know the new address until the server answers: new_ip is null and the page says where to look.
+      const where = next.mode === 'static' ? `Open https://${next.address}:8443` : 'Find the new address your DHCP server gives the box, open it on port 8443'
+      return HttpResponse.json({ error: { code: 'confirm_required', message: `This changes the address you use to reach the box. ${where} within ${CONFIRM_SECONDS / 60} minutes and confirm, or the box returns to the old settings. You will need to sign in again at the new address.`, new_ip: next.mode === 'static' ? next.address : null } }, { status: 409 })
     }
+    const refused = backendRefusal(); if (refused) return refused
+    // Before it takes the address the box asks the network whether anybody answers for it (ARP probe, D-101).
+    if (next.mode === 'static' && next.address && SILENT_DEVICES.includes(next.address)) return fail(409, 'address_conflict', 'Another device already uses this address.')
     networkStore.set({ ...s, mgmt: next, pending: { previous: m, expires_at: new Date(Date.now() + CONFIRM_SECONDS * 1000).toISOString() } })
     audit('network.management', 'management interface', `${m.mode} ${m.address ?? '-'} -> ${next.mode} ${next.address}, waiting for confirmation`)
     return ok()
@@ -87,7 +96,7 @@ export const networkHandlers = [
     const denied = guard('admin'); if (denied) return denied
     const reverted = settlePending()
     const s = networkStore.get()
-    if (!s.pending) return fail(409, 'nothing_pending', reverted ? 'The 2 minutes ran out and the box went back to the old settings. Make the change again.' : 'No management change is waiting for confirmation.')
+    if (!s.pending) return fail(409, 'nothing_pending', reverted ? 'The time to confirm ran out and the box went back to the old settings. Make the change again.' : 'No management change is waiting for confirmation.')
     networkStore.set({ ...s, pending: null })
     audit('network.management_confirmed', 'management interface', s.mgmt.address ?? 'dhcp')
     return ok()
@@ -121,6 +130,7 @@ export const networkHandlers = [
     if (!Number.isInteger(cpu) || cpu! < 5 || cpu! > 50) return fail(400, 'bad_limit', 'The CPU cap must be a whole number from 5 to 50 percent.')
     if (!Number.isInteger(mem) || mem! < 128 || mem! > 2048) return fail(400, 'bad_limit', 'The memory cap must be a whole number from 128 to 2048 MB.')
     const name = iface?.name ?? null
+    if (name !== s.span.interface) { const refused = backendRefusal(); if (refused) return refused }
     networkStore.set({ ...s, ifaces: s.ifaces.map((i) => (i.role === 'management' ? i : { ...i, role: i.name === name ? 'span' : 'unused' })), span: { enabled: b.enabled, interface: name, extract: { dns: x.dns, tls_sni: x.tls_sni, http_host: x.http_host, flows: x.flows }, filters, cpu_percent: cpu!, memory_mb: mem! } })
     audit('network.span', 'SPAN capture', `${b.enabled ? `on, ${name}` : 'off'}, ${filters.length} filters`)
     return ok()
@@ -129,6 +139,7 @@ export const networkHandlers = [
   http.put(`${API}/core/network/ntp`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
     const b = await body<{ mode: 'default' | 'custom'; servers: string[] }>(request)
+    if ((b.mode === 'default' || b.mode === 'custom') && JSON.stringify(networkStore.get().ntp) !== JSON.stringify(b.mode === 'default' ? { mode: 'default', servers: [] } : { mode: 'custom', servers: (b.servers ?? []).map((x) => String(x).trim().toLowerCase()) })) { const refused = backendRefusal(); if (refused) return refused }
     if (b.mode === 'default') {
       if (b.servers && b.servers.length) return fail(400, 'default_no_servers', 'The default pool takes no server list. Choose "your own servers" to enter some.')
       networkStore.update((s) => ({ ...s, ntp: { mode: 'default', servers: [] } }))

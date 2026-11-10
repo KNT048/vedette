@@ -95,6 +95,7 @@ type hostNetCache struct {
 	last     []netip.Prefix
 	failedAt time.Time // when the last refresh failed; zero when it did not
 	flight   chan struct{}
+	gen      uint64 // bumped by Invalidate: a fetch that started before it must not stand for the answer after it
 }
 
 // newHostNetCache wraps fetch; nil when there is none (no host), and every method is nil-safe.
@@ -108,38 +109,59 @@ func newHostNetCache(fetch func(ctx context.Context) ([]netip.Prefix, error), no
 	return &hostNetCache{fetch: fetch, now: now}
 }
 
+// Invalidate drops the answer in memory: the box's addresses may have changed (Box network applied, confirmed or
+// reverted a change), so the next Get asks the host again. The last answer is still served when the host does not
+// answer. Safe on nil.
+func (c *hostNetCache) Invalidate() {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	c.okAt, c.failedAt = time.Time{}, time.Time{}
+	c.gen++
+	c.mu.Unlock()
+}
+
 // Get returns the addresses: from memory while fresh, else after one shared refresh. A caller that
 // already has a good answer to serve does not wait for a refresh somebody else started.
 func (c *hostNetCache) Get(ctx context.Context) []netip.Prefix {
 	if c == nil {
 		return nil
 	}
-	c.mu.Lock()
-	now := c.now()
-	have := !c.okAt.IsZero()
-	switch {
-	case have && now.Sub(c.okAt) < hostNetTTL,
-		!c.failedAt.IsZero() && now.Sub(c.failedAt) < hostNetBackoff:
-		l := c.last
-		c.mu.Unlock()
-		return l
-	case c.flight != nil:
-		wait, l := c.flight, c.last
-		c.mu.Unlock()
-		if have {
-			return l
-		}
-		select {
-		case <-wait:
-		case <-ctx.Done():
-			return nil
-		}
+	for {
 		c.mu.Lock()
-		defer c.mu.Unlock()
-		return c.last
+		now := c.now()
+		have := !c.okAt.IsZero()
+		switch {
+		case have && now.Sub(c.okAt) < hostNetTTL,
+			!c.failedAt.IsZero() && now.Sub(c.failedAt) < hostNetBackoff:
+			l := c.last
+			c.mu.Unlock()
+			return l
+		case c.flight != nil:
+			wait, l, gen := c.flight, c.last, c.gen
+			c.mu.Unlock()
+			if have {
+				return l
+			}
+			select {
+			case <-wait:
+			case <-ctx.Done():
+				return nil
+			}
+			c.mu.Lock()
+			if c.gen != gen { // the box's addresses were invalidated while we waited: that answer may be from before
+				c.mu.Unlock()
+				continue
+			}
+			defer c.mu.Unlock()
+			return c.last
+		}
+		break // c.mu is still held: this caller starts the fetch
 	}
 	done := make(chan struct{})
 	c.flight = done
+	gen := c.gen
 	c.mu.Unlock()
 
 	// One call for everybody: it must not die with the first caller's context.
@@ -155,7 +177,10 @@ func (c *hostNetCache) Get(ctx context.Context) []netip.Prefix {
 		c.failedAt = c.now()
 		return c.last
 	}
-	c.okAt, c.last, c.failedAt = c.now(), l, time.Time{}
+	c.last = l
+	if gen == c.gen { // an Invalidate during the call: this answer may be from before the change; ask again next time
+		c.okAt, c.failedAt = c.now(), time.Time{}
+	}
 	return l
 }
 
@@ -168,4 +193,23 @@ func hostIPv4s(ctx context.Context, c *hostNetCache) []netip.Addr {
 		}
 	}
 	return out
+}
+
+// boxOwnAddress says whether an IP literal is one of the addresses the host reports for the box right now (a
+// change that waits for confirmation included: its address is live). It is the second half of the Host allowlist
+// (core/server.HostAllowlistWith): the allowlist is fixed at start, the box's addresses are not. Without a host
+// (nil cache) nothing is known and nothing extra is accepted.
+func boxOwnAddress(c *hostNetCache) func(netip.Addr) bool {
+	if c == nil {
+		return func(netip.Addr) bool { return false }
+	}
+	return func(a netip.Addr) bool {
+		a = a.Unmap().WithZone("")
+		for _, p := range c.Get(context.Background()) {
+			if p.Addr() == a {
+				return true
+			}
+		}
+		return false
+	}
 }

@@ -117,6 +117,14 @@ type fakeTokens struct {
 	recs  []notify.Binding
 	ids   []notify.TokenID
 	addrs []string
+	codes []notify.ReplyCode
+}
+
+func (f *fakeTokens) RecordReplyCode(_ context.Context, c notify.ReplyCode) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.codes = append(f.codes, c)
+	return nil
 }
 
 func (f *fakeTokens) RecordToken(_ context.Context, id notify.TokenID, b notify.Binding, _, address string) error {

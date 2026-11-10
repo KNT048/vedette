@@ -9,11 +9,14 @@
 ## Modifying: `notify.Service.EmailReady() (bool, reason)` và `SendEmailCode(ctx, to, code)`
 - **core** (đăng nhập 2FA email, `/core/account` `twofa_email.available`). Đổi lý do trả về làm sai thông báo ở trang đăng nhập; không bao giờ để rơi về chỉ mật khẩu (core INV-8).
 
-## Modifying: `notify.Service.SendApprovalRequest`, sự kiện `notify.approval.decided`
-- **response** (người duyệt, hết hạn 15–30 phút, 2 người cho rủi ro cao). Đổi payload quyết định = phá luồng duyệt; `notify` không biết ngữ nghĩa hành động.
+## Modifying: `CodeMailer.SendStepUpCode(ctx, to, code, summary)`
+- **core** (`auth.VerifyTwoStep` phương thức email, D-98): thiếu hàm này thì duyệt hai bước qua email trả 503 `twofa_email_unavailable`. Tin không được có liên kết hay thứ gì ngoài mã; `summary` luôn qua `channel.Line`.
 
-## Giao diện với `response` cho WP-13b (D-96; kế hoạch, chưa có mã)
-Người gọi duy nhất ở mọi mục là `response` (qua adapter ở `cmd/vedette`). Dưới D-65 Kiên có thể viết (1), (2) rồi báo Emily; (3)–(5) là việc của Emily.
+## Modifying: `notify.Service.SendApprovalRequest`, sự kiện `notify.approval.decided`
+- **response** (người duyệt, hết hạn 15–30 phút, 2 người cho rủi ro cao). Đổi payload quyết định = phá luồng duyệt; `Channels` rỗng = không gửi gì (người gọi đã dùng `approval_channels`); `notify` không biết ngữ nghĩa hành động.
+
+## Giao diện với `response` cho WP-13b (D-96; (1), (2) và kiểu của (3), (4) đã có mã ở 13b-7; listener (13b-8) chưa)
+Người gọi duy nhất ở mọi mục là `response` (qua adapter ở `cmd/vedette`). (1), (2) Kiên đã viết dưới D-65 và báo Emily; kiểu của (3), (4) cũng đã có; listener và (5) là việc của Emily.
 1. **`VerifyApprovalLink(ctx, token, Binding, keyID) (TokenID, error)`** (13b-7): kiểm MAC theo `keyID` của bản ghi, không ghi gì, **không bao giờ tạo khoá**. Đổi = mọi liên kết duyệt đang mở hỏng (`404 unknown`).
 2. **`ApprovalRequest.Channels []channel.Type` (rỗng = không gửi gì) và `ApprovalRequest.InAppOnly bool`** (13b-7): `response` lọc kênh theo `approval_channels`; `InAppOnly` → không nút, không liên kết, không mã. Bỏ qua `Channels` = gửi yêu cầu tới kênh người dùng đã tắt cho duyệt; bỏ qua `InAppOnly` = phá INV-16 của `response`.
 3. **Cổng `Config.Decisions`: `Decide(ctx, Decision{Channel, ExternalID, RequestID, Approve, Code}) (DecisionResult{Status, Message}, error)`** (13b-8): listener xác thực nền tảng rồi gọi, phát `notify.approval.decided` khi quyết định đã ghi. `notify` không giữ danh sách ai được duyệt ngoài cấu hình kênh; mọi cổng ở `response`.

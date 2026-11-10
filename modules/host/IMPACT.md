@@ -22,7 +22,7 @@
 
 ## Modifying: `Client.Run(ctx, command, args, requestID, actor) (api.Run, error)` (phía `core`) — 5 nhóm người gọi
 - **core/updates** (`/core/updates/os*`): đổi tên lệnh hoặc `OsRunResult` → màn hình Updates, trạng thái `busy`, tiến trình trực tiếp (`lines`) vỡ.
-- **core/network** (Box network, D-56; endpoint chưa có): card quản trị/SPAN/IP phụ/NTP.
+- **core/network** (Box network, D-56, S-CORE-8; handler `core.NetworkHandlers`, `modules/core/CONTRACT.md` INV-25): card quản trị/SPAN/IP phụ/NTP.
 - **core/containers** (cập nhật phần mềm Vedette: `container.pull`, `container.rollback`, A/B): đổi → bản cập nhật có thể không hoàn tác được.
 - **core/backup** (`backup.create`) và **core/data** (xuất/xoá).
 - **inventory** (danh sách gói cho "This box").
@@ -63,7 +63,7 @@
 - Thứ tự phiên bản (SemVer qua `golang.org/x/mod/semver`), `min_upgrade_from`, `rollback.min_version`: đổi cách so → hạ bản lọt qua hoặc cập nhật bị chặn.
 
 ## Modifying: `net.apply`/`net.confirm`/`net.revert`, lớp phủ `/run`, `net/pending.json` (D-99, D-100)
-- **core/network** (Box network, S-CORE-8): GUI giả định đổi phần quản trị → `awaiting_confirm` có `revert_at`, chỉ DNS/NTP/SPAN thì xong ngay; `core` nhớ `run_id` và dựng lại từ `ListRuns`. Đổi trạng thái/mã (`pending_confirm`, `not_awaiting_confirm`, `not_confirmed`, `reverted_by_reboot`, `address_conflict`, `gateway_outside_subnet`, `net_backend_unsupported`) → làm vỡ bảng ánh xạ mã của `core` và lời GUI.
+- **core/network** (Box network, S-CORE-8): GUI giả định đổi phần quản trị → `awaiting_confirm` có `revert_at`, chỉ DNS/NTP/SPAN thì xong ngay; `core` lấy `run_id` từ `state/net.pending` (không nhớ trong bộ nhớ) nên khởi động lại giữa cửa sổ không mất gì; địa chỉ cũ ở `core_setting` `core_network_pending`. Đổi trạng thái/mã (`pending_confirm`, `not_awaiting_confirm`, `not_confirmed`, `reverted_by_reboot`, `address_conflict`, `gateway_outside_subnet`, `net_backend_unsupported`) → làm vỡ bảng ánh xạ mã của `core` và lời GUI.
 - **os.reboot** (`net_pending_confirm` qua `Deps.NetPending`) và **khoá ghi chung**: run chờ giữ khoá; bỏ điều đó cho phép lệnh ghi khác chen vào cửa sổ.
 - **Installer (WP-08)**: host phải là chủ duy nhất của netplan (cloud-init tắt mạng, tệp khác dời đi); thiếu → mọi `net.apply` bị `net_backend_unsupported`. Ghi `/etc` ngoài `net.confirm` phá INV-16 (reboot giữ cấu hình chưa xác nhận). Với NTP, installer cài chrony, sở hữu `chrony.conf` có `sourcedir /etc/chrony/sources.d` và **không** pool của distro (D-106); thiếu chrony hay thiếu `sourcedir` thì `net.apply` thất bại `ntp_not_applied` (kiểm hiệu ứng thấy không có nguồn) và PRIVACY luồng 10 không còn đúng.
 - **`ops.Notifier` và `server.Options.Resume`**: `Notifier.Claim` là đường duy nhất để confirm, revert, hẹn giờ và `Start` kết thúc run chờ (so-và-đổi trước mọi hiệu ứng); bỏ hay đổi nó thì hai bên cùng làm hiệu ứng (ghi `/etc` rồi hoàn tác). `Resume` phải được nối trong `cmd/vedette-host` (test `TestServesAndStopsOnSignal` kiểm bảng lệnh; test `…AHostCrashBefore…` kiểm hành vi): quên nối thì run chờ thành `failed host_restarted` và overlay `/run` bị `Start` hoàn tác như note mồ côi.
@@ -93,7 +93,7 @@
 
 ## Modifying: `GET /v1/state/net` (`host/api/net.go`, `host/ops/netstate.go`)
 - **core** (`cmd/vedette` `hostNetSource`): đọc `interfaces[].addresses` và `decoys[].ip` để biết địa chỉ của chính hộp cho `core/conn` (`boxSources.BoxAddrs`, INV-23), `sensor-active` (`ProtectedIPs`) và địa chỉ hộp của `honeypot`. Đổi tên trường, đổi dạng địa chỉ (CIDR văn bản), hay bỏ giao diện khỏi danh sách (nay: mọi giao diện không phải loopback có địa chỉ, cộng card vật lý; tối đa 64 × 64) làm các nơi này **không còn thấy địa chỉ LAN của hộp**: kết nối có thể trỏ vào chính hộp, quét có thể quét hộp. Test: `TestHostNetSourceGivesSingleAddressPrefixes`, `TestBoxSourcesUseTheHostsAddresses`, `TestSensorProtectedIPsIncludeTheHostsAddresses`, `TestHostNetCache*`. Ba nơi dùng chung một `hostNetCache` (30 s, nhớ lỗi 10 s, một lời gọi cho mọi người gọi, không giữ khoá khi gọi socket) và `core` nhận tối đa 2048 địa chỉ.
-- **core/network** (handler của `core` ở lát sau): `interfaces[].role`, `config.mgmt`, `config.ntp`, `default_route`, `pending` (`{run_id, revert_at}`, chỉ khi run đang chờ và note đọc được) là nguồn màn hình mạng. Thêm trường `other_macs`/`last_packet_at` vào đây là phá D-101 (root không đọc lưu lượng): test `TestContract_Net_StateNetReportsCardsCountersAndRoute` bắt.
+- **core/network** (handler của `core`, INV-25): `interfaces[].role`, `config.mgmt`, `config.ntp`, `default_route`, `pending` (`{run_id, revert_at}`, chỉ khi run đang chờ và note đọc được) là nguồn màn hình mạng. Thêm trường `other_macs`/`last_packet_at` vào đây là phá D-101 (root không đọc lưu lượng): test `TestContract_Net_StateNetReportsCardsCountersAndRoute` bắt.
 - Đường dẫn đọc: tệp `/run/netplan/90-vedette.yaml` nếu có (hỏng thì `config.mgmt` null, không lùi về `/etc`), mở bằng `O_NONBLOCK|O_NOFOLLOW`; `/sys` qua `os.OpenRoot(<root>/sys)` (không phải `/sys/class/net`: các link của kernel đi vào `/sys/devices`), `/proc/net/route`, tệp netplan của host. Đọc thêm tệp nào khác trong `/sys` hay tệp netplan lạ vi phạm "không phân tích cái ta không viết" (D-99).
 
 ## Modifying: bộ dựng netplan (`host/ops/netplan.go`)

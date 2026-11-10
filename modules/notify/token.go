@@ -172,11 +172,8 @@ func ParseApprovalToken(token string) (TokenID, error) {
 	return id, err
 }
 
-// VerifyApprovalToken checks token against the binding read from its record:
-// structure, MAC (constant time) and expiry. It changes nothing, so the GET that
-// shows the confirmation page (and any link scanner) can call it freely. key is
-// the K_approval named by the record's key id.
-func VerifyApprovalToken(key []byte, token string, b Binding, now time.Time) (TokenID, error) {
+// verifyMAC is the part of verification that does not depend on the clock: structure and MAC (constant time).
+func verifyMAC(key []byte, token string, b Binding) (TokenID, error) {
 	id, got, err := parse(token)
 	if err != nil {
 		return id, err
@@ -186,6 +183,18 @@ func VerifyApprovalToken(key []byte, token string, b Binding, now time.Time) (To
 	}
 	if b.check() != nil || !hmac.Equal(got, mac(key, id, b)) {
 		return id, ErrTokenInvalid
+	}
+	return id, nil
+}
+
+// VerifyApprovalToken checks token against the binding read from its record:
+// structure, MAC (constant time) and expiry. It changes nothing, so the GET that
+// shows the confirmation page (and any link scanner) can call it freely. key is
+// the K_approval named by the record's key id.
+func VerifyApprovalToken(key []byte, token string, b Binding, now time.Time) (TokenID, error) {
+	id, err := verifyMAC(key, token, b)
+	if err != nil {
+		return id, err
 	}
 	if !now.Before(b.ExpiresAt) {
 		return id, ErrTokenExpired

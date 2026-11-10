@@ -80,3 +80,17 @@ type Output struct {
 	JSONL     []byte
 	Truncated bool // over nucleiargv.MaxOutput: the run is discarded (INV-10)
 }
+
+// KEVFeed is feeds' record of the KEV entries it announced (feeds.vuln.new_kev), read by the catch-up of the rescan
+// job: the bus is best-effort (D-144), so an entry announced while scan was off or the process was down is found
+// here. Nil: no catch-up, only the bus.
+type KEVFeed interface {
+	// NewKEVSince lists the entries announced after (at, cve), oldest first, at most limit.
+	NewKEVSince(ctx context.Context, at time.Time, cve string, limit int) ([]AnnouncedKEV, error)
+}
+
+// AnnouncedKEV is one announced entry and when feeds announced it.
+type AnnouncedKEV struct {
+	NewKEV
+	At time.Time
+}

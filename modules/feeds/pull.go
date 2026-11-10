@@ -453,6 +453,12 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				if fresh, updated, err = applyVulns(ctx, tx, p.out.Finished, src.ID, p.vulns, p.replaceVulns); err != nil {
 					return err
 				}
+				// the entries this pull announces as new (below, after the commit) are recorded with it (D-144)
+				if src.ID == "cisa-kev" && !baseline {
+					if err := markAnnounced(ctx, tx, fresh, p.out.Finished); err != nil {
+						return err
+					}
+				}
 				changed = append(changed, updated...)
 			case p.hasTemplates:
 				if changed, err = applyTemplates(ctx, tx, p.templates); err != nil {

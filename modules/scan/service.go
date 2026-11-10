@@ -41,6 +41,7 @@ type Config struct {
 	Findings  Findings                                 // nil: results stay in the run, nothing is confirmed
 	External  External                                 // nil: the list has no external targets
 	Publisher Publisher                                // nil: no events
+	KEV       KEVFeed                                  // nil: no catch-up of missed new_kev (D-144)
 	Location  func(ctx context.Context) *time.Location // the organization's time zone, the one the window and the schedule are read in (review H1); nil: UTC; a nil result: unknown, nothing automated starts
 	Log       *slog.Logger
 	Clock     func() time.Time // nil: time.Now

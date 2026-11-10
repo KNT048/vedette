@@ -39,23 +39,10 @@ for (const theme of THEMES) {
     // anonymous signal: switch, payload verbatim
     await page.locator('#telemetry').scrollIntoViewIfNeeded()
     await shot('signal')
-    const code = await page.locator('#telemetry pre, #telemetry code').first().innerText()
-    console.log('PAYLOAD', code)
-    const payload = JSON.parse(code)
-    const keys = Object.keys(payload)
-    console.log('PAYLOAD KEYS', JSON.stringify(keys))
-    for (const k of ['install_id', 'country', 'version', 'cve_matches']) expect(keys, `payload key ${k} (PRIVACY.md flow 2)`).toContain(k)
-    // no internal/public IPs, no names in the payload
-    expect(code, 'IP address in the payload').not.toMatch(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/)
-    expect(code, 'company/device name in the payload').not.toMatch(/acme|fw-hq|nas-photos|synology-box/i)
-    // PRIVACY.md lists exactly: counts of trap touches, bad connections, cve matches, devices by type
-    console.log('PAYLOAD KEYS vs PRIVACY.md: trap touches / bad connections / devices by type')
-    // turning it off changes the label and keeps the payload visible ("the exact payload is always visible there")
-    const sw = page.getByRole('switch', { name: /anonymous signal/i }).first()
-    await sw.click()
-    await expect(page.getByText(/Saved|saved/).first()).toBeVisible()
-    await shot('signal-off')
-    expect(await page.locator('#telemetry pre, #telemetry code').first().innerText()).toContain('install_id')
+    // D-153: the anonymous signal is not sent; the screen says so, with no switch and no payload
+    await expect(page.locator('#telemetry')).toContainText('Anonymous signal: not sent.')
+    await expect(page.getByRole('switch', { name: /anonymous signal/i })).toHaveCount(0)
+    await expect(page.locator('#telemetry pre, #telemetry code')).toHaveCount(0)
     await noHScroll(page, 'privacy')
     await expectAccessible(page, 'privacy')
     expect(errors.filter((e) => !/status of (4|5)\d\d/.test(e))).toEqual([])

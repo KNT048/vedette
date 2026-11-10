@@ -3,10 +3,11 @@ package api
 // container.start, container.stop and GET /v1/state/containers (docs/specs/host-api.md sections 5,
 // 6.8 and 6.9, D-104, D-105, D-123).
 
-// Commands of the container part (slice 3-6; container.pull and container.rollback come later).
+// Commands of the container part (slice 3-6 start and stop, slice 3-7 pull; container.rollback comes later).
 const (
 	CmdContainerStart = "container.start"
 	CmdContainerStop  = "container.stop"
+	CmdContainerPull  = "container.pull"
 )
 
 // The services (spec section 6): the closed set a service argument may name.
@@ -43,6 +44,21 @@ const (
 	CodeTransitionPending = "transition_pending"
 	// CodeHostConfIncomplete: the unit needs a uid or gid that host.conf did not give the host.
 	CodeHostConfIncomplete = "host_conf_incomplete"
+
+	// Refusals of container.pull (spec 6.7, D-104, D-130): what the host's own verification found.
+	CodeSignatureInvalid    = "signature_invalid"      // a document or a cosign signature does not verify, or does not parse
+	CodeKeyRevoked          = "key_revoked"            // the signing key is revoked by the stored index
+	CodeReleaseRevoked      = "release_revoked"        // the release version or an image digest is revoked
+	CodeDigestNotInManifest = "digest_not_in_manifest" // the manifest has no image for that service
+	CodeRegistryNotAllowed  = "registry_not_allowed"   // an image ref is not the fixed registry ref
+	CodeSequenceRegress     = "sequence_regress"       // the index is older than the stored one
+	CodePlatformMismatch    = "platform_mismatch"      // no image for linux/<GOARCH>
+	CodeManifestMismatch    = "manifest_mismatch"      // version differs from the args, or the hash differs from the index
+	CodeBundleUnsupported   = "bundle_unsupported"     // source=bundle is not built yet
+	CodeNoTrustedKeys       = "no_trusted_keys"        // this build embeds no release keys: it refuses everything (D-130)
+	CodeReleaseStateInvalid = "release_state_invalid"  // the stored index is damaged: the host will not guess (D-130)
+	CodePullFailed          = "pull_failed"            // run ended failed: podman could not pull or tag
+	// CodeEffectNotVerified (api/ops.go) ends a pull whose podman image inspect did not show the digest.
 )
 
 // ContainerStartArgs are the args of container.start. Version is semver and names a pulled image:
@@ -72,6 +88,34 @@ type ContainerStartResult struct {
 	PreviousDigest *string `json:"previous_digest"`
 	Healthy        bool    `json:"healthy"`
 	Restarted      bool    `json:"restarted"`
+}
+
+// ContainerPullArgs are the args of container.pull (spec 6.7). Index and Manifest are the signed
+// documents, base64, with their minisign signatures (each at most 256 KiB decoded); the host
+// verifies them itself and never takes an image reference, a digest or a path from here.
+type ContainerPullArgs struct {
+	Service     string `json:"service"`
+	Version     string `json:"version"`
+	Source      string `json:"source"` // "registry" | "bundle" (bundle: bundle_unsupported until it is built)
+	BundleID    string `json:"bundle_id,omitempty"`
+	Index       string `json:"index,omitempty"`
+	IndexSig    string `json:"index_sig,omitempty"`
+	Manifest    string `json:"manifest,omitempty"`
+	ManifestSig string `json:"manifest_sig,omitempty"`
+}
+
+// Sources of container.pull.
+const (
+	PullSourceRegistry = "registry"
+	PullSourceBundle   = "bundle"
+)
+
+// ContainerPullResult is the result of container.pull: the verified digest, the size the manifest
+// declares, and the checks that passed.
+type ContainerPullResult struct {
+	Digest   string   `json:"digest"`
+	Size     int64    `json:"size"`
+	Verified []string `json:"verified"` // ["minisign","cosign"]
 }
 
 // ContainerStopResult is the result of container.stop. Changed is false when the service was

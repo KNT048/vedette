@@ -3,7 +3,8 @@
 // os.reboot.cancel, backup.create, backup.restore and logs.export, plus the read-only state
 // endpoints that belong to them, and (part 3) net.apply, net.confirm, net.revert and the NTP
 // sources, (slice 3-5) decoy_ip.add and decoy_ip.remove with the honeypot namespace, and (slice 3-6)
-// the Quadlet units with container.start (the current image) and container.stop. container.pull,
+// the Quadlet units with container.start (the current image) and container.stop, and (slice 3-7)
+// container.pull, which verifies a signed release itself before it pulls an image by digest.
 // container.rollback and the start of another version come in later slices.
 //
 // Every child process goes through one core/exec Runner: absolute binary paths, argv validated by a
@@ -31,6 +32,7 @@ import (
 
 	vexec "github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/host/server"
+	"github.com/knt048/vedette/internal/release"
 )
 
 type logger = *slog.Logger
@@ -96,6 +98,12 @@ type Deps struct {
 	HealthWait time.Duration
 	HealthPoll time.Duration
 	Sleep      func(ctx context.Context, d time.Duration) bool
+	// Keys is the root of trust of container.pull (D-107, D-130): default release.Embedded, the keys
+	// compiled into the binary. A build without real keys refuses every pull. Only tests replace it.
+	Keys func() (release.Trust, error)
+	// Arch is the architecture container.pull asks the manifest for, as in "linux/<Arch>" (default
+	// runtime.GOARCH).
+	Arch string
 }
 
 // Ops holds the state of the system commands.
@@ -228,7 +236,7 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 		return nil, fmt.Errorf("ops: %w", err)
 	}
 	o := &Ops{cfg: cfg, d: d, log: cfg.Logger, runner: runner, installing: d.Installing}
-	for _, dir := range []string{"os", "backups", "exports", "tmp", "net", "containers", "containers/units"} {
+	for _, dir := range []string{"os", "backups", "exports", "tmp", "net", "containers", "containers/units", "releases"} {
 		if err := privDir(filepath.Join(cfg.StateDir, dir), cfg.OwnerUID); err != nil {
 			return nil, err
 		}
@@ -249,7 +257,7 @@ func (o *Ops) Commands() []server.Command {
 		o.cmdBackupCreate(), o.cmdBackupRestore(), o.cmdLogsExport(),
 		o.cmdNetApply(), o.cmdNetConfirm(), o.cmdNetRevert(),
 		o.cmdDecoyAdd(), o.cmdDecoyRemove(),
-		o.cmdContainerStart(), o.cmdContainerStop(),
+		o.cmdContainerStart(), o.cmdContainerStop(), o.cmdContainerPull(),
 	}
 }
 

@@ -32,8 +32,9 @@ const (
 	// binIP is iproute2's ip (slice 3-5): the decoy links and, through "ip netns exec", the sysctl
 	// and nft of the honeypot namespace. sysctl and nft have no entries of their own.
 	binIP = "i" + "p" // two parts: the contract test that looks for network literals would take "ip" for a raw socket
-	// binPodman is Podman (slice 3-6): "container inspect <name>" only, to see the image digest and the
-	// health a service reports. Pull, tag and rmi come with slice 3-7.
+	// binPodman is Podman: "container inspect <name>" (slice 3-6, the image digest and the health a
+	// service reports) and, for container.pull (slice 3-7), pull, image inspect and tag in the fixed
+	// shapes of podmanargv.go. rmi comes with the retention of slice 3-8.
 	binPodman = "podman"
 )
 
@@ -180,15 +181,6 @@ func validateNetplanGenerate(args []string) error {
 		return errors.New("the netplan root directory is under a system directory")
 	}
 	return nil
-}
-
-// validatePodman accepts exactly "container inspect vedette-<service>" for the five services.
-func validatePodman(args []string) error {
-	if len(args) == 3 && args[0] == "container" && args[1] == "inspect" &&
-		slices.ContainsFunc(api.Services, func(s string) bool { return args[2] == containerName(s) }) {
-		return nil
-	}
-	return errors.New("not one of the fixed podman command lines")
 }
 
 // newRunner builds the runner of the OS commands: PATH, LANG=C and DEBIAN_FRONTEND=noninteractive,

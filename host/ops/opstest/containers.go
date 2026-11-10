@@ -191,3 +191,83 @@ func (m *Machine) ctr() string {
 	m.must(os.MkdirAll(d, 0o750))
 	return d
 }
+
+// StatefulImages makes the fake podman remember what container.pull does (opt-in; it replaces the
+// podman of StatefulContainers, which a pull test does not need):
+//
+//	pull -q <ref@digest>                 records the digest as present, prints an image id; exit 125 and nothing
+//	                                     recorded when the marker "pull-fails" exists
+//	image inspect --format json <ref>    prints a one-image JSON array when the digest (for ref@digest) or the
+//	                                     tag's digest (for a local tag) is present, else exit 125; the digest it
+//	                                     shows is the one the marker file ctr/img.lie holds when that exists
+//	tag <ref@digest> <local tag>         records the tag (exit 125 when the marker "tag-fails" exists)
+//
+// Present, tagged and the pull calls are read back with ImagePresent, ImageTag and Calls("podman").
+func (m *Machine) StatefulImages() {
+	m.t.Helper()
+	m.writeFakeWith("podman", `S="$REC/img"; mkdir -p "$S"
+id=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+key() { echo "$1" | tr '/:@' '___'; }
+case "$1" in
+  pull)
+    [ -e "$REC/mark.pull-fails" ] && { echo "Error: pulling failed" >&2; exit 125; }
+    ref="$3"; d="${ref#*@}"
+    : > "$S/have.$d"
+    echo "$id"
+    ;;
+  image)
+    x="$5"
+    case "$x" in
+      *@sha256:*) d="${x#*@}" ;;
+      *) d=$(cat "$S/tag.$(key "$x")" 2>/dev/null) ;;
+    esac
+    { [ -n "$d" ] && [ -e "$S/have.$d" ]; } || { echo "Error: no such image $x" >&2; exit 125; }
+    [ -e "$S/raw" ] && { cat "$S/raw"; exit 0; }
+    shown="$d"; [ -e "$S/lie" ] && shown=$(cat "$S/lie")
+    printf '[{"Id":"%s","Digest":"%s","RepoDigests":["ghcr.io/knt048/vedette-x@%s"],"Architecture":"amd64","Os":"linux"}]\n' "$id" "$shown" "$shown"
+    ;;
+  tag)
+    [ -e "$REC/mark.tag-fails" ] && { echo "Error: tagging failed" >&2; exit 125; }
+    d="${2#*@}"
+    echo "$d" > "$S/tag.$(key "$3")"
+    ;;
+esac
+`)
+}
+
+func (m *Machine) img() string {
+	m.t.Helper()
+	d := filepath.Join(m.Rec, "img")
+	m.must(os.MkdirAll(d, 0o750))
+	return d
+}
+
+// SetImagePresent makes the fake podman hold an image of that digest, as if it had been pulled before.
+func (m *Machine) SetImagePresent(digest string) {
+	m.t.Helper()
+	m.must(os.WriteFile(filepath.Join(m.img(), "have."+digest), nil, 0o600))
+}
+
+// ImagePresent says whether the fake podman holds an image of that digest.
+func (m *Machine) ImagePresent(digest string) bool {
+	_, err := os.Stat(filepath.Join(m.Rec, "img", "have."+digest))
+	return err == nil
+}
+
+// ImageTag is the digest a local tag points to in the fake podman ("" when the tag does not exist).
+func (m *Machine) ImageTag(tag string) string {
+	b, _ := os.ReadFile(filepath.Join(m.Rec, "img", "tag."+strings.NewReplacer("/", "_", ":", "_", "@", "_").Replace(tag)))
+	return strings.TrimSpace(string(b))
+}
+
+// ImageLie makes every image inspect show this digest instead of the real one.
+func (m *Machine) ImageLie(digest string) {
+	m.t.Helper()
+	m.must(os.WriteFile(filepath.Join(m.img(), "lie"), []byte(digest), 0o600))
+}
+
+// ImageRaw makes every image inspect of an image that is present print text instead (hostile output).
+func (m *Machine) ImageRaw(text string) {
+	m.t.Helper()
+	m.must(os.WriteFile(filepath.Join(m.img(), "raw"), []byte(text), 0o600))
+}

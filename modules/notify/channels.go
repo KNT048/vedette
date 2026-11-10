@@ -186,8 +186,13 @@ func (s *Service) Channels(ctx context.Context) (ChannelsView, error) {
 // have no row there yet: they share the code of the field that has to change).
 var apiConfigCode = map[string]string{"blocked_host": "bad_url", "insecure_url": "bad_url", "insecure_smtp": "bad_security", "bad_session": "bad_secret"}
 
-// configAPIError turns an adapter's *ConfigError into a 400; other errors pass through.
+// configAPIError turns an adapter's *ConfigError into a 400, and unknown box addresses (#157) into 503 host_unreachable (the
+// box addresses come from vedette-host: retry later); other errors pass through.
 func configAPIError(err error) error {
+	if errors.Is(err, channel.ErrBoxAddrsUnknown) {
+		return apierr.New(http.StatusServiceUnavailable, "host_unreachable",
+			"Vedette does not know this box's own network addresses yet, so the webhook cannot be checked. Try again in a minute.")
+	}
 	var ce *channel.ConfigError
 	if !errors.As(err, &ce) {
 		return err

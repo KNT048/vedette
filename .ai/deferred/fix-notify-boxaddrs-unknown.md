@@ -1,0 +1,4 @@
+# fix/notify-boxaddrs-unknown (#157) deferred, 2026-11-10
+
+- [ ] 2026-11-10 — `cmd/vedette/notify.go` `notifyBoxAddrs` still returns `known=true` through the one-line shim of this branch: `hostNetCache.Snapshot()` has no "never answered" signal (nil before the first answer cannot be told from an empty answer). The adapter should return `known=false` until the host first answered (e.g. a `Snapshot` that also returns `!okAt.IsZero()`), and the `.ai/deferred/feat-sensor-protocol.md` line about the fail-open window then closes — vì sao để sau: `cmd/` and the cache are AI-Trưởng's (D-65) — ở đâu: `cmd/vedette/notify.go`, `cmd/vedette/hostnet.go` — owner: AI-Trưởng
+- [ ] 2026-11-10 — `docs/API_CONVENTIONS.md` §3.3 row `host_unreachable` (503): add `PUT /notify/channels/{type}` (webhook while the box addresses are unknown) to "Endpoint dùng" — vì sao để sau: shared doc (D-65) — ở đâu: `docs/API_CONVENTIONS.md` — owner: Kiên

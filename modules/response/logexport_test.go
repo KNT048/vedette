@@ -3,11 +3,13 @@ package response_test
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/knt048/vedette/core/chain"
+	"github.com/knt048/vedette/core/logexport"
 )
 
 // ExportLog is the "response" source of GET /core/logs/export: resp_log as stored, so the file verifies offline.
@@ -68,5 +70,49 @@ func TestExportLogKeepsTheChainAndTheRange(t *testing.T) {
 	}
 	if m := strings.Count(early.String(), "\n"); m == 0 || m+n != len(stored) {
 		t.Fatalf("to: %d + %d lines, want %d", m, n, len(stored))
+	}
+}
+
+// The response chain goes out as stored (no scrubbing: it would break the hashes), so its lines must hold no secret when they
+// are written. This checks today's lines, and that the file says where the chain starts and ends.
+func TestExportLogRowsHoldNoSecretAndTheChainIsStated(t *testing.T) {
+	e := newEnv(t)
+	e.rule("Block", "ioc_connection", blockAction(60), nil)
+	e.fire(e.iocEvent("e1", "198.51.100.7"))
+	e.clock.Advance(time.Minute)
+	e.fire(e.iocEvent("e2", "198.51.100.8"))
+
+	reg := logexport.New()
+	reg.Register("response", e.svc.ExportLog)
+	exp, err := reg.Build(e.ctx(), logexport.Request{Categories: []string{"response"}, Format: logexport.JSON, MaxBytes: 1 << 20, Dir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = exp.Close() }()
+	body, err := io.ReadAll(exp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var f struct {
+		Chains     map[string]logexport.ChainInfo
+		Categories map[string][]map[string]any
+	}
+	if err := json.Unmarshal(body, &f); err != nil {
+		t.Fatal(err)
+	}
+	rows := f.Categories["response"]
+	ci := f.Chains["response"]
+	if len(rows) < 4 || !ci.Complete || ci.AnchorKind != "genesis" || ci.Count != int64(len(rows)) || ci.HeadHash == nil || *ci.HeadHash != rows[len(rows)-1]["hash"] {
+		t.Fatalf("chains.response = %+v (%d rows)", ci, len(rows))
+	}
+	for _, r := range rows {
+		for k, v := range r {
+			if logexport.IsSecretKey(k) {
+				t.Errorf("a resp_log line has a secret-looking key %q", k)
+			}
+			if s, ok := v.(string); ok && (strings.Contains(strings.ToLower(s), "password") || strings.Contains(s, "Bearer ") || strings.Contains(s, "BEGIN ")) {
+				t.Errorf("a resp_log line looks like it holds a secret in %q: %q", k, s)
+			}
+		}
 	}
 }

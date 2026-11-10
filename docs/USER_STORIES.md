@@ -131,7 +131,7 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 **S-FLEET-1** (P3) `[rớt]` (hoãn, D-24) — Bảng tổng nhiều khách/site: khách nào có KEV mới khớp, bao nhiêu chưa xử lý, hộp nào mất liên lạc.
 **S-MCP-1** (P4) `[đạt]` — Bật MCP server chỉ-đọc để agent/SIEM bên ngoài tra tài sản, phát hiện, feed.
 **S-CORE-5** (tất cả) `[đạt]` (D-42) — Gặp lỗi, tôi bấm Báo lỗi: mô tả, xem trước gói chẩn đoán đã lọc, tải về và mở GitHub issue điền sẵn.
-**S-CORE-6** (tất cả) `[đạt]` (D-48) — Tôi tải toàn bộ log của hộp (kiểm toán, AI, phản ứng, probe quét, cảnh báo, log thiết bị) dạng JSON/CSV. Tiêu chí (D-132): ngày `từ`/`đến` là cả ngày theo múi giờ của tổ chức; danh mục mà module chưa có log để xuất được ghi rõ là thiếu (`missing` trong JSON, `(no source)` trong CSV) thay vì giả vờ rỗng; ô CSV bắt đầu bằng `= + - @` không chạy được như công thức; quá 128 MiB thì từ chối và bảo thu hẹp ngày/danh mục.
+**S-CORE-6** (tất cả) `[đạt]` (D-48) — Tôi tải toàn bộ log của hộp (kiểm toán, AI, phản ứng, probe quét, cảnh báo, log thiết bị) dạng JSON/CSV. Tiêu chí (D-132): ngày `từ`/`đến` là cả ngày theo múi giờ của tổ chức; danh mục mà module chưa có log để xuất được ghi rõ là thiếu (`missing` trong JSON, `(no source)` trong CSV) thay vì giả vờ rỗng; ô CSV bắt đầu bằng `= + - @` không chạy được như công thức; quá 128 MiB thì từ chối và bảo thu hẹp ngày/danh mục; một lần tải một lúc và một lần mỗi phút (409 `busy`, 429 `rate_limited`); với kiểm toán, phản ứng và hoạt động AI (có chuỗi hash) tệp nói chuỗi bắt đầu và kết thúc ở đâu (`chains`: neo, hash đầu, số dòng, đủ hay không) nên tự kiểm được ngoại tuyến, và xoá dòng mới nhất bị lộ.
 
 ## Nhật ký xác minh
 

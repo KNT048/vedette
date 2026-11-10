@@ -42,6 +42,9 @@ func TestExportHitsIsTheStoredRowsInRange(t *testing.T) {
 	if _, isList := first["events"].([]any); !isList {
 		t.Fatalf("events must be JSON, not a string: %T", first["events"])
 	}
+	if n, ok := first["conn_count"].(float64); !ok || n < 1 {
+		t.Fatalf("conn_count = %v: a hit counts the connections it merged", first["conn_count"])
+	}
 	for _, k := range []string{"conn_key", "seq"} {
 		if _, has := first[k]; has {
 			t.Fatalf("%s is not part of a download", k)

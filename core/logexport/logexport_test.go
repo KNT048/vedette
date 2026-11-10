@@ -44,14 +44,14 @@ func build(t *testing.T, r *logexport.Registry, format logexport.Format, ids ...
 func TestRegisterAcceptsOnlyTheEightCategoriesOnce(t *testing.T) {
 	t.Parallel()
 	r := logexport.New()
-	for _, id := range logexport.Categories {
+	for _, id := range logexport.CategoryIDs() {
 		r.Register(id, src())
 		if !r.Has(id) {
 			t.Errorf("%s not registered", id)
 		}
 	}
-	if len(logexport.Categories) != 8 {
-		t.Fatalf("INV-13 has 8 categories, got %d", len(logexport.Categories))
+	if len(logexport.CategoryIDs()) != 8 {
+		t.Fatalf("INV-13 has 8 categories, got %d", len(logexport.CategoryIDs()))
 	}
 	mustPanic := func(name string, fn func()) {
 		t.Helper()
@@ -74,9 +74,10 @@ func TestRegisterAcceptsOnlyTheEightCategoriesOnce(t *testing.T) {
 
 func TestScrubDropsSecretKeysAtAnyDepthAndKeepsOrder(t *testing.T) {
 	t.Parallel()
-	drop := []string{"password", "Passwd", "secret", "token", "api_key", "apikey", "API_KEY", "key", "private_key", "privatekey", "passphrase", "credential", "credentials", "webhook", "webhook_url", "authorization",
-		"client_secret", "db_password", "bot_token", "x_api_key", "slack_webhook", "slack_webhook_url", "ssh_credential"}
-	keep := []string{"key_last4", "tokens_in", "hash", "prev_hash", "id", "conn_key", "token_id", "keyboard", "secrets_count", "passwords", "authorization_header", "tokens"}
+	drop := []string{"password", "Passwd", "secret", "token", "api_key", "apikey", "API-KEY", "key", "private_key", "privatekey", "passphrase", "credential", "credentials", "webhook", "webhook_url", "authorization",
+		"client_secret", "db_password", "bot_token", "x_api_key", "slack_webhook", "slack-webhook-url", "ssh_credential",
+		"sessionId", "session_token", "Set-Cookie", "cookie", "x-jwt", "jwt", "dbDSN", "dsn", "bearer_x", "connection_string", "ConnectionString", "tokens", "secrets_count"}
+	keep := []string{"key_last4", "tokens_in", "tokens_out", "token_id", "hash", "prev_hash", "head_hash", "token_hash", "id", "conn_key", "keyboard", "src_ip", "detail", "events", "kind", "label"}
 	for _, k := range drop {
 		if !logexport.IsSecretKey(k) {
 			t.Errorf("%q is a secret key", k)
@@ -87,11 +88,13 @@ func TestScrubDropsSecretKeysAtAnyDepthAndKeepsOrder(t *testing.T) {
 			t.Errorf("%q is not a secret key", k)
 		}
 	}
-	out, err := logexport.Scrub([]byte(`{"z":1,"password":"p","a":{"api_key":"k","m":[{"token":"t","n":null},[{"secret":1,"ok":true}]],"b":"<&>"},"key_last4":"7Qk2","big":12345678901234567890,"f":1.50}`))
+	out, err := logexport.Scrub([]byte(`{"z":1,"password":"p","a":{"api_key":"k","m":[{"token":"t","n":null},[{"secret":1,"ok":true}]],"b":"<&>"},"key_last4":"7Qk2","big":12345678901234567890,"f":1.50,` +
+		`"events":"{\"text\":\"x\",\"Set-Cookie\":\"c\",\"n\":[{\"password\":\"p\",\"ok\":1}]}","list":"[1,{\"secret\":2}]","plain":"a {not json","num":"[1,2]"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"z":1,"a":{"m":[{"n":null},[{"ok":true}]],"b":"<&>"},"key_last4":"7Qk2","big":12345678901234567890,"f":1.50}`
+	want := `{"z":1,"a":{"m":[{"n":null},[{"ok":true}]],"b":"<&>"},"key_last4":"7Qk2","big":12345678901234567890,"f":1.50,` +
+		`"events":"{\"text\":\"x\",\"n\":[{\"ok\":1}]}","list":"[1,{}]","plain":"a {not json","num":"[1,2]"}`
 	if string(out) != want {
 		t.Fatalf("scrub =\n%s\nwant\n%s", out, want)
 	}
@@ -102,16 +105,65 @@ func TestScrubDropsSecretKeysAtAnyDepthAndKeepsOrder(t *testing.T) {
 	}
 }
 
+func TestChainedCategoriesAreNotScrubbedAndTheOthersAre(t *testing.T) {
+	t.Parallel()
+	row := `{"id":"x","token":"t","detail":"{\"password\":\"p\"}","hash":"h"}`
+	r := logexport.New()
+	r.Register("audit", src(row))    // chained: as stored, its hash covers the columns
+	r.Register("honeypot", src(row)) // not chained
+	body, _ := build(t, r, logexport.JSON, "audit", "honeypot")
+	if !strings.Contains(body, `"audit":[`+row+`]`) {
+		t.Fatalf("a chained row must come out as it went in: %s", body)
+	}
+	if !strings.Contains(body, `"honeypot":[{"id":"x","detail":"{}","hash":"h"}]`) {
+		t.Fatalf("a non-chained row is scrubbed: %s", body)
+	}
+	for id, want := range map[string]bool{"audit": true, "response": true, "ai_activity": true, "honeypot": false, "alerts": false, "scan_probes": false, "device_logs": false, "known_bad": false} {
+		if logexport.Chained(id) != want {
+			t.Errorf("Chained(%s) != %v", id, want)
+		}
+	}
+}
+
+func TestCategoryIDsIsACopy(t *testing.T) {
+	t.Parallel()
+	a := logexport.CategoryIDs()
+	a[0] = "tampered"
+	if logexport.CategoryIDs()[0] != "audit" || logexport.Valid("tampered") {
+		t.Fatal("the list of categories can be changed from outside")
+	}
+}
+
+func TestASourceThatPanicsFailsTheExportAndLeavesNoSpool(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	r := logexport.New()
+	r.Register("audit", src(`{"a":1}`))
+	r.Register("honeypot", func(_ context.Context, _, _ time.Time, w io.Writer) error {
+		_, _ = io.WriteString(w, "{\"a\":1}\n")
+		panic("boom")
+	})
+	_, err := r.Build(t.Context(), logexport.Request{Categories: []string{"audit", "honeypot"}, Format: logexport.JSON, MaxBytes: 1 << 20, Dir: dir})
+	if err == nil || !strings.Contains(err.Error(), "panicked") {
+		t.Fatalf("err = %v, want the panic as an error", err)
+	}
+	if left, _ := readDir(dir); len(left) != 0 {
+		t.Fatalf("spool left behind: %v", left)
+	}
+}
+
 func TestJSONFileHasTheMockEnvelopeAndListsMissing(t *testing.T) {
 	t.Parallel()
 	r := logexport.New()
-	r.Register("response", src(`{"id":"r1","password":"x","hash":"h"}`, `{"id":"r2"}`))
-	body, e := build(t, r, logexport.JSON, "response", "alerts")
-	want := `{"format":"vedette-logs/1","exported_at":"2026-11-10T01:02:03.000Z","from":null,"to":null,"verification":"` + logexport.ChainNote + `","missing":["alerts"],"categories":{"response":[{"id":"r1","hash":"h"},` + "\n" + `{"id":"r2"}],"alerts":[]}}` + "\n"
+	r.Register("honeypot", src(`{"id":"r1","password":"x","hash":"h"}`, `{"id":"r2"}`))
+	r.Register("audit", src(`{"id":"a1"}`))
+	body, e := build(t, r, logexport.JSON, "honeypot", "alerts", "audit")
+	want := `{"format":"vedette-logs/1","exported_at":"2026-11-10T01:02:03.000Z","from":null,"to":null,"time_zone":"","verification":"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(logexport.ChainNote) +
+		`","missing":["alerts"],"counts":{"alerts":0,"audit":1,"honeypot":2},"chains":{"audit":null},"categories":{"honeypot":[{"id":"r1","hash":"h"},` + "\n" + `{"id":"r2"}],"alerts":[],"audit":[{"id":"a1"}]}}` + "\n"
 	if body != want {
 		t.Fatalf("file =\n%s\nwant\n%s", body, want)
 	}
-	if e.Rows != 2 || e.Counts["response"] != 2 || len(e.Missing) != 1 || e.Missing[0] != "alerts" {
+	if e.Rows != 3 || e.Counts["honeypot"] != 2 || len(e.Missing) != 1 || e.Missing[0] != "alerts" {
 		t.Fatalf("export = %+v", e)
 	}
 }
@@ -137,7 +189,7 @@ func TestSourceErrorsAndBadLinesFailTheExport(t *testing.T) {
 		return err
 	})
 	body, _ := build(t, r, logexport.CSV, "audit")
-	if body != "# audit\na\n1\n" {
+	if body != "\ufeff# audit\na\n1\n" {
 		t.Fatalf("csv = %q", body)
 	}
 }

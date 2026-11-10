@@ -18,18 +18,25 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
 )
 
-// Categories are the only log categories an export has (INV-13), in the order of the GUI.
-var Categories = []string{"audit", "ai_activity", "response", "scan_probes", "alerts", "device_logs", "known_bad", "honeypot"}
+// categories are the only log categories an export has (INV-13), in the order of the GUI.
+var categories = []string{"audit", "ai_activity", "response", "scan_probes", "alerts", "device_logs", "known_bad", "honeypot"}
 
-// Valid reports whether id is one of the Categories.
+// CategoryIDs returns a copy of the eight category ids (INV-13).
+func CategoryIDs() []string { return append([]string(nil), categories...) }
+
+// Chained reports whether the category is a hash chain (core INV-2, INV-16). Chained rows are exported as stored:
+// scrubbing a key would break the hash, so their owners keep secrets out of the rows when they write them. The file
+// says per chained category where its chain starts and ends (ChainInfo).
+func Chained(id string) bool { return id == "audit" || id == "response" || id == "ai_activity" }
+
+// Valid reports whether id is one of the categories.
 func Valid(id string) bool {
-	for _, c := range Categories {
+	for _, c := range categories {
 		if c == id {
 			return true
 		}
@@ -54,7 +61,7 @@ func New() *Registry { return &Registry{src: map[string]Source{}} }
 // category is a programming error and panics at wiring time.
 func (r *Registry) Register(category string, src Source) {
 	if !Valid(category) {
-		panic(fmt.Sprintf("logexport: %q is not a log category (INV-13: %s)", category, strings.Join(Categories, ", ")))
+		panic(fmt.Sprintf("logexport: %q is not a log category (INV-13: %s)", category, strings.Join(categories, ", ")))
 	}
 	if src == nil {
 		panic("logexport: nil source for " + category)
@@ -92,7 +99,7 @@ const (
 )
 
 // ChainNote is the `verification` field of the JSON envelope (same text as the mock).
-const ChainNote = "Hash-chained categories: hash = SHA-256(prev_hash + canonical JSON of the entry without hash, keys sorted). The first entry is the anchor."
+const ChainNote = "Chained categories (audit, response, ai_activity): hash = lowercase hex SHA-256(prev_hash + \"\\n\" + canonical JSON of the entry without hash and seq, keys sorted; prev_hash is part of the entry). Rows are exported as stored; chains says where each chain starts (anchor) and ends (head_hash, count)."
 
 // Request is one export. Categories are distinct valid ids in the order of the file.
 type Request struct {
@@ -100,6 +107,7 @@ type Request struct {
 	From, To   time.Time // inclusive, zero = open
 	FromDay    string    // the dates as the caller wrote them (YYYY-MM-DD), for the envelope; "" = none
 	ToDay      string
+	TimeZone   string // the zone those days are in (IANA name), for the envelope
 	Format     Format
 	MaxBytes   int64     // cap on the scrubbed rows of all categories together
 	ExportedAt time.Time // for the envelope
@@ -108,9 +116,10 @@ type Request struct {
 
 // Export is a finished file. Read it to the end, then Close it (that removes the spool).
 type Export struct {
-	Rows    int            // rows of all categories
-	Counts  map[string]int // rows per category
-	Missing []string       // requested categories that have no registered source
+	Rows    int                  // rows of all categories
+	Counts  map[string]int       // rows per category
+	Missing []string             // requested categories that have no registered source
+	Chains  map[string]ChainInfo // one per chained category that reported its chain
 	r       io.Reader
 	closers []func()
 }
@@ -128,15 +137,20 @@ func (e *Export) Close() error {
 }
 
 // Build runs the sources of req.Categories into a spool and returns the file. The spool lives on disk, so a
-// large log costs disk (up to MaxBytes), never memory beyond one row. ponytail: the spool is in os.TempDir;
-// an install that mounts it as tmpfs pays the cap in RAM, so the cap is small (core sets 128 MiB); a spool
-// dir in core_data is the upgrade.
+// large log costs disk (up to MaxBytes), never memory beyond one row; req.Dir should be on the data volume (core
+// passes <data>/tmp/logs-export), not on a tmpfs. A source that fails or panics fails the export, and the spool
+// is removed whatever happens.
 func (r *Registry) Build(ctx context.Context, req Request) (*Export, error) {
-	dir, err := os.MkdirTemp(req.Dir, "vedette-logs-*")
+	if req.Dir != "" {
+		if err := os.MkdirAll(req.Dir, 0o700); err != nil {
+			return nil, fmt.Errorf("logexport: spool dir: %w", err)
+		}
+	}
+	dir, err := os.MkdirTemp(req.Dir, SpoolPrefix+"*")
 	if err != nil {
 		return nil, fmt.Errorf("logexport: spool: %w", err)
 	}
-	e := &Export{Counts: map[string]int{}, Missing: []string{}}
+	e := &Export{Counts: map[string]int{}, Missing: []string{}, Chains: map[string]ChainInfo{}}
 	e.closers = append(e.closers, func() { _ = os.RemoveAll(dir) })
 	ok := false
 	defer func() {
@@ -163,8 +177,9 @@ func (r *Registry) Build(ctx context.Context, req Request) (*Export, error) {
 			return nil, fmt.Errorf("logexport: spool: %w", err)
 		}
 		e.closers = append(e.closers, func() { _ = f.Close() })
-		sink := &sink{f: f, bw: bufio.NewWriter(f), used: &used, max: req.MaxBytes}
-		if err := src(ctx, req.From, req.To, sink); err != nil {
+		sink := &sink{f: f, bw: bufio.NewWriter(f), used: &used, max: req.MaxBytes, scrub: !Chained(id)}
+		slot := &chainSlot{}
+		if err := runSource(context.WithValue(ctx, chainKey{}, slot), src, req.From, req.To, sink); err != nil {
 			if errors.Is(err, ErrTooLarge) {
 				return nil, ErrTooLarge
 			}
@@ -172,6 +187,9 @@ func (r *Registry) Build(ctx context.Context, req Request) (*Export, error) {
 		}
 		if err := sink.finish(); err != nil {
 			return nil, err
+		}
+		if slot.info != nil {
+			e.Chains[id] = *slot.info
 		}
 		e.Counts[id] = sink.rows
 		e.Rows += sink.rows
@@ -185,6 +203,7 @@ func (r *Registry) Build(ctx context.Context, req Request) (*Export, error) {
 	var parts []part
 	switch req.Format {
 	case CSV:
+		parts = append(parts, litPart("\ufeff")) // so Excel reads UTF-8, as /core/audit/export does
 		for i, id := range req.Categories {
 			s, has := byID[id]
 			if i > 0 {
@@ -198,14 +217,32 @@ func (r *Registry) Build(ctx context.Context, req Request) (*Export, error) {
 			parts = append(parts, rowsPart(s.f, csvRow(s.cols)))
 		}
 	default:
+		chains := map[string]*ChainInfo{}
+		for _, id := range req.Categories {
+			if !Chained(id) || byID[id].f == nil {
+				continue
+			}
+			if c, has := e.Chains[id]; has {
+				chains[id] = &c
+			} else {
+				chains[id] = nil // the source did not say: the file does not pretend to know
+			}
+		}
+		counts := map[string]int{}
+		for _, id := range req.Categories {
+			counts[id] = e.Counts[id]
+		}
 		head := struct {
-			Format       string   `json:"format"`
-			ExportedAt   string   `json:"exported_at"`
-			From         *string  `json:"from"`
-			To           *string  `json:"to"`
-			Verification string   `json:"verification"`
-			Missing      []string `json:"missing"`
-		}{"vedette-logs/1", req.ExportedAt.UTC().Format("2006-01-02T15:04:05.000Z"), optional(req.FromDay), optional(req.ToDay), ChainNote, e.Missing}
+			Format       string                `json:"format"`
+			ExportedAt   string                `json:"exported_at"`
+			From         *string               `json:"from"`
+			To           *string               `json:"to"`
+			TimeZone     string                `json:"time_zone"`
+			Verification string                `json:"verification"`
+			Missing      []string              `json:"missing"`
+			Counts       map[string]int        `json:"counts"`
+			Chains       map[string]*ChainInfo `json:"chains"`
+		}{"vedette-logs/1", req.ExportedAt.UTC().Format("2006-01-02T15:04:05.000Z"), optional(req.FromDay), optional(req.ToDay), req.TimeZone, ChainNote, e.Missing, counts, chains}
 		hb, err := json.Marshal(head)
 		if err != nil {
 			return nil, err
@@ -230,6 +267,44 @@ func (r *Registry) Build(ctx context.Context, req Request) (*Export, error) {
 	return e, nil
 }
 
+// SpoolPrefix starts the name of every spool directory; core sweeps leftovers by it at startup.
+const SpoolPrefix = "vedette-logs-"
+
+// runSource calls a source and turns its panic into an error: an export that cannot be built is refused, not half sent.
+func runSource(ctx context.Context, src Source, from, to time.Time, w io.Writer) (err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			err = fmt.Errorf("the source panicked: %v", p)
+		}
+	}()
+	return src(ctx, from, to, w)
+}
+
+// ChainInfo says where a chained category's rows sit in their chain, read in the same read transaction as the rows
+// (DATA_MODEL 5.3). Anchor is the prev_hash of the first exported row (null when no row was exported) and
+// AnchorKind what it is: "genesis" (the chain's start), "pruned" (core_chain_anchor.last_pruned_hash: the log was
+// pruned and starts there) or "row" (the hash of the row before the range: the export starts inside the chain).
+// HeadHash and Count are the recorded head: the newest hash and how many rows the chain holds now. Complete is true
+// when the rows run from the chain's start (genesis or pruned anchor) to the head: nothing missing at either end.
+type ChainInfo struct {
+	Anchor     *string `json:"anchor"`
+	AnchorKind string  `json:"anchor_kind"`
+	HeadHash   *string `json:"head_hash"`
+	Count      int64   `json:"count"`
+	Complete   bool    `json:"complete"`
+}
+
+type chainKey struct{}
+type chainSlot struct{ info *ChainInfo }
+
+// ReportChain is called by a chained source, from inside the read transaction that reads its rows, to hand Build
+// the ChainInfo of what it wrote. Rows.Write does it for a Rows with Chain set.
+func ReportChain(ctx context.Context, info ChainInfo) {
+	if s, ok := ctx.Value(chainKey{}).(*chainSlot); ok {
+		s.info = &info
+	}
+}
+
 func optional(s string) *string {
 	if s == "" {
 		return nil
@@ -241,14 +316,15 @@ func optional(s string) *string {
 
 // sink is the io.Writer a source writes JSON lines to. Each complete line is decoded, scrubbed and spooled.
 type sink struct {
-	f    *os.File
-	bw   *bufio.Writer
-	pend []byte
-	used *int64 // bytes of all categories so far
-	max  int64
-	rows int
-	cols []string // top-level keys in order of first appearance
-	seen map[string]bool
+	f     *os.File
+	bw    *bufio.Writer
+	pend  []byte
+	used  *int64 // bytes of all categories so far
+	max   int64
+	rows  int
+	cols  []string // top-level keys in order of first appearance
+	seen  map[string]bool
+	scrub bool // false for a chained category: its rows are exported as stored
 }
 
 func (s *sink) Write(p []byte) (int, error) {
@@ -288,7 +364,7 @@ func (s *sink) line(b []byte) error {
 	if len(b) == 0 {
 		return nil
 	}
-	v, err := decodeLine(b)
+	v, err := decodeLine(b, s.scrub)
 	if err != nil {
 		return err
 	}
@@ -321,11 +397,34 @@ func (s *sink) line(b []byte) error {
 
 // ---- scrubbing, with the key order of the source kept ----
 
-// secretKey is the mock's SECRET_KEY (logExport.ts), same words. key_last4 and tokens_in do not match.
-var secretKey = regexp.MustCompile(`(?i)^(password|passwd|secret|token|api_?key|key|private_?key|passphrase|credential|credentials|webhook|webhook_url|authorization)$|(_secret|_password|_token|_api_key|_webhook(_url)?|_credential)$`)
+// secretWords are the substrings of a normalised key (lower case, no - or _) that mark a secret. The same list is in
+// the mock (logExport.ts).
+var secretWords = []string{"password", "passwd", "secret", "token", "apikey", "privatekey", "passphrase", "credential", "authorization", "cookie", "session", "bearer", "jwt", "dsn", "connectionstring", "webhook"}
 
-// IsSecretKey reports whether a field name is dropped from an export.
-func IsSecretKey(k string) bool { return secretKey.MatchString(k) }
+// notSecret are field names that look like secrets and are not: the last four characters of a key, token counts, a token's id.
+var notSecret = map[string]bool{"key_last4": true, "tokens_in": true, "tokens_out": true, "token_id": true}
+
+// IsSecretKey reports whether a field name is dropped from a non-chained category. Names ending in "hash" (prev_hash,
+// hash, head_hash) and the notSecret names stay; a bare "key" goes.
+func IsSecretKey(k string) bool {
+	l := strings.ToLower(k)
+	if notSecret[l] {
+		return false
+	}
+	n := strings.NewReplacer("-", "", "_", "").Replace(l)
+	if strings.HasSuffix(n, "hash") {
+		return false
+	}
+	if n == "key" {
+		return true
+	}
+	for _, w := range secretWords {
+		if strings.Contains(n, w) {
+			return true
+		}
+	}
+	return false
+}
 
 type object struct {
 	keys []string
@@ -334,10 +433,10 @@ type object struct {
 
 const maxDepth = 64
 
-func decodeLine(b []byte) (any, error) {
+func decodeLine(b []byte, scrub bool) (any, error) {
 	dec := json.NewDecoder(bytes.NewReader(b))
 	dec.UseNumber()
-	v, err := decodeValue(dec, 0)
+	v, err := decodeValue(dec, 0, scrub)
 	if err != nil {
 		return nil, fmt.Errorf("logexport: a source line is not valid JSON: %w", err)
 	}
@@ -347,8 +446,9 @@ func decodeLine(b []byte) (any, error) {
 	return v, nil
 }
 
-// decodeValue reads one value; an object comes back without its secret-looking fields, at any depth.
-func decodeValue(dec *json.Decoder, depth int) (any, error) {
+// decodeValue reads one value. With scrub, an object comes back without its secret-looking fields at any depth, and a
+// string that holds a JSON object or array is parsed, scrubbed and written back as compact JSON text.
+func decodeValue(dec *json.Decoder, depth int, scrub bool) (any, error) {
 	if depth > maxDepth {
 		return nil, errors.New("nested too deep")
 	}
@@ -358,12 +458,15 @@ func decodeValue(dec *json.Decoder, depth int) (any, error) {
 	}
 	d, isDelim := tok.(json.Delim)
 	if !isDelim {
-		return tok, nil // string, json.Number, bool or nil
+		if str, isStr := tok.(string); isStr && scrub {
+			return scrubStringJSON(str, depth), nil
+		}
+		return tok, nil // json.Number, bool or nil (or a string that is not scrubbed)
 	}
 	if d == '[' {
 		arr := []any{}
 		for dec.More() {
-			v, err := decodeValue(dec, depth+1)
+			v, err := decodeValue(dec, depth+1, scrub)
 			if err != nil {
 				return nil, err
 			}
@@ -379,11 +482,11 @@ func decodeValue(dec *json.Decoder, depth int) (any, error) {
 			return nil, err
 		}
 		k, _ := kt.(string)
-		v, err := decodeValue(dec, depth+1)
+		v, err := decodeValue(dec, depth+1, scrub)
 		if err != nil {
 			return nil, err
 		}
-		if IsSecretKey(k) {
+		if scrub && IsSecretKey(k) {
 			continue
 		}
 		o.keys = append(o.keys, k)
@@ -391,6 +494,24 @@ func decodeValue(dec *json.Decoder, depth int) (any, error) {
 	}
 	_, err = dec.Token() // }
 	return o, err
+}
+
+// scrubStringJSON scrubs a string that is itself a JSON object or array (a column that holds JSON text). Any other
+// string, or one that does not parse, comes back as it was.
+func scrubStringJSON(s string, depth int) string {
+	t := strings.TrimSpace(s)
+	if len(t) < 2 || (t[0] != '{' && t[0] != '[') || !json.Valid([]byte(t)) {
+		return s
+	}
+	dec := json.NewDecoder(strings.NewReader(t))
+	dec.UseNumber()
+	v, err := decodeValue(dec, depth+1, true)
+	if err != nil {
+		return s
+	}
+	var b bytes.Buffer
+	writeValue(&b, v)
+	return b.String()
 }
 
 func writeString(b *bytes.Buffer, s string) {
@@ -436,7 +557,7 @@ func writeValue(b *bytes.Buffer, v any) {
 
 // Scrub returns raw JSON without its secret-looking fields at any depth; the order of the other keys is kept.
 func Scrub(raw []byte) ([]byte, error) {
-	v, err := decodeLine(bytes.TrimSpace(raw))
+	v, err := decodeLine(bytes.TrimSpace(raw), true)
 	if err != nil {
 		return nil, err
 	}
@@ -528,14 +649,14 @@ func csvCell(s string, formulaSafe bool) string {
 func csvCells(cols []string) []string {
 	out := make([]string, len(cols))
 	for i, c := range cols {
-		out[i] = csvCell(c, false)
+		out[i] = csvCell(c, true)
 	}
 	return out
 }
 
 func csvRow(cols []string) func(*bytes.Buffer, []byte, bool) error {
 	return func(b *bytes.Buffer, row []byte, _ bool) error {
-		v, err := decodeLine(row)
+		v, err := decodeLine(row, false)
 		if err != nil {
 			return err
 		}

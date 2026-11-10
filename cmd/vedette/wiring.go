@@ -222,7 +222,7 @@ func buildServices(d *deps) error {
 		return fmt.Errorf("connection reader: %w", err)
 	}
 	d.Logs = logexport.New()
-	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{Logs: d.Logs, DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock, Facts: privacyFacts{conns: d.Conn}, Conns: d.Conn}); err != nil {
+	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{Logs: d.Logs, SpoolDir: logSpoolDir(d.DataDir), DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock, Facts: privacyFacts{conns: d.Conn}, Conns: d.Conn}); err != nil {
 		return fmt.Errorf("core: %w", err)
 	}
 	if d.OS, err = newOSHandlers(*d); err != nil {

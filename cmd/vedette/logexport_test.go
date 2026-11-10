@@ -18,7 +18,7 @@ func TestLogSourcesRegisteredByTheBinary(t *testing.T) {
 			t.Errorf("%s has no log source", id)
 		}
 	}
-	e, err := s.d.Logs.Build(t.Context(), logexport.Request{Categories: logexport.Categories, Format: logexport.JSON, MaxBytes: 64 << 20, Dir: t.TempDir()})
+	e, err := s.d.Logs.Build(t.Context(), logexport.Request{Categories: logexport.CategoryIDs(), Format: logexport.JSON, MaxBytes: 64 << 20, Dir: t.TempDir()})
 	if err != nil {
 		t.Fatal(err)
 	}

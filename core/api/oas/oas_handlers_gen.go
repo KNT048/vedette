@@ -8123,7 +8123,9 @@ func (s *Server) handleCoreGetCoreGeneralRequest(args [0]string, argsEscaped boo
 // Download the box logs (audit, AI activity, response, scan probes, alerts, device logs, known-bad
 // connections, honeypot hits) as one JSON or CSV file; secrets are removed, hash-chained logs keep
 // their hashes for offline verification; a category whose module has no log source yet is listed as
-// missing; the download is audited.
+// missing; chained categories (audit, response, AI activity) are exported unscrubbed with their chain
+// anchor and head; one download at a time (409 busy), at most one a minute (429 rate_limited), over
+// 128 MB is refused (413 logs_too_large); the download, and a refusal, are audited.
 //
 // GET /core/logs/export
 func (s *Server) handleCoreGetCoreLogsExportRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8202,7 +8204,7 @@ func (s *Server) handleCoreGetCoreLogsExportRequest(args [0]string, argsEscaped 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CoreGetCoreLogsExportOperation,
-			OperationSummary: "Download the box logs (audit, AI activity, response, scan probes, alerts, device logs, known-bad connections, honeypot hits) as one JSON or CSV file; secrets are removed, hash-chained logs keep their hashes for offline verification; a category whose module has no log source yet is listed as missing; the download is audited",
+			OperationSummary: "Download the box logs (audit, AI activity, response, scan probes, alerts, device logs, known-bad connections, honeypot hits) as one JSON or CSV file; secrets are removed, hash-chained logs keep their hashes for offline verification; a category whose module has no log source yet is listed as missing; chained categories (audit, response, AI activity) are exported unscrubbed with their chain anchor and head; one download at a time (409 busy), at most one a minute (429 rate_limited), over 128 MB is refused (413 logs_too_large); the download, and a refusal, are audited",
 			OperationID:      "core_get_core_logs_export",
 			Body:             nil,
 			RawBody:          rawBody,

@@ -3,13 +3,19 @@ package core_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/auth/authtest"
+	"github.com/knt048/vedette/core/server"
+	"github.com/knt048/vedette/modules/core"
 
 	"github.com/knt048/vedette/core/chain"
 	"github.com/knt048/vedette/core/logexport"
@@ -49,6 +55,9 @@ func TestLogsExport_RefusesWhatTheMockRefuses(t *testing.T) {
 	wantStatus(t, admin.get("/core/logs/export?categories=audit&from=yesterday"), 400, "invalid_range")
 	wantStatus(t, admin.get("/core/logs/export?categories=audit&to=2026-13-40"), 400, "invalid_range")
 	wantStatus(t, admin.get("/core/logs/export?categories=audit&from=2026-11-09T00:00:00Z"), 400, "invalid_range")
+	wantStatus(t, admin.get("/core/logs/export?categories=audit&from=1999-12-31"), 400, "invalid_range")
+	wantStatus(t, admin.get("/core/logs/export?categories=audit&to=2101-01-01"), 400, "invalid_range")
+	wantStatus(t, admin.get("/core/logs/export?categories=audit&from=0000-01-01&to=9999-12-31"), 400, "invalid_range")
 	if n := w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'logs.export'"); n != 0 {
 		t.Fatalf("a refused request left %d audit rows", n)
 	}
@@ -80,6 +89,8 @@ func TestLogsExport_JSONEnvelopeFilenameAndMissing(t *testing.T) {
 		Verification string
 		From, To     *string
 		Missing      []string
+		TimeZone     string `json:"time_zone"`
+		Counts       map[string]int
 		Categories   map[string][]map[string]any
 	}
 	if err := json.Unmarshal([]byte(r.Raw), &env); err != nil {
@@ -90,6 +101,12 @@ func TestLogsExport_JSONEnvelopeFilenameAndMissing(t *testing.T) {
 	}
 	if _, err := time.Parse("2006-01-02T15:04:05.000Z", env.ExportedAt); err != nil {
 		t.Fatalf("exported_at = %q", env.ExportedAt)
+	}
+	if env.TimeZone != "Asia/Ho_Chi_Minh" {
+		t.Fatalf("time_zone = %q: the envelope must say which zone from/to are days in", env.TimeZone)
+	}
+	if env.Counts["response"] != 1 || env.Counts["ai_activity"] != 0 || env.Counts["audit"] != len(env.Categories["audit"]) || len(env.Counts) != 3 {
+		t.Fatalf("counts = %v", env.Counts)
 	}
 	if len(env.Missing) != 1 || env.Missing[0] != "ai_activity" {
 		t.Fatalf("missing = %v, want [ai_activity]", env.Missing)
@@ -149,7 +166,7 @@ func TestLogsExport_CSVHasTheShapeOfTheMock(t *testing.T) {
 	w.h.LogSourcesForTest().Register("honeypot", lines(`{"id":"=1+1","n":-5,"z":null,"o":{"k":"v,w"},"t":true,"q":"say \"hi\"\nnow"}`, `{"id":"b","extra":"e"}`))
 	r := admin.get("/core/logs/export?categories=response,honeypot,alerts,scan_probes&format=csv")
 	wantOK(t, r, 200)
-	want := "# response\na,b\n\"x,y\",1\n\n" +
+	want := "\ufeff# response\na,b\n\"x,y\",1\n\n" +
 		"# honeypot\nid,n,z,o,t,q,extra\n'=1+1,-5,,\"{\"\"k\"\":\"\"v,w\"\"}\",true,\"say \"\"hi\"\"\nnow\",\n" + "b,,,,,,e\n\n" +
 		"# alerts (no source)\n\n\n" +
 		"# scan_probes (no source)\n\n"
@@ -311,7 +328,11 @@ func TestLogsExport_OverTheCapIsRefusedWithNothingSentOrAudited(t *testing.T) {
 	r := admin.get("/core/logs/export?categories=audit&format=json")
 	wantStatus(t, r, 413, "logs_too_large")
 	if n := w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'logs.export'"); n != 0 {
-		t.Fatalf("a refused export was audited %d times", n)
+		t.Fatalf("a refused export was audited as a download %d times", n)
+	}
+	// ...but the refusal itself leaves a row, with the reason.
+	if n := w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'logs.export_refused' AND user = 'admin@acme.example' AND target = 'audit' AND detail LIKE 'json; too_large%'"); n != 1 {
+		t.Fatal("no logs.export_refused row with the reason")
 	}
 	// A narrower question fits: the cap is on the size of the file, not a lockout.
 	wantOK(t, admin.get("/core/logs/export?categories=response&format=json"), 200)
@@ -320,4 +341,235 @@ func TestLogsExport_OverTheCapIsRefusedWithNothingSentOrAudited(t *testing.T) {
 		t.Fatalf("spool left behind: %v", left)
 	}
 	_ = os.Remove(spool)
+}
+
+// ---- M1: where the spool is, one at a time, slow and gone clients, refusals ----
+
+// gate is a source that waits: it tells the test it is running and holds the export until released.
+func gate(entered chan<- struct{}, release <-chan struct{}) logexport.Source {
+	return func(ctx context.Context, _, _ time.Time, w io.Writer) error {
+		_, _ = io.WriteString(w, "{\"a\":1}\n")
+		entered <- struct{}{}
+		select {
+		case <-release:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func TestLogsExport_OneAtATimeAndTheSpoolIsUnderTheDataDir(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin := w.setupAdmin()
+	second, _ := w.signIn("admin2@acme.example", "admin")
+	spool := filepath.Join(t.TempDir(), "tmp", "logs-export")
+	if err := os.MkdirAll(spool, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	w.h.SetLogsDirForTest(spool)
+	entered, release := make(chan struct{}), make(chan struct{})
+	w.h.LogSourcesForTest().Register("honeypot", gate(entered, release))
+
+	done := make(chan reply)
+	go func() { done <- admin.get("/core/logs/export?categories=honeypot&format=json") }()
+	<-entered
+	if left, _ := filepath.Glob(filepath.Join(spool, "vedette-logs-*")); len(left) != 1 {
+		t.Fatalf("while an export runs the spool must be a directory under the data dir, found %v", left)
+	}
+	r := second.get("/core/logs/export?categories=audit&format=json")
+	wantStatus(t, r, 409, "busy")
+	if n := w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'logs.export_refused' AND user = 'admin2@acme.example' AND detail = 'json; busy'"); n != 1 {
+		t.Fatal("a busy refusal must be audited with its reason")
+	}
+	close(release)
+	if first := <-done; first.Code != 200 {
+		t.Fatalf("the first export = %d %s", first.Code, first.Raw)
+	}
+	if left, _ := filepath.Glob(filepath.Join(spool, "vedette-logs-*")); len(left) != 0 {
+		t.Fatalf("spool left behind: %v", left)
+	}
+	wantOK(t, second.get("/core/logs/export?categories=audit&format=json"), 200) // the slot is free again
+}
+
+func TestLogsExport_AtMostOneAMinute(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin := w.setupAdmin()
+	w.h.SetLogsGapForTest(0) // the real limit: a minute
+	wantOK(t, admin.get("/core/logs/export?categories=audit&format=json"), 200)
+	r := admin.get("/core/logs/export?categories=audit&format=json")
+	wantStatus(t, r, 429, "rate_limited")
+	if ra := r.Header.Get("Retry-After"); ra == "" || ra == "0" {
+		t.Fatalf("Retry-After = %q", ra)
+	}
+	if n := w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'logs.export_refused' AND detail = 'json; rate_limited'"); n != 1 {
+		t.Fatal("a rate-limit refusal must be audited")
+	}
+	// A request that is refused for what it asks (400) does not use the minute.
+	wantStatus(t, admin.get("/core/logs/export?categories=nope"), 400, "invalid_categories")
+	w.env.Clock.Advance(61 * time.Second)
+	admin = w.client()
+	wantOK(t, admin.login("admin@acme.example"), 200)
+	wantOK(t, admin.get("/core/logs/export?categories=audit&format=json"), 200)
+}
+
+// brokenWriter is a client that takes some of the response and goes away.
+type brokenWriter struct {
+	*httptest.ResponseRecorder
+	left int
+}
+
+func (b *brokenWriter) Write(p []byte) (int, error) {
+	if b.left <= 0 {
+		return 0, errors.New("client gone")
+	}
+	if len(p) > b.left {
+		p = p[:b.left]
+	}
+	b.left -= len(p)
+	return b.ResponseRecorder.Write(p)
+}
+
+func TestLogsExport_AClientThatDisconnectsMidStreamLeavesNoSpoolAndFreesTheSlot(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin := w.setupAdmin()
+	spool := t.TempDir()
+	w.h.SetLogsDirForTest(spool)
+	big := strings.Repeat("x", 500)
+	w.h.LogSourcesForTest().Register("honeypot", func(_ context.Context, _, _ time.Time, wr io.Writer) error {
+		for range 2000 { // a megabyte: many chunks
+			if _, err := io.WriteString(wr, `{"a":"`+big+"\"}\n"); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	r := httptest.NewRequestWithContext(t.Context(), "GET", server.Prefix+"/core/logs/export?categories=honeypot&format=csv", nil)
+	r.RemoteAddr, r.Host = "192.0.2.10:40000", "box.test"
+	for _, ck := range admin.jar {
+		r.AddCookie(ck)
+	}
+	bw := &brokenWriter{ResponseRecorder: httptest.NewRecorder(), left: 100 << 10}
+	w.api.ServeHTTP(bw, r)
+	if bw.Body.Len() == 0 || bw.Body.Len() > 100<<10 {
+		t.Fatalf("the client got %d bytes", bw.Body.Len())
+	}
+	if left, _ := filepath.Glob(filepath.Join(spool, "vedette-logs-*")); len(left) != 0 {
+		t.Fatalf("spool left behind after a disconnect: %v", left)
+	}
+	w.h.LogSourcesForTest()                                                     // (the source stays registered)
+	wantOK(t, admin.get("/core/logs/export?categories=audit&format=json"), 200) // the slot is free
+}
+
+func TestLogsExport_AFailingSourceIs500WithNoSpoolAndNoDownloadRow(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin := w.setupAdmin()
+	spool := t.TempDir()
+	w.h.SetLogsDirForTest(spool)
+	w.h.LogSourcesForTest().Register("honeypot", func(context.Context, time.Time, time.Time, io.Writer) error { panic("a source bug") })
+	r := admin.get("/core/logs/export?categories=audit,honeypot&format=json")
+	if r.Code != 500 || strings.Contains(r.Raw, "a source bug") {
+		t.Fatalf("a panicking source = %d %s (500, and no internals)", r.Code, r.Raw)
+	}
+	if left, _ := filepath.Glob(filepath.Join(spool, "vedette-logs-*")); len(left) != 0 {
+		t.Fatalf("spool left behind: %v", left)
+	}
+	if n := w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'logs.export'"); n != 0 {
+		t.Fatalf("a failed export was audited as a download")
+	}
+}
+
+func TestLogsExport_StartupCreatesTheSpoolDirAndSweepsLeftovers(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	spool := filepath.Join(t.TempDir(), "tmp", "logs-export")
+	if err := os.MkdirAll(filepath.Join(spool, "vedette-logs-crashed"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(spool, "vedette-logs-crashed", "cat-1"), []byte("old rows"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(spool, "unrelated"), []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := core.NewAPIHandlers(core.HandlersConfig{DB: w.env.DB, Auth: w.env.Svc, Reg: w.reg, Audit: w.env.Audit, Secrets: w.env.Secrets, Log: w.logger(), Clock: w.env.Clock.Now, SpoolDir: spool})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(spool, "vedette-logs-crashed")); !os.IsNotExist(err) {
+		t.Fatalf("the leftover of a crashed export is still there: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(spool, "unrelated")); err != nil {
+		t.Fatalf("the sweep removed a file that is not a spool: %v", err)
+	}
+	if fi, err := os.Stat(spool); err != nil || fi.Mode().Perm() != 0o700 {
+		t.Fatalf("spool dir = %v %v, want mode 0700", fi, err)
+	}
+	// A directory that does not exist yet is made (0700), with its parents.
+	fresh := filepath.Join(t.TempDir(), "a", "b")
+	if _, err := core.NewAPIHandlers(core.HandlersConfig{DB: w.env.DB, Auth: w.env.Svc, Reg: w.reg, Audit: w.env.Audit, Secrets: w.env.Secrets, Log: w.logger(), SpoolDir: fresh}); err != nil {
+		t.Fatal(err)
+	}
+	if fi, err := os.Stat(fresh); err != nil || fi.Mode().Perm() != 0o700 {
+		t.Fatalf("fresh spool dir = %v %v", fi, err)
+	}
+}
+
+// ---- M3: chained categories are exported as stored, so what they hold must be free of secrets when it is written ----
+
+func TestLogsExport_TheAuditRowsOfARealSessionHoldNoSecret(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin := w.setupAdmin()
+	w.signIn("viewer@acme.example", "viewer")
+	wantStatus(t, w.client().login("nobody@acme.example"), 400, "invalid_credentials")
+	r := admin.get("/core/logs/export?categories=audit&format=json")
+	wantOK(t, r, 200)
+	var f struct {
+		Categories struct{ Audit []map[string]any }
+	}
+	if err := json.Unmarshal([]byte(r.Raw), &f); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Categories.Audit) < 3 {
+		t.Fatalf("only %d audit rows to check", len(f.Categories.Audit))
+	}
+	secrets := []string{authtest.Password}
+	for _, ck := range admin.jar {
+		secrets = append(secrets, ck.Value)
+	}
+	for _, row := range f.Categories.Audit {
+		for k, v := range row {
+			if logexport.IsSecretKey(k) {
+				t.Errorf("audit row has a secret-looking key %q: %v", k, row)
+			}
+			if s, ok := v.(string); ok {
+				for _, sec := range secrets {
+					if sec != "" && strings.Contains(s, sec) {
+						t.Errorf("audit row %v holds a password or a cookie in %q", row["action"], k)
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestLogsExport_CSVDefusesFormulasInValuesAndHeaders(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin := w.setupAdmin()
+	w.h.LogSourcesForTest().Register("honeypot", lines(`{"=h":"=1","a":"+1","b":"-1","c":"@x","d":"\tx","e":"\rx","f":"safe","n":-5}`))
+	r := admin.get("/core/logs/export?categories=honeypot&format=csv")
+	wantOK(t, r, 200)
+	if !strings.HasPrefix(r.Raw, "\ufeff# honeypot\n") {
+		t.Fatalf("a CSV starts with a BOM: %q", r.Raw[:12])
+	}
+	want := "# honeypot\n'=h,a,b,c,d,e,f,n\n'=1,'+1,'-1,'@x,'\tx,\"'\rx\",safe,-5\n"
+	if got := strings.TrimPrefix(r.Raw, "\ufeff"); got != want {
+		t.Fatalf("csv =\n%q\nwant\n%q", got, want)
+	}
 }

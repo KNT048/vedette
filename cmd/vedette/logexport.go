@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"io"
+	"path/filepath"
 	"time"
 
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
@@ -21,4 +22,13 @@ func registerLogSources(d *deps) {
 	d.Logs.Register("scan_probes", func(ctx context.Context, from, to time.Time, w io.Writer) error {
 		return sensoractive.ExportProbes(ctx, d.DB, from, to, w)
 	})
+}
+
+// logSpoolDir is where /core/logs/export spools its file: under the data volume, not in /tmp (which may be a tmpfs, so
+// the spool would be RAM). "" when there is no data dir (tests): core then uses os.TempDir().
+func logSpoolDir(dataDir string) string {
+	if dataDir == "" {
+		return ""
+	}
+	return filepath.Join(dataDir, "tmp", "logs-export")
 }

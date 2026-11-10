@@ -13298,47 +13298,6 @@ func (s *CoreGetCoreGeneralOK) SetTimezone(val string) {
 	s.Timezone = val
 }
 
-type CoreGetCoreLogsExportFormat string
-
-const (
-	CoreGetCoreLogsExportFormatJSON CoreGetCoreLogsExportFormat = "json"
-	CoreGetCoreLogsExportFormatCsv  CoreGetCoreLogsExportFormat = "csv"
-)
-
-// AllValues returns all CoreGetCoreLogsExportFormat values.
-func (CoreGetCoreLogsExportFormat) AllValues() []CoreGetCoreLogsExportFormat {
-	return []CoreGetCoreLogsExportFormat{
-		CoreGetCoreLogsExportFormatJSON,
-		CoreGetCoreLogsExportFormatCsv,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s CoreGetCoreLogsExportFormat) MarshalText() ([]byte, error) {
-	switch s {
-	case CoreGetCoreLogsExportFormatJSON:
-		return []byte(s), nil
-	case CoreGetCoreLogsExportFormatCsv:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *CoreGetCoreLogsExportFormat) UnmarshalText(data []byte) error {
-	switch CoreGetCoreLogsExportFormat(data) {
-	case CoreGetCoreLogsExportFormatJSON:
-		*s = CoreGetCoreLogsExportFormatJSON
-		return nil
-	case CoreGetCoreLogsExportFormatCsv:
-		*s = CoreGetCoreLogsExportFormatCsv
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
 type CoreGetCoreLogsExportOK struct {
 	Data io.Reader
 }

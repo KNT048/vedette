@@ -1431,11 +1431,15 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			// No key outside the ones the templates use: a new key is a decision (add it here and to the table).
 			known := []string{"Description", "After", "Wants", "Requires", "ContainerName", "Image", "Network", "PublishPort", "Volume", "ReadOnly", "Tmpfs",
 				"NoNewPrivileges", "DropCapability", "AddCapability", "User", "UserNS", "LogDriver", "PodmanArgs", "HealthCmd", "HealthInterval",
-				"HealthStartPeriod", "HealthRetries", "Exec", "Restart", "TimeoutStartSec", "WantedBy", "Pull", "RunInit"}
+				"HealthStartPeriod", "HealthRetries", "Exec", "Restart", "TimeoutStartSec", "WantedBy", "Pull", "RunInit", "Environment"}
 			for k := range u {
 				if !slices.Contains(known, k) {
 					t.Errorf("%s has the key %s", svc, k)
 				}
+			}
+			// D-150: the only environment variable is core's Go memory limit.
+			if want := []string(nil); svc != api.ServiceCore && !slices.Equal(u["Environment"], want) || svc == api.ServiceCore && !slices.Equal(u["Environment"], []string{"GOMEMLIMIT=1800MiB"}) {
+				t.Errorf("%s: Environment=%v (only core has GOMEMLIMIT=1800MiB, D-150)", svc, u["Environment"])
 			}
 			// D-146: only scan runs under an init (nmap can leave children that detach from the process group the worker kills).
 			if _, has := u["RunInit"]; has != (svc == api.ServiceScan) {

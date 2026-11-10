@@ -1,0 +1,35 @@
+[Unit]
+Description=Vedette host helper
+After=network-online.target
+# Restart=always with RestartSec=2s would hit the default start limit (5 starts in 10 s) in a crash loop and stay down; the helper must come back (D-150)
+StartLimitIntervalSec=0
+
+[Service]
+# READY=1 after Ops.Start finished and the socket is open: namespace vedette-hp, decoys, interrupted runs (D-102)
+Type=notify
+ExecStart=/usr/lib/vedette/vedette-host
+RuntimeDirectory=vedette
+RuntimeDirectoryMode=0750
+# the run directory survives a stop or restart of the host: core mounts the directory /run/vedette and reconnects to the new socket (D-123)
+RuntimeDirectoryPreserve=yes
+# the host exits 70 when a command ignores its deadline; always restart it, and kill the whole cgroup (a stray apt/podman child) first
+Restart=always
+RestartSec=2s
+KillMode=control-group
+# bounds the Start steps (D-121): startHP 120 s + startup rollback 180 s + decoy re-apply 120 s + core check 60 s
+# + interrupted restore 300 s + core stop/start 120 s + half-written unit reset 60 s (D-123) = 960 s = 16 minutes
+TimeoutStartSec=16min
+# Hardening (D-150, DEPLOYMENT.md section 12). NO filesystem-namespace option here, ever (D-121): `ip netns add vedette-hp` bind-mounts on
+# /run/netns/vedette-hp and the honeypot container (podman, outside this unit) must see that mount. Only these, none of which makes a mount namespace
+# (systemd.exec(5): each is a seccomp filter or a personality/scheduler limit; they apply to the helper and its children, and a unit running as root
+# needs no NoNewPrivileges for a seccomp filter):
+# AF_PACKET: ARP probe and gateway check (D-101); AF_NETLINK: addresses, routes, nft; AF_UNIX: the host socket, journald, podman
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK AF_PACKET
+LockPersonality=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+# Left out on purpose: NoNewPrivileges and MemoryDenyWriteExecute (inherited by apt/dpkg scripts, netplan, podman and crun; not verifiable without the lab),
+# RestrictNamespaces (absent is allowed; the test requires net and mnt if it is ever set)
+
+[Install]
+WantedBy=multi-user.target

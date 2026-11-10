@@ -3,6 +3,8 @@ package auth
 import (
 	"fmt"
 	"math"
+	"runtime"
+	"runtime/debug"
 	"testing"
 	"time"
 )
@@ -154,5 +156,20 @@ func TestMaxHashingFor(t *testing.T) {
 		if got := maxHashingFor(tc.procs, tc.mem, kib); got != tc.want {
 			t.Errorf("%s: %d, want %d", tc.name, got, tc.want)
 		}
+	}
+}
+
+// The core Quadlet unit sets GOMEMLIMIT=1800MiB (D-150); the Go runtime turns that into debug.SetMemoryLimit, which is what
+// defaultMaxHashing reads. With it the gate is min(GOMAXPROCS/2, 1800 MiB/4/64 MiB = 7), at least 1. Not parallel: the limit is process-wide.
+func TestDefaultMaxHashingUnderTheCoreUnitMemoryLimit(t *testing.T) {
+	prev := debug.SetMemoryLimit(1800 << 20)
+	defer debug.SetMemoryLimit(prev)
+	got := defaultMaxHashing(DefaultParams)
+	want := max(1, min(runtime.GOMAXPROCS(0)/2, 7))
+	if got != want || got < 1 || got > 7 {
+		t.Errorf("gate = %d with GOMEMLIMIT=1800MiB and GOMAXPROCS=%d, want %d (1..7)", got, runtime.GOMAXPROCS(0), want)
+	}
+	if got := maxHashingFor(64, 1800<<20, DefaultParams.Memory); got != 7 {
+		t.Errorf("many CPUs: gate = %d, want 7 (the memory side)", got)
 	}
 }

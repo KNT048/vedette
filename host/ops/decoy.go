@@ -596,7 +596,8 @@ func (o *Ops) reconcile(ctx context.Context, hint *NetplanConfig, ensured bool) 
 		}
 		if i >= 0 {
 			o.removeDecoyNS(ctx, d)
-		} else if exists, err := o.hostHasLink(name); err != nil || exists {
+		}
+		if exists, err := o.hostHasLink(name); err != nil || exists {
 			dropped = append(dropped, droppedDecoy{d, api.CodeLinkNameInUse})
 			continue
 		}

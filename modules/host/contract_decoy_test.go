@@ -6,11 +6,13 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/netip"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -68,20 +70,20 @@ func (d *decoyEnv) add(t *testing.T, ip string, oui ...string) api.Run {
 
 // refusedBy runs a command and returns the refusal code, whether the server refused it before the
 // run (412) or the run ended refused.
-func (d *decoyEnv) refusedBy(t *testing.T, command string, args any) string {
+func (d *decoyEnv) refusedBy(t *testing.T, args api.DecoyAddArgs) string {
 	t.Helper()
-	r, err := d.call(t, command, args)
+	r, err := d.call(t, "decoy_ip.add", args)
 	var ce *client.Error
 	switch {
 	case errors.As(err, &ce):
 		if ce.Status != http.StatusPreconditionFailed {
-			t.Fatalf("%s: status %d code %s", command, ce.Status, ce.Code)
+			t.Fatalf("add: status %d code %s", ce.Status, ce.Code)
 		}
 		return ce.Code
 	case err != nil:
 		t.Fatal(err)
 	case r.Status != api.StatusRefused || r.Error == nil:
-		t.Fatalf("%s was not refused: %+v", command, r)
+		t.Fatalf("add was not refused: %+v", r)
 	default:
 		return r.Error.Code
 	}
@@ -147,17 +149,11 @@ func (d *decoyEnv) derived(t *testing.T, ip string, oui string) string {
 }
 
 func hexByte(s string) byte {
-	var v byte
-	for _, c := range s {
-		v <<= 4
-		switch {
-		case c >= '0' && c <= '9':
-			v |= byte(c - '0')
-		default:
-			v |= byte(c-'a') + 10
-		}
+	v, err := strconv.ParseUint(s, 16, 8)
+	if err != nil {
+		panic(err)
 	}
-	return v
+	return byte(v)
 }
 
 // --- the honeypot namespace at Start (D-102 (1), (3), (4)) -----------------------------------------
@@ -264,7 +260,7 @@ func TestContract_Decoy_AddBuildsTheLinkAndChecksTheEffect(t *testing.T) {
 	if res.IP != decoyIP1 || res.MAC != mac {
 		t.Fatalf("result %+v, want mac %s", res, mac)
 	}
-	b, _ := hexBytes(res.MAC)
+	b := hexBytes(res.MAC)
 	if b[0]&0x02 == 0 || b[0]&0x01 != 0 {
 		t.Fatalf("mac bits of %s", res.MAC)
 	}
@@ -321,12 +317,12 @@ func TestContract_Decoy_AddBuildsTheLinkAndChecksTheEffect(t *testing.T) {
 	}
 }
 
-func hexBytes(mac string) ([]byte, error) {
+func hexBytes(mac string) []byte {
 	var out []byte
 	for _, p := range strings.Split(mac, ":") {
 		out = append(out, hexByte(p))
 	}
-	return out, nil
+	return out
 }
 
 func TestContract_Decoy_AddWithAnOUIAndTheMACRules(t *testing.T) {
@@ -392,7 +388,7 @@ func TestContract_Decoy_AddRefusals(t *testing.T) {
 		{"a duplicate with another oui", decoyIP1, "001A2B", api.CodeDuplicateDecoy},
 	}
 	for _, c := range cases {
-		if got := d.refusedBy(t, "decoy_ip.add", api.DecoyAddArgs{IP: c.ip, OUI: c.oui}); got != c.want {
+		if got := d.refusedBy(t, api.DecoyAddArgs{IP: c.ip, OUI: c.oui}); got != c.want {
 			t.Errorf("%s: %s, want %s", c.name, got, c.want)
 		}
 	}
@@ -424,7 +420,7 @@ func TestContract_Decoy_NotApplianceComesBeforeAnyOtherCheck(t *testing.T) {
 	d.m.OSRelease("debian", "11", "Debian 11")
 	n := len(d.ipCalls())
 	// 10.1.2.3 would also be outside the subnet: the order puts not_appliance first.
-	if got := d.refusedBy(t, "decoy_ip.add", api.DecoyAddArgs{IP: "10.1.2.3"}); got != api.CodeNotAppliance {
+	if got := d.refusedBy(t, api.DecoyAddArgs{IP: "10.1.2.3"}); got != api.CodeNotAppliance {
 		t.Fatalf("%s", got)
 	}
 	if len(d.since(n)) != 0 {
@@ -437,7 +433,7 @@ func TestContract_Decoy_AnAddressAnotherDeviceAnswersForIsRefusedAfterTheProbe(t
 	d := startDecoy(t)
 	d.probe.set(func(p *fakeProber) { p.conflict = true })
 	n := len(d.ipCalls())
-	if got := d.refusedBy(t, "decoy_ip.add", api.DecoyAddArgs{IP: decoyIP1}); got != api.CodeIPInUse {
+	if got := d.refusedBy(t, api.DecoyAddArgs{IP: decoyIP1}); got != api.CodeIPInUse {
 		t.Fatalf("%s", got)
 	}
 	if p := d.probe.probes(); len(p) != 1 || p[0] != "eth0 192.168.1.100" {
@@ -469,11 +465,11 @@ func TestContract_Decoy_TheLimitIs32(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	if got := d.refusedBy(t, "decoy_ip.add", api.DecoyAddArgs{IP: "192.168.1.200"}); got != api.CodeLimitReached {
+	if got := d.refusedBy(t, api.DecoyAddArgs{IP: "192.168.1.200"}); got != api.CodeLimitReached {
 		t.Fatalf("%s", got)
 	}
 	// 32 is the limit, not 31: a decoy that is not new is still a duplicate, which comes first.
-	if got := d.refusedBy(t, "decoy_ip.add", api.DecoyAddArgs{IP: "192.168.1.110"}); got != api.CodeDuplicateDecoy {
+	if got := d.refusedBy(t, api.DecoyAddArgs{IP: "192.168.1.110"}); got != api.CodeDuplicateDecoy {
 		t.Fatalf("%s", got)
 	}
 	if got := len(d.state(t).Decoys); got != 32 {
@@ -481,10 +477,8 @@ func TestContract_Decoy_TheLimitIs32(t *testing.T) {
 	}
 }
 
-func itoa3(i int) string {
-	return string(rune('0'+i/100)) + string(rune('0'+i/10%10)) + string(rune('0'+i%10))
-}
-func hex2d(i int) string { return string("0123456789abcdef"[i/16]) + string("0123456789abcdef"[i%16]) }
+func itoa3(i int) string { return strconv.Itoa(i) }
+func hex2d(i int) string { return fmt.Sprintf("%02x", i) }
 
 func TestContract_Decoy_ALinkOfThatNameThatTheHostDidNotMakeIsNeverTouched(t *testing.T) {
 	t.Parallel()
@@ -507,7 +501,7 @@ func TestContract_Decoy_ALinkOfThatNameThatTheHostDidNotMakeIsNeverTouched(t *te
 	t.Cleanup(o2.Close)
 	d2 := &decoyEnv{&netEnv{sysEnv: &sysEnv{m: d.m, o: o2, h: h2, clock: d.clock, timers: d.timers}, box: d.box, probe: d.probe}}
 	n := len(d2.ipCalls())
-	if got := d2.refusedBy(t, "decoy_ip.add", api.DecoyAddArgs{IP: decoyIP1}); got != api.CodeLinkNameInUse {
+	if got := d2.refusedBy(t, api.DecoyAddArgs{IP: decoyIP1}); got != api.CodeLinkNameInUse {
 		t.Fatalf("%s", got)
 	}
 	for _, c := range d2.since(n) {
@@ -539,7 +533,7 @@ func TestContract_Decoy_TwoDecoysNeverShareAMAC(t *testing.T) {
 	if err := os.WriteFile(stateFile, b, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got := d.refusedBy(t, "decoy_ip.add", api.DecoyAddArgs{IP: decoyIP2, OUI: "001A2B"}); got != api.CodeMACInUse {
+	if got := d.refusedBy(t, api.DecoyAddArgs{IP: decoyIP2, OUI: "001A2B"}); got != api.CodeMACInUse {
 		t.Fatalf("%s", got)
 	}
 	_ = r1
@@ -717,7 +711,7 @@ func TestContract_Decoy_AfterANetApplyDecoysOutsideTheNewSubnetAreDroppedAndRepo
 	d.ok(t, "net.confirm", api.NetRunArgs{RunID: run.RunID})
 	waitStatus(t, d.h, run.RunID, api.StatusSucceeded)
 	// New decoys are for the new subnet now.
-	if got := d.refusedBy(t, "decoy_ip.add", api.DecoyAddArgs{IP: decoyIP1}); got != api.CodeIPNotInMgmtSubnet {
+	if got := d.refusedBy(t, api.DecoyAddArgs{IP: decoyIP1}); got != api.CodeIPNotInMgmtSubnet {
 		t.Fatalf("%s", got)
 	}
 }
@@ -800,7 +794,7 @@ func TestContract_Decoy_AHostileStateFileIsSetAsideAndLeftoverLinksAreRemoved(t 
 			t.Fatal(err)
 		}
 		// a leftover link in the namespace, from before
-		_ = os.MkdirAll(filepath.Join(m.Rec, ops.BinIP, "ns"), 0o755)
+		_ = os.MkdirAll(filepath.Join(m.Rec, ops.BinIP, "ns"), 0o750)
 		_ = os.WriteFile(filepath.Join(m.Rec, ops.BinIP, "ns", "vdhc0a80164"), []byte("mac=02:00:00:00:00:01\nup=1\n"), 0o600)
 	})
 	if _, err := os.Stat(filepath.Join(d.m.State, "hp", "decoys.json.invalid")); err != nil {
@@ -844,7 +838,7 @@ func TestContract_Decoy_NoNetworkYetMeansNoSubnetToRefuseAgainst(t *testing.T) {
 	t.Parallel()
 	d := startDecoy(t)
 	d.m.RemoveRoot("proc/net/route")
-	if got := d.refusedBy(t, "decoy_ip.add", api.DecoyAddArgs{IP: decoyIP1}); got != api.CodeIPNotInMgmtSubnet {
+	if got := d.refusedBy(t, api.DecoyAddArgs{IP: decoyIP1}); got != api.CodeIPNotInMgmtSubnet {
 		t.Fatalf("%s", got)
 	}
 }

@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -738,27 +737,21 @@ func TestContract_Pull_BodyOfOneMiBIsAcceptedAndMoreIsNot(t *testing.T) {
 	t.Parallel()
 	e := startPull(t)
 	b64 := func(n int) string { return base64.StdEncoding.EncodeToString(bytes.Repeat([]byte("x"), n)) }
-	body := func(docSize int) string {
-		m := map[string]any{"args": map[string]any{
-			"service": "core", "version": pullVersion, "source": "registry",
-			"index": b64(docSize), "index_sig": b64(100), "manifest": b64(docSize), "manifest_sig": b64(100),
-		}}
-		return string(opstest.JSON(t, m))
+	args := func(docSize int) api.ContainerPullArgs {
+		return api.ContainerPullArgs{
+			Service: "core", Version: pullVersion, Source: api.PullSourceRegistry,
+			Index: b64(docSize), IndexSig: b64(100), Manifest: b64(docSize), ManifestSig: b64(100),
+		}
 	}
-	// Two documents of 256 KiB are about 700 KiB of JSON: over the 512 KiB of other commands, under 1 MiB.
-	st, b := rawReq(t, e.h, "/v1/commands/container.pull", hdr(e.id()), body(maxDoc))
-	if st != http.StatusPreconditionFailed || errCode(b) != api.CodeSignatureInvalid {
-		t.Fatalf("a 700 KiB request: %d %s", st, b)
-	}
-	st, b = rawReq(t, e.h, "/v1/commands/container.pull", hdr(e.id()), body(maxDoc+1))
-	if st != http.StatusBadRequest || errCode(b) != api.CodeInvalidArgs {
-		t.Fatalf("a document over 256 KiB: %d %s", st, b)
-	}
-	huge := strings.Repeat("A", 1<<20+10)
-	st, b = rawReq(t, e.h, "/v1/commands/container.pull", hdr(e.id()), `{"args":{"service":"core","version":"1.4.0","source":"registry","index":"`+huge+`"}}`)
-	if st != http.StatusBadRequest || errCode(b) != api.CodeInvalidArgs {
-		t.Fatalf("a body over 1 MiB: %d %s", st, b)
-	}
+	// Two documents of 256 KiB are about 700 KiB of JSON: over the 512 KiB of other commands, under 1 MiB,
+	// so the request is read, decoded and then refused for what the documents are (not signed).
+	e.refused(t, api.CmdContainerPull, args(maxDoc), 412, api.CodeSignatureInvalid)
+	// A document one byte over 256 KiB is refused as an argument.
+	e.refused(t, api.CmdContainerPull, args(maxDoc+1), 400, api.CodeInvalidArgs)
+	// A body over 1 MiB is refused before it is read.
+	huge := args(10)
+	huge.Index = strings.Repeat("A", 1<<20+10)
+	e.refused(t, api.CmdContainerPull, huge, 400, api.CodeInvalidArgs)
 	if len(e.podman()) != 0 {
 		t.Fatal("podman ran")
 	}

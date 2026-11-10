@@ -873,7 +873,10 @@ func eventually(t *testing.T, what string, ok func() bool) {
 		if ok() {
 			return
 		}
-		time.Sleep(10 * time.Millisecond)
+		select {
+		case <-t.Context().Done():
+		case <-time.After(10 * time.Millisecond):
+		}
 	}
 	t.Fatalf("never became true: %s", what)
 }

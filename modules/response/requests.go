@@ -66,7 +66,7 @@ func (s *Service) createRequest(ctx context.Context, tx *sql.Tx, st Settings, in
 	}
 	fx.ob.Add(events.Event{Name: EventRequestCreated, Data: RequestEvent{RequestID: a.ID, Source: a.Source, Title: a.Title, Risk: string(a.Risk), Items: len(in.Recs), ExpiresAt: a.ExpiresAt, Approvals: need}})
 	if !in.Quiet { // POST-5: tell the approvers once the request is committed, never inside this transaction
-		fx.later(func(context.Context) { s.queueSend(a.ID) })
+		fx.later(func(ctx context.Context) { s.queueSend(ctx, a.ID) })
 	}
 	return r, nil
 }

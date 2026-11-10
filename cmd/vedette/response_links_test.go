@@ -162,7 +162,10 @@ func linkSetup(t *testing.T) (s *stack, clock *manualClock, a response.ActionReq
 		if err == nil && len(reqs) == 1 && len(reqs[0].SentTo) > 0 {
 			break
 		}
-		time.Sleep(10 * time.Millisecond)
+		select {
+		case <-t.Context().Done():
+		case <-time.After(10 * time.Millisecond):
+		}
 	}
 	if err != nil || len(reqs) != 1 {
 		t.Fatalf("requests: %v %+v", err, reqs)

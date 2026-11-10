@@ -516,20 +516,27 @@ const maxSends = 2
 // queueSend sends the approval request in the background (M2): a mail server that does not answer must not hold the rule engine, the
 // AI port or a person's request. Two sends run at once; the 60 second budget counts from here, so a request that waits too long for a
 // slot is dropped (and logged) instead of piling up. The box shutting down (Close) ends them all.
-func (s *Service) queueSend(id string) {
+func (s *Service) queueSend(ctx context.Context, id string) {
 	if s.cfg.Notifier == nil {
 		return
 	}
-	ctx, stop := context.WithTimeout(s.bg, s.budget)
+	ctx, stop := context.WithTimeout(context.WithoutCancel(ctx), s.budget) // the caller's request may end at once; the box shutting down ends this
 	s.sendWG.Add(1)
 	go func() {
 		defer s.sendWG.Done()
 		defer stop()
+		go func() { // the box shutting down (Close) ends the send
+			select {
+			case <-s.bg.Done():
+				stop()
+			case <-ctx.Done():
+			}
+		}()
 		select {
 		case s.sendSem <- struct{}{}:
 			defer func() { <-s.sendSem }()
 		case <-ctx.Done():
-			s.noteSend(id, nil, "sent to the app only: sending was busy or the box was stopping")
+			s.noteSend(ctx, id, nil, "sent to the app only: sending was busy or the box was stopping")
 			return
 		}
 		s.sendApproval(ctx, id)
@@ -537,8 +544,8 @@ func (s *Service) queueSend(id string) {
 }
 
 // noteSend records where a request went: sent_to (when anything went) and one log line.
-func (s *Service) noteSend(id string, sent []string, detail string) {
-	wctx := context.WithoutCancel(s.bg) // the messages left: the record of where is written even if the budget ended
+func (s *Service) noteSend(ctx context.Context, id string, sent []string, detail string) {
+	wctx := context.WithoutCancel(ctx) // the messages left: the record of where is written even if the budget ended
 	if err := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
 		var title string
 		if err := tx.QueryRowContext(wctx, `SELECT title FROM resp_actions WHERE id = ?`, id).Scan(&title); err != nil {
@@ -574,7 +581,7 @@ func (s *Service) sendApproval(ctx context.Context, id string) {
 		return
 	}
 	if len(types) == 0 { // no ready approval channel: the app only, as the mock says
-		s.noteSend(id, nil, "sent to the app only: no approval channel is ready")
+		s.noteSend(ctx, id, nil, "sent to the app only: no approval channel is ready")
 		return
 	}
 	msg := ApprovalMessage{RequestID: r.ID, Title: truncRunes(cleanLine(r.Title), 200), What: approvalText(r), Risk: r.Risk, InAppOnly: r.AI != nil && r.AI.InAppOnly,
@@ -594,7 +601,7 @@ func (s *Service) sendApproval(ctx context.Context, id string) {
 	if msg.InAppOnly {
 		detail += "; in the app only, no link"
 	}
-	s.noteSend(id, sent, detail)
+	s.noteSend(ctx, id, sent, detail)
 }
 
 // approvalText is what the approver reads in the message: each action, the exact call, and how many people must approve. Plain text, one

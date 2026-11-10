@@ -291,7 +291,7 @@ func TestContract_PRE3_ProfileTest(t *testing.T) {
 	a.fake.failWith("Saved", &provider.Error{Kind: provider.ErrNetwork})
 	a.want("POST", "/ai/profiles/test", "admin", body, 502, "unreachable")
 	a.fake.failWith("Saved", &provider.Error{Kind: provider.ErrServer, Status: 500})
-	a.want("POST", "/ai/profiles/test", "admin", body, 502, "unreachable")
+	a.want("POST", "/ai/profiles/test", "admin", body, 502, "provider_error")
 	a.want("POST", "/ai/profiles/test", "admin", `{"id":"p-missing",`+strings.Replace(cloudBody("x", ""), `"api_key":"",`, "", 1)[1:], 404, "not_found")
 	// a draft that breaks a rule is refused before any request is made
 	before := a.fake.total()
@@ -324,7 +324,7 @@ func TestContract_INV20_EveryChangeIsAudited(t *testing.T) {
 	// refused changes leave no row
 	a.want("POST", "/ai/profiles", "admin", cloudBody("Bad", "x"), 400, "invalid_key")
 	got := a.auditRows()
-	want := []string{"ai.profile.add Claude", "ai.profile.edit Claude 2", "ai.assign jobs", "ai.config tier", "ai.profile.test Draft", "ai.profile.remove Claude 2"}
+	want := []string{"ai.profile.add Claude", "ai.profile.edit Claude 2", "ai.assign jobs", "ai.config tier", "ai.test Draft", "ai.profile.remove Claude 2"}
 	if len(got) != len(want) {
 		t.Fatalf("audit rows = %q", got)
 	}
@@ -368,7 +368,7 @@ func TestAssignmentSuggestion(t *testing.T) {
 func TestPRE3_AnthropicKeyWithoutWorkspaceSaysWhatToDo(t *testing.T) {
 	a := newAPI(t)
 	a.fake.failWith("Draft", &provider.Error{Kind: provider.ErrNoWorkspace, Status: 400})
-	m := a.want("POST", "/ai/profiles/test", "admin", cloudBody("Draft", keyA), 502, "unreachable")
+	m := a.want("POST", "/ai/profiles/test", "admin", cloudBody("Draft", keyA), 502, "provider_error")
 	msg := m["error"].(map[string]any)["message"].(string)
 	if !strings.Contains(msg, "not tied to a workspace") || !strings.Contains(msg, "inside a workspace") || strings.Contains(msg, "AAAA1111") {
 		t.Fatalf("message = %q", msg)

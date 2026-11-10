@@ -2,6 +2,7 @@ package ai_test
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -31,11 +32,14 @@ const (
 
 // fakeProviders answers in place of the real providers: no test makes a network call.
 type fakeProviders struct {
-	mu      sync.Mutex
-	calls   []string // profile names, in order
-	fail    map[string]error
-	tools   bool
-	structd bool
+	mu                sync.Mutex
+	calls             []string // profile names, in order
+	fail              map[string]error
+	tools             bool
+	structd           bool
+	keys              []string // the API key each call carried: what would have reached the host
+	onCall            func()   // runs inside every call, before the answer (a test cancels a context here)
+	probeIn, probeOut int      // tokens of every probe call; 0 = the default 14 in and 3 out
 }
 
 func (f *fakeProviders) factory(p ai.Profile) (provider.Provider, error) {
@@ -73,6 +77,10 @@ func (p fakeProvider) Complete(_ context.Context, req provider.Request) (provide
 	p.f.mu.Lock()
 	defer p.f.mu.Unlock()
 	p.f.calls = append(p.f.calls, p.p.Name)
+	p.f.keys = append(p.f.keys, p.p.APIKey.Reveal())
+	if p.f.onCall != nil {
+		p.f.onCall()
+	}
 	if err := p.f.fail[p.p.Name]; err != nil {
 		return provider.Response{}, err
 	}
@@ -86,7 +94,11 @@ func (p fakeProvider) Complete(_ context.Context, req provider.Request) (provide
 		}
 		text = `{"ok":true}`
 	}
-	return provider.Response{Text: text, Usage: provider.Usage{InputTokens: 14, OutputTokens: 3}}, nil
+	in, out := 14, 3
+	if p.f.probeIn > 0 && (req.Schema == nil || req.Schema.Name == "probe") {
+		in, out = p.f.probeIn, p.f.probeOut
+	}
+	return provider.Response{Text: text, Usage: provider.Usage{InputTokens: in, OutputTokens: out}}, nil
 }
 
 type clock struct {
@@ -237,4 +249,48 @@ func (a *api) auditRows() []string {
 		out = append(out, s)
 	}
 	return out
+}
+
+func (f *fakeProviders) called(name string) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	n := 0
+	for _, c := range f.calls {
+		if c == name {
+			n++
+		}
+	}
+	return n
+}
+
+// keysSeen returns the keys the provider calls carried.
+func (f *fakeProviders) keysSeen() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.keys...)
+}
+
+func (f *fakeProviders) setOnCall(fn func()) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.onCall = fn
+}
+
+func (f *fakeProviders) setProbeUsage(in, out int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.probeIn, f.probeOut = in, out
+}
+
+// newServiceWith builds a service over the same database with another key store: the keys sealed with the first one cannot be opened.
+func (e *env) newServiceWith(sec *secrets.Store) (*ai.Service, error) {
+	return ai.New(e.ctx(), ai.Config{DB: e.db, Secrets: sec, Audit: audit.New(e.clock.Now), Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Factory: e.fake.factory})
+}
+
+func (a *api) exec(q string, args ...any) error {
+	a.t.Helper()
+	return a.db.Write(a.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(a.ctx(), q, args...)
+		return err
+	})
 }

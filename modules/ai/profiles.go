@@ -129,6 +129,9 @@ func keyOf(in ProfileInput) provider.Secret {
 func (s *Service) AddProfile(ctx context.Context, who string, in ProfileInput) (ProfileView, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.degraded != "" {
+		return ProfileView{}, s.errDegraded()
+	}
 	cur := s.snap.Load()
 	p := buildProfile(in, store.NewID("prof"), keyOf(in))
 	if err := p.Validate(); err != nil {
@@ -176,7 +179,7 @@ func (s *Service) AddProfile(ctx context.Context, who string, in ProfileInput) (
 				return fmt.Errorf("ai: assign new profile: %w", err)
 			}
 		}
-		detail := fmt.Sprintf("%s, %s, model=%s", p.Kind, p.Location, p.Model)
+		detail := fmt.Sprintf("%s, %s, model=%s, host=%s", p.Kind, p.Location, p.Model, hostOf(p.BaseURL))
 		if p.APIKey.IsSet() {
 			detail += ", key set"
 		}
@@ -199,18 +202,18 @@ func (s *Service) AddProfile(ctx context.Context, who string, in ProfileInput) (
 func (s *Service) EditProfile(ctx context.Context, who, id string, in ProfileInput) (ProfileView, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.degraded != "" {
+		return ProfileView{}, s.errDegraded()
+	}
 	cur := s.snap.Load()
 	old, ok := cur.find(id)
 	if !ok {
 		return ProfileView{}, profileNotFound()
 	}
-	key, secretID, newKey := keyOf(in), old.secretID, in.APIKey != ""
-	switch {
-	case newKey:
-	case old.APIKey.IsSet() && old.Kind == in.Kind:
-		key = old.APIKey
-	case old.APIKey.IsSet() && in.Location == LocationCloud:
-		return ProfileView{}, apierr.New(http.StatusBadRequest, "key_required", "Changing the provider type needs the API key entered again.")
+	secretID, newKey := old.secretID, in.APIKey != ""
+	key, _, kerr := keyFor(old, in, in.BaseURL)
+	if kerr != nil {
+		return ProfileView{}, kerr
 	}
 	p := buildProfile(in, id, key)
 	if err := p.Validate(); err != nil {
@@ -271,7 +274,7 @@ func (s *Service) EditProfile(ctx context.Context, who, id string, in ProfileInp
 				return fmt.Errorf("ai: delete key: %w", err)
 			}
 		}
-		detail := fmt.Sprintf("%s, %s, model=%s", p.Kind, p.Location, p.Model)
+		detail := fmt.Sprintf("%s, %s, model=%s, host=%s", p.Kind, p.Location, p.Model, hostOf(p.BaseURL))
 		if newKey {
 			detail += ", key changed"
 		}
@@ -299,6 +302,9 @@ func (s *Service) EditProfile(ctx context.Context, who, id string, in ProfileInp
 func (s *Service) DeleteProfile(ctx context.Context, who, id string) ([]Job, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.degraded != "" {
+		return nil, s.errDegraded()
+	}
 	cur := s.snap.Load()
 	old, ok := cur.find(id)
 	if !ok {
@@ -357,23 +363,32 @@ func (s *Service) DeleteProfile(ctx context.Context, who, id string) ([]Job, err
 }
 
 // probeTimeout bounds one connection test (three tiny requests).
+// probeTimeout bounds one connection test (three tiny requests).
 const probeTimeout = 60 * time.Second
 
-// TestProfile tries a saved or draft profile with three tiny requests. A saved profile with no new key is tested with its stored
-// key. Nothing is saved; the test is audited (without the key) and its tokens count in the day's usage (PRE-3).
+// auditTimeout bounds the write of the audit row of a test when the request is already gone.
+const auditTimeout = 10 * time.Second
+
+// TestProfile tries a saved or draft profile with three tiny requests. A saved profile is tested with its stored key only while the
+// provider type and the origin of the address are the saved ones (M1); another address needs the key entered again. Nothing is
+// saved. The test is checked against the caps before it runs and counted after (L5), and it is audited with the host it went to
+// (never the key), also when the request is cancelled while the key is on its way (M2).
 func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) (TestResult, error) {
 	cur := s.snap.Load()
 	id, key := "draft", keyOf(in)
 	name := strings.TrimSpace(in.Name)
+	profileCap := MaxDailyCap // a draft is limited by the shared cap only; a saved profile also by its own
+	exceptID := ""
 	if in.ID != "" {
 		old, ok := cur.find(in.ID)
 		if !ok {
 			return TestResult{}, profileNotFound()
 		}
-		id = old.ID
-		if in.APIKey == "" && old.APIKey.IsSet() && old.Kind == in.Kind {
-			key = old.APIKey
+		var kerr error
+		if key, _, kerr = keyFor(old, in, in.BaseURL); kerr != nil {
+			return TestResult{}, kerr
 		}
+		id, exceptID, profileCap = old.ID, old.ID, old.DailyCap
 		if name == "" {
 			name = old.Name
 		}
@@ -381,20 +396,35 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 	if name == "" {
 		name = "Test"
 	}
-	in.Name, in.DailyCap = name, MinDailyCap
+	if cur.nameTaken(name, exceptID) {
+		return TestResult{}, duplicateName()
+	}
+	in.Name, in.DailyCap = name, profileCap
 	p := buildProfile(in, id, key)
 	if err := p.Validate(); err != nil {
 		return TestResult{}, mapErr(err)
 	}
 	pctx, cancel := context.WithTimeout(ctx, probeTimeout)
 	defer cancel()
-	res, probeErr := s.router.Probe(pctx, p, s.cfg.Clock)
+	res, down, probeErr := s.router.Probe(pctx, p, s.cfg.Clock)
+	if errors.Is(probeErr, ErrCapped) || errors.Is(probeErr, ErrProfileCapped) {
+		// nothing was sent: no audit row is needed for a key that did not leave the box
+		return TestResult{}, capError(probeErr, s.snap.Load().cfg.DailyCap)
+	}
 	outcome := "ok"
 	if probeErr != nil {
 		outcome = "failed"
 	}
-	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		return s.auditTx(ctx, tx, who, "ai.profile.test", name, fmt.Sprintf("model=%s, result=%s", p.Model, outcome))
+	// The key may already have left the box, so the audit row is written whatever happened to the request.
+	actx, acancel := context.WithTimeout(context.WithoutCancel(ctx), auditTimeout)
+	defer acancel()
+	if err := s.cfg.DB.Write(actx, func(tx *sql.Tx) error {
+		if down != nil {
+			if err := s.auditTx(actx, tx, who, "ai.downgrade", string(down.From)+"->"+string(down.To), clipRunes(down.Reason, 300)); err != nil {
+				return err
+			}
+		}
+		return s.auditTx(actx, tx, who, "ai.test", name, fmt.Sprintf("model=%s, host=%s, result=%s", p.Model, hostOf(p.BaseURL), outcome))
 	}); err != nil {
 		return TestResult{}, err
 	}
@@ -408,19 +438,46 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 		Capabilities: Capabilities{Tools: res.Tools, Structured: res.Structured}}, nil
 }
 
-// probeFailure maps a provider error to the API error. The text never repeats the provider's message, the URL or the key.
+func clipRunes(s string, n int) string {
+	s = strings.ToValidUTF8(strings.ReplaceAll(s, "\x00", ""), "�")
+	if r := []rune(s); len(r) > n {
+		return string(r[:n])
+	}
+	return s
+}
+
+// capError is the 429 of a test that the caps stopped.
+func capError(err error, sharedCap int) error {
+	if errors.Is(err, ErrProfileCapped) {
+		return apierr.New(http.StatusTooManyRequests, "daily_cap", "This profile has used its own daily token cap. Raise it in Settings, AI assistant, or wait until tomorrow.")
+	}
+	return apierr.New(http.StatusTooManyRequests, "daily_cap", fmt.Sprintf("Today's %s token cap is used up and the tier is already the minimum. Raise the cap in Settings, AI assistant, or wait until tomorrow.", number(sharedCap)))
+}
+
+// probeFailure maps a provider error to the API error. The text never repeats the provider's message, the URL or the key. A
+// provider that could not be reached (dial error, timeout) is `unreachable`; one that answered but cannot be used is `provider_error`.
 func probeFailure(err error, baseURL string) error {
 	host := "the server"
 	if u, perr := provider.ParseBaseURL(baseURL); perr == nil {
 		host = u.Host
 	}
+	var pe *provider.Error
+	status := 0
+	if errors.As(err, &pe) {
+		status = pe.Status
+	}
+	bad := func(msg string) error { return apierr.New(http.StatusBadGateway, "provider_error", msg) }
 	switch {
+	case errors.Is(err, provider.ErrAuth) && status == http.StatusForbidden:
+		return bad(fmt.Sprintf("%s accepted the connection but refused this key for this request (HTTP 403). Check the permission of the key for this model.", host))
 	case errors.Is(err, provider.ErrAuth):
 		return apierr.New(http.StatusUnauthorized, "key_rejected", "The provider rejected the key (HTTP 401). Check the key has not expired and belongs to this provider.")
 	case errors.Is(err, provider.ErrNoWorkspace):
-		return apierr.New(http.StatusBadGateway, "unreachable", "This Anthropic key is not tied to a workspace. Create the API key inside a workspace in the Anthropic console and use that key.")
+		return bad("This Anthropic key is not tied to a workspace. Create the API key inside a workspace in the Anthropic console and use that key.")
+	case errors.Is(err, provider.ErrRateLimited):
+		return bad(fmt.Sprintf("%s is rate-limiting this key; try again later.", host))
 	case errors.Is(err, provider.ErrNetwork), errors.Is(err, provider.ErrTimeout):
 		return apierr.New(http.StatusBadGateway, "unreachable", fmt.Sprintf("Could not connect to %s. Check the address, the box's network and the firewall.", host))
 	}
-	return apierr.New(http.StatusBadGateway, "unreachable", fmt.Sprintf("%s answered, but not in a way Vedette can use. Check the model name and that the address is the API root.", host))
+	return bad(fmt.Sprintf("%s answered, but not in a way Vedette can use. Check the model name and the address.", host))
 }

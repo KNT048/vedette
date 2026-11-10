@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
@@ -120,11 +122,12 @@ func cloneAssign(a Assignments) Assignments {
 // Every change is validated against the router's rules first, then written with its audit row in one transaction, and only then
 // handed to the router, so the router never runs a state the rules forbid (INV-3).
 type Service struct {
-	cfg    Config
-	router *Router
-	meter  *Meter
-	mu     sync.Mutex // serialises changes
-	snap   atomic.Pointer[snapshot]
+	cfg      Config
+	router   *Router
+	meter    *Meter
+	degraded string     // why the saved settings could not be loaded; "" = loaded
+	mu       sync.Mutex // serialises changes
+	snap     atomic.Pointer[snapshot]
 }
 
 // New loads the settings and builds the router and the meter. A saved state that the rules refuse is an error: the service does
@@ -139,11 +142,6 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 	if cfg.Log == nil {
 		cfg.Log = slog.New(slog.DiscardHandler)
 	}
-	s := &Service{cfg: cfg}
-	sn, err := s.load(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("ai: load settings: %w", err)
-	}
 	zone := ""
 	if cfg.Zone != nil {
 		zone = cfg.Zone(ctx)
@@ -155,14 +153,46 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 			return nil, err
 		}
 	}
-	if s.meter, err = NewMeter(MeterConfig{Clock: cfg.Clock, Location: loc, GlobalCap: sn.cfg.DailyCap, Tier: sn.cfg.Tier}); err != nil {
-		return nil, err
+	s := &Service{cfg: cfg}
+	sn, err := s.load(ctx)
+	if err == nil {
+		err = s.build(sn, loc)
 	}
-	if s.router, err = NewRouter(RouterConfig{Profiles: sn.libProfiles(), Assignments: sn.assign, Meter: s.meter, Factory: cfg.Factory}); err != nil {
-		return nil, fmt.Errorf("ai: saved settings: %w", err)
+	if err != nil {
+		// A saved state that cannot be loaded (a key that cannot be opened, a profile that a newer rule refuses) must not stop the
+		// box from starting: the AI module starts with no profiles, says so in the log, reports itself as degraded, and refuses
+		// every change, so the rows that could not be read are not overwritten blind.
+		s.degraded = err.Error()
+		cfg.Log.ErrorContext(ctx, "ai: the saved AI settings could not be loaded; the module starts without profiles and refuses changes until this is fixed", "error", err)
+		empty := &snapshot{cfg: DefaultSettings(), assign: Assignments{Jobs: make(map[Job]Slot, len(Jobs()))}}
+		if err := s.build(empty, loc); err != nil {
+			return nil, err
+		}
 	}
-	s.snap.Store(sn)
 	return s, nil
+}
+
+// build makes the meter and the router of a snapshot and publishes it.
+func (s *Service) build(sn *snapshot, loc *time.Location) error {
+	meter, err := NewMeter(MeterConfig{Clock: s.cfg.Clock, Location: loc, GlobalCap: sn.cfg.DailyCap, Tier: sn.cfg.Tier})
+	if err != nil {
+		return err
+	}
+	router, err := NewRouter(RouterConfig{Profiles: sn.libProfiles(), Assignments: sn.assign, Meter: meter, Factory: s.cfg.Factory})
+	if err != nil {
+		return fmt.Errorf("saved settings: %w", err)
+	}
+	s.meter, s.router = meter, router
+	s.snap.Store(sn)
+	return nil
+}
+
+// Degraded is empty when the saved settings were loaded. Otherwise it says why they were not (no secret in it), and the service has
+// no profiles and refuses every change.
+func (s *Service) Degraded() string { return s.degraded }
+
+func (s *Service) errDegraded() error {
+	return apierr.New(http.StatusConflict, "ai_unavailable", "The saved AI settings could not be loaded, so nothing can be changed until that is fixed. The box log says why.")
 }
 
 func (s *Service) load(ctx context.Context) (*snapshot, error) {

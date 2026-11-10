@@ -44,6 +44,9 @@ func (s *Service) Assignments() AssignmentsView { return viewOf(s.snap.Load().as
 func (s *Service) SetAssignments(ctx context.Context, who string, in AssignmentsView) (AssignmentsView, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.degraded != "" {
+		return AssignmentsView{}, s.errDegraded()
+	}
 	cur := s.snap.Load()
 	asg := Assignments{InternalOnly: in.InternalOnly, Jobs: make(map[Job]Slot, len(in.Jobs))}
 	for name, sl := range in.Jobs {
@@ -171,6 +174,9 @@ func (s *Service) Config() ConfigView {
 func (s *Service) SetConfig(ctx context.Context, who string, in Settings) (ConfigView, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.degraded != "" {
+		return ConfigView{}, s.errDegraded()
+	}
 	if err := in.validate(); err != nil {
 		return ConfigView{}, mapErr(err)
 	}

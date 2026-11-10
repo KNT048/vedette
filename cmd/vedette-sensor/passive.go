@@ -14,14 +14,26 @@ import (
 	"github.com/knt048/vedette/modules/sensor-passive/capture"
 )
 
+// passiveFlags are the options of `vedette-sensor passive`.
+type passiveFlags struct{ core, creds *string }
+
+// newPassiveFlags builds the flag set of `passive`. The test that checks the Exec= line of the sensor Quadlet unit (host/ops owns
+// the unit text, D-123) parses it with this same constructor, so a flag renamed here without the unit following fails a test.
+func newPassiveFlags(stdout io.Writer) (*flag.FlagSet, passiveFlags) {
+	fs := flag.NewFlagSet("vedette-sensor passive", flag.ContinueOnError)
+	fs.SetOutput(stdout)
+	return fs, passiveFlags{
+		core:  fs.String("core", "https://127.0.0.1:8444", "address of core's sensor listener"),
+		creds: fs.String("creds", "/var/lib/vedette-creds/sensor.pem", "credentials bundle written by core (read only)"),
+	}
+}
+
 // runPassive is `vedette-sensor passive --core URL --creds FILE`: the capture of the sensor container. It captures on the card
 // core names in its configuration, with the filters core sends, reports what it heard, and says hello every 30 seconds with
 // the cards of this machine. It opens no port and sends no frame (INV-1, INV-2).
 func runPassive(ctx context.Context, args []string, stdout io.Writer, logger *slog.Logger) error {
-	fs := flag.NewFlagSet("vedette-sensor passive", flag.ContinueOnError)
-	fs.SetOutput(stdout)
-	coreURL := fs.String("core", "https://127.0.0.1:8444", "address of core's sensor listener")
-	creds := fs.String("creds", "/var/lib/vedette-creds/sensor.pem", "credentials bundle written by core (read only)")
+	fs, f := newPassiveFlags(stdout)
+	coreURL, creds := f.core, f.creds
 	if err := fs.Parse(args); err != nil {
 		return err
 	}

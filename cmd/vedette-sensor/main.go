@@ -48,12 +48,25 @@ func run(ctx context.Context, args []string, stdout io.Writer, logger *slog.Logg
 	return fmt.Errorf("unknown command %q (known: passive, active)", args[0])
 }
 
-func runActive(ctx context.Context, args []string, stdout io.Writer, logger *slog.Logger) error {
+// activeFlags are the options of `vedette-sensor active`.
+type activeFlags struct{ core, creds, nmap *string }
+
+// newActiveFlags builds the flag set of `active`. The test that checks the Exec= line of the scan Quadlet unit
+// (host/ops owns the unit text, D-123) parses it with this same constructor, so a flag renamed here without the
+// unit following fails a test.
+func newActiveFlags(stdout io.Writer) (*flag.FlagSet, activeFlags) {
 	fs := flag.NewFlagSet("vedette-sensor active", flag.ContinueOnError)
 	fs.SetOutput(stdout)
-	coreURL := fs.String("core", "https://127.0.0.1:8444", "address of core's sensor listener")
-	creds := fs.String("creds", "/var/lib/vedette-creds/sensor.pem", "credentials bundle written by core (read only)")
-	nmap := fs.String("nmap", "/usr/bin/nmap", "the OS package's nmap")
+	return fs, activeFlags{
+		core:  fs.String("core", "https://127.0.0.1:8444", "address of core's sensor listener"),
+		creds: fs.String("creds", "/var/lib/vedette-creds/sensor.pem", "credentials bundle written by core (read only)"),
+		nmap:  fs.String("nmap", "/usr/bin/nmap", "the OS package's nmap"),
+	}
+}
+
+func runActive(ctx context.Context, args []string, stdout io.Writer, logger *slog.Logger) error {
+	fs, f := newActiveFlags(stdout)
+	coreURL, creds, nmap := f.core, f.creds, f.nmap
 	if err := fs.Parse(args); err != nil {
 		return err
 	}

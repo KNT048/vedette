@@ -9,6 +9,7 @@ import (
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/exposure"
+	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/scan"
@@ -161,5 +162,16 @@ func (e scanExternal) Targets(ctx context.Context) ([]scan.ExternalTarget, error
 	return out, nil
 }
 
-// scanJobs is the Jobs func of the scan entry in wiredModules.
+// scanJobs is the Jobs func of the scan entry in wiredModules: KEV rescans, the schedule, retention, recovery (S-SCAN-2, S-SCAN-4).
 func scanJobs(d deps) []jobs.Job { return scan.Jobs(scanService(d)) }
+
+// onNewKEVForScan queues the rescan of a new KEV entry that has a scan template (scan INV-9); the job does the scan.
+func onNewKEVForScan(d deps) func(ctx context.Context, data any) error {
+	return func(ctx context.Context, data any) error {
+		ev, ok := data.(feeds.NewKEVEvent)
+		if !ok {
+			return fmt.Errorf("unexpected payload %T", data)
+		}
+		return scanService(d).OnNewKEV(ctx, scan.NewKEV{CVE: ev.CVE, Vendor: ev.Vendor, Product: ev.Product, HasTemplate: ev.HasTemplate})
+	}
+}

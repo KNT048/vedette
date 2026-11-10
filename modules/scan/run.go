@@ -183,14 +183,21 @@ type runSpec struct {
 	note    *string
 	user    string
 	ids     []string
-	picked  []string // the ids picked by a person that needed the pick (D-126 (2)); empty for schedules and KEV rescans
-	first   Current  // the device the run begins with: shown as current from the start (POST-1)
+	picked  []string  // the ids picked by a person that needed the pick (D-126 (2)); empty for schedules and KEV rescans
+	first   Current   // the device the run begins with: shown as current from the start (POST-1)
+	onlyCVE string    // "": every CVE of the devices' findings; else only this one (the KEV rescan, INV-9)
+	end     time.Time // zero: none; else the run stops by itself then (the end of the window of a scheduled run)
 }
 
 // start writes the run row and its audit row, then runs it in the background.
 func (s *Service) start(ctx context.Context, sp runSpec) (RunView, error) {
 	id := store.NewID("run")
-	rctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	base := context.WithoutCancel(ctx)
+	rctx, cancel := context.WithCancel(base)
+	if !sp.end.IsZero() { // by the injected clock, so a test can put the end close
+		cancel()
+		rctx, cancel = context.WithTimeout(base, sp.end.Sub(s.now()))
+	}
 	l := &live{id: id, cancel: cancel, done: make(chan struct{})}
 	// The slot is taken before the row is written, so reapOrphan never mistakes this run for one a restart left behind.
 	s.mu.Lock()
@@ -247,7 +254,7 @@ VALUES (?, ?, ?, ?, ?, 'running', ?, ?, ?, ?)`, id, sp.trigger, sp.note, now, sp
 	go func() {
 		defer close(l.done)
 		defer cancel()
-		s.execute(rctx, id, sp.ids, sp.picked)
+		s.execute(rctx, id, sp)
 		s.mu.Lock()
 		s.live = nil
 		s.mu.Unlock()
@@ -333,20 +340,21 @@ func (s *Service) StopRun(ctx context.Context, user, id string) (RunView, error)
 // execute scans the targets one device at a time. Every device is checked again right before its job leaves core
 // (INV-1); a person's Stop now or an unresponsive device (INV-6) ends the run, and the devices not reached are not
 // touched.
-// picked are the ids whose pick is their consent (M1): each other device is checked as for an automatic run.
-func (s *Service) execute(ctx context.Context, runID string, ids, picked []string) {
+// sp.picked are the ids whose pick is their consent (M1): each other device is checked as for an automatic run.
+func (s *Service) execute(ctx context.Context, runID string, sp runSpec) {
+	ids := sp.ids
 	var rows []RunRow
 	status, reason := "done", ""
 	done, next := 0, len(ids) // devices finished; first device not touched
 	for i, id := range ids {
 		if ctx.Err() != nil {
-			status, reason, next = "stopped", s.stopReason(), i
+			status, reason, next = "stopped", s.stopReason(ctx), i
 			break
 		}
-		got, end := s.scanTarget(ctx, runID, id, i, slices.Contains(picked, id))
+		got, end := s.scanTarget(ctx, runID, id, i, sp)
 		rows = append(rows, got...)
 		if end == "stopped" {
-			status, reason, next = "stopped", s.stopReason(), i+1
+			status, reason, next = "stopped", s.stopReason(ctx), i+1
 			break
 		}
 		if end != "" {
@@ -383,7 +391,8 @@ func (s *Service) devicesByID(ctx context.Context) (map[string]Device, error) {
 
 // scanTarget scans one device. end is "" to go on, "stopped" after Stop now, or the stop reason of an
 // unresponsive device when stop_on_unresponsive is set.
-func (s *Service) scanTarget(ctx context.Context, runID, id string, index int, explicit bool) (rows []RunRow, end string) {
+func (s *Service) scanTarget(ctx context.Context, runID, id string, index int, sp runSpec) (rows []RunRow, end string) {
+	explicit := slices.Contains(sp.picked, id) // M1: the pick is per device
 	st, err := loadSettings(ctx, s.cfg.DB.Reader())
 	if err != nil {
 		return s.failed(ctx, id, err), ""
@@ -417,7 +426,7 @@ func (s *Service) scanTarget(ctx context.Context, runID, id string, index int, e
 	if careful {
 		rate = max(1, st.Rate/4) // D-126 (2): fragile and unclassified devices at a quarter of the speed
 	}
-	return s.scanDevice(ctx, runID, d, st, rate)
+	return s.scanDevice(ctx, runID, d, st, rate, sp.onlyCVE)
 }
 
 func (s *Service) skip(d Device, why string) RunRow {
@@ -452,7 +461,7 @@ type check struct {
 
 // plan chooses what a device is checked for: each CVE of its findings that has a template in the pack (at most
 // nucleiargv.MaxTemplates templates); a CVE without a template is a no_template row and sends nothing (INV-8).
-func (s *Service) plan(ctx context.Context, d Device) (checks []check, rows []RunRow, err error) {
+func (s *Service) plan(ctx context.Context, d Device, onlyCVE string) (checks []check, rows []RunRow, err error) {
 	if s.cfg.Findings == nil {
 		return nil, nil, nil
 	}
@@ -463,7 +472,7 @@ func (s *Service) plan(ctx context.Context, d Device) (checks []check, rows []Ru
 	n := 0
 	seen := map[string]bool{}
 	for _, f := range fs {
-		if dismissed(f.Status) {
+		if dismissed(f.Status) || (onlyCVE != "" && f.CVE != onlyCVE) {
 			continue
 		}
 		if seen[f.CVE] {
@@ -520,8 +529,8 @@ func endpoints(d Device) []nucleiargv.Target {
 }
 
 // scanDevice sends one job for the device and turns what nuclei printed into result rows and finding updates.
-func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Settings, rate int) ([]RunRow, string) {
-	checks, rows, err := s.plan(ctx, d)
+func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Settings, rate int, onlyCVE string) ([]RunRow, string) {
+	checks, rows, err := s.plan(ctx, d, onlyCVE)
 	if err != nil {
 		return s.failed(ctx, d.ID, err), ""
 	}

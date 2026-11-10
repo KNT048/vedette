@@ -74,3 +74,15 @@ func (h *ScanHandlers) ScanGetScansProbesCsv(ctx context.Context) (oas.ScanGetSc
 	}
 	return oas.ScanGetScansProbesCsvOK{Data: r}, nil
 }
+
+// ScanGetScansEvents implements scan_get_scans_events (viewer): the log of automatic rescans (S-SCAN-2).
+func (h *ScanHandlers) ScanGetScansEvents(ctx context.Context) (*oas.ScanGetScansEventsOK, error) {
+	items, auto, err := h.svc.Events(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return into[oas.ScanGetScansEventsOK](struct {
+		Items      []EventView `json:"items"`
+		AutoRescan bool        `json:"auto_rescan"`
+	}{items, auto})
+}

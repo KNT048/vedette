@@ -61,3 +61,7 @@
 ## Modifying: `feeds.KEVMirrorURL`, `Deps.KEVPrimary/KEVFallback`, `fallbackWorthy`, `Feed.answered_by` (D-91)
 - `build` (pull.go) is the only place the fallback happens; `raw.githubusercontent.com` for the CISA list is in `PRIVACY.md` flow 1 and Settings → Privacy (`core.json`): a new fallback host means both, in the same commit.
 - `answered_by` is in `contract.ts` (`Feed`), the mock (`sourcesMock.ts`), `api/openapi.json` and `core/api/oas`, and the Settings → Feeds status cell. Migration `0003_feeds_answered_by.sql` adds the column (DATA_MODEL.md is Kiên's: report).
+
+## Modifying: `FeedStatus.kev`, the retired-built-in cleanup in `SeedBuiltins` (D-92)
+- `kev` is in `contract.ts` (`FeedStatus`), the mock (`kevStatus()` in `sourcesMock.ts`, read by `mocks.ts`), `api/openapi.json`, `core/api/oas` and the Home title (`HomePage.tsx`, strings `home.kev*` in `feeds.json`). The Home sentence is the only reader; the hot board's own empty text still says "No newly exploited ..." and does not know the CISA list never loaded (open question).
+- Removing a built-in id from `builtinSources` deletes its row, listings and history on the next start (INV-16): never rename an id to "retire" it, and never reuse a retired id. `PRIVACY.md` flow 1, `core.json` (Settings → Privacy), `THIRD_PARTY_NOTICES.md` and DATA_MODEL.md's id list (Kiên's: report) follow in the same commit (legal.md).

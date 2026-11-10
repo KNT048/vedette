@@ -607,3 +607,24 @@ func TestContract_INV6_ConcurrentMatchesMakeOneFinding(t *testing.T) {
 		t.Fatalf("created %d findings, want 1", total)
 	}
 }
+
+// matchErr makes MatchInput fail for the listed devices; assetsErr makes Assets fail.
+type failingInv struct {
+	*fakeInv
+	matchErr  map[string]error
+	assetsErr error
+}
+
+func (f failingInv) MatchInput(ctx context.Context, id string) (Asset, bool, error) {
+	if err := f.matchErr[id]; err != nil {
+		return Asset{}, false, err
+	}
+	return f.fakeInv.MatchInput(ctx, id)
+}
+
+func (f failingInv) Assets(ctx context.Context, ids []string) (map[string]AssetView, error) {
+	if f.assetsErr != nil {
+		return nil, f.assetsErr
+	}
+	return f.fakeInv.Assets(ctx, ids)
+}

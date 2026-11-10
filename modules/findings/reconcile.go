@@ -2,6 +2,7 @@ package findings
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,6 +11,12 @@ import (
 
 // ReconcileEvery is the pause between two reconcile runs (the job also runs once when the module starts).
 const ReconcileEvery = time.Hour
+
+// RecentKEV is how recent a KEV entry must be for a finding that Reconcile creates to be announced. Reconcile can
+// create thousands of findings at once when the baseline events of the first CISA pull were lost; an entry CISA added
+// within this window is real news a lost new_kev event should still announce, anything older is backlog and, as in D-78,
+// silent. An entry with no known date is backlog.
+const RecentKEV = 7 * 24 * time.Hour
 
 // ReconcileResult says what a reconcile run did.
 type ReconcileResult struct {
@@ -21,9 +28,12 @@ type ReconcileResult struct {
 // Reconcile heals what a lost event left behind (D-144: the bus is best-effort, findings owns the catch-up). It does the
 // work of OnMatchChanged for every device and the work of OnAssetDeleted for every device that findings still has
 // findings for but inventory no longer has. It reads only through Inventory and Feeds, writes one device per transaction
-// (the writer is never held for the whole run), honours ctx between devices, and is idempotent: a pair that exists is
-// only touched, so it publishes findings.finding.created only for findings it creates. A device list that cannot be read
-// is an error before anything is removed: a short list is never taken for "these devices are gone".
+// (the writer is never held for the run), honours ctx between devices, and is idempotent: a pair that exists is only
+// touched (its last_seen moves), so it publishes findings.finding.created only for findings it creates. Those are
+// written under ServiceConfig.Backlog unless their KEV entry is recent (RecentKEV), so a lost baseline is not announced
+// finding by finding. A device list that cannot be read is an error before anything is removed: a short list is never
+// taken for "these devices are gone". An error on one device is logged and the run goes on (the orphan pass included);
+// the errors come back together at the end.
 func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 	var res ReconcileResult
 	if err := ctx.Err(); err != nil {
@@ -37,6 +47,16 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 	if err != nil {
 		return res, fmt.Errorf("findings: reconcile: reading the exploited list: %w", err)
 	}
+	backlog, recent := s.splitByNews(vulns)
+	var failed []error
+	skip := func(id string, err error) error { // a device that failed is logged and skipped; a cancelled run stops
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		s.cfg.Log.WarnContext(ctx, "findings reconcile skipped a device", "device", id, "error", err)
+		failed = append(failed, fmt.Errorf("device %q: %w", id, err))
+		return nil
+	}
 	live := make(map[string]bool, len(ids))
 	for _, id := range ids {
 		live[id] = true
@@ -48,21 +68,27 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		}
 		a, ok, err := s.cfg.Inventory.MatchInput(ctx, id)
 		if err != nil {
-			return res, fmt.Errorf("findings: reconcile: reading device %q: %w", id, err)
+			if err := skip(id, fmt.Errorf("reading the device: %w", err)); err != nil {
+				return res, err
+			}
+			continue
 		}
 		if !ok {
-			continue // deleted since the list was read: the orphan pass below sees it
+			continue // deleted since the list was read; it is in live, so the orphan pass leaves it and the next run removes its findings
 		}
-		up, err := s.upsertWithin(ctx, a, vulns)
+		created, err := s.upsertSplit(ctx, a, backlog, recent)
 		if err != nil {
-			return res, err
+			if err := skip(id, err); err != nil {
+				return res, err
+			}
+			continue
 		}
 		res.Devices++
-		res.Created += len(up.Created)
+		res.Created += created
 	}
 	orphans, err := s.orphanAssets(ctx, live)
 	if err != nil {
-		return res, err
+		return res, errors.Join(append(failed, err)...)
 	}
 	for _, id := range orphans {
 		if err := ctx.Err(); err != nil {
@@ -70,18 +96,62 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		}
 		known, err := s.cfg.Inventory.Assets(ctx, []string{id}) // a second look: a device created after the list was read is not an orphan
 		if err != nil {
-			return res, fmt.Errorf("findings: reconcile: checking device %q: %w", id, err)
+			if err := skip(id, fmt.Errorf("checking the device: %w", err)); err != nil {
+				return res, err
+			}
+			continue
 		}
 		if _, ok := known[id]; ok {
 			continue
 		}
 		n, err := s.deleteWithin(ctx, id)
 		if err != nil {
-			return res, err
+			if err := skip(id, err); err != nil {
+				return res, err
+			}
+			continue
 		}
 		res.Orphans += n
 	}
-	return res, nil
+	return res, errors.Join(failed...)
+}
+
+// splitByNews separates the entries whose findings are announced (added to KEV within RecentKEV) from the backlog.
+// Without a Backlog hook everything is "recent": nothing can be marked, so nothing is held back.
+func (s *Service) splitByNews(vulns []Vuln) (backlog, recent []Vuln) {
+	if s.cfg.Backlog == nil {
+		return nil, vulns
+	}
+	cut := s.now().Add(-RecentKEV)
+	for _, v := range vulns {
+		if v.DateAdded.IsZero() || v.DateAdded.Before(cut) {
+			backlog = append(backlog, v)
+		} else {
+			recent = append(recent, v)
+		}
+	}
+	return backlog, recent
+}
+
+// upsertSplit matches one device against both lists, one write each, the backlog under the Backlog mark. It returns how
+// many findings it created.
+func (s *Service) upsertSplit(ctx context.Context, a Asset, backlog, recent []Vuln) (int, error) {
+	created := 0
+	if len(backlog) > 0 {
+		r, err := s.upsertWithin(s.cfg.Backlog(ctx), a, backlog)
+		if err != nil {
+			return created, err
+		}
+		created += len(r.Created)
+	}
+	if len(recent) > 0 {
+		r, err := s.upsertWithin(ctx, a, recent)
+		if err != nil {
+			return created, err
+		}
+		created += len(r.Created)
+	}
+	return created, nil
 }
 
 func (s *Service) upsertWithin(ctx context.Context, a Asset, vulns []Vuln) (UpsertResult, error) {

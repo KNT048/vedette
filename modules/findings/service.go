@@ -20,6 +20,10 @@ type ServiceConfig struct {
 	Feeds     Feeds
 	Log       *slog.Logger
 	Clock     func() time.Time // nil: time.Now
+	// Backlog marks the context of work whose findings are backlog, not news: Reconcile writes findings of KEV entries
+	// older than RecentKEV under it, and the binary makes the bus carry it to notify (D-78: backlog is silent).
+	// nil: nothing is marked. findings does not know notify; the binary supplies notify.WithBaseline.
+	Backlog func(ctx context.Context) context.Context
 }
 
 // Service owns fnd_finding and fnd_finding_history. Every mutation runs in one transaction with its

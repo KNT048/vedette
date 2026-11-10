@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
 
+	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/jobs"
 )
 
@@ -199,4 +201,127 @@ func TestContract_INV9_ReconcileJobRunsOnlyWhileFindingsIsOn(t *testing.T) {
 		cancel()
 		synctest.Wait()
 	})
+}
+
+// ---- review of #170: backlog is silent, news is announced, one bad device does not stop the run ----
+
+type baselineKey struct{}
+
+// markPub records, for every findings.finding.created, whether its context carried the backlog mark.
+type markPub struct {
+	mu     sync.Mutex
+	marked map[string]bool // cve -> marked
+}
+
+func (p *markPub) Publish(ctx context.Context, name string, payload any) error {
+	if name != EventCreated {
+		return nil
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.marked == nil {
+		p.marked = map[string]bool{}
+	}
+	p.marked[payload.(CreatedEvent).CVE] = ctx.Value(baselineKey{}) != nil
+	return nil
+}
+
+// reconciler is the env's database with a service that has the Backlog hook and the marking publisher.
+func (e *env) reconciler(pub Publisher, inv Inventory) *Service {
+	e.t.Helper()
+	svc, err := NewService(ServiceConfig{DB: e.db, Audit: audit.New(func() time.Time { return *e.clock }), Publisher: pub, Inventory: inv, Feeds: e.feeds,
+		Log: slog.New(slog.DiscardHandler), Clock: func() time.Time { return *e.clock },
+		Backlog: func(ctx context.Context) context.Context { return context.WithValue(ctx, baselineKey{}, true) }})
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return svc
+}
+
+func kevVuln(cve string, added time.Time) Vuln {
+	v := qnapVuln()
+	v.CVE, v.DateAdded = cve, added
+	return v
+}
+
+func TestContract_INV9_ReconcileKeepsBacklogSilentAndAnnouncesRecentNews(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.feeds.vulns = []Vuln{
+		kevVuln("CVE-2022-0001", t0.AddDate(-4, 0, 0)), // old: backlog, even though the device only now has the finding
+		kevVuln("CVE-2026-0002", t0.Add(-48*time.Hour)), // added to KEV two days ago: real news that a lost new_kev event should still announce
+		kevVuln("CVE-2022-0003", time.Time{}),           // unknown date: treated as backlog, never as news
+	}
+	pub := &markPub{}
+	res, err := e.reconciler(pub, e.inv).Reconcile(t.Context())
+	if err != nil || res.Created != 3 {
+		t.Fatalf("%+v %v", res, err)
+	}
+	want := map[string]bool{"CVE-2022-0001": true, "CVE-2026-0002": false, "CVE-2022-0003": true}
+	for cve, marked := range want {
+		got, seen := pub.marked[cve]
+		if !seen || got != marked {
+			t.Errorf("%s: published=%t marked as backlog=%t, want marked=%t", cve, seen, got, marked)
+		}
+	}
+}
+
+func TestContract_INV9_ReconcileAfterALostBaselinePublishesOnlyBacklogMarkedEvents(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.feeds.vulns = nil
+	for i := range 40 { // a PC that matches many old KEV entries: nothing may be announced
+		e.feeds.vulns = append(e.feeds.vulns, kevVuln("CVE-2019-"+strconv.Itoa(1000+i), t0.AddDate(-3, 0, 0)))
+	}
+	pub := &markPub{}
+	if _, err := e.reconciler(pub, e.inv).Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if len(pub.marked) != 40 {
+		t.Fatalf("published %d created events, want 40", len(pub.marked))
+	}
+	for cve, marked := range pub.marked {
+		if !marked {
+			t.Errorf("%s would be announced", cve)
+		}
+	}
+}
+
+func TestReconcileOneBadDeviceDoesNotStopTheRun(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.inv.match["a-2"] = Asset{ID: "a-2", Name: "nas02", Software: nas("").Software}
+	e.inv.assets["a-2"] = AssetView{ID: "a-2", IP: "192.168.10.22", Kind: "nas", Display: "Photo Station"}
+	// an orphan: findings for a device inventory no longer has
+	if _, err := e.svc.UpsertFromMatch(t.Context(), Asset{ID: "a-gone", Name: "old", Software: nas("").Software}, e.feeds.vulns); err != nil {
+		t.Fatal(err)
+	}
+	inv := failingInv{fakeInv: e.inv, matchErr: map[string]error{"a-1": errors.New("inventory hiccup")}}
+	res, err := e.reconciler(&fakePub{}, inv).Reconcile(t.Context())
+	if err == nil {
+		t.Fatal("a device that failed must show in the returned error")
+	}
+	if res.Devices != 1 || res.Orphans != 1 {
+		t.Fatalf("result %+v: the good device must be matched and the orphan removed after the bad one", res)
+	}
+	if e.count(`SELECT count(*) FROM fnd_finding WHERE asset_id = 'a-2'`) != 1 || e.count(`SELECT count(*) FROM fnd_finding WHERE asset_id = 'a-gone'`) != 0 {
+		t.Fatal("the run stopped at the bad device")
+	}
+}
+
+func TestReconcileRemovesNothingWhenAskingInventoryAboutADeviceFails(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.seed()
+	e.inv.mu.Lock()
+	delete(e.inv.assets, "a-1")
+	delete(e.inv.match, "a-1") // looks like an orphan, but inventory cannot confirm it
+	e.inv.mu.Unlock()
+	inv := failingInv{fakeInv: e.inv, assetsErr: errors.New("inventory is busy")}
+	if _, err := e.reconciler(&fakePub{}, inv).Reconcile(t.Context()); err == nil {
+		t.Fatal("expected the Assets error")
+	}
+	if e.count(`SELECT count(*) FROM fnd_finding`) != 1 {
+		t.Fatal("a finding was removed without a confirmation from inventory")
+	}
 }

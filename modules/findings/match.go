@@ -65,7 +65,8 @@ type Vuln struct {
 	Vendor     string // KEV vendorProject
 	Product    string // KEV product
 	Ransomware bool
-	EPSS       float64 // 0 when unknown
+	EPSS       float64   // 0 when unknown
+	DateAdded  time.Time // when CISA added the entry to KEV; zero when unknown (Reconcile treats that as backlog)
 	Affected   []Affected
 }
 

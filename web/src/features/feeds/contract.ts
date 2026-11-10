@@ -101,6 +101,7 @@ export const Feed = z.object({
   status: z.enum(['ok', 'error', 'never']),
   error: z.string().nullable(),
   license: z.string().nullable(),
+  answered_by: z.string().nullable().describe('The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror" (D-91); null for every other feed and before the first good pull'),
 })
 export const FeedList = z.object({ items: z.array(Feed) })
 export const FeedPatch = z.object({

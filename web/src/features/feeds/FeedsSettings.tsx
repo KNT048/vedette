@@ -46,6 +46,7 @@ function Tables({ items }: { items: Feed[] }) {
   const status = (f: Feed) => (
     <span className="grid gap-0.5">
       <span><Chip tone={f.status === 'ok' ? 'ok' : f.status === 'error' ? 'danger' : 'off'}>{t(`status.${f.status}`)}</Chip></span>
+      {f.answered_by ? <span className="text-[12px] text-muted">{t('row.answeredBy', { source: f.answered_by })}</span> : null}
       {f.error ? <span className="max-w-64 text-[12px] text-muted">{f.error}</span> : null}
     </span>
   )

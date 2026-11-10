@@ -76,6 +76,7 @@ type sourceRow struct {
 	ETag           *string
 	LastModified   *string
 	CatalogVersion *string
+	AnsweredBy     *string // D-91: "CISA" or "CISA GitHub mirror", only for the CISA list
 }
 
 func (r sourceRow) state() State {
@@ -92,7 +93,7 @@ func (r sourceRow) state() State {
 
 const sourceCols = `id, builtin, name, kind, format, url, default_url, enabled, interval_hours, auth_type, auth_header_name,
 auth_username, secret_id, secret_last4, parser, license, created_at, last_fetch, last_success, failures, records, status,
-error, etag, last_modified, catalog_version, rev`
+error, etag, last_modified, catalog_version, rev, answered_by`
 
 type scanner interface{ Scan(dest ...any) error }
 
@@ -105,7 +106,7 @@ func scanSource(r scanner) (sourceRow, error) {
 	)
 	err := r.Scan(&s.ID, &builtin, &s.Name, &kind, &format, &s.URL, &s.DefaultURL, &enabled, &s.IntervalHours, &auth,
 		&s.HeaderName, &s.Username, &s.SecretID, &s.SecretLast4, &parser, &s.License, &created, &lastFetch, &lastSuccess,
-		&s.Failures, &s.Records, &s.Status, &s.Error, &s.ETag, &s.LastModified, &s.CatalogVersion, &s.Rev)
+		&s.Failures, &s.Records, &s.Status, &s.Error, &s.ETag, &s.LastModified, &s.CatalogVersion, &s.Rev, &s.AnsweredBy)
 	if err != nil {
 		return sourceRow{}, err
 	}
@@ -263,7 +264,7 @@ func updateSettings(ctx context.Context, tx *sql.Tx, id string, enabled bool, ho
 	q := `UPDATE feeds_source SET rev = rev + 1, failures = CASE WHEN ? = 1 AND enabled = 0 THEN 0 ELSE failures END, enabled = ?, interval_hours = ? WHERE id = ?`
 	args := []any{boolInt(enabled), boolInt(enabled), hours, id}
 	if urlChanged {
-		q = `UPDATE feeds_source SET rev = rev + 1, failures = CASE WHEN ? = 1 AND enabled = 0 THEN 0 ELSE failures END, enabled = ?, interval_hours = ?, url = ?, etag = NULL, last_modified = NULL WHERE id = ?`
+		q = `UPDATE feeds_source SET rev = rev + 1, failures = CASE WHEN ? = 1 AND enabled = 0 THEN 0 ELSE failures END, enabled = ?, interval_hours = ?, url = ?, etag = NULL, last_modified = NULL, answered_by = NULL WHERE id = ?`
 		args = []any{boolInt(enabled), boolInt(enabled), hours, url, id}
 	}
 	if _, err := tx.ExecContext(ctx, q, args...); err != nil {
@@ -795,6 +796,7 @@ type outcome struct {
 	Bytes             int
 	ETag, LastModif   string
 	CatalogVersion    string
+	AnsweredBy        string // D-91: which address answered ("" leaves the stored answer as it is)
 }
 
 // recordOutcome writes the fetch log row and updates the pull state of the feed.
@@ -837,13 +839,16 @@ reject_reasons, error, bytes, etag, last_modified) VALUES (?, ?, ?, ?, ?, ?, ?, 
 		if !o.NotModified {
 			records = o.Records
 		}
-		var ver any
+		var ver, answered any
+		if o.AnsweredBy != "" {
+			answered = o.AnsweredBy
+		}
 		if o.CatalogVersion != "" {
 			ver = o.CatalogVersion
 		}
 		_, err = tx.ExecContext(ctx, `UPDATE feeds_source SET last_fetch = ?, last_success = ?, failures = 0, status = 'ok', error = ?,
-records = COALESCE(?, records), etag = ?, last_modified = ?, catalog_version = COALESCE(?, catalog_version) WHERE id = ?`,
-			fin, fin, msg, records, etag, lm, ver, id)
+records = COALESCE(?, records), etag = ?, last_modified = ?, catalog_version = COALESCE(?, catalog_version), answered_by = COALESCE(?, answered_by) WHERE id = ?`,
+			fin, fin, msg, records, etag, lm, ver, answered, id)
 	}
 	if err != nil {
 		return fmt.Errorf("feeds: update pull state: %w", err)

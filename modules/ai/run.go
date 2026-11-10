@@ -125,9 +125,9 @@ func (s *Service) appendActivity(ctx context.Context, tx *sql.Tx, e ActivityEntr
 		b, _ := json.Marshal(sealed.Links)
 		links = string(b)
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO ai_activity (id, ts, job, profile, model, trigger, hooks, tools, input_hash, output_hash, summary, tokens_in, tokens_out, result, links, prev_hash, hash)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		sealed.ID, sealed.TS, sealed.Job, sealed.Profile, sealed.Model, sealed.Trigger, string(hooks), string(tools), sealed.InputHash, sealed.OutputHash, sealed.Summary,
+	if _, err := tx.ExecContext(ctx, `INSERT INTO ai_activity (id, ts, job, profile, profile_id, model, trigger, hooks, tools, input_hash, output_hash, summary, tokens_in, tokens_out, result, links, prev_hash, hash)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		sealed.ID, sealed.TS, sealed.Job, sealed.Profile, nullable(e.ProfileID), sealed.Model, sealed.Trigger, string(hooks), string(tools), sealed.InputHash, sealed.OutputHash, sealed.Summary,
 		sealed.TokensIn, sealed.TokensOut, string(sealed.Result), links, sealed.PrevHash, sealed.Hash); err != nil {
 		return ActivityEntry{}, fmt.Errorf("ai: write activity: %w", err)
 	}
@@ -235,7 +235,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	if err != nil {
 		return JobResult{}, s.failed(ctx, spec, entry, res, err)
 	}
-	entry.Profile, entry.Model, entry.TokensIn, entry.TokensOut = res.Profile, res.Model, res.Response.Usage.InputTokens, res.Response.Usage.OutputTokens
+	entry.Profile, entry.ProfileID, entry.Model, entry.TokensIn, entry.TokensOut = res.Profile, res.ProfileID, res.Model, res.Response.Usage.InputTokens, res.Response.Usage.OutputTokens
 	entry.OutputHash = HashContent(res.Response.Text)
 	entry.Result = ResultOK
 	if res.Fallback {

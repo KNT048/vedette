@@ -10,6 +10,7 @@ CREATE TABLE ai_activity (
     ts          TEXT    NOT NULL CHECK (ts GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     job         TEXT    NOT NULL CHECK (length(job) BETWEEN 1 AND 64),
     profile     TEXT    NOT NULL CHECK (length(profile) <= 160),
+    profile_id  TEXT    CHECK (profile_id IS NULL OR length(profile_id) <= 96),  -- not part of the hash: it only tells the meter whose tokens these are, whatever the profile is called later
     model       TEXT    NOT NULL CHECK (length(model) <= 80),
     trigger     TEXT    NOT NULL CHECK (length(trigger) BETWEEN 1 AND 340),
     hooks       TEXT    NOT NULL CHECK (json_valid(hooks)),

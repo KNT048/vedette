@@ -171,7 +171,7 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 	}
 	if err == nil {
 		// today's usage comes back from ai_activity, so the level in force and the caps survive a restart (INV-4)
-		if err = s.seedMeter(ctx, sn); err != nil {
+		if err = s.seedMeter(ctx); err != nil {
 			err = fmt.Errorf("load today's usage: %w", err)
 		}
 	}

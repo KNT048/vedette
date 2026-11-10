@@ -15,30 +15,27 @@ func (s *Service) dayStart(now time.Time) string {
 	return FormatTS(time.Date(y, m, d, 0, 0, 0, 0, s.loc))
 }
 
-// seedMeter loads today's tokens from ai_activity into the meter, per profile (by name: the log keeps names), so the level in
+// seedMeter loads today's tokens from ai_activity into the meter, per profile id, so the level in
 // force and the per-profile caps survive a restart. Usage of a profile that no longer exists counts in the shared total only.
-func (s *Service) seedMeter(ctx context.Context, sn *snapshot) error {
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT profile, SUM(tokens_in + tokens_out) FROM ai_activity WHERE ts >= ? AND tokens_in + tokens_out > 0 GROUP BY profile`, s.dayStart(s.cfg.Clock()))
+func (s *Service) seedMeter(ctx context.Context) error {
+	// By profile id: a rename does not reset a profile's cap, and a new profile that takes an old name does not inherit its usage. A row
+	// with no id (the test of a draft that was never saved) counts in the shared total only.
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT COALESCE(profile_id, ''), SUM(tokens_in + tokens_out) FROM ai_activity WHERE ts >= ? AND tokens_in + tokens_out > 0 GROUP BY 1`, s.dayStart(s.cfg.Clock()))
 	if err != nil {
 		return err
 	}
 	defer func() { _ = rows.Close() }()
-	ids := map[string]string{}
-	for _, p := range sn.profiles {
-		ids[p.Name] = p.ID
-	}
 	per := map[string]int{}
 	for rows.Next() {
-		var name string
+		var id string
 		var tokens int
-		if err := rows.Scan(&name, &tokens); err != nil {
+		if err := rows.Scan(&id, &tokens); err != nil {
 			return err
 		}
-		key, ok := ids[name]
-		if !ok {
-			key = "name:" + name
+		if id == "" {
+			id = "unsaved"
 		}
-		per[key] += tokens
+		per[id] += tokens
 	}
 	if err := rows.Err(); err != nil {
 		return err

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
@@ -210,4 +211,56 @@ func (h *AIHandlers) AiGetAiRuns(ctx context.Context) (*oas.AiGetAiRunsOK, error
 	return convert[oas.AiGetAiRunsOK](struct {
 		Items []RunView `json:"items"`
 	}{runs})
+}
+
+// AiGetAiActivity implements GET /ai/activity (operator).
+func (h *AIHandlers) AiGetAiActivity(ctx context.Context, params oas.AiGetAiActivityParams) (*oas.AiGetAiActivityOK, error) {
+	f := ActivityFilter{Job: params.Job.Or("")}
+	if r, ok := params.Result.Get(); ok {
+		f.Result = ActivityResult(r)
+	}
+	f.From, f.To = params.From.Or(time.Time{}), params.To.Or(time.Time{})
+	page, err := h.svc.ListActivity(ctx, f)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiGetAiActivityOK](page)
+}
+
+// AiGetAiActivityVerify implements GET /ai/activity/verify (operator).
+func (h *AIHandlers) AiGetAiActivityVerify(ctx context.Context) (*oas.AiGetAiActivityVerifyOK, error) {
+	res, err := h.svc.VerifyActivity(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]any{"ok": res.OK, "count": res.Count, "broken_at": nil, "entry_id": nil}
+	if !res.OK {
+		out["broken_at"] = res.BrokenAt
+		if res.EntryID != "" {
+			out["entry_id"] = res.EntryID
+		}
+	}
+	return convert[oas.AiGetAiActivityVerifyOK](out)
+}
+
+// AiGetAiActivitySettings implements GET /ai/activity/settings (admin).
+func (h *AIHandlers) AiGetAiActivitySettings(ctx context.Context) (*oas.AiGetAiActivitySettingsOK, error) {
+	days, err := h.svc.RetentionDays(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &oas.AiGetAiActivitySettingsOK{RetentionDays: days}, nil
+}
+
+// AiPutAiActivitySettings implements PUT /ai/activity/settings (admin).
+func (h *AIHandlers) AiPutAiActivitySettings(ctx context.Context, req *oas.AiPutAiActivitySettingsReq) (*oas.AiPutAiActivitySettingsOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	days, err := h.svc.SetRetention(ctx, who, req.RetentionDays)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	return &oas.AiPutAiActivitySettingsOK{RetentionDays: days}, nil
 }

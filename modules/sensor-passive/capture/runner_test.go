@@ -476,24 +476,33 @@ func TestEveryCounterIsInTheClosedSetOfTheProtocol(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ast.Inspect(af, func(n ast.Node) bool {
-			call, ok := n.(*ast.CallExpr)
-			if !ok || len(call.Args) != 1 {
-				return true
-			}
-			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok || (sel.Sel.Name != "drop" && sel.Sel.Name != "CountDrop" && sel.Sel.Name != "count") {
-				return true
-			}
-			if lit, ok := call.Args[0].(*ast.BasicLit); ok && lit.Kind == token.STRING {
+		for _, decl := range af.Decls {
+			fd, isFunc := decl.(*ast.FuncDecl)
+			wrapper := isFunc && fd.Name.Name == "CountDrop" // the one function that passes a counter on: its own callers are checked
+			ast.Inspect(decl, func(n ast.Node) bool {
+				call, ok := n.(*ast.CallExpr)
+				if !ok || len(call.Args) != 1 {
+					return true
+				}
+				sel, ok := call.Fun.(*ast.SelectorExpr)
+				if !ok || (sel.Sel.Name != "drop" && sel.Sel.Name != "CountDrop" && sel.Sel.Name != "count") {
+					return true
+				}
+				lit, ok := call.Args[0].(*ast.BasicLit)
+				if !ok || lit.Kind != token.STRING {
+					if !wrapper {
+						t.Errorf("%s counts something that is not a string literal: the closed set cannot be checked", f)
+					}
+					return true
+				}
 				k, _ := strconv.Unquote(lit.Value)
 				used[k] = true
 				if !sensorlink.ValidDropKey(k) {
 					t.Errorf("%s counts %q, which is not in sensorlink.DropKeys", f, k)
 				}
-			}
-			return true
-		})
+				return true
+			})
+		}
 	}
 	for _, k := range sensorlink.DropKeys {
 		if !used[k] {

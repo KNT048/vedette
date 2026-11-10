@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/observe"
@@ -116,8 +117,18 @@ func (s *Service) PassiveHeartbeat(ctx context.Context, hb *sensorlink.PassiveHe
 		s.log.ErrorContext(ctx, "sensor-passive: heartbeat not saved", "error", err)
 		return "", sensorlink.StoreBusy(time.Second)
 	}
+	known := make(map[string]int64, len(hb.Drops))
 	s.hbMu.Lock()
-	s.hb = &heartbeat{at: now, ifaces: slices.Clone(hb.Interfaces), drops: hb.Drops, version: hb.Version}
+	for k, v := range hb.Drops {
+		switch {
+		case sensorlink.ValidDropKey(k):
+			known[k] = v
+		case !s.unknown[k]: // a newer sensor counts something this core does not know: ignored, said once
+			s.unknown[k] = true
+			s.log.WarnContext(ctx, "sensor-passive: the sensor reports a counter this core does not know, ignored", "counter", k)
+		}
+	}
+	s.hb = &heartbeat{at: now, ifaces: slices.Clone(hb.Interfaces), drops: known, version: hb.Version}
 	s.hbMu.Unlock()
 	return s.instance, nil
 }
@@ -151,11 +162,17 @@ const (
 	codeRefused        = "refused"
 )
 
-// Observations implements sensorlink.Backend: POST /observations. Items are checked one by one (a bad one goes into rejected[]
-// and the batch goes on), then the budgets of new devices and new values apply, then the inventory records what is left; an
-// item the inventory refuses at its boundary is rejected as refused and the rest is recorded in the same call. A seq at or below
-// the last one of its epoch was applied before: it is acknowledged and not applied again (POST-3). When the store fails nothing
-// is recorded, no budget is used and the seq is not saved: the sensor sends the batch again.
+// MaxItemsPerMinute is how many items core takes from the passive role in a minute, whatever they say (the legitimate rate is
+// far below: new devices and values are budgeted in the capture too). The rest is rejected budget_exhausted without being read.
+const MaxItemsPerMinute = 6000
+
+// Observations implements sensorlink.Backend: POST /observations. In order: the module switch (under the lock, SYS-5), the cap of
+// items a minute, the check of each item (a bad one goes into rejected[] and the batch goes on), the addresses of the box (a sensor
+// cannot say anything about the box, the host is the authority), the repeat filter (an observation written in the last quarter of
+// an hour is acknowledged and not written again), the budgets of new devices, new values and new addresses, and last the
+// inventory; an item it refuses at its boundary is rejected as refused and the rest is recorded in the same call. A seq at or
+// below the last one of its epoch was applied before: it is acknowledged and not applied again (POST-3). When the store fails
+// nothing is recorded, no budget is used and the seq is not saved: the sensor sends the batch again.
 func (s *Service) Observations(ctx context.Context, req *sensorlink.ObservationsRequest) (sensorlink.ObservationsReply, error) {
 	if !epochRE.MatchString(req.Epoch) || req.Seq < 1 || len(req.Items) < 1 || len(req.Items) > sensorlink.MaxItems {
 		return sensorlink.ObservationsReply{}, sensorlink.NewError(sensorlink.CodeInvalidRequest)
@@ -163,11 +180,17 @@ func (s *Service) Observations(ctx context.Context, req *sensorlink.Observations
 	seq := uint64(req.Seq)
 	s.submitMu.Lock()
 	defer s.submitMu.Unlock()
+	if s.off() { // the listener checked before it read the body; the module may have been turned off since (SYS-5)
+		return sensorlink.ObservationsReply{}, sensorlink.NewError(sensorlink.CodeModuleOff)
+	}
 	busy := func(err error) (sensorlink.ObservationsReply, error) {
 		s.log.ErrorContext(ctx, "sensor-passive: batch not applied, the sensor will send it again", "error", err)
 		return sensorlink.ObservationsReply{}, sensorlink.StoreBusy(time.Second)
 	}
 	if err := s.ensureSensor(ctx); err != nil {
+		return busy(err)
+	}
+	if err := s.seedBudget(ctx); err != nil {
 		return busy(err)
 	}
 	last, err := s.lastSeq(ctx, req.Epoch)
@@ -177,7 +200,14 @@ func (s *Service) Observations(ctx context.Context, req *sensorlink.Observations
 	if seq <= last {
 		return sensorlink.ObservationsReply{AckSeq: req.Seq, Rejected: []sensorlink.Rejected{}}, nil
 	}
+	box, err := s.boxAddresses(ctx)
+	if err != nil {
+		return busy(err)
+	}
 	now := s.clock()
+	if now.Sub(s.winStart) >= time.Minute {
+		s.winStart, s.winItems = now, 0
+	}
 	type kept struct {
 		index int
 		obs   observe.Observation
@@ -185,10 +215,21 @@ func (s *Service) Observations(ctx context.Context, req *sensorlink.Observations
 	}
 	var rejected []sensorlink.Rejected
 	var items []kept
+	allowed := max(0, MaxItemsPerMinute-s.winItems)
 	for i, it := range req.Items {
+		if i >= allowed { // over the cap of the minute: not even read
+			rejected = append(rejected, sensorlink.Rejected{Index: i, Code: codeBudgetExhaused})
+			continue
+		}
 		o, code := checkItem(it, now)
+		if code == "" && box.has(o) {
+			code = codeRefused
+		}
 		if code != "" {
 			rejected = append(rejected, sensorlink.Rejected{Index: i, Code: code})
+			continue
+		}
+		if s.repeats.seen(o, now) { // written lately: acknowledged, not written again
 			continue
 		}
 		items = append(items, kept{index: i, obs: o, claim: capture.Claim{MAC: o.AssetHint.MAC, IP: o.AssetHint.IP, Field: o.Field, Value: o.Value}})
@@ -213,7 +254,11 @@ func (s *Service) Observations(ctx context.Context, req *sensorlink.Observations
 		s.budgetAt = now
 		s.log.WarnContext(ctx, "sensor-passive: the sensor is over the budget of new devices or values; items rejected as budget_exhausted", "count", exhausted)
 	}
+	if s.off() { // asked again just before the write
+		return sensorlink.ObservationsReply{}, sensorlink.NewError(sensorlink.CodeModuleOff)
+	}
 	// Record what is left; the inventory names an item it refuses and the rest goes in the same call.
+	recorded := slices.Clone(rec)
 	for len(rec) > 0 {
 		obs := make([]observe.Observation, len(rec))
 		for j, i := range rec {
@@ -241,6 +286,12 @@ func (s *Service) Observations(ctx context.Context, req *sensorlink.Observations
 		}
 	}
 	s.budget.Commit(cc, cv, now)
+	for _, i := range recorded {
+		if !refused[i] {
+			s.repeats.add(items[i].obs, now)
+		}
+	}
+	s.winItems += len(req.Items)
 	if err := s.advance(ctx, req.Epoch, seq); err != nil {
 		s.log.WarnContext(ctx, "sensor-passive: saving the batch number failed; the batch is in", "error", err)
 	}
@@ -249,6 +300,52 @@ func (s *Service) Observations(ctx context.Context, req *sensorlink.Observations
 		rejected = []sensorlink.Rejected{}
 	}
 	return sensorlink.ObservationsReply{AckSeq: req.Seq, Rejected: rejected}, nil
+}
+
+// off reports whether the module is switched off.
+func (s *Service) off() bool { return s.enabled != nil && !s.enabled() }
+
+// seedBudget tells the budget about the devices the inventory already has, once (the caller holds submitMu).
+func (s *Service) seedBudget(ctx context.Context) error {
+	if s.seeded {
+		return nil
+	}
+	if s.knownMACs != nil {
+		macs, err := s.knownMACs(ctx)
+		if err != nil {
+			return err
+		}
+		s.budget.Seed(macs)
+	}
+	s.seeded = true
+	return nil
+}
+
+// boxSet is every MAC and address of the box itself.
+type boxSet struct {
+	macs map[string]bool
+	ips  map[netip.Addr]bool
+}
+
+func (b boxSet) has(o observe.Observation) bool {
+	return (o.AssetHint.MAC != "" && b.macs[o.AssetHint.MAC]) || (o.AssetHint.IP.IsValid() && b.ips[o.AssetHint.IP])
+}
+
+// boxAddresses reads the cards of the box from the host (the authority; the heartbeat of a sensor is not): what a sensor says
+// about them is refused, the box is described by the host alone (INV-6, D-118).
+func (s *Service) boxAddresses(ctx context.Context) (boxSet, error) {
+	cards, err := s.host.Interfaces(ctx)
+	if err != nil {
+		return boxSet{}, fmt.Errorf("sensorpassive: list interfaces: %w", err)
+	}
+	b := boxSet{macs: map[string]bool{}, ips: map[netip.Addr]bool{}}
+	for _, c := range cards {
+		b.macs[strings.ToLower(c.MAC)] = true
+		for _, p := range c.Addresses {
+			b.ips[p.Addr().Unmap()] = true
+		}
+	}
+	return b, nil
 }
 
 // checkItem validates one item as it came off the wire and builds the observation, or says why not (sensor-protocol.md 5 and 6.2).
@@ -277,6 +374,9 @@ func checkItem(it sensorlink.ObservationItem, now time.Time) (observe.Observatio
 	if !observe.ValidField(f) {
 		return o, codeInvalidItem
 	}
+	if f == observe.MAC && (it.MAC == "" || it.Value != it.MAC) { // a MAC row says the MAC of the device it is about, nothing else
+		return o, codeInvalidItem
+	}
 	if n := len(it.Value); n < 1 || n > capture.MaxValueBytes || !capture.Printable(it.Value) {
 		return o, codeInvalidItem
 	}
@@ -286,8 +386,12 @@ func checkItem(it sensorlink.ObservationItem, now time.Time) (observe.Observatio
 	if it.SeenAt.Before(now.Add(-seenBack)) || it.SeenAt.After(now.Add(seenAhead)) {
 		return o, codeOutOfWindow
 	}
+	limit, ok := capture.MaxConfidence(f, it.Value)
+	if !ok { // a kind no parser emits
+		return o, codeInvalidItem
+	}
 	o.Field, o.Value, o.Source, o.SeenAt = f, it.Value, observe.Passive, it.SeenAt
-	o.Confidence = min(it.Confidence, capture.MaxConfidence(f)) // the scale of what a passive sensor can know (INV-5)
+	o.Confidence = min(it.Confidence, limit) // the scale of what a passive sensor can know (INV-5)
 	return o, ""
 }
 

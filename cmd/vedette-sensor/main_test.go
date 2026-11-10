@@ -226,3 +226,17 @@ func TestUsageAndUnknownCommand(t *testing.T) {
 		t.Errorf("--version = %q, %v", out.String(), err)
 	}
 }
+
+// L8: the sensor does not offer virtual links (bridges, veths, bonds, VLANs) as cards, by the same rule as the Box network page.
+func TestVirtualLinksAreNotCards(t *testing.T) {
+	t.Parallel()
+	for name, virtual := range map[string]bool{
+		"eth0": false, "enp2s0": false, "eno1": false, "wlan0": false, "ens18": false,
+		"veth1a2b": true, "br0": true, "virbr0": true, "docker0": true, "podman1": true, "bond0": true, "tun0": true, "wg0": true,
+		"eth0.20": true, "enp2s0@if3": true, "lo": true, "vnet3": true, "dummy0": true,
+	} {
+		if got := virtualName.MatchString(name); got != virtual {
+			t.Errorf("%s: virtual = %v, want %v", name, got, virtual)
+		}
+	}
+}

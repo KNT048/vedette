@@ -11,6 +11,7 @@ import (
 	"os"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
@@ -51,6 +52,13 @@ type Config struct {
 	Version string // of core; the in-process capture reports it as its own
 	Name    string // sensor display name; default the host name
 
+	// Enabled says whether the module is on; Observations asks it again under its lock before it writes (SYS-5): a batch that was
+	// let in by the listener a moment before the module was turned off is not recorded. nil means on.
+	Enabled func() bool
+	// KnownMACs lists the devices the inventory has. The first batch seeds core's budget with them, so that devices that exist
+	// do not count as new ones after a restart. nil means none.
+	KnownMACs func(ctx context.Context) ([]string, error)
+
 	// ConfigRecheck is how often an open config long poll reads the settings again (5 s): a change of the SPAN filters is not
 	// announced to it, a SetInterface is.
 	ConfigRecheck time.Duration
@@ -79,19 +87,28 @@ type Service struct {
 	open     func(string) (capture.Source, error)
 	instance string // the nonce of this process, in every heartbeat reply
 
+	enabled                                                        func() bool
+	knownMACs                                                      func(ctx context.Context) ([]string, error)
 	recheck                                                        time.Duration
 	flushEvery, beatEvery, retryEvery, summaryEvery, retryAfterCap time.Duration
 
+	ensured atomic.Bool // the sensor row exists
+
 	submitMu sync.Mutex // one batch at a time: the seq check, the write and the seq save are one step
 	budget   *capture.FloodBudget
+	repeats  *repeatFilter
+	seeded   bool      // the budget knows the devices of the inventory
+	winStart time.Time // the minute the item cap counts in
+	winItems int
 	seqMem   map[string]uint64 // last seq applied per epoch, in case saving it failed
 	budgetAt time.Time         // when "budget exhausted" was last logged
 
 	wakeMu sync.Mutex
 	wake   chan struct{} // closed and replaced when an open config long poll should look again
 
-	hbMu sync.Mutex
-	hb   *heartbeat // the last heartbeat of the sensor, nil until it has sent one
+	hbMu    sync.Mutex
+	hb      *heartbeat      // the last heartbeat of the sensor, nil until it has sent one
+	unknown map[string]bool // drops keys already reported as unknown
 
 	runnerMu sync.Mutex
 	runner   *capture.Runner // the in-process capture, built on the first Run
@@ -114,7 +131,7 @@ func New(cfg Config) (*Service, error) {
 	s := &Service{db: cfg.DB, audit: cfg.Audit, sink: cfg.Sink, meta: cfg.Meta, host: cfg.Host, clock: cfg.Clock, log: cfg.Log,
 		version: cfg.Version, name: cfg.Name, open: cfg.Open, recheck: cfg.ConfigRecheck, flushEvery: cfg.FlushEvery,
 		beatEvery: cfg.HeartbeatEvery, retryEvery: cfg.RetryEvery, summaryEvery: cfg.SummaryEvery, retryAfterCap: cfg.RetryAfterCap,
-		budget: capture.NewFloodBudget(), seqMem: map[string]uint64{}, wake: make(chan struct{})}
+		enabled: cfg.Enabled, knownMACs: cfg.KnownMACs, budget: capture.NewFloodBudget(), repeats: newRepeatFilter(), unknown: map[string]bool{}, seqMem: map[string]uint64{}, wake: make(chan struct{})}
 	if s.clock == nil {
 		s.clock = time.Now
 	}
@@ -142,12 +159,19 @@ func New(cfg Config) (*Service, error) {
 
 // ensureSensor creates the row of this box's sensor once and refreshes its name.
 func (s *Service) ensureSensor(ctx context.Context) error {
-	return s.db.Write(ctx, func(tx *sql.Tx) error {
+	if s.ensured.Load() {
+		return nil
+	}
+	err := s.db.Write(ctx, func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO sp_sensor (id, name) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET name = excluded.name`, SensorID, s.name); err != nil {
 			return fmt.Errorf("sensorpassive: create sensor: %w", err)
 		}
 		return nil
 	})
+	if err == nil {
+		s.ensured.Store(true)
+	}
+	return err
 }
 
 // Sensor is one card of GET /inventory/sensors (shape: web/src/features/inventory/contract.ts).
@@ -302,33 +326,36 @@ func (s *Service) spanStats(ctx context.Context, r sensorRow) (SpanStats, error)
 }
 
 // SetInterface chooses the card the sensor listens on and whether it is a SPAN port (PRE-2, POST-2, INV-9). iface must be a card
-// the sensor itself reported in its last heartbeat (a list in a heartbeat that was never sent, or a name the sensor did not
-// list, steers nothing); a SPAN card has no IP address. The change is audited in the same transaction and the config long poll
-// is woken, so the capture moves to the new card at once.
+// of the box as the host reports it (Host.Interfaces: the authority, D-118; never a list a sensor sent, so a sensor cannot steer
+// the capture onto a card it invented); a SPAN card has no IP address. The choice is stored whether or not the module is on and
+// whether or not the sensor has sent a heartbeat: the capture uses it once it runs. The change is audited in the same transaction
+// and the config long poll is woken, so the capture moves to the new card at once.
 func (s *Service) SetInterface(ctx context.Context, actor, id, iface string, span bool) error {
 	if id != SensorID {
 		return ErrNotFound
 	}
-	var card *sensorlink.HeartbeatIface
-	if hb := s.lastBeat(); hb != nil {
-		for i := range hb.ifaces {
-			if hb.ifaces[i].Name == iface {
-				card = &hb.ifaces[i]
-			}
+	cards, err := s.host.Interfaces(ctx)
+	if err != nil {
+		return fmt.Errorf("sensorpassive: list interfaces: %w", err)
+	}
+	var card *capture.Interface
+	for i := range cards {
+		if cards[i].Name == iface {
+			card = &cards[i]
 		}
 	}
 	switch {
 	case iface == "" && span:
 		return fmt.Errorf("%w: a SPAN port needs an interface", ErrBadInterface)
 	case iface != "" && card == nil:
-		return fmt.Errorf("%w: %q is not an interface the sensor reported", ErrBadInterface, iface)
-	case span && len(card.IPv4) > 0:
+		return fmt.Errorf("%w: %q is not an interface of this box", ErrBadInterface, iface)
+	case span && len(card.Addresses) > 0:
 		return fmt.Errorf("%w: %q has an IP address; a SPAN port has none", ErrBadInterface, iface)
 	}
 	if err := s.ensureSensor(ctx); err != nil {
 		return err
 	}
-	err := s.db.Write(ctx, func(tx *sql.Tx) error {
+	err = s.db.Write(ctx, func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, `UPDATE sp_sensor SET interface = ?, span = ? WHERE id = ?`, nullStr(iface), span, id); err != nil {
 			return fmt.Errorf("sensorpassive: set interface: %w", err)
 		}

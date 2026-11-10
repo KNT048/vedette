@@ -187,7 +187,6 @@ func TestDeliverIgnoresRejectedIndexesThatNameNothing(t *testing.T) {
 func TestDeliverDoesNotDropItemsAfterATransientError(t *testing.T) {
 	t.Parallel()
 	for name, err := range map[string]error{
-		"503 store_busy":    sensorlink.StoreBusy(time.Second),
 		"429":               &sensorlink.Error{Status: 429, Code: sensorlink.CodeRateLimited, RetryAfter: time.Second},
 		"426 update window": sensorlink.NewError(sensorlink.CodeProtoUnsupported),
 		"cert retired":      sensorlink.NewError(sensorlink.CodeCertRetired),
@@ -206,6 +205,18 @@ func TestDeliverDoesNotDropItemsAfterATransientError(t *testing.T) {
 				t.Errorf("%d calls, counters %v", e.link.calls(), e.eng.Counters())
 			}
 		})
+	}
+}
+
+// A 503 is the one answer that may be about the items: deliver reports it apart, and still does not drop anything.
+func TestDeliverReportsABusyStoreApart(t *testing.T) {
+	t.Parallel()
+	e := newDeliverEnv(t)
+	e.link.post = func(*sensorlink.ObservationsRequest) (sensorlink.ObservationsReply, error) {
+		return sensorlink.ObservationsReply{}, sensorlink.StoreBusy(time.Second)
+	}
+	if got := e.r.deliver(t.Context(), e.eng, goodBatch(5)); got != busy || e.eng.Counters()["batch_dropped"] != 0 {
+		t.Errorf("deliver = %v, counters %v", got, e.eng.Counters())
 	}
 }
 
@@ -497,6 +508,108 @@ func TestPoisonBatchIsSplitAndDroppedNotRetriedForever(t *testing.T) {
 	}
 	if e.eng.Counters()["observation_failed"] != 1 {
 		t.Errorf("the poison item was not counted: %v", e.eng.Counters())
+	}
+	if e.r.batchMax != 0 {
+		t.Errorf("batchMax is %d after the hunt: a delivery ends it", e.r.batchMax)
+	}
+}
+
+// M6: a batch is split, and a lone item blamed, only for a 503 while a heartbeat succeeds at that moment. A rate limit, an
+// update window, a certificate being rotated or no answer at all say nothing about any item: the batch stays whole and nothing
+// is dropped, however long it takes.
+func TestNothingButABusyStoreSplitsOrBlames(t *testing.T) {
+	t.Parallel()
+	for name, err := range map[string]error{
+		"429":              &sensorlink.Error{Status: 429, Code: sensorlink.CodeRateLimited, RetryAfter: time.Second},
+		"426":              sensorlink.NewError(sensorlink.CodeProtoUnsupported),
+		"cert_retired":     sensorlink.NewError(sensorlink.CodeCertRetired),
+		"no answer at all": errors.New("connection refused"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			for _, size := range []int{1, 8} { // a lone item (single-item mode) and a batch
+				e := newDeliverEnv(t)
+				var failing = true
+				e.link.post = func(req *sensorlink.ObservationsRequest) (sensorlink.ObservationsReply, error) {
+					if failing {
+						return sensorlink.ObservationsReply{}, err
+					}
+					return sensorlink.ObservationsReply{AckSeq: req.Seq, Rejected: []sensorlink.Rejected{}}, nil
+				}
+				for i := range size {
+					e.eng.Requeue([]observe.Observation{obsOf(fmt.Sprintf("00:00:0c:00:00:%02x", i+1), "h")}) // the heartbeat works: core is up
+				}
+				for range 30 {
+					e.r.flush(t.Context(), e.eng, false)
+					e.advance(2 * time.Minute)
+				}
+				if e.r.batchMax != 0 || e.eng.Pending() != size || e.eng.Counters()["observation_failed"] != 0 {
+					t.Fatalf("size %d: batchMax %d, pending %d, counters %v: nothing may be split or blamed", size, e.r.batchMax, e.eng.Pending(), e.eng.Counters())
+				}
+				e.link.set(func() { failing = false })
+				e.r.flush(t.Context(), e.eng, false)
+				if e.eng.Pending() != 0 || e.link.storedCount() != size {
+					t.Errorf("size %d after the link recovered: pending %d, stored %d", size, e.eng.Pending(), e.link.storedCount())
+				}
+			}
+		})
+	}
+}
+
+// A 503 with a heartbeat that fails too is the store, not an item; a 503 with a heartbeat that works is blamed on the batch.
+func TestABusyStoreSplitsOnlyWhileTheHeartbeatSucceeds(t *testing.T) {
+	t.Parallel()
+	e := newDeliverEnv(t)
+	e.link.post = func(*sensorlink.ObservationsRequest) (sensorlink.ObservationsReply, error) {
+		return sensorlink.ObservationsReply{}, sensorlink.StoreBusy(time.Second)
+	}
+	e.link.beatErr = sensorlink.StoreBusy(time.Second)
+	for i := range 8 {
+		e.eng.Requeue([]observe.Observation{obsOf(fmt.Sprintf("00:00:0c:00:00:%02x", i+1), "h")})
+	}
+	for range 12 {
+		e.r.flush(t.Context(), e.eng, false)
+		e.advance(2 * time.Minute)
+	}
+	if e.r.batchMax != 0 {
+		t.Fatalf("split to %d while the heartbeat failed too", e.r.batchMax)
+	}
+	e.link.set(func() { e.link.beatErr = nil })
+	for range 12 {
+		e.r.flush(t.Context(), e.eng, false)
+		e.advance(2 * time.Minute)
+	}
+	if e.eng.Counters()["observation_failed"] == 0 {
+		t.Error("never split down to single items although core answered its heartbeat and kept failing every batch")
+	}
+}
+
+// L5: a device whose items met the budget of core is not forgotten: the vendor row is still owed and goes out when the device is
+// admitted later; an item rejected for good clears the debt.
+func TestVendorStaysOwedWhenTheBudgetRejectedIt(t *testing.T) {
+	t.Parallel()
+	for code, owed := range map[string]bool{"budget_exhausted": true, "refused": false, "invalid_item": false} {
+		e := newDeliverEnv(t)
+		e.link.post = func(req *sensorlink.ObservationsRequest) (sensorlink.ObservationsReply, error) {
+			rep := sensorlink.ObservationsReply{AckSeq: req.Seq, Rejected: []sensorlink.Rejected{}}
+			for i := range req.Items {
+				rep.Rejected = append(rep.Rejected, sensorlink.Rejected{Index: i, Code: code})
+			}
+			return rep, nil
+		}
+		arpAt(e.eng, 0)
+		arpAt(e.eng, 3*time.Second)
+		if !hasVendor(e.eng.obs) {
+			t.Fatalf("%s: setup: no vendor queued at admission", code)
+		}
+		e.r.flush(t.Context(), e.eng, false)
+		if got := e.eng.book.vendorOwed(mac(pktgen.Laptop)); got != owed {
+			t.Errorf("%s: vendor owed = %v, want %v", code, got, owed)
+		}
+		arpAt(e.eng, 10*time.Second) // the next frame of the device
+		if got := hasVendor(e.eng.obs); got != owed {
+			t.Errorf("%s: the vendor row is queued again = %v, want %v", code, got, owed)
+		}
 	}
 }
 

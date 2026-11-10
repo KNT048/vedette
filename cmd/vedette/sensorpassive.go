@@ -23,7 +23,26 @@ func newSensorPassive(d deps) (*sensorpassive.Service, error) {
 	if d.Inventory != nil {
 		sink = d.Inventory
 	}
-	return sensorpassive.New(sensorpassive.Config{DB: d.DB, Audit: d.Audit, Sink: sink, Host: netHost{box: d.Network}, Clock: d.Clock, Log: d.Log, Version: version})
+	cfg := sensorpassive.Config{DB: d.DB, Audit: d.Audit, Sink: sink, Host: netHost{box: d.Network}, Clock: d.Clock, Log: d.Log, Version: version}
+	if d.Reg != nil { // SYS-5: asked again under the lock of a batch, after the listener let it in
+		cfg.Enabled = func() bool { return d.Reg.Enabled("sensor-passive") }
+	}
+	if d.Inventory != nil { // the devices that exist do not count as new ones for the budget
+		cfg.KnownMACs = func(ctx context.Context) ([]string, error) {
+			l, err := d.Inventory.Devices(ctx)
+			if err != nil {
+				return nil, err
+			}
+			var macs []string
+			for _, dev := range l.Items {
+				if dev.MAC != nil {
+					macs = append(macs, *dev.MAC)
+				}
+			}
+			return macs, nil
+		}
+	}
+	return sensorpassive.New(cfg)
 }
 
 // sensorPassiveJobs runs the capture loop while the module is on (SYS-5). Run blocks until the module is turned

@@ -327,6 +327,10 @@ func (e *Engine) add(now time.Time, hintMAC mac, hintIP netip.Addr, field observ
 		e.drop("values_dropped")
 		return
 	}
+	if hintIP.IsValid() && !e.book.allowIP(hintMAC, hintIP.String(), now) {
+		e.drop("values_dropped") // too many addresses for one MAC in an hour
+		return
+	}
 	// The vendor of a device goes out until the inventory has it: the book (the Service's, not this Engine's) remembers
 	// that it is still owed, so a capture error or a failed final flush does not lose it.
 	if e.book.vendorOwed(hintMAC) {

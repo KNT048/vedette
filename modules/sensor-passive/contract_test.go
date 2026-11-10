@@ -588,6 +588,11 @@ func TestContract_CaptureFollowsTheModuleSwitch(t *testing.T) {
 	gate.set(true)
 	sched.ModuleChanged("sensor-passive", true)
 	waitFor(t, fmt.Sprintf("capture to start (opens %v sink %d)", e.src.opens(), e.sink.count()), func() bool { return len(e.src.opens()) == 1 && e.sink.count() > 0 })
+	if remoteMode() { // the remote capture is told by core: a real 409 module_off, while its job is still running
+		e.off.Store(true)
+		waitFor(t, "the source to close on the 409, before the job is cancelled", func() bool { return e.src.closes() == 1 })
+		e.off.Store(false)
+	}
 	gate.set(false)
 	sched.ModuleChanged("sensor-passive", false)
 	waitFor(t, "the source to close", func() bool { return e.src.closes() == 1 })
@@ -653,12 +658,13 @@ func TestContract_NoGoroutineLeakAcrossSwitches(t *testing.T) {
 		}
 	}
 	pause(t, 100*time.Millisecond)
-	runtime.GC()
-	slack := 1
-	if remoteMode() {
-		slack = 8 // the client's connection and the test server's: the link keeps a few goroutines of its own while it is idle
+	if e.rem != nil { // the link's connections are idle, not leaked: close them before counting
+		e.rem.client.CloseIdleConnections()
+		e.rem.link.Server.CloseClientConnections()
+		pause(t, 200*time.Millisecond)
 	}
-	if after := runtime.NumGoroutine(); after > base+slack {
+	runtime.GC()
+	if after := runtime.NumGoroutine(); after > base+1 {
 		buf := make([]byte, 1<<16)
 		t.Errorf("leak: %d -> %d\n%s", base, after, buf[:runtime.Stack(buf, true)])
 	}

@@ -22,6 +22,8 @@ const (
 	maxNewValuesPerHour = 4               // per known MAC and field: new values the sensor passes on in an hour
 	valueWindow         = time.Hour       // the window of maxNewValuesPerHour
 	maxFields           = 6               // the fields of observe.Field
+	ipSlot              = maxFields       // the slot after them: the distinct addresses of a device (maxNewValuesPerHour an hour too)
+	budgetSlots         = maxFields + 1
 )
 
 // bookLimits are the thresholds of a deviceBook. The zero value of ConfirmAfter means a MAC is accepted at its
@@ -53,8 +55,8 @@ type firstSlot struct {
 // known is the entry of a device the sensor has reported: its place in the LRU list and what it said this hour.
 type known struct {
 	m    mac
-	owed bool                    // the vendor row of this device has not reached the inventory yet
-	vals *[maxFields]fieldBudget // allocated with the first value
+	owed bool                      // the vendor row of this device has not reached the inventory yet
+	vals *[budgetSlots]fieldBudget // allocated with the first value
 }
 
 // fieldBudget counts the distinct values of one field of one MAC in the current window. Values are kept as keyed
@@ -171,7 +173,16 @@ func (b *deviceBook) remember(m mac) {
 // this window is a repeat and goes on to the repeat filter; a new one counts against maxNewValuesPerHour. One MAC
 // that changes a name in every frame thus writes at most that many rows an hour, whatever the speed of the wire.
 func (b *deviceBook) allowValue(m mac, field observe.Field, value string, now time.Time) bool {
-	i := fieldIndex(field)
+	return b.allowSlot(m, fieldIndex(field), value, now)
+}
+
+// allowIP is allowValue for the addresses of a device: one MAC that says it holds many addresses is as much a flood as one that
+// says many names (every address a device claims moves the IP of another).
+func (b *deviceBook) allowIP(m mac, ip string, now time.Time) bool {
+	return b.allowSlot(m, ipSlot, ip, now)
+}
+
+func (b *deviceBook) allowSlot(m mac, i int, value string, now time.Time) bool {
 	if i < 0 {
 		return true
 	}
@@ -183,7 +194,7 @@ func (b *deviceBook) allowValue(m mac, field observe.Field, value string, now ti
 	}
 	k := el.Value.(*known)
 	if k.vals == nil {
-		k.vals = new([maxFields]fieldBudget)
+		k.vals = new([budgetSlots]fieldBudget)
 	}
 	fb := &k.vals[i]
 	if fb.n == 0 || now.Sub(fb.start) >= valueWindow {

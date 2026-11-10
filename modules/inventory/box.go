@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/netip"
 
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -59,7 +60,7 @@ func (s *Service) EnsureBox(ctx context.Context, info BoxInfo) (string, error) {
 				return err
 			}
 		}
-		if err := s.claimIP(ctx, tx, id, mustAddr(ip)); err != nil {
+		if err := s.claimIP(ctx, tx, id, mustAddr(ip), string(observe.Agent)); err != nil {
 			return err
 		}
 		changed, err := s.RecomputeAsset(ctx, tx, id)

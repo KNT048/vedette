@@ -168,6 +168,35 @@ func TestWiringSpanSensorIsAbsentWhileTheModuleIsOff(t *testing.T) {
 	}
 }
 
+// M1 of the SP-4 review: the SPAN card is chosen against the cards the host reports, with the module off and before any
+// heartbeat, and the choice is what the capture is told once it runs.
+func TestWiringSpanPortCanBeChosenWithTheModuleOff(t *testing.T) {
+	t.Parallel()
+	f := startFakeHost(t, boxState())
+	s := newStackWith(t, func(d *deps) {
+		d.HostSocket, d.DataDir, d.KeyPath = f.sock, t.TempDir(), filepath.Join(t.TempDir(), "vedette.key")
+	})
+	ctx := t.Context()
+	err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		change, err := s.d.Reg.Disable(ctx, tx, "admin@acme.example", "sensor-passive")
+		s.d.Reg.Publish(change)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sensor := &spanSensor{reg: s.d.Reg, svc: s.d.SensorPassive}
+	if err := sensor.SetSpanPort(ctx, "admin@acme.example", "eth1", true); err != nil {
+		t.Fatalf("a card of the host with the module off: %v", err)
+	}
+	if err := sensor.SetSpanPort(ctx, "admin@acme.example", "eth9", true); err == nil {
+		t.Error("a card the host does not have was accepted")
+	}
+	if rep, err := s.d.SensorPassive.Config(ctx, 0, ""); err != nil || rep.Config.Interface != "eth1" || !rep.Config.Span {
+		t.Errorf("config %+v %v", rep, err)
+	}
+}
+
 // ip_in_use looks at the inventory (the box itself excluded) and at the honeypot's decoys.
 func TestWiringAddressInUse(t *testing.T) {
 	t.Parallel()

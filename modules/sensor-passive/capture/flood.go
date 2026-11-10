@@ -24,22 +24,28 @@ const (
 // character, no line or paragraph separator. Core uses the capture's own rule for what a sensor may send.
 func Printable(s string) bool { return printable(s) }
 
-// MaxConfidence is the highest confidence a passive observation of field may have (INV-5, "Thang tin cậy" of the CONTRACT):
-// the highest of the Conf constants any parser of this package gives to that field. Core clamps what a sensor says to it.
-func MaxConfidence(f observe.Field) float64 {
+// kindCap is the kinds a parser of this package emits and the highest confidence any of them gives to each (INV-5): LLDP says
+// ap, switch and router at 0.6, mDNS says printer at 0.5 and iot at 0.3, SSDP says router at 0.5. Nothing else is a passive kind.
+var kindCap = map[string]float64{"ap": ConfLLDPKind, "switch": ConfLLDPKind, "router": ConfLLDPKind, "printer": ConfMDNSKind, "iot": ConfMDNSIotKind}
+
+// MaxConfidence is the highest confidence a passive observation of field with value may have (INV-5, "Thang tin cậy" of the
+// CONTRACT): the highest of the Conf constants any parser of this package gives to that field (for a kind, to that kind). Core
+// clamps what a sensor says to it; ok is false for a value a passive sensor cannot report at all (a kind no parser emits).
+func MaxConfidence(f observe.Field, value string) (limit float64, ok bool) {
 	switch f {
 	case observe.MAC:
-		return ConfMACBinding
+		return ConfMACBinding, true
 	case observe.Hostname:
-		return ConfLLDPName
+		return ConfLLDPName, true
 	case observe.Kind:
-		return ConfLLDPKind
+		c, ok := kindCap[value]
+		return c, ok
 	case observe.Model:
-		return ConfSSDPModel
+		return ConfSSDPModel, true
 	case observe.Vendor:
-		return ConfOUIVendor
+		return ConfOUIVendor, true
 	}
-	return ConfMDNSIotKind // os: no passive source reports it, so the lowest rung
+	return ConfMDNSIotKind, true // os: no passive source reports it, so the lowest rung
 }
 
 // Claim is one observation as the budget sees it: whose it is (a MAC, or an IPv4 address for an observation without one),
@@ -119,25 +125,54 @@ func (f *FloodBudget) Decide(claims []Claim, now time.Time) []Verdict {
 			out[i].Pass = true
 			continue
 		}
-		h := hashOf(b, c.Value)
-		var have []uint64
-		if el, ok := b.index[m]; ok {
-			if k := el.Value.(*known); k.vals != nil {
-				if fb := &k.vals[fi]; fb.n > 0 && now.Sub(fb.start) < valueWindow {
-					have = fb.h[:fb.n]
+		// the value must fit the device's values of this field, and a device that says an address must fit its addresses
+		fits := func(si int, text string) (ok bool, record func()) {
+			h := hashOf(b, text)
+			var have []uint64
+			if el, ok := b.index[m]; ok {
+				if k := el.Value.(*known); k.vals != nil {
+					if fb := &k.vals[si]; fb.n > 0 && now.Sub(fb.start) < valueWindow {
+						have = fb.h[:fb.n]
+					}
 				}
 			}
+			mine := added[slot{m, si}]
+			switch {
+			case contains(have, h), contains(mine, h):
+				return true, func() {}
+			case len(have)+len(mine) < maxNewValuesPerHour:
+				return true, func() { added[slot{m, si}] = append(added[slot{m, si}], h) }
+			}
+			return false, nil
 		}
-		mine := added[slot{m, fi}]
-		switch {
-		case contains(have, h), contains(mine, h):
-			out[i].Pass = true
-		case len(have)+len(mine) < maxNewValuesPerHour:
-			added[slot{m, fi}] = append(mine, h)
+		okV, recV := fits(fi, c.Value)
+		okIP, recIP := true, func() {}
+		if c.MAC != "" && c.IP.IsValid() { // an observation with no MAC is already counted by its address
+			okIP, recIP = fits(ipSlot, c.IP.String())
+		}
+		if okV && okIP {
+			recV()
+			recIP()
 			out[i].Pass = true
 		}
 	}
 	return out
+}
+
+// Seed tells the budget about devices that exist already (core's inventory at start): they are known, so they pass and do not
+// count as new devices. Only the most recent maxKnown are kept.
+func (f *FloodBudget) Seed(macs []string) {
+	f.b.mu.Lock()
+	defer f.b.mu.Unlock()
+	for _, s := range macs {
+		m, ok := parseMAC(strings.ToLower(s))
+		if !ok {
+			continue
+		}
+		if _, known := f.b.index[m]; !known {
+			f.b.remember(m)
+		}
+	}
 }
 
 func contains(s []uint64, h uint64) bool {
@@ -162,6 +197,9 @@ func (f *FloodBudget) Commit(claims []Claim, verdicts []Verdict, now time.Time) 
 		f.b.admit(m, now)
 		if verdicts[i].Pass {
 			f.b.allowValue(m, c.Field, c.Value, now)
+			if c.MAC != "" && c.IP.IsValid() {
+				f.b.allowIP(m, c.IP.String(), now)
+			}
 		}
 	}
 }

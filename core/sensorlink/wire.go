@@ -151,6 +151,7 @@ var (
 	versionRE  = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$`)
 	ifaceRE    = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,14}$`)
 	macRE      = regexp.MustCompile(`^([0-9a-f]{2}:){5}[0-9a-f]{2}$`)
+	dropKeyRE  = regexp.MustCompile(`^[a-z][a-z0-9_]{0,47}$`)
 	nmapVerRE  = regexp.MustCompile(`^[0-9A-Za-z._+-]{0,32}$`)
 	etagRE     = regexp.MustCompile(`^"[A-Za-z0-9._:-]{1,64}"$`)
 	resultCode = map[string]bool{"": true, "invalid_job": true, "busy": true, "nmap_missing": true, "exec_failed": true, "deadline": true, "cancelled": true}
@@ -166,9 +167,9 @@ const (
 	MaxDropKeys          = 64
 )
 
-// DropKeys is the closed set of the counters a passive heartbeat may carry in drops (sensor-protocol.md 6.3): what the capture
-// process counts instead of passing on. A key outside it is a 400, like any field this protocol does not know. The capture
-// package's tests check that every counter the capture can produce is here.
+// DropKeys is the set of the counters a passive heartbeat carries in drops (sensor-protocol.md 6.3): what the capture process
+// counts instead of passing on. A key outside it (of a good shape) is ignored by core and logged once, so a newer sensor does
+// not make core refuse its heartbeat. The capture package's tests check that every counter the capture can produce is here.
 var DropKeys = []string{
 	"arp_mac_mismatch", "batch_dropped", "capture_failed", "dhcp_mac_mismatch", "dns_name_rejected", "excluded", "filters_invalid",
 	"flows_dropped", "fragment_skipped", "malformed_arp", "malformed_dhcp", "malformed_dns", "malformed_ethernet", "malformed_http",
@@ -217,7 +218,12 @@ func decodePassiveHeartbeat(raw []byte) (*PassiveHeartbeat, error) {
 	if len(h.Interfaces) > 32 {
 		return nil, invalid("interfaces")
 	}
+	names := map[string]bool{}
 	for _, i := range h.Interfaces {
+		if names[i.Name] { // two cards of one name: the list would say two things about one card
+			return nil, invalid("interface name repeated")
+		}
+		names[i.Name] = true
 		if !ifaceRE.MatchString(i.Name) || !macRE.MatchString(i.MAC) || len(i.IPv4) > 8 {
 			return nil, invalid("interface")
 		}
@@ -234,7 +240,7 @@ func decodePassiveHeartbeat(raw []byte) (*PassiveHeartbeat, error) {
 		return nil, invalid("drops")
 	}
 	for k, v := range h.Drops {
-		if !ValidDropKey(k) || v < 0 {
+		if !dropKeyRE.MatchString(k) || v < 0 { // unknown keys of a good shape pass: core ignores them (forward compatibility, D-122 (5))
 			return nil, invalid("drops")
 		}
 	}

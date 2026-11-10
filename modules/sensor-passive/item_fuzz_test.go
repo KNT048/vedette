@@ -17,6 +17,8 @@ func FuzzCheckItem(f *testing.F) {
 	f.Add("01:00:5e:00:00:01", "", "hostname", "x", 0.5, int64(0))
 	f.Add("0a:00:00:00:00:01", "fe80::1", "os", "evil\u202egpj", 7.0, int64(-5))
 	f.Add("0A:00:00:00:00:01", "255.255.255.255", "ip", "", -1.0, int64(1_800_000_000))
+	f.Add("0a:00:00:00:00:01", "", "mac", "0a:00:00:00:00:02", 0.9, int64(1_800_000_000))
+	f.Add("0a:00:00:00:00:01", "", "kind", "toaster", 0.5, int64(1_800_000_000))
 	now := time.Unix(1_800_000_000, 0)
 	f.Fuzz(func(t *testing.T, mac, ip, field, value string, conf float64, secs int64) {
 		it := sensorlink.ObservationItem{MAC: mac, IP: ip, Field: field, Value: value, Confidence: conf, SeenAt: time.Unix(secs%4_000_000_000, 0)}
@@ -39,8 +41,11 @@ func FuzzCheckItem(f *testing.F) {
 		if a := o.AssetHint.IP; a.IsValid() && (!a.Is4() || !capture.UnicastIP(a)) {
 			t.Fatalf("accepted address %v", a)
 		}
-		if !(o.Confidence >= 0 && o.Confidence <= capture.MaxConfidence(o.Field)) {
-			t.Fatalf("confidence %v over the cap of %s", o.Confidence, o.Field)
+		if limit, ok := capture.MaxConfidence(o.Field, o.Value); !ok || !(o.Confidence >= 0 && o.Confidence <= limit) {
+			t.Fatalf("confidence %v over the cap of %s %q (known: %v)", o.Confidence, o.Field, o.Value, ok)
+		}
+		if o.Field == observe.MAC && o.Value != o.AssetHint.MAC {
+			t.Fatalf("a mac row about %q says %q", o.AssetHint.MAC, o.Value)
 		}
 		if o.SeenAt.Before(now.Add(-seenBack)) || o.SeenAt.After(now.Add(seenAhead)) {
 			t.Fatalf("seen_at %v outside the window", o.SeenAt)

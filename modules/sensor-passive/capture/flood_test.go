@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/netip"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/sensor-passive/internal/pktgen"
@@ -129,4 +130,92 @@ func FuzzFloodBudget(f *testing.F) {
 			}
 		}
 	})
+}
+
+// M4: one MAC that says many addresses is a flood like one that says many names: 4 new addresses an hour, the rest is over budget;
+// a repeat of an address is not new.
+func TestFloodBudgetBoundsTheAddressesOfOneMAC(t *testing.T) {
+	t.Parallel()
+	b := NewFloodBudget()
+	now := pktgen.T0
+	var claims []Claim
+	for i := range 20 {
+		claims = append(claims, Claim{MAC: floodMAC(1), IP: netip.AddrFrom4([4]byte{10, 0, 0, byte(i + 1)}), Field: observe.Hostname, Value: "h"})
+	}
+	pass := func(vs []Verdict) (n int) {
+		for _, v := range vs {
+			if v.Pass {
+				n++
+			}
+		}
+		return n
+	}
+	vs := b.Decide(claims, now)
+	if n := pass(vs); n != NewValuesPerHour {
+		t.Fatalf("%d addresses passed for one MAC in a call, want %d", n, NewValuesPerHour)
+	}
+	b.Commit(claims, vs, now)
+	if n := pass(b.Decide(claims, now)); n != NewValuesPerHour {
+		t.Errorf("the same 20 again: %d passed, want the same 4 (repeats are not new)", n)
+	}
+	other := []Claim{{MAC: floodMAC(1), IP: netip.MustParseAddr("10.0.9.9"), Field: observe.Hostname, Value: "h"}}
+	if pass(b.Decide(other, now)) != 0 {
+		t.Error("a fifth address in the hour passed")
+	}
+	if pass(b.Decide(other, now.Add(time.Hour+time.Second))) != 1 {
+		t.Error("the hour is over and a new address still does not pass")
+	}
+}
+
+// The capture's own book says the same before anything is sent (M4).
+func TestEngineBoundsTheAddressesOfOneMAC(t *testing.T) {
+	t.Parallel()
+	e, _ := newEngine(engineConfig{})
+	for i := range 30 {
+		e.Handle(Packet{At: pktgen.T0, Data: pktgen.ARP(pktgen.Bcast, 1, pktgen.PC, netip.AddrFrom4([4]byte{10, 0, 1, byte(i + 1)}), pktgen.MAC{}, pktgen.RouterIP)})
+	}
+	obs, _ := e.Drain(pktgen.T0, false)
+	ips := map[string]bool{}
+	for _, o := range obs {
+		if o.AssetHint.IP.IsValid() {
+			ips[o.AssetHint.IP.String()] = true
+		}
+	}
+	if len(ips) != NewValuesPerHour || e.Counters()["values_dropped"] != 26 {
+		t.Errorf("%d addresses for one MAC, counters %v: want %d and 26 dropped", len(ips), e.Counters(), NewValuesPerHour)
+	}
+}
+
+// L1: the kinds a parser emits, each capped at the highest confidence a parser gives it.
+func TestMaxConfidenceKnowsOnlyTheKindsTheParsersEmit(t *testing.T) {
+	t.Parallel()
+	for kind, want := range map[string]float64{"ap": 0.6, "switch": 0.6, "router": 0.6, "printer": 0.5, "iot": 0.3} {
+		if got, ok := MaxConfidence(observe.Kind, kind); !ok || got != want {
+			t.Errorf("kind %s: %v %v, want %v", kind, got, ok, want)
+		}
+	}
+	for _, kind := range []string{"toaster", "server", "", "Printer"} {
+		if _, ok := MaxConfidence(observe.Kind, kind); ok {
+			t.Errorf("kind %q is accepted: no parser emits it", kind)
+		}
+	}
+}
+
+// L6: devices the budget was seeded with are known: they pass although the minute is spent.
+func TestFloodBudgetSeedMakesDevicesKnown(t *testing.T) {
+	t.Parallel()
+	b := NewFloodBudget()
+	b.Seed([]string{floodMAC(500), "not a mac"})
+	now := pktgen.T0
+	claims := make([]Claim, 0, 101)
+	for i := range 100 {
+		claims = append(claims, Claim{MAC: floodMAC(i), Field: observe.Hostname, Value: "h"})
+	}
+	b.Commit(claims, b.Decide(claims, now), now)
+	if v := b.Decide([]Claim{{MAC: floodMAC(500), Field: observe.Hostname, Value: "x"}}, now); !v[0].Pass {
+		t.Error("a device the budget was seeded with was refused")
+	}
+	if v := b.Decide([]Claim{{MAC: floodMAC(501), Field: observe.Hostname, Value: "x"}}, now); v[0].Pass {
+		t.Error("an unknown device passed with the minute spent")
+	}
 }

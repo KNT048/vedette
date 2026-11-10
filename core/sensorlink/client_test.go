@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"errors"
 	"io"
 	"net"
@@ -83,30 +82,10 @@ func (s *scriptedCore) requests() int {
 	return len(s.got)
 }
 
-// sleeper records the waits of a client instead of waiting.
-type sleeper struct {
-	mu    sync.Mutex
-	waits []time.Duration
-}
-
-func (s *sleeper) Sleep(ctx context.Context, d time.Duration) error {
-	s.mu.Lock()
-	s.waits = append(s.waits, d)
-	s.mu.Unlock()
-	return ctx.Err()
-}
-
-func (s *sleeper) all() []time.Duration {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return append([]time.Duration(nil), s.waits...)
-}
-
 type clientRig struct {
 	ca   *testCA
 	clk  *clock
 	path string
-	sl   *sleeper
 	c    *sensorlink.Client
 }
 
@@ -114,10 +93,10 @@ type clientRig struct {
 // of its step.
 func newClientRig(t *testing.T, ca *testCA, base string) *clientRig {
 	t.Helper()
-	r := &clientRig{ca: ca, clk: newClock(), sl: &sleeper{}}
+	r := &clientRig{ca: ca, clk: newClock()}
 	r.path = filepath.Join(t.TempDir(), "passive", "sensor.pem")
 	writeFile(t, r.path, ca.bundle(t, ca.leaf(t, leafOpts{serial: 100})))
-	c, err := sensorlink.NewClient(sensorlink.ClientOptions{BaseURL: base, CredsPath: r.path, Now: r.clk.Now, Sleep: r.sl.Sleep, Rand: func() float64 { return 0 }})
+	c, err := sensorlink.NewClient(sensorlink.ClientOptions{BaseURL: base, CredsPath: r.path, Now: r.clk.Now, Rand: func() float64 { return 0 }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,156 +123,50 @@ func batch(n int) *sensorlink.ObservationsRequest {
 
 const okObs = `{"ack_seq":7,"rejected":[{"index":1,"code":"budget_exhausted"}]}`
 
-// D-112 (4), spec section 7: what a sensor does with each answer.
-func TestClientRetries(t *testing.T) {
+// PostObservations is one attempt: it makes exactly one request, never waits, and hands what core said to the capture process,
+// which decides (D-122 (2), (7)).
+func TestClientPostObservations(t *testing.T) {
 	t.Parallel()
 	ca := newTestCA(t)
-	sec := time.Second
-	run := func(t *testing.T, steps []step, n int, halve func(*sensorlink.ObservationsRequest) *sensorlink.ObservationsRequest) (*clientRig, *scriptedCore, sensorlink.ObservationsReply, error) {
-		core := scripted(t, ca.serverLeaf(t), steps)
+	run := func(t *testing.T, st step, n int) (*scriptedCore, sensorlink.ObservationsReply, error) {
+		core := scripted(t, ca.serverLeaf(t), []step{st, {body: okObs}})
 		cr := newClientRig(t, ca, core.ts.URL)
-		rep, err := cr.c.SendObservations(t.Context(), batch(n), halve)
-		return cr, core, rep, err
+		rep, err := cr.c.PostObservations(t.Context(), batch(n))
+		return core, rep, err
 	}
-	t.Run("429 and 503 wait for Retry-After", func(t *testing.T) {
-		for _, st := range []int{429, 503} {
-			cr, core, rep, err := run(t, []step{{status: st, retryAfter: "3", code: "rate_limited"}, {body: okObs}}, 2, nil)
-			if err != nil || rep.AckSeq != 7 || len(rep.Rejected) != 1 || rep.Rejected[0].Code != "budget_exhausted" {
-				t.Fatalf("%d: %v %+v", st, err, rep)
-			}
-			if w := cr.sl.all(); len(w) != 1 || w[0] != 3*sec {
-				t.Errorf("%d: waits = %v, want [3s]", st, w)
-			}
-			if core.requests() != 2 || core.got[0] != core.got[1] {
-				t.Errorf("%d: the batch was not sent again unchanged (%d requests)", st, core.requests())
-			}
-			if cr.c.Stats().Retries != 1 || cr.c.Stats().Dropped != 0 {
-				t.Errorf("%d: stats %+v", st, cr.c.Stats())
-			}
+	t.Run("a 200 carries the partial success", func(t *testing.T) {
+		core, rep, err := run(t, step{body: okObs}, 2)
+		if err != nil || rep.AckSeq != 7 || len(rep.Rejected) != 1 || rep.Rejected[0].Code != "budget_exhausted" || core.requests() != 1 {
+			t.Fatalf("%v %+v (%d requests)", err, rep, core.requests())
 		}
 	})
-	t.Run("without Retry-After the backoff doubles from one second and stops at a minute", func(t *testing.T) {
-		steps := make([]step, 9)
-		for i := range steps {
-			steps[i] = step{status: 429, code: "rate_limited"}
-		}
-		steps = append(steps, step{body: okObs})
-		cr, _, _, err := run(t, steps, 1, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		want := []time.Duration{500 * time.Millisecond, sec, 2 * sec, 4 * sec, 8 * sec, 16 * sec, 30 * sec, 30 * sec, 30 * sec} // zero jitter: half of 1,2,4,...,32,60,60,60
-		w := cr.sl.all()
-		if len(w) != len(want) {
-			t.Fatalf("waits = %v", w)
-		}
-		for i := range want {
-			if w[i] != want[i] {
-				t.Errorf("wait %d = %v, want %v (all %v)", i, w[i], want[i], w)
-			}
-		}
-	})
-	t.Run("Retry-After is capped at a minute", func(t *testing.T) {
-		cr, _, _, err := run(t, []step{{status: 429, retryAfter: "3600", code: "rate_limited"}, {body: okObs}}, 1, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if w := cr.sl.all(); len(w) != 1 || w[0] != 60*sec {
-			t.Errorf("waits = %v, want [1m]", w)
-		}
-	})
-	t.Run("426 keeps the queue: the same batch, as many times as it takes", func(t *testing.T) {
-		steps := []step{{status: 426, code: "proto_unsupported"}, {status: 426, code: "proto_unsupported"}, {status: 426, code: "proto_unsupported"}, {body: okObs}}
-		cr, core, _, err := run(t, steps, 3, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if core.requests() != 4 || cr.c.Stats().Dropped != 0 {
-			t.Errorf("%d requests, stats %+v", core.requests(), cr.c.Stats())
-		}
-		for _, b := range core.got {
-			if b != core.got[0] {
-				t.Error("the batch changed between tries")
-			}
-		}
-	})
-	t.Run("no answer: the same batch again", func(t *testing.T) {
-		cr, core, _, err := run(t, []step{{drop: true}, {drop: true}, {body: okObs}}, 2, nil)
-		if err != nil || core.requests() != 3 || len(cr.sl.all()) != 2 {
-			t.Errorf("%v: %d requests, waits %v", err, core.requests(), cr.sl.all())
-		}
-	})
-	t.Run("413 halves the batch through the callback", func(t *testing.T) {
-		var seen []int
-		halve := func(r *sensorlink.ObservationsRequest) *sensorlink.ObservationsRequest {
-			seen = append(seen, len(r.Items))
-			h := *r
-			h.Items = r.Items[:len(r.Items)/2]
-			return &h
-		}
-		cr, core, _, err := run(t, []step{{status: 413, code: "payload_too_large"}, {status: 413, code: "payload_too_large"}, {body: okObs}}, 8, halve)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(seen) != 2 || seen[0] != 8 || seen[1] != 4 || core.requests() != 3 || len(cr.sl.all()) != 0 {
-			t.Errorf("callback saw %v, %d requests, waits %v", seen, core.requests(), cr.sl.all())
-		}
-		var last sensorlink.ObservationsRequest
-		if err := json.Unmarshal([]byte(core.got[2]), &last); err != nil || len(last.Items) != 2 {
-			t.Errorf("the last request had %d items (%v)", len(last.Items), err)
-		}
-	})
-	t.Run("413 on one item, or with no callback, drops the batch", func(t *testing.T) {
-		cr, _, _, err := run(t, []step{{status: 413, code: "payload_too_large"}}, 1, func(r *sensorlink.ObservationsRequest) *sensorlink.ObservationsRequest { return r })
-		if !errors.Is(err, sensorlink.ErrDropped) || cr.c.Stats().Dropped != 1 {
-			t.Errorf("one item: %v %+v", err, cr.c.Stats())
-		}
-		cr, core, _, err := run(t, []step{{status: 413, code: "payload_too_large"}}, 4, nil)
-		if !errors.Is(err, sensorlink.ErrDropped) || cr.c.Stats().Dropped != 1 || core.requests() != 1 {
-			t.Errorf("no callback: %v %+v", err, cr.c.Stats())
-		}
-		// a callback that does not make the batch smaller cannot loop forever
-		_, core, _, err = run(t, []step{{status: 413, code: "payload_too_large"}, {status: 413, code: "payload_too_large"}}, 4, func(r *sensorlink.ObservationsRequest) *sensorlink.ObservationsRequest { return r })
-		if !errors.Is(err, sensorlink.ErrDropped) || core.requests() != 1 {
-			t.Errorf("same-size callback: %v, %d requests", err, core.requests())
-		}
-	})
-	t.Run("every other 4xx and a 500 drop the batch and count it", func(t *testing.T) {
-		for _, c := range []step{
-			{status: 400, code: "invalid_request"}, {status: 403, code: "forbidden_route"}, {status: 404, code: "unknown_job"},
-			{status: 409, code: "poll_in_progress"}, {status: 500, code: "internal"}, {status: 418, code: ""},
+	t.Run("every status is an *Error after one request, with Retry-After capped at a minute", func(t *testing.T) {
+		for _, c := range []struct {
+			st    step
+			after time.Duration
+		}{
+			{step{status: 429, retryAfter: "3", code: "rate_limited"}, 3 * time.Second},
+			{step{status: 503, retryAfter: "3600", code: "store_busy"}, time.Minute},
+			{step{status: 426, code: "proto_unsupported"}, 0},
+			{step{status: 413, code: "payload_too_large"}, 0},
+			{step{status: 400, code: "invalid_request"}, 0},
+			{step{status: 409, code: "module_off"}, 0},
+			{step{status: 500, code: "internal"}, 0},
 		} {
-			cr, core, _, err := run(t, []step{c}, 2, nil)
+			core, _, err := run(t, c.st, 2)
 			var e *sensorlink.Error
-			if !errors.Is(err, sensorlink.ErrDropped) || !errors.As(err, &e) || e.Status != c.status || core.requests() != 1 || cr.c.Stats().Dropped != 1 {
-				t.Errorf("%d: %v (%d requests, %+v)", c.status, err, core.requests(), cr.c.Stats())
+			if !errors.As(err, &e) || e.Status != c.st.status || e.Code != c.st.code || e.RetryAfter != c.after || core.requests() != 1 {
+				t.Errorf("%d: %v (%d requests, retry-after %v)", c.st.status, err, core.requests(), e)
 			}
 		}
 	})
-	t.Run("module_off stops at once", func(t *testing.T) {
-		cr, core, _, err := run(t, []step{{status: 409, code: "module_off"}, {body: okObs}}, 2, nil)
-		if !errors.Is(err, sensorlink.ErrModuleOff) || core.requests() != 1 || cr.c.Stats().Dropped != 0 || len(cr.sl.all()) != 0 {
-			t.Errorf("%v: %d requests, %+v", err, core.requests(), cr.c.Stats())
+	t.Run("no answer is an error that is not an *Error", func(t *testing.T) {
+		_, _, err := run(t, step{drop: true}, 1)
+		var e *sensorlink.Error
+		if err == nil || errors.As(err, &e) {
+			t.Errorf("err = %v", err)
 		}
 	})
-	t.Run("a cancelled context ends the waiting", func(t *testing.T) {
-		core := scripted(t, ca.serverLeaf(t), []step{{status: 503, retryAfter: "5", code: "store_busy"}})
-		cr := newClientRig(t, ca, core.ts.URL)
-		ctx, cancel := context.WithCancel(t.Context())
-		cr.c = mustClient(t, cr, core.ts.URL, func(ctx context.Context, _ time.Duration) error { cancel(); <-ctx.Done(); return ctx.Err() })
-		if _, err := cr.c.SendObservations(ctx, batch(1), nil); !errors.Is(err, context.Canceled) {
-			t.Errorf("err = %v, want context.Canceled", err)
-		}
-	})
-}
-
-func mustClient(t *testing.T, cr *clientRig, base string, sleep func(context.Context, time.Duration) error) *sensorlink.Client {
-	t.Helper()
-	c, err := sensorlink.NewClient(sensorlink.ClientOptions{BaseURL: base, CredsPath: cr.path, Now: cr.clk.Now, Sleep: sleep, Rand: func() float64 { return 0 }})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return c
 }
 
 func TestBackoff(t *testing.T) {
@@ -679,8 +552,8 @@ func TestClientRefusesRedirects(t *testing.T) {
 	if !errors.As(err, &e) || e.Status != http.StatusTemporaryRedirect {
 		t.Errorf("err = %v, want the 307 itself as an error", err)
 	}
-	if _, err := cr.c.SendObservations(t.Context(), batch(1), nil); !errors.Is(err, sensorlink.ErrDropped) {
-		t.Errorf("an observations batch answered by a redirect: %v, want it dropped", err)
+	if _, err := cr.c.PostObservations(t.Context(), batch(1)); !errors.As(err, &e) || e.Status != http.StatusTemporaryRedirect {
+		t.Errorf("an observations batch answered by a redirect: %v, want the 307 as an error", err)
 	}
 	if n := elsewhereHits.Load(); n != 0 {
 		t.Errorf("the client followed the redirect (%d requests elsewhere)", n)

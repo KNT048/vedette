@@ -24,6 +24,7 @@ func remoteMode() bool { return os.Getenv(remoteEnvVar) == "remote" }
 // remote is the far end of a Service for an env: the link and a capture Runner that talks to it.
 type remote struct {
 	link   *linktest.Link
+	client *sensorlink.Client
 	runner *capture.Runner
 }
 
@@ -40,13 +41,18 @@ func (e *env) job() func(context.Context) error {
 
 func startRemote(e *env) *remote {
 	e.t.Helper()
+	cards := e.host.Interfaces
+	if e.sensorCards != nil {
+		cards = e.sensorCards
+	}
 	flush := 40 * time.Millisecond
 	if e.cfg.FlushEvery >= time.Second {
 		flush = e.cfg.FlushEvery // a test that wants nothing flushed
 	}
 	link := linktest.New(e.t, linktest.Passive(e.svc), func(o *sensorlink.Options) { o.ModuleOn = func(sensorlink.Role) bool { return !e.off.Load() } })
+	client := link.Client(e.t, sensorlink.Passive)
 	r, err := capture.New(capture.Config{
-		Link: link.Client(e.t, sensorlink.Passive), Interfaces: e.host.Interfaces, Open: e.src.open, Meta: e.meta,
+		Link: client, Interfaces: cards, Open: e.src.open, Meta: e.meta,
 		Clock: e.cfg.Clock, Log: e.cfg.Log, Version: "1.0.0",
 		// 10 ms beats and flushes would be 100 requests a second: the link allows 10. The pace is the one thing that differs.
 		FlushEvery: flush, HeartbeatEvery: 150 * time.Millisecond, RetryEvery: e.cfg.RetryEvery, SummaryEvery: e.cfg.SummaryEvery,
@@ -55,7 +61,7 @@ func startRemote(e *env) *remote {
 	if err != nil {
 		e.t.Fatal(err)
 	}
-	return &remote{link: link, runner: r}
+	return &remote{link: link, client: client, runner: r}
 }
 
 // TestSuiteThroughTheLink runs the whole package twice more, as this test binary started again: once with the in-process capture

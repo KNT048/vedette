@@ -82,7 +82,8 @@ type Runner struct {
 	retryAfter time.Duration // what core asked for in its last 429 or 503
 	poison     batchKey
 	poisonN    int
-	batchMax   int // batch size while hunting; 0 means maxSubmitBatch
+	batchMax   int // batch size while hunting; 0 means maxSubmitBatch. Back to 0 after any delivery
+	sizeMax    int // batch size core said fits (413); stays for the life of the process
 }
 
 // New returns a Runner with a new epoch: every process start is a new one (sensor-protocol.md 6.2).
@@ -456,7 +457,8 @@ type outcome int
 
 const (
 	delivered outcome = iota // core took it; the items it rejected were dropped
-	retry                    // core could not take it now (busy, rate limit, updating, unreachable): same items again later
+	retry                    // core could not take it now (rate limit, updating, unreachable): same items again later, no blame
+	busy                     // 503 store_busy: the same, and the only answer that may be about one item of the batch
 	tooLarge                 // 413: send fewer
 	dropped                  // core refused the batch for good (400 and the like): it was dropped and counted
 	wentOff                  // module_off: stop, nothing is sent any more
@@ -474,18 +476,27 @@ func (r *Runner) flush(ctx context.Context, eng *Engine, final bool) {
 	obs, meta := eng.Drain(r.clock(), final)
 	for len(obs) > 0 {
 		n := min(len(obs), maxSubmitBatch)
+		if r.sizeMax > 0 {
+			n = min(n, r.sizeMax)
+		}
 		if r.batchMax > 0 {
 			n = min(n, r.batchMax)
 		}
-		switch r.deliver(ctx, eng, obs[:n]) {
-		case delivered, dropped:
+		res := r.deliver(ctx, eng, obs[:n])
+		switch res {
+		case delivered:
+			r.batchMax = 0 // the hunt is over: whatever failed is behind us
+			r.poisonN = 0
+			obs = obs[n:]
+			continue
+		case dropped:
 			obs = obs[n:]
 			continue
 		case wentOff:
 			return // the queue is dropped with the Engine
 		case tooLarge:
 			if n > 1 {
-				r.batchMax = max(1, n/2) // the same items again, in smaller batches
+				r.sizeMax = max(1, n/2) // the same items again, in smaller batches
 				continue
 			}
 			r.dropBatch(ctx, eng, obs[:1], "a single observation is over the size limit")
@@ -496,11 +507,13 @@ func (r *Runner) flush(ctx context.Context, eng *Engine, final bool) {
 			eng.Requeue(obs)
 			return
 		}
-		if !final && r.poisoned(obs[:n]) {
+		// Only a 503 can be about the items, and only while core answers a heartbeat (its store takes a write) at this moment: a
+		// rate limit, an update window, a certificate being rotated or no answer at all say nothing about any item.
+		if res == busy && !final && r.coreTakesWrites(ctx) && r.poisoned(obs[:n]) {
 			if n > 1 {
 				r.batchMax = max(1, n/2)
 				r.failures = 0 // a split is a new attempt with smaller batches: the pause starts over, the hunt must not crawl
-			} else if r.coreTakesWrites(ctx) { // core answers and writes: this one item is what fails
+			} else {
 				r.dropPoison(ctx, eng, obs[0])
 				obs = obs[1:]
 				continue
@@ -591,15 +604,26 @@ func (r *Runner) deliver(ctx context.Context, eng *Engine, batch []observe.Obser
 	rep, err := r.link.PostObservations(ctx, buildRequest(r.epoch, r.nextSeq(), batch))
 	if err == nil {
 		seen := map[int]bool{}
+		later := map[int]bool{} // rejected for want of budget: not wrong, only too many; it may come again
 		for _, rj := range rep.Rejected {
 			if rj.Index < 0 || rj.Index >= len(batch) || seen[rj.Index] {
 				continue
 			}
 			seen[rj.Index] = true
+			later[rj.Index] = rj.Code == "budget_exhausted"
 			eng.CountDrop("observation_rejected")
 			r.log.WarnContext(ctx, "sensor-passive: core rejected an observation, dropped", "field", batch[rj.Index].Field, "reason", rj.Code)
 		}
-		eng.Delivered(batch)
+		var done, again []observe.Observation
+		for i, o := range batch {
+			if later[i] {
+				again = append(again, o)
+			} else {
+				done = append(done, o)
+			}
+		}
+		eng.Delivered(done) // a vendor row refused for good is no longer owed...
+		eng.Unmark(again)   // ...but one that only met a budget still is, and may be offered again
 		return delivered
 	}
 	var e *sensorlink.Error
@@ -616,6 +640,9 @@ func (r *Runner) deliver(ctx context.Context, eng *Engine, batch []observe.Obser
 		case e.Status == 429 || e.Status == 503 || e.Status == 426 || e.Code == sensorlink.CodeCertRetired:
 			r.retryAfter = e.RetryAfter
 			r.log.WarnContext(ctx, "sensor-passive: core did not take the observations", "count", len(batch), "code", e.Code, "status", e.Status)
+			if e.Status == 503 {
+				return busy
+			}
 			return retry
 		}
 		r.dropBatch(ctx, eng, batch, fmt.Sprintf("core answered %d %s", e.Status, e.Code))

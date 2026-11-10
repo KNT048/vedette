@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"regexp"
 
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/sensor-passive/capture"
@@ -38,8 +39,12 @@ func runPassive(ctx context.Context, args []string, stdout io.Writer, logger *sl
 	return r.Run(ctx)
 }
 
+// virtualName is the name of a link that is not a card: container and virtual links, bridges, bonds, VLANs. The same rule as the
+// Box network page applies (D-118 (6), modules/core/handlers_network.go): the sensor does not offer these as cards.
+var virtualName = regexp.MustCompile(`^(lo|veth|podman|cni|docker|br|virbr|vdh|bond|tun|tap|wg|dummy|vnet|macvtap|ifb)|[.@]`)
+
 // osInterfaces lists the cards of this machine (the container shares the network of the host): name, MAC, link and IPv4 prefixes.
-// Loopback and cards without a 6-byte MAC (tunnels) are not part of the LAN.
+// Loopback, virtual links and cards without a 6-byte MAC (tunnels) are not part of the LAN.
 func osInterfaces(context.Context) ([]capture.Interface, error) {
 	all, err := net.Interfaces()
 	if err != nil {
@@ -47,7 +52,7 @@ func osInterfaces(context.Context) ([]capture.Interface, error) {
 	}
 	var out []capture.Interface
 	for _, i := range all {
-		if i.Flags&net.FlagLoopback != 0 || len(i.HardwareAddr) != 6 {
+		if i.Flags&net.FlagLoopback != 0 || len(i.HardwareAddr) != 6 || virtualName.MatchString(i.Name) {
 			continue
 		}
 		c := capture.Interface{Name: i.Name, MAC: i.HardwareAddr.String(), Link: i.Flags&net.FlagUp != 0 && i.Flags&net.FlagRunning != 0}

@@ -1,7 +1,7 @@
 - [x] Zalo personal Send: done in feat/notify-zalo-personal (remaining items in .ai/deferred/feat-notify-zalo-personal.md)
-- [ ] Zalo OA token refresh: OA access tokens expire (about 25 h) and need refresh_token plus the app secret_key; contract.ts stores one secret, so WP-22 needs a contract.ts change (extra secrets, token store) and the refresh flow; the adapter sends with the one saved token and fails with a Zalo error once it expires — WP-22 / contract change
-- [ ] Slack Socket Mode (D-38): unblocked by #45; tracked in .ai/deferred/feat-notify-module.md
-- [ ] Telegram long-polling approval loop, Slack/Telegram button callbacks, Zalo personal reply codes: websocket ones unblocked by #45; tracked in .ai/deferred/feat-notify-module.md
+- [x] Zalo OA token refresh: OA access tokens expire (about 25 h) and need refresh_token plus the app secret_key; contract.ts stores one secret, so WP-22 needs a contract.ts change (extra secrets, token store) and the refresh flow; the adapter sends with the one saved token and fails with a Zalo error once it expires — WP-22 / contract change — Moved → feat-notify-module.md
+- [x] Slack Socket Mode (D-38): unblocked by #45; tracked in .ai/deferred/feat-notify-module.md — Moved → feat-notify-module.md
+- [x] Telegram long-polling approval loop, Slack/Telegram button callbacks, Zalo personal reply codes: websocket ones unblocked by #45; tracked in .ai/deferred/feat-notify-module.md — Moved → feat-notify-module.md
 - [x] Endpoints, DB tables, history persistence, incidents, 2FA email (CodeMailer), resend/test, secrets: done in feat/notify-module (what is left: .ai/deferred/feat-notify-module.md)
 - [x] Scheduler (send at DueAt, release held batches at quiet-hours end): done in feat/notify-module, job deliver
 - [ ] Verify the Zalo OA endpoint /v3.0/oa/message/cs, the access_token header and the error codes against the live docs (written from memory, the docs could not be read from here) — WP-22 / Emily

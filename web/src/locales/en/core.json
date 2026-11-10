@@ -529,7 +529,7 @@
       "1": {
         "name": "Pull feeds directly from their sources",
         "what": "The box fetches each feed itself with plain HTTPS requests for public files. None of your data is sent; only your IP address appears in the source's logs. Vedette's own GitHub repository is used only for software updates; some public sources happen to host their files on GitHub.",
-        "to": "CISA KEV (www.cisa.gov; if that address answers 403, an error or nothing in time, CISA's own GitHub mirror of the same file on raw.githubusercontent.com), FIRST EPSS (api.first.org), the nuclei-templates CVE list, IPsum and hagezi TIF (public data files on raw.githubusercontent.com), ET Open (rules.emergingthreats.net), abuse.ch Feodo Tracker and SSLBL (feodotracker.abuse.ch, sslbl.abuse.ch), the Tor exit list (check.torproject.org), and any custom feed you add",
+        "to": "CISA KEV (www.cisa.gov; if that address answers 403, an error or nothing in time, CISA's own GitHub mirror of the same file on raw.githubusercontent.com), FIRST EPSS (api.first.org), the nuclei-templates CVE list, IPsum and hagezi TIF (public data files on raw.githubusercontent.com), ET Open (rules.emergingthreats.net), abuse.ch Feodo Tracker (feodotracker.abuse.ch), the Tor exit list (check.torproject.org), and any custom feed you add",
         "control": "Cannot be turned off because the product needs this data; remove a custom feed to stop it. Air-gapped networks use the offline bundle.",
         "link": "Open Feeds"
       },
@@ -1191,6 +1191,7 @@
     "add": "Add connection",
     "writeNoteLead": "Write tools never run from a chat answer.",
     "writeNote": "Tools that change something are used only through actions you approve in the AI response module.",
+    "getMayChange": "Some devices change state on a GET (reboot, config). Turn this on only for read-only endpoints.",
     "writeOnlyApproved": "Write tools run only through an action you approve in the AI response module.",
     "empty": "No connections yet",
     "emptyBody": "Add a connection so response actions can reach a firewall or switch, and the AI can read a device instead of guessing.",
@@ -1259,7 +1260,7 @@
       "secretHint": "Token, password or key. Stored encrypted; only the last 4 characters are shown afterwards.",
       "secretSaved": "Saved, ending {{last4}}. Leave blank to keep it.",
       "allow": "Allow-list (one per line)",
-      "allowHint_ssh": "Exact commands the AI may run, one per line, for example {{example}}",
+      "allowHint_ssh": "Exact commands the AI may run. Use a read-only device account.",
       "allowHint_http": "URL prefixes under the base address, for example {{example}}",
       "allowHint_mcp-http": "URL prefixes under the server address, for example {{example}}",
       "allowHint_netconf-restconf": "URL prefixes under the device address, for example {{example}}",

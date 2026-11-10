@@ -48,16 +48,29 @@ func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFe
 		License   string    `json:"license"`
 		FetchedAt time.Time `json:"fetched_at"`
 	}
+	type kev struct {
+		State string  `json:"state"`
+		Error *string `json:"error"`
+	}
 	out := struct {
 		GeneratedAt       time.Time `json:"generated_at"`
 		KevCatalogVersion string    `json:"kev_catalog_version"`
 		Sources           []src     `json:"sources"`
 		InventoryOn       bool      `json:"inventory_on"`
-	}{GeneratedAt: time.Unix(0, 0).UTC(), Sources: []src{}, InventoryOn: h.s.inventoryOn()} // never pulled: the epoch, not "now"
+		Kev               kev       `json:"kev"`
+	}{GeneratedAt: time.Unix(0, 0).UTC(), Sources: []src{}, InventoryOn: h.s.inventoryOn(), Kev: kev{State: "never_loaded"}} // never pulled: the epoch, not "now"
 	var kevAt, oldest *time.Time
 	for _, r := range rows {
 		if r.ID == "cisa-kev" {
 			kevAt = r.LastSuccess
+			switch {
+			case !r.Enabled: // D-92: Home must not count from a list the admin turned off
+				out.Kev.State = "off"
+			case r.LastSuccess != nil:
+				out.Kev.State = "loaded"
+			case r.Status == "error" && r.Error != nil:
+				out.Kev.Error = oneLine(*r.Error, 200)
+			}
 			if r.CatalogVersion != nil {
 				out.KevCatalogVersion = *r.CatalogVersion
 			}
@@ -82,6 +95,19 @@ func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFe
 		out.GeneratedAt = *oldest
 	}
 	return convert[oas.FeedsGetFeedsStatusOK](out)
+}
+
+// oneLine is an error text for a heading: whitespace runs become one space, valid UTF-8, at most limit runes (then "…"),
+// no trailing full stop (the sentence around it adds its own); nil when nothing is left.
+func oneLine(s string, limit int) *string {
+	s = strings.TrimRight(strings.Join(strings.Fields(strings.ToValidUTF8(s, "")), " "), ".")
+	if r := []rune(s); len(r) > limit {
+		s = string(r[:limit]) + "…"
+	}
+	if s == "" {
+		return nil
+	}
+	return &s
 }
 
 type hotCve struct {
@@ -357,7 +383,6 @@ var iocCategories = map[string]string{
 	"ipsum":         "Reported by several blocklists",
 	"et-open":       "Compromised host",
 	"abusech-feodo": "Botnet command-and-control server",
-	"abusech-sslbl": "Malware server (bad SSL certificate)",
 	"tor-exit":      "Tor exit node",
 	"hagezi-tif":    "Threat-intelligence domain list",
 }

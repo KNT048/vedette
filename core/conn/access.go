@@ -3,7 +3,9 @@ package conn
 import (
 	"context"
 	"crypto/x509"
+	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/knt048/vedette/core/conn/internal/cred"
 	"github.com/knt048/vedette/core/conn/internal/transport"
@@ -22,12 +24,18 @@ type WriteAccess struct {
 }
 
 // WriteAccess returns it.
-func (s *Service) WriteAccess(cred.Key) WriteAccess {
+func (s *Service) WriteAccess(k cred.Key) WriteAccess {
+	if !k.Valid() {
+		return WriteAccess{} // no dialer: a caller that forged a key gets nothing to dial with
+	}
 	return WriteAccess{Dialer: s.dialer(), Roots: s.roots}
 }
 
 // OpenCredential decrypts the credential of c: a token, a password or an SSH key. The value prints as a placeholder.
-func (s *Service) OpenCredential(ctx context.Context, _ cred.Key, c Connection) (secrets.Value, error) {
+func (s *Service) OpenCredential(ctx context.Context, k cred.Key, c Connection) (secrets.Value, error) {
+	if !k.Valid() {
+		return secrets.Value{}, errors.New("conn: open credential: not allowed")
+	}
 	if c.secretID == nil {
 		return secrets.Value{}, nil
 	}
@@ -51,4 +59,31 @@ func AllowsURL(c Connection, raw string) bool {
 		}
 	}
 	return false
+}
+
+// connLocks is one turn at a time per connection.
+type connLocks struct {
+	mu sync.Mutex
+	m  map[string]chan struct{}
+}
+
+// LockConn takes the turn of connection id, or gives up when ctx ends (ok false). Whoever sends something to a device through the
+// connection holds it for the whole call: the writer and the reader share it, so a read and a write never interleave on one session.
+func (s *Service) LockConn(ctx context.Context, k cred.Key, id string) (release func(), ok bool) {
+	if !k.Valid() {
+		return nil, false
+	}
+	s.locks.mu.Lock()
+	ch, found := s.locks.m[id]
+	if !found {
+		ch = make(chan struct{}, 1)
+		s.locks.m[id] = ch
+	}
+	s.locks.mu.Unlock()
+	select {
+	case ch <- struct{}{}:
+		return func() { <-ch }, true
+	case <-ctx.Done():
+		return nil, false
+	}
 }

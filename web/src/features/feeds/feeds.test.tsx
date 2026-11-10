@@ -152,6 +152,27 @@ describe('feeds: what the real backend needs from the GUI (mock → real)', () =
     expect(document.body.textContent).not.toMatch(/1970/)
   })
 
+  it('D-92: Home never says 0 newly exploited when the CISA list never loaded: it says why and links to Settings, Feeds', async () => {
+    const status = (kev: unknown) => server.use(http.get('*/api/v1/feeds/status', () => HttpResponse.json({ generated_at: '2026-11-09T10:00:00Z', kev_catalog_version: '', sources: [], inventory_on: true, kev })))
+    server.use(http.get('*/api/v1/feeds/hot', () => HttpResponse.json({ window: '7d', rows: [], latest: null })))
+    status({ state: 'never_loaded', error: 'cisa.gov answered HTTP 403' })
+    renderApp('/')
+    const h1 = await screen.findByRole('heading', { level: 1, name: /The CISA list could not be fetched yet: cisa\.gov answered HTTP 403\./ })
+    expect(within(h1).getByRole('link', { name: 'See Settings → Feeds.' })).toHaveAttribute('href', '/settings/feeds')
+    expect(h1.textContent).not.toMatch(/\b0 vulnerabilit/)
+  })
+
+  it('D-92: a turned-off CISA list says so; a loaded one keeps its count even when the last pull failed', async () => {
+    server.use(http.get('*/api/v1/feeds/hot', () => HttpResponse.json({ window: '7d', rows: [], latest: null })))
+    server.use(http.get('*/api/v1/feeds/status', () => HttpResponse.json({ generated_at: '2026-11-09T10:00:00Z', kev_catalog_version: '', sources: [], inventory_on: true, kev: { state: 'off', error: null } })))
+    const first = renderApp('/')
+    expect(await screen.findByRole('heading', { level: 1, name: /The CISA list is turned off\. See Settings → Feeds\./ })).toBeInTheDocument()
+    first.unmount()
+    server.use(http.get('*/api/v1/feeds/status', () => HttpResponse.json({ generated_at: '2026-11-09T10:00:00Z', kev_catalog_version: '', sources: [], inventory_on: true, kev: { state: 'loaded', error: null } })))
+    renderApp('/')
+    expect(await screen.findByRole('heading', { level: 1, name: /Today: 0 vulnerabilities newly exploited/ })).toBeInTheDocument()
+  })
+
   it('the search boxes stop at 200 characters, the most the API accepts', async () => {
     renderApp('/')
     expect(await screen.findByRole('textbox', { name: 'CVE, product, IP or domain' })).toHaveAttribute('maxlength', '200')

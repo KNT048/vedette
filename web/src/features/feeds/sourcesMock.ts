@@ -8,7 +8,7 @@ import { FeedInput as FeedInputSchema, FeedPatch as FeedPatchSchema, ParseTestIn
 import { checkFeedUrl, defaultParser, FORMATS, PREVIEW_ROWS } from './defaults'
 import { checkParser, ParserConfigError, parseFeed } from './parsers'
 import { sampleFor } from './samples'
-import type { Feed, FeedFormat, FeedKind, ParseResult } from './types'
+import type { Feed, FeedFormat, FeedStatus, FeedKind, ParseResult } from './types'
 
 interface Def { id: string; name: string; kind: FeedKind; format: FeedFormat; url: string; license: string; records: number }
 // Only sources already listed in THIRD_PARTY_NOTICES.md / PRIVACY.md (no new third parties).
@@ -19,7 +19,6 @@ const DEFS: Def[] = [
   { id: 'ipsum', name: 'IPsum', kind: 'ioc', format: 'lines', url: 'https://raw.githubusercontent.com/stamparm/ipsum/master/ipsum.txt', license: 'Unlicense', records: 41230 },
   { id: 'et-open', name: 'ET Open compromised IPs', kind: 'ioc', format: 'lines', url: 'https://rules.emergingthreats.net/blockrules/compromised-ips.txt', license: 'BSD', records: 1480 },
   { id: 'abusech-feodo', name: 'abuse.ch Feodo Tracker', kind: 'ioc', format: 'lines', url: 'https://feodotracker.abuse.ch/downloads/ipblocklist.txt', license: 'CC0', records: 212 },
-  { id: 'abusech-sslbl', name: 'abuse.ch SSLBL', kind: 'ioc', format: 'csv', url: 'https://sslbl.abuse.ch/blacklist/sslipblacklist.csv', license: 'CC0', records: 596 },
   { id: 'tor-exit', name: 'Tor exit list', kind: 'ioc', format: 'lines', url: 'https://check.torproject.org/torbulkexitlist', license: 'Attribution: torproject', records: 1190 },
   { id: 'hagezi-tif', name: 'hagezi TIF', kind: 'ioc', format: 'lines', url: 'https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.mini-onlydomains.txt', license: 'GPL-3.0, unmodified', records: 438900 },
 ]
@@ -47,6 +46,13 @@ const builtinFeed = (d: Def, s: BuiltinState): Feed => ({
   id: d.id, builtin: true, name: d.name, kind: d.kind, format: d.format, url: s.url, default_url: d.url, enabled: s.enabled, interval_hours: s.interval_hours,
   auth: { type: 'none', header_name: null, username: null, secret_last4: null }, parser: null, last_fetch: s.last_fetch, records: s.records, status: s.status, error: s.error, license: d.license, answered_by: d.id === 'cisa-kev' && s.last_fetch ? 'CISA' : null,
 })
+/** What Home needs to know about the CISA list (D-92): turned off, loaded at least once, or never loaded (with the last error). */
+export function kevStatus(): FeedStatus['kev'] {
+  const s = config.get().builtin['cisa-kev']
+  if (s && !s.enabled) return { state: 'off', error: null }
+  if (!s || s.records === null) return { state: 'never_loaded', error: s?.error ?? null }
+  return { state: 'loaded', error: null }
+}
 const allFeeds = (c: Config): Feed[] => [...DEFS.map((d) => builtinFeed(d, c.builtin[d.id] ?? seedBuiltin(false)[d.id]!)), ...c.custom]
 const hostOf = (u: string) => { try { return new URL(u).hostname } catch { return '' } }
 const parseErr = (e: unknown) => e instanceof ParserConfigError ? fail(e.code === 'too_large' ? 413 : 400, e.code, e.message) : null

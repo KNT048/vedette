@@ -12,7 +12,7 @@ import { useProbes } from './api'
 import { errMsg } from './errors'
 import type { ProbeEntry } from './types'
 
-const tone = { matched: 'danger', not_matched: 'ok', no_response: 'warn', banner: 'off' } as const
+const tone = { matched: 'danger', not_matched: 'ok', no_response: 'warn', banner: 'off', stopped: 'off' } as const
 
 export function ProbesTab() {
   const { t } = useTranslation('scan')

@@ -1,9 +1,12 @@
 package conn
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
-	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -260,11 +263,7 @@ func describe(c Connection, err error, secret secrets.Value) *apierr.Error {
 		}
 		return apierr.New(502, "address_refused", fmt.Sprintf("%s now points to %s, so Vedette did not connect. Check the name in your DNS.", c.Target, why))
 	case errors.As(err, &de):
-		redact := []string{secret.Reveal(), deref(c.Username)}
-		if c.Auth.Type == AuthBasic {
-			redact = append(redact, base64.StdEncoding.EncodeToString([]byte(deref(c.Username)+":"+secret.Reveal())))
-		}
-		msg := transport.CleanLine(de.Msg, redact...)
+		msg := transport.CleanLine(de.Msg, transport.Secrets(c.Auth.Type, deref(c.Username), secret.Reveal())...)
 		return apierr.New(502, "device_error", fmt.Sprintf("%s was reached, but %s.", c.Target, strings.TrimRight(msg, ". ")))
 	}
 	return apierr.New(502, "unreachable", fmt.Sprintf("Could not connect to %s. Check the address, the box's network and the firewall.", c.Target))
@@ -376,13 +375,35 @@ func discovered(found []transport.MCPTool) []Tool {
 			continue
 		}
 		seen[f.Name] = true
-		d := transport.CleanLine(f.Description)
-		if utf8.RuneCountInString(d) > 200 {
-			d = string([]rune(d)[:199]) + "…"
-		}
-		out = append(out, Tool{Name: f.Name, Access: "write", Description: d})
+		d := cleanDescription(f.Description)
+		out = append(out, Tool{Name: f.Name, Access: "write", Description: d, Ident: ToolIdent(d, f.Schema)})
 	}
 	return out
+}
+
+// cleanDescription is a server's description of a tool as it is kept: one line of at most 200 characters.
+func cleanDescription(s string) string {
+	d := transport.CleanLine(s)
+	if utf8.RuneCountInString(d) > 200 {
+		d = string([]rune(d)[:199]) + "…"
+	}
+	return d
+}
+
+// ToolIdent is the identity of an MCP tool: a hash of its cleaned description and its input schema in a canonical form (keys sorted;
+// "" for no schema, or one that is not an object or too large). The reader computes the same from what the server says now.
+func ToolIdent(description string, schema json.RawMessage) string {
+	canon := ""
+	var v map[string]any
+	dec := json.NewDecoder(bytes.NewReader(schema))
+	dec.UseNumber()
+	if len(schema) > 0 && len(schema) <= transport.MaxSchema && dec.Decode(&v) == nil && v != nil {
+		if b, err := json.Marshal(v); err == nil {
+			canon = string(b)
+		}
+	}
+	h := sha256.Sum256([]byte(cleanDescription(description) + "\x00" + canon))
+	return hex.EncodeToString(h[:16])
 }
 
 // mergeFound is the tool list after a Test of an MCP server: the tools the server lists now, in its order, at most maxTools. A tool
@@ -397,6 +418,11 @@ func mergeFound(have, found []Tool) []Tool {
 		if i := slices.IndexFunc(have, func(t Tool) bool { return t.Name == f.Name }); i >= 0 {
 			kept := have[i]
 			kept.Description = f.Description
+			if kept.Ident != f.Ident {
+				// The server now describes the tool differently from the one that an administrator vouched for: it is a new tool, and
+				// a new tool is write and off until somebody sets it again (D-127, M1).
+				kept.Access, kept.Enabled, kept.Ident = "write", false, f.Ident
+			}
 			f = kept
 		}
 		out = append(out, f)

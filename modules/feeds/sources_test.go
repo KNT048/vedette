@@ -10,7 +10,7 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 	// Exactly the hosts listed in PRIVACY.md flow 1.
 	allowed := map[string]bool{
 		"www.cisa.gov": true, "api.first.org": true, "raw.githubusercontent.com": true,
-		"rules.emergingthreats.net": true, "feodotracker.abuse.ch": true, "sslbl.abuse.ch": true, "check.torproject.org": true,
+		"rules.emergingthreats.net": true, "feodotracker.abuse.ch": true, "check.torproject.org": true,
 	}
 	seenID, seenName := map[string]bool{}, map[string]bool{}
 	for _, s := range BuiltinSources() {
@@ -39,8 +39,8 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 			t.Errorf("%s: dedicated decoder must not carry a parser", s.ID)
 		}
 	}
-	if len(seenID) != 9 {
-		t.Fatalf("expected the 9 built-ins of sourcesMock.ts, got %d", len(seenID))
+	if len(seenID) != 8 {
+		t.Fatalf("expected the 8 built-ins of sourcesMock.ts, got %d", len(seenID))
 	}
 }
 

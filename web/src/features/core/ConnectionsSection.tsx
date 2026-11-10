@@ -111,6 +111,7 @@ export default function ConnectionsSection() {
                             </li>
                           ))}
                         </ul>
+                        {c.kind === 'http' || c.kind === 'netconf-restconf' || c.kind === 'automation' ? <p className="mt-2 text-[13px] text-muted">{t('connections.getMayChange')}</p> : null}
                         {c.tools.some((x) => x.access === 'write') ? <p className="mt-2 text-[13px] text-muted">{t('connections.writeOnlyApproved')}</p> : null}
                       </div>
                     ) : null}

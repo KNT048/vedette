@@ -55154,6 +55154,10 @@
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991
                           },
+                          "pick_only": {
+                            "type": "boolean",
+                            "description": "Fragile, unclassified or added by hand: scanned only when a person ticks it in Scan now (D-126 (2)). The page never ticks it for you: not by default, not with Select all, not from a link"
+                          },
                           "selectable": {
                             "type": "boolean"
                           },
@@ -55187,6 +55191,7 @@
                           "ip",
                           "fragile",
                           "findings",
+                          "pick_only",
                           "selectable",
                           "reason"
                         ],

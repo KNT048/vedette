@@ -109,7 +109,7 @@ func wiredModules() []moduleWiring {
 		{ID: "sensor-passive", Migrations: sensorpassive.Migrations},          // no capture job: packets are read in the sensor container only (D-141)
 		{ID: "response", Migrations: response.Migrations, Jobs: responseJobs}, // after notify and inventory (manifest depends)
 		{ID: "exposure", Migrations: exposure.Migrations, Jobs: exposureJobs}, // depends on core and inventory (MANIFEST)
-		{ID: "scan", Migrations: scan.Migrations},                             // depends on core, inventory and feeds (MANIFEST); jobs come with S4
+		{ID: "scan", Migrations: scan.Migrations, Jobs: scanJobs},             // depends on core, inventory and feeds (MANIFEST)
 		{ID: "ai", Migrations: ai.Migrations},                                 // depends on core only (MANIFEST); last: nothing depends on it
 	}
 }

@@ -123849,6 +123849,9 @@ type ScanGetScansTargetsOKItemsItem struct {
 	IP    string                             `json:"ip"`
 	Kind  ScanGetScansTargetsOKItemsItemKind `json:"kind"`
 	Label string                             `json:"label"`
+	// Fragile, unclassified or added by hand: scanned only when a person ticks it in Scan now (D-126 (2)).
+	// The page never ticks it for you: not by default, not with Select all, not from a link.
+	PickOnly bool `json:"pick_only"`
 	// Null when the target can be scanned by picking it. box: the Vedette box itself is never scanned.
 	// regular_scan_never: a person set "never scan" on the device (D-126). not_supported: external targets
 	// are not scanned by this version yet.
@@ -123889,6 +123892,11 @@ func (s *ScanGetScansTargetsOKItemsItem) GetKind() ScanGetScansTargetsOKItemsIte
 // GetLabel returns the value of Label.
 func (s *ScanGetScansTargetsOKItemsItem) GetLabel() string {
 	return s.Label
+}
+
+// GetPickOnly returns the value of PickOnly.
+func (s *ScanGetScansTargetsOKItemsItem) GetPickOnly() bool {
+	return s.PickOnly
 }
 
 // GetReason returns the value of Reason.
@@ -123934,6 +123942,11 @@ func (s *ScanGetScansTargetsOKItemsItem) SetKind(val ScanGetScansTargetsOKItemsI
 // SetLabel sets the value of Label.
 func (s *ScanGetScansTargetsOKItemsItem) SetLabel(val string) {
 	s.Label = val
+}
+
+// SetPickOnly sets the value of PickOnly.
+func (s *ScanGetScansTargetsOKItemsItem) SetPickOnly(val bool) {
+	s.PickOnly = val
 }
 
 // SetReason sets the value of Reason.

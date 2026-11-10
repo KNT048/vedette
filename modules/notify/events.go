@@ -218,7 +218,11 @@ func (s *Service) logEvent(ctx context.Context, data any, kind IncidentKind) err
 }
 
 // Jobs returns the scheduler jobs of the module: "deliver" sends what is due (held notices when quiet
-// hours end, grouped batches at their DueAt, the rest at once). It runs only while the module is on.
+// hours end, grouped batches at their DueAt, the rest at once); "telegram-listen" takes approval button presses
+// while the Telegram channel takes approvals (tglisten.go). They run only while the module is on.
 func (s *Service) Jobs() []jobs.Job {
-	return []jobs.Job{{Module: ModuleID, Name: "deliver", Every: flushEvery, Run: s.Flush}}
+	return []jobs.Job{
+		{Module: ModuleID, Name: "deliver", Every: flushEvery, Run: s.Flush},
+		{Module: ModuleID, Name: telegramListenJob, Every: telegramListenEvery, Run: s.listenTelegram},
+	}
 }

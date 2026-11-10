@@ -121,7 +121,7 @@ func TestWebhookBoxAddrsFuncIsAskedAgain(t *testing.T) {
 	t.Parallel()
 	var mu sync.Mutex
 	var box []netip.Addr
-	get := func() []netip.Addr { mu.Lock(); defer mu.Unlock(); return box }
+	get := func() ([]netip.Addr, bool) { mu.Lock(); defer mu.Unlock(); return box, true }
 	ctl := dialControl(false, get)
 	if err := ctl("tcp", "192.168.10.77:443", nil); err != nil {
 		t.Fatalf("before: %v", err)
@@ -162,11 +162,11 @@ func TestWebhookDialGuardRefusesResolvedAddresses(t *testing.T) {
 		"127.0.0.1:443": true, "169.254.169.254:80": true, "0.0.0.0:80": true, "[::1]:443": true, "224.0.0.1:80": true,
 		"192.168.10.2:443": true, "192.168.10.9:443": false, "8.8.8.8:443": false, "not-an-address": true, "example.com:443": true,
 	} {
-		if err := dialControl(false, func() []netip.Addr { return box })("tcp", addr, nil); (err != nil) != wantErr {
+		if err := dialControl(false, func() ([]netip.Addr, bool) { return box, true })("tcp", addr, nil); (err != nil) != wantErr {
 			t.Errorf("https %s: err = %v", addr, err)
 		}
 	}
-	if err := dialControl(true, func() []netip.Addr { return nil })("tcp", "127.0.0.1:80", nil); err != nil {
+	if err := dialControl(true, func() ([]netip.Addr, bool) { return nil, true })("tcp", "127.0.0.1:80", nil); err != nil {
 		t.Errorf("http loopback: %v", err)
 	}
 	// The default client really dials through the guard: a loopback server is
@@ -181,7 +181,7 @@ func TestWebhookDialGuardRefusesResolvedAddresses(t *testing.T) {
 		t.Errorf("default client, http loopback: %v", err)
 	}
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, srv.URL, nil)
-	if resp, err := webhookClient(false, func() []netip.Addr { return nil }).Do(req); err == nil {
+	if resp, err := webhookClient(false, func() ([]netip.Addr, bool) { return nil, true }).Do(req); err == nil {
 		_ = resp.Body.Close()
 		t.Error("https-mode client dialled loopback")
 	}

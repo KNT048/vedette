@@ -14,7 +14,7 @@ func (s *Service) WebhookTarget(ctx context.Context) (url, signingKey string, ok
 	if err != nil || !c.Configured || !c.Enabled {
 		return "", "", false, err
 	}
-	key, err := s.openSecret(ctx, s.cfg.DB.Reader(), c.SecretID, purposeSecret)
+	key, err := s.openSecret(ctx, s.cfg.DB.Reader(), c.SecretID)
 	if err != nil {
 		return "", "", false, err
 	}

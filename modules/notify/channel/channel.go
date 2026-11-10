@@ -46,6 +46,9 @@ type Message struct {
 	Action       string      // what to do first
 	Items        []string    // optional detail lines, e.g. the CVEs of a grouped notice
 	Link         string      // absolute http(s) URL that opens the item in Vedette
+	// Buttons go under the message on Telegram (inline keyboard; approvals, spec approval-tokens.md 6). Other adapters
+	// ignore them. They are never part of the JSON form, so the history (and a resend) never has them.
+	Buttons []Button `json:"-"`
 }
 
 // DeviceRef names a device in a Message. ID is empty when only the name is known.
@@ -172,7 +175,7 @@ func (m Message) check() error {
 	if _, err := safeLink(m.Link); err != nil {
 		return err
 	}
-	return nil
+	return checkButtons(m.Buttons)
 }
 
 // safeLink accepts only absolute http(s) URLs made of printable ASCII, without
@@ -201,12 +204,17 @@ func safeLink(link string) (string, error) {
 // closes the body, and turns transport failures into errors that contain no URL
 // and none of the secrets.
 func do(c *http.Client, ch Type, req *http.Request, hide ...secrets.Value) (status int, body []byte, err error) {
+	return doLimit(c, ch, req, maxResponseBody, hide...)
+}
+
+// doLimit is do with another cap on the answer (a Telegram updates answer is bigger than a send answer).
+func doLimit(c *http.Client, ch Type, req *http.Request, limit int64, hide ...secrets.Value) (status int, body []byte, err error) {
 	resp, err := c.Do(req)
 	if err != nil {
 		return 0, nil, fmt.Errorf("notify: %s: send failed: %s", ch, transportReason(err, hide))
 	}
 	defer func() { _ = resp.Body.Close() }()
-	body, err = io.ReadAll(io.LimitReader(resp.Body, maxResponseBody))
+	body, err = io.ReadAll(io.LimitReader(resp.Body, limit))
 	if err != nil {
 		return resp.StatusCode, nil, fmt.Errorf("notify: %s: read answer: %s", ch, transportReason(err, hide))
 	}

@@ -311,7 +311,12 @@ test.describe('scan: clean install', () => {
 
   test('when the scanner is not available, Scan now is locked with the reason', async ({ page }) => {
     await clean(page, true)
-    await patchDb(page, { scan_scanner: { available: false } })
+    // Set before the app loads: a clean install keeps writing its store (public IP detection), which can overwrite a patch made while it runs.
+    await page.addInitScript((k) => {
+      const db = JSON.parse(localStorage.getItem(k) ?? '{}')
+      db.scan_scanner = { available: false }
+      localStorage.setItem(k, JSON.stringify(db))
+    }, DB)
     await page.goto('/scans')
     await expect(page.getByRole('button', { name: /Scan now/ })).toBeDisabled()
     await expect(page.getByText(/The vulnerability scanner is not available: the scan container or its scanner is missing/).first()).toBeVisible()

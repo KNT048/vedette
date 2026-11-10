@@ -217,7 +217,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_org` | 400 | The organization name is 2 to 80 characters. | `POST /core/setup`; `PUT /core/general` |
 | `invalid_phone` | 400 | The phone number starts with 0 or +84 and has 10 to 11 digits. | module reports (validator dùng chung) |
 | `invalid_question` | 400 | The question must be 3 to 500 characters. For example: "Which machines still expose RDP?" | `POST /ai/ask` |
-| `invalid_range` | 400 | The start date is after the end date. | `GET /core/logs/export` |
+| `invalid_range` | 400 | The start date is after the end date. / Dates are written YYYY-MM-DD, for example 2026-11-09. (backend, `GET /core/logs/export`: a date that is not a day) | `GET /core/logs/export` |
 | `invalid_recipients` | 400 | The recipient list holds 20 emails at most. | module reports (validator dùng chung) |
 | `invalid_retention` | 400 | Keep the AI activity log for at least ${MIN_RETENTION} days (up to 3650). | `PUT /ai/activity/settings` |
 | `invalid_role` | 400 | Choose a role: view only, operator or administrator. | `PATCH /core/users/{id}`; `POST /core/users`; `PUT /core/oidc` |
@@ -433,6 +433,12 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `connectivity_check_failed` | 409 | The box could not reach the network with the new settings, so it went back to the old ones. Check the address, prefix length and gateway, then try again. Chỉ backend (run `reverted`, D-100). | `PUT /core/network/management` |
 | `reverted_by_reboot` | 409 | The box restarted before the change was confirmed, so it came back on the old address. Chỉ backend (run `reverted`). | `POST /core/network/management/confirm` |
 | `management_not_set` | 409 | Vedette has not set up this box's network yet. Save the management address first, then change the other settings. Chỉ backend: host chưa ghi cấu hình nào nên không có gì để gộp. | `PUT /core/network/span`; `PUT /core/network/ntp`; `PUT /core/network/interfaces` |
+
+#### HTTP 413 (1 mã)
+
+| Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
+|---|---|---|---|
+| `logs_too_large` | 413 | These logs are over 128 MB. Choose a shorter date range or fewer categories. (backend only, D-132: the mock has no size limit) | `GET /core/logs/export` |
 
 #### HTTP 421 (1 mã)
 

@@ -8920,7 +8920,7 @@
     "/core/logs/export": {
       "get": {
         "operationId": "core_get_core_logs_export",
-        "summary": "Download the box logs (audit, AI activity, response, scan probes, alerts, device logs, known-bad connections, honeypot hits) as one JSON or CSV file; secrets are removed, hash-chained logs keep their hashes for offline verification; the download is audited",
+        "summary": "Download the box logs (audit, AI activity, response, scan probes, alerts, device logs, known-bad connections, honeypot hits) as one JSON or CSV file; secrets are removed, hash-chained logs keep their hashes for offline verification; a category whose module has no log source yet is listed as missing; the download is audited",
         "tags": [
           "core"
         ],
@@ -8932,10 +8932,10 @@
           {
             "name": "categories",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
-              "description": "Comma list: audit, ai_activity, response, scan_probes, alerts, device_logs, known_bad, honeypot"
+              "description": "Comma list: audit, ai_activity, response, scan_probes, alerts, device_logs, known_bad, honeypot; none or an unknown one is 400 invalid_categories",
+              "type": "string"
             }
           },
           {
@@ -8943,7 +8943,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "description": "Start date, YYYY-MM-DD",
+              "description": "Start date, YYYY-MM-DD, inclusive, in the organization time zone",
               "type": "string"
             }
           },
@@ -8952,20 +8952,17 @@
             "in": "query",
             "required": false,
             "schema": {
-              "description": "End date, YYYY-MM-DD",
+              "description": "End date, YYYY-MM-DD, inclusive, in the organization time zone; before from is 400 invalid_range",
               "type": "string"
             }
           },
           {
             "name": "format",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
-              "enum": [
-                "json",
-                "csv"
-              ]
+              "description": "json (default) or csv; anything else is 400 invalid_format",
+              "type": "string"
             }
           }
         ],

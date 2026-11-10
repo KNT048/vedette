@@ -5,13 +5,17 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/chain"
 	"github.com/knt048/vedette/core/chain/chainhead"
+	"github.com/knt048/vedette/core/logexport"
+	"github.com/knt048/vedette/core/store"
 )
 
 // AI plans (S-RESP-1). The plans are written by the AI job of part 13b into resp_plans; this part reads them and turns one
@@ -375,3 +379,18 @@ func (s *Service) VerifyLog(ctx context.Context) (chain.Result, error) {
 }
 
 var idRE = regexp.MustCompile(`^[\w.-]{1,96}$`)
+
+// ExportLog is the "response" source of GET /core/logs/export (core INV-13): resp_log from through to, oldest first, as JSON
+// lines with the chain fields unchanged (id, ts, kind, actor, detail, prev_hash, hash), so the file verifies offline. A zero
+// time is open.
+func (s *Service) ExportLog(ctx context.Context, from, to time.Time, w io.Writer) error {
+	lo, hi := "", ""
+	if !from.IsZero() {
+		lo = store.FormatTS(from)
+	}
+	if !to.IsZero() {
+		hi = store.FormatTS(to)
+	}
+	return logexport.Rows{SQL: `SELECT id, ts, kind, actor, detail, prev_hash, hash FROM resp_log
+		WHERE (? = '' OR ts >= ?) AND (? = '' OR ts <= ?) ORDER BY seq`, Args: []any{lo, lo, hi, hi}}.Write(ctx, s.cfg.DB.Reader(), w)
+}

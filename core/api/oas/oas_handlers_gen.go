@@ -8122,7 +8122,8 @@ func (s *Server) handleCoreGetCoreGeneralRequest(args [0]string, argsEscaped boo
 //
 // Download the box logs (audit, AI activity, response, scan probes, alerts, device logs, known-bad
 // connections, honeypot hits) as one JSON or CSV file; secrets are removed, hash-chained logs keep
-// their hashes for offline verification; the download is audited.
+// their hashes for offline verification; a category whose module has no log source yet is listed as
+// missing; the download is audited.
 //
 // GET /core/logs/export
 func (s *Server) handleCoreGetCoreLogsExportRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8201,7 +8202,7 @@ func (s *Server) handleCoreGetCoreLogsExportRequest(args [0]string, argsEscaped 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CoreGetCoreLogsExportOperation,
-			OperationSummary: "Download the box logs (audit, AI activity, response, scan probes, alerts, device logs, known-bad connections, honeypot hits) as one JSON or CSV file; secrets are removed, hash-chained logs keep their hashes for offline verification; the download is audited",
+			OperationSummary: "Download the box logs (audit, AI activity, response, scan probes, alerts, device logs, known-bad connections, honeypot hits) as one JSON or CSV file; secrets are removed, hash-chained logs keep their hashes for offline verification; a category whose module has no log source yet is listed as missing; the download is audited",
 			OperationID:      "core_get_core_logs_export",
 			Body:             nil,
 			RawBody:          rawBody,

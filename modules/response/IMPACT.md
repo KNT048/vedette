@@ -33,6 +33,7 @@
 - **ai** (cổng Go `Service.Propose(ProposeBody{Trigger, ActionID, Params, Confidence, Evidence ≤ 10, Why ≤ 400})` với tác nhân `ai:response`, 13b-10, D-97; `POST /response/ai/proposals` chỉ ở bản xem trước): đổi ngưỡng (0.8, 7 ngày, 2/giờ 5/ngày, 50%/10) → đổi lượng yêu cầu người duyệt nhận; ngưỡng là hằng số hợp đồng (`AI_MIN_CONFIDENCE`, `AI_REPEAT_DAYS`).
 
 ## Modifying: `Log.Append(kind, actor, detail)` / `Log.Verify()` (INV-19)
+- **`/core/logs/export?categories=response`** (D-132): `Service.ExportLog` đọc `resp_log` theo ngày và viết các cột của chuỗi (`id, ts, kind, actor, detail, prev_hash, hash`, không `seq`); đổi cột nằm trong hash làm tệp tải về không còn kiểm được ngoại tuyến (`TestExportLogKeepsTheChainAndTheRange`).
 - **core/logs export** (`response`): công thức hash là hợp đồng với trình kiểm offline và GUI (`logic.ts`); đổi → chuỗi cũ không kiểm lại được. **ai** có chuỗi riêng (xem `ai` câu hỏi mở 2).
 
 ## Modifying: `Blocklist.Render(token) []byte` + token

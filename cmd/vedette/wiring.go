@@ -13,6 +13,7 @@ import (
 	"github.com/knt048/vedette/core/conn"
 	"github.com/knt048/vedette/core/conn/read"
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/server"
 	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/core"
@@ -220,7 +221,8 @@ func buildServices(d *deps) error {
 	if d.ConnReader, err = read.New(read.Config{Conns: d.Conn, Log: d.Log}); err != nil {
 		return fmt.Errorf("connection reader: %w", err)
 	}
-	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock, Facts: privacyFacts{conns: d.Conn}, Conns: d.Conn}); err != nil {
+	d.Logs = logexport.New()
+	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{Logs: d.Logs, DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock, Facts: privacyFacts{conns: d.Conn}, Conns: d.Conn}); err != nil {
 		return fmt.Errorf("core: %w", err)
 	}
 	if d.OS, err = newOSHandlers(*d); err != nil {
@@ -268,6 +270,7 @@ func buildServices(d *deps) error {
 	if d.Response, err = newResponse(d); err != nil {
 		return fmt.Errorf("response: %w", err)
 	}
+	registerLogSources(d)
 	subscribe(*d)
 	return nil
 }

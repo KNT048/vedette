@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { collect, scrub, toCsv } from './logExport'
+import { collect, missing, scrub, toCsv } from './logExport'
 import { collection } from '@/mocks/db'
 
 describe('log export (S-CORE-6)', () => {
@@ -13,6 +13,15 @@ describe('log export (S-CORE-6)', () => {
     const d = collect(['ai_activity', 'scan_probes', 'honeypot'], '2026-02-01T00:00:00Z', null)
     expect(d.scan_probes).toEqual([])
     expect(d.ai_activity).toEqual([{ id: 'b', ts: '2026-03-01T00:00:00Z', hash: 'h2', prev_hash: 'h1' }])
+  })
+  it('a whole day is inclusive at the end, and a category with no log is listed as missing', () => {
+    collection<unknown[]>('ai_activity', () => []).set([{ id: 'a', ts: '2026-03-01T23:30:00.000Z' }, { id: 'b', ts: '2026-03-02T00:00:00.000Z' }])
+    expect(collect(['ai_activity'], '2026-03-01', '2026-03-01').ai_activity).toEqual([{ id: 'a', ts: '2026-03-01T23:30:00.000Z' }])
+    expect(missing(['ai_activity', 'audit', 'honeypot'])).toEqual(['honeypot'])
+  })
+  it('CSV marks a category without source and defuses formulas', () => {
+    expect(toCsv({ alerts: [] }, ['alerts'])).toBe('# alerts (no source)\n\n')
+    expect(toCsv({ hp: [{ a: '=1+1', n: -5 }] })).toBe("# hp\na,n\n'=1+1,-5\n")
   })
   it('CSV has one headed block per category and quotes commas', () => {
     expect(toCsv({ audit: [{ a: 'x,y', b: 1 }], alerts: [] })).toBe('# audit\na,b\n"x,y",1\n\n# alerts\n\n')

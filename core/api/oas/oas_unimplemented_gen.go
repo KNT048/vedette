@@ -550,7 +550,8 @@ func (UnimplementedHandler) CoreGetCoreGeneral(ctx context.Context) (r *CoreGetC
 //
 // Download the box logs (audit, AI activity, response, scan probes, alerts, device logs, known-bad
 // connections, honeypot hits) as one JSON or CSV file; secrets are removed, hash-chained logs keep
-// their hashes for offline verification; the download is audited.
+// their hashes for offline verification; a category whose module has no log source yet is listed as
+// missing; the download is audited.
 //
 // GET /core/logs/export
 func (UnimplementedHandler) CoreGetCoreLogsExport(ctx context.Context, params CoreGetCoreLogsExportParams) (r CoreGetCoreLogsExportOK, _ error) {

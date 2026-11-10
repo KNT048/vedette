@@ -15,6 +15,23 @@ Ràng buộc (kien, 2026-11-06): ship nhanh nhưng đúng concept; SMB/Mid/Enter
 
 Sau M2 đã **dùng được** cho P1/P2 (alert theo khai tay). Sau M3 là sản phẩm SMB đầy đủ. Sau M7 là Mid/Enterprise.
 
+## Trạng thái 2026-11-10
+
+Bảng mốc ở trên không ghi trạng thái; đây là tình hình theo gói việc (WP, `docs/TEAM_PLAN.md` §3), đo từ `origin/main` 6389e36 và các PR đã merge. Chi tiết từng PR: `docs/project-map/completion-log.md`; việc kế tiếp: `.ai/tasks/kien.md`, `.ai/tasks/emily.md`.
+
+| Mốc | Trạng thái | Theo WP |
+|---|---|---|
+| M0 | bỏ (D-23) | — |
+| M1 GUI | **xong** (2026-11-09, trên mock API) | WP-06 xong (#26) |
+| M2 Lõi + Feed + Thông báo | **gần xong, đang nối** | WP-01…WP-05 xong, **đường găng WP-04 xong** (#58); `feeds` có backend và giao diện thật (#46, #80, WP-20); `notify` có kênh, Incidents, thông báo lỗ hổng (#60, #120, WP-22); `inventory` xong (WP-10). Còn: WP-07 `host` (phần 3 lát 7 = #140 đang mở, lát 8 chưa làm), WP-08 đóng gói/phát hành chưa làm |
+| M3 Kiểm kê + Giảm thiểu | **backend xong phần chính** | `sensor-passive` (WP-11), `sensor-active` (WP-12), giao thức sensor mTLS SP-0…SP-4 xong; `mitigation` + `findings` (WP-21, #44) đã merge. Chưa làm: SP-3b/SP-5/SP-6 |
+| M4 Bề mặt ngoài + Quét | **đang làm** (Emily) | WP-23: `exposure` + tự dò IP (#91) xong; `scan` đã xong S0/S1 (#127, #131), S2 là #138 đang mở; SP-3b phía sensor chờ #138 |
+| M5 Honeypot + Log | **honeypot xong, log chưa** | WP-14 xong (#72); WP-24 `logs`: chưa có PR merge; xuất log của core là #137 đang mở |
+| M6 AI BYOK | **đang làm** (Emily) | WP-25a thư viện AI (#16) xong; WP-25 lát 1 là #123 đang mở; phía Kiên: reader chỉ đọc `core/conn/read` (#126) và đề xuất AI `Propose` (#113) xong, 13b-11 chờ WP-25 |
+| M7 Mid/Enterprise/MSP | chưa bắt đầu | WP-26, WP-27 chưa có PR |
+
+Phía response (WP-13): 13a xong (#74), 13b đường găng xong (#105: đẩy cấu hình lên thiết bị chạy được khi AI tắt), 13b-8 (duyệt qua chat) đang sửa review, 13b-11 chờ WP-25. Giai đoạn 3: WP-08, WP-30, WP-31, WP-32 chưa làm; WP-08 chờ khoá phát hành offline và VM lab của kien.
+
 ## Nguyên tắc chuyển mốc
 - Mỗi mốc kết thúc bằng: completion-log entry, decisions, deferred file dọn sạch, demo ghi hình.
 - Không kéo việc mốc sau vào mốc trước "tiện tay". Ponytail.

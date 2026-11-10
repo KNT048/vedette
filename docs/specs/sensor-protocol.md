@@ -237,6 +237,9 @@ Trên dây **không** có argv, cờ, đường dẫn, URL hay phạm vi (D-111 
 - Thân kết quả bị máy chủ từ chối (`413` hoặc `400`) khi `{id}` đang chạy: `Backend` được báo qua giao diện tùy chọn `sensorlink.ResultRejector` và probe `failed` ngay (worker không gửi lại kết quả); `404` không báo gì (không có job nào bị ảnh hưởng).
 - `cancel` đến cùng reply với job: worker không chạy nmap, gửi `stopped`/`cancelled`. Job thứ hai đến khi đang chạy job khác: `refused`/`busy`, gửi ngay, job đang chạy không bị đụng. Cả `refused` cũng giữ `running=<id>` trong các poll tới khi kết quả đã gửi xong, để `core` không báo nhầm `worker_lost`.
 - Worker không gửi kết quả khi bị giết vì lease, `instance` đổi, `409 module_off` hay tắt tiến trình; gửi `stopped`/`deadline` khi hết `timeout_s`.
+- Sống/chết của job đang chạy do **poll cuối nêu tên nó** quyết định (90 s không poll → `worker_lost`), cộng trần phía `core` `timeout_s` + 30 s. Poll nêu một `running` mà `core` không giữ (job đã bỏ, hoặc `core` vừa khởi động lại) nhận ngay `cancel:[id]`.
+- Worker gửi lại kết quả khi 429, 503 hoặc lỗi kết nối (sau `Retry-After`/quãng lùi, trong 60 s), không gửi lại khi 400, 403, 404, 409, 413; vòng poll chờ cho tới khi kết quả đã gửi xong. Id job không khớp `^[0-9a-f]{32}$` bị bỏ, không dùng trong URL hay log.
+- Bó khoá phải là tệp thường, trong thư mục không phải symlink, mode nằm trong `0640` (core ghi `0640`; bit nào ngoài đó, như nhóm ghi hay người khác đọc, bị từ chối); client mở qua `os.OpenRoot` của thư mục chứa.
 - Hậu quả của kết quả trong `core`: mã thoát `> 0` → probe `failed` (nmap thoát mã đó); `< 0` hoặc `status ≠ done` → `failed`; `refused` → `failed`, log ERROR; `reason=nmap_missing` → `unavailable` tới heartbeat kế tiếp. Dòng `sa_probe.result` ghi mã: `worker_unavailable`, `worker_lost`, `nmap_missing`.
 
 ## 7. Bảng lỗi

@@ -67,6 +67,9 @@ type Dispatcher struct {
 	running  *djob         // fetched and not finished (it may be abandoned: its probe stopped, the worker not yet)
 	lastDone string        // the job that finished last
 	doneSent bool          // a poll that still named it has been answered at once
+	byResult bool          // lastDone ended with a result from the worker (not lost, not rejected)
+	orphan   string        // the id of a job the worker reported that core does not know, already answered with a cancel
+	overrun  bool          // a job ran past its limit and was given up; until a poll says the worker is free
 	beatAt   time.Time
 	haveBeat bool
 	nmap     sensorlink.HeartbeatNmap
@@ -81,6 +84,11 @@ type djob struct {
 	err       error
 	cancelled bool // the probe stopped after the worker had the job: cancel it
 	cancelOut bool // a poll reply has carried the cancel
+
+	ctxDone     <-chan struct{} // of the probe's context: a pending job whose probe is over is dropped
+	ctxErr      func() error
+	deliveredAt time.Time // when the worker fetched it
+	lastPoll    time.Time // the latest poll that named it as running: the proof the worker is alive and has it
 }
 
 // NewDispatcher returns a Dispatcher with a fresh instance nonce, the one the worker's lease is tied to.
@@ -116,14 +124,37 @@ func (d *Dispatcher) fresh(now time.Time) bool {
 	return d.haveBeat && now.Sub(d.beatAt) <= heartbeatTimeout
 }
 
+// expireLocked gives up a running job whose worker has stopped answering for it: no poll naming it for 90 seconds, or no
+// result within its timeout plus the 30 seconds of grace (a stuck nmap is not left to block the box for ever). The job is
+// lost; the next poll that still names it gets a cancel (pollLocked). The caller holds mu.
+func (d *Dispatcher) expireLocked(now time.Time) {
+	j := d.running
+	if j == nil || j.finished {
+		return
+	}
+	switch {
+	case now.Sub(j.lastPoll) > heartbeatTimeout:
+	case now.Sub(j.deliveredAt) > time.Duration(j.spec.TimeoutS)*time.Second+cancelGrace:
+		d.overrun = true
+	default:
+		return
+	}
+	d.running = nil
+	d.finishLocked(j, nil, ErrWorkerLost)
+}
+
 // NmapHealth is "" when the worker can run nmap, otherwise what the status page says (INV-6): no heartbeat for 90 s,
 // or the heartbeat says nmap is missing.
 func (d *Dispatcher) NmapHealth() string {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	now := d.now()
+	d.expireLocked(now)
 	switch {
-	case !d.fresh(d.now()):
+	case !d.fresh(now):
 		return "the scan worker has not reported for 90 seconds; active discovery cannot run until it does"
+	case d.overrun:
+		return "the scan worker ran a job past its time limit; core has told it to stop, and active discovery waits until it has"
 	case !d.nmap.Present:
 		return "nmap is not installed in the scan container; active discovery cannot run until the scan image is rebuilt"
 	}
@@ -164,6 +195,7 @@ func (d *Dispatcher) Probe(ctx context.Context, argv []string) (Output, error) {
 		j.spec.Targets[i] = t.String()
 	}
 	j.deadline, _ = ctx.Deadline()
+	j.ctxDone, j.ctxErr = ctx.Done(), ctx.Err
 
 	d.mu.Lock()
 	if d.pending != nil {
@@ -219,16 +251,13 @@ func (d *Dispatcher) Probe(ctx context.Context, argv []string) (Output, error) {
 
 // lookLocked checks the timeouts of a waiting probe and returns the reason it must end now, or nil.
 func (d *Dispatcher) lookLocked(j *djob, now, submitted, abandonAt time.Time) error {
+	d.expireLocked(now) // a job given up here finishes with ErrWorkerLost, which the probe loop returns next
 	switch {
 	case j.finished:
 		return nil
 	case d.pending == j && (now.Sub(submitted) >= pickupTimeout || !d.fresh(now)):
 		d.pending = nil
 		return ErrWorkerUnavailable
-	case d.running == j && !d.fresh(now):
-		d.running = nil
-		d.finishLocked(j, nil, ErrWorkerLost)
-		return ErrWorkerLost
 	case d.running == j && !abandonAt.IsZero() && !now.Before(abandonAt):
 		return ErrStopped // the stop was not confirmed in time; the job stays in running until the worker says it is gone
 	}
@@ -241,7 +270,7 @@ func (d *Dispatcher) finishLocked(j *djob, res *sensorlink.JobResult, err error)
 		return
 	}
 	j.finished, j.res, j.err = true, res, err
-	d.lastDone, d.doneSent = j.spec.ID, false
+	d.lastDone, d.doneSent, d.byResult = j.spec.ID, false, res != nil
 	close(j.done)
 	d.signal()
 }
@@ -296,23 +325,47 @@ func (d *Dispatcher) Jobs(ctx context.Context, wait time.Duration, running strin
 
 // pollLocked decides what a poll gets. ready says to answer now rather than keep holding it.
 func (d *Dispatcher) pollLocked(running string) (rep sensorlink.JobsReply, ready bool) {
+	now := d.now()
 	rep = sensorlink.JobsReply{Instance: d.instance, Jobs: []sensorlink.Job{}, Cancel: []string{}}
+	d.expireLocked(now)
 	if j := d.running; j != nil && !j.finished && running != j.spec.ID {
 		// The worker runs nothing, or something else, and has not answered: it restarted, or its reply was lost (D-113 (4)).
 		d.running = nil
 		d.finishLocked(j, nil, ErrWorkerLost)
 	}
-	if j := d.running; j != nil && j.cancelled {
-		rep.Cancel = append(rep.Cancel, j.spec.ID)
-		if !j.cancelOut {
-			j.cancelOut, ready = true, true
+	if j := d.running; j != nil {
+		j.lastPoll = now // this poll names it: the worker is alive and has it
+		if j.cancelled {
+			rep.Cancel = append(rep.Cancel, j.spec.ID)
+			if !j.cancelOut {
+				j.cancelOut, ready = true, true
+			}
 		}
 	}
-	if running != "" && running == d.lastDone && !d.doneSent && (d.running == nil || d.running.spec.ID != running) {
+	if running == "" {
+		d.orphan, d.overrun = "", false
+	} else if (d.running == nil || d.running.spec.ID != running) && (running != d.lastDone || !d.byResult) {
+		// The worker runs a job core does not hold: one it gave up (lost, over its limit), or one of a core that restarted.
+		// Nothing is listening for its result and the scope, the window and the settings were checked for a job that is gone:
+		// tell the worker to stop it, at once the first time (INV-3).
+		rep.Cancel = append(rep.Cancel, running)
+		if d.orphan != running {
+			d.orphan, ready = running, true
+		}
+	}
+	if running != "" && running == d.lastDone && d.byResult && !d.doneSent && (d.running == nil || d.running.spec.ID != running) {
 		// The poll still names the job that has just finished: answer now, once, so the worker polls again with a free
 		// hand and the next job does not wait for a long poll to run out.
 		d.doneSent = true
 		return rep, true
+	}
+	if j := d.pending; j != nil {
+		select {
+		case <-j.ctxDone: // its probe is over: nobody wants the job
+			d.pending = nil
+			d.finishLocked(j, nil, j.ctxErr())
+		default:
+		}
 	}
 	if d.pending != nil && d.running == nil && running == "" {
 		j := d.pending
@@ -324,6 +377,7 @@ func (d *Dispatcher) pollLocked(running string) (rep sensorlink.JobsReply, ready
 			return rep, ready // its probe is about to stop; Probe drops it
 		}
 		j.spec.TimeoutS = secs
+		j.deliveredAt, j.lastPoll = now, now
 		d.pending, d.running = nil, j
 		rep.Jobs = append(rep.Jobs, j.spec)
 		ready = true

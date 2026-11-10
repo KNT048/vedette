@@ -650,6 +650,11 @@ loop:
 		case errors.Is(err, ErrStopped):
 			status, firstErr = StatusStopped, stoppedText
 			break loop
+		case errors.Is(err, ErrUnavailable):
+			// The worker is gone (or nmap is): the batches that are left would each fail the same way and burn a probe row.
+			// Stop without moving the cursor; a stopped sweep is run again by a later Tick, from the cursor.
+			status, firstErr = StatusStopped, "stopped: "+err.Error()
+			break loop
 		case err == nil:
 			var n int
 			if n, err = s.recordSweep(ctx, hosts, batch, known); err == nil {

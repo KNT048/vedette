@@ -310,15 +310,26 @@ func newEnv(t *testing.T, o fakeOpts, mut ...func(*env)) *env {
 
 func (e *env) clock() time.Time { return e.base.Add(time.Since(e.t0)) }
 
+// prober is the Prober a Service of this env gets: nil (the local one) normally; in the remote run the Dispatcher with a worker
+// that runs the env's current nmap path. When the path changed since the worker was made (a test that swaps the binary and
+// builds again), the old worker is stopped and a new one is built for the new path.
+func (e *env) prober() sa.Prober {
+	if !remoteMode() {
+		return nil
+	}
+	if e.rem != nil && e.rem.path != e.nm.path {
+		e.rem.stop()
+		e.rem = nil
+	}
+	if e.rem == nil {
+		e.rem = startRemote(e)
+	}
+	return e.rem.d
+}
+
 func (e *env) build() {
 	e.t.Helper()
-	var prober sa.Prober // nil: the local one
-	if remoteMode() {
-		if e.rem == nil {
-			e.rem = startRemote(e)
-		}
-		prober = e.rem.d
-	}
+	prober := e.prober()
 	svc, err := sa.New(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Events: e.ev, NmapPath: e.nm.path, Prober: prober, Clock: e.clock, Location: e.loc})
 	if err != nil {
 		e.t.Fatal(err)

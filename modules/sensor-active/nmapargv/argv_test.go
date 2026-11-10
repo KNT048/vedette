@@ -272,3 +272,33 @@ func TestParseInvertsBuild(t *testing.T) {
 		t.Error("KindOf accepted an unknown shape")
 	}
 }
+
+// FuzzParseBuild: for every argv Validate accepts, Parse finds the kind, rate and targets it was built from, and Build makes the
+// same argv again. The dispatcher turns the argv core checked into a job and the worker builds it back: this is the guarantee
+// that nothing is lost or invented on the way (L8).
+func FuzzParseBuild(f *testing.F) {
+	for _, s := range [][]string{
+		shapeSweep, shapeNormal, shapeGentle,
+		{"--privileged", "-sn", "-n", "--max-rate", "1000", "-oX", "-", "10.0.0.1", "10.0.0.2"},
+		{"--privileged", "-sn", "-n", "--max-rate", "1", "-oX", "-", "172.16.0.1"},
+	} {
+		f.Add(strings.Join(s, "\n"))
+	}
+	f.Fuzz(func(t *testing.T, joined string) {
+		argv := strings.Split(joined, "\n")
+		if Validate(argv) != nil {
+			return
+		}
+		kind, rate, targets, err := Parse(argv)
+		if err != nil {
+			t.Fatalf("Parse refuses an argv Validate accepts: %q: %v", argv, err)
+		}
+		got, err := Build(kind, rate, targets)
+		if err != nil || !slices.Equal(got, argv) {
+			t.Fatalf("Build(Parse(a)) != a:\n a = %q\n b = %q (%v)", argv, got, err)
+		}
+		if _, ok := KindOf(kind.Name()); !ok {
+			t.Fatalf("kind %v has no name", kind)
+		}
+	})
+}

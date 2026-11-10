@@ -14,9 +14,12 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"net/http"
 	"net/netip"
+	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/knt048/vedette/core/exec"
@@ -37,6 +40,9 @@ const (
 )
 
 // Why nmap was killed; context.Cause of the job's context says which.
+// jobIDRE is the form of every job id core makes (spec section 5).
+var jobIDRE = regexp.MustCompile(`^[0-9a-f]{32}$`)
+
 var (
 	errCancelled = errors.New("cancelled by core")
 	errLease     = errors.New("lease lost")
@@ -79,17 +85,18 @@ type Worker struct {
 	heartbeat time.Duration
 	tick      time.Duration
 
-	mu       sync.Mutex
-	instance string     // the nonce of core from the latest poll or heartbeat
-	lastOK   time.Time  // the latest successful poll
-	cur      *activeJob // the job in hand, from the poll that delivered it until its result is posted or dropped
-	wg       sync.WaitGroup
+	mu     sync.Mutex
+	lastOK time.Time  // the latest successful poll
+	cur    *activeJob // the job in hand, from the poll that delivered it until its result is posted or dropped
+	wg     sync.WaitGroup
 }
 
 type activeJob struct {
 	job      sensorlink.Job
 	instance string
 	kill     context.CancelCauseFunc // ends the job's context with a cause; the context itself is passed around
+	posting  atomic.Bool             // the result is being sent: the poll loop waits for it before it polls again
+	postDone chan struct{}           // closed when the job is over and the worker is free
 }
 
 // New builds a Worker.
@@ -159,6 +166,7 @@ func (w *Worker) Run(ctx context.Context) error {
 
 	bo := sensorlink.NewBackoff(nil)
 	for ctx.Err() == nil {
+		w.waitPost(ctx)
 		rep, err := w.link.Jobs(ctx, w.runningID(), w.wait)
 		if err != nil {
 			if ctx.Err() != nil {
@@ -186,6 +194,21 @@ func (w *Worker) Run(ctx context.Context) error {
 	return ctx.Err()
 }
 
+// waitPost holds the poll loop while the result of the job in hand is being sent: a poll that names a job whose result is on
+// its way is a poll core may answer before the result is in (L1). The wait ends with the post, which is bounded by the lease.
+func (w *Worker) waitPost(ctx context.Context) {
+	w.mu.Lock()
+	cur := w.cur
+	w.mu.Unlock()
+	if cur == nil || !cur.posting.Load() {
+		return
+	}
+	select {
+	case <-cur.postDone:
+	case <-ctx.Done():
+	}
+}
+
 func (w *Worker) runningID() string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -209,7 +232,6 @@ func (w *Worker) killCurrent(cause error) {
 // result is gone, so nmap stops now and its result is dropped (D-113 (4)).
 func (w *Worker) noteInstance(inst string) {
 	w.mu.Lock()
-	w.instance = inst
 	cur := w.cur
 	w.mu.Unlock()
 	if cur != nil && cur.instance != inst {
@@ -235,6 +257,11 @@ func (w *Worker) apply(ctx context.Context, rep sensorlink.JobsReply) {
 		}
 	}
 	for i, job := range rep.Jobs {
+		if !jobIDRE.MatchString(job.ID) {
+			// Nothing about it is used: not in a URL, not in a log, not in a result. Core's own ids are 32 hex digits.
+			w.log.ErrorContext(ctx, "sensor_active_job_with_a_bad_id_ignored")
+			continue
+		}
 		if i > 0 {
 			w.log.ErrorContext(ctx, "sensor_active_extra_job_ignored", "id", job.ID) // the protocol carries at most one
 			continue
@@ -246,7 +273,7 @@ func (w *Worker) apply(ctx context.Context, rep sensorlink.JobsReply) {
 			continue
 		}
 		jctx, kill := context.WithCancelCause(ctx)
-		cur := &activeJob{job: job, instance: rep.Instance, kill: kill}
+		cur := &activeJob{job: job, instance: rep.Instance, kill: kill, postDone: make(chan struct{})}
 		w.cur = cur
 		w.mu.Unlock()
 		if cancelled[job.ID] {
@@ -282,7 +309,9 @@ func (w *Worker) watchLease(jctx context.Context, cur *activeJob) {
 // shutdown drops the result: nobody is listening for it.
 func (w *Worker) run(ctx, jctx context.Context, cur *activeJob) {
 	defer cur.kill(nil) // frees the watcher and the context
+	defer close(cur.postDone)
 	res := w.execute(ctx, jctx, cur)
+	cur.posting.Store(true)
 	if cause := context.Cause(jctx); errors.Is(cause, errLease) || errors.Is(cause, errInstance) || errors.Is(cause, errModuleOff) || errors.Is(cause, errShutdown) || errors.Is(cause, context.Canceled) {
 		w.log.WarnContext(ctx, "sensor_active_job_dropped", "id", cur.job.ID, "cause", cause)
 	} else {
@@ -345,10 +374,32 @@ func parseTargets(ss []string) ([]netip.Addr, error) {
 	return out, nil
 }
 
-// post sends a result once; the server never wants it twice, so a failure is logged and the job is over.
+// post sends a result. 429, 503 and a transport error are tried again after Retry-After or the backoff, for as long as the
+// lease: past that core has long given the job up. Any other refusal (400, 404, 413, 403, 409) is final: the job is over and
+// the server never wants the result twice (spec section 7).
 func (w *Worker) post(ctx context.Context, id string, res *sensorlink.JobResult) {
-	if err := w.link.PostResult(ctx, id, res); err != nil {
-		w.log.WarnContext(ctx, "sensor_active_result_not_accepted", "id", id, "status", res.Status, "error", err)
+	start, bo := w.now(), sensorlink.NewBackoff(nil)
+	for {
+		err := w.link.PostResult(ctx, id, res)
+		if err == nil || ctx.Err() != nil {
+			return
+		}
+		wait := bo.Next()
+		var e *sensorlink.Error
+		if errors.As(err, &e) {
+			if e.Status != http.StatusTooManyRequests && e.Status != http.StatusServiceUnavailable {
+				w.log.WarnContext(ctx, "sensor_active_result_not_accepted", "id", id, "status", res.Status, "error", err)
+				return
+			}
+			wait = max(wait, e.RetryAfter)
+		}
+		if w.now().Sub(start)+wait > Lease {
+			w.log.WarnContext(ctx, "sensor_active_result_given_up", "id", id, "status", res.Status, "error", err)
+			return
+		}
+		if w.sleep(ctx, wait) != nil {
+			return
+		}
 	}
 }
 

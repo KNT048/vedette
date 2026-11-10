@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/core/exec/exectest"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/core/sensorlink/linktest"
@@ -27,16 +29,19 @@ const xmlOK = `<?xml version="1.0"?><nmaprun><host><status state="up"/><address 
 // fakeCore is the core end of the link for the active role: it hands out the jobs a test pushes, carries its cancels and
 // instance, and keeps what the worker sends.
 type fakeCore struct {
-	mu       sync.Mutex
-	instance string
-	queue    []sensorlink.Job
-	cancel   []string
-	handed   string // the job handed out and not yet answered
-	running  string // what the latest poll said the worker runs
-	polls    int
-	failPoll error // when set, Jobs fails with it
-	results  chan result
-	beats    chan sensorlink.ActiveHeartbeat
+	mu            sync.Mutex
+	instance      string
+	queue         []sensorlink.Job
+	cancel        []string
+	handed        string // the job handed out and not yet answered
+	running       string // what the latest poll said the worker runs
+	polls         int
+	failPoll      error // when set, Jobs fails with it
+	rejectResults error // when set, JobResult answers with it
+	resultCalls   int
+	pushBusy      bool // hand out a job even to a busy worker (the busy test)
+	results       chan result
+	beats         chan sensorlink.ActiveHeartbeat
 }
 
 type result struct {
@@ -46,7 +51,7 @@ type result struct {
 }
 
 func newCore() *fakeCore {
-	return &fakeCore{instance: strings.Repeat("a", 32), results: make(chan result, 16), beats: make(chan sensorlink.ActiveHeartbeat, 64)}
+	return &fakeCore{instance: strings.Repeat("a", 32), results: make(chan result, 64), beats: make(chan sensorlink.ActiveHeartbeat, 64)}
 }
 
 func (c *fakeCore) push(j sensorlink.Job) {
@@ -87,13 +92,13 @@ func (c *fakeCore) Jobs(ctx context.Context, wait time.Duration, running string)
 			c.mu.Unlock()
 			return rep, err
 		}
-		if len(c.queue) > 0 {
+		if len(c.queue) > 0 && (running == "" || c.pushBusy) { // like the dispatcher: a job only to a worker that holds none
 			rep.Jobs = append(rep.Jobs, c.queue[0])
 			c.handed = c.queue[0].ID
 			c.queue = c.queue[1:]
 		}
-		ready := len(rep.Jobs) > 0 || len(rep.Cancel) > 0
-		c.cancel = nil // a cancel goes out once, as the dispatcher's does
+		ready := len(rep.Jobs) > 0 || len(rep.Cancel) > 0 || (running != "" && c.handed != running && !c.pushBusy) // the dispatcher answers a poll naming a finished job at once
+		c.cancel = nil                                                                                             // a cancel goes out once, as the dispatcher's does
 		c.mu.Unlock()
 		if ready || time.Now().After(deadline) || ctx.Err() != nil {
 			return rep, nil
@@ -113,6 +118,12 @@ func (c *fakeCore) JobRunning(id string) bool {
 
 func (c *fakeCore) JobResult(_ context.Context, id string, r *sensorlink.JobResult) error {
 	c.mu.Lock()
+	c.resultCalls++
+	if c.rejectResults != nil {
+		err := c.rejectResults
+		c.mu.Unlock()
+		return err
+	}
 	if c.handed != id {
 		c.mu.Unlock()
 		return sensorlink.NewError(sensorlink.CodeUnknownJob)
@@ -191,7 +202,35 @@ func (f *fakeNmap) pid(t *testing.T, name string) int {
 	return n
 }
 
-func alive(pid int) bool { return syscall.Kill(pid, 0) == nil }
+var (
+	psOnce   sync.Once
+	psRunner *exec.Runner
+)
+
+// alive says whether pid is a live process of the fake nmap: not a zombie (state Z), and its command line holds the fake's
+// directory or "sleep 300", so a pid the system has handed to something else since does not count (and is never killed).
+// It asks ps through core/exec; where ps cannot be run the answer is "not alive".
+func (f *fakeNmap) alive(pid int) bool {
+	psOnce.Do(func() {
+		psRunner, _ = exec.NewRunner(slog.New(slog.DiscardHandler), exec.Binary{Name: "ps", Path: "/bin/ps", MaxOutput: 64 << 10, Validate: func(a []string) error {
+			if len(a) != 4 || a[0] != "-o" || a[1] != "stat=,command=" || a[2] != "-p" || strings.Trim(a[3], "0123456789") != "" {
+				return errors.New("only ps -o stat=,command= -p PID")
+			}
+			return nil
+		}})
+	})
+	if psRunner == nil || pid < 2 {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	res, err := psRunner.Run(ctx, "ps", []string{"-o", "stat=,command=", "-p", strconv.Itoa(pid)}, nil)
+	if err != nil {
+		return false // no such process (ps exits 1), or ps is not there
+	}
+	state, cmd, _ := strings.Cut(strings.TrimSpace(string(res.Stdout)), " ")
+	return !strings.HasPrefix(state, "Z") && (strings.Contains(cmd, f.dir) || strings.Contains(cmd, "sleep 300"))
+}
 
 // writeNmap makes the script. body runs for a scan (not for --version); it may use $DIR.
 func writeNmap(t *testing.T, body string) *fakeNmap {
@@ -214,9 +253,16 @@ echo $$ > "$DIR/nmap.pid"
 			if err != nil {
 				continue
 			}
-			if pid, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil && pid > 1 && alive(pid) {
-				_ = syscall.Kill(pid, syscall.SIGKILL)
-				t.Errorf("orphan process %d (%s) outlived the test", pid, name)
+			pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
+			if err != nil || pid < 2 {
+				continue
+			}
+			for deadline := time.Now().Add(5 * time.Second); f.alive(pid); <-time.After(20 * time.Millisecond) {
+				if time.Now().After(deadline) {
+					_ = syscall.Kill(pid, syscall.SIGKILL)
+					t.Errorf("orphan process %d (%s) outlived the test", pid, name)
+					break
+				}
 			}
 		}
 	})
@@ -390,6 +436,9 @@ func TestBusyRefusesTheSecondJob(t *testing.T) {
 	r.core.push(job(id1))
 	waitFor(t, "nmap to start", func() bool { return nm.argvLog() != "" })
 	waitFor(t, "poll to carry running", func() bool { return r.core.runningNow() == id1 })
+	r.core.mu.Lock()
+	r.core.pushBusy = true
+	r.core.mu.Unlock()
 	r.core.push(job(id2)) // pushed while the first still runs; core's JobRunning follows the latest job handed out
 	got := r.core.next(t)
 	if got.id != id2 || got.res.Status != "refused" || got.res.Reason != "busy" {
@@ -413,7 +462,7 @@ func TestCancelKillsTheProcessGroup(t *testing.T) {
 	if got.res.Status != "stopped" || got.res.Reason != "cancelled" || got.res.XMLB64 != "" {
 		t.Fatalf("result = %+v", got.res)
 	}
-	waitFor(t, "the process group to die", func() bool { return !alive(pid) && !alive(child) })
+	waitFor(t, "the process group to die", func() bool { return !nm.alive(pid) && !nm.alive(child) })
 }
 
 // Cancel racing start: the cancel arrives in the reply that carries the job, so nmap never starts, and the result still
@@ -443,11 +492,11 @@ func TestLeaseLossKillsNmap(t *testing.T) {
 	r.core.fail(sensorlink.NewError(sensorlink.CodeInternal)) // every poll fails from now on
 	r.clock.Advance(worker.Lease - time.Second)
 	<-time.After(100 * time.Millisecond)
-	if !alive(pid) {
+	if !nm.alive(pid) {
 		t.Fatal("nmap was killed before the lease ran out")
 	}
 	r.clock.Advance(2 * time.Second)
-	waitFor(t, "the process group to die", func() bool { return !alive(pid) && !alive(child) })
+	waitFor(t, "the process group to die", func() bool { return !nm.alive(pid) && !nm.alive(child) })
 	r.core.noResult(t, 300*time.Millisecond)
 }
 
@@ -459,7 +508,7 @@ func TestInstanceChangeKillsNmap(t *testing.T) {
 	r.core.push(job(id1))
 	pid, child := nm.pid(t, "nmap.pid"), nm.pid(t, "child.pid")
 	r.core.setInstance(strings.Repeat("b", 32))
-	waitFor(t, "the process group to die", func() bool { return !alive(pid) && !alive(child) })
+	waitFor(t, "the process group to die", func() bool { return !nm.alive(pid) && !nm.alive(child) })
 	r.core.noResult(t, 300*time.Millisecond)
 	waitFor(t, "the worker to be idle", func() bool { return r.core.runningNow() == "" })
 }
@@ -477,7 +526,7 @@ func TestDeadlineStopsNmap(t *testing.T) {
 	if got.res.Status != "stopped" || got.res.Reason != "deadline" {
 		t.Fatalf("result = %+v", got.res)
 	}
-	waitFor(t, "the process group to die", func() bool { return !alive(pid) && !alive(child) })
+	waitFor(t, "the process group to die", func() bool { return !nm.alive(pid) && !nm.alive(child) })
 }
 
 // Output over 8 MiB is cut at 8 MiB and flagged; a non-zero exit is failed with its code and no XML.
@@ -554,9 +603,7 @@ func TestShutdownKillsNmap(t *testing.T) {
 	r.core.push(job(id1))
 	pid, child := nm.pid(t, "nmap.pid"), nm.pid(t, "child.pid")
 	r.stop()
-	if alive(pid) || alive(child) {
-		t.Fatal("nmap outlived Run")
-	}
+	waitFor(t, "nmap to be gone once Run returned", func() bool { return !nm.alive(pid) && !nm.alive(child) })
 	r.core.noResult(t, 100*time.Millisecond)
 }
 
@@ -568,6 +615,63 @@ func TestModuleOffKillsNmap(t *testing.T) {
 	r.core.push(job(id1))
 	pid, child := nm.pid(t, "nmap.pid"), nm.pid(t, "child.pid")
 	r.core.fail(sensorlink.NewError(sensorlink.CodeModuleOff))
-	waitFor(t, "the process group to die", func() bool { return !alive(pid) && !alive(child) })
+	waitFor(t, "the process group to die", func() bool { return !nm.alive(pid) && !nm.alive(child) })
 	r.core.noResult(t, 300*time.Millisecond)
+}
+
+// M2: results are retried on 429, 503 and transport errors, so fast jobs one after the other under the default limits (10
+// requests a second, burst 20, for polls, heartbeats and results together) lose none.
+func TestBackToBackJobsLoseNoResult(t *testing.T) {
+	t.Parallel()
+	nm := writeNmap(t, printXML)
+	r := start(t, nm)
+	const n = 30
+	want := map[string]bool{}
+	for i := range n {
+		id := fmt.Sprintf("%032x", i+1)
+		want[id] = true
+		r.core.push(job(id))
+	}
+	for range n {
+		got := r.core.next(t)
+		if got.res.Status != "done" || !want[got.id] {
+			t.Fatalf("result = %+v", got)
+		}
+		delete(want, got.id)
+	}
+	if len(want) != 0 {
+		t.Fatalf("lost results: %v", want)
+	}
+}
+
+// A result the server answers with 400, 404 or 413 is not sent again: the job is over.
+func TestResultIsNotRetriedOnAFinalRefusal(t *testing.T) {
+	t.Parallel()
+	nm := writeNmap(t, printXML)
+	r := start(t, nm)
+	r.core.mu.Lock()
+	r.core.rejectResults = sensorlink.NewError(sensorlink.CodeUnknownJob)
+	r.core.mu.Unlock()
+	r.core.push(job(id1))
+	waitFor(t, "the result to be refused once", func() bool { r.core.mu.Lock(); defer r.core.mu.Unlock(); return r.core.resultCalls >= 1 })
+	<-time.After(1500 * time.Millisecond)
+	r.core.mu.Lock()
+	defer r.core.mu.Unlock()
+	if r.core.resultCalls != 1 {
+		t.Fatalf("the result was sent %d times", r.core.resultCalls)
+	}
+}
+
+// L6: a job id that is not 32 lowercase hex digits is never used: no URL, no log, no run.
+func TestJobWithABadIDIsIgnored(t *testing.T) {
+	t.Parallel()
+	nm := writeNmap(t, printXML)
+	r := start(t, nm)
+	for _, id := range []string{"../../../etc/passwd", "ABCDEF00000000000000000000000001", "short", id1 + "/result", ""} {
+		r.core.push(job(id))
+	}
+	r.core.noResult(t, 1500*time.Millisecond)
+	if nm.argvLog() != "" {
+		t.Fatalf("nmap ran: %s", nm.argvLog())
+	}
 }

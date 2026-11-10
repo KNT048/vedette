@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/netip"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -276,12 +277,78 @@ func TestNoHeartbeatFailsTheJob(t *testing.T) {
 		r := newDRig(t)
 		r.beat(t, true)
 		ch := probe(t.Context(), r.d, argvOf(t, nmapargv.Sweep, 10, "10.0.0.1"))
-		r.poll(t, "", 5*time.Second)
-		r.clk.Advance(91 * time.Second)
+		j := r.poll(t, "", 5*time.Second).Jobs[0]
+		r.clk.Advance(91 * time.Second) // no poll names the job for 91 s
 		if got := await(t, ch); !errors.Is(got.err, sa.ErrWorkerLost) {
 			t.Fatalf("err = %v", got.err)
 		}
+		// M1: the lost job is not left to run for two hours: the first poll that still names it is told to stop it, at once
+		start := time.Now()
+		rep := r.poll(t, j.ID, 20*time.Second)
+		if len(rep.Cancel) != 1 || rep.Cancel[0] != j.ID || len(rep.Jobs) != 0 || time.Since(start) > 5*time.Second {
+			t.Fatalf("a lost job was not cancelled at once: %+v after %v", rep, time.Since(start))
+		}
 	})
+}
+
+// M1: a worker that reports a job this core does not know (core restarted while nmap ran) is told to stop it at once, and a
+// new job is not handed to it meanwhile.
+func TestRestartedCoreCancelsTheUnknownRunningJob(t *testing.T) {
+	t.Parallel()
+	r := newDRig(t)
+	r.beat(t, true)
+	ch := probe(t.Context(), r.d, argvOf(t, nmapargv.Sweep, 10, "10.0.0.1"))
+	unknown := strings.Repeat("e", 32)
+	start := time.Now()
+	rep := r.poll(t, unknown, 20*time.Second)
+	if len(rep.Cancel) != 1 || rep.Cancel[0] != unknown || len(rep.Jobs) != 0 || time.Since(start) > 5*time.Second {
+		t.Fatalf("reply = %+v after %v", rep, time.Since(start))
+	}
+	// once it says it is free, the waiting job goes out
+	if rep := r.poll(t, "", 5*time.Second); len(rep.Jobs) != 1 {
+		t.Fatalf("reply = %+v", rep)
+	}
+	_ = ch
+}
+
+// L3: a running job is lost when its timeout plus 30 s has passed, however alive the worker looks; the poll that still names
+// it is told to stop it, and Health says why active discovery waits. A probe with no deadline carries the 2 hour cap.
+func TestRunningJobPastItsLimitIsLostAndCancelled(t *testing.T) {
+	t.Parallel()
+	r := newDRig(t)
+	r.beat(t, true)
+	ctx, cancel := probeCtx(t, 20*time.Second)
+	defer cancel()
+	ch := probe(ctx, r.d, argvOf(t, nmapargv.Sweep, 10, "10.0.0.1"))
+	j := r.poll(t, "", 5*time.Second).Jobs[0]
+	if j.TimeoutS < 18 || j.TimeoutS > 20 {
+		t.Fatalf("timeout_s = %d", j.TimeoutS)
+	}
+	r.clk.Advance(time.Duration(j.TimeoutS)*time.Second + 29*time.Second)
+	r.beat(t, true)
+	r.poll(t, j.ID, 0) // alive: it polls
+	notYet(t, ch, 50*time.Millisecond)
+	r.clk.Advance(2 * time.Second)
+	r.beat(t, true)
+	if got := await(t, ch); !errors.Is(got.err, sa.ErrWorkerLost) {
+		t.Fatalf("err = %v", got.err)
+	}
+	if msg := r.d.NmapHealth(); !strings.Contains(msg, "past its time limit") {
+		t.Fatalf("health = %q", msg)
+	}
+	if rep := r.poll(t, j.ID, 0); len(rep.Cancel) != 1 || rep.Cancel[0] != j.ID {
+		t.Fatalf("reply = %+v", rep)
+	}
+	r.poll(t, "", 0) // free again
+	if msg := r.d.NmapHealth(); msg != "" {
+		t.Fatalf("health after the worker is free = %q", msg)
+	}
+	// no deadline on the probe: the job carries the 2 hour cap
+	ch2 := probe(t.Context(), r.d, argvOf(t, nmapargv.Sweep, 10, "10.0.0.2"))
+	if got := r.poll(t, "", 5*time.Second).Jobs; len(got) != 1 || got[0].TimeoutS != 7200 {
+		t.Fatalf("job = %+v", got)
+	}
+	_ = ch2
 }
 
 // D-113 (4): a poll that says the worker runs nothing (or something else) after the job was handed out and before a result:
@@ -618,5 +685,95 @@ func TestProbeRefusesAnArgvOutsideTheGrammar(t *testing.T) {
 	}
 	if rep := r.poll(t, "", 0); len(rep.Jobs) != 0 {
 		t.Fatalf("job: %+v", rep)
+	}
+}
+
+// serve is a hand-written worker that answers every job it fetches with xml until stop is closed; it returns what it saw.
+func serve(t *testing.T, r *drig, xml []byte) (stop func() [][]string) {
+	t.Helper()
+	quit := make(chan struct{})
+	done := make(chan [][]string, 1)
+	go func() {
+		var seen [][]string
+		for {
+			select {
+			case <-quit:
+				done <- seen
+				return
+			default:
+			}
+			rep, err := r.worker.Jobs(context.Background(), "", time.Second)
+			if err != nil || len(rep.Jobs) == 0 {
+				continue
+			}
+			j := rep.Jobs[0]
+			seen = append(seen, j.Targets)
+			res := &sensorlink.JobResult{Status: "done"}
+			res.SetXML(xml)
+			_ = r.worker.PostResult(context.Background(), j.ID, res)
+		}
+	}()
+	return func() [][]string {
+		close(quit)
+		return <-done
+	}
+}
+
+// M3: a sweep whose worker becomes unavailable mid-way stops after the batch that found out: it does not probe, and fail, the
+// batches that are left. The cursor stays after the last finished batch, the job is stopped, and a later Tick runs the sweep
+// again from the cursor.
+func TestSweepStopsWhenTheWorkerIsUnavailable(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{}, func(e *env) { e.inv.st.LANRanges = []string{"192.168.10.0/24"} })
+	r := newDRig(t)
+	r.beat(t, true)
+	svc, err := sa.New(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Events: e.ev, Prober: r.d, Clock: e.clock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	xml, err := os.ReadFile("testdata/sweep.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	errc := make(chan error, 1)
+	go func() { _, err := svc.DiscoverRanges(e.ctx()); errc <- err }()
+	j1 := r.poll(t, "", 10*time.Second).Jobs[0]
+	res := &sensorlink.JobResult{Status: "done"}
+	res.SetXML(xml)
+	if err := r.worker.PostResult(t.Context(), j1.ID, res); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the second batch to be waiting for the worker", func() bool { return e.count(`SELECT count(*) FROM sa_probe`) == 2 })
+	r.clk.Advance(61 * time.Second) // nobody fetches it
+	select {
+	case err := <-errc:
+		if !errors.Is(err, sa.ErrStopped) {
+			t.Fatalf("DiscoverRanges err = %v", err)
+		}
+	case <-time.After(15 * time.Second):
+		t.Fatal("DiscoverRanges did not return")
+	}
+	if n := e.count(`SELECT count(*) FROM sa_probe`); n != 2 {
+		t.Fatalf("%d probe rows: the batches that were left were probed", n)
+	}
+	if got := e.str(`SELECT result FROM sa_probe ORDER BY id DESC LIMIT 1`); got != "failed: worker_unavailable" {
+		t.Fatalf("last probe row = %q", got)
+	}
+	if got := e.str(`SELECT status FROM sa_job WHERE kind = 'sweep'`); got != sa.StatusStopped {
+		t.Fatalf("sweep job status = %q", got)
+	}
+	last := j1.Targets[len(j1.Targets)-1]
+	if got := e.str(`SELECT cursor FROM sa_sweep WHERE id = 1`); got != last {
+		t.Fatalf("cursor = %q, want %q", got, last)
+	}
+	// the worker is back: the next Tick runs the sweep again, from the cursor
+	r.beat(t, true)
+	stop := serve(t, r, xml)
+	if err := svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	seen := stop()
+	if len(seen) == 0 || seen[0][0] != netip.MustParseAddr(last).Next().String() {
+		t.Fatalf("the retry did not continue from the cursor: first targets %v, cursor was %s", seen, last)
 	}
 }

@@ -229,7 +229,10 @@ func TestContract_INV4_ConcurrentPostsHaveOneWinner(t *testing.T) {
 			won++
 			continue
 		}
-		wantCode(t, err, 409, "used")
+		// a loser that read the token before the winner committed and the request after it is told "decided": still one winner
+		if _, c := apiCode(err); c != "used" && c != "decided" {
+			wantCode(t, err, 409, "used")
+		}
 	}
 	if won != 1 || e.tokenUsed() != 1 || len(e.only().Approvals) != 1 || e.count(`SELECT COUNT(*) FROM resp_block_entries`) != 1 {
 		t.Fatalf("%d winners, %d used, %+v", won, e.tokenUsed(), e.only().Approvals)

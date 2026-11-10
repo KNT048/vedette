@@ -255,6 +255,13 @@ func (c *Client) Open(ctx context.Context, a Auth, r Request) (*Stream, error) {
 		cancel()
 		return nil, cleanTransportError(err, a)
 	}
+	// net/http hands back a response that raced the end of the context (it prefers it to the error). The caller's time is up: an
+	// answer that arrives after it is not an answer (the device closing the call as it ends yields an empty 200).
+	if ctx.Err() != nil {
+		_ = resp.Body.Close()
+		cancel()
+		return nil, cleanTransportError(ctx.Err(), a)
+	}
 	return &Stream{
 		Status: resp.StatusCode, Header: resp.Header, Body: io.LimitReader(resp.Body, MaxResponse+1),
 		close: func() { _ = resp.Body.Close(); cancel() },
@@ -269,6 +276,9 @@ func (c *Client) Do(ctx context.Context, a Auth, r Request) (*Response, error) {
 	}
 	defer s.Close()
 	body, err := io.ReadAll(s.Body)
+	if err == nil {
+		err = ctx.Err() // a body cut short by the deadline can read as a clean end
+	}
 	if err != nil {
 		return nil, cleanTransportError(err, a)
 	}

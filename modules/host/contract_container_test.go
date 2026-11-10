@@ -1425,11 +1425,15 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			// No key outside the ones the templates use: a new key is a decision (add it here and to the table).
 			known := []string{"Description", "After", "Wants", "Requires", "ContainerName", "Image", "Network", "PublishPort", "Volume", "ReadOnly", "Tmpfs",
 				"NoNewPrivileges", "DropCapability", "AddCapability", "User", "UserNS", "LogDriver", "PodmanArgs", "HealthCmd", "HealthInterval",
-				"HealthStartPeriod", "HealthRetries", "Exec", "Restart", "TimeoutStartSec", "WantedBy", "Pull"}
+				"HealthStartPeriod", "HealthRetries", "Exec", "Restart", "TimeoutStartSec", "WantedBy", "Pull", "RunInit"}
 			for k := range u {
 				if !slices.Contains(known, k) {
 					t.Errorf("%s has the key %s", svc, k)
 				}
+			}
+			// D-146: only scan runs under an init (nmap can leave children that detach from the process group the worker kills).
+			if _, has := u["RunInit"]; has != (svc == api.ServiceScan) {
+				t.Errorf("%s: RunInit present = %t, only scan has it", svc, has)
 			}
 		}
 	}

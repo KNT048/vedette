@@ -1,0 +1,21 @@
+# The `core` image (D-146): the server, statically linked (modernc SQLite is pure Go), on a base with no shell.
+# Build from the repository root: `make core-image`. Used by the compose dev profile now; the release job (WP-08) signs and publishes it.
+# Health: the unit's HealthCmd is the exec form ["/vedette","healthcheck"].
+ARG GOLANG_IMAGE
+ARG DISTROLESS_IMAGE
+
+FROM ${GOLANG_IMAGE} AS build
+ARG VERSION
+WORKDIR /src
+COPY . .
+RUN set -eu; \
+    printf '%s' "${VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "VERSION must be SemVer without v, got '${VERSION}'" >&2; exit 1; }; \
+    CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly \
+    go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/vedette ./cmd/vedette
+
+FROM ${DISTROLESS_IMAGE}
+ARG VERSION
+LABEL org.opencontainers.image.title="vedette-core" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.source="https://github.com/KNT048/vedette" org.opencontainers.image.licenses="Apache-2.0"
+COPY --from=build /out/vedette /vedette
+USER 65532:65532
+ENTRYPOINT ["/vedette"]

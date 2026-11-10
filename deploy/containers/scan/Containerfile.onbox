@@ -1,0 +1,17 @@
+# The constant Containerfile that vedette-host builds ON THE BOX (D-113 (7), D-4): the signed scan-base plus nmap from the OS package
+# repository. The project never builds or publishes an image with nmap in it (the Nmap licence, docs/LEGAL.md). Slice SP-6 makes
+# vedette-host embed this text and run `podman build` with fixed argv (--build-arg BASE_IMAGE=<scan-base digest> --build-arg
+# NMAP_VERSION=<pins.env>, tag localhost/vedette-scan-nmap:<version>); nothing in the host reads this file yet.
+# `make scan-image` builds the same file from a local scan-base for development and for the check of the effect (nmap --version).
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+ARG NMAP_VERSION
+USER 0
+RUN set -eu; \
+    test -n "${NMAP_VERSION}"; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends "nmap=${NMAP_VERSION}"; \
+    rm -rf /var/lib/apt/lists/*; \
+    nmap --version | grep -F "Nmap version ${NMAP_VERSION%%+*} "
+USER 65532:65532
+ENTRYPOINT ["/vedette-sensor"]

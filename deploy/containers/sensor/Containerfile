@@ -1,0 +1,25 @@
+# The `sensor` image (D-114, D-146): vedette-sensor, statically linked, on a base with no shell and no package manager.
+# Build from the repository root: `make sensor-image` (passes the pins of deploy/containers/pins.env as build arguments).
+#
+# cgo: off. The capture reads AF_PACKET in pure Go (modules/sensor-passive/capture/afpacket_linux.go, golang.org/x/sys/unix), so no
+# libpcap is needed; a dependency that needed cgo would fail this build, because CGO_ENABLED=0 leaves its files out.
+# User: the unit sets User=<sensor_uid>:<sensor_gid> from host.conf; the default below is only for a run without a unit.
+# Health: the unit's HealthCmd is the exec form ["/vedette-sensor","healthcheck"], so the binary sits at /vedette-sensor.
+ARG GOLANG_IMAGE
+ARG DISTROLESS_IMAGE
+
+FROM ${GOLANG_IMAGE} AS build
+ARG VERSION
+WORKDIR /src
+COPY . .
+RUN set -eu; \
+    printf '%s' "${VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "VERSION must be SemVer without v, got '${VERSION}'" >&2; exit 1; }; \
+    CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly \
+    go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/vedette-sensor ./cmd/vedette-sensor
+
+FROM ${DISTROLESS_IMAGE}
+ARG VERSION
+LABEL org.opencontainers.image.title="vedette-sensor" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.source="https://github.com/KNT048/vedette" org.opencontainers.image.licenses="Apache-2.0"
+COPY --from=build /out/vedette-sensor /vedette-sensor
+USER 65532:65532
+ENTRYPOINT ["/vedette-sensor"]

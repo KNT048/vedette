@@ -94,6 +94,10 @@ type Bundled struct {
 	Service string `json:"service"`
 	Name    string `json:"name"`
 	Version string `json:"version"`
+	// SHA256 and License are optional (D-146): the SHA-256 of the pinned file (nuclei's binary) or of the pack's index label, and the SPDX
+	// licence of what is in the signed image. nmap never appears here (D-4, D-113 (7)).
+	SHA256  string `json:"sha256,omitempty"`
+	License string `json:"license,omitempty"`
 }
 
 // SBOM points at the release SBOM.
@@ -106,6 +110,7 @@ type SBOM struct {
 var (
 	nameRE     = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$`)
 	platformRE = regexp.MustCompile(`^[a-z0-9]+/[a-z0-9]+(/[a-z0-9]+)?$`)
+	licenseRE  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9.+() -]{0,63}$`) // an SPDX expression such as MIT or Apache-2.0 AND MIT
 	textVerRE  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+~-]{0,63}$`)
 )
 
@@ -196,7 +201,8 @@ func (m *Manifest) validate() error {
 		}
 	}
 	for _, b := range m.Bundled {
-		if !slices.Contains(Services, b.Service) || !nameRE.MatchString(b.Name) || !textVerRE.MatchString(b.Version) {
+		if !slices.Contains(Services, b.Service) || !nameRE.MatchString(b.Name) || !textVerRE.MatchString(b.Version) ||
+			(b.SHA256 != "" && !hex64RE.MatchString(b.SHA256)) || (b.License != "" && !licenseRE.MatchString(b.License)) {
 			return bad("bundled entry")
 		}
 	}

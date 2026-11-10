@@ -1,0 +1,80 @@
+# Docker Compose for development and for the sensor smoke (D-146, DEPLOYMENT.md 6.2). Profile `dev`: core + sensor (replaying a pcap
+# fixture, no card, no real capture) + scan (a FAKE nmap and a FAKE nuclei: scripts, nothing is scanned). No vedette-host: core runs as a
+# container-only install. Everything runs as one unprivileged uid on a private bridge; only core's UI/API port is published, on 127.0.0.1.
+# Run it with `make dev-sensors` (up) and `make dev-sensors-smoke` (up, check a device appears, down). The pins come from
+# deploy/containers/pins.env (--env-file), so one file decides every version and digest.
+name: vedette-dev
+
+x-build-args: &pins
+  GOLANG_IMAGE: ${GOLANG_IMAGE}
+  DEBIAN_IMAGE: ${DEBIAN_IMAGE}
+  DISTROLESS_IMAGE: ${DISTROLESS_IMAGE}
+  NUCLEI_VERSION: ${NUCLEI_VERSION}
+  NUCLEI_ZIP_SHA256_AMD64: ${NUCLEI_ZIP_SHA256_AMD64}
+  NUCLEI_ZIP_SHA256_ARM64: ${NUCLEI_ZIP_SHA256_ARM64}
+  NUCLEI_BIN_SHA256_AMD64: ${NUCLEI_BIN_SHA256_AMD64}
+  NUCLEI_BIN_SHA256_ARM64: ${NUCLEI_BIN_SHA256_ARM64}
+  VERSION: 0.0.0-dev
+
+x-hardening: &hardening
+  user: "65532:65532"
+  read_only: true
+  tmpfs: ["/tmp"]
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+
+services:
+  # Gives the named volumes to the unprivileged uid. One-shot; the real units get their owners from vedette-host (D-114 (4)).
+  volumes-init:
+    profiles: [dev]
+    build: {context: ../.., dockerfile: deploy/containers/scan-base/Containerfile, args: *pins}
+    image: localhost/vedette-scan-base:dev
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-c", "chown 65532:65532 /d /passive /active && chmod 0750 /d /passive /active"]
+    volumes: [data:/d, creds-passive:/passive, creds-active:/active]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER]
+
+  core:
+    profiles: [dev]
+    build: {context: ../.., dockerfile: deploy/containers/core/Containerfile, args: *pins}
+    image: localhost/vedette-core:dev
+    <<: *hardening
+    command: ["-listen", "0.0.0.0:8443", "-host-socket", "", "-sensor-listen", "0.0.0.0:8444", "-sensor-creds", "/var/lib/vedette-creds"]
+    ports: ["127.0.0.1:${VEDETTE_DEV_PORT:-18443}:8443"]
+    volumes:
+      - data:/var/lib/vedette
+      - creds-passive:/var/lib/vedette-creds/passive
+      - creds-active:/var/lib/vedette-creds/active
+    healthcheck: {test: ["CMD", "/vedette", "healthcheck"], interval: 5s, start_period: 20s, retries: 12}
+    depends_on: {volumes-init: {condition: service_completed_successfully}}
+
+  sensor:
+    profiles: [dev]
+    build: {context: ../.., dockerfile: deploy/containers/sensor/Containerfile, args: *pins}
+    image: localhost/vedette-sensor:dev
+    <<: *hardening
+    command: ["passive", "--core", "https://core:8444", "--creds", "/var/lib/vedette-creds/sensor.pem", "--replay", "/fixtures/lan-discovery.pcap"]
+    volumes:
+      - creds-passive:/var/lib/vedette-creds:ro
+      - ../../modules/sensor-passive/testdata:/fixtures:ro
+    healthcheck: {test: ["CMD", "/vedette-sensor", "healthcheck"], interval: 5s, start_period: 10s, retries: 12}
+    depends_on: {core: {condition: service_healthy}}
+
+  scan:
+    profiles: [dev]
+    build: {context: ../.., dockerfile: deploy/containers/scan-base/Containerfile, args: *pins}
+    image: localhost/vedette-scan-base:dev
+    <<: *hardening
+    init: true
+    command: ["active", "--core", "https://core:8444", "--creds", "/var/lib/vedette-creds/sensor.pem", "--nmap", "/fakes/nmap", "--nuclei", "/fakes/nuclei"]
+    volumes:
+      - creds-active:/var/lib/vedette-creds:ro
+      - ./fakes:/fakes:ro
+    healthcheck: {test: ["CMD", "/vedette-sensor", "healthcheck"], interval: 5s, start_period: 10s, retries: 12}
+    depends_on: {core: {condition: service_healthy}}
+
+volumes:
+  data:
+  creds-passive:
+  creds-active:

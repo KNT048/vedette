@@ -1,0 +1,13 @@
+# Build context of the images (deploy/containers/*/Containerfile, repository root): Go source and the scan pack only.
+.git
+.github
+.ai
+.claude
+.dev
+web
+docs
+bin
+dist
+*.db
+*.key
+*.pem

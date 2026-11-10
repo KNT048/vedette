@@ -1,0 +1,54 @@
+# The `scan` base image (D-113 (7), D-125 (4), D-146): Debian slim + vedette-sensor + nuclei + the safe template pack. This is the image the
+# project signs and publishes. It holds NO nmap (D-4, docs/LEGAL.md): vedette-host adds it on the box (scan/Containerfile.onbox).
+# Build from the repository root: `make scan-base-image` (builds the pack first, `make scan-pack`, and passes pins.env as build arguments).
+#
+# nuclei is downloaded from the release page at the pinned version, its zip is checked against the pinned SHA-256 BEFORE it is unpacked and
+# the binary inside is checked again AFTER; a mismatch fails the build. Nothing is updated at run time (nuclei runs with -duc, -ni).
+# The pack is the output of scripts/scanpack: templates/ -> /usr/share/vedette/nuclei-templates (nucleiargv.TemplatesDir), index.json ->
+# /usr/local/share/vedette/nuclei-pack/index.json (the default of `vedette-sensor active --nuclei-index`). Plain files and folders only.
+# Init: the unit runs this image under podman's init (RunInit=true), so vedette-sensor is not a subreaper.
+ARG DEBIAN_IMAGE
+ARG GOLANG_IMAGE
+
+FROM ${GOLANG_IMAGE} AS build
+ARG VERSION
+WORKDIR /src
+COPY . .
+RUN set -eu; \
+    printf '%s' "${VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "VERSION must be SemVer without v, got '${VERSION}'" >&2; exit 1; }; \
+    CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly \
+    go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/vedette-sensor ./cmd/vedette-sensor
+
+FROM ${DEBIAN_IMAGE} AS nuclei
+ARG TARGETARCH
+ARG NUCLEI_VERSION
+ARG NUCLEI_ZIP_SHA256_AMD64
+ARG NUCLEI_ZIP_SHA256_ARM64
+ARG NUCLEI_BIN_SHA256_AMD64
+ARG NUCLEI_BIN_SHA256_ARM64
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl unzip && rm -rf /var/lib/apt/lists/*
+RUN set -eu; \
+    case "${TARGETARCH}" in \
+      amd64) zip_sha="${NUCLEI_ZIP_SHA256_AMD64}"; bin_sha="${NUCLEI_BIN_SHA256_AMD64}" ;; \
+      arm64) zip_sha="${NUCLEI_ZIP_SHA256_ARM64}"; bin_sha="${NUCLEI_BIN_SHA256_ARM64}" ;; \
+      *) echo "unsupported TARGETARCH '${TARGETARCH}'" >&2; exit 1 ;; \
+    esac; \
+    test -n "${NUCLEI_VERSION}" && test -n "${zip_sha}" && test -n "${bin_sha}"; \
+    curl -fsSL --max-time 300 -o /tmp/nuclei.zip "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_VERSION}/nuclei_${NUCLEI_VERSION}_linux_${TARGETARCH}.zip"; \
+    echo "${zip_sha}  /tmp/nuclei.zip" | sha256sum -c -; \
+    mkdir /out; unzip -q /tmp/nuclei.zip nuclei LICENSE.md -d /out; \
+    echo "${bin_sha}  /out/nuclei" | sha256sum -c -; \
+    chmod 0755 /out/nuclei
+
+FROM ${DEBIAN_IMAGE}
+ARG VERSION
+LABEL org.opencontainers.image.title="vedette-scan-base" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.source="https://github.com/KNT048/vedette" org.opencontainers.image.licenses="Apache-2.0 AND MIT"
+COPY --from=build /out/vedette-sensor /vedette-sensor
+COPY --from=nuclei /out/nuclei /usr/local/bin/nuclei
+COPY --from=nuclei /out/LICENSE.md /usr/local/share/vedette/licenses/nuclei-LICENSE.md
+COPY deploy/containers/scan-base/pack/templates/ /usr/share/vedette/nuclei-templates/
+COPY deploy/containers/scan-base/pack/index.json /usr/local/share/vedette/nuclei-pack/index.json
+COPY deploy/containers/scan-base/pack/LICENSE-nuclei-templates.md /usr/local/share/vedette/licenses/nuclei-templates-LICENSE.md
+RUN chmod -R a+rX /usr/share/vedette /usr/local/share/vedette
+USER 65532:65532
+ENTRYPOINT ["/vedette-sensor"]

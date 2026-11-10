@@ -1,9 +1,17 @@
 # Vedette — lệnh chung. Máy: `make check` trước khi push (D-62); CI gọi đúng các đích ở đây (D-63, docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build e2e fixtures clean
+.PHONY: sensor-image core-image scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build e2e fixtures clean
 
 GO_TOOL := go tool -modfile=tools/go.mod
+
+# Container images (D-146): every version and digest comes from deploy/containers/pins.env.
+include deploy/containers/pins.env
+CONTAINER ?= podman
+IMAGE_VERSION ?= 0.0.0-dev
+IMAGE_TAG ?= dev
+PIN_ARGS := $(foreach v,GOLANG_IMAGE DEBIAN_IMAGE DISTROLESS_IMAGE NUCLEI_VERSION NUCLEI_ZIP_SHA256_AMD64 NUCLEI_ZIP_SHA256_ARM64 NUCLEI_BIN_SHA256_AMD64 NUCLEI_BIN_SHA256_ARM64 NMAP_VERSION,--build-arg $(v)=$($(v))) --build-arg VERSION=$(IMAGE_VERSION)
+PACK_DIR := deploy/containers/scan-base/pack
 
 # Chỉ dựng/kiểm trên Linux hoặc macOS (sản phẩm chạy Linux; test dùng syscall Unix). Windows: dùng WSL2 (D-62).
 ifeq ($(OS),Windows_NT)
@@ -24,7 +32,10 @@ help:
 	@echo "make audit         quét lỗ hổng dependency: govulncheck + pnpm audit (đầu mỗi phiên)"
 	@echo "make oui          dựng lại content/oui/oui.tsv.gz từ runZero mac-tracker (cần mạng tới raw.githubusercontent.com, D-83)"
 	@echo "make fixtures      kéo dữ liệu KEV/EPSS thật cho bảng nóng"
-	@echo "make reaper-install  cài bộ dọn tiến trình test/dev mồ côi (10 phút một lần)"
+	@echo "make dev-sensors   core + sensor (pcap replay) + scan (fake nmap, fake nuclei) with docker compose, profile dev (D-146)"
+	@echo "make dev-sensors-smoke   the same, checks that a device appears via the API within a bound, then tears down"
+	@echo "make sensor-image scan-base-image scan-image core-image   build the container images (CONTAINER=podman|docker); images-check builds and checks them by effect"
+	@echo "make reaper-install cài bộ dọn tiến trình test/dev mồ côi (10 phút một lần)"
 	@echo "make clean         xoá build output và báo cáo test"
 
 dev:
@@ -144,7 +155,7 @@ oui:
 	go run ./scripts/oui
 
 clean:
-	rm -rf bin .dev/bin coverage.out web/dist web/playwright-report web/test-results web/node_modules/.tmp web/node_modules/.vite
+	rm -rf bin .dev/bin coverage.out web/dist web/playwright-report web/test-results web/node_modules/.tmp web/node_modules/.vite $(PACK_DIR)
 
 # Mã Go server sinh từ api/openapi.json (D-60): chuẩn hoá vào thư mục tạm, chạy ogen, ghi bảng vai.
 # Bản chuẩn hoá không commit. Không sửa tay core/api/oas và core/api/routes/routes_gen.go.
@@ -160,3 +171,38 @@ reaper-install:
 
 reaper-uninstall:
 	scripts/dev/reaper-install.sh --uninstall
+
+# Container images (D-146, DEPLOYMENT.md 2.2, 2.4). Build context is the repository root (.dockerignore keeps it small).
+sensor-image:
+	$(CONTAINER) build -f deploy/containers/sensor/Containerfile $(PIN_ARGS) -t localhost/vedette-sensor:$(IMAGE_TAG) .
+
+core-image:
+	$(CONTAINER) build -f deploy/containers/core/Containerfile $(PIN_ARGS) -t localhost/vedette-core:$(IMAGE_TAG) .
+
+# The safe template pack: pinned download of nuclei-templates, filter, index (scripts/scanpack). The folder must not exist yet; `make clean` removes it.
+scan-pack: $(PACK_DIR)/index.json
+$(PACK_DIR)/index.json:
+	go run ./scripts/scanpack -src-version $(NUCLEI_TEMPLATES_VERSION) -src-sha256 $(NUCLEI_TEMPLATES_SHA256) -version $(SCAN_PACK_VERSION) -out $(PACK_DIR)
+
+# The published scan base: sensor binary + nuclei + the pack. NO nmap (D-4, D-113 (7)).
+scan-base-image: scan-pack
+	$(CONTAINER) build -f deploy/containers/scan-base/Containerfile $(PIN_ARGS) -t localhost/vedette-scan-base:$(IMAGE_TAG) .
+
+# What vedette-host builds on the box, here for development and the check of the effect: scan-base + the pinned nmap from the OS repository.
+scan-image: scan-base-image
+	$(CONTAINER) build -f deploy/containers/scan/Containerfile.onbox $(PIN_ARGS) --build-arg BASE_IMAGE=localhost/vedette-scan-base:$(IMAGE_TAG) -t localhost/vedette-scan-nmap:$(IMAGE_TAG) .
+
+# Builds the images one at a time and checks each by effect (scripts/dev/images-check.sh), then removes them (rules/build-artifacts.md).
+images-check:
+	scripts/dev/images-check.sh
+
+# core + sensor (replays a pcap) + scan (fake nmap, fake nuclei) with docker compose, profile dev. Ctrl-C stops it; the volumes stay until `make dev-sensors-down`.
+dev-sensors: scan-pack
+	docker compose --env-file deploy/containers/pins.env -f deploy/compose/compose.yaml --profile dev up --build
+
+dev-sensors-down:
+	docker compose --env-file deploy/containers/pins.env -f deploy/compose/compose.yaml --profile dev down --volumes --remove-orphans
+
+# Up, a device that only the sensor can have seen appears in the inventory within a bound, down (D-146: not in CI yet).
+dev-sensors-smoke: scan-pack
+	scripts/dev/sensors-smoke.sh

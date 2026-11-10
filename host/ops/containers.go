@@ -756,7 +756,7 @@ func (o *Ops) runStartCurrent(ctx context.Context, rc *server.RunContext, a api.
 		if err := o.saveJournal(tr); err != nil {
 			return nil, fail(api.CodeUnitUnwritable, "The host could not write its journal.")
 		}
-		if err := o.writeUnit(svc, want, true); err != nil {
+		if err := o.writeUnitForStart(svc, want); err != nil {
 			o.removeJournal(svc)
 			return nil, unitWriteFailure(err)
 		}
@@ -774,7 +774,7 @@ func (o *Ops) runStartCurrent(ctx context.Context, rc *server.RunContext, a api.
 	if err := o.saveJournal(tr); err != nil {
 		return nil, fail(api.CodeUnitUnwritable, "The host could not write its journal.")
 	}
-	if err := o.writeUnit(svc, want, true); err != nil {
+	if err := o.writeUnitForStart(svc, want); err != nil {
 		o.removeJournal(svc)
 		return nil, unitWriteFailure(err)
 	}
@@ -796,6 +796,9 @@ func (o *Ops) runStartCurrent(ctx context.Context, rc *server.RunContext, a api.
 }
 
 func unitWriteFailure(err error) error {
+	if errors.Is(err, errBadFill) {
+		return fail(api.CodeHostConfIncomplete, "host.conf does not give the uid and gid the credential volumes need.")
+	}
 	if errors.Is(err, errUnitUnsafe) {
 		return fail(api.CodeUnitUnsafe, "The Quadlet directory or the unit is not safe to write as root.")
 	}

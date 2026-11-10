@@ -2,6 +2,7 @@ package ops
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"unicode"
 
 	"github.com/knt048/vedette/host/api"
+	"github.com/knt048/vedette/host/server"
 )
 
 // The Containerfile the host builds with is a copy, in the binary, of the file under deploy/ (D-147): a test keeps them equal, and the
@@ -77,7 +79,7 @@ func goodBuild(t *testing.T) []string {
 func TestPodmanGrammarOfTheScanBuild(t *testing.T) {
 	t.Parallel()
 	b := goodBuild(t)
-	want := []string{"build", "--pull=never", "--no-cache", "--build-arg", "BASE_IMAGE=ghcr.io/knt048/vedette-scan@" + baseDig, "--build-arg", "NMAP_MIN_VERSION=" + nmapFloor,
+	want := []string{"build", "--pull=never", "--no-cache", "--iidfile", "/var/lib/vedette-host/build/scan-123/iid", "--build-arg", "BASE_IMAGE=ghcr.io/knt048/vedette-scan@" + baseDig, "--build-arg", "NMAP_MIN_VERSION=" + nmapFloor,
 		"--tag", "localhost/vedette-scan-nmap:1.4.0", "/var/lib/vedette-host/build/scan-123"}
 	if strings.Join(b, " ") != strings.Join(want, " ") {
 		t.Fatalf("build argv %q, want %q", b, want)
@@ -97,17 +99,22 @@ func TestPodmanGrammarOfTheScanBuild(t *testing.T) {
 	}
 	mut := func(i int, v string) []string { c := append([]string{}, b...); c[i] = v; return c }
 	bad := [][]string{
-		mut(1, "--pull=always"), mut(1, "--pull"), mut(2, "--cache-from=x"), mut(3, "--build-arg=X"), mut(4, "BASE_IMAGE=ghcr.io/knt048/vedette-core@"+baseDig),
-		mut(4, "BASE_IMAGE=ghcr.io/knt048/vedette-scan:latest"), mut(4, "BASE_IMAGE=docker.io/library/debian@"+baseDig), mut(4, "BASE_IMAGE=localhost/vedette-scan-nmap@"+baseDig),
-		mut(4, "BASE_IMAGE=ghcr.io/knt048/vedette-scan@"+baseDig+"\nUSER 0"), mut(4, "BASE_IMAGE=ghcr.io/knt048/vedette-scan@sha256:abc"), mut(4, "APT_PROXY=http://x"),
-		mut(6, "NMAP_MIN_VERSION=1.0"), mut(6, "NMAP_MIN_VERSION="+nmapFloor+" x"), mut(7, "-t"), mut(8, "localhost/vedette-scan:1.4.0"), mut(8, "localhost/vedette-scan-nmap:latest"),
-		mut(8, "localhost/vedette-scan-nmap:-1.4.0"), mut(8, "docker.io/x/y:1.4.0"), mut(8, "localhost/vedette-scan-nmap"),
-		mut(9, "relative/dir"), mut(9, "/"), mut(9, "/var/../etc"), mut(9, "/var/lib/./x"), mut(9, "/var/lib/vedette-host/build/scan-1 "), mut(9, "/a\nb"), mut(9, "-f"), mut(9, "/var/lib/x/.hidden"),
-		mut(9, "/"+strings.Repeat("a", 300)), mut(9, "https://example.com/x.git"), mut(9, "/a:b"), mut(9, "/a//b"),
-		append(append([]string{}, b...), "--network=host"), append([]string{"--root", "/x"}, b...), b[:9], append(append([]string{}, b[:9]...), "-"), {"build"}, {"build", "-"},
+		mut(1, "--pull=always"), mut(1, "--pull"), mut(2, "--cache-from=x"), mut(3, "--output"), mut(4, "/etc/passwd"), mut(4, "/var/lib/vedette-host/build/scan-123/other"),
+		mut(4, "/var/lib/vedette-host/build/scan-123/iid "), mut(4, "/var/lib/vedette-host/build/scan-124/iid"), mut(4, "iid"),
+		mut(5, "--build-arg=X"), mut(6, "BASE_IMAGE=ghcr.io/knt048/vedette-core@"+baseDig),
+		mut(6, "BASE_IMAGE=ghcr.io/knt048/vedette-scan:latest"), mut(6, "BASE_IMAGE=docker.io/library/debian@"+baseDig), mut(6, "BASE_IMAGE=localhost/vedette-scan-nmap@"+baseDig),
+		mut(6, "BASE_IMAGE=ghcr.io/knt048/vedette-scan@"+baseDig+"\nUSER 0"), mut(6, "BASE_IMAGE=ghcr.io/knt048/vedette-scan@sha256:abc"), mut(6, "APT_PROXY=http://x"),
+		mut(8, "NMAP_MIN_VERSION=1.0"), mut(8, "NMAP_MIN_VERSION="+nmapFloor+" x"), mut(9, "-t"), mut(10, "localhost/vedette-scan:1.4.0"), mut(10, "localhost/vedette-scan-nmap:latest"),
+		mut(10, "localhost/vedette-scan-nmap:-1.4.0"), mut(10, "docker.io/x/y:1.4.0"), mut(10, "localhost/vedette-scan-nmap"),
+		mut(11, "relative/dir"), mut(11, "/"), mut(11, "/var/../etc"), mut(11, "/var/lib/./x"), mut(11, "/var/lib/vedette-host/build/scan-1 "), mut(11, "/a\nb"), mut(11, "-f"), mut(11, "/var/lib/x/.hidden"),
+		mut(11, "/"+strings.Repeat("a", 300)), mut(11, "https://example.com/x.git"), mut(11, "/a:b"), mut(11, "/a//b"),
+		append(append([]string{}, b...), "--network=host"), append([]string{"--root", "/x"}, b...), b[:11], append(append([]string{}, b[:11]...), "-"), {"build"}, {"build", "-"},
 		{"run", "--rm", "--privileged", "--entrypoint", "nmap", buildID, "--version"},
-		append(append([]string{}, check[:13]...), "-A"), append(append([]string{}, check[:12]...), "x", "--version"), append(append([]string{}, check[:11]...), "sh", buildID, "--version"),
-		{"run", "--rm", "--pull=never", "--network", "host", "--cap-drop", "ALL", "--read-only", "--security-opt", "no-new-privileges", "--entrypoint", "nmap", buildID, "--version"},
+		append(append([]string{}, check[:15]...), "-A"), append(append([]string{}, check[:14]...), "x", "--version"), append(append([]string{}, check[:13]...), "sh", buildID, "--version"),
+		{"run", "--rm", "--pull=never", "--network", "host", "--cap-drop", "ALL", "--read-only", "--security-opt", "no-new-privileges", "--memory=256m", "--pids-limit=64", "--entrypoint", "nmap", buildID, "--version"},
+		{"run", "--rm", "--pull=never", "--network", "none", "--cap-drop", "ALL", "--read-only", "--security-opt", "no-new-privileges", "--entrypoint", "nmap", buildID, "--version"},
+		{"run", "--rm", "--pull=never", "--network", "none", "--cap-drop", "ALL", "--read-only", "--security-opt", "no-new-privileges", "--memory=2g", "--pids-limit=64", "--entrypoint", "nmap", buildID, "--version"},
+		{"run", "--rm", "--pull=never", "--network", "none", "--cap-drop", "ALL", "--read-only", "--security-opt", "no-new-privileges", "--memory=256m", "--pids-limit=0", "--entrypoint", "nmap", buildID, "--version"},
 		{"tag", "localhost/vedette-scan:1.4.0", "localhost/vedette-scan-nmap:1.4.0"}, {"tag", buildID, "localhost/vedette-scan:1.4.0"}, {"tag", buildID, "ghcr.io/knt048/vedette-scan:1.4.0"},
 		{"tag", buildID, "localhost/vedette-scan-nmap:1.4.0", "x"}, {"tag", buildID[:63], "localhost/vedette-scan-nmap:1.4.0"},
 		{"image", "inspect", "--format", "json", buildID[:63]}, {"image", "inspect", "--format", "json", strings.ToUpper(buildID)}, {"rmi", "-f", buildID},
@@ -130,8 +137,8 @@ func TestPodmanGrammarOfTheScanBuild(t *testing.T) {
 // FuzzValidatePodmanBuild: whatever the validator accepts as a build or a check of the scan image has exactly the fixed shape (so no
 // piece of free text reached it), and the builders only make what it accepts.
 func FuzzValidatePodmanBuild(f *testing.F) {
-	f.Add("build\x00--pull=never\x00--no-cache\x00--build-arg\x00BASE_IMAGE=ghcr.io/knt048/vedette-scan@" + baseDig + "\x00--build-arg\x00NMAP_MIN_VERSION=" + nmapFloor + "\x00--tag\x00localhost/vedette-scan-nmap:1.4.0\x00/var/lib/x/y")
-	f.Add("run\x00--rm\x00--pull=never\x00--network\x00none\x00--cap-drop\x00ALL\x00--read-only\x00--security-opt\x00no-new-privileges\x00--entrypoint\x00nmap\x00" + buildID + "\x00--version")
+	f.Add("build\x00--pull=never\x00--no-cache\x00--iidfile\x00/var/lib/x/y/iid\x00--build-arg\x00BASE_IMAGE=ghcr.io/knt048/vedette-scan@" + baseDig + "\x00--build-arg\x00NMAP_MIN_VERSION=" + nmapFloor + "\x00--tag\x00localhost/vedette-scan-nmap:1.4.0\x00/var/lib/x/y")
+	f.Add("run\x00--rm\x00--pull=never\x00--network\x00none\x00--cap-drop\x00ALL\x00--read-only\x00--security-opt\x00no-new-privileges\x00--memory=256m\x00--pids-limit=64\x00--entrypoint\x00nmap\x00" + buildID + "\x00--version")
 	f.Add("tag\x00" + buildID + "\x00localhost/vedette-scan-nmap:1.4.0")
 	f.Add("")
 	f.Fuzz(func(t *testing.T, joined string) {
@@ -146,15 +153,43 @@ func FuzzValidatePodmanBuild(f *testing.F) {
 		}
 		switch args[0] {
 		case "build":
-			if len(args) != 10 || !strings.HasPrefix(args[4], "BASE_IMAGE=ghcr.io/knt048/vedette-scan@sha256:") || !validBuildDir(args[9]) || strings.Contains(args[9], "..") {
+			if len(args) != 12 || args[4] != args[11]+"/iid" || !strings.HasPrefix(args[6], "BASE_IMAGE=ghcr.io/knt048/vedette-scan@sha256:") || !validBuildDir(args[11]) || strings.Contains(args[11], "..") {
 				t.Fatalf("an accepted build has the wrong shape: %q", args)
 			}
 		case "run":
-			if len(args) != 14 || args[3] != "--network" || args[4] != "none" || args[11] != "nmap" {
+			if len(args) != 16 || args[3] != "--network" || args[4] != "none" || args[10] != "--memory=256m" || args[11] != "--pids-limit=64" || args[13] != "nmap" {
 				t.Fatalf("an accepted run has the wrong shape: %q", args)
 			}
 		}
 	})
+}
+
+// L1: the ID of the built image is read from the file podman wrote, and only an ID is believed.
+func TestReadImageIDReadsOnlyAnID(t *testing.T) {
+	t.Parallel()
+	for content, want := range map[string]string{
+		"sha256:" + buildID: buildID, buildID: buildID, "sha256:" + buildID + "\n": buildID,
+		"": "", "sha256:" + buildID[:63]: "", "sha256:" + strings.ToUpper(buildID): "", "x" + buildID: "", buildID + buildID: "", "sha256:" + buildID + "\nUSER 0": "",
+		"sha512:" + buildID: "", " " + buildID: "", "not an id": "", strings.Repeat("a", 500): "",
+	} {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, iidName), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if got := readImageID(dir); got != want {
+			t.Errorf("%q: %q, want %q", content, got, want)
+		}
+	}
+	if got := readImageID(t.TempDir()); got != "" {
+		t.Errorf("a missing file gave %q", got)
+	}
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, iidName), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if got := readImageID(dir); got != "" {
+		t.Errorf("a directory gave %q", got)
+	}
 }
 
 func TestParseNmapVersion(t *testing.T) {
@@ -167,13 +202,15 @@ func TestParseNmapVersion(t *testing.T) {
 		"Nmap version 7.95.1 ( https://nmap.org )\n":  "7.95.1",
 		"Nmap version 7.96SVN ( https://nmap.org )\n": "7.96SVN",
 	}
+	good["\nNmap version 7.95 ( https://nmap.org )\n"] = "7.95"
+	good["\n\n \nNmap version 7.96 ( https://nmap.org )\nPlatform: x\n"] = "7.96"
 	for out, want := range good {
 		if got, err := ParseNmapVersion([]byte(out)); err != nil || got != want {
 			t.Errorf("%q: %q, %v; want %q", out, got, err, want)
 		}
 	}
 	for name, out := range map[string]string{
-		"empty": "", "below the floor": "Nmap version 7.94 ( https://nmap.org )\n", "far below": "Nmap version 6.47 ( http://nmap.org )\n",
+		"empty": "", "only blank lines": "\n\n  \n", "junk after a blank line": "\nhello\nNmap version 7.95 ( https://nmap.org )\n", "below the floor": "Nmap version 7.94 ( https://nmap.org )\n", "far below": "Nmap version 6.47 ( http://nmap.org )\n",
 		"not nmap": "hello\n", "lower case": "nmap version 7.95 ( https://nmap.org )\n", "the line is not first": "x\nNmap version 7.95 ( https://nmap.org )\n",
 		"no version": "Nmap version ( https://nmap.org )\n", "a command in the version": "Nmap version 7.95$(id) ( https://nmap.org )\n", "a newline in it": "Nmap version 7.9\n5 ( https://nmap.org )\n",
 		"huge": "Nmap version 7.95 ( https://nmap.org )\n" + strings.Repeat("x", 5000), "long tail on the line": "Nmap version 7.95 " + strings.Repeat("x", 200) + "\n",
@@ -194,7 +231,7 @@ func FuzzParseNmapVersion(f *testing.F) {
 		if err != nil {
 			return
 		}
-		if !nmapVersionRE.MatchString(v) || !atLeast(v, nmapFloor) || !bytes.HasPrefix(b, []byte("Nmap version "+v)) {
+		if !nmapVersionRE.MatchString(v) || !atLeast(v, nmapFloor) || !bytes.Contains(b, []byte("Nmap version "+v)) {
 			t.Fatalf("accepted %q as %q", b, v)
 		}
 	})
@@ -299,6 +336,22 @@ func slicesContain(l []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// L5: ids that host.conf does not give are host_conf_incomplete, not an unsafe directory.
+func TestAVolumeWithBadIdsIsHostConfIncomplete(t *testing.T) {
+	t.Parallel()
+	_, err := renderVolume("passive", 0, 10004)
+	if !errors.Is(err, errBadFill) || errors.Is(err, errUnitUnsafe) {
+		t.Fatalf("%v", err)
+	}
+	var fl *server.Failure
+	if !errors.As(unitWriteFailure(err), &fl) || fl.Code != api.CodeHostConfIncomplete {
+		t.Errorf("mapped to %v", unitWriteFailure(err))
+	}
+	if !errors.As(unitWriteFailure(errUnitUnsafe), &fl) || fl.Code != api.CodeUnitUnsafe {
+		t.Errorf("an unsafe directory is mapped to %v", fl)
+	}
 }
 
 // A scan unit pins the image by its ID: the unit text, the digest the host reads back, and the retention name all agree (D-147).

@@ -324,7 +324,8 @@ case "$1" in
     [ -e "$REC/mark.tag-fails" ] && { echo "Error: tagging failed" >&2; exit 125; }
     case "$2" in
       *@sha256:*) d="${2#*@}" ;;
-      *) d="sha256:$2" ;; # a bare image ID: the tag moves to it
+      *) [ -e "$REC/mark.tag-id-fails" ] && { echo "Error: tagging failed" >&2; exit 125; }
+         d="sha256:$2" ;; # a bare image ID: the tag moves to it
     esac
     [ -e "$S/have.$d" ] || { echo "Error: no such image $2" >&2; exit 125; }
     grep -v "^$3 " "$S/tags" > "$S/tags.tmp" 2>/dev/null; mv "$S/tags.tmp" "$S/tags" 2>/dev/null
@@ -338,6 +339,7 @@ case "$1" in
     while [ $# -gt 0 ]; do
       case "$1" in
         --tag) tag="$2" ;;
+        --iidfile) iidfile="$2" ;;
         BASE_IMAGE=*) base="${1#BASE_IMAGE=}" ;;
       esac
       shift
@@ -351,12 +353,14 @@ case "$1" in
       echo "sha256:$nid" > "$S/tag.$(key "$tag")"
       echo "$tag sha256:$nid" >> "$S/tags"
     fi
+    [ -e "$REC/mark.build-no-iid" ] || printf 'sha256:%s' "$nid" > "$iidfile"
+    [ -e "$REC/mark.build-bad-iid" ] && printf 'not an id' > "$iidfile"
     echo "$nid"
     ;;
   run)
     # "run --rm ... --entrypoint nmap <image id> --version": what the built image prints
     echo "$*" >> "$S/runs"
-    shift 12
+    shift 14
     [ -e "$S/have.sha256:$1" ] || { echo "Error: no such image $1" >&2; exit 125; }
     [ -e "$REC/mark.nmap-fails" ] && exit 125
     if [ -e "$REC/mark.nmap-garbage" ]; then echo "not nmap at all"; exit 0; fi

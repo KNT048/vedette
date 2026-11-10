@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/knt048/vedette/host/api"
+	"github.com/knt048/vedette/host/ops"
 	"github.com/knt048/vedette/host/ops/opstest"
 )
 
@@ -69,8 +70,8 @@ func TestContract_Scan_PullBuildsTheImageOnTheBoxAndRecordsIt(t *testing.T) {
 		t.Fatalf("builds: %v", builds)
 	}
 	f := strings.Fields(builds[0])
-	if len(f) != 10 || f[0] != "build" || f[1] != "--pull=never" || f[2] != "--no-cache" || f[4] != "BASE_IMAGE=ghcr.io/knt048/vedette-scan@"+scanBase ||
-		f[6] != "NMAP_MIN_VERSION=7.95" || f[8] != scanTag+v1 || !filepath.IsAbs(f[9]) {
+	if len(f) != 12 || f[0] != "build" || f[1] != "--pull=never" || f[2] != "--no-cache" || f[3] != "--iidfile" || f[4] != f[11]+"/iid" || f[6] != "BASE_IMAGE=ghcr.io/knt048/vedette-scan@"+scanBase ||
+		f[8] != "NMAP_MIN_VERSION=7.95" || f[10] != scanTag+v1 || !filepath.IsAbs(f[11]) {
 		t.Errorf("build argv: %q", f)
 	}
 	for _, a := range f {
@@ -84,7 +85,7 @@ func TestContract_Scan_PullBuildsTheImageOnTheBoxAndRecordsIt(t *testing.T) {
 	}
 	id := opstest.BuiltID(1)
 	runs := e.m.NmapRuns()
-	if len(runs) != 1 || !strings.Contains(runs[0], "--network none") || !strings.Contains(runs[0], "--read-only") || !strings.Contains(runs[0], "--cap-drop ALL") ||
+	if len(runs) != 1 || !strings.Contains(runs[0], "--network none") || !strings.Contains(runs[0], "--read-only") || !strings.Contains(runs[0], "--cap-drop ALL") || !strings.Contains(runs[0], "--memory=256m --pids-limit=64 ") ||
 		!strings.HasSuffix(runs[0], "--entrypoint nmap "+id+" --version") {
 		t.Errorf("the nmap check: %v", runs)
 	}
@@ -110,9 +111,14 @@ func TestContract_Scan_AFailedBuildKeepsThePreviousImageAndReportsScanBuildFaile
 	for name, c := range map[string]struct {
 		setup func(e *updEnv)
 		built bool // a second image was made (and must be gone again)
+		// tagLost: the step that puts the tag back failed, so the tag is gone with the new image; the previous image itself must stay.
+		tagLost bool
 	}{
 		"podman build fails (no mirror)":   {setup: func(e *updEnv) { e.m.Mark("build-fails", true) }},
-		"podman leaves no tag":             {setup: func(e *updEnv) { e.m.Mark("build-no-tag", true) }},
+		"podman leaves no tag":             {setup: func(e *updEnv) { e.m.Mark("build-no-tag", true) }, built: true},
+		"podman writes no iid file":        {setup: func(e *updEnv) { e.m.Mark("build-no-iid", true) }, built: true},
+		"the iid file is not an ID":        {setup: func(e *updEnv) { e.m.Mark("build-bad-iid", true) }, built: true},
+		"the tag cannot be put back":       {setup: func(e *updEnv) { e.m.Mark("nmap-garbage", true); e.m.Mark("tag-id-fails", true) }, built: true, tagLost: true},
 		"nmap does not run":                {setup: func(e *updEnv) { e.m.Mark("nmap-fails", true) }, built: true},
 		"the version line is not nmap's":   {setup: func(e *updEnv) { e.m.Mark("nmap-garbage", true) }, built: true},
 		"nmap is older than the floor":     {setup: func(e *updEnv) { e.m.NmapVersion("7.80") }, built: true},
@@ -130,7 +136,7 @@ func TestContract_Scan_AFailedBuildKeepsThePreviousImageAndReportsScanBuildFaile
 				t.Errorf("error: %+v", r.Error)
 			}
 			// The previous image is where it was: present, with the tag, and the record of the pull is as it was.
-			if !e.m.ImagePresent(first) || e.m.ImageTag(scanTag+v1) != first {
+			if !e.m.ImagePresent(first) || (!c.tagLost && e.m.ImageTag(scanTag+v1) != first) {
 				t.Errorf("the previous image: present %t, tag %q", e.m.ImagePresent(first), e.m.ImageTag(scanTag+v1))
 			}
 			after, _ := os.ReadFile(e.pulledFile(api.ServiceScan))
@@ -145,6 +151,41 @@ func TestContract_Scan_AFailedBuildKeepsThePreviousImageAndReportsScanBuildFaile
 				t.Error("the base image is not where the pull left it")
 			}
 		})
+	}
+}
+
+// L6: a first build (nothing to put back) that fails the nmap check leaves no image, no tag and no record.
+func TestContract_Scan_AFirstBuildThatFailsTheCheckLeavesNothingBehind(t *testing.T) {
+	t.Parallel()
+	e := startUpd(t)
+	e.m.Mark("nmap-garbage", true)
+	e.final(t, api.CmdContainerPull, e.scanArgs(t, v1), api.StatusFailed, api.CodeScanBuildFailed)
+	first := "sha256:" + opstest.BuiltID(1)
+	if e.m.ImagePresent(first) || e.m.ImageTag(scanTag+v1) != "" || !slices.Contains(e.m.ImageRemoved(), first) {
+		t.Errorf("the failed image is still there: present %t tag %q removed %v", e.m.ImagePresent(first), e.m.ImageTag(scanTag+v1), e.m.ImageRemoved())
+	}
+	if _, err := os.Stat(e.pulledFile(api.ServiceScan)); err == nil {
+		t.Error("a record was made")
+	}
+	if !e.m.ImagePresent(scanBase) {
+		t.Error("the base image is gone")
+	}
+}
+
+// L1: the host never removes an image that a unit, record or container names, even when it is the one a failed build made.
+func TestContract_Scan_AFailedBuildDoesNotRemoveAnImageTheUnitPins(t *testing.T) {
+	t.Parallel()
+	e := startUpd(t)
+	second := "sha256:" + opstest.BuiltID(2)
+	e.m.InstallUnit(api.ServiceScan, second, true) // the unit already pins what the next build will be called
+	e.m.Mark("nmap-garbage", true)
+	e.final(t, api.CmdContainerPull, e.scanArgs(t, v1), api.StatusFailed, api.CodeScanBuildFailed) // build 1 (not pinned): removed
+	e.final(t, api.CmdContainerPull, e.scanArgs(t, v1), api.StatusFailed, api.CodeScanBuildFailed) // build 2 is the pinned one
+	if !e.m.ImagePresent(second) || slices.Contains(e.m.ImageRemoved(), second) {
+		t.Errorf("the image the unit pins was removed: present %t, removed %v", e.m.ImagePresent(second), e.m.ImageRemoved())
+	}
+	if !slices.Contains(e.m.ImageRemoved(), "sha256:"+opstest.BuiltID(1)) {
+		t.Errorf("the first, unpinned image was not removed: %v", e.m.ImageRemoved())
 	}
 }
 
@@ -209,7 +250,22 @@ func TestContract_Scan_StartAndRollbackUseTheLocallyBuiltImage(t *testing.T) {
 	if !e.m.ImagePresent(id1) {
 		t.Fatal("the previous built image is gone")
 	}
+	// L5: the switch wrote the credential volume units (a start); a rollback only puts the previous unit back and does not write them.
+	for _, role := range []string{"passive", "active"} {
+		p := filepath.Join(e.m.UnitsDir(), "vedette-creds-"+role+".volume")
+		if _, err := os.Stat(p); err != nil {
+			t.Fatalf("the switch left no %s: %v", p, err)
+		}
+		if err := os.Remove(p); err != nil {
+			t.Fatal(err)
+		}
+	}
 	rb := result[api.ContainerRollbackResult](t, e.ok(t, api.CmdContainerRollback, api.ContainerRollbackArgs{Service: api.ServiceScan}))
+	for _, role := range []string{"passive", "active"} {
+		if _, err := os.Stat(filepath.Join(e.m.UnitsDir(), "vedette-creds-"+role+".volume")); err == nil {
+			t.Errorf("a rollback wrote the %s volume unit", role)
+		}
+	}
 	if rb.Digest != id1 || rb.FromDigest != id2 {
 		t.Errorf("rollback: %+v", rb)
 	}
@@ -243,6 +299,95 @@ func TestContract_Scan_AStartWhoseImageIsGoneIsRefusedAndAnUnhealthyNewImageIsRo
 	// The image of the pulled version is removed from the machine: the start is refused (not_pulled), nothing is written.
 	e.m.RemoveImage(id2)
 	e.refused(t, api.CmdContainerStart, e.startArgs(api.ServiceScan, v2), 412, api.CodeNotPulled)
+}
+
+// bsNothingButScan asserts the first install wrote no unit and no versions file for any service but the foreign scan unit it was given.
+func (e *updEnv) bsNothingButScan(t *testing.T, name string) {
+	t.Helper()
+	for _, s := range bsOrder {
+		if s != api.ServiceScan {
+			if _, err := e.m.Unit(s); err == nil {
+				t.Errorf("%s: a unit for %s was written", name, s)
+			}
+		}
+		if _, err := os.Lstat(filepath.Join(e.m.State, "containers", "versions-"+s+".json")); err == nil {
+			t.Errorf("%s: a versions file for %s was written", name, s)
+		}
+	}
+}
+
+// INV-22 (M1): every refusal of the bootstrap is decided before the first unit is written, scan's included. A scan unit that is not
+// ours is refused before any pull, and one that pins another image is refused after the build but before any write.
+func TestContract_Bootstrap_AScanRefusalComesBeforeTheFirstWrite(t *testing.T) {
+	t.Parallel()
+	const foreign = "[Container]\nImage=docker.io/library/alpine\n"
+	e := startUpd(t)
+	a := e.bsDocs(t, 5, v1, bsDigest)
+	if err := os.WriteFile(filepath.Join(e.m.UnitsDir(), "vedette-scan.container"), []byte(foreign), 0o644); err != nil { //nolint:gosec // a unit file of the fake root
+		t.Fatal(err)
+	}
+	_, err := e.bootstrap(a)
+	if code, _ := ops.BootstrapCode(err); code != ops.BootstrapUnitForeign {
+		t.Fatalf("a foreign scan unit: %v", err)
+	}
+	e.bsNothingButScan(t, "foreign")
+	if w := e.writes(); len(w) != 0 {
+		t.Errorf("podman wrote before the refusal: %v", w)
+	}
+	if got := e.unit(t, api.ServiceScan); got != foreign {
+		t.Errorf("the foreign unit was changed: %q", got)
+	}
+
+	// A unit of ours that pins another image: known only after the build, still before any write.
+	e2 := startUpd(t)
+	e2.m.InstallUnit(api.ServiceScan, "sha256:"+opstest.BuiltID(99), true)
+	before := e2.unit(t, api.ServiceScan)
+	_, err = e2.bootstrap(e2.bsDocs(t, 5, v1, bsDigest))
+	if code, _ := ops.BootstrapCode(err); code != ops.BootstrapAlreadyInstalled {
+		t.Fatalf("a scan unit pinning another image: %v", err)
+	}
+	e2.bsNothingButScan(t, "pins another image")
+	if e2.unit(t, api.ServiceScan) != before {
+		t.Error("the scan unit was changed")
+	}
+}
+
+// M2: a box that cannot build the scan image (no Debian mirror) still gets core, sensor and honeypot; scan is skipped with a line, no
+// unit, no version, no record, and the bootstrap succeeds. Running it again once the build works installs scan.
+func TestContract_Bootstrap_AFailedScanBuildSkipsScanAndInstallsTheRest(t *testing.T) {
+	t.Parallel()
+	e := startUpd(t)
+	e.m.Mark("build-fails", true)
+	lines := e.bootstrapOK(t, e.bsDocs(t, 5, v1, bsDigest))
+	for _, s := range []string{api.ServiceCore, api.ServiceSensor, api.ServiceHoneypot} {
+		if e.unit(t, s) != e.render(t, s, bsDigest[s]) || e.versionsFile(t, s).Current == nil {
+			t.Errorf("%s not installed", s)
+		}
+	}
+	if _, err := e.m.Unit(api.ServiceScan); err == nil {
+		t.Error("a scan unit was written")
+	}
+	for _, f := range []string{"versions-scan.json", "pulled-scan.json"} {
+		if _, err := os.Lstat(filepath.Join(e.m.State, "containers", f)); err == nil {
+			t.Errorf("%s exists", f)
+		}
+	}
+	if !slices.ContainsFunc(lines, func(l string) bool {
+		return strings.HasPrefix(l, "skipped scan:") && strings.Contains(l, "deb.debian.org")
+	}) ||
+		!slices.ContainsFunc(lines, func(l string) bool { return strings.HasPrefix(l, "skipped: scan") }) {
+		t.Errorf("the output does not say scan was skipped:\n%s", strings.Join(lines, "\n"))
+	}
+	if !e.m.ImagePresent(bsDigest[api.ServiceScan]) {
+		t.Error("the verified base image is not kept")
+	}
+	// Once the mirror is reachable the same bootstrap finishes the job: scan is installed, the rest is left as it is.
+	e.m.Mark("build-fails", false)
+	e.forget()
+	e.bootstrapOK(t, e.bsDocs(t, 5, v1, bsDigest))
+	if e.unit(t, api.ServiceScan) != e.render(t, api.ServiceScan, bsUnitDigest(api.ServiceScan)) || e.versionsFile(t, api.ServiceScan).Current == nil {
+		t.Error("scan was not installed by the rerun")
+	}
 }
 
 // The host's own state of a scan pull that never built (a record from before the build existed, with no base digest) is no record.

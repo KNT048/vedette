@@ -131,8 +131,8 @@ func isLocalTag(s string) bool {
 
 // The build of the scan image on the box (D-147) adds four shapes (podman builds as root, so each is as closed as the rest):
 //
-//	build --pull=never --no-cache --build-arg BASE_IMAGE=<pull ref of scan> --build-arg NMAP_MIN_VERSION=<floor> --tag localhost/vedette-scan-nmap:<version> <context dir>
-//	run --rm --pull=never --network none --cap-drop ALL --read-only --security-opt no-new-privileges --entrypoint nmap <image id> --version
+//	build --pull=never --no-cache --iidfile <context dir>/iid --build-arg BASE_IMAGE=<pull ref of scan> --build-arg NMAP_MIN_VERSION=<floor> --tag localhost/vedette-scan-nmap:<version> <context dir>
+//	run --rm --pull=never --network none --cap-drop ALL --read-only --security-opt no-new-privileges --memory=256m --pids-limit=64 --entrypoint nmap <image id> --version
 //	tag <image id> localhost/vedette-scan-nmap:<version>      puts the previous image back under its tag after a build that failed the check
 //	image inspect --format json <image id>                    (also a shape of the list above: ref is an ID)
 //
@@ -175,14 +175,17 @@ func buildArgv(digest, version, dir string) ([]string, error) {
 	if err != nil || !validBuildDir(dir) {
 		return nil, errPodmanArgs
 	}
-	return []string{"build", "--pull=never", "--no-cache", "--build-arg", "BASE_IMAGE=" + ref, "--build-arg", "NMAP_MIN_VERSION=" + nmapFloor, "--tag", tag, dir}, nil
+	return []string{"build", "--pull=never", "--no-cache", "--iidfile", dir + "/" + iidName, "--build-arg", "BASE_IMAGE=" + ref, "--build-arg", "NMAP_MIN_VERSION=" + nmapFloor, "--tag", tag, dir}, nil
 }
+
+// iidName is the file in the build context directory where podman writes the ID of the image it built.
+const iidName = "iid"
 
 func nmapCheckArgv(id string) ([]string, error) {
 	if !imageIDRE.MatchString(id) {
 		return nil, errPodmanArgs
 	}
-	return []string{"run", "--rm", "--pull=never", "--network", "none", "--cap-drop", "ALL", "--read-only", "--security-opt", "no-new-privileges", "--entrypoint", "nmap", id, "--version"}, nil
+	return []string{"run", "--rm", "--pull=never", "--network", "none", "--cap-drop", "ALL", "--read-only", "--security-opt", "no-new-privileges", "--memory=256m", "--pids-limit=64", "--entrypoint", "nmap", id, "--version"}, nil
 }
 
 func tagIDArgv(id, version string) ([]string, error) {
@@ -194,19 +197,19 @@ func tagIDArgv(id, version string) ([]string, error) {
 }
 
 func isBuildArgv(a []string) bool {
-	if len(a) != 10 || a[0] != "build" || a[1] != "--pull=never" || a[2] != "--no-cache" || a[3] != "--build-arg" || a[5] != "--build-arg" ||
-		a[6] != "NMAP_MIN_VERSION="+nmapFloor || a[7] != "--tag" || !isNmapTag(a[8]) || !validBuildDir(a[9]) {
+	if len(a) != 12 || a[0] != "build" || a[1] != "--pull=never" || a[2] != "--no-cache" || a[3] != "--iidfile" || a[5] != "--build-arg" || a[7] != "--build-arg" ||
+		a[8] != "NMAP_MIN_VERSION="+nmapFloor || a[9] != "--tag" || !isNmapTag(a[10]) || !validBuildDir(a[11]) || a[4] != a[11]+"/"+iidName {
 		return false
 	}
-	ref, ok := strings.CutPrefix(a[4], "BASE_IMAGE=")
+	ref, ok := strings.CutPrefix(a[6], "BASE_IMAGE=")
 	return ok && isPullRef(ref) && strings.HasPrefix(ref, release.RegistryPrefix+api.ServiceScan+"@")
 }
 
 func isNmapCheckArgv(a []string) bool {
-	if len(a) != 14 || !imageIDRE.MatchString(a[12]) {
+	if len(a) != 16 || !imageIDRE.MatchString(a[14]) {
 		return false
 	}
-	want, err := nmapCheckArgv(a[12])
+	want, err := nmapCheckArgv(a[14])
 	return err == nil && slices.Equal(a, want)
 }
 

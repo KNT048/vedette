@@ -69,7 +69,14 @@ func parseNmapVersion(out []byte) (string, error) {
 	if len(out) == 0 || len(out) > maxNmapOutput {
 		return "", errors.New("ops: nmap printed no usable version")
 	}
-	line, _, _ := strings.Cut(string(out), "\n")
+	// The first non-empty line (a leading blank line is not a reason to refuse).
+	line := ""
+	for l := range strings.SplitSeq(string(out), "\n") {
+		if strings.TrimSpace(l) != "" {
+			line = l
+			break
+		}
+	}
 	m := nmapVersionLineRE.FindStringSubmatch(line)
 	if m == nil {
 		return "", errors.New("ops: the first line of nmap --version is not nmap's own")
@@ -169,10 +176,15 @@ func (o *Ops) buildScan(ctx context.Context, logf func(string), plan *pullPlan) 
 		logf("podman build failed; active scanning stays as it was (the box may not reach the Debian package mirror)")
 		return builtScan{}, fail(api.CodeScanBuildFailed, "The image with nmap could not be built on this machine (podman build failed; the Debian package mirror may be unreachable). The base image was pulled and verified; the previous scan image is unchanged.")
 	}
-	id := o.imageIDOf(ctx, tag)
-	if id == "" || id == prev {
+	// The ID comes from the file podman wrote (--iidfile), not from a lookup of the tag; the tag must then point at it.
+	id := readImageID(dir)
+	if id == "" {
+		o.undoBuild(ctx, logf, tag, plan.version, prev, o.imageIDOf(ctx, tag)) // best effort: whatever now has the tag
+		return builtScan{}, fail(api.CodeScanBuildFailed, "podman did not report the ID of the image it built.")
+	}
+	if id == prev || o.imageIDOf(ctx, tag) != id {
 		o.undoBuild(ctx, logf, tag, plan.version, prev, id)
-		return builtScan{}, fail(api.CodeScanBuildFailed, "After the build, podman did not show a new image under the local name.")
+		return builtScan{}, fail(api.CodeScanBuildFailed, "After the build, podman did not show the new image under the local name.")
 	}
 	ver, cerr := o.nmapVersionIn(ctx, id)
 	if cerr != nil {
@@ -182,6 +194,29 @@ func (o *Ops) buildScan(ctx context.Context, logf func(string), plan *pullPlan) 
 	}
 	logf("built " + tag + " (image " + id + ", nmap " + ver + ")")
 	return builtScan{digest: "sha256:" + id, nmap: ver}, nil
+}
+
+// iidRE is what podman writes to --iidfile: the image ID, with or without the "sha256:" prefix, no newline.
+var iidRE = regexp.MustCompile(`^(?:sha256:)?([0-9a-f]{64})\n?$`)
+
+// readImageID reads the ID podman wrote to the build context's iid file ("" when it is missing, odd or not an ID).
+func readImageID(dir string) string {
+	f, err := os.Open(filepath.Join(dir, iidName)) //nolint:gosec // a file in the directory this host made
+	if err != nil {
+		return ""
+	}
+	defer func() { _ = f.Close() }()
+	if st, err := f.Stat(); err != nil || !st.Mode().IsRegular() {
+		return ""
+	}
+	b, err := io.ReadAll(io.LimitReader(f, 128))
+	if err != nil {
+		return ""
+	}
+	if m := iidRE.FindStringSubmatch(string(b)); m != nil {
+		return m[1]
+	}
+	return ""
 }
 
 // nmapVersionIn runs "nmap --version" in the image (no network, no capability, read-only root) and returns the version it printed.
@@ -212,7 +247,8 @@ func (o *Ops) undoBuild(ctx context.Context, logf func(string), tag, version, pr
 			cancel()
 		}
 	}
-	if built != "" && built != prev {
+	// Never remove an image that a record, a unit or a running container names (the digest of a scan image is its ID).
+	if built != "" && built != prev && !o.keptDigests(rctx, api.ServiceScan)["sha256:"+built] {
 		if argv, err := rmiArgv(built); err == nil {
 			cctx, cancel := context.WithTimeout(rctx, rmiLimit)
 			if _, code, err := o.exec(cctx, binPodman, argv...); err != nil || code != 0 {

@@ -129,11 +129,6 @@ func (o *Ops) writeUnit(service string, text []byte, keepPrev bool) error {
 		return err
 	}
 	defer func() { _ = r.Close() }()
-	if service == api.ServiceCore || service == api.ServiceSensor || service == api.ServiceScan {
-		if err := o.ensureVolumeUnits(r); err != nil {
-			return err
-		}
-	}
 	name := unitFileName(service)
 	old, state := readNoFollow(r, name, maxUnitSize)
 	if state == fileBroken {
@@ -150,6 +145,24 @@ func (o *Ops) writeUnit(service string, text []byte, keepPrev bool) error {
 	return writeAtomicIn(r, name, text, 0o644)
 }
 
+// writeUnitForStart is writeUnit for the paths that start a service (bootstrap, container.start with or without a version): for
+// core, sensor and scan the two credential .volume units are put in place first (idempotent). Rollback and the recovery of an
+// interrupted change use plain writeUnit: they put back what was there, and a volume unit is not part of what they undo (L5).
+func (o *Ops) writeUnitForStart(service string, text []byte) error {
+	if service == api.ServiceCore || service == api.ServiceSensor || service == api.ServiceScan {
+		r, err := o.openUnitDir()
+		if err != nil {
+			return err
+		}
+		err = o.ensureVolumeUnits(r)
+		_ = r.Close()
+		if err != nil {
+			return err
+		}
+	}
+	return o.writeUnit(service, text, true) // the old bytes go to .prev, like every unit change that is not a revert
+}
+
 // ensureVolumeUnits puts the two credential .volume units in place (constant text, host.conf ids; see renderVolume) in the opened
 // Quadlet directory. A unit that already holds the right bytes is not touched; a link or odd file at its name is refused. The text
 // never depends on a service or an image, so it needs no .prev and no journal: writing it again is always right.
@@ -157,7 +170,7 @@ func (o *Ops) ensureVolumeUnits(r *os.Root) error {
 	for _, role := range credsRoles {
 		text, err := renderVolume(role, o.cfg.CoreUID, o.cfg.SensorGID)
 		if err != nil {
-			return fmt.Errorf("%w: %w", errUnitUnsafe, err)
+			return err // errBadFill: host.conf does not give usable ids (host_conf_incomplete), not an unsafe directory
 		}
 		name := volumeFileName(role)
 		old, state := readNoFollow(r, name, maxUnitSize)

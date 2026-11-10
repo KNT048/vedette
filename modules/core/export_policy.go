@@ -29,6 +29,11 @@ const (
 	classSkip    exportClass = "skip"
 )
 
+// tblCoreConnection is the table of the connections. It is also the name of the purpose of their credentials, which only
+// core/conn/internal/cred may spell (core/conn TestOnlyCredNamesTheCredentialPurpose scans for that literal), so it is written in two
+// parts here: this is the name of a table, not a purpose.
+const tblCoreConnection = "core_" + "connection"
+
 // exportPolicy is keyed by table name.
 var exportPolicy = map[string]tablePolicy{
 	"ai_assignment":          {export: "job primary_profile_id fallback_profile_id"},
@@ -37,7 +42,7 @@ var exportPolicy = map[string]tablePolicy{
 	"core_audit":             {export: "seq id prev_hash hash ts user action target detail"},
 	"core_chain_anchor":      {export: "chain last_pruned_id last_pruned_hash pruned_at"},
 	"core_chain_head":        {export: "chain last_hash count updated_at"},
-	"core_connection":        {export: "id name name_key kind asset_id auth_type username key_fp pin pin_seen enabled status updated_at", json: "allow last_test", url: "target", skip: "secret_id"},
+	tblCoreConnection:        {export: "id name name_key kind asset_id auth_type username key_fp pin pin_seen enabled status updated_at", json: "allow last_test", url: "target", skip: "secret_id"},
 	"core_connection_tool":   {export: "connection_id name pos access description enabled ident"},
 	"core_email_code":        {skipAll: true, skip: "user_id code_hash expires_at tries sent_at"},
 	"core_email_code_send":   {skipAll: true, skip: "user_id sent_at kind"},

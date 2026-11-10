@@ -13,8 +13,12 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
+// testPackDir holds the test packs: one JSON file per CVE, in the file format of the Loader. It is under content/ because
+// the web side reads the same files (web/src/features/findings/packs.parity.test.ts ties them to the mock packs).
+const testPackDir = "../../content/mitigation/testdata/"
+
 // A box has no way yet to load packs (the Loader needs the update signature Verifier, core/updates), so the GUI checks on a
-// real box (make dev-api, web/e2e/qa/real-box.mjs) have no recommendation to show. This puts the packs of testdata/ into
+// real box (make dev-api, web/e2e/qa/real-box.mjs) have no recommendation to show. This puts the packs of content/mitigation/testdata/ into
 // mit_pack of a box database, as a developer's seed: it does not go through Loader and writes no audit row. It runs only when
 // VEDETTE_SEED_PACKS_DB names the database file of a box that has been started once (so its migrations ran), absolute or
 // relative to the repo root (go test itself runs in this directory):
@@ -34,9 +38,9 @@ func TestGUIReal_SeedBoxWithTestdataPacks(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	files, err := filepath.Glob("testdata/CVE-*.json")
+	files, err := filepath.Glob(testPackDir + "CVE-*.json")
 	if err != nil || len(files) == 0 {
-		t.Fatalf("no pack files in testdata: %v", err)
+		t.Fatalf("no pack files in content/mitigation/testdata: %v", err)
 	}
 	for _, f := range files {
 		raw, err := os.ReadFile(f) //nolint:gosec // a fixed glob under testdata

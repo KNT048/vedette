@@ -1,5 +1,5 @@
 /// <reference types="node" />
-// The mock pack (packs.ts) is the approved content of the GUI; modules/mitigation/testdata holds the same pack in the
+// The mock pack (packs.ts) is the approved content of the GUI; content/mitigation/testdata holds the same pack in the
 // file format of the Go loader. They must say the same: same sources, steps, commands, titles and indicators.
 // The file adds `status` and the `recheck` block, and omits `detected` (the box works that out from the inventory).
 import { describe, expect, it } from 'vitest'
@@ -7,7 +7,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { compromise, packs } from './packs'
 
-const DIR = join(import.meta.dirname, '../../../../modules/mitigation/testdata')
+const DIR = join(import.meta.dirname, '../../../../content/mitigation/testdata')
 const files: Record<string, string> = Object.fromEntries(readdirSync(DIR).filter((f) => /^CVE-.*\.json$/.test(f)).map((f) => [f, readFileSync(join(DIR, f), 'utf8')]))
 
 describe('mock packs and the Go test packs agree', () => {

@@ -9,6 +9,7 @@ import (
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/honeypot"
 	"github.com/knt048/vedette/modules/inventory"
+	"github.com/knt048/vedette/modules/logs"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/response"
@@ -36,6 +37,7 @@ type handler struct {
 	*honeypot.HoneypotHandlers
 	*sensorpassive.SensorHandlers
 	*exposure.ExposureHandlers
+	*logs.LogsHandlers
 	*scan.ScanHandlers
 	*ai.AIHandlers
 }
@@ -59,6 +61,7 @@ func newHandler(d deps) handler {
 		SensorHandlers:   sensorpassive.NewSensorHandlers(d.SensorPassive),
 		HoneypotHandlers: honeypot.NewHoneypotHandlers(d.Honeypot),
 		ExposureHandlers: exposure.NewExposureHandlers(exposureService(d)),
+		LogsHandlers:     logs.NewLogsHandlers(logsService(d)),
 		ScanHandlers:     scan.NewScanHandlers(scanService(d)),
 		AIHandlers:       ai.NewAIHandlers(d.AI),
 	}

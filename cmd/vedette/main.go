@@ -31,6 +31,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules"
+	"github.com/knt048/vedette/modules/logs"
 )
 
 // version is set at build time: -ldflags "-X main.version=0.1.0". It must be SemVer (run refuses anything else), like the version
@@ -221,6 +222,19 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 			log.ErrorContext(ctx, "closing the database failed", "error", err)
 		}
 	}()
+	// logs.db: the volume of the logs module (received lines), a database of its own with its own writer, next to the main one.
+	logsDB, err := store.Open(ctx, filepath.Join(filepath.Dir(o.db), "logs.db"), log)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := logsDB.Close(); err != nil {
+			log.ErrorContext(ctx, "closing the logs database failed", "error", err)
+		}
+	}()
+	if err := store.Migrate(ctx, logsDB, logs.ModuleID, logs.VolumeMigrations); err != nil {
+		return err
+	}
 	wired := wiredModules()
 	if err := migrateAll(ctx, db, wired); err != nil {
 		return err
@@ -230,7 +244,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return err
 	}
-	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Hosts: hosts, BaseURL: baseURL(hosts, o.listen), CertKick: func() { renew.Kick(); warner.Kick() },
+	d := deps{Log: log, DB: db, LogsDB: logsDB, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Hosts: hosts, BaseURL: baseURL(hosts, o.listen), CertKick: func() { renew.Kick(); warner.Kick() },
 		HostSocket: o.hostSocket, HostNet: newHostNetCache(hostSocketNet(o.hostSocket, log), time.Now), DataDir: filepath.Dir(o.db), KeyPath: o.key, HoneypotDir: o.honeypotDir}
 	if err := buildServices(ctx, &d); err != nil {
 		return err

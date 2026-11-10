@@ -66,15 +66,17 @@ func parseBrief(text string) (briefBody, error) {
 
 // Available reports whether the ai module is on and a profile is assigned and allowed for the job.
 func (s *Service) Available(job Job) bool {
-	if s.cfg.Modules != nil && !s.cfg.Modules.Enabled(ModuleID) {
-		return false
-	}
-	return s.Ready(job) == nil
+	return s.moduleOn() && s.Ready(job) == nil
 }
+
+func (s *Service) moduleOn() bool { return s.cfg.Modules == nil || s.cfg.Modules.Enabled(ModuleID) }
 
 // Brief runs an explain-finding or mitigation-config call for a finding. It returns the *apierr.Error of RunJob (409
 // ai_unavailable, 429 daily_cap) so the caller can tell "cannot be used" from a failure.
 func (s *Service) Brief(ctx context.Context, r BriefRequest) (BriefAnswer, error) {
+	if !s.moduleOn() { // a door another module holds must not run the AI while the module is off
+		return BriefAnswer{}, apiUnavailable("The AI assistant module is off. Turn it on in Settings, Modules.")
+	}
 	var task string
 	switch r.Job {
 	case JobExplainFinding:

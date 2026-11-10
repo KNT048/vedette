@@ -34,6 +34,12 @@ type Service struct {
 	now func() time.Time
 	// maxEvents is MaxEvents; a variable so that a test can lower it.
 	maxEvents int64
+	// chunk is purgeChunk; afterChunk, when set by a test, runs after every purge transaction (the writer is free then).
+	chunk int
+	// searchSem holds MaxSearches tokens; searchTimeout is SearchTimeout (a field so that a test can shorten it).
+	searchSem     chan struct{}
+	searchTimeout time.Duration
+	afterChunk    func()
 }
 
 // NewService returns the service. Config, Volume, Audit and Log are required, and Config and Volume must differ.
@@ -48,7 +54,7 @@ func NewService(cfg Config) (*Service, error) {
 	if now == nil {
 		now = time.Now
 	}
-	return &Service{cfg: cfg, now: now, maxEvents: MaxEvents}, nil
+	return &Service{cfg: cfg, now: now, maxEvents: MaxEvents, chunk: purgeChunk, searchSem: make(chan struct{}, MaxSearches), searchTimeout: SearchTimeout}, nil
 }
 
 func (s *Service) ts() time.Time { return s.now().UTC().Truncate(time.Millisecond) }

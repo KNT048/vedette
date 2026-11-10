@@ -251,10 +251,10 @@ func TestContract_INV4_RetentionChoicesAndPurge(t *testing.T) {
 	if count(t, e.vol, `SELECT count(*) FROM logs_events`) != 1 {
 		t.Fatal("wrong lines purged")
 	}
-	if count(t, e.cfg, `SELECT count(*) FROM core_audit WHERE action = 'logs.purge'`) != 1 || count(t, e.cfg, `SELECT count(*) FROM core_audit WHERE action = 'logs.retention'`) != 1 {
+	if count(t, e.cfg, `SELECT count(*) FROM core_audit WHERE action = 'logs.purge_started'`) != 1 || count(t, e.cfg, `SELECT count(*) FROM core_audit WHERE action = 'logs.purge'`) != 1 || count(t, e.cfg, `SELECT count(*) FROM core_audit WHERE action = 'logs.retention'`) != 1 {
 		t.Fatal("retention change and purge must each leave an audit row")
 	}
-	if res, _ = e.svc.Purge(t.Context()); res.Expired != 0 || count(t, e.cfg, `SELECT count(*) FROM core_audit WHERE action = 'logs.purge'`) != 1 {
+	if res, _ = e.svc.Purge(t.Context()); res.Expired != 0 || count(t, e.cfg, `SELECT count(*) FROM core_audit WHERE action LIKE 'logs.purge%'`) != 2 {
 		t.Fatal("a purge that removed nothing writes no audit row")
 	}
 }
@@ -489,3 +489,297 @@ func TestDigestCountsTheLast24Hours(t *testing.T) {
 		t.Fatalf("%+v %v", d, err)
 	}
 }
+
+// Bidirectional formatting characters and line separators in a device's line cannot change how the line reads or split it.
+func TestIngestStripsBidiAndLineSeparators(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	if _, err := e.svc.Ingest(t.Context(), lines(s.ID, t0, "user "+ch(0x202e)+"admin"+ch(0x202c)+" ok", "a"+ch(0x2028)+"b"+ch(0x2029)+"c"+ch(0x85)+"d", "isolate "+ch(0x2066)+"x"+ch(0x2069)+" mark"+ch(0x200e)+ch(0x200f)+ch(0x61c))); err != nil {
+		t.Fatal(err)
+	}
+	v, err := e.svc.Events(t.Context(), EventQuery{Window: "1h"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, ev := range v.Events {
+		got[ev.Line] = true
+	}
+	for _, want := range []string{"user  admin  ok", "a b c d", "isolate  x  mark"} {
+		if !got[want] {
+			t.Errorf("missing %q in %v", want, got)
+		}
+	}
+}
+
+// What the user types in the search box and in the source filter is data, never SQL (INV-5).
+func TestEventsInputsAreDataNotSQL(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	if _, err := e.svc.Ingest(t.Context(), lines(s.ID, t0, "100% done", "a_b", "x' OR '1'='1", "plain")); err != nil {
+		t.Fatal(err)
+	}
+	total := func(q EventQuery) int {
+		t.Helper()
+		v, err := e.svc.Events(t.Context(), q)
+		if err != nil {
+			t.Fatalf("%+v: %v", q, err)
+		}
+		return v.Total
+	}
+	if n := total(EventQuery{Window: "1h", Q: "%"}); n != 1 {
+		t.Errorf("a percent sign is a character, not a wildcard: %d lines", n)
+	}
+	if n := total(EventQuery{Window: "1h", Q: "_"}); n != 1 {
+		t.Errorf("an underscore is a character, not a wildcard: %d lines", n)
+	}
+	if n := total(EventQuery{Window: "1h", Q: "x' OR '1'='1"}); n != 1 {
+		t.Errorf("a quote is a character: %d lines", n)
+	}
+	if n := total(EventQuery{Window: "1h", Q: "'; DROP TABLE logs_events; --"}); n != 0 {
+		t.Errorf("injection text matches nothing: %d", n)
+	}
+	if n := total(EventQuery{Window: "1h", Source: "x' OR '1'='1"}); n != 0 {
+		t.Errorf("a source id with a quote matches nothing: %d", n)
+	}
+	if n := total(EventQuery{Window: "1h", Source: s.ID}); n != 4 {
+		t.Errorf("the source filter: %d", n)
+	}
+	if count(t, e.vol, `SELECT count(*) FROM logs_events`) != 4 {
+		t.Fatal("the table changed")
+	}
+}
+
+// The retention boundary: a line exactly as old as the retention stays, one millisecond older goes.
+func TestContract_INV4_PurgeBoundaryIsStrict(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	if _, err := e.svc.SetRetention(t.Context(), "admin@acme.example", 7); err != nil {
+		t.Fatal(err)
+	}
+	edge := e.clock.Add(-7 * 24 * time.Hour)
+	if _, err := e.svc.Ingest(t.Context(), append(lines(s.ID, edge, "exactly at the boundary"), lines(s.ID, edge.Add(-time.Millisecond), "one millisecond too old")...)); err != nil {
+		t.Fatal(err)
+	}
+	res, err := e.svc.Purge(t.Context())
+	if err != nil || res.Expired != 1 {
+		t.Fatalf("%+v %v", res, err)
+	}
+	if count(t, e.vol, `SELECT count(*) FROM logs_events WHERE line = 'exactly at the boundary'`) != 1 {
+		t.Fatal("the line at the boundary was purged")
+	}
+}
+
+func (e *env) bulk(sourceID string, n int, ts time.Time) {
+	e.t.Helper()
+	err := e.vol.Write(e.t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.t.Context(), `WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c WHERE x < ?) INSERT INTO logs_events (ts, source_id, line) SELECT ?, ?, 'l' FROM c`, n, store.FormatTS(ts), sourceID)
+		return err
+	})
+	if err != nil {
+		e.t.Fatal(err)
+	}
+}
+
+// A purge of 25,000 lines is three transactions of at most 10,000 (the writer is free between them), and a cancelled
+// context stops it between two chunks.
+func TestPurgeRunsInChunksAndStopsWhenCancelled(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	e.bulk(s.ID, 25_000, e.clock.Add(-60*24*time.Hour))
+	calls := 0
+	e.svc.afterChunk = func() {
+		calls++
+		// the writer of logs.db is free between two chunks: a write from here does not wait
+		if _, err := e.svc.Ingest(t.Context(), lines(s.ID, *e.clock, "between chunks")); err != nil {
+			t.Error(err)
+		}
+	}
+	res, err := e.svc.Purge(t.Context())
+	if err != nil || res.Expired != 25_000 || calls != 3 {
+		t.Fatalf("%+v %v after %d chunks, want 25000 in 3", res, err, calls)
+	}
+	// cancelled after the first chunk: only that chunk is gone
+	e.bulk(s.ID, 25_000, e.clock.Add(-60*24*time.Hour))
+	ctx, cancel := context.WithCancel(t.Context())
+	e.svc.afterChunk = cancel
+	res, err = e.svc.Purge(ctx)
+	if err != context.Canceled || res.Expired != 10_000 { //nolint:errorlint // the context error itself, not a wrapped one: the check between chunks answered
+		t.Fatalf("%+v %v, want 10000 removed and context.Canceled", res, err)
+	}
+	if got := count(t, e.vol, `SELECT count(*) FROM logs_events WHERE ts < ?`, store.FormatTS(e.clock.Add(-30*24*time.Hour))); got != 15_000 {
+		t.Fatalf("%d old lines left, want 15000", got)
+	}
+}
+
+// Zero-width and format characters, DEL and C1 controls (NEL) are not kept either: they hide text from the search and
+// forge a second line.
+func TestIngestStripsInvisibleCharacters(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	if _, err := e.svc.Ingest(t.Context(), lines(s.ID, t0, "ad"+ch(0x200b)+"min", "x"+ch(0xfeff)+"y", "del\x7fchar", "c1"+ch(0x80)+ch(0x9f)+"x", "z"+ch(0x200d)+"w"+ch(0xad)+"j")); err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{"ad min", "x y", "del char", "c1  x", "z w j"} {
+		if v, err := e.svc.Events(t.Context(), EventQuery{Window: "1h", Q: q}); err != nil || v.Total != 1 {
+			t.Errorf("%q: %d lines, %v", q, v.Total, err)
+		}
+	}
+}
+
+// The search is case-insensitive for ASCII letters and exact for the rest, the same way on both sides (SQLite's lower()
+// is ASCII-only): a Vietnamese keyword typed as the line has it matches.
+func TestEventsKeywordIsCaseInsensitiveForASCIIOnly(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	if _, err := e.svc.Ingest(t.Context(), lines(s.ID, t0, "Đăng nhập thất bại user=ADMIN")); err != nil {
+		t.Fatal(err)
+	}
+	total := func(q string) int {
+		v, err := e.svc.Events(t.Context(), EventQuery{Window: "1h", Q: q})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return v.Total
+	}
+	for _, q := range []string{"Đăng", "Đăng nhập", "thất bại", "user=admin", "USER=ADMIN"} {
+		if total(q) != 1 {
+			t.Errorf("%q must match", q)
+		}
+	}
+	if total("đăng") != 0 {
+		t.Error("a different non-ASCII case is a different character: documented, not folded")
+	}
+}
+
+// The OR of a source-name match stays inside the window and the source filter.
+func TestEventsNameMatchRespectsTheWindowAndTheSourceFilter(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	fw, rt := e.add("FW-HQ", "192.168.10.1"), e.add("RT-BACKUP", "192.168.10.2")
+	if _, err := e.svc.Ingest(t.Context(), append(lines(fw.ID, e.clock.Add(-3*24*time.Hour), "old line of the firewall"), lines(fw.ID, e.clock.Add(-time.Minute), "new line of the firewall")...)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Ingest(t.Context(), lines(rt.ID, e.clock.Add(-time.Minute), "a line of the router")); err != nil {
+		t.Fatal(err)
+	}
+	v, err := e.svc.Events(t.Context(), EventQuery{Window: "1h", Q: "fw-hq"})
+	if err != nil || v.Total != 1 || v.Events[0].Line != "new line of the firewall" {
+		t.Fatalf("name match inside the window: %+v %v", v, err)
+	}
+	v, err = e.svc.Events(t.Context(), EventQuery{Window: "24h", Source: rt.ID, Q: "fw-hq"})
+	if err != nil || v.Total != 0 {
+		t.Fatalf("name match must not leak past the source filter: %+v %v", v, err)
+	}
+}
+
+// A search has a deadline and a box runs at most MaxSearches at once: past either the answer is 503 server_busy.
+func TestEventsSearchIsBoundedInTimeAndInNumber(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	if _, err := e.svc.Ingest(t.Context(), lines(s.ID, t0, "a")); err != nil {
+		t.Fatal(err)
+	}
+	for range MaxSearches { // every slot taken
+		e.svc.searchSem <- struct{}{}
+	}
+	e.svc.searchTimeout = 50 * time.Millisecond
+	if _, err := e.svc.Events(t.Context(), EventQuery{Window: "1h"}); code(err) != "server_busy" {
+		t.Fatalf("with every slot taken: %v", err)
+	}
+	for range MaxSearches {
+		<-e.svc.searchSem
+	}
+	e.svc.searchTimeout = time.Nanosecond // a deadline that has passed
+	if _, err := e.svc.Events(t.Context(), EventQuery{Window: "1h", Q: "a"}); code(err) != "server_busy" {
+		t.Fatalf("with an expired deadline: %v", err)
+	}
+	e.svc.searchTimeout = SearchTimeout
+	if v, err := e.svc.Events(t.Context(), EventQuery{Window: "1h"}); err != nil || v.Total != 1 {
+		t.Fatalf("a search after the slots are free: %+v %v", v, err)
+	}
+	if len(e.svc.searchSem) != 0 {
+		t.Fatal("a search left its slot taken")
+	}
+}
+
+// The id of a line is never given to another line (AUTOINCREMENT), even after a purge removed the newest ones.
+func TestEventIDsAreNeverReused(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	if _, err := e.svc.Ingest(t.Context(), lines(s.ID, e.clock.Add(-40*24*time.Hour), "a", "b", "c")); err != nil {
+		t.Fatal(err)
+	}
+	if res, err := e.svc.Purge(t.Context()); err != nil || res.Expired != 3 || count(t, e.vol, `SELECT count(*) FROM logs_events`) != 0 {
+		t.Fatalf("%+v %v", res, err)
+	}
+	if _, err := e.svc.Ingest(t.Context(), lines(s.ID, *e.clock, "d")); err != nil {
+		t.Fatal(err)
+	}
+	if id := count(t, e.vol, `SELECT id FROM logs_events`); id != 4 {
+		t.Fatalf("the new line has id %d, want 4: an id was reused", id)
+	}
+}
+
+// A purge keeps the "last received" mark of a source that exists, and the cap alone (nothing expired) leaves an audit row.
+func TestPurgeKeepsLiveMarksAndAuditsTheCapAlone(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	if _, err := e.svc.Ingest(t.Context(), lines(s.ID, *e.clock, "1", "2", "3", "4", "5")); err != nil {
+		t.Fatal(err)
+	}
+	e.svc.maxEvents = 3
+	res, err := e.svc.Purge(t.Context())
+	if err != nil || res.Over != 2 || res.Expired != 0 {
+		t.Fatalf("%+v %v", res, err)
+	}
+	if count(t, e.vol, `SELECT count(*) FROM logs_source_seen WHERE source_id = ?`, s.ID) != 1 {
+		t.Fatal("the mark of a source that exists was dropped")
+	}
+	v, _ := e.svc.Sources(t.Context())
+	if v.Sources[0].State != "receiving" || v.Sources[0].LastReceived == nil {
+		t.Fatalf("the source looks silent after a purge: %+v", v.Sources[0])
+	}
+	if count(t, e.cfg, `SELECT count(*) FROM core_audit WHERE action = 'logs.purge_started'`) != 1 || count(t, e.cfg, `SELECT count(*) FROM core_audit WHERE action = 'logs.purge'`) != 1 {
+		t.Fatal("a purge that only enforced the cap must leave its audit rows")
+	}
+}
+
+// Whatever way a purge ends, the lines it removed have an audit row, and the "started" row exists before the first delete.
+func TestPurgeAuditsEveryWayOut(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	e.bulk(s.ID, 25_000, e.clock.Add(-60*24*time.Hour))
+	ctx, cancel := context.WithCancel(t.Context())
+	first := true
+	e.svc.afterChunk = func() {
+		if first {
+			first = false
+			if count(t, e.cfg, `SELECT count(*) FROM core_audit WHERE action = 'logs.purge_started'`) != 1 {
+				t.Error("no started row after the first chunk was deleted")
+			}
+			cancel() // the purge is cut short after 10,000 lines
+		}
+	}
+	res, err := e.svc.Purge(ctx)
+	if err != context.Canceled || res.Expired != 10_000 { //nolint:errorlint // the context error itself
+		t.Fatalf("%+v %v", res, err)
+	}
+	var detail string
+	if err := e.cfg.Reader().QueryRowContext(t.Context(), `SELECT detail FROM core_audit WHERE action = 'logs.purge'`).Scan(&detail); err != nil || !strings.HasPrefix(detail, "10000 lines") {
+		t.Fatalf("a purge cut short by its context must still say what it removed: %q %v", detail, err)
+	}
+}
+
+// ch is a character given by its code point, so that the invisible ones are visible in this file.
+func ch(c rune) string { return string(c) }

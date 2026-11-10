@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/store"
@@ -40,7 +41,13 @@ func sanitizeLine(s string) string {
 	return s[:cut] + mark
 }
 
-func isControl(r rune) bool { return r != '\t' && (r < 0x20 || r == 0x7f) }
+// isControl says whether a rune must not reach a stored line: every control (Cc: C0, DEL, C1 with NEL), format (Cf: the
+// bidirectional overrides and isolates, zero-width characters, byte order mark, soft hyphen) and line or paragraph
+// separator (Zl, Zp) except tab. A device could otherwise make a line read reversed, hide text from the search, or
+// start what looks like a second line in the page and in the export. They become a space.
+func isControl(r rune) bool {
+	return r != '\t' && unicode.In(r, unicode.Cc, unicode.Cf, unicode.Zl, unicode.Zp)
+}
 
 // Ingest stores a batch of received lines in one transaction on logs.db: at most one write per batch, never on the
 // main database, so a flood never waits for the core writer and never holds it. Lines of a source that is not declared

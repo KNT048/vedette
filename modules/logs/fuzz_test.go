@@ -3,13 +3,22 @@ package logs
 import (
 	"strings"
 	"testing"
+	"unicode"
 	"unicode/utf8"
 )
 
-// What a device sends is untrusted (INV-1, SYS-6): whatever the bytes, the stored text is valid UTF-8, has no control
-// character but tab, and is never longer than the limit.
+// What a device sends is untrusted (INV-1, SYS-6): whatever the bytes, the stored text is valid UTF-8, has no control,
+// format or separator character but tab (the check below uses the unicode tables itself, not isControl), and is never
+// longer than the limit. Characters are given by code point (ch, in service_test.go) so the invisible ones can be seen.
 func FuzzSanitizeLine(f *testing.F) {
-	for _, s := range []string{"", "plain", "nul\x00byte", "\xff\xfe", "\x1b[31m", strings.Repeat("é", 3000), strings.Repeat("a", 5000), "tab\tok", " ", "trailing   ", "\xed\xa0\x80"} {
+	seeds := []string{
+		"", "plain", "nul\x00byte", "\xff\xfe", "\x1b[31m", strings.Repeat("e"+ch(0x301), 3000), strings.Repeat("a", 5000), "tab\tok",
+		"trailing   ", "\xed\xa0\x80", "a\x7fb",
+	}
+	for _, c := range []rune{0x2028, 0x2029, 0x200b, 0x200d, 0xfeff, 0x202e, 0x2066, 0x061c, 0x85, 0x80, 0xad} {
+		seeds = append(seeds, "a"+ch(c)+"b")
+	}
+	for _, s := range seeds {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, in string) {
@@ -21,8 +30,8 @@ func FuzzSanitizeLine(f *testing.F) {
 			t.Fatalf("%d bytes", len(out))
 		}
 		for _, r := range out {
-			if isControl(r) {
-				t.Fatalf("control character %U in %q", r, out)
+			if r != '\t' && unicode.In(r, unicode.Cc, unicode.Cf, unicode.Zl, unicode.Zp) {
+				t.Fatalf("control, format or separator character %U in %q", r, out)
 			}
 		}
 		if again := sanitizeLine(out); again != out {

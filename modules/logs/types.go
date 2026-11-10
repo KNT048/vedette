@@ -25,6 +25,10 @@ const (
 	purgeChunk = 10_000
 	// silentAfter is how long without a line before a source that has sent something shows as "silent".
 	silentAfter = time.Hour
+	// SearchTimeout bounds one search of the lines; MaxSearches is how many may run at once on a box. A search is a scan
+	// (instr over the window), so a viewer typing in the box must not be able to occupy the database.
+	SearchTimeout = 5 * time.Second
+	MaxSearches   = 2
 	// bucketSeconds is the width of a counter bucket.
 	bucketSeconds = 300
 )

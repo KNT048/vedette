@@ -7,7 +7,7 @@
 -- Received lines. ts is the receive time (device clocks drift, RFC 3164 has no year); "newest first" walks the ts index backwards. A
 -- purge of the oldest is a range delete by ts, and ids (handed out in receive order) bound the number of rows kept.
 CREATE TABLE logs_events (
-    id        INTEGER PRIMARY KEY,
+    id        INTEGER PRIMARY KEY AUTOINCREMENT, -- never reused: the API id le-N names one line for ever
     ts        TEXT NOT NULL CHECK (ts GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     source_id TEXT NOT NULL CHECK (length(source_id) BETWEEN 1 AND 64),
     line      TEXT NOT NULL CHECK (length(line) <= 8192)

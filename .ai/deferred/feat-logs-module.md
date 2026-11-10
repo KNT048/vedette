@@ -96,6 +96,14 @@ Quyết định cần ghi (L1):
 - The SIEM operations answer 501 from `server.Fallback` until L5.
 
 Issue texts for Kiên (open when the PR is opened; label owner:kien):
-1. **core: `POST /core/data/purge` and the backup snapshot must cover `logs.db`.** `modules/logs` keeps the received lines in `<core_data>/logs.db` (+ `-wal`, `-shm`). The purge handler does not exist yet (no code under modules/core) and `snapshotter.create` does `VACUUM INTO` of `vedette.db` only. When purge is written it must delete `logs.db` and its sidecar files; the restore through vedette-host expects `vedette.db` and `vedette.key` only, so after a restore `logs.db` may hold lines of sources that the restored configuration does not know (harmless: they expire with the retention, the Logs page names them by id). Whether the log history should be in the backup is your call (size); the RUNBOOK should say it is not.
+1. **core purge and backup: `logs.db`**: answered by #187 / D-151 (not in the backup; purge from a list of module data file names; logs registers nothing). Our part: the volume migrations must be add-only, guarded by `TestVolumeMigrationsAreAddOnly`.
 2. **inventory: a read by IP** (optional): `DeviceRefsByIP(ctx, ips []string) (map[string]DeviceRef, error)`. `cmd/vedette/logs.go` lists every device with `DevicesOfKind(inventory.Kinds)` and filters; it works to a few thousand devices and misses a device whose kind is outside `inventory.Kinds`.
 3. **core/store** (only if the lab shows trouble): `Open` is enough today; if more modules want a second file, a shared helper that opens `<core_data>/<name>.db` and migrates it would replace the 10 lines in `cmd/vedette/main.go` and in the two test helpers.
+
+## Review of #186: deferred, all to be done before L2 opens a listener
+
+- [ ] 2026-11-11 — **M2** the 20M-line cap must become a byte or disk-space bound, and `Ingest` must trigger a purge when over (today only the hourly job enforces it; at 2,000 lines/s a source adds 7M an hour) — ở đâu: `modules/logs/purge.go`, `ingest.go`.
+- [ ] 2026-11-11 — **L1** `device_logs` can make the whole `GET /core/logs/export` answer 413 (core's 128 MiB total cap, D-132): give it its own cap or leave it out of the default export — ở đâu: `modules/logs/export.go`, `core/logexport` (Kiên's) — ask when L2 starts.
+- [ ] 2026-11-11 — **L2** clamp `Line.At` to [now - retention, now] (today only the future is clamped, so a listener bug can write lines that the next purge deletes at once), and cut a line to 4x `MaxLineBytes` before sanitizing (the sanitizer walks the whole string) — ở đâu: `modules/logs/ingest.go`.
+- [ ] 2026-11-11 — **L4** source attribution over UDP/TCP is best-effort (the sender IP can be spoofed on UDP, and any host on the LAN can claim an IP); plan TLS client-certificate pinning per source for the L2 TLS listener (6514) — ở đâu: `modules/logs/CONTRACT.md` FORBID-5.
+- [ ] 2026-11-11 — **L5** the purge job does not run while the module is off (SYS-5), so a box with logs switched off keeps its lines past the retention: run the purge anyway or say so on the page — ở đâu: `modules/logs/purge.go` `Jobs`, `web/src/features/logs` (GUI text needs a story).

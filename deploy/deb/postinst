@@ -1,0 +1,92 @@
+#!/bin/sh
+# vedette-host postinst (WP-08g, D-155). POSIX sh, idempotent: a second run leaves the same users, directories, modes and
+# /etc/subuid lines. Creates what vedette-host expects at fixed paths and enables the unit. It does NOT start it, and it does
+# NOT write /etc/vedette/host.conf: the installer (WP-08h) does that from `getent`, then starts vedette-host.service.
+set -eu
+umask 022
+
+# Fixed names, dynamic ids (Debian Policy 9.2.2: system ids are allocated by useradd --system, not picked by the package).
+# The ids stay the same on every later install because the users are never removed (not even by purge).
+CORE=vedette           # user and group: core runs as it (core_uid, core_gid = socket_gid in host.conf), the socket group
+SENSOR=vedette-sensor  # user and group of the sensor and scan containers (sensor_uid, sensor_gid)
+UNIT=vedette-host.service
+
+group() {
+	getent group "$1" >/dev/null || groupadd --system "$1"
+}
+
+user() { # user <name>: a system user with a group of the same name, no home, no login
+	if getent passwd "$1" >/dev/null; then
+		# a user somebody made first is kept, but never root
+		[ "$(id -u "$1")" != 0 ] || { echo "vedette-host: user $1 has uid 0" >&2; exit 1; }
+	else
+		useradd --system --gid "$1" --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin "$1"
+	fi
+}
+
+# one "containers:2147483647:2147483648" line for UserNS=auto (podman-run(1)): an unused range of 2^31 ids that podman cuts
+# into one range per container. An existing "containers:" line is the administrator's and stays.
+subid() { # subid <file>
+	[ -e "$1" ] || : >"$1"
+	if ! grep -q '^containers:' "$1"; then
+		[ ! -s "$1" ] || [ -z "$(tail -c1 "$1")" ] || echo >>"$1"
+		echo 'containers:2147483647:2147483648' >>"$1"
+	fi
+}
+
+enable_unit() {
+	# Debian's own way (what dh_installsystemd writes): enabled on the first install, and an upgrade keeps an administrator's
+	# `systemctl disable`. Plain systemctl where the helper is missing.
+	if command -v deb-systemd-helper >/dev/null 2>&1; then
+		deb-systemd-helper unmask "$UNIT" >/dev/null || true
+		# was-enabled is true when the helper has no state yet, so the first install enables
+		if deb-systemd-helper --quiet was-enabled "$UNIT"; then
+			deb-systemd-helper enable "$UNIT" >/dev/null || true
+		else
+			deb-systemd-helper update-state "$UNIT" >/dev/null || true
+		fi
+	elif command -v systemctl >/dev/null 2>&1; then
+		systemctl enable "$UNIT" >/dev/null 2>&1 || true
+	fi
+}
+
+case "${1:-}" in
+configure)
+	group "$CORE"
+	group "$SENSOR"
+	user "$CORE"
+	user "$SENSOR"
+
+	# install -d sets the mode and owner every run; it never touches what is inside.
+	# /etc/vedette: host.conf is written here by the installer (root-owned, not writable by others)
+	install -d -m 0755 -o root -g root /etc/vedette
+	# the helper's own state: runs, idempotency records, version records (its -state-dir default)
+	install -d -m 0700 -o root -g root /var/lib/vedette-host
+	# Quadlet units; the parents are root's and closed
+	install -d -m 0755 -o root -g root /etc/containers /etc/containers/systemd
+	# core_data (the default of core and of the installer's host.conf): the database and the key; core's alone, kept on purge
+	install -d -m 0700 -o "$CORE" -g "$CORE" /var/lib/vedette
+	# honeypot folders (D-123 (1)): root's and closed above, config/ is written by core and read by the container,
+	# log/ is written by the container and read by core. log/ is core's for now: the owner the container needs under
+	# UserNS=auto is decided in the lab (docs/DEPLOYMENT.md section 3.1, D-155 (9)).
+	install -d -m 0755 -o root -g root /var/lib/vedette-honeypot
+	install -d -m 0755 -o "$CORE" -g "$CORE" /var/lib/vedette-honeypot/config
+	install -d -m 0750 -o "$CORE" -g "$CORE" /var/lib/vedette-honeypot/log
+
+	subid /etc/subuid
+	subid /etc/subgid
+
+	enable_unit
+	# the unit is new or changed; running instances are not restarted here (a restart would kill the dpkg that runs this script
+	# when the helper upgrades itself: KillMode=control-group)
+	if [ -d /run/systemd/system ]; then
+		systemctl --system daemon-reload
+	fi
+	;;
+abort-upgrade | abort-remove | abort-deconfigure) ;;
+*)
+	echo "vedette-host postinst: unknown action '${1:-}'" >&2
+	exit 1
+	;;
+esac
+exit 0

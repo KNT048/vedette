@@ -155,8 +155,15 @@ func linkSetup(t *testing.T) (s *stack, clock *manualClock, a response.ActionReq
 	if _, err := svc.Evaluate(ctx); err != nil {
 		t.Fatal(err)
 	}
-	// The request was sent after it was created: one mail, to the approver only, with a link; sent_to and the log say so.
-	reqs, err := svc.Actions(ctx)
+	// The request is sent in the background after it was created: one mail, to the approver only, with a link; sent_to and the log say so.
+	var reqs []response.ActionRequest
+	for range 1000 {
+		reqs, err = svc.Actions(ctx)
+		if err == nil && len(reqs) == 1 && len(reqs[0].SentTo) > 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 	if err != nil || len(reqs) != 1 {
 		t.Fatalf("requests: %v %+v", err, reqs)
 	}
@@ -280,5 +287,30 @@ func TestWiringApprovalLinkExpires(t *testing.T) {
 	}
 	if s.count(`SELECT count(*) FROM resp_block_entries`) != 0 {
 		t.Error("an expired link ran the action")
+	}
+}
+
+// SYS-5 and spec 8: while notify is off its channels and approvers do not exist, so a link neither shows the request nor decides; when
+// notify is on again the same link works, and a link of a person who was taken off the list reads as no link at all.
+func TestWiringApprovalLinkNeedsNotifyOn(t *testing.T) {
+	t.Parallel()
+	s, _, a, token := linkSetup(t)
+	h := map[string]string{"Sec-Fetch-Site": "same-origin"}
+	s.setModule("notify", false)
+	if code, v := s.public("GET", token, "", h); code != 200 || v["state"] != "unknown" || v["title"] != nil {
+		t.Errorf("GET with notify off: %d %v", code, v)
+	}
+	if code, v := s.public("POST", token, `{"decision":"approve"}`, h); code != 403 || at(v, "error", "code") != "approver_not_listed" {
+		t.Errorf("POST with notify off: %d %v", code, v)
+	}
+	if s.count(`SELECT count(*) FROM resp_tokens WHERE used_at IS NOT NULL`) != 0 || s.count(`SELECT count(*) FROM resp_block_entries`) != 0 {
+		t.Fatal("a link decided while notify was off")
+	}
+	s.setModule("notify", true)
+	if code, v := s.public("GET", token, "", h); code != 200 || v["state"] != "ready" || v["title"] != a.Title {
+		t.Errorf("GET with notify on again: %d %v", code, v)
+	}
+	if code, v := s.public("POST", token, `{"decision":"reject"}`, h); code != 200 || v["status"] != "rejected" {
+		t.Errorf("POST with notify on again: %d %v", code, v)
 	}
 }

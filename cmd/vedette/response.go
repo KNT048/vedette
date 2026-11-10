@@ -10,6 +10,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/conn/write"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/notify"
@@ -50,11 +51,18 @@ func (t responseTwoStep) Verify(ctx context.Context, userID, code, purpose, summ
 type responseNotifier struct {
 	n   *notify.Service
 	now func() time.Time
+	reg *modreg.Registry // nil in tests that build it by hand: notify counts as on
 }
+
+// off is true while the notify module is off (SYS-5): its channels and approvers do not exist then, so an approval link cannot decide.
+func (r responseNotifier) off() bool { return r.reg != nil && !r.reg.Enabled(notify.ModuleID) }
 
 var channelNames = map[string]string{"slack": "Slack", "telegram": "Telegram", "zalo": "Zalo OA", "zalo-personal": "Zalo (personal)", "email": "Email", "webhook": "Webhook"}
 
 func (r responseNotifier) Channels(ctx context.Context) ([]response.NotifyChannel, error) {
+	if r.off() {
+		return nil, nil
+	}
 	v, err := r.n.Channels(ctx)
 	if err != nil {
 		return nil, err
@@ -75,6 +83,9 @@ func channelLabel(c notify.Channel) string {
 
 // Approvers lists the people saved as approvers on a channel (notify.ApprovalChannels: enabled, configured, approvals on).
 func (r responseNotifier) Approvers(ctx context.Context, ch string) ([]response.Approver, error) {
+	if r.off() {
+		return nil, nil
+	}
 	all, err := r.n.ApprovalChannels(ctx)
 	if err != nil {
 		return nil, err
@@ -105,16 +116,20 @@ func (r responseNotifier) RequestApproval(ctx context.Context, m response.Approv
 	case response.RiskLow:
 		sev = notify.Low
 	}
-	sent, err := r.n.SendApprovalRequest(ctx, notify.ApprovalRequest{ID: m.RequestID, Title: m.Title, What: m.What, Action: "Review the change, then approve or reject it. The link works once and ends with the request.",
-		Severity: sev, Risk: notify.Risk(m.Risk), Expires: m.Expires, Channels: types, InAppOnly: m.InAppOnly})
-	if err != nil {
-		return nil, err
-	}
-	labels := map[string]string{}
-	if v, err := r.n.Channels(ctx); err == nil {
+	labels := map[string]string{} // read before the send: the budget may end while it runs, and a label read after would find nothing
+	if v, err := r.n.Channels(context.WithoutCancel(ctx)); err == nil {
 		for _, c := range v.Channels {
 			labels[string(c.Type)] = channelLabel(c)
 		}
+	}
+	sent, err := r.n.SendApprovalRequest(ctx, notify.ApprovalRequest{ID: m.RequestID, Title: m.Title, What: m.What, Action: "Review the change, then approve or reject it. The link works once and ends with the request.",
+		Severity: sev, Risk: notify.Risk(m.Risk), Expires: m.Expires, Channels: types, InAppOnly: m.InAppOnly})
+	if err != nil {
+		// These fail before anything is sent. Any other error may come from writing notify's record of messages that already left.
+		if errors.Is(err, notify.ErrModuleOff) || errors.Is(err, notify.ErrApprovalUnavailable) || errors.Is(err, notify.ErrInvalidNotice) || errors.Is(err, ctx.Err()) {
+			return nil, err
+		}
+		return nil, fmt.Errorf("%w: %w", response.ErrSendUnsure, err)
 	}
 	var out []string
 	failed := 0
@@ -300,7 +315,7 @@ func newResponse(d *deps) (*response.Service, error) {
 func responseConfig(d *deps) (response.Config, error) {
 	n := newNotify(d)
 	cfg := response.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: responseUsers{d}, TwoStep: responseTwoStep{d}, Log: d.Log, Clock: d.Clock,
-		Notifier: responseNotifier{n: n, now: d.Clock}, Links: responseLinks{n}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings}}
+		Notifier: responseNotifier{n: n, now: d.Clock, reg: d.Reg}, Links: responseLinks{n}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings}}
 	if d.Conn != nil { // a nil *conn.Service inside the interface would not compare equal to nil
 		cfg.Connections = responseConnections{d.Conn}
 		// cfg.Evidence stays empty: IocHit until logs (WP-24) offers a lookup, ConfigRead until ai offers a lookup of the reads it made. An

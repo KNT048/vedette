@@ -51,6 +51,7 @@ type fakeNotifier struct {
 	sendSent  []string                       // what RequestApproval answers
 	sendErr   error                          // and the error it answers
 	onSend    func()                         // runs inside RequestApproval (what is open while a send runs)
+	block     chan struct{}                  // RequestApproval waits for it to close (or for its context to end)
 }
 
 func (f *fakeNotifier) Approvers(_ context.Context, ch string) ([]response.Approver, error) {
@@ -59,13 +60,20 @@ func (f *fakeNotifier) Approvers(_ context.Context, ch string) ([]response.Appro
 	return f.approvers[ch], nil
 }
 
-func (f *fakeNotifier) RequestApproval(_ context.Context, m response.ApprovalMessage) ([]string, error) {
+func (f *fakeNotifier) RequestApproval(ctx context.Context, m response.ApprovalMessage) ([]string, error) {
 	f.mu.Lock()
 	f.asked = append(f.asked, m)
-	hook, sent, err := f.onSend, f.sendSent, f.sendErr
+	hook, sent, err, block := f.onSend, f.sendSent, f.sendErr, f.block
 	f.mu.Unlock()
 	if hook != nil {
 		hook()
+	}
+	if block != nil { // a mail server that does not answer: wait until released, or until the budget or the shutdown ends the context
+		select {
+		case <-block:
+		case <-ctx.Done():
+			return sent, ctx.Err()
+		}
 	}
 	return sent, err
 }

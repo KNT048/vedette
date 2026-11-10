@@ -53,7 +53,7 @@ func (s *Service) HandleStaleForTest(ctx context.Context, ruleID string, ev Det,
 
 // ApproveViaForTest approves as who with the way of approval they came by (the public Approve is always the app; chat and email arrive in 13b-7).
 func (s *Service) ApproveViaForTest(ctx context.Context, who Actor, id string, pick []string, code string) (ActionRequest, error) {
-	return s.approve(ctx, who, id, pick, code, false, "")
+	return s.approve(ctx, who, id, pick, code, false, nil)
 }
 
 // CheckAIPausedForTest runs the pause gate 13b-10 puts among its proposal gates.
@@ -67,3 +67,19 @@ func (s *Service) ApproveSummaryForTest(ctx context.Context, id string, pick ...
 	}
 	return approveSummary(r, pick), nil
 }
+
+// WaitSendsForTest waits for the approval requests that are being sent in the background.
+func (s *Service) WaitSendsForTest() { s.sendWG.Wait() }
+
+// SetBeforeLockForTest sets a function that runs just before a decision through an approval link takes the service lock.
+func (s *Service) SetBeforeLockForTest(f func()) { s.beforeLock = f }
+
+// LinkKeysForTest is how many sources the approval link rate limit remembers.
+func (s *Service) LinkKeysForTest() int {
+	s.limitMu.Lock()
+	defer s.limitMu.Unlock()
+	return len(s.linkTimes)
+}
+
+// SetSendBudgetForTest sets how long sending one approval request may take.
+func (s *Service) SetSendBudgetForTest(d time.Duration) { s.budget = d }

@@ -17,7 +17,7 @@ import ResponseSettings from './ResponseSettings'
 import { ActionDialog } from './CatalogEditor'
 import { RequestCard } from './RequestCard'
 import { RuleDialog } from './RuleEditor'
-import { buildChange, catalogStore } from './state'
+import { actionsStore, buildChange, catalogStore } from './state'
 
 const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
 const PROPOSAL = 'pr-f-1-nas-photo-443'
@@ -372,6 +372,39 @@ describe('response: approval model (D-51)', () => {
     expect((await getAction(r.json.id)).status).toBe('pending')
     expect((await pub('POST', `/response/approve/${token}`, { decision: 'approve' })).json.status).toBe('executed')
     expect((await pub('POST', `/response/approve/${token}`, { decision: 'approve' })).json.error?.code).toBe('used')
+  })
+
+  it('a link of a person who may no longer approve reads as no link (spec 8)', async () => {
+    await turnOn()
+    collection<unknown>('notify_channels', () => []).set([{ type: 'email', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }, { user_id: 'u-admin', address: 'admin@acme.example' }] }])
+    await saveSettings({ approval_channels: ['email'] })
+    const r = await request()
+    const token = (await getAction(r.json.id)).email_links[0]!.url.split('/').pop()!
+    const pub = async (m: string, p: string, b?: unknown) => { sessionStore.set({ userId: null }); const res = await fetch(`${location.origin}/api/v1${p}`, { method: m, headers: { 'Content-Type': 'application/json' }, body: b === undefined ? undefined : JSON.stringify(b) }); return { status: res.status, json: (await res.json()) as { state?: string; title?: string | null; error?: { code: string } } } }
+    expect((await pub('GET', `/response/approve/${token}`)).json.state).toBe('ready')
+    usersStore.update((l) => l.map((u) => (u.id === 'u-op' ? { ...u, disabled: true } : u)))
+    const gone = await pub('GET', `/response/approve/${token}`)
+    expect(gone.json.state).toBe('unknown')
+    expect(gone.json.title).toBeNull()
+    expect((await pub('POST', `/response/approve/${token}`, { decision: 'approve' })).json.error?.code).toBe('unknown')
+  })
+
+  it('two people, at most one by email link (D-124)', async () => {
+    await turnOn()
+    collection<unknown>('notify_channels', () => []).set([{ type: 'email', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }, { user_id: 'u-admin', address: 'admin@acme.example' }] }])
+    await saveSettings({ approval_channels: ['email'] })
+    const r = await request()
+    actionsStore.update((l) => l.map((a) => (a.id === r.json.id ? { ...a, items: a.items.map((i) => ({ ...i, targets: 99 })) } : a))) // more targets than the limit: two people
+    const links = (await getAction(r.json.id)).email_links
+    const [t1, t2] = links.map((l) => l.url.split('/').pop()!)
+    const pub = async (m: string, p: string, b?: unknown) => { sessionStore.set({ userId: null }); const res = await fetch(`${location.origin}/api/v1${p}`, { method: m, headers: { 'Content-Type': 'application/json' }, body: b === undefined ? undefined : JSON.stringify(b) }); return { status: res.status, json: (await res.json()) as { status?: string; error?: { code: string } } } }
+    expect((await pub('POST', `/response/approve/${t1}`, { decision: 'approve' })).json.status).toBe('pending')
+    const second = await pub('POST', `/response/approve/${t2}`, { decision: 'approve' })
+    expect(second.status).toBe(403)
+    expect(second.json.error?.code).toBe('in_app_required')
+    expect((await getAction(r.json.id)).approvals).toHaveLength(1)
+    const done = await call<ActionRequest>('admin', 'POST', `/response/actions/${r.json.id}/approve`) // the other person, in the app
+    expect(done.json.approvals.map((a) => a.via)).toEqual(['email', 'app'])
   })
 })
 

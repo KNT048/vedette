@@ -1,9 +1,13 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -85,5 +89,33 @@ func TestMapErrorNamesTheFullFieldPath(t *testing.T) {
 	e, _ = mapError(&validate.Error{})
 	if e.Code != apierr.CodeInvalid || e.Extra != nil {
 		t.Fatalf("empty error: %+v", e)
+	}
+}
+
+// M3 (response FORBID-4): a panic on a route whose path is a credential does not put the credential in the log, not in the path, the panic
+// text or anywhere else; a path without one is logged as it is.
+func TestPanicLogHasNoPathCredential(t *testing.T) {
+	t.Parallel()
+	const tok = "v1.SECRETidSECRETidSECRet.SECRETmacSECRETmacSEC"
+	for _, tc := range []struct{ path, want string }{
+		{"/api/v1/response/approve/" + tok, "/api/v1/response/approve/{token}"},
+		{"/api/v1/response/blocklist/abcdef0123456789abcdef0123456789.txt", "/api/v1/response/blocklist/{token}"},
+		{"/api/v1/feeds/hot", "/api/v1/feeds/hot"},
+	} {
+		var buf bytes.Buffer
+		h := Envelope(slog.New(slog.NewTextHandler(&buf, nil)), http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+			panic("boom while serving " + r.URL.Path) // a handler that puts the whole path in its panic text
+		}))
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequestWithContext(t.Context(), http.MethodPost, tc.path, nil))
+		out := buf.String()
+		if w.Code != http.StatusInternalServerError || !strings.Contains(out, "handler panicked") || !strings.Contains(out, tc.want) {
+			t.Fatalf("%s: status %d, log %q", tc.path, w.Code, out)
+		}
+		for _, secret := range []string{"SECRET", "abcdef0123456789"} {
+			if strings.Contains(tc.path, secret) && strings.Contains(out, secret) {
+				t.Errorf("%s: the log holds %q:\n%s", tc.path, secret, out)
+			}
+		}
 	}
 }

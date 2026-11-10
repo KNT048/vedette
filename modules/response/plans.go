@@ -200,119 +200,121 @@ func (s *Service) RequestProposal(ctx context.Context, who Actor, pid string) (A
 	if !idRE.MatchString(pid) {
 		return ActionRequest{}, fail(http.StatusNotFound, "not_found", "No such proposal.")
 	}
-	s.mu.Lock()
 	var refusal error
 	var out request
 	var fx effects
-	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		refusal, fx = nil, effects{}
-		plans, err := loadPlans(ctx, tx, "")
-		if err != nil {
-			return err
-		}
-		var plan *storedPlan
-		var prop *storedProposal
-		for i := range plans {
-			for _, x := range plans[i].steps {
-				if x.Proposal != nil && x.Proposal.ID == pid {
-					plan, prop = &plans[i], x.Proposal
-				}
-			}
-		}
-		if plan == nil {
-			refusal = fail(http.StatusNotFound, "not_found", "No such proposal.")
-			return nil
-		}
-		subject, assetID := "", prop.AssetID
-		if s.cfg.Directory != nil {
-			f, ok, err := s.cfg.Directory.Finding(ctx, plan.FindingID)
+	err := func() error {
+		s.mu.Lock()
+		defer s.mu.Unlock() // released when the write ends, a panic included; sending the request waits for that
+		return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+			refusal, fx = nil, effects{}
+			plans, err := loadPlans(ctx, tx, "")
 			if err != nil {
 				return err
 			}
-			if !ok || !openStatus(f.Status) || f.Severity != "critical" {
-				refusal = fail(http.StatusConflict, "finding_closed", "The finding is no longer an open critical finding.")
+			var plan *storedPlan
+			var prop *storedProposal
+			for i := range plans {
+				for _, x := range plans[i].steps {
+					if x.Proposal != nil && x.Proposal.ID == pid {
+						plan, prop = &plans[i], x.Proposal
+					}
+				}
+			}
+			if plan == nil {
+				refusal = fail(http.StatusNotFound, "not_found", "No such proposal.")
 				return nil
 			}
-			// The subject is the finding's asset (the directory's word), never the asset_id the AI wrote into the proposal; a lookup
-			// that fails refuses: without the subject the never-touch check would be incomplete.
-			assetID = f.AssetID
-			d, ok, err := s.cfg.Directory.Device(ctx, f.AssetID)
+			subject, assetID := "", prop.AssetID
+			if s.cfg.Directory != nil {
+				f, ok, err := s.cfg.Directory.Finding(ctx, plan.FindingID)
+				if err != nil {
+					return err
+				}
+				if !ok || !openStatus(f.Status) || f.Severity != "critical" {
+					refusal = fail(http.StatusConflict, "finding_closed", "The finding is no longer an open critical finding.")
+					return nil
+				}
+				// The subject is the finding's asset (the directory's word), never the asset_id the AI wrote into the proposal; a lookup
+				// that fails refuses: without the subject the never-touch check would be incomplete.
+				assetID = f.AssetID
+				d, ok, err := s.cfg.Directory.Device(ctx, f.AssetID)
+				if err != nil {
+					refusal = fail(http.StatusConflict, "never_touch", "The device this finding is about could not be read from the inventory, so nothing was requested.")
+					return nil
+				}
+				if ok {
+					subject = d.IP
+				}
+			}
+			st, err := loadSettings(ctx, tx)
 			if err != nil {
-				refusal = fail(http.StatusConflict, "never_touch", "The device this finding is about could not be read from the inventory, so nothing was requested.")
+				return err
+			}
+			if !st.Execution {
+				refusal = fail(http.StatusConflict, "execution_off", offMsg)
 				return nil
 			}
-			if ok {
-				subject = d.IP
+			if w := maintenanceNow(st, s.now()); w != nil {
+				refusal = fail(http.StatusConflict, "maintenance", "Held: maintenance window \""+oneLine(w.Name, 80)+"\" is active. Nothing was requested.")
+				return nil
 			}
-		}
-		st, err := loadSettings(ctx, tx)
-		if err != nil {
+			if st.BreakerTrippedAt != nil {
+				refusal = fail(http.StatusConflict, "circuit_open", breakerMsg)
+				return nil
+			}
+			cats, err := s.cats(ctx, tx)
+			if err != nil {
+				return err
+			}
+			cs, err := s.loadConns(ctx)
+			if err != nil {
+				return err
+			}
+			if c, ok := cats[prop.ActionID]; !ok || !c.AIMayPropose { // INV-15 (2): the AI proposes only what the admin allowed it to
+				refusal = fail(http.StatusForbidden, "tool_not_allowed", "The AI may not propose this action (Settings, AI response, action catalog).")
+				return nil
+			}
+			never, nt, err := s.neverTouchOrRefusal(ctx, tx)
+			if err != nil {
+				return err
+			}
+			if nt != nil {
+				refusal = nt
+				return nil
+			}
+			why := plan.CVE + " on " + plan.AssetName
+			pl, f := s.planProposal(*prop, subject, why, cats, cs, never)
+			if f != nil {
+				refusal = planRefusal(f)
+				return nil
+			}
+			existing, err := loadReqs(ctx, tx, `WHERE proposal_id = ? AND status IN ('pending', 'approved', 'executed')`, pid)
+			if err != nil {
+				return err
+			}
+			open, err := openKeys(ctx, tx, s.now())
+			if err != nil {
+				return err
+			}
+			if len(existing) > 0 || open[pl.key] {
+				refusal = fail(http.StatusConflict, "already_requested", "This action already has an open request or has already been carried out.")
+				return nil
+			}
+			if tripped, err := s.checkBreaker(ctx, tx, &st, 1, &fx); err != nil {
+				return err
+			} else if tripped {
+				refusal = fail(http.StatusConflict, "circuit_open", breakerMsg)
+				return nil
+			}
+			item := pl.rec
+			item.ID = newID("it")
+			meta := &AiMeta{Evidence: []Evidence{}, Why: oneLine(why, 300), InAppOnly: item.Risk == RiskHigh}
+			out, err = s.createRequest(ctx, tx, st, reqInit{Source: "ai", Actor: who.Email + " (app)", ProposalID: pid, Trigger: "finding", TriggerSummary: oneLine(why, 300), FindingID: plan.FindingID, CVE: plan.CVE,
+				AssetID: assetID, AssetName: oneLine(plan.AssetName, 120), Title: item.Title, Recs: []itemRec{item}, AI: meta}, &fx)
 			return err
-		}
-		if !st.Execution {
-			refusal = fail(http.StatusConflict, "execution_off", offMsg)
-			return nil
-		}
-		if w := maintenanceNow(st, s.now()); w != nil {
-			refusal = fail(http.StatusConflict, "maintenance", "Held: maintenance window \""+oneLine(w.Name, 80)+"\" is active. Nothing was requested.")
-			return nil
-		}
-		if st.BreakerTrippedAt != nil {
-			refusal = fail(http.StatusConflict, "circuit_open", breakerMsg)
-			return nil
-		}
-		cats, err := s.cats(ctx, tx)
-		if err != nil {
-			return err
-		}
-		cs, err := s.loadConns(ctx)
-		if err != nil {
-			return err
-		}
-		if c, ok := cats[prop.ActionID]; !ok || !c.AIMayPropose { // INV-15 (2): the AI proposes only what the admin allowed it to
-			refusal = fail(http.StatusForbidden, "tool_not_allowed", "The AI may not propose this action (Settings, AI response, action catalog).")
-			return nil
-		}
-		never, nt, err := s.neverTouchOrRefusal(ctx, tx)
-		if err != nil {
-			return err
-		}
-		if nt != nil {
-			refusal = nt
-			return nil
-		}
-		why := plan.CVE + " on " + plan.AssetName
-		pl, f := s.planProposal(*prop, subject, why, cats, cs, never)
-		if f != nil {
-			refusal = planRefusal(f)
-			return nil
-		}
-		existing, err := loadReqs(ctx, tx, `WHERE proposal_id = ? AND status IN ('pending', 'approved', 'executed')`, pid)
-		if err != nil {
-			return err
-		}
-		open, err := openKeys(ctx, tx, s.now())
-		if err != nil {
-			return err
-		}
-		if len(existing) > 0 || open[pl.key] {
-			refusal = fail(http.StatusConflict, "already_requested", "This action already has an open request or has already been carried out.")
-			return nil
-		}
-		if tripped, err := s.checkBreaker(ctx, tx, &st, 1, &fx); err != nil {
-			return err
-		} else if tripped {
-			refusal = fail(http.StatusConflict, "circuit_open", breakerMsg)
-			return nil
-		}
-		item := pl.rec
-		item.ID = newID("it")
-		meta := &AiMeta{Evidence: []Evidence{}, Why: oneLine(why, 300), InAppOnly: item.Risk == RiskHigh}
-		out, err = s.createRequest(ctx, tx, st, reqInit{Source: "ai", Actor: who.Email + " (app)", ProposalID: pid, Trigger: "finding", TriggerSummary: oneLine(why, 300), FindingID: plan.FindingID, CVE: plan.CVE,
-			AssetID: assetID, AssetName: oneLine(plan.AssetName, 120), Title: item.Title, Recs: []itemRec{item}, AI: meta}, &fx)
-		return err
-	})
-	s.mu.Unlock() // sending the request to the approvers can take a while: it goes out with the lock released
+		})
+	}()
 	if err != nil {
 		return ActionRequest{}, err
 	}

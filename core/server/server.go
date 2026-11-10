@@ -144,12 +144,40 @@ func (a *api) recoverPanic(next http.Handler) http.Handler {
 			if p == http.ErrAbortHandler { //nolint:errorlint // net/http documents comparing the value itself
 				panic(p)
 			}
+			path, secret := logPath(r.URL.Path)
+			scrub := func(text string) string {
+				if secret == "" {
+					return text
+				}
+				return strings.ReplaceAll(text, secret, "{token}")
+			}
 			a.cfg.Log.ErrorContext(ctx, "handler panicked", "request_id", w.Header().Get("X-Request-Id"),
-				"method", r.Method, "path", r.URL.Path, "panic", fmt.Sprint(p), "stack", string(debug.Stack()))
+				"method", r.Method, "path", path, "panic", scrub(fmt.Sprint(p)), "stack", scrub(string(debug.Stack())))
 			apierr.Write(w, apierr.Internal())
 		}()
 		next.ServeHTTP(w, r)
 	})
+}
+
+// secretSegments are the path segments that are a credential: the approval link token (/response/approve/{token}) and the block list
+// token (/response/blocklist/{token}.txt). A log line must never carry one (response FORBID-4).
+var secretSegments = []string{"/approve/", "/blocklist/"}
+
+// logPath returns the path to log, with the credential segment replaced by {token}, and the credential itself (so the panic text and the
+// stack can be scrubbed of it too). A path without such a segment is returned as it is.
+func logPath(p string) (masked, secret string) {
+	for _, m := range secretSegments {
+		if i := strings.Index(p, m); i >= 0 {
+			rest := p[i+len(m):]
+			seg, tail, _ := strings.Cut(rest, "/")
+			if tail != "" {
+				tail = "/" + tail
+			}
+			secret = strings.TrimSuffix(seg, ".txt")
+			return p[:i+len(m)] + "{token}" + tail, secret
+		}
+	}
+	return p, ""
 }
 
 // requestID gives every request a fresh id; an id sent by the client is ignored (it would go into logs).

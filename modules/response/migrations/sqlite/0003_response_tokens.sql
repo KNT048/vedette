@@ -12,12 +12,12 @@ CREATE TABLE resp_tokens (
     action_id  TEXT NOT NULL,
     user_id    TEXT NOT NULL,
     address    TEXT NOT NULL,
-    channel    TEXT NOT NULL CHECK (channel IN ('email', 'zalo', 'zalo-personal')),
+    channel    TEXT NOT NULL,
     -- link only: the id of the key that signed it (notify names it)
     key_id     TEXT,
     expires_at TEXT NOT NULL,
     used_at    TEXT,
-    CHECK ((kind = 'link' AND decision IS NULL AND key_id IS NOT NULL) OR (kind = 'code' AND decision IS NOT NULL AND key_id IS NULL))
+    CHECK ((kind = 'link' AND channel IN ('email', 'zalo') AND decision IS NULL AND key_id IS NOT NULL) OR (kind = 'code' AND channel = 'zalo-personal' AND decision IS NOT NULL AND key_id IS NULL))
 );
 CREATE INDEX resp_tokens_action ON resp_tokens (action_id);
 -- the reply code of a sender is looked up by channel and address (13b-8)

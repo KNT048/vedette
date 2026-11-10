@@ -113,11 +113,25 @@ func (l *linkEnv) mint(reqID, userID, address string) string {
 	return token
 }
 
+// mintRaw stores the record of a link without the checks of RecordLink (which refuses a high-risk request): what an old or forged record
+// would look like in the table.
+func (l *linkEnv) mintRaw(reqID, userID, address string) string {
+	l.t.Helper()
+	exp := l.clock.Now().Add(10 * time.Minute)
+	b := response.LinkBinding{RequestID: reqID, UserID: userID, Channel: "email", ExpiresAt: exp}
+	token, id := l.links.mint(b, "k1")
+	sum := sha256.Sum256(id)
+	l.exec1(`INSERT INTO resp_tokens (token_hash, kind, decision, action_id, user_id, address, channel, key_id, expires_at, used_at) VALUES (?, 'link', NULL, ?, ?, ?, 'email', 'k1', ?, NULL)`,
+		hex.EncodeToString(sum[:]), reqID, userID, address, exp.UTC().Format("2006-01-02T15:04:05.000Z"))
+	return token
+}
+
 // pending makes one pending request of one low-risk box action (one approver).
 func (l *linkEnv) pending() response.ActionRequest {
 	l.t.Helper()
 	l.rule("Block", "ioc_connection", blockAction(60), nil)
 	l.fire(l.iocEvent("e1", "198.51.100.7"))
+	l.svc.WaitSendsForTest() // the approval request goes out in the background
 	return l.only()
 }
 
@@ -173,6 +187,9 @@ func TestContract_INV4_ViewOfAnEndedLinkShowsNothing(t *testing.T) {
 	}
 	_, err = e.decide(tok, "approve")
 	wantCode(t, err, 409, "decided")
+	if !e.logHas("refused", "decided: This request is already executed") && !e.logHas("refused", "decided: This request is already approved") {
+		t.Fatal("the refusal of a decided request is not in the log")
+	}
 
 	e2 := newLinkEnv(t)
 	a2 := e2.pending()
@@ -183,6 +200,9 @@ func TestContract_INV4_ViewOfAnEndedLinkShowsNothing(t *testing.T) {
 	}
 	_, err = e2.decide(tok2, "approve")
 	wantCode(t, err, 409, "expired")
+	if !e2.logHas("refused", "expired: This link has expired") {
+		t.Fatal("the refusal of an expired link is not in the log")
+	}
 }
 
 func TestContract_INV4_TokenIsUsedOnce(t *testing.T) {
@@ -204,6 +224,12 @@ func TestContract_INV4_TokenIsUsedOnce(t *testing.T) {
 	wantCode(t, err, 409, "used")
 	_, err = e.decide(tok, "reject")
 	wantCode(t, err, 409, "used")
+	if e.count(`SELECT COUNT(*) FROM resp_log WHERE kind = 'refused' AND actor = 'it@acme.example' AND detail = 'used: This link was already used.'`) != 2 { // M1: a replay is a logged refusal, with the person it was mailed to
+		t.Fatal("the replays are not in the log")
+	}
+	if e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'response.refused' AND target = ?`, a.ID) != 2 {
+		t.Fatal("the replays are not in the audit trail")
+	}
 	if v := e.view(tok); v.State != "used" || v.Title != nil {
 		t.Fatalf("view after use: %+v", v)
 	}
@@ -229,10 +255,7 @@ func TestContract_INV4_ConcurrentPostsHaveOneWinner(t *testing.T) {
 			won++
 			continue
 		}
-		// a loser that read the token before the winner committed and the request after it is told "decided": still one winner
-		if _, c := apiCode(err); c != "used" && c != "decided" {
-			wantCode(t, err, 409, "used")
-		}
+		wantCode(t, err, 409, "used") // a loser that read the token before the winner committed and the request after it is still told "used"
 	}
 	if won != 1 || e.tokenUsed() != 1 || len(e.only().Approvals) != 1 || e.count(`SELECT COUNT(*) FROM resp_block_entries`) != 1 {
 		t.Fatalf("%d winners, %d used, %+v", won, e.tokenUsed(), e.only().Approvals)
@@ -335,6 +358,9 @@ func TestContract_INV4_TheApproverIsCheckedAgain(t *testing.T) {
 			a := e.pending()
 			tok := e.mint(a.ID, "u-op", "it@acme.example")
 			c.arm(e)
+			if v := e.view(tok); v.State != "unknown" || v.Title != nil || len(v.Items) != 0 || v.Approver != nil || v.Status != nil { // low 5: spec 8
+				t.Fatalf("the page of a link whose person may no longer approve: %+v", v)
+			}
 			for _, d := range []string{"approve", "reject"} {
 				_, err := e.decide(tok, d)
 				wantCode(t, err, 403, "approver_not_listed")
@@ -360,7 +386,11 @@ func TestContract_INV4_HighRiskIsNeverDecidedByLink(t *testing.T) {
 	if a.Risk != response.RiskHigh {
 		t.Fatalf("request: %+v", a)
 	}
-	tok := e.mint(a.ID, "u-op", "it@acme.example")
+	exp := e.clock.Now().Add(10 * time.Minute)
+	if err := e.svc.RecordLink(e.ctx(), response.LinkRecord{ID: make([]byte, 16), RequestID: a.ID, UserID: "u-op", Channel: "email", Address: "it@acme.example", KeyID: "k1", ExpiresAt: exp}); err == nil {
+		t.Fatal("a link was recorded for a high-risk request") // low 6: no record, no link
+	}
+	tok := e.mintRaw(a.ID, "u-op", "it@acme.example") // a record that got there another way
 	for _, d := range []string{"approve", "reject"} {
 		_, err := e.decide(tok, d)
 		wantCode(t, err, 403, "in_app_required")
@@ -374,8 +404,11 @@ func TestContract_INV4_HighRiskIsNeverDecidedByLink(t *testing.T) {
 func TestContract_INV16_InAppOnlyIsNeverDecidedByLink(t *testing.T) {
 	e := newLinkEnv(t)
 	a := e.pending()
-	e.exec1(`UPDATE resp_actions SET ai = json_object('confidence', 0.9, 'evidence', json_array(), 'why', 'x', 'second_check', NULL, 'in_app_only', json('true')) WHERE id = ?`, a.ID)
 	tok := e.mint(a.ID, "u-op", "it@acme.example")
+	e.exec1(`UPDATE resp_actions SET ai = json_object('confidence', 0.9, 'evidence', json_array(), 'why', 'x', 'second_check', NULL, 'in_app_only', json('true')) WHERE id = ?`, a.ID)
+	if err := e.svc.RecordLink(e.ctx(), response.LinkRecord{ID: make([]byte, 16), RequestID: a.ID, UserID: "u-op2", Channel: "email", Address: "it2@acme.example", KeyID: "k1", ExpiresAt: e.clock.Now().Add(10 * time.Minute)}); err == nil {
+		t.Fatal("a link was recorded for an in-app-only request")
+	}
 	_, err := e.decide(tok, "approve")
 	wantCode(t, err, 403, "in_app_required")
 	if e.tokenUsed() != 0 || e.only().Status != response.StatusPending {
@@ -722,7 +755,7 @@ func TestPost5_NobodyIsAskedWithoutAReadyChannel(t *testing.T) {
 			e := newLinkEnv(t)
 			arm(e)
 			a := e.pending()
-			if len(e.note.requests()) != 0 || len(a.SentTo) != 0 || e.logHas("request", "Approval request sent") {
+			if len(e.note.requests()) != 0 || len(a.SentTo) != 0 || e.logHas("request", "Approval request sent") || !e.logHas("request", "sent to the app only") {
 				t.Fatalf("asked %d times, sent_to %v", len(e.note.requests()), a.SentTo)
 			}
 		})
@@ -745,6 +778,7 @@ func TestPost5_APreApprovedRequestAsksNobody(t *testing.T) {
 	e := newLinkEnv(t)
 	e.rule("Block", "ioc_connection", blockAction(1440), func(in *response.RuleInput) { in.PreApproved = true })
 	e.fire(e.iocEvent("e1", "198.51.100.7"))
+	e.svc.WaitSendsForTest()
 	a := e.only()
 	if !a.PreApproved || a.Status != response.StatusExecuted || len(e.note.requests()) != 0 {
 		t.Fatalf("pre-approved: %+v, asked %d", a, len(e.note.requests()))
@@ -801,6 +835,7 @@ func TestPost5_RequestProposalSends(t *testing.T) {
 	e.note.sendSent = []string{"Email"}
 	e.saveSettings(func(in *response.SettingsInput) { in.ApprovalChannels = []string{"email"} })
 	r := e.mustPropose(lowBody())
+	e.svc.WaitSendsForTest()
 	if r.Request == nil || len(e.note.requests()) != 1 {
 		t.Fatalf("%+v, %d calls", r, len(e.note.requests()))
 	}
@@ -820,6 +855,7 @@ func TestPost5_HighRiskAIRequestIsSentInAppOnly(t *testing.T) {
 	e.note.chs = []response.NotifyChannel{{Type: "email", Label: "Email", Configured: true, Enabled: true, Approvals: true, Approvers: 1}}
 	e.saveSettings(func(in *response.SettingsInput) { in.ApprovalChannels = []string{"email"} })
 	r := e.mustPropose(highBody())
+	e.svc.WaitSendsForTest()
 	m := e.note.requests()
 	if r.Request == nil || len(m) != 1 || !m[0].InAppOnly || m[0].Risk != response.RiskHigh || m[0].RequestID != r.Request.ID {
 		t.Fatalf("%+v %+v", r, m)
@@ -827,4 +863,330 @@ func TestPost5_HighRiskAIRequestIsSentInAppOnly(t *testing.T) {
 	if !e.logHas("request", "in the app only") {
 		t.Fatal("the log does not say that it went to the app only")
 	}
+}
+
+// ---- M2: sending is in the background ----
+
+func eventually(t *testing.T, what string, ok func() bool) {
+	t.Helper()
+	for range 500 {
+		if ok() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("never became true: %s", what)
+}
+
+// A mail server that does not answer holds nothing: the engine goes on creating requests, a person approves in the app and a
+// pre-approved action runs, while two sends wait on the blackhole and the rest wait for a slot.
+func TestPost5_ABlackholedMailServerDelaysNothing(t *testing.T) {
+	e := newLinkEnv(t)
+	release := make(chan struct{})
+	e.note.block = release
+	e.note.sendSent = []string{"Email"}
+	e.rule("Block", "ioc_connection", blockAction(60), nil)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i, ip := range []string{"198.51.100.7", "198.51.100.8", "198.51.100.9"} {
+			e.fire(e.iocEvent(fmt.Sprintf("e%d", i), ip))
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(20 * time.Second):
+		t.Fatal("the engine waited for a mail server that does not answer")
+	}
+	eventually(t, "two sends started", func() bool { return len(e.note.requests()) == 2 })
+	l := e.actions()
+	if len(l) != 3 {
+		t.Fatalf("%d requests, want 3", len(l))
+	}
+	if _, err := e.svc.Approve(e.ctx(), oper, l[2].ID, nil, ""); err != nil { // a person is not held either
+		t.Fatal(err)
+	}
+	e.rule("Pre", "honeypot", []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.source_ip}}"}, TTLMin: intp(1440)}}, func(in *response.RuleInput) { in.PreApproved = true })
+	e.fire(e.trap("h1", "192.168.10.157"))
+	if e.count(`SELECT COUNT(*) FROM resp_actions WHERE pre_approved = 1 AND status = 'executed'`) != 1 {
+		t.Fatal("a pre-approved action waited for the mail server")
+	}
+	if len(e.note.requests()) != 2 {
+		t.Fatalf("%d sends at once, want at most 2", len(e.note.requests()))
+	}
+	close(release) // the server answers: the waiting request goes out too
+	e.svc.WaitSendsForTest()
+	if len(e.note.requests()) != 3 {
+		t.Fatalf("%d sends in all, want 3 (the pre-approved one asks nobody)", len(e.note.requests()))
+	}
+	for _, a := range e.actions() {
+		if !a.PreApproved && (len(a.SentTo) != 1 || a.SentTo[0] != "Email") {
+			t.Fatalf("sent_to of %s: %v", a.ID, a.SentTo)
+		}
+	}
+}
+
+// Close ends the sends that are waiting on a mail server and returns; the request stays open in the app.
+func TestPost5_CloseStopsTheSends(t *testing.T) {
+	e := newLinkEnv(t)
+	e.note.block = make(chan struct{}) // never released
+	e.rule("Block", "ioc_connection", blockAction(60), nil)
+	e.fire(e.iocEvent("e1", "198.51.100.7"))
+	eventually(t, "the send started", func() bool { return len(e.note.requests()) == 1 })
+	closed := make(chan struct{})
+	go func() { e.svc.Close(); close(closed) }()
+	select {
+	case <-closed:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Close waited for a mail server")
+	}
+	a := e.only()
+	if a.Status != response.StatusPending || len(a.SentTo) != 0 || !e.logHas("request", "still open in the app") {
+		t.Fatalf("after Close: %+v", a)
+	}
+}
+
+// When the budget runs out with several approvers, the ones mailed so far are kept and the line says the rest were skipped.
+func TestPost5_BudgetRunningOutIsInTheLog(t *testing.T) {
+	e := newLinkEnv(t)
+	e.svc.SetSendBudgetForTest(50 * time.Millisecond)
+	e.note.block = make(chan struct{})
+	e.note.sendSent = []string{"Email"} // one approver was mailed before the budget ended
+	a := e.pending()
+	if len(a.SentTo) != 1 || a.SentTo[0] != "Email" || a.Status != response.StatusPending {
+		t.Fatalf("request: %+v", a)
+	}
+	if !e.logHas("request", "budget ran out: approvers not yet mailed were skipped") || !e.logHas("request", "Approval request sent to Email") {
+		t.Fatal("the log does not say that the budget ran out")
+	}
+}
+
+// notify could not write its record after the mails went out: the line says some mail may have gone out all the same.
+func TestPost5_UnsureSendIsSaidInTheLog(t *testing.T) {
+	e := newLinkEnv(t)
+	e.note.sendErr = fmt.Errorf("%w: write the records: disk full", response.ErrSendUnsure)
+	a := e.pending()
+	if a.Status != response.StatusPending || !e.logHas("request", "some mail may have gone out all the same") {
+		t.Fatalf("%+v", a)
+	}
+}
+
+// A real RequestProposal: the answer is already committed when the send starts, and the lock is free while it runs.
+func TestPost5_RequestProposalHoldsNoLockWhileSending(t *testing.T) {
+	e := planEnv(t)
+	on := true
+	_, err := e.svc.ChangeAction(e.ctx(), admin, "fgt_vip_disable", response.CatalogUpdate{AIMayPropose: &on})
+	e.must(err)
+	e.note.chs = []response.NotifyChannel{{Type: "email", Label: "Email", Configured: true, Enabled: true, Approvals: true, Approvers: 1}}
+	e.note.sendSent = []string{"Email"}
+	e.note.block = make(chan struct{})
+	e.saveSettings(func(in *response.SettingsInput) { in.ApprovalChannels = []string{"email"} })
+	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_vip_disable","params":{"name":"NAS-PHOTO-443"},"asset_id":"a-nas","asset_name":"NAS"}`)
+	a, err := e.svc.RequestProposal(e.ctx(), oper, "pr-1") // returns while the send waits on the blackhole
+	e.must(err)
+	eventually(t, "the send started", func() bool { return len(e.note.requests()) == 1 })
+	l, err := e.svc.Actions(e.ctx())
+	e.must(err)
+	if len(l) != 1 || l[0].ID != a.ID || len(l[0].SentTo) != 0 {
+		t.Fatalf("while sending: %+v", l)
+	}
+	if _, err := e.svc.Reject(e.ctx(), oper, a.ID, "no", ""); err != nil { // takes the service lock: it is free
+		t.Fatal(err)
+	}
+	close(e.note.block)
+	e.svc.WaitSendsForTest()
+}
+
+// ---- M4: the approver is checked again under the lock ----
+
+func TestContract_INV4_ApproverRemovedWhileThePostWaitsForTheLock(t *testing.T) {
+	for _, decision := range []string{"approve", "reject"} {
+		t.Run(decision, func(t *testing.T) {
+			e := newLinkEnv(t)
+			a := e.pending()
+			tok := e.mint(a.ID, "u-op", "it@acme.example")
+			e.svc.SetBeforeLockForTest(func() { // the POST has passed its checks and waits for the lock; the person is taken off the list
+				e.note.mu.Lock()
+				e.note.approvers = map[string][]response.Approver{"email": {{UserID: "u-op2", Address: "it2@acme.example"}}}
+				e.note.mu.Unlock()
+			})
+			_, err := e.decide(tok, decision)
+			wantCode(t, err, 403, "approver_not_listed")
+			if e.tokenUsed() != 0 || e.only().Status != response.StatusPending || e.count(`SELECT COUNT(*) FROM resp_block_entries`) != 0 {
+				t.Fatal("a person removed while waiting decided")
+			}
+		})
+	}
+}
+
+// flippingUsers answers like the directory for the first n lookups of a person and then as if the account had been demoted.
+type flippingUsers struct {
+	*fakeUsers
+	mu   sync.Mutex
+	id   string
+	left int
+}
+
+func (f *flippingUsers) Lookup(ctx context.Context, id string) (response.User, bool, error) {
+	u, ok, err := f.fakeUsers.Lookup(ctx, id)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if id == f.id {
+		if f.left--; f.left < 0 {
+			u.Role = "viewer"
+		}
+	}
+	return u, ok, err
+}
+
+// A rejection through a link reads the account again inside its transaction, as an approval does (the lookups: the check before, the one
+// under the lock, and the one in the transaction).
+func TestContract_INV4_RejectReadsTheAccountAgain(t *testing.T) {
+	fl := &fakeLinks{}
+	var fu *flippingUsers
+	e := newEnv(t, func(c *response.Config) {
+		c.Links = fl
+		fu = &flippingUsers{fakeUsers: c.Users.(*fakeUsers), id: "u-op", left: 2}
+		c.Users = fu
+	})
+	e.note.chs = []response.NotifyChannel{{Type: "email", Label: "Email", Configured: true, Enabled: true, Approvals: true, Approvers: 2}}
+	e.note.approvers = map[string][]response.Approver{"email": {{UserID: "u-op", Address: "it@acme.example"}}}
+	e.saveSettings(func(in *response.SettingsInput) { in.ApprovalChannels = []string{"email"} })
+	l := &linkEnv{env: e, links: fl}
+	fu.mu.Lock()
+	fu.left = 1000 // rule creation and minting read the account too
+	fu.mu.Unlock()
+	a := l.pending()
+	tok := l.mint(a.ID, "u-op", "it@acme.example")
+	fu.mu.Lock()
+	fu.left = 2
+	fu.mu.Unlock()
+	_, err := l.decide(tok, "reject")
+	wantCode(t, err, 403, "forbidden")
+	if l.tokenUsed() != 0 || l.only().Status != response.StatusPending {
+		t.Fatal("a person demoted during the rejection rejected the request")
+	}
+}
+
+// ---- a panic in a write section does not leave the service lock held (low 9) ----
+
+type panickyUsers struct {
+	*fakeUsers
+	armed *bool
+}
+
+func (p panickyUsers) Lookup(ctx context.Context, id string) (response.User, bool, error) {
+	if *p.armed {
+		*p.armed = false
+		panic("the directory blew up")
+	}
+	return p.fakeUsers.Lookup(ctx, id)
+}
+
+func TestApproveAfterAPanicInTheWriteSection(t *testing.T) {
+	armed := false
+	e := newEnv(t, func(c *response.Config) { c.Users = panickyUsers{fakeUsers: c.Users.(*fakeUsers), armed: &armed} })
+	e.rule("Block", "ioc_connection", blockAction(60), nil)
+	e.fire(e.iocEvent("e1", "198.51.100.7"))
+	a := e.only()
+	armed = true
+	func() {
+		defer func() { _ = recover() }()
+		_, _ = e.svc.Approve(e.ctx(), oper, a.ID, nil, "") // the lookup inside the transaction panics
+	}()
+	done := make(chan error, 1)
+	go func() { _, err := e.svc.Approve(e.ctx(), oper, a.ID, nil, ""); done <- err }()
+	select {
+	case err := <-done:
+		e.must(err)
+	case <-time.After(15 * time.Second):
+		t.Fatal("the service lock was left held by a panic")
+	}
+}
+
+// ---- limiter: its own table, the whole address ----
+
+func TestContract_INV4_LinkLimitIsPerWholeIPv6AddressAndNotTheBlocklists(t *testing.T) {
+	e := newLinkEnv(t)
+	bad := "v1." + strings.Repeat("ab", 16) + "." + strings.Repeat("0", 16)
+	fetch0 := e.svc.FetchKeysForTest()
+	for range 10 { // ten POSTs from one address of a /64 use up that address only
+		_, err := e.svc.DecideByLink(e.ctx(), bad, "approve", "2001:db8:1:2::1")
+		wantCode(t, err, 404, "unknown")
+	}
+	_, err := e.svc.DecideByLink(e.ctx(), bad, "approve", "2001:db8:1:2::1")
+	wantCode(t, err, 429, "rate_limited")
+	for _, other := range []string{"2001:db8:1:2::2", "2001:db8:1:2:ffff:ffff:ffff:ffff"} { // the same /64, other addresses
+		if _, err := e.svc.DecideByLink(e.ctx(), bad, "approve", other); err != nil {
+			wantCode(t, err, 404, "unknown")
+		}
+	}
+	if e.svc.FetchKeysForTest() != fetch0 || e.svc.LinkKeysForTest() == 0 {
+		t.Fatalf("link calls touched the block list table (%d keys, was %d) or not their own (%d)", e.svc.FetchKeysForTest(), fetch0, e.svc.LinkKeysForTest())
+	}
+	// and the block list pull of that /64 is not limited by the link calls
+	for range 5 {
+		if _, err := e.svc.FetchBlocklist(e.ctx(), strings.Repeat("0", 32), "2001:db8:1:2::1"); err != nil {
+			wantCode(t, err, 404, "not_found")
+		}
+	}
+}
+
+// ---- D-124: two people, at most one by link ----
+
+func TestContract_INV2_TwoPersonRuleAllowsOneLink(t *testing.T) {
+	setup := func(t *testing.T) (*linkEnv, response.ActionRequest, string, string) {
+		e := newLinkEnv(t)
+		e.saveSettings(func(in *response.SettingsInput) { in.MultiTargetMax = 1 })
+		e.rule("Two blocks", "ioc_connection", twoBlocks(), nil)
+		e.fire(e.iocEvent("e1", "198.51.100.7"))
+		e.svc.WaitSendsForTest()
+		a := e.only()
+		if a.RequiresApprovals != 2 || a.Risk == response.RiskHigh {
+			t.Fatalf("request: %+v", a)
+		}
+		return e, a, e.mint(a.ID, "u-op", "it@acme.example"), e.mint(a.ID, "u-op2", "it2@acme.example")
+	}
+	t.Run("two links", func(t *testing.T) {
+		e, a, tokA, tokB := setup(t)
+		if _, err := e.decide(tokA, "approve"); err != nil {
+			t.Fatal(err)
+		}
+		_, err := e.decide(tokB, "approve") // another person, another mail, still a link
+		wantCode(t, err, 403, "in_app_required")
+		if ae, _ := apierr.As(err); !strings.Contains(ae.Message, "only one of them may approve by email link") {
+			t.Fatalf("message: %q", ae.Message)
+		}
+		got := e.only()
+		if got.Status != response.StatusPending || len(got.Approvals) != 1 || e.tokenUsed() != 1 {
+			t.Fatalf("the second link counted or burned: %+v", got)
+		}
+		done, err := e.svc.Approve(e.ctx(), oper2, a.ID, nil, "") // the same person, in the app, is fine
+		e.must(err)
+		if len(done.Approvals) != 2 || done.Approvals[1].Via != response.ViaApp || done.Status != response.StatusExecuted {
+			t.Fatalf("link then app: %+v", done)
+		}
+	})
+	t.Run("app then link", func(t *testing.T) {
+		e, a, tokA, _ := setup(t)
+		if _, err := e.svc.Approve(e.ctx(), oper2, a.ID, nil, ""); err != nil {
+			t.Fatal(err)
+		}
+		done, err := e.decide(tokA, "approve")
+		e.must(err)
+		if len(done.Approvals) != 2 || done.Approvals[1].Via != response.ViaEmail || done.Status != response.StatusExecuted {
+			t.Fatalf("app then link: %+v", done)
+		}
+	})
+	t.Run("a rejection by link is not an approval", func(t *testing.T) {
+		e, _, tokA, tokB := setup(t)
+		if _, err := e.decide(tokA, "approve"); err != nil {
+			t.Fatal(err)
+		}
+		got, err := e.decide(tokB, "reject")
+		e.must(err)
+		if got.Status != response.StatusRejected {
+			t.Fatalf("reject: %+v", got)
+		}
+	})
 }

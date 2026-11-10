@@ -267,7 +267,15 @@ type Service struct {
 	proposeSkipped  int         // calls refused since the last log line
 	proposeLoggedAt time.Time
 	fetchTimes      map[string][]time.Time // block list pulls per source address (per /64 for IPv6), for the rate limit
+	linkTimes       map[string][]time.Time // approval link calls per source address (the whole address), for their own rate limit
 
+	// Sending approval requests runs in the background (sendApproval): bg ends it at shutdown (Close), sendSem lets two run at once.
+	bg           context.Context
+	stopBG       context.CancelFunc
+	sendSem      chan struct{}
+	sendWG       sync.WaitGroup
+	budget       time.Duration                // how long sending one request may take (sendBudget; only export_test.go changes it)
+	beforeLock   func()                       // only export_test.go sets it: runs just before a decision through a link takes the service lock
 	interfaceFn  func() ([]netip.Addr, error) // reads the box interfaces; only export_test.go replaces it
 	maxBacklog   int                          // unprocessed events kept; only export_test.go replaces it
 	stepLimit    time.Duration                // bound of one item; only export_test.go replaces it
@@ -298,11 +306,19 @@ func New(c Config) (*Service, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	s := &Service{cfg: c, fetchTimes: map[string][]time.Time{}, maxBacklog: maxEventBacklog, stepLimit: stepTimeout}
+	s := &Service{cfg: c, fetchTimes: map[string][]time.Time{}, linkTimes: map[string][]time.Time{}, maxBacklog: maxEventBacklog, stepLimit: stepTimeout, sendSem: make(chan struct{}, maxSends), budget: sendBudget}
+	s.bg, s.stopBG = context.WithCancel(context.Background())
 	if err := s.loadData(); err != nil {
 		return nil, err
 	}
 	return s, nil
+}
+
+// Close stops the approval requests that are being sent (their context ends, so a mail server that does not answer cannot hold the
+// shutdown) and waits for them to finish. Nothing else in the service runs in the background.
+func (s *Service) Close() {
+	s.stopBG()
+	s.sendWG.Wait()
 }
 
 // ensureSeeded writes the built-in catalog rows the first time something reads the catalog (and again after a failure), so

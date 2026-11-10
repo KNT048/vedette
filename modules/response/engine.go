@@ -539,7 +539,7 @@ func (s *Service) handleInTx(ctx context.Context, tx *sql.Tx, ruleID string, ev 
 // autoApprove carries out the request of a pre-approved rule (INV-5): no person, via auto. Every other gate still applies.
 func (s *Service) autoApprove(ctx context.Context, reqID string, rule Rule, sum *RunSummary) {
 	who := Actor{ID: "rule:" + rule.ID, Name: "Rule: " + rule.Name, Email: "rule@vedette", Via: ViaAuto}
-	_, err := s.approve(ctx, who, reqID, nil, "", true, "")
+	_, err := s.approve(ctx, who, reqID, nil, "", true, nil)
 	if err != nil {
 		sum.Refused++
 		_ = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { // the request must not stay open

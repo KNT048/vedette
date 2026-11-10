@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/netip"
 	"regexp"
 	"slices"
 	"strings"
@@ -111,7 +112,7 @@ func hashID(id []byte) string {
 // ---- recording what notify made ----
 
 // recordCheck reads the request a token or code is for: it must exist, be pending and end after the token does.
-func (s *Service) recordCheck(ctx context.Context, tx dbq, requestID string, expires time.Time) error {
+func (s *Service) recordCheck(ctx context.Context, tx dbq, requestID string, expires time.Time, link bool) error {
 	r, ok, err := loadReq(ctx, tx, requestID)
 	if err != nil {
 		return err
@@ -122,6 +123,8 @@ func (s *Service) recordCheck(ctx context.Context, tx dbq, requestID string, exp
 		return errors.New("response: no such request for the token")
 	case r.Status != StatusPending:
 		return errors.New("response: the request is no longer pending")
+	case link && ((r.Risk != RiskLow && r.Risk != RiskMedium) || (r.AI != nil && r.AI.InAppOnly)):
+		return errors.New("response: a high-risk or in-app-only request has no approval link (D-57 (20))")
 	case !expires.After(now) || expires.After(now.Add(31*time.Minute)):
 		return errors.New("response: a token lives at most 30 minutes")
 	case expires.After(parseTS(r.ExpiresAt).Add(time.Second)):
@@ -137,7 +140,7 @@ func (s *Service) RecordLink(ctx context.Context, l LinkRecord) error {
 		return errors.New("response: the approval link record is not valid")
 	}
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if err := s.recordCheck(ctx, tx, l.RequestID, l.ExpiresAt); err != nil {
+		if err := s.recordCheck(ctx, tx, l.RequestID, l.ExpiresAt, true); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO resp_tokens (token_hash, kind, decision, action_id, user_id, address, channel, key_id, expires_at, used_at) VALUES (?, 'link', NULL, ?, ?, ?, ?, ?, ?, NULL)`,
@@ -158,7 +161,7 @@ func (s *Service) RecordReplyCode(ctx context.Context, c ReplyCodeRecord) error 
 		decision = "approve"
 	}
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if err := s.recordCheck(ctx, tx, c.RequestID, c.ExpiresAt); err != nil {
+		if err := s.recordCheck(ctx, tx, c.RequestID, c.ExpiresAt, false); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO resp_tokens (token_hash, kind, decision, action_id, user_id, address, channel, key_id, expires_at, used_at) VALUES (?, 'code', ?, ?, ?, ?, 'zalo-personal', NULL, ?, NULL)`,
@@ -187,6 +190,21 @@ func linkMsg(state string) string {
 		return "This link has expired. Ask for a new approval request."
 	}
 	return "This link is not valid."
+}
+
+// linkKey is the source of a link call for the rate limit: the whole address (an IPv6 host owns a /64, but one /128 is one client and
+// the table caps how many are remembered), the cut text for anything that is not an address.
+func linkKey(from string) string {
+	a, err := netip.ParseAddr(from)
+	if err != nil {
+		if ap, err2 := netip.ParseAddrPort(from); err2 == nil {
+			a, err = ap.Addr(), nil
+		}
+	}
+	if err != nil {
+		return oneLine(from, 64)
+	}
+	return a.Unmap().WithZone("").String()
 }
 
 func errUnknownLink() *apierr.Error { return fail(http.StatusNotFound, "unknown", linkMsg("unknown")) }
@@ -246,13 +264,14 @@ func (s *Service) linkState(rec tokenRow, r request) string {
 // scanner that opens every link in a mail changes nothing. Anything but "ready" shows none of the request. A source address that keeps
 // sending links that are not valid gets 429.
 func (s *Service) LinkView(ctx context.Context, token, from string) (ApprovalView, error) {
-	key := sourceKey(from)
-	if !s.allowFetch("lbad:"+key, linkBadPerMin, false) {
+	key := linkKey(from)
+	if !s.allowLink("bad:"+key, linkBadPerMin, false) {
 		return ApprovalView{}, errRateLimited()
 	}
+	blank := ApprovalView{State: "unknown", Items: []ApprovalItem{}}
 	unknown := func() (ApprovalView, error) {
-		s.allowFetch("lbad:"+key, linkBadPerMin, true)
-		return ApprovalView{State: "unknown", Items: []ApprovalItem{}}, nil
+		s.allowLink("bad:"+key, linkBadPerMin, true)
+		return blank, nil
 	}
 	rec, ok, err := s.linkRecord(ctx, token)
 	if err != nil {
@@ -267,6 +286,15 @@ func (s *Service) LinkView(ctx context.Context, token, from string) (ApprovalVie
 	}
 	if !found {
 		return unknown()
+	}
+	st, err := loadSettings(ctx, s.cfg.DB.Reader())
+	if err != nil {
+		return ApprovalView{}, err
+	}
+	if _, valid, err := s.approverValid(ctx, rec, st); err != nil { // spec 8: a link of someone who may no longer approve is not a link
+		return ApprovalView{}, err
+	} else if !valid {
+		return blank, nil
 	}
 	state := s.linkState(rec, r)
 	approved := len(r.Approvals)
@@ -294,15 +322,15 @@ func (s *Service) LinkView(ctx context.Context, token, from string) (ApprovalVie
 // refuse leaves it alive, and of two POSTs at once one wins and the other gets 409 used. Nothing here writes for a token that is not
 // known (an attacker must not fill the log); refusals of a known link are logged like any refusal (INV-19), without the token.
 func (s *Service) DecideByLink(ctx context.Context, token, decision, from string) (ActionRequest, error) {
-	key := sourceKey(from)
-	if !s.allowFetch("lbad:"+key, linkBadPerMin, false) || !s.allowFetch("lpost:"+key, linkPostPerMin, true) {
+	key := linkKey(from)
+	if !s.allowLink("bad:"+key, linkBadPerMin, false) || !s.allowLink("post:"+key, linkPostPerMin, true) {
 		return ActionRequest{}, errRateLimited()
 	}
 	if decision != "approve" && decision != "reject" {
 		return ActionRequest{}, fail(http.StatusBadRequest, "invalid", "Send decision as approve or reject.")
 	}
 	unknown := func() (ActionRequest, error) {
-		s.allowFetch("lbad:"+key, linkBadPerMin, true)
+		s.allowLink("bad:"+key, linkBadPerMin, true)
 		return ActionRequest{}, errUnknownLink()
 	}
 	rec, ok, err := s.linkRecord(ctx, token)
@@ -320,11 +348,15 @@ func (s *Service) DecideByLink(ctx context.Context, token, decision, from string
 		return unknown()
 	}
 	withID := func(e *apierr.Error) *apierr.Error { return e.With("request_id", r.ID) }
+	// A refusal of a link that is known is logged like any refusal (INV-19, the mock does the same), with the request and the address.
 	switch state := s.linkState(rec, r); state {
 	case "used", "expired":
-		return ActionRequest{}, withID(fail(http.StatusConflict, state, linkMsg(state)))
+		return ActionRequest{}, s.refuse(ctx, withID(fail(http.StatusConflict, state, linkMsg(state))), r.ID, rec.address)
 	case "decided":
-		return ActionRequest{}, withID(fail(http.StatusConflict, "decided", "This request is already "+strings.ReplaceAll(string(r.Status), "_", " ")+"."))
+		if s.linkUsed(ctx, rec.hash) { // the winner of two POSTs at once burned it after we read it: say so
+			return ActionRequest{}, s.refuse(ctx, withID(fail(http.StatusConflict, "used", linkMsg("used"))), r.ID, rec.address)
+		}
+		return ActionRequest{}, s.refuse(ctx, withID(fail(http.StatusConflict, "decided", "This request is already "+strings.ReplaceAll(string(r.Status), "_", " ")+".")), r.ID, rec.address)
 	}
 	st, err := loadSettings(ctx, s.cfg.DB.Reader())
 	if err != nil {
@@ -334,8 +366,11 @@ func (s *Service) DecideByLink(ctx context.Context, token, decision, from string
 	if err != nil {
 		return ActionRequest{}, err
 	}
+	notListed := func() *apierr.Error {
+		return withID(fail(http.StatusForbidden, "approver_not_listed", "This link no longer belongs to a valid approver."))
+	}
 	if !valid {
-		return ActionRequest{}, s.refuse(ctx, withID(fail(http.StatusForbidden, "approver_not_listed", "This link no longer belongs to a valid approver.")), r.ID, rec.address)
+		return ActionRequest{}, s.refuse(ctx, notListed(), r.ID, rec.address)
 	}
 	if (r.Risk != RiskLow && r.Risk != RiskMedium) || (r.AI != nil && r.AI.InAppOnly) { // D-57 (20): a link is a bearer credential
 		return ActionRequest{}, s.refuse(ctx, withID(fail(http.StatusForbidden, "in_app_required", "This request can only be approved in the app. Open Vedette, sign in and decide it there.")), r.ID, u.Email)
@@ -345,19 +380,48 @@ func (s *Service) DecideByLink(ctx context.Context, token, decision, from string
 		name = u.Email
 	}
 	who := Actor{ID: u.ID, Name: name, Email: u.Email, Via: ViaEmail}
+	// M4: the people and the channel are read again once this call holds the service lock, because a person can be removed while it waits.
+	lk := &linkOpt{hash: rec.hash, recheck: func(ctx context.Context) (*apierr.Error, error) {
+		st, err := loadSettings(ctx, s.cfg.DB.Reader())
+		if err != nil {
+			return nil, err
+		}
+		if _, ok, err := s.approverValid(ctx, rec, st); err != nil || !ok {
+			return notListed(), err
+		}
+		return nil, nil
+	}}
 	var out ActionRequest
 	if decision == "approve" {
-		out, err = s.approve(ctx, who, r.ID, nil, "", false, rec.hash)
+		out, err = s.approve(ctx, who, r.ID, nil, "", false, lk)
 	} else {
-		out, err = s.reject(ctx, who, r.ID, "through an email link", RememberNone, rec.hash)
+		out, err = s.reject(ctx, who, r.ID, "through an email link", RememberNone, lk)
 	}
 	if ae, ok := apierr.As(err); ok && ae.Status == http.StatusConflict {
 		if ae.Code == "not_pending" { // decided between the check above and the transaction
-			ae = fail(http.StatusConflict, "decided", ae.Message)
+			code := "decided"
+			if s.linkUsed(ctx, rec.hash) {
+				code = "used"
+			}
+			ae = fail(http.StatusConflict, code, ae.Message)
 		}
 		return ActionRequest{}, withID(ae)
 	}
 	return out, err
+}
+
+// linkOpt is what a decision through a link adds to approve and reject: the hash of the token, burned in the decision transaction, and a
+// check that runs right after the service lock is taken.
+type linkOpt struct {
+	hash    string
+	recheck func(ctx context.Context) (*apierr.Error, error)
+}
+
+// linkUsed reads whether the link was burned (by another call that decided first).
+func (s *Service) linkUsed(ctx context.Context, hash string) bool {
+	var used sql.NullString
+	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT used_at FROM resp_tokens WHERE token_hash = ? AND kind = 'link'`, hash).Scan(&used)
+	return err == nil && used.Valid
 }
 
 // approverValid is the check of D-96 (4) made again when the link is used (spec 3.5): the person is still an active operator or admin,
@@ -442,15 +506,59 @@ func (s *Service) approvalChannels(ctx context.Context, st Settings) ([]string, 
 	return out, nil
 }
 
-// sendApproval tells the approvers about a request that was just created (POST-5). It runs after the creating transaction committed,
-// never inside a write transaction, with its own 60 second budget. A failure never fails the request: it stays open in the app. sent_to
-// and one log line say where it went. Nothing here holds s.mu.
-func (s *Service) sendApproval(ctx context.Context, id string) {
+// ErrSendUnsure is what a Notifier wraps an error in when the failure may have come after some messages had already gone out (notify
+// could not write its record of them): the request log line then says so instead of claiming nobody was told.
+var ErrSendUnsure = errors.New("response: some messages may have gone out")
+
+// maxSends is how many requests are being sent at once; the others wait for a slot inside their own budget.
+const maxSends = 2
+
+// queueSend sends the approval request in the background (M2): a mail server that does not answer must not hold the rule engine, the
+// AI port or a person's request. Two sends run at once; the 60 second budget counts from here, so a request that waits too long for a
+// slot is dropped (and logged) instead of piling up. The box shutting down (Close) ends them all.
+func (s *Service) queueSend(id string) {
 	if s.cfg.Notifier == nil {
 		return
 	}
-	ctx, stop := context.WithTimeout(ctx, sendBudget)
-	defer stop()
+	ctx, stop := context.WithTimeout(s.bg, s.budget)
+	s.sendWG.Add(1)
+	go func() {
+		defer s.sendWG.Done()
+		defer stop()
+		select {
+		case s.sendSem <- struct{}{}:
+			defer func() { <-s.sendSem }()
+		case <-ctx.Done():
+			s.noteSend(id, nil, "sent to the app only: sending was busy or the box was stopping")
+			return
+		}
+		s.sendApproval(ctx, id)
+	}()
+}
+
+// noteSend records where a request went: sent_to (when anything went) and one log line.
+func (s *Service) noteSend(id string, sent []string, detail string) {
+	wctx := context.WithoutCancel(s.bg) // the messages left: the record of where is written even if the budget ended
+	if err := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
+		var title string
+		if err := tx.QueryRowContext(wctx, `SELECT title FROM resp_actions WHERE id = ?`, id).Scan(&title); err != nil {
+			return err
+		}
+		if len(sent) > 0 {
+			if _, err := tx.ExecContext(wctx, `UPDATE resp_actions SET sent_to = ? WHERE id = ?`, mustJSON(nonNilS(sent)), id); err != nil {
+				return err
+			}
+		}
+		return s.step(wctx, tx, "response.request_sent", id, LogRequest, title+": "+detail, "system")
+	}); err != nil {
+		s.cfg.Log.ErrorContext(wctx, "response: record where a request was sent", "request", id, "error", err)
+	}
+}
+
+// sendApproval tells the approvers about a request that was just created (POST-5). It runs in the background after the creating
+// transaction committed (queueSend), never inside a write transaction and without s.mu. A failure never fails the request: it stays open
+// in the app. sent_to and one log line say where it went.
+func (s *Service) sendApproval(ctx context.Context, id string) {
 	r, ok, err := loadReq(ctx, s.cfg.DB.Reader(), id)
 	if err != nil || !ok || r.Status != StatusPending {
 		return
@@ -461,11 +569,13 @@ func (s *Service) sendApproval(ctx context.Context, id string) {
 		return
 	}
 	types, err := s.approvalChannels(ctx, st)
-	if err != nil || len(types) == 0 {
-		if err != nil {
-			s.cfg.Log.WarnContext(ctx, "response: approval request not sent", "request", id, "error", err)
-		}
-		return // no ready approval channel: the app only
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "response: approval request not sent", "request", id, "error", err)
+		return
+	}
+	if len(types) == 0 { // no ready approval channel: the app only, as the mock says
+		s.noteSend(id, nil, "sent to the app only: no approval channel is ready")
+		return
 	}
 	msg := ApprovalMessage{RequestID: r.ID, Title: truncRunes(cleanLine(r.Title), 200), What: approvalText(r), Risk: r.Risk, InAppOnly: r.AI != nil && r.AI.InAppOnly,
 		Channels: types, Expires: parseTS(r.ExpiresAt)}
@@ -474,19 +584,17 @@ func (s *Service) sendApproval(ctx context.Context, id string) {
 	if sendErr != nil {
 		s.cfg.Log.WarnContext(ctx, "response: approval request not sent", "request", id, "error", sendErr)
 		detail += "; it is still open in the app (a channel failed: " + truncRunes(cleanLine(sendErr.Error()), 200) + ")"
+		if errors.Is(sendErr, ErrSendUnsure) {
+			detail += "; some mail may have gone out all the same: notify could not write its record of it"
+		}
+	}
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		detail += "; the send budget ran out: approvers not yet mailed were skipped"
 	}
 	if msg.InAppOnly {
 		detail += "; in the app only, no link"
 	}
-	wctx := context.WithoutCancel(ctx) // the messages left: the record of where is written even if the budget ended
-	if err := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(wctx, `UPDATE resp_actions SET sent_to = ? WHERE id = ?`, mustJSON(nonNilS(sent)), id); err != nil {
-			return err
-		}
-		return s.step(wctx, tx, "response.request_sent", id, LogRequest, r.Title+": "+detail, "system")
-	}); err != nil {
-		s.cfg.Log.ErrorContext(ctx, "response: record where a request was sent", "request", id, "error", err)
-	}
+	s.noteSend(id, sent, detail)
 }
 
 // approvalText is what the approver reads in the message: each action, the exact call, and how many people must approve. Plain text, one

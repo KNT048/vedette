@@ -7,10 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/scan/pack"
 )
 
 // Scope is what the inventory says about the scan scope (INV-11: scan only reads it, never writes the commitment).
@@ -23,14 +25,21 @@ type Scope struct {
 // Inventory is the part of the inventory module scan needs. cmd/vedette adapts *inventory.Service to it.
 type Inventory interface {
 	Scope(ctx context.Context) (Scope, error)
+	Devices(ctx context.Context) ([]Device, error)
+	// VulnScanPolicy is inventory.VulnScanPolicy (D-126): explicit is true for a device a person picked in Scan now.
+	VulnScanPolicy(ctx context.Context, assetID string, explicit bool) (Decision, error)
 }
 
-// Config is what NewService needs. Engine, Location and Clock may be nil.
+// Config is what NewService needs. Only DB, Audit, Inventory and Log are required.
 type Config struct {
 	DB        *store.DB
 	Audit     *audit.Log
 	Inventory Inventory
 	Engine    Engine         // nil: the scanner is unavailable (INV-2), nothing is ever sent
+	Pack      *pack.Index    // the safe template pack of the scan image (D-125 (4)); nil: the scanner is unavailable
+	Findings  Findings       // nil: results stay in the run, nothing is confirmed
+	External  External       // nil: the list has no external targets
+	Publisher Publisher      // nil: no events
 	Location  *time.Location // the organization's time zone for the window and the schedule (nil: time.Local)
 	Log       *slog.Logger
 	Clock     func() time.Time // nil: time.Now
@@ -40,6 +49,9 @@ type Config struct {
 type Service struct {
 	cfg Config
 	now func() time.Time
+
+	mu   sync.Mutex
+	live *live // the run this process executes; one at a time (INV-3)
 }
 
 // NewService returns the service. DB, Audit, Inventory and Log are required.
@@ -122,7 +134,7 @@ func (s *Service) view(ctx context.Context, c Settings) (ConfigView, error) {
 	switch {
 	case v.Scope.Commitment == nil:
 		v.BlockReason = ptr(msgNoCommitment)
-	case !s.ready(ctx):
+	case !s.scannerReady(ctx):
 		v.BlockReason = ptr(msgScannerDown)
 	}
 	v.CanScan = v.BlockReason == nil

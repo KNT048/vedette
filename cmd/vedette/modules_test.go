@@ -176,7 +176,7 @@ func TestNewHandlerSetsEveryModule(t *testing.T) {
 		t.Fatal(err)
 	}
 	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log)}
-	if err := buildServices(&d); err != nil {
+	if err := buildServices(t.Context(), &d); err != nil {
 		t.Fatal(err)
 	}
 	h := reflect.ValueOf(newHandler(d))

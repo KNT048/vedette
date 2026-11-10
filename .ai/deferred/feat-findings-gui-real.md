@@ -1,0 +1,8 @@
+# Deferred: feat/findings-gui-real
+
+- [ ] No way to load a confirmed pack on a box yet: `mitigation.Loader` needs the update signature `Verifier` (core/updates, Kiên). Until then a real box shows "No confirmed recommendation yet" for every CVE; the GUI checks seed `modules/mitigation/testdata` with `TestGUIReal_SeedBoxWithTestdataPacks` (a developer seed, no audit row).
+- [ ] The mock pack (`web/src/features/findings/packs.ts`) and the test pack (`modules/mitigation/testdata/CVE-2022-27593.json`) have drifted: the MikroTik guide uses `to-addresses=` in the test pack and `dst-address=` plus a block rule in the mock; the "Have I been hit?" indicator titles differ. Nothing ties them. Decide the source of truth (the signed content pack, when it exists) and add a test that the mock's pack validates against `packDoc`.
+- [ ] AI buttons on a real box are locked (`aiOff` in cmd/vedette/wiring.go, 409 `ai_unavailable`); the AI path (Ask my AI, Explain, the AI label after a reload) is checked on the mock only until WP-25 wires the ai module.
+- [ ] Findings that come from a scan (`confirmed`, `basis=scan`, evidence with a template) cannot appear on a real box until the scan module sends `scan.finding.confirmed`; the screens that show them (confirmed headline, evidence request/response) are checked on the mock only.
+- [ ] `GET /findings` has no paging; a box with 175 Windows CVEs on one device gives 195 rows in one answer. Not measured beyond that; revisit when a box has several thousand.
+- [ ] Independent QA walk of the findings screens on the real box (QA.md section 1): not done, the rows in QA.md say "agent built, not independently checked".

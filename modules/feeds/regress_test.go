@@ -278,7 +278,9 @@ func TestRegress_ParseFeedHonoursTheContext(t *testing.T) {
 // ---------- 3. memory amplification
 
 func TestRegress_MemoryAmplificationIsBounded(t *testing.T) {
-	// A tight GC target makes HeapInuse follow live memory instead of garbage waiting to be collected.
+	// A tight GC target makes HeapInuse follow live memory instead of garbage waiting to be collected. The inputs
+	// are built lazily, one per case: building all 14 (~5 MB each) up front kept ~70 MB live, and with GCPercent 20
+	// that let ~15 MB of uncollected garbage count as "peak", which made the STIX case flake at the budget on CI.
 	old := debug.SetGCPercent(20)
 	defer debug.SetGCPercent(old)
 	big := MaxBodyBytes
@@ -297,31 +299,34 @@ func TestRegress_MemoryAmplificationIsBounded(t *testing.T) {
 	cases := []struct {
 		name   string
 		format Format
-		in     string
+		in     func() string
 	}{
-		{"json objects", FormatJSON, build("[", "{},", "{}]", big/3-2)},
-		{"json zeros", FormatJSON, build("[", "0,", "0]", big/2-2)},
-		{"json empty arrays", FormatJSON, build("[", "[],", "[]]", big/3-2)},
-		{"json empty keys", FormatJSON, build("{", `"":0,`, `"":0}`, big/5-2)},
-		{"csv commas header", FormatCSV, strings.Repeat(",", big)},
-		{"csv commas data", FormatCSV, "dst_ip\n" + strings.Repeat(",", big-10)},
-		{"csv comma rows", FormatCSV, "dst_ip\n" + strings.Repeat(",\n", big/2-8)},
-		{"xml attrs", FormatRSS, attrs("a%x='' ")},
-		{"xml xmlns", FormatRSS, attrs("xmlns:n%x='u' ")},
-		{"xml text split by comments", FormatRSS, build("<rss>", "a<!---->", "</rss>", big/8-2)},
-		{"xml text split by PIs", FormatRSS, build("<rss>", "a<?p?>", "</rss>", big/6-2)},
-		{"xml items", FormatRSS, build("<r>", "<item/>", "</r>", big/7-2)},
-		{"stix indicators", FormatSTIX, `{"objects":[` + strings.Repeat(`{"type":"indicator","pattern":"[ipv4-addr:value = '8.8.8.8']"},`, big/70) + `{}]}`},
-		{"lines tiny", FormatLines, strings.Repeat("a\n", big/2)},
+		{"json objects", FormatJSON, func() string { return build("[", "{},", "{}]", big/3-2) }},
+		{"json zeros", FormatJSON, func() string { return build("[", "0,", "0]", big/2-2) }},
+		{"json empty arrays", FormatJSON, func() string { return build("[", "[],", "[]]", big/3-2) }},
+		{"json empty keys", FormatJSON, func() string { return build("{", `"":0,`, `"":0}`, big/5-2) }},
+		{"csv commas header", FormatCSV, func() string { return strings.Repeat(",", big) }},
+		{"csv commas data", FormatCSV, func() string { return "dst_ip\n" + strings.Repeat(",", big-10) }},
+		{"csv comma rows", FormatCSV, func() string { return "dst_ip\n" + strings.Repeat(",\n", big/2-8) }},
+		{"xml attrs", FormatRSS, func() string { return attrs("a%x='' ") }},
+		{"xml xmlns", FormatRSS, func() string { return attrs("xmlns:n%x='u' ") }},
+		{"xml text split by comments", FormatRSS, func() string { return build("<rss>", "a<!---->", "</rss>", big/8-2) }},
+		{"xml text split by PIs", FormatRSS, func() string { return build("<rss>", "a<?p?>", "</rss>", big/6-2) }},
+		{"xml items", FormatRSS, func() string { return build("<r>", "<item/>", "</r>", big/7-2) }},
+		{"stix indicators", FormatSTIX, func() string {
+			return `{"objects":[` + strings.Repeat(`{"type":"indicator","pattern":"[ipv4-addr:value = '8.8.8.8']"},`, big/70) + `{}]}`
+		}},
+		{"lines tiny", FormatLines, func() string { return strings.Repeat("a\n", big/2) }},
 	}
 	const limit = 80 << 20 // ~64 MB target; race-instrumented heaps run a little larger
 	for _, c := range cases {
-		in := fit(c.in)
+		in := fit(c.in()) // built here, one at a time: the other inputs are not live while the parser runs
 		var err error
 		peak := peakHeap(func() { _, err = ParseFeed(context.Background(), in, KindIOC, DefaultParser(KindIOC, c.format)) })
 		if err != nil && !errors.Is(err, ErrBadSample) && !errors.Is(err, ErrBadConfig) {
 			t.Errorf("%s: unexpected error %v", c.name, err)
 		}
+		t.Logf("%s: peak heap %d MB", c.name, peak>>20)
 		if peak > limit {
 			t.Errorf("%s: peak heap %d MB over the %d MB budget", c.name, peak>>20, limit>>20)
 		}

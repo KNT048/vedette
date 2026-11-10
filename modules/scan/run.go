@@ -463,6 +463,9 @@ func (s *Service) plan(ctx context.Context, d Device) (checks []check, rows []Ru
 	n := 0
 	seen := map[string]bool{}
 	for _, f := range fs {
+		if dismissed(f.Status) {
+			continue
+		}
 		if seen[f.CVE] {
 			continue
 		}
@@ -480,6 +483,12 @@ func (s *Service) plan(ctx context.Context, d Device) (checks []check, rows []Ru
 		checks = append(checks, check{finding: f, tpls: tpls})
 	}
 	return checks, rows, nil
+}
+
+// dismissed is a finding a person closed (false positive, not relevant, patched): its CVE is not probed again (review
+// L3). Mitigated findings are rescanned to check the mitigation, as the mock does (RescanClear).
+func dismissed(status string) bool {
+	return status == "false_positive" || status == "not_relevant" || status == "patched"
 }
 
 // endpoints are where nuclei sends requests on a device: its known web services first, then its other TCP ports

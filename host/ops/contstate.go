@@ -9,8 +9,8 @@ import (
 // readContainers is GET /v1/state/containers (spec 5): per service, whether a unit with a pinned
 // digest exists, the digest it pins and the one the running container reports, whether the unit has
 // [Install], what systemd says (the output of is-active) and what the container says about its
-// health. Versions, previous and the latest pulled image are null until container.pull and
-// container.rollback record them (slice 3-7, 3-8). Everything read from podman and systemctl is
+// health. The version and the previous version come from the versions a start or rollback recorded
+// (slice 3-8a), the latest pulled image from container.pull (slice 3-7); each is null until recorded. Everything read from podman and systemctl is
 // parsed strictly and bounded (D-87): a value that is not one of the known words is "unknown".
 func (o *Ops) readContainers(ctx context.Context) (any, error) {
 	out := api.ContainersState{Services: make([]api.ContainerState, 0, len(api.Services))}
@@ -21,6 +21,15 @@ func (o *Ops) readContainers(ctx context.Context) (any, error) {
 				st.Installed, st.Enabled = true, install
 				st.ConfiguredDigest = &digest
 			}
+		}
+		vs := o.loadVersions(svc)
+		if st.ConfiguredDigest != nil && vs.Current != nil && vs.Current.Digest == *st.ConfiguredDigest {
+			v := vs.Current.Version
+			st.Version = &v
+		}
+		if vs.Previous != nil {
+			v := vs.Previous.Version
+			st.Previous = &api.ContainerVersion{Version: &v, Digest: vs.Previous.Digest}
 		}
 		st.UnitState = o.unitActive(ctx, svc)
 		if st.UnitState == api.UnitActive || st.UnitState == api.UnitOther {

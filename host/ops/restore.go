@@ -37,6 +37,9 @@ func (o *Ops) cmdBackupRestore() server.Command {
 			return nil
 		},
 		Check: func(_ context.Context, a api.BackupRestoreArgs) error {
+			if err := o.coreFree(); err != nil {
+				return err
+			}
 			if _, ok := o.lookupBackup(a.BackupID); !ok {
 				return server.Refuse(404, api.CodeBackupUnknown, "There is no such backup.")
 			}

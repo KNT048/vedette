@@ -76,6 +76,7 @@ func newWorld(t *testing.T, modify ...func(*auth.Config)) *world {
 	if err != nil {
 		t.Fatal(err)
 	}
+	h.SetLogsGapForTest(-1) // the one-a-minute limit has its own test
 	api, err := server.New(server.Config{
 		API:     fullAPI{Fallback: server.Fallback{Log: log}, ModuleHandlers: core.NewModuleHandlers(env.DB, reg), APIHandlers: h},
 		Auth:    env.Svc.Sessions,

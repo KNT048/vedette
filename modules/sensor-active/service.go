@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/netip"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/exec"
+	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
@@ -461,8 +463,7 @@ func (s *Service) finishProbe(ctx context.Context, id int64, result string) {
 	}
 }
 
-// Probes returns the probe log from since on, oldest first, at most limit rows (INV-9). The future
-// scan_probes export category of /core/logs/export reads it. Argv is the flag part stored with the row, so
+// Probes returns the probe log from since on, oldest first, at most limit rows (INV-9). Argv is the flag part stored with the row, so
 // history stays true when the templates change; Target is the merged ranges of the addresses probed.
 func (s *Service) Probes(ctx context.Context, since time.Time, limit int) ([]Probe, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT time, shape, rate, flags, targets, result, job_id FROM sa_probe WHERE time >= ? ORDER BY id LIMIT ?`, store.FormatTS(since), clamp(limit, 1, 100000))
@@ -481,6 +482,21 @@ func (s *Service) Probes(ctx context.Context, since time.Time, limit int) ([]Pro
 		out = append(out, p)
 	}
 	return out, rows.Err()
+}
+
+// ExportProbes is the "scan_probes" source of GET /core/logs/export (core INV-13): the probe log from through to, oldest
+// first, as JSON lines, the columns of the table (argv is the stored flag part, targets the merged ranges). A zero time is open.
+// It takes the database, not the Service, so it works on a box where nmap is missing and the service cannot be built.
+func ExportProbes(ctx context.Context, db *store.DB, from, to time.Time, w io.Writer) error {
+	lo, hi := "", ""
+	if !from.IsZero() {
+		lo = store.FormatTS(from)
+	}
+	if !to.IsZero() {
+		hi = store.FormatTS(to)
+	}
+	return logexport.Rows{SQL: `SELECT id, time, job_id, shape, rate, hosts, flags, targets, result FROM sa_probe
+		WHERE (? = '' OR time >= ?) AND (? = '' OR time <= ?) ORDER BY id`, Args: []any{lo, lo, hi, hi}}.Write(ctx, db.Reader(), w)
 }
 
 // Prune deletes probe rows older than ProbeRetention and the jobs that no longer have any probe row, and

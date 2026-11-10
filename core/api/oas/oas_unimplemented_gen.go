@@ -550,7 +550,10 @@ func (UnimplementedHandler) CoreGetCoreGeneral(ctx context.Context) (r *CoreGetC
 //
 // Download the box logs (audit, AI activity, response, scan probes, alerts, device logs, known-bad
 // connections, honeypot hits) as one JSON or CSV file; secrets are removed, hash-chained logs keep
-// their hashes for offline verification; the download is audited.
+// their hashes for offline verification; a category whose module has no log source yet is listed as
+// missing; chained categories (audit, response, AI activity) are exported unscrubbed with their chain
+// anchor and head; one download at a time (409 busy), at most one a minute (429 rate_limited), over
+// 128 MB is refused (413 logs_too_large); the download, and a refusal, are audited.
 //
 // GET /core/logs/export
 func (UnimplementedHandler) CoreGetCoreLogsExport(ctx context.Context, params CoreGetCoreLogsExportParams) (r CoreGetCoreLogsExportOK, _ error) {

@@ -2210,10 +2210,10 @@ func decodeCoreGetCoreAuditExportParams(args [0]string, argsEscaped bool, r *htt
 
 // CoreGetCoreLogsExportParams is parameters of core_get_core_logs_export operation.
 type CoreGetCoreLogsExportParams struct {
-	Categories string
+	Categories OptString `json:",omitempty,omitzero"`
 	From       OptString `json:",omitempty,omitzero"`
 	To         OptString `json:",omitempty,omitzero"`
-	Format     CoreGetCoreLogsExportFormat
+	Format     OptString `json:",omitempty,omitzero"`
 }
 
 func unpackCoreGetCoreLogsExportParams(packed middleware.Parameters) (params CoreGetCoreLogsExportParams) {
@@ -2222,7 +2222,9 @@ func unpackCoreGetCoreLogsExportParams(packed middleware.Parameters) (params Cor
 			Name: "categories",
 			In:   "query",
 		}
-		params.Categories = packed[key].(string)
+		if v, ok := packed[key]; ok {
+			params.Categories = v.(OptString)
+		}
 	}
 	{
 		key := middleware.ParameterKey{
@@ -2247,7 +2249,9 @@ func unpackCoreGetCoreLogsExportParams(packed middleware.Parameters) (params Cor
 			Name: "format",
 			In:   "query",
 		}
-		params.Format = packed[key].(CoreGetCoreLogsExportFormat)
+		if v, ok := packed[key]; ok {
+			params.Format = v.(OptString)
+		}
 	}
 	return params
 }
@@ -2264,23 +2268,28 @@ func decodeCoreGetCoreLogsExportParams(args [0]string, argsEscaped bool, r *http
 
 		if err := q.HasParam(cfg); err == nil {
 			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				val, err := d.DecodeValue()
-				if err != nil {
+				var paramsDotCategoriesVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotCategoriesVal = c
+					return nil
+				}(); err != nil {
 					return err
 				}
-
-				c, err := conv.ToString(val)
-				if err != nil {
-					return err
-				}
-
-				params.Categories = c
+				params.Categories.SetTo(paramsDotCategoriesVal)
 				return nil
 			}); err != nil {
 				return err
 			}
-		} else {
-			return err
 		}
 		return nil
 	}(); err != nil {
@@ -2382,31 +2391,28 @@ func decodeCoreGetCoreLogsExportParams(args [0]string, argsEscaped bool, r *http
 
 		if err := q.HasParam(cfg); err == nil {
 			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				val, err := d.DecodeValue()
-				if err != nil {
+				var paramsDotFormatVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotFormatVal = c
+					return nil
+				}(); err != nil {
 					return err
 				}
-
-				c, err := conv.ToString(val)
-				if err != nil {
-					return err
-				}
-
-				params.Format = CoreGetCoreLogsExportFormat(c)
+				params.Format.SetTo(paramsDotFormatVal)
 				return nil
 			}); err != nil {
 				return err
 			}
-			if err := func() error {
-				if err := params.Format.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		} else {
-			return err
 		}
 		return nil
 	}(); err != nil {

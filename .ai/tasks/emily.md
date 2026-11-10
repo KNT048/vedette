@@ -1,62 +1,99 @@
 # Việc của Emily (Mlee) — đọc cùng docs/TEAM_PLAN.md
 
-Cập nhật: 2026-11-09 (phiên AI lead của Emily). Repo: **`KNT048/vedette`** (public, D-63). Module Go: `github.com/knt048/vedette`.
-Sở hữu (TEAM_PLAN §2): feeds, findings (D-57 (6)), mitigation, notify, exposure, scan, scan-credentialed, logs, agent-intake, ai, reports, mcp-server, auth-oidc.
-File này là **file handoff duy nhất** của các phiên AI làm cho Emily: sau compact/restart đọc lại trước khi làm tiếp.
+Cập nhật: 2026-11-10 (phiên AI lead của Emily). Repo: **`KNT048/vedette`** (public, D-63). Module Go: `github.com/knt048/vedette`.
+Emily sở hữu (TEAM_PLAN §2) các module: feeds, findings (D-57 (6)), mitigation, notify, exposure, scan, scan-credentialed, logs, agent-intake, ai, reports, mcp-server, auth-oidc.
+File này là **file handoff duy nhất** của các phiên AI làm cho Emily. Sau compact hay khởi động lại, đọc lại file này trước khi làm tiếp.
 
 ## Quy trình (D-61 → D-65)
-- **Kiểm trên máy trong WSL2 Ubuntu**, mã ở hệ file WSL (`~/src/vedette`, worktree `~/src/vedette-wt/<nhánh>`), không `/mnt/c`; Makefile từ chối Windows gốc.
-  - Trước khi push/mở PR: rebase lên `origin/main`, `make check`, dán phần cuối + SHA vào mục "Local checks".
-  - Merge khi CI (GitHub Actions: `go`, `web`) xanh; CI đỏ thì sửa, không merge.
-  - `make audit` đầu mỗi phiên.
-- **E2E**: chỉ spec của module vừa chạm + kịch bản kiểm độc lập theo QA.md (D-64); không sửa bộ e2e cũ đang đỏ.
-- **Tải máy**: tối đa 2 việc nặng cùng lúc. Trước Playwright, `pgrep -f playwright/test/cli.js` phải rỗng; dùng `--workers=2`. Bộ dọn mồ côi đã cài (`make reaper-install`).
-- **Chồng lấn → Kiên làm (D-65).** Việc đụng module của Kiên hoặc phần dùng chung thì dừng phần đó và mở issue `owner:kien` (nhánh, đã làm, còn gì, cần gì), rồi làm việc khác.
-  - Phần dùng chung: `core/`, `cmd/`, `Makefile`, `go.mod`, `tools/`, `scripts/`, `.github/`, `web/src/lib`, `web/src/mocks`, `docs/DECISIONS.md`, `DATA_MODEL`, `API_CONVENTIONS`, `MODULE_CONTRACTS`.
-  - Thêm dependency Go = sửa `go.mod`, nên cũng mở issue.
-- **PR không chờ duyệt**, kể cả nhãn `contract`; PR chạm module của Kiên thì @kiennt048 để thông báo.
-- **Không tự đánh số D-xx**: ghi mục "Quyết định cần ghi" trong mô tả PR; phiên của Kiên chép vào DECISIONS.
-- **Cổng kiểm của PR thư viện** = người làm (Sonnet) → người kiểm độc lập (không đọc lời giải thích của người làm; Opus cho phần nhận dữ liệu không tin cậy) → sửa → `make check`.
+- **Kiểm trên máy, trong WSL2 Ubuntu.** Mã nằm ở hệ file của WSL (`~/src/vedette`, worktree `~/src/vedette-wt/<nhánh>`), không đặt ở `/mnt/c`. Makefile từ chối chạy trên Windows gốc.
+  - Trước khi push hay mở PR: rebase lên `origin/main`, chạy `heavy make check` (ghi lại mã thoát), rồi dán phần cuối log kèm SHA vào mục "Local checks".
+  - Rebase lên main mà main chỉ đổi file không liên quan (tài liệu, module của Kiên) thì không chạy lại gate. Ghi rõ những file main đã đổi vào "Local checks"; CI trên GitHub vẫn kiểm toàn bộ.
+  - Chỉ merge khi CI (GitHub Actions: `go`, `web`) xanh. CI đỏ vì test chập chờn của module khác: chạy lại job hỏng, rồi báo chủ module.
+  - Chạy `make audit` đầu mỗi phiên.
+- **E2E**: chỉ chạy spec của module vừa chạm, cộng kịch bản kiểm độc lập theo QA.md (D-64).
+- **Cổng kiểm mỗi lát**:
+  1. Người làm (Sonnet, hoặc Opus cho phần thiết kế nặng) viết test đỏ trước, lưu bằng chứng (log của lần chạy đỏ, hoặc tắt từng hành vi xem test bắt được).
+  2. Người kiểm độc lập, không đọc lời giải thích của người làm. Dùng Opus cho phần nhận dữ liệu không tin cậy, khoá bí mật, quyền đồng ý quét.
+  3. Sửa theo kết quả kiểm, rồi chạy gate.
+  4. Màn hình giao diện cần thêm QA độc lập theo QA.md, chạy cả trên hộp thật.
+- **Chồng lấn → Kiên làm (D-65).** Việc đụng module của Kiên hoặc phần dùng chung: mở issue `owner:kien`.
+  - Phần dùng chung: `core/`, `cmd/` (trừ dòng nối dây chỉ thêm vào), `Makefile`, `go.mod`, `tools/`, `scripts/`, `.github/`, `web/src/lib`, `web/src/mocks`, `docs/DECISIONS.md`, `DATA_MODEL`, `API_CONVENTIONS`, `MODULE_CONTRACTS`.
+  - File API sinh tự động (`api/openapi.json`, `core/api/oas`) thì sinh lại từ `contract.ts` của module mình; không sửa tay.
+- **PR không chờ duyệt.** PR chạm file của Kiên thì @kiennt048 để báo. **Không tự đánh số D-xx**: ghi vào mục "Quyết định cần ghi" của PR, phiên của Kiên chép vào DECISIONS (ví dụ D-128, D-129, D-131, D-134, D-136).
 
-## Đã merge
-- Giai đoạn 0 (thư viện): #8, #10 findings · #15 notify · #16 ai · #28 feeds. Quyết định D-67 (notify), D-68 (feeds), D-69 (findings), D-70 (ai).
-- #42 Zalo cá nhân: gửi tin (D-46, giao thức zca-js, stdlib); rà bảo mật Opus đã sửa hết.
-- #44 WP-21 findings + mitigation backend — **chưa gắn vào binary**, chờ #38.
-- #46 WP-20 feeds backend, đã gắn (`feeds.FeedHandlers` cạnh `inventory.Handlers`).
+## Đã merge (theo WP)
+- **Giai đoạn 0 (thư viện):** #8, #10 findings · #15 notify · #16 ai · #28 feeds (D-67..D-70).
+- **WP-20 feeds:**
+  - #46 backend;
+  - #80 giao diện chạy trên backend thật, đã sửa theo QA độc lập, EPSS kéo sau mỗi lần nạp KEV;
+  - #93 KEV dự phòng qua kho GitHub của CISA khi cisa.gov chặn (D-91);
+  - #135 bỏ SSLBL, Home không còn ghi "0" khi chưa từng nạp KEV (D-92, D-134).
+- **WP-21 findings + mitigation:** #44 backend. Nối với inventory/feeds qua cổng và bus ở #56 (của Kiên, D-78).
+- **WP-22 notify:**
+  - #42 Zalo cá nhân;
+  - #60 module: kênh, giao tin, link duyệt, chặn SSRF webhook. Lượt kéo KEV đầu tiên không gửi tin, đánh dấu bằng context (D-78, D-86);
+  - #120 tin lỗ hổng gửi thật (danh mục finding), bỏ tin xếp hàng cũ hơn 24 giờ khi bật lại (D-86 (7), D-128).
+  - Kiên nối Users/Mailer/BaseURL/Zone ở #69 và thêm đường duyệt ở #110, #128.
+- **WP-23 exposure:**
+  - #91: tự dò IP public, quét chỉ khi hộp còn thấy IP (INV-13), danh sách Ignored, 3 dịch vụ của 3 nhà vận hành (D-79, D-81).
+  - Kiên sửa test chập chờn ở #90, #122.
+- **WP-23 scan:** #127 S0 giao diện/mock theo D-125/D-126 (D-131) · #131 S1 cấu hình, lớp trừu tượng scanner.
+- **Khác:** #59 sửa test ai chập chờn (#50) · #55, #30 handoff.
 
-## Đang làm
-- **WP-22 notify** (`feat/notify-module`): 12 endpoint, hàng đợi gửi + job, đăng ký sự kiện qua `deps.Bus`, `CodeMailer`, link duyệt email. Đang sửa kết quả rà bảo mật Opus (link duyệt khi chưa có BaseURL, người nhận yêu cầu duyệt rủi ro cao, mở lại incident trùng khoá, gửi tin khi job bị ngắt, SSRF webhook, giờ im lặng theo múi giờ của hộp). Mã hoá URL webhook (SYS-4) để sang PR giao diện notify.
-- **WP-23 exposure** (`feat/exposure-module`): yêu cầu mới của Kiên — tự dò IP public (bật mặc định, lần đầu khi cài, dò lại 60 phút, chỉnh 15 phút–24 giờ), nhiều IP (cân bằng tải), hiệu lực 30 ngày tự gia hạn, khách gỡ được IP, vẫn không cho gõ IP tay (D-25). Dò qua 3 dịch vụ công khai, nhận IP khi ≥ 2 dịch vụ trùng (**D-81**). Phần giao diện trước (story, hợp đồng, contract.ts, mock, ma trận form, Playwright) xong; backend đang làm.
+## Đang làm (mỗi việc một worktree, một agent)
+- **WP-25 ai**, lát 1 (PR #123, `feat/ai-module`), D-129: hồ sơ, khoá, phân việc.
+  - Đang sửa theo rà bảo mật: chỉ dùng lại khoá đã lưu khi cùng origin; ghi audit kể cả khi client ngắt; chặn link-local và metadata; truyền ctx vào `buildServices`; đổi sang `provider_error`.
+  - Lát 2 (giải thích CVE, `feat/ai-explain`) đã viết xong.
+  - Kế hoạch 7 lát nằm ở `.ai/deferred/feat-ai-module.md`. Thứ tự: 1, 2, 3, 4a, 4b, 4c, 6, 5, 7.
+- **WP-23 scan** S2 (PR #138, đang giữ): đang sửa theo rà bảo mật.
+  - Worker chỉ nhận IPv4 nội bộ.
+  - Cờ nuclei dạng allow-list (`-pt`, `-dr`, `-nh`).
+  - Mã băm gói ràng buộc với template thật sự chạy.
+  - S3 (mục tiêu, Scan now/Stop, nhật ký probe, kết quả thành finding) đã qua chạy đỏ. S4 (lịch, quét lại khi có KEV) đang viết. S5 chờ #115.
+- **WP-21 giao diện findings/mitigation trên API thật** (`feat/findings-gui-real`):
+  - Đối chiếu API thật với mock không thấy lệch.
+  - Đang sửa 3 spec cũ đỏ sẵn trên main, và cho gói mẫu khớp với mock (`packs.ts` là chuẩn).
+  - Sau đó: QA độc lập rồi mới mở PR.
 
 ## Chờ từ Kiên
-- #38: inventory cài `findings.Inventory`, `mitigation.Vendors`; FK `fnd_finding.asset_id`; nối sự kiện; bộ kiểm chữ ký gói khuyến nghị.
-- #39: inventory cài `feeds.Inventory`; `Events: d.Bus` trong `cmd/vedette/feeds.go`.
+- **#115 scan S5:**
+  - proto 2 (job nuclei);
+  - dispatcher tách khe nuclei;
+  - worker chạy nuclei với môi trường sạch;
+  - image scan có nuclei và gói template;
+  - cờ `Careful` trên `ScanDecision`.
+- **#114:** phần đọc của core/conn đã xong ở #126 (D-127). Phần xuất `ai_activity` đang ở #137.
+- **#62 notify:** `Tokens` (response), `BoxAddrs` (podman).
+- **#79:** câu chữ bảng nóng khi chưa có KEV (#136, D-134); `answered_by` trong DATA_MODEL.
 
 ## Kế tiếp
-1. Issue #50: test `TestContract_INV12_RegexTimeBound` (ai) đỏ khi máy bận — sửa cho ổn định.
-2. WP-23 `scan` (nuclei, nhật ký probe; `CanScan` của exposure).
-3. notify: listener duyệt bằng trả lời mã cho Zalo cá nhân + Slack Socket Mode (thư viện websocket đã có, #45).
-4. PR giao diện notify: mã hoá URL webhook; người duyệt Zalo OA qua liên kết (D-46); chuyển sang API thật.
-5. Chuyển giao diện feeds, findings, mitigation, exposure sang API thật (`make dev-api REAL=<module>`), mỗi màn có ma trận form + Playwright spec của module (D-64) + kiểm độc lập.
-6. Giai đoạn 2: WP-24 logs, WP-25 ai module, WP-26 agent-intake, WP-27 reports/mcp-server/auth-oidc.
-
-Mỗi module:
-1. Migration có tiền tố bảng theo MANIFEST (`storetest.AssertMigrationsUsePrefix`).
-2. Handler cho operation trong `core/api/oas`.
-3. `audit.(*Log).Append` trong cùng giao dịch, `apierr` cho lỗi, `server.PrincipalFrom(ctx)`.
-4. Test hợp đồng `go test ./modules/<id>/... -run Contract`.
-5. Giao diện chuyển từ mock sang API thật (cơ chế WP-05 của Kiên).
-
-Chữ ký thật của core: `modules/core/IMPACT.md`. Thứ core chưa có (events, auth): interface nhỏ phía module + đồ giả trong test, không viết trong `core/`.
+1. Merge ai lát 1 → lát 2 → 3 (dùng nguồn export của #137) → 4a/4b/4c → 6 → 5 (`core/conn/read`) → 7 (`Propose`, D-97/D-119).
+2. scan S2 → S3 → S4. S5 làm sau #115.
+3. Findings/mitigation: QA độc lập, rồi PR.
+4. Feeds: dòng trống của bảng nóng theo tiêu chí mới (#136).
+5. Notify, việc tiếp theo:
+   - Zalo listener, Slack Socket Mode, Telegram (D-96: notify lo đường truyền);
+   - giao diện notify chuyển sang API thật;
+   - mã hoá URL webhook (SYS-4).
+6. Giai đoạn 2: WP-24 logs, WP-26 agent-intake, WP-27 reports/mcp-server/auth-oidc.
 
 ## Bẫy kỹ thuật
-- **Việc nặng trong WSL đi qua `heavy`** (`~/bin/heavy`: khoá toàn máy, mỗi lúc một việc, `GOMEMLIMIT=2GiB`, `-p=2`). WSL chỉ có 5 GB / 3 CPU; một lượt golangci-lint toàn repo ~4 GB; ba lượt song song từng làm WSL treo (2026-11-09).
-- Máy Emily có script kiểm tra 10 phút (`C:/Users/BYN/.vedette-tools/health.sh`): tiến trình treo/mồ côi/trùng, WSL treo, đồng hồ (so giờ chuẩn lấy từ GitHub), thay đổi trên GitHub. Trạng thái phiên chi tiết: `C:/Users/BYN/.vedette-tools/SESSION-STATE.md`.
-- `wsl.exe` tự thay `$VAR` và `$?` trước khi bash chạy: viết `\$`, hoặc đặt lệnh trong file script.
-- Không viết giá trị test có hình dạng giống secret thật (URL webhook Slack, token Telegram…): GitHub push protection chặn. Ghép lúc chạy hoặc dùng giá trị rõ là giả.
-- Hai struct handler nhúng cùng tên kiểu (`Handlers`) trong `cmd/vedette/handler.go` không biên dịch: đặt tên riêng (`FeedHandlers`, `NotifyHandlers`, `ExposureHandlers`…).
-- Windows gốc: `core/store` (URI SQLite) và `web/scripts/openapi.mjs` hỏng; chỉ dùng WSL.
-- pnpm bản độc lập bỏ qua bản native oxlint/rolldown nếu thiếu `node-version` (đã sửa ở `web/.npmrc`, #23).
-- Git trong WSL dùng `gh` bên Windows làm credential helper (không chép token).
-- vitest toàn bộ có thể timeout giả khi máy đang fuzz/test song song: chạy lại riêng file đỏ lúc máy rảnh.
-- Fuzz chạy từng target một; số exec đứng yên khi fuzzer đang thu gọn input là bình thường.
+- **Mọi lệnh nặng đi qua `heavy`**: `go build/vet/test/generate`, `make generate-*`, `make dev-api`, `pnpm tsc/build/vitest/playwright`. Chỉ git, cat, grep, ls, gofmt được chạy ngoài.
+  - Riêng việc biên dịch `core/api/oas` đã tốn ~2,3 GB. Ngày 2026-11-10, vài agent `go build ./...` ngoài khoá làm WSL hết RAM.
+  - WSL có 5 GB / 3 CPU (máy 4 CPU / 12 GB).
+- **Script để dưới `~/`, không để ở `/tmp`:** WSL tự khởi động lại thì `/tmp` bị xoá.
+- **`wsl.exe` tự thay `$VAR`, `$?` và `$(...)`** trước khi bash chạy, nên đặt lệnh trong file script.
+- **Health script 10 phút** (`C:/Users/BYN/.vedette-tools/health.sh`), chạy từ lịch của phiên:
+  - tiến trình treo, mồ côi, chạy trùng;
+  - tiến trình Go chạy ngoài `heavy`;
+  - WSL treo, đồng hồ lệch;
+  - thay đổi trên GitHub.
+  
+  Lớp bọc (`heavy`, `timeout`, script gate) đang chờ khoá thì không tính là treo. Trạng thái phiên chi tiết nằm ở `C:/Users/BYN/.vedette-tools/SESSION-STATE.md`.
+- **Playwright trong WSL:** Chromium tải bằng `pnpm --dir web e2e:install`, cộng các thư viện apt `libnss3 libnspr4 libasound2t64 fonts-liberation fonts-noto-color-emoji`.
+- **`gh` không có trong WSL:** gọi `gh` từ Git Bash bên Windows, đưa file nội dung PR qua đường dẫn `//wsl.localhost/...`.
+- **Test có giới hạn thời gian thật dễ chập chờn trên CI bận** (#50, #89, #122). Chỉ dùng trần rộng để bắt bùng nổ; kiểm tính đúng bằng điều kiện tất định.
+- **Giá trị test giống secret thật** (webhook Slack, token Telegram…) bị GitHub push protection chặn. Ghép lúc chạy hoặc dùng giá trị rõ là giả.
+- **Struct handler nhúng phải mang tên riêng** (`FeedHandlers`, `NotifyHandlers`, `ExposureHandlers`, `AIHandlers`…).
+- **Migration chưa merge được sửa tại chỗ**; DB dev tạo từ bản cũ của nhánh thì xoá `.dev/vedette.db`.
+- **Máy Ubuntu thứ hai làm máy chạy gate** (Emily cho phép 2026-11-10): khoá SSH `~/.ssh/vedette_runner` trong WSL, chỉ phiên lead dùng. Agent con không SSH.

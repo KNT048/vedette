@@ -7781,17 +7781,6 @@ func (s CoreGetCoreConnectionsOKItemsItemToolsItemAccess) Validate() error {
 	}
 }
 
-func (s CoreGetCoreLogsExportFormat) Validate() error {
-	switch s {
-	case "json":
-		return nil
-	case "csv":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
 func (s *CoreGetCoreMcpOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer

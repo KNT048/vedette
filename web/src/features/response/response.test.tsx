@@ -586,8 +586,12 @@ describe('response: safety envelope (D-51)', () => {
 })
 
 describe('response: AI requests, server-side gates (D-51)', () => {
-  const OK_HIGH = { trigger: 'ioc_connection', action_id: 'cisco_port_vlan_quarantine', params: { interface: 'Gi1/0/7', vlan: '999' }, confidence: 0.95, evidence: [{ kind: 'config_read', id: 'cn-fgt/get_virtual_ips' }, { kind: 'config_read', id: 'cn-fgt/get_firewall_policies' }] }
+  // Two known-bad connections seen on port Gi1/0/7 of the switch, and a finding that tells the server which device the port belongs to (the never-touch subject).
+  const OK_HIGH = { trigger: 'ioc_connection', action_id: 'cisco_port_vlan_quarantine', params: { interface: 'Gi1/0/7', vlan: '999' }, confidence: 0.95, evidence: [{ kind: 'ioc_hit', id: 'hp1' }, { kind: 'ioc_hit', id: 'hp2' }, { kind: 'finding', id: 'f-1' }] }
+  const portHits = () => collection<unknown>('logs_ioc_hits', () => []).update((l) => [...(l as unknown[]), ...['hp1', 'hp2'].map((id, i) => ({ id, ts: new Date().toISOString(), asset_id: null, src_ip: '192.168.10.105', dest: `203.0.113.${i + 1}`, dest_kind: 'ip', switch_port: 'Gi1/0/7', seen_via: 'span_flow', feeds: ['IPsum'], confidence: 0.9 }))])
   const setup = async () => { await saveSettings({ ai: { triggers: ['ioc_connection', 'finding'], budget_hour: 20, budget_day: 100 } }); iocHits(['185.220.101.77', '198.51.100.1', '198.51.100.2', '198.51.100.3', '198.51.100.4', '198.51.100.5', '198.51.100.6']) }
+  /** Another known-bad connection about the same address: real new evidence. */
+  const moreHits = (id: string, dest: string) => collection<unknown>('logs_ioc_hits', () => []).update((l) => [...(l as unknown[]), { id, ts: new Date().toISOString(), asset_id: null, src_ip: '192.168.10.106', dest, dest_kind: 'ip', seen_via: 'span_flow', feeds: ['IPsum'], confidence: 0.9 }])
 
   it('a good request becomes a pending request with the evidence the server verified', async () => {
     await setup()
@@ -623,6 +627,7 @@ describe('response: AI requests, server-side gates (D-51)', () => {
     expect((await propose({ evidence: [{ kind: 'ioc_hit', id: 'h-invented' }] })).code).toBe('evidence_invalid')
     expect((await propose({ evidence: [{ kind: 'finding', id: 'f-invented' }] })).code).toBe('evidence_invalid')
     expect((await propose({ evidence: [{ kind: 'config_read', id: 'cn-fgt/disable_virtual_ip' }] })).code).toBe('evidence_invalid') // a write tool is not a read
+    expect((await propose({ evidence: [{ kind: 'config_read', id: 'cn-fgt/get_virtual_ips/x' }] })).code).toBe('evidence_invalid') // exactly one slash
     expect((await propose({ evidence: [{ kind: 'ioc_hit', id: 'h2' }] })).code).toBe('evidence_mismatch') // a real hit about another address
     expect((await propose({ evidence: [{ kind: 'finding', id: 'f-1' }, { kind: 'ioc_hit', id: 'h1' }] })).status).toBe(201)
   })
@@ -638,6 +643,66 @@ describe('response: AI requests, server-side gates (D-51)', () => {
     expect((await propose({ confidence: 0.8 })).json.outcome).toBe('request')
   })
 
+  it('a connection read is evidence only for a device action through that same connection; a box action needs a finding or a known-bad connection about its target (D-119)', async () => {
+    await setup()
+    // the read happened, but it says nothing about a block-list address: the block list is not on a connection
+    expect((await propose({ evidence: [{ kind: 'ioc_hit', id: 'h2' }, { kind: 'config_read', id: 'cn-fgt/get_virtual_ips' }] })).code).toBe('evidence_mismatch')
+    // a read alone never proves a trigger
+    expect((await propose({ evidence: [{ kind: 'config_read', id: 'cn-fgt/get_virtual_ips' }] })).code).toBe('evidence_mismatch')
+    // a device action through another connection: the read of the firewall is not about a port of the switch
+    await turnOn(); await enableSwitchActions(); portHits()
+    const other = { ...OK_HIGH, evidence: [{ kind: 'ioc_hit', id: 'h1' }, { kind: 'config_read', id: 'cn-fgt/get_virtual_ips' }, { kind: 'finding', id: 'f-1' }] }
+    expect((await propose(other)).code).toBe('evidence_mismatch')
+    // through the action's own connection it counts
+    connectorsStore.update((l) => l.map((c) => (c.id === 'cn-sw' ? { ...c, tools: [...c.tools, { name: 'show_config', access: 'read' as const, description: 'Read the configuration', enabled: true }] } : c)))
+    const own = { ...OK_HIGH, evidence: [{ kind: 'ioc_hit', id: 'hp1' }, { kind: 'config_read', id: 'cn-sw/show_config' }, { kind: 'finding', id: 'f-1' }] }
+    expect((await propose(own)).status).toBe(201)
+  })
+
+  it('the trigger must be proven by a kind of evidence, and some triggers cannot be proven at all (D-119)', async () => {
+    await setup()
+    expect((await propose({ trigger: 'finding' })).code).toBe('evidence_mismatch') // a finding trigger needs a finding among the evidence
+    await saveSettings({ ai: { triggers: ['ioc_connection', 'finding', 'honeypot'], budget_hour: 20, budget_day: 100 } })
+    const r = await propose({ trigger: 'honeypot' })
+    expect(r.code).toBe('trigger_not_allowed')
+    expect(r.json.error?.message).toContain('no kind of evidence can prove this trigger')
+  })
+
+  it('only open findings count as evidence', async () => {
+    await setup()
+    expect((await propose({ trigger: 'finding', params: { ip: '192.168.10.21' }, evidence: [{ kind: 'finding', id: 'f-1' }] })).status).toBe(201)
+    await call('operator', 'POST', `/response/actions/${(await pendingOf())[0]!.id}/reject`, { reason: 'x' })
+    const { findingsStore } = await import('@/mocks/stores')
+    findingsStore.update((l) => l.map((f) => (f.id === 'f-1' ? { ...f, status: 'false_positive' as const } : f)))
+    expect((await propose({ trigger: 'finding', params: { ip: '192.168.10.21' }, evidence: [{ kind: 'finding', id: 'f-1' }] })).code).toBe('evidence_invalid')
+  })
+
+  it('a never-touch address is refused for the device of every cited finding; a port action needs a finding for its subject (D-119)', async () => {
+    await setup(); await turnOn(); await enableSwitchActions(); portHits()
+    expect((await propose({ ...OK_HIGH, evidence: [{ kind: 'ioc_hit', id: 'hp1' }, { kind: 'ioc_hit', id: 'hp2' }] })).code).toBe('never_touch') // no finding: no subject
+    expect((await propose({ ...OK_HIGH, evidence: [...OK_HIGH.evidence] })).status).toBe(201)
+  })
+
+  it('a cancellation (emergency stop) is not a rejection: it neither blocks a repeat nor counts for the quality breaker (D-119)', async () => {
+    await setup()
+    const before = (await call<AiState>('viewer', 'GET', '/response/ai')).json.quality
+    expect((await propose()).status).toBe(201)
+    expect((await call('operator', 'POST', '/response/emergency-stop')).status).toBe(200)
+    expect((await call<AiState>('viewer', 'GET', '/response/ai')).json.quality).toMatchObject({ decided: before.decided, rejected: before.rejected })
+    expect((await propose()).status).toBe(201)
+  })
+
+  it('more than 60 proposals in an hour are refused with 429; notes of each kind are capped at 50 (D-119)', async () => {
+    await setup()
+    for (let i = 0; i < 60; i++) expect((await propose({ confidence: 0.5 })).json.outcome ?? 'x').toBe('suggestion')
+    const over = await propose({ confidence: 0.5 })
+    expect(over.status).toBe(429)
+    expect(over.code).toBe('rate_limited')
+    const notes = (await call<AiState>('viewer', 'GET', '/response/ai')).json.notes
+    expect(notes.filter((n) => n.kind === 'suggestion')).toHaveLength(50)
+    expect((await logList()).filter((e) => e.kind === 'refused' && /rate_limited/.test(e.detail))).toHaveLength(1)
+  })
+
   it('one open request per target and action', async () => {
     await setup()
     expect((await propose()).status).toBe(201)
@@ -651,7 +716,10 @@ describe('response: AI requests, server-side gates (D-51)', () => {
     const rej = await call<ActionRequest>('operator', 'POST', `/response/actions/${a.id}/reject`, { reason: 'This is our backup provider', remember: 'memory' })
     expect(rej.json.status).toBe('rejected')
     expect((await propose()).code).toBe('repeat_blocked')
-    expect((await propose({ evidence: [{ kind: 'ioc_hit', id: 'h1' }, { kind: 'config_read', id: 'cn-fgt/get_virtual_ips' }] })).status).toBe(201) // new evidence
+    expect((await propose({ evidence: [{ kind: 'ioc_hit', id: 'h1' }, { kind: 'config_read', id: 'cn-fgt/get_virtual_ips' }] })).code).toBe('repeat_blocked') // a read that is not about the target is not new evidence
+    expect((await propose({ evidence: [{ kind: 'ioc_hit', id: 'h1' }, { kind: 'ioc_hit', id: 'h3' }] })).code).toBe('repeat_blocked') // a hit about another address is not new evidence either
+    moreHits('h-new', '185.220.101.77')
+    expect((await propose({ evidence: [{ kind: 'ioc_hit', id: 'h1' }, { kind: 'ioc_hit', id: 'h-new' }] })).status).toBe(201) // new evidence about the same address
     const hints = (await call<AiState>('viewer', 'GET', '/response/ai')).json.hints
     expect(hints.some((h) => h.kind === 'memory' && h.text === 'This is our backup provider')).toBe(true)
     // after 7 days the rejection no longer counts
@@ -693,10 +761,11 @@ describe('response: AI requests, server-side gates (D-51)', () => {
   })
 
   it('high risk: a second check, and approval only in the app with the two-step code, from two different people', async () => {
-    await turnOn(); await enableSwitchActions(); await saveSettings({ ai: { triggers: ['ioc_connection'], budget_hour: 20, budget_day: 100 } })
+    await turnOn(); await enableSwitchActions(); iocHits(['185.220.101.77']); portHits(); await saveSettings({ ai: { triggers: ['ioc_connection'], budget_hour: 20, budget_day: 100 } })
     mapChat(); await saveSettings({ approval_channels: ['slack', 'telegram'], ai: { triggers: ['ioc_connection'], budget_hour: 20, budget_day: 100 } })
     // second checker: needs 2 pieces of evidence and a confidence of 0.9 or more
-    expect((await propose({ ...OK_HIGH, evidence: [OK_HIGH.evidence[0]] })).code).toBe('second_check_failed')
+    expect((await propose({ ...OK_HIGH, evidence: [OK_HIGH.evidence[0], OK_HIGH.evidence[2]] })).code).toBe('second_check_failed')
+    expect((await propose({ ...OK_HIGH, evidence: [...OK_HIGH.evidence, { kind: 'ioc_hit', id: 'h1' }].filter((e) => e.id !== 'hp2') })).code).toBe('second_check_failed') // one about the port, one about something else
     expect((await propose({ ...OK_HIGH, confidence: 0.85 })).code).toBe('second_check_failed')
     const r = await propose(OK_HIGH)
     expect(r.status).toBe(201)

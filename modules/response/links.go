@@ -410,11 +410,32 @@ func (s *Service) DecideByLink(ctx context.Context, token, decision, from string
 	return out, err
 }
 
-// linkOpt is what a decision through a link adds to approve and reject: the hash of the token, burned in the decision transaction, and a
-// check that runs right after the service lock is taken.
+// linkOpt is what a decision that did not come from the app adds to approve and reject: the hash of the token, burned in the decision
+// transaction (an approval link, or a Zalo reply code when kind is "code"; hash empty for a Slack or Telegram button, which has no token),
+// and a check that runs right after the service lock is taken.
 type linkOpt struct {
-	hash    string
-	recheck func(ctx context.Context) (*apierr.Error, error)
+	hash      string
+	kind      string // "" or "link" for an approval link, "code" for a reply code
+	requestID string // reply codes: the request and person whose other code is burned with this one
+	userID    string
+	recheck   func(ctx context.Context) (*apierr.Error, error)
+}
+
+// token is true when the decision carries a token to check and burn.
+func (l *linkOpt) token() bool { return l != nil && l.hash != "" }
+
+func (l *linkOpt) tokenKind() string {
+	if l.kind == "code" {
+		return "code"
+	}
+	return "link"
+}
+
+func (l *linkOpt) msg(state string) string {
+	if l.kind == "code" {
+		return strings.Replace(linkMsg(state), "link", "code", 1)
+	}
+	return linkMsg(state)
 }
 
 // linkUsed reads whether the link was burned (by another call that decided first).
@@ -438,15 +459,8 @@ func (s *Service) approverValid(ctx context.Context, rec tokenRow, st Settings) 
 	if !ok || u.Disabled || (u.Role != "operator" && u.Role != "admin") || !strings.EqualFold(strings.TrimSpace(rec.address), u.Email) {
 		return u, false, nil
 	}
-	if !slices.Contains(st.ApprovalChannels, rec.channel) {
-		return u, false, nil
-	}
-	chans, err := s.channels(ctx)
-	if err != nil {
+	if ok, err := s.channelReady(ctx, st, rec.channel); err != nil || !ok {
 		return u, false, err
-	}
-	if !slices.ContainsFunc(chans, func(c NotifyChannel) bool { return c.Type == rec.channel && chanReady(c) }) {
-		return u, false, nil
 	}
 	list, err := s.cfg.Notifier.Approvers(ctx, rec.channel)
 	if err != nil {
@@ -457,34 +471,51 @@ func (s *Service) approverValid(ctx context.Context, rec tokenRow, st Settings) 
 	}), nil
 }
 
-// tokenGate runs first inside the decision transaction of a link: the token must still be there, unused and not ended. This is what makes
+// channelReady is true when the channel is one of the approval channels of this module and is ready to take approvals.
+func (s *Service) channelReady(ctx context.Context, st Settings, ch string) (bool, error) {
+	if !slices.Contains(st.ApprovalChannels, ch) {
+		return false, nil
+	}
+	chans, err := s.channels(ctx)
+	if err != nil {
+		return false, err
+	}
+	return slices.ContainsFunc(chans, func(c NotifyChannel) bool { return c.Type == ch && chanReady(c) }), nil
+}
+
+// tokenGate runs first inside the decision transaction of a link or a reply code: the token must still be there, unused and not ended. This is what makes
 // the loser of two POSTs at once see "used" and not a refusal about the request. It reads only.
-func tokenGate(ctx context.Context, tx dbq, hash string, now time.Time) (*apierr.Error, error) {
+func tokenGate(ctx context.Context, tx dbq, lk *linkOpt, now time.Time) (*apierr.Error, error) {
 	var expires string
 	var used sql.NullString
-	err := tx.QueryRowContext(ctx, `SELECT expires_at, used_at FROM resp_tokens WHERE token_hash = ? AND kind = 'link'`, hash).Scan(&expires, &used)
+	err := tx.QueryRowContext(ctx, `SELECT expires_at, used_at FROM resp_tokens WHERE token_hash = ? AND kind = ?`, lk.hash, lk.tokenKind()).Scan(&expires, &used)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return errUnknownLink(), nil
 	case err != nil:
-		return nil, fmt.Errorf("response: read an approval link: %w", err)
+		return nil, fmt.Errorf("response: read an approval token: %w", err)
 	case used.Valid:
-		return fail(http.StatusConflict, "used", linkMsg("used")), nil
+		return fail(http.StatusConflict, "used", lk.msg("used")), nil
 	case !parseTS(expires).After(now):
-		return fail(http.StatusConflict, "expired", linkMsg("expired")), nil
+		return fail(http.StatusConflict, "expired", lk.msg("expired")), nil
 	}
 	return nil, nil
 }
 
-// burnToken marks the link used. It is the last step before a decision is recorded, in the same transaction; no row changed means
-// someone else used it first.
-func burnToken(ctx context.Context, tx *sql.Tx, hash, at string) (*apierr.Error, error) {
-	res, err := tx.ExecContext(ctx, `UPDATE resp_tokens SET used_at = ? WHERE token_hash = ? AND kind = 'link' AND used_at IS NULL`, at, hash)
+// burnToken marks the link or reply code used. It is the last step before a decision is recorded, in the same transaction; no row changed means
+// someone else used it first. A reply code also burns the other code (approve or reject) of the same person for the same request (spec 7.1).
+func burnToken(ctx context.Context, tx *sql.Tx, lk *linkOpt, at string) (*apierr.Error, error) {
+	res, err := tx.ExecContext(ctx, `UPDATE resp_tokens SET used_at = ? WHERE token_hash = ? AND kind = ? AND used_at IS NULL`, at, lk.hash, lk.tokenKind())
 	if err != nil {
-		return nil, fmt.Errorf("response: burn an approval link: %w", err)
+		return nil, fmt.Errorf("response: burn an approval token: %w", err)
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
-		return fail(http.StatusConflict, "used", linkMsg("used")), nil
+		return fail(http.StatusConflict, "used", lk.msg("used")), nil
+	}
+	if lk.kind == "code" {
+		if _, err := tx.ExecContext(ctx, `UPDATE resp_tokens SET used_at = ? WHERE kind = 'code' AND action_id = ? AND user_id = ? AND used_at IS NULL`, at, lk.requestID, lk.userID); err != nil {
+			return nil, fmt.Errorf("response: burn the other reply code: %w", err)
+		}
 	}
 	return nil, nil
 }

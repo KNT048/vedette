@@ -399,6 +399,28 @@ type Actor struct {
 	Name  string
 	Email string
 	Via   Via
+	Chat  string // a decision made in chat: the sender's id on that platform (INV-3), part of the actor text in the log
+}
+
+// logActor is the actor of an approval or rejection in resp_log and core_audit: "<name> via <channel> (<ExternalID>)" for chat (D-96 (5)),
+// "<email> (<via>)" for the rest.
+func (a Actor) logActor() string {
+	if a.Chat == "" {
+		return a.Email + " (" + string(a.Via) + ")"
+	}
+	name := truncRunes(cleanLine(a.Name), 80)
+	if name == "" {
+		name = truncRunes(cleanLine(a.Email), 80)
+	}
+	return name + " via " + string(a.Via) + " (" + truncRunes(cleanLine(a.Chat), 64) + ")"
+}
+
+// refuseActor is the actor of a refusal: the same text as an approval for chat, the email for the rest.
+func (a Actor) refuseActor() string {
+	if a.Chat == "" {
+		return a.Email
+	}
+	return a.logActor()
 }
 
 // System is the actor of what the box does by itself.

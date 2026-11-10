@@ -116,7 +116,7 @@ func (s *Service) approve(ctx context.Context, who Actor, id string, pick []stri
 	pick = dedupe(pick)                                  // a repeated id must not pass for a different selection
 	stepped, err := s.aiStepUp(ctx, who, id, pick, code) // INV-16: before the transaction, so a refused code is not a half approval
 	if err != nil {
-		return ActionRequest{}, s.refuse(ctx, err, id, who.Email)
+		return ActionRequest{}, s.refuse(ctx, err, id, who.refuseActor())
 	}
 	var refusal error
 	var final bool
@@ -134,8 +134,8 @@ func (s *Service) approve(ctx context.Context, who Actor, id string, pick []stri
 				return nil
 			}
 			now := s.now()
-			if lk != nil {
-				e, err := tokenGate(ctx, tx, lk.hash, now)
+			if lk.token() {
+				e, err := tokenGate(ctx, tx, lk, now)
 				if err != nil {
 					return err
 				}
@@ -252,8 +252,8 @@ func (s *Service) approve(ctx context.Context, who Actor, id string, pick []stri
 				}
 			}
 			at := store2(now)
-			if lk != nil { // every gate passed: this is the decision, so the link is used up with it
-				e, err := burnToken(ctx, tx, lk.hash, at)
+			if lk.token() { // every gate passed: this is the decision, so the link is used up with it
+				e, err := burnToken(ctx, tx, lk, at)
 				if err != nil {
 					return err
 				}
@@ -270,7 +270,7 @@ func (s *Service) approve(ctx context.Context, who Actor, id string, pick []stri
 				titles = append(titles, i.Title)
 			}
 			if err := s.step(ctx, tx, "response.approve", a.ID, LogApproved,
-				a.Title+", approved by "+who.Email+" via "+string(who.Via)+": "+strings.Join(titles, "; ")+" (approval "+itoa(len(a.Approvals))+" of "+itoa(need)+")", who.Email+" ("+string(who.Via)+")"); err != nil {
+				a.Title+", approved by "+who.Email+" via "+string(who.Via)+": "+strings.Join(titles, "; ")+" (approval "+itoa(len(a.Approvals))+" of "+itoa(need)+")", who.logActor()); err != nil {
 				return err
 			}
 			humans := 0 // an automatic approval (via=auto) never counts towards two approvers (INV-2)
@@ -306,7 +306,7 @@ func (s *Service) approve(ctx context.Context, who Actor, id string, pick []stri
 	}
 	s.run(ctx, &fx)
 	if refusal != nil {
-		return ActionRequest{}, s.refuse(ctx, refusal, id, who.Email)
+		return ActionRequest{}, s.refuse(ctx, refusal, id, who.refuseActor())
 	}
 	if final {
 		// The approval is committed: the items run to the end whether or not the approver is still connected (a closed
@@ -932,8 +932,8 @@ func (s *Service) reject(ctx context.Context, who Actor, id, reason, remember st
 				refusal = notFound()
 				return nil
 			}
-			if lk != nil {
-				e, err := tokenGate(ctx, tx, lk.hash, s.now())
+			if lk.token() {
+				e, err := tokenGate(ctx, tx, lk, s.now())
 				if err != nil {
 					return err
 				}
@@ -965,8 +965,8 @@ func (s *Service) reject(ctx context.Context, who Actor, id, reason, remember st
 			if reason = truncRunes(cleanLine(reason), 300); reason != "" {
 				note += ": " + reason
 			}
-			if lk != nil {
-				e, err := burnToken(ctx, tx, lk.hash, s.ts())
+			if lk.token() {
+				e, err := burnToken(ctx, tx, lk, s.ts())
 				if err != nil {
 					return err
 				}
@@ -975,7 +975,7 @@ func (s *Service) reject(ctx context.Context, who Actor, id, reason, remember st
 					return nil
 				}
 			}
-			if err := s.step(ctx, tx, "response.reject", r.ID, LogRejected, r.Title+", rejected by "+who.Email+" via "+string(who.Via)+": "+reason, who.Email+" ("+string(who.Via)+")"); err != nil {
+			if err := s.step(ctx, tx, "response.reject", r.ID, LogRejected, r.Title+", rejected by "+who.Email+" via "+string(who.Via)+": "+reason, who.logActor()); err != nil {
 				return err
 			}
 			r.Status, r.DecidedAt, r.Note = StatusRejected, strp(s.ts()), &note
@@ -1002,7 +1002,7 @@ func (s *Service) reject(ctx context.Context, who Actor, id, reason, remember st
 	}
 	s.run(ctx, &fx)
 	if refusal != nil {
-		return ActionRequest{}, s.refuse(ctx, refusal, id, who.Email)
+		return ActionRequest{}, s.refuse(ctx, refusal, id, who.refuseActor())
 	}
 	return s.get(ctx, id)
 }

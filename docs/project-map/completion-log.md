@@ -2,7 +2,7 @@
 
 ## 2026-11-10 (tối) — WP-07b phần 3 hoàn tất; sensor nuclei, SP-5a, TLS, CI nhanh; scan S2–S4 của Emily
 
-Phiên Ubuntu của anh Trưởng. Giờ địa phương; mọi PR dưới đây đã merge vào `main` (CI go + web xanh), tới `557a84e`. Mỗi lát: Sonnet làm → Opus rà → sửa → PR → merge-step. Mỗi dòng một PR, mới nhất trước.
+Phiên Ubuntu của anh Trưởng. Giờ địa phương; mọi PR dưới đây đã merge vào `main` (CI go + web xanh), tới `bfc6ec3`. Mỗi lát: Sonnet làm → Opus rà → sửa → PR → merge-step. Mỗi dòng một PR, mới nhất trước.
 
 - **#166** docs: D-145, quyết định scan S4 từ #164; duyệt kết quả quét lại `pick_only` và `stopped`.
 - **#165** `core/conn`: câu trả lời đua với hạn của người gọi là timeout, không phải thành công rỗng. Nguyên nhân gốc của "flake" `TestHTTPSDeadlineEndsAHungCall` (thấy ở #162): `net/http` ưu tiên phản hồi đua với hết giờ của ctx, `Do` không kiểm `ctx.Err`. Là lỗi sản phẩm thật.

@@ -17,7 +17,7 @@ Sau M2 đã **dùng được** cho P1/P2 (alert theo khai tay). Sau M3 là sản
 
 ## Trạng thái 2026-11-10
 
-Bảng mốc ở trên không ghi trạng thái; đây là tình hình theo gói việc (WP, `docs/TEAM_PLAN.md` §3), đo từ `origin/main` 557a84e và các PR đã merge (làm mới tối 2026-11-10). Chi tiết từng PR: `docs/project-map/completion-log.md`; việc kế tiếp: `.ai/tasks/kien.md`, `.ai/tasks/emily.md`.
+Bảng mốc ở trên không ghi trạng thái; đây là tình hình theo gói việc (WP, `docs/TEAM_PLAN.md` §3), đo từ `origin/main` bfc6ec3 và các PR đã merge (làm mới tối 2026-11-10). Chi tiết từng PR: `docs/project-map/completion-log.md`; việc kế tiếp: `.ai/tasks/kien.md`, `.ai/tasks/emily.md`.
 
 | Mốc | Trạng thái | Theo WP |
 |---|---|---|

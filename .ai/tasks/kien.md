@@ -2,7 +2,7 @@
 
 > **Bàn giao 2026-11-10:** anh Trưởng làm tiếp phần của Kiên. Điểm bắt đầu, việc còn lại theo thứ tự tới khi xong, công cụ: `.ai/handoff/README.md`.
 
-Cập nhật: 2026-11-10 tối (phiên Ubuntu của anh Trưởng; `origin/main` = 557a84e). Sở hữu: core, host, đóng gói/phát hành, inventory, sensor-passive, sensor-active, response, honeypot, rà bảo mật; **cộng mọi việc chồng lấn/dùng chung (D-65)**.
+Cập nhật: 2026-11-10 tối (phiên Ubuntu của anh Trưởng; `origin/main` = bfc6ec3). Sở hữu: core, host, đóng gói/phát hành, inventory, sensor-passive, sensor-active, response, honeypot, rà bảo mật; **cộng mọi việc chồng lấn/dùng chung (D-65)**.
 File này là **file handoff duy nhất** của phiên AI làm việc cho Kiên: sau compact/restart đọc lại trước khi làm tiếp. Bản sao trạng thái sống của lead (brief, worktree, job chờ merge) ở `../vedette-wt/LEAD-STATE.md` trên máy Kiên; file này là bản trong repo.
 
 ## Repo và quy trình (đọc trước)

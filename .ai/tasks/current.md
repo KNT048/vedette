@@ -11,7 +11,7 @@ Cập nhật: 2026-11-10. Repo: `KNT048/vedette` (public từ 2026-11-09, D-63; 
 4. Hợp đồng module của WP: `modules/<id>/CONTRACT.md`, cùng `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/API_CONVENTIONS.md`, `docs/specs/`.
 5. `docs/QA.md` — bắt buộc cho mọi màn hình (ma trận form + kịch bản, người làm ≠ người kiểm).
 
-## Hiện trạng (2026-11-10 tối, `origin/main` 557a84e)
+## Hiện trạng (2026-11-10 tối, `origin/main` bfc6ec3)
 - **M1 xong** (2026-11-09): giao diện đầy đủ trên mock API (`web/`), chỉ tiếng Anh. Bản build không còn mang mock (#86).
 - **M2 (backend) đang chạy** theo `docs/TEAM_PLAN.md` §3. **Đường găng WP-04 xong** (#58) và **đường găng WP-13b xong** (#105). Phía Kiên đã merge: core, inventory, sensor-passive/active (kể cả nmap/capture/nuclei từ xa qua mTLS, SP-3b, SP-5a), honeypot, response 13a + 13b lát 0–10 trừ 13b-11, host 07a/07b **hoàn tất** (phần 3 lát 3-0…3-8b), healthcheck, TLS tự cấp lại, CI nhanh. Phía Emily đã merge: feeds, findings, mitigation, notify, exposure/tự dò IP, scan S0–S3 (S4 là #164), ai lát 1. Trạng thái từng WP: `docs/ROADMAP.md` mục "Trạng thái 2026-11-10".
 - **Đang mở**: #168 (flake ARP + `host_unreachable`), SP-5b (nhánh `feat/sensor-images`, chưa PR); của Emily #164 (scan S4).

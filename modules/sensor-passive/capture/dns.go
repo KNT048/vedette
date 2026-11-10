@@ -1,4 +1,4 @@
-package sensorpassive
+package capture
 
 import (
 	"encoding/binary"

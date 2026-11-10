@@ -20,15 +20,7 @@ import (
 	"github.com/knt048/vedette/internal/jsonstrict"
 )
 
-var (
-	// ErrDropped says a batch was given up on: the server refused it in a way a retry cannot fix (D-112 (4)). It is counted in
-	// Stats and wraps the *Error when there was one.
-	ErrDropped = errors.New("sensorlink: batch dropped")
-	// ErrModuleOff says the module of this role is off (409 module_off): stop at once and drop the queue, no last batch
-	// (SYS-5, D-80 (4)).
-	ErrModuleOff = errors.New("sensorlink: module off")
-	errReply     = errors.New("sensorlink: unusable reply")
-)
+var errReply = errors.New("sensorlink: unusable reply")
 
 // reloadRetry is how long a client waits before reading a credentials file again after it read one it could not use.
 const reloadRetry = 5 * time.Second
@@ -41,32 +33,27 @@ type ClientOptions struct {
 	CredsPath string
 	// Now is the clock of the TLS checks. nil means time.Now.
 	Now func() time.Time
-	// Sleep waits for d or until ctx ends. nil waits on a timer.
-	Sleep func(ctx context.Context, d time.Duration) error
 	// Rand returns a number in [0,1) for the jitter. nil uses math/rand/v2.
 	Rand func() float64
 }
 
 // ClientStats counts what the client did that a person looking at a heartbeat would want to know.
 type ClientStats struct {
-	Dropped uint64 // batches given up on
-	Retries uint64 // sends repeated after a failure
 	Reloads uint64 // times a new credentials bundle was read
 }
 
 // Client is the sensor side of the protocol.
 type Client struct {
-	base  *url.URL
-	path  string
-	now   func() time.Time
-	sleep func(ctx context.Context, d time.Duration) error
-	rnd   func() float64
+	base *url.URL
+	path string
+	now  func() time.Time
+	rnd  func() float64
 
 	mu      sync.Mutex
 	st      *clientState
 	nextTry time.Time
 
-	dropped, retries, reloads atomic.Uint64
+	reloads atomic.Uint64
 }
 
 type clientState struct {
@@ -82,12 +69,9 @@ func NewClient(o ClientOptions) (*Client, error) {
 	if err != nil || u.Scheme != "https" || u.Host == "" || u.Path != "" && u.Path != "/" {
 		return nil, errors.New("sensorlink: base URL must be https://host:port")
 	}
-	c := &Client{base: u, path: o.CredsPath, now: o.Now, sleep: o.Sleep, rnd: o.Rand}
+	c := &Client{base: u, path: o.CredsPath, now: o.Now, rnd: o.Rand}
 	if c.now == nil {
 		c.now = time.Now
-	}
-	if c.sleep == nil {
-		c.sleep = sleepCtx
 	}
 	if c.rnd == nil {
 		c.rnd = rand.Float64
@@ -104,20 +88,18 @@ func NewClient(o ClientOptions) (*Client, error) {
 	return c, nil
 }
 
-func sleepCtx(ctx context.Context, d time.Duration) error {
-	t := time.NewTimer(d)
-	defer t.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-t.C:
-		return nil
-	}
+// CloseIdleConnections closes the connections the client keeps open and idle (tests count goroutines with it; a rotation of the
+// bundle does the same on its own).
+func (c *Client) CloseIdleConnections() {
+	c.mu.Lock()
+	st := c.st
+	c.mu.Unlock()
+	st.tr.CloseIdleConnections()
 }
 
 // Stats returns the counters.
 func (c *Client) Stats() ClientStats {
-	return ClientStats{Dropped: c.dropped.Load(), Retries: c.retries.Load(), Reloads: c.reloads.Load()}
+	return ClientStats{Reloads: c.reloads.Load()}
 }
 
 // newState builds the state for a bundle with a transport of its own. Every reload gets a new transport, not only a new CA: an
@@ -345,57 +327,13 @@ func (c *Client) PostResult(ctx context.Context, id string, res *JobResult) erro
 	return err
 }
 
-// SendObservations delivers one batch the way D-112 (4) says, and returns when it was delivered (the 200, with the items it
-// rejected, which are never sent again), given up on (ErrDropped), or ctx ended.
-//   - no answer (connection error, core restarting): the same batch again after a backoff;
-//   - 429 and 503: the same batch after the longer of Retry-After and the backoff;
-//   - 426: the same batch after the backoff, however long it takes: the queue is kept while core is being updated;
-//   - 403 cert_retired: the credentials file is read again, then the same batch after the backoff;
-//   - 409 module_off: ErrModuleOff at once;
-//   - 413: onTooLarge gets the batch and returns the half to send now (it keeps the other half for later); nil, or a batch
-//     of one item, drops it;
-//   - any other status: dropped, counted.
-func (c *Client) SendObservations(ctx context.Context, req *ObservationsRequest, onTooLarge func(*ObservationsRequest) *ObservationsRequest) (ObservationsReply, error) {
-	bo := NewBackoff(c.rnd)
-	for {
-		var rep ObservationsReply
-		_, err := c.do(ctx, http.MethodPost, PathPrefix+"/observations", nil, nil, req, &rep, MaxOtherReply, 60*time.Second)
-		if err == nil {
-			return rep, nil
-		}
-		if ctx.Err() != nil {
-			return ObservationsReply{}, ctx.Err()
-		}
-		wait := bo.Next()
-		var e *Error
-		switch {
-		case !errors.As(err, &e): // no answer, or one we cannot read: try the same batch again
-		case e.Code == CodeModuleOff:
-			return ObservationsReply{}, ErrModuleOff
-		case e.Status == http.StatusRequestEntityTooLarge:
-			if onTooLarge == nil || len(req.Items) <= 1 {
-				return ObservationsReply{}, c.drop(err)
-			}
-			smaller := onTooLarge(req)
-			if smaller == nil || len(smaller.Items) == 0 || len(smaller.Items) >= len(req.Items) {
-				return ObservationsReply{}, c.drop(err)
-			}
-			req = smaller
-			continue
-		case e.Status == http.StatusTooManyRequests || e.Status == http.StatusServiceUnavailable:
-			wait = max(wait, e.RetryAfter)
-		case e.Status == http.StatusUpgradeRequired || e.Code == CodeCertRetired:
-		default:
-			return ObservationsReply{}, c.drop(err)
-		}
-		c.retries.Add(1)
-		if err := c.sleep(ctx, min(wait, BackoffCap)); err != nil {
-			return ObservationsReply{}, err
-		}
+// PostObservations makes one attempt to deliver one batch and returns core's answer or the error: an *Error for an answer
+// that is not a 200 (RetryAfter capped at BackoffCap), anything else when there was no usable answer. It never retries and never
+// sleeps: the capture process decides what a failure means for its queue and gives every attempt a seq of its own (D-122 (2)).
+func (c *Client) PostObservations(ctx context.Context, req *ObservationsRequest) (ObservationsReply, error) {
+	var rep ObservationsReply
+	if _, err := c.do(ctx, http.MethodPost, PathPrefix+"/observations", nil, nil, req, &rep, MaxOtherReply, 60*time.Second); err != nil {
+		return ObservationsReply{}, err
 	}
-}
-
-func (c *Client) drop(err error) error {
-	c.dropped.Add(1)
-	return fmt.Errorf("%w: %w", ErrDropped, err)
+	return rep, nil
 }

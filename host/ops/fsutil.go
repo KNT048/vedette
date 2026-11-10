@@ -196,3 +196,14 @@ func privateTempDir(parent, prefix string) (string, func(), error) {
 func createNew(path string) (*os.File, error) {
 	return os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) //nolint:gosec // inside a fresh private temp dir
 }
+
+// openRootOf opens a directory of the host's own state as an os.Root.
+func openRootOf(dir string) (*os.Root, error) { return os.OpenRoot(dir) }
+
+// removeIfThere deletes a file of the host's own state; a missing file is success.
+func removeIfThere(path string) error {
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
+}

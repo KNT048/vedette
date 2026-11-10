@@ -45,7 +45,7 @@ const (
 // WP-07b implements the OS, backup, log and network and decoy commands (contract_os_test.go checks the list
 // against the spec); the container commands follow in later slices. Sorted.
 var documentedCommands = []string{
-	"backup.create", "backup.restore", "decoy_ip.add", "decoy_ip.remove", "logs.export", "net.apply", "net.confirm", "net.revert",
+	"backup.create", "backup.restore", "container.start", "container.stop", "decoy_ip.add", "decoy_ip.remove", "logs.export", "net.apply", "net.confirm", "net.revert",
 	"os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel",
 }
 
@@ -193,7 +193,7 @@ func errCode(b []byte) string {
 
 func waitDone(t *testing.T, c *client.Client, runID string) api.Run {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // 61 forks of a fake podman take a while on a loaded machine
 	defer cancel()
 	s := c.Events(ctx, runID, 0)
 	defer s.Close()

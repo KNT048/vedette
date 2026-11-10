@@ -168,7 +168,7 @@ func (q *Queries) InsertConnection(ctx context.Context, arg InsertConnectionPara
 }
 
 const insertConnectionTool = `-- name: InsertConnectionTool :exec
-INSERT INTO core_connection_tool (connection_id, name, pos, access, description, enabled) VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO core_connection_tool (connection_id, name, pos, access, description, enabled, ident) VALUES (?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertConnectionToolParams struct {
@@ -178,6 +178,7 @@ type InsertConnectionToolParams struct {
 	Access       string
 	Description  string
 	Enabled      bool
+	Ident        string
 }
 
 func (q *Queries) InsertConnectionTool(ctx context.Context, arg InsertConnectionToolParams) error {
@@ -188,12 +189,13 @@ func (q *Queries) InsertConnectionTool(ctx context.Context, arg InsertConnection
 		arg.Access,
 		arg.Description,
 		arg.Enabled,
+		arg.Ident,
 	)
 	return err
 }
 
 const listConnectionTools = `-- name: ListConnectionTools :many
-SELECT connection_id, name, pos, access, description, enabled FROM core_connection_tool ORDER BY connection_id, pos
+SELECT connection_id, name, pos, access, description, enabled, ident FROM core_connection_tool ORDER BY connection_id, pos
 `
 
 func (q *Queries) ListConnectionTools(ctx context.Context) ([]CoreConnectionTool, error) {
@@ -212,6 +214,7 @@ func (q *Queries) ListConnectionTools(ctx context.Context) ([]CoreConnectionTool
 			&i.Access,
 			&i.Description,
 			&i.Enabled,
+			&i.Ident,
 		); err != nil {
 			return nil, err
 		}
@@ -294,7 +297,7 @@ func (q *Queries) ListConnections(ctx context.Context) ([]ListConnectionsRow, er
 }
 
 const listToolsOfConnection = `-- name: ListToolsOfConnection :many
-SELECT connection_id, name, pos, access, description, enabled FROM core_connection_tool WHERE connection_id = ? ORDER BY pos
+SELECT connection_id, name, pos, access, description, enabled, ident FROM core_connection_tool WHERE connection_id = ? ORDER BY pos
 `
 
 func (q *Queries) ListToolsOfConnection(ctx context.Context, connectionID string) ([]CoreConnectionTool, error) {
@@ -313,6 +316,7 @@ func (q *Queries) ListToolsOfConnection(ctx context.Context, connectionID string
 			&i.Access,
 			&i.Description,
 			&i.Enabled,
+			&i.Ident,
 		); err != nil {
 			return nil, err
 		}

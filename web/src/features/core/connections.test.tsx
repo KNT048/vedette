@@ -44,6 +44,19 @@ describe('Settings → Connections: the page', () => {
     await expectNoA11yViolations()
   })
 
+  it('D-127: a new HTTP connection starts with its read tool off and warns that a GET can change a device', async () => {
+    as('u-admin')
+    await post('/core/connections', HTTP)
+    await post('/core/connections', SSH)
+    renderApp('/settings/connections')
+    await loaded()
+    const warning = 'Some devices change state on a GET (reboot, config). Turn this on only for read-only endpoints.'
+    expect(within(card('Lab API')).getByText(warning)).toBeInTheDocument()
+    expect(within(card('Lab API')).getByRole('switch', { name: 'Tool fetch_url enabled on Lab API' })).not.toBeChecked()
+    expect(within(card('Lab switch')).queryByText(warning)).toBeNull()
+    expect(within(card('Lab switch')).getByRole('switch', { name: 'Tool run_allowed_command enabled on Lab switch' })).toBeChecked()
+  })
+
   it('is a core page: it opens with the AI module off', async () => {
     const { modulesStore } = await import('@/mocks/stores')
     modulesStore.update((l) => l.map((m) => (m.id === 'ai' ? { ...m, enabled: false } : m)))
@@ -325,6 +338,8 @@ describe('Settings → Connections: form matrix (docs/QA.md §2): every kind x e
     expect(tools[2]).toEqual(['get_config:read', 'apply_config:write'])
     expect(tools[3]).toEqual(['list_jobs:read', 'launch_job:write'])
     for (const r of made) for (const t of r.json.tools) if (t.access === 'write') expect(t.enabled, t.name).toBe(false)
+    // D-127: a read tool of an HTTP kind starts off too (a GET can change a device); an SSH read tool is an exact command and stays on
+    expect(made.map((r) => r.json.tools[0]!.enabled)).toEqual([false, true, false, false, false])
     expect(made[2]!.json.username).toBe('admin')
     expect(made[0]!.json.username).toBeNull() // a token has no user name, even when one is sent
     expect(JSON.stringify(made.map((r) => r.json))).not.toMatch(/vendor|fortinet|mikrotik|pfsense|supersecret|a-long-enough/i)

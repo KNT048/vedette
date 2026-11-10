@@ -11,6 +11,7 @@ import (
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/conn"
+	"github.com/knt048/vedette/core/conn/read"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
@@ -42,10 +43,13 @@ type deps struct {
 	Auth    *auth.Service // sessions, sign-in and two-step (core/auth)
 	// BaseURL is the address people open Vedette at (links in notify messages); empty on loopback, see baseURL.
 	BaseURL string
-	Conn    *conn.Service         // connections to devices (core/conn, D-93): core's handlers, response and the Privacy page share it
-	Core    *core.APIHandlers     // core's own operations (sign-in, account, users, setup, audit, general settings)
-	OS      *core.OSHandlers      // operating system updates and the backup download, on top of vedette-host
-	Network *core.NetworkHandlers // Box network (S-CORE-8, routes of the host module) on top of vedette-host
+	Conn    *conn.Service // connections to devices (core/conn, D-93): core's handlers, response and the Privacy page share it
+	// ConnReader lists and calls the read tools of the connections (core/conn/read, D-93 (3)). The ai module (WP-25) is given this and nothing
+	// else of core/conn: not the *conn.Service and not the writer, which only response gets. nil when there is no Conn.
+	ConnReader *read.Reader
+	Core       *core.APIHandlers     // core's own operations (sign-in, account, users, setup, audit, general settings)
+	OS         *core.OSHandlers      // operating system updates and the backup download, on top of vedette-host
+	Network    *core.NetworkHandlers // Box network (S-CORE-8, routes of the host module) on top of vedette-host
 	// HostSocket is the unix socket of vedette-host ("" = this install has none: every OS endpoint answers 409 not_appliance).
 	// DataDir is core_data, the directory of the database file; KeyPath the master key file: both feed the snapshots of host-api 6.11.
 	HostSocket, DataDir, KeyPath string

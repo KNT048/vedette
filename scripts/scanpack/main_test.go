@@ -132,6 +132,9 @@ func TestBuildKeepsOnlySafeKEVTemplates(t *testing.T) {
 		"bad id":               strings.Replace(httpKEV, "id: CVE-2024-3400", "id: -rf", 1),
 		"not yaml":             "id: [unclosed",
 		"no protocol":          "id: CVE-2024-1111\ninfo:\n  classification:\n    cve-id: CVE-2024-1111\n  tags: kev\n",
+		"fuzzing":              strings.Replace(httpKEV, "  - method: GET\n", "  - method: GET\n    fuzzing:\n      - part: query\n", 1),
+		"payloads":             strings.Replace(httpKEV, "  - method: GET\n", "  - method: GET\n    attack: pitchfork\n    payloads:\n      a: [x]\n", 1),
+		"race":                 strings.Replace(httpKEV, "  - method: GET\n", "  - method: GET\n    race: true\n    race_count: 5\n", 1),
 		"control char request": strings.Replace(httpKEV, "{{BaseURL}}/global-protect/login.esp", "{{BaseURL}}/a\\u0001", 1),
 	}
 	for name, text := range left {
@@ -188,6 +191,9 @@ func TestBuildKeepsOnlySafeKEVTemplates(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if rep.Left["http feature"] != 3 {
+		t.Errorf("fuzzing, payloads and race templates must each be left out: %+v", rep.Left)
 	}
 	for _, reason := range []string{"tags", "forbidden tag", "interactsh", "protocol", "cve", "id", "yaml", "request"} {
 		if rep.Left[reason] == 0 {

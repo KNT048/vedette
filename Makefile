@@ -10,7 +10,7 @@ include deploy/containers/pins.env
 CONTAINER ?= podman
 IMAGE_VERSION ?= 0.0.0-dev
 IMAGE_TAG ?= dev
-PIN_ARGS := $(foreach v,GOLANG_IMAGE DEBIAN_IMAGE DISTROLESS_IMAGE NUCLEI_VERSION NUCLEI_ZIP_SHA256_AMD64 NUCLEI_ZIP_SHA256_ARM64 NUCLEI_BIN_SHA256_AMD64 NUCLEI_BIN_SHA256_ARM64 NMAP_VERSION,--build-arg $(v)=$($(v))) --build-arg VERSION=$(IMAGE_VERSION)
+PIN_ARGS := $(foreach v,GOLANG_IMAGE DEBIAN_IMAGE DISTROLESS_IMAGE NUCLEI_VERSION NUCLEI_ZIP_SHA256_AMD64 NUCLEI_ZIP_SHA256_ARM64 NUCLEI_BIN_SHA256_AMD64 NUCLEI_BIN_SHA256_ARM64 NMAP_MIN_VERSION SCAN_PACK_VERSION,--build-arg $(v)=$($(v))) --build-arg VERSION=$(IMAGE_VERSION)
 PACK_DIR := deploy/containers/scan-base/pack
 
 # Chỉ dựng/kiểm trên Linux hoặc macOS (sản phẩm chạy Linux; test dùng syscall Unix). Windows: dùng WSL2 (D-62).
@@ -179,9 +179,10 @@ sensor-image:
 core-image:
 	$(CONTAINER) build -f deploy/containers/core/Containerfile $(PIN_ARGS) -t localhost/vedette-core:$(IMAGE_TAG) .
 
-# The safe template pack: pinned download of nuclei-templates, filter, index (scripts/scanpack). The folder must not exist yet; `make clean` removes it.
+# The safe template pack: pinned download of nuclei-templates, filter, index (scripts/scanpack). Rebuilt (the folder removed first) whenever pins.env or the builder changes.
 scan-pack: $(PACK_DIR)/index.json
-$(PACK_DIR)/index.json:
+$(PACK_DIR)/index.json: deploy/containers/pins.env $(wildcard scripts/scanpack/*.go)
+	rm -rf $(PACK_DIR)
 	go run ./scripts/scanpack -src-version $(NUCLEI_TEMPLATES_VERSION) -src-sha256 $(NUCLEI_TEMPLATES_SHA256) -version $(SCAN_PACK_VERSION) -out $(PACK_DIR)
 
 # The published scan base: sensor binary + nuclei + the pack. NO nmap (D-4, D-113 (7)).
@@ -201,7 +202,7 @@ dev-sensors: scan-pack
 	docker compose --env-file deploy/containers/pins.env -f deploy/compose/compose.yaml --profile dev up --build
 
 dev-sensors-down:
-	docker compose --env-file deploy/containers/pins.env -f deploy/compose/compose.yaml --profile dev down --volumes --remove-orphans
+	docker compose --env-file deploy/containers/pins.env -f deploy/compose/compose.yaml --profile dev down --rmi local --volumes --remove-orphans
 
 # Up, a device that only the sensor can have seen appears in the inventory within a bound, down (D-146: not in CI yet).
 dev-sensors-smoke: scan-pack

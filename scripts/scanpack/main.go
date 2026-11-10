@@ -295,6 +295,9 @@ func qualify(rel string, body []byte) (pack.Template, string) {
 			return zero, "protocol"
 		}
 	}
+	if hasUnsafeHTTP(doc) {
+		return zero, "http feature"
+	}
 	lower := strings.ToLower(string(body))
 	if strings.Contains(lower, "interactsh") {
 		return zero, "interactsh"
@@ -324,6 +327,23 @@ func qualify(rel string, body []byte) (pack.Template, string) {
 	}
 	sum := sha256.Sum256(body)
 	return pack.Template{ID: id, CVE: cve, Path: rel, SHA256: hex.EncodeToString(sum[:]), Tags: tags, Request: req}, ""
+}
+
+// unsafeHTTPKeys are the keys of an http block that turn one check into many requests or into attack traffic: fuzzing, payload
+// lists with an attack mode, and race conditions (parallel requests). A pack check sends what its request line says, once.
+var unsafeHTTPKeys = []string{"fuzzing", "payloads", "attack", "race", "race_count", "pipeline", "threads"}
+
+func hasUnsafeHTTP(doc map[string]any) bool {
+	blocks, _ := doc["http"].([]any)
+	for _, b := range blocks {
+		m, _ := b.(map[string]any)
+		for _, k := range unsafeHTTPKeys {
+			if _, has := m[k]; has {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // tagsOf reads info.tags (a comma list or a YAML list), lower-cased; a tag the index would refuse is dropped, which cannot hide a

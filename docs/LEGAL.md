@@ -7,7 +7,7 @@ kien, 2026-11-06: mọi thứ liên quan luật pháp, giấy phép, cookie ph�
 - Mã Vedette: **Apache-2.0** (`LICENSE`). `NOTICE` ghi tên dự án và bản quyền; người phân phối lại phải giữ `LICENSE` + `NOTICE`.
 - Thành phần bên thứ ba: liệt kê trong `THIRD_PARTY_NOTICES.md` (tên, phiên bản, giấy phép, cách dùng: nhúng / tiến trình riêng / dữ liệu). CI chạy kiểm tra giấy phép (`go-licenses`, `license-checker` cho npm); GPL/AGPL không được nhúng vào binary — chỉ tiến trình/container riêng.
 - Dữ liệu phân phối lại từ trung tâm: mỗi file feed mang `license` và `attribution` trong `index.json`; UI hiện nguồn ở mọi dòng dữ liệu. Nguồn cấm phân phối lại không bao giờ vào trung tâm (D-2).
-- nmap: không phân phối; installer cài từ repo OS; không dùng tên/logo nmap trong marketing. Spamhaus: không dùng tên trong marketing; chờ xác nhận điều khoản nhúng.
+- nmap: không phân phối; không nằm trong image nào của dự án; `vedette-host` thêm nó trên hộp từ kho gói OS (`deploy/containers/scan/Containerfile.onbox`, D-146); không dùng tên/logo nmap trong marketing. Spamhaus: không dùng tên trong marketing; chờ xác nhận điều khoản nhúng.
 - Nhãn hiệu: "Vedette" là tên dự án; không dùng tên/logo hãng khác (Fortinet, Synology, CISA…) ngoài mục đích chỉ sản phẩm tương thích.
 
 ## 2. Dữ liệu cá nhân (Luật BVDLCN 91/2025, NĐ 356/2025, NĐ 330/2026)

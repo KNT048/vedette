@@ -27,7 +27,7 @@ func newPassiveFlags(stdout io.Writer) (*flag.FlagSet, passiveFlags) {
 		core:  fs.String("core", "https://127.0.0.1:8444", "address of core's sensor listener"),
 		creds: fs.String("creds", "/var/lib/vedette-creds/sensor.pem", "credentials bundle written by core (read only)"),
 		// ponytail: development only (the compose dev stack, D-146), no unit passes it; a recording is read in place of a card.
-		replay: fs.String("replay", "", "development only: read this pcap or pcapng recording instead of a card, whichever card core names (or none)"),
+		replay: fs.String("replay", "", "development only, never in a unit: read this pcap or pcapng recording (a developer's own capture or a public dev fixture, never a customer's) instead of a card, whichever card core names (or none)"),
 	}
 }
 

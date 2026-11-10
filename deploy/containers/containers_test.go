@@ -65,8 +65,17 @@ func TestPinsAreExact(t *testing.T) {
 	if !regexp.MustCompile(`^[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,4}$`).MatchString(p["SCAN_PACK_VERSION"]) {
 		t.Errorf("SCAN_PACK_VERSION=%q must be AAAA.M.N (modules/scan/pack)", p["SCAN_PACK_VERSION"])
 	}
-	if !regexp.MustCompile(`^[0-9][0-9A-Za-z.+~-]*$`).MatchString(p["NMAP_VERSION"]) {
-		t.Errorf("NMAP_VERSION=%q is the exact Debian package version", p["NMAP_VERSION"])
+	if !regexp.MustCompile(`^[0-9]+\.[0-9]+$`).MatchString(p["NMAP_MIN_VERSION"]) {
+		t.Errorf("NMAP_MIN_VERSION=%q is the floor, major.minor, of the nmap the box installs", p["NMAP_MIN_VERSION"])
+	}
+	if _, has := p["NMAP_VERSION"]; has {
+		t.Error("nmap is not pinned to an exact version (D-146 (11)): security fixes must flow in")
+	}
+	// the golang build image is the Go of go.mod
+	goMod := read(t, "../../go.mod")
+	m := regexp.MustCompile(`(?m)^go ([0-9]+\.[0-9]+\.[0-9]+)$`).FindStringSubmatch(goMod)
+	if m == nil || !strings.HasPrefix(p["GOLANG_IMAGE"], "docker.io/library/golang:"+m[1]+"-") {
+		t.Errorf("GOLANG_IMAGE=%q must be the Go of go.mod (%v)", p["GOLANG_IMAGE"], m)
 	}
 	for k, v := range p {
 		if strings.Contains(strings.ToLower(v), "latest") {
@@ -155,8 +164,12 @@ func TestNmapIsOnlyInTheOnBoxContainerfile(t *testing.T) {
 		}
 	}
 	on := read(t, "scan/Containerfile.onbox")
-	if !strings.Contains(on, `"nmap=${NMAP_VERSION}"`) || !strings.Contains(on, "FROM ${BASE_IMAGE}") {
-		t.Error("the on-box Containerfile must be FROM the signed scan-base and install the exact pinned nmap")
+	if !strings.Contains(on, "apt-get install -y --no-install-recommends nmap;") || !strings.Contains(on, "FROM ${BASE_IMAGE}") ||
+		!strings.Contains(on, "dpkg --compare-versions") || !strings.Contains(on, "NMAP_MIN_VERSION") {
+		t.Error("the on-box Containerfile must be FROM the signed scan-base, install the current nmap and check the version floor by effect")
+	}
+	if strings.Contains(on, "nmap=") {
+		t.Error("the on-box Containerfile must not pin an exact nmap version (D-146 (11))")
 	}
 }
 
@@ -170,6 +183,9 @@ func TestScanBaseVerifiesNucleiAndPlacesThePack(t *testing.T) {
 		if !strings.Contains(text, want) {
 			t.Errorf("scan-base/Containerfile: missing %q", want)
 		}
+	}
+	if !strings.Contains(text, "ARG SCAN_PACK_VERSION") || !strings.Contains(text, `index.json is not pack version ${SCAN_PACK_VERSION}`) {
+		t.Error("scan-base must fail when index.json is not the pinned pack version (a stale pack)")
 	}
 	if strings.Contains(text, "nuclei -update") || strings.Contains(text, "-ut") {
 		t.Error("no template download or update in the image")

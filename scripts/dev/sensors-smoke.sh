@@ -18,7 +18,7 @@ jar=$(mktemp)
 down() {
 	trap '' EXIT INT TERM
 	rm -f "$jar"
-	dc down --volumes --remove-orphans >/dev/null 2>&1 || true
+	dc down --rmi local --volumes --remove-orphans >/dev/null 2>&1 || true
 }
 trap down EXIT INT TERM
 dc down --volumes --remove-orphans >/dev/null 2>&1 || true # a stack left by an earlier run would keep an old database

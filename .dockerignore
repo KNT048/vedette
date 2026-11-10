@@ -1,13 +1,12 @@
-# Build context of the images (deploy/containers/*/Containerfile, repository root): Go source and the scan pack only.
-.git
-.github
-.ai
-.claude
-.dev
-web
-docs
-bin
-dist
-*.db
-*.key
-*.pem
+# Build context of the images (deploy/containers/*/Containerfile, repository root), as an allowlist (D-146): the Go module and the one
+# folder of generated data the scan-base image copies. Anything new that a build needs must be listed here.
+*
+!go.mod
+!go.sum
+!cmd
+!core
+!modules
+!internal
+!content
+!host
+!deploy/containers/scan-base/pack

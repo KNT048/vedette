@@ -38,6 +38,9 @@ ok "scan-base: /usr/local/bin/nuclei sha256 $sum equals the pin"
 out=$($c run --rm --network none --read-only --tmpfs /tmp --env HOME=/tmp/h --entrypoint /usr/local/bin/nuclei "localhost/vedette-scan-base:$tag" -version -duc 2>&1) || fail "nuclei -version -duc exited non-zero offline: $out"
 echo "$out" | grep -q "Nuclei Engine Version: v$NUCLEI_VERSION" || fail "nuclei version line: $out"
 ok "scan-base: nuclei -version -duc exits 0 offline on an empty tmpfs HOME: $(echo "$out" | grep 'Engine Version' | sed 's/\x1b\[[0-9;]*m//g')"
+pv=$($c run --rm --entrypoint sh "localhost/vedette-scan-base:$tag" -c 'cat /usr/local/share/vedette/nuclei-pack/index.json' | grep -o '"version": "[^"]*"' | head -1 | cut -d'"' -f4)
+[ "$pv" = "$SCAN_PACK_VERSION" ] || fail "pack index version '$pv', pinned '$SCAN_PACK_VERSION' (stale pack)"
+ok "scan-base: pack index version $pv equals the pin"
 $c run --rm --entrypoint sh "localhost/vedette-scan-base:$tag" -c 'test -s /usr/local/share/vedette/nuclei-pack/index.json && ls /usr/share/vedette/nuclei-templates >/dev/null' || fail "pack index or templates missing"
 n=$($c run --rm --entrypoint sh "localhost/vedette-scan-base:$tag" -c 'find /usr/share/vedette/nuclei-templates -type f | wc -l')
 bad=$($c run --rm --entrypoint sh "localhost/vedette-scan-base:$tag" -c 'find /usr/share/vedette/nuclei-templates ! -type f ! -type d | wc -l')
@@ -48,5 +51,6 @@ ok "scan-base: no nmap (command -v nmap finds nothing)"
 
 mk scan-image
 got=$($c run --rm --entrypoint nmap "localhost/vedette-scan-nmap:$tag" --version | head -1)
-echo "$got" | grep -q "Nmap version ${NMAP_VERSION%%+*} " || fail "nmap --version: $got"
-ok "on-box image: $got"
+have=$(echo "$got" | sed -n 's/^Nmap version \([0-9][0-9]*\.[0-9][0-9]*\).*/\1/p')
+[ -n "$have" ] && [ "$(printf '%s\n%s\n' "$NMAP_MIN_VERSION" "$have" | sort -V | head -1)" = "$NMAP_MIN_VERSION" ] || fail "nmap --version '$got' is below the floor $NMAP_MIN_VERSION"
+ok "on-box image: $got (floor $NMAP_MIN_VERSION)"

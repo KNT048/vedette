@@ -33,7 +33,9 @@ RUN set -eu; \
       arm64) zip_sha="${NUCLEI_ZIP_SHA256_ARM64}"; bin_sha="${NUCLEI_BIN_SHA256_ARM64}" ;; \
       *) echo "unsupported TARGETARCH '${TARGETARCH}'" >&2; exit 1 ;; \
     esac; \
-    test -n "${NUCLEI_VERSION}" && test -n "${zip_sha}" && test -n "${bin_sha}"; \
+    [ -n "${NUCLEI_VERSION}" ] || exit 1; \
+    [ -n "${zip_sha}" ] || exit 1; \
+    [ -n "${bin_sha}" ] || exit 1; \
     curl -fsSL --max-time 300 -o /tmp/nuclei.zip "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_VERSION}/nuclei_${NUCLEI_VERSION}_linux_${TARGETARCH}.zip"; \
     echo "${zip_sha}  /tmp/nuclei.zip" | sha256sum -c -; \
     mkdir /out; unzip -q /tmp/nuclei.zip nuclei LICENSE.md -d /out; \
@@ -42,6 +44,7 @@ RUN set -eu; \
 
 FROM ${DEBIAN_IMAGE}
 ARG VERSION
+ARG SCAN_PACK_VERSION
 LABEL org.opencontainers.image.title="vedette-scan-base" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.source="https://github.com/KNT048/vedette" org.opencontainers.image.licenses="Apache-2.0 AND MIT"
 COPY --from=build /out/vedette-sensor /vedette-sensor
 COPY --from=nuclei /out/nuclei /usr/local/bin/nuclei
@@ -49,6 +52,10 @@ COPY --from=nuclei /out/LICENSE.md /usr/local/share/vedette/licenses/nuclei-LICE
 COPY deploy/containers/scan-base/pack/templates/ /usr/share/vedette/nuclei-templates/
 COPY deploy/containers/scan-base/pack/index.json /usr/local/share/vedette/nuclei-pack/index.json
 COPY deploy/containers/scan-base/pack/LICENSE-nuclei-templates.md /usr/local/share/vedette/licenses/nuclei-templates-LICENSE.md
-RUN chmod -R a+rX /usr/share/vedette /usr/local/share/vedette
+# (podman's COPY --chmod takes octal only and would apply it to folders too, so the modes are set here, for docker and podman alike)
+RUN set -eu; \
+    chmod -R a+rX /usr/share/vedette /usr/local/share/vedette; \
+    [ -n "${SCAN_PACK_VERSION}" ] || exit 1; \
+    grep -Fq "\"version\": \"${SCAN_PACK_VERSION}\"" /usr/local/share/vedette/nuclei-pack/index.json || { echo "index.json is not pack version ${SCAN_PACK_VERSION}: a stale pack (make scan-pack)" >&2; exit 1; }
 USER 65532:65532
 ENTRYPOINT ["/vedette-sensor"]

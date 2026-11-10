@@ -96,7 +96,7 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 	// place the registry is built: a closed list, frozen here.
 	sys, err := ops.New(ops.Config{
 		StateDir: *stateDir, CoreData: cfg.CoreData, CoreUnit: cfg.CoreUnit, Version: version,
-		CoreUID: cfg.CoreUID, CoreGID: cfg.CoreGID, OwnerUID: env.configOwner, Logger: env.logger,
+		CoreUID: cfg.CoreUID, CoreGID: cfg.CoreGID, SensorUID: cfg.SensorUID, SensorGID: cfg.SensorGID, OwnerUID: env.configOwner, Logger: env.logger,
 	})
 	if err != nil {
 		return err
@@ -132,6 +132,9 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 	}
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(ln) }()
+	// Only now, with the host active, can a unit that is After=vedette-host.service be restarted
+	// synchronously: put the services of an interrupted unit change back in the state they had (D-123).
+	go sys.AfterReady(ctx, srv)
 	select {
 	case err := <-serveErr:
 		return err

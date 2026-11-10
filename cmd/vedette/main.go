@@ -60,11 +60,13 @@ type options struct {
 	honeypotDir     string
 }
 
-func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
-	flags := flag.NewFlagSet("vedette", flag.ContinueOnError)
+// newFlags builds the flag set of the server and binds it to o. The test that checks the Exec= line of core's
+// Quadlet unit parses it with this same constructor (host/ops owns the unit text, D-123), so a flag renamed
+// here without the unit following fails a test.
+func newFlags(o *options, stdout io.Writer) (flags *flag.FlagSet, showVersion *bool) {
+	flags = flag.NewFlagSet("vedette", flag.ContinueOnError)
 	flags.SetOutput(stdout)
-	showVersion := flags.Bool("version", false, "print the version and exit")
-	var o options
+	showVersion = flags.Bool("version", false, "print the version and exit")
 	flags.StringVar(&o.db, "db", "/var/lib/vedette/vedette.db", "path of the SQLite database (created with mode 0600)")
 	flags.StringVar(&o.key, "key", "/var/lib/vedette/vedette.key", "path of the secrets master key file (created with mode 0600 when missing)")
 	flags.StringVar(&o.honeypotDir, "honeypot-dir", "/var/lib/vedette/honeypot", "parent of the two folders shared with the honeypot container: config/ (core writes opencanary.conf; the container mounts it read-only) and log/ (the container writes the trap log, core reads it) (D-89)")
@@ -74,6 +76,12 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	flags.StringVar(&o.tlsCert, "tls-cert", "", "PEM certificate for TLS (with -tls-key); when both are missing and -listen is not loopback, a self-signed pair is made next to the database")
 	flags.StringVar(&o.tlsKey, "tls-key", "", "PEM private key for TLS")
 	flags.StringVar(&o.hosts, "hosts", "", "comma-separated host names (a leading *. covers one label, like a wildcard certificate) and IP addresses the box answers to (Host header allowlist, 421 for others); default: the loopback names and the names of the certificate")
+	return flags, showVersion
+}
+
+func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
+	var o options
+	flags, showVersion := newFlags(&o, stdout)
 	if err := flags.Parse(args); err != nil {
 		return err
 	}

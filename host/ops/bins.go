@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	vexec "github.com/knt048/vedette/core/exec"
+	"github.com/knt048/vedette/host/api"
 )
 
 // Binary names in the command runner. The paths are constants of the appliance (Debian and Ubuntu
@@ -31,6 +32,9 @@ const (
 	// binIP is iproute2's ip (slice 3-5): the decoy links and, through "ip netns exec", the sysctl
 	// and nft of the honeypot namespace. sysctl and nft have no entries of their own.
 	binIP = "i" + "p" // two parts: the contract test that looks for network literals would take "ip" for a raw socket
+	// binPodman is Podman (slice 3-6): "container inspect <name>" only, to see the image digest and the
+	// health a service reports. Pull, tag and rmi come with slice 3-7.
+	binPodman = "podman"
 )
 
 var prodPaths = map[string]string{
@@ -42,6 +46,7 @@ var prodPaths = map[string]string{
 	binNetplan:   "/usr/sbin/netplan",
 	binChronyc:   "/usr/bin/chronyc",
 	binIP:        "/usr/sbin/ip",
+	binPodman:    "/usr/bin/podman",
 }
 
 // The fixed timers of unattended security updates (spec 6.3).
@@ -111,12 +116,21 @@ func validateJournal(args []string) error {
 	return nil
 }
 
-// validateSystemctl accepts the few verbs the OS commands need, on fixed units only: the core
-// unit from host.conf (stop/start/is-active, for restores and health), the two apt timers, reboot.
+// isServiceUnit says whether u is vedette-<service>.service for one of the five services: the only
+// units the container commands name, always built from the closed list, never from a request.
+func isServiceUnit(u string) bool {
+	return slices.ContainsFunc(api.Services, func(s string) bool { return u == unitOf(s) })
+}
+
+// validateSystemctl accepts the few verbs the OS and container commands need, on fixed units only:
+// the core unit from host.conf (stop/start/is-active, for restores and health), the two apt timers,
+// reboot, daemon-reload, and restart/stop/is-active of the five vedette-<service>.service units.
 func validateSystemctl(coreUnit string) func([]string) error {
 	return func(args []string) error {
 		switch {
-		case slices.Equal(args, []string{"reboot"}):
+		case slices.Equal(args, []string{"reboot"}), slices.Equal(args, []string{"daemon-reload"}):
+			return nil
+		case len(args) == 2 && (args[0] == "restart" || args[0] == "stop" || args[0] == "is-active") && isServiceUnit(args[1]):
 			return nil
 		case len(args) == 2 && coreUnit != "" && args[1] == coreUnit && (args[0] == "stop" || args[0] == "start" || args[0] == "is-active"):
 			return nil
@@ -168,6 +182,15 @@ func validateNetplanGenerate(args []string) error {
 	return nil
 }
 
+// validatePodman accepts exactly "container inspect vedette-<service>" for the five services.
+func validatePodman(args []string) error {
+	if len(args) == 3 && args[0] == "container" && args[1] == "inspect" &&
+		slices.ContainsFunc(api.Services, func(s string) bool { return args[2] == containerName(s) }) {
+		return nil
+	}
+	return errors.New("not one of the fixed podman command lines")
+}
+
 // newRunner builds the runner of the OS commands: PATH, LANG=C and DEBIAN_FRONTEND=noninteractive,
 // no shell. paths overrides the constant paths (tests).
 func newRunner(log logger, coreUnit string, paths map[string]string, streamLimit int64) (*vexec.Runner, error) {
@@ -186,6 +209,7 @@ func newRunner(log logger, coreUnit string, paths map[string]string, streamLimit
 		vexec.Binary{Name: binNetplan, Path: p(binNetplan), Validate: validateNetplan},
 		vexec.Binary{Name: binChronyc, Path: p(binChronyc), Validate: validateChronyc},
 		vexec.Binary{Name: binIP, Path: p(binIP), Validate: validateIP, MaxOutput: 1 << 20},
+		vexec.Binary{Name: binPodman, Path: p(binPodman), Validate: validatePodman, MaxOutput: maxInspectOutput},
 	)
 }
 

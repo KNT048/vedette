@@ -164,3 +164,32 @@ func (s *Server) AwaitingConfirm() bool {
 	defer s.mu.Unlock()
 	return s.waiting != nil
 }
+
+// ErrWriteBusy is what WithWriteLock answers while a write command, or a run awaiting
+// confirmation, holds the global write lock.
+var ErrWriteBusy = errors.New("host: another write command is running")
+
+// WithWriteLock runs fn holding the global write lock, the way a command does (INV-3: never two
+// writes at once): a command that arrives meanwhile gets 409 busy. It does not wait: when the lock
+// is taken it returns ErrWriteBusy and the caller tries again later. It exists for the work the host
+// does on its own after it is ready (the post-READY step of ops, D-123), which has no request.
+func (s *Server) WithWriteLock(ctx context.Context, fn func(ctx context.Context)) error {
+	id, err := newID("sys_")
+	if err != nil {
+		return err
+	}
+	s.mu.Lock()
+	if s.active != "" || s.inflight != "" || s.waiting != nil || s.baseCtx.Err() != nil {
+		s.mu.Unlock()
+		return ErrWriteBusy
+	}
+	s.active = id
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		s.releaseLocked(id)
+		s.mu.Unlock()
+	}()
+	fn(ctx)
+	return nil
+}

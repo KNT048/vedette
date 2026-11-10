@@ -70,7 +70,7 @@ func newFlags(o *options, stdout io.Writer) (flags *flag.FlagSet, showVersion *b
 	showVersion = flags.Bool("version", false, "print the version and exit")
 	flags.StringVar(&o.db, "db", "/var/lib/vedette/vedette.db", "path of the SQLite database (created with mode 0600)")
 	flags.StringVar(&o.key, "key", "/var/lib/vedette/vedette.key", "path of the secrets master key file (created with mode 0600 when missing)")
-	flags.StringVar(&o.honeypotDir, "honeypot-dir", "/var/lib/vedette/honeypot", "parent of the two folders shared with the honeypot container: config/ (core writes opencanary.conf; the container mounts it read-only) and log/ (the container writes the trap log, core reads it) (D-89)")
+	flags.StringVar(&o.honeypotDir, "honeypot-dir", defaultHoneypotDir, "parent of the two folders shared with the honeypot container: config/ (core writes opencanary.conf; the container mounts it read-only) and log/ (the container writes the trap log, core reads it) (D-89)")
 	// Plain HTTP only on loopback; any other address is served over TLS (own certificate, or a self-signed one made at first start).
 	flags.StringVar(&o.hostSocket, "host-socket", "/run/vedette/host.sock", "unix socket of vedette-host (operating system updates and backups); empty, or a missing socket file, means a container-only install and those endpoints answer 409 not_appliance. The database and key files must be <dir>/vedette.db and <dir>/vedette.key, where <dir> is the host's core_data")
 	flags.StringVar(&o.listen, "listen", "127.0.0.1:8080", "address to listen on; plain HTTP on loopback, TLS on any other address")
@@ -81,6 +81,9 @@ func newFlags(o *options, stdout io.Writer) (flags *flag.FlagSet, showVersion *b
 }
 
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
+	if kind, ok := healthCommand(args); ok { // the HealthCmd= of the units: before any flag, no database, no key
+		return runHealthCommand(ctx, kind)
+	}
 	var o options
 	flags, showVersion := newFlags(&o, stdout)
 	if err := flags.Parse(args); err != nil {

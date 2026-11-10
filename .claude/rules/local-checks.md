@@ -4,7 +4,8 @@ Repo `KNT048/vedette` là public nên GitHub Actions miễn phí (D-63). CI ch�
 
 - **Trước khi push / mở PR: `make check`** trên nhánh đã rebase lên `origin/main`. Chỉ kiểm phần đã đổi: Go → build, vet, `go test -race ./...` (cache chỉ chạy lại gói bị ảnh hưởng), contract, lint, kiểm mã sinh khi hợp đồng/migration/query đổi; giao diện → tsc, lint, `vitest --changed`, kiểm lệch `api/openapi.json` khi `contract.ts` đổi, spec e2e của module bị chạm (desktop); chỉ docs → không chạy gì; file dùng chung (dependency, cấu hình build, `web/src/lib`, `web/src/mocks`, Makefile, `scripts/`) → tự chạy `make verify` đầy đủ.
 - **Merge khi CI xanh** (job `go`, `web`). CI đỏ → sửa, không merge "vì máy mình xanh". Dán phần cuối `make check` vào mục **Local checks** của PR.
-- Workflow chỉ gọi `make`; action bên thứ ba ghim theo SHA; quyền token tối thiểu. Không thêm workflow tốn phút ngoài `ci.yml` mà không ghi quyết định.
+- CI (D-140): job `changes` (`make ci-changes`, `scripts/ci`) quyết PR cần `go`/`web` hay không; chỉ bỏ qua với đường dẫn không test nào đọc, `scripts/ci/guard_test.go` giữ điều đó; đường dẫn lạ = chạy cả hai. `go` và `web` là job tổng hợp luôn báo đúng tên. `main` không bao giờ bị huỷ run.
+- Workflow chỉ gọi `make` (trừ hai job tổng hợp `go`/`web`, chỉ so kết quả job); action bên thứ ba ghim theo SHA; quyền token tối thiểu. Không thêm workflow tốn phút ngoài `ci.yml` mà không ghi quyết định.
 - **E2E (Playwright)** chỉ cho tính năng vừa làm/sửa (`make check` chạy spec của module bị chạm). **Bộ e2e đầy đủ chỉ chạy khi sản phẩm gần sẵn sàng production** (kien, D-64); CI không chạy e2e.
 - `make audit` (govulncheck + `pnpm audit`) đầu mỗi phiên; CI cũng quét hằng ngày trên `main`.
 - **Máy phát triển là Linux hoặc macOS.** Windows: chạy `make` trong WSL2 (Ubuntu), mã nằm trong hệ file của WSL (không `/mnt/c`); Makefile từ chối Windows gốc.

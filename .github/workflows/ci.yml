@@ -1,7 +1,14 @@
 # CI on GitHub's runners (D-63): free for this public repo, and it keeps the heavy full
-# suites (vitest, govulncheck) off the developers' machines. Every job calls make only.
+# suites (vitest, govulncheck) off the developers' machines. Every job calls make only,
+# except the two aggregators `go` and `web`, which only compare job results (D-140).
 # No Playwright e2e here (D-64): the full e2e suite runs only when the product is production-ready.
 # Local gate before pushing stays `make check` (D-62). Third-party actions pinned by commit SHA.
+#
+# Shape (D-140): `changes` decides what a pull request needs (scripts/ci, no third-party action);
+# go-static, go-test (3 shards) and go-release run in parallel; web-verify runs the web suite.
+# `go` and `web` always run and always report under those names (merge-step.sh and a future
+# required check rely on them): they succeed only when every job they need succeeded or was
+# skipped because `changes` said it was not needed. A failed or cancelled job fails the aggregator.
 name: ci
 
 on:
@@ -15,12 +22,36 @@ on:
 permissions:
   contents: read
 
+# A newer push to a pull request supersedes the older run; runs on main are never cancelled, so every
+# main commit gets a result.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  go:
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      go: ${{ steps.c.outputs.go }}
+      web: ${{ steps.c.outputs.web }}
+      vuln: ${{ steps.c.outputs.vuln }}
+      audit: ${{ steps.c.outputs.audit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }} # a PR merge commit: HEAD^1 is the base
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false # scripts/ci uses the standard library only
+      - id: c
+        run: make ci-changes
+
+  go-static:
+    needs: changes
+    if: needs.changes.outputs.go == 'true' || needs.changes.outputs.vuln == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -31,14 +62,83 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/go.sum"
-      - name: Build, vet, generated code, test -race, contract, golangci-lint, govulncheck
-        if: github.event_name != 'schedule'
-        run: make verify-go
-      - name: Daily vulnerability scan (Go)
-        if: github.event_name == 'schedule'
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: needs.changes.outputs.go == 'true'
+        with:
+          path: ~/.cache/golangci-lint
+          key: golangci-${{ runner.os }}-${{ hashFiles('tools/go.sum', '.golangci.yml') }}-${{ github.sha }}
+          restore-keys: golangci-${{ runner.os }}-${{ hashFiles('tools/go.sum', '.golangci.yml') }}-
+      - name: Build, vet, generated code, contract, golangci-lint, shard coverage
+        if: needs.changes.outputs.go == 'true'
+        run: make verify-go-static
+      - name: govulncheck (Go changes and the daily schedule)
+        if: needs.changes.outputs.vuln == 'true'
         run: make vuln
 
-  web:
+  go-test:
+    needs: changes
+    if: needs.changes.outputs.go == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3] # SHARDS in the Makefile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/go.sum"
+      - name: go test -race, shard ${{ matrix.shard }} of 3
+        run: make test-go-shard SHARD=${{ matrix.shard }}
+
+  go-release:
+    needs: changes
+    if: needs.changes.outputs.go == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/go.sum"
+      - name: Release vectors (-tags releasetestkeys)
+        run: make test-go-release
+
+  go:
+    needs: [changes, go-static, go-test, go-release]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Every needed job succeeded, every unneeded one was skipped
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          STATIC_WANTED: ${{ needs.changes.outputs.go == 'true' || needs.changes.outputs.vuln == 'true' }}
+          STATIC: ${{ needs.go-static.result }}
+          TESTS_WANTED: ${{ needs.changes.outputs.go == 'true' }}
+          TESTS: ${{ needs.go-test.result }}
+          RELEASE: ${{ needs.go-release.result }}
+        run: |
+          set -eu
+          [ "$CHANGES" = success ] || { echo "changes: $CHANGES"; exit 1; }
+          check() { # name wanted result
+            if [ "$2" = true ]; then [ "$3" = success ] || { echo "$1: $3, expected success"; exit 1; }
+            else [ "$3" = skipped ] || { echo "$1: $3, expected skipped"; exit 1; }; fi
+          }
+          check go-static "$STATIC_WANTED" "$STATIC"
+          check go-test "$TESTS_WANTED" "$TESTS"
+          check go-release "$TESTS_WANTED" "$RELEASE"
+
+  web-verify:
+    needs: changes
+    if: needs.changes.outputs.web == 'true' || needs.changes.outputs.audit == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -49,8 +149,25 @@ jobs:
         with:
           package_json_file: web/package.json
       - name: Typecheck, lint, unit, contract drift, build
-        if: github.event_name != 'schedule'
+        if: needs.changes.outputs.web == 'true'
         run: make verify-web
       - name: Daily vulnerability scan (web)
-        if: github.event_name == 'schedule'
+        if: needs.changes.outputs.audit == 'true'
         run: pnpm --dir web install --frozen-lockfile && pnpm --dir web audit --prod
+
+  web:
+    needs: [changes, web-verify]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: The web job succeeded when needed and was skipped when not
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          WANTED: ${{ needs.changes.outputs.web == 'true' || needs.changes.outputs.audit == 'true' }}
+          VERIFY: ${{ needs.web-verify.result }}
+        run: |
+          set -eu
+          [ "$CHANGES" = success ] || { echo "changes: $CHANGES"; exit 1; }
+          if [ "$WANTED" = true ]; then [ "$VERIFY" = success ] || { echo "web-verify: $VERIFY, expected success"; exit 1; }
+          else [ "$VERIFY" = skipped ] || { echo "web-verify: $VERIFY, expected skipped"; exit 1; }; fi

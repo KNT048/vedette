@@ -61,7 +61,7 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 | Mạng | bridge `vedette-int`; publish `8443:8443` **không kèm IP** (D-105): địa chỉ LAN duy nhất của hộp là địa chỉ quản trị (SPAN không IP, decoy nằm trong `vedette-hp`), nên đổi địa chỉ bằng `net.apply` không phải khởi động lại `core` và GUI tới được ở địa chỉ mới để xác nhận; `8444` (giao thức sensor, mTLS, D-109) không publish ra LAN, chỉ `127.0.0.1:8444` cho container mạng host |
 | Volume | `vedette-data` → `/var/lib/vedette` (SQLite WAL, chỉ mục RAG, tài liệu tải lên); `/etc/vedette/master.key` → `/run/secrets/master.key` (ro, 0600); `/run/vedette` (**thư mục** chứa socket `vedette-host`, không bind-mount tệp socket; D-123); `vedette-creds-passive`, `vedette-creds-active` → `/var/lib/vedette-creds/{passive,active}` (**đọc-ghi chỉ ở `core`**: bó khoá của sensor, D-110 (4), D-114 (4)); mẫu cấu hình ro. `PodmanArgs=--group-add=<sensor_gid>` hằng để `core` ghi tệp khoá `0640 core_uid:sensor_gid` |
 | Cổng | 8443/tcp (UI, API, SSE, intake osquery, script cài osquery, trang duyệt email, URL danh sách chặn) |
-| Health check | `vedette healthcheck`: mở được DB, scheduler còn tick, HTTP nội bộ trả 200 (endpoint health chưa có trong `api/openapi.json`, cần thêm: câu hỏi mở B1). Chu kỳ 30 s, start-period 60 s, 3 lần hỏng thì unhealthy |
+| Health check | `vedette healthcheck` (D-137): `GET https://127.0.0.1:8443/api/v1/setup` (route công khai có sẵn, đọc hàng `org` nên 200 nghĩa là máy chủ, router, kiểm Host và DB cùng trả lời) phải 200 trong 3 s; ghim đúng chứng chỉ của hộp ở `/var/lib/vedette/vedette-selfsigned.crt` nếu đọc được, không đọc được thì bỏ kiểm chứng chỉ (chỉ loopback, không gửi gì ngoài một GET không thông tin đăng nhập); không proxy, không mở DB, không cần khoá chủ. Chu kỳ 30 s, start-period 60 s, 3 lần hỏng thì unhealthy |
 | Phụ thuộc | không (khởi động đầu tiên) |
 
 ### 2.2 sensor
@@ -74,7 +74,7 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 | Capability | `DropCapability=ALL`, **chỉ** `AddCapability=NET_RAW` (bắt gói AF_PACKET; Podman đặt vào tập ambient cho uid không root: **cổng lab**, đường lùi UID 0 + `NET_RAW`). Không `NET_BIND_SERVICE` tới khi có syslog; không bao giờ `NET_ADMIN` (card SPAN được `vedette-host` đặt promisc, không IP, D-56) |
 | Volume | `vedette-creds-passive` → `/var/lib/vedette-creds` **chỉ đọc** (bó khoá vai `passive`, `0640 core_uid:sensor_gid`); không volume ghi được, hàng đợi trong bộ nhớ (D-112 (6)) |
 | Cổng | không cổng nghe nào |
-| Health check | `vedette-sensor healthcheck`: lần gọi `core` thành công gần nhất trong 60 s; nếu SPAN bật: có gói trong 60 s (nếu không có chỉ cảnh báo, không unhealthy, D-56) |
+| Health check | `vedette-sensor healthcheck` (D-137): tiến trình chạm tệp `/tmp/vedette-sensor.heartbeat` (tmpfs) sau mỗi heartbeat mà `core` nhận; check đọc tuổi tệp, phải nhỏ hơn 60 s (2 nhịp 30 s). Không cần khoá hay mạng. Chưa có nhịp nào trong start-period (30 s) là chưa khoẻ. Không kiểm gói từ SPAN (D-56: chỉ cảnh báo, không unhealthy; để sau). Module tắt thì `core` trả 409 và heartbeat dừng nên sensor thành unhealthy: host chỉ chạy `sensor` khi module bật |
 | Kênh | mTLS, **sensor gọi ra `core`** (`https://127.0.0.1:8444`), vai `passive` |
 
 ### 2.3 honeypot
@@ -86,7 +86,7 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 | Capability | **không** (`DropCapability=ALL`): `ip_unprivileged_port_start=0` là sysctl theo namespace nên bind 22/80/445/1433/3389 không cần `NET_BIND_SERVICE` |
 | Volume | `config/` gắn chỉ đọc, `log/` ghi được (D-89; hạn mức đĩa ở WP-08); không cert, không DB |
 | Cổng | 22, 80, 445, 1433, 3389 **chỉ trên IP phụ/decoy** (INV-2 của honeypot); không trên IP quản trị |
-| Health check | tiến trình OpenCanary còn sống và nghe trên các cổng của bẫy đang bật (không gọi `core`) |
+| Health check | `/vedette honeypot healthcheck` (D-137): đọc `opencanary.conf` (`/var/lib/vedette/honeypot/config/`, gắn chỉ đọc), lấy cổng của dịch vụ đầu tiên đang bật có khoá `.port` (`smb` không có: cổng đó của Samba) rồi nối TCP tới `127.0.0.1:<cổng>` trong 2 s (`lo` bật và `oif lo accept`, D-121 L8; nối từ loopback bị `core` bỏ như nguồn không thể có thật, D-89 (e)); không dịch vụ nào của OpenCanary đang bật thì khoẻ (không gì phải nghe). Không gọi `core`. **Image `honeypot` phải chứa `/vedette`** (binary tĩnh, 0755): image do dự án dựng ở WP-08, không phải image OpenCanary gốc |
 | Số container | **một** container cho mọi IP (D-90 (1), D-102); "một container mỗi IP" của bản nháp bị bỏ (câu hỏi A5 đã đóng) |
 | MAC | mặc định local-administered, sinh bằng HMAC theo IP và khoá của bản cài; `oui` tuỳ chọn cho tiền tố hãng của vai giả (`host-api.md` §6.6) |
 | Ràng buộc | IP phụ phải nằm ngoài dải DHCP của khách (hướng dẫn trong wizard); macvlan không dùng được trên Wi-Fi và bị chính sách MAC của vSwitch VMware/Hyper-V chặn (§4) |
@@ -103,7 +103,7 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 | Mạng | host |
 | Ràng buộc | worker không giữ phạm vi: `core` là bên đồng ý duy nhất (D-26, D-84) và chỉ giao IPv4 riêng trong ba mẫu; mỗi probe ghi `sa_probe` trước khi giao job (INV-9) |
 | Volume | `vedette-creds-active` → `/var/lib/vedette-creds` **chỉ đọc**; tmpfs cho đầu ra tạm; không volume bền |
-| Health check | `vedette-sensor healthcheck`: lần poll `core` thành công gần nhất trong 60 s |
+| Health check | `vedette-sensor healthcheck` (D-137): như `sensor` (§2.2): tệp heartbeat của vai `active` còn trẻ hơn 60 s (heartbeat 30 s; poll job không tính, heartbeat là nhịp của liên kết) |
 
 `greenbone` (tuỳ chọn, M7, S-SCAN-5): nhóm container upstream, ghim digest theo `release.json` đã ký; giao diện web Greenbone **không** publish ra LAN; `core` nói chuyện với `gvmd` qua socket GMP trên volume dùng chung (**đề xuất**); chạy `vedette-int`; SSH key quét có đăng nhập lưu bằng `core/secrets`. GPL/AGPL: container riêng, không sửa (D-55).
 
@@ -252,7 +252,7 @@ User=<core_uid>:<core_gid>
 LogDriver=journald
 # --group-add hằng: Quadlet 4.9 không có GroupAdd=; để core ghi tệp khoá 0640 core_uid:sensor_gid (D-114 (4))
 PodmanArgs=--memory=2g --memory-swap=2g --cpus=2 --pids-limit=512 --group-add=<sensor_gid>
-HealthCmd=/vedette healthcheck
+HealthCmd=["/vedette","healthcheck"]
 HealthInterval=30s
 HealthStartPeriod=60s
 HealthRetries=3
@@ -290,7 +290,7 @@ Tmpfs=/tmp
 Volume=vedette-creds-passive.volume:/var/lib/vedette-creds:ro
 LogDriver=journald
 PodmanArgs=--memory=512m --memory-swap=512m --cpus=1 --pids-limit=256
-HealthCmd=/vedette-sensor healthcheck
+HealthCmd=["/vedette-sensor","healthcheck"]
 HealthInterval=30s
 HealthStartPeriod=30s
 HealthRetries=3
@@ -331,7 +331,7 @@ Volume=/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config:ro
 Volume=/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log
 LogDriver=journald
 PodmanArgs=--memory=256m --memory-swap=256m --cpus=0.5 --pids-limit=128
-HealthCmd=/vedette honeypot healthcheck
+HealthCmd=["/vedette","honeypot","healthcheck"]
 HealthInterval=30s
 HealthRetries=3
 
@@ -596,7 +596,7 @@ Quy ước: dev trên macOS dùng Docker Desktop/Podman machine: không có mạ
 
 | # | Câu hỏi |
 |---|---|
-| B1 | Thêm endpoint health vào `api/openapi.json` (ví dụ `GET /api/v1/health` không cần đăng nhập, trả tối thiểu) và quy ước trong `API_CONVENTIONS.md`. |
+| B1 | ~~Thêm endpoint health vào `api/openapi.json`.~~ **Đã quyết: không thêm; `vedette healthcheck` dùng route công khai `GET /api/v1/setup` (D-137).** |
 | B2 | ~~Mã cài đặt một lần in trên console để chống kẻ trong LAN chiếm `/setup` trước admin thật. Có chấp nhận không?~~ **Đã quyết: có (D-75).** |
 | B3 | Chứng chỉ TLS 8443: tự ký + cho tải lên (đề xuất) hay ACME nội bộ? |
 | B4 | Có chấp nhận Podman rootful trên appliance (§12) hay bắt buộc rootless và chịu thêm shim? **Đã chốt cho unit (D-105):** unit hệ thống, rootful; PoC trên máy thật vẫn ở lab. |

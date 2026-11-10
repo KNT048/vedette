@@ -14,10 +14,22 @@ import (
 // key is revoking the signer of stored), stored revocations carried forward. An expired index is not
 // an error; ask Index.Expired.
 func VerifyIndex(raw, sig []byte, trust Trust, stored *Index) (*Index, error) {
+	return verifyIndex(raw, sig, trust, stored, false)
+}
+
+// VerifyStoredIndex re-verifies an index the box stored earlier: raw and sig as stored, carried the
+// revocations stored with it (they are not in the signed bytes). It is VerifyIndex with the carried
+// list as the stored index, except that the Retired keys of trust are accepted as signers, so a key
+// rotation keeps the stored sequence and revocations. Never use it for a document that just arrived.
+func VerifyStoredIndex(raw, sig []byte, trust Trust, carried []Revocation) (*Index, error) {
+	return verifyIndex(raw, sig, trust, &Index{Revoked: carried}, true)
+}
+
+func verifyIndex(raw, sig []byte, trust Trust, stored *Index, allowRetired bool) (*Index, error) {
 	if err := trust.validate(); err != nil {
 		return nil, wrap(ErrNoTrustKeys, "%v", err)
 	}
-	res, err := verifyMinisign(raw, sig, trust)
+	res, err := verifyMinisignWith(raw, sig, trust, allowRetired)
 	if err != nil {
 		return nil, err
 	}
@@ -32,6 +44,9 @@ func VerifyIndex(raw, sig []byte, trust Trust, stored *Index) (*Index, error) {
 	x.RawSHA256 = hex.EncodeToString(h[:])
 	if err := filterKeyRevocations(x, res, trust); err != nil {
 		return nil, err
+	}
+	if stored == nil && x.Sequence < trust.MinSequence {
+		return nil, wrap(ErrSequenceRegress, "%d is below the minimum %d of this build", x.Sequence, trust.MinSequence)
 	}
 	if stored != nil {
 		// Recovery (rule 4): the backup key revokes the signer of the stored index.

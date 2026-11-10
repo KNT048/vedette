@@ -15,7 +15,7 @@ import (
 func (o *Ops) readContainers(ctx context.Context) (any, error) {
 	out := api.ContainersState{Services: make([]api.ContainerState, 0, len(api.Services))}
 	for _, svc := range api.Services {
-		st := api.ContainerState{Service: svc, UnitState: api.UnitUnknown, Health: api.HealthNone}
+		st := api.ContainerState{Service: svc, UnitState: api.UnitUnknown, Health: api.HealthNone, LatestPulled: o.latestPulled(svc)}
 		if text, fs := o.readUnit(svc); fs == fileOK {
 			if digest, install, err := o.ourUnit(svc, text); err == nil {
 				st.Installed, st.Enabled = true, install

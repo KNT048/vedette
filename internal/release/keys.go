@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"strconv"
 	"sync"
 	"testing"
 )
@@ -21,6 +22,23 @@ const (
 	prodCosign         = "" // PEM "PUBLIC KEY" of the cosign key (ECDSA P-256)
 )
 
+// prodMinisignRetired lists the minisign public keys that signed in the past and no longer do ("RWQ…"
+// lines). They only re-verify the stored index (Trust.Retired). Empty until the first key rotation.
+var prodMinisignRetired []string
+
+// MinSequenceText is the minimum index sequence of this build, a decimal number. The release job sets it
+// with -ldflags "-X github.com/knt048/vedette/internal/release.MinSequenceText=<n>" (a linker can only
+// set strings) to the sequence of the index current at build time; the default 0 sets no floor.
+var MinSequenceText = "0"
+
+func parseMinSequence(s string) (uint64, error) {
+	n, err := strconv.ParseUint(s, 10, 64)
+	if err != nil || strconv.FormatUint(n, 10) != s {
+		return 0, errors.New("MinSequenceText is not a plain decimal number")
+	}
+	return n, nil
+}
+
 var logOnce sync.Once
 
 // syncOnce is for tests that want the "why" log line again.
@@ -37,6 +55,22 @@ func embeddedTrust(inTest bool) (Trust, error) {
 	t, err := parseTrust(active, backup, cosign)
 	if err == nil && testOnly && !inTest {
 		err = errors.New("test-only keys outside a test binary")
+	}
+	if err == nil {
+		for _, k := range prodMinisignRetired {
+			rk, kerr := ParseMinisignPublicKey(k)
+			if kerr != nil {
+				err = kerr
+				break
+			}
+			t.Retired = append(t.Retired, rk)
+		}
+	}
+	if err == nil {
+		t.MinSequence, err = parseMinSequence(MinSequenceText)
+	}
+	if err == nil {
+		err = t.validate()
 	}
 	if err != nil {
 		logOnce.Do(func() {

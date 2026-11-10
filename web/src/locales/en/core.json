@@ -561,9 +561,9 @@
       },
       "6": {
         "name": "Update checks",
-        "what": "Your current Vedette version, inside the request to GitHub. For the operating system the box runs apt through the privileged helper vedette-host, and the request carries what any apt client sends: the release and architecture of this machine and the package names it asks about. No Vedette data, no inventory, no findings.",
-        "to": "GitHub releases (signed software updates), and the distribution's package mirrors: archive.ubuntu.com and security.ubuntu.com on Ubuntu, deb.debian.org and security.debian.org on Debian. You can point apt at a local mirror inside your network instead.",
-        "control": "Turn off to update by hand or by bundle only. Operating system updates you start yourself, or that unattended-upgrades runs, still contact the mirrors unless you point apt at a local mirror.",
+        "what": "Your current Vedette version, inside the request to GitHub. For the operating system the box runs apt through the privileged helper vedette-host, and the request carries what any apt client sends: the release and architecture of this machine and the package names it asks about. To install an update, the same helper pulls the container images of the Vedette release by digest, and the request carries what any container client sends: the image name and digest and the architecture of this machine. No Vedette data, no inventory, no findings.",
+        "to": "GitHub releases (signed software updates), ghcr.io (the signed container images of a release, pulled by digest) with the host it redirects to for the image layers, pkg-containers.githubusercontent.com, and the distribution's package mirrors: archive.ubuntu.com and security.ubuntu.com on Ubuntu, deb.debian.org and security.debian.org on Debian. You can point apt at a local mirror inside your network instead.",
+        "control": "Turn off to update by hand or by bundle only. Operating system updates you start yourself, or that unattended-upgrades runs, still contact the mirrors unless you point apt at a local mirror. An update you install by hand from the registry, not from a bundle, still contacts ghcr.io.",
         "switch": "Automatic update check"
       },
       "7": {

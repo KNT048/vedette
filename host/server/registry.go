@@ -97,7 +97,9 @@ type Spec[A any] struct {
 	Validate func(*A) error
 	// Check runs the cheap preconditions synchronously (five seconds at most) before the run starts.
 	// It must only read: it must not change the system, because if it ignores its deadline the run
-	// is failed but the write lock stays held until it returns.
+	// is failed but the write lock stays held until it returns. The one exception is container.pull
+	// (D-130): it stores a newer verified release index even when it then refuses, so that a revocation
+	// is not lost; that write is small and atomic, and is logged and audited (release_index_stored).
 	// Return a *Refusal to refuse; the run is recorded as refused with the matching HTTP status.
 	Check func(ctx context.Context, args A) error
 	// Run does the work. It must obey ctx. Return nil error with a JSON-encodable result, an Awaiting

@@ -167,6 +167,12 @@ type minisignResult struct {
 // must be one of them (a match by id selects the key, it never replaces the check); the file
 // signature is over BLAKE2b-512(msg); the global signature is over signature || trusted comment.
 func verifyMinisign(msg, sig []byte, t Trust) (minisignResult, error) {
+	return verifyMinisignWith(msg, sig, t, false)
+}
+
+// verifyMinisignWith is verifyMinisign that, when allowRetired is set, also accepts the retired keys
+// of t (VerifyStoredIndex only: a retired key never signs anything new).
+func verifyMinisignWith(msg, sig []byte, t Trust, allowRetired bool) (minisignResult, error) {
 	var res minisignResult
 	if len(msg) > MaxDocBytes {
 		return res, wrap(ErrTooLarge, "document")
@@ -181,7 +187,16 @@ func verifyMinisign(msg, sig []byte, t Trust) (minisignResult, error) {
 	case t.Backup.ID:
 		res.key, res.backup = t.Backup, true
 	default:
-		return res, wrap(ErrBadSignature, "key id %s is not trusted", keyIDString(f.keyID))
+		if allowRetired {
+			for _, k := range t.Retired {
+				if k.ID == f.keyID {
+					res.key = k
+				}
+			}
+		}
+		if res.key.Key == nil {
+			return res, wrap(ErrBadSignature, "key id %s is not trusted", keyIDString(f.keyID))
+		}
 	}
 	h := blake2b.Sum512(msg)
 	if !ed25519.Verify(res.key.Key, h[:], f.sig[:]) {

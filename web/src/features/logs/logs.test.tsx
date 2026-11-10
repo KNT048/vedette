@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
-import { Toaster } from 'sonner'
+import { Toaster, toast } from 'sonner'
 import { makeQueryClient } from '@/app/App'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
@@ -15,6 +15,16 @@ import { KIND_IDS } from './kinds'
 import type { SourceKind } from './types'
 
 const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
+
+// A toast closes itself after 4 s, and sonner then removes it with a 200 ms timer that is not cleared when the Toaster is
+// unmounted. On a slow runner a test can end inside that window, and the timer fires after the jsdom environment is gone
+// ("window is not defined", uncaught, from this file, in CI). So every test ends with no toast left: dismiss them and wait
+// until they are removed, while the DOM still exists. (This hook runs before the global cleanup of src/test/setup.ts.)
+afterEach(async () => {
+  toast.dismiss()
+  await waitFor(() => expect(document.querySelector('[data-sonner-toast]')).toBeNull())
+})
+
 function renderSiem(role: Role = 'admin') {
   orgStore.update((o) => ({ ...o, setup_complete: true }))
   sessionStore.set({ userId: USER[role] })

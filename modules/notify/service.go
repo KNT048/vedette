@@ -54,9 +54,14 @@ type Config struct {
 	// approves an action is a credential and must point at the real box.
 	BaseURL string
 	// BoxAddrs adds to the addresses of the network interfaces, which are always read: none of them is a valid webhook target.
-	BoxAddrs func() []netip.Addr
+	// known=false means the box does not know its own addresses yet (vedette-host has not answered since the start): saving a
+	// webhook is then 503 host_unreachable and no webhook connection is made (fail closed, #157). nil = only the interfaces,
+	// known (tests, a box without vedette-host).
+	BoxAddrs func() (addrs []netip.Addr, known bool)
 	// HTTPClient is given to the Slack, Telegram and Zalo adapters (not to webhooks: their client always checks the
-	// address at connect time). nil = their own clients (no redirects, timeouts). Tests pass a fake.
+	// address at connect time). nil = their own clients (no redirects, timeouts). Tests pass a fake. Its Timeout should be 0: the
+	// Telegram listener long-polls longer than any usual total timeout, so it clears Timeout on its own copy and gives every call a
+	// deadline of its own; the senders keep the client's Timeout.
 	HTTPClient *http.Client
 }
 
@@ -74,6 +79,8 @@ type Service struct {
 	// reenabled is set when the module is turned on (modreg tells us) and cleared by the next Flush, which then drops
 	// the queued notices that went stale while it was off (D-86 (7)).
 	reenabled atomic.Bool
+	// tgOffset is the next Telegram update the approval listener reads (tglisten.go).
+	tgOffset telegramOffset
 }
 
 // changeNotifier is the part of core/modreg.Registry that tells when a module is switched (OnChange). Config.Modules
@@ -140,15 +147,17 @@ func (s *Service) loc(ctx context.Context) *time.Location {
 }
 
 // boxAddrs lists the addresses of this box: its network interfaces (read at every call, so an address it gets later
-// counts) and Config.BoxAddrs. A webhook may never connect to one of them.
-func (s *Service) boxAddrs() []netip.Addr {
-	var out []netip.Addr
+// counts) and Config.BoxAddrs. A webhook may never connect to one of them. known is false while Config.BoxAddrs says so.
+func (s *Service) boxAddrs() (out []netip.Addr, known bool) {
+	known = true
 	if s.cfg.BoxAddrs != nil {
-		out = append(out, s.cfg.BoxAddrs()...)
+		var more []netip.Addr
+		more, known = s.cfg.BoxAddrs()
+		out = append(out, more...)
 	}
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
-		return out
+		return out, known
 	}
 	for _, a := range addrs {
 		if p, ok := a.(*net.IPNet); ok {
@@ -157,7 +166,7 @@ func (s *Service) boxAddrs() []netip.Addr {
 			}
 		}
 	}
-	return out
+	return out, known
 }
 
 // flush publishes the events of a committed transaction.

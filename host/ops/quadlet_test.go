@@ -17,7 +17,57 @@ const (
 )
 
 func goldFill(install bool) unitFill {
-	return unitFill{Digest: goldA, Install: install, CoreUID: 10001, CoreGID: 10002, SensorUID: 10003, SensorGID: 10004}
+	return unitFill{Digest: goldA, Install: install, CoreUID: 10001, CoreGID: 10002, SensorUID: 10003, SensorGID: 10004, DataDir: "/var/lib/vedette"}
+}
+
+// core_data goes into one Volume= line (D-142 H1): anything that is not a plain absolute path is refused, so
+// no value can add a line, an option or a second mount to the unit.
+func TestCoreDataInTheUnitIsAStrictPath(t *testing.T) {
+	t.Parallel()
+	for _, ok := range []string{"/var/lib/vedette", "/srv/vedette-data", "/data/a.b_c/d", "/a"} {
+		f := goldFill(true)
+		f.DataDir = ok
+		b, err := renderUnit(api.ServiceCore, f)
+		if err != nil || !strings.Contains(string(b), "\nVolume="+ok+":/var/lib/vedette\n") {
+			t.Errorf("%q: %v", ok, err)
+		}
+	}
+	for _, bad := range []string{"", "/", "var/lib", "/var/lib/", "/var//lib", "/var/../etc", "/var/./lib", "/a b", "/a:b", "/a\nVolume=/:/x", "/a\r", "/a,b", "/a:ro", "/é", "/a%h", "/a$x", "/" + strings.Repeat("a", 220), "-v", "/a\x00"} {
+		f := goldFill(true)
+		f.DataDir = bad
+		if b, err := renderUnit(api.ServiceCore, f); err == nil {
+			t.Errorf("%q accepted: %s", bad, b)
+		}
+	}
+	// Only core uses it.
+	f := goldFill(true)
+	f.DataDir = ""
+	for _, s := range []string{api.ServiceSensor, api.ServiceHoneypot, api.ServiceScan} {
+		if _, err := renderUnit(s, f); err != nil {
+			t.Errorf("%s: %v", s, err)
+		}
+	}
+	b, _ := renderUnit(api.ServiceCore, goldFill(true))
+	if strings.Contains(string(b), "master.key") || strings.Contains(string(b), "-key") {
+		t.Errorf("core's unit still names a key file:\n%s", b)
+	}
+}
+
+// D-146 (L5 of the sensor protocol): nmap can leave a child that setsid()ed away from the group the worker kills, and without an init
+// that child becomes a zombie of PID 1, which is the worker. The scan unit therefore runs under podman's init (Quadlet RunInit=, which
+// the generator turns into --init; checked with the quadlet generator of podman 5.7), and vedette-sensor is not made a subreaper.
+// The sensor starts no child process, so its unit has none.
+func TestScanUnitRunsUnderAnInit(t *testing.T) {
+	t.Parallel()
+	for svc, want := range map[string]bool{api.ServiceScan: true, api.ServiceSensor: false, api.ServiceCore: false, api.ServiceHoneypot: false} {
+		b, err := renderUnit(svc, goldFill(true))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := slices.Contains(strings.Split(string(b), "\n"), "RunInit=true"); got != want {
+			t.Errorf("%s: RunInit=true present = %t, want %t", svc, got, want)
+		}
+	}
 }
 
 // The golden files are the unit texts of DEPLOYMENT.md 6.1: any change to a template shows here and

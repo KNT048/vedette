@@ -81,11 +81,18 @@ func (t *telegramSender) Send(ctx context.Context, m Message) (Receipt, error) {
 		return Receipt{}, err
 	}
 	link, _ := safeLink(m.Link)
-	body, err := json.Marshal(map[string]any{
+	args := map[string]any{
 		"chat_id":              t.chat,
 		"text":                 telegramText(m.norm(), link),
 		"link_preview_options": map[string]any{"is_disabled": true},
-	})
+	}
+	if len(m.Buttons) > 0 {
+		args["reply_markup"] = telegramKeyboard(m.Buttons)
+	}
+	if m.Kind == "approval" {
+		args["protect_content"] = true // an approval request cannot be forwarded or saved out of the chat
+	}
+	body, err := json.Marshal(args)
 	if err != nil {
 		return Receipt{}, fmt.Errorf("notify: telegram: encode message: %w", err)
 	}

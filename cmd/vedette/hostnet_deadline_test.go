@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/netip"
 	"sync"
 	"sync/atomic"
@@ -58,9 +59,15 @@ func TestHostNetCacheSnapshotNeverWaits(t *testing.T) {
 	now := time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC)
 	clock := func() time.Time { mu.Lock(); defer mu.Unlock(); return now }
 	release := make(chan struct{})
+	hung := make(chan struct{})
 	var calls atomic.Int32
+	var hangs atomic.Bool // the fake host turns unresponsive; set through the closure, never by reassigning c.fetch (a refresh may be reading it)
 	want := netip.MustParsePrefix("192.168.10.250/32")
 	c := newHostNetCache(func(ctx context.Context) ([]netip.Prefix, error) {
+		if hangs.Load() {
+			<-hung
+			return nil, context.Canceled
+		}
 		calls.Add(1)
 		select {
 		case <-release:
@@ -86,8 +93,7 @@ func TestHostNetCacheSnapshotNeverWaits(t *testing.T) {
 	mu.Lock()
 	now = now.Add(hostNetTTL + time.Second)
 	mu.Unlock()
-	hung := make(chan struct{})
-	c.fetch = func(context.Context) ([]netip.Prefix, error) { <-hung; return nil, context.Canceled }
+	hangs.Store(true)
 	start = time.Now()
 	if got := c.Snapshot(); len(got) != 1 || time.Since(start) > time.Second {
 		t.Fatalf("stale Snapshot = %v after %v", got, time.Since(start))
@@ -108,7 +114,45 @@ func TestNotifyBoxAddrsNeverWaitsForTheHost(t *testing.T) {
 	}, nil)
 	defer close(hung)
 	start := time.Now()
-	if got := notifyBoxAddrs(c)(); len(got) != 0 || time.Since(start) > time.Second {
-		t.Fatalf("BoxAddrs = %v after %v with a host that does not answer", got, time.Since(start))
+	if got, known := notifyBoxAddrs(c)(); len(got) != 0 || known || time.Since(start) > time.Second {
+		t.Fatalf("BoxAddrs = %v known %v after %v with a host that has never answered", got, known, time.Since(start))
+	}
+}
+
+// #157: the set is unknown only while a configured host has never answered; no host is known (container interfaces
+// only), and a Box network change (Invalidate) leaves it known: stale is not unknown.
+func TestNotifyBoxAddrsKnownOnlyAfterTheHostAnswered(t *testing.T) {
+	t.Parallel()
+	if _, known := notifyBoxAddrs(nil)(); !known {
+		t.Fatal("no host configured must be known")
+	}
+	box := netip.MustParsePrefix("192.168.1.5/24")
+	var answer atomic.Bool
+	var mu sync.Mutex
+	now := time.Unix(1_800_000_000, 0)
+	clock := func() time.Time { mu.Lock(); defer mu.Unlock(); return now }
+	later := func() { mu.Lock(); now = now.Add(hostNetBackoff + hostNetTTL); mu.Unlock() } // past the failure backoff and the TTL
+	c := newHostNetCache(func(context.Context) ([]netip.Prefix, error) {
+		if !answer.Load() {
+			return nil, errors.New("host down")
+		}
+		return []netip.Prefix{box}, nil
+	}, clock)
+	_ = c.Get(t.Context()) // the host fails
+	if _, known := notifyBoxAddrs(c)(); known {
+		t.Fatal("a host that has never answered must be unknown")
+	}
+	answer.Store(true)
+	later()
+	_ = c.Get(t.Context())
+	if got, known := notifyBoxAddrs(c)(); !known || len(got) != 1 || got[0] != box.Addr() {
+		t.Fatalf("after the first answer: %v known %v", got, known)
+	}
+	answer.Store(false)
+	c.Invalidate()
+	later()
+	_ = c.Get(t.Context())
+	if got, known := notifyBoxAddrs(c)(); !known || len(got) != 1 {
+		t.Fatalf("after Invalidate and a failed refresh the last set stays known: %v known %v", got, known)
 	}
 }

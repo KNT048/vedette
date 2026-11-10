@@ -50,6 +50,17 @@ type unitFill struct {
 	CoreGID   int
 	SensorUID int
 	SensorGID int
+	// DataDir is host.conf's core_data, bound at /var/lib/vedette in core's unit (D-142 H1): the database and
+	// the key core reads (its default -key) are then the files backup.* backs up and backup.restore puts back.
+	DataDir string
+}
+
+// coreDataRE is a core_data the unit accepts: absolute, no empty, "." or ".." segment, no trailing slash,
+// and only characters that cannot end a Volume= field or start an option, a specifier or a new line.
+var coreDataRE = regexp.MustCompile(`^(/[A-Za-z0-9_-][A-Za-z0-9._-]*)+$`)
+
+func validCoreData(p string) bool {
+	return len(p) <= 200 && coreDataRE.MatchString(p)
 }
 
 type serviceUnit struct {
@@ -93,10 +104,9 @@ Pull=never
 Network=vedette-int.network
 PublishPort=8443:8443
 PublishPort=127.0.0.1:8444:8444
-Volume=vedette-data.volume:/var/lib/vedette
+Volume={{.DataDir}}:/var/lib/vedette
 Volume=` + hpHostDir + `/config:/var/lib/vedette/honeypot/config
 Volume=` + hpHostDir + `/log:/var/lib/vedette/honeypot/log:ro
-Volume=/etc/vedette/master.key:/run/secrets/master.key:ro
 Volume=/run/vedette:/run/vedette
 Volume=vedette-creds-passive.volume:/var/lib/vedette-creds/passive
 Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active
@@ -111,7 +121,7 @@ HealthCmd=["/vedette","healthcheck"]
 HealthInterval=30s
 HealthStartPeriod=60s
 HealthRetries=3
-Exec=-listen :8443 -key /run/secrets/master.key
+Exec=-listen :8443
 
 [Service]
 Restart=always
@@ -189,6 +199,7 @@ User={{.SensorUID}}:{{.SensorGID}}
 DropCapability=ALL
 AddCapability=NET_RAW
 NoNewPrivileges=true
+RunInit=true
 ReadOnly=true
 Tmpfs=/tmp
 Volume=vedette-creds-active.volume:/var/lib/vedette-creds:ro
@@ -208,8 +219,14 @@ Restart=always
 func validID(n int) bool { return n >= 1 && n <= 1<<31-1 }
 
 // RenderUnit builds the text of a service's unit. Exported for the contract tests.
+// It binds the default core_data /var/lib/vedette; RenderUnitIn names another.
 func RenderUnit(service, digest string, install bool, coreUID, coreGID, sensorUID, sensorGID int) ([]byte, error) {
-	return renderUnit(service, unitFill{Digest: digest, Install: install, CoreUID: coreUID, CoreGID: coreGID, SensorUID: sensorUID, SensorGID: sensorGID})
+	return RenderUnitIn(service, digest, install, coreUID, coreGID, sensorUID, sensorGID, "/var/lib/vedette")
+}
+
+// RenderUnitIn is RenderUnit with the core_data of host.conf. Exported for the contract tests.
+func RenderUnitIn(service, digest string, install bool, coreUID, coreGID, sensorUID, sensorGID int, coreData string) ([]byte, error) {
+	return renderUnit(service, unitFill{Digest: digest, Install: install, CoreUID: coreUID, CoreGID: coreGID, SensorUID: sensorUID, SensorGID: sensorGID, DataDir: coreData})
 }
 
 var (
@@ -230,6 +247,9 @@ func renderUnit(service string, f unitFill) ([]byte, error) {
 	}
 	if s.needsCore && (!validID(f.CoreUID) || !validID(f.CoreGID)) {
 		return nil, fmt.Errorf("%w: core uid or gid", errBadFill)
+	}
+	if s.needsCore && !validCoreData(f.DataDir) {
+		return nil, fmt.Errorf("%w: core_data", errBadFill)
 	}
 	if s.needsSensor && (!validID(f.SensorUID) || !validID(f.SensorGID)) {
 		return nil, fmt.Errorf("%w: sensor uid or gid", errBadFill)

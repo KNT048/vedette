@@ -145,42 +145,53 @@ func (o *Ops) checkChain(path string) (string, os.FileInfo, error) {
 	if st.Mode()&os.ModeSymlink != 0 || !st.IsDir() {
 		return "", nil, errors.New("core_data is not a real directory")
 	}
-	trusted := func(uid uint32) bool { return int(uid) == 0 || int(uid) == o.cfg.OwnerUID }
 	sys, ok := st.Sys().(*syscall.Stat_t)
-	if !ok || (int(sys.Uid) != o.cfg.CoreUID && !trusted(sys.Uid)) {
+	if !ok || (int(sys.Uid) != o.cfg.CoreUID && int(sys.Uid) != 0 && int(sys.Uid) != o.cfg.OwnerUID) {
 		return "", nil, errors.New("core_data is owned by neither core nor root")
 	}
-	parent, err := filepath.EvalSymlinks(filepath.Dir(path))
+	parent, err := o.checkParents(path)
 	if err != nil {
 		return "", nil, err
+	}
+	return filepath.Join(parent, filepath.Base(path)), st, nil
+}
+
+// checkParents is the second half of checkChain, also used by the bootstrap for a core_data that does not
+// exist yet: every parent of path (resolved) is a real directory owned by root (or the host's owner) that
+// group and others cannot write. It returns the resolved parent.
+func (o *Ops) checkParents(path string) (string, error) {
+	trusted := func(uid uint32) bool { return int(uid) == 0 || int(uid) == o.cfg.OwnerUID }
+	parent, err := filepath.EvalSymlinks(filepath.Dir(path))
+	if err != nil {
+		return "", err
 	}
 	top := ""
 	if o.d.ChainTop != "" {
 		if top, err = filepath.EvalSymlinks(o.d.ChainTop); err != nil {
-			return "", nil, err
+			return "", err
 		}
 	}
 	for d := parent; ; d = filepath.Dir(d) {
 		pst, err := os.Lstat(d)
 		if err != nil {
-			return "", nil, err
+			return "", err
 		}
 		psys, ok := pst.Sys().(*syscall.Stat_t)
 		switch {
 		case !pst.IsDir() || pst.Mode()&os.ModeSymlink != 0:
-			return "", nil, fmt.Errorf("%s is not a directory", d)
+			return "", fmt.Errorf("%s is not a directory", d)
 		case !ok || !trusted(psys.Uid):
-			return "", nil, fmt.Errorf("%s is not owned by root", d)
+			return "", fmt.Errorf("%s is not owned by root", d)
 		case pst.Mode().Perm()&0o022 != 0:
 			// No sticky exception (sshd StrictModes has none): in a sticky directory the owner of
 			// an entry may still rename it, and core owns core_data.
-			return "", nil, fmt.Errorf("%s can be written by group or others", d)
+			return "", fmt.Errorf("%s can be written by group or others", d)
 		}
 		if d == filepath.Dir(d) || (top != "" && d == top) {
 			break
 		}
 	}
-	return filepath.Join(parent, filepath.Base(path)), st, nil
+	return parent, nil
 }
 
 // openFile opens name in core's tree for reading and checks the descriptor: a regular file with

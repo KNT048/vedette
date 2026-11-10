@@ -139,6 +139,29 @@ type KindDevice struct {
 	Kind     string
 }
 
+// AssetIDs returns the id of every device, with no kind filter and no row cap, ordered by id: the list a reconcile compares
+// against (findings, D-144), so a device of any kind, even one added to the schema later, is never missing. Any read error is
+// returned and the caller must fail closed: a short list would make the caller drop data of devices that still exist.
+func (s *Service) AssetIDs(ctx context.Context) ([]string, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM inv_asset ORDER BY id`)
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read device ids: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("inventory: read device ids: %w", err)
+		}
+		out = append(out, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("inventory: read device ids: %w", err)
+	}
+	return out, nil
+}
+
 // DevicesOfKind returns every device of the given kinds, with no row cap (Devices stops at MaxListed, newest first, which is the
 // wrong read for a safety list: the oldest device, usually the gateway, would be the one cut). Read-only, ordered by id. An empty
 // kinds is an empty answer. Any read error is returned and the caller must fail closed: a short list is never a valid answer.

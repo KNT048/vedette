@@ -186,8 +186,13 @@ func (s *Service) Channels(ctx context.Context) (ChannelsView, error) {
 // have no row there yet: they share the code of the field that has to change).
 var apiConfigCode = map[string]string{"blocked_host": "bad_url", "insecure_url": "bad_url", "insecure_smtp": "bad_security", "bad_session": "bad_secret"}
 
-// configAPIError turns an adapter's *ConfigError into a 400; other errors pass through.
+// configAPIError turns an adapter's *ConfigError into a 400, and unknown box addresses (#157) into 503 host_unreachable (the
+// box addresses come from vedette-host: retry later); other errors pass through.
 func configAPIError(err error) error {
+	if errors.Is(err, channel.ErrBoxAddrsUnknown) {
+		return apierr.New(http.StatusServiceUnavailable, "host_unreachable",
+			"Vedette does not know this box's own network addresses yet, so the webhook cannot be checked. Try again in a minute.")
+	}
 	var ce *channel.ConfigError
 	if !errors.As(err, &ce) {
 		return err
@@ -234,14 +239,15 @@ func (s *Service) newSender(t channel.Type, f map[string]string, secret string, 
 	return nil, fmt.Errorf("notify: unknown channel type %q", t)
 }
 
-// openSecret reads a stored secret; a failure means the saved key cannot be used, which callers show as "enter it again".
-func (s *Service) openSecret(ctx context.Context, q dbtx, id, purpose string) (string, error) {
+// openSecret reads the stored secret of a channel (purpose notify_channel.secret); a failure means the saved key cannot be
+// used, which callers show as "enter it again". The Slack app and bot tokens are never opened here.
+func (s *Service) openSecret(ctx context.Context, q dbtx, id string) (string, error) {
 	if id == "" {
 		return "", nil
 	}
-	pt, err := s.cfg.Secrets.Open(ctx, q, id, purpose)
+	pt, err := s.cfg.Secrets.Open(ctx, q, id, purposeSecret)
 	if err != nil {
-		s.cfg.Log.WarnContext(ctx, "notify: a saved channel secret cannot be opened", "purpose", purpose, "error", err.Error())
+		s.cfg.Log.WarnContext(ctx, "notify: a saved channel secret cannot be opened", "purpose", purposeSecret, "error", err.Error())
 		return "", errSecretUnreadable
 	}
 	return string(pt), nil
@@ -258,7 +264,7 @@ func (s *Service) savedSender(ctx context.Context, c channelRow, toOverride []st
 			return cs.sender, nil
 		}
 	}
-	secret, err := s.openSecret(ctx, s.cfg.DB.Reader(), c.SecretID, purposeSecret)
+	secret, err := s.openSecret(ctx, s.cfg.DB.Reader(), c.SecretID)
 	if err != nil {
 		return nil, err
 	}
@@ -291,6 +297,10 @@ func (s *Service) checkApprovers(ctx context.Context, t channel.Type, in Channel
 	}
 	if len(in.Approvers) == 0 {
 		return badRequest("approvers_required", `Add at least one approver, or turn off "Approve actions from this channel".`)
+	}
+	if t == channel.Telegram && !approvalChat(in.Fields) { // review of #172, L1
+		return badRequest("bad_chat_id", "To approve actions in Telegram, Chat ID must be the number of the chat (groups look like -1001234567890), "+
+			"not a public @channel_name: anyone can join a public channel, and a name that is given up can be taken by someone else.")
 	}
 	seen := map[string]bool{}
 	for _, a := range in.Approvers {
@@ -352,7 +362,7 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 		secret := strings.TrimSpace(in.Secret)
 		effective := secret
 		if effective == "" {
-			if effective, err = s.openSecret(ctx, tx, cur.SecretID, purposeSecret); err != nil {
+			if effective, err = s.openSecret(ctx, tx, cur.SecretID); err != nil {
 				return badRequest("secret_required", "The saved key cannot be read. Enter it again and save.")
 			}
 		}

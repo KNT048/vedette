@@ -430,40 +430,50 @@ func (o *Ops) runContainerPull(ctx context.Context, rc *server.RunContext, a api
 	rcLog(rc, fmt.Sprintf("verified: index sequence %d, manifest %s signed by %s, cosign signature of %s", plan.idx.Sequence, plan.version, plan.keyID, plan.service))
 	res := api.ContainerPullResult{Digest: plan.digest, Size: plan.size, Verified: slices.Clone(pullVerified), IndexExpired: expired}
 
+	if err := o.pullAndRecord(ctx, func(s string) { rcLog(rc, s) }, plan); err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// pullAndRecord is what a verified plan does: pull by digest unless the image is here, tag it, look at
+// both, and only then record the version. container.pull and the bootstrap (D-142) both end here, so
+// there is one implementation of the podman side. The error is a *server.Failure.
+func (o *Ops) pullAndRecord(ctx context.Context, logf func(string), plan *pullPlan) error {
 	if o.imageIs(ctx, plan.ref, plan.service, plan.digest) {
-		rcLog(rc, "the image is already on this machine; nothing to pull")
+		logf("the image is already on this machine; nothing to pull")
 	} else {
 		argv, err := pullArgv(plan.service, plan.digest)
 		if err != nil {
-			return nil, fail(api.CodePullFailed, "The host could not build the pull command.")
+			return fail(api.CodePullFailed, "The host could not build the pull command.")
 		}
-		rcLog(rc, "pulling "+plan.ref)
+		logf("pulling " + plan.ref)
 		pctx, cancel := context.WithTimeout(ctx, pullCallLimit)
 		pres, code, perr := o.exec(pctx, binPodman, argv...)
 		cancel()
 		if perr != nil || code != 0 || pres.Truncated {
-			rcLog(rc, "podman pull failed; no tag and no record were made")
-			return nil, fail(api.CodePullFailed, "Podman could not pull the image.")
+			logf("podman pull failed; no tag and no record were made")
+			return fail(api.CodePullFailed, "Podman could not pull the image.")
 		}
 		if !o.imageIs(ctx, plan.ref, plan.service, plan.digest) {
-			return nil, fail(api.CodeEffectNotVerified, "After the pull, podman did not show the verified digest for the image.")
+			return fail(api.CodeEffectNotVerified, "After the pull, podman did not show the verified digest for the image.")
 		}
 	}
 
 	targv, err := tagArgv(plan.service, plan.digest, plan.version)
 	if err != nil {
-		return nil, fail(api.CodePullFailed, "The host could not build the tag command.")
+		return fail(api.CodePullFailed, "The host could not build the tag command.")
 	}
 	tag, _ := localTag(plan.service, plan.version)
-	rcLog(rc, "tagging "+tag)
+	logf("tagging " + tag)
 	tctx, cancel := context.WithTimeout(ctx, probeLimit)
 	_, code, terr := o.exec(tctx, binPodman, targv...)
 	cancel()
 	if terr != nil || code != 0 {
-		return nil, fail(api.CodePullFailed, "Podman could not tag the image.")
+		return fail(api.CodePullFailed, "Podman could not tag the image.")
 	}
 	if !o.imageIs(ctx, tag, plan.service, plan.digest) {
-		return nil, fail(api.CodeEffectNotVerified, "After the tag, podman did not show the verified digest under the local name.")
+		return fail(api.CodeEffectNotVerified, "After the tag, podman did not show the verified digest under the local name.")
 	}
 
 	rec := pulledRecord{
@@ -471,8 +481,8 @@ func (o *Ops) runContainerPull(ctx context.Context, rc *server.RunContext, a api
 		PulledAt: o.d.Now().UTC(), Manifest: base64.StdEncoding.EncodeToString(plan.manifest), ManifestSig: base64.StdEncoding.EncodeToString(plan.manifestSig),
 	}
 	if err := o.savePulled(rec); err != nil {
-		return nil, fail(api.CodePullFailed, "The image was pulled and tagged but the host could not record the version.")
+		return fail(api.CodePullFailed, "The image was pulled and tagged but the host could not record the version.")
 	}
-	rcLog(rc, "recorded "+plan.service+" "+plan.version)
-	return res, nil
+	logf("recorded " + plan.service + " " + plan.version)
+	return nil
 }

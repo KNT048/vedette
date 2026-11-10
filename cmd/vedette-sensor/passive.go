@@ -9,13 +9,14 @@ import (
 	"net"
 	"net/netip"
 	"regexp"
+	"time"
 
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/sensor-passive/capture"
 )
 
 // passiveFlags are the options of `vedette-sensor passive`.
-type passiveFlags struct{ core, creds *string }
+type passiveFlags struct{ core, creds, replay *string }
 
 // newPassiveFlags builds the flag set of `passive`. The test that checks the Exec= line of the sensor Quadlet unit (host/ops owns
 // the unit text, D-123) parses it with this same constructor, so a flag renamed here without the unit following fails a test.
@@ -25,7 +26,42 @@ func newPassiveFlags(stdout io.Writer) (*flag.FlagSet, passiveFlags) {
 	return fs, passiveFlags{
 		core:  fs.String("core", "https://127.0.0.1:8444", "address of core's sensor listener"),
 		creds: fs.String("creds", "/var/lib/vedette-creds/sensor.pem", "credentials bundle written by core (read only)"),
+		// ponytail: development only (the compose dev stack, D-146), no unit passes it; a recording is read in place of a card.
+		replay: fs.String("replay", "", "development only, never in a unit: read this pcap or pcapng recording (a developer's own capture or a public dev fixture, never a customer's) instead of a card, whichever card core names (or none)"),
 	}
+}
+
+// nowSource moves a recording to the present: core refuses observations whose time is outside its window, and a recording is old.
+// Every packet keeps its distance from the first one (the flood limiter of the capture counts packets per second, so squeezing a
+// recording into one instant would be dropped as a flood).
+type nowSource struct {
+	capture.Source
+	shift time.Duration
+	set   bool
+}
+
+func (n *nowSource) Next(ctx context.Context) (capture.Packet, error) {
+	p, err := n.Source.Next(ctx)
+	if err == nil {
+		if !n.set {
+			n.shift, n.set = time.Since(p.At), true
+		}
+		p.At = p.At.Add(n.shift)
+	}
+	return p, err
+}
+
+// replayLink is the link of `passive --replay`: the same as the real one, except that a configuration which names no card is told to
+// capture from "replay". The dev stack has no vedette-host, so nothing in core can choose a card; a card core does name is ignored
+// as well, because the recording is opened whatever the name.
+type replayLink struct{ beatLink }
+
+func (r replayLink) Config(ctx context.Context, etag string, wait time.Duration) (sensorlink.ConfigReply, error) {
+	rep, err := r.beatLink.Config(ctx, etag, wait)
+	if err == nil && !rep.NotModified && rep.Config.Interface == "" {
+		rep.Config.Interface = "replay"
+	}
+	return rep, err
 }
 
 // runPassive is `vedette-sensor passive --core URL --creds FILE`: the capture of the sensor container. It captures on the card
@@ -40,11 +76,30 @@ func runPassive(ctx context.Context, args []string, stdout io.Writer, logger *sl
 	if fs.NArg() != 0 {
 		return fmt.Errorf("unexpected argument %q", fs.Arg(0))
 	}
+	cfg := capture.Config{Interfaces: osInterfaces, Version: version, Log: logger}
+	if rec := *f.replay; rec != "" { // fail at start, not in the capture's retry loop
+		src, err := capture.OpenFile(rec)
+		if err != nil {
+			return err
+		}
+		_ = src.Close()
+		cfg.Open = func(string) (capture.Source, error) {
+			s, err := capture.OpenFile(rec)
+			if err != nil {
+				return nil, err
+			}
+			return &nowSource{Source: s}, nil
+		}
+	}
 	client, err := sensorlink.NewClient(sensorlink.ClientOptions{BaseURL: *coreURL, CredsPath: *creds})
 	if err != nil {
 		return err
 	}
-	r, err := capture.New(capture.Config{Link: withBeat(client, heartbeatPath, logger), Interfaces: osInterfaces, Version: version, Log: logger})
+	cfg.Link = withBeat(client, heartbeatPath, logger)
+	if *f.replay != "" {
+		cfg.Link = replayLink{withBeat(client, heartbeatPath, logger)}
+	}
+	r, err := capture.New(cfg)
 	if err != nil {
 		return err
 	}

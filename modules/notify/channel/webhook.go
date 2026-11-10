@@ -29,8 +29,9 @@ type WebhookConfig struct {
 	SigningKey secrets.Value // at least 16 bytes; signs every request
 	BoxAddrs   []netip.Addr  // this box's own addresses: never a valid target
 	// BoxAddrsFunc is asked again at every connection, so an address the box gets later is refused too
-	// (the caller fills it from the network interfaces).
-	BoxAddrsFunc func() []netip.Addr
+	// (the caller fills it from the network interfaces). known=false means the box does not know its own
+	// addresses yet: NewWebhook returns ErrBoxAddrsUnknown and every connection is refused (fail closed, #157).
+	BoxAddrsFunc func() (addrs []netip.Addr, known bool)
 
 	allowLoopback bool         // tests only: the package tests talk to httptest servers on 127.0.0.1
 	Client        *http.Client // nil = a client whose dialer refuses forbidden addresses (see dialControl)
@@ -81,23 +82,31 @@ func forbiddenAddr(a netip.Addr, allowLoopback bool, box []netip.Addr) bool {
 
 var errForbiddenDial = errors.New("notify: webhook: refusing to connect to a loopback, link-local, multicast, unspecified or box address")
 
+// ErrBoxAddrsUnknown means the box does not know its own addresses yet (vedette-host has not answered since the start), so a
+// webhook target cannot be checked against them: the webhook is not saved or built, and no connection is made (#157).
+var ErrBoxAddrsUnknown = errors.New("notify: webhook: the box's own addresses are not known yet")
+
 // dialControl runs after name resolution, on the address about to be dialled,
 // so a DNS name that resolves to a forbidden address (or rebinds to one) is
 // refused too.
-func dialControl(allowLoopback bool, box func() []netip.Addr) func(network, address string, c syscall.RawConn) error {
+func dialControl(allowLoopback bool, box func() ([]netip.Addr, bool)) func(network, address string, c syscall.RawConn) error {
 	return func(_, address string, _ syscall.RawConn) error {
 		host, _, err := net.SplitHostPort(address)
 		if err != nil {
 			return errForbiddenDial
 		}
-		if a, err := netip.ParseAddr(host); err != nil || forbiddenAddr(a, allowLoopback, box()) {
+		addrs, known := box()
+		if !known {
+			return ErrBoxAddrsUnknown
+		}
+		if a, err := netip.ParseAddr(host); err != nil || forbiddenAddr(a, allowLoopback, addrs) {
 			return errForbiddenDial
 		}
 		return nil
 	}
 }
 
-func webhookClient(allowLoopback bool, box func() []netip.Addr) *http.Client {
+func webhookClient(allowLoopback bool, box func() ([]netip.Addr, bool)) *http.Client {
 	return &http.Client{
 		Timeout:       defaultTimeout,
 		CheckRedirect: noRedirect,
@@ -128,12 +137,13 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 		}
 	}
 	host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
-	boxFn := func() []netip.Addr {
+	boxFn := func() ([]netip.Addr, bool) {
 		out := append([]netip.Addr(nil), cfg.BoxAddrs...)
-		if cfg.BoxAddrsFunc != nil {
-			out = append(out, cfg.BoxAddrsFunc()...)
+		if cfg.BoxAddrsFunc == nil {
+			return out, true
 		}
-		return out
+		more, known := cfg.BoxAddrsFunc()
+		return append(out, more...), known
 	}
 	blocked := cfgErr("blocked_host", "The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.")
 
@@ -146,8 +156,9 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 	default:
 		return nil, bad
 	}
+	box, known := boxFn()
 	if a, err := netip.ParseAddr(host); err == nil {
-		if forbiddenAddr(a, cfg.allowLoopback, boxFn()) {
+		if forbiddenAddr(a, cfg.allowLoopback, box) {
 			return nil, blocked
 		}
 	} else {
@@ -164,6 +175,9 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 	}
 	if len(cfg.SigningKey.Reveal()) < minSigningKey {
 		return nil, cfgErr("bad_secret", "The signing key needs at least 16 characters. Press Generate if you want a random one.")
+	}
+	if !known { // every field is fine, but the target cannot be checked against the box's own addresses yet
+		return nil, ErrBoxAddrsUnknown
 	}
 	now := cfg.Now
 	if now == nil {

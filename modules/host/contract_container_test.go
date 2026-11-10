@@ -109,7 +109,7 @@ func (e *ctrEnv) unit(t *testing.T, svc string) string {
 func (e *ctrEnv) render(t *testing.T, svc, digest string, install bool) string {
 	t.Helper()
 	cfg := e.m.Config()
-	b, err := ops.RenderUnit(svc, digest, install, cfg.CoreUID, cfg.CoreGID, cfg.SensorUID, cfg.SensorGID)
+	b, err := ops.RenderUnitIn(svc, digest, install, cfg.CoreUID, cfg.CoreGID, cfg.SensorUID, cfg.SensorGID, cfg.CoreData)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1302,12 +1302,11 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 	const keys = "vedette-creds-"
 	table := map[string]want{
 		api.ServiceCore: {network: "vedette-int.network", user: "10001:10002", publishes: []string{"8443:8443", "127.0.0.1:8444:8444"},
-			exec: "-listen :8443 -key /run/secrets/master.key",
+			exec: "-listen :8443",
 			volumes: []string{
-				"vedette-data.volume:/var/lib/vedette",
+				"/var/lib/vedette:/var/lib/vedette", // core_data bound: the database and the key core reads are the files the host backs up (D-142)
 				"/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config",
 				"/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log:ro",
-				"/etc/vedette/master.key:/run/secrets/master.key:ro",
 				"/run/vedette:/run/vedette",
 				keys + "passive.volume:/var/lib/vedette-creds/passive",
 				keys + "active.volume:/var/lib/vedette-creds/active",
@@ -1326,7 +1325,7 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 	}
 	for svc, w := range table {
 		for _, install := range []bool{true, false} {
-			b, err := ops.RenderUnit(svc, digA, install, cuid, cgid, suid, sgid)
+			b, err := ops.RenderUnitIn(svc, digA, install, cuid, cgid, suid, sgid, "/var/lib/vedette")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1426,11 +1425,15 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			// No key outside the ones the templates use: a new key is a decision (add it here and to the table).
 			known := []string{"Description", "After", "Wants", "Requires", "ContainerName", "Image", "Network", "PublishPort", "Volume", "ReadOnly", "Tmpfs",
 				"NoNewPrivileges", "DropCapability", "AddCapability", "User", "UserNS", "LogDriver", "PodmanArgs", "HealthCmd", "HealthInterval",
-				"HealthStartPeriod", "HealthRetries", "Exec", "Restart", "TimeoutStartSec", "WantedBy", "Pull"}
+				"HealthStartPeriod", "HealthRetries", "Exec", "Restart", "TimeoutStartSec", "WantedBy", "Pull", "RunInit"}
 			for k := range u {
 				if !slices.Contains(known, k) {
 					t.Errorf("%s has the key %s", svc, k)
 				}
+			}
+			// D-146: only scan runs under an init (nmap can leave children that detach from the process group the worker kills).
+			if _, has := u["RunInit"]; has != (svc == api.ServiceScan) {
+				t.Errorf("%s: RunInit present = %t, only scan has it", svc, has)
 			}
 		}
 	}

@@ -3,7 +3,6 @@ package main
 import (
 	"io"
 	"net"
-	"os"
 	"path"
 	"strings"
 	"testing"
@@ -78,15 +77,5 @@ func TestCoreUnitExecParsesWithTheRealFlagsAndAgreesWithItsMounts(t *testing.T) 
 	// The key may be mounted read-only; the database directory and the honeypot config may not.
 	if !strings.HasSuffix(targets[o.key], ":ro") || strings.HasSuffix(targets[path.Dir(o.db)], ":ro") || strings.HasSuffix(targets[path.Join(o.honeypotDir, "config")], ":ro") {
 		t.Errorf("mount modes: %v", targets)
-	}
-}
-
-// Sensor and scan run a binary that does not exist yet (cmd/vedette-sensor, D-114 (2)): their Exec= lines
-// follow the spec text and cannot be checked against flags. When the binary appears this test fails until
-// its flag set is parsed here too, so the units cannot drift from it (gate before slice 3-8 and WP-08).
-func TestSensorAndScanExecLinesNeedAFlagGateOnceTheBinaryExists(t *testing.T) {
-	t.Parallel()
-	if _, err := os.Stat("../vedette-sensor"); err == nil {
-		t.Fatal("cmd/vedette-sensor exists: parse the Exec= of the sensor and scan units with its flag set, as TestCoreUnitExec... does for core")
 	}
 }

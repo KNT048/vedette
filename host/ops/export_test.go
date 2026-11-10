@@ -3,6 +3,8 @@ package ops
 import (
 	"io"
 	"time"
+
+	"github.com/knt048/vedette/host/server"
 )
 
 // Internals that the external tests (package ops_test) need.
@@ -64,3 +66,6 @@ func (o *Ops) WriteUnit(service string, text []byte, keepPrev bool) error {
 
 // ErrUnitUnsafe is what the root write path answers for a link, a bad owner or an open directory.
 var ErrUnitUnsafe = errUnitUnsafe
+
+// ErrWriteBusy is what a Locker answers while a command holds the write lock.
+var ErrWriteBusy = server.ErrWriteBusy

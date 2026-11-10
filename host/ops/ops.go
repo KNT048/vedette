@@ -124,6 +124,10 @@ type Ops struct {
 	hpOK         atomic.Bool // the last ensureHP proved the namespace (state/net lists decoys only then)
 	hpDirErr     error       // hp/ is not a usable directory: decoys are off (D-121)
 
+	// restorePending lists the services whose unit bytes Start put back and whose state AfterReady still
+	// restores; Start sets it before the server listens, AfterReady reads it afterwards.
+	restorePending []string
+
 	// Container commands run one at a time under the server's write lock; Start runs before the
 	// server listens. Nothing else touches containers/ (no mutex of its own).
 
@@ -339,7 +343,7 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.sweepBackups()
 	o.checkCoreAtStart()
 	o.recoverRestore(ctx)
-	o.recoverTransition(ctx) // a unit change the host died in the middle of (D-105 (7))
+	o.recoverTransitions(ctx) // unit changes the host died in the middle of: bytes only, the state after READY (D-105 (7), D-123)
 	o.startReboot()
 	o.sweepExports()
 	o.armSweep()

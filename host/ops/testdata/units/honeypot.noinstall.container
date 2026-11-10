@@ -6,6 +6,7 @@ Requires=vedette-host.service
 [Container]
 ContainerName=vedette-honeypot
 Image=ghcr.io/knt048/vedette-honeypot@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+Pull=never
 Network=ns:/run/netns/vedette-hp
 DropCapability=ALL
 NoNewPrivileges=true

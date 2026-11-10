@@ -7,9 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"slices"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/knt048/vedette/host/api"
@@ -19,30 +21,49 @@ import (
 // container.start (the current image: no version yet) and container.stop (spec 6.8, 6.9, D-105,
 // D-123), and the journal of the unit changes they make.
 //
-// A unit change is: journal it (containers/transition.json), write the unit (D-105 (2): units.go),
-// systemctl daemon-reload, then restart or stop, then look at the effect: the container reports
-// the right image digest and "healthy" (Podman 4.9 has no Notify=healthy, so the host asks again and
-// again for up to 120 s), or systemctl is-active prints "inactive". A start that does not get
-// healthy puts the old unit back and restarts it (reverted, unit_failed). A host that dies in
-// the middle finds the journal at Start and puts the old unit back unless the new one is healthy.
+// A unit change is: journal it (containers/transition-<service>.json, phase "pending"), write the unit
+// (D-105 (2): units.go), systemctl daemon-reload, then restart or stop, then look at the effect: the
+// container reports the right image digest and "healthy" (Podman 4.9 has no Notify=healthy, so the host
+// asks again and again for up to 120 s), or systemctl is-active says the unit is stopped. When the effect
+// is seen the journal gets the phase "verified" (fsynced) and is removed. A start that does not get
+// healthy puts the old unit back and restores the state the service had (restart if it was active, stop
+// if not): reverted, unit_failed.
+//
+// A host that died in the middle finds the journals at Start. Before it is READY the host only puts the
+// unit bytes back and reloads systemd: the container units are After=vedette-host.service, so a
+// synchronous restart now would wait for the host's own start job. The restore of the state (restart or
+// stop, then the health look) is AfterReady, under the write lock (D-123 amendment H1).
 
 const (
 	maxInspectOutput = 1 << 20
 	reloadLimit      = 30 * time.Second
-	restartLimit     = 60 * time.Second
 	stopLimit        = 60 * time.Second
 	probeLimit       = 20 * time.Second
-	// stopVerifyWait bounds the look for "inactive" after a stop.
+	// stopVerifyWait bounds the look for a stopped unit after a stop (counted in HealthPoll sleeps, and
+	// capped by the wall clock).
 	stopVerifyWait = 20 * time.Second
-	// revertLimit bounds putting the old unit back; it runs on a context that outlives the run's own
-	// (a run that timed out must still undo what it did).
-	revertLimit = 90 * time.Second
-	// recoverLimit bounds recoverTransition at Start (a term of the TimeoutStartSec sum, D-121 (6), D-123).
-	recoverLimit      = 60 * time.Second
-	recoverHealthWait = 30 * time.Second
+	// fileSlack covers the file work (journal, unit, .prev) of one step.
+	fileSlack = 30 * time.Second
+	// recoverLimit bounds recoverTransitions at Start, a term of the TimeoutStartSec sum (D-121 (6),
+	// D-123): at most one daemon-reload plus the file work for the four units.
+	recoverLimit = reloadLimit + fileSlack
+	// afterReadyLimit bounds the restore of the state after READY: per unit a reload, a restart (the
+	// unit's start timeout) and the health wait.
+	afterReadyLimit = 15 * time.Minute
+	// afterReadyRetry and afterReadyGiveUp pace the wait for the write lock.
+	afterReadyRetry  = 2 * time.Second
+	afterReadyGiveUp = 10 * time.Minute
 )
 
+// revertLimitFor bounds putting an old unit back: the write, a reload, and a restart or a stop.
+func revertLimitFor(service string) time.Duration {
+	return fileSlack + reloadLimit + max(restartLimitFor(service), stopLimit)
+}
+
 var semverRE = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]{1,32})?(\+[0-9A-Za-z.-]{1,32})?$`)
+
+// unitServices are the services that have a unit template, in the order the host recovers them.
+var unitServices = []string{api.ServiceCore, api.ServiceSensor, api.ServiceHoneypot, api.ServiceScan}
 
 // serviceArg checks a service name against the closed list.
 func serviceArg(s string) error {
@@ -52,11 +73,24 @@ func serviceArg(s string) error {
 	return nil
 }
 
+func rcLog(rc *server.RunContext, line string) {
+	if rc != nil {
+		rc.Log(line)
+	}
+}
+
+func rcID(rc *server.RunContext) string {
+	if rc != nil {
+		return rc.RunID
+	}
+	return ""
+}
+
 func (o *Ops) cmdContainerStart() server.Command {
 	return server.Define(server.Spec[api.ContainerStartArgs]{
-		// Spec 10 says 3 minutes; a start that waits up to 120 s for health, then puts the old unit back,
-		// cannot fit in it (D-123 (6)).
-		Name: api.CmdContainerStart, Write: true, Timeout: 5 * time.Minute,
+		// Spec 10 says 3 minutes (core 15); one number covers the command, and a core start can wait for a
+		// restart of up to its TimeoutStartSec, then the health wait, then a revert (D-123).
+		Name: api.CmdContainerStart, Write: true, Timeout: 15 * time.Minute,
 		Validate: func(a *api.ContainerStartArgs) error {
 			if err := serviceArg(a.Service); err != nil {
 				return err
@@ -111,17 +145,23 @@ func (o *Ops) renderFor(service, digest string, install bool) ([]byte, error) {
 const zeroDigest = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
 
 // checkCommon is what both commands settle before a run: the appliance, a service with a template,
-// and the ids it needs.
+// the ids it needs, and no journal of an earlier change waiting to be recovered (D-123, M3).
 func (o *Ops) checkCommon(service string) error {
 	if _, err := o.platform(); err != nil {
 		return err
 	}
-	_, err := o.renderFor(service, zeroDigest, true)
-	return err
+	if _, err := o.renderFor(service, zeroDigest, true); err != nil {
+		return err
+	}
+	if _, st, _ := o.loadJournal(service); st != jAbsent {
+		return refuse412(api.CodeTransitionPending, "An earlier change of that unit has not been recovered yet; the host does that when it starts.")
+	}
+	return nil
 }
 
-// currentUnit reads and parses the unit of a service. A missing unit is not_pulled (no image has
-// been installed); a link, an odd file or one this host's templates do not describe is unit_unsafe.
+// currentUnit reads the unit of a service. A missing unit is not_pulled (no image has been
+// installed); a link, an odd file or one that is not byte for byte what this host would write is
+// unit_unsafe (D-123 L2).
 func (o *Ops) currentUnit(service string) (text []byte, digest string, err error) {
 	text, st := o.readUnit(service)
 	switch st {
@@ -130,9 +170,9 @@ func (o *Ops) currentUnit(service string) (text []byte, digest string, err error
 	case fileBroken:
 		return nil, "", refuse412(api.CodeUnitUnsafe, "The unit of that service is not a regular file the host can trust.")
 	}
-	digest, _, perr := parseUnit(service, text)
+	digest, _, perr := o.ourUnit(service, text)
 	if perr != nil {
-		return nil, "", refuse412(api.CodeUnitUnsafe, "The unit of that service is not one this host wrote.")
+		return nil, "", refuse412(api.CodeUnitUnsafe, "The unit of that service is not exactly what this host writes.")
 	}
 	return text, digest, nil
 }
@@ -162,12 +202,12 @@ func (o *Ops) checkContainerStop(_ context.Context, a api.ContainerStopArgs) err
 		if _, _, err := o.unitDirChain(); err != nil {
 			return refuse412(api.CodeUnitUnsafe, "The Quadlet directory is not safe to write as root.")
 		}
-		// A service with no unit has nothing to rewrite; a unit that is there must be one the host wrote.
+		// A service with no unit has nothing to rewrite; a unit that is there must be exactly ours.
 		if text, st := o.readUnit(a.Service); st == fileBroken {
 			return refuse412(api.CodeUnitUnsafe, "The unit of that service is not a regular file the host can trust.")
 		} else if st == fileOK {
-			if _, _, err := parseUnit(a.Service, text); err != nil {
-				return refuse412(api.CodeUnitUnsafe, "The unit of that service is not one this host wrote.")
+			if _, _, err := o.ourUnit(a.Service, text); err != nil {
+				return refuse412(api.CodeUnitUnsafe, "The unit of that service is not exactly what this host writes.")
 			}
 		}
 	}
@@ -203,6 +243,10 @@ func ClassifyActive(out []byte) string {
 	}
 	return api.UnitUnknown
 }
+
+// isStopped says whether a unit state means no process runs: inactive, and failed (a unit that failed
+// has nothing running, and "systemctl stop" would only reset it; D-123 M2).
+func isStopped(state string) bool { return state == api.UnitInactive || state == api.UnitFailed }
 
 // unitActive asks systemd what state the service's unit is in.
 func (o *Ops) unitActive(ctx context.Context, service string) string {
@@ -318,8 +362,8 @@ func (o *Ops) waitHealthy(ctx context.Context, rc *server.RunContext, service, d
 				return true
 			}
 		}
-		if rc != nil && seen != last {
-			rc.Log(containerName(service) + ": " + seen)
+		if seen != last {
+			rcLog(rc, containerName(service)+": "+seen)
 			last = seen
 		}
 		if waited >= total || time.Now().After(end) || ctx.Err() != nil {
@@ -329,6 +373,20 @@ func (o *Ops) waitHealthy(ctx context.Context, rc *server.RunContext, service, d
 			return false
 		}
 		waited += o.d.HealthPoll
+	}
+}
+
+// waitStopped looks, by the output of is-active, for the unit to be stopped (inactive or failed): every
+// HealthPoll for up to stopVerifyWait, counted in sleeps and capped by the wall clock.
+func (o *Ops) waitStopped(ctx context.Context, svc string) bool {
+	end := time.Now().Add(stopVerifyWait + probeLimit)
+	for waited := time.Duration(0); ; waited += o.d.HealthPoll {
+		if isStopped(o.unitActive(ctx, svc)) {
+			return true
+		}
+		if waited >= stopVerifyWait || time.Now().After(end) || !o.d.Sleep(ctx, o.d.HealthPoll) {
+			return false
+		}
 	}
 }
 
@@ -343,54 +401,162 @@ func (o *Ops) runningHealthy(ctx context.Context, service, digest string) bool {
 
 // ---- the journal --------------------------------------------------------------------------------
 
-// transition is containers/transition.json: written before a unit changes, removed when the change
-// is over (healthy, stopped, or put back).
+// transition is containers/transition-<service>.json: one per service, written before the bytes of a
+// unit change and removed when the change is over. Phase is "pending" while the change may be half
+// done, "restored" once Start put the old bytes back and the state is still to be restored after READY,
+// and "verified" once the effect was seen (the journal is then only waiting to be deleted).
 type transition struct {
-	Service string    `json:"service"`
-	Op      string    `json:"op"` // "start" | "stop"
-	Digest  string    `json:"digest"`
-	PrevSHA string    `json:"prev_sha256"` // sha256 of the unit text before the change
-	NewSHA  string    `json:"new_sha256"`  // sha256 of the text the change writes
-	At      time.Time `json:"at"`
-	RunID   string    `json:"run_id"`
+	Service   string    `json:"service"`
+	Op        string    `json:"op"`    // "start" | "stop"
+	Phase     string    `json:"phase"` // "pending" | "restored" | "verified"
+	Digest    string    `json:"digest"`
+	PrevSHA   string    `json:"prev_sha256"` // sha256 of the unit text before the change
+	NewSHA    string    `json:"new_sha256"`  // sha256 of the text the change writes
+	WasActive bool      `json:"was_active"`  // the unit was active before the change (is-active)
+	At        time.Time `json:"at"`
+	RunID     string    `json:"run_id"`
 }
 
 const (
 	opStart = "start"
 	opStop  = "stop"
+
+	phasePending  = "pending"
+	phaseRestored = "restored"
+	phaseVerified = "verified"
 )
 
-func (o *Ops) transitionPath() string { return o.stateFile("containers", "transition.json") }
+func (t transition) command() string {
+	if t.Op == opStop {
+		return api.CmdContainerStop
+	}
+	return api.CmdContainerStart
+}
 
-func (o *Ops) saveTransition(t transition) error { return writeJSONAtomic(o.transitionPath(), t) }
+func journalName(service string) string { return "transition-" + service + ".json" }
 
-func (o *Ops) clearTransition() { _ = removeIfThere(o.transitionPath()) }
+// jstate is what loadJournal found.
+type jstate int
 
-// loadTransition reads the journal strictly: no unknown field, no trailing data, every value valid.
-func (o *Ops) loadTransition() (transition, fileState) {
+const (
+	jAbsent     jstate = iota
+	jOK                // a valid journal
+	jInvalid           // it does not parse or has a wrong type, value or kind of file: quarantine it
+	jUnreadable        // an I/O error: say so, touch nothing
+)
+
+func (o *Ops) saveJournal(t transition) error {
+	return writeJSONAtomic(o.stateFile("containers", journalName(t.Service)), t)
+}
+
+// removeJournal deletes the journal and makes the removal durable: the directory is fsynced.
+func (o *Ops) removeJournal(service string) {
+	_ = removeIfThere(o.stateFile("containers", journalName(service)))
+	syncDir(o.stateFile("containers"))
+}
+
+// finishJournal records that the effect was seen (phase verified, fsynced) and then deletes the
+// journal: a crash between the two leaves a verified journal that Start only deletes, never reverts.
+func (o *Ops) finishJournal(t transition) {
+	t.Phase = phaseVerified
+	_ = o.saveJournal(t)
+	o.removeJournal(t.Service)
+}
+
+// loadJournal reads the journal of a service strictly: no unknown field, no trailing data, every
+// value valid. A kind of file that is not a regular file, a size over the cap, or content that fails to
+// parse or validate is jInvalid; an I/O error is jUnreadable (and returned).
+func (o *Ops) loadJournal(service string) (transition, jstate, error) {
 	r, err := openRootOf(o.stateFile("containers"))
 	if err != nil {
-		return transition{}, fileAbsent
+		return transition{}, jUnreadable, err
 	}
 	defer func() { _ = r.Close() }()
-	b, st := readNoFollow(r, "transition.json", 4<<10)
-	if st != fileOK {
-		return transition{}, st
+	name := journalName(service)
+	lst, err := r.Lstat(name)
+	if errors.Is(err, os.ErrNotExist) {
+		return transition{}, jAbsent, nil
+	}
+	if err != nil {
+		return transition{}, jUnreadable, err
+	}
+	if !lst.Mode().IsRegular() || lst.Size() > 4<<10 {
+		return transition{}, jInvalid, nil
+	}
+	f, err := r.OpenFile(name, os.O_RDONLY|syscall.O_NONBLOCK|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		if errors.Is(err, syscall.ELOOP) {
+			return transition{}, jInvalid, nil
+		}
+		return transition{}, jUnreadable, err
+	}
+	defer func() { _ = f.Close() }()
+	if fi, err := f.Stat(); err != nil || !fi.Mode().IsRegular() {
+		return transition{}, jInvalid, nil
+	}
+	b, err := io.ReadAll(io.LimitReader(f, 4<<10+1))
+	if err != nil {
+		return transition{}, jUnreadable, err
+	}
+	if len(b) > 4<<10 {
+		return transition{}, jInvalid, nil
 	}
 	var t transition
 	dec := json.NewDecoder(bytes.NewReader(b))
 	dec.DisallowUnknownFields()
 	if dec.Decode(&t) != nil {
-		return transition{}, fileBroken
+		return transition{}, jInvalid, nil
 	}
 	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
-		return transition{}, fileBroken
+		return transition{}, jInvalid, nil
 	}
-	if _, ok := services[t.Service]; !ok || (t.Op != opStart && t.Op != opStop) || !digestRE.MatchString(t.Digest) ||
-		!shaRE.MatchString(t.PrevSHA) || !shaRE.MatchString(t.NewSHA) || (t.RunID != "" && !runIDRE.MatchString(t.RunID)) {
-		return transition{}, fileBroken
+	if t.Service != service || (t.Op != opStart && t.Op != opStop) || (t.Phase != phasePending && t.Phase != phaseRestored && t.Phase != phaseVerified) ||
+		!digestRE.MatchString(t.Digest) || !shaRE.MatchString(t.PrevSHA) || !shaRE.MatchString(t.NewSHA) || (t.RunID != "" && !runIDRE.MatchString(t.RunID)) {
+		return transition{}, jInvalid, nil
 	}
-	return t, fileOK
+	return t, jOK, nil
+}
+
+// keepInvalid is how many quarantined journals of a service are kept (D-121 (7)).
+const keepInvalid = 3
+
+// quarantineJournal moves a journal that does not parse aside under a timestamped name (keeping the
+// newest keepInvalid), so the evidence stays and the service is not blocked.
+func (o *Ops) quarantineJournal(service string) {
+	r, err := openRootOf(o.stateFile("containers"))
+	if err != nil {
+		return
+	}
+	defer func() { _ = r.Close() }()
+	name := journalName(service)
+	if err := r.Rename(name, fmt.Sprintf("%s.invalid-%019d", name, time.Now().UnixNano())); err != nil {
+		_ = r.Remove(name)
+	}
+	d, err := r.Open(".")
+	if err != nil {
+		return
+	}
+	names, _ := d.Readdirnames(-1)
+	_ = d.Close()
+	var old []string
+	for _, n := range names {
+		if strings.HasPrefix(n, name+".invalid-") {
+			old = append(old, n)
+		}
+	}
+	slices.Sort(old) // fixed-width timestamps: oldest first
+	for len(old) > keepInvalid {
+		_ = r.Remove(old[0])
+		old = old[1:]
+	}
+	syncDir(o.stateFile("containers"))
+}
+
+func (o *Ops) newJournal(rc *server.RunContext, op, service, digest string, prev, next []byte, wasActive bool) transition {
+	return transition{
+		Service: service, Op: op, Phase: phasePending, Digest: digest, PrevSHA: sha256Hex(prev), NewSHA: sha256Hex(next),
+		WasActive: wasActive, At: o.d.Now().UTC(), RunID: rcID(rc),
+	}
 }
 
 // ---- container.start ----------------------------------------------------------------------------
@@ -406,44 +572,55 @@ func (o *Ops) runContainerStart(ctx context.Context, rc *server.RunContext, a ap
 		return nil, err
 	}
 	res := api.ContainerStartResult{Service: svc, Digest: digest, Healthy: true}
+	wasActive := o.unitActive(ctx, svc) == api.UnitActive
 	// Already running this image and healthy, and no restart asked: nothing to restart. If only the
 	// [Install] section was missing (the service was stopped with persist), put it back and reload; the
-	// running container is not touched.
+	// running container is not touched. The change of bytes is journaled like any other.
 	if !a.Restart && o.runningHealthy(ctx, svc, digest) {
-		if !bytes.Equal(old, want) {
-			if err := o.writeUnit(svc, want, true); err != nil {
-				return nil, unitWriteFailure(err)
-			}
-			if !o.sctl(ctx, reloadLimit, "daemon-reload") {
-				return nil, fail(api.CodeUnitUnwritable, "systemd would not reload the unit.")
-			}
-			rc.Log("unit written with [Install]; the running container was left alone")
+		if bytes.Equal(old, want) {
+			return res, nil
 		}
+		tr := o.newJournal(rc, opStart, svc, digest, old, want, true)
+		if err := o.saveJournal(tr); err != nil {
+			return nil, fail(api.CodeUnitUnwritable, "The host could not write its journal.")
+		}
+		if err := o.writeUnit(svc, want, true); err != nil {
+			o.removeJournal(svc)
+			return nil, unitWriteFailure(err)
+		}
+		if !o.sctl(ctx, reloadLimit, "daemon-reload") {
+			if o.writeUnit(svc, old, false) == nil {
+				o.removeJournal(svc)
+			}
+			return nil, fail(api.CodeUnitUnwritable, "systemd would not reload the unit.")
+		}
+		o.finishJournal(tr)
+		rcLog(rc, "unit written with [Install]; the running container was left alone")
 		return res, nil
 	}
-	tr := transition{Service: svc, Op: opStart, Digest: digest, PrevSHA: sha256Hex(old), NewSHA: sha256Hex(want), At: o.d.Now().UTC(), RunID: rc.RunID}
-	if err := o.saveTransition(tr); err != nil {
+	tr := o.newJournal(rc, opStart, svc, digest, old, want, wasActive)
+	if err := o.saveJournal(tr); err != nil {
 		return nil, fail(api.CodeUnitUnwritable, "The host could not write its journal.")
 	}
 	if err := o.writeUnit(svc, want, true); err != nil {
-		o.clearTransition()
+		o.removeJournal(svc)
 		return nil, unitWriteFailure(err)
 	}
 	res.Restarted = true
-	rc.Log("unit written, reloading systemd and restarting " + unitOf(svc))
-	ok := o.sctl(ctx, reloadLimit, "daemon-reload") && o.sctl(ctx, restartLimit, "restart", unitOf(svc))
+	rcLog(rc, "unit written, reloading systemd and restarting "+unitOf(svc))
+	ok := o.sctl(ctx, reloadLimit, "daemon-reload") && o.sctl(ctx, restartLimitFor(svc), "restart", unitOf(svc))
 	if ok && o.waitHealthy(ctx, rc, svc, digest, o.d.HealthWait) {
-		o.clearTransition()
+		o.finishJournal(tr)
 		return res, nil
 	}
-	rc.Log("the service did not become healthy; putting the previous unit back")
+	rcLog(rc, "the service did not become healthy; putting the previous unit back")
 	res.Healthy = false
-	if err := o.revertUnit(ctx, svc, old); err != nil {
-		// The journal stays: the next start of the host tries again.
+	if err := o.revertUnit(ctx, svc, old, wasActive); err != nil {
+		// The journal stays (pending): the next start of the host puts the bytes back and the state after READY.
 		return nil, &server.Failure{Code: api.CodeUnitFailed, Message: "The new unit did not become healthy and the previous one could not be put back.", Result: res}
 	}
-	o.clearTransition()
-	return nil, &server.Reverted{Code: api.CodeUnitFailed, Message: "The service did not become healthy; the previous unit was put back and restarted.", Result: res}
+	o.finishJournal(tr)
+	return nil, &server.Reverted{Code: api.CodeUnitFailed, Message: "The service did not become healthy; the previous unit was put back and the service returned to the state it had.", Result: res}
 }
 
 func unitWriteFailure(err error) error {
@@ -453,16 +630,28 @@ func unitWriteFailure(err error) error {
 	return fail(api.CodeUnitUnwritable, "The unit could not be written.")
 }
 
-// revertUnit writes the old unit text back (without touching .prev), reloads and restarts. It runs on
-// a context that outlives the run's, so a run that timed out still puts things back.
-func (o *Ops) revertUnit(ctx context.Context, service string, old []byte) error {
-	rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), revertLimit)
+// revertUnit writes the old unit text back (without touching .prev), reloads, and returns the service to
+// the state it had: restart when it was active, stop when it was not (a service stopped with persist
+// must not come up because its enabling failed, SYS-5). It runs on a context that outlives the run's, so
+// a run that timed out still puts things back.
+func (o *Ops) revertUnit(ctx context.Context, service string, old []byte, wasActive bool) error {
+	rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), revertLimitFor(service))
 	defer cancel()
 	if err := o.writeUnit(service, old, false); err != nil {
 		return err
 	}
-	if !o.sctl(rctx, reloadLimit, "daemon-reload") || !o.sctl(rctx, restartLimit, "restart", unitOf(service)) {
-		return errors.New("ops: systemd would not reload or restart the previous unit")
+	if !o.sctl(rctx, reloadLimit, "daemon-reload") {
+		return errors.New("ops: systemd would not reload the previous unit")
+	}
+	if wasActive {
+		if !o.sctl(rctx, restartLimitFor(service), "restart", unitOf(service)) {
+			return errors.New("ops: systemd would not restart the previous unit")
+		}
+		return nil
+	}
+	o.sctl(rctx, stopLimit, "stop", unitOf(service)) // the state is read, not the exit code
+	if !isStopped(o.unitActive(rctx, service)) {
+		return errors.New("ops: the service could not be stopped again")
 	}
 	return nil
 }
@@ -473,138 +662,221 @@ func (o *Ops) runContainerStop(ctx context.Context, rc *server.RunContext, a api
 	svc := a.Service
 	res := api.ContainerStopResult{Service: svc, Persist: a.Persist}
 	state := o.unitActive(ctx, svc)
+	var tr *transition
 	if a.Persist {
-		changed, err := o.dropInstall(ctx, rc, svc)
+		changed, j, err := o.dropInstall(ctx, rc, svc, state == api.UnitActive)
 		if err != nil {
 			return nil, err
 		}
-		res.Changed = changed
+		res.Changed, tr = changed, j
 	}
-	if state != api.UnitInactive {
-		rc.Log("stopping " + unitOf(svc))
+	if !isStopped(state) {
+		rcLog(rc, "stopping "+unitOf(svc))
 		o.sctl(ctx, stopLimit, "stop", unitOf(svc)) // the effect check below decides, not the exit code
 		res.Changed = true
 	}
-	if !o.waitInactive(ctx, svc) {
-		return nil, &server.Failure{Code: api.CodeStopNotVerified, Message: "systemctl did not report the service inactive after the stop.", Result: res}
+	ok := o.waitStopped(ctx, svc)
+	if tr != nil {
+		// The unit change is done whether or not the stop was seen: a failed stop is the caller's to retry,
+		// and a journal left pending would only block that retry.
+		o.finishJournal(*tr)
+	}
+	if !ok {
+		return nil, &server.Failure{Code: api.CodeStopNotVerified, Message: "systemctl did not report the service stopped after the stop.", Result: res}
 	}
 	return res, nil
 }
 
-// dropInstall rewrites the unit without [Install] (persist), journaling the change, and reloads.
-// It reports whether it changed anything. A service with no unit has nothing to rewrite.
-func (o *Ops) dropInstall(ctx context.Context, rc *server.RunContext, svc string) (bool, error) {
+// dropInstall rewrites the unit without [Install] (persist), journaling the change, and reloads. It
+// reports whether it changed anything and returns the journal, still pending: the caller finishes it
+// once the stop was looked at. A service with no unit has nothing to rewrite.
+func (o *Ops) dropInstall(ctx context.Context, rc *server.RunContext, svc string, wasActive bool) (bool, *transition, error) {
 	text, st := o.readUnit(svc)
 	switch st {
 	case fileAbsent:
-		return false, nil
+		return false, nil, nil
 	case fileBroken:
-		return false, fail(api.CodeUnitUnsafe, "The unit of that service is not a regular file the host can trust.")
+		return false, nil, fail(api.CodeUnitUnsafe, "The unit of that service is not a regular file the host can trust.")
 	}
-	digest, install, err := parseUnit(svc, text)
+	digest, install, err := o.ourUnit(svc, text)
 	if err != nil {
-		return false, fail(api.CodeUnitUnsafe, "The unit of that service is not one this host wrote.")
+		return false, nil, fail(api.CodeUnitUnsafe, "The unit of that service is not exactly what this host writes.")
 	}
 	if !install {
-		return false, nil
+		return false, nil, nil
 	}
 	want, err := renderUnit(svc, o.fillFor(digest, false))
 	if err != nil {
-		return false, fail(api.CodeHostConfIncomplete, "host.conf does not give the uid and gid this unit needs.")
+		return false, nil, fail(api.CodeHostConfIncomplete, "host.conf does not give the uid and gid this unit needs.")
 	}
-	tr := transition{Service: svc, Op: opStop, Digest: digest, PrevSHA: sha256Hex(text), NewSHA: sha256Hex(want), At: o.d.Now().UTC(), RunID: rc.RunID}
-	if err := o.saveTransition(tr); err != nil {
-		return false, fail(api.CodeUnitUnwritable, "The host could not write its journal.")
+	tr := o.newJournal(rc, opStop, svc, digest, text, want, wasActive)
+	if err := o.saveJournal(tr); err != nil {
+		return false, nil, fail(api.CodeUnitUnwritable, "The host could not write its journal.")
 	}
 	if err := o.writeUnit(svc, want, true); err != nil {
-		o.clearTransition()
-		return false, unitWriteFailure(err)
+		o.removeJournal(svc)
+		return false, nil, unitWriteFailure(err)
 	}
 	if !o.sctl(ctx, reloadLimit, "daemon-reload") {
-		if err := o.writeUnit(svc, text, false); err == nil {
-			o.clearTransition()
+		if o.writeUnit(svc, text, false) == nil {
+			o.removeJournal(svc)
 		}
-		return false, fail(api.CodeUnitUnwritable, "systemd would not reload the unit.")
+		return false, nil, fail(api.CodeUnitUnwritable, "systemd would not reload the unit.")
 	}
-	o.clearTransition()
-	rc.Log("unit rewritten without [Install]")
-	return true, nil
+	rcLog(rc, "unit rewritten without [Install]")
+	return true, &tr, nil
 }
 
-// waitInactive looks, by the output of is-active, for the unit to be inactive: every HealthPoll for
-// up to stopVerifyWait.
-func (o *Ops) waitInactive(ctx context.Context, svc string) bool {
-	for waited := time.Duration(0); ; waited += o.d.HealthPoll {
-		if o.unitActive(ctx, svc) == api.UnitInactive {
-			return true
-		}
-		if waited >= stopVerifyWait || !o.d.Sleep(ctx, o.d.HealthPoll) {
-			return false
-		}
-	}
-}
+// ---- recovery -----------------------------------------------------------------------------------
 
-// ---- recovery at Start --------------------------------------------------------------------------
-
-// recoverTransition puts back a unit change the host died in the middle of (D-105 (7)), the way
-// recoverRestore does for a restore. A start whose new unit is healthy is simply finished; one that
-// is not gets the previous unit back and a restart. A stop gets the previous unit text back and
-// nothing else (the service is left as it is). The whole step is bounded by recoverLimit.
-func (o *Ops) recoverTransition(ctx context.Context) {
-	t, st := o.loadTransition()
-	switch st {
-	case fileAbsent:
-		return
-	case fileBroken:
-		o.log.WarnContext(ctx, "the unit journal is unreadable; removing it")
-		o.clearTransition()
-		o.note(api.CmdContainerStart, "transition_invalid", nil)
-		return
-	}
+// recoverTransitions runs at Start, before the host is READY, and only puts unit bytes back and
+// reloads systemd (D-123 H1): the container units are After=vedette-host.service, so a synchronous
+// restart now would wait for this very start job, and no container can be judged healthy before the
+// host is ready. A journal in phase verified is only deleted; one in phase pending gets the bytes it
+// recorded back (from .prev, which must match its hash) and becomes "restored"; the service state
+// (restart if it was active, stop if not) is restored by AfterReady. A journal that does not parse is
+// moved aside; one that cannot be read is left alone and says so. Until a journal is gone, container
+// commands for that service are refused (transition_pending). Bounded by recoverLimit.
+func (o *Ops) recoverTransitions(ctx context.Context) {
 	rctx, cancel := context.WithTimeout(ctx, recoverLimit)
 	defer cancel()
-	detail := map[string]any{"service": t.Service, "op": t.Op, "run_id": t.RunID}
-	if t.Op == opStart {
-		cur, cs := o.readUnit(t.Service)
-		if cs == fileOK && sha256Hex(cur) == t.NewSHA && o.waitHealthy(rctx, nil, t.Service, t.Digest, recoverHealthWait) {
-			o.clearTransition()
+	o.restorePending = nil
+	changed := false
+	for _, svc := range unitServices {
+		t, st, err := o.loadJournal(svc)
+		switch st {
+		case jAbsent:
+			continue
+		case jUnreadable:
+			o.log.ErrorContext(ctx, "the unit journal cannot be read; leaving it", "service", svc, "error", err.Error())
+			o.note(api.CmdContainerStart, "transition_unreadable", map[string]any{"service": svc})
+			continue
+		case jInvalid:
+			o.log.WarnContext(ctx, "the unit journal is not valid; moving it aside", "service", svc)
+			o.quarantineJournal(svc)
+			o.note(api.CmdContainerStart, "transition_invalid", map[string]any{"service": svc})
+			continue
+		case jOK:
+		}
+		detail := map[string]any{"service": svc, "op": t.Op, "run_id": t.RunID}
+		switch t.Phase {
+		case phaseVerified:
+			o.removeJournal(svc)
 			detail["action"] = "completed"
-			o.note(api.CmdContainerStart, "transition_interrupted", detail)
-			return
+			o.note(t.command(), "transition_interrupted", detail)
+		case phaseRestored:
+			o.restorePending = append(o.restorePending, svc)
+		default: // pending
+			if err := o.restoreBytes(t); err != nil {
+				o.log.ErrorContext(ctx, "could not put back the unit of an interrupted change", "service", svc, "error", err.Error())
+				detail["action"] = "failed"
+				o.note(t.command(), "transition_recovery_failed", detail)
+				continue // the journal stays; commands for the service are refused
+			}
+			t.Phase = phaseRestored
+			if err := o.saveJournal(t); err != nil {
+				detail["action"] = "failed"
+				o.note(t.command(), "transition_recovery_failed", detail)
+				continue
+			}
+			changed = true
+			o.restorePending = append(o.restorePending, svc)
+			detail["action"] = "bytes_restored"
+			o.note(t.command(), "transition_interrupted", detail)
 		}
 	}
-	if err := o.putBackUnit(rctx, t); err != nil {
-		o.log.ErrorContext(ctx, "could not put back an interrupted unit change", "service", t.Service, "error", err.Error())
-		detail["action"] = "failed"
-		o.note(api.CmdContainerStart, "transition_recovery_failed", detail)
-		return // the journal stays for the next start
+	if changed && !o.sctl(rctx, reloadLimit, "daemon-reload") {
+		o.log.ErrorContext(ctx, "systemd would not reload after the unit bytes were put back; AfterReady tries again")
 	}
-	o.clearTransition()
-	detail["action"] = "reverted"
-	o.note(api.CmdContainerStart, "transition_interrupted", detail)
 }
 
-// putBackUnit restores the unit text from before the change (when it is not there already), reloads
-// systemd and, for a start, restarts the unit.
-func (o *Ops) putBackUnit(ctx context.Context, t transition) error {
+// restoreBytes puts the unit text from before the change back, unless it is there already.
+func (o *Ops) restoreBytes(t transition) error {
 	cur, cs := o.readUnit(t.Service)
 	if cs == fileBroken {
 		return errUnitUnsafe
 	}
-	if cs != fileOK || sha256Hex(cur) != t.PrevSHA {
-		prev, ps := o.readPrev(t.Service)
-		if ps != fileOK || sha256Hex(prev) != t.PrevSHA {
-			return errors.New("ops: the previous unit is not kept or does not match the journal")
+	if cs == fileOK && sha256Hex(cur) == t.PrevSHA {
+		return nil
+	}
+	prev, ps := o.readPrev(t.Service)
+	if ps != fileOK || sha256Hex(prev) != t.PrevSHA {
+		return errors.New("ops: the previous unit is not kept or does not match the journal")
+	}
+	return o.writeUnit(t.Service, prev, false)
+}
+
+// Locker is what AfterReady needs from the server: run a function under the global write lock, the
+// way a command does, or say ErrWriteBusy (server.Server implements it).
+type Locker interface {
+	WithWriteLock(ctx context.Context, fn func(ctx context.Context)) error
+}
+
+// AfterReady restores the state of the services whose unit bytes Start put back: restart when the
+// service was active before the interrupted change (and look for it to be healthy), stop when it was
+// not. It runs once, after the host is READY and listening, on its own goroutine, and takes the write
+// lock like a normal run, retrying while a command holds it. Simplest correct form: by now vedette-host
+// is active, so a synchronous restart of an After=vedette-host unit no longer waits on the host's own
+// start job, and no --no-block is needed. A journal that cannot be completed stays (phase restored) and
+// the next start tries again.
+func (o *Ops) AfterReady(ctx context.Context, l Locker) {
+	if len(o.restorePending) == 0 {
+		return
+	}
+	give := time.Now().Add(afterReadyGiveUp)
+	for ctx.Err() == nil && time.Now().Before(give) {
+		err := l.WithWriteLock(ctx, o.finishRestores)
+		if err == nil {
+			return
 		}
-		if err := o.writeUnit(t.Service, prev, false); err != nil {
-			return err
+		if !errors.Is(err, server.ErrWriteBusy) {
+			o.log.ErrorContext(ctx, "could not take the write lock to restore units", "error", err.Error())
+			return
+		}
+		if !o.d.Sleep(ctx, afterReadyRetry) {
+			return
 		}
 	}
-	if !o.sctl(ctx, reloadLimit, "daemon-reload") {
-		return errors.New("ops: systemd would not reload")
+}
+
+// finishRestores is the body of AfterReady, under the write lock.
+func (o *Ops) finishRestores(ctx context.Context) {
+	rctx, cancel := context.WithTimeout(ctx, afterReadyLimit)
+	defer cancel()
+	o.sctl(rctx, reloadLimit, "daemon-reload") // idempotent: Start may not have managed it
+	for _, svc := range o.restorePending {
+		t, st, _ := o.loadJournal(svc)
+		if st != jOK || t.Phase != phaseRestored {
+			continue
+		}
+		detail := map[string]any{"service": svc, "op": t.Op, "run_id": t.RunID, "was_active": t.WasActive}
+		text, fs := o.readUnit(svc)
+		digest, _, err := parseUnit(svc, text)
+		if fs != fileOK || err != nil {
+			detail["action"] = "failed"
+			o.note(t.command(), "transition_recovery_failed", detail)
+			continue
+		}
+		var ok bool
+		if t.WasActive {
+			ok = o.runningHealthy(rctx, svc, digest)
+			if !ok {
+				ok = o.sctl(rctx, restartLimitFor(svc), "restart", unitOf(svc)) && o.waitHealthy(rctx, nil, svc, digest, o.d.HealthWait)
+			}
+		} else {
+			if !isStopped(o.unitActive(rctx, svc)) {
+				o.sctl(rctx, stopLimit, "stop", unitOf(svc))
+			}
+			ok = o.waitStopped(rctx, svc)
+		}
+		if !ok {
+			detail["action"] = "failed"
+			o.note(t.command(), "transition_recovery_failed", detail)
+			continue
+		}
+		o.finishJournal(t)
+		detail["action"] = "reverted"
+		o.note(t.command(), "transition_interrupted", detail)
 	}
-	if t.Op == opStart && !o.sctl(ctx, restartLimit, "restart", unitOf(t.Service)) {
-		return errors.New("ops: systemd would not restart the previous unit")
-	}
-	return nil
+	o.restorePending = nil
 }

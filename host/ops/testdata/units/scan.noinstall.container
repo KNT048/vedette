@@ -1,11 +1,12 @@
 [Unit]
 Description=Vedette scan (active scanning)
 After=vedette-core.service
-Requires=vedette-core.service
+Wants=vedette-core.service
 
 [Container]
 ContainerName=vedette-scan
 Image=localhost/vedette-scan-nmap@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+Pull=never
 Network=host
 User=10003:10004
 DropCapability=ALL

@@ -193,7 +193,7 @@ func errCode(b []byte) string {
 
 func waitDone(t *testing.T, c *client.Client, runID string) api.Run {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // 61 forks of a fake podman take a while on a loaded machine
 	defer cancel()
 	s := c.Events(ctx, runID, 0)
 	defer s.Close()

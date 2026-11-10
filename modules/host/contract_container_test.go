@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,6 +19,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/ops"
 	"github.com/knt048/vedette/host/ops/opstest"
+	"github.com/knt048/vedette/host/server"
 )
 
 // container.start (the current image), container.stop and GET /v1/state/containers (WP-07b part 3, slice
@@ -154,7 +156,7 @@ func TestContract_Container_StartWritesTheUnitReloadsRestartsAndWaitsForHealth(t
 	if got := e.m.Calls("podman"); len(got) == 0 || !slices.Equal(got[0], []string{"container", "inspect", "vedette-honeypot"}) {
 		t.Fatalf("podman calls %v", got)
 	}
-	if _, err := os.Stat(e.m.TransitionPath()); err == nil {
+	if _, err := os.Stat(e.m.TransitionPath(api.ServiceHoneypot)); err == nil {
 		t.Error("the journal was left behind")
 	}
 	// The journal existed while systemd was reloaded and restarted.
@@ -235,10 +237,11 @@ func TestContract_Container_AnUnhealthyStartPutsTheOldUnitBack(t *testing.T) {
 	if got := e.unit(t, api.ServiceHoneypot); got != old {
 		t.Fatalf("the old unit was not put back:\n%s", got)
 	}
-	if got, want := e.ctl(), []string{"daemon-reload", "restart vedette-honeypot.service", "daemon-reload", "restart vedette-honeypot.service"}; !slices.Equal(got, want) {
+	// The honeypot was stopped before: the revert stops it again instead of restarting it (M1).
+	if got, want := e.ctl(), []string{"daemon-reload", "restart vedette-honeypot.service", "daemon-reload", "stop vedette-honeypot.service"}; !slices.Equal(got, want) {
 		t.Fatalf("systemctl calls %v, want %v", got, want)
 	}
-	if _, err := os.Stat(e.m.TransitionPath()); err == nil {
+	if _, err := os.Stat(e.m.TransitionPath(api.ServiceHoneypot)); err == nil {
 		t.Error("the journal was left behind after the unit was put back")
 	}
 	if prev, _ := e.m.Prev(api.ServiceHoneypot); prev != old {
@@ -291,8 +294,8 @@ func TestContract_Container_AFailedRestartPutsTheOldUnitBackAndAFailedPutBackLea
 	e := startCtr(t)
 	e.m.InstallUnit(api.ServiceHoneypot, digA, false)
 	old := e.unit(t, api.ServiceHoneypot)
-	e.m.Mark("restart-fails", true)
-	// systemd would not restart the new unit, nor the old one: the run fails, it does not claim a revert.
+	e.m.Mark("reload-fails", true)
+	// systemd would not reload the new unit, nor the old one: the run fails, it does not claim a revert.
 	r := e.final(t, api.CmdContainerStart, api.ContainerStartArgs{Service: api.ServiceHoneypot}, api.StatusFailed, api.CodeUnitFailed)
 	if got := e.unit(t, api.ServiceHoneypot); got != old {
 		t.Fatalf("the old unit text must be back even when the restart fails:\n%s", got)
@@ -300,11 +303,11 @@ func TestContract_Container_AFailedRestartPutsTheOldUnitBackAndAFailedPutBackLea
 	if res := result[api.ContainerStartResult](t, r); res.Healthy {
 		t.Fatalf("%+v", res)
 	}
-	b, err := os.ReadFile(e.m.TransitionPath())
+	b, err := os.ReadFile(e.m.TransitionPath(api.ServiceHoneypot))
 	if err != nil {
 		t.Fatalf("the journal must stay for the next start: %v", err)
 	}
-	if !strings.Contains(string(b), `"service":"honeypot"`) || !strings.Contains(string(b), `"op":"start"`) {
+	if !strings.Contains(string(b), `"service":"honeypot"`) || !strings.Contains(string(b), `"op":"start"`) || !strings.Contains(string(b), `"phase":"pending"`) || !strings.Contains(string(b), `"was_active":false`) {
 		t.Fatalf("%s", b)
 	}
 	if total, _ := e.sleeps.get(); total != 0 {
@@ -408,6 +411,31 @@ func TestContract_Container_AnUnsafeQuadletDirectoryIsRefusedBeforeAnythingRuns(
 	}
 }
 
+// L2: "ours" means identical bytes. A unit with one extra line, other ids, or an older template is read
+// by nothing: the commands refuse it and the state does not call it installed.
+func TestContract_Container_AUnitThatDiffersByOneByteIsNotOurs(t *testing.T) {
+	t.Parallel()
+	good := func(e *ctrEnv) string { return e.render(t, api.ServiceHoneypot, digA, true) }
+	for name, mutate := range map[string]func(string) string{
+		"extra line":     func(u string) string { return strings.Replace(u, "[Service]", "Environment=X=1\n[Service]", 1) },
+		"extra mount":    func(u string) string { return strings.Replace(u, "ReadOnly=true", "ReadOnly=true\nVolume=/:/host", 1) },
+		"trailing space": func(u string) string { return strings.Replace(u, "UserNS=auto", "UserNS=auto ", 1) },
+		"other limits":   func(u string) string { return strings.Replace(u, "--cpus=0.5", "--cpus=64", 1) },
+		"no newline":     func(u string) string { return strings.TrimSuffix(u, "\n") },
+	} {
+		e := startCtr(t)
+		e.m.WriteRoot("etc/containers/systemd/vedette-honeypot.container", mutate(good(e)))
+		e.refused(t, api.CmdContainerStart, api.ContainerStartArgs{Service: "honeypot"}, 412, api.CodeUnitUnsafe)
+		e.refused(t, api.CmdContainerStop, api.ContainerStopArgs{Service: "honeypot", Persist: true}, 412, api.CodeUnitUnsafe)
+		if st := e.state(t)[api.ServiceHoneypot]; st.Installed {
+			t.Errorf("%s: reported as installed", name)
+		}
+		if len(e.ctl()) != 0 {
+			t.Errorf("%s: %v", name, e.ctl())
+		}
+	}
+}
+
 func TestContract_Container_HostConfWithoutTheSensorIdsRefusesTheUnitsThatNeedThem(t *testing.T) {
 	t.Parallel()
 	e := startCtr(t, func(c *ops.Config, _ *ops.Deps) { c.SensorUID, c.SensorGID = 0, 0 })
@@ -476,7 +504,7 @@ func TestContract_Container_StopWithPersistDropsInstallBeforeStopping(t *testing
 	if prev, _ := e.m.Prev(api.ServiceHoneypot); prev != with {
 		t.Error(".prev does not hold the unit with [Install]")
 	}
-	if _, err := os.Stat(e.m.TransitionPath()); err == nil {
+	if _, err := os.Stat(e.m.TransitionPath(api.ServiceHoneypot)); err == nil {
 		t.Error("the journal was left behind")
 	}
 	if st := e.state(t)[api.ServiceHoneypot]; st.Enabled || st.UnitState != api.UnitInactive || !st.Installed {
@@ -559,7 +587,7 @@ func TestContract_Container_StopIsJudgedByTheOutputOfIsActive(t *testing.T) {
 	}
 
 	// Garbage output, whatever the exit code, is not "inactive" either.
-	for _, out := range []string{"", "deactivating\n", "inactiv\n", "inactive-ish\n", "failed\n", "\x00inactive"} {
+	for _, out := range []string{"", "deactivating\n", "inactiv\n", "inactive-ish\n", "\x00inactive", "unknown\n"} {
 		e := startCtr(t)
 		e.m.InstallUnit(api.ServiceSensor, digA, true)
 		e.start(t, api.ServiceSensor, false)
@@ -693,30 +721,38 @@ func TestContract_Container_StateParsesHostileOutputStrictlyAndBounded(t *testin
 	}
 }
 
-// --- the journal at Start --------------------------------------------------------------------------
+// --- the journal at Start and after READY (D-123 H1, M1, M3, L7) ---------------------------------------
 
 func shaOf(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(h[:])
 }
 
-// seedTransition leaves what a host that died in the middle of a change leaves: the new unit in
-// place, .prev holding the old one, and the journal.
-func (e *ctrEnv) seedTransition(t *testing.T, op, svc, oldText, newText string, keepPrev bool) {
+type seed struct {
+	op, svc, phase string
+	oldText        string // the unit text before the change (what .prev holds)
+	newText        string // the unit text the change wrote (what is on disk now)
+	keepPrev       bool
+	wasActive      bool
+}
+
+// seedTransition leaves what a host that died in the middle of a change leaves: the unit text of the
+// phase in place, .prev holding the old one, and the journal.
+func (e *ctrEnv) seedTransition(t *testing.T, sd seed) {
 	t.Helper()
-	if err := os.WriteFile(filepath.Join(e.m.UnitsDir(), "vedette-"+svc+".container"), []byte(newText), 0o644); err != nil { //nolint:gosec // test: a unit file of the fake root
+	if err := os.WriteFile(filepath.Join(e.m.UnitsDir(), "vedette-"+sd.svc+".container"), []byte(sd.newText), 0o644); err != nil { //nolint:gosec // test: a unit file of the fake root
 		t.Fatal(err)
 	}
-	if keepPrev {
-		if err := os.WriteFile(filepath.Join(e.m.State, "containers", "units", svc+".prev"), []byte(oldText), 0o600); err != nil {
+	if sd.keepPrev {
+		if err := os.WriteFile(filepath.Join(e.m.State, "containers", "units", sd.svc+".prev"), []byte(sd.oldText), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
 	tr, _ := json.Marshal(map[string]any{
-		"service": svc, "op": op, "digest": digA, "prev_sha256": shaOf(oldText), "new_sha256": shaOf(newText),
-		"at": "2026-11-10T08:00:00Z", "run_id": "rn_0123456789abcdef",
+		"service": sd.svc, "op": sd.op, "phase": sd.phase, "digest": digA, "prev_sha256": shaOf(sd.oldText), "new_sha256": shaOf(sd.newText),
+		"was_active": sd.wasActive, "at": "2026-11-10T08:00:00Z", "run_id": "rn_0123456789abcdef",
 	})
-	if err := os.WriteFile(e.m.TransitionPath(), tr, 0o600); err != nil {
+	if err := os.WriteFile(e.m.TransitionPath(sd.svc), tr, 0o600); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -729,58 +765,198 @@ func (e *ctrEnv) startHost(t *testing.T) *noteRecorder {
 	return rec
 }
 
-func TestContract_Container_AHalfDoneStartThatIsNotHealthyIsPutBackAtStart(t *testing.T) {
+func (e *ctrEnv) journalExists(svc string) bool {
+	_, err := os.Lstat(e.m.TransitionPath(svc))
+	return err == nil
+}
+
+func (e *ctrEnv) hpTexts(t *testing.T) (oldText, newText string) {
+	t.Helper()
+	return e.render(t, api.ServiceHoneypot, digA, false), e.render(t, api.ServiceHoneypot, digA, true)
+}
+
+// H1: before READY the host only puts bytes back and reloads. The fake fails a synchronous restart of a
+// unit that is After=vedette-host.service while the host's own start job is pending (a real one would
+// wait for it forever), so a restart at Start shows up as a deadlock.
+func TestContract_Container_StartRecoveryOnlyPutsBytesBackBeforeReadyAndTheStateAfterIt(t *testing.T) {
 	t.Parallel()
-	e := startCtr(t)
-	oldText, newText := e.render(t, api.ServiceHoneypot, digA, false), e.render(t, api.ServiceHoneypot, digA, true)
-	e.m.InstallUnit(api.ServiceHoneypot, digA, true)
-	e.m.BadImage(digA) // the new image does not get healthy
-	e.seedTransition(t, "start", api.ServiceHoneypot, oldText, newText, true)
-	rec := e.startHost(t)
-	if got := e.unit(t, api.ServiceHoneypot); got != oldText {
-		t.Fatalf("the old unit was not put back:\n%s", got)
-	}
-	ctl := e.ctl()
-	if !slices.Contains(ctl, "daemon-reload") || !slices.Contains(ctl, "restart vedette-honeypot.service") {
-		t.Fatalf("systemctl calls %v", ctl)
-	}
-	if _, err := os.Stat(e.m.TransitionPath()); err == nil {
-		t.Error("the journal stayed")
-	}
-	if txt := rec.text(); !strings.Contains(txt, "container.start transition_interrupted") || !strings.Contains(txt, `"action":"reverted"`) || !strings.Contains(txt, `"service":"honeypot"`) {
-		t.Fatalf("notes: %s", txt)
-	}
-	if total, _ := e.sleeps.get(); total != 30*time.Second {
-		t.Errorf("the look for health at start is 30 s, waited %v", total)
+	for _, wasActive := range []bool{true, false} {
+		e := startCtr(t)
+		oldText, newText := e.hpTexts(t)
+		e.m.InstallUnit(api.ServiceHoneypot, digA, true)
+		e.seedTransition(t, seed{op: "start", svc: "honeypot", phase: "pending", oldText: oldText, newText: newText, keepPrev: true, wasActive: wasActive})
+		e.m.Mark("host-starting", true)
+		rec := e.startHost(t)
+
+		// Before READY: bytes back, daemon-reload, nothing else; no look at health.
+		if got := e.unit(t, api.ServiceHoneypot); got != oldText {
+			t.Fatalf("wasActive=%t: the old unit was not put back:\n%s", wasActive, got)
+		}
+		if got := e.ctl(); !slices.Equal(got, []string{"daemon-reload"}) {
+			t.Fatalf("wasActive=%t: before READY the host called %v, want only daemon-reload", wasActive, got)
+		}
+		if d := e.m.Deadlocked(); len(d) != 0 {
+			t.Fatalf("a synchronous restart of an After=vedette-host unit while the host starts: %v", d)
+		}
+		if n := len(e.m.Calls("podman")); n != 0 {
+			t.Errorf("the host looked at a container before READY (%d calls)", n)
+		}
+		if total, _ := e.sleeps.get(); total != 0 {
+			t.Errorf("the host waited before READY: %v", total)
+		}
+		b, err := os.ReadFile(e.m.TransitionPath(api.ServiceHoneypot))
+		if err != nil || !strings.Contains(string(b), `"phase":"restored"`) {
+			t.Fatalf("the journal must be 'restored' until the state is back: %s %v", b, err)
+		}
+		// Container commands for the service wait for it; other services do not.
+		e.refused(t, api.CmdContainerStart, api.ContainerStartArgs{Service: "honeypot"}, 412, api.CodeTransitionPending)
+		e.refused(t, api.CmdContainerStop, api.ContainerStopArgs{Service: "honeypot"}, 412, api.CodeTransitionPending)
+		if !strings.Contains(rec.text(), `"action":"bytes_restored"`) {
+			t.Fatalf("notes: %s", rec.text())
+		}
+
+		// READY: the host is active, a restart no longer waits on its own start job.
+		e.m.Mark("host-starting", false)
+		e.o.AfterReady(context.Background(), e.h.Server)
+		ctl := e.ctl()
+		if wasActive {
+			if !slices.Contains(ctl, "restart vedette-honeypot.service") || !e.m.IsRunning(api.ServiceHoneypot) {
+				t.Fatalf("an active service must be restarted after READY: %v", ctl)
+			}
+		} else if slices.Contains(ctl, "restart vedette-honeypot.service") || e.m.IsRunning(api.ServiceHoneypot) {
+			t.Fatalf("a service that was stopped must stay stopped: %v", ctl)
+		}
+		if e.journalExists(api.ServiceHoneypot) || e.unit(t, api.ServiceHoneypot) != oldText {
+			t.Fatal("the journal stayed or the unit changed")
+		}
+		if txt := rec.text(); !strings.Contains(txt, `"action":"reverted"`) || !strings.Contains(txt, "container.start transition_interrupted") {
+			t.Fatalf("notes: %s", txt)
+		}
+		// The service can be commanded again.
+		if r := e.start(t, api.ServiceHoneypot, false); r.Status != api.StatusSucceeded {
+			t.Fatalf("%+v %+v", r, r.Error)
+		}
 	}
 }
 
-func TestContract_Container_AHalfDoneStartThatIsHealthyIsLeftAlone(t *testing.T) {
+// The same step at boot: a unit that systemd is starting after READY is judged healthy once it is, and left alone.
+func TestContract_Container_AfterReadyLeavesAnAlreadyHealthyServiceAlone(t *testing.T) {
 	t.Parallel()
 	e := startCtr(t)
-	oldText, newText := e.render(t, api.ServiceHoneypot, digA, false), e.render(t, api.ServiceHoneypot, digA, true)
+	oldText, newText := e.hpTexts(t)
 	e.m.InstallUnit(api.ServiceHoneypot, digA, true)
-	e.m.SetRunning(api.ServiceHoneypot, true)
-	e.seedTransition(t, "start", api.ServiceHoneypot, oldText, newText, true)
-	rec := e.startHost(t)
-	if e.unit(t, api.ServiceHoneypot) != newText || len(e.ctl()) != 0 {
-		t.Fatalf("a healthy new unit was touched: %v", e.ctl())
+	e.seedTransition(t, seed{op: "start", svc: "honeypot", phase: "pending", oldText: oldText, newText: newText, keepPrev: true, wasActive: true})
+	e.startHost(t)
+	e.m.SetRunning(api.ServiceHoneypot, true) // systemd started it after READY, from the restored text
+	n := len(e.ctl())
+	e.o.AfterReady(context.Background(), e.h.Server)
+	if got := e.ctl()[n:]; !slices.Equal(got, []string{"daemon-reload"}) {
+		t.Fatalf("a healthy service was restarted: %v", got)
 	}
-	if _, err := os.Stat(e.m.TransitionPath()); err == nil {
-		t.Error("the journal stayed")
+	if e.journalExists(api.ServiceHoneypot) {
+		t.Fatal("the journal stayed")
+	}
+}
+
+// AfterReady waits for the write lock like a run does.
+func TestContract_Container_AfterReadyTakesTheWriteLockAndWaitsWhileItIsBusy(t *testing.T) {
+	t.Parallel()
+	e := startCtr(t)
+	oldText, newText := e.hpTexts(t)
+	e.m.InstallUnit(api.ServiceHoneypot, digA, true)
+	e.seedTransition(t, seed{op: "start", svc: "honeypot", phase: "pending", oldText: oldText, newText: newText, keepPrev: true, wasActive: true})
+	e.startHost(t)
+	l := &busyThenFree{real: e.h.Server, busy: 3}
+	e.o.AfterReady(context.Background(), l)
+	if l.calls != 4 || l.ran != 1 || e.journalExists(api.ServiceHoneypot) {
+		t.Fatalf("calls %d ran %d journal %t", l.calls, l.ran, e.journalExists(api.ServiceHoneypot))
+	}
+	// And the real lock is exclusive: while a command holds it, AfterReady's lock answers busy, not a second writer.
+	started := make(chan struct{})
+	release := make(chan struct{})
+	go func() {
+		_ = e.h.Server.WithWriteLock(context.Background(), func(context.Context) { close(started); <-release })
+	}()
+	<-started
+	if err := e.h.Server.WithWriteLock(context.Background(), func(context.Context) { t.Error("two holders of the write lock") }); err == nil {
+		t.Error("the write lock was taken twice")
+	}
+	e.refused(t, api.CmdContainerStop, api.ContainerStopArgs{Service: "sensor"}, 409, "busy")
+	close(release)
+}
+
+type busyThenFree struct {
+	real  *server.Server
+	busy  int
+	calls int
+	ran   int
+}
+
+func (b *busyThenFree) WithWriteLock(ctx context.Context, fn func(context.Context)) error {
+	b.calls++
+	if b.calls <= b.busy {
+		return server.ErrWriteBusy
+	}
+	return b.real.WithWriteLock(ctx, func(c context.Context) { b.ran++; fn(c) })
+}
+
+// A journal the effect of which was seen (verified) is only deleted: the change is kept, nothing reverts.
+func TestContract_Container_AVerifiedJournalIsOnlyDeletedAtStart(t *testing.T) {
+	t.Parallel()
+	e := startCtr(t)
+	oldText, newText := e.hpTexts(t)
+	e.m.InstallUnit(api.ServiceHoneypot, digA, true)
+	e.seedTransition(t, seed{op: "start", svc: "honeypot", phase: "verified", oldText: oldText, newText: newText, keepPrev: true, wasActive: true})
+	rec := e.startHost(t)
+	if e.unit(t, api.ServiceHoneypot) != newText || len(e.ctl()) != 0 || e.journalExists(api.ServiceHoneypot) {
+		t.Fatalf("verified journal: unit changed %t, calls %v, journal %t", e.unit(t, api.ServiceHoneypot) != newText, e.ctl(), e.journalExists(api.ServiceHoneypot))
 	}
 	if !strings.Contains(rec.text(), `"action":"completed"`) {
 		t.Fatalf("notes: %s", rec.text())
 	}
 }
 
-func TestContract_Container_AHalfDoneStopGetsItsUnitTextBackAndNothingIsStoppedOrStarted(t *testing.T) {
+// The host died before it wrote the unit: the bytes are the old ones already, nothing to put back, and the
+// state is restored after READY.
+func TestContract_Container_ACrashBeforeTheUnitWasWrittenRestoresOnlyTheState(t *testing.T) {
+	t.Parallel()
+	e := startCtr(t)
+	oldText, newText := e.hpTexts(t)
+	e.seedTransition(t, seed{op: "start", svc: "honeypot", phase: "pending", oldText: oldText, newText: newText, keepPrev: false, wasActive: false})
+	if err := os.WriteFile(filepath.Join(e.m.UnitsDir(), "vedette-honeypot.container"), []byte(oldText), 0o644); err != nil { //nolint:gosec // test
+		t.Fatal(err)
+	}
+	e.startHost(t)
+	if e.unit(t, api.ServiceHoneypot) != oldText {
+		t.Fatal("the unit changed")
+	}
+	e.o.AfterReady(context.Background(), e.h.Server)
+	if e.journalExists(api.ServiceHoneypot) || e.m.IsRunning(api.ServiceHoneypot) {
+		t.Fatal("the journal stayed or a stopped service was started")
+	}
+}
+
+// A journal left in phase restored by a host that died again before AfterReady is finished by the next one.
+func TestContract_Container_ARestoredJournalSurvivesAnotherCrash(t *testing.T) {
+	t.Parallel()
+	e := startCtr(t)
+	oldText, newText := e.hpTexts(t)
+	e.seedTransition(t, seed{op: "start", svc: "honeypot", phase: "restored", oldText: oldText, newText: oldText, keepPrev: true, wasActive: true})
+	_ = newText
+	e.startHost(t)
+	e.o.AfterReady(context.Background(), e.h.Server)
+	if e.journalExists(api.ServiceHoneypot) || !e.m.IsRunning(api.ServiceHoneypot) {
+		t.Fatal("the restore was not finished")
+	}
+}
+
+func TestContract_Container_AHalfDoneStopGetsItsUnitTextBackAndItsStateAfterReady(t *testing.T) {
 	t.Parallel()
 	e := startCtr(t)
 	oldText, newText := e.render(t, api.ServiceSensor, digA, true), e.render(t, api.ServiceSensor, digA, false)
 	e.m.InstallUnit(api.ServiceSensor, digA, false)
 	e.m.SetRunning(api.ServiceSensor, true)
-	e.seedTransition(t, "stop", api.ServiceSensor, oldText, newText, true)
+	e.seedTransition(t, seed{op: "stop", svc: "sensor", phase: "pending", oldText: oldText, newText: newText, keepPrev: true, wasActive: true})
 	rec := e.startHost(t)
 	if e.unit(t, api.ServiceSensor) != oldText {
 		t.Fatal("the unit text before the stop was not put back")
@@ -788,46 +964,54 @@ func TestContract_Container_AHalfDoneStopGetsItsUnitTextBackAndNothingIsStoppedO
 	if got := e.ctl(); !slices.Equal(got, []string{"daemon-reload"}) || !e.m.IsRunning(api.ServiceSensor) {
 		t.Fatalf("systemctl calls %v", got)
 	}
-	if !strings.Contains(rec.text(), `"action":"reverted"`) {
-		t.Fatalf("notes: %s", rec.text())
+	e.o.AfterReady(context.Background(), e.h.Server)
+	if e.journalExists(api.ServiceSensor) || !e.m.IsRunning(api.ServiceSensor) {
+		t.Fatal("the service was not left running, or the journal stayed")
+	}
+	// The audit labels of an interrupted stop say container.stop.
+	if txt := rec.text(); !strings.Contains(txt, "container.stop transition_interrupted") || strings.Contains(txt, "container.start transition_interrupted") {
+		t.Fatalf("notes: %s", txt)
 	}
 }
 
-func TestContract_Container_ARecoveryThatCannotPutBackKeepsTheJournal(t *testing.T) {
+func TestContract_Container_ARecoveryThatCannotPutBackKeepsTheJournalAndBlocksTheService(t *testing.T) {
 	t.Parallel()
-	e := startCtr(t)
-	oldText, newText := e.render(t, api.ServiceHoneypot, digA, false), e.render(t, api.ServiceHoneypot, digA, true)
-	e.m.InstallUnit(api.ServiceHoneypot, digA, true)
-	e.m.BadImage(digA)
-	// No .prev, and a .prev that does not match the journal.
-	for name, keep := range map[string]func(){
-		"no prev": func() {},
-		"other prev": func() {
+	for name, prepare := range map[string]func(*ctrEnv, string){
+		"no prev": func(*ctrEnv, string) {},
+		"stale prev": func(e *ctrEnv, _ string) {
 			_ = os.WriteFile(filepath.Join(e.m.State, "containers", "units", "honeypot.prev"), []byte("something else"), 0o600)
 		},
+		"unit replaced": func(e *ctrEnv, _ string) {
+			_ = os.WriteFile(filepath.Join(e.m.UnitsDir(), "vedette-honeypot.container"), []byte("foreign"), 0o644) //nolint:gosec // test: a unit file of the fake root
+		},
 	} {
-		e.seedTransition(t, "start", api.ServiceHoneypot, oldText, newText, false)
-		keep()
+		e := startCtr(t)
+		oldText, newText := e.hpTexts(t)
+		e.seedTransition(t, seed{op: "start", svc: "honeypot", phase: "pending", oldText: oldText, newText: newText, wasActive: true})
+		prepare(e, oldText)
 		rec := e.startHost(t)
-		if _, err := os.Stat(e.m.TransitionPath()); err != nil {
-			t.Errorf("%s: the journal was removed: %v", name, err)
-		}
-		if got := e.unit(t, api.ServiceHoneypot); got != newText {
-			t.Errorf("%s: the unit changed", name)
+		if !e.journalExists(api.ServiceHoneypot) {
+			t.Errorf("%s: the journal was removed", name)
 		}
 		if !strings.Contains(rec.text(), "transition_recovery_failed") {
 			t.Errorf("%s: notes: %s", name, rec.text())
 		}
-		_ = os.Remove(filepath.Join(e.m.State, "containers", "units", "honeypot.prev"))
-		e.o.Close()
+		if len(e.ctl()) != 0 {
+			t.Errorf("%s: %v", name, e.ctl())
+		}
+		e.refused(t, api.CmdContainerStart, api.ContainerStartArgs{Service: "honeypot"}, 412, api.CodeTransitionPending)
+		e.o.AfterReady(context.Background(), e.h.Server) // nothing pending: it must do nothing
+		if len(e.ctl()) != 0 {
+			t.Errorf("%s: AfterReady acted on a journal that was not restored: %v", name, e.ctl())
+		}
 	}
 }
 
-func TestContract_Container_AnInvalidJournalIsDroppedAtStart(t *testing.T) {
+func TestContract_Container_AnInvalidJournalIsMovedAsideAtStartKeepingTheLastThree(t *testing.T) {
 	t.Parallel()
 	good := map[string]any{
-		"service": "honeypot", "op": "start", "digest": digA, "prev_sha256": shaOf("a"), "new_sha256": shaOf("b"),
-		"at": "2026-11-10T08:00:00Z", "run_id": "rn_0123456789abcdef",
+		"service": "honeypot", "op": "start", "phase": "pending", "digest": digA, "prev_sha256": shaOf("a"), "new_sha256": shaOf("b"),
+		"was_active": true, "at": "2026-11-10T08:00:00Z", "run_id": "rn_0123456789abcdef",
 	}
 	with := func(k string, v any) map[string]any {
 		m := map[string]any{}
@@ -840,8 +1024,10 @@ func TestContract_Container_AnInvalidJournalIsDroppedAtStart(t *testing.T) {
 	for name, content := range map[string][]byte{
 		"not json":        []byte("start honeypot"),
 		"unknown field":   mustJSONBytes(with("path", "/etc/passwd")),
+		"another service": mustJSONBytes(with("service", "sensor")),
 		"unknown service": mustJSONBytes(with("service", "sshd")),
 		"unknown op":      mustJSONBytes(with("op", "delete")),
+		"unknown phase":   mustJSONBytes(with("phase", "done")),
 		"bad digest":      mustJSONBytes(with("digest", "latest")),
 		"bad sha":         mustJSONBytes(with("new_sha256", "zz")),
 		"bad run id":      mustJSONBytes(with("run_id", "../../x")),
@@ -850,31 +1036,70 @@ func TestContract_Container_AnInvalidJournalIsDroppedAtStart(t *testing.T) {
 	} {
 		e := startCtr(t)
 		e.m.InstallUnit(api.ServiceHoneypot, digA, true)
-		if err := os.WriteFile(e.m.TransitionPath(), content, 0o600); err != nil {
+		dir := filepath.Join(e.m.State, "containers")
+		for i := 1; i <= 4; i++ { // four earlier quarantined journals
+			_ = os.WriteFile(filepath.Join(dir, "transition-honeypot.json.invalid-"+strings.Repeat("0", 18)+string(rune('0'+i))), []byte("x"), 0o600)
+		}
+		if err := os.WriteFile(e.m.TransitionPath(api.ServiceHoneypot), content, 0o600); err != nil {
 			t.Fatal(err)
 		}
 		rec := e.startHost(t)
-		if _, err := os.Stat(e.m.TransitionPath()); err == nil {
+		if e.journalExists(api.ServiceHoneypot) {
 			t.Errorf("%s: the journal stayed", name)
+		}
+		left, _ := filepath.Glob(filepath.Join(dir, "transition-honeypot.json.invalid-*"))
+		if len(left) != 3 {
+			t.Errorf("%s: %d quarantined files kept: %v", name, len(left), left)
 		}
 		if len(e.ctl()) != 0 || !strings.Contains(rec.text(), "transition_invalid") {
 			t.Errorf("%s: %v %s", name, e.ctl(), rec.text())
 		}
+		// It no longer blocks the service.
+		if r := e.start(t, api.ServiceHoneypot, false); r.Status != api.StatusSucceeded {
+			t.Errorf("%s: %+v", name, r)
+		}
 	}
-	// A link in place of the journal is dropped, never followed.
+	// A link in place of the journal is moved aside, never followed.
 	e := startCtr(t)
 	victim := filepath.Join(e.m.Root, "elsewhere")
 	_ = os.WriteFile(victim, mustJSONBytes(good), 0o600)
-	if err := os.Symlink(victim, e.m.TransitionPath()); err != nil {
+	if err := os.Symlink(victim, e.m.TransitionPath(api.ServiceHoneypot)); err != nil {
 		t.Fatal(err)
 	}
 	e.startHost(t)
-	if _, err := os.Lstat(e.m.TransitionPath()); err == nil {
+	if e.journalExists(api.ServiceHoneypot) {
 		t.Error("a symlinked journal stayed")
 	}
 	if _, err := os.Stat(victim); err != nil {
 		t.Error("the link target was removed")
 	}
+}
+
+// An I/O error is not a verdict on the journal: it is left alone, said so, and the service waits.
+func TestContract_Container_AnUnreadableJournalIsLeftAloneNotQuarantined(t *testing.T) {
+	t.Parallel()
+	if os.Geteuid() == 0 {
+		t.Skip("root can read a file with mode 0")
+	}
+	e := startCtr(t)
+	e.m.InstallUnit(api.ServiceHoneypot, digA, true)
+	oldText, newText := e.hpTexts(t)
+	e.seedTransition(t, seed{op: "start", svc: "honeypot", phase: "pending", oldText: oldText, newText: newText, keepPrev: true, wasActive: true})
+	if err := os.Chmod(e.m.TransitionPath(api.ServiceHoneypot), 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(e.m.TransitionPath(api.ServiceHoneypot), 0o600) })
+	rec := e.startHost(t)
+	if !e.journalExists(api.ServiceHoneypot) {
+		t.Fatal("the journal was moved or removed")
+	}
+	if left, _ := filepath.Glob(filepath.Join(e.m.State, "containers", "*.invalid-*")); len(left) != 0 {
+		t.Fatalf("quarantined: %v", left)
+	}
+	if !strings.Contains(rec.text(), "transition_unreadable") || len(e.ctl()) != 0 {
+		t.Fatalf("%s %v", rec.text(), e.ctl())
+	}
+	e.refused(t, api.CmdContainerStart, api.ContainerStartArgs{Service: "honeypot"}, 412, api.CodeTransitionPending)
 }
 
 func mustJSONBytes(v any) []byte {
@@ -883,6 +1108,158 @@ func mustJSONBytes(v any) []byte {
 		panic(err)
 	}
 	return b
+}
+
+// M3: a journal that has not been recovered blocks that service only, in both commands, and an
+// old or overwritten journal is never silently reused by a new change.
+func TestContract_Container_AJournalOfOneServiceRefusesItsCommandsOnly(t *testing.T) {
+	t.Parallel()
+	e := startCtr(t)
+	oldText, newText := e.hpTexts(t)
+	e.m.InstallUnit(api.ServiceHoneypot, digA, true)
+	e.m.InstallUnit(api.ServiceSensor, digA, true)
+	e.seedTransition(t, seed{op: "start", svc: "honeypot", phase: "pending", oldText: oldText, newText: newText, keepPrev: true})
+	e.refused(t, api.CmdContainerStart, api.ContainerStartArgs{Service: "honeypot", Restart: true}, 412, api.CodeTransitionPending)
+	e.refused(t, api.CmdContainerStop, api.ContainerStopArgs{Service: "honeypot", Persist: true}, 412, api.CodeTransitionPending)
+	if got := e.ctl(); len(got) != 0 {
+		t.Fatalf("a refused command ran %v", got)
+	}
+	if r := e.start(t, api.ServiceSensor, false); r.Status != api.StatusSucceeded {
+		t.Fatalf("another service is blocked: %+v %+v", r, r.Error)
+	}
+	if b, _ := os.ReadFile(e.m.TransitionPath(api.ServiceHoneypot)); !strings.Contains(string(b), `"phase":"pending"`) {
+		t.Fatalf("the other service's journal was touched: %s", b)
+	}
+}
+
+// M3: the fast path (a healthy service that only gets its [Install] back) is journaled too.
+func TestContract_Container_TheFastPathWritesAJournalAndClearsIt(t *testing.T) {
+	t.Parallel()
+	e := startCtr(t)
+	e.m.InstallUnit(api.ServiceHoneypot, digA, false)
+	e.m.SetRunning(api.ServiceHoneypot, true)
+	e.start(t, api.ServiceHoneypot, false)
+	if j := e.m.CallsWithJournal(); !slices.Equal(j, []string{"daemon-reload"}) {
+		t.Fatalf("the bytes changed without a journal: %v", j)
+	}
+	if e.journalExists(api.ServiceHoneypot) {
+		t.Fatal("the journal stayed")
+	}
+}
+
+// M1: a persist-stopped service whose enabling fails stays stopped (SYS-5); one that was running is restarted.
+func TestContract_Container_AFailedStartReturnsTheServiceToTheStateItHad(t *testing.T) {
+	t.Parallel()
+	e := startCtr(t)
+	e.m.InstallUnit(api.ServiceHoneypot, digA, false) // stopped with persist
+	old := e.unit(t, api.ServiceHoneypot)
+	e.m.Mark("restart-fails", true)
+	e.final(t, api.CmdContainerStart, api.ContainerStartArgs{Service: api.ServiceHoneypot}, api.StatusReverted, api.CodeUnitFailed)
+	if got, want := e.ctl(), []string{"daemon-reload", "restart vedette-honeypot.service", "daemon-reload", "stop vedette-honeypot.service"}; !slices.Equal(got, want) {
+		t.Fatalf("systemctl calls %v, want %v: the revert must stop, not restart, a service that was stopped", got, want)
+	}
+	if e.m.IsRunning(api.ServiceHoneypot) || e.unit(t, api.ServiceHoneypot) != old || e.journalExists(api.ServiceHoneypot) {
+		t.Fatal("the service runs, the unit changed or the journal stayed")
+	}
+	// An unhealthy start of a service that was running: the revert restarts it.
+	e2 := startCtr(t)
+	e2.m.InstallUnit(api.ServiceHoneypot, digA, true)
+	e2.m.SetRunning(api.ServiceHoneypot, true)
+	e2.m.BadImage(digA)
+	e2.final(t, api.CmdContainerStart, api.ContainerStartArgs{Service: api.ServiceHoneypot, Restart: true}, api.StatusReverted, api.CodeUnitFailed)
+	if got, want := e2.ctl(), []string{"daemon-reload", "restart vedette-honeypot.service", "daemon-reload", "restart vedette-honeypot.service"}; !slices.Equal(got, want) {
+		t.Fatalf("systemctl calls %v, want %v", got, want)
+	}
+	if !e2.m.IsRunning(api.ServiceHoneypot) {
+		t.Fatal("a service that was running is not running after the revert")
+	}
+}
+
+// A run whose own context ends mid-way (a timeout) still puts the old unit back: the revert runs on a context of its own.
+func TestContract_Container_ATimeoutIsFollowedByARevert(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	e := startCtr(t, func(_ *ops.Config, d *ops.Deps) {
+		d.Sleep = func(context.Context, time.Duration) bool { cancel(); return false }
+	})
+	e.m.InstallUnit(api.ServiceHoneypot, digA, false)
+	old := e.unit(t, api.ServiceHoneypot)
+	e.m.BadImage(digA)
+	_, err := e.o.RunStart(ctx, api.ContainerStartArgs{Service: api.ServiceHoneypot})
+	var rev *server.Reverted
+	if !errors.As(err, &rev) || rev.Code != api.CodeUnitFailed {
+		t.Fatalf("%v", err)
+	}
+	if e.unit(t, api.ServiceHoneypot) != old || e.journalExists(api.ServiceHoneypot) || e.m.IsRunning(api.ServiceHoneypot) {
+		t.Fatal("the revert did not happen on a context of its own")
+	}
+	if got := e.ctl(); len(got) != 4 || got[2] != "daemon-reload" || got[3] != "stop vedette-honeypot.service" {
+		t.Fatalf("%v", got)
+	}
+}
+
+// M2: a unit that failed has nothing running: it counts as stopped, in the check and in the effect.
+func TestContract_Container_AFailedUnitCountsAsStopped(t *testing.T) {
+	t.Parallel()
+	e := startCtr(t)
+	e.m.InstallUnit(api.ServiceSensor, digA, true)
+	e.m.RuleText("systemctl", "is-active vedette-sensor.service", "failed\n", 3, "", "")
+	r := e.stop(t, "sensor", false)
+	if res := result[api.ContainerStopResult](t, r); r.Status != api.StatusSucceeded || res.Changed {
+		t.Fatalf("%+v %+v", r, res)
+	}
+	r = e.stop(t, "sensor", true)
+	if res := result[api.ContainerStopResult](t, r); r.Status != api.StatusSucceeded || !res.Changed {
+		t.Fatalf("%+v %+v", r, res)
+	}
+	if got := e.ctl(); !slices.Equal(got, []string{"daemon-reload"}) {
+		t.Fatalf("a failed unit was stopped again: %v", got)
+	}
+	if strings.Contains(e.unit(t, api.ServiceSensor), "[Install]") {
+		t.Fatal("[Install] stayed")
+	}
+	// A unit that stays "deactivating" is not stopped: 20 s of looks (counted), then stop_not_verified.
+	e2 := startCtr(t)
+	e2.m.InstallUnit(api.ServiceSensor, digA, true)
+	e2.m.RuleText("systemctl", "is-active vedette-sensor.service", "deactivating\n", 3, "", "")
+	e2.final(t, api.CmdContainerStop, api.ContainerStopArgs{Service: "sensor"}, api.StatusFailed, api.CodeStopNotVerified)
+	if total, n := e2.sleeps.get(); total != 20*time.Second || n != 10 {
+		t.Fatalf("waited %v in %d sleeps", total, n)
+	}
+	// And the failed stop does not leave a journal that would block the retry.
+	if e2.journalExists("sensor") {
+		t.Fatal("a journal was left behind")
+	}
+}
+
+// A stop with persist journals the unit change, and the journal is cleared when the stop was looked at.
+func TestContract_Container_AStopWithPersistKeepsItsJournalUntilTheStopIsSeen(t *testing.T) {
+	t.Parallel()
+	e := startCtr(t)
+	e.m.InstallUnit(api.ServiceSensor, digA, true)
+	e.start(t, api.ServiceSensor, false)
+	e.stop(t, "sensor", true)
+	if j := e.m.CallsWithJournal(); !slices.Contains(j, "daemon-reload") || !slices.Contains(j, "stop vedette-sensor.service") {
+		t.Fatalf("calls made while the journal existed: %v", j)
+	}
+	if e.journalExists("sensor") {
+		t.Fatal("the journal stayed")
+	}
+}
+
+// A journal for a service must never be created without the unit change: a refused or a no-op command leaves none.
+func TestContract_Container_NoUnitChangeNoJournal(t *testing.T) {
+	t.Parallel()
+	e := startCtr(t)
+	e.m.InstallUnit(api.ServiceSensor, digA, true)
+	e.start(t, api.ServiceSensor, false) // a first start changes things: it is journaled
+	before := len(e.m.CallsWithJournal())
+	e.start(t, api.ServiceSensor, false) // already healthy, bytes equal
+	e.stop(t, "sensor", false)           // no persist: no unit change
+	if got := e.m.CallsWithJournal(); len(got) != before {
+		t.Fatalf("a journal existed during %v", got[before:])
+	}
 }
 
 // --- INV-17: the units that were built --------------------------------------------------------------
@@ -914,16 +1291,38 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 	type want struct {
 		network   string
 		addCaps   []string
-		user      string // "" = no User= line
-		userns    string // "" = no UserNS line
-		roVol     string // volume held read-only
+		user      string   // "" = no User= line
+		userns    string   // "" = no UserNS line
+		volumes   []string // the exact Volume= lines, in order (L1)
+		exec      string   // the exact Exec= line ("" = none)
+		requires  []string
+		wants     []string
 		publishes []string
 	}
+	const keys = "vedette-creds-"
 	table := map[string]want{
-		api.ServiceCore:     {network: "vedette-int.network", user: "10001:10002", publishes: []string{"8443:8443", "127.0.0.1:8444:8444"}},
-		api.ServiceSensor:   {network: "host", addCaps: []string{"NET_RAW"}, user: "10003:10004", roVol: "vedette-creds-passive.volume"},
-		api.ServiceScan:     {network: "host", addCaps: []string{"NET_RAW"}, user: "10003:10004", roVol: "vedette-creds-active.volume"},
-		api.ServiceHoneypot: {network: "ns:/run/netns/vedette-hp", userns: "auto"},
+		api.ServiceCore: {network: "vedette-int.network", user: "10001:10002", publishes: []string{"8443:8443", "127.0.0.1:8444:8444"},
+			exec: "-listen :8443 -key /run/secrets/master.key",
+			volumes: []string{
+				"vedette-data.volume:/var/lib/vedette",
+				"/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config",
+				"/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log:ro",
+				"/etc/vedette/master.key:/run/secrets/master.key:ro",
+				"/run/vedette:/run/vedette",
+				keys + "passive.volume:/var/lib/vedette-creds/passive",
+				keys + "active.volume:/var/lib/vedette-creds/active",
+			}},
+		api.ServiceSensor: {network: "host", addCaps: []string{"NET_RAW"}, user: "10003:10004", wants: []string{"vedette-core.service"},
+			volumes: []string{keys + "passive.volume:/var/lib/vedette-creds:ro"},
+			exec:    "passive --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem"},
+		api.ServiceScan: {network: "host", addCaps: []string{"NET_RAW"}, user: "10003:10004", wants: []string{"vedette-core.service"},
+			volumes: []string{keys + "active.volume:/var/lib/vedette-creds:ro"},
+			exec:    "active --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem"},
+		api.ServiceHoneypot: {network: "ns:/run/netns/vedette-hp", userns: "auto", requires: []string{"vedette-host.service"},
+			volumes: []string{
+				"/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config:ro",
+				"/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log",
+			}},
 	}
 	for svc, w := range table {
 		for _, install := range []bool{true, false} {
@@ -979,26 +1378,34 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			if one("ContainerName") != "vedette-"+svc {
 				t.Errorf("%s: ContainerName=%v", svc, u["ContainerName"])
 			}
-			// Volumes: no socket of a runtime, nothing of the host's root, creds only as the table says.
+			// Volumes: the exact list of the table, and a mode that is nothing but "ro" (no rshared, no Z, no suid).
+			if !slices.Equal(u["Volume"], w.volumes) {
+				t.Errorf("%s: Volume lines %v, want exactly %v", svc, u["Volume"], w.volumes)
+			}
 			for _, v := range u["Volume"] {
-				if strings.Contains(v, "podman.sock") || strings.Contains(v, "docker.sock") || strings.HasPrefix(v, "/:") || strings.HasPrefix(v, "/etc:") || strings.HasPrefix(v, "/var:") || strings.HasPrefix(v, "/run:") {
-					t.Errorf("%s mounts %s", svc, v)
+				parts := strings.Split(v, ":")
+				if len(parts) < 2 || len(parts) > 3 || (len(parts) == 3 && parts[2] != "ro") || strings.Contains(v, "shared") || strings.Contains(v, "slave") {
+					t.Errorf("%s: odd Volume line %q", svc, v)
 				}
-				if strings.Contains(v, "vedette-creds-") && svc != api.ServiceCore {
-					wantRO := w.roVol + ":/var/lib/vedette-creds:ro"
-					if v != wantRO {
-						t.Errorf("%s mounts %s, want only %s", svc, v, wantRO)
-					}
-				}
-				if svc == api.ServiceCore && strings.Contains(v, "vedette-creds-") && strings.HasSuffix(v, ":ro") {
-					t.Errorf("core mounts the creds read-only: %s", v)
-				}
-				if strings.Contains(v, "host.sock") && svc != api.ServiceCore {
-					t.Errorf("%s mounts the host socket", svc)
+				if strings.Contains(v, ".sock") && v != "/run/vedette:/run/vedette" {
+					t.Errorf("%s mounts a socket file: %s", svc, v)
 				}
 			}
-			if (svc == api.ServiceCore) != (len(u["Volume"]) > 0 && slices.ContainsFunc(u["Volume"], func(v string) bool { return strings.Contains(v, "host.sock") })) {
-				t.Errorf("%s: the host socket is for core only", svc)
+			if (svc == api.ServiceCore) != slices.Contains(u["Volume"], "/run/vedette:/run/vedette") {
+				t.Errorf("%s: the host socket directory is for core only", svc)
+			}
+			if !slices.Equal(u["Tmpfs"], []string{"/tmp"}) {
+				t.Errorf("%s: Tmpfs=%v", svc, u["Tmpfs"])
+			}
+			if w.exec == "" && len(u["Exec"]) != 0 || w.exec != "" && !slices.Equal(u["Exec"], []string{w.exec}) {
+				t.Errorf("%s: Exec=%v, want %q", svc, u["Exec"], w.exec)
+			}
+			if !slices.Equal(u["Pull"], []string{"never"}) {
+				t.Errorf("%s: Pull=%v (the host never lets Podman pull)", svc, u["Pull"])
+			}
+			// Ordering: sensor and scan want core, they do not require it (a restart of core must not restart them).
+			if !slices.Equal(u["Requires"], w.requires) || !slices.Equal(u["Wants"], append(w.wants, wantsBase(svc)...)) {
+				t.Errorf("%s: Requires=%v Wants=%v", svc, u["Requires"], u["Wants"])
 			}
 			// PodmanArgs: only memory/cpu/pids limits and core's --group-add of the sensor gid.
 			for _, a := range strings.Fields(strings.Join(u["PodmanArgs"], " ")) {
@@ -1019,7 +1426,7 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			// No key outside the ones the templates use: a new key is a decision (add it here and to the table).
 			known := []string{"Description", "After", "Wants", "Requires", "ContainerName", "Image", "Network", "PublishPort", "Volume", "ReadOnly", "Tmpfs",
 				"NoNewPrivileges", "DropCapability", "AddCapability", "User", "UserNS", "LogDriver", "PodmanArgs", "HealthCmd", "HealthInterval",
-				"HealthStartPeriod", "HealthRetries", "Exec", "Restart", "TimeoutStartSec", "WantedBy"}
+				"HealthStartPeriod", "HealthRetries", "Exec", "Restart", "TimeoutStartSec", "WantedBy", "Pull"}
 			for k := range u {
 				if !slices.Contains(known, k) {
 					t.Errorf("%s has the key %s", svc, k)
@@ -1031,6 +1438,14 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 
 // Service units must not name another host path as a sensor id, and a unit has no drop-in: the host
 // writes one file per service and nothing in a *.container.d directory.
+// wantsBase is the Wants= line the core unit has besides what the table lists.
+func wantsBase(svc string) []string {
+	if svc == api.ServiceCore {
+		return []string{"network-online.target"}
+	}
+	return nil
+}
+
 func TestContract_INV17_TheHostWritesNoDropIns(t *testing.T) {
 	t.Parallel()
 	e := startCtr(t)

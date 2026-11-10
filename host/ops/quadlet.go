@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
+	"time"
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/host/api"
@@ -25,9 +26,9 @@ const (
 	// maxUnitSize bounds what is read back (the largest template is under 2 KiB).
 	maxUnitSize = 16 << 10
 	// hpHostDir is where the honeypot's two folders live on the box: config/ (core writes it, the
-	// container reads it) and log/ (the container writes it, core reads it), D-89. Core mounts the same
-	// directory at its -honeypot-dir default and the honeypot container mounts the two folders at the
-	// same absolute paths, because opencanary.conf holds the log path (D-123 (1)).
+	// container reads it) and log/ (the container writes it, core reads it), D-89. Core mounts config
+	// read-write and log read-only, each at its -honeypot-dir default, and the honeypot container mounts the
+	// two folders at the same absolute paths, because opencanary.conf holds the log path (D-123 (1)).
 	hpHostDir = "/var/lib/vedette-honeypot"
 )
 
@@ -88,13 +89,15 @@ Wants=network-online.target
 [Container]
 ContainerName=vedette-core
 Image=` + repoCore + `@{{.Digest}}
+Pull=never
 Network=vedette-int.network
 PublishPort=8443:8443
 PublishPort=127.0.0.1:8444:8444
 Volume=vedette-data.volume:/var/lib/vedette
-Volume=` + hpHostDir + `:/var/lib/vedette/honeypot
+Volume=` + hpHostDir + `/config:/var/lib/vedette/honeypot/config
+Volume=` + hpHostDir + `/log:/var/lib/vedette/honeypot/log:ro
 Volume=/etc/vedette/master.key:/run/secrets/master.key:ro
-Volume=/run/vedette/host.sock:/run/vedette/host.sock
+Volume=/run/vedette:/run/vedette
 Volume=vedette-creds-passive.volume:/var/lib/vedette-creds/passive
 Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active
 ReadOnly=true
@@ -108,7 +111,7 @@ HealthCmd=/vedette healthcheck
 HealthInterval=30s
 HealthStartPeriod=60s
 HealthRetries=3
-Exec=serve
+Exec=-listen :8443 -key /run/secrets/master.key
 
 [Service]
 Restart=always
@@ -118,11 +121,12 @@ TimeoutStartSec=300
 const sensorUnitText = `[Unit]
 Description=Vedette sensor (passive capture)
 After=vedette-core.service
-Requires=vedette-core.service
+Wants=vedette-core.service
 
 [Container]
 ContainerName=vedette-sensor
 Image=` + repoSensor + `@{{.Digest}}
+Pull=never
 Network=host
 User={{.SensorUID}}:{{.SensorGID}}
 DropCapability=ALL
@@ -151,6 +155,7 @@ Requires=vedette-host.service
 [Container]
 ContainerName=vedette-honeypot
 Image=` + repoHoneypot + `@{{.Digest}}
+Pull=never
 Network=ns:/run/netns/vedette-hp
 DropCapability=ALL
 NoNewPrivileges=true
@@ -173,11 +178,12 @@ Restart=always
 const scanUnitText = `[Unit]
 Description=Vedette scan (active scanning)
 After=vedette-core.service
-Requires=vedette-core.service
+Wants=vedette-core.service
 
 [Container]
 ContainerName=vedette-scan
 Image=` + repoScan + `@{{.Digest}}
+Pull=never
 Network=host
 User={{.SensorUID}}:{{.SensorGID}}
 DropCapability=ALL
@@ -281,3 +287,34 @@ func unitOf(service string) string { return "vedette-" + service + ".service" }
 func containerName(service string) string { return "vedette-" + service }
 
 func unitFileName(service string) string { return "vedette-" + service + ".container" }
+
+// ourUnit is parseUnit plus identity: the bytes must be exactly what this host would write for that
+// digest and [Install] state with the host.conf ids it has now (D-123 L2). A unit that differs in any
+// byte (an older template, other ids, a hand edit) is not ours and is never read, restarted or
+// rewritten by a container command; the bootstrap of slice 3-8 or the installer rewrites it.
+func (o *Ops) ourUnit(service string, text []byte) (digest string, install bool, err error) {
+	digest, install, err = parseUnit(service, text)
+	if err != nil {
+		return "", false, err
+	}
+	want, rerr := renderUnit(service, o.fillFor(digest, install))
+	if rerr != nil || !bytes.Equal(want, text) {
+		return "", false, errUnitNotOurs
+	}
+	return digest, install, nil
+}
+
+var errUnitNotOurs = errors.New("ops: the unit differs from what this host would write")
+
+// startTimeoutOf is the time systemd gives the unit to start: TimeoutStartSec of the template (core:
+// 300 s) or systemd's own default of 90 s when the template sets none. A test reads it from the templates.
+func startTimeoutOf(service string) time.Duration {
+	if service == api.ServiceCore {
+		return 300 * time.Second
+	}
+	return 90 * time.Second
+}
+
+// restartLimitFor is how long the host waits for one "systemctl restart": the unit's own start
+// timeout, so the host never gives up before systemd does, plus a margin.
+func restartLimitFor(service string) time.Duration { return startTimeoutOf(service) + 30*time.Second }

@@ -17,7 +17,7 @@ func (o *Ops) readContainers(ctx context.Context) (any, error) {
 	for _, svc := range api.Services {
 		st := api.ContainerState{Service: svc, UnitState: api.UnitUnknown, Health: api.HealthNone}
 		if text, fs := o.readUnit(svc); fs == fileOK {
-			if digest, install, err := parseUnit(svc, text); err == nil {
+			if digest, install, err := o.ourUnit(svc, text); err == nil {
 				st.Installed, st.Enabled = true, install
 				st.ConfiguredDigest = &digest
 			}

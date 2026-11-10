@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"time"
+
+	"github.com/knt048/vedette/host/api"
 )
 
 // Pure functions that the contract tests (modules/host) and the fuzz targets exercise from
@@ -66,3 +68,9 @@ func ValidateIP(args []string) error { return validateIP(args) }
 
 // ValidatePodman is the validator of the podman binary: "container inspect vedette-<service>" only.
 func ValidatePodman(args []string) error { return validatePodman(args) }
+
+// RunStart runs the body of container.start on a context of the caller's choosing and with no run
+// context, for the tests of the timeout path. The host itself only reaches it through the command.
+func (o *Ops) RunStart(ctx context.Context, a api.ContainerStartArgs) (any, error) {
+	return o.runContainerStart(ctx, nil, a)
+}

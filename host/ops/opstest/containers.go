@@ -53,9 +53,16 @@ func (m *Machine) Prev(service string) (string, error) {
 	return string(b), err
 }
 
-// TransitionPath is containers/transition.json in the state dir.
-func (m *Machine) TransitionPath() string {
-	return filepath.Join(m.State, "containers", "transition.json")
+// TransitionPath is containers/transition-<service>.json in the state dir.
+func (m *Machine) TransitionPath(service string) string {
+	return filepath.Join(m.State, "containers", "transition-"+service+".json")
+}
+
+// Deadlocked lists the services whose synchronous restart the fake refused because the host's own start
+// job was pending (marker "host-starting") and the unit is ordered After=vedette-host.service.
+func (m *Machine) Deadlocked() []string {
+	b, _ := os.ReadFile(filepath.Join(m.Rec, "ctr", "deadlocked"))
+	return strings.Fields(string(b))
 }
 
 // StatefulContainers makes the fake systemctl and podman remember what the container commands do
@@ -65,19 +72,26 @@ func (m *Machine) TransitionPath() string {
 // inspect vedette-<svc>" prints the JSON of a container with the digest of that record, running, and
 // the health word from SetHealth (default healthy), or "unhealthy" when the digest is one BadImage
 // named. Rules added with Rule fire first and can make a call fail or lie. Markers: "restart-fails"
-// makes every restart exit 1 without starting anything; "reload-fails" does the same for daemon-reload.
+// makes every restart exit 1 without starting anything; "reload-fails" does the same for daemon-reload;
+// "host-starting" models the host's own start job still pending: a restart of a unit that is After=
+// vedette-host.service fails (a real one would wait for the job forever) and is listed by Deadlocked.
 func (m *Machine) StatefulContainers() {
 	m.t.Helper()
 	root := "ROOT='" + m.Root + "'; STATE='" + m.State + "'\n"
 	m.writeFakeWith("systemctl", root+`S="$REC/ctr"; mkdir -p "$S"
 svc="${2#vedette-}"; svc="${svc%.service}"
-[ -e "$STATE/containers/transition.json" ] && echo "$1 $2" >> "$S/withjournal"
+ls "$STATE"/containers/transition-*.json >/dev/null 2>&1 && echo "$1 $2" >> "$S/withjournal"
 case "$1" in
   daemon-reload)
     [ -e "$REC/mark.reload-fails" ] && exit 1
     ;;
   restart)
     [ -e "$REC/mark.restart-fails" ] && exit 1
+    # While the host's own start job is pending, a synchronous restart of a unit ordered After= the host waits
+    # for that job: it can never finish. The fake fails it at once and says so.
+    if [ -e "$REC/mark.host-starting" ] && grep -q '^After=.*vedette-host.service' "$ROOT/etc/containers/systemd/vedette-$svc.container" 2>/dev/null; then
+      echo "$svc" >> "$S/deadlocked"; exit 1
+    fi
     cp "$ROOT/etc/containers/systemd/vedette-$svc.container" "$S/$svc.unit" 2>/dev/null
     : > "$S/$svc.running"; : > "$S/$svc.active"
     ;;

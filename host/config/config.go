@@ -6,8 +6,8 @@
 //
 //	core_uid  = 10001                        # uid that runs core (never 0)
 //	core_gid  = 10001                        # gid of core: restored files get core_uid:core_gid
-//	sensor_uid = 10002                       # uid of the sensor and scan containers (never 0, not core_uid)
-//	sensor_gid = 10002                       # gid of the same (never 0, not core_gid, not socket_gid)
+//	sensor_uid = 10003                       # optional pair: uid of the sensor and scan containers (never 0, not core_uid)
+//	sensor_gid = 10004                       # gid of the same (never 0, not core_gid, not socket_gid)
 //	core_unit = vedette-core.service         # systemd unit whose cgroup core's processes are in
 //	socket    = /run/vedette/host.sock       # absolute path, at most 100 bytes
 //	socket_gid = 990                         # gid of the group "vedette" (owns the socket, mode 0660)
@@ -44,7 +44,8 @@ type Config struct {
 	CoreUID int
 	CoreGID int // group that restored files in core_data get (never taken from a file in core's tree)
 	// SensorUID and SensorGID run the sensor and scan containers (D-114): User=<sensor_uid>:<sensor_gid>
-	// in their units, and --group-add=<sensor_gid> in core's.
+	// in their units, and --group-add=<sensor_gid> in core's. Optional as a pair: without them the host
+	// still starts and only the units that need them answer host_conf_incomplete (D-123).
 	SensorUID int
 	SensorGID int
 	CoreUnit  string
@@ -102,16 +103,22 @@ func Parse(r io.Reader) (Config, error) {
 	if err := sc.Err(); err != nil {
 		return Config{}, fmt.Errorf("%w: %w", ErrInvalid, err)
 	}
-	for _, k := range []string{"core_uid", "core_gid", "core_unit", "socket", "socket_gid", "sensor_uid", "sensor_gid"} {
+	for _, k := range []string{"core_uid", "core_gid", "core_unit", "socket", "socket_gid"} {
 		if !seen[k] {
 			return Config{}, fmt.Errorf("%w: %s is required", ErrInvalid, k)
 		}
 	}
 	switch {
-	case c.SensorUID == c.CoreUID:
+	case seen["sensor_uid"] != seen["sensor_gid"]:
+		return Config{}, fmt.Errorf("%w: sensor_uid and sensor_gid go together", ErrInvalid)
+	case seen["sensor_uid"] && c.SensorUID == c.CoreUID:
 		return Config{}, fmt.Errorf("%w: sensor_uid must differ from core_uid", ErrInvalid)
-	case c.SensorGID == c.CoreGID || c.SensorGID == c.SocketGID:
+	case seen["sensor_gid"] && (c.SensorGID == c.CoreGID || c.SensorGID == c.SocketGID):
 		return Config{}, fmt.Errorf("%w: sensor_gid must differ from core_gid and socket_gid", ErrInvalid)
+	// core's unit has no group-add for the socket (D-123 L4): the socket is 0660 root:<socket_gid>, so core
+	// reaches it through its own group.
+	case c.CoreGID != c.SocketGID:
+		return Config{}, fmt.Errorf("%w: core_gid must equal socket_gid (core reaches the socket through its own group)", ErrInvalid)
 	}
 	return c, nil
 }

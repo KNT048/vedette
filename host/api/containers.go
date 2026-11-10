@@ -38,6 +38,9 @@ const (
 	CodeUnitUnwritable = "unit_unwritable"
 	// CodeStopNotVerified: systemctl is-active did not say inactive after the stop.
 	CodeStopNotVerified = "stop_not_verified"
+	// CodeTransitionPending: an earlier change of that unit left a journal that has not been recovered
+	// yet (the host recovers at its next start); container commands for the service wait.
+	CodeTransitionPending = "transition_pending"
 	// CodeHostConfIncomplete: the unit needs a uid or gid that host.conf did not give the host.
 	CodeHostConfIncomplete = "host_conf_incomplete"
 )

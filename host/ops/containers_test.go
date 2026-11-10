@@ -2,8 +2,11 @@ package ops
 
 import (
 	"fmt"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/host/api"
 )
@@ -58,19 +61,49 @@ func TestPodmanGrammarIsInspectOfTheFiveContainersOnly(t *testing.T) {
 	}
 }
 
+// FuzzValidateSystemctlContainers builds argv from the accepted pieces (so the fuzzer reaches the accepted
+// shapes) and corrupts them: an argv with a piece changed must be refused, and a clean one accepted.
 func FuzzValidateSystemctlContainers(f *testing.F) {
 	v := validateSystemctl("vedette-core.service")
-	f.Add("restart", "vedette-core.service", "")
-	f.Add("daemon-reload", "", "")
-	f.Add("stop", "vedette-honeypot.service", "x")
-	f.Fuzz(func(t *testing.T, a, b, c string) {
-		args := []string{a, b, c}
-		if err := v(args); err != nil {
-			return
+	f.Add(uint8(0), uint8(0), "", uint8(0))
+	f.Add(uint8(1), uint8(2), "", uint8(0))
+	f.Add(uint8(2), uint8(4), ".x", uint8(1))
+	f.Add(uint8(3), uint8(1), "\n", uint8(2))
+	f.Add(uint8(1), uint8(3), "-", uint8(3))
+	verbs := []string{"daemon-reload", "restart", "stop", "is-active"}
+	f.Fuzz(func(t *testing.T, vi, si uint8, junk string, mode uint8) {
+		verb := verbs[int(vi)%len(verbs)]
+		unit := "vedette-" + api.Services[int(si)%len(api.Services)] + ".service"
+		args := []string{verb}
+		if verb != "daemon-reload" {
+			args = append(args, unit)
 		}
-		// Whatever got through is one of the fixed shapes, with a unit from the closed list.
-		for _, x := range args {
-			if strings.ContainsAny(x, " \t\r\n\x00;|&$`'\"") {
+		clean := true
+		switch mode % 4 {
+		case 1: // junk glued to the unit or the verb
+			if junk != "" {
+				args[len(args)-1] += junk
+				clean = false
+			}
+		case 2: // an extra argument
+			if junk != "" {
+				args = append(args, junk)
+				clean = false
+			}
+		case 3: // an option in front
+			if junk != "" {
+				args = append([]string{junk}, args...)
+				clean = false
+			}
+		}
+		err := v(args)
+		if clean && err != nil {
+			t.Fatalf("a fixed shape was refused: %q: %v", args, err)
+		}
+		if !clean && err == nil {
+			// Whatever got through must still be one of the fixed shapes.
+			ok := slices.Equal(args, []string{"daemon-reload"}) || (len(args) == 2 && slices.Contains(verbs[1:], args[0]) && isServiceUnit(args[1]))
+			if !ok {
 				t.Fatalf("accepted %q", args)
 			}
 		}
@@ -187,4 +220,40 @@ func FuzzParseInspect(f *testing.F) {
 			t.Fatalf("health %q", i.Health)
 		}
 	})
+}
+
+// The time limits agree with each other (D-123 L6): the host never gives up on a restart before systemd
+// does, and a step that is made of several has a limit at least their sum.
+func TestTimeLimitsAreConsistent(t *testing.T) {
+	t.Parallel()
+	for _, svc := range unitServices {
+		text, err := renderUnit(svc, goldFill(true))
+		if err != nil {
+			t.Fatal(err)
+		}
+		declared := 90 * time.Second // systemd's default when the unit has no TimeoutStartSec
+		for l := range strings.SplitSeq(string(text), "\n") {
+			if v, ok := strings.CutPrefix(l, "TimeoutStartSec="); ok {
+				n, err := strconv.Atoi(v)
+				if err != nil {
+					t.Fatal(err)
+				}
+				declared = time.Duration(n) * time.Second
+			}
+		}
+		if startTimeoutOf(svc) < declared || restartLimitFor(svc) < declared {
+			t.Errorf("%s: restart limit %v, start timeout %v, the unit's own %v", svc, restartLimitFor(svc), startTimeoutOf(svc), declared)
+		}
+		if revertLimitFor(svc) < fileSlack+reloadLimit+restartLimitFor(svc) {
+			t.Errorf("%s: the revert limit %v is under write + reload + restart", svc, revertLimitFor(svc))
+		}
+	}
+	if recoverLimit < reloadLimit+fileSlack {
+		t.Errorf("recoverLimit %v is under one reload plus the file work", recoverLimit)
+	}
+	// The whole of a start that waits for the health and then reverts fits in the command's timeout (15 minutes).
+	worst := reloadLimit + restartLimitFor(api.ServiceCore) + 2*time.Minute + revertLimitFor(api.ServiceCore)
+	if worst > 15*time.Minute {
+		t.Errorf("a core start can take %v, over the 15 minutes of the command", worst)
+	}
 }

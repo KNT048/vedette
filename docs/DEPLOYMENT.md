@@ -59,7 +59,7 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 | Nội dung | Go binary tĩnh + SPA nhúng + skill/gói khuyến nghị đã xác nhận (đi cùng bản phát hành, D-36); chạy `vedette serve` |
 | Người dùng | không root, `User=<core_uid>:<core_gid>` **cố định** từ `host.conf`, không `UserNS=auto` (uid của peer phải ổn định cho kiểm `SO_PEERCRED` và kiểm chủ sở hữu của D-87; D-105); `cap_drop=ALL`; `no-new-privileges`; rootfs chỉ đọc + tmpfs `/tmp` |
 | Mạng | bridge `vedette-int`; publish `8443:8443` **không kèm IP** (D-105): địa chỉ LAN duy nhất của hộp là địa chỉ quản trị (SPAN không IP, decoy nằm trong `vedette-hp`), nên đổi địa chỉ bằng `net.apply` không phải khởi động lại `core` và GUI tới được ở địa chỉ mới để xác nhận; `8444` (giao thức sensor, mTLS, D-109) không publish ra LAN, chỉ `127.0.0.1:8444` cho container mạng host |
-| Volume | `vedette-data` → `/var/lib/vedette` (SQLite WAL, chỉ mục RAG, tài liệu tải lên); `/etc/vedette/master.key` → `/run/secrets/master.key` (ro, 0600); `/run/vedette/host.sock` (socket `vedette-host`); `vedette-creds-passive`, `vedette-creds-active` → `/var/lib/vedette-creds/{passive,active}` (**đọc-ghi chỉ ở `core`**: bó khoá của sensor, D-110 (4), D-114 (4)); mẫu cấu hình ro. `PodmanArgs=--group-add=<sensor_gid>` hằng để `core` ghi tệp khoá `0640 core_uid:sensor_gid` |
+| Volume | `vedette-data` → `/var/lib/vedette` (SQLite WAL, chỉ mục RAG, tài liệu tải lên); `/etc/vedette/master.key` → `/run/secrets/master.key` (ro, 0600); `/run/vedette` (**thư mục** chứa socket `vedette-host`, không bind-mount tệp socket; D-123); `vedette-creds-passive`, `vedette-creds-active` → `/var/lib/vedette-creds/{passive,active}` (**đọc-ghi chỉ ở `core`**: bó khoá của sensor, D-110 (4), D-114 (4)); mẫu cấu hình ro. `PodmanArgs=--group-add=<sensor_gid>` hằng để `core` ghi tệp khoá `0640 core_uid:sensor_gid` |
 | Cổng | 8443/tcp (UI, API, SSE, intake osquery, script cài osquery, trang duyệt email, URL danh sách chặn) |
 | Health check | `vedette healthcheck`: mở được DB, scheduler còn tick, HTTP nội bộ trả 200 (endpoint health chưa có trong `api/openapi.json`, cần thêm: câu hỏi mở B1). Chu kỳ 30 s, start-period 60 s, 3 lần hỏng thì unhealthy |
 | Phụ thuộc | không (khởi động đầu tiên) |
@@ -229,14 +229,17 @@ Wants=network-online.target
 [Container]
 ContainerName=vedette-core
 Image=ghcr.io/knt048/vedette-core@sha256:<digest>
+Pull=never
 Network=vedette-int.network
 # Không kèm IP (D-105): đổi địa chỉ quản trị bằng net.apply không phải khởi động lại core
 PublishPort=8443:8443
 PublishPort=127.0.0.1:8444:8444
 Volume=vedette-data.volume:/var/lib/vedette
-Volume=/var/lib/vedette-honeypot:/var/lib/vedette/honeypot
+Volume=/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config
+Volume=/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log:ro
 Volume=/etc/vedette/master.key:/run/secrets/master.key:ro
-Volume=/run/vedette/host.sock:/run/vedette/host.sock
+# cả thư mục, không phải tệp socket: bind-mount một tệp giữ inode cũ và mất kết nối khi host tạo lại socket (D-123)
+Volume=/run/vedette:/run/vedette
 # bó khoá của sensor (D-110 (4)): đọc-ghi chỉ ở core
 Volume=vedette-creds-passive.volume:/var/lib/vedette-creds/passive
 Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active
@@ -253,7 +256,7 @@ HealthCmd=/vedette healthcheck
 HealthInterval=30s
 HealthStartPeriod=60s
 HealthRetries=3
-Exec=serve
+Exec=-listen :8443 -key /run/secrets/master.key
 
 [Service]
 Restart=always
@@ -269,11 +272,12 @@ WantedBy=multi-user.target
 [Unit]
 Description=Vedette sensor (passive capture)
 After=vedette-core.service
-Requires=vedette-core.service
+Wants=vedette-core.service
 
 [Container]
 ContainerName=vedette-sensor
 Image=ghcr.io/knt048/vedette-sensor@sha256:<digest>
+Pull=never
 Network=host
 # sensor_uid:sensor_gid của /etc/vedette/host.conf; KHÔNG UserNS (raw socket trên mạng host, D-114 (3))
 User=<sensor_uid>:<sensor_gid>
@@ -315,6 +319,7 @@ Requires=vedette-host.service
 [Container]
 ContainerName=vedette-honeypot
 Image=ghcr.io/knt048/vedette-honeypot@sha256:<digest>
+Pull=never
 Network=ns:/run/netns/vedette-hp
 # ip_unprivileged_port_start=0 trong namespace: không cần NET_BIND_SERVICE
 DropCapability=ALL
@@ -355,6 +360,8 @@ Type=notify
 ExecStart=/usr/lib/vedette/vedette-host
 RuntimeDirectory=vedette
 RuntimeDirectoryMode=0750
+# thư mục chạy giữ nguyên khi host dừng/khởi động lại: core gắn thư mục /run/vedette và nối lại socket mới (D-123)
+RuntimeDirectoryPreserve=yes
 Restart=on-failure
 # Bao quanh các bước Start có cận (D-121): startHP 120 s + hoàn tác lúc khởi động 180 s + áp lại decoy 120 s
 # + kiểm core 60 s + khôi phục restore dở 300 s + dừng/khởi động core 120 s + đặt lại unit dở 60 s (D-123) = 960 s = 16 phút.
@@ -546,7 +553,7 @@ Không có endpoint metrics kiểu Prometheus: chưa có story, không làm (`ru
 ## 12. Hardening
 
 **Host.**
-- `vedette-host.service`: `Type=notify` (host báo `READY=1` sau khi tạo namespace `vedette-hp`, áp lại decoy và khôi phục run dở, D-102); hạn chế mức có thể mà vẫn chạy apt/netplan/podman và vẫn để namespace `vedette-hp` hiện ra cho podman (**không** có tuỳ chọn namespace hệ tệp nào, D-121): `RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK AF_PACKET` (`AF_PACKET` cho ARP probe và kiểm gateway, D-101; root chỉ gửi/đọc khung ARP 42 byte, không đọc lưu lượng khác), `LockPersonality=yes`, `RestrictRealtime=yes`, `SystemCallArchitectures=native`, `MemoryDenyWriteExecute=yes`, `RuntimeDirectoryMode=0750`. Giới hạn thiệt hại chủ yếu dựa vào **danh sách lệnh cố định**, không dựa vào sandbox. `TimeoutStartSec=16min` (cận của các bước `Ops.Start`, D-121, D-123).
+- `vedette-host.service`: `Type=notify` (host báo `READY=1` sau khi tạo namespace `vedette-hp`, áp lại decoy và khôi phục run dở, D-102); hạn chế mức có thể mà vẫn chạy apt/netplan/podman và vẫn để namespace `vedette-hp` hiện ra cho podman (**không** có tuỳ chọn namespace hệ tệp nào, D-121): `RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK AF_PACKET` (`AF_PACKET` cho ARP probe và kiểm gateway, D-101; root chỉ gửi/đọc khung ARP 42 byte, không đọc lưu lượng khác), `LockPersonality=yes`, `RestrictRealtime=yes`, `SystemCallArchitectures=native`, `MemoryDenyWriteExecute=yes`, `RuntimeDirectoryMode=0750`, `RuntimeDirectoryPreserve=yes`. Giới hạn thiệt hại chủ yếu dựa vào **danh sách lệnh cố định**, không dựa vào sandbox. `TimeoutStartSec=16min` (cận của các bước `Ops.Start`, D-121, D-123).
 - **`vedette-host.service` không được đặt tuỳ chọn namespace hệ tệp nào (D-121).** `ip netns add vedette-hp` bind-mount lên `/run/netns/vedette-hp` và container `honeypot` (podman, ngoài unit) phải thấy mount đó. `systemd.exec(5)`: các tuỳ chọn namespace hệ tệp đặt lan truyền mount ở chế độ `slave` (mount của host hiện vào unit, mount của unit không ra host), và "Setting this option to `shared` does not reestablish propagation in that case" nên `MountFlags=shared` không cứu được. Cấm: `PrivateTmp=`, `PrivateDevices=`, `ProtectSystem=`, `ProtectHome=`, `ProtectKernelTunables=`, `ProtectKernelModules=`, `ProtectKernelLogs=`, `ProtectControlGroups=`, `ProtectProc=`, `ProcSubset=`, `ReadOnlyPaths=`, `ReadWritePaths=`, `InaccessiblePaths=`, `ExecPaths=`, `NoExecPaths=`, `BindPaths=`, `BindReadOnlyPaths=`, `TemporaryFileSystem=`, `PrivateMounts=`, `MountAPIVFS=`, `MountImages=`, `RootDirectory=`, `RootImage=`. `RestrictNamespaces=` phải để trống hoặc cho phép `net` và `mnt` (`ip netns` gọi `unshare`/`setns`). Giữ các tuỳ chọn không đụng mount ở trên (`RestrictAddressFamilies`, `LockPersonality`, `RestrictRealtime`, `SystemCallArchitectures`, `MemoryDenyWriteExecute`).
 - UFW/nftables mặc định chặn vào, mở theo module bật (8443; 514 khi `logs` bật). `vedette-host` quản lý luật; kiểm bằng hiệu ứng (§7.3).
 - Không gắn `podman.sock`/`docker.sock` vào bất kỳ container nào; không `--privileged`.

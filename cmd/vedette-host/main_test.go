@@ -36,7 +36,7 @@ func testEnv(t *testing.T) (environment, *[2]any) {
 func writeConf(t *testing.T, dir, socket string) string {
 	t.Helper()
 	p := filepath.Join(dir, "host.conf")
-	body := fmt.Sprintf("core_uid = 10001\ncore_gid = 10001\nsensor_uid = 10002\nsensor_gid = 10002\ncore_unit = vedette-core.service\nsocket = %s\nsocket_gid = %d\n", socket, os.Getgid())
+	body := fmt.Sprintf("core_uid = 10001\ncore_gid = %d\nsensor_uid = 10002\nsensor_gid = 10002\ncore_unit = vedette-core.service\nsocket = %s\nsocket_gid = %d\n", os.Getgid(), socket, os.Getgid())
 	if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}

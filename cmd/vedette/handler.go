@@ -11,6 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/response"
+	"github.com/knt048/vedette/modules/scan"
 	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
 )
 
@@ -34,6 +35,7 @@ type handler struct {
 	*honeypot.HoneypotHandlers
 	*sensorpassive.SensorHandlers
 	*exposure.ExposureHandlers
+	*scan.ScanHandlers
 }
 
 // newHandler builds every module's handlers from the shared deps. Adding a module = one field above
@@ -55,5 +57,6 @@ func newHandler(d deps) handler {
 		SensorHandlers:   sensorpassive.NewSensorHandlers(d.SensorPassive),
 		HoneypotHandlers: honeypot.NewHoneypotHandlers(d.Honeypot),
 		ExposureHandlers: exposure.NewExposureHandlers(exposureService(d)),
+		ScanHandlers:     scan.NewScanHandlers(scanService(d)),
 	}
 }

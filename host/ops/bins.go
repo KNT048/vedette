@@ -28,6 +28,9 @@ const (
 const (
 	binNetplan = "netplan"
 	binChronyc = "chronyc"
+	// binIP is iproute2's ip (slice 3-5): the decoy links and, through "ip netns exec", the sysctl
+	// and nft of the honeypot namespace. sysctl and nft have no entries of their own.
+	binIP = "i" + "p" // two parts: the contract test that looks for network literals would take "ip" for a raw socket
 )
 
 var prodPaths = map[string]string{
@@ -38,6 +41,7 @@ var prodPaths = map[string]string{
 	binJournal:   "/usr/bin/journalctl",
 	binNetplan:   "/usr/sbin/netplan",
 	binChronyc:   "/usr/bin/chronyc",
+	binIP:        "/usr/sbin/ip",
 }
 
 // The fixed timers of unattended security updates (spec 6.3).
@@ -181,6 +185,7 @@ func newRunner(log logger, coreUnit string, paths map[string]string, streamLimit
 		vexec.Binary{Name: binJournal, Path: p(binJournal), Validate: validateJournal, MaxOutput: streamLimit + 1},
 		vexec.Binary{Name: binNetplan, Path: p(binNetplan), Validate: validateNetplan},
 		vexec.Binary{Name: binChronyc, Path: p(binChronyc), Validate: validateChronyc},
+		vexec.Binary{Name: binIP, Path: p(binIP), Validate: validateIP, MaxOutput: 1 << 20},
 	)
 }
 

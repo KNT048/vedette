@@ -26,7 +26,7 @@ import (
 )
 
 // Bins are the binary names of the command runner.
-var Bins = []string{"apt-get", "apt-config", "dpkg", "systemctl", "journalctl", "netplan", "chronyc"}
+var Bins = []string{"apt-get", "apt-config", "dpkg", "systemctl", "journalctl", "netplan", "chronyc", ops.BinIP}
 
 // BootID is the boot id a fresh machine has.
 const BootID = "11111111-2222-4333-8444-555555555555"
@@ -81,6 +81,7 @@ func NewMachine(t testing.TB) *Machine {
 	for _, name := range Bins {
 		m.writeFake(name)
 	}
+	m.StatefulIP() // Start makes the honeypot namespace, so every machine has an ip that remembers it
 	m.WriteDB("db: first")
 	m.must(os.WriteFile(filepath.Join(m.CoreData, "vedette.key"), []byte(Key), 0o600))
 	return m
@@ -234,7 +235,10 @@ func (m *Machine) Marked(name string) bool {
 	return err == nil
 }
 
-func (m *Machine) writeFake(name string) {
+func (m *Machine) writeFake(name string) { m.writeFakeWith(name, "") }
+
+// writeFakeWith writes a fake binary: record the call, answer by the rules, then run tail (shell text) and succeed.
+func (m *Machine) writeFakeWith(name, tail string) {
 	script := `#!/bin/sh
 REC='` + m.Rec + `'
 RULES='` + m.Rules + `/` + name + `'
@@ -251,7 +255,7 @@ fi
   echo "=== call"
   printf 'arg:%s\n' "$@"
 } >> "$REC/$NAME.calls"
-[ -f "$RULES" ] || exit 0
+[ -f "$RULES" ] || RULES=/dev/null
 args="$*"
 while IFS='|' read -r pat out code req set; do
   case "$args" in *"$pat"*) ;; *) continue ;; esac
@@ -265,6 +269,7 @@ while IFS='|' read -r pat out code req set; do
   [ -n "$out" ] && cat "$out"
   exit "${code:-0}"
 done < "$RULES"
+` + tail + `
 exit 0
 `
 	exectest.WriteScript(m.t, filepath.Join(m.Bin, name), script) // under syscall.ForkLock: no ETXTBSY when parallel tests fork
@@ -328,10 +333,13 @@ func (m *Machine) Envs(bin string) [][]string {
 	return out
 }
 
-// AllCalls returns every call of every fake, as "binary arg arg ...".
+// AllCalls returns every call of every fake but ip, as "binary arg arg ...".
 func (m *Machine) AllCalls() []string {
 	var out []string
 	for _, n := range Bins {
+		if n == ops.BinIP {
+			continue // every start makes the honeypot namespace; the decoy tests read Calls(ops.BinIP) themselves
+		}
 		for _, c := range m.Calls(n) {
 			out = append(out, n+" "+strings.Join(c, " "))
 		}
@@ -361,6 +369,8 @@ func (m *Machine) Deps(now func() time.Time) ops.Deps {
 		LockHeld: func(string) (bool, error) { return false, nil },
 		// The machine has no network cards unless a test says so: never the real ones of the developer's computer.
 		Interfaces: func() ([]ops.HostIface, error) { return nil, nil },
+		// The fake namespace file is a plain file; there is no nsfs in a test.
+		IsNetNS: func(*os.File) (bool, error) { return true, nil },
 	}
 }
 
@@ -376,4 +386,107 @@ func (m *Machine) Ops(now func() time.Time, mutate ...func(*ops.Config, *ops.Dep
 		m.t.Fatal(err)
 	}
 	return o
+}
+
+// StatefulIP makes (NewMachine does it) the fake ip one that remembers what the decoy commands do: links made in the
+// host namespace, links moved into vedette-hp with their MAC, address and up flag, the rules, the
+// sysctls and the nft ruleset. "ip netns add" creates /run/netns/vedette-hp under the root,
+// "ip -n vedette-hp -j addr show" prints the links as JSON, and "nft list ruleset" prints the
+// egress ruleset once "nft -f -" loaded it, "sysctl -n" reads back what "sysctl -w" set (the marker "sysctl-wrong" makes it read 9) (unless the marker "nft-noload" is set: the load then
+// silently does nothing). Rules added with Rule fire before this and can make a call fail.
+func (m *Machine) StatefulIP() {
+	m.writeFakeWith(ops.BinIP, `S="$REC/ip"; ROOT='`+m.Root+`'
+mkdir -p "$S/host" "$S/ns"
+mode=host
+if [ "$1" = "-n" ]; then shift 2; mode=ns; fi
+args="$*"
+setfield() { # file key value
+  grep -v "^$2=" "$1" > "$1.tmp" 2>/dev/null; echo "$2=$3" >> "$1.tmp"; mv "$1.tmp" "$1"
+}
+case "$mode:$args" in
+  "host:netns add vedette-hp")
+    mkdir -p "$ROOT/run/netns"; : > "$ROOT/run/netns/vedette-hp"; exit 0 ;;
+  "host:netns exec vedette-hp /usr/sbin/sysctl -n "*)
+    set -- $args; shift 5
+    for k in "$@"; do
+      v=$(grep -o " $k=[^ ]*" "$S/sysctl" 2>/dev/null | tail -1 | sed 's/.*=//')
+      [ -e "$REC/mark.sysctl-wrong" ] && v=9
+      echo "$v"
+    done
+    exit 0 ;;
+  "host:netns exec vedette-hp /usr/sbin/sysctl -w "*)
+    echo "$args" >> "$S/sysctl"; exit 0 ;;
+  "host:netns exec vedette-hp /usr/sbin/nft -f -")
+    cat > "$S/ruleset.in"
+    [ -e "$REC/mark.nft-noload" ] || cp "$S/ruleset.in" "$S/ruleset"
+    exit 0 ;;
+  "host:netns exec vedette-hp /usr/sbin/nft list ruleset")
+    if [ -e "$S/ruleset" ]; then
+      printf 'table inet vedette_hp {\n\tchain output {\n\t\ttype filter hook output priority filter; policy accept;\n\t\tct state established,related accept\n\t\toif "lo" accept\n\t\tct state new drop\n\t}\n\tchain forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t}\n}\n'
+    fi
+    exit 0 ;;
+  "host:link add link "*)
+    set -- $args
+    [ -e "$S/host/$6" ] && exit 2
+    echo "$8" > "$S/host/$6"; echo "$4" > "$S/host/$6.parent"; exit 0 ;;
+  "host:link set "*" netns vedette-hp")
+    set -- $args
+    [ -e "$S/host/$3" ] || exit 1
+    [ -e "$S/ns/$3" ] && exit 2
+    { echo "mac=$(cat "$S/host/$3")"; echo "up=0"; } > "$S/ns/$3"
+    rm -f "$S/host/$3" "$S/host/$3.parent"; exit 0 ;;
+  "host:link del "*)
+    set -- $args; rm -f "$S/host/$3" "$S/host/$3.parent"; exit 0 ;;
+  "ns:addr add "*)
+    set -- $args; [ -e "$S/ns/$5" ] || exit 1; echo "addr=$3" >> "$S/ns/$5"; exit 0 ;;
+  "ns:link set lo up") exit 0 ;;
+  "ns:link set "*" up")
+    set -- $args; [ -e "$S/ns/$3" ] || exit 1; setfield "$S/ns/$3" up 1; exit 0 ;;
+  "ns:link del "*)
+    set -- $args; [ -e "$S/ns/$3" ] || exit 1; rm -f "$S/ns/$3"; exit 0 ;;
+  "ns:rule add "*)
+    grep -qxF "$args" "$S/rules" 2>/dev/null && exit 2
+    echo "$args" >> "$S/rules"; exit 0 ;;
+  "ns:rule del "*)
+    d="rule add ${args#rule del }"
+    grep -qxF "$d" "$S/rules" 2>/dev/null || exit 2
+    grep -vxF "$d" "$S/rules" > "$S/rules.tmp"; mv "$S/rules.tmp" "$S/rules"; exit 0 ;;
+  "ns:route "*)
+    echo "$args" >> "$S/routes"; exit 0 ;;
+  "ns:-j addr show")
+    printf '[{"ifindex":1,"ifname":"lo","flags":["LOOPBACK","UP","LOWER_UP"],"link_type":"loopback","address":"00:00:00:00:00:00","addr_info":[{"family":"inet","local":"127.0.0.1","prefixlen":8}]}'
+    for f in "$S"/ns/*; do
+      [ -e "$f" ] || continue
+      n=$(basename "$f"); mac=$(sed -n 's/^mac=//p' "$f"); up=$(sed -n 's/^up=//p' "$f")
+      fl='"BROADCAST","MULTICAST"'; [ "$up" = 1 ] && fl="$fl"',"UP","LOWER_UP"'
+      printf ',{"ifindex":2,"ifname":"%s","flags":[%s],"link_type":"ether","address":"%s","addr_info":[' "$n" "$fl" "$mac"
+      first=1
+      for a in $(sed -n 's/^addr=//p' "$f"); do
+        [ $first = 1 ] || printf ','
+        first=0
+        printf '{"family":"inet","local":"%s","prefixlen":%s}' "${a%/*}" "${a#*/}"
+      done
+      printf ']}'
+    done
+    printf ']\n'; exit 0 ;;
+esac`)
+}
+
+// IPState reads a file of the stateful fake ip: "ruleset", "rules", "routes", "sysctl", or
+// "ns/<link>" and "host/<link>"; "" when absent.
+func (m *Machine) IPState(rel string) string {
+	b, _ := os.ReadFile(filepath.Join(m.Rec, ops.BinIP, rel)) //nolint:gosec // test support: a path under the fake rec dir
+	return string(b)
+}
+
+// IPLinks lists the links of the namespace ("ns") or of the host ("host") in the stateful fake ip.
+func (m *Machine) IPLinks(where string) []string {
+	es, _ := os.ReadDir(filepath.Join(m.Rec, ops.BinIP, where))
+	var out []string
+	for _, e := range es {
+		if n := e.Name(); !strings.Contains(n, ".") {
+			out = append(out, n)
+		}
+	}
+	return out
 }

@@ -269,7 +269,7 @@ func (o *Ops) applyWithoutConfirm(ctx context.Context, rc *server.RunContext, wa
 			err = o.applyWithRetry(rctx, nil)
 		}
 		if err == nil {
-			err = o.reapplyDecoys(rctx)
+			err = o.reapplyDecoys(rctx, nil)
 		}
 		if err != nil {
 			o.log.ErrorContext(ctx, "the previous network configuration could not be restored", "error", err.Error())
@@ -280,7 +280,7 @@ func (o *Ops) applyWithoutConfirm(ctx context.Context, rc *server.RunContext, wa
 	if err := o.netplanApply(ctx, rc); err != nil {
 		return restore(api.CodeNetplanApplyFailed, "netplan could not apply the new configuration; the previous one was restored.")
 	}
-	if err := o.reapplyDecoys(ctx); err != nil {
+	if err := o.reapplyDecoys(ctx, &want); err != nil {
 		return restore(api.CodeNetplanApplyFailed, "The decoy addresses could not be restored; the previous configuration was restored.")
 	}
 	if err := o.effectCheck(ctx, rc, want); err != nil {
@@ -371,7 +371,7 @@ func (o *Ops) applyWithConfirm(ctx context.Context, rc *server.RunContext, want 
 	if err := o.effectCheck(ctx, rc, want); err != nil {
 		return revert(api.CodeConnectivityCheckFail, "The box did not reach its network with the new configuration; the previous one was restored.")
 	}
-	if err := o.reapplyDecoys(ctx); err != nil {
+	if err := o.reapplyDecoys(ctx, &want); err != nil {
 		return revert(api.CodeNetplanApplyFailed, "The decoy addresses could not be restored; the previous configuration was restored.")
 	}
 	p.RevertAt = o.d.Now().Add(window).UTC()
@@ -422,7 +422,7 @@ func (o *Ops) undoOverlay(ctx context.Context, rc *server.RunContext) error {
 	if err := o.deletePending(); err != nil {
 		o.log.ErrorContext(ctx, "could not remove net/pending.json", "error", err.Error())
 	}
-	if err := o.reapplyDecoys(ctx); err != nil {
+	if err := o.reapplyDecoys(ctx, nil); err != nil {
 		return err
 	}
 	if cfg, ok := o.readNetplanConfig(); ok {
@@ -494,10 +494,6 @@ func (o *Ops) rebootAfterFailedRevert(ctx context.Context, touchedMgmt bool) {
 
 // rebootAfterRevertLead is how long the box waits before the reboot of rebootAfterFailedRevert.
 const rebootAfterRevertLead = 60 * time.Second
-
-// reapplyDecoys puts the decoy addresses back after the network changed (spec 6.6). The decoy
-// commands arrive with slice 3-5; this is where they hook in.
-func (o *Ops) reapplyDecoys(context.Context) error { return nil }
 
 // netplanApply runs "netplan apply".
 func (o *Ops) netplanApply(ctx context.Context, rc *server.RunContext) error {

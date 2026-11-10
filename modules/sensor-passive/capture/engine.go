@@ -1,4 +1,4 @@
-package sensorpassive
+package capture
 
 import (
 	"errors"
@@ -301,7 +301,7 @@ func (e *Engine) add(now time.Time, hintMAC mac, hintIP netip.Addr, field observ
 	if e.own(hintMAC, hintIP) {
 		return
 	}
-	if hintIP.IsValid() && !unicastIP(hintIP) {
+	if hintIP.IsValid() && !UnicastIP(hintIP) {
 		e.drop("non_unicast_ip")
 		hintIP = netip.Addr{}
 	}
@@ -356,9 +356,8 @@ func (e *Engine) queue(now time.Time, hintMAC mac, hintIP netip.Addr, field obse
 	if t, ok := e.sent[k]; ok && now.Sub(t) < repeatAfter {
 		return
 	}
-	if len(e.obs) >= maxPending {
-		e.drop("observations_dropped")
-		return
+	if len(e.obs) >= maxPending { // the memory queue is full: the oldest goes (it is the stalest news), and is counted
+		e.discardOldest(1)
 	}
 	if len(e.sent) >= maxSent {
 		clear(e.sent)
@@ -376,8 +375,8 @@ func fit(s string) string {
 	return strings.TrimRight(s, ". -_")
 }
 
-// unicastIP reports whether a is an address a host can have: not unspecified, loopback, multicast, broadcast, 0.0.0.0/8 or 240.0.0.0/4.
-func unicastIP(a netip.Addr) bool {
+// UnicastIP reports whether a is an address a host can have: not unspecified, loopback, multicast, broadcast, 0.0.0.0/8 or 240.0.0.0/4.
+func UnicastIP(a netip.Addr) bool {
 	a = a.Unmap()
 	if !a.IsValid() || a.IsUnspecified() || a.IsLoopback() || a.IsMulticast() {
 		return false
@@ -733,17 +732,24 @@ func (e *Engine) Delivered(obs []observe.Observation) {
 }
 
 // Requeue puts observations whose delivery failed back at the head of the queue, to be sent as one batch later.
-// They stay marked as sent, so a repeat of the same frame does not queue them twice. What does not fit under
-// maxPending is dropped and counted.
+// They stay marked as sent, so a repeat of the same frame does not queue them twice. When the queue would exceed
+// maxPending the oldest observations are dropped and counted (D-112 (4): the memory queue is the only queue).
 func (e *Engine) Requeue(obs []observe.Observation) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	room := maxPending - len(e.obs)
-	if room < len(obs) {
-		for range len(obs) - max(room, 0) {
-			e.drop("observations_dropped")
-		}
-		obs = obs[:max(room, 0)]
-	}
 	e.obs = append(append(make([]observe.Observation, 0, len(obs)+len(e.obs)), obs...), e.obs...)
+	if over := len(e.obs) - maxPending; over > 0 {
+		e.discardOldest(over)
+	}
+}
+
+// discardOldest drops the n oldest queued observations, counts them, and forgets that they were sent so that they may come
+// again. The caller holds mu.
+func (e *Engine) discardOldest(n int) {
+	n = min(n, len(e.obs))
+	for _, o := range e.obs[:n] {
+		delete(e.sent, obsKey{o.AssetHint.MAC, o.AssetHint.IP.String(), string(o.Field), o.Value})
+		e.drop("observations_dropped")
+	}
+	e.obs = e.obs[n:]
 }

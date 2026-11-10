@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/netip"
 	"regexp"
+	"slices"
 	"time"
 
 	"github.com/knt048/vedette/internal/jsonstrict"
@@ -150,7 +151,6 @@ var (
 	versionRE  = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$`)
 	ifaceRE    = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,14}$`)
 	macRE      = regexp.MustCompile(`^([0-9a-f]{2}:){5}[0-9a-f]{2}$`)
-	dropKeyRE  = regexp.MustCompile(`^[a-z][a-z0-9_]{0,47}$`)
 	nmapVerRE  = regexp.MustCompile(`^[0-9A-Za-z._+-]{0,32}$`)
 	etagRE     = regexp.MustCompile(`^"[A-Za-z0-9._:-]{1,64}"$`)
 	resultCode = map[string]bool{"": true, "invalid_job": true, "busy": true, "nmap_missing": true, "exec_failed": true, "deadline": true, "cancelled": true}
@@ -158,6 +158,33 @@ var (
 )
 
 const maxSeq = 1<<53 - 1
+
+// The limits of the passive heartbeat (sensor-protocol.md section 9).
+const (
+	MaxHeartbeatIfaces   = 32
+	MaxHeartbeatPrefixes = 8
+	MaxDropKeys          = 64
+)
+
+// DropKeys is the closed set of the counters a passive heartbeat may carry in drops (sensor-protocol.md 6.3): what the capture
+// process counts instead of passing on. A key outside it is a 400, like any field this protocol does not know. The capture
+// package's tests check that every counter the capture can produce is here.
+var DropKeys = []string{
+	"arp_mac_mismatch", "batch_dropped", "capture_failed", "dhcp_mac_mismatch", "dns_name_rejected", "excluded", "filters_invalid",
+	"flows_dropped", "fragment_skipped", "malformed_arp", "malformed_dhcp", "malformed_dns", "malformed_ethernet", "malformed_http",
+	"malformed_ipv4", "malformed_lldp", "malformed_mdns", "malformed_ssdp", "malformed_tcp", "malformed_tls", "malformed_udp", "metadata_dropped",
+	"metadata_failed", "new_macs_dropped", "new_macs_unconfirmed", "non_unicast_ip", "observation_failed", "observation_rejected",
+	"observations_dropped", "unusable_record", "value_empty", "value_truncated", "values_dropped", "vendor_rejected",
+}
+
+// ValidDropKey reports whether k is in DropKeys.
+func ValidDropKey(k string) bool { return slices.Contains(DropKeys, k) }
+
+// ValidIfaceName reports whether s is a card name of the protocol (sensor-protocol.md section 5).
+func ValidIfaceName(s string) bool { return ifaceRE.MatchString(s) }
+
+// ValidMAC reports whether s is a MAC of the protocol: six lower-case hex pairs separated by colons.
+func ValidMAC(s string) bool { return macRE.MatchString(s) }
 
 func invalid(what string) error {
 	return fmt.Errorf("%w: %s", errInvalid, what)
@@ -203,11 +230,11 @@ func decodePassiveHeartbeat(raw []byte) (*PassiveHeartbeat, error) {
 	if h.Span.PPS < 0 || h.Span.OtherMACs < 0 || h.DevicesSeen < 0 {
 		return nil, invalid("counter")
 	}
-	if len(h.Drops) > 64 {
+	if len(h.Drops) > MaxDropKeys {
 		return nil, invalid("drops")
 	}
 	for k, v := range h.Drops {
-		if !dropKeyRE.MatchString(k) || v < 0 {
+		if !ValidDropKey(k) || v < 0 {
 			return nil, invalid("drops")
 		}
 	}

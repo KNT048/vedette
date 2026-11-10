@@ -345,6 +345,17 @@ func (c *Client) PostResult(ctx context.Context, id string, res *JobResult) erro
 	return err
 }
 
+// PostObservations makes one attempt to deliver one batch and returns core's answer or the error: an *Error for an answer
+// that is not a 200, anything else when there was no usable answer. It never retries and never sleeps: the capture process
+// decides what a failure means for its queue (SendObservations is the version that retries on its own).
+func (c *Client) PostObservations(ctx context.Context, req *ObservationsRequest) (ObservationsReply, error) {
+	var rep ObservationsReply
+	if _, err := c.do(ctx, http.MethodPost, PathPrefix+"/observations", nil, nil, req, &rep, MaxOtherReply, 60*time.Second); err != nil {
+		return ObservationsReply{}, err
+	}
+	return rep, nil
+}
+
 // SendObservations delivers one batch the way D-112 (4) says, and returns when it was delivered (the 200, with the items it
 // rejected, which are never sent again), given up on (ErrDropped), or ctx ended.
 //   - no answer (connection error, core restarting): the same batch again after a backoff;

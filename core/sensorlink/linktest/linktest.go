@@ -84,3 +84,30 @@ func (l *Link) Client(t testing.TB, r sensorlink.Role) *sensorlink.Client {
 	}
 	return c
 }
+
+// PassiveAPI is the passive half of a sensorlink.Backend: the three calls of the passive role.
+type PassiveAPI interface {
+	Config(ctx context.Context, wait time.Duration, ifNoneMatch string) (sensorlink.ConfigReply, error)
+	Observations(ctx context.Context, req *sensorlink.ObservationsRequest) (sensorlink.ObservationsReply, error)
+	PassiveHeartbeat(ctx context.Context, hb *sensorlink.PassiveHeartbeat) (string, error)
+}
+
+// Passive makes a Backend of the passive half alone: the calls of the active role answer forbidden_route (the server never
+// routes them there, so a passive module can be tested without an active one).
+func Passive(p PassiveAPI) sensorlink.Backend { return passiveOnly{p} }
+
+type passiveOnly struct{ PassiveAPI }
+
+func (passiveOnly) ActiveHeartbeat(context.Context, *sensorlink.ActiveHeartbeat) (string, error) {
+	return "", sensorlink.NewError(sensorlink.CodeForbiddenRoute)
+}
+
+func (passiveOnly) Jobs(context.Context, time.Duration, string) (sensorlink.JobsReply, error) {
+	return sensorlink.JobsReply{}, sensorlink.NewError(sensorlink.CodeForbiddenRoute)
+}
+
+func (passiveOnly) JobRunning(string) bool { return false }
+
+func (passiveOnly) JobResult(context.Context, string, *sensorlink.JobResult) error {
+	return sensorlink.NewError(sensorlink.CodeForbiddenRoute)
+}

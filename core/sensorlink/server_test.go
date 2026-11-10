@@ -214,6 +214,7 @@ func TestStrictDecodingAnd400(t *testing.T) {
 		{"33 interfaces", "/sensor/v1/heartbeat", pass, `{"version":"1.4.0","interfaces":[` + strings.TrimSuffix(strings.Repeat(`{"name":"e","mac":"aa:bb:cc:00:00:01","link":true,"ipv4":[]},`, 33), ",") + `],"span":{"pps":0,"other_macs":0,"last_packet_at":null},"drops":{},"devices_seen":0}`, nil},
 		{"negative counter", "/sensor/v1/heartbeat", pass, strings.Replace(hbSpan, `"devices_seen":214`, `"devices_seen":-1`, 1), nil},
 		{"drops key with a space", "/sensor/v1/heartbeat", pass, strings.Replace(hbSpan, `malformed_dhcp`, `malformed dhcp`, 1), nil},
+		{"drops key outside the closed set", "/sensor/v1/heartbeat", pass, strings.Replace(hbSpan, `malformed_dhcp`, `something_else`, 1), nil},
 		{"result with an unknown status", "/sensor/v1/jobs/" + jobID + "/result", act, strings.Replace(resBody, `"done"`, `"great"`, 1), nil},
 		{"result xml on a failed job", "/sensor/v1/jobs/" + jobID + "/result", act, strings.Replace(resBody, `"done"`, `"failed"`, 1), nil},
 		{"result with bad base64", "/sensor/v1/jobs/" + jobID + "/result", act, strings.Replace(resBody, `PHhtbC8+`, `!!!`, 1), nil},

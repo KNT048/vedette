@@ -161,7 +161,7 @@ Mỗi 30 s. Thân theo vai (giải mã chặt: trường của vai kia là trư�
 |---|---|
 | `interfaces` (passive) | ≤ 32 card; `ipv4` ≤ 8 tiền tố mỗi card |
 | `span` (passive) | `pps` ≥ 0; `other_macs` = số MAC khác hộp thấy trong 5 phút (chỉ khung unicast giữa hai máy không phải hộp, sensor-passive INV-9); `last_packet_at` hoặc `null` |
-| `drops` (passive) | ≤ 64 khoá thuộc **tập đóng** của bộ đếm bỏ trong `capture` (`malformed_*`, `excluded`, `value_empty`, `fragment_skipped`, `new_macs_unconfirmed`, `new_macs_dropped`, `values_dropped`, `observation_failed`…; danh sách chốt trong mã ở SP-4); giá trị ≥ 0 |
+| `drops` (passive) | ≤ 64 khoá thuộc **tập đóng** của bộ đếm bỏ trong `capture` (`malformed_*`, `excluded`, `value_empty`, `fragment_skipped`, `new_macs_unconfirmed`, `new_macs_dropped`, `values_dropped`, `observation_failed`…; 34 khoá, danh sách ở khối "SP-4" của §6 và `sensorlink.DropKeys`); giá trị ≥ 0 |
 | `devices_seen` (passive) | ≥ 0 |
 | `nmap` (active) | `present` = `/usr/bin/nmap` có và chạy được `--version`; `version` ≤ 32 byte |
 
@@ -241,6 +241,15 @@ Trên dây **không** có argv, cờ, đường dẫn, URL hay phạm vi (D-111 
 - Worker gửi lại kết quả khi 429, 503 hoặc lỗi kết nối (sau `Retry-After`/quãng lùi, trong 60 s), không gửi lại khi 400, 403, 404, 409, 413; vòng poll chờ cho tới khi kết quả đã gửi xong. Id job không khớp `^[0-9a-f]{32}$` bị bỏ, không dùng trong URL hay log.
 - Bó khoá phải là tệp thường, trong thư mục không phải symlink, mode nằm trong `0640` (core ghi `0640`; bit nào ngoài đó, như nhóm ghi hay người khác đọc, bị từ chối); client mở qua `os.OpenRoot` của thư mục chứa.
 - Hậu quả của kết quả trong `core`: mã thoát `> 0` → probe `failed` (nmap thoát mã đó); `< 0` hoặc `status ≠ done` → `failed`; `refused` → `failed`, log ERROR; `reason=nmap_missing` → `unavailable` tới heartbeat kế tiếp. Dòng `sa_probe.result` ghi mã: `worker_unavailable`, `worker_lost`, `nmap_missing`.
+
+**SP-4 (làm rõ, mã `modules/sensor-passive/{capture,backend.go}`, D-122).**
+- Mỗi lần gửi `observations` dùng một `seq` mới trong cùng một `epoch`, kể cả khi gửi lại các mục đã gửi hụt: lô gửi lại có thể là tập mục khác (đã chia đôi, đã bỏ mục độc), và `core` bỏ `seq` đã thấy. Sensor thử lại **sau** `Retry-After` của `core` nhưng không quá 60 s; một lỗi kết nối, `426`, `429`, `503` và `403 cert_retired` là "thử lại"; `413` chia đôi (một mục vẫn `413` thì bỏ); mọi mã khác bỏ lô và đếm `batch_dropped`. Một lô hỏng 3 lần liên tiếp bị chia đôi cho tới khi một mục đứng riêng; mục đó bị bỏ (đếm `observation_failed`) chỉ khi một heartbeat vừa thành công.
+- Kiểm mục ở `core`: `mac` đúng dạng (chữ thường) và không phải địa chỉ nhóm hay toàn không; `ip` IPv4 unicast (IPv6 là `invalid_item`, vì tài sản chỉ có địa chỉ IPv4); `confidence` ngoài [0,1] là `invalid_item`, trong khoảng thì kẹp theo trần của trường: `mac` 0.9, `hostname` 0.7, `kind` 0.6, `model` 0.5, `vendor` 0.4, `os` 0.3; thiếu `seen_at` là `out_of_window`.
+- Hạn mức chống ngập tính **trước** khi ghi và áp vào hạn mức **sau** khi inventory nhận: kho lỗi (`503`) không tốn hạn mức. Mục không có MAC tính theo địa chỉ IP. "Hết hạn mức" được ghi log một lần mỗi phút.
+- `drops` chỉ nhận **34 khoá**: `arp_mac_mismatch`, `batch_dropped`, `capture_failed`, `dhcp_mac_mismatch`, `dns_name_rejected`, `excluded`, `filters_invalid`, `flows_dropped`, `fragment_skipped`, `malformed_{arp,dhcp,dns,ethernet,http,ipv4,lldp,mdns,ssdp,tcp,tls,udp}`, `metadata_dropped`, `metadata_failed`, `new_macs_dropped`, `new_macs_unconfirmed`, `non_unicast_ip`, `observation_failed`, `observation_rejected`, `observations_dropped`, `unusable_record`, `value_empty`, `value_truncated`, `values_dropped`, `vendor_rejected`; khoá khác là `400`. Giá trị là bộ đếm cộng dồn từ lúc tiến trình sensor khởi động. `filters_invalid` tăng mỗi lần sensor nhận một bộ lọc nó không biên dịch được; lúc đó nó không bắt gói.
+- Sensor gửi heartbeat ngay khi khởi động và mỗi 30 s, kể cả khi `config` nói `interface ""`; trong lúc `module_off` nó không gửi. Danh sách `interfaces` bị lọc theo hình dạng của dây (tên card theo regex, MAC chữ thường, ≤ 32 card, ≤ 8 tiền tố IPv4 mỗi card).
+- `config` long-poll: `core` đọc lại cài đặt (bộ lọc của trang network) mỗi 5 s trong lúc giữ request, và `SetInterface` đánh thức ngay. Bộ lọc `core` không đọc được cho `interface ""` (cùng ETag với cấu hình "không bắt gói" thường).
+- `Client.PostObservations` là một lần thử, không lùi, không ngủ; `SendObservations` (thử lại trong client) vẫn có cho người gọi không có hàng đợi của riêng mình.
 
 ## 7. Bảng lỗi
 

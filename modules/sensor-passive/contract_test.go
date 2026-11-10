@@ -23,10 +23,12 @@ import (
 
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/inventory"
 	sp "github.com/knt048/vedette/modules/sensor-passive"
+	"github.com/knt048/vedette/modules/sensor-passive/capture"
 	"github.com/knt048/vedette/modules/sensor-passive/internal/pktgen"
 )
 
@@ -34,7 +36,7 @@ func frames() map[string][]pktgen.Frame {
 	return map[string][]pktgen.Frame{"eth0": pktgen.LANDiscovery(), "eth1": pktgen.SpanMetadata()}
 }
 
-// sources parses every non-test Go file of the package (all build tags: the Linux file is read too).
+// sources parses every non-test Go file of the package and of its capture subpackage (all build tags: the Linux file is read too).
 func sources(t *testing.T) map[string]*ast.File {
 	t.Helper()
 	fset := token.NewFileSet()
@@ -42,6 +44,11 @@ func sources(t *testing.T) map[string]*ast.File {
 	if err != nil {
 		t.Fatal(err)
 	}
+	more, err := filepath.Glob("capture/*.go") // the capture half lives in a package of its own
+	if err != nil {
+		t.Fatal(err)
+	}
+	files = append(files, more...)
 	out := map[string]*ast.File{}
 	for _, f := range files {
 		if strings.HasSuffix(f, "_test.go") {
@@ -83,9 +90,9 @@ func TestContract_INV1_NeverTransmits(t *testing.T) {
 
 func checkNeverTransmits(t *testing.T) {
 	t.Helper()
-	var _ sp.Source = (*sp.FileSource)(nil) // compile time: FileSource is a Source, and Source is only Next+Close
+	var _ capture.Source = (*capture.FileSource)(nil) // compile time: FileSource is a Source, and Source is only Next+Close
 	want := []string{"Close", "Next"}
-	for name, typ := range map[string]reflect.Type{"FileSource": reflect.TypeOf(&sp.FileSource{}), "Source": reflect.TypeFor[sp.Source]()} {
+	for name, typ := range map[string]reflect.Type{"FileSource": reflect.TypeOf(&capture.FileSource{}), "Source": reflect.TypeFor[capture.Source]()} {
 		var got []string
 		for i := range typ.NumMethod() {
 			got = append(got, typ.Method(i).Name)
@@ -154,14 +161,14 @@ func TestContract_INV2_OnlyNetRawNoListener(t *testing.T) {
 func TestContract_INV3_NoPayloadStored(t *testing.T) {
 	t.Parallel()
 	var fields []string
-	for f := range reflect.TypeFor[sp.MetaItem]().Fields() {
+	for f := range reflect.TypeFor[capture.MetaItem]().Fields() {
 		fields = append(fields, f.Name)
 	}
 	allowed := []string{"Kind", "At", "SrcMAC", "SrcIP", "DstIP", "Name", "QType", "Proto", "SrcPort", "DstPort", "Packets", "Bytes", "First"}
 	if !slices.Equal(fields, allowed) {
 		t.Fatalf("MetaItem fields %v, want %v: a new field is a new thing stored about traffic; change CONTRACT INV-3 first (D-43)", fields, allowed)
 	}
-	for f := range reflect.TypeFor[sp.MetaItem]().Fields() {
+	for f := range reflect.TypeFor[capture.MetaItem]().Fields() {
 		if k := f.Type.Kind(); k == reflect.Slice || k == reflect.Map || k == reflect.Interface || k == reflect.Pointer {
 			t.Errorf("MetaItem.%s is a %s: it could carry bytes of a packet", f.Name, k)
 		}
@@ -170,9 +177,9 @@ func TestContract_INV3_NoPayloadStored(t *testing.T) {
 	e.host.setFilters()
 	e.setInterface("eth1", true)
 	stop := e.run()
-	want := []sp.MetaKind{sp.MetaDNS, sp.MetaSNI, sp.MetaHTTP, sp.MetaFlow}
-	kindsOf := func(items []sp.MetaItem) map[sp.MetaKind]bool {
-		k := map[sp.MetaKind]bool{}
+	want := []capture.MetaKind{capture.MetaDNS, capture.MetaSNI, capture.MetaHTTP, capture.MetaFlow}
+	kindsOf := func(items []capture.MetaItem) map[capture.MetaKind]bool {
+		k := map[capture.MetaKind]bool{}
 		for _, it := range items {
 			k[it.Kind] = true
 		}
@@ -181,7 +188,7 @@ func TestContract_INV3_NoPayloadStored(t *testing.T) {
 	// Wait for every kind, not for the first item: a slow machine delivers the recording in several flushes.
 	waitFor(t, "metadata of every kind", func() bool {
 		k := kindsOf(e.meta.all())
-		return e.sink.count() > 0 && k[sp.MetaDNS] && k[sp.MetaSNI] && k[sp.MetaHTTP] && k[sp.MetaFlow]
+		return e.sink.count() > 0 && k[capture.MetaDNS] && k[capture.MetaSNI] && k[capture.MetaHTTP] && k[capture.MetaFlow]
 	})
 	stop()
 	items := e.meta.all()
@@ -248,7 +255,7 @@ func columns(t *testing.T, e *env, tables ...string) []string {
 // INV-4: there is a fuzz target for every parser, malformed input is counted and the loop carries on.
 func TestContract_INV4_ParsersAreFuzzedAndFailClosed(t *testing.T) {
 	t.Parallel()
-	src, err := os.ReadFile("fuzz_test.go")
+	src, err := os.ReadFile("capture/fuzz_test.go")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -333,7 +340,7 @@ func TestContract_INV6_NewMACUnapprovedBoxIsNotADevice(t *testing.T) {
 func TestContract_INV7_ExclusionBeforeExtraction(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, map[string][]pktgen.Frame{"eth1": pktgen.SpanMetadata()}, false)
-	e.host.setFilters(sp.Filter{Type: "cidr", Value: pktgen.PhoneIP.String() + "/32"}, sp.Filter{Type: "host", Value: pktgen.PCIP.String()})
+	e.host.setFilters(sensorlink.Filter{Type: "cidr", Value: pktgen.PhoneIP.String() + "/32"}, sensorlink.Filter{Type: "host", Value: pktgen.PCIP.String()})
 	e.setInterface("eth1", true)
 	stop := e.run()
 	waitFor(t, "the printer's ARP", func() bool { return e.sink.count() > 0 })
@@ -355,7 +362,7 @@ func TestContract_INV7_ExclusionBeforeExtraction(t *testing.T) {
 	}
 	// an unreadable filter stops the capture instead of being ignored
 	bad := newEnv(t, map[string][]pktgen.Frame{"eth1": pktgen.SpanMetadata()}, false)
-	bad.host.setFilters(sp.Filter{Type: "port", Value: "nope"})
+	bad.host.setFilters(sensorlink.Filter{Type: "port", Value: "nope"})
 	bad.setInterface("eth1", true)
 	stopBad := bad.run()
 	pause(t, 100*time.Millisecond)
@@ -365,19 +372,22 @@ func TestContract_INV7_ExclusionBeforeExtraction(t *testing.T) {
 	}
 }
 
-// INV-8: the sensor only calls out, and a batch is applied once per seq (here in process).
+// INV-8: the sensor only calls out, and a batch is applied once per (epoch, seq).
 func TestContract_INV8_OutboundOnlyIdempotentBySeq(t *testing.T) {
 	t.Parallel()
 	checkNeverTransmits(t) // no listener and no sender: the package cannot be called into
 	e := newEnv(t, nil, false)
 	ctx := t.Context()
-	batch := []observe.Observation{{AssetHint: observe.AssetHint{MAC: "aa:bb:cc:00:00:99"}, Field: observe.Hostname, Value: "x", Source: observe.Passive, Confidence: 0.6}}
-	applied, err := e.svc.SubmitBatch(ctx, sp.SensorID, 1, batch)
-	if err != nil || !applied {
-		t.Fatalf("first submit: %v %v", applied, err)
+	batch := func(seq int64, value string) *sensorlink.ObservationsRequest {
+		return &sensorlink.ObservationsRequest{Epoch: strings.Repeat("a", 32), Seq: seq, Items: []sensorlink.ObservationItem{
+			{MAC: "aa:bb:cc:00:00:99", Field: "hostname", Value: value, Confidence: 0.6, SeenAt: pktgen.T0}}}
 	}
-	if applied, err := e.svc.SubmitBatch(ctx, sp.SensorID, 1, batch); err != nil || applied {
-		t.Fatalf("replayed seq: %v %v", applied, err)
+	rep, err := e.svc.Observations(ctx, batch(1, "x"))
+	if err != nil || rep.AckSeq != 1 || len(rep.Rejected) != 0 {
+		t.Fatalf("first submit: %+v %v", rep, err)
+	}
+	if rep, err := e.svc.Observations(ctx, batch(1, "x")); err != nil || rep.AckSeq != 1 || len(rep.Rejected) != 0 {
+		t.Fatalf("replayed seq: %+v %v", rep, err)
 	}
 	if n := e.obsCount(func(o inventory.ObservationRow) bool { return o.Value == "x" && o.Source == "passive" }); n != 1 {
 		t.Fatalf("%d observations after a replay, want 1", n)
@@ -419,10 +429,11 @@ func TestContract_INV9_InterfaceRulesAndOwnOnlyWarning(t *testing.T) {
 		st, err := e.svc.SpanStats(ctx)
 		return err == nil && st.Verdict == sp.VerdictOwnOnly
 	})
-	e.host.setLink("eth1", false)
-	if st, _ := e.svc.SpanStats(ctx); st.Verdict != sp.VerdictNoLink {
-		t.Errorf("cable out: %+v", st)
-	}
+	e.host.setLink("eth1", false) // the sensor says so in its next heartbeat
+	waitFor(t, "no_link", func() bool {
+		st, _ := e.svc.SpanStats(ctx)
+		return st.Verdict == sp.VerdictNoLink
+	})
 }
 
 // INV-10: Fingerbank is not part of this module yet; nothing in it can reach out.
@@ -442,10 +453,10 @@ func TestContract_INV10_FingerbankAbsent(t *testing.T) {
 func TestContract_POST1_OnlineWhileCapturing(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, frames(), true)
-	e.setInterface("eth0", false)
-	if list, _ := e.svc.Status(t.Context()); list[0].Status != "offline" || list[0].LastSeen != nil {
-		t.Fatalf("before capture: %+v", list[0])
+	if list, _ := e.svc.Status(t.Context()); list[0].Status != "offline" || list[0].LastSeen != nil || len(list[0].Interfaces) != 0 {
+		t.Fatalf("before the sensor said anything: %+v", list[0])
 	}
+	e.setInterface("eth0", false)
 	e.run()
 	waitFor(t, "online", func() bool {
 		list, err := e.svc.Status(t.Context())
@@ -472,37 +483,51 @@ func TestContract_POST2_CaptureMovesToTheNewCard(t *testing.T) {
 	waitFor(t, "SPAN metadata after the move", func() bool { return len(e.meta.all()) > 0 })
 }
 
-// POST-3: the same seq twice creates no second observation; seq must increase.
+// POST-3: the same seq twice creates no second observation; a lower one neither; a new epoch starts over.
 func TestContract_POST3_SameSeqNoSecondObservation(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, nil, false)
-	obs := func(v string) []observe.Observation {
-		return []observe.Observation{{AssetHint: observe.AssetHint{MAC: "aa:bb:cc:00:00:98"}, Field: observe.Hostname, Value: v, Source: observe.Passive, Confidence: 0.6}}
+	epoch := strings.Repeat("b", 32)
+	req := func(epoch string, seq int64, v string) *sensorlink.ObservationsRequest {
+		return &sensorlink.ObservationsRequest{Epoch: epoch, Seq: seq, Items: []sensorlink.ObservationItem{
+			{MAC: "aa:bb:cc:00:00:98", Field: "hostname", Value: v, Confidence: 0.6, SeenAt: pktgen.T0}}}
 	}
 	ctx := t.Context()
 	for _, c := range []struct {
-		seq     uint64
-		val     string
-		applied bool
-	}{{5, "one", true}, {5, "two", false}, {4, "three", false}, {6, "four", true}} {
-		got, err := e.svc.SubmitBatch(ctx, sp.SensorID, c.seq, obs(c.val))
-		if err != nil || got != c.applied {
-			t.Errorf("seq %d: applied %v err %v, want %v", c.seq, got, err, c.applied)
+		seq int64
+		val string
+	}{{5, "one"}, {5, "two"}, {4, "three"}, {6, "four"}} {
+		rep, err := e.svc.Observations(ctx, req(epoch, c.seq, c.val))
+		if err != nil || rep.AckSeq != c.seq {
+			t.Errorf("seq %d: %+v %v", c.seq, rep, err)
 		}
 	}
-	if n := e.obsCount(func(o inventory.ObservationRow) bool { return o.Source == "passive" && o.Field == "hostname" }); n != 2 {
-		t.Errorf("%d hostname observations, want 2", n)
+	hostnames := func() int {
+		return e.obsCount(func(o inventory.ObservationRow) bool { return o.Source == "passive" && o.Field == "hostname" })
 	}
-	if _, err := e.svc.SubmitBatch(ctx, sp.SensorID, 0, nil); !errors.Is(err, sp.ErrInvalid) {
+	if n := hostnames(); n != 2 {
+		t.Errorf("%d hostname observations, want 2 (one, four)", n)
+	}
+	if e.count(`SELECT last_seq FROM sp_seq WHERE epoch = '`+epoch+`'`) != 6 {
+		t.Error("last_seq of the epoch is not 6")
+	}
+	if _, err := e.svc.Observations(ctx, req(epoch, 1, "after a restart")); err != nil { // an old seq of a known epoch
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Observations(ctx, req(strings.Repeat("c", 32), 1, "new epoch")); err != nil { // the sensor restarted: seq 1 of a new epoch counts
+		t.Fatal(err)
+	}
+	if n := hostnames(); n != 3 {
+		t.Errorf("%d hostname observations after a new epoch, want 3", n)
+	}
+	var e1 *sensorlink.Error
+	if _, err := e.svc.Observations(ctx, req(epoch, 0, "x")); !errors.As(err, &e1) || e1.Code != sensorlink.CodeInvalidRequest {
 		t.Errorf("seq 0: %v", err)
 	}
-	bad := obs("x")
-	bad[0].Source = observe.Agent
-	if _, err := e.svc.SubmitBatch(ctx, sp.SensorID, 9, bad); !errors.Is(err, sp.ErrInvalid) {
-		t.Errorf("a non-passive source: %v", err)
-	}
-	if e.count(`SELECT last_seq FROM sp_seq`) != 6 {
-		t.Error("last_seq is not 6")
+	rep, err := e.svc.Observations(ctx, &sensorlink.ObservationsRequest{Epoch: strings.Repeat("d", 32), Seq: 1, Items: []sensorlink.ObservationItem{
+		{MAC: "aa:bb:cc:00:00:97", Field: "ip", Value: "x", Confidence: 0.5, SeenAt: pktgen.T0}}})
+	if err != nil || len(rep.Rejected) != 1 || rep.Rejected[0].Code != "invalid_item" {
+		t.Errorf("an unknown field: %+v %v", rep, err)
 	}
 }
 
@@ -550,7 +575,7 @@ func TestContract_CaptureFollowsTheModuleSwitch(t *testing.T) {
 	e.setInterface("eth0", false)
 	gate := &switchGate{on: map[string]bool{}}
 	sched := jobs.New(nopLog(), gate, nil)
-	if err := sched.Add(jobs.Job{Module: "sensor-passive", Name: "capture", Every: 20 * time.Millisecond, Run: e.svc.Run}); err != nil {
+	if err := sched.Add(jobs.Job{Module: "sensor-passive", Name: "capture", Every: 20 * time.Millisecond, Run: e.job()}); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(t.Context())
@@ -600,7 +625,7 @@ func TestContract_NoGoroutineLeakAcrossSwitches(t *testing.T) {
 	e.setInterface("eth0", false)
 	gate := &switchGate{on: map[string]bool{}}
 	sched := jobs.New(nopLog(), gate, nil)
-	if err := sched.Add(jobs.Job{Module: "sensor-passive", Name: "capture", Every: 10 * time.Millisecond, Run: e.svc.Run}); err != nil {
+	if err := sched.Add(jobs.Job{Module: "sensor-passive", Name: "capture", Every: 10 * time.Millisecond, Run: e.job()}); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(t.Context())
@@ -629,7 +654,11 @@ func TestContract_NoGoroutineLeakAcrossSwitches(t *testing.T) {
 	}
 	pause(t, 100*time.Millisecond)
 	runtime.GC()
-	if after := runtime.NumGoroutine(); after > base+1 {
+	slack := 1
+	if remoteMode() {
+		slack = 8 // the client's connection and the test server's: the link keeps a few goroutines of its own while it is idle
+	}
+	if after := runtime.NumGoroutine(); after > base+slack {
 		buf := make([]byte, 1<<16)
 		t.Errorf("leak: %d -> %d\n%s", base, after, buf[:runtime.Stack(buf, true)])
 	}

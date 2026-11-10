@@ -88,7 +88,7 @@ func TestWiringSensorCardsComeFromTheHost(t *testing.T) {
 	if err != nil || len(got) != 2 || got[0].Name != "eth0" || got[1].Name != "eth1" {
 		t.Fatalf("cards = %+v, %v", got, err)
 	}
-	if len(got[0].Addresses) != 1 || got[0].Addresses[0] != netip.MustParseAddr("192.168.10.250") || len(got[1].Addresses) != 0 || !got[0].Link {
+	if len(got[0].Addresses) != 1 || got[0].Addresses[0].Addr() != netip.MustParseAddr("192.168.10.250") || len(got[1].Addresses) != 0 || !got[0].Link {
 		t.Errorf("addresses = %+v", got)
 	}
 	// The host hiccups: the last list, no error (the capture loop must not go into back-off for it).

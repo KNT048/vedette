@@ -1,4 +1,4 @@
-package sensorpassive
+package capture
 
 import (
 	"container/list"
@@ -88,9 +88,15 @@ type deviceBook struct {
 }
 
 func newDeviceBook(lim bookLimits) *deviceBook {
-	return &deviceBook{lim: lim, seed: maphash.MakeSeed(), ring: make([]firstSlot, maxFirstSightings), slots: map[mac]int{},
-		lru: list.New(), index: map[mac]*list.Element{}}
+	b := &deviceBook{lim: lim, seed: maphash.MakeSeed(), slots: map[mac]int{}, lru: list.New(), index: map[mac]*list.Element{}}
+	if lim.ConfirmAfter > 0 { // the ring of first sightings exists only where a second frame is asked for
+		b.ring = make([]firstSlot, maxFirstSightings)
+	}
+	return b
 }
+
+// hashOf is the keyed hash the book keeps instead of a value.
+func hashOf(b *deviceBook, value string) uint64 { return maphash.String(b.seed, value) }
 
 // admit decides what to do with a source MAC seen at now. Known devices always pass (a flood must not blind the
 // sensor to the devices that exist); a new one needs a second frame at least ConfirmAfter after its first while that

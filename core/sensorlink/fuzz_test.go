@@ -41,7 +41,7 @@ func FuzzDecodePassiveHeartbeat(f *testing.F) {
 			}
 		}
 		for k, v := range h.Drops {
-			if v < 0 || !dropKeyRE.MatchString(k) {
+			if v < 0 || !ValidDropKey(k) {
 				t.Fatalf("accepted drop %q=%d", k, v)
 			}
 		}

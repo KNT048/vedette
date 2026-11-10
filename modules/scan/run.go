@@ -187,6 +187,9 @@ type runSpec struct {
 	first   Current   // the device the run begins with: shown as current from the start (POST-1)
 	onlyCVE string    // "": every CVE of the devices' findings; else only this one (the KEV rescan, INV-9)
 	end     time.Time // zero: none; else the run stops by itself then (the end of the window of a scheduled run)
+	// inTx, when set, runs in the transaction that writes the run row: what the run is for (the schedule slot, the
+	// KEV event) is recorded with it or not at all (#164 review L4).
+	inTx func(ctx context.Context, tx *sql.Tx, runID string) error
 }
 
 // start writes the run row and its audit row, then runs it in the background.
@@ -243,6 +246,9 @@ VALUES (?, ?, ?, ?, ?, 'running', ?, ?, ?, ?)`, id, sp.trigger, sp.note, now, sp
 			if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: sp.user, Action: "scan.pick", Target: p, Detail: "run " + id}); err != nil {
 				return err
 			}
+		}
+		if sp.inTx != nil {
+			return sp.inTx(ctx, tx, id)
 		}
 		return nil
 	})

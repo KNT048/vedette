@@ -196,23 +196,32 @@ func (s *Service) rescan(ctx context.Context, ev pendingEvent) error {
 	if len(ids) == 0 {
 		return s.closeEvent(ctx, ev.id, "no_match", nil, nil, nil)
 	}
-	note := "New KEV entry with a scan template: " + ev.cve
-	v, err := s.startAuto(ctx, "new_kev", &note, ids, first, ev.cve, time.Time{})
-	if errors.Is(err, errRunning) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
 	latency := now.Sub(ev.ts).Minutes()
 	b, err := json.Marshal(names)
 	if err != nil {
 		return fmt.Errorf("scan: encoding the devices of a rescan: %w", err)
 	}
-	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `UPDATE scan_event SET run_id = ?, latency_min = ?, devices = ? WHERE id = ?`, v.ID, latency, string(b), ev.id)
+	// The event is linked in the transaction that writes the run (#164 review L4): no run the event does not know of,
+	// which the next pass would start again.
+	link := func(ctx context.Context, tx *sql.Tx, runID string) error {
+		res, err := tx.ExecContext(ctx, `UPDATE scan_event SET run_id = ?, latency_min = ?, devices = ? WHERE id = ? AND run_id IS NULL`, runID, latency, string(b), ev.id)
+		if err != nil {
+			return fmt.Errorf("scan: linking the rescan event: %w", err)
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("scan: linking the rescan event: %w", err)
+		}
+		if n != 1 {
+			return fmt.Errorf("scan: the rescan event %s is gone or already has a run", ev.id)
+		}
+		return nil
+	}
+	note := "New KEV entry with a scan template: " + ev.cve
+	if _, err := s.startAuto(ctx, "new_kev", &note, ids, first, ev.cve, time.Time{}, link); err != nil && !errors.Is(err, errRunning) {
 		return err
-	})
+	}
+	return nil
 }
 
 // dropEvent removes an event that waited pendingFor without a scan, and says why in the log. The scheduled scan still
@@ -273,9 +282,10 @@ func labels(rows []RunRow) []string {
 
 // startAuto starts a run nobody picked: schedule or new_kev. Devices are checked with explicit=false (D-126 (2)).
 // onlyCVE limits the run to one CVE (the KEV rescan); end, when set, is where the run stops by itself (the end of
-// the window of a scheduled run).
-func (s *Service) startAuto(ctx context.Context, trigger string, note *string, ids []string, first Current, onlyCVE string, end time.Time) (RunView, error) {
-	return s.start(ctx, runSpec{trigger: trigger, note: note, user: systemUser, ids: ids, first: first, onlyCVE: onlyCVE, end: end})
+// the window of a scheduled run); inTx records what the run is for in the transaction of its row (runSpec.inTx).
+func (s *Service) startAuto(ctx context.Context, trigger string, note *string, ids []string, first Current, onlyCVE string, end time.Time,
+	inTx func(ctx context.Context, tx *sql.Tx, runID string) error) (RunView, error) {
+	return s.start(ctx, runSpec{trigger: trigger, note: note, user: systemUser, ids: ids, first: first, onlyCVE: onlyCVE, end: end, inTx: inTx})
 }
 
 // RunSchedule starts the scheduled run of the latest slot while that slot's own window is open (S-SCAN-4, POST-3);
@@ -325,22 +335,29 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 		}
 		ids = append(ids, d.ID)
 	}
-	if len(ids) > 0 {
-		if _, err := s.startAuto(ctx, "schedule", nil, ids, first, "", end); err != nil && !errors.Is(err, errRunning) {
-			return err
-		}
+	if len(ids) == 0 { // nothing may be scanned without a pick: the slot is done
+		return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return markSlot(ctx, tx, *slot) })
 	}
-	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `UPDATE scan_setting SET sched_last = ? WHERE id = 1`, store.FormatTS(*slot))
+	// The slot is recorded in the transaction that writes its run (#164 review L4): a failure leaves neither, so a slot
+	// never has a run and still looks open. A start refused because a run or the engine is busy leaves the slot open
+	// for the next tick while its window lasts.
+	mark := func(ctx context.Context, tx *sql.Tx, _ string) error { return markSlot(ctx, tx, *slot) }
+	if _, err := s.startAuto(ctx, "schedule", nil, ids, first, "", end, mark); err != nil && !errors.Is(err, errRunning) {
 		return err
-	})
+	}
+	return nil
+}
+
+func markSlot(ctx context.Context, tx *sql.Tx, slot time.Time) error {
+	_, err := tx.ExecContext(ctx, `UPDATE scan_setting SET sched_last = ? WHERE id = 1`, store.FormatTS(slot))
+	return err
 }
 
 // missSlot records a slot whose window closed before its run could start, with an audit row when it was due.
 func (s *Service) missSlot(ctx context.Context, slot time.Time, due bool) error {
 	ts := store.FormatTS(slot)
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `UPDATE scan_setting SET sched_last = ? WHERE id = 1`, ts); err != nil {
+		if err := markSlot(ctx, tx, slot); err != nil {
 			return err
 		}
 		if !due {

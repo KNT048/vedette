@@ -13,9 +13,11 @@ import (
 const good = `# written by the installer
 core_uid = 10001
 core_gid = 10002
+sensor_uid = 10003
+sensor_gid = 10004
 core_unit = vedette-core.service
 socket = /run/vedette/host.sock
-socket_gid=990
+socket_gid=10002
 `
 
 func TestParse(t *testing.T) {
@@ -24,9 +26,20 @@ func TestParse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := config.Config{CoreUID: 10001, CoreGID: 10002, CoreUnit: "vedette-core.service", Socket: "/run/vedette/host.sock", SocketGID: 990}
+	want := config.Config{CoreUID: 10001, CoreGID: 10002, SensorUID: 10003, SensorGID: 10004, CoreUnit: "vedette-core.service", Socket: "/run/vedette/host.sock", SocketGID: 10002}
 	if c != want {
 		t.Fatalf("got %+v, want %+v", c, want)
+	}
+}
+
+// The sensor ids are optional as a pair: the host starts without them, and only the units that
+// need them answer host_conf_incomplete (D-123).
+func TestParseSensorIdsAreOptionalAsAPair(t *testing.T) {
+	t.Parallel()
+	bare := strings.Replace(strings.Replace(good, "sensor_uid = 10003\n", "", 1), "sensor_gid = 10004\n", "", 1)
+	c, err := config.Parse(strings.NewReader(bare))
+	if err != nil || c.SensorUID != 0 || c.SensorGID != 0 {
+		t.Fatalf("%+v %v", c, err)
 	}
 }
 
@@ -54,6 +67,15 @@ func TestParseRejects(t *testing.T) {
 	tests := map[string]string{
 		"empty":              "",
 		"missing key":        "core_uid=1\ncore_gid=1\ncore_unit=a.service\nsocket=/x/y\n",
+		"only sensor_uid":    strings.Replace(good, "sensor_gid = 10004\n", "", 1),
+		"only sensor_gid":    strings.Replace(good, "sensor_uid = 10003\n", "", 1),
+		"core_gid not sock":  strings.Replace(good, "socket_gid=10002", "socket_gid=990", 1),
+		"sensor_uid is 0":    strings.Replace(good, "10003", "0", 1),
+		"sensor_gid is 0":    strings.Replace(good, "10004", "0", 1),
+		"sensor_uid is core": strings.Replace(good, "10003", "10001", 1),
+		"sensor_gid is core": strings.Replace(good, "10004", "10002", 1),
+		"hex sensor_uid":     strings.Replace(good, "10003", "0x10", 1),
+		"sensor_uid repeats": good + "sensor_uid = 5\n",
 		"missing core_gid":   strings.Replace(good, "core_gid = 10002\n", "", 1),
 		"core_gid repeated":  good + "core_gid = 5\n",
 		"negative core_gid":  strings.Replace(good, "10002", "-1", 1),

@@ -3,6 +3,8 @@ package ops
 import (
 	"io"
 	"time"
+
+	"github.com/knt048/vedette/host/server"
 )
 
 // Internals that the external tests (package ops_test) need.
@@ -56,3 +58,14 @@ func RetainExports(sizes []int64) (kept []int) {
 
 // NetPending exposes the network-change-pending check of os.reboot.
 func (o *Ops) NetPending() bool { return o.netPending() }
+
+// WriteUnit writes a service's unit through the root write path (units.go).
+func (o *Ops) WriteUnit(service string, text []byte, keepPrev bool) error {
+	return o.writeUnit(service, text, keepPrev)
+}
+
+// ErrUnitUnsafe is what the root write path answers for a link, a bad owner or an open directory.
+var ErrUnitUnsafe = errUnitUnsafe
+
+// ErrWriteBusy is what a Locker answers while a command holds the write lock.
+var ErrWriteBusy = server.ErrWriteBusy
